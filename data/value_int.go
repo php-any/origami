@@ -1,0 +1,40 @@
+package data
+
+import (
+	"fmt"
+)
+
+func NewIntValue(v int) Value {
+	return &IntValue{
+		Value: v,
+	}
+}
+
+type AsInt interface {
+	Value
+	AsInt() (int, error)
+}
+
+type IntValue struct {
+	Value int
+}
+
+func (s *IntValue) GetValue(ctx Context) (GetValue, Control) {
+	return s, nil
+}
+
+func (s *IntValue) AsString() string {
+	return fmt.Sprintf("%d", s.Value)
+}
+
+func (s *IntValue) AsInt() (int, error) {
+	return s.Value, nil
+}
+
+func (s *IntValue) AsFloat() (float64, error) {
+	return float64(s.Value), nil
+}
+
+func (s *IntValue) AsBool() (bool, error) {
+	return s.Value > 0, nil
+}

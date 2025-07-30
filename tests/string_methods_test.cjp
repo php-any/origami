@@ -1,0 +1,78 @@
+<?php
+
+echo "=== 字符串方法测试 ===\n";
+
+$str = "Hello World";
+
+// 测试 indexOf
+echo "indexOf 测试:\n";
+echo "  'World': " . $str->indexOf('World') . "\n";
+echo "  'xyz': " . $str->indexOf('xyz') . "\n";
+echo "  '': " . $str->indexOf('') . "\n";
+
+// 测试 length
+echo "\nlength 测试:\n";
+echo "  长度: " . $str->length() . "\n";
+
+// 测试 substring
+echo "\nsubstring 测试:\n";
+echo "  (0, 5): " . $str->substring(0, 5) . "\n";
+echo "  (6): " . $str->substring(6) . "\n";
+echo "  (0, 0): " . $str->substring(0, 0) . "\n";
+
+// 测试 toLowerCase
+echo "\ntoLowerCase 测试:\n";
+echo "  原字符串: " . $str . "\n";
+echo "  小写: " . $str->toLowerCase() . "\n";
+
+// 测试 toUpperCase
+echo "\ntoUpperCase 测试:\n";
+echo "  原字符串: " . $str . "\n";
+echo "  大写: " . $str->toUpperCase() . "\n";
+
+// 测试 trim
+echo "\ntrim 测试:\n";
+$trimStr = "  Hello World  ";
+echo "  原字符串: '" . $trimStr . "'\n";
+echo "  去除空白: '" . $trimStr->trim() . "'\n";
+
+// 测试 replace
+echo "\nreplace 测试:\n";
+echo "  原字符串: " . $str . "\n";
+echo "  替换 'World' 为 'Universe': " . $str->replace('World', 'Universe') . "\n";
+echo "  替换 'o' 为 '0': " . $str->replace('o', '0') . "\n";
+
+// 测试 split
+echo "\nsplit 测试:\n";
+echo "  按空格分割: " . $str->split(' ') . "\n";
+echo "  按 'o' 分割: " . $str->split('o') . "\n";
+echo "  默认分割: " . $str->split() . "\n";
+
+// 测试 startsWith
+echo "\nstartsWith 测试:\n";
+echo "  以 'Hello' 开始: " . ($str->startsWith('Hello') ? 'true' : 'false') . "\n";
+echo "  以 'World' 开始: " . ($str->startsWith('World') ? 'true' : 'false') . "\n";
+echo "  以 '' 开始: " . ($str->startsWith('') ? 'true' : 'false') . "\n";
+
+// 测试 endsWith
+echo "\nendsWith 测试:\n";
+echo "  以 'World' 结束: " . ($str->endsWith('World') ? 'true' : 'false') . "\n";
+echo "  以 'Hello' 结束: " . ($str->endsWith('Hello') ? 'true' : 'false') . "\n";
+echo "  以 '' 结束: " . ($str->endsWith('') ? 'true' : 'false') . "\n";
+
+// 测试空字符串
+echo "\n空字符串测试:\n";
+$empty = "";
+echo "  空字符串长度: " . $empty->length() . "\n";
+echo "  空字符串 indexOf('test'): " . $empty->indexOf('test') . "\n";
+echo "  空字符串 startsWith(''): " . ($empty->startsWith('') ? 'true' : 'false') . "\n";
+echo "  空字符串 endsWith(''): " . ($empty->endsWith('') ? 'true' : 'false') . "\n";
+
+// 测试特殊字符
+echo "\n特殊字符测试:\n";
+$special = "Hello\nWorld\tTest";
+echo "  原字符串: '" . $special . "'\n";
+echo "  长度: " . $special->length() . "\n";
+echo "  indexOf('\\n'): " . $special->indexOf("\n") . "\n";
+
+echo "\n=== 字符串方法测试完成 ===\n"; 

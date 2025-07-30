@@ -1,0 +1,32 @@
+namespace tests\func;
+
+function testTwoDefault($a: int = 2, $b: int = 3) {
+    $a = $a + $b;
+    return $a;
+}
+$c = testTwoDefault(2);
+if($c==5) {
+    Log::info("函数参数有类型和默认值混合输入; 正常");
+} else {
+    Log::fatal("函数参数有类型和默认值混合输入; 异常");
+}
+
+function testTowRet($a: int = 2, $b: int = 3): int {
+    $a = $a + $b;
+    return $a;
+}
+$c = testTowRet(2);
+if($c===5 && $c!=="5") {
+    Log::info("函数返回值; 正常");
+} else {
+    Log::fatal("函数返回值=({$c}); 异常");
+}
+
+
+//function test() {
+//    return 1, 2;
+//}
+
+//$a, $b = test();
+//echo $a;
+//echo $b;

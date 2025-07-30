@@ -1,0 +1,51 @@
+namespace tests\basic;
+
+$num = 100;
+
+switch($num) {
+    case 1:
+        echo 'a=1';
+        break;
+    case 2:
+        echo 'a=2';
+        break;
+    default:
+        Log::info('switch default 正确执行');
+        break;
+}
+
+$num = 1;
+switch($num) {
+    case 1:
+        Log::info('switch 执行正确的分支');
+        break;
+    case 2:
+        Log::fatal('switch 执行了错误分支');
+        break;
+    default:
+        Log::fatal('switch 执行了错误分支');
+        break;
+}
+
+$num = 2;
+switch($num) {
+    case 1:
+        Log::fatal('switch 执行了错误分支');
+        break;
+    case 2:
+        Log::info('switch 执行正确的分支');
+        break;
+    default:
+        Log::fatal('switch 执行了错误分支');
+        break;
+}
+
+$num = 2;
+switch($num) {
+    case 1:
+        Log::fatal('switch 执行了错误分支');
+        break;
+    case 2:
+        Log::info('switch 执行正确的分支');
+        break;
+}

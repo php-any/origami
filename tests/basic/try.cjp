@@ -1,0 +1,12 @@
+namespace tests\basic;
+
+try {
+    throw new Exception("Hello");
+} catch (Exception $e) {
+    if($e->getMessage() == "Hello") {
+        Log::info("异常捕获中正常");
+        return;
+    }
+}
+
+Log::info("try 正常执行完成，也不会吞了 return");

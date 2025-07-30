@@ -1,0 +1,44 @@
+namespace tests\basic;
+
+$count = 0;
+for (int $i = 0; $i < 10; $i++) {
+    $count++;
+}
+if($count == 10) {
+    Log::info("for循环对应的次数成功");
+} else {
+    Log::fatal("for循环对应的次数异常");
+}
+
+$count = 0;
+for (int $i = 1; $i < 10; $i++) {
+    $count++;
+}
+if($count == 9) {
+    Log::info("for循环对应的次数成功, 非 0 开始计算");
+} else {
+    Log::fatal("for循环对应的次数异常");
+}
+
+
+$count = 0;
+$arr = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+for ($i in $arr) {
+    $count++;
+}
+if($count == 9) {
+    Log::info("for in 循环对应的次数成功");
+} else {
+    Log::fatal("for in 循环对应的次数异常");
+}
+
+$count = 10;
+for (;;) {
+    $count--;
+    if($count == 0) {
+        break;
+    }
+}
+if($count == 0) {
+    Log::info("for死循环跳出成功");
+}

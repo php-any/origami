@@ -1,0 +1,17 @@
+<?php
+// 测试 switch 语句的错误处理
+$status = 200;
+
+// 这个应该产生错误，因为 switch 中只能有 case 或 default
+switch ($status) {
+    case 200:
+        echo "OK";
+        break;
+    echo "This should cause an error"; // 错误：switch 中不能有普通语句
+    case 404:
+        echo "Not Found";
+        break;
+    default:
+        echo "Unknown";
+        break;
+}

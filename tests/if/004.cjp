@@ -1,0 +1,40 @@
+namespace tests\if;
+
+$a = 1;
+$b = 2;
+
+if($a > $b) {
+    Log::fatal("if(1 > 2) 异常");
+} else {
+    Log::info("if(1 > 2) 正常");
+}
+
+if($a >= $b) {
+    Log::fatal("if(1 >= 2) 异常");
+} else {
+    Log::info("if(1 >= 2) 正常");
+}
+
+if($b >= $a) {
+    Log::info("if(2 >= 1) 正常");
+} else {
+    Log::fatal("if(2 >= 1) 异常");
+}
+
+if($a < $b) {
+    Log::info("if(1 < 2) 正常");
+} else {
+    Log::fatal("if(1 < 2) 异常");
+}
+
+if($a <= $b) {
+    Log::info("if(1 <= 2) 正常");
+} else {
+    Log::fatal("if(1 <= 2) 异常");
+}
+
+if($a) {
+    Log::info("if(1) 正常");
+} else {
+    Log::fatal("if(1) 异常");
+}

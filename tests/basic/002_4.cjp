@@ -1,0 +1,12 @@
+namespace tests\basic;
+
+$a=27; 
+$b=3; 
+$c=3; 
+$d=$a/$b/-$c;
+
+if($d != -3) {
+    Log::fatal("多个除法异常, 需要 -3, 得到: ", $d);
+} else {
+    Log::info("多个连续除法和嵌套负数正确, 结果({$d})");
+}

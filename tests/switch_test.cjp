@@ -1,0 +1,47 @@
+<?php
+// 测试 switch 语句
+$status = 200;
+
+switch ($status) {
+    case 200:
+        echo "OK";
+        break;
+    case 404:
+        echo "Not Found";
+        break;
+    case 500:
+        echo "Internal Server Error";
+        break;
+    default:
+        echo "Unknown";
+        break;
+}
+
+// 测试不带括号的switch
+$day = "Monday";
+switch $day {
+    case "Monday":
+        echo "Start of week";
+        break;
+    case "Friday":
+        echo "End of week";
+        break;
+    default:
+        echo "Mid week";
+        break;
+}
+
+// 测试default分支
+$value = 999;
+switch ($value) {
+    case 1:
+        echo "One";
+        break;
+    case 2:
+        echo "Two";
+        break;
+    default:
+        echo "Default case executed";
+        break;
+}
+?> 

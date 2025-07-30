@@ -1,0 +1,34 @@
+<?php
+
+// 测试字符串插值功能
+Log::info("开始测试字符串插值功能");
+
+// 测试单个变量插值
+$name = "World";
+$result1 = "Hello {$name}";
+Log::info("单个变量插值: " . $result1);
+
+// 测试多个变量插值
+$age = 25;
+$city = "Beijing";
+$result2 = "I am {$name}, {$age} years old, from {$city}";
+Log::info("多个变量插值: " . $result2);
+
+// 测试函数插值
+function getGreeting() {
+    return "Hello";
+}
+
+$result3 = "@{getGreeting()} {$name}";
+Log::info("函数插值: " . $result3);
+
+// 测试混合插值
+$result4 = "Hello {$name}, @{getGreeting()} {$city}";
+Log::info("混合插值: " . $result4);
+
+// 测试空字符串插值
+$empty = "";
+$result5 = "Empty: {$empty}";
+Log::info("空字符串插值: " . $result5);
+
+Log::info("字符串插值测试完成");

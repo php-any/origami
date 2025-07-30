@@ -1,0 +1,34 @@
+<?php
+
+// 测试特性注解和宏注解的区别
+
+echo "=== 特性注解 vs 宏注解测试 ===\n\n";
+
+// 特性注解测试
+echo "1. 特性注解测试 (Controller):\n";
+$controller = new Annotation\Controller("UserController");
+echo "Controller constructed: " . $controller->__construct() . "\n";
+echo "Controller process: " . $controller->process() . "\n";
+echo "Controller register: " . $controller->register() . "\n";
+
+echo "\n2. 宏注解测试 (Inject):\n";
+$inject = new Annotation\Inject("UserService", $controller);
+echo "Inject constructed: " . $inject->__construct() . "\n";
+echo "Inject process: " . $inject->process() . "\n";
+echo "Inject inject: " . $inject->inject() . "\n";
+
+echo "\n3. 特性注解测试 (Route):\n";
+$route = new Annotation\Route("/api/users");
+echo "Route constructed: " . $route->__construct() . "\n";
+echo "Route process: " . $route->process() . "\n";
+echo "Route register: " . $route->register() . "\n";
+
+echo "\n4. 宏注解测试 (Inject with Route):\n";
+$inject2 = new Annotation\Inject("RouteService", $route);
+echo "Inject2 constructed: " . $inject2->__construct() . "\n";
+echo "Inject2 process: " . $inject2->process() . "\n";
+echo "Inject2 inject: " . $inject2->inject() . "\n";
+
+echo "\n✅ 注解类型区别测试完成！\n";
+echo "特性注解: 只接收注解声明的参数\n";
+echo "宏注解: 能接收注解参数和被注解的节点\n"; 

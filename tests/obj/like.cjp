@@ -1,0 +1,24 @@
+namespace tests\obj;
+
+class Duck {
+    public function cry() {
+        return "gaga";
+    }
+}
+
+$duck = new Duck();
+
+if($duck like Animal) {
+    Log::info("like 关键字匹配运行正常")
+} else {
+    Log::fatal("like 关键字运行异常")
+}
+
+class Duck2 {}
+
+$duck = new Duck2();
+if($duck like Animal) {
+    Log::fatal("like 关键字运行异常, 不应该识为like成功")
+} else {
+    Log::info("like 关键字不匹配正常")
+}

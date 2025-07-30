@@ -1,0 +1,22 @@
+namespace tests\func;
+
+$a = 1;
+
+function testVar($a) {
+    $a = $a + 2;
+    return $a;
+}
+
+$c = testVar($a);
+
+if($a==1) {
+    Log::info("函数外部变量正常");
+} else {
+    Log::fatal("函数外部变量异常");
+}
+
+if($c==3) {
+    Log::info("函数返回值正常");
+} else {
+    Log::fatal("函数返回值异常");
+}

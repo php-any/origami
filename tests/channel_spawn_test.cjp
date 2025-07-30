@@ -1,0 +1,55 @@
+<?php
+
+echo "=== Channel 协程测试 ===\n";
+
+// 创建 channel
+$channel = new Channel(10);
+echo "Channel 容量: " . $channel->cap() . "\n";
+
+// 定义生产者函数
+function producer($channel) {
+    echo "生产者协程启动\n";
+    
+    for ($i = 1; $i <= 5; $i++) {
+        $data = "数据" . $i;
+        $result = $channel->send($data);
+        echo "生产者发送: " . $data . " - " . ($result ? "成功" : "失败") . "\n";
+        
+        // 模拟一些处理时间
+        sleep(1);
+    }
+    
+    echo "生产者协程完成\n";
+}
+
+// 定义消费者函数
+function consumer($channel) {
+    echo "消费者协程启动\n";
+    
+    for ($i = 1; $i <= 5; $i++) {
+        $data = $channel->receive();
+        echo "消费者接收: " . $data . "\n";
+        
+        // 模拟一些处理时间
+        sleep(1);
+    }
+    
+    echo "消费者协程完成\n";
+}
+
+// 启动生产者协程
+spawn producer($channel);
+
+// 启动消费者协程
+spawn consumer($channel);
+
+// 主线程等待一下
+sleep(10);
+
+echo "Channel 长度: " . $channel->len() . "\n";
+
+// 关闭 channel
+$channel->close();
+echo "Channel 已关闭\n";
+
+echo "=== 协程测试完成 ===\n"; 

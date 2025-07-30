@@ -1,0 +1,35 @@
+namespace tests\obj;
+
+class Foo {
+    public $a = 2;
+
+    public function test() {
+        Log::info("类函数执行成功");
+    }
+
+    public function set() {
+        $this->a = 4;
+    }
+}
+
+new Foo()->test();
+
+$obj = new Foo();
+if($obj->a == 2) {
+    Log::info("类属性默认值设置成功");
+}
+$obj->set();
+if($obj->a != 4) {
+    Log::fatal("类属性默认值设置失败");
+}
+if($obj->a == 4) {
+    Log::info("类内部更新属性成功");
+}
+
+$obj->a = 5;
+if($obj->a != 5) {
+    Log::fatal("类外部更新属性失败");
+}
+if($obj->a == 5) {
+    Log::info("类外部更新属性成功");
+}

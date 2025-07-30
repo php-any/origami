@@ -1,0 +1,32 @@
+<?php
+
+// 注解使用示例
+
+// 1. 创建注解实例
+$controller = new Annotation\Controller();
+$route = new Annotation\Route();
+$inject = new Annotation\Inject();
+$getMapping = new Annotation\GetMapping();
+
+// 2. 模拟注解处理流程
+echo "=== 注解处理流程演示 ===\n\n";
+
+// 编译时处理
+echo "1. 编译时注解处理:\n";
+$controller->process();
+$route->process();
+$inject->process();
+$getMapping->process();
+
+echo "\n2. 运行时注解处理:\n";
+$controller->register();
+$route->register();
+$inject->inject();
+$getMapping->mapping();
+
+echo "\n=== 注解系统功能总结 ===\n";
+echo "✅ Controller注解: 用于标记控制器类\n";
+echo "✅ Route注解: 用于设置路由前缀\n";
+echo "✅ Inject注解: 用于依赖注入\n";
+echo "✅ GetMapping注解: 用于GET路由映射\n";
+echo "\n注解类已成功集成到折言语言中！\n"; 

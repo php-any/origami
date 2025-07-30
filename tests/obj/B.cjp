@@ -1,0 +1,19 @@
+namespace tests\obj;
+
+use tests\obj\a\A;
+
+class B extends A {
+    public function b() {
+        Log::info("继承子目录类");
+    }
+}
+
+$b = new B();
+$b->a();
+$b->b();
+
+if($b instanceof A) {
+    Log::info("instanceof 关键字运行正常");
+} else {
+    Log::fatal("instanceof 关键字运行异常");
+}

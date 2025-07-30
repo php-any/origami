@@ -1,0 +1,100 @@
+namespace App\Controller;
+
+use Annotation\Route;
+use Annotation\Controller;
+use Annotation\GetMapping;
+use Annotation\Inject;
+
+@Controller
+@Route(prefix: "/api/users")
+class UserController {
+    @Inject(service: "UserService")
+    public $userService;
+
+    @GetMapping(path: "/list")
+    public function getUserList() {
+        return "Hello from getUserList";
+    }
+}
+
+echo "=== 基本测试 ===\n";
+echo "UserController 类创建成功\n";
+
+echo "\n=== 反射读取 UserController 注解信息 ===\n";
+
+// 创建反射实例
+$reflect = new Reflect();
+
+// 获取类的所有注解信息
+echo "--- UserController 类的完整注解信息 ---\n";
+echo $reflect->getAllAnnotations("App\\Controller\\UserController");
+
+// 获取类注解
+echo "\n--- UserController 类注解 ---\n";
+echo $reflect->getClassAnnotations("App\\Controller\\UserController");
+
+// 获取属性注解
+echo "\n--- userService 属性注解 ---\n";
+echo $reflect->getPropertyAnnotations("App\\Controller\\UserController", "userService");
+
+// 获取方法注解
+echo "\n--- getUserList 方法注解 ---\n";
+echo $reflect->getMethodAnnotations("App\\Controller\\UserController", "getUserList");
+
+// 获取注解详细信息
+echo "\n--- 注解详细信息测试 ---\n";
+echo "类注解详细信息:\n";
+echo $reflect->getAnnotationDetails("App\\Controller\\UserController", "class", "UserController");
+
+echo "\n属性注解详细信息:\n";
+echo $reflect->getAnnotationDetails("App\\Controller\\UserController", "property", "userService");
+
+echo "\n方法注解详细信息:\n";
+echo $reflect->getAnnotationDetails("App\\Controller\\UserController", "method", "getUserList");
+
+echo "\n=== 路由系统示例 ===\n";
+
+// 模拟路由系统
+class Router {
+    private $routes = [];
+    
+    public function registerController($className) {
+        $reflect = new Reflect();
+        
+        // 获取类信息
+        $classInfo = $reflect->getClassInfo($className);
+        echo "注册控制器: {$className}\n";
+        
+        // 获取类注解
+        $classAnnotations = $reflect->getClassAnnotations($className);
+        echo "类注解: {$classAnnotations}\n";
+        
+        // 获取所有方法
+        $methods = $reflect->listMethods($className);
+        echo "方法列表: {$methods}\n";
+        
+        // 检查特定方法是否有路由注解
+        $getUserListAnnotations = $reflect->getMethodAnnotations($className, "getUserList");
+        echo "test se ", ($getUserListAnnotations)
+        if ($getUserListAnnotations->indexOf("GetMapping") != -1) {
+            echo "发现路由方法: getUserList\n";
+            $this->routes[] = [
+                'controller' => $className,
+                'method' => 'getUserList',
+                'type' => 'GET'
+            ];
+        }
+        
+        echo "注册完成，发现路由方法: getUserList\n";
+    }
+    
+    public function getRoutes() {
+        return $this->routes;
+    }
+}
+
+// 使用路由系统
+$router = new Router();
+$router->registerController("App\\Controller\\UserController");
+
+echo "\n=== 反射测试完成 ===\n";

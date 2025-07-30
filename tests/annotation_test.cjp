@@ -1,0 +1,36 @@
+<?php
+
+@Controller(name: "UserController")
+@Route(prefix: "/api/users")
+class UserController {
+    
+    @Autowired
+    @Inject(service: "UserService")
+    private $userService;
+    
+    @GetMapping(path: "/list")
+    @ResponseBody
+    public function getUserList() {
+        return $this->userService->getAllUsers();
+    }
+    
+    @PostMapping(path: "/create")
+    @Validate(rules: "name:required|email:email")
+    public function createUser($name, $email) {
+        return $this->userService->createUser($name, $email);
+    }
+}
+
+@Repository
+class UserService {
+    
+    @Cache(ttl: 3600)
+    public function getAllUsers() {
+        return ["user1", "user2", "user3"];
+    }
+    
+    @Transactional
+    public function createUser($name, $email) {
+        return "User created: " . $name . " (" . $email . ")";
+    }
+} 

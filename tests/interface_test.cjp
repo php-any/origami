@@ -1,0 +1,69 @@
+namespace tests\interface;
+
+// 定义基础接口
+interface Animal {
+    public function cry();
+}
+
+// 定义继承接口
+interface Pet extends Animal {
+    public function play();
+}
+
+// 定义实现类
+class Dog implements Pet {
+    public function cry() {
+        return "汪汪";
+    }
+    
+    public function play() {
+        return "玩球";
+    }
+}
+
+// 定义另一个实现类
+class Cat implements Animal {
+    public function cry() {
+        return "喵喵";
+    }
+}
+
+// 测试接口功能
+$dog = new Dog();
+$cat = new Cat();
+
+// 测试 instanceof 接口实现
+if($dog instanceof Animal) {
+    Log::info("✅ Dog 实现了 Animal 接口");
+} else {
+    Log::fatal("❌ Dog 应该实现 Animal 接口");
+}
+
+if($dog instanceof Pet) {
+    Log::info("✅ Dog 实现了 Pet 接口");
+} else {
+    Log::fatal("❌ Dog 应该实现 Pet 接口");
+}
+
+if($cat instanceof Animal) {
+    Log::info("✅ Cat 实现了 Animal 接口");
+} else {
+    Log::fatal("❌ Cat 应该实现 Animal 接口");
+}
+
+if($cat instanceof Pet) {
+    Log::fatal("❌ Cat 不应该实现 Pet 接口");
+} else {
+    Log::info("✅ Cat 没有实现 Pet 接口");
+}
+
+// 测试方法调用
+$dogCry = $dog->cry();
+$dogPlay = $dog->play();
+$catCry = $cat->cry();
+
+Log::info("Dog cry: " + $dogCry);
+Log::info("Dog play: " + $dogPlay);
+Log::info("Cat cry: " + $catCry);
+
+Log::info("🎉 接口功能测试完成"); 

@@ -1,0 +1,31 @@
+<?php
+// 类型参数解析测试
+
+// 测试基本类型参数
+function testString(string $data): string {
+    return $data;
+}
+
+// 测试可空类型参数
+function testNullable(?string $data): ?string {
+    return $data;
+}
+
+// 测试多个类型参数
+function testMultiple(string $name, int $age, bool $active): string {
+    return $name . " is " . $age . " years old, active: " . ($active ? "yes" : "no");
+}
+
+// 执行测试
+echo "=== 类型参数解析测试 ===\n";
+
+$result1 = testString("hello");
+echo "String test: {$result1}\n";
+
+$result2 = testNullable("world");
+echo "Nullable test: {$result2}\n";
+
+$result3 = testMultiple("Alice", 25, true);
+echo "Multiple test: {$result3}\n";
+
+echo "类型参数解析测试完成\n"; 

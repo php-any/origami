@@ -1,0 +1,12 @@
+namespace tests\basic;
+
+$a=2; 
+$b=4; 
+$c=8; 
+$d=$a*$b*$c;
+
+if($d != 64) {
+    Log::fatal("多个乘法异常");
+} else {
+    Log::info("多个乘法正确");
+}

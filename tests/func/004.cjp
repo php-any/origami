@@ -1,0 +1,25 @@
+namespace tests\func;
+
+function testTwo($a = 2, $b = 3) {
+    $a = $a + $b;
+    return $a;
+}
+
+$c = testTwo();
+if($c==5) {
+    Log::info("函数多个参数默认值正常");
+} else {
+    Log::fatal("函数多个参数默认值异常");
+}
+
+function testThree($a, $b = 3, $c = 4) {
+    $a = $a + $b + $c;
+    return $a;
+}
+
+$c = testThree(2);
+if($c==9) {
+    Log::info("函数多个参数, 无默认值和有默认值混合输入; 正常");
+} else {
+    Log::fatal("函数多个参数, 无默认值和有默认值混合输入; 异常");
+}

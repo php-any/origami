@@ -1,0 +1,17 @@
+<?php
+// 简单多返回值测试
+
+function test(): string, int {
+    return "hello", 42;
+}
+
+$str, $num = test();
+echo "String: {$str}, Number: {$num}\n";
+
+// 测试可空类型
+function testNullable(): ?string, ?int {
+    return "world", null;
+}
+
+$str2, $num2 = testNullable();
+echo "String2: " + ($str2 ?? "null") + ", Number2: " + ($num2 ?? "null") + "\n"; 

@@ -1,0 +1,54 @@
+<?php
+
+echo "=== 三目运算符测试 ===\n";
+
+// 基本三目运算符测试
+$result1 = true ? "真值" : "假值";
+echo "true ? '真值' : '假值' = " . $result1 . "\n";
+
+$result2 = false ? "真值" : "假值";
+echo "false ? '真值' : '假值' = " . $result2 . "\n";
+
+// 数字条件测试
+$result3 = 5 ? "非零" : "零";
+echo "5 ? '非零' : '零' = " . $result3 . "\n";
+
+$result4 = 0 ? "非零" : "零";
+echo "0 ? '非零' : '零' = " . $result4 . "\n";
+
+// 字符串条件测试
+$result5 = "hello" ? "非空" : "空";
+echo "'hello' ? '非空' : '空' = " . $result5 . "\n";
+
+$result6 = "" ? "非空" : "空";
+echo "'' ? '非空' : '空' = " . $result6 . "\n";
+
+// 复杂表达式测试
+$a = 10;
+$b = 20;
+$result7 = $a > $b ? "a大于b" : "a不大于b";
+echo "$a > $b ? 'a大于b' : 'a不大于b' = " . $result7 . "\n";
+
+$result8 = $a < $b ? "a小于b" : "a不小于b";
+echo "$a < $b ? 'a小于b' : 'a不小于b' = " . $result8 . "\n";
+
+// 嵌套三目运算符测试
+$age = 25;
+$result9 = $age >= 18 ? ($age >= 65 ? "老年人" : "成年人") : "未成年人";
+echo "嵌套三目运算符结果: " . $result9 . "\n";
+
+// 数组条件测试
+$arr1 = [1, 2, 3];
+$result10 = $arr1 ? "数组非空" : "数组为空";
+echo "非空数组条件: " . $result10 . "\n";
+
+$arr2 = [];
+$result11 = $arr2 ? "数组非空" : "数组为空";
+echo "空数组条件: " . $result11 . "\n";
+
+// null 条件测试
+$null = null;
+$result12 = $null ? "非null" : "null";
+echo "null条件: " . $result12 . "\n";
+
+echo "\n=== 三目运算符测试完成 ===\n"; 

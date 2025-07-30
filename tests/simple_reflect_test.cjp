@@ -1,0 +1,21 @@
+<?php
+// 简单的反射函数测试
+
+echo "反射函数测试\n";
+
+// 测试数学函数
+int $sum = add(10, 20);
+echo "10 + 20 = " + $sum + "\n";
+
+int $product = multiply(5, 6);
+echo "5 * 6 = " + $product + "\n";
+
+// 测试字符串函数
+string $combined = concat("Hello", " World");
+echo "拼接结果: " + $combined + "\n";
+
+// 测试逻辑函数
+bool $isEven = isEven(10);
+echo "10是偶数: " + $isEven + "\n";
+
+echo "测试完成\n";

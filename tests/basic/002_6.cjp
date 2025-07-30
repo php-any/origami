@@ -1,0 +1,12 @@
+namespace tests\basic;
+
+$a=1; 
+$b=3; 
+$c=3; 
+$d=($a + $b) * $c;
+
+if($d != 12) {
+    Log::fatal("加法和乘法混合运算错误, 结果({$d})");
+} else {
+    Log::info("加法和乘法混合运算正确, 结果({$d})");
+}

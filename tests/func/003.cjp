@@ -1,0 +1,13 @@
+namespace tests\func;
+
+function testDefault($a = 2) {
+    $a = $a + 2;
+    return $a;
+}
+
+$c = testDefault();
+if($c==4) {
+    Log::info("函数参数默认值正常");
+} else {
+    Log::fatal("函数参数默认值异常");
+}

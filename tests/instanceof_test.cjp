@@ -1,0 +1,82 @@
+namespace tests\instanceof;
+
+// 定义接口
+interface Animal {
+    public function cry();
+}
+
+// 定义基类
+class Dogs implements Animal {
+    public function cry() {
+        return "汪汪";
+    }
+}
+
+// 定义子类
+class Dog extends Dogs {
+    public function bark() {
+        return "狗叫";
+    }
+}
+
+// 定义另一个类
+class Cat {
+    public function meow() {
+        return "喵喵";
+    }
+}
+
+// 测试 instanceof 功能
+$dog = new Dog();
+$cat = new Cat();
+
+// 测试 instanceof 基本功能
+if($dog instanceof Dog) {
+    Log::info("✅ Dog 是 Dog 的实例");
+} else {
+    Log::fatal("❌ Dog 应该是 Dog 的实例");
+}
+
+// 测试 instanceof 继承关系
+if($dog instanceof Dogs) {
+    Log::info("✅ Dog 是 Dogs 的实例（继承关系）");
+} else {
+    Log::fatal("❌ Dog 应该是 Dogs 的实例");
+}
+
+// 测试 instanceof 接口实现
+if($dog instanceof Animal) {
+    Log::info("✅ Dog 实现了 Animal 接口");
+} else {
+    Log::fatal("❌ Dog 应该实现 Animal 接口");
+}
+
+// 测试 instanceof 不匹配的情况
+if($dog instanceof Cat) {
+    Log::fatal("❌ Dog 不应该是 Cat 的实例");
+} else {
+    Log::info("✅ Dog 不是 Cat 的实例");
+}
+
+// 测试 instanceof 不匹配的情况
+if($cat instanceof Animal) {
+    Log::fatal("❌ Cat 不应该实现 Animal 接口");
+} else {
+    Log::info("✅ Cat 没有实现 Animal 接口");
+}
+
+// 测试 instanceof 不匹配的情况
+if($cat instanceof Dog) {
+    Log::fatal("❌ Cat 不应该是 Dog 的实例");
+} else {
+    Log::info("✅ Cat 不是 Dog 的实例");
+}
+
+// 测试 instanceof 不匹配的情况
+if($cat instanceof Dogs) {
+    Log::fatal("❌ Cat 不应该是 Dogs 的实例");
+} else {
+    Log::info("✅ Cat 不是 Dogs 的实例");
+}
+
+Log::info("🎉 instanceof 功能测试完成"); 

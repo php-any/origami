@@ -1,0 +1,47 @@
+namespace tests\basic;
+
+$str = "012345";
+
+if($str->length == 6) {
+    Log::info("读取字符串长度正常");
+}
+
+if($str->length != 6) {
+    Log::fatal("读取字符串长度 ERROR");
+}
+
+if($str[0] == 0) {
+    Log::info("读取字符串开头正常");
+}
+
+if($str[0] != 0) {
+    Log::fatal("读取字符串开头 ERROR");
+}
+
+if($str[5] == 5) {
+    Log::info("读取字符串结尾正常");
+}
+
+if($str[5] != 5) {
+    Log::fatal("读取字符串结尾 ERROR");
+}
+
+if($str[0..5] != "01234") {
+    Log::fatal("读取字符串区域 ERROR");
+}
+
+if($str[1..5] == "1234") {
+    Log::info("读取字符串区域正常");
+}
+
+if($str[1..] == "12345") {
+    Log::info("省却结尾读取字符串区域正常");
+}
+
+if($str[..] == "012345") {
+    Log::info("读取全部字符串区域正常");
+}
+
+if($str[..] != "012345") {
+    Log::fatal("读取全部字符串区域 ERROR");
+}

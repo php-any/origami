@@ -1,0 +1,41 @@
+namespace tests\basic;
+
+$num = 99;
+
+$ret = match ($num) {
+    0 => "zero",
+    1 => "one",
+    99 => "two",
+    default => "many"
+};
+
+if ($ret == "two") {
+    Log::info("match语句正常匹配");
+} else{
+    Log::fatal("match语句匹配异常");
+}
+
+$ret = match ($num) {
+    0 => "zero",
+    1 => "one",
+    2 => "two",
+    default => "many"
+};
+
+if ($ret == "many") {
+    Log::info("match语句默认值正常匹配");
+} else{
+    Log::fatal("match语句默认值匹配异常");
+}
+
+$ret = match ($num) {
+    0 => "zero",
+    1 => "one",
+    2 => "two"
+}
+
+if (!$ret) {
+    Log::info("match匹配不到任何内容, 成功");
+} else{
+    Log::fatal("match匹配不到任何内容, 异常");
+}

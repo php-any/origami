@@ -1,0 +1,41 @@
+ namespace tests\obj;
+
+class Dogs implements Animal {
+    public function cry(){
+        Log::info("实现了接口函数, 运行正常");
+    }
+}
+
+class Dog extends Dogs {
+    
+}
+
+new Dog()->cry();
+
+
+try {
+    class Cat implements Animal {
+        public function miao(){
+            Log::fatal("不应该正常实现接口");
+        }
+    }
+} catch (Exception $e) {
+    Log::info("接口约束正常, 正常抛出异常类");
+}
+
+$dog = new Dog();
+
+if($dog instanceof Animal) {
+    Log::info("instanceof 关键字运行正常");
+} else {
+    Log::fatal("instanceof 关键字运行异常");
+}
+
+interface Animal003 {
+    public function cry();
+}
+if($dog instanceof Animal003) {
+    Log::fatal("instanceof 关键字运行异常");
+} else {
+    Log::info("instanceof 关键字非匹配成功");
+}

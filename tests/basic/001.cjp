@@ -1,0 +1,7 @@
+namespace tests\basic;
+
+echo "当前文字独立占一行, 第一行";
+
+echo OS::EOL, "当前文字独立占一行, 第二行", OS::EOL;
+
+$a = "";

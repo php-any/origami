@@ -1,0 +1,18 @@
+namespace tests\json;
+
+$a = {
+    "a": 1,
+    "b": 2
+};
+
+if($a->a == 1) {
+    Log::info("json 值读取 a=1 OK");
+} else {
+    Log::fatal("json 值读取 a!=1 错误");
+}
+
+if($a->b != 2) {
+    Log::fatal("json 值读取 b!=2 错误");
+} else {
+    Log::info("json 值读取 b=2 OK");
+}

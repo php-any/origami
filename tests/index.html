@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>{$title}</title>
+    <script type="text/cjp">
+        function getter($str) {
+            return "hello " + $str;
+        }
+        function getter($str) {
+            return "hello " + $str;
+        }
+        $users = [
+            {
+                name: "张三",
+                age: 18
+            },
+            {
+                name: "李四",
+                age: 19
+            },
+            {
+                name: "王五",
+                age: 20
+            }
+        ];
+
+    </script>
+</head>
+
+<body>
+    <div for="($item, $index) in $list">
+        这里被cjp脚本进行渲染 {$index} - {$item}
+    </div>
+
+    <div for="$user in $users">
+        {$user->name} - {$user->age}
+    </div>
+
+    <span if="$status">仓颉传入的值 true</span>
+
+    <div if="$type==='A'">A</div>
+    <div else-if="$type=='B'">B</div>
+    <div else-if="$type=='C'">C</div>
+    <div else-if="$type=='D'">D</div>
+    <div else>not A/B/C/D</div>
+
+    <div data="{$status}">任意属性插入值</div>
+
+    {@getter($users[1]->name)}
+</body>
+
+</html>

@@ -1,0 +1,12 @@
+namespace tests\basic;
+
+$a=1; 
+$b=2; 
+$c=3; 
+$d=$a+$b+$c; 
+
+if($d != 6) {
+    Log::fatal("变量赋值异常");
+} else {
+    Log::info("多个加法正确");
+}

@@ -1,0 +1,45 @@
+namespace tests\obj;
+
+class Foo1 {
+    public function __construct() {
+        Log::info("Foo::__construct 构造函数执行成功");
+    }
+}
+
+new Foo1();
+
+class Foo2 {
+    public $a;
+
+    public function __construct($a) {
+        $this->a = $a;
+    }
+}
+$a = 3;
+if(new Foo2(2)->a == 2) {
+    Log::info("类属性赋值和调用成功");
+} else {
+    Log::fatal("类属性赋值和调用异常");
+}
+
+if($a == 2) {
+    Log::fatal("变量被污染");
+}
+
+
+class Foo3 {
+    public $a;
+    public $b;
+
+    public function __construct($a, $b) {
+        $this->a = $a;
+        $this->b = $b;
+    }
+}
+
+$obj = new Foo3(1, 2);
+if($obj->a == 1 && $obj->b == 2) {
+    Log::info("类多个属性赋值和调用成功");
+} else {
+    Log::fatal("类多个属性赋值和调用异常");
+}

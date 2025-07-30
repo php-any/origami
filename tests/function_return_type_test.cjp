@@ -1,0 +1,89 @@
+<?php
+// 测试函数返回类型解析
+
+// 基本返回类型
+function getString(): string {
+    return "Hello World";
+}
+
+// 整数返回类型
+function getNumber(): int {
+    return 42;
+}
+
+// 布尔返回类型
+function isValid(): bool {
+    return true;
+}
+
+// 数组返回类型
+function getArray(): array {
+    return [1, 2, 3];
+}
+
+// 自定义类返回类型
+function getObject(): MyClass {
+    return new MyClass();
+}
+
+// 无返回类型（void）
+function doSomething() {
+    echo "Doing something";
+}
+
+// 测试函数调用
+$str = getString();
+$num = getNumber();
+$valid = isValid();
+$arr = getArray();
+
+// 测试带参数的函数
+function add(int $a, int $b): int {
+    return $a + $b;
+}
+
+// 测试带默认值的函数
+function greet(string $name = "World"): string {
+    return "Hello " . $name;
+}
+
+$result = add(5, 3);
+$message = greet("Alice");
+
+// 测试可空类型语法
+function getNullableString(): ?string {
+    return null; // 可以返回 null
+}
+
+function getNullableInt(): ?int {
+    return 42; // 也可以返回正常值
+}
+
+function getNullableObject(): ?MyClass {
+    return new MyClass();
+}
+
+// 测试可空类型函数调用
+$nullableStr = getNullableString();
+$nullableNum = getNullableInt();
+$nullableObj = getNullableObject();
+
+// 测试可空类型参数
+function processNullableString(?string $str): string {
+    return $str ?? "default";
+}
+
+function processNullableInt(?int $num): int {
+    return $num ?? 0;
+}
+
+function processNullableObject(?MyClass $obj): ?MyClass {
+    return $obj;
+}
+
+// 测试可空类型参数函数调用
+$result1 = processNullableString(null);
+$result2 = processNullableString("Hello");
+$result3 = processNullableInt(null);
+$result4 = processNullableInt(42);
+?> 

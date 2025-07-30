@@ -1,0 +1,37 @@
+namespace tests\if;
+
+$a = true;
+$b = true;
+
+if($a && $b) {
+    Log::info("if(true && true) 正常");
+} else {
+    Log::fatal("if(true && true) 异常");
+}
+
+if($a || $b) {
+    Log::info("if(true || true) 正常");
+} else {
+    Log::fatal("if(true || true) 异常");
+}
+
+$a = true;
+$b = false;
+
+if($a && $b) {
+    Log::fatal("if(true && false) 异常");
+} else {
+    Log::info("if(true && false) 正常");
+}
+
+if($a && $b && $b) {
+    Log::fatal("if(true && false && false) 异常");
+} else {
+    Log::info("if(true && false && false) 正常");
+}
+
+if($a || $b) {
+    Log::info("if(true || false) 正常");
+} else {
+    Log::fatal("if(true || false) 异常");
+}

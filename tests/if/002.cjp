@@ -1,0 +1,17 @@
+namespace tests\if;
+
+$data = true;
+
+if(!$data) {
+    Log::fatal("if(!true) 异常");
+} else {
+    Log::info("if(!true) 正常");
+}
+
+$data = false;
+
+if(!$data) {
+    Log::info("if(!false) 正常");
+} else {
+    Log::fatal("if(!false) 异常");
+}

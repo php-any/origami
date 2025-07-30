@@ -1,0 +1,59 @@
+<?php
+
+echo "=== 运算符综合测试 ===\n";
+
+// 三目运算符测试
+echo "--- 三目运算符测试 ---\n";
+$condition = true;
+$result1 = $condition ? "真值" : "假值";
+echo "条件为真: " . $result1 . "\n";
+
+$condition = false;
+$result2 = $condition ? "真值" : "假值";
+echo "条件为假: " . $result2 . "\n";
+
+// 空合并运算符测试
+echo "\n--- 空合并运算符测试 ---\n";
+$null_value = null;
+$result3 = $null_value ?? "默认值";
+echo "null值: " . $result3 . "\n";
+
+$valid_value = "有效值";
+$result4 = $valid_value ?? "默认值";
+echo "有效值: " . $result4 . "\n";
+
+// 组合使用测试
+echo "\n--- 组合使用测试 ---\n";
+$user_input = null;
+$default_name = "游客";
+$display_name = $user_input ?? $default_name;
+$greeting = $display_name ? "欢迎, " . $display_name : "欢迎, 匿名用户";
+echo "问候语: " . $greeting . "\n";
+
+// 复杂表达式测试
+echo "\n--- 复杂表达式测试 ---\n";
+$a = 10;
+$b = null;
+$c = 20;
+
+$result5 = $a > 5 ? ($b ?? $c) : "条件不满足";
+echo "复杂表达式结果: " . $result5 . "\n";
+
+$result6 = ($a ?? $b) ? "有值" : "无值";
+echo "嵌套表达式结果: " . $result6 . "\n";
+
+// 数组测试
+echo "\n--- 数组测试 ---\n";
+$config = null;
+$default_config = ["theme" => "dark", "lang" => "zh"];
+$current_config = $config ?? $default_config;
+echo "配置: " . $current_config . "\n";
+
+// 字符串测试
+echo "\n--- 字符串测试 ---\n";
+$username = null;
+$display_username = $username ?? "匿名用户";
+$welcome_msg = $display_username ? "欢迎回来, " . $display_username : "欢迎, 新用户";
+echo "欢迎消息: " . $welcome_msg . "\n";
+
+echo "\n=== 运算符综合测试完成 ===\n"; 

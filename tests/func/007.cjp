@@ -1,0 +1,12 @@
+namespace tests\func;
+
+function fetchData($url: string): string {
+    // 模拟网络请求
+    Log::info("spawn 进入fetchData函数; 正常")
+    sleep(1);
+    Log::info("spawn 退出fetchData函数; 正常")
+    return "Data from " . $url;
+}
+
+// 启动异步协程
+spawn fetchData("https://api.example.com");
