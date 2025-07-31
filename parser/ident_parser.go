@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/php-any/origami/data"
@@ -27,11 +28,19 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 
 	// 函数调用模式 div {} 或者 div []
 	if p.checkPositionIs(0, token.LBRACE) {
+		fn, ok := p.vm.GetFunc(name)
+		if !ok {
+			return nil, data.NewErrorThrow(from, errors.New("未定义的函数:"+name))
+		}
 		v, acl := NewLbraceParser(p.Parser).Parse()
-		return node.NewCallExpression(from, name, []data.GetValue{v}), acl
+		return node.NewCallExpression(from, name, []data.GetValue{v}, fn), acl
 	} else if p.checkPositionIs(0, token.LBRACKET) {
 		v, acl := NewLbracketParser(p.Parser).Parse()
-		return node.NewCallExpression(from, name, []data.GetValue{v}), acl
+		fn, ok := p.vm.GetFunc(name)
+		if !ok {
+			return nil, data.NewErrorThrow(from, errors.New("未定义的函数:"+name))
+		}
+		return node.NewCallExpression(from, name, []data.GetValue{v}, fn), acl
 	}
 
 	// 检查是否是变量的类型
@@ -58,10 +67,18 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 			vp := &VariableParser{p.Parser}
 			if full, ok := p.findFullFunNameByNamespace(name); ok {
 				stmt, acl := vp.parseFunctionCall()
-				return node.NewCallExpression(from, full, stmt), acl
+				fn, ok := p.vm.GetFunc(full)
+				if !ok {
+					return nil, data.NewErrorThrow(from, errors.New("未定义的函数:"+name))
+				}
+				return node.NewCallExpression(from, full, stmt, fn), acl
+			}
+			fn, ok := p.vm.GetFunc(name)
+			if !ok {
+				return nil, data.NewErrorThrow(from, errors.New("未定义的函数:"+name))
 			}
 			stmt, acl := vp.parseFunctionCall()
-			return node.NewCallExpression(from, name, stmt), acl
+			return node.NewCallExpression(from, name, stmt, fn), acl
 		}
 		// 变量定义
 		if p.checkPositionIs(0, token.COLON) && p.checkPositionIs(1, token.IDENTIFIER) {

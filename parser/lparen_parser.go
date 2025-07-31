@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -58,7 +59,11 @@ func (ep *LparenParser) parseTypeCast() node.Statement {
 	if acl != nil {
 		ep.addControl(acl)
 	}
-	return node.NewCallExpression(from, typeName, []data.GetValue{val})
+	fn, ok := ep.vm.GetFunc(typeName)
+	if !ok {
+		return data.NewErrorThrow(from, errors.New("未定义的函数:"+typeName))
+	}
+	return node.NewCallExpression(from, typeName, []data.GetValue{val}, fn)
 }
 
 // isLambdaExpression 检查是否是 Lambda 表达式

@@ -10,32 +10,23 @@ import (
 type CallExpression struct {
 	*Node   `pp:"-"`
 	FunName string // 被调用的表达式
+	Fun     data.FuncStmt
 	Args    []data.GetValue
 }
 
 // NewCallExpression 创建一个新的函数调用表达式
-func NewCallExpression(token *TokenFrom, fn string, arguments []data.GetValue) *CallExpression {
+func NewCallExpression(token *TokenFrom, fn string, arguments []data.GetValue, fun data.FuncStmt) *CallExpression {
 	return &CallExpression{
 		Node:    NewNode(token),
 		FunName: fn,
+		Fun:     fun,
 		Args:    arguments,
 	}
 }
 
 // GetValue 获取函数调用表达式的值
 func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	fn, ok := ctx.GetVM().GetFunc(pe.FunName)
-	if !ok {
-		tryFunName := ctx.GetNamespace() + "\\" + pe.FunName
-		fn, ok = ctx.GetVM().GetFunc(tryFunName)
-		if !ok {
-			tryFunName = "\\" + pe.FunName
-			fn, ok = ctx.GetVM().GetFunc(tryFunName)
-			if !ok {
-				return nil, data.NewErrorThrow(pe.from, errors.New("被调用的函数没有定义或者没有进行加载: "+pe.FunName))
-			}
-		}
-	}
+	fn := pe.Fun
 	varies := fn.GetVariables()
 	fnCtx := ctx.CreateContext(varies)
 	// 入参的值设置到上下文中
@@ -73,6 +64,7 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 		case *Parameters:
 			args, _ := fnCtx.GetVariableValue(argObj)
 			var ares *data.ArrayValue
+			var ok bool
 			if ares, ok = args.(*data.ArrayValue); !ok {
 				ares = data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
 			}
