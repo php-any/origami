@@ -197,7 +197,7 @@ go build -o origami .
 
 ## 📚 文档
 
-- [数组方法文档](docs/array_methods.md)
+- [文档](docs/README.md)
 - [测试用例](tests/)
 
 ## 💬 讨论群
