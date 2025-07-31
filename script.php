@@ -5,7 +5,7 @@ $users = [
 
 // 应该循环输出多个div和name
 $html = <div for="$k, $v in $users">
-    {$v.name}
+    {$k} => {$v.name}
 </div>
 
 
