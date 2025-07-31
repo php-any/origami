@@ -265,23 +265,62 @@ func (h *HtmlParser) parseSubHtmlChild() (data.GetValue, data.Control) {
 	return h.parseHtmlText()
 }
 
-// parseHtmlText 解析HTML文本内容
+// parseHtmlText 解析HTML文本内容，支持插值字符串
 func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 	start := h.GetStart()
 
-	var text string
+	var textParts []data.GetValue
 	initialPos := h.GetStart()
 	lastEnd := -1
+	currentText := ""
 
 	for !h.isEOF() && h.current().Type != token.LT {
 		curStart := h.GetStart()
 		if lastEnd != -1 && curStart > lastEnd {
 			// token 之间有间隔，补空格
-			text += " "
+			currentText += " "
 		}
-		text += h.current().Literal
+
+		// 检查是否是插值开始 {$
+		if h.current().Type == token.LBRACE && h.checkPositionIs(1, token.VARIABLE) {
+			// 如果有累积的文本，先添加到结果中
+			if currentText != "" {
+				textParts = append(textParts, node.NewStringLiteral(h.NewTokenFrom(start), currentText))
+				currentText = ""
+			}
+
+			// 跳过 { 和 $var
+			h.nextAndCheck(token.LBRACE) // 跳过 {
+
+			// 解析插值表达式
+			// 收集表达式字符串直到遇到 }
+			exprStr := ""
+			for !h.isEOF() && h.current().Type != token.RBRACE {
+				exprStr += h.current().Literal
+				h.next()
+			}
+
+			// 使用ParseExpressionFromString解析表达式
+			expr, ctl := h.Parser.ParseExpressionFromString(exprStr)
+			if ctl != nil {
+				return nil, ctl
+			}
+
+			// 检查是否以 } 结束
+			if h.current().Type != token.RBRACE {
+				return nil, data.NewErrorThrow(h.newFrom(), errors.New("插值表达式缺少结束的 }"))
+			}
+			h.nextAndCheck(token.RBRACE)
+
+			// 添加表达式到结果中
+			textParts = append(textParts, expr)
+		} else {
+			// 普通文本
+			currentText += h.current().Literal
+			h.next()
+		}
+
 		lastEnd = h.current().End
-		h.next()
 
 		// 防止无限循环：检查位置是否变化
 		if h.GetStart() == initialPos {
@@ -290,17 +329,28 @@ func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 		initialPos = h.GetStart()
 	}
 
-	if text == "" {
+	// 添加剩余的文本
+	if currentText != "" {
+		textParts = append(textParts, node.NewStringLiteral(h.NewTokenFrom(start), currentText))
+	}
+
+	if len(textParts) == 0 {
 		return nil, nil
 	}
 
-	// 去除首尾空白
-	text = trimSpace(text)
-	if text == "" {
-		return nil, nil
+	// 如果只有一个部分，直接返回
+	if len(textParts) == 1 {
+		return textParts[0], nil
 	}
 
-	return node.NewStringLiteral(h.NewTokenFrom(start), text), nil
+	// 多个部分，需要创建字符串连接节点
+	// 使用BinaryAdd节点连接多个部分
+	result := textParts[0]
+	for i := 1; i < len(textParts); i++ {
+		result = node.NewBinaryAdd(h.NewTokenFrom(start), result, textParts[i])
+	}
+
+	return result, nil
 }
 
 // findClosingTag 查找结束标签

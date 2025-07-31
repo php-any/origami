@@ -1,6 +1,6 @@
 $users = [
-    {"name": "Jane Doe", "email": "jane@example.com"},
-    {"name": "John Doe", "email": "john@example.com"}
+    {"name": "Jane Doe 1", "email": "jane@example.com"},
+    {"name": "John Doe 2", "email": "john@example.com"}
 ];
 
 // 应该循环输出多个div和name
