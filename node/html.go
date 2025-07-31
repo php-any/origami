@@ -103,3 +103,93 @@ func (h *HtmlNode) GetChildren() []data.GetValue {
 func (h *HtmlNode) IsSelfClosingTag() bool {
 	return h.IsSelfClosing
 }
+
+// HtmlForNode 表示HTML for循环节点
+type HtmlForNode struct {
+	*Node    `pp:"-"`
+	Array    data.GetValue // 要遍历的数组
+	Key      data.Variable // 键变量名（可选）
+	Value    data.Variable // 值变量名
+	HtmlNode *HtmlNode     // 嵌套的HTML节点
+}
+
+// NewHtmlForNode 创建一个新的HTML for循环节点
+func NewHtmlForNode(from data.From, array data.GetValue, key data.Variable, value data.Variable, htmlNode *HtmlNode) *HtmlForNode {
+	return &HtmlForNode{
+		Node:     NewNode(from),
+		Array:    array,
+		Key:      key,
+		Value:    value,
+		HtmlNode: htmlNode,
+	}
+}
+
+// GetValue 获取HTML for循环节点的值
+func (h *HtmlForNode) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	// 获取数组值
+	arrayValue, ctl := h.Array.GetValue(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+
+	var resultHtml string
+
+	// 检查数组值是否为数组类型
+	switch array := arrayValue.(type) {
+	case *data.ArrayValue:
+		// 遍历数组
+		for i, element := range array.Value {
+			// 设置值变量
+			ctx.SetVariableValue(h.Value, element)
+
+			// 如果有键变量，设置键变量
+			if h.Key != nil {
+				keyValue := data.NewIntValue(i)
+				ctx.SetVariableValue(h.Key, keyValue)
+			}
+
+			// 执行嵌套的HTML节点
+			htmlValue, ctl := h.HtmlNode.GetValue(ctx)
+			if ctl != nil {
+				return nil, ctl
+			}
+
+			if strValue, ok := htmlValue.(data.AsString); ok {
+				resultHtml += strValue.AsString()
+			} else {
+				resultHtml += fmt.Sprintf("%v", htmlValue)
+			}
+		}
+	case *data.ObjectValue:
+		// 遍历对象
+		for key, element := range array.GetProperties() {
+			// 设置值变量
+			ctx.SetVariableValue(h.Value, element)
+
+			// 如果有键变量，设置键变量
+			if h.Key != nil {
+				keyValue := data.NewStringValue(key)
+				ctx.SetVariableValue(h.Key, keyValue)
+			}
+
+			// 执行嵌套的HTML节点
+			htmlValue, ctl := h.HtmlNode.GetValue(ctx)
+			if ctl != nil {
+				return nil, ctl
+			}
+
+			if strValue, ok := htmlValue.(data.AsString); ok {
+				resultHtml += strValue.AsString()
+			} else {
+				resultHtml += fmt.Sprintf("%v", htmlValue)
+			}
+		}
+	case *data.NullValue:
+		// 空数组，返回空字符串
+		return data.NewStringValue(""), nil
+	default:
+		return nil, data.NewErrorThrow(h.from, fmt.Errorf("for HTML 只能遍历数组或对象"))
+	}
+
+	return data.NewStringValue(resultHtml), nil
+}

@@ -1,0 +1,28 @@
+<?php
+// HTML for循环测试
+
+// 测试数组
+$items = ["apple", "banana", "orange"];
+
+// 测试for循环HTML
+<div for="item in $items">
+    <span>水果: $item</span>
+</div>
+
+// 测试带键值的for循环
+<div for="index, item in $items">
+    <span>第$index个: $item</span>
+</div>
+
+// 测试对象
+$users = [
+    "name" => "张三",
+    "age" => 25,
+    "city" => "北京"
+];
+
+// 测试对象for循环
+<div for="key, value in $users">
+    <span>$key: $value</span>
+</div>
+?> 

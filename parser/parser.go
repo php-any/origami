@@ -484,3 +484,27 @@ func (p *Parser) SetClassPathManager(manager ClassPathManager) {
 func (p *Parser) GetClassPathManager() ClassPathManager {
 	return p.classPathManager
 }
+
+// ParseExpressionFromString 从字符串解析表达式
+func (p *Parser) ParseExpressionFromString(exprStr string) (data.GetValue, data.Control) {
+	// 保存当前状态
+	originalTokens := p.tokens
+	originalPosition := p.position
+
+	// 重置解析器状态
+	p.tokens = make([]lexer.Token, 0)
+	p.position = 0
+
+	// 对表达式字符串进行分词
+	p.tokens = p.lexer.Tokenize(exprStr)
+
+	// 使用表达式解析器解析
+	exprParser := NewExpressionParser(p)
+	result, ctl := exprParser.Parse()
+
+	// 恢复原始状态
+	p.tokens = originalTokens
+	p.position = originalPosition
+
+	return result, ctl
+}
