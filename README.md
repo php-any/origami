@@ -173,8 +173,8 @@ $content = <div class="container">
 
 ```php
 $numbers = [1, 2, 3, 4, 5];
-$doubled = $numbers->map(fn($n) => $n * 2);
-$evens = $numbers->filter(fn($n) => $n % 2 == 0);
+$doubled = $numbers->map(($n) => $n * 2);
+$evens = $numbers->filter(($n) => $n % 2 == 0);
 ```
 
 ### 中文编程
@@ -197,7 +197,7 @@ go build -o origami .
 
 ## 📚 文档
 
-- [文档](docs/README.md)
+- [文档](docs/)
 - [测试用例](tests/)
 
 ## 💬 讨论群
