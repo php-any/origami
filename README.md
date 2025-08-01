@@ -68,12 +68,10 @@ vm.RegisterReflectClass("Calculator", &Calculator{})
 ```
 
 ```php
-<?php
 // 在脚本中使用
 $calc = new Calculator(Name: "MyCalc");
 echo $calc->GetName();     // 输出: MyCalc
 echo $calc->Add(5, 3);     // 输出: 8
-?>
 ```
 
 ### 函数注册
@@ -85,11 +83,9 @@ vm.RegisterFunction("isEven", func(n int) bool { return n%2 == 0 })
 ```
 
 ```php
-<?php
 // 脚本中调用
 $result = add(5, 3);     // 返回 8
 $even = isEven(4);       // 返回 true
-?>
 ```
 
 ### 基础语法
