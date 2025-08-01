@@ -193,12 +193,12 @@ go build -o origami .
 
 ## 📚 文档
 
-- [文档](docs/)
-- [测试用例](tests/)
+- [文档](https://github.com/php-any/origami/tree/main/docs)
+- [测试用例](https://github.com/php-any/origami/tree/main/tests)
 
 ## 💬 讨论群
 
-![折言讨论群二维码](qrcode_1753692981069.jpg)
+![折言讨论群二维码](https://github.com/php-any/origami/blob/main/qrcode_1753692981069.jpg)
 
 ## 📄 许可证
 
