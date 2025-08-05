@@ -195,15 +195,3 @@ func Test_handleNumber(t *testing.T) {
 		})
 	}
 }
-
-// 添加调试测试
-func Test_handleNumberDebug(t *testing.T) {
-	input := "1.23e+10"
-	got, got1, got2 := handleNumber(input, 0)
-	t.Logf("Input: %q", input)
-	t.Logf("Got: %+v", got)
-	t.Logf("Got1: %d", got1)
-	t.Logf("Got2: %v", got2)
-	t.Logf("Expected literal: %q", "1.23e+10")
-	t.Logf("Expected length: 9")
-}
