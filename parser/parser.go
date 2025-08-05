@@ -428,7 +428,7 @@ func (p *Parser) findFullClassNameByNamespace(name string, try ...bool) (string,
 		return stmt.GetName(), true
 	}
 
-	if len(try) > 0 && try[0] == false {
+	if len(try) > 0 && !try[0] {
 		return "", false
 	}
 

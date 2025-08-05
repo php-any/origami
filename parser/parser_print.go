@@ -2,8 +2,9 @@ package parser
 
 import (
 	"fmt"
-	"github.com/php-any/origami/data"
 	"strings"
+
+	"github.com/php-any/origami/data"
 )
 
 // printDetailedError 打印详细的错误信息
@@ -19,7 +20,7 @@ func (p *Parser) printDetailedError(err string, from data.From) {
 
 	// 当前 token 信息
 	currentToken := p.current()
-	fmt.Printf("🔍 当前 Token: %s (类型: %s)\n", currentToken.Literal, currentToken.Type)
+	fmt.Printf("🔍 当前 Token: %s (类型: %d)\n", currentToken.Literal, currentToken.Type)
 
 	// 显示错误消息
 	fmt.Printf("❌ 错误: %s\n", err)

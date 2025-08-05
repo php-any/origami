@@ -13,22 +13,18 @@ type BinaryAssign struct {
 }
 
 func NewBinaryAssign(from data.From, left, right data.GetValue) BinaryExpression {
-	switch left.(type) {
+	switch l := left.(type) {
 	case data.Variable:
-		if l, ok := left.(data.Variable); ok {
-			return &BinaryAssignVariable{
-				Node:  NewNode(from),
-				Left:  l,
-				Right: right,
-			}
+		return &BinaryAssignVariable{
+			Node:  NewNode(from),
+			Left:  l,
+			Right: right,
 		}
 	case *VariableList:
-		if l, ok := left.(*VariableList); ok {
-			return &BinaryAssignVariableList{
-				Node:  NewNode(from),
-				Left:  l,
-				Right: right,
-			}
+		return &BinaryAssignVariableList{
+			Node:  NewNode(from),
+			Left:  l,
+			Right: right,
 		}
 	}
 
