@@ -20,7 +20,7 @@ func NewWhileParser(parser *Parser) StatementParser {
 
 // Parse 解析while语句
 func (p *WhileParser) Parse() (data.GetValue, data.Control) {
-	start := p.GetStart()
+	tracker := p.StartTracking()
 	// 跳过while关键字
 	p.next()
 
@@ -38,9 +38,10 @@ func (p *WhileParser) Parse() (data.GetValue, data.Control) {
 
 	// 解析循环体
 	body := p.parseBlock()
+	from := tracker.EndBefore()
 
 	return node.NewWhileStatement(
-		p.NewTokenFrom(start),
+		from,
 		condition,
 		body,
 	), nil

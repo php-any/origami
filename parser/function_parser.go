@@ -20,6 +20,7 @@ func NewFunctionParser(parser *Parser) StatementParser {
 
 // Parse 解析函数声明
 func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
+	tracker := fp.StartTracking()
 	// 跳过 function 关键字
 	fp.next()
 
@@ -55,7 +56,7 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 	fp.scopeManager.PopScope()
 
 	f := node.NewFunctionStatement(
-		fp.NewTokenFrom(fp.GetStart()),
+		tracker.EndBefore(),
 		name,
 		params,
 		body,

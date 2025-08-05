@@ -20,7 +20,7 @@ func NewVarParser(parser *Parser) StatementParser {
 
 // Parse 解析var语句
 func (p *VarParser) Parse() (data.GetValue, data.Control) {
-	start := p.GetStart()
+	tracker := p.StartTracking()
 	// 跳过var关键字
 	p.next()
 
@@ -45,7 +45,7 @@ func (p *VarParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	return node.NewVarStatement(
-		p.NewTokenFrom(start),
+		tracker.EndBefore(),
 		name,
 		initializer,
 	), nil

@@ -17,7 +17,7 @@ func NewSpawnParser(parser *Parser) StatementParser {
 }
 
 func (sp *SpawnParser) Parse() (data.GetValue, data.Control) {
-	from := sp.NewTokenFrom(sp.GetStart())
+	from := sp.FromCurrentToken()
 
 	// 跳过 spawn 关键字
 	sp.next()

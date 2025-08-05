@@ -20,7 +20,7 @@ func NewParentParser(parser *Parser) StatementParser {
 
 func (pp *ParentParser) Parse() (data.GetValue, data.Control) {
 	// 获取变量名
-	tokenFrom := pp.NewTokenFrom(pp.GetStart())
+	tracker := pp.StartTracking()
 	pp.next()
 
 	// 检查是否是 parent:: 语法
@@ -28,6 +28,7 @@ func (pp *ParentParser) Parse() (data.GetValue, data.Control) {
 		pp.next() // 跳过 ::
 		methodName := pp.current().Literal
 		pp.next()
+		tokenFrom := tracker.EndBefore()
 
 		if pp.checkPositionIs(0, token.LPAREN) {
 			// 创建静态方法调用表达式
@@ -42,6 +43,7 @@ func (pp *ParentParser) Parse() (data.GetValue, data.Control) {
 		}
 	}
 
+	tokenFrom := tracker.EndBefore()
 	// 创建变量表达式
 	expr := node.NewParent(tokenFrom)
 

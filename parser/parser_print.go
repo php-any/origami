@@ -19,7 +19,7 @@ func (p *Parser) printDetailedError(err string, from data.From) {
 
 	// 当前 token 信息
 	currentToken := p.current()
-	fmt.Printf("🔍 当前 Token: %s (类型: %s)\n", currentToken.Literal, currentToken.Type)
+	fmt.Printf("🔍 当前 Token: %s (类型: %v)\n", currentToken.Literal, currentToken.Type)
 
 	// 显示错误消息
 	fmt.Printf("❌ 错误: %s\n", err)

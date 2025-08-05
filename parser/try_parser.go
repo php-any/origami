@@ -20,7 +20,7 @@ func NewTryParser(parser *Parser) StatementParser {
 
 // Parse 解析try语句
 func (p *TryParser) Parse() (data.GetValue, data.Control) {
-	start := p.GetStart()
+	tracker := p.StartTracking()
 
 	// 跳过try关键字
 	p.nextAndCheck(token.TRY)
@@ -46,8 +46,9 @@ func (p *TryParser) Parse() (data.GetValue, data.Control) {
 		finallyBlock = p.parseBlock()
 	}
 
+	from := tracker.EndBefore()
 	return node.NewTryStatement(
-		p.NewTokenFrom(start),
+		from,
 		tryBlock,
 		catchBlocks,
 		finallyBlock,
@@ -86,7 +87,7 @@ func (p *TryParser) parseCatchBlock() *node.CatchBlock {
 		variable = stmt.(*node.VariableExpression)
 		variable.Type = data.NewBaseType(exceptionType)
 	} else {
-		from := p.NewTokenFrom(p.current().Start)
+		from := p.FromCurrentToken()
 		name := p.current().Literal
 		p.next()
 		index := p.scopeManager.CurrentScope().AddVariable(name, data.NewBaseType(exceptionType), from)

@@ -21,7 +21,7 @@ func NewNamespaceParser(parser *Parser) StatementParser {
 // Parse 解析命名空间语句
 func (np *NamespaceParser) Parse() (data.GetValue, data.Control) {
 	// 跳过 namespace 关键字
-	start := np.GetStart()
+	tracker := np.StartTracking()
 	np.next()
 
 	// 解析命名空间名称
@@ -43,7 +43,8 @@ func (np *NamespaceParser) Parse() (data.GetValue, data.Control) {
 
 	// 解析命名空间体
 	statements := make([]node.Statement, 0)
-	np.namespace = node.NewNamespace(np.NewTokenFrom(start), name, statements)
+	from := tracker.EndBefore()
+	np.namespace = node.NewNamespace(from, name, statements)
 
 	if np.current().Type == token.LBRACE {
 		np.next() // 跳过 {

@@ -22,14 +22,14 @@ func NewNullableParser(parser *Parser) StatementParser {
 
 // Parse 解析可空类型声明
 func (p *NullableParser) Parse() (data.GetValue, data.Control) {
-	start := p.GetStart()
+	tracker := p.StartTracking()
 
 	// 跳过 ? 符号
 	p.next()
 
 	// 检查下一个token是否是类型标识符
 	if !isIdentOrTypeToken(p.current().Type) {
-		return nil, data.NewErrorThrow(p.NewTokenFrom(start), errors.New("可空类型声明需要类型标识符"))
+		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("可空类型声明需要类型标识符"))
 	}
 
 	typeName := p.current().Literal
@@ -37,7 +37,7 @@ func (p *NullableParser) Parse() (data.GetValue, data.Control) {
 
 	// 检查是否有变量名
 	if p.current().Type != token.VARIABLE {
-		return nil, data.NewErrorThrow(p.NewTokenFrom(start), errors.New("可空类型声明需要变量名"))
+		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("可空类型声明需要变量名"))
 	}
 
 	varName := p.current().Literal
@@ -46,10 +46,11 @@ func (p *NullableParser) Parse() (data.GetValue, data.Control) {
 	// 创建可空类型
 	nullableType := data.NewNullableType(data.NewBaseType(typeName))
 
+	from := tracker.EndBefore()
 	// 在作用域中添加变量
-	index := p.scopeManager.CurrentScope().AddVariable(varName, nullableType, p.NewTokenFrom(start))
+	index := p.scopeManager.CurrentScope().AddVariable(varName, nullableType, from)
 
-	expr := node.NewVariable(p.NewTokenFrom(start), varName, index, nullableType)
+	expr := node.NewVariable(from, varName, index, nullableType)
 	// 解析后续操作（函数调用、数组访问等）
 	vp := &VariableParser{p.Parser}
 	return vp.parseSuffix(expr)

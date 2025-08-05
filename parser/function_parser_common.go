@@ -45,7 +45,7 @@ func (p *FunctionParserCommon) ParseFunctionBody() []node.Statement {
 func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control) {
 	// 检查左括号
 	if p.current().Type != token.LPAREN {
-		return nil, data.NewErrorThrow(p.newFrom(), errors.New("参数列表前缺少左括号 '('"))
+		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("参数列表前缺少左括号 '('"))
 	}
 	p.next()
 
@@ -59,7 +59,7 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 
 	// 解析参数列表
 	for {
-		tokenFrom := parser.NewTokenFrom(p.GetStart())
+		tokenFrom := parser.FromCurrentToken()
 		varType := ""
 		name := ""
 		isParams := false
@@ -163,10 +163,10 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 			p.next()
 			// 检查逗号后是否直接跟着右括号（这是语法错误）
 			if p.current().Type == token.RPAREN {
-				return nil, data.NewErrorThrow(p.newFrom(), errors.New("逗号后缺少参数"))
+				return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("逗号后缺少参数"))
 			}
 		} else if p.current().Type != token.RPAREN {
-			return nil, data.NewErrorThrow(p.newFrom(), errors.New("参数后缺少逗号 ',' 或右括号 ')'"))
+			return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("参数后缺少逗号 ',' 或右括号 ')'"))
 		} else {
 			break
 		}

@@ -20,7 +20,7 @@ func NewReturnParser(parser *Parser) StatementParser {
 
 // Parse 解析return语句
 func (p *ReturnParser) Parse() (data.GetValue, data.Control) {
-	start := p.GetStart()
+	tracker := p.StartTracking()
 	// 跳过return关键字
 	p.next()
 
@@ -43,15 +43,17 @@ func (p *ReturnParser) Parse() (data.GetValue, data.Control) {
 				}
 				values = append(values, next)
 			}
+			from := tracker.EndBefore()
 			return node.NewReturnsStatement(
-				p.NewTokenFrom(start),
+				from,
 				values,
 			), nil
 		}
 	}
 
+	from := tracker.EndBefore()
 	return node.NewReturnStatement(
-		p.NewTokenFrom(start),
+		from,
 		value,
 	), nil
 }

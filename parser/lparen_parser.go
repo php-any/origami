@@ -54,7 +54,7 @@ func (ep *LparenParser) parseTypeCast() node.Statement {
 	ep.next()                     // 跳过类型名
 	ep.nextAndCheck(token.RPAREN) // 跳过右括号
 
-	from := ep.NewTokenFrom(ep.GetStart())
+	from := ep.FromCurrentToken()
 	val, acl := ep.parseStatement()
 	if acl != nil {
 		ep.addControl(acl)
@@ -130,7 +130,7 @@ func (ep *LparenParser) parseLambdaExpression() (data.GetValue, data.Control) {
 	}
 
 	return node.NewLambdaExpression(
-		fp.NewTokenFrom(fp.GetStart()),
+		fp.FromCurrentToken(),
 		params,
 		body,
 		vars,

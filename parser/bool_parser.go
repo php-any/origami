@@ -20,20 +20,24 @@ func NewBoolParser(parser *Parser) StatementParser {
 
 // Parse 解析bool类型声明
 func (p *BoolParser) Parse() (data.GetValue, data.Control) {
-	start := p.GetStart()
-	from := p.NewTokenFrom(start)
+	// 开始位置跟踪
+	tracker := p.StartTracking()
 
 	// 跳过bool关键字
 	p.next()
 
 	// 检查下一个token是否是变量
 	if p.current().Type != token.VARIABLE {
+		from := tracker.End()
 		return nil, data.NewErrorThrow(from, data.NewError(from, "bool类型声明需要变量名", nil))
 	}
 
 	// 获取变量名
 	varName := p.current().Literal
 	p.next()
+
+	// 结束位置跟踪，获取准确的From信息
+	from := tracker.EndBefore()
 
 	// 在作用域中添加变量
 	index := p.scopeManager.CurrentScope().AddVariable(varName, data.Bool{}, from)

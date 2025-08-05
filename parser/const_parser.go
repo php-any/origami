@@ -20,7 +20,7 @@ func NewConstParser(parser *Parser) StatementParser {
 
 // Parse 解析const语句
 func (p *ConstParser) Parse() (data.GetValue, data.Control) {
-	start := p.GetStart()
+	tracker := p.StartTracking()
 	// 跳过const关键字
 	p.next()
 
@@ -39,9 +39,10 @@ func (p *ConstParser) Parse() (data.GetValue, data.Control) {
 	}
 	p.next() // 跳过等号
 	initializer, acl := p.parseStatement()
+	from := tracker.EndBefore()
 
 	return node.NewConstStatement(
-		p.NewTokenFrom(start),
+		from,
 		name,
 		initializer,
 	), acl

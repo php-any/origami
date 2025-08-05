@@ -21,6 +21,7 @@ func NewUseParser(parser *Parser) StatementParser {
 
 // Parse 解析use语句
 func (p *UseParser) Parse() (data.GetValue, data.Control) {
+	tracker := p.StartTracking()
 	// 跳过 use 关键字
 	p.next()
 
@@ -58,9 +59,10 @@ func (p *UseParser) Parse() (data.GetValue, data.Control) {
 	}
 	p.next()
 
+	from := tracker.EndBefore()
 	// 创建 use 语句节点
 	return node.NewUseStatement(
-		p.NewTokenFrom(p.GetStart()),
+		from,
 		namespace,
 		alias,
 	), nil

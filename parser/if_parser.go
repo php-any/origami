@@ -21,7 +21,9 @@ func NewIfParser(parser *Parser) StatementParser {
 
 // Parse 解析if语句
 func (p *IfParser) Parse() (data.GetValue, data.Control) {
-	start := p.GetStart()
+	// 开始位置跟踪
+	tracker := p.StartTracking()
+
 	// 跳过if关键字
 	p.next()
 
@@ -71,8 +73,11 @@ func (p *IfParser) Parse() (data.GetValue, data.Control) {
 		elseBranch = p.parseBlock()
 	}
 
+	// 结束位置跟踪，获取整个if语句的准确范围
+	from := tracker.EndBefore()
+
 	return node.NewIfStatement(
-		p.NewTokenFrom(start),
+		from,
 		condition,
 		thenBranch,
 		elseIfBranches,
@@ -91,7 +96,7 @@ func (p *IfParser) parseIfCondition() (data.GetValue, data.Control) {
 			p.addControl(acl)
 		}
 		if p.current().Type != token.RPAREN {
-			return nil, data.NewErrorThrow(p.newFrom(), errors.New("if 缺少右括号 ')'"))
+			return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("if 缺少右括号 ')'"))
 		}
 		p.next() // 跳过右括号
 
@@ -113,7 +118,7 @@ func (p *IfParser) parseSemicolonCondition() (data.GetValue, data.Control) {
 		return nil, acl
 	}
 	if firstExpr == nil {
-		return nil, data.NewErrorThrow(p.newFrom(), errors.New("if 条件中缺少表达式"))
+		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("if 条件中缺少表达式"))
 	}
 
 	// 检查是否有分号
@@ -127,7 +132,7 @@ func (p *IfParser) parseSemicolonCondition() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		if condition == nil {
-			return nil, data.NewErrorThrow(p.newFrom(), errors.New("if 分号后缺少条件表达式"))
+			return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("if 分号后缺少条件表达式"))
 		}
 
 		// 检查是否有第二个分号

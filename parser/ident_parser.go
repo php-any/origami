@@ -21,26 +21,32 @@ func NewIdentParser(parser *Parser) StatementParser {
 
 // Parse 解析标识符表达式
 func (p *IdentParser) Parse() (data.GetValue, data.Control) {
-	from := p.NewTokenFrom(p.current().Start)
+	from := p.FromCurrentToken()
 	name := p.current().Literal
 	startToken := p.current()
 	p.next()
 
 	// 函数调用模式 div {} 或者 div []
 	if p.checkPositionIs(0, token.LBRACE) {
-		fn, ok := p.vm.GetFunc(name)
-		if !ok {
-			return nil, data.NewErrorThrow(from, errors.New("未定义的函数:"+name))
+		if full, ok := p.findFullFunNameByNamespace(name); ok {
+			fn, ok := p.vm.GetFunc(full)
+			if !ok {
+				return nil, data.NewErrorThrow(from, errors.New("未定义的函数:"+full))
+			}
+			v, acl := NewLbraceParser(p.Parser).Parse()
+			return node.NewCallExpression(from, fn.GetName(), []data.GetValue{v}, fn), acl
 		}
-		v, acl := NewLbraceParser(p.Parser).Parse()
-		return node.NewCallExpression(from, name, []data.GetValue{v}, fn), acl
+		return nil, data.NewErrorThrow(from, errors.New("未定义的函数:"+name))
 	} else if p.checkPositionIs(0, token.LBRACKET) {
-		v, acl := NewLbracketParser(p.Parser).Parse()
-		fn, ok := p.vm.GetFunc(name)
-		if !ok {
-			return nil, data.NewErrorThrow(from, errors.New("未定义的函数:"+name))
+		if full, ok := p.findFullFunNameByNamespace(name); ok {
+			fn, ok := p.vm.GetFunc(full)
+			if !ok {
+				return nil, data.NewErrorThrow(from, errors.New("未定义的函数:"+full))
+			}
+			v, acl := NewLbracketParser(p.Parser).Parse()
+			return node.NewCallExpression(from, fn.GetName(), []data.GetValue{v}, fn), acl
 		}
-		return node.NewCallExpression(from, name, []data.GetValue{v}, fn), acl
+		return nil, data.NewErrorThrow(from, errors.New("未定义的函数:"+name))
 	}
 
 	// 检查是否是变量的类型

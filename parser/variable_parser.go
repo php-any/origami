@@ -30,10 +30,13 @@ func (vp *VariableParser) Parse() (data.GetValue, data.Control) {
 }
 
 func (vp *VariableParser) parseVariable() *node.VariableExpression {
+	tracker := vp.StartTracking()
+
 	// 获取变量名
 	name := vp.current().Literal
-	tokenFrom := vp.NewTokenFrom(vp.GetStart())
 	vp.next()
+
+	tokenFrom := tracker.EndBefore()
 
 	// 查找变量索引
 	varInfo := vp.scopeManager.LookupVariable(name)
@@ -53,11 +56,14 @@ func (vp *VariableParser) parseSuffix(expr data.GetValue) (data.GetValue, data.C
 	for {
 		switch vp.current().Type {
 		case token.LPAREN:
+			// 在解析函数调用之前记录位置
+			tracker := vp.StartTracking()
 			stmt, acl := vp.parseFunctionCall()
 			if acl != nil {
 				return nil, acl
 			}
-			expr = node.NewCallMethod(vp.NewTokenFrom(vp.GetStart()), expr, stmt)
+			from := tracker.EndBefore()
+			expr = node.NewCallMethod(from, expr, stmt)
 		case token.LBRACKET:
 			expr, acl = vp.parseArrayAccess(expr)
 			if acl != nil {
@@ -76,10 +82,12 @@ func (vp *VariableParser) parseSuffix(expr data.GetValue) (data.GetValue, data.C
 		case token.SCOPE_RESOLUTION:
 			// 处理 ::class 语法
 			if vp.checkPositionIs(1, token.CLASS) {
+				tracker := vp.StartTracking()
 				vp.next() // 跳过 ::
 				vp.next() // 跳过 class
+				from := tracker.EndBefore()
 				// 生成 ClassConstant 节点
-				return node.NewClassConstant(vp.NewTokenFrom(vp.GetStart()), expr), nil
+				return node.NewClassConstant(from, expr), nil
 			}
 			// 处理其他 :: 语法（如静态方法调用）
 			// 这里可以添加静态方法调用的处理
@@ -99,11 +107,11 @@ func (vp *VariableParser) parseFunctionCall() ([]data.GetValue, data.Control) {
 		for {
 			// 优先检查命名参数
 			if vp.checkPositionIs(0, token.IDENTIFIER) && vp.checkPositionIs(1, token.COLON) {
-				start := vp.GetStart()
-				from := vp.NewTokenFrom(start)
+				tracker := vp.StartTracking()
 				name := vp.current().Literal
 				vp.next()
 				vp.next()
+				from := tracker.EndBefore()
 
 				value, acl := vp.expressionParser.Parse()
 				if acl != nil {
@@ -150,8 +158,9 @@ func (vp *VariableParser) parseFunctionCall() ([]data.GetValue, data.Control) {
 
 // parseArrayAccess 解析数组访问
 func (vp *VariableParser) parseArrayAccess(array data.GetValue) (data.GetValue, data.Control) {
-	from := vp.NewTokenFrom(vp.GetStart())
+	tracker := vp.StartTracking()
 	vp.next() // 跳过左方括号
+	from := tracker.EndBefore()
 
 	if vp.current().Type == token.DOUBLE_DOT {
 		// arr[..1]
@@ -247,6 +256,7 @@ func (vp *VariableParser) parseArrayAccess(array data.GetValue) (data.GetValue, 
 
 // parsePropertyAccess 解析属性访问
 func (vp *VariableParser) parsePropertyAccess(object data.GetValue) (data.GetValue, data.Control) {
+	tracker := vp.StartTracking()
 	vp.next() // 跳过点号
 
 	if vp.checkPositionIs(0, token.IDENTIFIER) || (vp.current().Type > token.KEYWORD_START && vp.current().Type < token.VALUE_START) {
@@ -258,15 +268,17 @@ func (vp *VariableParser) parsePropertyAccess(object data.GetValue) (data.GetVal
 			if acl != nil {
 				vp.addControl(acl)
 			}
+			from := tracker.EndBefore()
 			return node.NewObjectMethod(
-				vp.NewTokenFrom(vp.GetStart()),
+				from,
 				object,
 				property,
 				stmt,
 			), nil
 		} else {
+			from := tracker.EndBefore()
 			return node.NewObjectProperty(
-				vp.NewTokenFrom(vp.GetStart()),
+				from,
 				object,
 				property,
 			), nil
@@ -275,23 +287,26 @@ func (vp *VariableParser) parsePropertyAccess(object data.GetValue) (data.GetVal
 
 	// 尝试兼容 php . 符号作为字符串链接
 	property, acl := vp.parseStatement()
+	from := tracker.EndBefore()
 	return node.NewBinaryAdd(
-		vp.NewTokenFrom(vp.GetStart()),
+		from,
 		object,
 		property,
 	), acl
 }
 
 func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, data.Control) {
+	tracker := vp.StartTracking()
 	vp.next() // 跳过箭头
-	start := vp.GetStart()
 
 	if vp.current().Type != token.IDENTIFIER {
-		return nil, data.NewErrorThrow(vp.NewTokenFrom(start), errors.New("Expected method name after '->'"))
+		from := tracker.End()
+		return nil, data.NewErrorThrow(from, errors.New("Expected method name after '->'"))
 	}
 
 	method := vp.current().Literal
 	vp.next()
+	from := tracker.EndBefore()
 
 	// 如果后面跟着括号，解析方法调用
 	if vp.current().Type == token.LPAREN {
@@ -300,7 +315,7 @@ func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, 
 			return nil, acl
 		}
 		return node.NewObjectMethod(
-			vp.NewTokenFrom(start),
+			from,
 			object,
 			method,
 			stmt,
@@ -308,7 +323,7 @@ func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, 
 	}
 
 	return node.NewObjectProperty(
-		vp.NewTokenFrom(start),
+		from,
 		object,
 		method,
 	), nil

@@ -23,7 +23,7 @@ func NewInterfaceParser(parser *Parser) StatementParser {
 
 // Parse 解析接口定义
 func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
-	start := p.GetStart()
+	tracker := p.StartTracking()
 	// 跳过interface关键字
 	p.next()
 
@@ -90,7 +90,7 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 	p.next()
 
 	i := node.NewInterfaceStatement(
-		p.NewTokenFrom(start),
+		tracker.EndBefore(),
 		interfaceName,
 		extends,
 		methods,
@@ -138,7 +138,7 @@ func (p *InterfaceParser) parseModifier() string {
 
 // parseInterfaceMethod 解析接口方法
 func (p *InterfaceParser) parseInterfaceMethod(modifier string) (data.Method, data.Control) {
-	start := p.GetStart()
+	tracker := p.StartTracking()
 
 	// 跳过function关键字
 	if p.current().Type == token.FUNC {
@@ -147,7 +147,7 @@ func (p *InterfaceParser) parseInterfaceMethod(modifier string) (data.Method, da
 
 	// 解析方法名
 	if p.current().Type != token.IDENTIFIER {
-		return nil, data.NewErrorThrow(p.NewTokenFrom(start), errors.New("缺少方法名"))
+		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("缺少方法名"))
 	}
 	name := p.current().Literal
 	p.next()
@@ -171,7 +171,7 @@ func (p *InterfaceParser) parseInterfaceMethod(modifier string) (data.Method, da
 	p.nextAndCheck(token.SEMICOLON)
 	// 创建接口方法（接口方法没有方法体）
 	return node.NewInterfaceMethod(
-		p.NewTokenFrom(start),
+		tracker.EndBefore(),
 		name,
 		modifier,
 		params,

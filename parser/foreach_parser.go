@@ -21,7 +21,7 @@ func NewForeachParser(parser *Parser) StatementParser {
 
 // Parse 解析foreach语句
 func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
-	start := p.GetStart()
+	tracker := p.StartTracking()
 	// 跳过foreach关键字
 	p.next()
 
@@ -39,12 +39,12 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 		return nil, acl
 	}
 	if array == nil {
-		return nil, data.NewErrorThrow(p.NewTokenFrom(start), errors.New("foreach 中需要数组表达式"))
+		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("foreach 中需要数组表达式"))
 	}
 
 	// 解析 as 关键字
 	if p.current().Type != token.AS {
-		return nil, data.NewErrorThrow(p.NewTokenFrom(start), errors.New("foreach 中需要 'as' 关键字"))
+		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("foreach 中需要 'as' 关键字"))
 	}
 	p.next()
 
@@ -61,8 +61,8 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 	if key, ok = keyTemp.(data.Variable); !ok {
 		if ident, ok := keyTemp.(*node.StringLiteral); ok {
 			name := ident.Value
-			index := p.scopeManager.CurrentScope().AddVariable(name, nil, p.NewTokenFrom(start))
-			key = node.NewVariable(p.NewTokenFrom(start), name, index, nil)
+			index := p.scopeManager.CurrentScope().AddVariable(name, nil, p.FromCurrentToken())
+			key = node.NewVariable(p.FromCurrentToken(), name, index, nil)
 		} else {
 			p.addError("foreach 无法解析变量 key")
 			return nil, nil
@@ -78,8 +78,8 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 		if value, ok = keyTemp.(data.Variable); !ok {
 			if ident, ok := keyTemp.(*node.StringLiteral); ok {
 				name := ident.Value
-				index := p.scopeManager.CurrentScope().AddVariable(name, nil, p.NewTokenFrom(start))
-				value = node.NewVariable(p.NewTokenFrom(start), name, index, nil)
+				index := p.scopeManager.CurrentScope().AddVariable(name, nil, p.FromCurrentToken())
+				value = node.NewVariable(p.FromCurrentToken(), name, index, nil)
 			} else {
 				p.addError("foreach 无法解析变量 key")
 				return nil, nil
@@ -100,8 +100,9 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 	// 解析循环体
 	body := p.parseBlock()
 
+	from := tracker.EndBefore()
 	return node.NewForeachStatement(
-		p.NewTokenFrom(start),
+		from,
 		array,
 		key,
 		value,

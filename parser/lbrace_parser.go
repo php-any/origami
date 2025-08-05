@@ -18,6 +18,7 @@ func NewLbraceParser(parser *Parser) StatementParser {
 }
 
 func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
 	ep.next()
 	expr, acl := ep.parseStatement()
 	if acl != nil {
@@ -44,7 +45,8 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 			v[key] = val
 		}
 		ep.next()
-		return node.NewKv(ep.NewTokenFrom(ep.position), v), nil
+		from := tracker.EndBefore()
+		return node.NewKv(from, v), nil
 	case token.COLON: // : JSON 定义
 		oldIdentTryString := ep.identTryString
 		ep.identTryString = true
@@ -76,12 +78,14 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 		ep.identTryString = oldIdentTryString
 
 		ep.nextAndCheck(token.RBRACE)
-		return node.NewKv(ep.NewTokenFrom(ep.position), v), nil
+		from := tracker.EndBefore()
+		return node.NewKv(from, v), nil
 	case token.RBRACE:
 		ep.next()
 		v := map[node.Statement]node.Statement{}
-		return node.NewKv(ep.NewTokenFrom(ep.position), v), nil
+		from := tracker.EndBefore()
+		return node.NewKv(from, v), nil
 	default:
-		return nil, data.NewErrorThrow(ep.newFrom(), errors.New("TODO: 语法错误"+ep.current().Literal))
+		return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("TODO: 语法错误"+ep.current().Literal))
 	}
 }

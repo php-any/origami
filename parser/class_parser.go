@@ -24,7 +24,7 @@ func NewClassParser(parser *Parser) StatementParser {
 
 // Parse 解析类定义
 func (p *ClassParser) Parse() (data.GetValue, data.Control) {
-	start := p.GetStart()
+	tracker := p.StartTracking()
 
 	// 解析类前的注解
 	var annotations []*node.Annotation
@@ -196,7 +196,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 	p.next() // 跳过结束花括号
 
 	c := node.NewClassStatement(
-		p.NewTokenFrom(start),
+		tracker.EndBefore(),
 		className,
 		extends,
 		implements,
@@ -298,14 +298,14 @@ func (p *ClassParser) parseModifier() string {
 
 // parseAnnotation 解析注解
 func (p *ClassParser) parseAnnotation() (*node.Annotation, data.Control) {
-	start := p.GetStart()
+	tracker := p.StartTracking()
 
 	// 跳过 @ 符号
 	p.next()
 
 	// 解析注解名称
 	if p.current().Type != token.IDENTIFIER {
-		return nil, data.NewErrorThrow(p.newFrom(), errors.New("注解缺少名称"))
+		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("注解缺少名称"))
 	}
 
 	annotationName, acl := p.getClassName(true)
@@ -327,7 +327,7 @@ func (p *ClassParser) parseAnnotation() (*node.Annotation, data.Control) {
 	}
 	// 创建注解节点
 	annotation := node.NewAnnotation(
-		p.NewTokenFrom(start),
+		tracker.EndBefore(),
 		annotationName,
 		arguments,
 	)
@@ -337,7 +337,7 @@ func (p *ClassParser) parseAnnotation() (*node.Annotation, data.Control) {
 
 // parsePropertyWithAnnotations 解析属性（带注解）
 func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic bool, annotations []*node.Annotation) (data.Property, data.Control) {
-	start := p.GetStart()
+	tracker := p.StartTracking()
 	if p.current().Type != token.VARIABLE {
 		// 跳过var或const关键字
 		p.next()
@@ -345,7 +345,7 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 
 	// 解析属性名
 	if p.current().Type != token.VARIABLE {
-		return nil, data.NewErrorThrow(p.newFrom(), errors.New("缺少变量名"))
+		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("缺少变量名"))
 	}
 	name := p.current().Literal
 	p.next()
@@ -364,12 +364,12 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 
 	// 解析分号
 	if p.current().Type != token.SEMICOLON {
-		return nil, data.NewErrorThrow(p.newFrom(), errors.New("属性声明后缺少分号 ';'"))
+		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("属性声明后缺少分号 ';'"))
 	}
 	p.next()
 
 	ret := node.NewProperty(
-		p.NewTokenFrom(start),
+		tracker.EndBefore(),
 		name,
 		modifier,
 		isStatic,
@@ -392,13 +392,13 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 
 // parseMethodWithAnnotations 解析方法（带注解）
 func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool, annotations []*node.Annotation) (data.Method, data.Control) {
-	start := p.GetStart()
+	tracker := p.StartTracking()
 	// 跳过function关键字
 	p.next()
 	p.scopeManager.NewScope(false)
 	// 解析方法名
 	if p.current().Type != token.IDENTIFIER {
-		return nil, data.NewErrorThrow(p.newFrom(), errors.New("缺少方法名"))
+		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("缺少方法名"))
 	}
 	name := p.current().Literal
 	p.next()
@@ -440,7 +440,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 
 				returnTypes = append(returnTypes, baseType)
 			} else {
-				return nil, data.NewErrorThrow(p.newFrom(), errors.New("缺少返回类型"))
+				return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("缺少返回类型"))
 			}
 
 			// 检查是否有更多类型（逗号分隔）
@@ -470,7 +470,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 	p.scopeManager.PopScope()
 
 	ret := node.NewMethod(
-		p.NewTokenFrom(start),
+		tracker.EndBefore(),
 		name,
 		modifier,
 		isStatic,

@@ -50,7 +50,7 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	n := node.NewNewExpression(
-		p.NewTokenFrom(p.GetStart()),
+		p.FromCurrentToken(),
 		className,
 		args,
 	)

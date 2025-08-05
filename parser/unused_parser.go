@@ -19,7 +19,7 @@ func NewUnusedParser(parser *Parser) StatementParser {
 
 // Parse 解析unused语句
 func (p *UnusedParser) Parse() (data.GetValue, data.Control) {
-	from := p.NewTokenFrom(p.GetStart())
+	from := p.FromCurrentToken()
 	// 跳过 _ 符号
 	name := "_"
 	p.next()
