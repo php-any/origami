@@ -6,7 +6,7 @@ obj = {}
 obj->number = 100
 
 server->get("/", (request, response) => {
-    response->write("Hello World");
+    response->json(obj);
     // 每次请求后，number会递增
     obj->number += 200;
 })

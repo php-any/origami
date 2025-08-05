@@ -103,7 +103,7 @@ func (ep *LparenParser) parseLambdaExpression() (data.GetValue, data.Control) {
 	}
 
 	// 创建新的函数作用域
-	fp.scopeManager.NewScope()
+	fp.scopeManager.NewScope(true)
 
 	// 解析参数列表
 	params, acl := fp.parseParameters()

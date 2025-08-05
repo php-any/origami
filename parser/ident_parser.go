@@ -184,5 +184,16 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 		return n, nil
 	}
 
+	if p.scopeManager.current.isLambda {
+		// 检查是否是变量
+		varInfo := p.scopeManager.LookupParentVariable(name)
+		if varInfo != nil {
+			index := p.scopeManager.CurrentScope().AddVariable(name, varInfo.GetType(), from)
+			expr := node.NewVariable(from, name, index, varInfo.GetType())
+			vp := &VariableParser{p.Parser}
+			return vp.parseSuffix(expr)
+		}
+	}
+
 	return node.NewStringLiteral(from, name), nil
 }

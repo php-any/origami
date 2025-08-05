@@ -395,7 +395,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 	start := p.GetStart()
 	// 跳过function关键字
 	p.next()
-	p.scopeManager.NewScope()
+	p.scopeManager.NewScope(false)
 	// 解析方法名
 	if p.current().Type != token.IDENTIFIER {
 		return nil, data.NewErrorThrow(p.newFrom(), errors.New("缺少方法名"))

@@ -37,7 +37,7 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 	fp.next()
 
 	// 创建新的函数作用域
-	fp.scopeManager.NewScope()
+	fp.scopeManager.NewScope(false)
 
 	// 解析参数列表
 	params, acl := fp.parseParameters()

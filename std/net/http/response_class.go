@@ -7,18 +7,17 @@ import (
 )
 
 func NewResponseClass(w http.ResponseWriter, r *http.Request) data.ClassStmt {
-	source := &Response{
-		r: r,
-		w: w,
-	}
+	source := NewResponse(w, r)
 	return &ResponseClass{
 		write: &ResponseWriteMethod{source},
+		json:  &ResponseJsonMethod{source},
 	}
 }
 
 type ResponseClass struct {
 	node.Node
 	write data.Method
+	json  data.Method
 }
 
 func (s *ResponseClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
@@ -51,6 +50,8 @@ func (s *ResponseClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
 	case "write":
 		return s.write, true
+	case "json":
+		return s.json, true
 	}
 	return nil, false
 }
@@ -58,6 +59,7 @@ func (s *ResponseClass) GetMethod(name string) (data.Method, bool) {
 func (s *ResponseClass) GetMethods() []data.Method {
 	return []data.Method{
 		s.write,
+		s.json,
 	}
 }
 

@@ -105,7 +105,67 @@ func (c *ClassValue) GetMethod(name string) (Method, bool) {
 }
 
 func (c *ClassValue) GetProperties() map[string]Value {
-	return map[string]Value{}
+	result := make(map[string]Value)
+
+	// 首先获取实例属性（从 ObjectValue 继承）
+	instanceProps := c.ObjectValue.GetProperties()
+	for name, value := range instanceProps {
+		result[name] = value
+	}
+
+	// 然后获取类定义的属性
+	classProps := c.Class.GetProperties()
+	for name, prop := range classProps {
+		// 如果实例中没有这个属性，则使用类定义的默认值
+		if _, exists := result[name]; !exists {
+			defaultValue := prop.GetDefaultValue()
+			if defaultValue != nil {
+				value, _ := defaultValue.GetValue(c.Context)
+				if value != nil {
+					if val, ok := value.(Value); ok {
+						result[name] = val
+					}
+				}
+			} else {
+				// 如果没有默认值，使用 null
+				result[name] = NewNullValue()
+			}
+		}
+	}
+
+	// 处理继承的属性
+	vm := c.GetVM()
+	last := c.Class
+	for last.GetExtend() != nil {
+		ext := last.GetExtend()
+		next, ok := vm.GetClass(*ext)
+		if !ok {
+			break
+		}
+
+		parentProps := next.GetProperties()
+		for name, prop := range parentProps {
+			// 只添加非私有属性，且实例中没有的属性
+			if prop.GetModifier() != ModifierPrivate {
+				if _, exists := result[name]; !exists {
+					defaultValue := prop.GetDefaultValue()
+					if defaultValue != nil {
+						value, _ := defaultValue.GetValue(c.Context)
+						if value != nil {
+							if val, ok := value.(Value); ok {
+								result[name] = val
+							}
+						}
+					} else {
+						result[name] = NewNullValue()
+					}
+				}
+			}
+		}
+		last = next
+	}
+
+	return result
 }
 
 func (c *ClassValue) CreateContext(vars []Variable) Context {
