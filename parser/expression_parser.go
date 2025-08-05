@@ -55,7 +55,7 @@ func (ep *ExpressionParser) parseAssignment() (data.GetValue, data.Control) {
 				if next, ok := value.(*node.VariableExpression); ok {
 					assigns = append(assigns, next)
 				} else {
-					return nil, data.NewErrorThrow(ep.NewTokenFrom(ep.GetStart()), errors.New("多赋值表达式只能是变量"))
+					return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("多赋值表达式只能是变量"))
 				}
 			}
 			expr = node.NewVariableList(assigns)
@@ -74,7 +74,7 @@ func (ep *ExpressionParser) parseAssignment() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		expr = node.NewBinaryExpression(
-			ep.NewTokenFrom(ep.GetStart()),
+			ep.FromCurrentToken(),
 			expr,
 			operator,
 			right,
@@ -119,13 +119,13 @@ func (ep *ExpressionParser) parseTernary() (data.GetValue, data.Control) {
 			}
 			// 创建三目运算符表达式
 			return node.NewTernaryExpression(
-				ep.NewTokenFrom(ep.GetStart()),
+				ep.FromCurrentToken(),
 				expr,
 				trueValue,
 				falseValue,
 			), nil
 		} else {
-			return nil, data.NewErrorThrow(ep.NewTokenFrom(ep.GetStart()), errors.New("三目运算符 ?: 缺少冒号"))
+			return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("三目运算符 ?: 缺少冒号"))
 		}
 	case token.NULL_COALESCE:
 		ep.next() // 跳过 ??
@@ -137,7 +137,7 @@ func (ep *ExpressionParser) parseTernary() (data.GetValue, data.Control) {
 		}
 		// 创建空合并运算符表达式
 		return node.NewNullCoalesceExpression(
-			ep.NewTokenFrom(ep.GetStart()),
+			ep.FromCurrentToken(),
 			expr,
 			right,
 		), nil
@@ -161,7 +161,7 @@ func (ep *ExpressionParser) parseConcatenation() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		expr = node.NewBinaryExpression(
-			ep.NewTokenFrom(ep.GetStart()),
+			ep.FromCurrentToken(),
 			expr,
 			operator,
 			right,
@@ -186,7 +186,7 @@ func (ep *ExpressionParser) parseLogicalOr() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		expr = node.NewBinaryExpression(
-			ep.NewTokenFrom(ep.GetStart()),
+			ep.FromCurrentToken(),
 			expr,
 			operator,
 			right,
@@ -211,7 +211,7 @@ func (ep *ExpressionParser) parseLogicalAnd() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		expr = node.NewBinaryExpression(
-			ep.NewTokenFrom(ep.GetStart()),
+			ep.FromCurrentToken(),
 			expr,
 			operator,
 			right,
@@ -236,7 +236,7 @@ func (ep *ExpressionParser) parseEquality() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		expr = node.NewBinaryExpression(
-			ep.NewTokenFrom(ep.GetStart()),
+			ep.FromCurrentToken(),
 			expr,
 			operator,
 			right,
@@ -251,7 +251,7 @@ func (ep *ExpressionParser) parseEquality() (data.GetValue, data.Control) {
 		_ = acl
 		// 创建 instanceof 表达式
 		expr = node.NewInstanceOfExpression(
-			ep.NewTokenFrom(ep.GetStart()),
+			ep.FromCurrentToken(),
 			expr,
 			className,
 		)
@@ -265,7 +265,7 @@ func (ep *ExpressionParser) parseEquality() (data.GetValue, data.Control) {
 		_ = acl
 		// 创建 like 表达式
 		expr = node.NewLikeExpression(
-			ep.NewTokenFrom(ep.GetStart()),
+			ep.FromCurrentToken(),
 			expr,
 			className,
 		)
@@ -294,7 +294,7 @@ func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		expr = node.NewBinaryExpression(
-			ep.NewTokenFrom(ep.GetStart()),
+			ep.FromCurrentToken(),
 			expr,
 			operator,
 			right,
@@ -319,7 +319,7 @@ func (ep *ExpressionParser) parseTerm() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		expr = node.NewBinaryExpression(
-			ep.NewTokenFrom(ep.GetStart()),
+			ep.FromCurrentToken(),
 			expr,
 			operator,
 			right,
@@ -345,7 +345,7 @@ func (ep *ExpressionParser) parseFactor() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		expr = node.NewBinaryExpression(
-			ep.NewTokenFrom(ep.GetStart()),
+			ep.FromCurrentToken(),
 			expr,
 			operator,
 			right,
@@ -366,7 +366,7 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		return node.NewUnaryExpression(
-			ep.NewTokenFrom(ep.GetStart()),
+			ep.FromCurrentToken(),
 			operator,
 			right,
 		), nil
@@ -387,12 +387,12 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 		}
 		if operator.Type == token.INCR {
 			return node.NewUnaryIncr(
-				ep.NewTokenFrom(ep.GetStart()),
+				ep.FromCurrentToken(),
 				right,
 			), nil
 		} else {
 			return node.NewUnaryDecr(
-				ep.NewTokenFrom(ep.GetStart()),
+				ep.FromCurrentToken(),
 				right,
 			), nil
 		}
@@ -407,27 +407,27 @@ func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 	case token.INT:
 		value := ep.current().Literal
 		ep.next()
-		return node.NewIntLiteral(ep.NewTokenFrom(ep.GetStart()), value), nil
+		return node.NewIntLiteral(ep.FromCurrentToken(), value), nil
 	case token.FLOAT:
 		value := ep.current().Literal
 		ep.next()
-		return node.NewFloatLiteral(ep.NewTokenFrom(ep.GetStart()), value), nil
+		return node.NewFloatLiteral(ep.FromCurrentToken(), value), nil
 	case token.STRING:
 		value := ep.current().Literal
 		ep.next()
-		return node.NewStringLiteral(ep.NewTokenFrom(ep.GetStart()), value), nil
+		return node.NewStringLiteral(ep.FromCurrentToken(), value), nil
 
 	case token.TRUE:
 		ep.next()
-		return node.NewBooleanLiteral(ep.NewTokenFrom(ep.GetStart()), true), nil
+		return node.NewBooleanLiteral(ep.FromCurrentToken(), true), nil
 
 	case token.FALSE:
 		ep.next()
-		return node.NewBooleanLiteral(ep.NewTokenFrom(ep.GetStart()), false), nil
+		return node.NewBooleanLiteral(ep.FromCurrentToken(), false), nil
 
 	case token.NULL:
 		ep.next()
-		return node.NewNullLiteral(ep.NewTokenFrom(ep.GetStart())), nil
+		return node.NewNullLiteral(ep.FromCurrentToken()), nil
 	case token.START_TAG, token.END_TAG, token.SEMICOLON:
 		ep.next()
 		return nil, nil
@@ -448,12 +448,12 @@ func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 				}
 				if operator.Type == token.INCR {
 					return node.NewPostfixIncr(
-						ep.NewTokenFrom(ep.GetStart()),
+						ep.FromCurrentToken(),
 						expr,
 					), nil
 				} else {
 					return node.NewPostfixDecr(
-						ep.NewTokenFrom(ep.GetStart()),
+						ep.FromCurrentToken(),
 						expr,
 					), nil
 				}

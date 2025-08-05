@@ -19,11 +19,11 @@ func NewContinueParser(parser *Parser) StatementParser {
 
 // Parse 解析continue语句
 func (p *ContinueParser) Parse() (data.GetValue, data.Control) {
-	start := p.GetStart()
+	from := p.FromCurrentToken()
 	// 跳过continue关键字
 	p.next()
 
 	return node.NewContinueStatement(
-		p.NewTokenFrom(start),
+		from,
 	), nil
 }

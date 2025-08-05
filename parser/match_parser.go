@@ -21,7 +21,7 @@ func NewMatchParser(parser *Parser) StatementParser {
 
 // Parse 解析match语句
 func (p *MatchParser) Parse() (data.GetValue, data.Control) {
-	start := p.GetStart()
+	tracker := p.StartTracking()
 
 	// 跳过match关键字
 	p.next()
@@ -71,7 +71,7 @@ func (p *MatchParser) Parse() (data.GetValue, data.Control) {
 	p.nextAndCheck(token.RBRACE)
 
 	return node.NewMatchStatement(
-		p.NewTokenFrom(start),
+		tracker.EndBefore(),
 		condition,
 		arms,
 		def,
@@ -89,7 +89,7 @@ func (p *MatchParser) parseMatchCondition() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		if p.current().Type != token.RPAREN {
-			return nil, data.NewErrorThrow(p.newFrom(), errors.New("match 缺少右括号 ')'"))
+			return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("match 缺少右括号 ')'"))
 		}
 		p.next() // 跳过右括号
 
@@ -102,14 +102,14 @@ func (p *MatchParser) parseMatchCondition() (data.GetValue, data.Control) {
 
 // parseMatchArm 解析单个match分支
 func (p *MatchParser) parseMatchArm() (*node.MatchArm, data.Control) {
-	start := p.GetStart()
+	tracker := p.StartTracking()
 
 	// 解析条件部分（可以是多个条件，用逗号分隔）
 	var conditions []data.GetValue
 	for !p.checkPositionIs(0, token.EOF, token.ARRAY_KEY_VALUE) {
 		condition, ok := p.parseValue()
 		if !ok {
-			return nil, data.NewErrorThrow(p.NewTokenFrom(start), errors.New("match 左边必须是值"))
+			return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("match 左边必须是值"))
 		}
 		conditions = append(conditions, condition)
 	}
@@ -139,7 +139,7 @@ func (p *MatchParser) parseMatchArm() (*node.MatchArm, data.Control) {
 	}
 
 	return &node.MatchArm{
-		Node:       node.NewNode(p.NewTokenFrom(start)),
+		Node:       node.NewNode(tracker.EndBefore()),
 		Conditions: conditions,
 		Expression: expression,
 		Statements: statements,

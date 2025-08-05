@@ -17,7 +17,7 @@ func NewLineParser(parser *Parser) StatementParser {
 }
 
 func (p *LineParser) Parse() (data.GetValue, data.Control) {
-	from := p.NewTokenFrom(p.current().Start)
+	from := p.FromCurrentToken()
 
 	// 移动到下一个 token
 	p.next()

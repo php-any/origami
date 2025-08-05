@@ -20,7 +20,7 @@ func NewThrowParser(parser *Parser) StatementParser {
 
 // Parse 解析throw语句
 func (p *ThrowParser) Parse() (data.GetValue, data.Control) {
-	start := p.GetStart()
+	tracker := p.StartTracking()
 	// 跳过throw关键字
 	p.next()
 
@@ -35,11 +35,13 @@ func (p *ThrowParser) Parse() (data.GetValue, data.Control) {
 		}
 	} else {
 		// 如果没有表达式，创建一个默认的异常
-		value = node.NewStringLiteral(p.NewTokenFrom(start), "Exception")
+		from := tracker.EndBefore()
+		value = node.NewStringLiteral(from, "Exception")
 	}
 
+	from := tracker.EndBefore()
 	return node.NewThrowStatement(
-		p.NewTokenFrom(start),
+		from,
 		value,
 	), nil
 }

@@ -20,8 +20,7 @@ func NewForParser(parser *Parser) StatementParser {
 
 // Parse 解析for语句
 func (p *ForParser) Parse() (data.GetValue, data.Control) {
-	start := p.GetStart()
-	from := p.NewTokenFrom(start)
+	from := p.FromCurrentToken()
 	// 跳过for关键字
 	p.next()
 	var acl data.Control

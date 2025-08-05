@@ -1,0 +1,103 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64]
+        exclude:
+          # Windows ARM64 support is limited
+          - goos: windows
+            goarch: arm64
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23.6'
+    
+    - name: Get dependencies
+      run: go mod download
+    
+    - name: Build binary
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+      run: |
+        if [ "$GOOS" = "windows" ]; then
+          go build -o origami-${{ matrix.goos }}-${{ matrix.goarch }}.exe .
+        else
+          go build -o origami-${{ matrix.goos }}-${{ matrix.goarch }} .
+        fi
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: origami-${{ matrix.goos }}-${{ matrix.goarch }}
+        path: origami-*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+    
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: Release ${{ github.ref_name }}
+        draft: false
+        prerelease: false
+        body: |
+          ## 折言(Origami) ${{ github.ref_name }}
+          
+          ### 下载说明
+          - `origami-linux-amd64`: Linux x64 版本
+          - `origami-linux-arm64`: Linux ARM64 版本
+          - `origami-darwin-amd64`: macOS Intel 版本
+          - `origami-darwin-arm64`: macOS Apple Silicon 版本
+          - `origami-windows-amd64.exe`: Windows x64 版本
+          
+          ### 使用方法
+          ```bash
+          # Linux/macOS
+          chmod +x origami-*
+          ./origami-* script.cjp
+          
+          # Windows
+          origami-windows-amd64.exe script.cjp
+          ```
+    
+    - name: Upload Release Assets
+      run: |
+        for dir in origami-*/; do
+          if [ -d "$dir" ]; then
+            for file in "$dir"*; do
+              if [ -f "$file" ]; then
+                echo "Uploading $file"
+                gh release upload ${{ github.ref_name }} "$file" --clobber
+              fi
+            done
+          fi
+        done
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

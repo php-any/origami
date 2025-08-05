@@ -19,7 +19,7 @@ func NewThisParser(parser *Parser) StatementParser {
 
 func (vp *ThisParser) Parse() (data.GetValue, data.Control) {
 	// 获取变量名
-	tokenFrom := vp.NewTokenFrom(vp.GetStart())
+	tokenFrom := vp.FromCurrentToken()
 	vp.next()
 
 	// 创建变量表达式

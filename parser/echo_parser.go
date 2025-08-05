@@ -18,6 +18,7 @@ func NewEchoParser(parser *Parser) StatementParser {
 
 // Parse 解析 echo 语句
 func (p *EchoParser) Parse() (data.GetValue, data.Control) {
+	tracker := p.StartTracking()
 	// 跳过 echo 关键字
 	p.next()
 
@@ -38,6 +39,7 @@ func (p *EchoParser) Parse() (data.GetValue, data.Control) {
 		exprs = append(exprs, stmt)
 	}
 
+	from := tracker.EndBefore()
 	// 创建 echo 语句
-	return node.NewEchoStatement(p.NewTokenFrom(p.position), exprs), nil
+	return node.NewEchoStatement(from, exprs), nil
 }

@@ -18,7 +18,7 @@ func NewFileParser(parser *Parser) StatementParser {
 }
 
 func (p *FileParser) Parse() (data.GetValue, data.Control) {
-	from := p.NewTokenFrom(p.current().Start)
+	from := p.FromCurrentToken()
 
 	// 获取当前文件的目录路径
 	var dirPath string

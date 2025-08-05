@@ -13,18 +13,12 @@ type HtmlParser struct {
 }
 
 func (h *HtmlParser) Parse() (data.GetValue, data.Control) {
-	// 解析HTML标签
-	htmlNode, acl := h.parseHtmlContent()
-	if acl != nil {
-		return nil, acl
-	}
-
-	return htmlNode, nil
+	return h.parseHtmlContent()
 }
 
-// parseHtmlContent 解析HTML内容（支持自闭合和非自闭合标签）
+// parseHtmlContent 解析HTML内容
 func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
-	start := h.GetStart()
+	tracker := h.StartTracking()
 
 	// 跳过开始的 < 符号
 	if h.current().Type == token.LT {
@@ -79,13 +73,14 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 		}
 	}
 
+	from := tracker.EndBefore()
 	if attr, ok := attributes["for"]; ok {
 		// 解析for属性，创建HtmlForNode
-		return h.createHtmlForNode(start, tagName, attributes, children, isSelfClosing, attr)
+		return h.createHtmlForNode(from, tagName, attributes, children, isSelfClosing, attr)
 	}
 
 	return node.NewHtmlNode(
-		h.NewTokenFrom(start),
+		from,
 		tagName,
 		attributes,
 		children,
@@ -114,7 +109,7 @@ func (h *HtmlParser) parseAttribute() (string, data.GetValue, data.Control) {
 		// 字符串值
 		value := h.current().Literal
 		h.next()
-		attrValue = node.NewStringLiteral(h.NewTokenFrom(h.GetStart()), value)
+		attrValue = node.NewStringLiteral(h.FromCurrentToken(), value)
 	} else {
 		// 其他类型的值，尝试解析为表达式或直接作为字符串
 		attrValue = h.parseAttributeValue()
@@ -137,13 +132,11 @@ func (h *HtmlParser) parseAttributeName() string {
 
 // parseAttributeValue 解析属性值
 func (h *HtmlParser) parseAttributeValue() data.GetValue {
-	start := h.GetStart()
-
 	// 如果是标识符，直接作为字符串处理
 	if h.current().Type == token.IDENTIFIER {
 		value := h.current().Literal
 		h.next()
-		return node.NewStringLiteral(h.NewTokenFrom(start), value)
+		return node.NewStringLiteral(h.FromCurrentToken(), value)
 	}
 
 	// 尝试解析为表达式
@@ -157,7 +150,7 @@ func (h *HtmlParser) parseAttributeValue() data.GetValue {
 			value += h.current().Literal
 			h.next()
 		}
-		return node.NewStringLiteral(h.NewTokenFrom(start), value)
+		return node.NewStringLiteral(h.FromCurrentToken(), value)
 	}
 
 	return attrValue
@@ -265,10 +258,25 @@ func (h *HtmlParser) parseSubHtmlChild() (data.GetValue, data.Control) {
 	return h.parseHtmlText()
 }
 
+// parseText 解析文本内容
+func (h *HtmlParser) parseText() data.GetValue {
+	var text string
+
+	// 收集所有文本内容，直到遇到 < 或 EOF
+	for !h.isEOF() && h.current().Type != token.LT {
+		text += h.current().Literal
+		h.next()
+	}
+
+	if text == "" {
+		return nil
+	}
+
+	return node.NewStringLiteral(h.FromCurrentToken(), text)
+}
+
 // parseHtmlText 解析HTML文本内容，支持插值字符串
 func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
-	start := h.GetStart()
-
 	var textParts []data.GetValue
 	initialPos := h.GetStart()
 	lastEnd := -1
@@ -285,7 +293,7 @@ func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 		if h.current().Type == token.LBRACE && h.checkPositionIs(1, token.VARIABLE) {
 			// 如果有累积的文本，先添加到结果中
 			if currentText != "" {
-				textParts = append(textParts, node.NewStringLiteral(h.NewTokenFrom(start), currentText))
+				textParts = append(textParts, node.NewStringLiteral(h.FromCurrentToken(), currentText))
 				currentText = ""
 			}
 
@@ -331,7 +339,7 @@ func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 
 	// 添加剩余的文本
 	if currentText != "" {
-		textParts = append(textParts, node.NewStringLiteral(h.NewTokenFrom(start), currentText))
+		textParts = append(textParts, node.NewStringLiteral(h.FromCurrentToken(), currentText))
 	}
 
 	if len(textParts) == 0 {
@@ -347,7 +355,7 @@ func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 	// 使用BinaryAdd节点连接多个部分
 	result := textParts[0]
 	for i := 1; i < len(textParts); i++ {
-		result = node.NewBinaryAdd(h.NewTokenFrom(start), result, textParts[i])
+		result = node.NewBinaryAdd(h.FromCurrentToken(), result, textParts[i])
 	}
 
 	return result, nil
@@ -399,22 +407,21 @@ func NewHtmlParser(parser *Parser) StatementParser {
 }
 
 // createHtmlForNode 创建HTML for循环节点
-func (h *HtmlParser) createHtmlForNode(start int, tagName string, attributes map[string]data.GetValue, children []data.GetValue, isSelfClosing bool, forAttr data.GetValue) (data.GetValue, data.Control) {
+func (h *HtmlParser) createHtmlForNode(from *node.TokenFrom, tagName string, attributes map[string]data.GetValue, children []data.GetValue, isSelfClosing bool, forAttr data.GetValue) (data.GetValue, data.Control) {
 	// 解析for属性，格式应该是 "key, value in array" 或 "value in array"
 	// 在解析阶段，forAttr应该是一个字符串字面量
 	var forStr string
 	if strLiteral, ok := forAttr.(*node.StringLiteral); ok {
 		forStr = strLiteral.Value
 	} else {
-		return nil, data.NewErrorThrow(h.newFrom(), errors.New("for属性必须是字符串字面量"))
+		return nil, data.NewErrorThrow(h.FromCurrentToken(), errors.New("for属性必须是字符串字面量"))
 	}
 
 	// 解析for字符串，格式：key, value in array 或 value in array
 	vars, exprStr := h.parseForExpression(forStr)
 	if vars == nil {
-		return nil, data.NewErrorThrow(h.newFrom(), errors.New("for属性格式错误，应为：key, value in array 或 value in array"))
+		return nil, data.NewErrorThrow(h.FromCurrentToken(), errors.New("for属性格式错误，应为：key, value in array 或 value in array"))
 	}
-	from := h.NewTokenFrom(start)
 	// 解析变量名
 	keyVar := vars[0]
 	index := h.scopeManager.CurrentScope().AddVariable(keyVar, nil, from)
@@ -438,7 +445,7 @@ func (h *HtmlParser) createHtmlForNode(start int, tagName string, attributes map
 	}
 
 	nestedHtmlNode := node.NewHtmlNode(
-		h.NewTokenFrom(start),
+		from,
 		tagName,
 		nestedAttributes,
 		children,
@@ -447,7 +454,7 @@ func (h *HtmlParser) createHtmlForNode(start int, tagName string, attributes map
 
 	// 创建HtmlForNode
 	return node.NewHtmlForNode(
-		h.NewTokenFrom(start),
+		from,
 		arrayVari,
 		keyVari,
 		valueVari,

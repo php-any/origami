@@ -19,11 +19,11 @@ func NewBreakParser(parser *Parser) StatementParser {
 
 // Parse 解析break语句
 func (p *BreakParser) Parse() (data.GetValue, data.Control) {
-	start := p.GetStart()
+	from := p.FromCurrentToken()
 	// 跳过break关键字
 	p.next()
 
 	return node.NewBreakStatement(
-		p.NewTokenFrom(start),
+		from,
 	), nil
 }

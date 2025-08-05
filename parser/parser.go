@@ -260,8 +260,31 @@ func (p *Parser) GetStart() int {
 	return p.current().Start
 }
 
+// Deprecated: 使用 NewFromBuilder() 或其他新方法替代
 func (p *Parser) NewTokenFrom(start int) *node.TokenFrom {
 	return node.NewTokenFrom(p.source, start, p.current().End, p.current().Line, p.current().Pos)
+}
+
+// StartPosition 开始位置跟踪，返回当前位置
+func (p *Parser) StartPosition() int {
+	return p.position
+}
+
+// EndPosition 结束位置跟踪，返回当前位置
+func (p *Parser) EndPosition() int {
+	return p.position
+}
+
+// FromPositionRange 从位置范围创建From信息
+func (p *Parser) FromPositionRange(startPos, endPos int) *node.TokenFrom {
+	if startPos >= len(p.tokens) || endPos >= len(p.tokens) {
+		return p.FromCurrentToken()
+	}
+
+	startToken := p.tokens[startPos]
+	endToken := p.tokens[endPos]
+
+	return node.NewTokenFrom(p.source, startToken.Start, endToken.End, startToken.Line, startToken.Pos)
 }
 
 // isTokensAdjacent 检查两个 token 是否相邻（没有空白字符或其他分隔符）
@@ -317,25 +340,31 @@ func (p *Parser) parseValue() (data.GetValue, bool) {
 	switch p.current().Type {
 	case token.INT:
 		value := p.current().Literal
+		from := p.FromCurrentToken()
 		p.next()
-		return node.NewIntLiteral(p.NewTokenFrom(p.GetStart()), value), true
+		return node.NewIntLiteral(from, value), true
 	case token.FLOAT:
 		value := p.current().Literal
+		from := p.FromCurrentToken()
 		p.next()
-		return node.NewFloatLiteral(p.NewTokenFrom(p.GetStart()), value), true
+		return node.NewFloatLiteral(from, value), true
 	case token.STRING:
 		value := p.current().Literal
+		from := p.FromCurrentToken()
 		p.next()
-		return node.NewStringLiteral(p.NewTokenFrom(p.GetStart()), value), true
+		return node.NewStringLiteral(from, value), true
 	case token.TRUE:
+		from := p.FromCurrentToken()
 		p.next()
-		return node.NewBooleanLiteral(p.NewTokenFrom(p.GetStart()), true), true
+		return node.NewBooleanLiteral(from, true), true
 	case token.FALSE:
+		from := p.FromCurrentToken()
 		p.next()
-		return node.NewBooleanLiteral(p.NewTokenFrom(p.GetStart()), false), true
+		return node.NewBooleanLiteral(from, false), true
 	case token.NULL:
+		from := p.FromCurrentToken()
 		p.next()
-		return node.NewNullLiteral(p.NewTokenFrom(p.GetStart())), true
+		return node.NewNullLiteral(from), true
 	case token.THIS:
 		stmt, acl := NewThisParser(p).Parse()
 		_ = acl
@@ -458,8 +487,7 @@ func (p *Parser) findFullFunNameByNamespace(name string) (string, bool) {
 }
 
 func (p *Parser) newFrom() data.From {
-	start := p.current().Start
-	return p.NewTokenFrom(start)
+	return p.FromCurrentToken()
 }
 
 // 尝试加载类

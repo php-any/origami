@@ -21,7 +21,7 @@ func NewSwitchParser(parser *Parser) StatementParser {
 
 // Parse 解析switch语句
 func (p *SwitchParser) Parse() (data.GetValue, data.Control) {
-	start := p.GetStart()
+	tracker := p.StartTracking()
 	// 跳过switch关键字
 	p.next()
 
@@ -56,8 +56,9 @@ func (p *SwitchParser) Parse() (data.GetValue, data.Control) {
 	// 解析右大括号
 	p.nextAndCheck(token.RBRACE)
 
+	from := tracker.EndBefore()
 	return node.NewSwitchStatement(
-		p.NewTokenFrom(start),
+		from,
 		condition,
 		cases,
 		defaultCase,
@@ -75,7 +76,7 @@ func (p *SwitchParser) parseSwitchCondition() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		if p.current().Type != token.RPAREN {
-			return nil, data.NewErrorThrow(p.newFrom(), errors.New("switch 缺少右括号 ')'"))
+			return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("switch 缺少右括号 ')'"))
 		}
 		p.next() // 跳过右括号
 
@@ -88,7 +89,7 @@ func (p *SwitchParser) parseSwitchCondition() (data.GetValue, data.Control) {
 
 // parseSwitchCase 解析单个switch分支
 func (p *SwitchParser) parseSwitchCase() *node.SwitchCase {
-	start := p.GetStart()
+	tracker := p.StartTracking()
 
 	// 跳过case关键字
 	p.next()
@@ -142,8 +143,9 @@ func (p *SwitchParser) parseSwitchCase() *node.SwitchCase {
 		}
 	}
 
+	from := tracker.EndBefore()
 	return &node.SwitchCase{
-		Node:       node.NewNode(p.NewTokenFrom(start)),
+		Node:       node.NewNode(from),
 		CaseValue:  caseValue,
 		Statements: statements,
 	}

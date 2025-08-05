@@ -20,6 +20,7 @@ func NewLbracketParser(parser *Parser) StatementParser {
 
 // Parse 解析函数声明
 func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
 	ep.next()
 	expr, acl := ep.parseStatement()
 	if acl != nil {
@@ -28,10 +29,11 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 	if ep.current().Type == token.RBRACKET {
 		// 直接结束了
 		ep.next()
+		from := tracker.EndBefore()
 		if expr == nil {
-			return node.NewArray(ep.NewTokenFrom(ep.position), []node.Statement{}), nil
+			return node.NewArray(from, []node.Statement{}), nil
 		}
-		return node.NewArray(ep.NewTokenFrom(ep.position), []node.Statement{expr}), nil
+		return node.NewArray(from, []node.Statement{expr}), nil
 	} else {
 		switch ep.current().Type {
 		case token.COMMA: // , 数组定义
@@ -51,7 +53,8 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 			if ep.current().Type == token.RBRACKET {
 				ep.next()
 			}
-			return node.NewArray(ep.NewTokenFrom(ep.position), arr), nil
+			from := tracker.EndBefore()
+			return node.NewArray(from, arr), nil
 		case token.ARRAY_KEY_VALUE: // => 对象定义
 			v := map[node.Statement]node.Statement{}
 			ep.next() // =>
@@ -75,7 +78,8 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 				ep.nextAndCheckStip(token.COMMA)
 			}
 			ep.next()
-			return node.NewKv(ep.NewTokenFrom(ep.position), v), nil
+			from := tracker.EndBefore()
+			return node.NewKv(from, v), nil
 		case token.COLON: // : JSON 定义
 			oldIdentTryString := ep.identTryString
 			ep.identTryString = true
@@ -102,9 +106,10 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 			ep.identTryString = oldIdentTryString
 
 			ep.next()
-			return node.NewKv(ep.NewTokenFrom(ep.position), v), nil
+			from := tracker.EndBefore()
+			return node.NewKv(from, v), nil
 		default:
-			return nil, data.NewErrorThrow(ep.NewTokenFrom(ep.position), errors.New("TODO: 语法错误"))
+			return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("TODO: 语法错误"))
 		}
 	}
 }

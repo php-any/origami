@@ -24,14 +24,14 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 	var annotations []*node.Annotation
 
 	for p.current().Type == token.AT {
-		start := p.GetStart()
+		tracker := p.StartTracking()
 
 		// 跳过 @ 符号
 		p.next()
 
 		// 解析注解名称
 		if p.current().Type != token.IDENTIFIER {
-			return nil, data.NewErrorThrow(p.newFrom(), errors.New("注解缺少名称"))
+			return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("注解缺少名称"))
 		}
 
 		annotationName, acl := p.getClassName(true)
@@ -53,7 +53,7 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 		}
 		// 创建注解节点
 		annotation := node.NewAnnotation(
-			p.NewTokenFrom(start),
+			tracker.EndBefore(),
 			annotationName,
 			arguments,
 		)
