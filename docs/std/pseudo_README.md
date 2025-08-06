@@ -53,7 +53,7 @@ Channel 类
 
 ## 快速开始
 
-`php
+```php
 <?php
 // 使用标准库函数
 dump("Hello World");
@@ -65,7 +65,7 @@ $log->info("Application started");
 // 使用反射
 $reflect = new Reflect();
 $classInfo = $reflect->getClassInfo("MyClass");
-`
+```
 
 ## 模块说明
 
