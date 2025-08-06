@@ -1,0 +1,19 @@
+<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="origami-gradient-dark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#64B5F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#9C27B0;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 折纸效果的多边形 -->
+  <polygon points="2,2 8,2 14,8 8,14 2,8" fill="url(#origami-gradient-dark)" stroke="#FFF" stroke-width="0.5"/>
+  <polygon points="8,2 14,2 14,8" fill="#8E24AA" opacity="0.8"/>
+  <polygon points="2,8 8,14 2,14" fill="#7B1FA2" opacity="0.8"/>
+  
+  <!-- 折痕线 -->
+  <line x1="8" y1="2" x2="8" y2="14" stroke="#FFF" stroke-width="0.3" opacity="0.6"/>
+  <line x1="2" y1="8" x2="14" y2="8" stroke="#FFF" stroke-width="0.3" opacity="0.6"/>
+  <line x1="8" y1="2" x2="2" y2="8" stroke="#FFF" stroke-width="0.3" opacity="0.4"/>
+  <line x1="8" y1="2" x2="14" y2="8" stroke="#FFF" stroke-width="0.3" opacity="0.4"/>
+</svg>
