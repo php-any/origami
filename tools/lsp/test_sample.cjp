@@ -1,0 +1,32 @@
+class UserService {
+    function getUserById(id) {
+        return "User " + id;
+    }
+    
+    function createUser(name, email) {
+        return "Created user: " + name;
+    }
+}
+
+function calculateSum(a, b) {
+    return a + b;
+}
+
+function validateEmail(email) {
+    return email.contains("@");
+}
+
+interface PaymentInterface {
+    function processPayment(amount);
+    function refundPayment(paymentId);
+}
+
+class PayPal implements PaymentInterface {
+    function processPayment(amount) {
+        return "Processed payment: " + amount;
+    }
+    
+    function refundPayment(paymentId) {
+        return "Refunded payment: " + paymentId;
+    }
+} 

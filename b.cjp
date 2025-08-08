@@ -1,0 +1,42 @@
+namespace tests\func;
+
+function hello()
+{
+    return "hello world";
+}
+
+function hello2()
+{
+    return "hello world";
+}
+
+// 正常跳转
+echo hello();
+echo hello2();
+
+class A
+{
+    public function hello()
+    {
+        return "hello world";
+    }
+}
+
+class B extends A
+{
+    public function hello()
+    {
+        return "hello world";
+    }
+}
+
+$a = new A();
+$b = new B();
+// 无法跳转
+echo $a->hello();
+echo $b->hello();
+
+string $str = "hello world";
+
+echo $str;
+
