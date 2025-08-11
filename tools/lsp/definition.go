@@ -483,40 +483,47 @@ func isPositionInRange(stmt node.Statement, position Position) bool {
 	lspLine := int(position.Line) + 1
 
 	// 添加调试信息
-
 	fmt.Printf("[DEBUG] isPositionInRange: node=%T, position=(%d,%d), range=(%d,%d,%d,%d)\n",
 		stmt, lspLine, position.Character, startLine, startChar, endLine, endChar)
 
 	// 检查行号是否在范围内
 	if lspLine < startLine || lspLine > endLine {
-
 		fmt.Printf("[DEBUG] isPositionInRange: line out of range\n")
-
 		return false
 	}
 
 	// 如果在起始行，检查字符位置是否在起始字符之后
 	if lspLine == startLine {
 		result := int(position.Character) >= startChar
-
-		fmt.Printf("[DEBUG] isPositionInRange: start line, char check: %d >= %d = %v\n",
-			position.Character, startChar, result)
-
+		if *logLevel > 2 {
+			fmt.Printf("[DEBUG] isPositionInRange: start line, char check: %d >= %d = %v\n",
+				position.Character, startChar, result)
+		}
+		// 还需要检查是否在结束字符之前
+		if result {
+			result = int(position.Character) <= endChar
+			if *logLevel > 2 {
+				fmt.Printf("[DEBUG] isPositionInRange: start line, end char check: %d <= %d = %v\n",
+					position.Character, endChar, result)
+			}
+		}
 		return result
 	}
 
 	// 如果在结束行，检查字符位置是否在结束字符之前
 	if lspLine == endLine {
 		result := int(position.Character) <= endChar
-
-		fmt.Printf("[DEBUG] isPositionInRange: end line, char check: %d <= %d = %v\n",
-			position.Character, endChar, result)
-
+		if *logLevel > 2 {
+			fmt.Printf("[DEBUG] isPositionInRange: end line, char check: %d <= %d = %v\n",
+				position.Character, endChar, result)
+		}
 		return result
 	}
 
 	// 如果在中间行，肯定在范围内
-	fmt.Printf("[DEBUG] isPositionInRange: middle line, in range\n")
+	if *logLevel > 2 {
+		fmt.Printf("[DEBUG] isPositionInRange: middle line, in range\n")
+	}
 	return true
 }
 
