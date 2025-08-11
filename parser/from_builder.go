@@ -83,10 +83,21 @@ func (fb *fromBuilder) Build() *node.TokenFrom {
 		fb.pos = fb.parser.getPosInLineByPosition(fb.startPos)
 	}
 
-	return node.NewTokenFrom(fb.parser.source, fb.startPos, fb.endPos, fb.line, fb.pos)
+	// 创建 TokenFrom 并设置结束位置
+	tf := node.NewTokenFrom(fb.parser.source, fb.startPos, fb.endPos, fb.line, fb.pos)
+
+	// 如果结束位置与开始位置不同，需要计算结束位置的行号和列号
+	if fb.hasEnd && fb.endPos != fb.startPos {
+		endLine := fb.parser.getLineByPosition(fb.endPos)
+		endPos := fb.parser.getPosInLineByPosition(fb.endPos)
+		tf.SetEndPosition(endLine, endPos)
+	}
+
+	return tf
 }
 
 // FromCurrentToken 从当前token创建From信息
+// deprecated: p.StartTracking()
 func (p *Parser) FromCurrentToken() *node.TokenFrom {
 	current := p.current()
 	return node.NewTokenFrom(p.source, current.Start, current.End, current.Line, current.Pos)

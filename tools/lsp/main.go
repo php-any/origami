@@ -571,7 +571,7 @@ func logLSPCommunication(method string, isRequest bool, params interface{}) {
 		}
 		fmt.Fprintf(os.Stderr, "[INFO] LSP %s: %s\n", msgType, method)
 	}
-	if *logLevel > 3 && params != nil {
+	if *logLevel > 2 && params != nil {
 		paramsJSON, _ := json.MarshalIndent(params, "", "  ")
 		fmt.Fprintf(os.Stderr, "[DEBUG] Params: %s\n", string(paramsJSON))
 	}

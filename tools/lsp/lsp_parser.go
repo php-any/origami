@@ -177,23 +177,8 @@ func (p *LspParser) extractFunction(fn *node.FunctionStatement, filePath string)
 		return
 	}
 
-	// 获取函数位置信息
-	from := fn.GetFrom()
-	line := 1
-	if from != nil {
-		start, _ := from.GetPosition()
-		// 简化的行号计算
-		line = start/100 + 1
-	}
-
-	function := &SimpleFunction{
-		Name:     fn.GetName(),
-		FilePath: filePath,
-		Line:     line,
-		Content:  fn.GetName(),
-	}
-
-	p.vm.AddFunc(function)
+	// 直接使用原始节点，不创建 SimpleFunction
+	p.vm.AddFunc(fn)
 }
 
 // extractClass 提取类信息
@@ -202,23 +187,8 @@ func (p *LspParser) extractClass(cls *node.ClassStatement, filePath string) {
 		return
 	}
 
-	// 获取类位置信息
-	from := cls.GetFrom()
-	line := 1
-	if from != nil {
-		start, _ := from.GetPosition()
-		// 简化的行号计算
-		line = start/100 + 1
-	}
-
-	class := &SimpleClass{
-		Name:     cls.GetName(),
-		FilePath: filePath,
-		Line:     line,
-		Content:  cls.GetName(),
-	}
-
-	p.vm.AddClass(class)
+	// 直接使用原始节点，不创建 SimpleClass
+	p.vm.AddClass(cls)
 
 	// 提取类的方法
 	methods := cls.GetMethods()
@@ -233,23 +203,8 @@ func (p *LspParser) extractInterface(iface *node.InterfaceStatement, filePath st
 		return
 	}
 
-	// 获取接口位置信息
-	from := iface.GetFrom()
-	line := 1
-	if from != nil {
-		start, _ := from.GetPosition()
-		// 简化的行号计算
-		line = start/100 + 1
-	}
-
-	interfaceInfo := &SimpleInterface{
-		Name:     iface.GetName(),
-		FilePath: filePath,
-		Line:     line,
-		Content:  iface.GetName(),
-	}
-
-	p.vm.AddInterface(interfaceInfo)
+	// 直接使用原始节点，不创建 SimpleInterface
+	p.vm.AddInterface(iface)
 }
 
 // extractMethod 提取方法信息
@@ -258,106 +213,6 @@ func (p *LspParser) extractMethod(method data.Method, methodName string, classNa
 		return
 	}
 
-	// 将方法作为函数添加到 VM（简化处理）
-	function := &SimpleFunction{
-		Name:     methodName,
-		FilePath: filePath,
-		Line:     1, // 简化处理
-		Content:  methodName,
-	}
-
-	p.vm.AddFunc(function)
-}
-
-// SimpleAST 是简化的 AST 结构
-type SimpleAST struct {
-	FilePath   string
-	Content    string
-	Classes    []*SimpleClass
-	Functions  []*SimpleFunction
-	Interfaces []*SimpleInterface
-}
-
-// SimpleClass 是简化的类结构
-type SimpleClass struct {
-	Name     string
-	FilePath string
-	Line     int
-	Content  string
-}
-
-// GetName 获取类名
-func (c *SimpleClass) GetName() string {
-	return c.Name
-}
-
-// GetFilePath 获取文件路径
-func (c *SimpleClass) GetFilePath() string {
-	return c.FilePath
-}
-
-// GetLine 获取行号
-func (c *SimpleClass) GetLine() int {
-	return c.Line
-}
-
-// GetContent 获取内容
-func (c *SimpleClass) GetContent() string {
-	return c.Content
-}
-
-// SimpleFunction 是简化的函数结构
-type SimpleFunction struct {
-	Name     string
-	FilePath string
-	Line     int
-	Content  string
-}
-
-// GetName 获取函数名
-func (f *SimpleFunction) GetName() string {
-	return f.Name
-}
-
-// GetFilePath 获取文件路径
-func (f *SimpleFunction) GetFilePath() string {
-	return f.FilePath
-}
-
-// GetLine 获取行号
-func (f *SimpleFunction) GetLine() int {
-	return f.Line
-}
-
-// GetContent 获取内容
-func (f *SimpleFunction) GetContent() string {
-	return f.Content
-}
-
-// SimpleInterface 是简化的接口结构
-type SimpleInterface struct {
-	Name     string
-	FilePath string
-	Line     int
-	Content  string
-}
-
-// GetName 获取接口名
-func (i *SimpleInterface) GetName() string {
-	return i.Name
-}
-
-// GetFilePath 获取文件路径
-func (i *SimpleInterface) GetFilePath() string {
-	return i.FilePath
-}
-
-// GetLine 获取行号
-func (i *SimpleInterface) GetLine() int {
-	return i.Line
-}
-
-// GetContent 获取内容
-func (i *SimpleInterface) GetContent() string {
-	return i.Content
+	// 直接使用方法节点，不创建 SimpleFunction
+	p.vm.AddFunc(method)
 }

@@ -284,7 +284,19 @@ func (p *Parser) FromPositionRange(startPos, endPos int) *node.TokenFrom {
 	startToken := p.tokens[startPos]
 	endToken := p.tokens[endPos]
 
-	return node.NewTokenFrom(p.source, startToken.Start, endToken.End, startToken.Line, startToken.Pos)
+	// 添加调试信息
+	fmt.Printf("[DEBUG] FromPositionRange: startPos=%d, endPos=%d\n", startPos, endPos)
+	fmt.Printf("[DEBUG] FromPositionRange: startToken=(%d,%d), endToken=(%d,%d)\n",
+		startToken.Line, startToken.Pos, endToken.Line, endToken.Pos)
+
+	// 创建 TokenFrom 并设置结束位置
+	tf := node.NewTokenFrom(p.source, startToken.Start, endToken.End, startToken.Line, startToken.Pos)
+
+	// 总是设置结束位置，确保位置信息完整
+	// 即使 startPos == endPos，我们也需要正确的结束位置信息
+	tf.SetEndPosition(endToken.Line, endToken.Pos)
+
+	return tf
 }
 
 // isTokensAdjacent 检查两个 token 是否相邻（没有空白字符或其他分隔符）

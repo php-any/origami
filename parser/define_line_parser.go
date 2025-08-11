@@ -22,6 +22,7 @@ func (p *LineParser) Parse() (data.GetValue, data.Control) {
 	// 移动到下一个 token
 	p.next()
 
-	// 返回目录路径的字符串字面量
-	return node.NewIntLiteral(from, strconv.Itoa(from.SourceFrom.Line())), nil
+	// 返回当前行号的字符串字面量
+	startLine, _ := from.GetStartPosition()
+	return node.NewIntLiteral(from, strconv.Itoa(startLine)), nil
 }

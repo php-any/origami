@@ -35,19 +35,18 @@ func (vp *VariableParser) parseVariable() *node.VariableExpression {
 	// 获取变量名
 	name := vp.current().Literal
 	vp.next()
-
-	tokenFrom := tracker.EndBefore()
+	from := tracker.EndBefore()
 
 	// 查找变量索引
 	varInfo := vp.scopeManager.LookupVariable(name)
 	if varInfo == nil {
 		// 如果变量不存在，在当前作用域中创建它
-		index := vp.scopeManager.CurrentScope().AddVariable(name, nil, tokenFrom)
-		varInfo = node.NewVariableExpression(nil, name, index)
+		index := vp.scopeManager.CurrentScope().AddVariable(name, nil, from)
+		varInfo = node.NewVariableExpression(from, name, index)
 	}
 
 	// 创建变量表达式
-	return node.NewVariable(tokenFrom, name, varInfo.GetIndex(), varInfo.GetType())
+	return node.NewVariable(from, name, varInfo.GetIndex(), varInfo.GetType())
 }
 
 // parseSuffix 解析变量后缀操作

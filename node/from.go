@@ -1,101 +1,115 @@
 package node
 
-import "strconv"
+import (
+	"strings"
+)
 
-// SourceFrom 表示源代码来源
-type SourceFrom struct {
-	source   *string // 源代码指针
-	startPos int     // 起始位置
-	endPos   int     // 结束位置
-	line     int
-	pos      int
+// TokenFrom 表示基于 token 的源代码来源信息
+type TokenFrom struct {
+	filePath  *string // 文件路径指针（避免重复存储）
+	startPos  int     // 起始字符偏移量
+	endPos    int     // 结束字符偏移量
+	startLine int     // 起始行号
+	startChar int     // 起始列号
+	endLine   int     // 结束行号
+	endChar   int     // 结束列号
 }
 
-// NewSourceFrom 创建一个新的源代码来源
-func NewSourceFrom(source *string, startPos, endPos int, line int, pos int) *SourceFrom {
-	return &SourceFrom{
-		source:   source,
-		startPos: startPos,
-		endPos:   endPos,
-		line:     line,
-		pos:      pos,
+// NewTokenFrom 创建一个新的 TokenFrom
+func NewTokenFrom(filePath *string, startPos, endPos, startLine, startChar int) *TokenFrom {
+	return &TokenFrom{
+		filePath:  filePath,
+		startPos:  startPos,
+		endPos:    endPos,
+		startLine: startLine,
+		startChar: startChar,
+		endLine:   startLine, // 默认结束位置与开始位置相同
+		endChar:   startChar, // 默认结束位置与开始位置相同
 	}
 }
 
-// GetSource 返回源代码
-func (f *SourceFrom) GetSource() string {
-	if f.source == nil {
+// SetEndPosition 设置结束位置（在解析过程中调用）
+func (tf *TokenFrom) SetEndPosition(endLine, endChar int) {
+	tf.endLine = endLine
+	tf.endChar = endChar
+}
+
+// GetFilePath 返回文件路径
+func (tf *TokenFrom) GetFilePath() string {
+	if tf.filePath == nil {
 		return ""
 	}
-	return *f.source + ":" + strconv.Itoa(f.line) + ":" + strconv.Itoa(f.pos)
+	return *tf.filePath
 }
 
-// GetPosition 返回源代码中的位置
-func (f *SourceFrom) GetPosition() (start, end int) {
-	return f.startPos, f.endPos
+// GetStartPosition 返回起始位置
+func (tf *TokenFrom) GetStartPosition() (line, char int) {
+	return tf.startLine, tf.startChar
 }
 
-func (f *SourceFrom) Line() int {
-	return f.line
+// GetEndPosition 返回结束位置
+func (tf *TokenFrom) GetEndPosition() (line, char int) {
+	return tf.endLine, tf.endChar
 }
 
-// TokenFrom 表示词法单元来源
-type TokenFrom struct {
-	*SourceFrom
+// GetRange 返回位置范围
+func (tf *TokenFrom) GetRange() (startLine, startChar, endLine, endChar int) {
+	return tf.startLine, tf.startChar, tf.endLine, tf.endChar
 }
 
-// NewTokenFrom 创建一个新的词法单元来源
-func NewTokenFrom(source *string, startPos, endPos, line, pos int) *TokenFrom {
-	return &TokenFrom{
-		SourceFrom: NewSourceFrom(source, startPos, endPos, line, pos),
+// GetOffsetRange 返回偏移量范围
+func (tf *TokenFrom) GetOffsetRange() (start, end int) {
+	return tf.startPos, tf.endPos
+}
+
+// GetSource 实现 data.From 接口，返回文件路径
+func (tf *TokenFrom) GetSource() string {
+	return tf.GetFilePath()
+}
+
+// GetPosition 实现 data.From 接口，返回位置范围
+func (tf *TokenFrom) GetPosition() (start, end int) {
+	return tf.startPos, tf.endPos
+}
+
+// CalculateEndPosition 根据内容计算结束位置（用于多行内容）
+func (tf *TokenFrom) CalculateEndPosition(content string) {
+	if content == "" {
+		return
 	}
+
+	// 计算结束位置
+	tf.endLine, tf.endChar = tf.calculateLineAndChar(content, tf.endPos)
 }
 
-// NewTokenFrom 从当前 TokenFrom 创建一个新的词法单元来源
-func (f *TokenFrom) NewTokenFrom(startPos, endPos int) *TokenFrom {
-	return &TokenFrom{
-		SourceFrom: &SourceFrom{
-			source:   f.source,
-			startPos: startPos,
-			endPos:   endPos,
-		},
+// calculateLineAndChar 根据偏移量计算精确的行号和列号
+func (tf *TokenFrom) calculateLineAndChar(content string, offset int) (line, char int) {
+	if offset < 0 || offset > len(content) {
+		return 1, 0
 	}
-}
 
-func (f *TokenFrom) String() string {
-	return ""
-}
+	// 计算到指定偏移量之前的行数
+	contentBefore := content[:offset]
+	lines := strings.Split(contentBefore, "\n")
+	line = len(lines)
 
-// FileFrom 表示文件来源
-type FileFrom struct {
-	*SourceFrom
-	fileName string // 文件名
-}
-
-// NewFileFrom 创建一个新的文件来源
-func NewFileFrom(fileName string, source *string) *FileFrom {
-	return &FileFrom{
-		SourceFrom: &SourceFrom{
-			source:   source,
-			startPos: 0,
-			endPos:   len(*source),
-		},
-		fileName: fileName,
+	// 计算当前行的列号
+	if line > 0 {
+		lastLine := lines[line-1]
+		char = len(lastLine)
+	} else {
+		char = 0
 	}
+
+	return line, char
 }
 
-// NewTokenFrom 从当前 FileFrom 创建一个新的词法单元来源
-func (f *FileFrom) NewTokenFrom(startPos, endPos int) *TokenFrom {
-	return &TokenFrom{
-		SourceFrom: &SourceFrom{
-			source:   f.source,
-			startPos: startPos,
-			endPos:   endPos,
-		},
-	}
+// ToLSPPosition 转换为 LSP 位置信息
+func (tf *TokenFrom) ToLSPPosition() (startLine, startChar, endLine, endChar int) {
+	return tf.startLine, tf.startChar, tf.endLine, tf.endChar
 }
 
-// GetFileName 返回文件名
-func (f *FileFrom) GetFileName() string {
-	return f.fileName
+// IsValid 检查位置信息是否有效
+func (tf *TokenFrom) IsValid() bool {
+	return tf.filePath != nil && tf.startPos >= 0 && tf.endPos >= tf.startPos
 }

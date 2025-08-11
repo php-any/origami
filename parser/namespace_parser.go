@@ -42,7 +42,7 @@ func (np *NamespaceParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	// 解析命名空间体
-	statements := make([]node.Statement, 0)
+	statements := make([]data.GetValue, 0)
 	from := tracker.EndBefore()
 	np.namespace = node.NewNamespace(from, name, statements)
 
