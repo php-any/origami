@@ -19,9 +19,7 @@ func handleTextDocumentHover(req *jsonrpc2.Request) (interface{}, error) {
 	uri := params.TextDocument.URI
 	position := params.Position
 
-	if *logLevel > 2 {
-		fmt.Printf("[INFO] Hover requested for %s at %d:%d\n", uri, position.Line, position.Character)
-	}
+	logger.Info("请求悬停提示：%s 位置 %d:%d", uri, position.Line, position.Character)
 
 	doc, exists := documents[uri]
 	if !exists {

@@ -11,8 +11,6 @@ import (
 
 // 处理定义跳转请求
 func handleTextDocumentDefinition(req *jsonrpc2.Request) (interface{}, error) {
-	logLSPCommunication("textDocument/definition", true, req.Params)
-
 	var params DefinitionParams
 	if err := json.Unmarshal(*req.Params, &params); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal definition params: %v", err)
@@ -21,7 +19,7 @@ func handleTextDocumentDefinition(req *jsonrpc2.Request) (interface{}, error) {
 	uri := params.TextDocument.URI
 	position := params.Position
 
-	logger.Info("Definition requested for %s at %d:%d", uri, position.Line, position.Character)
+	logger.Info("请求定义跳转：%s 位置 %d:%d; req: %#v", uri, position.Line, position.Character, req.Params)
 
 	doc, exists := documents[uri]
 	if !exists {
@@ -79,7 +77,7 @@ func findDefinitionInAST(doc *DocumentInfo, position Position) *Location {
 		return nil
 	}
 
-	logger.Debug("Found node at position: %T", targetNode)
+	logger.Debug("在位置找到节点：%T", targetNode)
 
 	// 根据节点类型查找定义，使用目标节点的上下文
 	return findDefinitionFromNode(targetCtx, targetNode)
@@ -363,7 +361,7 @@ func findNodeInStatement(stmt node.Statement, position Position) data.GetValue {
 
 func findSymbolInExpressions(position Position, exprs ...data.GetValue) data.GetValue {
 	var best data.GetValue
-	fmt.Printf("[DEBUG] findSymbolInExpressions: position=(%d,%d), exprs count=%d\n",
+	logger.Debug("findSymbolInExpressions：位置=(%d,%d)，表达式数量=%d",
 		position.Line, position.Character, len(exprs))
 
 	// 循环处理每个表达式参数
@@ -372,15 +370,15 @@ func findSymbolInExpressions(position Position, exprs ...data.GetValue) data.Get
 			continue
 		}
 
-		fmt.Printf("[DEBUG] Processing expr[%d]: %T\n", i, expr)
+		logger.Debug("处理表达式[%d]：%T", i, expr)
 
 		// 使用精确的位置检查，确保表达式真正包含光标位置
 		if stmt, ok := expr.(node.Statement); ok {
 			if !isPositionInRange(stmt, position) {
-				fmt.Printf("[DEBUG] Expr[%d] position check failed, skipping\n", i)
+				logger.Debug("表达式[%d] 位置检查失败，跳过", i)
 				continue
 			}
-			fmt.Printf("[DEBUG] Expr[%d] position check passed\n", i)
+			logger.Debug("表达式[%d] 位置检查通过", i)
 		}
 
 		var candidate data.GetValue
@@ -388,50 +386,50 @@ func findSymbolInExpressions(position Position, exprs ...data.GetValue) data.Get
 		// 原子字面量和变量：直接作为候选
 		case *node.VariableExpression, *node.StringLiteral, *node.BooleanLiteral, *node.NullLiteral, *node.IntLiteral, *node.FloatLiteral:
 			candidate = expr
-			fmt.Printf("[DEBUG] Expr[%d] is atomic, candidate=%T\n", i, candidate)
+			logger.Debug("表达式[%d] 是原子表达式，候选=%T", i, candidate)
 		default:
 			if stmt, ok := expr.(node.Statement); ok {
-				fmt.Printf("[DEBUG] Expr[%d] calling findSymbolInExpression\n", i)
+				logger.Debug("表达式[%d] 调用 findSymbolInExpression", i)
 				candidate = findSymbolInExpression(stmt, position)
-				fmt.Printf("[DEBUG] Expr[%d] findSymbolInExpression returned: %T\n", i, candidate)
+				logger.Debug("表达式[%d] findSymbolInExpression 返回：%T", i, candidate)
 			} else {
 				candidate = expr
-				fmt.Printf("[DEBUG] Expr[%d] is not statement, candidate=%T\n", i, candidate)
+				logger.Debug("表达式[%d] 不是语句，候选=%T", i, candidate)
 			}
 		}
 
 		if candidate != nil {
-			fmt.Printf("[DEBUG] Expr[%d] has candidate, calling pickSmallerNode\n", i)
+			logger.Debug("表达式[%d] 有候选，调用 pickSmallerNode", i)
 			best = pickSmallerNode(best, candidate)
-			fmt.Printf("[DEBUG] After pickSmallerNode, best=%T\n", best)
+			logger.Debug("pickSmallerNode 后，最佳=%T", best)
 		}
 	}
 
-	fmt.Printf("[DEBUG] findSymbolInExpressions final result: %T\n", best)
+	logger.Debug("findSymbolInExpressions 最终结果：%T", best)
 	return best
 }
 
 // pickSmallerNode 返回最合适的节点；优先选择包含光标位置的节点
 func pickSmallerNode(a, b data.GetValue) data.GetValue {
-	fmt.Printf("[DEBUG] pickSmallerNode: a=%T, b=%T\n", a, b)
+	logger.Debug("pickSmallerNode：a=%T，b=%T", a, b)
 
 	if b == nil {
-		fmt.Printf("[DEBUG] pickSmallerNode: b is nil, returning a\n")
+		logger.Debug("pickSmallerNode：b 为空，返回 a")
 		return a
 	}
 	if a == nil {
-		fmt.Printf("[DEBUG] pickSmallerNode: a is nil, returning b\n")
+		logger.Debug("pickSmallerNode：a 为空，返回 b")
 		return b
 	}
 
 	af := getFromOf(a)
 	bf := getFromOf(b)
 	if af == nil {
-		fmt.Printf("[DEBUG] pickSmallerNode: af is nil, returning b\n")
+		logger.Debug("pickSmallerNode：af 为空，返回 b")
 		return b
 	}
 	if bf == nil {
-		fmt.Printf("[DEBUG] pickSmallerNode: bf is nil, returning a\n")
+		logger.Debug("pickSmallerNode：bf 为空，返回 a")
 		return a
 	}
 
@@ -439,32 +437,32 @@ func pickSmallerNode(a, b data.GetValue) data.GetValue {
 	slA, scA, elA, ecA := af.GetRange()
 	slB, scB, elB, ecB := bf.GetRange()
 
-	fmt.Printf("[DEBUG] pickSmallerNode: a range=(%d,%d,%d,%d), b range=(%d,%d,%d,%d)\n",
+	logger.Debug("pickSmallerNode：a 范围=(%d,%d,%d,%d)，b 范围=(%d,%d,%d,%d)",
 		slA, scA, elA, ecA, slB, scB, elB, ecB)
 
 	// 计算两个节点的范围大小（字符数）
 	rangeA := (elA-slA+1)*1000 + (ecA - scA + 1)
 	rangeB := (elB-slB+1)*1000 + (ecB - scB + 1)
 
-	fmt.Printf("[DEBUG] pickSmallerNode: rangeA=%d, rangeB=%d\n", rangeA, rangeB)
+	logger.Debug("pickSmallerNode：rangeA=%d，rangeB=%d", rangeA, rangeB)
 
 	// 优先选择范围更小的节点（更精确），但前提是它们都包含光标位置
 	// 如果范围差异不大，选择范围更小的；如果差异很大，选择更合适的
 	if rangeB < rangeA && (rangeA-rangeB) < 100 {
-		fmt.Printf("[DEBUG] pickSmallerNode: rangeB < rangeA and difference small, returning b\n")
+		logger.Debug("pickSmallerNode：rangeB < rangeA 且差异较小，返回 b")
 		return b
 	}
 	if rangeA < rangeB && (rangeB-rangeA) < 100 {
-		fmt.Printf("[DEBUG] pickSmallerNode: rangeA < rangeB and difference small, returning a\n")
+		logger.Debug("pickSmallerNode：rangeA < rangeB 且差异较小，返回 a")
 		return a
 	}
 
 	// 如果范围差异很大，选择范围更小的（更精确）
 	if rangeB < rangeA {
-		fmt.Printf("[DEBUG] pickSmallerNode: rangeB significantly smaller, returning b\n")
+		logger.Debug("pickSmallerNode：rangeB 明显更小，返回 b")
 		return b
 	}
-	fmt.Printf("[DEBUG] pickSmallerNode: rangeA <= rangeB, returning a\n")
+	logger.Debug("pickSmallerNode：rangeA <= rangeB，返回 a")
 	return a
 }
 
@@ -520,12 +518,12 @@ func isPositionInRange(stmt node.Statement, position Position) bool {
 	lspLine := int(position.Line) + 1
 
 	// 添加调试信息
-	fmt.Printf("[DEBUG] isPositionInRange: node=%T, position=(%d,%d), range=(%d,%d,%d,%d)\n",
+	logger.Debug("isPositionInRange：节点=%T，位置=(%d,%d)，范围=(%d,%d,%d,%d)",
 		stmt, lspLine, position.Character, startLine, startChar, endLine, endChar)
 
 	// 检查行号是否在范围内
 	if lspLine < startLine || lspLine > endLine {
-		fmt.Printf("[DEBUG] isPositionInRange: line out of range\n")
+		logger.Debug("isPositionInRange：行超出范围")
 		return false
 	}
 
@@ -534,12 +532,12 @@ func isPositionInRange(stmt node.Statement, position Position) bool {
 		if lspLine == endLine {
 			// 单行节点：字符位置必须在起始和结束字符之间
 			result := int(position.Character) >= startChar && int(position.Character) <= endChar
-			fmt.Printf("[DEBUG] isPositionInRange: single line node, char in range: %v\n", result)
+			logger.Debug("isPositionInRange：单行节点，字符在范围内：%v", result)
 			return result
 		} else {
 			// 多行节点的起始行：字符位置必须在起始字符之后
 			result := int(position.Character) >= startChar
-			fmt.Printf("[DEBUG] isPositionInRange: multi-line start, char >= start: %v\n", result)
+			logger.Debug("isPositionInRange：多行起始，字符 >= 起始：%v", result)
 			return result
 		}
 	}
@@ -547,7 +545,7 @@ func isPositionInRange(stmt node.Statement, position Position) bool {
 	// 如果在结束行，检查字符位置是否在结束字符之前
 	if lspLine == endLine {
 		result := int(position.Character) <= endChar
-		fmt.Printf("[DEBUG] isPositionInRange: end line, char <= end: %v\n", result)
+		logger.Debug("isPositionInRange：结束行，字符 <= 结束：%v", result)
 		return result
 	}
 
@@ -996,9 +994,9 @@ func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodNam
 		if ctx != nil {
 			varType := ctx.GetVariableType(varExpr.Name)
 			if varType != nil {
-				logger.Debug("Found variable type from context: %s -> %v", varExpr.Name, varType)
+				logger.Debug("从上下文找到变量类型：%s -> %v", varExpr.Name, varType)
 				if className := getClassNameFromType(varType); className != "" {
-					logger.Debug("Extracted class name: %s", className)
+					logger.Debug("提取类名：%s", className)
 					// 根据类名查找类定义
 					if class, exists := globalLspVM.GetClass(className); exists {
 						if methodLocation := findMethodInClass(class, methodName); methodLocation != nil {
@@ -1007,7 +1005,7 @@ func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodNam
 					}
 				}
 			} else {
-				logger.Debug("No variable type found in context for: %s", varExpr.Name)
+				logger.Debug("在上下文中未找到变量类型：%s", varExpr.Name)
 			}
 		}
 	}

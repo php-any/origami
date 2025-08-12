@@ -22,7 +22,7 @@ func handleTextDocumentDidOpen(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (inte
 	content := params.TextDocument.Text
 	version := params.TextDocument.Version
 
-	fmt.Printf("[INFO] Document opened: %s\n", uri)
+	logger.Info("文档已打开：%s", uri)
 
 	// 创建解析器
 	p := NewLspParser()
@@ -40,16 +40,16 @@ func handleTextDocumentDidOpen(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (inte
 		filePath := strings.TrimPrefix(uri, "file://")
 		ast, err = p.ParseFile(filePath)
 		if err != nil {
-			if *logLevel > 1 {
-				fmt.Printf("[WARNING] Failed to parse AST for %s: %v\n", uri, err)
-			}
+			logger.Warn("解析 AST 失败 %s：%v", uri, err)
+			// 解析失败时，AST 为 nil，但仍然创建文档信息
 		}
 	}
 
+	// 无论解析是否成功都创建 DocumentInfo
 	documents[uri] = &DocumentInfo{
 		Content: content,
 		Version: int32(version),
-		AST:     ast,
+		AST:     ast, // 可能为 nil
 		Parser:  p,
 	}
 
@@ -71,48 +71,61 @@ func handleTextDocumentDidChange(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (in
 	uri := params.TextDocument.URI
 	version := params.TextDocument.Version
 
-	if *logLevel > 2 {
-		fmt.Printf("[INFO] Document changed: %s\n", uri)
-	}
+	logger.Info("文档已变更：%s", uri)
 
-	doc, exists := documents[uri]
+	_, exists := documents[uri]
 	if !exists {
 		return nil, fmt.Errorf("document not found: %s", uri)
 	}
 
-	// 应用变更
+	// 获取更新后的内容
+	var content string
 	for _, change := range params.ContentChanges {
-		doc.Content = change.Text
+		content = change.Text
 	}
 
-	doc.Version = int32(version)
+	// 创建解析器
+	p := NewLspParser()
+	// 设置 LspVM
+	if globalLspVM != nil {
+		p.SetVM(globalLspVM)
+	}
 
-	// 重新解析 AST
-	if doc.Parser != nil {
-		var ast *node.Program
-		var err error
+	// 解析 AST
+	var ast *node.Program
+	var err error
 
-		// 如果是文件 URI，直接使用真实文件路径解析
-		if strings.HasPrefix(uri, "file://") {
-			filePath := strings.TrimPrefix(uri, "file://")
+	// 如果是文件 URI，直接使用真实文件路径解析
+	if strings.HasPrefix(uri, "file://") {
+		filePath := strings.TrimPrefix(uri, "file://")
 
-			// 清除 LspVM 中该文件的旧符号
+		// 清除 LspVM 中该文件的旧符号
+		if globalLspVM != nil {
 			globalLspVM.ClearFile(filePath)
-
-			ast, err = doc.Parser.ParseFile(filePath)
 		}
 
+		ast, err = p.ParseFile(filePath)
 		if err != nil {
-			if *logLevel > 1 {
-				fmt.Printf("[WARNING] Failed to re-parse AST for %s: %v\n", uri, err)
+			logger.Warn("重新解析 AST 失败 %s：%v", uri, err)
+			// 解析失败时，只更新内容和版本，保留原有的 AST 和解析器
+			if existingDoc, exists := documents[uri]; exists {
+				existingDoc.Content = content
+				existingDoc.Version = int32(version)
 			}
-		} else {
-			doc.AST = ast
+			return nil, nil
 		}
+	}
+
+	// 只有解析成功时才重新创建 DocumentInfo
+	documents[uri] = &DocumentInfo{
+		Content: content,
+		Version: int32(version),
+		AST:     ast,
+		Parser:  p,
 	}
 
 	// 验证文档
-	validateDocument(conn, uri, doc.Content)
+	validateDocument(conn, uri, content)
 
 	return nil, nil
 }
@@ -128,9 +141,7 @@ func handleTextDocumentDidClose(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (int
 
 	uri := params.TextDocument.URI
 
-	if *logLevel > 2 {
-		fmt.Printf("[INFO] Document closed: %s\n", uri)
-	}
+	logger.Info("文档已关闭：%s", uri)
 
 	// 清除 LspVM 中该文件的符号
 	if strings.HasPrefix(uri, "file://") {

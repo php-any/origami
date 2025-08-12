@@ -3,12 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
+	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-// 处理文档符号请求
+// handleTextDocumentDocumentSymbol 处理文档符号请求
 func handleTextDocumentDocumentSymbol(req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("textDocument/documentSymbol", true, req.Params)
 
@@ -17,75 +18,203 @@ func handleTextDocumentDocumentSymbol(req *jsonrpc2.Request) (interface{}, error
 		return nil, fmt.Errorf("failed to unmarshal documentSymbol params: %v", err)
 	}
 
-	uri := params.TextDocument.URI
+	logger.Info("处理文档符号请求：%s", params.TextDocument.URI)
 
-	if *logLevel > 2 {
-		fmt.Printf("[INFO] Document symbols requested for %s\n", uri)
-	}
-
-	doc, exists := documents[uri]
+	doc, exists := documents[params.TextDocument.URI]
 	if !exists {
+		logger.Warn("文档不存在：%s", params.TextDocument.URI)
 		return []DocumentSymbol{}, nil
 	}
 
-	// 获取文档符号
-	symbols := getDocumentSymbols(doc.Content)
+	symbols := getDocumentSymbolsFromAST(doc)
+	logger.Debug("找到 %d 个符号", len(symbols))
 
 	logLSPResponse("textDocument/documentSymbol", symbols, nil)
 	return symbols, nil
 }
 
-// 获取文档符号
-func getDocumentSymbols(content string) []DocumentSymbol {
-	symbols := []DocumentSymbol{}
+// getDocumentSymbolsFromAST 从 AST 中提取文档符号
+func getDocumentSymbolsFromAST(doc *DocumentInfo) []DocumentSymbol {
+	if doc.AST == nil {
+		logger.Warn("文档 AST 为空")
+		return []DocumentSymbol{}
+	}
 
-	// 简化的符号提取
-	lines := strings.Split(content, "\n")
-	for i, line := range lines {
-		line = strings.TrimSpace(line)
+	var symbols []DocumentSymbol
 
-		// 查找函数定义
-		if strings.HasPrefix(line, "function ") {
-			parts := strings.Fields(line)
-			if len(parts) >= 2 {
-				funcName := strings.TrimSuffix(parts[1], "(")
-				symbol := DocumentSymbol{
-					Name: funcName,
-					Kind: SymbolKindFunction,
-					Range: Range{
-						Start: Position{Line: uint32(i), Character: 0},
-						End:   Position{Line: uint32(i), Character: uint32(len(line))},
-					},
-					SelectionRange: Range{
-						Start: Position{Line: uint32(i), Character: 0},
-						End:   Position{Line: uint32(i), Character: uint32(len(line))},
-					},
-				}
-				symbols = append(symbols, symbol)
+	// 使用 DocumentInfo.Foreach 遍历 AST，只收集顶级符号
+	doc.Foreach(func(ctx *LspContext, parent, child data.GetValue) bool {
+		// 只处理顶级符号（parent 为 nil）
+		if parent == nil {
+			symbol := createSymbolFromNode(child)
+			if symbol != nil {
+				symbols = append(symbols, *symbol)
 			}
 		}
+		return true // 继续遍历
+	})
 
-		// 查找类定义
-		if strings.HasPrefix(line, "class ") {
-			parts := strings.Fields(line)
-			if len(parts) >= 2 {
-				className := parts[1]
-				symbol := DocumentSymbol{
-					Name: className,
-					Kind: SymbolKindClass,
-					Range: Range{
-						Start: Position{Line: uint32(i), Character: 0},
-						End:   Position{Line: uint32(i), Character: uint32(len(line))},
-					},
-					SelectionRange: Range{
-						Start: Position{Line: uint32(i), Character: 0},
-						End:   Position{Line: uint32(i), Character: uint32(len(line))},
-					},
-				}
-				symbols = append(symbols, symbol)
+	return symbols
+}
+
+// createSymbolFromNode 从节点创建符号
+func createSymbolFromNode(nodeValue data.GetValue) *DocumentSymbol {
+	if nodeValue == nil {
+		return nil
+	}
+
+	switch n := nodeValue.(type) {
+	case *node.FunctionStatement:
+		detail := fmt.Sprintf("function %s", n.Name)
+		return &DocumentSymbol{
+			Name:           n.Name,
+			Detail:         &detail,
+			Kind:           SymbolKindFunction,
+			Range:          getNodeRange(n),
+			SelectionRange: getNodeRange(n),
+		}
+
+	case *node.ClassStatement:
+		detail := fmt.Sprintf("class %s", n.Name)
+		symbol := &DocumentSymbol{
+			Name:           n.Name,
+			Detail:         &detail,
+			Kind:           SymbolKindClass,
+			Range:          getNodeRange(n),
+			SelectionRange: getNodeRange(n),
+		}
+
+		// 添加类成员
+		symbol.Children = extractClassMemberSymbols(n)
+		return symbol
+
+	case *node.InterfaceStatement:
+		detail := fmt.Sprintf("interface %s", n.Name)
+		return &DocumentSymbol{
+			Name:           n.Name,
+			Detail:         &detail,
+			Kind:           SymbolKindInterface,
+			Range:          getNodeRange(n),
+			SelectionRange: getNodeRange(n),
+		}
+
+	case *node.VarStatement:
+		detail := fmt.Sprintf("var %s", n.Name)
+		return &DocumentSymbol{
+			Name:           n.Name,
+			Detail:         &detail,
+			Kind:           SymbolKindVariable,
+			Range:          getNodeRange(n),
+			SelectionRange: getNodeRange(n),
+		}
+
+	case *node.ConstStatement:
+		detail := fmt.Sprintf("const %s", n.Name)
+		return &DocumentSymbol{
+			Name:           n.Name,
+			Detail:         &detail,
+			Kind:           SymbolKindConstant,
+			Range:          getNodeRange(n),
+			SelectionRange: getNodeRange(n),
+		}
+
+	case *node.Namespace:
+		detail := fmt.Sprintf("namespace %s", n.Name)
+		symbol := &DocumentSymbol{
+			Name:           n.Name,
+			Detail:         &detail,
+			Kind:           SymbolKindNamespace,
+			Range:          getNodeRange(n),
+			SelectionRange: getNodeRange(n),
+		}
+
+		// 添加命名空间成员
+		var children []DocumentSymbol
+		for _, stmt := range n.Statements {
+			if childSymbol := createSymbolFromNode(stmt); childSymbol != nil {
+				children = append(children, *childSymbol)
 			}
 		}
+		symbol.Children = children
+		return symbol
+	}
+
+	return nil
+}
+
+// extractClassMemberSymbols 提取类成员符号
+func extractClassMemberSymbols(class *node.ClassStatement) []DocumentSymbol {
+	var symbols []DocumentSymbol
+
+	// 添加属性
+	for _, prop := range class.Properties {
+		detail := fmt.Sprintf("property %s", prop.GetName())
+		symbol := DocumentSymbol{
+			Name:           prop.GetName(),
+			Detail:         &detail,
+			Kind:           SymbolKindProperty,
+			Range:          getPropertyRange(prop),
+			SelectionRange: getPropertyRange(prop),
+		}
+		symbols = append(symbols, symbol)
+	}
+
+	// 添加方法
+	for _, method := range class.Methods {
+		detail := fmt.Sprintf("method %s", method.GetName())
+		symbol := DocumentSymbol{
+			Name:           method.GetName(),
+			Detail:         &detail,
+			Kind:           SymbolKindMethod,
+			Range:          getMethodRange(method),
+			SelectionRange: getMethodRange(method),
+		}
+		symbols = append(symbols, symbol)
 	}
 
 	return symbols
+}
+
+// getNodeRange 获取节点的范围
+func getNodeRange(nodeValue data.GetValue) Range {
+	if getFrom, ok := nodeValue.(node.GetFrom); ok {
+		if from := getFrom.GetFrom(); from != nil {
+			startLine, startCol, endLine, endCol := from.GetRange()
+			return Range{
+				Start: Position{Line: uint32(startLine - 1), Character: uint32(startCol - 1)},
+				End:   Position{Line: uint32(endLine - 1), Character: uint32(endCol - 1)},
+			}
+		}
+	}
+	return Range{}
+}
+
+// getPropertyRange 获取属性的范围
+func getPropertyRange(prop data.Property) Range {
+	// 尝试从属性获取位置信息
+	if getFrom, ok := prop.(node.GetFrom); ok {
+		if from := getFrom.GetFrom(); from != nil {
+			startLine, startCol, endLine, endCol := from.GetRange()
+			return Range{
+				Start: Position{Line: uint32(startLine - 1), Character: uint32(startCol - 1)},
+				End:   Position{Line: uint32(endLine - 1), Character: uint32(endCol - 1)},
+			}
+		}
+	}
+	return Range{}
+}
+
+// getMethodRange 获取方法的范围
+func getMethodRange(method data.Method) Range {
+	// 尝试从方法获取位置信息
+	if getFrom, ok := method.(node.GetFrom); ok {
+		if from := getFrom.GetFrom(); from != nil {
+			startLine, startCol, endLine, endCol := from.GetRange()
+			return Range{
+				Start: Position{Line: uint32(startLine - 1), Character: uint32(startCol - 1)},
+				End:   Position{Line: uint32(endLine - 1), Character: uint32(endCol - 1)},
+			}
+		}
+	}
+	return Range{}
 }

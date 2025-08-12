@@ -32,7 +32,7 @@ func NewLspVM() *LspVM {
 
 		throwControl: func(ctrl data.Control) {
 			if ctrl != nil {
-				fmt.Printf("LspVM Error: %v\n", ctrl)
+				logger.Error("LspVM 错误：%v", ctrl)
 			}
 		},
 	}

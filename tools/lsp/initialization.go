@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -48,9 +47,7 @@ func handleInitialize(req *jsonrpc2.Request) (interface{}, error) {
 func handleInitialized(req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("initialized", false, req.Params)
 
-	if *logLevel > 0 {
-		fmt.Fprintf(os.Stderr, "[INFO] Origami LSP server initialized successfully\n")
-	}
+	logger.Info("Origami LSP 服务器初始化成功")
 
 	return nil, nil
 }
@@ -59,9 +56,7 @@ func handleInitialized(req *jsonrpc2.Request) (interface{}, error) {
 func handleShutdown(req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("shutdown", true, req.Params)
 
-	if *logLevel > 0 {
-		fmt.Fprintf(os.Stderr, "[INFO] Shutting down Origami LSP server...\n")
-	}
+	logger.Info("正在关闭 Origami LSP 服务器...")
 
 	return nil, nil
 }
@@ -76,9 +71,7 @@ func handleSetTrace(req *jsonrpc2.Request) (interface{}, error) {
 	}
 
 	// 设置跟踪级别
-	if *logLevel > 0 {
-		fmt.Fprintf(os.Stderr, "[INFO] Setting trace value: %s\n", params.Value)
-	}
+	logger.Info("设置跟踪值：%s", params.Value)
 
 	return nil, nil
 }

@@ -1,7 +1,6 @@
 namespace tests\func;
 
-function hello()
-{
+function hello() {
     return "hello world";
 }
 
@@ -22,6 +21,11 @@ class A
 
         return "hello world" + $name;
     }
+
+    public function newB()
+    {
+        return new B();
+    }
 }
 
 class B extends A
@@ -35,10 +39,10 @@ class B extends A
 $a = new A();
 $b = new B();
 // 无法跳转
+echo $a->newB()->hello();
 echo $a->hello();
 echo $b->hello();
 
 string $str = "hello world";
 
-echo $str;
-
+$str = "hello world";

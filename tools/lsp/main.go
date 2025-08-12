@@ -482,7 +482,7 @@ func main() {
 	logger = NewLogger(*logLevel, output)
 
 	if *version {
-		fmt.Printf("%s v%s\n", lsName, lsVersion)
+		logger.Info("%s v%s", lsName, lsVersion)
 		return
 	}
 
@@ -491,14 +491,12 @@ func main() {
 		return
 	}
 
-	if *logLevel > 0 {
-		fmt.Fprintf(os.Stderr, "日志级别: %d\n", *logLevel)
-	}
+	logger.Info("日志级别: %d", *logLevel)
 
 	if *test {
-		fmt.Println("=== 运行定义跳转测试 ===")
+		logger.Info("=== 运行定义跳转测试 ===")
 		testDefinitionJumpFeature()
-		fmt.Println("=== 测试完成 ===")
+		logger.Info("=== 测试完成 ===")
 		return
 	}
 
@@ -514,43 +512,33 @@ func main() {
 	var conn *jsonrpc2.Conn
 	switch *protocol_ {
 	case "stdio":
-		if *logLevel > 0 {
-			fmt.Fprintf(os.Stderr, "[INFO] Starting LSP server with stdio protocol\n")
-		}
+		logger.Info("使用 stdio 协议启动 LSP 服务器")
 		stream := jsonrpc2.NewBufferedStream(stdrwc{}, jsonrpc2.VSCodeObjectCodec{})
 		conn = jsonrpc2.NewConn(context.Background(), stream, handler)
 		<-conn.DisconnectNotify()
 	case "tcp":
 		addr := fmt.Sprintf("%s:%d", *address, *port)
-		if *logLevel > 0 {
-			fmt.Fprintf(os.Stderr, "[INFO] Starting LSP server with TCP protocol on %s\n", addr)
-		}
+		logger.Info("使用 TCP 协议在 %s 启动 LSP 服务器", addr)
 
 		// 创建 TCP 监听器
 		listener, err := net.Listen("tcp", addr)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "[ERROR] Failed to start TCP server: %v\n", err)
+			logger.Error("启动 TCP 服务器失败：%v", err)
 			os.Exit(1)
 		}
 		defer listener.Close()
 
-		if *logLevel > 0 {
-			fmt.Fprintf(os.Stderr, "[INFO] TCP server listening on %s\n", addr)
-		}
+		logger.Info("TCP 服务器正在监听 %s", addr)
 
 		// 接受连接
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
-				if *logLevel > 1 {
-					fmt.Fprintf(os.Stderr, "[WARNING] Failed to accept connection: %v\n", err)
-				}
+				logger.Warn("接受连接失败：%v", err)
 				continue
 			}
 
-			if *logLevel > 2 {
-				fmt.Fprintf(os.Stderr, "[INFO] New TCP connection from %s\n", conn.RemoteAddr())
-			}
+			logger.Info("来自 %s 的新 TCP 连接", conn.RemoteAddr())
 
 			// 为每个连接创建一个新的 JSON-RPC 连接
 			stream := jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{})
@@ -559,21 +547,17 @@ func main() {
 			// 在 goroutine 中处理连接
 			go func(conn net.Conn, rpcConn *jsonrpc2.Conn) {
 				<-rpcConn.DisconnectNotify()
-				if *logLevel > 2 {
-					fmt.Fprintf(os.Stderr, "[INFO] TCP connection closed: %s\n", conn.RemoteAddr())
-				}
+				logger.Info("TCP 连接已关闭：%s", conn.RemoteAddr())
 				conn.Close()
 			}(conn, rpcConn)
 		}
 	case "websocket":
 		addr := fmt.Sprintf("%s:%d", *address, *port)
-		if *logLevel > 0 {
-			fmt.Fprintf(os.Stderr, "[INFO] Starting LSP server with WebSocket protocol on %s\n", addr)
-		}
-		fmt.Fprintf(os.Stderr, "WebSocket protocol not supported\n")
+		logger.Info("使用 WebSocket 协议在 %s 启动 LSP 服务器", addr)
+		logger.Error("不支持 WebSocket 协议")
 		os.Exit(1)
 	default:
-		fmt.Fprintf(os.Stderr, "Unsupported protocol: %s\n", *protocol_)
+		logger.Error("不支持的协议：%s", *protocol_)
 		os.Exit(1)
 	}
 }
@@ -599,10 +583,8 @@ func (stdrwc) Close() error {
 // 处理 LSP 请求
 func handleRequest(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
 	// 打印完整的 JSON 参数
-	if *logLevel > 3 {
-		paramsJSON, _ := json.MarshalIndent(req.Params, "", "  ")
-		fmt.Fprintf(os.Stderr, "[DEBUG] LSP Request: %s\nParams: %s\n", req.Method, string(paramsJSON))
-	}
+	paramsJSON, _ := json.MarshalIndent(req.Params, "", "  ")
+	logger.Debug("LSP 请求：%s\n参数：%s", req.Method, string(paramsJSON))
 
 	switch req.Method {
 	case "initialize":
@@ -628,66 +610,58 @@ func handleRequest(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Reque
 	case "$/setTrace":
 		return handleSetTrace(req)
 	default:
-		if *logLevel > 1 {
-			fmt.Fprintf(os.Stderr, "[WARNING] Unknown method: %s\n", req.Method)
-		}
+		logger.Warn("未知方法：%s", req.Method)
 		return nil, nil
 	}
 }
 
 // 中间件：统一的 LSP 协议日志处理
 func logLSPCommunication(method string, isRequest bool, params interface{}) {
-	if *logLevel > 2 {
-		msgType := "notification"
-		if isRequest {
-			msgType = "request"
-		}
-		fmt.Fprintf(os.Stderr, "[INFO] LSP %s: %s\n", msgType, method)
+	msgType := "通知"
+	if isRequest {
+		msgType = "请求"
 	}
-	if *logLevel > 2 && params != nil {
+	logger.Info("LSP %s：%s", msgType, method)
+	if params != nil {
 		paramsJSON, _ := json.MarshalIndent(params, "", "  ")
-		fmt.Fprintf(os.Stderr, "[DEBUG] Params: %s\n", string(paramsJSON))
+		logger.Debug("参数：%s", string(paramsJSON))
 	}
 }
 
 func logLSPResponse(method string, result interface{}, err error) {
 	if err != nil {
-		if *logLevel > 1 {
-			fmt.Fprintf(os.Stderr, "[ERROR] LSP %s failed: %v\n", method, err)
-		}
+		logger.Error("LSP %s 失败：%v", method, err)
 	} else {
-		if *logLevel > 2 {
-			fmt.Fprintf(os.Stderr, "[INFO] LSP %s completed\n", method)
-		}
-		if *logLevel > 3 && result != nil {
+		logger.Info("LSP %s 完成", method)
+		if result != nil {
 			resultJSON, _ := json.MarshalIndent(result, "", "  ")
-			fmt.Fprintf(os.Stderr, "[DEBUG] Result: %s\n", string(resultJSON))
+			logger.Debug("结果：%s", string(resultJSON))
 		}
 	}
 }
 
 func showHelp() {
-	fmt.Printf("%s v%s\n\n", lsName, lsVersion)
-	fmt.Println("A Language Server Protocol implementation for Origami language.")
-	fmt.Println()
-	fmt.Println("Usage:")
-	fmt.Printf("  %s [options]\n\n", os.Args[0])
-	fmt.Println("Options:")
+	logger.Info("%s v%s\n", lsName, lsVersion)
+	logger.Info("Origami 语言的语言服务器协议实现。")
+	logger.Info("")
+	logger.Info("用法：")
+	logger.Info("  %s [选项]\n", os.Args[0])
+	logger.Info("选项：")
 	flag.PrintDefaults()
-	fmt.Println()
-	fmt.Println("Examples:")
-	fmt.Println("  # Start with stdio (default)")
-	fmt.Printf("  %s\n", os.Args[0])
-	fmt.Println()
-	fmt.Println("  # Start with TCP on port 8080")
-	fmt.Printf("  %s -protocol tcp -port 8080\n", os.Args[0])
-	fmt.Println()
-	fmt.Println("  # Start with WebSocket and custom logging")
-	fmt.Printf("  %s -protocol websocket -port 9000 -log-level 4 -log-file lsp.log\n", os.Args[0])
+	logger.Info("")
+	logger.Info("示例：")
+	logger.Info("  # 使用 stdio 启动（默认）")
+	logger.Info("  %s", os.Args[0])
+	logger.Info("")
+	logger.Info("  # 使用 TCP 在端口 8080 启动")
+	logger.Info("  %s -protocol tcp -port 8080", os.Args[0])
+	logger.Info("")
+	logger.Info("  # 使用 WebSocket 和自定义日志启动")
+	logger.Info("  %s -protocol websocket -port 9000 -log-level 4 -log-file lsp.log", os.Args[0])
 }
 
 func testDefinitionJumpFeature() {
 	// 测试定义跳转功能
-	fmt.Println("测试定义跳转功能...")
+	logger.Info("测试定义跳转功能...")
 	// 这里可以添加具体的测试逻辑
 }
