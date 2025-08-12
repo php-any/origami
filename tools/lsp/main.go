@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"log"
 	"net"
 	"os"
 
@@ -16,6 +18,69 @@ const (
 	lsVersion = "1.0.0"
 )
 
+// 日志级别常量
+const (
+	LogLevelOff   = 0
+	LogLevelError = 1
+	LogLevelWarn  = 2
+	LogLevelInfo  = 3
+	LogLevelDebug = 4
+)
+
+// Logger 统一的日志接口
+type Logger struct {
+	level int
+	debug *log.Logger
+	info  *log.Logger
+	warn  *log.Logger
+	error *log.Logger
+}
+
+// NewLogger 创建新的日志器
+func NewLogger(level int, output io.Writer) *Logger {
+	if output == nil {
+		output = os.Stderr
+	}
+
+	flags := log.LstdFlags | log.Lshortfile
+
+	return &Logger{
+		level: level,
+		debug: log.New(output, "[DEBUG] ", flags),
+		info:  log.New(output, "[INFO] ", flags),
+		warn:  log.New(output, "[WARN] ", flags),
+		error: log.New(output, "[ERROR] ", flags),
+	}
+}
+
+// Debug 输出调试日志
+func (l *Logger) Debug(format string, v ...interface{}) {
+	if l.level >= LogLevelDebug {
+		l.debug.Printf(format, v...)
+	}
+}
+
+// Info 输出信息日志
+func (l *Logger) Info(format string, v ...interface{}) {
+	if l.level >= LogLevelInfo {
+		l.info.Printf(format, v...)
+	}
+}
+
+// Warn 输出警告日志
+func (l *Logger) Warn(format string, v ...interface{}) {
+	if l.level >= LogLevelWarn {
+		l.warn.Printf(format, v...)
+	}
+}
+
+// Error 输出错误日志
+func (l *Logger) Error(format string, v ...interface{}) {
+	if l.level >= LogLevelError {
+		l.error.Printf(format, v...)
+	}
+}
+
 var (
 	version   = flag.Bool("version", false, "Show version information")
 	help      = flag.Bool("help", false, "Show help information")
@@ -24,8 +89,10 @@ var (
 	address   = flag.String("address", "localhost", "Address to bind to (for tcp/websocket)")
 	port      = flag.Int("port", 8080, "Port to bind to (for tcp/websocket)")
 	logLevel  = flag.Int("log-level", 1, "Log level (0=off, 1=error, 2=warn, 3=info, 4=debug)")
-	enableLog = flag.Bool("enable-log", true, "Enable logging")
 	logFile   = flag.String("log-file", "", "Log file path (empty for stderr)")
+
+	// 全局日志器
+	logger *Logger
 )
 
 // 简化的 LSP 类型定义
@@ -398,15 +465,21 @@ var (
 	documents   = make(map[string]*DocumentInfo)
 )
 
-type DocumentInfo struct {
-	Content string
-	Version int32
-	AST     interface{}
-	Parser  interface{}
-}
-
 func main() {
 	flag.Parse()
+
+	// 初始化全局日志器
+	var output io.Writer
+	if *logFile != "" {
+		if file, err := os.OpenFile(*logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666); err == nil {
+			output = file
+		} else {
+			output = os.Stderr
+		}
+	} else {
+		output = os.Stderr
+	}
+	logger = NewLogger(*logLevel, output)
 
 	if *version {
 		fmt.Printf("%s v%s\n", lsName, lsVersion)

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/php-any/origami/node"
 	"strings"
 
 	"github.com/sourcegraph/jsonrpc2"
@@ -31,7 +32,7 @@ func handleTextDocumentDidOpen(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (inte
 	}
 
 	// 解析 AST
-	var ast interface{}
+	var ast *node.Program
 	var err error
 
 	// 如果是文件 URI，直接使用真实文件路径解析
@@ -88,29 +89,25 @@ func handleTextDocumentDidChange(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (in
 
 	// 重新解析 AST
 	if doc.Parser != nil {
-		if p, ok := doc.Parser.(*LspParser); ok {
-			var ast interface{}
-			var err error
+		var ast *node.Program
+		var err error
 
-			// 如果是文件 URI，直接使用真实文件路径解析
-			if strings.HasPrefix(uri, "file://") {
-				filePath := strings.TrimPrefix(uri, "file://")
+		// 如果是文件 URI，直接使用真实文件路径解析
+		if strings.HasPrefix(uri, "file://") {
+			filePath := strings.TrimPrefix(uri, "file://")
 
-				// 清除 LspVM 中该文件的旧符号
-				if globalLspVM != nil {
-					globalLspVM.ClearFile(filePath)
-				}
+			// 清除 LspVM 中该文件的旧符号
+			globalLspVM.ClearFile(filePath)
 
-				ast, err = p.ParseFile(filePath)
+			ast, err = doc.Parser.ParseFile(filePath)
+		}
+
+		if err != nil {
+			if *logLevel > 1 {
+				fmt.Printf("[WARNING] Failed to re-parse AST for %s: %v\n", uri, err)
 			}
-
-			if err != nil {
-				if *logLevel > 1 {
-					fmt.Printf("[WARNING] Failed to re-parse AST for %s: %v\n", uri, err)
-				}
-			} else {
-				doc.AST = ast
-			}
+		} else {
+			doc.AST = ast
 		}
 	}
 

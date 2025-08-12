@@ -21,9 +21,7 @@ func handleTextDocumentDefinition(req *jsonrpc2.Request) (interface{}, error) {
 	uri := params.TextDocument.URI
 	position := params.Position
 
-	if *logLevel > 2 {
-		fmt.Printf("[INFO] Definition requested for %s at %d:%d\n", uri, position.Line, position.Character)
-	}
+	logger.Info("Definition requested for %s at %d:%d", uri, position.Line, position.Character)
 
 	doc, exists := documents[uri]
 	if !exists {
@@ -47,22 +45,48 @@ func findDefinitionInAST(doc *DocumentInfo, position Position) *Location {
 		return nil
 	}
 
-	// 获取光标位置的节点
-	node := getNodeAtPositionFromAST(doc, position)
-	if node == nil {
+	// 使用 DocumentInfo.Foreach 查找光标位置的节点和对应的上下文
+	var targetNode data.GetValue
+	var targetCtx *LspContext
+	doc.Foreach(func(ctx *LspContext, parent, child data.GetValue) bool {
+		// 检查当前节点是否包含光标位置
+		if isNodeContainsPosition(child, position) {
+			// 如果找到包含位置的节点，选择最小的（最精确的）
+			if pickSmallerNode(targetNode, child) == child {
+				targetNode = child
+				targetCtx = ctx // 保存目标节点对应的上下文
+			}
+			return true // 继续遍历，寻找更精确的节点
+		}
+
+		// 如果节点已经超过了目标行号，则停止遍历
+		if getFrom, ok := child.(node.GetFrom); ok {
+			if from := getFrom.GetFrom(); from != nil {
+				startLine, _, _, _ := from.GetRange()
+				// LSP 位置从0开始，需要转换为从1开始的行号
+				targetLine := int(position.Line) + 1
+				if startLine > targetLine {
+					// 当前节点的起始行已经超过了目标行，停止遍历
+					return false
+				}
+			}
+		}
+
+		return true // 继续遍历
+	})
+
+	if targetNode == nil {
 		return nil
 	}
 
-	if *logLevel > 2 {
-		fmt.Printf("[INFO] Found node at position: %T\n", node)
-	}
+	logger.Debug("Found node at position: %T", targetNode)
 
-	// 根据节点类型查找定义
-	return findDefinitionFromNode(node)
+	// 根据节点类型查找定义，使用目标节点的上下文
+	return findDefinitionFromNode(targetCtx, targetNode)
 }
 
 // findDefinitionFromNode 根据节点类型查找定义位置
-func findDefinitionFromNode(v data.GetValue) *Location {
+func findDefinitionFromNode(ctx *LspContext, v data.GetValue) *Location {
 	if v == nil {
 		return nil
 	}
@@ -70,24 +94,41 @@ func findDefinitionFromNode(v data.GetValue) *Location {
 	switch n := v.(type) {
 	case *node.CallExpression:
 		// 函数调用，查找函数定义
-		return findFunctionDefinition(nil, n.FunName)
+		return findFunctionDefinition(ctx, n.FunName)
 	case *node.NewExpression:
 		// new 表达式，从类名查找类定义
-		return findClassDefinition(nil, n.ClassName)
+		return findClassDefinition(ctx, n.ClassName)
 	case *node.CallMethod:
 		// 方法调用，查找方法定义
 		// 注意：CallMethod 的 Method 字段是 data.GetValue 类型，需要进一步处理
 		if method, ok := n.Method.(interface{ GetName() string }); ok {
-			return findMethodDefinition(nil, "", method.GetName())
+			return findMethodDefinition(ctx, "", method.GetName())
 		}
 		return nil
+	case *node.CallObjectMethod:
+		// 对象方法调用，查找方法定义
+		// 需要先确定对象类型，然后查找对应的方法
+		return findObjectMethodDefinition(ctx, n.Object, n.Method)
 	case *node.VariableExpression:
 		// 变量引用，查找变量定义
-		return findVariableDefinition(nil, n.Name)
+		return findVariableDefinition(ctx, n.Name)
 	}
 
 	// 对于其他类型的节点，暂时返回 nil
 	return nil
+}
+
+// isNodeContainsPosition 检查节点是否包含指定位置
+func isNodeContainsPosition(node data.GetValue, position Position) bool {
+	// 优先检查精确范围（行+列）
+	// 这是最准确的匹配方式
+	if isPositionInRange(node, position) {
+		return true
+	}
+
+	// 如果精确范围不匹配，说明节点不包含该位置
+	// 行范围检查在这里没有意义，因为我们需要精确的位置匹配
+	return false
 }
 
 // getNodeAtPositionFromAST 从 AST 中获取光标位置的节点
@@ -97,11 +138,7 @@ func getNodeAtPositionFromAST(doc *DocumentInfo, position Position) data.GetValu
 	}
 
 	// 尝试将 AST 转换为 *node.Program
-	program, ok := doc.AST.(*node.Program)
-	if !ok {
-		// 如果转换失败，回退到文本解析
-		return getNodeAtPositionFromText(doc.Content, position)
-	}
+	program := doc.AST
 
 	// 遍历 AST 查找光标位置的节点
 	node := findNodeAtPosition(program, position)
@@ -494,36 +531,27 @@ func isPositionInRange(stmt node.Statement, position Position) bool {
 
 	// 如果在起始行，检查字符位置是否在起始字符之后
 	if lspLine == startLine {
-		result := int(position.Character) >= startChar
-		if *logLevel > 2 {
-			fmt.Printf("[DEBUG] isPositionInRange: start line, char check: %d >= %d = %v\n",
-				position.Character, startChar, result)
+		if lspLine == endLine {
+			// 单行节点：字符位置必须在起始和结束字符之间
+			result := int(position.Character) >= startChar && int(position.Character) <= endChar
+			fmt.Printf("[DEBUG] isPositionInRange: single line node, char in range: %v\n", result)
+			return result
+		} else {
+			// 多行节点的起始行：字符位置必须在起始字符之后
+			result := int(position.Character) >= startChar
+			fmt.Printf("[DEBUG] isPositionInRange: multi-line start, char >= start: %v\n", result)
+			return result
 		}
-		// 还需要检查是否在结束字符之前
-		if result {
-			result = int(position.Character) <= endChar
-			if *logLevel > 2 {
-				fmt.Printf("[DEBUG] isPositionInRange: start line, end char check: %d <= %d = %v\n",
-					position.Character, endChar, result)
-			}
-		}
-		return result
 	}
 
 	// 如果在结束行，检查字符位置是否在结束字符之前
 	if lspLine == endLine {
 		result := int(position.Character) <= endChar
-		if *logLevel > 2 {
-			fmt.Printf("[DEBUG] isPositionInRange: end line, char check: %d <= %d = %v\n",
-				position.Character, endChar, result)
-		}
+		fmt.Printf("[DEBUG] isPositionInRange: end line, char <= end: %v\n", result)
 		return result
 	}
 
 	// 如果在中间行，肯定在范围内
-	if *logLevel > 2 {
-		fmt.Printf("[DEBUG] isPositionInRange: middle line, in range\n")
-	}
 	return true
 }
 
@@ -914,7 +942,7 @@ func getNodeAtPositionFromText(content string, position Position) data.GetValue 
 }
 
 // findFunctionDefinition 查找函数定义
-func findFunctionDefinition(doc *DocumentInfo, funcName string) *Location {
+func findFunctionDefinition(ctx *LspContext, funcName string) *Location {
 	if globalLspVM == nil {
 		return nil
 	}
@@ -927,7 +955,7 @@ func findFunctionDefinition(doc *DocumentInfo, funcName string) *Location {
 }
 
 // findClassDefinition 查找类定义
-func findClassDefinition(doc *DocumentInfo, className string) *Location {
+func findClassDefinition(ctx *LspContext, className string) *Location {
 	if globalLspVM == nil {
 		return nil
 	}
@@ -939,22 +967,86 @@ func findClassDefinition(doc *DocumentInfo, className string) *Location {
 	return nil
 }
 
+// findObjectMethodDefinition 查找对象方法定义
+func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodName string) *Location {
+	if globalLspVM == nil {
+		return nil
+	}
+
+	// 尝试从对象中获取类型信息
+	// 这里需要根据对象的类型来查找方法定义
+	// 由于对象可能是变量、表达式等，我们需要先尝试解析对象名称
+
+	// 如果对象是变量表达式，尝试从变量类型查找对应的类
+	if varExpr, ok := object.(*node.VariableExpression); ok {
+		// 首先尝试从变量节点的类型信息获取
+		if varExpr.Type != nil {
+			// 从类型信息中获取类名
+			if className := getClassNameFromType(varExpr.Type); className != "" {
+				// 根据类名查找类定义
+				if class, exists := globalLspVM.GetClass(className); exists {
+					if methodLocation := findMethodInClass(class, methodName); methodLocation != nil {
+						return methodLocation
+					}
+				}
+			}
+		}
+
+		// 如果变量节点没有类型信息，尝试从上下文获取
+		if ctx != nil {
+			varType := ctx.GetVariableType(varExpr.Name)
+			if varType != nil {
+				logger.Debug("Found variable type from context: %s -> %v", varExpr.Name, varType)
+				if className := getClassNameFromType(varType); className != "" {
+					logger.Debug("Extracted class name: %s", className)
+					// 根据类名查找类定义
+					if class, exists := globalLspVM.GetClass(className); exists {
+						if methodLocation := findMethodInClass(class, methodName); methodLocation != nil {
+							return methodLocation
+						}
+					}
+				}
+			} else {
+				logger.Debug("No variable type found in context for: %s", varExpr.Name)
+			}
+		}
+	}
+
+	// 如果对象是 this 表达式，尝试查找当前类的方法
+	if _, ok := object.(*node.This); ok {
+		// 这里需要获取当前类的上下文，暂时简化处理
+		// 可以尝试查找同名函数作为备选
+		if function, exists := globalLspVM.GetFunc(methodName); exists {
+			return createLocationFromFunction(function)
+		}
+	}
+
+	// 如果找不到具体的类，尝试查找同名函数作为备选
+	if function, exists := globalLspVM.GetFunc(methodName); exists {
+		return createLocationFromFunction(function)
+	}
+
+	return nil
+}
+
 // findVariableDefinition 查找变量定义
-func findVariableDefinition(doc *DocumentInfo, varName string) *Location {
+func findVariableDefinition(ctx *LspContext, varName string) *Location {
 	// 变量定义查找功能暂时简化，返回 nil
 	return nil
 }
 
 // findMethodDefinition 查找方法定义
-func findMethodDefinition(doc *DocumentInfo, variableName, methodName string) *Location {
+func findMethodDefinition(ctx *LspContext, variableName, methodName string) *Location {
 	if globalLspVM == nil {
 		return nil
 	}
 
-	// 查找变量对应的类
-	if class, exists := globalLspVM.GetClass(variableName); exists {
-		if methodLocation := findMethodInClass(class, methodName); methodLocation != nil {
-			return methodLocation
+	// 如果有变量名，查找变量对应的类
+	if variableName != "" {
+		if class, exists := globalLspVM.GetClass(variableName); exists {
+			if methodLocation := findMethodInClass(class, methodName); methodLocation != nil {
+				return methodLocation
+			}
 		}
 	}
 
@@ -998,6 +1090,25 @@ func createLocationFromClass(class data.ClassStmt) *Location {
 		}
 	}
 	return nil
+}
+
+// getClassNameFromType 从类型信息中获取类名
+func getClassNameFromType(typ data.Types) string {
+	switch t := typ.(type) {
+	case data.Class:
+		return t.Name
+	case data.NullableType:
+		// 如果是可空类型，递归获取基础类型的类名
+		return getClassNameFromType(t.BaseType)
+	default:
+		// 对于其他类型，尝试使用 String() 方法
+		typeStr := typ.String()
+		// 如果不是基础类型，可能是类名
+		if !data.ISBaseType(typeStr) {
+			return typeStr
+		}
+		return ""
+	}
 }
 
 // findMethodInClass 在类中查找方法

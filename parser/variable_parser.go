@@ -305,7 +305,6 @@ func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, 
 
 	method := vp.current().Literal
 	vp.next()
-	from := tracker.EndBefore()
 
 	// 如果后面跟着括号，解析方法调用
 	if vp.current().Type == token.LPAREN {
@@ -313,6 +312,8 @@ func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, 
 		if acl != nil {
 			return nil, acl
 		}
+		// 在解析完整个方法调用后设置范围
+		from := tracker.EndBefore()
 		return node.NewObjectMethod(
 			from,
 			object,
@@ -321,6 +322,8 @@ func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, 
 		), nil
 	}
 
+	// 对于属性访问，在方法名之后设置范围
+	from := tracker.EndBefore()
 	return node.NewObjectProperty(
 		from,
 		object,

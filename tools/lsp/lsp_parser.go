@@ -125,7 +125,7 @@ func (adapter *LspVMAdapter) LoadAndRun(file string) (data.GetValue, data.Contro
 }
 
 // ParseFile 解析文件 - 关键函数
-func (p *LspParser) ParseFile(filePath string) (interface{}, error) {
+func (p *LspParser) ParseFile(filePath string) (*node.Program, error) {
 	if _, err := os.Stat(filePath); err != nil {
 		return nil, fmt.Errorf("file does not exist: %s", filePath)
 	}
@@ -136,83 +136,5 @@ func (p *LspParser) ParseFile(filePath string) (interface{}, error) {
 		return nil, fmt.Errorf("failed to parse file: %v", err)
 	}
 
-	// 遍历 AST 并提取符号信息
-	p.extractSymbolsFromAST(program, filePath)
-
 	return program, nil
-}
-
-// extractSymbolsFromAST 从 AST 中提取符号信息
-func (p *LspParser) extractSymbolsFromAST(program *node.Program, filePath string) {
-	if p.vm == nil {
-		return
-	}
-
-	// 遍历所有语句
-	for _, stmt := range program.Statements {
-		p.extractSymbolFromStatement(stmt, filePath)
-	}
-}
-
-// extractSymbolFromStatement 从语句中提取符号信息
-func (p *LspParser) extractSymbolFromStatement(stmt node.Statement, filePath string) {
-	switch s := stmt.(type) {
-	case *node.FunctionStatement:
-		p.extractFunction(s, filePath)
-	case *node.ClassStatement:
-		p.extractClass(s, filePath)
-	case *node.InterfaceStatement:
-		p.extractInterface(s, filePath)
-	case *node.Namespace:
-		// 遍历命名空间内的语句
-		for _, nsStmt := range s.Statements {
-			p.extractSymbolFromStatement(nsStmt, filePath)
-		}
-	}
-}
-
-// extractFunction 提取函数信息
-func (p *LspParser) extractFunction(fn *node.FunctionStatement, filePath string) {
-	if p.vm == nil {
-		return
-	}
-
-	// 直接使用原始节点，不创建 SimpleFunction
-	p.vm.AddFunc(fn)
-}
-
-// extractClass 提取类信息
-func (p *LspParser) extractClass(cls *node.ClassStatement, filePath string) {
-	if p.vm == nil {
-		return
-	}
-
-	// 直接使用原始节点，不创建 SimpleClass
-	p.vm.AddClass(cls)
-
-	// 提取类的方法
-	methods := cls.GetMethods()
-	for _, method := range methods {
-		p.extractMethod(method, method.GetName(), cls.GetName(), filePath)
-	}
-}
-
-// extractInterface 提取接口信息
-func (p *LspParser) extractInterface(iface *node.InterfaceStatement, filePath string) {
-	if p.vm == nil {
-		return
-	}
-
-	// 直接使用原始节点，不创建 SimpleInterface
-	p.vm.AddInterface(iface)
-}
-
-// extractMethod 提取方法信息
-func (p *LspParser) extractMethod(method data.Method, methodName string, className, filePath string) {
-	if p.vm == nil {
-		return
-	}
-
-	// 直接使用方法节点，不创建 SimpleFunction
-	p.vm.AddFunc(method)
 }
