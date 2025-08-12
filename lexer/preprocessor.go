@@ -126,6 +126,7 @@ func (p *Preprocessor) Process() []Token {
 				if i+1 < len(filtered) && !cannotAddSemicolonAfter(filtered[i+1]) {
 					// 将换行符替换为分号
 					t.Type = token.SEMICOLON
+					t.Literal = ";"
 					result = append(result, t)
 				}
 			}
