@@ -18,11 +18,11 @@ type Position struct {
 // Token 表示一个词法单元
 type Token struct {
 	Type    token.TokenType
-	Literal string
-	Start   int // 起始位置
-	End     int // 结束位置
-	Line    int // 行号
-	Pos     int // 单独一行的位置
+	Literal string // 原始值, 换行替换为;符号也不能替换Literal
+	Start   int    // 起始位置
+	End     int    // 结束位置
+	Line    int    // 行号
+	Pos     int    // 单独一行的位置
 }
 
 // Node 表示 DAG 中的一个节点
@@ -83,8 +83,8 @@ func (l *Lexer) Tokenize(input string) []Token {
 	var tokens []Token
 	pos := 0
 	lastWasNewline := false
-	line := 1
-	linePos := 1
+	line := 0    // 从0开始
+	linePos := 0 // 从0开始
 
 	for pos < len(input) {
 		// 跳过空白字符，但保留换行符
@@ -112,7 +112,7 @@ func (l *Lexer) Tokenize(input string) []Token {
 				lastWasNewline = true
 			}
 			line++
-			linePos = 1
+			linePos = 0 // 从0开始
 			pos++
 			continue
 		}

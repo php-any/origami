@@ -61,6 +61,19 @@ func (vm *LspVM) GetClass(className string) (data.ClassStmt, bool) {
 	return class, exists
 }
 
+// GetAllClasses 获取所有类定义
+func (vm *LspVM) GetAllClasses() map[string]data.ClassStmt {
+	vm.mu.RLock()
+	defer vm.mu.RUnlock()
+
+	// 创建副本以避免外部修改
+	result := make(map[string]data.ClassStmt)
+	for className, classStmt := range vm.classes {
+		result[className] = classStmt
+	}
+	return result
+}
+
 // AddInterface 添加接口定义 - 实现 data.VM 接口
 func (vm *LspVM) AddInterface(i data.InterfaceStmt) data.Control {
 	vm.mu.Lock()

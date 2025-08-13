@@ -16,7 +16,8 @@ func (p *Parser) printDetailedError(err string, from data.From) {
 	// 错误位置信息
 	start, end := from.GetPosition()
 	fmt.Printf("📍 位置: 第 %d 行, 第 %d 列 (位置: %d-%d)\n", p.current().Line, p.current().Pos, start, end)
-	fmt.Printf("📄 文件: %s\n", from.GetSource())
+	sl, sp := from.GetStartPosition()
+	fmt.Printf("📄 文件: %s:%d:%d\n", from.GetSource(), sl+1, sp+1)
 
 	// 当前 token 信息
 	currentToken := p.current()

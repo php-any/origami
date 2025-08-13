@@ -66,6 +66,7 @@ func getCompletionItems(content string, position Position) []CompletionItem {
 		items = append(items, getSnippetCompletions()...)
 	case "object_method":
 		items = append(items, getObjectMethodCompletions()...)
+		logger.Info("对象方法补全：%#v", items)
 	default:
 		// 默认提供所有补全项，但避免重复
 		items = append(items, getSnippetCompletions()...)
@@ -106,8 +107,8 @@ func getCompletionContext(content string, position Position) string {
 		return "type"
 	}
 
-	// 检查是否在对象方法调用中 (如 $str->)
-	if strings.HasSuffix(strings.TrimSpace(beforeCursor), "->") {
+	// 检查是否在对象方法调用中 (如 $str-> 或 $str->le)
+	if strings.Contains(beforeCursor, "->") {
 		return "object_method"
 	}
 

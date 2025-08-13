@@ -295,8 +295,8 @@ func (vp *VariableParser) parsePropertyAccess(object data.GetValue) (data.GetVal
 }
 
 func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, data.Control) {
-	tracker := vp.StartTracking()
 	vp.next() // 跳过箭头
+	tracker := vp.StartTracking()
 
 	if vp.current().Type != token.IDENTIFIER {
 		from := tracker.End()

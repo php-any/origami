@@ -268,12 +268,13 @@ func (ctx *LspContext) GetParentScope() *LspContext {
 }
 
 // identifyVariableTypes 识别变量类型
-func (d *DocumentInfo) identifyVariableTypes(ctx *LspContext, stmt data.GetValue) {
+func (d *DocumentInfo) identifyVariableTypes(ctx *LspContext, stmt data.GetValue) data.Types {
+	var inferredType data.Types
 	switch n := stmt.(type) {
 	case *node.BinaryAssignVariable:
 		// 变量赋值：$a = new A()
 		if leftVar, ok := n.Left.(*node.VariableExpression); ok {
-			if inferredType := inferTypeFromExpression(n.Right); inferredType != nil {
+			if inferredType = inferTypeFromExpression(n.Right); inferredType != nil {
 				ctx.SetVariableType(leftVar.Name, inferredType)
 			}
 		}
@@ -281,7 +282,7 @@ func (d *DocumentInfo) identifyVariableTypes(ctx *LspContext, stmt data.GetValue
 	case *node.VarStatement:
 		// var 声明：var $a = "string"
 		if n.Initializer != nil {
-			if inferredType := inferTypeFromExpression(n.Initializer); inferredType != nil {
+			if inferredType = inferTypeFromExpression(n.Initializer); inferredType != nil {
 				ctx.SetVariableType(n.Name, inferredType)
 			}
 		}
@@ -289,11 +290,17 @@ func (d *DocumentInfo) identifyVariableTypes(ctx *LspContext, stmt data.GetValue
 	case *node.ConstStatement:
 		// const 声明：const $a = 123
 		if n.Initializer != nil {
-			if inferredType := inferTypeFromExpression(n.Initializer); inferredType != nil {
+			if inferredType = inferTypeFromExpression(n.Initializer); inferredType != nil {
 				ctx.SetVariableType(n.Name, inferredType)
 			}
 		}
+	case *node.ReturnStatement:
+		if inferredType = inferTypeFromExpression(n.Value); inferredType != nil {
+			return inferredType
+		}
 	}
+
+	return inferredType
 }
 
 type DocumentInfo struct {
@@ -819,6 +826,9 @@ func (d *DocumentInfo) foreachNode(ctx *LspContext, stmt data.GetValue, parent d
 
 	// 默认情况：遇到未处理的节点类型时报错
 	default:
+		if stmt == nil {
+			return
+		}
 		// 报错：发现未处理的节点类型
 		panic(fmt.Sprintf("foreachNode: 未处理的节点类型 %T", stmt))
 	}

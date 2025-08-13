@@ -21,11 +21,11 @@ func validateDocument(conn *jsonrpc2.Conn, uri string, content string) {
 				diagnostic := Diagnostic{
 					Range: Range{
 						Start: Position{
-							Line:      uint32(lineNum),
+							Line:      uint32(lineNum),    // 从0开始，与lexer保持一致
 							Character: uint32(colNum * 5), // 简化的位置计算
 						},
 						End: Position{
-							Line:      uint32(lineNum),
+							Line:      uint32(lineNum), // 从0开始，与lexer保持一致
 							Character: uint32(colNum*5 + len(token)),
 						},
 					},

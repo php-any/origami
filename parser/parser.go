@@ -241,19 +241,23 @@ func (p *Parser) addError(err string) {
 }
 
 func (p *Parser) addControl(acl data.Control) {
-	err := acl.AsString()
-
-	from := node.NewTokenFrom(p.source, p.current().Start, p.current().End, p.current().Line, p.current().Pos)
-	p.errors = append(p.errors, data.NewErrorThrow(from, errors.New(err)))
-
-	// 打印详细的错误信息
-	p.printDetailedError(err, from)
-
-	panic(err)
+	p.vm.ThrowControl(acl)
 }
 
 func (p *Parser) ShowControl(acl data.Control) {
-	p.addControl(acl)
+	err := acl.AsString()
+
+	if acl, ok := acl.(node.GetFrom); ok {
+		from := acl.GetFrom()
+		p.errors = append(p.errors, data.NewErrorThrow(from, errors.New(err)))
+		// 打印详细的错误信息
+		p.printDetailedError(err, from)
+	} else {
+		from := node.NewTokenFrom(p.source, p.current().Start, p.current().End, p.current().Line, p.current().Pos)
+		p.errors = append(p.errors, data.NewErrorThrow(from, errors.New(err)))
+		// 打印详细的错误信息
+		p.printDetailedError(err, from)
+	}
 }
 
 func (p *Parser) GetStart() int {

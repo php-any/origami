@@ -36,7 +36,7 @@ class B extends A
     }
 }
 
-$a = new A();
+$a = new A()
 $b = new B();
 // 无法跳转
 echo $a->newB()->hello();
@@ -46,3 +46,5 @@ echo $b->hello();
 string $str = "hello world";
 
 $str = "hello world";
+
+$str;

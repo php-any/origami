@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -19,7 +20,7 @@ func handleTextDocumentDefinition(req *jsonrpc2.Request) (interface{}, error) {
 	uri := params.TextDocument.URI
 	position := params.Position
 
-	logger.Info("请求定义跳转：%s 位置 %d:%d; req: %#v", uri, position.Line, position.Character, req.Params)
+	logger.Info("请求定义跳转：%s 位置 %d:%d; req: %v", uri, position.Line, position.Character, params)
 
 	doc, exists := documents[uri]
 	if !exists {
@@ -43,16 +44,20 @@ func findDefinitionInAST(doc *DocumentInfo, position Position) *Location {
 		return nil
 	}
 
+	logger.Debug("开始查找定义，位置：(%d, %d)", position.Line, position.Character)
+
 	// 使用 DocumentInfo.Foreach 查找光标位置的节点和对应的上下文
 	var targetNode data.GetValue
 	var targetCtx *LspContext
 	doc.Foreach(func(ctx *LspContext, parent, child data.GetValue) bool {
 		// 检查当前节点是否包含光标位置
-		if isNodeContainsPosition(child, position) {
+		if isPositionInRange(child, position) {
+			logger.Debug("找到包含位置的节点：%T，父节点：%T", child, parent)
 			// 如果找到包含位置的节点，选择最小的（最精确的）
 			if pickSmallerNode(targetNode, child) == child {
 				targetNode = child
 				targetCtx = ctx // 保存目标节点对应的上下文
+				logger.Debug("更新目标节点：%T", targetNode)
 			}
 			return true // 继续遍历，寻找更精确的节点
 		}
@@ -61,10 +66,11 @@ func findDefinitionInAST(doc *DocumentInfo, position Position) *Location {
 		if getFrom, ok := child.(node.GetFrom); ok {
 			if from := getFrom.GetFrom(); from != nil {
 				startLine, _, _, _ := from.GetRange()
-				// LSP 位置从0开始，需要转换为从1开始的行号
-				targetLine := int(position.Line) + 1
+				// LSP 和内部系统都使用从 0 开始的行号
+				targetLine := int(position.Line)
 				if startLine > targetLine {
 					// 当前节点的起始行已经超过了目标行，停止遍历
+					logger.Debug("节点起始行 %d 超过目标行 %d，停止遍历", startLine, targetLine)
 					return false
 				}
 			}
@@ -74,10 +80,11 @@ func findDefinitionInAST(doc *DocumentInfo, position Position) *Location {
 	})
 
 	if targetNode == nil {
+		logger.Debug("未找到包含位置的节点")
 		return nil
 	}
 
-	logger.Debug("在位置找到节点：%T", targetNode)
+	logger.Debug("最终目标节点：%T", targetNode)
 
 	// 根据节点类型查找定义，使用目标节点的上下文
 	return findDefinitionFromNode(targetCtx, targetNode)
@@ -92,6 +99,7 @@ func findDefinitionFromNode(ctx *LspContext, v data.GetValue) *Location {
 	switch n := v.(type) {
 	case *node.CallExpression:
 		// 函数调用，查找函数定义
+		logger.Debug("CallExpression FunName: %s", n.FunName)
 		return findFunctionDefinition(ctx, n.FunName)
 	case *node.NewExpression:
 		// new 表达式，从类名查找类定义
@@ -105,7 +113,16 @@ func findDefinitionFromNode(ctx *LspContext, v data.GetValue) *Location {
 		return nil
 	case *node.CallObjectMethod:
 		// 对象方法调用，查找方法定义
-		// 需要先确定对象类型，然后查找对应的方法
+		logger.Debug("CallObjectMethod: object=%T, method=%s", n.Object, n.Method)
+
+		// 检查是否是链式调用（对象是另一个方法调用的结果）
+		if chainCall, ok := n.Object.(*node.CallObjectMethod); ok {
+			// 这是一个链式调用，需要递归解析
+			logger.Debug("检测到链式调用，递归解析")
+			return findChainedMethodDefinition(ctx, chainCall, n.Method)
+		}
+
+		// 普通对象方法调用
 		return findObjectMethodDefinition(ctx, n.Object, n.Method)
 	case *node.VariableExpression:
 		// 变量引用，查找变量定义
@@ -114,299 +131,6 @@ func findDefinitionFromNode(ctx *LspContext, v data.GetValue) *Location {
 
 	// 对于其他类型的节点，暂时返回 nil
 	return nil
-}
-
-// isNodeContainsPosition 检查节点是否包含指定位置
-func isNodeContainsPosition(node data.GetValue, position Position) bool {
-	// 优先检查精确范围（行+列）
-	// 这是最准确的匹配方式
-	if isPositionInRange(node, position) {
-		return true
-	}
-
-	// 如果精确范围不匹配，说明节点不包含该位置
-	// 行范围检查在这里没有意义，因为我们需要精确的位置匹配
-	return false
-}
-
-// getNodeAtPositionFromAST 从 AST 中获取光标位置的节点
-func getNodeAtPositionFromAST(doc *DocumentInfo, position Position) data.GetValue {
-	if doc.AST == nil {
-		return nil
-	}
-
-	// 尝试将 AST 转换为 *node.Program
-	program := doc.AST
-
-	// 遍历 AST 查找光标位置的节点
-	node := findNodeAtPosition(program, position)
-	if node != nil {
-		return node
-	}
-
-	// 如果 AST 中没有找到，回退到简单的文本解析
-	return getNodeAtPositionFromText(doc.Content, position)
-}
-
-// findNodeAtPosition 在 AST 中查找指定位置的节点
-func findNodeAtPosition(program *node.Program, position Position) data.GetValue {
-	if program == nil {
-		return nil
-	}
-
-	// 遍历所有语句，选择“最小包含范围”的节点
-	var best data.GetValue
-	for _, stmt := range program.Statements {
-		candidate := findNodeInStatement(stmt, position)
-		best = pickSmallerNode(best, candidate)
-	}
-
-	return best
-}
-
-// findNodeInStatement 在语句中查找节点
-func findNodeInStatement(stmt node.Statement, position Position) data.GetValue {
-	if stmt == nil {
-		return nil
-	}
-
-	// 检查当前语句的位置是否包含光标位置（行内或整行命中均可）
-	if !isPositionInRange(stmt, position) && !isPositionInLineRange(stmt, position) {
-		return nil
-	}
-
-	// 作为兜底候选：如果没有更精确的子节点，返回当前语句本身
-	var best data.GetValue = stmt
-
-	switch s := stmt.(type) {
-	case *node.FunctionStatement:
-		// 合并参数和函数体成一个列表
-		candidate := findSymbolInExpressions(position, append(s.GetParams(), s.GetBody()...)...)
-		return pickSmallerNode(best, candidate)
-	case *node.ClassStatement:
-		candidate := findNodeInClass(s, position)
-		return pickSmallerNode(best, candidate)
-	case *node.InterfaceStatement:
-		candidate := findNodeInInterface(s, position)
-		return pickSmallerNode(best, candidate)
-	case *node.Namespace:
-		candidate := findSymbolInExpressions(position, s.Statements...)
-		return pickSmallerNode(best, candidate)
-	case *node.EchoStatement:
-		candidate := findSymbolInExpressions(position, s.Expressions...)
-		return pickSmallerNode(best, candidate)
-	case *node.IfStatement:
-		// 合并条件、then分支、else if分支和else分支
-		allExprs := []data.GetValue{s.Condition}
-		allExprs = append(allExprs, s.ThenBranch...)
-		for _, elseIf := range s.ElseIf {
-			allExprs = append(allExprs, elseIf.Condition)
-			allExprs = append(allExprs, elseIf.ThenBranch...)
-		}
-		allExprs = append(allExprs, s.ElseBranch...)
-		candidate := findSymbolInExpressions(position, allExprs...)
-		return pickSmallerNode(best, candidate)
-	case *node.ForStatement:
-		// 合并初始化器、条件、增量和循环体
-		allExprs := []data.GetValue{}
-		if s.Initializer != nil {
-			allExprs = append(allExprs, s.Initializer)
-		}
-		if s.Condition != nil {
-			allExprs = append(allExprs, s.Condition)
-		}
-		if s.Increment != nil {
-			allExprs = append(allExprs, s.Increment)
-		}
-		allExprs = append(allExprs, s.Body...)
-		candidate := findSymbolInExpressions(position, allExprs...)
-		return pickSmallerNode(best, candidate)
-	case *node.WhileStatement:
-		// 合并条件和循环体
-		allExprs := []data.GetValue{}
-		if s.Condition != nil {
-			allExprs = append(allExprs, s.Condition)
-		}
-		allExprs = append(allExprs, s.Body...)
-		candidate := findSymbolInExpressions(position, allExprs...)
-		return pickSmallerNode(best, candidate)
-	case *node.ForeachStatement:
-		// 合并数组、键变量、值变量和循环体
-		allExprs := []data.GetValue{s.Array}
-		if s.Key != nil {
-			allExprs = append(allExprs, s.Key)
-		}
-		if s.Value != nil {
-			allExprs = append(allExprs, s.Value)
-		}
-		allExprs = append(allExprs, s.Body...)
-		candidate := findSymbolInExpressions(position, allExprs...)
-		return pickSmallerNode(best, candidate)
-	case *node.SwitchStatement:
-		// 合并条件、case分支和default分支
-		allExprs := []data.GetValue{s.Condition}
-		for _, caseStmt := range s.Cases {
-			allExprs = append(allExprs, caseStmt.CaseValue)
-			allExprs = append(allExprs, caseStmt.Statements...)
-		}
-		allExprs = append(allExprs, s.DefaultCase...)
-		candidate := findSymbolInExpressions(position, allExprs...)
-		return pickSmallerNode(best, candidate)
-	case *node.TryStatement:
-		// 合并try块、catch块和finally块
-		allExprs := []data.GetValue{}
-		allExprs = append(allExprs, s.TryBlock...)
-		for _, catchBlock := range s.CatchBlocks {
-			if catchBlock.Variable != nil {
-				allExprs = append(allExprs, catchBlock.Variable)
-			}
-			allExprs = append(allExprs, catchBlock.Body...)
-		}
-		allExprs = append(allExprs, s.FinallyBlock...)
-		candidate := findSymbolInExpressions(position, allExprs...)
-		return pickSmallerNode(best, candidate)
-	case *node.BlockStatement:
-		// 块语句包含多个子语句，需要转换为 data.GetValue 类型
-		allExprs := make([]data.GetValue, len(s.Statements))
-		for i, stmt := range s.Statements {
-			allExprs[i] = stmt
-		}
-		candidate := findSymbolInExpressions(position, allExprs...)
-		return pickSmallerNode(best, candidate)
-	case *node.ReturnStatement:
-		// 返回语句包含返回值表达式
-		if s.Value != nil {
-			candidate := findSymbolInExpressions(position, s.Value)
-			return pickSmallerNode(best, candidate)
-		}
-		return nil
-	case *node.BinaryAssignVariable:
-		// $a = expr; 赋值，优先向右侧深入（例如 new A()）
-		allExprs := []data.GetValue{}
-		if s.Left != nil {
-			allExprs = append(allExprs, s.Left)
-		}
-		if s.Right != nil {
-			allExprs = append(allExprs, s.Right)
-		}
-		candidate := findSymbolInExpressions(position, allExprs...)
-		return pickSmallerNode(best, candidate)
-	case *node.BinaryAssignVariableList:
-		// 多变量赋值，右侧或左侧
-		allExprs := []data.GetValue{}
-		if s.Right != nil {
-			allExprs = append(allExprs, s.Right)
-		}
-		if s.Left != nil {
-			allExprs = append(allExprs, s.Left)
-		}
-		candidate := findSymbolInExpressions(position, allExprs...)
-		return pickSmallerNode(best, candidate)
-	case *node.BinaryAssign:
-		// 赋值表达式，优先深入左右子表达式
-		allExprs := []data.GetValue{}
-		if s.Left != nil {
-			allExprs = append(allExprs, s.Left)
-		}
-		if s.Right != nil {
-			allExprs = append(allExprs, s.Right)
-		}
-		candidate := findSymbolInExpressions(position, allExprs...)
-		return pickSmallerNode(best, candidate)
-	case *node.VarStatement:
-		// 变量声明语句包含名称和初始化器
-		allExprs := []data.GetValue{}
-		if s.Initializer != nil {
-			allExprs = append(allExprs, s.Initializer)
-		}
-		candidate := findSymbolInExpressions(position, allExprs...)
-		return pickSmallerNode(best, candidate)
-	case *node.ConstStatement:
-		// 常量声明语句包含名称和初始化器
-		allExprs := []data.GetValue{}
-		if s.Initializer != nil {
-			allExprs = append(allExprs, s.Initializer)
-		}
-		candidate := findSymbolInExpressions(position, allExprs...)
-		return pickSmallerNode(best, candidate)
-	case *node.ThrowStatement:
-		// 抛出语句包含异常表达式
-		if s.Value != nil {
-			candidate := findSymbolInExpressions(position, s.Value)
-			return pickSmallerNode(best, candidate)
-		}
-		return nil
-	case *node.BreakStatement:
-		// break语句没有子节点
-		return nil
-	case *node.ContinueStatement:
-		// continue语句没有子节点
-		return nil
-	case *node.SpawnStatement:
-		// spawn语句包含要执行的方法调用
-		if s.Call != nil {
-			candidate := findSymbolInExpressions(position, s.Call)
-			return pickSmallerNode(best, candidate)
-		}
-		return nil
-	case *node.UseStatement:
-		// use语句没有子节点，只有命名空间和别名
-		return nil
-	default:
-		// 对于其他类型的语句，尝试作为表达式处理
-		candidate := findSymbolInExpression(stmt, position)
-		return pickSmallerNode(best, candidate)
-	}
-}
-
-func findSymbolInExpressions(position Position, exprs ...data.GetValue) data.GetValue {
-	var best data.GetValue
-	logger.Debug("findSymbolInExpressions：位置=(%d,%d)，表达式数量=%d",
-		position.Line, position.Character, len(exprs))
-
-	// 循环处理每个表达式参数
-	for i, expr := range exprs {
-		if expr == nil {
-			continue
-		}
-
-		logger.Debug("处理表达式[%d]：%T", i, expr)
-
-		// 使用精确的位置检查，确保表达式真正包含光标位置
-		if stmt, ok := expr.(node.Statement); ok {
-			if !isPositionInRange(stmt, position) {
-				logger.Debug("表达式[%d] 位置检查失败，跳过", i)
-				continue
-			}
-			logger.Debug("表达式[%d] 位置检查通过", i)
-		}
-
-		var candidate data.GetValue
-		switch expr.(type) {
-		// 原子字面量和变量：直接作为候选
-		case *node.VariableExpression, *node.StringLiteral, *node.BooleanLiteral, *node.NullLiteral, *node.IntLiteral, *node.FloatLiteral:
-			candidate = expr
-			logger.Debug("表达式[%d] 是原子表达式，候选=%T", i, candidate)
-		default:
-			if stmt, ok := expr.(node.Statement); ok {
-				logger.Debug("表达式[%d] 调用 findSymbolInExpression", i)
-				candidate = findSymbolInExpression(stmt, position)
-				logger.Debug("表达式[%d] findSymbolInExpression 返回：%T", i, candidate)
-			} else {
-				candidate = expr
-				logger.Debug("表达式[%d] 不是语句，候选=%T", i, candidate)
-			}
-		}
-
-		if candidate != nil {
-			logger.Debug("表达式[%d] 有候选，调用 pickSmallerNode", i)
-			best = pickSmallerNode(best, candidate)
-			logger.Debug("pickSmallerNode 后，最佳=%T", best)
-		}
-	}
-
-	logger.Debug("findSymbolInExpressions 最终结果：%T", best)
-	return best
 }
 
 // pickSmallerNode 返回最合适的节点；优先选择包含光标位置的节点
@@ -514,8 +238,8 @@ func isPositionInRange(stmt node.Statement, position Position) bool {
 	// 直接使用 GetRange 获取位置范围
 	startLine, startChar, endLine, endChar := from.GetRange()
 
-	// 注意：LSP 使用从 0 开始的行号，我们的 from 系统使用从 1 开始的行号
-	lspLine := int(position.Line) + 1
+	// LSP 和内部系统都使用从 0 开始的行号
+	lspLine := int(position.Line)
 
 	// 添加调试信息
 	logger.Debug("isPositionInRange：节点=%T，位置=(%d,%d)，范围=(%d,%d,%d,%d)",
@@ -546,101 +270,11 @@ func isPositionInRange(stmt node.Statement, position Position) bool {
 	if lspLine == endLine {
 		result := int(position.Character) <= endChar
 		logger.Debug("isPositionInRange：结束行，字符 <= 结束：%v", result)
-		return result
+		return true // 简化：只要在结束行就认为在范围内
 	}
 
 	// 如果在中间行，肯定在范围内
 	return true
-}
-
-// findNodeInFunction 在函数中查找节点
-func findNodeInFunction(fn *node.FunctionStatement, position Position) data.GetValue {
-	if fn == nil {
-		return nil
-	}
-
-	// 检查是否是函数名
-	if isPositionInNodeName(fn, position) {
-		return fn
-	}
-
-	// 检查函数体中的节点
-	for _, bodyStmt := range fn.GetBody() {
-		if nodeStmt, ok := bodyStmt.(node.Statement); ok {
-			if node := findNodeInStatement(nodeStmt, position); node != nil {
-				return node
-			}
-		}
-	}
-
-	return nil
-}
-
-// findNodeInClass 在类中查找节点
-func findNodeInClass(cls *node.ClassStatement, position Position) data.GetValue {
-	if cls == nil {
-		return nil
-	}
-
-	// 检查是否是类名
-	if isPositionInNodeName(cls, position) {
-		return cls
-	}
-
-	// 检查类的属性
-	properties := cls.GetProperties()
-	for _, property := range properties {
-		// 检查属性名
-		if isPositionInNodeName(property, position) {
-			return property
-		}
-		// 检查属性的默认值
-		if defaultValue := property.GetDefaultValue(); defaultValue != nil {
-			if node := findSymbolInExpressions(position, defaultValue); node != nil {
-				return node
-			}
-		}
-	}
-
-	// 检查类的方法
-	methods := cls.GetMethods()
-	for _, method := range methods {
-		// 检查方法体
-		if methodStmt, ok := method.(node.Statement); ok {
-			if node := findNodeInStatement(methodStmt, position); node != nil {
-				return node
-			}
-		}
-	}
-
-	// 检查构造函数
-	if construct := cls.GetConstruct(); construct != nil {
-		// 检查构造函数体
-		if constructStmt, ok := construct.(node.Statement); ok {
-			if node := findNodeInStatement(constructStmt, position); node != nil {
-				return node
-			}
-		}
-	}
-
-	// 注解检查暂时跳过，因为 Annotations 是私有字段
-	// 如果需要检查注解，需要添加公共访问方法
-
-	return nil
-}
-
-// findNodeInInterface 在接口中查找节点
-func findNodeInInterface(iface *node.InterfaceStatement, position Position) data.GetValue {
-	if iface == nil {
-		return nil
-	}
-
-	// 检查是否是接口名
-	if isPositionInNodeName(iface, position) {
-		return iface
-	}
-
-	return nil
 }
 
 // findSymbolInExpression 在表达式中查找符号，直接返回节点
@@ -672,7 +306,11 @@ func findSymbolInExpression(expr node.Statement, position Position) data.GetValu
 		return findSymbolInVariableExpression(e, position)
 	default:
 		// 回退到通用语句处理，继续向下递归
-		return findNodeInStatement(expr, position)
+		// 检查位置是否在表达式范围内
+		if isPositionInRange(expr, position) || isPositionInLineRange(expr, position) {
+			return expr
+		}
+		return nil
 	}
 }
 
@@ -869,7 +507,7 @@ func findSymbolInStaticMethod(call *node.CallStaticMethod, position Position) da
 	return call
 }
 
-// 仅检查“行”是否命中，忽略列，避免 token.Pos 为末尾列导致的误差
+// 仅检查"行"是否命中，忽略列，避免 token.Pos 为末尾列导致的误差
 func isPositionInLineRange(stmt node.Statement, position Position) bool {
 	var from data.From
 	if getFrom, ok := stmt.(node.GetFrom); ok {
@@ -880,63 +518,11 @@ func isPositionInLineRange(stmt node.Statement, position Position) bool {
 	}
 	startLine, _, endLine, _ := from.GetRange()
 	lspLine := int(position.Line) + 1
-	return lspLine >= startLine && lspLine <= endLine
-}
 
-// isPositionInNodeName 检查位置是否在节点名称范围内
-func isPositionInNodeName(stmt node.Statement, position Position) bool {
-	// 尝试获取节点的 From 信息
-	var from data.From
-
-	// 检查不同类型的节点
-	switch n := stmt.(type) {
-	case *node.FunctionStatement:
-		from = n.GetFrom()
-	case *node.ClassStatement:
-		from = n.GetFrom()
-	case *node.InterfaceStatement:
-		from = n.GetFrom()
-	case *node.Namespace:
-		from = n.GetFrom()
-	default:
-		return false
-	}
-
-	if from == nil {
-		return false
-	}
-
-	// 直接使用 GetRange 获取位置范围
-	startLine, startChar, endLine, endChar := from.GetRange()
-
-	// 注意：LSP 使用从 0 开始的行号，我们的 from 系统使用从 1 开始的行号
-	lspLine := int(position.Line)
-
-	// 检查是否在名称范围内（假设名称在开始位置附近）
-	if lspLine+1 == startLine {
-		// 如果在同一行，检查字符位置
-		return int(position.Character) >= startChar && int(position.Character) <= endChar
-	}
-
-	// 如果跨行，检查是否在范围内
-	if lspLine+1 >= startLine && lspLine+1 <= endLine {
-		if lspLine+1 == startLine {
-			return int(position.Character) >= startChar
-		}
-		if lspLine+1 == endLine {
-			return int(position.Character) <= endChar
-		}
-		return true
-	}
-
-	return false
-}
-
-// getNodeAtPositionFromText 从文本中获取节点信息（回退方法）
-func getNodeAtPositionFromText(content string, position Position) data.GetValue {
-	// 这是一个简化的实现，实际应该返回一个表示文本位置的节点
-	// 由于我们主要使用 AST，这个函数暂时返回 nil
-	return nil
+	// 简化：只要在行范围内就认为命中
+	result := lspLine >= startLine && lspLine <= endLine
+	logger.Debug("isPositionInLineRange：节点=%T，位置行=%d，范围行=[%d,%d]，结果=%v", stmt, lspLine, startLine, endLine, result)
+	return result
 }
 
 // findFunctionDefinition 查找函数定义
@@ -945,10 +531,13 @@ func findFunctionDefinition(ctx *LspContext, funcName string) *Location {
 		return nil
 	}
 
+	logger.Debug("查找函数定义：%s", funcName)
 	if function, exists := globalLspVM.GetFunc(funcName); exists {
+		logger.Debug("找到函数：%T，位置：%v", function, function)
 		return createLocationFromFunction(function)
 	}
 
+	logger.Debug("未找到函数：%s", funcName)
 	return nil
 }
 
@@ -1027,6 +616,188 @@ func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodNam
 	return nil
 }
 
+// findChainedMethodDefinition 查找链式方法调用中的方法定义
+func findChainedMethodDefinition(ctx *LspContext, chainCall *node.CallObjectMethod, methodName string) *Location {
+	if globalLspVM == nil {
+		return nil
+	}
+
+	logger.Debug("解析链式调用：%s", methodName)
+
+	// 递归解析链式调用，从最内层开始
+	// 例如：$a->newB()->getC()->hello() 需要递归解析每一层
+
+	// 获取链式调用的对象
+	object := chainCall.Object
+	method := chainCall.Method
+
+	logger.Debug("链式调用对象：%T，方法：%s", object, method)
+
+	// 递归解析链式调用
+	return resolveChainedMethod(ctx, object, method, methodName)
+}
+
+// resolveChainedMethod 递归解析链式方法调用
+func resolveChainedMethod(ctx *LspContext, object data.GetValue, currentMethod, targetMethod string) *Location {
+	if globalLspVM == nil {
+		return nil
+	}
+
+	logger.Debug("解析方法调用：%s，目标方法：%s", currentMethod, targetMethod)
+
+	// 如果对象是变量，尝试获取其类型
+	if varExpr, ok := object.(*node.VariableExpression); ok {
+		logger.Debug("变量：%s", varExpr.Name)
+
+		// 从上下文获取变量类型
+		if ctx != nil {
+			varType := ctx.GetVariableType(varExpr.Name)
+			if varType != nil {
+				logger.Debug("变量类型：%v", varType)
+
+				// 获取类名
+				if className := getClassNameFromType(varType); className != "" {
+					logger.Debug("类名：%s", className)
+
+					// 查找类定义
+					if class, exists := globalLspVM.GetClass(className); exists {
+						// 在类中查找当前方法
+						if methodLocation := findMethodInClass(class, currentMethod); methodLocation != nil {
+							logger.Debug("找到方法：%s", currentMethod)
+
+							// 尝试推断方法的返回类型
+							returnType := inferMethodReturnType(class, currentMethod)
+							if returnType != nil {
+								logger.Debug("推断返回类型：%s", returnType)
+
+								// 仅补充 switch returnType.(type) 逻辑
+								switch rt := returnType.(type) {
+								case data.String:
+									if function, exists := globalLspVM.GetFunc(targetMethod); exists {
+										return createLocationFromFunction(function)
+									}
+								case data.Arrays:
+									if function, exists := globalLspVM.GetFunc(targetMethod); exists {
+										return createLocationFromFunction(function)
+									}
+								case data.Int, data.Float, data.Bool, data.Object, data.Callable:
+									if function, exists := globalLspVM.GetFunc(targetMethod); exists {
+										return createLocationFromFunction(function)
+									}
+								case data.Class:
+									if class, exists := globalLspVM.GetClass(rt.Name); exists {
+										if final := findMethodInClass(class, targetMethod); final != nil {
+											return final
+										}
+									}
+								case data.NullableType:
+									if className := getClassNameFromType(rt.BaseType); className != "" {
+										if class, exists := globalLspVM.GetClass(className); exists {
+											if final := findMethodInClass(class, targetMethod); final != nil {
+												return final
+											}
+										}
+									}
+								case data.MultipleReturnType:
+									for _, t := range rt.Types {
+										if className := getClassNameFromType(t); className != "" {
+											if class, exists := globalLspVM.GetClass(className); exists {
+												if final := findMethodInClass(class, targetMethod); final != nil {
+													return final
+												}
+											}
+										}
+									}
+								case data.Generic:
+									for _, t := range rt.Types {
+										if className := getClassNameFromType(t); className != "" {
+											if class, exists := globalLspVM.GetClass(className); exists {
+												if final := findMethodInClass(class, targetMethod); final != nil {
+													return final
+												}
+											}
+										}
+									}
+								}
+							}
+
+							// 如果无法推断返回类型，尝试在所有类中查找目标方法
+							if globalLspVM != nil {
+								// 遍历所有类，查找目标方法
+								allClasses := globalLspVM.GetAllClasses()
+								for className, classStmt := range allClasses {
+									logger.Debug("在所有类中查找：%s", className)
+									if methodLocation := findMethodInClass(classStmt, targetMethod); methodLocation != nil {
+										logger.Debug("在类 %s 中找到目标方法：%s", className, targetMethod)
+										return methodLocation
+									}
+								}
+							}
+
+							// 如果所有类中都找不到，就不需要提示了
+							logger.Debug("在所有类中都找不到目标方法：%s", targetMethod)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// 如果对象是另一个方法调用，递归解析
+	if nestedCall, ok := object.(*node.CallObjectMethod); ok {
+		logger.Debug("检测到嵌套方法调用，递归解析")
+		return resolveChainedMethod(ctx, nestedCall.Object, nestedCall.Method, targetMethod)
+	}
+
+	// 如果无法解析链式调用，尝试查找同名函数作为备选
+	logger.Debug("无法解析链式调用，尝试查找同名函数：%s", targetMethod)
+	if function, exists := globalLspVM.GetFunc(targetMethod); exists {
+		return createLocationFromFunction(function)
+	}
+
+	return nil
+}
+
+// inferMethodReturnType 推断方法的返回类型
+func inferMethodReturnType(class data.ClassStmt, methodName string) data.Types {
+	// 获取方法定义
+	method, exists := class.GetMethod(methodName)
+	if !exists {
+		return nil
+	}
+	// 1. 检查方法是否有返回类型注解
+	if ret, ok := method.(data.GetReturnType); ok {
+		ret := ret.GetReturnType()
+		if ret != nil {
+			return ret
+		}
+	}
+	var inferredType data.Types
+	// 方法应该实现 data.Method 接口
+	if m, ok := method.(*node.ClassMethod); ok {
+		docu := &DocumentInfo{}
+		baseCtx := context.Background()
+		lspCtx := NewLspContext(baseCtx, nil)
+
+		for _, stmt := range m.Body {
+			docu.foreachNode(lspCtx, stmt, nil, func(ctx *LspContext, parent, child data.GetValue) bool {
+				switch st := child.(type) {
+				case *node.ReturnStatement:
+					inferredType = docu.identifyVariableTypes(ctx, st)
+					return false
+				}
+				return true
+			})
+			if inferredType != nil {
+				return inferredType
+			}
+		}
+	}
+
+	// 默认返回空字符串，表示无法推断
+	return inferredType
+}
+
 // findVariableDefinition 查找变量定义
 func findVariableDefinition(ctx *LspContext, varName string) *Location {
 	// 变量定义查找功能暂时简化，返回 nil
@@ -1063,7 +834,7 @@ func createLocationFromFunction(function data.FuncStmt) *Location {
 		if from := fnStmt.GetFrom(); from != nil {
 			startLine, startChar, endLine, endChar := from.ToLSPPosition()
 			return &Location{
-				URI: fmt.Sprintf("file://%s", from.GetSource()),
+				URI: filePathToURI(from.GetSource()),
 				Range: Range{
 					Start: Position{Line: uint32(startLine), Character: uint32(startChar)},
 					End:   Position{Line: uint32(endLine), Character: uint32(endChar)},
@@ -1080,7 +851,7 @@ func createLocationFromClass(class data.ClassStmt) *Location {
 	if from := class.GetFrom(); from != nil {
 		startLine, startChar, endLine, endChar := from.ToLSPPosition()
 		return &Location{
-			URI: fmt.Sprintf("file://%s", from.GetSource()),
+			URI: filePathToURI(from.GetSource()),
 			Range: Range{
 				Start: Position{Line: uint32(startLine), Character: uint32(startChar)},
 				End:   Position{Line: uint32(endLine), Character: uint32(endChar)},
@@ -1118,7 +889,7 @@ func findMethodInClass(class data.ClassStmt, methodName string) *Location {
 			if from := methodWithFrom.GetFrom(); from != nil {
 				startLine, startChar, endLine, endChar := from.ToLSPPosition()
 				return &Location{
-					URI: fmt.Sprintf("file://%s", from.GetSource()),
+					URI: filePathToURI(from.GetSource()),
 					Range: Range{
 						Start: Position{Line: uint32(startLine), Character: uint32(startChar)},
 						End:   Position{Line: uint32(endLine), Character: uint32(endChar)},
@@ -1132,7 +903,7 @@ func findMethodInClass(class data.ClassStmt, methodName string) *Location {
 	if from := class.GetFrom(); from != nil {
 		startLine, startChar, endLine, endChar := from.ToLSPPosition()
 		return &Location{
-			URI: fmt.Sprintf("file://%s", from.GetSource()),
+			URI: filePathToURI(from.GetSource()),
 			Range: Range{
 				Start: Position{Line: uint32(startLine), Character: uint32(startChar)},
 				End:   Position{Line: uint32(endLine), Character: uint32(endChar)},

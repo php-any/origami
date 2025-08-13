@@ -37,7 +37,7 @@ func handleTextDocumentDidOpen(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (inte
 
 	// 如果是文件 URI，直接使用真实文件路径解析
 	if strings.HasPrefix(uri, "file://") {
-		filePath := strings.TrimPrefix(uri, "file://")
+		filePath := uriToFilePath(uri)
 		ast, err = p.ParseFile(filePath)
 		if err != nil {
 			logger.Warn("解析 AST 失败 %s：%v", uri, err)
@@ -96,8 +96,9 @@ func handleTextDocumentDidChange(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (in
 	var err error
 
 	// 如果是文件 URI，直接使用真实文件路径解析
+
 	if strings.HasPrefix(uri, "file://") {
-		filePath := strings.TrimPrefix(uri, "file://")
+		filePath := uriToFilePath(uri)
 
 		// 清除 LspVM 中该文件的旧符号
 		if globalLspVM != nil {
@@ -145,7 +146,7 @@ func handleTextDocumentDidClose(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (int
 
 	// 清除 LspVM 中该文件的符号
 	if strings.HasPrefix(uri, "file://") {
-		filePath := strings.TrimPrefix(uri, "file://")
+		filePath := uriToFilePath(uri)
 		if globalLspVM != nil {
 			globalLspVM.ClearFile(filePath)
 		}
