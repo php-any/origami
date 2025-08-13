@@ -138,3 +138,9 @@ func (p *LspParser) ParseFile(filePath string) (*node.Program, error) {
 
 	return program, nil
 }
+
+// ParseString 从字符串解析程序 - 用于处理编辑器中的最新内容
+func (p *LspParser) ParseString(content string, filePath string) (*node.Program, error) {
+	// 调用底层解析器的 ParseString 方法
+	return p.parser.ParseString(content, filePath)
+}

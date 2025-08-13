@@ -547,3 +547,35 @@ func (p *Parser) ParseExpressionFromString(exprStr string) (data.GetValue, data.
 
 	return result, ctl
 }
+
+// ParseString 从字符串解析程序
+func (p *Parser) ParseString(content string, filePath string) (*node.Program, error) {
+	// 保存当前状态
+	originalTokens := p.tokens
+	originalPosition := p.position
+	originalSource := p.source
+
+	// 重置解析器状态
+	p.reset()
+
+	// 设置源文件路径，确保符号位置信息正确
+	p.source = &filePath
+
+	// 进行分词
+	p.tokens = p.lexer.Tokenize(content)
+
+	// 解析程序
+	program := p.parseProgram()
+
+	// 检查是否有错误
+	if len(p.errors) > 0 {
+		return nil, errors.New(p.errors[0].AsString())
+	}
+
+	// 恢复原始状态
+	p.tokens = originalTokens
+	p.position = originalPosition
+	p.source = originalSource
+
+	return program, nil
+}

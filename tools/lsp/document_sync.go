@@ -3,8 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/php-any/origami/node"
 	"strings"
+
+	"github.com/php-any/origami/node"
 
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -95,28 +96,34 @@ func handleTextDocumentDidChange(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (in
 	var ast *node.Program
 	var err error
 
-	// 如果是文件 URI，直接使用真实文件路径解析
+	// 使用编辑器提供的最新内容来解析，而不是从磁盘读取
 
+	// 清除 LspVM 中该文件的旧符号（如果是文件 URI）
 	if strings.HasPrefix(uri, "file://") {
 		filePath := uriToFilePath(uri)
-
-		// 清除 LspVM 中该文件的旧符号
 		if globalLspVM != nil {
 			globalLspVM.ClearFile(filePath)
 		}
-
-		ast, err = p.ParseFile(filePath)
-		if err != nil {
-			logger.Warn("重新解析 AST 失败 %s：%v", uri, err)
-			// 解析失败时，只更新内容和版本，保留原有的 AST 和解析器
-			if existingDoc, exists := documents[uri]; exists {
-				existingDoc.Content = content
-				existingDoc.Version = int32(version)
-			}
-			return nil, nil
-		}
 	}
 
+	// 使用最新内容解析 AST
+	var filePath string
+	if strings.HasPrefix(uri, "file://") {
+		filePath = uriToFilePath(uri)
+	} else {
+		filePath = "memory_content" // 非文件 URI 使用虚拟路径
+	}
+	ast, err = p.ParseString(content, filePath)
+	if err != nil {
+		logger.Warn("重新解析 AST 失败 %s：%v", uri, err)
+		// 解析失败时，只更新内容和版本，保留原有的 AST 和解析器
+		if existingDoc, exists := documents[uri]; exists {
+			existingDoc.Content = content
+			existingDoc.Version = int32(version)
+		}
+		return nil, nil
+	}
+	delete(documents, uri)
 	// 只有解析成功时才重新创建 DocumentInfo
 	documents[uri] = &DocumentInfo{
 		Content: content,
@@ -124,7 +131,7 @@ func handleTextDocumentDidChange(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (in
 		AST:     ast,
 		Parser:  p,
 	}
-
+	logger.Info("重新解析 AST 成功 %s; %v", uri, ast)
 	// 验证文档
 	validateDocument(conn, uri, content)
 

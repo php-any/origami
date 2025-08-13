@@ -103,14 +103,8 @@ func loadAllScriptFiles(params InitializeParams) {
 
 	logger.Info("工作区根目录：%s", workspaceRoot)
 
-	// 创建共享的 LspParser 实例
-	parser := NewLspParser()
-	if globalLspVM != nil {
-		parser.SetVM(globalLspVM)
-	}
-
 	// 直接遍历并立即加载文件，避免收集所有文件
-	loadScriptFilesInDirectory(workspaceRoot, parser)
+	loadScriptFilesInDirectory(workspaceRoot)
 }
 
 // getWorkspaceRoot 从 LSP 参数获取工作区根目录
@@ -206,7 +200,7 @@ func findScriptFiles(workspaceRoot string) []string {
 }
 
 // loadScriptFilesInDirectory 在目录中查找并立即加载脚本文件
-func loadScriptFilesInDirectory(workspaceRoot string, parser *LspParser) {
+func loadScriptFilesInDirectory(workspaceRoot string) {
 	// 添加 panic 恢复机制
 	defer func() {
 		if r := recover(); r != nil {
@@ -251,7 +245,11 @@ func loadScriptFilesInDirectory(workspaceRoot string, parser *LspParser) {
 						logger.Error("加载文件 %s 时发生 panic：%v", filePath, r)
 					}
 				}()
-
+				// 创建共享的 LspParser 实例
+				parser := NewLspParser()
+				if globalLspVM != nil {
+					parser.SetVM(globalLspVM)
+				}
 				loadScriptFile(filePath, parser)
 			}(path)
 		}
