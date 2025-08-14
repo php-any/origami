@@ -60,9 +60,9 @@ func (p *Parser) reset() {
 func (p *Parser) Clone() *Parser {
 	// 创建新的解析器实例
 	cloned := &Parser{
-		vm:               p.vm,    // VM 是共享的，不需要克隆
-		source:           nil,     // 字符串指针，共享即可
-		lexer:            p.lexer, // 创建新的词法分析器
+		vm:               p.vm,             // VM 是共享的，不需要克隆
+		source:           nil,              // 字符串指针，共享即可
+		lexer:            lexer.NewLexer(), // 创建新的词法分析器
 		tokens:           make([]lexer.Token, 0),
 		position:         0,
 		errors:           make([]data.Control, 0),
@@ -117,6 +117,7 @@ func (p *Parser) parseProgram() *node.Program {
 		stmt, acl := p.parseStatement()
 		if acl != nil {
 			p.addControl(acl)
+			p.reset()
 		}
 		if stmt != nil {
 			if n, ok := stmt.(*node.Namespace); ok {
@@ -138,6 +139,7 @@ func (p *Parser) parseProgram() *node.Program {
 			last = p.position
 		} else {
 			p.addControl(data.NewErrorThrow(p.newFrom(), errors.New("无法识别语句")))
+			p.reset()
 			return nil
 		}
 	}
@@ -213,7 +215,7 @@ func (p *Parser) next() {
 
 func (p *Parser) nextAndCheck(t token.TokenType) {
 	if p.current().Type != t {
-		p.addError("检查符号不一致")
+		p.addControl(data.NewErrorThrow(p.newFrom(), errors.New("检查符号不一致")))
 	}
 	p.position++
 }
@@ -227,17 +229,6 @@ func (p *Parser) nextAndCheckStip(t token.TokenType) {
 // isEOF 检查是否到达文件末尾
 func (p *Parser) isEOF() bool {
 	return p.position >= len(p.tokens)
-}
-
-// addError
-func (p *Parser) addError(err string) {
-	from := node.NewTokenFrom(p.source, p.current().Start, p.current().End, p.current().Line, p.current().Pos)
-	p.errors = append(p.errors, data.NewErrorThrow(from, errors.New(err)))
-
-	// 打印详细的错误信息
-	p.printDetailedError(err, from)
-
-	panic(err)
 }
 
 func (p *Parser) addControl(acl data.Control) {
@@ -304,28 +295,16 @@ func (p *Parser) isTokensAdjacent(token1, token2 lexer.Token) bool {
 	return token1.End == token2.Start
 }
 
+func (p *Parser) checkClassName(name string) {
+
+}
+
 // 获取类的完整路径, 类定义自己不用, 但是继承、实现接口需要调用
 func (p *Parser) getClassName(try bool) (string, data.Control) {
-	// 获取完整的类名路径
-	var parts []string
-	for {
-		parts = append(parts, p.current().Literal)
-		p.next()
+	className := p.current().Literal
+	p.next()
 
-		if p.current().Type != token.NAMESPACE_SEPARATOR {
-			break
-		}
-		p.next()
-	}
-	className := ""
-	for _, part := range parts {
-		if className == "" {
-			className = part
-		} else {
-			className = className + "\\" + part
-		}
-	}
-	if len(parts) == 1 {
+	if strings.Index(className, "\\") == -1 {
 		// 如果只有一个单词, 则认为可能是别名
 		if full, ok := p.uses[className]; ok {
 			return full, nil
@@ -333,7 +312,7 @@ func (p *Parser) getClassName(try bool) (string, data.Control) {
 		// 也有可能是同一个包内的类
 		if try {
 			if full, ok := p.findFullClassNameByNamespace(className); ok {
-				return full, p.tryLoadClass(full)
+				return full, nil
 			}
 		}
 	}
@@ -460,6 +439,9 @@ func (p *Parser) findFullClassNameByNamespace(name string, try ...bool) (string,
 	if stmt, ok := p.vm.GetInterface(tryName); ok {
 		return stmt.GetName(), true
 	}
+	if _, ok := p.vm.GetClassPathCache(tryName); ok {
+		return tryName, true
+	}
 	// 顶命名
 	if stmt, ok := p.vm.GetClass(name); ok {
 		return stmt.GetName(), true
@@ -491,6 +473,9 @@ func (p *Parser) findFullFunNameByNamespace(name string) (string, bool) {
 		tryName = p.namespace.GetName() + "\\" + name
 	}
 	if stmt, ok := p.vm.GetFunc(tryName); ok {
+		return stmt.GetName(), true
+	}
+	if stmt, ok := p.vm.GetFunc(name); ok {
 		return stmt.GetName(), true
 	}
 

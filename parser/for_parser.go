@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -20,7 +21,7 @@ func NewForParser(parser *Parser) StatementParser {
 
 // Parse 解析for语句
 func (p *ForParser) Parse() (data.GetValue, data.Control) {
-	from := p.FromCurrentToken()
+	tracker := p.StartTracking()
 	// 跳过for关键字
 	p.next()
 	var acl data.Control
@@ -47,11 +48,10 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 			// 声明为变量
 			if ident, ok := initializer.(*node.StringLiteral); ok {
 				name := ident.Value
-				index := p.scopeManager.CurrentScope().AddVariable(name, nil, from)
-				key = node.NewVariable(from, name, index, nil)
+				index := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+				key = node.NewVariable(tracker.EndBefore(), name, index, nil)
 			} else {
-				p.addError("for in 无法解析变量 key")
-				return nil, nil
+				return nil, data.NewErrorThrow(tracker.EndBefore(), nil)
 			}
 		}
 		if p.current().Type == token.COMMA {
@@ -70,18 +70,17 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 						vp := &VariableParser{p.Parser}
 						return vp.parseSuffix(varInfo)
 					} else {
-						index := p.scopeManager.CurrentScope().AddVariable(name, nil, from)
-						value = node.NewVariable(from, name, index, nil)
+						index := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+						value = node.NewVariable(tracker.EndBefore(), name, index, nil)
 					}
 				} else {
-					p.addError("for in 无法解析变量 value")
-					return nil, nil
+					return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("for in 无法解析变量 value"))
 				}
 			}
 		} else {
 			name := "_"
-			index := p.scopeManager.CurrentScope().AddVariable(name, nil, from)
-			value = node.NewVariable(from, name, index, nil)
+			index := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+			value = node.NewVariable(tracker.EndBefore(), name, index, nil)
 		}
 
 		p.nextAndCheck(token.IN)
@@ -96,7 +95,7 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 		body := p.parseBlock()
 
 		return node.NewForeachStatement(
-			from,
+			tracker.EndBefore(),
 			array,
 			key,
 			value,
@@ -144,7 +143,7 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 		body := p.parseBlock()
 
 		return node.NewForStatement(
-			from,
+			tracker.EndBefore(),
 			initializer,
 			condition,
 			increment,

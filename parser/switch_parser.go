@@ -26,7 +26,7 @@ func (p *SwitchParser) Parse() (data.GetValue, data.Control) {
 	p.next()
 
 	// 解析条件表达式
-	condition, acl := p.parseSwitchCondition()
+	condition, acl := p.parseSwitchCondition(tracker)
 	if acl != nil {
 		return nil, acl
 	}
@@ -48,8 +48,7 @@ func (p *SwitchParser) Parse() (data.GetValue, data.Control) {
 			}
 		} else {
 			// 报告错误：期望 case 或 default
-			p.addError("switch 语句中期望 'case' 或 'default'")
-			return nil, nil
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("switch 语句中期望 'case' 或 'default'"))
 		}
 	}
 
@@ -66,7 +65,7 @@ func (p *SwitchParser) Parse() (data.GetValue, data.Control) {
 }
 
 // parseSwitchCondition 解析switch条件表达式
-func (p *SwitchParser) parseSwitchCondition() (data.GetValue, data.Control) {
+func (p *SwitchParser) parseSwitchCondition(tracker *PositionTracker) (data.GetValue, data.Control) {
 	// 检查是否是括号形式 switch (condition)
 	if p.current().Type == token.LPAREN {
 		p.next() // 跳过左括号
@@ -76,7 +75,7 @@ func (p *SwitchParser) parseSwitchCondition() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		if p.current().Type != token.RPAREN {
-			return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("switch 缺少右括号 ')'"))
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("switch 缺少右括号 ')'"))
 		}
 		p.next() // 跳过右括号
 

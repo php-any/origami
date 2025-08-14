@@ -61,8 +61,7 @@ func (p *MatchParser) Parse() (data.GetValue, data.Control) {
 				arms = append(arms, *arm)
 			} else {
 				// 报告错误：期望 match arm 或 default
-				p.addError("match 语句中期望匹配分支或 'default'")
-				return nil, nil
+				return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("match 语句中期望匹配分支或 'default'"))
 			}
 		}
 	}

@@ -30,6 +30,9 @@ type VM interface {
 	SetThrowControl(func(acl Control))
 	ThrowControl(acl Control)
 	LoadAndRun(file string) (GetValue, Control)
+
+	SetClassPathCache(name, path string)
+	GetClassPathCache(name string) (string, bool)
 }
 
 type ClassStmt interface {

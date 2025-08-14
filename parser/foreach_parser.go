@@ -27,8 +27,7 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 
 	// 解析左括号
 	if p.current().Type != token.LPAREN {
-		p.addError("foreach 后面需要 '('")
-		return nil, nil
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 缺少左括号"))
 	}
 	p.next()
 
@@ -39,12 +38,12 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 		return nil, acl
 	}
 	if array == nil {
-		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("foreach 中需要数组表达式"))
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要数组表达式"))
 	}
 
 	// 解析 as 关键字
 	if p.current().Type != token.AS {
-		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("foreach 中需要 'as' 关键字"))
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要 'as' 关键字"))
 	}
 	p.next()
 
@@ -61,11 +60,10 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 	if key, ok = keyTemp.(data.Variable); !ok {
 		if ident, ok := keyTemp.(*node.StringLiteral); ok {
 			name := ident.Value
-			index := p.scopeManager.CurrentScope().AddVariable(name, nil, p.FromCurrentToken())
-			key = node.NewVariable(p.FromCurrentToken(), name, index, nil)
+			index := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+			key = node.NewVariable(tracker.EndBefore(), name, index, nil)
 		} else {
-			p.addError("foreach 无法解析变量 key")
-			return nil, nil
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
 		}
 	}
 
@@ -78,11 +76,10 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 		if value, ok = keyTemp.(data.Variable); !ok {
 			if ident, ok := keyTemp.(*node.StringLiteral); ok {
 				name := ident.Value
-				index := p.scopeManager.CurrentScope().AddVariable(name, nil, p.FromCurrentToken())
-				value = node.NewVariable(p.FromCurrentToken(), name, index, nil)
+				index := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+				value = node.NewVariable(tracker.EndBefore(), name, index, nil)
 			} else {
-				p.addError("foreach 无法解析变量 key")
-				return nil, nil
+				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
 			}
 		}
 	} else {
@@ -92,8 +89,7 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 
 	// 解析右括号
 	if p.current().Type != token.RPAREN {
-		p.addError("foreach 变量后面需要 ')'")
-		return nil, nil
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 缺少右括号"))
 	}
 	p.next()
 

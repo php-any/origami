@@ -78,13 +78,12 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("未定义的函数:"+name))
 				}
 				return node.NewCallExpression(tracker.EndBefore(), full, stmt, fn), acl
-			}
-			fn, ok := p.vm.GetFunc(name)
-			if !ok {
+			} else if InLSP {
+				stmt, acl := vp.parseFunctionCall()
+				return node.NewCallExpression(tracker.EndBefore(), full, stmt, nil), acl
+			} else {
 				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("未定义的函数:"+name))
 			}
-			stmt, acl := vp.parseFunctionCall()
-			return node.NewCallExpression(tracker.EndBefore(), name, stmt, fn), acl
 		}
 		// 变量定义
 		if p.checkPositionIs(0, token.COLON) && p.checkPositionIs(1, token.IDENTIFIER) {

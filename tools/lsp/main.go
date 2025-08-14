@@ -93,6 +93,9 @@ var (
 
 	// 全局日志器
 	logger *Logger
+
+	// 全局 LSP 连接，用于发送通知
+	globalConn *jsonrpc2.Conn
 )
 
 // 简化的 LSP 类型定义
@@ -582,6 +585,9 @@ func (stdrwc) Close() error {
 
 // 处理 LSP 请求
 func handleRequest(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
+	// 设置全局连接，用于发送通知
+	globalConn = conn
+
 	// 打印完整的 JSON 参数
 	paramsJSON, _ := json.MarshalIndent(req.Params, "", "  ")
 	logger.Debug("LSP 请求：%s\n参数：%s", req.Method, string(paramsJSON))

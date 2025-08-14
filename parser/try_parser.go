@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -34,7 +35,10 @@ func (p *TryParser) Parse() (data.GetValue, data.Control) {
 
 	// 解析多个catch块
 	for p.checkPositionIs(0, token.CATCH) {
-		catchBlock := p.parseCatchBlock()
+		catchBlock, acl := p.parseCatchBlock(tracker)
+		if acl != nil {
+			return nil, acl
+		}
 		if catchBlock != nil {
 			catchBlocks = append(catchBlocks, *catchBlock)
 		}
@@ -56,14 +60,13 @@ func (p *TryParser) Parse() (data.GetValue, data.Control) {
 }
 
 // parseCatchBlock 解析catch块
-func (p *TryParser) parseCatchBlock() *node.CatchBlock {
+func (p *TryParser) parseCatchBlock(tracker *PositionTracker) (*node.CatchBlock, data.Control) {
 	// 跳过catch关键字
 	p.nextAndCheck(token.CATCH)
 
 	// 检查是否有左括号
 	if !p.checkPositionIs(0, token.LPAREN) {
-		p.addError("Expected '(' after catch")
-		return nil
+		return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("Expected '(' after catch"))
 	}
 	p.next() // 跳过左括号
 
@@ -87,11 +90,10 @@ func (p *TryParser) parseCatchBlock() *node.CatchBlock {
 		variable = stmt.(*node.VariableExpression)
 		variable.Type = data.NewBaseType(exceptionType)
 	} else {
-		from := p.FromCurrentToken()
 		name := p.current().Literal
 		p.next()
-		index := p.scopeManager.CurrentScope().AddVariable(name, data.NewBaseType(exceptionType), from)
-		variable = node.NewVariable(from, name, index, data.NewBaseType(exceptionType))
+		index := p.scopeManager.CurrentScope().AddVariable(name, data.NewBaseType(exceptionType), tracker.EndBefore())
+		variable = node.NewVariable(tracker.EndBefore(), name, index, data.NewBaseType(exceptionType))
 	}
 
 	p.nextAndCheck(token.RPAREN) // 跳过右括号
@@ -103,5 +105,5 @@ func (p *TryParser) parseCatchBlock() *node.CatchBlock {
 		ExceptionType: exceptionType,
 		Variable:      variable,
 		Body:          catchBody,
-	}
+	}, nil
 }

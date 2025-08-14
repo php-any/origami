@@ -27,9 +27,8 @@ func handleTextDocumentDocumentSymbol(req *jsonrpc2.Request) (interface{}, error
 	}
 
 	symbols := getDocumentSymbolsFromAST(doc)
-	logger.Debug("找到 %d 个符号", len(symbols))
 
-	logLSPResponse("textDocument/documentSymbol", symbols, nil)
+	logger.Info("textDocument/documentSymbol response %#v", symbols)
 	return symbols, nil
 }
 
@@ -181,8 +180,8 @@ func getNodeRange(nodeValue data.GetValue) Range {
 		if from := getFrom.GetFrom(); from != nil {
 			startLine, startCol, endLine, endCol := from.GetRange()
 			return Range{
-				Start: Position{Line: uint32(startLine - 1), Character: uint32(startCol - 1)},
-				End:   Position{Line: uint32(endLine - 1), Character: uint32(endCol - 1)},
+				Start: Position{Line: uint32(startLine), Character: uint32(startCol)},
+				End:   Position{Line: uint32(endLine), Character: uint32(endCol)},
 			}
 		}
 	}
@@ -196,8 +195,8 @@ func getPropertyRange(prop data.Property) Range {
 		if from := getFrom.GetFrom(); from != nil {
 			startLine, startCol, endLine, endCol := from.GetRange()
 			return Range{
-				Start: Position{Line: uint32(startLine - 1), Character: uint32(startCol - 1)},
-				End:   Position{Line: uint32(endLine - 1), Character: uint32(endCol - 1)},
+				Start: Position{Line: uint32(startLine), Character: uint32(startCol)},
+				End:   Position{Line: uint32(endLine), Character: uint32(endCol)},
 			}
 		}
 	}
@@ -211,8 +210,8 @@ func getMethodRange(method data.Method) Range {
 		if from := getFrom.GetFrom(); from != nil {
 			startLine, startCol, endLine, endCol := from.GetRange()
 			return Range{
-				Start: Position{Line: uint32(startLine - 1), Character: uint32(startCol - 1)},
-				End:   Position{Line: uint32(endLine - 1), Character: uint32(endCol - 1)},
+				Start: Position{Line: uint32(startLine), Character: uint32(startCol)},
+				End:   Position{Line: uint32(endLine), Character: uint32(endCol)},
 			}
 		}
 	}

@@ -104,9 +104,9 @@ $reversed = $arr->reverse(); // 返回 [4, 3, 2, 1]
 
 ```php
 $arr = ['apple', 'banana', 'orange', 'banana'];
-$index1 = $arr->indexOf('banana'); // 返回 1
-$index2 = $arr->indexOf('banana', 2); // 返回 3
-$index3 = $arr->indexOf('grape'); // 返回 -1
+\\$index1 = $arr->indexOf('banana'); // 返回 1
+\\$index2 = $arr->indexOf('banana', 2); // 返回 3
+\\$index3 = $arr->indexOf('grape'); // 返回 -1
 ```
 
 ### includes(searchElement, fromIndex?)
@@ -149,7 +149,7 @@ $firstEvenIndex = $arr->findIndex(function($element) {
 
 ```php
 $arr = [1, 2, 3];
-$arr->forEach(function($element, $index, $array) {
+$arr->forEach(function($element, \\$index, $array) {
     echo "元素 $index: $element\n";
 });
 ```

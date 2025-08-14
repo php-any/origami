@@ -520,7 +520,12 @@ func (d *DocumentInfo) foreachNode(ctx *LspContext, stmt data.GetValue, parent d
 		if n.Value != nil {
 			d.foreachNode(ctx, n.Value, parent, check)
 		}
-
+	case *node.ReturnsStatement:
+		if n.Values != nil {
+			for _, value := range n.Values {
+				d.foreachNode(ctx, value, parent, check)
+			}
+		}
 	case *node.ThrowStatement:
 		// throw语句：遍历抛出的值
 		d.foreachNode(ctx, n.Value, parent, check)
@@ -823,7 +828,6 @@ func (d *DocumentInfo) foreachNode(ctx *LspContext, stmt data.GetValue, parent d
 		// continue语句：叶子节点
 	case *node.UseStatement:
 		// use语句：叶子节点
-
 	// 默认情况：遇到未处理的节点类型时报错
 	default:
 		if stmt == nil {

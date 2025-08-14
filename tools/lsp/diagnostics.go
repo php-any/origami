@@ -2,40 +2,26 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
+	"github.com/php-any/origami/node"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-// 验证文档
+// 验证文档 - 针对origami语言(.cjp文件)的语法验证
 func validateDocument(conn *jsonrpc2.Conn, uri string, content string) {
 	diagnostics := []Diagnostic{}
 
-	// 基本的标记化和验证
-	lines := strings.Split(content, "\n")
-	for lineNum, line := range lines {
-		tokens := strings.Fields(line)
-		for colNum, token := range tokens {
-			// 检查未知标记（简化）
-			if !isKnownToken(token) {
-				diagnostic := Diagnostic{
-					Range: Range{
-						Start: Position{
-							Line:      uint32(lineNum),    // 从0开始，与lexer保持一致
-							Character: uint32(colNum * 5), // 简化的位置计算
-						},
-						End: Position{
-							Line:      uint32(lineNum), // 从0开始，与lexer保持一致
-							Character: uint32(colNum*5 + len(token)),
-						},
-					},
-					Severity: &[]DiagnosticSeverity{DiagnosticSeverityWarning}[0],
-					Message:  "Unknown token: " + token,
-				}
-				diagnostics = append(diagnostics, diagnostic)
-			}
-		}
+	// 检查文件扩展名
+	if !strings.HasSuffix(uri, ".cjp") && !strings.HasSuffix(uri, ".php") {
+		// 不是origami语言文件，跳过验证
+		return
 	}
+
+	// 使用专业的AST解析进行诊断，而不是简单的字符串匹配
+	astDiagnostics := validateDocumentWithAST(uri, content)
+	diagnostics = append(diagnostics, astDiagnostics...)
 
 	// 发布诊断
 	params := PublishDiagnosticsParams{
@@ -47,35 +33,65 @@ func validateDocument(conn *jsonrpc2.Conn, uri string, content string) {
 	conn.Notify(context.Background(), "textDocument/publishDiagnostics", params)
 }
 
-// 判断是否为已知标记
-func isKnownToken(token string) bool {
-	// 简化的标记验证
-	keywords := []string{
-		"fold", "unfold", "crease", "valley", "mountain", "reverse",
-		"rotate", "translate", "scale", "reflect", "paper", "point",
-		"line", "angle", "distance", "function", "class", "if", "else",
-		"for", "while", "return", "var", "let", "const",
+// 使用AST进行专业的文档验证
+func validateDocumentWithAST(uri, content string) []Diagnostic {
+	var diagnostics []Diagnostic
+
+	// 创建解析器
+	parser := NewLspParser()
+	if globalLspVM != nil {
+		parser.SetVM(globalLspVM)
 	}
 
-	for _, keyword := range keywords {
-		if token == keyword {
-			return true
-		}
+	// 解析AST
+	var ast *node.Program
+	var err error
+
+	// 根据URI类型选择解析方法
+	if strings.HasPrefix(uri, "file://") {
+		filePath := uriToFilePath(uri)
+		ast, err = parser.ParseFile(filePath)
+	} else {
+		// 对于内存中的内容，使用ParseString
+		ast, err = parser.ParseString(content, "memory_content")
 	}
 
-	// 允许数字、字符串和标识符
-	if len(token) > 0 {
-		first := token[0]
-		if (first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') || first == '_' {
-			return true
-		}
-		if first >= '0' && first <= '9' {
-			return true
-		}
-		if first == '"' || first == '\'' {
-			return true
-		}
+	// 如果解析失败，返回解析错误
+	if err != nil {
+		// 解析错误通常意味着语法问题
+		diagnostics = append(diagnostics, Diagnostic{
+			Range: Range{
+				Start: Position{Line: 0, Character: 0},
+				End:   Position{Line: 0, Character: 0},
+			},
+			Severity: &[]DiagnosticSeverity{DiagnosticSeverityError}[0],
+			Message:  fmt.Sprintf("解析错误: %v", err),
+			Source:   &[]string{"origami-lsp"}[0],
+		})
+		return diagnostics
 	}
 
-	return false
+	// 如果AST解析成功，进行更深层的语义检查
+	if ast != nil {
+		semanticDiagnostics := validateASTSemantics(ast)
+		diagnostics = append(diagnostics, semanticDiagnostics...)
+	}
+
+	return diagnostics
+}
+
+// 验证AST的语义
+func validateASTSemantics(ast *node.Program) []Diagnostic {
+	var diagnostics []Diagnostic
+
+	// 这里可以添加更专业的语义检查
+	// 例如：
+	// - 类型检查
+	// - 未定义变量检查
+	// - 未使用变量检查
+	// - 函数签名检查
+	// - 等等
+
+	// 暂时返回空列表，后续可以扩展
+	return diagnostics
 }

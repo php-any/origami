@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -17,7 +18,7 @@ func NewSpawnParser(parser *Parser) StatementParser {
 }
 
 func (sp *SpawnParser) Parse() (data.GetValue, data.Control) {
-	from := sp.FromCurrentToken()
+	tracking := sp.StartTracking()
 
 	// 跳过 spawn 关键字
 	sp.next()
@@ -28,17 +29,16 @@ func (sp *SpawnParser) Parse() (data.GetValue, data.Control) {
 		return nil, acl
 	}
 	if expr == nil {
-		sp.addError("spawn 后面需要有效的表达式")
-		return nil, nil
+		return nil, data.NewErrorThrow(tracking.EndBefore(), fmt.Errorf("spawn 后面需要有效的表达式"))
 	}
 
 	switch call := expr.(type) {
 	case *node.LambdaExpression:
-		return node.NewSpawnStatement(from, call), nil
+		return node.NewSpawnStatement(tracking.EndBefore(), call), nil
 	case *node.ForStatement:
-		return node.NewSpawnStatement(from, call), nil
+		return node.NewSpawnStatement(tracking.EndBefore(), call), nil
 	case *node.ForeachStatement:
-		return node.NewSpawnStatement(from, call), nil
+		return node.NewSpawnStatement(tracking.EndBefore(), call), nil
 	default:
 		// 使用 VariableParser 的 ParseSuffix 方法来解析后续的方法调用
 		vp := &VariableParser{sp.Parser}
@@ -49,6 +49,6 @@ func (sp *SpawnParser) Parse() (data.GetValue, data.Control) {
 		// 检查是否有分号
 		sp.nextAndCheckStip(token.SEMICOLON)
 
-		return node.NewSpawnStatement(from, callExpr), nil
+		return node.NewSpawnStatement(tracking.EndBefore(), callExpr), nil
 	}
 }

@@ -1,8 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"sync"
+
+	"github.com/php-any/origami/std"
+	"github.com/php-any/origami/std/net/http"
+	"github.com/php-any/origami/std/php"
+	"github.com/php-any/origami/std/system"
 
 	"github.com/php-any/origami/data"
 )
@@ -18,24 +24,36 @@ type LspVM struct {
 	interfaces map[string]data.InterfaceStmt
 	// 存储函数定义，key 为函数名
 	functions map[string]data.FuncStmt
-
+	// 类解释过程中的缓存, 用于支持循环依赖
+	classPathMap map[string]string
 	// 错误处理函数
 	throwControl func(data.Control)
 }
 
 // NewLspVM 创建一个新的 LSP 虚拟机
 func NewLspVM() *LspVM {
-	return &LspVM{
-		classes:    make(map[string]data.ClassStmt),
-		interfaces: make(map[string]data.InterfaceStmt),
-		functions:  make(map[string]data.FuncStmt),
+	vm := &LspVM{
+		classes:      make(map[string]data.ClassStmt),
+		interfaces:   make(map[string]data.InterfaceStmt),
+		functions:    make(map[string]data.FuncStmt),
+		classPathMap: make(map[string]string),
 
-		throwControl: func(ctrl data.Control) {
-			if ctrl != nil {
-				logger.Error("LspVM 错误：%v", ctrl)
+		throwControl: func(acl data.Control) {
+			if acl != nil {
+				logger.Error("LspVM 错误：%v", acl.AsString())
+
+				// 将解析错误转换为诊断信息并发送通知
+				if globalConn != nil {
+					sendParseErrorDiagnostic(acl)
+				}
 			}
 		},
 	}
+	std.Load(vm)
+	php.Load(vm)
+	http.Load(vm)
+	system.Load(vm)
+	return vm
 }
 
 // AddClass 添加类定义 - 实现 data.VM 接口
@@ -160,4 +178,63 @@ func (vm *LspVM) ThrowControl(acl data.Control) {
 func (vm *LspVM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	// LSP VM 不需要实现这个功能，返回 nil
 	return nil, nil
+}
+
+// sendParseErrorDiagnostic 发送解析错误诊断通知
+func sendParseErrorDiagnostic(acl data.Control) {
+	if globalConn == nil {
+		return
+	}
+
+	// 尝试从错误控制中提取位置信息
+	var uri string
+	var range_ Range
+
+	if errorThrow, ok := acl.(*data.ThrowValue); ok {
+		if from := errorThrow.GetError().GetFrom(); from != nil {
+			// 获取文件路径
+			if filePath := from.GetSource(); filePath != "" {
+				uri = filePathToURI(filePath)
+
+				// 获取位置范围
+				startLine, startCol, endLine, endCol := from.GetRange()
+				range_ = Range{
+					Start: Position{Line: uint32(startLine - 1), Character: uint32(startCol - 1)},
+					End:   Position{Line: uint32(endLine - 1), Character: uint32(endCol - 1)},
+				}
+			}
+		}
+	}
+
+	// 如果没有有效的 URI，使用默认值
+	if uri == "" {
+		uri = "file:///unknown"
+	}
+
+	// 创建诊断信息
+	diagnostic := Diagnostic{
+		Range:    range_,
+		Severity: &[]DiagnosticSeverity{DiagnosticSeverityError}[0],
+		Message:  acl.AsString(),
+	}
+
+	// 发送诊断通知
+	params := PublishDiagnosticsParams{
+		URI:         uri,
+		Diagnostics: []Diagnostic{diagnostic},
+	}
+
+	globalConn.Notify(context.Background(), "textDocument/publishDiagnostics", params)
+	logger.Info("已发送解析错误诊断：%#v", params)
+}
+
+func (vm *LspVM) SetClassPathCache(path string, name string) {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+	vm.classPathMap[name] = path
+}
+
+func (vm *LspVM) GetClassPathCache(name string) (string, bool) {
+	path, ok := vm.classPathMap[name]
+	return path, ok
 }
