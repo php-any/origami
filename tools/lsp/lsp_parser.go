@@ -29,6 +29,7 @@ func NewLspParser() *LspParser {
 // SetVM 设置虚拟机
 func (p *LspParser) SetVM(vm *LspVM) {
 	p.vm = vm
+	vm.parser = p
 	if p.parser != nil {
 		p.parser.SetVM(vm)
 	}

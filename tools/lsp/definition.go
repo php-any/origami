@@ -65,12 +65,13 @@ func findDefinitionInAST(doc *DocumentInfo, position Position) *Location {
 		// 如果节点已经超过了目标行号，则停止遍历
 		if getFrom, ok := child.(node.GetFrom); ok {
 			if from := getFrom.GetFrom(); from != nil {
-				startLine, _, _, _ := from.GetRange()
+				_, _, endLine, _ := from.GetRange()
 				// LSP 和内部系统都使用从 0 开始的行号
 				targetLine := int(position.Line)
-				if startLine > targetLine {
-					// 当前节点的起始行已经超过了目标行，停止遍历
-					logger.Debug("节点起始行 %d 超过目标行 %d，停止遍历", startLine, targetLine)
+
+				// 如果当前节点的结束行已经超过了目标行，停止遍历
+				if endLine > targetLine {
+					logger.Debug("节点结束行 %d 超过目标行 %d，停止遍历", endLine, targetLine)
 					return false
 				}
 			}
@@ -242,12 +243,11 @@ func isPositionInRange(stmt node.Statement, position Position) bool {
 	lspLine := int(position.Line)
 
 	// 添加调试信息
-	logger.Debug("isPositionInRange：节点=%T，位置=(%d,%d)，范围=(%d,%d,%d,%d)",
+	logger.Debug("isPositionInRange：节点=%T，定位位置=(%d,%d)，正在查范围=(%d,%d,%d,%d)",
 		stmt, lspLine, position.Character, startLine, startChar, endLine, endChar)
 
 	// 检查行号是否在范围内
 	if lspLine < startLine || lspLine > endLine {
-		logger.Debug("isPositionInRange：行超出范围")
 		return false
 	}
 
@@ -517,7 +517,7 @@ func isPositionInLineRange(stmt node.Statement, position Position) bool {
 		return false
 	}
 	startLine, _, endLine, _ := from.GetRange()
-	lspLine := int(position.Line) + 1
+	lspLine := int(position.Line)
 
 	// 简化：只要在行范围内就认为命中
 	result := lspLine >= startLine && lspLine <= endLine

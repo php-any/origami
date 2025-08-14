@@ -87,7 +87,7 @@ var (
 	test      = flag.Bool("test", false, "Run definition jump test")
 	protocol_ = flag.String("protocol", "stdio", "Protocol to use (stdio, tcp, websocket)")
 	address   = flag.String("address", "localhost", "Address to bind to (for tcp/websocket)")
-	port      = flag.Int("port", 8080, "Port to bind to (for tcp/websocket)")
+	port      = flag.Int("port", 8800, "Port to bind to (for tcp/websocket)")
 	logLevel  = flag.Int("log-level", 1, "Log level (0=off, 1=error, 2=warn, 3=info, 4=debug)")
 	logFile   = flag.String("log-file", "", "Log file path (empty for stderr)")
 

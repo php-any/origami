@@ -35,9 +35,9 @@ func NewBaseFrom(source string, start, end int) *BaseFrom {
 		start:  start,
 		end:    end,
 		// 默认行号和列号信息
-		startLine: 1,
+		startLine: 0,
 		startChar: 0,
-		endLine:   1,
+		endLine:   0,
 		endChar:   0,
 	}
 }

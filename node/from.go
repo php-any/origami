@@ -85,7 +85,7 @@ func (tf *TokenFrom) CalculateEndPosition(content string) {
 // calculateLineAndChar 根据偏移量计算精确的行号和列号
 func (tf *TokenFrom) calculateLineAndChar(content string, offset int) (line, char int) {
 	if offset < 0 || offset > len(content) {
-		return 1, 0
+		return 0, 0
 	}
 
 	// 计算到指定偏移量之前的行数

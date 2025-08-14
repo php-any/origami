@@ -16,8 +16,8 @@ import (
 // LspVM 是专门为 LSP 服务器设计的虚拟机实现
 // 它主要用于存储和管理类、函数、接口的节点信息，以支持代码补全、悬停提示等功能
 type LspVM struct {
-	mu sync.RWMutex
-
+	mu     sync.RWMutex
+	parser *LspParser
 	// 存储类定义，key 为类名
 	classes map[string]data.ClassStmt
 	// 存储接口定义，key 为接口名
@@ -176,7 +176,13 @@ func (vm *LspVM) ThrowControl(acl data.Control) {
 
 // LoadAndRun 加载并运行文件 - 实现 data.VM 接口
 func (vm *LspVM) LoadAndRun(file string) (data.GetValue, data.Control) {
-	// LSP VM 不需要实现这个功能，返回 nil
+	// 解析文件
+	_, err := vm.parser.ParseFile(file)
+
+	if err != nil {
+		return nil, data.NewErrorThrow(nil, err)
+	}
+
 	return nil, nil
 }
 
@@ -228,7 +234,7 @@ func sendParseErrorDiagnostic(acl data.Control) {
 	logger.Info("已发送解析错误诊断：%#v", params)
 }
 
-func (vm *LspVM) SetClassPathCache(path string, name string) {
+func (vm *LspVM) SetClassPathCache(name string, path string) {
 	vm.mu.Lock()
 	defer vm.mu.Unlock()
 	vm.classPathMap[name] = path

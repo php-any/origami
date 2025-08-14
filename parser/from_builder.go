@@ -127,10 +127,10 @@ func (p *Parser) FromTokenRange(startToken, endToken int) *node.TokenFrom {
 // getLineByPosition 根据位置获取行号
 func (p *Parser) getLineByPosition(pos int) int {
 	if p.source == nil || pos < 0 || pos >= len(*p.source) {
-		return 1
+		return 0
 	}
 
-	line := 1
+	line := 0
 	for i := 0; i < pos && i < len(*p.source); i++ {
 		if (*p.source)[i] == '\n' {
 			line++
