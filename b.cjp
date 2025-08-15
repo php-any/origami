@@ -1,5 +1,14 @@
 namespace tests\func;
 
+
+try {
+    if("a" && "b") {
+        echo "OK"
+    }
+} catch (Error $e) {
+    echo $e->getMessage();
+}
+
 function hello() {
     return "hello world";
 }
@@ -23,7 +32,7 @@ class B extends A
 
 $a = new A()
 $b = new B();
-// 无法跳转
+// 跳转
 echo $a->newB()->hello(), "\n";
 echo $a->hello(), "\n";
 echo $b->hello(), "\n";
