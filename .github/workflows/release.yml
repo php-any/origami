@@ -46,6 +46,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: |
           cd tools/lsp
+          go mod download
           if [ "$GOOS" = "windows" ]; then
             go build -o ../../zy-lsp.exe .
           else
