@@ -36,10 +36,20 @@ jobs:
         run: |
           if [ "$GOOS" = "windows" ]; then
             go build -o zy.exe .
-            go build -o zy-lsp.exe ./tools/lsp
           else
             go build -o zy .
-            go build -o zy-lsp ./tools/lsp
+          fi
+
+      - name: Build LSP binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          cd tools/lsp
+          if [ "$GOOS" = "windows" ]; then
+            go build -o ../../zy-lsp.exe .
+          else
+            go build -o ../../zy-lsp .
           fi
 
       - name: Create platform package
