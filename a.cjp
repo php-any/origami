@@ -1,0 +1,16 @@
+namespace tests\func;
+
+class A
+{
+    public function hello()
+    {
+        $name = 123;
+
+        return "hello world " + $name;
+    }
+
+    public function newB()
+    {
+        return new B();
+    }
+}

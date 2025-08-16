@@ -43,6 +43,7 @@ func (p *FunctionParserCommon) ParseFunctionBody() []node.Statement {
 
 // ParseParameters 解析参数列表
 func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control) {
+	tracking := p.StartTracking()
 	// 检查左括号
 	if p.current().Type != token.LPAREN {
 		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("参数列表前缺少左括号 '('"))
@@ -59,7 +60,6 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 
 	// 解析参数列表
 	for {
-		tokenFrom := parser.FromCurrentToken()
 		varType := ""
 		name := ""
 		isParams := false
@@ -85,7 +85,7 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 				p.next()
 			}
 			// (?string $data) 可空类型参数
-			if !isVar && parser.checkPositionIs(0, token.TERNARY) && parser.checkPositionIs(1, token.IDENTIFIER) && parser.checkPositionIs(2, token.IDENTIFIER) {
+			if !isVar && parser.checkPositionIs(0, token.TERNARY) && parser.checkPositionIs(1, token.IDENTIFIER) && parser.checkPositionIs(2, token.IDENTIFIER, token.VARIABLE) {
 				isVar = true
 				p.next() // 跳过问号
 				varType = "?" + parser.current().Literal
@@ -95,7 +95,7 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 				p.next()
 			}
 			// (data: string)
-			if !isVar && parser.checkPositionIs(0, token.IDENTIFIER) && parser.checkPositionIs(1, token.COLON) && parser.checkPositionIs(2, token.IDENTIFIER) {
+			if !isVar && parser.checkPositionIs(0, token.IDENTIFIER, token.VARIABLE) && parser.checkPositionIs(1, token.COLON) && parser.checkPositionIs(2, token.IDENTIFIER) {
 				name = parser.current().Literal
 				p.next()
 				if parser.checkPositionIs(0, token.COLON) {
@@ -112,7 +112,7 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 				isVar = true
 			}
 			if !isVar {
-				return nil, data.NewErrorThrow(tokenFrom, errors.New("参数缺少变量名"))
+				return nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("参数缺少变量名"))
 			}
 		} else {
 			name = parser.current().Literal
@@ -136,7 +136,7 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 		}
 
 		// 添加参数到作用域
-		index := p.scopeManager.CurrentScope().AddVariable(name, paramType, tokenFrom)
+		index := p.scopeManager.CurrentScope().AddVariable(name, paramType, tracking.EndBefore())
 
 		// 解析默认值
 		var defaultValue data.GetValue
@@ -152,10 +152,10 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 
 		// 创建参数节点
 		if isParams {
-			param := node.NewParameters(tokenFrom, name, index, defaultValue, paramType)
+			param := node.NewParameters(tracking.EndBefore(), name, index, defaultValue, paramType)
 			params = append(params, param)
 		} else {
-			param := node.NewParameter(tokenFrom, name, index, defaultValue, paramType)
+			param := node.NewParameter(tracking.EndBefore(), name, index, defaultValue, paramType)
 			params = append(params, param)
 		}
 

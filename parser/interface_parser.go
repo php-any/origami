@@ -30,8 +30,7 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 	// 解析接口名
 	interfaceName := p.parseInterfaceName()
 	if interfaceName == "" {
-		p.addError("interface 后缺少接口名")
-		return nil, nil
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少接口名"))
 	}
 	interfaceName = p.namespace.GetName() + "\\" + interfaceName
 
@@ -44,16 +43,14 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		if extendsName == "" {
-			p.addError("extends 后缺少接口名")
-			return nil, nil
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少继承的接口名"))
 		}
 		extends = &extendsName
 	}
 
 	// 解析接口体
 	if p.current().Type != token.LBRACE {
-		p.addError("接口声明后缺少左花括号 '{'")
-		return nil, nil
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("接口声明后缺少左花括号 '{'"))
 	}
 	p.next()
 
@@ -63,8 +60,7 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 		// 解析方法修饰符
 		modifier := p.parseModifier()
 		if modifier == "" {
-			p.addError("接口方法缺少访问修饰符")
-			return nil, nil
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少方法修饰符"))
 		}
 
 		// 解析方法
@@ -84,8 +80,7 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 
 	// 解析右花括号
 	if p.current().Type != token.RBRACE {
-		p.addError("接口定义后缺少右花括号 '}'")
-		return nil, nil
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("接口定义后缺少右花括号 '}'"))
 	}
 	p.next()
 

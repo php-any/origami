@@ -35,19 +35,18 @@ func (vp *VariableParser) parseVariable() *node.VariableExpression {
 	// 获取变量名
 	name := vp.current().Literal
 	vp.next()
-
-	tokenFrom := tracker.EndBefore()
+	from := tracker.EndBefore()
 
 	// 查找变量索引
 	varInfo := vp.scopeManager.LookupVariable(name)
 	if varInfo == nil {
 		// 如果变量不存在，在当前作用域中创建它
-		index := vp.scopeManager.CurrentScope().AddVariable(name, nil, tokenFrom)
-		varInfo = node.NewVariableExpression(nil, name, index)
+		index := vp.scopeManager.CurrentScope().AddVariable(name, nil, from)
+		varInfo = node.NewVariableExpression(from, name, index)
 	}
 
 	// 创建变量表达式
-	return node.NewVariable(tokenFrom, name, varInfo.GetIndex(), varInfo.GetType())
+	return node.NewVariable(from, name, varInfo.GetIndex(), varInfo.GetType())
 }
 
 // parseSuffix 解析变量后缀操作
@@ -296,8 +295,8 @@ func (vp *VariableParser) parsePropertyAccess(object data.GetValue) (data.GetVal
 }
 
 func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, data.Control) {
-	tracker := vp.StartTracking()
 	vp.next() // 跳过箭头
+	tracker := vp.StartTracking()
 
 	if vp.current().Type != token.IDENTIFIER {
 		from := tracker.End()
@@ -306,7 +305,6 @@ func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, 
 
 	method := vp.current().Literal
 	vp.next()
-	from := tracker.EndBefore()
 
 	// 如果后面跟着括号，解析方法调用
 	if vp.current().Type == token.LPAREN {
@@ -314,6 +312,8 @@ func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, 
 		if acl != nil {
 			return nil, acl
 		}
+		// 在解析完整个方法调用后设置范围
+		from := tracker.EndBefore()
 		return node.NewObjectMethod(
 			from,
 			object,
@@ -322,6 +322,8 @@ func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, 
 		), nil
 	}
 
+	// 对于属性访问，在方法名之后设置范围
+	from := tracker.EndBefore()
 	return node.NewObjectProperty(
 		from,
 		object,

@@ -31,6 +31,7 @@ func (ep *ExpressionParser) Parse() (data.GetValue, data.Control) {
 
 // parseAssignment 解析赋值表达式
 func (ep *ExpressionParser) parseAssignment() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
 	expr, acl := ep.parseTernary()
 	if acl != nil {
 		return nil, acl
@@ -74,7 +75,7 @@ func (ep *ExpressionParser) parseAssignment() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		expr = node.NewBinaryExpression(
-			ep.FromCurrentToken(),
+			tracker.EndBefore(),
 			expr,
 			operator,
 			right,
@@ -86,6 +87,7 @@ func (ep *ExpressionParser) parseAssignment() (data.GetValue, data.Control) {
 
 // parseTernary 解析三目运算符表达式
 func (ep *ExpressionParser) parseTernary() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
 	expr, acl := ep.parseConcatenation()
 	if acl != nil {
 		return nil, acl
@@ -119,7 +121,7 @@ func (ep *ExpressionParser) parseTernary() (data.GetValue, data.Control) {
 			}
 			// 创建三目运算符表达式
 			return node.NewTernaryExpression(
-				ep.FromCurrentToken(),
+				tracker.EndBefore(),
 				expr,
 				trueValue,
 				falseValue,
@@ -137,7 +139,7 @@ func (ep *ExpressionParser) parseTernary() (data.GetValue, data.Control) {
 		}
 		// 创建空合并运算符表达式
 		return node.NewNullCoalesceExpression(
-			ep.FromCurrentToken(),
+			tracker.EndBefore(),
 			expr,
 			right,
 		), nil
@@ -148,6 +150,7 @@ func (ep *ExpressionParser) parseTernary() (data.GetValue, data.Control) {
 
 // parseConcatenation 解析字符串连接表达式
 func (ep *ExpressionParser) parseConcatenation() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
 	expr, acl := ep.parseLogicalOr()
 	if acl != nil {
 		return nil, acl
@@ -161,7 +164,7 @@ func (ep *ExpressionParser) parseConcatenation() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		expr = node.NewBinaryExpression(
-			ep.FromCurrentToken(),
+			tracker.EndBefore(),
 			expr,
 			operator,
 			right,
@@ -173,6 +176,7 @@ func (ep *ExpressionParser) parseConcatenation() (data.GetValue, data.Control) {
 
 // parseLogicalOr 解析逻辑或表达式
 func (ep *ExpressionParser) parseLogicalOr() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
 	expr, acl := ep.parseLogicalAnd()
 	if acl != nil {
 		return nil, acl
@@ -186,7 +190,7 @@ func (ep *ExpressionParser) parseLogicalOr() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		expr = node.NewBinaryExpression(
-			ep.FromCurrentToken(),
+			tracker.EndBefore(),
 			expr,
 			operator,
 			right,
@@ -198,6 +202,7 @@ func (ep *ExpressionParser) parseLogicalOr() (data.GetValue, data.Control) {
 
 // parseLogicalAnd 解析逻辑与表达式
 func (ep *ExpressionParser) parseLogicalAnd() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
 	expr, acl := ep.parseEquality()
 	if acl != nil {
 		return nil, acl
@@ -211,7 +216,7 @@ func (ep *ExpressionParser) parseLogicalAnd() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		expr = node.NewBinaryExpression(
-			ep.FromCurrentToken(),
+			tracker.EndBefore(),
 			expr,
 			operator,
 			right,
@@ -223,6 +228,7 @@ func (ep *ExpressionParser) parseLogicalAnd() (data.GetValue, data.Control) {
 
 // parseEquality 解析相等性表达式
 func (ep *ExpressionParser) parseEquality() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
 	expr, acl := ep.parseComparison()
 	if acl != nil {
 		return nil, acl
@@ -236,7 +242,7 @@ func (ep *ExpressionParser) parseEquality() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		expr = node.NewBinaryExpression(
-			ep.FromCurrentToken(),
+			tracker.EndBefore(),
 			expr,
 			operator,
 			right,
@@ -251,7 +257,7 @@ func (ep *ExpressionParser) parseEquality() (data.GetValue, data.Control) {
 		_ = acl
 		// 创建 instanceof 表达式
 		expr = node.NewInstanceOfExpression(
-			ep.FromCurrentToken(),
+			tracker.EndBefore(),
 			expr,
 			className,
 		)
@@ -265,7 +271,7 @@ func (ep *ExpressionParser) parseEquality() (data.GetValue, data.Control) {
 		_ = acl
 		// 创建 like 表达式
 		expr = node.NewLikeExpression(
-			ep.FromCurrentToken(),
+			tracker.EndBefore(),
 			expr,
 			className,
 		)
@@ -276,6 +282,7 @@ func (ep *ExpressionParser) parseEquality() (data.GetValue, data.Control) {
 
 // parseComparison 解析比较表达式
 func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
 	expr, acl := ep.parseTerm()
 	if acl != nil {
 		return nil, acl
@@ -294,7 +301,7 @@ func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		expr = node.NewBinaryExpression(
-			ep.FromCurrentToken(),
+			tracker.EndBefore(),
 			expr,
 			operator,
 			right,
@@ -306,6 +313,7 @@ func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 
 // parseTerm 解析加减表达式
 func (ep *ExpressionParser) parseTerm() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
 	expr, acl := ep.parseFactor()
 	if acl != nil {
 		return nil, acl
@@ -319,7 +327,7 @@ func (ep *ExpressionParser) parseTerm() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		expr = node.NewBinaryExpression(
-			ep.FromCurrentToken(),
+			tracker.EndBefore(),
 			expr,
 			operator,
 			right,
@@ -331,6 +339,7 @@ func (ep *ExpressionParser) parseTerm() (data.GetValue, data.Control) {
 
 // parseFactor 解析乘除表达式
 func (ep *ExpressionParser) parseFactor() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
 	expr, acl := ep.parseUnary()
 	if acl != nil {
 		return expr, acl
@@ -345,7 +354,7 @@ func (ep *ExpressionParser) parseFactor() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		expr = node.NewBinaryExpression(
-			ep.FromCurrentToken(),
+			tracker.EndBefore(),
 			expr,
 			operator,
 			right,
@@ -357,6 +366,7 @@ func (ep *ExpressionParser) parseFactor() (data.GetValue, data.Control) {
 
 // parseUnary 解析一元表达式
 func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
 	if ep.current().Type == token.SUB || ep.current().Type == token.NOT {
 		operator := ep.current().Literal
 		ep.next()
@@ -366,7 +376,7 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		return node.NewUnaryExpression(
-			ep.FromCurrentToken(),
+			tracker.EndBefore(),
 			operator,
 			right,
 		), nil
@@ -387,12 +397,12 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 		}
 		if operator.Type == token.INCR {
 			return node.NewUnaryIncr(
-				ep.FromCurrentToken(),
+				tracker.EndBefore(),
 				right,
 			), nil
 		} else {
 			return node.NewUnaryDecr(
-				ep.FromCurrentToken(),
+				tracker.EndBefore(),
 				right,
 			), nil
 		}
@@ -446,6 +456,7 @@ func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 					// 跳过没意义的分号
 					ep.next()
 				}
+				// 对于后缀自增自减，使用当前 token 的位置信息即可
 				if operator.Type == token.INCR {
 					return node.NewPostfixIncr(
 						ep.FromCurrentToken(),

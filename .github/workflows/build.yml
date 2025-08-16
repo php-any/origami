@@ -29,20 +29,32 @@ jobs:
     - name: Run tests
       run: go test -v ./...
     
-    - name: Build binary
+    - name: Build main binary
       env:
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
       run: |
         if [ "$GOOS" = "windows" ]; then
-          go build -o origami-${{ matrix.goos }}-${{ matrix.goarch }}.exe .
+          go build -o zy-${{ matrix.goos }}-${{ matrix.goarch }}.exe .
         else
-          go build -o origami-${{ matrix.goos }}-${{ matrix.goarch }} .
+          go build -o zy-${{ matrix.goos }}-${{ matrix.goarch }} .
+        fi
+    
+    - name: Build LSP binary
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+      run: |
+        cd tools/lsp
+        if [ "$GOOS" = "windows" ]; then
+          go build -o ../../zy-lsp-${{ matrix.goos }}-${{ matrix.goarch }}.exe .
+        else
+          go build -o ../../zy-lsp-${{ matrix.goos }}-${{ matrix.goarch }} .
         fi
     
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: origami-${{ matrix.goos }}-${{ matrix.goarch }}
-        path: origami-*
+        name: zy-${{ matrix.goos }}-${{ matrix.goarch }}
+        path: zy-*
         retention-days: 7

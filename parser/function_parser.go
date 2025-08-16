@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -26,8 +27,7 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 
 	// 解析函数名
 	if fp.current().Type != token.IDENTIFIER {
-		fp.addError("缺少函数名")
-		return nil, nil
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少函数名"))
 	}
 	name := fp.current().Literal
 
@@ -45,7 +45,7 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 	if acl != nil {
 		return nil, acl
 	}
-	ret := fp.parserReturnType()
+	ret, acl := fp.parserReturnType()
 
 	// 解析函数体
 	body := fp.parseBlock()
@@ -65,7 +65,7 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 	)
 
 	if acl := fp.vm.AddFunc(f); acl != nil {
-		fp.addError(acl.AsString())
+		return nil, acl
 	}
 
 	return f, nil
@@ -77,7 +77,7 @@ func (fp *FunctionParser) parseParameters() ([]data.GetValue, data.Control) {
 	return vp.ParseParameters()
 }
 
-func (fp FunctionParser) parserReturnType() data.Types {
+func (fp FunctionParser) parserReturnType() (data.Types, data.Control) {
 	// 检查是否有返回类型声明
 	// 语法: function name(): returnType 或 function name(): ?returnType
 	// 或者: function name(): type1, type2, type3 (多返回值)
@@ -110,8 +110,7 @@ func (fp FunctionParser) parserReturnType() data.Types {
 
 				returnTypes = append(returnTypes, baseType)
 			} else {
-				fp.addError("缺少返回类型")
-				return nil
+				return nil, data.NewErrorThrow(fp.newFrom(), errors.New("缺少返回类型"))
 			}
 
 			// 检查是否有更多类型（逗号分隔）
@@ -126,15 +125,15 @@ func (fp FunctionParser) parserReturnType() data.Types {
 
 		// 根据返回类型数量决定返回类型
 		if len(returnTypes) == 0 {
-			return nil
+			return nil, nil
 		} else if len(returnTypes) == 1 {
-			return returnTypes[0]
+			return returnTypes[0], nil
 		} else {
 			// 多个返回类型，创建多返回值类型
-			return data.NewMultipleReturnType(returnTypes)
+			return data.NewMultipleReturnType(returnTypes), nil
 		}
 	}
 
 	// 没有返回类型声明，返回 nil
-	return nil
+	return nil, nil
 }

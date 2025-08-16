@@ -5,12 +5,12 @@ import "github.com/php-any/origami/data"
 // Namespace 表示命名空间节点
 type Namespace struct {
 	*Node      `pp:"-"`
-	Name       string      // 命名空间名称
-	Statements []Statement // 命名空间内的语句
+	Name       string          // 命名空间名称
+	Statements []data.GetValue // 命名空间内的语句
 }
 
 // NewNamespace 创建一个新的命名空间节点
-func NewNamespace(from data.From, name string, statements []Statement) *Namespace {
+func NewNamespace(from data.From, name string, statements []data.GetValue) *Namespace {
 	return &Namespace{
 		Node:       NewNode(from),
 		Name:       name,
@@ -24,7 +24,7 @@ func (n *Namespace) GetName() string {
 }
 
 // GetStatements 返回命名空间内的语句
-func (n *Namespace) GetStatements() []Statement {
+func (n *Namespace) GetStatements() []data.GetValue {
 	return n.Statements
 }
 
@@ -43,6 +43,24 @@ func (n *Namespace) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	return value, nil
+}
+
+func (n *Namespace) GetFrom() data.From {
+	// namespace 支持追加结构, 这里动态计算范围
+	if from, ok := n.from.(*TokenFrom); ok {
+		// 读取Statements最后一个
+		if len(n.Statements) > 0 {
+			lastStmt := n.Statements[len(n.Statements)-1]
+			if lastStmt, ok := lastStmt.(GetFrom); ok {
+				if lastStmtFrom, ok := lastStmt.GetFrom().(*TokenFrom); ok {
+					from.SetEndPosition(lastStmtFrom.GetEndPosition())
+					return from
+				}
+			}
+		}
+	}
+
+	return n.from
 }
 
 // Scope 表示作用域

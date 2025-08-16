@@ -28,6 +28,10 @@ type Statement interface {
 	data.GetValue
 }
 
+type GetFrom interface {
+	GetFrom() data.From
+}
+
 // Program 表示程序节点
 type Program struct {
 	*Node      `pp:"-"`

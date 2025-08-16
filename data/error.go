@@ -32,7 +32,7 @@ func (e *Error) Error() string {
 
 	// 添加错误来源
 	if e.from != nil {
-		sb.WriteString(fmt.Sprintf(" at %s", e.from.GetSource()))
+		sb.WriteString(fmt.Sprintf(" at file://%s", e.from.GetSource()))
 	}
 
 	// 添加原始错误

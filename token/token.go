@@ -1,5 +1,9 @@
 package token
 
+import (
+	"sync"
+)
+
 // WordType 表示 token 的单词类型
 type WordType int
 
@@ -159,10 +163,12 @@ var TokenDefinitions = []TokenDefinition{
 
 var initTokenDefinitions = false
 var tree = make(map[TokenType][]TokenDefinition)
+var once sync.Once
 
 // GetTokenDefinitions 根据类型获取单词
 func GetTokenDefinitions() map[TokenType][]TokenDefinition {
-	if !initTokenDefinitions {
+	once.Do(func() {
+		// 初始化代码只会执行一次，即使有多个goroutine同时调用
 		for _, definition := range TokenDefinitions {
 			if _, ok := tree[definition.Type]; !ok {
 				tree[definition.Type] = []TokenDefinition{definition}
@@ -170,8 +176,7 @@ func GetTokenDefinitions() map[TokenType][]TokenDefinition {
 				tree[definition.Type] = append(tree[definition.Type], definition)
 			}
 		}
-
 		initTokenDefinitions = true
-	}
+	})
 	return tree
 }

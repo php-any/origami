@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -20,20 +21,21 @@ func NewLparenParser(parser *Parser) StatementParser {
 
 // Parse 解析左括号后的内容
 func (ep *LparenParser) Parse() (data.GetValue, data.Control) {
+	tracking := ep.StartTracking()
 	// 检查是否是类型转换: (string) $data
 	if ep.isTypeCast() {
 		ep.nextAndCheck(token.LPAREN) // 跳过左括号
-		return ep.parseTypeCast(), nil
+		return ep.parseTypeCast(tracking), nil
 	}
 
 	// 检查是否是 Lambda 表达式: (a, b) => {}
 	if ep.isLambdaExpression() {
-		return ep.parseLambdaExpression()
+		return ep.parseLambdaExpression(tracking)
 	}
 
 	// 检查是否是括号表达式: (a + b)
 	ep.nextAndCheck(token.LPAREN) // 跳过左括号
-	return ep.parseParenthesizedExpression(), nil
+	return ep.parseParenthesizedExpression(tracking)
 }
 
 // isTypeCast 检查是否是类型转换
@@ -49,21 +51,20 @@ func (ep *LparenParser) isTypeCast() bool {
 }
 
 // parseTypeCast 解析类型转换
-func (ep *LparenParser) parseTypeCast() node.Statement {
+func (ep *LparenParser) parseTypeCast(tracking *PositionTracker) node.Statement {
 	typeName := ep.current().Literal
 	ep.next()                     // 跳过类型名
 	ep.nextAndCheck(token.RPAREN) // 跳过右括号
 
-	from := ep.FromCurrentToken()
 	val, acl := ep.parseStatement()
 	if acl != nil {
 		ep.addControl(acl)
 	}
 	fn, ok := ep.vm.GetFunc(typeName)
 	if !ok {
-		return data.NewErrorThrow(from, errors.New("未定义的函数:"+typeName))
+		return data.NewErrorThrow(tracking.EndBefore(), errors.New("未定义的函数:"+typeName))
 	}
-	return node.NewCallExpression(from, typeName, []data.GetValue{val}, fn)
+	return node.NewCallExpression(tracking.EndBefore(), typeName, []data.GetValue{val}, fn)
 }
 
 // isLambdaExpression 检查是否是 Lambda 表达式
@@ -97,7 +98,7 @@ func (ep *LparenParser) isLambdaExpression() bool {
 }
 
 // parseLambdaExpression 解析 Lambda 表达式
-func (ep *LparenParser) parseLambdaExpression() (data.GetValue, data.Control) {
+func (ep *LparenParser) parseLambdaExpression(tracking *PositionTracker) (data.GetValue, data.Control) {
 	fp := &FunctionParser{
 		ep.Parser,
 	}
@@ -130,7 +131,7 @@ func (ep *LparenParser) parseLambdaExpression() (data.GetValue, data.Control) {
 	}
 
 	return node.NewLambdaExpression(
-		fp.FromCurrentToken(),
+		tracking.EndBefore(),
 		params,
 		body,
 		vars,
@@ -139,7 +140,7 @@ func (ep *LparenParser) parseLambdaExpression() (data.GetValue, data.Control) {
 }
 
 // parseParenthesizedExpression 解析括号表达式
-func (ep *LparenParser) parseParenthesizedExpression() node.Statement {
+func (ep *LparenParser) parseParenthesizedExpression(tracking *PositionTracker) (data.GetValue, data.Control) {
 	// 解析括号内的表达式
 	expr, acl := ep.parseStatement()
 	if acl != nil {
@@ -147,11 +148,10 @@ func (ep *LparenParser) parseParenthesizedExpression() node.Statement {
 	}
 	// 检查是否有右括号
 	if ep.current().Type != token.RPAREN {
-		ep.addError("缺少右括号")
-		return nil
+		return nil, data.NewErrorThrow(tracking.EndBefore(), fmt.Errorf("缺少右括号 ')'"))
 	}
 	ep.next() // 跳过右括号
 
 	// 将表达式包装为语句
-	return expr
+	return expr, nil
 }

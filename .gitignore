@@ -3,3 +3,8 @@
 vendor
 .DS_Store
 origami
+node_modules
+*.vsix
+zy
+zy-lsp
+*.exe

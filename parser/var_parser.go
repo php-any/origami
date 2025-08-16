@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -26,8 +27,7 @@ func (p *VarParser) Parse() (data.GetValue, data.Control) {
 
 	// 解析变量名
 	if p.current().Type != token.IDENTIFIER {
-		p.addError("Expected variable name after var")
-		return nil, nil
+		return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("缺少变量名"))
 	}
 	name := p.current().Literal
 	p.next()

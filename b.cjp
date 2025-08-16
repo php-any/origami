@@ -1,0 +1,42 @@
+namespace tests\func;
+
+
+try {
+    if("a" && "b") {
+        echo "OK"
+    }
+} catch (Error $e) {
+    echo $e->getMessage();
+}
+
+function hello() {
+    return "hello world";
+}
+
+function hello2()
+{
+    return "hello2 world";
+}
+
+// 正常跳转
+echo hello(), "\n";
+echo hello2(), "\n";
+
+class B extends A
+{
+    public function hello()
+    {
+        return "B < A -> hello world";
+    }
+}
+
+$a = new A()
+$b = new B();
+// 跳转
+echo $a->newB()->hello(), "\n";
+echo $a->hello(), "\n";
+echo $b->hello(), "\n";
+
+string $str = "hello world";
+
+$str = "hello world";

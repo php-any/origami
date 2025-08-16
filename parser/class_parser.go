@@ -50,6 +50,8 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 		className = p.namespace.GetName() + "\\" + className
 	}
 
+	p.vm.SetClassPathCache(className, *p.source)
+
 	var types []data.Types
 	var genericParamNames []string
 	if p.checkPositionIs(0, token.LT) {
@@ -292,7 +294,7 @@ func (p *ClassParser) parseModifier() string {
 		p.next()
 		return "private"
 	default:
-		return ""
+		return "public"
 	}
 }
 
@@ -305,7 +307,7 @@ func (p *ClassParser) parseAnnotation() (*node.Annotation, data.Control) {
 
 	// 解析注解名称
 	if p.current().Type != token.IDENTIFIER {
-		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("注解缺少名称"))
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("注解缺少名称"))
 	}
 
 	annotationName, acl := p.getClassName(true)
@@ -345,7 +347,7 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 
 	// 解析属性名
 	if p.current().Type != token.VARIABLE {
-		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("缺少变量名"))
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少变量名"))
 	}
 	name := p.current().Literal
 	p.next()
@@ -364,7 +366,7 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 
 	// 解析分号
 	if p.current().Type != token.SEMICOLON {
-		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("属性声明后缺少分号 ';'"))
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("属性声明后缺少分号 ';'"))
 	}
 	p.next()
 
@@ -398,7 +400,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 	p.scopeManager.NewScope(false)
 	// 解析方法名
 	if p.current().Type != token.IDENTIFIER {
-		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("缺少方法名"))
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少方法名"))
 	}
 	name := p.current().Literal
 	p.next()
@@ -440,7 +442,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 
 				returnTypes = append(returnTypes, baseType)
 			} else {
-				return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("缺少返回类型"))
+				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少返回类型"))
 			}
 
 			// 检查是否有更多类型（逗号分隔）

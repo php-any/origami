@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -26,16 +27,14 @@ func (p *ConstParser) Parse() (data.GetValue, data.Control) {
 
 	// 解析常量名
 	if p.current().Type != token.IDENTIFIER {
-		p.addError("Expected constant name after const")
-		return nil, nil
+		return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("const 需要变量符号"))
 	}
 	name := p.current().Literal
 	p.next()
 
 	// 解析初始化表达式（常量必须初始化）
 	if p.current().Type != token.ASSIGN {
-		p.addError("Expected '=' after constant name")
-		return nil, nil
+		return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("常量必须初始化"))
 	}
 	p.next() // 跳过等号
 	initializer, acl := p.parseStatement()

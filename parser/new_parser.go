@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -21,6 +22,7 @@ func NewNewParser(parser *Parser) StatementParser {
 
 // Parse 解析 new 表达式
 func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
+	tracker := p.StartTracking()
 	// 跳过 new 关键字
 	p.next()
 
@@ -50,7 +52,7 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	n := node.NewNewExpression(
-		p.FromCurrentToken(),
+		tracker.EndBefore(),
 		className,
 		args,
 	)

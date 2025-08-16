@@ -10,7 +10,6 @@ import (
 	"github.com/php-any/origami/std/net/http"
 	"github.com/php-any/origami/std/php"
 	"github.com/php-any/origami/std/system"
-	"github.com/php-any/origami/token"
 )
 
 func showHelp() {
@@ -32,16 +31,6 @@ func showHelp() {
 }
 
 func main() {
-	// 扩展一些关键字, 方便中文输入法下多种符号支持运行
-	{
-		token.NewKeyword("输出", token.ECHO)
-		token.NewKeyword("函数", token.FUNC)
-		token.NewOperator("，", token.COMMA)
-		token.NewOperator("；", token.SEMICOLON)
-		token.NewOperator("×", token.MUL)
-		token.NewOperator("÷", token.QUO)
-	}
-
 	// 创建解析器
 	p := parser.NewParser()
 	// 创建全局命名空间
@@ -65,15 +54,16 @@ func main() {
 
 	// 检查文件是否存在
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-		fmt.Printf("错误: 文件 '%s' 不存在\n", scriptPath)
-		fmt.Println()
+		_, _ = fmt.Fprintf(os.Stderr, "错误: 文件 '%s' 不存在\n\n", scriptPath)
 		showHelp()
 		os.Exit(1)
 	}
 
 	_, err := vm.LoadAndRun(scriptPath)
 	if err != nil {
-		fmt.Printf("错误: %v\n", err)
-		panic(err)
+		_, _ = fmt.Fprintf(os.Stderr, "错误: %v\n", err)
+		if !parser.InLSP {
+			panic(err)
+		}
 	}
 }

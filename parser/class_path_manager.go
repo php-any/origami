@@ -273,5 +273,5 @@ func (m *DefaultClassPathManager) LoadClass(className string, parser *Parser) da
 		return nil
 	}
 
-	return data.TryErrorThrow(parser.newFrom(), fmt.Errorf("文件 %s 中未找到类 %s", filePath, className))
+	return data.TryErrorThrow(parser.newFrom(), fmt.Errorf("文件 file://%s 中未找到类 %s", filePath, className))
 }

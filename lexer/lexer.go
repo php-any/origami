@@ -2,9 +2,10 @@ package lexer
 
 import (
 	"bufio"
-	"github.com/php-any/origami/token"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/php-any/origami/token"
 )
 
 // Position 表示一个位置
@@ -17,11 +18,11 @@ type Position struct {
 // Token 表示一个词法单元
 type Token struct {
 	Type    token.TokenType
-	Literal string
-	Start   int // 起始位置
-	End     int // 结束位置
-	Line    int // 行号
-	Pos     int // 单独一行的位置
+	Literal string // 原始值, 换行替换为;符号也不能替换Literal
+	Start   int    // 起始位置
+	End     int    // 结束位置
+	Line    int    // 行号
+	Pos     int    // 单独一行的位置
 }
 
 // Node 表示 DAG 中的一个节点
@@ -82,19 +83,20 @@ func (l *Lexer) Tokenize(input string) []Token {
 	var tokens []Token
 	pos := 0
 	lastWasNewline := false
-	line := 1
-	linePos := -1
+	line := 0    // 从0开始
+	linePos := 0 // 从0开始
 
 	for pos < len(input) {
-		linePos++
 		// 跳过空白字符，但保留换行符
 		if isWhitespace(input[pos]) {
 			pos++
+			linePos++
 			continue
 		}
 		// 跳过全角空格
 		if pos+2 <= len(input) && input[pos] == 0xe3 && input[pos+1] == 0x80 && input[pos+2] == 0x80 {
 			pos += 3
+			linePos += 3
 			continue
 		}
 		if input[pos] == '\n' {
@@ -110,7 +112,7 @@ func (l *Lexer) Tokenize(input string) []Token {
 				lastWasNewline = true
 			}
 			line++
-			linePos = -1
+			linePos = 0 // 从0开始
 			pos++
 			continue
 		}
@@ -126,8 +128,10 @@ func (l *Lexer) Tokenize(input string) []Token {
 				Line:    line,
 				Pos:     linePos,
 			})
+			// 计算当前行内位置增量
+			linePosIncrement := newPos - pos
 			pos = newPos
-			linePos = newPos
+			linePos += linePosIncrement
 			continue
 		}
 
@@ -166,7 +170,9 @@ func (l *Lexer) Tokenize(input string) []Token {
 		// 检查是否是标识符
 		if unicode.IsLetter(r) || r == '_' || r >= 0x4e00 {
 			start := pos
+			startLinePos := linePos
 			pos += size // 移动到下一个字符
+			linePos += size
 
 			for pos < len(input) {
 				r, size := utf8.DecodeRuneInString(input[pos:])
@@ -185,6 +191,7 @@ func (l *Lexer) Tokenize(input string) []Token {
 				}
 
 				pos += size
+				linePos += size
 			}
 
 			tokens = append(tokens, Token{
@@ -193,7 +200,7 @@ func (l *Lexer) Tokenize(input string) []Token {
 				Start:   start,
 				End:     pos,
 				Line:    line,
-				Pos:     linePos,
+				Pos:     startLinePos,
 			})
 			continue
 		}

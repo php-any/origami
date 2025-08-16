@@ -3,7 +3,7 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
 
 jobs:
@@ -17,87 +17,161 @@ jobs:
           # Windows ARM64 support is limited
           - goos: windows
             goarch: arm64
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.23.6'
-    
-    - name: Get dependencies
-      run: go mod download
-    
-    - name: Build binary
-      env:
-        GOOS: ${{ matrix.goos }}
-        GOARCH: ${{ matrix.goarch }}
-      run: |
-        if [ "$GOOS" = "windows" ]; then
-          go build -o origami-${{ matrix.goos }}-${{ matrix.goarch }}.exe .
-        else
-          go build -o origami-${{ matrix.goos }}-${{ matrix.goarch }} .
-        fi
-    
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: origami-${{ matrix.goos }}-${{ matrix.goarch }}
-        path: origami-*
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.23.6"
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Build main binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          if [ "$GOOS" = "windows" ]; then
+            go build -o zy.exe .
+            go build -o zy-lsp.exe ./tools/lsp
+          else
+            go build -o zy .
+            go build -o zy-lsp ./tools/lsp
+          fi
+
+      - name: Create platform package
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          # 创建平台目录
+          mkdir -p origami-${{ matrix.goos }}-${{ matrix.goarch }}
+
+          # 复制二进制文件
+          if [ "$GOOS" = "windows" ]; then
+            cp zy.exe origami-${{ matrix.goos }}-${{ matrix.goarch }}/
+            cp zy-lsp.exe origami-${{ matrix.goos }}-${{ matrix.goarch }}/
+            # 创建 Windows 批处理文件
+            echo '@echo off' > origami-${{ matrix.goos }}-${{ matrix.goarch }}/run.bat
+            echo 'zy.exe %*' >> origami-${{ matrix.goos }}-${{ matrix.goarch }}/run.bat
+          else
+            cp zy origami-${{ matrix.goos }}-${{ matrix.goarch }}/
+            cp zy-lsp origami-${{ matrix.goos }}-${{ matrix.goarch }}/
+            # 创建 shell 脚本
+            echo '#!/bin/bash' > origami-${{ matrix.goos }}-${{ matrix.goarch }}/run.sh
+            echo './zy "$@"' >> origami-${{ matrix.goos }}-${{ matrix.goarch }}/run.sh
+            chmod +x origami-${{ matrix.goos }}-${{ matrix.goarch }}/run.sh
+          fi
+
+          # 创建 README 文件
+          cat > origami-${{ matrix.goos }}-${{ matrix.goarch }}/README.md << 'EOF'
+          # Origami ${{ matrix.goos }}-${{ matrix.goarch }}
+
+          ## 文件说明
+          - `zy` / `zy.exe`: 主程序
+          - `zy-lsp` / `zy-lsp.exe`: LSP 服务器
+          - `run.sh` / `run.bat`: 运行脚本
+
+          ## 使用方法
+          EOF
+
+          if [ "$GOOS" = "windows" ]; then
+            echo '```cmd' >> origami-${{ matrix.goos }}-${{ matrix.goarch }}/README.md
+            echo 'run.bat script.cjp' >> origami-${{ matrix.goos }}-${{ matrix.goarch }}/README.md
+            echo '```' >> origami-${{ matrix.goos }}-${{ matrix.goarch }}/README.md
+          else
+            echo '```cmd' >> origami-${{ matrix.goos }}-${{ matrix.goarch }}/README.md
+            echo './run.sh script.cjp' >> origami-${{ matrix.goos }}-${{ matrix.goarch }}/README.md
+            echo '```' >> origami-${{ matrix.goos }}-${{ matrix.goarch }}/README.md
+          fi
+
+      - name: Create compressed package
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          if [ "$GOOS" = "windows" ]; then
+            # Windows 使用 zip
+            cd origami-${{ matrix.goos }}-${{ matrix.goarch }}
+            zip -r ../origami-${{ matrix.goos }}-${{ matrix.goarch }}.zip .
+            cd ..
+          else
+            # Linux/macOS 使用 tar.gz
+            tar -czf origami-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz origami-${{ matrix.goos }}-${{ matrix.goarch }}/
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: origami-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            origami-${{ matrix.goos }}-${{ matrix.goarch }}.zip
+            origami-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
 
   release:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-    
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref_name }}
-        release_name: Release ${{ github.ref_name }}
-        draft: false
-        prerelease: false
-        body: |
-          ## 折言(Origami) ${{ github.ref_name }}
-          
-          ### 下载说明
-          - `origami-linux-amd64`: Linux x64 版本
-          - `origami-linux-arm64`: Linux ARM64 版本
-          - `origami-darwin-amd64`: macOS Intel 版本
-          - `origami-darwin-arm64`: macOS Apple Silicon 版本
-          - `origami-windows-amd64.exe`: Windows x64 版本
-          
-          ### 使用方法
-          ```bash
-          # Linux/macOS
-          chmod +x origami-*
-          ./origami-* script.cjp
-          
-          # Windows
-          origami-windows-amd64.exe script.cjp
-          ```
-    
-    - name: Upload Release Assets
-      run: |
-        for dir in origami-*/; do
-          if [ -d "$dir" ]; then
-            for file in "$dir"*; do
-              if [ -f "$file" ]; then
-                echo "Uploading $file"
-                gh release upload ${{ github.ref_name }} "$file" --clobber
-              fi
-            done
-          fi
-        done
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          body: |
+            ## Origami ${{ github.ref_name }}
+
+            ### 下载说明
+            每个平台都包含完整的二进制文件和运行脚本，解压后即可使用：
+
+            #### 平台包
+            - `origami-linux-amd64.tar.gz`: Linux x64 版本
+            - `origami-linux-arm64.tar.gz`: Linux ARM64 版本
+            - `origami-darwin-amd64.tar.gz`: macOS Intel 版本
+            - `origami-darwin-arm64.tar.gz`: macOS Apple Silicon 版本
+            - `origami-windows-amd64.zip`: Windows x64 版本
+
+            ### 使用方法
+            ```bash
+            # Linux/macOS
+            tar -xzf origami-linux-amd64.tar.gz
+            cd origami-linux-amd64
+            ./run.sh script.cjp
+
+            # Windows
+            # 解压 origami-windows-amd64.zip
+            # 双击 run.bat 或在命令行运行: run.bat script.cjp
+            ```
+
+            ### 包内容
+            每个平台包都包含：
+            - `zy` / `zy.exe`: 主程序
+            - `zy-lsp` / `zy-lsp.exe`: LSP 服务器
+            - `run.sh` / `run.bat`: 运行脚本
+            - `README.md`: 使用说明
+
+      - name: Upload Release Assets
+        run: |
+          # 上传所有压缩包
+          for file in origami-*.{zip,tar.gz}; do
+            if [ -f "$file" ]; then
+              echo "Uploading $file"
+              gh release upload ${{ github.ref_name }} "$file" --clobber
+            fi
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

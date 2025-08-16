@@ -35,7 +35,6 @@ func (f *ScandirFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 打开目录
 	dir, err := os.Open(path)
 	if err != nil {
-		panic(err)
 		return nil, data.NewErrorThrow(nil, err)
 	}
 	defer dir.Close()

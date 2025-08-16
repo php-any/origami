@@ -14,8 +14,11 @@ func NewVM(parser *parser.Parser) data.VM {
 		classMap:     make(map[string]data.ClassStmt),
 		interfaceMap: make(map[string]data.InterfaceStmt),
 		funcMap:      make(map[string]data.FuncStmt),
+		classPathMap: make(map[string]string),
 		acl: func(acl data.Control) {
 			parser.ShowControl(acl)
+
+			panic(acl.AsString())
 		},
 	}
 	vm.ctx = NewContext(vm)
@@ -34,7 +37,21 @@ type VM struct {
 	interfaceMap map[string]data.InterfaceStmt
 	funcMap      map[string]data.FuncStmt
 
+	// 类解释过程中的缓存, 用于支持循环依赖
+	classPathMap map[string]string
+
 	acl func(acl data.Control)
+}
+
+func (vm *VM) SetClassPathCache(name string, path string) {
+	vm.mu.RLock()
+	defer vm.mu.RUnlock()
+	vm.classPathMap[name] = path
+}
+
+func (vm *VM) GetClassPathCache(name string) (string, bool) {
+	path, ok := vm.classPathMap[name]
+	return path, ok
 }
 
 func (vm *VM) SetThrowControl(fn func(acl data.Control)) {

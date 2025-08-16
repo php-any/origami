@@ -7,29 +7,29 @@ import (
 // BinaryEqStrict 表示严格相等表达式
 type BinaryEqStrict struct {
 	*Node
-	left  data.GetValue
-	right data.GetValue
+	Left  data.GetValue
+	Right data.GetValue
 }
 
 // NewBinaryEqStrict 创建一个新的严格相等表达式
 func NewBinaryEqStrict(from data.From, left data.GetValue, right data.GetValue) *BinaryEqStrict {
 	return &BinaryEqStrict{
 		Node:  NewNode(from),
-		left:  left,
-		right: right,
+		Left:  left,
+		Right: right,
 	}
 }
 
 // GetValue 获取严格相等表达式的值
 func (b *BinaryEqStrict) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	// 计算左操作数
-	leftValue, c := b.left.GetValue(ctx)
+	leftValue, c := b.Left.GetValue(ctx)
 	if c != nil {
 		return nil, c
 	}
 
 	// 计算右操作数
-	rightValue, c := b.right.GetValue(ctx)
+	rightValue, c := b.Right.GetValue(ctx)
 	if c != nil {
 		return nil, c
 	}

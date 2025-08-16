@@ -96,7 +96,11 @@ func (p *Preprocessor) Process() []Token {
 			filtered = append(filtered, tokens...)
 		case token.DOLLAR:
 			// 处理$标识符组合
-			if i+1 < len(p.tokens) && (p.tokens[i+1].Type == token.IDENTIFIER || (p.tokens[i+1].Type >= token.KEYWORD_START && p.tokens[i+1].Type <= token.KEYWORD_END)) {
+			if i+1 < len(p.tokens) && (p.tokens[i+1].Type == token.IDENTIFIER || (p.tokens[i+1].Type >= token.KEYWORD_START && p.tokens[i+1].Type <= token.KEYWORD_END)) ||
+				p.tokens[i+1].Type == token.NULL || // 添加对null的支持
+				p.tokens[i+1].Type == token.TRUE || // 添加对true的支持
+				p.tokens[i+1].Type == token.FALSE { // 添加对false的支持
+
 				// 将$和标识符合并为一个变量token，保留$符号
 				next := p.tokens[i+1]
 				filtered = append(filtered, Token{
@@ -105,6 +109,7 @@ func (p *Preprocessor) Process() []Token {
 					Start:   t.Start,
 					End:     next.End,
 					Line:    next.Line,
+					Pos:     next.Pos,
 				})
 				i++ // 跳过下一个token
 			} else {
@@ -124,9 +129,16 @@ func (p *Preprocessor) Process() []Token {
 			if i > 0 && !cannotAddSemicolon(filtered[i-1]) {
 				// 检查后一个token是否需要补分号
 				if i+1 < len(filtered) && !cannotAddSemicolonAfter(filtered[i+1]) {
-					// 将换行符替换为分号
-					t.Type = token.SEMICOLON
-					result = append(result, t)
+					// 将换行符替换为分号，保持原有位置信息但不修改 Literal
+					semicolon := Token{
+						Type:    token.SEMICOLON,
+						Literal: t.Literal, // 保持原始 Literal 值（换行符）
+						Start:   t.Start,
+						End:     t.End,
+						Line:    t.Line,
+						Pos:     t.Pos,
+					}
+					result = append(result, semicolon)
 				}
 			}
 			// 跳过换行符
@@ -186,6 +198,8 @@ func processStringInterpolation(t Token) []Token {
 						Literal: "+",
 						Start:   t.Start + i,
 						End:     t.Start + i + 1,
+						Line:    t.Line,
+						Pos:     t.Pos + i,
 					})
 				}
 				// 添加当前字符串
@@ -194,6 +208,8 @@ func processStringInterpolation(t Token) []Token {
 					Literal: string(quote) + string(currentStr) + string(quote),
 					Start:   t.Start,
 					End:     t.End,
+					Line:    t.Line,
+					Pos:     t.Pos,
 				})
 				currentStr = nil
 			}
@@ -205,6 +221,8 @@ func processStringInterpolation(t Token) []Token {
 					Literal: "",
 					Start:   t.Start,
 					End:     t.Start,
+					Line:    t.Line,
+					Pos:     t.Pos,
 				})
 			}
 			tokens = append(tokens, Token{
@@ -212,6 +230,8 @@ func processStringInterpolation(t Token) []Token {
 				Literal: "+",
 				Start:   t.Start + i,
 				End:     t.Start + i + 1,
+				Line:    t.Line,
+				Pos:     t.Pos + i,
 			})
 
 			// 收集变量名
@@ -227,6 +247,8 @@ func processStringInterpolation(t Token) []Token {
 					Literal: "$" + string(runes[start:j]),
 					Start:   t.Start + start - 1, // -1 是因为要包含$符号
 					End:     t.Start + j,
+					Line:    t.Line,
+					Pos:     t.Pos + start - 1,
 				})
 				i = j
 				continue
@@ -240,6 +262,8 @@ func processStringInterpolation(t Token) []Token {
 						Literal: "+",
 						Start:   t.Start + i,
 						End:     t.Start + i + 1,
+						Line:    t.Line,
+						Pos:     t.Pos + i,
 					})
 				}
 				// 添加当前字符串
@@ -248,6 +272,8 @@ func processStringInterpolation(t Token) []Token {
 					Literal: string(quote) + string(currentStr) + string(quote),
 					Start:   t.Start,
 					End:     t.End,
+					Line:    t.Line,
+					Pos:     t.Pos,
 				})
 				currentStr = nil
 			}
@@ -258,6 +284,8 @@ func processStringInterpolation(t Token) []Token {
 				Literal: "+",
 				Start:   t.Start + i,
 				End:     t.Start + i + 1,
+				Line:    t.Line,
+				Pos:     t.Pos + i,
 			})
 
 			// 收集@{...}中的内容
@@ -280,8 +308,14 @@ func processStringInterpolation(t Token) []Token {
 				code := string(runes[start:j])
 				l := NewLexer()
 				codeTokens := l.Tokenize(code)
-				// 将分词结果添加到tokens中
-				tokens = append(tokens, codeTokens...)
+				// 将分词结果添加到tokens中，并调整位置信息
+				for _, codeToken := range codeTokens {
+					codeToken.Start += t.Start + start
+					codeToken.End += t.Start + start
+					codeToken.Line = t.Line
+					codeToken.Pos = t.Pos + start + (codeToken.Start - (t.Start + start))
+					tokens = append(tokens, codeToken)
+				}
 				i = j
 				continue
 			}
@@ -298,6 +332,8 @@ func processStringInterpolation(t Token) []Token {
 				Literal: "+",
 				Start:   t.Start,
 				End:     t.End,
+				Line:    t.Line,
+				Pos:     t.Pos,
 			})
 		}
 		tokens = append(tokens, Token{
@@ -305,6 +341,8 @@ func processStringInterpolation(t Token) []Token {
 			Literal: string(quote) + string(currentStr) + string(quote),
 			Start:   t.Start,
 			End:     t.End,
+			Line:    t.Line,
+			Pos:     t.Pos,
 		})
 	}
 
@@ -315,6 +353,8 @@ func processStringInterpolation(t Token) []Token {
 			Literal: string(quote) + string(quote),
 			Start:   t.Start,
 			End:     t.End,
+			Line:    t.Line,
+			Pos:     t.Pos,
 		})
 	}
 
