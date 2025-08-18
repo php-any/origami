@@ -64,3 +64,7 @@ func (s *StringValue) GetProperty(name string) (Value, bool) {
 	}
 	return nil, false
 }
+
+func (s *StringValue) AsBool() (bool, error) {
+	return s.Value != "", nil
+}
