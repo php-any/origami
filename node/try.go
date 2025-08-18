@@ -23,7 +23,7 @@ type TryStatement struct {
 func (t *TryStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	defer func() {
 		if r := recover(); r != nil {
-			t.tryValue(ctx, data.NewErrorThrow(t.from, fmt.Errorf("异常退出的 panic(%v)", r)))
+			t.tryValue(ctx, data.NewErrorThrow(t.from, fmt.Errorf("go作用域异常退出的 panic(%v)", r)))
 		}
 	}()
 
@@ -39,48 +39,7 @@ func (t *TryStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 	}
 
 	if c != nil {
-		// 检查是否是异常控制
-		if cv, ok := c.(*data.ClassValue); ok {
-			// 查找匹配的 catch 块
-			for _, catchBlock := range t.CatchBlocks {
-				// 这里简化处理，假设所有异常都能被捕获
-				// 在实际实现中，需要检查异常类型是否匹配
-
-				// 将异常对象设置到 catch 变量中
-				if catchBlock.Variable != nil {
-					// 这里需要将异常对象设置到变量中
-					if checkClassIs(ctx, cv.Class, catchBlock.Variable.GetType().String()) {
-						ctx.SetVariableValue(catchBlock.Variable, c)
-					} else {
-						continue
-					}
-				}
-
-				// 执行 catch 块
-				for _, catchStmt := range catchBlock.Body {
-					v, c = catchStmt.GetValue(ctx)
-					if c != nil {
-						// 执行 finally 块（如果存在）
-						if len(t.FinallyBlock) > 0 {
-							for _, statement := range t.FinallyBlock {
-								_, c = statement.GetValue(ctx)
-								if c != nil {
-									// finally 块中的异常会覆盖之前的异常
-									return nil, c
-								}
-							}
-						}
-						return nil, c
-					}
-				}
-
-				// 异常已被处理，继续执行 finally 块
-				break
-			}
-		} else {
-			// 其他类型的控制流（如 return、break 等）
-			return nil, c
-		}
+		t.tryValue(ctx, c)
 	}
 
 	// 执行 finally 块（如果存在）

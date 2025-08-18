@@ -73,7 +73,7 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 				if f.Ret.Is(ret) {
 					return ret, nil
 				}
-				return nil, data.NewErrorThrow(f.GetFrom(), fmt.Errorf("函数(%s)返回值类型错误; 请教程类型和数量匹配", f.Name))
+				return nil, data.NewErrorThrow(f.GetFrom(), fmt.Errorf("函数(%s)返回值类型错误; 请检查类型和数量匹配", f.Name))
 			}
 			return nil, ctl
 		}

@@ -14,6 +14,11 @@ func (p *Parser) printDetailedError(err string, from data.From) {
 	_, _ = fmt.Fprintln(os.Stderr, "🚨 解析错误")
 	_, _ = fmt.Fprintln(os.Stderr, strings.Repeat("=", 80))
 
+	if from == nil {
+		_, _ = fmt.Fprintf(os.Stderr, "📍文件位置信息为空")
+		return
+	}
+
 	// 错误位置信息
 	start, end := from.GetPosition()
 	_, _ = fmt.Fprintf(os.Stderr, "📍 位置: 第 %d 行, 第 %d 列 (位置: %d-%d)\n", p.current().Line, p.current().Pos, start, end)

@@ -17,8 +17,6 @@ func NewVM(parser *parser.Parser) data.VM {
 		classPathMap: make(map[string]string),
 		acl: func(acl data.Control) {
 			parser.ShowControl(acl)
-
-			panic(acl.AsString())
 		},
 	}
 	vm.ctx = NewContext(vm)

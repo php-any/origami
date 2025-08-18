@@ -1,6 +1,8 @@
 package data
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // ThrowControl 表示异常抛出控制流
 type ThrowControl interface {
@@ -20,7 +22,7 @@ type ThrowValue struct {
 }
 
 func (t *ThrowValue) GetFrom() From {
-	return nil
+	return t.error.from
 }
 
 func (t *ThrowValue) GetName() string {
