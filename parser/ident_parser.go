@@ -75,14 +75,16 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 				stmt, acl := vp.parseFunctionCall()
 				fn, ok := p.vm.GetFunc(full)
 				if !ok {
-					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("未定义的函数:"+name))
+					return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("函数(%s)先加载后才能使用", name))
 				}
 				return node.NewCallExpression(tracker.EndBefore(), full, stmt, fn), acl
 			} else if InLSP {
 				stmt, acl := vp.parseFunctionCall()
-				return node.NewCallExpression(tracker.EndBefore(), full, stmt, nil), acl
+				return node.NewCallExpression(tracker.EndBefore(), name, stmt, nil), acl
 			} else {
-				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("未定义的函数:"+name))
+				namespace := p.namespace.Name
+				stmt, acl := vp.parseFunctionCall()
+				return node.NewCallTodo(node.NewCallExpression(tracker.EndBefore(), name, stmt, nil), namespace), acl
 			}
 		}
 		// 变量定义

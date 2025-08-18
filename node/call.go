@@ -86,3 +86,31 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 
 	return fn.Call(fnCtx)
 }
+
+func NewCallTodo(call *CallExpression, namespace string) *CallLater {
+	return &CallLater{
+		CallExpression: call,
+		namespace:      namespace,
+	}
+}
+
+// CallLater 未确认的函数调用
+type CallLater struct {
+	*CallExpression
+	namespace string
+}
+
+func (pe *CallLater) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if pe.Fun == nil {
+		fn, ok := ctx.GetVM().GetFunc(pe.namespace + "\\" + pe.FunName)
+		if !ok {
+			fn, ok = ctx.GetVM().GetFunc(pe.namespace + "\\" + pe.FunName)
+			if !ok {
+				return nil, data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("无法调用函数(%s), 未找到函数", pe.FunName)))
+			}
+		}
+		pe.FunName = fn.GetName()
+		pe.Fun = fn
+	}
+	return pe.CallExpression.GetValue(ctx)
+}
