@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/php-any/origami/std/database/sql"
 	"os"
 
+	_ "github.com/go-sql-driver/mysql" // 使用 mysql
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/runtime"
 	"github.com/php-any/origami/std"
@@ -42,6 +44,7 @@ func main() {
 	php.Load(vm)
 	http.Load(vm)
 	system.Load(vm)
+	sql.Load(vm)
 
 	// 检查命令行参数
 	if len(os.Args) < 2 {

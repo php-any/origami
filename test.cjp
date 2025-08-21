@@ -1,0 +1,8 @@
+function test(&$data) {
+    $data = 456;
+}
+
+$a = 123;
+test($a)
+
+echo $a;

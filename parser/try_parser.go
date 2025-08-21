@@ -81,19 +81,20 @@ func (p *TryParser) parseCatchBlock(tracker *PositionTracker) (*node.CatchBlock,
 	}
 
 	// 检查是否有变量名
-	var variable *node.VariableExpression
+	var variable data.Variable
 	if p.checkPositionIs(0, token.VARIABLE) {
 		stmt, acl := p.parseStatement()
 		if acl != nil {
 			p.addControl(acl)
 		}
-		variable = stmt.(*node.VariableExpression)
-		variable.Type = data.NewBaseType(exceptionType)
+		variable1 := stmt.(*node.VariableExpression)
+		variable1.Type = data.NewBaseType(exceptionType)
+		variable = variable1
 	} else {
 		name := p.current().Literal
 		p.next()
-		index := p.scopeManager.CurrentScope().AddVariable(name, data.NewBaseType(exceptionType), tracker.EndBefore())
-		variable = node.NewVariable(tracker.EndBefore(), name, index, data.NewBaseType(exceptionType))
+		val := p.scopeManager.CurrentScope().AddVariable(name, data.NewBaseType(exceptionType), tracker.EndBefore())
+		variable = node.NewVariableWithFirst(tracker.EndBefore(), val)
 	}
 
 	p.nextAndCheck(token.RPAREN) // 跳过右括号

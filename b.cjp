@@ -1,5 +1,17 @@
 namespace tests\func;
 
-include(__DIR__ + '/a.cjp');
+use database\sql\open;
 
-hello()
+function test(&$data) {
+
+}
+
+$db = open("mysql", "root:root@/temp");
+
+$db->ping();
+
+$rows = $db->query("SELECT * FROM users");
+
+for ;$rows->next(); {
+    $rows->scan($id);
+}

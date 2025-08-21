@@ -100,7 +100,10 @@ func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method dat
 					if err != nil {
 						return nil, data.NewErrorThrow(pe.from, err)
 					}
-					fnCtx.SetVariableValue(vari, tempV.(data.Value))
+					acl = vari.SetValue(fnCtx, tempV.(data.Value))
+					if acl != nil {
+						return nil, acl
+					}
 				default:
 					tempV, acl := paramTV.GetValue(ctx)
 					if acl != nil {
@@ -112,7 +115,7 @@ func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method dat
 					}
 				}
 			} else if argObj.DefaultValue == nil {
-				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("参数 %s 缺少值", argObj.Name))
+				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("调用 %s 函数时参数 %s 缺少值", pe.Method, argObj.Name))
 			} else {
 				argObj.GetValue(fnCtx)
 			}
@@ -147,7 +150,10 @@ func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method dat
 					if err != nil {
 						return nil, data.NewErrorThrow(pe.from, err)
 					}
-					fnCtx.SetVariableValue(vari, tempV.(data.Value))
+					acl = vari.SetValue(fnCtx, tempV.(data.Value))
+					if acl != nil {
+						return nil, acl
+					}
 				default:
 					tempV, acl := paramTV.GetValue(ctx)
 					if acl != nil {
@@ -159,7 +165,7 @@ func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method dat
 					}
 				}
 			} else if argObj.DefaultValue == nil {
-				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("参数 %s 缺少值", argObj.Name))
+				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("调用 %s 函数时参数 %s 缺少值", pe.Method, argObj.Name))
 			} else {
 				argObj.GetValue(fnCtx)
 			}
@@ -181,6 +187,38 @@ func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method dat
 				ares.Value = append(ares.Value, tempV.(data.Value))
 				fnCtx.SetVariableValue(argObj, ares)
 			}
+		case *ParameterReference:
+			if index < len(pe.Args) {
+				param := pe.Args[index]
+				switch paramTV := param.(type) {
+				case *NamedArgument:
+					tempV, acl := paramTV.GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+					vari, err := findVariable(varies, paramTV.Name)
+					if err != nil {
+						return nil, data.NewErrorThrow(pe.from, err)
+					}
+					acl = vari.SetValue(fnCtx, data.NewReferenceValue(tempV.(data.Value), ctx))
+					if acl != nil {
+						return nil, acl
+					}
+				default:
+					tempV, acl := paramTV.GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+					acl = argObj.SetValue(fnCtx, data.NewReferenceValue(tempV.(data.Value), ctx))
+					if acl != nil {
+						return nil, acl
+					}
+				}
+			} else if argObj.DefaultValue == nil {
+				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("调用 %s 函数时参数 %s 缺少值", pe.Method, argObj.Name))
+			} else {
+				argObj.GetValue(fnCtx)
+			}
 		case data.Variable:
 			if index < len(pe.Args) {
 				param := pe.Args[index]
@@ -194,7 +232,10 @@ func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method dat
 					if err != nil {
 						return nil, data.NewErrorThrow(pe.from, err)
 					}
-					fnCtx.SetVariableValue(vari, tempV.(data.Value))
+					acl = vari.SetValue(fnCtx, tempV.(data.Value))
+					if acl != nil {
+						return nil, acl
+					}
 				default:
 					tempV, acl := paramTV.GetValue(ctx)
 					if acl != nil {

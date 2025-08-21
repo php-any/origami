@@ -408,27 +408,28 @@ func NewHtmlParser(parser *Parser) StatementParser {
 
 // createHtmlForNode 创建HTML for循环节点
 func (h *HtmlParser) createHtmlForNode(from *node.TokenFrom, tagName string, attributes map[string]data.GetValue, children []data.GetValue, isSelfClosing bool, forAttr data.GetValue) (data.GetValue, data.Control) {
+	tracker := h.StartTracking()
 	// 解析for属性，格式应该是 "key, value in array" 或 "value in array"
 	// 在解析阶段，forAttr应该是一个字符串字面量
 	var forStr string
 	if strLiteral, ok := forAttr.(*node.StringLiteral); ok {
 		forStr = strLiteral.Value
 	} else {
-		return nil, data.NewErrorThrow(h.FromCurrentToken(), errors.New("for属性必须是字符串字面量"))
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("for属性必须是字符串字面量"))
 	}
 
 	// 解析for字符串，格式：key, value in array 或 value in array
 	vars, exprStr := h.parseForExpression(forStr)
 	if vars == nil {
-		return nil, data.NewErrorThrow(h.FromCurrentToken(), errors.New("for属性格式错误，应为：key, value in array 或 value in array"))
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("for属性格式错误，应为：key, value in array 或 value in array"))
 	}
 	// 解析变量名
 	keyVar := vars[0]
-	index := h.scopeManager.CurrentScope().AddVariable(keyVar, nil, from)
-	keyVari := node.NewVariable(from, keyVar, index, nil)
+	val := h.scopeManager.CurrentScope().AddVariable(keyVar, nil, from)
+	keyVari := node.NewVariableWithFirst(from, val)
 	valueVar := vars[1]
-	index = h.scopeManager.CurrentScope().AddVariable(valueVar, nil, from)
-	valueVari := node.NewVariable(from, keyVar, index, nil)
+	val = h.scopeManager.CurrentScope().AddVariable(valueVar, nil, from)
+	valueVari := node.NewVariableWithFirst(from, val)
 
 	// 使用主解释器解析表达式字符串
 	arrayVari, acl := h.Parser.ParseExpressionFromString(exprStr)

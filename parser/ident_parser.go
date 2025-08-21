@@ -51,16 +51,16 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 
 	// 检查是否是变量的类型
 	if p.checkPositionIs(0, token.ASSIGN) {
-		index := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
-		return node.NewVariable(tracker.EndBefore(), name, index, nil), nil
+		val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+		return node.NewVariableWithFirst(tracker.EndBefore(), val), nil
 	}
 	if p.checkPositionIs(0, token.VARIABLE) || p.checkPositionIs(1, token.ASSIGN) {
 		// int $num 或者 int i = 0
 		ty := name
 		name = p.current().Literal
 		p.next()
-		index := p.scopeManager.CurrentScope().AddVariable(name, data.NewBaseType(ty), tracker.EndBefore())
-		return node.NewVariable(tracker.EndBefore(), name, index, data.NewBaseType(ty)), nil
+		val := p.scopeManager.CurrentScope().AddVariable(name, data.NewBaseType(ty), tracker.EndBefore())
+		return node.NewVariableWithFirst(tracker.EndBefore(), val), nil
 	}
 
 	checkToken := p.current()
@@ -93,8 +93,8 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 			p.next()
 			ty := p.current().Literal
 			p.next()
-			index := p.scopeManager.CurrentScope().AddVariable(name, data.NewBaseType(ty), tracker.EndBefore())
-			expr := node.NewVariable(tracker.EndBefore(), name, index, data.NewBaseType(ty))
+			val := p.scopeManager.CurrentScope().AddVariable(name, data.NewBaseType(ty), tracker.EndBefore())
+			expr := node.NewVariableWithFirst(tracker.EndBefore(), val)
 			// 解析后续操作（函数调用、数组访问等）
 			vp := &VariableParser{p.Parser}
 			return vp.parseSuffix(expr)
@@ -135,8 +135,8 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 		}
 
 		if p.checkPositionIs(0, token.OBJECT_OPERATOR, token.DOT) {
-			index := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
-			expr := node.NewVariable(tracker.EndBefore(), name, index, nil)
+			val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+			expr := node.NewVariableWithFirst(tracker.EndBefore(), val)
 			vp := &VariableParser{p.Parser}
 			return vp.parseSuffix(expr)
 		}
@@ -195,8 +195,8 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 		// 检查是否是变量
 		varInfo := p.scopeManager.LookupParentVariable(name)
 		if varInfo != nil {
-			index := p.scopeManager.CurrentScope().AddVariable(name, varInfo.GetType(), tracker.EndBefore())
-			expr := node.NewVariable(tracker.EndBefore(), name, index, varInfo.GetType())
+			val := p.scopeManager.CurrentScope().AddVariable(name, varInfo.GetType(), tracker.EndBefore())
+			expr := node.NewVariableWithFirst(tracker.EndBefore(), val)
 			vp := &VariableParser{p.Parser}
 			return vp.parseSuffix(expr)
 		}

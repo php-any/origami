@@ -48,8 +48,8 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 			// 声明为变量
 			if ident, ok := initializer.(*node.StringLiteral); ok {
 				name := ident.Value
-				index := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
-				key = node.NewVariable(tracker.EndBefore(), name, index, nil)
+				val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+				key = node.NewVariableWithFirst(tracker.EndBefore(), val)
 			} else {
 				return nil, data.NewErrorThrow(tracker.EndBefore(), nil)
 			}
@@ -70,8 +70,8 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 						vp := &VariableParser{p.Parser}
 						return vp.parseSuffix(varInfo)
 					} else {
-						index := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
-						value = node.NewVariable(tracker.EndBefore(), name, index, nil)
+						val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+						value = node.NewVariableWithFirst(tracker.EndBefore(), val)
 					}
 				} else {
 					return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("for in 无法解析变量 value"))
@@ -79,8 +79,8 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 			}
 		} else {
 			name := "_"
-			index := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
-			value = node.NewVariable(tracker.EndBefore(), name, index, nil)
+			val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+			value = node.NewVariableWithFirst(tracker.EndBefore(), val)
 		}
 
 		p.nextAndCheck(token.IN)

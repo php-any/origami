@@ -193,3 +193,28 @@ func (p *Parameters) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 func (p *Parameters) GetVariables() []data.Variable {
 	return nil
 }
+
+type ParameterReference struct {
+	*Parameter
+}
+
+func NewParameterReference(from data.From, name string, index int, defaultValue data.GetValue, ty data.Types) data.GetValue {
+	return &ParameterReference{
+		Parameter: &Parameter{
+			Node:         NewNode(from),
+			Name:         name,
+			Index:        index,
+			Type:         ty,
+			DefaultValue: defaultValue,
+		},
+	}
+}
+
+func (p *ParameterReference) SetValue(ctx data.Context, value data.Value) data.Control {
+	//if p.Type != nil {
+	//	if !p.Type.Is(value) {
+	//		return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
+	//	}
+	//}
+	return ctx.SetVariableValue(p, value)
+}

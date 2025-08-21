@@ -19,16 +19,11 @@ func NewUnusedParser(parser *Parser) StatementParser {
 
 // Parse 解析unused语句
 func (p *UnusedParser) Parse() (data.GetValue, data.Control) {
-	from := p.FromCurrentToken()
+	tracker := p.StartTracking()
 	// 跳过 _ 符号
 	name := "_"
 	p.next()
-	index := p.scopeManager.CurrentScope().AddVariable(name, nil, from)
+	val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
 	// 创建变量声明语句
-	return node.NewVariable(
-		from,
-		name,
-		index,
-		nil,
-	), nil
+	return node.NewVariableWithFirst(tracker.EndBefore(), val), nil
 }

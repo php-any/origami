@@ -1,0 +1,14 @@
+namespace App;
+
+use database\sql\open;
+
+$server = new Net\Http\Server(port: 8080);
+
+
+$server->get("/", ($request, $response) => {
+
+
+    $response->json($obj);
+})
+
+$server ->start();
