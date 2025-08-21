@@ -44,6 +44,15 @@ func (o *ObjectValue) AsString() string {
 	)
 }
 
+func (o *ObjectValue) AsBool() (bool, error) {
+	notEmpty := false
+	o.property.Range(func(key, value any) bool {
+		notEmpty = true
+		return false
+	})
+	return notEmpty, nil
+}
+
 func (o *ObjectValue) GetProperty(name string) (Value, bool) {
 	v, ok := o.property.Load(name)
 	if !ok {
