@@ -44,6 +44,10 @@ func (o *ObjectValue) AsString() string {
 	)
 }
 
+func (o *ObjectValue) AsBool() (bool, error) {
+	return true, nil
+}
+
 func (o *ObjectValue) GetProperty(name string) (Value, bool) {
 	v, ok := o.property.Load(name)
 	if !ok {
