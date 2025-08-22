@@ -2,6 +2,7 @@ package node
 
 import (
 	"errors"
+	"fmt"
 	"github.com/php-any/origami/data"
 )
 
@@ -160,7 +161,14 @@ func NewVariableReference(from data.From, name string, index int, ty data.Types)
 
 // GetValue 获取变量表达式的值
 func (v *VariableReference) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	return v.ctx.GetVariableValue(v)
+	temp, ok := ctx.GetVariableValue(v)
+	if ok != nil {
+		return nil, data.NewErrorThrow(v.from, fmt.Errorf("引用变量必须有值"))
+	}
+	if ref, ok := temp.(*data.ReferenceValue); ok {
+		return ref.GetValue(ref.Ctx)
+	}
+	return nil, nil
 }
 
 func (v *VariableReference) GetIndex() int {
@@ -184,7 +192,6 @@ func (v *VariableReference) SetValue(ctx data.Context, value data.Value) data.Co
 		return ok
 	}
 	if ref, ok := temp.(*data.ReferenceValue); ok {
-		ctx.SetVariableValue(v, value)
 		return ref.Ctx.SetVariableValue(v, value)
 	}
 

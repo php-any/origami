@@ -24,6 +24,7 @@ github.com/petermattis/goid v0.0.0-20240813172612-4fcff4a6cae7 h1:Dx7Ovyv/SFnMFw
 github.com/petermattis/goid v0.0.0-20240813172612-4fcff4a6cae7/go.mod h1:pxMtw7cyUw6B2bRH0ZBANSPg+AoSud1I1iyJHI69jH4=
 github.com/php-any/generator v0.0.0-20250820121054-f71d34b7daf2 h1:eOURVJOq45D1FT5pQIYUHpdcEA5H6tZaeYur22K804g=
 github.com/php-any/generator v0.0.0-20250820121054-f71d34b7daf2/go.mod h1:mpMsWOD/zFv5j95r4KnhY/UI48/QjPcWILIjLE+oEeM=
+github.com/php-any/generator v0.0.0-20250821074307-5e9b7303d0c9/go.mod h1:mpMsWOD/zFv5j95r4KnhY/UI48/QjPcWILIjLE+oEeM=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=

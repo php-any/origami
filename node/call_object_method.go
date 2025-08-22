@@ -192,32 +192,30 @@ func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method dat
 				param := pe.Args[index]
 				switch paramTV := param.(type) {
 				case *NamedArgument:
-					tempV, acl := paramTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
 					vari, err := findVariable(varies, paramTV.Name)
 					if err != nil {
 						return nil, data.NewErrorThrow(pe.from, err)
 					}
-					acl = vari.SetValue(fnCtx, data.NewReferenceValue(tempV.(data.Value), ctx))
-					if acl != nil {
-						return nil, acl
+					if val, ok := paramTV.Value.(data.Variable); ok {
+						acl := vari.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
+						if acl != nil {
+							return nil, acl
+						}
+					} else {
+						return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
 					}
 				default:
-					tempV, acl := paramTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					acl = argObj.SetValue(fnCtx, data.NewReferenceValue(tempV.(data.Value), ctx))
-					if acl != nil {
-						return nil, acl
+					if val, ok := paramTV.(data.Variable); ok {
+						acl := argObj.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
+						if acl != nil {
+							return nil, acl
+						}
+					} else {
+						return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
 					}
 				}
-			} else if argObj.DefaultValue == nil {
-				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("调用 %s 函数时参数 %s 缺少值", pe.Method, argObj.Name))
 			} else {
-				argObj.GetValue(fnCtx)
+				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能是必传参数, fn: %s", pe.Method))
 			}
 		case data.Variable:
 			if index < len(pe.Args) {

@@ -1,19 +1,15 @@
 package data
 
-import (
-	"fmt"
-)
-
-func NewReferenceValue(v Value, ctx Context) Value {
+func NewReferenceValue(v Variable, ctx Context) Value {
 	return &ReferenceValue{
-		Value: v,
-		Ctx:   ctx,
+		Val: v,
+		Ctx: ctx,
 	}
 }
 
 type ReferenceValue struct {
-	Value Value
-	Ctx   Context
+	Val Variable
+	Ctx Context
 }
 
 func (s *ReferenceValue) GetValue(ctx Context) (GetValue, Control) {
@@ -21,5 +17,6 @@ func (s *ReferenceValue) GetValue(ctx Context) (GetValue, Control) {
 }
 
 func (s *ReferenceValue) AsString() string {
-	return fmt.Sprintf("%d", s.Value)
+	v, _ := s.Val.GetValue(s.Ctx)
+	return v.(Value).AsString()
 }
