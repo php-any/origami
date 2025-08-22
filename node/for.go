@@ -48,8 +48,9 @@ func (u *ForStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 				if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
 					continue
 				}
+
 				// return/throw 直接返回
-				return nil, c
+				return nil, checkThrowControlFrom(statement, c)
 			}
 		}
 

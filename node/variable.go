@@ -142,8 +142,6 @@ type VariableReference struct {
 	Name  string // 变量名
 	Index int    // 变量在作用域中的索引
 	Type  data.Types
-
-	ctx data.Context
 }
 
 // NewVariableReference 创建一个新的变量引用

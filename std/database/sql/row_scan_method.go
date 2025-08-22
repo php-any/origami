@@ -30,13 +30,13 @@ func (h *RowScanMethod) GetModifier() data.Modifier { return data.ModifierPublic
 func (h *RowScanMethod) GetIsStatic() bool          { return true }
 func (h *RowScanMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameters(nil, "dest", 0, nil, nil),
+		node.NewParametersReference(nil, "dest", 0, nil, nil),
 	}
 }
 
 func (h *RowScanMethod) GetVariables() []data.Variable {
 	return []data.Variable{
-		node.NewVariable(nil, "dest", 0, nil),
+		node.NewVariableReference(nil, "dest", 0, nil),
 	}
 }
 

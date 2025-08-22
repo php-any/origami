@@ -137,6 +137,24 @@ func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method dat
 				ares.Value = append(ares.Value, tempV.(data.Value))
 				fnCtx.SetVariableValue(argObj, ares)
 			}
+		case *ParametersReference:
+			args, _ := fnCtx.GetVariableValue(argObj)
+			var ares *data.ArrayValue
+			var ok bool
+			if ares, ok = args.(*data.ArrayValue); !ok {
+				ares = data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
+				fnCtx.SetVariableValue(argObj, ares)
+			}
+
+			for i := index; i < len(pe.Args); i++ {
+				param := pe.Args[i]
+				if val, ok := param.(data.Variable); ok {
+					ares.Value = append(ares.Value, data.NewReferenceValue(val, ctx))
+					fnCtx.SetVariableValue(argObj, ares)
+				} else {
+					return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
+				}
+			}
 		case *data.ParameterTODO:
 			if index < len(pe.Args) {
 				param := pe.Args[index]
