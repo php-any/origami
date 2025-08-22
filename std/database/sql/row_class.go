@@ -36,6 +36,7 @@ func (s *RowClass) GetValue(_ data.Context) (data.GetValue, data.Control) {
 func (s *RowClass) GetName() string                            { return "database\\sql\\Row" }
 func (s *RowClass) GetExtend() *string                         { return nil }
 func (s *RowClass) GetImplements() []string                    { return nil }
+func (s *RowClass) AsString() string                           { return "Row{}" }
 func (s *RowClass) GetProperty(_ string) (data.Property, bool) { return nil, false }
 func (s *RowClass) GetProperties() map[string]data.Property    { return nil }
 func (s *RowClass) GetMethod(name string) (data.Method, bool) {

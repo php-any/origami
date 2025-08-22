@@ -31,7 +31,7 @@ func (h *OpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if err != nil {
 		return nil, data.NewErrorThrow(nil, err)
 	}
-	return NewDBClassFrom(ret0), nil
+	return data.NewClassValue(NewDBClassFrom(ret0), ctx), nil
 }
 
 func (h *OpenFunction) GetName() string            { return "database\\sql\\open" }

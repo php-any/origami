@@ -54,6 +54,7 @@ func (s *ConnClass) GetValue(_ data.Context) (data.GetValue, data.Control) {
 func (s *ConnClass) GetName() string                            { return "database\\sql\\Conn" }
 func (s *ConnClass) GetExtend() *string                         { return nil }
 func (s *ConnClass) GetImplements() []string                    { return nil }
+func (s *ConnClass) AsString() string                           { return "Conn{}" }
 func (s *ConnClass) GetProperty(_ string) (data.Property, bool) { return nil, false }
 func (s *ConnClass) GetProperties() map[string]data.Property    { return nil }
 func (s *ConnClass) GetMethod(name string) (data.Method, bool) {

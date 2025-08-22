@@ -51,6 +51,7 @@ func (s *StmtClass) GetValue(_ data.Context) (data.GetValue, data.Control) {
 func (s *StmtClass) GetName() string                            { return "database\\sql\\Stmt" }
 func (s *StmtClass) GetExtend() *string                         { return nil }
 func (s *StmtClass) GetImplements() []string                    { return nil }
+func (s *StmtClass) AsString() string                           { return "Stmt{}" }
 func (s *StmtClass) GetProperty(_ string) (data.Property, bool) { return nil, false }
 func (s *StmtClass) GetProperties() map[string]data.Property    { return nil }
 func (s *StmtClass) GetMethod(name string) (data.Method, bool) {

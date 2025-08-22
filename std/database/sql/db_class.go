@@ -83,10 +83,6 @@ type DBClass struct {
 	stats              data.Method
 }
 
-func (s *DBClass) AsString() string {
-	return "database\\sql\\DB{}"
-}
-
 func (s *DBClass) GetValue(_ data.Context) (data.GetValue, data.Control) {
 	clone := *s
 	return &clone, nil
@@ -94,6 +90,7 @@ func (s *DBClass) GetValue(_ data.Context) (data.GetValue, data.Control) {
 func (s *DBClass) GetName() string                            { return "database\\sql\\DB" }
 func (s *DBClass) GetExtend() *string                         { return nil }
 func (s *DBClass) GetImplements() []string                    { return nil }
+func (s *DBClass) AsString() string                           { return "DB{}" }
 func (s *DBClass) GetProperty(_ string) (data.Property, bool) { return nil, false }
 func (s *DBClass) GetProperties() map[string]data.Property    { return nil }
 func (s *DBClass) GetMethod(name string) (data.Method, bool) {

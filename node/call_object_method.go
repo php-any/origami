@@ -115,7 +115,7 @@ func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method dat
 					}
 				}
 			} else if argObj.DefaultValue == nil {
-				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("调用 %s 函数时参数 %s 缺少值", pe.Method, argObj.Name))
+				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("调用 %s 函数时参数 %s 缺少值和默认值", pe.Method, argObj.Name))
 			} else {
 				argObj.GetValue(fnCtx)
 			}

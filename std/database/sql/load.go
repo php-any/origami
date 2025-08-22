@@ -15,6 +15,7 @@ func Load(vm data.VM) {
 	// 添加类
 	vm.AddClass(NewConnClass())
 	vm.AddClass(NewDBClass())
+	vm.AddClass(NewResultClass())
 	vm.AddClass(NewRowClass())
 	vm.AddClass(NewRowsClass())
 	vm.AddClass(NewStmtClass())

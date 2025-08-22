@@ -36,6 +36,7 @@ func (s *TxOptionsClass) GetValue(_ data.Context) (data.GetValue, data.Control) 
 func (s *TxOptionsClass) GetName() string         { return "database\\sql\\TxOptions" }
 func (s *TxOptionsClass) GetExtend() *string      { return nil }
 func (s *TxOptionsClass) GetImplements() []string { return nil }
+func (s *TxOptionsClass) AsString() string        { return "TxOptions{}" }
 func (s *TxOptionsClass) GetProperty(name string) (data.Property, bool) {
 	switch name {
 	case "Isolation":

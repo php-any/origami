@@ -66,6 +66,7 @@ func (s *TxClass) GetValue(_ data.Context) (data.GetValue, data.Control) {
 func (s *TxClass) GetName() string                            { return "database\\sql\\Tx" }
 func (s *TxClass) GetExtend() *string                         { return nil }
 func (s *TxClass) GetImplements() []string                    { return nil }
+func (s *TxClass) AsString() string                           { return "Tx{}" }
 func (s *TxClass) GetProperty(_ string) (data.Property, bool) { return nil, false }
 func (s *TxClass) GetProperties() map[string]data.Property    { return nil }
 func (s *TxClass) GetMethod(name string) (data.Method, bool) {

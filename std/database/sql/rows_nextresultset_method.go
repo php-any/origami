@@ -12,7 +12,7 @@ type RowsNextResultSetMethod struct {
 func (h *RowsNextResultSetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	ret0 := h.source.NextResultSet()
-	return data.NewAnyValue(ret0), nil
+	return data.NewBoolValue(ret0), nil
 }
 
 func (h *RowsNextResultSetMethod) GetName() string            { return "nextResultSet" }

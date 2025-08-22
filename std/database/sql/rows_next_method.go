@@ -10,6 +10,7 @@ type RowsNextMethod struct {
 }
 
 func (h *RowsNextMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+
 	ret0 := h.source.Next()
 	return data.NewBoolValue(ret0), nil
 }
