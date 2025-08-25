@@ -193,3 +193,78 @@ func (p *Parameters) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 func (p *Parameters) GetVariables() []data.Variable {
 	return nil
 }
+
+type ParameterReference struct {
+	*Parameter
+}
+
+func NewParameterReference(from data.From, name string, index int, ty data.Types) data.GetValue {
+	return &ParameterReference{
+		Parameter: &Parameter{
+			Node:  NewNode(from),
+			Name:  name,
+			Index: index,
+			Type:  ty,
+		},
+	}
+}
+
+func (p *ParameterReference) SetValue(ctx data.Context, value data.Value) data.Control {
+	if p.Type != nil {
+		if !p.Type.Is(value) {
+			return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
+		}
+	}
+	return ctx.SetVariableValue(p, value)
+}
+
+// NewParametersReference 接收多个参数值
+func NewParametersReference(from data.From, name string, index int, defaultValue data.GetValue, ty data.Types) data.GetValue {
+	return &ParametersReference{
+		Parameter: &Parameter{
+			Node:         NewNode(from),
+			Name:         name,
+			Index:        index,
+			Type:         ty,
+			DefaultValue: defaultValue,
+		},
+	}
+}
+
+// ParametersReference 多值参数
+type ParametersReference struct {
+	*Parameter
+}
+
+func (p *ParametersReference) GetDefaultValue() data.GetValue {
+	return p.DefaultValue
+}
+
+func (p *ParametersReference) GetName() string {
+	return p.Name
+}
+
+func (p *ParametersReference) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	v, acl := ctx.GetVariableValue(p)
+	if acl != nil {
+		return nil, acl
+	}
+
+	if _, ok := v.(*data.ArrayValue); !ok {
+		nv := data.NewArrayValue([]data.Value{v})
+		ctx.SetVariableValue(p, nv)
+		return nv, nil
+	}
+
+	return v, nil
+}
+
+func (p *ParametersReference) SetValue(ctx data.Context, value data.Value) data.Control {
+	if p.Type == nil {
+		return ctx.SetVariableValue(p, value)
+	}
+	if p.Type.Is(value) {
+		return ctx.SetVariableValue(p, value)
+	}
+	return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
+}

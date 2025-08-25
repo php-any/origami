@@ -1,0 +1,15 @@
+namespace tests\func;
+
+use database\sql\open;
+
+$db = open("mysql", "root:root@/temp");
+
+$db->ping();
+
+$rows = $db->query("SELECT id, age, name, coin, create_at FROM users");
+
+for ;$rows->next(); {
+    $rows->scan($id, $age, $name, $coin, $create_at);
+
+    echo "id: {$id}, age: {$age}, name: {$name}, coin: {$coin}, create_at: {$create_at}\n";
+}

@@ -16,13 +16,16 @@ type ThrowControl interface {
 // ThrowValue 表示异常抛出控制流
 type ThrowValue struct {
 	object     *ClassValue
-	error      *Error
 	extend     string
 	getMessage Method
+
+	Error *Error
+	// 堆栈
+	Stack []*Error
 }
 
 func (t *ThrowValue) GetFrom() From {
-	return t.error.from
+	return t.Error.From
 }
 
 func (t *ThrowValue) GetName() string {
@@ -63,7 +66,7 @@ func (t *ThrowValue) GetConstruct() Method {
 
 func NewErrorThrow(from From, err error) Control {
 	t := &ThrowValue{
-		error: NewError(from, err.Error(), err),
+		Error: NewError(from, err.Error(), err),
 	}
 	t.getMessage = &ThrowValueGetMessageMethod{
 		source: t,
@@ -74,7 +77,7 @@ func NewErrorThrow(from From, err error) Control {
 // TryErrorThrow 可能不需要抛出的错误
 func TryErrorThrow(from From, err error) Control {
 	return &ThrowValue{
-		error: NewError(from, err.Error(), err),
+		Error: NewError(from, err.Error(), err),
 	}
 }
 
@@ -93,12 +96,12 @@ func (t *ThrowValue) IsThrow() bool {
 
 // GetError 获取异常信息
 func (t *ThrowValue) GetError() *Error {
-	return t.error
+	return t.Error
 }
 
 // AsString 获取字符串表示
 func (t *ThrowValue) AsString() string {
-	return fmt.Sprintf("throw %v", t.error.Error())
+	return fmt.Sprintf("throw %v", t.Error.Error())
 }
 
 type ThrowValueGetMessageMethod struct {
@@ -106,7 +109,7 @@ type ThrowValueGetMessageMethod struct {
 }
 
 func (t *ThrowValueGetMessageMethod) Call(ctx Context) (GetValue, Control) {
-	return NewStringValue(t.source.error.Error()), nil
+	return NewStringValue(t.source.Error.Error()), nil
 }
 
 func (t *ThrowValueGetMessageMethod) GetName() string {

@@ -327,34 +327,29 @@ func (p *Parser) parseStatement() (data.GetValue, data.Control) {
 
 // 只会获取单个值, 不会有表达式, 并且必须有值, 没有就是错误
 func (p *Parser) parseValue() (data.GetValue, bool) {
+	tracker := p.StartTracking()
 	switch p.current().Type {
 	case token.INT:
 		value := p.current().Literal
-		from := p.FromCurrentToken()
 		p.next()
-		return node.NewIntLiteral(from, value), true
+		return node.NewIntLiteral(tracker.EndBefore(), value), true
 	case token.FLOAT:
 		value := p.current().Literal
-		from := p.FromCurrentToken()
 		p.next()
-		return node.NewFloatLiteral(from, value), true
+		return node.NewFloatLiteral(tracker.EndBefore(), value), true
 	case token.STRING:
 		value := p.current().Literal
-		from := p.FromCurrentToken()
 		p.next()
-		return node.NewStringLiteral(from, value), true
+		return node.NewStringLiteral(tracker.EndBefore(), value), true
 	case token.TRUE:
-		from := p.FromCurrentToken()
 		p.next()
-		return node.NewBooleanLiteral(from, true), true
+		return node.NewBooleanLiteral(tracker.EndBefore(), true), true
 	case token.FALSE:
-		from := p.FromCurrentToken()
 		p.next()
-		return node.NewBooleanLiteral(from, false), true
+		return node.NewBooleanLiteral(tracker.EndBefore(), false), true
 	case token.NULL:
-		from := p.FromCurrentToken()
 		p.next()
-		return node.NewNullLiteral(from), true
+		return node.NewNullLiteral(tracker.EndBefore()), true
 	case token.THIS:
 		stmt, acl := NewThisParser(p).Parse()
 		_ = acl

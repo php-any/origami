@@ -60,8 +60,8 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 	if key, ok = keyTemp.(data.Variable); !ok {
 		if ident, ok := keyTemp.(*node.StringLiteral); ok {
 			name := ident.Value
-			index := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
-			key = node.NewVariable(tracker.EndBefore(), name, index, nil)
+			val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+			key = node.NewVariableWithFirst(tracker.EndBefore(), val)
 		} else {
 			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
 		}
@@ -76,8 +76,8 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 		if value, ok = keyTemp.(data.Variable); !ok {
 			if ident, ok := keyTemp.(*node.StringLiteral); ok {
 				name := ident.Value
-				index := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
-				value = node.NewVariable(tracker.EndBefore(), name, index, nil)
+				val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+				value = node.NewVariableWithFirst(tracker.EndBefore(), val)
 			} else {
 				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
 			}

@@ -40,10 +40,10 @@ func (p *BoolParser) Parse() (data.GetValue, data.Control) {
 	from := tracker.EndBefore()
 
 	// 在作用域中添加变量
-	index := p.scopeManager.CurrentScope().AddVariable(varName, data.Bool{}, from)
+	val := p.scopeManager.CurrentScope().AddVariable(varName, data.Bool{}, from)
 
 	// 创建变量表达式
-	expr := node.NewVariable(from, varName, index, data.Bool{})
+	expr := node.NewVariableWithFirst(from, val)
 
 	// 解析后续操作（函数调用、数组访问等）
 	vp := &VariableParser{p.Parser}

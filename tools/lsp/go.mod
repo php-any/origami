@@ -14,6 +14,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/php-any/generator v0.0.0-20250821074307-5e9b7303d0c9 // indirect
 	github.com/sergi/go-diff v1.3.1 // indirect
 	golang.org/x/mod v0.26.0 // indirect
 	golang.org/x/sys v0.34.0 // indirect

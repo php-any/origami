@@ -2,14 +2,14 @@ package main
 
 import (
 	"fmt"
-	"os"
-
+	_ "github.com/go-sql-driver/mysql" // 使用 mysql
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/runtime"
 	"github.com/php-any/origami/std"
 	"github.com/php-any/origami/std/net/http"
 	"github.com/php-any/origami/std/php"
 	"github.com/php-any/origami/std/system"
+	"os"
 )
 
 func showHelp() {

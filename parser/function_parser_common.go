@@ -46,7 +46,7 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 	tracking := p.StartTracking()
 	// 检查左括号
 	if p.current().Type != token.LPAREN {
-		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("参数列表前缺少左括号 '('"))
+		return nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("参数列表前缺少左括号 '('"))
 	}
 	p.next()
 
@@ -63,6 +63,7 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 		varType := ""
 		name := ""
 		isParams := false
+		isReference := false // 是否引用
 		// 解析参数名
 		if p.current().Type != token.VARIABLE {
 			isVar := false
@@ -73,6 +74,15 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 				name = parser.current().Literal
 				isParams = true
 				p.next()
+			}
+
+			// &$data
+			if parser.checkPositionIs(0, token.BIT_AND) {
+				isVar = true
+				parser.next()
+				name = parser.current().Literal
+				p.next()
+				isReference = true
 			}
 
 			// (string $data) 或 (?string $data)
@@ -136,7 +146,7 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 		}
 
 		// 添加参数到作用域
-		index := p.scopeManager.CurrentScope().AddVariable(name, paramType, tracking.EndBefore())
+		val := p.scopeManager.CurrentScope().AddVariable(name, paramType, tracking.EndBefore())
 
 		// 解析默认值
 		var defaultValue data.GetValue
@@ -152,10 +162,18 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 
 		// 创建参数节点
 		if isParams {
-			param := node.NewParameters(tracking.EndBefore(), name, index, defaultValue, paramType)
+			param := node.NewParameters(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, val.GetType())
+			params = append(params, param)
+		} else if isReference {
+			if defaultValue != nil {
+				return nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("参数为引用的变量不能有默认值"))
+			}
+			// 覆盖变量为引用
+			p.scopeManager.CurrentScope().variables[val.GetName()] = node.NewVariableReference(tracking.EndBefore(), val.GetName(), val.GetIndex(), val.GetType())
+			param := node.NewParameterReference(tracking.EndBefore(), val.GetName(), val.GetIndex(), val.GetType())
 			params = append(params, param)
 		} else {
-			param := node.NewParameter(tracking.EndBefore(), name, index, defaultValue, paramType)
+			param := node.NewParameter(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, val.GetType())
 			params = append(params, param)
 		}
 
@@ -163,10 +181,10 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 			p.next()
 			// 检查逗号后是否直接跟着右括号（这是语法错误）
 			if p.current().Type == token.RPAREN {
-				return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("逗号后缺少参数"))
+				return nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("逗号后缺少参数"))
 			}
 		} else if p.current().Type != token.RPAREN {
-			return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("参数后缺少逗号 ',' 或右括号 ')'"))
+			return nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("参数后缺少逗号 ',' 或右括号 ')'"))
 		} else {
 			break
 		}

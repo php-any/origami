@@ -15,7 +15,9 @@ func (p *Parser) printDetailedError(err string, from data.From) {
 	_, _ = fmt.Fprintln(os.Stderr, strings.Repeat("=", 80))
 
 	if from == nil {
-		_, _ = fmt.Fprintf(os.Stderr, "📍文件位置信息为空")
+		_, _ = fmt.Fprintf(os.Stderr, "📍文件位置信息为空\n")
+		// 显示错误消息
+		_, _ = fmt.Fprintf(os.Stderr, "❌ 错误: %s\n", err)
 		return
 	}
 

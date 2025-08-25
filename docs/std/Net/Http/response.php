@@ -25,5 +25,13 @@ class Response {
         // 实现逻辑
     }
 
+    /**
+     * json 方法
+     * 
+     */
+    public function json($data) : int {
+        // 实现逻辑
+    }
+
 }
 

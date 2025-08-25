@@ -66,13 +66,16 @@ func (m *ScopeManager) CurrentScope() *Scope {
 }
 
 // AddVariable 在当前作用域中添加变量
-func (s *Scope) AddVariable(name string, ty data.Types, from data.From) int {
+func (s *Scope) AddVariable(name string, ty data.Types, from data.From) data.Variable {
+	if name[0:1] == "$" {
+		name = name[1:]
+	}
 	if v, exists := s.variables[name]; exists {
-		return v.GetIndex()
+		return v
 	}
 	s.variables[name] = node.NewVariable(from, name, s.nextIndex, ty)
 	s.nextIndex++
-	return s.variables[name].GetIndex()
+	return s.variables[name]
 }
 
 // LookupVariable 查找变量

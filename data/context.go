@@ -191,6 +191,7 @@ func NewParameters(name string, index int) Parameter {
 	return &ParametersTODO{Name: name, Index: index}
 }
 
+// ParameterTODO data 内部参数结构, 用于解决依赖循环
 type ParameterTODO struct {
 	Name         string // 变量名
 	Index        int    // 变量在作用域中的索引

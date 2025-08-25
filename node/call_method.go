@@ -2,6 +2,7 @@ package node
 
 import (
 	"errors"
+	"fmt"
 	"github.com/php-any/origami/data"
 )
 
@@ -47,7 +48,10 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 						if err != nil {
 							return nil, data.NewErrorThrow(pe.from, err)
 						}
-						fnCtx.SetVariableValue(vari, tempV.(data.Value))
+						acl = vari.SetValue(fnCtx, tempV.(data.Value))
+						if acl != nil {
+							return nil, acl
+						}
 					default:
 						tempV, acl := paramTV.GetValue(ctx)
 						if acl != nil {
@@ -79,6 +83,36 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 					}
 					ares.Value = append(ares.Value, tempV.(data.Value))
 					fnCtx.SetVariableValue(argObj, ares)
+				}
+			case *ParameterReference:
+				if index < len(pe.Args) {
+					param := pe.Args[index]
+					switch paramTV := param.(type) {
+					case *NamedArgument:
+						vari, err := findVariable(varies, paramTV.Name)
+						if err != nil {
+							return nil, data.NewErrorThrow(pe.from, err)
+						}
+						if val, ok := paramTV.Value.(data.Variable); ok {
+							acl := vari.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
+							if acl != nil {
+								return nil, acl
+							}
+						} else {
+							return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
+						}
+					default:
+						if val, ok := paramTV.(data.Variable); ok {
+							acl := argObj.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
+							if acl != nil {
+								return nil, acl
+							}
+						} else {
+							return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
+						}
+					}
+				} else {
+					return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能是必传参数, fn: %s", pe.Method))
 				}
 			}
 		}

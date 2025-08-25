@@ -100,7 +100,10 @@ func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method dat
 					if err != nil {
 						return nil, data.NewErrorThrow(pe.from, err)
 					}
-					fnCtx.SetVariableValue(vari, tempV.(data.Value))
+					acl = vari.SetValue(fnCtx, tempV.(data.Value))
+					if acl != nil {
+						return nil, acl
+					}
 				default:
 					tempV, acl := paramTV.GetValue(ctx)
 					if acl != nil {
@@ -112,7 +115,7 @@ func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method dat
 					}
 				}
 			} else if argObj.DefaultValue == nil {
-				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("参数 %s 缺少值", argObj.Name))
+				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("调用 %s 函数时参数 %s 缺少值和默认值", pe.Method, argObj.Name))
 			} else {
 				argObj.GetValue(fnCtx)
 			}
@@ -134,6 +137,24 @@ func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method dat
 				ares.Value = append(ares.Value, tempV.(data.Value))
 				fnCtx.SetVariableValue(argObj, ares)
 			}
+		case *ParametersReference:
+			args, _ := fnCtx.GetVariableValue(argObj)
+			var ares *data.ArrayValue
+			var ok bool
+			if ares, ok = args.(*data.ArrayValue); !ok {
+				ares = data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
+				fnCtx.SetVariableValue(argObj, ares)
+			}
+
+			for i := index; i < len(pe.Args); i++ {
+				param := pe.Args[i]
+				if val, ok := param.(data.Variable); ok {
+					ares.Value = append(ares.Value, data.NewReferenceValue(val, ctx))
+					fnCtx.SetVariableValue(argObj, ares)
+				} else {
+					return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
+				}
+			}
 		case *data.ParameterTODO:
 			if index < len(pe.Args) {
 				param := pe.Args[index]
@@ -147,7 +168,10 @@ func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method dat
 					if err != nil {
 						return nil, data.NewErrorThrow(pe.from, err)
 					}
-					fnCtx.SetVariableValue(vari, tempV.(data.Value))
+					acl = vari.SetValue(fnCtx, tempV.(data.Value))
+					if acl != nil {
+						return nil, acl
+					}
 				default:
 					tempV, acl := paramTV.GetValue(ctx)
 					if acl != nil {
@@ -159,7 +183,7 @@ func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method dat
 					}
 				}
 			} else if argObj.DefaultValue == nil {
-				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("参数 %s 缺少值", argObj.Name))
+				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("调用 %s 函数时参数 %s 缺少值", pe.Method, argObj.Name))
 			} else {
 				argObj.GetValue(fnCtx)
 			}
@@ -181,6 +205,36 @@ func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method dat
 				ares.Value = append(ares.Value, tempV.(data.Value))
 				fnCtx.SetVariableValue(argObj, ares)
 			}
+		case *ParameterReference:
+			if index < len(pe.Args) {
+				param := pe.Args[index]
+				switch paramTV := param.(type) {
+				case *NamedArgument:
+					vari, err := findVariable(varies, paramTV.Name)
+					if err != nil {
+						return nil, data.NewErrorThrow(pe.from, err)
+					}
+					if val, ok := paramTV.Value.(data.Variable); ok {
+						acl := vari.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
+						if acl != nil {
+							return nil, acl
+						}
+					} else {
+						return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
+					}
+				default:
+					if val, ok := paramTV.(data.Variable); ok {
+						acl := argObj.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
+						if acl != nil {
+							return nil, acl
+						}
+					} else {
+						return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
+					}
+				}
+			} else {
+				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能是必传参数, fn: %s", pe.Method))
+			}
 		case data.Variable:
 			if index < len(pe.Args) {
 				param := pe.Args[index]
@@ -194,7 +248,10 @@ func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method dat
 					if err != nil {
 						return nil, data.NewErrorThrow(pe.from, err)
 					}
-					fnCtx.SetVariableValue(vari, tempV.(data.Value))
+					acl = vari.SetValue(fnCtx, tempV.(data.Value))
+					if acl != nil {
+						return nil, acl
+					}
 				default:
 					tempV, acl := paramTV.GetValue(ctx)
 					if acl != nil {

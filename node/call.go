@@ -79,6 +79,36 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 				ares.Value = append(ares.Value, tempV.(data.Value))
 				fnCtx.SetVariableValue(argObj, ares)
 			}
+		case *ParameterReference:
+			if index < len(pe.Args) {
+				param := pe.Args[index]
+				switch paramTV := param.(type) {
+				case *NamedArgument:
+					vari, err := findVariable(varies, paramTV.Name)
+					if err != nil {
+						return nil, data.NewErrorThrow(pe.from, err)
+					}
+					if val, ok := paramTV.Value.(data.Variable); ok {
+						acl := vari.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
+						if acl != nil {
+							return nil, acl
+						}
+					} else {
+						return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.FunName))
+					}
+				default:
+					if val, ok := paramTV.(data.Variable); ok {
+						acl := argObj.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
+						if acl != nil {
+							return nil, acl
+						}
+					} else {
+						return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.FunName))
+					}
+				}
+			} else {
+				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能是必传参数, fn: %s", pe.FunName))
+			}
 		default:
 			return nil, data.NewErrorThrow(pe.from, errors.New("未识别的参数类型"))
 		}

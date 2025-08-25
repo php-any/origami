@@ -6,6 +6,8 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/php-any/origami/std/context"
+
 	"github.com/php-any/origami/std/net/http"
 
 	"github.com/php-any/origami/data"
@@ -29,6 +31,14 @@ func getStdClasses() []data.ClassStmt {
 		http.NewRequestClass(nil, nil),
 		http.NewResponseClass(nil, nil),
 		channel.NewChannelClass(),
+		// sql
+		//sql.NewConnClass(),
+		//sql.NewDBClass(),
+		//sql.NewRowClass(),
+		//sql.NewRowsClass(),
+		//sql.NewStmtClass(),
+		//sql.NewTxClass(),
+		//sql.NewTxOptionsClass(),
 	}
 }
 
@@ -36,6 +46,13 @@ func getStdFunctions() []data.FuncStmt {
 	return []data.FuncStmt{
 		std.NewDumpFunction(),
 		std.NewIncludeFunction(),
+		// 导出 go 的 context
+		context.NewBackgroundFunction(),
+		context.NewWithCancelFunction(),
+		context.NewWithTimeoutFunction(),
+		context.NewWithValueFunction(),
+		// sql
+		// sql.NewOpenFunction(),
 	}
 }
 
@@ -375,16 +392,41 @@ func main() {
 	// 分析标准库函数
 	stdFunctions := getStdFunctions()
 	if len(stdFunctions) > 0 {
-		funcModule := PseudoCode{
-			ModuleName:  "functions",
-			Description: "标准库函数",
-		}
+		// 按命名空间分组函数
+		funcModulesByNamespace := make(map[string]*PseudoCode)
 
 		for _, fn := range stdFunctions {
-			funcModule.Functions = append(funcModule.Functions, analyzeFunction(fn))
+			fullName := fn.GetName()
+			namespace := ""
+			shortName := fullName
+
+			if strings.Contains(fullName, "\\") {
+				parts := strings.Split(fullName, "\\")
+				namespace = strings.Join(parts[:len(parts)-1], "\\")
+				shortName = parts[len(parts)-1]
+			}
+
+			// 获取或创建对应命名空间的模块
+			module, ok := funcModulesByNamespace[namespace]
+			if !ok {
+				module = &PseudoCode{
+					ModuleName:  "functions",
+					Description: "标准库函数",
+					Namespace:   namespace,
+				}
+				funcModulesByNamespace[namespace] = module
+			}
+
+			// 分析函数并使用短名称写入
+			sig := analyzeFunction(fn)
+			sig.Name = shortName
+			module.Functions = append(module.Functions, sig)
 		}
 
-		modules = append(modules, funcModule)
+		// 汇总加入模块列表
+		for _, m := range funcModulesByNamespace {
+			modules = append(modules, *m)
+		}
 	}
 
 	// 分析标准库类

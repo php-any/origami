@@ -2,6 +2,7 @@ package node
 
 import (
 	"errors"
+	"fmt"
 	"github.com/php-any/origami/data"
 )
 
@@ -13,18 +14,18 @@ type VariableExpression struct {
 	Type  data.Types
 }
 
-// NewVariableExpression 创建一个新的变量表达式
-func NewVariableExpression(token *TokenFrom, name string, index int) *VariableExpression {
-	if name[0:1] == "$" {
-		name = name[1:]
+// NewVariableWithFirst 解释器创建变量前, 需要先识别定义时的信息 p.scopeManager.LookupVariable(name)
+func NewVariableWithFirst(from data.From, first data.Variable) data.Variable {
+	if _, ok := first.(*VariableReference); ok {
+		return NewVariableReference(from, first.GetName(), first.GetIndex(), first.GetType())
 	}
 	return &VariableExpression{
-		Node:  NewNode(token),
-		Name:  name,
-		Index: index,
+		Node:  NewNode(from),
+		Name:  first.GetName(),
+		Index: first.GetIndex(),
+		Type:  first.GetType(),
 	}
 }
-
 func NewVariable(from data.From, name string, index int, ty data.Types) *VariableExpression {
 	if name[0:1] == "$" {
 		name = name[1:]
@@ -133,5 +134,64 @@ func (vl *VariableList) SetValue(ctx data.Context, value data.Value) data.Contro
 			return ctl
 		}
 	}
+	return nil
+}
+
+type VariableReference struct {
+	*Node `pp:"-"`
+	Name  string // 变量名
+	Index int    // 变量在作用域中的索引
+	Type  data.Types
+}
+
+// NewVariableReference 创建一个新的变量引用
+func NewVariableReference(from data.From, name string, index int, ty data.Types) *VariableReference {
+	if name[0:1] == "$" {
+		name = name[1:]
+	}
+	return &VariableReference{
+		Node:  NewNode(from),
+		Name:  name,
+		Index: index,
+		Type:  ty,
+	}
+}
+
+// GetValue 获取变量表达式的值
+func (v *VariableReference) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	temp, ok := ctx.GetVariableValue(v)
+	if ok != nil {
+		return nil, data.NewErrorThrow(v.from, fmt.Errorf("引用变量必须有值"))
+	}
+	if ref, ok := temp.(*data.ReferenceValue); ok {
+		return ref.GetValue(ref.Ctx)
+	}
+	return nil, nil
+}
+
+func (v *VariableReference) GetIndex() int {
+	return v.Index
+}
+func (v *VariableReference) GetName() string {
+	return v.Name
+}
+func (v *VariableReference) GetType() data.Types {
+	return v.Type
+}
+
+func (v *VariableReference) SetValue(ctx data.Context, value data.Value) data.Control {
+	if v.Type != nil {
+		if !v.Type.Is(value) {
+			return data.NewErrorThrow(v.from, errors.New("变量类型和赋值类型不一致, 变量类型("+v.Type.String()+"), 赋值("+value.AsString()+")"))
+		}
+	}
+	temp, ok := ctx.GetVariableValue(v)
+	if ok != nil {
+		return ok
+	}
+	if ref, ok := temp.(*data.ReferenceValue); ok {
+		return ref.Ctx.SetVariableValue(v, value)
+	}
+
 	return nil
 }

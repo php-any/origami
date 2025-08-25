@@ -24,26 +24,10 @@ class Channel {
     }
 
     /**
-     * sendBlocking 方法
-     * 
-     */
-    public function sendBlocking($value) : bool {
-        // 实现逻辑
-    }
-
-    /**
      * receive 方法
      * 
      */
-    public function receive() : mixed {
-        // 实现逻辑
-    }
-
-    /**
-     * receiveBlocking 方法
-     * 
-     */
-    public function receiveBlocking() : mixed {
+    public function receive() {
         // 实现逻辑
     }
 
