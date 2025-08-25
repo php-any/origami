@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/php-any/origami/std/database/sql"
 	"os"
 	"strings"
 	"text/template"
@@ -33,13 +32,13 @@ func getStdClasses() []data.ClassStmt {
 		http.NewResponseClass(nil, nil),
 		channel.NewChannelClass(),
 		// sql
-		sql.NewConnClass(),
-		sql.NewDBClass(),
-		sql.NewRowClass(),
-		sql.NewRowsClass(),
-		sql.NewStmtClass(),
-		sql.NewTxClass(),
-		sql.NewTxOptionsClass(),
+		//sql.NewConnClass(),
+		//sql.NewDBClass(),
+		//sql.NewRowClass(),
+		//sql.NewRowsClass(),
+		//sql.NewStmtClass(),
+		//sql.NewTxClass(),
+		//sql.NewTxOptionsClass(),
 	}
 }
 
@@ -53,7 +52,7 @@ func getStdFunctions() []data.FuncStmt {
 		context.NewWithTimeoutFunction(),
 		context.NewWithValueFunction(),
 		// sql
-		sql.NewOpenFunction(),
+		// sql.NewOpenFunction(),
 	}
 }
 
