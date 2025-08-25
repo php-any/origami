@@ -1,7 +1,7 @@
 package node
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/php-any/origami/data"
 )
@@ -32,5 +32,5 @@ func (t *ThrowStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 		return nil, obj
 	}
 
-	return nil, data.NewErrorThrow(t.from, fmt.Errorf(v.(data.Value).AsString()))
+	return nil, data.NewErrorThrow(t.from, errors.New(v.(data.Value).AsString()))
 }
