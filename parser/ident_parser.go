@@ -31,7 +31,11 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 		if full, ok := p.findFullFunNameByNamespace(name); ok {
 			fn, ok := p.vm.GetFunc(full)
 			if !ok {
-				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("未定义的函数:"+full))
+				_, ok := p.vm.GetClass(full)
+				if ok {
+					return p.parseClassInit(tracker, full)
+				}
+				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("未定义的函数:"+full+" {}。"))
 			}
 			v, acl := NewLbraceParser(p.Parser).Parse()
 			return node.NewCallExpression(tracker.EndBefore(), fn.GetName(), []data.GetValue{v}, fn), acl
@@ -39,7 +43,10 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 
 		// 检查是否是便捷方式创建 class{}
 		if full, ok := p.findFullClassNameByNamespace(name); ok {
-			return p.parseClassInit(tracker, full)
+			_, ok := p.vm.GetClass(full)
+			if ok {
+				return p.parseClassInit(tracker, full)
+			}
 		}
 
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("未定义的函数:"+name))
@@ -47,12 +54,12 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 		if full, ok := p.findFullFunNameByNamespace(name); ok {
 			fn, ok := p.vm.GetFunc(full)
 			if !ok {
-				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("未定义的函数:"+full))
+				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("未定义的函数:"+full+" []。"))
 			}
 			v, acl := NewLbracketParser(p.Parser).Parse()
 			return node.NewCallExpression(tracker.EndBefore(), fn.GetName(), []data.GetValue{v}, fn), acl
 		}
-		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("未定义的函数:"+name))
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("未定义的函数:"+name+" []。"))
 	}
 
 	// 检查是否是变量的类型
