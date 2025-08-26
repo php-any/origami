@@ -7,13 +7,13 @@ import (
 	"github.com/php-any/origami/node"
 )
 
-type WithCancelFunction struct{}
+type WithoutCancelFunction struct{}
 
-func NewWithCancelFunction() data.FuncStmt {
-	return &WithCancelFunction{}
+func NewWithoutCancelFunction() data.FuncStmt {
+	return &WithoutCancelFunction{}
 }
 
-func (h *WithCancelFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+func (h *WithoutCancelFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
@@ -37,21 +37,21 @@ func (h *WithCancelFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	default:
 		return nil, data.NewErrorThrow(nil, errors.New("参数类型不支持, index: 0"))
 	}
-	ret0, ret1 := context.WithCancel(arg0)
-	return data.NewAnyValue([]any{ret0, ret1}), nil
+	ret0 := context.WithoutCancel(arg0)
+	return data.NewClassValue(NewContextClassFrom(ret0), ctx), nil
 }
 
-func (h *WithCancelFunction) GetName() string            { return "context\\withCancel" }
-func (h *WithCancelFunction) GetModifier() data.Modifier { return data.ModifierPublic }
-func (h *WithCancelFunction) GetIsStatic() bool          { return true }
-func (h *WithCancelFunction) GetParams() []data.GetValue {
+func (h *WithoutCancelFunction) GetName() string            { return "context\\withoutCancel" }
+func (h *WithoutCancelFunction) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *WithoutCancelFunction) GetIsStatic() bool          { return true }
+func (h *WithoutCancelFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "parent", 0, nil, nil),
 	}
 }
-func (h *WithCancelFunction) GetVariables() []data.Variable {
+func (h *WithoutCancelFunction) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "parent", 0, nil),
 	}
 }
-func (h *WithCancelFunction) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *WithoutCancelFunction) GetReturnType() data.Types { return data.NewBaseType("void") }

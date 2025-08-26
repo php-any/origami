@@ -9,8 +9,13 @@ func Load(vm data.VM) {
 	for _, fun := range []data.FuncStmt{
 		NewBackgroundFunction(),
 		NewWithCancelFunction(),
+		NewWithCancelCauseFunction(),
+		NewWithDeadlineFunction(),
+		NewWithDeadlineCauseFunction(),
 		NewWithTimeoutFunction(),
+		NewWithTimeoutCauseFunction(),
 		NewWithValueFunction(),
+		NewWithoutCancelFunction(),
 	} {
 		vm.AddFunc(fun)
 	}

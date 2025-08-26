@@ -5,15 +5,16 @@ import (
 	"errors"
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"time"
 )
 
-type WithValueFunction struct{}
+type WithTimeoutCauseFunction struct{}
 
-func NewWithValueFunction() data.FuncStmt {
-	return &WithValueFunction{}
+func NewWithTimeoutCauseFunction() data.FuncStmt {
+	return &WithTimeoutCauseFunction{}
 }
 
-func (h *WithValueFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+func (h *WithTimeoutCauseFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
@@ -47,59 +48,47 @@ func (h *WithValueFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	default:
 		return nil, data.NewErrorThrow(nil, errors.New("参数类型不支持, index: 0"))
 	}
-	var arg1 interface{}
-	switch v := a1.(type) {
-	case *data.ClassValue:
-		if p, ok := v.Class.(interface{ GetSource() any }); ok {
-			if src := p.GetSource(); src != nil {
-				arg1 = src.(interface{})
-			}
-		} else {
-			return nil, data.NewErrorThrow(nil, errors.New("参数类型不支持, index: 1"))
-		}
-	case *data.AnyValue:
-		if v.Value != nil {
-			arg1 = v.Value.(interface{})
-		}
-	default:
-		return nil, data.NewErrorThrow(nil, errors.New("参数类型不支持, index: 1"))
+	arg1Int, err := a1.(*data.IntValue).AsInt()
+	if err != nil {
+		return nil, data.NewErrorThrow(nil, err)
 	}
-	var arg2 interface{}
+	arg1 := time.Duration(arg1Int)
+	var arg2 error
 	switch v := a2.(type) {
 	case *data.ClassValue:
 		if p, ok := v.Class.(interface{ GetSource() any }); ok {
 			if src := p.GetSource(); src != nil {
-				arg2 = src.(interface{})
+				arg2 = src.(error)
 			}
 		} else {
 			return nil, data.NewErrorThrow(nil, errors.New("参数类型不支持, index: 2"))
 		}
 	case *data.AnyValue:
 		if v.Value != nil {
-			arg2 = v.Value.(interface{})
+			arg2 = v.Value.(error)
 		}
 	default:
 		return nil, data.NewErrorThrow(nil, errors.New("参数类型不支持, index: 2"))
 	}
-	ret0 := context.WithValue(arg0, arg1, arg2)
-	return data.NewClassValue(NewContextClassFrom(ret0), ctx), nil
+	ret0, ret1 := context.WithTimeoutCause(arg0, arg1, arg2)
+	return data.NewAnyValue([]any{ret0, ret1}), nil
 }
 
-func (h *WithValueFunction) GetName() string            { return "context\\withValue" }
-func (h *WithValueFunction) GetModifier() data.Modifier { return data.ModifierPublic }
-func (h *WithValueFunction) GetIsStatic() bool          { return true }
-func (h *WithValueFunction) GetParams() []data.GetValue {
+func (h *WithTimeoutCauseFunction) GetName() string            { return "context\\withTimeoutCause" }
+func (h *WithTimeoutCauseFunction) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *WithTimeoutCauseFunction) GetIsStatic() bool          { return true }
+func (h *WithTimeoutCauseFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "parent", 0, nil, nil),
-		node.NewParameter(nil, "key", 1, nil, nil),
-		node.NewParameter(nil, "val", 2, nil, nil),
+		node.NewParameter(nil, "timeout", 1, nil, nil),
+		node.NewParameter(nil, "cause", 2, nil, nil),
 	}
 }
-func (h *WithValueFunction) GetVariables() []data.Variable {
+func (h *WithTimeoutCauseFunction) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "parent", 0, nil),
-		node.NewVariable(nil, "key", 1, nil),
-		node.NewVariable(nil, "val", 2, nil),
+		node.NewVariable(nil, "timeout", 1, nil),
+		node.NewVariable(nil, "cause", 2, nil),
 	}
 }
-func (h *WithValueFunction) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *WithTimeoutCauseFunction) GetReturnType() data.Types { return data.NewBaseType("void") }

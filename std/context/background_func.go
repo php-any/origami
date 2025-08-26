@@ -14,7 +14,7 @@ func NewBackgroundFunction() data.FuncStmt {
 func (h *BackgroundFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	ret0 := context.Background()
-	return data.NewAnyValue(ret0), nil
+	return data.NewClassValue(NewContextClassFrom(ret0), ctx), nil
 }
 
 func (h *BackgroundFunction) GetName() string            { return "context\\background" }
