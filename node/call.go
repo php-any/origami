@@ -134,7 +134,12 @@ func (pe *CallLater) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	if pe.Fun == nil {
 		fn, ok := ctx.GetVM().GetFunc(pe.namespace + "\\" + pe.FunName)
 		if !ok {
-			fn, ok = ctx.GetVM().GetFunc(pe.namespace + "\\" + pe.FunName)
+			namespace := ""
+			if pe.namespace != "" {
+				namespace = pe.namespace + "\\"
+			}
+
+			fn, ok = ctx.GetVM().GetFunc(namespace + pe.FunName)
 			if !ok {
 				return nil, data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("无法调用函数(%s), 未找到函数", pe.FunName)))
 			}

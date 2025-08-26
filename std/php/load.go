@@ -12,6 +12,7 @@ func Load(vm data.VM) {
 		NewScandirFunction(),
 		NewMicrotimeFunction(),
 		NewNumberFormatFunction(),
+		NewFunctionExistsFunction(),
 	} {
 		vm.AddFunc(fun)
 	}

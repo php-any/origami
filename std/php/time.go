@@ -2,8 +2,9 @@ package php
 
 import (
 	"time"
+
+	"github.com/php-any/origami/data"
 )
-import "github.com/php-any/origami/data"
 
 func NewTimeFunction() data.FuncStmt {
 	return &TimeFunction{}
