@@ -213,11 +213,13 @@ func (p *Parser) next() {
 	p.position++
 }
 
-func (p *Parser) nextAndCheck(t token.TokenType) {
+func (p *Parser) nextAndCheck(t token.TokenType) data.Control {
 	if p.current().Type != t {
 		p.addControl(data.NewErrorThrow(p.newFrom(), errors.New("检查符号不一致")))
+		return data.NewErrorThrow(p.newFrom(), errors.New("检查符号不一致"))
 	}
 	p.position++
+	return nil
 }
 
 func (p *Parser) nextAndCheckStip(t token.TokenType) {

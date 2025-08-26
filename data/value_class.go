@@ -32,7 +32,7 @@ func (c *ClassValue) AsString() string {
 	c.property.Range(func(key, value any) bool {
 		k := key.(string)
 		v := value.(Value)
-		result += fmt.Sprintf("%s: %s\n", k, v.AsString())
+		result += fmt.Sprintf("\t%s: %s\n", k, v.AsString())
 		return true
 	})
 
@@ -42,7 +42,7 @@ func (c *ClassValue) AsString() string {
 
 	// 构建输出字符串
 	return fmt.Sprintf("%s {\n"+
-		"\t%s\n"+
+		"%s\n"+
 		"}",
 		c.Class.GetName(), result,
 	)

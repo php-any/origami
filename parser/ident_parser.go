@@ -36,6 +36,12 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 			v, acl := NewLbraceParser(p.Parser).Parse()
 			return node.NewCallExpression(tracker.EndBefore(), fn.GetName(), []data.GetValue{v}, fn), acl
 		}
+
+		// 检查是否是便捷方式创建 class{}
+		if full, ok := p.findFullClassNameByNamespace(name); ok {
+			return p.parseClassInit(tracker, full)
+		}
+
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("未定义的函数:"+name))
 	} else if p.checkPositionIs(0, token.LBRACKET) {
 		if full, ok := p.findFullFunNameByNamespace(name); ok {
@@ -203,4 +209,34 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	return node.NewStringLiteral(tracker.EndBefore(), name), nil
+}
+
+func (p *IdentParser) parseClassInit(tracker *PositionTracker, className string) (data.GetValue, data.Control) {
+	p.nextAndCheck(token.LBRACE)
+
+	kv := map[string]data.GetValue{}
+	// 解释 key: stmt
+	for !p.checkPositionIs(0, token.RBRACE, token.EOF) {
+		if !p.checkPositionIs(0, token.IDENTIFIER) {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("初始类 %s 的属性名必须是标识符", className))
+		}
+		key := p.current().Literal
+		p.next()
+		acl := p.nextAndCheck(token.COLON)
+		if acl != nil {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("初始类 %s 的属性名后面必须是(:)符号", className))
+		}
+		value, acl := p.parseStatement()
+		if acl != nil {
+			return nil, acl
+		}
+		if p.checkPositionIs(0, token.COMMA) {
+			p.next()
+		}
+
+		kv[key] = value
+	}
+	p.nextAndCheck(token.RBRACE)
+
+	return node.NewInitClass(tracker.EndBefore(), className, kv), nil
 }

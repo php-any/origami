@@ -1,7 +1,0 @@
-namespace tests\func;
-
-function hello()
-{
-    $name = 123;
-    return "hello world " + $name;
-}
