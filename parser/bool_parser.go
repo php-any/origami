@@ -1,8 +1,6 @@
 package parser
 
 import (
-    "fmt"
-
     "github.com/php-any/origami/data"
     "github.com/php-any/origami/node"
     "github.com/php-any/origami/token"
@@ -27,7 +25,6 @@ func (p *BoolParser) Parse() (data.GetValue, data.Control) {
 
     // 跳过bool关键字
     p.next()
-    fmt.Println(p.current().Literal)
 
     // 检查下一个token是否是变量
     if !p.checkPositionIs(0, token.VARIABLE, token.IDENTIFIER) {
