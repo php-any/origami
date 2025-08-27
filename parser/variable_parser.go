@@ -297,9 +297,9 @@ func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, 
 	vp.next() // 跳过箭头
 	tracker := vp.StartTracking()
 
-	if vp.current().Type != token.IDENTIFIER {
+	if !vp.checkPositionIs(0, token.IDENTIFIER) && !(vp.current().Type > token.KEYWORD_START && vp.current().Type < token.VALUE_START) {
 		from := tracker.End()
-		return nil, data.NewErrorThrow(from, errors.New("Expected method name after '->'"))
+		return nil, data.NewErrorThrow(from, errors.New("符号'->'后面需要跟随单词"))
 	}
 
 	method := vp.current().Literal
