@@ -108,9 +108,9 @@ func createSymbolFromNode(nodeValue data.GetValue) *DocumentSymbol {
 		}
 
 	case *node.ConstStatement:
-		detail := fmt.Sprintf("const %s", n.Name)
+		detail := fmt.Sprintf("const %s", n.Val.GetName())
 		return &DocumentSymbol{
-			Name:           n.Name,
+			Name:           n.Val.GetName(),
 			Detail:         &detail,
 			Kind:           SymbolKindConstant,
 			Range:          getNodeRange(n),

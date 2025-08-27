@@ -291,7 +291,7 @@ func (d *DocumentInfo) identifyVariableTypes(ctx *LspContext, stmt data.GetValue
 		// const 声明：const $a = 123
 		if n.Initializer != nil {
 			if inferredType = inferTypeFromExpression(n.Initializer); inferredType != nil {
-				ctx.SetVariableType(n.Name, inferredType)
+				ctx.SetVariableType(n.Val.GetName(), inferredType)
 			}
 		}
 	case *node.ReturnStatement:
