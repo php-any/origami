@@ -32,17 +32,27 @@ func (p *ConstParser) Parse() (data.GetValue, data.Control) {
 	name := p.current().Literal
 	p.next()
 
+	t := data.NewBaseType("")
+
 	// 解析初始化表达式（常量必须初始化）
-	if p.current().Type != token.ASSIGN {
-		return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("常量必须初始化"))
+	if !p.checkPositionIs(0, token.ASSIGN) {
+		// 下个单词不是 = 符号， 可能是 const string a = 1
+		if !p.checkPositionIs(1, token.ASSIGN) {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("常量必须初始化"))
+		}
+		t = data.NewBaseType(name)
+		name = p.current().Literal
+		p.next()
 	}
 	p.next() // 跳过等号
+
 	initializer, acl := p.parseStatement()
-	from := tracker.EndBefore()
+	// 创建变量跟踪
+	val := p.scopeManager.CurrentScope().AddVariable(name, t, tracker.EndBefore())
 
 	return node.NewConstStatement(
-		from,
-		name,
+		tracker.EndBefore(),
+		node.NewVariableWithFirst(tracker.EndBefore(), val),
 		initializer,
 	), acl
 }

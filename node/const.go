@@ -3,22 +3,28 @@ package node
 import "github.com/php-any/origami/data"
 
 func (u *ConstStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// use语句本身不返回值
-	return nil, nil
+	v, acl := u.Initializer.GetValue(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	// 跳过类型检查，直接赋值
+	ctx.SetVariableValue(u.Val, v.(data.Value))
+
+	return v, nil
 }
 
 // ConstStatement 表示常量声明语句
 type ConstStatement struct {
 	*Node       `pp:"-"`
-	Name        string
+	Val         data.Variable
 	Initializer data.GetValue
 }
 
 // NewConstStatement 创建一个新的常量声明语句
-func NewConstStatement(token *TokenFrom, name string, initializer data.GetValue) *ConstStatement {
+func NewConstStatement(token *TokenFrom, val data.Variable, initializer data.GetValue) *ConstStatement {
 	return &ConstStatement{
 		Node:        NewNode(token),
-		Name:        name,
+		Val:         val,
 		Initializer: initializer,
 	}
 }
