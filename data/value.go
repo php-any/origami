@@ -17,10 +17,18 @@ type CallableValue interface {
 	GetMethodName() string
 }
 
+type SetProperty interface {
+	SetProperty(name string, value Value)
+}
+
 type GetProperty interface {
 	GetProperty(name string) (Value, bool)
 }
 
 type GetMethod interface {
 	GetMethod(name string) (Method, bool)
+}
+
+type GetSource interface {
+	GetSource() any
 }

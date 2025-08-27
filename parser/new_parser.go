@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -22,6 +23,23 @@ func NewNewParser(parser *Parser) StatementParser {
 
 // Parse 解析 new 表达式
 func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
+	// 允许 new() 作为函数调用, 方便兼容 go 语言的库
+	if p.checkPositionIs(1, token.LPAREN) {
+		tracker := p.StartTracking()
+		name := "new"
+		p.next()
+		if full, ok := p.uses[name]; ok {
+			// 创建函数调用表达式
+			vp := &VariableParser{p.Parser}
+			stmt, acl := vp.parseFunctionCall()
+			fn, ok := p.vm.GetFunc(full)
+			if !ok {
+				return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("new关键字作为函数调用, 函数(%s)先加载后才能使用", name))
+			}
+			return node.NewCallExpression(tracker.EndBefore(), full, stmt, fn), acl
+		}
+	}
+
 	tracker := p.StartTracking()
 	// 跳过 new 关键字
 	p.next()

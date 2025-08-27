@@ -48,15 +48,11 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 				return nil, acl
 			}
 			switch object := temp.(type) {
-			case *data.ThisValue:
+			case data.SetProperty:
 				object.SetProperty(l.Property, v)
 				return v, nil
-			case *data.ClassValue:
-				object.SetProperty(l.Property, v)
-				return v, nil
-			case *data.ObjectValue:
-				object.SetProperty(l.Property, v)
-				return v, nil
+			default:
+				return nil, data.NewErrorThrow(b.GetFrom(), errors.New("object is not set property"))
 			}
 		case *IndexExpression:
 			// 索引赋值 $this->where[key] = value
@@ -97,7 +93,7 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 				}
 				arr.Value[i] = v
 				return v, nil
-			case *data.ObjectValue:
+			case data.SetProperty:
 				// 对象属性赋值
 				if iv, ok := indexVal.(data.AsString); ok {
 					arr.SetProperty(iv.AsString(), v)

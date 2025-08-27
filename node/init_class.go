@@ -35,7 +35,7 @@ func (n *InitClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, acl
 	}
 
-	if object, ok := object.(*data.ClassValue); ok {
+	if object, ok := object.(data.SetProperty); ok {
 		for k, v := range n.KV {
 			value, acl := v.GetValue(ctx)
 			if acl != nil {

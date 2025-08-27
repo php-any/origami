@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/parser"
 )
 
 // Context 表示运行时上下文
@@ -81,4 +82,10 @@ func makeSliceVariable(i int) []data.Value {
 		l[i] = data.NewNullValue()
 	}
 	return l
+}
+
+// NewContextToDo 不实现具体功能的上下文
+func NewContextToDo() data.Context {
+	vm := NewVM(&parser.Parser{})
+	return vm.CreateContext([]data.Variable{})
 }
