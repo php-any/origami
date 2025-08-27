@@ -3,6 +3,7 @@ package os
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"runtime"
 )
 
 func NewOSClass() data.ClassStmt {
@@ -43,6 +44,9 @@ func (s *OSClass) GetProperty(name string) (data.Property, bool) {
 	switch name {
 	case "EOL":
 		return s.eol, true
+	case "GOOS":
+		return node.NewProperty(nil, "GOOS", "public", true, data.NewStringValue(runtime.GOOS)), true
+
 	}
 	return nil, false
 }
