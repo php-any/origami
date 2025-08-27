@@ -1,0 +1,10 @@
+namespace tests\func;
+
+$exist1 = function_exists("sleep")
+$exist2 = function_exists("function_exists_19700101010101");
+
+if ($exist1 && !$exist2) {
+    Log::info("function_exists() 执行正常");
+} else {
+    Log::fatal("function_exists() 执行异常");
+}

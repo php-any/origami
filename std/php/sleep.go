@@ -1,10 +1,11 @@
 package php
 
 import (
-	"github.com/php-any/origami/node"
 	"time"
+
+	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 )
-import "github.com/php-any/origami/data"
 
 func NewSleepFunction() data.FuncStmt {
 	return &SleepFunction{}

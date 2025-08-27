@@ -95,7 +95,10 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 				stmt, acl := vp.parseFunctionCall()
 				return node.NewCallExpression(tracker.EndBefore(), name, stmt, nil), acl
 			} else {
-				namespace := p.namespace.Name
+				namespace := ""
+				if p.namespace != nil {
+					namespace = p.namespace.Name
+				}
 				stmt, acl := vp.parseFunctionCall()
 				return node.NewCallTodo(node.NewCallExpression(tracker.EndBefore(), name, stmt, nil), namespace), acl
 			}
