@@ -75,6 +75,11 @@ func cannotAddSemicolonAfter(t Token) bool {
 		return true
 	case token.RPAREN: // 右圆括号前不用补充
 		return true
+	case token.ARRAY_KEY_VALUE:
+		return true
+	case token.OBJECT_OPERATOR:
+		return true
+
 	default:
 		return false // 其他情况需要补充分号
 	}
