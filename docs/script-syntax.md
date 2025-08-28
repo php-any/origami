@@ -328,7 +328,7 @@ echo arr[0], "\n" // 输出 a
 
 // 参数后置调用
 function foo(array $param) {
-    return $param->join('-')
+    return $param
 }
-echo foo ["a", "b", "c"], "\n" // 输出 a-b-c
+echo foo [0], "\n" // 输出 [0]
 ```
