@@ -18,17 +18,17 @@ type BoolValue struct {
 	Value bool
 }
 
-func (s BoolValue) GetValue(ctx Context) (GetValue, Control) {
+func (s *BoolValue) GetValue(ctx Context) (GetValue, Control) {
 	return s, nil
 }
 
-func (s BoolValue) AsString() string {
+func (s *BoolValue) AsString() string {
 	if s.Value {
 		return fmt.Sprint("true")
 	}
 	return fmt.Sprint("false")
 }
 
-func (s BoolValue) AsBool() (bool, error) {
+func (s *BoolValue) AsBool() (bool, error) {
 	return s.Value, nil
 }

@@ -13,6 +13,7 @@ func Load(vm data.VM) {
 		NewMicrotimeFunction(),
 		NewNumberFormatFunction(),
 		NewFunctionExistsFunction(),
+		NewGettypeFunction(),
 	} {
 		vm.AddFunc(fun)
 	}
