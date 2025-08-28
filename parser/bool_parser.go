@@ -27,7 +27,7 @@ func (p *BoolParser) Parse() (data.GetValue, data.Control) {
 	p.next()
 
 	// 检查下一个token是否是变量
-	if p.checkPositionIs(0, token.VARIABLE, token.IDENTIFIER) {
+	if !p.checkPositionIs(0, token.VARIABLE, token.IDENTIFIER) {
 		from := tracker.End()
 		return nil, data.NewErrorThrow(from, data.NewError(from, "bool类型声明需要变量名", nil))
 	}
