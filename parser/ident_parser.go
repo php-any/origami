@@ -50,7 +50,7 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 		}
 
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("未定义的函数:"+name))
-	} else if p.checkPositionIs(0, token.LBRACKET) {
+	} else if p.checkPositionIs(0, token.LBRACKET) && !p.isTokensAdjacent(startToken, p.current()) {
 		if full, ok := p.findFullFunNameByNamespace(name); ok {
 			fn, ok := p.vm.GetFunc(full)
 			if !ok {
