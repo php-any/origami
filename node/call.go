@@ -52,7 +52,13 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 					if acl != nil {
 						return nil, acl
 					}
-					acl = argObj.SetValue(fnCtx, tempV.(data.Value))
+
+					if val, ok := tempV.(data.Value); ok {
+						acl = argObj.SetValue(fnCtx, val)
+					} else {
+						acl = argObj.SetValue(fnCtx, data.NewNullValue())
+					}
+
 					if acl != nil {
 						return nil, acl
 					}
