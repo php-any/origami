@@ -46,7 +46,7 @@ func (u *ForStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 				}
 				// continue 跳到增量
 				if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
-					continue
+					break
 				}
 
 				// return/throw 直接返回
