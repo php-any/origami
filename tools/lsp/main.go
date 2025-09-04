@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -89,7 +90,7 @@ var (
 	address   = flag.String("address", "localhost", "Address to bind to (for tcp/websocket)")
 	port      = flag.Int("port", 8800, "Port to bind to (for tcp/websocket)")
 	logLevel  = flag.Int("log-level", 1, "Log level (0=off, 1=error, 2=warn, 3=info, 4=debug)")
-	logFile   = flag.String("log-file", "", "Log file path (empty for stderr)")
+	logFile   = flag.String("log-file", "lsp.log", "Log file path (default lsp.log; empty for stderr)")
 
 	// 全局日志器
 	logger *Logger
@@ -473,16 +474,54 @@ func main() {
 
 	// 初始化全局日志器
 	var output io.Writer
-	if *logFile != "" {
-		if file, err := os.OpenFile(*logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666); err == nil {
-			output = file
-		} else {
-			output = os.Stderr
+	var closer io.Closer
+
+	openLog := func(path string) (io.Writer, io.Closer, bool) {
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err != nil {
+			return nil, nil, false
 		}
-	} else {
+		return file, file, true
+	}
+
+	// 1) 未指定 log-file 时，默认写入 ~/.origami/origami-lsp.log
+	if *logFile == "" {
+		if home, err := os.UserHomeDir(); err == nil {
+			dir := filepath.Join(home, ".origami")
+			_ = os.MkdirAll(dir, 0755)
+			if w, c, ok := openLog(filepath.Join(dir, "origami-lsp.log")); ok {
+				output, closer = w, c
+			}
+		}
+	}
+
+	// 2) 若仍未成功，尝试使用传入路径或默认的工作目录 lsp.log
+	if output == nil {
+		path := *logFile
+		if path == "" {
+			path = "lsp.log"
+		}
+		if w, c, ok := openLog(path); ok {
+			output, closer = w, c
+		}
+	}
+
+	// 3) 仍未成功，则写入系统临时目录
+	if output == nil {
+		if w, c, ok := openLog(filepath.Join(os.TempDir(), "origami-lsp.log")); ok {
+			output, closer = w, c
+		}
+	}
+
+	// 4) 全部失败则回退到 stderr
+	if output == nil {
 		output = os.Stderr
 	}
+
 	logger = NewLogger(*logLevel, output)
+	if closer != nil {
+		defer closer.Close()
+	}
 
 	if *version {
 		logger.Info("%s v%s", lsName, lsVersion)

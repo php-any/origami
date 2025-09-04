@@ -1,3 +1,5 @@
+use std;
+
 function hello() {
     echo "Hello, World!";
 }
@@ -11,14 +13,14 @@ class TestClass {
         echo "Method 1";
     }
     
-    function method2() {
-        echo "Method 2";
+    function method2() string {
+        return "123";
     }
 }
 
 // 调用函数
 hello();
-greet("Alice");
+greet("Alice")
 
 // 创建类实例
 test = new TestClass();
