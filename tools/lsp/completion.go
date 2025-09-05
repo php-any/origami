@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/sirupsen/logrus"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -20,7 +21,7 @@ func handleTextDocumentCompletion(req *jsonrpc2.Request) (interface{}, error) {
 	uri := params.TextDocument.URI
 	position := params.Position
 
-	logger.Info("请求代码补全：%s 位置 %d:%d", uri, position.Line, position.Character)
+	logrus.Infof("请求代码补全：%s 位置 %d:%d", uri, position.Line, position.Character)
 
 	doc, exists := documents[uri]
 	if !exists {
@@ -66,7 +67,7 @@ func getCompletionItems(content string, position Position) []CompletionItem {
 		items = append(items, getSnippetCompletions()...)
 	case "object_method":
 		items = append(items, getObjectMethodCompletions()...)
-		logger.Info("对象方法补全：%#v", items)
+		logrus.Infof("对象方法补全：%#v", items)
 	default:
 		// 默认提供所有补全项，但避免重复
 		items = append(items, getSnippetCompletions()...)

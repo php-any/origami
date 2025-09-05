@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/sirupsen/logrus"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -19,7 +20,7 @@ func handleTextDocumentHover(req *jsonrpc2.Request) (interface{}, error) {
 	uri := params.TextDocument.URI
 	position := params.Position
 
-	logger.Info("请求悬停提示：%s 位置 %d:%d", uri, position.Line, position.Character)
+	logrus.Infof("请求悬停提示：%s 位置 %d:%d", uri, position.Line, position.Character)
 
 	doc, exists := documents[uri]
 	if !exists {

@@ -11,6 +11,7 @@ import (
 	"github.com/php-any/origami/std/system"
 
 	"github.com/php-any/origami/data"
+	"github.com/sirupsen/logrus"
 )
 
 // LspVM 是专门为 LSP 服务器设计的虚拟机实现
@@ -40,7 +41,7 @@ func NewLspVM() *LspVM {
 
 		throwControl: func(acl data.Control) {
 			if acl != nil {
-				logger.Error("LspVM 错误：%v", acl.AsString())
+				logrus.Errorf("LspVM 错误：%v", acl.AsString())
 
 				// 将解析错误转换为诊断信息并发送通知
 				if globalConn != nil {
@@ -231,7 +232,7 @@ func sendParseErrorDiagnostic(acl data.Control) {
 	}
 
 	globalConn.Notify(context.Background(), "textDocument/publishDiagnostics", params)
-	logger.Info("已发送解析错误诊断：%#v", params)
+	logrus.Infof("已发送解析错误诊断：%#v", params)
 }
 
 func (vm *LspVM) SetClassPathCache(name string, path string) {

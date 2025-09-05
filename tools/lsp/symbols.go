@@ -6,6 +6,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/sirupsen/logrus"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -18,24 +19,24 @@ func handleTextDocumentDocumentSymbol(req *jsonrpc2.Request) (interface{}, error
 		return nil, fmt.Errorf("failed to unmarshal documentSymbol params: %v", err)
 	}
 
-	logger.Info("处理文档符号请求：%s", params.TextDocument.URI)
+	logrus.Infof("处理文档符号请求：%s", params.TextDocument.URI)
 
 	doc, exists := documents[params.TextDocument.URI]
 	if !exists {
-		logger.Warn("文档不存在：%s", params.TextDocument.URI)
+		logrus.Warnf("文档不存在：%s", params.TextDocument.URI)
 		return []DocumentSymbol{}, nil
 	}
 
 	symbols := getDocumentSymbolsFromAST(doc)
 
-	logger.Info("textDocument/documentSymbol response %#v", symbols)
+	logrus.Infof("textDocument/documentSymbol response %#v", symbols)
 	return symbols, nil
 }
 
 // getDocumentSymbolsFromAST 从 AST 中提取文档符号
 func getDocumentSymbolsFromAST(doc *DocumentInfo) []DocumentSymbol {
 	if doc.AST == nil {
-		logger.Warn("文档 AST 为空")
+		logrus.Warn("文档 AST 为空")
 		return []DocumentSymbol{}
 	}
 

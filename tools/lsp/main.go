@@ -6,11 +6,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 
+	"github.com/sirupsen/logrus"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -19,67 +21,33 @@ const (
 	lsVersion = "1.0.0"
 )
 
-// 日志级别常量
-const (
-	LogLevelOff   = 0
-	LogLevelError = 1
-	LogLevelWarn  = 2
-	LogLevelInfo  = 3
-	LogLevelDebug = 4
-)
-
-// Logger 统一的日志接口
-type Logger struct {
-	level int
-	debug *log.Logger
-	info  *log.Logger
-	warn  *log.Logger
-	error *log.Logger
-}
-
-// NewLogger 创建新的日志器
-func NewLogger(level int, output io.Writer) *Logger {
+// 初始化日志配置
+func initLogger(level int, output io.Writer) {
+	// 设置输出
 	if output == nil {
 		output = os.Stderr
 	}
+	logrus.SetOutput(output)
 
-	flags := log.LstdFlags | log.Lshortfile
+	// 设置日志格式为文本格式，包含调用位置
+	logrus.SetFormatter(&logrus.TextFormatter{
+		TimestampFormat: "2006-01-02 15:04:05",
+		FullTimestamp:   true,
+		CallerPrettyfier: func(f *runtime.Frame) (string, string) {
+			// 获取文件名和行号
+			filename := f.File
+			if idx := strings.LastIndex(filename, "/"); idx != -1 {
+				filename = filename[idx+1:]
+			}
+			return "", fmt.Sprintf("%s:%d", filename, f.Line)
+		},
+	})
 
-	return &Logger{
-		level: level,
-		debug: log.New(output, "[DEBUG] ", flags),
-		info:  log.New(output, "[INFO] ", flags),
-		warn:  log.New(output, "[WARN] ", flags),
-		error: log.New(output, "[ERROR] ", flags),
-	}
-}
+	// 启用调用位置信息
+	logrus.SetReportCaller(true)
 
-// Debug 输出调试日志
-func (l *Logger) Debug(format string, v ...interface{}) {
-	if l.level >= LogLevelDebug {
-		l.debug.Printf(format, v...)
-	}
-}
-
-// Info 输出信息日志
-func (l *Logger) Info(format string, v ...interface{}) {
-	if l.level >= LogLevelInfo {
-		l.info.Printf(format, v...)
-	}
-}
-
-// Warn 输出警告日志
-func (l *Logger) Warn(format string, v ...interface{}) {
-	if l.level >= LogLevelWarn {
-		l.warn.Printf(format, v...)
-	}
-}
-
-// Error 输出错误日志
-func (l *Logger) Error(format string, v ...interface{}) {
-	if l.level >= LogLevelError {
-		l.error.Printf(format, v...)
-	}
+	// 设置日志级别 - 直接强转
+	logrus.SetLevel(logrus.Level(level))
 }
 
 var (
@@ -89,11 +57,8 @@ var (
 	protocol_ = flag.String("protocol", "stdio", "Protocol to use (stdio, tcp, websocket)")
 	address   = flag.String("address", "localhost", "Address to bind to (for tcp/websocket)")
 	port      = flag.Int("port", 8800, "Port to bind to (for tcp/websocket)")
-	logLevel  = flag.Int("log-level", 1, "Log level (0=off, 1=error, 2=warn, 3=info, 4=debug)")
-	logFile   = flag.String("log-file", "lsp.log", "Log file path (default lsp.log; empty for stderr)")
-
-	// 全局日志器
-	logger *Logger
+	logLevel  = flag.Int("log-level", 1, "Log level (0=panic, 1=fatal, 2=error, 3=warn, 4=info, 5=debug)")
+	logFile   = flag.String("log-file", "lsp.log", "Log file path (default lsp.log; empty not allowed)")
 
 	// 全局 LSP 连接，用于发送通知
 	globalConn *jsonrpc2.Conn
@@ -474,57 +439,41 @@ func main() {
 
 	// 初始化全局日志器
 	var output io.Writer
-	var closer io.Closer
+	var effectiveLevel int = *logLevel
 
-	openLog := func(path string) (io.Writer, io.Closer, bool) {
-		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-		if err != nil {
-			return nil, nil, false
-		}
-		return file, file, true
-	}
-
-	// 1) 未指定 log-file 时，默认写入 ~/.origami/origami-lsp.log
+	// 强制 log-file 非空，空则重置为默认文件名
 	if *logFile == "" {
-		if home, err := os.UserHomeDir(); err == nil {
-			dir := filepath.Join(home, ".origami")
-			_ = os.MkdirAll(dir, 0755)
-			if w, c, ok := openLog(filepath.Join(dir, "origami-lsp.log")); ok {
-				output, closer = w, c
-			}
-		}
+		*logFile = "lsp.log"
 	}
 
-	// 2) 若仍未成功，尝试使用传入路径或默认的工作目录 lsp.log
-	if output == nil {
-		path := *logFile
-		if path == "" {
-			path = "lsp.log"
-		}
-		if w, c, ok := openLog(path); ok {
-			output, closer = w, c
-		}
+	// 转为绝对路径，方便定位
+	if abs, err := filepath.Abs(*logFile); err == nil {
+		*logFile = abs
 	}
 
-	// 3) 仍未成功，则写入系统临时目录
-	if output == nil {
-		if w, c, ok := openLog(filepath.Join(os.TempDir(), "origami-lsp.log")); ok {
-			output, closer = w, c
-		}
+	// 仅尝试写入指定的日志文件；失败则直接退出
+	// 若包含目录，先确保父级目录存在
+	if dir := filepath.Dir(*logFile); dir != "." && dir != "" {
+		_ = os.MkdirAll(dir, 0755)
+	}
+	file, err := os.OpenFile(*logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		// 无法写入日志文件时，提示并禁用日志
+		fmt.Fprintf(os.Stderr, "无法写入日志文件，将禁用日志：%s，原因：%v\n", *logFile, err)
+		output = io.Discard
+		effectiveLevel = int(logrus.PanicLevel)
+	} else {
+		defer file.Close()
+		output = file
 	}
 
-	// 4) 全部失败则回退到 stderr
-	if output == nil {
-		output = os.Stderr
-	}
-
-	logger = NewLogger(*logLevel, output)
-	if closer != nil {
-		defer closer.Close()
+	initLogger(effectiveLevel, output)
+	if effectiveLevel != int(logrus.PanicLevel) {
+		logrus.Infof("日志文件: %s", *logFile)
 	}
 
 	if *version {
-		logger.Info("%s v%s", lsName, lsVersion)
+		fmt.Printf("%s v%s\n", lsName, lsVersion)
 		return
 	}
 
@@ -533,12 +482,12 @@ func main() {
 		return
 	}
 
-	logger.Info("日志级别: %d", *logLevel)
+	logrus.Infof("日志级别: %d", *logLevel)
 
 	if *test {
-		logger.Info("=== 运行定义跳转测试 ===")
+		logrus.Infof("=== 运行定义跳转测试 ===")
 		testDefinitionJumpFeature()
-		logger.Info("=== 测试完成 ===")
+		logrus.Infof("=== 测试完成 ===")
 		return
 	}
 
@@ -554,33 +503,33 @@ func main() {
 	var conn *jsonrpc2.Conn
 	switch *protocol_ {
 	case "stdio":
-		logger.Info("使用 stdio 协议启动 LSP 服务器")
+		logrus.Infof("使用 stdio 协议启动 LSP 服务器")
 		stream := jsonrpc2.NewBufferedStream(stdrwc{}, jsonrpc2.VSCodeObjectCodec{})
 		conn = jsonrpc2.NewConn(context.Background(), stream, handler)
 		<-conn.DisconnectNotify()
 	case "tcp":
 		addr := fmt.Sprintf("%s:%d", *address, *port)
-		logger.Info("使用 TCP 协议在 %s 启动 LSP 服务器", addr)
+		logrus.Infof("使用 TCP 协议在 %s 启动 LSP 服务器", addr)
 
 		// 创建 TCP 监听器
 		listener, err := net.Listen("tcp", addr)
 		if err != nil {
-			logger.Error("启动 TCP 服务器失败：%v", err)
+			logrus.Errorf("启动 TCP 服务器失败：%v", err)
 			os.Exit(1)
 		}
 		defer listener.Close()
 
-		logger.Info("TCP 服务器正在监听 %s", addr)
+		logrus.Infof("TCP 服务器正在监听 %s", addr)
 
 		// 接受连接
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
-				logger.Warn("接受连接失败：%v", err)
+				logrus.Warnf("接受连接失败：%v", err)
 				continue
 			}
 
-			logger.Info("来自 %s 的新 TCP 连接", conn.RemoteAddr())
+			logrus.Infof("来自 %s 的新 TCP 连接", conn.RemoteAddr())
 
 			// 为每个连接创建一个新的 JSON-RPC 连接
 			stream := jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{})
@@ -589,17 +538,17 @@ func main() {
 			// 在 goroutine 中处理连接
 			go func(conn net.Conn, rpcConn *jsonrpc2.Conn) {
 				<-rpcConn.DisconnectNotify()
-				logger.Info("TCP 连接已关闭：%s", conn.RemoteAddr())
+				logrus.Infof("TCP 连接已关闭：%s", conn.RemoteAddr())
 				conn.Close()
 			}(conn, rpcConn)
 		}
 	case "websocket":
 		addr := fmt.Sprintf("%s:%d", *address, *port)
-		logger.Info("使用 WebSocket 协议在 %s 启动 LSP 服务器", addr)
-		logger.Error("不支持 WebSocket 协议")
+		logrus.Infof("使用 WebSocket 协议在 %s 启动 LSP 服务器", addr)
+		logrus.Error("不支持 WebSocket 协议")
 		os.Exit(1)
 	default:
-		logger.Error("不支持的协议：%s", *protocol_)
+		logrus.Errorf("不支持的协议：%s", *protocol_)
 		os.Exit(1)
 	}
 }
@@ -628,8 +577,8 @@ func handleRequest(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Reque
 	globalConn = conn
 
 	// 打印完整的 JSON 参数
-	paramsJSON, _ := json.MarshalIndent(req.Params, "", "  ")
-	logger.Debug("LSP 请求：%s\n参数：%s", req.Method, string(paramsJSON))
+	paramsJSON, _ := json.Marshal(req.Params)
+	logrus.Debugf("LSP 请求：%s\n参数：%s", req.Method, string(paramsJSON))
 
 	switch req.Method {
 	case "initialize":
@@ -655,7 +604,7 @@ func handleRequest(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Reque
 	case "$/setTrace":
 		return handleSetTrace(req)
 	default:
-		logger.Warn("未知方法：%s", req.Method)
+		logrus.Warnf("未知方法：%s", req.Method)
 		return nil, nil
 	}
 }
@@ -666,47 +615,55 @@ func logLSPCommunication(method string, isRequest bool, params interface{}) {
 	if isRequest {
 		msgType = "请求"
 	}
-	logger.Info("LSP %s：%s", msgType, method)
+	logrus.Infof("LSP %s：%s", msgType, method)
 	if params != nil {
-		paramsJSON, _ := json.MarshalIndent(params, "", "  ")
-		logger.Debug("参数：%s", string(paramsJSON))
+		paramsJSON, _ := json.Marshal(params)
+		logrus.Debugf("参数：%s", string(paramsJSON))
 	}
 }
 
 func logLSPResponse(method string, result interface{}, err error) {
 	if err != nil {
-		logger.Error("LSP %s 失败：%v", method, err)
+		logrus.Errorf("LSP %s 失败：%v", method, err)
 	} else {
-		logger.Info("LSP %s 完成", method)
+		logrus.Infof("LSP %s 完成", method)
 		if result != nil {
-			resultJSON, _ := json.MarshalIndent(result, "", "  ")
-			logger.Debug("结果：%s", string(resultJSON))
+			resultJSON, _ := json.Marshal(result)
+			logrus.Debugf("结果：%s", string(resultJSON))
 		}
 	}
 }
 
 func showHelp() {
-	logger.Info("%s v%s\n", lsName, lsVersion)
-	logger.Info("Origami 语言的语言服务器协议实现。")
-	logger.Info("")
-	logger.Info("用法：")
-	logger.Info("  %s [选项]\n", os.Args[0])
-	logger.Info("选项：")
-	flag.PrintDefaults()
-	logger.Info("")
-	logger.Info("示例：")
-	logger.Info("  # 使用 stdio 启动（默认）")
-	logger.Info("  %s", os.Args[0])
-	logger.Info("")
-	logger.Info("  # 使用 TCP 在端口 8080 启动")
-	logger.Info("  %s -protocol tcp -port 8080", os.Args[0])
-	logger.Info("")
-	logger.Info("  # 使用 WebSocket 和自定义日志启动")
-	logger.Info("  %s -protocol websocket -port 9000 -log-level 4 -log-file lsp.log", os.Args[0])
+	fmt.Printf("%s v%s\n", lsName, lsVersion)
+	fmt.Printf("Origami 语言的语言服务器协议实现。\n")
+	fmt.Printf("\n")
+	fmt.Printf("用法：\n")
+	fmt.Printf("  %s [选项]\n", os.Args[0])
+	fmt.Printf("\n")
+	fmt.Printf("选项：\n")
+	fmt.Printf("  -version        显示版本信息\n")
+	fmt.Printf("  -help           显示帮助信息\n")
+	fmt.Printf("  -test           运行定义跳转测试\n")
+	fmt.Printf("  -protocol       协议类型 (stdio, tcp, websocket) [默认: stdio]\n")
+	fmt.Printf("  -address        绑定地址 (tcp/websocket) [默认: localhost]\n")
+	fmt.Printf("  -port           绑定端口 (tcp/websocket) [默认: 8800]\n")
+	fmt.Printf("  -log-level      日志级别 (0=panic, 1=fatal, 2=error, 3=warn, 4=info, 5=debug) [默认: 1]\n")
+	fmt.Printf("  -log-file       日志文件路径 [默认: lsp.log]\n")
+	fmt.Printf("\n")
+	fmt.Printf("示例：\n")
+	fmt.Printf("  # 使用 stdio 启动（默认）\n")
+	fmt.Printf("  %s\n", os.Args[0])
+	fmt.Printf("\n")
+	fmt.Printf("  # 使用 TCP 在端口 8080 启动\n")
+	fmt.Printf("  %s -protocol tcp -port 8080\n", os.Args[0])
+	fmt.Printf("\n")
+	fmt.Printf("  # 使用 WebSocket 和自定义日志启动\n")
+	fmt.Printf("  %s -protocol websocket -port 9000 -log-level 4 -log-file lsp.log\n", os.Args[0])
 }
 
 func testDefinitionJumpFeature() {
 	// 测试定义跳转功能
-	logger.Info("测试定义跳转功能...")
+	logrus.Infof("测试定义跳转功能...")
 	// 这里可以添加具体的测试逻辑
 }

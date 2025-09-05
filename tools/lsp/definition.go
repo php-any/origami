@@ -7,6 +7,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/sirupsen/logrus"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -20,7 +21,7 @@ func handleTextDocumentDefinition(req *jsonrpc2.Request) (interface{}, error) {
 	uri := params.TextDocument.URI
 	position := params.Position
 
-	logger.Info("请求定义跳转：%s 位置 %d:%d; req: %v", uri, position.Line, position.Character, params)
+	logrus.Infof("请求定义跳转：%s 位置 %d:%d; req: %v", uri, position.Line, position.Character, params)
 
 	doc, exists := documents[uri]
 	if !exists {
@@ -44,7 +45,7 @@ func findDefinitionInAST(doc *DocumentInfo, position Position) *Location {
 		return nil
 	}
 
-	logger.Debug("开始查找定义，位置：(%d, %d)", position.Line, position.Character)
+	logrus.Debugf("开始查找定义，位置：(%d, %d)", position.Line, position.Character)
 
 	// 使用 DocumentInfo.Foreach 查找光标位置的节点和对应的上下文
 	var targetNode data.GetValue
@@ -52,12 +53,12 @@ func findDefinitionInAST(doc *DocumentInfo, position Position) *Location {
 	doc.Foreach(func(ctx *LspContext, parent, child data.GetValue) bool {
 		// 检查当前节点是否包含光标位置
 		if isPositionInRange(child, position) {
-			logger.Debug("找到包含位置的节点：%T，父节点：%T", child, parent)
+			logrus.Debugf("找到包含位置的节点：%T，父节点：%T", child, parent)
 			// 如果找到包含位置的节点，选择最小的（最精确的）
 			if pickSmallerNode(targetNode, child) == child {
 				targetNode = child
 				targetCtx = ctx // 保存目标节点对应的上下文
-				logger.Debug("更新目标节点：%T", targetNode)
+				logrus.Debugf("更新目标节点：%T", targetNode)
 			}
 			return true // 继续遍历，寻找更精确的节点
 		}
@@ -71,7 +72,7 @@ func findDefinitionInAST(doc *DocumentInfo, position Position) *Location {
 
 				// 如果当前节点的结束行已经超过了目标行，停止遍历
 				if endLine > targetLine {
-					logger.Debug("节点结束行 %d 超过目标行 %d，停止遍历", endLine, targetLine)
+					logrus.Debugf("节点结束行 %d 超过目标行 %d，停止遍历", endLine, targetLine)
 					return false
 				}
 			}
@@ -81,11 +82,11 @@ func findDefinitionInAST(doc *DocumentInfo, position Position) *Location {
 	})
 
 	if targetNode == nil {
-		logger.Debug("未找到包含位置的节点")
+		logrus.Debug("未找到包含位置的节点")
 		return nil
 	}
 
-	logger.Debug("最终目标节点：%T", targetNode)
+	logrus.Debugf("最终目标节点：%T", targetNode)
 
 	// 根据节点类型查找定义，使用目标节点的上下文
 	return findDefinitionFromNode(targetCtx, targetNode)
@@ -100,7 +101,7 @@ func findDefinitionFromNode(ctx *LspContext, v data.GetValue) *Location {
 	switch n := v.(type) {
 	case *node.CallExpression:
 		// 函数调用，查找函数定义
-		logger.Debug("CallExpression FunName: %s", n.FunName)
+		logrus.Debugf("CallExpression FunName: %s", n.FunName)
 		return findFunctionDefinition(ctx, n.FunName)
 	case *node.NewExpression:
 		// new 表达式，从类名查找类定义
@@ -114,12 +115,12 @@ func findDefinitionFromNode(ctx *LspContext, v data.GetValue) *Location {
 		return nil
 	case *node.CallObjectMethod:
 		// 对象方法调用，查找方法定义
-		logger.Debug("CallObjectMethod: object=%T, method=%s", n.Object, n.Method)
+		logrus.Debugf("CallObjectMethod: object=%T, method=%s", n.Object, n.Method)
 
 		// 检查是否是链式调用（对象是另一个方法调用的结果）
 		if chainCall, ok := n.Object.(*node.CallObjectMethod); ok {
 			// 这是一个链式调用，需要递归解析
-			logger.Debug("检测到链式调用，递归解析")
+			logrus.Debug("检测到链式调用，递归解析")
 			return findChainedMethodDefinition(ctx, chainCall, n.Method)
 		}
 
@@ -136,25 +137,25 @@ func findDefinitionFromNode(ctx *LspContext, v data.GetValue) *Location {
 
 // pickSmallerNode 返回最合适的节点；优先选择包含光标位置的节点
 func pickSmallerNode(a, b data.GetValue) data.GetValue {
-	logger.Debug("pickSmallerNode：a=%T，b=%T", a, b)
+	logrus.Debugf("pickSmallerNode：a=%T，b=%T", a, b)
 
 	if b == nil {
-		logger.Debug("pickSmallerNode：b 为空，返回 a")
+		logrus.Debug("pickSmallerNode：b 为空，返回 a")
 		return a
 	}
 	if a == nil {
-		logger.Debug("pickSmallerNode：a 为空，返回 b")
+		logrus.Debug("pickSmallerNode：a 为空，返回 b")
 		return b
 	}
 
 	af := getFromOf(a)
 	bf := getFromOf(b)
 	if af == nil {
-		logger.Debug("pickSmallerNode：af 为空，返回 b")
+		logrus.Debug("pickSmallerNode：af 为空，返回 b")
 		return b
 	}
 	if bf == nil {
-		logger.Debug("pickSmallerNode：bf 为空，返回 a")
+		logrus.Debug("pickSmallerNode：bf 为空，返回 a")
 		return a
 	}
 
@@ -162,32 +163,32 @@ func pickSmallerNode(a, b data.GetValue) data.GetValue {
 	slA, scA, elA, ecA := af.GetRange()
 	slB, scB, elB, ecB := bf.GetRange()
 
-	logger.Debug("pickSmallerNode：a 范围=(%d,%d,%d,%d)，b 范围=(%d,%d,%d,%d)",
+	logrus.Debugf("pickSmallerNode：a 范围=(%d,%d,%d,%d)，b 范围=(%d,%d,%d,%d)",
 		slA, scA, elA, ecA, slB, scB, elB, ecB)
 
 	// 计算两个节点的范围大小（字符数）
 	rangeA := (elA-slA+1)*1000 + (ecA - scA + 1)
 	rangeB := (elB-slB+1)*1000 + (ecB - scB + 1)
 
-	logger.Debug("pickSmallerNode：rangeA=%d，rangeB=%d", rangeA, rangeB)
+	logrus.Debugf("pickSmallerNode：rangeA=%d，rangeB=%d", rangeA, rangeB)
 
 	// 优先选择范围更小的节点（更精确），但前提是它们都包含光标位置
 	// 如果范围差异不大，选择范围更小的；如果差异很大，选择更合适的
 	if rangeB < rangeA && (rangeA-rangeB) < 100 {
-		logger.Debug("pickSmallerNode：rangeB < rangeA 且差异较小，返回 b")
+		logrus.Debug("pickSmallerNode：rangeB < rangeA 且差异较小，返回 b")
 		return b
 	}
 	if rangeA < rangeB && (rangeB-rangeA) < 100 {
-		logger.Debug("pickSmallerNode：rangeA < rangeB 且差异较小，返回 a")
+		logrus.Debug("pickSmallerNode：rangeA < rangeB 且差异较小，返回 a")
 		return a
 	}
 
 	// 如果范围差异很大，选择范围更小的（更精确）
 	if rangeB < rangeA {
-		logger.Debug("pickSmallerNode：rangeB 明显更小，返回 b")
+		logrus.Debug("pickSmallerNode：rangeB 明显更小，返回 b")
 		return b
 	}
-	logger.Debug("pickSmallerNode：rangeA <= rangeB，返回 a")
+	logrus.Debug("pickSmallerNode：rangeA <= rangeB，返回 a")
 	return a
 }
 
@@ -243,7 +244,7 @@ func isPositionInRange(stmt node.Statement, position Position) bool {
 	lspLine := int(position.Line)
 
 	// 添加调试信息
-	logger.Debug("isPositionInRange：节点=%T，定位位置=(%d,%d)，正在查范围=(%d,%d,%d,%d)",
+	logrus.Debugf("isPositionInRange：节点=%T，定位位置=(%d,%d)，正在查范围=(%d,%d,%d,%d)",
 		stmt, lspLine, position.Character, startLine, startChar, endLine, endChar)
 
 	// 检查行号是否在范围内
@@ -256,12 +257,12 @@ func isPositionInRange(stmt node.Statement, position Position) bool {
 		if lspLine == endLine {
 			// 单行节点：字符位置必须在起始和结束字符之间
 			result := int(position.Character) >= startChar && int(position.Character) <= endChar
-			logger.Debug("isPositionInRange：单行节点，字符在范围内：%v", result)
+			logrus.Debugf("isPositionInRange：单行节点，字符在范围内：%v", result)
 			return result
 		} else {
 			// 多行节点的起始行：字符位置必须在起始字符之后
 			result := int(position.Character) >= startChar
-			logger.Debug("isPositionInRange：多行起始，字符 >= 起始：%v", result)
+			logrus.Debugf("isPositionInRange：多行起始，字符 >= 起始：%v", result)
 			return result
 		}
 	}
@@ -269,7 +270,7 @@ func isPositionInRange(stmt node.Statement, position Position) bool {
 	// 如果在结束行，检查字符位置是否在结束字符之前
 	if lspLine == endLine {
 		result := int(position.Character) <= endChar
-		logger.Debug("isPositionInRange：结束行，字符 <= 结束：%v", result)
+		logrus.Debugf("isPositionInRange：结束行，字符 <= 结束：%v", result)
 		return true // 简化：只要在结束行就认为在范围内
 	}
 
@@ -521,7 +522,7 @@ func isPositionInLineRange(stmt node.Statement, position Position) bool {
 
 	// 简化：只要在行范围内就认为命中
 	result := lspLine >= startLine && lspLine <= endLine
-	logger.Debug("isPositionInLineRange：节点=%T，位置行=%d，范围行=[%d,%d]，结果=%v", stmt, lspLine, startLine, endLine, result)
+	logrus.Debugf("isPositionInLineRange：节点=%T，位置行=%d，范围行=[%d,%d]，结果=%v", stmt, lspLine, startLine, endLine, result)
 	return result
 }
 
@@ -531,13 +532,13 @@ func findFunctionDefinition(ctx *LspContext, funcName string) *Location {
 		return nil
 	}
 
-	logger.Debug("查找函数定义：%s", funcName)
+	logrus.Debugf("查找函数定义：%s", funcName)
 	if function, exists := globalLspVM.GetFunc(funcName); exists {
-		logger.Debug("找到函数：%T，位置：%v", function, function)
+		logrus.Debugf("找到函数：%#v，位置：%#v", function, function)
 		return createLocationFromFunction(function)
 	}
 
-	logger.Debug("未找到函数：%s", funcName)
+	logrus.Debugf("未找到函数：%s", funcName)
 	return nil
 }
 
@@ -583,9 +584,9 @@ func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodNam
 		if ctx != nil {
 			varType := ctx.GetVariableType(varExpr.Name)
 			if varType != nil {
-				logger.Debug("从上下文找到变量类型：%s -> %v", varExpr.Name, varType)
+				logrus.Debugf("从上下文找到变量类型：%s -> %v", varExpr.Name, varType)
 				if className := getClassNameFromType(varType); className != "" {
-					logger.Debug("提取类名：%s", className)
+					logrus.Debugf("提取类名：%s", className)
 					// 根据类名查找类定义
 					if class, exists := globalLspVM.GetClass(className); exists {
 						if methodLocation := findMethodInClass(class, methodName); methodLocation != nil {
@@ -594,7 +595,7 @@ func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodNam
 					}
 				}
 			} else {
-				logger.Debug("在上下文中未找到变量类型：%s", varExpr.Name)
+				logrus.Debugf("在上下文中未找到变量类型：%s", varExpr.Name)
 			}
 		}
 	}
@@ -622,7 +623,7 @@ func findChainedMethodDefinition(ctx *LspContext, chainCall *node.CallObjectMeth
 		return nil
 	}
 
-	logger.Debug("解析链式调用：%s", methodName)
+	logrus.Debugf("解析链式调用：%s", methodName)
 
 	// 递归解析链式调用，从最内层开始
 	// 例如：$a->newB()->getC()->hello() 需要递归解析每一层
@@ -631,7 +632,7 @@ func findChainedMethodDefinition(ctx *LspContext, chainCall *node.CallObjectMeth
 	object := chainCall.Object
 	method := chainCall.Method
 
-	logger.Debug("链式调用对象：%T，方法：%s", object, method)
+	logrus.Debugf("链式调用对象：%T，方法：%s", object, method)
 
 	// 递归解析链式调用
 	return resolveChainedMethod(ctx, object, method, methodName)
@@ -643,32 +644,32 @@ func resolveChainedMethod(ctx *LspContext, object data.GetValue, currentMethod, 
 		return nil
 	}
 
-	logger.Debug("解析方法调用：%s，目标方法：%s", currentMethod, targetMethod)
+	logrus.Debugf("解析方法调用：%s，目标方法：%s", currentMethod, targetMethod)
 
 	// 如果对象是变量，尝试获取其类型
 	if varExpr, ok := object.(*node.VariableExpression); ok {
-		logger.Debug("变量：%s", varExpr.Name)
+		logrus.Debugf("变量：%s", varExpr.Name)
 
 		// 从上下文获取变量类型
 		if ctx != nil {
 			varType := ctx.GetVariableType(varExpr.Name)
 			if varType != nil {
-				logger.Debug("变量类型：%v", varType)
+				logrus.Debugf("变量类型：%v", varType)
 
 				// 获取类名
 				if className := getClassNameFromType(varType); className != "" {
-					logger.Debug("类名：%s", className)
+					logrus.Debugf("类名：%s", className)
 
 					// 查找类定义
 					if class, exists := globalLspVM.GetClass(className); exists {
 						// 在类中查找当前方法
 						if methodLocation := findMethodInClass(class, currentMethod); methodLocation != nil {
-							logger.Debug("找到方法：%s", currentMethod)
+							logrus.Debugf("找到方法：%s", currentMethod)
 
 							// 尝试推断方法的返回类型
 							returnType := inferMethodReturnType(class, currentMethod)
 							if returnType != nil {
-								logger.Debug("推断返回类型：%s", returnType)
+								logrus.Debugf("推断返回类型：%s", returnType)
 
 								// 仅补充 switch returnType.(type) 逻辑
 								switch rt := returnType.(type) {
@@ -726,16 +727,16 @@ func resolveChainedMethod(ctx *LspContext, object data.GetValue, currentMethod, 
 								// 遍历所有类，查找目标方法
 								allClasses := globalLspVM.GetAllClasses()
 								for className, classStmt := range allClasses {
-									logger.Debug("在所有类中查找：%s", className)
+									logrus.Debugf("在所有类中查找：%s", className)
 									if methodLocation := findMethodInClass(classStmt, targetMethod); methodLocation != nil {
-										logger.Debug("在类 %s 中找到目标方法：%s", className, targetMethod)
+										logrus.Debugf("在类 %s 中找到目标方法：%s", className, targetMethod)
 										return methodLocation
 									}
 								}
 							}
 
 							// 如果所有类中都找不到，就不需要提示了
-							logger.Debug("在所有类中都找不到目标方法：%s", targetMethod)
+							logrus.Debugf("在所有类中都找不到目标方法：%s", targetMethod)
 						}
 					}
 				}
@@ -745,12 +746,12 @@ func resolveChainedMethod(ctx *LspContext, object data.GetValue, currentMethod, 
 
 	// 如果对象是另一个方法调用，递归解析
 	if nestedCall, ok := object.(*node.CallObjectMethod); ok {
-		logger.Debug("检测到嵌套方法调用，递归解析")
+		logrus.Debug("检测到嵌套方法调用，递归解析")
 		return resolveChainedMethod(ctx, nestedCall.Object, nestedCall.Method, targetMethod)
 	}
 
 	// 如果无法解析链式调用，尝试查找同名函数作为备选
-	logger.Debug("无法解析链式调用，尝试查找同名函数：%s", targetMethod)
+	logrus.Debugf("无法解析链式调用，尝试查找同名函数：%s", targetMethod)
 	if function, exists := globalLspVM.GetFunc(targetMethod); exists {
 		return createLocationFromFunction(function)
 	}
@@ -836,8 +837,8 @@ func createLocationFromFunction(function data.FuncStmt) *Location {
 			return &Location{
 				URI: filePathToURI(from.GetSource()),
 				Range: Range{
-					Start: Position{Line: uint32(startLine), Character: uint32(startChar)},
-					End:   Position{Line: uint32(endLine), Character: uint32(endChar)},
+					Start: Position{Line: uint32(startLine) + 1, Character: uint32(startChar)},
+					End:   Position{Line: uint32(endLine) + 1, Character: uint32(endChar)},
 				},
 			}
 		}
@@ -853,8 +854,8 @@ func createLocationFromClass(class data.ClassStmt) *Location {
 		return &Location{
 			URI: filePathToURI(from.GetSource()),
 			Range: Range{
-				Start: Position{Line: uint32(startLine), Character: uint32(startChar)},
-				End:   Position{Line: uint32(endLine), Character: uint32(endChar)},
+				Start: Position{Line: uint32(startLine) + 1, Character: uint32(startChar)},
+				End:   Position{Line: uint32(endLine) + 1, Character: uint32(endChar)},
 			},
 		}
 	}
@@ -891,8 +892,8 @@ func findMethodInClass(class data.ClassStmt, methodName string) *Location {
 				return &Location{
 					URI: filePathToURI(from.GetSource()),
 					Range: Range{
-						Start: Position{Line: uint32(startLine), Character: uint32(startChar)},
-						End:   Position{Line: uint32(endLine), Character: uint32(endChar)},
+						Start: Position{Line: uint32(startLine) + 1, Character: uint32(startChar)},
+						End:   Position{Line: uint32(endLine) + 1, Character: uint32(endChar)},
 					},
 				}
 			}
@@ -905,8 +906,8 @@ func findMethodInClass(class data.ClassStmt, methodName string) *Location {
 		return &Location{
 			URI: filePathToURI(from.GetSource()),
 			Range: Range{
-				Start: Position{Line: uint32(startLine), Character: uint32(startChar)},
-				End:   Position{Line: uint32(endLine), Character: uint32(endChar)},
+				Start: Position{Line: uint32(startLine) + 1, Character: uint32(startChar)},
+				End:   Position{Line: uint32(endLine) + 1, Character: uint32(endChar)},
 			},
 		}
 	}

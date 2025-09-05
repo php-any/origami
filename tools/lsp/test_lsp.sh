@@ -3,9 +3,9 @@
 echo "=== Origami LSP 服务器测试 ==="
 
 # 检查可执行文件是否存在
-if [ ! -f "./origami-lsp" ]; then
-    echo "错误：origami-lsp 可执行文件不存在"
-    echo "请先运行：go build -o origami-lsp ."
+if [ ! -f "./zy-lsp" ]; then
+    echo "错误：zy-lsp 可执行文件不存在"
+    echo "请先运行：go build -o zy-lsp ."
     exit 1
 fi
 
@@ -28,7 +28,7 @@ echo ""
 echo "=== 测试完成 ==="
 echo ""
 echo "要启动 LSP 服务器，请运行："
-echo "./origami-lsp -log-level 4"
+echo "./zy-lsp -log-level 4"
 echo ""
 echo "要测试 TCP 协议，请运行："
-echo "./origami-lsp -protocol tcp -port 8080 -log-level 4" 
+echo "./zy-lsp -protocol tcp -port 8080 -log-level 4"

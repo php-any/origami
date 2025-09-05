@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sirupsen/logrus"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -54,7 +55,7 @@ func handleInitialize(req *jsonrpc2.Request) (interface{}, error) {
 func handleInitialized(req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("initialized", false, req.Params)
 
-	logger.Info("Origami LSP 服务器初始化成功")
+	logrus.Info("Origami LSP 服务器初始化成功")
 
 	return nil, nil
 }
@@ -63,7 +64,7 @@ func handleInitialized(req *jsonrpc2.Request) (interface{}, error) {
 func handleShutdown(req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("shutdown", true, req.Params)
 
-	logger.Info("正在关闭 Origami LSP 服务器...")
+	logrus.Info("正在关闭 Origami LSP 服务器...")
 
 	return nil, nil
 }
@@ -78,7 +79,7 @@ func handleSetTrace(req *jsonrpc2.Request) (interface{}, error) {
 	}
 
 	// 设置跟踪级别
-	logger.Info("设置跟踪值：%s", params.Value)
+	logrus.Info("设置跟踪值：%s", params.Value)
 
 	return nil, nil
 }
@@ -88,20 +89,20 @@ func loadAllScriptFiles(params InitializeParams) {
 	// 添加 panic 恢复机制
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("loadAllScriptFiles 发生 panic：%v", r)
+			logrus.Errorf("loadAllScriptFiles 发生 panic：%v", r)
 		}
 	}()
 
-	logger.Info("开始异步加载工作区中的所有脚本文件...")
+	logrus.Info("开始异步加载工作区中的所有脚本文件...")
 
 	// 获取 LSP 工作区根目录
 	workspaceRoot := getWorkspaceRoot(params)
 	if workspaceRoot == "" {
-		logger.Error("无法获取工作区根目录")
+		logrus.Error("无法获取工作区根目录")
 		return
 	}
 
-	logger.Info("工作区根目录：%s", workspaceRoot)
+	logrus.Infof("工作区根目录：%s", workspaceRoot)
 
 	// 直接遍历并立即加载文件，避免收集所有文件
 	loadScriptFilesInDirectory(workspaceRoot)
@@ -112,7 +113,7 @@ func getWorkspaceRoot(params InitializeParams) string {
 	// 添加 panic 恢复机制
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("getWorkspaceRoot 发生 panic：%v", r)
+			logrus.Errorf("getWorkspaceRoot 发生 panic：%v", r)
 		}
 	}()
 
@@ -147,7 +148,7 @@ func getWorkspaceRoot(params InitializeParams) string {
 		}
 	}
 
-	logger.Error("LSP 参数中未找到有效的工作区根目录")
+	logrus.Error("LSP 参数中未找到有效的工作区根目录")
 	return ""
 }
 
@@ -156,7 +157,7 @@ func findScriptFiles(workspaceRoot string) []string {
 	// 添加 panic 恢复机制
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("findScriptFiles 发生 panic：%v", r)
+			logrus.Errorf("findScriptFiles 发生 panic：%v", r)
 		}
 	}()
 
@@ -167,7 +168,7 @@ func findScriptFiles(workspaceRoot string) []string {
 		// 为每个文件遍历回调添加 panic 恢复
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Error("遍历文件 %s 时发生 panic：%v", path, r)
+				logrus.Errorf("遍历文件 %s 时发生 panic：%v", path, r)
 			}
 		}()
 
@@ -185,7 +186,7 @@ func findScriptFiles(workspaceRoot string) []string {
 
 		// 检查文件扩展名
 		ext := strings.ToLower(filepath.Ext(path))
-		if ext == ".cjp" || ext == ".ori" {
+		if ext == ".zy" {
 			scriptFiles = append(scriptFiles, path)
 		}
 
@@ -193,7 +194,7 @@ func findScriptFiles(workspaceRoot string) []string {
 	})
 
 	if err != nil {
-		logger.Error("遍历工作区目录失败：%v", err)
+		logrus.Errorf("遍历工作区目录失败：%v", err)
 	}
 
 	return scriptFiles
@@ -204,7 +205,7 @@ func loadScriptFilesInDirectory(workspaceRoot string) {
 	// 添加 panic 恢复机制
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("loadScriptFilesInDirectory 发生 panic：%v", r)
+			logrus.Errorf("loadScriptFilesInDirectory 发生 panic：%v", r)
 		}
 	}()
 
@@ -215,7 +216,7 @@ func loadScriptFilesInDirectory(workspaceRoot string) {
 		// 为每个文件遍历回调添加 panic 恢复
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Error("遍历文件 %s 时发生 panic：%v", path, r)
+				logrus.Errorf("遍历文件 %s 时发生 panic：%v", path, r)
 			}
 		}()
 
@@ -233,16 +234,16 @@ func loadScriptFilesInDirectory(workspaceRoot string) {
 
 		// 检查文件扩展名
 		ext := strings.ToLower(filepath.Ext(path))
-		if ext == ".cjp" || ext == ".ori" {
+		if ext == ".zy" {
 			fileCount++
-			logger.Debug("发现脚本文件：%s", path)
+			logrus.Debugf("发现脚本文件：%s", path)
 
 			// 立即异步加载文件
 			go func(filePath string) {
 				// 为每个文件加载 goroutine 添加 panic 恢复
 				defer func() {
 					if r := recover(); r != nil {
-						logger.Error("加载文件 %s 时发生 panic：%v", filePath, r)
+						logrus.Debugf("加载文件 %s 时发生 panic：%v", filePath, r)
 					}
 				}()
 				// 创建共享的 LspParser 实例
@@ -258,10 +259,10 @@ func loadScriptFilesInDirectory(workspaceRoot string) {
 	})
 
 	if err != nil {
-		logger.Error("遍历工作区目录失败：%v", err)
+		logrus.Errorf("遍历工作区目录失败：%v", err)
 	}
 
-	logger.Info("发现并开始加载 %d 个脚本文件", fileCount)
+	logrus.Infof("发现并开始加载 %d 个脚本文件", fileCount)
 }
 
 // loadScriptFile 加载单个脚本文件
@@ -269,23 +270,23 @@ func loadScriptFile(filePath string, parser *LspParser) {
 	// 添加 panic 恢复机制
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("loadScriptFile 发生 panic：%v", r)
+			logrus.Errorf("loadScriptFile 发生 panic：%v", r)
 		}
 	}()
 
-	logger.Debug("正在加载脚本文件：%s", filePath)
+	logrus.Debugf("正在加载脚本文件：%s", filePath)
 
 	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		logger.Debug("文件不存在：%s", filePath)
+		logrus.Debugf("文件不存在：%s", filePath)
 		return
 	}
 
 	// 使用传入的共享解析器解析文件
 	if parser != nil {
 		parser.ParseFile(filePath)
-		logger.Debug("成功加载脚本文件：%s", filePath)
+		logrus.Debugf("成功加载脚本文件：%s", filePath)
 	} else {
-		logger.Error("解析器未初始化，无法加载文件：%s", filePath)
+		logrus.Errorf("解析器未初始化，无法加载文件：%s", filePath)
 	}
 }

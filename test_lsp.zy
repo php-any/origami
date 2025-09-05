@@ -12,7 +12,7 @@ class TestClass {
     function method1() {
         echo "Method 1";
     }
-    
+
     function method2() string {
         return "123";
     }
