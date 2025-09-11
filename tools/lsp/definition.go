@@ -837,8 +837,8 @@ func createLocationFromFunction(function data.FuncStmt) *Location {
 			return &Location{
 				URI: filePathToURI(from.GetSource()),
 				Range: Range{
-					Start: Position{Line: uint32(startLine) + 1, Character: uint32(startChar)},
-					End:   Position{Line: uint32(endLine) + 1, Character: uint32(endChar)},
+					Start: Position{Line: uint32(startLine), Character: uint32(startChar)},
+					End:   Position{Line: uint32(endLine), Character: uint32(endChar)},
 				},
 			}
 		}
@@ -854,8 +854,8 @@ func createLocationFromClass(class data.ClassStmt) *Location {
 		return &Location{
 			URI: filePathToURI(from.GetSource()),
 			Range: Range{
-				Start: Position{Line: uint32(startLine) + 1, Character: uint32(startChar)},
-				End:   Position{Line: uint32(endLine) + 1, Character: uint32(endChar)},
+				Start: Position{Line: uint32(startLine), Character: uint32(startChar)},
+				End:   Position{Line: uint32(endLine), Character: uint32(endChar)},
 			},
 		}
 	}
@@ -892,8 +892,8 @@ func findMethodInClass(class data.ClassStmt, methodName string) *Location {
 				return &Location{
 					URI: filePathToURI(from.GetSource()),
 					Range: Range{
-						Start: Position{Line: uint32(startLine) + 1, Character: uint32(startChar)},
-						End:   Position{Line: uint32(endLine) + 1, Character: uint32(endChar)},
+						Start: Position{Line: uint32(startLine), Character: uint32(startChar)},
+						End:   Position{Line: uint32(endLine), Character: uint32(endChar)},
 					},
 				}
 			}
@@ -906,8 +906,8 @@ func findMethodInClass(class data.ClassStmt, methodName string) *Location {
 		return &Location{
 			URI: filePathToURI(from.GetSource()),
 			Range: Range{
-				Start: Position{Line: uint32(startLine) + 1, Character: uint32(startChar)},
-				End:   Position{Line: uint32(endLine) + 1, Character: uint32(endChar)},
+				Start: Position{Line: uint32(startLine), Character: uint32(startChar)},
+				End:   Position{Line: uint32(endLine), Character: uint32(endChar)},
 			},
 		}
 	}

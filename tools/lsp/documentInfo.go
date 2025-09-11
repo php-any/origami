@@ -189,6 +189,10 @@ func (ctx *LspContext) PushLoop(info LoopInfo) {
 	ctx.loopStack = append(ctx.loopStack, info)
 }
 
+func (ctx *LspContext) GoContext() context.Context {
+	return context.Background()
+}
+
 func (ctx *LspContext) PopLoop() *LoopInfo {
 	if len(ctx.loopStack) > 0 {
 		popped := ctx.loopStack[len(ctx.loopStack)-1]

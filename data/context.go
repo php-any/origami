@@ -1,6 +1,9 @@
 package data
 
-import "errors"
+import (
+	"context"
+	"errors"
+)
 
 type Context interface {
 	SetNamespace(name string) Context
@@ -15,6 +18,8 @@ type Context interface {
 	CreateBaseContext() Context
 
 	GetVM() VM
+
+	GoContext() context.Context
 }
 
 type VM interface {

@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"fmt"
 	"sync"
 )
@@ -18,6 +19,10 @@ type ObjectValue struct {
 	Value
 	Context
 	property sync.Map
+}
+
+func (o *ObjectValue) GoContext() context.Context {
+	return context.Background()
 }
 
 func (o *ObjectValue) GetValue(ctx Context) (GetValue, Control) {

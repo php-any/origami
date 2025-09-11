@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"fmt"
 )
 
@@ -188,6 +189,10 @@ func (c *ClassValue) GetVariableValue(variable Variable) (Value, Control) {
 	return c.ObjectValue.GetVariableValue(variable)
 }
 
+func (c *ClassValue) GoContext() context.Context {
+	return context.Background()
+}
+
 type ClassMethodContext struct {
 	*ClassValue
 }
@@ -206,4 +211,8 @@ func (c *ClassMethodContext) GetVariableValue(variable Variable) (Value, Control
 
 func (c *ClassMethodContext) GetIndexValue(index int) (Value, bool) {
 	return c.Context.GetIndexValue(index)
+}
+
+func (c *ClassMethodContext) GoContext() context.Context {
+	return context.Background()
 }

@@ -14,6 +14,14 @@ type AsFloat interface {
 	AsFloat() (float64, error)
 }
 
+type AsFloat32 interface {
+	AsFloat32() (float32, error)
+}
+
+type AsFloat64 interface {
+	AsFloat() (float64, error)
+}
+
 type FloatValue struct {
 	Value float64
 }
@@ -32,6 +40,9 @@ func (s *FloatValue) AsInt() (int, error) {
 
 func (s *FloatValue) AsFloat() (float64, error) {
 	return s.Value, nil
+}
+func (s *FloatValue) AsFloat32() (float32, error) {
+	return float32(s.Value), nil
 }
 
 func (s *FloatValue) AsBool() (bool, error) {

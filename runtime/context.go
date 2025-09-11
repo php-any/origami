@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/parser"
 )
@@ -74,6 +75,10 @@ func (c *Context) CreateBaseContext() data.Context {
 
 func (c *Context) GetVM() data.VM {
 	return c.vm
+}
+
+func (c *Context) GoContext() context.Context {
+	return context.Background()
 }
 
 func makeSliceVariable(i int) []data.Value {
