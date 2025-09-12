@@ -61,8 +61,9 @@ func (o *ObjectValue) GetProperty(name string) (Value, bool) {
 	return v.(Value), ok
 }
 
-func (o *ObjectValue) SetProperty(name string, value Value) {
+func (o *ObjectValue) SetProperty(name string, value Value) Control {
 	o.property.Store(name, value)
+	return nil
 }
 
 func (o *ObjectValue) DeleteProperty(name string) {

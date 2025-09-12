@@ -18,7 +18,7 @@ type CallableValue interface {
 }
 
 type SetProperty interface {
-	SetProperty(name string, value Value)
+	SetProperty(name string, value Value) Control
 }
 
 type GetProperty interface {

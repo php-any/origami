@@ -30,6 +30,10 @@ func (n *InitClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, data.NewErrorThrow(n.from, errors.New(fmt.Sprintf("类 %s 不存在", n.ClassName)))
 	}
 
+	if stmt.GetConstruct() != nil {
+		return nil, data.NewErrorThrow(n.from, errors.New(fmt.Sprintf("类 %s 有构造函数, 不允许使用 ClassName {} 实例化", n.ClassName)))
+	}
+
 	object, acl := stmt.GetValue(ctx.CreateBaseContext())
 	if acl != nil {
 		return nil, acl
@@ -41,7 +45,10 @@ func (n *InitClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			if acl != nil {
 				return nil, acl
 			}
-			object.SetProperty(k, value.(data.Value))
+			acl = object.SetProperty(k, value.(data.Value))
+			if acl != nil {
+				return nil, acl
+			}
 		}
 	}
 
