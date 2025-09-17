@@ -144,7 +144,9 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 
 	// 解析类成员
 	properties := make(map[string]data.Property)
+	staticProperties := make(map[string]data.Property)
 	methods := map[string]data.Method{}
+	staticMethods := map[string]data.Method{}
 	for !p.currentIsTypeOrEOF(token.RBRACE) {
 		// 先尝试解析注解
 		var memberAnnotations []*node.Annotation
@@ -181,7 +183,11 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 				return nil, acl
 			}
 			if prop != nil {
-				properties[prop.GetName()] = prop
+				if isStatic {
+					staticProperties[prop.GetName()] = prop
+				} else {
+					properties[prop.GetName()] = prop
+				}
 			}
 		} else if p.current().Type == token.FUNC {
 			method, acl := p.parseMethodWithAnnotations(modifier, isStatic, memberAnnotations)
@@ -189,7 +195,11 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 				return nil, acl
 			}
 			if method != nil {
-				methods[method.GetName()] = method
+				if isStatic {
+					staticMethods[method.GetName()] = method
+				} else {
+					methods[method.GetName()] = method
+				}
 			}
 		} else {
 			return nil, data.NewErrorThrow(p.newFrom(), errors.New("缺少属性或方法声明"))
@@ -205,6 +215,10 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 		properties,
 		methods,
 	)
+	for s, property := range staticProperties {
+		c.StaticProperty.Store(s, property.GetDefaultValue())
+	}
+	c.StaticMethods = staticMethods
 
 	if c.Construct == nil {
 		// 寻找父级构造函数

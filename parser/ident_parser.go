@@ -133,7 +133,11 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 				return vp.parseSuffix(expr)
 			} else {
 				vp := &VariableParser{p.Parser}
-				expr := node.NewCallStaticProperty(tracker.EndBefore(), className, fnName)
+				stmt, ok := p.vm.GetClass(className)
+				if !ok {
+					return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("静态调用时, 类 (%s) 未加载", className))
+				}
+				expr := node.NewCallStaticProperty(tracker.EndBefore(), stmt, fnName)
 				return vp.parseSuffix(expr)
 			}
 		}

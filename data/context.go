@@ -182,6 +182,10 @@ type Parameters interface {
 	GetVariables() []Variable
 }
 
+type GetStaticProperty interface {
+	GetStaticProperty(name string) (Value, bool)
+}
+
 // NewParameter 单个参数接收
 func NewParameter(name string, index int) Parameter {
 	return &ParameterTODO{Name: name, Index: index}

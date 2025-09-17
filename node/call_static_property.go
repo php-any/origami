@@ -8,32 +8,41 @@ import (
 
 type CallStaticProperty struct {
 	*Node    `pp:"-"`
-	Class    string
+	Class    data.ClassStmt
 	Property string // 属性名
 }
 
-func NewCallStaticProperty(token *TokenFrom, path string, property string) *CallStaticProperty {
+func NewCallStaticProperty(token *TokenFrom, stmt data.ClassStmt, property string) *CallStaticProperty {
 	return &CallStaticProperty{
 		Node:     NewNode(token),
-		Class:    path,
+		Class:    stmt,
 		Property: property,
 	}
 }
 
 // GetValue 获取对象属性访问表达式的值
 func (pe *CallStaticProperty) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	classStmt, ok := ctx.GetVM().GetClass(pe.Class)
-	if !ok {
-		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("类(%s)不存在。", pe.Class)))
-	}
-
-	property, ok := classStmt.GetProperty(pe.Property)
-	if ok {
-		if property.GetIsStatic() {
-			return property.GetDefaultValue(), nil
+	if o, ok := pe.Class.(data.GetStaticProperty); ok {
+		property, ok := o.GetStaticProperty(pe.Property)
+		if ok {
+			return property, nil
 		}
-		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("类(%s)的属性(%s)不是静态的。", pe.Class, pe.Property)))
 	}
 
-	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("类(%s)没有镜静态属性(%s)。", pe.Class, pe.Property)))
+	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("类(%s)没有静态属性(%s)。", pe.Class, pe.Property)))
+}
+
+func (pe *CallStaticProperty) SetProperty(name string, value data.Value) data.Control {
+	switch c := pe.Class.(type) {
+	case *ClassStatement:
+		c.StaticProperty.Store(name, value)
+		return nil
+	case *ClassGeneric:
+		c.StaticProperty.Store(name, value)
+		return nil
+	case data.SetProperty:
+		return c.SetProperty(name, value)
+	}
+
+	return data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("类(%s)没有静态属性(%s)。", pe.Class, pe.Property)))
 }

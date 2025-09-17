@@ -49,8 +49,7 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 			}
 			switch object := temp.(type) {
 			case data.SetProperty:
-				object.SetProperty(l.Property, v)
-				return v, nil
+				return v, object.SetProperty(l.Property, v)
 			default:
 				return nil, data.NewErrorThrow(b.GetFrom(), errors.New("object is not set property"))
 			}
@@ -104,7 +103,8 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 			default:
 				return nil, data.NewErrorThrow(b.from, errors.New("索引赋值仅支持数组或对象"))
 			}
-
+		case *CallStaticProperty:
+			return v, l.SetProperty(l.Property, v)
 		default:
 			return nil, data.NewErrorThrow(b.from, errors.New("TODO 赋值表达式遇到未支持的类型"))
 		}

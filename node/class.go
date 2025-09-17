@@ -3,17 +3,20 @@ package node
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/token"
+	"sync"
 )
 
 // ClassStatement 表示类定义语句
 type ClassStatement struct {
-	*Node       `pp:"-"`
-	Name        string                   // 类名
-	Extends     *string                  // 父类名
-	Implements  []string                 // 实现的接口列表
-	Properties  map[string]data.Property // 属性列表
-	Methods     map[string]data.Method   // 方法列表
-	Annotations []*data.ClassValue       // 类注解列表
+	*Node          `pp:"-"`
+	Name           string                   // 类名
+	Extends        *string                  // 父类名
+	Implements     []string                 // 实现的接口列表
+	StaticProperty sync.Map                 // 静态属性列表
+	Properties     map[string]data.Property // 属性列表
+	Methods        map[string]data.Method   // 方法列表
+	StaticMethods  map[string]data.Method   // 静态方法列表
+	Annotations    []*data.ClassValue       // 类注解列表
 
 	// 构造函数
 	Construct data.Method
@@ -118,6 +121,20 @@ func (c *ClassStatement) GetMethods() []data.Method {
 	return methods
 }
 
+func (c *ClassStatement) GetStaticProperty(name string) (data.Value, bool) {
+	if f, ok := c.StaticProperty.Load(name); ok {
+		return f.(data.Value), true
+	}
+	return nil, false
+}
+
+func (c *ClassStatement) GetStaticMethods(name string) (data.Method, bool) {
+	if f, ok := c.StaticMethods[name]; ok {
+		return f, true
+	}
+	return nil, false
+}
+
 type ClassProperty struct {
 	*Node        `pp:"-"`
 	Name         string             // 属性名
@@ -137,8 +154,8 @@ func (p *ClassProperty) GetType() data.Types {
 }
 
 func (p *ClassProperty) SetValue(ctx data.Context, value data.Value) data.Control {
-	//TODO implement me
-	panic("implement me")
+	p.DefaultValue = value
+	return nil
 }
 
 // NewProperty 创建一个新的属性
