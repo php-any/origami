@@ -188,7 +188,7 @@ $evens = $numbers->filter(($n) => $n % 2 == 0);
 git clone https://github.com/php-any/origami.git
 cd origami
 go build -o origami .
-./origami script.php
+./origami script.zy
 ```
 
 ## 📚 文档

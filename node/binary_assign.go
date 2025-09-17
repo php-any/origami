@@ -104,7 +104,7 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 				return nil, data.NewErrorThrow(b.from, errors.New("索引赋值仅支持数组或对象"))
 			}
 		case *CallStaticProperty:
-			return v, l.SetProperty(l.Property, v)
+			return v, l.SetProperty(ctx, l.Property, v)
 		default:
 			return nil, data.NewErrorThrow(b.from, errors.New("TODO 赋值表达式遇到未支持的类型"))
 		}

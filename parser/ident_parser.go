@@ -122,6 +122,10 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 			if full, ok := p.findFullClassNameByNamespace(className); ok {
 				className = full
 			}
+			stmt, ok := p.vm.GetClass(className)
+			if !ok {
+				return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("静态调用时, 类 (%s) 未加载", className))
+			}
 			p.next()
 			fnName := p.current().Literal
 			p.next()
@@ -129,14 +133,11 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 			if p.checkPositionIs(0, token.LPAREN) {
 				// 创建函数调用表达式
 				vp := &VariableParser{p.Parser}
-				expr := node.NewCallStaticMethod(tracker.EndBefore(), className, fnName)
+				expr := node.NewCallStaticMethod(tracker.EndBefore(), stmt, fnName)
 				return vp.parseSuffix(expr)
 			} else {
 				vp := &VariableParser{p.Parser}
-				stmt, ok := p.vm.GetClass(className)
-				if !ok {
-					return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("静态调用时, 类 (%s) 未加载", className))
-				}
+
 				expr := node.NewCallStaticProperty(tracker.EndBefore(), stmt, fnName)
 				return vp.parseSuffix(expr)
 			}

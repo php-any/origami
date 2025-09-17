@@ -23,7 +23,7 @@ func showHelp() {
 	fmt.Println()
 	fmt.Println("示例:")
 	fmt.Println("  ./origami tests/run_tests.cjp")
-	fmt.Println("  ./origami script.php")
+	fmt.Println("  ./origami script.zy")
 	fmt.Println("  ./origami my_script.cjp")
 	fmt.Println()
 	fmt.Println("支持的脚本格式:")

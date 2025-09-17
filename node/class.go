@@ -128,7 +128,7 @@ func (c *ClassStatement) GetStaticProperty(name string) (data.Value, bool) {
 	return nil, false
 }
 
-func (c *ClassStatement) GetStaticMethods(name string) (data.Method, bool) {
+func (c *ClassStatement) GetStaticMethod(name string) (data.Method, bool) {
 	if f, ok := c.StaticMethods[name]; ok {
 		return f, true
 	}

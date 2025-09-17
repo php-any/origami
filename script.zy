@@ -3,6 +3,10 @@ namespace tests\func;
 class TestInit {
     public static $title;
     public $author;
+
+    public static function test() {
+        return new TestInit()
+    }
 }
 
 // 不经过构造函数的创建方式
@@ -11,3 +15,5 @@ TestInit::title = "123"
 $data = TestInit::title;
 
 echo $data;
+
+echo TestInit::test()::title;
