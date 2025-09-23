@@ -68,3 +68,11 @@ func (s *StringValue) GetProperty(name string) (Value, bool) {
 func (s *StringValue) AsBool() (bool, error) {
 	return s.Value != "", nil
 }
+
+func (s *StringValue) Marshal(serializer Serializer) ([]byte, error) {
+	return serializer.MarshalString(s)
+}
+
+func (s *StringValue) Unmarshal(data []byte, serializer Serializer) error {
+	return serializer.UnmarshalString(data, s)
+}

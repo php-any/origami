@@ -93,3 +93,11 @@ func (a *ArrayValue) GetProperty(name string) (Value, bool) {
 	}
 	return nil, false
 }
+
+func (a *ArrayValue) Marshal(serializer Serializer) ([]byte, error) {
+	return serializer.MarshalArray(a)
+}
+
+func (a *ArrayValue) Unmarshal(data []byte, serializer Serializer) error {
+	return serializer.UnmarshalArray(data, a)
+}

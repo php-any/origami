@@ -32,3 +32,11 @@ func (s *BoolValue) AsString() string {
 func (s *BoolValue) AsBool() (bool, error) {
 	return s.Value, nil
 }
+
+func (s *BoolValue) Marshal(serializer Serializer) ([]byte, error) {
+	return serializer.MarshalBool(s)
+}
+
+func (s *BoolValue) Unmarshal(data []byte, serializer Serializer) error {
+	return serializer.UnmarshalBool(data, s)
+}

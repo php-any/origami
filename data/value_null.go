@@ -35,3 +35,10 @@ func (s *NullValue) AsFloat() (float64, error) {
 func (s *NullValue) AsBool() (bool, error) {
 	return false, nil
 }
+
+func (s *NullValue) Marshal(serializer Serializer) ([]byte, error) {
+	return serializer.MarshalNull(s)
+}
+func (s *NullValue) Unmarshal(data []byte, serializer Serializer) error {
+	return serializer.UnmarshalNull(data, s)
+}

@@ -216,3 +216,11 @@ func (c *ClassMethodContext) GetIndexValue(index int) (Value, bool) {
 func (c *ClassMethodContext) GoContext() context.Context {
 	return context.Background()
 }
+
+func (c *ClassValue) Marshal(serializer Serializer) ([]byte, error) {
+	return serializer.MarshalClass()
+}
+
+func (c *ClassValue) Unmarshal(data []byte, serializer Serializer) error {
+	return serializer.UnmarshalClass(data, c)
+}

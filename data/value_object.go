@@ -101,3 +101,11 @@ func (o *ObjectValue) GetVariableValue(variable Variable) (Value, Control) {
 	}
 	return v.(Value), nil
 }
+
+func (o *ObjectValue) Marshal(serializer Serializer) ([]byte, error) {
+	return serializer.MarshalObject(o)
+}
+
+func (o *ObjectValue) Unmarshal(data []byte, serializer Serializer) error {
+	return serializer.UnmarshalObject(data, o)
+}
