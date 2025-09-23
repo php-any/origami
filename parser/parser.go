@@ -215,8 +215,9 @@ func (p *Parser) next() {
 
 func (p *Parser) nextAndCheck(t token.TokenType) data.Control {
 	if p.current().Type != t {
-		p.addControl(data.NewErrorThrow(p.newFrom(), errors.New("检查符号不一致")))
-		return data.NewErrorThrow(p.newFrom(), errors.New("检查符号不一致"))
+		err := fmt.Errorf("检查符号不一致, 需要(%v:%v), 当前(%v:%v)", t, token.GetLiteralByType(t), p.current().Type, p.current().Literal)
+		p.addControl(data.NewErrorThrow(p.newFrom(), err))
+		return data.NewErrorThrow(p.newFrom(), err)
 	}
 	p.position++
 	return nil

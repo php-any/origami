@@ -91,7 +91,7 @@ func (a *Annotation) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 				}
 			}
 
-			method.Call(fnCtx)
+			return method.Call(fnCtx)
 		}
 	}
 

@@ -64,7 +64,10 @@ func (n *NewExpression) GetValue(ctx data.Context) (data.GetValue, data.Control)
 				}
 			}
 
-			method.Call(fnCtx)
+			_, acl = method.Call(fnCtx)
+			if acl != nil {
+				return nil, acl
+			}
 		}
 	}
 
@@ -164,7 +167,10 @@ func (n *NewClassGenerated) GetValue(ctx data.Context) (data.GetValue, data.Cont
 				}
 			}
 
-			method.Call(fnCtx)
+			_, acl = method.Call(fnCtx)
+			if acl != nil {
+				return nil, acl
+			}
 		}
 	}
 

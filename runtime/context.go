@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/parser"
 )
@@ -44,6 +45,10 @@ func (c *Context) GetVariableValue(variable data.Variable) (data.Value, data.Con
 
 func (c *Context) GetIndexValue(index int) (data.Value, bool) {
 	if index < 0 || index >= len(c.variables) {
+		return nil, false
+	}
+	ret := c.variables[index]
+	if _, ok := ret.(*data.NullValue); ok {
 		return nil, false
 	}
 	return c.variables[index], true

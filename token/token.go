@@ -180,3 +180,14 @@ func GetTokenDefinitions() map[TokenType][]TokenDefinition {
 	})
 	return tree
 }
+
+// GetLiteralByType 遍历 TokenDefinitions 按类型返回第一个匹配的字面量
+// 返回值为 (literal, ok)
+func GetLiteralByType(t TokenType) string {
+	for _, def := range TokenDefinitions {
+		if def.Type == t {
+			return def.Literal
+		}
+	}
+	return ""
+}
