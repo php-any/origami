@@ -40,9 +40,15 @@ func (p *SwitchParser) Parse() (data.GetValue, data.Control) {
 
 	for p.current().Type != token.RBRACE && !p.isEOF() {
 		if p.checkPositionIs(0, token.DEFAULT) {
-			defaultCase = p.parseDefaultCase()
+			defaultCase, acl = p.parseDefaultCase()
+			if acl != nil {
+				return nil, acl
+			}
 		} else if p.checkPositionIs(0, token.CASE) {
-			caseStmt := p.parseSwitchCase()
+			caseStmt, acl := p.parseSwitchCase()
+			if acl != nil {
+				return nil, acl
+			}
 			if caseStmt != nil {
 				cases = append(cases, *caseStmt)
 			}
@@ -87,7 +93,7 @@ func (p *SwitchParser) parseSwitchCondition(tracker *PositionTracker) (data.GetV
 }
 
 // parseSwitchCase 解析单个switch分支
-func (p *SwitchParser) parseSwitchCase() *node.SwitchCase {
+func (p *SwitchParser) parseSwitchCase() (*node.SwitchCase, data.Control) {
 	tracker := p.StartTracking()
 
 	// 跳过case关键字
@@ -96,7 +102,7 @@ func (p *SwitchParser) parseSwitchCase() *node.SwitchCase {
 	// 解析case值
 	caseValue, acl := p.parseStatement()
 	if acl != nil {
-		p.addControl(acl)
+		return nil, acl
 	}
 	// 解析冒号
 	p.nextAndCheck(token.COLON)
@@ -108,13 +114,16 @@ func (p *SwitchParser) parseSwitchCase() *node.SwitchCase {
 	for !p.isEOF() && !p.checkPositionIs(0, token.CASE, token.DEFAULT, token.RBRACE) {
 		if p.current().Type == token.LBRACE {
 			// 这是一个代码块
-			statements = p.parseBlock()
+			statements, acl = p.parseBlock()
+			if acl != nil {
+				return nil, acl
+			}
 			break
 		} else if p.checkPositionIs(0, token.BREAK) {
 			// 处理break语句
 			stmt, acl := p.parseStatement()
 			if acl != nil {
-				p.addControl(acl)
+				return nil, acl
 			}
 			if stmt != nil {
 				statements = append(statements, stmt)
@@ -129,7 +138,7 @@ func (p *SwitchParser) parseSwitchCase() *node.SwitchCase {
 			// 这是一个表达式
 			stmt, acl := p.parseStatement()
 			if acl != nil {
-				p.addControl(acl)
+				return nil, acl
 			}
 			if stmt != nil {
 				statements = append(statements, stmt)
@@ -147,11 +156,11 @@ func (p *SwitchParser) parseSwitchCase() *node.SwitchCase {
 		Node:       node.NewNode(from),
 		CaseValue:  caseValue,
 		Statements: statements,
-	}
+	}, nil
 }
 
 // parseDefaultCase 解析default分支
-func (p *SwitchParser) parseDefaultCase() []data.GetValue {
+func (p *SwitchParser) parseDefaultCase() ([]data.GetValue, data.Control) {
 	// 跳过default关键字
 	p.next()
 
@@ -165,13 +174,17 @@ func (p *SwitchParser) parseDefaultCase() []data.GetValue {
 	for !p.isEOF() && !p.checkPositionIs(0, token.CASE, token.RBRACE) {
 		if p.current().Type == token.LBRACE {
 			// 这是一个代码块
-			statements = p.parseBlock()
+			var acl data.Control
+			statements, acl = p.parseBlock()
+			if acl != nil {
+				return nil, acl
+			}
 			break
 		} else if p.checkPositionIs(0, token.BREAK) {
 			// 处理break语句
 			stmt, acl := p.parseStatement()
 			if acl != nil {
-				p.addControl(acl)
+				return nil, acl
 			}
 			if stmt != nil {
 				statements = append(statements, stmt)
@@ -186,7 +199,7 @@ func (p *SwitchParser) parseDefaultCase() []data.GetValue {
 			// 这是一个表达式
 			stmt, acl := p.parseStatement()
 			if acl != nil {
-				p.addControl(acl)
+				return nil, acl
 			}
 			if stmt != nil {
 				statements = append(statements, stmt)
@@ -199,5 +212,5 @@ func (p *SwitchParser) parseDefaultCase() []data.GetValue {
 		}
 	}
 
-	return statements
+	return statements, nil
 }

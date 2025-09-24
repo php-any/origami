@@ -46,10 +46,14 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 		return nil, acl
 	}
 	ret, acl := fp.parserReturnType()
-
+	if acl != nil {
+		return nil, acl
+	}
 	// 解析函数体
-	body := fp.parseBlock()
-
+	body, acl := fp.parseBlock()
+	if acl != nil {
+		return nil, acl
+	}
 	vars := fp.scopeManager.CurrentScope().GetVariables()
 
 	// 弹出函数作用域

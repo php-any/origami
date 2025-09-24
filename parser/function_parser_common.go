@@ -22,7 +22,7 @@ func NewFunctionParserCommon(parser *Parser) *FunctionParserCommon {
 }
 
 // ParseFunctionBody 解析函数体
-func (p *FunctionParserCommon) ParseFunctionBody() []node.Statement {
+func (p *FunctionParserCommon) ParseFunctionBody() ([]node.Statement, data.Control) {
 	stmtParser := NewMainStatementParser(p.Parser)
 	var body []node.Statement
 	if p.current().Type == token.LBRACE {
@@ -30,7 +30,7 @@ func (p *FunctionParserCommon) ParseFunctionBody() []node.Statement {
 		for !p.currentIsTypeOrEOF(token.RBRACE) {
 			stmt, acl := stmtParser.Parse()
 			if acl != nil {
-				p.addControl(acl)
+				return nil, acl
 			}
 			if stmt != nil {
 				body = append(body, stmt)
@@ -38,7 +38,7 @@ func (p *FunctionParserCommon) ParseFunctionBody() []node.Statement {
 		}
 		p.next() // 跳过结束花括号
 	}
-	return body
+	return body, nil
 }
 
 // ParseParameters 解析参数列表

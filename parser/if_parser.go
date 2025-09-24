@@ -33,8 +33,10 @@ func (p *IfParser) Parse() (data.GetValue, data.Control) {
 		return nil, acl
 	}
 	// 解析then分支
-	thenBranch := p.parseBlock()
-
+	thenBranch, acl := p.parseBlock()
+	if acl != nil {
+		return nil, acl
+	}
 	// 解析 else if 和 else 分支
 	var elseIfBranches []node.ElseIfBranch
 	var elseBranch []data.GetValue
@@ -55,8 +57,10 @@ func (p *IfParser) Parse() (data.GetValue, data.Control) {
 					return nil, acl
 				}
 				// 解析 else if 的 then 分支
-				elseIfThenBranch := p.parseBlock()
-
+				elseIfThenBranch, acl := p.parseBlock()
+				if acl != nil {
+					return nil, acl
+				}
 				elseIfBranches = append(elseIfBranches, node.ElseIfBranch{
 					Condition:  elseIfCondition,
 					ThenBranch: elseIfThenBranch,
@@ -70,7 +74,10 @@ func (p *IfParser) Parse() (data.GetValue, data.Control) {
 	if p.checkPositionIs(0, token.ELSE) {
 		// 这是 else 分支，不是 else if
 		p.next()
-		elseBranch = p.parseBlock()
+		elseBranch, acl = p.parseBlock()
+		if acl != nil {
+			return nil, acl
+		}
 	}
 
 	// 结束位置跟踪，获取整个if语句的准确范围
@@ -93,7 +100,7 @@ func (p *IfParser) parseIfCondition() (data.GetValue, data.Control) {
 
 		condition, acl := p.parseStatement()
 		if acl != nil {
-			p.addControl(acl)
+			return nil, acl
 		}
 		if p.current().Type != token.RPAREN {
 			return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("if 缺少右括号 ')'"))

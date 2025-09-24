@@ -138,7 +138,7 @@ func (vp *VariableParser) parseFunctionCall() ([]data.GetValue, data.Control) {
 			} else {
 				expr, acl := vp.parseStatement()
 				if acl != nil {
-					vp.addControl(acl)
+					return nil, acl
 				}
 				if list, ok := expr.(*node.VariableList); ok {
 					for _, expr = range list.Vars {
@@ -160,9 +160,7 @@ func (vp *VariableParser) parseFunctionCall() ([]data.GetValue, data.Control) {
 		}
 	}
 
-	vp.nextAndCheck(token.RPAREN)
-
-	return args, nil
+	return args, vp.nextAndCheck(token.RPAREN)
 }
 
 // parseArrayAccess 解析数组访问
@@ -275,7 +273,7 @@ func (vp *VariableParser) parsePropertyAccess(object data.GetValue) (data.GetVal
 		if vp.checkPositionIs(0, token.LPAREN) {
 			stmt, acl := vp.parseFunctionCall()
 			if acl != nil {
-				vp.addControl(acl)
+				return nil, acl
 			}
 			from := tracker.EndBefore()
 			return node.NewObjectMethod(

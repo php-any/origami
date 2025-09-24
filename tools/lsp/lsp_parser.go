@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/php-any/origami/data"
 	"os"
 
 	"github.com/php-any/origami/node"
@@ -51,7 +52,7 @@ func (p *LspParser) ParseFile(filePath string) (*node.Program, error) {
 }
 
 // ParseString 从字符串解析程序 - 用于处理编辑器中的最新内容
-func (p *LspParser) ParseString(content string, filePath string) (*node.Program, error) {
+func (p *LspParser) ParseString(content string, filePath string) (*node.Program, data.Control) {
 	// 调用底层解析器的 ParseString 方法
 	return p.parser.ParseString(content, filePath)
 }

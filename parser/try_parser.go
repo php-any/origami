@@ -27,8 +27,10 @@ func (p *TryParser) Parse() (data.GetValue, data.Control) {
 	p.nextAndCheck(token.TRY)
 
 	// 解析try块
-	tryBlock := p.parseBlock()
-
+	tryBlock, acl := p.parseBlock()
+	if acl != nil {
+		return nil, acl
+	}
 	// 解析catch块
 	var catchBlocks []node.CatchBlock
 	var finallyBlock []data.GetValue
@@ -47,7 +49,10 @@ func (p *TryParser) Parse() (data.GetValue, data.Control) {
 	// 解析finally块
 	if p.checkPositionIs(0, token.FINALLY) {
 		p.next() // 跳过finally关键字
-		finallyBlock = p.parseBlock()
+		finallyBlock, acl = p.parseBlock()
+		if acl != nil {
+			return nil, acl
+		}
 	}
 
 	from := tracker.EndBefore()
@@ -100,8 +105,10 @@ func (p *TryParser) parseCatchBlock(tracker *PositionTracker) (*node.CatchBlock,
 	p.nextAndCheck(token.RPAREN) // 跳过右括号
 
 	// 解析catch块体
-	catchBody := p.parseBlock()
-
+	catchBody, acl := p.parseBlock()
+	if acl != nil {
+		return nil, acl
+	}
 	return &node.CatchBlock{
 		ExceptionType: exceptionType,
 		Variable:      variable,

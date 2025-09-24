@@ -43,7 +43,10 @@ func (p *MatchParser) Parse() (data.GetValue, data.Control) {
 			p.nextAndCheck(token.ARRAY_KEY_VALUE)
 			if p.current().Type == token.LBRACE {
 				// 手动解析代码块，不消耗右大括号
-				def = p.parseBlock()
+				def, acl = p.parseBlock()
+				if acl != nil {
+					return nil, acl
+				}
 			} else {
 				// 这是一个表达式
 				stmt, acl := p.parseStatement()
@@ -122,7 +125,11 @@ func (p *MatchParser) parseMatchArm() (*node.MatchArm, data.Control) {
 
 	if p.current().Type == token.LBRACE {
 		// 手动解析代码块，不消耗右大括号
-		statements = p.parseBlock()
+		var acl data.Control
+		statements, acl = p.parseBlock()
+		if acl != nil {
+			return nil, acl
+		}
 	} else {
 		// 这是一个表达式
 		var acl data.Control

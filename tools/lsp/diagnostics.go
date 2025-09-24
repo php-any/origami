@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/php-any/origami/data"
 	"strings"
 
 	"github.com/php-any/origami/node"
@@ -14,7 +15,7 @@ func validateDocument(conn *jsonrpc2.Conn, uri string, content string) {
 	diagnostics := []Diagnostic{}
 
 	// 检查文件扩展名
-	if !strings.HasSuffix(uri, ".cjp") && !strings.HasSuffix(uri, ".php") {
+	if !strings.HasSuffix(uri, ".zy") && !strings.HasSuffix(uri, ".php") {
 		// 不是origami语言文件，跳过验证
 		return
 	}
@@ -45,19 +46,23 @@ func validateDocumentWithAST(uri, content string) []Diagnostic {
 
 	// 解析AST
 	var ast *node.Program
-	var err error
+	var acl data.Control
 
 	// 根据URI类型选择解析方法
 	if strings.HasPrefix(uri, "file://") {
 		filePath := uriToFilePath(uri)
+		var err error
 		ast, err = parser.ParseFile(filePath)
+		if err != nil {
+			acl = data.NewErrorThrow(nil, err)
+		}
 	} else {
 		// 对于内存中的内容，使用ParseString
-		ast, err = parser.ParseString(content, "memory_content")
+		ast, acl = parser.ParseString(content, "memory_content")
 	}
 
 	// 如果解析失败，返回解析错误
-	if err != nil {
+	if acl != nil {
 		// 解析错误通常意味着语法问题
 		diagnostics = append(diagnostics, Diagnostic{
 			Range: Range{
@@ -65,7 +70,7 @@ func validateDocumentWithAST(uri, content string) []Diagnostic {
 				End:   Position{Line: 0, Character: 0},
 			},
 			Severity: &[]DiagnosticSeverity{DiagnosticSeverityError}[0],
-			Message:  fmt.Sprintf("解析错误: %v", err),
+			Message:  fmt.Sprintf("解析错误: %v", acl),
 			Source:   &[]string{"origami-lsp"}[0],
 		})
 		return diagnostics

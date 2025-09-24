@@ -24,7 +24,6 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 	tracker := p.StartTracking()
 	// 跳过for关键字
 	p.next()
-	var acl data.Control
 	// for $v in $arr {}
 	if p.checkPositionIs(1, token.IN) || p.checkPositionIs(2, token.IN) || p.checkPositionIs(3, token.IN) || p.checkPositionIs(4, token.IN) {
 		// 解析成 foreach 执行
@@ -86,13 +85,18 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 		p.nextAndCheck(token.IN)
 
 		array, acl := exprParser.Parse()
-
+		if acl != nil {
+			return nil, acl
+		}
 		if hasLparen {
 			p.nextAndCheck(token.RPAREN)
 		}
 
 		// 解析循环体
-		body := p.parseBlock()
+		body, acl := p.parseBlock()
+		if acl != nil {
+			return nil, acl
+		}
 
 		return node.NewForeachStatement(
 			tracker.EndBefore(),
@@ -113,7 +117,11 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 		if p.checkPositionIs(0, token.SEMICOLON) {
 			p.nextAndCheckStip(token.SEMICOLON) // 跳过分号
 		} else if !p.checkPositionIs(0, token.LBRACE) {
+			var acl data.Control
 			initializer, acl = exprParser.Parse()
+			if acl != nil {
+				return nil, acl
+			}
 			p.nextAndCheckStip(token.SEMICOLON) // 跳过分号
 		}
 
@@ -122,7 +130,11 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 		if p.checkPositionIs(0, token.SEMICOLON) {
 			p.nextAndCheckStip(token.SEMICOLON) // 跳过分号
 		} else if !p.checkPositionIs(0, token.LBRACE) {
+			var acl data.Control
 			condition, acl = exprParser.Parse()
+			if acl != nil {
+				return nil, acl
+			}
 			p.nextAndCheckStip(token.SEMICOLON) // 跳过分号
 		}
 
@@ -131,7 +143,11 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 		if p.checkPositionIs(0, token.SEMICOLON) {
 			p.nextAndCheckStip(token.SEMICOLON) // 跳过分号
 		} else if !p.checkPositionIs(0, token.LBRACE, token.RPAREN) {
+			var acl data.Control
 			increment, acl = exprParser.Parse()
+			if acl != nil {
+				return nil, acl
+			}
 			p.nextAndCheckStip(token.SEMICOLON) // 跳过分号
 		}
 
@@ -140,8 +156,10 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 		}
 
 		// 解析循环体
-		body := p.parseBlock()
-
+		body, acl := p.parseBlock()
+		if acl != nil {
+			return nil, acl
+		}
 		return node.NewForStatement(
 			tracker.EndBefore(),
 			initializer,

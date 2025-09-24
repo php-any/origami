@@ -25,7 +25,7 @@ func (ep *LparenParser) Parse() (data.GetValue, data.Control) {
 	// 检查是否是类型转换: (string) $data
 	if ep.isTypeCast() {
 		ep.nextAndCheck(token.LPAREN) // 跳过左括号
-		return ep.parseTypeCast(tracking), nil
+		return ep.parseTypeCast(tracking)
 	}
 
 	// 检查是否是 Lambda 表达式: (a, b) => {}
@@ -51,20 +51,20 @@ func (ep *LparenParser) isTypeCast() bool {
 }
 
 // parseTypeCast 解析类型转换
-func (ep *LparenParser) parseTypeCast(tracking *PositionTracker) node.Statement {
+func (ep *LparenParser) parseTypeCast(tracking *PositionTracker) (node.Statement, data.Control) {
 	typeName := ep.current().Literal
 	ep.next()                     // 跳过类型名
 	ep.nextAndCheck(token.RPAREN) // 跳过右括号
 
 	val, acl := ep.parseStatement()
 	if acl != nil {
-		ep.addControl(acl)
+		return nil, acl
 	}
 	fn, ok := ep.vm.GetFunc(typeName)
 	if !ok {
-		return data.NewErrorThrow(tracking.EndBefore(), errors.New("未定义的函数:"+typeName))
+		return nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("未定义的函数:"+typeName))
 	}
-	return node.NewCallExpression(tracking.EndBefore(), typeName, []data.GetValue{val}, fn)
+	return node.NewCallExpression(tracking.EndBefore(), typeName, []data.GetValue{val}, fn), nil
 }
 
 // isLambdaExpression 检查是否是 Lambda 表达式
@@ -114,8 +114,10 @@ func (ep *LparenParser) parseLambdaExpression(tracking *PositionTracker) (data.G
 	fp.nextAndCheck(token.ARRAY_KEY_VALUE)
 
 	// 解析函数体
-	body := fp.parseBlock()
-
+	body, acl := fp.parseBlock()
+	if acl != nil {
+		return nil, acl
+	}
 	vars := fp.scopeManager.CurrentScope().GetVariables()
 
 	// 弹出函数作用域
@@ -144,7 +146,7 @@ func (ep *LparenParser) parseParenthesizedExpression(tracking *PositionTracker) 
 	// 解析括号内的表达式
 	expr, acl := ep.parseStatement()
 	if acl != nil {
-		ep.addControl(acl)
+		return nil, acl
 	}
 	// 检查是否有右括号
 	if ep.current().Type != token.RPAREN {

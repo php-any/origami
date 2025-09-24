@@ -82,11 +82,11 @@ func (p *Parser) SetVM(vm data.VM) {
 }
 
 // ParseFile 解析文件
-func (p *Parser) ParseFile(filename string) (*node.Program, error) {
+func (p *Parser) ParseFile(filename string) (*node.Program, data.Control) {
 	// 读取文件内容
 	content, err := os.ReadFile(filename)
 	if err != nil {
-		return nil, err
+		return nil, data.NewErrorThrow(nil, err)
 	}
 
 	// 重置解析器状态
@@ -97,18 +97,16 @@ func (p *Parser) ParseFile(filename string) (*node.Program, error) {
 	p.tokens = p.lexer.Tokenize(string(content))
 
 	// 解析程序
-	program := p.parseProgram()
-
-	// 检查是否有错误
-	if len(p.errors) > 0 {
-		return nil, errors.New(p.errors[0].AsString())
+	program, acl := p.parseProgram()
+	if acl != nil {
+		return nil, acl
 	}
 
 	return program, nil
 }
 
 // parseProgram 解析程序
-func (p *Parser) parseProgram() *node.Program {
+func (p *Parser) parseProgram() (*node.Program, data.Control) {
 	statements := make([]node.Statement, 0)
 
 	last := 0
@@ -116,8 +114,8 @@ func (p *Parser) parseProgram() *node.Program {
 	for !p.isEOF() {
 		stmt, acl := p.parseStatement()
 		if acl != nil {
-			p.addControl(acl)
 			p.reset()
+			return nil, acl
 		}
 		if stmt != nil {
 			if n, ok := stmt.(*node.Namespace); ok {
@@ -138,13 +136,11 @@ func (p *Parser) parseProgram() *node.Program {
 		} else if p.position != last {
 			last = p.position
 		} else {
-			p.addControl(data.NewErrorThrow(p.newFrom(), errors.New("无法识别语句")))
-			p.reset()
-			return nil
+			return nil, data.NewErrorThrow(p.newFrom(), errors.New("无法识别语句"))
 		}
 	}
 
-	return node.NewProgram(nil, statements)
+	return node.NewProgram(nil, statements), nil
 }
 
 // current 返回当前词法单元
@@ -216,7 +212,6 @@ func (p *Parser) next() {
 func (p *Parser) nextAndCheck(t token.TokenType) data.Control {
 	if p.current().Type != t {
 		err := fmt.Errorf("检查符号不一致, 需要(%v:%v), 当前(%v:%v)", t, token.GetLiteralByType(t), p.current().Type, p.current().Literal)
-		p.addControl(data.NewErrorThrow(p.newFrom(), err))
 		return data.NewErrorThrow(p.newFrom(), err)
 	}
 	p.position++
@@ -236,6 +231,11 @@ func (p *Parser) isEOF() bool {
 
 func (p *Parser) addControl(acl data.Control) {
 	p.vm.ThrowControl(acl)
+}
+
+// 结束当前文件解析
+func (p *Parser) stopNext() {
+	p.position = len(p.tokens)
 }
 
 func (p *Parser) ShowControl(acl data.Control) {
@@ -369,7 +369,7 @@ func (p *Parser) parseValue() (data.GetValue, bool) {
 }
 
 // parseBlock 解析语句块
-func (p *Parser) parseBlock() []data.GetValue {
+func (p *Parser) parseBlock() ([]data.GetValue, data.Control) {
 	statements := make([]data.GetValue, 0)
 
 	// 检查是否是语句块开始
@@ -377,12 +377,12 @@ func (p *Parser) parseBlock() []data.GetValue {
 		// 如果不是语句块，则解析单个语句
 		stmt, acl := p.parseStatement()
 		if acl != nil {
-			p.addControl(acl)
+			return nil, acl
 		}
 		if stmt != nil {
 			statements = append(statements, stmt)
 		}
-		return statements
+		return statements, nil
 	}
 
 	// 跳过左花括号
@@ -396,7 +396,7 @@ func (p *Parser) parseBlock() []data.GetValue {
 	for !p.isEOF() && p.current().Type != token.RBRACE {
 		stmt, acl := p.parseStatement()
 		if acl != nil {
-			p.addControl(acl)
+			return nil, acl
 		}
 		for p.checkPositionIs(0, token.SEMICOLON) {
 			p.next()
@@ -404,14 +404,14 @@ func (p *Parser) parseBlock() []data.GetValue {
 		if stmt != nil {
 			statements = append(statements, stmt)
 		} else {
-			p.addControl(data.NewErrorThrow(p.newFrom(), errors.New("语法块无法识别")))
+			return statements, data.NewErrorThrow(p.newFrom(), errors.New("语法块无法识别"))
 		}
 	}
 
 	// 跳过右花括号
 	p.nextAndCheck(token.RBRACE)
 
-	return statements
+	return statements, nil
 }
 
 func (p *Parser) AddScanNamespace(namespace string, path string) {
@@ -532,7 +532,7 @@ func (p *Parser) ParseExpressionFromString(exprStr string) (data.GetValue, data.
 }
 
 // ParseString 从字符串解析程序
-func (p *Parser) ParseString(content string, filePath string) (*node.Program, error) {
+func (p *Parser) ParseString(content string, filePath string) (*node.Program, data.Control) {
 	// 保存当前状态
 	originalTokens := p.tokens
 	originalPosition := p.position
@@ -548,11 +548,9 @@ func (p *Parser) ParseString(content string, filePath string) (*node.Program, er
 	p.tokens = p.lexer.Tokenize(content)
 
 	// 解析程序
-	program := p.parseProgram()
-
-	// 检查是否有错误
-	if len(p.errors) > 0 {
-		return nil, errors.New(p.errors[0].AsString())
+	program, acl := p.parseProgram()
+	if acl != nil {
+		return nil, acl
 	}
 
 	// 恢复原始状态

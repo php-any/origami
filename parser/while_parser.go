@@ -37,7 +37,10 @@ func (p *WhileParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	// 解析循环体
-	body := p.parseBlock()
+	body, acl := p.parseBlock()
+	if acl != nil {
+		return nil, acl
+	}
 	from := tracker.EndBefore()
 
 	return node.NewWhileStatement(

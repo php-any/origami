@@ -177,9 +177,8 @@ func (m *DefaultClassPathManager) FindClassFile(className string) (string, bool)
 func (m *DefaultClassPathManager) searchInPath(basePath, className string) (string, bool) {
 	// 构造可能的文件名
 	possibleFiles := []string{
-		filepath.Join(basePath, className+".cjp"),
 		filepath.Join(basePath, className+".php"),
-		filepath.Join(basePath, className+".origami"),
+		filepath.Join(basePath, className+".zy"),
 	}
 
 	// 尝试查找文件

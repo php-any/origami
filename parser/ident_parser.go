@@ -32,6 +32,13 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 			fn, ok := p.vm.GetFunc(full)
 			if !ok {
 				_, ok := p.vm.GetClass(full)
+				if !ok {
+					acl := p.tryLoadClass(full)
+					if acl != nil {
+						return nil, acl
+					}
+					_, ok = p.vm.GetClass(full)
+				}
 				if ok {
 					return p.parseClassInit(tracker, full)
 				}

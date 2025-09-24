@@ -94,8 +94,10 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 	p.next()
 
 	// 解析循环体
-	body := p.parseBlock()
-
+	body, acl := p.parseBlock()
+	if acl != nil {
+		return nil, acl
+	}
 	from := tracker.EndBefore()
 	return node.NewForeachStatement(
 		from,

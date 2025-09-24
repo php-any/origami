@@ -379,10 +379,9 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 	}
 
 	// 解析分号
-	if p.current().Type != token.SEMICOLON {
-		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("属性声明后缺少分号 ';'"))
+	if p.current().Type == token.SEMICOLON {
+		p.next()
 	}
-	p.next()
 
 	ret := node.NewProperty(
 		tracker.EndBefore(),
@@ -480,7 +479,10 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 		}
 	}
 
-	body := p.ParseFunctionBody()
+	body, acl := p.ParseFunctionBody()
+	if acl != nil {
+		return nil, acl
+	}
 	vars := p.GetVariables()
 
 	p.scopeManager.PopScope()

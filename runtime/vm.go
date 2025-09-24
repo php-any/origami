@@ -139,7 +139,7 @@ func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 
 	program, err := p.ParseFile(file)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, err
 	}
 
 	ctx := vm.CreateContext(p.GetVariables())

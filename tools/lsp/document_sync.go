@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/php-any/origami/data"
 	"strings"
 
 	"github.com/php-any/origami/node"
@@ -94,7 +95,7 @@ func handleTextDocumentDidChange(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (in
 
 	// 解析 AST
 	var ast *node.Program
-	var err error
+	var acl data.Control
 
 	// 使用编辑器提供的最新内容来解析，而不是从磁盘读取
 
@@ -113,9 +114,9 @@ func handleTextDocumentDidChange(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (in
 	} else {
 		filePath = "memory_content" // 非文件 URI 使用虚拟路径
 	}
-	ast, err = p.ParseString(content, filePath)
-	if err != nil {
-		logrus.Warnf("重新解析 AST 失败 %s：%v", uri, err)
+	ast, acl = p.ParseString(content, filePath)
+	if acl != nil {
+		logrus.Warnf("重新解析 AST 失败 %s：%v", uri, acl)
 		// 解析失败时，只更新内容和版本，保留原有的 AST 和解析器
 		if existingDoc, exists := documents[uri]; exists {
 			existingDoc.Content = content
