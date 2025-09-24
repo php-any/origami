@@ -49,8 +49,7 @@ func (j *JsonSerializer) MarshalArray(v *data.ArrayValue) ([]byte, error) {
 	for _, elem := range v.Value {
 		if vs, ok := elem.(data.ValueSerializer); ok {
 			// 为每个元素创建新的序列化器
-			serializer := NewJsonSerializer()
-			b, err := vs.Marshal(serializer)
+			b, err := vs.Marshal(j)
 			if err != nil {
 				return nil, err
 			}
@@ -64,9 +63,9 @@ func (j *JsonSerializer) MarshalArray(v *data.ArrayValue) ([]byte, error) {
 	return json.Marshal(items)
 }
 
-func (j *JsonSerializer) UnmarshalArray(data []byte, v *data.ArrayValue) error {
+func (j *JsonSerializer) UnmarshalArray(msg []byte, v *data.ArrayValue) error {
 	var items []json.RawMessage
-	if err := json.Unmarshal(data, &items); err != nil {
+	if err := json.Unmarshal(msg, &items); err != nil {
 		return err
 	}
 
@@ -91,8 +90,7 @@ func (j *JsonSerializer) MarshalObject(v *data.ObjectValue) ([]byte, error) {
 	encoded := make(map[string]json.RawMessage, len(props))
 	for k, val := range props {
 		if vs, ok := val.(data.ValueSerializer); ok {
-			serializer := NewJsonSerializer()
-			b, err := vs.Marshal(serializer)
+			b, err := vs.Marshal(j)
 			if err != nil {
 				return nil, err
 			}
@@ -162,8 +160,7 @@ func (j *JsonSerializer) MarshalClass(v *data.ClassValue) ([]byte, error) {
 	encoded := make(map[string]json.RawMessage, len(props))
 	for k, val := range props {
 		if vs, ok := val.(data.ValueSerializer); ok {
-			serializer := NewJsonSerializer()
-			b, err := vs.Marshal(serializer)
+			b, err := vs.Marshal(j)
 			if err != nil {
 				return nil, err
 			}
@@ -174,24 +171,18 @@ func (j *JsonSerializer) MarshalClass(v *data.ClassValue) ([]byte, error) {
 		}
 	}
 
-	payload := map[string]any{
-		"name":       v.Class.GetName(),
-		"properties": encoded,
-	}
-	return json.Marshal(payload)
+	// 与对象保持一致：仅输出属性映射
+	return json.Marshal(encoded)
 }
 
 func (j *JsonSerializer) UnmarshalClass(data []byte, v *data.ClassValue) error {
-	var payload struct {
-		Name       string                     `json:"name"`
-		Properties map[string]json.RawMessage `json:"properties"`
-	}
-	if err := json.Unmarshal(data, &payload); err != nil {
+	// 直接从对象结构恢复属性
+	var props map[string]json.RawMessage
+	if err := json.Unmarshal(data, &props); err != nil {
 		return err
 	}
 
-	// 只恢复属性，不改变类定义
-	for k, raw := range payload.Properties {
+	for k, raw := range props {
 		val, err := j.unmarshalValue(raw)
 		if err != nil {
 			return err
@@ -202,38 +193,38 @@ func (j *JsonSerializer) UnmarshalClass(data []byte, v *data.ClassValue) error {
 }
 
 // 辅助方法：根据 JSON 数据推断类型并反序列化
-func (j *JsonSerializer) unmarshalValue(data []byte) (data.Value, error) {
+func (j *JsonSerializer) unmarshalValue(raw []byte) (data.Value, error) {
 	// 尝试按顺序解析为不同类型
 	var i int
-	if err := json.Unmarshal(data, &i); err == nil {
+	if err := json.Unmarshal(raw, &i); err == nil {
 		return data.NewIntValue(i), nil
 	}
 
 	var f float64
-	if err := json.Unmarshal(data, &f); err == nil {
+	if err := json.Unmarshal(raw, &f); err == nil {
 		return data.NewFloatValue(f), nil
 	}
 
 	var b bool
-	if err := json.Unmarshal(data, &b); err == nil {
+	if err := json.Unmarshal(raw, &b); err == nil {
 		return data.NewBoolValue(b), nil
 	}
 
 	var s string
-	if err := json.Unmarshal(data, &s); err == nil {
+	if err := json.Unmarshal(raw, &s); err == nil {
 		return data.NewStringValue(s), nil
 	}
 
 	// 检查是否为 null
-	if string(data) == "null" {
+	if string(raw) == "null" {
 		return data.NewNullValue(), nil
 	}
 
 	// 检查是否为数组
 	var arr []json.RawMessage
-	if err := json.Unmarshal(data, &arr); err == nil {
+	if err := json.Unmarshal(raw, &arr); err == nil {
 		av := &data.ArrayValue{}
-		if err := j.UnmarshalArray(data, av); err != nil {
+		if err := j.UnmarshalArray(raw, av); err != nil {
 			return nil, err
 		}
 		return av, nil
@@ -241,9 +232,9 @@ func (j *JsonSerializer) unmarshalValue(data []byte) (data.Value, error) {
 
 	// 检查是否为对象
 	var obj map[string]json.RawMessage
-	if err := json.Unmarshal(data, &obj); err == nil {
+	if err := json.Unmarshal(raw, &obj); err == nil {
 		ov := data.NewObjectValue()
-		if err := j.UnmarshalObject(data, ov); err != nil {
+		if err := j.UnmarshalObject(raw, ov); err != nil {
 			return nil, err
 		}
 		return ov, nil
@@ -251,7 +242,7 @@ func (j *JsonSerializer) unmarshalValue(data []byte) (data.Value, error) {
 
 	// 如果都不匹配，作为任意值处理
 	var anyVal any
-	if err := json.Unmarshal(data, &anyVal); err != nil {
+	if err := json.Unmarshal(raw, &anyVal); err != nil {
 		return nil, fmt.Errorf("无法解析 JSON 数据: %v", err)
 	}
 	return data.NewAnyValue(anyVal), nil
