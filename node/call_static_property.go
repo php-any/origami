@@ -51,8 +51,11 @@ func (pe *CallStaticProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 			}
 		}
 	}
-
-	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("没有静态属性(%s)。", pe.Property)))
+	name := ""
+	if getName, ok := pe.Stmt.(data.ClassStmt); ok {
+		name = getName.GetName()
+	}
+	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("(%v)没有静态属性(%s)。", name, pe.Property)))
 }
 
 func (pe *CallStaticProperty) SetProperty(ctx data.Context, name string, value data.Value) data.Control {
@@ -75,6 +78,9 @@ func (pe *CallStaticProperty) SetProperty(ctx data.Context, name string, value d
 			return c.SetProperty(name, value)
 		}
 	}
-
-	return data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("类(%s)没有静态属性(%s)。", pe.Stmt, pe.Property)))
+	cname := ""
+	if getName, ok := pe.Stmt.(data.ClassStmt); ok {
+		cname = getName.GetName()
+	}
+	return data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("类(%s)没有静态属性(%s)。", cname, pe.Property)))
 }

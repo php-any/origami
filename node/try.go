@@ -39,7 +39,10 @@ func (t *TryStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 	}
 
 	if c != nil {
-		t.tryValue(ctx, c)
+		v, c = t.tryValue(ctx, c)
+		if c != nil {
+			return nil, c
+		}
 	}
 
 	// 执行 finally 块（如果存在）

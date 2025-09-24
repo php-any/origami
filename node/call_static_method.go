@@ -42,8 +42,18 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 			if has {
 				return data.NewFuncValue(method), nil
 			}
+		case data.GetMethod:
+			method, has := expr.GetMethod(pe.Method)
+			if has {
+				return data.NewFuncValue(method), nil
+			}
 		}
 	}
 
-	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("无法调用函数(%s)。", pe.Method)))
+	name := ""
+	if getName, ok := pe.stmt.(data.ClassStmt); ok {
+		name = getName.GetName()
+	}
+
+	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("(%v)无法调用函数(%s)。", name, pe.Method)))
 }

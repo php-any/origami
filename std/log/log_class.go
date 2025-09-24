@@ -75,6 +75,26 @@ func (s *LogClass) GetMethod(name string) (data.Method, bool) {
 	return nil, false
 }
 
+func (s *LogClass) GetStaticMethod(name string) (data.Method, bool) {
+	switch name {
+	case "debug":
+		return s.debug, true
+	case "error":
+		return s.error, true
+	case "fatal":
+		return s.fatal, true
+	case "info":
+		return s.info, true
+	case "notice":
+		return s.notice, true
+	case "trace":
+		return s.trace, true
+	case "warn":
+		return s.warn, true
+	}
+	return nil, false
+}
+
 func (s *LogClass) GetMethods() []data.Method {
 	return []data.Method{
 		s.debug,

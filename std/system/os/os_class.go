@@ -9,7 +9,7 @@ import (
 func NewOSClass() data.ClassStmt {
 	source := newOs()
 	return &OSClass{
-		eol:      node.NewProperty(nil, "EOL", "public", true, data.NewStringValue(source.EOL)),
+		eol:      data.NewStringValue(source.EOL),
 		exit:     &OSExitMethod{source},
 		hostname: &OSHostnameMethod{source},
 		path:     &OSPathMethod{source},
@@ -18,7 +18,7 @@ func NewOSClass() data.ClassStmt {
 
 type OSClass struct {
 	node.Node
-	eol      data.Property
+	eol      data.Value
 	exit     data.Method
 	hostname data.Method
 	path     data.Method
@@ -41,23 +41,37 @@ func (s *OSClass) GetImplements() []string {
 }
 
 func (s *OSClass) GetProperty(name string) (data.Property, bool) {
+	return nil, false
+}
+
+func (s *OSClass) GetStaticProperty(name string) (data.Value, bool) {
 	switch name {
 	case "EOL":
 		return s.eol, true
 	case "GOOS":
-		return node.NewProperty(nil, "GOOS", "public", true, data.NewStringValue(runtime.GOOS)), true
+		return data.NewStringValue(runtime.GOOS), true
 
 	}
 	return nil, false
 }
 
 func (s *OSClass) GetProperties() map[string]data.Property {
-	return map[string]data.Property{
-		"EOL": s.eol,
-	}
+	return map[string]data.Property{}
 }
 
 func (s *OSClass) GetMethod(name string) (data.Method, bool) {
+	switch name {
+	case "exit":
+		return s.exit, true
+	case "hostname":
+		return s.hostname, true
+	case "path":
+		return s.path, true
+	}
+	return nil, false
+}
+
+func (s *OSClass) GetStaticMethod(name string) (data.Method, bool) {
 	switch name {
 	case "exit":
 		return s.exit, true
