@@ -90,7 +90,7 @@ func (p *TryParser) parseCatchBlock(tracker *PositionTracker) (*node.CatchBlock,
 	if p.checkPositionIs(0, token.VARIABLE) {
 		stmt, acl := p.parseStatement()
 		if acl != nil {
-			p.addControl(acl)
+			return nil, acl
 		}
 		variable1 := stmt.(*node.VariableExpression)
 		variable1.Type = data.NewBaseType(exceptionType)
