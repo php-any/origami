@@ -1,72 +1,72 @@
 package http
 
 import (
+	httpsrc "net/http"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
 
-func NewServerClass() *ServerClass {
-	source := newServer()
+func NewServerClass() data.ClassStmt {
 	return &ServerClass{
-		init: &ServerConstructMethod{source},
-		get:  &ServerGetMethod{source},
-		run:  &ServerRunMethod{source},
+		source: httpsrc.NewServeMux(),
+	}
+}
+
+func NewServerClassFromGroup(prefix string, server *ServerClass) data.ClassStmt {
+	return &ServerClass{
+		source: server.source,
+		Prefix: prefix,
+		Host:   server.Host,
+		Port:   server.Port,
 	}
 }
 
 type ServerClass struct {
 	node.Node
-	init data.Method
-	get  data.Method
-	run  data.Method
+	source *httpsrc.ServeMux
+
+	Prefix string
+
+	Host string
+	Port int
 }
 
 func (s *ServerClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	source := newServer()
-
-	return data.NewClassValue(&ServerClass{
-		init: &ServerConstructMethod{source},
-		get:  &ServerGetMethod{source},
-		run:  &ServerRunMethod{source},
-	}, ctx.CreateBaseContext()), nil
+	return data.NewProxyValue(NewServerClass(), ctx.CreateBaseContext()), nil
 }
 
-func (s *ServerClass) GetName() string {
-	return "Net\\Http\\Server"
-}
-
-func (s *ServerClass) GetExtend() *string {
-	return nil
-}
-
-func (s *ServerClass) GetImplements() []string {
-	return nil
-}
-
-func (s *ServerClass) GetProperty(_ string) (data.Property, bool) {
-	return nil, false
-}
-
-func (s *ServerClass) GetProperties() map[string]data.Property {
-	return nil
-}
-
+func (s *ServerClass) GetName() string         { return "Net\\Http\\Server" }
+func (s *ServerClass) GetExtend() *string      { return nil }
+func (s *ServerClass) GetImplements() []string { return nil }
+func (s *ServerClass) AsString() string        { return "Server{}" }
+func (s *ServerClass) GetSource() any          { return s.source }
 func (s *ServerClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
-	case "get":
-		return s.get, true
-	case "start":
-		return s.run, true
+	case "get", "post", "put", "delete", "head", "options", "patch", "trace":
+		return &ServerHandleMethod{server: s, name: name}, true
+	case "group":
+		return &ServerGroupMethod{server: s}, true
+	case "middleware":
+		return &ServerMiddlewareMethod{server: s}, true
+	case "run":
+		return &ServerRunMethod{server: s}, true
 	}
 	return nil, false
 }
 
 func (s *ServerClass) GetMethods() []data.Method {
-	return []data.Method{
-		s.get,
-	}
+	return []data.Method{}
 }
 
-func (s *ServerClass) GetConstruct() data.Method {
-	return s.init
+func (s *ServerClass) GetConstruct() data.Method { return &ServerConstructMethod{source: s} }
+
+func (s *ServerClass) GetProperty(name string) (data.Property, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+func (s *ServerClass) GetProperties() map[string]data.Property {
+	return map[string]data.Property{}
 }
