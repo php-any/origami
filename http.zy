@@ -1,0 +1,28 @@
+namespace App;
+
+$server = new Net\Http\Server("0.0.0.0", port: 8080);
+
+
+$server->get("/", ($request, $response) => {
+    $response->json({
+        "test": 1
+    });
+})
+
+$group = $server->group("/user");
+
+$group->middleware(($request, $response, $next) => {
+    echo "中间件开始\n"
+
+    $next($request, $response)
+
+    echo "中间件结束\n"
+})
+
+$group->get("/list", ($request, $response) => {
+    $response->json({
+        "list": "aaaa"
+    });
+})
+
+$server->run();

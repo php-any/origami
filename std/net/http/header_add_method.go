@@ -2,10 +2,11 @@ package http
 
 import (
 	"fmt"
+	httpsrc "net/http"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/utils"
-	httpsrc "net/http"
 )
 
 type HeaderAddMethod struct {
