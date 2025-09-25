@@ -2,8 +2,9 @@ package http
 
 import (
 	"fmt"
-	"github.com/php-any/origami/std/serializer/json"
 	httpsrc "net/http"
+
+	"github.com/php-any/origami/std/serializer/json"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -29,6 +30,7 @@ func (h *ResponseWriterJsonMethod) Call(ctx data.Context) (data.GetValue, data.C
 		if err != nil {
 			return nil, data.NewErrorThrow(nil, err)
 		}
+		h.source.Header().Set("Content-Type", "application/json; charset=utf-8")
 		ret0, ret1 := h.source.Write(bytes)
 		if ret1 != nil {
 			return nil, data.NewErrorThrow(nil, ret1)
