@@ -14,8 +14,8 @@ func Test_handleTextDocumentDefinition_hello_function_jump(t *testing.T) {
 
 	globalLspVM = NewLspVM()
 
-	testURI := "file:///Users/lvluo/Desktop/github.com/php-any/origami/b.cjp"
-	filePath := "/Users/lvluo/Desktop/github.com/php-any/origami/b.cjp"
+	testURI := "file:///Users/lvluo/Desktop/github.com/php-any/origami/b.zy"
+	filePath := "/Users/lvluo/Desktop/github.com/php-any/origami/b.zy"
 
 	// 构造测试参数：点击位于 "echo hello();" 这一行（期望跳转到 hello() 函数定义）
 	params := DefinitionParams{
@@ -104,8 +104,8 @@ func Test_handleTextDocumentDefinition_hello2_function_jump(t *testing.T) {
 
 	globalLspVM = NewLspVM()
 
-	testURI := "file:///Users/lvluo/Desktop/github.com/php-any/origami/b.cjp"
-	filePath := "/Users/lvluo/Desktop/github.com/php-any/origami/b.cjp"
+	testURI := "file:///Users/lvluo/Desktop/github.com/php-any/origami/b.zy"
+	filePath := "/Users/lvluo/Desktop/github.com/php-any/origami/b.zy"
 
 	// 构造测试参数：点击位于 "echo hello2();" 这一行（期望跳转到 hello2() 函数定义）
 	params := DefinitionParams{
@@ -195,8 +195,8 @@ func Test_handleTextDocumentDefinition_new_class_jump(t *testing.T) {
 
 	globalLspVM = NewLspVM()
 
-	testURI := "file:///Users/lvluo/Desktop/github.com/php-any/origami/b.cjp"
-	filePath := "/Users/lvluo/Desktop/github.com/php-any/origami/b.cjp"
+	testURI := "file:///Users/lvluo/Desktop/github.com/php-any/origami/b.zy"
+	filePath := "/Users/lvluo/Desktop/github.com/php-any/origami/b.zy"
 
 	// 构造测试参数：点击位于 "echo $a->hello();" 这一行（期望跳转到 A.hello() 方法定义）
 	params := DefinitionParams{

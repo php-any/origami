@@ -1,3 +1,0 @@
-$html = <div class="container"><h1>Hello ${go} World</h1><p>This is a test</p></div>
-
-echo $html

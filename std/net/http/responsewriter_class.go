@@ -38,17 +38,22 @@ func (s *ResponseWriterClass) GetMethod(name string) (data.Method, bool) {
 	case "json":
 		return &ResponseWriterJsonMethod{source: s.source}, true
 	case "header":
-		return &ResponseWriterJsonMethod{source: s.source}, true
+		return &ResponseWriterHeaderMethod{source: s.source}, true
 	case "write":
 		return &ResponseWriterWriteMethod{source: s.source}, true
 	case "writeHeader":
-		return &ResponseWriterJsonMethod{source: s.source}, true
+		return &ResponseWriterWriteHeaderMethod{source: s.source}, true
 	}
 	return nil, false
 }
 
 func (s *ResponseWriterClass) GetMethods() []data.Method {
-	return []data.Method{}
+	return []data.Method{
+		&ResponseWriterJsonMethod{source: s.source},
+		&ResponseWriterHeaderMethod{source: s.source},
+		&ResponseWriterWriteMethod{source: s.source},
+		&ResponseWriterWriteHeaderMethod{source: s.source},
+	}
 }
 
 func (s *ResponseWriterClass) GetConstruct() data.Method { return nil }

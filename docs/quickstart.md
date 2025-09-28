@@ -6,7 +6,7 @@
 
 ### 1. 创建脚本文件
 
-创建一个名为 `hello.cjp` 的文件：
+创建一个名为 `hello.zy` 的文件：
 
 ```php
 <?php
@@ -29,7 +29,7 @@ echo $message;
 ### 2. 运行程序
 
 ```bash
-./origami hello.cjp
+./origami hello.zy
 ```
 
 输出：
@@ -230,7 +230,7 @@ logMessage("ERROR", "Something went wrong");
 验证语言功能：
 
 ```bash
-./origami tests/run_tests.cjp
+./origami tests/run_tests.zy
 ```
 
 ## 下一步
@@ -250,7 +250,7 @@ A: 使用 `Log::debug()` 或 `echo` 输出调试信息。
 
 ### Q: 支持哪些文件扩展名？
 
-A: 支持 `.cjp` 和 `.php` 文件。
+A: 支持 `.zy` 和 `.php` 文件。
 
 ### Q: 如何获取帮助？
 

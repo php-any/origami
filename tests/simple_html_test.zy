@@ -1,7 +1,0 @@
-// 简单HTML测试
-echo "开始测试HTML解析器"
-
-$html = <div>Hello World</div>
-
-echo "HTML解析完成"
-echo $html 

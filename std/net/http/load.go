@@ -8,7 +8,6 @@ func Load(vm data.VM) {
 	// 添加类
 	vm.AddClass(NewServerClass())
 	vm.AddClass(NewHandlerClass())
-	vm.AddClass(NewServeMuxClass())
 	vm.AddClass(NewCookieClass())
 	vm.AddClass(NewResponseWriterClass())
 	vm.AddClass(NewRequestClass())

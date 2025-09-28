@@ -273,7 +273,7 @@ func main() {
     vm.AddClass(myext.NewMyClass())
 
     // 运行脚本
-    vm.LoadAndRun("script.cjp")
+    vm.LoadAndRun("script.zy")
 }
 ```
 

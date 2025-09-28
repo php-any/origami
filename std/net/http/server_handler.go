@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -34,7 +35,10 @@ func (h *ServerHandleMethod) Call(ctx data.Context) (data.GetValue, data.Control
 		if len(h.server.Middlewares) > 0 {
 			finalHandler = applyMiddlewares(finalHandler, h.server.Middlewares)
 		}
-		h.server.source.Handle(router, finalHandler)
+
+		// 使用 Go 1.22+ 的方法路由语法
+		methodPath := strings.ToUpper(h.name) + " " + router
+		h.server.source.Handle(methodPath, finalHandler)
 		return nil, nil
 	}
 	return nil, data.NewErrorThrow(nil, errors.New("第二个参数必须是路由处理函数"))

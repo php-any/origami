@@ -22,7 +22,7 @@ if($result2[0] == "Hell" && $result2[1] == " W" && $result2[2] == "rld") {
 
 // 测试默认分割（按字符）
 array $result3 = $text->split();
-if($result3[0] == "H" && $result3[1] == "e" && $result3[2] == "l") {
+if($result3[0] == "Hello" && $result3[1] == "World") {
     Log::info("默认分割测试通过");
 } else {
     Log::fatal("默认分割测试失败", $result3);

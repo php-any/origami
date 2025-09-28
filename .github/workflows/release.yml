@@ -95,11 +95,11 @@ jobs:
 
           if [ "$GOOS" = "windows" ]; then
             echo '```cmd' >> origami-${{ matrix.goos }}-${{ matrix.goarch }}/README.md
-            echo 'run.bat script.cjp' >> origami-${{ matrix.goos }}-${{ matrix.goarch }}/README.md
+            echo 'run.bat script.zy' >> origami-${{ matrix.goos }}-${{ matrix.goarch }}/README.md
             echo '```' >> origami-${{ matrix.goos }}-${{ matrix.goarch }}/README.md
           else
             echo '```cmd' >> origami-${{ matrix.goos }}-${{ matrix.goarch }}/README.md
-            echo './run.sh script.cjp' >> origami-${{ matrix.goos }}-${{ matrix.goarch }}/README.md
+            echo './run.sh script.zy' >> origami-${{ matrix.goos }}-${{ matrix.goarch }}/README.md
             echo '```' >> origami-${{ matrix.goos }}-${{ matrix.goarch }}/README.md
           fi
 
@@ -149,11 +149,11 @@ jobs:
             # Linux/macOS
             tar -xzf origami-linux-amd64.tar.gz
             cd origami-linux-amd64
-            ./run.sh script.cjp
+            ./run.sh script.zy
 
             # Windows
             # 解压 origami-windows-amd64.zip
-            # 双击 run.bat 或在命令行运行: run.bat script.cjp
+            # 双击 run.bat 或在命令行运行: run.bat script.zy
             ```
 
             ### 包内容

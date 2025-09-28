@@ -22,12 +22,12 @@ func showHelp() {
 	fmt.Println("  脚本路径    要执行的脚本文件路径")
 	fmt.Println()
 	fmt.Println("示例:")
-	fmt.Println("  ./origami tests/run_tests.cjp")
+	fmt.Println("  ./origami tests/run_tests.zy")
 	fmt.Println("  ./origami script.zy")
-	fmt.Println("  ./origami my_script.cjp")
+	fmt.Println("  ./origami my_script.zy")
 	fmt.Println()
 	fmt.Println("支持的脚本格式:")
-	fmt.Println("  .cjp - 折言脚本文件")
+	fmt.Println("  .zy - 折言脚本文件")
 	fmt.Println("  .php - PHP兼容脚本文件")
 }
 

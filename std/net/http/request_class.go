@@ -3,13 +3,14 @@ package http
 import (
 	"crypto/tls"
 	"errors"
-	"github.com/php-any/origami/data"
-	"github.com/php-any/origami/node"
-	"github.com/php-any/origami/utils"
 	"io"
 	"mime/multipart"
 	httpsrc "net/http"
 	"net/url"
+
+	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 func NewRequestClass() data.ClassStmt {
@@ -99,7 +100,7 @@ func (s *RequestClass) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 	return data.NewProxyValue(NewRequestClassFrom(&httpsrc.Request{}), ctx.CreateBaseContext()), nil
 }
 
-func (s *RequestClass) GetName() string         { return "http\\Request" }
+func (s *RequestClass) GetName() string         { return "Net\\Http\\Request" }
 func (s *RequestClass) GetExtend() *string      { return nil }
 func (s *RequestClass) GetImplements() []string { return nil }
 func (s *RequestClass) AsString() string        { return "Request{}" }

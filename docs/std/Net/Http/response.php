@@ -18,18 +18,34 @@ namespace Net\Http;
 class Response {
 
     /**
-     * write 方法
+     * json 方法
      * 
      */
-    public function write($data) {
+    public static function json(object $data) {
         // 实现逻辑
     }
 
     /**
-     * json 方法
+     * header 方法
      * 
      */
-    public function json($data) : int {
+    public function header() {
+        // 实现逻辑
+    }
+
+    /**
+     * write 方法
+     * 
+     */
+    public static function write($param0) {
+        // 实现逻辑
+    }
+
+    /**
+     * writeHeader 方法
+     * 
+     */
+    public static function writeHeader($param0) {
         // 实现逻辑
     }
 

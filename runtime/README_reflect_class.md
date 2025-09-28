@@ -187,7 +187,7 @@ func (c *Calculator) GetInfo() (string, int, map[string]interface{}, error) { ..
 
 - `runtime/reflect_class_example.go` - 示例结构体定义
 - `runtime/reflect_class_test.go` - 单元测试
-- `tests/reflect_class_test.cjp` - 脚本测试示例
+- `tests/reflect_class_test.zy` - 脚本测试示例
 
 ## 测试
 

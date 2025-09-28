@@ -27,9 +27,10 @@ func getStdClasses() []data.ClassStmt {
 		exception.NewExceptionClass(),
 		oslib.NewOSClass(),
 		&reflect.ReflectClass{},
-		http.NewServerClass(), // 暂时注释掉，因为存在初始化问题
-		http.NewRequestClass(nil, nil),
-		http.NewResponseClass(nil, nil),
+		http.NewRequestClass(),
+		http.NewResponseWriterClass(),
+		http.NewServerClass(),
+
 		channel.NewChannelClass(),
 		// sql
 		//sql.NewConnClass(),
@@ -54,6 +55,138 @@ func getStdFunctions() []data.FuncStmt {
 		// sql
 		// sql.NewOpenFunction(),
 	}
+}
+
+func main() {
+	// 创建 docs/std 目录
+	err := os.MkdirAll("docs/std", 0755)
+	if err != nil {
+		panic(err)
+	}
+
+	var modules []PseudoCode
+
+	// 分析标准库函数
+	stdFunctions := getStdFunctions()
+	if len(stdFunctions) > 0 {
+		// 按命名空间分组函数
+		funcModulesByNamespace := make(map[string]*PseudoCode)
+
+		for _, fn := range stdFunctions {
+			fullName := fn.GetName()
+			namespace := ""
+			shortName := fullName
+
+			if strings.Contains(fullName, "\\") {
+				parts := strings.Split(fullName, "\\")
+				namespace = strings.Join(parts[:len(parts)-1], "\\")
+				shortName = parts[len(parts)-1]
+			}
+
+			// 获取或创建对应命名空间的模块
+			module, ok := funcModulesByNamespace[namespace]
+			if !ok {
+				module = &PseudoCode{
+					ModuleName:  "functions",
+					Description: "标准库函数",
+					Namespace:   namespace,
+				}
+				funcModulesByNamespace[namespace] = module
+			}
+
+			// 分析函数并使用短名称写入
+			sig := analyzeFunction(fn)
+			sig.Name = shortName
+			module.Functions = append(module.Functions, sig)
+		}
+
+		// 汇总加入模块列表
+		for _, m := range funcModulesByNamespace {
+			modules = append(modules, *m)
+		}
+	}
+
+	// 分析标准库类
+	stdClasses := getStdClasses()
+	for _, class := range stdClasses {
+		classSig := analyzeClass(class)
+
+		// 按类名分组，处理命名空间
+		className := class.GetName()
+		var moduleName string
+		var namespace string
+
+		if strings.Contains(className, "\\") {
+			parts := strings.Split(className, "\\")
+			namespace = strings.Join(parts[:len(parts)-1], "\\")
+			moduleName = strings.ToLower(parts[len(parts)-1])
+		} else {
+			moduleName = strings.ToLower(className)
+		}
+
+		// 查找或创建模块
+		var module *PseudoCode
+		for i := range modules {
+			if modules[i].ModuleName == moduleName {
+				module = &modules[i]
+				break
+			}
+		}
+
+		if module == nil {
+			modules = append(modules, PseudoCode{
+				ModuleName:  moduleName,
+				Description: fmt.Sprintf("%s 类", className),
+				Namespace:   namespace,
+			})
+			module = &modules[len(modules)-1]
+		}
+
+		module.Classes = append(module.Classes, classSig)
+	}
+
+	// 生成索引文件
+	indexContent := generatePseudoCodeIndex(modules)
+	err = os.WriteFile("docs/std/pseudo_README.md", []byte(indexContent), 0644)
+	if err != nil {
+		panic(err)
+	}
+
+	// 生成每个模块的 PHP 伪代码
+	for _, module := range modules {
+		if module.ModuleName == "" {
+			continue
+		}
+
+		content := generatePHPPseudoCode(module)
+
+		// 根据命名空间创建目录结构
+		var filepath string
+		if module.Namespace != "" {
+			// 将命名空间转换为目录路径
+			dirPath := strings.ReplaceAll(module.Namespace, "\\", "/")
+			fullDirPath := fmt.Sprintf("docs/std/%s", dirPath)
+
+			// 创建目录
+			err = os.MkdirAll(fullDirPath, 0755)
+			if err != nil {
+				panic(err)
+			}
+
+			filepath = fmt.Sprintf("%s/%s.php", fullDirPath, strings.ToLower(module.ModuleName))
+		} else {
+			filepath = fmt.Sprintf("docs/std/%s.php", strings.ToLower(module.ModuleName))
+		}
+
+		err = os.WriteFile(filepath, []byte(content), 0644)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	fmt.Println("标准库伪代码生成完成！")
+	fmt.Println("生成的伪代码位于 docs/std/ 目录")
+	fmt.Printf("共分析了 %d 个模块\n", len(modules))
 }
 
 // PseudoCode 表示伪代码结构
@@ -378,136 +511,4 @@ $classInfo = $reflect->getClassInfo("MyClass");
 	}
 
 	return buf.String()
-}
-
-func main() {
-	// 创建 docs/std 目录
-	err := os.MkdirAll("docs/std", 0755)
-	if err != nil {
-		panic(err)
-	}
-
-	var modules []PseudoCode
-
-	// 分析标准库函数
-	stdFunctions := getStdFunctions()
-	if len(stdFunctions) > 0 {
-		// 按命名空间分组函数
-		funcModulesByNamespace := make(map[string]*PseudoCode)
-
-		for _, fn := range stdFunctions {
-			fullName := fn.GetName()
-			namespace := ""
-			shortName := fullName
-
-			if strings.Contains(fullName, "\\") {
-				parts := strings.Split(fullName, "\\")
-				namespace = strings.Join(parts[:len(parts)-1], "\\")
-				shortName = parts[len(parts)-1]
-			}
-
-			// 获取或创建对应命名空间的模块
-			module, ok := funcModulesByNamespace[namespace]
-			if !ok {
-				module = &PseudoCode{
-					ModuleName:  "functions",
-					Description: "标准库函数",
-					Namespace:   namespace,
-				}
-				funcModulesByNamespace[namespace] = module
-			}
-
-			// 分析函数并使用短名称写入
-			sig := analyzeFunction(fn)
-			sig.Name = shortName
-			module.Functions = append(module.Functions, sig)
-		}
-
-		// 汇总加入模块列表
-		for _, m := range funcModulesByNamespace {
-			modules = append(modules, *m)
-		}
-	}
-
-	// 分析标准库类
-	stdClasses := getStdClasses()
-	for _, class := range stdClasses {
-		classSig := analyzeClass(class)
-
-		// 按类名分组，处理命名空间
-		className := class.GetName()
-		var moduleName string
-		var namespace string
-
-		if strings.Contains(className, "\\") {
-			parts := strings.Split(className, "\\")
-			namespace = strings.Join(parts[:len(parts)-1], "\\")
-			moduleName = strings.ToLower(parts[len(parts)-1])
-		} else {
-			moduleName = strings.ToLower(className)
-		}
-
-		// 查找或创建模块
-		var module *PseudoCode
-		for i := range modules {
-			if modules[i].ModuleName == moduleName {
-				module = &modules[i]
-				break
-			}
-		}
-
-		if module == nil {
-			modules = append(modules, PseudoCode{
-				ModuleName:  moduleName,
-				Description: fmt.Sprintf("%s 类", className),
-				Namespace:   namespace,
-			})
-			module = &modules[len(modules)-1]
-		}
-
-		module.Classes = append(module.Classes, classSig)
-	}
-
-	// 生成索引文件
-	indexContent := generatePseudoCodeIndex(modules)
-	err = os.WriteFile("docs/std/pseudo_README.md", []byte(indexContent), 0644)
-	if err != nil {
-		panic(err)
-	}
-
-	// 生成每个模块的 PHP 伪代码
-	for _, module := range modules {
-		if module.ModuleName == "" {
-			continue
-		}
-
-		content := generatePHPPseudoCode(module)
-
-		// 根据命名空间创建目录结构
-		var filepath string
-		if module.Namespace != "" {
-			// 将命名空间转换为目录路径
-			dirPath := strings.ReplaceAll(module.Namespace, "\\", "/")
-			fullDirPath := fmt.Sprintf("docs/std/%s", dirPath)
-
-			// 创建目录
-			err = os.MkdirAll(fullDirPath, 0755)
-			if err != nil {
-				panic(err)
-			}
-
-			filepath = fmt.Sprintf("%s/%s.php", fullDirPath, strings.ToLower(module.ModuleName))
-		} else {
-			filepath = fmt.Sprintf("docs/std/%s.php", strings.ToLower(module.ModuleName))
-		}
-
-		err = os.WriteFile(filepath, []byte(content), 0644)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	fmt.Println("标准库伪代码生成完成！")
-	fmt.Println("生成的伪代码位于 docs/std/ 目录")
-	fmt.Printf("共分析了 %d 个模块\n", len(modules))
 }

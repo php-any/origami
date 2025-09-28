@@ -11,7 +11,7 @@ for (_, $file in scandir($path)) {
             $filePath = OS::path($subDir, $file);
             if(!is_dir($filePath)) {
                 try {
-                    if($filePath->indexOf(".cjp") == $filePath->length - 4) {
+                    if($filePath->indexOf(".zy") == $filePath->length - 3) {
                         Log::info("执行 {$filePath}");
                         include($filePath);
                     } else {

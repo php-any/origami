@@ -58,7 +58,19 @@ func (s *ServerClass) GetMethod(name string) (data.Method, bool) {
 }
 
 func (s *ServerClass) GetMethods() []data.Method {
-	return []data.Method{}
+	return []data.Method{
+		&ServerHandleMethod{server: s, name: "get"},
+		&ServerHandleMethod{server: s, name: "post"},
+		&ServerHandleMethod{server: s, name: "put"},
+		&ServerHandleMethod{server: s, name: "delete"},
+		&ServerHandleMethod{server: s, name: "head"},
+		&ServerHandleMethod{server: s, name: "options"},
+		&ServerHandleMethod{server: s, name: "patch"},
+		&ServerHandleMethod{server: s, name: "trace"},
+		&ServerGroupMethod{server: s},
+		&ServerMiddlewareMethod{server: s},
+		&ServerRunMethod{server: s},
+	}
 }
 
 func (s *ServerClass) GetConstruct() data.Method { return &ServerConstructMethod{source: s} }

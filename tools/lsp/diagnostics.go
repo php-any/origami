@@ -10,7 +10,7 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-// 验证文档 - 针对origami语言(.cjp文件)的语法验证
+// 验证文档 - 针对origami语言(.zy文件)的语法验证
 func validateDocument(conn *jsonrpc2.Conn, uri string, content string) {
 	diagnostics := []Diagnostic{}
 

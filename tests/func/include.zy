@@ -1,6 +1,6 @@
 // 无命名空间函数引入测试
 if (!function_exists("foo")) {
-    include(__DIR__. "/included/included.cjp")
+    include(__DIR__. "/included/included.zy")
 }
 
 $ret = foo()

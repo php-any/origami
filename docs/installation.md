@@ -89,7 +89,7 @@ go build -o origami origami.go
 验证安装是否成功：
 
 ```bash
-./origami tests/run_tests.cjp
+./origami tests/run_tests.zy
 ```
 
 如果看到大量测试通过信息，说明安装成功。
@@ -124,7 +124,7 @@ origami
    ```json
    {
      "files.associations": {
-       "*.cjp": "php"
+       "*.zy": "php"
      }
    }
    ```
@@ -132,7 +132,7 @@ origami
 #### IntelliJ IDEA
 
 1. 安装 PHP 插件
-2. 配置 `.cjp` 文件类型为 PHP
+2. 配置 `.zy` 文件类型为 PHP
 
 ## 故障排除
 

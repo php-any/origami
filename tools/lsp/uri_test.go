@@ -94,13 +94,13 @@ func TestCurrentSystemBehavior(t *testing.T) {
 	// 测试往返转换
 	testCases := []string{
 		"file:///tmp/test.txt",
-		"file:///home/user/document.cjp",
+		"file:///home/user/document.zy",
 	}
 
 	if runtime.GOOS == "windows" {
 		testCases = []string{
 			"file:///C:/temp/test.txt",
-			"file:///D:/Users/user/document.cjp",
+			"file:///D:/Users/user/document.zy",
 		}
 	}
 

@@ -8,3 +8,4 @@ node_modules
 zy
 zy-lsp
 *.exe
+*.log
