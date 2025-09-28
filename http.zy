@@ -23,3 +23,9 @@ $group->get("/list", ($request, $response) => {
 })
 
 $server->run();
+
+function test() {
+    echo "test\n";
+}
+
+test()

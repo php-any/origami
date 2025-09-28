@@ -201,6 +201,9 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 					methods[method.GetName()] = method
 				}
 			}
+		} else if p.current().Type == token.SEMICOLON {
+			p.next()
+			continue
 		} else {
 			return nil, data.NewErrorThrow(p.newFrom(), errors.New("缺少属性或方法声明"))
 		}

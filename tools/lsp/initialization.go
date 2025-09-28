@@ -79,7 +79,7 @@ func handleSetTrace(req *jsonrpc2.Request) (interface{}, error) {
 	}
 
 	// 设置跟踪级别
-	logrus.Info("设置跟踪值：%s", params.Value)
+	logrus.Infof("设置跟踪值：%s", params.Value)
 
 	return nil, nil
 }

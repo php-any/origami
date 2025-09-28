@@ -18,7 +18,7 @@ import (
 
 const (
 	lsName    = "Origami Language Server"
-	lsVersion = "1.0.0"
+	lsVersion = "1.0.1"
 )
 
 // 初始化日志配置
@@ -51,14 +51,16 @@ func initLogger(level int, output io.Writer) {
 }
 
 var (
-	version   = flag.Bool("version", false, "Show version information")
-	help      = flag.Bool("help", false, "Show help information")
-	test      = flag.Bool("test", false, "Run definition jump test")
-	protocol_ = flag.String("protocol", "stdio", "Protocol to use (stdio, tcp, websocket)")
-	address   = flag.String("address", "localhost", "Address to bind to (for tcp/websocket)")
-	port      = flag.Int("port", 8800, "Port to bind to (for tcp/websocket)")
-	logLevel  = flag.Int("log-level", 1, "Log level (0=panic, 1=fatal, 2=error, 3=warn, 4=info, 5=debug)")
-	logFile   = flag.String("log-file", "lsp.log", "Log file path (default lsp.log; empty not allowed)")
+	version    = flag.Bool("version", false, "Show version information")
+	help       = flag.Bool("help", false, "Show help information")
+	test       = flag.Bool("test", false, "Run definition jump test")
+	protocol_  = flag.String("protocol", "stdio", "Protocol to use (stdio, tcp, websocket)")
+	address    = flag.String("address", "localhost", "Address to bind to (for tcp/websocket)")
+	port       = flag.Int("port", 8800, "Port to bind to (for tcp/websocket)")
+	logLevel   = flag.Int("log-level", 5, "Log level (0=panic, 1=fatal, 2=error, 3=warn, 4=info, 5=debug)")
+	logFile    = flag.String("log-file", "lsp.log", "Log file path (default lsp.log; empty not allowed)")
+	consoleLog = flag.Bool("console-log", true, "Enable console logging in stdio mode (default: true)")
+	scanDir    = flag.String("scan-dir", "", "Directory to scan for .zy files (optional)")
 
 	// 全局 LSP 连接，用于发送通知
 	globalConn *jsonrpc2.Conn
@@ -451,25 +453,59 @@ func main() {
 		*logFile = abs
 	}
 
-	// 仅尝试写入指定的日志文件；失败则直接退出
-	// 若包含目录，先确保父级目录存在
-	if dir := filepath.Dir(*logFile); dir != "." && dir != "" {
-		_ = os.MkdirAll(dir, 0755)
-	}
-	file, err := os.OpenFile(*logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil {
-		// 无法写入日志文件时，提示并禁用日志
-		fmt.Fprintf(os.Stderr, "无法写入日志文件，将禁用日志：%s，原因：%v\n", *logFile, err)
-		output = io.Discard
-		effectiveLevel = int(logrus.PanicLevel)
+	// 根据协议类型决定日志输出方式
+	if *protocol_ == "stdio" {
+		// stdio 模式下，根据 consoleLog 选项决定日志输出方式
+		var writers []io.Writer
+
+		// 如果启用控制台日志，输出到 stderr（避免干扰 LSP 通信）
+		if *consoleLog {
+			writers = append(writers, os.Stderr)
+		}
+
+		// 尝试同时输出到文件（如果可能）
+		if dir := filepath.Dir(*logFile); dir != "." && dir != "" {
+			_ = os.MkdirAll(dir, 0755)
+		}
+		if file, err := os.OpenFile(*logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666); err == nil {
+			writers = append(writers, file)
+			defer file.Close()
+		}
+
+		// 如果没有可用的输出目标，使用 Discard
+		if len(writers) == 0 {
+			output = io.Discard
+		} else {
+			// 使用 MultiWriter 同时输出到多个目标
+			output = io.MultiWriter(writers...)
+		}
 	} else {
-		defer file.Close()
-		output = file
+		// TCP/WebSocket 模式下，只输出到文件
+		if dir := filepath.Dir(*logFile); dir != "." && dir != "" {
+			_ = os.MkdirAll(dir, 0755)
+		}
+		file, err := os.OpenFile(*logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err != nil {
+			// 无法写入日志文件时，输出到 stderr
+			fmt.Fprintf(os.Stderr, "无法写入日志文件，将输出到 stderr：%s，原因：%v\n", *logFile, err)
+			output = os.Stderr
+		} else {
+			defer file.Close()
+			output = file
+		}
 	}
 
 	initLogger(effectiveLevel, output)
 	if effectiveLevel != int(logrus.PanicLevel) {
-		logrus.Infof("日志文件: %s", *logFile)
+		if *protocol_ == "stdio" {
+			if *consoleLog {
+				logrus.Infof("日志输出: stderr + %s", *logFile)
+			} else {
+				logrus.Infof("日志文件: %s", *logFile)
+			}
+		} else {
+			logrus.Infof("日志文件: %s", *logFile)
+		}
 	}
 
 	if *version {
@@ -484,15 +520,13 @@ func main() {
 
 	logrus.Infof("日志级别: %d", *logLevel)
 
-	if *test {
-		logrus.Infof("=== 运行定义跳转测试 ===")
-		testDefinitionJumpFeature()
-		logrus.Infof("=== 测试完成 ===")
-		return
+	// 初始化全局 LspVM，如果指定了扫描目录则扫描该目录
+	if *scanDir != "" {
+		logrus.Infof("使用扫描目录模式，目录: %s", *scanDir)
+		globalLspVM = NewLspVMWithScanDir(*scanDir)
+	} else {
+		globalLspVM = NewLspVM()
 	}
-
-	// 初始化全局 LspVM
-	globalLspVM = NewLspVM()
 
 	// 创建 JSON-RPC 2.0 处理器
 	handler := jsonrpc2.HandlerWithError(func(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
@@ -648,12 +682,20 @@ func showHelp() {
 	fmt.Printf("  -protocol       协议类型 (stdio, tcp, websocket) [默认: stdio]\n")
 	fmt.Printf("  -address        绑定地址 (tcp/websocket) [默认: localhost]\n")
 	fmt.Printf("  -port           绑定端口 (tcp/websocket) [默认: 8800]\n")
-	fmt.Printf("  -log-level      日志级别 (0=panic, 1=fatal, 2=error, 3=warn, 4=info, 5=debug) [默认: 1]\n")
+	fmt.Printf("  -log-level      日志级别 (0=panic, 1=fatal, 2=error, 3=warn, 4=info, 5=debug) [默认: 5]\n")
 	fmt.Printf("  -log-file       日志文件路径 [默认: lsp.log]\n")
+	fmt.Printf("  -console-log    在 stdio 模式下启用控制台日志 [默认: true]\n")
+	fmt.Printf("  -scan-dir       扫描指定目录中的所有 .zy 文件 [可选]\n")
 	fmt.Printf("\n")
 	fmt.Printf("示例：\n")
-	fmt.Printf("  # 使用 stdio 启动（默认）\n")
+	fmt.Printf("  # 使用 stdio 启动（默认，控制台日志启用）\n")
 	fmt.Printf("  %s\n", os.Args[0])
+	fmt.Printf("\n")
+	fmt.Printf("  # 使用 stdio 启动，禁用控制台日志\n")
+	fmt.Printf("  %s -console-log=false\n", os.Args[0])
+	fmt.Printf("\n")
+	fmt.Printf("  # 扫描指定目录中的所有 .zy 文件\n")
+	fmt.Printf("  %s -scan-dir /path/to/project\n", os.Args[0])
 	fmt.Printf("\n")
 	fmt.Printf("  # 使用 TCP 在端口 8080 启动\n")
 	fmt.Printf("  %s -protocol tcp -port 8080\n", os.Args[0])

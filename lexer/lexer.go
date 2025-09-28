@@ -119,19 +119,19 @@ func (l *Lexer) Tokenize(input string) []Token {
 		lastWasNewline = false
 
 		// 处理特殊token
-		if special, newPos, ok := HandleSpecialToken(input, pos); ok {
+		if result, ok := HandleSpecialToken(input, pos, line, linePos); ok {
 			tokens = append(tokens, Token{
-				Type:    special.Type,
-				Literal: special.Literal,
+				Type:    result.Token.Type,
+				Literal: result.Token.Literal,
 				Start:   pos,
-				End:     newPos,
+				End:     result.NewPos,
 				Line:    line,
 				Pos:     linePos,
 			})
-			// 计算当前行内位置增量
-			linePosIncrement := newPos - pos
-			pos = newPos
-			linePos += linePosIncrement
+			// 使用返回的新位置信息更新状态
+			pos = result.NewPos
+			line = result.NewLine
+			linePos = result.NewLinePos
 			continue
 		}
 

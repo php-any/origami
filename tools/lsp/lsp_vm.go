@@ -3,12 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
-
-	"github.com/php-any/origami/std"
-	"github.com/php-any/origami/std/net/http"
-	"github.com/php-any/origami/std/php"
-	"github.com/php-any/origami/std/system"
 
 	"github.com/php-any/origami/data"
 	"github.com/sirupsen/logrus"
@@ -33,6 +31,11 @@ type LspVM struct {
 
 // NewLspVM 创建一个新的 LSP 虚拟机
 func NewLspVM() *LspVM {
+	return NewLspVMWithScanDir("")
+}
+
+// NewLspVMWithScanDir 创建一个新的 LSP 虚拟机并扫描指定目录
+func NewLspVMWithScanDir(scanDirectory string) *LspVM {
 	vm := &LspVM{
 		classes:      make(map[string]data.ClassStmt),
 		interfaces:   make(map[string]data.InterfaceStmt),
@@ -50,10 +53,13 @@ func NewLspVM() *LspVM {
 			}
 		},
 	}
-	std.Load(vm)
-	php.Load(vm)
-	http.Load(vm)
-	system.Load(vm)
+
+	// 如果指定了扫描目录，则扫描并解析所有 .zy 文件
+	if scanDirectory != "" {
+		logrus.Infof("开始扫描目录: %s", scanDirectory)
+		vm.scanAndParseDirectory(scanDirectory)
+	}
+
 	return vm
 }
 
@@ -185,6 +191,116 @@ func (vm *LspVM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	}
 
 	return nil, nil
+}
+
+// scanAndParseDirectory 扫描目录并解析所有 .zy 文件（包括子目录）
+func (vm *LspVM) scanAndParseDirectory(directory string) {
+	// 添加 panic 恢复机制
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("scanAndParseDirectory 发生 panic：%v", r)
+		}
+	}()
+
+	logrus.Infof("开始递归扫描目录: %s", directory)
+
+	// 检查目录是否存在
+	if _, err := os.Stat(directory); os.IsNotExist(err) {
+		logrus.Errorf("目录不存在: %s", directory)
+		return
+	}
+
+	var fileCount int
+	var successCount int
+	var dirCount int
+
+	// 使用 filepath.Walk 递归遍历所有子目录
+	err := filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
+		// 为每个文件遍历回调添加 panic 恢复
+		defer func() {
+			if r := recover(); r != nil {
+				logrus.Errorf("遍历文件 %s 时发生 panic：%v", path, r)
+			}
+		}()
+
+		if err != nil {
+			logrus.Warnf("访问文件 %s 时出错: %v", path, err)
+			return nil
+		}
+
+		// 处理目录
+		if info.IsDir() {
+			// 跳过隐藏目录和常见的不需要扫描的目录
+			if strings.HasPrefix(info.Name(), ".") ||
+				info.Name() == "node_modules" ||
+				info.Name() == "vendor" ||
+				info.Name() == "build" ||
+				info.Name() == "dist" {
+				logrus.Debugf("跳过目录: %s", path)
+				return filepath.SkipDir
+			}
+
+			// 记录扫描的目录
+			if path != directory {
+				dirCount++
+				logrus.Debugf("扫描子目录: %s", path)
+			}
+			return nil
+		}
+
+		// 检查文件扩展名
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext == ".zy" || ext == ".php" {
+			fileCount++
+			logrus.Debugf("发现 .zy 文件: %s", path)
+
+			// 解析文件
+			if vm.parseFile(path) {
+				successCount++
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		logrus.Errorf("遍历目录失败: %v", err)
+		return
+	}
+
+	logrus.Infof("递归扫描完成: 扫描了 %d 个目录，发现 %d 个 .zy 文件，成功解析 %d 个", dirCount, fileCount, successCount)
+}
+
+// parseFile 解析单个文件
+func (vm *LspVM) parseFile(filePath string) bool {
+	// 添加 panic 恢复机制
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("parseFile 发生 panic：%v", r)
+		}
+	}()
+
+	logrus.Debugf("正在解析文件: %s", filePath)
+
+	// 检查文件是否存在
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		logrus.Debugf("文件不存在: %s", filePath)
+		return false
+	}
+
+	// 创建解析器
+	parser := NewLspParser()
+	parser.SetVM(vm)
+
+	// 解析文件
+	_, err := parser.ParseFile(filePath)
+	if err != nil {
+		logrus.Errorf("解析文件失败 %s: %v", filePath, err)
+		return false
+	}
+
+	logrus.Debugf("成功解析文件: %s", filePath)
+	return true
 }
 
 // sendParseErrorDiagnostic 发送解析错误诊断通知
