@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"fmt"
-	"os"
 	"sync"
 
 	"github.com/php-any/origami/data"
@@ -139,10 +138,10 @@ func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	// 解析文件
 	p := vm.parser.Clone()
 
-	program, err := p.ParseFile(file)
-	if err != nil {
-		p.PrintDetailedError(err.AsString(), p.FromCurrentToken())
-		os.Exit(-1)
+	program, acl := p.ParseFile(file)
+	if acl != nil {
+		p.PrintDetailedError(acl.AsString(), p.FromCurrentToken())
+		return nil, acl
 	}
 
 	ctx := vm.CreateContext(p.GetVariables())
