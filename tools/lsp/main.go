@@ -660,10 +660,9 @@ func logLSPResponse(method string, result interface{}, err error) {
 	if err != nil {
 		logrus.Errorf("LSP %s 失败：%v", method, err)
 	} else {
-		logrus.Infof("LSP %s 完成", method)
 		if result != nil {
 			resultJSON, _ := json.Marshal(result)
-			logrus.Debugf("结果：%s", string(resultJSON))
+			logrus.Infof("结果：%s", string(resultJSON))
 		}
 	}
 }

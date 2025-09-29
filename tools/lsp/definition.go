@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -90,6 +92,23 @@ func findDefinitionInAST(doc *DocumentInfo, position Position) []*Location {
 	logrus.Debugf("最终目标节点：%T", targetNode)
 
 	// 根据节点类型查找定义，使用目标节点的上下文
+	// 针对 CallObjectMethod 做更精细的光标命中判断，避免落在 "->" 等区域时误跳
+	if com, ok := targetNode.(*node.CallObjectMethod); ok {
+		if objStmt, ok2 := com.Object.(node.Statement); ok2 {
+			if from := getFromOf(objStmt); from != nil {
+				osl, osc, oel, oec := from.GetRange()
+				_ = osc // 未用到，保持变量占位
+				// 规则：若光标与对象在同一结束行，需越过 "->" 两个字符后才认为处于方法名区域
+				if int(position.Line) == oel {
+					if int(position.Character) < (oec + 3) {
+						return nil
+					}
+				}
+				_ = osl // 保留局部变量，避免编译器告警
+			}
+		}
+	}
+
 	return findDefinitionFromNode(targetCtx, targetNode)
 }
 
@@ -111,7 +130,10 @@ func findDefinitionFromNode(ctx *LspContext, v data.GetValue) []*Location {
 		// 方法调用，查找方法定义
 		// 注意：CallMethod 的 Method 字段是 data.GetValue 类型，需要进一步处理
 		if method, ok := n.Method.(interface{ GetName() string }); ok {
-			return []*Location{findMethodDefinition(ctx, "", method.GetName())}
+			if loc := findMethodDefinition(ctx, "", method.GetName()); loc != nil {
+				return []*Location{loc}
+			}
+			return nil
 		}
 		return nil
 	case *node.CallObjectMethod:
@@ -123,14 +145,20 @@ func findDefinitionFromNode(ctx *LspContext, v data.GetValue) []*Location {
 		case *node.CallObjectMethod:
 			// 这是一个链式调用，需要递归解析
 			logrus.Debug("检测到链式调用，递归解析")
-			return []*Location{findChainedMethodDefinition(ctx, chainCall, n.Method)}
+			if loc := findChainedMethodDefinition(ctx, chainCall, n.Method); loc != nil {
+				return []*Location{loc}
+			}
+			return nil
 		}
 
 		// 普通对象方法调用
 		return findObjectMethodDefinition(ctx, n.Object, n.Method)
 	case *node.VariableExpression:
 		// 变量引用，查找变量定义
-		return []*Location{findVariableDefinition(ctx, n.Name)}
+		if loc := findVariableDefinition(ctx, n.Name); loc != nil {
+			return []*Location{loc}
+		}
+		return nil
 	}
 
 	// 对于其他类型的节点，暂时返回 nil
@@ -865,12 +893,69 @@ func setTypes(v data.Variable, t data.Types) {
 	switch c := v.(type) {
 	case *node.VariableExpression:
 		if tt, ok := c.Type.(*data.LspTypes); ok {
+			// 建立已存在类型的键集合（基于结构化指纹）
+			existing := make(map[string]struct{}, len(tt.Types))
+			for _, et := range tt.Types {
+				if et == nil {
+					continue
+				}
+				existing[typeKey(et)] = struct{}{}
+			}
+
+			// 统一待追加的切片
+			var toAdd []data.Types
 			if ttt, ok := t.(*data.LspTypes); ok {
-				tt.Types = append(tt.Types, ttt.Types...)
-			} else {
-				tt.Types = append(tt.Types, t)
+				toAdd = ttt.Types
+			} else if t != nil {
+				toAdd = []data.Types{t}
+			}
+
+			// 追加前过滤重复
+			for _, nt := range toAdd {
+				if nt == nil {
+					continue
+				}
+				k := typeKey(nt)
+				if _, ok := existing[k]; ok {
+					continue
+				}
+				tt.Types = append(tt.Types, nt)
+				existing[k] = struct{}{}
 			}
 		}
+	}
+}
+
+// typeKey 为 data.Types 生成稳定且语义化的指纹，用于判重
+func typeKey(t data.Types) string {
+	if t == nil {
+		return ""
+	}
+	switch v := t.(type) {
+	case data.Class:
+		return "class:" + v.Name
+	case data.NullableType:
+		return "nullable:" + typeKey(v.BaseType)
+	case data.MultipleReturnType:
+		// 子类型集合顺序不重要，排序后拼接
+		keys := make([]string, 0, len(v.Types))
+		for _, sub := range v.Types {
+			keys = append(keys, typeKey(sub))
+		}
+		sort.Strings(keys)
+		return "multi:[" + strings.Join(keys, "|") + "]"
+	case data.Generic:
+		// 泛型顺序重要：按声明顺序拼接
+		keys := make([]string, 0, len(v.Types))
+		for _, sub := range v.Types {
+			keys = append(keys, typeKey(sub))
+		}
+		return "generic:" + v.Name + "<" + strings.Join(keys, ",") + ">"
+	case data.Int, data.Float, data.Bool, data.Object, data.Arrays, data.Callable, data.String:
+		return v.String()
+	default:
+		// 回退到 String()，对未知实现保持可用性
+		return t.String()
 	}
 }
 
