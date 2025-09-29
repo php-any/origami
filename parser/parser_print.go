@@ -8,6 +8,10 @@ import (
 	"github.com/php-any/origami/data"
 )
 
+func (p *Parser) PrintDetailedError(err string, from data.From) {
+	p.printDetailedError(err, from)
+}
+
 // printDetailedError 打印详细的错误信息
 func (p *Parser) printDetailedError(err string, from data.From) {
 	_, _ = fmt.Fprintln(os.Stderr, "\n"+strings.Repeat("=", 80))

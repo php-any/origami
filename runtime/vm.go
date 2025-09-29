@@ -2,9 +2,10 @@ package runtime
 
 import (
 	"fmt"
+	"sync"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/parser"
-	"sync"
 )
 
 // NewVM 创建一个新的虚拟机
@@ -137,9 +138,10 @@ func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	// 解析文件
 	p := vm.parser.Clone()
 
-	program, err := p.ParseFile(file)
-	if err != nil {
-		return nil, err
+	program, acl := p.ParseFile(file)
+	if acl != nil {
+		p.PrintDetailedError(acl.AsString(), p.FromCurrentToken())
+		return nil, acl
 	}
 
 	ctx := vm.CreateContext(p.GetVariables())
