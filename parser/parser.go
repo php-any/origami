@@ -114,7 +114,6 @@ func (p *Parser) parseProgram() (*node.Program, data.Control) {
 	for !p.isEOF() {
 		stmt, acl := p.parseStatement()
 		if acl != nil {
-			p.reset()
 			return nil, acl
 		}
 		if stmt != nil {
