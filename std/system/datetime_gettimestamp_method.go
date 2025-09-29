@@ -31,3 +31,7 @@ func (h *DateTimeGetTimestampMethod) GetParams() []data.GetValue {
 func (h *DateTimeGetTimestampMethod) GetVariables() []data.Variable {
 	return []data.Variable{}
 }
+
+func (h *DateTimeGetTimestampMethod) GetReturnType() data.Types {
+	return data.NewBaseType("int")
+}

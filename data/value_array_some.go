@@ -61,3 +61,7 @@ func (a *ArrayValueSome) GetVariables() []Variable {
 		NewVariable("callback", 0, nil),
 	}
 }
+
+func (a *ArrayValueSome) GetReturnType() Types {
+	return Bool{}
+}

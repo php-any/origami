@@ -2,6 +2,7 @@ package system
 
 import (
 	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -41,4 +42,8 @@ func (h *DateTimeFormatMethod) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "format", 0, nil),
 	}
+}
+
+func (h *DateTimeFormatMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
 }

@@ -21,8 +21,8 @@ func Test_handleTextDocumentDefinition_hello_function_jump(t *testing.T) {
 				URI: testURI,
 			},
 			Position: Position{
-				Line:      4, // 第12行（LSP 0-based），包含 "echo hello();"
-				Character: 9, // 第10列（LSP 0-based），落在 "hello" 字符上
+				Line:      24, // 第12行（LSP 0-based），包含 "echo hello();"
+				Character: 9,  // 第10列（LSP 0-based），落在 "hello" 字符上
 			},
 		},
 	}

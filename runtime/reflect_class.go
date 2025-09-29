@@ -216,6 +216,12 @@ func (rm *ReflectMethod) GetVariables() []data.Variable {
 	return variables
 }
 
+// GetReturnType 返回方法返回类型
+func (rm *ReflectMethod) GetReturnType() data.Types {
+	// 反射方法的返回类型是动态的，使用通用类型
+	return data.NewBaseType("")
+}
+
 // Call 调用方法
 func (rm *ReflectMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 准备参数
@@ -402,6 +408,12 @@ func (rc *ReflectConstructor) GetVariables() []data.Variable {
 	}
 
 	return variables
+}
+
+// GetReturnType 返回构造函数返回类型
+func (rc *ReflectConstructor) GetReturnType() data.Types {
+	// 构造函数通常不返回值
+	return nil
 }
 
 // Call 调用构造函数

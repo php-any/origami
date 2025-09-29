@@ -47,3 +47,7 @@ func (a *ArrayValueConcat) GetVariables() []Variable {
 		NewVariable("items", 0, nil),
 	}
 }
+
+func (a *ArrayValueConcat) GetReturnType() Types {
+	return Arrays{}
+}

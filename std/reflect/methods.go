@@ -467,6 +467,10 @@ func (g *GetClassAnnotationsMethod) GetVariables() []data.Variable {
 	}
 }
 
+func (g *GetClassAnnotationsMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
+}
+
 func (g *GetClassAnnotationsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取类名参数
 	classNameValue, exists := ctx.GetIndexValue(0)
@@ -524,6 +528,10 @@ func (g *GetMethodAnnotationsMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "className", 0, nil),
 		node.NewVariable(nil, "methodName", 1, nil),
 	}
+}
+
+func (g *GetMethodAnnotationsMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
 }
 
 func (g *GetMethodAnnotationsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -597,6 +605,10 @@ func (g *GetPropertyAnnotationsMethod) GetVariables() []data.Variable {
 	}
 }
 
+func (g *GetPropertyAnnotationsMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
+}
+
 func (g *GetPropertyAnnotationsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取参数
 	classNameValue, exists := ctx.GetIndexValue(0)
@@ -664,6 +676,10 @@ func (g *GetAllAnnotationsMethod) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "className", 0, nil),
 	}
+}
+
+func (g *GetAllAnnotationsMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
 }
 
 func (g *GetAllAnnotationsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -769,6 +785,10 @@ func (g *GetAnnotationDetailsMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "memberType", 1, nil),
 		node.NewVariable(nil, "memberName", 2, nil),
 	}
+}
+
+func (g *GetAnnotationDetailsMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
 }
 
 func (g *GetAnnotationDetailsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {

@@ -106,6 +106,10 @@ func (m *GetMappingConstructMethod) GetVariables() []data.Variable {
 	}
 }
 
+func (m *GetMappingConstructMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
+}
+
 func (m *GetMappingConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 构造函数逻辑：从上下文获取注解参数和目标
 	// 这里应该从ctx中获取传入的参数
@@ -138,6 +142,10 @@ func (m *GetMappingProcessMethod) GetVariables() []data.Variable {
 	return []data.Variable{}
 }
 
+func (m *GetMappingProcessMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
+}
+
 func (m *GetMappingProcessMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 实现GetMapping注解处理逻辑
 	// 可以访问 m.mapping.arguments 和 m.mapping.target
@@ -167,6 +175,10 @@ func (m *GetMappingMappingMethod) GetParams() []data.GetValue {
 
 func (m *GetMappingMappingMethod) GetVariables() []data.Variable {
 	return []data.Variable{}
+}
+
+func (m *GetMappingMappingMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
 }
 
 func (m *GetMappingMappingMethod) Call(ctx data.Context) (data.GetValue, data.Control) {

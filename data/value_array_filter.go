@@ -64,3 +64,7 @@ func (a *ArrayValueFilter) GetVariables() []Variable {
 		NewVariable("callback", 0, nil),
 	}
 }
+
+func (a *ArrayValueFilter) GetReturnType() Types {
+	return Arrays{}
+}

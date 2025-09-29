@@ -169,7 +169,7 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 				return nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("参数为引用的变量不能有默认值"))
 			}
 			// 覆盖变量为引用
-			p.scopeManager.CurrentScope().variables[val.GetName()] = node.NewVariableReference(tracking.EndBefore(), val.GetName(), val.GetIndex(), val.GetType())
+			p.scopeManager.CurrentScope().SetVariable(val.GetName(), node.NewVariableReference(tracking.EndBefore(), val.GetName(), val.GetIndex(), val.GetType()))
 			param := node.NewParameterReference(tracking.EndBefore(), val.GetName(), val.GetIndex(), val.GetType())
 			params = append(params, param)
 		} else {

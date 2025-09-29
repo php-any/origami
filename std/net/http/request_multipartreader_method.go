@@ -16,7 +16,7 @@ func (h *RequestMultipartReaderMethod) Call(ctx data.Context) (data.GetValue, da
 
 func (h *RequestMultipartReaderMethod) GetName() string               { return "multipartReader" }
 func (h *RequestMultipartReaderMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *RequestMultipartReaderMethod) GetIsStatic() bool             { return true }
+func (h *RequestMultipartReaderMethod) GetIsStatic() bool             { return false }
 func (h *RequestMultipartReaderMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
 func (h *RequestMultipartReaderMethod) GetVariables() []data.Variable { return []data.Variable{} }
 func (h *RequestMultipartReaderMethod) GetReturnType() data.Types     { return data.NewBaseType("void") }

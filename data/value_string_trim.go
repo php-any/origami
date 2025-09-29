@@ -31,3 +31,7 @@ func (s *StringValueTrim) GetParams() []GetValue {
 func (s *StringValueTrim) GetVariables() []Variable {
 	return []Variable{}
 }
+
+func (s *StringValueTrim) GetReturnType() Types {
+	return String{}
+}

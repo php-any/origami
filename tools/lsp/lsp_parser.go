@@ -2,12 +2,30 @@ package main
 
 import (
 	"fmt"
-	"github.com/php-any/origami/data"
 	"os"
+
+	"github.com/php-any/origami/data"
 
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/parser"
 )
+
+// LspScopeFactory LSP 作用域工厂函数
+// 这个函数替换默认的作用域创建逻辑，在 LSP 模式下使用 LspScope
+func LspScopeFactory(parent parser.Scope, isLambda bool) parser.Scope {
+	// 生成作用域名称和类型
+	scopeName := "scope"
+	scopeType := "block"
+	if isLambda {
+		scopeType = "lambda"
+	}
+
+	// 创建 LspScope 实例
+	scope := NewLspScope(parent, scopeName, scopeType, "")
+	scope.SetLambda(isLambda)
+
+	return scope
+}
 
 func init() {
 	parser.InLSP = true
@@ -21,10 +39,21 @@ type LspParser struct {
 
 // NewLspParser 创建一个新的 LSP 解析器
 func NewLspParser() *LspParser {
+	// 设置 LSP 作用域工厂函数
+	parser.SetGlobalScopeFactory(LspScopeFactory)
+
 	return &LspParser{
 		parser: parser.NewParser(),
 		vm:     globalLspVM,
 	}
+}
+
+// CreateLspScope 创建 LSP 作用域
+// 这个方法可以在需要时替换默认的作用域创建逻辑
+func (p *LspParser) CreateLspScope(parent parser.Scope, isLambda bool, scopeName, scopeType, filePath string) *LspScope {
+	scope := NewLspScope(parent, scopeName, scopeType, filePath)
+	scope.SetLambda(isLambda)
+	return scope
 }
 
 // SetVM 设置虚拟机

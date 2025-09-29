@@ -89,6 +89,7 @@ type Method interface {
 	GetIsStatic() bool        // 是否是静态方法
 	GetParams() []GetValue    // 参数列表, 用于接收参数; 实现这个接口的参数结构体 node.Parameter 接收单个值, node.Parameters 只有任意多个值
 	GetVariables() []Variable // 变量列表, 用于创建符号表
+	GetReturnType() Types     // 返回类型-逐步修改其他实现
 }
 
 type FuncStmt interface {

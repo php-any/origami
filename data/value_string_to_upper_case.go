@@ -31,3 +31,7 @@ func (s *StringValueToUpperCase) GetParams() []GetValue {
 func (s *StringValueToUpperCase) GetVariables() []Variable {
 	return []Variable{}
 }
+
+func (s *StringValueToUpperCase) GetReturnType() Types {
+	return String{}
+}

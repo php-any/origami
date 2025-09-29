@@ -219,7 +219,7 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 		return n, nil
 	}
 
-	if p.scopeManager.current.isLambda {
+	if p.scopeManager.CurrentScope().IsLambda() {
 		// 检查是否是变量
 		varInfo := p.scopeManager.LookupParentVariable(name)
 		if varInfo != nil {

@@ -123,3 +123,7 @@ func (s *StringValueSubstring) GetVariables() []Variable {
 		NewVariable("end", 1, nil),
 	}
 }
+
+func (s *StringValueSubstring) GetReturnType() Types {
+	return String{}
+}

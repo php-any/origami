@@ -16,7 +16,7 @@ func (h *RequestRefererMethod) Call(ctx data.Context) (data.GetValue, data.Contr
 
 func (h *RequestRefererMethod) GetName() string               { return "referer" }
 func (h *RequestRefererMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *RequestRefererMethod) GetIsStatic() bool             { return true }
+func (h *RequestRefererMethod) GetIsStatic() bool             { return false }
 func (h *RequestRefererMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
 func (h *RequestRefererMethod) GetVariables() []data.Variable { return []data.Variable{} }
 func (h *RequestRefererMethod) GetReturnType() data.Types     { return data.NewBaseType("void") }

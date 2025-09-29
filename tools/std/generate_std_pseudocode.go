@@ -173,9 +173,9 @@ func main() {
 				panic(err)
 			}
 
-			filepath = fmt.Sprintf("%s/%s.php", fullDirPath, strings.ToLower(module.ModuleName))
+			filepath = fmt.Sprintf("%s/%s.zy", fullDirPath, strings.ToLower(module.ModuleName))
 		} else {
-			filepath = fmt.Sprintf("docs/std/%s.php", strings.ToLower(module.ModuleName))
+			filepath = fmt.Sprintf("docs/std/%s.zy", strings.ToLower(module.ModuleName))
 		}
 
 		err = os.WriteFile(filepath, []byte(content), 0644)
@@ -388,8 +388,7 @@ func analyzeFunction(fn data.FuncStmt) FunctionSignature {
 
 // 生成 PHP 伪代码
 func generatePHPPseudoCode(module PseudoCode) string {
-	tmpl := `<?php
-{{if .Namespace}}namespace {{.Namespace}};
+	tmpl := `{{if .Namespace}}namespace {{.Namespace}};
 
 {{end}}
 /**
@@ -458,7 +457,7 @@ Origami 标准库的伪代码接口定义。
 ## 模块列表
 
 {{range .}}
-### [{{.ModuleName}}]({{if .Namespace}}./{{.Namespace}}/{{.ModuleName}}.php{{else}}./{{.ModuleName}}.php{{end}})
+### [{{.ModuleName}}]({{if .Namespace}}./{{.Namespace}}/{{.ModuleName}}.zy{{else}}./{{.ModuleName}}.zy{{end}})
 
 {{.Description}}
 
@@ -495,7 +494,7 @@ $classInfo = $reflect->getClassInfo("MyClass");
 - 类：{{range .Classes}}{{.Name}}{{end}}
 {{end}}
 
-[查看伪代码]({{if .Namespace}}./{{.Namespace}}/{{.ModuleName}}.php{{else}}./{{.ModuleName}}.php{{end}})
+[查看伪代码]({{if .Namespace}}./{{.Namespace}}/{{.ModuleName}}.zy{{else}}./{{.ModuleName}}.zy{{end}})
 {{end}}
 `
 

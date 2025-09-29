@@ -16,7 +16,7 @@ func (h *RequestBasicAuthMethod) Call(ctx data.Context) (data.GetValue, data.Con
 
 func (h *RequestBasicAuthMethod) GetName() string               { return "basicAuth" }
 func (h *RequestBasicAuthMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *RequestBasicAuthMethod) GetIsStatic() bool             { return true }
+func (h *RequestBasicAuthMethod) GetIsStatic() bool             { return false }
 func (h *RequestBasicAuthMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
 func (h *RequestBasicAuthMethod) GetVariables() []data.Variable { return []data.Variable{} }
 func (h *RequestBasicAuthMethod) GetReturnType() data.Types     { return data.NewBaseType("void") }

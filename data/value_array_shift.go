@@ -37,3 +37,7 @@ func (a *ArrayValueShift) GetParams() []GetValue {
 func (a *ArrayValueShift) GetVariables() []Variable {
 	return []Variable{}
 }
+
+func (a *ArrayValueShift) GetReturnType() Types {
+	return nil
+}

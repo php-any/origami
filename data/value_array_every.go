@@ -64,3 +64,7 @@ func (a *ArrayValueEvery) GetVariables() []Variable {
 		NewVariable("callback", 0, nil),
 	}
 }
+
+func (a *ArrayValueEvery) GetReturnType() Types {
+	return Bool{}
+}

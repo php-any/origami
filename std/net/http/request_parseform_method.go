@@ -16,7 +16,7 @@ func (h *RequestParseFormMethod) Call(ctx data.Context) (data.GetValue, data.Con
 
 func (h *RequestParseFormMethod) GetName() string               { return "parseForm" }
 func (h *RequestParseFormMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *RequestParseFormMethod) GetIsStatic() bool             { return true }
+func (h *RequestParseFormMethod) GetIsStatic() bool             { return false }
 func (h *RequestParseFormMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
 func (h *RequestParseFormMethod) GetVariables() []data.Variable { return []data.Variable{} }
 func (h *RequestParseFormMethod) GetReturnType() data.Types     { return data.NewBaseType("void") }

@@ -65,3 +65,7 @@ func (a *ArrayValueFlat) GetVariables() []Variable {
 		NewVariable("depth", 0, nil),
 	}
 }
+
+func (a *ArrayValueFlat) GetReturnType() Types {
+	return Arrays{}
+}

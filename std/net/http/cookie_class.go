@@ -38,7 +38,7 @@ func (s *CookieClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewProxyValue(NewCookieClassFrom(&httpsrc.Cookie{}), ctx.CreateBaseContext()), nil
 }
 
-func (s *CookieClass) GetName() string         { return "http\\Cookie" }
+func (s *CookieClass) GetName() string         { return "Net\\Http\\Cookie" }
 func (s *CookieClass) GetExtend() *string      { return nil }
 func (s *CookieClass) GetImplements() []string { return nil }
 func (s *CookieClass) AsString() string        { return "Cookie{}" }

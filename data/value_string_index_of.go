@@ -70,3 +70,7 @@ func (s *StringValueIndexOf) GetVariables() []Variable {
 		NewVariable("search", 0, nil),
 	}
 }
+
+func (s *StringValueIndexOf) GetReturnType() Types {
+	return Int{}
+}

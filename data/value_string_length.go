@@ -28,3 +28,7 @@ func (s *StringValueLength) GetParams() []GetValue {
 func (s *StringValueLength) GetVariables() []Variable {
 	return []Variable{}
 }
+
+func (s *StringValueLength) GetReturnType() Types {
+	return Int{}
+}

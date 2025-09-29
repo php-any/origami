@@ -61,3 +61,7 @@ func (a *ArrayValueFind) GetVariables() []Variable {
 		NewVariable("callback", 0, nil),
 	}
 }
+
+func (a *ArrayValueFind) GetReturnType() Types {
+	return nil
+}

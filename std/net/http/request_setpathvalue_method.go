@@ -28,7 +28,7 @@ func (h *RequestSetPathValueMethod) Call(ctx data.Context) (data.GetValue, data.
 
 func (h *RequestSetPathValueMethod) GetName() string            { return "setPathValue" }
 func (h *RequestSetPathValueMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (h *RequestSetPathValueMethod) GetIsStatic() bool          { return true }
+func (h *RequestSetPathValueMethod) GetIsStatic() bool          { return false }
 func (h *RequestSetPathValueMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "param0", 0, nil, nil),

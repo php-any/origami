@@ -104,3 +104,8 @@ func (m *InterfaceMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 接口方法不能直接调用，应该抛出错误
 	return nil, data.NewErrorThrow(m.from, data.NewError(m.from, "接口方法不能直接调用", nil))
 }
+
+// GetReturnType 返回返回类型
+func (m *InterfaceMethod) GetReturnType() data.Types {
+	return m.ReturnType
+}

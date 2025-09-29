@@ -100,3 +100,7 @@ func (a *ArrayValueSplice) GetVariables() []Variable {
 		NewVariable("items", 2, nil),
 	}
 }
+
+func (a *ArrayValueSplice) GetReturnType() Types {
+	return Arrays{}
+}

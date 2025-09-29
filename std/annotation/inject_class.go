@@ -110,6 +110,10 @@ func (m *InjectConstructMethod) GetVariables() []data.Variable {
 	}
 }
 
+func (m *InjectConstructMethod) GetReturnType() data.Types {
+	return nil
+}
+
 func (m *InjectConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 宏注解构造函数：接收注解参数和被注解的节点
 	a0, ok := ctx.GetIndexValue(0)
@@ -170,6 +174,10 @@ func (m *InjectProcessMethod) GetVariables() []data.Variable {
 	return []data.Variable{}
 }
 
+func (m *InjectProcessMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
+}
+
 func (m *InjectProcessMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 宏注解处理逻辑
 	return data.NewStringValue("Inject processed with service: " + m.inject.service), nil
@@ -198,6 +206,10 @@ func (m *InjectInjectMethod) GetParams() []data.GetValue {
 
 func (m *InjectInjectMethod) GetVariables() []data.Variable {
 	return []data.Variable{}
+}
+
+func (m *InjectInjectMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
 }
 
 func (m *InjectInjectMethod) Call(ctx data.Context) (data.GetValue, data.Control) {

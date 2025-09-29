@@ -1,0 +1,74 @@
+
+/**
+ * log - Log 类
+ * 
+ * 此文件包含 log 模块的伪代码接口定义
+ * 这些是自动生成的接口，仅用于参考，不包含具体实现
+ */
+
+
+
+/**
+ * Log 类
+ * Log 类
+ */
+class Log {
+
+    /**
+     * debug 方法
+     * 
+     */
+    public static function debug($msg, ...$args) {
+        // 实现逻辑
+    }
+
+    /**
+     * error 方法
+     * 
+     */
+    public static function error($msg, ...$args) {
+        // 实现逻辑
+    }
+
+    /**
+     * fatal 方法
+     * 
+     */
+    public static function fatal($msg, ...$args) {
+        // 实现逻辑
+    }
+
+    /**
+     * info 方法
+     * 
+     */
+    public static function info($msg, ...$args) {
+        // 实现逻辑
+    }
+
+    /**
+     * notice 方法
+     * 
+     */
+    public static function notice($msg, ...$args) {
+        // 实现逻辑
+    }
+
+    /**
+     * trace 方法
+     * 
+     */
+    public static function trace($msg, ...$args) {
+        // 实现逻辑
+    }
+
+    /**
+     * warn 方法
+     * 
+     */
+    public static function warn($msg, ...$args) {
+        // 实现逻辑
+    }
+
+}
+

@@ -17,7 +17,7 @@ func (h *RequestCloneMethod) Call(ctx data.Context) (data.GetValue, data.Control
 
 func (h *RequestCloneMethod) GetName() string            { return "clone" }
 func (h *RequestCloneMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (h *RequestCloneMethod) GetIsStatic() bool          { return true }
+func (h *RequestCloneMethod) GetIsStatic() bool          { return false }
 func (h *RequestCloneMethod) GetParams() []data.GetValue {
 	return []data.GetValue{}
 }

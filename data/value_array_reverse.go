@@ -35,3 +35,7 @@ func (a *ArrayValueReverse) GetParams() []GetValue {
 func (a *ArrayValueReverse) GetVariables() []Variable {
 	return []Variable{}
 }
+
+func (a *ArrayValueReverse) GetReturnType() Types {
+	return Arrays{}
+}

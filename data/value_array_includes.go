@@ -71,3 +71,7 @@ func (a *ArrayValueIncludes) GetVariables() []Variable {
 		NewVariable("fromIndex", 1, nil),
 	}
 }
+
+func (a *ArrayValueIncludes) GetReturnType() Types {
+	return Bool{}
+}

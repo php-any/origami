@@ -54,3 +54,7 @@ func (a *ArrayValueForEach) GetVariables() []Variable {
 		NewVariable("callback", 0, nil),
 	}
 }
+
+func (a *ArrayValueForEach) GetReturnType() Types {
+	return nil
+}

@@ -19,7 +19,7 @@ func (h *ServerRunMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return nil, nil
 }
 
-func (h *ServerRunMethod) GetName() string            { return "group" }
+func (h *ServerRunMethod) GetName() string            { return "run" }
 func (h *ServerRunMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ServerRunMethod) GetIsStatic() bool          { return false }
 func (h *ServerRunMethod) GetParams() []data.GetValue {

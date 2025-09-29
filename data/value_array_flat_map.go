@@ -64,3 +64,7 @@ func (a *ArrayValueFlatMap) GetVariables() []Variable {
 		NewVariable("callback", 0, nil),
 	}
 }
+
+func (a *ArrayValueFlatMap) GetReturnType() Types {
+	return Arrays{}
+}

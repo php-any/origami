@@ -1,9 +1,10 @@
 package http
 
 import (
+	httpsrc "net/http"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	httpsrc "net/http"
 )
 
 func NewHandlerClass() data.ClassStmt {
@@ -30,7 +31,7 @@ func (s *HandlerClass) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 	return data.NewProxyValue(NewHandlerClassFrom(nil), ctx.CreateBaseContext()), nil
 }
 
-func (s *HandlerClass) GetName() string         { return "http\\Handler" }
+func (s *HandlerClass) GetName() string         { return "Net\\Http\\Handler" }
 func (s *HandlerClass) GetExtend() *string      { return nil }
 func (s *HandlerClass) GetImplements() []string { return nil }
 func (s *HandlerClass) AsString() string        { return "Handler{}" }

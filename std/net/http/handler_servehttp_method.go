@@ -28,7 +28,7 @@ func (h *HandlerServeHTTPMethod) Call(ctx data.Context) (data.GetValue, data.Con
 
 func (h *HandlerServeHTTPMethod) GetName() string            { return "serveHTTP" }
 func (h *HandlerServeHTTPMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (h *HandlerServeHTTPMethod) GetIsStatic() bool          { return true }
+func (h *HandlerServeHTTPMethod) GetIsStatic() bool          { return false }
 func (h *HandlerServeHTTPMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "param0", 0, nil, nil),

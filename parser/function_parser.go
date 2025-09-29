@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -21,10 +22,9 @@ func NewFunctionParser(parser *Parser) StatementParser {
 
 // Parse 解析函数声明
 func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
-	tracker := fp.StartTracking()
 	// 跳过 function 关键字
 	fp.next()
-
+	tracker := fp.StartTracking()
 	// 解析函数名
 	if fp.current().Type != token.IDENTIFIER {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少函数名"))

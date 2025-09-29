@@ -58,3 +58,7 @@ func (a *ArrayValueMap) GetVariables() []Variable {
 		NewVariable("callback", 0, nil),
 	}
 }
+
+func (a *ArrayValueMap) GetReturnType() Types {
+	return Arrays{}
+}

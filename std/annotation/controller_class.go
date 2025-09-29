@@ -107,6 +107,10 @@ func (m *ControllerConstructMethod) GetVariables() []data.Variable {
 	}
 }
 
+func (m *ControllerConstructMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
+}
+
 func (m *ControllerConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 特性注解构造函数：只接收注解声明的参数
 	a0, ok := ctx.GetIndexValue(0)
@@ -148,6 +152,10 @@ func (m *ControllerProcessMethod) GetVariables() []data.Variable {
 	return []data.Variable{}
 }
 
+func (m *ControllerProcessMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
+}
+
 func (m *ControllerProcessMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 特性注解处理逻辑
 	return data.NewStringValue("Controller processed with name: " + m.controller.name), nil
@@ -176,6 +184,10 @@ func (m *ControllerRegisterMethod) GetParams() []data.GetValue {
 
 func (m *ControllerRegisterMethod) GetVariables() []data.Variable {
 	return []data.Variable{}
+}
+
+func (m *ControllerRegisterMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
 }
 
 func (m *ControllerRegisterMethod) Call(ctx data.Context) (data.GetValue, data.Control) {

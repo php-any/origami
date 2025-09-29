@@ -37,3 +37,7 @@ func (a *ArrayValuePop) GetParams() []GetValue {
 func (a *ArrayValuePop) GetVariables() []Variable {
 	return []Variable{}
 }
+
+func (a *ArrayValuePop) GetReturnType() Types {
+	return nil
+}

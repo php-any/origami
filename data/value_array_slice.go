@@ -77,3 +77,7 @@ func (a *ArrayValueSlice) GetVariables() []Variable {
 		NewVariable("end", 1, nil),
 	}
 }
+
+func (a *ArrayValueSlice) GetReturnType() Types {
+	return Arrays{}
+}

@@ -44,3 +44,7 @@ func (a *ArrayValueSort) GetParams() []GetValue {
 func (a *ArrayValueSort) GetVariables() []Variable {
 	return []Variable{}
 }
+
+func (a *ArrayValueSort) GetReturnType() Types {
+	return Arrays{}
+}

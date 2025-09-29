@@ -65,3 +65,7 @@ func (s *StringValueEndsWith) GetVariables() []Variable {
 		NewVariable("search", 0, nil),
 	}
 }
+
+func (s *StringValueEndsWith) GetReturnType() Types {
+	return Bool{}
+}

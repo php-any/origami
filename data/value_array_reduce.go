@@ -80,3 +80,7 @@ func (a *ArrayValueReduce) GetVariables() []Variable {
 		NewVariable("initialValue", 1, nil),
 	}
 }
+
+func (a *ArrayValueReduce) GetReturnType() Types {
+	return NewNullableType(NewBaseType(""))
+}

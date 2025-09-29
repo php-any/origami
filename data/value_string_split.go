@@ -78,3 +78,7 @@ func (s *StringValueSplit) GetVariables() []Variable {
 		NewVariable("separator", 0, nil),
 	}
 }
+
+func (s *StringValueSplit) GetReturnType() Types {
+	return Arrays{}
+}

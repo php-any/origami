@@ -28,7 +28,7 @@ func (h *RequestSetBasicAuthMethod) Call(ctx data.Context) (data.GetValue, data.
 
 func (h *RequestSetBasicAuthMethod) GetName() string            { return "setBasicAuth" }
 func (h *RequestSetBasicAuthMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (h *RequestSetBasicAuthMethod) GetIsStatic() bool          { return true }
+func (h *RequestSetBasicAuthMethod) GetIsStatic() bool          { return false }
 func (h *RequestSetBasicAuthMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "param0", 0, nil, nil),

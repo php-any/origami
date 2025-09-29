@@ -24,7 +24,7 @@ func (h *RequestParseMultipartFormMethod) Call(ctx data.Context) (data.GetValue,
 
 func (h *RequestParseMultipartFormMethod) GetName() string            { return "parseMultipartForm" }
 func (h *RequestParseMultipartFormMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (h *RequestParseMultipartFormMethod) GetIsStatic() bool          { return true }
+func (h *RequestParseMultipartFormMethod) GetIsStatic() bool          { return false }
 func (h *RequestParseMultipartFormMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "param0", 0, nil, nil),

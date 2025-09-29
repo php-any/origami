@@ -50,3 +50,7 @@ func (a *ArrayValueJoin) GetVariables() []Variable {
 		NewVariable("separator", 0, nil),
 	}
 }
+
+func (a *ArrayValueJoin) GetReturnType() Types {
+	return String{}
+}

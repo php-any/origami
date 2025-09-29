@@ -24,8 +24,6 @@ func NewClassParser(parser *Parser) StatementParser {
 
 // Parse 解析类定义
 func (p *ClassParser) Parse() (data.GetValue, data.Control) {
-	tracker := p.StartTracking()
-
 	// 解析类前的注解
 	var annotations []*node.Annotation
 	for p.current().Type == token.AT {
@@ -40,6 +38,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 
 	// 跳过class关键字
 	p.next()
+	tracker := p.StartTracking()
 
 	// 解析类名
 	className := p.parseClassName()
@@ -410,9 +409,9 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 
 // parseMethodWithAnnotations 解析方法（带注解）
 func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool, annotations []*node.Annotation) (data.Method, data.Control) {
-	tracker := p.StartTracking()
 	// 跳过function关键字
 	p.next()
+	tracker := p.StartTracking()
 	p.scopeManager.NewScope(false)
 	// 解析方法名
 	if p.current().Type != token.IDENTIFIER {

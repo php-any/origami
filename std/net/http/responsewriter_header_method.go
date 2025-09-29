@@ -1,8 +1,9 @@
 package http
 
 import (
-	"github.com/php-any/origami/data"
 	httpsrc "net/http"
+
+	"github.com/php-any/origami/data"
 )
 
 type ResponseWriterHeaderMethod struct {
@@ -19,4 +20,6 @@ func (h *ResponseWriterHeaderMethod) GetModifier() data.Modifier    { return dat
 func (h *ResponseWriterHeaderMethod) GetIsStatic() bool             { return false }
 func (h *ResponseWriterHeaderMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
 func (h *ResponseWriterHeaderMethod) GetVariables() []data.Variable { return []data.Variable{} }
-func (h *ResponseWriterHeaderMethod) GetReturnType() data.Types     { return data.NewBaseType("void") }
+func (h *ResponseWriterHeaderMethod) GetReturnType() data.Types {
+	return data.NewBaseType("Net\\Http\\Header")
+}

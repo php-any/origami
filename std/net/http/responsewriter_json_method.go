@@ -43,7 +43,7 @@ func (h *ResponseWriterJsonMethod) Call(ctx data.Context) (data.GetValue, data.C
 
 func (h *ResponseWriterJsonMethod) GetName() string            { return "json" }
 func (h *ResponseWriterJsonMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (h *ResponseWriterJsonMethod) GetIsStatic() bool          { return true }
+func (h *ResponseWriterJsonMethod) GetIsStatic() bool          { return false }
 func (h *ResponseWriterJsonMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "data", 0, nil, data.Object{}),

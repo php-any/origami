@@ -1,9 +1,10 @@
 package http
 
 import (
+	httpsrc "net/http"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	httpsrc "net/http"
 )
 
 func NewHeaderClass() data.ClassStmt {
@@ -51,7 +52,7 @@ func (s *HeaderClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewProxyValue(NewHeaderClassFrom(new(httpsrc.Header)), ctx.CreateBaseContext()), nil
 }
 
-func (s *HeaderClass) GetName() string         { return "http\\Header" }
+func (s *HeaderClass) GetName() string         { return "Net\\Http\\Header" }
 func (s *HeaderClass) GetExtend() *string      { return nil }
 func (s *HeaderClass) GetImplements() []string { return nil }
 func (s *HeaderClass) AsString() string        { return "Header{}" }

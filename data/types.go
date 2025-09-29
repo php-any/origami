@@ -5,6 +5,29 @@ type Types interface {
 	String() string
 }
 
+func NewLspTypes(t Types) *LspTypes {
+	return &LspTypes{
+		Types: []Types{t},
+	}
+}
+
+// LspTypes 多种可能的类型 - 只能 lsp 使用
+type LspTypes struct {
+	Types []Types
+}
+
+func (l *LspTypes) Is(_ Value) bool {
+	return true
+}
+
+func (l *LspTypes) String() string {
+	return "LspTypes"
+}
+
+func (l *LspTypes) Add(t Types) {
+	l.Types = append(l.Types, t)
+}
+
 // NullableType 表示可空类型
 type NullableType struct {
 	BaseType Types

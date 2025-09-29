@@ -16,7 +16,7 @@ func (h *RequestUserAgentMethod) Call(ctx data.Context) (data.GetValue, data.Con
 
 func (h *RequestUserAgentMethod) GetName() string               { return "userAgent" }
 func (h *RequestUserAgentMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *RequestUserAgentMethod) GetIsStatic() bool             { return true }
+func (h *RequestUserAgentMethod) GetIsStatic() bool             { return false }
 func (h *RequestUserAgentMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
 func (h *RequestUserAgentMethod) GetVariables() []data.Variable { return []data.Variable{} }
 func (h *RequestUserAgentMethod) GetReturnType() data.Types     { return data.NewBaseType("void") }

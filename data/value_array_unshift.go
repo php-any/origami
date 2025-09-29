@@ -49,3 +49,7 @@ func (a *ArrayValueUnshift) GetVariables() []Variable {
 		NewVariable("items", 0, nil),
 	}
 }
+
+func (a *ArrayValueUnshift) GetReturnType() Types {
+	return nil
+}

@@ -24,7 +24,7 @@ func (h *RequestCookiesNamedMethod) Call(ctx data.Context) (data.GetValue, data.
 
 func (h *RequestCookiesNamedMethod) GetName() string            { return "cookiesNamed" }
 func (h *RequestCookiesNamedMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (h *RequestCookiesNamedMethod) GetIsStatic() bool          { return true }
+func (h *RequestCookiesNamedMethod) GetIsStatic() bool          { return false }
 func (h *RequestCookiesNamedMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "param0", 0, nil, nil),

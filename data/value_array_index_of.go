@@ -71,3 +71,7 @@ func (a *ArrayValueIndexOf) GetVariables() []Variable {
 		NewVariable("fromIndex", 1, nil),
 	}
 }
+
+func (a *ArrayValueIndexOf) GetReturnType() Types {
+	return Int{}
+}

@@ -95,3 +95,7 @@ func (s *StringValueReplace) GetVariables() []Variable {
 		NewVariable("replace", 1, nil),
 	}
 }
+
+func (s *StringValueReplace) GetReturnType() Types {
+	return String{}
+}

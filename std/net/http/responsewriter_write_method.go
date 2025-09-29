@@ -27,7 +27,7 @@ func (h *ResponseWriterWriteMethod) Call(ctx data.Context) (data.GetValue, data.
 
 func (h *ResponseWriterWriteMethod) GetName() string            { return "write" }
 func (h *ResponseWriterWriteMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (h *ResponseWriterWriteMethod) GetIsStatic() bool          { return true }
+func (h *ResponseWriterWriteMethod) GetIsStatic() bool          { return false }
 func (h *ResponseWriterWriteMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "param0", 0, nil, nil),

@@ -106,6 +106,10 @@ func (m *RouteConstructMethod) GetVariables() []data.Variable {
 	}
 }
 
+func (m *RouteConstructMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
+}
+
 func (m *RouteConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 构造函数逻辑：从上下文获取注解参数和目标
 	// 这里应该从ctx中获取传入的参数
@@ -138,6 +142,10 @@ func (m *RouteProcessMethod) GetVariables() []data.Variable {
 	return []data.Variable{}
 }
 
+func (m *RouteProcessMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
+}
+
 func (m *RouteProcessMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 实现路由注解处理逻辑
 	// 可以访问 m.route.arguments 和 m.route.target
@@ -167,6 +175,10 @@ func (m *RouteRegisterMethod) GetParams() []data.GetValue {
 
 func (m *RouteRegisterMethod) GetVariables() []data.Variable {
 	return []data.Variable{}
+}
+
+func (m *RouteRegisterMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
 }
 
 func (m *RouteRegisterMethod) Call(ctx data.Context) (data.GetValue, data.Control) {

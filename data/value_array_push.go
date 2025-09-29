@@ -48,3 +48,7 @@ func (a *ArrayValuePush) GetVariables() []Variable {
 		NewVariable("items", 0, nil),
 	}
 }
+
+func (a *ArrayValuePush) GetReturnType() Types {
+	return nil
+}
