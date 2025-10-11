@@ -154,6 +154,9 @@ array $colors = ["red", "green", "blue"];
 foreach ($colors as $index => $color) {
     echo "Color {$index}: {$color}\n";
 }
+
+// 遍历实现Iterator接口的对象
+// 更多关于Iterator接口的信息，请参阅[Iterator与foreach](iterator-foreach.md)文档
 ```
 
 ## 分支语句
