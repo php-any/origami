@@ -6,6 +6,7 @@ import (
 	"github.com/php-any/origami/std/channel"
 	"github.com/php-any/origami/std/exception"
 	"github.com/php-any/origami/std/log"
+	"github.com/php-any/origami/std/loop"
 	"github.com/php-any/origami/std/reflect"
 	"github.com/php-any/origami/std/system/os"
 )
@@ -24,4 +25,5 @@ func Load(vm data.VM) {
 	reflect.Load(vm)
 	annotation.Load(vm)
 	channel.Load(vm)
+	loop.Load(vm)
 }

@@ -187,7 +187,7 @@ func (vm *LspVM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	_, err := vm.parser.ParseFile(file)
 
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, err
 	}
 
 	return nil, nil

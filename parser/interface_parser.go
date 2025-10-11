@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -32,6 +33,7 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 	if interfaceName == "" {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少接口名"))
 	}
+
 	interfaceName = p.namespace.GetName() + "\\" + interfaceName
 
 	// 解析继承

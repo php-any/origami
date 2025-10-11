@@ -1,19 +1,47 @@
 namespace tests\func;
 
-class TestInit {
-    public static $title;
-    public $author;
+// 实现语言级 Iterator 接口并进行 foreach 测试
 
-    public static function test() {
-        return new TestInit()
-    }
+class ArrayIterator implements Iterator {
+	private array $data;
+	private int $pos;
+
+	public function __construct(array $data) {
+		$this->data = $data;
+		$this->pos = 0;
+	}
+
+	public function current(): mixed {
+		return $this->data[$this->pos];
+	}
+
+	public function key(): mixed {
+		return $this->pos;
+	}
+
+	public function next(): void {
+		$this->pos = $this->pos + 1;
+	}
+
+	public function rewind(): void {
+		$this->pos = 0;
+	}
+
+	public function valid(): bool {
+		return $this->pos < $this->data->length;
+	}
 }
 
-// 不经过构造函数的创建方式
-TestInit::title = "123"
+array $nums = [1, 2, 3, 4];
+object $it = new ArrayIterator($nums);
 
-$data = TestInit::title;
+echo "-- foreach over Iterator with key --\n";
+foreach ($it as $k => $v) {
+	echo "k=" + $k + ", v=" + $v + "\n";
+}
 
-echo $data;
-
-echo TestInit::test()::title;
+echo "-- foreach over Iterator value only --\n";
+object $it2 = new ArrayIterator(["a", "b", "c"]);
+foreach ($it2 as $v2) {
+	echo $v2 + "\n";
+}

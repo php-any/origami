@@ -443,7 +443,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 			}
 
 			// 解析返回类型
-			if p.current().Type == token.IDENTIFIER {
+			if isIdentOrTypeToken(p.current().Type) {
 				returnType := p.current().Literal
 				p.next()
 

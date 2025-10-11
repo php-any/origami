@@ -22,10 +22,5 @@ $group->get("/list", ($request, $response) => {
     });
 })
 
+Log::info("http://127.0.0.1:8080");
 $server->run();
-
-function test() {
-    echo "test\n";
-}
-
-test()

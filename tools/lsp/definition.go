@@ -92,23 +92,6 @@ func findDefinitionInAST(doc *DocumentInfo, position Position) []*Location {
 	logrus.Debugf("最终目标节点：%T", targetNode)
 
 	// 根据节点类型查找定义，使用目标节点的上下文
-	// 针对 CallObjectMethod 做更精细的光标命中判断，避免落在 "->" 等区域时误跳
-	if com, ok := targetNode.(*node.CallObjectMethod); ok {
-		if objStmt, ok2 := com.Object.(node.Statement); ok2 {
-			if from := getFromOf(objStmt); from != nil {
-				osl, osc, oel, oec := from.GetRange()
-				_ = osc // 未用到，保持变量占位
-				// 规则：若光标与对象在同一结束行，需越过 "->" 两个字符后才认为处于方法名区域
-				if int(position.Line) == oel {
-					if int(position.Character) < (oec + 3) {
-						return nil
-					}
-				}
-				_ = osl // 保留局部变量，避免编译器告警
-			}
-		}
-	}
-
 	return findDefinitionFromNode(targetCtx, targetNode)
 }
 

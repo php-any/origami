@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/php-any/origami/data"
 	"strings"
+
+	"github.com/php-any/origami/data"
+	"github.com/sirupsen/logrus"
 
 	"github.com/php-any/origami/node"
 	"github.com/sourcegraph/jsonrpc2"
@@ -31,6 +34,9 @@ func validateDocument(conn *jsonrpc2.Conn, uri string, content string) {
 	}
 
 	// 发送通知
+	if b, err := json.Marshal(params); err == nil {
+		logrus.Infof("textDocument/publishDiagnostics response %s", string(b))
+	}
 	conn.Notify(context.Background(), "textDocument/publishDiagnostics", params)
 }
 
@@ -51,11 +57,7 @@ func validateDocumentWithAST(uri, content string) []Diagnostic {
 	// 根据URI类型选择解析方法
 	if strings.HasPrefix(uri, "file://") {
 		filePath := uriToFilePath(uri)
-		var err error
-		ast, err = parser.ParseFile(filePath)
-		if err != nil {
-			acl = data.NewErrorThrow(nil, err)
-		}
+		ast, acl = parser.ParseFile(filePath)
 	} else {
 		// 对于内存中的内容，使用ParseString
 		ast, acl = parser.ParseString(content, "memory_content")
@@ -63,14 +65,16 @@ func validateDocumentWithAST(uri, content string) []Diagnostic {
 
 	// 如果解析失败，返回解析错误
 	if acl != nil {
-		// 解析错误通常意味着语法问题
+		// 使用 acl 自带的 from 位置定位
+		startLine, startChar, endLine, endChar := uint32(0), uint32(0), uint32(0), uint32(0)
+		if gf, ok := acl.(node.GetFrom); ok && gf.GetFrom() != nil {
+			sl, sc, el, ec := gf.GetFrom().ToLSPPosition()
+			startLine, startChar, endLine, endChar = uint32(sl), uint32(sc), uint32(el), uint32(ec)
+		}
 		diagnostics = append(diagnostics, Diagnostic{
-			Range: Range{
-				Start: Position{Line: 0, Character: 0},
-				End:   Position{Line: 0, Character: 0},
-			},
+			Range:    Range{Start: Position{Line: startLine, Character: startChar}, End: Position{Line: endLine, Character: endChar}},
 			Severity: &[]DiagnosticSeverity{DiagnosticSeverityError}[0],
-			Message:  fmt.Sprintf("解析错误: %v", acl),
+			Message:  fmt.Sprintf("解析错误: %v", acl.AsString()),
 			Source:   &[]string{"origami-lsp"}[0],
 		})
 		return diagnostics

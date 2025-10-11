@@ -69,7 +69,7 @@ func (p *Parser) Clone() *Parser {
 		scopeManager:     NewScopeManager(),  // 创建新的作用域管理器
 		expressionParser: p.expressionParser, // 稍后设置
 		identTryString:   p.identTryString,
-		namespace:        nil, // 命名空间节点，共享即可
+		namespace:        p.namespace, // 命名空间节点，共享即可
 		uses:             make(map[string]string),
 		classPathManager: p.classPathManager, // 类路径管理器是共享的
 	}

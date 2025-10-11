@@ -66,15 +66,15 @@ func (p *LspParser) SetVM(vm *LspVM) {
 }
 
 // ParseFile 解析文件 - 关键函数
-func (p *LspParser) ParseFile(filePath string) (*node.Program, error) {
+func (p *LspParser) ParseFile(filePath string) (*node.Program, data.Control) {
 	if _, err := os.Stat(filePath); err != nil {
-		return nil, fmt.Errorf("file does not exist: %s", filePath)
+		return nil, data.NewErrorThrow(nil, fmt.Errorf("file does not exist: %s", filePath))
 	}
 
 	// 使用真正的解析器解析文件
-	program, err := p.parser.Clone().ParseFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse file: %v", err)
+	program, acl := p.parser.Clone().ParseFile(filePath)
+	if acl != nil {
+		return nil, acl
 	}
 
 	return program, nil

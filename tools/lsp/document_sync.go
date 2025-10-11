@@ -3,8 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/php-any/origami/data"
 	"strings"
+
+	"github.com/php-any/origami/data"
 
 	"github.com/php-any/origami/node"
 	"github.com/sirupsen/logrus"
@@ -35,15 +36,15 @@ func handleTextDocumentDidOpen(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (inte
 
 	// 解析 AST
 	var ast *node.Program
-	var err error
+	var acl data.Control
 
 	// 如果是文件 URI，直接使用真实文件路径解析
 	if strings.HasPrefix(uri, "file://") {
 		filePath := uriToFilePath(uri)
-		ast, err = p.ParseFile(filePath)
-		if err != nil {
-			logrus.Warnf("解析 AST 失败 %s：%v", uri, err)
-			// 解析失败时，AST 为 nil，但仍然创建文档信息
+		ast, acl = p.ParseFile(filePath)
+		if acl != nil {
+			logrus.Warnf("解析 AST 失败 %s：%v", uri, acl)
+			// 解析失败：不在此处发送诊断，统一由 validateDocument 处理
 		}
 	}
 
@@ -60,6 +61,8 @@ func handleTextDocumentDidOpen(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (inte
 
 	return nil, nil
 }
+
+// 解析错误的诊断由 validateDocument 统一发送
 
 // 处理文档变更通知
 func handleTextDocumentDidChange(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
@@ -122,6 +125,8 @@ func handleTextDocumentDidChange(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (in
 			existingDoc.Content = content
 			existingDoc.Version = int32(version)
 		}
+		// 统一由 validateDocument 发送诊断
+		validateDocument(conn, uri, content)
 		return nil, nil
 	}
 	delete(documents, uri)

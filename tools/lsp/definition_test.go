@@ -11,8 +11,8 @@ import (
 func Test_handleTextDocumentDefinition_hello_function_jump(t *testing.T) {
 	globalLspVM = NewLspVMWithScanDir("/Users/lvluo/Desktop/github.com/php-any/origami/docs/std")
 
-	testURI := "file:///Users/lvluo/Desktop/github.com/php-any/tests/app/http.zy"
-	filePath := "/Users/lvluo/Desktop/github.com/php-any/tests/app/http.zy"
+	testURI := "file:///Users/lvluo/Desktop/github.com/php-any/tests/app/script.zy"
+	filePath := "/Users/lvluo/Desktop/github.com/php-any/tests/app/script.zy"
 
 	// 构造测试参数：点击位于 "echo hello();" 这一行（期望跳转到 hello() 函数定义）
 	params := DefinitionParams{
@@ -49,9 +49,9 @@ func Test_handleTextDocumentDefinition_hello_function_jump(t *testing.T) {
 	parser := NewLspParser()
 	parser.SetVM(globalLspVM)
 
-	ast, err := parser.ParseFile(filePath)
-	if err != nil {
-		t.Fatalf("Failed to parse test file %s: %v", filePath, err)
+	ast, err2 := parser.ParseFile(filePath)
+	if err2 != nil {
+		t.Fatalf("Failed to parse test file %s: %v", filePath, err2)
 	}
 
 	documents[testURI] = &DocumentInfo{

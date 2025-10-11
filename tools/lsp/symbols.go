@@ -28,8 +28,8 @@ func handleTextDocumentDocumentSymbol(req *jsonrpc2.Request) (interface{}, error
 	}
 
 	symbols := getDocumentSymbolsFromAST(doc)
-
-	logrus.Infof("textDocument/documentSymbol response %#v", symbols)
+	resultJSON, _ := json.Marshal(symbols)
+	logrus.Infof("textDocument/documentSymbol response %#v", string(resultJSON))
 	return symbols, nil
 }
 
