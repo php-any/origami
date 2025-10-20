@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -26,7 +27,7 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 	}
 	switch ep.current().Type {
 	case token.ARRAY_KEY_VALUE: // => 对象定义
-		v := map[node.Statement]node.Statement{}
+		v := map[data.GetValue]data.GetValue{}
 		ep.next() // =>
 		v[expr], acl = ep.parseStatement()
 		if acl != nil {
@@ -51,7 +52,7 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 		oldIdentTryString := ep.identTryString
 		ep.identTryString = true
 
-		v := map[node.Statement]node.Statement{}
+		v := map[data.GetValue]data.GetValue{}
 		ep.nextAndCheck(token.COLON) // :
 		v[expr], acl = ep.parseStatement()
 		if acl != nil {
@@ -82,7 +83,7 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 		return node.NewKv(from, v), nil
 	case token.RBRACE:
 		ep.next()
-		v := map[node.Statement]node.Statement{}
+		v := map[data.GetValue]data.GetValue{}
 		from := tracker.EndBefore()
 		return node.NewKv(from, v), nil
 	default:

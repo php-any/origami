@@ -23,11 +23,6 @@ func (n *Node) GetFrom() data.From {
 	return n.from
 }
 
-// Statement 表示语句节点
-type Statement interface {
-	data.GetValue
-}
-
 type GetFrom interface {
 	GetFrom() data.From
 }
@@ -35,11 +30,11 @@ type GetFrom interface {
 // Program 表示程序节点
 type Program struct {
 	*Node      `pp:"-"`
-	Statements []Statement
+	Statements []data.GetValue
 }
 
 // NewProgram 创建一个新的程序节点
-func NewProgram(from data.From, statements []Statement) *Program {
+func NewProgram(from data.From, statements []data.GetValue) *Program {
 	return &Program{
 		Node:       NewNode(from),
 		Statements: statements,

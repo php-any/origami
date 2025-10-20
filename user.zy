@@ -3,7 +3,10 @@ namespace App;
 use database\DB;
 
 class User {
-
+    // @Column("user_name")
+    public string $name;
 }
 
 $data = DB<User>();
+
+$data->where("id = ?", 1)->first()

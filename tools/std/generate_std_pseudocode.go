@@ -32,6 +32,7 @@ func getStdClasses() []data.ClassStmt {
 		http.NewServerClass(),
 
 		channel.NewChannelClass(),
+
 		// sql
 		//sql.NewConnClass(),
 		//sql.NewDBClass(),

@@ -228,7 +228,7 @@ func getFromOf(v data.GetValue) data.From {
 	if gf, ok := v.(node.GetFrom); ok {
 		return gf.GetFrom()
 	}
-	if st, ok := v.(node.Statement); ok {
+	if st, ok := v.(data.GetValue); ok {
 		if gf, ok2 := st.(node.GetFrom); ok2 {
 			return gf.GetFrom()
 		}
@@ -237,7 +237,7 @@ func getFromOf(v data.GetValue) data.From {
 }
 
 // isPositionInRange 检查位置是否在节点范围内
-func isPositionInRange(stmt node.Statement, position Position) bool {
+func isPositionInRange(stmt data.GetValue, position Position) bool {
 	// 尝试获取节点的 From 信息
 	var from data.From
 
@@ -292,7 +292,7 @@ func isPositionInRange(stmt node.Statement, position Position) bool {
 }
 
 // findSymbolInExpression 在表达式中查找符号，直接返回节点
-func findSymbolInExpression(expr node.Statement, position Position) data.GetValue {
+func findSymbolInExpression(expr data.GetValue, position Position) data.GetValue {
 	if expr == nil {
 		return nil
 	}
@@ -344,7 +344,7 @@ func findSymbolInCallExpression(call *node.CallExpression, position Position) da
 		if arg == nil {
 			continue
 		}
-		if st, ok := arg.(node.Statement); ok {
+		if st, ok := arg.(data.GetValue); ok {
 			if !isPositionInRange(st, position) {
 				continue
 			}
@@ -376,7 +376,7 @@ func findSymbolInCallMethod(call *node.CallMethod, position Position) data.GetVa
 
 	// 先检查方法表达式本身
 	if call.Method != nil {
-		if st, ok := call.Method.(node.Statement); ok {
+		if st, ok := call.Method.(data.GetValue); ok {
 			if isPositionInRange(st, position) {
 				cand := findSymbolInExpression(st, position)
 				best = pickSmallerNode(best, cand)
@@ -391,7 +391,7 @@ func findSymbolInCallMethod(call *node.CallMethod, position Position) data.GetVa
 		if arg == nil {
 			continue
 		}
-		if st, ok := arg.(node.Statement); ok {
+		if st, ok := arg.(data.GetValue); ok {
 			if !isPositionInRange(st, position) {
 				continue
 			}
@@ -429,7 +429,7 @@ func findSymbolInNewExpression(newExpr *node.NewExpression, position Position) d
 		if arg == nil {
 			continue
 		}
-		if st, ok := arg.(node.Statement); ok {
+		if st, ok := arg.(data.GetValue); ok {
 			if !isPositionInRange(st, position) {
 				continue
 			}
@@ -464,7 +464,7 @@ func findSymbolInObjectMethod(call *node.CallObjectMethod, position Position) da
 	var best data.GetValue
 
 	if call.Object != nil {
-		if st, ok := call.Object.(node.Statement); ok {
+		if st, ok := call.Object.(data.GetValue); ok {
 			if isPositionInRange(st, position) {
 				cand := findSymbolInExpression(st, position)
 				best = pickSmallerNode(best, cand)
@@ -477,7 +477,7 @@ func findSymbolInObjectMethod(call *node.CallObjectMethod, position Position) da
 		if arg == nil {
 			continue
 		}
-		if st, ok := arg.(node.Statement); ok {
+		if st, ok := arg.(data.GetValue); ok {
 			if !isPositionInRange(st, position) {
 				continue
 			}
@@ -499,7 +499,7 @@ func findSymbolInObjectProperty(call *node.CallObjectProperty, position Position
 	}
 	var best data.GetValue
 	if call.Object != nil {
-		if st, ok := call.Object.(node.Statement); ok {
+		if st, ok := call.Object.(data.GetValue); ok {
 			if isPositionInRange(st, position) {
 				cand := findSymbolInExpression(st, position)
 				best = pickSmallerNode(best, cand)
@@ -522,7 +522,7 @@ func findSymbolInStaticMethod(call *node.CallStaticMethod, position Position) da
 }
 
 // 仅检查"行"是否命中，忽略列，避免 token.Pos 为末尾列导致的误差
-func isPositionInLineRange(stmt node.Statement, position Position) bool {
+func isPositionInLineRange(stmt data.GetValue, position Position) bool {
 	var from data.From
 	if getFrom, ok := stmt.(node.GetFrom); ok {
 		from = getFrom.GetFrom()

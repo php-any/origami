@@ -14,3 +14,10 @@ type InterfaceStmt interface {
 type GetReturnType interface {
 	GetReturnType() Types // 返回类型
 }
+
+type ClassGeneric interface {
+	ClassStmt
+
+	Clone(map[string]Types) ClassGeneric
+	GenericList() []Types
+}

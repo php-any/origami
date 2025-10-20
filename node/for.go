@@ -69,14 +69,14 @@ func (u *ForStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 // ForStatement 表示for语句
 type ForStatement struct {
 	*Node       `pp:"-"`
-	Initializer Statement
+	Initializer data.GetValue
 	Condition   data.GetValue
 	Increment   data.GetValue
 	Body        []data.GetValue
 }
 
 // NewForStatement 创建一个新的for语句
-func NewForStatement(token *TokenFrom, initializer Statement, condition data.GetValue, increment data.GetValue, body []data.GetValue) *ForStatement {
+func NewForStatement(token *TokenFrom, initializer data.GetValue, condition data.GetValue, increment data.GetValue, body []data.GetValue) *ForStatement {
 	return &ForStatement{
 		Node:        NewNode(token),
 		Initializer: initializer,

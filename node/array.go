@@ -6,10 +6,10 @@ import (
 
 type Array struct {
 	*Node `pp:"-"`
-	V     []Statement
+	V     []data.GetValue
 }
 
-func NewArray(token *TokenFrom, arr []Statement) data.GetValue {
+func NewArray(token *TokenFrom, arr []data.GetValue) data.GetValue {
 	return &Array{
 		Node: NewNode(token),
 		V:    arr,

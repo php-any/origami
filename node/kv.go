@@ -6,10 +6,10 @@ import (
 
 type Kv struct {
 	*Node `pp:"-"`
-	V     map[Statement]Statement
+	V     map[data.GetValue]data.GetValue
 }
 
-func NewKv(token *TokenFrom, v map[Statement]Statement) data.GetValue {
+func NewKv(token *TokenFrom, v map[data.GetValue]data.GetValue) data.GetValue {
 	return &Kv{
 		Node: NewNode(token),
 		V:    v,

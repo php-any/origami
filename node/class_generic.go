@@ -1,5 +1,6 @@
 package node
 
+import "C"
 import "github.com/php-any/origami/data"
 
 // ClassGeneric 泛型类
@@ -8,6 +9,17 @@ type ClassGeneric struct {
 
 	Generic    []data.Types
 	GenericMap map[string]data.Types
+}
+
+func (c *ClassGeneric) Clone(mT map[string]data.Types) data.ClassGeneric {
+	return &ClassGeneric{
+		ClassStatement: c.ClassStatement,
+		Generic:        c.Generic,
+		GenericMap:     mT,
+	}
+}
+func (c *ClassGeneric) GenericList() []data.Types {
+	return c.Generic
 }
 
 func (c *ClassGeneric) GetValue(ctx data.Context) (data.GetValue, data.Control) {

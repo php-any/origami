@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+
 	"github.com/php-any/origami/node"
 )
 import "github.com/php-any/origami/token"
@@ -31,13 +32,13 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 		ep.next()
 		from := tracker.EndBefore()
 		if expr == nil {
-			return node.NewArray(from, []node.Statement{}), nil
+			return node.NewArray(from, []data.GetValue{}), nil
 		}
-		return node.NewArray(from, []node.Statement{expr}), nil
+		return node.NewArray(from, []data.GetValue{expr}), nil
 	} else {
 		switch ep.current().Type {
 		case token.COMMA: // , 数组定义
-			arr := make([]node.Statement, 1)
+			arr := make([]data.GetValue, 1)
 			arr[0] = expr
 			for ep.current().Type == token.COMMA {
 				ep.next()
@@ -56,7 +57,7 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 			from := tracker.EndBefore()
 			return node.NewArray(from, arr), nil
 		case token.ARRAY_KEY_VALUE: // => 对象定义
-			v := map[node.Statement]node.Statement{}
+			v := map[data.GetValue]data.GetValue{}
 			ep.next() // =>
 			v[expr], acl = ep.parseStatement()
 			if acl != nil {
@@ -84,7 +85,7 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 			oldIdentTryString := ep.identTryString
 			ep.identTryString = true
 
-			v := map[node.Statement]node.Statement{}
+			v := map[data.GetValue]data.GetValue{}
 			ep.next() // :
 			v[expr], acl = ep.parseStatement()
 			if acl != nil {

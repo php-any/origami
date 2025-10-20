@@ -107,7 +107,7 @@ func (p *Parser) ParseFile(filename string) (*node.Program, data.Control) {
 
 // parseProgram 解析程序
 func (p *Parser) parseProgram() (*node.Program, data.Control) {
-	statements := make([]node.Statement, 0)
+	statements := make([]data.GetValue, 0)
 
 	last := 0
 	// 解析所有语句

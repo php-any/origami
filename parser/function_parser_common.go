@@ -22,9 +22,9 @@ func NewFunctionParserCommon(parser *Parser) *FunctionParserCommon {
 }
 
 // ParseFunctionBody 解析函数体
-func (p *FunctionParserCommon) ParseFunctionBody() ([]node.Statement, data.Control) {
+func (p *FunctionParserCommon) ParseFunctionBody() ([]data.GetValue, data.Control) {
 	stmtParser := NewMainStatementParser(p.Parser)
-	var body []node.Statement
+	var body []data.GetValue
 	if p.current().Type == token.LBRACE {
 		p.next()
 		for !p.currentIsTypeOrEOF(token.RBRACE) {

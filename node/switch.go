@@ -17,7 +17,7 @@ func (s *SwitchCase) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	var v data.GetValue
 	var c data.Control
 	for _, statement := range s.Statements {
-		if stmt, ok := statement.(Statement); ok {
+		if stmt, ok := statement.(data.GetValue); ok {
 			v, c = stmt.GetValue(ctx)
 		} else {
 			// 如果是表达式，直接获取值
@@ -76,7 +76,7 @@ func (s *SwitchStatement) GetValue(ctx data.Context) (data.GetValue, data.Contro
 		var v data.GetValue
 		var c data.Control
 		for _, statement := range s.DefaultCase {
-			if stmt, ok := statement.(Statement); ok {
+			if stmt, ok := statement.(data.GetValue); ok {
 				v, c = stmt.GetValue(ctx)
 			} else {
 				// 如果是表达式，直接获取值

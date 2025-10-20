@@ -1,9 +1,10 @@
 package node
 
 import (
+	"sync"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/token"
-	"sync"
 )
 
 // ClassStatement 表示类定义语句
@@ -222,7 +223,7 @@ type ClassMethod struct {
 	Modifier    data.Modifier   // 访问修饰符
 	IsStatic    bool            // 是否是静态方法
 	Params      []data.GetValue // 参数列表
-	Body        []Statement     // 方法体
+	Body        []data.GetValue // 方法体
 	vars        []data.Variable
 	Annotations []*data.ClassValue // 方法注解列表
 	Ret         data.Types         // 返回类型
@@ -234,7 +235,7 @@ func (m *ClassMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 // NewMethod 创建一个新的方法
-func NewMethod(from data.From, name string, modifier string, isStatic bool, params []data.GetValue, body []Statement, vars []data.Variable, ret data.Types) data.Method {
+func NewMethod(from data.From, name string, modifier string, isStatic bool, params []data.GetValue, body []data.GetValue, vars []data.Variable, ret data.Types) data.Method {
 	return &ClassMethod{
 		Node:     NewNode(from),
 		Name:     name,

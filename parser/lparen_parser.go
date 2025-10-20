@@ -51,7 +51,7 @@ func (ep *LparenParser) isTypeCast() bool {
 }
 
 // parseTypeCast 解析类型转换
-func (ep *LparenParser) parseTypeCast(tracking *PositionTracker) (node.Statement, data.Control) {
+func (ep *LparenParser) parseTypeCast(tracking *PositionTracker) (data.GetValue, data.Control) {
 	typeName := ep.current().Literal
 	ep.next()                     // 跳过类型名
 	ep.nextAndCheck(token.RPAREN) // 跳过右括号

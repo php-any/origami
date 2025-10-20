@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -113,7 +114,7 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 			hasLparen = true
 		}
 		exprParser := NewMainStatementParser(p.Parser)
-		var initializer node.Statement
+		var initializer data.GetValue
 		if p.checkPositionIs(0, token.SEMICOLON) {
 			p.nextAndCheckStip(token.SEMICOLON) // 跳过分号
 		} else if !p.checkPositionIs(0, token.LBRACE) {

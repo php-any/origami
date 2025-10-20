@@ -5,11 +5,11 @@ import "github.com/php-any/origami/data"
 // BlockStatement 表示语句块
 type BlockStatement struct {
 	*Node      `pp:"-"`
-	Statements []Statement // 语句列表
+	Statements []data.GetValue // 语句列表
 }
 
 // NewBlockStatement 创建一个新的语句块
-func NewBlockStatement(token *TokenFrom, statements []Statement) *BlockStatement {
+func NewBlockStatement(token *TokenFrom, statements []data.GetValue) *BlockStatement {
 	return &BlockStatement{
 		Node:       NewNode(token),
 		Statements: statements,

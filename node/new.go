@@ -114,8 +114,8 @@ func (n *NewClassGenerated) GetValue(ctx data.Context) (data.GetValue, data.Cont
 		return nil, data.NewErrorThrow(n.from, errors.New(fmt.Sprintf("类 %s 不存在", n.ClassName)))
 	}
 	mT := make(map[string]data.Types)
-	if classGeneric, ok := stmt.(*ClassGeneric); ok {
-		for i, types := range classGeneric.Generic {
+	if classGeneric, ok := stmt.(data.ClassGeneric); ok {
+		for i, types := range classGeneric.GenericList() {
 			newType := n.T[i]
 			switch t := types.(type) {
 			case data.Generic:
@@ -125,11 +125,7 @@ func (n *NewClassGenerated) GetValue(ctx data.Context) (data.GetValue, data.Cont
 			}
 		}
 
-		stmt = &ClassGeneric{
-			ClassStatement: classGeneric.ClassStatement,
-			Generic:        classGeneric.Generic,
-			GenericMap:     mT,
-		}
+		stmt = classGeneric.Clone(mT)
 	}
 
 	object, acl := stmt.GetValue(ctx.CreateBaseContext())

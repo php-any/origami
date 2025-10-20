@@ -1,5 +1,7 @@
 package data
 
+import "fmt"
+
 // Generic 泛型
 type Generic struct {
 	Name  string
@@ -15,5 +17,5 @@ func (i Generic) Is(value Value) bool {
 }
 
 func (i Generic) String() string {
-	return "array"
+	return fmt.Sprintf("%v", i.Name)
 }
