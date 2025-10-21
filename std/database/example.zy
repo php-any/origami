@@ -1,0 +1,22 @@
+namespace App;
+
+use database\DB;
+
+// 定义用户模型
+class User {
+    public int $id;
+    public string $name;
+    public string $email;
+}
+
+// 使用默认连接
+$user = DB<User>();
+$user->where("id = ?", 1)->first();
+
+// 使用指定连接
+$userFromSlave = DB<User>("slave");
+$userFromSlave->where("id = ?", 1)->first();
+
+// 使用主库连接
+$userFromMaster = DB<User>("master");
+$userFromMaster->where("id = ?", 1)->first();

@@ -1,12 +1,314 @@
 namespace App;
 
 use database\DB;
+use database\sql\open;
+use database\annotation\Column;
+use database\annotation\Table;
 
+$db = open("mysql", "root:root@/temp");
+
+$db->ping();
+
+database\registerDefaultConnection($db);
+database\registerConnection("slave", $db);
+
+@Table("users")
 class User {
-    // @Column("user_name")
-    public string $name;
+    public int $id;
+    
+    @Column("name")
+    public string $userName;
+    
+    public int $age;
+    
+    public float $coin;
+    
+    @Column("create_at")
+    public string $createAt;
 }
 
 $data = DB<User>();
 
-$data->where("id = ?", 1)->first()
+echo "=== 基础查询 ===\n";
+$user = $data->where("id = ?", 100)->first();
+dump($user);
+
+echo "\n=== 连贯操作查询 - 查询所有字段 ===\n";
+$user2 = $data
+    ->select("id, name, age, coin, create_at")
+    ->where("id > ?", 99)
+    ->orderBy("id DESC")
+    ->limit(3)
+    ->first();
+
+dump($user2);
+
+echo "\n=== 条件查询 - 按年龄筛选 ===\n";
+$user3 = $data
+    ->select("id, name, age, coin")
+    ->where("age > ?", 18)
+    ->orderBy("age ASC")
+    ->limit(2)
+    ->first();
+
+dump($user3);
+
+echo "\n=== 条件查询 - 按金币筛选 ===\n";
+$user4 = $data
+    ->select("id, name, coin")
+    ->where("coin > ?", 100)
+    ->orderBy("coin DESC")
+    ->limit(2)
+    ->first();
+
+dump($user4);
+
+echo "\n=== 分组查询 - 按年龄分组 ===\n";
+$user5 = $data
+    ->select("age, COUNT(*) as count")
+    ->where("age IS NOT NULL")
+    ->groupBy("age")
+    ->orderBy("age ASC")
+    ->limit(3)
+    ->first();
+
+dump($user5);
+
+echo "\n=== 连接查询 - 连接用户信息表 ===\n";
+$user6 = $data
+    ->select("users.id, users.name, users.age, users_info.info")
+    ->join("LEFT JOIN users_info ON users.id = users_info.user_id")
+    ->where("users.id = ?", 100)
+    ->first();
+
+dump($user6);
+
+echo "\n=== 偏移查询 - 分页查询 ===\n";
+$user7 = $data
+    ->select("id, name, age")
+    ->where("id > ?", 0)
+    ->orderBy("id ASC")
+    ->limit(2)
+    ->offset(1)
+    ->first();
+
+dump($user7);
+
+echo "\n=== 多条件查询 ===\n";
+$user8 = $data
+    ->table("users")
+    ->select("id, name, age, coin")
+    ->where("age > ? AND coin > ?", 0, 0)
+    ->orderBy("coin DESC, age ASC")
+    ->limit(3)
+    ->first();
+
+dump($user8);
+
+echo "\n=== 时间范围查询 ===\n";
+$user9 = $data
+    ->table("users")
+    ->select("id, name, create_at")
+    ->where("create_at > ?", "2025-01-01")
+    ->orderBy("create_at DESC")
+    ->limit(2)
+    ->first();
+
+dump($user9);
+
+echo "\n=== 原生 SQL 查询功能 ===\n";
+// 1. 简单查询
+echo "\n--- 1. 原生 SQL 简单查询 ---\n";
+$rawResults = $data->query("SELECT * FROM users WHERE age > ? LIMIT 3", [0]);
+echo "查询结果: ";
+dump($rawResults);
+
+// 2. 统计查询
+echo "\n--- 2. 原生 SQL 统计查询 ---\n";
+$stats = $data->query("SELECT COUNT(*) as total, AVG(age) as avg_age, MAX(coin) as max_coin FROM users");
+echo "统计结果: ";
+dump($stats);
+
+// 3. 复杂查询
+echo "\n--- 3. 原生 SQL 复杂查询 ---\n";
+$complexResults = $data->query("SELECT name, age, coin FROM users WHERE age BETWEEN ? AND ? ORDER BY coin DESC", [1, 50]);
+echo "复杂查询结果: ";
+dump($complexResults);
+
+echo "\n=== 原生 SQL 执行功能 ===\n";
+// 4. 原生 SQL 插入
+echo "\n--- 4. 原生 SQL 插入 ---\n";
+$insertResult = $data->exec("INSERT INTO users (name, age, coin) VALUES (?, ?, ?)", ["原生SQL用户", 28, 300.0]);
+echo "插入结果: ";
+dump($insertResult);
+
+// 5. 原生 SQL 更新
+echo "\n--- 5. 原生 SQL 更新 ---\n";
+$updateResult = $data->exec("UPDATE users SET age = ? WHERE name = ?", [30, "原生SQL用户"]);
+echo "更新结果: ";
+dump($updateResult);
+
+// 6. 验证更新结果
+echo "\n--- 6. 验证更新结果 ---\n";
+$verifyResults = $data->query("SELECT * FROM users WHERE name = ?", ["原生SQL用户"]);
+echo "验证结果: ";
+dump($verifyResults);
+
+// 7. 原生 SQL 删除
+echo "\n--- 7. 原生 SQL 删除 ---\n";
+$deleteResult = $data->exec("DELETE FROM users WHERE name = ?", ["原生SQL用户"]);
+echo "删除结果: ";
+dump($deleteResult);
+
+// 8. 验证删除结果
+echo "\n--- 8. 验证删除结果 ---\n";
+$deletedResults = $data->query("SELECT * FROM users WHERE name = ?", ["原生SQL用户"]);
+echo "删除后查询结果: ";
+dump($deletedResults);
+
+echo "\n=== 原生 SQL 功能演示完成 ===\n";
+
+echo "\n=== 高级操作测试 ===\n";
+
+// 定义用户信息类
+@Table("users_info")
+class UserInfo {
+    @Column("user_id")
+    public int $userId;
+    
+    public string $info;
+}
+
+echo "\n--- 插入新测试数据 ---\n";
+
+// 插入多个新用户
+$newUsers = [
+    ["name" => "测试用户1", "age" => 25, "coin" => 100.0],
+    ["name" => "测试用户2", "age" => 30, "coin" => 200.0],
+    ["name" => "测试用户3", "age" => 28, "coin" => 150.0]
+];
+
+$insertedIds = []; // 临时使用固定值
+
+foreach ($newUsers as $userData) {
+    $user = new User();
+    $user->userName = $userData["name"];
+    $user->age = $userData["age"];
+    $user->coin = $userData["coin"];
+    $user->createAt = "2024-01-01 12:00:00";
+    
+    $result = $data->insert($user);
+    echo "插入用户 {$userData['name']}: ";
+    dump($result);
+    
+    // 保存插入的ID用于后续测试
+    if ($result->success) {
+        $insertedIds[] = $result->insertId;
+    }
+}
+
+echo "\n--- 插入用户信息数据 ---\n";
+
+// 插入用户信息
+$infoData = DB<UserInfo>();
+foreach ($insertedIds as $index => $userId) {
+    $userInfo = new UserInfo();
+    $userInfo->userId = $userId;
+    $userInfo->info = "测试用户" . ($index + 1) . "的详细信息，地址：测试地址" . ($index + 1);
+    
+    $result = $infoData->insert($userInfo);
+    echo "插入用户信息 {$userId}: ";
+    dump($result);
+}
+
+echo "\n--- 测试 JOIN 查询 ---\n";
+
+// 测试 JOIN 查询
+$joinResults = $data->join("INNER JOIN users_info ui ON users.id = ui.user_id")
+    ->select("users.id, users.name, users.age, users.coin, ui.info")
+    ->where("users.age > ?", 25)
+    ->orderBy("users.coin DESC")
+    ->first();
+
+echo "JOIN 查询结果: ";
+dump($joinResults);
+
+echo "\n--- 测试复杂统计查询 ---\n";
+
+// 测试复杂统计查询
+$stats = $data->query("
+    SELECT 
+        COUNT(*) as total_users,
+        AVG(age) as avg_age,
+        AVG(coin) as avg_coin,
+        MAX(coin) as max_coin,
+        MIN(coin) as min_coin
+    FROM users
+");
+
+echo "统计查询结果: ";
+dump($stats);
+
+echo "\n--- 测试分组查询 ---\n";
+
+// 测试分组查询
+$groupResults = $data->select("age, COUNT(*) as count, AVG(coin) as avg_coin")
+    ->groupBy("age")
+    ->orderBy("age")
+    ->first();
+
+echo "按年龄分组统计: ";
+dump($groupResults);
+
+echo "\n--- 测试原生 SQL JOIN ---\n";
+
+// 测试原生 SQL JOIN
+$rawJoinResults = $data->query("
+    SELECT u.id, u.name, u.age, u.coin, ui.info 
+    FROM users u 
+    INNER JOIN users_info ui ON u.id = ui.user_id 
+    WHERE u.coin > ? 
+    ORDER BY u.coin DESC
+", [100]);
+
+echo "原生 SQL JOIN 结果: ";
+dump($rawJoinResults);
+
+echo "\n--- 测试更新操作 ---\n";
+
+// 测试更新操作
+$updateResult = $data->where("name = ?", "测试用户1")
+    ->update(["coin" => 500.0, "age" => 26]);
+
+echo "更新测试用户1的信息: ";
+dump($updateResult);
+
+// 验证更新结果
+$updatedUser = $data->where("name = ?", "测试用户1")->first();
+echo "更新后的用户信息: ";
+dump($updatedUser);
+
+echo "\n--- 测试删除操作 ---\n";
+
+// 测试删除操作
+$deleteResult = $data->where("name = ?", "测试用户3")->delete();
+echo "删除测试用户3: ";
+dump($deleteResult);
+
+// 验证删除结果
+$deletedUser = $data->where("name = ?", "测试用户3")->first();
+echo "删除后查询测试用户3: ";
+dump($deletedUser);
+
+echo "\n--- 测试分页查询 ---\n";
+
+// 测试分页查询
+$pageResults = $data->orderBy("coin DESC")
+    ->limit(3)
+    ->offset(1)
+    ->first();
+
+echo "分页查询结果（跳过1条，取3条）: ";
+dump($pageResults);
+
+echo "\n=== 高级操作测试完成 ===\n";

@@ -3,6 +3,7 @@ package node
 import (
 	"errors"
 	"fmt"
+
 	"github.com/php-any/origami/data"
 )
 
@@ -91,7 +92,12 @@ func (a *Annotation) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 				}
 			}
 
-			return method.Call(fnCtx)
+			_, acl := method.Call(fnCtx)
+			if acl != nil {
+				return nil, acl
+			}
+			// 构造函数执行成功后，返回注解实例本身
+			return object, nil
 		}
 	}
 

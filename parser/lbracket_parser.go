@@ -3,10 +3,10 @@ package parser
 import (
 	"errors"
 
+	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/token"
 )
-import "github.com/php-any/origami/token"
-import "github.com/php-any/origami/data"
 
 type LbracketParser struct {
 	*Parser
@@ -23,17 +23,24 @@ func NewLbracketParser(parser *Parser) StatementParser {
 func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
 	ep.next()
+
+	// 检查是否直接遇到右括号（空数组）
+	if ep.current().Type == token.RBRACKET {
+		ep.next()
+		from := tracker.EndBefore()
+		return node.NewArray(from, []data.GetValue{}), nil
+	}
+
+	// 解析第一个元素
 	expr, acl := ep.parseStatement()
 	if acl != nil {
 		return nil, acl
 	}
+
 	if ep.current().Type == token.RBRACKET {
-		// 直接结束了
+		// 只有一个元素
 		ep.next()
 		from := tracker.EndBefore()
-		if expr == nil {
-			return node.NewArray(from, []data.GetValue{}), nil
-		}
 		return node.NewArray(from, []data.GetValue{expr}), nil
 	} else {
 		switch ep.current().Type {

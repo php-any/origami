@@ -21,11 +21,7 @@ func (d *DbWhereMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	a2, ok := ctx.GetIndexValue(1)
 	if ok {
 		if arr, ok := a2.(*data.ArrayValue); ok {
-			var args []data.Value
-			for _, v := range arr.Value {
-				args = append(args, v)
-			}
-			d.source.whereArgs = args
+			d.source.whereArgs = append([]data.Value{}, arr.Value...)
 		}
 	}
 

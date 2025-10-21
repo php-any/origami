@@ -9,22 +9,48 @@ func NewDBClass() *DBClass {
 }
 
 type DBClass struct {
-	construct    data.Method
-	getMethod    data.Method
-	firstMethod  data.Method
-	whereMethod  data.Method
-	tableMethod  data.Method
-	selectMethod data.Method
+	construct     data.Method
+	getMethod     data.Method
+	firstMethod   data.Method
+	whereMethod   data.Method
+	tableMethod   data.Method
+	selectMethod  data.Method
+	orderByMethod data.Method
+	groupByMethod data.Method
+	limitMethod   data.Method
+	offsetMethod  data.Method
+	joinMethod    data.Method
+	// CRUD 方法
+	insertMethod data.Method
+	updateMethod data.Method
+	deleteMethod data.Method
+	// 原生 SQL 方法
+	queryMethod data.Method
+	execMethod  data.Method
 }
 
 func (d *DBClass) Clone(m map[string]data.Types) data.ClassGeneric {
 	source := newDB(m)
 
 	return &DBClass{
-		construct:   &DbConstructMethod{source},
-		getMethod:   &DbGetMethod{source},
-		firstMethod: &DbFirstMethod{source},
-		whereMethod: &DbWhereMethod{source},
+		construct:     &DbConstructMethod{source},
+		getMethod:     &DbGetMethod{source},
+		firstMethod:   &DbFirstMethod{source: source, scanner: nil},
+		whereMethod:   &DbWhereMethod{source},
+		tableMethod:   &DbTableMethod{source},
+		selectMethod:  &DbSelectMethod{source},
+		orderByMethod: &DbOrderByMethod{source},
+		groupByMethod: &DbGroupByMethod{source},
+		limitMethod:   &DbLimitMethod{source},
+		offsetMethod:  &DbOffsetMethod{source},
+		joinMethod:    &DbJoinMethod{source},
+		// CRUD 方法
+		insertMethod: &DbInsertMethod{source},
+		updateMethod: &DbUpdateMethod{source},
+		deleteMethod: &DbDeleteMethod{source},
+		// 原生 SQL 方法
+		queryMethod: &DbQueryMethod{source},
+		execMethod:  &DbExecMethod{source},
 	}
 }
 
@@ -75,6 +101,28 @@ func (d *DBClass) GetMethod(name string) (data.Method, bool) {
 		return d.tableMethod, true
 	case "select":
 		return d.selectMethod, true
+	case "orderBy":
+		return d.orderByMethod, true
+	case "groupBy":
+		return d.groupByMethod, true
+	case "limit":
+		return d.limitMethod, true
+	case "offset":
+		return d.offsetMethod, true
+	case "join":
+		return d.joinMethod, true
+	// CRUD 方法
+	case "insert":
+		return d.insertMethod, true
+	case "update":
+		return d.updateMethod, true
+	case "delete":
+		return d.deleteMethod, true
+	// 原生 SQL 方法
+	case "query":
+		return d.queryMethod, true
+	case "exec":
+		return d.execMethod, true
 	}
 
 	return nil, false

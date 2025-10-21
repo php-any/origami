@@ -1,0 +1,40 @@
+namespace App;
+
+use Database\Annotation\Table;
+use Database\Annotation\Column;
+use Database\Annotation\Id;
+use Database\Annotation\GeneratedValue;
+
+// 用户实体类
+@Table("users")
+class User {
+    @Id
+    @GeneratedValue("AUTO")
+    public int $id;
+
+    @Column("user_name", nullable: false, length: 100)
+    public string $name;
+
+    @Column("email_address", nullable: false, length: 255)
+    public string $email;
+
+    @Column("created_at", nullable: true)
+    public ?string $createdAt;
+}
+
+// 文章实体类
+@Table("articles")
+class Article {
+    @Id
+    @GeneratedValue("AUTO")
+    public int $id;
+
+    @Column("title", nullable: false, length: 200)
+    public string $title;
+
+    @Column("content", nullable: true)
+    public ?string $content;
+
+    @Column("author_id", nullable: false)
+    public int $authorId;
+}
