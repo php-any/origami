@@ -1,0 +1,262 @@
+/**
+ * 数据库模块使用示例
+ * 
+ * 本文件展示了数据库模块的各种功能使用方法
+ */
+
+namespace App;
+
+use database\DB;
+use database\sql\open;
+use database\annotation\Table;
+use database\annotation\Column;
+use database\annotation\Id;
+use database\annotation\GeneratedValue;
+
+// 连接数据库
+$db = open("mysql", "root:password@/example_db");
+$db->ping();
+database\registerDefaultConnection($db);
+
+// 定义用户模型
+@Table("users")
+class User {
+    @Id
+    @GeneratedValue
+    public int $id;
+    
+    @Column("user_name")
+    public string $userName;
+    
+    public string $email;
+    
+    public int $age;
+    
+    public float $coin;
+    
+    @Column("created_at")
+    public string $createdAt;
+}
+
+// 定义用户信息模型
+@Table("user_profiles")
+class UserProfile {
+    @Id
+    public int $userId;
+    
+    @Column("full_name")
+    public string $fullName;
+    
+    public string $bio;
+    
+    @Column("avatar_url")
+    public string $avatarUrl;
+    
+    @Column("created_at")
+    public string $createdAt;
+}
+
+// 定义订单模型
+@Table("orders")
+class Order {
+    @Id
+    @GeneratedValue
+    public int $id;
+    
+    public int $userId;
+    
+    public string $productName;
+    
+    public float $amount;
+    
+    public string $status;
+    
+    @Column("created_at")
+    public string $createdAt;
+}
+
+echo "=== 数据库模块使用示例 ===\n";
+
+// 1. 基础查询
+echo "\n--- 1. 基础查询 ---\n";
+$users = DB<User>()->get();
+echo "用户总数: " . count($users) . "\n";
+
+// 2. 条件查询
+echo "\n--- 2. 条件查询 ---\n";
+$adultUsers = DB<User>()->where("age >= ?", 18)->get();
+echo "成年用户数: " . count($adultUsers) . "\n";
+
+// 3. 插入数据
+echo "\n--- 3. 插入数据 ---\n";
+$newUser = new User();
+$newUser->userName = "张三";
+$newUser->email = "zhangsan@example.com";
+$newUser->age = 25;
+$newUser->coin = 100.0;
+$newUser->createdAt = date("Y-m-d H:i:s");
+
+$result = DB<User>()->insert($newUser);
+echo "插入用户成功，ID: " . $result->insertId . "\n";
+
+// 4. 更新数据
+echo "\n--- 4. 更新数据 ---\n";
+$updateResult = DB<User>()
+    ->where("userName = ?", "张三")
+    ->update(["coin" => 500.0, "age" => 26]);
+echo "更新了 " . $updateResult->rowsAffected . " 条记录\n";
+
+// 5. 查询单条记录
+echo "\n--- 5. 查询单条记录 ---\n";
+$user = DB<User>()->where("userName = ?", "张三")->first();
+if ($user !== null) {
+    echo "找到用户: " . $user->userName . ", 年龄: " . $user->age . ", 金币: " . $user->coin . "\n";
+} else {
+    echo "用户不存在\n";
+}
+
+// 6. 复杂查询
+echo "\n--- 6. 复杂查询 ---\n";
+$stats = DB<User>()->query("
+    SELECT 
+        COUNT(*) as total_users,
+        AVG(age) as avg_age,
+        AVG(coin) as avg_coin,
+        MAX(coin) as max_coin
+    FROM users
+");
+echo "统计结果: ";
+dump($stats);
+
+// 7. 分组查询
+echo "\n--- 7. 分组查询 ---\n";
+$ageGroups = DB<User>()
+    ->select("age, COUNT(*) as count, AVG(coin) as avg_coin")
+    ->groupBy("age")
+    ->orderBy("age")
+    ->get();
+echo "按年龄分组统计: ";
+dump($ageGroups);
+
+// 8. 分页查询
+echo "\n--- 8. 分页查询 ---\n";
+$page = 1;
+$pageSize = 5;
+$paginatedUsers = DB<User>()
+    ->orderBy("id DESC")
+    ->offset(($page - 1) * $pageSize)
+    ->limit($pageSize)
+    ->get();
+echo "第 " . $page . " 页用户: ";
+dump($paginatedUsers);
+
+// 9. 连接查询
+echo "\n--- 9. 连接查询 ---\n";
+$userProfiles = DB<User>()
+    ->join("LEFT JOIN user_profiles up ON users.id = up.user_id")
+    ->select("users.*, up.full_name, up.bio")
+    ->where("users.age > ?", 20)
+    ->get();
+echo "用户资料查询结果: ";
+dump($userProfiles);
+
+// 10. 原生 SQL 查询
+echo "\n--- 10. 原生 SQL 查询 ---\n";
+$rawResults = DB<User>()->query("
+    SELECT u.user_name, u.email, COUNT(o.id) as order_count
+    FROM users u
+    LEFT JOIN orders o ON u.id = o.user_id
+    WHERE u.age > ?
+    GROUP BY u.id, u.user_name, u.email
+    HAVING COUNT(o.id) > 0
+    ORDER BY order_count DESC
+", [18]);
+echo "原生 SQL 查询结果: ";
+dump($rawResults);
+
+// 11. 批量插入
+echo "\n--- 11. 批量插入 ---\n";
+$newUsers = [
+    ["userName" => "李四", "email" => "lisi@example.com", "age" => 30, "coin" => 200.0],
+    ["userName" => "王五", "email" => "wangwu@example.com", "age" => 28, "coin" => 150.0],
+    ["userName" => "赵六", "email" => "zhaoliu@example.com", "age" => 35, "coin" => 300.0]
+];
+
+foreach ($newUsers as $userData) {
+    $user = new User();
+    $user->userName = $userData["userName"];
+    $user->email = $userData["email"];
+    $user->age = $userData["age"];
+    $user->coin = $userData["coin"];
+    $user->createdAt = date("Y-m-d H:i:s");
+    
+    $result = DB<User>()->insert($user);
+    echo "插入用户 " . $userData["userName"] . " 成功，ID: " . $result->insertId . "\n";
+}
+
+// 12. 事务处理
+echo "\n--- 12. 事务处理 ---\n";
+$db = database\getDefaultConnection();
+$db->begin();
+
+try {
+    // 创建用户
+    $user = new User();
+    $user->userName = "事务用户";
+    $user->email = "transaction@example.com";
+    $user->age = 25;
+    $user->coin = 100.0;
+    $user->createdAt = date("Y-m-d H:i:s");
+    
+    $userResult = DB<User>()->insert($user);
+    echo "用户创建成功，ID: " . $userResult->insertId . "\n";
+    
+    // 创建用户资料
+    $profile = new UserProfile();
+    $profile->userId = $userResult->insertId;
+    $profile->fullName = "事务用户全名";
+    $profile->bio = "这是一个事务测试用户";
+    $profile->avatarUrl = "https://example.com/avatar.jpg";
+    $profile->createdAt = date("Y-m-d H:i:s");
+    
+    $profileResult = DB<UserProfile>()->insert($profile);
+    echo "用户资料创建成功\n";
+    
+    // 提交事务
+    $db->commit();
+    echo "事务提交成功\n";
+    
+} catch (Exception $e) {
+    // 回滚事务
+    $db->rollback();
+    echo "事务回滚: " . $e->getMessage() . "\n";
+}
+
+// 13. 删除操作
+echo "\n--- 13. 删除操作 ---\n";
+$deleteResult = DB<User>()->where("userName = ?", "事务用户")->delete();
+echo "删除了 " . $deleteResult->rowsAffected . " 条用户记录\n";
+
+// 14. 多连接使用
+echo "\n--- 14. 多连接使用 ---\n";
+// 注册日志数据库连接
+$logDb = open("mysql", "log:password@/log_db");
+database\registerConnection("logs", $logDb);
+
+// 使用不同的连接
+$users = DB<User>(); // 使用默认连接
+$logs = DB<Log>("logs"); // 使用日志连接
+
+echo "多连接设置完成\n";
+
+// 15. 性能优化示例
+echo "\n--- 15. 性能优化示例 ---\n";
+// 使用 select 限制字段
+$lightweightUsers = DB<User>()
+    ->select("id, userName, email")
+    ->where("age > ?", 18)
+    ->limit(100)
+    ->get();
+echo "轻量级查询完成，返回 " . count($lightweightUsers) . " 条记录\n";
+
+echo "\n=== 数据库模块示例完成 ===\n";
