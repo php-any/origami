@@ -15,8 +15,15 @@ func (d *DbOffsetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if offset, ok := ctx.GetIndexValue(0); ok {
 		if offsetInt, ok := offset.(data.AsInt); ok {
 			if offsetValue, _ := offsetInt.AsInt(); offsetValue >= 0 {
-				d.source.setOffset(offsetValue)
-				return ctx.(*data.ClassMethodContext).ClassValue, nil
+				// 创建新的 db 对象实例
+				newDB := d.source.clone()
+				newDB.setOffset(offsetValue)
+
+				// 创建新的 DBClass 实例
+				newDBClass := (&DBClass{}).CloneWithSource(newDB)
+
+				// 返回新的 DB 类实例
+				return data.NewClassValue(newDBClass, ctx.GetVM().CreateContext([]data.Variable{})), nil
 			}
 		}
 	}

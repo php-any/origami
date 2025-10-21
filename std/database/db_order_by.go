@@ -14,8 +14,15 @@ func (d *DbOrderByMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取排序参数
 	if orderBy, ok := ctx.GetIndexValue(0); ok {
 		if orderByStr, ok := orderBy.(data.AsString); ok {
-			d.source.setOrderBy(orderByStr.AsString())
-			return ctx.(*data.ClassMethodContext).ClassValue, nil
+			// 创建新的 db 对象实例
+			newDB := d.source.clone()
+			newDB.setOrderBy(orderByStr.AsString())
+
+			// 创建新的 DBClass 实例
+			newDBClass := (&DBClass{}).CloneWithSource(newDB)
+
+			// 返回新的 DB 类实例
+			return data.NewClassValue(newDBClass, ctx.GetVM().CreateContext([]data.Variable{})), nil
 		}
 	}
 	return nil, data.NewErrorThrow(nil, errors.New("排序字段必须是字符串"))

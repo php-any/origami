@@ -14,8 +14,15 @@ func (d *DbJoinMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取连接参数
 	if join, ok := ctx.GetIndexValue(0); ok {
 		if joinStr, ok := join.(data.AsString); ok {
-			d.source.addJoin(joinStr.AsString())
-			return ctx.(*data.ClassMethodContext).ClassValue, nil
+			// 创建新的 db 对象实例
+			newDB := d.source.clone()
+			newDB.addJoin(joinStr.AsString())
+
+			// 创建新的 DBClass 实例
+			newDBClass := (&DBClass{}).CloneWithSource(newDB)
+
+			// 返回新的 DB 类实例
+			return data.NewClassValue(newDBClass, ctx.GetVM().CreateContext([]data.Variable{})), nil
 		}
 	}
 	return nil, data.NewErrorThrow(nil, errors.New("连接语句必须是字符串"))

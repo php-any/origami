@@ -303,7 +303,7 @@ dump($deletedUser);
 echo "\n--- 测试分页查询 ---\n";
 
 // 测试分页查询
-$pageResults = $data->orderBy("coin DESC")
+$pageResults = $data->orderBy("id DESC")
     ->limit(3)
     ->offset(1)
     ->first();

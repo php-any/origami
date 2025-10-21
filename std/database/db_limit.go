@@ -15,8 +15,15 @@ func (d *DbLimitMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if limit, ok := ctx.GetIndexValue(0); ok {
 		if limitInt, ok := limit.(data.AsInt); ok {
 			if limitValue, _ := limitInt.AsInt(); limitValue > 0 {
-				d.source.setLimit(limitValue)
-				return ctx.(*data.ClassMethodContext).ClassValue, nil
+				// 创建新的 db 对象实例
+				newDB := d.source.clone()
+				newDB.setLimit(limitValue)
+
+				// 创建新的 DBClass 实例
+				newDBClass := (&DBClass{}).CloneWithSource(newDB)
+
+				// 返回新的 DB 类实例
+				return data.NewClassValue(newDBClass, ctx.GetVM().CreateContext([]data.Variable{})), nil
 			}
 		}
 	}

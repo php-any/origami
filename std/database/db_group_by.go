@@ -14,8 +14,15 @@ func (d *DbGroupByMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取分组参数
 	if groupBy, ok := ctx.GetIndexValue(0); ok {
 		if groupByStr, ok := groupBy.(data.AsString); ok {
-			d.source.setGroupBy(groupByStr.AsString())
-			return ctx.(*data.ClassMethodContext).ClassValue, nil
+			// 创建新的 db 对象实例
+			newDB := d.source.clone()
+			newDB.setGroupBy(groupByStr.AsString())
+
+			// 创建新的 DBClass 实例
+			newDBClass := (&DBClass{}).CloneWithSource(newDB)
+
+			// 返回新的 DB 类实例
+			return data.NewClassValue(newDBClass, ctx.GetVM().CreateContext([]data.Variable{})), nil
 		}
 	}
 	return nil, data.NewErrorThrow(nil, errors.New("分组字段必须是字符串"))

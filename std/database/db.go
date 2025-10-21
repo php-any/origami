@@ -46,6 +46,36 @@ type db struct {
 	model data.Types
 }
 
+// clone 创建 db 对象的深拷贝
+func (d *db) clone() *db {
+	// 深拷贝 whereArgs 切片
+	whereArgsCopy := make([]data.Value, len(d.whereArgs))
+	copy(whereArgsCopy, d.whereArgs)
+
+	// 深拷贝 selectFields 切片
+	selectFieldsCopy := make([]string, len(d.selectFields))
+	copy(selectFieldsCopy, d.selectFields)
+
+	// 深拷贝 joins 切片
+	joinsCopy := make([]string, len(d.joins))
+	copy(joinsCopy, d.joins)
+
+	return &db{
+		connName:     d.connName,
+		conn:         d.conn,
+		where:        d.where,
+		whereArgs:    whereArgsCopy,
+		tableName:    d.tableName,
+		selectFields: selectFieldsCopy,
+		orderBy:      d.orderBy,
+		groupBy:      d.groupBy,
+		limit:        d.limit,
+		offset:       d.offset,
+		joins:        joinsCopy,
+		model:        d.model,
+	}
+}
+
 // getConnection 获取数据库连接
 func (d *db) getConnection() *sql.DB {
 	if d.conn != nil {

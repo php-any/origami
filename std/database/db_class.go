@@ -30,8 +30,38 @@ type DBClass struct {
 }
 
 func (d *DBClass) Clone(m map[string]data.Types) data.ClassGeneric {
-	source := newDB(m)
+	var source *db
+	if m != nil {
+		source = newDB(m)
+	} else {
+		// 如果没有泛型参数，创建一个空的 db 对象
+		source = &db{}
+	}
 
+	return &DBClass{
+		construct:     &DbConstructMethod{source},
+		getMethod:     &DbGetMethod{source},
+		firstMethod:   &DbFirstMethod{source: source, scanner: nil},
+		whereMethod:   &DbWhereMethod{source},
+		tableMethod:   &DbTableMethod{source},
+		selectMethod:  &DbSelectMethod{source},
+		orderByMethod: &DbOrderByMethod{source},
+		groupByMethod: &DbGroupByMethod{source},
+		limitMethod:   &DbLimitMethod{source},
+		offsetMethod:  &DbOffsetMethod{source},
+		joinMethod:    &DbJoinMethod{source},
+		// CRUD 方法
+		insertMethod: &DbInsertMethod{source},
+		updateMethod: &DbUpdateMethod{source},
+		deleteMethod: &DbDeleteMethod{source},
+		// 原生 SQL 方法
+		queryMethod: &DbQueryMethod{source},
+		execMethod:  &DbExecMethod{source},
+	}
+}
+
+// CloneWithSource 使用现有的 db 对象创建新的 DBClass
+func (d *DBClass) CloneWithSource(source *db) *DBClass {
 	return &DBClass{
 		construct:     &DbConstructMethod{source},
 		getMethod:     &DbGetMethod{source},

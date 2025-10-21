@@ -1,6 +1,10 @@
 package database
 
 import (
+	"database/sql"
+	"errors"
+	"fmt"
+
 	"github.com/php-any/origami/data"
 )
 
@@ -9,7 +13,56 @@ type DbGetMethod struct {
 }
 
 func (d *DbGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	return nil, nil
+	// 获取数据库连接
+	conn := d.source.getConnection()
+	if conn == nil {
+		return nil, data.NewErrorThrow(nil, errors.New("数据库连接不可用"))
+	}
+
+	// 构建查询语句（支持注解处理）
+	query := d.source.buildQueryWithContext(ctx)
+
+	// 转换参数类型
+	args := make([]interface{}, len(d.source.whereArgs))
+	for i, arg := range d.source.whereArgs {
+		args[i] = d.convertValueToGoType(arg)
+	}
+
+	// 执行查询
+	rows, err := conn.Query(query, args...)
+	if err != nil {
+		return nil, data.NewErrorThrow(nil, fmt.Errorf("查询失败: %w", err))
+	}
+	defer rows.Close()
+
+	// 创建结果数组
+	var results []data.GetValue
+
+	// 遍历所有行
+	for rows.Next() {
+		// 创建模型实例
+		instance, ctl := d.createClassInstance(d.source.model.(data.Class), rows, ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		results = append(results, instance)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, data.NewErrorThrow(nil, fmt.Errorf("遍历行时出错: %w", err))
+	}
+
+	// 将 []data.GetValue 转换为 []data.Value
+	values := make([]data.Value, len(results))
+	for i, result := range results {
+		if val, ok := result.(data.Value); ok {
+			values[i] = val
+		} else {
+			// 如果转换失败，创建一个包装器
+			values[i] = data.NewAnyValue(result)
+		}
+	}
+	return data.NewArrayValue(values), nil
 }
 
 func (d *DbGetMethod) GetName() string {
@@ -34,5 +87,67 @@ func (d *DbGetMethod) GetVariables() []data.Variable {
 
 // GetReturnType 返回方法返回类型
 func (d *DbGetMethod) GetReturnType() data.Types {
-	return data.NewBaseType("string")
+	return data.NewBaseType("array")
+}
+
+// createClassInstance 创建 Class 类型的实例
+func (d *DbGetMethod) createClassInstance(classType data.Class, rows *sql.Rows, ctx data.Context) (data.GetValue, data.Control) {
+	// 获取 VM 实例来查找类定义
+	vm := ctx.GetVM()
+	if vm == nil {
+		return data.NewNullValue(), nil
+	}
+
+	// 根据类名获取类定义
+	classStmt, exists := vm.GetClass(classType.Name)
+	if !exists {
+		return data.NewNullValue(), nil
+	}
+
+	// 创建类实例
+	instance := data.NewClassValue(classStmt, vm.CreateContext([]data.Variable{}))
+
+	// 使用扫描器扫描数据库行并设置属性
+	scanner := NewDatabaseScanner()
+	ctl := scanner.ScanRowToInstance(instance, rows)
+	if ctl != nil {
+		return nil, ctl
+	}
+
+	return instance, nil
+}
+
+// convertValueToGoType 将 data.Value 转换为 Go 原生类型
+func (d *DbGetMethod) convertValueToGoType(val data.Value) interface{} {
+	if val == nil {
+		return nil
+	}
+
+	switch v := val.(type) {
+	case *data.IntValue:
+		return v.Value
+	case *data.StringValue:
+		return v.Value
+	case *data.BoolValue:
+		return v.Value
+	case *data.FloatValue:
+		return v.Value
+	case *data.NullValue:
+		return nil
+	case *data.ArrayValue:
+		result := make([]interface{}, len(v.Value))
+		for i, item := range v.Value {
+			result[i] = d.convertValueToGoType(item)
+		}
+		return result
+	case *data.ObjectValue:
+		result := make(map[string]interface{})
+		for k, item := range v.GetProperties() {
+			result[k] = d.convertValueToGoType(item)
+		}
+		return result
+	default:
+		// 对于其他类型，尝试转换为字符串
+		return v.AsString()
+	}
 }
