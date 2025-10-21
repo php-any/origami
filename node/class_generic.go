@@ -1,6 +1,5 @@
 package node
 
-import "C"
 import "github.com/php-any/origami/data"
 
 // ClassGeneric 泛型类
