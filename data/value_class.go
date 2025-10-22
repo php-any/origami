@@ -231,3 +231,7 @@ func (c *ClassValue) Marshal(serializer Serializer) ([]byte, error) {
 func (c *ClassValue) Unmarshal(data []byte, serializer Serializer) error {
 	return serializer.UnmarshalClass(data, c)
 }
+
+func (c *ClassValue) ToGoValue(serializer Serializer) (any, error) {
+	return serializer.MarshalClass(c)
+}

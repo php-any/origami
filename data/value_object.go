@@ -95,3 +95,7 @@ func (o *ObjectValue) Marshal(serializer Serializer) ([]byte, error) {
 func (o *ObjectValue) Unmarshal(data []byte, serializer Serializer) error {
 	return serializer.UnmarshalObject(data, o)
 }
+
+func (o *ObjectValue) ToGoValue(serializer Serializer) (any, error) {
+	return serializer.MarshalObject(o)
+}

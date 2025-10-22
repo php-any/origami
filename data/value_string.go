@@ -76,3 +76,7 @@ func (s *StringValue) Marshal(serializer Serializer) ([]byte, error) {
 func (s *StringValue) Unmarshal(data []byte, serializer Serializer) error {
 	return serializer.UnmarshalString(data, s)
 }
+
+func (s *StringValue) ToGoValue(_ Serializer) (any, error) {
+	return s.Value, nil
+}

@@ -101,3 +101,7 @@ func (a *ArrayValue) Marshal(serializer Serializer) ([]byte, error) {
 func (a *ArrayValue) Unmarshal(data []byte, serializer Serializer) error {
 	return serializer.UnmarshalArray(data, a)
 }
+
+func (a *ArrayValue) ToGoValue(serializer Serializer) (any, error) {
+	return serializer.MarshalArray(a)
+}

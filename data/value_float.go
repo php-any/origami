@@ -56,3 +56,7 @@ func (s *FloatValue) Marshal(serializer Serializer) ([]byte, error) {
 func (s *FloatValue) Unmarshal(data []byte, serializer Serializer) error {
 	return serializer.UnmarshalFloat(data, s)
 }
+
+func (s *FloatValue) ToGoValue(_ Serializer) (any, error) {
+	return s.Value, nil
+}

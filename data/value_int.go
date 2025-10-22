@@ -45,3 +45,7 @@ func (s *IntValue) Marshal(serializer Serializer) ([]byte, error) {
 func (s *IntValue) Unmarshal(data []byte, serializer Serializer) error {
 	return serializer.UnmarshalInt(data, s)
 }
+
+func (s *IntValue) ToGoValue(_ Serializer) (any, error) {
+	return s.Value, nil
+}

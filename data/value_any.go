@@ -27,3 +27,7 @@ func (c *AnyValue) Marshal(serializer Serializer) ([]byte, error) {
 func (c *AnyValue) Unmarshal(data []byte, serializer Serializer) error {
 	return serializer.UnmarshalAny(data, c)
 }
+
+func (c *AnyValue) ToGoValue(serializer Serializer) (any, error) {
+	return serializer.MarshalAny(c)
+}

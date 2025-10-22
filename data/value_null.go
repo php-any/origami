@@ -42,3 +42,7 @@ func (s *NullValue) Marshal(serializer Serializer) ([]byte, error) {
 func (s *NullValue) Unmarshal(data []byte, serializer Serializer) error {
 	return serializer.UnmarshalNull(data, s)
 }
+
+func (s *NullValue) ToGoValue(_ Serializer) (any, error) {
+	return nil, nil
+}

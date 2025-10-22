@@ -21,8 +21,10 @@ type Serializer interface {
 	UnmarshalClass([]byte, *ClassValue) error
 }
 
-// 每个Value类型都需要实现这个接口
+// ValueSerializer 每个Value类型都需要实现这个接口
 type ValueSerializer interface {
 	Marshal(serializer Serializer) ([]byte, error)
 	Unmarshal(data []byte, serializer Serializer) error
+	// ToGoValue 有些操作需要转换原始值，比如 sql.DB 操作等
+	ToGoValue(serializer Serializer) (any, error)
 }
