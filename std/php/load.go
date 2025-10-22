@@ -14,6 +14,8 @@ func Load(vm data.VM) {
 		NewNumberFormatFunction(),
 		NewFunctionExistsFunction(),
 		NewGettypeFunction(),
+		NewJsonEncodeFunction(),
+		NewJsonDecodeFunction(),
 	} {
 		vm.AddFunc(fun)
 	}

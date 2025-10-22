@@ -197,5 +197,8 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 func isIdentOrTypeToken(t token.TokenType) bool {
 	return t == token.IDENTIFIER ||
 		t == token.BOOL ||
-		t == token.ARRAY
+		t == token.ARRAY ||
+		t == token.INT ||
+		t == token.STRING ||
+		t == token.FLOAT
 }

@@ -3,6 +3,7 @@ package node
 import (
 	"errors"
 	"fmt"
+
 	"github.com/php-any/origami/data"
 )
 
@@ -66,6 +67,16 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			}
 
 			return data.NewFloatValue(lf + float64(ri)), nil
+		case *data.StringValue:
+			lf, err := l.AsFloat()
+			if err != nil {
+				return nil, data.NewErrorThrow(b.from, err)
+			}
+			rf := r.AsString()
+			if err != nil {
+				return nil, data.NewErrorThrow(b.from, err)
+			}
+			return data.NewStringValue(fmt.Sprintf("%f", lf) + rf), nil
 		case data.AsFloat:
 			lf, err := l.AsFloat()
 			if err != nil {

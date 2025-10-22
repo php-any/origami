@@ -176,7 +176,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 		if p.current().Type == token.VAR ||
 			p.current().Type == token.CONST ||
 			p.current().Type == token.VARIABLE ||
-			p.checkPositionIs(0, token.IDENTIFIER) {
+			isIdentOrTypeToken(p.current().Type) {
 			prop, acl := p.parsePropertyWithAnnotations(modifier, isStatic, memberAnnotations)
 			if acl != nil {
 				return nil, acl
@@ -356,9 +356,30 @@ func (p *ClassParser) parseAnnotation() (*node.Annotation, data.Control) {
 // parsePropertyWithAnnotations 解析属性（带注解）
 func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic bool, annotations []*node.Annotation) (data.Property, data.Control) {
 	tracker := p.StartTracking()
-	if p.current().Type != token.VARIABLE {
-		// 跳过var或const关键字
+
+	// 解析访问修饰符（如果还没有解析）
+	if modifier == "" {
+		modifier = p.parseModifier()
+		if modifier == "" {
+			modifier = "public" // 默认为public
+		}
+	}
+
+	// 解析static关键字（如果还没有解析）
+	if !isStatic && p.current().Type == token.STATIC {
+		isStatic = true
 		p.next()
+	}
+
+	// 解析属性类型（在访问修饰符之后，变量名之前）
+	var propertyType data.Types
+	if isIdentOrTypeToken(p.current().Type) {
+		// 检查是否是类型关键字
+		typeName := p.current().Literal
+		if data.ISBaseType(typeName) {
+			propertyType = data.NewBaseType(typeName)
+			p.next()
+		}
 	}
 
 	// 解析属性名
@@ -391,6 +412,7 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 		modifier,
 		isStatic,
 		defaultValue,
+		propertyType,
 	)
 	for _, an := range annotations {
 		an.Target = ret

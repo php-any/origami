@@ -156,6 +156,7 @@ type ClassProperty struct {
 	IsStatic     bool               // 是否是静态属性
 	DefaultValue data.GetValue      // 默认值
 	Annotations  []*data.ClassValue // 属性注解列表
+	Type         data.Types         // 属性类型
 }
 
 func (p *ClassProperty) GetIndex() int {
@@ -163,8 +164,7 @@ func (p *ClassProperty) GetIndex() int {
 }
 
 func (p *ClassProperty) GetType() data.Types {
-	//TODO implement me
-	panic("implement me")
+	return p.Type
 }
 
 func (p *ClassProperty) SetValue(ctx data.Context, value data.Value) data.Control {
@@ -173,16 +173,22 @@ func (p *ClassProperty) SetValue(ctx data.Context, value data.Value) data.Contro
 }
 
 // NewProperty 创建一个新的属性
-func NewProperty(from data.From, name string, modifier string, isStatic bool, defaultValue data.GetValue) *ClassProperty {
+func NewProperty(from data.From, name string, modifier string, isStatic bool, defaultValue data.GetValue, tys ...data.Types) *ClassProperty {
 	if name[0:1] == "$" {
 		name = name[1:]
 	}
+	var ty data.Types
+	if len(tys) > 0 {
+		ty = tys[0]
+	}
+
 	return &ClassProperty{
 		Node:         NewNode(from),
 		Name:         name,
 		Modifier:     data.NewModifier(modifier),
 		IsStatic:     isStatic,
 		DefaultValue: defaultValue,
+		Type:         ty,
 	}
 }
 

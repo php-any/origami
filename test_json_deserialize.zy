@@ -1,0 +1,47 @@
+class User {
+    public int $id;
+    public string $name;
+    public float $score;
+    public bool $active;
+}
+
+echo "User class with typed properties defined successfully!\n";
+
+// 创建一个 User 实例
+$user = new User();
+$user->id = 1;
+$user->name = "张三";
+$user->score = 95.5;
+$user->active = true;
+
+echo "User instance created successfully!\n";
+echo "User ID: " . $user->id . "\n";
+echo "User Name: " . $user->name . "\n";
+echo "User Score: " . $user->score . "\n";
+echo "User Active: " . ($user->active ? "true" : "false") . "\n";
+
+// 序列化为 JSON
+$json = json_encode($user);
+echo "序列化结果: " . $json . "\n";
+
+// 反序列化回对象
+$user2 = json_decode($json, User::class);
+echo "反序列化结果:\n";
+dump($user2);
+
+// 测试 null 值的情况
+$user3 = new User();
+$user3->id = 2;
+$user3->name = null;  // 这里是 null 值
+$user3->score = 88.0;
+$user3->active = false;
+
+$json2 = json_encode($user3);
+echo "\n包含 null 值的序列化结果: " . $json2 . "\n";
+
+$user4 = json_decode($json2, User::class);
+echo "包含 null 值的反序列化结果:\n";
+echo "ID: " . $user4->id . "\n";
+echo "Name: " . ($user4->name ?? "null") . "\n";
+echo "Score: " . $user4->score . "\n";
+echo "Active: " . ($user4->active ? "true" : "false") . "\n";
