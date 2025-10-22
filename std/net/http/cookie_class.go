@@ -96,22 +96,22 @@ func (s *CookieClass) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }
 
-func (s *CookieClass) GetProperties() map[string]data.Property {
-	return map[string]data.Property{
-		"Name":        node.NewProperty(nil, "Name", "public", true, data.NewAnyValue(nil)),
-		"Value":       node.NewProperty(nil, "Value", "public", true, data.NewAnyValue(nil)),
-		"Quoted":      node.NewProperty(nil, "Quoted", "public", true, data.NewAnyValue(nil)),
-		"Path":        node.NewProperty(nil, "Path", "public", true, data.NewAnyValue(nil)),
-		"Domain":      node.NewProperty(nil, "Domain", "public", true, data.NewAnyValue(nil)),
-		"Expires":     node.NewProperty(nil, "Expires", "public", true, data.NewAnyValue(nil)),
-		"RawExpires":  node.NewProperty(nil, "RawExpires", "public", true, data.NewAnyValue(nil)),
-		"MaxAge":      node.NewProperty(nil, "MaxAge", "public", true, data.NewAnyValue(nil)),
-		"Secure":      node.NewProperty(nil, "Secure", "public", true, data.NewAnyValue(nil)),
-		"HttpOnly":    node.NewProperty(nil, "HttpOnly", "public", true, data.NewAnyValue(nil)),
-		"SameSite":    node.NewProperty(nil, "SameSite", "public", true, data.NewAnyValue(nil)),
-		"Partitioned": node.NewProperty(nil, "Partitioned", "public", true, data.NewAnyValue(nil)),
-		"Raw":         node.NewProperty(nil, "Raw", "public", true, data.NewAnyValue(nil)),
-		"Unparsed":    node.NewProperty(nil, "Unparsed", "public", true, data.NewAnyValue(nil)),
+func (s *CookieClass) GetPropertyList() []data.Property {
+	return []data.Property{
+		node.NewProperty(nil, "Name", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Value", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Quoted", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Path", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Domain", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Expires", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "RawExpires", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "MaxAge", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Secure", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "HttpOnly", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "SameSite", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Partitioned", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Raw", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Unparsed", "public", true, data.NewAnyValue(nil)),
 	}
 }
 

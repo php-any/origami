@@ -142,7 +142,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 	p.next()
 
 	// 解析类成员
-	properties := make(map[string]data.Property)
+	properties := make([]data.Property, 0)
 	staticProperties := make(map[string]data.Property)
 	methods := map[string]data.Method{}
 	staticMethods := map[string]data.Method{}
@@ -185,7 +185,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 				if isStatic {
 					staticProperties[prop.GetName()] = prop
 				} else {
-					properties[prop.GetName()] = prop
+					properties = append(properties, prop)
 				}
 			}
 		} else if p.current().Type == token.FUNC {

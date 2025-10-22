@@ -81,6 +81,6 @@ func (s *ServerClass) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }
 
-func (s *ServerClass) GetProperties() map[string]data.Property {
-	return map[string]data.Property{}
+func (s *ServerClass) GetPropertyList() []data.Property {
+	return []data.Property{}
 }

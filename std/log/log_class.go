@@ -51,8 +51,8 @@ func (s *LogClass) GetProperty(_ string) (data.Property, bool) {
 	return nil, false
 }
 
-func (s *LogClass) GetProperties() map[string]data.Property {
-	return nil
+func (s *LogClass) GetPropertyList() []data.Property {
+	return []data.Property{}
 }
 
 func (s *LogClass) GetMethod(name string) (data.Method, bool) {

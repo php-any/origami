@@ -42,8 +42,8 @@ func (i *IdClass) GetProperty(_ string) (data.Property, bool) {
 	return nil, false
 }
 
-func (i *IdClass) GetProperties() map[string]data.Property {
-	return nil
+func (i *IdClass) GetPropertyList() []data.Property {
+	return []data.Property{}
 }
 
 func (i *IdClass) GetMethod(name string) (data.Method, bool) {

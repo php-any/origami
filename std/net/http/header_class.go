@@ -98,6 +98,6 @@ func (s *HeaderClass) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }
 
-func (s *HeaderClass) GetProperties() map[string]data.Property {
-	return map[string]data.Property{}
+func (s *HeaderClass) GetPropertyList() []data.Property {
+	return []data.Property{}
 }

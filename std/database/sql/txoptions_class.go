@@ -2,6 +2,7 @@ package sql
 
 import (
 	sqlsrc "database/sql"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -48,10 +49,10 @@ func (s *TxOptionsClass) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }
 
-func (s *TxOptionsClass) GetProperties() map[string]data.Property {
-	return map[string]data.Property{
-		"Isolation": s.propIsolation,
-		"ReadOnly":  s.propReadOnly,
+func (s *TxOptionsClass) GetPropertyList() []data.Property {
+	return []data.Property{
+		s.propIsolation,
+		s.propReadOnly,
 	}
 }
 

@@ -76,9 +76,13 @@ func (rc *ReflectClass) GetProperty(name string) (data.Property, bool) {
 	return prop, exists
 }
 
-// GetProperties 获取所有属性
-func (rc *ReflectClass) GetProperties() map[string]data.Property {
-	return rc.properties
+// GetPropertyList 获取所有属性列表
+func (rc *ReflectClass) GetPropertyList() []data.Property {
+	properties := make([]data.Property, 0, len(rc.properties))
+	for _, prop := range rc.properties {
+		properties = append(properties, prop)
+	}
+	return properties
 }
 
 // GetMethod 获取方法

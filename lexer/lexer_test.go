@@ -307,27 +307,21 @@ func tokenizeRaw(lexer *Lexer, input string) []Token {
 		}
 
 		// 尝试处理特殊 Token
-		if specialToken, newPos, found := HandleSpecialToken(input, pos); found {
+		if specialToken, found := HandleSpecialToken(input, pos, 1, pos); found {
 			tok := Token{
-				Type:    specialToken.Type,
-				Literal: specialToken.Literal,
+				Type:    specialToken.Token.Type,
+				Literal: specialToken.Token.Literal,
 				Start:   pos,
-				End:     newPos,
+				End:     pos + len(specialToken.Token.Literal),
 				Line:    line,
 				Pos:     linePos,
 			}
 			tokens = append(tokens, tok)
 
 			// 更新位置
-			for i := pos; i < newPos; i++ {
-				if input[i] == '\n' {
-					line++
-					linePos = 0 // 从0开始
-				} else {
-					linePos++
-				}
-			}
-			pos = newPos
+			pos = specialToken.NewPos
+			line = specialToken.NewLine
+			linePos = specialToken.NewLinePos
 			continue
 		}
 

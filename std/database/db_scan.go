@@ -27,11 +27,6 @@ func (ds *DatabaseScanner) ScanRowToInstance(instance *data.ClassValue, rows *sq
 		return data.NewErrorThrow(nil, errors.New("实例没有类定义"))
 	}
 
-	properties := classStmt.GetProperties()
-	if len(properties) == 0 {
-		return data.NewErrorThrow(nil, errors.New("类没有属性定义"))
-	}
-
 	// 获取列信息
 	columns, err := rows.Columns()
 	if err != nil {
@@ -58,7 +53,8 @@ func (ds *DatabaseScanner) ScanRowToInstance(instance *data.ClassValue, rows *sq
 	}
 
 	// 根据列名映射到类属性
-	for propertyName := range properties {
+	for _, property := range classStmt.GetPropertyList() {
+		propertyName := property.GetName()
 		// 尝试不同的列名匹配策略
 		var value data.Value
 
@@ -132,7 +128,8 @@ func (ds *DatabaseScanner) ScanRowsToInstances(rows *sql.Rows, classStmt data.Cl
 		}
 
 		// 将扫描结果映射到实例属性
-		for propertyName := range classStmt.GetProperties() {
+		for _, property := range classStmt.GetPropertyList() {
+			propertyName := property.GetName()
 			var value data.Value
 
 			// 1. 直接匹配
@@ -254,8 +251,16 @@ func (ds *DatabaseScanner) toSnakeCase(s string) string {
 // getColumnNameFromAnnotation 从注解中获取列名
 func (ds *DatabaseScanner) getColumnNameFromAnnotation(classStmt data.ClassStmt, propertyName string) string {
 	// 获取类的属性定义
-	properties := classStmt.GetProperties()
-	property, exists := properties[propertyName]
+	properties := classStmt.GetPropertyList()
+	var property data.Property
+	var exists bool
+	for _, prop := range properties {
+		if prop.GetName() == propertyName {
+			property = prop
+			exists = true
+			break
+		}
+	}
 	if !exists {
 		return ""
 	}

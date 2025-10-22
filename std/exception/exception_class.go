@@ -58,8 +58,8 @@ func (s *ExceptionClass) GetProperty(_ string) (data.Property, bool) {
 	return nil, false
 }
 
-func (s *ExceptionClass) GetProperties() map[string]data.Property {
-	return nil
+func (s *ExceptionClass) GetPropertyList() []data.Property {
+	return []data.Property{}
 }
 
 func (s *ExceptionClass) GetMethod(name string) (data.Method, bool) {

@@ -2,6 +2,7 @@ package context
 
 import (
 	contextsrc "context"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -35,7 +36,7 @@ func (s *ContextClass) GetImplements() []string                    { return nil 
 func (s *ContextClass) AsString() string                           { return "Context{}" }
 func (s *ContextClass) GetSource() any                             { return s.source }
 func (s *ContextClass) GetProperty(_ string) (data.Property, bool) { return nil, false }
-func (s *ContextClass) GetProperties() map[string]data.Property    { return nil }
+func (s *ContextClass) GetPropertyList() []data.Property           { return nil }
 func (s *ContextClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
 	case "deadline":

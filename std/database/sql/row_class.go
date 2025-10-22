@@ -2,6 +2,7 @@ package sql
 
 import (
 	sqlsrc "database/sql"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -39,7 +40,7 @@ func (s *RowClass) GetImplements() []string                    { return nil }
 func (s *RowClass) AsString() string                           { return "Row{}" }
 func (s *RowClass) GetSource() any                             { return s.source }
 func (s *RowClass) GetProperty(_ string) (data.Property, bool) { return nil, false }
-func (s *RowClass) GetProperties() map[string]data.Property    { return nil }
+func (s *RowClass) GetPropertyList() []data.Property           { return nil }
 func (s *RowClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
 	case "err":

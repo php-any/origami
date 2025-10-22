@@ -50,12 +50,8 @@ func (g *GeneratedValueClass) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }
 
-func (g *GeneratedValueClass) GetProperties() map[string]data.Property {
-	properties := make(map[string]data.Property)
-
-	properties["strategy"] = node.NewProperty(nil, "strategy", "public", false, data.NewStringValue(g.strategy))
-
-	return properties
+func (g *GeneratedValueClass) GetPropertyList() []data.Property {
+	return []data.Property{}
 }
 
 func (g *GeneratedValueClass) GetMethod(name string) (data.Method, bool) {

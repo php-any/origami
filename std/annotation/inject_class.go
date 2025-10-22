@@ -41,8 +41,8 @@ func (i *InjectClass) GetProperty(_ string) (data.Property, bool) {
 	return nil, false
 }
 
-func (i *InjectClass) GetProperties() map[string]data.Property {
-	return nil
+func (i *InjectClass) GetPropertyList() []data.Property {
+	return []data.Property{}
 }
 
 func (i *InjectClass) GetMethod(name string) (data.Method, bool) {

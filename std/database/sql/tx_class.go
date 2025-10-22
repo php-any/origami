@@ -2,6 +2,7 @@ package sql
 
 import (
 	sqlsrc "database/sql"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -69,7 +70,7 @@ func (s *TxClass) GetImplements() []string                    { return nil }
 func (s *TxClass) AsString() string                           { return "Tx{}" }
 func (s *TxClass) GetSource() any                             { return s.source }
 func (s *TxClass) GetProperty(_ string) (data.Property, bool) { return nil, false }
-func (s *TxClass) GetProperties() map[string]data.Property    { return nil }
+func (s *TxClass) GetPropertyList() []data.Property           { return nil }
 func (s *TxClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
 	case "commit":

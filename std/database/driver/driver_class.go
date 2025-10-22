@@ -2,6 +2,7 @@ package driver
 
 import (
 	driversrc "database/sql/driver"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -29,7 +30,7 @@ func (s *DriverClass) GetImplements() []string                    { return nil }
 func (s *DriverClass) AsString() string                           { return "Driver{}" }
 func (s *DriverClass) GetSource() any                             { return s.source }
 func (s *DriverClass) GetProperty(_ string) (data.Property, bool) { return nil, false }
-func (s *DriverClass) GetProperties() map[string]data.Property    { return nil }
+func (s *DriverClass) GetPropertyList() []data.Property           { return nil }
 func (s *DriverClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
 	case "open":

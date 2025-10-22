@@ -178,8 +178,16 @@ func (d *DbUpdateMethod) convertValueToGoType(val data.Value) interface{} {
 // getColumnName 获取数据库列名，支持注解映射
 func (d *DbUpdateMethod) getColumnName(classStmt data.ClassStmt, propertyName string) string {
 	// 获取属性定义
-	properties := classStmt.GetProperties()
-	property, exists := properties[propertyName]
+	properties := classStmt.GetPropertyList()
+	var property data.Property
+	var exists bool
+	for _, prop := range properties {
+		if prop.GetName() == propertyName {
+			property = prop
+			exists = true
+			break
+		}
+	}
 	if !exists {
 		return propertyName
 	}

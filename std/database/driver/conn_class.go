@@ -34,7 +34,7 @@ func (s *ConnClass) GetImplements() []string                    { return nil }
 func (s *ConnClass) AsString() string                           { return "Conn{}" }
 func (s *ConnClass) GetSource() any                             { return s.source }
 func (s *ConnClass) GetProperty(_ string) (data.Property, bool) { return nil, false }
-func (s *ConnClass) GetProperties() map[string]data.Property    { return nil }
+func (s *ConnClass) GetPropertyList() []data.Property           { return nil }
 func (s *ConnClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
 	case "begin":

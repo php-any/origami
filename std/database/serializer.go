@@ -213,7 +213,7 @@ func (ds *DatabaseSerializer) ScanRowToInstance(instance *data.ClassValue, row *
 	}
 
 	// 获取类的属性定义
-	properties := classStmt.GetProperties()
+	properties := classStmt.GetPropertyList()
 	if len(properties) == 0 {
 		return fmt.Errorf("类没有属性定义")
 	}
@@ -224,8 +224,8 @@ func (ds *DatabaseSerializer) ScanRowToInstance(instance *data.ClassValue, row *
 
 	// 为每个属性创建扫描目标
 	propertyNames := make([]string, 0, len(properties))
-	for name := range properties {
-		propertyNames = append(propertyNames, name)
+	for _, property := range properties {
+		propertyNames = append(propertyNames, property.GetName())
 	}
 
 	// 初始化扫描目标

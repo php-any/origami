@@ -57,14 +57,12 @@ func (c *ColumnClass) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }
 
-func (c *ColumnClass) GetProperties() map[string]data.Property {
-	properties := make(map[string]data.Property)
-
-	properties["name"] = node.NewProperty(nil, "name", "public", false, data.NewStringValue(c.name))
-	properties["nullable"] = node.NewProperty(nil, "nullable", "public", false, data.NewBoolValue(c.nullable))
-	properties["length"] = node.NewProperty(nil, "length", "public", false, data.NewIntValue(c.length))
-
-	return properties
+func (c *ColumnClass) GetPropertyList() []data.Property {
+	return []data.Property{
+		node.NewProperty(nil, "name", "public", false, data.NewStringValue(c.name)),
+		node.NewProperty(nil, "length", "public", false, data.NewIntValue(c.length)),
+		node.NewProperty(nil, "nullable", "public", false, data.NewBoolValue(c.nullable)),
+	}
 }
 
 func (c *ColumnClass) GetMethod(name string) (data.Method, bool) {

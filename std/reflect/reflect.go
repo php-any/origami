@@ -36,8 +36,8 @@ func (r *ReflectClass) GetProperty(name string) (data.Property, bool) {
 }
 
 // GetProperties 获取所有属性
-func (r *ReflectClass) GetProperties() map[string]data.Property {
-	return nil
+func (r *ReflectClass) GetPropertyList() []data.Property {
+	return []data.Property{}
 }
 
 // GetMethod 获取方法

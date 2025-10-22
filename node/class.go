@@ -9,15 +9,16 @@ import (
 
 // ClassStatement 表示类定义语句
 type ClassStatement struct {
-	*Node          `pp:"-"`
-	Name           string                   // 类名
-	Extends        *string                  // 父类名
-	Implements     []string                 // 实现的接口列表
-	StaticProperty sync.Map                 // 静态属性列表
-	Properties     map[string]data.Property // 属性列表
-	Methods        map[string]data.Method   // 方法列表
-	StaticMethods  map[string]data.Method   // 静态方法列表
-	Annotations    []*data.ClassValue       // 类注解列表
+	*Node           `pp:"-"`
+	Name            string                   // 类名
+	Extends         *string                  // 父类名
+	Implements      []string                 // 实现的接口列表
+	StaticProperty  sync.Map                 // 静态属性列表
+	PropertiesIndex []string                 // 属性列表
+	Properties      map[string]data.Property // 属性列表
+	Methods         map[string]data.Method   // 方法列表
+	StaticMethods   map[string]data.Method   // 静态方法列表
+	Annotations     []*data.ClassValue       // 类注解列表
 
 	// 构造函数
 	Construct data.Method
@@ -57,14 +58,22 @@ func (c *ClassStatement) GetConstruct() data.Method {
 }
 
 // NewClassStatement 创建一个新的类定义语句
-func NewClassStatement(from data.From, name string, extends string, implements []string, properties map[string]data.Property, methods map[string]data.Method) *ClassStatement {
+func NewClassStatement(from data.From, name string, extends string, implements []string, properties []data.Property, methods map[string]data.Method) *ClassStatement {
+	propertiesIndex := make([]string, len(properties))
+	propertiesMap := make(map[string]data.Property, len(properties))
+	for i, property := range properties {
+		propertiesIndex[i] = property.GetName()
+		propertiesMap[property.GetName()] = property
+	}
+
 	class := &ClassStatement{
-		Node:       NewNode(from),
-		Name:       name,
-		Extends:    &extends,
-		Implements: implements,
-		Properties: properties,
-		Methods:    methods,
+		Node:            NewNode(from),
+		Name:            name,
+		Extends:         &extends,
+		Implements:      implements,
+		PropertiesIndex: propertiesIndex,
+		Properties:      propertiesMap,
+		Methods:         methods,
 	}
 	if extends == "" {
 		class.Extends = nil
@@ -96,8 +105,12 @@ func (c *ClassStatement) AddAnnotations(a *data.ClassValue) {
 	c.Annotations = append(c.Annotations, a)
 }
 
-func (c *ClassStatement) GetProperties() map[string]data.Property {
-	return c.Properties
+func (c *ClassStatement) GetPropertyList() []data.Property {
+	properties := make([]data.Property, len(c.Properties))
+	for i, prop := range c.PropertiesIndex {
+		properties[i] = c.Properties[prop]
+	}
+	return properties
 }
 
 func (c *ClassStatement) GetProperty(name string) (data.Property, bool) {

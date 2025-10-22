@@ -36,8 +36,8 @@ func (s *DateTimeClass) GetProperty(_ string) (data.Property, bool) {
 	return nil, false
 }
 
-func (s *DateTimeClass) GetProperties() map[string]data.Property {
-	return nil
+func (s *DateTimeClass) GetPropertyList() []data.Property {
+	return []data.Property{}
 }
 
 func (s *DateTimeClass) GetMethod(name string) (data.Method, bool) {

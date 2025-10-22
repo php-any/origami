@@ -234,30 +234,30 @@ func (s *RequestClass) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }
 
-func (s *RequestClass) GetProperties() map[string]data.Property {
-	return map[string]data.Property{
-		"Method":           node.NewProperty(nil, "Method", "public", true, data.NewAnyValue(nil)),
-		"URL":              node.NewProperty(nil, "URL", "public", true, data.NewAnyValue(nil)),
-		"Proto":            node.NewProperty(nil, "Proto", "public", true, data.NewAnyValue(nil)),
-		"ProtoMajor":       node.NewProperty(nil, "ProtoMajor", "public", true, data.NewAnyValue(nil)),
-		"ProtoMinor":       node.NewProperty(nil, "ProtoMinor", "public", true, data.NewAnyValue(nil)),
-		"Header":           node.NewProperty(nil, "Header", "public", true, data.NewAnyValue(nil)),
-		"Body":             node.NewProperty(nil, "Body", "public", true, data.NewAnyValue(nil)),
-		"GetBody":          node.NewProperty(nil, "GetBody", "public", true, data.NewAnyValue(nil)),
-		"ContentLength":    node.NewProperty(nil, "ContentLength", "public", true, data.NewAnyValue(nil)),
-		"TransferEncoding": node.NewProperty(nil, "TransferEncoding", "public", true, data.NewAnyValue(nil)),
-		"Close":            node.NewProperty(nil, "Close", "public", true, data.NewAnyValue(nil)),
-		"Host":             node.NewProperty(nil, "Host", "public", true, data.NewAnyValue(nil)),
-		"Form":             node.NewProperty(nil, "Form", "public", true, data.NewAnyValue(nil)),
-		"PostForm":         node.NewProperty(nil, "PostForm", "public", true, data.NewAnyValue(nil)),
-		"MultipartForm":    node.NewProperty(nil, "MultipartForm", "public", true, data.NewAnyValue(nil)),
-		"Trailer":          node.NewProperty(nil, "Trailer", "public", true, data.NewAnyValue(nil)),
-		"RemoteAddr":       node.NewProperty(nil, "RemoteAddr", "public", true, data.NewAnyValue(nil)),
-		"RequestURI":       node.NewProperty(nil, "RequestURI", "public", true, data.NewAnyValue(nil)),
-		"TLS":              node.NewProperty(nil, "TLS", "public", true, data.NewAnyValue(nil)),
-		"Cancel":           node.NewProperty(nil, "Cancel", "public", true, data.NewAnyValue(nil)),
-		"Response":         node.NewProperty(nil, "Response", "public", true, data.NewAnyValue(nil)),
-		"Pattern":          node.NewProperty(nil, "Pattern", "public", true, data.NewAnyValue(nil)),
+func (s *RequestClass) GetPropertyList() []data.Property {
+	return []data.Property{
+		node.NewProperty(nil, "Method", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "URL", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Proto", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "ProtoMajor", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "ProtoMinor", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Header", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Body", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "GetBody", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "ContentLength", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "TransferEncoding", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Close", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Host", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Form", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "PostForm", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "MultipartForm", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Trailer", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "RemoteAddr", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "RequestURI", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "TLS", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Cancel", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Response", "public", true, data.NewAnyValue(nil)),
+		node.NewProperty(nil, "Pattern", "public", true, data.NewAnyValue(nil)),
 	}
 }
 

@@ -51,9 +51,9 @@ func (c *ChannelClass) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }
 
-// GetProperties 获取所有属性
-func (c *ChannelClass) GetProperties() map[string]data.Property {
-	return nil
+// GetPropertyList 获取所有属性列表
+func (c *ChannelClass) GetPropertyList() []data.Property {
+	return []data.Property{}
 }
 
 // GetMethod 获取方法

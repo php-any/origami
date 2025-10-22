@@ -77,13 +77,13 @@ func (g *GetClassInfoMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	// 获取属性信息
-	properties := class.GetProperties()
+	properties := class.GetPropertyList()
 	info += fmt.Sprintf("属性数量: %d\n", len(properties))
 	if len(properties) > 0 {
 		info += "属性列表:\n"
 		i := 1
-		for name := range properties {
-			info += fmt.Sprintf("  %d. %s\n", i, name)
+		for _, property := range properties {
+			info += fmt.Sprintf("  %d. %s\n", i, property.GetName())
 			i++
 		}
 	}
@@ -417,10 +417,10 @@ func (l *ListPropertiesMethod) Call(ctx data.Context) (data.GetValue, data.Contr
 	}
 
 	// 获取所有属性
-	properties := class.GetProperties()
+	properties := class.GetPropertyList()
 	propertyValues := make([]data.Value, 0, len(properties))
-	for name := range properties {
-		propertyValues = append(propertyValues, data.NewStringValue(name))
+	for _, property := range properties {
+		propertyValues = append(propertyValues, data.NewStringValue(property.GetName()))
 	}
 
 	return data.NewArrayValue(propertyValues), nil
@@ -714,10 +714,11 @@ func (g *GetAllAnnotationsMethod) Call(ctx data.Context) (data.GetValue, data.Co
 		}
 
 		// 属性注解
-		properties := class.GetProperties()
+		properties := class.GetPropertyList()
 		if len(properties) > 0 {
 			info += "属性注解:\n"
-			for name, property := range properties {
+			for _, property := range properties {
+				name := property.GetName()
 				if propertyStmt, ok := property.(*node.ClassProperty); ok {
 					if propertyStmt.Annotations != nil && len(propertyStmt.Annotations) > 0 {
 						info += fmt.Sprintf("  %s:\n", name)

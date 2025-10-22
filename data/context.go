@@ -48,7 +48,7 @@ type ClassStmt interface {
 	GetExtend() *string                       // 父类名
 	GetImplements() []string                  // 实现的接口列表
 	GetProperty(name string) (Property, bool) // 属性列表
-	GetProperties() map[string]Property       // 属性列表
+	GetPropertyList() []Property              // 属性列表, 需要固定顺序返回
 	GetMethod(name string) (Method, bool)     // 方法列表
 	GetMethods() []Method                     // 方法列表
 

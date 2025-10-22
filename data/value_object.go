@@ -3,7 +3,6 @@ package data
 import (
 	"context"
 	"fmt"
-	"sync"
 )
 
 type AsObject interface {
@@ -11,14 +10,14 @@ type AsObject interface {
 
 func NewObjectValue() *ObjectValue {
 	return &ObjectValue{
-		property: sync.Map{},
+		property: NewOrderedMap(),
 	}
 }
 
 type ObjectValue struct {
 	Value
 	Context
-	property sync.Map
+	property *OrderedMap
 }
 
 func (o *ObjectValue) GoContext() context.Context {
@@ -31,10 +30,8 @@ func (o *ObjectValue) GetValue(ctx Context) (GetValue, Control) {
 
 func (o *ObjectValue) AsString() string {
 	result := ""
-	o.property.Range(func(key, value any) bool {
-		k := key.(string)
-		v := value.(Value)
-		result += fmt.Sprintf("\t%s: %s\n", k, v.AsString())
+	o.property.Range(func(key string, value Value) bool {
+		result += fmt.Sprintf("\t%s: %s\n", key, value.AsString())
 		return true
 	})
 	if len(result) > 2 {
@@ -54,15 +51,15 @@ func (o *ObjectValue) AsBool() (bool, error) {
 }
 
 func (o *ObjectValue) GetProperty(name string) (Value, bool) {
-	v, ok := o.property.Load(name)
+	v, ok := o.property.Get(name)
 	if !ok {
 		return NewNullValue(), false
 	}
-	return v.(Value), ok
+	return v, ok
 }
 
 func (o *ObjectValue) SetProperty(name string, value Value) Control {
-	o.property.Store(name, value)
+	o.property.Set(name, value)
 	return nil
 }
 
@@ -71,18 +68,15 @@ func (o *ObjectValue) DeleteProperty(name string) {
 }
 
 func (o *ObjectValue) HasProperty(name string) bool {
-	_, ok := o.property.Load(name)
-	return ok
+	return o.property.Has(name)
 }
 
 func (o *ObjectValue) GetProperties() map[string]Value {
 	properties := make(map[string]Value)
 
-	// 遍历 sync.Map 中的所有属性
-	o.property.Range(func(key, value any) bool {
-		k := key.(string)
-		v := value.(Value)
-		properties[k] = v
+	// 遍历 OrderedMap 中的所有属性
+	o.property.Range(func(key string, value Value) bool {
+		properties[key] = value
 		return true
 	})
 
@@ -95,11 +89,11 @@ func (o *ObjectValue) SetVariableValue(variable Variable, value Value) Control {
 }
 
 func (o *ObjectValue) GetVariableValue(variable Variable) (Value, Control) {
-	v, ok := o.property.Load(variable.GetName())
+	v, ok := o.property.Get(variable.GetName())
 	if !ok {
 		return nil, nil
 	}
-	return v.(Value), nil
+	return v, nil
 }
 
 func (o *ObjectValue) Marshal(serializer Serializer) ([]byte, error) {

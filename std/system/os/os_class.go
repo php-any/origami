@@ -1,9 +1,10 @@
 package os
 
 import (
+	"runtime"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	"runtime"
 )
 
 func NewOSClass() data.ClassStmt {
@@ -55,8 +56,8 @@ func (s *OSClass) GetStaticProperty(name string) (data.Value, bool) {
 	return nil, false
 }
 
-func (s *OSClass) GetProperties() map[string]data.Property {
-	return map[string]data.Property{}
+func (s *OSClass) GetPropertyList() []data.Property {
+	return []data.Property{}
 }
 
 func (s *OSClass) GetMethod(name string) (data.Method, bool) {

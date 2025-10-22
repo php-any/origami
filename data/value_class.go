@@ -30,10 +30,8 @@ func (c *ClassValue) GetValue(ctx Context) (GetValue, Control) {
 
 func (c *ClassValue) AsString() string {
 	result := ""
-	c.property.Range(func(key, value any) bool {
-		k := key.(string)
-		v := value.(Value)
-		result += fmt.Sprintf("\t%s: %s\n", k, v.AsString())
+	c.property.Range(func(key string, value Value) bool {
+		result += fmt.Sprintf("\t%s: %s\n", key, value.AsString())
 		return true
 	})
 
@@ -115,21 +113,21 @@ func (c *ClassValue) GetProperties() map[string]Value {
 	}
 
 	// 然后获取类定义的属性
-	classProps := c.Class.GetProperties()
-	for name, prop := range classProps {
+	classProps := c.Class.GetPropertyList()
+	for _, prop := range classProps {
 		// 如果实例中没有这个属性，则使用类定义的默认值
-		if _, exists := result[name]; !exists {
+		if _, exists := result[prop.GetName()]; !exists {
 			defaultValue := prop.GetDefaultValue()
 			if defaultValue != nil {
 				value, _ := defaultValue.GetValue(c.Context)
 				if value != nil {
 					if val, ok := value.(Value); ok {
-						result[name] = val
+						result[prop.GetName()] = val
 					}
 				}
 			} else {
 				// 如果没有默认值，使用 null
-				result[name] = NewNullValue()
+				result[prop.GetName()] = NewNullValue()
 			}
 		}
 	}
@@ -144,22 +142,22 @@ func (c *ClassValue) GetProperties() map[string]Value {
 			break
 		}
 
-		parentProps := next.GetProperties()
-		for name, prop := range parentProps {
+		parentProps := next.GetPropertyList()
+		for _, prop := range parentProps {
 			// 只添加非私有属性，且实例中没有的属性
 			if prop.GetModifier() != ModifierPrivate {
-				if _, exists := result[name]; !exists {
+				if _, exists := result[prop.GetName()]; !exists {
 					defaultValue := prop.GetDefaultValue()
 					if defaultValue != nil {
 						value, _ := defaultValue.GetValue(c.Context)
 						if value != nil {
 							if val, ok := value.(Value); ok {
-								result[name] = val
+								result[prop.GetName()] = val
 							}
 						}
 					} else {
-						result[name] = NewNullValue()
-						c.SetProperty(name, result[name]) // 需要引用起来
+						result[prop.GetName()] = NewNullValue()
+						c.SetProperty(prop.GetName(), result[prop.GetName()]) // 需要引用起来
 					}
 				}
 			}
@@ -189,7 +187,7 @@ func (c *ClassValue) SetProperty(name string, value Value) Control {
 	if set, ok := c.Class.(SetProperty); ok {
 		return set.SetProperty(name, value)
 	} else {
-		c.property.Store(name, value)
+		c.property.Set(name, value)
 	}
 	return nil
 }

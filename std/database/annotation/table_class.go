@@ -50,12 +50,10 @@ func (t *TableClass) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }
 
-func (t *TableClass) GetProperties() map[string]data.Property {
-	properties := make(map[string]data.Property)
-
-	properties["name"] = node.NewProperty(nil, "name", "public", false, data.NewStringValue(t.name))
-
-	return properties
+func (t *TableClass) GetPropertyList() []data.Property {
+	return []data.Property{
+		node.NewProperty(nil, "name", "public", false, data.NewStringValue(t.name)),
+	}
 }
 
 func (t *TableClass) GetMethod(name string) (data.Method, bool) {

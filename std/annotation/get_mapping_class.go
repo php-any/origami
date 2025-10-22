@@ -39,8 +39,8 @@ func (g *GetMappingClass) GetProperty(_ string) (data.Property, bool) {
 	return nil, false
 }
 
-func (g *GetMappingClass) GetProperties() map[string]data.Property {
-	return nil
+func (g *GetMappingClass) GetPropertyList() []data.Property {
+	return []data.Property{}
 }
 
 func (g *GetMappingClass) GetMethod(name string) (data.Method, bool) {

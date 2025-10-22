@@ -41,8 +41,8 @@ func (c *ControllerClass) GetProperty(_ string) (data.Property, bool) {
 	return nil, false
 }
 
-func (c *ControllerClass) GetProperties() map[string]data.Property {
-	return nil
+func (c *ControllerClass) GetPropertyList() []data.Property {
+	return []data.Property{}
 }
 
 func (c *ControllerClass) GetMethod(name string) (data.Method, bool) {

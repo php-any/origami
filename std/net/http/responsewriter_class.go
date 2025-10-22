@@ -62,6 +62,6 @@ func (s *ResponseWriterClass) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }
 
-func (s *ResponseWriterClass) GetProperties() map[string]data.Property {
-	return map[string]data.Property{}
+func (s *ResponseWriterClass) GetPropertyList() []data.Property {
+	return []data.Property{}
 }

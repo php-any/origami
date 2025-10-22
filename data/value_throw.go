@@ -44,7 +44,7 @@ func (t *ThrowValue) GetProperty(name string) (Property, bool) {
 	return nil, false
 }
 
-func (t *ThrowValue) GetProperties() map[string]Property {
+func (t *ThrowValue) GetPropertyList() []Property {
 	return nil
 }
 

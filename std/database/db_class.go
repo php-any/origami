@@ -115,7 +115,7 @@ func (d *DBClass) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }
 
-func (d *DBClass) GetProperties() map[string]data.Property {
+func (d *DBClass) GetPropertyList() []data.Property {
 	return nil
 }
 

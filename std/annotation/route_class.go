@@ -39,8 +39,8 @@ func (r *RouteClass) GetProperty(_ string) (data.Property, bool) {
 	return nil, false
 }
 
-func (r *RouteClass) GetProperties() map[string]data.Property {
-	return nil
+func (r *RouteClass) GetPropertyList() []data.Property {
+	return []data.Property{}
 }
 
 func (r *RouteClass) GetMethod(name string) (data.Method, bool) {
