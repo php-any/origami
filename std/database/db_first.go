@@ -29,7 +29,7 @@ func (d *DbFirstMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 转换参数类型
 	args := make([]interface{}, len(d.source.whereArgs))
 	for i, arg := range d.source.whereArgs {
-		args[i] = d.convertValueToGoType(arg)
+		args[i] = ConvertValueToGoType(arg)
 	}
 
 	// 执行查询
@@ -101,43 +101,6 @@ func (d *DbFirstMethod) createClassInstance(classType data.Class, rows *sql.Rows
 	}
 
 	return instance, nil
-}
-
-// convertValueToGoType 将 data.Value 转换为 Go 原生类型
-func (d *DbFirstMethod) convertValueToGoType(val data.Value) interface{} {
-	if val == nil {
-		return nil
-	}
-
-	switch v := val.(type) {
-	case *data.IntValue:
-		return v.Value
-	case *data.StringValue:
-		return v.Value
-	case *data.BoolValue:
-		return v.Value
-	case *data.FloatValue:
-		return v.Value
-	case *data.NullValue:
-		return nil
-	case *data.ArrayValue:
-		// 对于数组，转换为 []interface{}
-		result := make([]interface{}, len(v.Value))
-		for i, item := range v.Value {
-			result[i] = d.convertValueToGoType(item)
-		}
-		return result
-	case *data.ObjectValue:
-		// 对于对象，转换为 map[string]interface{}
-		result := make(map[string]interface{})
-		for k, item := range v.GetProperties() {
-			result[k] = d.convertValueToGoType(item)
-		}
-		return result
-	default:
-		// 对于其他类型，尝试转换为字符串
-		return v.AsString()
-	}
 }
 
 func (d *DbFirstMethod) GetName() string {

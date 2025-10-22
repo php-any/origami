@@ -57,24 +57,6 @@ func (om *OrderedMap) Get(key string) (Value, bool) {
 	return nil, false
 }
 
-// Delete 删除键值对
-func (om *OrderedMap) Delete(key string) {
-	om.mu.Lock()
-	defer om.mu.Unlock()
-
-	if idx, exists := om.indexMap[key]; exists {
-		// 从切片中删除
-		om.items = append(om.items[:idx], om.items[idx+1:]...)
-		delete(om.indexMap, key)
-
-		// 更新后续元素的索引
-		for i := idx; i < len(om.items); i++ {
-			om.items[i].Index = i
-			om.indexMap[om.items[i].Key] = i
-		}
-	}
-}
-
 // Has 检查键是否存在
 func (om *OrderedMap) Has(key string) bool {
 	om.mu.RLock()
@@ -94,78 +76,4 @@ func (om *OrderedMap) Range(fn func(key string, value Value) bool) {
 			break
 		}
 	}
-}
-
-// Load 兼容 sync.Map 的 Load 方法
-func (om *OrderedMap) Load(key string) (Value, bool) {
-	return om.Get(key)
-}
-
-// Store 兼容 sync.Map 的 Store 方法
-func (om *OrderedMap) Store(key string, value Value) {
-	om.Set(key, value)
-}
-
-// GetAll 获取所有键值对，按插入顺序返回
-func (om *OrderedMap) GetAll() []OrderedMapItem {
-	om.mu.RLock()
-	defer om.mu.RUnlock()
-
-	// 返回副本以避免并发修改
-	result := make([]OrderedMapItem, len(om.items))
-	copy(result, om.items)
-	return result
-}
-
-// Len 返回键值对数量
-func (om *OrderedMap) Len() int {
-	om.mu.RLock()
-	defer om.mu.RUnlock()
-
-	return len(om.items)
-}
-
-// GetByIndex 根据索引获取键值对
-func (om *OrderedMap) GetByIndex(index int) (string, Value, bool) {
-	om.mu.RLock()
-	defer om.mu.RUnlock()
-
-	if index < 0 || index >= len(om.items) {
-		return "", nil, false
-	}
-	item := om.items[index]
-	return item.Key, item.Value, true
-}
-
-// Clear 清空所有键值对
-func (om *OrderedMap) Clear() {
-	om.mu.Lock()
-	defer om.mu.Unlock()
-
-	om.items = make([]OrderedMapItem, 0)
-	om.indexMap = make(map[string]int)
-}
-
-// Keys 获取所有键，按插入顺序
-func (om *OrderedMap) Keys() []string {
-	om.mu.RLock()
-	defer om.mu.RUnlock()
-
-	keys := make([]string, len(om.items))
-	for i, item := range om.items {
-		keys[i] = item.Key
-	}
-	return keys
-}
-
-// Values 获取所有值，按插入顺序
-func (om *OrderedMap) Values() []Value {
-	om.mu.RLock()
-	defer om.mu.RUnlock()
-
-	values := make([]Value, len(om.items))
-	for i, item := range om.items {
-		values[i] = item.Value
-	}
-	return values
 }

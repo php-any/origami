@@ -43,7 +43,7 @@ func (d *DbUpdateMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 				if !d.isNullValue(value) {
 					// 获取数据库列名
 					columnName := d.getColumnName(classStmt, name)
-					updateData[columnName] = d.convertValueToGoType(value)
+					updateData[columnName] = ConvertValueToGoType(value)
 				}
 			}
 		}
@@ -55,7 +55,7 @@ func (d *DbUpdateMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 			if value != nil {
 				// 检查值是否为空
 				if !d.isNullValue(value) {
-					updateData[name] = d.convertValueToGoType(value)
+					updateData[name] = ConvertValueToGoType(value)
 				}
 			}
 		}
@@ -78,7 +78,7 @@ func (d *DbUpdateMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		whereClause = " WHERE " + d.source.where
 		// 添加 WHERE 参数
 		for _, arg := range d.source.whereArgs {
-			values = append(values, d.convertValueToGoType(arg))
+			values = append(values, ConvertValueToGoType(arg))
 		}
 	} else {
 		return nil, data.NewErrorThrow(nil, errors.New("更新操作必须指定 WHERE 条件"))
@@ -136,43 +136,6 @@ func (d *DbUpdateMethod) GetVariables() []data.Variable {
 
 func (d *DbUpdateMethod) GetReturnType() data.Types {
 	return data.NewBaseType("object")
-}
-
-// convertValueToGoType 将 data.Value 转换为 Go 原生类型
-func (d *DbUpdateMethod) convertValueToGoType(val data.Value) interface{} {
-	if val == nil {
-		return nil
-	}
-
-	switch v := val.(type) {
-	case *data.IntValue:
-		return v.Value
-	case *data.StringValue:
-		return v.Value
-	case *data.BoolValue:
-		return v.Value
-	case *data.FloatValue:
-		return v.Value
-	case *data.NullValue:
-		return nil
-	case *data.ArrayValue:
-		// 对于数组，转换为 []interface{}
-		result := make([]interface{}, len(v.Value))
-		for i, item := range v.Value {
-			result[i] = d.convertValueToGoType(item)
-		}
-		return result
-	case *data.ObjectValue:
-		// 对于对象，转换为 map[string]interface{}
-		result := make(map[string]interface{})
-		for k, item := range v.GetProperties() {
-			result[k] = d.convertValueToGoType(item)
-		}
-		return result
-	default:
-		// 对于其他类型，尝试转换为字符串
-		return v.AsString()
-	}
 }
 
 // getColumnName 获取数据库列名，支持注解映射

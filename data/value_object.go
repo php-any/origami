@@ -63,14 +63,6 @@ func (o *ObjectValue) SetProperty(name string, value Value) Control {
 	return nil
 }
 
-func (o *ObjectValue) DeleteProperty(name string) {
-	o.property.Delete(name)
-}
-
-func (o *ObjectValue) HasProperty(name string) bool {
-	return o.property.Has(name)
-}
-
 func (o *ObjectValue) GetProperties() map[string]Value {
 	properties := make(map[string]Value)
 

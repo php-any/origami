@@ -42,7 +42,7 @@ func (d *DbInsertMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 				if !d.isNullValue(value) {
 					// 获取数据库列名
 					columnName := d.getColumnName(classStmt, name)
-					insertData[columnName] = d.convertValueToGoType(value)
+					insertData[columnName] = ConvertValueToGoType(value)
 				}
 			}
 		}
@@ -52,7 +52,7 @@ func (d *DbInsertMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		properties := objectValue.GetProperties()
 		for name, value := range properties {
 			if value != nil {
-				insertData[name] = d.convertValueToGoType(value)
+				insertData[name] = ConvertValueToGoType(value)
 			}
 		}
 	} else {
@@ -137,43 +137,6 @@ func (d *DbInsertMethod) GetVariables() []data.Variable {
 
 func (d *DbInsertMethod) GetReturnType() data.Types {
 	return data.NewBaseType("object")
-}
-
-// convertValueToGoType 将 data.Value 转换为 Go 原生类型
-func (d *DbInsertMethod) convertValueToGoType(val data.Value) interface{} {
-	if val == nil {
-		return nil
-	}
-
-	switch v := val.(type) {
-	case *data.IntValue:
-		return v.Value
-	case *data.StringValue:
-		return v.Value
-	case *data.BoolValue:
-		return v.Value
-	case *data.FloatValue:
-		return v.Value
-	case *data.NullValue:
-		return nil
-	case *data.ArrayValue:
-		// 对于数组，转换为 []interface{}
-		result := make([]interface{}, len(v.Value))
-		for i, item := range v.Value {
-			result[i] = d.convertValueToGoType(item)
-		}
-		return result
-	case *data.ObjectValue:
-		// 对于对象，转换为 map[string]interface{}
-		result := make(map[string]interface{})
-		for k, item := range v.GetProperties() {
-			result[k] = d.convertValueToGoType(item)
-		}
-		return result
-	default:
-		// 对于其他类型，尝试转换为字符串
-		return v.AsString()
-	}
 }
 
 // getColumnName 获取数据库列名，支持注解映射

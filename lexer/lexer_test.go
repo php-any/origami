@@ -307,7 +307,7 @@ func tokenizeRaw(lexer *Lexer, input string) []Token {
 		}
 
 		// 尝试处理特殊 Token
-		if specialToken, found := HandleSpecialToken(input, pos, 1, pos); found {
+		if specialToken, found := HandleSpecialToken(input, pos, line, linePos); found {
 			tok := Token{
 				Type:    specialToken.Token.Type,
 				Literal: specialToken.Token.Literal,
