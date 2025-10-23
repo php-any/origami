@@ -5,8 +5,8 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/token"
 )
-import "github.com/php-any/origami/token"
 
 type LbraceParser struct {
 	*Parser
@@ -21,6 +21,15 @@ func NewLbraceParser(parser *Parser) StatementParser {
 func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
 	ep.next()
+
+	// 检查是否为空对象 {}
+	if ep.current().Type == token.RBRACE {
+		ep.next()
+		v := map[data.GetValue]data.GetValue{}
+		from := tracker.EndBefore()
+		return node.NewKv(from, v), nil
+	}
+
 	expr, acl := ep.parseStatement()
 	if acl != nil {
 		return nil, acl
