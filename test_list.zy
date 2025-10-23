@@ -1,0 +1,20 @@
+namespace test;
+
+// 测试 List 类的基本功能
+$stringList = List<string>();
+
+// 测试 List<string>
+$stringList->add("Hello");
+$stringList->add("World");
+$stringList->add("Origami");
+
+echo "List 大小: " . $stringList->size() . "\n";
+
+// 迭代器测试
+echo "\n=== 测试字符串迭代器 ===\n";
+
+foreach($stringList as $k=>$v) {
+    dump($k, $v)
+}
+
+echo "\n=== 测试完成 ===\n";

@@ -1,0 +1,94 @@
+<?php
+
+// 测试泛型类型检查
+
+echo "=== 测试泛型类型检查 ===\n";
+
+// 创建 List<int>
+$intList = new List<int>();
+
+echo "测试 List<int> 类型检查:\n";
+
+// 添加整数 - 应该成功
+try {
+    $intList->add(1);
+    $intList->add(2);
+    $intList->add(3);
+    echo "✓ 添加整数成功\n";
+} catch (Exception $e) {
+    echo "✗ 添加整数失败: " . $e->getMessage() . "\n";
+}
+
+// 尝试添加字符串 - 应该失败
+try {
+    $intList->add("hello");
+    echo "✗ 添加字符串应该失败但没有\n";
+} catch (Exception $e) {
+    echo "✓ 添加字符串正确失败: " . $e->getMessage() . "\n";
+}
+
+// 尝试添加浮点数 - 应该失败
+try {
+    $intList->add(3.14);
+    echo "✗ 添加浮点数应该失败但没有\n";
+} catch (Exception $e) {
+    echo "✓ 添加浮点数正确失败: " . $e->getMessage() . "\n";
+}
+
+echo "\n=== 测试 List<string> 类型检查 ===\n";
+
+// 创建 List<string>
+$stringList = new List<string>();
+
+// 添加字符串 - 应该成功
+try {
+    $stringList->add("Hello");
+    $stringList->add("World");
+    echo "✓ 添加字符串成功\n";
+} catch (Exception $e) {
+    echo "✗ 添加字符串失败: " . $e->getMessage() . "\n";
+}
+
+// 尝试添加整数 - 应该失败
+try {
+    $stringList->add(123);
+    echo "✗ 添加整数应该失败但没有\n";
+} catch (Exception $e) {
+    echo "✓ 添加整数正确失败: " . $e->getMessage() . "\n";
+}
+
+echo "\n=== 测试混合类型 List ===\n";
+
+// 创建混合类型 List
+$mixedList = new List();
+
+// 添加任何类型 - 应该都成功
+try {
+    $mixedList->add(1);
+    $mixedList->add("hello");
+    $mixedList->add(3.14);
+    $mixedList->add(true);
+    echo "✓ 混合类型 List 添加各种类型成功\n";
+} catch (Exception $e) {
+    echo "✗ 混合类型 List 添加失败: " . $e->getMessage() . "\n";
+}
+
+echo "\n=== 测试 set 方法的类型检查 ===\n";
+
+// 测试 set 方法的类型检查
+try {
+    $intList->set(0, "wrong type");
+    echo "✗ set 方法应该失败但没有\n";
+} catch (Exception $e) {
+    echo "✓ set 方法正确失败: " . $e->getMessage() . "\n";
+}
+
+// 正确的 set 操作
+try {
+    $intList->set(0, 999);
+    echo "✓ set 方法正确成功\n";
+} catch (Exception $e) {
+    echo "✗ set 方法失败: " . $e->getMessage() . "\n";
+}
+
+echo "\n=== 测试完成 ===\n";

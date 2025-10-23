@@ -24,4 +24,5 @@ func newIteratorInterface() data.InterfaceStmt {
 
 func Load(vm data.VM) {
 	vm.AddInterface(newIteratorInterface())
+	vm.AddClass(NewListClass())
 }

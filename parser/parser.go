@@ -559,3 +559,16 @@ func (p *Parser) ParseString(content string, filePath string) (*node.Program, da
 
 	return program, nil
 }
+
+// 尝试识别类型
+func (p *Parser) tryFindTypes() (data.Types, bool) {
+	if data.ISBaseType(p.current().Literal) {
+		return data.NewBaseType(p.current().Literal), true
+	}
+
+	name, ok := p.findFullClassNameByNamespace(p.current().Literal)
+	if ok {
+		return data.NewBaseType(name), true
+	}
+	return nil, false
+}

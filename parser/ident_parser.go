@@ -187,12 +187,12 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 		p.next() // <
 		generaList := make([]string, 0)
 		for !p.checkPositionIs(0, token.GT) {
-			generaName, ok := p.findFullClassNameByNamespace(p.current().Literal)
+			generaName, ok := p.tryFindTypes()
 			if !ok {
 				return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("class %s 不存在", name))
 			}
 			p.next()
-			generaList = append(generaList, generaName)
+			generaList = append(generaList, generaName.String())
 			if p.checkPositionIs(0, token.COMMA) {
 				p.next() // ,
 			}

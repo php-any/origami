@@ -2,6 +2,7 @@ package data
 
 type Types interface {
 	Is(value Value) bool
+	// String 范围标识识别是什么类型, 泛型类返回不需要泛型信息
 	String() string
 }
 
