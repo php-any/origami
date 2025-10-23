@@ -1,17 +1,34 @@
 package http
 
 import (
-	"crypto/tls"
 	"errors"
-	"io"
-	"mime/multipart"
+	"fmt"
 	httpsrc "net/http"
-	"net/url"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/utils"
 )
+
+// 辅助函数：创建属性值，减少重复代码
+func createPropertyValue(source *httpsrc.Request, name string, value interface{}) data.Property {
+	return node.NewProperty(nil, name, "public", true, data.NewAnyValue(value))
+}
+
+// 辅助函数：统一的错误处理
+func handlePropertyError(err error, propertyName string) data.Control {
+	return data.NewErrorThrow(nil, fmt.Errorf("设置属性 %s 失败: %v", propertyName, err))
+}
+
+// 辅助函数：安全的类型转换
+func safeConvert[T any](value data.Value, target *T) error {
+	converted, err := utils.Convert[T](value)
+	if err != nil {
+		return err
+	}
+	*target = converted
+	return nil
+}
 
 func NewRequestClass() data.ClassStmt {
 	return &RequestClass{
@@ -107,6 +124,7 @@ func (s *RequestClass) AsString() string        { return "Request{}" }
 func (s *RequestClass) GetSource() any          { return s.source }
 func (s *RequestClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
+	// 原有的方法
 	case "context":
 		return s.context, true
 	case "parseForm":
@@ -151,6 +169,40 @@ func (s *RequestClass) GetMethod(name string) (data.Method, bool) {
 		return s.clone, true
 	case "basicAuth":
 		return s.basicAuth, true
+	case "method":
+		return &RequestMethodMethod{source: s.source}, true
+	case "url":
+		return &RequestUrlMethod{source: s.source}, true
+	case "fullUrl":
+		return &RequestFullUrlMethod{source: s.source}, true
+	case "path":
+		return &RequestPathMethod{source: s.source}, true
+	case "query":
+		return &RequestQueryMethod{source: s.source}, true
+	case "header":
+		return &RequestHeaderMethod{source: s.source}, true
+	case "ip":
+		return &RequestIpMethod{source: s.source}, true
+	case "has":
+		return &RequestHasMethod{source: s.source}, true
+	case "input":
+		return &RequestInputMethod{source: s.source}, true
+	case "only":
+		return &RequestOnlyMethod{source: s.source}, true
+	case "except":
+		return &RequestExceptMethod{source: s.source}, true
+	case "all":
+		return &RequestAllMethod{source: s.source}, true
+	case "file":
+		return &RequestFileMethod{source: s.source}, true
+	case "isMethod":
+		return &RequestIsMethodMethod{source: s.source}, true
+	case "isSecure":
+		return &RequestIsSecureMethod{source: s.source}, true
+	case "bind":
+		return &RequestBindMethod{source: s.source}, true
+	case "body":
+		return &RequestBodyMethod{source: s.source}, true
 	}
 	return nil, false
 }
@@ -185,251 +237,15 @@ func (s *RequestClass) GetMethods() []data.Method {
 func (s *RequestClass) GetConstruct() data.Method { return nil }
 
 func (s *RequestClass) GetProperty(name string) (data.Property, bool) {
-	switch name {
-	case "Method":
-		return node.NewProperty(nil, "Method", "public", true, data.NewAnyValue(s.source.Method)), true
-	case "URL":
-		return node.NewProperty(nil, "URL", "public", true, data.NewAnyValue(s.source.URL)), true
-	case "Proto":
-		return node.NewProperty(nil, "Proto", "public", true, data.NewAnyValue(s.source.Proto)), true
-	case "ProtoMajor":
-		return node.NewProperty(nil, "ProtoMajor", "public", true, data.NewAnyValue(s.source.ProtoMajor)), true
-	case "ProtoMinor":
-		return node.NewProperty(nil, "ProtoMinor", "public", true, data.NewAnyValue(s.source.ProtoMinor)), true
-	case "Header":
-		return node.NewProperty(nil, "Header", "public", true, data.NewAnyValue(s.source.Header)), true
-	case "Body":
-		return node.NewProperty(nil, "Body", "public", true, data.NewAnyValue(s.source.Body)), true
-	case "GetBody":
-		return node.NewProperty(nil, "GetBody", "public", true, data.NewAnyValue(s.source.GetBody)), true
-	case "ContentLength":
-		return node.NewProperty(nil, "ContentLength", "public", true, data.NewAnyValue(s.source.ContentLength)), true
-	case "TransferEncoding":
-		return node.NewProperty(nil, "TransferEncoding", "public", true, data.NewAnyValue(s.source.TransferEncoding)), true
-	case "Close":
-		return node.NewProperty(nil, "Close", "public", true, data.NewAnyValue(s.source.Close)), true
-	case "Host":
-		return node.NewProperty(nil, "Host", "public", true, data.NewAnyValue(s.source.Host)), true
-	case "Form":
-		return node.NewProperty(nil, "Form", "public", true, data.NewAnyValue(s.source.Form)), true
-	case "PostForm":
-		return node.NewProperty(nil, "PostForm", "public", true, data.NewAnyValue(s.source.PostForm)), true
-	case "MultipartForm":
-		return node.NewProperty(nil, "MultipartForm", "public", true, data.NewAnyValue(s.source.MultipartForm)), true
-	case "Trailer":
-		return node.NewProperty(nil, "Trailer", "public", true, data.NewAnyValue(s.source.Trailer)), true
-	case "RemoteAddr":
-		return node.NewProperty(nil, "RemoteAddr", "public", true, data.NewAnyValue(s.source.RemoteAddr)), true
-	case "RequestURI":
-		return node.NewProperty(nil, "RequestURI", "public", true, data.NewAnyValue(s.source.RequestURI)), true
-	case "TLS":
-		return node.NewProperty(nil, "TLS", "public", true, data.NewAnyValue(s.source.TLS)), true
-	case "Cancel":
-		return node.NewProperty(nil, "Cancel", "public", true, data.NewAnyValue(s.source.Cancel)), true
-	case "Response":
-		return node.NewProperty(nil, "Response", "public", true, data.NewAnyValue(s.source.Response)), true
-	case "Pattern":
-		return node.NewProperty(nil, "Pattern", "public", true, data.NewAnyValue(s.source.Pattern)), true
-	}
+	// 所有数据访问都通过方法进行
 	return nil, false
 }
 
 func (s *RequestClass) GetPropertyList() []data.Property {
-	return []data.Property{
-		node.NewProperty(nil, "Method", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "URL", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "Proto", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "ProtoMajor", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "ProtoMinor", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "Header", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "Body", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "GetBody", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "ContentLength", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "TransferEncoding", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "Close", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "Host", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "Form", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "PostForm", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "MultipartForm", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "Trailer", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "RemoteAddr", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "RequestURI", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "TLS", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "Cancel", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "Response", "public", true, data.NewAnyValue(nil)),
-		node.NewProperty(nil, "Pattern", "public", true, data.NewAnyValue(nil)),
-	}
+	// 所有数据访问都通过方法进行
+	return []data.Property{}
 }
 
 func (s *RequestClass) SetProperty(name string, value data.Value) data.Control {
-	if s.source == nil {
-		return data.NewErrorThrow(nil, errors.New("无法设置属性，source 为 nil"))
-	}
-
-	switch name {
-	case "Method":
-		val, err := utils.Convert[string](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		s.source.Method = val
-		return nil
-	case "URL":
-		val, err := utils.Convert[url.URL](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		converted := new(url.URL)
-		*converted = val
-		s.source.URL = converted
-		return nil
-	case "Proto":
-		val, err := utils.Convert[string](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		s.source.Proto = val
-		return nil
-	case "ProtoMajor":
-		val, err := utils.Convert[int](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		s.source.ProtoMajor = val
-		return nil
-	case "ProtoMinor":
-		val, err := utils.Convert[int](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		s.source.ProtoMinor = val
-		return nil
-	case "Header":
-		val, err := utils.Convert[httpsrc.Header](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		s.source.Header = val
-		return nil
-	case "Body":
-		val, err := utils.Convert[io.ReadCloser](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		s.source.Body = val
-		return nil
-	case "GetBody":
-		val, err := utils.Convert[func() (io.ReadCloser, error)](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		s.source.GetBody = val
-		return nil
-	case "ContentLength":
-		val, err := utils.Convert[int64](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		s.source.ContentLength = val
-		return nil
-	case "TransferEncoding":
-		val, err := utils.Convert[[]string](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		s.source.TransferEncoding = val
-		return nil
-	case "Close":
-		val, err := utils.Convert[bool](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		s.source.Close = val
-		return nil
-	case "Host":
-		val, err := utils.Convert[string](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		s.source.Host = val
-		return nil
-	case "Form":
-		val, err := utils.Convert[url.Values](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		s.source.Form = val
-		return nil
-	case "PostForm":
-		val, err := utils.Convert[url.Values](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		s.source.PostForm = val
-		return nil
-	case "MultipartForm":
-		val, err := utils.Convert[multipart.Form](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		converted := new(multipart.Form)
-		*converted = val
-		s.source.MultipartForm = converted
-		return nil
-	case "Trailer":
-		val, err := utils.Convert[httpsrc.Header](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		s.source.Trailer = val
-		return nil
-	case "RemoteAddr":
-		val, err := utils.Convert[string](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		s.source.RemoteAddr = val
-		return nil
-	case "RequestURI":
-		val, err := utils.Convert[string](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		s.source.RequestURI = val
-		return nil
-	case "TLS":
-		val, err := utils.Convert[tls.ConnectionState](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		converted := new(tls.ConnectionState)
-		*converted = val
-		s.source.TLS = converted
-		return nil
-	case "Cancel":
-		val, err := utils.Convert[chan struct{}](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		s.source.Cancel = val
-		return nil
-	case "Response":
-		val, err := utils.Convert[httpsrc.Response](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		converted := new(httpsrc.Response)
-		*converted = val
-		s.source.Response = converted
-		return nil
-	case "Pattern":
-		val, err := utils.Convert[string](value)
-		if err != nil {
-			return data.NewErrorThrow(nil, err)
-		}
-		s.source.Pattern = val
-		return nil
-	default:
-		return data.NewErrorThrow(nil, errors.New("属性不存在: "+name))
-	}
+	return data.NewErrorThrow(nil, errors.New("request 对象是只读的，不允许设置属性"))
 }

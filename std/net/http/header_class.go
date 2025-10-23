@@ -49,7 +49,7 @@ type HeaderClass struct {
 }
 
 func (s *HeaderClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewProxyValue(NewHeaderClassFrom(new(httpsrc.Header)), ctx.CreateBaseContext()), nil
+	return data.NewProxyValue(s, ctx.CreateBaseContext()), nil
 }
 
 func (s *HeaderClass) GetName() string         { return "Net\\Http\\Header" }

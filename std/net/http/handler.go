@@ -64,7 +64,10 @@ func (f Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx.SetVariableValue(data.NewVariable("r", 0, nil), data.NewProxyValue(request, ctx))
 	ctx.SetVariableValue(data.NewVariable("w", 1, nil), data.NewProxyValue(response, ctx))
 
-	f.Value.Call(ctx)
+	_, acl := f.Value.Call(ctx)
+	if acl != nil {
+		f.Ctx.GetVM().ThrowControl(acl)
+	}
 }
 
 type NextHandler struct {

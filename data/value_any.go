@@ -13,7 +13,7 @@ type AnyValue struct {
 }
 
 func (c *AnyValue) GetValue(ctx Context) (GetValue, Control) {
-	return nil, nil
+	return c, nil
 }
 
 func (c *AnyValue) AsString() string {

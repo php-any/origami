@@ -1,5 +1,7 @@
 namespace test;
 
+$test = {}
+
 // 测试 List 类的基本功能
 $stringList = new List<string>();
 
