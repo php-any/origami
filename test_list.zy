@@ -18,3 +18,17 @@ foreach($stringList as $k=>$v) {
 }
 
 echo "\n=== 测试完成 ===\n";
+
+$map = new HashMap<string, int>();
+$map->put("apple", 10);
+$map->put("banana", 20);
+
+// 基本操作测试
+echo "HashMap 大小: " . $map->size() . "\n";
+
+// 迭代器测试
+$map->rewind();
+while ($map->valid()) {
+    echo "键: " . $map->key() . ", 值: " . $map->current() . "\n";
+    $map->next();
+}

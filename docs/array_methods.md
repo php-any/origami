@@ -513,13 +513,64 @@ while ($list->valid()) {
 }
 ```
 
-### 迭代器方法
+### 迭代器方法详解
 
-- `rewind()`: 重置迭代器到开始位置
-- `current()`: 获取当前元素
-- `key()`: 获取当前键（索引）
-- `next()`: 移动到下一个元素
-- `valid()`: 检查迭代器是否有效
+#### rewind()
+
+重置迭代器到开始位置。
+
+```php
+$list = new List<int>();
+$list->add(1);
+$list->add(2);
+$list->add(3);
+
+$list->rewind();
+echo "第一个元素: " . $list->current() . "\n"; // 输出: 1
+```
+
+#### current()
+
+获取当前元素。
+
+```php
+$list->rewind();
+$list->next(); // 移动到第二个元素
+echo "当前元素: " . $list->current() . "\n"; // 输出: 2
+```
+
+#### key()
+
+获取当前索引。
+
+```php
+$list->rewind();
+$list->next();
+echo "当前索引: " . $list->key() . "\n"; // 输出: 1
+```
+
+#### next()
+
+移动到下一个元素。
+
+```php
+$list->rewind();
+echo "第一个: " . $list->current() . "\n"; // 输出: 1
+$list->next();
+echo "第二个: " . $list->current() . "\n"; // 输出: 2
+```
+
+#### valid()
+
+检查迭代器是否有效。
+
+```php
+$list->rewind();
+while ($list->valid()) {
+    echo "元素: " . $list->current() . "\n";
+    $list->next();
+}
+```
 
 ## 类型约束示例
 
@@ -579,6 +630,272 @@ $stringList->add("World");
 ## 注意事项
 
 1. **必须指定泛型类型**: `List<T>` 必须指定具体的泛型类型，不支持无类型约束的 `List()`
+2. **编译时类型检查**: 泛型类型检查在编译时进行，类型不匹配会抛出异常
+3. **类型安全**: 所有方法都是类型安全的，确保数据一致性
+4. **迭代器状态**: 迭代器状态在方法调用间保持，注意重置迭代器
+
+---
+
+# 泛型哈希表 HashMap<K, V> 使用文档
+
+`HashMap<K, V>` 是 Origami 语言提供的类型安全的泛型哈希表类，支持键值对存储，提供编译时类型检查。
+
+## 创建 HashMap 实例
+
+### 基本语法
+
+```php
+// 创建指定类型的 HashMap
+$stringIntMap = new HashMap<string, int>();    // 字符串键，整数值
+$intStringMap = new HashMap<int, string>();    // 整数键，字符串值
+$stringStringMap = new HashMap<string, string>(); // 字符串键，字符串值
+```
+
+### 类型安全
+
+```php
+$map = new HashMap<string, int>();
+
+// ✓ 正确：添加字符串键和整数值
+$map->put("apple", 10);
+$map->put("banana", 20);
+
+// ✗ 错误：类型不匹配，会抛出异常
+// $map->put(123, "hello");  // 键类型错误
+// $map->put("grape", "world"); // 值类型错误
+```
+
+## 基础操作方法
+
+### put(key, value)
+
+添加或更新键值对。
+
+```php
+$map = new HashMap<string, int>();
+$map->put("apple", 10);
+$map->put("banana", 20);
+$map->put("apple", 15); // 更新现有键的值
+```
+
+### get(key)
+
+根据键获取值，如果键不存在返回 null。
+
+```php
+$map = new HashMap<string, int>();
+$map->put("apple", 10);
+$map->put("banana", 20);
+
+echo $map->get("apple"); // 输出: 10
+echo $map->get("grape"); // 输出: null (键不存在)
+```
+
+### remove(key)
+
+根据键删除键值对，返回是否成功删除。
+
+```php
+$map = new HashMap<string, int>();
+$map->put("apple", 10);
+$map->put("banana", 20);
+
+$success = $map->remove("apple");
+echo $success; // 输出: true
+echo $map->size(); // 输出: 1
+```
+
+## 查询方法
+
+### containsKey(key)
+
+检查是否包含指定的键。
+
+```php
+$map = new HashMap<string, int>();
+$map->put("apple", 10);
+$map->put("banana", 20);
+
+echo $map->containsKey("apple"); // 输出: true
+echo $map->containsKey("grape"); // 输出: false
+```
+
+### containsValue(value)
+
+检查是否包含指定的值。
+
+```php
+$map = new HashMap<string, int>();
+$map->put("apple", 10);
+$map->put("banana", 20);
+
+echo $map->containsValue(10); // 输出: true
+echo $map->containsValue(30); // 输出: false
+```
+
+### size()
+
+获取哈希表的大小。
+
+```php
+$map = new HashMap<string, int>();
+$map->put("apple", 10);
+$map->put("banana", 20);
+
+echo $map->size(); // 输出: 2
+```
+
+### isEmpty()
+
+检查哈希表是否为空。
+
+```php
+$map = new HashMap<string, int>();
+echo $map->isEmpty(); // 输出: true
+
+$map->put("apple", 10);
+echo $map->isEmpty(); // 输出: false
+```
+
+## 批量操作方法
+
+### clear()
+
+清空哈希表中的所有键值对。
+
+```php
+$map = new HashMap<string, int>();
+$map->put("apple", 10);
+$map->put("banana", 20);
+
+$map->clear();
+echo $map->size(); // 输出: 0
+echo $map->isEmpty(); // 输出: true
+```
+
+### keys()
+
+获取所有键的数组。
+
+```php
+$map = new HashMap<string, int>();
+$map->put("apple", 10);
+$map->put("banana", 20);
+
+$keys = $map->keys();
+// $keys 包含 ["apple", "banana"]
+```
+
+### values()
+
+获取所有值的数组。
+
+```php
+$map = new HashMap<string, int>();
+$map->put("apple", 10);
+$map->put("banana", 20);
+
+$values = $map->values();
+// $values 包含 [10, 20]
+```
+
+## 迭代器支持
+
+`HashMap<K, V>` 实现了 `Iterator` 接口，支持 `foreach` 循环和手动迭代。
+
+### foreach 循环
+
+```php
+$map = new HashMap<string, int>();
+$map->put("apple", 10);
+$map->put("banana", 20);
+$map->put("orange", 30);
+
+// 使用 foreach 循环
+foreach ($map as $key => $value) {
+    echo "$key: $value\n";
+}
+```
+
+### 手动迭代
+
+```php
+$map = new HashMap<string, int>();
+$map->put("apple", 10);
+$map->put("banana", 20);
+
+$map->rewind();
+while ($map->valid()) {
+    echo "键: " . $map->key() . ", 值: " . $map->current() . "\n";
+    $map->next();
+}
+```
+
+### 迭代器方法
+
+- `rewind()`: 重置迭代器到开始位置
+- `current()`: 获取当前值
+- `key()`: 获取当前键
+- `next()`: 移动到下一个键值对
+- `valid()`: 检查迭代器是否有效
+
+## 类型约束示例
+
+### 字符串键，整数值
+
+```php
+$map = new HashMap<string, int>();
+
+// ✓ 正确操作
+$map->put("apple", 10);
+$map->put("banana", 20);
+
+// ✗ 类型错误
+// $map->put(123, 10);     // 键类型错误
+// $map->put("grape", "world"); // 值类型错误
+```
+
+### 整数键，字符串值
+
+```php
+$map = new HashMap<int, string>();
+
+// ✓ 正确操作
+$map->put(1, "one");
+$map->put(2, "two");
+
+// ✗ 类型错误
+// $map->put("hello", "world"); // 键类型错误
+// $map->put(3, 123);           // 值类型错误
+```
+
+## 性能特点
+
+1. **类型安全**: 编译时类型检查，避免运行时类型错误
+2. **哈希表性能**: O(1) 平均时间复杂度的键值查找
+3. **迭代器支持**: 支持 foreach 循环和手动迭代
+4. **内存效率**: 使用 Go 的 map 实现，动态扩容
+
+## 与普通数组的区别
+
+| 特性     | 普通数组      | HashMap<K, V> |
+| -------- | ------------- | ------------- |
+| 类型检查 | 运行时        | 编译时        |
+| 键类型   | 整数索引      | 任意类型      |
+| 访问方式 | 索引访问      | 键值访问      |
+| 性能     | O(1) 索引访问 | O(1) 键值查找 |
+| 用途     | 有序列表      | 键值映射      |
+
+## 最佳实践
+
+1. **必须指定类型**: `HashMap<K, V>` 必须指定键类型和值类型
+2. **类型安全优先**: 当需要键值映射时，优先使用 `HashMap<K, V>`
+3. **错误处理**: 注意处理类型不匹配的异常
+4. **性能考虑**: 对于大量键值对操作，HashMap 比数组更高效
+
+## 注意事项
+
+1. **必须指定泛型类型**: `HashMap<K, V>` 必须指定键类型和值类型
 2. **编译时类型检查**: 泛型类型检查在编译时进行，类型不匹配会抛出异常
 3. **类型安全**: 所有方法都是类型安全的，确保数据一致性
 4. **迭代器状态**: 迭代器状态在方法调用间保持，注意重置迭代器
