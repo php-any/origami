@@ -293,3 +293,292 @@ $arr->map(function($element, $index, $array) {
 4. 其他方法返回新数组，不修改原数组
 5. 字符串比较使用 `AsString()` 方法进行
 6. 布尔值判断使用 `AsBool()` 方法进行
+
+---
+
+# 泛型列表 List<T> 使用文档
+
+`List<T>` 是 Origami 语言提供的类型安全的泛型列表类，支持编译时类型检查，提供比普通数组更严格的类型约束。
+
+## 创建 List 实例
+
+### 基本语法
+
+```php
+// 创建指定类型的 List
+$intList = new List<int>();        // 整数列表
+$stringList = new List<string>();  // 字符串列表
+$boolList = new List<bool>();      // 布尔值列表
+```
+
+### 类型安全
+
+```php
+$intList = new List<int>();
+
+// ✓ 正确：添加整数
+$intList->add(1);
+$intList->add(2);
+$intList->add(3);
+
+// ✗ 错误：类型不匹配，会抛出异常
+// $intList->add("hello");  // 类型错误
+// $intList->add(3.14);     // 类型错误
+```
+
+## 基础操作方法
+
+### add(item)
+
+向列表末尾添加一个元素。
+
+```php
+$list = new List<int>();
+$list->add(1);
+$list->add(2);
+$list->add(3);
+echo $list->size(); // 输出: 3
+```
+
+### get(index)
+
+根据索引获取元素，如果索引超出范围返回 null。
+
+```php
+$list = new List<string>();
+$list->add("Hello");
+$list->add("World");
+
+echo $list->get(0); // 输出: Hello
+echo $list->get(1); // 输出: World
+echo $list->get(2); // 输出: null (索引超出范围)
+```
+
+### set(index, value)
+
+设置指定索引位置的元素值。
+
+```php
+$list = new List<int>();
+$list->add(1);
+$list->add(2);
+$list->add(3);
+
+$list->set(1, 10);
+echo $list->get(1); // 输出: 10
+```
+
+### size()
+
+获取列表的大小。
+
+```php
+$list = new List<string>();
+$list->add("apple");
+$list->add("banana");
+echo $list->size(); // 输出: 2
+```
+
+### isEmpty()
+
+检查列表是否为空。
+
+```php
+$list = new List<int>();
+echo $list->isEmpty(); // 输出: true
+
+$list->add(1);
+echo $list->isEmpty(); // 输出: false
+```
+
+## 查找和移除方法
+
+### contains(item)
+
+检查列表是否包含指定元素。
+
+```php
+$list = new List<string>();
+$list->add("apple");
+$list->add("banana");
+
+echo $list->contains("apple");  // 输出: true
+echo $list->contains("orange"); // 输出: false
+```
+
+### indexOf(item)
+
+获取指定元素在列表中的索引，如果不存在返回 -1。
+
+```php
+$list = new List<string>();
+$list->add("apple");
+$list->add("banana");
+$list->add("orange");
+
+echo $list->indexOf("banana"); // 输出: 1
+echo $list->indexOf("grape"); // 输出: -1
+```
+
+### remove(item)
+
+移除列表中第一个匹配的元素，返回是否成功移除。
+
+```php
+$list = new List<int>();
+$list->add(1);
+$list->add(2);
+$list->add(3);
+
+$success = $list->remove(2);
+echo $success; // 输出: true
+echo $list->size(); // 输出: 2
+```
+
+### removeAt(index)
+
+根据索引移除元素，返回是否成功移除。
+
+```php
+$list = new List<string>();
+$list->add("apple");
+$list->add("banana");
+$list->add("orange");
+
+$success = $list->removeAt(1);
+echo $success; // 输出: true
+echo $list->size(); // 输出: 2
+```
+
+### clear()
+
+清空列表中的所有元素。
+
+```php
+$list = new List<int>();
+$list->add(1);
+$list->add(2);
+$list->add(3);
+
+$list->clear();
+echo $list->size(); // 输出: 0
+echo $list->isEmpty(); // 输出: true
+```
+
+## 转换方法
+
+### toArray()
+
+将列表转换为普通数组。
+
+```php
+$list = new List<int>();
+$list->add(1);
+$list->add(2);
+$list->add(3);
+
+$array = $list->toArray();
+echo count($array); // 输出: 3
+```
+
+## 迭代器支持
+
+`List<T>` 实现了 `Iterator` 接口，支持 `foreach` 循环和手动迭代。
+
+### foreach 循环
+
+```php
+$list = new List<string>();
+$list->add("Hello");
+$list->add("World");
+$list->add("Origami");
+
+foreach ($list as $index => $value) {
+    echo "索引 $index: $value\n";
+}
+```
+
+### 手动迭代
+
+```php
+$list = new List<int>();
+$list->add(1);
+$list->add(2);
+$list->add(3);
+
+$list->rewind();
+while ($list->valid()) {
+    echo "键: " . $list->key() . ", 值: " . $list->current() . "\n";
+    $list->next();
+}
+```
+
+### 迭代器方法
+
+- `rewind()`: 重置迭代器到开始位置
+- `current()`: 获取当前元素
+- `key()`: 获取当前键（索引）
+- `next()`: 移动到下一个元素
+- `valid()`: 检查迭代器是否有效
+
+## 类型约束示例
+
+### 整数列表
+
+```php
+$intList = new List<int>();
+
+// ✓ 正确操作
+$intList->add(1);
+$intList->add(2);
+$intList->add(3);
+
+// ✗ 类型错误
+// $intList->add("hello");  // 编译时类型检查
+// $intList->add(3.14);     // 编译时类型检查
+```
+
+### 字符串列表
+
+```php
+$stringList = new List<string>();
+
+// ✓ 正确操作
+$stringList->add("Hello");
+$stringList->add("World");
+
+// ✗ 类型错误
+// $stringList->add(123);   // 编译时类型检查
+// $stringList->add(true);  // 编译时类型检查
+```
+
+## 性能特点
+
+1. **类型安全**: 编译时类型检查，避免运行时类型错误
+2. **内存效率**: 使用 Go 的 slice 实现，动态扩容
+3. **迭代器支持**: 支持 foreach 循环和手动迭代
+4. **方法丰富**: 提供完整的列表操作方法
+
+## 与普通数组的区别
+
+| 特性     | 普通数组 | List<T> |
+| -------- | -------- | ------- |
+| 类型检查 | 运行时   | 编译时  |
+| 类型安全 | 无       | 有      |
+| 方法支持 | 丰富     | 基础    |
+| 性能     | 高       | 高      |
+| 内存管理 | 自动     | 自动    |
+
+## 最佳实践
+
+1. **必须指定类型**: `List<T>` 必须指定具体的泛型类型，不支持无类型约束
+2. **类型安全优先**: 当需要类型安全时，优先使用 `List<T>` 而不是普通数组
+3. **错误处理**: 注意处理类型不匹配的异常
+4. **性能考虑**: 对于大量数据操作，考虑使用 `List<T>` 的类型安全优势
+
+## 注意事项
+
+1. **必须指定泛型类型**: `List<T>` 必须指定具体的泛型类型，不支持无类型约束的 `List()`
+2. **编译时类型检查**: 泛型类型检查在编译时进行，类型不匹配会抛出异常
+3. **类型安全**: 所有方法都是类型安全的，确保数据一致性
+4. **迭代器状态**: 迭代器状态在方法调用间保持，注意重置迭代器

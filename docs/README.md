@@ -20,7 +20,7 @@
 - [注解系统](annotations.md) - 特性注解和宏注解的使用
 - [Script 语法](script-syntax.md) - 对象字面量和特殊语法特征
 - [字符串](strings.md) - 字符串操作和方法
-- [数组](arrays.md) - 数组操作和方法
+- [数组方法](array_methods.md) - 数组操作和方法
 - [异常处理](exceptions.md) - 异常处理机制
 - [PHP 语法差异](php-differences.md) - 与 PHP 官方语法的差异对比
 

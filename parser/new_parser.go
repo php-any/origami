@@ -62,6 +62,26 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 		return nil, acl
 	}
 
+	// 处理泛型参数
+	var genericTypes []data.Types
+	if p.checkPositionIs(0, token.LT) {
+		p.next() // 跳过 <
+		genericTypes = make([]data.Types, 0)
+
+		for !p.checkPositionIs(0, token.GT) {
+			genericType, ok := p.tryFindTypes()
+			if !ok {
+				return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("泛型类型解析失败"))
+			}
+			p.next()
+			genericTypes = append(genericTypes, genericType)
+
+			if p.checkPositionIs(0, token.COMMA) {
+				p.next() // 跳过 ,
+			}
+		}
+		p.next() // 跳过 >
+	}
 	// 解析参数列表
 	vp := VariableParser{Parser: p.Parser}
 	args, acl := vp.parseFunctionCall()
@@ -69,6 +89,32 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 		return nil, acl
 	}
 
+	// 如果有泛型参数，创建泛型 new 表达式
+	if len(genericTypes) > 0 {
+		// 将泛型类型转换为字符串列表
+		genericStrings := make([]string, len(genericTypes))
+		for i, genericType := range genericTypes {
+			genericStrings[i] = genericType.String()
+		}
+
+		n := &node.NewClassGenerated{
+			NewExpression: node.NewNewExpression(
+				tracker.EndBefore(),
+				className,
+				args,
+			),
+			T: genericStrings,
+		}
+
+		if p.checkPositionIs(0, token.OBJECT_OPERATOR) {
+			// 解析链式调用
+			return vp.parseSuffix(n)
+		}
+
+		return n, nil
+	}
+
+	// 普通 new 表达式
 	n := node.NewNewExpression(
 		tracker.EndBefore(),
 		className,

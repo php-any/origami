@@ -1,7 +1,7 @@
 namespace test;
 
 // 测试 List 类的基本功能
-$stringList = List<string>();
+$stringList = new List<string>();
 
 // 测试 List<string>
 $stringList->add("Hello");
