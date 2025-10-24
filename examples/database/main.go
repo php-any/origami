@@ -39,8 +39,6 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// 在goroutine中运行脚本
-	done := make(chan bool, 1)
 	go func() {
 		_, err := vm.LoadAndRun("database.zy")
 		if err != nil {
@@ -49,15 +47,10 @@ func main() {
 				panic(err)
 			}
 		}
-		done <- true
 	}()
 
 	// 等待信号或脚本完成
-	select {
-	case <-sigChan:
-		fmt.Println("\n收到停止信号，正在关闭程序...")
-		os.Exit(0)
-	case <-done:
-		fmt.Println("脚本执行完成")
-	}
+	<-sigChan
+	fmt.Println("\n收到停止信号，正在关闭程序...")
+	os.Exit(0)
 }

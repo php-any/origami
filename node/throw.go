@@ -29,7 +29,7 @@ func (t *ThrowStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	if obj, ok := v.(*data.ClassValue); ok {
-		return nil, obj
+		return nil, data.NewErrorThrowFromClassValue(t.from, obj)
 	}
 
 	return nil, data.NewErrorThrow(t.from, errors.New(v.(data.Value).AsString()))

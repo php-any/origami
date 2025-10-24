@@ -6,7 +6,7 @@ type Control interface {
 }
 
 type AddStack interface {
-	AddStack(f From)
+	AddStackWithInfo(f From, className, methodName string)
 }
 
 // BreakControl 表示中断语句控制流

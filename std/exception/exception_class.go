@@ -10,22 +10,23 @@ func NewExceptionClass() *ExceptionClass {
 	source := &Exception{}
 
 	return &ExceptionClass{
-		exception:  &ExceptionExceptionMethod{source},
-		error:      &ExceptionErrorMethod{source},
-		getMessage: &ExceptionGetMessageMethod{source},
+		exception:        &ExceptionExceptionMethod{source},
+		error:            &ExceptionErrorMethod{source},
+		getMessage:       &ExceptionGetMessageMethod{source},
+		getTraceAsString: &ExceptionGetTraceAsStringMethod{source},
 	}
 }
 
 type ExceptionClass struct {
 	node.Node
-	exception  data.Method
-	error      data.Method
-	getMessage data.Method
+	exception        data.Method
+	error            data.Method
+	getMessage       *ExceptionGetMessageMethod
+	getTraceAsString *ExceptionGetTraceAsStringMethod
 }
 
 func (s *ExceptionClass) AsString() string {
-	//TODO implement me
-	panic("implement me")
+	return s.getMessage.source.msg
 }
 
 func (s *ExceptionClass) IsThrow() bool {
@@ -70,7 +71,8 @@ func (s *ExceptionClass) GetMethod(name string) (data.Method, bool) {
 		return s.error, true
 	case "getMessage":
 		return s.getMessage, true
-
+	case "getTraceAsString":
+		return s.getTraceAsString, true
 	}
 	return nil, false
 }
@@ -79,6 +81,7 @@ func (s *ExceptionClass) GetMethods() []data.Method {
 	return []data.Method{
 		s.error,
 		s.getMessage,
+		s.getTraceAsString,
 	}
 }
 

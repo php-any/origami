@@ -42,6 +42,37 @@ $server->middleware(($request, $response, $next) => {
     $next($request, $response);
 });
 
+// 异常捕捉中间件
+$server->middleware(($request, $response, $next) => {
+    try {
+        $next($request, $response);
+    } catch (Exception $e) {
+        Log::error("请求处理异常: " . $e->getMessage());
+        Log::error("异常堆栈: " . $e->getTraceAsString());
+        
+        $response->writeHeader(500);
+        $response->json({
+            "error": "服务器内部错误",
+            "message": $e->getMessage(),
+            "timestamp": time(),
+            "path": $request->path(),
+            "method": $request->method()
+        });
+    } catch (Error $e) {
+        Log::error("请求处理错误: " . $e->getMessage());
+        Log::error("错误堆栈: " . $e->getTraceAsString());
+        
+        $response->writeHeader(500);
+        $response->json({
+            "error": "服务器内部错误",
+            "message": $e->getMessage(),
+            "timestamp": time(),
+            "path": $request->path(),
+            "method": $request->method()
+        });
+    }
+});
+
 // 首页路由
 $server->get("/", ($request, $response) => {
     $response->json({
@@ -121,12 +152,7 @@ $server->get("/health", ($request, $response) => {
 
 // 错误处理示例
 $server->get("/error", ($request, $response) => {
-    $response->writeHeader(500);
-    $response->json({
-        "error": "服务器内部错误",
-        "code": 500,
-        "message": "这是一个错误处理示例"
-    });
+    throw new Exception("test error");
 });
 
 Log::info("HTTP服务器启动在: http://127.0.0.1:8080");

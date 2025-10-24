@@ -249,13 +249,13 @@ func (p *Parser) ShowControl(acl data.Control) {
 		p.errors = append(p.errors, data.NewErrorThrow(from, errors.New(err)))
 
 		// 显示调用栈信息
-		if len(throwValue.Stack) > 0 {
+		if len(throwValue.StackFrames) > 0 {
 			_, _ = fmt.Fprintln(os.Stderr, "\n📚 调用栈:")
-			for i, stackFrame := range throwValue.Stack {
-				stackStart, stackEnd := stackFrame.GetPosition()
-				stackSl, stackSp := stackFrame.GetStartPosition()
-				_, _ = fmt.Fprintf(os.Stderr, "   %d. %s:%d:%d (位置: %d-%d)\n",
-					i+1, stackFrame.GetSource(), stackSl+1, stackSp+1, stackStart, stackEnd)
+			for i, frame := range throwValue.StackFrames {
+				stackStart, stackEnd := frame.From.GetPosition()
+				stackSl, stackSp := frame.From.GetStartPosition()
+				_, _ = fmt.Fprintf(os.Stderr, "   %d. %s::%s() at %s:%d:%d (位置: %d-%d)\n",
+					i+1, frame.ClassName, frame.MethodName, frame.From.GetSource(), stackSl+1, stackSp+1, stackStart, stackEnd)
 			}
 		}
 

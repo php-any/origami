@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+	"strings"
 )
 
 // ThrowControl 表示异常抛出控制流
@@ -13,19 +14,34 @@ type ThrowControl interface {
 	GetError() *Error
 }
 
-// ThrowValue 表示异常抛出控制流
-type ThrowValue struct {
-	object     *ClassValue
-	extend     string
-	getMessage Method
-
-	Error *Error
-	// 堆栈
-	Stack []From
+// StackFrame 表示调用栈帧
+type StackFrame struct {
+	From       From
+	ClassName  string
+	MethodName string
 }
 
-func (t *ThrowValue) AddStack(f From) {
-	t.Stack = append(t.Stack, f)
+// ThrowValue 表示异常抛出控制流
+type ThrowValue struct {
+	object           *ClassValue
+	extend           string
+	getMessage       Method
+	getTraceAsString Method
+
+	Error *Error
+	// 调用栈信息
+	StackFrames []StackFrame
+}
+
+// AddStackWithInfo 添加调用栈信息，包含类名和方法名
+func (t *ThrowValue) AddStackWithInfo(f From, className, methodName string) {
+	// 添加到详细调用栈信息
+	frame := StackFrame{
+		From:       f,
+		ClassName:  className,
+		MethodName: methodName,
+	}
+	t.StackFrames = append(t.StackFrames, frame)
 }
 
 func (t *ThrowValue) GetFrom() From {
@@ -33,7 +49,11 @@ func (t *ThrowValue) GetFrom() From {
 }
 
 func (t *ThrowValue) GetName() string {
-	return "Error"
+	if t.object == nil {
+		return "Error"
+	}
+
+	return t.object.Class.GetName()
 }
 
 func (t *ThrowValue) GetExtend() *string {
@@ -56,16 +76,35 @@ func (t *ThrowValue) GetMethod(name string) (Method, bool) {
 	switch name {
 	case "getMessage":
 		return t.getMessage, true
+	case "getTraceAsString":
+		return t.getTraceAsString, true
 	}
 	return nil, false
 }
 
 func (t *ThrowValue) GetMethods() []Method {
-	return nil
+	return []Method{
+		t.getMessage,
+		t.getTraceAsString,
+	}
 }
 
 func (t *ThrowValue) GetConstruct() Method {
 	return nil
+}
+
+func NewErrorThrowFromClassValue(from From, object *ClassValue) Control {
+	t := &ThrowValue{
+		object: object,
+		Error:  NewError(from, fmt.Sprintf("Throw %s: %s", object.Class.GetName(), object.Class.(interface{ AsString() string }).AsString()), nil),
+	}
+	t.getMessage = &ThrowValueGetMessageMethod{
+		source: t,
+	}
+	t.getTraceAsString = &ThrowValueGetTraceAsStringMethod{
+		source: t,
+	}
+	return t
 }
 
 func NewErrorThrow(from From, err error) Control {
@@ -75,14 +114,24 @@ func NewErrorThrow(from From, err error) Control {
 	t.getMessage = &ThrowValueGetMessageMethod{
 		source: t,
 	}
+	t.getTraceAsString = &ThrowValueGetTraceAsStringMethod{
+		source: t,
+	}
 	return t
 }
 
 // TryErrorThrow 可能不需要抛出的错误
 func TryErrorThrow(from From, err error) Control {
-	return &ThrowValue{
+	t := &ThrowValue{
 		Error: NewError(from, err.Error(), err),
 	}
+	t.getMessage = &ThrowValueGetMessageMethod{
+		source: t,
+	}
+	t.getTraceAsString = &ThrowValueGetTraceAsStringMethod{
+		source: t,
+	}
+	return t
 }
 
 func (t *ThrowValue) SetValue(v Value) {
@@ -138,5 +187,60 @@ func (t *ThrowValueGetMessageMethod) GetVariables() []Variable {
 
 // GetReturnType 返回方法返回类型
 func (t *ThrowValueGetMessageMethod) GetReturnType() Types {
+	return NewBaseType("string")
+}
+
+type ThrowValueGetTraceAsStringMethod struct {
+	source *ThrowValue
+}
+
+func (t *ThrowValueGetTraceAsStringMethod) Call(ctx Context) (GetValue, Control) {
+	// 构建堆栈跟踪信息
+	var trace strings.Builder
+	trace.WriteString("Stack trace:\n")
+
+	// 添加当前异常信息
+	if t.source.Error != nil && t.source.Error.From != nil {
+		start, end := t.source.Error.From.GetPosition()
+		sl, sp := t.source.Error.From.GetStartPosition()
+		trace.WriteString(fmt.Sprintf("  at %s:%d:%d (position %d-%d)\n",
+			t.source.Error.From.GetSource(), sl+1, sp+1, start, end))
+	}
+
+	// 添加调用栈信息
+	for _, frame := range t.source.StackFrames {
+		if frame.From != nil {
+			start, end := frame.From.GetPosition()
+			sl, sp := frame.From.GetStartPosition()
+			trace.WriteString(fmt.Sprintf("  at %s.%s() in %s:%d:%d (position %d-%d)\n",
+				frame.ClassName, frame.MethodName, frame.From.GetSource(), sl+1, sp+1, start, end))
+		}
+	}
+
+	return NewStringValue(trace.String()), nil
+}
+
+func (t *ThrowValueGetTraceAsStringMethod) GetName() string {
+	return "getTraceAsString"
+}
+
+func (t *ThrowValueGetTraceAsStringMethod) GetModifier() Modifier {
+	return ModifierPublic
+}
+
+func (t *ThrowValueGetTraceAsStringMethod) GetIsStatic() bool {
+	return false
+}
+
+func (t *ThrowValueGetTraceAsStringMethod) GetParams() []GetValue {
+	return []GetValue{}
+}
+
+func (t *ThrowValueGetTraceAsStringMethod) GetVariables() []Variable {
+	return []Variable{}
+}
+
+// GetReturnType 返回方法返回类型
+func (t *ThrowValueGetTraceAsStringMethod) GetReturnType() Types {
 	return NewBaseType("string")
 }

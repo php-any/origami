@@ -55,34 +55,11 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 				return nil, acl
 			}
 
-			v, acl := method.Call(fnCtx)
-			if acl != nil {
-				if stack, ok := acl.(data.AddStack); ok {
-					stack.AddStack(pe.from)
-				}
-			}
-
-			return v, acl
+			return method.Call(fnCtx)
 		}
 
 		errStr := fmt.Sprintf("类(%s)不存在对应函数(%s)", class.Class.GetName(), pe.Method)
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(errStr))
-	case *data.AnyValue:
-		if class, ok := class.Value.(data.GetMethod); ok {
-			method, has := class.GetMethod(pe.Method)
-			if has {
-				if method.GetModifier() != data.ModifierPublic {
-					errStr := fmt.Sprintf("对象属性访问表达式对象属性访问函数(%s)非公开", pe.Method)
-					return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(errStr))
-				}
-				fnCtx, acl := pe.callMethodParams(ctx, ctx, method)
-				if acl != nil {
-					return nil, acl
-				}
-
-				return method.Call(fnCtx)
-			}
-		}
 	default:
 		if class, ok := o.(data.GetMethod); ok {
 			method, has := class.GetMethod(pe.Method)
@@ -100,7 +77,7 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 			}
 		}
 	}
-	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("当前值(%v)不支持调用函数, 你调用的函数(%s)", o, pe.Method)))
+	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("当前值(%#v)不支持调用函数, 你调用的函数(%s)", o, pe.Method)))
 }
 
 func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method data.Method) (data.Context, data.Control) {
