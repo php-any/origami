@@ -1,6 +1,6 @@
 namespace App;
 
-use database\DB;
+use Database\DB;
 
 // 定义用户模型
 class User {

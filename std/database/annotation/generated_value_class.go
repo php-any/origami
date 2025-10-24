@@ -30,7 +30,7 @@ func (g *GeneratedValueClass) GetValue(ctx data.Context) (data.GetValue, data.Co
 }
 
 func (g *GeneratedValueClass) GetName() string {
-	return "database\\annotation\\GeneratedValue"
+	return "Database\\Annotation\\GeneratedValue"
 }
 
 func (g *GeneratedValueClass) GetExtend() *string {

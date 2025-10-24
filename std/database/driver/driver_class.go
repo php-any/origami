@@ -24,7 +24,7 @@ func (s *DriverClass) GetValue(_ data.Context) (data.GetValue, data.Control) {
 	clone := *s
 	return &clone, nil
 }
-func (s *DriverClass) GetName() string                            { return "database\\sql\\Driver" }
+func (s *DriverClass) GetName() string                            { return "Database\\Sql\\Driver" }
 func (s *DriverClass) GetExtend() *string                         { return nil }
 func (s *DriverClass) GetImplements() []string                    { return nil }
 func (s *DriverClass) AsString() string                           { return "Driver{}" }

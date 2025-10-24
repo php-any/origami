@@ -27,7 +27,7 @@ func (i *IdClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (i *IdClass) GetName() string {
-	return "database\\annotation\\Id"
+	return "Database\\Annotation\\Id"
 }
 
 func (i *IdClass) GetExtend() *string {

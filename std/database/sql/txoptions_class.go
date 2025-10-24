@@ -34,7 +34,7 @@ func (s *TxOptionsClass) GetValue(_ data.Context) (data.GetValue, data.Control) 
 	clone := *s
 	return &clone, nil
 }
-func (s *TxOptionsClass) GetName() string         { return "database\\sql\\TxOptions" }
+func (s *TxOptionsClass) GetName() string         { return "Database\\Sql\\TxOptions" }
 func (s *TxOptionsClass) GetExtend() *string      { return nil }
 func (s *TxOptionsClass) GetImplements() []string { return nil }
 func (s *TxOptionsClass) AsString() string        { return "TxOptions{}" }

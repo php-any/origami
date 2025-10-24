@@ -5,6 +5,10 @@ type Control interface {
 	Value
 }
 
+type AddStack interface {
+	AddStack(f From)
+}
+
 // BreakControl 表示中断语句控制流
 type BreakControl interface {
 	Control

@@ -240,7 +240,28 @@ func (p *Parser) stopNext() {
 func (p *Parser) ShowControl(acl data.Control) {
 	err := acl.AsString()
 
-	if acl, ok := acl.(node.GetFrom); ok {
+	// 优先检查是否是 ThrowValue 并显示调用栈
+	if throwValue, ok := acl.(*data.ThrowValue); ok {
+		from := throwValue.Error.From
+		if from == nil {
+			from = node.NewTokenFrom(p.source, p.current().Start, p.current().End, p.current().Line, p.current().Pos)
+		}
+		p.errors = append(p.errors, data.NewErrorThrow(from, errors.New(err)))
+
+		// 显示调用栈信息
+		if len(throwValue.Stack) > 0 {
+			_, _ = fmt.Fprintln(os.Stderr, "\n📚 调用栈:")
+			for i, stackFrame := range throwValue.Stack {
+				stackStart, stackEnd := stackFrame.GetPosition()
+				stackSl, stackSp := stackFrame.GetStartPosition()
+				_, _ = fmt.Fprintf(os.Stderr, "   %d. %s:%d:%d (位置: %d-%d)\n",
+					i+1, stackFrame.GetSource(), stackSl+1, stackSp+1, stackStart, stackEnd)
+			}
+		}
+
+		// 打印详细的错误信息
+		p.printDetailedError(err, from)
+	} else if acl, ok := acl.(node.GetFrom); ok {
 		from := acl.GetFrom()
 		p.errors = append(p.errors, data.NewErrorThrow(from, errors.New(err)))
 		// 打印详细的错误信息

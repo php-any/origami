@@ -1,16 +1,16 @@
 namespace App;
 
-use database\DB;
-use database\sql\open;
-use database\annotation\Column;
-use database\annotation\Table;
+use Database\DB;
+use Database\Sql\open;
+use Database\Annotation\Column;
+use Database\Annotation\Table;
 
 $db = open("mysql", "root:root@/temp");
 
 $db->ping();
 
-database\registerDefaultConnection($db);
-database\registerConnection("slave", $db);
+Database\registerDefaultConnection($db);
+Database\registerConnection("slave", $db);
 
 @Table("users")
 class User {

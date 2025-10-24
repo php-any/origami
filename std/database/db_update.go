@@ -80,8 +80,6 @@ func (d *DbUpdateMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		for _, arg := range d.source.whereArgs {
 			values = append(values, ConvertValueToGoType(arg))
 		}
-	} else {
-		return nil, data.NewErrorThrow(nil, errors.New("更新操作必须指定 WHERE 条件"))
 	}
 
 	// 构建完整的 UPDATE 语句
@@ -166,7 +164,7 @@ func (d *DbUpdateMethod) getColumnName(classStmt data.ClassStmt, propertyName st
 			// 检查是否是 Column 注解
 			if annotation.Class != nil {
 				className := annotation.Class.GetName()
-				if className == "database\\annotation\\Column" {
+				if className == "Database\\Annotation\\Column" {
 					// 获取注解实例的属性
 					annotationProps := annotation.GetProperties()
 

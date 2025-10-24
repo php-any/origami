@@ -1,9 +1,9 @@
 namespace App;
 
-use Database\Annotation\Table;
-use Database\Annotation\Column;
-use Database\Annotation\Id;
-use Database\Annotation\GeneratedValue;
+use Database\annotation\Table;
+use Database\annotation\Column;
+use Database\annotation\Id;
+use Database\annotation\GeneratedValue;
 
 // 用户实体类
 @Table("users")

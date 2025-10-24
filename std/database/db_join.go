@@ -53,5 +53,5 @@ func (d *DbJoinMethod) GetVariables() []data.Variable {
 }
 
 func (d *DbJoinMethod) GetReturnType() data.Types {
-	return data.NewBaseType("database\\DB")
+	return data.NewBaseType("Database\\DB")
 }

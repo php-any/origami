@@ -30,7 +30,7 @@ func (s *ContextClass) GetValue(_ data.Context) (data.GetValue, data.Control) {
 	clone := *s
 	return &clone, nil
 }
-func (s *ContextClass) GetName() string                            { return "context\\Context" }
+func (s *ContextClass) GetName() string                            { return "Context\\Context" }
 func (s *ContextClass) GetExtend() *string                         { return nil }
 func (s *ContextClass) GetImplements() []string                    { return nil }
 func (s *ContextClass) AsString() string                           { return "Context{}" }

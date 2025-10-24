@@ -21,7 +21,11 @@ type ThrowValue struct {
 
 	Error *Error
 	// 堆栈
-	Stack []*Error
+	Stack []From
+}
+
+func (t *ThrowValue) AddStack(f From) {
+	t.Stack = append(t.Stack, f)
 }
 
 func (t *ThrowValue) GetFrom() From {

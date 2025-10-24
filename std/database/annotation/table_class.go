@@ -30,7 +30,7 @@ func (t *TableClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (t *TableClass) GetName() string {
-	return "database\\annotation\\Table"
+	return "Database\\Annotation\\Table"
 }
 
 func (t *TableClass) GetExtend() *string {

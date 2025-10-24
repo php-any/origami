@@ -34,7 +34,7 @@ func (s *RowClass) GetValue(_ data.Context) (data.GetValue, data.Control) {
 	clone := *s
 	return &clone, nil
 }
-func (s *RowClass) GetName() string                            { return "database\\sql\\Row" }
+func (s *RowClass) GetName() string                            { return "Database\\Sql\\Row" }
 func (s *RowClass) GetExtend() *string                         { return nil }
 func (s *RowClass) GetImplements() []string                    { return nil }
 func (s *RowClass) AsString() string                           { return "Row{}" }

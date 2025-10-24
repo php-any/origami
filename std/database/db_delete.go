@@ -31,8 +31,6 @@ func (d *DbDeleteMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		for _, arg := range d.source.whereArgs {
 			values = append(values, ConvertValueToGoType(arg))
 		}
-	} else {
-		return nil, data.NewErrorThrow(nil, errors.New("删除操作必须指定 WHERE 条件"))
 	}
 
 	// 构建完整的 DELETE 语句

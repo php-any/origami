@@ -55,5 +55,5 @@ func (d *DbLimitMethod) GetVariables() []data.Variable {
 }
 
 func (d *DbLimitMethod) GetReturnType() data.Types {
-	return data.NewBaseType("database\\DB")
+	return data.NewBaseType("Database\\DB")
 }

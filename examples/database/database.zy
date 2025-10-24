@@ -1,0 +1,206 @@
+namespace App;
+
+/**
+ * 数据库操作演示
+ * 
+ * 本示例展示了Origami数据库功能的使用：
+ * - 使用DB<M>泛型类
+ * - 基本CRUD操作
+ * - 查询构建器
+ * - 原生SQL支持
+ */
+
+use Database\DB;
+use Database\Sql\open;
+use Database\Annotation\Table;
+use Database\Annotation\Column;
+
+// 设置数据库连接
+Log::info("=== 设置数据库连接 ===");
+
+// 注册SQLite数据库连接
+$db = open("sqlite3", "example.db");
+$db->ping();
+Database\registerDefaultConnection($db);
+
+// 创建表
+Log::info("创建数据库表...");
+
+// 创建用户表
+$createUserTable = "
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    age INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)";
+
+$result1 = $db->exec($createUserTable);
+Log::info("创建用户表结果: " . $result1);
+
+// 创建文章表
+$createPostTable = "
+CREATE TABLE IF NOT EXISTS posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title VARCHAR(200) NOT NULL,
+    content TEXT,
+    user_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id)
+)";
+
+$result2 = $db->exec($createPostTable);
+Log::info("创建文章表结果: " . $result2);
+
+// 定义用户模型
+@Table("users")
+class User {
+    @Column("name")
+    public string $userName;
+    
+    public string $email;
+    public int $age;
+    public int $id;
+}
+
+// 定义文章模型
+@Table("posts")
+class Post {
+    public string $title;
+    public string $content;
+    public int $user_id;
+    public int $id;
+}
+
+Log::info("=== 数据库操作演示 ===");
+
+// 1. 基本查询操作
+Log::info("\n1. 基本查询操作:");
+
+// 获取所有用户
+$users = DB<User>()->get();
+Log::info("所有用户数量: " . $users->length);
+
+// 条件查询
+$youngUsers = DB<User>()->where("age < ?", 30)->get();
+Log::info("年轻用户数量: " . $youngUsers->length);
+
+// 排序查询
+$sortedUsers = DB<User>()->orderBy("age DESC")->get();
+Log::info("按年龄排序的用户数量: " . $sortedUsers->length);
+
+// 限制查询
+$limitedUsers = DB<User>()->limit(5)->get();
+Log::info("限制5个用户: " . $limitedUsers->length);
+
+// 2. 插入操作
+Log::info("\n2. 插入操作:");
+
+$newUser = new User();
+$newUser->userName = "张三";
+$newUser->email = "zhangsan@example.com";
+$newUser->age = 25;
+
+$insertResult = DB<User>()->insert($newUser);
+Log::info("插入用户结果: " . $insertResult);
+
+$newUser2 = new User();
+$newUser2->userName = "李四";
+$newUser2->email = "lisi@example.com";
+$newUser2->age = 30;
+
+$insertResult2 = DB<User>()->insert($newUser2);
+Log::info("插入第二个用户结果: " . $insertResult2);
+
+// 故意插入重复数据来触发错误
+Log::info("\n测试重复插入错误:");
+$duplicateUser = new User();
+$duplicateUser->userName = "重复用户";
+$duplicateUser->email = "zhangsan@example.com"; // 使用相同的邮箱
+$duplicateUser->age = 35;
+
+$duplicateResult = DB<User>()->insert($duplicateUser);
+Log::info("重复插入结果: " . $duplicateResult);
+
+// 3. 更新操作
+Log::info("\n3. 更新操作:");
+
+$updateUser = new User();
+$updateUser->age = 26;
+
+$updateResult = DB<User>()->where("name = ?", "张三")->update($updateUser);
+Log::info("更新用户年龄结果: " . $updateResult);
+
+// 4. 删除操作
+Log::info("\n4. 删除操作:");
+
+$deleteResult = DB<User>()->where("name = ?", "李四")->delete();
+Log::info("删除用户结果: " . $deleteResult);
+
+// 5. 复杂查询
+Log::info("\n5. 复杂查询:");
+
+// 分组查询
+$ageGroups = DB<User>()->select("age")->groupBy("age")->get();
+Log::info("年龄分组数量: " . $ageGroups->length);
+
+// 聚合查询
+$avgAge = DB<User>()->select("AVG(age) as avg_age")->first();
+Log::info("平均年龄: " . $avgAge);
+
+// 6. 原生SQL查询
+Log::info("\n6. 原生SQL查询:");
+
+// 执行原生查询
+$sqlResult = DB<User>()->query("SELECT COUNT(*) as total FROM users");
+Log::info("用户总数: " . $sqlResult);
+
+// 执行原生更新
+$execResult = DB<User>()->exec("UPDATE users SET age = age + 1 WHERE age < 30");
+Log::info("更新年轻用户年龄结果: " . $execResult);
+
+// 7. 关联查询
+Log::info("\n7. 关联查询:");
+
+// 插入一些文章数据
+$newPost = new Post();
+$newPost->title = "我的第一篇文章";
+$newPost->content = "这是文章内容...";
+$newPost->user_id = 1;
+
+$postResult = DB<Post>()->insert($newPost);
+Log::info("插入文章结果: " . $postResult);
+
+// 查询用户及其文章
+$userPosts = DB<User>()->join("posts", "users.id = posts.user_id")->get();
+Log::info("用户文章关联查询结果数量: " . $userPosts->length);
+
+// 8. 分页查询
+Log::info("\n8. 分页查询:");
+
+$page1 = DB<User>()->limit(2)->offset(0)->get();
+Log::info("第1页用户数量: " . $page1->length);
+
+$page2 = DB<User>()->limit(2)->offset(2)->get();
+Log::info("第2页用户数量: " . $page2->length);
+
+// 9. 统计信息
+Log::info("\n9. 统计信息:");
+
+$totalUsers = DB<User>()->query("SELECT COUNT(*) as count FROM users");
+Log::info("总用户数: " . $totalUsers);
+
+$totalPosts = DB<Post>()->query("SELECT COUNT(*) as count FROM posts");
+Log::info("总文章数: " . $totalPosts);
+
+// 10. 清理数据
+Log::info("\n10. 清理数据:");
+
+$cleanPosts = DB<Post>()->delete();
+Log::info("清理文章结果: " . $cleanPosts);
+
+$cleanUsers = DB<User>()->delete();
+Log::info("清理用户结果: " . $cleanUsers);
+
+Log::info("\n=== 数据库操作演示完成 ===");

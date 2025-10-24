@@ -30,7 +30,7 @@ func (s *StmtClass) GetValue(_ data.Context) (data.GetValue, data.Control) {
 	clone := *s
 	return &clone, nil
 }
-func (s *StmtClass) GetName() string                            { return "database\\sql\\Stmt" }
+func (s *StmtClass) GetName() string                            { return "Database\\Sql\\Stmt" }
 func (s *StmtClass) GetExtend() *string                         { return nil }
 func (s *StmtClass) GetImplements() []string                    { return nil }
 func (s *StmtClass) AsString() string                           { return "Stmt{}" }

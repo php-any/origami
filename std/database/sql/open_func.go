@@ -3,6 +3,7 @@ package sql
 import (
 	"database/sql"
 	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -34,7 +35,7 @@ func (h *OpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(NewDBClassFrom(ret0), ctx), nil
 }
 
-func (h *OpenFunction) GetName() string            { return "database\\sql\\open" }
+func (h *OpenFunction) GetName() string            { return "Database\\Sql\\open" }
 func (h *OpenFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *OpenFunction) GetIsStatic() bool          { return true }
 func (h *OpenFunction) GetParams() []data.GetValue {

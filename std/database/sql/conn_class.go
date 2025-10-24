@@ -52,7 +52,7 @@ func (s *ConnClass) GetValue(_ data.Context) (data.GetValue, data.Control) {
 	clone := *s
 	return &clone, nil
 }
-func (s *ConnClass) GetName() string                            { return "database\\sql\\Conn" }
+func (s *ConnClass) GetName() string                            { return "Database\\Sql\\Conn" }
 func (s *ConnClass) GetExtend() *string                         { return nil }
 func (s *ConnClass) GetImplements() []string                    { return nil }
 func (s *ConnClass) AsString() string                           { return "Conn{}" }

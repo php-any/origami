@@ -167,7 +167,7 @@ func (d *DbInsertMethod) getColumnName(classStmt data.ClassStmt, propertyName st
 			// 检查是否是 Column 注解
 			if annotation.Class != nil {
 				className := annotation.Class.GetName()
-				if className == "database\\annotation\\Column" {
+				if className == "Database\\Annotation\\Column" {
 					// 获取注解实例的属性
 					annotationProps := annotation.GetProperties()
 

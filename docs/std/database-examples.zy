@@ -6,17 +6,17 @@
 
 namespace App;
 
-use database\DB;
-use database\sql\open;
-use database\annotation\Table;
-use database\annotation\Column;
-use database\annotation\Id;
-use database\annotation\GeneratedValue;
+use Database\DB;
+use Database\Sql\open;
+use Database\Annotation\Table;
+use Database\Annotation\Column;
+use Database\Annotation\Id;
+use Database\Annotation\GeneratedValue;
 
 // 连接数据库
 $db = open("mysql", "root:password@/example_db");
 $db->ping();
-database\registerDefaultConnection($db);
+Database\registerDefaultConnection($db);
 
 // 定义用户模型
 @Table("users")
@@ -196,7 +196,7 @@ foreach ($newUsers as $userData) {
 
 // 12. 事务处理
 echo "\n--- 12. 事务处理 ---\n";
-$db = database\getDefaultConnection();
+$db = Database\getDefaultConnection();
 $db->begin();
 
 try {
@@ -241,7 +241,7 @@ echo "删除了 " . $deleteResult->rowsAffected . " 条用户记录\n";
 echo "\n--- 14. 多连接使用 ---\n";
 // 注册日志数据库连接
 $logDb = open("mysql", "log:password@/log_db");
-database\registerConnection("logs", $logDb);
+Database\registerConnection("logs", $logDb);
 
 // 使用不同的连接
 $users = DB<User>(); // 使用默认连接

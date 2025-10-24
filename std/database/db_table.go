@@ -53,5 +53,5 @@ func (d *DbTableMethod) GetVariables() []data.Variable {
 }
 
 func (d *DbTableMethod) GetReturnType() data.Types {
-	return data.NewBaseType("database\\DB")
+	return data.NewBaseType("Database\\DB")
 }

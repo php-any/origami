@@ -55,5 +55,5 @@ func (d *DbOffsetMethod) GetVariables() []data.Variable {
 }
 
 func (d *DbOffsetMethod) GetReturnType() data.Types {
-	return data.NewBaseType("database\\DB")
+	return data.NewBaseType("Database\\DB")
 }

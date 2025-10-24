@@ -64,7 +64,7 @@ func (s *TxClass) GetValue(_ data.Context) (data.GetValue, data.Control) {
 	clone := *s
 	return &clone, nil
 }
-func (s *TxClass) GetName() string                            { return "database\\sql\\Tx" }
+func (s *TxClass) GetName() string                            { return "Database\\Sql\\Tx" }
 func (s *TxClass) GetExtend() *string                         { return nil }
 func (s *TxClass) GetImplements() []string                    { return nil }
 func (s *TxClass) AsString() string                           { return "Tx{}" }

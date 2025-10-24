@@ -100,7 +100,7 @@ func (d *DBClass) GetFrom() data.From {
 }
 
 func (d *DBClass) GetName() string {
-	return "database\\DB"
+	return "Database\\DB"
 }
 
 func (d *DBClass) GetExtend() *string {

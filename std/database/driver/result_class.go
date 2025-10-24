@@ -26,7 +26,7 @@ func (s *ResultClass) GetValue(_ data.Context) (data.GetValue, data.Control) {
 	clone := *s
 	return &clone, nil
 }
-func (s *ResultClass) GetName() string                            { return "database\\sql\\Result" }
+func (s *ResultClass) GetName() string                            { return "Database\\Sql\\Result" }
 func (s *ResultClass) GetExtend() *string                         { return nil }
 func (s *ResultClass) GetImplements() []string                    { return nil }
 func (s *ResultClass) AsString() string                           { return "Result{}" }

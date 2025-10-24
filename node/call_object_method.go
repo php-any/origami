@@ -55,7 +55,14 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 				return nil, acl
 			}
 
-			return method.Call(fnCtx)
+			v, acl := method.Call(fnCtx)
+			if acl != nil {
+				if stack, ok := acl.(data.AddStack); ok {
+					stack.AddStack(pe.from)
+				}
+			}
+
+			return v, acl
 		}
 
 		errStr := fmt.Sprintf("类(%s)不存在对应函数(%s)", class.Class.GetName(), pe.Method)

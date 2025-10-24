@@ -53,5 +53,5 @@ func (d *DbGroupByMethod) GetVariables() []data.Variable {
 }
 
 func (d *DbGroupByMethod) GetReturnType() data.Types {
-	return data.NewBaseType("database\\DB")
+	return data.NewBaseType("Database\\DB")
 }

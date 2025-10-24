@@ -355,7 +355,7 @@ func (d *db) getTableNameFromAnnotation(classType data.Class, ctx data.Context) 
 			// 检查是否是 Table 注解
 			if annotation.Class != nil {
 				className := annotation.Class.GetName()
-				if className == "database\\annotation\\Table" {
+				if className == "Database\\Annotation\\Table" {
 					// 获取注解实例的属性
 					annotationProps := annotation.GetProperties()
 

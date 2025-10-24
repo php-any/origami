@@ -88,7 +88,7 @@ func (s *DBClass) GetValue(_ data.Context) (data.GetValue, data.Control) {
 	clone := *s
 	return &clone, nil
 }
-func (s *DBClass) GetName() string                            { return "database\\sql\\DB" }
+func (s *DBClass) GetName() string                            { return "Database\\Sql\\DB" }
 func (s *DBClass) GetExtend() *string                         { return nil }
 func (s *DBClass) GetImplements() []string                    { return nil }
 func (s *DBClass) AsString() string                           { return "DB{}" }

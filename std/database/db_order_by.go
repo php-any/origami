@@ -53,5 +53,5 @@ func (d *DbOrderByMethod) GetVariables() []data.Variable {
 }
 
 func (d *DbOrderByMethod) GetReturnType() data.Types {
-	return data.NewBaseType("database\\DB")
+	return data.NewBaseType("Database\\DB")
 }

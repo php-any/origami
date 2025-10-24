@@ -45,7 +45,7 @@ func (f *RegisterConnectionFunction) Call(ctx data.Context) (data.GetValue, data
 }
 
 func (f *RegisterConnectionFunction) GetName() string {
-	return "database\\registerConnection"
+	return "Database\\registerConnection"
 }
 
 func (f *RegisterConnectionFunction) GetParams() []data.GetValue {
@@ -88,7 +88,7 @@ func (f *RegisterDefaultConnectionFunction) Call(ctx data.Context) (data.GetValu
 }
 
 func (f *RegisterDefaultConnectionFunction) GetName() string {
-	return "database\\registerDefaultConnection"
+	return "Database\\registerDefaultConnection"
 }
 
 func (f *RegisterDefaultConnectionFunction) GetParams() []data.GetValue {
@@ -132,7 +132,7 @@ func (f *GetConnectionFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 }
 
 func (f *GetConnectionFunction) GetName() string {
-	return "database\\getConnection"
+	return "Database\\getConnection"
 }
 
 func (f *GetConnectionFunction) GetParams() []data.GetValue {
@@ -166,7 +166,7 @@ func (f *GetDefaultConnectionFunction) Call(ctx data.Context) (data.GetValue, da
 }
 
 func (f *GetDefaultConnectionFunction) GetName() string {
-	return "database\\getDefaultConnection"
+	return "Database\\getDefaultConnection"
 }
 
 func (f *GetDefaultConnectionFunction) GetParams() []data.GetValue {
@@ -201,7 +201,7 @@ func (f *RemoveConnectionFunction) Call(ctx data.Context) (data.GetValue, data.C
 }
 
 func (f *RemoveConnectionFunction) GetName() string {
-	return "database\\removeConnection"
+	return "Database\\removeConnection"
 }
 
 func (f *RemoveConnectionFunction) GetParams() []data.GetValue {
@@ -237,7 +237,7 @@ func (f *ListConnectionsFunction) Call(ctx data.Context) (data.GetValue, data.Co
 }
 
 func (f *ListConnectionsFunction) GetName() string {
-	return "database\\listConnections"
+	return "Database\\listConnections"
 }
 
 func (f *ListConnectionsFunction) GetParams() []data.GetValue {

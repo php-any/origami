@@ -61,5 +61,5 @@ func (d *DbSelectMethod) GetVariables() []data.Variable {
 }
 
 func (d *DbSelectMethod) GetReturnType() data.Types {
-	return data.NewBaseType("database\\DB")
+	return data.NewBaseType("Database\\DB")
 }

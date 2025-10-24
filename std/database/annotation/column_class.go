@@ -33,7 +33,7 @@ func (c *ColumnClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (c *ColumnClass) GetName() string {
-	return "database\\annotation\\Column"
+	return "Database\\Annotation\\Column"
 }
 
 func (c *ColumnClass) GetExtend() *string {
