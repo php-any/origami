@@ -150,6 +150,68 @@ $server->get("/health", ($request, $response) => {
     });
 });
 
+// 定义用户类用于bind示例
+class User {
+    public string $name;
+    public string $email;
+    public int $age;
+}
+
+// 定义文章类用于bind示例
+class Article {
+    public string $title;
+    public string $content;
+    public int $userId;
+}
+
+// 使用bind方法绑定JSON数据到对象
+$server->post("/bind/user", ($request, $response) => {
+    // 使用bind方法将JSON数据绑定到User类
+    $user = $request->bind(User::class);
+    
+    if ($user == null) {
+        $response->writeHeader(400);
+        $response->json({
+            "error": "绑定失败",
+            "message": "无法将请求数据绑定到User对象"
+        });
+        return;
+    }
+    
+    $response->json({
+        "message": "用户数据绑定成功",
+        "user": {
+            "name": $user->name,
+            "email": $user->email,
+            "age": $user->age
+        }
+    });
+});
+
+// 使用bind方法绑定JSON数据到文章对象
+$server->post("/bind/article", ($request, $response) => {
+    // 使用bind方法将JSON数据绑定到Article类
+    $article = $request->bind(Article::class);
+    
+    if ($article == null) {
+        $response->writeHeader(400);
+        $response->json({
+            "error": "绑定失败",
+            "message": "无法将请求数据绑定到Article对象"
+        });
+        return;
+    }
+    
+    $response->json({
+        "message": "文章数据绑定成功",
+        "article": {
+            "title": $article->title,
+            "content": $article->content,
+            "userId": $article->userId
+        }
+    });
+});
+
 // 错误处理示例
 $server->get("/error", ($request, $response) => {
     throw new Exception("test error");
@@ -162,6 +224,8 @@ Log::info("  GET  /user/1 - 获取用户信息");
 Log::info("  POST /user - 创建用户 (需要name和email参数)");
 Log::info("  GET  /search?keyword=test - 搜索功能");
 Log::info("  GET  /health - 健康检查");
+Log::info("  POST /bind/user - 绑定JSON数据到User对象");
+Log::info("  POST /bind/article - 绑定JSON数据到Article对象");
 Log::info("  GET  /error - 错误处理示例");
 
 $server->run();

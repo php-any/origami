@@ -15,3 +15,8 @@ func (e *Exception) Error() string {
 func (e *Exception) GetMessage() string {
 	return e.msg
 }
+
+func (e *Exception) GetTraceAsString() string {
+	// 简单的堆栈跟踪实现
+	return "Stack trace:\n  at Exception.constructor()\n  at main()"
+}

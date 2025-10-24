@@ -53,6 +53,8 @@ func (f *LambdaExpression) Call(ctx data.Context) (data.GetValue, data.Control) 
 			switch rv := ctl.(type) {
 			case data.ReturnControl:
 				return rv.ReturnValue(), nil
+			case data.AddStack:
+				rv.AddStackWithInfo(f.from, "lambda", f.Name)
 			}
 			return nil, ctl
 		}

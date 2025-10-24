@@ -37,7 +37,11 @@ func newMiddleware(v data.FuncStmt, ctx data.Context) (Middleware, error) {
 			mctx.SetVariableValue(data.NewVariable("w", 1, nil), data.NewProxyValue(response, mctx))
 			mctx.SetVariableValue(data.NewVariable("next", 2, nil), nextHandler)
 
-			v.Call(mctx)
+			// 检查中间件是否抛出异常
+			_, acl := v.Call(mctx)
+			if acl != nil {
+				ctx.GetVM().ThrowControl(acl)
+			}
 		})
 	}, nil
 }
@@ -66,7 +70,8 @@ func (f Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	_, acl := f.Value.Call(ctx)
 	if acl != nil {
-		f.Ctx.GetVM().ThrowControl(acl)
+		// 使用panic抛出异常到NextHandler
+		panic(acl)
 	}
 }
 
@@ -75,7 +80,7 @@ type NextHandler struct {
 	next http.Handler
 }
 
-func (f NextHandler) Call(ctx data.Context) (data.GetValue, data.Control) {
+func (f NextHandler) Call(ctx data.Context) (_ data.GetValue, acl data.Control) {
 	request, err := utils.ConvertFromIndex[*http.Request](ctx, 0)
 	if err != nil {
 		return nil, data.NewErrorThrow(nil, err)
@@ -84,9 +89,20 @@ func (f NextHandler) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if err != nil {
 		return nil, data.NewErrorThrow(nil, err)
 	}
+
+	// 使用defer和recover来捕获panic
+	defer func() {
+		if r := recover(); r != nil {
+			var ok bool
+			if acl, ok = r.(data.Control); ok {
+				return
+			}
+		}
+	}()
+
 	f.next.ServeHTTP(response, request)
 
-	return nil, nil
+	return nil, acl
 }
 
 func (f NextHandler) GetName() string {

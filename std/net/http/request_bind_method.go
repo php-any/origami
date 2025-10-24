@@ -50,7 +50,7 @@ func (h *RequestBindMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 							serializer := jsonSerializer.NewJsonSerializer()
 							err = serializer.UnmarshalClass(body, classValue)
 							if err != nil {
-								return data.NewObjectValue(), nil
+								return nil, data.NewErrorThrow(nil, err)
 							}
 							return classValue, nil
 						}
@@ -69,14 +69,14 @@ func (h *RequestBindMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 						// 将表单数据转换为 JSON 字节
 						jsonBytes, err := json.Marshal(formData)
 						if err != nil {
-							return data.NewObjectValue(), nil
+							return nil, data.NewErrorThrow(nil, err)
 						}
 
 						// 使用 JSON 序列化器处理
 						serializer := jsonSerializer.NewJsonSerializer()
 						err = serializer.UnmarshalClass(jsonBytes, classValue)
 						if err != nil {
-							return data.NewObjectValue(), nil
+							return nil, data.NewErrorThrow(nil, err)
 						}
 						return classValue, nil
 					}

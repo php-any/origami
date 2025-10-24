@@ -311,6 +311,12 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 			switch rv := ctl.(type) {
 			case data.ReturnControl:
 				return rv.ReturnValue(), nil
+			case data.AddStack:
+				if c, ok := ctx.(*data.ClassMethodContext); ok {
+					rv.AddStackWithInfo(m.from, c.Class.GetName(), m.GetName())
+				} else {
+					rv.AddStackWithInfo(m.from, "", m.GetName())
+				}
 			}
 			return nil, ctl
 		}
