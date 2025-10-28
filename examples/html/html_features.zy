@@ -5,15 +5,15 @@ $showList = false;
 $userName = "张三";
 $isLoggedIn = false;
 
-ok = () => {
+$ok = () => {
     return false
 }
 
 // 测试Vue风格的if-else-if-else
 $vueStyleResult = <div>
-   <h2 if='ok'>列表显示中</h2>
+   <h2 if='$ok()'>列表显示中</h2>
    <h2 else-if='$userName'>用户已登录</h2>
-   <h2 else='<h2>默认状态</h2>'>其他情况</h2>
+   <h2 else>其他情况</h2>
    
    <p if='$isLoggedIn'>您已登录</p>
    <p else>未登录状态</p>

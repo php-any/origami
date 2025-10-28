@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -23,34 +24,17 @@ func (h *HtmlIfAttributeParser) Parser(name string, parser *Parser) (node.HtmlAt
 	parser.next()
 
 	// 解析属性值
-	var attrValue data.GetValue
-	if parser.checkPositionIs(0, token.STRING) {
-		// 字符串值
-		value := parser.current().Literal
-		parser.next()
-		attrValue = node.NewStringLiteral(tracker.EndBefore(), value)
-	} else {
-		// 其他类型的值，尝试解析为表达式
-		exprParser := NewExpressionParser(parser)
-		var acl data.Control
-		attrValue, acl = exprParser.Parse()
-		if acl != nil {
-			return nil, acl
-		}
+	codes := parser.current().Literal
+	codes = strings.Trim(codes, "\"")
+	codes = strings.Trim(codes, "'")
+	parser.next()
+
+	condition, acl := parser.ParseExpressionFromString(codes)
+	if acl != nil {
+		return nil, acl
 	}
 
-	// 检查if属性是否是字符串字面量
-	if strLiteral, ok := attrValue.(*node.StringLiteral); ok {
-		// 如果是字符串，尝试解析为表达式
-		condition, acl := parser.ParseExpressionFromString(strLiteral.Value)
-		if acl != nil {
-			return nil, acl
-		}
-		return node.NewAttrIfValue(tracker.EndBefore(), condition), nil
-	} else {
-		// 如果不是字符串，直接使用
-		return node.NewAttrIfValue(tracker.EndBefore(), attrValue), nil
-	}
+	return node.NewAttrIfValue(tracker.EndBefore(), condition), nil
 }
 
 // HtmlElseIfAttributeParser 专门处理else-if属性的解析器
