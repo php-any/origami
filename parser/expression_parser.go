@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -291,6 +292,29 @@ func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 		if ep.checkPositionIs(0, token.LT) && ep.checkPositionIs(1, token.IDENTIFIER) {
 			// <html
 			return NewHtmlParser(ep.Parser).Parse()
+		} else if ep.checkPositionIs(0, token.LT) && ep.checkPositionIs(1, token.NOT) && ep.checkPositionIs(2, token.IDENTIFIER) && strings.EqualFold(ep.peek(2).Literal, "DOCTYPE") {
+			// 仅处理 <!DOCTYPE ...>，直接按原样输出
+			result := ""
+			prev := ep.current()
+			result += prev.Literal
+			ep.next()
+			for !ep.isEOF() && ep.current().Type != token.GT {
+				cur := ep.current()
+				if !ep.isTokensAdjacent(prev, cur) {
+					result += " "
+				}
+				result += cur.Literal
+				prev = cur
+				ep.next()
+			}
+			if ep.current().Type == token.GT {
+				if !ep.isTokensAdjacent(prev, ep.current()) {
+					result += " "
+				}
+				result += ep.current().Literal
+				ep.next()
+			}
+			return node.NewStringLiteral(tracker.EndBefore(), result), nil
 		} else {
 			return nil, data.NewErrorThrow(ep.newFrom(), errors.New("比较表达式左值不存在"))
 		}

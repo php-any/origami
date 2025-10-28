@@ -260,6 +260,8 @@ func (h *HtmlParser) processIfElseChain(children []data.GetValue) ([]data.GetVal
 				currentIfNode = nil
 				result = append(result, child)
 			}
+		} else {
+			result = append(result, child)
 		}
 	}
 
@@ -300,6 +302,27 @@ func (h *HtmlParser) isValidConditionNode(ifNode *node.HtmlNode) (*node.HtmlIfNo
 func (h *HtmlParser) parseHtmlChild() (data.GetValue, data.Control) {
 	if h.current().Type == token.LT {
 		// 可能是HTML标签
+		// 处理 <!-- 注释 -->，直到遇到 --> 才结束，避免被注释内的 > 提前终止
+		if h.checkPositionIs(1, token.NOT) && h.checkPositionIs(2, token.DECR) {
+			tracker := h.StartTracking()
+			// 跳过 < ! - -
+			h.nextAndCheck(token.LT)
+			h.nextAndCheck(token.NOT)
+			h.nextAndCheck(token.DECR)
+			// 扫描直到 -- >
+			str := "<!--"
+			for !h.isEOF() {
+				if h.checkPositionIs(0, token.DECR) && h.checkPositionIs(1, token.GT) {
+					h.nextAndCheck(token.DECR)
+					h.nextAndCheck(token.GT)
+					break
+				}
+				str += h.current().Literal
+				h.next()
+			}
+			// 注释不输出内容，但返回一个空字符串字面量，保持节点类型一致
+			return node.NewStringLiteral(tracker.EndBefore(), str+"-->"), nil
+		}
 		if h.checkPositionIs(1, token.IDENTIFIER) {
 			// 解析单个HTML标签（包括开始标签、属性和结束标签）
 			return h.parseSingleHtmlTag()
