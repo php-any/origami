@@ -4,7 +4,6 @@ $items = ["苹果", "香蕉", "橙子"];
 $showList = false;
 $userName = "张三";
 $isLoggedIn = false;
-
 $ok = () => {
     return false
 }
@@ -18,7 +17,7 @@ $vueStyleResult = <div>
    <p if='$isLoggedIn'>您已登录</p>
    <p else>未登录状态</p>
 
-   <div for="$item in $items">{$item}</div>
+   <div for="$item in $items">循环打印 {$item}</div>
 </div>;
 echo "Vue风格If-Else-If-Else测试:\n";
 echo $vueStyleResult . "\n\n";

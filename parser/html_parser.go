@@ -415,12 +415,10 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 	var textParts []data.GetValue
 	initialPos := h.GetStart()
-	lastEnd := -1
 	currentText := ""
 
 	for !h.isEOF() && h.current().Type != token.LT {
-		curStart := h.GetStart()
-		if lastEnd != -1 && curStart > lastEnd {
+		if h.position > 1 && h.current().Start != h.peek(-1).End {
 			// token 之间有间隔，补空格
 			currentText += " "
 		}
@@ -463,8 +461,6 @@ func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 			currentText += h.current().Literal
 			h.next()
 		}
-
-		lastEnd = h.current().End
 
 		// 防止无限循环：检查位置是否变化
 		if h.GetStart() == initialPos {
