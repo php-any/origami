@@ -56,7 +56,7 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 		// 检查是否有等号
 		if h.current().Type != token.ASSIGN {
 			// 没有值的属性，如 disabled
-			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), data.NewBoolValue(true))
+			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), attrName, data.NewBoolValue(true))
 			continue
 		}
 
@@ -81,7 +81,7 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 				// 其他类型的值，尝试解析为表达式或直接作为字符串
 				attrValue = h.parseAttributeValue()
 			}
-			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), attrValue)
+			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), attrName, attrValue)
 		}
 	}
 
@@ -432,7 +432,7 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 		// 检查是否有等号
 		if h.current().Type != token.ASSIGN {
 			// 没有值的属性，如 disabled
-			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), data.NewBoolValue(true))
+			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), attrName, data.NewBoolValue(true))
 			continue
 		}
 
@@ -457,7 +457,7 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 				// 其他类型的值，尝试解析为表达式或直接作为字符串
 				attrValue = h.parseAttributeValue()
 			}
-			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), attrValue)
+			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), attrName, attrValue)
 		}
 	}
 

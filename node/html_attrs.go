@@ -14,15 +14,17 @@ type HtmlAttributeValue interface {
 
 // AttrValueAdapter 适配器，将data.GetValue转换为HtmlAttributeValue
 type AttrValueAdapter struct {
-	*Node `pp:"-"`
-	Value data.GetValue
+	*Node     `pp:"-"`
+	attrName  string
+	attrValue data.GetValue
 }
 
 // NewAttrValueAdapter 创建一个新的属性值适配器
-func NewAttrValueAdapter(from data.From, value data.GetValue) *AttrValueAdapter {
+func NewAttrValueAdapter(from data.From, attrName string, value data.GetValue) *AttrValueAdapter {
 	return &AttrValueAdapter{
-		Node:  NewNode(from),
-		Value: value,
+		Node:      NewNode(from),
+		attrName:  attrName,
+		attrValue: value,
 	}
 }
 
@@ -34,7 +36,7 @@ func (a *AttrValueAdapter) ProcessHtml(ctx data.Context, htmlNode *HtmlNode) (bo
 
 // GetValue 获取原始值
 func (a *AttrValueAdapter) GetValue() data.GetValue {
-	return a.Value
+	return a.attrValue
 }
 
 // AttrForValue 表示for循环属性值

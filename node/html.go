@@ -39,16 +39,15 @@ func (h *HtmlNode) generateHtml(ctx data.Context) string {
 	var forValue *AttrForValue
 	var ifValue *AttrIfValue
 
-	// 处理特殊属性
-	for name, value := range h.Attributes {
-		if name == "for" {
-			if forAttr, ok := value.(*AttrForValue); ok {
-				forValue = forAttr
-			}
-		} else if name == "if" || name == "else-if" || name == "else" {
-			if ifAttr, ok := value.(*AttrIfValue); ok {
-				ifValue = ifAttr
-			}
+	// 处理特殊属性（按类型判断，避免硬编码属性名）
+	for _, value := range h.Attributes {
+		if forAttr, ok := value.(*AttrForValue); ok {
+			forValue = forAttr
+			continue
+		}
+		if ifAttr, ok := value.(*AttrIfValue); ok {
+			ifValue = ifAttr
+			continue
 		}
 	}
 
@@ -79,29 +78,29 @@ func (h *HtmlNode) generateNormalHtml(ctx data.Context) string {
 	// 开始标签
 	html := "<" + h.TagName
 
-	// 添加普通属性（排除特殊属性）
+	// 添加普通属性（排除特殊属性，按类型跳过）
 	for name, value := range h.Attributes {
-		// 跳过特殊属性
-		if name == "for" || name == "if" || name == "else-if" || name == "else" {
+		// 跳过 for / if 系列特殊属性
+		if _, ok := value.(*AttrForValue); ok {
+			continue
+		}
+		if _, ok := value.(*AttrIfValue); ok {
 			continue
 		}
 
-		// 处理普通属性值（实现data.GetValue接口的）
-		if attrValue, ok := value.(data.GetValue); ok {
-			attrResult, ctl := attrValue.GetValue(ctx)
-			if ctl != nil {
-				continue
-			}
+		attrResult, ctl := value.GetValue().GetValue(ctx)
+		if ctl != nil {
+			continue
+		}
 
-			if strValue, ok := attrResult.(data.AsString); ok {
-				html += fmt.Sprintf(` %s="%s"`, name, strValue.AsString())
-			} else if boolValue, ok := attrResult.(data.AsBool); ok {
-				if boolVal, err := boolValue.AsBool(); err == nil && boolVal {
-					html += fmt.Sprintf(` %s`, name)
-				}
-			} else {
-				html += fmt.Sprintf(` %s="%v"`, name, attrResult)
+		if strValue, ok := attrResult.(data.AsString); ok {
+			html += fmt.Sprintf(` %s="%s"`, name, strValue.AsString())
+		} else if boolValue, ok := attrResult.(data.AsBool); ok {
+			if boolVal, err := boolValue.AsBool(); err == nil && boolVal {
+				html += fmt.Sprintf(` %s`, name)
 			}
+		} else {
+			html += fmt.Sprintf(` %s="%v"`, name, attrResult)
 		}
 	}
 
