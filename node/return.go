@@ -4,7 +4,7 @@ import "github.com/php-any/origami/data"
 
 func (u *ReturnStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	if u.Value == nil {
-		return data.NewNullValue(), nil
+		return nil, data.NewReturnControl(data.NewNullValue())
 	}
 	v, ctl := u.Value.GetValue(ctx)
 	if ctl != nil {

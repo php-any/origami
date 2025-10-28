@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script type="text/zy">
+        $users = [
+            {
+                name: "John",
+                age: 20,
+                email: "john@example.com"
+            },
+            {
+                name: "Jane",
+                age: 22,
+                email: "jane@example.com"
+            }
+        ];
+
+    </script>
+</head>
+
+<body>
+    <div for="$user in $users">
+        <h1>用户名称 {$user->name}</h1>
+        <p>年龄 {$user->age}</p>
+        <p>邮件 {$user->email}</p>
+    </div>
+</body>
+
+</html>

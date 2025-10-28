@@ -293,28 +293,64 @@ func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 			// <html
 			return NewHtmlParser(ep.Parser).Parse()
 		} else if ep.checkPositionIs(0, token.LT) && ep.checkPositionIs(1, token.NOT) && ep.checkPositionIs(2, token.IDENTIFIER) && strings.EqualFold(ep.peek(2).Literal, "DOCTYPE") {
-			// 仅处理 <!DOCTYPE ...>，直接按原样输出
-			result := ""
-			prev := ep.current()
-			result += prev.Literal
-			ep.next()
+			// 解析 <!DOCTYPE ...>，并将后续所有节点绑定为其子节点
+			// 跳过 < ! DOCTYPE
+			ep.next() // <
+			ep.next() // !
+			ep.next() // DOCTYPE
+
+			// 收集 doctype 内容直到 '>'
+			doc := ""
 			for !ep.isEOF() && ep.current().Type != token.GT {
-				cur := ep.current()
-				if !ep.isTokensAdjacent(prev, cur) {
-					result += " "
+				if doc != "" {
+					doc += " "
 				}
-				result += cur.Literal
-				prev = cur
+				doc += ep.current().Literal
 				ep.next()
 			}
 			if ep.current().Type == token.GT {
-				if !ep.isTokensAdjacent(prev, ep.current()) {
-					result += " "
-				}
-				result += ep.current().Literal
 				ep.next()
 			}
-			return node.NewStringLiteral(tracker.EndBefore(), result), nil
+			doc = strings.TrimSpace(doc)
+			if doc == "" {
+				doc = "html"
+			}
+
+			// 收集剩余所有子节点
+			var children []data.GetValue
+			for !ep.isEOF() {
+				if ep.checkPositionIs(0, token.LT) && ep.checkPositionIs(1, token.IDENTIFIER) {
+					child, acl := NewHtmlParser(ep.Parser).Parse()
+					if acl != nil {
+						return nil, acl
+					}
+					if child != nil {
+						children = append(children, child)
+					}
+					continue
+				}
+				if ep.current().Type == token.LT && ep.checkPositionIs(1, token.QUO) {
+					// 顶层不期望结束标签，跳出
+					break
+				}
+				// 收集文本直到下一个 '<'
+				text := ""
+				prev := ep.current()
+				for !ep.isEOF() && ep.current().Type != token.LT {
+					cur := ep.current()
+					if !ep.isTokensAdjacent(prev, cur) && text != "" {
+						text += " "
+					}
+					text += cur.Literal
+					prev = cur
+					ep.next()
+				}
+				if strings.TrimSpace(text) != "" {
+					children = append(children, node.NewStringLiteral(tracker.EndBefore(), strings.TrimSpace(text)))
+				}
+			}
+
+			return node.NewHtmlDocTypeNode(tracker.EndBefore(), doc, children), nil
 		} else {
 			return nil, data.NewErrorThrow(ep.newFrom(), errors.New("比较表达式左值不存在"))
 		}

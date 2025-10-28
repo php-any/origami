@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -12,6 +13,16 @@ type HtmlParser struct {
 	*Parser
 	// 属性解析器映射
 	attributeParsers map[string]ParseAttribute
+}
+
+// isVoidHtmlTag 判断是否为无需闭合的 HTML 空元素标签
+func isVoidHtmlTag(tag string) bool {
+	switch strings.ToLower(tag) {
+	case "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr":
+		return true
+	default:
+		return false
+	}
 }
 
 func (h *HtmlParser) Parse() (data.GetValue, data.Control) {
@@ -84,9 +95,42 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 			return nil, data.NewErrorThrow(h.newFrom(), errors.New("自闭合标签格式错误"))
 		}
 	} else if h.checkPositionIs(0, token.GT) {
+		// 普通开始标签闭合 '>'
 		h.next()
 	} else {
 		return nil, data.NewErrorThrow(h.newFrom(), errors.New("HTML标签格式错误"))
+	}
+
+	// 提前处理 <script type="text/zy">：一次性读取到 </script>
+	if strings.EqualFold(tagName, "script") {
+		if attr, ok := attributes["type"]; ok {
+			if v := attr.GetValue(); v != nil {
+				if lit, ok := v.(*node.StringLiteral); ok && strings.EqualFold(lit.Value, "text/zy") {
+					// 累积原始文本直到遇到 </script>
+					src := ""
+					for !h.isEOF() {
+						if h.current().Type == token.LT && h.checkPositionIs(1, token.QUO) && h.checkPositionIs(2, token.IDENTIFIER) && strings.EqualFold(h.peek(2).Literal, tagName) {
+							// 消费结束标签 </script>
+							h.next() // <
+							h.next() // /
+							h.next() // script
+							if h.checkPositionIs(0, token.GT) {
+								h.next()
+							}
+							break
+						}
+						src += h.current().Literal
+						h.next()
+					}
+					// 编译脚本为 Program
+					prog, acl := h.Parser.ParseString(src, "<script text/zy>")
+					if acl != nil {
+						return nil, acl
+					}
+					return node.NewScriptZyNode(tracker.EndBefore(), prog), nil
+				}
+			}
+		}
 	}
 
 	children := make([]data.GetValue, 0)
@@ -105,6 +149,30 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 	}
 
 	from := tracker.EndBefore()
+
+	// 特殊处理 <script type="text/zy">
+	if strings.EqualFold(tagName, "script") {
+		// 检查 type 属性是否为 text/zy
+		if attr, ok := attributes["type"]; ok {
+			if v := attr.GetValue(); v != nil {
+				if lit, ok := v.(*node.StringLiteral); ok && strings.EqualFold(lit.Value, "text/zy") {
+					// 将子节点文本拼接为脚本源
+					source := ""
+					for _, child := range children {
+						if lit, ok := child.(*node.StringLiteral); ok {
+							source += lit.Value
+						}
+					}
+					// 编译脚本为 Program
+					prog, acl := h.Parser.ParseString(source, "<script text/zy>")
+					if acl != nil {
+						return nil, acl
+					}
+					return node.NewScriptZyNode(from, prog), nil
+				}
+			}
+		}
+	}
 
 	// 直接创建HTML节点，所有属性都已经在ParseAttribute中处理了
 	return node.NewHtmlNode(
@@ -302,6 +370,7 @@ func (h *HtmlParser) isValidConditionNode(ifNode *node.HtmlNode) (*node.HtmlIfNo
 func (h *HtmlParser) parseHtmlChild() (data.GetValue, data.Control) {
 	if h.current().Type == token.LT {
 		// 可能是HTML标签
+		// DOCTYPE 的解析移动到 ExpressionParser.parseComparison()
 		// 处理 <!-- 注释 -->，直到遇到 --> 才结束，避免被注释内的 > 提前终止
 		if h.checkPositionIs(1, token.NOT) && h.checkPositionIs(2, token.DECR) {
 			tracker := h.StartTracking()
@@ -393,6 +462,20 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 	}
 
 	isSelfClosing := false
+	// void 标签无需显式自闭合，直接消费 '>' 并返回
+	if isVoidHtmlTag(tagName) {
+		if h.checkPositionIs(0, token.GT) {
+			h.next()
+		}
+		from := tracker.EndBefore()
+		return node.NewHtmlNode(
+			from,
+			tagName,
+			attributes,
+			nil,
+			true,
+		), nil
+	}
 	if h.checkPositionIs(0, token.QUO) {
 		h.next()
 		if h.checkPositionIs(0, token.GT) {
@@ -402,9 +485,43 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 			return nil, data.NewErrorThrow(h.newFrom(), errors.New("自闭合标签格式错误"))
 		}
 	} else if h.checkPositionIs(0, token.GT) {
+		// 普通开始标签闭合 '>'
 		h.next()
 	} else {
 		return nil, data.NewErrorThrow(h.newFrom(), errors.New("HTML标签格式错误"))
+	}
+
+	// 在进入子节点解析之前，优先处理 <script type="text/zy">：一次性读取源码到 </script>
+	if !isSelfClosing && strings.EqualFold(tagName, "script") {
+		if attr, ok := attributes["type"]; ok {
+			if v := attr.GetValue(); v != nil {
+				if lit, ok := v.(*node.StringLiteral); ok && strings.EqualFold(lit.Value, "text/zy") {
+					// 累积原始文本直到遇到 </script>
+					src := ""
+					for !h.isEOF() {
+						if h.current().Type == token.LT && h.checkPositionIs(1, token.QUO) && h.checkPositionIs(2, token.IDENTIFIER) && strings.EqualFold(h.peek(2).Literal, tagName) {
+							// 消费结束标签 </script>
+							h.next() // <
+							h.next() // /
+							h.next() // script
+							if h.checkPositionIs(0, token.GT) {
+								h.next()
+							}
+							break
+						}
+						src += h.current().Literal
+						h.next()
+					}
+
+					// 编译脚本为 Program 并返回 ScriptZyNode
+					prog, acl := h.Parser.ParseString(src, "<script text/zy>")
+					if acl != nil {
+						return nil, acl
+					}
+					return node.NewScriptZyNode(tracker.EndBefore(), prog), nil
+				}
+			}
+		}
 	}
 
 	children := make([]data.GetValue, 0)

@@ -154,6 +154,57 @@ func (h *HtmlNode) IsSelfClosingTag() bool {
 	return h.IsSelfClosing
 }
 
+// HtmlDocTypeNode 表示 HTML 文档类型节点，作为整份文档的根容器
+type HtmlDocTypeNode struct {
+	*Node    `pp:"-"`
+	DocType  string
+	Children []data.GetValue
+}
+
+func NewHtmlDocTypeNode(from data.From, docType string, children []data.GetValue) *HtmlDocTypeNode {
+	return &HtmlDocTypeNode{
+		Node:     NewNode(from),
+		DocType:  docType,
+		Children: children,
+	}
+}
+
+func (d *HtmlDocTypeNode) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	html := "<!DOCTYPE " + d.DocType + ">"
+	for _, child := range d.Children {
+		v, ctl := child.GetValue(ctx)
+		if ctl != nil {
+			continue
+		}
+		if s, ok := v.(data.AsString); ok {
+			html += s.AsString()
+		} else if n, ok := v.(*HtmlNode); ok {
+			html += n.generateHtml(ctx)
+		} else {
+			html += fmt.Sprintf("%v", v)
+		}
+	}
+	return data.NewStringValue(html), nil
+}
+
+// ScriptZyNode 表示 <script type="text/zy"> 脚本节点
+type ScriptZyNode struct {
+	*Node   `pp:"-"`
+	Program *Program
+}
+
+func NewScriptZyNode(from data.From, program *Program) *ScriptZyNode {
+	return &ScriptZyNode{Node: NewNode(from), Program: program}
+}
+
+func (s *ScriptZyNode) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if s.Program != nil {
+		// 执行脚本程序（内部会通过 VM ThrowControl 处理控制流）
+		_ = s.Program.GetValue(ctx)
+	}
+	return data.NewStringValue(""), nil
+}
+
 // HtmlForNode 表示HTML for循环节点
 type HtmlForNode struct {
 	*Node    `pp:"-"`

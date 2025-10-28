@@ -3,10 +3,13 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/runtime"
 	"github.com/php-any/origami/std"
+	"github.com/php-any/origami/std/net/http"
 	"github.com/php-any/origami/std/php"
 	"github.com/php-any/origami/std/system"
 )
@@ -21,23 +24,26 @@ func main() {
 	vm := runtime.NewVM(p)
 	std.Load(vm)
 	php.Load(vm)
+	http.Load(vm)
 	system.Load(vm)
 
-	fmt.Println("Origami HTML解析器示例")
-	fmt.Println("按 Ctrl+C 停止程序")
-	fmt.Println()
+	// 设置信号处理
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// 获取要执行的文件名
-	filename := "html_features.zy"
-	if len(os.Args) > 1 {
-		filename = os.Args[1]
-	}
-
-	_, err := vm.LoadAndRun(filename)
-	if err != nil {
-		fmt.Printf("错误: %v\n", err)
-		if !parser.InLSP {
-			panic(err)
+	// 在 goroutine 中运行脚本
+	go func() {
+		_, err := vm.LoadAndRun("http.zy")
+		if err != nil {
+			fmt.Printf("错误: %v\n", err)
+			if !parser.InLSP {
+				panic(err)
+			}
 		}
-	}
+	}()
+
+	fmt.Println("Origami HTML Web 示例 (pages 自动加载)")
+	fmt.Println("按 Ctrl+C 停止服务器")
+	<-sigChan
+	fmt.Println("\n收到停止信号，正在关闭服务器...")
 }

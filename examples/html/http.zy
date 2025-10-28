@@ -1,0 +1,72 @@
+namespace App;
+
+$server = new Net\Http\Server("0.0.0.0", port: 8080);
+
+// 简单的日志中间件
+$server->middleware(($request, $response, $next) => {
+    $method = $request->method();
+    $path = $request->path();
+    Log::info("HTTP " + $method + " " + $path);
+    $next($request, $response);
+});
+
+// 通用处理: 根据 URL 路径映射到 pages 目录
+$server->get("/{path...}", ($request, $response) => {
+    $path = $request->path();
+
+    // 规范化路径，默认 / => /index.html
+    if ($path == "/") {
+        $path = "/index.html";
+    }
+
+    // 去除前导斜杠
+    if ($path->startsWith("/")) {
+        $path = $path->substring(1);
+    }
+
+    $base = "./pages";
+    $full = $base + "/" + $path;
+
+    // 如果是 HTML，使用 include 解析并输出
+    if ($full->endsWith(".html") || $full->endsWith(".htm")) {
+        // 如果直接路径不存在，尝试目录的 index.html
+        $html = include($full);
+        if ($html == null || $html == "") {
+            $full = $full + "/index.html";
+            $html = include($full);
+        }
+        $response->header("Content-Type", "text/html; charset=utf-8");
+        $response->write($html);
+        return;
+    }
+
+    // 静态资源：读取文件（如果直接路径读不到，再尝试目录下的 index.html）
+    $content = file_get_contents($full);
+    if ($content == "") {
+        $full = $full + "/index.html";
+        $content = file_get_contents($full);
+    }
+    if ($content == "") {
+        $response->writeHeader(404);
+        $response->header("Content-Type", "text/plain; charset=utf-8");
+        $response->write("Not Found");
+        return;
+    }
+
+    // 简单按后缀设置类型
+    $ctype = "text/html; charset=utf-8";
+    if ($full->endsWith(".css")) { $ctype = "text/css; charset=utf-8"; }
+    if ($full->endsWith(".js")) { $ctype = "application/javascript; charset=utf-8"; }
+    if ($full->endsWith(".json")) { $ctype = "application/json; charset=utf-8"; }
+    if ($full->endsWith(".png")) { $ctype = "image/png"; }
+    if ($full->endsWith(".jpg") || $full->endsWith(".jpeg")) { $ctype = "image/jpeg"; }
+    if ($full->endsWith(".gif")) { $ctype = "image/gif"; }
+    if ($full->endsWith(".svg")) { $ctype = "image/svg+xml"; }
+
+    $response->header("Content-Type", $ctype);
+    $response->write($content);
+});
+
+Log::info("HTML 服务启动在: http://127.0.0.1:8080");
+$server->run();
+
