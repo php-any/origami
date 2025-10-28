@@ -2,14 +2,16 @@ package parser
 
 import (
 	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
-	"strings"
 )
 
 type HtmlParser struct {
 	*Parser
+	// 属性解析器映射
+	attributeParsers map[string]ParseAttribute
 }
 
 func (h *HtmlParser) Parse() (data.GetValue, data.Control) {
@@ -21,7 +23,7 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 	tracker := h.StartTracking()
 
 	// 跳过开始的 < 符号
-	if h.current().Type == token.LT {
+	if h.checkPositionIs(0, token.LT) {
 		h.next()
 	}
 
@@ -32,27 +34,56 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 	}
 
 	// 解析属性
-	attributes := make(map[string]data.GetValue)
+	attributes := make(map[string]node.HtmlAttributeValue)
 	for !h.isEOF() && h.current().Type != token.GT && h.current().Type != token.QUO {
-		attrName, attrValue, acl := h.parseAttribute()
-		if acl != nil {
-			return nil, acl
+		// 只解析属性名称
+		attrName := h.parseAttributeName()
+		if attrName == "" {
+			continue
 		}
-		if attrName != "" {
+
+		// 检查是否有等号
+		if h.current().Type != token.ASSIGN {
+			// 没有值的属性，如 disabled
+			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), data.NewBoolValue(true))
+			continue
+		}
+
+		// 检查是否有专门的属性解析器
+		if parser, exists := h.attributeParsers[attrName]; exists {
+			// 使用专门的属性解析器
+			attrValue, acl := parser.Parser(attrName, h.Parser)
+			if acl != nil {
+				return nil, acl
+			}
 			attributes[attrName] = attrValue
+		} else {
+			// 对于普通属性，使用默认解析
+			h.next()
+			var attrValue data.GetValue
+			if h.checkPositionIs(0, token.STRING) {
+				// 字符串值
+				value := h.current().Literal
+				h.next()
+				attrValue = node.NewStringLiteral(h.FromCurrentToken(), value)
+			} else {
+				// 其他类型的值，尝试解析为表达式或直接作为字符串
+				attrValue = h.parseAttributeValue()
+			}
+			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), attrValue)
 		}
 	}
 
 	isSelfClosing := false
-	if h.current().Type == token.QUO {
+	if h.checkPositionIs(0, token.QUO) {
 		h.next()
-		if h.current().Type == token.GT {
+		if h.checkPositionIs(0, token.GT) {
 			isSelfClosing = true
 			h.next()
 		} else {
 			return nil, data.NewErrorThrow(h.newFrom(), errors.New("自闭合标签格式错误"))
 		}
-	} else if h.current().Type == token.GT {
+	} else if h.checkPositionIs(0, token.GT) {
 		h.next()
 	} else {
 		return nil, data.NewErrorThrow(h.newFrom(), errors.New("HTML标签格式错误"))
@@ -74,11 +105,8 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 	}
 
 	from := tracker.EndBefore()
-	if attr, ok := attributes["for"]; ok {
-		// 解析for属性，创建HtmlForNode
-		return h.createHtmlForNode(from, tagName, attributes, children, isSelfClosing, attr)
-	}
 
+	// 直接创建HTML节点，所有属性都已经在ParseAttribute中处理了
 	return node.NewHtmlNode(
 		from,
 		tagName,
@@ -88,52 +116,39 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 	), nil
 }
 
-// parseAttribute 解析HTML属性
-func (h *HtmlParser) parseAttribute() (string, data.GetValue, data.Control) {
-	// 解析属性名
-	attrName := h.parseAttributeName()
-	if attrName == "" {
-		return "", nil, nil
-	}
-
-	// 检查是否有等号
-	if h.current().Type != token.ASSIGN {
-		// 没有值的属性，如 disabled
-		return attrName, data.NewBoolValue(true), nil
-	}
-	h.next()
-
-	// 解析属性值
-	var attrValue data.GetValue
-	if h.current().Type == token.STRING {
-		// 字符串值
-		value := h.current().Literal
-		h.next()
-		attrValue = node.NewStringLiteral(h.FromCurrentToken(), value)
-	} else {
-		// 其他类型的值，尝试解析为表达式或直接作为字符串
-		attrValue = h.parseAttributeValue()
-	}
-
-	return attrName, attrValue, nil
-}
-
 // parseAttributeName 解析属性名
 func (h *HtmlParser) parseAttributeName() string {
-	// 直接使用当前token的Literal作为属性名
+	// 收集属性名，支持连字符
+	var name string
+
 	if !h.isEOF() {
-		name := h.current().Literal
+		// 添加第一个标识符
+		name = h.current().Literal
 		h.next()
-		return name
+
+		// 检查是否有连字符，如果有则继续收集
+		for !h.isEOF() && h.checkPositionIs(0, token.SUB) {
+			name += "-"
+			h.next()
+
+			// 添加连字符后的标识符（包括关键字）
+			if !h.isEOF() && h.checkPositionIs(0, token.IDENTIFIER, token.IF, token.ELSE) {
+				name += h.current().Literal
+				h.next()
+			} else {
+				// 如果连字符后没有标识符，停止收集
+				break
+			}
+		}
 	}
 
-	return ""
+	return name
 }
 
 // parseAttributeValue 解析属性值
 func (h *HtmlParser) parseAttributeValue() data.GetValue {
 	// 如果是标识符，直接作为字符串处理
-	if h.current().Type == token.IDENTIFIER {
+	if h.checkPositionIs(0, token.IDENTIFIER) {
 		value := h.current().Literal
 		h.next()
 		return node.NewStringLiteral(h.FromCurrentToken(), value)
@@ -184,6 +199,11 @@ func (h *HtmlParser) parseHtmlChildren() ([]data.GetValue, data.Control) {
 			return nil, acl
 		}
 		if child != nil {
+			if line, ok := child.(*node.StringLiteral); ok {
+				if line.Value == "\n" {
+					continue
+				}
+			}
 			children = append(children, child)
 		}
 
@@ -193,7 +213,87 @@ func (h *HtmlParser) parseHtmlChildren() ([]data.GetValue, data.Control) {
 		}
 	}
 
+	// 处理if-else-if-else链式连接
+	var acl data.Control
+	children, acl = h.processIfElseChain(children)
+	if acl != nil {
+		return nil, acl
+	}
+
 	return children, nil
+}
+
+// processIfElseChain 处理if-else-if-else链式连接
+func (h *HtmlParser) processIfElseChain(children []data.GetValue) ([]data.GetValue, data.Control) {
+	var result []data.GetValue
+	var currentIfNode *node.HtmlIfNode
+	if len(children) <= 1 {
+		return children, nil
+	}
+
+	for _, child := range children {
+		if ifNode, ok := child.(*node.HtmlNode); ok {
+			// 检查是否是有效的条件节点
+			ifNode, ok := h.isValidConditionNode(ifNode)
+			if ok {
+				if currentIfNode == nil {
+					// 第一个节点必须是if节点
+					if ifNode.Type == node.HtmlIfTypeIf {
+						currentIfNode = ifNode
+						result = append(result, currentIfNode)
+					} else {
+						// else-if或else节点不能作为第一个节点，返回错误
+						return nil, data.NewErrorThrow(h.newFrom(), errors.New("else-if或else节点不能作为第一个节点"))
+					}
+				} else {
+					// 开始新链
+					if ifNode.Type == node.HtmlIfTypeIf {
+						currentIfNode = ifNode
+						result = append(result, currentIfNode)
+					} else {
+						currentIfNode.SetNextNode(ifNode)
+						currentIfNode = ifNode
+					}
+				}
+			} else {
+				// 无效的条件节点，添加到结果中
+				currentIfNode = nil
+				result = append(result, child)
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// canConnectToPrevious 检查是否可以连接到前一个节点
+func (h *HtmlParser) canConnectToPrevious(prev *node.HtmlIfNode, current *node.HtmlIfNode) bool {
+	// 前一个节点必须是if或else-if
+	if prev.Type != node.HtmlIfTypeIf && prev.Type != node.HtmlIfTypeElseIf {
+		return false
+	}
+
+	// 当前节点必须是else-if或else
+	if current.Type != node.HtmlIfTypeElseIf && current.Type != node.HtmlIfTypeElse {
+		return false
+	}
+
+	return true
+}
+
+// isValidConditionNode 检查是否是有效的条件节点
+func (h *HtmlParser) isValidConditionNode(ifNode *node.HtmlNode) (*node.HtmlIfNode, bool) {
+	// 检查节点类型
+	if con, ok := ifNode.Attributes[IfAttributeName]; ok {
+		return node.NewHtmlIfNode(node.HtmlIfTypeIf, con.(*node.AttrIfValue), ifNode), true
+	}
+	if con, ok := ifNode.Attributes[ElseIfAttributeName]; ok {
+		return node.NewHtmlIfNode(node.HtmlIfTypeElseIf, con.(*node.AttrIfValue), ifNode), true
+	}
+	if _, ok := ifNode.Attributes[ElseAttributeName]; ok {
+		return node.NewHtmlIfNode(node.HtmlIfTypeElse, nil, ifNode), true
+	}
+	return nil, false
 }
 
 // parseHtmlChild 解析HTML子节点
@@ -201,8 +301,8 @@ func (h *HtmlParser) parseHtmlChild() (data.GetValue, data.Control) {
 	if h.current().Type == token.LT {
 		// 可能是HTML标签
 		if h.checkPositionIs(1, token.IDENTIFIER) {
-			// 直接在这里解析子标签，避免递归调用
-			return h.parseHtmlContent()
+			// 解析单个HTML标签（包括开始标签、属性和结束标签）
+			return h.parseSingleHtmlTag()
 		} else if h.checkPositionIs(1, token.QUO) {
 			// 结束标签，停止解析
 			return nil, nil
@@ -213,66 +313,102 @@ func (h *HtmlParser) parseHtmlChild() (data.GetValue, data.Control) {
 	return h.parseHtmlText()
 }
 
-// parseSubHtmlChildren 解析子HTML内容（避免递归）
-func (h *HtmlParser) parseSubHtmlChildren() ([]data.GetValue, data.Control) {
-	var children []data.GetValue
+// parseSingleHtmlTag 解析单个HTML标签（包括开始标签、属性和结束标签）
+func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
+	tracker := h.StartTracking()
 
-	for !h.isEOF() {
-		// 检查是否是结束标签
-		if h.current().Type == token.LT && h.checkPositionIs(1, token.QUO) {
-			break
-		}
-
-		// 解析子节点
-		child, acl := h.parseSubHtmlChild()
-		if acl != nil {
-			return nil, acl
-		}
-		if child != nil {
-			children = append(children, child)
-		}
-
-		// 防止无限循环：确保token位置有变化
-		if h.isEOF() {
-			break
-		}
-	}
-
-	return children, nil
-}
-
-// parseSubHtmlChild 解析子HTML节点（避免递归）
-func (h *HtmlParser) parseSubHtmlChild() (data.GetValue, data.Control) {
-	if h.current().Type == token.LT {
-		// 可能是HTML标签
-		if h.checkPositionIs(1, token.IDENTIFIER) {
-			// 递归调用，但限制深度
-			return h.parseHtmlContent()
-		} else if h.checkPositionIs(1, token.QUO) {
-			// 结束标签，停止解析
-			return nil, nil
-		}
-	}
-
-	// 解析文本内容
-	return h.parseHtmlText()
-}
-
-// parseText 解析文本内容
-func (h *HtmlParser) parseText() data.GetValue {
-	var text string
-
-	// 收集所有文本内容，直到遇到 < 或 EOF
-	for !h.isEOF() && h.current().Type != token.LT {
-		text += h.current().Literal
+	// 跳过开始的 < 符号
+	if h.checkPositionIs(0, token.LT) {
 		h.next()
 	}
 
-	if text == "" {
-		return nil
+	// 解析标签名
+	tagName := h.parseTagName()
+	if tagName == "" {
+		return nil, data.NewErrorThrow(h.newFrom(), errors.New("HTML标签缺少标签名"))
 	}
 
-	return node.NewStringLiteral(h.FromCurrentToken(), text)
+	// 解析属性
+	attributes := make(map[string]node.HtmlAttributeValue)
+	for !h.isEOF() && h.current().Type != token.GT && h.current().Type != token.QUO {
+		// 只解析属性名称
+		attrName := h.parseAttributeName()
+		if attrName == "" {
+			continue
+		}
+
+		// 检查是否有等号
+		if h.current().Type != token.ASSIGN {
+			// 没有值的属性，如 disabled
+			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), data.NewBoolValue(true))
+			continue
+		}
+
+		// 检查是否有专门的属性解析器
+		if parser, exists := h.attributeParsers[attrName]; exists {
+			// 使用专门的属性解析器
+			attrValue, acl := parser.Parser(attrName, h.Parser)
+			if acl != nil {
+				return nil, acl
+			}
+			attributes[attrName] = attrValue
+		} else {
+			// 对于普通属性，使用默认解析
+			h.next()
+			var attrValue data.GetValue
+			if h.checkPositionIs(0, token.STRING) {
+				// 字符串值
+				value := h.current().Literal
+				h.next()
+				attrValue = node.NewStringLiteral(h.FromCurrentToken(), value)
+			} else {
+				// 其他类型的值，尝试解析为表达式或直接作为字符串
+				attrValue = h.parseAttributeValue()
+			}
+			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), attrValue)
+		}
+	}
+
+	isSelfClosing := false
+	if h.checkPositionIs(0, token.QUO) {
+		h.next()
+		if h.checkPositionIs(0, token.GT) {
+			isSelfClosing = true
+			h.next()
+		} else {
+			return nil, data.NewErrorThrow(h.newFrom(), errors.New("自闭合标签格式错误"))
+		}
+	} else if h.checkPositionIs(0, token.GT) {
+		h.next()
+	} else {
+		return nil, data.NewErrorThrow(h.newFrom(), errors.New("HTML标签格式错误"))
+	}
+
+	children := make([]data.GetValue, 0)
+
+	if !isSelfClosing {
+		var acl data.Control
+		children, acl = h.parseHtmlChildren()
+		if acl != nil {
+			return nil, acl
+		}
+
+		// 查找结束标签
+		if !h.findClosingTag(tagName) {
+			return nil, data.NewErrorThrow(h.newFrom(), errors.New("HTML标签缺少结束标签: "+tagName))
+		}
+	}
+
+	from := tracker.EndBefore()
+
+	// 直接创建HTML节点，所有属性都已经在ParseAttribute中处理了
+	return node.NewHtmlNode(
+		from,
+		tagName,
+		attributes,
+		children,
+		isSelfClosing,
+	), nil
 }
 
 // parseHtmlText 解析HTML文本内容，支持插值字符串
@@ -369,11 +505,11 @@ func (h *HtmlParser) findClosingTag(tagName string) bool {
 		h.next() // 跳过 /
 
 		// 检查标签名是否匹配
-		if h.current().Type == token.IDENTIFIER && h.current().Literal == tagName {
+		if h.checkPositionIs(0, token.IDENTIFIER) && h.current().Literal == tagName {
 			h.next()
 
 			// 检查结束的 >
-			if h.current().Type == token.GT {
+			if h.checkPositionIs(0, token.GT) {
 				h.next()
 				return true
 			}
@@ -384,137 +520,38 @@ func (h *HtmlParser) findClosingTag(tagName string) bool {
 }
 
 // trimSpace 去除字符串首尾空白
-func trimSpace(s string) string {
-	// 简单的空白字符去除
-	start := 0
-	end := len(s)
-
-	for start < end && (s[start] == ' ' || s[start] == '\t' || s[start] == '\n' || s[start] == '\r') {
-		start++
-	}
-
-	for end > start && (s[end-1] == ' ' || s[end-1] == '\t' || s[end-1] == '\n' || s[end-1] == '\r') {
-		end--
-	}
-
-	return s[start:end]
-}
+//func trimSpace(s string) string {
+//	// 简单的空白字符去除
+//	start := 0
+//	end := len(s)
+//
+//	for start < end && (s[start] == ' ' || s[start] == '\t' || s[start] == '\n' || s[start] == '\r') {
+//		start++
+//	}
+//
+//	for end > start && (s[end-1] == ' ' || s[end-1] == '\t' || s[end-1] == '\n' || s[end-1] == '\r') {
+//		end--
+//	}
+//
+//	return s[start:end]
+//}
 
 func NewHtmlParser(parser *Parser) StatementParser {
-	return &HtmlParser{
-		Parser: parser,
+	htmlParser := &HtmlParser{
+		Parser:           parser,
+		attributeParsers: make(map[string]ParseAttribute),
 	}
+
+	// 初始化属性解析器映射
+	htmlParser.attributeParsers[IfAttributeName] = &HtmlIfAttributeParser{parser}
+	htmlParser.attributeParsers[ElseIfAttributeName] = &HtmlElseIfAttributeParser{parser}
+	htmlParser.attributeParsers[ElseAttributeName] = &HtmlElseAttributeParser{parser}
+	htmlParser.attributeParsers[ForAttributeName] = &HtmlForAttributeParser{}
+
+	return htmlParser
 }
 
-// createHtmlForNode 创建HTML for循环节点
-func (h *HtmlParser) createHtmlForNode(from *node.TokenFrom, tagName string, attributes map[string]data.GetValue, children []data.GetValue, isSelfClosing bool, forAttr data.GetValue) (data.GetValue, data.Control) {
-	tracker := h.StartTracking()
-	// 解析for属性，格式应该是 "key, value in array" 或 "value in array"
-	// 在解析阶段，forAttr应该是一个字符串字面量
-	var forStr string
-	if strLiteral, ok := forAttr.(*node.StringLiteral); ok {
-		forStr = strLiteral.Value
-	} else {
-		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("for属性必须是字符串字面量"))
-	}
-
-	// 解析for字符串，格式：key, value in array 或 value in array
-	vars, exprStr := h.parseForExpression(forStr)
-	if vars == nil {
-		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("for属性格式错误，应为：key, value in array 或 value in array"))
-	}
-	// 解析变量名
-	keyVar := vars[0]
-	val := h.scopeManager.CurrentScope().AddVariable(keyVar, nil, from)
-	keyVari := node.NewVariableWithFirst(from, val)
-	valueVar := vars[1]
-	val = h.scopeManager.CurrentScope().AddVariable(valueVar, nil, from)
-	valueVari := node.NewVariableWithFirst(from, val)
-
-	// 使用主解释器解析表达式字符串
-	arrayVari, acl := h.Parser.ParseExpressionFromString(exprStr)
-	if acl != nil {
-		return nil, acl
-	}
-
-	// 创建嵌套的HTML节点（不包含for属性）
-	nestedAttributes := make(map[string]data.GetValue)
-	for k, v := range attributes {
-		if k != "for" {
-			nestedAttributes[k] = v
-		}
-	}
-
-	nestedHtmlNode := node.NewHtmlNode(
-		from,
-		tagName,
-		nestedAttributes,
-		children,
-		isSelfClosing,
-	)
-
-	// 创建HtmlForNode
-	return node.NewHtmlForNode(
-		from,
-		arrayVari,
-		keyVari,
-		valueVari,
-		nestedHtmlNode,
-	), nil
-}
-
-// parseForExpression 解析for表达式，返回变量信息和表达式字符串
-func (h *HtmlParser) parseForExpression(forStr string) ([]string, string) {
-	// 查找 " in " 分隔符
-	inIndex := -1
-	for i := 0; i < len(forStr)-3; i++ {
-		if forStr[i:i+4] == " in " {
-			inIndex = i
-			break
-		}
-	}
-
-	if inIndex == -1 {
-		return nil, ""
-	}
-
-	// 分割变量部分和表达式部分
-	varsPart := strings.TrimSpace(forStr[:inIndex])
-	exprPart := strings.TrimSpace(forStr[inIndex+4:])
-
-	// 解析变量部分
-	vars := h.parseVariables(varsPart)
-	if len(vars) == 1 {
-		// 只有一个变量，作为value，key设为"_"
-		return []string{"_", vars[0]}, exprPart
-	} else if len(vars) == 2 {
-		// 有两个变量，第一个是key，第二个是value
-		return []string{vars[0], vars[1]}, exprPart
-	} else {
-		return nil, ""
-	}
-}
-
-// parseVariables 解析变量列表
-func (h *HtmlParser) parseVariables(varsStr string) []string {
-	// 简单的逗号分割
-	vars := make([]string, 0)
-	current := ""
-
-	for _, char := range varsStr {
-		if char == ',' {
-			if current != "" {
-				vars = append(vars, strings.TrimSpace(current))
-				current = ""
-			}
-		} else {
-			current += string(char)
-		}
-	}
-
-	if current != "" {
-		vars = append(vars, strings.TrimSpace(current))
-	}
-
-	return vars
+// ParseAttribute 解释属性时, 根据不同名称调用不同的
+type ParseAttribute interface {
+	Parser(name string, parser *Parser) (node.HtmlAttributeValue, data.Control)
 }
