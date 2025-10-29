@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/parser"
 )
 
@@ -117,7 +118,12 @@ func (vm *VM) AddFunc(f data.FuncStmt) data.Control {
 	vm.mu.RLock()
 	defer vm.mu.RUnlock()
 	if _, ok := vm.funcMap[f.GetName()]; ok {
-		return data.NewErrorThrow(nil, fmt.Errorf("已存在同名的 function: %s", f.GetName()))
+		switch ff := f.(type) {
+		case node.GetFrom:
+			return data.NewErrorThrow(ff.GetFrom(), fmt.Errorf("已存在同名的 function: %s", f.GetName()))
+		default:
+			return data.NewErrorThrow(nil, fmt.Errorf("已存在同名的 function: %s", f.GetName()))
+		}
 	}
 
 	vm.funcMap[f.GetName()] = f
@@ -143,7 +149,7 @@ func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 		return nil, acl
 	}
 
-	ctx := vm.CreateContext(p.GetVariables())
-
-	return program.GetValue(ctx), nil
+	return program.GetValue(vm.CreateContext(p.GetVariables())), nil
 }
+
+func (vm *VM) NewTempVM() data.VM { return &TempVM{Base: vm} }

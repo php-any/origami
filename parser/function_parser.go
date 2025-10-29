@@ -26,7 +26,43 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 	fp.next()
 	tracker := fp.StartTracking()
 	// 解析函数名
-	if fp.current().Type != token.IDENTIFIER {
+	if !fp.checkPositionIs(0, token.IDENTIFIER) {
+		if fp.checkPositionIs(0, token.LPAREN) {
+			// 直接解析闭包值: function() {}
+			// 创建新的函数作用域
+			fp.scopeManager.NewScope(false)
+
+			// 解析参数列表
+			params, acl := fp.parseParameters()
+			if acl != nil {
+				return nil, acl
+			}
+			ret, acl := fp.parserReturnType()
+			if acl != nil {
+				return nil, acl
+			}
+			// 解析函数体
+			body, acl := fp.parseBlock()
+			if acl != nil {
+				return nil, acl
+			}
+			vars := fp.scopeManager.CurrentScope().GetVariables()
+
+			// 弹出函数作用域
+			fp.scopeManager.PopScope()
+
+			fn := data.NewFuncValue(node.NewFunctionStatement(
+				tracker.EndBefore(),
+				"",
+				params,
+				body,
+				vars,
+				ret,
+			))
+
+			return fn, nil
+		}
+
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少函数名"))
 	}
 	name := fp.current().Literal

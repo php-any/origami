@@ -1,8 +1,9 @@
 package lexer
 
 import (
-	"github.com/php-any/origami/token"
 	"testing"
+
+	"github.com/php-any/origami/token"
 )
 
 func TestPreprocessor_Process(t *testing.T) {
@@ -74,6 +75,42 @@ func TestPreprocessor_Process(t *testing.T) {
 				{Type: token.IDENTIFIER, Literal: "a"},
 				{Type: token.ADD, Literal: "+"},
 				{Type: token.IDENTIFIER, Literal: "b"},
+			},
+		},
+		{
+			name: "处理 {$ 后跟非标识符的情况",
+			tokens: []Token{
+				{Type: token.STRING, Literal: `"Hello {$+test}"`},
+			},
+			expected: []Token{
+				{Type: token.STRING, Literal: `"Hello {$+test}"`},
+			},
+		},
+		{
+			name: "处理 {$ 后跟数字的情况",
+			tokens: []Token{
+				{Type: token.STRING, Literal: `"Hello {$123}"`},
+			},
+			expected: []Token{
+				{Type: token.STRING, Literal: `"Hello {$123}"`},
+			},
+		},
+		{
+			name: "处理 {$ 后跟特殊字符的情况",
+			tokens: []Token{
+				{Type: token.STRING, Literal: `"Hello {$!test}"`},
+			},
+			expected: []Token{
+				{Type: token.STRING, Literal: `"Hello {$!test}"`},
+			},
+		},
+		{
+			name: "处理 {$} 空变量名的情况",
+			tokens: []Token{
+				{Type: token.STRING, Literal: `"Hello {$}"`},
+			},
+			expected: []Token{
+				{Type: token.STRING, Literal: `"Hello {$}"`},
 			},
 		},
 	}

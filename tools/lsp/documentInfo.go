@@ -271,6 +271,10 @@ func (ctx *LspContext) GetParentScope() *LspContext {
 	return ctx.parent
 }
 
+func (ctx *LspContext) SetVM(vm data.VM) {
+
+}
+
 // identifyVariableTypes 识别变量类型
 func (d *DocumentInfo) identifyVariableTypes(ctx *LspContext, stmt data.GetValue) data.Types {
 	var inferredType data.Types

@@ -47,10 +47,10 @@ func (c *Context) GetIndexValue(index int) (data.Value, bool) {
 	if index < 0 || index >= len(c.variables) {
 		return nil, false
 	}
-	ret := c.variables[index]
-	if _, ok := ret.(*data.NullValue); ok {
-		return nil, false
-	}
+	//ret := c.variables[index]
+	//if _, ok := ret.(*data.NullValue); ok {
+	//	return nil, false
+	//}
 	return c.variables[index], true
 }
 
@@ -84,6 +84,11 @@ func (c *Context) GetVM() data.VM {
 
 func (c *Context) GoContext() context.Context {
 	return context.Background()
+}
+
+// SetVM 替换当前 Context 所绑定的 VM
+func (c *Context) SetVM(vm data.VM) {
+	c.vm = vm
 }
 
 func makeSliceVariable(i int) []data.Value {

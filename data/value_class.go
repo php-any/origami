@@ -200,6 +200,10 @@ func (c *ClassValue) GoContext() context.Context {
 	return context.Background()
 }
 
+func (c *ClassValue) SetVM(vm VM) {
+	c.Context.SetVM(vm)
+}
+
 type ClassMethodContext struct {
 	*ClassValue
 }

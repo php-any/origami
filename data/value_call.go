@@ -12,14 +12,14 @@ type FuncValue struct {
 	Value FuncStmt
 }
 
-func (c FuncValue) GetValue(ctx Context) (GetValue, Control) {
+func (c *FuncValue) GetValue(ctx Context) (GetValue, Control) {
 	return c, nil
 }
 
-func (c FuncValue) Call(ctx Context) (GetValue, Control) {
+func (c *FuncValue) Call(ctx Context) (GetValue, Control) {
 	return c.Value.Call(ctx)
 }
 
-func (c FuncValue) AsString() string {
+func (c *FuncValue) AsString() string {
 	return fmt.Sprintf("%v", c.Value)
 }

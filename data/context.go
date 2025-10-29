@@ -20,6 +20,8 @@ type Context interface {
 	GetVM() VM
 
 	GoContext() context.Context
+
+	SetVM(vm VM)
 }
 
 type VM interface {
@@ -53,6 +55,10 @@ type ClassStmt interface {
 	GetMethods() []Method                     // 方法列表
 
 	GetConstruct() Method
+}
+
+type SetVM interface {
+	SetVM(vm VM)
 }
 
 type Modifier int

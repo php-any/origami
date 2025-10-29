@@ -6,6 +6,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	runtimesrc "github.com/php-any/origami/runtime"
 	"github.com/php-any/origami/utils"
 )
 
@@ -13,7 +14,6 @@ func newHandler(v data.FuncStmt, ctx data.Context) (Handler, error) {
 	if len(v.GetVariables()) < 2 {
 		return Handler{}, errors.New("invalid variable definition")
 	}
-
 	return Handler{Value: v, Ctx: ctx.CreateContext(v.GetVariables())}, nil
 }
 
@@ -75,6 +75,29 @@ func (f Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// HotHandler 专用于启用 HotReload 的场景：负责请求期清理
+type HotHandler struct {
+	Value data.FuncStmt
+	Ctx   data.Context
+}
+
+func (f HotHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// 先创建本次请求的函数上下文，再将该 ctx 的 VM 替换为 TempVM
+	ctx := f.Ctx.CreateContext(f.Value.GetVariables())
+	ctx.SetVM(runtimesrc.NewTempVM(f.Ctx.GetVM()))
+
+	request := NewRequestClassFrom(r)
+	response := NewResponseWriterClassFrom(w)
+
+	ctx.SetVariableValue(data.NewVariable("r", 0, nil), data.NewProxyValue(request, ctx))
+	ctx.SetVariableValue(data.NewVariable("w", 1, nil), data.NewProxyValue(response, ctx))
+
+	_, acl := f.Value.Call(ctx)
+	if acl != nil {
+		panic(acl)
+	}
+}
+
 type NextHandler struct {
 	Ctx  data.Context
 	next http.Handler
@@ -93,8 +116,8 @@ func (f NextHandler) Call(ctx data.Context) (_ data.GetValue, acl data.Control) 
 	// 使用defer和recover来捕获panic
 	defer func() {
 		if r := recover(); r != nil {
-			var ok bool
-			if acl, ok = r.(data.Control); ok {
+			if acl2, ok2 := r.(data.Control); ok2 {
+				acl = acl2
 				return
 			}
 		}

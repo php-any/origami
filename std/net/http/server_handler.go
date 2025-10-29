@@ -26,19 +26,19 @@ func (h *ServerHandleMethod) Call(ctx data.Context) (data.GetValue, data.Control
 		return nil, data.NewErrorThrow(nil, errors.New("需要传入闭包"))
 	}
 	if fv, ok := param1.(*data.FuncValue); ok {
-		handle, err := newHandler(fv.Value, ctx)
+		var final http.Handler
+		final, err = newHandler(fv.Value, ctx)
 		if err != nil {
 			return nil, data.NewErrorThrow(nil, errors.New("路由处理函数入参不对"))
 		}
 		router := h.server.Prefix + param0
-		var finalHandler http.Handler = handle
 		if len(h.server.Middlewares) > 0 {
-			finalHandler = applyMiddlewares(finalHandler, h.server.Middlewares)
+			final = applyMiddlewares(final, h.server.Middlewares)
 		}
 
 		// 使用 Go 1.22+ 的方法路由语法
 		methodPath := strings.ToUpper(h.name) + " " + router
-		h.server.source.Handle(methodPath, finalHandler)
+		h.server.source.Handle(methodPath, final)
 		return nil, nil
 	}
 	return nil, data.NewErrorThrow(nil, errors.New("第二个参数必须是路由处理函数"))

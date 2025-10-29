@@ -195,6 +195,17 @@ func processStringInterpolation(t Token) []Token {
 	for i := 0; i < len(runes); i++ {
 		r := runes[i]
 		if r == '{' && i+2 < len(runes) && runes[i+1] == '$' {
+			// 检查 $ 后面是否是有效的变量名起始字符
+			nextChar := runes[i+2]
+			// 变量名必须以字母、下划线或中文字符开头，不能是数字或特殊符号
+			if !isValidVarChar(nextChar) || unicode.IsDigit(nextChar) {
+				// 如果 $ 后面不是有效的变量名起始字符，将 { 和 $ 都作为普通字符处理
+				currentStr = append(currentStr, r)
+				currentStr = append(currentStr, runes[i+1])
+				i++ // 跳过 $ 字符，下次循环会处理 $ 后面的字符
+				continue
+			}
+
 			// 处理变量插值
 			if len(currentStr) > 0 {
 				if len(tokens) > 0 {
@@ -258,6 +269,11 @@ func processStringInterpolation(t Token) []Token {
 				i = j
 				continue
 			}
+			// 如果没有找到匹配的 }，将 { 和 $ 作为普通字符处理
+			currentStr = append(currentStr, r)
+			currentStr = append(currentStr, runes[i+1])
+			i++ // 跳过 $ 字符
+			continue
 		} else if r == '@' && i+2 < len(runes) && runes[i+1] == '{' {
 			// 处理函数插值
 			if len(currentStr) > 0 {
