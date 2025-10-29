@@ -65,7 +65,7 @@ func (f *IncludeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	// 尝试加载并执行文件
 	v, acl := vm.LoadAndRun(filePath)
-	if err != nil {
+	if acl != nil {
 		// 如果加载失败，返回 false
 		return nil, acl
 	}

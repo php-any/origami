@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/lexer"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
 )
@@ -107,7 +108,7 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 			if v := attr.GetValue(); v != nil {
 				if lit, ok := v.(*node.StringLiteral); ok && strings.EqualFold(lit.Value, "text/zy") {
 					// 累积原始文本直到遇到 </script>
-					src := ""
+					tokens := make([]lexer.Token, 0)
 					for !h.isEOF() {
 						if h.current().Type == token.LT && h.checkPositionIs(1, token.QUO) && h.checkPositionIs(2, token.IDENTIFIER) && strings.EqualFold(h.peek(2).Literal, tagName) {
 							// 消费结束标签 </script>
@@ -119,11 +120,11 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 							}
 							break
 						}
-						src += h.current().Literal
+						tokens = append(tokens, h.current())
 						h.next()
 					}
 					// 编译脚本为 Program
-					prog, acl := h.Parser.ParseString(src, "<script text/zy>")
+					prog, acl := h.Parser.ParserTokens(tokens, *h.Parser.source)
 					if acl != nil {
 						return nil, acl
 					}
@@ -149,30 +150,6 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 	}
 
 	from := tracker.EndBefore()
-
-	// 特殊处理 <script type="text/zy">
-	if strings.EqualFold(tagName, "script") {
-		// 检查 type 属性是否为 text/zy
-		if attr, ok := attributes["type"]; ok {
-			if v := attr.GetValue(); v != nil {
-				if lit, ok := v.(*node.StringLiteral); ok && strings.EqualFold(lit.Value, "text/zy") {
-					// 将子节点文本拼接为脚本源
-					source := ""
-					for _, child := range children {
-						if lit, ok := child.(*node.StringLiteral); ok {
-							source += lit.Value
-						}
-					}
-					// 编译脚本为 Program
-					prog, acl := h.Parser.ParseString(source, "<script text/zy>")
-					if acl != nil {
-						return nil, acl
-					}
-					return node.NewScriptZyNode(from, prog), nil
-				}
-			}
-		}
-	}
 
 	// 直接创建HTML节点，所有属性都已经在ParseAttribute中处理了
 	return node.NewHtmlNode(
@@ -497,7 +474,7 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 			if v := attr.GetValue(); v != nil {
 				if lit, ok := v.(*node.StringLiteral); ok && strings.EqualFold(lit.Value, "text/zy") {
 					// 累积原始文本直到遇到 </script>
-					src := ""
+					tokens := make([]lexer.Token, 0)
 					for !h.isEOF() {
 						if h.current().Type == token.LT && h.checkPositionIs(1, token.QUO) && h.checkPositionIs(2, token.IDENTIFIER) && strings.EqualFold(h.peek(2).Literal, tagName) {
 							// 消费结束标签 </script>
@@ -509,12 +486,12 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 							}
 							break
 						}
-						src += h.current().Literal
+						tokens = append(tokens, h.current())
 						h.next()
 					}
 
 					// 编译脚本为 Program 并返回 ScriptZyNode
-					prog, acl := h.Parser.ParseString(src, "<script text/zy>")
+					prog, acl := h.Parser.ParserTokens(tokens, *h.Parser.source)
 					if acl != nil {
 						return nil, acl
 					}

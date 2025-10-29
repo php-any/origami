@@ -551,6 +551,48 @@ func (p *Parser) ParseExpressionFromString(exprStr string) (data.GetValue, data.
 	return result, ctl
 }
 
+// ParserTokens 传入 token 列表重新运行
+func (p *Parser) ParserTokens(tokens []lexer.Token, filePath string) (*node.Program, data.Control) {
+	if len(tokens) > 1 && tokens[0].Type == token.SEMICOLON {
+		nTokens := make([]lexer.Token, 0)
+		i := 0
+		for tokens[i].Type == token.SEMICOLON {
+			i++
+		}
+		for _, t := range tokens[i:] {
+			nTokens = append(nTokens, t)
+		}
+		tokens = nTokens
+	}
+
+	// 保存当前状态
+	originalTokens := p.tokens
+	originalPosition := p.position
+	originalSource := p.source
+
+	// 重置解析器状态
+	p.reset()
+
+	// 设置源文件路径，确保符号位置信息正确
+	p.source = &filePath
+
+	// 进行分词
+	p.tokens = tokens
+
+	// 解析程序
+	program, acl := p.parseProgram()
+	if acl != nil {
+		return nil, acl
+	}
+
+	// 恢复原始状态
+	p.tokens = originalTokens
+	p.position = originalPosition
+	p.source = originalSource
+
+	return program, nil
+}
+
 // ParseString 从字符串解析程序
 func (p *Parser) ParseString(content string, filePath string) (*node.Program, data.Control) {
 	// 保存当前状态

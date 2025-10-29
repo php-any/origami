@@ -66,10 +66,10 @@ func (vm *VM) AddClass(c data.ClassStmt) data.Control {
 	defer vm.mu.RUnlock()
 	// 检查 interfaceMap、classMap 中是否已存在
 	if _, ok := vm.classMap[c.GetName()]; ok {
-		return data.NewErrorThrow(nil, fmt.Errorf("已存在同名的 interface: %s", c.GetName()))
+		return data.NewErrorThrow(c.GetFrom(), fmt.Errorf("已存在同名的 class: %s", c.GetName()))
 	}
 	if _, ok := vm.interfaceMap[c.GetName()]; ok {
-		return data.NewErrorThrow(nil, fmt.Errorf("已存在同名的类或接口: %s", c.GetName()))
+		return data.NewErrorThrow(c.GetFrom(), fmt.Errorf("已存在同名的类或接口: %s", c.GetName()))
 	}
 	vm.classMap[c.GetName()] = c
 	return nil
@@ -84,13 +84,13 @@ func (vm *VM) AddInterface(i data.InterfaceStmt) data.Control {
 		if i.GetFrom().GetSource() == has.GetFrom().GetSource() {
 			return nil // 同文件不需要报错
 		}
-		return data.NewErrorThrow(nil, fmt.Errorf("已存在同名的 interface: %s", i.GetName()))
+		return data.NewErrorThrow(i.GetFrom(), fmt.Errorf("已存在同名的 interface: %s", i.GetName()))
 	}
 	if has, ok := vm.interfaceMap[i.GetName()]; ok {
 		if i.GetFrom().GetSource() == has.GetFrom().GetSource() {
 			return nil // 同文件不需要报错
 		}
-		return data.NewErrorThrow(nil, fmt.Errorf("已存在同名的类或接口: %s", i.GetName()))
+		return data.NewErrorThrow(i.GetFrom(), fmt.Errorf("已存在同名的类或接口: %s", i.GetName()))
 	}
 
 	vm.interfaceMap[i.GetName()] = i
@@ -140,7 +140,6 @@ func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 
 	program, acl := p.ParseFile(file)
 	if acl != nil {
-		p.PrintDetailedError(acl.AsString(), p.FromCurrentToken())
 		return nil, acl
 	}
 
