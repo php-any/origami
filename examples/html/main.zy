@@ -1,8 +1,40 @@
 namespace App;
 
+/**
+ * 在这里开始，可以重新实现一个全新的 laravel 框架
+ *  数据库需要常驻内存的建议放到 http.zy 文件内，就能共享给 main 方法了
+ *  main.zy 内的调用类型存储信息会在请求结束后直接丢失
+ */
 function main($request, $response) {
     $path = $request->path();
-
+    
+    // 设置默认的 Content-Type
     $response->header("Content-Type", "text/html; charset=utf-8");
-    $response->write($path);
+    
+    // 处理根路径，默认加载 index
+    if ($path == "/" || $path == "") {
+        $path = "/index";
+    }
+    
+    // 移除开头的斜杠
+    $filePath = $path;
+    if ($filePath->length() > 0 && $filePath[0] == "/") {
+        $filePath = $filePath->substring(1);
+    }
+    
+    // 尝试加载 .html 文件
+    $htmlPath = "./pages/" + $filePath;
+    try {
+        $html = include($htmlPath);
+        $response->header("Content-Type", "text/html; charset=utf-8");
+        $response->write($html);
+        return;
+    } catch (Exception $e) {
+        // 文件不存在或加载失败，继续尝试其他方式
+        Log::error("文件不存在或加载失败，继续尝试其他方式")
+    }
+
+    // 如果文件不存在，返回 404
+    $response->writeHeader(404);
+    $response->write("404 Not Found: " + $path);
 }
