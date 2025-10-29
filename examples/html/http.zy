@@ -15,7 +15,7 @@ $server->middleware(($request, $response, $next) => {
 
 // go 语言标准库的路由注册, 只匹配 /
 $server->get("/{$}", ($request, $response) => {
-    // app 是一个特殊的方法, 用于自动 include("./app.zy") 后再执行新的 app($request, $response)
+    // app 是一个特殊的方法, 用于自动 include("./main.zy") 后再执行新的 main($request, $response)
     app($request, $response)
 });
 

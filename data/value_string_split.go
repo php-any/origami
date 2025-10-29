@@ -11,42 +11,48 @@ type StringValueSplit struct {
 func (s *StringValueSplit) Call(ctx Context) (GetValue, Control) {
 	// 获取分隔符参数
 	separatorParam, separatorOk := ctx.GetIndexValue(0)
+
+	var separator string
+	useDefaultSeparator := false
+
 	if !separatorOk {
 		// 如果没有参数，使用空格作为默认分隔符
-		parts := strings.Fields(s.source)
-		values := make([]Value, len(parts))
-		for i, part := range parts {
-			values[i] = NewStringValue(part)
-		}
-		return NewArrayValue(values), nil
-	}
-
-	// 将分隔符参数转换为字符串
-	var separator string
-	switch v := separatorParam.(type) {
-	case *StringValue:
-		separator = v.AsString()
-	case *IntValue:
-		separator = v.AsString()
-	case *FloatValue:
-		separator = v.AsString()
-	case *BoolValue:
-		separator = v.AsString()
-	case *NullValue:
-		separator = ""
-	case *ArrayValue:
-		separator = v.AsString()
-	default:
-		// 对于其他类型，尝试使用 AsString 方法
-		if strValue, ok := v.(AsString); ok {
-			separator = strValue.AsString()
-		} else {
-			separator = ""
+		useDefaultSeparator = true
+	} else {
+		// 将分隔符参数转换为字符串
+		switch v := separatorParam.(type) {
+		case *StringValue:
+			separator = v.AsString()
+		case *IntValue:
+			separator = v.AsString()
+		case *FloatValue:
+			separator = v.AsString()
+		case *BoolValue:
+			separator = v.AsString()
+		case *NullValue:
+			// NullValue 表示使用默认分隔符（空格）
+			useDefaultSeparator = true
+		case *ArrayValue:
+			separator = v.AsString()
+		default:
+			// 对于其他类型，尝试使用 AsString 方法
+			if strValue, ok := v.(AsString); ok {
+				separator = strValue.AsString()
+			} else {
+				useDefaultSeparator = true
+			}
 		}
 	}
 
-	// 使用分隔符分割字符串
-	parts := strings.Split(s.source, separator)
+	var parts []string
+	if useDefaultSeparator {
+		// 使用空格作为默认分隔符（使用 Fields 可以处理多个空格）
+		parts = strings.Fields(s.source)
+	} else {
+		// 使用指定的分隔符分割字符串
+		parts = strings.Split(s.source, separator)
+	}
+
 	values := make([]Value, len(parts))
 	for i, part := range parts {
 		values[i] = NewStringValue(part)
