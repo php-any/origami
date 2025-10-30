@@ -39,5 +39,5 @@ func (r *RegisterRoute) GetValue(ctx data.Context) (v data.GetValue, acl data.Co
 
 	// 手动调用 mux.ServeHTTP，触发路由和处理
 	mux.ServeHTTP(response, request)
-	return nil, nil
+	return nil, acl
 }
