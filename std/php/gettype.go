@@ -40,6 +40,8 @@ func (f *GettypeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		tp = "string"
 	case *data.NullValue:
 		tp = "null"
+	case *data.AnyValue:
+		tp = "any"
 	}
 	return data.NewStringValue(tp), intervalCtl
 }
