@@ -2,18 +2,14 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 
-	_ "github.com/go-sql-driver/mysql" // 使用 mysql
-	_ "github.com/mattn/go-sqlite3"    // 使用 sqlite3
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/runtime"
 	"github.com/php-any/origami/std"
 	"github.com/php-any/origami/std/database"
 	"github.com/php-any/origami/std/php"
 	"github.com/php-any/origami/std/system"
+	_ "modernc.org/sqlite"
 )
 
 func main() {
@@ -35,22 +31,11 @@ func main() {
 	fmt.Println("按 Ctrl+C 停止程序")
 	fmt.Println()
 
-	// 设置信号处理
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		_, err := vm.LoadAndRun("database.zy")
-		if err != nil {
-			fmt.Printf("错误: %v\n", err)
-			if !parser.InLSP {
-				panic(err)
-			}
+	_, err := vm.LoadAndRun("database.zy")
+	if err != nil {
+		fmt.Printf("错误: %v\n", err)
+		if !parser.InLSP {
+			panic(err)
 		}
-	}()
-
-	// 等待信号或脚本完成
-	<-sigChan
-	fmt.Println("\n收到停止信号，正在关闭程序...")
-	os.Exit(0)
+	}
 }

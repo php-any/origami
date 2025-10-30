@@ -19,7 +19,7 @@ use Database\Annotation\Column;
 Log::info("=== 设置数据库连接 ===");
 
 // 注册SQLite数据库连接
-$db = open("sqlite3", "example.db");
+$db = open("sqlite", "example.db");
 $db->ping();
 Database\registerDefaultConnection($db);
 
