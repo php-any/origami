@@ -82,24 +82,34 @@ func (a *Annotation) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 				}
 			}
 
-			for _, s := range object.Class.GetImplements() {
-				if s == TypeMacro {
-					vari, err := findVariable(varies, TargetName)
-					if err != nil {
-						return nil, data.NewErrorThrow(a.from, err)
-					}
-					fnCtx.SetVariableValue(vari, data.NewAnyValue(a.Target))
-				}
+			// 将被注解的 AST 目标按需注入构造函数：
+			// 只要构造函数声明了名为 target 的参数，就注入，不再强依赖是否实现 TypeMacro
+			if vari, err := findVariable(varies, TargetName); err == nil {
+				fnCtx.SetVariableValue(vari, data.NewAnyValue(a.Target))
 			}
 
-			_, acl := method.Call(fnCtx)
-			if acl != nil {
-				return nil, acl
-			}
 			// 构造函数执行成功后，返回注解实例本身
-			return object, nil
+			return object, &CallAnn{method: method, ctx: fnCtx}
 		}
 	}
 
 	return object, acl
+}
+
+type CallAnn struct {
+	method data.Method
+	ctx    data.Context
+}
+
+func (c *CallAnn) AsString() string {
+	return "TODO"
+}
+
+func (c *CallAnn) GetValue(fnCtx data.Context) (data.GetValue, data.Control) {
+	return nil, nil
+}
+
+func (c *CallAnn) InitAnnotation() data.Control {
+	_, acl := c.method.Call(c.ctx)
+	return acl
 }

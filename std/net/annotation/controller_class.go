@@ -2,6 +2,7 @@ package annotation
 
 import (
 	"errors"
+	"github.com/php-any/origami/runtime"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -25,9 +26,7 @@ func (c *ControllerClass) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	}, ctx.CreateBaseContext()), nil
 }
 
-func (c *ControllerClass) GetName() string {
-	return "Annotation\\Controller"
-}
+func (c *ControllerClass) GetName() string { return "Net\\Annotation\\Controller" }
 
 func (c *ControllerClass) GetExtend() *string {
 	return nil
@@ -51,8 +50,6 @@ func (c *ControllerClass) GetMethod(name string) (data.Method, bool) {
 		return c.process, true
 	case "register":
 		return c.register, true
-	case "__construct":
-		return c.construct, true
 	}
 	return nil, false
 }
@@ -98,12 +95,14 @@ func (m *ControllerConstructMethod) GetIsStatic() bool {
 func (m *ControllerConstructMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
+		node.NewParameter(nil, node.TargetName, 1, nil, nil),
 	}
 }
 
 func (m *ControllerConstructMethod) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "name", 0, nil),
+		node.NewVariable(nil, "target", 1, nil),
 	}
 }
 
@@ -112,19 +111,86 @@ func (m *ControllerConstructMethod) GetReturnType() data.Types {
 }
 
 func (m *ControllerConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 特性注解构造函数：只接收注解声明的参数
+	var vm *runtime.TempVM
+	if temp, ok := ctx.GetVM().(*runtime.TempVM); ok {
+		vm = temp
+	}
+	// 读取 name
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
 		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, name: 0"))
 	}
-
-	name := ""
 	if v, ok := a0.(*data.StringValue); ok {
-		name = v.AsString()
+		m.controller.name = v.AsString()
 	}
 
-	m.controller.name = name
-	return data.NewStringValue("Controller annotation constructed with name: " + name), nil
+	// 读取类节点并统一处理该类的方法路由：扫描 @Route 前缀 + @GetMapping/@PostMapping 路径 → router.routes
+	if tv, ok := ctx.GetIndexValue(1); ok {
+		if anyT, ok := tv.(*data.AnyValue); ok {
+			if cls, ok := anyT.Value.(*node.ClassStatement); ok {
+				// 读取类注解中的 @Route 前缀（若存在）
+				prefix := ""
+				for _, ann := range cls.Annotations {
+					switch rc := ann.Class.(type) {
+					case *RouteClass:
+						prefix = rc.Prefix()
+					}
+				}
+
+				// 规范化前缀
+				normalize := func(p string) string {
+					if p == "" {
+						return ""
+					}
+					if p == "/" {
+						return "/"
+					}
+					// 简单规范：确保单前导斜杠，去尾部斜杠
+					if p[0] != '/' {
+						p = "/" + p
+					}
+					for len(p) > 1 && p[len(p)-1] == '/' {
+						p = p[:len(p)-1]
+					}
+					return p
+				}
+				join := func(prefix, path string) string {
+					P := normalize(prefix)
+					if path == "" {
+						path = "/"
+					}
+					if path[0] != '/' {
+						path = "/" + path
+					}
+					if P == "" || P == "/" {
+						return path
+					}
+					if path == "/" {
+						return P
+					}
+					return P + path
+				}
+
+				// 遍历类方法，读取方法注解并注册到 router.routes
+				for _, method := range cls.GetMethods() {
+					if cm, ok := method.(*node.ClassMethod); ok {
+						for _, ann := range cm.Annotations {
+							switch gc := ann.Class.(type) {
+							case *GetMappingClass:
+								full := join(prefix, gc.Path())
+								vm.Cache = append(vm.Cache, runtime.Route{Method: "GET", Path: full, Target: method})
+							case *PostMappingClass:
+								full := join(prefix, gc.Path())
+								vm.Cache = append(vm.Cache, runtime.Route{Method: "POST", Path: full, Target: method})
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return data.NewStringValue("Controller annotation constructed with name: " + m.controller.name), nil
 }
 
 // ControllerProcessMethod 处理注解的方法

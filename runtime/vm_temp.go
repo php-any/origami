@@ -10,10 +10,16 @@ func NewTempVM(vm data.VM) data.VM {
 	case *TempVM:
 		return v
 	case *VM:
-		return &TempVM{Base: v}
+		return &TempVM{Base: v, Cache: make([]Route, 0)}
 	default:
 		return vm
 	}
+}
+
+type Route struct {
+	Method string
+	Path   string
+	Target data.Method
 }
 
 // TempVM 用于模拟 php-fpm 请求级生效的 VM（热重载）
@@ -24,6 +30,7 @@ type TempVM struct {
 	addedClasses    map[string]data.ClassStmt
 	addedInterfaces map[string]data.InterfaceStmt
 	addedFuncs      map[string]data.FuncStmt
+	Cache           []Route
 }
 
 func (t *TempVM) AddClass(c data.ClassStmt) data.Control {

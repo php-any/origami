@@ -1,0 +1,24 @@
+namespace Spring\Controller;
+
+use Net\Annotation\Controller;
+use Net\Annotation\Route;
+use Net\Annotation\GetMapping;
+use Net\Annotation\PostMapping;
+
+@Controller
+@Route(prefix: "/api")
+class HelloController {
+    @GetMapping(path: "/hello")
+    public function hello($request, $response) {
+        $response->header("Content-Type", "text/plain; charset=utf-8");
+        $response->write("Hello World!");
+    }
+
+    @GetMapping(path: "/users")
+    public function users($request, $response) {
+        $response->header("Content-Type", "text/html; charset=utf-8");
+        $response->write("<html><body><h1>用户列表</h1></body></html>");
+    }
+}
+
+

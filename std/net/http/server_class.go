@@ -53,6 +53,8 @@ func (s *ServerClass) GetMethod(name string) (data.Method, bool) {
 		return &ServerMiddlewareMethod{server: s}, true
 	case "run":
 		return &ServerRunMethod{server: s}, true
+	case "serveHTTP":
+		return &ServerServeHTTPMethod{server: s}, true
 	}
 	return nil, false
 }
@@ -70,6 +72,7 @@ func (s *ServerClass) GetMethods() []data.Method {
 		&ServerGroupMethod{server: s},
 		&ServerMiddlewareMethod{server: s},
 		&ServerRunMethod{server: s},
+		&ServerServeHTTPMethod{server: s},
 	}
 }
 

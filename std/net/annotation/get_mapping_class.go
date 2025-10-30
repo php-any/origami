@@ -11,6 +11,7 @@ type GetMappingClass struct {
 	process   data.Method
 	mapping   data.Method
 	construct data.Method
+	pathMeth  data.Method
 }
 
 func (g *GetMappingClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
@@ -20,12 +21,11 @@ func (g *GetMappingClass) GetValue(ctx data.Context) (data.GetValue, data.Contro
 		process:   &GetMappingProcessMethod{source},
 		mapping:   &GetMappingMappingMethod{source},
 		construct: &GetMappingConstructMethod{source},
+		pathMeth:  &GetMappingPathMethod{source},
 	}, ctx.CreateBaseContext()), nil
 }
 
-func (g *GetMappingClass) GetName() string {
-	return "Annotation\\GetMapping"
-}
+func (g *GetMappingClass) GetName() string { return "Net\\Annotation\\GetMapping" }
 
 func (g *GetMappingClass) GetExtend() *string {
 	return nil
@@ -51,6 +51,8 @@ func (g *GetMappingClass) GetMethod(name string) (data.Method, bool) {
 		return g.mapping, true
 	case "__construct":
 		return g.construct, true
+	case "path":
+		return g.pathMeth, true
 	}
 	return nil, false
 }
@@ -60,11 +62,20 @@ func (g *GetMappingClass) GetMethods() []data.Method {
 		g.process,
 		g.mapping,
 		g.construct,
+		g.pathMeth,
 	}
 }
 
 func (g *GetMappingClass) GetConstruct() data.Method {
 	return g.construct
+}
+
+// Path 便捷访问当前实例的路径值
+func (g *GetMappingClass) Path() string {
+	if pm, ok := g.process.(*GetMappingProcessMethod); ok && pm.mapping != nil {
+		return pm.mapping.path
+	}
+	return ""
 }
 
 // GetMapping 映射实例
@@ -97,12 +108,14 @@ func (m *GetMappingConstructMethod) GetIsStatic() bool {
 func (m *GetMappingConstructMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "path", 0, data.NewStringValue("/"), data.NewBaseType("string")),
+		node.NewParameter(nil, node.TargetName, 1, nil, nil),
 	}
 }
 
 func (m *GetMappingConstructMethod) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "path", 0, nil),
+		node.NewVariable(nil, "target", 1, nil),
 	}
 }
 
@@ -111,10 +124,26 @@ func (m *GetMappingConstructMethod) GetReturnType() data.Types {
 }
 
 func (m *GetMappingConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 构造函数逻辑：从上下文获取注解参数和目标
-	// 这里应该从ctx中获取传入的参数
-	// 简化实现，返回构造成功消息
-	return data.NewStringValue("GetMapping annotation constructed with parameters"), nil
+	vv, _ := ctx.GetIndexValue(0)
+	if v, ok := vv.(*data.StringValue); ok {
+		m.mapping.path = v.AsString()
+	}
+	return data.NewStringValue("GetMapping annotation constructed"), nil
+}
+
+// GetMappingPathMethod 暴露 path 给控制器注解读取
+type GetMappingPathMethod struct{ mapping *GetMapping }
+
+func (m *GetMappingPathMethod) GetName() string            { return "path" }
+func (m *GetMappingPathMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *GetMappingPathMethod) GetIsStatic() bool          { return false }
+func (m *GetMappingPathMethod) GetParams() []data.GetValue { return []data.GetValue{} }
+func (m *GetMappingPathMethod) GetVariables() []data.Variable {
+	return []data.Variable{}
+}
+func (m *GetMappingPathMethod) GetReturnType() data.Types { return data.NewBaseType("string") }
+func (m *GetMappingPathMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	return data.NewStringValue(m.mapping.path), nil
 }
 
 // GetMappingProcessMethod 处理注解的方法

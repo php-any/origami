@@ -1,0 +1,29 @@
+namespace App;
+
+use Net\Http\Server;
+use Net\Http\app;
+
+$server = new Server("0.0.0.0", port: 8080);
+
+// 简单的日志中间件
+$server->middleware(($request, $response, $next) => {
+    $method = $request->method();
+    $path = $request->path();
+    Log::info("HTTP " + $method + " " + $path);
+    $next($request, $response);
+});
+
+// go 语言标准库的路由注册, 只匹配 /
+$server->get("/{$}", ($request, $response) => {
+    // app 是一个特殊的方法, 用于自动 include("./main.zy") 后再执行新的 main($request, $response)
+    app($request, $response)
+});
+
+// go 语言标准库的路由注册, 匹配 /* 任意路由
+$server->get("/", ($request, $response) => {
+    app($request, $response)
+});
+
+Log::info("HTML 服务启动在: http://127.0.0.1:8080");
+$server->run();
+

@@ -2,7 +2,6 @@ package std
 
 import (
 	"github.com/php-any/origami/data"
-	"github.com/php-any/origami/std/annotation"
 	"github.com/php-any/origami/std/channel"
 	"github.com/php-any/origami/std/database"
 	"github.com/php-any/origami/std/exception"
@@ -24,7 +23,6 @@ func Load(vm data.VM) {
 	vm.AddClass(exception.NewExceptionClass())
 	vm.AddClass(os.NewOSClass())
 	reflect.Load(vm)
-	annotation.Load(vm)
 	channel.Load(vm)
 	loop.Load(vm)
 	database.Load(vm)

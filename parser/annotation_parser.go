@@ -68,14 +68,39 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 	for _, an := range annotations {
 		an.Target = next
 	}
-	for _, an := range annotations {
-		obj, acl := an.GetValue(p.vm.CreateContext(nil))
-		if acl != nil {
-			return nil, acl
+
+	// 注解的构造处理是需要延后执行的
+	if len(annotations) != 0 {
+		callAnn := make([]*node.CallAnn, 0)
+
+		for _, an := range annotations {
+			stmt, ok := p.vm.GetClass(an.Name)
+			if !ok {
+				return nil, data.NewErrorThrow(an.GetFrom(), errors.New("注解未定义"))
+			}
+			object, acl := stmt.GetValue(p.vm.CreateContext(nil))
+			if acl != nil {
+				return nil, acl
+			}
+			obj, acl := an.GetValue(p.vm.CreateContext(object.(*data.ClassValue).Class.GetConstruct().GetVariables()))
+			if acl != nil {
+				if ann, ok := acl.(*node.CallAnn); !ok {
+					return nil, acl
+				} else {
+					callAnn = append(callAnn, ann)
+				}
+			}
+			if c, ok := next.(node.AddAnnotations); ok {
+				if o, ok := obj.(*data.ClassValue); ok {
+					c.AddAnnotations(o)
+				}
+			}
 		}
-		if c, ok := next.(node.AddAnnotations); ok {
-			if o, ok := obj.(*data.ClassValue); ok {
-				c.AddAnnotations(o)
+
+		for i := len(callAnn) - 1; i >= 0; i-- {
+			acl := callAnn[i].InitAnnotation()
+			if acl != nil {
+				return nil, acl
 			}
 		}
 	}
