@@ -11,6 +11,33 @@ function main($request, $response) {
     // 设置默认的 Content-Type
     $response->header("Content-Type", "text/html; charset=utf-8");
     
+    // 静态资源处理：/assets/* 下的 css/js 等直接读取文件返回
+    if ($path->startsWith("/assets/")) {
+        $staticPath = "./pages" + $path;
+        try {
+            $content = file_get_contents($staticPath);
+            // 按后缀设置 Content-Type（常见类型）
+            if ($path->endsWith(".css")) {
+                $response->header("Content-Type", "text/css; charset=utf-8");
+            } else if ($path->endsWith(".js")) {
+                $response->header("Content-Type", "application/javascript; charset=utf-8");
+            } else if ($path->endsWith(".png")) {
+                $response->header("Content-Type", "image/png");
+            } else if ($path->endsWith(".jpg") || $path->endsWith(".jpeg")) {
+                $response->header("Content-Type", "image/jpeg");
+            } else if ($path->endsWith(".svg")) {
+                $response->header("Content-Type", "image/svg+xml");
+            } else if ($path->endsWith(".ico")) {
+                $response->header("Content-Type", "image/x-icon");
+            }
+            $response->write($content);
+            return;
+        } catch (Exception $e) {
+            // 读取失败则继续走页面处理
+            Log::error("静态资源读取失败: " + $staticPath)
+        }
+    }
+    
     // 处理根路径，默认加载 index
     if ($path == "/" || $path == "") {
         $path = "/index";
@@ -23,7 +50,7 @@ function main($request, $response) {
     }
     
     // 尝试加载 .html 文件
-    $htmlPath = "./pages/" + $filePath;
+    $htmlPath = "./pages/" + $filePath + ".html";
     try {
         $html = include($htmlPath);
         $response->header("Content-Type", "text/html; charset=utf-8");
