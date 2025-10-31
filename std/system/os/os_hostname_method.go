@@ -2,6 +2,7 @@ package os
 
 import (
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/utils"
 )
 
 type OSHostnameMethod struct {
@@ -11,7 +12,7 @@ type OSHostnameMethod struct {
 func (h *OSHostnameMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	name, err := h.source.Hostname()
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 	return data.NewStringValue(name), nil
 }

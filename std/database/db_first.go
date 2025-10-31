@@ -17,7 +17,7 @@ func (d *DbFirstMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取数据库连接
 	conn := d.source.getConnection()
 	if conn == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("数据库连接不可用"))
+		return nil, utils.NewThrow(errors.New("数据库连接不可用"))
 	}
 
 	// 构建查询语句（支持注解处理）

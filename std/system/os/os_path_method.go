@@ -5,6 +5,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 type OSPathMethod struct {
@@ -14,7 +15,7 @@ type OSPathMethod struct {
 func (h *OSPathMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数: paths"))
+		return nil, utils.NewThrow(errors.New("缺少参数: paths"))
 	}
 
 	return data.NewStringValue(h.source.Path(*a0.(*data.ArrayValue))), nil

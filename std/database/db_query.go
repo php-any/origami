@@ -17,20 +17,20 @@ func (d *DbQueryMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取数据库连接
 	conn := d.source.getConnection()
 	if conn == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("数据库连接不可用"))
+		return nil, utils.NewThrow(errors.New("数据库连接不可用"))
 	}
 
 	// 获取 SQL 语句
 	sqlValue, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少 SQL 语句"))
+		return nil, utils.NewThrow(errors.New("缺少 SQL 语句"))
 	}
 
 	var sqlStr string
 	if sqlStrValue, ok := sqlValue.(data.AsString); ok {
 		sqlStr = sqlStrValue.AsString()
 	} else {
-		return nil, data.NewErrorThrow(nil, errors.New("SQL 语句必须是字符串"))
+		return nil, utils.NewThrow(errors.New("SQL 语句必须是字符串"))
 	}
 
 	// 获取参数

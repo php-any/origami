@@ -5,6 +5,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 type DateTimeFormatMethod struct {
@@ -14,7 +15,7 @@ type DateTimeFormatMethod struct {
 func (h *DateTimeFormatMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	format, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, index: 0, name: format"))
+		return nil, utils.NewThrow(errors.New("缺少参数, index: 0, name: format"))
 	}
 
 	return data.NewStringValue(h.source.Format(format.AsString())), nil

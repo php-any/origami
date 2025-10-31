@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/utils"
 )
 
 // 工具：调用无参无返回值方法（void）
@@ -41,7 +42,7 @@ func callBoolMethod(obj *data.ClassValue, name string) (bool, data.Control) {
 	if b, ok := v.(data.AsBool); ok {
 		vb, err := b.AsBool()
 		if err != nil {
-			return false, data.NewErrorThrow(nil, err)
+			return false, utils.NewThrow(err)
 		}
 		return vb, nil
 	}
@@ -182,13 +183,15 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			for _, statement := range u.Body {
 				v, c = statement.GetValue(ctx)
 				if c != nil {
-					// break 跳出循环
-					if ctrl, ok := c.(data.BreakControl); ok && ctrl.IsBreak() {
-						return nil, nil
-					}
-					// continue 跳到下一次迭代
-					if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
-						continue
+					switch ctrl := c.(type) {
+					case data.BreakControl:
+						if ctrl.IsBreak() {
+							return nil, nil
+						}
+					case data.ContinueControl:
+						if ctrl.IsContinue() {
+							continue
+						}
 					}
 					// return/throw 直接返回
 					return nil, c

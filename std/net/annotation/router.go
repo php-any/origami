@@ -33,11 +33,11 @@ func (r *RegisterRoute) GetValue(ctx data.Context) (v data.GetValue, acl data.Co
 
 	request, err := utils.ConvertFromIndex[*http.Request](ctx, 0)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 	response, err := utils.ConvertFromIndex[http.ResponseWriter](ctx, 1)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 
 	// 手动调用 mux.ServeHTTP，触发路由和处理

@@ -17,13 +17,13 @@ func (d *DbInsertMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取数据库连接
 	conn := d.source.getConnection()
 	if conn == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("数据库连接不可用"))
+		return nil, utils.NewThrow(errors.New("数据库连接不可用"))
 	}
 
 	// 获取插入数据
 	dataValue, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少插入数据"))
+		return nil, utils.NewThrow(errors.New("缺少插入数据"))
 	}
 
 	// 构建插入语句
@@ -57,7 +57,7 @@ func (d *DbInsertMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 			}
 		}
 	} else {
-		return nil, data.NewErrorThrow(nil, errors.New("插入数据必须是对象或类实例"))
+		return nil, utils.NewThrow(errors.New("插入数据必须是对象或类实例"))
 	}
 
 	// 构建 SQL 语句

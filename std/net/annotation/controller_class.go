@@ -3,10 +3,10 @@ package annotation
 import (
 	"errors"
 
-	"github.com/php-any/origami/runtime"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/runtime"
+	"github.com/php-any/origami/utils"
 )
 
 // ControllerClass Controller注解类 - 特性注解
@@ -115,11 +115,13 @@ func (m *ControllerConstructMethod) Call(ctx data.Context) (data.GetValue, data.
 	var vm *runtime.TempVM
 	if temp, ok := ctx.GetVM().(*runtime.TempVM); ok {
 		vm = temp
+	} else {
+		return nil, utils.NewThrow(errors.New("@Controller 注解只能在 app() 内加载"))
 	}
 	// 读取 name
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, name: 0"))
+		return nil, utils.NewThrow(errors.New("缺少参数, name: 0"))
 	}
 	if v, ok := a0.(*data.StringValue); ok {
 		m.controller.name = v.AsString()

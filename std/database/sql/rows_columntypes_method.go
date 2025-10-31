@@ -2,7 +2,9 @@ package sql
 
 import (
 	sqlsrc "database/sql"
+
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/utils"
 )
 
 type RowsColumnTypesMethod struct {
@@ -13,7 +15,7 @@ func (h *RowsColumnTypesMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 
 	ret0, err := h.source.ColumnTypes()
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 	return data.NewAnyValue(ret0), nil
 }

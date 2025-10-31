@@ -5,6 +5,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 // NewGeneratedValueClass 创建 GeneratedValue 注解类
@@ -109,7 +110,7 @@ func (m *GeneratedValueConstructMethod) Call(ctx data.Context) (data.GetValue, d
 	// 特性注解构造函数：只接收注解声明的参数
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, strategy: 0"))
+		return nil, utils.NewThrow(errors.New("缺少参数, strategy: 0"))
 	}
 
 	strategy := "AUTO"

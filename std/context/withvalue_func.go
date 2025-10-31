@@ -17,17 +17,17 @@ func (h *WithValueFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, index: 0"))
+		return nil, utils.NewThrow(errors.New("缺少参数, index: 0"))
 	}
 
 	a1, ok := ctx.GetIndexValue(1)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, index: 1"))
+		return nil, utils.NewThrow(errors.New("缺少参数, index: 1"))
 	}
 
 	a2, ok := ctx.GetIndexValue(2)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, index: 2"))
+		return nil, utils.NewThrow(errors.New("缺少参数, index: 2"))
 	}
 
 	var arg0 context.Context
@@ -38,14 +38,14 @@ func (h *WithValueFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 				arg0 = src.(context.Context)
 			}
 		} else {
-			return nil, data.NewErrorThrow(nil, errors.New("参数类型不支持, index: 0"))
+			return nil, utils.NewThrow(errors.New("参数类型不支持, index: 0"))
 		}
 	case *data.AnyValue:
 		if v.Value != nil {
 			arg0 = v.Value.(context.Context)
 		}
 	default:
-		return nil, data.NewErrorThrow(nil, errors.New("参数类型不支持, index: 0"))
+		return nil, utils.NewThrow(errors.New("参数类型不支持, index: 0"))
 	}
 	var arg1 interface{}
 	switch v := a1.(type) {
@@ -55,14 +55,14 @@ func (h *WithValueFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 				arg1 = src.(interface{})
 			}
 		} else {
-			return nil, data.NewErrorThrow(nil, errors.New("参数类型不支持, index: 1"))
+			return nil, utils.NewThrow(errors.New("参数类型不支持, index: 1"))
 		}
 	case *data.AnyValue:
 		if v.Value != nil {
 			arg1 = v.Value.(interface{})
 		}
 	default:
-		return nil, data.NewErrorThrow(nil, errors.New("参数类型不支持, index: 1"))
+		return nil, utils.NewThrow(errors.New("参数类型不支持, index: 1"))
 	}
 	var arg2 interface{}
 	switch v := a2.(type) {
@@ -72,14 +72,14 @@ func (h *WithValueFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 				arg2 = src.(interface{})
 			}
 		} else {
-			return nil, data.NewErrorThrow(nil, errors.New("参数类型不支持, index: 2"))
+			return nil, utils.NewThrow(errors.New("参数类型不支持, index: 2"))
 		}
 	case *data.AnyValue:
 		if v.Value != nil {
 			arg2 = v.Value.(interface{})
 		}
 	default:
-		return nil, data.NewErrorThrow(nil, errors.New("参数类型不支持, index: 2"))
+		return nil, utils.NewThrow(errors.New("参数类型不支持, index: 2"))
 	}
 	ret0 := context.WithValue(arg0, arg1, arg2)
 	return data.NewClassValue(NewContextClassFrom(ret0), ctx), nil

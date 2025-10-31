@@ -3,8 +3,10 @@ package sql
 import (
 	sqlsrc "database/sql"
 	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 type TxStmtMethod struct {
@@ -15,7 +17,7 @@ func (h *TxStmtMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, index: 0"))
+		return nil, utils.NewThrow(errors.New("缺少参数, index: 0"))
 	}
 
 	arg0Class := a0.(*data.ClassValue).Class.(*StmtClass)

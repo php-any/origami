@@ -25,7 +25,7 @@ func (ds *DatabaseScanner) ScanRowToInstance(instance *data.ClassValue, rows *sq
 	// 获取类的属性定义
 	classStmt := instance.Class
 	if classStmt == nil {
-		return data.NewErrorThrow(nil, errors.New("实例没有类定义"))
+		return utils.NewThrow(errors.New("实例没有类定义"))
 	}
 
 	// 获取列信息

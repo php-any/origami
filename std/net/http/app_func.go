@@ -35,7 +35,7 @@ func (h *AppFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 	if filePath == "" {
-		filePath = "./main.zy"
+		filePath = "./src/main.zy"
 	}
 
 	// 获取当前工作目录
@@ -71,10 +71,14 @@ func (h *AppFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 查找 app 函数
-	fullName := "App\\main"
+	fullName, err := utils.ConvertFromIndex[string](ctx, 3)
+	if err != nil {
+		return nil, utils.NewThrow(err)
+	}
+
 	fn, ok := vm.GetFunc(fullName)
 	if !ok {
-		return nil, utils.NewThrow(errors.New("未找到 app($request, $response) 函数"))
+		return nil, utils.NewThrowf("未找到%s($request, $response) 函数", fullName)
 	}
 
 	// 调用 app($request, $response) - 参考 NextHandler 的简洁方式
@@ -97,7 +101,8 @@ func (h *AppFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "request", 0, nil, nil),
 		node.NewParameter(nil, "response", 1, nil, nil),
-		node.NewParameter(nil, "filePath", 2, data.NewStringValue("./main.zy"), data.String{}),
+		node.NewParameter(nil, "filePath", 2, data.NewStringValue("./src/main.zy"), data.String{}),
+		node.NewParameter(nil, "fun", 3, data.NewStringValue("App\\main"), data.String{}),
 	}
 }
 func (h *AppFunction) GetVariables() []data.Variable {
@@ -105,6 +110,7 @@ func (h *AppFunction) GetVariables() []data.Variable {
 		node.NewVariable(nil, "request", 0, nil),
 		node.NewVariable(nil, "response", 1, nil),
 		node.NewVariable(nil, "filePath", 2, nil),
+		node.NewVariable(nil, "fun", 3, nil),
 	}
 }
 func (h *AppFunction) GetReturnType() data.Types { return data.NewBaseType("mixed") }

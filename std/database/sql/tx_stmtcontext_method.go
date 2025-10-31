@@ -4,8 +4,10 @@ import (
 	"context"
 	sqlsrc "database/sql"
 	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 type TxStmtContextMethod struct {
@@ -16,12 +18,12 @@ func (h *TxStmtContextMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, index: 0"))
+		return nil, utils.NewThrow(errors.New("缺少参数, index: 0"))
 	}
 
 	a1, ok := ctx.GetIndexValue(1)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, index: 1"))
+		return nil, utils.NewThrow(errors.New("缺少参数, index: 1"))
 	}
 
 	var arg0 context.Context
@@ -30,12 +32,12 @@ func (h *TxStmtContextMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 		if p, ok := v.Class.(interface{ GetSource() any }); ok {
 			arg0 = p.GetSource().(context.Context)
 		} else {
-			return nil, data.NewErrorThrow(nil, errors.New("参数类型不支持, index: 0"))
+			return nil, utils.NewThrow(errors.New("参数类型不支持, index: 0"))
 		}
 	case *data.AnyValue:
 		arg0 = v.Value.(context.Context)
 	default:
-		return nil, data.NewErrorThrow(nil, errors.New("参数类型不支持, index: 0"))
+		return nil, utils.NewThrow(errors.New("参数类型不支持, index: 0"))
 	}
 	arg1Class := a1.(*data.ClassValue).Class.(*StmtClass)
 	arg1 := arg1Class.source

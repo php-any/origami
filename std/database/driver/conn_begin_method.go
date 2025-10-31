@@ -4,6 +4,7 @@ import (
 	driversrc "database/sql/driver"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/utils"
 )
 
 type ConnBeginMethod struct {
@@ -14,7 +15,7 @@ func (h *ConnBeginMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	ret0, err := h.source.Begin()
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 	return data.NewClassValue(NewTxClassFrom(ret0), ctx), nil
 }

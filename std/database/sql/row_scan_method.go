@@ -3,8 +3,10 @@ package sql
 import (
 	sqlsrc "database/sql"
 	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 type RowScanMethod struct {
@@ -15,16 +17,16 @@ func (h *RowScanMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, index: 0"))
+		return nil, utils.NewThrow(errors.New("缺少参数, index: 0"))
 	}
 
 	arg0 := make([]any, 0)
 	for _, v := range a0.(*data.ArrayValue).Value {
-		arg0 = append(arg0, v)
+		arg0 = append(arg0, ConvertValueToGoType(v))
 	}
 
 	if err := h.source.Scan(arg0...); err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 	return nil, nil
 }

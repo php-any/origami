@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/utils"
 
 	"github.com/php-any/origami/lexer"
 	"github.com/php-any/origami/node"
@@ -86,7 +87,7 @@ func (p *Parser) ParseFile(filename string) (*node.Program, data.Control) {
 	// 读取文件内容
 	content, err := os.ReadFile(filename)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 
 	// 重置解析器状态
@@ -228,10 +229,6 @@ func (p *Parser) isEOF() bool {
 	return p.position >= len(p.tokens)
 }
 
-func (p *Parser) addControl(acl data.Control) {
-	p.vm.ThrowControl(acl)
-}
-
 // 结束当前文件解析
 func (p *Parser) stopNext() {
 	p.position = len(p.tokens)
@@ -254,14 +251,19 @@ func (p *Parser) ShowControl(acl data.Control) {
 		if len(throwValue.StackFrames) > 0 {
 			_, _ = fmt.Fprintln(os.Stderr, "Stack trace:")
 			for i, frame := range throwValue.StackFrames {
-				stackSl, stackSp := frame.From.GetStartPosition()
+				var stackSl, stackSp int
+				var source string
+				if frame.From == nil {
+					stackSl, stackSp = 0, 0
+				} else {
+					stackSl, stackSp = frame.From.GetStartPosition()
+					source = frame.From.GetSource()
+				}
 				// 使用 path:line:col 形式提升可点击性
 				if frame.ClassName == "" {
-					_, _ = fmt.Fprintf(os.Stderr, "#%d %s:%d:%d in %s()\n",
-						i, frame.From.GetSource(), stackSl+1, stackSp+1, frame.MethodName)
+					_, _ = fmt.Fprintf(os.Stderr, "#%d %s:%d:%d in %s()\n", i, source, stackSl+1, stackSp+1, frame.MethodName)
 				} else {
-					_, _ = fmt.Fprintf(os.Stderr, "#%d %s:%d:%d in %s::%s()\n",
-						i, frame.From.GetSource(), stackSl+1, stackSp+1, frame.ClassName, frame.MethodName)
+					_, _ = fmt.Fprintf(os.Stderr, "#%d %s:%d:%d in %s::%s()\n", i, source, stackSl+1, stackSp+1, frame.ClassName, frame.MethodName)
 				}
 			}
 			// 末行也输出可点击位置
@@ -636,9 +638,9 @@ func (p *Parser) tryFindTypes() (data.Types, bool) {
 		return data.NewBaseType(p.current().Literal), true
 	}
 
-	name, ok := p.findFullClassNameByNamespace(p.current().Literal)
-	if ok {
-		return data.NewBaseType(name), true
+	name, acl := p.getClassName(true)
+	if acl != nil {
+		return nil, false
 	}
-	return nil, false
+	return data.NewBaseType(name), true
 }

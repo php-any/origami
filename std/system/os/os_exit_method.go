@@ -5,6 +5,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 type OSExitMethod struct {
@@ -14,7 +15,7 @@ type OSExitMethod struct {
 func (h *OSExitMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, index: 0"))
+		return nil, utils.NewThrow(errors.New("缺少参数, index: 0"))
 	}
 
 	i, _ := a0.(*data.IntValue).AsInt()

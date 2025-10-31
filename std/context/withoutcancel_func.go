@@ -17,7 +17,7 @@ func (h *WithoutCancelFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, index: 0"))
+		return nil, utils.NewThrow(errors.New("缺少参数, index: 0"))
 	}
 
 	var arg0 context.Context
@@ -28,14 +28,14 @@ func (h *WithoutCancelFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 				arg0 = src.(context.Context)
 			}
 		} else {
-			return nil, data.NewErrorThrow(nil, errors.New("参数类型不支持, index: 0"))
+			return nil, utils.NewThrow(errors.New("参数类型不支持, index: 0"))
 		}
 	case *data.AnyValue:
 		if v.Value != nil {
 			arg0 = v.Value.(context.Context)
 		}
 	default:
-		return nil, data.NewErrorThrow(nil, errors.New("参数类型不支持, index: 0"))
+		return nil, utils.NewThrow(errors.New("参数类型不支持, index: 0"))
 	}
 	ret0 := context.WithoutCancel(arg0)
 	return data.NewClassValue(NewContextClassFrom(ret0), ctx), nil

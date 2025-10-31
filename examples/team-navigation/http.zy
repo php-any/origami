@@ -1,5 +1,3 @@
-namespace App;
-
 use Net\Http\Server;
 use Net\Http\app;
 use Database\Sql\open;
@@ -64,17 +62,15 @@ $result3 = $db->exec($createProjectEnvsTable);
 Log::info("创建项目环境表结果: " + $result3);
 
 // 初始化示例数据（如果表为空）
-$toolCountResult = $db->query("SELECT COUNT(*) as count FROM tool_links");
 $toolCount = 0;
 try {
-    if ($toolCountResult != null) {
-        if ($toolCountResult instanceof object && $toolCountResult->count != null) {
-            $toolCount = (int)$toolCountResult->count;
-        } else {
-            $toolCount = (int)$toolCountResult;
-        }
-    }
+    $row = $db->queryRow("SELECT COUNT(*) FROM tool_links");
+    $row->scan($toolCount);
 } catch (Exception $e) {
+    Log::error($e->getMessage());
+    $toolCount = 0;
+} catch (Error $e) {
+    Log::error($e->getMessage());
     $toolCount = 0;
 }
 
@@ -93,23 +89,21 @@ if ($toolCount == 0) {
         ["VPN", "https://vpn.example.com", "🔐", "网络", "VPN 连接", 10]
     ];
     
-    for ($tool in $initTools) {
+    for (_, $tool in $initTools) {
         $db->exec("INSERT INTO tool_links (name, url, icon, category, description, display_order) VALUES (?, ?, ?, ?, ?, ?)", 
             $tool[0], $tool[1], $tool[2], $tool[3], $tool[4], $tool[5]);
     }
 }
 
-$projectCountResult = $db->query("SELECT COUNT(*) as count FROM projects");
 $projectCount = 0;
 try {
-    if ($projectCountResult != null) {
-        if ($projectCountResult instanceof object && $projectCountResult->count != null) {
-            $projectCount = (int)$projectCountResult->count;
-        } else {
-            $projectCount = (int)$projectCountResult;
-        }
-    }
+    $row = $db->queryRow("SELECT COUNT(*) FROM projects");
+    $row->scan($projectCount);
 } catch (Exception $e) {
+    Log::error($e->getMessage());
+    $projectCount = 0;
+} catch (Error $e) {
+    Log::error($e->getMessage());
     $projectCount = 0;
 }
 
@@ -122,10 +116,10 @@ if ($projectCount == 0) {
         ["Mobile App", 4]
     ];
     
-    for ($project in $initProjects) {
+    for (_, $project in $initProjects) {
         $result = $db->exec("INSERT INTO projects (name, display_order) VALUES (?, ?)", 
             $project[0], $project[1]);
-        $projectId = $result->lastInsertId;
+        $projectId = $result->lastInsertId();
         
         // 为每个项目创建默认环境
         $projectNameRaw = $project[0];
@@ -136,7 +130,7 @@ if ($projectCount == 0) {
             ["生产环境", "https://" + $projectNameLower + ".example.com", "运行中", "green"]
         ];
         
-        for ($env in $defaultEnvs) {
+        for (_, $env in $defaultEnvs) {
             $db->exec("INSERT INTO project_environments (project_id, environment_name, url, status, status_color) VALUES (?, ?, ?, ?, ?)", 
                 $projectId, $env[0], $env[1], $env[2], $env[3]);
         }
@@ -157,12 +151,13 @@ $server->middleware(($request, $response, $next) => {
 
 // 匹配任意方法 + 任意路由，统一交给 app 分发
 $server->any(($request, $response) => {
-    app($request, $response)
+    app($request, $response);
 });
 
 // 静态资源解析：将 /assets/* 映射到 ./pages 目录
 $server->static("/assets/", "./pages/assets");
 
 Log::info("团队导航页服务启动在: http://127.0.0.1:8080");
+
 $server->run();
 

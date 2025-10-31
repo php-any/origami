@@ -3,8 +3,10 @@ package driver
 import (
 	driversrc "database/sql/driver"
 	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 type StmtExecMethod struct {
@@ -15,7 +17,7 @@ func (h *StmtExecMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, index: 0"))
+		return nil, utils.NewThrow(errors.New("缺少参数, index: 0"))
 	}
 
 	arg0 := make([]driversrc.Value, 0)
@@ -25,7 +27,7 @@ func (h *StmtExecMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	ret0, err := h.source.Exec(arg0)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 	return data.NewClassValue(NewResultClassFrom(ret0), ctx), nil
 }

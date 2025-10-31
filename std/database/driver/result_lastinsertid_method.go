@@ -2,7 +2,9 @@ package driver
 
 import (
 	driversrc "database/sql/driver"
+
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/utils"
 )
 
 type ResultLastInsertIdMethod struct {
@@ -13,7 +15,7 @@ func (h *ResultLastInsertIdMethod) Call(ctx data.Context) (data.GetValue, data.C
 
 	ret0, err := h.source.LastInsertId()
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 	return data.NewIntValue(int(ret0)), nil
 }

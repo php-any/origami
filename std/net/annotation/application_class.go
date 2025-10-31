@@ -2,7 +2,10 @@ package annotation
 
 import (
 	"errors"
+
 	"github.com/php-any/origami/runtime"
+	"github.com/php-any/origami/utils"
+
 	"os"
 	"path/filepath"
 
@@ -89,11 +92,11 @@ func (m *ApplicationConstructMethod) GetReturnType() data.Types { return data.Ne
 func (m *ApplicationConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	name, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, name: 0"))
+		return nil, utils.NewThrow(errors.New("缺少参数, name: 0"))
 	}
 	port, ok := ctx.GetIndexValue(1)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, port: 1"))
+		return nil, utils.NewThrow(errors.New("缺少参数, port: 1"))
 	}
 
 	if v, ok := name.(*data.StringValue); ok {
@@ -141,7 +144,7 @@ func (m *ApplicationConstructMethod) Scan(ctx data.Context) data.Control {
 	// 递归扫描 m.app.scan（默认 ./src）下的 .zy 文件（包含任意子目录），不做 http.zy 等特殊过滤
 	cwd, err := os.Getwd()
 	if err != nil {
-		return data.NewErrorThrow(nil, err)
+		return utils.NewThrow(err)
 	}
 
 	base := m.app.scan
@@ -164,7 +167,7 @@ func (m *ApplicationConstructMethod) Scan(ctx data.Context) data.Control {
 		return nil
 	})
 	if err != nil {
-		return data.NewErrorThrow(nil, err)
+		return utils.NewThrow(err)
 	}
 
 	vm := ctx.GetVM()

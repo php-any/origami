@@ -43,6 +43,16 @@ func (i *InstanceOfExpression) GetValue(ctx data.Context) (data.GetValue, data.C
 		}
 	}
 
+	switch i.ClassName {
+	case "object":
+		switch objectValue.(type) {
+		case *data.ClassValue:
+			return data.NewBoolValue(true), nil
+		case *data.ObjectValue:
+			return data.NewBoolValue(true), nil
+		}
+	}
+
 	// 如果不是类实例，返回 false
 	return data.NewBoolValue(false), nil
 }

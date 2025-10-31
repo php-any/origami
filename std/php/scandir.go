@@ -7,6 +7,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 func NewScandirFunction() data.FuncStmt {
@@ -29,20 +30,20 @@ func (f *ScandirFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	// 检查路径是否为空
 	if path == "" {
-		return nil, data.NewErrorThrow(nil, errors.New("scandir函数调用: path 是空的"))
+		return nil, utils.NewThrow(errors.New("scandir函数调用: path 是空的"))
 	}
 
 	// 打开目录
 	dir, err := os.Open(path)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 	defer dir.Close()
 
 	// 读取目录内容
 	entries, err := dir.Readdirnames(0)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 
 	// 对文件名进行排序（PHP scandir 默认按字母顺序排序）

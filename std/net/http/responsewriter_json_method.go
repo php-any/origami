@@ -28,12 +28,12 @@ func (h *ResponseWriterJsonMethod) Call(ctx data.Context) (data.GetValue, data.C
 	case data.ValueSerializer:
 		bytes, err := msg.Marshal(json.NewJsonSerializer())
 		if err != nil {
-			return nil, data.NewErrorThrow(nil, err)
+			return nil, utils.NewThrow(err)
 		}
 		h.source.Header().Set("Content-Type", "application/json; charset=utf-8")
 		ret0, ret1 := h.source.Write(bytes)
 		if ret1 != nil {
-			return nil, data.NewErrorThrow(nil, ret1)
+			return nil, utils.NewThrow(ret1)
 		}
 		return data.NewIntValue(ret0), nil
 	}

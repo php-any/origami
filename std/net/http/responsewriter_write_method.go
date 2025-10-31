@@ -20,7 +20,7 @@ func (h *ResponseWriterWriteMethod) Call(ctx data.Context) (data.GetValue, data.
 
 	ret0, ret1 := h.source.Write([]byte(param0.AsString()))
 	if ret1 != nil {
-		return nil, data.NewErrorThrow(nil, ret1)
+		return nil, utils.NewThrow(ret1)
 	}
 	return data.NewIntValue(ret0), nil
 }

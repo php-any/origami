@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/utils"
 )
 
 type DbWhereMethod struct {
@@ -13,7 +14,7 @@ type DbWhereMethod struct {
 func (d *DbWhereMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	a1, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少 sql 参数"))
+		return nil, utils.NewThrow(errors.New("缺少 sql 参数"))
 	}
 	sql := a1.(data.AsString).AsString()
 

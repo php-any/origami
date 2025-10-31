@@ -2,7 +2,9 @@ package sql
 
 import (
 	sqlsrc "database/sql"
+
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/utils"
 )
 
 type ResultRowsAffectedMethod struct {
@@ -13,7 +15,7 @@ func (h *ResultRowsAffectedMethod) Call(ctx data.Context) (data.GetValue, data.C
 
 	ret0, err := h.source.RowsAffected()
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 	return data.NewIntValue(int(ret0)), nil
 }

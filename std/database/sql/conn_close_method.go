@@ -2,7 +2,9 @@ package sql
 
 import (
 	sqlsrc "database/sql"
+
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/utils"
 )
 
 type ConnCloseMethod struct {
@@ -12,7 +14,7 @@ type ConnCloseMethod struct {
 func (h *ConnCloseMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	if err := h.source.Close(); err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 	return nil, nil
 }

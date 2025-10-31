@@ -246,5 +246,5 @@ func (s *RequestClass) GetPropertyList() []data.Property {
 }
 
 func (s *RequestClass) SetProperty(name string, value data.Value) data.Control {
-	return data.NewErrorThrow(nil, errors.New("request 对象是只读的，不允许设置属性"))
+	return utils.NewThrow(errors.New("request 对象是只读的，不允许设置属性"))
 }

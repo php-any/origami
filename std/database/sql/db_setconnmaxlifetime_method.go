@@ -3,8 +3,11 @@ package sql
 import (
 	sqlsrc "database/sql"
 	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
+
 	"time"
 )
 
@@ -16,12 +19,12 @@ func (h *DBSetConnMaxLifetimeMethod) Call(ctx data.Context) (data.GetValue, data
 
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, index: 0"))
+		return nil, utils.NewThrow(errors.New("缺少参数, index: 0"))
 	}
 
 	arg0Int, err := a0.(*data.IntValue).AsInt()
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 	arg0 := time.Duration(arg0Int)
 

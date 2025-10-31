@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/php-any/origami/std/database/annotation"
-	netAnnotation "github.com/php-any/origami/std/net/annotation"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/php-any/origami/std/database/annotation"
+	netAnnotation "github.com/php-any/origami/std/net/annotation"
 
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/runtime"
@@ -18,7 +19,7 @@ import (
 
 func main() {
 	p := parser.NewParser()
-	p.AddScanNamespace("examples", "./")
+	p.AddScanNamespace("App", "./src")
 
 	vm := runtime.NewVM(p)
 	std.Load(vm)

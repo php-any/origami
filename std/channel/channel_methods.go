@@ -5,6 +5,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 // ChannelConstructMethod 构造函数
@@ -60,13 +61,13 @@ type ChannelSendMethod struct {
 
 func (c *ChannelSendMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if c.source.channel == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("channel not initialized"))
+		return nil, utils.NewThrow(errors.New("channel not initialized"))
 	}
 
 	// 获取参数
 	value, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("missing parameter: value"))
+		return nil, utils.NewThrow(errors.New("missing parameter: value"))
 	}
 
 	// 发送数据（Go 风格的发送）
@@ -109,7 +110,7 @@ type ChannelReceiveMethod struct {
 
 func (c *ChannelReceiveMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if c.source.channel == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("channel not initialized"))
+		return nil, utils.NewThrow(errors.New("channel not initialized"))
 	}
 
 	// 接收数据（Go 风格的接收）
@@ -152,7 +153,7 @@ type ChannelCloseMethod struct {
 
 func (c *ChannelCloseMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if c.source.channel == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("channel not initialized"))
+		return nil, utils.NewThrow(errors.New("channel not initialized"))
 	}
 
 	c.source.channel.Close()
@@ -190,7 +191,7 @@ type ChannelIsClosedMethod struct {
 
 func (c *ChannelIsClosedMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if c.source.channel == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("channel not initialized"))
+		return nil, utils.NewThrow(errors.New("channel not initialized"))
 	}
 
 	closed := c.source.channel.IsClosed()
@@ -228,7 +229,7 @@ type ChannelLenMethod struct {
 
 func (c *ChannelLenMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if c.source.channel == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("channel not initialized"))
+		return nil, utils.NewThrow(errors.New("channel not initialized"))
 	}
 
 	length := c.source.channel.Len()
@@ -266,7 +267,7 @@ type ChannelCapMethod struct {
 
 func (c *ChannelCapMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if c.source.channel == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("channel not initialized"))
+		return nil, utils.NewThrow(errors.New("channel not initialized"))
 	}
 
 	capacity := c.source.channel.Cap()

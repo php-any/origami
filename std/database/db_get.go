@@ -16,7 +16,7 @@ func (d *DbGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取数据库连接
 	conn := d.source.getConnection()
 	if conn == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("数据库连接不可用"))
+		return nil, utils.NewThrow(errors.New("数据库连接不可用"))
 	}
 
 	// 构建查询语句（支持注解处理）
@@ -31,7 +31,7 @@ func (d *DbGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 执行查询
 	rows, err := conn.Query(query, args...)
 	if err != nil {
-		return nil, utils.NewThrowf("get查询失败: %v", err)
+		return nil, utils.NewThrowf("get查询失败: err(%v); sql(%s)", err, query)
 	}
 	defer rows.Close()
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/utils"
 )
 
 type DbOffsetMethod struct {
@@ -27,7 +28,7 @@ func (d *DbOffsetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 			}
 		}
 	}
-	return nil, data.NewErrorThrow(nil, errors.New("偏移必须是非负整数"))
+	return nil, utils.NewThrow(errors.New("偏移必须是非负整数"))
 }
 
 func (d *DbOffsetMethod) GetName() string {

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/utils"
 )
 
 type DbOrderByMethod struct {
@@ -25,7 +26,7 @@ func (d *DbOrderByMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 			return data.NewClassValue(newDBClass, ctx.GetVM().CreateContext([]data.Variable{})), nil
 		}
 	}
-	return nil, data.NewErrorThrow(nil, errors.New("排序字段必须是字符串"))
+	return nil, utils.NewThrow(errors.New("排序字段必须是字符串"))
 }
 
 func (d *DbOrderByMethod) GetName() string {

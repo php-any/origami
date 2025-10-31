@@ -32,13 +32,14 @@ func (e *Error) Error() string {
 
 	// 添加错误来源
 	if e.From != nil {
-		sb.WriteString(fmt.Sprintf(" at file://%s", e.From.GetSource()))
+		sl, sp := e.From.GetStartPosition()
+		sb.WriteString(fmt.Sprintf(" at %s:%d:%d", e.From.GetSource(), sl+1, sp+1))
 	}
 
 	// 添加原始错误
-	if e.cause != nil {
-		sb.WriteString(fmt.Sprintf("\nCaused by: %v", e.cause))
-	}
+	//if e.cause != nil {
+	//	sb.WriteString(fmt.Sprintf("\nCaused by: %v", e.cause))
+	//}
 
 	// 添加子错误
 	if len(e.children) > 0 {

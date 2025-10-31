@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/utils"
 )
 
 type DbLimitMethod struct {
@@ -27,7 +28,7 @@ func (d *DbLimitMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 			}
 		}
 	}
-	return nil, data.NewErrorThrow(nil, errors.New("限制必须是正整数"))
+	return nil, utils.NewThrow(errors.New("限制必须是正整数"))
 }
 
 func (d *DbLimitMethod) GetName() string {

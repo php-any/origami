@@ -5,6 +5,7 @@ import (
 	httpsrc "net/http"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/utils"
 )
 
 type ServerRunMethod struct {
@@ -14,7 +15,7 @@ type ServerRunMethod struct {
 func (h *ServerRunMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	err := httpsrc.ListenAndServe(h.server.Host+":"+fmt.Sprintf("%d", h.server.Port), h.server.source)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 	return nil, nil
 }

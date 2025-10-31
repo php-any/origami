@@ -3,8 +3,10 @@ package sql
 import (
 	sqlsrc "database/sql"
 	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 type TxQueryRowMethod struct {
@@ -15,18 +17,18 @@ func (h *TxQueryRowMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, index: 0"))
+		return nil, utils.NewThrow(errors.New("缺少参数, index: 0"))
 	}
 
 	a1, ok := ctx.GetIndexValue(1)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, index: 1"))
+		return nil, utils.NewThrow(errors.New("缺少参数, index: 1"))
 	}
 
 	arg0 := a0.(*data.StringValue).AsString()
 	arg1 := make([]any, 0)
 	for _, v := range a1.(*data.ArrayValue).Value {
-		arg1 = append(arg1, v)
+		arg1 = append(arg1, ConvertValueToGoType(v))
 	}
 
 	ret0 := h.source.QueryRow(arg0, arg1...)

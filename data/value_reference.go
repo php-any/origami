@@ -29,6 +29,20 @@ func (s *ReferenceValue) AsString() string {
 	return v.(Value).AsString()
 }
 
+func (s *ReferenceValue) Marshal(serializer Serializer) ([]byte, error) {
+	v, _ := s.Val.GetValue(s.Ctx)
+	return v.(ValueSerializer).Marshal(serializer)
+}
+
+func (s *ReferenceValue) Unmarshal(data []byte, serializer Serializer) error {
+	v, _ := s.Val.GetValue(s.Ctx)
+	return v.(ValueSerializer).Unmarshal(data, serializer)
+}
+
+func (s *ReferenceValue) ToGoValue(serializer Serializer) (any, error) {
+	return s, nil
+}
+
 // Scan 接收 database.sql 包的传值
 func (s *ReferenceValue) Scan(value any) error {
 	if value == nil {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 // ListConstructMethod 构造函数
@@ -78,17 +79,17 @@ func (m *ListAddMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取参数
 	value, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("List::add() 需要至少一个参数"))
+		return nil, utils.NewThrow(errors.New("List::add() 需要至少一个参数"))
 	}
 
 	// 获取 List 实例
 	if m.source.list == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("List 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("List 实例未初始化"))
 	}
 
 	// 泛型类型检查
 	if m.source.list.itemType != nil && !m.source.list.itemType.Is(value) {
-		return nil, data.NewErrorThrow(nil, errors.New("类型不匹配: 期望 "+m.source.list.itemType.String()+" 但得到 "+value.AsString()))
+		return nil, utils.NewThrow(errors.New("类型不匹配: 期望 " + m.source.list.itemType.String() + " 但得到 " + value.AsString()))
 	}
 
 	// 添加元素
@@ -133,18 +134,18 @@ func (m *ListGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取参数
 	indexValue, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("List::get() 需要一个索引参数"))
+		return nil, utils.NewThrow(errors.New("List::get() 需要一个索引参数"))
 	}
 
 	// 获取索引
 	index, ok := indexValue.(*data.IntValue)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("List::get() 的索引必须是整数"))
+		return nil, utils.NewThrow(errors.New("List::get() 的索引必须是整数"))
 	}
 
 	// 获取元素
 	if m.source.list == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("List 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("List 实例未初始化"))
 	}
 
 	item, found := m.source.list.Get(index.Value)
@@ -194,33 +195,33 @@ func (m *ListSetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取参数
 	indexValue, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("List::set() 需要索引参数"))
+		return nil, utils.NewThrow(errors.New("List::set() 需要索引参数"))
 	}
 
 	value, ok := ctx.GetIndexValue(1)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("List::set() 需要值参数"))
+		return nil, utils.NewThrow(errors.New("List::set() 需要值参数"))
 	}
 
 	// 获取索引
 	index, ok := indexValue.(*data.IntValue)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("List::set() 的索引必须是整数"))
+		return nil, utils.NewThrow(errors.New("List::set() 的索引必须是整数"))
 	}
 
 	// 设置元素
 	if m.source.list == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("List 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("List 实例未初始化"))
 	}
 
 	// 泛型类型检查
 	if m.source.list.itemType != nil && !m.source.list.itemType.Is(value) {
-		return nil, data.NewErrorThrow(nil, errors.New("类型不匹配: 期望 "+m.source.list.itemType.String()+" 但得到 "+value.AsString()))
+		return nil, utils.NewThrow(errors.New("类型不匹配: 期望 " + m.source.list.itemType.String() + " 但得到 " + value.AsString()))
 	}
 
 	success := m.source.list.Set(index.Value, value)
 	if !success {
-		return nil, data.NewErrorThrow(nil, errors.New("索引超出范围"))
+		return nil, utils.NewThrow(errors.New("索引超出范围"))
 	}
 
 	return data.NewNullValue(), nil
@@ -257,7 +258,7 @@ func (m *ListSizeMethod) GetReturnType() data.Types {
 
 func (m *ListSizeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.list == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("List 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("List 实例未初始化"))
 	}
 
 	size := m.source.list.Size()
@@ -301,11 +302,11 @@ func (m *ListRemoveMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 	// 获取参数
 	value, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("List::remove() 需要一个参数"))
+		return nil, utils.NewThrow(errors.New("List::remove() 需要一个参数"))
 	}
 
 	if m.source.list == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("List 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("List 实例未初始化"))
 	}
 
 	success := m.source.list.Remove(value)
@@ -349,17 +350,17 @@ func (m *ListRemoveAtMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	// 获取参数
 	indexValue, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("List::removeAt() 需要一个索引参数"))
+		return nil, utils.NewThrow(errors.New("List::removeAt() 需要一个索引参数"))
 	}
 
 	// 获取索引
 	index, ok := indexValue.(*data.IntValue)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("List::removeAt() 的索引必须是整数"))
+		return nil, utils.NewThrow(errors.New("List::removeAt() 的索引必须是整数"))
 	}
 
 	if m.source.list == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("List 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("List 实例未初始化"))
 	}
 
 	_, success := m.source.list.RemoveAt(index.Value)
@@ -397,7 +398,7 @@ func (m *ListClearMethod) GetReturnType() data.Types {
 
 func (m *ListClearMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.list == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("List 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("List 实例未初始化"))
 	}
 
 	m.source.list.Clear()
@@ -441,11 +442,11 @@ func (m *ListContainsMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	// 获取参数
 	value, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("List::contains() 需要一个参数"))
+		return nil, utils.NewThrow(errors.New("List::contains() 需要一个参数"))
 	}
 
 	if m.source.list == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("List 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("List 实例未初始化"))
 	}
 
 	contains := m.source.list.Contains(value)
@@ -489,11 +490,11 @@ func (m *ListIndexOfMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	// 获取参数
 	value, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("List::indexOf() 需要一个参数"))
+		return nil, utils.NewThrow(errors.New("List::indexOf() 需要一个参数"))
 	}
 
 	if m.source.list == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("List 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("List 实例未初始化"))
 	}
 
 	index := m.source.list.IndexOf(value)
@@ -531,7 +532,7 @@ func (m *ListIsEmptyMethod) GetReturnType() data.Types {
 
 func (m *ListIsEmptyMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.list == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("List 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("List 实例未初始化"))
 	}
 
 	isEmpty := m.source.list.IsEmpty()
@@ -569,7 +570,7 @@ func (m *ListToArrayMethod) GetReturnType() data.Types {
 
 func (m *ListToArrayMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.list == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("List 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("List 实例未初始化"))
 	}
 
 	array := m.source.list.ToArray()
@@ -609,7 +610,7 @@ func (m *ListCurrentMethod) GetReturnType() data.Types {
 
 func (m *ListCurrentMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.list == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("List 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("List 实例未初始化"))
 	}
 
 	return m.source.list.Current(), nil
@@ -646,7 +647,7 @@ func (m *ListKeyMethod) GetReturnType() data.Types {
 
 func (m *ListKeyMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.list == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("List 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("List 实例未初始化"))
 	}
 
 	return m.source.list.Key(), nil
@@ -683,7 +684,7 @@ func (m *ListNextMethod) GetReturnType() data.Types {
 
 func (m *ListNextMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.list == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("List 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("List 实例未初始化"))
 	}
 
 	m.source.list.Next()
@@ -721,7 +722,7 @@ func (m *ListRewindMethod) GetReturnType() data.Types {
 
 func (m *ListRewindMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.list == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("List 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("List 实例未初始化"))
 	}
 
 	m.source.list.Rewind()
@@ -759,7 +760,7 @@ func (m *ListValidMethod) GetReturnType() data.Types {
 
 func (m *ListValidMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.list == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("List 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("List 实例未初始化"))
 	}
 
 	valid := m.source.list.Valid()

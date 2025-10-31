@@ -3,8 +3,10 @@ package sql
 import (
 	sqlsrc "database/sql"
 	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 type TxPrepareMethod struct {
@@ -15,14 +17,14 @@ func (h *TxPrepareMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, index: 0"))
+		return nil, utils.NewThrow(errors.New("缺少参数, index: 0"))
 	}
 
 	arg0 := a0.(*data.StringValue).AsString()
 
 	ret0, err := h.source.Prepare(arg0)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 	return data.NewClassValue(NewStmtClassFrom(ret0), ctx), nil
 }

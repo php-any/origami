@@ -5,6 +5,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 // HashMapConstructMethod 构造函数
@@ -80,26 +81,26 @@ func (m *HashMapPutMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 	// 获取参数
 	key, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap::put() 需要键参数"))
+		return nil, utils.NewThrow(errors.New("HashMap::put() 需要键参数"))
 	}
 
 	value, ok := ctx.GetIndexValue(1)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap::put() 需要值参数"))
+		return nil, utils.NewThrow(errors.New("HashMap::put() 需要值参数"))
 	}
 
 	// 获取 HashMap 实例
 	if m.source.hashmap == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("HashMap 实例未初始化"))
 	}
 
 	// 泛型类型检查
 	if m.source.hashmap.keyType != nil && !m.source.hashmap.keyType.Is(key) {
-		return nil, data.NewErrorThrow(nil, errors.New("类型不匹配: 键类型期望 "+m.source.hashmap.keyType.String()+" 但得到 "+key.AsString()))
+		return nil, utils.NewThrow(errors.New("类型不匹配: 键类型期望 " + m.source.hashmap.keyType.String() + " 但得到 " + key.AsString()))
 	}
 
 	if m.source.hashmap.valueType != nil && !m.source.hashmap.valueType.Is(value) {
-		return nil, data.NewErrorThrow(nil, errors.New("类型不匹配: 值类型期望 "+m.source.hashmap.valueType.String()+" 但得到 "+value.AsString()))
+		return nil, utils.NewThrow(errors.New("类型不匹配: 值类型期望 " + m.source.hashmap.valueType.String() + " 但得到 " + value.AsString()))
 	}
 
 	// 添加键值对
@@ -144,17 +145,17 @@ func (m *HashMapGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 	// 获取参数
 	key, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap::get() 需要键参数"))
+		return nil, utils.NewThrow(errors.New("HashMap::get() 需要键参数"))
 	}
 
 	// 获取 HashMap 实例
 	if m.source.hashmap == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("HashMap 实例未初始化"))
 	}
 
 	// 泛型类型检查
 	if m.source.hashmap.keyType != nil && !m.source.hashmap.keyType.Is(key) {
-		return nil, data.NewErrorThrow(nil, errors.New("类型不匹配: 键类型期望 "+m.source.hashmap.keyType.String()+" 但得到 "+key.AsString()))
+		return nil, utils.NewThrow(errors.New("类型不匹配: 键类型期望 " + m.source.hashmap.keyType.String() + " 但得到 " + key.AsString()))
 	}
 
 	// 获取值
@@ -203,17 +204,17 @@ func (m *HashMapRemoveMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 	// 获取参数
 	key, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap::remove() 需要键参数"))
+		return nil, utils.NewThrow(errors.New("HashMap::remove() 需要键参数"))
 	}
 
 	// 获取 HashMap 实例
 	if m.source.hashmap == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("HashMap 实例未初始化"))
 	}
 
 	// 泛型类型检查
 	if m.source.hashmap.keyType != nil && !m.source.hashmap.keyType.Is(key) {
-		return nil, data.NewErrorThrow(nil, errors.New("类型不匹配: 键类型期望 "+m.source.hashmap.keyType.String()+" 但得到 "+key.AsString()))
+		return nil, utils.NewThrow(errors.New("类型不匹配: 键类型期望 " + m.source.hashmap.keyType.String() + " 但得到 " + key.AsString()))
 	}
 
 	// 移除键值对
@@ -258,17 +259,17 @@ func (m *HashMapContainsKeyMethod) Call(ctx data.Context) (data.GetValue, data.C
 	// 获取参数
 	key, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap::containsKey() 需要键参数"))
+		return nil, utils.NewThrow(errors.New("HashMap::containsKey() 需要键参数"))
 	}
 
 	// 获取 HashMap 实例
 	if m.source.hashmap == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("HashMap 实例未初始化"))
 	}
 
 	// 泛型类型检查
 	if m.source.hashmap.keyType != nil && !m.source.hashmap.keyType.Is(key) {
-		return nil, data.NewErrorThrow(nil, errors.New("类型不匹配: 键类型期望 "+m.source.hashmap.keyType.String()+" 但得到 "+key.AsString()))
+		return nil, utils.NewThrow(errors.New("类型不匹配: 键类型期望 " + m.source.hashmap.keyType.String() + " 但得到 " + key.AsString()))
 	}
 
 	// 检查是否包含键
@@ -313,17 +314,17 @@ func (m *HashMapContainsValueMethod) Call(ctx data.Context) (data.GetValue, data
 	// 获取参数
 	value, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap::containsValue() 需要值参数"))
+		return nil, utils.NewThrow(errors.New("HashMap::containsValue() 需要值参数"))
 	}
 
 	// 获取 HashMap 实例
 	if m.source.hashmap == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("HashMap 实例未初始化"))
 	}
 
 	// 泛型类型检查
 	if m.source.hashmap.valueType != nil && !m.source.hashmap.valueType.Is(value) {
-		return nil, data.NewErrorThrow(nil, errors.New("类型不匹配: 值类型期望 "+m.source.hashmap.valueType.String()+" 但得到 "+value.AsString()))
+		return nil, utils.NewThrow(errors.New("类型不匹配: 值类型期望 " + m.source.hashmap.valueType.String() + " 但得到 " + value.AsString()))
 	}
 
 	// 检查是否包含值
@@ -362,7 +363,7 @@ func (m *HashMapSizeMethod) GetReturnType() data.Types {
 
 func (m *HashMapSizeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.hashmap == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("HashMap 实例未初始化"))
 	}
 
 	size := m.source.hashmap.Size()
@@ -400,7 +401,7 @@ func (m *HashMapIsEmptyMethod) GetReturnType() data.Types {
 
 func (m *HashMapIsEmptyMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.hashmap == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("HashMap 实例未初始化"))
 	}
 
 	isEmpty := m.source.hashmap.IsEmpty()
@@ -438,7 +439,7 @@ func (m *HashMapClearMethod) GetReturnType() data.Types {
 
 func (m *HashMapClearMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.hashmap == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("HashMap 实例未初始化"))
 	}
 
 	m.source.hashmap.Clear()
@@ -476,7 +477,7 @@ func (m *HashMapKeysMethod) GetReturnType() data.Types {
 
 func (m *HashMapKeysMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.hashmap == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("HashMap 实例未初始化"))
 	}
 
 	keys := m.source.hashmap.Keys()
@@ -519,7 +520,7 @@ func (m *HashMapValuesMethod) GetReturnType() data.Types {
 
 func (m *HashMapValuesMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.hashmap == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("HashMap 实例未初始化"))
 	}
 
 	values := m.source.hashmap.Values()
@@ -560,7 +561,7 @@ func (m *HashMapCurrentMethod) GetReturnType() data.Types {
 
 func (m *HashMapCurrentMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.hashmap == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("HashMap 实例未初始化"))
 	}
 
 	return m.source.hashmap.Current(), nil
@@ -597,7 +598,7 @@ func (m *HashMapKeyMethod) GetReturnType() data.Types {
 
 func (m *HashMapKeyMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.hashmap == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("HashMap 实例未初始化"))
 	}
 
 	return m.source.hashmap.Key(), nil
@@ -634,7 +635,7 @@ func (m *HashMapNextMethod) GetReturnType() data.Types {
 
 func (m *HashMapNextMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.hashmap == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("HashMap 实例未初始化"))
 	}
 
 	m.source.hashmap.Next()
@@ -672,7 +673,7 @@ func (m *HashMapRewindMethod) GetReturnType() data.Types {
 
 func (m *HashMapRewindMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.hashmap == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("HashMap 实例未初始化"))
 	}
 
 	m.source.hashmap.Rewind()
@@ -710,7 +711,7 @@ func (m *HashMapValidMethod) GetReturnType() data.Types {
 
 func (m *HashMapValidMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if m.source.hashmap == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("HashMap 实例未初始化"))
+		return nil, utils.NewThrow(errors.New("HashMap 实例未初始化"))
 	}
 
 	valid := m.source.hashmap.Valid()

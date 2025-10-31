@@ -5,6 +5,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 type LogErrorMethod struct {
@@ -15,12 +16,12 @@ func (h *LogErrorMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, index: 0"))
+		return nil, utils.NewThrow(errors.New("缺少参数, index: 0"))
 	}
 
 	a1, ok := ctx.GetIndexValue(1)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, index: 1"))
+		return nil, utils.NewThrow(errors.New("缺少参数, index: 1"))
 	}
 
 	h.source.Error(a0.(*data.StringValue).AsString(), *a1.(*data.ArrayValue))

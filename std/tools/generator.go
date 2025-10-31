@@ -173,7 +173,7 @@ func (g *WrapperGenerator) generateParamChecks(method MethodInfo) []string {
 	for i, param := range method.Params {
 		check := fmt.Sprintf(`a%d, ok := ctx.GetIndexValue(%d)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, index: %d"))
+		return nil, utils.NewThrow(errors.New("缺少参数, index: %d"))
 	}`, i, param.Index, param.Index)
 		checks = append(checks, check)
 	}

@@ -253,9 +253,17 @@ func (ep *ExpressionParser) parseEquality() (data.GetValue, data.Control) {
 	// 处理 instanceof 关键字
 	if ep.current().Type == token.INSTANCEOF {
 		ep.next() // 跳过 instanceof 关键字
+		var className string
+		if ep.current().Literal == "object" {
+			className = ep.current().Literal
+			ep.next()
+		} else {
+			className, acl = ep.getClassName(true)
+			if acl != nil {
+				return nil, acl
+			}
+		}
 
-		className, acl := ep.getClassName(true)
-		_ = acl
 		// 创建 instanceof 表达式
 		expr = node.NewInstanceOfExpression(
 			tracker.EndBefore(),

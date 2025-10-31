@@ -18,13 +18,13 @@ func (d *DbUpdateMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取数据库连接
 	conn := d.source.getConnection()
 	if conn == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("数据库连接不可用"))
+		return nil, utils.NewThrow(errors.New("数据库连接不可用"))
 	}
 
 	// 获取更新数据
 	dataValue, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少更新数据"))
+		return nil, utils.NewThrow(errors.New("缺少更新数据"))
 	}
 
 	// 构建更新语句
@@ -61,7 +61,7 @@ func (d *DbUpdateMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 			}
 		}
 	} else {
-		return nil, data.NewErrorThrow(nil, errors.New("更新数据必须是对象或类实例"))
+		return nil, utils.NewThrow(errors.New("更新数据必须是对象或类实例"))
 	}
 
 	// 构建 SET 子句

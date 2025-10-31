@@ -5,6 +5,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 // InjectClass Inject注解类 - 宏注解
@@ -118,12 +119,12 @@ func (m *InjectConstructMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 	// 宏注解构造函数：接收注解参数和被注解的节点
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, service: 0"))
+		return nil, utils.NewThrow(errors.New("缺少参数, service: 0"))
 	}
 
 	a1, ok := ctx.GetIndexValue(1)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, target: 1"))
+		return nil, utils.NewThrow(errors.New("缺少参数, target: 1"))
 	}
 
 	service := ""

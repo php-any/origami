@@ -12,7 +12,7 @@ type ContextErrMethod struct {
 func (h *ContextErrMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	if err := h.source.Err(); err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 	return nil, nil
 }

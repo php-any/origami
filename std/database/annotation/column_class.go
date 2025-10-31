@@ -5,6 +5,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 // NewColumnClass 创建 Column 注解类
@@ -124,7 +125,7 @@ func (m *ColumnConstructMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 	// 特性注解构造函数：只接收注解声明的参数
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, errors.New("缺少参数, name: 0"))
+		return nil, utils.NewThrow(errors.New("缺少参数, name: 0"))
 	}
 
 	name := ""

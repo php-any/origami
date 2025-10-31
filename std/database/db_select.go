@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/utils"
 )
 
 type DbSelectMethod struct {
@@ -33,7 +34,7 @@ func (d *DbSelectMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 			return data.NewClassValue(newDBClass, ctx.GetVM().CreateContext([]data.Variable{})), nil
 		}
 	}
-	return nil, data.NewErrorThrow(nil, errors.New("字段必须是字符串"))
+	return nil, utils.NewThrow(errors.New("字段必须是字符串"))
 }
 
 func (d *DbSelectMethod) GetName() string {

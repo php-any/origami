@@ -3,6 +3,7 @@ package annotation
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 // 内联引导：扫描控制器并以 serveHTTP 方式分发当前请求
@@ -33,7 +34,7 @@ func (f *springInlineFunc) Call(ctx data.Context) (data.GetValue, data.Control) 
 	// 实际项目可将扫描逻辑迁移到 Go 层以提升性能
 	app, ok := ctx.GetVM().GetFunc("Net\\Http\\app")
 	if !ok {
-		return nil, data.NewErrorThrow(nil, data.NewError(nil, "缺少 Net\\Http\\app", nil))
+		return nil, utils.NewThrow(data.NewError(nil, "缺少 Net\\Http\\app", nil))
 	}
 	// 传递 request/response 即可，让 app 加载当前目录 main.zy 并执行
 	vars := app.GetVariables()

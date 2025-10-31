@@ -7,6 +7,7 @@ import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	sqlpkg "github.com/php-any/origami/std/database/sql"
+	"github.com/php-any/origami/utils"
 )
 
 // NewRegisterConnectionFunction 创建注册连接函数
@@ -26,7 +27,7 @@ func (f *RegisterConnectionFunction) Call(ctx data.Context) (data.GetValue, data
 	if nameStr, ok := nameValue.(data.AsString); ok {
 		name = nameStr.AsString()
 	} else {
-		return nil, data.NewErrorThrow(nil, errors.New("连接名称必须是字符串"))
+		return nil, utils.NewThrow(errors.New("连接名称必须是字符串"))
 	}
 
 	// 获取数据库连接对象
@@ -41,7 +42,7 @@ func (f *RegisterConnectionFunction) Call(ctx data.Context) (data.GetValue, data
 		}
 	}
 
-	return nil, data.NewErrorThrow(nil, errors.New("无效的数据库连接对象"))
+	return nil, utils.NewThrow(errors.New("无效的数据库连接对象"))
 }
 
 func (f *RegisterConnectionFunction) GetName() string {
@@ -84,7 +85,7 @@ func (f *RegisterDefaultConnectionFunction) Call(ctx data.Context) (data.GetValu
 		}
 	}
 
-	return nil, data.NewErrorThrow(nil, errors.New("无效的数据库连接对象"))
+	return nil, utils.NewThrow(errors.New("无效的数据库连接对象"))
 }
 
 func (f *RegisterDefaultConnectionFunction) GetName() string {
@@ -192,7 +193,7 @@ func (f *RemoveConnectionFunction) Call(ctx data.Context) (data.GetValue, data.C
 	if nameStr, ok := nameValue.(data.AsString); ok {
 		name = nameStr.AsString()
 	} else {
-		return nil, data.NewErrorThrow(nil, errors.New("连接名称必须是字符串"))
+		return nil, utils.NewThrow(errors.New("连接名称必须是字符串"))
 	}
 
 	manager := GetConnectionManager()

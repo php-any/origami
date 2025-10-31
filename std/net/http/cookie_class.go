@@ -117,109 +117,109 @@ func (s *CookieClass) GetPropertyList() []data.Property {
 
 func (s *CookieClass) SetProperty(name string, value data.Value) data.Control {
 	if s.source == nil {
-		return data.NewErrorThrow(nil, errors.New("无法设置属性，source 为 nil"))
+		return utils.NewThrow(errors.New("无法设置属性，source 为 nil"))
 	}
 
 	switch name {
 	case "Name":
 		val, err := utils.Convert[string](value)
 		if err != nil {
-			return data.NewErrorThrow(nil, err)
+			return utils.NewThrow(err)
 		}
 		s.source.Name = val
 		return nil
 	case "Value":
 		val, err := utils.Convert[string](value)
 		if err != nil {
-			return data.NewErrorThrow(nil, err)
+			return utils.NewThrow(err)
 		}
 		s.source.Value = val
 		return nil
 	case "Quoted":
 		val, err := utils.Convert[bool](value)
 		if err != nil {
-			return data.NewErrorThrow(nil, err)
+			return utils.NewThrow(err)
 		}
 		s.source.Quoted = val
 		return nil
 	case "Path":
 		val, err := utils.Convert[string](value)
 		if err != nil {
-			return data.NewErrorThrow(nil, err)
+			return utils.NewThrow(err)
 		}
 		s.source.Path = val
 		return nil
 	case "Domain":
 		val, err := utils.Convert[string](value)
 		if err != nil {
-			return data.NewErrorThrow(nil, err)
+			return utils.NewThrow(err)
 		}
 		s.source.Domain = val
 		return nil
 	case "Expires":
 		val, err := utils.Convert[time.Time](value)
 		if err != nil {
-			return data.NewErrorThrow(nil, err)
+			return utils.NewThrow(err)
 		}
 		s.source.Expires = val
 		return nil
 	case "RawExpires":
 		val, err := utils.Convert[string](value)
 		if err != nil {
-			return data.NewErrorThrow(nil, err)
+			return utils.NewThrow(err)
 		}
 		s.source.RawExpires = val
 		return nil
 	case "MaxAge":
 		val, err := utils.Convert[int](value)
 		if err != nil {
-			return data.NewErrorThrow(nil, err)
+			return utils.NewThrow(err)
 		}
 		s.source.MaxAge = val
 		return nil
 	case "Secure":
 		val, err := utils.Convert[bool](value)
 		if err != nil {
-			return data.NewErrorThrow(nil, err)
+			return utils.NewThrow(err)
 		}
 		s.source.Secure = val
 		return nil
 	case "HttpOnly":
 		val, err := utils.Convert[bool](value)
 		if err != nil {
-			return data.NewErrorThrow(nil, err)
+			return utils.NewThrow(err)
 		}
 		s.source.HttpOnly = val
 		return nil
 	case "SameSite":
 		val, err := utils.Convert[httpsrc.SameSite](value)
 		if err != nil {
-			return data.NewErrorThrow(nil, err)
+			return utils.NewThrow(err)
 		}
 		s.source.SameSite = val
 		return nil
 	case "Partitioned":
 		val, err := utils.Convert[bool](value)
 		if err != nil {
-			return data.NewErrorThrow(nil, err)
+			return utils.NewThrow(err)
 		}
 		s.source.Partitioned = val
 		return nil
 	case "Raw":
 		val, err := utils.Convert[string](value)
 		if err != nil {
-			return data.NewErrorThrow(nil, err)
+			return utils.NewThrow(err)
 		}
 		s.source.Raw = val
 		return nil
 	case "Unparsed":
 		val, err := utils.Convert[[]string](value)
 		if err != nil {
-			return data.NewErrorThrow(nil, err)
+			return utils.NewThrow(err)
 		}
 		s.source.Unparsed = val
 		return nil
 	default:
-		return data.NewErrorThrow(nil, errors.New("属性不存在: "+name))
+		return utils.NewThrow(errors.New("属性不存在: " + name))
 	}
 }

@@ -132,6 +132,9 @@ func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method dat
 				param := pe.Args[i]
 				tempV, acl := param.GetValue(ctx)
 				if acl != nil {
+					if a, ok := acl.(data.AddStack); ok {
+						a.AddStackWithInfo(argObj.from, TryGetCallClassName(pe.Object), pe.Method)
+					}
 					return nil, acl
 				}
 				ares.Value = append(ares.Value, tempV.(data.Value))
