@@ -110,6 +110,11 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		rStr := rv.(data.Value).AsString()
 
 		return data.NewStringValue(lStr + rStr), nil
+	case *data.AnyValue:
+		lStr := l.AsString()
+		rStr := rv.(data.Value).AsString()
+
+		return data.NewStringValue(lStr + rStr), nil
 	}
 
 	return nil, data.NewErrorThrow(b.from, fmt.Errorf("TODO 有未支持的类型加法 %v", lv))
