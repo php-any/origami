@@ -73,7 +73,7 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 			if !ok {
 				return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("泛型类型解析失败"))
 			}
-			p.next()
+			// p.next()
 			genericTypes = append(genericTypes, genericType)
 
 			if p.checkPositionIs(0, token.COMMA) {

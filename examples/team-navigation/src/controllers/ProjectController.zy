@@ -15,7 +15,7 @@ use App\Models\ProjectEnvironment;
 class ProjectController {
     @GetMapping(path: "/")
     public function lists($request, $response) {
-        $projects = DB<Project>()->orderBy("display_order ASC")->get();
+        $projects = new DB<Project>()->orderBy("display_order ASC")->get();
         $result = [];
         for ($project in $projects) {
             $envs = DB<ProjectEnvironment>()->where("project_id = ?", $project->id)

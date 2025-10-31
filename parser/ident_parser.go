@@ -191,7 +191,7 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 			if !ok {
 				return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("class %s 不存在", name))
 			}
-			p.next()
+			// p.next()
 			generaList = append(generaList, generaName.String())
 			if p.checkPositionIs(0, token.COMMA) {
 				p.next() // ,
