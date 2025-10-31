@@ -1,7 +1,6 @@
 package http
 
 import (
-	"fmt"
 	httpsrc "net/http"
 
 	"github.com/php-any/origami/data"
@@ -15,11 +14,11 @@ type ServerServeHTTPMethod struct{ server *ServerClass }
 func (h *ServerServeHTTPMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	w, err := utils.ConvertFromIndex[httpsrc.ResponseWriter](ctx, 0)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("参数转换失败: %v", err))
+		return nil, utils.NewThrowf("参数转换失败: %v", err)
 	}
 	r, err := utils.ConvertFromIndex[*httpsrc.Request](ctx, 1)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("参数转换失败: %v", err))
+		return nil, utils.NewThrowf("参数转换失败: %v", err)
 	}
 	h.server.source.ServeHTTP(w, r)
 	return nil, nil

@@ -3,9 +3,9 @@ package database
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/utils"
 )
 
 type DbGetMethod struct {
@@ -31,7 +31,7 @@ func (d *DbGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 执行查询
 	rows, err := conn.Query(query, args...)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("查询失败: %w", err))
+		return nil, utils.NewThrowf("get查询失败: %v", err)
 	}
 	defer rows.Close()
 
@@ -49,7 +49,7 @@ func (d *DbGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("遍历行时出错: %w", err))
+		return nil, utils.NewThrowf("遍历行时出错: %w", err)
 	}
 
 	// 将 []data.GetValue 转换为 []data.Value

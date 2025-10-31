@@ -22,7 +22,6 @@ func main() {
 	vm := runtime.NewVM(p)
 	std.Load(vm)
 	php.Load(vm)
-	database.Load(vm)
 	system.Load(vm)
 
 	// 数据库连接将在脚本中设置

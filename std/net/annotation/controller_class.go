@@ -2,6 +2,7 @@ package annotation
 
 import (
 	"errors"
+
 	"github.com/php-any/origami/runtime"
 
 	"github.com/php-any/origami/data"
@@ -182,6 +183,12 @@ func (m *ControllerConstructMethod) Call(ctx data.Context) (data.GetValue, data.
 							case *PostMappingClass:
 								full := join(prefix, gc.Path())
 								vm.Cache = append(vm.Cache, runtime.Route{Method: "POST", Path: full, Target: method})
+							case *PutMappingClass:
+								full := join(prefix, gc.Path())
+								vm.Cache = append(vm.Cache, runtime.Route{Method: "PUT", Path: full, Target: method})
+							case *DeleteMappingClass:
+								full := join(prefix, gc.Path())
+								vm.Cache = append(vm.Cache, runtime.Route{Method: "DELETE", Path: full, Target: method})
 							}
 						}
 					}

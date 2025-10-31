@@ -7,6 +7,7 @@ import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/parser"
+	"github.com/php-any/origami/utils"
 )
 
 // NewVM 创建一个新的虚拟机
@@ -122,7 +123,7 @@ func (vm *VM) AddFunc(f data.FuncStmt) data.Control {
 		case node.GetFrom:
 			return data.NewErrorThrow(ff.GetFrom(), fmt.Errorf("已存在同名的 function: %s", f.GetName()))
 		default:
-			return data.NewErrorThrow(nil, fmt.Errorf("已存在同名的 function: %s", f.GetName()))
+			return utils.NewThrowf("已存在同名的 function: %s", f.GetName())
 		}
 	}
 

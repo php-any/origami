@@ -16,18 +16,25 @@ function main($request, $response) {
         $staticPath = "./pages" + $path;
         try {
             $content = file_get_contents($staticPath);
-            // 按后缀设置 Content-Type（常见类型）
-            if ($path->endsWith(".css")) {
+            // 只解析一次扩展名，避免重复 endsWith 判断
+            $lowerPath = $path->toLowerCase();
+            $parts = $lowerPath->split(".");
+            $ext = "";
+            if ($parts->length() > 1) {
+                $ext = $parts[$parts->length() - 1];
+            }
+
+            if ($ext == "css") {
                 $response->header("Content-Type", "text/css; charset=utf-8");
-            } else if ($path->endsWith(".js")) {
+            } else if ($ext == "js") {
                 $response->header("Content-Type", "application/javascript; charset=utf-8");
-            } else if ($path->endsWith(".png")) {
+            } else if ($ext == "png") {
                 $response->header("Content-Type", "image/png");
-            } else if ($path->endsWith(".jpg") || $path->endsWith(".jpeg")) {
+            } else if ($ext == "jpg" || $ext == "jpeg") {
                 $response->header("Content-Type", "image/jpeg");
-            } else if ($path->endsWith(".svg")) {
+            } else if ($ext == "svg") {
                 $response->header("Content-Type", "image/svg+xml");
-            } else if ($path->endsWith(".ico")) {
+            } else if ($ext == "ico") {
                 $response->header("Content-Type", "image/x-icon");
             }
             $response->write($content);

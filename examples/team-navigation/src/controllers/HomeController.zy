@@ -1,0 +1,23 @@
+namespace App\Controllers;
+
+use Net\Annotation\Controller;
+use Net\Annotation\GetMapping;
+
+@Controller
+class HomeController {
+    @GetMapping(path: "/")
+    public function index($request, $response) {
+        $html = file_get_contents("./src/views/index.html");
+        $response->header("Content-Type", "text/html; charset=utf-8");
+        $response->write($html);
+    }
+
+    @GetMapping(path: "/admin")
+    public function admin($request, $response) {
+        $html = file_get_contents("./src/views/admin.html");
+        $response->header("Content-Type", "text/html; charset=utf-8");
+        $response->write($html);
+    }
+}
+
+

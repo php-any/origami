@@ -3,9 +3,9 @@ package database
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/utils"
 )
 
 type DbFirstMethod struct {
@@ -35,7 +35,7 @@ func (d *DbFirstMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 执行查询
 	rows, err := conn.Query(query, args...)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("查询失败: %w", err))
+		return nil, utils.NewThrowf("first查询失败: %w", err)
 	}
 	defer rows.Close()
 

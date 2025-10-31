@@ -1,11 +1,11 @@
 package http
 
 import (
-	"fmt"
+	httpsrc "net/http"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/utils"
-	httpsrc "net/http"
 )
 
 type RequestProtoAtLeastMethod struct {
@@ -15,11 +15,11 @@ type RequestProtoAtLeastMethod struct {
 func (h *RequestProtoAtLeastMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	param0, err := utils.ConvertFromIndex[int](ctx, 0)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("参数转换失败: %v", err))
+		return nil, utils.NewThrowf("参数转换失败: %v", err)
 	}
 	param1, err := utils.ConvertFromIndex[int](ctx, 1)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("参数转换失败: %v", err))
+		return nil, utils.NewThrowf("参数转换失败: %v", err)
 	}
 
 	ret0 := h.source.ProtoAtLeast(param0, param1)

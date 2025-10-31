@@ -1,8 +1,6 @@
 package http
 
 import (
-	"fmt"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/utils"
@@ -15,7 +13,7 @@ type ServerGroupMethod struct {
 func (h *ServerGroupMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	prefix, err := utils.ConvertFromIndex[string](ctx, 0)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("prefix 参数转换失败: %v", err))
+		return nil, utils.NewThrowf("prefix 参数转换失败: %v", err)
 	}
 
 	ret := NewServerClassFromGroup(prefix, h.server)

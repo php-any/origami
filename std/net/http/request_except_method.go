@@ -1,7 +1,6 @@
 package http
 
 import (
-	"fmt"
 	httpsrc "net/http"
 	"strings"
 
@@ -29,7 +28,7 @@ func (h *RequestExceptMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 		}
 		key, err := utils.Convert[string](value)
 		if err != nil {
-			return nil, data.NewErrorThrow(nil, fmt.Errorf("参数转换失败: %v", err))
+			return nil, utils.NewThrowf("参数转换失败: %v", err)
 		}
 		excludeKeys = append(excludeKeys, key)
 	}

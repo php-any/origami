@@ -8,19 +8,15 @@ import (
 // PostMapping 注解（标记 POST 路由）
 type PostMappingClass struct {
 	node.Node
-	process   data.Method
-	mapping   data.Method
+	source    *PostMapping
 	construct data.Method
-	pathMeth  data.Method
 }
 
 func (p *PostMappingClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	source := newPostMapping()
 	return data.NewClassValue(&PostMappingClass{
-		process:   &PostMappingProcessMethod{source},
-		mapping:   &PostMappingMappingMethod{source},
+		source:    source,
 		construct: &PostMappingConstructMethod{source},
-		pathMeth:  &PostMappingPathMethod{source},
 	}, ctx.CreateBaseContext()), nil
 }
 
@@ -31,26 +27,18 @@ func (p *PostMappingClass) GetProperty(_ string) (data.Property, bool) { return 
 func (p *PostMappingClass) GetPropertyList() []data.Property           { return []data.Property{} }
 func (p *PostMappingClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
-	case "process":
-		return p.process, true
-	case "mapping":
-		return p.mapping, true
 	case "__construct":
 		return p.construct, true
-	case "path":
-		return p.pathMeth, true
 	}
 	return nil, false
 }
-func (p *PostMappingClass) GetMethods() []data.Method {
-	return []data.Method{p.process, p.mapping, p.construct, p.pathMeth}
-}
+func (p *PostMappingClass) GetMethods() []data.Method { return []data.Method{p.construct} }
 func (p *PostMappingClass) GetConstruct() data.Method { return p.construct }
 
 // Path 便捷访问当前实例的路径值
 func (p *PostMappingClass) Path() string {
-	if pm, ok := p.process.(*PostMappingProcessMethod); ok && pm.mapping != nil {
-		return pm.mapping.path
+	if p.source != nil {
+		return p.source.path
 	}
 	return ""
 }
@@ -88,41 +76,4 @@ func (m *PostMappingConstructMethod) Call(ctx data.Context) (data.GetValue, data
 	return data.NewStringValue("PostMapping annotation constructed"), nil
 }
 
-// PostMappingPathMethod 暴露 path 给控制器注解读取
-type PostMappingPathMethod struct{ mapping *PostMapping }
-
-func (m *PostMappingPathMethod) GetName() string            { return "path" }
-func (m *PostMappingPathMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *PostMappingPathMethod) GetIsStatic() bool          { return false }
-func (m *PostMappingPathMethod) GetParams() []data.GetValue { return []data.GetValue{} }
-func (m *PostMappingPathMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
-}
-func (m *PostMappingPathMethod) GetReturnType() data.Types { return data.NewBaseType("string") }
-func (m *PostMappingPathMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewStringValue(m.mapping.path), nil
-}
-
-type PostMappingProcessMethod struct{ mapping *PostMapping }
-
-func (m *PostMappingProcessMethod) GetName() string               { return "process" }
-func (m *PostMappingProcessMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *PostMappingProcessMethod) GetIsStatic() bool             { return false }
-func (m *PostMappingProcessMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
-func (m *PostMappingProcessMethod) GetVariables() []data.Variable { return []data.Variable{} }
-func (m *PostMappingProcessMethod) GetReturnType() data.Types     { return data.NewBaseType("string") }
-func (m *PostMappingProcessMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewStringValue("PostMapping processed"), nil
-}
-
-type PostMappingMappingMethod struct{ mapping *PostMapping }
-
-func (m *PostMappingMappingMethod) GetName() string               { return "mapping" }
-func (m *PostMappingMappingMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *PostMappingMappingMethod) GetIsStatic() bool             { return false }
-func (m *PostMappingMappingMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
-func (m *PostMappingMappingMethod) GetVariables() []data.Variable { return []data.Variable{} }
-func (m *PostMappingMappingMethod) GetReturnType() data.Types     { return data.NewBaseType("string") }
-func (m *PostMappingMappingMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewStringValue("POST mapping registered"), nil
-}
+// 删除对脚本域可见的 path/process/mapping 方法，仅保留构造

@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -437,7 +438,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 	p.scopeManager.NewScope(false)
 	// 解析方法名
 	if p.current().Type != token.IDENTIFIER {
-		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少方法名"))
+		return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("方法名不符合规范, 不能使用符号或者关键字(%s)", p.current().Literal))
 	}
 	name := p.current().Literal
 	p.next()

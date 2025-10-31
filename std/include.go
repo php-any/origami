@@ -1,13 +1,12 @@
 package std
 
 import (
-	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 func NewIncludeFunction() data.FuncStmt {
@@ -36,7 +35,7 @@ func (f *IncludeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取当前工作目录
 	currentDir, err := os.Getwd()
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, errors.New(fmt.Sprintf("include 文件失败: %s, 错误: %v\n", filePath, err)))
+		return nil, utils.NewThrowf("include 文件失败: %s, 错误: %v", filePath, err)
 	}
 
 	// 如果路径是相对路径，则基于当前目录解析
@@ -46,8 +45,7 @@ func (f *IncludeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		// 文件不存在，返回 false
-		return nil, data.NewErrorThrow(nil, errors.New(fmt.Sprintf("include 文件失败: %s, 错误: %v\n", filePath, err)))
+		return nil, utils.NewThrowf("include 文件失败: %s, 错误: %v", filePath, err)
 	}
 
 	// 检查文件是否为目录
@@ -56,8 +54,7 @@ func (f *IncludeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewBoolValue(false), nil
 	}
 	if fileInfo.IsDir() {
-		// 如果是目录，返回 false
-		return nil, data.NewErrorThrow(nil, errors.New(fmt.Sprintf("include 文件失败: %s, 错误: 无法引入目录", filePath)))
+		return nil, utils.NewThrowf("include 文件失败: %s, 错误: 无法引入目录", filePath)
 	}
 
 	// 获取 VM 实例

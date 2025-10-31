@@ -7,6 +7,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 type DbUpdateMethod struct {
@@ -91,13 +92,13 @@ func (d *DbUpdateMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 执行更新
 	result, err := conn.Exec(query, values...)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("更新失败: %w", err))
+		return nil, utils.NewThrowf("更新失败: %w", err)
 	}
 
 	// 获取影响的行数
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("获取影响行数失败: %w", err))
+		return nil, utils.NewThrowf("获取影响行数失败: %w", err)
 	}
 
 	// 返回更新结果

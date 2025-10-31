@@ -6,6 +6,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 // ReflectClass 表示通过反射生成的类
@@ -246,7 +247,7 @@ func (rm *ReflectMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		// 转换为Go类型
 		goValue, err := rm.convertToGoValue(paramValue, rm.method.Type.In(i+1))
 		if err != nil {
-			return nil, data.NewErrorThrow(nil, fmt.Errorf("参数类型转换失败: %v", err))
+			return nil, utils.NewThrowf("参数类型转换失败: %v", err)
 		}
 
 		args = append(args, goValue)
@@ -264,7 +265,7 @@ func (rm *ReflectMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if len(results) > 0 {
 		scriptValue, err := rm.convertToScriptValue(results[0])
 		if err != nil {
-			return nil, data.NewErrorThrow(nil, fmt.Errorf("返回值类型转换失败: %v", err))
+			return nil, utils.NewThrowf("返回值类型转换失败: %v", err)
 		}
 		return scriptValue, nil
 	}
@@ -437,7 +438,7 @@ func (rc *ReflectConstructor) Call(ctx data.Context) (data.GetValue, data.Contro
 		if paramValue != nil {
 			// 设置字段值
 			if err := setFieldValue(rc.instance, variable.GetName(), paramValue); err != nil {
-				return nil, data.NewErrorThrow(nil, fmt.Errorf("设置字段值失败: %v", err))
+				return nil, utils.NewThrowf("设置字段值失败: %v", err)
 			}
 		}
 	}

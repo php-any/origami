@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -70,7 +70,7 @@ func (vm *LspVM) AddClass(c data.ClassStmt) data.Control {
 
 	className := c.GetName()
 	if className == "" {
-		return data.NewErrorThrow(nil, fmt.Errorf("类名不能为空"))
+		return utils.NewThrowf("类名不能为空")
 	}
 
 	vm.classes[className] = c
@@ -106,7 +106,7 @@ func (vm *LspVM) AddInterface(i data.InterfaceStmt) data.Control {
 
 	interfaceName := i.GetName()
 	if interfaceName == "" {
-		return data.NewErrorThrow(nil, fmt.Errorf("接口名不能为空"))
+		return utils.NewThrowf("接口名不能为空")
 	}
 
 	vm.interfaces[interfaceName] = i
@@ -129,7 +129,7 @@ func (vm *LspVM) AddFunc(f data.FuncStmt) data.Control {
 
 	funcName := f.GetName()
 	if funcName == "" {
-		return data.NewErrorThrow(nil, fmt.Errorf("函数名不能为空"))
+		return utils.NewThrowf("函数名不能为空")
 	}
 
 	vm.functions[funcName] = f

@@ -1,12 +1,12 @@
 package http
 
 import (
-	"fmt"
+	"io"
+	httpsrc "net/http"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/utils"
-	"io"
-	httpsrc "net/http"
 )
 
 type HeaderWriteMethod struct {
@@ -16,7 +16,7 @@ type HeaderWriteMethod struct {
 func (h *HeaderWriteMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	param0, err := utils.ConvertFromIndex[io.Writer](ctx, 0)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("参数转换失败: %v", err))
+		return nil, utils.NewThrowf("参数转换失败: %v", err)
 	}
 
 	ret0 := h.source.Write(param0)

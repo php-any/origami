@@ -106,11 +106,11 @@ type NextHandler struct {
 func (f NextHandler) Call(ctx data.Context) (_ data.GetValue, acl data.Control) {
 	request, err := utils.ConvertFromIndex[*http.Request](ctx, 0)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 	response, err := utils.ConvertFromIndex[http.ResponseWriter](ctx, 1)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
+		return nil, utils.NewThrow(err)
 	}
 
 	// 使用defer和recover来捕获panic
@@ -119,6 +119,8 @@ func (f NextHandler) Call(ctx data.Context) (_ data.GetValue, acl data.Control) 
 			if acl2, ok2 := r.(data.Control); ok2 {
 				acl = acl2
 				return
+			} else {
+				panic(r)
 			}
 		}
 	}()

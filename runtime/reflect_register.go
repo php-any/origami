@@ -6,6 +6,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 // ReflectFunction 表示通过反射注册的函数
@@ -77,7 +78,7 @@ func (rf *ReflectFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		// 转换为Go类型
 		goValue, err := rf.convertToGoValue(paramValue, rf.fnType.In(i))
 		if err != nil {
-			return nil, data.NewErrorThrow(nil, fmt.Errorf("参数类型转换失败: %v", err))
+			return nil, utils.NewThrowf("参数类型转换失败: %v", err)
 		}
 
 		args = append(args, goValue)
@@ -95,7 +96,7 @@ func (rf *ReflectFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	if len(results) > 0 {
 		scriptValue, err := rf.convertToScriptValue(results[0])
 		if err != nil {
-			return nil, data.NewErrorThrow(nil, fmt.Errorf("返回值类型转换失败: %v", err))
+			return nil, utils.NewThrowf("返回值类型转换失败: %v", err)
 		}
 		return scriptValue, nil
 	}

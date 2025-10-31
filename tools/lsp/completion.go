@@ -672,6 +672,10 @@ func getBuiltinCompletions() []CompletionItem {
 		// 标准库函数
 		{"dump", CompletionItemKindFunction, "标准库函数 - 调试输出"},
 		{"include", CompletionItemKindFunction, "标准库函数 - 包含文件"},
+		{"int", CompletionItemKindFunction, "标准库函数 - 转换为整数"},
+		{"string", CompletionItemKindFunction, "标准库函数 - 转换为字符串"},
+		{"bool", CompletionItemKindFunction, "标准库函数 - 转换为布尔"},
+		{"float", CompletionItemKindFunction, "标准库函数 - 转换为浮点"},
 
 		// 标准库类
 		{"Log", CompletionItemKindClass, "标准库类 - 日志记录"},

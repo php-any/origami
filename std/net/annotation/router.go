@@ -1,11 +1,12 @@
 package annotation
 
 import (
+	"net/http"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/runtime"
 	http2 "github.com/php-any/origami/std/net/http"
 	"github.com/php-any/origami/utils"
-	"net/http"
 )
 
 type RegisterRoute struct {
@@ -21,10 +22,12 @@ func (r *RegisterRoute) GetValue(ctx data.Context) (v data.GetValue, acl data.Co
 			request := http2.NewRequestClassFrom(r)
 			response := http2.NewResponseWriterClassFrom(w)
 
-			ctx.SetVariableValue(data.NewVariable("r", 0, nil), data.NewProxyValue(request, ctx))
-			ctx.SetVariableValue(data.NewVariable("w", 1, nil), data.NewProxyValue(response, ctx))
+			mute := ctx.CreateContext(rt.Target.GetVariables())
 
-			v, acl = rt.Target.Call(ctx)
+			mute.SetVariableValue(data.NewVariable("r", 0, nil), data.NewProxyValue(request, mute))
+			mute.SetVariableValue(data.NewVariable("w", 1, nil), data.NewProxyValue(response, mute))
+
+			v, acl = rt.Target.Call(mute)
 		})
 	}
 

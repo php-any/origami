@@ -1,13 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/php-any/origami/data"
 
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/parser"
+	"github.com/php-any/origami/utils"
 )
 
 // LspScopeFactory LSP 作用域工厂函数
@@ -68,7 +68,7 @@ func (p *LspParser) SetVM(vm *LspVM) {
 // ParseFile 解析文件 - 关键函数
 func (p *LspParser) ParseFile(filePath string) (*node.Program, data.Control) {
 	if _, err := os.Stat(filePath); err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("file does not exist: %s", filePath))
+		return nil, utils.NewThrowf("file does not exist: %s", filePath)
 	}
 
 	// 使用真正的解析器解析文件

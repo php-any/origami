@@ -1,11 +1,11 @@
 package http
 
 import (
-	"fmt"
 	httpsrc "net/http"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 type ResponseWriterWriteMethod struct {
@@ -15,7 +15,7 @@ type ResponseWriterWriteMethod struct {
 func (h *ResponseWriterWriteMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	param0, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("write方法缺少参数: %v", 0))
+		return nil, utils.NewThrowf("write方法缺少参数: %v", 0)
 	}
 
 	ret0, ret1 := h.source.Write([]byte(param0.AsString()))

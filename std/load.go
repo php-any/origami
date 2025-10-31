@@ -15,6 +15,10 @@ func Load(vm data.VM) {
 	for _, fun := range []data.FuncStmt{
 		NewDumpFunction(),
 		NewIncludeFunction(),
+		NewIntFunction(),
+		NewStringFunction(),
+		NewBoolFunction(),
+		NewFloatFunction(),
 	} {
 		vm.AddFunc(fun)
 	}

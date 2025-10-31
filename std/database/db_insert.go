@@ -6,6 +6,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 type DbInsertMethod struct {
@@ -87,19 +88,19 @@ func (d *DbInsertMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 执行插入
 	result, err := conn.Exec(query, values...)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("插入失败: %w", err))
+		return nil, utils.NewThrowf("插入失败: %w", err)
 	}
 
 	// 获取插入的 ID
 	lastInsertId, err := result.LastInsertId()
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("获取插入ID失败: %w", err))
+		return nil, utils.NewThrowf("获取插入ID失败: %w", err)
 	}
 
 	// 获取影响的行数
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("获取影响行数失败: %w", err))
+		return nil, utils.NewThrowf("获取影响行数失败: %w", err)
 	}
 
 	// 返回插入结果

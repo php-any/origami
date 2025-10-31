@@ -1,0 +1,142 @@
+namespace App\Controllers;
+
+use Net\Annotation\Controller;
+use Net\Annotation\Route;
+use Net\Annotation\GetMapping;
+use Net\Annotation\PostMapping;
+use Net\Annotation\PutMapping;
+use Net\Annotation\DeleteMapping;
+use Database\DB;
+use App\Models\Project;
+use App\Models\ProjectEnvironment;
+
+@Controller
+@Route(prefix: "/api/projects")
+class ProjectController {
+    @GetMapping(path: "/")
+    public function lists($request, $response) {
+        $projects = DB<Project>()->orderBy("display_order ASC")->get();
+        $result = [];
+        for ($project in $projects) {
+            $envs = DB<ProjectEnvironment>()->where("project_id = ?", $project->id)
+                ->orderBy("display_order ASC")->get();
+            $envList = [];
+            for ($env in $envs) {
+                $envList[] = [
+                    "id" => $env->id,
+                    "environmentName" => $env->environmentName,
+                    "url" => $env->url,
+                    "status" => $env->status,
+                    "statusColor" => $env->statusColor,
+                    "displayOrder" => $env->displayOrder
+                ];
+            }
+            $result[] = [
+                "id" => $project->id,
+                "name" => $project->name,
+                "displayOrder" => $project->displayOrder,
+                "environments" => $envList
+            ];
+        }
+        
+        $response->header("Content-Type", "application/json; charset=utf-8");
+        $response->write(json_encode($result));
+    }
+
+    @PostMapping(path: "/")
+    public function create($request, $response) {
+        $body = $request->body();
+        $data = json_decode($body);
+        
+        $project = new Project();
+        $project->name = $data->name;
+        $project->displayOrder = $data->displayOrder ?? 0;
+        
+        $result = DB<Project>()->insert($project);
+        $projectId = $result->insertId;
+        
+        // 创建项目环境
+        if ($data->environments != null) {
+            for ($env in $data->environments) {
+                $envObj = new ProjectEnvironment();
+                $envObj->projectId = $projectId;
+                $envObj->environmentName = $env->environmentName;
+                $envObj->url = $env->url;
+                $envObj->status = $env->status ?? "运行中";
+                $envObj->statusColor = $env->statusColor ?? "green";
+                $envObj->displayOrder = $env->displayOrder ?? 0;
+                DB<ProjectEnvironment>()->insert($envObj);
+            }
+        }
+        
+        $response->header("Content-Type", "application/json; charset=utf-8");
+        $response->write(json_encode(["success" => true, "id" => $projectId]));
+    }
+
+    @PutMapping(path: "/{id}")
+    public function update($request, $response) {
+        $id = $request->pathValue("id");
+        if ($id == null) {
+            $path = $request->path();
+            $pathParts = $path->split("/");
+            $id = $pathParts[$pathParts->length - 1];
+        }
+        
+        $body = $request->body();
+        $data = json_decode($body);
+        
+        $project = new Project();
+        $project->name = $data->name;
+        $project->displayOrder = $data->displayOrder ?? 0;
+        
+        $result = DB<Project>()->where("id = ?", (int)$id)->update($project);
+        
+        $response->header("Content-Type", "application/json; charset=utf-8");
+        $response->write(json_encode(["success" => true, "rowsAffected" => $result]));
+    }
+
+    @DeleteMapping(path: "/{id}")
+    public function delete($request, $response) {
+        $id = $request->pathValue("id");
+        if ($id == null) {
+            $path = $request->path();
+            $pathParts = $path->split("/");
+            $id = $pathParts[$pathParts->length - 1];
+        }
+        
+        // 删除关联的环境（级联删除）
+        DB<ProjectEnvironment>()->where("project_id = ?", (int)$id)->delete();
+        // 删除项目
+        $result = DB<Project>()->where("id = ?", (int)$id)->delete();
+        
+        $response->header("Content-Type", "application/json; charset=utf-8");
+        $response->write(json_encode(["success" => true, "rowsAffected" => $result]));
+    }
+
+    @PostMapping(path: "/{projectId}/environments")
+    public function createEnvironment($request, $response) {
+        $projectId = $request->pathValue("projectId");
+        if ($projectId == null) {
+            $path = $request->path();
+            $pathParts = $path->split("/");
+            $projectId = $pathParts[$pathParts->length - 2];
+        }
+        
+        $body = $request->body();
+        $data = json_decode($body);
+        
+        $env = new ProjectEnvironment();
+        $env->projectId = (int)$projectId;
+        $env->environmentName = $data->environmentName;
+        $env->url = $data->url;
+        $env->status = $data->status ?? "运行中";
+        $env->statusColor = $data->statusColor ?? "green";
+        $env->displayOrder = $data->displayOrder ?? 0;
+        
+        $result = DB<ProjectEnvironment>()->insert($env);
+        
+        $response->header("Content-Type", "application/json; charset=utf-8");
+        $response->write(json_encode(["success" => true, "id" => $result->insertId]));
+    }
+}
+

@@ -9,6 +9,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 // DatabaseScanner 数据库扫描器，提供通用的数据库行扫描功能
@@ -30,7 +31,7 @@ func (ds *DatabaseScanner) ScanRowToInstance(instance *data.ClassValue, rows *sq
 	// 获取列信息
 	columns, err := rows.Columns()
 	if err != nil {
-		return data.NewErrorThrow(nil, fmt.Errorf("获取列信息失败: %w", err))
+		return utils.NewThrowf("获取列信息失败: %w", err)
 	}
 
 	// 创建列名到索引的映射
@@ -49,7 +50,7 @@ func (ds *DatabaseScanner) ScanRowToInstance(instance *data.ClassValue, rows *sq
 	// 扫描数据
 	err = rows.Scan(valuePtrs...)
 	if err != nil {
-		return data.NewErrorThrow(nil, fmt.Errorf("扫描数据库行失败: %w", err))
+		return utils.NewThrowf("扫描数据库行失败: %w", err)
 	}
 
 	// 根据列名映射到类属性
@@ -101,7 +102,7 @@ func (ds *DatabaseScanner) ScanRowsToInstances(rows *sql.Rows, classStmt data.Cl
 	// 获取列信息
 	columns, err := rows.Columns()
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("获取列信息失败: %w", err))
+		return nil, utils.NewThrowf("获取列信息失败: %w", err)
 	}
 
 	// 创建列名到索引的映射
@@ -124,7 +125,7 @@ func (ds *DatabaseScanner) ScanRowsToInstances(rows *sql.Rows, classStmt data.Cl
 		// 扫描当前行
 		err := rows.Scan(valuePtrs...)
 		if err != nil {
-			return nil, data.NewErrorThrow(nil, fmt.Errorf("扫描行失败: %w", err))
+			return nil, utils.NewThrowf("扫描行失败: %w", err)
 		}
 
 		// 将扫描结果映射到实例属性
@@ -160,7 +161,7 @@ func (ds *DatabaseScanner) ScanRowsToInstances(rows *sql.Rows, classStmt data.Cl
 
 	// 检查是否有错误
 	if err := rows.Err(); err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("遍历行时出错: %w", err))
+		return nil, utils.NewThrowf("遍历行时出错: %w", err)
 	}
 
 	return instances, nil

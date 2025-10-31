@@ -3,6 +3,7 @@ package parser
 import (
 	"errors"
 	"fmt"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -62,7 +63,7 @@ func (ep *LparenParser) parseTypeCast(tracking *PositionTracker) (data.GetValue,
 	}
 	fn, ok := ep.vm.GetFunc(typeName)
 	if !ok {
-		return nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("未定义的函数:"+typeName))
+		return nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("未定义的转换函数:"+typeName))
 	}
 	return node.NewCallExpression(tracking.EndBefore(), typeName, []data.GetValue{val}, fn), nil
 }

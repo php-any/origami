@@ -1,8 +1,6 @@
 package http
 
 import (
-	"fmt"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/utils"
@@ -15,11 +13,11 @@ type ServerConstructMethod struct {
 func (h *ServerConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	param0, err := utils.ConvertFromIndex[string](ctx, 0)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("参数转换失败: %v", err))
+		return nil, utils.NewThrowf("参数转换失败: %v", err)
 	}
 	param1, err := utils.ConvertFromIndex[int](ctx, 1)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("参数转换失败: %v", err))
+		return nil, utils.NewThrowf("参数转换失败: %v", err)
 	}
 
 	h.source.Host = param0

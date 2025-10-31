@@ -6,6 +6,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 type DbQueryMethod struct {
@@ -49,14 +50,14 @@ func (d *DbQueryMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 执行查询
 	rows, err := conn.Query(sqlStr, args...)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("执行 SQL 查询失败: %w", err))
+		return nil, utils.NewThrowf("执行 SQL 查询失败: %w", err)
 	}
 	defer rows.Close()
 
 	// 获取列信息
 	columns, err := rows.Columns()
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("获取列信息失败: %w", err))
+		return nil, utils.NewThrowf("获取列信息失败: %w", err)
 	}
 
 	// 创建结果数组
@@ -73,7 +74,7 @@ func (d *DbQueryMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	for rows.Next() {
 		err := rows.Scan(valuePtrs...)
 		if err != nil {
-			return nil, data.NewErrorThrow(nil, fmt.Errorf("扫描行失败: %w", err))
+			return nil, utils.NewThrowf("扫描行失败: %w", err)
 		}
 
 		// 创建行对象
@@ -87,7 +88,7 @@ func (d *DbQueryMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	// 检查是否有错误
 	if err := rows.Err(); err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("遍历行时出错: %w", err))
+		return nil, utils.NewThrowf("遍历行时出错: %w", err)
 	}
 
 	// 返回结果数组

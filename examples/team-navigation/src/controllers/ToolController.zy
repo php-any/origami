@@ -1,0 +1,95 @@
+namespace App\Controllers;
+
+use Net\Annotation\Controller;
+use Net\Annotation\Route;
+use Net\Annotation\GetMapping;
+use Net\Annotation\PostMapping;
+use Net\Annotation\PutMapping;
+use Net\Annotation\DeleteMapping;
+use Database\DB;
+use App\Models\ToolLink;
+
+@Controller
+@Route(prefix: "/api/tools")
+class ToolController {
+    @GetMapping(path: "/")
+    public function lists($request, $response) {
+        $tools = DB<ToolLink>()->orderBy("display_order ASC")->get();
+        $result = [];
+        for ($tool in $tools) {
+            $result[] = [
+                "id" => $tool->id,
+                "name" => $tool->name,
+                "url" => $tool->url,
+                "icon" => $tool->icon,
+                "category" => $tool->category,
+                "description" => $tool->description,
+                "displayOrder" => $tool->displayOrder
+            ];
+        }
+        
+        $response->header("Content-Type", "application/json; charset=utf-8");
+        $response->write(json_encode($result));
+    }
+
+    @PostMapping(path: "/")
+    public function create($request, $response) {
+        $body = $request->body();
+        $data = json_decode($body);
+        
+        $tool = new ToolLink();
+        $tool->name = $data->name;
+        $tool->url = $data->url;
+        $tool->icon = $data->icon ?? "";
+        $tool->category = $data->category ?? "";
+        $tool->description = $data->description ?? "";
+        $tool->displayOrder = $data->displayOrder ?? 0;
+        
+        $result = DB<ToolLink>()->insert($tool);
+        
+        $response->header("Content-Type", "application/json; charset=utf-8");
+        $response->write(json_encode(["success" => true, "id" => $result->insertId]));
+    }
+
+    @PutMapping(path: "/{id}")
+    public function update($request, $response) {
+        $id = $request->pathValue("id");
+        if ($id == null) {
+            $path = $request->path();
+            $pathParts = $path->split("/");
+            $id = $pathParts[$pathParts->length - 1];
+        }
+        
+        $body = $request->body();
+        $data = json_decode($body);
+        
+        $tool = new ToolLink();
+        $tool->name = $data->name;
+        $tool->url = $data->url;
+        $tool->icon = $data->icon ?? "";
+        $tool->category = $data->category ?? "";
+        $tool->description = $data->description ?? "";
+        $tool->displayOrder = $data->displayOrder ?? 0;
+        
+        $result = DB<ToolLink>()->where("id = ?", (int)$id)->update($tool);
+        
+        $response->header("Content-Type", "application/json; charset=utf-8");
+        $response->write(json_encode(["success" => true, "rowsAffected" => $result]));
+    }
+
+    @DeleteMapping(path: "/{id}")
+    public function delete($request, $response) {
+        $id = $request->pathValue("id");
+        if ($id == null) {
+            $path = $request->path();
+            $pathParts = $path->split("/");
+            $id = $pathParts[$pathParts->length - 1];
+        }
+        
+        $result = DB<ToolLink>()->where("id = ?", (int)$id)->delete();
+        
+        $response->header("Content-Type", "application/json; charset=utf-8");
+        $response->write(json_encode(["success" => true, "rowsAffected" => $result]));
+    }
+}
+

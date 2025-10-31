@@ -1,7 +1,6 @@
 package http
 
 import (
-	"fmt"
 	httpsrc "net/http"
 	"strings"
 
@@ -54,7 +53,7 @@ func (h *RequestInputMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	// 如果有参数，返回指定键的值
 	param0, err := utils.ConvertFromIndex[string](ctx, 0)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("参数转换失败: %v", err))
+		return nil, utils.NewThrowf("参数转换失败: %v", err)
 	}
 
 	// 优先从表单数据获取

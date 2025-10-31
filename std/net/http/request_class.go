@@ -2,7 +2,6 @@ package http
 
 import (
 	"errors"
-	"fmt"
 	httpsrc "net/http"
 
 	"github.com/php-any/origami/data"
@@ -17,7 +16,7 @@ func createPropertyValue(source *httpsrc.Request, name string, value interface{}
 
 // 辅助函数：统一的错误处理
 func handlePropertyError(err error, propertyName string) data.Control {
-	return data.NewErrorThrow(nil, fmt.Errorf("设置属性 %s 失败: %v", propertyName, err))
+	return utils.NewThrowf("设置属性 %s 失败: %v", propertyName, err)
 }
 
 // 辅助函数：安全的类型转换

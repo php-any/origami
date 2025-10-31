@@ -45,6 +45,28 @@ func (p *Parser) printDetailedError(err string, from data.From) {
 	_, _ = fmt.Fprintln(os.Stderr, strings.Repeat("=", 80))
 }
 
+// printRuntimeError 打印运行时错误信息（例如数据库/IO等在执行阶段的异常）
+func (p *Parser) printRuntimeError(err string, from data.From) {
+	// 规范化错误文本：去掉前缀 "throw ", 分离 Caused by 段，避免重复展示
+	normalized := strings.TrimSpace(err)
+	normalized = strings.TrimPrefix(normalized, "throw ")
+	mainMsg := normalized
+	if idx := strings.Index(normalized, "\nCaused by: "); idx != -1 {
+		mainMsg = strings.TrimSpace(normalized[:idx])
+	} else if idx := strings.Index(normalized, "Caused by: "); idx != -1 {
+		mainMsg = strings.TrimSpace(normalized[:idx])
+	}
+
+	if from == nil {
+		_, _ = fmt.Fprintf(os.Stderr, "ZY Fatal error: %s in <unknown>:0\n", mainMsg)
+		return
+	}
+
+	sl, sp := from.GetStartPosition()
+	// 使用 path:line:col 形式，便于在大多数 IDE/终端中可点击跳转
+	_, _ = fmt.Fprintf(os.Stderr, "ZY Fatal error: %s in %s:%d:%d\n", mainMsg, from.GetSource(), sl+1, sp+1)
+}
+
 // printContext 打印当前解析位置的上下文
 func (p *Parser) printContext() {
 	// 保存当前位置

@@ -2,7 +2,6 @@ package http
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"strings"
 
@@ -27,7 +26,7 @@ func (h *RequestBindMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	// 获取要绑定的类
 	param0, err := utils.ConvertFromIndex[string](ctx, 0)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("参数转换失败: %v", err))
+		return nil, utils.NewThrowf("参数转换失败: %v", err)
 	}
 
 	// 获取 VM 来查找类定义

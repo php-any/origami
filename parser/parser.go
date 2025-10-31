@@ -240,7 +240,7 @@ func (p *Parser) stopNext() {
 func (p *Parser) ShowControl(acl data.Control) {
 	err := acl.AsString()
 
-	// 优先检查是否是 ThrowValue 并显示调用栈
+	// 优先检查是否是 ThrowValue；先打印错误，再打印调用栈
 	if throwValue, ok := acl.(*data.ThrowValue); ok {
 		from := throwValue.Error.From
 		if from == nil {
@@ -248,23 +248,30 @@ func (p *Parser) ShowControl(acl data.Control) {
 		}
 		p.errors = append(p.errors, data.NewErrorThrow(from, errors.New(err)))
 
-		// 显示调用栈信息
-		if len(throwValue.StackFrames) > 0 {
-			_, _ = fmt.Fprintln(os.Stderr, "\n📚 调用栈:")
-			for i, frame := range throwValue.StackFrames {
-				stackStart, stackEnd := frame.From.GetPosition()
-				stackSl, stackSp := frame.From.GetStartPosition()
-				_, _ = fmt.Fprintf(os.Stderr, "   %d. %s::%s() at %s:%d:%d (位置: %d-%d)\n",
-					i+1, frame.ClassName, frame.MethodName, frame.From.GetSource(), stackSl+1, stackSp+1, stackStart, stackEnd)
-			}
-		}
+		// 先打印运行时错误信息
+		p.printRuntimeError(err, from)
 
-		// 打印详细的错误信息
-		p.printDetailedError(err, from)
+		if len(throwValue.StackFrames) > 0 {
+			_, _ = fmt.Fprintln(os.Stderr, "Stack trace:")
+			for i, frame := range throwValue.StackFrames {
+				stackSl, stackSp := frame.From.GetStartPosition()
+				// 使用 path:line:col 形式提升可点击性
+				if frame.ClassName == "" {
+					_, _ = fmt.Fprintf(os.Stderr, "#%d %s:%d:%d in %s()\n",
+						i, frame.From.GetSource(), stackSl+1, stackSp+1, frame.MethodName)
+				} else {
+					_, _ = fmt.Fprintf(os.Stderr, "#%d %s:%d:%d in %s::%s()\n",
+						i, frame.From.GetSource(), stackSl+1, stackSp+1, frame.ClassName, frame.MethodName)
+				}
+			}
+			// 末行也输出可点击位置
+			sl, sp := from.GetStartPosition()
+			_, _ = fmt.Fprintf(os.Stderr, "  thrown at %s:%d:%d\n", from.GetSource(), sl+1, sp+1)
+		}
 	} else if acl, ok := acl.(node.GetFrom); ok {
 		from := acl.GetFrom()
 		p.errors = append(p.errors, data.NewErrorThrow(from, errors.New(err)))
-		// 打印详细的错误信息
+		// 先打印详细的解析错误信息
 		p.printDetailedError(err, from)
 	} else {
 		from := node.NewTokenFrom(p.source, p.current().Start, p.current().End, p.current().Line, p.current().Pos)

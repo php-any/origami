@@ -1,10 +1,10 @@
 package http
 
 import (
-	"fmt"
 	httpsrc "net/http"
 
 	"github.com/php-any/origami/std/serializer/json"
+	"github.com/php-any/origami/utils"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -21,7 +21,7 @@ type ResponseWriterJsonMethod struct {
 func (h *ResponseWriterJsonMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	param0, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("json 方法缺少参数: %v", 0))
+		return nil, utils.NewThrowf("json 方法缺少参数: %v", 0)
 	}
 
 	switch msg := param0.(type) {
@@ -38,7 +38,7 @@ func (h *ResponseWriterJsonMethod) Call(ctx data.Context) (data.GetValue, data.C
 		return data.NewIntValue(ret0), nil
 	}
 
-	return nil, data.NewErrorThrow(nil, fmt.Errorf("使用未支持json序列化的结构%#v", param0))
+	return nil, utils.NewThrowf("使用未支持json序列化的结构%#v", param0)
 }
 
 func (h *ResponseWriterJsonMethod) GetName() string            { return "json" }

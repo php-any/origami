@@ -47,6 +47,10 @@ func (s *ServerClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
 	case "get", "post", "put", "delete", "head", "options", "patch", "trace":
 		return &ServerHandleMethod{server: s, name: name}, true
+	case "static":
+		return &ServerStaticMethod{server: s}, true
+	case "any":
+		return &ServerAnyMethod{server: s}, true
 	case "group":
 		return &ServerGroupMethod{server: s}, true
 	case "middleware":
@@ -69,6 +73,8 @@ func (s *ServerClass) GetMethods() []data.Method {
 		&ServerHandleMethod{server: s, name: "options"},
 		&ServerHandleMethod{server: s, name: "patch"},
 		&ServerHandleMethod{server: s, name: "trace"},
+		&ServerStaticMethod{server: s},
+		&ServerAnyMethod{server: s},
 		&ServerGroupMethod{server: s},
 		&ServerMiddlewareMethod{server: s},
 		&ServerRunMethod{server: s},

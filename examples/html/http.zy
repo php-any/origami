@@ -13,14 +13,8 @@ $server->middleware(($request, $response, $next) => {
     $next($request, $response);
 });
 
-// go 语言标准库的路由注册, 只匹配 /
-$server->get("/{$}", ($request, $response) => {
-    // app 是一个特殊的方法, 用于自动 include("./main.zy") 后再执行新的 main($request, $response)
-    app($request, $response)
-});
-
-// go 语言标准库的路由注册, 匹配 /* 任意路由
-$server->get("/", ($request, $response) => {
+// 统一使用 any 方式匹配所有方法与路径
+$server->any(($request, $response) => {
     app($request, $response)
 });
 

@@ -1,7 +1,6 @@
 package http
 
 import (
-	"fmt"
 	httpsrc "net/http"
 
 	"github.com/php-any/origami/data"
@@ -36,7 +35,7 @@ func (h *RequestHeaderMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 	// 如果有参数，返回指定请求头的值
 	param0, err := utils.ConvertFromIndex[string](ctx, 0)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("参数转换失败: %v", err))
+		return nil, utils.NewThrowf("参数转换失败: %v", err)
 	}
 
 	value := h.source.Header.Get(param0)

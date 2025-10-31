@@ -5,6 +5,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 func NewFileGetContentsFunction() data.FuncStmt {
@@ -17,21 +18,15 @@ func (f *FileGetContentsFunction) Call(ctx data.Context) (data.GetValue, data.Co
 	// 获取文件路径参数
 	pathValue, _ := ctx.GetIndexValue(0)
 
-	var filePath string
-	switch p := pathValue.(type) {
-	case data.AsString:
-		filePath = p.AsString()
-	default:
-		return data.NewStringValue(""), nil
-	}
+	filePath := pathValue.AsString()
 
 	if filePath == "" {
-		return data.NewStringValue(""), nil
+		return nil, utils.NewThrowf("FileGetContentsFunction called with no file path")
 	}
 
 	bytes, err := os.ReadFile(filePath)
 	if err != nil {
-		return data.NewStringValue(""), nil
+		return nil, utils.NewThrowf("FileGetContentsFunction called with file path '%s': %v", filePath, err)
 	}
 	return data.NewStringValue(string(bytes)), nil
 }

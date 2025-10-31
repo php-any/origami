@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>团队导航页 - 常用链接与项目环境</title>
+    <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+
+<body>
+    <header class="header">
+        <div class="container">
+            <h1>🚀 团队导航页</h1>
+            <p class="subtitle">常用工具和项目环境快速访问</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- 数据通过 JavaScript 从 API 加载 -->
+        <div id="loading" style="text-align: center; padding: 40px; color: var(--text-muted);">
+            正在加载数据...
+        </div>
+
+        <!-- 常用工具部分 -->
+        <section class="section" id="toolsSection" style="display: none;">
+            <h2 class="section-title">
+                <span class="icon">🛠️</span>
+                常用工具
+                <a href="/admin"
+                    style="margin-left: auto; font-size: 0.9rem; color: var(--primary); text-decoration: none;">管理 →</a>
+            </h2>
+            <div class="tools-grid" id="toolsGrid">
+                <!-- 工具卡片将通过 JavaScript 动态插入 -->
+            </div>
+        </section>
+
+        <!-- 项目环境部分 -->
+        <section class="section" id="projectsSection" style="display: none;">
+            <h2 class="section-title">
+                <span class="icon">🌍</span>
+                项目环境
+            </h2>
+            <div class="projects-grid" id="projectsGrid">
+                <!-- 项目卡片将通过 JavaScript 动态插入 -->
+            </div>
+        </section>
+
+        <!-- 快速搜索 -->
+        <section class="section">
+            <h2 class="section-title">
+                <span class="icon">🔍</span>
+                快速搜索
+            </h2>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="输入关键词搜索工具或项目..." class="search-input">
+                <div id="searchResults" class="search-results"></div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>团队导航页系统 | 最后更新: <span id="lastUpdate"></span></p>
+        </div>
+    </footer>
+
+    <script src="/assets/js/app.js"></script>
+</body>
+
+</html>

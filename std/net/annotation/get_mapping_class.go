@@ -8,20 +8,15 @@ import (
 // GetMappingClass GetMapping注解类
 type GetMappingClass struct {
 	node.Node
-	process   data.Method
-	mapping   data.Method
+	source    *GetMapping
 	construct data.Method
-	pathMeth  data.Method
 }
 
 func (g *GetMappingClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	source := newGetMapping()
-
 	return data.NewClassValue(&GetMappingClass{
-		process:   &GetMappingProcessMethod{source},
-		mapping:   &GetMappingMappingMethod{source},
+		source:    source,
 		construct: &GetMappingConstructMethod{source},
-		pathMeth:  &GetMappingPathMethod{source},
 	}, ctx.CreateBaseContext()), nil
 }
 
@@ -45,26 +40,13 @@ func (g *GetMappingClass) GetPropertyList() []data.Property {
 
 func (g *GetMappingClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
-	case "process":
-		return g.process, true
-	case "mapping":
-		return g.mapping, true
 	case "__construct":
 		return g.construct, true
-	case "path":
-		return g.pathMeth, true
 	}
 	return nil, false
 }
 
-func (g *GetMappingClass) GetMethods() []data.Method {
-	return []data.Method{
-		g.process,
-		g.mapping,
-		g.construct,
-		g.pathMeth,
-	}
-}
+func (g *GetMappingClass) GetMethods() []data.Method { return []data.Method{g.construct} }
 
 func (g *GetMappingClass) GetConstruct() data.Method {
 	return g.construct
@@ -72,8 +54,8 @@ func (g *GetMappingClass) GetConstruct() data.Method {
 
 // Path 便捷访问当前实例的路径值
 func (g *GetMappingClass) Path() string {
-	if pm, ok := g.process.(*GetMappingProcessMethod); ok && pm.mapping != nil {
-		return pm.mapping.path
+	if g.source != nil {
+		return g.source.path
 	}
 	return ""
 }
@@ -132,86 +114,12 @@ func (m *GetMappingConstructMethod) Call(ctx data.Context) (data.GetValue, data.
 }
 
 // GetMappingPathMethod 暴露 path 给控制器注解读取
-type GetMappingPathMethod struct{ mapping *GetMapping }
-
-func (m *GetMappingPathMethod) GetName() string            { return "path" }
-func (m *GetMappingPathMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *GetMappingPathMethod) GetIsStatic() bool          { return false }
-func (m *GetMappingPathMethod) GetParams() []data.GetValue { return []data.GetValue{} }
-func (m *GetMappingPathMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
-}
-func (m *GetMappingPathMethod) GetReturnType() data.Types { return data.NewBaseType("string") }
-func (m *GetMappingPathMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewStringValue(m.mapping.path), nil
-}
+// 删除对脚本域可见的 path/process/mapping 方法，仅保留构造
 
 // GetMappingProcessMethod 处理注解的方法
-type GetMappingProcessMethod struct {
-	mapping *GetMapping
-}
+// 保留最小接口，仅通过构造接收参数
 
-func (m *GetMappingProcessMethod) GetName() string {
-	return "process"
-}
-
-func (m *GetMappingProcessMethod) GetModifier() data.Modifier {
-	return data.ModifierPublic
-}
-
-func (m *GetMappingProcessMethod) GetIsStatic() bool {
-	return false
-}
-
-func (m *GetMappingProcessMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
-}
-
-func (m *GetMappingProcessMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
-}
-
-func (m *GetMappingProcessMethod) GetReturnType() data.Types {
-	return data.NewBaseType("string")
-}
-
-func (m *GetMappingProcessMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 实现GetMapping注解处理逻辑
-	// 可以访问 m.mapping.arguments 和 m.mapping.target
-	return data.NewStringValue("GetMapping processed"), nil
-}
+//（已移除）
 
 // GetMappingMappingMethod 注册映射的方法
-type GetMappingMappingMethod struct {
-	mapping *GetMapping
-}
-
-func (m *GetMappingMappingMethod) GetName() string {
-	return "mapping"
-}
-
-func (m *GetMappingMappingMethod) GetModifier() data.Modifier {
-	return data.ModifierPublic
-}
-
-func (m *GetMappingMappingMethod) GetIsStatic() bool {
-	return false
-}
-
-func (m *GetMappingMappingMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
-}
-
-func (m *GetMappingMappingMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
-}
-
-func (m *GetMappingMappingMethod) GetReturnType() data.Types {
-	return data.NewBaseType("string")
-}
-
-func (m *GetMappingMappingMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 实现GET路由映射逻辑
-	// 可以访问 m.mapping.arguments 和 m.mapping.target
-	return data.NewStringValue("GET mapping registered"), nil
-}
+//（已移除）
