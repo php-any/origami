@@ -177,7 +177,8 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 		if p.current().Type == token.VAR ||
 			p.current().Type == token.CONST ||
 			p.current().Type == token.VARIABLE ||
-			isIdentOrTypeToken(p.current().Type) {
+			isIdentOrTypeToken(p.current().Type) ||
+			(p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type)) {
 			prop, acl := p.parsePropertyWithAnnotations(modifier, isStatic, memberAnnotations)
 			if acl != nil {
 				return nil, acl
@@ -376,11 +377,14 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 	var propertyType data.Types
 	if isIdentOrTypeToken(p.current().Type) {
 		// 检查是否是类型关键字
-		typeName := p.current().Literal
-		if data.ISBaseType(typeName) {
-			propertyType = data.NewBaseType(typeName)
-			p.next()
-		}
+		propertyType = data.NewBaseType(p.current().Literal)
+		p.next()
+	} else if p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type) {
+		// ?int 方式
+		p.next()
+		base := data.NewBaseType(p.current().Literal)
+		p.next()
+		propertyType = data.NewNullableType(base)
 	}
 
 	// 解析属性名
@@ -418,15 +422,31 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 	for _, an := range annotations {
 		an.Target = ret
 	}
-	for _, an := range annotations {
-		obj, acl := an.GetValue(p.vm.CreateContext(nil))
-		if acl != nil {
-			return nil, acl
-		}
-		if o, ok := obj.(*data.ClassValue); ok {
-			ret.AddAnnotations(o)
+	if len(annotations) != 0 {
+		callAnn := make([]*node.CallAnn, 0)
+		for _, an := range annotations {
+			stmt, ok := p.vm.GetClass(an.Name)
+			if !ok {
+				return nil, data.NewErrorThrow(an.GetFrom(), errors.New("注解未定义"))
+			}
+			object, acl := stmt.GetValue(p.vm.CreateContext(nil))
+			if acl != nil {
+				return nil, acl
+			}
+			obj, acl := an.GetValue(p.vm.CreateContext(object.(*data.ClassValue).Class.GetConstruct().GetVariables()))
+			if acl != nil {
+				if ann, ok := acl.(*node.CallAnn); !ok {
+					return nil, acl
+				} else {
+					callAnn = append(callAnn, ann)
+				}
+			}
+			if o, ok := obj.(*data.ClassValue); ok {
+				ret.AddAnnotations(o)
+			}
 		}
 	}
+
 	return ret, acl
 }
 

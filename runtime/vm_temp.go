@@ -78,10 +78,19 @@ func (t *TempVM) LoadAndRun(file string) (data.GetValue, data.Control) {
 }
 
 func (t *TempVM) GetClass(pkg string) (data.ClassStmt, bool) {
+	c, ok := t.Base.GetClass(pkg)
+	if ok {
+		return c, true
+	}
 	// 优先从本请求新增的类中查找
 	if t.addedClasses != nil {
 		if c, ok := t.addedClasses[pkg]; ok {
 			return c, true
+		} else {
+			acl := t.Base.parser.GetClassPathManager().LoadClass(pkg, t.Base.parser)
+			if acl != nil {
+				panic(acl)
+			}
 		}
 	}
 	// 再从 Base VM 查找

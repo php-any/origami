@@ -19,6 +19,12 @@ class HelloController {
         $response->header("Content-Type", "text/html; charset=utf-8");
         $response->write("<html><body><h1>用户列表</h1></body></html>");
     }
+
+    @GetMapping(path: "/java")
+    public function users(request, response) {
+        response->header("Content-Type", "text/html; charset=utf-8");
+        response->write("test java style 222");
+    }
 }
 
 

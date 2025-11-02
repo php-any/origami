@@ -229,7 +229,7 @@ func (m *DefaultClassPathManager) findNamespaceNode(namespace string) *Namespace
 			for _, path := range current.paths {
 				// 构建可能的目录路径
 				dirPath := filepath.Join(path, part)
-				if _, err := os.Stat(dirPath); err == nil {
+				if info, err := os.Stat(dirPath); err == nil && info.IsDir() {
 					// 目录存在，创建一个新的节点
 					child := &NamespaceNode{
 						namespace: part,

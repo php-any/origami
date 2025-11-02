@@ -1,0 +1,38 @@
+namespace App\Models;
+
+use Database\Annotation\Table;
+use Database\Annotation\Column;
+use Database\Annotation\Id;
+use Database\Annotation\GeneratedValue;
+
+// 工具链接模型
+@Table("tool_links")
+class ToolLink {
+    @Id
+    @GeneratedValue("AUTO")
+    public int $id;
+
+    @Column("name")
+    public string $name;
+
+    @Column("url")
+    public string $url;
+
+    @Column("icon")
+    public ?string $icon;
+
+    @Column("category")
+    public ?string $category;
+
+    @Column("description")
+    public ?string $description;
+
+    @Column("display_order")
+    public int $displayOrder;
+
+    @Column("created_at")
+    public ?string $createdAt;
+
+    @Column("updated_at")
+    public ?string $updatedAt;
+}
