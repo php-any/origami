@@ -57,7 +57,7 @@ class ProjectController {
         
         // 创建项目环境
         if ($data->environments != null) {
-            for ($env in $data->environments) {
+            for (_, $env in $data->environments) {
                 $envObj = new ProjectEnvironment();
                 $envObj->projectId = $projectId;
                 $envObj->environmentName = $env->environmentName;

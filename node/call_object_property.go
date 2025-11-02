@@ -56,7 +56,7 @@ func (pe *CallObjectProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 				return ov.GetValue(ctx)
 			}
 		} else {
-			return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("无法处理属性的的类型值"))
+			return nil, data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("值(%s)不是对象, 不能操作属性(%s)", TryGetCallClassName(pe.Object), pe.Property)))
 		}
 	}
 	return nil, data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("对象(%s)不存在属性(%s)", TryGetCallClassName(pe.Object), pe.Property)))
