@@ -37,12 +37,14 @@ func (c *ClassGeneric) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 	}
 	if c.Extends != nil {
 		vm := object.GetVM()
-		ext, ok := vm.GetClass(*c.Extends)
-		if ok {
-			_, ctl := ext.GetValue(object)
-			if ctl != nil {
-				return nil, ctl
-			}
+		ext, acl := vm.GetOrLoadClass(*c.Extends)
+		if acl != nil {
+			return nil, acl
+		}
+
+		_, ctl := ext.GetValue(object)
+		if ctl != nil {
+			return nil, ctl
 		}
 	}
 

@@ -390,7 +390,20 @@ body {
   font-size: 1rem;
   font-weight: 400;
   color: var(--text-primary);
+  margin: 0 0 8px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-desc {
   margin: 0 0 12px 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* 项目工具标签 */
@@ -435,13 +448,15 @@ body {
 
 .env-item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   padding: 10px 14px;
   background: var(--bg-light);
   border-radius: var(--radius-sm);
   transition: all 0.2s;
   border: 1px solid transparent;
+  width: 100%;
 }
 
 .env-item:hover {
@@ -450,17 +465,28 @@ body {
   transform: translateX(2px);
 }
 
+.env-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
 .env-name {
   font-size: 0.85rem;
   color: var(--text-secondary);
   font-weight: 400;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .env-link {
   font-size: 0.8rem;
   color: var(--text-muted);
   text-decoration: none;
-  max-width: 150px;
+  display: block;
+  width: 100%;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -510,6 +536,9 @@ body {
   font-weight: 400;
   color: var(--text-primary);
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 页脚 */

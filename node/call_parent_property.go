@@ -35,9 +35,9 @@ func (pe *CallParentProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 
 	parentClassName := *classCtx.Class.GetExtend()
 	vm := ctx.GetVM()
-	parentClass, ok := vm.GetClass(parentClassName)
-	if !ok {
-		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("找不到父类: %s", parentClassName)))
+	parentClass, acl := vm.GetOrLoadClass(parentClassName)
+	if acl != nil {
+		return nil, acl
 	}
 
 	// 获取父类属性

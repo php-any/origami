@@ -199,8 +199,7 @@ func NewScriptZyNode(from data.From, program *Program) *ScriptZyNode {
 func (s *ScriptZyNode) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	if s.Program != nil {
 		// 执行脚本程序（内部会通过 VM ThrowControl 处理控制流）
-		s.Program.GetValue(ctx)
-		return nil, nil
+		return s.Program.GetValue(ctx)
 	}
 	return data.NewStringValue(""), nil
 }

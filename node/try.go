@@ -69,7 +69,11 @@ func (t *TryStatement) tryValue(ctx data.Context, c data.Control) (data.GetValue
 			// 将异常对象设置到 catch 变量中
 			if catchBlock.Variable != nil {
 				// 这里需要将异常对象设置到变量中
-				if checkClassIs(ctx, cv, catchBlock.Variable.GetType().String()) {
+				ok, acl := checkClassIs(ctx, cv, catchBlock.Variable.GetType().String())
+				if acl != nil {
+					return nil, acl
+				}
+				if ok {
 					ctx.SetVariableValue(catchBlock.Variable, c)
 				} else {
 					continue

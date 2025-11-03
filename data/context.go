@@ -27,6 +27,9 @@ type Context interface {
 type VM interface {
 	AddClass(c ClassStmt) Control
 	GetClass(pkg string) (ClassStmt, bool)
+
+	// vm 也需要实现部分 parser 功能； 但是 parser 不要有 vm 功能
+	GetOrLoadClass(pkg string) (ClassStmt, Control)
 	AddInterface(i InterfaceStmt) Control
 	GetInterface(pkg string) (InterfaceStmt, bool)
 	AddFunc(f FuncStmt) Control
@@ -37,6 +40,7 @@ type VM interface {
 	SetThrowControl(func(acl Control))
 	ThrowControl(acl Control)
 	LoadAndRun(file string) (GetValue, Control)
+	ParseFile(file string, data Value) (Value, Control)
 
 	SetClassPathCache(name, path string)
 	GetClassPathCache(name string) (string, bool)

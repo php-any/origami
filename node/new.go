@@ -1,7 +1,6 @@
 package node
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/php-any/origami/data"
@@ -27,9 +26,9 @@ func NewNewExpression(from *TokenFrom, className string, arguments []data.GetVal
 // GetValue 实现 Value 接口
 func (n *NewExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	vm := ctx.GetVM()
-	stmt, ok := vm.GetClass(n.ClassName)
-	if !ok {
-		return nil, data.NewErrorThrow(n.from, errors.New(fmt.Sprintf("类 %s 不存在", n.ClassName)))
+	stmt, acl := vm.GetOrLoadClass(n.ClassName)
+	if acl != nil {
+		return nil, acl
 	}
 
 	object, acl := stmt.GetValue(ctx.CreateBaseContext())
@@ -89,9 +88,9 @@ func (n *NewGenerated) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 				case data.Class:
 					className := t.Name
 					vm := ctx.GetVM()
-					stmt, ok := vm.GetClass(className)
-					if !ok {
-						return nil, data.NewErrorThrow(n.from, errors.New(fmt.Sprintf("类 %s 不存在", n.ClassName)))
+					stmt, acl := vm.GetOrLoadClass(className)
+					if acl != nil {
+						return nil, acl
 					}
 					return data.NewClassValue(stmt, object.CreateBaseContext()), nil
 				}
@@ -109,9 +108,9 @@ type NewClassGenerated struct {
 
 func (n *NewClassGenerated) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	vm := ctx.GetVM()
-	stmt, ok := vm.GetClass(n.ClassName)
-	if !ok {
-		return nil, data.NewErrorThrow(n.from, errors.New(fmt.Sprintf("类 %s 不存在", n.ClassName)))
+	stmt, acl := vm.GetOrLoadClass(n.ClassName)
+	if acl != nil {
+		return nil, acl
 	}
 	mT := make(map[string]data.Types)
 	if classGeneric, ok := stmt.(data.ClassGeneric); ok {

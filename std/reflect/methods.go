@@ -50,9 +50,9 @@ func (g *GetClassInfoMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	vm := ctx.GetVM()
 
 	// 查找类
-	class, exists := vm.GetClass(className)
-	if !exists {
-		return data.NewStringValue(""), nil
+	class, acl := vm.GetOrLoadClass(className)
+	if acl != nil {
+		return nil, acl
 	}
 
 	// 构建友好的类信息字符串
@@ -142,9 +142,9 @@ func (g *GetMethodInfoMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 	vm := ctx.GetVM()
 
 	// 查找类
-	class, exists := vm.GetClass(className)
-	if !exists {
-		return data.NewStringValue(""), nil
+	class, acl := vm.GetOrLoadClass(className)
+	if acl != nil {
+		return nil, acl
 	}
 
 	// 查找方法
@@ -222,9 +222,9 @@ func (g *GetPropertyInfoMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 	vm := ctx.GetVM()
 
 	// 查找类
-	class, exists := vm.GetClass(className)
-	if !exists {
-		return data.NewObjectValue(), nil
+	class, acl := vm.GetOrLoadClass(className)
+	if acl != nil {
+		return nil, acl
 	}
 
 	// 查找属性
@@ -353,9 +353,9 @@ func (l *ListMethodsMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	vm := ctx.GetVM()
 
 	// 查找类
-	class, exists := vm.GetClass(className)
-	if !exists {
-		return data.NewStringValue("[]"), nil
+	class, acl := vm.GetOrLoadClass(className)
+	if acl != nil {
+		return nil, acl
 	}
 
 	// 获取所有方法
@@ -411,9 +411,9 @@ func (l *ListPropertiesMethod) Call(ctx data.Context) (data.GetValue, data.Contr
 	vm := ctx.GetVM()
 
 	// 查找类
-	class, exists := vm.GetClass(className)
-	if !exists {
-		return data.NewArrayValue(nil), nil
+	class, acl := vm.GetOrLoadClass(className)
+	if acl != nil {
+		return nil, acl
 	}
 
 	// 获取所有属性
@@ -482,9 +482,9 @@ func (g *GetClassAnnotationsMethod) Call(ctx data.Context) (data.GetValue, data.
 	vm := ctx.GetVM()
 
 	// 查找类
-	class, exists := vm.GetClass(className)
-	if !exists {
-		return data.NewStringValue(""), nil
+	class, acl := vm.GetOrLoadClass(className)
+	if acl != nil {
+		return nil, acl
 	}
 
 	// 检查类是否有注解
@@ -551,9 +551,9 @@ func (g *GetMethodAnnotationsMethod) Call(ctx data.Context) (data.GetValue, data
 	vm := ctx.GetVM()
 
 	// 查找类
-	class, exists := vm.GetClass(className)
-	if !exists {
-		return data.NewStringValue(""), nil
+	class, acl := vm.GetOrLoadClass(className)
+	if acl != nil {
+		return nil, acl
 	}
 
 	// 查找方法
@@ -626,9 +626,9 @@ func (g *GetPropertyAnnotationsMethod) Call(ctx data.Context) (data.GetValue, da
 	vm := ctx.GetVM()
 
 	// 查找类
-	class, exists := vm.GetClass(className)
-	if !exists {
-		return data.NewStringValue(""), nil
+	class, acl := vm.GetOrLoadClass(className)
+	if acl != nil {
+		return nil, acl
 	}
 
 	// 查找属性
@@ -693,9 +693,9 @@ func (g *GetAllAnnotationsMethod) Call(ctx data.Context) (data.GetValue, data.Co
 	vm := ctx.GetVM()
 
 	// 查找类
-	class, exists := vm.GetClass(className)
-	if !exists {
-		return data.NewStringValue(""), nil
+	class, acl := vm.GetOrLoadClass(className)
+	if acl != nil {
+		return nil, acl
 	}
 
 	// 检查类是否有注解
@@ -815,9 +815,9 @@ func (g *GetAnnotationDetailsMethod) Call(ctx data.Context) (data.GetValue, data
 	vm := ctx.GetVM()
 
 	// 查找类
-	class, exists := vm.GetClass(className)
-	if !exists {
-		return data.NewStringValue(""), nil
+	class, acl := vm.GetOrLoadClass(className)
+	if acl != nil {
+		return nil, acl
 	}
 
 	info := fmt.Sprintf("=== %s 的注解详细信息 ===\n\n", memberName)

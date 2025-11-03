@@ -83,9 +83,9 @@ func (d *DbFirstMethod) createClassInstance(classType data.Class, rows *sql.Rows
 	}
 
 	// 根据类名获取类定义
-	classStmt, exists := vm.GetClass(classType.Name)
-	if !exists {
-		return data.NewNullValue(), nil
+	classStmt, acl := vm.GetOrLoadClass(classType.Name)
+	if acl != nil {
+		return nil, acl
 	}
 
 	// 创建类实例

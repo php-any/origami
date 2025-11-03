@@ -42,7 +42,7 @@ func NewProgram(from data.From, statements []data.GetValue) *Program {
 }
 
 // GetValue 获取程序节点的值
-func (p *Program) GetValue(ctx data.Context) data.GetValue {
+func (p *Program) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	var v data.GetValue
 	var c data.Control
 	for _, statement := range p.Statements {
@@ -53,5 +53,5 @@ func (p *Program) GetValue(ctx data.Context) data.GetValue {
 		}
 	}
 
-	return v
+	return v, nil
 }

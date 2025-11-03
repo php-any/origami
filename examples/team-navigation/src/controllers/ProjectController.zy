@@ -58,6 +58,7 @@ class ProjectController {
             $result[] = [
                 "id" => $project->id,
                 "name" => $project->name,
+                "description" => $project->description,
                 "displayOrder" => $project->displayOrder,
                 "environments" => $envList,
                 "tools" => $toolList
@@ -75,6 +76,7 @@ class ProjectController {
         
         $project = new Project();
         $project->name = $data->name;
+        $project->description = $data->description ?? null;
         $project->displayOrder = $data->displayOrder ?? 0;
         
         $result = DB<Project>()->insert($project);
@@ -124,6 +126,7 @@ class ProjectController {
         
         $project = new Project();
         $project->name = $data->name;
+        $project->description = $data->description ?? null;
         $project->displayOrder = $data->displayOrder ?? 0;
         
         $result = DB<Project>()->where("id = ?", (int)$id)->update($project);

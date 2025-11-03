@@ -43,6 +43,7 @@ function initTables($db) {
         CREATE TABLE IF NOT EXISTS projects (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name VARCHAR(100) NOT NULL,
+            description TEXT,
             display_order INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -50,6 +51,14 @@ function initTables($db) {
 
     $result2 = $db->exec($createProjectsTable);
     Log::info("创建项目表结果: " + $result2);
+
+    // 如果表已存在但缺少 description 字段，则添加该字段
+    try {
+        $db->exec("ALTER TABLE projects ADD COLUMN description TEXT");
+        Log::info("已添加 description 字段到 projects 表");
+    } catch (Exception $e) {
+        // 字段可能已存在，忽略错误
+    }
 
     // 创建项目环境表
     $createProjectEnvsTable = "
@@ -167,16 +176,17 @@ function initSampleData($db, $dbExists) {
     if (!$dbExists || $projectCount == 0) {
         Log::info("初始化示例项目数据...");
         // 使用工具 display_order 作为 key，映射到实际的 tool_id
+        // 结构: [name, display_order, description, tools(orderId[])]
         $initProjects = [
-            ["Origami", 1, [1, 3, 7]],  // 绑定 GitLab(1), Jenkins(3), Confluence(7)
-            ["Web API", 2, [1, 3, 4]],   // 绑定 GitLab(1), Jenkins(3), Grafana(4)
-            ["Admin 后台", 3, [1, 2, 6]], // 绑定 GitLab(1), Jira(2), Kibana(6)
-            ["Mobile App", 4, [1, 3, 8]]  // 绑定 GitLab(1), Jenkins(3), SonarQube(8)
+            ["Origami", 1, "折言脚本语言与运行时示例项目", [1, 3, 7]],
+            ["Web API", 2, "面向业务的 REST API 服务，提供对外接口", [1, 3, 4]],
+            ["Admin 后台", 3, "内部运营与配置管理后台系统", [1, 2, 6]],
+            ["Mobile App", 4, "移动端应用的后端与集成服务", [1, 3, 8]]
         ];
         
         for (_, $project in $initProjects) {
-            $result = $db->exec("INSERT INTO projects (name, display_order) VALUES (?, ?)", 
-                $project[0], $project[1]);
+            $result = $db->exec("INSERT INTO projects (name, description, display_order) VALUES (?, ?, ?)", 
+                $project[0], $project[2], $project[1]);
             $projectId = $result->lastInsertId();
             
             // 为每个项目创建默认环境
@@ -194,7 +204,7 @@ function initSampleData($db, $dbExists) {
             }
             
             // 绑定项目关联的工具（使用 toolIdMap 获取实际的工具ID）
-            $toolOrderIds = $project[2];
+            $toolOrderIds = $project[3];
             for ($i = 0; $i < $toolOrderIds->length; $i++) {
                 $toolOrderId = $toolOrderIds[$i];
                 $actualToolId = $toolIdMap[$toolOrderId];

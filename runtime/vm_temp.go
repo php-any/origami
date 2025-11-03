@@ -1,7 +1,10 @@
 package runtime
 
 import (
+	"fmt"
+
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/parser"
 )
 
 // NewTempVM 根据给定 VM 创建/返回一个临时 VM 实例
@@ -25,7 +28,8 @@ type Route struct {
 // TempVM 用于模拟 php-fpm 请求级生效的 VM（热重载）
 // 确保解析阶段（Parser）也绑定到 TempVM
 type TempVM struct {
-	Base *VM
+	Base   *VM
+	parser *parser.Parser
 
 	addedClasses    map[string]data.ClassStmt
 	addedInterfaces map[string]data.InterfaceStmt
@@ -69,32 +73,44 @@ func (t *TempVM) CreateContext(vars []data.Variable) data.Context {
 func (t *TempVM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	p := t.Base.parser.Clone()
 	p.SetVM(t)
+	t.parser = p
 
 	program, acl := p.ParseFile(file)
 	if acl != nil {
 		return nil, acl
 	}
-	return program.GetValue(t.CreateContext(p.GetVariables())), nil
+	return program.GetValue(t.CreateContext(p.GetVariables()))
+}
+
+func (t *TempVM) ParseFile(file string, data data.Value) (data.Value, data.Control) {
+	return t.Base.ParseFile(file, data)
 }
 
 func (t *TempVM) GetClass(pkg string) (data.ClassStmt, bool) {
+	return t.Base.GetClass(pkg)
+}
+
+func (t *TempVM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
 	c, ok := t.Base.GetClass(pkg)
 	if ok {
-		return c, true
+		return c, nil
 	}
 	// 优先从本请求新增的类中查找
 	if t.addedClasses != nil {
 		if c, ok := t.addedClasses[pkg]; ok {
-			return c, true
+			return c, nil
 		} else {
-			acl := t.Base.parser.GetClassPathManager().LoadClass(pkg, t.Base.parser)
+			acl := t.parser.GetClassPathManager().LoadClass(pkg, t.parser)
 			if acl != nil {
-				panic(acl)
+				return nil, acl
 			}
 		}
+		if c, ok := t.addedClasses[pkg]; ok {
+			return c, nil
+		}
 	}
-	// 再从 Base VM 查找
-	return t.Base.GetClass(pkg)
+
+	return nil, data.NewErrorThrow(nil, fmt.Errorf("class %s not found", pkg))
 }
 
 func (t *TempVM) GetInterface(pkg string) (data.InterfaceStmt, bool) {

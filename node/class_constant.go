@@ -2,6 +2,7 @@ package node
 
 import (
 	"fmt"
+
 	"github.com/php-any/origami/data"
 )
 
@@ -31,14 +32,13 @@ func (cc *ClassConstant) GetValue(ctx data.Context) (data.GetValue, data.Control
 	if strValue, ok := exprValue.(*StringLiteral); ok {
 		className := strValue.Value
 		// 尝试获取完整的类地址（包括命名空间）
-		if vm := ctx.GetVM(); vm != nil {
-			if class, exists := vm.GetClass(className); exists {
-				// 返回完整的类名（包括命名空间）
-				return data.NewStringValue(class.GetName()), nil
-			}
+		class, acl := ctx.GetVM().GetOrLoadClass(className)
+		if acl == nil {
+			// 返回完整的类名（包括命名空间）
+			return data.NewStringValue(class.GetName()), nil
+		} else {
+			return nil, acl
 		}
-		// 如果找不到类，返回原始类名
-		return data.NewStringValue(className), nil
 	}
 
 	// 如果表达式是变量，获取变量的值
@@ -52,8 +52,10 @@ func (cc *ClassConstant) GetValue(ctx data.Context) (data.GetValue, data.Control
 			case *data.StringValue:
 				// 尝试获取完整的类地址
 				if vm := ctx.GetVM(); vm != nil {
-					if class, exists := vm.GetClass(v.AsString()); exists {
+					if class, acl := vm.GetOrLoadClass(v.AsString()); acl == nil {
 						return data.NewStringValue(class.GetName()), nil
+					} else {
+						return nil, acl
 					}
 				}
 			}
@@ -66,8 +68,10 @@ func (cc *ClassConstant) GetValue(ctx data.Context) (data.GetValue, data.Control
 		className := value.AsString()
 		// 尝试获取完整的类地址
 		if vm := ctx.GetVM(); vm != nil {
-			if class, exists := vm.GetClass(className); exists {
+			if class, acl := vm.GetOrLoadClass(className); acl == nil {
 				return data.NewStringValue(class.GetName()), nil
+			} else {
+				return nil, acl
 			}
 		}
 		return data.NewStringValue(className), nil

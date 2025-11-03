@@ -1,9 +1,6 @@
 package node
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/php-any/origami/data"
 )
 
@@ -45,9 +42,9 @@ func (a *Annotation) GetArguments() []data.GetValue {
 // GetValue 获取注解节点的值
 func (a *Annotation) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	vm := ctx.GetVM()
-	stmt, ok := vm.GetClass(a.Name)
-	if !ok {
-		return nil, data.NewErrorThrow(a.from, errors.New(fmt.Sprintf("类 %s 不存在", a.Name)))
+	stmt, acl := vm.GetOrLoadClass(a.Name)
+	if acl != nil {
+		return nil, acl
 	}
 
 	object, acl := stmt.GetValue(ctx.CreateBaseContext())

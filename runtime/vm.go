@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -107,6 +108,23 @@ func (vm *VM) GetClass(pkg string) (data.ClassStmt, bool) {
 	return nil, false
 }
 
+func (vm *VM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
+	if v, ok := vm.classMap[pkg]; ok {
+		return v, nil
+	}
+
+	acl := vm.parser.GetClassPathManager().LoadClass(pkg, vm.parser)
+	if acl != nil {
+		return nil, acl
+	}
+
+	if v, ok := vm.classMap[pkg]; ok {
+		return v, nil
+	}
+
+	return nil, data.NewErrorThrow(nil, errors.New("找不到 class; class 定义需要和文件名称一致才能自动加载"))
+}
+
 func (vm *VM) GetInterface(pkg string) (data.InterfaceStmt, bool) {
 	if inf, ok := vm.interfaceMap[pkg]; ok {
 		return inf, true
@@ -150,7 +168,48 @@ func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 		return nil, acl
 	}
 
-	return program.GetValue(vm.CreateContext(p.GetVariables())), nil
+	return program.GetValue(vm.CreateContext(p.GetVariables()))
 }
 
-func (vm *VM) NewTempVM() data.VM { return &TempVM{Base: vm} }
+func (vm *VM) ParseFile(file string, object data.Value) (data.Value, data.Control) {
+	// 解析文件
+	p := vm.parser.Clone()
+
+	program, acl := p.ParseFile(file)
+	if acl != nil {
+		return nil, acl
+	}
+
+	varList := p.GetVariables()
+	ctx := vm.CreateContext(varList)
+	switch v := object.(type) {
+	case *data.ObjectValue:
+		for name, value := range v.GetProperties() {
+			for _, variable := range varList {
+				if variable.GetName() == name {
+					variable.SetValue(ctx, value)
+				}
+			}
+		}
+	case *data.ClassValue:
+		for name, value := range v.GetProperties() {
+			for _, variable := range varList {
+				if variable.GetName() == name {
+					variable.SetValue(ctx, value)
+				}
+			}
+		}
+	default:
+		return nil, utils.NewThrowf("DIY解析文件无法设置指定值到文件域, file(%s)", file)
+	}
+
+	v, acl := program.GetValue(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	if vv, ok := v.(data.Value); ok {
+		return vv, nil
+	}
+
+	return data.NewNullValue(), nil
+}

@@ -338,8 +338,8 @@ func (d *db) getTableNameFromAnnotation(classType data.Class, ctx data.Context) 
 	}
 
 	// 根据类名获取类定义
-	classStmt, exists := vm.GetClass(classType.Name)
-	if !exists {
+	classStmt, acl := vm.GetOrLoadClass(classType.Name)
+	if acl != nil || classStmt == nil {
 		return ""
 	}
 

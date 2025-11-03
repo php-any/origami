@@ -25,9 +25,9 @@ func NewInitClass(from *TokenFrom, className string, KV map[string]data.GetValue
 // GetValue 实现 Value 接口
 func (n *InitClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	vm := ctx.GetVM()
-	stmt, ok := vm.GetClass(n.ClassName)
-	if !ok {
-		return nil, data.NewErrorThrow(n.from, errors.New(fmt.Sprintf("类 %s 不存在", n.ClassName)))
+	stmt, acl := vm.GetOrLoadClass(n.ClassName)
+	if acl != nil {
+		return nil, acl
 	}
 
 	if stmt.GetConstruct() != nil {

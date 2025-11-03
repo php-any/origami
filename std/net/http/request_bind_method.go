@@ -33,7 +33,7 @@ func (h *RequestBindMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	vm := ctx.GetVM()
 	if vm != nil {
 		// 根据类名获取类定义
-		if classStmt, ok := vm.GetClass(param0); ok {
+		if classStmt, acl := vm.GetOrLoadClass(param0); acl == nil {
 			// 创建类实例
 			classInstance, _ := classStmt.GetValue(ctx)
 			if classValue, ok := classInstance.(*data.ClassValue); ok {
@@ -81,6 +81,8 @@ func (h *RequestBindMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 					}
 				}
 			}
+		} else {
+			return nil, acl
 		}
 	}
 

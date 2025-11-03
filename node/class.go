@@ -41,12 +41,13 @@ func (c *ClassStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 	}
 	if c.Extends != nil {
 		vm := object.GetVM()
-		ext, ok := vm.GetClass(*c.Extends)
-		if ok {
-			_, ctl := ext.GetValue(object)
-			if ctl != nil {
-				return nil, ctl
-			}
+		ext, acl := vm.GetOrLoadClass(*c.Extends)
+		if acl != nil {
+			return nil, acl
+		}
+		_, acl = ext.GetValue(object)
+		if acl != nil {
+			return nil, acl
 		}
 	}
 
@@ -326,20 +327,20 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 // 检查 source 是否实现了(继承了) target 类或接口
-func checkClassIs(ctx data.Context, source data.ClassStmt, target string) bool {
+func checkClassIs(ctx data.Context, source data.ClassStmt, target string) (bool, data.Control) {
 	if source.GetName() == target {
-		return true
+		return true, nil
 	} else {
 		if source.GetImplements() != nil {
 			for _, impl := range source.GetImplements() {
 				if impl == target {
-					return true
+					return true, nil
 				}
 				// 检查接口继承
 				if vm := ctx.GetVM(); vm != nil {
 					if interfaceStmt, ok := vm.GetInterface(impl); ok {
 						if checkInterfaceIs(ctx, interfaceStmt, target) {
-							return true
+							return true, nil
 						}
 					}
 				}
@@ -354,33 +355,40 @@ func checkClassIs(ctx data.Context, source data.ClassStmt, target string) bool {
 				if last.GetImplements() != nil {
 					for _, impl := range last.GetImplements() {
 						if impl == target {
-							return true
+							return true, nil
 						}
 						// 检查接口继承
 						if interfaceStmt, ok := vm.GetInterface(impl); ok {
 							if checkInterfaceIs(ctx, interfaceStmt, target) {
-								return true
+								return true, nil
 							}
 						}
 					}
 				}
 				if last.GetExtend() != nil {
 					if *last.GetExtend() == target {
-						return true
+						return true, nil
 					}
-					next, ok := vm.GetClass(*(last.GetExtend()))
-					if ok && checkClassIs(ctx, next, target) {
-						return true
-					} else if ok {
+					next, acl := vm.GetOrLoadClass(*(last.GetExtend()))
+					if acl != nil {
+						return false, acl
+					}
+					ok, acl := checkClassIs(ctx, next, target)
+					if acl != nil {
+						return false, acl
+					}
+					if ok {
+						return true, nil
+					} else {
 						last = next
 					}
 				}
-				return false
+				return false, nil
 			}
 		}
 	}
 
-	return false
+	return false, nil
 }
 
 // 检查接口是否继承了目标接口

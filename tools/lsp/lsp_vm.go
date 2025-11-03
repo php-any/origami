@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -84,6 +85,14 @@ func (vm *LspVM) GetClass(className string) (data.ClassStmt, bool) {
 	defer vm.mu.RUnlock()
 	class, exists := vm.classes[className]
 	return class, exists
+}
+
+func (vm *LspVM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
+	if v, ok := vm.classes[pkg]; ok {
+		return v, nil
+	}
+
+	return nil, data.NewErrorThrow(nil, errors.New("找不到 class; class 定义需要和文件名称一致才能自动加载"))
 }
 
 // GetAllClasses 获取所有类定义
@@ -191,6 +200,11 @@ func (vm *LspVM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	}
 
 	return nil, nil
+}
+
+func (vm *LspVM) ParseFile(file string, data data.Value) (data.Value, data.Control) {
+	_, acl := vm.parser.ParseFile(file)
+	return nil, acl
 }
 
 // scanAndParseDirectory 扫描目录并解析所有 .zy 文件（包括子目录）

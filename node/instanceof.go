@@ -33,13 +33,13 @@ func (i *InstanceOfExpression) GetValue(ctx data.Context) (data.GetValue, data.C
 		// 使用 checkClassIs 函数检查类关系
 		checkC, ok := ctx.GetVM().GetClass(i.ClassName)
 		if ok {
-			result := checkClassIs(ctx, classValue.Class, checkC.GetName())
-			return data.NewBoolValue(result), nil
+			result, acl := checkClassIs(ctx, classValue.Class, checkC.GetName())
+			return data.NewBoolValue(result), acl
 		}
 		checkI, ok := ctx.GetVM().GetInterface(i.ClassName)
 		if ok {
-			result := checkClassIs(ctx, classValue.Class, checkI.GetName())
-			return data.NewBoolValue(result), nil
+			result, acl := checkClassIs(ctx, classValue.Class, checkI.GetName())
+			return data.NewBoolValue(result), acl
 		}
 	}
 

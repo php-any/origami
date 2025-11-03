@@ -96,19 +96,40 @@
     const projectsGrid = document.getElementById("projectsGrid");
     if (!projectsGrid) return;
 
-    projectsGrid.innerHTML = projects
+    // 1) 数据清洗：去重（优先用 id 作为键，其次用 name），并过滤无效/空项目
+    const seenKeys = new Set();
+    const cleanedProjects = [];
+    for (const raw of Array.isArray(projects) ? projects : []) {
+      const project = raw || {};
+      const name = (project.name || "").trim();
+      // 跳过空名称的项目，避免渲染空白卡片
+      if (!name) continue;
+      const key =
+        project.id != null ? `id:${project.id}` : `name:${name.toLowerCase()}`;
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
+      cleanedProjects.push(project);
+    }
+
+    projectsGrid.innerHTML = cleanedProjects
       .map((project) => {
         // 获取第一个环境作为主要链接
         const firstEnv =
           project.environments && project.environments.length > 0
             ? project.environments[0]
             : null;
+        const desc =
+          project.description ||
+          project.projectDescription ||
+          project.desc ||
+          "";
 
         return `
       <a href="${
         firstEnv ? firstEnv.url : "#"
       }" target="_blank" class="project-card">
         <h4 class="project-name">${project.name}</h4>
+        ${desc ? `<p class="project-desc">${desc}</p>` : ""}
         
         ${
           project.tools && project.tools.length > 0

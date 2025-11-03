@@ -279,6 +279,8 @@ function openProjectModal(projectId = null) {
       document.getElementById("projectName").value = project.name;
       document.getElementById("projectDisplayOrder").value =
         project.displayOrder || 0;
+      const descEl = document.getElementById("projectDescription");
+      if (descEl) descEl.value = project.description || "";
       projectEnvironments = JSON.parse(JSON.stringify(project.environments));
       projectTools = project.tools ? project.tools.map((t) => t.id) : [];
       renderEnvironments();
@@ -288,6 +290,8 @@ function openProjectModal(projectId = null) {
     title.textContent = "添加项目";
     form.reset();
     document.getElementById("projectId").value = "";
+    const descEl = document.getElementById("projectDescription");
+    if (descEl) descEl.value = "";
     projectEnvironments = [];
     projectTools = [];
     renderEnvironments();
@@ -464,6 +468,7 @@ async function saveProject(event) {
 
   const formData = {
     name: document.getElementById("projectName").value,
+    description: document.getElementById("projectDescription")?.value || "",
     displayOrder:
       parseInt(document.getElementById("projectDisplayOrder").value) || 0,
     environments: environments,
