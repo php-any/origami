@@ -9,6 +9,7 @@ func Load(vm data.VM) {
 		NewTimeFunction(),
 		NewSleepFunction(),
 		NewIsDirFunction(),
+		NewIsFileFunction(),
 		NewScandirFunction(),
 		NewFileGetContentsFunction(),
 		NewMicrotimeFunction(),

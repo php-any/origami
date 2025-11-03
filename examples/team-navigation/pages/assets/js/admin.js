@@ -5,6 +5,7 @@ let projects = [];
 let currentEditingTool = null;
 let currentEditingProject = null;
 let projectEnvironments = [];
+let projectTools = [];
 
 // 标签页切换
 document.querySelectorAll(".tab").forEach((tab) => {
@@ -66,6 +67,7 @@ function renderToolsTable() {
           <th>名称</th>
           <th>分类</th>
           <th>链接</th>
+          <th>收藏</th>
           <th>顺序</th>
           <th>操作</th>
         </tr>
@@ -84,6 +86,7 @@ function renderToolsTable() {
             }" target="_blank" style="color: var(--primary);">${
               tool.url
             }</a></td>
+            <td>${tool.isFavorite ? "⭐" : "-"}</td>
             <td>${tool.displayOrder || 0}</td>
             <td>
               <div class="action-buttons">
@@ -171,11 +174,13 @@ function openToolModal(toolId = null) {
       document.getElementById("toolDescription").value = tool.description || "";
       document.getElementById("toolDisplayOrder").value =
         tool.displayOrder || 0;
+      document.getElementById("toolIsFavorite").checked = tool.isFavorite == 1;
     }
   } else {
     title.textContent = "添加工具链接";
     form.reset();
     document.getElementById("toolId").value = "";
+    document.getElementById("toolIsFavorite").checked = false;
   }
 
   modal.classList.add("active");
@@ -197,6 +202,7 @@ async function saveTool(event) {
     icon: document.getElementById("toolIcon").value,
     category: document.getElementById("toolCategory").value,
     description: document.getElementById("toolDescription").value,
+    isFavorite: document.getElementById("toolIsFavorite").checked ? 1 : 0,
     displayOrder:
       parseInt(document.getElementById("toolDisplayOrder").value) || 0,
   };
@@ -264,21 +270,28 @@ function openProjectModal(projectId = null) {
 
   if (projectId) {
     title.textContent = "编辑项目";
-    const project = projects.find((p) => p.id === projectId);
+    // 确保ID类型一致（转换为数字进行比较）
+    const project = projects.find(
+      (p) => p.id == projectId || String(p.id) === String(projectId)
+    );
     if (project) {
       document.getElementById("projectId").value = project.id;
       document.getElementById("projectName").value = project.name;
       document.getElementById("projectDisplayOrder").value =
         project.displayOrder || 0;
       projectEnvironments = JSON.parse(JSON.stringify(project.environments));
+      projectTools = project.tools ? project.tools.map((t) => t.id) : [];
       renderEnvironments();
+      renderProjectTools();
     }
   } else {
     title.textContent = "添加项目";
     form.reset();
     document.getElementById("projectId").value = "";
     projectEnvironments = [];
+    projectTools = [];
     renderEnvironments();
+    renderProjectTools();
   }
 
   modal.classList.add("active");
@@ -289,6 +302,45 @@ function closeProjectModal() {
   document.getElementById("projectModal").classList.remove("active");
   currentEditingProject = null;
   projectEnvironments = [];
+  projectTools = [];
+}
+
+// 渲染项目工具选择
+function renderProjectTools() {
+  const container = document.getElementById("projectToolsList");
+  if (!container) return;
+
+  container.innerHTML = tools
+    .map(
+      (tool) => `
+    <label style="display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 4px; cursor: pointer; transition: background 0.2s;" 
+           onmouseover="this.style.background='var(--bg-hover)'" 
+           onmouseout="this.style.background='transparent'">
+      <input type="checkbox" value="${tool.id}" 
+             ${projectTools.includes(tool.id) ? "checked" : ""} 
+             onchange="toggleProjectTool(${tool.id}, this.checked)">
+      <span>${tool.icon || "🔗"}</span>
+      <span>${tool.name}</span>
+      ${
+        tool.category
+          ? `<span style="color: var(--text-muted); font-size: 0.85rem;">(${tool.category})</span>`
+          : ""
+      }
+    </label>
+  `
+    )
+    .join("");
+}
+
+// 切换项目工具
+function toggleProjectTool(toolId, checked) {
+  if (checked) {
+    if (!projectTools.includes(toolId)) {
+      projectTools.push(toolId);
+    }
+  } else {
+    projectTools = projectTools.filter((id) => id !== toolId);
+  }
 }
 
 // 渲染环境列表
@@ -303,7 +355,7 @@ function renderEnvironments() {
   container.innerHTML = projectEnvironments
     .map(
       (env, index) => `
-    <div style="background: rgba(15, 23, 42, 0.4); padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+    <div>
       <div class="env-form-row">
         <div class="form-group">
           <label>环境名称</label>
@@ -371,6 +423,10 @@ function updateEnvironment(index, field, value) {
     projectEnvironments[index] = {};
   }
   projectEnvironments[index][field] = value;
+  // 确保保留环境 ID（如果存在）
+  if (projectEnvironments[index].id && field !== "id") {
+    // id 已存在，保持不变
+  }
 }
 
 // 添加环境
@@ -395,19 +451,45 @@ function removeEnvironment(index) {
 async function saveProject(event) {
   event.preventDefault();
 
+  // 准备环境数据，确保所有字段都正确
+  const environments = projectEnvironments
+    .filter((env) => env.environmentName && env.url)
+    .map((env) => ({
+      environmentName: env.environmentName,
+      url: env.url,
+      status: env.status || "运行中",
+      statusColor: env.statusColor || "green",
+      displayOrder: env.displayOrder || 0,
+    }));
+
   const formData = {
     name: document.getElementById("projectName").value,
     displayOrder:
       parseInt(document.getElementById("projectDisplayOrder").value) || 0,
-    environments: projectEnvironments,
+    environments: environments,
+    tools: projectTools || [],
   };
 
   try {
     if (currentEditingProject) {
-      // 更新 - 这里需要实现 PUT API
-      alert("更新功能待实现，请使用 API 直接操作数据库");
+      // 更新项目
+      const projectId = parseInt(currentEditingProject);
+      if (isNaN(projectId)) {
+        throw new Error("无效的项目ID");
+      }
+
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error("更新失败: " + errorText);
+      }
     } else {
-      // 创建
+      // 创建项目
       const response = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -415,18 +497,6 @@ async function saveProject(event) {
       });
 
       if (!response.ok) throw new Error("创建失败");
-
-      const result = await response.json();
-      const projectId = result.id;
-
-      // 创建环境
-      for (const env of projectEnvironments) {
-        await fetch(`/api/projects/${projectId}/environments`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(env),
-        });
-      }
     }
 
     closeProjectModal();
@@ -440,7 +510,13 @@ async function saveProject(event) {
 
 // 编辑项目
 function editProject(id) {
-  openProjectModal(id);
+  // 确保ID是数字类型
+  const projectId = parseInt(id);
+  if (isNaN(projectId)) {
+    alert("无效的项目ID");
+    return;
+  }
+  openProjectModal(projectId);
 }
 
 // 删除项目

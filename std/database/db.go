@@ -383,3 +383,52 @@ func (d *db) getTableNameFromAnnotation(classType data.Class, ctx data.Context) 
 	// 如果没有找到 @Table 注解，返回空字符串
 	return ""
 }
+
+// getColumnName 获取数据库列名，支持注解映射（通用方法）
+// 优先使用属性名，只有当注解中的列名和属性名不匹配时，才使用注解中的列名
+func getColumnName(classStmt data.ClassStmt, propertyName string) string {
+	// 直接通过属性名获取属性定义
+	property, exists := classStmt.GetProperty(propertyName)
+	if !exists {
+		return propertyName
+	}
+
+	// 检查是否有注解，只有在需要时才检查注解
+	classProperty, ok := property.(*node.ClassProperty)
+	if !ok || len(classProperty.Annotations) == 0 {
+		// 没有注解，直接使用属性名
+		return propertyName
+	}
+
+	// 有注解，查找 Column 注解
+	for _, annotation := range classProperty.Annotations {
+		if annotation == nil {
+			continue
+		}
+
+		// 检查是否是 Column 注解
+		if annotation.Class != nil {
+			className := annotation.Class.GetName()
+			if className == "Database\\Annotation\\Column" {
+				// 获取注解实例的属性
+				annotationProps := annotation.GetProperties()
+
+				// 查找 name 属性（Column 注解的第一个参数）
+				if nameValue, exists := annotationProps["name"]; exists && nameValue != nil {
+					if nameStr, ok := nameValue.(data.AsString); ok {
+						annotationColumnName := nameStr.AsString()
+						// 如果注解中的列名和属性名相同，直接返回属性名（避免不必要处理）
+						if annotationColumnName == propertyName {
+							return propertyName
+						}
+						// 只有注解中的列名和属性名不匹配时，才使用注解中的列名
+						return annotationColumnName
+					}
+				}
+			}
+		}
+	}
+
+	// 没有找到有效的 Column 注解，直接使用属性名
+	return propertyName
+}

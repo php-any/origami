@@ -7,28 +7,12 @@
     <title>团队导航页 - 管理后台</title>
     <link rel="stylesheet" href="/assets/css/styles.css">
     <style>
-        .admin-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .admin-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-        }
-
-        .admin-header h1 {
-            margin: 0;
-        }
-
+        /* 管理页面样式 */
         .tabs {
             display: flex;
-            gap: 10px;
-            margin-bottom: 30px;
-            border-bottom: 2px solid var(--card-border);
+            gap: 8px;
+            margin-bottom: 32px;
+            border-bottom: 2px solid var(--border-light);
         }
 
         .tab {
@@ -36,19 +20,21 @@
             background: transparent;
             border: none;
             border-bottom: 2px solid transparent;
-            color: var(--text-muted);
+            color: var(--text-secondary);
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 0.95rem;
             transition: all 0.2s;
+            margin-bottom: -2px;
         }
 
         .tab:hover {
-            color: var(--text);
+            color: var(--primary);
         }
 
         .tab.active {
             color: var(--primary);
             border-bottom-color: var(--primary);
+            font-weight: 500;
         }
 
         .tab-content {
@@ -59,11 +45,16 @@
             display: block;
         }
 
-        .toolbar {
+        /* section-title 已在主样式表中定义，这里只需覆盖按钮位置 */
+        .section-title {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            gap: 8px;
+        }
+
+        .section-title .btn {
+            margin-left: auto;
+            margin-bottom: 0;
         }
 
         .btn {
@@ -71,18 +62,21 @@
             background: var(--primary);
             color: #fff;
             border: none;
-            border-radius: 8px;
+            border-radius: var(--radius-sm);
             cursor: pointer;
             font-size: 0.9rem;
             transition: all 0.2s;
+            font-weight: 400;
         }
 
         .btn:hover {
             background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
         }
 
         .btn-danger {
-            background: var(--danger);
+            background: #ef4444;
         }
 
         .btn-danger:hover {
@@ -90,36 +84,64 @@
         }
 
         .btn-secondary {
-            background: var(--text-secondary);
+            background: var(--bg-white);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
         }
 
         .btn-secondary:hover {
-            background: var(--text-muted);
+            background: var(--bg-hover);
+            border-color: var(--primary);
+            color: var(--primary);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            background: var(--card-bg);
-            border-radius: var(--border-radius);
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
             overflow: hidden;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-light);
+            margin-top: 20px;
         }
 
         th,
         td {
-            padding: 12px;
+            padding: 14px 16px;
             text-align: left;
-            border-bottom: 1px solid var(--card-border);
+            border-bottom: 1px solid var(--border-light);
         }
 
         th {
-            background: rgba(59, 130, 246, 0.1);
-            color: var(--text);
+            background: var(--bg-light);
+            color: var(--text-primary);
             font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
         }
 
         tr:hover {
-            background: rgba(59, 130, 246, 0.05);
+            background: var(--bg-hover);
+        }
+
+        td a {
+            color: var(--primary);
+            text-decoration: none;
+            max-width: 300px;
+            display: inline-block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        td a:hover {
+            text-decoration: underline;
         }
 
         .action-buttons {
@@ -128,7 +150,7 @@
         }
 
         .btn-small {
-            padding: 6px 12px;
+            padding: 6px 14px;
             font-size: 0.85rem;
         }
 
@@ -139,10 +161,11 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.5);
             z-index: 1000;
             align-items: center;
             justify-content: center;
+            backdrop-filter: blur(4px);
         }
 
         .modal.active {
@@ -150,22 +173,26 @@
         }
 
         .modal-content {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: var(--border-radius);
-            padding: 30px;
-            max-width: 500px;
+            background: var(--bg-white);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            max-width: 600px;
             width: 90%;
             max-height: 90vh;
             overflow-y: auto;
+            box-shadow: var(--shadow-lg);
         }
 
         .modal-header {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
         .modal-header h2 {
             margin: 0;
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
         }
 
         .form-group {
@@ -175,20 +202,22 @@
         .form-group label {
             display: block;
             margin-bottom: 8px;
-            color: var(--text);
+            color: var(--text-primary);
             font-weight: 500;
+            font-size: 0.9rem;
         }
 
         .form-group input,
         .form-group select,
         .form-group textarea {
             width: 100%;
-            padding: 10px;
-            background: rgba(15, 23, 42, 0.4);
-            border: 1px solid var(--card-border);
-            border-radius: 8px;
-            color: var(--text);
+            padding: 10px 14px;
+            background: var(--bg-white);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
             font-size: 0.9rem;
+            transition: all 0.2s;
         }
 
         .form-group input:focus,
@@ -196,148 +225,268 @@
         .form-group textarea:focus {
             outline: none;
             border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .form-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
         }
 
         .form-actions {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             justify-content: flex-end;
-            margin-top: 20px;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-light);
         }
 
         .empty-state {
             text-align: center;
             padding: 60px 20px;
             color: var(--text-muted);
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
+            margin-top: 20px;
         }
 
         .env-form-row {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             align-items: flex-end;
+            margin-bottom: 12px;
         }
 
         .env-form-row .form-group {
             flex: 1;
             margin-bottom: 0;
         }
+
+        .env-form-row .form-group:last-child {
+            flex: 0 0 auto;
+        }
+
+        #projectEnvironments {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-light);
+        }
+
+        #projectEnvironments h3 {
+            margin: 0 0 16px 0;
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        #environmentsList>div {
+            background: var(--bg-light);
+            padding: 16px;
+            border-radius: var(--radius-md);
+            margin-bottom: 12px;
+            border: 1px solid var(--border-light);
+        }
+
+        @media (max-width: 768px) {
+            .section-title {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .section-title .btn {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            table {
+                font-size: 0.85rem;
+            }
+
+            th,
+            td {
+                padding: 10px 12px;
+            }
+
+            .modal-content {
+                padding: 24px;
+                max-width: 95%;
+            }
+
+            .env-form-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
     </style>
 </head>
 
 <body>
-    <header class="header">
-        <div class="container">
-            <h1>⚙️ 团队导航页管理</h1>
-            <p class="subtitle">管理常用工具链接和项目环境</p>
-        </div>
-    </header>
-
-    <div class="admin-container">
-        <div class="admin-header">
-            <div>
-                <a href="/" style="color: var(--primary); text-decoration: none;">← 返回首页</a>
-            </div>
-        </div>
-
-        <div class="tabs">
-            <button class="tab active" data-tab="tools">工具链接</button>
-            <button class="tab" data-tab="projects">项目管理</button>
-        </div>
-
-        <!-- 工具链接管理 -->
-        <div class="tab-content active" id="toolsTab">
-            <div class="toolbar">
-                <h2 style="margin: 0;">工具链接管理</h2>
-                <button class="btn" onclick="openToolModal()">+ 添加工具</button>
-            </div>
-            <div id="toolsTableContainer">
-                <div class="empty-state">正在加载数据...</div>
-            </div>
-        </div>
-
-        <!-- 项目管理 -->
-        <div class="tab-content" id="projectsTab">
-            <div class="toolbar">
-                <h2 style="margin: 0;">项目管理</h2>
-                <button class="btn" onclick="openProjectModal()">+ 添加项目</button>
-            </div>
-            <div id="projectsTableContainer">
-                <div class="empty-state">正在加载数据...</div>
-            </div>
-        </div>
+    <div class="bg-layer">
+        <div class="bg-gradient"></div>
     </div>
 
-    <!-- 工具链接编辑模态框 -->
-    <div class="modal" id="toolModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="toolModalTitle">添加工具链接</h2>
+    <div class="app-container">
+        <header class="header-bar">
+            <div class="header-content">
+                <div class="logo">团队导航 - 管理</div>
+                <nav class="header-nav">
+                    <a href="https://github.com/php-any/origami" target="_blank" class="nav-item" title="Origami 开源地址">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"
+                            style="vertical-align: middle;">
+                            <path
+                                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z">
+                            </path>
+                        </svg>
+                        <span>GitHub</span>
+                    </a>
+                    <a href="/" class="nav-item">← 返回首页</a>
+                </nav>
             </div>
-            <form id="toolForm" onsubmit="saveTool(event)">
-                <input type="hidden" id="toolId" name="id">
-                <div class="form-group">
-                    <label>工具名称 *</label>
-                    <input type="text" id="toolName" name="name" required>
-                </div>
-                <div class="form-group">
-                    <label>链接地址 *</label>
-                    <input type="url" id="toolUrl" name="url" required>
-                </div>
-                <div class="form-group">
-                    <label>图标（Emoji）</label>
-                    <input type="text" id="toolIcon" name="icon" placeholder="🔗">
-                </div>
-                <div class="form-group">
-                    <label>分类</label>
-                    <input type="text" id="toolCategory" name="category" placeholder="代码管理">
-                </div>
-                <div class="form-group">
-                    <label>描述</label>
-                    <textarea id="toolDescription" name="description" rows="3"></textarea>
-                </div>
-                <div class="form-group">
-                    <label>显示顺序</label>
-                    <input type="number" id="toolDisplayOrder" name="displayOrder" value="0">
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeToolModal()">取消</button>
-                    <button type="submit" class="btn">保存</button>
-                </div>
-            </form>
-        </div>
-    </div>
+        </header>
 
-    <!-- 项目编辑模态框 -->
-    <div class="modal" id="projectModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="projectModalTitle">添加项目</h2>
+        <!-- 主内容 -->
+        <main class="main-area">
+            <div class="content-area">
+                <div class="tabs">
+                    <button class="tab active" data-tab="tools">工具链接</button>
+                    <button class="tab" data-tab="projects">项目管理</button>
+                </div>
+
+                <!-- 工具链接管理 -->
+                <div class="tab-content active" id="toolsTab">
+                    <section class="quick-access">
+                        <div class="section-title">
+                            <span class="title-icon">🛠️</span>
+                            <h3>工具链接管理</h3>
+                            <button class="btn" onclick="openToolModal()" style="margin-left: auto;">+ 添加工具</button>
+                        </div>
+                        <div id="toolsTableContainer">
+                            <div class="empty-state">正在加载数据...</div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- 项目管理 -->
+                <div class="tab-content" id="projectsTab">
+                    <section class="quick-access">
+                        <div class="section-title">
+                            <span class="title-icon">🚀</span>
+                            <h3>项目管理</h3>
+                            <button class="btn" onclick="openProjectModal()" style="margin-left: auto;">+ 添加项目</button>
+                        </div>
+                        <div id="projectsTableContainer">
+                            <div class="empty-state">正在加载数据...</div>
+                        </div>
+                    </section>
+                </div>
             </div>
-            <form id="projectForm" onsubmit="saveProject(event)">
-                <input type="hidden" id="projectId" name="id">
-                <div class="form-group">
-                    <label>项目名称 *</label>
-                    <input type="text" id="projectName" name="name" required>
-                </div>
-                <div class="form-group">
-                    <label>显示顺序</label>
-                    <input type="number" id="projectDisplayOrder" name="displayOrder" value="0">
-                </div>
-                <div id="projectEnvironments">
-                    <h3 style="margin-top: 30px; margin-bottom: 15px;">环境配置</h3>
-                    <div id="environmentsList"></div>
-                    <button type="button" class="btn btn-secondary" onclick="addEnvironment()"
-                        style="margin-top: 10px;">+ 添加环境</button>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeProjectModal()">取消</button>
-                    <button type="submit" class="btn">保存</button>
-                </div>
-            </form>
-        </div>
-    </div>
+        </main>
 
-    <script src="/assets/js/admin.js"></script>
+        <!-- 页脚 -->
+        <footer class="footer-bar">
+            <div class="footer-content">
+                <span>团队导航系统 - 管理后台</span>
+            </div>
+        </footer>
+
+        <!-- 工具链接编辑模态框 -->
+        <div class="modal" id="toolModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="toolModalTitle">添加工具链接</h2>
+                </div>
+                <form id="toolForm" onsubmit="saveTool(event)">
+                    <input type="hidden" id="toolId" name="id">
+                    <div class="form-group">
+                        <label>工具名称 *</label>
+                        <input type="text" id="toolName" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>链接地址 *</label>
+                        <input type="url" id="toolUrl" name="url" required>
+                    </div>
+                    <div class="form-group">
+                        <label>图标（Emoji）</label>
+                        <input type="text" id="toolIcon" name="icon" placeholder="🔗">
+                    </div>
+                    <div class="form-group">
+                        <label>分类</label>
+                        <input type="text" id="toolCategory" name="category" placeholder="代码管理">
+                    </div>
+                    <div class="form-group">
+                        <label>描述</label>
+                        <textarea id="toolDescription" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>显示顺序</label>
+                        <input type="number" id="toolDisplayOrder" name="displayOrder" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="toolIsFavorite" name="isFavorite" value="1">
+                            <span>设为收藏链接（显示在首页搜索框下方）</span>
+                        </label>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeToolModal()">取消</button>
+                        <button type="submit" class="btn">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 项目编辑模态框 -->
+        <div class="modal" id="projectModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="projectModalTitle">添加项目</h2>
+                </div>
+                <form id="projectForm" onsubmit="saveProject(event)">
+                    <input type="hidden" id="projectId" name="id">
+                    <div class="form-group">
+                        <label>项目名称 *</label>
+                        <input type="text" id="projectName" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>显示顺序</label>
+                        <input type="number" id="projectDisplayOrder" name="displayOrder" value="0">
+                    </div>
+                    <div id="projectToolsSection">
+                        <h3 style="margin-top: 30px; margin-bottom: 15px;">关联工具</h3>
+                        <div id="projectToolsList"
+                            style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 12px; background: var(--bg-light);">
+                            <!-- 工具选择列表将通过 JS 插入 -->
+                        </div>
+                    </div>
+                    <div id="projectEnvironments">
+                        <h3 style="margin-top: 30px; margin-bottom: 15px;">环境配置</h3>
+                        <div id="environmentsList"></div>
+                        <button type="button" class="btn btn-secondary" onclick="addEnvironment()"
+                            style="margin-top: 10px;">+ 添加环境</button>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeProjectModal()">取消</button>
+                        <button type="submit" class="btn">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script src="/assets/js/admin.js"></script>
+    </div>
 </body>
 
 </html>

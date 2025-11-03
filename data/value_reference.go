@@ -75,7 +75,7 @@ func (s *ReferenceValue) Scan(value any) error {
 		// 变量不存在且没有类型，根据输入值类型创建新值
 		got, err := parseToValue(value)
 		if err != nil {
-			return fmt.Errorf("failed to parse value: %w", err)
+			return fmt.Errorf("failed to parse value: %v", err)
 		}
 		s.Ctx.SetVariableValue(s.Val, got)
 		return nil
@@ -90,7 +90,7 @@ func (s *ReferenceValue) Scan(value any) error {
 	// 如果无法转换，尝试直接设置值
 	got, err := parseToValue(value)
 	if err != nil {
-		return fmt.Errorf("failed to parse value: %w", err)
+		return fmt.Errorf("failed to parse value: %v", err)
 	}
 	s.Ctx.SetVariableValue(s.Val, got)
 	return nil
@@ -115,7 +115,7 @@ func (s *ReferenceValue) assignByType(varType Types, value any) error {
 		// 未知类型，尝试根据值类型创建
 		got, err := parseToValue(value)
 		if err != nil {
-			return fmt.Errorf("failed to parse value for type %T: %w", varType, err)
+			return fmt.Errorf("failed to parse value for type %T: %v", varType, err)
 		}
 		s.Ctx.SetVariableValue(s.Val, got)
 		return nil
@@ -137,7 +137,7 @@ func (s *ReferenceValue) assignByValueType(existingValue Value, value any) error
 		// 尝试直接设置值
 		got, err := parseToValue(value)
 		if err != nil {
-			return fmt.Errorf("failed to parse value: %w", err)
+			return fmt.Errorf("failed to parse value: %v", err)
 		}
 		s.Ctx.SetVariableValue(s.Val, got)
 		return nil
@@ -148,7 +148,7 @@ func (s *ReferenceValue) assignByValueType(existingValue Value, value any) error
 func (s *ReferenceValue) assignToIntType(value any) error {
 	intVal, err := parseToIntValue(value)
 	if err != nil {
-		return fmt.Errorf("failed to parse to int: %w", err)
+		return fmt.Errorf("failed to parse to int: %v", err)
 	}
 	s.Ctx.SetVariableValue(s.Val, intVal)
 	return nil
@@ -158,7 +158,7 @@ func (s *ReferenceValue) assignToIntType(value any) error {
 func (s *ReferenceValue) assignToFloatType(value any) error {
 	floatVal, err := parseToFloatValue(value)
 	if err != nil {
-		return fmt.Errorf("failed to parse to float: %w", err)
+		return fmt.Errorf("failed to parse to float: %v", err)
 	}
 	s.Ctx.SetVariableValue(s.Val, floatVal)
 	return nil
@@ -168,7 +168,7 @@ func (s *ReferenceValue) assignToFloatType(value any) error {
 func (s *ReferenceValue) assignToStringType(value any) error {
 	stringVal, err := parseToStringValue(value)
 	if err != nil {
-		return fmt.Errorf("failed to parse to string: %w", err)
+		return fmt.Errorf("failed to parse to string: %v", err)
 	}
 	s.Ctx.SetVariableValue(s.Val, stringVal)
 	return nil
@@ -178,7 +178,7 @@ func (s *ReferenceValue) assignToStringType(value any) error {
 func (s *ReferenceValue) assignToBoolType(value any) error {
 	boolVal, err := parseToBoolValue(value)
 	if err != nil {
-		return fmt.Errorf("failed to parse to bool: %w", err)
+		return fmt.Errorf("failed to parse to bool: %v", err)
 	}
 	s.Ctx.SetVariableValue(s.Val, boolVal)
 	return nil
@@ -190,7 +190,7 @@ func (s *ReferenceValue) assignToArrayType(value any) error {
 	// 暂时使用通用解析
 	got, err := parseToValue(value)
 	if err != nil {
-		return fmt.Errorf("failed to parse value for array type: %w", err)
+		return fmt.Errorf("failed to parse value for array type: %v", err)
 	}
 	s.Ctx.SetVariableValue(s.Val, got)
 	return nil
@@ -202,7 +202,7 @@ func (s *ReferenceValue) assignToObjectType(value any) error {
 	// 暂时使用通用解析
 	got, err := parseToValue(value)
 	if err != nil {
-		return fmt.Errorf("failed to parse value for object type: %w", err)
+		return fmt.Errorf("failed to parse value for object type: %v", err)
 	}
 	s.Ctx.SetVariableValue(s.Val, got)
 	return nil
@@ -212,7 +212,7 @@ func (s *ReferenceValue) assignToObjectType(value any) error {
 func (s *ReferenceValue) updateIntValue(v *IntValue, value any) error {
 	intVal, err := parseToIntValue(value)
 	if err != nil {
-		return fmt.Errorf("failed to parse to int: %w", err)
+		return fmt.Errorf("failed to parse to int: %v", err)
 	}
 	if intVal, ok := intVal.(*IntValue); ok {
 		v.Value = intVal.Value
@@ -224,7 +224,7 @@ func (s *ReferenceValue) updateIntValue(v *IntValue, value any) error {
 func (s *ReferenceValue) updateFloatValue(v *FloatValue, value any) error {
 	floatVal, err := parseToFloatValue(value)
 	if err != nil {
-		return fmt.Errorf("failed to parse to float: %w", err)
+		return fmt.Errorf("failed to parse to float: %v", err)
 	}
 	if floatVal, ok := floatVal.(*FloatValue); ok {
 		v.Value = floatVal.Value
@@ -236,7 +236,7 @@ func (s *ReferenceValue) updateFloatValue(v *FloatValue, value any) error {
 func (s *ReferenceValue) updateStringValue(v *StringValue, value any) error {
 	stringVal, err := parseToStringValue(value)
 	if err != nil {
-		return fmt.Errorf("failed to parse to string: %w", err)
+		return fmt.Errorf("failed to parse to string: %v", err)
 	}
 	if stringVal, ok := stringVal.(*StringValue); ok {
 		v.Value = stringVal.Value
@@ -248,7 +248,7 @@ func (s *ReferenceValue) updateStringValue(v *StringValue, value any) error {
 func (s *ReferenceValue) updateBoolValue(v *BoolValue, value any) error {
 	boolVal, err := parseToBoolValue(value)
 	if err != nil {
-		return fmt.Errorf("failed to parse to bool: %w", err)
+		return fmt.Errorf("failed to parse to bool: %v", err)
 	}
 	if boolVal, ok := boolVal.(*BoolValue); ok {
 		v.Value = boolVal.Value
@@ -304,7 +304,7 @@ func parseToIntValue(value any) (Value, error) {
 func parseStringToInt(s string) (Value, error) {
 	i, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse string '%s' to int: %w", s, err)
+		return nil, fmt.Errorf("failed to parse string '%s' to int: %v", s, err)
 	}
 	if i > int64(math.MaxInt) || i < int64(math.MinInt) {
 		return nil, fmt.Errorf("parsed value %d out of int range", i)
@@ -374,13 +374,13 @@ func parseToFloatValue(value any) (Value, error) {
 	case string:
 		f, err := strconv.ParseFloat(v, 64)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse string '%s' to float: %w", v, err)
+			return nil, fmt.Errorf("failed to parse string '%s' to float: %v", v, err)
 		}
 		return NewFloatValue(f), nil
 	case []byte:
 		f, err := strconv.ParseFloat(string(v), 64)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse []byte '%s' to float: %w", string(v), err)
+			return nil, fmt.Errorf("failed to parse []byte '%s' to float: %v", string(v), err)
 		}
 		return NewFloatValue(f), nil
 	case bool:

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/php-any/origami/data"
-	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/utils"
 )
 
@@ -92,13 +91,13 @@ func (d *DbUpdateMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 执行更新
 	result, err := conn.Exec(query, values...)
 	if err != nil {
-		return nil, utils.NewThrowf("更新失败: %w", err)
+		return nil, utils.NewThrowf("更新失败: %v; sql(%v", err, query)
 	}
 
 	// 获取影响的行数
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return nil, utils.NewThrowf("获取影响行数失败: %w", err)
+		return nil, utils.NewThrowf("获取影响行数失败: %v", err)
 	}
 
 	// 返回更新结果
@@ -139,59 +138,7 @@ func (d *DbUpdateMethod) GetReturnType() data.Types {
 
 // getColumnName 获取数据库列名，支持注解映射
 func (d *DbUpdateMethod) getColumnName(classStmt data.ClassStmt, propertyName string) string {
-	// 获取属性定义
-	properties := classStmt.GetPropertyList()
-	var property data.Property
-	var exists bool
-	for _, prop := range properties {
-		if prop.GetName() == propertyName {
-			property = prop
-			exists = true
-			break
-		}
-	}
-	if !exists {
-		return propertyName
-	}
-
-	// 检查是否有注解
-	if classProperty, ok := property.(*node.ClassProperty); ok {
-		// 遍历属性的注解列表
-		for _, annotation := range classProperty.Annotations {
-			if annotation == nil {
-				continue
-			}
-
-			// 检查是否是 Column 注解
-			if annotation.Class != nil {
-				className := annotation.Class.GetName()
-				if className == "Database\\Annotation\\Column" {
-					// 获取注解实例的属性
-					annotationProps := annotation.GetProperties()
-
-					// 查找 name 属性（Column 注解的第一个参数）
-					if nameValue, exists := annotationProps["name"]; exists {
-						if nameStr, ok := nameValue.(data.AsString); ok {
-							return nameStr.AsString()
-						}
-					}
-
-					// 如果 name 属性不存在，尝试其他可能的属性名
-					for propName, propValue := range annotationProps {
-						if propName != "name" && propValue != nil {
-							if nameStr, ok := propValue.(data.AsString); ok {
-								// 如果找到字符串值，可能是列名
-								return nameStr.AsString()
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// 如果没有注解，使用属性名
-	return propertyName
+	return getColumnName(classStmt, propertyName)
 }
 
 // isNullValue 检查值是否为空

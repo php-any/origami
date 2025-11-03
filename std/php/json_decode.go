@@ -51,6 +51,15 @@ func (f *JsonDecodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 				className = v.Value
 			case *data.ClassValue:
 				className = v.Class.GetName()
+			case *data.NullValue:
+				// 当第二个参数是 null 时，反序列化为 ObjectValue
+				serializer := json.NewJsonSerializer()
+				value := data.NewObjectValue()
+				err := value.Unmarshal([]byte(jsonString), serializer)
+				if err != nil {
+					return data.NewNullValue(), nil
+				}
+				return value, nil
 			default:
 				className = v.(data.Value).AsString()
 			}
@@ -96,8 +105,8 @@ func (f *JsonDecodeFunction) GetName() string {
 
 func (f *JsonDecodeFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameter(nil, "json", 0, nil, nil),
-		node.NewParameter(nil, "class", 1, nil, nil),
+		node.NewParameter(nil, "json", 0, nil, data.String{}),
+		node.NewParameter(nil, "class", 1, data.NewNullValue(), nil),
 	}
 }
 

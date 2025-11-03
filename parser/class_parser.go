@@ -445,6 +445,12 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 				ret.AddAnnotations(o)
 			}
 		}
+		for i := len(callAnn) - 1; i >= 0; i-- {
+			acl := callAnn[i].InitAnnotation()
+			if acl != nil {
+				return nil, acl
+			}
+		}
 	}
 
 	return ret, acl

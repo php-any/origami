@@ -35,7 +35,7 @@ func (d *DbFirstMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 执行查询
 	rows, err := conn.Query(query, args...)
 	if err != nil {
-		return nil, utils.NewThrowf("first查询失败: %w", err)
+		return nil, utils.NewThrowf("first查询失败: %v", err)
 	}
 	defer rows.Close()
 

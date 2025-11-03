@@ -297,7 +297,7 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 			if intVal, err := convertValue[int](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
-				return result, fmt.Errorf("转换数组元素失败: %w", err)
+				return result, fmt.Errorf("转换数组元素失败: %v", err)
 			}
 		}
 		return any(slice).(S), nil
@@ -307,7 +307,7 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 			if intVal, err := convertValue[int8](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
-				return result, fmt.Errorf("转换数组元素失败: %w", err)
+				return result, fmt.Errorf("转换数组元素失败: %v", err)
 			}
 		}
 		return any(slice).(S), nil
@@ -317,7 +317,7 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 			if intVal, err := convertValue[int16](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
-				return result, fmt.Errorf("转换数组元素失败: %w", err)
+				return result, fmt.Errorf("转换数组元素失败: %v", err)
 			}
 		}
 		return any(slice).(S), nil
@@ -327,7 +327,7 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 			if intVal, err := convertValue[int32](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
-				return result, fmt.Errorf("转换数组元素失败: %w", err)
+				return result, fmt.Errorf("转换数组元素失败: %v", err)
 			}
 		}
 		return any(slice).(S), nil
@@ -337,7 +337,7 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 			if intVal, err := convertValue[int64](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
-				return result, fmt.Errorf("转换数组元素失败: %w", err)
+				return result, fmt.Errorf("转换数组元素失败: %v", err)
 			}
 		}
 		return any(slice).(S), nil
@@ -347,7 +347,7 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 			if intVal, err := convertValue[uint](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
-				return result, fmt.Errorf("转换数组元素失败: %w", err)
+				return result, fmt.Errorf("转换数组元素失败: %v", err)
 			}
 		}
 		return any(slice).(S), nil
@@ -357,7 +357,7 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 			if intVal, err := convertValue[uint8](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
-				return result, fmt.Errorf("转换数组元素失败: %w", err)
+				return result, fmt.Errorf("转换数组元素失败: %v", err)
 			}
 		}
 		return any(slice).(S), nil
@@ -367,7 +367,7 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 			if intVal, err := convertValue[uint16](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
-				return result, fmt.Errorf("转换数组元素失败: %w", err)
+				return result, fmt.Errorf("转换数组元素失败: %v", err)
 			}
 		}
 		return any(slice).(S), nil
@@ -377,7 +377,7 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 			if intVal, err := convertValue[uint32](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
-				return result, fmt.Errorf("转换数组元素失败: %w", err)
+				return result, fmt.Errorf("转换数组元素失败: %v", err)
 			}
 		}
 		return any(slice).(S), nil
@@ -387,7 +387,7 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 			if intVal, err := convertValue[uint64](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
-				return result, fmt.Errorf("转换数组元素失败: %w", err)
+				return result, fmt.Errorf("转换数组元素失败: %v", err)
 			}
 		}
 		return any(slice).(S), nil
@@ -397,7 +397,7 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 			if floatVal, err := convertValue[float32](item); err == nil {
 				slice = append(slice, floatVal)
 			} else {
-				return result, fmt.Errorf("转换数组元素失败: %w", err)
+				return result, fmt.Errorf("转换数组元素失败: %v", err)
 			}
 		}
 		return any(slice).(S), nil
@@ -407,7 +407,7 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 			if floatVal, err := convertValue[float64](item); err == nil {
 				slice = append(slice, floatVal)
 			} else {
-				return result, fmt.Errorf("转换数组元素失败: %w", err)
+				return result, fmt.Errorf("转换数组元素失败: %v", err)
 			}
 		}
 		return any(slice).(S), nil
@@ -417,7 +417,7 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 			if strVal, err := convertValue[string](item); err == nil {
 				slice = append(slice, strVal)
 			} else {
-				return result, fmt.Errorf("转换数组元素失败: %w", err)
+				return result, fmt.Errorf("转换数组元素失败: %v", err)
 			}
 		}
 		return any(slice).(S), nil
@@ -427,7 +427,7 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 			if boolVal, err := convertValue[bool](item); err == nil {
 				slice = append(slice, boolVal)
 			} else {
-				return result, fmt.Errorf("转换数组元素失败: %w", err)
+				return result, fmt.Errorf("转换数组元素失败: %v", err)
 			}
 		}
 		return any(slice).(S), nil

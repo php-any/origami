@@ -49,7 +49,7 @@ func (d *DbGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, utils.NewThrowf("遍历行时出错: %w", err)
+		return nil, utils.NewThrowf("遍历行时出错: %v", err)
 	}
 
 	// 将 []data.GetValue 转换为 []data.Value

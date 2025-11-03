@@ -30,6 +30,8 @@ func (u *UseStatement) GetAlias() string {
 
 // GetValue 获取use语句节点的值
 func (u *UseStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// use语句本身不返回值
+	// use语句本身不会引入文件, 只是声明一个别名
+	//  如果调用本包类会导致引入，因为需要尝试拼接完整地址
+	//  运行时, GetClass 才需要自动引入	·
 	return nil, nil
 }

@@ -9,3 +9,4 @@ zy
 zy-lsp
 *.exe
 *.log
+.cache

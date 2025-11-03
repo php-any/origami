@@ -27,6 +27,9 @@ class ToolLink {
     @Column("description")
     public ?string $description;
 
+    @Column("is_favorite")
+    public int $isFavorite;
+
     @Column("display_order")
     public int $displayOrder;
 

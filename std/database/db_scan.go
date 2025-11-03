@@ -8,7 +8,6 @@ import (
 	"unicode"
 
 	"github.com/php-any/origami/data"
-	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/utils"
 )
 
@@ -31,7 +30,7 @@ func (ds *DatabaseScanner) ScanRowToInstance(instance *data.ClassValue, rows *sq
 	// 获取列信息
 	columns, err := rows.Columns()
 	if err != nil {
-		return utils.NewThrowf("获取列信息失败: %w", err)
+		return utils.NewThrowf("获取列信息失败: %v", err)
 	}
 
 	// 创建列名到索引的映射
@@ -50,7 +49,7 @@ func (ds *DatabaseScanner) ScanRowToInstance(instance *data.ClassValue, rows *sq
 	// 扫描数据
 	err = rows.Scan(valuePtrs...)
 	if err != nil {
-		return utils.NewThrowf("扫描数据库行失败: %w", err)
+		return utils.NewThrowf("扫描数据库行失败: %v", err)
 	}
 
 	// 根据列名映射到类属性
@@ -59,18 +58,19 @@ func (ds *DatabaseScanner) ScanRowToInstance(instance *data.ClassValue, rows *sq
 		// 尝试不同的列名匹配策略
 		var value data.Value
 
-		// 1. 优先检测注解 @Column("name")
-		columnName := ds.getColumnNameFromAnnotation(classStmt, propertyName)
-		if columnName != "" {
-			if columnIndex, exists := columnMap[columnName]; exists {
-				value = ds.convertToValue(values[columnIndex])
-			} else {
-				value = data.NewNullValue()
-			}
+		// 1. 优先直接匹配属性名（性能优化：匹配成功就不需要检查注解）
+		if columnIndex, exists := columnMap[propertyName]; exists {
+			value = ds.convertToValue(values[columnIndex])
 		} else {
-			// 2. 直接匹配
-			if columnIndex, exists := columnMap[propertyName]; exists {
-				value = ds.convertToValue(values[columnIndex])
+			// 2. 直接匹配失败，检查注解 @Column("name")
+			annotationColumnName := getColumnName(classStmt, propertyName)
+			if annotationColumnName != propertyName {
+				// 注解中的列名和属性名不同，使用注解中的列名
+				if columnIndex, exists := columnMap[annotationColumnName]; exists {
+					value = ds.convertToValue(values[columnIndex])
+				} else {
+					value = data.NewNullValue()
+				}
 			} else {
 				// 3. 尝试下划线命名转换 (user_name -> userName)
 				camelCaseName := ds.toCamelCase(propertyName)
@@ -102,7 +102,7 @@ func (ds *DatabaseScanner) ScanRowsToInstances(rows *sql.Rows, classStmt data.Cl
 	// 获取列信息
 	columns, err := rows.Columns()
 	if err != nil {
-		return nil, utils.NewThrowf("获取列信息失败: %w", err)
+		return nil, utils.NewThrowf("获取列信息失败: %v", err)
 	}
 
 	// 创建列名到索引的映射
@@ -125,7 +125,7 @@ func (ds *DatabaseScanner) ScanRowsToInstances(rows *sql.Rows, classStmt data.Cl
 		// 扫描当前行
 		err := rows.Scan(valuePtrs...)
 		if err != nil {
-			return nil, utils.NewThrowf("扫描行失败: %w", err)
+			return nil, utils.NewThrowf("扫描行失败: %v", err)
 		}
 
 		// 将扫描结果映射到实例属性
@@ -161,7 +161,7 @@ func (ds *DatabaseScanner) ScanRowsToInstances(rows *sql.Rows, classStmt data.Cl
 
 	// 检查是否有错误
 	if err := rows.Err(); err != nil {
-		return nil, utils.NewThrowf("遍历行时出错: %w", err)
+		return nil, utils.NewThrowf("遍历行时出错: %v", err)
 	}
 
 	return instances, nil
@@ -247,51 +247,4 @@ func (ds *DatabaseScanner) toSnakeCase(s string) string {
 		result = append(result, unicode.ToLower(r))
 	}
 	return string(result)
-}
-
-// getColumnNameFromAnnotation 从注解中获取列名
-func (ds *DatabaseScanner) getColumnNameFromAnnotation(classStmt data.ClassStmt, propertyName string) string {
-	// 获取类的属性定义
-	properties := classStmt.GetPropertyList()
-	var property data.Property
-	var exists bool
-	for _, prop := range properties {
-		if prop.GetName() == propertyName {
-			property = prop
-			exists = true
-			break
-		}
-	}
-	if !exists {
-		return ""
-	}
-
-	// 检查属性是否有注解
-	// 需要将 data.Property 转换为 node.ClassProperty 来访问注解
-	if classProperty, ok := property.(*node.ClassProperty); ok {
-		// 遍历属性的注解列表
-		for _, annotation := range classProperty.Annotations {
-			if annotation == nil {
-				continue
-			}
-
-			// 检查是否是 Column 注解
-			if annotation.Class != nil {
-				className := annotation.Class.GetName()
-				if className == "Database\\Annotation\\Column" {
-					// 获取注解实例的属性
-					annotationProps := annotation.GetProperties()
-
-					// 查找 name 属性（Column 注解的第一个参数）
-					if nameValue, exists := annotationProps["name"]; exists {
-						if nameStr, ok := nameValue.(data.AsString); ok {
-							return nameStr.AsString()
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return ""
 }

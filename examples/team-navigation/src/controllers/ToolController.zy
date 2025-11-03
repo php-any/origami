@@ -24,6 +24,7 @@ class ToolController {
                 "icon" => $tool->icon,
                 "category" => $tool->category,
                 "description" => $tool->description,
+                "isFavorite" => $tool->isFavorite ?? 0,
                 "displayOrder" => $tool->displayOrder
             ];
         }
@@ -43,6 +44,7 @@ class ToolController {
         $tool->icon = $data->icon ?? "";
         $tool->category = $data->category ?? "";
         $tool->description = $data->description ?? "";
+        $tool->isFavorite = $data->isFavorite ?? 0;
         $tool->displayOrder = $data->displayOrder ?? 0;
         
         $result = DB<ToolLink>()->insert($tool);
@@ -69,6 +71,7 @@ class ToolController {
         $tool->icon = $data->icon ?? "";
         $tool->category = $data->category ?? "";
         $tool->description = $data->description ?? "";
+        $tool->isFavorite = $data->isFavorite ?? 0;
         $tool->displayOrder = $data->displayOrder ?? 0;
         
         $result = DB<ToolLink>()->where("id = ?", (int)$id)->update($tool);

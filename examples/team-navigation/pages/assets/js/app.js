@@ -1,5 +1,4 @@
 // 团队导航页交互脚本
-
 (function () {
   "use strict";
 
@@ -37,7 +36,11 @@
       console.error("加载数据失败:", error);
       const loadingEl = document.getElementById("loading");
       if (loadingEl) {
-        loadingEl.textContent = "加载数据失败，请刷新页面重试";
+        loadingEl.innerHTML = `
+          <div style="color: #ea4335;">
+            <p>加载数据失败，请刷新页面重试</p>
+          </div>
+        `;
       }
     }
   }
@@ -50,186 +53,188 @@
     toolsGrid.innerHTML = tools
       .map(
         (tool) => `
-      <div class="tool-card">
+      <a href="${tool.url}" target="_blank" class="tool-card">
         <div class="tool-icon">${tool.icon || "🔗"}</div>
-        <div class="tool-content">
-          <h3 class="tool-name">${tool.name}</h3>
-          <p class="tool-desc">${tool.description || ""}</p>
-          <span class="tool-category">${tool.category || ""}</span>
-        </div>
-        <a href="${tool.url}" target="_blank" class="tool-link">访问 →</a>
-      </div>
+        <div class="tool-name">${tool.name}</div>
+      </a>
+    `
+      )
+      .join("");
+
+    // 渲染收藏链接（只显示标记为收藏的工具，按显示顺序排序）
+    const favoriteTools = tools
+      .filter((tool) => tool.isFavorite == 1 || tool.isFavorite === 1)
+      .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    renderFavoriteLinks(favoriteTools);
+  }
+
+  // 渲染收藏链接
+  function renderFavoriteLinks(favoriteTools) {
+    const favoriteLinksEl = document.getElementById("favoriteLinks");
+    if (!favoriteLinksEl) return;
+
+    if (favoriteTools.length === 0) {
+      favoriteLinksEl.style.display = "none";
+      return;
+    }
+
+    favoriteLinksEl.style.display = "flex";
+    favoriteLinksEl.innerHTML = favoriteTools
+      .map(
+        (tool) => `
+      <a href="${tool.url}" target="_blank" class="favorite-link">
+        <span class="favorite-link-icon">${tool.icon || "🔗"}</span>
+        <span>${tool.name}</span>
+      </a>
     `
       )
       .join("");
   }
 
-  // 渲染项目卡片
+  // 渲染项目卡片 - 简化设计
   function renderProjects(projects) {
     const projectsGrid = document.getElementById("projectsGrid");
     if (!projectsGrid) return;
 
     projectsGrid.innerHTML = projects
-      .map(
-        (project) => `
-      <div class="project-card">
-        <h3 class="project-name">${project.name}</h3>
-        <div class="env-list">
+      .map((project) => {
+        // 获取第一个环境作为主要链接
+        const firstEnv =
+          project.environments && project.environments.length > 0
+            ? project.environments[0]
+            : null;
+
+        return `
+      <a href="${
+        firstEnv ? firstEnv.url : "#"
+      }" target="_blank" class="project-card">
+        <h4 class="project-name">${project.name}</h4>
+        
+        ${
+          project.tools && project.tools.length > 0
+            ? `
+        <div class="project-tools">
+          ${project.tools
+            .slice(0, 3)
+            .map(
+              (tool) => `
+            <a href="${tool.url}" target="_blank" class="tool-tag" title="${
+                tool.name
+              }" onclick="event.stopPropagation();">
+              <span class="tool-tag-icon">${tool.icon || "🔗"}</span>
+              <span>${tool.name}</span>
+            </a>
+          `
+            )
+            .join("")}
+        </div>
+        `
+            : ""
+        }
+        
+        ${
+          project.environments && project.environments.length > 0
+            ? `
+        <div class="project-environments">
           ${project.environments
+            .slice(0, 3)
             .map(
               (env) => `
-            <div class="env-item">
-              <div class="env-info">
-                <span class="env-name">${env.environmentName}</span>
-                <span class="env-status status-${env.statusColor}">${env.status}</span>
-              </div>
-              <a href="${env.url}" target="_blank" class="env-link">
-                ${env.url}
-                <span class="link-icon">↗</span>
+            <div class="env-item" onclick="event.stopPropagation();">
+              <span class="env-name">${env.environmentName}</span>
+              <a href="${
+                env.url
+              }" target="_blank" class="env-link" onclick="event.stopPropagation();">
+                ${env.url.replace(/^https?:\/\//, "").split("/")[0]}
               </a>
             </div>
           `
             )
             .join("")}
         </div>
-      </div>
-    `
-      )
+        `
+            : ""
+        }
+      </a>
+    `;
+      })
       .join("");
   }
 
-  // 设置最后更新时间
-  const lastUpdateEl = document.getElementById("lastUpdate");
-  if (lastUpdateEl) {
+  // 更新时间显示
+  function updateTime() {
     const now = new Date();
-    lastUpdateEl.textContent = now.toLocaleString("zh-CN");
+    const hour = String(now.getHours()).padStart(2, "0");
+    const minute = String(now.getMinutes()).padStart(2, "0");
+
+    const hourEl = document.getElementById("currentHour");
+    const minuteEl = document.getElementById("currentMinute");
+    const dateEl = document.getElementById("currentDate");
+
+    if (hourEl) hourEl.textContent = hour;
+    if (minuteEl) minuteEl.textContent = minute;
+
+    if (dateEl) {
+      const options = {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        weekday: "long",
+      };
+      dateEl.textContent = now.toLocaleDateString("zh-CN", options);
+    }
+
+    // 更新页脚时间
+    const lastUpdateEl = document.getElementById("lastUpdate");
+    if (lastUpdateEl) {
+      lastUpdateEl.textContent = now.toLocaleString("zh-CN");
+    }
   }
 
-  // 搜索功能
-  const searchInput = document.getElementById("searchInput");
-  const searchResults = document.getElementById("searchResults");
+  // 立即更新时间，然后每秒更新
+  updateTime();
+  setInterval(updateTime, 1000);
 
-  if (searchInput && searchResults) {
-    searchInput.addEventListener("input", function (e) {
-      const query = e.target.value.trim().toLowerCase();
+  // 百度搜索功能
+  const baiduSearchForm = document.getElementById("baiduSearchForm");
+  const baiduSearchInput = document.getElementById("baiduSearchInput");
 
-      if (query.length === 0) {
-        searchResults.classList.remove("active");
-        searchResults.innerHTML = "";
-        return;
-      }
-
-      searchResults.classList.add("active");
-
-      const results = [];
-
-      // 搜索工具
-      allTools.forEach((tool) => {
-        if (
-          tool.name.toLowerCase().includes(query) ||
-          (tool.description || "").toLowerCase().includes(query) ||
-          (tool.category || "").toLowerCase().includes(query)
-        ) {
-          results.push({
-            type: "工具",
-            name: tool.name,
-            desc: tool.description || "",
-            link: tool.url,
-          });
-        }
-      });
-
-      // 搜索项目环境
-      allProjects.forEach((project) => {
-        project.environments.forEach((env) => {
-          if (
-            project.name.toLowerCase().includes(query) ||
-            env.environmentName.toLowerCase().includes(query) ||
-            env.url.toLowerCase().includes(query)
-          ) {
-            results.push({
-              type: "项目环境",
-              name: `${project.name} - ${env.environmentName}`,
-              desc: env.url,
-              link: env.url,
-            });
-          }
-        });
-      });
-
-      // 显示搜索结果
-      if (results.length > 0) {
-        searchResults.innerHTML = results
-          .map(
-            (item) => `
-          <div class="search-result-item" onclick="window.open('${item.link}', '_blank')">
-            <div style="font-weight: 600; color: var(--text); margin-bottom: 4px;">
-              ${item.name}
-            </div>
-            <div style="font-size: 0.85rem; color: var(--text-muted);">
-              ${item.type} · ${item.desc}
-            </div>
-          </div>
-        `
-          )
-          .join("");
-      } else {
-        searchResults.innerHTML = `
-          <div class="search-result-item" style="text-align: center; color: var(--text-muted);">
-            未找到相关结果
-          </div>
-        `;
+  if (baiduSearchForm && baiduSearchInput) {
+    // 表单提交验证 - 按 Enter 键搜索
+    baiduSearchForm.addEventListener("submit", function (e) {
+      const query = baiduSearchInput.value.trim();
+      if (!query) {
+        e.preventDefault();
+        baiduSearchInput.focus();
+        return false;
       }
     });
 
-    // 点击外部关闭搜索结果
-    document.addEventListener("click", function (e) {
-      if (
-        !searchInput.contains(e.target) &&
-        !searchResults.contains(e.target)
-      ) {
-        searchResults.classList.remove("active");
-      }
+    // 自动聚焦搜索框（页面加载后）
+    window.addEventListener("load", function () {
+      setTimeout(function () {
+        baiduSearchInput.focus();
+      }, 100);
     });
   }
-
-  // 添加卡片点击效果
-  const cards = document.querySelectorAll(".tool-card, .project-card");
-  cards.forEach((card) => {
-    card.addEventListener("click", function (e) {
-      // 如果点击的不是链接，则添加点击反馈
-      if (!e.target.closest("a")) {
-        this.style.transform = "scale(0.98)";
-        setTimeout(() => {
-          this.style.transform = "";
-        }, 150);
-      }
-    });
-  });
 
   // 键盘快捷键支持
   document.addEventListener("keydown", function (e) {
     // Ctrl/Cmd + K 聚焦搜索框
     if ((e.ctrlKey || e.metaKey) && e.key === "k") {
       e.preventDefault();
-      if (searchInput) {
-        searchInput.focus();
+      if (baiduSearchInput) {
+        baiduSearchInput.focus();
+        baiduSearchInput.select();
       }
     }
-  });
-
-  // 平滑滚动
-  document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
-    anchor.addEventListener("click", function (e) {
-      e.preventDefault();
-      const target = document.querySelector(this.getAttribute("href"));
-      if (target) {
-        target.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
+    // Esc 键清除搜索框
+    if (e.key === "Escape") {
+      if (baiduSearchInput && document.activeElement === baiduSearchInput) {
+        baiduSearchInput.blur();
+        baiduSearchInput.value = "";
       }
-    });
+    }
   });
 
   // 页面加载完成后加载数据

@@ -49,13 +49,13 @@ func (d *DbExecMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 执行 SQL 语句
 	result, err := conn.Exec(sqlStr, args...)
 	if err != nil {
-		return nil, utils.NewThrowf("执行 SQL 语句失败: %w", err)
+		return nil, utils.NewThrowf("执行 SQL 语句失败: %v", err)
 	}
 
 	// 获取影响的行数
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return nil, utils.NewThrowf("获取影响行数失败: %w", err)
+		return nil, utils.NewThrowf("获取影响行数失败: %v", err)
 	}
 
 	// 获取最后插入的 ID（如果是 INSERT 语句）

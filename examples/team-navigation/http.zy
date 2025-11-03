@@ -2,139 +2,39 @@ use Net\Http\Server;
 use Net\Http\app;
 use Database\Sql\open;
 
+// 加载数据库初始化脚本
+include("./database/init.zy");
+
 // 初始化数据库连接
 Log::info("=== 初始化数据库连接 ===");
 
-// 注册 SQLite 数据库连接
-$db = open("sqlite", "team_navigation.db");
+// 数据库文件路径
+$dbFile = "team_navigation.db";
+
+// 检查数据库文件是否存在
+$dbExists = is_file($dbFile);
+if ($dbExists) {
+    Log::info("数据库文件已存在: " + $dbFile);
+} else {
+    Log::info("数据库文件不存在，将创建新数据库: " + $dbFile);
+}
+
+// 注册 SQLite 数据库连接（如果文件不存在，SQLite 会自动创建）
+$db = open("sqlite", $dbFile);
 $db->ping();
 Database\registerDefaultConnection($db);
 
-// 创建数据库表
-Log::info("创建数据库表...");
-
-// 创建工具链接表
-$createToolLinksTable = "
-CREATE TABLE IF NOT EXISTS tool_links (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name VARCHAR(100) NOT NULL,
-    url VARCHAR(500) NOT NULL,
-    icon VARCHAR(50),
-    category VARCHAR(50),
-    description TEXT,
-    display_order INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)";
-
-$result1 = $db->exec($createToolLinksTable);
-Log::info("创建工具链接表结果: " + $result1);
-
-// 创建项目表
-$createProjectsTable = "
-CREATE TABLE IF NOT EXISTS projects (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name VARCHAR(100) NOT NULL,
-    display_order INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)";
-
-$result2 = $db->exec($createProjectsTable);
-Log::info("创建项目表结果: " + $result2);
-
-// 创建项目环境表
-$createProjectEnvsTable = "
-CREATE TABLE IF NOT EXISTS project_environments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    project_id INTEGER NOT NULL,
-    environment_name VARCHAR(50) NOT NULL,
-    url VARCHAR(500) NOT NULL,
-    status VARCHAR(20) DEFAULT '运行中',
-    status_color VARCHAR(20) DEFAULT 'green',
-    display_order INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
-)";
-
-$result3 = $db->exec($createProjectEnvsTable);
-Log::info("创建项目环境表结果: " + $result3);
-
-// 初始化示例数据（如果表为空）
-$toolCount = 0;
-try {
-    $row = $db->queryRow("SELECT COUNT(*) FROM tool_links");
-    $row->scan($toolCount);
-} catch (Exception $e) {
-    Log::error($e->getMessage());
-    $toolCount = 0;
-} catch (Error $e) {
-    Log::error($e->getMessage());
-    $toolCount = 0;
-}
-
-if ($toolCount == 0) {
-    Log::info("初始化示例工具链接数据...");
-    $initTools = [
-        ["GitLab", "https://gitlab.example.com", "🔗", "代码管理", "代码仓库和 CI/CD", 1],
-        ["Jira", "https://jira.example.com", "📋", "项目管理", "任务跟踪和问题管理", 2],
-        ["Jenkins", "https://jenkins.example.com", "⚙️", "CI/CD", "持续集成和部署", 3],
-        ["Grafana", "https://grafana.example.com", "📊", "监控", "监控和可视化", 4],
-        ["Prometheus", "https://prometheus.example.com", "📈", "监控", "指标监控系统", 5],
-        ["Kibana", "https://kibana.example.com", "🔍", "日志", "日志查询和分析", 6],
-        ["Confluence", "https://confluence.example.com", "📖", "文档", "团队文档和知识库", 7],
-        ["SonarQube", "https://sonarqube.example.com", "🔎", "代码质量", "代码质量检测", 8],
-        ["Nexus", "https://nexus.example.com", "📦", "制品", "Maven/NPM 仓库", 9],
-        ["VPN", "https://vpn.example.com", "🔐", "网络", "VPN 连接", 10]
-    ];
+// 如果数据库不存在，才进行初始化
+if (!$dbExists) {
+    Log::info("开始初始化数据库...");
+    // 初始化数据库表结构
+    Database\initTables($db);
     
-    for (_, $tool in $initTools) {
-        $db->exec("INSERT INTO tool_links (name, url, icon, category, description, display_order) VALUES (?, ?, ?, ?, ?, ?)", 
-            $tool[0], $tool[1], $tool[2], $tool[3], $tool[4], $tool[5]);
-    }
-}
-
-$projectCount = 0;
-try {
-    $row = $db->queryRow("SELECT COUNT(*) FROM projects");
-    $row->scan($projectCount);
-} catch (Exception $e) {
-    Log::error($e->getMessage());
-    $projectCount = 0;
-} catch (Error $e) {
-    Log::error($e->getMessage());
-    $projectCount = 0;
-}
-
-if ($projectCount == 0) {
-    Log::info("初始化示例项目数据...");
-    $initProjects = [
-        ["Origami", 1],
-        ["Web API", 2],
-        ["Admin 后台", 3],
-        ["Mobile App", 4]
-    ];
-    
-    for (_, $project in $initProjects) {
-        $result = $db->exec("INSERT INTO projects (name, display_order) VALUES (?, ?)", 
-            $project[0], $project[1]);
-        $projectId = $result->lastInsertId();
-        
-        // 为每个项目创建默认环境
-        $projectNameRaw = $project[0];
-        $projectNameLower = $projectNameRaw->toLowerCase()->replace(" ", "-")->replace("api", "api")->replace("admin", "admin")->replace("app", "app");
-        $defaultEnvs = [
-            ["开发环境", "http://dev-" + $projectNameLower + ".example.com", "运行中", "green"],
-            ["测试环境", "http://test-" + $projectNameLower + ".example.com", "运行中", "green"],
-            ["生产环境", "https://" + $projectNameLower + ".example.com", "运行中", "green"]
-        ];
-        
-        for (_, $env in $defaultEnvs) {
-            $db->exec("INSERT INTO project_environments (project_id, environment_name, url, status, status_color) VALUES (?, ?, ?, ?, ?)", 
-                $projectId, $env[0], $env[1], $env[2], $env[3]);
-        }
-    }
+    // 初始化示例数据
+    Database\initSampleData($db, $dbExists);
+    Log::info("数据库初始化完成");
+} else {
+    Log::info("数据库已存在，跳过初始化");
 }
 
 $server = new Server("0.0.0.0", port: 8080);

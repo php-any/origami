@@ -29,7 +29,7 @@ type Parser struct {
 
 	namespace        *node.Namespace
 	uses             map[string]string // 类引用
-	classPathManager ClassPathManager  // 类路径管理器
+	ClassPathManager ClassPathManager  // 类路径管理器
 }
 
 // NewParser 创建一个新的解析器
@@ -41,7 +41,7 @@ func NewParser() *Parser {
 		errors:           make([]data.Control, 0),
 		scopeManager:     NewScopeManager(),
 		uses:             make(map[string]string),
-		classPathManager: NewDefaultClassPathManager(),
+		ClassPathManager: NewDefaultClassPathManager(),
 	}
 	p.AddScanNamespace("app", "./")
 	p.expressionParser = NewExpressionParser(p)
@@ -72,7 +72,7 @@ func (p *Parser) Clone() *Parser {
 		identTryString:   p.identTryString,
 		namespace:        p.namespace, // 命名空间节点，共享即可
 		uses:             make(map[string]string),
-		classPathManager: p.classPathManager, // 类路径管理器是共享的
+		ClassPathManager: p.ClassPathManager, // 类路径管理器是共享的
 	}
 	cloned.expressionParser = NewExpressionParser(cloned)
 	return cloned
@@ -445,7 +445,7 @@ func (p *Parser) parseBlock() ([]data.GetValue, data.Control) {
 
 func (p *Parser) AddScanNamespace(namespace string, path string) {
 	// 使用类路径管理器添加命名空间
-	p.classPathManager.AddNamespace(namespace, path)
+	p.ClassPathManager.AddNamespace(namespace, path)
 }
 
 // 默认 try = true
@@ -523,17 +523,17 @@ func (p *Parser) tryLoadClass(full string) data.Control {
 	}
 
 	// 使用类路径管理器加载类
-	return p.classPathManager.LoadClass(full, p)
+	return p.ClassPathManager.LoadClass(full, p)
 }
 
 // SetClassPathManager 设置类路径管理器
 func (p *Parser) SetClassPathManager(manager ClassPathManager) {
-	p.classPathManager = manager
+	p.ClassPathManager = manager
 }
 
 // GetClassPathManager 获取类路径管理器
 func (p *Parser) GetClassPathManager() ClassPathManager {
-	return p.classPathManager
+	return p.ClassPathManager
 }
 
 // ParseExpressionFromString 从字符串解析表达式
