@@ -200,5 +200,6 @@ func isIdentOrTypeToken(t token.TokenType) bool {
 		t == token.ARRAY ||
 		t == token.INT ||
 		t == token.STRING ||
-		t == token.FLOAT
+		t == token.FLOAT ||
+		t == token.GENERIC_TYPE
 }

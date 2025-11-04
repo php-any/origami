@@ -608,7 +608,9 @@ func (p *Parser) ParseString(content string, filePath string) (*node.Program, da
 // 尝试识别类型
 func (p *Parser) tryFindTypes() (data.Types, bool) {
 	if data.ISBaseType(p.current().Literal) {
-		return data.NewBaseType(p.current().Literal), true
+		t := p.current().Literal
+		p.next()
+		return data.NewBaseType(t), true
 	}
 
 	name, acl := p.getClassName(true)

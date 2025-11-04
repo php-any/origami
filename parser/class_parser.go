@@ -369,8 +369,7 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 	var propertyType data.Types
 	if isIdentOrTypeToken(p.current().Type) {
 		// 检查是否是类型关键字
-		propertyType = data.NewBaseType(p.current().Literal)
-		p.next()
+		propertyType = p.parseType()
 	} else if p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type) {
 		// ?int 方式
 		p.next()
@@ -611,6 +610,11 @@ func (p *ClassParser) parseGeneric() []data.Types {
 // 解析类型（支持嵌套泛型）
 func (p *ClassParser) parseType() data.Types {
 	if p.current().Type != token.IDENTIFIER {
+		if p.current().Type == token.GENERIC_TYPE {
+			T := p.current().Literal
+			p.next()
+			return data.NewGenericType(T, nil)
+		}
 		return nil
 	}
 
