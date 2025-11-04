@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -74,9 +75,9 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 		callAnn := make([]*node.CallAnn, 0)
 
 		for _, an := range annotations {
-			stmt, ok := p.vm.GetClass(an.Name)
-			if !ok {
-				return nil, data.NewErrorThrow(an.GetFrom(), errors.New("注解未定义"))
+			stmt, acl := p.vm.GetOrLoadClass(an.Name)
+			if acl != nil {
+				return nil, acl
 			}
 			object, acl := stmt.GetValue(p.vm.CreateContext(nil))
 			if acl != nil {

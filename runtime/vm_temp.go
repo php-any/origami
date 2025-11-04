@@ -13,7 +13,13 @@ func NewTempVM(vm data.VM) data.VM {
 	case *TempVM:
 		return v
 	case *VM:
-		return &TempVM{Base: v, Cache: make([]Route, 0)}
+		return &TempVM{
+			Base:            v,
+			addedClasses:    make(map[string]data.ClassStmt),
+			addedInterfaces: make(map[string]data.InterfaceStmt),
+			addedFuncs:      make(map[string]data.FuncStmt),
+			Cache:           make([]Route, 0),
+		}
 	default:
 		return vm
 	}
@@ -37,117 +43,137 @@ type TempVM struct {
 	Cache           []Route
 }
 
-func (t *TempVM) AddClass(c data.ClassStmt) data.Control {
+func (vm *TempVM) AddClass(c data.ClassStmt) data.Control {
 	// 仅注册到临时 VM 的映射中（请求级生效）
-	if t.addedClasses == nil {
-		t.addedClasses = make(map[string]data.ClassStmt)
-	}
-	t.addedClasses[c.GetName()] = c
+	vm.addedClasses[c.GetName()] = c
 	return nil
 }
 
-func (t *TempVM) AddInterface(i data.InterfaceStmt) data.Control {
-	if t.addedInterfaces == nil {
-		t.addedInterfaces = make(map[string]data.InterfaceStmt)
-	}
-	t.addedInterfaces[i.GetName()] = i
+func (vm *TempVM) AddInterface(i data.InterfaceStmt) data.Control {
+	vm.addedInterfaces[i.GetName()] = i
 	return nil
 }
 
-func (t *TempVM) AddFunc(f data.FuncStmt) data.Control {
-	if t.addedFuncs == nil {
-		t.addedFuncs = make(map[string]data.FuncStmt)
+func (vm *TempVM) AddFunc(f data.FuncStmt) data.Control {
+	if vm.addedFuncs == nil {
+		vm.addedFuncs = make(map[string]data.FuncStmt)
 	}
-	t.addedFuncs[f.GetName()] = f
+	vm.addedFuncs[f.GetName()] = f
 	return nil
 }
 
-func (t *TempVM) CreateContext(vars []data.Variable) data.Context {
-	ctx := t.Base.CreateContext(vars)
+func (vm *TempVM) CreateContext(vars []data.Variable) data.Context {
+	ctx := vm.Base.CreateContext(vars)
 	if rctx, ok := ctx.(*Context); ok {
-		rctx.SetVM(t)
+		rctx.SetVM(vm)
 	}
 	return ctx
 }
 
-func (t *TempVM) LoadAndRun(file string) (data.GetValue, data.Control) {
-	p := t.Base.parser.Clone()
-	p.SetVM(t)
-	t.parser = p
+func (vm *TempVM) LoadAndRun(file string) (data.GetValue, data.Control) {
+	p := vm.Base.parser.Clone()
+	p.SetVM(vm)
+	vm.parser = p
 
 	program, acl := p.ParseFile(file)
 	if acl != nil {
 		return nil, acl
 	}
-	return program.GetValue(t.CreateContext(p.GetVariables()))
+	return program.GetValue(vm.CreateContext(p.GetVariables()))
 }
 
-func (t *TempVM) ParseFile(file string, data data.Value) (data.Value, data.Control) {
-	return t.Base.ParseFile(file, data)
+func (vm *TempVM) ParseFile(file string, data data.Value) (data.Value, data.Control) {
+	return vm.Base.ParseFile(file, data)
 }
 
-func (t *TempVM) GetClass(pkg string) (data.ClassStmt, bool) {
-	ret, ok := t.Base.GetClass(pkg)
+func (vm *TempVM) GetClass(pkg string) (data.ClassStmt, bool) {
+	ret, ok := vm.Base.GetClass(pkg)
 	if ok {
 		return ret, ok
 	}
-	if c, ok := t.addedClasses[pkg]; ok {
+	if c, ok := vm.addedClasses[pkg]; ok {
 		return c, true
 	}
 	return nil, false
 }
 
-func (t *TempVM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
-	c, ok := t.Base.GetClass(pkg)
+func (vm *TempVM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
+	c, ok := vm.Base.GetClass(pkg)
 	if ok {
 		return c, nil
 	}
 	// 优先从本请求新增的类中查找
-	if t.addedClasses != nil {
-		if c, ok := t.addedClasses[pkg]; ok {
-			return c, nil
-		} else {
-			acl := t.parser.GetClassPathManager().LoadClass(pkg, t.parser)
-			if acl != nil {
-				return nil, acl
-			}
+	if c, ok := vm.addedClasses[pkg]; ok {
+		return c, nil
+	} else {
+		acl := vm.parser.GetClassPathManager().LoadClass(pkg, vm.parser)
+		if acl != nil {
+			return nil, acl
 		}
-		if c, ok := t.addedClasses[pkg]; ok {
-			return c, nil
-		}
+	}
+	if c, ok := vm.addedClasses[pkg]; ok {
+		return c, nil
 	}
 
 	return nil, data.NewErrorThrow(nil, fmt.Errorf("class %s not found", pkg))
 }
 
-func (t *TempVM) GetInterface(pkg string) (data.InterfaceStmt, bool) {
-	// 优先从本请求新增的接口中查找
-	if t.addedInterfaces != nil {
-		if i, ok := t.addedInterfaces[pkg]; ok {
-			return i, true
-		}
+func (vm *TempVM) LoadPkg(pkg string) (data.GetValue, data.Control) {
+	if c, ok := vm.addedClasses[pkg]; ok {
+		return c, nil
 	}
-	// 再从 Base VM 查找
-	return t.Base.GetInterface(pkg)
+	if c, ok := vm.addedInterfaces[pkg]; ok {
+		return c, nil
+	}
+	c, acl := vm.Base.LoadPkg(pkg)
+	if acl != nil {
+		return nil, acl
+	}
+	if c != nil {
+		return c, nil
+	}
+	_, ok := vm.parser.GetClassPathManager().FindClassFile(pkg)
+	if !ok {
+		return nil, nil
+	}
+	if acl = vm.parser.GetClassPathManager().LoadClass(pkg, vm.parser); acl != nil {
+		return nil, acl
+	}
+	if c, ok := vm.addedClasses[pkg]; ok {
+		return c, nil
+	}
+	if c, ok := vm.addedInterfaces[pkg]; ok {
+		return c, nil
+	}
+	return nil, nil
 }
 
-func (t *TempVM) GetFunc(pkg string) (data.FuncStmt, bool) {
-	// 优先从本请求新增的函数中查找
-	if t.addedFuncs != nil {
-		if f, ok := t.addedFuncs[pkg]; ok {
-			return f, true
-		}
+func (vm *TempVM) GetInterface(pkg string) (data.InterfaceStmt, bool) {
+	ret, ok := vm.Base.GetInterface(pkg)
+	if ok {
+		return ret, ok
 	}
-	// 再从 Base VM 查找
-	return t.Base.GetFunc(pkg)
+	if c, ok := vm.addedInterfaces[pkg]; ok {
+		return c, true
+	}
+	return nil, false
 }
-func (t *TempVM) RegisterFunction(name string, fn interface{}) data.Control {
-	return t.Base.RegisterFunction(name, fn)
+
+func (vm *TempVM) GetFunc(pkg string) (data.FuncStmt, bool) {
+	if f, ok := vm.addedFuncs[pkg]; ok {
+		return f, true
+	}
+	return vm.Base.GetFunc(pkg)
 }
-func (t *TempVM) RegisterReflectClass(name string, instance interface{}) data.Control {
-	return t.Base.RegisterReflectClass(name, instance)
+func (vm *TempVM) RegisterFunction(name string, fn interface{}) data.Control {
+	return vm.Base.RegisterFunction(name, fn)
 }
-func (t *TempVM) SetThrowControl(fn func(acl data.Control))    { t.Base.SetThrowControl(fn) }
-func (t *TempVM) ThrowControl(acl data.Control)                { t.Base.ThrowControl(acl) }
-func (t *TempVM) SetClassPathCache(name, path string)          { t.Base.SetClassPathCache(name, path) }
-func (t *TempVM) GetClassPathCache(name string) (string, bool) { return t.Base.GetClassPathCache(name) }
+func (vm *TempVM) RegisterReflectClass(name string, instance interface{}) data.Control {
+	return vm.Base.RegisterReflectClass(name, instance)
+}
+func (vm *TempVM) SetThrowControl(fn func(acl data.Control)) { vm.Base.SetThrowControl(fn) }
+func (vm *TempVM) ThrowControl(acl data.Control)             { vm.Base.ThrowControl(acl) }
+func (vm *TempVM) SetClassPathCache(name, path string)       { vm.Base.SetClassPathCache(name, path) }
+func (vm *TempVM) GetClassPathCache(name string) (string, bool) {
+	return vm.Base.GetClassPathCache(name)
+}

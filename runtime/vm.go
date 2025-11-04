@@ -125,6 +125,33 @@ func (vm *VM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
 	return nil, data.NewErrorThrow(nil, errors.New("找不到 class; class 定义需要和文件名称一致才能自动加载"))
 }
 
+func (vm *VM) LoadPkg(pkg string) (data.GetValue, data.Control) {
+	if c, ok := vm.classMap[pkg]; ok {
+		return c, nil
+	}
+	if c, ok := vm.interfaceMap[pkg]; ok {
+		return c, nil
+	}
+
+	_, ok := vm.parser.GetClassPathManager().FindClassFile(pkg)
+	if !ok {
+		return nil, nil
+	}
+
+	acl := vm.parser.GetClassPathManager().LoadClass(pkg, vm.parser)
+	if acl != nil {
+		return nil, acl
+	}
+	if c, ok := vm.classMap[pkg]; ok {
+		return c, nil
+	}
+	if c, ok := vm.interfaceMap[pkg]; ok {
+		return c, nil
+	}
+
+	return nil, nil
+}
+
 func (vm *VM) GetInterface(pkg string) (data.InterfaceStmt, bool) {
 	if inf, ok := vm.interfaceMap[pkg]; ok {
 		return inf, true

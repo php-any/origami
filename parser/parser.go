@@ -448,47 +448,33 @@ func (p *Parser) AddScanNamespace(namespace string, path string) {
 	p.ClassPathManager.AddNamespace(namespace, path)
 }
 
-// 默认 try = true
-func (p *Parser) findFullClassNameByNamespace(name string, try ...bool) (string, bool) {
-	tryName := name
-
+// 默认 try = true; 只获取全量名称
+func (p *Parser) findFullClassNameByNamespace(name string) (string, bool) {
 	if full, ok := p.uses[name]; ok {
 		return full, true
 	}
 
+	if strings.Index(name, "\\") != -1 {
+		return name, true
+	}
+
 	if p.namespace != nil {
-		tryName = p.namespace.GetName() + "\\" + name
-	}
-	// 本包
-	if stmt, ok := p.vm.GetClass(tryName); ok {
-		return stmt.GetName(), true
-	}
-	if stmt, ok := p.vm.GetInterface(tryName); ok {
-		return stmt.GetName(), true
-	}
-	if _, ok := p.vm.GetClassPathCache(tryName); ok {
-		return tryName, true
-	}
-	// 顶命名
-	if stmt, ok := p.vm.GetClass(name); ok {
-		return stmt.GetName(), true
-	}
-	if stmt, ok := p.vm.GetInterface(name); ok {
-		return stmt.GetName(), true
+		tryName := p.namespace.GetName() + "\\" + name
+		// 本包
+		if stmt, ok := p.vm.GetClass(tryName); ok {
+			return stmt.GetName(), true
+		}
+		if stmt, ok := p.vm.GetInterface(tryName); ok {
+			return stmt.GetName(), true
+		}
+		// 能找到文件就当时有类了
+		_, ok := p.ClassPathManager.FindClassFile(tryName)
+		if ok {
+			return tryName, true
+		}
 	}
 
-	if len(try) > 0 && !try[0] {
-		return "", false
-	}
-
-	// 尝试加载同目录的同名文件
-	p.tryLoadClass(tryName)
-
-	// 加载成功，再次尝试查找类
-	if full, ok := p.findFullClassNameByNamespace(name, false); ok {
-		return full, true
-	}
-	return "", false
+	return name, false
 }
 
 func (p *Parser) findFullFunNameByNamespace(name string) (string, bool) {
@@ -511,19 +497,6 @@ func (p *Parser) findFullFunNameByNamespace(name string) (string, bool) {
 
 func (p *Parser) newFrom() data.From {
 	return p.FromCurrentToken()
-}
-
-// 尝试加载类
-func (p *Parser) tryLoadClass(full string) data.Control {
-	if _, ok := p.vm.GetClass(full); ok {
-		return nil
-	}
-	if _, ok := p.vm.GetInterface(full); ok {
-		return nil
-	}
-
-	// 使用类路径管理器加载类
-	return p.ClassPathManager.LoadClass(full, p)
 }
 
 // SetClassPathManager 设置类路径管理器

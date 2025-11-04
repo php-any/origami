@@ -95,6 +95,10 @@ func (vm *LspVM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
 	return nil, data.NewErrorThrow(nil, errors.New("找不到 class; class 定义需要和文件名称一致才能自动加载"))
 }
 
+func (vm *LspVM) LoadPkg(_ string) (data.GetValue, data.Control) {
+	return nil, nil
+}
+
 // GetAllClasses 获取所有类定义
 func (vm *LspVM) GetAllClasses() map[string]data.ClassStmt {
 	vm.mu.RLock()

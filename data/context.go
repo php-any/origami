@@ -28,8 +28,11 @@ type VM interface {
 	AddClass(c ClassStmt) Control
 	GetClass(pkg string) (ClassStmt, bool)
 
-	// vm 也需要实现部分 parser 功能； 但是 parser 不要有 vm 功能
+	// GetOrLoadClass vm 也需要实现部分 parser 功能； 但是 parser 不要有 vm 功能
 	GetOrLoadClass(pkg string) (ClassStmt, Control)
+	// LoadPkg 加载类或者接口, 不存在时也不会报错
+	LoadPkg(pkg string) (GetValue, Control)
+
 	AddInterface(i InterfaceStmt) Control
 	GetInterface(pkg string) (InterfaceStmt, bool)
 	AddFunc(f FuncStmt) Control

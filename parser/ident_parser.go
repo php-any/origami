@@ -31,16 +31,15 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 		if full, ok := p.findFullFunNameByNamespace(name); ok {
 			fn, ok := p.vm.GetFunc(full)
 			if !ok {
-				_, ok := p.vm.GetClass(full)
-				if !ok {
-					_, acl := p.vm.GetOrLoadClass(full)
-					if acl != nil {
-						return nil, acl
-					}
-					_, ok = p.vm.GetClass(full)
+				c, acl := p.vm.LoadPkg(full)
+				if acl != nil {
+					return nil, acl
 				}
-				if ok {
-					return p.parseClassInit(tracker, full)
+				if c != nil {
+					switch c.(type) {
+					case data.ClassStmt:
+						return p.parseClassInit(tracker, full)
+					}
 				}
 				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("未定义的函数:"+full+" {}。"))
 			}
@@ -50,9 +49,15 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 
 		// 检查是否是便捷方式创建 class{}
 		if full, ok := p.findFullClassNameByNamespace(name); ok {
-			_, ok := p.vm.GetClass(full)
-			if ok {
-				return p.parseClassInit(tracker, full)
+			c, acl := p.vm.LoadPkg(full)
+			if acl != nil {
+				return nil, acl
+			}
+			if c != nil {
+				switch c.(type) {
+				case data.ClassStmt:
+					return p.parseClassInit(tracker, full)
+				}
 			}
 		}
 
@@ -129,9 +134,9 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 			if full, ok := p.findFullClassNameByNamespace(className); ok {
 				className = full
 			}
-			stmt, ok := p.vm.GetClass(className)
-			if !ok {
-				return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("静态调用时, 类 (%s) 未加载", className))
+			stmt, acl := p.vm.GetOrLoadClass(className)
+			if acl != nil {
+				return nil, acl
 			}
 			p.next()
 			fnName := p.current().Literal

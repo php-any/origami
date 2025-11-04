@@ -108,10 +108,6 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 		if acl != nil {
 			return nil, acl
 		}
-		acl = p.tryLoadClass(extends)
-		if acl != nil {
-			return nil, acl
-		}
 	}
 
 	// 解析实现的接口
@@ -123,10 +119,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 			if acl != nil {
 				return nil, acl
 			}
-			acl = p.tryLoadClass(interfaceName)
-			if acl != nil {
-				return nil, acl
-			}
+
 			implements = append(implements, interfaceName)
 
 			if p.current().Type != token.COMMA {
@@ -227,17 +220,16 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 	if c.Construct == nil {
 		// 寻找父级构造函数
 		vm := p.vm
-		var ok = false
 		var last data.ClassStmt = c
 		for last != nil && last.GetExtend() != nil {
 			ext := last.GetExtend()
-			last, ok = vm.GetClass(*ext)
-			if ok {
-				if construct, ok := last.GetMethod(token.ConstructName); ok {
-					c.Construct = construct
-					break
-				}
-			} else {
+			var acl data.Control
+			last, acl = vm.GetOrLoadClass(*ext)
+			if acl != nil {
+				return nil, acl
+			}
+			if construct, ok := last.GetMethod(token.ConstructName); ok {
+				c.Construct = construct
 				break
 			}
 		}
@@ -425,9 +417,9 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 	if len(annotations) != 0 {
 		callAnn := make([]*node.CallAnn, 0)
 		for _, an := range annotations {
-			stmt, ok := p.vm.GetClass(an.Name)
-			if !ok {
-				return nil, data.NewErrorThrow(an.GetFrom(), errors.New("注解未定义"))
+			stmt, acl := p.vm.GetOrLoadClass(an.Name)
+			if acl != nil {
+				return nil, acl
 			}
 			object, acl := stmt.GetValue(p.vm.CreateContext(nil))
 			if acl != nil {
@@ -555,9 +547,9 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 		callAnn := make([]*node.CallAnn, 0)
 
 		for _, an := range annotations {
-			stmt, ok := p.vm.GetClass(an.Name)
-			if !ok {
-				return nil, data.NewErrorThrow(an.GetFrom(), errors.New("注解未定义"))
+			stmt, acl := p.vm.GetOrLoadClass(an.Name)
+			if acl != nil {
+				return nil, acl
 			}
 			object, acl := stmt.GetValue(p.vm.CreateContext(nil))
 			if acl != nil {

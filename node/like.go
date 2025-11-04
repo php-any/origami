@@ -31,18 +31,19 @@ func (l *LikeExpression) GetValue(ctx data.Context) (data.GetValue, data.Control
 	// 检查对象值是否为类实例
 	if classValue, ok := objectValue.(*data.ClassValue); ok {
 		// 检查目标类或接口是否存在
-		vm := ctx.GetVM()
-
-		// 先检查是否是类
-		if targetClass, ok := vm.GetClass(l.ClassName); ok {
-			result := checkClassStructure(classValue.Class, targetClass)
-			return data.NewBoolValue(result), nil
+		c, acl := ctx.GetVM().LoadPkg(l.ClassName)
+		if acl != nil {
+			return nil, acl
 		}
-
-		// 再检查是否是接口
-		if targetInterface, ok := vm.GetInterface(l.ClassName); ok {
-			result := checkInterfaceStructure(classValue.Class, targetInterface)
-			return data.NewBoolValue(result), nil
+		if c != nil {
+			switch checkC := c.(type) {
+			case data.ClassStmt:
+				result := checkClassStructure(classValue.Class, checkC)
+				return data.NewBoolValue(result), nil
+			case data.InterfaceStmt:
+				result := checkInterfaceStructure(classValue.Class, checkC)
+				return data.NewBoolValue(result), nil
+			}
 		}
 	}
 

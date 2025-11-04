@@ -30,16 +30,19 @@ func (i *InstanceOfExpression) GetValue(ctx data.Context) (data.GetValue, data.C
 
 	// 检查对象值是否为类实例
 	if classValue, ok := objectValue.(*data.ClassValue); ok {
-		// 使用 checkClassIs 函数检查类关系
-		checkC, ok := ctx.GetVM().GetClass(i.ClassName)
-		if ok {
-			result, acl := checkClassIs(ctx, classValue.Class, checkC.GetName())
-			return data.NewBoolValue(result), acl
+		c, acl := ctx.GetVM().LoadPkg(i.ClassName)
+		if acl != nil {
+			return nil, acl
 		}
-		checkI, ok := ctx.GetVM().GetInterface(i.ClassName)
-		if ok {
-			result, acl := checkClassIs(ctx, classValue.Class, checkI.GetName())
-			return data.NewBoolValue(result), acl
+		if c != nil {
+			switch checkC := c.(type) {
+			case data.ClassStmt:
+				result, acl := checkClassIs(ctx, classValue.Class, checkC.GetName())
+				return data.NewBoolValue(result), acl
+			case data.InterfaceStmt:
+				result, acl := checkClassIs(ctx, classValue.Class, checkC.GetName())
+				return data.NewBoolValue(result), acl
+			}
 		}
 	}
 
