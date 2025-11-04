@@ -33,7 +33,7 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 			if !ok {
 				_, ok := p.vm.GetClass(full)
 				if !ok {
-					acl := p.tryLoadClass(full)
+					_, acl := p.vm.GetOrLoadClass(full)
 					if acl != nil {
 						return nil, acl
 					}

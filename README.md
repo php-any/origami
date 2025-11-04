@@ -1,56 +1,58 @@
-# 折言(origami-lang)
+# Origami-lang
 
-折言(origami-lang) 是一门创新性的融合型脚本语言，深度结合 PHP 的快速开发基因与 Go 的高效并发模型。同时还有部分java、ts习惯引入。
+Origami-lang is an innovative hybrid scripting language that deeply integrates PHP's rapid development capabilities with Go's efficient concurrency model. It also incorporates some Java and TypeScript conventions.
 
-## ⚠️ 当前状态
+> [中文文档](README_CN.md) | [English Documentation](README.md)
 
-当前未对代码分支进行任何优化，性能尚未优化。
-请作为一个工具使用，请勿用于生产环境。
+## ⚠️ Current Status
 
-## 🚀 核心特征
+The codebase has not been optimized yet, and performance is not optimized.
+Please use it as a tool, do not use it in production environments.
 
-### 🎯 Go 反射集成
+## 🚀 Core Features
 
-- **便捷注册**: 一键将 Go 函数注册到脚本域 `vm.RegisterFunction("add", func(a, b int) int { return a + b })`
-- **类反射**: 自动将 Go 结构体转换为脚本类 `vm.RegisterReflectClass("User", &User{})`
-- **零配置**: 无需手动编写包装代码，自动处理类型转换
-- **构造函数**: 支持命名参数 `$user = new User(Name: "Alice")`
-- **方法调用**: 直接调用 Go 结构体的公开方法 `$user->SetName("Bob")`
+### 🎯 Go Reflection Integration
 
-### 语法融合
+- **Easy Registration**: Register Go functions to the script domain with one line `vm.RegisterFunction("add", func(a, b int) int { return a + b })`
+- **Class Reflection**: Automatically convert Go structs to script classes `vm.RegisterReflectClass("User", &User{})`
+- **Zero Configuration**: No manual wrapper code needed, automatic type conversion
+- **Constructors**: Support named parameters `$user = new User(Name: "Alice")`
+- **Method Calls**: Directly call public methods of Go structs `$user->SetName("Bob")`
 
-- **PHP 兼容**: 支持大部分 PHP 语法
-- **Go 并发**: `spawn` 关键字启动协程
-- **类型系统**: 支持类型声明 `int $i = 0` 和可空类型 `?string`
+### Syntax Fusion
 
-### 特殊语法
+- **PHP Compatibility**: Supports most PHP syntax
+- **Go Concurrency**: `spawn` keyword to launch coroutines
+- **Type System**: Supports type declarations `int $i = 0` and nullable types `?string`
 
-- **HTML 内嵌**: 支持直接内嵌 HTML 代码块
-- **字符串插值**: `"Hello {$name}"` 和 `"@{function()}"` 语法
-- **鸭子类型**: `like` 关键字进行结构匹配
-- **中文编程**: 支持中文关键字 `函数`、`输出` 等
-- **参数后置**: 支持 `function($param: type)` 语法
-- **异步执行**: `spawn` 关键字启动异步协程
-- **泛型类**: 支持 `class DB<T>` 泛型语法
+### Special Syntax
 
-### 数组方法
+- **HTML Embedding**: Supports direct HTML code blocks
+- **String Interpolation**: `"Hello {$name}"` and `"@{function()}"` syntax
+- **Duck Typing**: `like` keyword for structural matching
+- **Chinese Programming**: Supports Chinese keywords `函数`, `输出`, etc.
+- **Postfix Parameters**: Supports `function($param: type)` syntax
+- **Async Execution**: `spawn` keyword to launch async coroutines
+- **Generic Classes**: Supports `class DB<T>` generic syntax
 
-- **链式调用**: `$array->map()->filter()->reduce()`
-- **函数式编程**: `map()`, `filter()`, `reduce()`, `flatMap()`
-- **查找方法**: `find()`, `findIndex()`, `includes()`
+### Array Methods
 
-### 面向对象
+- **Chained Calls**: `$array->map()->filter()->reduce()`
+- **Functional Programming**: `map()`, `filter()`, `reduce()`, `flatMap()`
+- **Search Methods**: `find()`, `findIndex()`, `includes()`
 
-- **类继承**: 支持单继承和接口实现
-- **类型检查**: `instanceof` 和 `like` 操作符
-- **父类访问**: `parent::` 语法
+### Object-Oriented
 
-## 📝 示例
+- **Class Inheritance**: Supports single inheritance and interface implementation
+- **Type Checking**: `instanceof` and `like` operators
+- **Parent Access**: `parent::` syntax
 
-### Go 反射集成
+## 📝 Examples
+
+### Go Reflection Integration
 
 ```go
-// 定义 Go 结构体
+// Define Go struct
 type Calculator struct {
     Name string
 }
@@ -63,32 +65,32 @@ func (c *Calculator) GetName() string {
     return c.Name
 }
 
-// 注册到脚本域
+// Register to script domain
 vm.RegisterReflectClass("Calculator", &Calculator{})
 ```
 
 ```php
-// 在脚本中使用
+// Use in script
 $calc = new Calculator(Name: "MyCalc");
-echo $calc->GetName();     // 输出: MyCalc
-echo $calc->Add(5, 3);     // 输出: 8
+echo $calc->GetName();     // Output: MyCalc
+echo $calc->Add(5, 3);     // Output: 8
 ```
 
-### 函数注册
+### Function Registration
 
 ```go
-// 注册 Go 函数
+// Register Go functions
 vm.RegisterFunction("add", func(a, b int) int { return a + b })
 vm.RegisterFunction("isEven", func(n int) bool { return n%2 == 0 })
 ```
 
 ```php
-// 脚本中调用
-$result = add(5, 3);     // 返回 8
-$even = isEven(4);       // 返回 true
+// Call in script
+$result = add(5, 3);     // Returns 8
+$even = isEven(4);       // Returns true
 ```
 
-### 基础语法
+### Basic Syntax
 
 ```php
 int $count = 0;
@@ -100,7 +102,7 @@ function greet(string $name): string {
 }
 ```
 
-### 参数后置语法
+### Postfix Parameter Syntax
 
 ```php
 function div($obj) {
@@ -113,12 +115,12 @@ function span($obj) {
 
 $html = div {
     "body": span {
-        "body": "内容",
+        "body": "Content",
     }
 }
 ```
 
-### 泛型类
+### Generic Classes
 
 ```php
 class Users {
@@ -138,25 +140,25 @@ class DB<T> {
     }
 }
 
-$list = DB<Users>()->where("name", "张三")->get();
+$list = DB<Users>()->where("name", "John")->get();
 ```
 
-### 异步协程
+### Async Coroutines
 
 ```php
 function fetchData($url: string): string {
-    // 模拟网络请求
+    // Simulate network request
     sleep(1);
     return "Data from " . $url;
 }
 
-// 启动异步协程
+// Launch async coroutine
 spawn fetchData("https://api.example.com");
 
 echo "Main thread continues...\n";
 ```
 
-### HTML 内嵌
+### HTML Embedding
 
 ```php
 $content = <div class="container">
@@ -165,7 +167,7 @@ $content = <div class="container">
 </div>;
 ```
 
-### 数组操作
+### Array Operations
 
 ```php
 $numbers = [1, 2, 3, 4, 5];
@@ -173,7 +175,7 @@ $doubled = $numbers->map(($n) => $n * 2);
 $evens = $numbers->filter(($n) => $n % 2 == 0);
 ```
 
-### 中文编程
+### Chinese Programming
 
 ```php
 函数 用户(名称) {
@@ -182,7 +184,7 @@ $evens = $numbers->filter(($n) => $n % 2 == 0);
 用户("张三");
 ```
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
 ```bash
 git clone https://github.com/php-any/origami.git
@@ -191,15 +193,15 @@ go build -o origami .
 ./origami script.zy
 ```
 
-## 📚 文档
+## 📚 Documentation
 
-- [文档](https://github.com/php-any/origami/tree/main/docs)
-- [测试用例](https://github.com/php-any/origami/tree/main/tests)
+- [Documentation](https://github.com/php-any/origami/tree/main/docs)
+- [Test Cases](https://github.com/php-any/origami/tree/main/tests)
 
-## 💬 讨论群
+## 💬 Discussion Group
 
-![折言讨论群二维码](https://github.com/php-any/origami/blob/main/qrcode_1753692981069.jpg)
+![Origami Discussion Group QR Code](https://github.com/php-any/origami/blob/main/qrcode_1753692981069.jpg)
 
-## 📄 许可证
+## 📄 License
 
-MIT 许可证
+MIT License
