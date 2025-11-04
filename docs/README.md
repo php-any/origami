@@ -33,6 +33,7 @@
 - [反射与注解](reflection-annotations.md) - 反射读取注解信息
 - [扩展开发](extensions.md) - 开发自定义扩展
 - [性能优化](performance.md) - 性能优化技巧
+- [HTML 渲染](html.md) - 使用 Response->view 与模板语法渲染页面
 
 ### 🗄️ 数据库模块
 
@@ -82,3 +83,4 @@
 - [GitHub 仓库](https://github.com/php-any/origami)
 - [在线示例](https://github.com/php-any/origami/tree/main/tests)
 - [讨论群](https://github.com/php-any/origami#-讨论群)
+- [在线演示工具（WASM）](https://php-any.github.io/wasm-demo/)
