@@ -11,3 +11,5 @@ echo "Box<int>: " . $intBox->value . "\n";
 $strBox = new Box<string>();
 $strBox->value = "hello";
 echo "Box<string>: " . $strBox->value . "\n";
+
+return 11;

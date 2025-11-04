@@ -48,6 +48,9 @@ func (p *Program) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	for _, statement := range p.Statements {
 		v, c = statement.GetValue(ctx)
 		if c != nil {
+			if c, ok := c.(data.ReturnControl); ok {
+				return c.GetValue(ctx)
+			}
 			ctx.GetVM().ThrowControl(c)
 			break
 		}
