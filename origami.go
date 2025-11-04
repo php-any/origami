@@ -62,9 +62,6 @@ func main() {
 
 	_, err := vm.LoadAndRun(scriptPath)
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "错误: %v\n", err)
-		if !parser.InLSP {
-			panic(err)
-		}
+		p.ShowControl(err)
 	}
 }
