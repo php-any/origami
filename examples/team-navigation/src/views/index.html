@@ -7,8 +7,7 @@
     <title>团队导航 - 便捷的导航和管理服务</title>
     <link rel="stylesheet" href="/assets/css/styles.css">
     <script type="text/zy">
-        // 模拟首页展示所需的虚构商品与特性
-        dump($list);
+        // 由后端渲染注入：$projects, $tools, $favoriteTools
     </script>
 </head>
 
@@ -67,7 +66,10 @@
 
                     <!-- 收藏链接 -->
                     <div class="favorite-links" id="favoriteLinks">
-                        <!-- 收藏链接通过 JS 插入 -->
+                        <a :href="$f->url" target="_blank" class="favorite-link" for="$f in $favoriteTools">
+                            <span class="favorite-link-icon">{$f->icon ?? "🔗"}</span>
+                            <span>{$f->name}</span>
+                        </a>
                     </div>
                 </div>
             </section>
@@ -75,30 +77,49 @@
             <!-- 内容区域 -->
             <div class="content-area">
                 <!-- 加载状态 -->
-                <div id="loading" class="loading">
-                    <div class="spinner"></div>
-                    <p>加载中...</p>
-                </div>
+                <!-- 后端渲染无需 loading -->
 
                 <!-- 项目快捷访问 -->
-                <section class="quick-access" id="projectsSection" style="display: none;">
+                <section class="quick-access" id="projectsSection">
                     <div class="section-title">
                         <span class="title-icon">🚀</span>
                         <h3>项目</h3>
                     </div>
                     <div class="quick-links" id="projectsGrid">
-                        <!-- 项目卡片通过 JS 插入 -->
+                        <a class="project-card"
+                            :href="($p->environments != null && $p->environments->length > 0) ? $p->environments[0]->url : '#'"
+                            target="_blank" for="$p in $projects">
+                            <h4 class="project-name">{$p->name}</h4>
+                            <p class="project-desc">{$p->description ?? ""}</p>
+                            <div class="project-tools" if="$p->tools != null && $p->tools->length > 0">
+                                <a class="tool-tag" :href="$t->url" target="_blank" title="{$t->name}"
+                                    for="$t in $p->tools">
+                                    <span class="tool-tag-icon">{$t->icon ?? "🔗"}</span>
+                                    <span>{$t->name}</span>
+                                </a>
+                            </div>
+                            <div class="project-environments"
+                                if="$p->environments != null && $p->environments->length > 0">
+                                <div class="env-item" for="$e in $p->environments">
+                                    <span class="env-name">{$e->environmentName}</span>
+                                    <a class="env-link" :href="$e->url" target="_blank">{$e->url}</a>
+                                </div>
+                            </div>
+                        </a>
                     </div>
                 </section>
 
                 <!-- 工具快捷访问 -->
-                <section class="quick-access" id="toolsSection" style="display: none;">
+                <section class="quick-access" id="toolsSection">
                     <div class="section-title">
                         <span class="title-icon">🛠️</span>
                         <h3>工具</h3>
                     </div>
                     <div class="quick-links tools-grid" id="toolsGrid">
-                        <!-- 工具卡片通过 JS 插入 -->
+                        <a class="tool-card" :href="$t->url" target="_blank" for="$t in $tools">
+                            <div class="tool-icon">{$t->icon ?? "🔗"}</div>
+                            <div class="tool-name">{$t->name}</div>
+                        </a>
                     </div>
                 </section>
             </div>

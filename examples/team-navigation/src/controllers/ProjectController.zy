@@ -39,19 +39,14 @@ class ProjectController {
             $projectTools = DB<ProjectTool>()->where("project_id = ?", $project->id)
                 ->orderBy("display_order ASC")->get();
             
+            $envList = $envs;
+
+            // 获取项目关联的工具
             $toolList = [];
             for (_, $projectTool in $projectTools) {
                 $tools = DB<ToolLink>()->where("id = ?", $projectTool->toolId)->get();
                 if ($tools != null && $tools->length > 0) {
-                    $tool = $tools[0];
-                    $toolList[] = [
-                        "id" => $tool->id,
-                        "name" => $tool->name,
-                        "url" => $tool->url,
-                        "icon" => $tool->icon,
-                        "category" => $tool->category,
-                        "description" => $tool->description
-                    ];
+                    $toolList[] = $tools[0];
                 }
             }
             

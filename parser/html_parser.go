@@ -77,7 +77,17 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 				// 字符串值
 				value := h.current().Literal
 				h.next()
-				attrValue = node.NewStringLiteral(h.FromCurrentToken(), value)
+				// 支持前缀 ':' 的任意属性值作为可执行表达式
+				if len(value) > 0 && strings.HasPrefix(value, ":") {
+					exprStr := value[1:]
+					expr, ctl := h.Parser.ParseExpressionFromString(exprStr)
+					if ctl != nil {
+						return nil, ctl
+					}
+					attrValue = expr
+				} else {
+					attrValue = node.NewStringLiteral(h.FromCurrentToken(), value)
+				}
 			} else {
 				// 其他类型的值，尝试解析为表达式或直接作为字符串
 				attrValue = h.parseAttributeValue()
