@@ -7,7 +7,9 @@ use Net\Annotation\GetMapping;
 class HomeController {
     @GetMapping(path: "/")
     public function index($request, $response) {
-        $list = "testses"
+        $list = [
+            1,2,3,4,8
+        ]
         $response->view("./src/views/index.html", {
             "list": $list
         });

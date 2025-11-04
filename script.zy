@@ -1,5 +1,11 @@
 namespace tests\func;
 
-class Data {
-    public List<int> $id;
+function test() {
+    <2>
 }
+
+function aaaa() {
+    test()
+}
+
+aaaa()

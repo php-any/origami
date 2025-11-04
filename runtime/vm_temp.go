@@ -87,7 +87,14 @@ func (t *TempVM) ParseFile(file string, data data.Value) (data.Value, data.Contr
 }
 
 func (t *TempVM) GetClass(pkg string) (data.ClassStmt, bool) {
-	return t.Base.GetClass(pkg)
+	ret, ok := t.Base.GetClass(pkg)
+	if ok {
+		return ret, ok
+	}
+	if c, ok := t.addedClasses[pkg]; ok {
+		return c, true
+	}
+	return nil, false
 }
 
 func (t *TempVM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
