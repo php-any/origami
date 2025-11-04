@@ -13,46 +13,86 @@ func (a *ArrayValueReduce) Call(ctx Context) (GetValue, Control) {
 		return NewNullValue(), nil
 	}
 
-	// 检查回调函数是否可调用
-	callable, ok := callback.(CallableValue)
-	if !ok {
-		return NewNullValue(), nil
-	}
+	// 同时支持 *FuncValue 与 CallableValue
+	switch callable := callback.(type) {
+	case *FuncValue:
+		vars := callable.Value.GetVariables()
+		fnCtx := ctx.CreateContext(vars)
 
-	// 获取初始值参数
-	var accumulator Value
-	if initialValue, ok := ctx.GetIndexValue(1); ok {
-		accumulator = initialValue
-	} else {
-		// 如果没有提供初始值，使用第一个元素作为初始值
-		if len(a.source) == 0 {
-			return NewNullValue(), nil
+		// 获取初始值参数
+		var accumulator Value
+		if initialValue, ok := ctx.GetIndexValue(1); ok {
+			accumulator = initialValue
+			for i, element := range a.source {
+				args := []Value{accumulator, element, NewIntValue(i), NewArrayValue(a.source)}
+				for ai := 0; ai < len(vars) && ai < len(args); ai++ {
+					fnCtx.SetVariableValue(NewVariable("", ai, nil), args[ai])
+				}
+				reduceResult, ctl := callable.Value.Call(fnCtx)
+				if ctl != nil {
+					return nil, ctl
+				}
+				accumulator = reduceResult.(Value)
+			}
+			return accumulator, nil
+		} else {
+			if len(a.source) == 0 {
+				return NewNullValue(), nil
+			}
+			accumulator = a.source[0]
+			for i := 1; i < len(a.source); i++ {
+				element := a.source[i]
+				args := []Value{accumulator, element, NewIntValue(i), NewArrayValue(a.source)}
+				for ai := 0; ai < len(vars) && ai < len(args); ai++ {
+					fnCtx.SetVariableValue(NewVariable("", ai, nil), args[ai])
+				}
+				reduceResult, ctl := callable.Value.Call(fnCtx)
+				if ctl != nil {
+					return nil, ctl
+				}
+				accumulator = reduceResult.(Value)
+			}
+			return accumulator, nil
 		}
-		accumulator = a.source[0]
-		// 从第二个元素开始遍历
-		for i := 1; i < len(a.source); i++ {
-			element := a.source[i]
+
+	case CallableValue:
+		// 获取初始值参数
+		var accumulator Value
+		if initialValue, ok := ctx.GetIndexValue(1); ok {
+			accumulator = initialValue
+		} else {
+			// 如果没有提供初始值，使用第一个元素作为初始值
+			if len(a.source) == 0 {
+				return NewNullValue(), nil
+			}
+			accumulator = a.source[0]
+			// 从第二个元素开始遍历
+			for i := 1; i < len(a.source); i++ {
+				element := a.source[i]
+				// 调用回调函数，传递累积值、当前元素、索引和数组
+				reduceResult, ctl := callable.Call(accumulator, element, NewIntValue(i), NewArrayValue(a.source))
+				if ctl != nil {
+					return nil, ctl
+				}
+				accumulator = reduceResult
+			}
+			return accumulator, nil
+		}
+
+		// 从第一个元素开始遍历
+		for i, element := range a.source {
 			// 调用回调函数，传递累积值、当前元素、索引和数组
 			reduceResult, ctl := callable.Call(accumulator, element, NewIntValue(i), NewArrayValue(a.source))
 			if ctl != nil {
 				return nil, ctl
 			}
-			accumulator = reduceResult.(Value)
+			accumulator = reduceResult
 		}
+
 		return accumulator, nil
 	}
 
-	// 从第一个元素开始遍历
-	for i, element := range a.source {
-		// 调用回调函数，传递累积值、当前元素、索引和数组
-		reduceResult, ctl := callable.Call(accumulator, element, NewIntValue(i), NewArrayValue(a.source))
-		if ctl != nil {
-			return nil, ctl
-		}
-		accumulator = reduceResult.(Value)
-	}
-
-	return accumulator, nil
+	return NewNullValue(), nil
 }
 
 func (a *ArrayValueReduce) GetName() string {

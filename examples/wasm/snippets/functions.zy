@@ -1,0 +1,9 @@
+// 函数与返回值
+
+function greet($name: string): string {
+  return "Hello, ".$name;
+}
+
+echo greet("Origami")."\n";
+greet("World"); // 返回值将显示在右侧面板
+

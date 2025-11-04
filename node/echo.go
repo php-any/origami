@@ -2,6 +2,7 @@ package node
 
 import (
 	"fmt"
+
 	"github.com/php-any/origami/data"
 )
 

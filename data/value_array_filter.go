@@ -13,29 +13,47 @@ func (a *ArrayValueFilter) Call(ctx Context) (GetValue, Control) {
 		return NewArrayValue(a.source), nil
 	}
 
-	// 检查回调函数是否可调用
-	callable, ok := callback.(CallableValue)
-	if !ok {
-		return NewArrayValue(a.source), nil
-	}
-
 	// 创建结果数组
 	var result []Value
 
-	// 遍历数组元素并应用回调函数
-	for i, element := range a.source {
-		// 调用回调函数，传递元素、索引和数组
-		filterResult, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(a.source))
-		if ctl != nil {
-			return nil, ctl
-		}
-
-		// 检查回调函数返回的结果是否为 true
-		if boolResult, ok := filterResult.(AsBool); ok {
-			if isTrue, err := boolResult.AsBool(); err == nil && isTrue {
-				result = append(result, element)
+	switch callable := callback.(type) {
+	case *FuncValue:
+		vars := callable.Value.GetVariables()
+		fnCtx := ctx.CreateContext(vars)
+		for i, element := range a.source {
+			args := []Value{element, NewIntValue(i), NewArrayValue(a.source)}
+			for ai := 0; ai < len(vars) && ai < len(args); ai++ {
+				fnCtx.SetVariableValue(NewVariable("", ai, nil), args[ai])
+			}
+			filterResult, ctl := callable.Value.Call(fnCtx)
+			if ctl != nil {
+				return nil, ctl
+			}
+			fv := filterResult.(Value)
+			if boolResult, ok := fv.(AsBool); ok {
+				if isTrue, err := boolResult.AsBool(); err == nil && isTrue {
+					result = append(result, element)
+				}
 			}
 		}
+		return NewArrayValue(result), nil
+	case CallableValue:
+		// 遍历数组元素并应用回调函数
+		for i, element := range a.source {
+			// 调用回调函数，传递元素、索引和数组
+			filterResult, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(a.source))
+			if ctl != nil {
+				return nil, ctl
+			}
+
+			// 检查回调函数返回的结果是否为 true
+			if boolResult, ok := filterResult.(AsBool); ok {
+				if isTrue, err := boolResult.AsBool(); err == nil && isTrue {
+					result = append(result, element)
+				}
+			}
+		}
+		return NewArrayValue(result), nil
 	}
 
 	return NewArrayValue(result), nil

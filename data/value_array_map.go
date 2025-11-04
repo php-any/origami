@@ -1,5 +1,7 @@
 package data
 
+import "errors"
+
 type ArrayValueMap struct {
 	source []Value
 }
@@ -13,26 +15,43 @@ func (a *ArrayValueMap) Call(ctx Context) (GetValue, Control) {
 		return NewArrayValue(a.source), nil
 	}
 
-	// 检查回调函数是否可调用
-	callable, ok := callback.(CallableValue)
-	if !ok {
-		return NewArrayValue(a.source), nil
-	}
-
 	// 创建结果数组
 	result := make([]Value, len(a.source))
 
-	// 遍历数组元素并应用回调函数
-	for i, element := range a.source {
-		// 调用回调函数，传递元素、索引和数组
-		mappedValue, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(a.source))
-		if ctl != nil {
-			return nil, ctl
+	switch callable := callback.(type) {
+	case *FuncValue:
+		// 使用函数定义的变量创建调用上下文，并按顺序写入参数：element, index, array
+		vars := callable.Value.GetVariables()
+		fnCtx := ctx.CreateContext(vars)
+		for i, element := range a.source {
+			args := []Value{element, NewIntValue(i), NewArrayValue(a.source)}
+			for ai := 0; ai < len(vars) && ai < len(args); ai++ {
+				fnCtx.SetVariableValue(NewVariable("", ai, nil), args[ai])
+			}
+			ret, ctl := callable.Value.Call(fnCtx)
+			if ctl != nil {
+				return nil, ctl
+			}
+			result[i] = ret.(Value)
 		}
-		result[i] = mappedValue.(Value)
+
+		return NewArrayValue(result), nil
+
+	case CallableValue:
+		// 遍历数组元素并应用回调函数
+		for i, element := range a.source {
+			// 调用回调函数，传递元素、索引和数组
+			mappedValue, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(a.source))
+			if ctl != nil {
+				return nil, ctl
+			}
+			result[i] = mappedValue
+		}
+
+		return NewArrayValue(result), nil
 	}
 
-	return NewArrayValue(result), nil
+	return nil, NewErrorThrow(nil, errors.New("call func failed"))
 }
 
 func (a *ArrayValueMap) GetName() string {

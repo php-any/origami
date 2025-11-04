@@ -13,19 +13,32 @@ func (a *ArrayValueForEach) Call(ctx Context) (GetValue, Control) {
 		return NewNullValue(), nil
 	}
 
-	// 检查回调函数是否可调用
-	callable, ok := callback.(CallableValue)
-	if !ok {
-		return NewNullValue(), nil
-	}
-
-	// 遍历数组元素
-	for i, element := range a.source {
-		// 调用回调函数，传递元素、索引和数组
-		_, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(a.source))
-		if ctl != nil {
-			return nil, ctl
+	// 同时支持 *FuncValue 与 CallableValue
+	switch callable := callback.(type) {
+	case *FuncValue:
+		vars := callable.Value.GetVariables()
+		fnCtx := ctx.CreateContext(vars)
+		for i, element := range a.source {
+			args := []Value{element, NewIntValue(i), NewArrayValue(a.source)}
+			for ai := 0; ai < len(vars) && ai < len(args); ai++ {
+				fnCtx.SetVariableValue(NewVariable("", ai, nil), args[ai])
+			}
+			_, ctl := callable.Value.Call(fnCtx)
+			if ctl != nil {
+				return nil, ctl
+			}
 		}
+		return NewNullValue(), nil
+	case CallableValue:
+		// 遍历数组元素
+		for i, element := range a.source {
+			// 调用回调函数，传递元素、索引和数组
+			_, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(a.source))
+			if ctl != nil {
+				return nil, ctl
+			}
+		}
+		return NewNullValue(), nil
 	}
 
 	return NewNullValue(), nil

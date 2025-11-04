@@ -13,29 +13,46 @@ func (a *ArrayValueFlatMap) Call(ctx Context) (GetValue, Control) {
 		return NewArrayValue(a.source), nil
 	}
 
-	// 检查回调函数是否可调用
-	callable, ok := callback.(CallableValue)
-	if !ok {
-		return NewArrayValue(a.source), nil
-	}
-
 	// 创建结果数组
 	var result []Value
 
-	// 遍历数组元素并应用回调函数
-	for i, element := range a.source {
-		// 调用回调函数，传递元素、索引和数组
-		mappedValue, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(a.source))
-		if ctl != nil {
-			return nil, ctl
+	switch callable := callback.(type) {
+	case *FuncValue:
+		vars := callable.Value.GetVariables()
+		fnCtx := ctx.CreateContext(vars)
+		for i, element := range a.source {
+			args := []Value{element, NewIntValue(i), NewArrayValue(a.source)}
+			for ai := 0; ai < len(vars) && ai < len(args); ai++ {
+				fnCtx.SetVariableValue(NewVariable("", ai, nil), args[ai])
+			}
+			mappedValue, ctl := callable.Value.Call(fnCtx)
+			if ctl != nil {
+				return nil, ctl
+			}
+			mv := mappedValue.(Value)
+			if arrayResult, ok := mv.(*ArrayValue); ok {
+				result = append(result, arrayResult.Value...)
+			} else {
+				result = append(result, mv)
+			}
 		}
-
-		// 如果映射结果是数组，则展开一层
-		if arrayResult, ok := mappedValue.(*ArrayValue); ok {
-			result = append(result, arrayResult.Value...)
-		} else {
-			result = append(result, mappedValue.(Value))
+		return NewArrayValue(result), nil
+	case CallableValue:
+		// 遍历数组元素并应用回调函数
+		for i, element := range a.source {
+			// 调用回调函数，传递元素、索引和数组
+			mappedValue, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(a.source))
+			if ctl != nil {
+				return nil, ctl
+			}
+			// 如果映射结果是数组，则展开一层
+			if arrayResult, ok := mappedValue.(*ArrayValue); ok {
+				result = append(result, arrayResult.Value...)
+			} else {
+				result = append(result, mappedValue)
+			}
 		}
+		return NewArrayValue(result), nil
 	}
 
 	return NewArrayValue(result), nil

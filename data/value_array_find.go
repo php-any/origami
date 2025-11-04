@@ -13,26 +13,42 @@ func (a *ArrayValueFind) Call(ctx Context) (GetValue, Control) {
 		return NewNullValue(), nil
 	}
 
-	// 检查回调函数是否可调用
-	callable, ok := callback.(CallableValue)
-	if !ok {
-		return NewNullValue(), nil
-	}
-
-	// 遍历数组元素并查找第一个满足条件的元素
-	for i, element := range a.source {
-		// 调用回调函数，传递元素、索引和数组
-		testResult, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(a.source))
-		if ctl != nil {
-			return nil, ctl
-		}
-
-		// 检查回调函数返回的结果是否为 true
-		if boolResult, ok := testResult.(AsBool); ok {
-			if isTrue, err := boolResult.AsBool(); err == nil && isTrue {
-				return element, nil
+	switch callable := callback.(type) {
+	case *FuncValue:
+		vars := callable.Value.GetVariables()
+		fnCtx := ctx.CreateContext(vars)
+		for i, element := range a.source {
+			args := []Value{element, NewIntValue(i), NewArrayValue(a.source)}
+			for ai := 0; ai < len(vars) && ai < len(args); ai++ {
+				fnCtx.SetVariableValue(NewVariable("", ai, nil), args[ai])
+			}
+			testResult, ctl := callable.Value.Call(fnCtx)
+			if ctl != nil {
+				return nil, ctl
+			}
+			tr := testResult.(Value)
+			if boolResult, ok := tr.(AsBool); ok {
+				if isTrue, err := boolResult.AsBool(); err == nil && isTrue {
+					return element, nil
+				}
 			}
 		}
+		return NewNullValue(), nil
+	case CallableValue:
+		// 遍历数组元素并查找第一个满足条件的元素
+		for i, element := range a.source {
+			// 调用回调函数，传递元素、索引和数组
+			testResult, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(a.source))
+			if ctl != nil {
+				return nil, ctl
+			}
+			if boolResult, ok := testResult.(AsBool); ok {
+				if isTrue, err := boolResult.AsBool(); err == nil && isTrue {
+					return element, nil
+				}
+			}
+		}
+		return NewNullValue(), nil
 	}
 
 	return NewNullValue(), nil

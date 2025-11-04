@@ -1,0 +1,11 @@
+// 输出与返回示例
+
+echo "Hello Origami from WASM!\n";
+
+function add($a: int, $b: int): int {
+  return $a + $b;
+}
+
+$x = add(3, 5);
+echo "3 + 5 = {$x}\n";
+

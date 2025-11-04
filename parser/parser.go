@@ -43,7 +43,7 @@ func NewParser() *Parser {
 		uses:             make(map[string]string),
 		ClassPathManager: NewDefaultClassPathManager(),
 	}
-	p.AddScanNamespace("app", "./")
+
 	p.expressionParser = NewExpressionParser(p)
 	return p
 }

@@ -1,0 +1,23 @@
+// 字符串操作示例
+$s = "  Hello, Origami wasm!  ";
+
+echo "原始: '{$s}'\n";
+echo "trim: '" . $s.trim() . "'\n";
+echo "toUpper: " . $s.toUpperCase() . "\n";
+echo "toLower: " . $s.toLowerCase() . "\n";
+echo "startsWith('  He'): ";
+echo $s.startsWith("  He") ? "true\n" : "false\n";
+echo "endsWith('!  '): ";
+echo $s.endsWith("!  ") ? "true\n" : "false\n";
+
+$idx = $s.indexOf("Origami");
+echo "indexOf('Origami'): {$idx}\n";
+
+$sub = $s.substring(2, 7);
+echo "substring(2,7): '{$sub}'\n";
+
+$repl = $s.replace("wasm", "WASM");
+echo "replace: '{$repl}'\n";
+
+return "done";
+

@@ -1,0 +1,9 @@
+// 数组链式方法示例
+
+$nums = [1,2,3,4,5];
+$doubled = $nums->map(($n) => $n * 2);
+$evens = $nums->filter(($n) => $n % 2 == 0);
+
+echo "doubled: ".$doubled->join(",")."\n";
+echo "evens: ".$evens->join(",")."\n";
+
