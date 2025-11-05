@@ -6,6 +6,7 @@ import (
 	"github.com/php-any/origami/data"
 )
 
+// TryGetCallClassName 尽可能尝试获取名称
 func TryGetCallClassName(call data.GetValue) string {
 	switch c := call.(type) {
 	case *VariableExpression:

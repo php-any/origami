@@ -53,7 +53,7 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 				property, ok := object.GetProperty(l.Property)
 				if ok {
 					if property.GetType() != nil && !property.GetType().Is(v) {
-						return nil, data.NewErrorThrow(b.GetFrom(), fmt.Errorf("property %s is not a binary assignment", l.Property))
+						return nil, data.NewErrorThrow(b.GetFrom(), fmt.Errorf("%s 属性 %s 因为类型不一致无法赋值", TryGetCallClassName(object), l.Property))
 					}
 				}
 				return v, object.SetProperty(l.Property, v)

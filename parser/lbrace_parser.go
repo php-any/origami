@@ -63,8 +63,8 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 			v[key] = val
 		}
 		ep.next()
-		from := tracker.EndBefore()
-		return node.NewKv(from, v), nil
+
+		return node.NewKv(tracker.EndBefore(), v), nil
 	case token.COLON: // : JSON 定义
 		oldIdentTryString := ep.identTryString
 		ep.identTryString = true
@@ -105,13 +105,11 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 		ep.identTryString = oldIdentTryString
 
 		ep.nextAndCheck(token.RBRACE)
-		from := tracker.EndBefore()
-		return node.NewKv(from, v), nil
+		return node.NewKv(tracker.EndBefore(), v), nil
 	case token.RBRACE:
 		ep.next()
 		v := map[data.GetValue]data.GetValue{}
-		from := tracker.EndBefore()
-		return node.NewKv(from, v), nil
+		return node.NewKv(tracker.EndBefore(), v), nil
 	default:
 		return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("TODO: 语法错误"+ep.current().Literal))
 	}

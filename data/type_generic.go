@@ -9,11 +9,7 @@ type Generic struct {
 }
 
 func (i Generic) Is(value Value) bool {
-	switch value.(type) {
-	case *ArrayValue:
-		return true
-	}
-	return false
+	return true // TODO
 }
 
 func (i Generic) String() string {
