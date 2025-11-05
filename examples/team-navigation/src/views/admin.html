@@ -436,7 +436,7 @@
                                     <tr for="$p in $projects">
                                         <td>{$p->id}</td>
                                         <td>{$p->name}</td>
-                                        <td>{($p->environments ?? [])->length}</td>
+                                        <td>@{($p->environments ?? [])->length}</td>
                                         <td>{$p->displayOrder ?? 0}</td>
                                         <td>
                                             <div class="action-buttons">

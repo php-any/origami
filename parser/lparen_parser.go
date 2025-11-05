@@ -155,6 +155,7 @@ func (ep *LparenParser) parseParenthesizedExpression(tracking *PositionTracker) 
 	}
 	ep.next() // 跳过右括号
 
-	// 将表达式包装为语句
-	return expr, nil
+	// 括号表达式后应支持后缀操作（-> 属性/方法、[] 索引、() 调用等）
+	vp := &VariableParser{ep.Parser}
+	return vp.parseSuffix(expr)
 }

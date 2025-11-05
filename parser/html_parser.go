@@ -597,27 +597,21 @@ func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 				currentText = ""
 			}
 
-			// 跳过 { 和 $var
-			h.nextAndCheck(token.LBRACE) // 跳过 {
+			// 跳过 {
+			h.nextAndCheck(token.LBRACE)
 
-			// 解析插值表达式
-			// 收集表达式字符串直到遇到 }
-			exprStr := ""
-			for !h.isEOF() && h.current().Type != token.RBRACE {
-				exprStr += h.current().Literal
-				h.next()
+			// 收集并解析表达式 tokens 直到匹配的 }
+			exprTokens, acl := h.collectExprTokensInsideBraces()
+			if acl != nil {
+				return nil, acl
 			}
 
-			// 使用ParseExpressionFromString解析表达式
-			expr, ctl := h.Parser.ParseExpressionFromString(exprStr)
-			if ctl != nil {
-				return nil, ctl
+			expr, acl := h.parseExprFromTokens(exprTokens)
+			if acl != nil {
+				return nil, acl
 			}
 
-			// 检查是否以 } 结束
-			if h.current().Type != token.RBRACE {
-				return nil, data.NewErrorThrow(h.newFrom(), errors.New("插值表达式缺少结束的 }"))
-			}
+			// 结束的 }
 			h.nextAndCheck(token.RBRACE)
 
 			// 添加表达式到结果中
@@ -634,38 +628,18 @@ func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 			h.nextAndCheck(token.AT)
 			h.nextAndCheck(token.LBRACE)
 
-			// 收集直到匹配的 '}'（支持嵌套）
-			braceDepth := 1
-			exprStr := ""
-			for !h.isEOF() && braceDepth > 0 {
-				if h.current().Type == token.LBRACE {
-					braceDepth++
-					exprStr += h.current().Literal
-					h.next()
-					continue
-				}
-				if h.current().Type == token.RBRACE {
-					braceDepth--
-					if braceDepth == 0 {
-						break
-					}
-					exprStr += h.current().Literal
-					h.next()
-					continue
-				}
-				exprStr += h.current().Literal
-				h.next()
+			// 收集直到匹配的 '}'（支持嵌套），采集原始 tokens
+			exprTokens, acl := h.collectExprTokensInsideBraces()
+			if acl != nil {
+				return nil, acl
 			}
-
-			if braceDepth != 0 || h.current().Type != token.RBRACE {
-				return nil, data.NewErrorThrow(h.newFrom(), errors.New("@{ 表达式缺少匹配的 }"))
-			}
+			// 结束的 }
 			h.nextAndCheck(token.RBRACE)
 
-			// 解析表达式
-			expr, ctl := h.Parser.ParseExpressionFromString(exprStr)
-			if ctl != nil {
-				return nil, ctl
+			// 解析表达式（基于采集的 tokens）
+			expr, acl := h.parseExprFromTokens(exprTokens)
+			if acl != nil {
+				return nil, acl
 			}
 			textParts = append(textParts, expr)
 		} else {
@@ -703,6 +677,58 @@ func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 	}
 
 	return result, nil
+}
+
+// collectExprTokensInsideBraces 收集当前位于 { 之后的表达式 tokens，直到匹配到对应的 }
+func (h *HtmlParser) collectExprTokensInsideBraces() ([]lexer.Token, data.Control) {
+	braceDepth := 1
+	exprTokens := make([]lexer.Token, 0)
+	for !h.isEOF() && braceDepth > 0 {
+		if h.current().Type == token.LBRACE {
+			braceDepth++
+			exprTokens = append(exprTokens, h.current())
+			h.next()
+			continue
+		}
+		if h.current().Type == token.RBRACE {
+			braceDepth--
+			if braceDepth == 0 {
+				break
+			}
+			exprTokens = append(exprTokens, h.current())
+			h.next()
+			continue
+		}
+		exprTokens = append(exprTokens, h.current())
+		h.next()
+	}
+	if braceDepth != 0 {
+		return nil, data.NewErrorThrow(h.newFrom(), errors.New("插值表达式缺少匹配的 }"))
+	}
+	return exprTokens, nil
+}
+
+// parseExprFromTokens 使用表达式解析器解析一段 tokens 为表达式值
+func (h *HtmlParser) parseExprFromTokens(exprTokens []lexer.Token) (data.GetValue, data.Control) {
+	// 为了保持与当前解析作用域一致（变量索引一致），临时切换 tokens 并用当前 Parser 的 ExpressionParser 解析
+	originalTokens := h.Parser.tokens
+	originalPosition := h.Parser.position
+	originalSource := h.Parser.source
+
+	h.Parser.tokens = exprTokens
+	h.Parser.position = 0
+
+	exprParser := NewExpressionParser(h.Parser)
+	expr, ctl := exprParser.Parse()
+
+	h.Parser.tokens = originalTokens
+	h.Parser.position = originalPosition
+	h.Parser.source = originalSource
+
+	if ctl != nil {
+		return nil, ctl
+	}
+	return expr, nil
 }
 
 // findClosingTag 查找结束标签
