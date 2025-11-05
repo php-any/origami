@@ -81,18 +81,25 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 			var attrValue data.GetValue
 			if h.checkPositionIs(0, token.STRING) {
 				// 字符串值
-				value := h.current().Literal
+				value := h.current()
 				h.next()
+
 				// 支持前缀 ':' 的任意属性值作为可执行表达式
-				if len(value) > 0 && isCode {
-					exprStr := value[1 : len(value)-1]
-					expr, ctl := h.Parser.ParseExpressionFromString(exprStr)
+				if isCode {
+					exprStr := []lexer.Token{value}
+					for h.checkPositionIs(0, token.INTERPOLATION_LINK) {
+						exprStr = append(exprStr, h.current())
+						h.next()
+						exprStr = append(exprStr, h.current())
+						h.next()
+					}
+					expr, ctl := h.parseExprFromTokens(exprStr)
 					if ctl != nil {
 						return nil, ctl
 					}
 					attrValue = expr
 				} else {
-					attrValue = node.NewStringLiteral(h.FromCurrentToken(), value)
+					attrValue = node.NewStringLiteral(h.FromCurrentToken(), value.Literal)
 				}
 			} else {
 				// 其他类型的值，尝试解析为表达式或直接作为字符串
@@ -267,7 +274,7 @@ func (h *HtmlParser) parseTagName() string {
 
 // parseHtmlChildren 解析HTML子内容
 func (h *HtmlParser) parseHtmlChildren() ([]data.GetValue, data.Control) {
-	var children []data.GetValue
+	var children = make([]data.GetValue, 0)
 
 	for !h.isEOF() {
 		// 检查是否是结束标签
@@ -467,17 +474,23 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 			var attrValue data.GetValue
 			if h.checkPositionIs(0, token.STRING) {
 				// 字符串值
-				value := h.current().Literal
+				value := h.current()
 				h.next()
-				if len(value) > 0 && isCode {
-					exprStr := value[1 : len(value)-1]
-					expr, ctl := h.Parser.ParseExpressionFromString(exprStr)
+				if isCode {
+					exprStr := []lexer.Token{value}
+					for h.checkPositionIs(0, token.INTERPOLATION_LINK) {
+						exprStr = append(exprStr, h.current())
+						h.next()
+						exprStr = append(exprStr, h.current())
+						h.next()
+					}
+					expr, ctl := h.parseExprFromTokens(exprStr)
 					if ctl != nil {
 						return nil, ctl
 					}
 					attrValue = expr
 				} else {
-					attrValue = node.NewStringLiteral(h.FromCurrentToken(), value)
+					attrValue = node.NewStringLiteral(h.FromCurrentToken(), value.Literal)
 				}
 			} else {
 				// 其他类型的值，尝试解析为表达式或直接作为字符串

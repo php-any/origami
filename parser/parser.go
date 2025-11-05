@@ -538,7 +538,7 @@ func (p *Parser) ParserTokens(tokens []lexer.Token, filePath string) (*node.Prog
 	if len(tokens) > 1 && tokens[0].Type == token.SEMICOLON {
 		nTokens := make([]lexer.Token, 0)
 		i := 0
-		for tokens[i].Type == token.SEMICOLON {
+		for len(tokens) > i && tokens[i].Type == token.SEMICOLON {
 			i++
 		}
 		for _, t := range tokens[i:] {

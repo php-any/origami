@@ -66,7 +66,7 @@
 
                     <!-- 收藏链接 -->
                     <div class="favorite-links" id="favoriteLinks">
-                        <a :href="$f->url" target="_blank" class="favorite-link" for="$f in $favoriteTools">
+                        <a :href="{$f->url}" target="_blank" class="favorite-link" for="$f in $favoriteTools">
                             <span class="favorite-link-icon">{$f->icon ?? "🔗"}</span>
                             <span>{$f->name}</span>
                         </a>
@@ -87,7 +87,7 @@
                     </div>
                     <div class="quick-links" id="projectsGrid">
                         <a class="project-card"
-                            :href="($p->environments != null && $p->environments->length > 0) ? $p->environments[0]->url : '#'"
+                            :href="@{($p->environments != null && $p->environments->length > 0) ? $p->environments[0]->url : '#'}"
                             target="_blank" for="$p in $projects">
                             <h4 class="project-name">{$p->name}</h4>
                             <p class="project-desc">{$p->description ?? ""}</p>

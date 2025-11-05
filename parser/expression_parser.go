@@ -156,7 +156,7 @@ func (ep *ExpressionParser) parseConcatenation() (data.GetValue, data.Control) {
 	if acl != nil {
 		return nil, acl
 	}
-	for ep.current().Type == token.DOT {
+	for ep.current().Type == token.DOT || ep.current().Type == token.INTERPOLATION_LINK {
 		operator := ep.current()
 		ep.next()
 

@@ -33,6 +33,8 @@ func cannotAddSemicolon(t Token) bool {
 		return true
 	case token.ADD: // 加号后不用补充
 		return true
+	case token.INTERPOLATION_LINK: // 插值连接符后不用补充
+		return true
 	case token.SUB: // 减号后不用补充
 		return true
 	case token.MUL: // 乘号后不用补充
@@ -210,7 +212,7 @@ func processStringInterpolation(t Token) []Token {
 			if len(currentStr) > 0 {
 				if len(tokens) > 0 {
 					tokens = append(tokens, Token{
-						Type:    token.ADD,
+						Type:    token.INTERPOLATION_LINK,
 						Literal: "+",
 						Start:   t.Start + i,
 						End:     t.Start + i + 1,
@@ -242,7 +244,7 @@ func processStringInterpolation(t Token) []Token {
 				})
 			}
 			tokens = append(tokens, Token{
-				Type:    token.ADD,
+				Type:    token.INTERPOLATION_LINK,
 				Literal: "+",
 				Start:   t.Start + i,
 				End:     t.Start + i + 1,
@@ -279,7 +281,7 @@ func processStringInterpolation(t Token) []Token {
 			if len(currentStr) > 0 {
 				if len(tokens) > 0 {
 					tokens = append(tokens, Token{
-						Type:    token.ADD,
+						Type:    token.INTERPOLATION_LINK,
 						Literal: "+",
 						Start:   t.Start + i,
 						End:     t.Start + i + 1,
@@ -301,7 +303,7 @@ func processStringInterpolation(t Token) []Token {
 
 			// 添加加号
 			tokens = append(tokens, Token{
-				Type:    token.ADD,
+				Type:    token.INTERPOLATION_LINK,
 				Literal: "+",
 				Start:   t.Start + i,
 				End:     t.Start + i + 1,
@@ -351,9 +353,9 @@ func processStringInterpolation(t Token) []Token {
 			// "{$data}"
 			tokens = []Token{}
 		} else {
-			if len(tokens) > 1 && token.ADD != tokens[len(tokens)-1].Type {
+			if len(tokens) > 1 && token.INTERPOLATION_LINK != tokens[len(tokens)-1].Type {
 				tokens = append(tokens, Token{
-					Type:    token.ADD,
+					Type:    token.INTERPOLATION_LINK,
 					Literal: "+",
 					Start:   t.Start,
 					End:     t.End,

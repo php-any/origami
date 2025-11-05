@@ -137,6 +137,9 @@ const (
 	ELLIPSIS            // ... 省略号
 	DOUBLE_DOT          // .. 双点号
 
+	// 专用：字符串插值连接符（仅预处理阶段注入，不由词法直接产生）
+	INTERPOLATION_LINK
+
 	VALUE_START
 	// 字面量
 	NUMBER  // 复杂数字面量

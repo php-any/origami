@@ -1,4 +1,3 @@
-$ok = false;
-$oo = false;
 
-echo ($ok == false && $oo == false ? "f":"t")
+$n = 123;
+echo <div :title="call({$n})"></div>;

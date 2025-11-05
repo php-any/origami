@@ -14,6 +14,8 @@ func NewBinaryExpression(from data.From, left data.GetValue, operator lexer.Toke
 	switch operator.Type {
 	case token.ADD:
 		return NewBinaryAdd(from, left, right)
+	case token.INTERPOLATION_LINK:
+		return NewBinaryLink(from, left, right)
 	case token.SUB:
 		return NewBinarySub(from, left, right)
 	case token.ASSIGN:
