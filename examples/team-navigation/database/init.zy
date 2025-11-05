@@ -36,6 +36,7 @@ function initTables($db) {
         Log::info("已添加 is_favorite 字段到 tool_links 表");
     } catch (Exception $e) {
         // 字段可能已存在，忽略错误
+        Log::info("已添加 is_favorite 字段到 tool_links 表");
     }
 
     // 创建项目表

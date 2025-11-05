@@ -27,6 +27,8 @@ type ThrowValue struct {
 	getMessage       Method
 	getTraceAsString Method
 
+	Name string
+
 	Error *Error
 	// 调用栈信息
 	StackFrames []StackFrame
@@ -49,7 +51,7 @@ func (t *ThrowValue) GetFrom() From {
 
 func (t *ThrowValue) GetName() string {
 	if t.object == nil {
-		return "Error"
+		return t.Name
 	}
 
 	return t.object.Class.GetName()
@@ -95,6 +97,7 @@ func (t *ThrowValue) GetConstruct() Method {
 func NewErrorThrowFromClassValue(from From, object *ClassValue) Control {
 	t := &ThrowValue{
 		object: object,
+		Name:   "Exception",
 		Error:  NewError(from, fmt.Sprintf("Throw %s: %s", object.Class.GetName(), object.Class.(interface{ AsString() string }).AsString()), nil),
 	}
 	t.getMessage = &ThrowValueGetMessageMethod{
@@ -109,6 +112,7 @@ func NewErrorThrowFromClassValue(from From, object *ClassValue) Control {
 func NewErrorThrow(from From, err error) Control {
 	t := &ThrowValue{
 		Error: NewError(from, err.Error(), err),
+		Name:  "Exception",
 	}
 	t.getMessage = &ThrowValueGetMessageMethod{
 		source: t,
@@ -123,6 +127,7 @@ func NewErrorThrow(from From, err error) Control {
 func TryErrorThrow(from From, err error) Control {
 	t := &ThrowValue{
 		Error: NewError(from, err.Error(), err),
+		Name:  "Exception",
 	}
 	t.getMessage = &ThrowValueGetMessageMethod{
 		source: t,
