@@ -34,6 +34,7 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
+	fmt.Println("按 Ctrl+C 停止服务器")
 	// 在 goroutine 中运行脚本
 	go func() {
 		_, err := vm.LoadAndRun("http.zy")
@@ -42,8 +43,6 @@ func main() {
 		}
 	}()
 
-	fmt.Println("团队导航页服务启动在: http://127.0.0.1:8080")
-	fmt.Println("按 Ctrl+C 停止服务器")
 	<-sigChan
 	fmt.Println("\n收到停止信号，正在关闭服务器...")
 }

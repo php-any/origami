@@ -29,12 +29,12 @@ func NewHtmlNode(from data.From, tagName string, attributes map[string]HtmlAttri
 // GetValue 获取HTML节点的值
 func (h *HtmlNode) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	// 生成HTML字符串
-	html := h.generateHtml(ctx)
-	return data.NewStringValue(html), nil
+	html, acl := h.generateHtml(ctx)
+	return data.NewStringValue(html), acl
 }
 
 // generateHtml 生成HTML字符串
-func (h *HtmlNode) generateHtml(ctx data.Context) string {
+func (h *HtmlNode) generateHtml(ctx data.Context) (string, data.Control) {
 	// 检查是否有特殊的属性值类型
 	var forValue *AttrForValue
 	var ifValue *AttrIfValue
@@ -53,20 +53,26 @@ func (h *HtmlNode) generateHtml(ctx data.Context) string {
 
 	// 如果有if属性，执行条件链
 	if ifValue != nil {
-		shouldOutput, result := ifValue.ProcessHtml(ctx, h)
-		if shouldOutput {
-			return result
+		shouldOutput, result, acl := ifValue.ProcessHtml(ctx, h)
+		if acl != nil {
+			return "", acl
 		}
-		return ""
+		if shouldOutput {
+			return result, nil
+		}
+		return "", nil
 	}
 
 	// 如果有for属性，执行for循环
 	if forValue != nil {
-		shouldOutput, result := forValue.ProcessHtml(ctx, h)
-		if shouldOutput {
-			return result
+		shouldOutput, result, acl := forValue.ProcessHtml(ctx, h)
+		if acl != nil {
+			return "", acl
 		}
-		return ""
+		if shouldOutput {
+			return result, nil
+		}
+		return "", nil
 	}
 
 	// 普通HTML节点处理
@@ -74,7 +80,7 @@ func (h *HtmlNode) generateHtml(ctx data.Context) string {
 }
 
 // generateNormalHtml 生成普通HTML
-func (h *HtmlNode) generateNormalHtml(ctx data.Context) string {
+func (h *HtmlNode) generateNormalHtml(ctx data.Context) (string, data.Control) {
 	// 开始标签
 	html := "<" + h.TagName
 
@@ -90,7 +96,7 @@ func (h *HtmlNode) generateNormalHtml(ctx data.Context) string {
 
 		attrResult, ctl := value.GetValue().GetValue(ctx)
 		if ctl != nil {
-			continue
+			return "", ctl
 		}
 
 		if strValue, ok := attrResult.(data.AsString); ok {
@@ -113,13 +119,16 @@ func (h *HtmlNode) generateNormalHtml(ctx data.Context) string {
 		for _, child := range h.Children {
 			childValue, ctl := child.GetValue(ctx)
 			if ctl != nil {
-				continue
+				return "", ctl
 			}
 
 			if strValue, ok := childValue.(data.AsString); ok {
 				html += strValue.AsString()
 			} else if htmlNode, ok := childValue.(*HtmlNode); ok {
-				childHtml := htmlNode.generateHtml(ctx)
+				childHtml, acl := htmlNode.generateHtml(ctx)
+				if acl != nil {
+					return "", acl
+				}
 				html += childHtml
 			} else {
 				html += fmt.Sprintf("%v", childValue)
@@ -130,7 +139,7 @@ func (h *HtmlNode) generateNormalHtml(ctx data.Context) string {
 		html += "</" + h.TagName + ">"
 	}
 
-	return html
+	return html, nil
 }
 
 // GetTagName 返回标签名
@@ -173,12 +182,16 @@ func (d *HtmlDocTypeNode) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	for _, child := range d.Children {
 		v, ctl := child.GetValue(ctx)
 		if ctl != nil {
-			continue
+			return nil, ctl
 		}
 		if s, ok := v.(data.AsString); ok {
 			html += s.AsString()
 		} else if n, ok := v.(*HtmlNode); ok {
-			html += n.generateHtml(ctx)
+			str, acl := n.generateHtml(ctx)
+			if acl != nil {
+				return nil, acl
+			}
+			html += str
 		} else {
 			html += fmt.Sprintf("%v", v)
 		}

@@ -7,7 +7,7 @@ import (
 // HtmlAttributeValue HTML属性值接口
 type HtmlAttributeValue interface {
 	// ProcessHtml 处理HTML节点，返回是否应该输出HTML
-	ProcessHtml(ctx data.Context, htmlNode *HtmlNode) (shouldOutput bool, result string)
+	ProcessHtml(ctx data.Context, htmlNode *HtmlNode) (shouldOutput bool, result string, control data.Control)
 	// GetValue 获取原始值（用于兼容性）
 	GetValue() data.GetValue
 }
@@ -29,9 +29,9 @@ func NewAttrValueAdapter(from data.From, attrName string, value data.GetValue) *
 }
 
 // ProcessHtml 处理普通属性值的HTML输出
-func (a *AttrValueAdapter) ProcessHtml(ctx data.Context, htmlNode *HtmlNode) (bool, string) {
+func (a *AttrValueAdapter) ProcessHtml(ctx data.Context, htmlNode *HtmlNode) (bool, string, data.Control) {
 	// 普通属性值不控制HTML输出，总是返回true
-	return true, ""
+	return true, "", nil
 }
 
 // GetValue 获取原始值
@@ -58,23 +58,23 @@ func NewAttrForValue(from data.From, array data.GetValue, key data.Variable, val
 }
 
 // ProcessHtml 处理for循环的HTML输出
-func (a *AttrForValue) ProcessHtml(ctx data.Context, htmlNode *HtmlNode) (bool, string) {
+func (a *AttrForValue) ProcessHtml(ctx data.Context, htmlNode *HtmlNode) (bool, string, data.Control) {
 	// 获取数组值
 	arrayValue, ctl := a.Array.GetValue(ctx)
 	if ctl != nil {
-		return false, ""
+		return false, "", nil
 	}
 
 	// 检查是否是数组
 	arrayData, ok := arrayValue.(*data.ArrayValue)
 	if !ok {
-		return false, ""
+		return false, "", nil
 	}
 
 	// 获取数组长度
 	length := len(arrayData.Value)
 	if length == 0 {
-		return false, ""
+		return false, "", nil
 	}
 
 	// 遍历数组
@@ -94,10 +94,14 @@ func (a *AttrForValue) ProcessHtml(ctx data.Context, htmlNode *HtmlNode) (bool, 
 		}
 
 		// 生成当前迭代的HTML
-		result += htmlNode.generateNormalHtml(ctx)
+		str, acl := htmlNode.generateNormalHtml(ctx)
+		if acl != nil {
+			return false, "", acl
+		}
+		result += str
 	}
 
-	return true, result
+	return true, result, nil
 }
 
 // GetValue 获取原始值（for属性没有单一原始值，返回nil）
@@ -120,17 +124,18 @@ func NewAttrIfValue(from data.From, condition data.GetValue) *AttrIfValue {
 }
 
 // ProcessHtml 处理if条件链的HTML输出
-func (a *AttrIfValue) ProcessHtml(ctx data.Context, htmlNode *HtmlNode) (bool, string) {
+func (a *AttrIfValue) ProcessHtml(ctx data.Context, htmlNode *HtmlNode) (bool, string, data.Control) {
 	// 检查当前条件
 	if a.Condition == nil {
 		// else节点，总是执行
-		return true, htmlNode.generateNormalHtml(ctx)
+		ret, acl := htmlNode.generateNormalHtml(ctx)
+		return true, ret, acl
 	}
 
 	// 获取条件值
 	conditionValue, ctl := a.Condition.GetValue(ctx)
 	if ctl != nil {
-		return false, ""
+		return false, "", nil
 	}
 
 	// 检查条件是否为真
@@ -148,11 +153,12 @@ func (a *AttrIfValue) ProcessHtml(ctx data.Context, htmlNode *HtmlNode) (bool, s
 
 	// 如果条件为真，生成HTML
 	if isTrue {
-		return true, htmlNode.generateNormalHtml(ctx)
+		ret, acl := htmlNode.generateNormalHtml(ctx)
+		return true, ret, acl
 	}
 
 	// 没有下一个节点，不输出
-	return false, ""
+	return false, "", nil
 }
 
 // GetValue 获取原始值（if属性没有单一原始值，返回nil）

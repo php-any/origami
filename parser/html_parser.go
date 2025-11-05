@@ -2,7 +2,10 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/lexer"
@@ -49,7 +52,10 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 	attributes := make(map[string]node.HtmlAttributeValue)
 	for !h.isEOF() && h.current().Type != token.GT && h.current().Type != token.QUO {
 		// 只解析属性名称
-		attrName := h.parseAttributeName()
+		attrName, isCode, acl := h.parseAttributeName()
+		if acl != nil {
+			return nil, acl
+		}
 		if attrName == "" {
 			continue
 		}
@@ -78,8 +84,8 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 				value := h.current().Literal
 				h.next()
 				// 支持前缀 ':' 的任意属性值作为可执行表达式
-				if len(value) > 0 && strings.HasPrefix(value, ":") {
-					exprStr := value[1:]
+				if len(value) > 0 && isCode {
+					exprStr := value[1 : len(value)-1]
 					expr, ctl := h.Parser.ParseExpressionFromString(exprStr)
 					if ctl != nil {
 						return nil, ctl
@@ -174,16 +180,30 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 }
 
 // parseAttributeName 解析属性名
-func (h *HtmlParser) parseAttributeName() string {
+func (h *HtmlParser) parseAttributeName() (string, bool, data.Control) {
 	// 收集属性名，支持连字符
 	var name string
-
+	var isCode bool
 	if !h.isEOF() {
 		// 添加第一个标识符
 		if h.checkPositionIs(0, token.SEMICOLON) && h.current().Literal == "\n" {
 			// 无效的换行而已
 			h.next()
-			return name
+			return name, isCode, nil
+		}
+		if h.checkPositionIs(0, token.COLON) {
+			isCode = true
+			h.next()
+		}
+		current := h.current()
+		// 基于原始字符判断属性名起始：首字符需为字母或下划线
+		lit := current.Literal
+		if lit == "" {
+			return name, isCode, data.NewErrorThrow(h.newFrom(), fmt.Errorf("html属性名不能为空"))
+		}
+		first, _ := utf8.DecodeRuneInString(lit)
+		if !(unicode.IsLetter(first) || first == '_') {
+			return name, isCode, data.NewErrorThrow(h.newFrom(), fmt.Errorf("html属性必须以字母或下划线开头: %s", lit))
 		}
 		name = h.current().Literal
 		h.next()
@@ -204,7 +224,7 @@ func (h *HtmlParser) parseAttributeName() string {
 		}
 	}
 
-	return name
+	return name, isCode, nil
 }
 
 // parseAttributeValue 解析属性值
@@ -418,7 +438,10 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 	attributes := make(map[string]node.HtmlAttributeValue)
 	for !h.isEOF() && h.current().Type != token.GT && h.current().Type != token.QUO {
 		// 只解析属性名称
-		attrName := h.parseAttributeName()
+		attrName, isCode, acl := h.parseAttributeName()
+		if acl != nil {
+			return nil, acl
+		}
 		if attrName == "" {
 			continue
 		}
@@ -446,7 +469,16 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 				// 字符串值
 				value := h.current().Literal
 				h.next()
-				attrValue = node.NewStringLiteral(h.FromCurrentToken(), value)
+				if len(value) > 0 && isCode {
+					exprStr := value[1 : len(value)-1]
+					expr, ctl := h.Parser.ParseExpressionFromString(exprStr)
+					if ctl != nil {
+						return nil, ctl
+					}
+					attrValue = expr
+				} else {
+					attrValue = node.NewStringLiteral(h.FromCurrentToken(), value)
+				}
 			} else {
 				// 其他类型的值，尝试解析为表达式或直接作为字符串
 				attrValue = h.parseAttributeValue()
