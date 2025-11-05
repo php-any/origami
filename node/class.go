@@ -168,6 +168,10 @@ func (p *ClassProperty) GetType() data.Types {
 	return p.Type
 }
 
+func (p *ClassProperty) SetType(t data.Types) {
+	p.Type = t
+}
+
 func (p *ClassProperty) SetValue(ctx data.Context, value data.Value) data.Control {
 	p.DefaultValue = value
 	return nil

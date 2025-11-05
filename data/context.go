@@ -93,6 +93,8 @@ type Property interface {
 	GetModifier() Modifier     // 访问修饰符
 	GetIsStatic() bool         // 是否是静态属性
 	GetDefaultValue() GetValue // 默认值
+	GetType() Types
+	SetType(Types)
 }
 
 type Method interface {

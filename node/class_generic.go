@@ -21,6 +21,20 @@ func (c *ClassGeneric) GenericList() []data.Types {
 	return c.Generic
 }
 
+func (c *ClassGeneric) GetProperty(name string) (data.Property, bool) {
+	if f, ok := c.Properties[name]; ok {
+		// 替换泛型类型
+		if f.GetType() != nil {
+			t := f.GetType()
+			if gt, ok := t.(data.Generic); ok {
+				f.SetType(c.GenericMap[gt.Name])
+			}
+		}
+		return f, true
+	}
+	return nil, false
+}
+
 func (c *ClassGeneric) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	object := data.NewClassValue(c, ctx)
 

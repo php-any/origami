@@ -4,7 +4,7 @@ class Box<T> {
 
 // 使用 Box<int>
 $intBox = new Box<int>();
-$intBox->value = 42;
+$intBox->value = "fdsa";
 echo "Box<int>: " . $intBox->value . "\n";
 
 // 使用 Box<string>

@@ -2,6 +2,7 @@ package node
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/php-any/origami/data"
 )
@@ -48,6 +49,16 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 				return nil, acl
 			}
 			switch object := temp.(type) {
+			case *data.ClassValue: // 需要检查属性类型
+				property, ok := object.GetProperty(l.Property)
+				if ok {
+					if property.GetType() != nil && !property.GetType().Is(v) {
+						return nil, data.NewErrorThrow(b.GetFrom(), fmt.Errorf("property %s is not a binary assignment", l.Property))
+					}
+				} else {
+					return nil, data.NewErrorThrow(b.GetFrom(), errors.New("class is not set property"))
+				}
+				object.SetProperty(l.Property, v)
 			case data.SetProperty:
 				return v, object.SetProperty(l.Property, v)
 			default:
