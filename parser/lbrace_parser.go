@@ -30,9 +30,17 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 		return node.NewKv(from, v), nil
 	}
 
-	expr, acl := ep.parseStatement()
-	if acl != nil {
-		return nil, acl
+	var expr data.GetValue
+	var acl data.Control
+	if ep.peek(1).Type == token.COLON {
+		// 先匹配 key: 符号，如果是这个格式，那么是关键字也能作为 key
+		expr = data.NewStringValue(ep.current().Literal)
+		ep.next()
+	} else {
+		expr, acl = ep.parseStatement()
+		if acl != nil {
+			return nil, acl
+		}
 	}
 	switch ep.current().Type {
 	case token.ARRAY_KEY_VALUE: // => 对象定义
@@ -73,11 +81,20 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 				break
 			}
 			ep.nextAndCheck(token.COMMA)
-			key, acl := ep.parseStatement()
-			if acl != nil {
-				return nil, acl
+
+			var key data.GetValue
+			if ep.peek(1).Type == token.COLON {
+				// 先匹配 key: 符号，如果是这个格式，那么是关键字也能作为 key
+				key = data.NewStringValue(ep.current().Literal)
+				ep.next()
+			} else {
+				key, acl = ep.parseStatement()
+				if acl != nil {
+					return nil, acl
+				}
 			}
-			ep.next()
+			ep.nextAndCheck(token.COLON) // :
+
 			val, acl := ep.parseStatement()
 			if acl != nil {
 				return nil, acl
