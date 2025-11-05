@@ -24,7 +24,6 @@ type StackFrame struct {
 // ThrowValue 表示异常抛出控制流
 type ThrowValue struct {
 	object           *ClassValue
-	extend           string
 	getMessage       Method
 	getTraceAsString Method
 
@@ -57,7 +56,7 @@ func (t *ThrowValue) GetName() string {
 }
 
 func (t *ThrowValue) GetExtend() *string {
-	return &t.extend
+	return nil
 }
 
 func (t *ThrowValue) GetImplements() []string {
