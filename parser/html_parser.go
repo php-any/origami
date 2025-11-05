@@ -108,6 +108,9 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 	} else if h.checkPositionIs(0, token.GT) {
 		// 普通开始标签闭合 '>'
 		h.next()
+		if isVoidHtmlTag(tagName) {
+			isSelfClosing = true
+		}
 	} else {
 		return nil, data.NewErrorThrow(h.newFrom(), errors.New("HTML标签格式错误"))
 	}
@@ -145,7 +148,6 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 	}
 
 	children := make([]data.GetValue, 0)
-
 	if !isSelfClosing {
 		var acl data.Control
 		children, acl = h.parseHtmlChildren()
@@ -178,6 +180,11 @@ func (h *HtmlParser) parseAttributeName() string {
 
 	if !h.isEOF() {
 		// 添加第一个标识符
+		if h.checkPositionIs(0, token.SEMICOLON) && h.current().Literal == "\n" {
+			// 无效的换行而已
+			h.next()
+			return name
+		}
 		name = h.current().Literal
 		h.next()
 
