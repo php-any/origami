@@ -1,7 +1,5 @@
 // 管理后台脚本
 
-let tools = [];
-let projects = [];
 let currentEditingTool = null;
 let currentEditingProject = null;
 let projectEnvironments = [];
@@ -24,30 +22,10 @@ document.querySelectorAll(".tab").forEach((tab) => {
 });
 
 // 加载工具链接
-async function loadTools() {
-  try {
-    const response = await fetch("/api/tools");
-    tools = await response.json();
-    renderToolsTable();
-  } catch (error) {
-    console.error("加载工具失败:", error);
-    document.getElementById("toolsTableContainer").innerHTML =
-      '<div class="empty-state">加载失败，请刷新重试</div>';
-  }
-}
+// 后端渲染，移除前端加载工具数据
 
 // 加载项目
-async function loadProjects() {
-  try {
-    const response = await fetch("/api/projects");
-    projects = await response.json();
-    renderProjectsTable();
-  } catch (error) {
-    console.error("加载项目失败:", error);
-    document.getElementById("projectsTableContainer").innerHTML =
-      '<div class="empty-state">加载失败，请刷新重试</div>';
-  }
-}
+// 后端渲染，移除前端加载项目数据
 
 // 渲染工具表格
 function renderToolsTable() {
@@ -229,8 +207,8 @@ async function saveTool(event) {
     }
 
     closeToolModal();
-    await loadTools();
     alert("保存成功！");
+    window.location.reload();
   } catch (error) {
     console.error("保存失败:", error);
     alert("保存失败: " + error.message);
@@ -253,8 +231,8 @@ async function deleteTool(id) {
 
     if (!response.ok) throw new Error("删除失败");
 
-    await loadTools();
     alert("删除成功！");
+    window.location.reload();
   } catch (error) {
     console.error("删除失败:", error);
     alert("删除失败: " + error.message);
@@ -505,8 +483,8 @@ async function saveProject(event) {
     }
 
     closeProjectModal();
-    await loadProjects();
     alert("保存成功！");
+    window.location.reload();
   } catch (error) {
     console.error("保存失败:", error);
     alert("保存失败: " + error.message);
@@ -535,8 +513,8 @@ async function deleteProject(id) {
 
     if (!response.ok) throw new Error("删除失败");
 
-    await loadProjects();
     alert("删除成功！");
+    window.location.reload();
   } catch (error) {
     console.error("删除失败:", error);
     alert("删除失败: " + error.message);
@@ -545,9 +523,6 @@ async function deleteProject(id) {
 
 // 初始化
 document.addEventListener("DOMContentLoaded", function () {
-  loadTools();
-  loadProjects();
-
   // 点击模态框外部关闭
   document.querySelectorAll(".modal").forEach((modal) => {
     modal.addEventListener("click", function (e) {

@@ -92,7 +92,7 @@
                             <h4 class="project-name">{$p->name}</h4>
                             <p class="project-desc">{$p->description ?? ""}</p>
                             <div class="project-tools" if="$p->tools != null && $p->tools->length > 0">
-                                <a class="tool-tag" :href="$t->url" target="_blank" title="{$t->name}"
+                                <a class="tool-tag" :href="$t->url" target="_blank" :title="$t->name"
                                     for="$t in $p->tools">
                                     <span class="tool-tag-icon">{$t->icon ?? "🔗"}</span>
                                     <span>{$t->name}</span>

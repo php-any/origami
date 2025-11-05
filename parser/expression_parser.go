@@ -360,7 +360,7 @@ func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 
 			return node.NewHtmlDocTypeNode(tracker.EndBefore(), doc, children), nil
 		} else {
-			return nil, data.NewErrorThrow(ep.newFrom(), errors.New("比较表达式左值不存在"))
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("比较表达式左值不存在"))
 		}
 	}
 	for ep.current().Type == token.LT || ep.current().Type == token.LE ||

@@ -374,7 +374,41 @@
                             <button class="btn" onclick="openToolModal()" style="margin-left: auto;">+ 添加工具</button>
                         </div>
                         <div id="toolsTableContainer">
-                            <div class="empty-state">正在加载数据...</div>
+                            <table if="$tools != null && $tools->length > 0">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>图标</th>
+                                        <th>名称</th>
+                                        <th>分类</th>
+                                        <th>链接</th>
+                                        <th>收藏</th>
+                                        <th>顺序</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr for="$t in $tools">
+                                        <td>{$t->id}</td>
+                                        <td>{$t->icon ?? "🔗"}</td>
+                                        <td>{$t->name}</td>
+                                        <td>{$t->category ?? "-"}</td>
+                                        <td><a :href="$t->url" target="_blank"
+                                                style="color: var(--primary);">{$t->url}</a></td>
+                                        <td>@{($t->isFavorite ?? 0) == 1 ? "⭐" : "-"}</td>
+                                        <td>{$t->displayOrder ?? 0}</td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button class="btn btn-small"
+                                                    :onclick="'editTool(' + $t->id + ')'">编辑</button>
+                                                <button class="btn btn-small btn-danger"
+                                                    :onclick="'deleteTool(' + $t->id + ')'">删除</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div class="empty-state" if="$tools == null || $tools->length == 0">暂无工具链接，点击上方按钮添加</div>
                         </div>
                     </section>
                 </div>
@@ -388,7 +422,35 @@
                             <button class="btn" onclick="openProjectModal()" style="margin-left: auto;">+ 添加项目</button>
                         </div>
                         <div id="projectsTableContainer">
-                            <div class="empty-state">正在加载数据...</div>
+                            <table if="$projects != null && $projects->length > 0">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>项目名称</th>
+                                        <th>环境数量</th>
+                                        <th>顺序</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr for="$p in $projects">
+                                        <td>{$p->id}</td>
+                                        <td>{$p->name}</td>
+                                        <td>{($p->environments ?? [])->length}</td>
+                                        <td>{$p->displayOrder ?? 0}</td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button class="btn btn-small"
+                                                    :onclick="'editProject(' + $p->id + ')'">编辑</button>
+                                                <button class="btn btn-small btn-danger"
+                                                    :onclick="'deleteProject(' + $p->id + ')'">删除</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div class="empty-state" if="$projects == null || $projects->length == 0">暂无项目，点击上方按钮添加
+                            </div>
                         </div>
                     </section>
                 </div>
@@ -473,7 +535,17 @@
                         <h3 style="margin-top: 30px; margin-bottom: 15px;">关联工具</h3>
                         <div id="projectToolsList"
                             style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 12px; background: var(--bg-light);">
-                            <!-- 工具选择列表将通过 JS 插入 -->
+                            <label
+                                style="display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 4px; cursor: pointer; transition: background 0.2s;"
+                                onmouseover="this.style.background='var(--bg-hover)'"
+                                onmouseout="this.style.background='transparent'" for="$tool in $tools">
+                                <input type="checkbox" :value="$tool->id" :id="'tool_' + $tool->id"
+                                    :onchange="'toggleProjectTool(' + $tool->id + ', this.checked)'">
+                                <span>{$tool->icon ?? "🔗"}</span>
+                                <span>{$tool->name}</span>
+                                <span style="color: var(--text-muted); font-size: 0.85rem;"
+                                    if="$tool->category != null">({$tool->category})</span>
+                            </label>
                         </div>
                     </div>
                     <div id="projectEnvironments">

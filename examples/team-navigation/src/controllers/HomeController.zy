@@ -49,9 +49,32 @@ class HomeController {
 
     @GetMapping(path: "/admin")
     public function admin($request, $response) {
-        $html = file_get_contents("./src/views/admin.html");
-        $response->header("Content-Type", "text/html; charset=utf-8");
-        $response->write($html);
+        // 加载工具
+        $tools = new DB<ToolLink>()->orderBy("display_order ASC")->get();
+
+        // 加载项目并挂载环境与工具
+        $projects = new DB<Project>()->orderBy("display_order ASC")->get();
+        for (_, $p in $projects) {
+            $envs = DB<ProjectEnvironment>()->where("project_id = ?", $p->id)
+                ->orderBy("display_order ASC")->get();
+            $p->environments = $envs;
+
+            $projectTools = DB<ProjectTool>()->where("project_id = ?", $p->id)
+                ->orderBy("display_order ASC")->get();
+            $pTools = [];
+            for (_, $pt in $projectTools) {
+                $ts = DB<ToolLink>()->where("id = ?", $pt->toolId)->get();
+                if ($ts != null && $ts->length > 0) {
+                    $pTools[] = $ts[0];
+                }
+            }
+            $p->tools = $pTools;
+        }
+
+        $response->view("./src/views/admin.html", {
+            "tools": $tools,
+            "projects": $projects
+        });
     }
 }
 

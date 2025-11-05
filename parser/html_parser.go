@@ -622,6 +622,52 @@ func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 
 			// 添加表达式到结果中
 			textParts = append(textParts, expr)
+		} else if h.current().Type == token.AT && h.checkPositionIs(1, token.LBRACE) && !h.checkPositionIs(-1, token.LBRACE) {
+			// 处理函数/表达式插值 @{ ... } 但不能是 \@{
+			// 输出累积文本
+			if currentText != "" {
+				textParts = append(textParts, node.NewStringLiteral(h.FromCurrentToken(), currentText))
+				currentText = ""
+			}
+
+			// 跳过 '@' '{'
+			h.nextAndCheck(token.AT)
+			h.nextAndCheck(token.LBRACE)
+
+			// 收集直到匹配的 '}'（支持嵌套）
+			braceDepth := 1
+			exprStr := ""
+			for !h.isEOF() && braceDepth > 0 {
+				if h.current().Type == token.LBRACE {
+					braceDepth++
+					exprStr += h.current().Literal
+					h.next()
+					continue
+				}
+				if h.current().Type == token.RBRACE {
+					braceDepth--
+					if braceDepth == 0 {
+						break
+					}
+					exprStr += h.current().Literal
+					h.next()
+					continue
+				}
+				exprStr += h.current().Literal
+				h.next()
+			}
+
+			if braceDepth != 0 || h.current().Type != token.RBRACE {
+				return nil, data.NewErrorThrow(h.newFrom(), errors.New("@{ 表达式缺少匹配的 }"))
+			}
+			h.nextAndCheck(token.RBRACE)
+
+			// 解析表达式
+			expr, ctl := h.Parser.ParseExpressionFromString(exprStr)
+			if ctl != nil {
+				return nil, ctl
+			}
+			textParts = append(textParts, expr)
 		} else {
 			// 普通文本
 			currentText += h.current().Literal
