@@ -42,6 +42,11 @@ func (pe *CallObjectProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 				return nil, data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("对象(%s)属性(%s)不是公开的", v.Class.GetName(), pe.Property)))
 			}
 			return property.GetValue(v)
+		} else {
+			property, ok := v.ObjectValue.GetProperty(pe.Property)
+			if ok {
+				return property.GetValue(v)
+			}
 		}
 		return nil, data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("对象(%s)不存在属性(%s)", v.Class.GetName(), pe.Property)))
 	case *data.ObjectValue:
