@@ -55,10 +55,8 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 					if property.GetType() != nil && !property.GetType().Is(v) {
 						return nil, data.NewErrorThrow(b.GetFrom(), fmt.Errorf("property %s is not a binary assignment", l.Property))
 					}
-				} else {
-					return nil, data.NewErrorThrow(b.GetFrom(), errors.New("class is not set property"))
 				}
-				object.SetProperty(l.Property, v)
+				return v, object.SetProperty(l.Property, v)
 			case data.SetProperty:
 				return v, object.SetProperty(l.Property, v)
 			default:
@@ -120,8 +118,6 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 			return nil, data.NewErrorThrow(b.from, errors.New("TODO 赋值表达式遇到未支持的类型"))
 		}
 	}
-
-	_ = rv
 
 	return nil, data.NewErrorThrow(b.from, errors.New("TODO BinaryAssign"))
 }
