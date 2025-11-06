@@ -302,14 +302,16 @@ func processStringInterpolation(t Token) []Token {
 			}
 
 			// 添加加号
-			tokens = append(tokens, Token{
-				Type:    token.INTERPOLATION_LINK,
-				Literal: "+",
-				Start:   t.Start + i,
-				End:     t.Start + i + 1,
-				Line:    t.Line,
-				Pos:     t.Pos + i,
-			})
+			if len(tokens) != 0 {
+				tokens = append(tokens, Token{
+					Type:    token.INTERPOLATION_LINK,
+					Literal: "+",
+					Start:   t.Start + i,
+					End:     t.Start + i + 1,
+					Line:    t.Line,
+					Pos:     t.Pos + i,
+				})
+			}
 
 			// 收集@{...}中的内容
 			start := i + 2
@@ -349,7 +351,7 @@ func processStringInterpolation(t Token) []Token {
 
 	// 添加剩余的字符串
 	if len(currentStr) > 0 {
-		if len(tokens) == 2 && tokens[0].Literal == "" && tokens[1].Type == token.ADD {
+		if len(tokens) == 2 && tokens[0].Literal == "" && tokens[1].Type == token.INTERPOLATION_LINK {
 			// "{$data}"
 			tokens = []Token{}
 		} else {
@@ -392,11 +394,6 @@ func processStringInterpolation(t Token) []Token {
 // isValidVarChar 检查是否是有效的变量名字符
 func isValidVarChar(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' || ('\u4e00' <= r && r <= '\u9fff') // 常见中文 Unicode 范围
-}
-
-// isValidFuncChar 检查是否是有效的函数名字符
-func isValidFuncChar(r rune) bool {
-	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_'
 }
 
 // isNumber 检查是否是数字
