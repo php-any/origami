@@ -103,7 +103,12 @@ func NewErrorThrowFromClassValue(from From, object *ClassValue) Control {
 		if acl != nil {
 			return acl
 		}
-		err = ret.(Value).AsString()
+		switch ret.(type) {
+		case Value:
+			err = ret.(Value).AsString()
+		default:
+			panic(ret) // 不可能执行到这里的, 如果有报错就是解析器的问题
+		}
 	} else {
 		err = "运行时无法处理未继承 Exception 的异常类"
 	}
