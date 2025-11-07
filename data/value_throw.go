@@ -95,10 +95,23 @@ func (t *ThrowValue) GetConstruct() Method {
 }
 
 func NewErrorThrowFromClassValue(from From, object *ClassValue) Control {
+	err := ""
+	if str, ok := object.Class.(AsString); ok {
+		err = str.AsString()
+	} else if method, ok := object.GetMethod("getMessage"); ok {
+		ret, acl := method.Call(object)
+		if acl != nil {
+			return acl
+		}
+		err = ret.(Value).AsString()
+	} else {
+		err = "运行时无法处理未继承 Exception 的异常类"
+	}
+
 	t := &ThrowValue{
 		object: object,
 		Name:   "Exception",
-		Error:  NewError(from, fmt.Sprintf("Throw %s: %s", object.Class.GetName(), object.Class.(interface{ AsString() string }).AsString()), nil),
+		Error:  NewError(from, fmt.Sprintf("Throw %s: %s", object.Class.GetName(), err), nil),
 	}
 	t.getMessage = &ThrowValueGetMessageMethod{
 		source: t,
