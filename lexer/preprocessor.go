@@ -177,6 +177,9 @@ func (p *Preprocessor) Process() []Token {
 		}
 	}
 
+	// 调试：打印所有处理后的 tokens
+	// PrintTokens(result, "分词后的 Token 列表")
+
 	return result
 }
 

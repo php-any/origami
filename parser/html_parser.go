@@ -77,34 +77,16 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 			attributes[attrName] = attrValue
 		} else {
 			// 对于普通属性，使用默认解析
-			h.next()
+			h.nextAndCheck(token.ASSIGN)
 			var attrValue data.GetValue
-			if h.checkPositionIs(0, token.STRING) {
-				// 字符串值
-				value := h.current()
-				h.next()
 
-				// 支持前缀 ':' 的任意属性值作为可执行表达式
-				if isCode {
-					exprStr := []lexer.Token{value}
-					for h.checkPositionIs(0, token.INTERPOLATION_LINK) {
-						exprStr = append(exprStr, h.current())
-						h.next()
-						exprStr = append(exprStr, h.current())
-						h.next()
-					}
-					expr, ctl := h.parseExprFromTokens(exprStr)
-					if ctl != nil {
-						return nil, ctl
-					}
-					attrValue = expr
-				} else {
-					attrValue = node.NewStringLiteral(h.FromCurrentToken(), value.Literal)
-				}
-			} else {
-				// 其他类型的值，尝试解析为表达式或直接作为字符串
+			if isCode {
 				attrValue = h.parseAttributeValue()
+			} else {
+				attrValue = node.NewStringLiteral(h.FromCurrentToken(), h.current().Literal)
+				h.next()
 			}
+
 			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), attrName, attrValue)
 		}
 	}
@@ -472,29 +454,11 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 			// 对于普通属性，使用默认解析
 			h.next()
 			var attrValue data.GetValue
-			if h.checkPositionIs(0, token.STRING) {
-				// 字符串值
-				value := h.current()
-				h.next()
-				if isCode {
-					exprStr := []lexer.Token{value}
-					for h.checkPositionIs(0, token.INTERPOLATION_LINK) {
-						exprStr = append(exprStr, h.current())
-						h.next()
-						exprStr = append(exprStr, h.current())
-						h.next()
-					}
-					expr, ctl := h.parseExprFromTokens(exprStr)
-					if ctl != nil {
-						return nil, ctl
-					}
-					attrValue = expr
-				} else {
-					attrValue = node.NewStringLiteral(h.FromCurrentToken(), value.Literal)
-				}
-			} else {
-				// 其他类型的值，尝试解析为表达式或直接作为字符串
+			if isCode {
 				attrValue = h.parseAttributeValue()
+			} else {
+				attrValue = node.NewStringLiteral(h.FromCurrentToken(), h.current().Literal)
+				h.next()
 			}
 			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), attrName, attrValue)
 		}

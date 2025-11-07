@@ -92,7 +92,7 @@
                             <h4 class="project-name">{$p->name}</h4>
                             <p class="project-desc">{$p->description ?? ""}</p>
                             <div class="project-tools" if="$p->tools != null && $p->tools->length > 0">
-                                <a class="tool-tag" :href="$t->url" target="_blank" :title="$t->name"
+                                <a class="tool-tag" :href="{$t->url}" target="_blank" :title="{$t->name}"
                                     for="$t in $p->tools">
                                     <span class="tool-tag-icon">{$t->icon ?? "🔗"}</span>
                                     <span>{$t->name}</span>
@@ -102,7 +102,7 @@
                                 if="$p->environments != null && $p->environments->length > 0">
                                 <div class="env-item" for="$e in $p->environments">
                                     <span class="env-name">{$e->environmentName}</span>
-                                    <a class="env-link" :href="$e->url" target="_blank">{$e->url}</a>
+                                    <a class="env-link" :href="{$e->url}" target="_blank">{$e->url}</a>
                                 </div>
                             </div>
                         </a>
@@ -116,7 +116,7 @@
                         <h3>工具</h3>
                     </div>
                     <div class="quick-links tools-grid" id="toolsGrid">
-                        <a class="tool-card" :href="$t->url" target="_blank" for="$t in $tools">
+                        <a class="tool-card" :href="{$t->url}" target="_blank" for="$t in $tools">
                             <div class="tool-icon">{$t->icon ?? "🔗"}</div>
                             <div class="tool-name">{$t->name}</div>
                         </a>

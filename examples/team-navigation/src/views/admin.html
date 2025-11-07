@@ -393,16 +393,16 @@
                                         <td>{$t->icon ?? "🔗"}</td>
                                         <td>{$t->name}</td>
                                         <td>{$t->category ?? "-"}</td>
-                                        <td><a :href="$t->url" target="_blank"
+                                        <td><a :href="{$t->url}" target="_blank"
                                                 style="color: var(--primary);">{$t->url}</a></td>
                                         <td>@{($t->isFavorite ?? 0) == 1 ? "⭐" : "-"}</td>
                                         <td>{$t->displayOrder ?? 0}</td>
                                         <td>
                                             <div class="action-buttons">
                                                 <button class="btn btn-small"
-                                                    :onclick="'editTool(' + $t->id + ')'">编辑</button>
+                                                    :onclick="@{'editTool(' + $t->id + ')'}">编辑</button>
                                                 <button class="btn btn-small btn-danger"
-                                                    :onclick="'deleteTool(' + $t->id + ')'">删除</button>
+                                                    :onclick="@{'deleteTool(' + $t->id + ')'}">删除</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -441,9 +441,9 @@
                                         <td>
                                             <div class="action-buttons">
                                                 <button class="btn btn-small"
-                                                    :onclick="'editProject(' + $p->id + ')'">编辑</button>
+                                                    :onclick="@{'editProject(' + $p->id + ')'}">编辑</button>
                                                 <button class="btn btn-small btn-danger"
-                                                    :onclick="'deleteProject(' + $p->id + ')'">删除</button>
+                                                    :onclick="@{'deleteProject(' + $p->id + ')'}">删除</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -539,8 +539,8 @@
                                 style="display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 4px; cursor: pointer; transition: background 0.2s;"
                                 onmouseover="this.style.background='var(--bg-hover)'"
                                 onmouseout="this.style.background='transparent'" for="$tool in $tools">
-                                <input type="checkbox" :value="$tool->id" :id="'tool_' + $tool->id"
-                                    :onchange="'toggleProjectTool(' + $tool->id + ', this.checked)'">
+                                <input type="checkbox" :value="{$tool->id}" :id="@{'tool_' + $tool->id}"
+                                    :onchange="@{'toggleProjectTool(' + $tool->id + ', this.checked)'}">
                                 <span>{$tool->icon ?? "🔗"}</span>
                                 <span>{$tool->name}</span>
                                 <span style="color: var(--text-muted); font-size: 0.85rem;"
