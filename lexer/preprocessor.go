@@ -252,22 +252,70 @@ func processStringInterpolation(t Token) []Token {
 				Pos:     t.Pos + i,
 			})
 
-			// 收集变量名
+			// 收集{$...}中的完整表达式内容（支持方法调用等复杂表达式）
 			start := i + 2
 			j := start
-			for j < len(runes) && isValidVarChar(runes[j]) {
+			braceDepth := 1 // 从 { 开始，深度为1
+			parenDepth := 0
+			bracketDepth := 0
+
+			for j < len(runes) {
+				if runes[j] == '{' {
+					braceDepth++
+				} else if runes[j] == '}' {
+					braceDepth--
+					if braceDepth == 0 {
+						break
+					}
+				} else if runes[j] == '(' {
+					parenDepth++
+				} else if runes[j] == ')' {
+					parenDepth--
+				} else if runes[j] == '[' {
+					bracketDepth++
+				} else if runes[j] == ']' {
+					bracketDepth--
+				}
 				j++
 			}
-			if j < len(runes) && runes[j] == '}' {
-				// 添加变量token，包含$前缀
-				tokens = append(tokens, Token{
-					Type:    token.VARIABLE,
-					Literal: "$" + string(runes[start:j]),
-					Start:   t.Start + start - 1, // -1 是因为要包含$符号
-					End:     t.Start + j,
-					Line:    t.Line,
-					Pos:     t.Pos + start - 1,
-				})
+
+			if j < len(runes) && runes[j] == '}' && braceDepth == 0 {
+				// 找到了匹配的 }，提取表达式内容
+				exprContent := string(runes[start:j])
+
+				// 检查是否是简单变量（只包含变量名，没有操作符）
+				isSimpleVar := true
+				for _, char := range exprContent {
+					if !isValidVarChar(char) {
+						isSimpleVar = false
+						break
+					}
+				}
+
+				if isSimpleVar {
+					// 简单变量，直接创建变量token
+					tokens = append(tokens, Token{
+						Type:    token.VARIABLE,
+						Literal: "$" + exprContent,
+						Start:   t.Start + start - 1, // -1 是因为要包含$符号
+						End:     t.Start + j,
+						Line:    t.Line,
+						Pos:     t.Pos + start - 1,
+					})
+				} else {
+					// 复杂表达式，需要重新分词
+					code := "$" + exprContent
+					l := NewLexer()
+					codeTokens := l.Tokenize(code)
+					// 将分词结果添加到tokens中，并调整位置信息
+					for _, codeToken := range codeTokens {
+						codeToken.Start += t.Start + start - 1
+						codeToken.End += t.Start + start - 1
+						codeToken.Line = t.Line
+						codeToken.Pos = t.Pos + start - 1 + (codeToken.Start - (t.Start + start - 1))
+						tokens = append(tokens, codeToken)
+					}
+				}
 				i = j
 				continue
 			}
