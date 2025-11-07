@@ -467,6 +467,9 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 	isSelfClosing := false
 	// void 标签无需显式自闭合，直接消费 '>' 并返回
 	if isVoidHtmlTag(tagName) {
+		if h.checkPositionIs(0, token.QUO) {
+			h.next()
+		}
 		if h.checkPositionIs(0, token.GT) {
 			h.next()
 		}
