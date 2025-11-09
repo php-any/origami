@@ -79,6 +79,31 @@ func (h *HtmlNode) generateHtml(ctx data.Context) (string, data.Control) {
 	return h.generateNormalHtml(ctx)
 }
 
+// generateChildrenOnly 只生成子节点的HTML（不包含标签本身）
+func (h *HtmlNode) generateChildrenOnly(ctx data.Context) (string, data.Control) {
+	var html string
+	// 只添加子节点
+	for _, child := range h.Children {
+		childValue, ctl := child.GetValue(ctx)
+		if ctl != nil {
+			return "", ctl
+		}
+
+		if strValue, ok := childValue.(data.AsString); ok {
+			html += strValue.AsString()
+		} else if htmlNode, ok := childValue.(*HtmlNode); ok {
+			childHtml, acl := htmlNode.generateHtml(ctx)
+			if acl != nil {
+				return "", acl
+			}
+			html += childHtml
+		} else {
+			html += fmt.Sprintf("%v", childValue)
+		}
+	}
+	return html, nil
+}
+
 // generateNormalHtml 生成普通HTML
 func (h *HtmlNode) generateNormalHtml(ctx data.Context) (string, data.Control) {
 	// 开始标签
@@ -405,4 +430,157 @@ func (h *HtmlIfNode) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 
 	// 没有下一个节点，返回空字符串
 	return data.NewStringValue(""), nil
+}
+
+// HtmlTemplateNode 表示HTML template节点（不输出标签本身，只输出子节点，但可以执行if和for属性）
+type HtmlTemplateNode struct {
+	*Node    `pp:"-"`
+	HtmlNode *HtmlNode // 嵌套的HTML节点
+}
+
+// NewHtmlTemplateNode 创建一个新的HTML template节点
+func NewHtmlTemplateNode(from data.From, htmlNode *HtmlNode) *HtmlTemplateNode {
+	return &HtmlTemplateNode{
+		Node:     NewNode(from),
+		HtmlNode: htmlNode,
+	}
+}
+
+// GetValue 获取HTML template节点的值
+func (h *HtmlTemplateNode) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	// template节点不输出标签本身，只输出子节点
+	// 但需要支持if和for属性
+	var forValue *AttrForValue
+	var ifValue *AttrIfValue
+
+	// 检查是否有特殊的属性值类型
+	for _, value := range h.HtmlNode.Attributes {
+		if forAttr, ok := value.(*AttrForValue); ok {
+			forValue = forAttr
+			continue
+		}
+		if ifAttr, ok := value.(*AttrIfValue); ok {
+			ifValue = ifAttr
+			continue
+		}
+	}
+
+	// 如果有if属性，执行条件链（但只渲染子节点）
+	if ifValue != nil {
+		// 创建一个临时的ProcessHtml方法来只渲染子节点
+		shouldOutput, result, acl := h.processIfForTemplate(ctx, ifValue, nil)
+		if acl != nil {
+			return nil, acl
+		}
+		if shouldOutput {
+			return data.NewStringValue(result), nil
+		}
+		return data.NewStringValue(""), nil
+	}
+
+	// 如果有for属性，执行for循环（但只渲染子节点）
+	if forValue != nil {
+		shouldOutput, result, acl := h.processIfForTemplate(ctx, nil, forValue)
+		if acl != nil {
+			return nil, acl
+		}
+		if shouldOutput {
+			return data.NewStringValue(result), nil
+		}
+		return data.NewStringValue(""), nil
+	}
+
+	// 没有特殊属性，直接渲染子节点
+	html, acl := h.HtmlNode.generateChildrenOnly(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	return data.NewStringValue(html), nil
+}
+
+// processIfForTemplate 处理template节点的if和for属性（只渲染子节点，不渲染标签本身）
+func (h *HtmlTemplateNode) processIfForTemplate(ctx data.Context, ifValue *AttrIfValue, forValue *AttrForValue) (bool, string, data.Control) {
+	if ifValue != nil {
+		// 处理if条件
+		if ifValue.Condition == nil {
+			// else节点，总是执行
+			ret, acl := h.HtmlNode.generateChildrenOnly(ctx)
+			return true, ret, acl
+		}
+
+		// 获取条件值
+		conditionValue, ctl := ifValue.Condition.GetValue(ctx)
+		if ctl != nil {
+			return false, "", nil
+		}
+
+		// 检查条件是否为真
+		var isTrue bool
+		if boolValue, ok := conditionValue.(data.AsBool); ok {
+			if boolVal, err := boolValue.AsBool(); err == nil {
+				isTrue = boolVal
+			}
+		} else if _, ok := conditionValue.(*data.NullValue); ok {
+			isTrue = false
+		} else {
+			// 非空值视为真
+			isTrue = true
+		}
+
+		// 如果条件为真，生成子节点HTML
+		if isTrue {
+			ret, acl := h.HtmlNode.generateChildrenOnly(ctx)
+			return true, ret, acl
+		}
+
+		return false, "", nil
+	}
+
+	if forValue != nil {
+		// 处理for循环
+		arrayValue, ctl := forValue.Array.GetValue(ctx)
+		if ctl != nil {
+			return false, "", nil
+		}
+
+		// 检查是否是数组
+		arrayData, ok := arrayValue.(*data.ArrayValue)
+		if !ok {
+			return false, "", nil
+		}
+
+		// 获取数组长度
+		length := len(arrayData.Value)
+		if length == 0 {
+			return false, "", nil
+		}
+
+		// 遍历数组
+		var result string
+		for i := 0; i < length; i++ {
+			// 获取当前元素
+			item := arrayData.Value[i]
+
+			// 设置循环变量
+			if forValue.Val != nil {
+				ctx.SetVariableValue(forValue.Val, item)
+			}
+
+			// 设置Key变量（如果有）
+			if forValue.Key != nil {
+				ctx.SetVariableValue(forValue.Key, data.NewIntValue(i))
+			}
+
+			// 生成当前迭代的子节点HTML（不包含标签本身）
+			str, acl := h.HtmlNode.generateChildrenOnly(ctx)
+			if acl != nil {
+				return false, "", acl
+			}
+			result += str
+		}
+
+		return true, result, nil
+	}
+
+	return false, "", nil
 }

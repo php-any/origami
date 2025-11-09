@@ -402,20 +402,15 @@ func processStringInterpolation(t Token) []Token {
 
 	// 添加剩余的字符串
 	if len(currentStr) > 0 {
-		if len(tokens) == 2 && tokens[0].Literal == "" && tokens[1].Type == token.INTERPOLATION_LINK {
-			// "{$data}"
-			tokens = []Token{}
-		} else {
-			if len(tokens) > 1 && token.INTERPOLATION_LINK != tokens[len(tokens)-1].Type {
-				tokens = append(tokens, Token{
-					Type:    token.INTERPOLATION_LINK,
-					Literal: "+",
-					Start:   t.Start,
-					End:     t.End,
-					Line:    t.Line,
-					Pos:     t.Pos,
-				})
-			}
+		if len(tokens) > 1 && token.INTERPOLATION_LINK != tokens[len(tokens)-1].Type {
+			tokens = append(tokens, Token{
+				Type:    token.INTERPOLATION_LINK,
+				Literal: "+",
+				Start:   t.Start,
+				End:     t.End,
+				Line:    t.Line,
+				Pos:     t.Pos,
+			})
 		}
 		tokens = append(tokens, Token{
 			Type:    token.STRING,
@@ -437,6 +432,11 @@ func processStringInterpolation(t Token) []Token {
 			Line:    t.Line,
 			Pos:     t.Pos,
 		})
+	} else {
+		if len(tokens) >= 2 && tokens[0].Literal == "" && tokens[1].Type == token.INTERPOLATION_LINK {
+			// "{$data}/other"
+			tokens = tokens[2:]
+		}
 	}
 
 	return tokens

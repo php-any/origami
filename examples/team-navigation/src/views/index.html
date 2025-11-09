@@ -86,26 +86,30 @@
                         <h3>项目</h3>
                     </div>
                     <div class="quick-links" id="projectsGrid">
-                        <a class="project-card"
-                            :href="@{($p->environments != null && $p->environments->length > 0) ? $p->environments[0]->url : '#'}"
-                            target="_blank" for="$p in $projects">
-                            <h4 class="project-name">{$p->name}</h4>
-                            <p class="project-desc">{$p->description ?? ""}</p>
+                        <template for="$p in $projects">
+                            <a class="project-card"
+                               :href="@{($p->environments != null && $p->environments->length > 0) ? $p->environments[0]->url : '#'}"
+                               target="_blank">
+                                <h4 class="project-name">{$p->name}</h4>
+                                <p class="project-desc">{$p->description ?? ""}</p>
+                            </a>
+
                             <div class="project-tools" if="$p->tools != null && $p->tools->length > 0">
                                 <a class="tool-tag" :href="{$t->url}" target="_blank" :title="{$t->name}"
-                                    for="$t in $p->tools">
+                                   for="$t in $p->tools">
                                     <span class="tool-tag-icon">{$t->icon ?? "🔗"}</span>
                                     <span>{$t->name}</span>
                                 </a>
                             </div>
                             <div class="project-environments"
-                                if="$p->environments != null && $p->environments->length > 0">
+                                 if="$p->environments != null && $p->environments->length > 0">
                                 <div class="env-item" for="$e in $p->environments">
                                     <span class="env-name">{$e->environmentName}</span>
                                     <a class="env-link" :href="{$e->url}" target="_blank">{$e->url}</a>
                                 </div>
                             </div>
-                        </a>
+
+                        </template>
                     </div>
                 </section>
 

@@ -158,6 +158,20 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 
 	from := tracker.EndBefore()
 
+	// 如果是template标签，创建HtmlTemplateNode（不输出标签本身，但可以执行if和for属性）
+	if strings.EqualFold(tagName, "template") {
+		// 创建内部的HtmlNode
+		htmlNode := node.NewHtmlNode(
+			from,
+			tagName,
+			attributes,
+			children,
+			isSelfClosing,
+		)
+		// 返回HtmlTemplateNode
+		return node.NewHtmlTemplateNode(from, htmlNode), nil
+	}
+
 	// 直接创建HTML节点，所有属性都已经在ParseAttribute中处理了
 	return node.NewHtmlNode(
 		from,
@@ -546,6 +560,20 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 	}
 
 	from := tracker.EndBefore()
+
+	// 如果是template标签，创建HtmlTemplateNode（不输出标签本身，但可以执行if和for属性）
+	if strings.EqualFold(tagName, "template") {
+		// 创建内部的HtmlNode
+		htmlNode := node.NewHtmlNode(
+			from,
+			tagName,
+			attributes,
+			children,
+			isSelfClosing,
+		)
+		// 返回HtmlTemplateNode
+		return node.NewHtmlTemplateNode(from, htmlNode), nil
+	}
 
 	// 直接创建HTML节点，所有属性都已经在ParseAttribute中处理了
 	return node.NewHtmlNode(
