@@ -93,5 +93,5 @@ func (p *parentMethodFunc) Call(callCtx data.Context) (data.GetValue, data.Contr
 }
 
 func (c *ChangeCtxAndCallFuncValue) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewFuncValue(&parentMethodFunc{baseCtx: c.ctx, method: c.fun}), nil
+	return data.NewFuncValue(&parentMethodFunc{baseCtx: c.ctx, method: c.fun}).Call(ctx)
 }

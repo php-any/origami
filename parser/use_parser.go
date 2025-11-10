@@ -27,22 +27,22 @@ func (p *UseParser) Parse() (data.GetValue, data.Control) {
 	p.next()
 
 	// 解析命名空间
-	if p.current().Type != token.IDENTIFIER {
+	if p.current().Type() != token.IDENTIFIER {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("use 命名空间名称不能为空"))
 	}
 
 	// 获取完整的命名空间路径
-	namespace := p.current().Literal
+	namespace := p.current().Literal()
 	p.next()
 
 	// 检查是否有 as 关键字
 	var alias string
-	if p.current().Type == token.AS {
+	if p.current().Type() == token.AS {
 		p.next()
-		if p.current().Type != token.IDENTIFIER {
+		if p.current().Type() != token.IDENTIFIER {
 			return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("as 关键字后需要变量名"))
 		}
-		alias = p.current().Literal
+		alias = p.current().Literal()
 		p.next()
 	} else {
 		// 如果没有 as 关键字，从完整路径中提取最后一个部分作为 alias
@@ -52,7 +52,7 @@ func (p *UseParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	// 检查分号
-	if p.current().Type != token.SEMICOLON {
+	if p.current().Type() != token.SEMICOLON {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("use 语句缺少分号"))
 	}
 	p.next()

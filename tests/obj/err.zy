@@ -22,7 +22,7 @@ try {
 } catch (Exception $e) {
     $msg = $e->getMessage();
     if ($msg != '8888') {
-        Log::fatal('自定义异常抛出 error');
+        Log::fatal('自定义异常抛出 error != 8888', $msg);
     } else {
         Log::info('自定义异常抛出成功');
     }

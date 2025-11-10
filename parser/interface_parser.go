@@ -38,7 +38,7 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 
 	// 解析继承
 	var extends *string
-	if p.current().Type == token.EXTENDS {
+	if p.current().Type() == token.EXTENDS {
 		p.next()
 		extendsName, acl := p.getClassName(true)
 		if acl != nil {
@@ -51,14 +51,14 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	// 解析接口体
-	if p.current().Type != token.LBRACE {
+	if p.current().Type() != token.LBRACE {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("接口声明后缺少左花括号 '{'"))
 	}
 	p.next()
 
 	// 解析接口方法
 	var methods []data.Method
-	for !p.isEOF() && p.current().Type != token.RBRACE {
+	for !p.isEOF() && p.current().Type() != token.RBRACE {
 		// 解析方法修饰符
 		modifier := p.parseModifier()
 		if modifier == "" {
@@ -75,13 +75,13 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 		}
 
 		// 跳过分号
-		if p.current().Type == token.SEMICOLON {
+		if p.current().Type() == token.SEMICOLON {
 			p.next()
 		}
 	}
 
 	// 解析右花括号
-	if p.current().Type != token.RBRACE {
+	if p.current().Type() != token.RBRACE {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("接口定义后缺少右花括号 '}'"))
 	}
 	p.next()
@@ -108,17 +108,17 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 
 // parseInterfaceName 解析接口名
 func (p *InterfaceParser) parseInterfaceName() string {
-	if p.current().Type != token.IDENTIFIER {
+	if p.current().Type() != token.IDENTIFIER {
 		return ""
 	}
-	name := p.current().Literal
+	name := p.current().Literal()
 	p.next()
 	return name
 }
 
 // parseModifier 解析访问修饰符
 func (p *InterfaceParser) parseModifier() string {
-	switch p.current().Type {
+	switch p.current().Type() {
 	case token.PUBLIC:
 		p.next()
 		return "public"
@@ -138,15 +138,15 @@ func (p *InterfaceParser) parseInterfaceMethod(modifier string) (data.Method, da
 	tracker := p.StartTracking()
 
 	// 跳过function关键字
-	if p.current().Type == token.FUNC {
+	if p.current().Type() == token.FUNC {
 		p.next()
 	}
 
 	// 解析方法名
-	if p.current().Type != token.IDENTIFIER {
+	if p.current().Type() != token.IDENTIFIER {
 		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("缺少方法名"))
 	}
-	name := p.current().Literal
+	name := p.current().Literal()
 	p.next()
 
 	// 解析参数列表
@@ -156,10 +156,10 @@ func (p *InterfaceParser) parseInterfaceMethod(modifier string) (data.Method, da
 	}
 	// 解析返回类型（可选）
 	var returnType data.Types
-	if p.current().Type == token.COLON {
+	if p.current().Type() == token.COLON {
 		p.next()
-		if p.current().Type == token.IDENTIFIER {
-			returnType = data.NewBaseType(p.current().Literal)
+		if p.current().Type() == token.IDENTIFIER {
+			returnType = data.NewBaseType(p.current().Literal())
 			p.next()
 		}
 	}

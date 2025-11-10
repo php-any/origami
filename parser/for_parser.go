@@ -33,7 +33,7 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 		var value data.Variable
 		// 解析初始化表达式
 		hasLparen := false
-		if p.current().Type == token.LPAREN {
+		if p.current().Type() == token.LPAREN {
 			p.nextAndCheck(token.LPAREN)
 			hasLparen = true
 		}
@@ -54,7 +54,7 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 				return nil, data.NewErrorThrow(tracker.EndBefore(), nil)
 			}
 		}
-		if p.current().Type == token.COMMA {
+		if p.current().Type() == token.COMMA {
 			p.next()
 			expr, acl := exprParser.Parse()
 			if acl != nil {
@@ -109,7 +109,7 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 	} else {
 		// 解析初始化表达式
 		hasLparen := false
-		if p.current().Type == token.LPAREN {
+		if p.current().Type() == token.LPAREN {
 			p.nextAndCheck(token.LPAREN)
 			hasLparen = true
 		}

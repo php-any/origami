@@ -26,15 +26,15 @@ func (p *VarParser) Parse() (data.GetValue, data.Control) {
 	p.next()
 
 	// 解析变量名
-	if p.current().Type != token.IDENTIFIER {
+	if p.current().Type() != token.IDENTIFIER {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("缺少变量名"))
 	}
-	name := p.current().Literal
+	name := p.current().Literal()
 	p.next()
 
 	// 解析初始化表达式
 	var initializer data.GetValue
-	if p.current().Type == token.ASSIGN {
+	if p.current().Type() == token.ASSIGN {
 		p.next() // 跳过等号
 		exprParser := NewExpressionParser(p.Parser)
 		var acl data.Control

@@ -29,7 +29,8 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, acl
 	}
 
-	if fv, ok := call.(*data.FuncValue); ok {
+	switch fv := call.(type) {
+	case *data.FuncValue:
 		fn := fv.Value
 		varies := fn.GetVariables()
 		fnCtx := ctx.CreateContext(varies)
@@ -69,8 +70,12 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 					argObj.GetValue(fnCtx)
 				}
 			case *Parameters:
-				args, _ := fnCtx.GetVariableValue(argObj)
+				args, acl := fnCtx.GetVariableValue(argObj)
+				if acl != nil {
+					return nil, acl
+				}
 				var ares *data.ArrayValue
+				var ok bool
 				if ares, ok = args.(*data.ArrayValue); !ok {
 					ares = data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
 					fnCtx.SetVariableValue(argObj, ares)
@@ -119,6 +124,9 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		}
 
 		return fn.Call(fnCtx)
+
+	case *ChangeCtxAndCallFuncValue:
+		return fv.GetValue(ctx)
 	}
 
 	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("不存在对应函数"))

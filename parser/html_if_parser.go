@@ -24,7 +24,7 @@ func (h *HtmlIfAttributeParser) Parser(name string, parser *Parser) (node.HtmlAt
 	parser.next()
 
 	// 解析属性值
-	codes := parser.current().Literal
+	codes := parser.current().Literal()
 	codes = strings.Trim(codes, "\"")
 	codes = strings.Trim(codes, "'")
 	parser.next()
@@ -55,7 +55,7 @@ func (h *HtmlElseIfAttributeParser) Parser(name string, parser *Parser) (node.Ht
 	var attrValue data.GetValue
 	if parser.checkPositionIs(0, token.STRING) {
 		// 字符串值
-		value := parser.current().Literal
+		value := parser.current().Literal()
 		parser.next()
 		attrValue = node.NewStringLiteral(tracker.EndBefore(), value)
 	} else {

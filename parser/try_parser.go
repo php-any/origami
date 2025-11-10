@@ -78,7 +78,7 @@ func (p *TryParser) parseCatchBlock(tracker *PositionTracker) (*node.CatchBlock,
 	// 解析异常类型
 	var exceptionType string
 	if p.checkPositionIs(0, token.IDENTIFIER) {
-		exceptionType = p.current().Literal
+		exceptionType = p.current().Literal()
 		p.next()
 	} else {
 		// 如果没有指定异常类型，使用默认的Exception
@@ -96,7 +96,7 @@ func (p *TryParser) parseCatchBlock(tracker *PositionTracker) (*node.CatchBlock,
 		variable1.Type = data.NewBaseType(exceptionType)
 		variable = variable1
 	} else {
-		name := p.current().Literal
+		name := p.current().Literal()
 		p.next()
 		val := p.scopeManager.CurrentScope().AddVariable(name, data.NewBaseType(exceptionType), tracker.EndBefore())
 		variable = node.NewVariableWithFirst(tracker.EndBefore(), val)

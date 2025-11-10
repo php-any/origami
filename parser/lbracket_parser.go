@@ -25,7 +25,7 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 	ep.next()
 
 	// 检查是否直接遇到右括号（空数组）
-	if ep.current().Type == token.RBRACKET {
+	if ep.current().Type() == token.RBRACKET {
 		ep.next()
 		from := tracker.EndBefore()
 		return node.NewArray(from, []data.GetValue{}), nil
@@ -37,17 +37,17 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 		return nil, acl
 	}
 
-	if ep.current().Type == token.RBRACKET {
+	if ep.current().Type() == token.RBRACKET {
 		// 只有一个元素
 		ep.next()
 		from := tracker.EndBefore()
 		return node.NewArray(from, []data.GetValue{expr}), nil
 	} else {
-		switch ep.current().Type {
+		switch ep.current().Type() {
 		case token.COMMA: // , 数组定义
 			arr := make([]data.GetValue, 1)
 			arr[0] = expr
-			for ep.current().Type == token.COMMA {
+			for ep.current().Type() == token.COMMA {
 				ep.next()
 				if ep.checkPositionIs(0, token.RBRACKET) {
 					continue
@@ -58,7 +58,7 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 				}
 				arr = append(arr, stmt)
 			}
-			if ep.current().Type == token.RBRACKET {
+			if ep.current().Type() == token.RBRACKET {
 				ep.next()
 			}
 			from := tracker.EndBefore()
@@ -72,7 +72,7 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 			}
 			ep.nextAndCheckStip(token.COMMA)
 
-			for ep.current().Type != token.RBRACKET {
+			for ep.current().Type() != token.RBRACKET {
 				key, acl := ep.parseStatement()
 				if acl != nil {
 					return nil, acl
@@ -98,7 +98,7 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 			if acl != nil {
 				return nil, acl
 			}
-			for ep.current().Type != token.RBRACKET {
+			for ep.current().Type() != token.RBRACKET {
 				key, acl := ep.parseStatement()
 				if acl != nil {
 					return nil, acl

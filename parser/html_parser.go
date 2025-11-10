@@ -50,7 +50,7 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 
 	// 解析属性
 	attributes := make(map[string]node.HtmlAttributeValue)
-	for !h.isEOF() && h.current().Type != token.GT && h.current().Type != token.QUO {
+	for !h.isEOF() && h.current().Type() != token.GT && h.current().Type() != token.QUO {
 		// 只解析属性名称
 		attrName, isCode, acl := h.parseAttributeName()
 		if acl != nil {
@@ -61,7 +61,7 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 		}
 
 		// 检查是否有等号
-		if h.current().Type != token.ASSIGN {
+		if h.current().Type() != token.ASSIGN {
 			// 没有值的属性，如 disabled
 			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), attrName, data.NewBoolValue(true))
 			continue
@@ -83,7 +83,7 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 			if isCode {
 				attrValue = h.parseAttributeValue()
 			} else {
-				attrValue = node.NewStringLiteral(h.FromCurrentToken(), h.current().Literal)
+				attrValue = node.NewStringLiteral(h.FromCurrentToken(), h.current().Literal())
 				h.next()
 			}
 
@@ -118,7 +118,7 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 					// 累积原始文本直到遇到 </script>
 					tokens := make([]lexer.Token, 0)
 					for !h.isEOF() {
-						if h.current().Type == token.LT && h.checkPositionIs(1, token.QUO) && h.checkPositionIs(2, token.IDENTIFIER) && strings.EqualFold(h.peek(2).Literal, tagName) {
+						if h.current().Type() == token.LT && h.checkPositionIs(1, token.QUO) && h.checkPositionIs(2, token.IDENTIFIER) && strings.EqualFold(h.peek(2).Literal(), tagName) {
 							// 消费结束标签 </script>
 							h.next() // <
 							h.next() // /
@@ -189,7 +189,7 @@ func (h *HtmlParser) parseAttributeName() (string, bool, data.Control) {
 	var isCode bool
 	if !h.isEOF() {
 		// 添加第一个标识符
-		if h.checkPositionIs(0, token.SEMICOLON) && h.current().Literal == "\n" {
+		if h.checkPositionIs(0, token.SEMICOLON) && h.current().Literal() == "\n" {
 			// 无效的换行而已
 			h.next()
 			return name, isCode, nil
@@ -200,7 +200,7 @@ func (h *HtmlParser) parseAttributeName() (string, bool, data.Control) {
 		}
 		current := h.current()
 		// 基于原始字符判断属性名起始：首字符需为字母或下划线
-		lit := current.Literal
+		lit := current.Literal()
 		if lit == "" {
 			return name, isCode, data.NewErrorThrow(h.newFrom(), fmt.Errorf("html属性名不能为空"))
 		}
@@ -208,7 +208,7 @@ func (h *HtmlParser) parseAttributeName() (string, bool, data.Control) {
 		if !(unicode.IsLetter(first) || first == '_') {
 			return name, isCode, data.NewErrorThrow(h.newFrom(), fmt.Errorf("html属性必须以字母或下划线开头: %s", lit))
 		}
-		name = h.current().Literal
+		name = h.current().Literal()
 		h.next()
 
 		// 检查是否有连字符，如果有则继续收集
@@ -218,7 +218,7 @@ func (h *HtmlParser) parseAttributeName() (string, bool, data.Control) {
 
 			// 添加连字符后的标识符（包括关键字）
 			if !h.isEOF() && h.checkPositionIs(0, token.IDENTIFIER, token.IF, token.ELSE) {
-				name += h.current().Literal
+				name += h.current().Literal()
 				h.next()
 			} else {
 				// 如果连字符后没有标识符，停止收集
@@ -234,7 +234,7 @@ func (h *HtmlParser) parseAttributeName() (string, bool, data.Control) {
 func (h *HtmlParser) parseAttributeValue() data.GetValue {
 	// 如果是标识符，直接作为字符串处理
 	if h.checkPositionIs(0, token.IDENTIFIER) {
-		value := h.current().Literal
+		value := h.current().Literal()
 		h.next()
 		return node.NewStringLiteral(h.FromCurrentToken(), value)
 	}
@@ -246,8 +246,8 @@ func (h *HtmlParser) parseAttributeValue() data.GetValue {
 	if acl != nil {
 		// 如果表达式解析失败，尝试作为字符串处理
 		var value string
-		for !h.isEOF() && h.current().Type != token.GT && h.current().Type != token.QUO {
-			value += h.current().Literal
+		for !h.isEOF() && h.current().Type() != token.GT && h.current().Type() != token.QUO {
+			value += h.current().Literal()
 			h.next()
 		}
 		return node.NewStringLiteral(h.FromCurrentToken(), value)
@@ -260,7 +260,7 @@ func (h *HtmlParser) parseAttributeValue() data.GetValue {
 func (h *HtmlParser) parseTagName() string {
 	// 直接使用当前token的Literal作为标签名
 	if !h.isEOF() {
-		name := h.current().Literal
+		name := h.current().Literal()
 		h.next()
 		return name
 	}
@@ -274,7 +274,7 @@ func (h *HtmlParser) parseHtmlChildren() ([]data.GetValue, data.Control) {
 
 	for !h.isEOF() {
 		// 检查是否是结束标签
-		if h.current().Type == token.LT && h.checkPositionIs(1, token.QUO) {
+		if h.current().Type() == token.LT && h.checkPositionIs(1, token.QUO) {
 			break
 		}
 
@@ -385,7 +385,7 @@ func (h *HtmlParser) isValidConditionNode(ifNode *node.HtmlNode) (*node.HtmlIfNo
 
 // parseHtmlChild 解析HTML子节点
 func (h *HtmlParser) parseHtmlChild() (data.GetValue, data.Control) {
-	if h.current().Type == token.LT {
+	if h.current().Type() == token.LT {
 		// 可能是HTML标签
 		// DOCTYPE 的解析移动到 ExpressionParser.parseComparison()
 		// 处理 <!-- 注释 -->，直到遇到 --> 才结束，避免被注释内的 > 提前终止
@@ -403,7 +403,7 @@ func (h *HtmlParser) parseHtmlChild() (data.GetValue, data.Control) {
 					h.nextAndCheck(token.GT)
 					break
 				}
-				str += h.current().Literal
+				str += h.current().Literal()
 				h.next()
 			}
 			// 注释不输出内容，但返回一个空字符串字面量，保持节点类型一致
@@ -439,7 +439,7 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 
 	// 解析属性
 	attributes := make(map[string]node.HtmlAttributeValue)
-	for !h.isEOF() && h.current().Type != token.GT && h.current().Type != token.QUO {
+	for !h.isEOF() && h.current().Type() != token.GT && h.current().Type() != token.QUO {
 		// 只解析属性名称
 		attrName, isCode, acl := h.parseAttributeName()
 		if acl != nil {
@@ -450,7 +450,7 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 		}
 
 		// 检查是否有等号
-		if h.current().Type != token.ASSIGN {
+		if h.current().Type() != token.ASSIGN {
 			// 没有值的属性，如 disabled
 			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), attrName, data.NewBoolValue(true))
 			continue
@@ -471,7 +471,7 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 			if isCode {
 				attrValue = h.parseAttributeValue()
 			} else {
-				attrValue = node.NewStringLiteral(h.FromCurrentToken(), h.current().Literal)
+				attrValue = node.NewStringLiteral(h.FromCurrentToken(), h.current().Literal())
 				h.next()
 			}
 			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), attrName, attrValue)
@@ -519,7 +519,7 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 					// 累积原始文本直到遇到 </script>
 					tokens := make([]lexer.Token, 0)
 					for !h.isEOF() {
-						if h.current().Type == token.LT && h.checkPositionIs(1, token.QUO) && h.checkPositionIs(2, token.IDENTIFIER) && strings.EqualFold(h.peek(2).Literal, tagName) {
+						if h.current().Type() == token.LT && h.checkPositionIs(1, token.QUO) && h.checkPositionIs(2, token.IDENTIFIER) && strings.EqualFold(h.peek(2).Literal(), tagName) {
 							// 消费结束标签 </script>
 							h.next() // <
 							h.next() // /
@@ -591,14 +591,14 @@ func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 	initialPos := h.GetStart()
 	currentText := ""
 
-	for !h.isEOF() && h.current().Type != token.LT {
-		if h.position > 1 && h.current().Start != h.peek(-1).End {
+	for !h.isEOF() && h.current().Type() != token.LT {
+		if h.position > 1 && h.current().Start() != h.peek(-1).End() {
 			// token 之间有间隔，补空格
 			currentText += " "
 		}
 
 		// 检查是否是插值开始 {$
-		if h.current().Type == token.LBRACE && h.checkPositionIs(1, token.VARIABLE) {
+		if h.current().Type() == token.LBRACE && h.checkPositionIs(1, token.VARIABLE) {
 			// 如果有累积的文本，先添加到结果中
 			if currentText != "" {
 				textParts = append(textParts, node.NewStringLiteral(h.FromCurrentToken(), currentText))
@@ -624,7 +624,7 @@ func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 
 			// 添加表达式到结果中
 			textParts = append(textParts, expr)
-		} else if h.current().Type == token.AT && h.checkPositionIs(1, token.LBRACE) && !h.checkPositionIs(-1, token.LBRACE) {
+		} else if h.current().Type() == token.AT && h.checkPositionIs(1, token.LBRACE) && !h.checkPositionIs(-1, token.LBRACE) {
 			// 处理函数/表达式插值 @{ ... } 但不能是 \@{
 			// 输出累积文本
 			if currentText != "" {
@@ -652,7 +652,7 @@ func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 			textParts = append(textParts, expr)
 		} else {
 			// 普通文本
-			currentText += h.current().Literal
+			currentText += h.current().Literal()
 			h.next()
 		}
 
@@ -692,13 +692,13 @@ func (h *HtmlParser) collectExprTokensInsideBraces() ([]lexer.Token, data.Contro
 	braceDepth := 1
 	exprTokens := make([]lexer.Token, 0)
 	for !h.isEOF() && braceDepth > 0 {
-		if h.current().Type == token.LBRACE {
+		if h.current().Type() == token.LBRACE {
 			braceDepth++
 			exprTokens = append(exprTokens, h.current())
 			h.next()
 			continue
 		}
-		if h.current().Type == token.RBRACE {
+		if h.current().Type() == token.RBRACE {
 			braceDepth--
 			if braceDepth == 0 {
 				break
@@ -742,12 +742,12 @@ func (h *HtmlParser) parseExprFromTokens(exprTokens []lexer.Token) (data.GetValu
 // findClosingTag 查找结束标签
 func (h *HtmlParser) findClosingTag(tagName string) bool {
 	// 检查是否是结束标签
-	if h.current().Type == token.LT && h.checkPositionIs(1, token.QUO) {
+	if h.current().Type() == token.LT && h.checkPositionIs(1, token.QUO) {
 		h.next() // 跳过 <
 		h.next() // 跳过 /
 
 		// 检查标签名是否匹配
-		if h.checkPositionIs(0, token.IDENTIFIER) && h.current().Literal == tagName {
+		if h.checkPositionIs(0, token.IDENTIFIER) && h.current().Literal() == tagName {
 			h.next()
 
 			// 检查结束的 >

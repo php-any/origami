@@ -146,7 +146,7 @@ func (p *Parser) parseProgram() (*node.Program, data.Control) {
 // current 返回当前词法单元
 func (p *Parser) current() lexer.Token {
 	if p.position >= len(p.tokens) {
-		return lexer.Token{Type: token.EOF}
+		return lexer.NewWorkerToken(token.EOF, "", 0, 0, 0, 0)
 	}
 	return p.tokens[p.position]
 }
@@ -155,7 +155,7 @@ func (p *Parser) current() lexer.Token {
 func (p *Parser) peek(offset int) lexer.Token {
 	pos := p.position + offset
 	if pos >= len(p.tokens) {
-		return lexer.Token{Type: token.EOF}
+		return lexer.NewWorkerToken(token.EOF, "", 0, 0, 0, 0)
 	}
 	return p.tokens[pos]
 }
@@ -167,7 +167,7 @@ func (p *Parser) checkPositionIs(position int, checks ...token.TokenType) bool {
 			return true
 		}
 		for _, check := range checks {
-			if p.tokens[p.position+position].Type == check {
+			if p.tokens[p.position+position].Type() == check {
 				return true
 			}
 		}
@@ -178,7 +178,7 @@ func (p *Parser) checkPositionIs(position int, checks ...token.TokenType) bool {
 	}
 
 	for _, check := range checks {
-		if p.tokens[p.position+position].Type == check {
+		if p.tokens[p.position+position].Type() == check {
 			return true
 		}
 	}
@@ -189,13 +189,13 @@ func (p *Parser) currentIsTypeOrEOF(check token.TokenType) bool {
 	if p.position >= len(p.tokens) {
 		return true
 	}
-	return p.tokens[p.position].Type == check
+	return p.tokens[p.position].Type() == check
 }
 
 // 打印剩余的
 func (p *Parser) printRemaining() {
 	for !p.isEOF() {
-		fmt.Println(p.current().Literal)
+		fmt.Println(p.current().Literal())
 		p.next()
 	}
 }
@@ -210,8 +210,8 @@ func (p *Parser) next() {
 }
 
 func (p *Parser) nextAndCheck(t token.TokenType) data.Control {
-	if p.current().Type != t {
-		err := fmt.Errorf("检查符号不一致, 需要(%v:%v), 当前(%v:%v)", t, token.GetLiteralByType(t), p.current().Type, p.current().Literal)
+	if p.current().Type() != t {
+		err := fmt.Errorf("检查符号不一致, 需要(%v:%v), 当前(%v:%v)", t, token.GetLiteralByType(t), p.current().Type(), p.current().Literal())
 		return data.NewErrorThrow(p.newFrom(), err)
 	}
 	p.position++
@@ -219,7 +219,7 @@ func (p *Parser) nextAndCheck(t token.TokenType) data.Control {
 }
 
 func (p *Parser) nextAndCheckStip(t token.TokenType) {
-	if p.current().Type == t {
+	if p.current().Type() == t {
 		p.position++
 	}
 }
@@ -241,7 +241,7 @@ func (p *Parser) ShowControl(acl data.Control) {
 	if throwValue, ok := acl.(*data.ThrowValue); ok {
 		from := throwValue.Error.From
 		if from == nil {
-			from = node.NewTokenFrom(p.source, p.current().Start, p.current().End, p.current().Line, p.current().Pos)
+			from = node.NewTokenFrom(p.source, p.current().Start(), p.current().End(), p.current().Line(), p.current().Pos())
 		}
 		p.errors = append(p.errors, data.NewErrorThrow(from, errors.New(err)))
 
@@ -276,7 +276,7 @@ func (p *Parser) ShowControl(acl data.Control) {
 		// 先打印详细的解析错误信息
 		p.printDetailedError(err, from)
 	} else {
-		from := node.NewTokenFrom(p.source, p.current().Start, p.current().End, p.current().Line, p.current().Pos)
+		from := node.NewTokenFrom(p.source, p.current().Start(), p.current().End(), p.current().Line(), p.current().Pos())
 		p.errors = append(p.errors, data.NewErrorThrow(from, errors.New(err)))
 		// 打印详细的错误信息
 		p.printDetailedError(err, from)
@@ -284,12 +284,12 @@ func (p *Parser) ShowControl(acl data.Control) {
 }
 
 func (p *Parser) GetStart() int {
-	return p.current().Start
+	return p.current().Start()
 }
 
 // Deprecated: 使用 NewFromBuilder() 或其他新方法替代
 func (p *Parser) NewTokenFrom(start int) *node.TokenFrom {
-	return node.NewTokenFrom(p.source, start, p.current().End, p.current().Line, p.current().Pos)
+	return node.NewTokenFrom(p.source, start, p.current().End(), p.current().Line(), p.current().Pos())
 }
 
 // StartPosition 开始位置跟踪，返回当前位置
@@ -312,11 +312,11 @@ func (p *Parser) FromPositionRange(startPos, endPos int) *node.TokenFrom {
 	endToken := p.tokens[endPos]
 
 	// 创建 TokenFrom 并设置结束位置
-	tf := node.NewTokenFrom(p.source, startToken.Start, endToken.End, startToken.Line, startToken.Pos)
+	tf := node.NewTokenFrom(p.source, startToken.Start(), endToken.End(), startToken.Line(), startToken.Pos())
 
 	// 总是设置结束位置，确保位置信息完整
 	// 即使 startPos == endPos，我们也需要正确的结束位置信息
-	tf.SetEndPosition(endToken.Line, endToken.Pos)
+	tf.SetEndPosition(endToken.Line(), endToken.Pos())
 
 	return tf
 }
@@ -324,7 +324,7 @@ func (p *Parser) FromPositionRange(startPos, endPos int) *node.TokenFrom {
 // isTokensAdjacent 检查两个 token 是否相邻（没有空白字符或其他分隔符）
 func (p *Parser) isTokensAdjacent(token1, token2 lexer.Token) bool {
 	// 如果第一个 token 的结束位置等于第二个 token 的开始位置，说明它们是相邻的
-	return token1.End == token2.Start
+	return token1.End() == token2.Start()
 }
 
 func (p *Parser) checkClassName(name string) {
@@ -333,7 +333,7 @@ func (p *Parser) checkClassName(name string) {
 
 // 获取类的完整路径, 类定义自己不用, 但是继承、实现接口需要调用
 func (p *Parser) getClassName(try bool) (string, data.Control) {
-	className := p.current().Literal
+	className := p.current().Literal()
 	p.next()
 
 	if strings.Index(className, "\\") == -1 {
@@ -360,17 +360,23 @@ func (p *Parser) parseStatement() (data.GetValue, data.Control) {
 // 只会获取单个值, 不会有表达式, 并且必须有值, 没有就是错误
 func (p *Parser) parseValue() (data.GetValue, bool) {
 	tracker := p.StartTracking()
-	switch p.current().Type {
+	switch p.current().Type() {
 	case token.INT:
-		value := p.current().Literal
+		value := p.current().Literal()
 		p.next()
 		return node.NewIntLiteral(tracker.EndBefore(), value), true
 	case token.FLOAT:
-		value := p.current().Literal
+		value := p.current().Literal()
 		p.next()
 		return node.NewFloatLiteral(tracker.EndBefore(), value), true
 	case token.STRING:
-		value := p.current().Literal
+		// 检查是否是 LingToken（插值字符串）
+		if lingToken, ok := p.current().(*lexer.LingToken); ok {
+			p.next()
+			return p.parseLingToken(lingToken, tracker.EndBefore()), true
+		}
+		// 普通字符串
+		value := p.current().Literal()
 		p.next()
 		return node.NewStringLiteral(tracker.EndBefore(), value), true
 	case token.TRUE:
@@ -402,7 +408,7 @@ func (p *Parser) parseBlock() ([]data.GetValue, data.Control) {
 	statements := make([]data.GetValue, 0)
 
 	// 检查是否是语句块开始
-	if p.current().Type != token.LBRACE {
+	if p.current().Type() != token.LBRACE {
 		// 如果不是语句块，则解析单个语句
 		stmt, acl := p.parseStatement()
 		if acl != nil {
@@ -422,7 +428,7 @@ func (p *Parser) parseBlock() ([]data.GetValue, data.Control) {
 	}
 
 	// 解析语句块中的所有语句
-	for !p.isEOF() && p.current().Type != token.RBRACE {
+	for !p.isEOF() && p.current().Type() != token.RBRACE {
 		stmt, acl := p.parseStatement()
 		if acl != nil {
 			return nil, acl
@@ -535,10 +541,10 @@ func (p *Parser) ParseExpressionFromString(exprStr string) (data.GetValue, data.
 
 // ParserTokens 传入 token 列表重新运行
 func (p *Parser) ParserTokens(tokens []lexer.Token, filePath string) (*node.Program, data.Control) {
-	if len(tokens) > 1 && tokens[0].Type == token.SEMICOLON {
+	if len(tokens) > 1 && tokens[0].Type() == token.SEMICOLON {
 		nTokens := make([]lexer.Token, 0)
 		i := 0
-		for len(tokens) > i && tokens[i].Type == token.SEMICOLON {
+		for len(tokens) > i && tokens[i].Type() == token.SEMICOLON {
 			i++
 		}
 		for _, t := range tokens[i:] {
@@ -607,8 +613,8 @@ func (p *Parser) ParseString(content string, filePath string) (*node.Program, da
 
 // 尝试识别类型
 func (p *Parser) tryFindTypes() (data.Types, bool) {
-	if data.ISBaseType(p.current().Literal) {
-		t := p.current().Literal
+	if data.ISBaseType(p.current().Literal()) {
+		t := p.current().Literal()
 		p.next()
 		return data.NewBaseType(t), true
 	}
@@ -618,4 +624,103 @@ func (p *Parser) tryFindTypes() (data.Types, bool) {
 		return nil, false
 	}
 	return data.NewBaseType(name), true
+}
+
+// parseLingToken 解析 LingToken（插值字符串），创建链接节点
+func (p *Parser) parseLingToken(lingToken *lexer.LingToken, from data.From) data.GetValue {
+	// 从 lingToken 创建 TokenFrom
+	tokenFrom := node.NewTokenFrom(p.source, lingToken.Start(), lingToken.End(), lingToken.Line(), lingToken.Pos())
+
+	children := lingToken.Children()
+	if len(children) == 0 {
+		// 空字符串
+		return node.NewStringLiteral(tokenFrom, "")
+	}
+
+	// 解析所有子 token，使用 INTERPOLATION_LINK 分隔字符串和表达式部分
+	var parts []data.GetValue
+	var currentPart []lexer.Token
+
+	for i, child := range children {
+		if child.Type() == token.INTERPOLATION_LINK {
+			// 遇到分隔标记，解析当前累积的部分
+			if len(currentPart) > 0 {
+				// 判断是字符串还是表达式
+				if len(currentPart) == 1 && currentPart[0].Type() == token.STRING {
+					// 字符串部分，直接创建 StringLiteral
+					strToken := currentPart[0]
+					strFrom := node.NewTokenFrom(p.source, strToken.Start(), strToken.End(), strToken.Line(), strToken.Pos())
+					parts = append(parts, node.NewStringLiteral(strFrom, strToken.Literal()))
+				} else {
+					// 表达式部分，解析为表达式
+					part, acl := p.parseTokensAsExpression(currentPart)
+					if acl != nil {
+						return nil
+					}
+					parts = append(parts, part)
+				}
+				currentPart = nil
+			}
+		} else {
+			// 累积当前部分
+			currentPart = append(currentPart, child)
+			// 如果是最后一个 token，也需要解析
+			if i == len(children)-1 {
+				if len(currentPart) > 0 {
+					if len(currentPart) == 1 && currentPart[0].Type() == token.STRING {
+						// 字符串部分
+						strToken := currentPart[0]
+						strFrom := node.NewTokenFrom(p.source, strToken.Start(), strToken.End(), strToken.Line(), strToken.Pos())
+						parts = append(parts, node.NewStringLiteral(strFrom, strToken.Literal()))
+					} else {
+						// 表达式部分
+						part, acl := p.parseTokensAsExpression(currentPart)
+						if acl != nil {
+							return nil
+						}
+						parts = append(parts, part)
+					}
+				}
+			}
+		}
+	}
+
+	// 如果没有部分，返回空字符串
+	if len(parts) == 0 {
+		return node.NewStringLiteral(tokenFrom, "")
+	}
+
+	// 如果只有一个部分，直接返回
+	if len(parts) == 1 {
+		return parts[0]
+	}
+
+	// 使用 BinaryLink 从左到右连接所有部分（插值是明确的链接逻辑）
+	result := parts[0]
+	for i := 1; i < len(parts); i++ {
+		result = node.NewBinaryLink(tokenFrom, result, parts[i])
+	}
+
+	return result
+}
+
+// parseTokensAsExpression 解析 token 列表为表达式
+func (p *Parser) parseTokensAsExpression(tokens []lexer.Token) (data.GetValue, data.Control) {
+	// 保存当前状态
+	originalTokens := p.tokens
+	originalPosition := p.position
+
+	// 设置新的 tokens
+	p.tokens = tokens
+	p.position = 0
+
+	// 使用表达式解析器解析
+	exprParser := NewExpressionParser(p)
+	result, acl := exprParser.Parse()
+
+	// 恢复原始状态
+	p.tokens = originalTokens
+	p.position = originalPosition
+
+	return result, acl
 }

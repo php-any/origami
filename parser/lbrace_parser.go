@@ -23,7 +23,7 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 	ep.next()
 
 	// 检查是否为空对象 {}
-	if ep.current().Type == token.RBRACE {
+	if ep.current().Type() == token.RBRACE {
 		ep.next()
 		v := map[data.GetValue]data.GetValue{}
 		from := tracker.EndBefore()
@@ -32,9 +32,9 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 
 	var expr data.GetValue
 	var acl data.Control
-	if ep.peek(1).Type == token.COLON {
+	if ep.peek(1).Type() == token.COLON {
 		// 先匹配 key: 符号，如果是这个格式，那么是关键字也能作为 key
-		expr = node.NewStringLiteral(tracker.EndBefore(), ep.current().Literal)
+		expr = node.NewStringLiteral(tracker.EndBefore(), ep.current().Literal())
 		ep.next()
 	} else {
 		expr, acl = ep.parseStatement()
@@ -42,7 +42,7 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 	}
-	switch ep.current().Type {
+	switch ep.current().Type() {
 	case token.ARRAY_KEY_VALUE: // => 对象定义
 		v := map[data.GetValue]data.GetValue{}
 		ep.next() // =>
@@ -50,7 +50,7 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 		if acl != nil {
 			return nil, acl
 		}
-		for ep.current().Type != token.RBRACE {
+		for ep.current().Type() != token.RBRACE {
 			key, acl := ep.parseStatement()
 			if acl != nil {
 				return nil, acl
@@ -75,7 +75,7 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 		if acl != nil {
 			return nil, acl
 		}
-		for ep.current().Type != token.RBRACE {
+		for ep.current().Type() != token.RBRACE {
 			if ep.checkPositionIs(0, token.COMMA) && ep.checkPositionIs(1, token.RBRACE) {
 				ep.next()
 				break
@@ -83,9 +83,9 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 			ep.nextAndCheck(token.COMMA)
 
 			var key data.GetValue
-			if ep.peek(1).Type == token.COLON {
+			if ep.peek(1).Type() == token.COLON {
 				// 先匹配 key: 符号，如果是这个格式，那么是关键字也能作为 key
-				key = node.NewStringLiteral(tracker.EndBefore(), ep.current().Literal)
+				key = node.NewStringLiteral(tracker.EndBefore(), ep.current().Literal())
 				ep.next()
 			} else {
 				key, acl = ep.parseStatement()
@@ -111,6 +111,6 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 		v := map[data.GetValue]data.GetValue{}
 		return node.NewKv(tracker.EndBefore(), v), nil
 	default:
-		return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("TODO: 语法错误"+ep.current().Literal))
+		return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("TODO: 语法错误"+ep.current().Literal()))
 	}
 }

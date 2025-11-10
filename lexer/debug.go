@@ -29,11 +29,11 @@ func PrintTokens(tokens []Token, title string) {
 
 	// 打印每个 token
 	for i, tok := range tokens {
-		typeName := getTokenTypeName(tok.Type)
-		literal := formatLiteral(tok.Literal)
+		typeName := getTokenTypeName(tok.Type())
+		literal := formatLiteral(tok.Literal())
 
 		fmt.Fprintf(os.Stderr, "%-6d | %-25s | %-20s | %-6d | %-6d | %-8d | %-8d\n",
-			i, typeName, literal, tok.Line+1, tok.Pos+1, tok.Start, tok.End)
+			i, typeName, literal, tok.Line()+1, tok.Pos()+1, tok.Start(), tok.End())
 	}
 
 	fmt.Fprintf(os.Stderr, "%s\n", strings.Repeat("=", 80))
@@ -174,8 +174,6 @@ func getTokenTypeName(t token.TokenType) string {
 		return "VARIABLE"
 
 	// 特殊
-	case token.INTERPOLATION_LINK:
-		return "INTERPOLATION_LINK (+)"
 	case token.NEWLINE:
 		return "NEWLINE (\\n)"
 	case token.EOF:

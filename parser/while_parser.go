@@ -24,7 +24,7 @@ func (p *WhileParser) Parse() (data.GetValue, data.Control) {
 	// 跳过while关键字
 	p.next()
 
-	if p.current().Type == token.LPAREN {
+	if p.current().Type() == token.LPAREN {
 		p.next()
 	}
 
@@ -32,7 +32,7 @@ func (p *WhileParser) Parse() (data.GetValue, data.Control) {
 	if acl != nil {
 		return nil, acl
 	}
-	if p.current().Type == token.RPAREN {
+	if p.current().Type() == token.RPAREN {
 		p.next()
 	}
 

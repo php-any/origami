@@ -30,7 +30,7 @@ func (p *EchoParser) Parse() (data.GetValue, data.Control) {
 	if acl != nil {
 		return nil, acl
 	}
-	for p.current().Type == token.COMMA {
+	for p.current().Type() == token.COMMA {
 		p.next() // ,
 		stmt, acl := p.parseStatement()
 		if acl != nil {

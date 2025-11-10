@@ -65,7 +65,7 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少函数名"))
 	}
-	name := fp.current().Literal
+	name := fp.current().Literal()
 
 	if fp.namespace != nil {
 		name = fp.namespace.GetName() + "\\" + name
@@ -121,7 +121,7 @@ func (fp FunctionParser) parserReturnType() (data.Types, data.Control) {
 	// 检查是否有返回类型声明
 	// 语法: function name(): returnType 或 function name(): ?returnType
 	// 或者: function name(): type1, type2, type3 (多返回值)
-	if fp.current().Type == token.COLON {
+	if fp.current().Type() == token.COLON {
 		fp.next() // 跳过冒号
 
 		// 解析返回类型列表
@@ -130,14 +130,14 @@ func (fp FunctionParser) parserReturnType() (data.Types, data.Control) {
 		for {
 			// 检查是否是可空类型语法 ?type
 			isNullable := false
-			if fp.current().Type == token.TERNARY {
+			if fp.current().Type() == token.TERNARY {
 				isNullable = true
 				fp.next() // 跳过问号
 			}
 
 			// 解析返回类型
 			if fp.checkPositionIs(0, token.IDENTIFIER, token.STRING, token.INT, token.FLOAT, token.BOOL, token.ARRAY) {
-				returnType := fp.current().Literal
+				returnType := fp.current().Literal()
 				fp.next()
 
 				// 创建基础类型
@@ -154,7 +154,7 @@ func (fp FunctionParser) parserReturnType() (data.Types, data.Control) {
 			}
 
 			// 检查是否有更多类型（逗号分隔）
-			if fp.current().Type == token.COMMA {
+			if fp.current().Type() == token.COMMA {
 				fp.next() // 跳过逗号
 				continue
 			}

@@ -27,7 +27,7 @@ func (np *NamespaceParser) Parse() (data.GetValue, data.Control) {
 	np.next()
 
 	// 解析命名空间名称
-	var name string = np.current().Literal
+	var name string = np.current().Literal()
 	if name == "" {
 		return nil, data.NewErrorThrow(np.newFrom(), fmt.Errorf("命名空间名称不能为空"))
 	}
@@ -39,14 +39,14 @@ func (np *NamespaceParser) Parse() (data.GetValue, data.Control) {
 	from := tracker.EndBefore()
 	np.namespace = node.NewNamespace(from, name, statements)
 
-	if np.current().Type == token.LBRACE {
+	if np.current().Type() == token.LBRACE {
 		np.next() // 跳过 {
 
 		// 创建主语句解析器
 		stmtParser := NewMainStatementParser(np.Parser)
 
 		// 解析命名空间内的语句
-		for np.current().Type != token.RBRACE && !np.isEOF() {
+		for np.current().Type() != token.RBRACE && !np.isEOF() {
 			stmt, acl := stmtParser.Parse()
 			if acl != nil {
 				return nil, acl
@@ -56,7 +56,7 @@ func (np *NamespaceParser) Parse() (data.GetValue, data.Control) {
 			}
 		}
 
-		if np.current().Type == token.RBRACE {
+		if np.current().Type() == token.RBRACE {
 			np.next() // 跳过 }
 		} else {
 			return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("期望 }"))

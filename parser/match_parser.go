@@ -37,11 +37,11 @@ func (p *MatchParser) Parse() (data.GetValue, data.Control) {
 	// 解析match分支
 	var arms []node.MatchArm
 	var def []data.GetValue
-	for p.current().Type != token.RBRACE && !p.isEOF() {
+	for p.current().Type() != token.RBRACE && !p.isEOF() {
 		if p.checkPositionIs(0, token.DEFAULT) {
 			p.next()
 			p.nextAndCheck(token.ARRAY_KEY_VALUE)
-			if p.current().Type == token.LBRACE {
+			if p.current().Type() == token.LBRACE {
 				// 手动解析代码块，不消耗右大括号
 				def, acl = p.parseBlock()
 				if acl != nil {
@@ -83,14 +83,14 @@ func (p *MatchParser) Parse() (data.GetValue, data.Control) {
 // parseMatchCondition 解析match条件表达式
 func (p *MatchParser) parseMatchCondition() (data.GetValue, data.Control) {
 	// 检查是否是括号形式 match (condition)
-	if p.current().Type == token.LPAREN {
+	if p.current().Type() == token.LPAREN {
 		p.next() // 跳过左括号
 
 		condition, acl := p.parseStatement()
 		if acl != nil {
 			return nil, acl
 		}
-		if p.current().Type != token.RPAREN {
+		if p.current().Type() != token.RPAREN {
 			return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("match 缺少右括号 ')'"))
 		}
 		p.next() // 跳过右括号
@@ -123,7 +123,7 @@ func (p *MatchParser) parseMatchArm() (*node.MatchArm, data.Control) {
 	var expression data.GetValue
 	var statements []data.GetValue
 
-	if p.current().Type == token.LBRACE {
+	if p.current().Type() == token.LBRACE {
 		// 手动解析代码块，不消耗右大括号
 		var acl data.Control
 		statements, acl = p.parseBlock()

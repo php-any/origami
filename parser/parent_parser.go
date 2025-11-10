@@ -26,7 +26,7 @@ func (pp *ParentParser) Parse() (data.GetValue, data.Control) {
 	// 检查是否是 parent:: 语法
 	if pp.checkPositionIs(0, token.SCOPE_RESOLUTION) && pp.checkPositionIs(1, token.IDENTIFIER) {
 		pp.next() // 跳过 ::
-		methodName := pp.current().Literal
+		methodName := pp.current().Literal()
 		pp.next()
 		tokenFrom := tracker.EndBefore()
 

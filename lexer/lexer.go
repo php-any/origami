@@ -15,14 +15,20 @@ type Position struct {
 	Offset int // 字节偏移量
 }
 
-// Token 表示一个词法单元
-type Token struct {
-	Type    token.TokenType
-	Literal string // 原始值, 换行替换为;符号也不能替换Literal
-	Start   int    // 起始位置
-	End     int    // 结束位置
-	Line    int    // 行号
-	Pos     int    // 单独一行的位置
+// Token 表示一个词法单元的接口
+type Token interface {
+	// Type 返回 token 的类型
+	Type() token.TokenType
+	// Literal 返回 token 的字面值
+	Literal() string
+	// Start 返回 token 的起始位置
+	Start() int
+	// End 返回 token 的结束位置
+	End() int
+	// Line 返回 token 所在的行号
+	Line() int
+	// Pos 返回 token 在单独一行中的位置
+	Pos() int
 }
 
 // Node 表示 DAG 中的一个节点
@@ -101,14 +107,14 @@ func (l *Lexer) Tokenize(input string) []Token {
 		}
 		if input[pos] == '\n' {
 			if !lastWasNewline {
-				tokens = append(tokens, Token{
-					Type:    token.NEWLINE,
-					Literal: "\n",
-					Start:   pos,
-					End:     pos + 1,
-					Line:    line,
-					Pos:     linePos,
-				})
+				tokens = append(tokens, NewWorkerToken(
+					token.NEWLINE,
+					"\n",
+					pos,
+					pos+1,
+					line,
+					linePos,
+				))
 				lastWasNewline = true
 			}
 			line++
@@ -120,14 +126,14 @@ func (l *Lexer) Tokenize(input string) []Token {
 
 		// 处理特殊token
 		if result, ok := HandleSpecialToken(input, pos, line, linePos); ok {
-			tokens = append(tokens, Token{
-				Type:    result.Token.Type,
-				Literal: result.Token.Literal,
-				Start:   pos,
-				End:     result.NewPos,
-				Line:    line,
-				Pos:     linePos,
-			})
+			tokens = append(tokens, NewWorkerToken(
+				result.Token.Type,
+				result.Token.Literal,
+				pos,
+				result.NewPos,
+				line,
+				linePos,
+			))
 			// 使用返回的新位置信息更新状态
 			pos = result.NewPos
 			line = result.NewLine
@@ -137,14 +143,14 @@ func (l *Lexer) Tokenize(input string) []Token {
 
 		// 尝试匹配最长的token
 		if tokDef, length, ok := l.matchLongestToken(input, pos); ok {
-			tokens = append(tokens, Token{
-				Type:    tokDef.Type,
-				Literal: tokDef.Literal,
-				Start:   pos,
-				End:     pos + length,
-				Line:    line,
-				Pos:     linePos,
-			})
+			tokens = append(tokens, NewWorkerToken(
+				tokDef.Type,
+				tokDef.Literal,
+				pos,
+				pos+length,
+				line,
+				linePos,
+			))
 			pos += length
 			linePos += length
 			continue
@@ -154,14 +160,14 @@ func (l *Lexer) Tokenize(input string) []Token {
 		r, size := utf8.DecodeRuneInString(input[pos:])
 		if r == utf8.RuneError {
 			// 处理无效的 UTF-8 序列
-			tokens = append(tokens, Token{
-				Type:    token.UNKNOWN,
-				Literal: string(input[pos]),
-				Start:   pos,
-				End:     pos + 1,
-				Line:    line,
-				Pos:     linePos,
-			})
+			tokens = append(tokens, NewWorkerToken(
+				token.UNKNOWN,
+				string(input[pos]),
+				pos,
+				pos+1,
+				line,
+				linePos,
+			))
 			pos++
 			linePos++
 			continue
@@ -194,26 +200,26 @@ func (l *Lexer) Tokenize(input string) []Token {
 				linePos += size
 			}
 
-			tokens = append(tokens, Token{
-				Type:    token.IDENTIFIER,
-				Literal: input[start:pos],
-				Start:   start,
-				End:     pos,
-				Line:    line,
-				Pos:     startLinePos,
-			})
+			tokens = append(tokens, NewWorkerToken(
+				token.IDENTIFIER,
+				input[start:pos],
+				start,
+				pos,
+				line,
+				startLinePos,
+			))
 			continue
 		}
 
 		// 如果无法匹配任何token，将当前字符作为未知token
-		tokens = append(tokens, Token{
-			Type:    token.UNKNOWN,
-			Literal: string(r),
-			Start:   pos,
-			End:     pos + size,
-			Line:    line,
-			Pos:     linePos,
-		})
+		tokens = append(tokens, NewWorkerToken(
+			token.UNKNOWN,
+			string(r),
+			pos,
+			pos+size,
+			line,
+			linePos,
+		))
 		pos += size
 		linePos += size
 	}

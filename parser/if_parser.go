@@ -95,14 +95,14 @@ func (p *IfParser) Parse() (data.GetValue, data.Control) {
 // parseIfCondition 解析if条件，支持多种语法形式
 func (p *IfParser) parseIfCondition() (data.GetValue, data.Control) {
 	// 检查是否是括号形式 if (condition)
-	if p.current().Type == token.LPAREN {
+	if p.current().Type() == token.LPAREN {
 		p.next() // 跳过左括号
 
 		condition, acl := p.parseStatement()
 		if acl != nil {
 			return nil, acl
 		}
-		if p.current().Type != token.RPAREN {
+		if p.current().Type() != token.RPAREN {
 			return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("if 缺少右括号 ')'"))
 		}
 		p.next() // 跳过右括号
@@ -129,7 +129,7 @@ func (p *IfParser) parseSemicolonCondition() (data.GetValue, data.Control) {
 	}
 
 	// 检查是否有分号
-	if p.current().Type == token.SEMICOLON {
+	if p.current().Type() == token.SEMICOLON {
 		// 这是 if init; condition; increment {} 形式
 		p.next() // 跳过第一个分号
 
@@ -143,7 +143,7 @@ func (p *IfParser) parseSemicolonCondition() (data.GetValue, data.Control) {
 		}
 
 		// 检查是否有第二个分号
-		if p.current().Type == token.SEMICOLON {
+		if p.current().Type() == token.SEMICOLON {
 			p.next() // 跳过第二个分号
 
 			// 解析增量表达式（可选） TODO

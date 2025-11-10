@@ -53,7 +53,7 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 	generateType := ""
 	if p.checkPositionIs(0, token.GENERIC_TYPE) {
 		isGenerated = true
-		generateType = p.current().Literal
+		generateType = p.current().Literal()
 	}
 
 	// 获取完整的类名路径

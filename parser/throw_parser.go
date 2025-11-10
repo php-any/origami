@@ -27,7 +27,7 @@ func (p *ThrowParser) Parse() (data.GetValue, data.Control) {
 	// 解析要抛出的表达式
 	var value data.GetValue
 	var acl data.Control
-	if p.current().Type != token.SEMICOLON {
+	if p.current().Type() != token.SEMICOLON {
 		exprParser := NewExpressionParser(p.Parser)
 		value, acl = exprParser.Parse()
 		if acl != nil {

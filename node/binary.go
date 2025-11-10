@@ -11,11 +11,9 @@ type BinaryExpression interface {
 }
 
 func NewBinaryExpression(from data.From, left data.GetValue, operator lexer.Token, right data.GetValue) BinaryExpression {
-	switch operator.Type {
+	switch operator.Type() {
 	case token.ADD:
 		return NewBinaryAdd(from, left, right)
-	case token.INTERPOLATION_LINK:
-		return NewBinaryLink(from, left, right)
 	case token.SUB:
 		return NewBinarySub(from, left, right)
 	case token.ASSIGN:
@@ -61,6 +59,6 @@ func NewBinaryExpression(from data.From, left data.GetValue, operator lexer.Toke
 	case token.REM_EQ:
 		return NewBinaryAssign(from, left, NewBinaryRem(from, left, right))
 	default:
-		panic("unhandled default case " + operator.Literal)
+		panic("unhandled default case " + operator.Literal())
 	}
 }

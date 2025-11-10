@@ -24,14 +24,14 @@ func NewAnnotationParser(parser *Parser) StatementParser {
 func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 	var annotations []*node.Annotation
 
-	for p.current().Type == token.AT {
+	for p.current().Type() == token.AT {
 		tracker := p.StartTracking()
 
 		// 跳过 @ 符号
 		p.next()
 
 		// 解析注解名称
-		if p.current().Type != token.IDENTIFIER {
+		if p.current().Type() != token.IDENTIFIER {
 			return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("注解缺少名称"))
 		}
 
@@ -42,7 +42,7 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 
 		// 解析注解参数
 		arguments := make([]data.GetValue, 0)
-		if p.current().Type == token.LPAREN {
+		if p.current().Type() == token.LPAREN {
 			vp := VariableParser{Parser: p.Parser}
 			arguments, acl = vp.parseFunctionCall()
 			if acl != nil {

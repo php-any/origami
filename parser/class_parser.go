@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/lexer"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
 )
@@ -27,7 +28,7 @@ func NewClassParser(parser *Parser) StatementParser {
 func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 	// 解析类前的注解
 	var annotations []*node.Annotation
-	for p.current().Type == token.AT {
+	for p.current().Type() == token.AT {
 		annotation, acl := p.parseAnnotation()
 		if acl != nil {
 			return nil, acl
@@ -70,7 +71,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 			startIdx := p.position // 当前token是'{'前
 			// 向后找到第一个'{'
 			for i := p.position; i < len(p.tokens); i++ {
-				if p.tokens[i].Type == token.LBRACE {
+				if p.tokens[i].Type() == token.LBRACE {
 					startIdx = i
 					break
 				}
@@ -78,9 +79,9 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 			endIdx := startIdx
 			braceCount = 1
 			for i := startIdx + 1; i < len(p.tokens); i++ {
-				if p.tokens[i].Type == token.LBRACE {
+				if p.tokens[i].Type() == token.LBRACE {
 					braceCount++
-				} else if p.tokens[i].Type == token.RBRACE {
+				} else if p.tokens[i].Type() == token.RBRACE {
 					braceCount--
 					if braceCount == 0 {
 						endIdx = i
@@ -88,11 +89,19 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 					}
 				}
 			}
-			// 替换token类型
+			// 替换token类型 - 注意：由于Token现在是接口，我们需要创建新的WorkerToken来替换
 			for i := startIdx + 1; i < endIdx; i++ {
 				for _, param := range genericParamNames {
-					if p.tokens[i].Literal == param && p.tokens[i].Type == token.IDENTIFIER {
-						p.tokens[i].Type = token.GENERIC_TYPE
+					if p.tokens[i].Literal() == param && p.tokens[i].Type() == token.IDENTIFIER {
+						// 创建新的WorkerToken替换原来的token
+						p.tokens[i] = lexer.NewWorkerToken(
+							token.GENERIC_TYPE,
+							p.tokens[i].Literal(),
+							p.tokens[i].Start(),
+							p.tokens[i].End(),
+							p.tokens[i].Line(),
+							p.tokens[i].Pos(),
+						)
 					}
 				}
 			}
@@ -101,7 +110,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 
 	// 解析继承
 	var extends string
-	if p.current().Type == token.EXTENDS {
+	if p.current().Type() == token.EXTENDS {
 		p.next()
 		var acl data.Control
 		extends, acl = p.getClassName(true)
@@ -112,7 +121,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 
 	// 解析实现的接口
 	var implements []string
-	if p.current().Type == token.IMPLEMENTS {
+	if p.current().Type() == token.IMPLEMENTS {
 		p.next()
 		for {
 			interfaceName, acl := p.getClassName(true)
@@ -122,7 +131,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 
 			implements = append(implements, interfaceName)
 
-			if p.current().Type != token.COMMA {
+			if p.current().Type() != token.COMMA {
 				break
 			}
 			p.next()
@@ -130,7 +139,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	// 解析类体
-	if p.current().Type != token.LBRACE {
+	if p.current().Type() != token.LBRACE {
 		return nil, data.NewErrorThrow(p.newFrom(), errors.New("类声明后缺少左花括号 '{'"))
 	}
 	p.next()
@@ -143,7 +152,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 	for !p.currentIsTypeOrEOF(token.RBRACE) {
 		// 先尝试解析注解
 		var memberAnnotations []*node.Annotation
-		for p.current().Type == token.AT {
+		for p.current().Type() == token.AT {
 			ann, acl := p.parseAnnotation()
 			if acl != nil {
 				return nil, acl
@@ -161,17 +170,17 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 
 		// 解析static关键字
 		isStatic := false
-		if p.current().Type == token.STATIC {
+		if p.current().Type() == token.STATIC {
 			isStatic = true
 			p.next()
 		}
 
 		// 解析属性或方法
-		if p.current().Type == token.VAR ||
-			p.current().Type == token.CONST ||
-			p.current().Type == token.VARIABLE ||
-			isIdentOrTypeToken(p.current().Type) ||
-			(p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type)) {
+		if p.current().Type() == token.VAR ||
+			p.current().Type() == token.CONST ||
+			p.current().Type() == token.VARIABLE ||
+			isIdentOrTypeToken(p.current().Type()) ||
+			(p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type())) {
 			prop, acl := p.parsePropertyWithAnnotations(modifier, isStatic, memberAnnotations)
 			if acl != nil {
 				return nil, acl
@@ -183,7 +192,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 					properties = append(properties, prop)
 				}
 			}
-		} else if p.current().Type == token.FUNC {
+		} else if p.current().Type() == token.FUNC {
 			method, acl := p.parseMethodWithAnnotations(modifier, isStatic, memberAnnotations)
 			if acl != nil {
 				return nil, acl
@@ -195,7 +204,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 					methods[method.GetName()] = method
 				}
 			}
-		} else if p.current().Type == token.SEMICOLON {
+		} else if p.current().Type() == token.SEMICOLON {
 			p.next()
 			continue
 		} else {
@@ -283,17 +292,17 @@ func callClassAnnotation(p *Parser, ans *[]*node.Annotation, c node.AddAnnotatio
 
 // parseClassName 解析类名, 只管定义
 func (p *ClassParser) parseClassName() string {
-	if p.current().Type != token.IDENTIFIER {
+	if p.current().Type() != token.IDENTIFIER {
 		return ""
 	}
-	name := p.current().Literal
+	name := p.current().Literal()
 	p.next()
 	return name
 }
 
 // parseModifier 解析访问修饰符
 func (p *ClassParser) parseModifier() string {
-	switch p.current().Type {
+	switch p.current().Type() {
 	case token.PUBLIC:
 		p.next()
 		return "public"
@@ -316,7 +325,7 @@ func (p *ClassParser) parseAnnotation() (*node.Annotation, data.Control) {
 	p.next()
 
 	// 解析注解名称
-	if p.current().Type != token.IDENTIFIER {
+	if p.current().Type() != token.IDENTIFIER {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("注解缺少名称"))
 	}
 
@@ -327,7 +336,7 @@ func (p *ClassParser) parseAnnotation() (*node.Annotation, data.Control) {
 
 	// 解析注解参数
 	arguments := make([]data.GetValue, 0)
-	if p.current().Type == token.LPAREN {
+	if p.current().Type() == token.LPAREN {
 		vp := VariableParser{Parser: p.Parser}
 		arguments, acl = vp.parseFunctionCall()
 		if acl != nil {
@@ -360,35 +369,35 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 	}
 
 	// 解析static关键字（如果还没有解析）
-	if !isStatic && p.current().Type == token.STATIC {
+	if !isStatic && p.current().Type() == token.STATIC {
 		isStatic = true
 		p.next()
 	}
 
 	// 解析属性类型（在访问修饰符之后，变量名之前）
 	var propertyType data.Types
-	if isIdentOrTypeToken(p.current().Type) {
+	if isIdentOrTypeToken(p.current().Type()) {
 		// 检查是否是类型关键字
 		propertyType = p.parseType()
-	} else if p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type) {
+	} else if p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type()) {
 		// ?int 方式
 		p.next()
-		base := data.NewBaseType(p.current().Literal)
+		base := data.NewBaseType(p.current().Literal())
 		p.next()
 		propertyType = data.NewNullableType(base)
 	}
 
 	// 解析属性名
-	if p.current().Type != token.VARIABLE {
+	if p.current().Type() != token.VARIABLE {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少变量名"))
 	}
-	name := p.current().Literal
+	name := p.current().Literal()
 	p.next()
 
 	// 解析默认值
 	var defaultValue data.GetValue
 	var acl data.Control
-	if p.current().Type == token.ASSIGN {
+	if p.current().Type() == token.ASSIGN {
 		p.next()
 		exprParser := NewExpressionParser(p.Parser)
 		defaultValue, acl = exprParser.Parse()
@@ -398,7 +407,7 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 	}
 
 	// 解析分号
-	if p.current().Type == token.SEMICOLON {
+	if p.current().Type() == token.SEMICOLON {
 		p.next()
 	}
 
@@ -454,10 +463,10 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 	tracker := p.StartTracking()
 	p.scopeManager.NewScope(false)
 	// 解析方法名
-	if p.current().Type != token.IDENTIFIER {
-		return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("方法名不符合规范, 不能使用符号或者关键字(%s)", p.current().Literal))
+	if p.current().Type() != token.IDENTIFIER {
+		return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("方法名不符合规范, 不能使用符号或者关键字(%s)", p.current().Literal()))
 	}
-	name := p.current().Literal
+	name := p.current().Literal()
 	p.next()
 
 	// 使用通用函数解析器解析参数和方法体
@@ -468,7 +477,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 
 	// 解析返回类型
 	var retType data.Types
-	if p.current().Type == token.COLON {
+	if p.current().Type() == token.COLON {
 		p.next() // 跳过冒号
 
 		// 解析返回类型列表
@@ -477,14 +486,14 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 		for {
 			// 检查是否是可空类型语法 ?type
 			isNullable := false
-			if p.current().Type == token.TERNARY {
+			if p.current().Type() == token.TERNARY {
 				isNullable = true
 				p.next() // 跳过问号
 			}
 
 			// 解析返回类型
-			if isIdentOrTypeToken(p.current().Type) {
-				returnType := p.current().Literal
+			if isIdentOrTypeToken(p.current().Type()) {
+				returnType := p.current().Literal()
 				p.next()
 
 				// 创建基础类型
@@ -501,7 +510,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 			}
 
 			// 检查是否有更多类型（逗号分隔）
-			if p.current().Type == token.COMMA {
+			if p.current().Type() == token.COMMA {
 				p.next() // 跳过逗号
 				continue
 			}
@@ -582,7 +591,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 
 // 解释泛型定义 class<T>、class<T, Y>、class<string, int>、class<T<int>>
 func (p *ClassParser) parseGeneric() []data.Types {
-	if p.current().Type != token.LT {
+	if p.current().Type() != token.LT {
 		return nil
 	}
 	p.next() // 跳过 <
@@ -594,11 +603,11 @@ func (p *ClassParser) parseGeneric() []data.Types {
 			break
 		}
 		types = append(types, typ)
-		if p.current().Type == token.GT {
+		if p.current().Type() == token.GT {
 			p.next() // 跳过 >
 			break
 		}
-		if p.current().Type == token.COMMA {
+		if p.current().Type() == token.COMMA {
 			p.next() // 跳过 ,
 		} else {
 			break
@@ -609,21 +618,21 @@ func (p *ClassParser) parseGeneric() []data.Types {
 
 // 解析类型（支持嵌套泛型）
 func (p *ClassParser) parseType() data.Types {
-	if p.current().Type != token.IDENTIFIER {
-		if p.current().Type == token.GENERIC_TYPE {
-			T := p.current().Literal
+	if p.current().Type() != token.IDENTIFIER {
+		if p.current().Type() == token.GENERIC_TYPE {
+			T := p.current().Literal()
 			p.next()
 			return data.NewGenericType(T, nil)
 		}
 		return nil
 	}
 
-	typeName := p.current().Literal
+	typeName := p.current().Literal()
 	p.next()
 
 	subTypes := make([]data.Types, 0)
 	// 检查是否为泛型类型
-	if p.current().Type == token.LT {
+	if p.current().Type() == token.LT {
 		p.next() // 跳过 <
 		for {
 			typ := p.parseType()
@@ -631,11 +640,11 @@ func (p *ClassParser) parseType() data.Types {
 				break
 			}
 			subTypes = append(subTypes, typ)
-			if p.current().Type == token.GT {
+			if p.current().Type() == token.GT {
 				p.next() // 跳过 >
 				break
 			}
-			if p.current().Type == token.COMMA {
+			if p.current().Type() == token.COMMA {
 				p.next() // 跳过 ,
 			} else {
 				break

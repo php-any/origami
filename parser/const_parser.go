@@ -26,10 +26,10 @@ func (p *ConstParser) Parse() (data.GetValue, data.Control) {
 	p.next()
 
 	// 解析常量名
-	if p.current().Type != token.IDENTIFIER {
+	if p.current().Type() != token.IDENTIFIER {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("const 需要变量符号"))
 	}
-	name := p.current().Literal
+	name := p.current().Literal()
 	p.next()
 
 	t := data.Const{}
@@ -41,7 +41,7 @@ func (p *ConstParser) Parse() (data.GetValue, data.Control) {
 			return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("常量必须初始化"))
 		}
 		t.MyType = data.NewBaseType(name)
-		name = p.current().Literal
+		name = p.current().Literal()
 		p.next()
 	}
 	p.next() // 跳过等号

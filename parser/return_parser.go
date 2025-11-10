@@ -26,7 +26,7 @@ func (p *ReturnParser) Parse() (data.GetValue, data.Control) {
 
 	// 解析返回值表达式
 	var value data.GetValue
-	if p.current().Type != token.SEMICOLON {
+	if p.current().Type() != token.SEMICOLON {
 		exprParser := NewExpressionParser(p.Parser)
 		var acl data.Control
 		value, acl = exprParser.Parse()

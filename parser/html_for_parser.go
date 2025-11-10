@@ -28,7 +28,7 @@ func (h *HtmlForAttributeParser) Parser(name string, parser *Parser) (node.HtmlA
 	}
 
 	// 字符串值
-	codes := parser.current().Literal
+	codes := parser.current().Literal()
 	codes = strings.Trim(codes, "\"")
 	codes = strings.Trim(codes, "'")
 	parser.next()

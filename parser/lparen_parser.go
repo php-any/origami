@@ -53,7 +53,7 @@ func (ep *LparenParser) isTypeCast() bool {
 
 // parseTypeCast 解析类型转换
 func (ep *LparenParser) parseTypeCast(tracking *PositionTracker) (data.GetValue, data.Control) {
-	typeName := ep.current().Literal
+	typeName := ep.current().Literal()
 	ep.next()                     // 跳过类型名
 	ep.nextAndCheck(token.RPAREN) // 跳过右括号
 
@@ -75,7 +75,7 @@ func (ep *LparenParser) isLambdaExpression() bool {
 	parenCount := 0
 
 	for pos < len(ep.tokens)-ep.position {
-		tokenType := ep.tokens[ep.position+pos].Type
+		tokenType := ep.tokens[ep.position+pos].Type()
 
 		if tokenType == token.LPAREN {
 			parenCount++
@@ -84,7 +84,7 @@ func (ep *LparenParser) isLambdaExpression() bool {
 			if parenCount < 0 {
 				// 找到了匹配的右括号，检查后面是否有 =>
 				if pos+1 < len(ep.tokens)-ep.position &&
-					ep.tokens[ep.position+pos+1].Type == token.ARRAY_KEY_VALUE {
+					ep.tokens[ep.position+pos+1].Type() == token.ARRAY_KEY_VALUE {
 					return true
 				}
 				break
@@ -150,7 +150,7 @@ func (ep *LparenParser) parseParenthesizedExpression(tracking *PositionTracker) 
 		return nil, acl
 	}
 	// 检查是否有右括号
-	if ep.current().Type != token.RPAREN {
+	if ep.current().Type() != token.RPAREN {
 		return nil, data.NewErrorThrow(tracking.EndBefore(), fmt.Errorf("缺少右括号 ')'"))
 	}
 	ep.next() // 跳过右括号

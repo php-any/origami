@@ -33,7 +33,7 @@ func (vp *VariableParser) parseVariable() data.Variable {
 	tracker := vp.StartTracking()
 
 	// 获取变量名
-	name := vp.current().Literal
+	name := vp.current().Literal()
 	vp.next()
 
 	// 查找变量索引
@@ -52,7 +52,7 @@ func (vp *VariableParser) parseVariable() data.Variable {
 func (vp *VariableParser) parseSuffix(expr data.GetValue) (data.GetValue, data.Control) {
 	var acl data.Control
 	for {
-		switch vp.current().Type {
+		switch vp.current().Type() {
 		case token.LPAREN:
 			// 在解析函数调用之前记录位置
 			tracker := vp.StartTracking()
@@ -87,7 +87,7 @@ func (vp *VariableParser) parseSuffix(expr data.GetValue) (data.GetValue, data.C
 				return node.NewClassConstant(tracker.EndBefore(), expr), nil
 			} else if vp.checkPositionIs(0, token.LPAREN) {
 				// 处理 ::test()
-				fnName := vp.current().Literal
+				fnName := vp.current().Literal()
 				vp.next()
 				// 创建函数调用表达式
 				vp := &VariableParser{vp.Parser}
@@ -95,7 +95,7 @@ func (vp *VariableParser) parseSuffix(expr data.GetValue) (data.GetValue, data.C
 				return vp.parseSuffix(expr)
 			} else {
 				// 处理 ::test;
-				attrName := vp.current().Literal
+				attrName := vp.current().Literal()
 				vp.next()
 				vp := &VariableParser{vp.Parser}
 				expr := node.NewCallStaticProperty(tracker.EndBefore(), expr, attrName)
@@ -112,12 +112,12 @@ func (vp *VariableParser) parseFunctionCall() ([]data.GetValue, data.Control) {
 	vp.nextAndCheck(token.LPAREN) // 跳过左括号
 
 	args := make([]data.GetValue, 0)
-	if vp.current().Type != token.RPAREN {
+	if vp.current().Type() != token.RPAREN {
 		for {
 			// 优先检查命名参数
 			if vp.checkPositionIs(0, token.IDENTIFIER) && vp.checkPositionIs(1, token.COLON) {
 				tracker := vp.StartTracking()
-				name := vp.current().Literal
+				name := vp.current().Literal()
 				vp.next()
 				vp.next()
 				from := tracker.EndBefore()
@@ -131,7 +131,7 @@ func (vp *VariableParser) parseFunctionCall() ([]data.GetValue, data.Control) {
 					return nil, acl
 				}
 				args = append(args, node.NewNamedArgument(from, name, value))
-				if vp.current().Type != token.COMMA {
+				if vp.current().Type() != token.COMMA {
 					break
 				}
 				vp.next()
@@ -152,7 +152,7 @@ func (vp *VariableParser) parseFunctionCall() ([]data.GetValue, data.Control) {
 					args = append(args, expr)
 				}
 
-				if vp.current().Type != token.COMMA {
+				if vp.current().Type() != token.COMMA {
 					break
 				}
 				vp.next()
@@ -169,10 +169,10 @@ func (vp *VariableParser) parseArrayAccess(array data.GetValue) (data.GetValue, 
 	vp.next() // 跳过左方括号
 	from := tracker.EndBefore()
 
-	if vp.current().Type == token.DOUBLE_DOT {
+	if vp.current().Type() == token.DOUBLE_DOT {
 		// arr[..1]
 		vp.next()
-		if vp.current().Type == token.RBRACKET {
+		if vp.current().Type() == token.RBRACKET {
 			// arr[..]
 			vp.next()
 			return node.NewRange(
@@ -198,7 +198,7 @@ func (vp *VariableParser) parseArrayAccess(array data.GetValue) (data.GetValue, 
 	var index data.GetValue
 	var acl data.Control
 
-	if vp.current().Type == token.RBRACKET {
+	if vp.current().Type() == token.RBRACKET {
 		// arr[]
 		vp.next()
 		index = node.NewObjectProperty(from, array, "length")
@@ -214,7 +214,7 @@ func (vp *VariableParser) parseArrayAccess(array data.GetValue) (data.GetValue, 
 		}
 	}
 
-	if vp.current().Type == token.RBRACKET {
+	if vp.current().Type() == token.RBRACKET {
 		// arr[1]
 		vp.next()
 
@@ -225,10 +225,10 @@ func (vp *VariableParser) parseArrayAccess(array data.GetValue) (data.GetValue, 
 		), nil
 	}
 
-	if vp.current().Type == token.DOUBLE_DOT {
+	if vp.current().Type() == token.DOUBLE_DOT {
 		start := index
 		vp.next()
-		if vp.current().Type == token.RBRACKET {
+		if vp.current().Type() == token.RBRACKET {
 			// arr[1..]
 			vp.next()
 			return node.NewRange(
@@ -266,8 +266,8 @@ func (vp *VariableParser) parsePropertyAccess(object data.GetValue) (data.GetVal
 	tracker := vp.StartTracking()
 	vp.next() // 跳过点号
 
-	if vp.checkPositionIs(0, token.IDENTIFIER) || (vp.current().Type > token.KEYWORD_START && vp.current().Type < token.VALUE_START) {
-		property := vp.current().Literal
+	if vp.checkPositionIs(0, token.IDENTIFIER) || (vp.current().Type() > token.KEYWORD_START && vp.current().Type() < token.VALUE_START) {
+		property := vp.current().Literal()
 		vp.next()
 
 		if vp.checkPositionIs(0, token.LPAREN) {
@@ -306,16 +306,16 @@ func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, 
 	vp.next() // 跳过箭头
 	tracker := vp.StartTracking()
 
-	if !(vp.checkPositionIs(0, token.IDENTIFIER) || (vp.current().Type > token.KEYWORD_START && vp.current().Type < token.VALUE_START)) {
+	if !(vp.checkPositionIs(0, token.IDENTIFIER) || (vp.current().Type() > token.KEYWORD_START && vp.current().Type() < token.VALUE_START)) {
 		from := tracker.End()
 		return nil, data.NewErrorThrow(from, errors.New("符号'->'后面需要跟随单词"))
 	}
 
-	method := vp.current().Literal
+	method := vp.current().Literal()
 	vp.next()
 
 	// 如果后面跟着括号，解析方法调用
-	if vp.current().Type == token.LPAREN {
+	if vp.current().Type() == token.LPAREN {
 		stmt, acl := vp.parseFunctionCall()
 		if acl != nil {
 			return nil, acl

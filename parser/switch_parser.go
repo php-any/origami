@@ -38,7 +38,7 @@ func (p *SwitchParser) Parse() (data.GetValue, data.Control) {
 	var cases []node.SwitchCase
 	var defaultCase []data.GetValue
 
-	for p.current().Type != token.RBRACE && !p.isEOF() {
+	for p.current().Type() != token.RBRACE && !p.isEOF() {
 		if p.checkPositionIs(0, token.DEFAULT) {
 			defaultCase, acl = p.parseDefaultCase()
 			if acl != nil {
@@ -73,14 +73,14 @@ func (p *SwitchParser) Parse() (data.GetValue, data.Control) {
 // parseSwitchCondition 解析switch条件表达式
 func (p *SwitchParser) parseSwitchCondition(tracker *PositionTracker) (data.GetValue, data.Control) {
 	// 检查是否是括号形式 switch (condition)
-	if p.current().Type == token.LPAREN {
+	if p.current().Type() == token.LPAREN {
 		p.next() // 跳过左括号
 
 		condition, acl := p.parseStatement()
 		if acl != nil {
 			return nil, acl
 		}
-		if p.current().Type != token.RPAREN {
+		if p.current().Type() != token.RPAREN {
 			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("switch 缺少右括号 ')'"))
 		}
 		p.next() // 跳过右括号
@@ -112,7 +112,7 @@ func (p *SwitchParser) parseSwitchCase() (*node.SwitchCase, data.Control) {
 
 	// 解析直到遇到下一个case、default或右大括号
 	for !p.isEOF() && !p.checkPositionIs(0, token.CASE, token.DEFAULT, token.RBRACE) {
-		if p.current().Type == token.LBRACE {
+		if p.current().Type() == token.LBRACE {
 			// 这是一个代码块
 			statements, acl = p.parseBlock()
 			if acl != nil {
@@ -172,7 +172,7 @@ func (p *SwitchParser) parseDefaultCase() ([]data.GetValue, data.Control) {
 
 	// 解析直到遇到下一个case或右大括号
 	for !p.isEOF() && !p.checkPositionIs(0, token.CASE, token.RBRACE) {
-		if p.current().Type == token.LBRACE {
+		if p.current().Type() == token.LBRACE {
 			// 这是一个代码块
 			var acl data.Control
 			statements, acl = p.parseBlock()

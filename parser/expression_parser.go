@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/lexer"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
 )
@@ -93,10 +94,10 @@ func (ep *ExpressionParser) parseTernary() (data.GetValue, data.Control) {
 	if acl != nil {
 		return nil, acl
 	}
-	switch ep.current().Type {
+	switch ep.current().Type() {
 	case token.TERNARY:
 		// 检查是否是可空类型声明模式：?type $variable
-		if isIdentOrTypeToken(ep.peek(1).Type) && ep.checkPositionIs(2, token.VARIABLE) {
+		if isIdentOrTypeToken(ep.peek(1).Type()) && ep.checkPositionIs(2, token.VARIABLE) {
 			// 这是可空类型声明，交给专门的解析器处理
 			if parser, ok := parserRouter[token.TERNARY]; ok {
 				return parser(ep.Parser).Parse()
@@ -112,7 +113,7 @@ func (ep *ExpressionParser) parseTernary() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 		// 检查是否有冒号 :
-		if ep.current().Type == token.COLON {
+		if ep.current().Type() == token.COLON {
 			ep.next() // 跳过 :
 
 			// 解析假值表达式
@@ -156,7 +157,7 @@ func (ep *ExpressionParser) parseConcatenation() (data.GetValue, data.Control) {
 	if acl != nil {
 		return nil, acl
 	}
-	for ep.current().Type == token.DOT || ep.current().Type == token.INTERPOLATION_LINK {
+	for ep.current().Type() == token.DOT {
 		operator := ep.current()
 		ep.next()
 
@@ -182,7 +183,7 @@ func (ep *ExpressionParser) parseLogicalOr() (data.GetValue, data.Control) {
 	if acl != nil {
 		return nil, acl
 	}
-	for ep.current().Type == token.LOR {
+	for ep.current().Type() == token.LOR {
 		operator := ep.current()
 		ep.next()
 
@@ -208,7 +209,7 @@ func (ep *ExpressionParser) parseLogicalAnd() (data.GetValue, data.Control) {
 	if acl != nil {
 		return nil, acl
 	}
-	for ep.current().Type == token.LAND {
+	for ep.current().Type() == token.LAND {
 		operator := ep.current()
 		ep.next()
 
@@ -251,11 +252,11 @@ func (ep *ExpressionParser) parseEquality() (data.GetValue, data.Control) {
 	}
 
 	// 处理 instanceof 关键字
-	if ep.current().Type == token.INSTANCEOF {
+	if ep.current().Type() == token.INSTANCEOF {
 		ep.next() // 跳过 instanceof 关键字
 		var className string
-		if ep.current().Literal == "object" {
-			className = ep.current().Literal
+		if ep.current().Literal() == "object" {
+			className = ep.current().Literal()
 			ep.next()
 		} else {
 			className, acl = ep.getClassName(true)
@@ -273,7 +274,7 @@ func (ep *ExpressionParser) parseEquality() (data.GetValue, data.Control) {
 	}
 
 	// 处理 like 关键字
-	if ep.current().Type == token.LIKE {
+	if ep.current().Type() == token.LIKE {
 		ep.next() // 跳过 like 关键字
 
 		className, acl := ep.getClassName(true)
@@ -300,7 +301,7 @@ func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 		if ep.checkPositionIs(0, token.LT) && ep.checkPositionIs(1, token.IDENTIFIER) {
 			// <html
 			return NewHtmlParser(ep.Parser).Parse()
-		} else if ep.checkPositionIs(0, token.LT) && ep.checkPositionIs(1, token.NOT) && ep.checkPositionIs(2, token.IDENTIFIER) && strings.EqualFold(ep.peek(2).Literal, "DOCTYPE") {
+		} else if ep.checkPositionIs(0, token.LT) && ep.checkPositionIs(1, token.NOT) && ep.checkPositionIs(2, token.IDENTIFIER) && strings.EqualFold(ep.peek(2).Literal(), "DOCTYPE") {
 			// 解析 <!DOCTYPE ...>，并将后续所有节点绑定为其子节点
 			// 跳过 < ! DOCTYPE
 			ep.next() // <
@@ -309,14 +310,14 @@ func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 
 			// 收集 doctype 内容直到 '>'
 			doc := ""
-			for !ep.isEOF() && ep.current().Type != token.GT {
+			for !ep.isEOF() && ep.current().Type() != token.GT {
 				if doc != "" {
 					doc += " "
 				}
-				doc += ep.current().Literal
+				doc += ep.current().Literal()
 				ep.next()
 			}
-			if ep.current().Type == token.GT {
+			if ep.current().Type() == token.GT {
 				ep.next()
 			}
 			doc = strings.TrimSpace(doc)
@@ -337,19 +338,19 @@ func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 					}
 					continue
 				}
-				if ep.current().Type == token.LT && ep.checkPositionIs(1, token.QUO) {
+				if ep.current().Type() == token.LT && ep.checkPositionIs(1, token.QUO) {
 					// 顶层不期望结束标签，跳出
 					break
 				}
 				// 收集文本直到下一个 '<'
 				text := ""
 				prev := ep.current()
-				for !ep.isEOF() && ep.current().Type != token.LT {
+				for !ep.isEOF() && ep.current().Type() != token.LT {
 					cur := ep.current()
 					if !ep.isTokensAdjacent(prev, cur) && text != "" {
 						text += " "
 					}
-					text += cur.Literal
+					text += cur.Literal()
 					prev = cur
 					ep.next()
 				}
@@ -363,8 +364,8 @@ func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("比较表达式左值不存在"))
 		}
 	}
-	for ep.current().Type == token.LT || ep.current().Type == token.LE ||
-		ep.current().Type == token.GT || ep.current().Type == token.GE {
+	for ep.current().Type() == token.LT || ep.current().Type() == token.LE ||
+		ep.current().Type() == token.GT || ep.current().Type() == token.GE {
 		operator := ep.current()
 		ep.next()
 
@@ -390,7 +391,7 @@ func (ep *ExpressionParser) parseTerm() (data.GetValue, data.Control) {
 	if acl != nil {
 		return nil, acl
 	}
-	for ep.current().Type == token.ADD || ep.current().Type == token.SUB {
+	for ep.current().Type() == token.ADD || ep.current().Type() == token.SUB {
 		operator := ep.current()
 		ep.next()
 
@@ -416,8 +417,8 @@ func (ep *ExpressionParser) parseFactor() (data.GetValue, data.Control) {
 	if acl != nil {
 		return expr, acl
 	}
-	for ep.current().Type == token.MUL || ep.current().Type == token.QUO ||
-		ep.current().Type == token.REM {
+	for ep.current().Type() == token.MUL || ep.current().Type() == token.QUO ||
+		ep.current().Type() == token.REM {
 		operator := ep.current()
 		ep.next()
 
@@ -439,8 +440,8 @@ func (ep *ExpressionParser) parseFactor() (data.GetValue, data.Control) {
 // parseUnary 解析一元表达式
 func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
-	if ep.current().Type == token.SUB || ep.current().Type == token.NOT {
-		operator := ep.current().Literal
+	if ep.current().Type() == token.SUB || ep.current().Type() == token.NOT {
+		operator := ep.current().Literal()
 		ep.next()
 
 		right, acl := ep.parseUnary()
@@ -455,7 +456,7 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 	}
 
 	// 处理前缀自增自减
-	if ep.current().Type == token.INCR || ep.current().Type == token.DECR {
+	if ep.current().Type() == token.INCR || ep.current().Type() == token.DECR {
 		operator := ep.current()
 		ep.next()
 
@@ -463,11 +464,11 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 		if acl != nil {
 			return nil, acl
 		}
-		for ep.current().Type == token.SEMICOLON {
+		for ep.current().Type() == token.SEMICOLON {
 			// 跳过没意义的分号
 			ep.next()
 		}
-		if operator.Type == token.INCR {
+		if operator.Type() == token.INCR {
 			return node.NewUnaryIncr(
 				tracker.EndBefore(),
 				right,
@@ -485,17 +486,23 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 
 // parsePrimary 解析基本表达式
 func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
-	switch ep.current().Type {
+	switch ep.current().Type() {
 	case token.INT:
-		value := ep.current().Literal
+		value := ep.current().Literal()
 		ep.next()
 		return node.NewIntLiteral(ep.FromCurrentToken(), value), nil
 	case token.FLOAT:
-		value := ep.current().Literal
+		value := ep.current().Literal()
 		ep.next()
 		return node.NewFloatLiteral(ep.FromCurrentToken(), value), nil
 	case token.STRING:
-		value := ep.current().Literal
+		// 检查是否是 LingToken（插值字符串）
+		if lingToken, ok := ep.current().(*lexer.LingToken); ok {
+			ep.next()
+			return ep.parseLingToken(lingToken, ep.FromCurrentToken()), nil
+		}
+		// 普通字符串
+		value := ep.current().Literal()
 		ep.next()
 		return node.NewStringLiteral(ep.FromCurrentToken(), value), nil
 
@@ -514,22 +521,22 @@ func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 		ep.next()
 		return nil, nil
 	default:
-		if parser, ok := parserRouter[ep.current().Type]; ok {
+		if parser, ok := parserRouter[ep.current().Type()]; ok {
 			expr, acl := parser(ep.Parser).Parse()
 			if acl != nil {
 				return nil, acl
 			}
 
 			// 检查是否有后缀自增自减
-			if ep.current().Type == token.INCR || ep.current().Type == token.DECR {
+			if ep.current().Type() == token.INCR || ep.current().Type() == token.DECR {
 				operator := ep.current()
 				ep.next()
-				for ep.current().Type == token.SEMICOLON {
+				for ep.current().Type() == token.SEMICOLON {
 					// 跳过没意义的分号
 					ep.next()
 				}
 				// 对于后缀自增自减，使用当前 token 的位置信息即可
-				if operator.Type == token.INCR {
+				if operator.Type() == token.INCR {
 					return node.NewPostfixIncr(
 						ep.FromCurrentToken(),
 						expr,
@@ -546,4 +553,9 @@ func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 		}
 		return nil, nil
 	}
+}
+
+// parseLingToken 解析 LingToken（插值字符串），创建链接节点
+func (ep *ExpressionParser) parseLingToken(lingToken *lexer.LingToken, from data.From) data.GetValue {
+	return ep.Parser.parseLingToken(lingToken, from)
 }

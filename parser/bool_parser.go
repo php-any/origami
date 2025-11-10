@@ -33,7 +33,7 @@ func (p *BoolParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	// 获取变量名
-	varName := p.current().Literal
+	varName := p.current().Literal()
 	p.next()
 
 	// 结束位置跟踪，获取准确的From信息

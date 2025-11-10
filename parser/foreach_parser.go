@@ -26,7 +26,7 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 	p.next()
 
 	// 解析左括号
-	if p.current().Type != token.LPAREN {
+	if p.current().Type() != token.LPAREN {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 缺少左括号"))
 	}
 	p.next()
@@ -42,7 +42,7 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	// 解析 as 关键字
-	if p.current().Type != token.AS {
+	if p.current().Type() != token.AS {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要 'as' 关键字"))
 	}
 	p.next()
@@ -67,7 +67,7 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 		}
 	}
 
-	if p.current().Type == token.ARRAY_KEY_VALUE {
+	if p.current().Type() == token.ARRAY_KEY_VALUE {
 		p.next() // 跳过 =>
 		keyTemp, acl := p.parseStatement()
 		if acl != nil {
@@ -88,7 +88,7 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	// 解析右括号
-	if p.current().Type != token.RPAREN {
+	if p.current().Type() != token.RPAREN {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 缺少右括号"))
 	}
 	p.next()

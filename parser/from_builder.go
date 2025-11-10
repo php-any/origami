@@ -65,12 +65,12 @@ func (fb *fromBuilder) SetPos(pos int) FromBuilder {
 func (fb *fromBuilder) Build() *node.TokenFrom {
 	// 如果没有设置起始位置，使用当前token的起始位置
 	if !fb.hasStart {
-		fb.startPos = fb.parser.current().Start
+		fb.startPos = fb.parser.current().Start()
 	}
 
 	// 如果没有设置结束位置，使用当前token的结束位置
 	if !fb.hasEnd {
-		fb.endPos = fb.parser.current().End
+		fb.endPos = fb.parser.current().End()
 	}
 
 	// 如果没有设置行号，使用起始位置对应的行号
@@ -100,7 +100,7 @@ func (fb *fromBuilder) Build() *node.TokenFrom {
 // deprecated: p.StartTracking()
 func (p *Parser) FromCurrentToken() *node.TokenFrom {
 	current := p.current()
-	return node.NewTokenFrom(p.source, current.Start, current.End, current.Line, current.Pos)
+	return node.NewTokenFrom(p.source, current.Start(), current.End(), current.Line(), current.Pos())
 }
 
 // FromRange 从指定范围创建From信息
@@ -116,10 +116,10 @@ func (p *Parser) FromTokenRange(startToken, endToken int) *node.TokenFrom {
 		return p.FromCurrentToken()
 	}
 
-	start := p.tokens[startToken].Start
-	end := p.tokens[endToken].End
-	line := p.tokens[startToken].Line
-	pos := p.tokens[startToken].Pos
+	start := p.tokens[startToken].Start()
+	end := p.tokens[endToken].End()
+	line := p.tokens[startToken].Line()
+	pos := p.tokens[startToken].Pos()
 
 	return node.NewTokenFrom(p.source, start, end, line, pos)
 }

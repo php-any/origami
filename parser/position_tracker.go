@@ -61,11 +61,11 @@ func (pt *PositionTracker) EndWithPosition() *node.TokenFrom {
 	endToken := pt.parser.tokens[pt.endPos]
 
 	// 创建 TokenFrom 并设置精确位置
-	tf := node.NewTokenFrom(pt.parser.source, startToken.Start, endToken.End, startToken.Line, startToken.Pos)
+	tf := node.NewTokenFrom(pt.parser.source, startToken.Start(), endToken.End(), startToken.Line(), startToken.Pos())
 
 	// 如果结束 token 与开始 token 不同，设置结束位置
 	if pt.endPos != pt.startPos {
-		tf.SetEndPosition(endToken.Line, endToken.Pos)
+		tf.SetEndPosition(endToken.Line(), endToken.Pos())
 	}
 
 	return tf
@@ -101,11 +101,11 @@ func (pt *PositionTracker) EndAtWithPosition(pos int) *node.TokenFrom {
 	endToken := pt.parser.tokens[pt.endPos]
 
 	// 创建 TokenFrom 并设置精确位置
-	tf := node.NewTokenFrom(pt.parser.source, startToken.Start, endToken.End, startToken.Line, startToken.Pos)
+	tf := node.NewTokenFrom(pt.parser.source, startToken.Start(), endToken.End(), startToken.Line(), startToken.Pos())
 
 	// 如果结束 token 与开始 token 不同，设置结束位置
 	if pt.endPos != pt.startPos {
-		tf.SetEndPosition(endToken.Line, endToken.Pos)
+		tf.SetEndPosition(endToken.Line(), endToken.Pos())
 	}
 
 	return tf
@@ -131,10 +131,10 @@ func (pt *PositionTracker) EndBefore() *node.TokenFrom {
 		if pt.startPos < len(pt.parser.tokens) {
 			token := pt.parser.tokens[pt.startPos]
 			// 创建 TokenFrom 并设置正确的结束位置
-			tf := node.NewTokenFrom(pt.parser.source, token.Start, token.End, token.Line, token.Pos)
+			tf := node.NewTokenFrom(pt.parser.source, token.Start(), token.End(), token.Line(), token.Pos())
 			// 计算 token 的结束列位置：开始列 + token 长度
-			endChar := token.Pos + len(token.Literal)
-			tf.SetEndPosition(token.Line, endChar)
+			endChar := token.Pos() + len(token.Literal())
+			tf.SetEndPosition(token.Line(), endChar)
 			return tf
 		}
 	}

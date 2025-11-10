@@ -20,7 +20,7 @@ func NewMainStatementParser(parser *Parser) *MainStatementParser {
 // Parse 解析语句
 func (sp *MainStatementParser) Parse() (data.GetValue, data.Control) {
 	// 获取当前词法单元类型
-	tokenType := sp.current().Type
+	tokenType := sp.current().Type()
 
 	// 创建对应的解析器
 	var parser StatementParser

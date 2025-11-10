@@ -22,7 +22,7 @@ func NewIdentParser(parser *Parser) StatementParser {
 // Parse 解析标识符表达式
 func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 	tracker := p.StartTracking()
-	name := p.current().Literal
+	name := p.current().Literal()
 	startToken := p.current()
 	p.next()
 
@@ -82,7 +82,7 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 	if p.checkPositionIs(0, token.VARIABLE) || p.checkPositionIs(1, token.ASSIGN) {
 		// int $num 或者 int i = 0
 		ty := name
-		name = p.current().Literal
+		name = p.current().Literal()
 		p.next()
 		val := p.scopeManager.CurrentScope().AddVariable(name, data.NewBaseType(ty), tracker.EndBefore())
 		return node.NewVariableWithFirst(tracker.EndBefore(), val), nil
@@ -119,7 +119,7 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 		if p.checkPositionIs(0, token.COLON) && p.checkPositionIs(1, token.IDENTIFIER) {
 			// a: string
 			p.next()
-			ty := p.current().Literal
+			ty := p.current().Literal()
 			p.next()
 			val := p.scopeManager.CurrentScope().AddVariable(name, data.NewBaseType(ty), tracker.EndBefore())
 			expr := node.NewVariableWithFirst(tracker.EndBefore(), val)
@@ -139,7 +139,7 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 				return nil, acl
 			}
 			p.next()
-			fnName := p.current().Literal
+			fnName := p.current().Literal()
 			p.next()
 
 			if p.checkPositionIs(0, token.LPAREN) {
@@ -247,7 +247,7 @@ func (p *IdentParser) parseClassInit(tracker *PositionTracker, className string)
 		if !p.checkPositionIs(0, token.IDENTIFIER) {
 			return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("初始类 %s 的属性名必须是标识符", className))
 		}
-		key := p.current().Literal
+		key := p.current().Literal()
 		p.next()
 		acl := p.nextAndCheck(token.COLON)
 		if acl != nil {

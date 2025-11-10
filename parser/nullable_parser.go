@@ -28,19 +28,19 @@ func (p *NullableParser) Parse() (data.GetValue, data.Control) {
 	p.next()
 
 	// 检查下一个token是否是类型标识符
-	if !isIdentOrTypeToken(p.current().Type) {
+	if !isIdentOrTypeToken(p.current().Type()) {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("可空类型声明需要类型标识符"))
 	}
 
-	typeName := p.current().Literal
+	typeName := p.current().Literal()
 	p.next()
 
 	// 检查是否有变量名
-	if p.current().Type != token.VARIABLE {
+	if p.current().Type() != token.VARIABLE {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("可空类型声明需要变量名"))
 	}
 
-	varName := p.current().Literal
+	varName := p.current().Literal()
 	p.next()
 
 	// 创建可空类型

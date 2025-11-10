@@ -25,7 +25,7 @@ func NewFunctionParserCommon(parser *Parser) *FunctionParserCommon {
 func (p *FunctionParserCommon) ParseFunctionBody() ([]data.GetValue, data.Control) {
 	stmtParser := NewMainStatementParser(p.Parser)
 	var body []data.GetValue
-	if p.current().Type == token.LBRACE {
+	if p.current().Type() == token.LBRACE {
 		p.next()
 		for !p.currentIsTypeOrEOF(token.RBRACE) {
 			stmt, acl := stmtParser.Parse()
@@ -45,14 +45,14 @@ func (p *FunctionParserCommon) ParseFunctionBody() ([]data.GetValue, data.Contro
 func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control) {
 	tracking := p.StartTracking()
 	// 检查左括号
-	if p.current().Type != token.LPAREN {
+	if p.current().Type() != token.LPAREN {
 		return nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("参数列表前缺少左括号 '('"))
 	}
 	p.next()
 
 	params := make([]data.GetValue, 0)
 	// 如果下一个token是右括号，说明参数列表为空
-	if p.current().Type == token.RPAREN {
+	if p.current().Type() == token.RPAREN {
 		p.next()
 		return params, nil
 	}
@@ -65,13 +65,13 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 		isParams := false
 		isReference := false // 是否引用
 		// 解析参数名
-		if p.current().Type != token.VARIABLE {
+		if p.current().Type() != token.VARIABLE {
 			isVar := false
 			// (...args) 省却参数类型。
-			if parser.current().Type == token.ELLIPSIS {
+			if parser.current().Type() == token.ELLIPSIS {
 				isVar = true
 				parser.next()
-				name = parser.current().Literal
+				name = parser.current().Literal()
 				isParams = true
 				p.next()
 			}
@@ -80,44 +80,44 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 			if parser.checkPositionIs(0, token.BIT_AND) {
 				isVar = true
 				parser.next()
-				name = parser.current().Literal
+				name = parser.current().Literal()
 				p.next()
 				isReference = true
 			}
 
 			// (string $data) 或 (?string $data)
-			if !isVar && isIdentOrTypeToken(parser.current().Type) && parser.checkPositionIs(1, token.IDENTIFIER, token.VARIABLE) {
+			if !isVar && isIdentOrTypeToken(parser.current().Type()) && parser.checkPositionIs(1, token.IDENTIFIER, token.VARIABLE) {
 				isVar = true
-				varType = parser.current().Literal
+				varType = parser.current().Literal()
 				p.next()
 
-				name = parser.current().Literal
+				name = parser.current().Literal()
 				p.next()
 			}
 			// (?string $data) 可空类型参数
 			if !isVar && parser.checkPositionIs(0, token.TERNARY) && parser.checkPositionIs(1, token.IDENTIFIER) && parser.checkPositionIs(2, token.IDENTIFIER, token.VARIABLE) {
 				isVar = true
 				p.next() // 跳过问号
-				varType = "?" + parser.current().Literal
+				varType = "?" + parser.current().Literal()
 				p.next()
 
-				name = parser.current().Literal
+				name = parser.current().Literal()
 				p.next()
 			}
 			// (data: string)
 			if !isVar && parser.checkPositionIs(0, token.IDENTIFIER, token.VARIABLE) && parser.checkPositionIs(1, token.COLON) && parser.checkPositionIs(2, token.IDENTIFIER) {
-				name = parser.current().Literal
+				name = parser.current().Literal()
 				p.next()
 				if parser.checkPositionIs(0, token.COLON) {
 					p.next()
-					varType = parser.current().Literal
+					varType = parser.current().Literal()
 					p.next()
 				}
 				isVar = true
 			}
 			// fun(data)
-			if !isVar && isIdentOrTypeToken(parser.current().Type) && parser.checkPositionIs(1, token.RPAREN, token.COMMA) {
-				name = parser.current().Literal
+			if !isVar && isIdentOrTypeToken(parser.current().Type()) && parser.checkPositionIs(1, token.RPAREN, token.COMMA) {
+				name = parser.current().Literal()
 				p.next()
 				isVar = true
 			}
@@ -125,11 +125,11 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 				return nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("参数缺少变量名"))
 			}
 		} else {
-			name = parser.current().Literal
+			name = parser.current().Literal()
 			p.next()
 			if parser.checkPositionIs(0, token.COLON) {
 				p.next()
-				varType = parser.current().Literal
+				varType = parser.current().Literal()
 				p.next()
 			}
 		}
@@ -150,7 +150,7 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 
 		// 解析默认值
 		var defaultValue data.GetValue
-		if p.current().Type == token.ASSIGN {
+		if p.current().Type() == token.ASSIGN {
 			p.next()
 			exprParser := NewExpressionParser(p.Parser)
 			var acl data.Control
@@ -177,13 +177,13 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 			params = append(params, param)
 		}
 
-		if p.current().Type == token.COMMA {
+		if p.current().Type() == token.COMMA {
 			p.next()
 			// 检查逗号后是否直接跟着右括号（这是语法错误）
-			if p.current().Type == token.RPAREN {
+			if p.current().Type() == token.RPAREN {
 				return nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("逗号后缺少参数"))
 			}
-		} else if p.current().Type != token.RPAREN {
+		} else if p.current().Type() != token.RPAREN {
 			return nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("参数后缺少逗号 ',' 或右括号 ')'"))
 		} else {
 			break
