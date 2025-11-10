@@ -45,7 +45,7 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 	// 解析标签名
 	tagName := h.parseTagName()
 	if tagName == "" {
-		return nil, data.NewErrorThrow(h.newFrom(), errors.New("HTML标签缺少标签名"))
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("HTML标签缺少标签名"))
 	}
 
 	// 解析属性
@@ -98,7 +98,7 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 			isSelfClosing = true
 			h.next()
 		} else {
-			return nil, data.NewErrorThrow(h.newFrom(), errors.New("自闭合标签格式错误"))
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("自闭合标签格式错误"))
 		}
 	} else if h.checkPositionIs(0, token.GT) {
 		// 普通开始标签闭合 '>'
@@ -107,7 +107,7 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 			isSelfClosing = true
 		}
 	} else {
-		return nil, data.NewErrorThrow(h.newFrom(), errors.New("HTML标签格式错误"))
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("HTML标签格式错误"))
 	}
 
 	// 提前处理 <script type="text/zy">：一次性读取到 </script>
@@ -152,7 +152,7 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 
 		// 查找结束标签
 		if !h.findClosingTag(tagName) {
-			return nil, data.NewErrorThrow(h.newFrom(), errors.New("HTML标签缺少结束标签: "+tagName))
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("HTML标签缺少结束标签: "+tagName))
 		}
 	}
 
@@ -184,6 +184,7 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 
 // parseAttributeName 解析属性名
 func (h *HtmlParser) parseAttributeName() (string, bool, data.Control) {
+	tracker := h.StartTracking()
 	// 收集属性名，支持连字符
 	var name string
 	var isCode bool
@@ -202,11 +203,11 @@ func (h *HtmlParser) parseAttributeName() (string, bool, data.Control) {
 		// 基于原始字符判断属性名起始：首字符需为字母或下划线
 		lit := current.Literal()
 		if lit == "" {
-			return name, isCode, data.NewErrorThrow(h.newFrom(), fmt.Errorf("html属性名不能为空"))
+			return name, isCode, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("html属性名不能为空"))
 		}
 		first, _ := utf8.DecodeRuneInString(lit)
 		if !(unicode.IsLetter(first) || first == '_') {
-			return name, isCode, data.NewErrorThrow(h.newFrom(), fmt.Errorf("html属性必须以字母或下划线开头: %s", lit))
+			return name, isCode, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("html属性必须以字母或下划线开头: %s", lit))
 		}
 		name = h.current().Literal()
 		h.next()
@@ -310,6 +311,7 @@ func (h *HtmlParser) parseHtmlChildren() ([]data.GetValue, data.Control) {
 
 // processIfElseChain 处理if-else-if-else链式连接
 func (h *HtmlParser) processIfElseChain(children []data.GetValue) ([]data.GetValue, data.Control) {
+	tracker := h.StartTracking()
 	var result []data.GetValue
 	var currentIfNode *node.HtmlIfNode
 	if len(children) <= 1 {
@@ -328,7 +330,7 @@ func (h *HtmlParser) processIfElseChain(children []data.GetValue) ([]data.GetVal
 						result = append(result, currentIfNode)
 					} else {
 						// else-if或else节点不能作为第一个节点，返回错误
-						return nil, data.NewErrorThrow(h.newFrom(), errors.New("else-if或else节点不能作为第一个节点"))
+						return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("else-if或else节点不能作为第一个节点"))
 					}
 				} else {
 					// 开始新链
@@ -434,7 +436,7 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 	// 解析标签名
 	tagName := h.parseTagName()
 	if tagName == "" {
-		return nil, data.NewErrorThrow(h.newFrom(), errors.New("HTML标签缺少标签名"))
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("HTML标签缺少标签名"))
 	}
 
 	// 解析属性
@@ -502,13 +504,13 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 			isSelfClosing = true
 			h.next()
 		} else {
-			return nil, data.NewErrorThrow(h.newFrom(), errors.New("自闭合标签格式错误"))
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("自闭合标签格式错误"))
 		}
 	} else if h.checkPositionIs(0, token.GT) {
 		// 普通开始标签闭合 '>'
 		h.next()
 	} else {
-		return nil, data.NewErrorThrow(h.newFrom(), errors.New("HTML标签格式错误"))
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("HTML标签格式错误"))
 	}
 
 	// 在进入子节点解析之前，优先处理 <script type="text/zy">：一次性读取源码到 </script>
@@ -555,7 +557,7 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 
 		// 查找结束标签
 		if !h.findClosingTag(tagName) {
-			return nil, data.NewErrorThrow(h.newFrom(), errors.New("HTML标签缺少结束标签: "+tagName))
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("HTML标签缺少结束标签: "+tagName))
 		}
 	}
 
@@ -689,6 +691,7 @@ func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 
 // collectExprTokensInsideBraces 收集当前位于 { 之后的表达式 tokens，直到匹配到对应的 }
 func (h *HtmlParser) collectExprTokensInsideBraces() ([]lexer.Token, data.Control) {
+	tracker := h.StartTracking()
 	braceDepth := 1
 	exprTokens := make([]lexer.Token, 0)
 	for !h.isEOF() && braceDepth > 0 {
@@ -711,7 +714,7 @@ func (h *HtmlParser) collectExprTokensInsideBraces() ([]lexer.Token, data.Contro
 		h.next()
 	}
 	if braceDepth != 0 {
-		return nil, data.NewErrorThrow(h.newFrom(), errors.New("插值表达式缺少匹配的 }"))
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("插值表达式缺少匹配的 }"))
 	}
 	return exprTokens, nil
 }
