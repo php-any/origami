@@ -399,10 +399,8 @@
                                         <td>{$t->displayOrder ?? 0}</td>
                                         <td>
                                             <div class="action-buttons">
-                                                <button class="btn btn-small"
-                                                    :onclick="@{editTool($t->id)}">编辑</button>
-                                                <button class="btn btn-small btn-danger"
-                                                    :onclick="@{deleteTool($t->id)}">删除</button>
+                                                <button class="btn btn-small" :onclick="editTool({$t->id})">编辑</button>
+                                                <button class="btn btn-small btn-danger" :onclick="deleteTool({$t->id})">删除</button>
                                             </div>
                                         </td>
                                     </tr>

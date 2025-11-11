@@ -81,7 +81,10 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 			var attrValue data.GetValue
 
 			if isCode {
-				attrValue = h.parseAttributeValue()
+				attrValue, acl = h.parseAttributeValue()
+				if acl != nil {
+					return nil, acl
+				}
 			} else {
 				attrValue = node.NewStringLiteral(h.FromCurrentToken(), h.current().Literal())
 				h.next()
@@ -232,29 +235,28 @@ func (h *HtmlParser) parseAttributeName() (string, bool, data.Control) {
 }
 
 // parseAttributeValue 解析属性值
-func (h *HtmlParser) parseAttributeValue() data.GetValue {
-	// 如果是标识符，直接作为字符串处理
-	if h.checkPositionIs(0, token.IDENTIFIER) {
-		value := h.current().Literal()
-		h.next()
-		return node.NewStringLiteral(h.FromCurrentToken(), value)
-	}
-
-	// 尝试解析为表达式
-	exprParser := NewExpressionParser(h.Parser)
-	var acl data.Control
-	attrValue, acl := exprParser.Parse()
-	if acl != nil {
-		// 如果表达式解析失败，尝试作为字符串处理
-		var value string
-		for !h.isEOF() && h.current().Type() != token.GT && h.current().Type() != token.QUO {
-			value += h.current().Literal()
+func (h *HtmlParser) parseAttributeValue() (data.GetValue, data.Control) {
+	switch h.current().Type() {
+	case token.INTERPOLATION_TOKEN:
+		// 检查是否是 LingToken（插值字符串）
+		if lingToken, ok := h.current().(*lexer.LingToken); ok {
 			h.next()
+			return h.parseLingToken(lingToken, h.FromCurrentToken()), nil
 		}
-		return node.NewStringLiteral(h.FromCurrentToken(), value)
+	case token.INTERPOLATION_VALUE:
+		if lingToken, ok := h.current().(*lexer.LingToken); ok {
+			h.next()
+			v, acl := h.ParserTokens(lingToken.Children(), *h.source)
+			if acl != nil {
+				return nil, acl
+			}
+			return v, nil
+		}
 	}
 
-	return attrValue
+	value := h.current().Literal()
+	h.next()
+	return node.NewStringLiteral(h.FromCurrentToken(), value), nil
 }
 
 // parseTagName 解析标签名
@@ -471,7 +473,10 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 			h.next()
 			var attrValue data.GetValue
 			if isCode {
-				attrValue = h.parseAttributeValue()
+				attrValue, acl = h.parseAttributeValue()
+				if acl != nil {
+					return nil, acl
+				}
 			} else {
 				attrValue = node.NewStringLiteral(h.FromCurrentToken(), h.current().Literal())
 				h.next()
