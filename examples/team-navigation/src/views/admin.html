@@ -439,9 +439,9 @@
                                         <td>
                                             <div class="action-buttons">
                                                 <button class="btn btn-small"
-                                                    :onclick="@{'editProject(' + $p->id + ')'}">编辑</button>
+                                                    :onclick="editProject({$p->id})">编辑</button>
                                                 <button class="btn btn-small btn-danger"
-                                                    :onclick="@{'deleteProject(' + $p->id + ')'}">删除</button>
+                                                    :onclick="deleteProject({$p->id})">删除</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -560,6 +560,10 @@
             </div>
         </div>
 
+        <script>
+            const tools = $.SERVER($tools);
+            const projects = $.SERVER($projects);
+          </script>
         <script src="/assets/js/admin.js"></script>
     </div>
 </body>

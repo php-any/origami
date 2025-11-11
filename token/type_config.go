@@ -72,6 +72,7 @@ const (
 	LINE                                // __LINE__
 	GENERIC_TYPE                        // 泛型类型参数
 	CLASS_CONSTANT                      // ::class 类常量关键字
+	JS_SERVER                           // 渲染为js值
 
 	KEYWORD_END TokenType = iota + 100
 

@@ -87,6 +87,7 @@ var TokenDefinitions = []TokenDefinition{
 	{Type: DEFAULT, Literal: "default", WordType: KEYWORD},
 	{Type: UNUSED, Literal: "_", WordType: KEYWORD},
 	{Type: DIR, Literal: "__DIR__", WordType: KEYWORD},
+	{Type: JS_SERVER, Literal: "$.SERVER", WordType: KEYWORD},
 
 	// 运算符
 	{Type: ADD, Literal: "+", WordType: OPERATOR},
