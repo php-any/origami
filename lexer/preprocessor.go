@@ -183,7 +183,7 @@ func (p *Preprocessor) Process() []Token {
 	}
 
 	// 调试：打印所有处理后的 tokens
-	// PrintTokens(result, "分词后的 Token 列表")
+	PrintTokens(result, "分词后的 Token 列表")
 
 	return result
 }
@@ -245,16 +245,6 @@ func processStringInterpolation(t Token) Token {
 				))
 			}
 
-			// 添加分隔标记，表示接下来是表达式部分
-			children = append(children, NewWorkerToken(
-				token.INTERPOLATION_LINK,
-				"",
-				t.Start()+i,
-				t.Start()+i,
-				t.Line(),
-				t.Pos()+i,
-			))
-
 			// 收集{$...}中的完整表达式内容（支持方法调用等复杂表达式）
 			start := i + 2
 			j := start
@@ -286,52 +276,32 @@ func processStringInterpolation(t Token) Token {
 				// 找到了匹配的 }，提取表达式内容
 				exprContent := string(runes[start:j])
 
-				// 检查是否是简单变量（只包含变量名，没有操作符）
-				isSimpleVar := true
-				for _, char := range exprContent {
-					if !isValidVarChar(char) {
-						isSimpleVar = false
-						break
-					}
-				}
-
-				if isSimpleVar {
-					// 简单变量，直接创建变量token
-					children = append(children, NewWorkerToken(
-						token.VARIABLE,
-						"$"+exprContent,
-						t.Start()+start-1, // -1 是因为要包含$符号
-						t.Start()+j,
+				// 复杂表达式，需要重新分词
+				code := "$" + exprContent
+				l := NewLexer()
+				codeTokens := l.Tokenize(code)
+				// 将分词结果添加到children中，并调整位置信息
+				baseStart := t.Start() + start - 1
+				values := make([]Token, 0)
+				for _, codeToken := range codeTokens {
+					// 创建新的 WorkerToken 并调整位置
+					values = append(values, NewWorkerToken(
+						codeToken.Type(),
+						codeToken.Literal(),
+						codeToken.Start()+baseStart,
+						codeToken.End()+baseStart,
 						t.Line(),
-						t.Pos()+start-1,
+						t.Pos()+start-1+(codeToken.Start()),
 					))
-				} else {
-					// 复杂表达式，需要重新分词
-					code := "$" + exprContent
-					l := NewLexer()
-					codeTokens := l.Tokenize(code)
-					// 将分词结果添加到children中，并调整位置信息
-					baseStart := t.Start() + start - 1
-					for _, codeToken := range codeTokens {
-						// 创建新的 WorkerToken 并调整位置
-						children = append(children, NewWorkerToken(
-							codeToken.Type(),
-							codeToken.Literal(),
-							codeToken.Start()+baseStart,
-							codeToken.End()+baseStart,
-							t.Line(),
-							t.Pos()+start-1+(codeToken.Start()),
-						))
-					}
 				}
-				// 添加分隔标记，表示表达式部分结束
-				children = append(children, NewWorkerToken(
-					token.INTERPOLATION_LINK,
-					"",
+				children = append(children, NewLingToken(
+					token.INTERPOLATION_VALUE,
+					code,
 					t.Start()+j,
 					t.Start()+j,
 					t.Line(),
 					t.Pos()+j,
+					values,
 				))
 				i = j
 				continue
@@ -357,16 +327,6 @@ func processStringInterpolation(t Token) Token {
 				currentStr = nil
 			}
 
-			// 添加分隔标记，表示接下来是表达式部分
-			children = append(children, NewWorkerToken(
-				token.INTERPOLATION_LINK,
-				"",
-				t.Start()+i,
-				t.Start()+i,
-				t.Line(),
-				t.Pos()+i,
-			))
-
 			// 收集@{...}中的内容
 			start := i + 2
 			j := start
@@ -389,9 +349,10 @@ func processStringInterpolation(t Token) Token {
 				codeTokens := l.Tokenize(code)
 				// 将分词结果添加到children中，并调整位置信息
 				baseStart := t.Start() + start
+				values := make([]Token, 0)
 				for _, codeToken := range codeTokens {
 					// 创建新的 WorkerToken 并调整位置
-					children = append(children, NewWorkerToken(
+					values = append(values, NewWorkerToken(
 						codeToken.Type(),
 						codeToken.Literal(),
 						codeToken.Start()+baseStart,
@@ -400,14 +361,14 @@ func processStringInterpolation(t Token) Token {
 						t.Pos()+start+codeToken.Start(),
 					))
 				}
-				// 添加分隔标记，表示表达式部分结束
-				children = append(children, NewWorkerToken(
-					token.INTERPOLATION_LINK,
-					"",
+				children = append(children, NewLingToken(
+					token.INTERPOLATION_VALUE,
+					code,
 					t.Start()+j,
 					t.Start()+j,
 					t.Line(),
 					t.Pos()+j,
+					values,
 				))
 				i = j
 				continue
@@ -453,7 +414,7 @@ func processStringInterpolation(t Token) Token {
 		}
 		// 创建 LingToken 包含所有子 token
 		return NewLingToken(
-			token.STRING,
+			token.INTERPOLATION_TOKEN,
 			literal,
 			t.Start(),
 			t.End(),

@@ -149,6 +149,7 @@ var TokenDefinitions = []TokenDefinition{
 	{Type: DOT, Literal: ".", WordType: OPERATOR},
 	{Type: ELLIPSIS, Literal: "...", WordType: OPERATOR},
 	{Type: DOUBLE_DOT, Literal: "..", WordType: OPERATOR},
+	{Type: DOCTYPE, Literal: "<!DOCTYPE", WordType: OPERATOR},
 
 	// 字面量
 	{Type: NULL, Literal: "null", WordType: LITERAL},

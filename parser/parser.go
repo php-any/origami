@@ -639,49 +639,22 @@ func (p *Parser) parseLingToken(lingToken *lexer.LingToken, from data.From) data
 
 	// 解析所有子 token，使用 INTERPOLATION_LINK 分隔字符串和表达式部分
 	var parts []data.GetValue
-	var currentPart []lexer.Token
-
-	for i, child := range children {
-		if child.Type() == token.INTERPOLATION_LINK {
-			// 遇到分隔标记，解析当前累积的部分
-			if len(currentPart) > 0 {
-				// 判断是字符串还是表达式
-				if len(currentPart) == 1 && currentPart[0].Type() == token.STRING {
-					// 字符串部分，直接创建 StringLiteral
-					strToken := currentPart[0]
-					strFrom := node.NewTokenFrom(p.source, strToken.Start(), strToken.End(), strToken.Line(), strToken.Pos())
-					parts = append(parts, node.NewStringLiteral(strFrom, strToken.Literal()))
-				} else {
-					// 表达式部分，解析为表达式
-					part, acl := p.parseTokensAsExpression(currentPart)
-					if acl != nil {
-						return nil
-					}
-					parts = append(parts, part)
+	for _, child := range children {
+		switch child.Type() {
+		case token.STRING:
+			strFrom := node.NewTokenFrom(p.source, child.Start(), child.End(), child.Line(), child.Pos())
+			parts = append(parts, node.NewStringLiteral(strFrom, child.Literal()))
+		case token.INTERPOLATION_VALUE:
+			// 表达式部分，解析为表达式
+			if lingToken, ok := child.(*lexer.LingToken); ok {
+				part, acl := p.parseTokensAsExpression(lingToken.Children())
+				if acl != nil {
+					return nil
 				}
-				currentPart = nil
+				parts = append(parts, part)
 			}
-		} else {
-			// 累积当前部分
-			currentPart = append(currentPart, child)
-			// 如果是最后一个 token，也需要解析
-			if i == len(children)-1 {
-				if len(currentPart) > 0 {
-					if len(currentPart) == 1 && currentPart[0].Type() == token.STRING {
-						// 字符串部分
-						strToken := currentPart[0]
-						strFrom := node.NewTokenFrom(p.source, strToken.Start(), strToken.End(), strToken.Line(), strToken.Pos())
-						parts = append(parts, node.NewStringLiteral(strFrom, strToken.Literal()))
-					} else {
-						// 表达式部分
-						part, acl := p.parseTokensAsExpression(currentPart)
-						if acl != nil {
-							return nil
-						}
-						parts = append(parts, part)
-					}
-				}
-			}
+		default:
+			return nil
 		}
 	}
 

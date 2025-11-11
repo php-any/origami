@@ -301,65 +301,6 @@ func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 		if ep.checkPositionIs(0, token.LT) && ep.checkPositionIs(1, token.IDENTIFIER) {
 			// <html
 			return NewHtmlParser(ep.Parser).Parse()
-		} else if ep.checkPositionIs(0, token.LT) && ep.checkPositionIs(1, token.NOT) && ep.checkPositionIs(2, token.IDENTIFIER) && strings.EqualFold(ep.peek(2).Literal(), "DOCTYPE") {
-			// 解析 <!DOCTYPE ...>，并将后续所有节点绑定为其子节点
-			// 跳过 < ! DOCTYPE
-			ep.next() // <
-			ep.next() // !
-			ep.next() // DOCTYPE
-
-			// 收集 doctype 内容直到 '>'
-			doc := ""
-			for !ep.isEOF() && ep.current().Type() != token.GT {
-				if doc != "" {
-					doc += " "
-				}
-				doc += ep.current().Literal()
-				ep.next()
-			}
-			if ep.current().Type() == token.GT {
-				ep.next()
-			}
-			doc = strings.TrimSpace(doc)
-			if doc == "" {
-				doc = "html"
-			}
-
-			// 收集剩余所有子节点
-			var children []data.GetValue
-			for !ep.isEOF() {
-				if ep.checkPositionIs(0, token.LT) && ep.checkPositionIs(1, token.IDENTIFIER) {
-					child, acl := NewHtmlParser(ep.Parser).Parse()
-					if acl != nil {
-						return nil, acl
-					}
-					if child != nil {
-						children = append(children, child)
-					}
-					continue
-				}
-				if ep.current().Type() == token.LT && ep.checkPositionIs(1, token.QUO) {
-					// 顶层不期望结束标签，跳出
-					break
-				}
-				// 收集文本直到下一个 '<'
-				text := ""
-				prev := ep.current()
-				for !ep.isEOF() && ep.current().Type() != token.LT {
-					cur := ep.current()
-					if !ep.isTokensAdjacent(prev, cur) && text != "" {
-						text += " "
-					}
-					text += cur.Literal()
-					prev = cur
-					ep.next()
-				}
-				if strings.TrimSpace(text) != "" {
-					children = append(children, node.NewStringLiteral(tracker.EndBefore(), strings.TrimSpace(text)))
-				}
-			}
-
-			return node.NewHtmlDocTypeNode(tracker.EndBefore(), doc, children), nil
 		} else {
 			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("比较表达式左值不存在"))
 		}
@@ -496,16 +437,81 @@ func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 		ep.next()
 		return node.NewFloatLiteral(ep.FromCurrentToken(), value), nil
 	case token.STRING:
+		// 普通字符串
+		value := ep.current().Literal()
+		ep.next()
+		return node.NewStringLiteral(ep.FromCurrentToken(), value), nil
+	case token.INTERPOLATION_TOKEN:
 		// 检查是否是 LingToken（插值字符串）
 		if lingToken, ok := ep.current().(*lexer.LingToken); ok {
 			ep.next()
 			return ep.parseLingToken(lingToken, ep.FromCurrentToken()), nil
 		}
-		// 普通字符串
-		value := ep.current().Literal()
+	case token.INTERPOLATION_VALUE:
+		if lingToken, ok := ep.current().(*lexer.LingToken); ok {
+			ep.next()
+			return ep.ParserTokens(lingToken.Children(), *ep.source)
+		}
+	case token.DOCTYPE:
+		// 解析 <!DOCTYPE ...>
+		tracker := ep.StartTracking()
+		// 跳过 <!DOCTYPE
 		ep.next()
-		return node.NewStringLiteral(ep.FromCurrentToken(), value), nil
+		// 收集直到 '>' 的所有字面量，作为 DocType 内容
+		var parts []string
+		for !ep.isEOF() && ep.current().Type() != token.GT {
+			lit := ep.current().Literal()
+			if lit != "" {
+				parts = append(parts, lit)
+			}
+			ep.next()
+		}
+		// 必须有 '>' 结束
+		if !ep.checkPositionIs(0, token.GT) {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("DOCTYPE 缺少 > 结束符"))
+		}
+		ep.next() // 消费 '>'
+		docType := strings.TrimSpace(strings.Join(parts, " "))
 
+		// 继续解析后续的 HTML 子节点，直至 EOF
+		children := make([]data.GetValue, 0)
+		if hp, ok := NewHtmlParser(ep.Parser).(*HtmlParser); ok {
+			for !ep.isEOF() {
+				start := ep.position
+				child, acl := hp.parseHtmlChild()
+				if acl != nil {
+					return nil, acl
+				}
+				if child != nil {
+					// 过滤纯换行
+					if lit, ok := child.(*node.StringLiteral); ok && lit.Value == "\n" {
+						continue
+					}
+					children = append(children, child)
+					continue
+				}
+
+				// 尝试作为纯文本
+				txt, acl := hp.parseHtmlText()
+				if acl != nil {
+					return nil, acl
+				}
+				if txt != nil {
+					if lit, ok := txt.(*node.StringLiteral); ok && lit.Value == "\n" {
+						continue
+					}
+					children = append(children, txt)
+					continue
+				}
+
+				// 若既不是标签也不是文本，且位置未前进，则为非预期符号，返回错误
+				if ep.position == start {
+					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("DOCTYPE 后的 HTML 解析遇到非预期符号"))
+				}
+			}
+		}
+
+		return node.NewHtmlDocTypeNode(tracker.EndBefore(), docType, children), nil
 	case token.TRUE:
 		ep.next()
 		return node.NewBooleanLiteral(ep.FromCurrentToken(), true), nil
@@ -553,6 +559,7 @@ func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 		}
 		return nil, nil
 	}
+	return nil, nil
 }
 
 // parseLingToken 解析 LingToken（插值字符串），创建链接节点

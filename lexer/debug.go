@@ -185,6 +185,11 @@ func getTokenTypeName(t token.TokenType) string {
 	case token.MULTILINE_COMMENT:
 		return "MULTILINE_COMMENT"
 
+	case token.INTERPOLATION_TOKEN:
+		return "INTERPOLATION_TOKEN"
+	case token.INTERPOLATION_VALUE:
+		return "INTERPOLATION_VALUE"
+
 	default:
 		return fmt.Sprintf("Type%d", t)
 	}

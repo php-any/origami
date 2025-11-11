@@ -136,9 +136,12 @@ const (
 	DOT                 // . 点号（注意与 CONCAT 冲突）
 	ELLIPSIS            // ... 省略号
 	DOUBLE_DOT          // .. 双点号
+	DOCTYPE             // .. 双点号
 
 	// 专用：字符串插值连接符（仅预处理阶段注入，不由词法直接产生）
-	INTERPOLATION_LINK
+	// INTERPOLATION_LINK
+	INTERPOLATION_TOKEN
+	INTERPOLATION_VALUE
 
 	VALUE_START
 	// 字面量
