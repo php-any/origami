@@ -23,17 +23,17 @@ func PrintTokens(tokens []Token, title string) {
 	fmt.Fprintf(os.Stderr, "%s\n", strings.Repeat("=", 80))
 
 	// 打印表头
-	fmt.Fprintf(os.Stderr, "%-6s | %-25s | %-20s | %-6s | %-6s | %-8s | %-8s\n",
-		"索引", "类型", "字面值", "行号", "位置", "起始", "结束")
-	fmt.Fprintf(os.Stderr, "%s\n", strings.Repeat("-", 80))
+	fmt.Fprintf(os.Stderr, "%-6s | %-25s | %-60s\n",
+		"索引", "类型", "字面值")
+	fmt.Fprintf(os.Stderr, "%s\n", strings.Repeat("-", 100))
 
 	// 打印每个 token
 	for i, tok := range tokens {
 		typeName := getTokenTypeName(tok.Type())
 		literal := formatLiteral(tok.Literal())
 
-		fmt.Fprintf(os.Stderr, "%-6d | %-25s | %-20s | %-6d | %-6d | %-8d | %-8d\n",
-			i, typeName, literal, tok.Line()+1, tok.Pos()+1, tok.Start(), tok.End())
+		fmt.Fprintf(os.Stderr, "%-6d | %-25s | %-60s\n",
+			i, typeName, literal)
 	}
 
 	fmt.Fprintf(os.Stderr, "%s\n", strings.Repeat("=", 80))
@@ -43,8 +43,8 @@ func PrintTokens(tokens []Token, title string) {
 // formatLiteral 格式化字面值，使其更易读
 func formatLiteral(literal string) string {
 	// 限制长度，避免过长
-	if len(literal) > 18 {
-		return literal[:15] + "..."
+	if len(literal) > 80 {
+		return literal[:77] + "..."
 	}
 
 	// 转义特殊字符

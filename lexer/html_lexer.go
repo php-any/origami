@@ -130,6 +130,7 @@ func (h *HtmlLexer) Tokenize(input string) []Token {
 		// 如果所有处理都失败，跳过当前字符（防止无限循环）
 		h.advance()
 	}
+	PrintTokens(tokens, "")
 	return tokens
 }
 

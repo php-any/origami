@@ -483,24 +483,7 @@ func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 					return nil, acl
 				}
 				if child != nil {
-					// 过滤纯换行
-					if lit, ok := child.(*node.StringLiteral); ok && lit.Value == "\n" {
-						continue
-					}
 					children = append(children, child)
-					continue
-				}
-
-				// 尝试作为纯文本
-				txt, acl := hp.parseHtmlText()
-				if acl != nil {
-					return nil, acl
-				}
-				if txt != nil {
-					if lit, ok := txt.(*node.StringLiteral); ok && lit.Value == "\n" {
-						continue
-					}
-					children = append(children, txt)
 					continue
 				}
 
