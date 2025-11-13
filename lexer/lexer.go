@@ -86,6 +86,11 @@ func isWhitespace(ch byte) bool {
 
 // Tokenize 将输入字符串转换为 token 列表
 func (l *Lexer) Tokenize(input string) []Token {
+	// 是否是 <!DOCTYPE 开头, 如果是就使用 HTML lexer 保留所有符号
+	if len(input) >= 9 && input[:9] == "<!DOCTYPE" {
+		htmlLexer := NewHtmlLexer()
+		return htmlLexer.Tokenize(input)
+	}
 	var tokens []Token
 	pos := 0
 	lastWasNewline := false

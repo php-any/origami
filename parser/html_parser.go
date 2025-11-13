@@ -118,8 +118,8 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 		if attr, ok := attributes["type"]; ok {
 			if v := attr.GetValue(); v != nil {
 				if lit, ok := v.(*node.StringLiteral); ok && strings.EqualFold(lit.Value, "text/zy") {
-					// 累积原始文本直到遇到 </script>
-					tokens := make([]lexer.Token, 0)
+					// 收集原始文本内容直到遇到 </script>
+					var rawText strings.Builder
 					for !h.isEOF() {
 						if h.current().Type() == token.LT && h.checkPositionIs(1, token.QUO) && h.checkPositionIs(2, token.IDENTIFIER) && strings.EqualFold(h.peek(2).Literal(), tagName) {
 							// 消费结束标签 </script>
@@ -131,9 +131,13 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 							}
 							break
 						}
-						tokens = append(tokens, h.current())
+						// 收集 token 的原始文本内容
+						rawText.WriteString(h.current().Literal())
 						h.next()
 					}
+					// 使用普通 lexer 重新分词 script 标签内的内容
+					normalLexer := lexer.NewLexer()
+					tokens := normalLexer.Tokenize(rawText.String())
 					// 编译脚本为 Program
 					prog, acl := h.Parser.ParserTokens(tokens, *h.Parser.source)
 					if acl != nil {
@@ -523,8 +527,8 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 		if attr, ok := attributes["type"]; ok {
 			if v := attr.GetValue(); v != nil {
 				if lit, ok := v.(*node.StringLiteral); ok && strings.EqualFold(lit.Value, "text/zy") {
-					// 累积原始文本直到遇到 </script>
-					tokens := make([]lexer.Token, 0)
+					// 收集原始文本内容直到遇到 </script>
+					var rawText strings.Builder
 					for !h.isEOF() {
 						if h.current().Type() == token.LT && h.checkPositionIs(1, token.QUO) && h.checkPositionIs(2, token.IDENTIFIER) && strings.EqualFold(h.peek(2).Literal(), tagName) {
 							// 消费结束标签 </script>
@@ -536,10 +540,14 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 							}
 							break
 						}
-						tokens = append(tokens, h.current())
+						// 收集 token 的原始文本内容
+						rawText.WriteString(h.current().Literal())
 						h.next()
 					}
 
+					// 使用普通 lexer 重新分词 script 标签内的内容
+					normalLexer := lexer.NewLexer()
+					tokens := normalLexer.Tokenize(rawText.String())
 					// 编译脚本为 Program 并返回 ScriptZyNode
 					prog, acl := h.Parser.ParserTokens(tokens, *h.Parser.source)
 					if acl != nil {

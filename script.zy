@@ -1,1 +1,145 @@
-<button class="btn btn-small" :onclick="@{editTool($t->id)}">编辑</button>
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>团队导航 - 便捷的导航和管理服务</title>
+    <link rel="stylesheet" href="/assets/css/styles.css">
+    <script type="text/zy">
+        // 由后端渲染注入：$projects, $tools, $favoriteTools
+    </script>
+</head>
+
+<body>
+    <!-- 背景层 -->
+    <div class="bg-layer">
+        <div class="bg-gradient"></div>
+    </div>
+
+    <!-- 应用容器 -->
+    <div class="app-container">
+        <!-- 顶部导航栏 -->
+        <header class="header-bar">
+            <div class="header-content">
+                <div class="logo">团队导航</div>
+                <nav class="header-nav">
+                    <a href="https://github.com/php-any/origami" target="_blank" class="nav-item" title="Origami 开源地址">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"
+                            style="vertical-align: middle;">
+                            <path
+                                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z">
+                            </path>
+                        </svg>
+                        <span>GitHub</span>
+                    </a>
+                    <a href="/admin" class="nav-item">管理</a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- 主内容 -->
+        <main class="main-area">
+            <!-- 搜索中心 - 类似 Bing -->
+            <section class="search-hero">
+                <div class="search-wrapper">
+                    <!-- 时间显示 -->
+                    <div class="time-display">
+                        <div class="time-content">
+                            <div class="time-hour" id="currentHour">00</div>
+                            <div class="time-separator">:</div>
+                            <div class="time-minute" id="currentMinute">00</div>
+                        </div>
+                        <div class="time-date" id="currentDate">2024年1月1日 星期一</div>
+                    </div>
+
+                    <form id="baiduSearchForm" class="search-form" action="https://www.baidu.com/s" method="get"
+                        target="_blank">
+                        <div class="search-box">
+                            <input type="text" name="wd" id="baiduSearchInput" class="search-input" placeholder="搜索..."
+                                autocomplete="off" autofocus>
+                            <button type="submit" class="search-submit" aria-label="搜索">
+                                <span>🔍</span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- 收藏链接 -->
+                    <div class="favorite-links" id="favoriteLinks">
+                        <a :href="{$f->url}" target="_blank" class="favorite-link" for="$f in $favoriteTools">
+                            <span class="favorite-link-icon">{$f->icon ?? "🔗"}</span>
+                            <span>{$f->name}</span>
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 内容区域 -->
+            <div class="content-area">
+                <!-- 加载状态 -->
+                <!-- 后端渲染无需 loading -->
+
+                <!-- 项目快捷访问 -->
+                <section class="quick-access" id="projectsSection">
+                    <div class="section-title">
+                        <span class="title-icon">🚀</span>
+                        <h3>项目</h3>
+                    </div>
+                    <div class="quick-links" id="projectsGrid">
+                        <template for="$p in $projects">
+                            <a class="project-card"
+                               :href="@{($p->environments != null && $p->environments->length > 0) ? $p->environments[0]->url : '#'}"
+                               target="_blank">
+                                <h4 class="project-name">{$p->name}</h4>
+                                <p class="project-desc">{$p->description ?? ""}</p>
+                            </a>
+
+                            <div class="project-tools" if="$p->tools != null && $p->tools->length > 0">
+                                <a class="tool-tag" :href="{$t->url}" target="_blank" :title="{$t->name}"
+                                   for="$t in $p->tools">
+                                    <span class="tool-tag-icon">{$t->icon ?? "🔗"}</span>
+                                    <span>{$t->name}</span>
+                                </a>
+                            </div>
+                            <div class="project-environments"
+                                 if="$p->environments != null && $p->environments->length > 0">
+                                <div class="env-item" for="$e in $p->environments">
+                                    <span class="env-name">{$e->environmentName}</span>
+                                    <a class="env-link" :href="{$e->url}" target="_blank">{$e->url}</a>
+                                </div>
+                            </div>
+
+                        </template>
+                    </div>
+                </section>
+
+                <!-- 工具快捷访问 -->
+                <section class="quick-access" id="toolsSection">
+                    <div class="section-title">
+                        <span class="title-icon">🛠️</span>
+                        <h3>工具</h3>
+                    </div>
+                    <div class="quick-links tools-grid" id="toolsGrid">
+                        <a class="tool-card" :href="{$t->url}" target="_blank" for="$t in $tools">
+                            <div class="tool-icon">{$t->icon ?? "🔗"}</div>
+                            <div class="tool-name">{$t->name}</div>
+                        </a>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- 页脚 -->
+        <footer class="footer-bar">
+            <div class="footer-content">
+                <span>团队导航系统</span>
+                <span class="separator">|</span>
+                <span id="lastUpdate"></span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="/assets/js/app.js"></script>
+</body>
+
+</html>
