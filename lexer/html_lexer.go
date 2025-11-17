@@ -1,6 +1,8 @@
 package lexer
 
 import (
+	"unicode"
+
 	"github.com/php-any/origami/token"
 )
 
@@ -29,15 +31,14 @@ func (h *HtmlLexer) Tokenize(input string) []Token {
 
 	var tokens []Token
 
-	for h.pos < len(h.input) {
-		var tok Token
-		var ok bool
+	var tok Token
+	var ok bool
+	if tok, ok = h.processDoctype(); ok {
+		tokens = append(tokens, tok)
+	}
 
+	for h.pos < len(h.input) {
 		// 按优先级尝试各种处理函数
-		if tok, ok = h.processDoctype(); ok {
-			tokens = append(tokens, tok)
-			continue
-		}
 
 		if tok, ok = h.processCdata(); ok {
 			tokens = append(tokens, tok)
@@ -727,7 +728,7 @@ func (h *HtmlLexer) processWhitespace() (Token, bool) {
 	), true
 }
 
-// processText 处理文本内容（标签之间的内容，作为整体字符串）
+// processText 处理文本内容（标签之间的内容，支持插值）
 // 返回 token 和是否成功处理
 func (h *HtmlLexer) processText() (Token, bool) {
 	// 只在标签外部处理文本内容
@@ -763,17 +764,275 @@ func (h *HtmlLexer) processText() (Token, bool) {
 				startLinePos,
 			), true
 		}
-		return NewWorkerToken(
-			token.STRING,
-			text,
-			start,
-			h.pos,
-			startLine,
-			startLinePos,
-		), true
+		// 处理文本插值
+		return h.processTextInterpolation(text, start, startLine, startLinePos), true
 	}
 
 	return nil, false
+}
+
+// processTextInterpolation 处理文本中的插值（{$...} 和 @{...}）
+// 参考 preprocessor.go:192 的 processStringInterpolation 实现，但不处理引号
+func (h *HtmlLexer) processTextInterpolation(text string, start, startLine, startLinePos int) Token {
+	var children []Token // 用于存储插值块内的子 token
+	var currentStr []rune
+	runes := []rune(text)
+	hasInterpolation := false // 标记是否有插值
+
+	// 辅助函数：将 rune 索引转换为字节位置
+	runeToBytePos := func(runeIdx int) int {
+		if runeIdx <= 0 {
+			return 0
+		}
+		if runeIdx >= len(runes) {
+			return len(text)
+		}
+		return len(string(runes[:runeIdx]))
+	}
+
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
+		if r == '{' && i+2 < len(runes) && runes[i+1] == '$' {
+			// 检查 $ 后面是否是有效的变量名起始字符
+			nextChar := runes[i+2]
+			// 变量名必须以字母、下划线或中文字符开头，不能是数字或特殊符号
+			if !isValidVarChar(nextChar) || unicode.IsDigit(nextChar) {
+				// 如果 $ 后面不是有效的变量名起始字符，将 { 和 $ 都作为普通字符处理
+				currentStr = append(currentStr, r)
+				currentStr = append(currentStr, runes[i+1])
+				i++ // 跳过 $ 字符，下次循环会处理 $ 后面的字符
+				continue
+			}
+
+			hasInterpolation = true
+			// 处理变量插值
+			if len(currentStr) > 0 {
+				// 添加当前字符串（不带引号）
+				strStart := i - len(currentStr)
+				children = append(children, NewWorkerToken(
+					token.STRING,
+					string(currentStr),
+					start+runeToBytePos(strStart),
+					start+runeToBytePos(i),
+					startLine,
+					startLinePos+runeToBytePos(strStart),
+				))
+				currentStr = nil
+			}
+
+			// 如果还没有任何 children，添加空字符串
+			if len(children) == 0 {
+				children = append(children, NewWorkerToken(
+					token.STRING,
+					"",
+					start,
+					start,
+					startLine,
+					startLinePos,
+				))
+			}
+
+			// 收集{$...}中的完整表达式内容（支持方法调用等复杂表达式）
+			exprStart := i + 2
+			j := exprStart
+			braceDepth := 1 // 从 { 开始，深度为1
+			parenDepth := 0
+			bracketDepth := 0
+
+			for j < len(runes) {
+				if runes[j] == '{' {
+					braceDepth++
+				} else if runes[j] == '}' {
+					braceDepth--
+					if braceDepth == 0 {
+						break
+					}
+				} else if runes[j] == '(' {
+					parenDepth++
+				} else if runes[j] == ')' {
+					parenDepth--
+				} else if runes[j] == '[' {
+					bracketDepth++
+				} else if runes[j] == ']' {
+					bracketDepth--
+				}
+				j++
+			}
+
+			if j < len(runes) && runes[j] == '}' && braceDepth == 0 {
+				// 找到了匹配的 }，提取表达式内容
+				exprContent := string(runes[exprStart:j])
+
+				// 复杂表达式，需要重新分词
+				code := "$" + exprContent
+				l := NewLexer()
+				codeTokens := l.Tokenize(code)
+				// 将分词结果添加到children中，并调整位置信息
+				baseStart := start + runeToBytePos(i+1) // { 的位置 + 1 是 $ 的位置
+				values := make([]Token, 0)
+				for _, codeToken := range codeTokens {
+					// 创建新的 WorkerToken 并调整位置
+					values = append(values, NewWorkerToken(
+						codeToken.Type(),
+						codeToken.Literal(),
+						codeToken.Start()+baseStart,
+						codeToken.End()+baseStart,
+						startLine,
+						startLinePos+runeToBytePos(i+1)+codeToken.Start(),
+					))
+				}
+				children = append(children, NewLingToken(
+					token.INTERPOLATION_VALUE,
+					code,
+					start+runeToBytePos(j),
+					start+runeToBytePos(j+1),
+					startLine,
+					startLinePos+runeToBytePos(j),
+					values,
+				))
+				i = j
+				continue
+			}
+			// 如果没有找到匹配的 }，将 { 和 $ 作为普通字符处理
+			currentStr = append(currentStr, r)
+			currentStr = append(currentStr, runes[i+1])
+			i++ // 跳过 $ 字符
+			continue
+		} else if r == '@' && i+2 < len(runes) && runes[i+1] == '{' {
+			hasInterpolation = true
+			// 处理函数插值
+			if len(currentStr) > 0 {
+				// 添加当前字符串（不带引号）
+				strStart := i - len(currentStr)
+				children = append(children, NewWorkerToken(
+					token.STRING,
+					string(currentStr),
+					start+runeToBytePos(strStart),
+					start+runeToBytePos(i),
+					startLine,
+					startLinePos+runeToBytePos(strStart),
+				))
+				currentStr = nil
+			}
+
+			// 收集@{...}中的内容
+			exprStart := i + 2
+			j := exprStart
+			braceCount := 0
+			for j < len(runes) {
+				if runes[j] == '{' {
+					braceCount++
+				} else if runes[j] == '}' {
+					if braceCount == 0 {
+						break
+					}
+					braceCount--
+				}
+				j++
+			}
+			if j < len(runes) && runes[j] == '}' {
+				// 对@{...}中的内容进行重新分词
+				code := string(runes[exprStart:j])
+				l := NewLexer()
+				codeTokens := l.Tokenize(code)
+				// 将分词结果添加到children中，并调整位置信息
+				baseStart := start + runeToBytePos(i+2) // @{ 之后的位置
+				values := make([]Token, 0)
+				for _, codeToken := range codeTokens {
+					// 创建新的 WorkerToken 并调整位置
+					values = append(values, NewWorkerToken(
+						codeToken.Type(),
+						codeToken.Literal(),
+						codeToken.Start()+baseStart,
+						codeToken.End()+baseStart,
+						startLine,
+						startLinePos+runeToBytePos(i+2)+codeToken.Start(),
+					))
+				}
+				children = append(children, NewLingToken(
+					token.INTERPOLATION_VALUE,
+					code,
+					start+runeToBytePos(j),
+					start+runeToBytePos(j+1),
+					startLine,
+					startLinePos+runeToBytePos(j),
+					values,
+				))
+				i = j
+				continue
+			}
+		} else {
+			currentStr = append(currentStr, r)
+		}
+	}
+
+	// 添加剩余的字符串
+	if len(currentStr) > 0 {
+		if hasInterpolation {
+			// 如果有插值，添加到children中（不带引号）
+			strStart := len(runes) - len(currentStr)
+			children = append(children, NewWorkerToken(
+				token.STRING,
+				string(currentStr),
+				start+runeToBytePos(strStart),
+				start+len(text),
+				startLine,
+				startLinePos+runeToBytePos(strStart),
+			))
+		}
+	}
+
+	// 如果有插值，创建 LingToken
+	if hasInterpolation {
+		// 如果没有任何children，说明是空字符串，添加一个空字符串token
+		if len(children) == 0 {
+			children = append(children, NewWorkerToken(
+				token.STRING,
+				"",
+				start,
+				start,
+				startLine,
+				startLinePos,
+			))
+		} else {
+			// 处理特殊情况："{$data}/other" -> 移除开头的空字符串
+			if len(children) >= 1 && children[0].Literal() == "" {
+				children = children[1:]
+			}
+		}
+		// 创建 LingToken 包含所有子 token
+		return NewLingToken(
+			token.INTERPOLATION_TOKEN,
+			text,
+			start,
+			start+len(text),
+			startLine,
+			startLinePos,
+			children,
+		)
+	}
+
+	// 如果没有插值，返回普通字符串token
+	if len(currentStr) > 0 {
+		return NewWorkerToken(
+			token.STRING,
+			string(currentStr),
+			start,
+			start+len(text),
+			startLine,
+			startLinePos,
+		)
+	}
+
+	// 空字符串
+	return NewWorkerToken(
+		token.STRING,
+		"",
+		start,
+		start,
+		startLine,
+		startLinePos,
+	)
 }
 
 // advance 前进一个字符，并更新行号和位置信息

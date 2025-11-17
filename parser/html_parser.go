@@ -139,11 +139,12 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 					normalLexer := lexer.NewLexer()
 					tokens := normalLexer.Tokenize(rawText.String())
 					// 编译脚本为 Program
-					prog, acl := h.Parser.ParserTokens(tokens, *h.Parser.source)
+					prog, acl := h.Parser.parseTokensAsExpression(tokens)
 					if acl != nil {
 						return nil, acl
 					}
-					return node.NewScriptZyNode(tracker.EndBefore(), prog), nil
+					_ = prog
+					return node.NewScriptZyNode(tracker.EndBefore(), nil), nil
 				}
 			}
 		}
@@ -665,6 +666,13 @@ func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 				return nil, acl
 			}
 			textParts = append(textParts, expr)
+		} else if ins, ok := h.current().(*lexer.LingToken); ok {
+			h.next()
+			v, acl := h.parseExprFromTokens(ins.Children())
+			if acl != nil {
+				return nil, acl
+			}
+			textParts = append(textParts, v)
 		} else {
 			// 普通文本
 			currentText += h.current().Literal()
