@@ -76,8 +76,7 @@ body {
 
 /* 顶部导航栏 */
 .header-bar {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
+  background: var(--bg-light);
   padding: 12px 24px;
   position: sticky;
   top: 0;
@@ -92,6 +91,53 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.header-left::-webkit-scrollbar {
+  display: none;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.ai-portal-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: var(--bg-white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  transition: all 0.2s;
+  box-shadow: var(--shadow-sm);
+}
+
+.ai-portal-link:hover {
+  background: var(--bg-hover);
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .logo {
@@ -101,23 +147,27 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  white-space: nowrap;
+  margin-right: 8px;
 }
 
 .header-nav {
   display: flex;
   align-items: center;
+  gap: 4px;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 8px 12px;
   color: var(--text-secondary);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   border-radius: var(--radius-sm);
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .nav-item:hover {
@@ -564,6 +614,62 @@ body {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
+  .header-bar {
+    padding: 10px 16px;
+  }
+
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .header-left {
+    order: 2;
+    width: 100%;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-light);
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+
+  .header-right {
+    order: 1;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo {
+    font-size: 1rem;
+    margin-right: 0;
+  }
+
+  .header-nav {
+    gap: 2px;
+  }
+
+  .nav-item {
+    padding: 6px 8px;
+    font-size: 0.75rem;
+  }
+
+  .nav-item svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .ai-portal-link {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+
   .search-hero {
     padding: 40px 16px 40px;
     min-height: 40vh;
