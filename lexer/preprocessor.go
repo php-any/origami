@@ -29,7 +29,15 @@ func cannotAddSemicolon(t Token) bool {
 		return true
 	case token.RBRACE: // 右花括号后不用补充
 		return true
+	case token.RBRACKET: // 右方括号后不用补充
+		return true
+	case token.RPAREN: // 右圆括号后不用补充
+		return true
 	case token.OBJECT_OPERATOR: // 箭头后不用补充
+		return true
+	case token.ARRAY_KEY_VALUE: // => 后不用补充
+		return true
+	case token.COLON: // : 后不用补充
 		return true
 	case token.ADD: // 加号后不用补充
 		return true
@@ -45,9 +53,51 @@ func cannotAddSemicolon(t Token) bool {
 		return true
 	case token.BIT_OR: // 按位或后不用补充
 		return true
+	case token.BIT_XOR: // 按位异或后不用补充
+		return true
 	case token.LAND: // 逻辑与后不用补充
 		return true
 	case token.LOR: // 逻辑或后不用补充
+		return true
+	case token.EQ, token.NE, token.EQ_STRICT, token.NE_STRICT: // 比较运算符后不用补充
+		return true
+	case token.LT, token.GT, token.LE, token.GE: // 比较运算符后不用补充
+		return true
+	case token.ASSIGN: // = 后不用补充
+		return true
+	case token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ: // 复合赋值运算符后不用补充
+		return true
+	case token.CONCAT_EQ: // .= 后不用补充
+		return true
+	case token.BIT_AND_EQ, token.BIT_OR_EQ, token.BIT_XOR_EQ: // 位运算复合赋值运算符后不用补充
+		return true
+	case token.SHL_EQ, token.SHR_EQ: // 位移复合赋值运算符后不用补充
+		return true
+	case token.POWER_EQ: // **= 后不用补充
+		return true
+	case token.TERNARY: // ? 后不用补充
+		return true
+	case token.SCOPE_RESOLUTION: // :: 后不用补充
+		return true
+	case token.AT: // @ 后不用补充
+		return true
+	case token.NULLSAFE_CALL, token.NULL_COALESCE: // ??-> 和 ?? 后不用补充
+		return true
+	case token.INCR, token.DECR: // ++ 和 -- 后不用补充
+		return true
+	case token.SHL, token.SHR: // << 和 >> 后不用补充
+		return true
+	case token.POWER: // ** 后不用补充
+		return true
+	case token.NOT: // ! 后不用补充
+		return true
+	case token.BIT_NOT: // ~ 后不用补充
+		return true
+	case token.SPACESHIP: // <=> 后不用补充
+		return true
+	case token.NAMESPACE_SEPARATOR: // \ 后不用补充
+		return true
+	case token.DOLLAR: // $ 后不用补充
 		return true
 	case token.LBRACKET: // 左方括号后不用补充
 		return true

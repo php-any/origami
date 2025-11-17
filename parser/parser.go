@@ -641,6 +641,7 @@ func (p *Parser) parseTokensAsExpression(tokens []lexer.Token) (data.GetValue, d
 
 	np.scopeManager = p.scopeManager
 	np.uses = p.uses
+	np.source = p.source
 	np.namespace = nil
 
 	// 设置新的 tokens
