@@ -1,0 +1,48 @@
+namespace App\Models;
+
+use Database\Annotation\Table;
+use Database\Annotation\Column;
+use Database\Annotation\Id;
+use Database\Annotation\GeneratedValue;
+
+// 个人导航页模型
+@Table("personal_navigations")
+class PersonalNavigation {
+    @Id
+    @GeneratedValue("AUTO")
+    public int $id;
+
+    @Column("user_name")
+    public string $userName;
+
+    @Column("user_email")
+    public ?string $userEmail;
+
+    @Column("title")
+    public string $title;
+
+    @Column("description")
+    public ?string $description;
+
+    @Column("url")
+    public string $url;
+
+    @Column("icon")
+    public ?string $icon;
+
+    @Column("category")
+    public ?string $category;
+
+    @Column("status")
+    public string $status;
+
+    @Column("display_order")
+    public int $displayOrder;
+
+    @Column("created_at")
+    public ?string $createdAt;
+
+    @Column("updated_at")
+    public ?string $updatedAt;
+}
+

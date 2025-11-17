@@ -25,8 +25,13 @@ func (h *HtmlIfAttributeParser) Parser(name string, parser *Parser) (node.HtmlAt
 
 	// 解析属性值
 	codes := parser.current().Literal()
-	codes = strings.Trim(codes, "\"")
-	codes = strings.Trim(codes, "'")
+	if len(codes) > 3 {
+		if codes[0] == '"' && codes[len(codes)-1] == '"' {
+			codes = strings.Trim(codes, "\"")
+		} else if codes[0] == '\'' && codes[len(codes)-1] == '\'' {
+			codes = strings.Trim(codes, "'")
+		}
+	}
 	parser.next()
 
 	condition, acl := parser.ParseExpressionFromString(codes)

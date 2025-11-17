@@ -445,12 +445,12 @@ func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 		// 检查是否是 LingToken（插值字符串）
 		if lingToken, ok := ep.current().(*lexer.LingToken); ok {
 			ep.next()
-			return ep.parseLingToken(lingToken, ep.FromCurrentToken()), nil
+			return ep.parseLingToken(lingToken), nil
 		}
 	case token.INTERPOLATION_VALUE:
 		if lingToken, ok := ep.current().(*lexer.LingToken); ok {
 			ep.next()
-			return ep.ParserTokens(lingToken.Children(), *ep.source)
+			return ep.parseTokensAsExpression(lingToken.Children())
 		}
 	case token.DOCTYPE:
 		// 解析 <!DOCTYPE ...>
@@ -546,6 +546,6 @@ func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 }
 
 // parseLingToken 解析 LingToken（插值字符串），创建链接节点
-func (ep *ExpressionParser) parseLingToken(lingToken *lexer.LingToken, from data.From) data.GetValue {
-	return ep.Parser.parseLingToken(lingToken, from)
+func (ep *ExpressionParser) parseLingToken(lingToken *lexer.LingToken) data.GetValue {
+	return ep.Parser.parseLingToken(lingToken)
 }

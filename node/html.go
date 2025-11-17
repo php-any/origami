@@ -182,7 +182,7 @@ func (h *HtmlNode) GetChildren() []data.GetValue {
 	return h.Children
 }
 
-// IsSelfClosing 返回是否是自闭合标签
+// IsSelfClosingTag 返回是否是自闭合标签
 func (h *HtmlNode) IsSelfClosingTag() bool {
 	return h.IsSelfClosing
 }
@@ -227,10 +227,10 @@ func (d *HtmlDocTypeNode) GetValue(ctx data.Context) (data.GetValue, data.Contro
 // ScriptZyNode 表示 <script type="text/zy"> 脚本节点
 type ScriptZyNode struct {
 	*Node   `pp:"-"`
-	Program *Program
+	Program data.GetValue
 }
 
-func NewScriptZyNode(from data.From, program *Program) *ScriptZyNode {
+func NewScriptZyNode(from data.From, program data.GetValue) *ScriptZyNode {
 	return &ScriptZyNode{Node: NewNode(from), Program: program}
 }
 

@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"fmt"
 	"unicode"
 
 	"github.com/php-any/origami/token"
@@ -109,6 +110,11 @@ func (h *HtmlLexer) Tokenize(input string) []Token {
 				continue
 			}
 
+			if tok, ok = h.processColon(); ok {
+				tokens = append(tokens, tok)
+				continue
+			}
+
 			// 在标签内部时，跳过空白字符
 			if h.pos < len(h.input) && h.isWhitespace(h.input[h.pos]) {
 				h.advance()
@@ -128,10 +134,20 @@ func (h *HtmlLexer) Tokenize(input string) []Token {
 			}
 		}
 
-		// 如果所有处理都失败，跳过当前字符（防止无限循环）
-		h.advance()
+		// 如果所有处理都失败，报错而不是跳过
+		if h.pos >= len(h.input) {
+			panic(fmt.Sprintf("HTML词法分析错误: 意外的文件结束 (位置: %d, 行: %d, 列: %d)", h.pos, h.line+1, h.linePos+1))
+		}
+		ch := h.input[h.pos]
+		var chStr string
+		if ch < 32 || ch > 126 {
+			chStr = fmt.Sprintf("\\x%02x", ch)
+		} else {
+			chStr = string(ch)
+		}
+		panic(fmt.Sprintf("HTML词法分析错误: 无法识别的字符 '%s' (位置: %d, 行: %d, 列: %d)", chStr, h.pos, h.line+1, h.linePos+1))
 	}
-	PrintTokens(tokens, "")
+	// PrintTokens(tokens, "")
 	return tokens
 }
 
@@ -632,6 +648,29 @@ func (h *HtmlLexer) processAssign() (Token, bool) {
 
 	return NewWorkerToken(
 		token.ASSIGN,
+		h.input[start:h.pos],
+		start,
+		h.pos,
+		startLine,
+		startLinePos,
+	), true
+}
+
+// processColon 处理 : 符号
+// 返回 token 和是否成功处理
+func (h *HtmlLexer) processColon() (Token, bool) {
+	if h.pos >= len(h.input) || h.input[h.pos] != ':' {
+		return nil, false
+	}
+
+	start := h.pos
+	startLine := h.line
+	startLinePos := h.linePos
+
+	h.advance()
+
+	return NewWorkerToken(
+		token.COLON,
 		h.input[start:h.pos],
 		start,
 		h.pos,

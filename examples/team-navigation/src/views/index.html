@@ -53,13 +53,13 @@
                         <div class="time-date" id="currentDate">2024年1月1日 星期一</div>
                     </div>
 
-                    <form id="baiduSearchForm" class="search-form" action="https://www.baidu.com/s" method="get"
-                        target="_blank">
+                    <form id="searchForm" class="search-form" method="get" target="_blank" if="$defaultSearchEngine != null">
                         <div class="search-box">
-                            <input type="text" name="wd" id="baiduSearchInput" class="search-input" placeholder="搜索..."
-                                autocomplete="off" autofocus>
+                            <input type="text" name="keyword" id="searchInput" class="search-input" 
+                                   :placeholder="使用 {$defaultSearchEngine->name} 搜索..."
+                                   autocomplete="off" autofocus>
                             <button type="submit" class="search-submit" aria-label="搜索">
-                                <span>🔍</span>
+                                <span id="searchIcon">{$defaultSearchEngine->icon ?? "🔍"}</span>
                             </button>
                         </div>
                     </form>
@@ -126,6 +126,22 @@
                         </a>
                     </div>
                 </section>
+
+                <!-- 个人导航页 -->
+                <section class="quick-access" id="personalNavsSection" if="$personalNavigations != null && $personalNavigations->length > 0">
+                    <div class="section-title">
+                        <span class="title-icon">👤</span>
+                        <h3>个人导航</h3>
+                        <a href="/personal-nav/apply" class="btn" style="margin-left: auto; text-decoration: none;">+ 申请添加</a>
+                    </div>
+                    <div class="quick-links tools-grid" id="personalNavsGrid">
+                        <a class="tool-card" :href="{$nav->url}" target="_blank" for="$nav in $personalNavigations">
+                            <div class="tool-icon">{$nav->icon ?? "🔗"}</div>
+                            <div class="tool-name">{$nav->title}</div>
+                            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">{$nav->description ?? ""}</div>
+                        </a>
+                    </div>
+                </section>
             </div>
         </main>
 
@@ -139,6 +155,9 @@
         </footer>
     </div>
 
+    <script>
+        const defaultSearchEngine = $.SERVER($defaultSearchEngine);
+    </script>
     <script src="/assets/js/app.js"></script>
 </body>
 

@@ -7,6 +7,8 @@ use App\Models\Project;
 use App\Models\ProjectEnvironment;
 use App\Models\ProjectTool;
 use App\Models\ToolLink;
+use App\Models\SearchEngine;
+use App\Models\PersonalNavigation;
 
 @Controller
 class HomeController {
@@ -40,10 +42,32 @@ class HomeController {
             $p->tools = $pTools;
         }
 
+        // 加载搜索引擎
+        $searchEngines = new DB<SearchEngine>()->orderBy("display_order ASC, id ASC")->get();
+        $defaultSearchEngine = null;
+        for (_, $engine in $searchEngines) {
+            if (($engine->isDefault ?? 0) == 1) {
+                $defaultSearchEngine = $engine;
+                break;
+            }
+        }
+        if ($defaultSearchEngine == null && $searchEngines != null && $searchEngines->length > 0) {
+            $defaultSearchEngine = $searchEngines[0];
+        }
+
+        // 加载已审核通过的个人导航页
+        $personalNavigations = new DB<PersonalNavigation>()
+            ->where("status = ?", "approved")
+            ->orderBy("display_order ASC, created_at DESC")
+            ->get();
+
         $response->view("./src/views/index.html", {
             "projects": $projects,
             "tools": $tools,
-            "favoriteTools": $favoriteTools
+            "favoriteTools": $favoriteTools,
+            "searchEngines": $searchEngines,
+            "defaultSearchEngine": $defaultSearchEngine,
+            "personalNavigations": $personalNavigations
         });
     }
 
@@ -71,10 +95,25 @@ class HomeController {
             $p->tools = $pTools;
         }
 
+        // 加载搜索引擎
+        $searchEngines = new DB<SearchEngine>()->orderBy("display_order ASC, id ASC")->get();
+
+        // 加载个人导航页申请
+        $personalNavigations = new DB<PersonalNavigation>()
+            ->orderBy("created_at DESC")
+            ->get();
+
         $response->view("./src/views/admin.html", {
             "tools": $tools,
-            "projects": $projects
+            "projects": $projects,
+            "searchEngines": $searchEngines,
+            "personalNavigations": $personalNavigations
         });
+    }
+
+    @GetMapping(path: "/personal-nav/apply")
+    public function applyPersonalNav($request, $response) {
+        $response->view("./src/views/personal-nav-apply.html", {});
     }
 }
 

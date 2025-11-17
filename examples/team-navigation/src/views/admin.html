@@ -363,6 +363,8 @@
                 <div class="tabs">
                     <button class="tab active" data-tab="tools">工具链接</button>
                     <button class="tab" data-tab="projects">项目管理</button>
+                    <button class="tab" data-tab="searchEngines">搜索引擎</button>
+                    <button class="tab" data-tab="personalNavs">个人导航</button>
                 </div>
 
                 <!-- 工具链接管理 -->
@@ -400,7 +402,8 @@
                                         <td>
                                             <div class="action-buttons">
                                                 <button class="btn btn-small" :onclick="editTool({$t->id})">编辑</button>
-                                                <button class="btn btn-small btn-danger" :onclick="deleteTool({$t->id})">删除</button>
+                                                <button class="btn btn-small btn-danger"
+                                                    :onclick="deleteTool({$t->id})">删除</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -449,6 +452,119 @@
                             </table>
                             <div class="empty-state" if="$projects == null || $projects->length == 0">暂无项目，点击上方按钮添加
                             </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- 搜索引擎管理 -->
+                <div class="tab-content" id="searchEnginesTab">
+                    <section class="quick-access">
+                        <div class="section-title">
+                            <span class="title-icon">🔍</span>
+                            <h3>搜索引擎管理</h3>
+                            <button class="btn" onclick="openSearchEngineModal()" style="margin-left: auto;">+
+                                添加搜索引擎</button>
+                        </div>
+                        <div id="searchEnginesTableContainer">
+                            <table if="$searchEngines != null && $searchEngines->length > 0">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>图标</th>
+                                        <th>名称</th>
+                                        <th>URL模板</th>
+                                        <th>默认</th>
+                                        <th>顺序</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr for="$e in $searchEngines">
+                                        <td>{$e->id}</td>
+                                        <td>{$e->icon ?? "🔍"}</td>
+                                        <td>{$e->name}</td>
+                                        <td><code
+                                                style="font-size: 0.85rem; color: var(--text-muted);">{$e->urlTemplate}</code>
+                                        </td>
+                                        <td>@{($e->isDefault ?? 0) == 1 ? "✅" : "-"}</td>
+                                        <td>{$e->displayOrder ?? 0}</td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button class="btn btn-small"
+                                                    :onclick="editSearchEngine({$e->id})">编辑</button>
+                                                <button class="btn btn-small btn-danger"
+                                                    :onclick="deleteSearchEngine({$e->id})">删除</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div class="empty-state" if="$searchEngines == null || $searchEngines->length == 0">
+                                暂无搜索引擎，点击上方按钮添加</div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- 个人导航页管理 -->
+                <div class="tab-content" id="personalNavsTab">
+                    <section class="quick-access">
+                        <div class="section-title">
+                            <span class="title-icon">👤</span>
+                            <h3>个人导航页申请</h3>
+                        </div>
+                        <div id="personalNavsTableContainer">
+                            <table if="$personalNavigations != null && $personalNavigations->length > 0">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>申请人</th>
+                                        <th>标题</th>
+                                        <th>链接</th>
+                                        <th>状态</th>
+                                        <th>申请时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr for="$nav in $personalNavigations">
+                                        <td>{$nav->id}</td>
+                                        <td>
+                                            <div>{$nav->userName}</div>
+                                            <div style="font-size: 0.85rem; color: var(--text-muted);">{$nav->userEmail
+                                                ?? "-"}</div>
+                                        </td>
+                                        <td>
+                                            <div>{$nav->icon ?? "🔗"} {$nav->title}</div>
+                                            <div style="font-size: 0.85rem; color: var(--text-muted);">
+                                                {$nav->description ?? ""}</div>
+                                        </td>
+                                        <td><a :href="{$nav->url}" target="_blank"
+                                                style="color: var(--primary); font-size: 0.85rem;">{$nav->url}</a></td>
+                                        <td>
+                                            <span style="padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;"
+                                                :style="@{$nav->status == 'approved' ? 'background: #d1fae5; color: #065f46;' : ($nav->status == 'rejected' ? 'background: #fee2e2; color: #991b1b;' : 'background: #fef3c7; color: #92400e;')}">
+                                                @{$nav->status == 'approved' ? '已通过' : ($nav->status == 'rejected' ?
+                                                '已拒绝' : '待审核')}
+                                            </span>
+                                        </td>
+                                        <td style="font-size: 0.85rem; color: var(--text-muted);">{$nav->createdAt ??
+                                            "-"}</td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button class="btn btn-small" :onclick="approvePersonalNav({$nav->id})"
+                                                    if="$nav->status == 'pending'">通过</button>
+                                                <button class="btn btn-small btn-danger"
+                                                    :onclick="rejectPersonalNav({$nav->id})"
+                                                    if="$nav->status == 'pending'">拒绝</button>
+                                                <button class="btn btn-small btn-danger"
+                                                    :onclick="deletePersonalNav({$nav->id})">删除</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div class="empty-state"
+                                if="$personalNavigations == null || $personalNavigations->length == 0">暂无个人导航页申请</div>
                         </div>
                     </section>
                 </div>
@@ -560,10 +676,54 @@
             </div>
         </div>
 
+        <!-- 搜索引擎编辑模态框 -->
+        <div class="modal" id="searchEngineModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="searchEngineModalTitle">添加搜索引擎</h2>
+                </div>
+                <form id="searchEngineForm" onsubmit="saveSearchEngine(event)">
+                    <input type="hidden" id="searchEngineId" name="id">
+                    <div class="form-group">
+                        <label>搜索引擎名称 *</label>
+                        <input type="text" id="searchEngineName" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>URL模板 *</label>
+                        <input type="text" id="searchEngineUrlTemplate" name="urlTemplate"
+                            placeholder="https://www.example.com/search?q={keyword}" required>
+                        <small style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px; display: block;">
+                            使用 {keyword} 作为搜索关键词占位符
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label>图标（Emoji）</label>
+                        <input type="text" id="searchEngineIcon" name="icon" placeholder="🔍">
+                    </div>
+                    <div class="form-group">
+                        <label>显示顺序</label>
+                        <input type="number" id="searchEngineDisplayOrder" name="displayOrder" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="searchEngineIsDefault" name="isDefault" value="1">
+                            <span>设为默认搜索引擎</span>
+                        </label>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeSearchEngineModal()">取消</button>
+                        <button type="submit" class="btn">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <script>
             const tools = $.SERVER($tools);
             const projects = $.SERVER($projects);
-          </script>
+            const searchEngines = $.SERVER($searchEngines);
+            const personalNavigations = $.SERVER($personalNavigations);
+        </script>
         <script src="/assets/js/admin.js"></script>
     </div>
 </body>

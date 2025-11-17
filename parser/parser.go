@@ -373,7 +373,7 @@ func (p *Parser) parseValue() (data.GetValue, bool) {
 		// 检查是否是 LingToken（插值字符串）
 		if lingToken, ok := p.current().(*lexer.LingToken); ok {
 			p.next()
-			return p.parseLingToken(lingToken, tracker.EndBefore()), true
+			return p.parseLingToken(lingToken), true
 		}
 		// 普通字符串
 		value := p.current().Literal()
@@ -539,48 +539,6 @@ func (p *Parser) ParseExpressionFromString(exprStr string) (data.GetValue, data.
 	return result, ctl
 }
 
-// ParserTokens 传入 token 列表重新运行
-func (p *Parser) ParserTokens(tokens []lexer.Token, filePath string) (*node.Program, data.Control) {
-	if len(tokens) > 1 && tokens[0].Type() == token.SEMICOLON {
-		nTokens := make([]lexer.Token, 0)
-		i := 0
-		for len(tokens) > i && tokens[i].Type() == token.SEMICOLON {
-			i++
-		}
-		for _, t := range tokens[i:] {
-			nTokens = append(nTokens, t)
-		}
-		tokens = nTokens
-	}
-
-	// 保存当前状态
-	originalTokens := p.tokens
-	originalPosition := p.position
-	originalSource := p.source
-
-	// 重置解析器状态
-	p.reset()
-
-	// 设置源文件路径，确保符号位置信息正确
-	p.source = &filePath
-
-	// 进行分词
-	p.tokens = tokens
-
-	// 解析程序
-	program, acl := p.parseProgram()
-	if acl != nil {
-		return nil, acl
-	}
-
-	// 恢复原始状态
-	p.tokens = originalTokens
-	p.position = originalPosition
-	p.source = originalSource
-
-	return program, nil
-}
-
 // ParseString 从字符串解析程序
 func (p *Parser) ParseString(content string, filePath string) (*node.Program, data.Control) {
 	// 保存当前状态
@@ -627,7 +585,7 @@ func (p *Parser) tryFindTypes() (data.Types, bool) {
 }
 
 // parseLingToken 解析 LingToken（插值字符串），创建链接节点
-func (p *Parser) parseLingToken(lingToken *lexer.LingToken, from data.From) data.GetValue {
+func (p *Parser) parseLingToken(lingToken *lexer.LingToken) data.GetValue {
 	// 从 lingToken 创建 TokenFrom
 	tokenFrom := node.NewTokenFrom(p.source, lingToken.Start(), lingToken.End(), lingToken.Line(), lingToken.Pos())
 
@@ -688,8 +646,7 @@ func (p *Parser) parseTokensAsExpression(tokens []lexer.Token) (data.GetValue, d
 	p.position = 0
 
 	// 使用表达式解析器解析
-	exprParser := NewExpressionParser(p)
-	result, acl := exprParser.Parse()
+	result, acl := p.parseProgram()
 
 	// 恢复原始状态
 	p.tokens = originalTokens

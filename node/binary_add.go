@@ -98,7 +98,7 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			return data.NewIntValue(0 + ri), nil
 		}
 
-		return nil, data.NewErrorThrow(b.from, errors.New("有未支持的类型加法"))
+		return nil, data.NewErrorThrow(b.from, errors.New("左边 null 值无法运行+符号"))
 
 	case *data.ArrayValue:
 		lStr := l.AsString()

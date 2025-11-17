@@ -143,8 +143,7 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 					if acl != nil {
 						return nil, acl
 					}
-					_ = prog
-					return node.NewScriptZyNode(tracker.EndBefore(), nil), nil
+					return node.NewScriptZyNode(tracker.EndBefore(), prog), nil
 				}
 			}
 		}
@@ -246,17 +245,28 @@ func (h *HtmlParser) parseAttributeValue() (data.GetValue, data.Control) {
 		// 检查是否是 LingToken（插值字符串）
 		if lingToken, ok := h.current().(*lexer.LingToken); ok {
 			h.next()
-			return h.parseLingToken(lingToken, h.FromCurrentToken()), nil
+			return h.parseLingToken(lingToken), nil
 		}
 	case token.INTERPOLATION_VALUE:
 		if lingToken, ok := h.current().(*lexer.LingToken); ok {
 			h.next()
-			v, acl := h.ParserTokens(lingToken.Children(), *h.source)
+			v, acl := h.parseTokensAsExpression(lingToken.Children())
 			if acl != nil {
 				return nil, acl
 			}
 			return v, nil
 		}
+	case token.STRING:
+		str := h.current().Literal()
+		h.next()
+		normalLexer := lexer.NewLexer()
+		tokens := normalLexer.Tokenize(str)
+		// 编译脚本为 Program
+		prog, acl := h.Parser.parseTokensAsExpression(tokens)
+		if acl != nil {
+			return nil, acl
+		}
+		return prog, nil
 	}
 
 	value := h.current().Literal()
@@ -550,7 +560,7 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 					normalLexer := lexer.NewLexer()
 					tokens := normalLexer.Tokenize(rawText.String())
 					// 编译脚本为 Program 并返回 ScriptZyNode
-					prog, acl := h.Parser.ParserTokens(tokens, *h.Parser.source)
+					prog, acl := h.Parser.parseTokensAsExpression(tokens)
 					if acl != nil {
 						return nil, acl
 					}

@@ -29,15 +29,6 @@ function initTables($db) {
     
     $result1 = $db->exec($createToolLinksTable);
     Log::info("创建工具链接表结果: " + $result1);
-    
-    // 如果表已存在但缺少 is_favorite 字段，则添加该字段
-    try {
-        $db->exec("ALTER TABLE tool_links ADD COLUMN is_favorite INTEGER DEFAULT 0");
-        Log::info("已添加 is_favorite 字段到 tool_links 表");
-    } catch (Exception $e) {
-        // 字段可能已存在，忽略错误
-        Log::info("已添加 is_favorite 字段到 tool_links 表");
-    }
 
     // 创建项目表
     $createProjectsTable = "
@@ -52,14 +43,6 @@ function initTables($db) {
 
     $result2 = $db->exec($createProjectsTable);
     Log::info("创建项目表结果: " + $result2);
-
-    // 如果表已存在但缺少 description 字段，则添加该字段
-    try {
-        $db->exec("ALTER TABLE projects ADD COLUMN description TEXT");
-        Log::info("已添加 description 字段到 projects 表");
-    } catch (Exception $e) {
-        // 字段可能已存在，忽略错误
-    }
 
     // 创建项目环境表
     $createProjectEnvsTable = "
@@ -94,6 +77,42 @@ function initTables($db) {
 
     $result4 = $db->exec($createProjectToolsTable);
     Log::info("创建项目工具关联表结果: " + $result4);
+
+    // 创建搜索引擎表
+    $createSearchEnginesTable = "
+        CREATE TABLE IF NOT EXISTS search_engines (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name VARCHAR(100) NOT NULL,
+            url_template VARCHAR(500) NOT NULL,
+            icon VARCHAR(50),
+            is_default INTEGER DEFAULT 0,
+            display_order INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )";
+
+    $result5 = $db->exec($createSearchEnginesTable);
+    Log::info("创建搜索引擎表结果: " + $result5);
+
+    // 创建个人导航页表
+    $createPersonalNavigationsTable = "
+        CREATE TABLE IF NOT EXISTS personal_navigations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_name VARCHAR(100) NOT NULL,
+            user_email VARCHAR(200),
+            title VARCHAR(200) NOT NULL,
+            description TEXT,
+            url VARCHAR(500) NOT NULL,
+            icon VARCHAR(50),
+            category VARCHAR(50),
+            status VARCHAR(20) DEFAULT 'pending',
+            display_order INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )";
+
+    $result6 = $db->exec($createPersonalNavigationsTable);
+    Log::info("创建个人导航页表结果: " + $result6);
 }
 
 /**
@@ -108,10 +127,7 @@ function initSampleData($db, $dbExists) {
         $row = $db->queryRow("SELECT COUNT(*) FROM tool_links");
         $row->scan($toolCount);
     } catch (Exception $e) {
-        Log::error($e->getMessage());
-        $toolCount = 0;
-    } catch (Error $e) {
-        Log::error($e->getMessage());
+        // 表可能不存在，忽略错误
         $toolCount = 0;
     }
 
@@ -144,7 +160,7 @@ function initSampleData($db, $dbExists) {
         
         for ($i = 0; $i < $initTools->length; $i++) {
             $tool = $initTools[$i];
-            // 前15个工具自动收藏，后5个不收藏
+            // 前10个工具自动收藏，后10个不收藏
             $isFavorite = $i < 10 ? 1 : 0;
             $result = $db->exec("INSERT INTO tool_links (name, url, icon, category, description, is_favorite, display_order) VALUES (?, ?, ?, ?, ?, ?, ?)", 
                 $tool[0], $tool[1], $tool[2], $tool[3], $tool[4], $isFavorite, $tool[5]);
@@ -166,10 +182,7 @@ function initSampleData($db, $dbExists) {
         $row = $db->queryRow("SELECT COUNT(*) FROM projects");
         $row->scan($projectCount);
     } catch (Exception $e) {
-        Log::error($e->getMessage());
-        $projectCount = 0;
-    } catch (Error $e) {
-        Log::error($e->getMessage());
+        // 表可能不存在，忽略错误
         $projectCount = 0;
     }
 
@@ -192,7 +205,7 @@ function initSampleData($db, $dbExists) {
             
             // 为每个项目创建默认环境
             $projectNameRaw = $project[0];
-            $projectNameLower = $projectNameRaw->toLowerCase()->replace(" ", "-")->replace("api", "api")->replace("admin", "admin")->replace("app", "app");
+            $projectNameLower = $projectNameRaw->toLowerCase()->replace(" ", "-");
             $defaultEnvs = [
                 ["开发环境", "http://dev-" + $projectNameLower + ".example.com", "运行中", "green"],
                 ["测试环境", "http://test-" + $projectNameLower + ".example.com", "运行中", "green"],
@@ -214,6 +227,33 @@ function initSampleData($db, $dbExists) {
                         $projectId, $actualToolId, $i + 1);
                 }
             }
+        }
+    }
+
+    // 检查搜索引擎表是否有数据
+    $searchEngineCount = 0;
+    try {
+        $row = $db->queryRow("SELECT COUNT(*) FROM search_engines");
+        $row->scan($searchEngineCount);
+    } catch (Exception $e) {
+        // 表可能不存在，忽略错误
+        $searchEngineCount = 0;
+    }
+
+    // 如果是新数据库或搜索引擎表为空，初始化示例数据
+    if (!$dbExists || $searchEngineCount == 0) {
+        Log::info("初始化搜索引擎数据...");
+        $initSearchEngines = [
+            ["百度", "https://www.baidu.com/s?wd={keyword}", "🔍", 1, 1],
+            ["Google", "https://www.google.com/search?q={keyword}", "🌐", 0, 2],
+            ["Bing", "https://www.bing.com/search?q={keyword}", "🔎", 0, 3],
+            ["GitHub", "https://github.com/search?q={keyword}", "💻", 0, 4],
+            ["DuckDuckGo", "https://duckduckgo.com/?q={keyword}", "🦆", 0, 5]
+        ];
+        
+        for (_, $engine in $initSearchEngines) {
+            $db->exec("INSERT INTO search_engines (name, url_template, icon, is_default, display_order) VALUES (?, ?, ?, ?, ?)", 
+                $engine[0], $engine[1], $engine[2], $engine[3], $engine[4]);
         }
     }
 }

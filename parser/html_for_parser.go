@@ -29,8 +29,13 @@ func (h *HtmlForAttributeParser) Parser(name string, parser *Parser) (node.HtmlA
 
 	// 字符串值
 	codes := parser.current().Literal()
-	codes = strings.Trim(codes, "\"")
-	codes = strings.Trim(codes, "'")
+	if len(codes) > 3 {
+		if codes[0] == '"' && codes[len(codes)-1] == '"' {
+			codes = strings.Trim(codes, "\"")
+		} else if codes[0] == '\'' && codes[len(codes)-1] == '\'' {
+			codes = strings.Trim(codes, "'")
+		}
+	}
 	parser.next()
 	vars, exprStr := h.parseForExpression(codes)
 

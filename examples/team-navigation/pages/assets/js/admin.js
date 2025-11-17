@@ -521,6 +521,161 @@ async function deleteProject(id) {
   }
 }
 
+// 搜索引擎管理
+let currentEditingSearchEngine = null;
+
+function openSearchEngineModal(engineId = null) {
+  currentEditingSearchEngine = engineId;
+  const modal = document.getElementById("searchEngineModal");
+  const title = document.getElementById("searchEngineModalTitle");
+  const form = document.getElementById("searchEngineForm");
+
+  if (engineId) {
+    title.textContent = "编辑搜索引擎";
+    const engine = searchEngines.find((e) => e.id === engineId);
+    if (engine) {
+      document.getElementById("searchEngineId").value = engine.id;
+      document.getElementById("searchEngineName").value = engine.name;
+      document.getElementById("searchEngineUrlTemplate").value = engine.urlTemplate;
+      document.getElementById("searchEngineIcon").value = engine.icon || "";
+      document.getElementById("searchEngineDisplayOrder").value = engine.displayOrder || 0;
+      document.getElementById("searchEngineIsDefault").checked = engine.isDefault == 1;
+    }
+  } else {
+    title.textContent = "添加搜索引擎";
+    form.reset();
+    document.getElementById("searchEngineId").value = "";
+    document.getElementById("searchEngineIsDefault").checked = false;
+  }
+
+  modal.classList.add("active");
+}
+
+function closeSearchEngineModal() {
+  document.getElementById("searchEngineModal").classList.remove("active");
+  currentEditingSearchEngine = null;
+}
+
+async function saveSearchEngine(event) {
+  event.preventDefault();
+
+  const formData = {
+    name: document.getElementById("searchEngineName").value,
+    urlTemplate: document.getElementById("searchEngineUrlTemplate").value,
+    icon: document.getElementById("searchEngineIcon").value,
+    displayOrder: parseInt(document.getElementById("searchEngineDisplayOrder").value) || 0,
+    isDefault: document.getElementById("searchEngineIsDefault").checked ? 1 : 0,
+  };
+
+  try {
+    if (currentEditingSearchEngine) {
+      const response = await fetch(`/api/search-engines/${currentEditingSearchEngine}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) throw new Error("更新失败");
+    } else {
+      const response = await fetch("/api/search-engines", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) throw new Error("创建失败");
+    }
+
+    closeSearchEngineModal();
+    alert("保存成功！");
+    window.location.reload();
+  } catch (error) {
+    console.error("保存失败:", error);
+    alert("保存失败: " + error.message);
+  }
+}
+
+function editSearchEngine(id) {
+  openSearchEngineModal(id);
+}
+
+async function deleteSearchEngine(id) {
+  if (!confirm("确定要删除这个搜索引擎吗？")) return;
+
+  try {
+    const response = await fetch(`/api/search-engines/${id}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) throw new Error("删除失败");
+
+    alert("删除成功！");
+    window.location.reload();
+  } catch (error) {
+    console.error("删除失败:", error);
+    alert("删除失败: " + error.message);
+  }
+}
+
+// 个人导航页管理
+async function approvePersonalNav(id) {
+  if (!confirm("确定要通过这个申请吗？")) return;
+
+  try {
+    const response = await fetch(`/api/personal-navigations/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "approved" }),
+    });
+
+    if (!response.ok) throw new Error("操作失败");
+
+    alert("已通过申请！");
+    window.location.reload();
+  } catch (error) {
+    console.error("操作失败:", error);
+    alert("操作失败: " + error.message);
+  }
+}
+
+async function rejectPersonalNav(id) {
+  if (!confirm("确定要拒绝这个申请吗？")) return;
+
+  try {
+    const response = await fetch(`/api/personal-navigations/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "rejected" }),
+    });
+
+    if (!response.ok) throw new Error("操作失败");
+
+    alert("已拒绝申请！");
+    window.location.reload();
+  } catch (error) {
+    console.error("操作失败:", error);
+    alert("操作失败: " + error.message);
+  }
+}
+
+async function deletePersonalNav(id) {
+  if (!confirm("确定要删除这个申请吗？")) return;
+
+  try {
+    const response = await fetch(`/api/personal-navigations/${id}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) throw new Error("删除失败");
+
+    alert("删除成功！");
+    window.location.reload();
+  } catch (error) {
+    console.error("删除失败:", error);
+    alert("删除失败: " + error.message);
+  }
+}
+
 // 初始化
 document.addEventListener("DOMContentLoaded", function () {
   // 点击模态框外部关闭
