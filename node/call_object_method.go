@@ -77,7 +77,7 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 			}
 		}
 	}
-	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("当前值(%#v)不支持调用函数, 你调用的函数(%s)", o, pe.Method)))
+	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("当前值(%#v)不支持调用函数, 你调用的函数(%s)", TryGetCallClassName(o), pe.Method)))
 }
 
 func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method data.Method) (data.Context, data.Control) {

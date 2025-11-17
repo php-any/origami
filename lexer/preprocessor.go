@@ -75,11 +75,60 @@ func cannotAddSemicolonAfter(t Token) bool {
 		return true
 	case token.RPAREN: // 右圆括号前不用补充
 		return true
-	case token.ARRAY_KEY_VALUE:
+	case token.ARRAY_KEY_VALUE: // => 前不用补充
 		return true
-	case token.OBJECT_OPERATOR:
+	case token.OBJECT_OPERATOR: // -> 前不用补充
 		return true
-
+	case token.NULLSAFE_CALL, token.NULL_COALESCE: // ??-> 和 ?? 前不用补充
+		return true
+	case token.COLON: // : 前不用补充
+		return true
+	case token.COMMA: // , 前不用补充
+		return true
+	case token.DOT: // . 前不用补充
+		return true
+	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM: // 运算符前不用补充
+		return true
+	case token.BIT_AND, token.BIT_OR, token.BIT_XOR: // 位运算符前不用补充
+		return true
+	case token.LAND, token.LOR: // 逻辑运算符前不用补充
+		return true
+	case token.EQ, token.NE, token.EQ_STRICT, token.NE_STRICT: // 比较运算符前不用补充
+		return true
+	case token.LT, token.GT, token.LE, token.GE: // 比较运算符前不用补充
+		return true
+	case token.ASSIGN: // = 前不用补充
+		return true
+	case token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ: // 复合赋值运算符前不用补充
+		return true
+	case token.CONCAT_EQ: // .= 前不用补充
+		return true
+	case token.BIT_AND_EQ, token.BIT_OR_EQ, token.BIT_XOR_EQ: // 位运算复合赋值运算符前不用补充
+		return true
+	case token.SHL_EQ, token.SHR_EQ: // 位移复合赋值运算符前不用补充
+		return true
+	case token.POWER_EQ: // **= 前不用补充
+		return true
+	case token.TERNARY: // ? 前不用补充
+		return true
+	case token.SCOPE_RESOLUTION: // :: 前不用补充
+		return true
+	case token.AT: // @ 前不用补充
+		return true
+	case token.INCR, token.DECR: // ++ 和 -- 前不用补充
+		return true
+	case token.SHL, token.SHR: // << 和 >> 前不用补充
+		return true
+	case token.POWER: // ** 前不用补充
+		return true
+	case token.NOT: // ! 前不用补充
+		return true
+	case token.BIT_NOT: // ~ 前不用补充
+		return true
+	case token.SPACESHIP: // <=> 前不用补充
+		return true
+	case token.NAMESPACE_SEPARATOR: // \ 前不用补充
+		return true
 	default:
 		return false // 其他情况需要补充分号
 	}

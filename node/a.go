@@ -15,6 +15,8 @@ func TryGetCallClassName(call data.GetValue) string {
 		return TryGetCallClassName(c.Class)
 	case data.ClassStmt:
 		return c.GetName()
+	case *data.NullValue:
+		return "null"
 	}
 
 	return "TODO"

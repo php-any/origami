@@ -1,2 +1,5 @@
 <!DOCTYPE html>
-<p :text="test" ></p>
+<span>
+@{$nav->status == 'approved' ? '已通过' : ($nav->status == 'rejected' ?
+                                                '已拒绝' : '待审核')}
+</span>
