@@ -637,20 +637,18 @@ func (p *Parser) parseLingToken(lingToken *lexer.LingToken) data.GetValue {
 
 // parseTokensAsExpression 解析 token 列表为表达式
 func (p *Parser) parseTokensAsExpression(tokens []lexer.Token) (data.GetValue, data.Control) {
-	// 保存当前状态
-	originalTokens := p.tokens
-	originalPosition := p.position
+	np := p.Clone()
+
+	np.scopeManager = p.scopeManager
+	np.uses = p.uses
+	np.namespace = nil
 
 	// 设置新的 tokens
-	p.tokens = tokens
-	p.position = 0
+	np.tokens = tokens
+	np.position = 0
 
 	// 使用表达式解析器解析
-	result, acl := p.parseProgram()
-
-	// 恢复原始状态
-	p.tokens = originalTokens
-	p.position = originalPosition
+	result, acl := np.parseProgram()
 
 	return result, acl
 }
