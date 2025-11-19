@@ -653,65 +653,6 @@ async function deleteSearchEngine(id) {
   }
 }
 
-// 个人导航页管理
-async function approvePersonalNav(id) {
-  if (!confirm("确定要通过这个申请吗？")) return;
-
-  try {
-    const response = await fetch(`/api/personal-navigations/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "approved" }),
-    });
-
-    if (!response.ok) throw new Error("操作失败");
-
-    alert("已通过申请！");
-    window.location.reload();
-  } catch (error) {
-    console.error("操作失败:", error);
-    alert("操作失败: " + error.message);
-  }
-}
-
-async function rejectPersonalNav(id) {
-  if (!confirm("确定要拒绝这个申请吗？")) return;
-
-  try {
-    const response = await fetch(`/api/personal-navigations/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "rejected" }),
-    });
-
-    if (!response.ok) throw new Error("操作失败");
-
-    alert("已拒绝申请！");
-    window.location.reload();
-  } catch (error) {
-    console.error("操作失败:", error);
-    alert("操作失败: " + error.message);
-  }
-}
-
-async function deletePersonalNav(id) {
-  if (!confirm("确定要删除这个申请吗？")) return;
-
-  try {
-    const response = await fetch(`/api/personal-navigations/${id}`, {
-      method: "DELETE",
-    });
-
-    if (!response.ok) throw new Error("删除失败");
-
-    alert("删除成功！");
-    window.location.reload();
-  } catch (error) {
-    console.error("删除失败:", error);
-    alert("删除失败: " + error.message);
-  }
-}
-
 // 初始化
 document.addEventListener("DOMContentLoaded", function () {
   // 点击模态框外部关闭

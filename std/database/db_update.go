@@ -39,8 +39,9 @@ func (d *DbUpdateMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 		for name, value := range properties {
 			if value != nil {
-				// 检查值是否为空
-				if !d.isNullValue(value) {
+				// 对于 UPDATE 操作，只跳过真正的 null 值，不跳过 0、false、空字符串等
+				// 因为用户可能想要将字段更新为这些值
+				if _, ok := value.(*data.NullValue); !ok {
 					// 获取数据库列名
 					columnName := d.getColumnName(classStmt, name)
 					updateData[columnName] = ConvertValueToGoType(value)
@@ -53,8 +54,9 @@ func (d *DbUpdateMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		properties := objectValue.GetProperties()
 		for name, value := range properties {
 			if value != nil {
-				// 检查值是否为空
-				if !d.isNullValue(value) {
+				// 对于 UPDATE 操作，只跳过真正的 null 值，不跳过 0、false、空字符串等
+				// 因为用户可能想要将字段更新为这些值
+				if _, ok := value.(*data.NullValue); !ok {
 					updateData[name] = ConvertValueToGoType(value)
 				}
 			}
@@ -70,6 +72,11 @@ func (d *DbUpdateMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	for column, value := range updateData {
 		setClauses = append(setClauses, column+" = ?")
 		values = append(values, value)
+	}
+
+	// 检查是否有要更新的字段
+	if len(setClauses) == 0 {
+		return nil, utils.NewThrow(errors.New("没有要更新的字段。UPDATE 语句必须包含 SET 子句。如果需要执行 SQL 表达式（如自增、NOW() 等），请使用 exec() 方法执行原生 SQL"))
 	}
 
 	// 构建 WHERE 子句

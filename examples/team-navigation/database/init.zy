@@ -93,26 +93,6 @@ function initTables($db) {
 
     $result5 = $db->exec($createSearchEnginesTable);
     Log::info("创建搜索引擎表结果: " + $result5);
-
-    // 创建个人导航页表
-    $createPersonalNavigationsTable = "
-        CREATE TABLE IF NOT EXISTS personal_navigations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_name VARCHAR(100) NOT NULL,
-            user_email VARCHAR(200),
-            title VARCHAR(200) NOT NULL,
-            description TEXT,
-            url VARCHAR(500) NOT NULL,
-            icon VARCHAR(50),
-            category VARCHAR(50),
-            status VARCHAR(20) DEFAULT 'pending',
-            display_order INTEGER DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )";
-
-    $result6 = $db->exec($createPersonalNavigationsTable);
-    Log::info("创建个人导航页表结果: " + $result6);
 }
 
 /**

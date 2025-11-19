@@ -8,7 +8,6 @@ use App\Models\ProjectEnvironment;
 use App\Models\ProjectTool;
 use App\Models\ToolLink;
 use App\Models\SearchEngine;
-use App\Models\PersonalNavigation;
 
 @Controller
 class HomeController {
@@ -55,19 +54,12 @@ class HomeController {
             $defaultSearchEngine = $searchEngines[0];
         }
 
-        // 加载已审核通过的个人导航页
-        $personalNavigations = new DB<PersonalNavigation>()
-            ->where("status = ?", "approved")
-            ->orderBy("display_order ASC, created_at DESC")
-            ->get();
-
         $response->view("./src/views/index.html", {
             "projects": $projects,
             "tools": $tools,
             "favoriteTools": $favoriteTools,
             "searchEngines": $searchEngines,
-            "defaultSearchEngine": $defaultSearchEngine,
-            "personalNavigations": $personalNavigations
+            "defaultSearchEngine": $defaultSearchEngine
         });
     }
 
@@ -98,23 +90,13 @@ class HomeController {
         // 加载搜索引擎
         $searchEngines = new DB<SearchEngine>()->orderBy("display_order ASC, id ASC")->get();
 
-        // 加载个人导航页申请
-        $personalNavigations = new DB<PersonalNavigation>()
-            ->orderBy("created_at DESC")
-            ->get();
-
         $response->view("./src/views/admin.html", {
             "tools": $tools,
             "projects": $projects,
-            "searchEngines": $searchEngines,
-            "personalNavigations": $personalNavigations
+            "searchEngines": $searchEngines
         });
     }
 
-    @GetMapping(path: "/personal-nav/apply")
-    public function applyPersonalNav($request, $response) {
-        $response->view("./src/views/personal-nav-apply.html", {});
-    }
 }
 
 

@@ -41,7 +41,6 @@
                     <button class="tab active" data-tab="tools">工具链接</button>
                     <button class="tab" data-tab="projects">项目管理</button>
                     <button class="tab" data-tab="searchEngines">搜索引擎</button>
-                    <button class="tab" data-tab="personalNavs">个人导航</button>
                 </div>
 
                 <!-- 工具链接管理 -->
@@ -182,69 +181,6 @@
                     </section>
                 </div>
 
-                <!-- 个人导航页管理 -->
-                <div class="tab-content" id="personalNavsTab">
-                    <section class="quick-access">
-                        <div class="section-title">
-                            <span class="title-icon">👤</span>
-                            <h3>个人导航页申请</h3>
-                        </div>
-                        <div id="personalNavsTableContainer">
-                            <table if="$personalNavigations != null && $personalNavigations->length > 0">
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>申请人</th>
-                                        <th>标题</th>
-                                        <th>链接</th>
-                                        <th>状态</th>
-                                        <th>申请时间</th>
-                                        <th>操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr for="$nav in $personalNavigations">
-                                        <td>{$nav->id}</td>
-                                        <td>
-                                            <div>{$nav->userName}</div>
-                                            <div style="font-size: 0.85rem; color: var(--text-muted);">{$nav->userEmail
-                                                ?? "-"}</div>
-                                        </td>
-                                        <td>
-                                            <div>{$nav->icon ?? "🔗"} {$nav->title}</div>
-                                            <div style="font-size: 0.85rem; color: var(--text-muted);">
-                                                {$nav->description ?? ""}</div>
-                                        </td>
-                                        <td><a :href="{$nav->url}" target="_blank"
-                                                style="color: var(--primary); font-size: 0.85rem;">{$nav->url}</a></td>
-                                        <td>
-                                            <span style="padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;"
-                                                :style="@{$nav->status == 'approved' ? 'background: #d1fae5; color: #065f46;' : ($nav->status == 'rejected' ? 'background: #fee2e2; color: #991b1b;' : 'background: #fef3c7; color: #92400e;')}">
-                                                @{$nav->status == 'approved' ? '已通过' : ($nav->status == 'rejected' ?
-                                                '已拒绝' : '待审核')}
-                                            </span>
-                                        </td>
-                                        <td style="font-size: 0.85rem; color: var(--text-muted);">{$nav->createdAt ??
-                                            "-"}</td>
-                                        <td>
-                                            <div class="action-buttons">
-                                                <button class="btn btn-small" :onclick="approvePersonalNav({$nav->id})"
-                                                    if="$nav->status == 'pending'">通过</button>
-                                                <button class="btn btn-small btn-danger"
-                                                    :onclick="rejectPersonalNav({$nav->id})"
-                                                    if="$nav->status == 'pending'">拒绝</button>
-                                                <button class="btn btn-small btn-danger"
-                                                    :onclick="deletePersonalNav({$nav->id})">删除</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            <div class="empty-state"
-                                if="$personalNavigations == null || $personalNavigations->length == 0">暂无个人导航页申请</div>
-                        </div>
-                    </section>
-                </div>
             </div>
         </main>
 
@@ -400,7 +336,6 @@
             const tools = $.SERVER($tools);
             const projects = $.SERVER($projects);
             const searchEngines = $.SERVER($searchEngines);
-            const personalNavigations = $.SERVER($personalNavigations);
         </script>
         <script src="/assets/js/admin.js"></script>
     </div>
