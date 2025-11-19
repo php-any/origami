@@ -528,6 +528,11 @@ func (p *Parser) GetClassPathManager() ClassPathManager {
 
 // ParseExpressionFromString 从字符串解析表达式
 func (p *Parser) ParseExpressionFromString(exprStr string) (data.GetValue, data.Control) {
+	return p.ParseExpressionFromStringWithPosition(exprStr, 0, 0, 0)
+}
+
+// ParseExpressionFromStringWithPosition 从字符串解析表达式，并调整位置信息
+func (p *Parser) ParseExpressionFromStringWithPosition(exprStr string, startOffset, startLine, startColumn int) (data.GetValue, data.Control) {
 	// 保存当前状态
 	originalTokens := p.tokens
 	originalPosition := p.position
@@ -538,6 +543,11 @@ func (p *Parser) ParseExpressionFromString(exprStr string) (data.GetValue, data.
 
 	// 对表达式字符串进行分词
 	p.tokens = p.lexer.Tokenize(exprStr)
+
+	// 调整 token 位置信息
+	if startOffset != 0 || startLine != 0 || startColumn != 0 {
+		p.tokens = adjustTokenPositions(p.tokens, startOffset, startLine, startColumn)
+	}
 
 	// 使用表达式解析器解析
 	exprParser := NewExpressionParser(p)

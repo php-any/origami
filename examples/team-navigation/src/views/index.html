@@ -59,7 +59,8 @@
                 <div class="header-right">
                     <nav class="header-nav">
                         <a href="/" class="header-btn">首页</a>
-                        <a href="https://github.com/php-any/origami" target="_blank" class="header-btn" title="Origami 开源地址">
+                        <a href="https://github.com/php-any/origami" target="_blank" class="header-btn"
+                            title="Origami 开源地址">
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"
                                 style="vertical-align: middle;">
                                 <path
@@ -91,9 +92,9 @@
 
                     <form id="searchForm" class="search-form" method="get" target="_blank">
                         <div class="search-box">
-                            <input type="text" name="keyword" id="searchInput" class="search-input" 
-                                   :placeholder="@{isset($defaultSearchEngine) ? '使用 ' . $defaultSearchEngine->name . ' 搜索...' : '搜索...'}"
-                                   autocomplete="off" autofocus>
+                            <input type="text" name="keyword" id="searchInput" class="search-input"
+                                :placeholder="@{isset($defaultSearchEngine) ? '使用 ' . $defaultSearchEngine->name . ' 搜索...' : '搜索...'}"
+                                autocomplete="off" autofocus>
                             <button type="submit" class="search-submit" aria-label="搜索">
                                 <span id="searchIcon">{$defaultSearchEngine->icon ?? "🔍"}</span>
                             </button>
@@ -117,34 +118,59 @@
 
                 <!-- 项目快捷访问 -->
                 <section class="quick-access" id="projectsSection">
-                    <div class="section-title">
-                        <span class="title-icon">🚀</span>
-                        <h3>项目</h3>
-                    </div>
-                    <div class="quick-links" id="projectsGrid">
+                    <div class="projects-grid-modern" id="projectsGrid">
                         <template for="$p in $projects">
-                            <a class="project-card"
-                               :href="@{($p->environments != null && $p->environments->length > 0) ? $p->environments[0]->url : '#'}"
-                               target="_blank">
-                                <h4 class="project-name">{$p->name}</h4>
-                                <p class="project-desc">{$p->description ?? ""}</p>
-                            </a>
+                            <div class="project-card-modern">
+                                <div class="project-card-header">
+                                    <div class="project-icon-wrapper">
+                                        <template if="$p->icon == null || $p->icon == ''">
+                                            <span class="project-icon">🚀</span>
+                                        </template>
+                                        <template if="$p->icon != null && $p->icon">
+                                            <span class="project-icon"
+                                                if="!$p->icon->startsWith('http://') && !$p->icon->startsWith('https://')">{$p->icon}</span>
+                                            <img class="project-icon-img" :src="{$p->icon}" :alt="{$p->name}"
+                                                if="$p->icon->startsWith('http://') || $p->icon->startsWith('https://')">
+                                        </template>
+                                    </div>
+                                    <a class="project-card-link"
+                                        :href="@{($p->environments != null && $p->environments->length > 0) ? $p->environments[0]->url : '#'}"
+                                        target="_blank">
+                                        <h4 class="project-name-modern">{$p->name}</h4>
+                                    </a>
+                                </div>
+                                <p class="project-desc-modern" if="$p->description != null && $p->description != ''">
+                                    {$p->description}</p>
 
-                            <div class="project-tools" if="$p->tools != null && $p->tools->length > 0">
-                                <a class="tool-tag" :href="{$t->url}" target="_blank" :title="{$t->name}"
-                                   for="$t in $p->tools">
-                                    <span class="tool-tag-icon">{$t->icon ?? "🔗"}</span>
-                                    <span>{$t->name}</span>
-                                </a>
-                            </div>
-                            <div class="project-environments"
-                                 if="$p->environments != null && $p->environments->length > 0">
-                                <div class="env-item" for="$e in $p->environments">
-                                    <span class="env-name">{$e->environmentName}</span>
-                                    <a class="env-link" :href="{$e->url}" target="_blank">{$e->url}</a>
+                                <div class="project-tools-modern" if="$p->tools != null && $p->tools->length > 0">
+                                    <div class="tools-list">
+                                        <a class="tool-tag-modern" :href="{$t->url}" target="_blank" :title="{$t->name}"
+                                            for="$t in $p->tools">
+                                            <span class="tool-tag-icon-modern">{$t->icon ?? "🔗"}</span>
+                                            <span class="tool-tag-name">{$t->name}</span>
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <div class="project-environments-modern"
+                                    if="$p->environments != null && $p->environments->length > 0">
+                                    <div class="environments-list">
+                                        <a class="env-item-modern env-status-{$e->statusColor ?? 'green'}"
+                                            :href="{$e->url}" target="_blank" :title="{$e->url}"
+                                            for="$e in $p->environments">
+                                            <div class="env-status-indicator"></div>
+                                            <div class="env-content">
+                                                <span class="env-name-modern">{$e->environmentName}</span>
+                                                <span
+                                                    class="env-status-badge-modern status-{$e->statusColor ?? 'green'}">
+                                                    {$e->status ?? "运行中"}
+                                                </span>
+                                            </div>
+                                            <div class="env-arrow">→</div>
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
-
                         </template>
                     </div>
                 </section>

@@ -196,44 +196,47 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h2 id="toolModalTitle">添加工具链接</h2>
+                    <button class="modal-close" onclick="closeToolModal()" type="button">×</button>
                 </div>
-                <form id="toolForm" onsubmit="saveTool(event)">
-                    <input type="hidden" id="toolId" name="id">
-                    <div class="form-group">
-                        <label>工具名称 *</label>
-                        <input type="text" id="toolName" name="name" required>
-                    </div>
-                    <div class="form-group">
-                        <label>链接地址 *</label>
-                        <input type="url" id="toolUrl" name="url" required>
-                    </div>
-                    <div class="form-group">
-                        <label>图标（Emoji）</label>
-                        <input type="text" id="toolIcon" name="icon" placeholder="🔗">
-                    </div>
-                    <div class="form-group">
-                        <label>分类</label>
-                        <input type="text" id="toolCategory" name="category" placeholder="代码管理">
-                    </div>
-                    <div class="form-group">
-                        <label>描述</label>
-                        <textarea id="toolDescription" name="description" rows="3"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>显示顺序</label>
-                        <input type="number" id="toolDisplayOrder" name="displayOrder" value="0">
-                    </div>
-                    <div class="form-group">
-                        <label style="display: flex; align-items: center; gap: 8px;">
-                            <input type="checkbox" id="toolIsFavorite" name="isFavorite" value="1">
-                            <span>设为收藏链接（显示在首页搜索框下方）</span>
-                        </label>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" onclick="closeToolModal()">取消</button>
-                        <button type="submit" class="btn">保存</button>
-                    </div>
-                </form>
+                <div class="modal-body">
+                    <form id="toolForm" onsubmit="saveTool(event)">
+                        <input type="hidden" id="toolId" name="id">
+                        <div class="form-group">
+                            <label>工具名称 *</label>
+                            <input type="text" id="toolName" name="name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>链接地址 *</label>
+                            <input type="url" id="toolUrl" name="url" required>
+                        </div>
+                        <div class="form-group">
+                            <label>图标（Emoji）</label>
+                            <input type="text" id="toolIcon" name="icon" placeholder="🔗">
+                        </div>
+                        <div class="form-group">
+                            <label>分类</label>
+                            <input type="text" id="toolCategory" name="category" placeholder="代码管理">
+                        </div>
+                        <div class="form-group">
+                            <label>描述</label>
+                            <textarea id="toolDescription" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>显示顺序</label>
+                            <input type="number" id="toolDisplayOrder" name="displayOrder" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="toolIsFavorite" name="isFavorite" value="1">
+                                <span>设为收藏链接（显示在首页搜索框下方）</span>
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeToolModal()">取消</button>
+                    <button type="submit" class="btn" form="toolForm">保存</button>
+                </div>
             </div>
         </div>
 
@@ -242,50 +245,79 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h2 id="projectModalTitle">添加项目</h2>
+                    <button class="modal-close" onclick="closeProjectModal()" type="button">×</button>
                 </div>
-                <form id="projectForm" onsubmit="saveProject(event)">
-                    <input type="hidden" id="projectId" name="id">
-                    <div class="form-group">
-                        <label>项目名称 *</label>
-                        <input type="text" id="projectName" name="name" required>
-                    </div>
-                    <div class="form-group">
-                        <label>显示顺序</label>
-                        <input type="number" id="projectDisplayOrder" name="displayOrder" value="0">
-                    </div>
-                    <div class="form-group">
-                        <label>项目简介</label>
-                        <textarea id="projectDescription" name="description" rows="3" placeholder="简要介绍项目用途或模块..."
-                            style="resize: vertical;"></textarea>
-                    </div>
-                    <div id="projectToolsSection">
-                        <h3 style="margin-top: 30px; margin-bottom: 15px;">关联工具</h3>
-                        <div id="projectToolsList"
-                            style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 12px; background: var(--bg-light);">
-                            <label
-                                style="display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 4px; cursor: pointer; transition: background 0.2s;"
-                                onmouseover="this.style.background='var(--bg-hover)'"
-                                onmouseout="this.style.background='transparent'" for="$tool in $tools">
-                                <input type="checkbox" :value="{$tool->id}" :id="@{'tool_' + $tool->id}"
-                                    :onchange="@{'toggleProjectTool(' + $tool->id + ', this.checked)'}">
-                                <span>{$tool->icon ?? "🔗"}</span>
-                                <span>{$tool->name}</span>
-                                <span style="color: var(--text-muted); font-size: 0.85rem;"
-                                    if="$tool->category != null">({$tool->category})</span>
-                            </label>
+                <div class="modal-body">
+                    <form id="projectForm" onsubmit="saveProject(event)">
+                        <input type="hidden" id="projectId" name="id">
+                        <div class="form-group">
+                            <label>项目名称 *</label>
+                            <input type="text" id="projectName" name="name" required>
                         </div>
-                    </div>
-                    <div id="projectEnvironments">
-                        <h3 style="margin-top: 30px; margin-bottom: 15px;">环境配置</h3>
-                        <div id="environmentsList"></div>
-                        <button type="button" class="btn btn-secondary" onclick="addEnvironment()"
-                            style="margin-top: 10px;">+ 添加环境</button>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" onclick="closeProjectModal()">取消</button>
-                        <button type="submit" class="btn">保存</button>
-                    </div>
-                </form>
+                        <div class="form-group">
+                            <label>项目图标</label>
+                            <div style="display: flex; gap: 12px; align-items: flex-start;">
+                                <div style="flex: 1;">
+                                    <label
+                                        style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 6px; display: block;">图标（Emoji）</label>
+                                    <input type="text" id="projectIconEmoji" name="iconEmoji" placeholder="🚀"
+                                        style="width: 100%;" oninput="updateProjectIconPreview()">
+                                </div>
+                                <div style="flex: 1;">
+                                    <label
+                                        style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 6px; display: block;">或图片链接</label>
+                                    <input type="url" id="projectIconUrl" name="iconUrl"
+                                        placeholder="https://example.com/icon.png" style="width: 100%;"
+                                        oninput="updateProjectIconPreview()">
+                                </div>
+                            </div>
+                            <div id="projectIconPreview"
+                                style="margin-top: 12px; padding: 12px; background: var(--bg-light); border-radius: var(--radius-md); display: flex; align-items: center; gap: 12px; min-height: 48px;">
+                                <div
+                                    style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: var(--primary-light); border-radius: var(--radius-sm); flex-shrink: 0;">
+                                    <span id="projectIconPreviewContent" style="font-size: 18px;">🚀</span>
+                                </div>
+                                <span style="font-size: 0.85rem; color: var(--text-secondary);">预览</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>显示顺序</label>
+                            <input type="number" id="projectDisplayOrder" name="displayOrder" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>项目简介</label>
+                            <textarea id="projectDescription" name="description" rows="3" placeholder="简要介绍项目用途或模块..."
+                                style="resize: vertical;"></textarea>
+                        </div>
+                        <div id="projectToolsSection">
+                            <h3 style="margin-top: 30px; margin-bottom: 15px;">关联工具</h3>
+                            <div id="projectToolsList"
+                                style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 12px; background: var(--bg-light);">
+                                <label
+                                    style="display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 4px; cursor: pointer; transition: background 0.2s;"
+                                    onmouseover="this.style.background='var(--bg-hover)'"
+                                    onmouseout="this.style.background='transparent'" for="$tool in $tools">
+                                    <input type="checkbox" :value="{$tool->id}" :id="@{'tool_' + $tool->id}"
+                                        :onchange="@{'toggleProjectTool(' + $tool->id + ', this.checked)'}">
+                                    <span>{$tool->icon ?? "🔗"}</span>
+                                    <span>{$tool->name}</span>
+                                    <span style="color: var(--text-muted); font-size: 0.85rem;"
+                                        if="$tool->category != null">({$tool->category})</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div id="projectEnvironments">
+                            <h3 style="margin-top: 30px; margin-bottom: 15px;">环境配置</h3>
+                            <div id="environmentsList"></div>
+                            <button type="button" class="btn btn-secondary" onclick="addEnvironment()"
+                                style="margin-top: 10px;">+ 添加环境</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeProjectModal()">取消</button>
+                    <button type="submit" class="btn" form="projectForm">保存</button>
+                </div>
             </div>
         </div>
 
@@ -294,40 +326,44 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h2 id="searchEngineModalTitle">添加搜索引擎</h2>
+                    <button class="modal-close" onclick="closeSearchEngineModal()" type="button">×</button>
                 </div>
-                <form id="searchEngineForm" onsubmit="saveSearchEngine(event)">
-                    <input type="hidden" id="searchEngineId" name="id">
-                    <div class="form-group">
-                        <label>搜索引擎名称 *</label>
-                        <input type="text" id="searchEngineName" name="name" required>
-                    </div>
-                    <div class="form-group">
-                        <label>URL模板 *</label>
-                        <input type="text" id="searchEngineUrlTemplate" name="urlTemplate"
-                            placeholder="https://www.example.com/search?q={keyword}" required>
-                        <small style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px; display: block;">
-                            使用 {keyword} 作为搜索关键词占位符
-                        </small>
-                    </div>
-                    <div class="form-group">
-                        <label>图标（Emoji）</label>
-                        <input type="text" id="searchEngineIcon" name="icon" placeholder="🔍">
-                    </div>
-                    <div class="form-group">
-                        <label>显示顺序</label>
-                        <input type="number" id="searchEngineDisplayOrder" name="displayOrder" value="0">
-                    </div>
-                    <div class="form-group">
-                        <label style="display: flex; align-items: center; gap: 8px;">
-                            <input type="checkbox" id="searchEngineIsDefault" name="isDefault" value="1">
-                            <span>设为默认搜索引擎</span>
-                        </label>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" onclick="closeSearchEngineModal()">取消</button>
-                        <button type="submit" class="btn">保存</button>
-                    </div>
-                </form>
+                <div class="modal-body">
+                    <form id="searchEngineForm" onsubmit="saveSearchEngine(event)">
+                        <input type="hidden" id="searchEngineId" name="id">
+                        <div class="form-group">
+                            <label>搜索引擎名称 *</label>
+                            <input type="text" id="searchEngineName" name="name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>URL模板 *</label>
+                            <input type="text" id="searchEngineUrlTemplate" name="urlTemplate"
+                                placeholder="https://www.example.com/search?q={keyword}" required>
+                            <small
+                                style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px; display: block;">
+                                使用 {keyword} 作为搜索关键词占位符
+                            </small>
+                        </div>
+                        <div class="form-group">
+                            <label>图标（Emoji）</label>
+                            <input type="text" id="searchEngineIcon" name="icon" placeholder="🔍">
+                        </div>
+                        <div class="form-group">
+                            <label>显示顺序</label>
+                            <input type="number" id="searchEngineDisplayOrder" name="displayOrder" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="searchEngineIsDefault" name="isDefault" value="1">
+                                <span>设为默认搜索引擎</span>
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeSearchEngineModal()">取消</button>
+                    <button type="submit" class="btn" form="searchEngineForm">保存</button>
+                </div>
             </div>
         </div>
 
@@ -337,6 +373,7 @@
             const projects = $.SERVER($projects);
             const searchEngines = $.SERVER($searchEngines);
         </script>
+        <script src="/assets/js/toast.js"></script>
         <script src="/assets/js/admin.js"></script>
     </div>
 </body>

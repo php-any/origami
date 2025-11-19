@@ -23,18 +23,28 @@ func (h *HtmlIfAttributeParser) Parser(name string, parser *Parser) (node.HtmlAt
 	}
 	parser.next()
 
+	// 获取属性值 token 的位置信息
+	attrValueToken := parser.current()
+	attrValueStartLine := attrValueToken.Line()
+	attrValueStartCol := attrValueToken.Pos()
+	attrValueStartOffset := attrValueToken.Start()
+
 	// 解析属性值
 	codes := parser.current().Literal()
 	if len(codes) > 3 {
 		if codes[0] == '"' && codes[len(codes)-1] == '"' {
 			codes = strings.Trim(codes, "\"")
+			// 调整列号，跳过引号
+			attrValueStartCol++
 		} else if codes[0] == '\'' && codes[len(codes)-1] == '\'' {
 			codes = strings.Trim(codes, "'")
+			// 调整列号，跳过引号
+			attrValueStartCol++
 		}
 	}
 	parser.next()
 
-	condition, acl := parser.ParseExpressionFromString(codes)
+	condition, acl := parser.ParseExpressionFromStringWithPosition(codes, attrValueStartOffset, attrValueStartLine, attrValueStartCol)
 	if acl != nil {
 		return nil, acl
 	}
@@ -76,7 +86,15 @@ func (h *HtmlElseIfAttributeParser) Parser(name string, parser *Parser) (node.Ht
 	// 检查else-if属性是否是字符串字面量
 	if strLiteral, ok := attrValue.(*node.StringLiteral); ok {
 		// 如果是字符串，尝试解析为表达式
-		condition, acl := parser.ParseExpressionFromString(strLiteral.Value)
+		// 获取字符串字面量的位置信息
+		from := strLiteral.GetFrom()
+		var startOffset, startLine, startCol int
+		if from != nil {
+			startLine, startCol = from.GetStartPosition()
+			start, _ := from.GetPosition()
+			startOffset = start
+		}
+		condition, acl := parser.ParseExpressionFromStringWithPosition(strLiteral.Value, startOffset, startLine, startCol)
 		if acl != nil {
 			return nil, acl
 		}

@@ -18,6 +18,9 @@ class Project {
     @Column("description")
     public ?string $description;
 
+    @Column("icon")
+    public ?string $icon;
+
     @Column("display_order")
     public int $displayOrder;
 

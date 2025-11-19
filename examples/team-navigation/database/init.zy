@@ -36,6 +36,7 @@ function initTables($db) {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name VARCHAR(100) NOT NULL,
             description TEXT,
+            icon VARCHAR(500),
             display_order INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -43,6 +44,18 @@ function initTables($db) {
 
     $result2 = $db->exec($createProjectsTable);
     Log::info("创建项目表结果: " + $result2);
+    
+    // 如果表已存在但没有 icon 字段，则添加该字段
+    $addIconColumn = "
+        ALTER TABLE projects ADD COLUMN icon VARCHAR(500);
+    ";
+    try {
+        $db->exec($addIconColumn);
+        Log::info("添加项目表 icon 字段成功");
+    } catch (_) {
+        // 字段已存在或表不存在，忽略错误
+        Log::info("项目表 icon 字段可能已存在或表不存在");
+    }
 
     // 创建项目环境表
     $createProjectEnvsTable = "

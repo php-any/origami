@@ -175,12 +175,16 @@ function openToolModal(toolId = null) {
   }
 
   modal.classList.add("active");
+  // 阻止页面滚动，确保模态框相对于视口居中
+  document.body.style.overflow = "hidden";
 }
 
 // 关闭工具编辑模态框
 function closeToolModal() {
   document.getElementById("toolModal").classList.remove("active");
   currentEditingTool = null;
+  // 恢复页面滚动
+  document.body.style.overflow = "";
 }
 
 // 保存工具
@@ -220,11 +224,11 @@ async function saveTool(event) {
     }
 
     closeToolModal();
-    alert("保存成功！");
-    window.location.reload();
+    showSuccess("保存成功！");
+    setTimeout(() => window.location.reload(), 500);
   } catch (error) {
     console.error("保存失败:", error);
-    alert("保存失败: " + error.message);
+    showError("保存失败: " + error.message);
   }
 }
 
@@ -235,21 +239,21 @@ function editTool(id) {
 
 // 删除工具
 async function deleteTool(id) {
-  if (!confirm("确定要删除这个工具链接吗？")) return;
+  showConfirm("确定要删除这个工具链接吗？", async () => {
+    try {
+      const response = await fetch(`/api/tools/${id}`, {
+        method: "DELETE",
+      });
 
-  try {
-    const response = await fetch(`/api/tools/${id}`, {
-      method: "DELETE",
-    });
+      if (!response.ok) throw new Error("删除失败");
 
-    if (!response.ok) throw new Error("删除失败");
-
-    alert("删除成功！");
-    window.location.reload();
-  } catch (error) {
-    console.error("删除失败:", error);
-    alert("删除失败: " + error.message);
-  }
+      showSuccess("删除成功！");
+      setTimeout(() => window.location.reload(), 500);
+    } catch (error) {
+      console.error("删除失败:", error);
+      showError("删除失败: " + error.message);
+    }
+  });
 }
 
 // 打开项目编辑模态框
@@ -275,6 +279,20 @@ function openProjectModal(projectId = null) {
         project.displayOrder || 0;
       const descEl = document.getElementById("projectDescription");
       if (descEl) descEl.value = project.description || "";
+
+      // 处理项目图标
+      const icon = project.icon || "";
+      if (icon && (icon.startsWith("http://") || icon.startsWith("https://"))) {
+        // 是图片链接
+        document.getElementById("projectIconUrl").value = icon;
+        document.getElementById("projectIconEmoji").value = "";
+      } else {
+        // 是图标（Emoji）
+        document.getElementById("projectIconEmoji").value = icon || "🚀";
+        document.getElementById("projectIconUrl").value = "";
+      }
+      updateProjectIconPreview();
+
       projectEnvironments = JSON.parse(JSON.stringify(project.environments));
       projectTools = Array.isArray(project.tools)
         ? project.tools.map((t) => t.id)
@@ -288,6 +306,9 @@ function openProjectModal(projectId = null) {
     document.getElementById("projectId").value = "";
     const descEl = document.getElementById("projectDescription");
     if (descEl) descEl.value = "";
+    document.getElementById("projectIconEmoji").value = "🚀";
+    document.getElementById("projectIconUrl").value = "";
+    updateProjectIconPreview();
     projectEnvironments = [];
     projectTools = [];
     renderEnvironments();
@@ -295,6 +316,8 @@ function openProjectModal(projectId = null) {
   }
 
   modal.classList.add("active");
+  // 阻止页面滚动，确保模态框相对于视口居中
+  document.body.style.overflow = "hidden";
 }
 
 // 关闭项目编辑模态框
@@ -303,6 +326,8 @@ function closeProjectModal() {
   currentEditingProject = null;
   projectEnvironments = [];
   projectTools = [];
+  // 恢复页面滚动
+  document.body.style.overflow = "";
 }
 
 // 渲染项目工具选择
@@ -455,6 +480,57 @@ function removeEnvironment(index) {
   renderEnvironments();
 }
 
+// 更新项目图标预览
+function updateProjectIconPreview() {
+  const iconUrl = document.getElementById("projectIconUrl").value.trim();
+  const iconEmoji = document.getElementById("projectIconEmoji").value.trim();
+  const previewContent = document.getElementById("projectIconPreviewContent");
+  const previewWrapper = previewContent.parentElement;
+
+  if (iconUrl) {
+    // 显示图片
+    if (previewContent.tagName === "IMG") {
+      previewContent.src = iconUrl;
+    } else {
+      const img = document.createElement("img");
+      img.id = "projectIconPreviewContent";
+      img.src = iconUrl;
+      img.style.width = "32px";
+      img.style.height = "32px";
+      img.style.objectFit = "contain";
+      img.onerror = function () {
+        // 图片加载失败，显示默认图标
+        previewWrapper.innerHTML =
+          '<div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: var(--primary-light); border-radius: var(--radius-sm); flex-shrink: 0;"><span id="projectIconPreviewContent" style="font-size: 18px;">🚀</span></div><span style="font-size: 0.85rem; color: var(--text-secondary);">预览</span>';
+        updateProjectIconPreview();
+      };
+      previewWrapper.replaceChild(img, previewContent);
+    }
+  } else if (iconEmoji) {
+    // 显示图标（Emoji）
+    if (previewContent.tagName === "IMG") {
+      const span = document.createElement("span");
+      span.id = "projectIconPreviewContent";
+      span.style.fontSize = "18px";
+      span.textContent = iconEmoji;
+      previewWrapper.replaceChild(span, previewContent);
+    } else {
+      previewContent.textContent = iconEmoji;
+    }
+  } else {
+    // 默认图标
+    if (previewContent.tagName === "IMG") {
+      const span = document.createElement("span");
+      span.id = "projectIconPreviewContent";
+      span.style.fontSize = "18px";
+      span.textContent = "🚀";
+      previewWrapper.replaceChild(span, previewContent);
+    } else {
+      previewContent.textContent = "🚀";
+    }
+  }
+}
+
 // 保存项目
 async function saveProject(event) {
   event.preventDefault();
@@ -470,9 +546,15 @@ async function saveProject(event) {
       displayOrder: env.displayOrder || 0,
     }));
 
+  // 获取项目图标（优先使用图片链接，否则使用图标）
+  const iconUrl = document.getElementById("projectIconUrl").value.trim();
+  const iconEmoji = document.getElementById("projectIconEmoji").value.trim();
+  const icon = iconUrl || iconEmoji || null;
+
   const formData = {
     name: document.getElementById("projectName").value,
     description: document.getElementById("projectDescription")?.value || "",
+    icon: icon,
     displayOrder:
       parseInt(document.getElementById("projectDisplayOrder").value) || 0,
     environments: environments,
@@ -509,11 +591,11 @@ async function saveProject(event) {
     }
 
     closeProjectModal();
-    alert("保存成功！");
-    window.location.reload();
+    showSuccess("保存成功！");
+    setTimeout(() => window.location.reload(), 500);
   } catch (error) {
     console.error("保存失败:", error);
-    alert("保存失败: " + error.message);
+    showError("保存失败: " + error.message);
   }
 }
 
@@ -522,7 +604,7 @@ function editProject(id) {
   // 确保ID是数字类型
   const projectId = parseInt(id);
   if (isNaN(projectId)) {
-    alert("无效的项目ID");
+    showError("无效的项目ID");
     return;
   }
   openProjectModal(projectId);
@@ -530,21 +612,21 @@ function editProject(id) {
 
 // 删除项目
 async function deleteProject(id) {
-  if (!confirm("确定要删除这个项目吗？所有关联的环境也将被删除！")) return;
+  showConfirm("确定要删除这个项目吗？所有关联的环境也将被删除！", async () => {
+    try {
+      const response = await fetch(`/api/projects/${id}`, {
+        method: "DELETE",
+      });
 
-  try {
-    const response = await fetch(`/api/projects/${id}`, {
-      method: "DELETE",
-    });
+      if (!response.ok) throw new Error("删除失败");
 
-    if (!response.ok) throw new Error("删除失败");
-
-    alert("删除成功！");
-    window.location.reload();
-  } catch (error) {
-    console.error("删除失败:", error);
-    alert("删除失败: " + error.message);
-  }
+      showSuccess("删除成功！");
+      setTimeout(() => window.location.reload(), 500);
+    } catch (error) {
+      console.error("删除失败:", error);
+      showError("删除失败: " + error.message);
+    }
+  });
 }
 
 // 搜索引擎管理
@@ -581,11 +663,15 @@ function openSearchEngineModal(engineId = null) {
   }
 
   modal.classList.add("active");
+  // 阻止页面滚动，确保模态框相对于视口居中
+  document.body.style.overflow = "hidden";
 }
 
 function closeSearchEngineModal() {
   document.getElementById("searchEngineModal").classList.remove("active");
   currentEditingSearchEngine = null;
+  // 恢复页面滚动
+  document.body.style.overflow = "";
 }
 
 async function saveSearchEngine(event) {
@@ -623,11 +709,11 @@ async function saveSearchEngine(event) {
     }
 
     closeSearchEngineModal();
-    alert("保存成功！");
-    window.location.reload();
+    showSuccess("保存成功！");
+    setTimeout(() => window.location.reload(), 500);
   } catch (error) {
     console.error("保存失败:", error);
-    alert("保存失败: " + error.message);
+    showError("保存失败: " + error.message);
   }
 }
 
@@ -636,21 +722,21 @@ function editSearchEngine(id) {
 }
 
 async function deleteSearchEngine(id) {
-  if (!confirm("确定要删除这个搜索引擎吗？")) return;
+  showConfirm("确定要删除这个搜索引擎吗？", async () => {
+    try {
+      const response = await fetch(`/api/search-engines/${id}`, {
+        method: "DELETE",
+      });
 
-  try {
-    const response = await fetch(`/api/search-engines/${id}`, {
-      method: "DELETE",
-    });
+      if (!response.ok) throw new Error("删除失败");
 
-    if (!response.ok) throw new Error("删除失败");
-
-    alert("删除成功！");
-    window.location.reload();
-  } catch (error) {
-    console.error("删除失败:", error);
-    alert("删除失败: " + error.message);
-  }
+      showSuccess("删除成功！");
+      setTimeout(() => window.location.reload(), 500);
+    } catch (error) {
+      console.error("删除失败:", error);
+      showError("删除失败: " + error.message);
+    }
+  });
 }
 
 // 初始化
@@ -660,6 +746,8 @@ document.addEventListener("DOMContentLoaded", function () {
     modal.addEventListener("click", function (e) {
       if (e.target === this) {
         this.classList.remove("active");
+        // 恢复页面滚动
+        document.body.style.overflow = "";
       }
     });
   });
