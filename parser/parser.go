@@ -476,6 +476,19 @@ func (p *Parser) findFullClassNameByNamespace(name string) (string, bool) {
 		if ok {
 			return tryName, true
 		}
+	} else {
+		// 尝试全局
+		if stmt, ok := p.vm.GetClass(name); ok {
+			return stmt.GetName(), true
+		}
+		if stmt, ok := p.vm.GetInterface(name); ok {
+			return stmt.GetName(), true
+		}
+		// 能找到文件就当时有类了
+		_, ok := p.ClassPathManager.FindClassFile(name)
+		if ok {
+			return name, true
+		}
 	}
 
 	return name, false

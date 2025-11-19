@@ -31,7 +31,7 @@ document.querySelectorAll(".tab").forEach((tab) => {
 function renderToolsTable() {
   // 确保 tools 是数组类型
   const toolsArray = Array.isArray(tools) ? tools : [];
-  
+
   const container = document.getElementById("toolsTableContainer");
   if (toolsArray.length === 0) {
     container.innerHTML =
@@ -92,7 +92,7 @@ function renderToolsTable() {
 function renderProjectsTable() {
   // 确保 projects 是数组类型
   const projectsArray = Array.isArray(projects) ? projects : [];
-  
+
   const container = document.getElementById("projectsTableContainer");
   if (projectsArray.length === 0) {
     container.innerHTML =
@@ -118,7 +118,11 @@ function renderProjectsTable() {
           <tr>
             <td>${project.id}</td>
             <td>${project.name}</td>
-            <td>${Array.isArray(project.environments) ? project.environments.length : 0}</td>
+            <td>${
+              Array.isArray(project.environments)
+                ? project.environments.length
+                : 0
+            }</td>
             <td>${project.displayOrder || 0}</td>
             <td>
               <div class="action-buttons">
@@ -148,7 +152,7 @@ function openToolModal(toolId = null) {
 
   // 确保 tools 是数组类型
   const toolsArray = Array.isArray(tools) ? tools : [];
-  
+
   if (toolId) {
     title.textContent = "编辑工具链接";
     const tool = toolsArray.find((t) => t.id === toolId);
@@ -272,7 +276,9 @@ function openProjectModal(projectId = null) {
       const descEl = document.getElementById("projectDescription");
       if (descEl) descEl.value = project.description || "";
       projectEnvironments = JSON.parse(JSON.stringify(project.environments));
-      projectTools = Array.isArray(project.tools) ? project.tools.map((t) => t.id) : [];
+      projectTools = Array.isArray(project.tools)
+        ? project.tools.map((t) => t.id)
+        : [];
       renderEnvironments();
       renderProjectTools();
     }
@@ -307,7 +313,7 @@ function renderProjectTools() {
   // 确保 tools 和 projectTools 是数组类型
   const toolsArray = Array.isArray(tools) ? tools : [];
   const projectToolsArray = Array.isArray(projectTools) ? projectTools : [];
-  
+
   container.innerHTML = toolsArray
     .map(
       (tool) => `
@@ -334,7 +340,7 @@ function renderProjectTools() {
 function toggleProjectTool(toolId, checked) {
   // 确保 projectTools 是数组类型
   const projectToolsArray = Array.isArray(projectTools) ? projectTools : [];
-  
+
   if (checked) {
     if (!projectToolsArray.includes(toolId)) {
       projectToolsArray.push(toolId);
@@ -559,10 +565,13 @@ function openSearchEngineModal(engineId = null) {
     if (engine) {
       document.getElementById("searchEngineId").value = engine.id;
       document.getElementById("searchEngineName").value = engine.name;
-      document.getElementById("searchEngineUrlTemplate").value = engine.urlTemplate;
+      document.getElementById("searchEngineUrlTemplate").value =
+        engine.urlTemplate;
       document.getElementById("searchEngineIcon").value = engine.icon || "";
-      document.getElementById("searchEngineDisplayOrder").value = engine.displayOrder || 0;
-      document.getElementById("searchEngineIsDefault").checked = engine.isDefault == 1;
+      document.getElementById("searchEngineDisplayOrder").value =
+        engine.displayOrder || 0;
+      document.getElementById("searchEngineIsDefault").checked =
+        engine.isDefault == 1;
     }
   } else {
     title.textContent = "添加搜索引擎";
@@ -586,17 +595,21 @@ async function saveSearchEngine(event) {
     name: document.getElementById("searchEngineName").value,
     urlTemplate: document.getElementById("searchEngineUrlTemplate").value,
     icon: document.getElementById("searchEngineIcon").value,
-    displayOrder: parseInt(document.getElementById("searchEngineDisplayOrder").value) || 0,
+    displayOrder:
+      parseInt(document.getElementById("searchEngineDisplayOrder").value) || 0,
     isDefault: document.getElementById("searchEngineIsDefault").checked ? 1 : 0,
   };
 
   try {
     if (currentEditingSearchEngine) {
-      const response = await fetch(`/api/search-engines/${currentEditingSearchEngine}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
+      const response = await fetch(
+        `/api/search-engines/${currentEditingSearchEngine}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        }
+      );
 
       if (!response.ok) throw new Error("更新失败");
     } else {

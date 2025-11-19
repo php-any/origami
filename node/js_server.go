@@ -126,6 +126,13 @@ func convertToJavaScriptValue(value interface{}) string {
 		// 处理 ArrayValue，转换为 JavaScript 数组格式
 		return formatDataArrayValue(v)
 	default:
+		// 检查是否是 ClassValue（通过检查是否有 GetProperties 方法）
+		// ClassValue 应该被格式化为 JavaScript 对象
+		if classValue, ok := value.(interface {
+			GetProperties() map[string]data.Value
+		}); ok {
+			return formatClassOrObjectValue(classValue.GetProperties())
+		}
 		// 对于其他类型，尝试转换为字符串
 		if strValue, ok := value.(data.AsString); ok {
 			return formatStringValue(strValue.AsString())
@@ -224,9 +231,9 @@ func formatObjectValue(v map[string]interface{}) string {
 	return result
 }
 
-// formatDataObjectValue 格式化 data.ObjectValue 为 JavaScript 对象格式
-func formatDataObjectValue(obj *data.ObjectValue) string {
-	properties := obj.GetProperties()
+// formatClassOrObjectValue 格式化具有 GetProperties 方法的对象为 JavaScript 对象格式
+// 用于处理 ClassValue 和 ObjectValue
+func formatClassOrObjectValue(properties map[string]data.Value) string {
 	if len(properties) == 0 {
 		return "{}"
 	}
@@ -251,6 +258,11 @@ func formatDataObjectValue(obj *data.ObjectValue) string {
 	}
 	result += "}"
 	return result
+}
+
+// formatDataObjectValue 格式化 data.ObjectValue 为 JavaScript 对象格式
+func formatDataObjectValue(obj *data.ObjectValue) string {
+	return formatClassOrObjectValue(obj.GetProperties())
 }
 
 // formatDataArrayValue 格式化 data.ArrayValue 为 JavaScript 数组格式
