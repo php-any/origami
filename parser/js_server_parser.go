@@ -19,7 +19,7 @@ func NewJsServerParser(parser *Parser) StatementParser {
 }
 
 // Parse 解析 JS_SERVER 表达式
-// 处理 $.SERVER($variable) 格式，将其转换为 JavaScript 值格式的字符串
+// 处理 $.SERVER($variable) 格式，将其解析为函数调用表达式
 // 当前 token 应该是 JS_SERVER ($.SERVER)
 func (p *JsServerParser) Parse() (data.GetValue, data.Control) {
 	tracker := p.StartTracking()
@@ -35,28 +35,15 @@ func (p *JsServerParser) Parse() (data.GetValue, data.Control) {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), data.NewError(tracker.EndBefore(), "$.SERVER 后面必须跟左括号", nil))
 	}
 
-	// 跳过左括号
-	p.next()
-
-	// 解析变量名
-	if !p.checkPositionIs(0, token.VARIABLE) {
-		return nil, data.NewErrorThrow(tracker.EndBefore(), data.NewError(tracker.EndBefore(), "$.SERVER() 中必须包含变量", nil))
+	// 解析函数调用参数
+	vp := &VariableParser{p.Parser}
+	args, acl := vp.parseFunctionCall()
+	if acl != nil {
+		return nil, acl
 	}
 
-	varName := p.current().Literal()
-	p.next()
-
-	// 检查右括号
-	if !p.checkPositionIs(0, token.RPAREN) {
-		return nil, data.NewErrorThrow(tracker.EndBefore(), data.NewError(tracker.EndBefore(), "$.SERVER() 缺少右括号", nil))
-	}
-
-	// 跳过右括号
-	p.next()
-
-	// 创建 JS_SERVER 表达式节点
-	// 这将被渲染为 JavaScript 值格式的字符串
-	expr := node.NewJsServerExpression(tracker.EndBefore(), varName)
+	// 创建 JS_SERVER 表达式节点，传入参数列表
+	expr := node.NewJsServerExpression(tracker.EndBefore(), args)
 
 	return expr, nil
 }

@@ -1,9 +1,67 @@
 <!DOCTYPE html>
 <script type="text/zy">
-$testString = {
-    key: "v22"
+// 测试各种数据类型
+$testInt = 123;
+$testFloat = 99.99;
+$testBool = true;
+$testNull = null;
+$testString = "Hello, World!";
+$testObject = {
+    id: 1,
+    name: "测试对象",
+    active: true,
+    score: 95.5
+};
+$testArray = [
+    "apple",
+    "banana",
+    "cherry"
+];
+$testNestedObject = {
+    user: {
+        id: 100,
+        name: "张三",
+        email: "zhangsan@example.com"
+    },
+    settings: {
+        theme: "dark",
+        language: "zh-CN"
+    },
+    tags: ["frontend", "backend", "fullstack"]
 };
 </script>
 <script>
-const str = $.SERVER($testString);
+    // 测试整数
+    const testInt = $.SERVER($testInt);
+    console.log("整数:", testInt, typeof testInt); // 应该是: 123, number
+
+    // 测试浮点数
+    const testFloat = $.SERVER($testFloat);
+    console.log("浮点数:", testFloat, typeof testFloat); // 应该是: 99.99, number
+
+    // 测试布尔值
+    const testBool = $.SERVER($testBool);
+    console.log("布尔值:", testBool, typeof testBool); // 应该是: true, boolean
+
+    // 测试 null
+    const testNull = $.SERVER($testNull);
+    console.log("null:", testNull, typeof testNull); // 应该是: null, object
+
+    // 测试字符串
+    const testString = $.SERVER($testString);
+    console.log("字符串:", testString, typeof testString); // 应该是: "Hello, World!", string
+
+    // 测试对象
+    const testObject = $.SERVER($testObject);
+    console.log("对象:", testObject, typeof testObject); // 应该是: {id: 1, name: "测试对象", ...}, object
+
+    // 测试数组
+    const testArray = $.SERVER($testArray);
+    console.log("数组:", testArray, Array.isArray(testArray)); // 应该是: ["apple", "banana", "cherry"], true
+
+    // 测试嵌套对象
+    const testNestedObject = $.SERVER($testNestedObject);
+    console.log("嵌套对象:", testNestedObject);
+    console.log("用户ID:", testNestedObject.user.id); // 应该是: 100
+    console.log("标签数量:", testNestedObject.tags.length); // 应该是: 3
 </script>

@@ -7,46 +7,59 @@ import (
 )
 
 // JsServerExpression 表示 $.SERVER() 表达式
+// 它接收一个参数（变量），并将其转换为 JavaScript 格式输出
 type JsServerExpression struct {
-	from    data.From
-	varName string
+	*Node `pp:"-"`
+	Args  []data.GetValue // 函数参数列表
 }
 
 // NewJsServerExpression 创建一个新的 JS_SERVER 表达式节点
-func NewJsServerExpression(from data.From, varName string) *JsServerExpression {
+func NewJsServerExpression(from data.From, args []data.GetValue) *JsServerExpression {
 	return &JsServerExpression{
-		from:    from,
-		varName: varName,
+		Node: NewNode(from),
+		Args: args,
 	}
-}
-
-// GetFrom 获取位置信息
-func (n *JsServerExpression) GetFrom() data.From {
-	return n.from
 }
 
 // GetValue 获取表达式的值
 // 在运行时，这将被转换为 JavaScript 值格式的字符串
 func (n *JsServerExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 创建一个变量引用
-	variable := NewVariable(n.from, n.varName, 0, nil)
-
-	// 获取变量的值
-	varValue, ctl := ctx.GetVariableValue(variable)
-	if ctl != nil {
-		return nil, ctl
+	// $.SERVER 应该只有一个参数（变量）
+	if len(n.Args) != 1 {
+		return nil, data.NewErrorThrow(n.from, fmt.Errorf("$.SERVER() 需要一个参数"))
 	}
 
-	// 将变量值转换为 JavaScript 格式的字符串
-	jsValue := convertToJavaScriptValue(varValue)
+	// 获取参数的值，参考 CallExpression 的处理方式
+	param := n.Args[0]
+	tempV, acl := param.GetValue(ctx)
+	if acl != nil {
+		return nil, acl
+	}
 
-	// 检查是否是对象或数组，如果是，返回原始 JavaScript 代码（不带引号）
-	// 否则返回字符串值
-	if isJavaScriptObjectOrArray(jsValue) {
+	// 检查返回的是 data.Value，参考 CallExpression 的处理
+	var varValue data.Value
+	if val, ok := tempV.(data.Value); ok {
+		varValue = val
+	} else {
+		// 如果不是 data.Value，使用 null 值
+		varValue = data.NewNullValue()
+	}
+
+	// 检查变量值的类型，决定返回原始 JavaScript 值还是字符串值
+	switch varValue.(type) {
+	case *data.IntValue, *data.FloatValue, *data.BoolValue, *data.NullValue, *data.ObjectValue, *data.ArrayValue:
+		// 数字、布尔值、null、对象、数组都返回原始 JavaScript 值（不带引号）
+		jsValue := convertToJavaScriptValue(varValue)
 		return NewJsRawValue(jsValue), nil
+	default:
+		// 其他类型（主要是字符串）返回字符串值（带引号）
+		jsValue := convertToJavaScriptValue(varValue)
+		// 检查是否是对象或数组格式（可能是从其他类型转换来的）
+		if isJavaScriptObjectOrArray(jsValue) {
+			return NewJsRawValue(jsValue), nil
+		}
+		return data.NewStringValue(jsValue), nil
 	}
-
-	return data.NewStringValue(jsValue), nil
 }
 
 // isJavaScriptObjectOrArray 检查字符串是否是 JavaScript 对象或数组格式
@@ -94,6 +107,18 @@ func convertToJavaScriptValue(value interface{}) string {
 		return formatArrayValue(v)
 	case map[string]interface{}:
 		return formatObjectValue(v)
+	case *data.IntValue:
+		// 处理 IntValue，直接输出数字（不带引号）
+		return formatDataIntValue(v)
+	case *data.FloatValue:
+		// 处理 FloatValue，直接输出数字（不带引号）
+		return formatDataFloatValue(v)
+	case *data.BoolValue:
+		// 处理 BoolValue，直接输出布尔值（不带引号）
+		return formatDataBoolValue(v)
+	case *data.NullValue:
+		// 处理 NullValue，输出 null（不带引号）
+		return "null"
 	case *data.ObjectValue:
 		// 处理 ObjectValue，转换为 JavaScript 对象格式
 		return formatDataObjectValue(v)
@@ -255,9 +280,22 @@ func formatDataArrayValue(arr *data.ArrayValue) string {
 	return result
 }
 
-// GetVarName 获取变量名
-func (n *JsServerExpression) GetVarName() string {
-	return n.varName
+// formatDataIntValue 格式化 data.IntValue 为 JavaScript 数字格式
+func formatDataIntValue(v *data.IntValue) string {
+	return fmt.Sprintf("%d", v.Value)
+}
+
+// formatDataFloatValue 格式化 data.FloatValue 为 JavaScript 数字格式
+func formatDataFloatValue(v *data.FloatValue) string {
+	return fmt.Sprintf("%g", v.Value)
+}
+
+// formatDataBoolValue 格式化 data.BoolValue 为 JavaScript 布尔值格式
+func formatDataBoolValue(v *data.BoolValue) string {
+	if v.Value {
+		return "true"
+	}
+	return "false"
 }
 
 // JsRawValue 表示一个原始的 JavaScript 值（不会被加上引号）

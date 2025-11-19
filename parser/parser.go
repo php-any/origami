@@ -720,22 +720,5 @@ func (p *Parser) parseTokensAsExpression(tokens []lexer.Token) (data.GetValue, d
 	np.position = 0
 
 	// 直接使用表达式解析器解析表达式
-	return np.expressionParser.Parse()
-}
-
-// parseTokensAsProgram 解析 token 列表为程序
-// 用于 <script type="text/zy"> 等需要完整程序的场景
-func (p *Parser) parseTokensAsProgram(tokens []lexer.Token) (data.GetValue, data.Control) {
-	np := p.Clone()
-
-	np.scopeManager = p.scopeManager
-	np.uses = p.uses
-	np.source = p.source
-
-	// 设置新的 tokens
-	np.tokens = tokens
-	np.position = 0
-
-	// 解析为完整的程序
 	return np.parseProgram(make([]data.GetValue, 0))
 }
