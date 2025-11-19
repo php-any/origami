@@ -133,7 +133,6 @@ body {
   background: var(--bg-hover);
   border-color: var(--primary);
   color: var(--primary);
-  transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
 
@@ -147,7 +146,7 @@ body {
   background: var(--primary-hover);
   border-color: var(--primary-hover);
   color: white;
-  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .logo {
@@ -188,7 +187,6 @@ body {
   background: var(--bg-hover);
   border-color: var(--primary);
   color: var(--primary);
-  transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
 
@@ -243,7 +241,6 @@ body {
   font-weight: 300;
   color: var(--text-muted);
   line-height: 1;
-  animation: blink 1s step-end infinite;
 }
 
 @keyframes blink {
@@ -353,7 +350,6 @@ body {
   background: var(--bg-hover);
   border-color: var(--primary);
   color: var(--primary);
-  transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
@@ -445,7 +441,6 @@ body {
 
 .project-card:hover {
   box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
   border-color: var(--border);
   background: var(--bg-white);
 }
@@ -499,7 +494,6 @@ body {
 .tool-tag:hover {
   background: var(--primary);
   color: white;
-  transform: translateY(-1px);
   box-shadow: var(--shadow-sm);
 }
 
@@ -530,7 +524,6 @@ body {
 .env-item:hover {
   background: var(--bg-hover);
   border-color: var(--border);
-  transform: translateX(2px);
 }
 
 .env-info {
@@ -589,7 +582,6 @@ body {
 
 .tool-card:hover {
   box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
   border-color: var(--border);
   background: var(--bg-white);
 }

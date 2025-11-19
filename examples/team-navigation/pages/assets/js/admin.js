@@ -29,8 +29,11 @@ document.querySelectorAll(".tab").forEach((tab) => {
 
 // 渲染工具表格
 function renderToolsTable() {
+  // 确保 tools 是数组类型
+  const toolsArray = Array.isArray(tools) ? tools : [];
+  
   const container = document.getElementById("toolsTableContainer");
-  if (tools.length === 0) {
+  if (toolsArray.length === 0) {
     container.innerHTML =
       '<div class="empty-state">暂无工具链接，点击上方按钮添加</div>';
     return;
@@ -51,7 +54,7 @@ function renderToolsTable() {
         </tr>
       </thead>
       <tbody>
-        ${tools
+        ${toolsArray
           .map(
             (tool) => `
           <tr>
@@ -87,8 +90,11 @@ function renderToolsTable() {
 
 // 渲染项目表格
 function renderProjectsTable() {
+  // 确保 projects 是数组类型
+  const projectsArray = Array.isArray(projects) ? projects : [];
+  
   const container = document.getElementById("projectsTableContainer");
-  if (projects.length === 0) {
+  if (projectsArray.length === 0) {
     container.innerHTML =
       '<div class="empty-state">暂无项目，点击上方按钮添加</div>';
     return;
@@ -106,13 +112,13 @@ function renderProjectsTable() {
         </tr>
       </thead>
       <tbody>
-        ${projects
+        ${projectsArray
           .map(
             (project) => `
           <tr>
             <td>${project.id}</td>
             <td>${project.name}</td>
-            <td>${project.environments.length}</td>
+            <td>${Array.isArray(project.environments) ? project.environments.length : 0}</td>
             <td>${project.displayOrder || 0}</td>
             <td>
               <div class="action-buttons">
@@ -140,9 +146,12 @@ function openToolModal(toolId = null) {
   const title = document.getElementById("toolModalTitle");
   const form = document.getElementById("toolForm");
 
+  // 确保 tools 是数组类型
+  const toolsArray = Array.isArray(tools) ? tools : [];
+  
   if (toolId) {
     title.textContent = "编辑工具链接";
-    const tool = tools.find((t) => t.id === toolId);
+    const tool = toolsArray.find((t) => t.id === toolId);
     if (tool) {
       document.getElementById("toolId").value = tool.id;
       document.getElementById("toolName").value = tool.name;
@@ -246,10 +255,13 @@ function openProjectModal(projectId = null) {
   const title = document.getElementById("projectModalTitle");
   const form = document.getElementById("projectForm");
 
+  // 确保 projects 是数组类型
+  const projectsArray = Array.isArray(projects) ? projects : [];
+
   if (projectId) {
     title.textContent = "编辑项目";
     // 确保ID类型一致（转换为数字进行比较）
-    const project = projects.find(
+    const project = projectsArray.find(
       (p) => p.id == projectId || String(p.id) === String(projectId)
     );
     if (project) {
@@ -260,7 +272,7 @@ function openProjectModal(projectId = null) {
       const descEl = document.getElementById("projectDescription");
       if (descEl) descEl.value = project.description || "";
       projectEnvironments = JSON.parse(JSON.stringify(project.environments));
-      projectTools = project.tools ? project.tools.map((t) => t.id) : [];
+      projectTools = Array.isArray(project.tools) ? project.tools.map((t) => t.id) : [];
       renderEnvironments();
       renderProjectTools();
     }
@@ -292,14 +304,18 @@ function renderProjectTools() {
   const container = document.getElementById("projectToolsList");
   if (!container) return;
 
-  container.innerHTML = tools
+  // 确保 tools 和 projectTools 是数组类型
+  const toolsArray = Array.isArray(tools) ? tools : [];
+  const projectToolsArray = Array.isArray(projectTools) ? projectTools : [];
+  
+  container.innerHTML = toolsArray
     .map(
       (tool) => `
     <label style="display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 4px; cursor: pointer; transition: background 0.2s;" 
            onmouseover="this.style.background='var(--bg-hover)'" 
            onmouseout="this.style.background='transparent'">
       <input type="checkbox" value="${tool.id}" 
-             ${projectTools.includes(tool.id) ? "checked" : ""} 
+             ${projectToolsArray.includes(tool.id) ? "checked" : ""} 
              onchange="toggleProjectTool(${tool.id}, this.checked)">
       <span>${tool.icon || "🔗"}</span>
       <span>${tool.name}</span>
@@ -316,12 +332,16 @@ function renderProjectTools() {
 
 // 切换项目工具
 function toggleProjectTool(toolId, checked) {
+  // 确保 projectTools 是数组类型
+  const projectToolsArray = Array.isArray(projectTools) ? projectTools : [];
+  
   if (checked) {
-    if (!projectTools.includes(toolId)) {
-      projectTools.push(toolId);
+    if (!projectToolsArray.includes(toolId)) {
+      projectToolsArray.push(toolId);
+      projectTools = projectToolsArray; // 更新全局变量
     }
   } else {
-    projectTools = projectTools.filter((id) => id !== toolId);
+    projectTools = projectToolsArray.filter((id) => id !== toolId);
   }
 }
 
@@ -530,9 +550,12 @@ function openSearchEngineModal(engineId = null) {
   const title = document.getElementById("searchEngineModalTitle");
   const form = document.getElementById("searchEngineForm");
 
+  // 确保 searchEngines 是数组类型
+  const searchEnginesArray = Array.isArray(searchEngines) ? searchEngines : [];
+
   if (engineId) {
     title.textContent = "编辑搜索引擎";
-    const engine = searchEngines.find((e) => e.id === engineId);
+    const engine = searchEnginesArray.find((e) => e.id === engineId);
     if (engine) {
       document.getElementById("searchEngineId").value = engine.id;
       document.getElementById("searchEngineName").value = engine.name;

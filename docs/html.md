@@ -51,34 +51,35 @@ HTML 文件中可直接使用以下能力：
 - 控制指令（以 HTML 属性形式存在）：
   - `for`：循环块。例如：`<div for="$f in $features">{$f->title}</div>`
   - `if` / `elseif` / `else`：条件渲染。例如：`<p if="$user != null">...</p>`
- - 动态属性（:ANY）：任意属性“名称”以冒号前缀表示“表达式求值”，如 `:title="$user->name"`、`:data-count="count($list)"`、`:style="$active ? 'color:red' : ''"`。
+- 动态属性（:ANY）：任意属性"名称"以冒号前缀表示"表达式求值"，如 `:title="$user->name"`、`:data-count="count($list)"`、`:style="$active ? 'color:red' : ''"`。
 - 内嵌脚本块（可选）：
   - 在 `<script type="text/zy"> ... </script>` 中编写折言脚本，用于准备页面局部数据。
+- 服务端 JavaScript 值输出：`$.SERVER($variable)` - 将服务端变量转换为 JavaScript 格式输出到前端
 
 一个最小模板示例：
 
 ```html
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <title>{$title}</title>
-  <link rel="stylesheet" href="/assets/css/styles.css" />
-  <script type="text/zy">
-    // 可在此定义页面私有数据或计算
-    $greeting = "欢迎使用 Origami";
-  </script>
+  <head>
+    <meta charset="UTF-8" />
+    <title>{$title}</title>
+    <link rel="stylesheet" href="/assets/css/styles.css" />
+    <script type="text/zy">
+      // 可在此定义页面私有数据或计算
+      $greeting = "欢迎使用 Origami";
+    </script>
   </head>
-<body>
-  <h1>{$greeting}</h1>
-  <section>
-    <div for="$f in $features">
-      <h3>{$f->title}</h3>
-      <p>{$f->desc}</p>
-    </div>
-  </section>
-  <script src="/assets/js/app.js"></script>
-</body>
+  <body>
+    <h1>{$greeting}</h1>
+    <section>
+      <div for="$f in $features">
+        <h3>{$f->title}</h3>
+        <p>{$f->desc}</p>
+      </div>
+    </section>
+    <script src="/assets/js/app.js"></script>
+  </body>
 </html>
 ```
 
@@ -89,13 +90,120 @@ HTML 文件中可直接使用以下能力：
 ```html
 <a href="/profile" :title="$user ? '用户：' + $user->name : '游客'">
   <span class="badge" :data-count="count($notifications)">通知</span>
-  <i class="dot" :style="$online ? 'background:#22c55e' : 'background:#9ca3af'"></i>
+  <i
+    class="dot"
+    :style="$online ? 'background:#22c55e' : 'background:#9ca3af'"
+  ></i>
 </a>
 ```
 
 说明：
-- 以冒号开头的“属性名”会被解析为折言表达式并求值，其结果再写入对应的实际属性名。
-- 适用于任意属性名（class、style、data-*、aria-*、自定义属性等）。
+
+- 以冒号开头的"属性名"会被解析为折言表达式并求值，其结果再写入对应的实际属性名。
+- 适用于任意属性名（class、style、data-_、aria-_、自定义属性等）。
+
+### 服务端 JavaScript 值输出（$.SERVER）
+
+`$.SERVER($variable)` 用于将服务端变量转换为 JavaScript 格式并输出到前端。这对于在 HTML 中嵌入服务端数据到 JavaScript 代码非常有用。
+
+**语法：**
+
+```html
+<script>
+  const data = $.SERVER($variable);
+</script>
+```
+
+**特性：**
+
+- **自动类型转换**：根据变量类型自动转换为对应的 JavaScript 格式
+  - 对象 → JavaScript 对象 `{...}`
+  - 数组 → JavaScript 数组 `[...]`
+  - 字符串 → JavaScript 字符串 `"..."`（带引号）
+  - 数字 → JavaScript 数字（不带引号）
+  - 布尔值 → JavaScript 布尔值 `true`/`false`（不带引号）
+  - null → JavaScript `null`（不带引号）
+
+**示例：**
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>数据传递示例</title>
+  </head>
+  <body>
+    <script type="text/zy">
+      // 定义服务端数据
+      $user = {
+        id: 123,
+        name: "张三",
+        email: "zhangsan@example.com"
+      };
+
+      $products = [
+        { id: 1, name: "商品A", price: 99.99 },
+        { id: 2, name: "商品B", price: 199.99 }
+      ];
+
+      $settings = {
+        theme: "dark",
+        language: "zh-CN"
+      };
+    </script>
+
+    <script>
+      // 将服务端对象转换为 JavaScript 对象
+      const user = $.SERVER($user);
+      console.log(user); // {id: 123, name: "张三", email: "zhangsan@example.com"}
+
+      // 将服务端数组转换为 JavaScript 数组
+      const products = $.SERVER($products);
+      console.log(products); // [{id: 1, name: "商品A", price: 99.99}, ...]
+
+      // 将服务端对象用于初始化前端应用
+      const appConfig = $.SERVER($settings);
+      window.app.init(appConfig);
+    </script>
+  </body>
+</html>
+```
+
+**输出结果：**
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>数据传递示例</title>
+  </head>
+  <body>
+    <script>
+      // 将服务端对象转换为 JavaScript 对象
+      const user = { id: 123, name: "张三", email: "zhangsan@example.com" };
+      console.log(user);
+
+      // 将服务端数组转换为 JavaScript 数组
+      const products = [
+        { id: 1, name: "商品A", price: 99.99 },
+        { id: 2, name: "商品B", price: 199.99 },
+      ];
+      console.log(products);
+
+      // 将服务端对象用于初始化前端应用
+      const appConfig = { theme: "dark", language: "zh-CN" };
+      window.app.init(appConfig);
+    </script>
+  </body>
+</html>
+```
+
+**注意事项：**
+
+- `$.SERVER()` 只能在 HTML 文本内容或 `<script>` 标签中使用
+- 对象和数组会直接输出为 JavaScript 格式（不带引号），可以直接赋值给 JavaScript 变量
+- 字符串会输出为带引号的字符串字面量
+- 确保变量在调用 `$.SERVER()` 之前已经定义
 
 ## 路由与静态资源
 
@@ -111,5 +219,3 @@ HTML 文件中可直接使用以下能力：
 - 在线演示：`https://php-any.github.io/wasm-demo/`
 
 该演示支持在浏览器中编写并运行折言脚本，快速验证语法与输出。
-
-
