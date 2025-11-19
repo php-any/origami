@@ -496,6 +496,9 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 16px;
   width: 100%;
+  background: var(--bg-light);
+  padding: 16px;
+  border-radius: var(--radius-md);
 }
 
 /* 扁平化项目卡片 - 紧凑清晰的设计 */
