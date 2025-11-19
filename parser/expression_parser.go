@@ -473,28 +473,17 @@ func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 		ep.next() // 消费 '>'
 		docType := strings.TrimSpace(strings.Join(parts, " "))
 
-		// 继续解析后续的 HTML 子节点，直至 EOF
-		children := make([]data.GetValue, 0)
+		// 使用 HtmlParser 解析后续的 HTML 内容
 		if hp, ok := NewHtmlParser(ep.Parser).(*HtmlParser); ok {
-			for !ep.isEOF() {
-				start := ep.position
-				child, acl := hp.parseHtmlChild()
-				if acl != nil {
-					return nil, acl
-				}
-				if child != nil {
-					children = append(children, child)
-					continue
-				}
-
-				// 若既不是标签也不是文本，且位置未前进，则为非预期符号，返回错误
-				if ep.position == start {
-					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("DOCTYPE 后的 HTML 解析遇到非预期符号"))
-				}
+			// 解析后续的 HTML 子节点，直至 EOF
+			children, acl := hp.parseHtmlChildren()
+			if acl != nil {
+				return nil, acl
 			}
+			return node.NewHtmlDocTypeNode(tracker.EndBefore(), docType, children), nil
 		}
 
-		return node.NewHtmlDocTypeNode(tracker.EndBefore(), docType, children), nil
+		return node.NewHtmlDocTypeNode(tracker.EndBefore(), docType, nil), nil
 	case token.TRUE:
 		ep.next()
 		return node.NewBooleanLiteral(ep.FromCurrentToken(), true), nil

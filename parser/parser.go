@@ -634,7 +634,7 @@ func (p *Parser) parseLingToken(lingToken *lexer.LingToken) data.GetValue {
 }
 
 // parseTokensAsExpression 解析 token 列表为表达式
-// 返回 ExpressionList 节点，包含所有解析出的表达式部分
+// 用于插值场景，直接解析表达式而不是程序
 func (p *Parser) parseTokensAsExpression(tokens []lexer.Token) (data.GetValue, data.Control) {
 	np := p.Clone()
 
@@ -646,36 +646,23 @@ func (p *Parser) parseTokensAsExpression(tokens []lexer.Token) (data.GetValue, d
 	np.tokens = tokens
 	np.position = 0
 
-	// 解析所有表达式语句
-	var expressions []data.GetValue
-	last := 0
-	for !np.isEOF() {
-		stmt, acl := np.parseStatement()
-		if acl != nil {
-			return nil, acl
-		}
-		if stmt != nil {
-			expressions = append(expressions, stmt)
-		} else if np.position != last {
-			last = np.position
-		} else {
-			break
-		}
-	}
+	// 直接使用表达式解析器解析表达式
+	return np.expressionParser.Parse()
+}
 
-	// 如果没有表达式，返回空字符串
-	if len(expressions) == 0 {
-		from := p.FromCurrentToken()
-		return node.NewStringLiteral(from, ""), nil
-	}
+// parseTokensAsProgram 解析 token 列表为程序
+// 用于 <script type="text/zy"> 等需要完整程序的场景
+func (p *Parser) parseTokensAsProgram(tokens []lexer.Token) (data.GetValue, data.Control) {
+	np := p.Clone()
 
-	// 创建 ExpressionList 节点
-	from := p.FromCurrentToken()
-	if len(tokens) > 0 {
-		firstToken := tokens[0]
-		lastToken := tokens[len(tokens)-1]
-		from = node.NewTokenFrom(p.source, firstToken.Start(), lastToken.End(), firstToken.Line(), firstToken.Pos())
-	}
+	np.scopeManager = p.scopeManager
+	np.uses = p.uses
+	np.source = p.source
 
-	return node.NewExpressionList(from, expressions), nil
+	// 设置新的 tokens
+	np.tokens = tokens
+	np.position = 0
+
+	// 解析为完整的程序
+	return np.parseProgram(make([]data.GetValue, 0))
 }

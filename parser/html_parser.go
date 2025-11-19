@@ -302,11 +302,6 @@ func (h *HtmlParser) parseHtmlChildren() ([]data.GetValue, data.Control) {
 			return nil, acl
 		}
 		if child != nil {
-			if line, ok := child.(*node.StringLiteral); ok {
-				if line.Value == "\n" {
-					continue
-				}
-			}
 			children = append(children, child)
 		}
 
@@ -679,10 +674,13 @@ func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 			textParts = append(textParts, expr)
 		} else if ins, ok := h.current().(*lexer.LingToken); ok {
 			h.next()
-			v, acl := h.parseTokensAsExpression(ins.Children())
-			if acl != nil {
-				return nil, acl
+			// 使用 parseLingToken 正确处理插值字符串
+			// 如果有累积的文本，先添加到结果中
+			if currentText != "" {
+				textParts = append(textParts, node.NewStringLiteral(h.FromCurrentToken(), currentText))
+				currentText = ""
 			}
+			v := h.Parser.parseLingToken(ins)
 			textParts = append(textParts, v)
 		} else {
 			// 普通文本

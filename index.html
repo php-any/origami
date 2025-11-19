@@ -1,32 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS_SERVER 测试</title>
-</head>
-
-<body>
-    <h1>JS_SERVER 简单测试</h1>
-
-    <!-- 定义测试变量 -->
-    <script type="text/zy">
-        var $testString = "Hello, World!";
-    </script>
-
-    <!-- 测试 1: 最简单的字符串变量 -->
-    <div class="test-section">
-        <div class="test-title">测试: 字符串变量</div>
-        <div class="test-code">const str = $.SERVER($testString);</div>
-        <div class="test-result" id="test1">结果将显示在这里</div>
-    </div>
-
-    <!-- 在 script 标签中使用 $.SERVER -->
-    <script>
-        const str = $.SERVER($testString);
-        document.getElementById('test1').textContent = '结果: ' + str;
-    </script>
-</body>
-
-</html>
+<script type="text/zy">
+var $testString = "Hello, World!";
+</script>
+<script>
+const str = $.SERVER($testString);
+document.getElementById('test1').textContent = '结果: ' + str;
+</script>

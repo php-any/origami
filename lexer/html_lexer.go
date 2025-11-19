@@ -142,7 +142,7 @@ func (h *HtmlLexer) Tokenize(input string) []Token {
 		}
 		panic(fmt.Sprintf("HTML词法分析错误: 无法识别的字符 '%s' (位置: %d, 行: %d, 列: %d)", chStr, h.pos, h.line+1, h.linePos+1))
 	}
-	PrintTokens(tokens, "")
+	// PrintTokens(tokens, "")
 	return tokens
 }
 
