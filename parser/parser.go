@@ -633,9 +633,82 @@ func (p *Parser) parseLingToken(lingToken *lexer.LingToken) data.GetValue {
 	return result
 }
 
+// adjustTokenPositions 调整 tokens 的位置信息，使其指向原始文件中的位置
+// startOffset: 起始字节偏移量
+// startLine: 起始行号
+// startColumn: 起始列号
+func adjustTokenPositions(tokens []lexer.Token, startOffset, startLine, startColumn int) []lexer.Token {
+	if len(tokens) == 0 {
+		return tokens
+	}
+
+	adjusted := make([]lexer.Token, 0, len(tokens))
+	for _, tok := range tokens {
+		adjustedToken := adjustSingleTokenPosition(tok, startOffset, startLine, startColumn)
+		adjusted = append(adjusted, adjustedToken)
+	}
+
+	return adjusted
+}
+
+// adjustSingleTokenPosition 调整单个 token 的位置信息
+func adjustSingleTokenPosition(tok lexer.Token, startOffset, startLine, startColumn int) lexer.Token {
+	// 计算调整后的位置信息
+	relativeLine := tok.Line()
+	relativeColumn := tok.Pos()
+
+	absoluteStart := tok.Start() + startOffset
+	absoluteEnd := tok.End() + startOffset
+
+	var absoluteLine, absoluteColumn int
+	if relativeLine == 0 {
+		// 第一行，列号需要加上起始列号
+		absoluteLine = startLine
+		absoluteColumn = relativeColumn + startColumn
+	} else {
+		// 跨行，行号需要加上起始行号，列号保持不变
+		absoluteLine = relativeLine + startLine
+		absoluteColumn = relativeColumn
+	}
+
+	// 使用类型 switch 处理不同类型的 token
+	switch v := tok.(type) {
+	case *lexer.WorkerToken:
+		// WorkerToken，创建新的 WorkerToken 并调整位置
+		return lexer.NewWorkerToken(
+			v.Type(),
+			v.Literal(),
+			absoluteStart,
+			absoluteEnd,
+			absoluteLine,
+			absoluteColumn,
+		)
+	case *lexer.LingToken:
+		// LingToken，递归调整子 tokens 的位置
+		adjustedChildren := adjustTokenPositions(v.Children(), startOffset, startLine, startColumn)
+		// 创建新的 LingToken 并调整位置
+		return lexer.NewLingToken(
+			v.Type(),
+			v.Literal(),
+			absoluteStart,
+			absoluteEnd,
+			absoluteLine,
+			absoluteColumn,
+			adjustedChildren,
+		)
+	default:
+		// 无法识别的 token 类型，报错
+		panic(fmt.Sprintf("无法识别的 token 类型: %T", tok))
+	}
+}
+
 // parseTokensAsExpression 解析 token 列表为表达式
 // 用于插值场景，直接解析表达式而不是程序
 func (p *Parser) parseTokensAsExpression(tokens []lexer.Token) (data.GetValue, data.Control) {
+	if len(tokens) == 0 {
+		return nil, nil
+	}
+
 	np := p.Clone()
 
 	np.scopeManager = p.scopeManager

@@ -118,6 +118,12 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 		if attr, ok := attributes["type"]; ok {
 			if v := attr.GetValue(); v != nil {
 				if lit, ok := v.(*node.StringLiteral); ok && strings.EqualFold(lit.Value, "text/zy") {
+					// 记录 script 内容在原始文件中的起始位置
+					scriptStartToken := h.current()
+					scriptStartPos := scriptStartToken.Start()
+					scriptStartLine := scriptStartToken.Line()
+					scriptStartLinePos := scriptStartToken.Pos()
+
 					// 收集原始文本内容直到遇到 </script>
 					var rawText strings.Builder
 					for !h.isEOF() {
@@ -135,9 +141,14 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 						rawText.WriteString(h.current().Literal())
 						h.next()
 					}
+
 					// 使用普通 lexer 重新分词 script 标签内的内容
 					normalLexer := lexer.NewLexer()
-					tokens := normalLexer.Tokenize(rawText.String())
+					rawTokens := normalLexer.Tokenize(rawText.String())
+
+					// 调整 tokens 的位置信息，使其指向原始文件中的位置
+					tokens := adjustTokenPositions(rawTokens, scriptStartPos, scriptStartLine, scriptStartLinePos)
+
 					// 编译脚本为 Program
 					prog, acl := h.Parser.parseTokensAsExpression(tokens)
 					if acl != nil {
@@ -257,10 +268,22 @@ func (h *HtmlParser) parseAttributeValue() (data.GetValue, data.Control) {
 			return v, nil
 		}
 	case token.STRING:
-		str := h.current().Literal()
+		// 记录字符串 token 在原始文件中的起始位置
+		strToken := h.current()
+		strStartPos := strToken.Start()
+		strStartLine := strToken.Line()
+		strStartLinePos := strToken.Pos()
+
+		str := strToken.Literal()
 		h.next()
+
+		// 使用普通 lexer 重新分词
 		normalLexer := lexer.NewLexer()
-		tokens := normalLexer.Tokenize(str)
+		rawTokens := normalLexer.Tokenize(str)
+
+		// 调整 tokens 的位置信息，使其指向原始文件中的位置
+		tokens := adjustTokenPositions(rawTokens, strStartPos, strStartLine, strStartLinePos)
+
 		// 编译脚本为 Program
 		prog, acl := h.Parser.parseTokensAsExpression(tokens)
 		if acl != nil {
@@ -533,6 +556,12 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 		if attr, ok := attributes["type"]; ok {
 			if v := attr.GetValue(); v != nil {
 				if lit, ok := v.(*node.StringLiteral); ok && strings.EqualFold(lit.Value, "text/zy") {
+					// 记录 script 内容在原始文件中的起始位置
+					scriptStartToken := h.current()
+					scriptStartPos := scriptStartToken.Start()
+					scriptStartLine := scriptStartToken.Line()
+					scriptStartLinePos := scriptStartToken.Pos()
+
 					// 收集原始文本内容直到遇到 </script>
 					var rawText strings.Builder
 					for !h.isEOF() {
@@ -553,7 +582,11 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 
 					// 使用普通 lexer 重新分词 script 标签内的内容
 					normalLexer := lexer.NewLexer()
-					tokens := normalLexer.Tokenize(rawText.String())
+					rawTokens := normalLexer.Tokenize(rawText.String())
+
+					// 调整 tokens 的位置信息，使其指向原始文件中的位置
+					tokens := adjustTokenPositions(rawTokens, scriptStartPos, scriptStartLine, scriptStartLinePos)
+
 					// 编译脚本为 Program 并返回 ScriptZyNode
 					prog, acl := h.Parser.parseTokensAsExpression(tokens)
 					if acl != nil {

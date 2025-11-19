@@ -879,21 +879,40 @@ func (h *HtmlLexer) processTextInterpolation(text string, start, startLine, star
 					// 找到了匹配的 )，提取表达式内容（包括 $.SERVER(...)）
 					exprContent := string(runes[i : j+1])
 
+					// 计算起始位置
+					baseStart := start + runeToBytePos(i)
+					baseLine := startLine
+					baseColumn := startLinePos + runeToBytePos(i)
+
 					// 重新分词
 					l := NewLexer()
 					codeTokens := l.Tokenize(exprContent)
-					// 将分词结果添加到children中，并调整位置信息
-					baseStart := start + runeToBytePos(i)
+
+					// 调整 tokens 的位置信息
 					values := make([]Token, 0)
 					for _, codeToken := range codeTokens {
+						relativeLine := codeToken.Line()
+						relativeColumn := codeToken.Pos()
+
+						var absoluteLine, absoluteColumn int
+						if relativeLine == 0 {
+							// 第一行，列号需要加上起始列号
+							absoluteLine = baseLine
+							absoluteColumn = relativeColumn + baseColumn
+						} else {
+							// 跨行，行号需要加上起始行号，列号保持不变
+							absoluteLine = relativeLine + baseLine
+							absoluteColumn = relativeColumn
+						}
+
 						// 创建新的 WorkerToken 并调整位置
 						values = append(values, NewWorkerToken(
 							codeToken.Type(),
 							codeToken.Literal(),
 							codeToken.Start()+baseStart,
 							codeToken.End()+baseStart,
-							startLine,
-							startLinePos+runeToBytePos(i)+codeToken.Start(),
+							absoluteLine,
+							absoluteColumn,
 						))
 					}
 					children = append(children, NewLingToken(
@@ -983,20 +1002,40 @@ func (h *HtmlLexer) processTextInterpolation(text string, start, startLine, star
 
 				// 复杂表达式，需要重新分词
 				code := "$" + exprContent
+
+				// 计算起始位置：{ 的位置 + 1 是 $ 的位置
+				baseStart := start + runeToBytePos(i+1)
+				baseLine := startLine
+				baseColumn := startLinePos + runeToBytePos(i+1)
+
 				l := NewLexer()
 				codeTokens := l.Tokenize(code)
-				// 将分词结果添加到children中，并调整位置信息
-				baseStart := start + runeToBytePos(i+1) // { 的位置 + 1 是 $ 的位置
+
+				// 调整 tokens 的位置信息
 				values := make([]Token, 0)
 				for _, codeToken := range codeTokens {
+					relativeLine := codeToken.Line()
+					relativeColumn := codeToken.Pos()
+
+					var absoluteLine, absoluteColumn int
+					if relativeLine == 0 {
+						// 第一行，列号需要加上起始列号
+						absoluteLine = baseLine
+						absoluteColumn = relativeColumn + baseColumn
+					} else {
+						// 跨行，行号需要加上起始行号，列号保持不变
+						absoluteLine = relativeLine + baseLine
+						absoluteColumn = relativeColumn
+					}
+
 					// 创建新的 WorkerToken 并调整位置
 					values = append(values, NewWorkerToken(
 						codeToken.Type(),
 						codeToken.Literal(),
 						codeToken.Start()+baseStart,
 						codeToken.End()+baseStart,
-						startLine,
-						startLinePos+runeToBytePos(i+1)+codeToken.Start(),
+						absoluteLine,
+						absoluteColumn,
 					))
 				}
 				children = append(children, NewLingToken(
@@ -1051,20 +1090,40 @@ func (h *HtmlLexer) processTextInterpolation(text string, start, startLine, star
 			if j < len(runes) && runes[j] == '}' {
 				// 对@{...}中的内容进行重新分词
 				code := string(runes[exprStart:j])
+
+				// 计算起始位置：@{ 之后的位置
+				baseStart := start + runeToBytePos(i+2)
+				baseLine := startLine
+				baseColumn := startLinePos + runeToBytePos(i+2)
+
 				l := NewLexer()
 				codeTokens := l.Tokenize(code)
-				// 将分词结果添加到children中，并调整位置信息
-				baseStart := start + runeToBytePos(i+2) // @{ 之后的位置
+
+				// 调整 tokens 的位置信息
 				values := make([]Token, 0)
 				for _, codeToken := range codeTokens {
+					relativeLine := codeToken.Line()
+					relativeColumn := codeToken.Pos()
+
+					var absoluteLine, absoluteColumn int
+					if relativeLine == 0 {
+						// 第一行，列号需要加上起始列号
+						absoluteLine = baseLine
+						absoluteColumn = relativeColumn + baseColumn
+					} else {
+						// 跨行，行号需要加上起始行号，列号保持不变
+						absoluteLine = relativeLine + baseLine
+						absoluteColumn = relativeColumn
+					}
+
 					// 创建新的 WorkerToken 并调整位置
 					values = append(values, NewWorkerToken(
 						codeToken.Type(),
 						codeToken.Literal(),
 						codeToken.Start()+baseStart,
 						codeToken.End()+baseStart,
-						startLine,
-						startLinePos+runeToBytePos(i+2)+codeToken.Start(),
+						absoluteLine,
+						absoluteColumn,
 					))
 				}
 				children = append(children, NewLingToken(

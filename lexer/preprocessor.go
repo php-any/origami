@@ -357,22 +357,40 @@ func processStringInterpolation(t Token) Token {
 					// 找到了匹配的 )，提取表达式内容（包括 $.SERVER(...)）
 					exprContent := string(runes[i : j+1])
 
+					// 计算起始位置：需要考虑引号的位置：t.Start() + 1 (引号) + i
+					baseStart := t.Start() + 1 + i
+					baseLine := t.Line()
+					baseColumn := t.Pos() + i
+
 					// 重新分词
 					l := NewLexer()
 					codeTokens := l.Tokenize(exprContent)
-					// 将分词结果添加到children中，并调整位置信息
-					// baseStart 需要考虑引号的位置：t.Start() + 1 (引号) + i
-					baseStart := t.Start() + 1 + i
+
+					// 调整 tokens 的位置信息
 					values := make([]Token, 0)
 					for _, codeToken := range codeTokens {
+						relativeLine := codeToken.Line()
+						relativeColumn := codeToken.Pos()
+
+						var absoluteLine, absoluteColumn int
+						if relativeLine == 0 {
+							// 第一行，列号需要加上起始列号
+							absoluteLine = baseLine
+							absoluteColumn = relativeColumn + baseColumn
+						} else {
+							// 跨行，行号需要加上起始行号，列号保持不变
+							absoluteLine = relativeLine + baseLine
+							absoluteColumn = relativeColumn
+						}
+
 						// 创建新的 WorkerToken 并调整位置
 						values = append(values, NewWorkerToken(
 							codeToken.Type(),
 							codeToken.Literal(),
 							codeToken.Start()+baseStart,
 							codeToken.End()+baseStart,
-							t.Line(),
-							t.Pos()+i+codeToken.Start(),
+							absoluteLine,
+							absoluteColumn,
 						))
 					}
 					children = append(children, NewLingToken(
@@ -461,20 +479,40 @@ func processStringInterpolation(t Token) Token {
 
 				// 复杂表达式，需要重新分词
 				code := "$" + exprContent
+
+				// 计算起始位置：需要考虑引号和 { 的位置：t.Start() + start - 1
+				baseStart := t.Start() + start - 1
+				baseLine := t.Line()
+				baseColumn := t.Pos() + start - 1
+
 				l := NewLexer()
 				codeTokens := l.Tokenize(code)
-				// 将分词结果添加到children中，并调整位置信息
-				baseStart := t.Start() + start - 1
+
+				// 调整 tokens 的位置信息
 				values := make([]Token, 0)
 				for _, codeToken := range codeTokens {
+					relativeLine := codeToken.Line()
+					relativeColumn := codeToken.Pos()
+
+					var absoluteLine, absoluteColumn int
+					if relativeLine == 0 {
+						// 第一行，列号需要加上起始列号
+						absoluteLine = baseLine
+						absoluteColumn = relativeColumn + baseColumn
+					} else {
+						// 跨行，行号需要加上起始行号，列号保持不变
+						absoluteLine = relativeLine + baseLine
+						absoluteColumn = relativeColumn
+					}
+
 					// 创建新的 WorkerToken 并调整位置
 					values = append(values, NewWorkerToken(
 						codeToken.Type(),
 						codeToken.Literal(),
 						codeToken.Start()+baseStart,
 						codeToken.End()+baseStart,
-						t.Line(),
-						t.Pos()+start-1+(codeToken.Start()),
+						absoluteLine,
+						absoluteColumn,
 					))
 				}
 				children = append(children, NewLingToken(
@@ -528,20 +566,40 @@ func processStringInterpolation(t Token) Token {
 			if j < len(runes) && runes[j] == '}' {
 				// 对@{...}中的内容进行重新分词
 				code := string(runes[start:j])
+
+				// 计算起始位置：t.Start() + start
+				baseStart := t.Start() + start
+				baseLine := t.Line()
+				baseColumn := t.Pos() + start
+
 				l := NewLexer()
 				codeTokens := l.Tokenize(code)
-				// 将分词结果添加到children中，并调整位置信息
-				baseStart := t.Start() + start
+
+				// 调整 tokens 的位置信息
 				values := make([]Token, 0)
 				for _, codeToken := range codeTokens {
+					relativeLine := codeToken.Line()
+					relativeColumn := codeToken.Pos()
+
+					var absoluteLine, absoluteColumn int
+					if relativeLine == 0 {
+						// 第一行，列号需要加上起始列号
+						absoluteLine = baseLine
+						absoluteColumn = relativeColumn + baseColumn
+					} else {
+						// 跨行，行号需要加上起始行号，列号保持不变
+						absoluteLine = relativeLine + baseLine
+						absoluteColumn = relativeColumn
+					}
+
 					// 创建新的 WorkerToken 并调整位置
 					values = append(values, NewWorkerToken(
 						codeToken.Type(),
 						codeToken.Literal(),
 						codeToken.Start()+baseStart,
 						codeToken.End()+baseStart,
-						t.Line(),
-						t.Pos()+start+codeToken.Start(),
+						absoluteLine,
+						absoluteColumn,
 					))
 				}
 				children = append(children, NewLingToken(
