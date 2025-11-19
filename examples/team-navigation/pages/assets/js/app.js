@@ -26,15 +26,27 @@ function performSearch() {
   }
 
   // 使用全局变量 defaultSearchEngine（从服务器注入）
-  if (typeof defaultSearchEngine === "undefined" || !defaultSearchEngine) {
+  // 检查变量是否存在且具有必要的属性
+  if (typeof defaultSearchEngine === "undefined" || !defaultSearchEngine || !defaultSearchEngine.urlTemplate) {
     // 如果没有默认搜索引擎，使用百度搜索作为后备
     window.open("https://www.baidu.com/s?wd=" + encodeURIComponent(keyword), "_blank");
     return;
   }
 
+  // 确保 urlTemplate 存在且是字符串
+  if (typeof defaultSearchEngine.urlTemplate !== "string") {
+    window.open("https://www.baidu.com/s?wd=" + encodeURIComponent(keyword), "_blank");
+    return;
+  }
+
   // 替换 URL 模板中的 {keyword} 占位符
-  const searchUrl = defaultSearchEngine.urlTemplate.replace("{keyword}", encodeURIComponent(keyword));
-  window.open(searchUrl, "_blank");
+  try {
+    const searchUrl = defaultSearchEngine.urlTemplate.replace("{keyword}", encodeURIComponent(keyword));
+    window.open(searchUrl, "_blank");
+  } catch (error) {
+    // 如果替换出错，使用后备搜索
+    window.open("https://www.baidu.com/s?wd=" + encodeURIComponent(keyword), "_blank");
+  }
 }
 
 // 更新时间显示

@@ -65,8 +65,9 @@
             border-radius: var(--radius-sm);
             cursor: pointer;
             font-size: 0.9rem;
-            transition: all 0.2s;
-            font-weight: 400;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            box-shadow: none;
         }
 
         .btn:hover {
@@ -101,8 +102,8 @@
             background: var(--bg-card);
             border-radius: var(--radius-lg);
             overflow: hidden;
-            box-shadow: var(--shadow-md);
-            border: 1px solid var(--border-light);
+            box-shadow: none;
+            border: 1px solid var(--border);
             margin-top: 20px;
         }
 
@@ -116,10 +117,10 @@
         th {
             background: var(--bg-light);
             color: var(--text-primary);
-            font-weight: 600;
+            font-weight: 500;
             font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            text-transform: none;
+            letter-spacing: 0;
         }
 
         tr:last-child td {
@@ -174,7 +175,7 @@
 
         .modal-content {
             background: var(--bg-white);
-            border: 1px solid var(--border-light);
+            border: 1px solid var(--border);
             border-radius: var(--radius-lg);
             padding: 32px;
             max-width: 600px;
@@ -292,7 +293,7 @@
             padding: 16px;
             border-radius: var(--radius-md);
             margin-bottom: 12px;
-            border: 1px solid var(--border-light);
+            border: 1px solid var(--border);
         }
 
         @media (max-width: 768px) {
@@ -343,7 +344,7 @@
             <div class="header-content">
                 <div class="logo">团队导航 - 管理</div>
                 <nav class="header-nav">
-                    <a href="https://github.com/php-any/origami" target="_blank" class="nav-item" title="Origami 开源地址">
+                    <a href="https://github.com/php-any/origami" target="_blank" class="header-btn" title="Origami 开源地址">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"
                             style="vertical-align: middle;">
                             <path
@@ -352,7 +353,7 @@
                         </svg>
                         <span>GitHub</span>
                     </a>
-                    <a href="/" class="nav-item">← 返回首页</a>
+                    <a href="/" class="header-btn">← 返回首页</a>
                 </nav>
             </div>
         </header>

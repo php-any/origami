@@ -625,6 +625,7 @@ func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 
 		// 检查是否是插值开始 {$
 		if h.current().Type() == token.LBRACE && h.checkPositionIs(1, token.VARIABLE) {
+			// 检查是否是插值开始 {$
 			// 如果有累积的文本，先添加到结果中
 			if currentText != "" {
 				textParts = append(textParts, node.NewStringLiteral(h.FromCurrentToken(), currentText))
@@ -640,7 +641,7 @@ func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 				return nil, acl
 			}
 
-			expr, acl := h.parseExprFromTokens(exprTokens)
+			expr, acl := h.parseTokensAsExpression(exprTokens)
 			if acl != nil {
 				return nil, acl
 			}
@@ -671,14 +672,14 @@ func (h *HtmlParser) parseHtmlText() (data.GetValue, data.Control) {
 			h.nextAndCheck(token.RBRACE)
 
 			// 解析表达式（基于采集的 tokens）
-			expr, acl := h.parseExprFromTokens(exprTokens)
+			expr, acl := h.parseTokensAsExpression(exprTokens)
 			if acl != nil {
 				return nil, acl
 			}
 			textParts = append(textParts, expr)
 		} else if ins, ok := h.current().(*lexer.LingToken); ok {
 			h.next()
-			v, acl := h.parseExprFromTokens(ins.Children())
+			v, acl := h.parseTokensAsExpression(ins.Children())
 			if acl != nil {
 				return nil, acl
 			}
@@ -748,29 +749,6 @@ func (h *HtmlParser) collectExprTokensInsideBraces() ([]lexer.Token, data.Contro
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("插值表达式缺少匹配的 }"))
 	}
 	return exprTokens, nil
-}
-
-// parseExprFromTokens 使用表达式解析器解析一段 tokens 为表达式值
-func (h *HtmlParser) parseExprFromTokens(exprTokens []lexer.Token) (data.GetValue, data.Control) {
-	// 为了保持与当前解析作用域一致（变量索引一致），临时切换 tokens 并用当前 Parser 的 ExpressionParser 解析
-	originalTokens := h.Parser.tokens
-	originalPosition := h.Parser.position
-	originalSource := h.Parser.source
-
-	h.Parser.tokens = exprTokens
-	h.Parser.position = 0
-
-	exprParser := NewExpressionParser(h.Parser)
-	expr, ctl := exprParser.Parse()
-
-	h.Parser.tokens = originalTokens
-	h.Parser.position = originalPosition
-	h.Parser.source = originalSource
-
-	if ctl != nil {
-		return nil, ctl
-	}
-	return expr, nil
 }
 
 // findClosingTag 查找结束标签

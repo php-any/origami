@@ -305,6 +305,90 @@ func processStringInterpolation(t Token) Token {
 
 	for i := 0; i < len(runes); i++ {
 		r := runes[i]
+		// 检查是否是 $.SERVER($variable) 插值
+		if r == '$' && i+8 < len(runes) && string(runes[i:i+8]) == "$.SERVER" {
+			// 检查后面是否有左括号
+			if i+8 < len(runes) && runes[i+8] == '(' {
+				hasInterpolation = true
+				// 处理 $.SERVER($variable) 插值
+				if len(currentStr) > 0 {
+					// 添加当前字符串
+					children = append(children, NewWorkerToken(
+						token.STRING,
+						string(quote)+string(currentStr)+string(quote),
+						t.Start(),
+						t.End(),
+						t.Line(),
+						t.Pos(),
+					))
+					currentStr = nil
+				}
+
+				// 如果还没有任何 children，添加空字符串
+				if len(children) == 0 {
+					children = append(children, NewWorkerToken(
+						token.STRING,
+						"",
+						t.Start(),
+						t.Start(),
+						t.Line(),
+						t.Pos(),
+					))
+				}
+
+				// 收集 $.SERVER(...) 中的完整表达式内容
+				exprStart := i + 8 // $.SERVER( 之后
+				j := exprStart + 1 // 跳过 (
+				parenDepth := 1    // 从 ( 开始，深度为1
+
+				for j < len(runes) {
+					if runes[j] == '(' {
+						parenDepth++
+					} else if runes[j] == ')' {
+						parenDepth--
+						if parenDepth == 0 {
+							break
+						}
+					}
+					j++
+				}
+
+				if j < len(runes) && runes[j] == ')' && parenDepth == 0 {
+					// 找到了匹配的 )，提取表达式内容（包括 $.SERVER(...)）
+					exprContent := string(runes[i : j+1])
+
+					// 重新分词
+					l := NewLexer()
+					codeTokens := l.Tokenize(exprContent)
+					// 将分词结果添加到children中，并调整位置信息
+					// baseStart 需要考虑引号的位置：t.Start() + 1 (引号) + i
+					baseStart := t.Start() + 1 + i
+					values := make([]Token, 0)
+					for _, codeToken := range codeTokens {
+						// 创建新的 WorkerToken 并调整位置
+						values = append(values, NewWorkerToken(
+							codeToken.Type(),
+							codeToken.Literal(),
+							codeToken.Start()+baseStart,
+							codeToken.End()+baseStart,
+							t.Line(),
+							t.Pos()+i+codeToken.Start(),
+						))
+					}
+					children = append(children, NewLingToken(
+						token.INTERPOLATION_VALUE,
+						exprContent,
+						t.Start()+1+i,
+						t.Start()+1+j+1,
+						t.Line(),
+						t.Pos()+i,
+						values,
+					))
+					i = j
+					continue
+				}
+			}
+		}
 		if r == '{' && i+2 < len(runes) && runes[i+1] == '$' {
 			// 检查 $ 后面是否是有效的变量名起始字符
 			nextChar := runes[i+2]

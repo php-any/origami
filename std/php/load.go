@@ -18,6 +18,7 @@ func Load(vm data.VM) {
 		NewGettypeFunction(),
 		NewJsonEncodeFunction(),
 		NewJsonDecodeFunction(),
+		NewIssetFunction(),
 	} {
 		vm.AddFunc(fun)
 	}

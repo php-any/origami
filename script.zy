@@ -1,7 +1,4 @@
-namespace tests;
+namespace test
 
-try {
 
-} catch (Exception $e) {
-    Log::fatal("执行文件发生错误, file={$filePath}; error={$e->getMessage()}")
-}
+echo include("./index.html")

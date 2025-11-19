@@ -70,7 +70,7 @@ func (p *Parser) Clone() *Parser {
 		scopeManager:     NewScopeManager(),  // 创建新的作用域管理器
 		expressionParser: p.expressionParser, // 稍后设置
 		identTryString:   p.identTryString,
-		namespace:        p.namespace, // 命名空间节点，共享即可
+		namespace:        nil,
 		uses:             make(map[string]string),
 		ClassPathManager: p.ClassPathManager, // 类路径管理器是共享的
 	}
@@ -98,7 +98,7 @@ func (p *Parser) ParseFile(filename string) (*node.Program, data.Control) {
 	p.tokens = p.lexer.Tokenize(string(content))
 
 	// 解析程序
-	program, acl := p.parseProgram()
+	program, acl := p.parseProgram(make([]data.GetValue, 0))
 	if acl != nil {
 		return nil, acl
 	}
@@ -107,9 +107,7 @@ func (p *Parser) ParseFile(filename string) (*node.Program, data.Control) {
 }
 
 // parseProgram 解析程序
-func (p *Parser) parseProgram() (*node.Program, data.Control) {
-	statements := make([]data.GetValue, 0)
-
+func (p *Parser) parseProgram(statements []data.GetValue) (*node.Program, data.Control) {
 	last := 0
 	// 解析所有语句
 	for !p.isEOF() {
@@ -556,7 +554,7 @@ func (p *Parser) ParseString(content string, filePath string) (*node.Program, da
 	p.tokens = p.lexer.Tokenize(content)
 
 	// 解析程序
-	program, acl := p.parseProgram()
+	program, acl := p.parseProgram(make([]data.GetValue, 0))
 	if acl != nil {
 		return nil, acl
 	}
@@ -636,20 +634,48 @@ func (p *Parser) parseLingToken(lingToken *lexer.LingToken) data.GetValue {
 }
 
 // parseTokensAsExpression 解析 token 列表为表达式
+// 返回 ExpressionList 节点，包含所有解析出的表达式部分
 func (p *Parser) parseTokensAsExpression(tokens []lexer.Token) (data.GetValue, data.Control) {
 	np := p.Clone()
 
 	np.scopeManager = p.scopeManager
 	np.uses = p.uses
 	np.source = p.source
-	np.namespace = nil
 
 	// 设置新的 tokens
 	np.tokens = tokens
 	np.position = 0
 
-	// 使用表达式解析器解析
-	result, acl := np.parseProgram()
+	// 解析所有表达式语句
+	var expressions []data.GetValue
+	last := 0
+	for !np.isEOF() {
+		stmt, acl := np.parseStatement()
+		if acl != nil {
+			return nil, acl
+		}
+		if stmt != nil {
+			expressions = append(expressions, stmt)
+		} else if np.position != last {
+			last = np.position
+		} else {
+			break
+		}
+	}
 
-	return result, acl
+	// 如果没有表达式，返回空字符串
+	if len(expressions) == 0 {
+		from := p.FromCurrentToken()
+		return node.NewStringLiteral(from, ""), nil
+	}
+
+	// 创建 ExpressionList 节点
+	from := p.FromCurrentToken()
+	if len(tokens) > 0 {
+		firstToken := tokens[0]
+		lastToken := tokens[len(tokens)-1]
+		from = node.NewTokenFrom(p.source, firstToken.Start(), lastToken.End(), firstToken.Line(), firstToken.Pos())
+	}
+
+	return node.NewExpressionList(from, expressions), nil
 }

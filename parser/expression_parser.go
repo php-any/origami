@@ -506,6 +506,15 @@ func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 	case token.NULL:
 		ep.next()
 		return node.NewNullLiteral(ep.FromCurrentToken()), nil
+	case token.JS_SERVER:
+		// 处理 $.SERVER 表达式
+		if parser, ok := parserRouter[ep.current().Type()]; ok {
+			expr, acl := parser(ep.Parser).Parse()
+			if acl != nil {
+				return nil, acl
+			}
+			return expr, nil
+		}
 	case token.START_TAG, token.END_TAG, token.SEMICOLON:
 		ep.next()
 		return nil, nil

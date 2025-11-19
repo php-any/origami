@@ -13,7 +13,8 @@
             padding: 32px;
             background: var(--bg-card);
             border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-md);
+            box-shadow: none;
+            border: 1px solid var(--border);
         }
 
         .apply-container h1 {
@@ -80,13 +81,17 @@
             border-radius: var(--radius-sm);
             cursor: pointer;
             font-size: 0.9rem;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
             text-decoration: none;
             display: inline-block;
+            font-weight: 500;
+            box-shadow: none;
         }
 
         .btn:hover {
             background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
         }
 
         .btn-secondary {
@@ -97,6 +102,8 @@
 
         .btn-secondary:hover {
             background: var(--bg-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
         }
 
         .success-message {
@@ -105,6 +112,7 @@
             color: #065f46;
             border-radius: var(--radius-sm);
             margin-bottom: 20px;
+            border: 1px solid #a7f3d0;
         }
 
         .error-message {
@@ -113,6 +121,7 @@
             color: #991b1b;
             border-radius: var(--radius-sm);
             margin-bottom: 20px;
+            border: 1px solid #fecaca;
         }
     </style>
 </head>
@@ -127,7 +136,7 @@
             <div class="header-content">
                 <div class="logo">团队导航</div>
                 <nav class="header-nav">
-                    <a href="/" class="nav-item">← 返回首页</a>
+                    <a href="/" class="header-btn">← 返回首页</a>
                 </nav>
             </div>
         </header>
