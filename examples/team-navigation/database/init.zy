@@ -129,26 +129,26 @@ function initSampleData($db, $dbExists) {
     if (!$dbExists || $toolCount == 0) {
         Log::info("初始化示例工具链接数据...");
         $initTools = [
-            ["GitLab", "https://gitlab.example.com", "🔗", "代码管理", "代码仓库和 CI/CD", 1],
-            ["Jira", "https://jira.example.com", "📋", "项目管理", "任务跟踪和问题管理", 2],
-            ["Jenkins", "https://jenkins.example.com", "⚙️", "CI/CD", "持续集成和部署", 3],
-            ["Grafana", "https://grafana.example.com", "📊", "监控", "监控和可视化", 4],
-            ["Prometheus", "https://prometheus.example.com", "📈", "监控", "指标监控系统", 5],
-            ["Kibana", "https://kibana.example.com", "🔍", "日志", "日志查询和分析", 6],
-            ["Confluence", "https://confluence.example.com", "📖", "文档", "团队文档和知识库", 7],
-            ["SonarQube", "https://sonarqube.example.com", "🔎", "代码质量", "代码质量检测", 8],
-            ["Nexus", "https://nexus.example.com", "📦", "制品", "Maven/NPM 仓库", 9],
+            ["GitLab", "https://gitlab.com", "🔗", "代码管理", "代码仓库和 CI/CD", 1],
+            ["Jira", "https://www.atlassian.com/software/jira", "📋", "项目管理", "任务跟踪和问题管理", 2],
+            ["Jenkins", "https://www.jenkins.io", "⚙️", "CI/CD", "持续集成和部署", 3],
+            ["Grafana", "https://grafana.com", "📊", "监控", "监控和可视化", 4],
+            ["Prometheus", "https://prometheus.io", "📈", "监控", "指标监控系统", 5],
+            ["Kibana", "https://www.elastic.co/kibana", "🔍", "日志", "日志查询和分析", 6],
+            ["Confluence", "https://www.atlassian.com/software/confluence", "📖", "文档", "团队文档和知识库", 7],
+            ["SonarQube", "https://www.sonarqube.org", "🔎", "代码质量", "代码质量检测", 8],
+            ["Nexus", "https://www.sonatype.com/products/nexus-repository", "📦", "制品", "Maven/NPM 仓库", 9],
             ["VPN", "https://vpn.example.com", "🔐", "网络", "VPN 连接", 10],
-            ["Harbor", "https://harbor.example.com", "🐳", "容器", "容器镜像仓库", 11],
-            ["Kubernetes", "https://k8s.example.com", "☸️", "容器", "容器编排平台", 12],
-            ["Redis", "https://redis.example.com", "🔴", "缓存", "内存数据库和缓存", 13],
-            ["MySQL", "https://mysql.example.com", "🗄️", "数据库", "关系型数据库管理", 14],
-            ["Postman", "https://postman.example.com", "📮", "开发工具", "API 测试和文档", 15],
-            ["Swagger", "https://swagger.example.com", "📝", "开发工具", "API 文档和测试", 16],
-            ["Sentry", "https://sentry.example.com", "🚨", "监控", "错误追踪和监控", 17],
-            ["Artifactory", "https://artifactory.example.com", "🏛️", "制品", "统一制品仓库", 18],
-            ["MinIO", "https://minio.example.com", "📦", "存储", "对象存储服务", 19],
-            ["Portainer", "https://portainer.example.com", "🐋", "容器", "Docker 管理界面", 20]
+            ["Harbor", "https://goharbor.io", "🐳", "容器", "容器镜像仓库", 11],
+            ["Kubernetes", "https://kubernetes.io", "☸️", "容器", "容器编排平台", 12],
+            ["Redis", "https://redis.io", "🔴", "缓存", "内存数据库和缓存", 13],
+            ["MySQL", "https://www.mysql.com", "🗄️", "数据库", "关系型数据库管理", 14],
+            ["Postman", "https://www.postman.com", "📮", "开发工具", "API 测试和文档", 15],
+            ["Swagger", "https://swagger.io", "📝", "开发工具", "API 文档和测试", 16],
+            ["Sentry", "https://sentry.io", "🚨", "监控", "错误追踪和监控", 17],
+            ["Artifactory", "https://jfrog.com/artifactory/", "🏛️", "制品", "统一制品仓库", 18],
+            ["MinIO", "https://min.io", "📦", "存储", "对象存储服务", 19],
+            ["Portainer", "https://www.portainer.io", "🐋", "容器", "Docker 管理界面", 20]
         ];
         
         for ($i = 0; $i < $initTools->length; $i++) {
@@ -183,26 +183,24 @@ function initSampleData($db, $dbExists) {
     if (!$dbExists || $projectCount == 0) {
         Log::info("初始化示例项目数据...");
         // 使用工具 display_order 作为 key，映射到实际的 tool_id
-        // 结构: [name, display_order, description, tools(orderId[])]
+        // 结构: [name, display_order, description, icon, tools(orderId[])]
         $initProjects = [
-            ["Origami", 1, "折言脚本语言与运行时示例项目", [1, 3, 7]],
-            ["Web API", 2, "面向业务的 REST API 服务，提供对外接口", [1, 3, 4]],
-            ["Admin 后台", 3, "内部运营与配置管理后台系统", [1, 2, 6]],
-            ["Mobile App", 4, "移动端应用的后端与集成服务", [1, 3, 8]]
+            ["Origami", 1, "折言脚本语言与运行时示例项目", "🎨", [1, 3, 7]],
+            ["Web API", 2, "面向业务的 REST API 服务，提供对外接口", "🌐", [1, 3, 4]],
+            ["Admin 后台", 3, "内部运营与配置管理后台系统", "⚙️", [1, 2, 6]],
+            ["Mobile App", 4, "移动端应用的后端与集成服务", "📱", [1, 3, 8]]
         ];
         
         for (_, $project in $initProjects) {
-            $result = $db->exec("INSERT INTO projects (name, description, display_order) VALUES (?, ?, ?)", 
-                $project[0], $project[2], $project[1]);
+            $result = $db->exec("INSERT INTO projects (name, description, icon, display_order) VALUES (?, ?, ?, ?)", 
+                $project[0], $project[2], $project[3], $project[1]);
             $projectId = $result->lastInsertId();
             
             // 为每个项目创建默认环境
-            $projectNameRaw = $project[0];
-            $projectNameLower = $projectNameRaw->toLowerCase()->replace(" ", "-");
             $defaultEnvs = [
-                ["开发环境", "http://dev-" + $projectNameLower + ".example.com", "运行中", "green"],
-                ["测试环境", "http://test-" + $projectNameLower + ".example.com", "运行中", "green"],
-                ["生产环境", "https://" + $projectNameLower + ".example.com", "运行中", "green"]
+                ["开发环境", "https://github.com/php-any/origami", "运行中", "green"],
+                ["测试环境", "https://github.com/php-any/origami", "运行中", "green"],
+                ["生产环境", "https://github.com/php-any/origami", "运行中", "green"]
             ];
             
             for (_, $env in $defaultEnvs) {
@@ -211,7 +209,7 @@ function initSampleData($db, $dbExists) {
             }
             
             // 绑定项目关联的工具（使用 toolIdMap 获取实际的工具ID）
-            $toolOrderIds = $project[3];
+            $toolOrderIds = $project[4];
             for ($i = 0; $i < $toolOrderIds->length; $i++) {
                 $toolOrderId = $toolOrderIds[$i];
                 $actualToolId = $toolIdMap[$toolOrderId];
