@@ -14,6 +14,39 @@ type CallObjectProperty struct {
 	Property string        // 属性名
 }
 
+func (pe *CallObjectProperty) GetIndex() int {
+	panic("不支持获取调用类属性过程获取属性索引")
+}
+
+func (pe *CallObjectProperty) GetName() string {
+	return pe.Property
+}
+
+func (pe *CallObjectProperty) GetType() data.Types {
+	panic("不支持获取调用类属性过程获取属性类型")
+}
+
+func (pe *CallObjectProperty) SetValue(ctx data.Context, value data.Value) data.Control {
+	temp, acl := pe.Object.GetValue(ctx)
+	if acl != nil {
+		return acl
+	}
+	switch object := temp.(type) {
+	case *data.ClassValue: // 需要检查属性类型
+		property, ok := object.GetProperty(pe.Property)
+		if ok {
+			if property.GetType() != nil && !property.GetType().Is(value) {
+				return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("%s 属性 %s 因为类型不一致无法赋值", TryGetCallClassName(object), pe.Property))
+			}
+		}
+		return object.SetProperty(pe.Property, value)
+	case data.SetProperty:
+		return object.SetProperty(pe.Property, value)
+	default:
+		return data.NewErrorThrow(pe.GetFrom(), errors.New("object is not set property"))
+	}
+}
+
 // NewObjectProperty 创建一个新的对象属性访问表达式
 func NewObjectProperty(token *TokenFrom, object data.GetValue, property string) *CallObjectProperty {
 	return &CallObjectProperty{

@@ -33,8 +33,8 @@ func (f *IssetFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		varRef := refValue.Val
 
 		// 使用 GetIndexValue 安全地检查父级上下文中的变量（避免索引越界 panic）
-		v, ok := parentCtx.GetIndexValue(varRef.GetIndex())
-		if !ok {
+		v, acl := varRef.GetValue(parentCtx)
+		if acl != nil {
 			// 变量在父级上下文中不存在
 			return data.NewBoolValue(false), nil
 		}

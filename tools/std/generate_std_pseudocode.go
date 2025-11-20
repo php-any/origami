@@ -7,6 +7,7 @@ import (
 	"text/template"
 
 	"github.com/php-any/origami/std/context"
+	"github.com/php-any/origami/std/database/sql"
 
 	"github.com/php-any/origami/std/net/http"
 
@@ -48,13 +49,14 @@ func getStdFunctions() []data.FuncStmt {
 	return []data.FuncStmt{
 		std.NewDumpFunction(),
 		std.NewIncludeFunction(),
+		http.NewAppFunction(),
 		// 导出 go 的 context
 		context.NewBackgroundFunction(),
 		context.NewWithCancelFunction(),
 		context.NewWithTimeoutFunction(),
 		context.NewWithValueFunction(),
 		// sql
-		// sql.NewOpenFunction(),
+		sql.NewOpenFunction(),
 	}
 }
 

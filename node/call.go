@@ -102,15 +102,18 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 					} else {
 						return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.FunName))
 					}
-				default:
-					if val, ok := paramTV.(data.Variable); ok {
-						acl := argObj.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
-						if acl != nil {
-							return nil, acl
-						}
-					} else {
-						return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.FunName))
+				case *CallObjectProperty:
+					acl := argObj.SetValue(fnCtx, data.NewReferenceValue(paramTV, ctx))
+					if acl != nil {
+						return nil, acl
 					}
+				case data.Variable:
+					acl := argObj.SetValue(fnCtx, data.NewReferenceValue(paramTV, ctx))
+					if acl != nil {
+						return nil, acl
+					}
+				default:
+					return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.FunName))
 				}
 			} else {
 				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能是必传参数, fn: %s", pe.FunName))
