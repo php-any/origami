@@ -47,7 +47,7 @@
                 <div class="tab-content active" id="toolsTab">
                     <section class="quick-access">
                         <div class="section-title">
-                            <span class="title-icon">🛠️</span>
+                            <img src="/assets/icons/tools.png" alt="工具" class="title-icon">
                             <h3>工具链接管理</h3>
                             <button class="btn" onclick="openToolModal()" style="margin-left: auto;">+ 添加工具</button>
                         </div>
@@ -70,11 +70,11 @@
                                         <td>{$t->id}</td>
                                         <td>
                                             <span
-                                                if="!isset($t->icon) || $t->icon == '' || (!$t->icon->startsWith('http://') && !$t->icon->startsWith('https://'))">{$t->icon
+                                                if="!isset($t->icon) || $t->icon == '' || (!$t->icon->startsWith('http://') && !$t->icon->startsWith('https://') && !$t->icon->startsWith('/'))">{$t->icon
                                                 ?? "🔗"}</span>
                                             <img :src="{$t->icon}" :alt="{$t->name}"
                                                 style="width: 20px; height: 20px; object-fit: contain; vertical-align: middle;"
-                                                if="isset($t->icon) && $t->icon != '' && ($t->icon->startsWith('http://') || $t->icon->startsWith('https://'))">
+                                                if="isset($t->icon) && $t->icon != '' && ($t->icon->startsWith('http://') || $t->icon->startsWith('https://') || $t->icon->startsWith('/'))">
                                         </td>
                                         <td>{$t->name}</td>
                                         <td>{$t->category ?? "-"}</td>
@@ -101,7 +101,7 @@
                 <div class="tab-content" id="projectsTab">
                     <section class="quick-access">
                         <div class="section-title">
-                            <span class="title-icon">🚀</span>
+                            <img src="/assets/icons/project.png" alt="项目" class="title-icon">
                             <h3>项目管理</h3>
                             <button class="btn" onclick="openProjectModal()" style="margin-left: auto;">+ 添加项目</button>
                         </div>
@@ -143,7 +143,7 @@
                 <div class="tab-content" id="searchEnginesTab">
                     <section class="quick-access">
                         <div class="section-title">
-                            <span class="title-icon">🔍</span>
+                            <img src="/assets/icons/search.png" alt="搜索" class="title-icon">
                             <h3>搜索引擎管理</h3>
                             <button class="btn" onclick="openSearchEngineModal()" style="margin-left: auto;">+
                                 添加搜索引擎</button>
@@ -307,11 +307,11 @@
                                     <input type="checkbox" :value="{$tool->id}" :id="@{'tool_' + $tool->id}"
                                         :onchange="@{'toggleProjectTool(' + $tool->id + ', this.checked)'}">
                                     <span
-                                        if="!isset($tool->icon) || $tool->icon == '' || (!$tool->icon->startsWith('http://') && !$tool->icon->startsWith('https://'))">{$tool->icon
+                                        if="!isset($tool->icon) || $tool->icon == '' || (!$tool->icon->startsWith('http://') && !$tool->icon->startsWith('https://') && !$tool->icon->startsWith('/'))">{$tool->icon
                                         ?? "🔗"}</span>
                                     <img :src="{$tool->icon}" :alt="{$tool->name}"
                                         style="width: 16px; height: 16px; object-fit: contain;"
-                                        if="isset($tool->icon) && $tool->icon != '' && ($tool->icon->startsWith('http://') || $tool->icon->startsWith('https://'))">
+                                        if="isset($tool->icon) && $tool->icon != '' && ($tool->icon->startsWith('http://') || $tool->icon->startsWith('https://') || $tool->icon->startsWith('/'))">
                                     <span>{$tool->name}</span>
                                     <span style="color: var(--text-muted); font-size: 0.85rem;"
                                         if="$tool->category != null">({$tool->category})</span>

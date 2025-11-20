@@ -24,22 +24,22 @@
             <div class="header-content">
                 <div class="header-left">
                     <a href="https://chat.openai.com" target="_blank" class="header-btn" title="ChatGPT">
-                        <img src="https://api.iconify.design/logos/openai-icon.svg" alt="ChatGPT"
+                        <img src="/assets/icons/chatgpt.png" alt="ChatGPT"
                             style="width: 16px; height: 16px; vertical-align: middle;">
                         <span>ChatGPT</span>
                     </a>
                     <a href="https://claude.ai" target="_blank" class="header-btn" title="Claude">
-                        <img src="https://www.google.com/s2/favicons?domain=claude.ai&sz=32" alt="Claude"
+                        <img src="/assets/icons/claude.png" alt="Claude"
                             style="width: 16px; height: 16px; vertical-align: middle;">
                         <span>Claude</span>
                     </a>
                     <a href="https://www.perplexity.ai" target="_blank" class="header-btn" title="Perplexity">
-                        <img src="https://api.iconify.design/mdi/robot.svg" alt="Perplexity"
+                        <img src="/assets/icons/perplexity.png" alt="Perplexity"
                             style="width: 16px; height: 16px; vertical-align: middle;">
                         <span>Perplexity</span>
                     </a>
                     <a href="https://www.kimi.moonshot.cn" target="_blank" class="header-btn" title="Kimi">
-                        <img src="https://api.iconify.design/mdi/moon-waxing-crescent.svg" alt="Kimi"
+                        <img src="/assets/icons/kimi.png" alt="Kimi"
                             style="width: 16px; height: 16px; vertical-align: middle;">
                         <span>Kimi</span>
                     </a>
@@ -59,7 +59,7 @@
                         <span>豆包</span>
                     </a>
                     <a href="https://chat.deepseek.com/" target="_blank" class="header-btn" title="deepseek">
-                        <img src="https://cdn.deepseek.com/chat/icon.png" alt="deepseek"
+                        <img src="/assets/icons/deepseek.png" alt="deepseek"
                             style="width: 16px; height: 16px; vertical-align: middle;">
                         <span>Deepseek</span>
                     </a>
@@ -113,11 +113,11 @@
                     <div class="favorite-links" id="favoriteLinks">
                         <a :href="{$f->url}" target="_blank" class="favorite-link" for="$f in $favoriteTools">
                             <span class="favorite-link-icon"
-                                if="!isset($f->icon) || $f->icon == '' || (!$f->icon->startsWith('http://') && !$f->icon->startsWith('https://'))">{$f->icon
+                                if="!isset($f->icon) || $f->icon == '' || (!$f->icon->startsWith('http://') && !$f->icon->startsWith('https://') && !$f->icon->startsWith('/'))">{$f->icon
                                 ?? "🔗"}</span>
                             <img class="favorite-link-icon" :src="{$f->icon}" :alt="{$f->name}"
                                 style="width: 20px; height: 20px; object-fit: contain;"
-                                if="isset($f->icon) && $f->icon != '' && ($f->icon->startsWith('http://') || $f->icon->startsWith('https://'))">
+                                if="isset($f->icon) && $f->icon != '' && ($f->icon->startsWith('http://') || $f->icon->startsWith('https://') || $f->icon->startsWith('/'))">
                             <span>{$f->name}</span>
                         </a>
                     </div>
@@ -160,11 +160,11 @@
                                         <a class="tool-tag-modern" :href="{$t->url}" target="_blank" :title="{$t->name}"
                                             for="$t in $p->tools">
                                             <span class="tool-tag-icon-modern"
-                                                if="!isset($t->icon) || $t->icon == '' || (!$t->icon->startsWith('http://') && !$t->icon->startsWith('https://'))">{$t->icon
+                                                if="!isset($t->icon) || $t->icon == '' || (!$t->icon->startsWith('http://') && !$t->icon->startsWith('https://') && !$t->icon->startsWith('/'))">{$t->icon
                                                 ?? "🔗"}</span>
                                             <img class="tool-tag-icon-modern" :src="{$t->icon}" :alt="{$t->name}"
                                                 style="width: 16px; height: 16px; object-fit: contain;"
-                                                if="isset($t->icon) && $t->icon != '' && ($t->icon->startsWith('http://') || $t->icon->startsWith('https://'))">
+                                                if="isset($t->icon) && $t->icon != '' && ($t->icon->startsWith('http://') || $t->icon->startsWith('https://') || $t->icon->startsWith('/'))">
                                             <span class="tool-tag-name">{$t->name}</span>
                                         </a>
                                     </div>
@@ -196,17 +196,17 @@
                 <!-- 工具快捷访问 -->
                 <section class="quick-access" id="toolsSection">
                     <div class="section-title">
-                        <img src="https://api.iconify.design/mdi/tools.svg" alt="工具" class="title-icon">
+                        <img src="/assets/icons/tools.png" alt="工具" class="title-icon">
                         <h3>工具</h3>
                     </div>
                     <div class="quick-links tools-grid" id="toolsGrid">
                         <a class="tool-card" :href="{$t->url}" target="_blank" for="$t in $tools">
                             <div class="tool-icon"
-                                if="!isset($t->icon) || $t->icon == '' || (!$t->icon->startsWith('http://') && !$t->icon->startsWith('https://'))">
+                                if="!isset($t->icon) || $t->icon == '' || (!$t->icon->startsWith('http://') && !$t->icon->startsWith('https://') && !$t->icon->startsWith('/'))">
                                 {$t->icon ?? "🔗"}</div>
                             <img class="tool-icon" :src="{$t->icon}" :alt="{$t->name}"
                                 style="width: 32px; height: 32px; object-fit: contain;"
-                                if="isset($t->icon) && $t->icon != '' && ($t->icon->startsWith('http://') || $t->icon->startsWith('https://'))">
+                                if="isset($t->icon) && $t->icon != '' && ($t->icon->startsWith('http://') || $t->icon->startsWith('https://') || $t->icon->startsWith('/'))">
                             <div class="tool-name">{$t->name}</div>
                         </a>
                     </div>

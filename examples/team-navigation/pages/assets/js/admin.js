@@ -55,13 +55,17 @@ function renderToolsTable() {
       </thead>
       <tbody>
         ${toolsArray
-          .map(
-            (tool) => {
-              const isImageIcon = tool.icon && (tool.icon.startsWith('http://') || tool.icon.startsWith('https://'));
-              const iconDisplay = isImageIcon 
-                ? `<img src="${tool.icon}" alt="${tool.name}" style="width: 20px; height: 20px; object-fit: contain; vertical-align: middle;">`
-                : (tool.icon || "🔗");
-              return `
+          .map((tool) => {
+            const isImageIcon =
+              tool.icon &&
+              (tool.icon.startsWith("http://") ||
+                tool.icon.startsWith("https://") ||
+                tool.icon.startsWith("/") ||
+                /\.(png|jpg|jpeg|gif|svg|webp|ico)$/i.test(tool.icon));
+            const iconDisplay = isImageIcon
+              ? `<img src="${tool.icon}" alt="${tool.name}" style="width: 20px; height: 20px; object-fit: contain; vertical-align: middle;">`
+              : tool.icon || "🔗";
+            return `
           <tr>
             <td>${tool.id}</td>
             <td>${iconDisplay}</td>
@@ -85,8 +89,8 @@ function renderToolsTable() {
               </div>
             </td>
           </tr>
-        `
-          )
+        `;
+          })
           .join("")}
       </tbody>
     </table>
@@ -345,13 +349,17 @@ function renderProjectTools() {
   const projectToolsArray = Array.isArray(projectTools) ? projectTools : [];
 
   container.innerHTML = toolsArray
-    .map(
-      (tool) => {
-        const isImageIcon = tool.icon && (tool.icon.startsWith('http://') || tool.icon.startsWith('https://'));
-        const iconDisplay = isImageIcon 
-          ? `<img src="${tool.icon}" alt="${tool.name}" style="width: 16px; height: 16px; object-fit: contain; vertical-align: middle;">`
-          : (tool.icon || "🔗");
-        return `
+    .map((tool) => {
+      const isImageIcon =
+        tool.icon &&
+        (tool.icon.startsWith("http://") ||
+          tool.icon.startsWith("https://") ||
+          tool.icon.startsWith("/") ||
+          /\.(png|jpg|jpeg|gif|svg|webp|ico)$/i.test(tool.icon));
+      const iconDisplay = isImageIcon
+        ? `<img src="${tool.icon}" alt="${tool.name}" style="width: 16px; height: 16px; object-fit: contain; vertical-align: middle;">`
+        : tool.icon || "🔗";
+      return `
     <label style="display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 4px; cursor: pointer; transition: background 0.2s;" 
            onmouseover="this.style.background='var(--bg-hover)'" 
            onmouseout="this.style.background='transparent'">
@@ -367,8 +375,7 @@ function renderProjectTools() {
       }
     </label>
   `;
-      }
-    )
+    })
     .join("");
 }
 
