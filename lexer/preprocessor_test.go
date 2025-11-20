@@ -181,13 +181,13 @@ func TestPreprocessor_Process(t *testing.T) {
 			if len(got) != len(tt.expected) {
 				t.Errorf("Process() 返回的token数量 = %v, 期望 %v", len(got), len(tt.expected))
 				t.Log("实际返回的tokens:")
-				for i, token := range got {
-					t.Logf("  [%d] Type: %v, Literal: %q", i, token.Type(), token.Literal())
+				for i, kk := range got {
+					t.Logf("  [%d] Type: %v, Literal: %q", i, kk.Type(), kk.Literal())
 				}
 				t.Log("期望的tokens:")
-				for i, token := range tt.expected {
-					if token != nil {
-						t.Logf("  [%d] Type: %v, Literal: %q", i, token.Type(), token.Literal())
+				for i, kk := range tt.expected {
+					if kk != nil {
+						t.Logf("  [%d] Type: %v, Literal: %q", i, kk.Type(), kk.Literal())
 					}
 				}
 				return
