@@ -21,7 +21,10 @@ func (d *DbFirstMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 构建查询语句（支持注解处理）
-	query := d.source.buildQueryWithContext(ctx)
+	query, ctl := d.source.buildQueryWithContext(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
 	if d.source.limit == 0 {
 		query += " LIMIT 1"
 	}

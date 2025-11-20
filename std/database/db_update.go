@@ -27,7 +27,10 @@ func (d *DbUpdateMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 构建更新语句
-	tableName := d.source.getTableNameWithContext(ctx)
+	tableName, ctl := d.source.getTableNameWithContext(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
 
 	// 处理更新数据
 	var updateData map[string]interface{}

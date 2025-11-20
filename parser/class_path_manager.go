@@ -178,14 +178,22 @@ func (m *DefaultClassPathManager) FindClassFile(className string) (string, bool)
 func (m *DefaultClassPathManager) searchInPath(basePath, className string) (string, bool) {
 	// 构造可能的文件名
 	possibleFiles := []string{
-		filepath.Join(basePath, className+".php"),
-		filepath.Join(basePath, className+".zy"),
+		className + ".zy",
+		className + ".php",
 	}
 
-	// 尝试查找文件
-	for _, filePath := range possibleFiles {
+	// 首先尝试精确匹配
+	for _, fileName := range possibleFiles {
+		filePath := filepath.Join(basePath, fileName)
 		if _, err := os.Stat(filePath); err == nil {
 			return filePath, true
+		}
+	}
+
+	// 如果精确匹配失败，尝试大小写不敏感的匹配（用于跨平台兼容）
+	for _, fileName := range possibleFiles {
+		if foundPath := m.findFileCaseInsensitive(basePath, fileName); foundPath != "" {
+			return foundPath, true
 		}
 	}
 
@@ -242,6 +250,18 @@ func (m *DefaultClassPathManager) findNamespaceNode(namespace string) *Namespace
 					found = true
 					continue
 				}
+				// 如果精确匹配失败，尝试大小写不敏感的匹配（用于跨平台兼容）
+				if foundDir := m.findDirectoryCaseInsensitive(path, part); foundDir != "" {
+					child := &NamespaceNode{
+						namespace: part,
+						paths:     []string{foundDir},
+						children:  make(map[string]*NamespaceNode),
+					}
+					current.children[part] = child
+					current = child
+					found = true
+					continue
+				}
 			}
 			if !found {
 				return nil
@@ -250,6 +270,50 @@ func (m *DefaultClassPathManager) findNamespaceNode(namespace string) *Namespace
 	}
 
 	return current
+}
+
+// findDirectoryCaseInsensitive 在指定路径下大小写不敏感地查找目录
+func (m *DefaultClassPathManager) findDirectoryCaseInsensitive(basePath, dirName string) string {
+	// 读取目录内容
+	entries, err := os.ReadDir(basePath)
+	if err != nil {
+		return ""
+	}
+
+	// 转换为小写进行比较
+	lowerDirName := strings.ToLower(dirName)
+	for _, entry := range entries {
+		if entry.IsDir() && strings.ToLower(entry.Name()) == lowerDirName {
+			foundPath := filepath.Join(basePath, entry.Name())
+			if info, err := os.Stat(foundPath); err == nil && info.IsDir() {
+				return foundPath
+			}
+		}
+	}
+
+	return ""
+}
+
+// findFileCaseInsensitive 在指定路径下大小写不敏感地查找文件
+func (m *DefaultClassPathManager) findFileCaseInsensitive(basePath, fileName string) string {
+	// 读取目录内容
+	entries, err := os.ReadDir(basePath)
+	if err != nil {
+		return ""
+	}
+
+	// 转换为小写进行比较
+	lowerFileName := strings.ToLower(fileName)
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.ToLower(entry.Name()) == lowerFileName {
+			foundPath := filepath.Join(basePath, entry.Name())
+			if info, err := os.Stat(foundPath); err == nil && !info.IsDir() {
+				return foundPath
+			}
+		}
+	}
+
+	return ""
 }
 
 // LoadClass 加载类

@@ -20,7 +20,10 @@ func (d *DbDeleteMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 构建删除语句
-	tableName := d.source.getTableNameWithContext(ctx)
+	tableName, ctl := d.source.getTableNameWithContext(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
 
 	// 构建 WHERE 子句
 	whereClause := ""

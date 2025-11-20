@@ -20,7 +20,10 @@ func (d *DbGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 构建查询语句（支持注解处理）
-	query := d.source.buildQueryWithContext(ctx)
+	query, ctl := d.source.buildQueryWithContext(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
 
 	// 转换参数类型
 	args := make([]interface{}, len(d.source.whereArgs))

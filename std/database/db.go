@@ -7,6 +7,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 func newDB(genericMap map[string]data.Types) *db {
@@ -206,7 +207,7 @@ func (d *db) buildQuery() string {
 }
 
 // buildQueryWithContext 构建查询语句，支持注解处理
-func (d *db) buildQueryWithContext(ctx data.Context) string {
+func (d *db) buildQueryWithContext(ctx data.Context) (string, data.Control) {
 	query := "SELECT "
 
 	// 选择字段
@@ -222,10 +223,13 @@ func (d *db) buildQueryWithContext(ctx data.Context) string {
 	}
 
 	// 表名
-	tableName := d.getTableNameWithContext(ctx)
+	tableName, ctl := d.getTableNameWithContext(ctx)
+	if ctl != nil {
+		return "", ctl
+	}
 	if tableName == "" {
-		// 如果没有表名，抛出错误
-		return ""
+		// 如果没有表名，返回错误
+		return "", utils.NewThrowf("无法确定表名")
 	}
 	query += " FROM " + tableName
 
@@ -257,7 +261,7 @@ func (d *db) buildQueryWithContext(ctx data.Context) string {
 		}
 	}
 
-	return query
+	return query, nil
 }
 
 // getTableName 获取表名，优先使用显式设置的表名，否则从注解中获取
@@ -284,10 +288,11 @@ func (d *db) getTableName() string {
 }
 
 // getTableNameWithContext 获取表名，支持注解处理（需要 Context）
-func (d *db) getTableNameWithContext(ctx data.Context) string {
+// 返回: (表名, 错误控制)
+func (d *db) getTableNameWithContext(ctx data.Context) (string, data.Control) {
 	// 如果显式设置了表名，使用它
 	if d.tableName != "" {
-		return d.tableName
+		return d.tableName, nil
 	}
 
 	// 尝试从模型类型的注解中获取表名
@@ -297,19 +302,23 @@ func (d *db) getTableNameWithContext(ctx data.Context) string {
 			className := classType.Name
 			if className != "" {
 				// 首先尝试从注解获取表名
-				tableName := d.getTableNameFromAnnotation(classType, ctx)
+				tableName, classLoadFailed := d.getTableNameFromAnnotation(classType, ctx)
+				if classLoadFailed {
+					// 类加载失败，返回错误
+					return "", utils.NewThrowf("类 %s 不存在或无法加载，无法获取表名", className)
+				}
 				if tableName != "" {
-					return tableName
+					return tableName, nil
 				}
 
 				// 如果没有注解，使用类名转换
-				return d.convertClassNameToTableName(className)
+				return d.convertClassNameToTableName(className), nil
 			}
 		}
 	}
 
 	// 如果没有模型类型，返回空字符串
-	return ""
+	return "", nil
 }
 
 // convertClassNameToTableName 将类名转换为表名
@@ -330,17 +339,19 @@ func (d *db) convertClassNameToTableName(className string) string {
 }
 
 // getTableNameFromAnnotation 从类定义中获取 @Table 注解的表名
-func (d *db) getTableNameFromAnnotation(classType data.Class, ctx data.Context) string {
+// 返回: (表名, 类加载是否失败)
+func (d *db) getTableNameFromAnnotation(classType data.Class, ctx data.Context) (string, bool) {
 	// 获取 VM 实例来查找类定义
 	vm := ctx.GetVM()
 	if vm == nil {
-		return ""
+		return "", false
 	}
 
 	// 根据类名获取类定义
 	classStmt, acl := vm.GetOrLoadClass(classType.Name)
 	if acl != nil || classStmt == nil {
-		return ""
+		// 类加载失败，返回 true 表示加载失败
+		return "", true
 	}
 
 	// 检查类是否有 @Table 注解
@@ -362,7 +373,7 @@ func (d *db) getTableNameFromAnnotation(classType data.Class, ctx data.Context) 
 					// 查找 name 属性（Table 注解的第一个参数）
 					if nameValue, exists := annotationProps["name"]; exists {
 						if nameStr, ok := nameValue.(data.AsString); ok {
-							return nameStr.AsString()
+							return nameStr.AsString(), false
 						}
 					}
 
@@ -371,7 +382,7 @@ func (d *db) getTableNameFromAnnotation(classType data.Class, ctx data.Context) 
 						if propName != "name" && propValue != nil {
 							if nameStr, ok := propValue.(data.AsString); ok {
 								// 如果找到字符串值，可能是表名
-								return nameStr.AsString()
+								return nameStr.AsString(), false
 							}
 						}
 					}
@@ -380,8 +391,8 @@ func (d *db) getTableNameFromAnnotation(classType data.Class, ctx data.Context) 
 		}
 	}
 
-	// 如果没有找到 @Table 注解，返回空字符串
-	return ""
+	// 如果没有找到 @Table 注解，返回空字符串，false 表示类加载成功但没有注解
+	return "", false
 }
 
 // getColumnName 获取数据库列名，支持注解映射（通用方法）
