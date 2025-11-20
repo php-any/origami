@@ -198,26 +198,7 @@ func handleNumber(input string, start int) (SpecialToken, int, bool) {
 		}, pos, true
 	}
 
-	// 3. 检查是否是八进制
-	if len(literal) > 1 && literal[0] == '0' {
-		// 验证八进制格式
-		for i := 1; i < len(literal); i++ {
-			if literal[i] < '0' || literal[i] > '7' {
-				return SpecialToken{
-					Type:    token.NUMBER,
-					Literal: literal,
-					Length:  pos - start,
-				}, pos, true
-			}
-		}
-		return SpecialToken{
-			Type:    token.NUMBER,
-			Literal: literal,
-			Length:  pos - start,
-		}, pos, true
-	}
-
-	// 4. 检查是否是浮点数或整数
+	// 3. 检查是否是浮点数或整数（先检查是否有小数点，避免将 0.0 误判为八进制）
 	hasDot := false
 	hasExp := false
 	for i := 0; i < len(literal); i++ {
@@ -262,13 +243,37 @@ func handleNumber(input string, start int) (SpecialToken, int, bool) {
 		}, pos, true
 	}
 
-	tokenType := token.INT
+	// 4. 如果包含小数点，返回 FLOAT 类型
 	if hasDot {
-		tokenType = token.FLOAT
+		return SpecialToken{
+			Type:    token.FLOAT,
+			Literal: literal,
+			Length:  pos - start,
+		}, pos, true
 	}
 
+	// 5. 检查是否是八进制（只有在没有小数点的情况下才检查）
+	if len(literal) > 1 && literal[0] == '0' {
+		// 验证八进制格式
+		for i := 1; i < len(literal); i++ {
+			if literal[i] < '0' || literal[i] > '7' {
+				return SpecialToken{
+					Type:    token.NUMBER,
+					Literal: literal,
+					Length:  pos - start,
+				}, pos, true
+			}
+		}
+		return SpecialToken{
+			Type:    token.NUMBER,
+			Literal: literal,
+			Length:  pos - start,
+		}, pos, true
+	}
+
+	// 6. 默认返回整数类型
 	return SpecialToken{
-		Type:    tokenType,
+		Type:    token.INT,
 		Literal: literal,
 		Length:  pos - start,
 	}, pos, true

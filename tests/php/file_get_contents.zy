@@ -1,0 +1,67 @@
+<?php
+
+echo "=== file_get_contents() 函数测试 ===\n";
+
+// 测试读取存在的文件
+try {
+    $content = file_get_contents("origami.go");
+    if(gettype($content) == "string") {
+        Log::info("读取文件返回字符串测试通过");
+    } else {
+        Log::fatal("读取文件返回字符串测试失败，类型: " . gettype($content));
+    }
+    
+    if($content->length > 0) {
+        Log::info("读取文件内容非空测试通过");
+    } else {
+        Log::fatal("读取文件内容非空测试失败");
+    }
+    
+    // 检查是否包含预期的内容
+    if($content->indexOf("package main") >= 0) {
+        Log::info("读取文件包含预期内容测试通过");
+    } else {
+        Log::fatal("读取文件包含预期内容测试失败");
+    }
+} catch (Exception $e) {
+    Log::fatal("读取文件测试失败，错误: " . $e->getMessage());
+}
+
+// 测试读取测试文件
+try {
+    $content = file_get_contents("tests/php/isset.zy");
+    if(gettype($content) == "string" && $content->length > 0) {
+        Log::info("读取测试文件测试通过");
+    } else {
+        Log::fatal("读取测试文件测试失败");
+    }
+} catch (Exception $e) {
+    Log::fatal("读取测试文件测试失败，错误: " . $e->getMessage());
+}
+
+// 测试读取不存在的文件（应该抛出异常）
+try {
+    $content = file_get_contents("non_existent_file_12345.txt");
+    Log::fatal("读取不存在的文件应该抛出异常");
+} catch (Exception $e) {
+    Log::info("读取不存在的文件抛出异常测试通过");
+}
+
+// 测试空字符串路径（应该抛出异常）
+try {
+    $content = file_get_contents("");
+    Log::fatal("空字符串路径应该抛出异常");
+} catch (Exception $e) {
+    Log::info("空字符串路径抛出异常测试通过");
+}
+
+// 测试读取目录（应该抛出异常）
+try {
+    $content = file_get_contents("tests");
+    Log::fatal("读取目录应该抛出异常");
+} catch (Exception $e) {
+    Log::info("读取目录抛出异常测试通过");
+}
+
+echo "=== file_get_contents() 测试完成 ===\n";
+

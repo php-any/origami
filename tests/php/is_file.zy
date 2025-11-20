@@ -1,0 +1,48 @@
+<?php
+
+echo "=== is_file() 函数测试 ===\n";
+
+// 测试存在的文件
+if(is_file("origami.go")) {
+    Log::info("存在的文件测试通过");
+} else {
+    Log::fatal("存在的文件测试失败");
+}
+
+// 测试不存在的文件
+if(!is_file("non_existent_file_12345.txt")) {
+    Log::info("不存在的文件测试通过");
+} else {
+    Log::fatal("不存在的文件测试失败");
+}
+
+// 测试目录（应该返回 false）
+if(!is_file("tests")) {
+    Log::info("目录测试通过（目录不是文件）");
+} else {
+    Log::fatal("目录测试失败（目录被识别为文件）");
+}
+
+// 测试空字符串
+if(!is_file("")) {
+    Log::info("空字符串路径测试通过");
+} else {
+    Log::fatal("空字符串路径测试失败");
+}
+
+// 测试当前目录下的测试文件
+if(is_file("tests/php/isset.zy")) {
+    Log::info("测试目录下的文件测试通过");
+} else {
+    Log::fatal("测试目录下的文件测试失败");
+}
+
+// 测试相对路径
+if(is_file("./origami.go")) {
+    Log::info("相对路径测试通过");
+} else {
+    Log::fatal("相对路径测试失败");
+}
+
+echo "=== is_file() 测试完成 ===\n";
+

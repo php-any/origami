@@ -1,0 +1,63 @@
+<?php
+
+echo "=== function_exists() 函数测试 ===\n";
+
+// 测试存在的 PHP 函数
+if(function_exists("isset")) {
+    Log::info("isset 函数存在测试通过");
+} else {
+    Log::fatal("isset 函数存在测试失败");
+}
+
+if(function_exists("gettype")) {
+    Log::info("gettype 函数存在测试通过");
+} else {
+    Log::fatal("gettype 函数存在测试失败");
+}
+
+if(function_exists("function_exists")) {
+    Log::info("function_exists 函数存在测试通过");
+} else {
+    Log::fatal("function_exists 函数存在测试失败");
+}
+
+if(function_exists("time")) {
+    Log::info("time 函数存在测试通过");
+} else {
+    Log::fatal("time 函数存在测试失败");
+}
+
+if(function_exists("json_encode")) {
+    Log::info("json_encode 函数存在测试通过");
+} else {
+    Log::fatal("json_encode 函数存在测试失败");
+}
+
+if(function_exists("json_decode")) {
+    Log::info("json_decode 函数存在测试通过");
+} else {
+    Log::fatal("json_decode 函数存在测试失败");
+}
+
+// 测试不存在的函数
+if(!function_exists("non_existent_function_12345")) {
+    Log::info("不存在的函数测试通过");
+} else {
+    Log::fatal("不存在的函数测试失败");
+}
+
+if(!function_exists("another_fake_function")) {
+    Log::info("另一个不存在的函数测试通过");
+} else {
+    Log::fatal("另一个不存在的函数测试失败");
+}
+
+// 测试空字符串
+if(!function_exists("")) {
+    Log::info("空字符串函数名测试通过");
+} else {
+    Log::fatal("空字符串函数名测试失败");
+}
+
+echo "=== function_exists() 测试完成 ===\n";
+

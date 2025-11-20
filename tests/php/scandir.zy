@@ -1,0 +1,66 @@
+<?php
+
+echo "=== scandir() 函数测试 ===\n";
+
+// 测试扫描存在的目录
+try {
+    $files = scandir("tests/php");
+    if(gettype($files) == "array") {
+        Log::info("扫描目录返回数组测试通过");
+    } else {
+        Log::fatal("扫描目录返回数组测试失败，类型: " . gettype($files));
+    }
+    
+    if($files->length > 0) {
+        Log::info("扫描目录返回非空数组测试通过");
+    } else {
+        Log::fatal("扫描目录返回非空数组测试失败");
+    }
+    
+    // 检查是否包含已知文件
+    $hasIsset = false;
+    for(_, $file in $files) {
+        if($file == "isset.zy") {
+            $hasIsset = true;
+            break;
+        }
+    }
+    if($hasIsset) {
+        Log::info("扫描目录包含已知文件测试通过");
+    } else {
+        Log::fatal("扫描目录包含已知文件测试失败");
+    }
+} catch (Exception $e) {
+    Log::fatal("扫描目录测试失败，错误: " . $e->getMessage());
+}
+
+// 测试扫描当前目录
+try {
+    $files = scandir(".");
+    if(gettype($files) == "array" && $files->length > 0) {
+        Log::info("扫描当前目录测试通过");
+    } else {
+        Log::fatal("扫描当前目录测试失败");
+    }
+} catch (Exception $e) {
+    Log::fatal("扫描当前目录测试失败，错误: " . $e->getMessage());
+}
+
+// 测试扫描不存在的目录（应该抛出异常）
+try {
+    $files = scandir("non_existent_directory_12345");
+    Log::fatal("扫描不存在的目录应该抛出异常");
+} catch (Exception $e) {
+    Log::info("扫描不存在的目录抛出异常测试通过");
+}
+
+// 测试空字符串路径（应该抛出异常）
+try {
+    $files = scandir("");
+    Log::fatal("空字符串路径应该抛出异常");
+} catch (Exception $e) {
+    Log::info("空字符串路径抛出异常测试通过");
+}
+
+echo "=== scandir() 测试完成 ===\n";
+

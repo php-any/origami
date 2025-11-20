@@ -1,0 +1,55 @@
+<?php
+
+echo "=== is_dir() 函数测试 ===\n";
+
+// 测试存在的目录
+if(is_dir("tests")) {
+    Log::info("存在的目录测试通过");
+} else {
+    Log::fatal("存在的目录测试失败");
+}
+
+// 测试不存在的目录
+if(!is_dir("non_existent_directory_12345")) {
+    Log::info("不存在的目录测试通过");
+} else {
+    Log::fatal("不存在的目录测试失败");
+}
+
+// 测试文件（应该返回 false）
+if(!is_dir("origami.go")) {
+    Log::info("文件测试通过（文件不是目录）");
+} else {
+    Log::fatal("文件测试失败（文件被识别为目录）");
+}
+
+// 测试空字符串
+if(!is_dir("")) {
+    Log::info("空字符串路径测试通过");
+} else {
+    Log::fatal("空字符串路径测试失败");
+}
+
+// 测试嵌套目录
+if(is_dir("tests/php")) {
+    Log::info("嵌套目录测试通过");
+} else {
+    Log::fatal("嵌套目录测试失败");
+}
+
+// 测试相对路径
+if(is_dir("./tests")) {
+    Log::info("相对路径测试通过");
+} else {
+    Log::fatal("相对路径测试失败");
+}
+
+// 测试当前目录
+if(is_dir(".")) {
+    Log::info("当前目录测试通过");
+} else {
+    Log::fatal("当前目录测试失败");
+}
+
+echo "=== is_dir() 测试完成 ===\n";
+

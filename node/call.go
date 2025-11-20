@@ -107,6 +107,13 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 					if acl != nil {
 						return nil, acl
 					}
+				case *IndexExpression:
+					// 支持数组元素访问作为引用参数
+					// 将 IndexExpression 作为 GetValue 传递
+					acl := argObj.SetValue(fnCtx, data.NewIndexReferenceValue(paramTV, ctx))
+					if acl != nil {
+						return nil, acl
+					}
 				case data.Variable:
 					acl := argObj.SetValue(fnCtx, data.NewReferenceValue(paramTV, ctx))
 					if acl != nil {

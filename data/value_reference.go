@@ -15,18 +15,42 @@ func NewReferenceValue(v Variable, ctx Context) Value {
 	}
 }
 
+func NewIndexReferenceValue(expr GetValue, ctx Context) Value {
+	return &IndexReferenceValue{
+		Expr: expr,
+		Ctx:  ctx,
+	}
+}
+
 type ReferenceValue struct {
 	Val Variable
 	Ctx Context
+}
+
+type IndexReferenceValue struct {
+	Expr GetValue
+	Ctx  Context
 }
 
 func (s *ReferenceValue) GetValue(ctx Context) (GetValue, Control) {
 	return s, nil
 }
 
+func (s *IndexReferenceValue) GetValue(ctx Context) (GetValue, Control) {
+	return s, nil
+}
+
 func (s *ReferenceValue) AsString() string {
 	v, _ := s.Val.GetValue(s.Ctx)
 	return v.(Value).AsString()
+}
+
+func (s *IndexReferenceValue) AsString() string {
+	v, _ := s.Expr.GetValue(s.Ctx)
+	if val, ok := v.(Value); ok {
+		return val.AsString()
+	}
+	return ""
 }
 
 func (s *ReferenceValue) Marshal(serializer Serializer) ([]byte, error) {

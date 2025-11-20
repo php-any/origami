@@ -26,6 +26,13 @@ func (f *FloatFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		if i, err := tv.AsInt(); err == nil {
 			return data.NewFloatValue(float64(i)), nil
 		}
+	case data.AsBool:
+		if b, err := tv.AsBool(); err == nil {
+			if b {
+				return data.NewFloatValue(1.0), nil
+			}
+			return data.NewFloatValue(0.0), nil
+		}
 	case data.AsString:
 		if f64, err := strconv.ParseFloat(tv.AsString(), 64); err == nil {
 			return data.NewFloatValue(f64), nil
