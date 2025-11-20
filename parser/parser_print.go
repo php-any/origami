@@ -33,7 +33,7 @@ func (p *Parser) printDetailedError(err string, from data.From) {
 
 	// 当前 token 信息
 	currentToken := p.current()
-	_, _ = fmt.Fprintf(os.Stderr, "🔍 当前 Token: %s (类型: %d)\n", currentToken.Literal, currentToken.Type)
+	_, _ = fmt.Fprintf(os.Stderr, "🔍 当前 Token: %s (类型: %d)\n", currentToken.Literal(), currentToken.Type())
 
 	// 显示错误消息
 	_, _ = fmt.Fprintf(os.Stderr, "❌ 错误: %s\n", err)
@@ -77,19 +77,19 @@ func (p *Parser) printContext() {
 	for i := 3; i > 0; i-- {
 		if p.position-i >= 0 {
 			token := p.tokens[p.position-i]
-			_, _ = fmt.Fprintf(os.Stderr, "%s ", token.Literal)
+			_, _ = fmt.Fprintf(os.Stderr, "%s ", token.Literal())
 		}
 	}
 
 	// 显示当前token（高亮）
-	_, _ = fmt.Fprintf(os.Stderr, "\n   👉 当前: [%s] ", p.current().Literal)
+	_, _ = fmt.Fprintf(os.Stderr, "\n   👉 当前: [%s] ", p.current().Literal())
 
 	// 显示后3个token
 	_, _ = fmt.Fprint(os.Stderr, "\n   后文: ")
 	for i := 1; i <= 3; i++ {
 		if p.position+i < len(p.tokens) {
 			token := p.tokens[p.position+i]
-			_, _ = fmt.Fprintf(os.Stderr, "%s ", token.Literal)
+			_, _ = fmt.Fprintf(os.Stderr, "%s ", token.Literal())
 		}
 	}
 	_, _ = fmt.Fprintln(os.Stderr)

@@ -1,28 +1,31 @@
-version: '3.8'
-
 services:
   team-navigation:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: alpine:latest
     container_name: team-navigation
     restart: unless-stopped
+    working_dir: /app
     ports:
       - "8080:8080"
     volumes:
+      # 挂载本地构建的二进制文件到临时位置（需要先运行 build-linux.bat 构建）
+      - ./team-navigation-linux-amd64:/tmp/team-navigation-bin:ro
+      # 挂载源代码和资源文件
+      - ./src:/app/src:ro
+      - ./pages:/app/pages:ro
+      - ./http.zy:/app/http.zy:ro
+      - ./database:/app/database:ro
       # 持久化数据库文件
-      - ./data/team_navigation.db:/app/team_navigation.db
-      # 如果需要热更新代码，可以挂载源代码（生产环境不建议）
-      # - ./src:/app/src:ro
-      # - ./pages:/app/pages:ro
+      - ./data:/app/data
+    # 安装 wget，复制二进制文件到可写位置并设置权限，然后运行
+    command: >
+      sh -c "
+        apk add --no-cache wget &&
+        cp /tmp/team-navigation-bin /app/team-navigation &&
+        chmod +x /app/team-navigation &&
+        /app/team-navigation
+      "
     environment:
       - TZ=Asia/Shanghai
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
     networks:
       - team-navigation-network
 
