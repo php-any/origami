@@ -260,7 +260,19 @@
 
 .section-title .title-icon {
   font-size: 1.5rem;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+  filter: drop-shadow(0 2px 4px rgba(99, 102, 241, 0.2));
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-block;
+}
+
+.section-title .title-icon img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.section-title:hover .title-icon {
+  transform: scale(1.1) rotate(5deg);
 }
 
 .section-title .btn {

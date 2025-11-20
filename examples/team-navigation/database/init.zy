@@ -129,26 +129,26 @@ function initSampleData($db, $dbExists) {
     if (!$dbExists || $toolCount == 0) {
         Log::info("初始化示例工具链接数据...");
         $initTools = [
-            ["GitLab", "https://gitlab.com", "🔗", "代码管理", "代码仓库和 CI/CD", 1],
-            ["Jira", "https://www.atlassian.com/software/jira", "📋", "项目管理", "任务跟踪和问题管理", 2],
-            ["Jenkins", "https://www.jenkins.io", "⚙️", "CI/CD", "持续集成和部署", 3],
-            ["Grafana", "https://grafana.com", "📊", "监控", "监控和可视化", 4],
-            ["Prometheus", "https://prometheus.io", "📈", "监控", "指标监控系统", 5],
-            ["Kibana", "https://www.elastic.co/kibana", "🔍", "日志", "日志查询和分析", 6],
-            ["Confluence", "https://www.atlassian.com/software/confluence", "📖", "文档", "团队文档和知识库", 7],
-            ["SonarQube", "https://www.sonarqube.org", "🔎", "代码质量", "代码质量检测", 8],
-            ["Nexus", "https://www.sonatype.com/products/nexus-repository", "📦", "制品", "Maven/NPM 仓库", 9],
-            ["VPN", "https://vpn.example.com", "🔐", "网络", "VPN 连接", 10],
-            ["Harbor", "https://goharbor.io", "🐳", "容器", "容器镜像仓库", 11],
-            ["Kubernetes", "https://kubernetes.io", "☸️", "容器", "容器编排平台", 12],
-            ["Redis", "https://redis.io", "🔴", "缓存", "内存数据库和缓存", 13],
-            ["MySQL", "https://www.mysql.com", "🗄️", "数据库", "关系型数据库管理", 14],
-            ["Postman", "https://www.postman.com", "📮", "开发工具", "API 测试和文档", 15],
-            ["Swagger", "https://swagger.io", "📝", "开发工具", "API 文档和测试", 16],
-            ["Sentry", "https://sentry.io", "🚨", "监控", "错误追踪和监控", 17],
-            ["Artifactory", "https://jfrog.com/artifactory/", "🏛️", "制品", "统一制品仓库", 18],
-            ["MinIO", "https://min.io", "📦", "存储", "对象存储服务", 19],
-            ["Portainer", "https://www.portainer.io", "🐋", "容器", "Docker 管理界面", 20]
+            ["GitLab", "https://gitlab.com", "https://api.iconify.design/logos/gitlab-icon.svg", "代码管理", "代码仓库和 CI/CD", 1],
+            ["Jira", "https://www.atlassian.com/software/jira", "https://api.iconify.design/logos/jira.svg", "项目管理", "任务跟踪和问题管理", 2],
+            ["Jenkins", "https://www.jenkins.io", "https://api.iconify.design/logos/jenkins.svg", "CI/CD", "持续集成和部署", 3],
+            ["Grafana", "https://grafana.com", "https://api.iconify.design/logos/grafana.svg", "监控", "监控和可视化", 4],
+            ["Prometheus", "https://prometheus.io", "https://api.iconify.design/logos/prometheus.svg", "监控", "指标监控系统", 5],
+            ["Kibana", "https://www.elastic.co/kibana", "https://api.iconify.design/logos/elasticsearch.svg", "日志", "日志查询和分析", 6],
+            ["Confluence", "https://www.atlassian.com/software/confluence", "https://api.iconify.design/logos/confluence.svg", "文档", "团队文档和知识库", 7],
+            ["SonarQube", "https://www.sonarqube.org", "https://api.iconify.design/logos/sonarqube.svg", "代码质量", "代码质量检测", 8],
+            ["Nexus", "https://www.sonatype.com/products/nexus-repository", "https://api.iconify.design/mdi/package-variant.svg", "制品", "Maven/NPM 仓库", 9],
+            ["VPN", "https://vpn.example.com", "https://api.iconify.design/mdi/shield-lock.svg", "网络", "VPN 连接", 10],
+            ["Harbor", "https://goharbor.io", "https://api.iconify.design/logos/harbor.svg", "容器", "容器镜像仓库", 11],
+            ["Kubernetes", "https://kubernetes.io", "https://api.iconify.design/logos/kubernetes.svg", "容器", "容器编排平台", 12],
+            ["Redis", "https://redis.io", "https://api.iconify.design/logos/redis.svg", "缓存", "内存数据库和缓存", 13],
+            ["MySQL", "https://www.mysql.com", "https://api.iconify.design/logos/mysql.svg", "数据库", "关系型数据库管理", 14],
+            ["Postman", "https://www.postman.com", "https://api.iconify.design/logos/postman.svg", "开发工具", "API 测试和文档", 15],
+            ["Swagger", "https://swagger.io", "https://api.iconify.design/logos/swagger.svg", "开发工具", "API 文档和测试", 16],
+            ["Sentry", "https://sentry.io", "https://api.iconify.design/logos/sentry.svg", "监控", "错误追踪和监控", 17],
+            ["Artifactory", "https://jfrog.com/artifactory/", "https://api.iconify.design/logos/jfrog.svg", "制品", "统一制品仓库", 18],
+            ["MinIO", "https://min.io", "https://api.iconify.design/logos/minio.svg", "存储", "对象存储服务", 19],
+            ["Portainer", "https://www.portainer.io", "https://api.iconify.design/logos/docker-icon.svg", "容器", "Docker 管理界面", 20]
         ];
         
         for ($i = 0; $i < $initTools->length; $i++) {

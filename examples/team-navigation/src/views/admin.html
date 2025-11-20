@@ -68,7 +68,14 @@
                                 <tbody>
                                     <tr for="$t in $tools">
                                         <td>{$t->id}</td>
-                                        <td>{$t->icon ?? "🔗"}</td>
+                                        <td>
+                                            <span
+                                                if="!isset($t->icon) || $t->icon == '' || (!$t->icon->startsWith('http://') && !$t->icon->startsWith('https://'))">{$t->icon
+                                                ?? "🔗"}</span>
+                                            <img :src="{$t->icon}" :alt="{$t->name}"
+                                                style="width: 20px; height: 20px; object-fit: contain; vertical-align: middle;"
+                                                if="isset($t->icon) && $t->icon != '' && ($t->icon->startsWith('http://') || $t->icon->startsWith('https://'))">
+                                        </td>
                                         <td>{$t->name}</td>
                                         <td>{$t->category ?? "-"}</td>
                                         <td><a :href="{$t->url}" target="_blank"
@@ -210,8 +217,8 @@
                             <input type="url" id="toolUrl" name="url" required>
                         </div>
                         <div class="form-group">
-                            <label>图标（Emoji）</label>
-                            <input type="text" id="toolIcon" name="icon" placeholder="🔗">
+                            <label>图标（Emoji 或图片链接）</label>
+                            <input type="text" id="toolIcon" name="icon" placeholder="🔗 或图片链接 (https://...)">
                         </div>
                         <div class="form-group">
                             <label>分类</label>
@@ -299,7 +306,12 @@
                                     onmouseout="this.style.background='transparent'" for="$tool in $tools">
                                     <input type="checkbox" :value="{$tool->id}" :id="@{'tool_' + $tool->id}"
                                         :onchange="@{'toggleProjectTool(' + $tool->id + ', this.checked)'}">
-                                    <span>{$tool->icon ?? "🔗"}</span>
+                                    <span
+                                        if="!isset($tool->icon) || $tool->icon == '' || (!$tool->icon->startsWith('http://') && !$tool->icon->startsWith('https://'))">{$tool->icon
+                                        ?? "🔗"}</span>
+                                    <img :src="{$tool->icon}" :alt="{$tool->name}"
+                                        style="width: 16px; height: 16px; object-fit: contain;"
+                                        if="isset($tool->icon) && $tool->icon != '' && ($tool->icon->startsWith('http://') || $tool->icon->startsWith('https://'))">
                                     <span>{$tool->name}</span>
                                     <span style="color: var(--text-muted); font-size: 0.85rem;"
                                         if="$tool->category != null">({$tool->category})</span>
