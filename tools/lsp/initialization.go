@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/php-any/origami/tools/lsp/defines"
 	"github.com/sirupsen/logrus"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -15,29 +16,29 @@ import (
 func handleInitialize(req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("initialize", true, req.Params)
 
-	var params InitializeParams
+	var params defines.InitializeParams
 	if err := json.Unmarshal(*req.Params, &params); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal initialize params: %v", err)
 	}
 
 	// 设置服务器能力
-	capabilities := ServerCapabilities{
-		TextDocumentSync: &TextDocumentSyncOptions{
+	capabilities := defines.ServerCapabilities{
+		TextDocumentSync: &defines.TextDocumentSyncOptions{
 			OpenClose: &[]bool{true}[0],
 			Change:    &[]int{1}[0], // Full sync
 		},
-		CompletionProvider: &CompletionOptions{
+		CompletionProvider: &defines.CompletionOptions{
 			TriggerCharacters: []string{".", "$", ":", "\\"},
 		},
-		HoverProvider:          &HoverOptions{},
-		DefinitionProvider:     &DefinitionOptions{},
-		DocumentSymbolProvider: &DocumentSymbolOptions{},
+		HoverProvider:          &defines.HoverOptions{},
+		DefinitionProvider:     &defines.DefinitionOptions{},
+		DocumentSymbolProvider: &defines.DocumentSymbolOptions{},
 	}
 
 	version := lsVersion
-	result := InitializeResult{
+	result := defines.InitializeResult{
 		Capabilities: capabilities,
-		ServerInfo: &ServerInfo{
+		ServerInfo: &defines.ServerInfo{
 			Name:    lsName,
 			Version: &version,
 		},
@@ -73,7 +74,7 @@ func handleShutdown(req *jsonrpc2.Request) (interface{}, error) {
 func handleSetTrace(req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("$/setTrace", false, req.Params)
 
-	var params SetTraceParams
+	var params defines.SetTraceParams
 	if err := json.Unmarshal(*req.Params, &params); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal setTrace params: %v", err)
 	}
@@ -85,7 +86,7 @@ func handleSetTrace(req *jsonrpc2.Request) (interface{}, error) {
 }
 
 // loadAllScriptFiles 异步加载所有脚本文件
-func loadAllScriptFiles(params InitializeParams) {
+func loadAllScriptFiles(params defines.InitializeParams) {
 	// 添加 panic 恢复机制
 	defer func() {
 		if r := recover(); r != nil {
@@ -109,7 +110,7 @@ func loadAllScriptFiles(params InitializeParams) {
 }
 
 // getWorkspaceRoot 从 LSP 参数获取工作区根目录
-func getWorkspaceRoot(params InitializeParams) string {
+func getWorkspaceRoot(params defines.InitializeParams) string {
 	// 添加 panic 恢复机制
 	defer func() {
 		if r := recover(); r != nil {

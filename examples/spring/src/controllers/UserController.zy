@@ -1,0 +1,31 @@
+namespace Spring\Controller;
+
+use Net\Annotation\Controller;
+use Net\Annotation\Route;
+use Net\Annotation\GetMapping;
+use Net\Annotation\PostMapping;
+use Spring\Model\Users;
+
+@Controller
+@Route(prefix: "/api")
+class UserController {
+    @GetMapping(path: "/users")
+    public function users($request, $response) {
+        $response->header("Content-Type", "text/html; charset=utf-8");
+        $response->write("<html><body><h1>用户列表</h1></body></html>");
+    }
+
+    @GetMapping(path: "/user/{id}")
+    public function user($request, $response) {
+        $user = new Users();
+        $user->id = $id;
+        $user->name = "张三";
+        $user->age = 20;
+        $user->email = "zhangsan@example.com";
+
+        
+
+        $response->header("Content-Type", "text/html; charset=utf-8");
+        $response->write("<html><body><h1>用户详情</h1><p>ID: $id</p></body></html>");
+    }
+}

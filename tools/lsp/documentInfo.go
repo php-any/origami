@@ -306,6 +306,20 @@ func (d *DocumentInfo) identifyVariableTypes(ctx *LspContext, stmt data.GetValue
 		if inferredType = inferTypeFromExpression(n.Value); inferredType != nil {
 			return inferredType
 		}
+
+	// 增加对函数参数类型的支持
+	case *node.Parameter:
+		if n.Type != nil {
+			// 注意：n.Name 不带 $，但在上下文中作为变量名时通常带 $
+			// VariableExpression.Name 带 $
+			// ctx.SetVariableType 需要统一格式，建议统一带 $
+			// 如果 n.Name 已经不带 $，我们需要加上
+			varName := n.Name
+			if !strings.HasPrefix(varName, "$") {
+				varName = "$" + varName
+			}
+			ctx.SetVariableType(varName, n.Type)
+		}
 	}
 
 	return inferredType
@@ -387,6 +401,30 @@ func (d *DocumentInfo) foreachNode(ctx *LspContext, stmt data.GetValue, parent d
 		}
 		// 注意：方法是data.Method接口，不实现data.GetValue，所以不能直接遍历
 		// 如果需要遍历方法内容，需要通过其他方式获取方法的AST节点
+
+		// 遍历方法（如果方法是 *node.ClassMethod）
+		for _, method := range n.Methods {
+			if m, ok := method.(*node.ClassMethod); ok {
+				// 创建方法作用域
+				methodName := m.Name
+				methodCtx := classCtx.CreateChildScope("method:" + methodName)
+				methodCtx.PushFunction(methodName)
+				methodCtx.PushScope("method:" + methodName)
+
+				// 遍历参数
+				for _, param := range m.Params {
+					d.foreachNode(methodCtx, param, m, check)
+				}
+
+				// 遍历方法体
+				for _, bodyStmt := range m.Body {
+					d.foreachNode(methodCtx, bodyStmt, m, check)
+				}
+
+				methodCtx.PopScope()
+				methodCtx.PopFunction()
+			}
+		}
 
 	case *node.InterfaceStatement:
 		// 接口定义：遍历方法

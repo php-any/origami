@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/php-any/origami/tools/lsp/defines"
 	"github.com/sirupsen/logrus"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -12,7 +13,7 @@ import (
 func handleTextDocumentHover(req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("textDocument/hover", true, req.Params)
 
-	var params HoverParams
+	var params defines.HoverParams
 	if err := json.Unmarshal(*req.Params, &params); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal hover params: %v", err)
 	}
@@ -33,9 +34,9 @@ func handleTextDocumentHover(req *jsonrpc2.Request) (interface{}, error) {
 		return nil, nil
 	}
 
-	result := &Hover{
-		Contents: MarkupContent{
-			Kind:  MarkupKindMarkdown,
+	result := &defines.Hover{
+		Contents: defines.MarkupContent{
+			Kind:  defines.MarkupKindMarkdown,
 			Value: hoverInfo,
 		},
 	}
@@ -45,7 +46,7 @@ func handleTextDocumentHover(req *jsonrpc2.Request) (interface{}, error) {
 }
 
 // 获取悬停信息
-func getHoverInfo(content string, position Position) string {
+func getHoverInfo(content string, position defines.Position) string {
 	// 获取光标位置的单词
 	word := getWordAtPosition(content, position)
 	if word == "" {

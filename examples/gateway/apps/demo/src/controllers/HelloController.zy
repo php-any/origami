@@ -1,0 +1,30 @@
+namespace DemoApp\Controllers;
+
+use Net\Annotation\Controller;
+use Net\Annotation\Route;
+use Net\Annotation\GetMapping;
+
+@Controller
+@Route(prefix: "/")
+class HelloController {
+
+    @GetMapping(path: "/hello")
+    public function hello($request, $response) {
+        $response->json({
+            "service": "Demo Service",
+            "message": "Hello from the Controller!",
+            "time": time()
+        });
+    }
+
+    @GetMapping(path: "/echo/{message}")
+    public function echoMsg($request, $response) {
+        $msg = $request->pathValue("message");
+        $response->json({
+            "service": "Demo Service",
+            "action": "echo",
+            "message": $msg
+        });
+    }
+}
+

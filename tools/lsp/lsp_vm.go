@@ -9,6 +9,9 @@ import (
 	"sync"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/parser"
+	origamiruntime "github.com/php-any/origami/runtime"
+	"github.com/php-any/origami/tools/lsp/defines"
 	"github.com/php-any/origami/utils"
 	"github.com/sirupsen/logrus"
 )
@@ -18,14 +21,15 @@ import (
 type LspVM struct {
 	mu     sync.RWMutex
 	parser *LspParser
+	// runtimeVM 复用运行时 VM 能力，减少重复实现
+	runtimeVM   data.VM
+	runtimeOnce sync.Once
 	// 存储类定义，key 为类名
 	classes map[string]data.ClassStmt
 	// 存储接口定义，key 为接口名
 	interfaces map[string]data.InterfaceStmt
 	// 存储函数定义，key 为函数名
 	functions map[string]data.FuncStmt
-	// 类解释过程中的缓存, 用于支持循环依赖
-	classPathMap map[string]string
 	// 错误处理函数
 	throwControl func(data.Control)
 }
@@ -38,10 +42,9 @@ func NewLspVM() *LspVM {
 // NewLspVMWithScanDir 创建一个新的 LSP 虚拟机并扫描指定目录
 func NewLspVMWithScanDir(scanDirectory string) *LspVM {
 	vm := &LspVM{
-		classes:      make(map[string]data.ClassStmt),
-		interfaces:   make(map[string]data.InterfaceStmt),
-		functions:    make(map[string]data.FuncStmt),
-		classPathMap: make(map[string]string),
+		classes:    make(map[string]data.ClassStmt),
+		interfaces: make(map[string]data.InterfaceStmt),
+		functions:  make(map[string]data.FuncStmt),
 
 		throwControl: func(acl data.Control) {
 			if acl != nil {
@@ -64,17 +67,36 @@ func NewLspVMWithScanDir(scanDirectory string) *LspVM {
 	return vm
 }
 
+// ensureRuntimeVM 懒加载运行时 VM，便于复用 runtime 功能
+func (vm *LspVM) ensureRuntimeVM() data.VM {
+	vm.runtimeOnce.Do(func() {
+		// 确保运行时解析器也使用 LSP 的作用域工厂
+		parser.SetGlobalScopeFactory(LspScopeFactory)
+		baseParser := parser.NewParser()
+		vm.runtimeVM = origamiruntime.NewVM(baseParser)
+		if vm.throwControl != nil {
+			vm.runtimeVM.SetThrowControl(vm.throwControl)
+		}
+	})
+	return vm.runtimeVM
+}
+
 // AddClass 添加类定义 - 实现 data.VM 接口
 func (vm *LspVM) AddClass(c data.ClassStmt) data.Control {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-
 	className := c.GetName()
 	if className == "" {
 		return utils.NewThrowf("类名不能为空")
 	}
 
+	vm.mu.Lock()
 	vm.classes[className] = c
+	vm.mu.Unlock()
+
+	if runtimeVM := vm.ensureRuntimeVM(); runtimeVM != nil {
+		if err := runtimeVM.AddClass(c); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -82,20 +104,49 @@ func (vm *LspVM) AddClass(c data.ClassStmt) data.Control {
 // GetClass 获取类定义 - 实现 data.VM 接口
 func (vm *LspVM) GetClass(className string) (data.ClassStmt, bool) {
 	vm.mu.RLock()
-	defer vm.mu.RUnlock()
 	class, exists := vm.classes[className]
-	return class, exists
+	vm.mu.RUnlock()
+	if exists {
+		return class, true
+	}
+
+	if runtimeVM := vm.ensureRuntimeVM(); runtimeVM != nil {
+		if class, ok := runtimeVM.GetClass(className); ok {
+			vm.mu.Lock()
+			vm.classes[className] = class
+			vm.mu.Unlock()
+			return class, true
+		}
+	}
+
+	return nil, false
 }
 
 func (vm *LspVM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
-	if v, ok := vm.classes[pkg]; ok {
+	if v, ok := vm.GetClass(pkg); ok {
 		return v, nil
+	}
+
+	if runtimeVM := vm.ensureRuntimeVM(); runtimeVM != nil {
+		classStmt, acl := runtimeVM.GetOrLoadClass(pkg)
+		if acl != nil || classStmt == nil {
+			return classStmt, acl
+		}
+
+		vm.mu.Lock()
+		vm.classes[classStmt.GetName()] = classStmt
+		vm.mu.Unlock()
+
+		return classStmt, nil
 	}
 
 	return nil, data.NewErrorThrow(nil, errors.New("找不到 class; class 定义需要和文件名称一致才能自动加载"))
 }
 
-func (vm *LspVM) LoadPkg(_ string) (data.GetValue, data.Control) {
+func (vm *LspVM) LoadPkg(pkg string) (data.GetValue, data.Control) {
+	if runtimeVM := vm.ensureRuntimeVM(); runtimeVM != nil {
+		return runtimeVM.LoadPkg(pkg)
+	}
 	return nil, nil
 }
 
@@ -114,15 +165,20 @@ func (vm *LspVM) GetAllClasses() map[string]data.ClassStmt {
 
 // AddInterface 添加接口定义 - 实现 data.VM 接口
 func (vm *LspVM) AddInterface(i data.InterfaceStmt) data.Control {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-
 	interfaceName := i.GetName()
 	if interfaceName == "" {
 		return utils.NewThrowf("接口名不能为空")
 	}
 
+	vm.mu.Lock()
 	vm.interfaces[interfaceName] = i
+	vm.mu.Unlock()
+
+	if runtimeVM := vm.ensureRuntimeVM(); runtimeVM != nil {
+		if err := runtimeVM.AddInterface(i); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -130,22 +186,40 @@ func (vm *LspVM) AddInterface(i data.InterfaceStmt) data.Control {
 // GetInterface 获取接口定义 - 实现 data.VM 接口
 func (vm *LspVM) GetInterface(interfaceName string) (data.InterfaceStmt, bool) {
 	vm.mu.RLock()
-	defer vm.mu.RUnlock()
 	iface, exists := vm.interfaces[interfaceName]
-	return iface, exists
+	vm.mu.RUnlock()
+	if exists {
+		return iface, true
+	}
+
+	if runtimeVM := vm.ensureRuntimeVM(); runtimeVM != nil {
+		if iface, ok := runtimeVM.GetInterface(interfaceName); ok {
+			vm.mu.Lock()
+			vm.interfaces[interfaceName] = iface
+			vm.mu.Unlock()
+			return iface, true
+		}
+	}
+
+	return nil, false
 }
 
 // AddFunc 添加函数定义 - 实现 data.VM 接口
 func (vm *LspVM) AddFunc(f data.FuncStmt) data.Control {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-
 	funcName := f.GetName()
 	if funcName == "" {
 		return utils.NewThrowf("函数名不能为空")
 	}
 
+	vm.mu.Lock()
 	vm.functions[funcName] = f
+	vm.mu.Unlock()
+
+	if runtimeVM := vm.ensureRuntimeVM(); runtimeVM != nil {
+		if err := runtimeVM.AddFunc(f); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -153,9 +227,22 @@ func (vm *LspVM) AddFunc(f data.FuncStmt) data.Control {
 // GetFunc 获取函数定义 - 实现 data.VM 接口
 func (vm *LspVM) GetFunc(funcName string) (data.FuncStmt, bool) {
 	vm.mu.RLock()
-	defer vm.mu.RUnlock()
 	function, exists := vm.functions[funcName]
-	return function, exists
+	vm.mu.RUnlock()
+	if exists {
+		return function, true
+	}
+
+	if runtimeVM := vm.ensureRuntimeVM(); runtimeVM != nil {
+		if fn, ok := runtimeVM.GetFunc(funcName); ok {
+			vm.mu.Lock()
+			vm.functions[funcName] = fn
+			vm.mu.Unlock()
+			return fn, true
+		}
+	}
+
+	return nil, false
 }
 
 // ClearFile 清除文件中的符号 - 关键函数
@@ -166,25 +253,34 @@ func (vm *LspVM) ClearFile(filePath string) {
 
 // RegisterFunction 注册函数 - 实现 data.VM 接口
 func (vm *LspVM) RegisterFunction(name string, fn interface{}) data.Control {
-	// LSP VM 不需要实现这个功能，返回 nil
+	if runtimeVM := vm.ensureRuntimeVM(); runtimeVM != nil {
+		return runtimeVM.RegisterFunction(name, fn)
+	}
 	return nil
 }
 
 // RegisterReflectClass 注册反射类 - 实现 data.VM 接口
 func (vm *LspVM) RegisterReflectClass(name string, instance interface{}) data.Control {
-	// LSP VM 不需要实现这个功能，返回 nil
+	if runtimeVM := vm.ensureRuntimeVM(); runtimeVM != nil {
+		return runtimeVM.RegisterReflectClass(name, instance)
+	}
 	return nil
 }
 
 // CreateContext 创建上下文 - 实现 data.VM 接口
 func (vm *LspVM) CreateContext(vars []data.Variable) data.Context {
-	// LSP VM 不需要实现这个功能，返回 nil
+	if runtimeVM := vm.ensureRuntimeVM(); runtimeVM != nil {
+		return runtimeVM.CreateContext(vars)
+	}
 	return nil
 }
 
 // SetThrowControl 设置异常控制函数 - 实现 data.VM 接口
 func (vm *LspVM) SetThrowControl(fn func(data.Control)) {
 	vm.throwControl = fn
+	if runtimeVM := vm.ensureRuntimeVM(); runtimeVM != nil {
+		runtimeVM.SetThrowControl(fn)
+	}
 }
 
 // ThrowControl 抛出异常控制 - 实现 data.VM 接口
@@ -192,23 +288,24 @@ func (vm *LspVM) ThrowControl(acl data.Control) {
 	if vm.throwControl != nil {
 		vm.throwControl(acl)
 	}
+	if runtimeVM := vm.ensureRuntimeVM(); runtimeVM != nil {
+		runtimeVM.ThrowControl(acl)
+	}
 }
 
 // LoadAndRun 加载并运行文件 - 实现 data.VM 接口
 func (vm *LspVM) LoadAndRun(file string) (data.GetValue, data.Control) {
-	// 解析文件
-	_, err := vm.parser.ParseFile(file)
-
-	if err != nil {
-		return nil, err
+	if runtimeVM := vm.ensureRuntimeVM(); runtimeVM != nil {
+		return runtimeVM.LoadAndRun(file)
 	}
-
 	return nil, nil
 }
 
 func (vm *LspVM) ParseFile(file string, data data.Value) (data.Value, data.Control) {
-	_, acl := vm.parser.ParseFile(file)
-	return nil, acl
+	if runtimeVM := vm.ensureRuntimeVM(); runtimeVM != nil {
+		return runtimeVM.ParseFile(file, data)
+	}
+	return nil, nil
 }
 
 // scanAndParseDirectory 扫描目录并解析所有 .zy 文件（包括子目录）
@@ -329,7 +426,7 @@ func sendParseErrorDiagnostic(acl data.Control) {
 
 	// 尝试从错误控制中提取位置信息
 	var uri string
-	var range_ Range
+	var range_ defines.Range
 
 	if errorThrow, ok := acl.(*data.ThrowValue); ok {
 		if from := errorThrow.GetError().GetFrom(); from != nil {
@@ -339,9 +436,9 @@ func sendParseErrorDiagnostic(acl data.Control) {
 
 				// 获取位置范围
 				startLine, startCol, endLine, endCol := from.GetRange()
-				range_ = Range{
-					Start: Position{Line: uint32(startLine - 1), Character: uint32(startCol - 1)},
-					End:   Position{Line: uint32(endLine - 1), Character: uint32(endCol - 1)},
+				range_ = defines.Range{
+					Start: defines.Position{Line: uint32(startLine - 1), Character: uint32(startCol - 1)},
+					End:   defines.Position{Line: uint32(endLine - 1), Character: uint32(endCol - 1)},
 				}
 			}
 		}
@@ -353,16 +450,16 @@ func sendParseErrorDiagnostic(acl data.Control) {
 	}
 
 	// 创建诊断信息
-	diagnostic := Diagnostic{
+	diagnostic := defines.Diagnostic{
 		Range:    range_,
-		Severity: &[]DiagnosticSeverity{DiagnosticSeverityError}[0],
+		Severity: &[]defines.DiagnosticSeverity{defines.DiagnosticSeverityError}[0],
 		Message:  acl.AsString(),
 	}
 
 	// 发送诊断通知
-	params := PublishDiagnosticsParams{
+	params := defines.PublishDiagnosticsParams{
 		URI:         uri,
-		Diagnostics: []Diagnostic{diagnostic},
+		Diagnostics: []defines.Diagnostic{diagnostic},
 	}
 
 	globalConn.Notify(context.Background(), "textDocument/publishDiagnostics", params)
@@ -370,12 +467,14 @@ func sendParseErrorDiagnostic(acl data.Control) {
 }
 
 func (vm *LspVM) SetClassPathCache(name string, path string) {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	vm.classPathMap[name] = path
+	if runtimeVM := vm.ensureRuntimeVM(); runtimeVM != nil {
+		runtimeVM.SetClassPathCache(name, path)
+	}
 }
 
 func (vm *LspVM) GetClassPathCache(name string) (string, bool) {
-	path, ok := vm.classPathMap[name]
-	return path, ok
+	if runtimeVM := vm.ensureRuntimeVM(); runtimeVM != nil {
+		return runtimeVM.GetClassPathCache(name)
+	}
+	return "", false
 }

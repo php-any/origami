@@ -1,0 +1,8 @@
+namespace Spring\Model;
+
+class Users {
+    public $id;
+    public $name;
+    public $age;
+    public $email;
+}

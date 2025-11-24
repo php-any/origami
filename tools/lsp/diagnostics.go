@@ -10,12 +10,13 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/tools/lsp/defines"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
 // 验证文档 - 针对origami语言(.zy文件)的语法验证
 func validateDocument(conn *jsonrpc2.Conn, uri string, content string) {
-	diagnostics := []Diagnostic{}
+	diagnostics := []defines.Diagnostic{}
 
 	// 检查文件扩展名
 	if !strings.HasSuffix(uri, ".zy") && !strings.HasSuffix(uri, ".php") {
@@ -28,7 +29,7 @@ func validateDocument(conn *jsonrpc2.Conn, uri string, content string) {
 	diagnostics = append(diagnostics, astDiagnostics...)
 
 	// 发布诊断
-	params := PublishDiagnosticsParams{
+	params := defines.PublishDiagnosticsParams{
 		URI:         uri,
 		Diagnostics: diagnostics,
 	}
@@ -41,8 +42,8 @@ func validateDocument(conn *jsonrpc2.Conn, uri string, content string) {
 }
 
 // 使用AST进行专业的文档验证
-func validateDocumentWithAST(uri, content string) []Diagnostic {
-	var diagnostics []Diagnostic
+func validateDocumentWithAST(uri, content string) []defines.Diagnostic {
+	var diagnostics []defines.Diagnostic
 
 	// 创建解析器
 	parser := NewLspParser()
@@ -71,9 +72,9 @@ func validateDocumentWithAST(uri, content string) []Diagnostic {
 			sl, sc, el, ec := gf.GetFrom().ToLSPPosition()
 			startLine, startChar, endLine, endChar = uint32(sl), uint32(sc), uint32(el), uint32(ec)
 		}
-		diagnostics = append(diagnostics, Diagnostic{
-			Range:    Range{Start: Position{Line: startLine, Character: startChar}, End: Position{Line: endLine, Character: endChar}},
-			Severity: &[]DiagnosticSeverity{DiagnosticSeverityError}[0],
+		diagnostics = append(diagnostics, defines.Diagnostic{
+			Range:    defines.Range{Start: defines.Position{Line: startLine, Character: startChar}, End: defines.Position{Line: endLine, Character: endChar}},
+			Severity: &[]defines.DiagnosticSeverity{defines.DiagnosticSeverityError}[0],
 			Message:  fmt.Sprintf("解析错误: %v", acl.AsString()),
 			Source:   &[]string{"origami-lsp"}[0],
 		})
@@ -90,8 +91,8 @@ func validateDocumentWithAST(uri, content string) []Diagnostic {
 }
 
 // 验证AST的语义
-func validateASTSemantics(ast *node.Program) []Diagnostic {
-	var diagnostics []Diagnostic
+func validateASTSemantics(ast *node.Program) []defines.Diagnostic {
+	var diagnostics []defines.Diagnostic
 
 	// 这里可以添加更专业的语义检查
 	// 例如：

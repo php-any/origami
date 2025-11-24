@@ -1,0 +1,102 @@
+namespace Gateway;
+
+use Net\Http\Server;
+use Net\Http\app;
+
+/**
+ * Gateway Example
+ * 
+ * This example demonstrates a powerful API Gateway that routes requests
+ * to different applications based on the Host header.
+ * 
+ * It uses the `app()` function to dynamically load and execute
+ * different applications in isolated environments.
+ */
+
+// Define the routing table
+// Host -> { path, func }
+$routes = {
+    // Local test domain for the demo app
+    "demo.local": {
+        "path": "apps/demo/src/main.zy",
+        "func": "DemoApp\\main"
+    },
+    // Route to the existing Spring example
+    "spring.local": {
+        "path": "../spring/src/main.zy",
+        "func": "App\\main"
+    },
+    // Default route (optional)
+    "default": {
+        "path": "apps/demo/src/main.zy",
+        "func": "DemoApp\\main"
+    }
+};
+
+$port = 8080;
+$server = new Server("0.0.0.0", port: $port);
+
+// Collect route keys for logging
+$routeKeys = [];
+foreach ($routes as $k => $v) {
+    $routeKeys[] = $k;
+}
+Log::info("Starting Gateway on port {$port}...");
+Log::info("Routes configured: " + implode(", ", $routeKeys));
+
+// Middleware for logging
+$server->middleware(($req, $res, $next) => {
+    Log::info("[Gateway] Request: " + $req->method() + " " + $req->fullUrl());
+    $next($req, $res);
+});
+
+// Main handler
+$server->any(($req, $res) => {
+    // Get Host header
+    $host = $req->header("Host");
+    if ($host == null) {
+        $host = "default";
+    }
+    
+    // Remove port from host if present (e.g. localhost:8080 -> localhost)
+    if ($host->indexOf(":") != -1) {
+        $parts = $host->split(":");
+        $host = $parts[0];
+    }
+    
+    Log::debug("Routing for host: " + $host);
+
+    // Lookup route
+    $route = $routes[$host];
+    if ($route == null) {
+        // Fallback to default if configured
+        if ($routes["default"] != null) {
+            $route = $routes["default"];
+        } else {
+            $res->writeHeader(404);
+            $res->json({
+                "error": "Service not found",
+                "host": $host
+            });
+            return;
+        }
+    }
+
+    // Dispatch to the application
+    try {
+        // app() function loads the file in a new/temp VM and calls the function
+        // It provides isolation between requests/apps
+        // Arguments: request, response, filePath, functionName
+        app($req, $res, $route["path"], $route["func"]);
+    } catch (Exception $e) {
+        Log::error("Gateway Dispatch Error: " + $e->getMessage());
+        $res->writeHeader(500);
+        $res->json({
+            "error": "Gateway Internal Error",
+            "message": $e->getMessage()
+        });
+    }
+});
+
+$server->run();
+

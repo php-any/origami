@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/php-any/origami/data"
 )
@@ -28,6 +29,7 @@ type NamespaceNode struct {
 
 // DefaultClassPathManager 默认的类路径管理器实现
 type DefaultClassPathManager struct {
+	mu   sync.RWMutex   // 互斥锁，保护并发访问
 	root *NamespaceNode // 有向无环图的根节点
 }
 
@@ -44,6 +46,9 @@ func NewDefaultClassPathManager() *DefaultClassPathManager {
 
 // AddNamespace 添加命名空间路径
 func (m *DefaultClassPathManager) AddNamespace(namespace string, path string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	// 检查路径是否为空
 	if path == "" {
 		fmt.Printf("警告: 命名空间 %s 的路径为空\n", namespace)
@@ -141,6 +146,9 @@ func (m *DefaultClassPathManager) splitNamespace(namespace string) []string {
 
 // FindClassFile 查找类文件路径
 func (m *DefaultClassPathManager) FindClassFile(className string) (string, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	// 分割类名以获取命名空间和类名
 	namespace, simpleClassName := m.splitClassName(className)
 

@@ -1,0 +1,14 @@
+namespace DemoApp;
+
+use Net\Annotation\Application;
+
+@Application(name: "DemoService")
+function main($request, $response) {
+    // The @Application annotation handles the heavy lifting:
+    // 1. Scans for @Controller classes in ./src/controllers (default)
+    // 2. Registers routes defined by @GetMapping, @PostMapping, etc.
+    // 3. Dispatches the request to the matching controller method
+    
+    Log::info("[DemoService] Initialized and handling request: " + $request->path());
+}
+

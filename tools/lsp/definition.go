@@ -9,13 +9,14 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/tools/lsp/defines"
 	"github.com/sirupsen/logrus"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
 // 处理定义跳转请求
 func handleTextDocumentDefinition(req *jsonrpc2.Request) (interface{}, error) {
-	var params DefinitionParams
+	var params defines.DefinitionParams
 	if err := json.Unmarshal(*req.Params, &params); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal definition params: %v", err)
 	}
@@ -42,7 +43,7 @@ func handleTextDocumentDefinition(req *jsonrpc2.Request) (interface{}, error) {
 }
 
 // findDefinitionInAST 在 AST 中查找定义位置
-func findDefinitionInAST(doc *DocumentInfo, position Position) []*Location {
+func findDefinitionInAST(doc *DocumentInfo, position defines.Position) []*defines.Location {
 	if doc.AST == nil {
 		return nil
 	}
@@ -96,7 +97,7 @@ func findDefinitionInAST(doc *DocumentInfo, position Position) []*Location {
 }
 
 // findDefinitionFromNode 根据节点类型查找定义位置
-func findDefinitionFromNode(ctx *LspContext, v data.GetValue) []*Location {
+func findDefinitionFromNode(ctx *LspContext, v data.GetValue) []*defines.Location {
 	if v == nil {
 		return nil
 	}
@@ -114,7 +115,7 @@ func findDefinitionFromNode(ctx *LspContext, v data.GetValue) []*Location {
 		// 注意：CallMethod 的 Method 字段是 data.GetValue 类型，需要进一步处理
 		if method, ok := n.Method.(interface{ GetName() string }); ok {
 			if loc := findMethodDefinition(ctx, "", method.GetName()); loc != nil {
-				return []*Location{loc}
+				return []*defines.Location{loc}
 			}
 			return nil
 		}
@@ -129,7 +130,7 @@ func findDefinitionFromNode(ctx *LspContext, v data.GetValue) []*Location {
 			// 这是一个链式调用，需要递归解析
 			logrus.Debug("检测到链式调用，递归解析")
 			if loc := findChainedMethodDefinition(ctx, chainCall, n.Method); loc != nil {
-				return []*Location{loc}
+				return []*defines.Location{loc}
 			}
 			return nil
 		}
@@ -139,7 +140,7 @@ func findDefinitionFromNode(ctx *LspContext, v data.GetValue) []*Location {
 	case *node.VariableExpression:
 		// 变量引用，查找变量定义
 		if loc := findVariableDefinition(ctx, n.Name); loc != nil {
-			return []*Location{loc}
+			return []*defines.Location{loc}
 		}
 		return nil
 	}
@@ -237,7 +238,7 @@ func getFromOf(v data.GetValue) data.From {
 }
 
 // isPositionInRange 检查位置是否在节点范围内
-func isPositionInRange(stmt data.GetValue, position Position) bool {
+func isPositionInRange(stmt data.GetValue, position defines.Position) bool {
 	// 尝试获取节点的 From 信息
 	var from data.From
 
@@ -292,7 +293,7 @@ func isPositionInRange(stmt data.GetValue, position Position) bool {
 }
 
 // findSymbolInExpression 在表达式中查找符号，直接返回节点
-func findSymbolInExpression(expr data.GetValue, position Position) data.GetValue {
+func findSymbolInExpression(expr data.GetValue, position defines.Position) data.GetValue {
 	if expr == nil {
 		return nil
 	}
@@ -329,7 +330,7 @@ func findSymbolInExpression(expr data.GetValue, position Position) data.GetValue
 }
 
 // findSymbolInCallExpression 在函数调用表达式中查找符号
-func findSymbolInCallExpression(call *node.CallExpression, position Position) data.GetValue {
+func findSymbolInCallExpression(call *node.CallExpression, position defines.Position) data.GetValue {
 	if call == nil {
 		return nil
 	}
@@ -363,7 +364,7 @@ func findSymbolInCallExpression(call *node.CallExpression, position Position) da
 }
 
 // findSymbolInCallMethod 在方法调用表达式中查找符号
-func findSymbolInCallMethod(call *node.CallMethod, position Position) data.GetValue {
+func findSymbolInCallMethod(call *node.CallMethod, position defines.Position) data.GetValue {
 	if call == nil {
 		return nil
 	}
@@ -409,7 +410,7 @@ func findSymbolInCallMethod(call *node.CallMethod, position Position) data.GetVa
 }
 
 // findSymbolInNewExpression 在 new 表达式中查找符号
-func findSymbolInNewExpression(newExpr *node.NewExpression, position Position) data.GetValue {
+func findSymbolInNewExpression(newExpr *node.NewExpression, position defines.Position) data.GetValue {
 	if newExpr == nil {
 		return nil
 	}
@@ -447,7 +448,7 @@ func findSymbolInNewExpression(newExpr *node.NewExpression, position Position) d
 }
 
 // findSymbolInVariableExpression 在变量表达式中查找符号
-func findSymbolInVariableExpression(varExpr *node.VariableExpression, position Position) data.GetValue {
+func findSymbolInVariableExpression(varExpr *node.VariableExpression, position defines.Position) data.GetValue {
 	if varExpr == nil {
 		return nil
 	}
@@ -456,7 +457,7 @@ func findSymbolInVariableExpression(varExpr *node.VariableExpression, position P
 }
 
 // 额外补充：对象方法、对象属性、静态方法
-func findSymbolInObjectMethod(call *node.CallObjectMethod, position Position) data.GetValue {
+func findSymbolInObjectMethod(call *node.CallObjectMethod, position defines.Position) data.GetValue {
 	if call == nil || !isPositionInLineRange(call, position) {
 		return nil
 	}
@@ -493,7 +494,7 @@ func findSymbolInObjectMethod(call *node.CallObjectMethod, position Position) da
 	return best
 }
 
-func findSymbolInObjectProperty(call *node.CallObjectProperty, position Position) data.GetValue {
+func findSymbolInObjectProperty(call *node.CallObjectProperty, position defines.Position) data.GetValue {
 	if call == nil || !isPositionInLineRange(call, position) {
 		return nil
 	}
@@ -514,7 +515,7 @@ func findSymbolInObjectProperty(call *node.CallObjectProperty, position Position
 	return best
 }
 
-func findSymbolInStaticMethod(call *node.CallStaticMethod, position Position) data.GetValue {
+func findSymbolInStaticMethod(call *node.CallStaticMethod, position defines.Position) data.GetValue {
 	if call == nil || !isPositionInLineRange(call, position) {
 		return nil
 	}
@@ -522,7 +523,7 @@ func findSymbolInStaticMethod(call *node.CallStaticMethod, position Position) da
 }
 
 // 仅检查"行"是否命中，忽略列，避免 token.Pos 为末尾列导致的误差
-func isPositionInLineRange(stmt data.GetValue, position Position) bool {
+func isPositionInLineRange(stmt data.GetValue, position defines.Position) bool {
 	var from data.From
 	if getFrom, ok := stmt.(node.GetFrom); ok {
 		from = getFrom.GetFrom()
@@ -540,7 +541,7 @@ func isPositionInLineRange(stmt data.GetValue, position Position) bool {
 }
 
 // findFunctionDefinition 查找函数定义
-func findFunctionDefinition(ctx *LspContext, funcName string) []*Location {
+func findFunctionDefinition(ctx *LspContext, funcName string) []*defines.Location {
 	if globalLspVM == nil {
 		return nil
 	}
@@ -548,7 +549,7 @@ func findFunctionDefinition(ctx *LspContext, funcName string) []*Location {
 	logrus.Debugf("查找函数定义：%s", funcName)
 	if function, exists := globalLspVM.GetFunc(funcName); exists {
 		logrus.Debugf("找到函数：%#v，位置：%#v", function, function)
-		return []*Location{createLocationFromFunction(function)}
+		return []*defines.Location{createLocationFromFunction(function)}
 	}
 
 	logrus.Debugf("未找到函数：%s", funcName)
@@ -556,20 +557,20 @@ func findFunctionDefinition(ctx *LspContext, funcName string) []*Location {
 }
 
 // findClassDefinition 查找类定义
-func findClassDefinition(ctx *LspContext, className string) []*Location {
+func findClassDefinition(ctx *LspContext, className string) []*defines.Location {
 	if globalLspVM == nil {
 		return nil
 	}
 
 	if class, exists := globalLspVM.GetClass(className); exists {
-		return []*Location{createLocationFromClass(class)}
+		return []*defines.Location{createLocationFromClass(class)}
 	}
 
 	return nil
 }
 
 // findObjectMethodDefinition 查找对象方法定义
-func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodName string) []*Location {
+func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodName string) []*defines.Location {
 	if globalLspVM == nil {
 		return nil
 	}
@@ -585,7 +586,7 @@ func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodNam
 			// 从类型信息中获取类名
 			switch t := varExpr.Type.(type) {
 			case *data.LspTypes:
-				var ret []*Location
+				var ret []*defines.Location
 				for _, tt := range t.Types {
 					if className := getClassNameFromType(tt); className != "" {
 						// 根据类名查找类定义
@@ -602,7 +603,7 @@ func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodNam
 					// 根据类名查找类定义
 					if class, exists := globalLspVM.GetClass(className); exists {
 						if methodLocation := findMethodInClass(class, methodName); methodLocation != nil {
-							return []*Location{methodLocation}
+							return []*defines.Location{methodLocation}
 						}
 					}
 				}
@@ -619,7 +620,7 @@ func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodNam
 					// 根据类名查找类定义
 					if class, exists := globalLspVM.GetClass(className); exists {
 						if methodLocation := findMethodInClass(class, methodName); methodLocation != nil {
-							return []*Location{methodLocation}
+							return []*defines.Location{methodLocation}
 						}
 					}
 				}
@@ -634,20 +635,20 @@ func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodNam
 		// 这里需要获取当前类的上下文，暂时简化处理
 		// 可以尝试查找同名函数作为备选
 		if function, exists := globalLspVM.GetFunc(methodName); exists {
-			return []*Location{createLocationFromFunction(function)}
+			return []*defines.Location{createLocationFromFunction(function)}
 		}
 	}
 
 	// 如果找不到具体的类，尝试查找同名函数作为备选
 	if function, exists := globalLspVM.GetFunc(methodName); exists {
-		return []*Location{createLocationFromFunction(function)}
+		return []*defines.Location{createLocationFromFunction(function)}
 	}
 
 	return nil
 }
 
 // findChainedMethodDefinition 查找链式方法调用中的方法定义
-func findChainedMethodDefinition(ctx *LspContext, chainCall *node.CallObjectMethod, methodName string) *Location {
+func findChainedMethodDefinition(ctx *LspContext, chainCall *node.CallObjectMethod, methodName string) *defines.Location {
 	if globalLspVM == nil {
 		return nil
 	}
@@ -668,7 +669,7 @@ func findChainedMethodDefinition(ctx *LspContext, chainCall *node.CallObjectMeth
 }
 
 // resolveChainedMethod 递归解析链式方法调用
-func resolveChainedMethod(ctx *LspContext, object data.GetValue, currentMethod, targetMethod string) *Location {
+func resolveChainedMethod(ctx *LspContext, object data.GetValue, currentMethod, targetMethod string) *defines.Location {
 	if globalLspVM == nil {
 		return nil
 	}
@@ -943,13 +944,13 @@ func typeKey(t data.Types) string {
 }
 
 // findVariableDefinition 查找变量定义
-func findVariableDefinition(ctx *LspContext, varName string) *Location {
+func findVariableDefinition(ctx *LspContext, varName string) *defines.Location {
 	// 变量定义查找功能暂时简化，返回 nil
 	return nil
 }
 
 // findMethodDefinition 查找方法定义
-func findMethodDefinition(ctx *LspContext, variableName, methodName string) *Location {
+func findMethodDefinition(ctx *LspContext, variableName, methodName string) *defines.Location {
 	if globalLspVM == nil {
 		return nil
 	}
@@ -972,16 +973,16 @@ func findMethodDefinition(ctx *LspContext, variableName, methodName string) *Loc
 }
 
 // createLocationFromFunction 从函数定义创建位置信息
-func createLocationFromFunction(function data.FuncStmt) *Location {
+func createLocationFromFunction(function data.FuncStmt) *defines.Location {
 	// 使用 node.GetFrom 接口获取位置信息
 	if fnStmt, ok := function.(node.GetFrom); ok {
 		if from := fnStmt.GetFrom(); from != nil {
 			startLine, startChar, endLine, endChar := from.ToLSPPosition()
-			return &Location{
+			return &defines.Location{
 				URI: filePathToURI(from.GetSource()),
-				Range: Range{
-					Start: Position{Line: uint32(startLine), Character: uint32(startChar)},
-					End:   Position{Line: uint32(endLine), Character: uint32(endChar)},
+				Range: defines.Range{
+					Start: defines.Position{Line: uint32(startLine), Character: uint32(startChar)},
+					End:   defines.Position{Line: uint32(endLine), Character: uint32(endChar)},
 				},
 			}
 		}
@@ -990,15 +991,15 @@ func createLocationFromFunction(function data.FuncStmt) *Location {
 }
 
 // createLocationFromClass 从类定义创建位置信息
-func createLocationFromClass(class data.ClassStmt) *Location {
+func createLocationFromClass(class data.ClassStmt) *defines.Location {
 	// 从类节点获取位置信息
 	if from := class.GetFrom(); from != nil {
 		startLine, startChar, endLine, endChar := from.ToLSPPosition()
-		return &Location{
+		return &defines.Location{
 			URI: filePathToURI(from.GetSource()),
-			Range: Range{
-				Start: Position{Line: uint32(startLine), Character: uint32(startChar)},
-				End:   Position{Line: uint32(endLine), Character: uint32(endChar)},
+			Range: defines.Range{
+				Start: defines.Position{Line: uint32(startLine), Character: uint32(startChar)},
+				End:   defines.Position{Line: uint32(endLine), Character: uint32(endChar)},
 			},
 		}
 	}
@@ -1025,18 +1026,18 @@ func getClassNameFromType(typ data.Types) string {
 }
 
 // findMethodInClass 在类中查找方法
-func findMethodInClass(class data.ClassStmt, methodName string) *Location {
+func findMethodInClass(class data.ClassStmt, methodName string) *defines.Location {
 	// 尝试在类中查找指定名称的方法
 	if method, exists := class.GetMethod(methodName); exists {
 		// 如果方法有位置信息，返回方法的位置
 		if methodWithFrom, ok := method.(node.GetFrom); ok {
 			if from := methodWithFrom.GetFrom(); from != nil {
 				startLine, startChar, endLine, endChar := from.ToLSPPosition()
-				return &Location{
+				return &defines.Location{
 					URI: filePathToURI(from.GetSource()),
-					Range: Range{
-						Start: Position{Line: uint32(startLine), Character: uint32(startChar)},
-						End:   Position{Line: uint32(endLine), Character: uint32(endChar)},
+					Range: defines.Range{
+						Start: defines.Position{Line: uint32(startLine), Character: uint32(startChar)},
+						End:   defines.Position{Line: uint32(endLine), Character: uint32(endChar)},
 					},
 				}
 			}
@@ -1046,11 +1047,11 @@ func findMethodInClass(class data.ClassStmt, methodName string) *Location {
 	// 如果找不到方法或方法没有位置信息，返回类定义的位置
 	if from := class.GetFrom(); from != nil {
 		startLine, startChar, endLine, endChar := from.ToLSPPosition()
-		return &Location{
+		return &defines.Location{
 			URI: filePathToURI(from.GetSource()),
-			Range: Range{
-				Start: Position{Line: uint32(startLine), Character: uint32(startChar)},
-				End:   Position{Line: uint32(endLine), Character: uint32(endChar)},
+			Range: defines.Range{
+				Start: defines.Position{Line: uint32(startLine), Character: uint32(startChar)},
+				End:   defines.Position{Line: uint32(endLine), Character: uint32(endChar)},
 			},
 		}
 	}

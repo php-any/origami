@@ -20,6 +20,7 @@ class HelloController {
         $response->write("<html><body><h1>用户列表</h1></body></html>");
     }
 
+    @Route(prefix: "/api")
     @GetMapping(path: "/java")
     public function users(request, response) {
         response->header("Content-Type", "text/html; charset=utf-8");

@@ -4,10 +4,12 @@ import (
 	"net/url"
 	"runtime"
 	"strings"
+
+	"github.com/php-any/origami/tools/lsp/defines"
 )
 
 // 获取光标位置的单词
-func getWordAtPosition(content string, position Position) string {
+func getWordAtPosition(content string, position defines.Position) string {
 	lines := strings.Split(content, "\n")
 	if int(position.Line) >= len(lines) {
 		return ""

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/tools/lsp/defines"
 
 	"github.com/php-any/origami/node"
 	"github.com/sirupsen/logrus"
@@ -16,7 +17,7 @@ import (
 func handleTextDocumentDidOpen(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("textDocument/didOpen", false, req.Params)
 
-	var params DidOpenTextDocumentParams
+	var params defines.DidOpenTextDocumentParams
 	if err := json.Unmarshal(*req.Params, &params); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal didOpen params: %v", err)
 	}
@@ -49,11 +50,19 @@ func handleTextDocumentDidOpen(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (inte
 	}
 
 	// 无论解析是否成功都创建 DocumentInfo
-	documents[uri] = &DocumentInfo{
-		Content: content,
-		Version: int32(version),
-		AST:     ast, // 可能为 nil
-		Parser:  p,
+	if old, ok := documents[uri]; ok {
+		if ast != nil {
+			old.AST = ast
+			old.Version = int32(version)
+		}
+		old.Content = content
+	} else {
+		documents[uri] = &DocumentInfo{
+			Content: content,
+			Version: int32(version),
+			AST:     ast, // 可能为 nil
+			Parser:  p,
+		}
 	}
 
 	// 验证文档
@@ -68,7 +77,7 @@ func handleTextDocumentDidOpen(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (inte
 func handleTextDocumentDidChange(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("textDocument/didChange", false, req.Params)
 
-	var params DidChangeTextDocumentParams
+	var params defines.DidChangeTextDocumentParams
 	if err := json.Unmarshal(*req.Params, &params); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal didChange params: %v", err)
 	}
@@ -148,7 +157,7 @@ func handleTextDocumentDidChange(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (in
 func handleTextDocumentDidClose(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("textDocument/didClose", false, req.Params)
 
-	var params DidCloseTextDocumentParams
+	var params defines.DidCloseTextDocumentParams
 	if err := json.Unmarshal(*req.Params, &params); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal didClose params: %v", err)
 	}
