@@ -20,7 +20,7 @@ type Context struct {
 }
 
 // NewContext 创建一个新的运行时上下文
-func NewContext(vm *VM) data.Context {
+func NewContext(vm data.VM) data.Context {
 	return &Context{
 		vm: vm,
 	}

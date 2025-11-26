@@ -28,7 +28,7 @@ func handleInitialize(req *jsonrpc2.Request) (interface{}, error) {
 			Change:    &[]int{1}[0], // Full sync
 		},
 		CompletionProvider: &defines.CompletionOptions{
-			TriggerCharacters: []string{".", "$", ":", "\\"},
+			TriggerCharacters: []string{".", "$", ":", "\\", ">"},
 		},
 		HoverProvider:          &defines.HoverOptions{},
 		DefinitionProvider:     &defines.DefinitionOptions{},

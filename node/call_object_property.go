@@ -23,7 +23,7 @@ func (pe *CallObjectProperty) GetName() string {
 }
 
 func (pe *CallObjectProperty) GetType() data.Types {
-	panic("不支持获取调用类属性过程获取属性类型")
+	return data.NewBaseType("")
 }
 
 func (pe *CallObjectProperty) SetValue(ctx data.Context, value data.Value) data.Control {

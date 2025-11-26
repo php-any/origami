@@ -83,17 +83,21 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 			if acl != nil {
 				return nil, acl
 			}
-			obj, acl := an.GetValue(p.vm.CreateContext(object.(*data.ClassValue).Class.GetConstruct().GetVariables()))
-			if acl != nil {
-				if ann, ok := acl.(*node.CallAnn); !ok {
-					return nil, acl
-				} else {
-					callAnn = append(callAnn, ann)
-				}
-			}
-			if c, ok := next.(node.AddAnnotations); ok {
-				if o, ok := obj.(*data.ClassValue); ok {
-					c.AddAnnotations(o)
+			if o, ok := object.(*data.ClassValue); ok {
+				if o.Class.GetConstruct() != nil {
+					obj, acl := an.GetValue(p.vm.CreateContext(o.Class.GetConstruct().GetVariables()))
+					if acl != nil {
+						if ann, ok := acl.(*node.CallAnn); !ok {
+							return nil, acl
+						} else {
+							callAnn = append(callAnn, ann)
+						}
+					}
+					if c, ok := next.(node.AddAnnotations); ok {
+						if o, ok := obj.(*data.ClassValue); ok {
+							c.AddAnnotations(o)
+						}
+					}
 				}
 			}
 		}

@@ -835,7 +835,7 @@ func chackAndSetTypeVariableDefinition(ctx *LspContext, parent, child data.GetVa
 	case *node.BinaryAssignVariable:
 		t := data.NewLspTypes(getTypes(c.Right))
 
-		if t != nil && c.Left.GetType().String() == "LspTypes" {
+		if t != nil && c.Left != nil && c.Left.GetType() != nil && c.Left.GetType().String() == "LspTypes" {
 			setTypes(c.Left, getTypes(c.Right))
 		}
 	case *node.BinaryAssign:

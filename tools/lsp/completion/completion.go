@@ -11,28 +11,34 @@ import (
 func GetCompletionItems(content string, position defines.Position, provider defines.SymbolProvider) []defines.CompletionItem {
 	items := []defines.CompletionItem{}
 
-	// 获取当前位置的上下文
-	context, triggerChar := getCompletionContext(content, position)
-	logrus.Infof("补全上下文: %s, 触发字符: %s, 位置: %d:%d", context, triggerChar, position.Line, position.Character)
+	// 获取光标位置前的文本
+	lines := strings.Split(content, "\n")
+	if int(position.Line) >= len(lines) {
+		return getDefaultCompletions()
+	}
 
-	// 根据上下文提供相应的补全项
-	switch context {
-	case "snippet":
-		// 代码片段补全
-		items = append(items, getSnippetCompletions()...)
-		// 同时提供关键字补全
-		items = append(items, getKeywordCompletions()...)
-		logrus.Infof("代码片段补全：%d 个项", len(items))
-	case "keyword":
-		// 关键字补全
-		items = append(items, getKeywordCompletions()...)
-		// 也可以包含一些常用的全局函数或类
-		items = append(items, getGlobalFunctionCompletions()...)
-		items = append(items, getGlobalClassCompletions()...)
-		logrus.Infof("关键字补全：%d 个项", len(items))
-	case "object_method":
-		// 对象方法补全
-		// 动态获取对象属性和方法
+	line := lines[position.Line]
+	if int(position.Character) > len(line) {
+		return getDefaultCompletions()
+	}
+
+	beforeCursor := line[:position.Character]
+	trimmedBefore := strings.TrimSpace(beforeCursor)
+
+	// 如果光标前为空或只有空白，提供默认补全
+	if len(trimmedBefore) == 0 {
+		logrus.Infof("光标前为空，提供默认补全，位置: %d:%d", position.Line, position.Character)
+		return getDefaultCompletions()
+	}
+
+	// 获取光标左边最后一个有意义的符号
+	lastSymbol := getLastSymbol(beforeCursor)
+	logrus.Infof("光标左边符号: %s, 位置: %d:%d", lastSymbol, position.Line, position.Character)
+
+	// 根据光标左边的符号 switch 进入不同分支处理
+	switch lastSymbol {
+	case "->", ".":
+		// 对象方法/属性补全：$obj->
 		dynamicItems := getObjectPropertyAndMethodCompletions(content, position, provider)
 		if len(dynamicItems) > 0 {
 			items = append(items, dynamicItems...)
@@ -42,8 +48,40 @@ func GetCompletionItems(content string, position defines.Position, provider defi
 			items = append(items, getObjectMethodCompletions()...)
 		}
 		logrus.Infof("对象方法补全：%d 个项", len(items))
+
+	case "::":
+		// 静态方法/属性补全：ClassName::
+		// TODO: 实现静态成员补全
+		items = append(items, getObjectMethodCompletions()...)
+		logrus.Infof("静态成员补全：%d 个项", len(items))
+
+	case "$":
+		// 变量补全：$
+		// TODO: 实现变量补全
+		items = append(items, getKeywordCompletions()...)
+		items = append(items, getGlobalFunctionCompletions()...)
+		logrus.Infof("变量补全：%d 个项", len(items))
+
+	case "new":
+		// 类实例化补全：new
+		items = append(items, getGlobalClassCompletions()...)
+		logrus.Infof("类实例化补全：%d 个项", len(items))
+
+	case "keyword":
+		// 关键字补全：正在输入关键字
+		items = append(items, getKeywordCompletions()...)
+		items = append(items, getGlobalFunctionCompletions()...)
+		items = append(items, getGlobalClassCompletions()...)
+		logrus.Infof("关键字补全：%d 个项", len(items))
+
+	case "snippet":
+		// 代码片段补全：特定关键字后
+		items = append(items, getSnippetCompletions()...)
+		items = append(items, getKeywordCompletions()...)
+		logrus.Infof("代码片段补全：%d 个项", len(items))
+
 	default:
-		// 默认提供所有类型的补全，但要注意排序和优先级
+		// 默认补全：提供所有类型的补全
 		items = append(items, getKeywordCompletions()...)
 		items = append(items, getSnippetCompletions()...)
 		items = append(items, getGlobalFunctionCompletions()...)
@@ -54,24 +92,21 @@ func GetCompletionItems(content string, position defines.Position, provider defi
 	return items
 }
 
-// getCompletionContext 分析当前位置的上下文
-func getCompletionContext(content string, position defines.Position) (string, string) {
-	lines := strings.Split(content, "\n")
-	if int(position.Line) >= len(lines) {
-		return "default", ""
+// getLastSymbol 获取光标左边最后一个有意义的符号
+func getLastSymbol(beforeCursor string) string {
+	if len(beforeCursor) == 0 {
+		return ""
 	}
 
-	line := lines[position.Line]
-	if int(position.Character) > len(line) {
-		return "default", ""
-	}
-
-	beforeCursor := line[:position.Character]
 	trimmedBefore := strings.TrimSpace(beforeCursor)
+	if len(trimmedBefore) == 0 {
+		return ""
+	}
 
-	// 检查是否在对象方法调用中 (如 $str-> 或 $str->le)
-	// 只要行内包含 -> 且光标在 -> 之后，我们就认为是 object_method
-	// 更精确的判断：找到最后一个 ->，如果光标在它后面
+	// 从后往前查找最后一个有意义的符号
+	// 优先级：-> > :: > $ > 关键字 > 其他
+
+	// 1. 检查 -> (对象方法调用)
 	lastArrowIdx := strings.LastIndex(beforeCursor, "->")
 	if lastArrowIdx != -1 {
 		// 检查 -> 后面是否只包含合法的标识符字符（或者是空的）
@@ -84,23 +119,108 @@ func getCompletionContext(content string, position defines.Position) (string, st
 			}
 		}
 		if isValid {
-			return "object_method", "->"
+			return "->"
 		}
 	}
 
-	// 简单的关键字触发逻辑 (实际应用中需要更复杂的词法分析)
-	if len(trimmedBefore) > 0 {
-		lastChar := trimmedBefore[len(trimmedBefore)-1]
-		if (lastChar >= 'a' && lastChar <= 'z') || (lastChar >= 'A' && lastChar <= 'Z') {
-			// 可能是正在输入关键字
-			// 这里简单假设如果是单词字符结尾，可能是关键字补全
-			// 但如果前面有 -> 则已经被上面的逻辑捕获
-			return "keyword", ""
+	// 2. 检查 . (类静态属性访问，兼容类似类名.常量/函数调用)
+	lastDotIdx := strings.LastIndex(beforeCursor, ".")
+	if lastDotIdx != -1 {
+		afterDot := beforeCursor[lastDotIdx+1:]
+		isValidAfter := true
+		for _, c := range afterDot {
+			if !isVarChar(byte(c)) {
+				isValidAfter = false
+				break
+			}
+		}
+		if isValidAfter {
+			return "."
 		}
 	}
 
-	// 默认情况
-	return "default", ""
+	// 3. 检查 :: (静态成员访问)
+	lastColonIdx := strings.LastIndex(beforeCursor, "::")
+	if lastColonIdx != -1 {
+		// 检查 :: 后面是否只包含合法的标识符字符（或者是空的）
+		afterColon := beforeCursor[lastColonIdx+2:]
+		isValid := true
+		for _, c := range afterColon {
+			if !isVarChar(byte(c)) {
+				isValid = false
+				break
+			}
+		}
+		if isValid {
+			return "::"
+		}
+	}
+
+	// 4. 检查 $ (变量)
+	lastDollarIdx := strings.LastIndex(beforeCursor, "$")
+	if lastDollarIdx != -1 {
+		// 检查 $ 后面是否只包含合法的标识符字符（或者是空的）
+		afterDollar := beforeCursor[lastDollarIdx+1:]
+		isValid := true
+		for _, c := range afterDollar {
+			if !isVarChar(byte(c)) {
+				isValid = false
+				break
+			}
+		}
+		if isValid {
+			return "$"
+		}
+	}
+
+	// 5. 检查关键字（如 new, func, class 等）
+	// 从后往前查找最后一个完整的单词
+	// 先去除末尾可能的空白和标识符字符，找到单词边界
+	wordEnd := len(trimmedBefore)
+	wordStart := wordEnd
+	// 从后往前找到单词的起始位置
+	for wordStart > 0 {
+		c := trimmedBefore[wordStart-1]
+		if isVarChar(c) {
+			wordStart--
+		} else {
+			break
+		}
+	}
+
+	if wordStart < wordEnd {
+		lastWord := trimmedBefore[wordStart:wordEnd]
+		// 检查是否是代码片段关键字
+		snippetKeywords := []string{"func", "class", "if", "foreach", "while", "for", "switch"}
+		for _, keyword := range snippetKeywords {
+			if lastWord == keyword {
+				return "snippet"
+			}
+		}
+		// 检查是否是 new 关键字
+		if lastWord == "new" {
+			return "new"
+		}
+	}
+
+	// 如果最后一个字符是字母，可能是正在输入关键字
+	lastChar := trimmedBefore[len(trimmedBefore)-1]
+	if (lastChar >= 'a' && lastChar <= 'z') || (lastChar >= 'A' && lastChar <= 'Z') {
+		return "keyword"
+	}
+
+	// 6. 默认情况
+	return "default"
+}
+
+// getDefaultCompletions 获取默认补全项
+func getDefaultCompletions() []defines.CompletionItem {
+	items := []defines.CompletionItem{}
+	items = append(items, getKeywordCompletions()...)
+	items = append(items, getSnippetCompletions()...)
+	items = append(items, getGlobalFunctionCompletions()...)
+	items = append(items, getGlobalClassCompletions()...)
+	return items
 }
 
 // getObjectPropertyAndMethodCompletions 获取对象属性和方法补全
@@ -119,10 +239,22 @@ func getObjectPropertyAndMethodCompletions(content string, position defines.Posi
 	line := lines[position.Line]
 	beforeCursor := line[:position.Character]
 
-	// 找到最后一个 ->
-	idx := strings.LastIndex(beforeCursor, "->")
-	if idx == -1 {
+	// 找到最后一次出现的 -> 或 .
+	idxArrow := strings.LastIndex(beforeCursor, "->")
+	idxDot := strings.LastIndex(beforeCursor, ".")
+
+	token := ""
+	idx := -1
+	if idxArrow == -1 && idxDot == -1 {
 		return nil
+	}
+
+	if idxArrow > idxDot {
+		token = "->"
+		idx = idxArrow
+	} else {
+		token = "."
+		idx = idxDot
 	}
 
 	// 提取变量名部分，例如 $user-> 中的 $user
@@ -145,7 +277,7 @@ func getObjectPropertyAndMethodCompletions(content string, position defines.Posi
 		return nil
 	}
 
-	logrus.Infof("尝试获取变量 %s 的类型", varName)
+	logrus.Infof("尝试获取变量 %s 的类型，触发符号: %s", varName, token)
 
 	// 2. 获取变量类型
 	className := provider.GetVariableTypeAtPosition(content, position, varName)

@@ -23,7 +23,7 @@ class UserController {
         $user->age = 20;
         $user->email = "zhangsan@example.com";
 
-        
+        $user->
 
         $response->header("Content-Type", "text/html; charset=utf-8");
         $response->write("<html><body><h1>用户详情</h1><p>ID: $id</p></body></html>");
