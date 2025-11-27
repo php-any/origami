@@ -306,6 +306,34 @@ func (d *DocumentInfo) identifyVariableTypes(ctx *LspContext, stmt data.GetValue
 		if inferredType = inferTypeFromExpression(n.Value); inferredType != nil {
 			return inferredType
 		}
+	case *node.VariableExpression:
+		// 记录变量出现，即使类型未知
+		// 确保变量名带 $
+		varName := n.Name
+		if !strings.HasPrefix(varName, "$") {
+			varName = "$" + varName
+		}
+
+		// 如果变量已有类型信息，记录它
+		if n.Type != nil {
+			ctx.SetVariableType(varName, n.Type)
+		} else {
+			// 否则只记录变量名
+			ctx.SetLocalVar(varName, nil)
+		}
+
+	case *node.VariableReference:
+		// 引用变量也需要记录
+		varName := n.Name
+		if !strings.HasPrefix(varName, "$") {
+			varName = "$" + varName
+		}
+
+		if n.Type != nil {
+			ctx.SetVariableType(varName, n.Type)
+		} else {
+			ctx.SetLocalVar(varName, nil)
+		}
 
 	// 增加对函数参数类型的支持
 	case *node.Parameter:
@@ -319,6 +347,13 @@ func (d *DocumentInfo) identifyVariableTypes(ctx *LspContext, stmt data.GetValue
 				varName = "$" + varName
 			}
 			ctx.SetVariableType(varName, n.Type)
+		} else {
+			// 参数没有类型注解，也要记录变量
+			varName := n.Name
+			if !strings.HasPrefix(varName, "$") {
+				varName = "$" + varName
+			}
+			ctx.SetLocalVar(varName, nil)
 		}
 	}
 

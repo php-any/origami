@@ -1009,6 +1009,14 @@ func createLocationFromClass(class data.ClassStmt) *defines.Location {
 // getClassNameFromType 从类型信息中获取类名
 func getClassNameFromType(typ data.Types) string {
 	switch t := typ.(type) {
+	case *data.LspTypes:
+		// LspTypes 包含多个类型，尝试从中找到第一个类类型
+		for _, innerType := range t.Types {
+			if className := getClassNameFromType(innerType); className != "" {
+				return className
+			}
+		}
+		return ""
 	case data.Class:
 		return t.Name
 	case data.NullableType:

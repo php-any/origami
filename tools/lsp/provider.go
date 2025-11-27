@@ -18,62 +18,126 @@ type LSPSymbolProvider struct {
 
 // GetVariableTypeAtPosition 获取指定位置变量的类型（类名）
 func (p *LSPSymbolProvider) GetVariableTypeAtPosition(content string, position defines.Position, varName string) string {
-	if p.doc == nil || p.doc.AST == nil {
+	foundType := p.GetVariableTypeObjectAtPosition(content, position, varName)
+	if foundType == nil {
 		return ""
 	}
 
-	logrus.Debugf("GetVariableTypeAtPosition: varName=%s, pos=%d:%d", varName, position.Line, position.Character)
+	if typ, ok := foundType.(data.Types); ok {
+		return getClassNameFromType(typ)
+	}
 
-	// 确保变量名格式统一，优先尝试带 $ 的
+	return ""
+}
+
+// GetVariableTypeObjectAtPosition 获取指定位置变量的类型对象（可能包含多个类型）
+func (p *LSPSymbolProvider) GetVariableTypeObjectAtPosition(content string, position defines.Position, varName string) interface{} {
+	if p.doc == nil || p.doc.AST == nil {
+		return nil
+	}
+
+	logrus.Debugf("GetVariableTypeObjectAtPosition: varName=%s, pos=%d:%d", varName, position.Line, position.Character)
+
+	// 确保变量名格式统一
 	varNameWithDollar := varName
 	if !strings.HasPrefix(varName, "$") {
 		varNameWithDollar = "$" + varName
 	}
 	varNameWithoutDollar := strings.TrimPrefix(varNameWithDollar, "$")
 
-	// 使用 Foreach 遍历 AST，找到包含光标位置的节点，并检查其中的变量类型
-	var foundType data.Types
+	targetLine := int(position.Line)
+	var collectedTypes []data.Types
+	var targetContext *LspContext
 
+	// 遍历 AST，收集光标位置之前的所有赋值类型
 	p.doc.Foreach(func(ctx *LspContext, parent, child data.GetValue) bool {
-		// 检查当前节点是否包含光标位置
-		// 注意：如果当前是在输入新代码，光标可能不在任何现有语句的范围内
-		// 但通常我们会在一个 BlockStatement 或 FunctionStatement 内部
-		if isPositionInRange(child, position) {
-			// 在当前上下文中查找变量类型
-			// 优先查找带 $ 的
-			if typ := ctx.GetVariableType(varNameWithDollar); typ != nil {
-				foundType = typ
-				logrus.Debugf("在上下文 %s 中找到变量 %s 的类型: %v", ctx.scopeName, varNameWithDollar, typ)
-			} else if typ := ctx.GetVariableType(varNameWithoutDollar); typ != nil {
-				foundType = typ
-				logrus.Debugf("在上下文 %s 中找到变量 %s 的类型: %v", ctx.scopeName, varNameWithoutDollar, typ)
-			}
-			return true
-		}
-
-		// 如果节点已经超过了目标行号，则停止遍历该分支的后续部分（优化）
-		// 但因为 AST 结构不是完全线性的，简单的行号判断可能不够
-		// 这里主要依赖 Foreach 的逻辑
+		// 获取节点的位置信息
+		var nodeStartLine int = -1
 		if getFrom, ok := child.(node.GetFrom); ok {
 			if from := getFrom.GetFrom(); from != nil {
-				_, _, endLine, _ := from.GetRange()
-				targetLine := int(position.Line) + 1 // convert 0-based to 1-based
-				// 如果当前节点结束行在目标行之前，它不包含目标，继续找下一个
-				// 如果当前节点开始行在目标行之后，可以跳过（仅当父节点是有序语句块时）
-				// 这里简单处理：不做过早退出的优化，保证正确性
-				_ = endLine
-				_ = targetLine
+				startLine, _, endLine, _ := from.GetRange()
+				nodeStartLine = startLine
+
+				// 更新目标上下文（找到包含或最接近目标位置的上下文）
+				if startLine <= targetLine && endLine >= targetLine {
+					targetContext = ctx
+				}
 			}
 		}
+
+		// 只处理开始行在目标行之前或同一行的节点
+		if nodeStartLine > targetLine {
+			return true // 跳过这个节点，继续遍历其他节点
+		}
+
+		// 检查是否是变量赋值语句
+		switch n := child.(type) {
+		case *node.BinaryAssignVariable:
+			// 检查左侧是否是我们要查找的变量
+			if leftVar, ok := n.Left.(*node.VariableExpression); ok {
+				if leftVar.Name == varNameWithoutDollar || "$"+leftVar.Name == varNameWithDollar {
+					// 推断右侧表达式的类型
+					if inferredType := inferTypeFromExpression(n.Right); inferredType != nil {
+						logrus.Debugf("找到变量 %s 的赋值，类型: %v", varName, inferredType)
+						collectedTypes = append(collectedTypes, inferredType)
+					}
+				}
+			}
+		case *node.VarStatement:
+			// var 声明
+			if n.Name == varNameWithoutDollar || "$"+n.Name == varNameWithDollar {
+				if n.Initializer != nil {
+					if inferredType := inferTypeFromExpression(n.Initializer); inferredType != nil {
+						logrus.Debugf("找到变量 %s 的 var 声明，类型: %v", varName, inferredType)
+						collectedTypes = append(collectedTypes, inferredType)
+					}
+				}
+			}
+		case *node.Parameter:
+			// 函数参数
+			paramName := n.Name
+			if !strings.HasPrefix(paramName, "$") {
+				paramName = "$" + paramName
+			}
+			if paramName == varNameWithDollar {
+				if n.Type != nil {
+					logrus.Debugf("找到变量 %s 的参数定义，类型: %v", varName, n.Type)
+					collectedTypes = append(collectedTypes, n.Type)
+				}
+			}
+		}
+
 		return true
 	})
 
-	if foundType != nil {
-		// 使用 definition.go 中的 getClassNameFromType
-		return getClassNameFromType(foundType)
+	// 如果没有从赋值中找到类型，尝试从上下文中查找
+	if len(collectedTypes) == 0 && targetContext != nil {
+		if typ := targetContext.GetVariableType(varNameWithDollar); typ != nil {
+			logrus.Debugf("从上下文找到变量 %s 的类型: %v", varName, typ)
+			return typ
+		}
+		if typ := targetContext.GetVariableType(varNameWithoutDollar); typ != nil {
+			logrus.Debugf("从上下文找到变量 %s 的类型: %v", varName, typ)
+			return typ
+		}
 	}
 
-	return ""
+	// 如果只收集到一个类型，直接返回
+	if len(collectedTypes) == 1 {
+		logrus.Debugf("变量 %s 有单一类型: %v", varName, collectedTypes[0])
+		return collectedTypes[0]
+	}
+
+	// 如果收集到多个类型，合并为 LspTypes
+	if len(collectedTypes) > 1 {
+		logrus.Debugf("变量 %s 有多个类型（%d个），合并为 LspTypes", varName, len(collectedTypes))
+		return &data.LspTypes{
+			Types: collectedTypes,
+		}
+	}
+
+	logrus.Debugf("未找到变量 %s 的类型", varName)
+	return nil
 }
 
 // GetClassMembers 获取类的所有成员（属性和方法）作为补全项
@@ -191,5 +255,195 @@ func (p *LSPSymbolProvider) GetClassMembers(className string) []defines.Completi
 		items = append(items, item)
 	}
 
+	return items
+}
+
+// GetStaticClassMembers 获取类的静态成员
+func (p *LSPSymbolProvider) GetStaticClassMembers(className string) []defines.CompletionItem {
+	if p.vm == nil {
+		return nil
+	}
+
+	itemsMap := make(map[string]defines.CompletionItem)
+	currentClassName := className
+	visited := make(map[string]bool)
+
+	logrus.Debugf("开始查找类静态成员: %s", className)
+
+	for currentClassName != "" {
+		if visited[currentClassName] {
+			break
+		}
+		visited[currentClassName] = true
+
+		class, exists := p.vm.GetClass(currentClassName)
+		if !exists {
+			break
+		}
+
+		if classStmt, ok := class.(*node.ClassStatement); ok {
+			// 添加静态方法
+			for _, method := range classStmt.Methods {
+				// 检查是否是静态方法
+				// 暂时无法直接判断是否为静态方法，先全部包含
+				// 实际项目中应该检查 method.GetModifier() 是否包含 static 标志
+
+				label := method.GetName()
+				if _, exists := itemsMap[label]; exists {
+					continue
+				}
+
+				visibility := "public"
+				modifier := method.GetModifier()
+				if modifier == data.ModifierPrivate {
+					visibility = "private"
+					if currentClassName != className {
+						continue
+					}
+				} else if modifier == data.ModifierProtected {
+					visibility = "protected"
+				}
+
+				detail := fmt.Sprintf("%s static method in %s", visibility, currentClassName)
+				insertText := label + "(${1})"
+				insertTextFormat := defines.InsertTextFormatSnippet
+
+				item := defines.CompletionItem{
+					Label:            label,
+					Kind:             &[]defines.CompletionItemKind{defines.CompletionItemKindMethod}[0],
+					Detail:           &detail,
+					InsertText:       &insertText,
+					InsertTextFormat: &insertTextFormat,
+				}
+				itemsMap[label] = item
+			}
+
+			// 添加静态属性
+			for _, prop := range classStmt.Properties {
+				// 同样需要检查是否静态
+				label := prop.GetName()
+				if _, exists := itemsMap[label]; exists {
+					continue
+				}
+
+				// 属性必须是静态的才能用 :: 访问
+				// 假设 IsStatic 存在
+				// if !prop.IsStatic() { continue }
+
+				visibility := "public"
+				modifier := prop.GetModifier()
+				if modifier == data.ModifierPrivate {
+					visibility = "private"
+					if currentClassName != className {
+						continue
+					}
+				} else if modifier == data.ModifierProtected {
+					visibility = "protected"
+				}
+
+				detail := fmt.Sprintf("%s static property in %s", visibility, currentClassName)
+				item := defines.CompletionItem{
+					Label:  label,
+					Kind:   &[]defines.CompletionItemKind{defines.CompletionItemKindProperty}[0],
+					Detail: &detail,
+				}
+				itemsMap[label] = item
+			}
+
+			if extends := classStmt.GetExtend(); extends != nil {
+				currentClassName = *extends
+			} else {
+				currentClassName = ""
+			}
+		} else {
+			break
+		}
+	}
+
+	items := make([]defines.CompletionItem, 0, len(itemsMap))
+	for _, item := range itemsMap {
+		items = append(items, item)
+	}
+	return items
+}
+
+// GetVariablesAtPosition 获取指定位置的所有可用变量
+func (p *LSPSymbolProvider) GetVariablesAtPosition(content string, position defines.Position) []defines.CompletionItem {
+	if p.doc == nil || p.doc.AST == nil {
+		return nil
+	}
+
+	itemsMap := make(map[string]defines.CompletionItem)
+	var targetContext *LspContext
+
+	targetLine := int(position.Line)
+
+	// 遍历 AST 找到包含光标位置的最深层上下文
+	p.doc.Foreach(func(ctx *LspContext, parent, child data.GetValue) bool {
+		// 使用行号比较，而不是严格的位置检查
+		// 找到包含目标行的最内层节点
+		if getFrom, ok := child.(node.GetFrom); ok {
+			if from := getFrom.GetFrom(); from != nil {
+				startLine, _, endLine, _ := from.GetRange()
+
+				// 如果当前节点包含目标行
+				if targetLine >= startLine && targetLine <= endLine {
+					// 更新目标上下文为更深层的上下文
+					targetContext = ctx
+				}
+			}
+		}
+		return true
+	})
+
+	// 如果没有找到特定上下文，使用根上下文
+	if targetContext == nil {
+		// 创建一个默认上下文并遍历一次以填充
+		p.doc.Foreach(func(ctx *LspContext, parent, child data.GetValue) bool {
+			if targetContext == nil {
+				targetContext = ctx
+			}
+			return false // 只需要第一个
+		})
+	}
+
+	// 从目标上下文开始，向上遍历所有父上下文，收集所有变量
+	curr := targetContext
+	for curr != nil {
+		// 1. 从 values 中获取类型推断的变量
+		for key, val := range curr.values {
+			if strings.HasPrefix(key, "var_type:") {
+				varName := strings.TrimPrefix(key, "var_type:")
+				if _, exists := itemsMap[varName]; !exists {
+					detail := "Variable"
+					if t, ok := val.(data.Types); ok {
+						detail = getClassNameFromType(t)
+					}
+					itemsMap[varName] = defines.CompletionItem{
+						Label:  varName,
+						Kind:   &[]defines.CompletionItemKind{defines.CompletionItemKindVariable}[0],
+						Detail: &detail,
+					}
+				}
+			}
+		}
+
+		// 2. 从 localVars 获取
+		for name := range curr.localVars {
+			if _, exists := itemsMap[name]; !exists {
+				itemsMap[name] = defines.CompletionItem{
+					Label: name,
+					Kind:  &[]defines.CompletionItemKind{defines.CompletionItemKindVariable}[0],
+				}
+			}
+		}
+
+		curr = curr.parent
+	}
+
+	items := make([]defines.CompletionItem, 0, len(itemsMap))
+	for _, item := range itemsMap {
+		items = append(items, item)
+	}
 	return items
 }

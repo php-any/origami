@@ -367,6 +367,14 @@ type SetTraceParams struct {
 type SymbolProvider interface {
 	// GetVariableTypeAtPosition 获取指定位置变量的类型（类名）
 	GetVariableTypeAtPosition(content string, position Position, varName string) string
+	// GetVariableTypeObjectAtPosition 获取指定位置变量的类型对象（可能包含多个类型）
+	GetVariableTypeObjectAtPosition(content string, position Position, varName string) interface{}
 	// GetClassMembers 获取类的所有成员（属性和方法）作为补全项
 	GetClassMembers(className string) []CompletionItem
+	// GetStaticClassMembers 获取类的静态成员
+	GetStaticClassMembers(className string) []CompletionItem
+	// GetVariablesAtPosition 获取指定位置的所有可用变量
+	GetVariablesAtPosition(content string, position Position) []CompletionItem
+	// GetClassCompletionsForContext 获取上下文相关的类补全（use导入 + 同级目录）
+	GetClassCompletionsForContext(content string, position Position) []CompletionItem
 }
