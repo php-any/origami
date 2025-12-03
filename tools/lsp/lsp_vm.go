@@ -215,6 +215,18 @@ func (vm *LspVM) GetFunc(funcName string) (data.FuncStmt, bool) {
 	return fn, exists
 }
 
+// GetAllFunctions 返回当前已知函数的副本（函数名 -> 函数定义）。
+func (vm *LspVM) GetAllFunctions() map[string]data.FuncStmt {
+	vm.mu.RLock()
+	defer vm.mu.RUnlock()
+
+	result := make(map[string]data.FuncStmt, len(vm.functions))
+	for k, v := range vm.functions {
+		result[k] = v
+	}
+	return result
+}
+
 // ClearFile 清除文件中的符号。
 func (vm *LspVM) ClearFile(filePath string) {
 	normalized := normalizeFilePath(filePath)

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -121,22 +120,15 @@ func findDefinitionFromNode(ctx *LspContext, v data.GetValue) []*defines.Locatio
 		}
 		return nil
 	case *node.CallObjectMethod:
-		// 对象方法调用，查找方法定义
-		logrus.Debugf("CallObjectMethod: object=%T, method=%s", n.Object, n.Method)
-
-		// 检查是否是链式调用（对象是另一个方法调用的结果）
-		switch chainCall := n.Object.(type) {
-		case *node.CallObjectMethod:
-			// 这是一个链式调用，需要递归解析
-			logrus.Debug("检测到链式调用，递归解析")
-			if loc := findChainedMethodDefinition(ctx, chainCall, n.Method); loc != nil {
-				return []*defines.Location{loc}
-			}
-			return nil
-		}
-
-		// 普通对象方法调用
-		return findObjectMethodDefinition(ctx, n.Object, n.Method)
+		// 对象方法调用，查找方法定义（拆分到独立文件中实现）
+		return handleCallObjectMethodDefinition(ctx, n)
+	case *node.CallStaticMethod:
+		// 静态方法调用 ClassName::method()，查找静态方法定义
+		return findStaticMethodDefinition(n.Method)
+	case *node.CallObjectProperty:
+		// 对象属性访问，查找属性定义
+		logrus.Debugf("CallObjectProperty: object=%T, property=%s", n.Object, n.Property)
+		return findObjectPropertyDefinition(ctx, n.Object, n.Property)
 	case *node.VariableExpression:
 		// 变量引用，查找变量定义
 		if loc := findVariableDefinition(ctx, n.Name); loc != nil {
@@ -569,266 +561,6 @@ func findClassDefinition(ctx *LspContext, className string) []*defines.Location 
 	return nil
 }
 
-// findObjectMethodDefinition 查找对象方法定义
-func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodName string) []*defines.Location {
-	if globalLspVM == nil {
-		return nil
-	}
-
-	// 尝试从对象中获取类型信息
-	// 这里需要根据对象的类型来查找方法定义
-	// 由于对象可能是变量、表达式等，我们需要先尝试解析对象名称
-
-	// 如果对象是变量表达式，尝试从变量类型查找对应的类
-	if varExpr, ok := object.(*node.VariableExpression); ok {
-		// 首先尝试从变量节点的类型信息获取
-		if varExpr.Type != nil {
-			// 从类型信息中获取类名
-			switch t := varExpr.Type.(type) {
-			case *data.LspTypes:
-				var ret []*defines.Location
-				for _, tt := range t.Types {
-					if className := getClassNameFromType(tt); className != "" {
-						// 根据类名查找类定义
-						if class, exists := globalLspVM.GetClass(className); exists {
-							if methodLocation := findMethodInClass(class, methodName); methodLocation != nil {
-								ret = append(ret, methodLocation)
-							}
-						}
-					}
-				}
-				return ret
-			default:
-				if className := getClassNameFromType(varExpr.Type); className != "" {
-					// 根据类名查找类定义
-					if class, exists := globalLspVM.GetClass(className); exists {
-						if methodLocation := findMethodInClass(class, methodName); methodLocation != nil {
-							return []*defines.Location{methodLocation}
-						}
-					}
-				}
-			}
-		}
-
-		// 如果变量节点没有类型信息，尝试从上下文获取
-		if ctx != nil {
-			varType := ctx.GetVariableType(varExpr.Name)
-			if varType != nil {
-				logrus.Debugf("从上下文找到变量类型：%s -> %v", varExpr.Name, varType)
-				if className := getClassNameFromType(varType); className != "" {
-					logrus.Debugf("提取类名：%s", className)
-					// 根据类名查找类定义
-					if class, exists := globalLspVM.GetClass(className); exists {
-						if methodLocation := findMethodInClass(class, methodName); methodLocation != nil {
-							return []*defines.Location{methodLocation}
-						}
-					}
-				}
-			} else {
-				logrus.Debugf("在上下文中未找到变量类型：%s", varExpr.Name)
-			}
-		}
-	}
-
-	// 如果对象是 this 表达式，尝试查找当前类的方法
-	if _, ok := object.(*node.This); ok {
-		// 这里需要获取当前类的上下文，暂时简化处理
-		// 可以尝试查找同名函数作为备选
-		if function, exists := globalLspVM.GetFunc(methodName); exists {
-			return []*defines.Location{createLocationFromFunction(function)}
-		}
-	}
-
-	// 如果找不到具体的类，尝试查找同名函数作为备选
-	if function, exists := globalLspVM.GetFunc(methodName); exists {
-		return []*defines.Location{createLocationFromFunction(function)}
-	}
-
-	return nil
-}
-
-// findChainedMethodDefinition 查找链式方法调用中的方法定义
-func findChainedMethodDefinition(ctx *LspContext, chainCall *node.CallObjectMethod, methodName string) *defines.Location {
-	if globalLspVM == nil {
-		return nil
-	}
-
-	logrus.Debugf("解析链式调用：%s", methodName)
-
-	// 递归解析链式调用，从最内层开始
-	// 例如：$a->newB()->getC()->hello() 需要递归解析每一层
-
-	// 获取链式调用的对象
-	object := chainCall.Object
-	method := chainCall.Method
-
-	logrus.Debugf("链式调用对象：%T，方法：%s", object, method)
-
-	// 递归解析链式调用
-	return resolveChainedMethod(ctx, object, method, methodName)
-}
-
-// resolveChainedMethod 递归解析链式方法调用
-func resolveChainedMethod(ctx *LspContext, object data.GetValue, currentMethod, targetMethod string) *defines.Location {
-	if globalLspVM == nil {
-		return nil
-	}
-
-	logrus.Debugf("解析方法调用：%s，目标方法：%s", currentMethod, targetMethod)
-
-	// 如果对象是变量，尝试获取其类型
-	if varExpr, ok := object.(*node.VariableExpression); ok {
-		logrus.Debugf("变量：%s", varExpr.Name)
-
-		// 从上下文获取变量类型
-		if ctx != nil {
-			varType := ctx.GetVariableType(varExpr.Name)
-			if varType != nil {
-				logrus.Debugf("变量类型：%v", varType)
-
-				// 获取类名
-				if className := getClassNameFromType(varType); className != "" {
-					logrus.Debugf("类名：%s", className)
-
-					// 查找类定义
-					if class, exists := globalLspVM.GetClass(className); exists {
-						// 在类中查找当前方法
-						if methodLocation := findMethodInClass(class, currentMethod); methodLocation != nil {
-							logrus.Debugf("找到方法：%s", currentMethod)
-
-							// 尝试推断方法的返回类型
-							returnType := inferMethodReturnType(class, currentMethod)
-							if returnType != nil {
-								logrus.Debugf("推断返回类型：%s", returnType)
-
-								// 仅补充 switch returnType.(type) 逻辑
-								switch rt := returnType.(type) {
-								case data.String:
-									if function, exists := globalLspVM.GetFunc(targetMethod); exists {
-										return createLocationFromFunction(function)
-									}
-								case data.Arrays:
-									if function, exists := globalLspVM.GetFunc(targetMethod); exists {
-										return createLocationFromFunction(function)
-									}
-								case data.Int, data.Float, data.Bool, data.Object, data.Callable:
-									if function, exists := globalLspVM.GetFunc(targetMethod); exists {
-										return createLocationFromFunction(function)
-									}
-								case data.Class:
-									if class, exists := globalLspVM.GetClass(rt.Name); exists {
-										if final := findMethodInClass(class, targetMethod); final != nil {
-											return final
-										}
-									}
-								case data.NullableType:
-									if className := getClassNameFromType(rt.BaseType); className != "" {
-										if class, exists := globalLspVM.GetClass(className); exists {
-											if final := findMethodInClass(class, targetMethod); final != nil {
-												return final
-											}
-										}
-									}
-								case data.MultipleReturnType:
-									for _, t := range rt.Types {
-										if className := getClassNameFromType(t); className != "" {
-											if class, exists := globalLspVM.GetClass(className); exists {
-												if final := findMethodInClass(class, targetMethod); final != nil {
-													return final
-												}
-											}
-										}
-									}
-								case data.Generic:
-									for _, t := range rt.Types {
-										if className := getClassNameFromType(t); className != "" {
-											if class, exists := globalLspVM.GetClass(className); exists {
-												if final := findMethodInClass(class, targetMethod); final != nil {
-													return final
-												}
-											}
-										}
-									}
-								}
-							}
-
-							// 如果无法推断返回类型，尝试在所有类中查找目标方法
-							if globalLspVM != nil {
-								// 遍历所有类，查找目标方法
-								allClasses := globalLspVM.GetAllClasses()
-								for className, classStmt := range allClasses {
-									logrus.Debugf("在所有类中查找：%s", className)
-									if methodLocation := findMethodInClass(classStmt, targetMethod); methodLocation != nil {
-										logrus.Debugf("在类 %s 中找到目标方法：%s", className, targetMethod)
-										return methodLocation
-									}
-								}
-							}
-
-							// 如果所有类中都找不到，就不需要提示了
-							logrus.Debugf("在所有类中都找不到目标方法：%s", targetMethod)
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// 如果对象是另一个方法调用，递归解析
-	if nestedCall, ok := object.(*node.CallObjectMethod); ok {
-		logrus.Debug("检测到嵌套方法调用，递归解析")
-		return resolveChainedMethod(ctx, nestedCall.Object, nestedCall.Method, targetMethod)
-	}
-
-	// 如果无法解析链式调用，尝试查找同名函数作为备选
-	logrus.Debugf("无法解析链式调用，尝试查找同名函数：%s", targetMethod)
-	if function, exists := globalLspVM.GetFunc(targetMethod); exists {
-		return createLocationFromFunction(function)
-	}
-
-	return nil
-}
-
-// inferMethodReturnType 推断方法的返回类型
-func inferMethodReturnType(class data.ClassStmt, methodName string) data.Types {
-	// 获取方法定义
-	method, exists := class.GetMethod(methodName)
-	if !exists {
-		return nil
-	}
-	// 1. 检查方法是否有返回类型注解
-	if ret, ok := method.(data.GetReturnType); ok {
-		ret := ret.GetReturnType()
-		if ret != nil {
-			return ret
-		}
-	}
-	var inferredType data.Types
-	// 方法应该实现 data.Method 接口
-	if m, ok := method.(*node.ClassMethod); ok {
-		docu := &DocumentInfo{}
-		baseCtx := context.Background()
-		lspCtx := NewLspContext(baseCtx, nil)
-
-		for _, stmt := range m.Body {
-			docu.foreachNode(lspCtx, stmt, nil, func(ctx *LspContext, parent, child data.GetValue) bool {
-				switch st := child.(type) {
-				case *node.ReturnStatement:
-					inferredType = docu.identifyVariableTypes(ctx, st)
-					return false
-				}
-				return true
-			})
-			if inferredType != nil {
-				return inferredType
-			}
-		}
-	}
-
-	// 默认返回空字符串，表示无法推断
-	return inferredType
-}
-
 // 对未设置变量类型的变量尝试设置类型
 func chackAndSetTypeVariableDefinition(ctx *LspContext, parent, child data.GetValue) {
 	switch c := child.(type) {
@@ -1035,9 +767,8 @@ func getClassNameFromType(typ data.Types) string {
 
 // findMethodInClass 在类中查找方法
 func findMethodInClass(class data.ClassStmt, methodName string) *defines.Location {
-	// 尝试在类中查找指定名称的方法
+	// 尝试在类中查找指定名称的方法；若找不到方法，则退回类定义（旧行为）
 	if method, exists := class.GetMethod(methodName); exists {
-		// 如果方法有位置信息，返回方法的位置
 		if methodWithFrom, ok := method.(node.GetFrom); ok {
 			if from := methodWithFrom.GetFrom(); from != nil {
 				startLine, startChar, endLine, endChar := from.ToLSPPosition()
@@ -1063,5 +794,211 @@ func findMethodInClass(class data.ClassStmt, methodName string) *defines.Locatio
 			},
 		}
 	}
+	return nil
+}
+
+// findMethodInClassOnlyMethod 只返回方法本身的位置；找不到方法时返回 nil，不退回类定义。
+// 主要用于全局兜底扫描，避免因为同名方法随机跳到某个类上。
+func findMethodInClassOnlyMethod(class data.ClassStmt, methodName string) *defines.Location {
+	// 先查实例方法
+	if method, exists := class.GetMethod(methodName); exists {
+		if methodWithFrom, ok := method.(node.GetFrom); ok {
+			if from := methodWithFrom.GetFrom(); from != nil {
+				startLine, startChar, endLine, endChar := from.ToLSPPosition()
+				return &defines.Location{
+					URI: filePathToURI(from.GetSource()),
+					Range: defines.Range{
+						Start: defines.Position{Line: uint32(startLine), Character: uint32(startChar)},
+						End:   defines.Position{Line: uint32(endLine), Character: uint32(endChar)},
+					},
+				}
+			}
+		}
+	}
+
+	// 再查静态方法：类实现了 data.GetStaticMethod 接口时才有效
+	if getter, ok := class.(data.GetStaticMethod); ok {
+		if method, exists := getter.GetStaticMethod(methodName); exists {
+			if methodWithFrom, ok := method.(node.GetFrom); ok {
+				if from := methodWithFrom.GetFrom(); from != nil {
+					startLine, startChar, endLine, endChar := from.ToLSPPosition()
+					return &defines.Location{
+						URI: filePathToURI(from.GetSource()),
+						Range: defines.Range{
+							Start: defines.Position{Line: uint32(startLine), Character: uint32(startChar)},
+							End:   defines.Position{Line: uint32(endLine), Character: uint32(endChar)},
+						},
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// findStaticMethodDefinition 查找静态方法定义（ClassName::method() 形式）。
+// 目前由于 AST 中未直接暴露类名，这里采用“全局按方法名扫描”的策略，
+// 只返回真正的方法定义（包括静态方法），不退回类定义。
+func findStaticMethodDefinition(methodName string) []*defines.Location {
+	if globalLspVM == nil {
+		return nil
+	}
+
+	var locs []*defines.Location
+	allClasses := globalLspVM.GetAllClasses()
+	for _, classStmt := range allClasses {
+		if methodLoc := findMethodInClassOnlyMethod(classStmt, methodName); methodLoc != nil {
+			locs = append(locs, methodLoc)
+		}
+	}
+
+	if len(locs) == 0 {
+		return nil
+	}
+	return locs
+}
+
+// findObjectPropertyDefinition 查找对象属性定义
+func findObjectPropertyDefinition(ctx *LspContext, object data.GetValue, propertyName string) []*defines.Location {
+	if globalLspVM == nil {
+		return nil
+	}
+
+	// 尝试从对象中获取类型信息
+	// 如果对象是变量表达式，尝试从变量类型查找对应的类
+	if varExpr, ok := object.(*node.VariableExpression); ok {
+		// 首先尝试从变量节点的类型信息获取
+		if varExpr.Type != nil {
+			// 从类型信息中获取类名
+			switch t := varExpr.Type.(type) {
+			case *data.LspTypes:
+				var ret []*defines.Location
+				for _, tt := range t.Types {
+					if className := getClassNameFromType(tt); className != "" {
+						// 根据类名查找类定义
+						if class, exists := globalLspVM.GetClass(className); exists {
+							if propertyLocation := findPropertyInClass(class, propertyName); propertyLocation != nil {
+								ret = append(ret, propertyLocation)
+							}
+						}
+					}
+				}
+				logrus.Debugf("从类型信息中获取类名：%v", ret)
+				return ret
+			default:
+				if className := getClassNameFromType(varExpr.Type); className != "" {
+					// 根据类名查找类定义
+					if class, exists := globalLspVM.GetClass(className); exists {
+						if propertyLocation := findPropertyInClass(class, propertyName); propertyLocation != nil {
+							return []*defines.Location{propertyLocation}
+						}
+					}
+				}
+			}
+		}
+
+		// 如果变量节点没有类型信息，尝试从上下文获取
+		if ctx != nil {
+			varType := ctx.GetVariableType(varExpr.Name)
+			if varType != nil {
+				logrus.Debugf("从上下文找到变量类型：%s -> %v", varExpr.Name, varType)
+				if className := getClassNameFromType(varType); className != "" {
+					logrus.Debugf("提取类名：%s", className)
+					// 根据类名查找类定义
+					if class, exists := globalLspVM.GetClass(className); exists {
+						if propertyLocation := findPropertyInClass(class, propertyName); propertyLocation != nil {
+							return []*defines.Location{propertyLocation}
+						}
+					}
+				}
+			} else {
+				logrus.Debugf("在上下文中未找到变量类型：%s", varExpr.Name)
+			}
+		}
+	}
+
+	// 如果对象是 this 表达式，尝试查找当前类的属性
+	if _, ok := object.(*node.This); ok {
+		// 从上下文获取当前类名
+		if ctx != nil {
+			currentClassName := getCurrentClassNameFromContext(ctx)
+			if currentClassName != "" {
+				logrus.Debugf("从上下文找到当前类名：%s", currentClassName)
+				if class, exists := globalLspVM.GetClass(currentClassName); exists {
+					if propertyLocation := findPropertyInClass(class, propertyName); propertyLocation != nil {
+						logrus.Debugf("在类 %s 中找到属性 %s", currentClassName, propertyName)
+						return []*defines.Location{propertyLocation}
+					} else {
+						logrus.Debugf("在类 %s 中未找到属性 %s", currentClassName, propertyName)
+					}
+				} else {
+					logrus.Debugf("未找到类定义：%s", currentClassName)
+				}
+			} else {
+				logrus.Debugf("无法从上下文获取当前类名")
+			}
+		}
+	}
+
+	return nil
+}
+
+// getCurrentClassNameFromContext 从上下文中获取当前类名
+func getCurrentClassNameFromContext(ctx *LspContext) string {
+	if ctx == nil {
+		return ""
+	}
+
+	// 从作用域栈中查找包含 "class:" 前缀的作用域
+	for i := len(ctx.scopeStack) - 1; i >= 0; i-- {
+		scope := ctx.scopeStack[i]
+		if strings.HasPrefix(scope, "class:") {
+			className := strings.TrimPrefix(scope, "class:")
+			return className
+		}
+	}
+
+	// 如果作用域栈中没有，尝试从 scopeName 获取
+	if ctx.scopeName != "" && strings.HasPrefix(ctx.scopeName, "class:") {
+		className := strings.TrimPrefix(ctx.scopeName, "class:")
+		return className
+	}
+
+	// 递归查找父上下文
+	if ctx.parent != nil {
+		return getCurrentClassNameFromContext(ctx.parent)
+	}
+
+	return ""
+}
+
+// findPropertyInClass 在类中查找属性
+func findPropertyInClass(class data.ClassStmt, propertyName string) *defines.Location {
+	// 尝试在类中查找指定名称的属性
+	if property, exists := class.GetProperty(propertyName); exists {
+		// 如果属性有位置信息，返回属性的位置
+		if propertyWithFrom, ok := property.(node.GetFrom); ok {
+			if from := propertyWithFrom.GetFrom(); from != nil {
+				startLine, startChar, endLine, endChar := from.ToLSPPosition()
+				source := from.GetSource()
+				// 检查是否是 placeholder，如果是则返回 nil
+				if source == "" || strings.Contains(source, "placeholder") {
+					logrus.Debugf("属性 %s 的位置信息无效（placeholder）", propertyName)
+					return nil
+				}
+				return &defines.Location{
+					URI: filePathToURI(source),
+					Range: defines.Range{
+						Start: defines.Position{Line: uint32(startLine), Character: uint32(startChar)},
+						End:   defines.Position{Line: uint32(endLine), Character: uint32(endChar)},
+					},
+				}
+			}
+		}
+	}
+
+	// 如果找不到属性，返回 nil（不返回类定义的位置，因为这不是属性定义）
+	logrus.Debugf("在类中未找到属性：%s", propertyName)
 	return nil
 }

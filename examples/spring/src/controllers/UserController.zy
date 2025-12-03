@@ -1,5 +1,8 @@
 namespace Spring\Controller;
 
+use Net\Http\Server;
+use Net\Http\app;
+use Net\Http\Response;
 use Net\Annotation\Controller;
 use Net\Annotation\Route;
 use Net\Annotation\GetMapping;
@@ -24,8 +27,6 @@ class UserController {
         $user->email = "zhangsan@example.com";
 
         $user->age = 18;
-
-        $data = new Spring\Model\Users();
 
         $response->header("Content-Type", "text/html; charset=utf-8");
         $response->write("<html><body><h1>用户详情</h1><p>ID: $id</p></body></html>");

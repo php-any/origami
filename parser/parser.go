@@ -122,7 +122,6 @@ func (p *Parser) parseProgram(statements []data.GetValue) (*node.Program, data.C
 			} else {
 				if n, ok := stmt.(*node.UseStatement); ok {
 					p.uses[n.Alias] = n.Namespace
-					continue
 				}
 
 				if p.namespace != nil {

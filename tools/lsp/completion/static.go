@@ -1,15 +1,19 @@
 package completion
 
 import (
+	"strings"
+
 	"github.com/php-any/origami/tools/lsp/defines"
 )
 
 // getDefaultCompletions 获取默认补全项
-func getDefaultCompletions() []defines.CompletionItem {
+// 默认情况下：关键字 + 代码片段 + 内置函数 + 项目函数 + 内置类
+func getDefaultCompletions(vmProvider VMProvider) []defines.CompletionItem {
 	items := []defines.CompletionItem{}
 	items = append(items, getKeywordCompletions()...)
 	items = append(items, getSnippetCompletions()...)
 	items = append(items, getGlobalFunctionCompletions()...)
+	items = append(items, getGlobalFunctionCompletionsWithVM("", vmProvider)...)
 	items = append(items, getGlobalClassCompletions()...)
 	return items
 }
@@ -99,6 +103,57 @@ func getGlobalFunctionCompletions() []defines.CompletionItem {
 	return items
 }
 
+// getGlobalFunctionCompletionsWithVM 返回来自 VM 的项目函数（包括带路径的函数，如 Net\Http\app）。
+// - worker：当前正在输入的标识符，用于按函数短名（最后一段）前缀过滤
+// - Label：短名（例如 "app"）
+// - Detail：完整函数名（包含路径），例如 "Net\\Http\\app"
+func getGlobalFunctionCompletionsWithVM(worker string, vmProvider VMProvider) []defines.CompletionItem {
+	if vmProvider == nil {
+		return nil
+	}
+
+	funcs := vmProvider.GetAllFunctions()
+	if len(funcs) == 0 {
+		return nil
+	}
+
+	items := make([]defines.CompletionItem, 0, len(funcs))
+
+	kind := defines.CompletionItemKindFunction
+	snippetFormat := defines.InsertTextFormatSnippet
+
+	for fullName := range funcs {
+		// 取短名：最后一个 '\' 或 '/' 之后的部分
+		shortName := fullName
+		if idx := strings.LastIndexAny(fullName, "\\/"); idx >= 0 && idx+1 < len(fullName) {
+			shortName = fullName[idx+1:]
+		}
+
+		// 只按短名与 worker 的前缀进行匹配，例如输入 "app" 匹配 "Net\\Http\\app"
+		if !strings.HasPrefix(shortName, worker) {
+			continue
+		}
+
+		insertText := shortName + "($1)"
+
+		// Label 用短名，Detail 保存完整名，方便后续生成 use 语句
+		detail := fullName
+		item := defines.CompletionItem{
+			Label:            shortName,
+			Kind:             &kind,
+			Detail:           &detail,
+			InsertText:       &insertText,
+			InsertTextFormat: &snippetFormat,
+		}
+
+		// FilterText/SortText 使用短名即可
+
+		items = append(items, item)
+	}
+
+	return items
+}
+
 func getGlobalClassCompletions() []defines.CompletionItem {
 	classes := []string{
 		"Exception", "Error", "DateTime", "PDO", "stdClass",
@@ -111,6 +166,48 @@ func getGlobalClassCompletions() []defines.CompletionItem {
 			Kind:  &[]defines.CompletionItemKind{defines.CompletionItemKindClass}[0],
 		}
 	}
+	return items
+}
+
+// getGlobalClassCompletionsFromVM 返回来自 VM 的项目类（包括带命名空间的类，如 Net\Http\Server）。
+// - worker：当前正在输入的标识符，用于按类短名（最后一段）做前缀过滤
+// - Label：短名（例如 "Server"）
+// - Detail："full:Net\\Http\\Server" 这样的完整类名描述，方便后续自动添加 use 语句
+func getGlobalClassCompletionsFromVM(worker string, vmProvider VMProvider) []defines.CompletionItem {
+	if vmProvider == nil {
+		return nil
+	}
+
+	allClasses := vmProvider.GetAllClasses()
+	if len(allClasses) == 0 {
+		return nil
+	}
+
+	items := make([]defines.CompletionItem, 0, len(allClasses))
+	kind := defines.CompletionItemKindClass
+
+	for fullName := range allClasses {
+		// 提取短名：命名空间最后一段
+		shortName := fullName
+		if idx := strings.LastIndexAny(fullName, "\\/"); idx >= 0 && idx+1 < len(fullName) {
+			shortName = fullName[idx+1:]
+		}
+
+		// 只按短名前缀过滤，例如输入 "Ser" 匹配 "Net\\Http\\Server"
+		if !strings.HasPrefix(shortName, worker) {
+			continue
+		}
+
+		detail := "full:" + fullName
+		item := defines.CompletionItem{
+			Label:  shortName,
+			Kind:   &kind,
+			Detail: &detail,
+		}
+
+		items = append(items, item)
+	}
+
 	return items
 }
 

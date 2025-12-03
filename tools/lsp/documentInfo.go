@@ -367,6 +367,11 @@ type DocumentInfo struct {
 	Parser  *LspParser
 }
 
+// GetAST 获取 AST（用于 completion 包）
+func (d *DocumentInfo) GetAST() *node.Program {
+	return d.AST
+}
+
 // CheckNode 遍历节点的回调函数
 type CheckNode func(ctx *LspContext, parent, child data.GetValue) bool
 
@@ -909,6 +914,7 @@ func (d *DocumentInfo) foreachNode(ctx *LspContext, stmt data.GetValue, parent d
 		// continue语句：叶子节点
 	case *node.UseStatement:
 		// use语句：叶子节点
+
 	// 默认情况：遇到未处理的节点类型时报错
 	default:
 		if stmt == nil {

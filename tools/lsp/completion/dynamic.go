@@ -168,16 +168,54 @@ func getVariableCompletions(content string, position defines.Position, provider 
 }
 
 // getClassCompletionsForNew 获取 new 关键字后的类名补全
-func getClassCompletionsForNew(content string, position defines.Position, provider defines.SymbolProvider) []defines.CompletionItem {
+func getClassCompletionsForNew(content string, position defines.Position, provider defines.SymbolProvider, lastSymbol SymbolProvider) []defines.CompletionItem {
 	if provider == nil {
 		return nil
 	}
 
-	logrus.Infof("尝试获取 new 关键字的类补全")
+	logrus.Infof("尝试获取 new 关键字的类补全，Worker: %s", lastSymbol.Worker)
 
-	// 调用 provider 的方法获取上下文相关的类
-	items := provider.GetClassCompletionsForContext(content, position)
+	// 调用 provider 的方法获取上下文相关的类（已经在 GetClassCompletionsForContext 中根据 Worker 过滤）
+	items := provider.GetClassCompletionsForContext(content, position, lastSymbol.Worker)
 
-	logrus.Infof("找到类补全：%d 个", len(items))
-	return items
+	// 按照优先级排序：use 导入的类 > 同级目录的类 > 全局类
+	sortedItems := sortClassesByPriority(items)
+
+	logrus.Infof("找到类补全：%d 个", len(sortedItems))
+	return sortedItems
+}
+
+// sortClassesByPriority 按照优先级排序类补全项
+// 优先级：use 导入的类 > 同级目录的类 > 全局类
+func sortClassesByPriority(items []defines.CompletionItem) []defines.CompletionItem {
+	useItems := make([]defines.CompletionItem, 0)
+	sameDirItems := make([]defines.CompletionItem, 0)
+	globalItems := make([]defines.CompletionItem, 0)
+
+	for _, item := range items {
+		if item.Detail != nil {
+			detail := *item.Detail
+			if strings.HasPrefix(detail, "use ") {
+				useItems = append(useItems, item)
+			} else if detail == "同级目录" {
+				sameDirItems = append(sameDirItems, item)
+			} else if detail == "全局类" {
+				globalItems = append(globalItems, item)
+			} else {
+				// 未知类型，放到最后
+				globalItems = append(globalItems, item)
+			}
+		} else {
+			// 没有 Detail 信息，放到最后
+			globalItems = append(globalItems, item)
+		}
+	}
+
+	// 合并结果：use 导入的类 > 同级目录的类 > 全局类
+	result := make([]defines.CompletionItem, 0, len(items))
+	result = append(result, useItems...)
+	result = append(result, sameDirItems...)
+	result = append(result, globalItems...)
+
+	return result
 }

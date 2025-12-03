@@ -166,14 +166,10 @@ func handleTextDocumentDidClose(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (int
 
 	logrus.Infof("文档已关闭：%s", uri)
 
-	// 清除 LspVM 中该文件的符号
-	if strings.HasPrefix(uri, "file://") {
-		filePath := uriToFilePath(uri)
-		if globalLspVM != nil {
-			globalLspVM.ClearFile(filePath)
-		}
-	}
-
+	// 注意：不再在此处清除 LspVM 中该文件的符号。
+	// 原先这里调用 ClearFile，会导致类/函数符号从全局索引中删除，
+	// 关闭文件后再次执行「跳转到定义」就找不到目标了（只能跳转一次）。
+	// 为了保持符号索引稳定，仅移除文档缓存，让 LspVM 继续保留已解析的符号。
 	delete(documents, uri)
 
 	return nil, nil

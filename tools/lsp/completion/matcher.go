@@ -4,16 +4,25 @@ import (
 	"strings"
 )
 
+// 补全定位信息
+type SymbolProvider struct {
+	TypeString string // 进入模式类型, 比如 new
+	Worker     string // 光标符号, 比如 U符号，就可以只提示有 U字母的类
+}
+
 // getLastSymbol 获取光标左边最后一个有意义的符号
-func getLastSymbol(beforeCursor string) string {
+func getLastSymbol(beforeCursor string) SymbolProvider {
 	if len(beforeCursor) == 0 {
-		return ""
+		return SymbolProvider{TypeString: "", Worker: ""}
 	}
 
 	trimmedBefore := strings.TrimSpace(beforeCursor)
 	if len(trimmedBefore) == 0 {
-		return ""
+		return SymbolProvider{TypeString: "", Worker: ""}
 	}
+
+	// 提取光标位置正在输入的符号作为 Worker
+	worker := extractWorker(beforeCursor)
 
 	// 从后往前查找最后一个有意义的符号
 	// 优先级：-> > :: > $ > 关键字 > 其他
@@ -31,7 +40,7 @@ func getLastSymbol(beforeCursor string) string {
 			}
 		}
 		if isValid {
-			return "->"
+			return SymbolProvider{TypeString: "->", Worker: worker}
 		}
 	}
 
@@ -47,7 +56,7 @@ func getLastSymbol(beforeCursor string) string {
 			}
 		}
 		if isValidAfter {
-			return "."
+			return SymbolProvider{TypeString: ".", Worker: worker}
 		}
 	}
 
@@ -64,7 +73,7 @@ func getLastSymbol(beforeCursor string) string {
 			}
 		}
 		if isValid {
-			return "::"
+			return SymbolProvider{TypeString: "::", Worker: worker}
 		}
 	}
 
@@ -81,7 +90,7 @@ func getLastSymbol(beforeCursor string) string {
 			}
 		}
 		if isValid {
-			return "$"
+			return SymbolProvider{TypeString: "$", Worker: worker}
 		}
 	}
 
@@ -100,14 +109,14 @@ func getLastSymbol(beforeCursor string) string {
 
 		// 检查是否是 new 关键字
 		if lastCompleteWord == "new" {
-			return "new"
+			return SymbolProvider{TypeString: "new", Worker: worker}
 		}
 
 		// 检查是否是代码片段关键字
 		snippetKeywords := []string{"func", "class", "if", "foreach", "while", "for", "switch"}
 		for _, keyword := range snippetKeywords {
 			if lastCompleteWord == keyword {
-				return "snippet"
+				return SymbolProvider{TypeString: "snippet", Worker: worker}
 			}
 		}
 	}
@@ -115,11 +124,54 @@ func getLastSymbol(beforeCursor string) string {
 	// 如果最后一个字符是字母，可能是正在输入关键字或标识符
 	lastChar := trimmedBefore[len(trimmedBefore)-1]
 	if (lastChar >= 'a' && lastChar <= 'z') || (lastChar >= 'A' && lastChar <= 'Z') {
-		return "keyword"
+		return SymbolProvider{TypeString: "keyword", Worker: worker}
 	}
 
 	// 6. 默认情况
-	return "default"
+	return SymbolProvider{TypeString: "default", Worker: worker}
+}
+
+// extractWorker 提取光标位置正在输入的符号
+func extractWorker(beforeCursor string) string {
+	if len(beforeCursor) == 0 {
+		return ""
+	}
+
+	// 从后往前找到最后一个非标识符字符的位置
+	workerStart := len(beforeCursor)
+	for i := len(beforeCursor) - 1; i >= 0; i-- {
+		if !isVarChar(beforeCursor[i]) {
+			workerStart = i + 1
+			break
+		}
+	}
+
+	// 如果 workerStart 在字符串末尾，说明正在输入标识符
+	if workerStart < len(beforeCursor) {
+		return beforeCursor[workerStart:]
+	}
+
+	// 如果整个字符串末尾都是标识符字符，返回整个末尾部分
+	// 但需要排除已经识别的操作符（->, ::, $, .）
+	trimmed := strings.TrimSpace(beforeCursor)
+	if len(trimmed) > 0 {
+		// 检查是否以操作符结尾
+		if strings.HasSuffix(trimmed, "->") || strings.HasSuffix(trimmed, "::") {
+			return ""
+		}
+		// 提取末尾的标识符部分
+		worker := ""
+		for i := len(trimmed) - 1; i >= 0; i-- {
+			if isVarChar(trimmed[i]) {
+				worker = string(trimmed[i]) + worker
+			} else {
+				break
+			}
+		}
+		return worker
+	}
+
+	return ""
 }
 
 func isVarChar(c byte) bool {

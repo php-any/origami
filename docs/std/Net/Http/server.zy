@@ -106,3 +106,4 @@ class Server {
 
 }
 
+function app($path) {}

@@ -134,7 +134,12 @@ func getWorkspaceRoot(params defines.InitializeParams) string {
 
 	// 备选使用 RootPath
 	if params.RootPath != nil && *params.RootPath != "" {
-		return *params.RootPath
+		root := *params.RootPath
+		// 如果是 .code-workspace 文件，使用其所在目录作为工作区根目录
+		if strings.HasSuffix(strings.ToLower(root), ".code-workspace") {
+			return filepath.Dir(root)
+		}
+		return root
 	}
 
 	// 如果都没有，尝试使用工作区文件夹
@@ -144,6 +149,10 @@ func getWorkspaceRoot(params defines.InitializeParams) string {
 			filePath := strings.TrimPrefix(uri, "file://")
 			if strings.HasPrefix(filePath, "/") && len(filePath) > 3 && filePath[2] == ':' {
 				filePath = filePath[1:]
+			}
+			// 如果是 .code-workspace 文件，使用其所在目录作为工作区根目录
+			if strings.HasSuffix(strings.ToLower(filePath), ".code-workspace") {
+				return filepath.Dir(filePath)
 			}
 			return filePath
 		}
@@ -234,7 +243,7 @@ func loadScriptFilesInDirectory(workspaceRoot string) {
 		}
 
 		// 检查文件扩展名
-		ext := strings.ToLower(filepath.Ext(path))
+		ext := filepath.Ext(path)
 		if ext == ".zy" {
 			fileCount++
 			logrus.Debugf("发现脚本文件：%s", path)
@@ -250,7 +259,11 @@ func loadScriptFilesInDirectory(workspaceRoot string) {
 				// 创建共享的 LspParser 实例
 				parser := NewLspParser()
 				if globalLspVM != nil {
-					parser.SetVM(globalLspVM)
+					if globalLspVM.parser != nil {
+						parser = globalLspVM.parser
+					} else {
+						parser.SetVM(globalLspVM)
+					}
 				}
 				loadScriptFile(filePath, parser)
 			}(path)

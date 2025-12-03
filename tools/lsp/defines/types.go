@@ -376,5 +376,6 @@ type SymbolProvider interface {
 	// GetVariablesAtPosition 获取指定位置的所有可用变量
 	GetVariablesAtPosition(content string, position Position) []CompletionItem
 	// GetClassCompletionsForContext 获取上下文相关的类补全（use导入 + 同级目录）
-	GetClassCompletionsForContext(content string, position Position) []CompletionItem
+	// worker: 用于过滤类名，只返回包含 worker 字母的类，如果为空则返回空列表
+	GetClassCompletionsForContext(content string, position Position, worker string) []CompletionItem
 }

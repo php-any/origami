@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/php-any/origami/tools/lsp/completion"
 	"github.com/php-any/origami/tools/lsp/defines"
 	"github.com/sirupsen/logrus"
 	"github.com/sourcegraph/jsonrpc2"
@@ -36,7 +35,8 @@ func handleTextDocumentCompletion(req *jsonrpc2.Request) (interface{}, error) {
 	}
 
 	// 获取补全项
-	items := completion.GetCompletionItems(doc.Content, position, provider)
+	// 对于 -> 和 . 操作符，先尝试基于左侧节点获取补全
+	items := getCompletionItemsWithNodeSupport(doc, position, provider, globalLspVM)
 
 	result := defines.CompletionList{
 		IsIncomplete: false,

@@ -34,12 +34,12 @@ jobs:
             ext: ""
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.21'
-          
+          go-version: "1.21"
+
       - name: Build binary
         working-directory: tools/lsp
         env:
@@ -47,7 +47,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
         run: go build -o ../../bin/zy-lsp-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }} .
-        
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -79,32 +79,32 @@ jobs:
             ext: ""
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          
+
       - name: Install dependencies
         working-directory: zy-extension
         run: npm ci
-        
+
       - name: Download LSP binary
         uses: actions/download-artifact@v4
         with:
           name: lsp-${{ matrix.os }}-${{ matrix.arch }}
           path: zy-extension/bin
-          
+
       - name: Rename binary for extension
         working-directory: zy-extension/bin
         run: |
           mv zy-lsp-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }} zy-lsp${{ matrix.ext }}
           chmod +x zy-lsp${{ matrix.ext }}
-          
+
       - name: Package VSIX
         working-directory: zy-extension
         run: npx vsce package --target ${{ matrix.target }} -o origami-${{ matrix.target }}.vsix
-        
+
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4
         with:
@@ -120,7 +120,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-          
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
