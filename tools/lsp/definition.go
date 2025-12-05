@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -14,7 +15,7 @@ import (
 )
 
 // 处理定义跳转请求
-func handleTextDocumentDefinition(req *jsonrpc2.Request) (interface{}, error) {
+func handleTextDocumentDefinition(ctx context.Context, req *jsonrpc2.Request) (interface{}, error) {
 	var params defines.DefinitionParams
 	if err := json.Unmarshal(*req.Params, &params); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal definition params: %v", err)
@@ -31,7 +32,7 @@ func handleTextDocumentDefinition(req *jsonrpc2.Request) (interface{}, error) {
 	}
 
 	// 使用 AST 遍历查找定义位置
-	location := findDefinitionInAST(doc, position)
+	location := findDefinitionInAST(ctx, doc, position)
 	if location == nil {
 		return nil, nil
 	}
@@ -42,7 +43,7 @@ func handleTextDocumentDefinition(req *jsonrpc2.Request) (interface{}, error) {
 }
 
 // findDefinitionInAST 在 AST 中查找定义位置
-func findDefinitionInAST(doc *DocumentInfo, position defines.Position) []*defines.Location {
+func findDefinitionInAST(ctx context.Context, doc *DocumentInfo, position defines.Position) []*defines.Location {
 	if doc.AST == nil {
 		return nil
 	}
@@ -52,16 +53,21 @@ func findDefinitionInAST(doc *DocumentInfo, position defines.Position) []*define
 	// 使用 DocumentInfo.Foreach 查找光标位置的节点和对应的上下文
 	var targetNode data.GetValue
 	var targetCtx *LspContext
-	doc.Foreach(func(ctx *LspContext, parent, child data.GetValue) bool {
-		chackAndSetTypeVariableDefinition(ctx, parent, child)
+	doc.Foreach(func(lspCtx *LspContext, parent, child data.GetValue) bool {
+		// 检查上下文是否已取消
+		select {
+		case <-ctx.Done():
+			return false
+		default:
+		}
+
+		chackAndSetTypeVariableDefinition(lspCtx, parent, child)
 		// 检查当前节点是否包含光标位置
 		if isPositionInRange(child, position) {
-			logrus.Debugf("找到包含位置的节点：%T，父节点：%T", child, parent)
 			// 如果找到包含位置的节点，选择最小的（最精确的）
 			if pickSmallerNode(targetNode, child) == child {
 				targetNode = child
-				targetCtx = ctx // 保存目标节点对应的上下文
-				logrus.Debugf("更新目标节点：%T", targetNode)
+				targetCtx = lspCtx // 保存目标节点对应的上下文
 			}
 			return true // 继续遍历，寻找更精确的节点
 		}
@@ -75,7 +81,6 @@ func findDefinitionInAST(doc *DocumentInfo, position defines.Position) []*define
 
 				// 如果当前节点的结束行已经超过了目标行，停止遍历
 				if endLine > targetLine {
-					logrus.Debugf("节点结束行 %d 超过目标行 %d，停止遍历", endLine, targetLine)
 					return false
 				}
 			}
@@ -83,6 +88,11 @@ func findDefinitionInAST(doc *DocumentInfo, position defines.Position) []*define
 
 		return true // 继续遍历
 	})
+
+	if ctx.Err() != nil {
+		logrus.Debug("查找定义已取消")
+		return nil
+	}
 
 	if targetNode == nil {
 		logrus.Debug("未找到包含位置的节点")
@@ -143,7 +153,7 @@ func findDefinitionFromNode(ctx *LspContext, v data.GetValue) []*defines.Locatio
 
 // pickSmallerNode 返回最合适的节点；优先选择包含光标位置的节点
 func pickSmallerNode(a, b data.GetValue) data.GetValue {
-	logrus.Debugf("pickSmallerNode：a=%T，b=%T", a, b)
+	//logrus.Debugf("pickSmallerNode：a=%T，b=%T", a, b)
 
 	if b == nil {
 		logrus.Debug("pickSmallerNode：b 为空，返回 a")
@@ -169,14 +179,14 @@ func pickSmallerNode(a, b data.GetValue) data.GetValue {
 	slA, scA, elA, ecA := af.GetRange()
 	slB, scB, elB, ecB := bf.GetRange()
 
-	logrus.Debugf("pickSmallerNode：a 范围=(%d,%d,%d,%d)，b 范围=(%d,%d,%d,%d)",
-		slA, scA, elA, ecA, slB, scB, elB, ecB)
+	//logrus.Debugf("pickSmallerNode：a 范围=(%d,%d,%d,%d)，b 范围=(%d,%d,%d,%d)",
+	//	slA, scA, elA, ecA, slB, scB, elB, ecB)
 
 	// 计算两个节点的范围大小（字符数）
 	rangeA := (elA-slA+1)*1000 + (ecA - scA + 1)
 	rangeB := (elB-slB+1)*1000 + (ecB - scB + 1)
 
-	logrus.Debugf("pickSmallerNode：rangeA=%d，rangeB=%d", rangeA, rangeB)
+	//logrus.Debugf("pickSmallerNode：rangeA=%d，rangeB=%d", rangeA, rangeB)
 
 	// 优先选择范围更小的节点（更精确），但前提是它们都包含光标位置
 	// 如果范围差异不大，选择范围更小的；如果差异很大，选择更合适的
@@ -194,7 +204,7 @@ func pickSmallerNode(a, b data.GetValue) data.GetValue {
 		logrus.Debug("pickSmallerNode：rangeB 明显更小，返回 b")
 		return b
 	}
-	logrus.Debug("pickSmallerNode：rangeA <= rangeB，返回 a")
+	//logrus.Debug("pickSmallerNode：rangeA <= rangeB，返回 a")
 	return a
 }
 
@@ -250,8 +260,8 @@ func isPositionInRange(stmt data.GetValue, position defines.Position) bool {
 	lspLine := int(position.Line)
 
 	// 添加调试信息
-	logrus.Debugf("isPositionInRange：节点=%T，定位位置=(%d,%d)，正在查范围=(%d,%d,%d,%d)",
-		stmt, lspLine, position.Character, startLine, startChar, endLine, endChar)
+	//logrus.Debugf("isPositionInRange：节点=%T，定位位置=(%d,%d)，正在查范围=(%d,%d,%d,%d)",
+	//	stmt, lspLine, position.Character, startLine, startChar, endLine, endChar)
 
 	// 检查行号是否在范围内
 	if lspLine < startLine || lspLine > endLine {
@@ -263,20 +273,20 @@ func isPositionInRange(stmt data.GetValue, position defines.Position) bool {
 		if lspLine == endLine {
 			// 单行节点：字符位置必须在起始和结束字符之间
 			result := int(position.Character) >= startChar && int(position.Character) <= endChar
-			logrus.Debugf("isPositionInRange：单行节点，字符在范围内：%v", result)
+			//logrus.Debugf("isPositionInRange：单行节点，字符在范围内：%v", result)
 			return result
 		} else {
 			// 多行节点的起始行：字符位置必须在起始字符之后
 			result := int(position.Character) >= startChar
-			logrus.Debugf("isPositionInRange：多行起始，字符 >= 起始：%v", result)
+			//logrus.Debugf("isPositionInRange：多行起始，字符 >= 起始：%v", result)
 			return result
 		}
 	}
 
 	// 如果在结束行，检查字符位置是否在结束字符之前
 	if lspLine == endLine {
-		result := int(position.Character) <= endChar
-		logrus.Debugf("isPositionInRange：结束行，字符 <= 结束：%v", result)
+		//result := int(position.Character) <= endChar
+		//logrus.Debugf("isPositionInRange：结束行，字符 <= 结束：%v", result)
 		return true // 简化：只要在结束行就认为在范围内
 	}
 

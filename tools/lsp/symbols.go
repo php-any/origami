@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -12,7 +13,7 @@ import (
 )
 
 // handleTextDocumentDocumentSymbol 处理文档符号请求
-func handleTextDocumentDocumentSymbol(req *jsonrpc2.Request) (interface{}, error) {
+func handleTextDocumentDocumentSymbol(ctx context.Context, req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("textDocument/documentSymbol", true, req.Params)
 
 	var params defines.DocumentSymbolParams

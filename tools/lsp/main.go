@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/sirupsen/logrus"
 	"github.com/sourcegraph/jsonrpc2"
@@ -68,9 +69,15 @@ var (
 
 // 全局变量
 var (
-	globalLspVM *LspVM
-	documents   = make(map[string]*DocumentInfo)
+	globalLspVM    *LspVM
+	documents      = make(map[string]*DocumentInfo)
+	requestCancels sync.Map // map[string]context.CancelFunc
 )
+
+// CancelParams 定义取消请求参数
+type CancelParams struct {
+	ID jsonrpc2.ID `json:"id"`
+}
 
 func main() {
 	flag.Parse()
@@ -256,40 +263,73 @@ func handleRequest(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Reque
 	paramsJSON, _ := json.Marshal(req.Params)
 	logrus.Debugf("LSP 请求：%s\n参数：%s", req.Method, string(paramsJSON))
 
+	// 处理取消请求
+	if req.Method == "$/cancelRequest" {
+		var params CancelParams
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			logrus.Warnf("解析取消请求参数失败：%v", err)
+			return nil, nil
+		}
+		// 获取要取消的请求 ID
+		idStr := fmt.Sprintf("%v", params.ID)
+		if cancel, ok := requestCancels.Load(idStr); ok {
+			logrus.Infof("正在取消请求 ID: %s", idStr)
+			cancel.(context.CancelFunc)()
+			requestCancels.Delete(idStr)
+		} else {
+			logrus.Debugf("尝试取消不存在或已完成的请求 ID: %s", idStr)
+		}
+		return nil, nil
+	}
+
+	// 为每个请求创建可取消的上下文
+	reqCtx, cancel := context.WithCancel(ctx)
+	// 如果是请求（有 ID），则记录 cancel 函数以便取消
+	if !req.Notif {
+		idStr := fmt.Sprintf("%v", req.ID)
+		requestCancels.Store(idStr, cancel)
+		defer func() {
+			requestCancels.Delete(idStr)
+			cancel() // 确保请求完成后释放资源
+		}()
+	} else {
+		defer cancel()
+	}
+
 	switch req.Method {
 	case "initialize":
 		// 初始化语言服务器（握手）
-		return handleInitialize(req)
+		return handleInitialize(reqCtx, req)
 	case "initialized":
 		// 客户端确认初始化完成通知
-		return handleInitialized(req)
+		return handleInitialized(reqCtx, req)
 	case "shutdown":
 		// 关闭服务器请求
-		return handleShutdown(req)
+		return handleShutdown(reqCtx, req)
 	case "textDocument/didOpen":
 		// 文档打开通知
-		return handleTextDocumentDidOpen(conn, req)
+		return handleTextDocumentDidOpen(reqCtx, conn, req)
 	case "textDocument/didChange":
 		// 文档修改通知
-		return handleTextDocumentDidChange(conn, req)
+		return handleTextDocumentDidChange(reqCtx, conn, req)
 	case "textDocument/didClose":
 		// 文档关闭通知
-		return handleTextDocumentDidClose(conn, req)
+		return handleTextDocumentDidClose(reqCtx, conn, req)
 	case "textDocument/completion":
 		// 代码补全请求
-		return handleTextDocumentCompletion(req)
+		return handleTextDocumentCompletion(reqCtx, req)
 	case "textDocument/hover":
 		// 悬停提示请求
-		return handleTextDocumentHover(req)
+		return handleTextDocumentHover(reqCtx, req)
 	case "textDocument/definition":
 		// 定义跳转请求
-		return handleTextDocumentDefinition(req)
+		return handleTextDocumentDefinition(reqCtx, req)
 	case "textDocument/documentSymbol":
 		// 文档符号请求（大纲）
-		return handleTextDocumentDocumentSymbol(req)
+		return handleTextDocumentDocumentSymbol(reqCtx, req)
 	case "$/setTrace":
 		// 设置追踪级别
-		return handleSetTrace(req)
+		return handleSetTrace(reqCtx, req)
 	default:
 		logrus.Warnf("未知方法：%s", req.Method)
 		return nil, nil

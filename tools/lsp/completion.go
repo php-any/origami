@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -10,7 +11,7 @@ import (
 )
 
 // 处理补全请求
-func handleTextDocumentCompletion(req *jsonrpc2.Request) (interface{}, error) {
+func handleTextDocumentCompletion(ctx context.Context, req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("textDocument/completion", true, req.Params)
 
 	var params defines.CompletionParams

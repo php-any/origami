@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -13,7 +14,7 @@ import (
 )
 
 // 处理初始化请求
-func handleInitialize(req *jsonrpc2.Request) (interface{}, error) {
+func handleInitialize(ctx context.Context, req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("initialize", true, req.Params)
 
 	var params defines.InitializeParams
@@ -53,7 +54,7 @@ func handleInitialize(req *jsonrpc2.Request) (interface{}, error) {
 }
 
 // 处理初始化完成通知
-func handleInitialized(req *jsonrpc2.Request) (interface{}, error) {
+func handleInitialized(ctx context.Context, req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("initialized", false, req.Params)
 
 	logrus.Info("Origami LSP 服务器初始化成功")
@@ -62,7 +63,7 @@ func handleInitialized(req *jsonrpc2.Request) (interface{}, error) {
 }
 
 // 处理关闭请求
-func handleShutdown(req *jsonrpc2.Request) (interface{}, error) {
+func handleShutdown(ctx context.Context, req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("shutdown", true, req.Params)
 
 	logrus.Info("正在关闭 Origami LSP 服务器...")
@@ -71,7 +72,7 @@ func handleShutdown(req *jsonrpc2.Request) (interface{}, error) {
 }
 
 // 处理设置跟踪请求
-func handleSetTrace(req *jsonrpc2.Request) (interface{}, error) {
+func handleSetTrace(ctx context.Context, req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("$/setTrace", false, req.Params)
 
 	var params defines.SetTraceParams

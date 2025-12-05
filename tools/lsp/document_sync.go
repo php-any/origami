@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -14,7 +15,7 @@ import (
 )
 
 // 处理文档打开通知
-func handleTextDocumentDidOpen(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
+func handleTextDocumentDidOpen(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("textDocument/didOpen", false, req.Params)
 
 	var params defines.DidOpenTextDocumentParams
@@ -74,7 +75,7 @@ func handleTextDocumentDidOpen(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (inte
 // 解析错误的诊断由 validateDocument 统一发送
 
 // 处理文档变更通知
-func handleTextDocumentDidChange(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
+func handleTextDocumentDidChange(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("textDocument/didChange", false, req.Params)
 
 	var params defines.DidChangeTextDocumentParams
@@ -154,7 +155,7 @@ func handleTextDocumentDidChange(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (in
 }
 
 // 处理文档关闭通知
-func handleTextDocumentDidClose(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
+func handleTextDocumentDidClose(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("textDocument/didClose", false, req.Params)
 
 	var params defines.DidCloseTextDocumentParams
@@ -170,7 +171,11 @@ func handleTextDocumentDidClose(conn *jsonrpc2.Conn, req *jsonrpc2.Request) (int
 	// 原先这里调用 ClearFile，会导致类/函数符号从全局索引中删除，
 	// 关闭文件后再次执行「跳转到定义」就找不到目标了（只能跳转一次）。
 	// 为了保持符号索引稳定，仅移除文档缓存，让 LspVM 继续保留已解析的符号。
-	delete(documents, uri)
+	// 修改：不删除 DocumentInfo，仅清空 Content，以便保留 AST 供后续分析使用，同时减少内存占用。
+	if doc, ok := documents[uri]; ok {
+		doc.Content = ""
+	}
+	// delete(documents, uri)
 
 	return nil, nil
 }

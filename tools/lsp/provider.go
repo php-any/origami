@@ -194,9 +194,17 @@ func (p *LSPSymbolProvider) GetClassMembers(className string) []defines.Completi
 					visibility = "protected"
 				}
 
-				detail := fmt.Sprintf("%s method in %s", visibility, currentClassName)
+				// 格式化参数
+				paramDisplay, paramSnippet := formatMethodParams(method)
 
-				insertText := label + "(${1})"
+				// 构建详细信息：public method method(params): ReturnType in ClassName
+				returnType := "mixed"
+				if ret := method.GetReturnType(); ret != nil {
+					returnType = ret.String()
+				}
+				detail := fmt.Sprintf("%s method %s%s: %s in %s", visibility, label, paramDisplay, returnType, currentClassName)
+
+				insertText := label + paramSnippet
 				insertTextFormat := defines.InsertTextFormatSnippet
 
 				item := defines.CompletionItem{
@@ -304,8 +312,17 @@ func (p *LSPSymbolProvider) GetStaticClassMembers(className string) []defines.Co
 					visibility = "protected"
 				}
 
-				detail := fmt.Sprintf("%s static method in %s", visibility, currentClassName)
-				insertText := label + "(${1})"
+				// 格式化参数
+				paramDisplay, paramSnippet := formatMethodParams(method)
+
+				// 构建详细信息
+				returnType := "mixed"
+				if ret := method.GetReturnType(); ret != nil {
+					returnType = ret.String()
+				}
+				detail := fmt.Sprintf("%s static method %s%s: %s in %s", visibility, label, paramDisplay, returnType, currentClassName)
+
+				insertText := label + paramSnippet
 				insertTextFormat := defines.InsertTextFormatSnippet
 
 				item := defines.CompletionItem{
@@ -446,4 +463,39 @@ func (p *LSPSymbolProvider) GetVariablesAtPosition(content string, position defi
 		items = append(items, item)
 	}
 	return items
+}
+
+// formatMethodParams 格式化方法参数，返回 (参数显示字符串, snippet插入字符串)
+func formatMethodParams(method data.Method) (string, string) {
+	var paramDisplays []string
+	var paramSnippets []string
+
+	params := method.GetParams()
+	for i, p := range params {
+		// 尝试转换为 data.Parameter 接口
+		if param, ok := p.(data.Parameter); ok {
+			name := param.GetName()
+			// 确保变量名带 $
+			if !strings.HasPrefix(name, "$") {
+				name = "$" + name
+			}
+
+			// 获取类型
+			typeName := ""
+			if t := param.GetType(); t != nil {
+				typeName = t.String() + " "
+			}
+
+			// 显示格式: Type $name
+			paramDisplays = append(paramDisplays, fmt.Sprintf("%s%s", typeName, name))
+
+			// Snippet 格式: ${1:$name}
+			paramSnippets = append(paramSnippets, fmt.Sprintf("${%d:%s}", i+1, name))
+		}
+	}
+
+	display := "(" + strings.Join(paramDisplays, ", ") + ")"
+	snippet := "(" + strings.Join(paramSnippets, ", ") + ")"
+
+	return display, snippet
 }

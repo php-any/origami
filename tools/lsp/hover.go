@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -10,7 +11,7 @@ import (
 )
 
 // 处理悬停请求
-func handleTextDocumentHover(req *jsonrpc2.Request) (interface{}, error) {
+func handleTextDocumentHover(ctx context.Context, req *jsonrpc2.Request) (interface{}, error) {
 	logLSPCommunication("textDocument/hover", true, req.Params)
 
 	var params defines.HoverParams
