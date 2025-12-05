@@ -95,7 +95,12 @@ func (p *Parser) ParseFile(filename string) (*node.Program, data.Control) {
 
 	p.source = &filename
 	// 进行分词
-	p.tokens = p.lexer.Tokenize(string(content))
+	ext := len(filename)
+	if ext > 4 && filename[ext-4:] == ".php" {
+		p.tokens = p.lexer.TokenizeTemplate(string(content))
+	} else {
+		p.tokens = p.lexer.Tokenize(string(content))
+	}
 
 	// 解析程序
 	program, acl := p.parseProgram(make([]data.GetValue, 0))
@@ -351,7 +356,14 @@ func (p *Parser) getClassName(try bool) (string, data.Control) {
 
 // parseStatement 解析语句
 func (p *Parser) parseStatement() (data.GetValue, data.Control) {
-	return p.expressionParser.Parse()
+	switch p.current().Type() {
+	case token.HTML_TAG: // 新增：处理 HTML 标签
+		stmt := node.NewInlineHTMLNode(p.FromCurrentToken(), p.current().Literal())
+		p.next()
+		return stmt, nil
+	default:
+		return p.expressionParser.Parse()
+	}
 }
 
 // 只会获取单个值, 不会有表达式, 并且必须有值, 没有就是错误
