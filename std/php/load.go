@@ -2,9 +2,11 @@ package php
 
 import (
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/std/php/core"
 )
 
 func Load(vm data.VM) {
+	core.Load(vm)
 	for _, fun := range []data.FuncStmt{
 		NewTimeFunction(),
 		NewSleepFunction(),

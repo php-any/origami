@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"bufio"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -86,6 +87,20 @@ func isWhitespace(ch byte) bool {
 
 // Tokenize 将输入字符串转换为 token 列表
 func (l *Lexer) Tokenize(input string) []Token {
+	// 检查并跳过 Shebang 行（如 #!/usr/bin/env php）
+	if len(input) >= 2 && input[0] == '#' && input[1] == '!' {
+		// 找到第一行的结束位置（换行符）
+		newlinePos := strings.Index(input, "\n")
+		if newlinePos != -1 {
+			// 跳过整个 Shebang 行，包括换行符
+			input = input[newlinePos+1:]
+			return l.TokenizeTemplate(input)
+		} else {
+			// 如果没有找到换行符，说明整个文件只有一行 Shebang
+			return []Token{}
+		}
+	}
+
 	// 是否是 <!DOCTYPE 开头, 如果是就使用 HTML lexer 保留所有符号
 	if len(input) >= 9 && input[:9] == "<!DOCTYPE" {
 		htmlLexer := NewHtmlLexer()
