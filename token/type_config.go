@@ -36,6 +36,11 @@ const (
 	INSTANCEOF                          // instanceof 类型检查
 	LIKE                                // like 类型检查
 	CONST                               // const 常量定义
+	INCLUDE                             // include 引入
+	INCLUDE_ONCE                        // include_once 引入一次
+	REQUIRE                             // require 引入
+	REQUIRE_ONCE                        // require_once 引入一次
+	DEFINE                              // define 常量定义
 	VAR                                 // var 变量定义
 	ECHO                                // echo 输出语句
 	THROW                               // throw 抛出异常

@@ -134,24 +134,25 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 			if full, ok := p.findFullClassNameByNamespace(className); ok {
 				className = full
 			}
-			stmt, acl := p.vm.GetOrLoadClass(className)
-			if acl != nil {
-				return nil, acl
-			}
-			p.next()
-			fnName := p.current().Literal()
-			p.next()
+			stmt, has := p.vm.GetClass(className)
+			if has {
+				p.next()
+				fnName := p.current().Literal()
+				p.next()
 
-			if p.checkPositionIs(0, token.LPAREN) {
-				// 创建函数调用表达式
-				vp := &VariableParser{p.Parser}
-				expr := node.NewCallStaticMethod(tracker.EndBefore(), stmt, fnName)
-				return vp.parseSuffix(expr)
+				if p.checkPositionIs(0, token.LPAREN) {
+					// 创建函数调用表达式
+					vp := &VariableParser{p.Parser}
+					expr := node.NewCallStaticMethod(tracker.EndBefore(), stmt, fnName)
+					return vp.parseSuffix(expr)
+				} else {
+					vp := &VariableParser{p.Parser}
+
+					expr := node.NewCallStaticProperty(tracker.EndBefore(), stmt, fnName)
+					return vp.parseSuffix(expr)
+				}
 			} else {
-				vp := &VariableParser{p.Parser}
-
-				expr := node.NewCallStaticProperty(tracker.EndBefore(), stmt, fnName)
-				return vp.parseSuffix(expr)
+				// TODO
 			}
 		}
 

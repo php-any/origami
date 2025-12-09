@@ -48,7 +48,6 @@ func getStdClasses() []data.ClassStmt {
 func getStdFunctions() []data.FuncStmt {
 	return []data.FuncStmt{
 		std.NewDumpFunction(),
-		std.NewIncludeFunction(),
 		http.NewAppFunction(),
 		// 导出 go 的 context
 		context.NewBackgroundFunction(),
