@@ -1,4 +1,7 @@
 namespace test
 
 
-echo include("./index.html")
+$a = 10;
+$b = &$a;   // $b 是 $a 的引用
+$b = 20;
+echo $a;    // 输出 20，因为 $a 和 $b 指向同一个值

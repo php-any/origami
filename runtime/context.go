@@ -14,7 +14,7 @@ type Context struct {
 	namespace string
 
 	// 变量存储符号表
-	variables []data.Value
+	variables []*data.ZVal
 
 	// 其他字段...
 }
@@ -40,26 +40,27 @@ func (c *Context) GetNamespace() string {
 // GetVariableValue 获取变量值
 func (c *Context) GetVariableValue(variable data.Variable) (data.Value, data.Control) {
 	// 实现获取变量值的逻辑
-	return c.variables[variable.GetIndex()], nil
+	return c.variables[variable.GetIndex()].Value, nil
 }
 
 func (c *Context) GetIndexValue(index int) (data.Value, bool) {
 	if index < 0 || index >= len(c.variables) {
 		return nil, false
 	}
-	//ret := c.variables[index]
-	//if _, ok := ret.(*data.NullValue); ok {
-	//	return nil, false
-	//}
-	return c.variables[index], true
+	return c.variables[index].Value, true
+}
+
+func (c *Context) GetIndexZVal(index int) *data.ZVal {
+	return c.variables[index]
 }
 
 // SetVariableValue 设置变量值
 func (c *Context) SetVariableValue(variable data.Variable, value data.Value) data.Control {
-	//if len(c.variables) <= variable.GetIndex() {
-	//	c.variables = append(c.variables, data.NewNullValue())
-	//}
-	c.variables[variable.GetIndex()] = value
+	if v, ok := value.(*data.ReferenceValue); ok {
+		c.variables[variable.GetIndex()] = v.Ctx.GetIndexZVal(v.Val.GetIndex())
+	} else {
+		c.variables[variable.GetIndex()].Value = value
+	}
 	return nil
 }
 
@@ -91,10 +92,10 @@ func (c *Context) SetVM(vm data.VM) {
 	c.vm = vm
 }
 
-func makeSliceVariable(i int) []data.Value {
-	l := make([]data.Value, i)
+func makeSliceVariable(i int) []*data.ZVal {
+	l := make([]*data.ZVal, i)
 	for i := range l {
-		l[i] = data.NewNullValue()
+		l[i] = data.NewZVal(data.NewNullValue())
 	}
 	return l
 }

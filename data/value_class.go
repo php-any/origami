@@ -224,6 +224,10 @@ func (c *ClassMethodContext) GetIndexValue(index int) (Value, bool) {
 	return c.Context.GetIndexValue(index)
 }
 
+func (c *ClassMethodContext) GetIndexZVal(index int) *ZVal {
+	return c.Context.GetIndexZVal(index)
+}
+
 func (c *ClassMethodContext) GoContext() context.Context {
 	return context.Background()
 }

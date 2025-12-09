@@ -396,6 +396,16 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 		), nil
 	}
 
+	// 处理引用取值 &$var
+	if ep.current().Type() == token.BIT_AND {
+		ep.next()
+		right, acl := ep.parseUnary()
+		if acl != nil {
+			return nil, acl
+		}
+		return node.NewValueReference(tracker.EndBefore(), right), nil
+	}
+
 	// 处理前缀自增自减
 	if ep.current().Type() == token.INCR || ep.current().Type() == token.DECR {
 		operator := ep.current()
