@@ -19,45 +19,14 @@ func (f *ArrayPopFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	}
 
 	// 检查是否为数组引用
-	arrayRef, ok := arrayValue.(*data.ReferenceValue)
+	arrayRef, ok := arrayValue.(*data.ArrayValue)
 	if !ok {
-		return data.NewNullValue(), nil
-	}
-
-	// 获取数组值
-	parentCtx := arrayRef.Ctx
-	varRef := arrayRef.Val
-
-	v, acl := varRef.GetValue(parentCtx)
-	if acl != nil {
-		return data.NewNullValue(), nil
-	}
-
-	if v == nil {
-		return data.NewNullValue(), nil
-	}
-
-	internalV, intervalCtl := v.GetValue(parentCtx)
-	if intervalCtl != nil {
-		return data.NewNullValue(), nil
-	}
-
-	arrayVal, ok := internalV.(*data.ArrayValue)
-	if !ok {
-		return data.NewNullValue(), nil
-	}
-
-	// 如果数组为空，返回 null
-	if len(arrayVal.Value) == 0 {
 		return data.NewNullValue(), nil
 	}
 
 	// 弹出最后一个元素
-	lastElement := arrayVal.Value[len(arrayVal.Value)-1]
-	arrayVal.Value = arrayVal.Value[:len(arrayVal.Value)-1]
-
-	// 更新数组值
-	parentCtx.SetVariableValue(varRef, arrayVal)
+	lastElement := arrayRef.Value[len(arrayRef.Value)-1]
+	arrayRef.Value = arrayRef.Value[:len(arrayRef.Value)-1]
 
 	return lastElement, nil
 }

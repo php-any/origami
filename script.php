@@ -1,9 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-<body>
-    <?php for($i=0;$i<10;$i++){ ?>
-        for 循环输出 <?php echo $i; ?>
-    <?php }?>
-    普通 html 内
-</body>
-</html>
+<?php
+namespace test
+
+class Test {
+    public static $a = "a";
+
+    public function  b() {
+        return self::$a;
+    }
+}
+
+echo Test::$a;

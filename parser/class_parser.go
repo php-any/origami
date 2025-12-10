@@ -222,7 +222,15 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 		methods,
 	)
 	for s, property := range staticProperties {
-		c.StaticProperty.Store(s, property.GetDefaultValue())
+		defaultValue := property.GetDefaultValue()
+		if defaultValue != nil {
+			baseCtx := p.vm.CreateContext([]data.Variable{})
+			v, acl := defaultValue.GetValue(baseCtx)
+			if acl != nil {
+				return nil, acl
+			}
+			c.StaticProperty.Store(s, v)
+		}
 	}
 	c.StaticMethods = staticMethods
 

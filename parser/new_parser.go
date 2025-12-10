@@ -46,7 +46,7 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 
 	// 解析类名
 	if !p.checkPositionIs(0, token.IDENTIFIER, token.GENERIC_TYPE) {
-		return nil, data.NewErrorThrow(p.newFrom(), errors.New("new关键字后面必须跟类名"))
+		return nil, data.NewErrorThrow(p.newFrom(), errors.New("new关键字后面必须跟类名; 当前="+p.current().Literal()))
 	}
 
 	isGenerated := false

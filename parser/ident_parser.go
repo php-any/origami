@@ -128,32 +128,10 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 			return vp.parseSuffix(expr)
 		}
 
-		// 函数静态调用 Log::info
-		if p.checkPositionIs(0, token.SCOPE_RESOLUTION) && p.checkPositionIs(1, token.IDENTIFIER) {
-			className := name
-			if full, ok := p.findFullClassNameByNamespace(className); ok {
-				className = full
-			}
-			stmt, has := p.vm.GetClass(className)
-			if has {
-				p.next()
-				fnName := p.current().Literal()
-				p.next()
-
-				if p.checkPositionIs(0, token.LPAREN) {
-					// 创建函数调用表达式
-					vp := &VariableParser{p.Parser}
-					expr := node.NewCallStaticMethod(tracker.EndBefore(), stmt, fnName)
-					return vp.parseSuffix(expr)
-				} else {
-					vp := &VariableParser{p.Parser}
-
-					expr := node.NewCallStaticProperty(tracker.EndBefore(), stmt, fnName)
-					return vp.parseSuffix(expr)
-				}
-			} else {
-				// TODO
-			}
+		// 函数静态调用 Log::info 或 Log::$property
+		if p.checkPositionIs(0, token.SCOPE_RESOLUTION) &&
+			(p.checkPositionIs(1, token.IDENTIFIER) || p.checkPositionIs(1, token.VARIABLE)) {
+			return p.parseStaticCall(tracker, name)
 		}
 
 		// 处理 ::class 语法
@@ -237,6 +215,65 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	return node.NewStringLiteral(tracker.EndBefore(), name), nil
+}
+
+// parseStaticCall 解析静态调用（如 Log::info 或 Log::property）
+func (p *IdentParser) parseStaticCall(tracker *PositionTracker, className string) (data.GetValue, data.Control) {
+	// 尝试获取完整的类名
+	fullClassName := className
+	if full, ok := p.findFullClassNameByNamespace(className); ok {
+		fullClassName = full
+	}
+
+	// 尝试获取类
+	stmt, has := p.vm.GetClass(fullClassName)
+
+	// 跳过 ::
+	p.next()
+	// 获取方法名或属性名
+	isVariable := p.current().Type() == token.VARIABLE
+	fnName := p.current().Literal()
+	p.next()
+
+	// 如果是 VARIABLE，去掉 $ 前缀
+	if isVariable && len(fnName) > 0 && fnName[0] == '$' {
+		fnName = fnName[1:]
+	}
+
+	// 获取命名空间
+	namespace := ""
+	if p.namespace != nil {
+		namespace = p.namespace.Name
+	}
+
+	// 判断是方法调用还是属性访问
+	if p.checkPositionIs(0, token.LPAREN) {
+		// 静态方法调用 Class::method()
+		if has {
+			// 类已加载，创建静态方法调用
+			vp := &VariableParser{p.Parser}
+			expr := node.NewCallStaticMethod(tracker.EndBefore(), stmt, fnName)
+			return vp.parseSuffix(expr)
+		} else {
+			// 类未加载，创建延迟调用
+			vp := &VariableParser{p.Parser}
+			expr := node.NewCallStaticMethodLater(tracker.EndBefore(), fullClassName, fnName, namespace)
+			return vp.parseSuffix(expr)
+		}
+	} else {
+		// 静态属性访问 Class::property
+		if has {
+			// 类已加载，创建静态属性访问
+			vp := &VariableParser{p.Parser}
+			expr := node.NewCallStaticProperty(tracker.EndBefore(), stmt, fnName)
+			return vp.parseSuffix(expr)
+		} else {
+			// 类未加载，创建延迟调用
+			vp := &VariableParser{p.Parser}
+			expr := node.NewCallStaticPropertyLater(tracker.EndBefore(), fullClassName, fnName, namespace)
+			return vp.parseSuffix(expr)
+		}
+	}
 }
 
 func (p *IdentParser) parseClassInit(tracker *PositionTracker, className string) (data.GetValue, data.Control) {

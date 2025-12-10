@@ -69,6 +69,7 @@ const (
 	SPAWN                               // spawn 异步
 	THIS                                // this
 	PARENT                              // parent
+	SELF                                // self
 	IN                                  // in 运算符
 	DEFAULT                             // default 默认值
 	UNUSED                              // _ 符号, 跳过变量

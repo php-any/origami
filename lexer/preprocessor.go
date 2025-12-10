@@ -218,6 +218,66 @@ func (p *Preprocessor) Process() []Token {
 			} else {
 				filtered = append(filtered, t)
 			}
+		case token.NAMESPACE_SEPARATOR:
+			// 处理 \ 后跟随标识符的情况，如 \App\Test
+			// 判断 \ 后是否是 IDENTIFIER（可能是 App\Test 这样的格式，因为 lexer 允许 \ 作为标识符的一部分）
+			if i+1 < len(p.tokens) {
+				nextToken := p.tokens[i+1]
+				// 检查下一个 token 是否是 IDENTIFIER（无论是否包含 \，都合并）
+				if nextToken.Type() == token.IDENTIFIER {
+					// 直接合并：\ + App\Test = \App\Test
+					mergedLiteral := t.Literal() + nextToken.Literal()
+
+					// 创建合并后的标识符token
+					filtered = append(filtered, NewWorkerToken(
+						token.IDENTIFIER,
+						mergedLiteral,
+						t.Start(),
+						nextToken.End(),
+						nextToken.Line(),
+						nextToken.Pos(),
+					))
+					i++ // 跳过下一个 token（因为循环会执行 i++）
+					continue
+				}
+				// 检查下一个 token 是否符合标识符规范（关键字等，只要符合标识符规范）
+				if isValidIdentifierToken(nextToken) {
+					// 开始构建合并后的标识符字面量
+					mergedLiteral := t.Literal() // 从 \ 开始
+					lastToken := nextToken
+					mergedLiteral += lastToken.Literal() // 添加第一个标识符
+
+					// 继续检查是否还有更多的 \标识符 组合（如 \App\Test\Class）
+					j := i + 2
+					for j < len(p.tokens) {
+						// 检查是否是 \ 后跟符合标识符规范的 token
+						if p.tokens[j].Type() == token.NAMESPACE_SEPARATOR &&
+							j+1 < len(p.tokens) && isValidIdentifierToken(p.tokens[j+1]) {
+							// 添加 \ 和标识符
+							mergedLiteral += p.tokens[j].Literal() + p.tokens[j+1].Literal()
+							lastToken = p.tokens[j+1]
+							j += 2
+						} else {
+							// 不再匹配 \标识符 模式，停止合并
+							break
+						}
+					}
+
+					// 创建合并后的标识符token
+					filtered = append(filtered, NewWorkerToken(
+						token.IDENTIFIER,
+						mergedLiteral,
+						t.Start(),
+						lastToken.End(),
+						lastToken.Line(),
+						lastToken.Pos(),
+					))
+					i = j - 1 // 跳过已处理的tokens（j-1 因为循环会执行 i++）
+					continue
+				}
+			}
+			// \ 后不符合标识符规范，保持原样
+			filtered = append(filtered, t)
 		default:
 			filtered = append(filtered, t)
 		}
@@ -691,6 +751,31 @@ func processStringInterpolation(t Token) Token {
 // isValidVarChar 检查是否是有效的变量名字符
 func isValidVarChar(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' || ('\u4e00' <= r && r <= '\u9fff') // 常见中文 Unicode 范围
+}
+
+// isValidIdentifierToken 检查 token 是否符合标识符规范
+// 标识符必须以字母、下划线或中文字符开头，可以包含字母、数字、下划线
+func isValidIdentifierToken(t Token) bool {
+	literal := t.Literal()
+	if len(literal) == 0 {
+		return false
+	}
+
+	// 获取第一个字符
+	firstRune := []rune(literal)[0]
+	// 必须以字母、下划线或中文字符开头
+	if !unicode.IsLetter(firstRune) && firstRune != '_' && firstRune < 0x4e00 {
+		return false
+	}
+
+	// 检查所有字符是否符合标识符规范
+	for _, r := range literal {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' && r < 0x4e00 {
+			return false
+		}
+	}
+
+	return true
 }
 
 // isNumber 检查是否是数字

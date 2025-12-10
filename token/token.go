@@ -88,6 +88,7 @@ var TokenDefinitions = []TokenDefinition{
 	{Type: SPAWN, Literal: "spawn", WordType: KEYWORD},
 	{Type: THIS, Literal: "$this", WordType: KEYWORD},
 	{Type: PARENT, Literal: "parent", WordType: KEYWORD},
+	{Type: SELF, Literal: "self", WordType: KEYWORD},
 	{Type: IN, Literal: "in", WordType: KEYWORD},
 	{Type: DEFAULT, Literal: "default", WordType: KEYWORD},
 	{Type: UNUSED, Literal: "_", WordType: KEYWORD},
