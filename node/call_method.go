@@ -31,105 +31,121 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 
 	switch fv := call.(type) {
 	case *data.FuncValue:
-		fn := fv.Value
-		varies := fn.GetVariables()
-		fnCtx := ctx.CreateContext(varies)
-		// 入参的值设置到上下文中
-		for index, arg := range fn.GetParams() {
-			switch argObj := arg.(type) {
-			case *Parameter:
-				if index < len(pe.Args) {
-					param := pe.Args[index]
-					switch paramTV := param.(type) {
-					case *NamedArgument:
-						tempV, acl := paramTV.GetValue(ctx)
-						if acl != nil {
-							return nil, acl
-						}
-						vari, err := findVariable(varies, paramTV.Name)
-						if err != nil {
-							return nil, data.NewErrorThrow(pe.from, err)
-						}
-						acl = vari.SetValue(fnCtx, tempV.(data.Value))
-						if acl != nil {
-							return nil, acl
-						}
-					default:
-						tempV, acl := paramTV.GetValue(ctx)
-						if acl != nil {
-							return nil, acl
-						}
-						acl = argObj.SetValue(fnCtx, tempV.(data.Value))
-						if acl != nil {
-							return nil, acl
-						}
-					}
-				} else if argObj.DefaultValue == nil {
-					return nil, pe.newFunParamsError(pe.GetFrom(), fn.GetName(), argObj.Name)
-				} else {
-					argObj.GetValue(fnCtx)
-				}
-			case *Parameters:
-				args, acl := fnCtx.GetVariableValue(argObj)
-				if acl != nil {
-					return nil, acl
-				}
-				var ares *data.ArrayValue
-				var ok bool
-				if ares, ok = args.(*data.ArrayValue); !ok {
-					ares = data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
-					fnCtx.SetVariableValue(argObj, ares)
-				}
+		return pe.handleFuncValue(ctx, call)
+	case *ChangeCtxAndCallFuncValue:
+		return fv.GetValue(ctx)
+	case *StaticMethodFuncValue:
+		// 静态方法包装器，调用 GetValue 获取 FuncValue 然后继续处理
+		funcValue, acl := fv.GetValue(ctx)
+		if acl != nil {
+			return nil, acl
+		}
+		// 递归处理，现在应该是 FuncValue 了
+		return pe.handleFuncValue(ctx, funcValue)
+	}
 
-				for i := index; i < len(pe.Args); i++ {
-					param := pe.Args[i]
-					tempV, acl := param.GetValue(ctx)
+	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("不存在对应函数:"+TryGetCallClassName(pe.Method)))
+}
+
+// handleFuncValue 处理 FuncValue 类型的调用
+func (pe *CallMethod) handleFuncValue(ctx data.Context, call data.GetValue) (data.GetValue, data.Control) {
+	fv, ok := call.(*data.FuncValue)
+	if !ok {
+		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("期望 FuncValue 类型"))
+	}
+	fn := fv.Value
+	varies := fn.GetVariables()
+	fnCtx := ctx.CreateContext(varies)
+	// 入参的值设置到上下文中
+	for index, arg := range fn.GetParams() {
+		switch argObj := arg.(type) {
+		case *Parameter:
+			if index < len(pe.Args) {
+				param := pe.Args[index]
+				switch paramTV := param.(type) {
+				case *NamedArgument:
+					tempV, acl := paramTV.GetValue(ctx)
 					if acl != nil {
 						return nil, acl
 					}
-					ares.Value = append(ares.Value, tempV.(data.Value))
-					fnCtx.SetVariableValue(argObj, ares)
-				}
-			case *ParameterReference:
-				if index < len(pe.Args) {
-					param := pe.Args[index]
-					switch paramTV := param.(type) {
-					case *NamedArgument:
-						vari, err := findVariable(varies, paramTV.Name)
-						if err != nil {
-							return nil, data.NewErrorThrow(pe.from, err)
-						}
-						if val, ok := paramTV.Value.(data.Variable); ok {
-							acl := vari.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
-							if acl != nil {
-								return nil, acl
-							}
-						} else {
-							return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
-						}
-					default:
-						if val, ok := paramTV.(data.Variable); ok {
-							acl := argObj.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
-							if acl != nil {
-								return nil, acl
-							}
-						} else {
-							return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
-						}
+					vari, err := findVariable(varies, paramTV.Name)
+					if err != nil {
+						return nil, data.NewErrorThrow(pe.from, err)
 					}
-				} else {
-					return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能是必传参数, fn: %s", pe.Method))
+					acl = vari.SetValue(fnCtx, tempV.(data.Value))
+					if acl != nil {
+						return nil, acl
+					}
+				default:
+					tempV, acl := paramTV.GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+					acl = argObj.SetValue(fnCtx, tempV.(data.Value))
+					if acl != nil {
+						return nil, acl
+					}
 				}
+			} else if argObj.DefaultValue == nil {
+				return nil, pe.newFunParamsError(pe.GetFrom(), fn.GetName(), argObj.Name)
+			} else {
+				argObj.GetValue(fnCtx)
+			}
+		case *Parameters:
+			args, acl := fnCtx.GetVariableValue(argObj)
+			if acl != nil {
+				return nil, acl
+			}
+			var ares *data.ArrayValue
+			var ok bool
+			if ares, ok = args.(*data.ArrayValue); !ok {
+				ares = data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
+				fnCtx.SetVariableValue(argObj, ares)
+			}
+
+			for i := index; i < len(pe.Args); i++ {
+				param := pe.Args[i]
+				tempV, acl := param.GetValue(ctx)
+				if acl != nil {
+					return nil, acl
+				}
+				ares.Value = append(ares.Value, tempV.(data.Value))
+				fnCtx.SetVariableValue(argObj, ares)
+			}
+		case *ParameterReference:
+			if index < len(pe.Args) {
+				param := pe.Args[index]
+				switch paramTV := param.(type) {
+				case *NamedArgument:
+					vari, err := findVariable(varies, paramTV.Name)
+					if err != nil {
+						return nil, data.NewErrorThrow(pe.from, err)
+					}
+					if val, ok := paramTV.Value.(data.Variable); ok {
+						acl := vari.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
+						if acl != nil {
+							return nil, acl
+						}
+					} else {
+						return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
+					}
+				default:
+					if val, ok := paramTV.(data.Variable); ok {
+						acl := argObj.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
+						if acl != nil {
+							return nil, acl
+						}
+					} else {
+						return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
+					}
+				}
+			} else {
+				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能是必传参数, fn: %s", pe.Method))
 			}
 		}
-
-		return fn.Call(fnCtx)
-
-	case *ChangeCtxAndCallFuncValue:
-		return fv.GetValue(ctx)
 	}
 
-	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("不存在对应函数"))
+	return fn.Call(fnCtx)
 }
 
 func (pe *CallMethod) newFunParamsError(from data.From, name string, paramName string) data.Control {

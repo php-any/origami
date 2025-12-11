@@ -1,7 +1,6 @@
 package node
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/php-any/origami/data"
@@ -24,14 +23,20 @@ func NewCallStaticMethod(from *TokenFrom, path data.GetValue, method string) *Ca
 
 // GetValue 获取对象属性访问表达式的值
 func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	var method data.Method
+	var classStmt data.ClassStmt
+	var has bool
+
 	switch expr := pe.stmt.(type) {
 	case data.GetStaticMethod:
-		method, has := expr.GetStaticMethod(pe.Method)
+		method, has = expr.GetStaticMethod(pe.Method)
 		if has {
-			return data.NewFuncValue(method), nil
+			if cls, ok := expr.(data.ClassStmt); ok {
+				classStmt = cls
+			}
+		} else {
+			return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("无法调用函数(%s)。", pe.Method))
 		}
-
-		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("无法调用函数(%s)。", pe.Method)))
 	default:
 		c, acl := pe.stmt.GetValue(ctx)
 		if acl != nil {
@@ -39,24 +44,36 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 		}
 		switch expr := c.(type) {
 		case data.GetStaticMethod:
-			method, has := expr.GetStaticMethod(pe.Method)
+			method, has = expr.GetStaticMethod(pe.Method)
 			if has {
-				return data.NewFuncValue(method), nil
+				if cls, ok := expr.(data.ClassStmt); ok {
+					classStmt = cls
+				}
 			}
 		case data.GetMethod:
-			method, has := expr.GetMethod(pe.Method)
+			method, has = expr.GetMethod(pe.Method)
 			if has {
+				// 实例方法，直接返回 FuncValue
 				return data.NewFuncValue(method), nil
 			}
 		}
 	}
 
-	name := ""
-	if getName, ok := pe.stmt.(data.ClassStmt); ok {
-		name = getName.GetName()
+	if !has {
+		name := ""
+		if getName, ok := pe.stmt.(data.ClassStmt); ok {
+			name = getName.GetName()
+		}
+		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("(%v)无法调用函数(%s)。", name, pe.Method))
 	}
 
-	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("(%v)无法调用函数(%s)。", name, pe.Method)))
+	// 静态方法需要 ClassMethodContext，返回包装器让 CallMethod 正确处理
+	if classStmt != nil {
+		return &StaticMethodFuncValue{class: classStmt, method: method}, nil
+	}
+
+	// 如果没有类信息，直接返回 FuncValue（向后兼容）
+	return data.NewFuncValue(method), nil
 }
 
 // CallStaticMethodLater 延迟的静态方法调用（类未加载时）
@@ -105,5 +122,33 @@ func (pe *CallStaticMethodLater) GetValue(ctx data.Context) (data.GetValue, data
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("无法获取TokenFrom信息"))
 	}
 	callStaticMethod := NewCallStaticMethod(tokenFrom, stmt, pe.method)
+
 	return callStaticMethod.GetValue(ctx)
+}
+
+// StaticMethodFuncValue 静态方法函数值包装器，确保调用时使用 ClassMethodContext
+type StaticMethodFuncValue struct {
+	class  data.ClassStmt
+	method data.Method
+}
+
+// staticMethodFunc 适配器：将 data.Method 包装为 data.FuncStmt，并在调用时切换到 ClassMethodContext
+type staticMethodFunc struct {
+	class  data.ClassStmt
+	method data.Method
+}
+
+func (s *staticMethodFunc) GetName() string               { return s.method.GetName() }
+func (s *staticMethodFunc) GetParams() []data.GetValue    { return s.method.GetParams() }
+func (s *staticMethodFunc) GetVariables() []data.Variable { return s.method.GetVariables() }
+func (s *staticMethodFunc) Call(callCtx data.Context) (data.GetValue, data.Control) {
+	// 创建类方法上下文，使用传入的 callCtx（包含已设置的参数），绑定当前类，保证 self:: 可用
+	classValue := data.NewClassValue(s.class, callCtx)
+	methodCtx := &data.ClassMethodContext{ClassValue: classValue}
+	return s.method.Call(methodCtx)
+}
+
+func (s *StaticMethodFuncValue) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	// 返回 FuncValue，但内部使用 staticMethodFunc 包装，确保调用时使用 ClassMethodContext
+	return data.NewFuncValue(&staticMethodFunc{class: s.class, method: s.method}), nil
 }

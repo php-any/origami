@@ -57,10 +57,19 @@ func (pe *CallSelfProperty) SetProperty(ctx data.Context, name string, value dat
 	// 获取当前类
 	currentClass := classCtx.Class
 
-	// 检查类是否实现了 SetProperty 接口
-	if setter, ok := currentClass.(data.SetProperty); ok {
-		return setter.SetProperty(pe.Property, value)
+	switch c := currentClass.(type) {
+	case *ClassStatement:
+		c.StaticProperty.Store(name, value)
+		return nil
+	case *ClassGeneric:
+		c.StaticProperty.Store(name, value)
+		return nil
+	case data.SetProperty:
+		return c.SetProperty(name, value)
 	}
-
-	return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("当前类 %s 无法设置静态属性 %s", currentClass.GetName(), pe.Property))
+	cname := ""
+	if getName, ok := currentClass.(data.ClassStmt); ok {
+		cname = getName.GetName()
+	}
+	return data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("类(%s)没有静态属性(%s)。", cname, pe.Property)))
 }

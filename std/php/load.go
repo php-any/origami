@@ -40,6 +40,7 @@ func Load(vm data.VM) {
 		NewStrReplaceFunction(),
 		NewStrtolowerFunction(),
 		NewStrtoupperFunction(),
+		NewSplAutoloadRegisterFunction(),
 	} {
 		vm.AddFunc(fun)
 	}

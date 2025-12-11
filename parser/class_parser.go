@@ -230,6 +230,8 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 				return nil, acl
 			}
 			c.StaticProperty.Store(s, v)
+		} else {
+			c.StaticProperty.Store(s, data.NewNullValue())
 		}
 	}
 	c.StaticMethods = staticMethods

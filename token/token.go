@@ -60,6 +60,7 @@ var TokenDefinitions = []TokenDefinition{
 	{Type: AS, Literal: "as", WordType: KEYWORD},
 	{Type: NEW, Literal: "new", WordType: KEYWORD},
 	{Type: INSTANCEOF, Literal: "instanceof", WordType: KEYWORD},
+	{Type: ARRAY, Literal: "array", WordType: KEYWORD},
 	{Type: LIKE, Literal: "like", WordType: KEYWORD},
 	{Type: CONST, Literal: "const", WordType: KEYWORD},
 	{Type: INCLUDE, Literal: "include", WordType: KEYWORD},
