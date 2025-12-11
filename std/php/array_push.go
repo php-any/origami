@@ -18,54 +18,21 @@ func (f *ArrayPushFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 		return data.NewIntValue(0), nil
 	}
 
-	// 检查是否为数组引用
-	arrayRef, ok := arrayValue.(*data.ReferenceValue)
-	if !ok {
-		return data.NewIntValue(0), nil
-	}
-
-	// 获取数组值
-	parentCtx := arrayRef.Ctx
-	varRef := arrayRef.Val
-
-	v, acl := varRef.GetValue(parentCtx)
-	if acl != nil {
-		return data.NewIntValue(0), nil
-	}
-
-	if v == nil {
-		return data.NewIntValue(0), nil
-	}
-
-	internalV, intervalCtl := v.GetValue(parentCtx)
-	if intervalCtl != nil {
-		return data.NewIntValue(0), nil
-	}
-
-	arrayVal, ok := internalV.(*data.ArrayValue)
-	if !ok {
-		return data.NewIntValue(0), nil
-	}
-
-	// 收集所有要添加的值
-	var newValues []data.Value
-
-	// 获取 Parameters 参数（包含所有传入的值）
-	paramsValue, _ := ctx.GetIndexValue(1)
-	if paramsValue != nil {
-		if paramsArray, ok := paramsValue.(*data.ArrayValue); ok {
-			// Parameters 返回的是 ArrayValue，包含所有参数
-			newValues = append(newValues, paramsArray.Value...)
+	switch v := arrayValue.(type) {
+	case *data.ArrayValue:
+		// 获取 Parameters 参数（包含所有传入的值）
+		paramsValue, _ := ctx.GetIndexValue(1)
+		if paramsValue != nil {
+			if paramsArray, ok := paramsValue.(*data.ArrayValue); ok {
+				// Parameters 返回的是 ArrayValue，包含所有参数
+				v.Value = append(v.Value, paramsArray.Value...)
+			}
 		}
+
+		return data.NewIntValue(len(v.Value)), nil
+	default:
+		return data.NewIntValue(0), nil
 	}
-
-	// 添加新值到数组
-	arrayVal.Value = append(arrayVal.Value, newValues...)
-
-	// 更新数组值
-	parentCtx.SetVariableValue(varRef, arrayVal)
-
-	return data.NewIntValue(len(arrayVal.Value)), nil
 }
 
 func (f *ArrayPushFunction) GetName() string {
