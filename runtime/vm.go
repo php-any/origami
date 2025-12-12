@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 
@@ -109,6 +108,10 @@ func (vm *VM) GetClass(pkg string) (data.ClassStmt, bool) {
 }
 
 func (vm *VM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
+	if pkg[0:1] == "\\" {
+		pkg = pkg[1:]
+	}
+
 	if v, ok := vm.classMap[pkg]; ok {
 		return v, nil
 	}
@@ -122,7 +125,7 @@ func (vm *VM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
 		return v, nil
 	}
 
-	return nil, data.NewErrorThrow(nil, errors.New("找不到 class; class 定义需要和文件名称一致才能自动加载"))
+	return nil, utils.NewThrowf("找不到 %s; class 定义需要和文件名称一致才能自动加载", pkg)
 }
 
 func (vm *VM) LoadPkg(pkg string) (data.GetValue, data.Control) {

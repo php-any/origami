@@ -37,8 +37,12 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 			if acl != nil {
 				return nil, acl
 			}
-			ret, acl := fp.parserReturnType()
+			// 解析 use 捕获列表（可选）：function () use ($a, $b) {}
+			captureNames, acl := fp.parseClosureUse()
 			if acl != nil {
+				return nil, acl
+			}
+			if _, acl := fp.parserReturnType(); acl != nil {
 				return nil, acl
 			}
 			// 解析函数体
@@ -51,13 +55,28 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 			// 弹出函数作用域
 			fp.scopeManager.PopScope()
 
-			fn := data.NewFuncValue(node.NewFunctionStatement(
+			// 构建 parent 映射，仅捕获 use 声明的变量
+			parent := make(map[int]int)
+			if len(captureNames) > 0 {
+				for _, outer := range fp.scopeManager.CurrentScope().GetVariables() {
+					for _, child := range vars {
+						if child.GetName() == outer.GetName() {
+							for _, n := range captureNames {
+								if n == child.GetName() {
+									parent[child.GetIndex()] = outer.GetIndex()
+								}
+							}
+						}
+					}
+				}
+			}
+
+			fn := data.NewFuncValue(node.NewLambdaExpression(
 				tracker.EndBefore(),
-				"",
 				params,
 				body,
 				vars,
-				ret,
+				parent,
 			))
 
 			return fn, nil
@@ -115,6 +134,39 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 func (fp *FunctionParser) parseParameters() ([]data.GetValue, data.Control) {
 	vp := &FunctionParserCommon{Parser: fp.Parser}
 	return vp.ParseParameters()
+}
+
+// parseClosureUse 解析闭包的 use 捕获列表
+// 语法: use ($a, $b)
+func (fp *FunctionParser) parseClosureUse() ([]string, data.Control) {
+	if !fp.checkPositionIs(0, token.USE) {
+		return nil, nil
+	}
+	fp.next() // 跳过 use
+	if acl := fp.nextAndCheck(token.LPAREN); acl != nil {
+		return nil, acl
+	}
+	var names []string
+	for {
+		if !fp.checkPositionIs(0, token.VARIABLE) {
+			return nil, data.NewErrorThrow(fp.FromCurrentToken(), errors.New("use 语法错误，期望变量"))
+		}
+		name := fp.current().Literal()
+		if len(name) > 0 && name[0] == '$' {
+			name = name[1:]
+		}
+		names = append(names, name)
+		fp.next() // 跳过变量
+		if fp.current().Type() == token.COMMA {
+			fp.next()
+			continue
+		}
+		break
+	}
+	if acl := fp.nextAndCheck(token.RPAREN); acl != nil {
+		return nil, acl
+	}
+	return names, nil
 }
 
 func (fp FunctionParser) parserReturnType() (data.Types, data.Control) {

@@ -42,7 +42,7 @@ func (ep *LparenParser) Parse() (data.GetValue, data.Control) {
 // isTypeCast 检查是否是类型转换
 func (ep *LparenParser) isTypeCast() bool {
 	// 检查模式: (IDENTIFIER) EXPRESSION
-	if ep.checkPositionIs(1, token.IDENTIFIER) &&
+	if ep.checkPositionIs(1, token.IDENTIFIER, token.ARRAY) &&
 		ep.checkPositionIs(2, token.RPAREN) &&
 		!ep.checkPositionIs(3, token.ARRAY_KEY_VALUE) &&
 		ep.checkPositionIs(3, token.IDENTIFIER, token.VARIABLE, token.LPAREN, token.INT, token.FLOAT, token.STRING, token.NULL, token.TRUE, token.FALSE) {

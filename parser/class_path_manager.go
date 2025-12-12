@@ -328,6 +328,14 @@ func (m *DefaultClassPathManager) findFileCaseInsensitive(basePath, fileName str
 func (m *DefaultClassPathManager) LoadClass(className string, parser *Parser) data.Control {
 	filePath, found := m.FindClassFile(className)
 	if !found {
+		ok, acl := CallAutoLoad(className, parser.vm.CreateContext(nil))
+		if acl != nil {
+			return acl
+		}
+		if ok {
+			return nil
+		}
+
 		return data.TryErrorThrow(parser.newFrom(), fmt.Errorf("类 %s 不存在或无法加载", className))
 	}
 
@@ -346,4 +354,46 @@ func (m *DefaultClassPathManager) LoadClass(className string, parser *Parser) da
 	}
 
 	return data.TryErrorThrow(parser.newFrom(), fmt.Errorf("文件 file://%s 中未找到类 %s", filePath, className))
+}
+
+var autoload = make([]*data.FuncValue, 0)
+
+func AddAutoLoad(fun *data.FuncValue) {
+	autoload = append(autoload, fun)
+}
+
+func RemoveAutoLoad(fun *data.FuncValue) {
+	if len(autoload) == 0 {
+		return
+	}
+	filtered := autoload[:0]
+	for _, f := range autoload {
+		if f != fun {
+			filtered = append(filtered, f)
+		}
+	}
+	autoload = filtered
+}
+
+func CallAutoLoad(name string, ctx data.Context) (bool, data.Control) {
+	for _, fn := range autoload {
+		ctx := ctx.CreateContext(make([]data.Variable, 1))
+
+		ctx.GetIndexZVal(0).Value = data.NewStringValue(name)
+
+		v, acl := fn.Call(ctx)
+		if acl != nil {
+			return false, acl
+		}
+
+		if b, ok := v.(*data.BoolValue); ok {
+			if !b.Value {
+				continue
+			}
+		}
+
+		return true, nil
+	}
+
+	return false, nil
 }

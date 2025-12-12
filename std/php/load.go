@@ -2,6 +2,7 @@ package php
 
 import (
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/std/php/core"
 )
 
 func Load(vm data.VM) {
@@ -40,8 +41,15 @@ func Load(vm data.VM) {
 		NewStrReplaceFunction(),
 		NewStrtolowerFunction(),
 		NewStrtoupperFunction(),
-		NewSplAutoloadRegisterFunction(),
+		core.NewSplAutoloadRegisterFunction(),
+		core.NewSplAutoloadUnregisterFunction(),
+		core.NewArrayFunction(),
+		core.NewDirnameFunction(),
+		core.NewCallUserFuncFunction(),
 	} {
 		vm.AddFunc(fun)
 	}
+
+	// 注册核心类
+	vm.AddClass(&core.ClosureClass{})
 }

@@ -1,10 +1,12 @@
 namespace test
 
-// 测试基本 pop
-$array = [1, 2, 3];
-$result = array_pop($array);
-if($result == 3 && count($array) == 2) {
-    Log::info("基本 pop 测试通过");
-} else {
-    Log::fatal("基本 pop 测试失败");
+class Test
+{
+    private static $loader;
+
+    public static function call() {
+        self::$loader = 1;
+    }
 }
+
+echo Test::call()

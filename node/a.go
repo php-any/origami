@@ -17,6 +17,8 @@ func TryGetCallClassName(call data.GetValue) string {
 		return c.GetName()
 	case *data.NullValue:
 		return "null"
+	case *CallStaticMethod:
+		return fmt.Sprintf("%s::%s", TryGetCallClassName(c.stmt), c.Method)
 	}
 
 	return "TODO"

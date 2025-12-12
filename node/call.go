@@ -17,6 +17,10 @@ type CallExpression struct {
 
 // NewCallExpression 创建一个新的函数调用表达式
 func NewCallExpression(token *TokenFrom, fn string, arguments []data.GetValue, fun data.FuncStmt) *CallExpression {
+	if fn[0:1] == "\\" {
+		fn = fn[1:]
+	}
+
 	return &CallExpression{
 		Node:    NewNode(token),
 		FunName: fn,

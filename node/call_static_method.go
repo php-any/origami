@@ -69,7 +69,7 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 
 	// 静态方法需要 ClassMethodContext，返回包装器让 CallMethod 正确处理
 	if classStmt != nil {
-		return &StaticMethodFuncValue{class: classStmt, method: method}, nil
+		return NewStaticMethodFuncValue(classStmt, method), nil
 	}
 
 	// 如果没有类信息，直接返回 FuncValue（向后兼容）
@@ -124,6 +124,13 @@ func (pe *CallStaticMethodLater) GetValue(ctx data.Context) (data.GetValue, data
 	callStaticMethod := NewCallStaticMethod(tokenFrom, stmt, pe.method)
 
 	return callStaticMethod.GetValue(ctx)
+}
+
+func NewStaticMethodFuncValue(class data.ClassStmt, method data.Method) *StaticMethodFuncValue {
+	return &StaticMethodFuncValue{
+		class:  class,
+		method: method,
+	}
 }
 
 // StaticMethodFuncValue 静态方法函数值包装器，确保调用时使用 ClassMethodContext
