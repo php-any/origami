@@ -86,19 +86,27 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 			}
 
 			// (string $data) 或 (?string $data)
-			if !isVar && isIdentOrTypeToken(parser.current().Type()) && parser.checkPositionIs(1, token.IDENTIFIER, token.VARIABLE) {
+			if !isVar && isIdentOrTypeToken(parser.current().Type()) && parser.checkPositionIs(1, token.IDENTIFIER, token.VARIABLE, token.BIT_OR) {
+				if parser.checkPositionIs(1, token.BIT_OR) {
+					varType = p.parserType(parser, parser.current().Literal())
+					for p.checkPositionIs(0, token.BIT_OR) {
+						p.next()
+						varType = varType + "|" + p.parserType(parser, parser.current().Literal())
+					}
+				} else {
+					varType = p.parserType(parser, parser.current().Literal())
+				}
 				isVar = true
-				varType = parser.current().Literal()
 				p.next()
 
 				name = parser.current().Literal()
 				p.next()
 			}
 			// (?string $data) 可空类型参数
-			if !isVar && parser.checkPositionIs(0, token.TERNARY) && parser.checkPositionIs(1, token.IDENTIFIER) && parser.checkPositionIs(2, token.IDENTIFIER, token.VARIABLE) {
+			if !isVar && parser.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(parser.peek(1).Type()) && parser.checkPositionIs(2, token.IDENTIFIER, token.VARIABLE) {
 				isVar = true
 				p.next() // 跳过问号
-				varType = "?" + parser.current().Literal()
+				varType = "?" + p.parserType(parser, parser.current().Literal())
 				p.next()
 
 				name = parser.current().Literal()
@@ -110,7 +118,7 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 				p.next()
 				if parser.checkPositionIs(0, token.COLON) {
 					p.next()
-					varType = parser.current().Literal()
+					varType = p.parserType(parser, parser.current().Literal())
 					p.next()
 				}
 				isVar = true
@@ -140,6 +148,13 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 			// 可空类型
 			baseType := data.NewBaseType(varType[1:]) // 去掉问号
 			paramType = data.NewNullableType(baseType)
+		} else if strings.Index(varType, "|") > 1 {
+			// string|int
+			mul := make([]data.Types, 0)
+			for _, s := range strings.Split(varType, "|") {
+				mul = append(mul, data.NewBaseType(s))
+			}
+			paramType = data.NewMultipleReturnType(mul)
 		} else {
 			// 普通类型
 			paramType = data.NewBaseType(varType)
@@ -166,7 +181,7 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 			params = append(params, param)
 		} else if isReference {
 			if defaultValue != nil {
-				return nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("参数为引用的变量不能有默认值"))
+				// return nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("参数为引用的变量不能有默认值"))
 			}
 			// 覆盖变量为引用
 			p.scopeManager.CurrentScope().SetVariable(val.GetName(), node.NewVariableReference(tracking.EndBefore(), val.GetName(), val.GetIndex(), val.GetType()))
@@ -191,6 +206,22 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 	}
 	p.nextAndCheck(token.RPAREN)
 	return params, nil
+}
+
+func (p *FunctionParserCommon) parserType(parser *Parser, name string) string {
+	if data.ISBaseType(name) {
+		return name
+	}
+	if strings.Index(name, "\\") != -1 {
+		return name
+	}
+
+	class, ok := parser.findFullClassNameByNamespace(name)
+	if ok {
+		return class
+	}
+
+	return name
 }
 
 // isIdentOrTypeToken 判断 token 是否为标识符或类型关键字（如 string、int、bool、float、array 等）

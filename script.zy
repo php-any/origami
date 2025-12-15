@@ -1,12 +1,31 @@
 namespace test
 
-class Test
-{
-    private static $loader;
+// Test case 1: strtr(string, string, string)
+$str = "hello world";
+$from = "eo";
+$to = "EO";
+$result = strtr($str, $from, $to);
+echo "Test 1 (char replacement): " . $result . "\n";
+// Expected: hEllO wOrld
 
-    public static function call() {
-        self::$loader = 1;
-    }
-}
+// Test case 2: strtr(string, array)
+$trans = array("hello" => "hi", "world" => "earth");
+$result = strtr("hello world", $trans);
+echo "Test 2 (array replacement): " . $result . "\n";
+// Expected: hi earth
 
-echo Test::call()
+// Test case 3: strtr(string, array) with overlapping keys (longest match first)
+$trans = array("h" => "-", "hello" => "hi");
+$result = strtr("hello world", $trans);
+echo "Test 3 (longest match): " . $result . "\n";
+// Expected: hi world (if "hello" is matched before "h")
+
+// Test case 4: strtr(string, string, string) with different lengths
+$result = strtr("hello", "el", "ELX");
+echo "Test 4 (diff len 1): " . $result . "\n";
+// Expected: hELlo
+
+$result = strtr("hello", "elo", "EL");
+echo "Test 5 (diff len 2): " . $result . "\n";
+// Expected: hELlo (o is not replaced because 'o' is at index 2 in 'from' but 'to' has len 2)
+

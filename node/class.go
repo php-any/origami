@@ -207,7 +207,11 @@ func (p *ClassProperty) GetValue(ctx data.Context) (data.GetValue, data.Control)
 	if p.DefaultValue != nil {
 		v, acl := p.DefaultValue.GetValue(ctx)
 		if v != nil {
-			ctx.SetVariableValue(p, v.(data.Value))
+			if c, ok := ctx.(data.SetProperty); ok {
+				c.SetProperty(p.Name, v.(data.Value))
+			} else {
+				ctx.SetVariableValue(p, v.(data.Value))
+			}
 			return v, acl
 		}
 		return v, acl

@@ -23,29 +23,38 @@ func (f *SplAutoloadRegisterFunction) Call(ctx data.Context) (data.GetValue, dat
 
 	switch f := a1.(type) {
 	case *data.ArrayValue:
-		className := f.Value[0].AsString()
+		class := f.Value[0]
 		methodName := f.Value[1].AsString()
-
-		stmt, acl := ctx.GetVM().GetOrLoadClass(className)
-		if acl != nil {
-			return nil, acl
-		}
-
 		var method data.Method
 		var ok bool
 
-		method, ok = stmt.GetMethod(methodName)
-		if !ok {
-			var c data.GetStaticMethod
-			if c, ok = stmt.(data.GetStaticMethod); ok {
-				method, ok = c.GetStaticMethod(methodName)
+		switch class := class.(type) {
+		case *data.ThisValue:
+			method, ok = class.GetMethod(methodName)
+			fn, acl := node.NewStaticMethodFuncValue(class.Class, method).GetValue(ctx)
+			if acl != nil {
+				return nil, acl
 			}
+			runtime.AddAutoLoad(fn.(*data.FuncValue))
+		default:
+			stmt, acl := ctx.GetVM().GetOrLoadClass(class.AsString())
+			if acl != nil {
+				return nil, acl
+			}
+
+			method, ok = stmt.GetMethod(methodName)
+			if !ok {
+				var c data.GetStaticMethod
+				if c, ok = stmt.(data.GetStaticMethod); ok {
+					method, ok = c.GetStaticMethod(methodName)
+				}
+			}
+			fn, acl := node.NewStaticMethodFuncValue(stmt, method).GetValue(ctx)
+			if acl != nil {
+				return nil, acl
+			}
+			runtime.AddAutoLoad(fn.(*data.FuncValue))
 		}
-		fn, acl := node.NewStaticMethodFuncValue(stmt, method).GetValue(ctx)
-		if acl != nil {
-			return nil, acl
-		}
-		runtime.AddAutoLoad(fn.(*data.FuncValue))
 	case *data.FuncValue:
 		fn := a1.(*data.FuncValue)
 

@@ -209,8 +209,7 @@ type ClassMethodContext struct {
 }
 
 func (c *ClassMethodContext) SetVariableValue(variable Variable, value Value) Control {
-	c.Context.SetVariableValue(variable, value)
-	return nil
+	return c.Context.SetVariableValue(variable, value)
 }
 
 func (c *ClassMethodContext) GetVariableValue(variable Variable) (Value, Control) {

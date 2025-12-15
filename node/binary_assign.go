@@ -69,9 +69,17 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 			if acl != nil {
 				return nil, acl
 			}
-			if idxExpr.Index == nil {
-				// TODO
+			if _, ok := arrayVal.(*data.NullValue); ok {
+				if ie, ok := idxExpr.Array.(*IndexExpression); ok {
+					// 多级访问，自动创建空数组
+					arrayVal = data.NewObjectValue()
+					_, acl = NewBinaryAssign(b.from, ie, arrayVal).GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+				}
 			}
+
 			indexVal, acl := idxExpr.Index.GetValue(ctx)
 			if acl != nil {
 				return nil, acl

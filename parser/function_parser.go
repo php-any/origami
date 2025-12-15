@@ -71,13 +71,13 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 				}
 			}
 
-			fn := data.NewFuncValue(node.NewLambdaExpression(
+			fn := node.NewLambdaExpression(
 				tracker.EndBefore(),
 				params,
 				body,
 				vars,
 				parent,
-			))
+			)
 
 			return fn, nil
 		}

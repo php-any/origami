@@ -63,6 +63,9 @@ var TokenDefinitions = []TokenDefinition{
 	{Type: ARRAY, Literal: "array", WordType: KEYWORD},
 	{Type: LIKE, Literal: "like", WordType: KEYWORD},
 	{Type: CONST, Literal: "const", WordType: KEYWORD},
+	// 超全局
+	{Type: GLOBALS, Literal: "$GLOBALS", WordType: KEYWORD},
+	{Type: ENV, Literal: "$_ENV", WordType: KEYWORD},
 	{Type: INCLUDE, Literal: "include", WordType: KEYWORD},
 	{Type: INCLUDE_ONCE, Literal: "include_once", WordType: KEYWORD},
 	{Type: REQUIRE, Literal: "require", WordType: KEYWORD},

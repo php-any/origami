@@ -46,6 +46,23 @@ func Load(vm data.VM) {
 		core.NewArrayFunction(),
 		core.NewDirnameFunction(),
 		core.NewCallUserFuncFunction(),
+		core.NewStrtrFunction(),
+
+		NewStrrposFunction(),
+		NewStrriposFunction(),
+		NewPregMatchFunction(),
+		core.NewIsCallableFunction(),
+		NewIsStringFunction(),
+		NewIsIntFunction(),
+		NewIsArrayFunction(),
+		NewIsBoolFunction(),
+		NewIsFloatFunction(),
+		NewIsNullFunction(),
+		NewIsNumericFunction(),
+		NewIsObjectFunction(),
+		NewArrayShiftFunction(),
+		NewArrayUnshiftFunction(),
+		NewSprintfFunction(),
 	} {
 		vm.AddFunc(fun)
 	}

@@ -391,6 +391,9 @@ func CallAutoLoad(name string, ctx data.Context) (bool, data.Control) {
 				continue
 			}
 		}
+		if v == nil {
+			continue
+		}
 
 		return true, nil
 	}

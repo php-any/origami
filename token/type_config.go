@@ -79,6 +79,14 @@ const (
 	GENERIC_TYPE                        // 泛型类型参数
 	CLASS_CONSTANT                      // ::class 类常量关键字
 	JS_SERVER                           // 渲染为js值
+	GLOBALS                             // $GLOBALS
+	ENV                                 // $_ENV
+	SESSION                             // $_SESSION
+	COOKIE                              // $_COOKIE
+	POST                                // $_POST
+	GET                                 // $_GET
+	REQUEST                             // $_REQUEST
+	SERVER                              // $_SERVER
 
 	KEYWORD_END TokenType = iota + 100
 

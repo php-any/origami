@@ -301,8 +301,6 @@ func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 		if ep.checkPositionIs(0, token.LT) && ep.checkPositionIs(1, token.IDENTIFIER) {
 			// <html
 			return NewHtmlParser(ep.Parser).Parse()
-		} else {
-			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("比较表达式左值不存在"))
 		}
 	}
 	for ep.current().Type() == token.LT || ep.current().Type() == token.LE ||

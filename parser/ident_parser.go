@@ -3,6 +3,7 @@ package parser
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -268,6 +269,10 @@ func (p *IdentParser) parseStaticCall(tracker *PositionTracker, className string
 			expr := node.NewCallStaticProperty(tracker.EndBefore(), stmt, fnName)
 			return vp.parseSuffix(expr)
 		} else {
+			if strings.Index(fullClassName, "\\") == -1 && p.namespace != nil {
+				fullClassName = p.namespace.Name + "\\" + fullClassName
+			}
+
 			// 类未加载，创建延迟调用
 			vp := &VariableParser{p.Parser}
 			expr := node.NewCallStaticPropertyLater(tracker.EndBefore(), fullClassName, fnName, namespace)

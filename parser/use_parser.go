@@ -2,10 +2,11 @@ package parser
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
-	"strings"
 )
 
 // UseParser 表示use语句解析器
@@ -28,7 +29,11 @@ func (p *UseParser) Parse() (data.GetValue, data.Control) {
 
 	// 解析命名空间
 	if p.current().Type() != token.IDENTIFIER {
-		return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("use 命名空间名称不能为空"))
+		if p.checkPositionIs(0, token.FUNC, token.CONST) {
+			p.next()
+		} else {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("use 命名空间名称不能为空"))
+		}
 	}
 
 	// 获取完整的命名空间路径
