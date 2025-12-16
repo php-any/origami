@@ -124,6 +124,49 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 			return v, l.SetProperty(ctx, l.Property, v)
 		case *CallSelfProperty:
 			return v, l.SetProperty(ctx, l.Property, v)
+		case *BinaryNeStrict: // !==
+
+			return data.NewBoolValue(false), nil
+		case *BinaryLand: // &&
+			lv, acl := l.Left.GetValue(ctx)
+			if acl != nil {
+				return nil, acl
+			}
+			rv, acl := l.Right.GetValue(ctx)
+			if acl != nil {
+				return nil, acl
+			}
+
+			if v, ok := lv.(data.AsBool); ok {
+				bv, err := v.AsBool()
+				if err != nil {
+					return nil, data.NewErrorThrow(b.from, err)
+				}
+				if !bv {
+					return data.NewBoolValue(false), nil
+				}
+			} else {
+				return data.NewBoolValue(false), nil
+			}
+
+			if v, ok := rv.(data.AsBool); ok {
+				bv, err := v.AsBool()
+				if err != nil {
+					return nil, data.NewErrorThrow(b.from, err)
+				}
+				if !bv {
+					return data.NewBoolValue(false), nil
+				}
+			} else {
+				return data.NewBoolValue(false), nil
+			}
+
+			return data.NewBoolValue(true), nil
+		case *BinaryEqStrict, *BinaryEq, *BinaryNe:
+			// 处理其他比较运算符的相似情况
+			// 由于不同的比较类型，我们需要通过反射或类型断言来提取 Left 和 Right
+			// 为简化，这里只给出友好的错误信息
+			return nil, data.NewErrorThrow(b.from, fmt.Errorf("赋值表达式的左侧不能是比较表达式，请使用括号: (%T)", l))
 		default:
 			return nil, data.NewErrorThrow(b.from, fmt.Errorf("TODO 赋值表达式遇到未支持的类型: %T", l))
 		}

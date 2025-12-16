@@ -85,8 +85,8 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 				isReference = true
 			}
 
-			// (string $data) 或 (?string $data)
-			if !isVar && isIdentOrTypeToken(parser.current().Type()) && parser.checkPositionIs(1, token.IDENTIFIER, token.VARIABLE, token.BIT_OR) {
+			// (string|int $data)
+			if !isVar && isIdentOrTypeToken(parser.current().Type()) && parser.checkPositionIs(1, token.IDENTIFIER, token.VARIABLE, token.BIT_OR, token.ELLIPSIS) {
 				if parser.checkPositionIs(1, token.BIT_OR) {
 					varType = p.parserType(parser, parser.current().Literal())
 					for p.checkPositionIs(0, token.BIT_OR) {
@@ -99,16 +99,24 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 				isVar = true
 				p.next()
 
+				if parser.checkPositionIs(0, token.ELLIPSIS) {
+					isParams = true
+					p.next()
+				}
+
 				name = parser.current().Literal()
 				p.next()
 			}
 			// (?string $data) 可空类型参数
-			if !isVar && parser.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(parser.peek(1).Type()) && parser.checkPositionIs(2, token.IDENTIFIER, token.VARIABLE) {
+			if !isVar && parser.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(parser.peek(1).Type()) && parser.checkPositionIs(2, token.IDENTIFIER, token.VARIABLE, token.ELLIPSIS) {
 				isVar = true
 				p.next() // 跳过问号
 				varType = "?" + p.parserType(parser, parser.current().Literal())
 				p.next()
-
+				if parser.checkPositionIs(0, token.ELLIPSIS) {
+					isParams = true
+					p.next()
+				}
 				name = parser.current().Literal()
 				p.next()
 			}

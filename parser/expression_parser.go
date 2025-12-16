@@ -213,7 +213,7 @@ func (ep *ExpressionParser) parseLogicalAnd() (data.GetValue, data.Control) {
 		operator := ep.current()
 		ep.next()
 
-		right, acl := ep.parseEquality()
+		right, acl := ep.parseAssignment()
 		if acl != nil {
 			return nil, acl
 		}

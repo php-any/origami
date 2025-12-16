@@ -261,12 +261,21 @@ func (vp *VariableParser) parseArrayAccess(array data.GetValue) (data.GetValue, 
 	), nil
 }
 
-// parsePropertyAccess 解析属性访问
+// parsePropertyAccess 解析属性访问或者拼接
 func (vp *VariableParser) parsePropertyAccess(object data.GetValue) (data.GetValue, data.Control) {
 	tracker := vp.StartTracking()
 	vp.next() // 跳过点号
 
-	if vp.checkPositionIs(0, token.IDENTIFIER) || (vp.current().Type() > token.KEYWORD_START && vp.current().Type() < token.VALUE_START) {
+	if vp.checkPositionIs(0, token.LPAREN) {
+		// data . () 只能是拼接
+		parser := NewLparenParser(vp.Parser)
+		property, acl := parser.Parse()
+		if acl != nil {
+			return nil, acl
+		}
+		from := tracker.EndBefore()
+		return node.NewBinaryAdd(from, object, property), nil
+	} else if vp.checkPositionIs(0, token.IDENTIFIER) || (vp.current().Type() > token.KEYWORD_START && vp.current().Type() < token.VALUE_START) {
 		property := vp.current().Literal()
 		vp.next()
 
