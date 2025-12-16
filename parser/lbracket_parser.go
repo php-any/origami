@@ -64,12 +64,13 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 			from := tracker.EndBefore()
 			return node.NewArray(from, arr), nil
 		case token.ARRAY_KEY_VALUE: // => 对象定义
-			v := map[data.GetValue]data.GetValue{}
+			v := []node.KvPair{}
 			ep.next() // =>
-			v[expr], acl = ep.parseStatement()
+			firstVal, acl := ep.parseStatement()
 			if acl != nil {
 				return nil, acl
 			}
+			v = append(v, node.KvPair{Key: expr, Value: firstVal})
 			ep.nextAndCheckStip(token.COMMA)
 
 			for ep.current().Type() != token.RBRACKET {
@@ -82,7 +83,7 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 				if acl != nil {
 					return nil, acl
 				}
-				v[key] = val
+				v = append(v, node.KvPair{Key: key, Value: val})
 				ep.nextAndCheckStip(token.COMMA)
 			}
 			ep.next()
@@ -92,12 +93,13 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 			oldIdentTryString := ep.identTryString
 			ep.identTryString = true
 
-			v := map[data.GetValue]data.GetValue{}
+			v := []node.KvPair{}
 			ep.next() // :
-			v[expr], acl = ep.parseStatement()
+			firstVal, acl := ep.parseStatement()
 			if acl != nil {
 				return nil, acl
 			}
+			v = append(v, node.KvPair{Key: expr, Value: firstVal})
 			for ep.current().Type() != token.RBRACKET {
 				key, acl := ep.parseStatement()
 				if acl != nil {
@@ -108,7 +110,7 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 				if acl != nil {
 					return nil, acl
 				}
-				v[key] = val
+				v = append(v, node.KvPair{Key: key, Value: val})
 			}
 
 			ep.identTryString = oldIdentTryString

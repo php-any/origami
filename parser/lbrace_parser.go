@@ -25,7 +25,7 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 	// 检查是否为空对象 {}
 	if ep.current().Type() == token.RBRACE {
 		ep.next()
-		v := map[data.GetValue]data.GetValue{}
+		v := []node.KvPair{}
 		from := tracker.EndBefore()
 		return node.NewKv(from, v), nil
 	}
@@ -44,12 +44,13 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 	}
 	switch ep.current().Type() {
 	case token.ARRAY_KEY_VALUE: // => 对象定义
-		v := map[data.GetValue]data.GetValue{}
+		v := []node.KvPair{}
 		ep.next() // =>
-		v[expr], acl = ep.parseStatement()
+		firstVal, acl := ep.parseStatement()
 		if acl != nil {
 			return nil, acl
 		}
+		v = append(v, node.KvPair{Key: expr, Value: firstVal})
 		for ep.current().Type() != token.RBRACE {
 			key, acl := ep.parseStatement()
 			if acl != nil {
@@ -60,7 +61,7 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 			if acl != nil {
 				return nil, acl
 			}
-			v[key] = val
+			v = append(v, node.KvPair{Key: key, Value: val})
 		}
 		ep.next()
 
@@ -69,12 +70,13 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 		oldIdentTryString := ep.identTryString
 		ep.identTryString = true
 
-		v := map[data.GetValue]data.GetValue{}
+		v := []node.KvPair{}
 		ep.nextAndCheck(token.COLON) // :
-		v[expr], acl = ep.parseStatement()
+		firstVal, acl := ep.parseStatement()
 		if acl != nil {
 			return nil, acl
 		}
+		v = append(v, node.KvPair{Key: expr, Value: firstVal})
 		for ep.current().Type() != token.RBRACE {
 			if ep.checkPositionIs(0, token.COMMA) && ep.checkPositionIs(1, token.RBRACE) {
 				ep.next()
@@ -99,7 +101,7 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 			if acl != nil {
 				return nil, acl
 			}
-			v[key] = val
+			v = append(v, node.KvPair{Key: key, Value: val})
 		}
 
 		ep.identTryString = oldIdentTryString
@@ -108,7 +110,7 @@ func (ep *LbraceParser) Parse() (data.GetValue, data.Control) {
 		return node.NewKv(tracker.EndBefore(), v), nil
 	case token.RBRACE:
 		ep.next()
-		v := map[data.GetValue]data.GetValue{}
+		v := []node.KvPair{}
 		return node.NewKv(tracker.EndBefore(), v), nil
 	default:
 		return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("TODO: 语法错误"+ep.current().Literal()))

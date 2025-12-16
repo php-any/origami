@@ -75,6 +75,12 @@ func (o *ObjectValue) GetProperties() map[string]Value {
 	return properties
 }
 
+// RangeProperties 按插入顺序遍历所有属性
+// 使用此方法可保证遍历顺序与插入顺序一致，避免 Go map 遍历顺序随机的问题
+func (o *ObjectValue) RangeProperties(fn func(key string, value Value) bool) {
+	o.property.Range(fn)
+}
+
 func (o *ObjectValue) SetVariableValue(variable Variable, value Value) Control {
 	o.SetProperty(variable.GetName(), value)
 	return nil

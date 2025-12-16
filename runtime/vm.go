@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/php-any/origami/data"
@@ -20,6 +21,7 @@ func NewVM(parser *parser.Parser) data.VM {
 		classPathMap: make(map[string]string),
 		acl: func(acl data.Control) {
 			parser.ShowControl(acl)
+			os.Exit(1)
 		},
 	}
 	vm.ctx = NewContext(vm)

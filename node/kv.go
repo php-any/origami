@@ -4,12 +4,18 @@ import (
 	"github.com/php-any/origami/data"
 )
 
-type Kv struct {
-	*Node `pp:"-"`
-	V     map[data.GetValue]data.GetValue
+// KvPair 表示一个键值对
+type KvPair struct {
+	Key   data.GetValue
+	Value data.GetValue
 }
 
-func NewKv(token *TokenFrom, v map[data.GetValue]data.GetValue) data.GetValue {
+type Kv struct {
+	*Node `pp:"-"`
+	V     []KvPair // 使用切片保证顺序
+}
+
+func NewKv(token *TokenFrom, v []KvPair) data.GetValue {
 	return &Kv{
 		Node: NewNode(token),
 		V:    v,
@@ -20,12 +26,12 @@ func NewKv(token *TokenFrom, v map[data.GetValue]data.GetValue) data.GetValue {
 func (n *Kv) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	obj := data.NewObjectValue()
 
-	for k, v := range n.V {
-		kv, acl := k.GetValue(ctx)
+	for _, pair := range n.V {
+		kv, acl := pair.Key.GetValue(ctx)
 		if acl != nil {
 			return nil, acl
 		}
-		vv, acl := v.GetValue(ctx)
+		vv, acl := pair.Value.GetValue(ctx)
 		if acl != nil {
 			return nil, acl
 		}

@@ -41,6 +41,7 @@ const (
 	REQUIRE                             // require 引入
 	REQUIRE_ONCE                        // require_once 引入一次
 	DEFINE                              // define 常量定义
+	DECLARE                             // declare 语句
 	VAR                                 // var 变量定义
 	ECHO                                // echo 输出语句
 	THROW                               // throw 抛出异常

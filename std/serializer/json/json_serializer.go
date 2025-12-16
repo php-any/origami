@@ -96,24 +96,52 @@ func (j *JsonSerializer) UnmarshalArray(msg []byte, v *data.ArrayValue) error {
 
 // Object
 func (j *JsonSerializer) MarshalObject(v *data.ObjectValue) ([]byte, error) {
-	props := v.GetProperties()
+	// 使用 RangeProperties 保证顺序一致
+	var buf bytes.Buffer
+	buf.WriteByte('{')
+	first := true
+	var marshalErr error
 
-	// 递归序列化对象属性
-	encoded := make(map[string]json.RawMessage, len(props))
-	for k, val := range props {
+	v.RangeProperties(func(k string, val data.Value) bool {
+		if marshalErr != nil {
+			return false
+		}
+
+		if !first {
+			buf.WriteByte(',')
+		}
+		first = false
+
+		// 写入键
+		keyBytes, err := json.Marshal(k)
+		if err != nil {
+			marshalErr = err
+			return false
+		}
+		buf.Write(keyBytes)
+		buf.WriteByte(':')
+
+		// 写入值
 		if vs, ok := val.(data.ValueSerializer); ok {
 			b, err := vs.Marshal(j)
 			if err != nil {
-				return nil, err
+				marshalErr = err
+				return false
 			}
-			encoded[k] = b
+			buf.Write(b)
 		} else {
-			// 如果不支持序列化，转换为字符串
 			b, _ := json.Marshal(val.AsString())
-			encoded[k] = b
+			buf.Write(b)
 		}
+		return true
+	})
+
+	if marshalErr != nil {
+		return nil, marshalErr
 	}
-	return json.Marshal(encoded)
+
+	buf.WriteByte('}')
+	return buf.Bytes(), nil
 }
 
 func (j *JsonSerializer) UnmarshalObject(data []byte, v *data.ObjectValue) error {
@@ -177,25 +205,52 @@ func (j *JsonSerializer) UnmarshalAny(data []byte, v *data.AnyValue) error {
 
 // Class
 func (j *JsonSerializer) MarshalClass(v *data.ClassValue) ([]byte, error) {
-	props := v.GetProperties()
+	// 使用 RangeProperties 保证顺序一致
+	var buf bytes.Buffer
+	buf.WriteByte('{')
+	first := true
+	var marshalErr error
 
-	// 序列化类实例的属性
-	encoded := make(map[string]json.RawMessage, len(props))
-	for k, val := range props {
+	v.RangeProperties(func(k string, val data.Value) bool {
+		if marshalErr != nil {
+			return false
+		}
+
+		if !first {
+			buf.WriteByte(',')
+		}
+		first = false
+
+		// 写入键
+		keyBytes, err := json.Marshal(k)
+		if err != nil {
+			marshalErr = err
+			return false
+		}
+		buf.Write(keyBytes)
+		buf.WriteByte(':')
+
+		// 写入值
 		if vs, ok := val.(data.ValueSerializer); ok {
 			b, err := vs.Marshal(j)
 			if err != nil {
-				return nil, err
+				marshalErr = err
+				return false
 			}
-			encoded[k] = b
+			buf.Write(b)
 		} else {
 			b, _ := json.Marshal(val.AsString())
-			encoded[k] = b
+			buf.Write(b)
 		}
+		return true
+	})
+
+	if marshalErr != nil {
+		return nil, marshalErr
 	}
 
-	// 与对象保持一致：仅输出属性映射
-	return json.Marshal(encoded)
+	buf.WriteByte('}')
+	return buf.Bytes(), nil
 }
 
 func (j *JsonSerializer) UnmarshalClass(msg []byte, v *data.ClassValue) error {

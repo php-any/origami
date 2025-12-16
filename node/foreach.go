@@ -141,8 +141,11 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		{
 			var v data.GetValue
 			var c data.Control
+			var shouldBreak bool
+			var shouldReturn bool
 
-			for i, element := range array.GetProperties() {
+			// 使用 RangeProperties 保证遍历顺序与插入顺序一致
+			array.RangeProperties(func(i string, element data.Value) bool {
 				ctx.SetVariableValue(u.Value, element)
 				if u.Key != nil {
 					ctx.SetVariableValue(u.Key, data.NewStringValue(i))
@@ -152,14 +155,24 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 					v, c = statement.GetValue(ctx)
 					if c != nil {
 						if ctrl, ok := c.(data.BreakControl); ok && ctrl.IsBreak() {
-							return nil, nil
+							shouldBreak = true
+							return false // 停止遍历
 						}
 						if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
-							break
+							return true // 继续下一次迭代
 						}
-						return nil, c
+						shouldReturn = true
+						return false // 停止遍历
 					}
 				}
+				return true
+			})
+
+			if shouldBreak {
+				return nil, nil
+			}
+			if shouldReturn {
+				return nil, c
 			}
 			return v, nil
 		}
@@ -202,9 +215,11 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	case *data.ObjectValue:
 		var v data.GetValue
 		var c data.Control
+		var shouldBreak bool
+		var shouldReturn bool
 
-		// 遍历数组
-		for i, element := range array.GetProperties() {
+		// 使用 RangeProperties 保证遍历顺序与插入顺序一致
+		array.RangeProperties(func(i string, element data.Value) bool {
 			// 设置值变量
 			ctx.SetVariableValue(u.Value, element)
 
@@ -220,16 +235,26 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 				if c != nil {
 					// break 跳出循环
 					if ctrl, ok := c.(data.BreakControl); ok && ctrl.IsBreak() {
-						return nil, nil
+						shouldBreak = true
+						return false
 					}
 					// continue 跳到下一次迭代
 					if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
-						continue
+						return true
 					}
 					// return/throw 直接返回
-					return nil, c
+					shouldReturn = true
+					return false
 				}
 			}
+			return true
+		})
+
+		if shouldBreak {
+			return nil, nil
+		}
+		if shouldReturn {
+			return nil, c
 		}
 		return v, nil
 	case *data.NullValue:

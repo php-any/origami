@@ -125,7 +125,7 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 		case *CallSelfProperty:
 			return v, l.SetProperty(ctx, l.Property, v)
 		default:
-			return nil, data.NewErrorThrow(b.from, errors.New("TODO 赋值表达式遇到未支持的类型"))
+			return nil, data.NewErrorThrow(b.from, fmt.Errorf("TODO 赋值表达式遇到未支持的类型: %T", l))
 		}
 	}
 

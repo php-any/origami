@@ -168,6 +168,12 @@ func (c *ClassValue) GetProperties() map[string]Value {
 	return result
 }
 
+// RangeProperties 按插入顺序遍历所有属性
+// 使用此方法可保证遍历顺序与插入顺序一致，避免 Go map 遍历顺序随机的问题
+func (c *ClassValue) RangeProperties(fn func(key string, value Value) bool) {
+	c.ObjectValue.RangeProperties(fn)
+}
+
 func (c *ClassValue) CreateContext(vars []Variable) Context {
 	ctx := c.Context.CreateContext(vars)
 	return &ClassMethodContext{
