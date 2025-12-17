@@ -92,9 +92,9 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 				isReference = true
 			}
 
-			// (string|int|null $data) 联合类型参数
+			// (string|int|null $data) 联合类型参数，兼容引用 & 和可变参数 ...
 			if !isVar && isIdentOrTypeToken(parser.current().Type()) &&
-				parser.checkPositionIs(1, token.IDENTIFIER, token.VARIABLE, token.BIT_OR, token.ELLIPSIS) {
+				parser.checkPositionIs(1, token.IDENTIFIER, token.VARIABLE, token.BIT_OR, token.ELLIPSIS, token.BIT_AND) {
 
 				// 先解析第一个类型
 				varType = p.parserType(parser, parser.current().Literal())
@@ -109,7 +109,13 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 
 				isVar = true
 
-				// 可变参数: type ...$vars
+				// 引用参数: type &$var 或 type &...$vars
+				if parser.checkPositionIs(0, token.BIT_AND) {
+					isReference = true
+					parser.next() // 跳过 &
+				}
+
+				// 可变参数: type ...$vars 或 type &...$vars
 				if parser.checkPositionIs(0, token.ELLIPSIS) {
 					isParams = true
 					p.next()

@@ -1,7 +1,7 @@
 namespace test
 
-function mb_convert_encoding() :array|string|false {
+function test(mixed &$var) {
     return 1
 }
-
-echo mb_convert_encoding();
+$var = 1
+echo test($var);

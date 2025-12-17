@@ -113,6 +113,8 @@ func ISBaseType(ty string) bool {
 		return true
 	case "void":
 		return true
+	case "mixed":
+		return true
 	case "int":
 		return true
 	case "string":
@@ -139,7 +141,7 @@ func NewBaseType(ty string) Types {
 	switch ty {
 	case "":
 		return nil
-	case "void":
+	case "void", "mixed":
 		return nil
 	case "int":
 		return Int{}
