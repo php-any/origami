@@ -187,8 +187,8 @@ func (fp FunctionParser) parserReturnType() (data.Types, data.Control) {
 				fp.next() // 跳过问号
 			}
 
-			// 解析返回类型
-			if fp.checkPositionIs(0, token.IDENTIFIER, token.STRING, token.INT, token.FLOAT, token.BOOL, token.ARRAY) {
+			// 解析返回类型，支持标识符、内置类型以及 null
+			if fp.checkPositionIs(0, token.IDENTIFIER, token.STRING, token.INT, token.FLOAT, token.BOOL, token.ARRAY, token.NULL) {
 				returnType := fp.current().Literal()
 				fp.next()
 

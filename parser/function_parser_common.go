@@ -76,29 +76,40 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 				p.next()
 			}
 
-			// &$data
+			// &$data 或 &...$vars
 			if parser.checkPositionIs(0, token.BIT_AND) {
 				isVar = true
-				parser.next()
+				parser.next() // 跳过 &
+
+				// 支持 &...$vars 语法：引用可变参数
+				if parser.current().Type() == token.ELLIPSIS {
+					isParams = true
+					parser.next() // 跳过 ...
+				}
+
 				name = parser.current().Literal()
 				p.next()
 				isReference = true
 			}
 
-			// (string|int $data)
-			if !isVar && isIdentOrTypeToken(parser.current().Type()) && parser.checkPositionIs(1, token.IDENTIFIER, token.VARIABLE, token.BIT_OR, token.ELLIPSIS) {
-				if parser.checkPositionIs(1, token.BIT_OR) {
-					varType = p.parserType(parser, parser.current().Literal())
-					for p.checkPositionIs(0, token.BIT_OR) {
-						p.next()
-						varType = varType + "|" + p.parserType(parser, parser.current().Literal())
-					}
-				} else {
-					varType = p.parserType(parser, parser.current().Literal())
-				}
-				isVar = true
+			// (string|int|null $data) 联合类型参数
+			if !isVar && isIdentOrTypeToken(parser.current().Type()) &&
+				parser.checkPositionIs(1, token.IDENTIFIER, token.VARIABLE, token.BIT_OR, token.ELLIPSIS) {
+
+				// 先解析第一个类型
+				varType = p.parserType(parser, parser.current().Literal())
 				p.next()
 
+				// 处理后续的 |Type
+				for parser.checkPositionIs(0, token.BIT_OR) {
+					p.next() // 跳过 |
+					varType = varType + "|" + p.parserType(parser, parser.current().Literal())
+					p.next()
+				}
+
+				isVar = true
+
+				// 可变参数: type ...$vars
 				if parser.checkPositionIs(0, token.ELLIPSIS) {
 					isParams = true
 					p.next()
@@ -237,6 +248,7 @@ func isIdentOrTypeToken(t token.TokenType) bool {
 	return t == token.IDENTIFIER ||
 		t == token.BOOL ||
 		t == token.ARRAY ||
+		t == token.NULL || // 支持 null 作为类型声明的一部分
 		t == token.INT ||
 		t == token.STRING ||
 		t == token.FLOAT ||

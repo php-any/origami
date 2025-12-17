@@ -23,7 +23,7 @@ func NewAnnotationParser(parser *Parser) StatementParser {
 // Parse 解析注解
 func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 	var annotations []*node.Annotation
-
+	tracker := p.StartTracking()
 	for p.current().Type() == token.AT {
 		tracker := p.StartTracking()
 
@@ -75,6 +75,19 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 		callAnn := make([]*node.CallAnn, 0)
 
 		for _, an := range annotations {
+			// 优先处理「函数形式」的标记：
+			// @foo(a, b) 等价于直接调用 foo(a, b)
+			// 这时它不再是“注解”，而只是一个普通函数调用，不需要传入 next 作为 target
+			if fn, ok := p.vm.GetFunc(an.Name); ok && fn != nil {
+				// 仅使用注解本身的参数
+				args := make([]data.GetValue, 0, len(an.Arguments))
+				args = append(args, an.Arguments...)
+
+				next = node.NewCallExpression(tracker.EndBefore(), fn.GetName(), args, fn)
+				// 函数形式的 @xxx 不再走类注解分支
+				continue
+			}
+
 			stmt, acl := p.vm.GetOrLoadClass(an.Name)
 			if acl != nil {
 				return nil, acl

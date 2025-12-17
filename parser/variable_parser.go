@@ -135,6 +135,26 @@ func (vp *VariableParser) parseFunctionCall() ([]data.GetValue, data.Control) {
 					break
 				}
 				vp.next()
+			} else if vp.current().Type() == token.ELLIPSIS {
+				// 展开实参 ...expr：仅解析为独立节点，不在这里做语义展开
+				tracker := vp.StartTracking()
+				vp.next() // 跳过 ...
+
+				expr, acl := vp.parseStatement()
+				if acl != nil {
+					return nil, acl
+				}
+				expr, acl = vp.parseSuffix(expr)
+				if acl != nil {
+					return nil, acl
+				}
+				from := tracker.EndBefore()
+				args = append(args, node.NewSpreadArgument(from, expr))
+
+				if vp.current().Type() != token.COMMA {
+					break
+				}
+				vp.next()
 			} else {
 				expr, acl := vp.parseStatement()
 				if acl != nil {
