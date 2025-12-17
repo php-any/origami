@@ -48,6 +48,10 @@ type VM interface {
 
 	SetClassPathCache(name, path string)
 	GetClassPathCache(name string) (string, bool)
+
+	// 常量管理
+	SetConstant(name string, value Value) Control
+	GetConstant(name string) (Value, bool)
 }
 
 type ClassStmt interface {

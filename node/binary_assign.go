@@ -95,6 +95,18 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 					if err != nil {
 						return nil, data.NewErrorThrow(b.from, err)
 					}
+				} else if iv, ok := indexVal.(data.AsString); ok {
+					objectVal := data.NewObjectValue()
+					for i2, value := range arr.Value {
+						objectVal.SetProperty(fmt.Sprintf("%d", i2), value)
+					}
+					objectVal.SetProperty(iv.AsString(), v)
+					// 重新赋值
+					_, acl = NewBinaryAssign(b.from, idxExpr.Array, objectVal).GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+
 				} else {
 					return nil, data.NewErrorThrow(b.from, errors.New("数组索引不是整数类型"))
 				}

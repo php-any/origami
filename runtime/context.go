@@ -2,8 +2,10 @@ package runtime
 
 import (
 	"context"
+	"errors"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/parser"
 )
 
@@ -59,6 +61,9 @@ func (c *Context) SetVariableValue(variable data.Variable, value data.Value) dat
 	if v, ok := value.(*data.ReferenceValue); ok {
 		c.variables[variable.GetIndex()] = v.Ctx.GetIndexZVal(v.Val.GetIndex())
 	} else {
+		if len(c.variables) <= variable.GetIndex() {
+			return data.NewErrorThrow(variable.(*node.VariableExpression).GetFrom(), errors.New("index out of range"))
+		}
 		c.variables[variable.GetIndex()].Value = value
 	}
 	return nil

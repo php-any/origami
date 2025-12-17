@@ -177,3 +177,13 @@ func (vm *TempVM) SetClassPathCache(name, path string)       { vm.Base.SetClassP
 func (vm *TempVM) GetClassPathCache(name string) (string, bool) {
 	return vm.Base.GetClassPathCache(name)
 }
+
+// SetConstant 设置全局常量（委托给 Base VM，因为常量是全局的）
+func (vm *TempVM) SetConstant(name string, value data.Value) data.Control {
+	return vm.Base.SetConstant(name, value)
+}
+
+// GetConstant 获取全局常量（从 Base VM 获取，因为常量是全局的）
+func (vm *TempVM) GetConstant(name string) (data.Value, bool) {
+	return vm.Base.GetConstant(name)
+}

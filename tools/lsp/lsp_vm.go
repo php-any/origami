@@ -25,6 +25,7 @@ type LspVM struct {
 	interfaceFiles map[string]string
 	functions      map[string]data.FuncStmt
 	functionFiles  map[string]string
+	constants      map[string]data.Value // 全局常量映射
 
 	fileSymbols    map[string]*fileSymbolSet
 	classPathCache map[string]string
@@ -46,6 +47,7 @@ func NewLspVMWithScanDir(scanDirectory string) *LspVM {
 		interfaceFiles: make(map[string]string),
 		functions:      make(map[string]data.FuncStmt),
 		functionFiles:  make(map[string]string),
+		constants:      make(map[string]data.Value),
 		fileSymbols:    make(map[string]*fileSymbolSet),
 		classPathCache: make(map[string]string),
 		throwControl: func(acl data.Control) {
@@ -438,6 +440,29 @@ func (vm *LspVM) GetClassPathCache(name string) (string, bool) {
 	path, ok := vm.classPathCache[name]
 	vm.mu.RUnlock()
 	return path, ok
+}
+
+// SetConstant 设置全局常量
+func (vm *LspVM) SetConstant(name string, value data.Value) data.Control {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+
+	// 如果常量已存在，不允许重新定义
+	if _, ok := vm.constants[name]; ok {
+		return utils.NewThrowf("常量 %s 已经定义，不能重新定义", name)
+	}
+
+	vm.constants[name] = value
+	return nil
+}
+
+// GetConstant 获取全局常量
+func (vm *LspVM) GetConstant(name string) (data.Value, bool) {
+	vm.mu.RLock()
+	defer vm.mu.RUnlock()
+
+	value, ok := vm.constants[name]
+	return value, ok
 }
 
 func (vm *LspVM) loadClassFromCache(name string) data.Control {

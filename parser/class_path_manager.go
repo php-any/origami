@@ -377,7 +377,7 @@ func RemoveAutoLoad(fun *data.FuncValue) {
 
 func CallAutoLoad(name string, ctx data.Context) (bool, data.Control) {
 	for _, fn := range autoload {
-		ctx := ctx.CreateContext(make([]data.Variable, 1))
+		ctx := ctx.CreateContext(fn.Value.GetVariables())
 
 		ctx.GetIndexZVal(0).Value = data.NewStringValue(name)
 

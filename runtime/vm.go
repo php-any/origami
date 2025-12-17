@@ -18,6 +18,7 @@ func NewVM(parser *parser.Parser) data.VM {
 		classMap:     make(map[string]data.ClassStmt),
 		interfaceMap: make(map[string]data.InterfaceStmt),
 		funcMap:      make(map[string]data.FuncStmt),
+		constantMap:  make(map[string]data.Value),
 		classPathMap: make(map[string]string),
 		acl: func(acl data.Control) {
 			parser.ShowControl(acl)
@@ -39,6 +40,7 @@ type VM struct {
 	classMap     map[string]data.ClassStmt
 	interfaceMap map[string]data.InterfaceStmt
 	funcMap      map[string]data.FuncStmt
+	constantMap  map[string]data.Value // 全局常量映射
 
 	// 类解释过程中的缓存, 用于支持循环依赖
 	classPathMap map[string]string
@@ -244,4 +246,27 @@ func (vm *VM) ParseFile(file string, object data.Value) (data.Value, data.Contro
 	}
 
 	return data.NewNullValue(), nil
+}
+
+// SetConstant 设置全局常量
+func (vm *VM) SetConstant(name string, value data.Value) data.Control {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+
+	// 如果常量已存在，不允许重新定义
+	if _, ok := vm.constantMap[name]; ok {
+		return utils.NewThrowf("常量 %s 已经定义，不能重新定义", name)
+	}
+
+	vm.constantMap[name] = value
+	return nil
+}
+
+// GetConstant 获取全局常量
+func (vm *VM) GetConstant(name string) (data.Value, bool) {
+	vm.mu.RLock()
+	defer vm.mu.RUnlock()
+
+	value, ok := vm.constantMap[name]
+	return value, ok
 }
