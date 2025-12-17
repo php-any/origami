@@ -10,6 +10,9 @@ func (u *ReturnStatement) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	if ctl != nil {
 		return nil, ctl
 	}
+	if v == nil {
+		return nil, data.NewReturnControl(data.NewNullValue())
+	}
 	return nil, data.NewReturnControl(v.(data.Value))
 }
 

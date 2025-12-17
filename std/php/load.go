@@ -67,6 +67,7 @@ func Load(vm data.VM) {
 		core.NewDefinedFunction(),
 		core.NewDefineFunction(),
 		core.NewTriggerErrorFunction(),
+		core.NewExtensionLoadedFunction(),
 	} {
 		vm.AddFunc(fun)
 	}
