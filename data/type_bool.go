@@ -4,7 +4,7 @@ type Bool struct {
 }
 
 func (i Bool) Is(value Value) bool {
-	if _, ok := value.(AsBool); ok {
+	if _, ok := value.(*BoolValue); ok {
 		return true
 	}
 	return false

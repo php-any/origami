@@ -78,6 +78,35 @@ func (m MultipleReturnType) String() string {
 	return result
 }
 
+// UnionType 表示联合类型（type1|type2|...）
+type UnionType struct {
+	Types []Types
+}
+
+func (u UnionType) Is(value Value) bool {
+	for _, t := range u.Types {
+		if t.Is(value) {
+			return true
+		}
+	}
+	return false
+}
+
+func (u UnionType) String() string {
+	result := ""
+	for i, t := range u.Types {
+		if i > 0 {
+			result += "|"
+		}
+		result += t.String()
+	}
+	return result
+}
+
+func NewUnionType(types []Types) Types {
+	return UnionType{Types: types}
+}
+
 func ISBaseType(ty string) bool {
 	switch ty {
 	case "":
@@ -89,6 +118,9 @@ func ISBaseType(ty string) bool {
 	case "string":
 		return true
 	case "bool":
+		return true
+	case "false":
+		// 允许 false 作为类型声明，语义等同于 bool
 		return true
 	case "array":
 		return true
@@ -116,6 +148,9 @@ func NewBaseType(ty string) Types {
 	case "string":
 		return String{}
 	case "bool":
+		return Bool{}
+	case "false":
+		// false 类型声明等同于 bool
 		return Bool{}
 	case "array":
 		return Arrays{}

@@ -1,3 +1,7 @@
 namespace test
 
-function mb_convert_encoding(array|string|null $from_encoding = null) {  }
+function mb_convert_encoding() :array|string|false {
+    return 1
+}
+
+echo mb_convert_encoding();

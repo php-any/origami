@@ -1,6 +1,8 @@
 package php
 
 import (
+	"fmt"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -18,6 +20,9 @@ func (f *FunctionExistsFunction) Call(ctx data.Context) (data.GetValue, data.Con
 	}
 	funcName := v.(data.AsString).AsString()
 	_, exist := ctx.GetVM().GetFunc(funcName)
+	if funcName == "mb_convert_encoding" {
+		fmt.Println(1)
+	}
 	return data.NewBoolValue(exist), nil
 }
 

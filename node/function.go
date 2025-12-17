@@ -42,6 +42,9 @@ func (f *FunctionStatement) GetBody() []data.GetValue {
 
 // GetValue 获取函数定义语句的值
 func (f *FunctionStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if acl := ctx.GetVM().AddFunc(f); acl != nil {
+		return nil, acl
+	}
 	return nil, nil
 }
 

@@ -123,9 +123,9 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 		ret,
 	)
 
-	if acl := fp.vm.AddFunc(f); acl != nil {
-		return nil, acl
-	}
+	//if acl := fp.vm.AddFunc(f); acl != nil {
+	//	return nil, acl
+	//}
 
 	return f, nil
 }
@@ -187,23 +187,57 @@ func (fp FunctionParser) parserReturnType() (data.Types, data.Control) {
 				fp.next() // 跳过问号
 			}
 
-			// 解析返回类型，支持标识符、内置类型以及 null
-			if fp.checkPositionIs(0, token.IDENTIFIER, token.STRING, token.INT, token.FLOAT, token.BOOL, token.ARRAY, token.NULL) {
-				returnType := fp.current().Literal()
-				fp.next()
+			// 解析一个“返回类型表达式”，支持联合类型：array|string|false
+			// 其中每个原子类型可以是标识符、内置类型、null、false 等
+			var unionTypes []data.Types
 
-				// 创建基础类型
-				baseType := data.NewBaseType(returnType)
-
-				// 如果是可空类型，包装为基础类型的可空版本
-				if isNullable {
-					baseType = data.NewNullableType(baseType)
+			parseOneTypeAtom := func() (data.Types, data.Control) {
+				if !fp.checkPositionIs(0,
+					token.IDENTIFIER,
+					token.STRING,
+					token.INT,
+					token.FLOAT,
+					token.BOOL,
+					token.ARRAY,
+					token.NULL,
+					token.FALSE,
+				) {
+					return nil, data.NewErrorThrow(fp.newFrom(), errors.New("无法识别返回类型的定义符号"))
 				}
-
-				returnTypes = append(returnTypes, baseType)
-			} else {
-				return nil, data.NewErrorThrow(fp.newFrom(), errors.New("无法识别返回类型的定义符号"))
+				name := fp.current().Literal()
+				fp.next()
+				return data.NewBaseType(name), nil
 			}
+
+			// 第一个类型原子
+			firstType, acl := parseOneTypeAtom()
+			if acl != nil {
+				return nil, acl
+			}
+			unionTypes = append(unionTypes, firstType)
+
+			// 后续的 |Type 原子
+			for fp.current().Type() == token.BIT_OR {
+				fp.next() // 跳过 |
+				nextType, acl := parseOneTypeAtom()
+				if acl != nil {
+					return nil, acl
+				}
+				unionTypes = append(unionTypes, nextType)
+			}
+
+			// 将本次解析出的类型（可能是单一，也可能是联合）加入返回类型列表
+			var thisType data.Types
+			if len(unionTypes) == 1 {
+				thisType = unionTypes[0]
+			} else {
+				// 联合类型：array|string|false 之类
+				thisType = data.NewUnionType(unionTypes)
+			}
+			if isNullable {
+				thisType = data.NewNullableType(thisType)
+			}
+			returnTypes = append(returnTypes, thisType)
 
 			// 检查是否有更多类型（逗号分隔）
 			if fp.current().Type() == token.COMMA {

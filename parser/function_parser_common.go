@@ -168,12 +168,12 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 			baseType := data.NewBaseType(varType[1:]) // 去掉问号
 			paramType = data.NewNullableType(baseType)
 		} else if strings.Index(varType, "|") > 1 {
-			// string|int
+			// string|int|null 联合类型
 			mul := make([]data.Types, 0)
 			for _, s := range strings.Split(varType, "|") {
 				mul = append(mul, data.NewBaseType(s))
 			}
-			paramType = data.NewMultipleReturnType(mul)
+			paramType = data.NewUnionType(mul)
 		} else {
 			// 普通类型
 			paramType = data.NewBaseType(varType)
@@ -231,7 +231,7 @@ func (p *FunctionParserCommon) parserType(parser *Parser, name string) string {
 	if data.ISBaseType(name) {
 		return name
 	}
-	if strings.Index(name, "\\") != -1 {
+	if strings.Contains(name, "\\") {
 		return name
 	}
 
@@ -249,6 +249,7 @@ func isIdentOrTypeToken(t token.TokenType) bool {
 		t == token.BOOL ||
 		t == token.ARRAY ||
 		t == token.NULL || // 支持 null 作为类型声明的一部分
+		t == token.FALSE || // 支持 false 作为类型声明的一部分
 		t == token.INT ||
 		t == token.STRING ||
 		t == token.FLOAT ||
