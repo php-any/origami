@@ -335,9 +335,52 @@ func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, 
 	vp.next() // 跳过箭头
 	tracker := vp.StartTracking()
 
-	if !(vp.checkPositionIs(0, token.IDENTIFIER) || (vp.current().Type() > token.KEYWORD_START && vp.current().Type() < token.VALUE_START)) {
+	// 先处理花括号动态属性：$obj->{$name}
+	if vp.current().Type() == token.LBRACE {
+		// 语法：$obj->{$name} 或更通用的 $obj->{expr}
+		vp.next() // 跳过 {
+
+		// 这里先实现最常用的变量形式：$obj->{$name}
+		if vp.current().Type() != token.VARIABLE {
+			from := tracker.End()
+			return nil, data.NewErrorThrow(from, errors.New("符号'->{'后面需要跟随变量"))
+		}
+
+		// 复用变量解析逻辑，保证符号表/类型信息一致
+		nameExpr := vp.parseVariable()
+
+		// 期望右花括号 }
+		vp.nextAndCheck(token.RBRACE)
+
+		from := tracker.EndBefore()
+		return node.NewIndexExpression(
+			from,
+			object,
+			nameExpr,
+		), nil
+	}
+
+	// 支持三种情况：
+	// 1. 传统形式：$obj->prop / $obj->method()
+	// 2. 关键字作为方法/属性名：$obj->class()
+	// 3. 动态属性：$obj->$name / $obj->$name()
+	if !(vp.checkPositionIs(0, token.IDENTIFIER, token.VARIABLE) || (vp.current().Type() > token.KEYWORD_START && vp.current().Type() < token.VALUE_START)) {
 		from := tracker.End()
 		return nil, data.NewErrorThrow(from, errors.New("符号'->'后面需要跟随单词"))
+	}
+
+	// 动态属性：$obj->$name / $obj->$name()
+	// 这里直接将其解析为等价的索引访问：$obj[$name]
+	// 这样可以复用 IndexExpression 在运行时对对象/数组的动态属性逻辑
+	if vp.current().Type() == token.VARIABLE {
+		// 复用变量解析逻辑，确保变量索引、类型信息等保持一致
+		nameExpr := vp.parseVariable()
+		from := tracker.EndBefore()
+		return node.NewIndexExpression(
+			from,
+			object,
+			nameExpr,
+		), nil
 	}
 
 	method := vp.current().Literal()

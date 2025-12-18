@@ -57,6 +57,33 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			return ov, nil
 		}
 		return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("ObjectValue无法处理索引的类型值"))
+	case *data.ClassValue:
+		// 支持对类实例通过字符串索引访问公开属性：
+		// $obj[$name]，在动态属性语法 $obj->$name 降级为索引访问后会走到这里
+		if iv, ok := index.(data.AsString); ok {
+			name := iv.AsString()
+			if prop, ok := v.GetProperty(name); ok {
+				if prop.GetModifier() != data.ModifierPublic {
+					return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("对象属性不是公开的"))
+				}
+				return prop.GetValue(v)
+			}
+			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("对象不存在指定属性"))
+		}
+		return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("ClassValue无法处理索引的类型值"))
+	case *data.ThisValue:
+		// $this[$name] 动态访问当前对象属性
+		if iv, ok := index.(data.AsString); ok {
+			name := iv.AsString()
+			if prop, ok := v.Class.GetProperty(name); ok {
+				if prop.GetModifier() != data.ModifierPublic {
+					return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("对象属性不是公开的"))
+				}
+				return prop.GetValue(ctx)
+			}
+			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("对象不存在指定属性"))
+		}
+		return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("ThisValue无法处理索引的类型值"))
 	case *data.StringValue:
 		// 获取字符串指定位置符号
 		if iv, ok := index.(data.AsInt); ok {

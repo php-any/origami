@@ -7,7 +7,15 @@ $subject = "one two three two one";
 // 基本多次匹配 + 分组
 $matches = [];
 $count = preg_match_all('/(t\w+)/', $subject, $matches);
-if ($count == 2 && $matches[0][0] == "two" && $matches[0][1] == "three" && $matches[1][0] == "two" && $matches[1][1] == "three") {
+if (
+    $count == 3 &&
+    $matches[0][0] == "two" &&
+    $matches[0][1] == "three" &&
+    $matches[0][2] == "two" &&
+    $matches[1][0] == "two" &&
+    $matches[1][1] == "three" &&
+    $matches[1][2] == "two"
+) {
     Log::info("多次匹配与分组测试通过");
 } else {
     Log::fatal("多次匹配与分组测试失败, count={$count}, matches=" . json_encode($matches));
