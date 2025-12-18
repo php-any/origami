@@ -1,0 +1,38 @@
+namespace tests\func;
+
+// 测试 6: 普通闭包 - 混合使用（多个引用和值传递）
+$a = 1;
+$b = 2;
+$c = 3;
+$normalClosureMixed = function() use (&$a, &$b, $c) {
+    $a = $a * 2; // 引用，会修改外部
+    $b = $b * 2; // 引用，会修改外部
+    return $a + $b + $c; // $c 为值捕获
+};
+
+$result = $normalClosureMixed();
+
+// 这里按 PHP 语义，结果应为 2 + 4 + 3 = 9
+if ($result == 9) {
+    Log::info("test 013: normal closure mixed capture result ok");
+} else {
+    Log::fatal("test 013: normal closure mixed capture result fail, got " + $result);
+}
+
+if ($a == 2) {
+    Log::info("test 013: outer a (ref) updated ok");
+} else {
+    Log::fatal("test 013: outer a (ref) not updated, got " + $a);
+}
+
+if ($b == 4) {
+    Log::info("test 013: outer b (ref) updated ok");
+} else {
+    Log::fatal("test 013: outer b (ref) not updated, got " + $b);
+}
+
+if ($c == 3) {
+    Log::info("test 013: outer c (by value) unchanged ok");
+} else {
+    Log::fatal("test 013: outer c (by value) changed, got " + $c);
+}

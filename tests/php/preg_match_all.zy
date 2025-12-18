@@ -1,0 +1,35 @@
+<?php
+
+echo "=== preg_match_all() 函数测试 ===\n";
+
+$subject = "one two three two one";
+
+// 基本多次匹配 + 分组
+$matches = [];
+$count = preg_match_all('/(t\w+)/', $subject, $matches);
+if ($count == 2 && $matches[0][0] == "two" && $matches[0][1] == "three" && $matches[1][0] == "two" && $matches[1][1] == "three") {
+    Log::info("多次匹配与分组测试通过");
+} else {
+    Log::fatal("多次匹配与分组测试失败, count={$count}, matches=" . json_encode($matches));
+}
+
+// 未匹配测试
+$matches = [];
+$count = preg_match_all('/php/', $subject, $matches);
+if ($count == 0 && is_array($matches) && count($matches) == 0) {
+    Log::info("未匹配测试通过");
+} else {
+    Log::fatal("未匹配测试失败, count={$count}, matches=" . json_encode($matches));
+}
+
+// 修饰符测试：不区分大小写
+$matches = [];
+$count = preg_match_all('/ONE/i', $subject, $matches);
+if ($count == 2 && $matches[0][0] == "one" && $matches[0][1] == "one") {
+    Log::info("不区分大小写测试通过");
+} else {
+    Log::fatal("不区分大小写测试失败, count={$count}, matches=" . json_encode($matches));
+}
+
+echo "=== preg_match_all() 测试完成 ===\n";
+

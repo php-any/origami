@@ -1,0 +1,21 @@
+namespace tests\func;
+
+// 测试 4: 普通闭包 - 值传递
+$normalValue = 50;
+$normalClosureValue = function() use ($normalValue) {
+    return $normalValue + 2;
+};
+
+$result = $normalClosureValue();
+
+if ($result == 52) {
+    Log::info("test 011: normal closure value capture result ok");
+} else {
+    Log::fatal("test 011: normal closure value capture result fail, got " + $result);
+}
+
+if ($normalValue == 50) {
+    Log::info("test 011: outer normalValue unchanged ok");
+} else {
+    Log::fatal("test 011: outer normalValue changed, got " + $normalValue);
+}

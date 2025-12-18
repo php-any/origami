@@ -1,0 +1,21 @@
+namespace tests\func;
+
+// 测试 1: 静态闭包 - 值传递
+$value = 10;
+$staticClosureValue = static function() use ($value) {
+    return $value + 1;
+};
+
+$result = $staticClosureValue();
+
+if ($result == 11) {
+    Log::info("test 008: static closure value capture result ok");
+} else {
+    Log::fatal("test 008: static closure value capture result fail, got " + $result);
+}
+
+if ($value == 10) {
+    Log::info("test 008: outer value unchanged ok");
+} else {
+    Log::fatal("test 008: outer value changed unexpectedly, got " + $value);
+}

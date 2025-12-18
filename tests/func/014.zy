@@ -1,0 +1,24 @@
+namespace tests\func;
+
+// 测试 7: 多次调用验证引用传递的持久性
+$counter = 0;
+$increment = static function() use (&$counter) {
+    $counter++;
+    return $counter;
+};
+
+$r1 = $increment();
+$r2 = $increment();
+$r3 = $increment();
+
+if ($r1 == 1 && $r2 == 2 && $r3 == 3) {
+    Log::info("test 014: increment return values ok");
+} else {
+    Log::fatal("test 014: increment return values fail, got " + $r1 + "," + $r2 + "," + $r3);
+}
+
+if ($counter == 3) {
+    Log::info("test 014: counter updated persistently ok");
+} else {
+    Log::fatal("test 014: counter not persisted correctly, got " + $counter);
+}

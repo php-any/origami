@@ -10,3 +10,6 @@ zy-lsp
 *.exe
 *.log
 .cache
+/.gocache
+/.gocache/README
+/.gocache/trim.txt

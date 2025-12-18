@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -78,6 +79,8 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 				name := ident.Value
 				val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
 				value = node.NewVariableWithFirst(tracker.EndBefore(), val)
+			} else if _, ok := keyTemp.(*node.ValueReference); ok {
+				// 不需要处理
 			} else {
 				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
 			}

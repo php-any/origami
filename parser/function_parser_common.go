@@ -221,7 +221,7 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 			p.next()
 			// 检查逗号后是否直接跟着右括号（这是语法错误）
 			if p.current().Type() == token.RPAREN {
-				return nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("逗号后缺少参数"))
+				break
 			}
 		} else if p.current().Type() != token.RPAREN {
 			return nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("参数后缺少逗号 ',' 或右括号 ')'"))

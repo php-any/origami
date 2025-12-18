@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -54,6 +55,10 @@ func (p *MatchParser) Parse() (data.GetValue, data.Control) {
 					return nil, acl
 				}
 				def = []data.GetValue{stmt}
+			}
+			// 解析分号（可选）
+			if p.checkPositionIs(0, token.SEMICOLON, token.COMMA) {
+				p.next()
 			}
 		} else {
 			arm, acl := p.parseMatchArm()
@@ -109,11 +114,45 @@ func (p *MatchParser) parseMatchArm() (*node.MatchArm, data.Control) {
 	// 解析条件部分（可以是多个条件，用逗号分隔）
 	var conditions []data.GetValue
 	for !p.checkPositionIs(0, token.EOF, token.ARRAY_KEY_VALUE) {
-		condition, ok := p.parseValue()
-		if !ok {
-			return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("match 左边必须是值"))
+		// 特殊处理：支持 `$value instanceof \BackedEnum` 作为 match 条件
+		if (p.current().Type() == token.VARIABLE || p.current().Type() == token.IDENTIFIER) &&
+			p.checkPositionIs(1, token.INSTANCEOF) {
+			// 先解析左侧变量/表达式
+			vp := &VariableParser{p.Parser}
+			left := vp.parseVariable()
+
+			// 跳过 instanceof
+			p.nextAndCheck(token.INSTANCEOF)
+
+			// 使用与表达式解析器相同的逻辑解析类名（支持 \BackedEnum 这类全限定名）
+			className, acl := p.getClassName(true)
+			if acl != nil {
+				return nil, acl
+			}
+
+			cond := node.NewInstanceOfExpression(
+				tracker.EndBefore(),
+				left,
+				className,
+			)
+			conditions = append(conditions, cond)
+		} else {
+			condition, ok := p.parseValue()
+			if !ok {
+				return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("match 左边必须是值"))
+			}
+			conditions = append(conditions, condition)
 		}
-		conditions = append(conditions, condition)
+
+		// 多个条件时用逗号分隔：cond1, cond2 => ...
+		if p.current().Type() == token.COMMA {
+			p.next()
+			continue
+		}
+
+		if p.current().Type() == token.ARRAY_KEY_VALUE {
+			break
+		}
 	}
 
 	// 解析箭头 =>

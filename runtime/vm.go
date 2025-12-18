@@ -133,6 +133,16 @@ func (vm *VM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
 }
 
 func (vm *VM) LoadPkg(pkg string) (data.GetValue, data.Control) {
+	if pkg[0:1] == "\\" {
+		temp := pkg[1:]
+		if c, ok := vm.classMap[temp]; ok {
+			return c, nil
+		}
+		if c, ok := vm.interfaceMap[temp]; ok {
+			return c, nil
+		}
+	}
+
 	if c, ok := vm.classMap[pkg]; ok {
 		return c, nil
 	}

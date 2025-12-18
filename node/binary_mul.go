@@ -2,6 +2,7 @@ package node
 
 import (
 	"errors"
+
 	"github.com/php-any/origami/data"
 )
 

@@ -62,7 +62,7 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 		return nil, acl
 	}
 
-	if p.checkPositionIs(0, token.COMMA, token.RPAREN) {
+	if p.checkPositionIs(0, token.COMMA, token.RPAREN, token.SEMICOLON) {
 		return node.NewNewExpression(
 			tracker.EndBefore(),
 			className,

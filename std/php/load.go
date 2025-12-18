@@ -3,6 +3,7 @@ package php
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/std/php/core"
+	"github.com/php-any/origami/std/php/preg"
 )
 
 func Load(vm data.VM) {
@@ -35,6 +36,8 @@ func Load(vm data.VM) {
 		NewBase64DecodeFunction(),
 		NewUrlencodeFunction(),
 		NewUrldecodeFunction(),
+		NewRawurlencodeFunction(),
+		NewRawurldecodeFunction(),
 		NewArrayMergeFunction(),
 		NewArrayPushFunction(),
 		NewArrayPopFunction(),
@@ -47,10 +50,15 @@ func Load(vm data.VM) {
 		core.NewDirnameFunction(),
 		core.NewCallUserFuncFunction(),
 		core.NewStrtrFunction(),
+		core.NewStrStartsWithFunction(),
+		core.NewStrEndsWithFunction(),
+		core.NewStrContainsFunction(),
+		core.NewArrayFilterFunction(),
 
 		NewStrrposFunction(),
 		NewStrriposFunction(),
 		NewPregMatchFunction(),
+		preg.NewPregMatchAllFunction(),
 		core.NewIsCallableFunction(),
 		NewIsStringFunction(),
 		NewIsIntFunction(),
@@ -74,4 +82,5 @@ func Load(vm data.VM) {
 
 	// 注册核心类
 	vm.AddClass(&core.ClosureClass{})
+	vm.AddClass(&core.BackedEnumClass{})
 }

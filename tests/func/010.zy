@@ -1,0 +1,29 @@
+namespace tests\func;
+
+// 测试 3: 静态闭包 - 混合使用（引用和值传递）
+$val1 = 30;
+$val2 = 40;
+$staticClosureMixed = static function() use (&$val1, $val2) {
+    $val1 = $val1 + 10; // 引用变量
+    return $val1 + $val2; // $val2 为值捕获
+};
+
+$result = $staticClosureMixed();
+
+if ($result == 80) {
+    Log::info("test 010: static closure mixed capture result ok");
+} else {
+    Log::fatal("test 010: static closure mixed capture result fail, got " + $result);
+}
+
+if ($val1 == 40) {
+    Log::info("test 010: outer val1 (ref) updated ok");
+} else {
+    Log::fatal("test 010: outer val1 (ref) not updated, got " + $val1);
+}
+
+if ($val2 == 40) {
+    Log::info("test 010: outer val2 (by value) unchanged ok");
+} else {
+    Log::fatal("test 010: outer val2 (by value) changed, got " + $val2);
+}

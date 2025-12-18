@@ -40,7 +40,23 @@ func (f *LambdaExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 func (f *LambdaExpression) Call(ctx data.Context) (data.GetValue, data.Control) {
 	for cID, pID := range f.parent {
 		v, ok := f.ctx.GetIndexValue(pID)
-		if ok {
+		if !ok {
+			continue
+		}
+
+		// 如果子变量是 VariableReference，说明是 use (&$var) 按引用捕获
+		if _, isRef := f.vars[cID].(*VariableReference); isRef {
+			// 创建一个“父级变量”描述，索引指向父作用域中的变量
+			parentVar := NewVariable(
+				nil,
+				f.vars[cID].GetName(),
+				pID,
+				f.vars[cID].GetType(),
+			)
+			refValue := data.NewReferenceValue(parentVar, f.ctx)
+			ctx.SetVariableValue(f.vars[cID], refValue)
+		} else {
+			// 普通按值捕获
 			ctx.SetVariableValue(f.vars[cID], v)
 		}
 	}

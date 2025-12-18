@@ -1,0 +1,22 @@
+namespace tests\func;
+
+// 测试 5: 普通闭包 - 引用传递
+$normalRef = 60;
+$normalClosureRef = function() use (&$normalRef) {
+    $normalRef = $normalRef + 3;
+    return $normalRef;
+};
+
+$result = $normalClosureRef();
+
+if ($result == 63) {
+    Log::info("test 012: normal closure ref capture result ok");
+} else {
+    Log::fatal("test 012: normal closure ref capture result fail, got " + $result);
+}
+
+if ($normalRef == 63) {
+    Log::info("test 012: outer normalRef updated ok");
+} else {
+    Log::fatal("test 012: outer normalRef not updated, got " + $normalRef);
+}

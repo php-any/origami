@@ -38,7 +38,7 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 				return nil, acl
 			}
 			// 解析 use 捕获列表（可选）：function () use ($a, $b) {}
-			captureNames, acl := fp.parseClosureUse()
+			captures, acl := fp.parseClosureUse()
 			if acl != nil {
 				return nil, acl
 			}
@@ -50,19 +50,43 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 			if acl != nil {
 				return nil, acl
 			}
+
+			// 当前作用域中的局部变量（闭包内部）
 			vars := fp.scopeManager.CurrentScope().GetVariables()
 
-			// 弹出函数作用域
+			// 先根据 use(&$var) 把需要按引用捕获的变量替换成 VariableReference
+			if len(captures) > 0 {
+				for _, c := range captures {
+					if !c.IsReference {
+						continue
+					}
+					if childVar, ok := fp.scopeManager.CurrentScope().GetVariable(c.Name); ok {
+						fp.scopeManager.CurrentScope().SetVariable(
+							c.Name,
+							node.NewVariableReference(
+								fp.FromCurrentToken(),
+								childVar.GetName(),
+								childVar.GetIndex(),
+								childVar.GetType(),
+							),
+						)
+					}
+				}
+				// 更新 vars，确保其中的引用变量已经变成 VariableReference
+				vars = fp.scopeManager.CurrentScope().GetVariables()
+			}
+
+			// 弹出函数作用域，返回到外部作用域
 			fp.scopeManager.PopScope()
 
 			// 构建 parent 映射，仅捕获 use 声明的变量
 			parent := make(map[int]int)
-			if len(captureNames) > 0 {
+			if len(captures) > 0 {
 				for _, outer := range fp.scopeManager.CurrentScope().GetVariables() {
 					for _, child := range vars {
 						if child.GetName() == outer.GetName() {
-							for _, n := range captureNames {
-								if n == child.GetName() {
+							for _, c := range captures {
+								if c.Name == child.GetName() {
 									parent[child.GetIndex()] = outer.GetIndex()
 								}
 							}
@@ -136,9 +160,18 @@ func (fp *FunctionParser) parseParameters() ([]data.GetValue, data.Control) {
 	return vp.ParseParameters()
 }
 
+// UseCapture 表示 use 子句中的捕获变量信息
+// Name 为变量名（不含 $），IsReference 表示是否使用 & 按引用捕获
+type UseCapture struct {
+	Name        string
+	IsReference bool
+}
+
 // parseClosureUse 解析闭包的 use 捕获列表
-// 语法: use ($a, $b)
-func (fp *FunctionParser) parseClosureUse() ([]string, data.Control) {
+// 支持:
+//   - use ($a, $b)
+//   - use (&$a, $b)
+func (fp *FunctionParser) parseClosureUse() ([]UseCapture, data.Control) {
 	if !fp.checkPositionIs(0, token.USE) {
 		return nil, nil
 	}
@@ -146,8 +179,15 @@ func (fp *FunctionParser) parseClosureUse() ([]string, data.Control) {
 	if acl := fp.nextAndCheck(token.LPAREN); acl != nil {
 		return nil, acl
 	}
-	var names []string
+	var captures []UseCapture
 	for {
+		isRef := false
+		// 可选的引用符号 &（use (&$var)）
+		if fp.checkPositionIs(0, token.BIT_AND) {
+			isRef = true
+			fp.next()
+		}
+
 		if !fp.checkPositionIs(0, token.VARIABLE) {
 			return nil, data.NewErrorThrow(fp.FromCurrentToken(), errors.New("use 语法错误，期望变量"))
 		}
@@ -155,7 +195,10 @@ func (fp *FunctionParser) parseClosureUse() ([]string, data.Control) {
 		if len(name) > 0 && name[0] == '$' {
 			name = name[1:]
 		}
-		names = append(names, name)
+		captures = append(captures, UseCapture{
+			Name:        name,
+			IsReference: isRef,
+		})
 		fp.next() // 跳过变量
 		if fp.current().Type() == token.COMMA {
 			fp.next()
@@ -166,7 +209,7 @@ func (fp *FunctionParser) parseClosureUse() ([]string, data.Control) {
 	if acl := fp.nextAndCheck(token.RPAREN); acl != nil {
 		return nil, acl
 	}
-	return names, nil
+	return captures, nil
 }
 
 func (fp FunctionParser) parserReturnType() (data.Types, data.Control) {
