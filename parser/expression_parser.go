@@ -179,8 +179,8 @@ func (ep *ExpressionParser) parseConcatenation() (data.GetValue, data.Control) {
 // parseLogicalOr 解析逻辑或表达式
 func (ep *ExpressionParser) parseLogicalOr() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
-	// 逻辑或的优先级低于按位或，因此这里从按位或开始
-	expr, acl := ep.parseBitwiseOr()
+	// 逻辑或的优先级低于逻辑与，因此这里从逻辑与开始
+	expr, acl := ep.parseLogicalAnd()
 	if acl != nil {
 		return nil, acl
 	}
