@@ -179,7 +179,8 @@ func (ep *ExpressionParser) parseConcatenation() (data.GetValue, data.Control) {
 // parseLogicalOr 解析逻辑或表达式
 func (ep *ExpressionParser) parseLogicalOr() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
-	expr, acl := ep.parseLogicalAnd()
+	// 逻辑或的优先级低于按位或，因此这里从按位或开始
+	expr, acl := ep.parseBitwiseOr()
 	if acl != nil {
 		return nil, acl
 	}
@@ -205,7 +206,8 @@ func (ep *ExpressionParser) parseLogicalOr() (data.GetValue, data.Control) {
 // parseLogicalAnd 解析逻辑与表达式
 func (ep *ExpressionParser) parseLogicalAnd() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
-	expr, acl := ep.parseEquality()
+	// 逻辑与的优先级低于按位或/异或/与，因此从按位或开始
+	expr, acl := ep.parseBitwiseOr()
 	if acl != nil {
 		return nil, acl
 	}
@@ -287,6 +289,80 @@ func (ep *ExpressionParser) parseEquality() (data.GetValue, data.Control) {
 		)
 	}
 
+	return expr, nil
+}
+
+// 解析按位与/异或/或： & ^ |
+// 优先级：比较 < 按位与 < 按位异或 < 按位或 < 逻辑与 < 逻辑或
+func (ep *ExpressionParser) parseBitwiseAnd() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseEquality()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.BIT_AND {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseEquality()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+	return expr, nil
+}
+
+func (ep *ExpressionParser) parseBitwiseXor() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseBitwiseAnd()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.BIT_XOR {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseBitwiseAnd()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+	return expr, nil
+}
+
+func (ep *ExpressionParser) parseBitwiseOr() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseBitwiseXor()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.BIT_OR {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseBitwiseXor()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
 	return expr, nil
 }
 

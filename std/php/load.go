@@ -17,6 +17,7 @@ func Load(vm data.VM) {
 		NewMicrotimeFunction(),
 		NewNumberFormatFunction(),
 		NewFunctionExistsFunction(),
+		NewClassExistsFunction(),
 		NewGettypeFunction(),
 		NewJsonEncodeFunction(),
 		NewJsonDecodeFunction(),

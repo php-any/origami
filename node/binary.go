@@ -46,6 +46,12 @@ func NewBinaryExpression(from data.From, left data.GetValue, operator lexer.Toke
 		return NewBinaryLor(from, left, right)
 	case token.DOT:
 		return NewBinaryDot(from, left, right)
+	case token.BIT_AND:
+		return NewBinaryBitAnd(from, left, right)
+	case token.BIT_XOR:
+		return NewBinaryBitXor(from, left, right)
+	case token.BIT_OR:
+		return NewBinaryBitOr(from, left, right)
 	// 复合赋值运算符
 	case token.ADD_EQ:
 		// a += b 等价于 a = a + b

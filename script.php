@@ -1,11 +1,6 @@
 <?php
 
-class Target {
-    public string $name;
-}
+$a = 1;
+$b = 2;
 
-function app() {
-    return new Target();
-}
-
-app()->name;
+echo $a | $b;
