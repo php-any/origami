@@ -63,6 +63,8 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 			name := ident.Value
 			val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
 			key = node.NewVariableWithFirst(tracker.EndBefore(), val)
+		} else if _, ok := keyTemp.(*node.ValueReference); ok {
+			// 不需要处理
 		} else {
 			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
 		}

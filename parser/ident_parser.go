@@ -99,21 +99,34 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 			vp := &VariableParser{p.Parser}
 			if full, ok := p.findFullFunNameByNamespace(name); ok {
 				stmt, acl := vp.parseFunctionCall()
+				if acl != nil {
+					return nil, acl
+				}
 				fn, ok := p.vm.GetFunc(full)
 				if !ok {
 					return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("函数(%s)先加载后才能使用", name))
 				}
-				return node.NewCallExpression(tracker.EndBefore(), full, stmt, fn), acl
+				callExpr := node.NewCallExpression(tracker.EndBefore(), full, stmt, fn)
+				// 支持函数调用结果继续链式操作：app()->name, app()[0], app()()
+				return vp.parseSuffix(callExpr)
 			} else if InLSP {
 				stmt, acl := vp.parseFunctionCall()
-				return node.NewCallExpression(tracker.EndBefore(), name, stmt, nil), acl
+				if acl != nil {
+					return nil, acl
+				}
+				callExpr := node.NewCallExpression(tracker.EndBefore(), name, stmt, nil)
+				return vp.parseSuffix(callExpr)
 			} else {
 				namespace := ""
 				if p.namespace != nil {
 					namespace = p.namespace.Name
 				}
 				stmt, acl := vp.parseFunctionCall()
-				return node.NewCallTodo(node.NewCallExpression(tracker.EndBefore(), name, stmt, nil), namespace), acl
+				if acl != nil {
+					return nil, acl
+				}
+				callExpr := node.NewCallTodo(node.NewCallExpression(tracker.EndBefore(), name, stmt, nil), namespace)
+				return vp.parseSuffix(callExpr)
 			}
 		}
 		// 变量定义
