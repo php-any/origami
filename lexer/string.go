@@ -11,16 +11,27 @@ func isStringStart(input string, start int) (string, bool) {
 		return string(input[start]), true
 	}
 
-	// 检查 heredoc 语法
+	// 检查 heredoc/nowdoc 语法
 	if start+2 < len(input) && input[start:start+3] == "<<<" {
-		// 找到 heredoc 标识符的结束位置
+		// 找到 heredoc/nowdoc 标识符的结束位置
 		pos := start + 3
 		for pos < len(input) && (input[pos] == ' ' || input[pos] == '\t') {
 			pos++
 		}
 		idStart := pos
-		for pos < len(input) && (input[pos] != '\n' && input[pos] != '\r') {
-			pos++
+		// 检查是否是 nowdoc（单引号括起来的标识符）
+		if pos < len(input) && input[pos] == '\'' {
+			pos++ // 跳过开始的单引号
+			idStart = pos
+			// 找到结束的单引号
+			for pos < len(input) && input[pos] != '\'' && input[pos] != '\n' && input[pos] != '\r' {
+				pos++
+			}
+		} else {
+			// heredoc: 找到标识符的结束位置（换行符）
+			for pos < len(input) && (input[pos] != '\n' && input[pos] != '\r') {
+				pos++
+			}
 		}
 		if pos > idStart {
 			return input[idStart:pos], true

@@ -186,7 +186,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 				return nil, acl
 			}
 			if prop != nil {
-				if isStatic {
+				if isStatic || prop.GetIsStatic() {
 					staticProperties[prop.GetName()] = prop
 				} else {
 					properties = append(properties, prop)
@@ -384,6 +384,80 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 		p.next()
 	}
 
+	// 支持 class 常量: public const BLOCKS = 'Mockery_Forward_Blocks';
+	if p.current().Type() == token.CONST {
+		// 跳过 const 关键字
+		p.next()
+
+		// 解析常量名（不带 $）
+		if p.current().Type() != token.IDENTIFIER {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("常量声明缺少名称"))
+		}
+		name := p.current().Literal()
+		p.next()
+
+		// 解析默认值
+		var defaultValue data.GetValue
+		var acl data.Control
+		if p.current().Type() == token.ASSIGN {
+			p.next()
+			exprParser := NewExpressionParser(p.Parser)
+			defaultValue, acl = exprParser.Parse()
+			if acl != nil {
+				return nil, acl
+			}
+		}
+
+		// 解析分号
+		if p.current().Type() == token.SEMICOLON {
+			p.next()
+		}
+
+		// const 始终视为静态成员
+		ret := node.NewProperty(
+			tracker.EndBefore(),
+			name,
+			modifier,
+			true,
+			defaultValue,
+		)
+		for _, an := range annotations {
+			an.Target = ret
+		}
+		if len(annotations) != 0 {
+			callAnn := make([]*node.CallAnn, 0)
+			for _, an := range annotations {
+				stmt, acl := p.vm.GetOrLoadClass(an.Name)
+				if acl != nil {
+					return nil, acl
+				}
+				object, acl := stmt.GetValue(p.vm.CreateContext(nil))
+				if acl != nil {
+					return nil, acl
+				}
+				obj, acl := an.GetValue(p.vm.CreateContext(object.(*data.ClassValue).Class.GetConstruct().GetVariables()))
+				if acl != nil {
+					if ann, ok := acl.(*node.CallAnn); !ok {
+						return nil, acl
+					} else {
+						callAnn = append(callAnn, ann)
+					}
+				}
+				if o, ok := obj.(*data.ClassValue); ok {
+					ret.AddAnnotations(o)
+				}
+			}
+			for i := len(callAnn) - 1; i >= 0; i-- {
+				acl := callAnn[i].InitAnnotation()
+				if acl != nil {
+					return nil, acl
+				}
+			}
+		}
+
+		return ret, acl
+	}
+
 	// 解析属性类型（在访问修饰符之后，变量名之前）
 	var propertyType data.Types
 	if isIdentOrTypeToken(p.current().Type()) {
@@ -397,7 +471,7 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 		propertyType = data.NewNullableType(base)
 	}
 
-	// 解析属性名
+	// 解析属性名（普通属性必须是变量）
 	if p.current().Type() != token.VARIABLE {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少变量名"))
 	}
@@ -473,7 +547,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 	tracker := p.StartTracking()
 	p.scopeManager.NewScope(false)
 	// 解析方法名
-	if p.current().Type() != token.IDENTIFIER {
+	if !p.checkPositionIs(0, token.IDENTIFIER, token.SELF) {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("方法名不符合规范, 不能使用符号或者关键字(%s)", p.current().Literal()))
 	}
 	name := p.current().Literal()

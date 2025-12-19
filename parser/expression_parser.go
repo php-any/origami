@@ -51,7 +51,7 @@ func (ep *ExpressionParser) parseAssignment() (data.GetValue, data.Control) {
 			}
 			valList = append(valList, next)
 		}
-		if ep.checkPositionIs(0, token.ASSIGN, token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ) {
+		if ep.checkPositionIs(0, token.ASSIGN, token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ, token.CONCAT_EQ) {
 			// 重新构建assigns数组，避免重复
 			assigns = []*node.VariableExpression{}
 			for _, value := range valList {
@@ -67,8 +67,8 @@ func (ep *ExpressionParser) parseAssignment() (data.GetValue, data.Control) {
 		}
 	}
 
-	// 检查各种赋值运算符
-	for ep.checkPositionIs(0, token.ASSIGN, token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ) {
+	// 检查各种赋值运算符（含字符串连接赋值 .=）
+	for ep.checkPositionIs(0, token.ASSIGN, token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ, token.CONCAT_EQ) {
 		operator := ep.current()
 		ep.next()
 

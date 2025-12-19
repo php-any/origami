@@ -3,6 +3,8 @@ package parser
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -44,9 +46,42 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 	// 跳过 new 关键字
 	p.next()
 
+	// 检查是否是匿名类 new class { ... }
+	if p.checkPositionIs(0, token.CLASS) {
+		return p.parseAnonymousClass(tracker)
+	}
+
+	// 检查是否是变量类名 new $variable()
+	var classNameExpr data.GetValue
+	if p.checkPositionIs(0, token.VARIABLE) {
+		// 解析变量表达式作为类名
+		vp := &VariableParser{p.Parser}
+		classNameExpr = vp.parseVariable()
+
+		// 解析参数列表
+		args, acl := vp.parseFunctionCall()
+		if acl != nil {
+			return nil, acl
+		}
+
+		// 创建使用变量类名的 new 表达式
+		n := node.NewNewVariableExpression(
+			tracker.EndBefore(),
+			classNameExpr,
+			args,
+		)
+
+		if p.checkPositionIs(0, token.OBJECT_OPERATOR) {
+			// 解析链式调用
+			return vp.parseSuffix(n)
+		}
+
+		return n, nil
+	}
+
 	// 解析类名
 	if !p.checkPositionIs(0, token.IDENTIFIER, token.GENERIC_TYPE) {
-		return nil, data.NewErrorThrow(p.newFrom(), errors.New("new关键字后面必须跟类名; 当前="+p.current().Literal()))
+		return nil, data.NewErrorThrow(p.newFrom(), errors.New("new关键字后面必须跟类名或变量; 当前="+p.current().Literal()))
 	}
 
 	isGenerated := false
@@ -143,4 +178,289 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 
 	// 创建 new 表达式节点
 	return n, nil
+}
+
+// parseAnonymousClass 解析匿名类 new class { ... }
+func (p *NewStructParser) parseAnonymousClass(tracker *PositionTracker) (data.GetValue, data.Control) {
+	// 获取当前 token 的行号信息用于生成匿名类名
+	currentLine := p.current().Line()
+	currentPos := p.current().Pos()
+
+	// 获取文件名
+	var fileName string
+	if p.source != nil && *p.source != "" {
+		fileName = filepath.Base(*p.source)
+		// 移除文件扩展名
+		if ext := filepath.Ext(fileName); ext != "" {
+			fileName = strings.TrimSuffix(fileName, ext)
+		}
+		// 将文件名中的特殊字符替换为下划线，确保类名合法
+		fileName = strings.ReplaceAll(fileName, ".", "_")
+		fileName = strings.ReplaceAll(fileName, "-", "_")
+		fileName = strings.ReplaceAll(fileName, " ", "_")
+	} else {
+		fileName = "unknown"
+	}
+
+	// 跳过 class 关键字
+	p.next()
+
+	// 根据文件名、行号和列号信息生成匿名类名
+	anonymousClassName := fmt.Sprintf("class@anonymous@%s@%d:%d", fileName, currentLine, currentPos)
+	if p.namespace != nil {
+		anonymousClassName = p.namespace.GetName() + "\\" + anonymousClassName
+	}
+
+	// 解析泛型参数（如果存在）
+	var types []data.Types
+	if p.checkPositionIs(0, token.LT) {
+		cp := &ClassParser{
+			Parser:               p.Parser,
+			FunctionParserCommon: NewFunctionParserCommon(p.Parser),
+		}
+		types = cp.parseGeneric()
+	}
+
+	// 解析继承
+	var extends string
+	if p.current().Type() == token.EXTENDS {
+		p.next()
+		var acl data.Control
+		extends, acl = p.getClassName(true)
+		if acl != nil {
+			return nil, acl
+		}
+	}
+
+	// 解析实现的接口
+	var implements []string
+	if p.current().Type() == token.IMPLEMENTS {
+		p.next()
+		for {
+			interfaceName, acl := p.getClassName(true)
+			if acl != nil {
+				return nil, acl
+			}
+
+			implements = append(implements, interfaceName)
+
+			if p.current().Type() != token.COMMA {
+				break
+			}
+			p.next()
+		}
+	}
+
+	// 解析构造函数参数（在类体之前）
+	var constructorArgs []data.GetValue
+	if p.checkPositionIs(0, token.LPAREN) {
+		vp := VariableParser{Parser: p.Parser}
+		args, acl := vp.parseFunctionCall()
+		if acl != nil {
+			return nil, acl
+		}
+		constructorArgs = args
+	}
+
+	// 解析类体
+	if p.current().Type() != token.LBRACE {
+		return nil, data.NewErrorThrow(p.newFrom(), errors.New("匿名类声明后缺少左花括号 '{'"))
+	}
+	p.next()
+
+	// 使用 ClassParser 的解析逻辑来解析类成员
+	cp := &ClassParser{
+		Parser:               p.Parser,
+		FunctionParserCommon: NewFunctionParserCommon(p.Parser),
+	}
+
+	// 解析类成员
+	properties := make([]data.Property, 0)
+	staticProperties := make(map[string]data.Property)
+	methods := map[string]data.Method{}
+	staticMethods := map[string]data.Method{}
+	for !p.currentIsTypeOrEOF(token.RBRACE) {
+		// 先尝试解析注解
+		var memberAnnotations []*node.Annotation
+		for p.current().Type() == token.AT {
+			ann, acl := cp.parseAnnotation()
+			if acl != nil {
+				return nil, acl
+			}
+			if ann != nil {
+				memberAnnotations = append(memberAnnotations, ann)
+			}
+		}
+
+		// 解析访问修饰符
+		modifier := cp.parseModifier()
+		if modifier == "" {
+			return nil, data.NewErrorThrow(p.newFrom(), errors.New("缺少访问修饰符"))
+		}
+
+		// 解析static关键字
+		isStatic := false
+		if p.current().Type() == token.STATIC {
+			isStatic = true
+			p.next()
+		}
+
+		// 解析属性或方法
+		if p.current().Type() == token.VAR ||
+			p.current().Type() == token.CONST ||
+			p.current().Type() == token.VARIABLE ||
+			isIdentOrTypeToken(p.current().Type()) ||
+			(p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type())) {
+			prop, acl := cp.parsePropertyWithAnnotations(modifier, isStatic, memberAnnotations)
+			if acl != nil {
+				return nil, acl
+			}
+			if prop != nil {
+				if isStatic {
+					staticProperties[prop.GetName()] = prop
+				} else {
+					properties = append(properties, prop)
+				}
+			}
+		} else if p.current().Type() == token.FUNC {
+			method, acl := cp.parseMethodWithAnnotations(modifier, isStatic, memberAnnotations)
+			if acl != nil {
+				return nil, acl
+			}
+			if method != nil {
+				if isStatic {
+					staticMethods[method.GetName()] = method
+				} else {
+					methods[method.GetName()] = method
+				}
+			}
+		} else if p.current().Type() == token.SEMICOLON {
+			p.next()
+			continue
+		} else {
+			return nil, data.NewErrorThrow(p.newFrom(), errors.New("缺少属性或方法声明"))
+		}
+	}
+	p.next() // 跳过结束花括号
+
+	// 创建匿名类
+	c := node.NewClassStatement(
+		tracker.EndBefore(),
+		anonymousClassName,
+		extends,
+		implements,
+		properties,
+		methods,
+	)
+	for s, property := range staticProperties {
+		defaultValue := property.GetDefaultValue()
+		if defaultValue != nil {
+			baseCtx := p.vm.CreateContext([]data.Variable{})
+			v, acl := defaultValue.GetValue(baseCtx)
+			if acl != nil {
+				return nil, acl
+			}
+			c.StaticProperty.Store(s, v)
+		} else {
+			c.StaticProperty.Store(s, data.NewNullValue())
+		}
+	}
+	c.StaticMethods = staticMethods
+
+	// 处理父类构造函数
+	if c.Construct == nil {
+		vm := p.vm
+		var last data.ClassStmt = c
+		for last != nil && last.GetExtend() != nil {
+			ext := last.GetExtend()
+			var acl data.Control
+			last, acl = vm.GetOrLoadClass(*ext)
+			if acl != nil {
+				return nil, acl
+			}
+			if construct, ok := last.GetMethod(token.ConstructName); ok {
+				c.Construct = construct
+				break
+			}
+		}
+	}
+
+	// 处理泛型
+	var classStmt data.ClassStmt = c
+	if types != nil {
+		cg := &node.ClassGeneric{
+			ClassStatement: c,
+			Generic:        types,
+		}
+		classStmt = cg
+	}
+
+	// 注册匿名类到 VM
+	acl := p.vm.AddClass(classStmt)
+	if acl != nil {
+		return nil, acl
+	}
+
+	// 立即实例化匿名类
+	object, acl := classStmt.GetValue(p.vm.CreateContext([]data.Variable{}))
+	if acl != nil {
+		return nil, acl
+	}
+
+	// 如果有构造函数，调用构造函数
+	if object, ok := object.(*data.ClassValue); ok {
+		if method := object.Class.GetConstruct(); method != nil {
+			varies := method.GetVariables()
+			fnCtx := object.CreateContext(varies)
+			// 入参的值设置到上下文中
+			for index, arg := range constructorArgs {
+				switch argTV := arg.(type) {
+				case *node.NamedArgument:
+					tempV, acl := argTV.GetValue(p.vm.CreateContext([]data.Variable{}))
+					if acl != nil {
+						return nil, acl
+					}
+					vari, err := findVariable(varies, argTV.Name)
+					if err != nil {
+						return nil, data.NewErrorThrow(tracker.EndBefore(), err)
+					}
+					fnCtx.SetVariableValue(vari, tempV.(data.Value))
+				default:
+					tempV, acl := argTV.GetValue(p.vm.CreateContext([]data.Variable{}))
+					if acl != nil {
+						return nil, acl
+					}
+
+					if index >= len(varies) {
+						return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("匿名类构造函数参数数量超出限制: %d", index))
+					}
+
+					fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
+				}
+			}
+
+			_, acl = method.Call(fnCtx)
+			if acl != nil {
+				return nil, acl
+			}
+		}
+	}
+
+	// 检查是否有链式调用
+	if p.checkPositionIs(0, token.OBJECT_OPERATOR) {
+		vp := VariableParser{Parser: p.Parser}
+		return vp.parseSuffix(object)
+	}
+
+	return object, nil
+}
+
+// findVariable 在变量列表中查找指定名称的变量
+func findVariable(varies []data.Variable, name string) (data.Variable, error) {
+	for _, vary := range varies {
+		if vary.GetName() == name {
+			return vary, nil
+		}
+	}
+	return nil, fmt.Errorf("无法找到变量: %s", name)
 }

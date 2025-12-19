@@ -64,6 +64,9 @@ func NewBinaryExpression(from data.From, left data.GetValue, operator lexer.Toke
 		return NewBinaryAssign(from, left, NewBinaryQuo(from, left, right))
 	case token.REM_EQ:
 		return NewBinaryAssign(from, left, NewBinaryRem(from, left, right))
+	case token.CONCAT_EQ:
+		// a .= b 等价于 a = a . b
+		return NewBinaryAssign(from, left, NewBinaryDot(from, left, right))
 	default:
 		panic("unhandled default case " + operator.Literal())
 	}

@@ -1,12 +1,6 @@
 <?php
 
-$a = 1;
+$parent = "test";
+$method = "cal";
 
-beginning:
-if($a == 2) {
-    echo "ok";
-    return;
-}
-$a = 2;
-goto beginning;
-
+echo $parent .= '->' . $method;

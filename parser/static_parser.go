@@ -26,6 +26,36 @@ func (sp *StaticParser) Parse() (data.GetValue, data.Control) {
 	// 跳过 static
 	sp.next()
 
+	// 1) 支持 static::xxx() / static::$prop 这种静态调用方式
+	//    与 self::/parent:: 类似，只是关键字不同
+	if sp.checkPositionIs(0, token.SCOPE_RESOLUTION) &&
+		(sp.checkPositionIs(1, token.IDENTIFIER) || sp.checkPositionIs(1, token.VARIABLE)) {
+		// static::xxx / static::$xxx
+		sp.next() // 跳过 ::
+		isVariable := sp.current().Type() == token.VARIABLE
+		memberName := sp.current().Literal()
+		sp.next()
+		tokenFrom := tracker.EndBefore()
+
+		// 如果是 VARIABLE，去掉 $ 前缀
+		if isVariable && len(memberName) > 0 && memberName[0] == '$' {
+			memberName = memberName[1:]
+		}
+
+		if sp.checkPositionIs(0, token.LPAREN) {
+			// 静态方法调用：static::method()
+			vp := &VariableParser{sp.Parser}
+			expr := node.NewCallStaticKeywordMethod(tokenFrom, memberName)
+			return vp.parseSuffix(expr)
+		} else {
+			// 静态属性访问：static::$property
+			vp := &VariableParser{sp.Parser}
+			expr := node.NewCallStaticKeywordProperty(tokenFrom, memberName)
+			return vp.parseSuffix(expr)
+		}
+	}
+
+	// 2) 其它情况：static function / static fn / static $var，走原有逻辑
 	// 检查 static 后是 function、fn 还是变量
 	if sp.checkPositionIs(0, token.FUNC) {
 		// static function() {} - 静态闭包
