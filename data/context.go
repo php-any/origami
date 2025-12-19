@@ -23,6 +23,10 @@ type Context interface {
 	GoContext() context.Context
 
 	SetVM(vm VM)
+
+	// 记录/获取本次调用传入的参数列表（用于 func_get_args 等函数）
+	SetCallArgs(args []GetValue)
+	GetCallArgs() []GetValue
 }
 
 type VM interface {

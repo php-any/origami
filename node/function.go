@@ -273,3 +273,22 @@ func (p *ParametersReference) SetValue(ctx data.Context, value data.Value) data.
 	}
 	return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
 }
+
+// CallerContextParameter 特殊参数类型：用于标记函数需要在调用者的 Context 中执行。
+// 主要用于实现类似 func_get_args 这类需要直接访问上级调用入参的函数。
+type CallerContextParameter struct {
+	*Node `pp:"-"`
+}
+
+// NewCallerContextParameter 创建一个新的 CallerContextParameter。
+// from 仅用于错误栈信息，可以为 nil。
+func NewCallerContextParameter(from data.From) data.GetValue {
+	return &CallerContextParameter{
+		Node: NewNode(from),
+	}
+}
+
+// GetValue 对函数调用参数绑定过程不产生实际值，这里直接返回自身即可。
+func (p *CallerContextParameter) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return p, nil
+}

@@ -145,6 +145,9 @@ func (pe *CallMethod) handleFuncValue(ctx data.Context, call data.GetValue) (dat
 		}
 	}
 
+	// 将本次调用的参数表达式列表记录到方法上下文中
+	fnCtx.SetCallArgs(pe.Args)
+
 	return fn.Call(fnCtx)
 }
 

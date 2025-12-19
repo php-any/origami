@@ -279,6 +279,20 @@ func (ctx *LspContext) SetVM(vm data.VM) {
 
 }
 
+// 兼容 data.Context 上关于调用参数记录的接口（LSP 下通常不会真正用到）
+func (ctx *LspContext) SetCallArgs(args []data.GetValue) {
+	if ctx.dataCtx != nil {
+		ctx.dataCtx.SetCallArgs(args)
+	}
+}
+
+func (ctx *LspContext) GetCallArgs() []data.GetValue {
+	if ctx.dataCtx != nil {
+		return ctx.dataCtx.GetCallArgs()
+	}
+	return nil
+}
+
 // identifyVariableTypes 识别变量类型
 func (d *DocumentInfo) identifyVariableTypes(ctx *LspContext, stmt data.GetValue) data.Types {
 	var inferredType data.Types

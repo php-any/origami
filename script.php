@@ -1,6 +1,7 @@
 <?php
 
-$parent = "test";
-$method = "cal";
+function test() {
+    echo func_get_args();
+}
 
-echo $parent .= '->' . $method;
+test(1,2,"111")

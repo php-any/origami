@@ -376,6 +376,9 @@ func RemoveAutoLoad(fun *data.FuncValue) {
 }
 
 func CallAutoLoad(name string, ctx data.Context) (bool, data.Control) {
+	if "Illuminate\\Foundation\\Application" == name {
+		fmt.Println("调试中")
+	}
 	for _, fn := range autoload {
 		ctx := ctx.CreateContext(fn.Value.GetVariables())
 

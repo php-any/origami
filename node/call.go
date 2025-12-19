@@ -129,10 +129,17 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 			} else {
 				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能是必传参数, fn: %s", pe.FunName))
 			}
+		case *CallerContextParameter:
+			// 特殊参数：不创建新的函数上下文，直接在上级 Context 中执行函数
+			// 主要用于实现 func_get_args 这类需要访问调用者参数的函数
+			return fn.Call(ctx)
 		default:
 			return nil, data.NewErrorThrow(pe.from, errors.New("未识别的参数类型"))
 		}
 	}
+
+	// 将本次调用的参数表达式列表记录到函数上下文中
+	fnCtx.SetCallArgs(pe.Args)
 
 	return fn.Call(fnCtx)
 }

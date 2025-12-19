@@ -18,7 +18,8 @@ type Context struct {
 	// 变量存储符号表
 	variables []*data.ZVal
 
-	// 其他字段...
+	// 记录本次函数/方法调用时的实参表达式列表（用于 func_get_args 等）
+	callArgs []data.GetValue
 }
 
 // NewContext 创建一个新的运行时上下文
@@ -95,6 +96,16 @@ func (c *Context) GoContext() context.Context {
 // SetVM 替换当前 Context 所绑定的 VM
 func (c *Context) SetVM(vm data.VM) {
 	c.vm = vm
+}
+
+// SetCallArgs 记录本次调用时传入的参数表达式列表
+func (c *Context) SetCallArgs(args []data.GetValue) {
+	c.callArgs = args
+}
+
+// GetCallArgs 获取本次调用时传入的参数表达式列表
+func (c *Context) GetCallArgs() []data.GetValue {
+	return c.callArgs
 }
 
 func makeSliceVariable(i int) []*data.ZVal {

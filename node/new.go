@@ -28,6 +28,9 @@ func (n *NewExpression) GetValue(ctx data.Context) (data.GetValue, data.Control)
 	vm := ctx.GetVM()
 	stmt, acl := vm.GetOrLoadClass(n.ClassName)
 	if acl != nil {
+		if throwValue, ok := acl.(*data.ThrowValue); ok {
+			throwValue.AddStackWithInfo(n.from, n.ClassName, "__construct")
+		}
 		return nil, acl
 	}
 

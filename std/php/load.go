@@ -81,6 +81,7 @@ func Load(vm data.VM) {
 		core.NewRmdirFunction(),
 		core.NewCopyFunction(),
 		core.NewRenameFunction(),
+		core.NewFuncGetArgsFunction(),
 	} {
 		vm.AddFunc(fun)
 	}
