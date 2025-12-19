@@ -27,6 +27,13 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 	startToken := p.current()
 	p.next()
 
+	// 标签语句：name: 换行
+	// 只在标识符后紧跟一个冒号、且后面不是类型标注（a: string）时，将其视为标签定义
+	if p.checkPositionIs(0, token.COLON) && p.peek(1).Line() != p.peek(0).Line() {
+		p.next() // 跳过 :
+		return node.NewLabelStatement(tracker.EndBefore(), name), nil
+	}
+
 	// 函数调用模式 div {} 或者 div []
 	if p.checkPositionIs(0, token.LBRACE) {
 		if full, ok := p.findFullFunNameByNamespace(name); ok {

@@ -1,8 +1,12 @@
 <?php
 
 $a = 1;
-$b = 2;
 
-if ($b != $a && $a > 0) {
-
+beginning:
+if($a == 2) {
+    echo "ok";
+    return;
 }
+$a = 2;
+goto beginning;
+

@@ -45,14 +45,47 @@ func NewProgram(from data.From, statements []data.GetValue) *Program {
 func (p *Program) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	var v data.GetValue
 	var c data.Control
-	for _, statement := range p.Statements {
+	for offset, statement := range p.Statements {
 		v, c = statement.GetValue(ctx)
 		if c != nil {
-			if c, ok := c.(data.ReturnControl); ok {
+			switch acl := c.(type) {
+			case data.ReturnControl:
 				return c.GetValue(ctx)
+			case LabelControl:
+				acl.Offset = offset + 1
+				return p.runLabel(ctx, acl)
+			default:
+				ctx.GetVM().ThrowControl(c)
+				return v, nil
 			}
-			ctx.GetVM().ThrowControl(c)
-			break
+		}
+	}
+
+	return v, nil
+}
+
+func (p *Program) runLabel(ctx data.Context, label LabelControl) (data.GetValue, data.Control) {
+	var v data.GetValue
+	var c data.Control
+	for offset := label.Offset; offset < len(p.Statements); offset++ {
+		statement := p.Statements[offset]
+		v, c = statement.GetValue(ctx)
+		if c != nil {
+			switch acl := c.(type) {
+			case data.ReturnControl:
+				return c.GetValue(ctx)
+			case LabelControl:
+				acl.Offset = offset + 1
+				return p.runLabel(ctx, acl)
+			case data.GotoControl:
+				if acl.GetLabel() == label.Name {
+					return p.runLabel(ctx, label)
+				}
+				return v, c
+			default:
+				ctx.GetVM().ThrowControl(c)
+				return v, nil
+			}
 		}
 	}
 

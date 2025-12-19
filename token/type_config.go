@@ -43,6 +43,7 @@ const (
 	DECLARE                             // declare 语句
 	VAR                                 // var 变量定义
 	ECHO                                // echo 输出语句
+	GOTO                                // goto 语句
 	THROW                               // throw 抛出异常
 	TRY                                 // try 异常处理
 	CATCH                               // catch 捕获异常
