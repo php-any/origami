@@ -1,0 +1,54 @@
+namespace tests\php;
+
+// 先确定一个真实存在的源文件：当前测试脚本本身
+$dir = __DIR__;
+$src = OS::path($dir, "fs_unlink_rmdir_copy_rename.zy");
+$copy = OS::path($dir, "fs_tmp_copy.txt");
+$rename = OS::path($dir, "fs_tmp_rename.txt");
+
+// 测试 copy
+if (!copy($src, $copy)) {
+    Log::fatal("copy() returned false");
+}
+if (!is_file($copy)) {
+    Log::fatal("copy() did not create target file");
+} else {
+    Log::info("copy() ok");
+}
+
+// 测试 rename
+if (!rename($copy, $rename)) {
+    Log::fatal("rename() returned false");
+}
+if (is_file($copy) || !is_file($rename)) {
+    Log::fatal("rename() did not move file correctly");
+} else {
+    Log::info("rename() ok");
+}
+
+// 测试 unlink
+if (!unlink($rename)) {
+    Log::fatal("unlink() returned false");
+}
+if (is_file($rename)) {
+    Log::fatal("unlink() did not delete file");
+} else {
+    Log::info("unlink() ok");
+}
+
+// 再次创建用于 rmdir 测试（这里 rmdir 删除的是文件路径，底层同 os.Remove）
+if (!copy($src, $copy)) {
+    Log::fatal("copy() for rmdir test returned false");
+}
+if (!is_file($copy)) {
+    Log::fatal("copy() for rmdir test did not create file");
+}
+
+if (!rmdir($copy)) {
+    Log::fatal("rmdir() returned false");
+}
+if (is_file($copy)) {
+    Log::fatal("rmdir() did not delete path");
+} else {
+    Log::info("rmdir() ok (file case)");
+}

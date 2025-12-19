@@ -1,0 +1,11 @@
+namespace tests\obj;
+
+class MockConst {
+    public const BLOCKS = 'Mockery_Forward_Blocks';
+}
+
+if (MockConst::BLOCKS === 'Mockery_Forward_Blocks') {
+    Log::info("class const public const BLOCKS parsed correctly");
+} else {
+    Log::fatal("class const public const BLOCKS parsed incorrectly");
+}
