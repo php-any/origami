@@ -3,6 +3,7 @@ package php
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/std/php/core"
+	"github.com/php-any/origami/std/php/file"
 	"github.com/php-any/origami/std/php/preg"
 )
 
@@ -83,6 +84,11 @@ func Load(vm data.VM) {
 		core.NewCopyFunction(),
 		core.NewRenameFunction(),
 		core.NewFuncGetArgsFunction(),
+		file.NewFileExistsFunction(),
+		file.NewIsReadableFunction(),
+		file.NewIsWritableFunction(),
+		file.NewFilesizeFunction(),
+		file.NewFilemtimeFunction(),
 	} {
 		vm.AddFunc(fun)
 	}
@@ -90,4 +96,10 @@ func Load(vm data.VM) {
 	// 注册核心类
 	vm.AddClass(&core.ClosureClass{})
 	vm.AddClass(&core.BackedEnumClass{})
+
+	initPhpDefaultDefines(vm)
+}
+
+func initPhpDefaultDefines(vm data.VM) {
+	vm.SetConstant("DIRECTORY_SEPARATOR", data.NewStringValue("/"))
 }

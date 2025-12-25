@@ -36,15 +36,33 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	switch v := temp.(type) {
 	case *data.ArrayValue:
 		i := 0
-		if iv, ok := index.(data.AsInt); ok {
+		switch iv := index.(type) {
+		case *data.IntValue:
 			var err error
 			i, err = iv.AsInt()
 			if err != nil {
 				return nil, data.NewErrorThrow(ie.GetFrom(), err)
 			}
-		}
-		if i >= len(v.Value) {
-			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("数组索引超出范围"))
+			if i >= len(v.Value) {
+				return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("数组索引超出范围"))
+			}
+		case *data.StringValue:
+			if len(v.Value) == 0 {
+				return data.NewNullValue(), nil
+			}
+
+			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("未实现自动转化为对象的能力"))
+		case data.AsInt:
+			var err error
+			i, err = iv.AsInt()
+			if err != nil {
+				return nil, data.NewErrorThrow(ie.GetFrom(), err)
+			}
+			if i >= len(v.Value) {
+				return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("数组索引超出范围"))
+			}
+		default:
+			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("无法处理索引的类型值"))
 		}
 
 		return v.Value[i], nil

@@ -286,40 +286,40 @@ func (vp *VariableParser) parsePropertyAccess(object data.GetValue) (data.GetVal
 	tracker := vp.StartTracking()
 	vp.next() // 跳过点号
 
-	if vp.checkPositionIs(0, token.LPAREN) {
-		// data . () 只能是拼接
-		parser := NewLparenParser(vp.Parser)
-		property, acl := parser.Parse()
-		if acl != nil {
-			return nil, acl
-		}
-		from := tracker.EndBefore()
-		return node.NewBinaryAdd(from, object, property), nil
-	} else if vp.checkPositionIs(0, token.IDENTIFIER) || (vp.current().Type() > token.KEYWORD_START && vp.current().Type() < token.VALUE_START) {
-		property := vp.current().Literal()
-		vp.next()
-
-		if vp.checkPositionIs(0, token.LPAREN) {
-			stmt, acl := vp.parseFunctionCall()
-			if acl != nil {
-				return nil, acl
-			}
-			from := tracker.EndBefore()
-			return node.NewObjectMethod(
-				from,
-				object,
-				property,
-				stmt,
-			), nil
-		} else {
-			from := tracker.EndBefore()
-			return node.NewObjectProperty(
-				from,
-				object,
-				property,
-			), nil
-		}
-	}
+	//if vp.checkPositionIs(0, token.LPAREN) {
+	//	// data . () 只能是拼接
+	//	parser := NewLparenParser(vp.Parser)
+	//	property, acl := parser.Parse()
+	//	if acl != nil {
+	//		return nil, acl
+	//	}
+	//	from := tracker.EndBefore()
+	//	return node.NewBinaryAdd(from, object, property), nil
+	//} else if vp.checkPositionIs(0, token.IDENTIFIER) || (vp.current().Type() > token.KEYWORD_START && vp.current().Type() < token.VALUE_START) {
+	//	property := vp.current().Literal()
+	//	vp.next()
+	//
+	//	if vp.checkPositionIs(0, token.LPAREN) {
+	//		stmt, acl := vp.parseFunctionCall()
+	//		if acl != nil {
+	//			return nil, acl
+	//		}
+	//		from := tracker.EndBefore()
+	//		return node.NewObjectMethod(
+	//			from,
+	//			object,
+	//			property,
+	//			stmt,
+	//		), nil
+	//	} else {
+	//		from := tracker.EndBefore()
+	//		return node.NewObjectProperty(
+	//			from,
+	//			object,
+	//			property,
+	//		), nil
+	//	}
+	//}
 
 	// 尝试兼容 php . 符号作为字符串链接
 	property, acl := vp.parseStatement()

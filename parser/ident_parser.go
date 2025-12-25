@@ -235,6 +235,11 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 		}
 	}
 
+	// 是否是define后的字符串
+	if v, ok := p.vm.GetConstant(name); ok {
+		return v, nil
+	}
+
 	return node.NewStringLiteral(tracker.EndBefore(), name), nil
 }
 

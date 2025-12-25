@@ -25,151 +25,8 @@ func (f *IssetFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewBoolValue(false), nil
 	}
 
-	// 检查参数值是否是 IndexReferenceValue（数组元素引用）
-	if indexRefValue, ok := varValue.(*data.IndexReferenceValue); ok {
-		// 处理数组元素访问
-		parentCtx := indexRefValue.Ctx
-		indexExpr := indexRefValue.Expr
-
-		// 类型断言为 IndexExpression
-		indexExpression, ok := indexExpr.(*node.IndexExpression)
-		if !ok {
-			return data.NewBoolValue(false), nil
-		}
-
-		// 获取数组值
-		arrayVal, acl := indexExpression.Array.GetValue(parentCtx)
-		if acl != nil {
-			return data.NewBoolValue(false), nil
-		}
-
-		if arrayVal == nil {
-			return data.NewBoolValue(false), nil
-		}
-
-		// 获取索引值
-		indexVal, acl := indexExpression.Index.GetValue(parentCtx)
-		if acl != nil {
-			return data.NewBoolValue(false), nil
-		}
-
-		if indexVal == nil {
-			return data.NewBoolValue(false), nil
-		}
-
-		// 检查数组元素是否存在
-		switch arr := arrayVal.(type) {
-		case *data.ArrayValue:
-			// 数组索引访问
-			i := 0
-			if iv, ok := indexVal.(data.AsInt); ok {
-				var err error
-				i, err = iv.AsInt()
-				if err != nil {
-					return data.NewBoolValue(false), nil
-				}
-			} else {
-				return data.NewBoolValue(false), nil
-			}
-
-			// 检查索引是否在范围内
-			if i < 0 || i >= len(arr.Value) {
-				return data.NewBoolValue(false), nil
-			}
-
-			// 获取元素值
-			elementValue := arr.Value[i]
-			if elementValue == nil {
-				return data.NewBoolValue(false), nil
-			}
-
-			// 检查是否为 NullValue 类型
-			if _, ok := elementValue.(*data.NullValue); ok {
-				return data.NewBoolValue(false), nil
-			}
-
-			return data.NewBoolValue(true), nil
-		case *data.ObjectValue:
-			// 对象属性访问
-			if iv, ok := indexVal.(data.AsString); ok {
-				propValue, has := arr.GetProperty(iv.AsString())
-				if !has {
-					return data.NewBoolValue(false), nil
-				}
-
-				if propValue == nil {
-					return data.NewBoolValue(false), nil
-				}
-
-				// 检查是否为 NullValue 类型
-				if _, ok := propValue.(*data.NullValue); ok {
-					return data.NewBoolValue(false), nil
-				}
-
-				return data.NewBoolValue(true), nil
-			}
-			return data.NewBoolValue(false), nil
-		default:
-			return data.NewBoolValue(false), nil
-		}
-	}
-
-	// 检查参数值是否是 ReferenceValue（变量引用）
-	if refValue, ok := varValue.(*data.ReferenceValue); ok {
-		// 使用父级上下文和变量引用检查变量是否存在
-		parentCtx := refValue.Ctx
-		varRef := refValue.Val
-
-		// 使用 GetIndexValue 安全地检查父级上下文中的变量（避免索引越界 panic）
-		v, acl := varRef.GetValue(parentCtx)
-		if acl != nil {
-			// 变量在父级上下文中不存在
-			return data.NewBoolValue(false), nil
-		}
-
-		// 如果变量值为 nil，返回 false
-		if v == nil {
-			return data.NewBoolValue(false), nil
-		}
-
-		// 获取实际值
-		internalV, intervalCtl := v.GetValue(parentCtx)
-		if intervalCtl != nil {
-			return data.NewBoolValue(false), nil
-		}
-
-		// 检查值是否为 null
-		if internalV == nil {
-			return data.NewBoolValue(false), nil
-		}
-
-		// 检查是否为 NullValue 类型
-		if _, ok := internalV.(*data.NullValue); ok {
-			return data.NewBoolValue(false), nil
-		}
-
-		// 值已设置且不为 null
-		return data.NewBoolValue(true), nil
-	}
-
-	// 如果不是引用类型，说明参数是值传递，直接检查值是否为 null
-	if varValue == nil {
-		return data.NewBoolValue(false), nil
-	}
-
-	// 获取实际值
-	internalV, intervalCtl := varValue.GetValue(ctx)
-	if intervalCtl != nil {
-		return data.NewBoolValue(false), nil
-	}
-
-	// 检查值是否为 null
-	if internalV == nil {
-		return data.NewBoolValue(false), nil
-	}
-
-	// 检查是否为 NullValue 类型
-	if _, ok := internalV.(*data.NullValue); ok {
+	switch varValue.(type) {
+	case *data.NullValue:
 		return data.NewBoolValue(false), nil
 	}
 
@@ -183,7 +40,7 @@ func (f *IssetFunction) GetName() string {
 
 func (f *IssetFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameterReference(nil, "var", 0, data.Mixed{}),
+		node.NewParameter(nil, "var", 0, nil, data.Mixed{}),
 	}
 }
 
