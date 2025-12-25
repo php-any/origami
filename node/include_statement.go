@@ -109,10 +109,7 @@ func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool,
 	vm := ctx.GetVM()
 	v, acl := vm.LoadAndRun(filePath)
 	if acl != nil {
-		if required {
-			return nil, acl
-		}
-		return data.NewBoolValue(false), nil
+		return nil, acl
 	}
 
 	if once {

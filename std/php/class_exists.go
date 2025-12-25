@@ -23,9 +23,21 @@ func (f *ClassExistsFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	}
 	className := v.(data.AsString).AsString()
 
+	vm := ctx.GetVM()
 	// 在 VM 中检查类是否存在
-	_, exist := ctx.GetVM().GetClass(className)
-	return data.NewBoolValue(exist), nil
+	_, exist := vm.GetClass(className)
+	if exist {
+		return data.NewBoolValue(true), nil
+	}
+	stmt, acl := vm.GetOrLoadClass(className)
+	if acl != nil {
+		return nil, acl
+	}
+	if stmt == nil {
+		return data.NewBoolValue(false), nil
+	}
+
+	return data.NewBoolValue(true), nil
 }
 
 func (f *ClassExistsFunction) GetName() string {
