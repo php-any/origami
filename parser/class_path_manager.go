@@ -376,7 +376,7 @@ func RemoveAutoLoad(fun *data.FuncValue) {
 }
 
 func CallAutoLoad(name string, ctx data.Context) (bool, data.Control) {
-	if "Illuminate\\Foundation\\Application" == name {
+	if "Go\\Test\\App" == name {
 		fmt.Println("调试中")
 	}
 	for _, fn := range autoload {

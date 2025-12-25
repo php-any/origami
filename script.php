@@ -1,7 +1,23 @@
 <?php
+namespace test
 
-function test() {
-    echo func_get_args();
+class LoadClass {
+    public $map = [];
+
+    public function load($class)
+    {
+        var_dump($this->map);
+    }
 }
 
-test(1,2,"111")
+
+$data = new LoadClass();
+
+$data->map = [
+    "test" => "test.php"
+];
+
+spl_autoload_register(array($data, 'load'));
+
+new Test();
+

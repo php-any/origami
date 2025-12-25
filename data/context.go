@@ -12,6 +12,7 @@ type Context interface {
 	GetVariableValue(variable Variable) (Value, Control)
 	GetIndexValue(index int) (Value, bool)
 	GetIndexZVal(index int) *ZVal
+	SetIndexZVal(index int, v *ZVal)
 	SetVariableValue(variable Variable, value Value) Control
 
 	CreateContext(vars []Variable) Context

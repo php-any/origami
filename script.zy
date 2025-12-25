@@ -1,7 +1,6 @@
 namespace test
 
-function test(mixed &$var) {
-    return 1
-}
-$var = 1
-echo test($var);
+
+require __DIR__.'/script.php';
+
+var_dump(Test::$prefixLengthsPsr4);

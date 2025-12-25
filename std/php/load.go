@@ -72,6 +72,7 @@ func Load(vm data.VM) {
 		NewArrayShiftFunction(),
 		NewArrayUnshiftFunction(),
 		NewSprintfFunction(),
+		NewVarDumpFunction(),
 		core.NewStreamResolveIncludePathFunction(),
 		core.NewDefinedFunction(),
 		core.NewDefineFunction(),

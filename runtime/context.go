@@ -53,6 +53,10 @@ func (c *Context) GetIndexValue(index int) (data.Value, bool) {
 	return c.variables[index].Value, true
 }
 
+func (c *Context) SetIndexZVal(index int, v *data.ZVal) {
+	c.variables[index] = v
+}
+
 func (c *Context) GetIndexZVal(index int) *data.ZVal {
 	return c.variables[index]
 }

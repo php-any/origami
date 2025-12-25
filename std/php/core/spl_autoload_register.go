@@ -30,13 +30,19 @@ func (f *SplAutoloadRegisterFunction) Call(ctx data.Context) (data.GetValue, dat
 
 		switch class := class.(type) {
 		case *data.ThisValue:
-			method, ok = class.GetMethod(methodName)
-			fn, acl := node.NewStaticMethodFuncValue(class.Class, method).GetValue(ctx)
+			fn, acl := node.NewClassClosure(class.ClassValue, methodName)
 			if acl != nil {
 				return nil, acl
 			}
-			runtime.AddAutoLoad(fn.(*data.FuncValue))
-		default:
+			runtime.AddAutoLoad(fn)
+		case *data.ClassValue:
+			fn, acl := node.NewClassClosure(class, methodName)
+			if acl != nil {
+				return nil, acl
+			}
+			runtime.AddAutoLoad(fn)
+
+		case *data.StringValue:
 			stmt, acl := ctx.GetVM().GetOrLoadClass(class.AsString())
 			if acl != nil {
 				return nil, acl
@@ -54,6 +60,9 @@ func (f *SplAutoloadRegisterFunction) Call(ctx data.Context) (data.GetValue, dat
 				return nil, acl
 			}
 			runtime.AddAutoLoad(fn.(*data.FuncValue))
+		default:
+			_ = ok
+			panic("spl_autoload_register 无法处理的类型，请添加支持")
 		}
 	case *data.FuncValue:
 		fn := a1.(*data.FuncValue)

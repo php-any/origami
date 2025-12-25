@@ -229,6 +229,10 @@ func (c *ClassMethodContext) GetIndexValue(index int) (Value, bool) {
 	return c.Context.GetIndexValue(index)
 }
 
+func (c *ClassMethodContext) SetIndexZVal(index int, v *ZVal) {
+	c.Context.SetIndexZVal(index, v)
+}
+
 func (c *ClassMethodContext) GetIndexZVal(index int) *ZVal {
 	return c.Context.GetIndexZVal(index)
 }

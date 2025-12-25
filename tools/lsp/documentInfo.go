@@ -107,6 +107,10 @@ func (ctx *LspContext) GetIndexValue(index int) (data.Value, bool) {
 	return nil, false
 }
 
+func (ctx *LspContext) SetIndexZVal(index int, v *data.ZVal) *data.ZVal {
+	return nil
+}
+
 func (ctx *LspContext) GetIndexZVal(index int) *data.ZVal {
 	return nil
 }
