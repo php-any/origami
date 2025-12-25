@@ -45,11 +45,19 @@ func (ep *ExpressionParser) parseAssignment() (data.GetValue, data.Control) {
 		valList := []data.GetValue{v}
 		for ep.checkPositionIs(0, token.COMMA) {
 			ep.next()
-			next, acl := ep.parseTernary()
-			if acl != nil {
-				return nil, acl
+			if ep.checkPositionIs(0, token.VARIABLE) && ep.checkPositionIs(1, token.COMMA, token.ASSIGN) {
+				next, acl := ep.parsePrimary()
+				if acl != nil {
+					return nil, acl
+				}
+				valList = append(valList, next)
+			} else {
+				next, acl := ep.parseTernary()
+				if acl != nil {
+					return nil, acl
+				}
+				valList = append(valList, next)
 			}
-			valList = append(valList, next)
 		}
 		if ep.checkPositionIs(0, token.ASSIGN, token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ, token.CONCAT_EQ) {
 			// 重新构建assigns数组，避免重复
