@@ -86,8 +86,13 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 				if acl != nil {
 					return nil, acl
 				}
-				ares.Value = append(ares.Value, tempV.(data.Value))
-				fnCtx.SetVariableValue(argObj, ares)
+				if tempV == nil {
+					ares.Value = append(ares.Value, data.NewNullValue())
+					fnCtx.SetVariableValue(argObj, ares)
+				} else {
+					ares.Value = append(ares.Value, tempV.(data.Value))
+					fnCtx.SetVariableValue(argObj, ares)
+				}
 			}
 		case *ParameterReference:
 			if index < len(pe.Args) {

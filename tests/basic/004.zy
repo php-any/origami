@@ -1,0 +1,90 @@
+namespace tests\basic;
+
+// 测试运算符优先级：比较运算符优先级高于赋值运算符
+// false !== $lastPos = 7 应该被解析为 false !== ($lastPos = 7)
+// 执行顺序：1. $lastPos = 7 返回 7，2. false !== 7 返回 true
+
+$lastPos = 0;
+$result = false !== $lastPos = 7;
+
+if($result === true) {
+    Log::info("运算符优先级测试通过：false !== \$lastPos = 7 返回 true");
+} else {
+    Log::fatal("运算符优先级测试失败：false !== \$lastPos = 7 应该返回 true");
+}
+
+if($lastPos === 7) {
+    Log::info("赋值操作正常：\$lastPos 的值是 7");
+} else {
+    Log::fatal("赋值操作失败：\$lastPos 应该是 7");
+}
+
+// 测试其他比较运算符的优先级
+$test1 = 0;
+$test2 = 0;
+$test3 = 0;
+$test4 = 0;
+
+$result1 = 5 > $test1 = 3;
+$result2 = 2 < $test2 = 5;
+$result3 = 10 >= $test3 = 10;
+$result4 = 1 <= $test4 = 2;
+
+if($result1 === true && $test1 === 3) {
+    Log::info("运算符优先级测试通过：5 > \$test1 = 3");
+} else {
+    Log::fatal("运算符优先级测试失败：5 > \$test1 = 3");
+}
+
+if($result2 === true && $test2 === 5) {
+    Log::info("运算符优先级测试通过：2 < \$test2 = 5");
+} else {
+    Log::fatal("运算符优先级测试失败：2 < \$test2 = 5");
+}
+
+if($result3 === true && $test3 === 10) {
+    Log::info("运算符优先级测试通过：10 >= \$test3 = 10");
+} else {
+    Log::fatal("运算符优先级测试失败：10 >= \$test3 = 10");
+}
+
+if($result4 === true && $test4 === 2) {
+    Log::info("运算符优先级测试通过：1 <= \$test4 = 2");
+} else {
+    Log::fatal("运算符优先级测试失败：1 <= \$test4 = 2");
+}
+
+// 测试相等性运算符
+$test5 = 0;
+$test6 = 0;
+$test7 = 0;
+$test8 = 0;
+
+$result5 = 3 == $test5 = 3;
+$result6 = 4 != $test6 = 5;
+$result7 = 7 === $test7 = 7;
+$result8 = 8 !== $test8 = 9;
+
+if($result5 === true && $test5 === 3) {
+    Log::info("运算符优先级测试通过：3 == \$test5 = 3");
+} else {
+    Log::fatal("运算符优先级测试失败：3 == \$test5 = 3");
+}
+
+if($result6 === true && $test6 === 5) {
+    Log::info("运算符优先级测试通过：4 != \$test6 = 5");
+} else {
+    Log::fatal("运算符优先级测试失败：4 != \$test6 = 5");
+}
+
+if($result7 === true && $test7 === 7) {
+    Log::info("运算符优先级测试通过：7 === \$test7 = 7");
+} else {
+    Log::fatal("运算符优先级测试失败：7 === \$test7 = 7");
+}
+
+if($result8 === true && $test8 === 9) {
+    Log::info("运算符优先级测试通过：8 !== \$test8 = 9");
+} else {
+    Log::fatal("运算符优先级测试失败：8 !== \$test8 = 9");
+}

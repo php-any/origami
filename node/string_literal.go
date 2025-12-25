@@ -42,12 +42,14 @@ func NewStringLiteral(token *TokenFrom, value string) data.GetValue {
 		}
 
 		// 处理转义字符
+		// 注意：必须先处理 \\，否则 \$ 会被错误处理
+		value = strings.ReplaceAll(value, "\\\\", "\\")
 		value = strings.ReplaceAll(value, "\\n", "\n")
 		value = strings.ReplaceAll(value, "\\r", "\r")
 		value = strings.ReplaceAll(value, "\\t", "\t")
 		value = strings.ReplaceAll(value, "\\\"", "\"")
 		value = strings.ReplaceAll(value, "\\'", "'")
-		value = strings.ReplaceAll(value, "\\\\", "\\")
+		value = strings.ReplaceAll(value, "\\$", "$")
 	}
 
 	return &StringLiteral{

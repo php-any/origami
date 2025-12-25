@@ -69,7 +69,7 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 
 	// 静态方法需要 ClassMethodContext，返回包装器让 CallMethod 正确处理
 	if classStmt != nil {
-		return NewStaticMethodFuncValue(classStmt, method), nil
+		return data.NewFuncValue(&staticMethodFunc{class: classStmt, method: method}), nil
 	}
 
 	// 如果没有类信息，直接返回 FuncValue（向后兼容）
@@ -139,6 +139,11 @@ type StaticMethodFuncValue struct {
 	method data.Method
 }
 
+func (s *StaticMethodFuncValue) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	// 返回 FuncValue，但内部使用 staticMethodFunc 包装，确保调用时使用 ClassMethodContext
+	return data.NewFuncValue(&staticMethodFunc{class: s.class, method: s.method}), nil
+}
+
 // staticMethodFunc 适配器：将 data.Method 包装为 data.FuncStmt，并在调用时切换到 ClassMethodContext
 type staticMethodFunc struct {
 	class  data.ClassStmt
@@ -151,11 +156,9 @@ func (s *staticMethodFunc) GetVariables() []data.Variable { return s.method.GetV
 func (s *staticMethodFunc) Call(callCtx data.Context) (data.GetValue, data.Control) {
 	// 创建类方法上下文，使用传入的 callCtx（包含已设置的参数），绑定当前类，保证 self:: 可用
 	classValue := data.NewClassValue(s.class, callCtx)
-	methodCtx := &data.ClassMethodContext{ClassValue: classValue}
-	return s.method.Call(methodCtx)
-}
-
-func (s *StaticMethodFuncValue) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 返回 FuncValue，但内部使用 staticMethodFunc 包装，确保调用时使用 ClassMethodContext
-	return data.NewFuncValue(&staticMethodFunc{class: s.class, method: s.method}), nil
+	fnCtx := classValue.CreateContext(s.method.GetVariables())
+	for i := 0; i < len(s.method.GetVariables()); i++ {
+		fnCtx.SetIndexZVal(i, callCtx.GetIndexZVal(i))
+	}
+	return s.method.Call(fnCtx)
 }

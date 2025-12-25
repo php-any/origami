@@ -155,5 +155,5 @@ func (pe *CallMethod) newFunParamsError(from data.From, name string, paramName s
 	if name == "" {
 		return data.NewErrorThrow(from, errors.New("无法调用匿名函数, 缺少参数:"+paramName))
 	}
-	return data.NewErrorThrow(from, errors.New("无法调用"+name+"函数, 缺少参数:"+paramName))
+	return data.NewErrorThrow(from, errors.New("无法调用("+name+")函数, 缺少参数: "+paramName))
 }

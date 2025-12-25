@@ -505,8 +505,27 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 			), nil
 		}
 	}
+	expr, acl := ep.parsePrimary()
+	if acl == nil {
+		// 检查各种赋值运算符（含字符串连接赋值 .=）
+		for ep.checkPositionIs(0, token.ASSIGN, token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ, token.CONCAT_EQ) {
+			operator := ep.current()
+			ep.next()
 
-	return ep.parsePrimary()
+			right, acl := ep.parseAssignment()
+			if acl != nil {
+				return nil, acl
+			}
+			expr = node.NewBinaryExpression(
+				tracker.EndBefore(),
+				expr,
+				operator,
+				right,
+			)
+		}
+	}
+
+	return expr, acl
 }
 
 // parsePrimary 解析基本表达式

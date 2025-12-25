@@ -36,8 +36,8 @@ func (f *CallUserFuncFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	}
 	// 创建调用上下文，传入实参
 	callCtx := ctx.CreateContext(make([]data.Variable, len(argValues)))
-	for i, v := range argValues {
-		callCtx.GetIndexZVal(i).Value = v
+	for i, _ := range argValues {
+		callCtx.SetIndexZVal(i, ctx.GetIndexZVal(i))
 	}
 	return fn.Call(callCtx)
 }
