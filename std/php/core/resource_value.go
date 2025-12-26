@@ -22,32 +22,42 @@ func NewResourceValue(resourceClass *ResourceClass, ctx data.Context) *ResourceV
 
 // AsString 重写 AsString 方法，显示资源ID
 func (r *ResourceValue) AsString() string {
-	if resourceClass, ok := r.Class.(*ResourceClass); ok {
-		return fmt.Sprintf("Resource id #%d", resourceClass.GetResourceID())
+	if r.ClassValue != nil && r.ClassValue.Class != nil {
+		if resourceClass, ok := r.ClassValue.Class.(*ResourceClass); ok {
+			return fmt.Sprintf("Resource id #%d", resourceClass.GetResourceID())
+		}
 	}
 	return "Resource"
 }
 
 // GetResourceID 获取资源ID（用于显示）
 func (r *ResourceValue) GetResourceID() int {
-	if resourceClass, ok := r.Class.(*ResourceClass); ok {
-		return resourceClass.GetResourceID()
+	if r.ClassValue != nil && r.ClassValue.Class != nil {
+		if resourceClass, ok := r.ClassValue.Class.(*ResourceClass); ok {
+			return resourceClass.GetResourceID()
+		}
 	}
 	return 0
 }
 
 // GetResourceType 获取资源类型
 func (r *ResourceValue) GetResourceType() string {
-	if resourceClass, ok := r.Class.(*ResourceClass); ok {
-		return resourceClass.GetResourceType()
+	if r.ClassValue != nil && r.ClassValue.Class != nil {
+		if resourceClass, ok := r.ClassValue.Class.(*ResourceClass); ok {
+			return resourceClass.GetResourceType()
+		}
 	}
 	return ""
 }
 
 // GetResource 获取实际的资源对象
 func (r *ResourceValue) GetResource() interface{} {
-	if resourceClass, ok := r.Class.(*ResourceClass); ok {
-		return resourceClass.GetResource()
+	// ResourceValue 嵌入了 ClassValue，通过 ClassValue.Class 获取 ResourceClass
+	// 由于嵌入，可以直接访问 ClassValue 的字段
+	if r.ClassValue != nil && r.ClassValue.Class != nil {
+		if resourceClass, ok := r.ClassValue.Class.(*ResourceClass); ok {
+			return resourceClass.GetResource()
+		}
 	}
 	return nil
 }

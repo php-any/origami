@@ -124,7 +124,7 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 						return nil, acl
 					}
 				case data.Variable:
-					acl := argObj.SetValue(fnCtx, data.NewReferenceValue(paramTV, ctx))
+					acl := argObj.SetValue(fnCtx, data.NewZValValue(ctx.GetIndexZVal(paramTV.GetIndex())))
 					if acl != nil {
 						return nil, acl
 					}

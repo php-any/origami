@@ -1,8 +1,31 @@
 <?php
 
-function greet2(): string|int {
-    return "abc";
+class Test {
+        public function notify(Started $event): void
+        {
+            $subscribers = [
+                new class($printer)
+                {
+                    public function notify(Configured $event): void
+                    {
+                        $this->printer()->setDecorated(
+                            $event->configuration()->colors()
+                        );
+                    }
+                },
+                new class($printer)
+                {
+                    public function notify(Configured $event): void
+                    {
+                        $this->printer()->setDecorated(
+                            $event->configuration()->colors()
+                        );
+                    }
+                },
+            ];
+        }
 }
-
-$str = greet2()
-
+$data = [
+    1,2,
+    3,4
+];

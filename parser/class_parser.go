@@ -149,6 +149,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 	staticProperties := make(map[string]data.Property)
 	methods := map[string]data.Method{}
 	staticMethods := map[string]data.Method{}
+	var traits []string // trait 列表
 	for !p.currentIsTypeOrEOF(token.RBRACE) {
 		// 先尝试解析注解
 		var memberAnnotations []*node.Annotation
@@ -162,10 +163,33 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 			}
 		}
 
+		// 检查是否是 use 语句（用于 trait）
+		if p.current().Type() == token.USE {
+			traitNames, acl := p.parseTraitUse()
+			if acl != nil {
+				return nil, acl
+			}
+			traits = append(traits, traitNames...)
+			continue
+		}
+
+		// 解析 abstract 关键字（可以在访问修饰符之前）
+		isAbstractMethod := false
+		if p.current().Type() == token.ABSTRACT {
+			isAbstractMethod = true
+			p.next()
+		}
+
 		// 解析访问修饰符
 		modifier := p.parseModifier()
 		if modifier == "" {
 			return nil, data.NewErrorThrow(p.newFrom(), errors.New("缺少访问修饰符"))
+		}
+
+		// 解析 abstract 关键字（也可以在访问修饰符之后）
+		if p.current().Type() == token.ABSTRACT {
+			isAbstractMethod = true
+			p.next()
 		}
 
 		// 解析readonly关键字（在访问修饰符之后）
@@ -200,7 +224,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 				}
 			}
 		} else if p.current().Type() == token.FUNC {
-			method, acl := p.parseMethodWithAnnotations(modifier, isStatic, memberAnnotations)
+			method, acl := p.parseMethodWithAnnotations(modifier, isStatic, isAbstractMethod, memberAnnotations)
 			if acl != nil {
 				return nil, acl
 			}
@@ -243,6 +267,14 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 	}
 	c.StaticMethods = staticMethods
 
+	// 合并 trait 的方法和属性
+	if len(traits) > 0 {
+		acl := p.mergeTraits(c, traits)
+		if acl != nil {
+			return nil, acl
+		}
+	}
+
 	if c.Construct == nil {
 		// 寻找父级构造函数
 		vm := p.vm
@@ -263,31 +295,40 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 
 	var acl data.Control
 
+	// 构建类语句：处理泛型
+	var classStmt data.ClassStmt = c
+
 	if types != nil {
+		// 创建泛型类
 		cg := &node.ClassGeneric{
 			ClassStatement: c,
 			Generic:        types,
 		}
-		acl = p.vm.AddClass(cg)
+		classStmt = cg
+		acl = p.vm.AddClass(classStmt)
 		if acl != nil {
 			return nil, acl
 		}
-		acl = callClassAnnotation(p.Parser, &annotations, cg)
-		if acl != nil {
-			return nil, acl
+		if addAnn, ok := classStmt.(node.AddAnnotations); ok {
+			acl = callClassAnnotation(p.Parser, &annotations, addAnn)
+			if acl != nil {
+				return nil, acl
+			}
 		}
-		return cg, acl
+		return classStmt, acl
 	}
 
-	acl = p.vm.AddClass(c)
+	acl = p.vm.AddClass(classStmt)
 	if acl != nil {
 		return nil, acl
 	}
-	acl = callClassAnnotation(p.Parser, &annotations, c)
-	if acl != nil {
-		return nil, acl
+	if addAnn, ok := classStmt.(node.AddAnnotations); ok {
+		acl = callClassAnnotation(p.Parser, &annotations, addAnn)
+		if acl != nil {
+			return nil, acl
+		}
 	}
-	return c, acl
+	return classStmt, acl
 }
 
 // 调用注解
@@ -556,7 +597,7 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 }
 
 // parseMethodWithAnnotations 解析方法（带注解）
-func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool, annotations []*node.Annotation) (data.Method, data.Control) {
+func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool, isAbstract bool, annotations []*node.Annotation) (data.Method, data.Control) {
 	// 跳过function关键字
 	p.next()
 	tracker := p.StartTracking()
@@ -663,15 +704,28 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 		}
 	}
 
-	body, acl := p.ParseFunctionBody()
-	if acl != nil {
-		return nil, acl
+	var body []data.GetValue
+	var vars []data.Variable
+
+	// 抽象方法没有方法体，只有分号
+	if isAbstract {
+		if p.current().Type() != token.SEMICOLON {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("抽象方法必须以分号结尾"))
+		}
+		p.next() // 跳过分号
+		body = []data.GetValue{}
+		vars = []data.Variable{}
+	} else {
+		body, acl = p.ParseFunctionBody()
+		if acl != nil {
+			return nil, acl
+		}
+		vars = p.GetVariables()
 	}
-	vars := p.GetVariables()
 
 	p.scopeManager.PopScope()
 
-	ret := node.NewMethod(
+	method := node.NewMethod(
 		tracker.EndBefore(),
 		name,
 		modifier,
@@ -681,6 +735,14 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 		vars,
 		retType,
 	)
+
+	// 如果是抽象方法，包装为 AbstractMethod
+	var ret data.Method = method
+	if isAbstract {
+		if classMethod, ok := method.(*node.ClassMethod); ok {
+			ret = node.NewAbstractMethod(classMethod)
+		}
+	}
 	for _, an := range annotations {
 		an.Target = ret.(data.GetValue)
 	}
@@ -754,8 +816,103 @@ func (p *ClassParser) parseGeneric() []data.Types {
 }
 
 // 解析类型（支持嵌套泛型）
+// parseTraitUse 解析 use 语句，用于嵌入 trait
+// 语法：use Trait1, Trait2;
+func (p *ClassParser) parseTraitUse() ([]string, data.Control) {
+	p.next() // 跳过 use 关键字
+
+	var traitNames []string
+	for {
+		// 解析 trait 名称
+		traitName, acl := p.getClassName(true)
+		if acl != nil {
+			return nil, acl
+		}
+		traitNames = append(traitNames, traitName)
+
+		// 检查是否有逗号，继续解析下一个 trait
+		if p.current().Type() == token.COMMA {
+			p.next() // 跳过逗号
+		} else {
+			break
+		}
+	}
+
+	// 跳过分号
+	if p.current().Type() == token.SEMICOLON {
+		p.next()
+	}
+
+	return traitNames, nil
+}
+
+// mergeTraits 合并 trait 的方法和属性到类中
+func (p *ClassParser) mergeTraits(class *node.ClassStatement, traitNames []string) data.Control {
+	vm := p.vm
+
+	for _, traitName := range traitNames {
+		// 从 VM 加载 trait（trait 和 class 一样存储在 classMap 中）
+		trait, acl := vm.GetOrLoadClass(traitName)
+		if acl != nil {
+			return data.NewErrorThrow(class.GetFrom(), fmt.Errorf("无法加载 trait %s: %v", traitName, acl))
+		}
+
+		if trait == nil {
+			return data.NewErrorThrow(class.GetFrom(), fmt.Errorf("trait %s 不存在", traitName))
+		}
+
+		// 合并 trait 的方法
+		traitMethods := trait.GetMethods()
+		for _, method := range traitMethods {
+			methodName := method.GetName()
+			// 如果类中已经有同名方法，跳过（类的方法优先级更高）
+			if _, exists := class.Methods[methodName]; !exists {
+				// 检查是否是静态方法
+				if method.GetIsStatic() {
+					if _, exists := class.StaticMethods[methodName]; !exists {
+						class.StaticMethods[methodName] = method
+					}
+				} else {
+					class.Methods[methodName] = method
+				}
+			}
+		}
+
+		// 合并 trait 的属性
+		traitProperties := trait.GetPropertyList()
+		for _, property := range traitProperties {
+			propertyName := property.GetName()
+			// 如果类中已经有同名属性，跳过（类的属性优先级更高）
+			if _, exists := class.Properties[propertyName]; !exists {
+				// 检查是否是静态属性
+				if property.GetIsStatic() {
+					// 静态属性需要设置默认值
+					defaultValue := property.GetDefaultValue()
+					if defaultValue != nil {
+						baseCtx := vm.CreateContext([]data.Variable{})
+						v, acl := defaultValue.GetValue(baseCtx)
+						if acl != nil {
+							return acl
+						}
+						class.StaticProperty.Store(propertyName, v)
+					} else {
+						class.StaticProperty.Store(propertyName, data.NewNullValue())
+					}
+				} else {
+					// 添加到属性列表
+					class.Properties[propertyName] = property
+					class.PropertiesIndex = append(class.PropertiesIndex, propertyName)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 func (p *ClassParser) parseType() data.Types {
-	if p.current().Type() != token.IDENTIFIER {
+	// 支持类型关键字（bool, int, string, float, array 等）
+	if !isIdentOrTypeToken(p.current().Type()) {
 		if p.current().Type() == token.GENERIC_TYPE {
 			T := p.current().Literal()
 			p.next()

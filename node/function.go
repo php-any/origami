@@ -220,7 +220,13 @@ func (p *ParameterReference) SetValue(ctx data.Context, value data.Value) data.C
 			return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
 		}
 	}
-	return ctx.SetVariableValue(p, value)
+	if v, ok := value.(*data.ZValValue); ok {
+		ctx.SetIndexZVal(p.Index, v.ZVal)
+	} else {
+		return ctx.SetVariableValue(p, value)
+	}
+
+	return nil
 }
 
 // NewParametersReference 接收多个参数值

@@ -3,10 +3,12 @@ package proc
 import (
 	"io"
 	"os/exec"
+	"strconv"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/std/php/core"
+	"github.com/php-any/origami/std/php/stream"
 )
 
 // ProcOpenFunction 实现 proc_open 函数
@@ -36,59 +38,98 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	}
 
 	// 获取描述符数组（可选）
+	// PHP 格式: [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']]
 	descriptorspecValue, _ := ctx.GetIndexValue(1)
-	var descriptorspec map[string]interface{}
+	var descriptorspec map[int][]interface{}
+	descriptorspec = make(map[int][]interface{})
 	if descriptorspecValue != nil {
 		if obj, ok := descriptorspecValue.(*data.ObjectValue); ok {
-			descriptorspec = make(map[string]interface{})
 			obj.RangeProperties(func(key string, value data.Value) bool {
-				descriptorspec[key] = value
+				// 解析键为整数（文件描述符编号）
+				var fd int
+				if i, err := strconv.Atoi(key); err == nil {
+					fd = i
+				}
+				// 解析值为数组 ['pipe', 'r'] 或 ['pipe', 'w']
+				if arr, ok := value.(*data.ArrayValue); ok && len(arr.Value) >= 2 {
+					var descType, descMode string
+					if typeVal, ok := arr.Value[0].(data.AsString); ok {
+						descType = typeVal.AsString()
+					}
+					if modeVal, ok := arr.Value[1].(data.AsString); ok {
+						descMode = modeVal.AsString()
+					}
+					if descType == "pipe" {
+						descriptorspec[fd] = []interface{}{descType, descMode}
+					}
+				}
 				return true
 			})
+		} else if arr, ok := descriptorspecValue.(*data.ArrayValue); ok {
+			// 如果是 ArrayValue，也尝试解析
+			for i, val := range arr.Value {
+				if arrVal, ok := val.(*data.ArrayValue); ok && len(arrVal.Value) >= 2 {
+					var descType, descMode string
+					if typeVal, ok := arrVal.Value[0].(data.AsString); ok {
+						descType = typeVal.AsString()
+					}
+					if modeVal, ok := arrVal.Value[1].(data.AsString); ok {
+						descMode = modeVal.AsString()
+					}
+					if descType == "pipe" {
+						descriptorspec[i] = []interface{}{descType, descMode}
+					}
+				}
+			}
 		}
 	}
 
 	// 获取管道数组（可选，用于返回文件指针）
-	pipesValue, _ := ctx.GetIndexValue(2)
+	// 对于引用参数，需要获取 ZVal 引用以便直接更新
+	// 参数索引 2 对应 pipes 参数（引用参数）
+	pipesZVal := ctx.GetIndexZVal(2)
+	// 初始化 pipes 数组/对象
+	if _, ok := pipesZVal.Value.(*data.NullValue); ok {
+		pipesZVal.Value = data.NewObjectValue()
+	}
+
+	pipesValue := pipesZVal.Value
+	// 由于 PHP 中 $pipes 是数组，我们需要使用 ObjectValue 来存储（因为 ObjectValue 可以支持数字键）
+	// 但最终需要确保可以通过数组索引访问
 	var pipes *data.ObjectValue
-	if pipesValue != nil {
-		if obj, ok := pipesValue.(*data.ObjectValue); ok {
-			pipes = obj
-		} else {
-			pipes = data.NewObjectValue()
-		}
+	if obj, ok := pipesValue.(*data.ObjectValue); ok {
+		pipes = obj
 	} else {
+		// 如果类型不对，创建新的 ObjectValue
 		pipes = data.NewObjectValue()
+		pipesZVal.Value = pipes
 	}
 
 	// 创建命令
 	cmdObj := exec.Command("sh", "-c", cmd)
 
 	// 处理描述符
-	var stdinPipe io.WriteCloser
 	var stdoutPipe, stderrPipe io.ReadCloser
-	if len(descriptorspec) == 0 {
-		// 默认描述符：创建管道
-		var err error
-		stdinPipe, err = cmdObj.StdinPipe()
-		if err != nil {
-			return data.NewBoolValue(false), nil
+	var err error
+
+	// 根据描述符配置创建管道
+	if len(descriptorspec) > 0 {
+		if desc, ok := descriptorspec[1]; ok && len(desc) >= 2 && desc[1] == "w" {
+			// stdout (1) - 读取管道
+			stdoutPipe, err = cmdObj.StdoutPipe()
+			if err != nil {
+				return data.NewBoolValue(false), nil
+			}
 		}
-		stdoutPipe, err = cmdObj.StdoutPipe()
-		if err != nil {
-			return data.NewBoolValue(false), nil
-		}
-		stderrPipe, err = cmdObj.StderrPipe()
-		if err != nil {
-			return data.NewBoolValue(false), nil
+		if desc, ok := descriptorspec[2]; ok && len(desc) >= 2 && desc[1] == "w" {
+			// stderr (2) - 读取管道
+			stderrPipe, err = cmdObj.StderrPipe()
+			if err != nil {
+				return data.NewBoolValue(false), nil
+			}
 		}
 	} else {
-		// 处理自定义描述符（简化实现）
-		var err error
-		stdinPipe, err = cmdObj.StdinPipe()
-		if err != nil {
-			return data.NewBoolValue(false), nil
-		}
+		// 如果没有指定描述符，默认创建所有管道
 		stdoutPipe, err = cmdObj.StdoutPipe()
 		if err != nil {
 			return data.NewBoolValue(false), nil
@@ -100,7 +141,7 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	}
 
 	// 启动进程
-	err := cmdObj.Start()
+	err = cmdObj.Start()
 	if err != nil {
 		return data.NewBoolValue(false), nil
 	}
@@ -117,21 +158,31 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	procResource := core.NewResourceValue(resourceClass, ctx)
 
 	// 设置 pipes（存储管道信息）
-	// 注意：这里简化实现，实际应该创建可读写的管道对象
-	pipes.SetProperty("0", data.NewIntValue(realPID)) // stdin (使用 PID 作为标识)
-	pipes.SetProperty("1", data.NewIntValue(realPID)) // stdout
-	pipes.SetProperty("2", data.NewIntValue(realPID)) // stderr
-
-	// 如果 pipes 参数是通过引用传递的，需要更新原对象
-	if pipesValue != nil {
-		if obj, ok := pipesValue.(*data.ObjectValue); ok {
-			obj.SetProperty("0", data.NewIntValue(realPID))
-			obj.SetProperty("1", data.NewIntValue(realPID))
-			obj.SetProperty("2", data.NewIntValue(realPID))
-		}
+	// 创建流资源对象并放入 pipes 对象
+	// stdout (1) - 读取管道
+	if stdoutPipe != nil {
+		stdoutStreamInfo := stream.NewStreamInfoFromReader(stdoutPipe, "r")
+		stdoutFd := realPID*10 + 1 // 生成一个唯一的文件描述符
+		stdoutResourceClass := core.NewResourceClass("stream", stdoutStreamInfo, stdoutFd)
+		stdoutResource := core.NewResourceValue(stdoutResourceClass, ctx)
+		pipes.SetProperty("1", stdoutResource)
 	}
 
+	// stderr (2) - 读取管道
+	if stderrPipe != nil {
+		stderrStreamInfo := stream.NewStreamInfoFromReader(stderrPipe, "r")
+		stderrFd := realPID*10 + 2 // 生成一个唯一的文件描述符
+		stderrResourceClass := core.NewResourceClass("stream", stderrStreamInfo, stderrFd)
+		stderrResource := core.NewResourceValue(stderrResourceClass, ctx)
+		pipes.SetProperty("2", stderrResource)
+	}
+
+	// 更新引用参数的 ZVal.Value（显式重新赋值，确保引用参数被正确更新）
+	pipesZVal.Value = pipes
+
 	// 在后台等待进程结束并更新状态
+	// 注意：不在这里关闭管道，因为 stream_get_contents 需要读取管道数据
+	// 管道应该在 proc_close 或流关闭时关闭
 	go func() {
 		err := cmdObj.Wait()
 		exitCode := -1
@@ -144,16 +195,8 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		}
 		procInfo.SetRunning(false)
 		procInfo.SetExitCode(exitCode)
-		// 关闭管道
-		if stdinPipe != nil {
-			stdinPipe.Close()
-		}
-		if stdoutPipe != nil {
-			stdoutPipe.Close()
-		}
-		if stderrPipe != nil {
-			stderrPipe.Close()
-		}
+		// 不在这里关闭管道，让 stream_get_contents 可以读取数据
+		// 管道会在 proc_close 或流关闭时关闭
 	}()
 
 	return procResource, nil

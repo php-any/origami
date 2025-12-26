@@ -1,0 +1,45 @@
+namespace tests\obj;
+
+// 测试 trait 属性
+trait WithCounter {
+    private $count = 0;
+    
+    public function increment() {
+        $this->count = $this->count + 1;
+        return $this->count;
+    }
+    
+    public function getCount() {
+        return $this->count;
+    }
+}
+
+class Counter {
+    use WithCounter;
+    
+    public function __construct() {
+        // 构造函数
+    }
+}
+
+$counter = new Counter();
+if($counter->getCount() == 0) {
+    Log::info("trait 属性初始值正确");
+} else {
+    Log::fatal("trait 属性初始值错误: " . $counter->getCount());
+}
+
+$result = $counter->increment();
+if($result == 1 && $counter->getCount() == 1) {
+    Log::info("trait 属性修改成功");
+} else {
+    Log::fatal("trait 属性修改失败");
+}
+
+$counter->increment();
+if($counter->getCount() == 2) {
+    Log::info("trait 属性多次修改成功");
+} else {
+    Log::fatal("trait 属性多次修改失败");
+}
+

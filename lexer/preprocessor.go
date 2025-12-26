@@ -25,6 +25,8 @@ func cannotAddSemicolon(t Token) bool {
 		return true
 	case token.COMMA: // 逗号后不用补充
 		return true
+	case token.NEWLINE:
+		return true
 	case token.DOT: // 点后不用补充
 		return true
 	case token.RBRACE: // 右花括号后不用补充

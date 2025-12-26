@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// deprecated
 func NewReferenceValue(v Variable, ctx Context) Value {
 	return &ReferenceValue{
 		Val: v,
@@ -15,6 +16,7 @@ func NewReferenceValue(v Variable, ctx Context) Value {
 	}
 }
 
+// deprecated
 func NewIndexReferenceValue(expr GetValue, ctx Context) Value {
 	return &IndexReferenceValue{
 		Expr: expr,

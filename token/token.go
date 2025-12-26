@@ -66,6 +66,12 @@ var TokenDefinitions = []TokenDefinition{
 	// 超全局
 	{Type: GLOBALS, Literal: "$GLOBALS", WordType: KEYWORD},
 	{Type: ENV, Literal: "$_ENV", WordType: KEYWORD},
+	{Type: SERVER, Literal: "$_SERVER", WordType: KEYWORD},
+	{Type: GET, Literal: "$_GET", WordType: KEYWORD},
+	{Type: POST, Literal: "$_POST", WordType: KEYWORD},
+	{Type: COOKIE, Literal: "$_COOKIE", WordType: KEYWORD},
+	{Type: SESSION, Literal: "$_SESSION", WordType: KEYWORD},
+	{Type: REQUEST, Literal: "$_REQUEST", WordType: KEYWORD},
 	{Type: INCLUDE, Literal: "include", WordType: KEYWORD},
 	{Type: INCLUDE_ONCE, Literal: "include_once", WordType: KEYWORD},
 	{Type: REQUIRE, Literal: "require", WordType: KEYWORD},

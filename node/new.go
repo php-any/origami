@@ -271,3 +271,84 @@ func (n *NewVariableExpression) GetValue(ctx data.Context) (data.GetValue, data.
 
 	return object, acl
 }
+
+// NewSelfExpression 表示 new self 表达式
+type NewSelfExpression struct {
+	*Node     `pp:"-"`
+	Arguments []data.GetValue
+}
+
+// NewNewSelfExpression 创建一个新的 new self 表达式节点
+func NewNewSelfExpression(from *TokenFrom, arguments []data.GetValue) *NewSelfExpression {
+	return &NewSelfExpression{
+		Node:      NewNode(from),
+		Arguments: arguments,
+	}
+}
+
+// GetValue 实现 Value 接口
+func (n *NewSelfExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	// 检查是否在类方法上下文中
+	classCtx, ok := ctx.(*data.ClassMethodContext)
+	if !ok {
+		return nil, data.NewErrorThrow(n.from, fmt.Errorf("new self 只能在类方法中使用"))
+	}
+
+	// 获取当前类名
+	currentClass := classCtx.Class
+	className := currentClass.GetName()
+
+	vm := ctx.GetVM()
+	stmt, acl := vm.GetOrLoadClass(className)
+	if acl != nil {
+		if throwValue, ok := acl.(*data.ThrowValue); ok {
+			throwValue.AddStackWithInfo(n.from, className, "__construct")
+		}
+		return nil, acl
+	}
+
+	object, acl := stmt.GetValue(ctx.CreateBaseContext())
+	if acl != nil {
+		return nil, acl
+	}
+
+	if object, ok := object.(*data.ClassValue); ok {
+		if method := object.Class.GetConstruct(); method != nil {
+			varies := method.GetVariables()
+			fnCtx := object.CreateContext(varies)
+			// 入参的值设置到上下文中
+			for index, arg := range n.Arguments {
+				switch argTV := arg.(type) {
+				case *NamedArgument:
+					tempV, acl := argTV.GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+					vari, err := findVariable(varies, argTV.Name)
+					if err != nil {
+						return nil, data.NewErrorThrow(n.from, err)
+					}
+					fnCtx.SetVariableValue(vari, tempV.(data.Value))
+				default:
+					tempV, acl := argTV.GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+
+					if index >= len(varies) {
+						return nil, data.NewErrorThrow(n.from, fmt.Errorf("对象(%v)构造函数参数数量超出限制: %d", object.Class.GetName(), index))
+					}
+
+					fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
+				}
+			}
+
+			_, acl = method.Call(fnCtx)
+			if acl != nil {
+				return nil, acl
+			}
+		}
+	}
+
+	return object, acl
+}

@@ -1,0 +1,48 @@
+namespace tests\obj;
+
+// 测试多个 trait 的使用
+trait Loggable {
+    public function log($message) {
+        return "Log: " . $message;
+    }
+}
+
+trait Timestampable {
+    public function getTimestamp() {
+        return 1234567890;
+    }
+}
+
+class User {
+    use Loggable, Timestampable;
+    
+    private $name;
+    
+    public function __construct($name) {
+        $this->name = $name;
+    }
+    
+    public function getName() {
+        return $this->name;
+    }
+}
+
+$user = new User("Bob");
+if($user->log("test") == "Log: test") {
+    Log::info("第一个 trait 方法调用成功");
+} else {
+    Log::fatal("第一个 trait 方法调用失败");
+}
+
+if($user->getTimestamp() == 1234567890) {
+    Log::info("第二个 trait 方法调用成功");
+} else {
+    Log::fatal("第二个 trait 方法调用失败");
+}
+
+if($user->getName() == "Bob") {
+    Log::info("类方法调用成功");
+} else {
+    Log::fatal("类方法调用失败");
+}
+

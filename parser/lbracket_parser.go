@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -36,6 +37,9 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 	if acl != nil {
 		return nil, acl
 	}
+	if expr == nil {
+		return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("数组第一个元素解析失败，无法识别当前 token"))
+	}
 
 	if ep.current().Type() == token.RBRACKET {
 		// 只有一个元素
@@ -47,14 +51,27 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 		case token.COMMA: // , 数组定义
 			arr := make([]data.GetValue, 1)
 			arr[0] = expr
+
+			var test = 0
 			for ep.current().Type() == token.COMMA {
 				ep.next()
 				if ep.checkPositionIs(0, token.RBRACKET) {
 					continue
 				}
+				if *ep.source == "/Users/lvluo/Desktop/github.com/php-any/laravel/vendor/nunomaduro/collision/src/Adapters/Phpunit/Subscribers/EnsurePrinterIsRegisteredSubscriber.php" {
+					test++
+					if ep.position == 424 {
+						ep.printRemaining()
+						ttt := ep.current()
+						fmt.Println(ttt)
+					}
+				}
 				stmt, acl := ep.parseStatement()
 				if acl != nil {
 					return nil, acl
+				}
+				if stmt == nil {
+					return nil, data.NewErrorThrow(ep.FromCurrentToken(), fmt.Errorf("数组元素解析失败，无法识别当前 token: %s (类型: %d)", ep.current().Literal(), ep.current().Type()))
 				}
 				arr = append(arr, stmt)
 			}

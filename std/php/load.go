@@ -7,6 +7,7 @@ import (
 	"github.com/php-any/origami/std/php/file"
 	"github.com/php-any/origami/std/php/preg"
 	"github.com/php-any/origami/std/php/proc"
+	"github.com/php-any/origami/std/php/stream"
 )
 
 func Load(vm data.VM) {
@@ -17,6 +18,7 @@ func Load(vm data.VM) {
 		NewIsFileFunction(),
 		NewScandirFunction(),
 		NewFileGetContentsFunction(),
+		NewFilePutContentsFunction(),
 		NewMicrotimeFunction(),
 		NewNumberFormatFunction(),
 		NewFunctionExistsFunction(),
@@ -104,6 +106,10 @@ func Load(vm data.VM) {
 		proc.NewProcCloseFunction(),
 		proc.NewProcGetStatusFunction(),
 		proc.NewProcTerminateFunction(),
+		stream.NewFopenFunction(),
+		stream.NewFcloseFunction(),
+		stream.NewFwriteFunction(),
+		stream.NewStreamGetContentsFunction(),
 	} {
 		vm.AddFunc(fun)
 	}

@@ -34,7 +34,9 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少接口名"))
 	}
 
-	interfaceName = p.namespace.GetName() + "\\" + interfaceName
+	if p.namespace != nil {
+		interfaceName = p.namespace.GetName() + "\\" + interfaceName
+	}
 
 	// 解析继承
 	var extends *string

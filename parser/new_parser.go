@@ -79,6 +79,40 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 		return n, nil
 	}
 
+	// 检查是否是 new self
+	if p.checkPositionIs(0, token.SELF) {
+		p.next() // 跳过 self
+
+		// 检查是否有参数列表（括号）
+		var args []data.GetValue
+		var acl data.Control
+		vp := VariableParser{Parser: p.Parser}
+
+		if p.checkPositionIs(0, token.LPAREN) {
+			// 有括号，解析参数列表
+			args, acl = vp.parseFunctionCall()
+			if acl != nil {
+				return nil, acl
+			}
+		} else {
+			// 没有括号，使用空参数列表
+			args = []data.GetValue{}
+		}
+
+		// 创建 new self 表达式
+		n := node.NewNewSelfExpression(
+			tracker.EndBefore(),
+			args,
+		)
+
+		if p.checkPositionIs(0, token.OBJECT_OPERATOR) {
+			// 解析链式调用
+			return vp.parseSuffix(n)
+		}
+
+		return n, nil
+	}
+
 	// 解析类名
 	if !p.checkPositionIs(0, token.IDENTIFIER, token.GENERIC_TYPE) {
 		return nil, data.NewErrorThrow(p.newFrom(), errors.New("new关键字后面必须跟类名或变量; 当前="+p.current().Literal()))
@@ -221,6 +255,17 @@ func (p *NewStructParser) parseAnonymousClass(tracker *PositionTracker) (data.Ge
 		types = cp.parseGeneric()
 	}
 
+	// 解析构造函数参数（在 extends 之前）
+	var constructorArgs []data.GetValue
+	if p.checkPositionIs(0, token.LPAREN) {
+		vp := VariableParser{Parser: p.Parser}
+		args, acl := vp.parseFunctionCall()
+		if acl != nil {
+			return nil, acl
+		}
+		constructorArgs = args
+	}
+
 	// 解析继承
 	var extends string
 	if p.current().Type() == token.EXTENDS {
@@ -251,20 +296,10 @@ func (p *NewStructParser) parseAnonymousClass(tracker *PositionTracker) (data.Ge
 		}
 	}
 
-	// 解析构造函数参数（在类体之前）
-	var constructorArgs []data.GetValue
-	if p.checkPositionIs(0, token.LPAREN) {
-		vp := VariableParser{Parser: p.Parser}
-		args, acl := vp.parseFunctionCall()
-		if acl != nil {
-			return nil, acl
-		}
-		constructorArgs = args
-	}
-
 	// 解析类体
 	if p.current().Type() != token.LBRACE {
-		return nil, data.NewErrorThrow(p.newFrom(), errors.New("匿名类声明后缺少左花括号 '{'"))
+		currentToken := p.current()
+		return nil, data.NewErrorThrow(p.newFrom(), fmt.Errorf("匿名类声明后缺少左花括号 '{'，当前token: %s (类型: %v)", currentToken.Literal(), currentToken.Type()))
 	}
 	p.next()
 
@@ -292,10 +327,23 @@ func (p *NewStructParser) parseAnonymousClass(tracker *PositionTracker) (data.Ge
 			}
 		}
 
+		// 解析 abstract 关键字（可以在访问修饰符之前）
+		isAbstractMethod := false
+		if p.current().Type() == token.ABSTRACT {
+			isAbstractMethod = true
+			p.next()
+		}
+
 		// 解析访问修饰符
 		modifier := cp.parseModifier()
 		if modifier == "" {
 			return nil, data.NewErrorThrow(p.newFrom(), errors.New("缺少访问修饰符"))
+		}
+
+		// 解析 abstract 关键字（也可以在访问修饰符之后）
+		if p.current().Type() == token.ABSTRACT {
+			isAbstractMethod = true
+			p.next()
 		}
 
 		// 解析readonly关键字（在访问修饰符之后）
@@ -330,7 +378,7 @@ func (p *NewStructParser) parseAnonymousClass(tracker *PositionTracker) (data.Ge
 				}
 			}
 		} else if p.current().Type() == token.FUNC {
-			method, acl := cp.parseMethodWithAnnotations(modifier, isStatic, memberAnnotations)
+			method, acl := cp.parseMethodWithAnnotations(modifier, isStatic, isAbstractMethod, memberAnnotations)
 			if acl != nil {
 				return nil, acl
 			}
@@ -402,64 +450,22 @@ func (p *NewStructParser) parseAnonymousClass(tracker *PositionTracker) (data.Ge
 		classStmt = cg
 	}
 
-	// 注册匿名类到 VM
-	acl := p.vm.AddClass(classStmt)
-	if acl != nil {
-		return nil, acl
-	}
-
-	// 立即实例化匿名类
-	object, acl := classStmt.GetValue(p.vm.CreateContext([]data.Variable{}))
-	if acl != nil {
-		return nil, acl
-	}
-
-	// 如果有构造函数，调用构造函数
-	if object, ok := object.(*data.ClassValue); ok {
-		if method := object.Class.GetConstruct(); method != nil {
-			varies := method.GetVariables()
-			fnCtx := object.CreateContext(varies)
-			// 入参的值设置到上下文中
-			for index, arg := range constructorArgs {
-				switch argTV := arg.(type) {
-				case *node.NamedArgument:
-					tempV, acl := argTV.GetValue(p.vm.CreateContext([]data.Variable{}))
-					if acl != nil {
-						return nil, acl
-					}
-					vari, err := findVariable(varies, argTV.Name)
-					if err != nil {
-						return nil, data.NewErrorThrow(tracker.EndBefore(), err)
-					}
-					fnCtx.SetVariableValue(vari, tempV.(data.Value))
-				default:
-					tempV, acl := argTV.GetValue(p.vm.CreateContext([]data.Variable{}))
-					if acl != nil {
-						return nil, acl
-					}
-
-					if index >= len(varies) {
-						return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("匿名类构造函数参数数量超出限制: %d", index))
-					}
-
-					fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
-				}
-			}
-
-			_, acl = method.Call(fnCtx)
-			if acl != nil {
-				return nil, acl
-			}
-		}
-	}
+	// 创建匿名类 new 表达式节点（延迟执行）
+	// 在执行阶段才注册类、实例化对象并调用构造函数
+	anonymousClassExpr := node.NewNewAnonymousClassExpression(
+		tracker.EndBefore(),
+		classStmt,
+		constructorArgs,
+		types,
+	)
 
 	// 检查是否有链式调用
 	if p.checkPositionIs(0, token.OBJECT_OPERATOR) {
 		vp := VariableParser{Parser: p.Parser}
-		return vp.parseSuffix(object)
+		return vp.parseSuffix(anonymousClassExpr)
 	}
 
-	return object, nil
+	return anonymousClassExpr, nil
 }
 
 // findVariable 在变量列表中查找指定名称的变量

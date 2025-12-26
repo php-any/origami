@@ -1,0 +1,48 @@
+namespace tests\obj;
+
+// 测试 trait 方法访问 trait 属性
+trait NameTrait {
+    private $name = "default";
+    
+    public function setName($name) {
+        $this->name = $name;
+    }
+    
+    public function getName() {
+        return $this->name;
+    }
+    
+    public function greet() {
+        return "Hello, " . $this->name . "!";
+    }
+}
+
+class Person {
+    use NameTrait;
+    
+    public function __construct($name) {
+        $this->setName($name);
+    }
+}
+
+$person = new Person("David");
+if($person->getName() == "David") {
+    Log::info("trait 方法访问 trait 属性成功");
+} else {
+    Log::fatal("trait 方法访问 trait 属性失败");
+}
+
+$greeting = $person->greet();
+if($greeting == "Hello, David!") {
+    Log::info("trait 方法调用其他 trait 方法成功");
+} else {
+    Log::fatal("trait 方法调用其他 trait 方法失败: " . $greeting);
+}
+
+$person->setName("Eve");
+if($person->getName() == "Eve" && $person->greet() == "Hello, Eve!") {
+    Log::info("trait 方法修改属性后其他方法正确响应");
+} else {
+    Log::fatal("trait 方法修改属性后其他方法响应失败");
+}
+

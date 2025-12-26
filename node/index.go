@@ -2,6 +2,7 @@ package node
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/php-any/origami/data"
 )
@@ -67,14 +68,25 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 
 		return v.Value[i], nil
 	case *data.ObjectValue:
+		// 支持整数索引（转换为字符串）和字符串索引
+		var key string
 		if iv, ok := index.(data.AsString); ok {
-			ov, has := v.GetProperty(iv.AsString())
-			if has {
-				return ov, nil
+			key = iv.AsString()
+		} else if iv, ok := index.(data.AsInt); ok {
+			// 将整数索引转换为字符串
+			if i, err := iv.AsInt(); err == nil {
+				key = fmt.Sprintf("%d", i)
+			} else {
+				return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("无法处理索引的类型值"))
 			}
+		} else {
+			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("ObjectValue无法处理索引的类型值"))
+		}
+		ov, has := v.GetProperty(key)
+		if has {
 			return ov, nil
 		}
-		return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("ObjectValue无法处理索引的类型值"))
+		return ov, nil
 	case *data.ClassValue:
 		// 支持对类实例通过字符串索引访问公开属性：
 		// $obj[$name]，在动态属性语法 $obj->$name 降级为索引访问后会走到这里
@@ -117,6 +129,8 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		} else {
 			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("字符串无法处理非int值"))
 		}
+	case *data.NullValue:
+		return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("null 无法处理索引的类型值"))
 	}
 	return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("无法处理索引的类型值"))
 }

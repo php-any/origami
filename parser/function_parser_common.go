@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/php-any/origami/data"
@@ -34,6 +35,11 @@ func (p *FunctionParserCommon) ParseFunctionBody() ([]data.GetValue, data.Contro
 			}
 			if stmt != nil {
 				body = append(body, stmt)
+			} else {
+				t := p.current().Literal()
+				if t == "," {
+					fmt.Println(t)
+				}
 			}
 		}
 		p.next() // 跳过结束花括号

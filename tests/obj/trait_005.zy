@@ -1,0 +1,56 @@
+namespace tests\obj;
+
+// 测试 trait 中的实例方法（静态方法测试可能需要特殊处理）
+trait CounterHelper {
+    private $count = 0;
+    
+    public function increment() {
+        $this->count = $this->count + 1;
+        return $this->count;
+    }
+    
+    public function getCount() {
+        return $this->count;
+    }
+    
+    public function reset() {
+        $this->count = 0;
+    }
+}
+
+class Counter {
+    use CounterHelper;
+    
+    public function __construct() {
+        // 构造函数
+    }
+}
+
+$counter = new Counter();
+if($counter->getCount() == 0) {
+    Log::info("trait 属性初始值正确");
+} else {
+    Log::fatal("trait 属性初始值错误");
+}
+
+$result1 = $counter->increment();
+if($result1 == 1 && $counter->getCount() == 1) {
+    Log::info("trait 方法调用和属性修改成功");
+} else {
+    Log::fatal("trait 方法调用失败");
+}
+
+$counter->increment();
+if($counter->getCount() == 2) {
+    Log::info("trait 方法多次调用成功");
+} else {
+    Log::fatal("trait 方法多次调用失败");
+}
+
+$counter->reset();
+if($counter->getCount() == 0) {
+    Log::info("trait 方法重置功能成功");
+} else {
+    Log::fatal("trait 方法重置功能失败");
+}
+
