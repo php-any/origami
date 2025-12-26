@@ -1,0 +1,174 @@
+<?php
+
+echo "=== 数组指针函数测试 ===\n";
+
+// 测试 reset() 函数
+$array = [1, 2, 3, 4, 5];
+$result = reset($array);
+if($result == 1) {
+    Log::info("reset() 基本测试通过");
+} else {
+    Log::fatal("reset() 基本测试失败");
+}
+
+// 测试 current() 函数
+$array = [10, 20, 30];
+$result = current($array);
+if($result == 10) {
+    Log::info("current() 基本测试通过");
+} else {
+    Log::fatal("current() 基本测试失败");
+}
+
+// 测试 key() 函数
+$array = [100, 200, 300];
+$result = key($array);
+if($result == 0) {
+    Log::info("key() 基本测试通过");
+} else {
+    Log::fatal("key() 基本测试失败");
+}
+
+// 测试 next() 函数
+$array = [1, 2, 3];
+$result = next($array);
+if($result == 2) {
+    Log::info("next() 基本测试通过");
+} else {
+    Log::fatal("next() 基本测试失败");
+}
+
+// 测试 end() 函数
+$array = [1, 2, 3, 4, 5];
+$result = end($array);
+if($result == 5) {
+    Log::info("end() 基本测试通过");
+} else {
+    Log::fatal("end() 基本测试失败");
+}
+
+// 测试 prev() 函数
+$array = [1, 2, 3, 4, 5];
+$result = prev($array);
+if($result == 4) {
+    Log::info("prev() 基本测试通过");
+} else {
+    Log::fatal("prev() 基本测试失败");
+}
+
+// 测试关联数组
+$assoc = ["a" => 1, "b" => 2, "c" => 3];
+$result = reset($assoc);
+if($result == 1) {
+    Log::info("reset() 关联数组测试通过");
+} else {
+    Log::fatal("reset() 关联数组测试失败");
+}
+
+$result = end($assoc);
+if($result == 3) {
+    Log::info("end() 关联数组测试通过");
+} else {
+    Log::fatal("end() 关联数组测试失败");
+}
+
+$result = key($assoc);
+if($result == "a") {
+    Log::info("key() 关联数组测试通过");
+} else {
+    Log::fatal("key() 关联数组测试失败");
+}
+
+// 测试 Iterator 对象
+class ArrayIterator implements Iterator {
+    private $data;
+    private int $pos;
+
+    public function __construct($data) {
+        $this->data = $data;
+        $this->pos = 0;
+    }
+
+    public function current(): mixed {
+        return $this->data[$this->pos];
+    }
+
+    public function key(): mixed {
+        return $this->pos;
+    }
+
+    public function next(): void {
+        $this->pos = $this->pos + 1;
+    }
+
+    public function rewind(): void {
+        $this->pos = 0;
+    }
+
+    public function valid(): bool {
+        return $this->pos < count($this->data);
+    }
+}
+
+$nums = [10, 20, 30, 40];
+$it = new ArrayIterator($nums);
+
+$result = reset($it);
+if($result == 10) {
+    Log::info("reset() Iterator 测试通过");
+} else {
+    Log::fatal("reset() Iterator 测试失败");
+}
+
+$result = current($it);
+if($result == 10) {
+    Log::info("current() Iterator 测试通过");
+} else {
+    Log::fatal("current() Iterator 测试失败");
+}
+
+$result = key($it);
+if($result == 0) {
+    Log::info("key() Iterator 测试通过");
+} else {
+    Log::fatal("key() Iterator 测试失败");
+}
+
+$result = next($it);
+if($result == 20) {
+    Log::info("next() Iterator 测试通过");
+} else {
+    Log::fatal("next() Iterator 测试失败");
+}
+
+$result = end($it);
+if($result == 40) {
+    Log::info("end() Iterator 测试通过");
+} else {
+    Log::fatal("end() Iterator 测试失败");
+}
+
+// 测试空数组
+$empty = [];
+$result = reset($empty);
+if($result === null) {
+    Log::info("reset() 空数组测试通过");
+} else {
+    Log::fatal("reset() 空数组测试失败");
+}
+
+$result = current($empty);
+if($result === null) {
+    Log::info("current() 空数组测试通过");
+} else {
+    Log::fatal("current() 空数组测试失败");
+}
+
+$result = key($empty);
+if($result === null) {
+    Log::info("key() 空数组测试通过");
+} else {
+    Log::fatal("key() 空数组测试失败");
+}
+
+echo "=== 数组指针函数测试完成 ===\n";

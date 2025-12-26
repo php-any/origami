@@ -1,8 +1,8 @@
 <?php
 
-function greet2(): string, int {
-    return "abc", 123;
+function greet2(): string|int {
+    return "abc";
 }
 
-$str, $num = greet2()
+$str = greet2()
 

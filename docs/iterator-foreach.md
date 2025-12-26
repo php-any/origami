@@ -1,10 +1,10 @@
-# Iterator接口与foreach循环
+# Iterator 接口与 foreach 循环
 
-折言语言支持自定义迭代器接口，允许开发者创建可迭代的对象，通过foreach循环进行遍历。
+折言语言支持自定义迭代器接口，允许开发者创建可迭代的对象，通过 foreach 循环进行遍历。
 
-## Iterator接口
+## Iterator 接口
 
-Iterator接口定义了迭代器必须实现的方法，使对象能够被foreach循环遍历。
+Iterator 接口定义了迭代器必须实现的方法，使对象能够被 foreach 循环遍历。
 
 ### 接口定义
 
@@ -26,7 +26,7 @@ interface Iterator {
 4. **rewind()**: 将迭代器重置到初始位置
 5. **valid()**: 检查当前位置是否有效
 
-## 自定义Iterator实现
+## 自定义 Iterator 实现
 
 ### 基本实现
 
@@ -68,9 +68,9 @@ class ArrayIterator implements Iterator {
 }
 ```
 
-### 使用Iterator
+### 使用 Iterator
 
-创建Iterator实例并使用foreach循环遍历：
+创建 Iterator 实例并使用 foreach 循环遍历：
 
 ```php
 array $nums = [1, 2, 3, 4];
@@ -88,9 +88,9 @@ foreach ($it2 as $v2) {
 }
 ```
 
-## foreach循环
+## foreach 循环
 
-foreach循环是遍历数组和实现Iterator接口的对象的主要方式。
+foreach 循环是遍历数组和实现 Iterator 接口的对象的主要方式。
 
 ### 遍历数组
 
@@ -112,7 +112,7 @@ foreach ($person as $key => $value) {
 }
 ```
 
-### 遍历Iterator对象
+### 遍历 Iterator 对象
 
 ```php
 // 带键值对的遍历
@@ -126,7 +126,7 @@ foreach ($iterator as $value) {
 }
 ```
 
-## 高级Iterator实现
+## 高级 Iterator 实现
 
 ### 范围迭代器
 
@@ -209,7 +209,7 @@ class FilterIterator implements Iterator {
         if ($this->iterator->valid()) {
             $this->currentValue = $this->iterator->current();
             $this->currentKey = $this->iterator->key();
-            
+
             // 检查第一个元素是否满足过滤条件
             if (!($this->filter)($this->currentValue)) {
                 $this->next();
@@ -241,7 +241,7 @@ foreach ($evenIterator as $number) {
 
 ### 1. 实现所有必需方法
 
-确保Iterator接口的所有方法都正确实现：
+确保 Iterator 接口的所有方法都正确实现：
 
 ```php
 class MyIterator implements Iterator {
@@ -275,9 +275,9 @@ public function rewind(): void {
 
 ## 注意事项
 
-1. **性能考虑**: Iterator的每个方法都会在循环中频繁调用，确保实现高效
-2. **内存管理**: 避免在Iterator中保存大量数据的副本
-3. **异常处理**: 在Iterator方法中适当处理可能的异常情况
+1. **性能考虑**: Iterator 的每个方法都会在循环中频繁调用，确保实现高效
+2. **内存管理**: 避免在 Iterator 中保存大量数据的副本
+3. **异常处理**: 在 Iterator 方法中适当处理可能的异常情况
 4. **类型安全**: 确保[current()](file:///Users/lvluo/Desktop/github.com/php-any/origami/data/value_array.go#L36-L38)和[key()](file:///Users/lvluo/Desktop/github.com/php-any/origami/data/value_array.go#L40-L42)方法返回正确的类型
 
-通过实现Iterator接口，你可以创建自定义的可迭代对象，为折言语言提供更灵活和强大的数据遍历能力。
+通过实现 Iterator 接口，你可以创建自定义的可迭代对象，为折言语言提供更灵活和强大的数据遍历能力。

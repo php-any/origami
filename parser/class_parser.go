@@ -168,6 +168,13 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 			return nil, data.NewErrorThrow(p.newFrom(), errors.New("缺少访问修饰符"))
 		}
 
+		// 解析readonly关键字（在访问修饰符之后）
+		isReadonly := false
+		if p.current().Type() == token.READONLY {
+			isReadonly = true
+			p.next()
+		}
+
 		// 解析static关键字
 		isStatic := false
 		if p.current().Type() == token.STATIC {
@@ -181,7 +188,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 			p.current().Type() == token.VARIABLE ||
 			isIdentOrTypeToken(p.current().Type()) ||
 			(p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type())) {
-			prop, acl := p.parsePropertyWithAnnotations(modifier, isStatic, memberAnnotations)
+			prop, acl := p.parsePropertyWithAnnotations(modifier, isStatic, isReadonly, memberAnnotations)
 			if acl != nil {
 				return nil, acl
 			}
@@ -367,7 +374,7 @@ func (p *ClassParser) parseAnnotation() (*node.Annotation, data.Control) {
 }
 
 // parsePropertyWithAnnotations 解析属性（带注解）
-func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic bool, annotations []*node.Annotation) (data.Property, data.Control) {
+func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic bool, isReadonly bool, annotations []*node.Annotation) (data.Property, data.Control) {
 	tracker := p.StartTracking()
 
 	// 解析访问修饰符（如果还没有解析）
@@ -381,6 +388,12 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 	// 解析static关键字（如果还没有解析）
 	if !isStatic && p.current().Type() == token.STATIC {
 		isStatic = true
+		p.next()
+	}
+
+	// 解析readonly关键字（如果还没有解析）
+	if !isReadonly && p.current().Type() == token.READONLY {
+		isReadonly = true
 		p.next()
 	}
 
@@ -414,11 +427,12 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 		}
 
 		// const 始终视为静态成员
-		ret := node.NewProperty(
+		ret := node.NewPropertyWithReadonly(
 			tracker.EndBefore(),
 			name,
 			modifier,
 			true,
+			isReadonly,
 			defaultValue,
 		)
 		for _, an := range annotations {
@@ -495,11 +509,12 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 		p.next()
 	}
 
-	ret := node.NewProperty(
+	ret := node.NewPropertyWithReadonly(
 		tracker.EndBefore(),
 		name,
 		modifier,
 		isStatic,
+		isReadonly,
 		defaultValue,
 		propertyType,
 	)
@@ -575,23 +590,57 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 				p.next() // 跳过问号
 			}
 
-			// 解析返回类型
-			if isIdentOrTypeToken(p.current().Type()) {
-				returnType := p.current().Literal()
-				p.next()
+			// 解析一个"返回类型表达式"，支持联合类型：string|int|false
+			// 其中每个原子类型可以是标识符、内置类型、null、false 等
+			var unionTypes []data.Types
 
-				// 创建基础类型
-				baseType := data.NewBaseType(returnType)
-
-				// 如果是可空类型，包装为基础类型的可空版本
-				if isNullable {
-					baseType = data.NewNullableType(baseType)
+			parseOneTypeAtom := func() (data.Types, data.Control) {
+				if !p.checkPositionIs(0,
+					token.IDENTIFIER,
+					token.STRING,
+					token.INT,
+					token.FLOAT,
+					token.BOOL,
+					token.ARRAY,
+					token.NULL,
+					token.FALSE,
+				) {
+					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("无法识别返回类型的定义符号"))
 				}
-
-				returnTypes = append(returnTypes, baseType)
-			} else {
-				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少返回类型"))
+				name := p.current().Literal()
+				p.next()
+				return data.NewBaseType(name), nil
 			}
+
+			// 第一个类型原子
+			firstType, acl := parseOneTypeAtom()
+			if acl != nil {
+				return nil, acl
+			}
+			unionTypes = append(unionTypes, firstType)
+
+			// 后续的 |Type 原子
+			for p.current().Type() == token.BIT_OR {
+				p.next() // 跳过 |
+				nextType, acl := parseOneTypeAtom()
+				if acl != nil {
+					return nil, acl
+				}
+				unionTypes = append(unionTypes, nextType)
+			}
+
+			// 将本次解析出的类型（可能是单一，也可能是联合）加入返回类型列表
+			var thisType data.Types
+			if len(unionTypes) == 1 {
+				thisType = unionTypes[0]
+			} else {
+				// 联合类型：string|int|false 之类
+				thisType = data.NewUnionType(unionTypes)
+			}
+			if isNullable {
+				thisType = data.NewNullableType(thisType)
+			}
+			returnTypes = append(returnTypes, thisType)
 
 			// 检查是否有更多类型（逗号分隔）
 			if p.current().Type() == token.COMMA {

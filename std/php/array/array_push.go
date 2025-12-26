@@ -1,4 +1,4 @@
-package php
+package array
 
 import (
 	"github.com/php-any/origami/data"

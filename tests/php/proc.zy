@@ -1,0 +1,102 @@
+<?php
+
+echo "=== proc_* 函数测试 ===\n";
+
+// 测试 proc_open() 函数
+$pipes = [];
+$process = proc_open("echo 'Hello World'", [], $pipes);
+if($process !== false && is_resource($process)) {
+    Log::info("proc_open() 基本测试通过 - 返回资源对象");
+} else {
+    Log::fatal("proc_open() 基本测试失败 - 应该返回资源对象");
+}
+
+// 测试 proc_get_status() 函数
+$status = proc_get_status($process);
+if($status !== false && is_object($status)) {
+    $pid = $status->pid;
+    $running = $status->running;
+    if($pid > 0) {
+        Log::info("proc_get_status() 基本测试通过");
+    } else {
+        Log::fatal("proc_get_status() 基本测试失败");
+    }
+} else {
+    Log::fatal("proc_get_status() 基本测试失败");
+}
+
+// 测试 proc_close() 函数
+$exitCode = proc_close($process);
+if($exitCode >= -1) {
+    Log::info("proc_close() 基本测试通过");
+} else {
+    Log::fatal("proc_close() 基本测试失败");
+}
+
+// 测试 proc_terminate() 函数
+$pipes2 = [];
+$process2 = proc_open("sleep 5", [], $pipes2);
+if($process2 !== false) {
+    $terminated = proc_terminate($process2);
+    if($terminated === true) {
+        Log::info("proc_terminate() 基本测试通过");
+    } else {
+        Log::fatal("proc_terminate() 基本测试失败");
+    }
+    proc_close($process2);
+} else {
+    Log::fatal("proc_terminate() 测试失败 - 无法创建进程");
+}
+
+// 测试 proc_get_status() 获取运行状态
+$pipes3 = [];
+$process3 = proc_open("echo 'test'", [], $pipes3);
+if($process3 !== false) {
+    $status2 = proc_get_status($process3);
+    if($status2 !== false) {
+        $command = $status2->command;
+        $pid2 = $status2->pid;
+        if($command != "" && $pid2 > 0) {
+            Log::info("proc_get_status() 获取状态信息测试通过");
+        } else {
+            Log::fatal("proc_get_status() 获取状态信息测试失败");
+        }
+    }
+    proc_close($process3);
+} else {
+    Log::fatal("proc_get_status() 获取状态信息测试失败 - 无法创建进程");
+}
+
+// 测试 proc_open() 失败情况
+$invalidProcess = proc_open("", [], $pipes);
+if($invalidProcess === false) {
+    Log::info("proc_open() 空命令测试通过");
+} else {
+    Log::fatal("proc_open() 空命令测试失败");
+}
+
+// 测试 is_resource() 函数
+$pipes4 = [];
+$process4 = proc_open("echo 'test'", [], $pipes4);
+if(is_resource($process4)) {
+    Log::info("is_resource() 函数测试通过 - 正确识别资源对象");
+} else {
+    Log::fatal("is_resource() 函数测试失败 - 无法识别资源对象");
+}
+
+// 测试非资源对象
+if(!is_resource("string")) {
+    Log::info("is_resource() 非资源对象测试通过");
+} else {
+    Log::fatal("is_resource() 非资源对象测试失败");
+}
+
+if(!is_resource([])) {
+    Log::info("is_resource() 数组对象测试通过");
+} else {
+    Log::fatal("is_resource() 数组对象测试失败");
+}
+
+proc_close($process4);
+
+echo "=== proc_* 函数测试完成 ===\n";

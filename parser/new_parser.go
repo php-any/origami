@@ -298,6 +298,13 @@ func (p *NewStructParser) parseAnonymousClass(tracker *PositionTracker) (data.Ge
 			return nil, data.NewErrorThrow(p.newFrom(), errors.New("缺少访问修饰符"))
 		}
 
+		// 解析readonly关键字（在访问修饰符之后）
+		isReadonly := false
+		if p.current().Type() == token.READONLY {
+			isReadonly = true
+			p.next()
+		}
+
 		// 解析static关键字
 		isStatic := false
 		if p.current().Type() == token.STATIC {
@@ -311,7 +318,7 @@ func (p *NewStructParser) parseAnonymousClass(tracker *PositionTracker) (data.Ge
 			p.current().Type() == token.VARIABLE ||
 			isIdentOrTypeToken(p.current().Type()) ||
 			(p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type())) {
-			prop, acl := cp.parsePropertyWithAnnotations(modifier, isStatic, memberAnnotations)
+			prop, acl := cp.parsePropertyWithAnnotations(modifier, isStatic, isReadonly, memberAnnotations)
 			if acl != nil {
 				return nil, acl
 			}

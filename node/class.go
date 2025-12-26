@@ -1,6 +1,7 @@
 package node
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/php-any/origami/data"
@@ -155,6 +156,7 @@ type ClassProperty struct {
 	Name         string             // 属性名
 	Modifier     data.Modifier      // 访问修饰符
 	IsStatic     bool               // 是否是静态属性
+	IsReadonly   bool               // 是否是只读属性
 	DefaultValue data.GetValue      // 默认值
 	Annotations  []*data.ClassValue // 属性注解列表
 	Type         data.Types         // 属性类型
@@ -179,6 +181,11 @@ func (p *ClassProperty) SetValue(ctx data.Context, value data.Value) data.Contro
 
 // NewProperty 创建一个新的属性
 func NewProperty(from data.From, name string, modifier string, isStatic bool, defaultValue data.GetValue, tys ...data.Types) *ClassProperty {
+	return NewPropertyWithReadonly(from, name, modifier, isStatic, false, defaultValue, tys...)
+}
+
+// NewPropertyWithReadonly 创建一个新的属性（支持 readonly）
+func NewPropertyWithReadonly(from data.From, name string, modifier string, isStatic bool, isReadonly bool, defaultValue data.GetValue, tys ...data.Types) *ClassProperty {
 	if name[0:1] == "$" {
 		name = name[1:]
 	}
@@ -192,6 +199,7 @@ func NewProperty(from data.From, name string, modifier string, isStatic bool, de
 		Name:         name,
 		Modifier:     data.NewModifier(modifier),
 		IsStatic:     isStatic,
+		IsReadonly:   isReadonly,
 		DefaultValue: defaultValue,
 		Type:         ty,
 	}
@@ -319,7 +327,14 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		if ctl != nil {
 			switch rv := ctl.(type) {
 			case data.ReturnControl:
-				return rv.ReturnValue(), nil
+				ret := rv.ReturnValue()
+				if m.Ret == nil {
+					return ret, nil // 不判断类型
+				}
+				if m.Ret.Is(ret) {
+					return ret, nil
+				}
+				return nil, data.NewErrorThrow(m.GetFrom(), fmt.Errorf("方法(%s)返回值类型错误; 请检查类型和数量匹配", m.Name))
 			case data.AddStack:
 				if c, ok := ctx.(*data.ClassMethodContext); ok {
 					rv.AddStackWithInfo(m.from, c.Class.GetName(), m.GetName())

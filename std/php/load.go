@@ -2,9 +2,11 @@ package php
 
 import (
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/std/php/array"
 	"github.com/php-any/origami/std/php/core"
 	"github.com/php-any/origami/std/php/file"
 	"github.com/php-any/origami/std/php/preg"
+	"github.com/php-any/origami/std/php/proc"
 )
 
 func Load(vm data.VM) {
@@ -27,12 +29,13 @@ func Load(vm data.VM) {
 		NewStrlenFunction(),
 		NewStrposFunction(),
 		NewSubstrFunction(),
+		NewSubstrCountFunction(),
 		NewTrimFunction(),
 		NewExplodeFunction(),
 		NewImplodeFunction(),
 		NewCountFunction(),
 		NewInArrayFunction(),
-		NewArrayKeyExistsFunction(),
+		array.NewArrayKeyExistsFunction(),
 		NewMd5Function(),
 		NewBase64EncodeFunction(),
 		NewBase64DecodeFunction(),
@@ -40,9 +43,9 @@ func Load(vm data.VM) {
 		NewUrldecodeFunction(),
 		NewRawurlencodeFunction(),
 		NewRawurldecodeFunction(),
-		NewArrayMergeFunction(),
-		NewArrayPushFunction(),
-		NewArrayPopFunction(),
+		array.NewArrayMergeFunction(),
+		array.NewArrayPushFunction(),
+		array.NewArrayPopFunction(),
 		NewStrReplaceFunction(),
 		NewStrtolowerFunction(),
 		NewStrtoupperFunction(),
@@ -70,8 +73,15 @@ func Load(vm data.VM) {
 		NewIsNullFunction(),
 		NewIsNumericFunction(),
 		NewIsObjectFunction(),
-		NewArrayShiftFunction(),
-		NewArrayUnshiftFunction(),
+		array.NewArrayShiftFunction(),
+		array.NewArrayUnshiftFunction(),
+		array.NewArraySliceFunction(),
+		array.NewEndFunction(),
+		array.NewResetFunction(),
+		array.NewNextFunction(),
+		array.NewPrevFunction(),
+		array.NewCurrentFunction(),
+		array.NewKeyFunction(),
 		NewSprintfFunction(),
 		NewVarDumpFunction(),
 		core.NewStreamResolveIncludePathFunction(),
@@ -89,6 +99,11 @@ func Load(vm data.VM) {
 		file.NewIsWritableFunction(),
 		file.NewFilesizeFunction(),
 		file.NewFilemtimeFunction(),
+		NewIsResourceFunction(),
+		proc.NewProcOpenFunction(),
+		proc.NewProcCloseFunction(),
+		proc.NewProcGetStatusFunction(),
+		proc.NewProcTerminateFunction(),
 	} {
 		vm.AddFunc(fun)
 	}
