@@ -292,3 +292,37 @@ func NewCallerContextParameter(from data.From) data.GetValue {
 func (p *CallerContextParameter) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return p, nil
 }
+
+type CallFunctionLater struct {
+	Ctx  data.Context
+	Name string
+	Fun  data.FuncStmt
+}
+
+func (c *CallFunctionLater) Call(ctx data.Context) (data.GetValue, data.Control) {
+	if c.Fun == nil {
+		c.Fun, _ = c.Ctx.GetVM().GetFunc(c.Name)
+	}
+	return c.Fun.Call(ctx)
+}
+
+func (c *CallFunctionLater) GetName() string {
+	if c.Fun == nil {
+		c.Fun, _ = c.Ctx.GetVM().GetFunc(c.Name)
+	}
+	return c.Fun.GetName()
+}
+
+func (c *CallFunctionLater) GetParams() []data.GetValue {
+	if c.Fun == nil {
+		c.Fun, _ = c.Ctx.GetVM().GetFunc(c.Name)
+	}
+	return c.Fun.GetParams()
+}
+
+func (c *CallFunctionLater) GetVariables() []data.Variable {
+	if c.Fun == nil {
+		c.Fun, _ = c.Ctx.GetVM().GetFunc(c.Name)
+	}
+	return c.Fun.GetVariables()
+}

@@ -21,6 +21,15 @@ func (ep *ArrayParser) Parse() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
 	// 跳过 array
 	ep.next()
+
+	if ep.checkPositionIs(0, token.VARIABLE) {
+		// array $data
+		name := ep.current().Literal()
+		ep.next()
+		val := ep.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+		return node.NewVariableWithFirst(tracker.EndBefore(), val), nil
+	}
+
 	// 期待 (
 	if acl := ep.nextAndCheck(token.LPAREN); acl != nil {
 		return nil, acl

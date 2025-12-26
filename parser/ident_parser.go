@@ -69,7 +69,11 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 			}
 		}
 
-		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("未定义的函数:"+name))
+		v, acl := NewLbraceParser(p.Parser).Parse()
+		if p.namespace != nil {
+			name = p.namespace.GetName() + "\\" + name
+		}
+		return node.NewCallExpression(tracker.EndBefore(), name, []data.GetValue{v}, &node.CallFunctionLater{Name: name, Ctx: p.vm.CreateContext(nil)}), acl
 	} else if p.checkPositionIs(0, token.LBRACKET) && !p.isTokensAdjacent(startToken, p.current()) {
 		if full, ok := p.findFullFunNameByNamespace(name); ok {
 			fn, ok := p.vm.GetFunc(full)
