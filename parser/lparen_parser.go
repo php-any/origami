@@ -45,8 +45,9 @@ func (ep *LparenParser) isTypeCast() bool {
 	// 其中 TYPE_NAME 可以是标识符、array 关键字或内置类型关键字（如 bool）
 	if ep.checkPositionIs(1, token.IDENTIFIER, token.ARRAY, token.BOOL) &&
 		ep.checkPositionIs(2, token.RPAREN) &&
-		!ep.checkPositionIs(3, token.ARRAY_KEY_VALUE) &&
-		ep.checkPositionIs(3, token.IDENTIFIER, token.VARIABLE, token.LPAREN, token.INT, token.FLOAT, token.STRING, token.NULL, token.TRUE, token.FALSE) {
+		!ep.checkPositionIs(3, token.ARRAY_KEY_VALUE) {
+		//  &&
+		//		ep.checkPositionIs(3, token.IDENTIFIER, token.VARIABLE, token.LPAREN, token.INT, token.FLOAT, token.STRING, token.NULL, token.TRUE, token.FALSE)
 		return true
 	}
 	return false

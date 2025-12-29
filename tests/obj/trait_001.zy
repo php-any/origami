@@ -1,14 +1,14 @@
 namespace tests\obj;
 
 // 测试基本的 trait 定义和使用
-trait Loggable {
+trait Loggable1 {
     public function log($message) {
         return "Log: " . $message;
     }
 }
 
 class User {
-    use Loggable;
+    use Loggable1;
     
     private $name;
     

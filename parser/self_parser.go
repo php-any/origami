@@ -25,10 +25,17 @@ func (sp *SelfParser) Parse() (data.GetValue, data.Control) {
 	tracker := sp.StartTracking()
 	sp.next()
 
-	// 检查是否是 self:: 语法（支持 IDENTIFIER 或 VARIABLE）
+	// 检查是否是 self:: 语法（支持 IDENTIFIER、VARIABLE 或 CLASS）
 	if sp.checkPositionIs(0, token.SCOPE_RESOLUTION) &&
-		(sp.checkPositionIs(1, token.IDENTIFIER) || sp.checkPositionIs(1, token.VARIABLE)) {
+		(sp.checkPositionIs(1, token.IDENTIFIER, token.VARIABLE, token.CLASS)) {
 		sp.next() // 跳过 ::
+		
+		// 检查是否是 self::class
+		if sp.current().Type() == token.CLASS {
+			sp.next() // 跳过 class
+			return node.NewSelfClass(tracker.EndBefore()), nil
+		}
+		
 		isVariable := sp.current().Type() == token.VARIABLE
 		memberName := sp.current().Literal()
 		sp.next()

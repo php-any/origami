@@ -1,0 +1,17 @@
+namespace tests\obj;
+
+// 测试 static::class
+class TestStatic {
+    public function getStaticClass() {
+        return static::class;
+    }
+}
+
+$obj = new TestStatic();
+$className = $obj->getStaticClass();
+if($className == "tests\\obj\\TestStatic") {
+    Log::info("static::class 返回正确的类名");
+} else {
+    Log::fatal("static::class 返回错误的类名: " . $className);
+}
+

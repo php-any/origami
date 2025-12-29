@@ -1,0 +1,17 @@
+namespace tests\obj;
+
+// 测试 self::class
+class TestSelf {
+    public function getSelfClass() {
+        return self::class;
+    }
+}
+
+$obj = new TestSelf();
+$className = $obj->getSelfClass();
+if($className == "tests\\obj\\TestSelf") {
+    Log::info("self::class 返回正确的类名");
+} else {
+    Log::fatal("self::class 返回错误的类名: " . $className);
+}
+

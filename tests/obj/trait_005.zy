@@ -18,7 +18,7 @@ trait CounterHelper {
     }
 }
 
-class Counter {
+class Counter5 {
     use CounterHelper;
     
     public function __construct() {
@@ -26,7 +26,7 @@ class Counter {
     }
 }
 
-$counter = new Counter();
+$counter = new Counter5();
 if($counter->getCount() == 0) {
     Log::info("trait 属性初始值正确");
 } else {

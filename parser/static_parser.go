@@ -26,12 +26,19 @@ func (sp *StaticParser) Parse() (data.GetValue, data.Control) {
 	// 跳过 static
 	sp.next()
 
-	// 1) 支持 static::xxx() / static::$prop 这种静态调用方式
+	// 1) 支持 static::xxx() / static::$prop / static::class 这种静态调用方式
 	//    与 self::/parent:: 类似，只是关键字不同
 	if sp.checkPositionIs(0, token.SCOPE_RESOLUTION) &&
-		(sp.checkPositionIs(1, token.IDENTIFIER) || sp.checkPositionIs(1, token.VARIABLE)) {
-		// static::xxx / static::$xxx
+		(sp.checkPositionIs(1, token.IDENTIFIER) || sp.checkPositionIs(1, token.VARIABLE) || sp.checkPositionIs(1, token.CLASS)) {
 		sp.next() // 跳过 ::
+		
+		// 检查是否是 static::class
+		if sp.current().Type() == token.CLASS {
+			sp.next() // 跳过 class
+			return node.NewStaticClass(tracker.EndBefore()), nil
+		}
+		
+		// static::xxx / static::$xxx
 		isVariable := sp.current().Type() == token.VARIABLE
 		memberName := sp.current().Literal()
 		sp.next()

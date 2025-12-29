@@ -1,7 +1,7 @@
 namespace tests\obj;
 
 // 测试多个 trait 的使用
-trait Loggable {
+trait Loggable2 {
     public function log($message) {
         return "Log: " . $message;
     }
@@ -13,8 +13,8 @@ trait Timestampable {
     }
 }
 
-class User {
-    use Loggable, Timestampable;
+class User2 {
+    use Loggable2, Timestampable;
     
     private $name;
     
@@ -27,7 +27,7 @@ class User {
     }
 }
 
-$user = new User("Bob");
+$user = new User2("Bob");
 if($user->log("test") == "Log: test") {
     Log::info("第一个 trait 方法调用成功");
 } else {
