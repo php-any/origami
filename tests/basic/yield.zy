@@ -1,0 +1,177 @@
+namespace tests\basic;
+
+// 测试基本的 yield 功能
+function simpleGenerator() {
+    yield 1;
+    yield 2;
+    yield 3;
+}
+
+$gen = simpleGenerator();
+if($gen != null) {
+    Log::info("生成器创建成功");
+} else {
+    Log::fatal("生成器创建失败");
+}
+
+// 测试 yield key => value
+function keyValueGenerator() {
+    yield "a" => 1;
+    yield "b" => 2;
+    yield "c" => 3;
+}
+
+$gen2 = keyValueGenerator();
+if($gen2 != null) {
+    Log::info("带键的生成器创建成功");
+} else {
+    Log::fatal("带键的生成器创建失败");
+}
+
+// 测试 yield from
+function sourceGenerator() {
+    yield 10;
+    yield 20;
+    yield 30;
+}
+
+function delegateGenerator() {
+    yield from sourceGenerator();
+    yield 40;
+}
+
+$gen3 = delegateGenerator();
+if($gen3 != null) {
+    Log::info("yield from 生成器创建成功");
+} else {
+    Log::fatal("yield from 生成器创建失败");
+}
+
+// 测试生成器方法
+function numberGenerator() {
+    yield 1;
+    yield 2;
+    yield 3;
+}
+
+$gen4 = numberGenerator();
+if($gen4 != null) {
+    // 测试 valid
+    if($gen4->valid()) {
+        Log::info("生成器 valid() 方法测试通过");
+    } else {
+        Log::fatal("生成器 valid() 方法测试失败");
+    }
+    
+    // 测试 current
+    $current = $gen4->current();
+    if($current == 1) {
+        Log::info("生成器 current() 方法测试通过，值: {$current}");
+    } else {
+        Log::fatal("生成器 current() 方法测试失败，期望: 1, 实际: {$current}");
+    }
+    
+    // 测试 next
+    $hasNext = $gen4->next();
+    $current = $gen4->current();
+    if($current == 2) {
+        Log::info("生成器 next() 方法测试通过，值: {$current}");
+    } else {
+        Log::fatal("生成器 next() 方法测试失败，期望: 2, 实际: {$current}");
+    }
+    
+    // 继续迭代
+    $gen4->next();
+    $current = $gen4->current();
+    if($current == 3) {
+        Log::info("生成器继续迭代测试通过，值: {$current}");
+    } else {
+        Log::fatal("生成器继续迭代测试失败，期望: 3, 实际: {$current}");
+    }
+    
+    // 测试结束
+    $gen4->next();
+    if(!$gen4->valid()) {
+        Log::info("生成器结束状态测试通过");
+    } else {
+        Log::fatal("生成器结束状态测试失败");
+    }
+} else {
+    Log::fatal("生成器创建失败");
+}
+
+// 测试在循环中使用 yield
+function rangeGenerator($start, $end) {
+    for(int $i = $start; $i < $end; $i++) {
+        yield $i;
+    }
+}
+
+$gen5 = rangeGenerator(0, 5);
+if($gen5 != null) {
+    $count = 0;
+    $sum = 0;
+    while($gen5->valid()) {
+        $value = $gen5->current();
+        $sum += $value;
+        $count++;
+        $gen5->next();
+    }
+    if($count == 5 && $sum == 10) {
+        Log::info("循环中使用 yield 测试通过，count: {$count}, sum: {$sum}");
+    } else {
+        Log::fatal("循环中使用 yield 测试失败，count: {$count}, sum: {$sum}");
+    }
+} else {
+    Log::fatal("rangeGenerator 创建失败");
+}
+
+// 测试 yield from 数组
+function arrayGenerator() {
+    $arr = [100, 200, 300];
+    yield from $arr;
+}
+
+$gen6 = arrayGenerator();
+if($gen6 != null) {
+    $values = [];
+    while($gen6->valid()) {
+        $values[] = $gen6->current();
+        $gen6->next();
+    }
+    if(count($values) == 3 && $values[0] == 100 && $values[1] == 200 && $values[2] == 300) {
+        Log::info("yield from 数组测试通过");
+    } else {
+        Log::fatal("yield from 数组测试失败");
+    }
+} else {
+    Log::fatal("arrayGenerator 创建失败");
+}
+
+// 测试 yield key => value 的迭代
+function keyValueGen() {
+    yield "first" => 1;
+    yield "second" => 2;
+    yield "third" => 3;
+}
+
+$gen7 = keyValueGen();
+if($gen7 != null) {
+    $keys = [];
+    $values = [];
+    while($gen7->valid()) {
+        $keys[] = $gen7->key();
+        $values[] = $gen7->current();
+        $gen7->next();
+    }
+    if(count($keys) == 3 && $keys[0] == "first" && $values[0] == 1) {
+        Log::info("yield key => value 迭代测试通过");
+    } else {
+        Log::fatal("yield key => value 迭代测试失败");
+    }
+} else {
+    Log::fatal("keyValueGen 创建失败");
+}
+
+Log::info("✅ yield 功能测试完成");
+

@@ -212,50 +212,87 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			}
 		}
 		return v, nil
-	case *data.ObjectValue:
+	case data.Iterator:
+		// 直接实现 Iterator 接口的值
 		var v data.GetValue
 		var c data.Control
-		var shouldBreak bool
-		var shouldReturn bool
 
-		// 使用 RangeProperties 保证遍历顺序与插入顺序一致
-		array.RangeProperties(func(i string, element data.Value) bool {
-			// 设置值变量
-			ctx.SetVariableValue(u.Value, element)
+		// rewind
+		_, ctl := array.Rewind(ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
 
-			// 如果有键变量，设置键变量
-			if u.Key != nil {
-				keyValue := data.NewStringValue(i)
-				ctx.SetVariableValue(u.Key, keyValue)
+		for {
+			// valid
+			validV, ctl := array.Valid(ctx)
+			if ctl != nil {
+				return nil, ctl
+			}
+			// 将 valid 结果转换为 bool
+			if validBool, ok := validV.(data.AsBool); ok {
+				valid, err := validBool.AsBool()
+				if err != nil {
+					return nil, utils.NewThrow(err)
+				}
+				if !valid {
+					break
+				}
+			} else {
+				// 如果无法转换为 bool，则检查是否为非空值
+				if validV == nil {
+					break
+				}
 			}
 
-			// 执行循环体
+			// current
+			valV, ctl := array.Current(ctx)
+			if ctl != nil {
+				return nil, ctl
+			}
+
+			// key
+			var keyV data.Value
+			if u.Key != nil {
+				kv, kctl := array.Key(ctx)
+				if kctl != nil {
+					return nil, kctl
+				}
+				keyV = kv
+			}
+
+			ctx.SetVariableValue(u.Value, valV)
+			if u.Key != nil {
+				ctx.SetVariableValue(u.Key, keyV)
+			}
+
+			shouldSkipNext := false
 			for _, statement := range u.Body {
 				v, c = statement.GetValue(ctx)
 				if c != nil {
-					// break 跳出循环
 					if ctrl, ok := c.(data.BreakControl); ok && ctrl.IsBreak() {
-						shouldBreak = true
-						return false
+						return nil, nil
 					}
-					// continue 跳到下一次迭代
 					if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
-						return true
+						// 推进迭代器进入下一次
+						if ctl := array.Next(ctx); ctl != nil {
+							return nil, ctl
+						}
+						shouldSkipNext = true
+						break
 					}
-					// return/throw 直接返回
-					shouldReturn = true
-					return false
+					return nil, checkThrowControlFrom(statement, c)
 				}
 			}
-			return true
-		})
 
-		if shouldBreak {
-			return nil, nil
+			// next（如果 continue 已经调用过则跳过）
+			if !shouldSkipNext {
+				if ctl := array.Next(ctx); ctl != nil {
+					return nil, ctl
+				}
+			}
 		}
-		if shouldReturn {
-			return nil, c
-		}
+
 		return v, nil
 	case *data.NullValue:
 		return nil, nil

@@ -1,31 +1,13 @@
 <?php
 
-class Test {
-        public function notify(Started $event): void
-        {
-            $subscribers = [
-                new class($printer)
-                {
-                    public function notify(Configured $event): void
-                    {
-                        $this->printer()->setDecorated(
-                            $event->configuration()->colors()
-                        );
-                    }
-                },
-                new class($printer)
-                {
-                    public function notify(Configured $event): void
-                    {
-                        $this->printer()->setDecorated(
-                            $event->configuration()->colors()
-                        );
-                    }
-                },
-            ];
-        }
+function gen_one_to_three() {
+    for ($i = 1; $i <= 3; $i++) {
+        //注意变量$i的值在不同的yield之间是保持传递的。
+        yield $i;
+    }
 }
-$data = [
-    1,2,
-    3,4
-];
+
+$generator = gen_one_to_three();
+foreach ($generator as $value) {
+    echo "{$value}\n";
+}

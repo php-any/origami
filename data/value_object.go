@@ -18,6 +18,7 @@ type ObjectValue struct {
 	Value
 	Context
 	property *OrderedMap
+	iterator int // 迭代器当前位置索引
 }
 
 func (o *ObjectValue) GoContext() context.Context {
@@ -104,4 +105,43 @@ func (o *ObjectValue) Unmarshal(data []byte, serializer Serializer) error {
 
 func (o *ObjectValue) ToGoValue(serializer Serializer) (any, error) {
 	return serializer.MarshalObject(o)
+}
+
+// Iterator 接口实现
+
+// Rewind 将指针重置到第一个元素
+func (o *ObjectValue) Rewind(_ Context) (Value, Control) {
+	o.iterator = 0
+	return nil, nil
+}
+
+// Valid 检查当前位置是否有效（是否还有元素）
+func (o *ObjectValue) Valid(_ Context) (Value, Control) {
+	count := o.property.Len()
+	valid := o.iterator >= 0 && o.iterator < count
+	return NewBoolValue(valid), nil
+}
+
+// Current 返回当前元素
+func (o *ObjectValue) Current(_ Context) (Value, Control) {
+	_, value, ok := o.property.GetByIndex(o.iterator)
+	if !ok {
+		return NewNullValue(), nil
+	}
+	return value, nil
+}
+
+// Key 返回当前元素的键
+func (o *ObjectValue) Key(_ Context) (Value, Control) {
+	key, _, ok := o.property.GetByIndex(o.iterator)
+	if !ok {
+		return NewNullValue(), nil
+	}
+	return NewStringValue(key), nil
+}
+
+// Next 将指针向前移动到下一个元素
+func (o *ObjectValue) Next(_ Context) Control {
+	o.iterator++
+	return nil
 }

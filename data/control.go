@@ -45,11 +45,20 @@ type GotoControl interface {
 	GetLabel() string
 }
 
-// YieldControl 表示生成器yield控制流
+// YieldValueControl 表示生成器yield控制流
+type YieldValueControl interface {
+	Control
+	GetYieldKey() Value
+	GetYieldValue() Value
+}
+
+// YieldControl 函数Yield中断
 type YieldControl interface {
 	Control
-	// IsYield 是否为生成器yield
-	IsYield() bool
-	// GetKey 获取生成器键
-	GetKey() Value
+	// GetBodyStackState 模拟返回堆栈状态的值
+	GetBodyStackState(ctx Context) Generator
+	// SetBodyIndex 添加函数 Body 索引状态
+	SetBodyIndex(index int, body []GetValue)
+	// GetBodyIndex 获取函数 Body 索引
+	GetBodyIndex() int
 }

@@ -77,3 +77,21 @@ func (om *OrderedMap) Range(fn func(key string, value Value) bool) {
 		}
 	}
 }
+
+// Len 获取元素数量
+func (om *OrderedMap) Len() int {
+	om.mu.RLock()
+	defer om.mu.RUnlock()
+	return len(om.items)
+}
+
+// GetByIndex 按索引获取键值对
+func (om *OrderedMap) GetByIndex(index int) (string, Value, bool) {
+	om.mu.RLock()
+	defer om.mu.RUnlock()
+	if index >= 0 && index < len(om.items) {
+		item := om.items[index]
+		return item.Key, item.Value, true
+	}
+	return "", nil, false
+}

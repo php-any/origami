@@ -64,7 +64,7 @@ func (f *FunctionStatement) GetReturnType() data.Types {
 func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control) {
 	var v data.GetValue
 	var ctl data.Control
-	for _, statement := range f.Body {
+	for bodyIndex, statement := range f.Body {
 		v, ctl = statement.GetValue(ctx)
 		if ctl != nil {
 			switch rv := ctl.(type) {
@@ -77,6 +77,10 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 					return ret, nil
 				}
 				return nil, data.NewErrorThrow(f.GetFrom(), fmt.Errorf("函数(%s)返回值类型错误; 请检查类型和数量匹配", f.Name))
+			case data.YieldControl:
+				// 更新yield的body索引状态和上下文
+				rv.SetBodyIndex(bodyIndex, f.Body)
+				return rv.GetBodyStackState(ctx), nil
 			case data.AddStack:
 				rv.AddStackWithInfo(f.from, "function", f.Name)
 			}
