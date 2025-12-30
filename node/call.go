@@ -112,6 +112,7 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 						return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.FunName))
 					}
 				case *CallObjectProperty:
+					return nil, data.NewErrorThrow(paramTV.from, errors.New(paramTV.GetName()))
 					acl := argObj.SetValue(fnCtx, data.NewReferenceValue(paramTV, ctx))
 					if acl != nil {
 						return nil, acl

@@ -101,6 +101,10 @@ func (f *ForYieldControl) AsString() string {
 	return "for yield"
 }
 
+func (f *ForYieldControl) GetValue(ctx data.Context) (data.Value, data.Control) {
+	return nil, nil
+}
+
 func (f *ForYieldControl) Current(ctx data.Context) (data.Value, data.Control) {
 	return f.Value.GetYieldValue(), nil
 }

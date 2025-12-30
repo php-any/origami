@@ -62,3 +62,7 @@ type YieldControl interface {
 	// GetBodyIndex 获取函数 Body 索引
 	GetBodyIndex() int
 }
+
+type IteratorControl interface {
+	Iterator
+}
