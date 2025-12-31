@@ -6,6 +6,123 @@ import (
 	"github.com/php-any/origami/data"
 )
 
+// createInstanceAndCallConstructor 创建类实例并调用构造函数
+// 这是一个公共辅助函数，用于减少重复代码
+func createInstanceAndCallConstructor(
+	from data.From,
+	className string,
+	arguments []data.GetValue,
+	ctx data.Context,
+) (data.GetValue, data.Control) {
+	vm := ctx.GetVM()
+	stmt, acl := vm.GetOrLoadClass(className)
+	if acl != nil {
+		if throwValue, ok := acl.(*data.ThrowValue); ok {
+			throwValue.AddStackWithInfo(from, className, "__construct")
+		}
+		return nil, acl
+	}
+
+	object, acl := stmt.GetValue(ctx.CreateBaseContext())
+	if acl != nil {
+		return nil, acl
+	}
+
+	if object, ok := object.(*data.ClassValue); ok {
+		if method := object.Class.GetConstruct(); method != nil {
+			varies := method.GetVariables()
+			fnCtx := object.CreateContext(varies)
+			// 入参的值设置到上下文中
+			for index, arg := range arguments {
+				switch argTV := arg.(type) {
+				case *NamedArgument:
+					tempV, acl := argTV.GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+					vari, err := findVariable(varies, argTV.Name)
+					if err != nil {
+						return nil, data.NewErrorThrow(from, err)
+					}
+					fnCtx.SetVariableValue(vari, tempV.(data.Value))
+				default:
+					tempV, acl := argTV.GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+
+					if index >= len(varies) {
+						return nil, data.NewErrorThrow(from, fmt.Errorf("对象(%v)构造函数参数数量超出限制: %d", object.Class.GetName(), index))
+					}
+
+					fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
+				}
+			}
+
+			_, acl = method.Call(fnCtx)
+			if acl != nil {
+				return nil, acl
+			}
+		}
+	}
+
+	return object, acl
+}
+
+// createInstanceAndCallConstructorWithStmt 使用已加载的类语句创建实例并调用构造函数
+// 这是 createInstanceAndCallConstructor 的变体，用于已经加载并处理过的类（如泛型类）
+func createInstanceAndCallConstructorWithStmt(
+	from data.From,
+	stmt data.ClassStmt,
+	arguments []data.GetValue,
+	ctx data.Context,
+) (data.GetValue, data.Control) {
+	object, acl := stmt.GetValue(ctx.CreateBaseContext())
+	if acl != nil {
+		return nil, acl
+	}
+
+	if object, ok := object.(*data.ClassValue); ok {
+		if method := object.Class.GetConstruct(); method != nil {
+			varies := method.GetVariables()
+			fnCtx := object.CreateContext(varies)
+			// 入参的值设置到上下文中
+			for index, arg := range arguments {
+				switch argTV := arg.(type) {
+				case *NamedArgument:
+					tempV, acl := argTV.GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+					vari, err := findVariable(varies, argTV.Name)
+					if err != nil {
+						return nil, data.NewErrorThrow(from, err)
+					}
+					fnCtx.SetVariableValue(vari, tempV.(data.Value))
+				default:
+					tempV, acl := argTV.GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+
+					if index >= len(varies) {
+						return nil, data.NewErrorThrow(from, fmt.Errorf("对象(%v)构造函数参数数量超出限制: %d", object.Class.GetName(), index))
+					}
+
+					fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
+				}
+			}
+
+			_, acl = method.Call(fnCtx)
+			if acl != nil {
+				return nil, acl
+			}
+		}
+	}
+
+	return object, acl
+}
+
 // NewExpression 表示 new 表达式
 type NewExpression struct {
 	*Node     `pp:"-"`
@@ -25,55 +142,7 @@ func NewNewExpression(from *TokenFrom, className string, arguments []data.GetVal
 
 // GetValue 实现 Value 接口
 func (n *NewExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	vm := ctx.GetVM()
-	stmt, acl := vm.GetOrLoadClass(n.ClassName)
-	if acl != nil {
-		if throwValue, ok := acl.(*data.ThrowValue); ok {
-			throwValue.AddStackWithInfo(n.from, n.ClassName, "__construct")
-		}
-		return nil, acl
-	}
-
-	object, acl := stmt.GetValue(ctx.CreateBaseContext())
-	if acl != nil {
-		return nil, acl
-	}
-
-	if object, ok := object.(*data.ClassValue); ok {
-		if method := object.Class.GetConstruct(); method != nil {
-			varies := method.GetVariables()
-			fnCtx := object.CreateContext(varies)
-			// 入参的值设置到上下文中
-			for index, arg := range n.Arguments {
-				switch argTV := arg.(type) {
-				case *NamedArgument:
-					tempV, acl := argTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					vari, err := findVariable(varies, argTV.Name)
-					if err != nil {
-						return nil, data.NewErrorThrow(n.from, err)
-					}
-					fnCtx.SetVariableValue(vari, tempV.(data.Value))
-				default:
-					tempV, acl := argTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-
-					fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
-				}
-			}
-
-			_, acl = method.Call(fnCtx)
-			if acl != nil {
-				return nil, acl
-			}
-		}
-	}
-
-	return object, acl
+	return createInstanceAndCallConstructor(n.from, n.ClassName, n.Arguments, ctx)
 }
 
 // NewGenerated new T()
@@ -130,49 +199,7 @@ func (n *NewClassGenerated) GetValue(ctx data.Context) (data.GetValue, data.Cont
 		stmt = classGeneric.Clone(mT)
 	}
 
-	object, acl := stmt.GetValue(ctx.CreateBaseContext())
-	if acl != nil {
-		return nil, acl
-	}
-
-	if object, ok := object.(*data.ClassValue); ok {
-		if method := object.Class.GetConstruct(); method != nil {
-			varies := method.GetVariables()
-			fnCtx := object.CreateContext(varies)
-			// 入参的值设置到上下文中
-			for index, arg := range n.Arguments {
-				switch argTV := arg.(type) {
-				case *NamedArgument:
-					tempV, acl := argTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					vari, err := findVariable(varies, argTV.Name)
-					if err != nil {
-						return nil, data.NewErrorThrow(n.from, err)
-					}
-					fnCtx.SetVariableValue(vari, tempV.(data.Value))
-				default:
-					tempV, acl := argTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					if index >= len(varies) {
-						return nil, data.NewErrorThrow(n.from, fmt.Errorf("对象(%v)构造函数参数数量超出限制: %d", object.Class.GetName(), index))
-					}
-
-					fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
-				}
-			}
-
-			_, acl = method.Call(fnCtx)
-			if acl != nil {
-				return nil, acl
-			}
-		}
-	}
-
-	return object, acl
+	return createInstanceAndCallConstructorWithStmt(n.from, stmt, n.Arguments, ctx)
 }
 
 // NewVariableExpression 表示使用变量作为类名的 new 表达式
@@ -220,56 +247,7 @@ func (n *NewVariableExpression) GetValue(ctx data.Context) (data.GetValue, data.
 		return nil, data.NewErrorThrow(n.from, fmt.Errorf("new表达式中的类名变量不能为空"))
 	}
 
-	vm := ctx.GetVM()
-	stmt, acl := vm.GetOrLoadClass(className)
-	if acl != nil {
-		return nil, acl
-	}
-
-	object, acl := stmt.GetValue(ctx.CreateBaseContext())
-	if acl != nil {
-		return nil, acl
-	}
-
-	if object, ok := object.(*data.ClassValue); ok {
-		if method := object.Class.GetConstruct(); method != nil {
-			varies := method.GetVariables()
-			fnCtx := object.CreateContext(varies)
-			// 入参的值设置到上下文中
-			for index, arg := range n.Arguments {
-				switch argTV := arg.(type) {
-				case *NamedArgument:
-					tempV, acl := argTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					vari, err := findVariable(varies, argTV.Name)
-					if err != nil {
-						return nil, data.NewErrorThrow(n.from, err)
-					}
-					fnCtx.SetVariableValue(vari, tempV.(data.Value))
-				default:
-					tempV, acl := argTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-
-					if index >= len(varies) {
-						return nil, data.NewErrorThrow(n.from, fmt.Errorf("对象(%v)构造函数参数数量超出限制: %d", object.Class.GetName(), index))
-					}
-
-					fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
-				}
-			}
-
-			_, acl = method.Call(fnCtx)
-			if acl != nil {
-				return nil, acl
-			}
-		}
-	}
-
-	return object, acl
+	return createInstanceAndCallConstructor(n.from, className, n.Arguments, ctx)
 }
 
 // NewSelfExpression 表示 new self 表达式
@@ -298,57 +276,37 @@ func (n *NewSelfExpression) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	currentClass := classCtx.Class
 	className := currentClass.GetName()
 
-	vm := ctx.GetVM()
-	stmt, acl := vm.GetOrLoadClass(className)
-	if acl != nil {
-		if throwValue, ok := acl.(*data.ThrowValue); ok {
-			throwValue.AddStackWithInfo(n.from, className, "__construct")
-		}
-		return nil, acl
+	return createInstanceAndCallConstructor(n.from, className, n.Arguments, ctx)
+}
+
+// NewStaticExpression 表示 new static 表达式
+// 在 PHP 中，new static 使用 late static binding，创建实际调用时的类实例
+// 当前实现暂时使用当前类的类名，后续可以增强为真正的 late static binding
+type NewStaticExpression struct {
+	*Node     `pp:"-"`
+	Arguments []data.GetValue
+}
+
+// NewNewStaticExpression 创建一个新的 new static 表达式节点
+func NewNewStaticExpression(from *TokenFrom, arguments []data.GetValue) *NewStaticExpression {
+	return &NewStaticExpression{
+		Node:      NewNode(from),
+		Arguments: arguments,
+	}
+}
+
+// GetValue 实现 Value 接口
+func (n *NewStaticExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	// 检查是否在类方法上下文中
+	classCtx, ok := ctx.(*data.ClassMethodContext)
+	if !ok {
+		return nil, data.NewErrorThrow(n.from, fmt.Errorf("new static 只能在类方法中使用"))
 	}
 
-	object, acl := stmt.GetValue(ctx.CreateBaseContext())
-	if acl != nil {
-		return nil, acl
-	}
+	// 获取当前类的类名
+	// TODO: 实现真正的 late static binding，返回实际调用时的类名（子类）
+	currentClass := classCtx.Class
+	className := currentClass.GetName()
 
-	if object, ok := object.(*data.ClassValue); ok {
-		if method := object.Class.GetConstruct(); method != nil {
-			varies := method.GetVariables()
-			fnCtx := object.CreateContext(varies)
-			// 入参的值设置到上下文中
-			for index, arg := range n.Arguments {
-				switch argTV := arg.(type) {
-				case *NamedArgument:
-					tempV, acl := argTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					vari, err := findVariable(varies, argTV.Name)
-					if err != nil {
-						return nil, data.NewErrorThrow(n.from, err)
-					}
-					fnCtx.SetVariableValue(vari, tempV.(data.Value))
-				default:
-					tempV, acl := argTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-
-					if index >= len(varies) {
-						return nil, data.NewErrorThrow(n.from, fmt.Errorf("对象(%v)构造函数参数数量超出限制: %d", object.Class.GetName(), index))
-					}
-
-					fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
-				}
-			}
-
-			_, acl = method.Call(fnCtx)
-			if acl != nil {
-				return nil, acl
-			}
-		}
-	}
-
-	return object, acl
+	return createInstanceAndCallConstructor(n.from, className, n.Arguments, ctx)
 }

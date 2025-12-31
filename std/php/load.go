@@ -33,6 +33,7 @@ func Load(vm data.VM) {
 		NewSubstrFunction(),
 		NewSubstrCountFunction(),
 		NewTrimFunction(),
+		NewRtrimFunction(),
 		NewExplodeFunction(),
 		NewImplodeFunction(),
 		NewCountFunction(),

@@ -55,14 +55,6 @@ type YieldValueControl interface {
 // YieldControl 函数Yield中断
 type YieldControl interface {
 	Control
-	// GetBodyStackState 模拟返回堆栈状态的值
-	GetBodyStackState(ctx Context) Generator
-	// SetBodyIndex 添加函数 Body 索引状态
-	SetBodyIndex(index int, body []GetValue)
-	// GetBodyIndex 获取函数 Body 索引
-	GetBodyIndex() int
-}
-
-type IteratorControl interface {
-	Iterator
+	YieldValueControl
+	CreateStackState(ctx Context, fn FuncStmt, originalBody []GetValue, bodyIndex int) Generator
 }

@@ -250,6 +250,7 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			if ctl != nil {
 				return nil, ctl
 			}
+			ctx.SetVariableValue(u.Value, valV)
 
 			// key
 			var keyV data.Value
@@ -259,10 +260,6 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 					return nil, kctl
 				}
 				keyV = kv
-			}
-
-			ctx.SetVariableValue(u.Value, valV)
-			if u.Key != nil {
 				ctx.SetVariableValue(u.Key, keyV)
 			}
 

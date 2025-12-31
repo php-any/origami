@@ -51,7 +51,7 @@ func (u *ForStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 				// yield
 				if ctrl, ok := c.(data.YieldValueControl); ok {
 					// 构造一个yield状态LoopControl
-					return nil, &ForYieldControl{BodyIndex: bodyIndex, ForStatement: u, Value: ctrl}
+					return nil, NewForYieldControl(u, bodyIndex+1, ctrl)
 				}
 
 				// return/throw 直接返回
@@ -91,18 +91,45 @@ func NewForStatement(token *TokenFrom, initializer data.GetValue, condition data
 	}
 }
 
+func NewForYieldControl(stmt *ForStatement, index int, v data.YieldValueControl) data.YieldControl {
+	return &ForYieldControl{BodyIndex: index, ForStatement: stmt, Value: v}
+}
+
 type ForYieldControl struct {
 	*ForStatement
 	BodyIndex int
 	Value     data.YieldValueControl
 }
 
+func (f *ForYieldControl) GetYieldKey() data.Value {
+	return f.Value.GetYieldKey()
+}
+
+func (f *ForYieldControl) GetYieldValue() data.Value {
+	return f.Value.GetYieldValue()
+}
+
 func (f *ForYieldControl) AsString() string {
 	return "for yield"
 }
 
-func (f *ForYieldControl) GetValue(ctx data.Context) (data.Value, data.Control) {
-	return nil, nil
+func (f *ForYieldControl) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	valid, acl := f.Valid(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	for valid.(*data.BoolValue).Value == true {
+		acl = f.Next(ctx)
+		if acl != nil {
+			return nil, acl
+		}
+		valid, acl = f.Valid(ctx)
+		if acl != nil {
+			return nil, acl
+		}
+	}
+
+	return f.Value, nil
 }
 
 func (f *ForYieldControl) Current(ctx data.Context) (data.Value, data.Control) {
@@ -114,11 +141,11 @@ func (f *ForYieldControl) Key(ctx data.Context) (data.Value, data.Control) {
 }
 
 func (f *ForYieldControl) Next(ctx data.Context) data.Control {
-	f.BodyIndex++
-
+	index := f.BodyIndex
+	f.BodyIndex = 0
 	var c data.Control
 
-	for bodyIndex := f.BodyIndex; bodyIndex < len(f.Body); bodyIndex++ {
+	for bodyIndex := index; bodyIndex < len(f.Body); bodyIndex++ {
 		statement := f.Body[bodyIndex]
 		_, c = statement.GetValue(ctx)
 
@@ -133,8 +160,10 @@ func (f *ForYieldControl) Next(ctx data.Context) data.Control {
 			}
 			// yield
 			if ctrl, ok := c.(data.YieldValueControl); ok {
-				// 构造一个yield状态LoopControl
-				return &ForYieldControl{BodyIndex: bodyIndex, ForStatement: f.ForStatement, Value: ctrl}
+				// 更新当前值并保存位置
+				f.Value = ctrl
+				f.BodyIndex = bodyIndex + 1
+				return f
 			}
 
 			// return/throw 直接返回
@@ -180,4 +209,17 @@ func (f *ForYieldControl) Valid(ctx data.Context) (data.Value, data.Control) {
 	}
 
 	return data.NewBoolValue(true), nil
+}
+
+func (f *ForYieldControl) CreateStackState(ctx data.Context, fn data.FuncStmt, originalBody []data.GetValue, bodyIndex int) data.Generator {
+	// 构建 newBody：将 bodyIndex 位置的元素（产生 YieldControl 的语句，如 for 循环）替换成 f 自身
+	// 这样在 Next() 执行时，遇到 bodyIndex 位置的就是 f（YieldControl），可以直接处理，不会死循环
+	newBody := originalBody[:bodyIndex]
+	newBody = append(newBody, f) // 替换 bodyIndex 位置的元素为 f 自身（将 for 内部转成 yield 状态语句）
+	newBody = append(newBody, originalBody[bodyIndex+1:]...)
+	// 获取当前值（f 已经是 YieldControl，可以直接获取）
+	currentKey := f.Value.GetYieldKey()
+	currentValue := f.Value.GetYieldValue()
+	// 创建 FuncYieldStackState
+	return NewFuncYieldStackState(ctx, fn, newBody, bodyIndex, currentKey, currentValue)
 }

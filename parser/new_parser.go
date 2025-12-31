@@ -59,9 +59,13 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 		classNameExpr = vp.parseVariable()
 
 		// 解析参数列表
-		args, acl := vp.parseFunctionCall()
-		if acl != nil {
-			return nil, acl
+		var args []data.GetValue
+		if p.checkPositionIs(0, token.LPAREN) {
+			var acl data.Control
+			args, acl = vp.parseFunctionCall()
+			if acl != nil {
+				return nil, acl
+			}
 		}
 
 		// 创建使用变量类名的 new 表达式
@@ -101,6 +105,40 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 
 		// 创建 new self 表达式
 		n := node.NewNewSelfExpression(
+			tracker.EndBefore(),
+			args,
+		)
+
+		if p.checkPositionIs(0, token.OBJECT_OPERATOR) {
+			// 解析链式调用
+			return vp.parseSuffix(n)
+		}
+
+		return n, nil
+	}
+
+	// 检查是否是 new static
+	if p.checkPositionIs(0, token.STATIC) {
+		p.next() // 跳过 static
+
+		// 检查是否有参数列表（括号）
+		var args []data.GetValue
+		var acl data.Control
+		vp := VariableParser{Parser: p.Parser}
+
+		if p.checkPositionIs(0, token.LPAREN) {
+			// 有括号，解析参数列表
+			args, acl = vp.parseFunctionCall()
+			if acl != nil {
+				return nil, acl
+			}
+		} else {
+			// 没有括号，使用空参数列表
+			args = []data.GetValue{}
+		}
+
+		// 创建 new static 表达式
+		n := node.NewNewStaticExpression(
 			tracker.EndBefore(),
 			args,
 		)

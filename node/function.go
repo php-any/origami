@@ -75,12 +75,15 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 				}
 				return nil, data.NewErrorThrow(f.GetFrom(), fmt.Errorf("函数(%s)返回值类型错误; 请检查类型和数量匹配", f.Name))
 			case data.YieldControl:
-				// 更新yield的body索引状态和上下文
-				rv.SetBodyIndex(bodyIndex, f.Body)
-				return rv.GetBodyStackState(ctx), nil
-			case data.IteratorControl:
+				generator := rv.CreateStackState(ctx, f, f.Body, bodyIndex)
+				// 将生成器包装成类值，支持 $data->valid() 等调用
+				generatorClass := NewGeneratorClass(generator)
+				return generatorClass.GetValue(ctx)
 			case data.YieldValueControl:
-
+				generator := NewFuncYieldStackState(ctx, f, f.Body, bodyIndex+1, rv.GetYieldKey(), rv.GetYieldValue())
+				// 将生成器包装成类值，支持 $data->valid() 等调用
+				generatorClass := NewGeneratorClass(generator)
+				return generatorClass.GetValue(ctx)
 			case data.AddStack:
 				rv.AddStackWithInfo(f.from, "function", f.Name)
 			}

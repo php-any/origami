@@ -195,7 +195,6 @@ func (vm *VM) AddFunc(f data.FuncStmt) data.Control {
 func (vm *VM) GetFunc(pkg string) (data.FuncStmt, bool) {
 	if v, ok := vm.funcMap[pkg]; ok {
 		return v, true
-	} else if len(pkg) > 1 && pkg[0:1] == "\\" {
 	} else if len(pkg) > 0 && pkg[0:1] == "\\" {
 		if v, ok := vm.funcMap[pkg[1:]]; ok {
 			return v, true
