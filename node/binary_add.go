@@ -1,7 +1,6 @@
 package node
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/php-any/origami/data"
@@ -98,7 +97,10 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			return data.NewIntValue(0 + ri), nil
 		}
 
-		return nil, data.NewErrorThrow(b.from, errors.New("左边 null 值无法运行+符号"))
+		lStr := l.AsString()
+		rStr := rv.(data.Value).AsString()
+
+		return data.NewStringValue(lStr + rStr), nil
 
 	case *data.ArrayValue:
 		lStr := l.AsString()

@@ -2,7 +2,6 @@ package node
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/php-any/origami/data"
 )
@@ -70,10 +69,14 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 			switch rv := ctl.(type) {
 			case data.ReturnControl:
 				ret := rv.ReturnValue()
-				if f.Ret != nil && f.Ret.Is(ret) {
-					return ret, nil
+				if f.Ret != nil {
+					if f.Ret.Is(ret) {
+						return ret, nil
+					} else {
+						return nil, data.NewErrorThrow(f.from, errors.New("函数返回值类型错误"))
+					}
 				}
-				return nil, data.NewErrorThrow(f.GetFrom(), fmt.Errorf("函数(%s)返回值类型错误; 请检查类型和数量匹配", f.Name))
+				return ret, nil
 			case data.YieldControl:
 				generator := rv.CreateStackState(ctx, f, f.Body, bodyIndex)
 				// 将生成器包装成类值，支持 $data->valid() 等调用
