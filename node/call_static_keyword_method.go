@@ -41,6 +41,24 @@ func (pe *CallStaticKeywordMethod) GetValue(ctx data.Context) (data.GetValue, da
 	// 获取当前类的静态方法
 	method, has := getter.GetStaticMethod(pe.Method)
 	if !has {
+		extend := currentClass.GetExtend()
+		for extend != nil {
+			vm := ctx.GetVM()
+			ext, acl := vm.GetOrLoadClass(*extend)
+			if acl != nil {
+				return nil, acl
+			}
+			extend = nil
+			getter, ok = ext.(data.GetStaticMethod)
+			if ok {
+				method, has = getter.GetStaticMethod(pe.Method)
+				if has {
+					return data.NewFuncValue(method), nil
+				}
+				extend = ext.GetExtend()
+			}
+		}
+
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("当前类 %s 没有静态方法 %s", currentClass.GetName(), pe.Method))
 	}
 

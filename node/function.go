@@ -125,6 +125,9 @@ func (p *Parameter) SetValue(ctx data.Context, value data.Value) data.Control {
 	if p.Type.Is(value) {
 		return ctx.SetVariableValue(p, value)
 	}
+	if p.Type.Is(value) {
+		return ctx.SetVariableValue(p, value)
+	}
 	return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
 }
 

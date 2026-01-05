@@ -64,12 +64,12 @@ func (pe *CallObjectProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 	}
 	switch v := o.(type) {
 	case *data.ThisValue:
-		property, ok := v.Class.GetProperty(pe.Property)
+		property, ok := v.GetProperty(pe.Property)
 		if ok {
 			return property.GetValue(ctx)
 		}
 	case *data.ClassValue:
-		property, ok := v.Class.GetProperty(pe.Property)
+		property, ok := v.GetProperty(pe.Property)
 		if ok {
 			if property.GetModifier() != data.ModifierPublic {
 				return nil, data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("对象(%s)属性(%s)不是公开的", v.Class.GetName(), pe.Property)))

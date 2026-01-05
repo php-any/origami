@@ -179,6 +179,8 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 			// 由于不同的比较类型，我们需要通过反射或类型断言来提取 Left 和 Right
 			// 为简化，这里只给出友好的错误信息
 			return nil, data.NewErrorThrow(b.from, fmt.Errorf("赋值表达式的左侧不能是比较表达式，请使用括号: (%T)", l))
+		case *CallStaticKeywordProperty:
+			return v, l.SetProperty(ctx, l.Property, v)
 		default:
 			return nil, data.NewErrorThrow(b.from, fmt.Errorf("TODO 赋值表达式遇到未支持的类型: %T", l))
 		}
