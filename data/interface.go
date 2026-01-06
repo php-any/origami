@@ -51,3 +51,7 @@ type Generator interface {
 type GetName interface {
 	GetName() string
 }
+
+type GetZVal interface {
+	GetZVal(ctx Context) (*ZVal, Control)
+}

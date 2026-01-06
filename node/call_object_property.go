@@ -18,6 +18,10 @@ func (pe *CallObjectProperty) GetIndex() int {
 	panic("不支持获取调用类属性过程获取属性索引")
 }
 
+func (pe *CallObjectProperty) GetZVal(ctx data.Context) (*data.ZVal, data.Control) {
+	return nil, nil
+}
+
 func (pe *CallObjectProperty) GetName() string {
 	return pe.Property
 }

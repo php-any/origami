@@ -17,7 +17,7 @@ func NewObjectValue() *ObjectValue {
 type ObjectValue struct {
 	Value
 	Context
-	property *OrderedMap
+	property PropertyStore
 	iterator int // 迭代器当前位置索引
 }
 
