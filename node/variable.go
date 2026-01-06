@@ -28,7 +28,7 @@ func NewVariableWithFirst(from data.From, first data.Variable) data.Variable {
 	}
 }
 func NewVariable(from data.From, name string, index int, ty data.Types) *VariableExpression {
-	if name[0:1] == "$" {
+	if len(name) > 0 && name[0:1] == "$" {
 		name = name[1:]
 	}
 	return &VariableExpression{

@@ -155,7 +155,7 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 
 		// 函数静态调用 Log::info 或 Log::$property
 		if p.checkPositionIs(0, token.SCOPE_RESOLUTION) &&
-			(p.checkPositionIs(1, token.IDENTIFIER) || p.checkPositionIs(1, token.VARIABLE)) {
+			(p.checkPositionIs(1, token.IDENTIFIER, token.COMPACT, token.UNSET, token.ISSET) || p.checkPositionIs(1, token.VARIABLE)) {
 			return p.parseStaticCall(tracker, name)
 		}
 

@@ -47,3 +47,7 @@ type Generator interface {
 	// GetReturn 获取生成器函数的 return 值。
 	GetReturn(ctx Context) (Value, Control)
 }
+
+type GetName interface {
+	GetName() string
+}

@@ -103,6 +103,9 @@ var TokenDefinitions = []TokenDefinition{
 	{Type: IN, Literal: "in", WordType: KEYWORD},
 	{Type: DEFAULT, Literal: "default", WordType: KEYWORD},
 	{Type: UNUSED, Literal: "_", WordType: KEYWORD},
+	{Type: ISSET, Literal: "isset", WordType: KEYWORD},
+	{Type: UNSET, Literal: "unset", WordType: KEYWORD},
+	{Type: COMPACT, Literal: "compact", WordType: KEYWORD},
 	{Type: DIR, Literal: "__DIR__", WordType: KEYWORD},
 	{Type: JS_SERVER, Literal: "$.SERVER", WordType: KEYWORD},
 

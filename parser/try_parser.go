@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -95,14 +96,17 @@ func (p *TryParser) parseCatchBlock(tracker *PositionTracker) (*node.CatchBlock,
 		variable1 := stmt.(*node.VariableExpression)
 		variable1.Type = data.NewBaseType(exceptionType)
 		variable = variable1
+
+		acl = p.nextAndCheck(token.RPAREN) // 跳过右括号
+		if acl != nil {
+			return nil, acl
+		}
 	} else {
 		name := p.current().Literal()
 		p.next()
 		val := p.scopeManager.CurrentScope().AddVariable(name, data.NewBaseType(exceptionType), tracker.EndBefore())
 		variable = node.NewVariableWithFirst(tracker.EndBefore(), val)
 	}
-
-	p.nextAndCheck(token.RPAREN) // 跳过右括号
 
 	// 解析catch块体
 	catchBody, acl := p.parseBlock()

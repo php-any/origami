@@ -25,6 +25,9 @@ func (n *NullCoalesceExpression) GetValue(ctx data.Context) (data.GetValue, data
 	// 计算左操作数的值
 	leftValue, ctl := n.Left.GetValue(ctx)
 	if ctl != nil {
+		if acl, ok := ctl.(data.GetName); ok && "UndefinedIndexExpression" == acl.GetName() {
+			return n.Right.GetValue(ctx)
+		}
 		return nil, ctl
 	}
 

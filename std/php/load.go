@@ -23,10 +23,11 @@ func Load(vm data.VM) {
 		NewNumberFormatFunction(),
 		NewFunctionExistsFunction(),
 		NewClassExistsFunction(),
+		NewPropertyExistsFunction(),
+		NewGetClassFunction(),
 		NewGettypeFunction(),
 		NewJsonEncodeFunction(),
 		NewJsonDecodeFunction(),
-		NewIssetFunction(),
 		NewEmptyFunction(),
 		NewStrlenFunction(),
 		NewStrposFunction(),
@@ -53,6 +54,7 @@ func Load(vm data.VM) {
 		array.NewArrayMergeFunction(),
 		array.NewArrayPushFunction(),
 		array.NewArrayPopFunction(),
+		array.NewArrayValuesFunction(),
 		NewStrReplaceFunction(),
 		NewStrtolowerFunction(),
 		NewStrtoupperFunction(),
@@ -128,4 +130,6 @@ func Load(vm data.VM) {
 
 func initPhpDefaultDefines(vm data.VM) {
 	vm.SetConstant("DIRECTORY_SEPARATOR", data.NewStringValue("/"))
+	vm.SetConstant("ARRAY_FILTER_USE_KEY", data.NewIntValue(1))
+	vm.SetConstant("ARRAY_FILTER_USE_BOTH", data.NewIntValue(2))
 }

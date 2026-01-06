@@ -138,8 +138,6 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 		case *CallerContextParameter:
 			// 特殊参数：不创建新的函数上下文，直接在上级 Context 中执行函数
 			// 主要用于实现 func_get_args 这类需要访问调用者参数的函数
-			// 需要在调用者的上下文中设置 callArgs，以便函数可以获取实际参数
-			ctx.SetCallArgs(pe.Args)
 			return fn.Call(ctx)
 		default:
 			return nil, data.NewErrorThrow(pe.from, errors.New("未识别的参数类型"))

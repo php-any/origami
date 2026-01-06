@@ -58,6 +58,7 @@ const (
 	ARRAY                               // array 数组定义
 	ISSET                               // isset 变量存在检查
 	UNSET                               // unset 销毁变量
+	COMPACT                             // compact 创建包含变量名和值的数组
 	EMPTY                               // empty 空值检查
 	DIE                                 // die 终止脚本
 	EXIT                                // exit 终止脚本

@@ -21,6 +21,10 @@ func TryGetCallClassName(call data.GetValue) string {
 		return fmt.Sprintf("%s::%s", TryGetCallClassName(c.stmt), c.Method)
 	case *This:
 		return "this"
+	case *IndexExpression:
+		return fmt.Sprintf("%s[%s]", TryGetCallClassName(c.Array), TryGetCallClassName(c.Index))
+	case *CallObjectProperty:
+		return fmt.Sprintf("%s->%s", TryGetCallClassName(c.Object), c.Property)
 	}
 
 	return "TODO"

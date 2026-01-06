@@ -141,6 +141,20 @@ func NewErrorThrow(from From, err error) Control {
 	return t
 }
 
+func NewErrorThrowByName(from From, err error, name string) Control {
+	t := &ThrowValue{
+		Error: NewError(from, err.Error(), err),
+		Name:  name,
+	}
+	t.getMessage = &ThrowValueGetMessageMethod{
+		source: t,
+	}
+	t.getTraceAsString = &ThrowValueGetTraceAsStringMethod{
+		source: t,
+	}
+	return t
+}
+
 // TryErrorThrow 可能不需要抛出的错误
 func TryErrorThrow(from From, err error) Control {
 	t := &ThrowValue{

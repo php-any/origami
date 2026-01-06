@@ -45,7 +45,7 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 				return nil, data.NewErrorThrow(ie.GetFrom(), err)
 			}
 			if i >= len(v.Value) {
-				return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("数组索引超出范围"))
+				return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("数组索引超出范围"), "UndefinedIndexExpression")
 			}
 		case *data.StringValue:
 			if len(v.Value) == 0 {
