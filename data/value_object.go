@@ -51,12 +51,12 @@ func (o *ObjectValue) AsBool() (bool, error) {
 	return true, nil
 }
 
-func (o *ObjectValue) GetProperty(name string) (Value, bool) {
+func (o *ObjectValue) GetProperty(name string) (Value, Control) {
 	v, ok := o.property.Get(name)
 	if !ok {
-		return NewNullValue(), false
+		return NewNullValue(), nil
 	}
-	return v, ok
+	return v, nil
 }
 
 func (o *ObjectValue) SetProperty(name string, value Value) Control {

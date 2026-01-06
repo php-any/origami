@@ -3,6 +3,7 @@ package json
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/php-any/origami/data"
@@ -152,7 +153,11 @@ func (j *JsonSerializer) UnmarshalObject(data []byte, v *data.ObjectValue) error
 
 	for k, raw := range m {
 		// 优先根据已有属性值的具体类型进行反序列化
-		if existing, ok := v.GetProperty(k); ok && existing != nil {
+		existing, acl := v.GetProperty(k)
+		if acl != nil {
+			return errors.New(acl.AsString())
+		}
+		if existing != nil {
 			val, err := j.unmarshalWithExpected(raw, existing)
 			if err != nil {
 				return err
@@ -283,7 +288,11 @@ func (j *JsonSerializer) UnmarshalClass(msg []byte, v *data.ClassValue) error {
 		}
 
 		// 2) 使用实例当前值类型作为备选
-		if instVal, ok := v.ObjectValue.GetProperty(k); ok && instVal != nil {
+		instVal, acl := v.ObjectValue.GetProperty(k)
+		if acl != nil {
+			return errors.New(acl.AsString())
+		}
+		if instVal != nil {
 			val, err := j.unmarshalWithExpected(raw, instVal)
 			if err != nil {
 				return err

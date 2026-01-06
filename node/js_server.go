@@ -392,6 +392,6 @@ func (j *JsRawValue) GetMethod(name string) (data.Method, bool) {
 }
 
 // GetProperty 获取属性（JsRawValue 没有属性）
-func (j *JsRawValue) GetProperty(name string) (data.Value, bool) {
-	return nil, false
+func (j *JsRawValue) GetProperty(name string) (data.Value, data.Control) {
+	return nil, nil
 }

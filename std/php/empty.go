@@ -68,9 +68,9 @@ func (f *EmptyFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 			} else if sv, ok := indexValue.(data.AsString); ok {
 				// 字符串索引（关联数组），使用 GetProperty
 				indexStr := sv.AsString()
-				val, exists := arr.GetProperty(indexStr)
-				if !exists {
-					return data.NewBoolValue(true), nil // 键不存在，视为空
+				val, acl := arr.GetProperty(indexStr)
+				if acl != nil {
+					return nil, acl
 				}
 				return f.isEmptyValue(val), nil
 			} else {
@@ -79,9 +79,9 @@ func (f *EmptyFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		case *data.ObjectValue:
 			// 对象属性访问
 			if sv, ok := indexValue.(data.AsString); ok {
-				propValue, has := arr.GetProperty(sv.AsString())
-				if !has {
-					return data.NewBoolValue(true), nil // 属性不存在，视为空
+				propValue, acl := arr.GetProperty(sv.AsString())
+				if acl != nil {
+					return nil, acl
 				}
 				// 即使 has 为 true，propValue 也可能是 NullValue（表示属性存在但值为 null）
 				return f.isEmptyValue(propValue), nil

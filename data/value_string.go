@@ -1,6 +1,9 @@
 package data
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 func NewStringValue(s string) Value {
 	return &StringValue{Value: s}
@@ -57,12 +60,12 @@ func (s *StringValue) GetMethod(name string) (Method, bool) {
 	return nil, false
 }
 
-func (s *StringValue) GetProperty(name string) (Value, bool) {
+func (s *StringValue) GetProperty(name string) (Value, Control) {
 	switch name {
 	case "length":
-		return NewIntValue(len(s.Value)), true
+		return NewIntValue(len(s.Value)), nil
 	}
-	return nil, false
+	return nil, NewErrorThrow(nil, fmt.Errorf("StringValue.GetProperty called with name %s", name))
 }
 
 func (s *StringValue) AsBool() (bool, error) {

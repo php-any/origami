@@ -43,8 +43,11 @@ func (f *ArrayKeyExistsFunction) Call(ctx data.Context) (data.GetValue, data.Con
 
 	// 检查对象
 	if objectVal, ok := arrayValue.(*data.ObjectValue); ok {
-		_, exists := objectVal.GetProperty(keyStr)
-		return data.NewBoolValue(exists), nil
+		_, acl := objectVal.GetProperty(keyStr)
+		if acl != nil {
+			return data.NewBoolValue(false), acl
+		}
+		return data.NewBoolValue(true), nil
 	}
 
 	return data.NewBoolValue(false), nil

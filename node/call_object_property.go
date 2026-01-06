@@ -76,26 +76,20 @@ func (pe *CallObjectProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 			}
 			return property.GetValue(v)
 		} else {
-			property, ok := v.ObjectValue.GetProperty(pe.Property)
-			if ok {
-				return property.GetValue(v)
+			property, acl := v.ObjectValue.GetProperty(pe.Property)
+			if acl != nil {
+				return nil, acl
 			}
+			return property.GetValue(v)
 		}
-		return nil, data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("对象(%s)不存在属性(%s)", v.Class.GetName(), pe.Property)))
-	case *data.ObjectValue:
-		ov, has := v.GetProperty(pe.Property)
-		if has {
-			return ov.GetValue(v)
+	case data.GetProperty:
+		ov, acl := v.GetProperty(pe.Property)
+		if acl != nil {
+			return nil, acl
 		}
+		return ov.GetValue(ctx)
 	default:
-		if obj, ok := v.(data.GetProperty); ok {
-			ov, has := obj.GetProperty(pe.Property)
-			if has {
-				return ov.GetValue(ctx)
-			}
-		} else {
-			return nil, data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("值(%s)不是对象, 不能操作属性(%s)", TryGetCallClassName(pe.Object), pe.Property)))
-		}
+		return nil, data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("值(%s)不是对象, 不能操作属性(%s)", TryGetCallClassName(pe.Object), pe.Property)))
 	}
 	return nil, data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("对象(%s)不存在属性(%s)", TryGetCallClassName(pe.Object), pe.Property)))
 }

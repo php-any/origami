@@ -22,7 +22,7 @@ type SetProperty interface {
 }
 
 type GetProperty interface {
-	GetProperty(name string) (Value, bool)
+	GetProperty(name string) (Value, Control)
 }
 
 type GetMethod interface {

@@ -86,12 +86,12 @@ func (a *ArrayValue) GetMethod(name string) (Method, bool) {
 	return nil, false
 }
 
-func (a *ArrayValue) GetProperty(name string) (Value, bool) {
+func (a *ArrayValue) GetProperty(name string) (Value, Control) {
 	switch name {
 	case "length":
-		return NewIntValue(len(a.Value)), true
+		return NewIntValue(len(a.Value)), nil
 	}
-	return nil, false
+	return nil, NewErrorThrow(nil, fmt.Errorf("ArrayValue.GetProperty called with name %s", name))
 }
 
 func (a *ArrayValue) Marshal(serializer Serializer) ([]byte, error) {

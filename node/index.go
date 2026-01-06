@@ -82,9 +82,9 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		} else {
 			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("ObjectValue无法处理索引的类型值"))
 		}
-		ov, has := v.GetProperty(key)
-		if has {
-			return ov, nil
+		ov, acl := v.GetProperty(key)
+		if acl != nil {
+			return nil, acl
 		}
 		return ov, nil
 	case *data.ClassValue:
