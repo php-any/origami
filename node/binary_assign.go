@@ -50,7 +50,7 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 			}
 			switch object := temp.(type) {
 			case *data.ClassValue: // 需要检查属性类型
-				property, ok := object.GetProperty(l.Property)
+				property, ok := object.GetPropertyStmt(l.Property)
 				if ok {
 					if property.GetType() != nil && !property.GetType().Is(v) {
 						return nil, data.NewErrorThrow(b.GetFrom(), fmt.Errorf("%s 属性 %s 因为类型不一致无法赋值", TryGetCallClassName(object), l.Property))

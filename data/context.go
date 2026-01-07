@@ -97,6 +97,12 @@ func NewModifier(v string) Modifier {
 	}
 }
 
+type GetPropertyStmt interface {
+	Context
+	GetPropertyZVal
+	GetPropertyStmt(name string) (Property, bool)
+}
+
 type Property interface {
 	GetValue(ctx Context) (GetValue, Control)
 	GetName() string           // 属性名
@@ -105,6 +111,7 @@ type Property interface {
 	GetDefaultValue() GetValue // 默认值
 	GetType() Types
 	SetType(Types)
+	GetZVal(ctx GetPropertyZVal) (*ZVal, Control)
 }
 
 type Method interface {

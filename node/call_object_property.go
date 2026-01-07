@@ -19,6 +19,19 @@ func (pe *CallObjectProperty) GetIndex() int {
 }
 
 func (pe *CallObjectProperty) GetZVal(ctx data.Context) (*data.ZVal, data.Control) {
+	temp, acl := pe.Object.GetValue(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	switch object := temp.(type) {
+	case data.GetPropertyStmt: // 需要检查属性类型
+		property, ok := object.GetPropertyStmt(pe.Property)
+		if ok {
+			return property.GetZVal(object)
+		}
+	default:
+		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("object is not get property"))
+	}
 	return nil, nil
 }
 
@@ -37,7 +50,7 @@ func (pe *CallObjectProperty) SetValue(ctx data.Context, value data.Value) data.
 	}
 	switch object := temp.(type) {
 	case *data.ClassValue: // 需要检查属性类型
-		property, ok := object.GetProperty(pe.Property)
+		property, ok := object.GetPropertyStmt(pe.Property)
 		if ok {
 			if property.GetType() != nil && !property.GetType().Is(value) {
 				return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("%s 属性 %s 因为类型不一致无法赋值", TryGetCallClassName(object), pe.Property))
@@ -68,12 +81,12 @@ func (pe *CallObjectProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 	}
 	switch v := o.(type) {
 	case *data.ThisValue:
-		property, ok := v.GetProperty(pe.Property)
+		property, ok := v.GetPropertyStmt(pe.Property)
 		if ok {
 			return property.GetValue(ctx)
 		}
 	case *data.ClassValue:
-		property, ok := v.GetProperty(pe.Property)
+		property, ok := v.GetPropertyStmt(pe.Property)
 		if ok {
 			if property.GetModifier() != data.ModifierPublic {
 				return nil, data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("对象(%s)属性(%s)不是公开的", v.Class.GetName(), pe.Property)))

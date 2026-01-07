@@ -60,7 +60,14 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 				return nil, data.NewErrorThrow(ie.GetFrom(), err)
 			}
 			if i >= len(v.Value) {
-				return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("数组索引超出范围"))
+				return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("数组索引超出范围"), "UndefinedIndexExpression")
+			}
+		case *data.BoolValue:
+			if iv.Value {
+				i = 1
+			}
+			if i >= len(v.Value) {
+				return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("数组索引超出范围"), "UndefinedIndexExpression")
 			}
 		default:
 			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("无法处理索引的类型值"))
@@ -92,7 +99,7 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		// $obj[$name]，在动态属性语法 $obj->$name 降级为索引访问后会走到这里
 		if iv, ok := index.(data.AsString); ok {
 			name := iv.AsString()
-			if prop, ok := v.GetProperty(name); ok {
+			if prop, ok := v.GetPropertyStmt(name); ok {
 				if prop.GetModifier() != data.ModifierPublic {
 					return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("对象属性不是公开的"))
 				}

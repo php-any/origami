@@ -7,6 +7,7 @@ import (
 	"github.com/php-any/origami/std/php/file"
 	"github.com/php-any/origami/std/php/preg"
 	"github.com/php-any/origami/std/php/proc"
+	"github.com/php-any/origami/std/php/reflection"
 	"github.com/php-any/origami/std/php/stream"
 )
 
@@ -124,6 +125,7 @@ func Load(vm data.VM) {
 	// 注册核心类
 	vm.AddClass(&core.ClosureClass{})
 	vm.AddClass(&core.BackedEnumClass{})
+	vm.AddClass(&reflection.ReflectionClassClass{})
 
 	initPhpDefaultDefines(vm)
 }

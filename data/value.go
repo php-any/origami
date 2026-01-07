@@ -25,6 +25,10 @@ type GetProperty interface {
 	GetProperty(name string) (Value, Control)
 }
 
+type GetPropertyZVal interface {
+	GetPropertyZVal(name string) (*ZVal, Control)
+}
+
 type GetMethod interface {
 	GetMethod(name string) (Method, bool)
 }

@@ -47,7 +47,7 @@ func (c *ClassValue) AsString() string {
 	)
 }
 
-func (c *ClassValue) GetProperty(name string) (Property, bool) {
+func (c *ClassValue) GetPropertyStmt(name string) (Property, bool) {
 	if v, ok := c.Class.GetProperty(name); ok {
 		return v, true
 	}
@@ -73,6 +73,25 @@ func (c *ClassValue) GetProperty(name string) (Property, bool) {
 	}
 
 	return nil, false
+}
+
+func (c *ClassValue) GetProperty(name string) (Value, Control) {
+	stmt, ok := c.GetPropertyStmt(name)
+	if ok {
+		gv, acl := stmt.GetValue(c.Context)
+		return gv.(Value), acl
+	}
+
+	return NewNullValue(), nil
+}
+
+func (c *ClassValue) GetPropertyZVal(name string) (*ZVal, Control) {
+	v, ok := c.property.GetZVal(name)
+	if !ok {
+		c.SetProperty(name, NewNullValue())
+		v, _ = c.property.GetZVal(name)
+	}
+	return v, nil
 }
 
 func (c *ClassValue) GetMethod(name string) (Method, bool) {

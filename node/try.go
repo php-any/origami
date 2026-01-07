@@ -57,7 +57,7 @@ func (t *TryStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 		}
 	}
 
-	return v, nil
+	return v, c
 }
 
 func (t *TryStatement) tryValue(ctx data.Context, c data.Control) (data.GetValue, data.Control) {

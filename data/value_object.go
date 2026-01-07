@@ -54,6 +54,10 @@ func (o *ObjectValue) AsBool() (bool, error) {
 func (o *ObjectValue) GetProperty(name string) (Value, Control) {
 	v, ok := o.property.Get(name)
 	if !ok {
+		switch name {
+		case "length":
+			return NewIntValue(o.property.Len()), nil
+		}
 		return NewNullValue(), nil
 	}
 	return v, nil

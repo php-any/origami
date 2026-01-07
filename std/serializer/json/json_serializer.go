@@ -267,7 +267,7 @@ func (j *JsonSerializer) UnmarshalClass(msg []byte, v *data.ClassValue) error {
 
 	for k, raw := range props {
 		// 1) 首先尝试根据类定义的属性类型创建相应类型的值
-		if prop, ok := v.GetProperty(k); ok && prop != nil {
+		if prop, ok := v.GetPropertyStmt(k); ok && prop != nil {
 			// 获取属性的类型信息
 			if typedProp, ok := prop.(*node.ClassProperty); ok {
 				propType := typedProp.GetType()

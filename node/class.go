@@ -46,6 +46,39 @@ func (c *ClassStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 		if acl != nil {
 			return nil, acl
 		}
+		// 初始化父类的属性（包括所有继承链上的父类）
+		last := ext
+		for {
+			parentProps := last.GetPropertyList()
+			for _, property := range parentProps {
+				// 跳过私有属性（子类无法访问）
+				if property.GetModifier() == data.ModifierPrivate {
+					continue
+				}
+				// 如果子类已经设置了该属性，跳过
+				if _, exists := c.Properties[property.GetName()]; exists {
+					continue
+				}
+				// 初始化有默认值的属性
+				def := property.GetDefaultValue()
+				if def != nil {
+					v, ctl := def.GetValue(object)
+					if ctl != nil {
+						return nil, ctl
+					}
+					object.SetProperty(property.GetName(), v.(data.Value))
+				}
+			}
+			// 继续处理父类的父类
+			if last.GetExtend() == nil {
+				break
+			}
+			next, acl := vm.GetOrLoadClass(*last.GetExtend())
+			if acl != nil {
+				return nil, acl
+			}
+			last = next
+		}
 		_, acl = ext.GetValue(object)
 		if acl != nil {
 			return nil, acl
@@ -164,6 +197,10 @@ type ClassProperty struct {
 
 func (p *ClassProperty) GetIndex() int {
 	panic("属性使用哈希实现")
+}
+
+func (p *ClassProperty) GetZVal(object data.GetPropertyZVal) (*data.ZVal, data.Control) {
+	return object.GetPropertyZVal(p.Name)
 }
 
 func (p *ClassProperty) GetType() data.Types {
