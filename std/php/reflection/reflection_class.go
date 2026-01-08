@@ -69,6 +69,10 @@ func (c *ReflectionClassClass) GetMethod(name string) (data.Method, bool) {
 		return &ReflectionClassNewInstanceWithoutConstructorMethod{}, true
 	case "isInstantiable":
 		return &ReflectionClassIsInstantiableMethod{}, true
+	case "getConstructor":
+		return &ReflectionClassGetConstructorMethod{}, true
+	case "newInstanceArgs":
+		return &ReflectionClassNewInstanceArgsMethod{}, true
 	}
 	return nil, false
 }
@@ -89,7 +93,9 @@ func (c *ReflectionClassClass) GetMethods() []data.Method {
 		&ReflectionClassIsInstanceMethod{},
 		&ReflectionClassNewInstanceMethod{},
 		&ReflectionClassNewInstanceWithoutConstructorMethod{},
+		&ReflectionClassNewInstanceArgsMethod{},
 		&ReflectionClassIsInstantiableMethod{},
+		&ReflectionClassGetConstructorMethod{},
 	}
 }
 

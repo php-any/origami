@@ -159,6 +159,9 @@ func (c *ClassStatement) GetMethod(name string) (data.Method, bool) {
 	if f, ok := c.Methods[name]; ok {
 		return f, true
 	}
+	if name == token.ConstructName && c.Construct != nil {
+		return c.Construct, true
+	}
 	return nil, false
 }
 
@@ -166,6 +169,19 @@ func (c *ClassStatement) GetMethods() []data.Method {
 	var methods []data.Method
 	for _, f := range c.Methods {
 		methods = append(methods, f)
+	}
+	// 如果构造函数存在且不在方法列表中，添加它
+	if c.Construct != nil {
+		hasConstruct := false
+		for _, method := range methods {
+			if method.GetName() == token.ConstructName {
+				hasConstruct = true
+				break
+			}
+		}
+		if !hasConstruct {
+			methods = append(methods, c.Construct)
+		}
 	}
 	return methods
 }

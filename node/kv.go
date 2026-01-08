@@ -15,6 +15,23 @@ type Kv struct {
 	V     []KvPair // 使用切片保证顺序
 }
 
+func (n *Kv) GetIndex() int {
+	return -1
+}
+
+func (n *Kv) GetName() string {
+	return "kv TODO"
+}
+
+func (n *Kv) GetType() data.Types {
+	return nil
+}
+
+func (n *Kv) SetValue(ctx data.Context, value data.Value) data.Control {
+	//TODO implement me
+	panic("implement me")
+}
+
 func NewKv(token *TokenFrom, v []KvPair) data.GetValue {
 	return &Kv{
 		Node: NewNode(token),

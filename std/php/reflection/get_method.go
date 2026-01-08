@@ -45,7 +45,6 @@ func (m *ReflectionClassGetMethodMethod) GetReturnType() data.Types {
 // Call 执行 getMethod 方法
 // 根据方法名查找并返回对应的方法
 // 如果方法不存在，抛出异常
-// TODO: 当前实现返回方法名字符串，实际应该返回 ReflectionMethod 对象
 func (m *ReflectionClassGetMethodMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取方法名参数
 	methodNameValue, _ := ctx.GetIndexValue(0)
@@ -54,17 +53,24 @@ func (m *ReflectionClassGetMethodMethod) Call(ctx data.Context) (data.GetValue, 
 	}
 
 	methodName := methodNameValue.AsString()
-	_, classStmt := getReflectionClassInfo(ctx)
+	className, classStmt := getReflectionClassInfo(ctx)
 	if classStmt == nil {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("Method %s does not exist", methodName))
 	}
 
 	// 查找方法
-	method, exists := classStmt.GetMethod(methodName)
+	_, exists := classStmt.GetMethod(methodName)
 	if !exists {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("Method %s does not exist", methodName))
 	}
 
-	// 返回方法名（简化实现，实际应该返回 ReflectionMethod 对象）
-	return data.NewStringValue(method.GetName()), nil
+	// 创建 ReflectionMethod 实例
+	methodClass := &ReflectionMethodClass{}
+	methodValue := data.NewClassValue(methodClass, ctx.CreateBaseContext())
+
+	// 存储方法信息到实例属性中
+	methodValue.ObjectValue.SetProperty("_className", data.NewStringValue(className))
+	methodValue.ObjectValue.SetProperty("_methodName", data.NewStringValue(methodName))
+
+	return methodValue, nil
 }

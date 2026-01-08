@@ -35,24 +35,29 @@ func (t *TryStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 	for _, statement := range t.TryBlock {
 		v, c = statement.GetValue(ctx)
 		if c != nil {
+			if add, ok := c.(data.AddStack); ok {
+				add.AddStackWithInfo(statement.(GetFrom).GetFrom(), "try: ", TryGetCallClassName(statement))
+			}
 			break
 		}
 	}
 
 	if c != nil {
-		v, c = t.tryValue(ctx, c)
-		if c != nil {
-			return nil, c
+		var nAcl data.Control
+		v, nAcl = t.tryValue(ctx, c)
+		if nAcl != nil {
+			return nil, nAcl
 		}
 	}
 
 	// 执行 finally 块（如果存在）
 	if len(t.FinallyBlock) > 0 {
+		var nAcl data.Control
 		for _, statement := range t.FinallyBlock {
-			_, c = statement.GetValue(ctx)
-			if c != nil {
+			_, nAcl = statement.GetValue(ctx)
+			if nAcl != nil {
 				// finally 块中的异常会覆盖之前的异常
-				return nil, c
+				return nil, nAcl
 			}
 		}
 	}

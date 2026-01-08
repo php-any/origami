@@ -25,6 +25,14 @@ func TryGetCallClassName(call data.GetValue) string {
 		return fmt.Sprintf("%s[%s]", TryGetCallClassName(c.Array), TryGetCallClassName(c.Index))
 	case *CallObjectProperty:
 		return fmt.Sprintf("%s->%s", TryGetCallClassName(c.Object), c.Property)
+	case *ReturnStatement:
+		return fmt.Sprintf("return %s", TryGetCallClassName(c.Value))
+	case *TernaryExpression:
+		return fmt.Sprintf("%s ? %s : %s", TryGetCallClassName(c.Condition), TryGetCallClassName(c.TrueValue), TryGetCallClassName(c.FalseValue))
+	case *CallObjectMethod:
+		return fmt.Sprintf("%s->%s", TryGetCallClassName(c.Object), c.Method)
+	case *BinaryAssignVariable:
+		return fmt.Sprintf("%s = %s", TryGetCallClassName(c.Left), TryGetCallClassName(c.Right))
 	}
 
 	return "TODO"

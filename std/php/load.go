@@ -126,6 +126,10 @@ func Load(vm data.VM) {
 	vm.AddClass(&core.ClosureClass{})
 	vm.AddClass(&core.BackedEnumClass{})
 	vm.AddClass(&reflection.ReflectionClassClass{})
+	vm.AddClass(&reflection.ReflectionMethodClass{})
+	vm.AddClass(&reflection.ReflectionParameterClass{})
+	vm.AddClass(&reflection.ReflectionTypeClass{})
+	vm.AddClass(&reflection.ReflectionNamedTypeClass{})
 
 	initPhpDefaultDefines(vm)
 }

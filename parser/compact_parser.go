@@ -41,6 +41,10 @@ func (p *CompactParser) Parse() (data.GetValue, data.Control) {
 		if arg == nil {
 			break
 		}
+		// 如果 arg 是字符串，自动转变量
+		if argv, ok := arg.(*node.StringLiteral); ok {
+			arg = p.scopeManager.LookupVariable(argv.Value)
+		}
 		varNames = append(varNames, arg)
 
 		// 检查是否有逗号
