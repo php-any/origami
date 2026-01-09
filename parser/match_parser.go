@@ -137,9 +137,20 @@ func (p *MatchParser) parseMatchArm() (*node.MatchArm, data.Control) {
 			)
 			conditions = append(conditions, cond)
 		} else {
-			condition, ok := p.parseValue()
-			if !ok {
-				return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("match 左边必须是值"))
+			// 支持表达式，而不仅仅是值
+			// 需要解析到 => 之前的所有内容作为表达式
+			// 先检查是否已经到了 =>
+			if p.checkPositionIs(0, token.ARRAY_KEY_VALUE) {
+				break
+			}
+
+			// 解析表达式（支持复杂表达式）
+			condition, acl := p.parseStatement()
+			if acl != nil {
+				return nil, acl
+			}
+			if condition == nil {
+				return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("match 左边表达式不能为空"))
 			}
 			conditions = append(conditions, condition)
 		}

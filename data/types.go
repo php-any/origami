@@ -160,6 +160,8 @@ func NewBaseType(ty string) Types {
 		return Object{}
 	case "callable":
 		return Callable{}
+	case "static":
+		return StaticType{}
 	default:
 		return Class{Name: ty}
 	}
@@ -194,4 +196,22 @@ func NewGenericType(name string, types []Types) Types {
 	default:
 		return Generic{Name: name, Types: types}
 	}
+}
+
+// StaticType 表示 static 返回类型（PHP 8.0+）
+// static 类型表示返回调用该方法的类的实例
+type StaticType struct{}
+
+func (s StaticType) Is(value Value) bool {
+	// static 类型直接返回 true，实际的类型检查在方法调用时进行（在 ClassMethod.Call 中）
+	return true
+}
+
+func (s StaticType) String() string {
+	return "static"
+}
+
+// NewStaticType 创建 static 返回类型
+func NewStaticType() Types {
+	return StaticType{}
 }

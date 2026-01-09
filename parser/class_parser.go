@@ -3,6 +3,7 @@ package parser
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/lexer"
@@ -149,7 +150,8 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 	staticProperties := make(map[string]data.Property)
 	methods := map[string]data.Method{}
 	staticMethods := map[string]data.Method{}
-	var traits []string // trait 列表
+	var traits []string                       // trait 列表
+	var constructorProperties []data.Property // 构造函数中声明的属性
 	for !p.currentIsTypeOrEOF(token.RBRACE) {
 		// 先尝试解析注解
 		var memberAnnotations []*node.Annotation
@@ -224,7 +226,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 				}
 			}
 		} else if p.current().Type() == token.FUNC {
-			method, acl := p.parseMethodWithAnnotations(modifier, isStatic, isAbstractMethod, memberAnnotations)
+			method, props, acl := p.parseMethodWithAnnotations(modifier, isStatic, isAbstractMethod, memberAnnotations, &properties, &staticProperties)
 			if acl != nil {
 				return nil, acl
 			}
@@ -233,6 +235,10 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 					staticMethods[method.GetName()] = method
 				} else {
 					methods[method.GetName()] = method
+				}
+				// 如果是构造函数，添加从参数中声明的属性
+				if method.GetName() == token.ConstructName && len(props) > 0 {
+					constructorProperties = append(constructorProperties, props...)
 				}
 			}
 		} else if p.current().Type() == token.SEMICOLON {
@@ -243,6 +249,9 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 		}
 	}
 	p.next() // 跳过结束花括号
+
+	// 将构造函数中声明的属性添加到属性列表
+	properties = append(properties, constructorProperties...)
 
 	c := node.NewClassStatement(
 		tracker.EndBefore(),
@@ -356,6 +365,145 @@ func (p *ClassParser) parseClassName() string {
 	name := p.current().Literal()
 	p.next()
 	return name
+}
+
+// ParseConstructorParameters 解析构造函数参数，支持在参数中声明类属性
+// 语法：public function __construct(private string $name = 'UNKNOWN') {}
+// 返回：参数列表、属性列表、错误
+func (p *ClassParser) ParseConstructorParameters() ([]data.GetValue, []data.Property, data.Control) {
+	tracking := p.StartTracking()
+	// 检查左括号
+	if p.current().Type() != token.LPAREN {
+		return nil, nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("参数列表前缺少左括号 '('"))
+	}
+	p.next()
+
+	params := make([]data.GetValue, 0)
+	properties := make([]data.Property, 0)
+
+	// 如果下一个token是右括号，说明参数列表为空
+	if p.current().Type() == token.RPAREN {
+		p.next()
+		return params, properties, nil
+	}
+
+	// 解析参数列表
+	for {
+		// 检查是否有访问修饰符（private、public、protected、readonly）
+		var paramModifier string
+		var isReadonly bool
+
+		// 检查 readonly 关键字
+		if p.current().Type() == token.READONLY {
+			isReadonly = true
+			p.next()
+		}
+
+		// 检查访问修饰符
+		if p.current().Type() == token.PUBLIC || p.current().Type() == token.PRIVATE || p.current().Type() == token.PROTECTED {
+			switch p.current().Type() {
+			case token.PUBLIC:
+				paramModifier = "public"
+			case token.PRIVATE:
+				paramModifier = "private"
+			case token.PROTECTED:
+				paramModifier = "protected"
+			}
+			p.next()
+		} else {
+			// 没有访问修饰符，使用默认值（但不会创建属性）
+			paramModifier = ""
+		}
+
+		// 解析参数类型
+		varType := ""
+		if isIdentOrTypeToken(p.current().Type()) {
+			varType = p.FunctionParserCommon.parserType(p.Parser, p.current().Literal())
+			p.next()
+		} else if p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type()) {
+			// ?int 方式
+			p.next() // 跳过问号
+			varType = "?" + p.FunctionParserCommon.parserType(p.Parser, p.current().Literal())
+			p.next()
+		}
+
+		// 解析参数名（必须是变量）
+		if p.current().Type() != token.VARIABLE {
+			return nil, nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("参数缺少变量名"))
+		}
+		name := p.current().Literal()
+		p.next()
+
+		// 创建参数类型
+		var paramType data.Types
+		if strings.HasPrefix(varType, "?") {
+			// 可空类型
+			baseType := data.NewBaseType(varType[1:]) // 去掉问号
+			paramType = data.NewNullableType(baseType)
+		} else if varType == "" {
+			paramType = data.NewBaseType("mixed")
+		} else {
+			paramType = data.NewBaseType(varType)
+		}
+
+		// 添加参数到作用域
+		val := p.scopeManager.CurrentScope().AddVariable(name, paramType, tracking.EndBefore())
+
+		// 解析默认值
+		var defaultValue data.GetValue
+		if p.current().Type() == token.ASSIGN {
+			p.next()
+			exprParser := NewExpressionParser(p.Parser)
+			var acl data.Control
+			defaultValue, acl = exprParser.Parse()
+			if acl != nil {
+				return nil, nil, acl
+			}
+		}
+
+		// 如果有访问修饰符，创建属性
+		if paramModifier != "" {
+			// 创建属性类型（用于属性）
+			var propertyType data.Types
+			if varType == "" {
+				propertyType = nil
+			} else if strings.HasPrefix(varType, "?") {
+				baseType := data.NewBaseType(varType[1:])
+				propertyType = data.NewNullableType(baseType)
+			} else {
+				propertyType = data.NewBaseType(varType)
+			}
+
+			prop := node.NewPropertyWithReadonly(
+				tracking.EndBefore(),
+				name,
+				paramModifier,
+				false, // 构造函数参数不能是静态的
+				isReadonly,
+				defaultValue,
+				propertyType,
+			)
+			properties = append(properties, prop)
+		}
+
+		// 创建参数节点
+		param := node.NewParameter(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, val.GetType())
+		params = append(params, param)
+
+		if p.current().Type() == token.COMMA {
+			p.next()
+			// 检查逗号后是否直接跟着右括号（这是语法错误）
+			if p.current().Type() == token.RPAREN {
+				break
+			}
+		} else if p.current().Type() != token.RPAREN {
+			return nil, nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("参数后缺少逗号 ',' 或右括号 ')'"))
+		} else {
+			break
+		}
+	}
+	p.nextAndCheck(token.RPAREN)
+	return params, properties, nil
 }
 
 // parseModifier 解析访问修饰符
@@ -597,22 +745,32 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 }
 
 // parseMethodWithAnnotations 解析方法（带注解）
-func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool, isAbstract bool, annotations []*node.Annotation) (data.Method, data.Control) {
+func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool, isAbstract bool, annotations []*node.Annotation, properties *[]data.Property, staticProperties *map[string]data.Property) (data.Method, []data.Property, data.Control) {
 	// 跳过function关键字
 	p.next()
 	tracker := p.StartTracking()
 	p.scopeManager.NewScope(false)
 	// 解析方法名
 	if !p.checkPositionIs(0, token.IDENTIFIER, token.SELF) {
-		return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("方法名不符合规范, 不能使用符号或者关键字(%s)", p.current().Literal()))
+		return nil, nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("方法名不符合规范, 不能使用符号或者关键字(%s)", p.current().Literal()))
 	}
 	name := p.current().Literal()
 	p.next()
 
+	// 检查是否是构造函数
+	isConstructor := name == token.ConstructName
+
 	// 使用通用函数解析器解析参数和方法体
-	params, acl := p.ParseParameters()
+	var params []data.GetValue
+	var constructorProps []data.Property
+	var acl data.Control
+	if isConstructor {
+		params, constructorProps, acl = p.ParseConstructorParameters()
+	} else {
+		params, acl = p.ParseParameters()
+	}
 	if acl != nil {
-		return nil, acl
+		return nil, nil, acl
 	}
 
 	// 解析返回类型
@@ -645,6 +803,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 					token.ARRAY,
 					token.NULL,
 					token.FALSE,
+					token.STATIC,
 				) {
 					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("无法识别返回类型的定义符号"))
 				}
@@ -656,7 +815,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 			// 第一个类型原子
 			firstType, acl := parseOneTypeAtom()
 			if acl != nil {
-				return nil, acl
+				return nil, nil, acl
 			}
 			unionTypes = append(unionTypes, firstType)
 
@@ -665,7 +824,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 				p.next() // 跳过 |
 				nextType, acl := parseOneTypeAtom()
 				if acl != nil {
-					return nil, acl
+					return nil, nil, acl
 				}
 				unionTypes = append(unionTypes, nextType)
 			}
@@ -710,7 +869,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 	// 抽象方法没有方法体，只有分号
 	if isAbstract {
 		if p.current().Type() != token.SEMICOLON {
-			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("抽象方法必须以分号结尾"))
+			return nil, nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("抽象方法必须以分号结尾"))
 		}
 		p.next() // 跳过分号
 		body = []data.GetValue{}
@@ -718,7 +877,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 	} else {
 		body, acl = p.ParseFunctionBody()
 		if acl != nil {
-			return nil, acl
+			return nil, nil, acl
 		}
 		vars = p.GetVariables()
 	}
@@ -752,18 +911,18 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 		for _, an := range annotations {
 			stmt, acl := p.vm.GetOrLoadClass(an.Name)
 			if acl != nil {
-				return nil, acl
+				return nil, nil, acl
 			}
 			object, acl := stmt.GetValue(p.vm.CreateContext(nil))
 			if acl != nil {
-				return nil, acl
+				return nil, nil, acl
 			}
 			if o, ok := object.(*data.ClassValue); ok {
 				if o.Class.GetConstruct() != nil {
 					obj, acl := an.GetValue(p.vm.CreateContext(o.Class.GetConstruct().GetVariables()))
 					if acl != nil {
 						if ann, ok := acl.(*node.CallAnn); !ok {
-							return nil, acl
+							return nil, nil, acl
 						} else {
 							callAnn = append(callAnn, ann)
 						}
@@ -780,12 +939,12 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 		for i := len(callAnn) - 1; i >= 0; i-- {
 			acl := callAnn[i].InitAnnotation()
 			if acl != nil {
-				return nil, acl
+				return nil, nil, acl
 			}
 		}
 	}
 
-	return ret, nil
+	return ret, constructorProps, nil
 }
 
 // 解释泛型定义 class<T>、class<T, Y>、class<string, int>、class<T<int>>

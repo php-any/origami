@@ -72,6 +72,53 @@ func (vp *VariableParser) parseSuffix(expr data.GetValue) (data.GetValue, data.C
 			if acl != nil {
 				return nil, acl
 			}
+		case token.TERNARY:
+			// 检查是否是链式空安全调用：?-> (PHP 8.0+)
+			if vp.checkPositionIs(1, token.OBJECT_OPERATOR) {
+				// 解析链式空安全调用 ?->
+				vp.next() // 跳过 ?
+				vp.next() // 跳过 ->
+				// 手动解析方法/属性调用（因为我们已经跳过了 ->）
+				tracker2 := vp.StartTracking()
+				var callExpr data.GetValue
+				// 先处理花括号动态属性：$obj->{$name}
+				if vp.current().Type() == token.LBRACE {
+					vp.next() // 跳过 {
+					if vp.current().Type() != token.VARIABLE {
+						return nil, data.NewErrorThrow(tracker2.EndBefore(), errors.New("符号'->{'后面需要跟随变量"))
+					}
+					nameExpr := vp.parseVariable()
+					vp.nextAndCheck(token.RBRACE)
+					callExpr = node.NewIndexExpression(tracker2.EndBefore(), expr, nameExpr)
+				} else if !(vp.checkPositionIs(0, token.IDENTIFIER, token.VARIABLE) || (vp.current().Type() > token.KEYWORD_START && vp.current().Type() < token.VALUE_START)) {
+					return nil, data.NewErrorThrow(tracker2.EndBefore(), errors.New("符号'?->'后面需要跟随单词"))
+				} else if vp.current().Type() == token.VARIABLE {
+					nameExpr := vp.parseVariable()
+					callExpr = node.NewIndexExpression(tracker2.EndBefore(), expr, nameExpr)
+				} else {
+					method := vp.current().Literal()
+					vp.next()
+					if vp.current().Type() == token.LPAREN {
+						stmt, acl := vp.parseFunctionCall()
+						if acl != nil {
+							return nil, acl
+						}
+						callExpr = node.NewObjectMethod(tracker2.EndBefore(), expr, method, stmt)
+					} else {
+						callExpr = node.NewObjectProperty(tracker2.EndBefore(), expr, method)
+					}
+				}
+				// 继续解析链式调用（支持 ?->method()?->property）
+				callExpr, acl := vp.parseSuffix(callExpr)
+				if acl != nil {
+					return nil, acl
+				}
+				// 包装为空安全调用节点
+				expr = node.NewNullsafeCall(vp.FromCurrentToken(), expr, callExpr)
+				continue
+			}
+			// 不是 ?->，返回当前表达式
+			return expr, nil
 		case token.OBJECT_OPERATOR:
 			expr, acl = vp.parseMethodCall(expr)
 			if acl != nil {

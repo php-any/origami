@@ -86,59 +86,100 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 		value data.GetValue // 底层值表达式
 	}
 	var cases []enumCase
+	methods := map[string]data.Method{}
+	staticMethods := map[string]data.Method{}
 
 	for !p.currentIsTypeOrEOF(token.RBRACE) {
 		if p.current().Type() == token.SEMICOLON {
 			p.next()
 			continue
 		}
-		if p.current().Type() != token.CASE {
-			return nil, data.NewErrorThrow(p.newFrom(), errors.New("enum 体内只支持 case 声明"))
+
+		// 先尝试解析注解
+		var memberAnnotations []*node.Annotation
+		cp := &ClassParser{
+			Parser:               p.Parser,
+			FunctionParserCommon: NewFunctionParserCommon(p.Parser),
 		}
-		p.next()
-
-		if p.current().Type() != token.IDENTIFIER {
-			return nil, data.NewErrorThrow(p.newFrom(), errors.New("enum case 缺少名称"))
-		}
-		caseName := p.current().Literal()
-		p.next()
-
-		var val data.GetValue
-
-		// 支持: case OPEN = 'open';
-		if p.current().Type() == token.ASSIGN {
-			p.next()
-			exprParser := NewExpressionParser(p.Parser)
-			var acl data.Control
-			val, acl = exprParser.Parse()
+		for p.current().Type() == token.AT {
+			ann, acl := cp.parseAnnotation()
 			if acl != nil {
 				return nil, acl
 			}
-		} else {
-			// 未显式赋值时，默认使用 case 名称的**字符串**作为枚举底层值。
-			// 底层值类型本身不再被这里限制，BackedEnum 也允许任意类型。
-			from := tracker.EndBefore()
-			val = node.NewStringLiteralByAst(from, caseName)
+			if ann != nil {
+				memberAnnotations = append(memberAnnotations, ann)
+			}
 		}
 
-		// 跳过可选分号
-		if p.current().Type() == token.SEMICOLON {
+		// 解析访问修饰符（方法需要）
+		modifier := cp.parseModifier()
+
+		// 解析 static 关键字
+		isStatic := false
+		if p.current().Type() == token.STATIC {
+			isStatic = true
 			p.next()
 		}
 
-		cases = append(cases, enumCase{name: caseName, value: val})
+		// 检查是否是 case 声明
+		if p.current().Type() == token.CASE {
+			p.next()
+
+			if p.current().Type() != token.IDENTIFIER {
+				return nil, data.NewErrorThrow(p.newFrom(), errors.New("enum case 缺少名称"))
+			}
+			caseName := p.current().Literal()
+			p.next()
+
+			var val data.GetValue
+
+			// 支持: case OPEN = 'open';
+			if p.current().Type() == token.ASSIGN {
+				p.next()
+				exprParser := NewExpressionParser(p.Parser)
+				var acl data.Control
+				val, acl = exprParser.Parse()
+				if acl != nil {
+					return nil, acl
+				}
+			} else {
+				// 未显式赋值时，默认使用 case 名称的**字符串**作为枚举底层值。
+				// 底层值类型本身不再被这里限制，BackedEnum 也允许任意类型。
+				from := tracker.EndBefore()
+				val = node.NewStringLiteralByAst(from, caseName)
+			}
+
+			// 跳过可选分号
+			if p.current().Type() == token.SEMICOLON {
+				p.next()
+			}
+
+			cases = append(cases, enumCase{name: caseName, value: val})
+		} else if p.current().Type() == token.FUNC {
+			// 解析方法
+			method, _, acl := cp.parseMethodWithAnnotations(modifier, isStatic, false, memberAnnotations, nil, nil)
+			if acl != nil {
+				return nil, acl
+			}
+			if method != nil {
+				if isStatic {
+					staticMethods[method.GetName()] = method
+				} else {
+					methods[method.GetName()] = method
+				}
+			}
+		} else {
+			return nil, data.NewErrorThrow(p.newFrom(), errors.New("enum 体内只支持 case 声明和方法声明"))
+		}
 	}
 
 	// 跳过枚举体结束右括号
 	p.next()
 
-	// 不直接定义属性和方法：
+	// 不直接定义属性：
 	//   - value 属性与构造函数都由 BackedEnum 提供
 	//   - 这里保持 properties 为空
 	properties := []data.Property{}
-
-	// 不直接定义方法，由 BackedEnum 提供 __construct
-	methods := map[string]data.Method{}
 
 	// enum 反 desugar 成：
 	//   class EnumName extends BackedEnum { ... }
@@ -152,6 +193,7 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 		properties,
 		methods,
 	)
+	classStmt.StaticMethods = staticMethods
 
 	// 继承 BackedEnum 的构造函数：确保 new Status('open') 会运行 BackedEnum::__construct
 	if parent, ok := p.vm.GetClass(extends); ok {

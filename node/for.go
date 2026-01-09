@@ -3,11 +3,13 @@ package node
 import "github.com/php-any/origami/data"
 
 func (u *ForStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 执行初始化语句
-	if u.Initializer != nil {
-		_, ctl := u.Initializer.GetValue(ctx)
-		if ctl != nil {
-			return nil, ctl
+	// 执行初始化语句（支持多个）
+	for _, initializer := range u.Initializers {
+		if initializer != nil {
+			_, ctl := initializer.GetValue(ctx)
+			if ctl != nil {
+				return nil, ctl
+			}
 		}
 	}
 
@@ -59,11 +61,13 @@ func (u *ForStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 			}
 		}
 
-		// 执行增量表达式
-		if u.Increment != nil {
-			_, ctl := u.Increment.GetValue(ctx)
-			if ctl != nil {
-				return nil, ctl
+		// 执行增量表达式（支持多个）
+		for _, increment := range u.Increments {
+			if increment != nil {
+				_, ctl := increment.GetValue(ctx)
+				if ctl != nil {
+					return nil, ctl
+				}
 			}
 		}
 	}
@@ -73,21 +77,21 @@ func (u *ForStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 
 // ForStatement 表示for语句
 type ForStatement struct {
-	*Node       `pp:"-"`
-	Initializer data.GetValue
-	Condition   data.GetValue
-	Increment   data.GetValue
-	Body        []data.GetValue
+	*Node        `pp:"-"`
+	Initializers []data.GetValue
+	Condition    data.GetValue
+	Increments   []data.GetValue
+	Body         []data.GetValue
 }
 
 // NewForStatement 创建一个新的for语句
-func NewForStatement(token *TokenFrom, initializer data.GetValue, condition data.GetValue, increment data.GetValue, body []data.GetValue) *ForStatement {
+func NewForStatement(token *TokenFrom, initializers []data.GetValue, condition data.GetValue, increments []data.GetValue, body []data.GetValue) *ForStatement {
 	return &ForStatement{
-		Node:        NewNode(token),
-		Initializer: initializer,
-		Condition:   condition,
-		Increment:   increment,
-		Body:        body,
+		Node:         NewNode(token),
+		Initializers: initializers,
+		Condition:    condition,
+		Increments:   increments,
+		Body:         body,
 	}
 }
 
@@ -171,11 +175,13 @@ func (f *ForYieldControl) Next(ctx data.Context) data.Control {
 		}
 	}
 
-	// 执行增量表达式
-	if f.Increment != nil {
-		_, ctl := f.Increment.GetValue(ctx)
-		if ctl != nil {
-			return ctl
+	// 执行增量表达式（支持多个）
+	for _, increment := range f.Increments {
+		if increment != nil {
+			_, ctl := increment.GetValue(ctx)
+			if ctl != nil {
+				return ctl
+			}
 		}
 	}
 

@@ -244,6 +244,7 @@ func (fp FunctionParser) parserReturnType() (data.Types, data.Control) {
 					token.ARRAY,
 					token.NULL,
 					token.FALSE,
+					token.STATIC,
 				) {
 					return nil, data.NewErrorThrow(fp.newFrom(), errors.New("无法识别返回类型的定义符号"))
 				}

@@ -104,6 +104,7 @@ func Load(vm data.VM) {
 		core.NewCopyFunction(),
 		core.NewRenameFunction(),
 		core.NewFuncGetArgsFunction(),
+		core.NewPutenvFunction(),
 		file.NewFileExistsFunction(),
 		file.NewIsReadableFunction(),
 		file.NewIsWritableFunction(),

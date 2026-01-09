@@ -65,19 +65,31 @@ func (g *GlobalsNode) getGlobals(ctx data.Context) (data.GetValue, data.Control)
 // getEnv 获取 $_ENV（环境变量）
 func (g *GlobalsNode) getEnv() (data.GetValue, data.Control) {
 	v, ok := groups.Load("$_ENV")
+	var envObj *data.ObjectValue
 	if !ok {
-		envObj := data.NewObjectValue()
-		// 从系统环境变量填充
-		for _, env := range os.Environ() {
-			parts := strings.SplitN(env, "=", 2)
-			if len(parts) == 2 {
-				envObj.SetProperty(parts[0], data.NewStringValue(parts[1]))
-			}
-		}
+		// 如果 $_ENV 不存在，创建新的对象
+		envObj = data.NewObjectValue()
 		groups.Store("$_ENV", envObj)
-		return envObj, nil
+	} else {
+		// 如果 $_ENV 已存在，保留现有值
+		if obj, ok := v.(*data.ObjectValue); ok {
+			envObj = obj
+		} else {
+			// 如果不是 ObjectValue 类型，创建新的
+			envObj = data.NewObjectValue()
+			groups.Store("$_ENV", envObj)
+		}
 	}
-	return v.(data.GetValue), nil
+
+	// 合并系统环境变量（保留已有的 $_ENV 值，但用系统环境变量更新或新增）
+	for _, env := range os.Environ() {
+		parts := strings.SplitN(env, "=", 2)
+		if len(parts) == 2 {
+			envObj.SetProperty(parts[0], data.NewStringValue(parts[1]))
+		}
+	}
+
+	return envObj, nil
 }
 
 // getServer 获取 $_SERVER（服务器和执行环境信息）

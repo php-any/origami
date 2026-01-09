@@ -416,7 +416,7 @@ func (p *NewStructParser) parseAnonymousClass(tracker *PositionTracker) (data.Ge
 				}
 			}
 		} else if p.current().Type() == token.FUNC {
-			method, acl := cp.parseMethodWithAnnotations(modifier, isStatic, isAbstractMethod, memberAnnotations)
+			method, _, acl := cp.parseMethodWithAnnotations(modifier, isStatic, isAbstractMethod, memberAnnotations, nil, nil)
 			if acl != nil {
 				return nil, acl
 			}

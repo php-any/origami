@@ -90,6 +90,9 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 
 			stmt, acl := p.vm.GetOrLoadClass(an.Name)
 			if acl != nil {
+				if acl, ok := acl.(data.AddStack); ok {
+					acl.AddStackWithInfo(p.newFrom(), "annotation", an.Name)
+				}
 				return nil, acl
 			}
 			object, acl := stmt.GetValue(p.vm.CreateContext(nil))

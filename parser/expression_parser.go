@@ -104,6 +104,27 @@ func (ep *ExpressionParser) parseTernary() (data.GetValue, data.Control) {
 	}
 	switch ep.current().Type() {
 	case token.TERNARY:
+		// 检查是否是空安全调用操作符：?-> (PHP 8.0+)
+		if ep.checkPositionIs(1, token.OBJECT_OPERATOR) {
+			// 解析空安全调用 ?->
+			ep.next() // 跳过 ?
+			ep.next() // 跳过 ->
+
+			// 使用 VariableParser 解析后续的方法/属性调用
+			vp := &VariableParser{ep.Parser}
+			callExpr, acl := vp.parseMethodCall(expr)
+			if acl != nil {
+				return nil, acl
+			}
+			// 继续解析链式调用（支持 ?->method()?->property）
+			callExpr, acl = vp.parseSuffix(callExpr)
+			if acl != nil {
+				return nil, acl
+			}
+			// 包装为空安全调用节点
+			return node.NewNullsafeCall(tracker.EndBefore(), expr, callExpr), nil
+		}
+
 		// 检查是否是可空类型声明模式：?type $variable
 		if isIdentOrTypeToken(ep.peek(1).Type()) && ep.checkPositionIs(2, token.VARIABLE) {
 			// 这是可空类型声明，交给专门的解析器处理
@@ -377,7 +398,7 @@ func (ep *ExpressionParser) parseBitwiseOr() (data.GetValue, data.Control) {
 // parseComparison 解析比较表达式
 func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
-	expr, acl := ep.parseTerm()
+	expr, acl := ep.parseShift()
 	if acl != nil {
 		return nil, acl
 	}
@@ -388,6 +409,32 @@ func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 		}
 	}
 	for ep.checkPositionIs(0, token.LT, token.LE, token.GT, token.GE) {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseShift()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+
+	return expr, nil
+}
+
+// parseShift 解析位移表达式 (<< >>)
+func (ep *ExpressionParser) parseShift() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseTerm()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.checkPositionIs(0, token.SHL, token.SHR) {
 		operator := ep.current()
 		ep.next()
 
@@ -514,8 +561,8 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 	}
 	expr, acl := ep.parsePrimary()
 	if acl == nil {
-		// 检查各种赋值运算符（含字符串连接赋值 .=）
-		for ep.checkPositionIs(0, token.ASSIGN, token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ, token.CONCAT_EQ) {
+		// 检查各种赋值运算符（含字符串连接赋值 .= 和位移赋值 >>= <<=）
+		for ep.checkPositionIs(0, token.ASSIGN, token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ, token.CONCAT_EQ, token.SHL_EQ, token.SHR_EQ) {
 			operator := ep.current()
 			ep.next()
 

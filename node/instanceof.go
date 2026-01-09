@@ -44,6 +44,22 @@ func (i *InstanceOfExpression) GetValue(ctx data.Context) (data.GetValue, data.C
 				return data.NewBoolValue(result), acl
 			}
 		}
+	} else if thisValue, ok := objectValue.(*data.ThisValue); ok {
+		// 处理 ThisValue（$this）
+		c, acl := ctx.GetVM().LoadPkg(i.ClassName)
+		if acl != nil {
+			return nil, acl
+		}
+		if c != nil {
+			switch checkC := c.(type) {
+			case data.ClassStmt:
+				result, acl := checkClassIs(ctx, thisValue.Class, checkC.GetName())
+				return data.NewBoolValue(result), acl
+			case data.InterfaceStmt:
+				result, acl := checkClassIs(ctx, thisValue.Class, checkC.GetName())
+				return data.NewBoolValue(result), acl
+			}
+		}
 	}
 
 	switch i.ClassName {

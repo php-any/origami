@@ -129,7 +129,7 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 				}
 			}
 		} else if p.current().Type() == token.FUNC {
-			method, acl := p.parseMethodWithAnnotations(modifier, isStatic, isAbstractMethod, memberAnnotations)
+			method, _, acl := p.parseMethodWithAnnotations(modifier, isStatic, isAbstractMethod, memberAnnotations, nil, nil)
 			if acl != nil {
 				return nil, acl
 			}

@@ -114,15 +114,28 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 			hasLparen = true
 		}
 		exprParser := NewMainStatementParser(p.Parser)
-		var initializer data.GetValue
+		var initializers []data.GetValue
 		if p.checkPositionIs(0, token.SEMICOLON) {
 			p.nextAndCheckStip(token.SEMICOLON) // 跳过分号
 		} else if !p.checkPositionIs(0, token.LBRACE) {
+			// 解析第一个初始化表达式
 			var acl data.Control
-			initializer, acl = exprParser.Parse()
+			initializer, acl := exprParser.Parse()
 			if acl != nil {
 				return nil, acl
 			}
+			initializers = append(initializers, initializer)
+
+			// 解析逗号分隔的多个初始化表达式
+			for p.current().Type() == token.COMMA {
+				p.next() // 跳过逗号
+				init, acl := exprParser.Parse()
+				if acl != nil {
+					return nil, acl
+				}
+				initializers = append(initializers, init)
+			}
+
 			p.nextAndCheckStip(token.SEMICOLON) // 跳过分号
 		}
 
@@ -140,15 +153,28 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 		}
 
 		// 解析递增表达式
-		var increment data.GetValue
+		var increments []data.GetValue
 		if p.checkPositionIs(0, token.SEMICOLON) {
 			p.nextAndCheckStip(token.SEMICOLON) // 跳过分号
 		} else if !p.checkPositionIs(0, token.LBRACE, token.RPAREN) {
+			// 解析第一个增量表达式
 			var acl data.Control
-			increment, acl = exprParser.Parse()
+			increment, acl := exprParser.Parse()
 			if acl != nil {
 				return nil, acl
 			}
+			increments = append(increments, increment)
+
+			// 解析逗号分隔的多个增量表达式
+			for p.current().Type() == token.COMMA {
+				p.next() // 跳过逗号
+				inc, acl := exprParser.Parse()
+				if acl != nil {
+					return nil, acl
+				}
+				increments = append(increments, inc)
+			}
+
 			p.nextAndCheckStip(token.SEMICOLON) // 跳过分号
 		}
 
@@ -163,9 +189,9 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 		}
 		return node.NewForStatement(
 			tracker.EndBefore(),
-			initializer,
+			initializers,
 			condition,
-			increment,
+			increments,
 			body,
 		), acl
 	}

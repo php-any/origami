@@ -14,6 +14,7 @@ var parserRouter = map[token.TokenType]func(parser *Parser) StatementParser{
 
 	token.IF:         NewIfParser,
 	token.WHILE:      NewWhileParser,
+	token.DO:         NewDoWhileParser,
 	token.FOR:        NewForParser,
 	token.FOREACH:    NewForeachParser,
 	token.RETURN:     NewReturnParser,

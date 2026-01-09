@@ -28,6 +28,7 @@ func (p *FunctionParserCommon) ParseFunctionBody() ([]data.GetValue, data.Contro
 	var body []data.GetValue
 	if p.current().Type() == token.LBRACE {
 		p.next()
+		last := p.position
 		for !p.currentIsTypeOrEOF(token.RBRACE) {
 			stmt, acl := stmtParser.Parse()
 			if acl != nil {
@@ -35,11 +36,10 @@ func (p *FunctionParserCommon) ParseFunctionBody() ([]data.GetValue, data.Contro
 			}
 			if stmt != nil {
 				body = append(body, stmt)
-			} else {
-				t := p.current().Literal()
-				if t == "," {
-					fmt.Println(t)
-				}
+			} else if last == p.position {
+				t := p.current()
+				fmt.Println(t)
+				panic("出现死循环")
 			}
 		}
 		p.next() // 跳过结束花括号

@@ -43,10 +43,21 @@ func (t *TryStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 	}
 
 	if c != nil {
-		var nAcl data.Control
-		v, nAcl = t.tryValue(ctx, c)
-		if nAcl != nil {
-			return nil, nAcl
+		var catchValue data.GetValue
+		var catchControl data.Control
+		catchValue, catchControl = t.tryValue(ctx, c)
+
+		// 如果 catch 块处理了异常，使用 catch 块的值和控制流
+		// 如果 catch 块没有处理异常（没有匹配的 catch），catchControl 会是原来的异常
+		if catchControl == nil {
+			// 异常已被 catch 处理，使用 catch 块的值
+			v = catchValue
+			c = nil
+		} else {
+			// 异常未被处理，继续传播
+			// 但 finally 块仍然需要执行
+			v = catchValue
+			c = catchControl
 		}
 	}
 
@@ -89,22 +100,15 @@ func (t *TryStatement) tryValue(ctx data.Context, c data.Control) (data.GetValue
 			for _, catchStmt := range catchBlock.Body {
 				_, c = catchStmt.GetValue(ctx)
 				if c != nil {
-					// 执行 finally 块（如果存在）
-					if len(t.FinallyBlock) > 0 {
-						for _, statement := range t.FinallyBlock {
-							_, c = statement.GetValue(ctx)
-							if c != nil {
-								// finally 块中的异常会覆盖之前的异常
-								return nil, c
-							}
-						}
-					}
+					// catch 块中有新的异常或 return，直接返回
+					// finally 块会在 GetValue 方法中执行
 					return nil, c
 				}
 			}
 
-			// 异常已被处理，继续执行 finally 块
-			break
+			// 异常已被处理，返回 nil 表示已处理
+			// finally 块会在 GetValue 方法中执行
+			return nil, nil
 		}
 	} else {
 		// 其他类型的控制流（如 return、break 等）
