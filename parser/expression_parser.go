@@ -387,8 +387,7 @@ func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 			return NewHtmlParser(ep.Parser).Parse()
 		}
 	}
-	for ep.current().Type() == token.LT || ep.current().Type() == token.LE ||
-		ep.current().Type() == token.GT || ep.current().Type() == token.GE {
+	for ep.checkPositionIs(0, token.LT, token.LE, token.GT, token.GE) {
 		operator := ep.current()
 		ep.next()
 
@@ -618,6 +617,12 @@ func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 	case token.START_TAG, token.END_TAG, token.SEMICOLON:
 		ep.next()
 		return nil, nil
+	case token.NUMBER:
+		currentToken := ep.current()
+		value := currentToken.Literal()
+		tokenFrom := node.NewTokenFrom(ep.source, currentToken.Start(), currentToken.End(), currentToken.Line(), currentToken.Pos())
+		ep.next()
+		return node.NewNumberLiteral(tokenFrom, value), nil
 	default:
 		if parser, ok := parserRouter[ep.current().Type()]; ok {
 			expr, acl := parser(ep.Parser).Parse()

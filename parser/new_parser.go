@@ -430,6 +430,63 @@ func (p *NewStructParser) parseAnonymousClass(tracker *PositionTracker) (data.Ge
 		} else if p.current().Type() == token.SEMICOLON {
 			p.next()
 			continue
+		} else if p.checkPositionIs(0, token.USE) {
+			// 解析 use 语句（用于 trait）
+			// 语法：use Trait1, Trait2;
+			// 在匿名类中可以使用 trait，trait 的方法和属性会被直接合并到类中
+			// 例如：new class { use MyTrait; }
+			traitNames, acl := cp.parseTraitUse()
+			if acl != nil {
+				return nil, acl
+			}
+			// 直接合并 trait 的方法和属性到当前变量中
+			vm := p.vm
+			for _, traitName := range traitNames {
+				// 从 VM 加载 trait
+				trait, acl := vm.GetOrLoadClass(traitName)
+				if acl != nil {
+					return nil, data.NewErrorThrow(p.newFrom(), fmt.Errorf("无法加载 trait %s: %v", traitName, acl))
+				}
+				if trait == nil {
+					return nil, data.NewErrorThrow(p.newFrom(), fmt.Errorf("trait %s 不存在", traitName))
+				}
+				// 合并 trait 的方法
+				traitMethods := trait.GetMethods()
+				for _, method := range traitMethods {
+					methodName := method.GetName()
+					// 如果类中已经有同名方法，跳过（类的方法优先级更高）
+					if _, exists := methods[methodName]; !exists {
+						if method.GetIsStatic() {
+							if _, exists := staticMethods[methodName]; !exists {
+								staticMethods[methodName] = method
+							}
+						} else {
+							methods[methodName] = method
+						}
+					}
+				}
+				// 合并 trait 的属性
+				traitProperties := trait.GetPropertyList()
+				for _, property := range traitProperties {
+					propertyName := property.GetName()
+					// 如果类中已经有同名属性，跳过（类的属性优先级更高）
+					hasProperty := false
+					for _, prop := range properties {
+						if prop.GetName() == propertyName {
+							hasProperty = true
+							break
+						}
+					}
+					if !hasProperty && staticProperties[propertyName] == nil {
+						if property.GetIsStatic() {
+							staticProperties[propertyName] = property
+						} else {
+							properties = append(properties, property)
+						}
+					}
+				}
+			}
+			continue
 		} else {
 			return nil, data.NewErrorThrow(p.newFrom(), errors.New("缺少属性或方法声明"))
 		}
