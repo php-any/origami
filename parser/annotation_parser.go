@@ -24,9 +24,56 @@ func NewAnnotationParser(parser *Parser) StatementParser {
 func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 	var annotations []*node.Annotation
 	tracker := p.StartTracking()
-	for p.current().Type() == token.AT {
+	for p.checkPositionIs(0, token.AT, token.HASH) {
 		tracker := p.StartTracking()
 
+		// 检查是 @ 还是 #[
+		if p.checkPositionIs(0, token.HASH) {
+			// 处理 #[...] 格式的属性注解 (PHP 8.0+)
+			p.next() // 跳过 #
+			if p.current().Type() != token.LBRACKET {
+				return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("属性注解格式错误，期望 #[...]"))
+			}
+			p.next() // 跳过 [
+
+			// 解析注解名称
+			if p.current().Type() != token.IDENTIFIER && p.current().Type() != token.NAMESPACE_SEPARATOR {
+				return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("属性注解缺少名称"))
+			}
+
+			annotationName, acl := p.getClassName(true)
+			if acl != nil {
+				return nil, acl
+			}
+
+			// 解析注解参数
+			arguments := make([]data.GetValue, 0)
+			if p.current().Type() == token.LPAREN {
+				vp := VariableParser{Parser: p.Parser}
+				arguments, acl = vp.parseFunctionCall()
+				if acl != nil {
+					return nil, acl
+				}
+			}
+
+			// 跳过 ]
+			if p.current().Type() != token.RBRACKET {
+				return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("属性注解缺少右方括号 ']'"))
+			}
+			p.next()
+
+			// 创建注解节点
+			annotation := node.NewAnnotation(
+				tracker.EndBefore(),
+				annotationName,
+				arguments,
+			)
+
+			annotations = append(annotations, annotation)
+			continue
+		}
+
+		// 处理 @ 格式的注解
 		// 跳过 @ 符号
 		p.next()
 

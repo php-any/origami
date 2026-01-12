@@ -31,6 +31,7 @@ func createInstanceAndCallConstructor(
 	if object, ok := object.(*data.ClassValue); ok {
 		if method := object.Class.GetConstruct(); method != nil {
 			varies := method.GetVariables()
+			params := method.GetParams()
 			fnCtx := object.CreateContext(varies)
 			// 入参的值设置到上下文中
 			for index, arg := range arguments {
@@ -56,6 +57,23 @@ func createInstanceAndCallConstructor(
 					}
 
 					fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
+				}
+			}
+
+			// 处理未传递的参数，设置默认值
+			for index := len(arguments); index < len(params); index++ {
+				if index >= len(varies) {
+					break
+				}
+				if argObj, ok := params[index].(*Parameter); ok {
+					if argObj.DefaultValue == nil {
+						return nil, data.NewErrorThrow(from, fmt.Errorf("调用 %s 构造函数时参数 %s 缺少值和默认值", object.Class.GetName(), argObj.Name))
+					}
+					// 调用 GetValue 来触发默认值的设置
+					_, acl := argObj.GetValue(fnCtx)
+					if acl != nil {
+						return nil, acl
+					}
 				}
 			}
 
@@ -85,6 +103,7 @@ func createInstanceAndCallConstructorWithStmt(
 	if object, ok := object.(*data.ClassValue); ok {
 		if method := object.Class.GetConstruct(); method != nil {
 			varies := method.GetVariables()
+			params := method.GetParams()
 			fnCtx := object.CreateContext(varies)
 			// 入参的值设置到上下文中
 			for index, arg := range arguments {
@@ -110,6 +129,23 @@ func createInstanceAndCallConstructorWithStmt(
 					}
 
 					fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
+				}
+			}
+
+			// 处理未传递的参数，设置默认值
+			for index := len(arguments); index < len(params); index++ {
+				if index >= len(varies) {
+					break
+				}
+				if argObj, ok := params[index].(*Parameter); ok {
+					if argObj.DefaultValue == nil {
+						return nil, data.NewErrorThrow(from, fmt.Errorf("调用 %s 构造函数时参数 %s 缺少值和默认值", object.Class.GetName(), argObj.Name))
+					}
+					// 调用 GetValue 来触发默认值的设置
+					_, acl := argObj.GetValue(fnCtx)
+					if acl != nil {
+						return nil, acl
+					}
 				}
 			}
 

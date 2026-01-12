@@ -281,6 +281,10 @@ func (vm *VM) GetConstant(name string) (data.Value, bool) {
 	vm.mu.RLock()
 	defer vm.mu.RUnlock()
 
+	if len(name) > 0 && name[0:1] == "\\" {
+		name = name[1:]
+	}
+
 	value, ok := vm.constantMap[name]
 	return value, ok
 }

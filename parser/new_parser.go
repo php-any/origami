@@ -355,7 +355,7 @@ func (p *NewStructParser) parseAnonymousClass(tracker *PositionTracker) (data.Ge
 	for !p.currentIsTypeOrEOF(token.RBRACE) {
 		// 先尝试解析注解
 		var memberAnnotations []*node.Annotation
-		for p.current().Type() == token.AT {
+		for p.checkPositionIs(0, token.AT, token.HASH) {
 			ann, acl := cp.parseAnnotation()
 			if acl != nil {
 				return nil, acl

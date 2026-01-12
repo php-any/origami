@@ -33,6 +33,8 @@ func TryGetCallClassName(call data.GetValue) string {
 		return fmt.Sprintf("%s->%s", TryGetCallClassName(c.Object), c.Method)
 	case *BinaryAssignVariable:
 		return fmt.Sprintf("%s = %s", TryGetCallClassName(c.Left), TryGetCallClassName(c.Right))
+	case *CallExpression:
+		return fmt.Sprintf("%s(%s)", "call", c.FunName)
 	}
 
 	return "TODO"

@@ -55,15 +55,13 @@ func (m *ReflectionMethodConstructMethod) Call(ctx data.Context) (data.GetValue,
 	var className string
 
 	// 检查参数类型
-	if classVal, ok := classValue.(*data.ClassValue); ok {
+	if classVal, ok := classValue.(data.GetName); ok {
 		// 参数是对象，获取其类名
-		className = classVal.Class.GetName()
-	} else if strValue, ok := classValue.(*data.StringValue); ok {
-		// 参数是字符串，视为类名
-		className = strValue.AsString()
+		className = classVal.GetName()
+	} else if classVal, ok := classValue.(*data.StringValue); ok {
+		className = classVal.AsString()
 	} else {
-		// 尝试转换为字符串
-		className = classValue.AsString()
+		return nil, data.NewErrorThrow(nil, errors.New("ReflectionClass::__construct() expects parameter 1 to be string or object"))
 	}
 
 	// 获取第二个参数：方法名
@@ -83,10 +81,49 @@ func (m *ReflectionMethodConstructMethod) Call(ctx data.Context) (data.GetValue,
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("Class %s does not exist", className))
 	}
 
-	// 查找方法
-	_, exists := stmt.GetMethod(methodName)
+	// 查找方法（包括继承的方法）
+	method, exists := stmt.GetMethod(methodName)
 	if !exists {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("Method %s::%s() does not exist", className, methodName))
+		if classStmt, ok := stmt.(data.GetStaticMethod); ok {
+			method, exists = classStmt.GetStaticMethod(methodName)
+		}
+	}
+
+	if !exists {
+		// 如果当前类没有找到，查找继承的方法
+		last := stmt
+		for last.GetExtend() != nil {
+			ext := last.GetExtend()
+			parentStmt, acl := vm.GetOrLoadClass(*ext)
+			if acl != nil {
+				return nil, acl
+			}
+			if parentStmt == nil {
+				break
+			}
+
+			method, exists = parentStmt.GetMethod(methodName)
+			if exists {
+				// 检查访问权限，私有方法不能继承
+				if method.GetModifier() != data.ModifierPrivate {
+					break
+				}
+				// 如果是私有方法，继续向上查找
+				method = nil
+				exists = false
+			} else if classStmt, ok := parentStmt.(data.GetStaticMethod); ok {
+				method, exists = classStmt.GetStaticMethod(methodName)
+				if exists {
+					break
+				}
+			}
+
+			last = parentStmt
+		}
+
+		if !exists {
+			return nil, data.NewErrorThrow(nil, fmt.Errorf("Method %s::%s() does not exist", className, methodName))
+		}
 	}
 
 	// 将方法信息存储到当前对象的属性中

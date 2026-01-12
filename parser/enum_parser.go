@@ -101,7 +101,7 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 			Parser:               p.Parser,
 			FunctionParserCommon: NewFunctionParserCommon(p.Parser),
 		}
-		for p.current().Type() == token.AT {
+		for p.checkPositionIs(0, token.AT, token.HASH) {
 			ann, acl := cp.parseAnnotation()
 			if acl != nil {
 				return nil, acl

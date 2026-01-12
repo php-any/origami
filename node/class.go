@@ -389,8 +389,11 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 				}
 				return nil, data.NewErrorThrow(m.GetFrom(), fmt.Errorf("方法(%s)返回值类型错误; 请检查类型和数量匹配", m.Name))
 			case data.AddStack:
-				if c, ok := ctx.(*data.ClassMethodContext); ok {
-					rv.AddStackWithInfo(m.from, c.Class.GetName(), m.GetName())
+				if c, ok := statement.(GetFrom); ok {
+					rv.AddStackWithInfo(c.GetFrom(), "body", TryGetCallClassName(statement))
+				}
+				if c, ok := ctx.(data.GetName); ok {
+					rv.AddStackWithInfo(m.from, c.GetName(), m.GetName())
 				} else {
 					rv.AddStackWithInfo(m.from, "", m.GetName())
 				}

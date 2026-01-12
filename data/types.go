@@ -162,6 +162,8 @@ func NewBaseType(ty string) Types {
 		return Callable{}
 	case "static":
 		return StaticType{}
+	case "self":
+		return StaticType{}
 	default:
 		return Class{Name: ty}
 	}

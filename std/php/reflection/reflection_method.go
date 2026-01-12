@@ -91,20 +91,8 @@ type ReflectionMethodValue struct {
 	method     data.Method // 被反射的方法对象
 }
 
-// newReflectionMethod 创建一个新的 ReflectionMethod 实例
-// 这是一个辅助函数，用于创建 ReflectionMethod 对象
-func newReflectionMethod(ctx data.Context, className string, methodName string) *data.ClassValue {
-	methodClass := &ReflectionMethodClass{}
-	methodValue := data.NewClassValue(methodClass, ctx.CreateBaseContext())
-
-	// 存储方法信息到实例属性中
-	methodValue.ObjectValue.SetProperty("_className", data.NewStringValue(className))
-	methodValue.ObjectValue.SetProperty("_methodName", data.NewStringValue(methodName))
-
-	return methodValue
-}
-
 // getReflectionMethodInfo 从上下文中获取 ReflectionMethod 的方法信息
+// 支持查找继承的方法
 func getReflectionMethodInfo(ctx data.Context) (string, string, data.Method) {
 	if objCtx, ok := ctx.(*data.ClassMethodContext); ok {
 		// 从 ObjectValue 的 property 中直接获取类名和方法名
@@ -128,11 +116,44 @@ func getReflectionMethodInfo(ctx data.Context) (string, string, data.Method) {
 					vm := ctx.GetVM()
 					stmt, _ := vm.GetOrLoadClass(className)
 					if stmt != nil {
+						// 首先在当前类中查找方法
 						method, exists := stmt.GetMethod(methodName)
 						if exists {
 							return className, methodName, method
-						} else if methodName == token.ConstructName && stmt.GetConstruct() != nil {
+						}
+
+						// 如果是构造函数，检查当前类的构造函数
+						if methodName == token.ConstructName && stmt.GetConstruct() != nil {
 							return className, methodName, stmt.GetConstruct()
+						}
+
+						// 如果当前类没有找到，查找继承的方法
+						declaringClassName := className
+						last := stmt
+						for last.GetExtend() != nil {
+							ext := last.GetExtend()
+							parentStmt, _ := vm.GetOrLoadClass(*ext)
+							if parentStmt == nil {
+								break
+							}
+
+							// 在父类中查找方法
+							method, exists := parentStmt.GetMethod(methodName)
+							if exists {
+								// 检查访问权限，私有方法不能继承
+								if method.GetModifier() != data.ModifierPrivate {
+									declaringClassName = *ext
+									return declaringClassName, methodName, method
+								}
+							}
+
+							// 如果是构造函数，检查父类的构造函数
+							if methodName == token.ConstructName && parentStmt.GetConstruct() != nil {
+								declaringClassName = *ext
+								return declaringClassName, methodName, parentStmt.GetConstruct()
+							}
+
+							last = parentStmt
 						}
 					}
 				}

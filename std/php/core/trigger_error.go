@@ -24,6 +24,12 @@ func (f *TriggerErrorFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 
 	// 第二个参数：错误级别（当前实现忽略，仅保留签名兼容）
 	// PHP: E_USER_ERROR / E_USER_WARNING / E_USER_NOTICE 等
+	level, _ := ctx.GetIndexValue(1)
+	if i, ok := level.(data.AsInt); ok {
+		if i, _ := i.AsInt(); i == 16384 {
+			return nil, nil
+		}
+	}
 	// 这里统一按致命错误处理，直接抛出异常
 
 	return nil, utils.NewThrowf("trigger_error: %s", msg)

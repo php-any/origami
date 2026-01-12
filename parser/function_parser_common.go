@@ -66,6 +66,19 @@ func (p *FunctionParserCommon) ParseParameters() ([]data.GetValue, data.Control)
 
 	// 解析参数列表
 	for {
+		// 检查是否有属性注解（如 #[\SensitiveParameter]）
+		var paramAnnotations []*node.Annotation
+		for p.checkPositionIs(0, token.HASH) {
+			cp := &ClassParser{Parser: p.Parser, FunctionParserCommon: p}
+			ann, acl := cp.parseAnnotation()
+			if acl != nil {
+				return nil, acl
+			}
+			if ann != nil {
+				paramAnnotations = append(paramAnnotations, ann)
+			}
+		}
+
 		varType := ""
 		name := ""
 		isParams := false

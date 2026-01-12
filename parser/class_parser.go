@@ -3,7 +3,6 @@ package parser
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/lexer"
@@ -29,7 +28,7 @@ func NewClassParser(parser *Parser) StatementParser {
 func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 	// 解析类前的注解
 	var annotations []*node.Annotation
-	for p.current().Type() == token.AT {
+	for p.checkPositionIs(0, token.AT, token.HASH) {
 		annotation, acl := p.parseAnnotation()
 		if acl != nil {
 			return nil, acl
@@ -155,7 +154,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 	for !p.currentIsTypeOrEOF(token.RBRACE) {
 		// 先尝试解析注解
 		var memberAnnotations []*node.Annotation
-		for p.current().Type() == token.AT {
+		for p.checkPositionIs(0, token.AT, token.HASH) {
 			ann, acl := p.parseAnnotation()
 			if acl != nil {
 				return nil, acl
@@ -289,9 +288,10 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 		vm := p.vm
 		var last data.ClassStmt = c
 		for last != nil && last.GetExtend() != nil {
-			ext := last.GetExtend()
+			ext := *last.GetExtend()
+
 			var acl data.Control
-			last, acl = vm.GetOrLoadClass(*ext)
+			last, acl = vm.GetOrLoadClass(ext)
 			if acl != nil {
 				return nil, acl
 			}
@@ -415,36 +415,15 @@ func (p *ClassParser) ParseConstructorParameters() ([]data.GetValue, []data.Prop
 			paramModifier = ""
 		}
 
-		// 解析参数类型
-		varType := ""
-		if isIdentOrTypeToken(p.current().Type()) {
-			varType = p.FunctionParserCommon.parserType(p.Parser, p.current().Literal())
-			p.next()
-		} else if p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type()) {
-			// ?int 方式
-			p.next() // 跳过问号
-			varType = "?" + p.FunctionParserCommon.parserType(p.Parser, p.current().Literal())
-			p.next()
-		}
+		// 解析参数类型（支持联合类型：string|int|null）
+		paramType := p.parseConstructorParameterType()
 
 		// 解析参数名（必须是变量）
 		if p.current().Type() != token.VARIABLE {
-			return nil, nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("参数缺少变量名"))
+			return nil, nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("参数缺少变量名"+p.current().Literal()))
 		}
 		name := p.current().Literal()
 		p.next()
-
-		// 创建参数类型
-		var paramType data.Types
-		if strings.HasPrefix(varType, "?") {
-			// 可空类型
-			baseType := data.NewBaseType(varType[1:]) // 去掉问号
-			paramType = data.NewNullableType(baseType)
-		} else if varType == "" {
-			paramType = data.NewBaseType("mixed")
-		} else {
-			paramType = data.NewBaseType(varType)
-		}
 
 		// 添加参数到作用域
 		val := p.scopeManager.CurrentScope().AddVariable(name, paramType, tracking.EndBefore())
@@ -463,16 +442,8 @@ func (p *ClassParser) ParseConstructorParameters() ([]data.GetValue, []data.Prop
 
 		// 如果有访问修饰符，创建属性
 		if paramModifier != "" {
-			// 创建属性类型（用于属性）
-			var propertyType data.Types
-			if varType == "" {
-				propertyType = nil
-			} else if strings.HasPrefix(varType, "?") {
-				baseType := data.NewBaseType(varType[1:])
-				propertyType = data.NewNullableType(baseType)
-			} else {
-				propertyType = data.NewBaseType(varType)
-			}
+			// 属性类型直接使用 paramType（已经支持联合类型）
+			propertyType := paramType
 
 			prop := node.NewPropertyWithReadonly(
 				tracking.EndBefore(),
@@ -506,6 +477,59 @@ func (p *ClassParser) ParseConstructorParameters() ([]data.GetValue, []data.Prop
 	return params, properties, nil
 }
 
+// parseConstructorParameterType 解析构造函数参数类型（支持联合类型：string|int|null）
+func (p *ClassParser) parseConstructorParameterType() data.Types {
+	if isIdentOrTypeToken(p.current().Type()) || p.checkPositionIs(0, token.NULL, token.FALSE) {
+		// 检查是否是联合类型：string|int|null
+		var unionTypes []data.Types
+
+		// 解析第一个类型
+		var firstType data.Types
+		if p.checkPositionIs(0, token.NULL, token.FALSE) {
+			firstType = data.NewBaseType(p.current().Literal())
+			p.next()
+		} else {
+			firstType = p.parseType()
+		}
+
+		if firstType != nil {
+			unionTypes = append(unionTypes, firstType)
+
+			// 处理后续的 |Type
+			for p.current().Type() == token.BIT_OR {
+				p.next() // 跳过 |
+				var nextType data.Types
+				if p.checkPositionIs(0, token.NULL, token.FALSE) {
+					nextType = data.NewBaseType(p.current().Literal())
+					p.next()
+				} else if isIdentOrTypeToken(p.current().Type()) {
+					nextType = p.parseType()
+				} else {
+					break
+				}
+				if nextType != nil {
+					unionTypes = append(unionTypes, nextType)
+				}
+			}
+
+			// 创建类型
+			if len(unionTypes) == 1 {
+				return unionTypes[0]
+			} else {
+				return data.NewUnionType(unionTypes)
+			}
+		}
+	} else if p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type()) {
+		// ?int 方式
+		p.next()
+		base := data.NewBaseType(p.current().Literal())
+		p.next()
+		return data.NewNullableType(base)
+	}
+	// 没有类型声明，使用 mixed
+	return data.NewBaseType("mixed")
+}
+
 // parseModifier 解析访问修饰符
 func (p *ClassParser) parseModifier() string {
 	switch p.current().Type() {
@@ -527,6 +551,52 @@ func (p *ClassParser) parseModifier() string {
 func (p *ClassParser) parseAnnotation() (*node.Annotation, data.Control) {
 	tracker := p.StartTracking()
 
+	// 检查是 @ 还是 #[
+	if p.checkPositionIs(0, token.HASH) {
+		// 处理 #[...] 格式的属性注解 (PHP 8.0+)
+		p.next() // 跳过 #
+		if p.current().Type() != token.LBRACKET {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("属性注解格式错误，期望 #[...]"))
+		}
+		p.next() // 跳过 [
+
+		// 解析注解名称
+		if p.current().Type() != token.IDENTIFIER && p.current().Type() != token.NAMESPACE_SEPARATOR {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("属性注解缺少名称"))
+		}
+
+		annotationName, acl := p.getClassName(true)
+		if acl != nil {
+			return nil, acl
+		}
+
+		// 解析注解参数
+		arguments := make([]data.GetValue, 0)
+		if p.current().Type() == token.LPAREN {
+			vp := VariableParser{Parser: p.Parser}
+			arguments, acl = vp.parseFunctionCall()
+			if acl != nil {
+				return nil, acl
+			}
+		}
+
+		// 跳过 ]
+		if p.current().Type() != token.RBRACKET {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("属性注解缺少右方括号 ']'"))
+		}
+		p.next()
+
+		// 创建注解节点
+		annotation := node.NewAnnotation(
+			tracker.EndBefore(),
+			annotationName,
+			arguments,
+		)
+
+		return annotation, nil
+	}
+
+	// 处理 @ 格式的注解
 	// 跳过 @ 符号
 	p.next()
 
@@ -663,9 +733,46 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 
 	// 解析属性类型（在访问修饰符之后，变量名之前）
 	var propertyType data.Types
-	if isIdentOrTypeToken(p.current().Type()) {
-		// 检查是否是类型关键字
-		propertyType = p.parseType()
+	if isIdentOrTypeToken(p.current().Type()) || p.checkPositionIs(0, token.NULL, token.FALSE) {
+		// 检查是否是联合类型：string|int|null
+		var unionTypes []data.Types
+
+		// 解析第一个类型
+		var firstType data.Types
+		if p.checkPositionIs(0, token.NULL, token.FALSE) {
+			firstType = data.NewBaseType(p.current().Literal())
+			p.next()
+		} else {
+			firstType = p.parseType()
+		}
+
+		if firstType != nil {
+			unionTypes = append(unionTypes, firstType)
+
+			// 处理后续的 |Type
+			for p.current().Type() == token.BIT_OR {
+				p.next() // 跳过 |
+				var nextType data.Types
+				if p.checkPositionIs(0, token.NULL, token.FALSE) {
+					nextType = data.NewBaseType(p.current().Literal())
+					p.next()
+				} else if isIdentOrTypeToken(p.current().Type()) {
+					nextType = p.parseType()
+				} else {
+					break
+				}
+				if nextType != nil {
+					unionTypes = append(unionTypes, nextType)
+				}
+			}
+
+			// 创建类型
+			if len(unionTypes) == 1 {
+				propertyType = unionTypes[0]
+			} else {
+				propertyType = data.NewUnionType(unionTypes)
+			}
+		}
 	} else if p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type()) {
 		// ?int 方式
 		p.next()
@@ -804,6 +911,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 					token.NULL,
 					token.FALSE,
 					token.STATIC,
+					token.SELF,
 				) {
 					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("无法识别返回类型的定义符号"))
 				}

@@ -141,6 +141,7 @@ var TokenDefinitions = []TokenDefinition{
 	{Type: COLON, Literal: ":", WordType: OPERATOR},
 	{Type: SCOPE_RESOLUTION, Literal: "::", WordType: OPERATOR},
 	{Type: AT, Literal: "@", WordType: OPERATOR},
+	{Type: HASH, Literal: "#", WordType: OPERATOR},
 	{Type: DOLLAR, Literal: "$", WordType: SYMBOL},
 	{Type: COMMA, Literal: ",", WordType: OPERATOR},
 	{Type: SEMICOLON, Literal: ";", WordType: OPERATOR},

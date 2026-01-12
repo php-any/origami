@@ -1,10 +1,9 @@
 package php
 
 import (
-	"regexp"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/std/php/preg"
 )
 
 // PregMatchFunction 实现 preg_match 函数
@@ -21,54 +20,17 @@ func (f *PregMatchFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	// flagsValue, _ := ctx.GetIndexValue(3)
 	// offsetValue, _ := ctx.GetIndexValue(4)
 
+	if patternValue == nil || subjectValue == nil {
+		return data.NewBoolValue(false), nil
+	}
+
 	pattern := patternValue.AsString()
 	subject := subjectValue.AsString()
 
-	// PHP patterns usually start and end with a delimiter, e.g. /pattern/
-	// Go regexp doesn't use delimiters. We need to strip them.
-	// Also handle modifiers like 'i' (case insensitive) after the delimiter.
-
-	if len(pattern) >= 2 {
-		delimiter := pattern[0]
-		endIndex := -1
-		// Find the last occurrence of delimiter
-		for i := len(pattern) - 1; i > 0; i-- {
-			if pattern[i] == delimiter && pattern[i-1] != '\\' {
-				endIndex = i
-				break
-			}
-		}
-
-		if endIndex != -1 {
-			modifiers := pattern[endIndex+1:]
-			regexBody := pattern[1:endIndex]
-
-			// Handle modifiers
-			prefix := ""
-			if len(modifiers) > 0 {
-				for _, mod := range modifiers {
-					if mod == 'i' {
-						prefix += "(?i)"
-					}
-					// Other modifiers like 'm', 's', 'x', 'u' might need mapping or are default/different in Go.
-					// 'm' (multiline) -> (?m)
-					// 's' (dotall) -> (?s)
-					if mod == 'm' {
-						prefix += "(?m)"
-					}
-					if mod == 's' {
-						prefix += "(?s)"
-					}
-				}
-			}
-			pattern = prefix + regexBody
-		}
-	}
-
-	re, err := regexp.Compile(pattern)
+	// 使用 preg.Compile 统一处理 PHP 风格的正则表达式
+	re, err := preg.Compile(pattern)
 	if err != nil {
-		// PHP issues a warning, returns false.
-		// For now, return false.
+		// PHP 行为: 发出 warning，返回 false；这里只返回 false
 		return data.NewBoolValue(false), nil
 	}
 

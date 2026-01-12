@@ -77,6 +77,9 @@ func NewObjectProperty(token *TokenFrom, object data.GetValue, property string) 
 func (pe *CallObjectProperty) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	o, ctl := pe.Object.GetValue(ctx)
 	if ctl != nil {
+		if ctl, ok := ctl.(data.AddStack); ok {
+			ctl.AddStackWithInfo(pe.from, TryGetCallClassName(pe.Object), pe.Property)
+		}
 		return nil, ctl
 	}
 	switch v := o.(type) {

@@ -24,6 +24,10 @@ type ClassValue struct {
 	Class ClassStmt
 }
 
+func (c *ClassValue) GetName() string {
+	return c.Class.GetName()
+}
+
 func (c *ClassValue) GetValue(ctx Context) (GetValue, Control) {
 	return c, nil
 }
@@ -64,9 +68,6 @@ func (c *ClassValue) GetPropertyStmt(name string) (Property, bool) {
 
 		property, ok := next.GetProperty(name)
 		if ok {
-			if property.GetModifier() == ModifierPrivate {
-				return nil, false
-			}
 			return property, true
 		}
 		last = next
@@ -111,9 +112,9 @@ func (c *ClassValue) GetMethod(name string) (Method, bool) {
 
 		fn, ok := next.GetMethod(name)
 		if ok {
-			if fn.GetModifier() == ModifierPrivate {
-				return nil, false
-			}
+			//if fn.GetModifier() == ModifierPrivate {
+			//	return nil, false
+			//}
 			return fn, true
 		}
 		last = next

@@ -52,15 +52,13 @@ func (m *ReflectionClassConstructMethod) Call(ctx data.Context) (data.GetValue, 
 	var className string
 
 	// 检查参数类型
-	if classVal, ok := classValue.(*data.ClassValue); ok {
+	if classVal, ok := classValue.(data.GetName); ok {
 		// 参数是对象，获取其类名
-		className = classVal.Class.GetName()
-	} else if strValue, ok := classValue.(*data.StringValue); ok {
-		// 参数是字符串，视为类名
-		className = strValue.AsString()
+		className = classVal.GetName()
+	} else if classVal, ok := classValue.(*data.StringValue); ok {
+		className = classVal.AsString()
 	} else {
-		// 尝试转换为字符串
-		className = classValue.AsString()
+		return nil, data.NewErrorThrow(nil, errors.New("ReflectionClass::__construct() expects parameter 1 to be string or object"))
 	}
 
 	// 加载类

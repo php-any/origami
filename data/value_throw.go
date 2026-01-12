@@ -110,12 +110,34 @@ func NewErrorThrowFromClassValue(from From, object *ClassValue) Control {
 			panic(ret) // 不可能执行到这里的, 如果有报错就是解析器的问题
 		}
 	} else {
-		err = "运行时无法处理未继承 Exception 的异常类"
+		classStmt := object.Class
+		for classStmt != nil {
+			if method, ok := classStmt.GetMethod("getMessage"); ok {
+				ret, acl := method.Call(object)
+				if acl != nil {
+					return acl
+				}
+				switch ret.(type) {
+				case Value:
+					err = ret.(Value).AsString()
+				}
+				classStmt = nil
+			} else {
+				if classStmt.GetExtend() != nil {
+					classStmt, _ = object.GetVM().GetOrLoadClass(*classStmt.GetExtend())
+				} else {
+					classStmt = nil
+				}
+			}
+		}
+		if err == "" {
+			err = "运行时无法处理未继承 Exception 的异常类"
+		}
 	}
 
 	t := &ThrowValue{
 		object: object,
-		Name:   "Exception",
+		Name:   object.GetName(),
 		Error:  NewError(from, fmt.Sprintf("Throw %s: %s", object.Class.GetName(), err), nil),
 	}
 	t.getMessage = &ThrowValueGetMessageMethod{

@@ -88,6 +88,9 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 				generatorClass := NewGeneratorClass(generator)
 				return generatorClass.GetValue(ctx)
 			case data.AddStack:
+				if from, ok := statement.(GetFrom); ok {
+					rv.AddStackWithInfo(from.GetFrom(), "function body", TryGetCallClassName(statement))
+				}
 				rv.AddStackWithInfo(f.from, "function", f.Name)
 			}
 			return nil, ctl

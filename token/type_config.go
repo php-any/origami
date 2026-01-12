@@ -124,6 +124,7 @@ const (
 	COLON               // : 标签或三元运算符部分
 	SCOPE_RESOLUTION    // :: 静态成员访问运算符
 	AT                  // @ 错误抑制运算符
+	HASH                // # 属性注解开始符 (PHP 8.0+)
 	DOLLAR              // $ 变量标识符
 	COMMA               // , 分隔符
 	SEMICOLON           // ; 语句结束符

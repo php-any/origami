@@ -28,7 +28,7 @@ func NewTraitParser(parser *Parser) StatementParser {
 func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 	// 解析 trait 前的注解
 	var annotations []*node.Annotation
-	for p.current().Type() == token.AT {
+	for p.checkPositionIs(0, token.AT, token.HASH) {
 		annotation, acl := p.parseAnnotation()
 		if acl != nil {
 			return nil, acl
@@ -68,7 +68,7 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 	for !p.currentIsTypeOrEOF(token.RBRACE) {
 		// 先尝试解析注解
 		var memberAnnotations []*node.Annotation
-		for p.current().Type() == token.AT {
+		for p.checkPositionIs(0, token.AT, token.HASH) {
 			ann, acl := p.parseAnnotation()
 			if acl != nil {
 				return nil, acl
