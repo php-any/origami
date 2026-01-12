@@ -155,6 +155,30 @@ func (p *Parameter) GetName() string {
 	return p.Name
 }
 
+// PromotedParameter 表示属性提升的参数（构造函数参数属性提升）
+type PromotedParameter struct {
+	*Parameter
+	PropertyName string // 对应的属性名（与参数名相同）
+}
+
+// NewPromotedParameter 创建一个新的属性提升参数
+func NewPromotedParameter(from data.From, name string, index int, defaultValue data.GetValue, ty data.Types) data.GetValue {
+	return &PromotedParameter{
+		Parameter: &Parameter{
+			Node:         NewNode(from),
+			Name:         name,
+			Index:        index,
+			Type:         ty,
+			DefaultValue: defaultValue,
+		},
+		PropertyName: name,
+	}
+}
+
+func (p *PromotedParameter) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return p.Parameter.GetValue(ctx)
+}
+
 func (p *Parameter) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	val, acl := ctx.GetVariableValue(p)
 	if acl != nil {

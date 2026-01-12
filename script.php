@@ -5,7 +5,7 @@ class Demo {
         private string|int|null $name = null,
         public string|int|bool $value = 0
     ) {
-        $this->name = $name;
+
     }
     
     public function getName() {
@@ -17,10 +17,6 @@ class Demo {
     }
 }
 
-$demo1 = new Demo(11);
+$demo1 = new Demo(11, 2);
 echo "Demo1 - name: ";
-var_dump($demo1->getName());
-
-
-$demo1->value = 222;
-var_dump($demo1->getValue());
+var_dump($demo1);

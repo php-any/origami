@@ -206,6 +206,7 @@ type ClassProperty struct {
 	Modifier     data.Modifier      // 访问修饰符
 	IsStatic     bool               // 是否是静态属性
 	IsReadonly   bool               // 是否是只读属性
+	IsPromoted   bool               // 是否是构造函数参数属性提升
 	DefaultValue data.GetValue      // 默认值
 	Annotations  []*data.ClassValue // 属性注解列表
 	Type         data.Types         // 属性类型
@@ -239,6 +240,11 @@ func NewProperty(from data.From, name string, modifier string, isStatic bool, de
 
 // NewPropertyWithReadonly 创建一个新的属性（支持 readonly）
 func NewPropertyWithReadonly(from data.From, name string, modifier string, isStatic bool, isReadonly bool, defaultValue data.GetValue, tys ...data.Types) *ClassProperty {
+	return NewPropertyWithPromoted(from, name, modifier, isStatic, isReadonly, false, defaultValue, tys...)
+}
+
+// NewPropertyWithPromoted 创建一个新的属性（支持 readonly 和 promoted）
+func NewPropertyWithPromoted(from data.From, name string, modifier string, isStatic bool, isReadonly bool, isPromoted bool, defaultValue data.GetValue, tys ...data.Types) *ClassProperty {
 	if name[0:1] == "$" {
 		name = name[1:]
 	}
@@ -253,6 +259,7 @@ func NewPropertyWithReadonly(from data.From, name string, modifier string, isSta
 		Modifier:     data.NewModifier(modifier),
 		IsStatic:     isStatic,
 		IsReadonly:   isReadonly,
+		IsPromoted:   isPromoted,
 		DefaultValue: defaultValue,
 		Type:         ty,
 	}

@@ -440,25 +440,31 @@ func (p *ClassParser) ParseConstructorParameters() ([]data.GetValue, []data.Prop
 			}
 		}
 
-		// 如果有访问修饰符，创建属性
+		// 如果有访问修饰符，创建属性（属性提升）
 		if paramModifier != "" {
 			// 属性类型直接使用 paramType（已经支持联合类型）
 			propertyType := paramType
 
-			prop := node.NewPropertyWithReadonly(
+			prop := node.NewPropertyWithPromoted(
 				tracking.EndBefore(),
 				name,
 				paramModifier,
 				false, // 构造函数参数不能是静态的
 				isReadonly,
+				true, // 标记为属性提升
 				defaultValue,
 				propertyType,
 			)
 			properties = append(properties, prop)
 		}
 
-		// 创建参数节点
-		param := node.NewParameter(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, val.GetType())
+		// 创建参数节点（如果有访问修饰符，创建属性提升参数）
+		var param data.GetValue
+		if paramModifier != "" {
+			param = node.NewPromotedParameter(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, val.GetType())
+		} else {
+			param = node.NewParameter(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, val.GetType())
+		}
 		params = append(params, param)
 
 		if p.current().Type() == token.COMMA {

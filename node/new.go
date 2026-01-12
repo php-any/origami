@@ -77,6 +77,36 @@ func createInstanceAndCallConstructor(
 				}
 			}
 
+			// 将构造函数参数属性的值赋值给对象属性（PHP 8 构造函数参数属性提升）
+			for index, param := range params {
+				// 检查是否是属性提升的参数
+				if promotedParam, ok := param.(*PromotedParameter); ok {
+					// 从函数上下文获取参数值
+					if index < len(varies) {
+						paramValue, acl := fnCtx.GetVariableValue(varies[index])
+						if acl != nil {
+							// 如果获取失败，尝试使用默认值
+							if promotedParam.DefaultValue != nil {
+								paramValueGet, acl := promotedParam.DefaultValue.GetValue(fnCtx)
+								if acl != nil {
+									return nil, acl
+								}
+								if paramValueGet != nil {
+									paramValue = paramValueGet.(data.Value)
+								}
+							} else {
+								// 没有默认值，跳过
+								continue
+							}
+						}
+						// 将参数值赋值给对象属性
+						if paramValue != nil {
+							object.SetProperty(promotedParam.PropertyName, paramValue.(data.Value))
+						}
+					}
+				}
+			}
+
 			_, acl = method.Call(fnCtx)
 			if acl != nil {
 				return nil, acl
@@ -145,6 +175,36 @@ func createInstanceAndCallConstructorWithStmt(
 					_, acl := argObj.GetValue(fnCtx)
 					if acl != nil {
 						return nil, acl
+					}
+				}
+			}
+
+			// 将构造函数参数属性的值赋值给对象属性（PHP 8 构造函数参数属性提升）
+			for index, param := range params {
+				// 检查是否是属性提升的参数
+				if promotedParam, ok := param.(*PromotedParameter); ok {
+					// 从函数上下文获取参数值
+					if index < len(varies) {
+						paramValue, acl := fnCtx.GetVariableValue(varies[index])
+						if acl != nil {
+							// 如果获取失败，尝试使用默认值
+							if promotedParam.DefaultValue != nil {
+								paramValueGet, acl := promotedParam.DefaultValue.GetValue(fnCtx)
+								if acl != nil {
+									return nil, acl
+								}
+								if paramValueGet != nil {
+									paramValue = paramValueGet.(data.Value)
+								}
+							} else {
+								// 没有默认值，跳过
+								continue
+							}
+						}
+						// 将参数值赋值给对象属性
+						if paramValue != nil {
+							object.SetProperty(promotedParam.PropertyName, paramValue.(data.Value))
+						}
 					}
 				}
 			}
