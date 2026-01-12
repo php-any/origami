@@ -14,6 +14,7 @@ import (
 type ClassParser struct {
 	*Parser
 	*FunctionParserCommon
+	currentClassName string // 当前正在解析的类名（用于 self 关键字）
 }
 
 // NewClassParser 创建一个新的类解析器
@@ -525,12 +526,23 @@ func (p *ClassParser) parseConstructorParameterType() data.Types {
 				return data.NewUnionType(unionTypes)
 			}
 		}
-	} else if p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type()) {
-		// ?int 方式
+	} else if p.checkPositionIs(0, token.TERNARY) && (isIdentOrTypeToken(p.peek(1).Type()) || p.peek(1).Type() == token.SELF) {
+		// ?int 或 ?self 方式
 		p.next()
-		base := data.NewBaseType(p.current().Literal())
-		p.next()
-		return data.NewNullableType(base)
+		if p.current().Type() == token.SELF {
+			p.next()
+			var baseType data.Types
+			if p.currentClassName != "" {
+				baseType = data.NewBaseType(p.currentClassName)
+			} else {
+				baseType = data.NewBaseType("self")
+			}
+			return data.NewNullableType(baseType)
+		} else {
+			base := data.NewBaseType(p.current().Literal())
+			p.next()
+			return data.NewNullableType(base)
+		}
 	}
 	// 没有类型声明，使用 mixed
 	return data.NewBaseType("mixed")
@@ -739,7 +751,7 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 
 	// 解析属性类型（在访问修饰符之后，变量名之前）
 	var propertyType data.Types
-	if isIdentOrTypeToken(p.current().Type()) || p.checkPositionIs(0, token.NULL, token.FALSE) {
+	if isIdentOrTypeToken(p.current().Type()) || p.checkPositionIs(0, token.NULL, token.FALSE, token.SELF) {
 		// 检查是否是联合类型：string|int|null
 		var unionTypes []data.Types
 
@@ -748,6 +760,14 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 		if p.checkPositionIs(0, token.NULL, token.FALSE) {
 			firstType = data.NewBaseType(p.current().Literal())
 			p.next()
+		} else if p.current().Type() == token.SELF {
+			// 处理 self 关键字
+			p.next()
+			if p.currentClassName != "" {
+				firstType = data.NewBaseType(p.currentClassName)
+			} else {
+				firstType = data.NewBaseType("self")
+			}
 		} else {
 			firstType = p.parseType()
 		}
@@ -762,6 +782,14 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 				if p.checkPositionIs(0, token.NULL, token.FALSE) {
 					nextType = data.NewBaseType(p.current().Literal())
 					p.next()
+				} else if p.current().Type() == token.SELF {
+					// 处理 self 关键字
+					p.next()
+					if p.currentClassName != "" {
+						nextType = data.NewBaseType(p.currentClassName)
+					} else {
+						nextType = data.NewBaseType("self")
+					}
 				} else if isIdentOrTypeToken(p.current().Type()) {
 					nextType = p.parseType()
 				} else {
@@ -779,12 +807,23 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 				propertyType = data.NewUnionType(unionTypes)
 			}
 		}
-	} else if p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type()) {
-		// ?int 方式
+	} else if p.checkPositionIs(0, token.TERNARY) && (isIdentOrTypeToken(p.peek(1).Type()) || p.peek(1).Type() == token.SELF) {
+		// ?int 或 ?self 方式
 		p.next()
-		base := data.NewBaseType(p.current().Literal())
-		p.next()
-		propertyType = data.NewNullableType(base)
+		if p.current().Type() == token.SELF {
+			p.next()
+			var baseType data.Types
+			if p.currentClassName != "" {
+				baseType = data.NewBaseType(p.currentClassName)
+			} else {
+				baseType = data.NewBaseType("self")
+			}
+			propertyType = data.NewNullableType(baseType)
+		} else {
+			base := data.NewBaseType(p.current().Literal())
+			p.next()
+			propertyType = data.NewNullableType(base)
+		}
 	}
 
 	// 解析属性名（普通属性必须是变量）
@@ -1195,6 +1234,18 @@ func (p *ClassParser) parseType() data.Types {
 	}
 
 	typeName := p.current().Literal()
+
+	// 处理 self 关键字
+	if p.current().Type() == token.SELF {
+		p.next()
+		if p.currentClassName != "" {
+			// 使用当前类名作为类型
+			return data.NewBaseType(p.currentClassName)
+		}
+		// 如果没有当前类名，返回 self 作为类型名（运行时解析）
+		return data.NewBaseType("self")
+	}
+
 	p.next()
 
 	subTypes := make([]data.Types, 0)

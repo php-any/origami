@@ -278,5 +278,6 @@ func isIdentOrTypeToken(t token.TokenType) bool {
 		t == token.INT ||
 		t == token.STRING ||
 		t == token.FLOAT ||
-		t == token.GENERIC_TYPE
+		t == token.GENERIC_TYPE ||
+		t == token.SELF // 支持 self 作为类型关键字
 }
