@@ -103,6 +103,23 @@ func (ep *ExpressionParser) parseTernary() (data.GetValue, data.Control) {
 		return nil, acl
 	}
 	switch ep.current().Type() {
+	case token.ELVIS:
+		// 这是 ?: 简写形式（Elvis 运算符）
+		// $a ?: $b 等价于 $a ? $a : $b
+		ep.next() // 跳过 ?:
+
+		// 解析假值表达式
+		falseValue, acl := ep.parseTernary()
+		if acl != nil {
+			return nil, acl
+		}
+		// 创建三目运算符表达式，真值使用条件表达式本身
+		return node.NewTernaryExpression(
+			tracker.EndBefore(),
+			expr,
+			expr, // 真值就是条件表达式本身
+			falseValue,
+		), nil
 	case token.TERNARY:
 		// 检查是否是空安全调用操作符：?-> (PHP 8.0+)
 		if ep.checkPositionIs(1, token.OBJECT_OPERATOR) {

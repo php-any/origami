@@ -6,7 +6,7 @@ import (
 )
 
 // ReflectionClassGetAttributesMethod 实现 ReflectionClass::getAttributes
-// 返回类的所有属性（attributes/annotations）
+// 返回类的所有属性（attributes/annotations），返回 ReflectionAttribute 对象数组
 type ReflectionClassGetAttributesMethod struct{}
 
 func (m *ReflectionClassGetAttributesMethod) GetName() string { return "getAttributes" }
@@ -33,6 +33,17 @@ func (m *ReflectionClassGetAttributesMethod) GetReturnType() data.Types {
 	return data.Arrays{}
 }
 
+// newReflectionAttribute 创建一个新的 ReflectionAttribute 实例
+func newReflectionAttribute(ctx data.Context, annotation *data.ClassValue) *data.ClassValue {
+	attrClass := &ReflectionAttributeClass{}
+	attrValue := data.NewClassValue(attrClass, ctx.CreateBaseContext())
+
+	// 存储注解对象到实例属性中
+	attrValue.ObjectValue.SetProperty("_annotation", annotation)
+
+	return attrValue
+}
+
 func (m *ReflectionClassGetAttributesMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取被反射的类信息
 	_, classStmt := getReflectionClassInfo(ctx)
@@ -50,7 +61,8 @@ func (m *ReflectionClassGetAttributesMethod) Call(ctx data.Context) (data.GetVal
 
 	// 尝试将 classStmt 转换为 ClassStatement 以访问注解
 	if classStatement, ok := classStmt.(*node.ClassStatement); ok {
-		if classStatement.Annotations != nil {
+		// 检查注解列表是否存在
+		if classStatement.Annotations != nil && len(classStatement.Annotations) > 0 {
 			// 如果指定了 name 参数，过滤特定名称的注解
 			var filterName string
 			if nameValue != nil {
@@ -61,7 +73,7 @@ func (m *ReflectionClassGetAttributesMethod) Call(ctx data.Context) (data.GetVal
 				}
 			}
 
-			// 将注解转换为数组值
+			// 将注解转换为 ReflectionAttribute 对象
 			for _, annotation := range classStatement.Annotations {
 				// 如果指定了 name，只返回匹配的注解
 				if filterName != "" {
@@ -69,8 +81,9 @@ func (m *ReflectionClassGetAttributesMethod) Call(ctx data.Context) (data.GetVal
 						continue
 					}
 				}
-				// 注解是 ClassValue，直接添加到结果数组
-				attributes = append(attributes, annotation)
+				// 创建 ReflectionAttribute 实例
+				attrValue := newReflectionAttribute(ctx, annotation)
+				attributes = append(attributes, attrValue)
 			}
 		}
 	}

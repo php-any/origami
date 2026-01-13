@@ -121,6 +121,7 @@ const (
 	OBJECT_OPERATOR     // -> 对象成员访问运算符
 	ARRAY_KEY_VALUE     // => 数组键值对分隔符
 	TERNARY             // ? : 三元运算符
+	ELVIS               // ?: Elvis 运算符（简写三元运算符）
 	COLON               // : 标签或三元运算符部分
 	SCOPE_RESOLUTION    // :: 静态成员访问运算符
 	AT                  // @ 错误抑制运算符

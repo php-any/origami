@@ -23,3 +23,7 @@ func (c *FuncValue) Call(ctx Context) (GetValue, Control) {
 func (c *FuncValue) AsString() string {
 	return fmt.Sprintf("%v", c.Value)
 }
+
+func (c *FuncValue) AsBool() (bool, error) {
+	return true, nil
+}

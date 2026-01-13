@@ -66,6 +66,7 @@ var parserRouter = map[token.TokenType]func(parser *Parser) StatementParser{
 
 	token.TERNARY:      NewNullableParser,
 	token.AT:           NewAnnotationParser,
+	token.HASH:         NewAnnotationParser, // #[] 格式的注解也使用 AnnotationParser
 	token.JS_SERVER:    NewJsServerParser,
 	token.STATIC:       NewStaticParser,
 	token.FN:           NewFnParser,

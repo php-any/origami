@@ -138,7 +138,7 @@ func (p *Parser) parseProgram(statements []data.GetValue) (*node.Program, data.C
 		} else if p.position != last {
 			last = p.position
 		} else {
-			return nil, data.NewErrorThrow(p.newFrom(), errors.New("无法识别语句"))
+			return nil, data.NewErrorThrow(p.newFrom(), errors.New("无法识别语句: "+p.current().Literal()))
 		}
 	}
 

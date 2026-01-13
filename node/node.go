@@ -55,6 +55,11 @@ func (p *Program) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 				acl.Offset = offset + 1
 				return p.runLabel(ctx, acl)
 			default:
+				if acl, ok := acl.(data.AddStack); ok {
+					if statement, ok := statement.(GetFrom); ok {
+						acl.AddStackWithInfo(statement.GetFrom(), "program", "")
+					}
+				}
 				ctx.GetVM().ThrowControl(c)
 				return v, nil
 			}

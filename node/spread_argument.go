@@ -1,6 +1,8 @@
 package node
 
-import "github.com/php-any/origami/data"
+import (
+	"github.com/php-any/origami/data"
+)
 
 // SpreadArgument 表示调用实参中的展开参数 ...expr
 // 例如: t(...$arr)
@@ -20,6 +22,12 @@ func NewSpreadArgument(from data.From, expr data.GetValue) *SpreadArgument {
 // GetValue 默认直接转发内部表达式的值
 // 具体“展开”语义由调用处按需处理
 func (s *SpreadArgument) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if s.Expr == nil {
+		return nil, ToClosure{}
+	}
 	return s.Expr.GetValue(ctx)
 }
 
+type ToClosure struct {
+	data.Control
+}

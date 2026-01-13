@@ -43,6 +43,9 @@ func (c *Context) GetNamespace() string {
 // GetVariableValue 获取变量值
 func (c *Context) GetVariableValue(variable data.Variable) (data.Value, data.Control) {
 	// 实现获取变量值的逻辑
+	if variable.GetIndex() >= len(c.variables) {
+		return nil, data.NewErrorThrow(nil, errors.New("Variable does not exist"))
+	}
 	return c.variables[variable.GetIndex()].Value, nil
 }
 

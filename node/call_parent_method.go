@@ -86,7 +86,7 @@ func (p *parentMethodFunc) Call(callCtx data.Context) (data.GetValue, data.Contr
 	newCtx := &data.ClassMethodContext{ClassValue: &data.ClassValue{
 		ObjectValue: p.baseCtx.ObjectValue,
 		Class:       parentClass,
-		Context:     callCtx,
+		Context:     callCtx.CreateContext(p.method.GetVariables()),
 	}}
 
 	return p.method.Call(newCtx)

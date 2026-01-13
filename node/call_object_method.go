@@ -38,6 +38,9 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 		if has {
 			fnCtx, acl := pe.callMethodParams(class, ctx, method)
 			if acl != nil {
+				if _, ok := acl.(ToClosure); ok {
+					return data.NewFuncValue(method), nil
+				}
 				return nil, acl
 			}
 
@@ -52,14 +55,16 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 			}
 			fnCtx, acl := pe.callMethodParams(class, ctx, method)
 			if acl != nil {
+				if _, ok := acl.(ToClosure); ok {
+					return data.NewFuncValue(method), nil
+				}
 				return nil, acl
 			}
 
 			return method.Call(fnCtx)
 		}
-
-		errStr := fmt.Sprintf("类(%s)不存在对应函数(%s)", class.Class.GetName(), pe.Method)
-		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(errStr))
+		class.GetMethod(pe.Method)
+		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("类(%s)不存在对应函数(%s)", class.Class.GetName(), pe.Method))
 	default:
 		if class, ok := o.(data.GetMethod); ok {
 			method, has := class.GetMethod(pe.Method)
@@ -70,6 +75,9 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 				}
 				fnCtx, acl := pe.callMethodParams(ctx, ctx, method)
 				if acl != nil {
+					if _, ok := acl.(ToClosure); ok {
+						return data.NewFuncValue(method), nil
+					}
 					return nil, acl
 				}
 

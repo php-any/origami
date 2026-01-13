@@ -64,6 +64,9 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 					}
 
 					if acl != nil {
+						if acl, ok := acl.(data.AddStack); ok {
+							acl.AddStackWithInfo(pe.from, "call", pe.FunName)
+						}
 						return nil, acl
 					}
 				}

@@ -58,6 +58,8 @@ func (c *ReflectionMethodClass) GetMethod(name string) (data.Method, bool) {
 		return &ReflectionMethodGetParametersMethod{}, true
 	case "getNumberOfParameters":
 		return &ReflectionMethodGetNumberOfParametersMethod{}, true
+	case "getDeclaringClass":
+		return &ReflectionMethodGetDeclaringClassMethod{}, true
 	}
 	return nil, false
 }
@@ -74,6 +76,7 @@ func (c *ReflectionMethodClass) GetMethods() []data.Method {
 		&ReflectionMethodIsPrivateMethod{},
 		&ReflectionMethodGetParametersMethod{},
 		&ReflectionMethodGetNumberOfParametersMethod{},
+		&ReflectionMethodGetDeclaringClassMethod{},
 	}
 }
 

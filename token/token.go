@@ -137,6 +137,7 @@ var TokenDefinitions = []TokenDefinition{
 	{Type: DECR, Literal: "--", WordType: OPERATOR},
 	{Type: OBJECT_OPERATOR, Literal: "->", WordType: OPERATOR},
 	{Type: ARRAY_KEY_VALUE, Literal: "=>", WordType: OPERATOR},
+	{Type: ELVIS, Literal: "?:", WordType: OPERATOR}, // 必须在 TERNARY 和 COLON 之前
 	{Type: TERNARY, Literal: "?", WordType: OPERATOR},
 	{Type: COLON, Literal: ":", WordType: OPERATOR},
 	{Type: SCOPE_RESOLUTION, Literal: "::", WordType: OPERATOR},

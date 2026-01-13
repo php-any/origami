@@ -4,6 +4,7 @@ import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/std/exception"
 	"github.com/php-any/origami/std/php/array"
+	"github.com/php-any/origami/std/php/attribute"
 	"github.com/php-any/origami/std/php/core"
 	"github.com/php-any/origami/std/php/file"
 	"github.com/php-any/origami/std/php/preg"
@@ -64,6 +65,8 @@ func Load(vm data.VM) {
 		core.NewSplAutoloadUnregisterFunction(),
 		core.NewArrayFunction(),
 		core.NewDirnameFunction(),
+		core.NewBasenameFunction(),
+		core.NewRealpathFunction(),
 		core.NewCallUserFuncFunction(),
 		core.NewStrtrFunction(),
 		core.NewStrStartsWithFunction(),
@@ -132,6 +135,7 @@ func Load(vm data.VM) {
 	vm.AddClass(&reflection.ReflectionClassClass{})
 	vm.AddClass(&reflection.ReflectionMethodClass{})
 	vm.AddClass(&reflection.ReflectionParameterClass{})
+	vm.AddClass(&reflection.ReflectionAttributeClass{})
 	vm.AddClass(&reflection.ReflectionTypeClass{})
 	vm.AddClass(&reflection.ReflectionNamedTypeClass{})
 
@@ -143,6 +147,9 @@ func Load(vm data.VM) {
 
 	// 加载 preg 包（注册函数和常量）
 	preg.Load(vm)
+
+	// 加载 PHP 原生注解类
+	attribute.Load(vm)
 }
 
 func initPhpDefaultDefines(vm data.VM) {
