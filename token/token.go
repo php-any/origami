@@ -154,6 +154,7 @@ var TokenDefinitions = []TokenDefinition{
 	{Type: RBRACKET, Literal: "]", WordType: OPERATOR},
 	{Type: SPACESHIP, Literal: "<=>", WordType: OPERATOR},
 	{Type: NULLSAFE_CALL, Literal: "??->", WordType: OPERATOR},
+	{Type: NULL_COALESCE_ASSIGN, Literal: "??=", WordType: OPERATOR}, // 必须在 ?? 之前，因为 ??= 更长
 	{Type: NULL_COALESCE, Literal: "??", WordType: OPERATOR},
 	{Type: POWER, Literal: "**", WordType: OPERATOR},
 	{Type: POWER_EQ, Literal: "**=", WordType: OPERATOR},

@@ -63,7 +63,7 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 
 			return method.Call(fnCtx)
 		}
-		class.GetMethod(pe.Method)
+
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("类(%s)不存在对应函数(%s)", class.Class.GetName(), pe.Method))
 	default:
 		if class, ok := o.(data.GetMethod); ok {

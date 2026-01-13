@@ -2,6 +2,7 @@ package stream
 
 import (
 	"os"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -45,6 +46,11 @@ func (f *FopenFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	if mode == "" {
 		mode = "r"
+	}
+
+	// 处理 php:// 流包装器
+	if strings.HasPrefix(filename, "php://") {
+		return f.handlePhpStream(filename, mode, ctx)
 	}
 
 	// 打开文件
@@ -99,6 +105,54 @@ func parseMode(mode string) int {
 	}
 
 	return flags
+}
+
+// handlePhpStream 处理 php:// 流包装器
+func (f *FopenFunction) handlePhpStream(filename string, mode string, ctx data.Context) (data.GetValue, data.Control) {
+	// 移除 php:// 前缀
+	streamType := strings.TrimPrefix(filename, "php://")
+
+	var file *os.File
+	var fd int
+
+	switch streamType {
+	case "stdin":
+		// 标准输入（只读）
+		if mode != "r" && mode != "rb" {
+			return data.NewBoolValue(false), nil
+		}
+		file = os.Stdin
+		fd = 0
+	case "stdout":
+		// 标准输出（只写）
+		if mode != "w" && mode != "wb" && mode != "a" && mode != "ab" {
+			return data.NewBoolValue(false), nil
+		}
+		file = os.Stdout
+		fd = 1
+	case "stderr":
+		// 标准错误（只写）
+		if mode != "w" && mode != "wb" && mode != "a" && mode != "ab" {
+			return data.NewBoolValue(false), nil
+		}
+		file = os.Stderr
+		fd = 2
+	default:
+		// 不支持的流类型
+		return data.NewBoolValue(false), nil
+	}
+
+	// 创建流信息
+	// 注意：对于标准流，我们不应该关闭它们，所以使用特殊的处理方式
+	streamInfo := NewStreamInfo(file, mode)
+
+	// 创建流资源类，使用文件描述符作为资源ID
+	resourceClass := core.NewResourceClass("stream", streamInfo, fd)
+
+	// 创建流资源对象
+	streamResource := core.NewResourceValue(resourceClass, ctx)
+
+	return streamResource, nil
 }
 
 func (f *FopenFunction) GetName() string {

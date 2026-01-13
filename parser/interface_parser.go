@@ -161,8 +161,20 @@ func (p *InterfaceParser) parseInterfaceMethod(modifier string) (data.Method, da
 	if p.current().Type() == token.COLON {
 		p.next()
 		if p.current().Type() == token.IDENTIFIER {
-			returnType = data.NewBaseType(p.current().Literal())
+			name := p.current().Literal()
 			p.next()
+
+			// 如果是基础类型，直接返回
+			if data.ISBaseType(name) {
+				returnType = data.NewBaseType(name)
+			} else {
+				// 尝试解析完整的类名（包括命名空间）
+				if full, ok := p.findFullClassNameByNamespace(name); ok {
+					returnType = data.NewBaseType(full)
+				} else {
+					returnType = data.NewBaseType(name)
+				}
+			}
 		}
 	}
 

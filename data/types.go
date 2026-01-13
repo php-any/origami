@@ -162,6 +162,8 @@ func NewBaseType(ty string) Types {
 		return Callable{}
 	case "static":
 		return StaticType{}
+	case "null":
+		return NullType{}
 	case "self":
 		return StaticType{}
 	default:
@@ -213,7 +215,15 @@ func (s StaticType) String() string {
 	return "static"
 }
 
-// NewStaticType 创建 static 返回类型
-func NewStaticType() Types {
-	return StaticType{}
+type NullType struct{}
+
+func (s NullType) Is(value Value) bool {
+	if _, ok := value.(*NullValue); ok {
+		return true
+	}
+	return false
+}
+
+func (s NullType) String() string {
+	return "null"
 }

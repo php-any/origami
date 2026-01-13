@@ -32,6 +32,11 @@ func (s *StreamInfo) Close() error {
 	}
 	s.Closed = true
 	if s.File != nil {
+		// 对于标准流（stdin/stdout/stderr），不要真正关闭它们
+		// 只标记为已关闭
+		if s.File == os.Stdin || s.File == os.Stdout || s.File == os.Stderr {
+			return nil
+		}
 		return s.File.Close()
 	}
 	return nil

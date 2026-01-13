@@ -250,6 +250,18 @@ func (fp FunctionParser) parserReturnType() (data.Types, data.Control) {
 				}
 				name := fp.current().Literal()
 				fp.next()
+
+				// 如果是基础类型，直接返回
+				if data.ISBaseType(name) {
+					return data.NewBaseType(name), nil
+				}
+
+				// 尝试解析完整的类名（包括命名空间）
+				if full, ok := fp.findFullClassNameByNamespace(name); ok {
+					return data.NewBaseType(full), nil
+				}
+
+				// 如果无法解析，返回原始名称
 				return data.NewBaseType(name), nil
 			}
 

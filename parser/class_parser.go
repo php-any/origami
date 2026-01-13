@@ -960,8 +960,30 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 				) {
 					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("无法识别返回类型的定义符号"))
 				}
+
+				// 处理 self 关键字
+				if p.current().Type() == token.SELF {
+					p.next()
+					if p.currentClassName != "" {
+						return data.NewBaseType(p.currentClassName), nil
+					}
+					return data.NewBaseType("self"), nil
+				}
+
 				name := p.current().Literal()
 				p.next()
+
+				// 如果是基础类型，直接返回
+				if data.ISBaseType(name) {
+					return data.NewBaseType(name), nil
+				}
+
+				// 尝试解析完整的类名（包括命名空间）
+				if full, ok := p.findFullClassNameByNamespace(name); ok {
+					return data.NewBaseType(full), nil
+				}
+
+				// 如果无法解析，返回原始名称
 				return data.NewBaseType(name), nil
 			}
 

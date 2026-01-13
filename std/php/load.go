@@ -30,6 +30,7 @@ func Load(vm data.VM) {
 		NewPropertyExistsFunction(),
 		NewGetClassFunction(),
 		NewGettypeFunction(),
+		NewGetDebugTypeFunction(),
 		NewJsonEncodeFunction(),
 		NewJsonDecodeFunction(),
 		NewEmptyFunction(),
@@ -59,6 +60,7 @@ func Load(vm data.VM) {
 		array.NewArrayPushFunction(),
 		array.NewArrayPopFunction(),
 		array.NewArrayValuesFunction(),
+		array.NewSortFunction(),
 		NewStrReplaceFunction(),
 		NewStrtolowerFunction(),
 		NewStrtoupperFunction(),
@@ -126,6 +128,7 @@ func Load(vm data.VM) {
 		stream.NewFcloseFunction(),
 		stream.NewFwriteFunction(),
 		stream.NewStreamGetContentsFunction(),
+		stream.NewStreamIsattyFunction(),
 	} {
 		vm.AddFunc(fun)
 	}

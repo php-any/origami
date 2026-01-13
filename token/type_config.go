@@ -93,69 +93,70 @@ const (
 	KEYWORD_END TokenType = iota + 100
 
 	// 运算符
-	ADD                 // + 加法运算符
-	SUB                 // - 减法运算符
-	MUL                 // * 乘法运算符
-	QUO                 // / 除法运算符（quotient 缩写）
-	REM                 // % 取模运算符（remainder 缩写）
-	ASSIGN              // = 赋值运算符
-	EQ                  // == 等于运算符
-	NE                  // != 不等于运算符
-	EQ_STRICT           // === 全等运算符
-	NE_STRICT           // !== 不全等运算符
-	LT                  // < 小于运算符
-	GT                  // > 大于运算符
-	LE                  // <= 小于等于运算符
-	GE                  // >= 大于等于运算符
-	LAND                // && 逻辑与运算符（logical and）
-	LOR                 // || 逻辑或运算符（logical or）
-	NOT                 // ! 逻辑非运算符
-	BIT_AND             // & 按位与运算符
-	BIT_OR              // | 按位或运算符
-	BIT_XOR             // ^ 按位异或运算符
-	BIT_NOT             // ~ 按位取反运算符
-	SHL                 // << 左移运算符（shift left）
-	SHR                 // >> 右移运算符（shift right）
-	INCR                // ++ 自增运算符
-	DECR                // -- 自减运算符
-	OBJECT_OPERATOR     // -> 对象成员访问运算符
-	ARRAY_KEY_VALUE     // => 数组键值对分隔符
-	TERNARY             // ? : 三元运算符
-	ELVIS               // ?: Elvis 运算符（简写三元运算符）
-	COLON               // : 标签或三元运算符部分
-	SCOPE_RESOLUTION    // :: 静态成员访问运算符
-	AT                  // @ 错误抑制运算符
-	HASH                // # 属性注解开始符 (PHP 8.0+)
-	DOLLAR              // $ 变量标识符
-	COMMA               // , 分隔符
-	SEMICOLON           // ; 语句结束符
-	LPAREN              // ( 左括号
-	RPAREN              // ) 右括号
-	LBRACE              // { 左花括号
-	RBRACE              // } 右花括号
-	LBRACKET            // [ 左方括号
-	RBRACKET            // ] 右方括号
-	SPACESHIP           // <=> 太空船运算符 (PHP 7+)
-	NULLSAFE_CALL       // ??-> 空安全对象运算符 (PHP 8.0+)
-	NULL_COALESCE       // ?? 空合并运算符 (PHP 7+)
-	POWER               // ** 幂运算符 (PHP 5.6+)
-	POWER_EQ            // **= 幂赋值运算符 (PHP 5.6+)
-	ADD_EQ              // += 加法赋值运算符
-	SUB_EQ              // -= 减法赋值运算符
-	MUL_EQ              // *= 乘法赋值运算符
-	QUO_EQ              // /= 除法赋值运算符
-	REM_EQ              // %= 取模赋值运算符
-	CONCAT_EQ           // .= 字符串连接赋值运算符
-	BIT_AND_EQ          // &= 按位与赋值运算符
-	BIT_OR_EQ           // |= 按位或赋值运算符
-	BIT_XOR_EQ          // ^= 按位异或赋值运算符
-	SHL_EQ              // <<= 左移赋值运算符
-	SHR_EQ              // >>= 右移赋值运算符
-	NAMESPACE_SEPARATOR // \ 命名空间分隔符
-	DOT                 // . 点号（注意与 CONCAT 冲突）
-	ELLIPSIS            // ... 省略号
-	DOUBLE_DOT          // .. 双点号
-	DOCTYPE             // .. 双点号
+	ADD                  // + 加法运算符
+	SUB                  // - 减法运算符
+	MUL                  // * 乘法运算符
+	QUO                  // / 除法运算符（quotient 缩写）
+	REM                  // % 取模运算符（remainder 缩写）
+	ASSIGN               // = 赋值运算符
+	EQ                   // == 等于运算符
+	NE                   // != 不等于运算符
+	EQ_STRICT            // === 全等运算符
+	NE_STRICT            // !== 不全等运算符
+	LT                   // < 小于运算符
+	GT                   // > 大于运算符
+	LE                   // <= 小于等于运算符
+	GE                   // >= 大于等于运算符
+	LAND                 // && 逻辑与运算符（logical and）
+	LOR                  // || 逻辑或运算符（logical or）
+	NOT                  // ! 逻辑非运算符
+	BIT_AND              // & 按位与运算符
+	BIT_OR               // | 按位或运算符
+	BIT_XOR              // ^ 按位异或运算符
+	BIT_NOT              // ~ 按位取反运算符
+	SHL                  // << 左移运算符（shift left）
+	SHR                  // >> 右移运算符（shift right）
+	INCR                 // ++ 自增运算符
+	DECR                 // -- 自减运算符
+	OBJECT_OPERATOR      // -> 对象成员访问运算符
+	ARRAY_KEY_VALUE      // => 数组键值对分隔符
+	TERNARY              // ? : 三元运算符
+	ELVIS                // ?: Elvis 运算符（简写三元运算符）
+	COLON                // : 标签或三元运算符部分
+	SCOPE_RESOLUTION     // :: 静态成员访问运算符
+	AT                   // @ 错误抑制运算符
+	HASH                 // # 属性注解开始符 (PHP 8.0+)
+	DOLLAR               // $ 变量标识符
+	COMMA                // , 分隔符
+	SEMICOLON            // ; 语句结束符
+	LPAREN               // ( 左括号
+	RPAREN               // ) 右括号
+	LBRACE               // { 左花括号
+	RBRACE               // } 右花括号
+	LBRACKET             // [ 左方括号
+	RBRACKET             // ] 右方括号
+	SPACESHIP            // <=> 太空船运算符 (PHP 7+)
+	NULLSAFE_CALL        // ??-> 空安全对象运算符 (PHP 8.0+)
+	NULL_COALESCE        // ?? 空合并运算符 (PHP 7+)
+	NULL_COALESCE_ASSIGN // ??= 空合并赋值运算符 (PHP 7.4+)
+	POWER                // ** 幂运算符 (PHP 5.6+)
+	POWER_EQ             // **= 幂赋值运算符 (PHP 5.6+)
+	ADD_EQ               // += 加法赋值运算符
+	SUB_EQ               // -= 减法赋值运算符
+	MUL_EQ               // *= 乘法赋值运算符
+	QUO_EQ               // /= 除法赋值运算符
+	REM_EQ               // %= 取模赋值运算符
+	CONCAT_EQ            // .= 字符串连接赋值运算符
+	BIT_AND_EQ           // &= 按位与赋值运算符
+	BIT_OR_EQ            // |= 按位或赋值运算符
+	BIT_XOR_EQ           // ^= 按位异或赋值运算符
+	SHL_EQ               // <<= 左移赋值运算符
+	SHR_EQ               // >>= 右移赋值运算符
+	NAMESPACE_SEPARATOR  // \ 命名空间分隔符
+	DOT                  // . 点号（注意与 CONCAT 冲突）
+	ELLIPSIS             // ... 省略号
+	DOUBLE_DOT           // .. 双点号
+	DOCTYPE              // .. 双点号
 
 	// 专用：字符串插值连接符（仅预处理阶段注入，不由词法直接产生）
 	// INTERPOLATION_LINK

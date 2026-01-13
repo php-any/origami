@@ -1,90 +1,44 @@
 <?php
 
-// 测试 DirectoryIterator 的 foreach 循环
+// 测试 get_debug_type 函数
 
-echo "=== DirectoryIterator foreach 测试 ===\n\n";
+echo "=== get_debug_type() 函数测试 ===\n\n";
 
-// 1. 基本 foreach 循环（只有值）
-echo "1. 基本 foreach 循环（只有值）:\n";
-$iterator = new DirectoryIterator("tests/php");
-$count = 0;
-foreach ($iterator as $value) {
-    $count++;
-    if ($count > 5) {
-        break;
-    }
-    echo "  " . $count . ": " . $value . "\n";
+// 1. 基本类型
+echo "1. 基本类型:\n";
+echo "int: " . get_debug_type(42) . "\n";
+echo "float: " . get_debug_type(3.14) . "\n";
+echo "string: " . get_debug_type("hello") . "\n";
+echo "bool: " . get_debug_type(true) . "\n";
+echo "null: " . get_debug_type(null) . "\n";
+echo "array: " . get_debug_type([1, 2, 3]) . "\n";
+
+// 2. 对象类型（返回类名）
+echo "\n2. 对象类型:\n";
+class TestClass {
+    public $prop = "value";
+}
+$obj = new TestClass();
+echo "object: " . get_debug_type($obj) . "\n";
+
+// 3. 资源类型
+echo "\n3. 资源类型:\n";
+$file = fopen("/tmp/test_get_debug_type.txt", "w");
+if ($file !== false) {
+    echo "resource (open): " . get_debug_type($file) . "\n";
+    fclose($file);
+    echo "resource (closed): " . get_debug_type($file) . "\n";
+    unlink("/tmp/test_get_debug_type.txt");
 }
 
-// 2. foreach 循环（键和值）
-echo "\n2. foreach 循环（键和值）:\n";
-$iterator2 = new DirectoryIterator("tests/php");
-$count2 = 0;
-foreach ($iterator2 as $key => $value) {
-    $count2++;
-    if ($count2 > 5) {
-        break;
-    }
-    echo "  [" . $key . "] => " . $value . "\n";
-}
+// 4. 与 gettype() 对比
+echo "\n4. 与 gettype() 对比:\n";
+$int = 42;
+echo "gettype(42): " . gettype($int) . "\n";
+echo "get_debug_type(42): " . get_debug_type($int) . "\n";
 
-// 3. foreach 循环中使用 DirectoryIterator 方法
-echo "\n3. foreach 循环中使用 DirectoryIterator 方法:\n";
-$iterator3 = new DirectoryIterator("tests/php");
-$count3 = 0;
-foreach ($iterator3 as $key => $value) {
-    $count3++;
-    if ($count3 > 5) {
-        break;
-    }
-    $filename = $iterator3->getFilename();
-    $isDir = $iterator3->isDir();
-    $isFile = $iterator3->isFile();
-    $isDot = $iterator3->isDot();
-    $type = $isDir ? "目录" : ($isFile ? "文件" : "未知");
-    $dot = $isDot ? " (.)" : "";
-    echo "  [" . $key . "] " . $filename . " (" . $type . ")" . $dot . "\n";
-}
+$obj2 = new TestClass();
+echo "gettype(object): " . gettype($obj2) . "\n";
+echo "get_debug_type(object): " . get_debug_type($obj2) . "\n";
 
-// 4. 遍历所有文件（跳过 . 和 ..）
-echo "\n4. 遍历所有文件（跳过 . 和 ..）:\n";
-$iterator4 = new DirectoryIterator("tests/php");
-foreach ($iterator4 as $key => $value) {
-    if ($iterator4->isDot()) {
-        continue;
-    }
-    $filename = $iterator4->getFilename();
-    $pathname = $iterator4->getPathname();
-    echo "  " . $filename . " -> " . $pathname . "\n";
-}
-
-// 5. 只遍历目录
-echo "\n5. 只遍历目录:\n";
-$iterator5 = new DirectoryIterator("tests");
-foreach ($iterator5 as $key => $value) {
-    if ($iterator5->isDot()) {
-        continue;
-    }
-    if ($iterator5->isDir()) {
-        echo "  目录: " . $iterator5->getFilename() . "\n";
-    }
-}
-
-// 6. 只遍历文件
-echo "\n6. 只遍历文件:\n";
-$iterator6 = new DirectoryIterator("tests/php");
-$fileCount = 0;
-foreach ($iterator6 as $key => $value) {
-    if ($iterator6->isDot()) {
-        continue;
-    }
-    if ($iterator6->isFile()) {
-        $fileCount++;
-        if ($fileCount > 5) {
-            break;
-        }
-        echo "  文件: " . $iterator6->getFilename() . "\n";
-    }
-}
-
-echo "\n=== DirectoryIterator foreach 测试完成 ===\n";
+echo "\n=== get_debug_type() 测试完成 ===\n";

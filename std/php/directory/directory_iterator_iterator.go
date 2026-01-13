@@ -18,15 +18,13 @@ func (m *DirectoryIteratorCurrentMethod) GetVariables() []data.Variable { return
 func (m *DirectoryIteratorCurrentMethod) GetReturnType() data.Types     { return data.Mixed{} }
 
 func (m *DirectoryIteratorCurrentMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	iterData, ok := getDirectoryIteratorInfo(ctx)
-	if !ok || iterData == nil {
-		return data.NewNullValue(), nil
+	// PHP 的 DirectoryIterator::current() 返回 $this，即 DirectoryIterator 对象本身
+	// 这样在 foreach 循环中，$value 就是一个 DirectoryIterator 对象，可以调用 getBasename() 等方法
+	if objCtx, ok := ctx.(*data.ClassMethodContext); ok {
+		// 返回当前的 DirectoryIterator 对象本身（ClassValue，不是 ObjectValue）
+		return objCtx.ClassValue, nil
 	}
-	filename := iterData.Current()
-	if filename == "" {
-		return data.NewNullValue(), nil
-	}
-	return data.NewStringValue(filename), nil
+	return data.NewNullValue(), nil
 }
 
 // DirectoryIteratorKeyMethod 实现 DirectoryIterator::key (Iterator 接口)

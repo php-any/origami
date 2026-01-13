@@ -58,6 +58,10 @@ func (c *DirectoryIteratorClass) GetMethod(name string) (data.Method, bool) {
 		return &DirectoryIteratorValidMethod{}, true
 	case "getFilename":
 		return &DirectoryIteratorGetFilenameMethod{}, true
+	case "getBasename":
+		return &DirectoryIteratorGetBasenameMethod{}, true
+	case "getExtension":
+		return &DirectoryIteratorGetExtensionMethod{}, true
 	case "getPath":
 		return &DirectoryIteratorGetPathMethod{}, true
 	case "getPathname":
@@ -68,6 +72,14 @@ func (c *DirectoryIteratorClass) GetMethod(name string) (data.Method, bool) {
 		return &DirectoryIteratorIsFileMethod{}, true
 	case "isDot":
 		return &DirectoryIteratorIsDotMethod{}, true
+	case "getSize":
+		return &DirectoryIteratorGetSizeMethod{}, true
+	case "getMTime":
+		return &DirectoryIteratorGetMTimeMethod{}, true
+	case "isReadable":
+		return &DirectoryIteratorIsReadableMethod{}, true
+	case "isWritable":
+		return &DirectoryIteratorIsWritableMethod{}, true
 	}
 	return nil, false
 }
@@ -82,11 +94,17 @@ func (c *DirectoryIteratorClass) GetMethods() []data.Method {
 		&DirectoryIteratorRewindMethod{},
 		&DirectoryIteratorValidMethod{},
 		&DirectoryIteratorGetFilenameMethod{},
+		&DirectoryIteratorGetBasenameMethod{},
+		&DirectoryIteratorGetExtensionMethod{},
 		&DirectoryIteratorGetPathMethod{},
 		&DirectoryIteratorGetPathnameMethod{},
 		&DirectoryIteratorIsDirMethod{},
 		&DirectoryIteratorIsFileMethod{},
 		&DirectoryIteratorIsDotMethod{},
+		&DirectoryIteratorGetSizeMethod{},
+		&DirectoryIteratorGetMTimeMethod{},
+		&DirectoryIteratorIsReadableMethod{},
+		&DirectoryIteratorIsWritableMethod{},
 	}
 }
 
@@ -230,6 +248,101 @@ func (d *DirectoryIteratorData) IsDot() bool {
 	if d.iterator >= 0 && d.iterator < len(d.entries) {
 		filename := d.entries[d.iterator]
 		return filename == "." || filename == ".."
+	}
+	return false
+}
+
+// GetBasename 获取当前文件的基本名称（不带路径）
+// 如果提供了 suffix 参数，会移除该后缀
+func (d *DirectoryIteratorData) GetBasename(suffix string) string {
+	filename := d.GetFilename()
+	if suffix != "" {
+		// 使用 basename 逻辑：如果文件名以 suffix 结尾，移除它
+		if len(filename) >= len(suffix) && filename[len(filename)-len(suffix):] == suffix {
+			return filename[:len(filename)-len(suffix)]
+		}
+	}
+	return filename
+}
+
+// GetExtension 获取当前文件的扩展名（不包含点号）
+func (d *DirectoryIteratorData) GetExtension() string {
+	filename := d.GetFilename()
+	// 查找最后一个点号
+	lastDot := -1
+	for i := len(filename) - 1; i >= 0; i-- {
+		if filename[i] == '.' {
+			lastDot = i
+			break
+		}
+		if filename[i] == '/' || filename[i] == '\\' {
+			// 如果遇到路径分隔符，停止查找
+			break
+		}
+	}
+	if lastDot >= 0 && lastDot < len(filename)-1 {
+		return filename[lastDot+1:]
+	}
+	return ""
+}
+
+// GetSize 获取文件大小（字节）
+func (d *DirectoryIteratorData) GetSize() int64 {
+	if d.iterator >= 0 && d.iterator < len(d.entries) {
+		fullPath := filepath.Join(d.path, d.entries[d.iterator])
+		info, err := os.Stat(fullPath)
+		if err != nil {
+			return 0
+		}
+		return info.Size()
+	}
+	return 0
+}
+
+// GetMTime 获取最后修改时间（Unix 时间戳）
+func (d *DirectoryIteratorData) GetMTime() int64 {
+	if d.iterator >= 0 && d.iterator < len(d.entries) {
+		fullPath := filepath.Join(d.path, d.entries[d.iterator])
+		info, err := os.Stat(fullPath)
+		if err != nil {
+			return 0
+		}
+		return info.ModTime().Unix()
+	}
+	return 0
+}
+
+// IsReadable 检查文件是否可读
+func (d *DirectoryIteratorData) IsReadable() bool {
+	if d.iterator >= 0 && d.iterator < len(d.entries) {
+		fullPath := filepath.Join(d.path, d.entries[d.iterator])
+		_, err := os.Stat(fullPath)
+		if err != nil {
+			return false
+		}
+		// 检查文件权限
+		file, err := os.Open(fullPath)
+		if err != nil {
+			return false
+		}
+		file.Close()
+		return true
+	}
+	return false
+}
+
+// IsWritable 检查文件是否可写
+func (d *DirectoryIteratorData) IsWritable() bool {
+	if d.iterator >= 0 && d.iterator < len(d.entries) {
+		fullPath := filepath.Join(d.path, d.entries[d.iterator])
+		info, err := os.Stat(fullPath)
+		if err != nil {
+			return false
+		}
+		// 检查文件权限（简化实现，实际应该检查文件系统权限）
+		mode := info.Mode()
+		// 检查是否有写权限
+		return mode&0200 != 0 || mode&0020 != 0 || mode&0002 != 0
 	}
 	return false
 }
