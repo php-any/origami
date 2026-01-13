@@ -74,7 +74,6 @@ func Load(vm data.VM) {
 		NewStrrposFunction(),
 		NewStrriposFunction(),
 		NewPregMatchFunction(),
-		preg.NewPregMatchAllFunction(),
 		core.NewIsCallableFunction(),
 		NewIsStringFunction(),
 		NewIsIntFunction(),
@@ -141,6 +140,9 @@ func Load(vm data.VM) {
 	vm.AddClass(exception.NewInvalidArgumentExceptionClass())
 
 	initPhpDefaultDefines(vm)
+
+	// 加载 preg 包（注册函数和常量）
+	preg.Load(vm)
 }
 
 func initPhpDefaultDefines(vm data.VM) {
