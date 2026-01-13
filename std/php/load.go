@@ -6,6 +6,7 @@ import (
 	"github.com/php-any/origami/std/php/array"
 	"github.com/php-any/origami/std/php/attribute"
 	"github.com/php-any/origami/std/php/core"
+	"github.com/php-any/origami/std/php/directory"
 	"github.com/php-any/origami/std/php/file"
 	"github.com/php-any/origami/std/php/preg"
 	"github.com/php-any/origami/std/php/proc"
@@ -138,6 +139,7 @@ func Load(vm data.VM) {
 	vm.AddClass(&reflection.ReflectionAttributeClass{})
 	vm.AddClass(&reflection.ReflectionTypeClass{})
 	vm.AddClass(&reflection.ReflectionNamedTypeClass{})
+	vm.AddClass(&directory.DirectoryIteratorClass{})
 
 	// 注册异常类
 	vm.AddClass(exception.NewLogicExceptionClass())

@@ -1,37 +1,90 @@
 <?php
 
-// 测试 basename 函数
+// 测试 DirectoryIterator 的 foreach 循环
 
-// 1. 基本用法
-echo "1. Basic usage:\n";
-echo basename("/path/to/file.txt") . "\n"; // 输出: file.txt
-echo basename("/path/to/file.txt", ".txt") . "\n"; // 输出: file
-echo basename("/path/to/file.txt", "txt") . "\n"; // 输出: file.
+echo "=== DirectoryIterator foreach 测试 ===\n\n";
 
-// 2. Windows 路径
-echo "\n2. Windows path:\n";
-echo basename("C:\\path\\to\\file.txt") . "\n"; // 输出: file.txt
-echo basename("C:\\path\\to\\file.txt", ".txt") . "\n"; // 输出: file
+// 1. 基本 foreach 循环（只有值）
+echo "1. 基本 foreach 循环（只有值）:\n";
+$iterator = new DirectoryIterator("tests/php");
+$count = 0;
+foreach ($iterator as $value) {
+    $count++;
+    if ($count > 5) {
+        break;
+    }
+    echo "  " . $count . ": " . $value . "\n";
+}
 
-// 3. 相对路径
-echo "\n3. Relative path:\n";
-echo basename("file.txt") . "\n"; // 输出: file.txt
-echo basename("./file.txt") . "\n"; // 输出: file.txt
-echo basename("../file.txt") . "\n"; // 输出: file.txt
+// 2. foreach 循环（键和值）
+echo "\n2. foreach 循环（键和值）:\n";
+$iterator2 = new DirectoryIterator("tests/php");
+$count2 = 0;
+foreach ($iterator2 as $key => $value) {
+    $count2++;
+    if ($count2 > 5) {
+        break;
+    }
+    echo "  [" . $key . "] => " . $value . "\n";
+}
 
-// 4. 目录路径
-echo "\n4. Directory path:\n";
-echo basename("/path/to/dir/") . "\n"; // 输出: dir
-echo basename("/path/to/dir") . "\n"; // 输出: dir
+// 3. foreach 循环中使用 DirectoryIterator 方法
+echo "\n3. foreach 循环中使用 DirectoryIterator 方法:\n";
+$iterator3 = new DirectoryIterator("tests/php");
+$count3 = 0;
+foreach ($iterator3 as $key => $value) {
+    $count3++;
+    if ($count3 > 5) {
+        break;
+    }
+    $filename = $iterator3->getFilename();
+    $isDir = $iterator3->isDir();
+    $isFile = $iterator3->isFile();
+    $isDot = $iterator3->isDot();
+    $type = $isDir ? "目录" : ($isFile ? "文件" : "未知");
+    $dot = $isDot ? " (.)" : "";
+    echo "  [" . $key . "] " . $filename . " (" . $type . ")" . $dot . "\n";
+}
 
-// 5. 空字符串和特殊情况
-echo "\n5. Edge cases:\n";
-echo basename("") . "\n"; // 输出: (空字符串)
-echo basename("/") . "\n"; // 输出: (空字符串)
-echo basename("file.txt", ".txt") . "\n"; // 输出: file
+// 4. 遍历所有文件（跳过 . 和 ..）
+echo "\n4. 遍历所有文件（跳过 . 和 ..）:\n";
+$iterator4 = new DirectoryIterator("tests/php");
+foreach ($iterator4 as $key => $value) {
+    if ($iterator4->isDot()) {
+        continue;
+    }
+    $filename = $iterator4->getFilename();
+    $pathname = $iterator4->getPathname();
+    echo "  " . $filename . " -> " . $pathname . "\n";
+}
 
-// 6. 多个后缀匹配
-echo "\n6. Suffix matching:\n";
-echo basename("file.txt.txt", ".txt") . "\n"; // 输出: file.txt (只移除最后一个匹配的后缀)
+// 5. 只遍历目录
+echo "\n5. 只遍历目录:\n";
+$iterator5 = new DirectoryIterator("tests");
+foreach ($iterator5 as $key => $value) {
+    if ($iterator5->isDot()) {
+        continue;
+    }
+    if ($iterator5->isDir()) {
+        echo "  目录: " . $iterator5->getFilename() . "\n";
+    }
+}
 
-echo "\nAll basename tests completed!\n";
+// 6. 只遍历文件
+echo "\n6. 只遍历文件:\n";
+$iterator6 = new DirectoryIterator("tests/php");
+$fileCount = 0;
+foreach ($iterator6 as $key => $value) {
+    if ($iterator6->isDot()) {
+        continue;
+    }
+    if ($iterator6->isFile()) {
+        $fileCount++;
+        if ($fileCount > 5) {
+            break;
+        }
+        echo "  文件: " . $iterator6->getFilename() . "\n";
+    }
+}
+
+echo "\n=== DirectoryIterator foreach 测试完成 ===\n";
