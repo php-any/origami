@@ -11,7 +11,34 @@ func NewArrayValue(v []Value) Value {
 }
 
 type ArrayValue struct {
-	Value []Value
+	Value    []Value
+	iterator int // 迭代器当前位置索引
+}
+
+func (a *ArrayValue) Current(ctx Context) (Value, Control) {
+	if a.iterator >= len(a.Value) {
+		return NewNullValue(), nil
+	}
+	return a.Value[a.iterator], nil
+}
+
+func (a *ArrayValue) Key(ctx Context) (Value, Control) {
+	return NewIntValue(a.iterator), nil
+}
+
+func (a *ArrayValue) Next(ctx Context) Control {
+	a.iterator++
+	return nil
+}
+
+func (a *ArrayValue) Rewind(ctx Context) (Value, Control) {
+	a.iterator = 0
+	return nil, nil
+}
+
+func (a *ArrayValue) Valid(ctx Context) (Value, Control) {
+	valid := a.iterator >= 0 && a.iterator < len(a.Value)
+	return NewBoolValue(valid), nil
 }
 
 func (a *ArrayValue) GetValue(ctx Context) (GetValue, Control) {

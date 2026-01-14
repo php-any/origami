@@ -47,8 +47,11 @@ func (m *ReflectionAttributeNewInstanceMethod) Call(ctx data.Context) (data.GetV
 	// 如果注解对象是 ClassValue，创建一个新的实例
 	if classVal, ok := annotationValue.(*data.ClassValue); ok {
 		// 创建新的 ClassValue 实例
-		// newInstance := data.NewClassValue(classVal.Class, ctx.CreateBaseContext())
-		return classVal, nil
+		newInstance := data.NewClassValue(classVal.Class, ctx.CreateBaseContext())
+		for s, value := range classVal.GetProperties() {
+			newInstance.SetProperty(s, value)
+		}
+		return newInstance, nil
 	}
 
 	return nil, data.NewErrorThrow(nil, errors.New("ReflectionAttribute::newInstance() failed"))

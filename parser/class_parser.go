@@ -338,7 +338,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 			return nil, acl
 		}
 	}
-	return classStmt, acl
+	return nil, acl
 }
 
 // 调用注解

@@ -53,6 +53,7 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 			if method.GetModifier() != data.ModifierPublic {
 				return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("对象属性访问表达式对象属性访问函数非公开"))
 			}
+
 			fnCtx, acl := pe.callMethodParams(class, ctx, method)
 			if acl != nil {
 				if _, ok := acl.(ToClosure); ok {

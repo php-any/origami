@@ -34,38 +34,39 @@ func createInstanceAndCallConstructor(
 			params := method.GetParams()
 			fnCtx := object.CreateContext(varies)
 			// 入参的值设置到上下文中
-			for index, arg := range arguments {
-				switch argTV := arg.(type) {
-				case *NamedArgument:
-					tempV, acl := argTV.GetValue(ctx)
+			for index, param := range params {
+				if len(arguments) > index {
+					arg := arguments[index]
+					switch argTV := arg.(type) {
+					case *NamedArgument:
+						tempV, acl := argTV.GetValue(ctx)
+						if acl != nil {
+							return nil, acl
+						}
+						vari, err := findVariable(varies, argTV.Name)
+						if err != nil {
+							return nil, data.NewErrorThrow(from, err)
+						}
+						fnCtx.SetVariableValue(vari, tempV.(data.Value))
+					default:
+						tempV, acl := argTV.GetValue(ctx)
+						if acl != nil {
+							return nil, acl
+						}
+
+						if index >= len(varies) {
+							return nil, data.NewErrorThrow(from, fmt.Errorf("对象(%v)构造函数参数数量超出限制: %d", object.Class.GetName(), index))
+						}
+
+						fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
+					}
+				} else if promotedParam, ok := param.(*PromotedParameter); ok {
+					// 触发初始化默认值
+					_, acl := promotedParam.GetValue(object)
 					if acl != nil {
 						return nil, acl
 					}
-					vari, err := findVariable(varies, argTV.Name)
-					if err != nil {
-						return nil, data.NewErrorThrow(from, err)
-					}
-					fnCtx.SetVariableValue(vari, tempV.(data.Value))
-				default:
-					tempV, acl := argTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-
-					if index >= len(varies) {
-						return nil, data.NewErrorThrow(from, fmt.Errorf("对象(%v)构造函数参数数量超出限制: %d", object.Class.GetName(), index))
-					}
-
-					fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
-				}
-			}
-
-			// 处理未传递的参数，设置默认值
-			for index := len(arguments); index < len(params); index++ {
-				if index >= len(varies) {
-					break
-				}
-				if argObj, ok := params[index].(*Parameter); ok {
+				} else if argObj, ok := param.(*Parameter); ok {
 					if argObj.DefaultValue == nil {
 						return nil, data.NewErrorThrow(from, fmt.Errorf("调用 %s 构造函数时参数 %s 缺少值和默认值", object.Class.GetName(), argObj.Name))
 					}
@@ -73,36 +74,6 @@ func createInstanceAndCallConstructor(
 					_, acl := argObj.GetValue(fnCtx)
 					if acl != nil {
 						return nil, acl
-					}
-				}
-			}
-
-			// 将构造函数参数属性的值赋值给对象属性（PHP 8 构造函数参数属性提升）
-			for index, param := range params {
-				// 检查是否是属性提升的参数
-				if promotedParam, ok := param.(*PromotedParameter); ok {
-					// 从函数上下文获取参数值
-					if index < len(varies) {
-						paramValue, acl := fnCtx.GetVariableValue(varies[index])
-						if acl != nil {
-							// 如果获取失败，尝试使用默认值
-							if promotedParam.DefaultValue != nil {
-								paramValueGet, acl := promotedParam.DefaultValue.GetValue(fnCtx)
-								if acl != nil {
-									return nil, acl
-								}
-								if paramValueGet != nil {
-									paramValue = paramValueGet.(data.Value)
-								}
-							} else {
-								// 没有默认值，跳过
-								continue
-							}
-						}
-						// 将参数值赋值给对象属性
-						if paramValue != nil {
-							object.SetProperty(promotedParam.PropertyName, paramValue.(data.Value))
-						}
 					}
 				}
 			}

@@ -2,6 +2,7 @@ package php
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -18,6 +19,18 @@ func NewVarDumpFunction() data.FuncStmt {
 type VarDumpFunction struct{}
 
 func (f *VarDumpFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	line := 0
+	pos := 0
+	file := ""
+	for _, arg := range ctx.GetCallArgs() {
+		if arg, ok := arg.(node.GetFrom); ok {
+			from := arg.GetFrom()
+			file = from.GetSource()
+			line, pos, _, _ = from.GetRange()
+			line++
+			pos++
+		}
+	}
 	// 参数定义里只有一个 node.Parameters，取到实际传入的所有参数
 	for _, argument := range f.GetParams() {
 		argv, _ := argument.GetValue(ctx)
@@ -39,7 +52,7 @@ func (f *VarDumpFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 			// 直接是值，按类型打印
 			switch arg := temp.(type) {
 			case data.AsString:
-				fmt.Println(arg.AsString())
+				fmt.Println(file + ":" + strconv.Itoa(line) + ":" + strconv.Itoa(pos) + "\n" + arg.AsString())
 			default:
 				fmt.Println(arg)
 			}

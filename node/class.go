@@ -49,12 +49,7 @@ func (c *ClassStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 		// 初始化父类的属性（包括所有继承链上的父类）
 		last := ext
 		for {
-			parentProps := last.GetPropertyList()
-			for _, property := range parentProps {
-				// 跳过私有属性（子类无法访问）
-				if property.GetModifier() == data.ModifierPrivate {
-					continue
-				}
+			for _, property := range last.GetPropertyList() {
 				// 如果子类已经设置了该属性，跳过
 				if _, exists := c.Properties[property.GetName()]; exists {
 					continue

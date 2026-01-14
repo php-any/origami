@@ -5,7 +5,8 @@ type Class struct {
 }
 
 func (i Class) Is(value Value) bool {
-	if c, ok := value.(*ClassValue); ok {
+	switch c := value.(type) {
+	case *ClassValue:
 		if i.Name == c.Class.GetName() {
 			return true
 		}
@@ -15,7 +16,7 @@ func (i Class) Is(value Value) bool {
 			}
 		}
 		return extendISClass(i.Name, c.Class.GetExtend(), c.GetVM())
-	} else if c, ok := value.(*ThisValue); ok {
+	case *ThisValue:
 		if i.Name == c.Class.GetName() {
 			return true
 		}
@@ -25,7 +26,12 @@ func (i Class) Is(value Value) bool {
 			}
 		}
 		return extendISClass(i.Name, c.Class.GetExtend(), c.GetVM())
+	case *ArrayValue:
+		if i.Name == "iterable" {
+			return true
+		}
 	}
+
 	return false
 }
 

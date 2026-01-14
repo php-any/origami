@@ -60,6 +60,7 @@ func Load(vm data.VM) {
 		array.NewArrayPushFunction(),
 		array.NewArrayPopFunction(),
 		array.NewArrayValuesFunction(),
+		array.NewArrayUniqueFunction(),
 		array.NewSortFunction(),
 		NewStrReplaceFunction(),
 		NewStrtolowerFunction(),
