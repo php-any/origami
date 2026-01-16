@@ -63,6 +63,7 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 	staticProperties := make(map[string]data.Property)
 
 	for !p.isEOF() && p.current().Type() != token.RBRACE {
+		tracker := p.StartTracking()
 		// 解析访问修饰符
 		modifier := p.parseModifier()
 		if modifier == "" {

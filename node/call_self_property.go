@@ -66,7 +66,10 @@ func (pe *CallSelfProperty) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	implements := currentClass.GetImplements()
 	for _, interfaceName := range implements {
 		// 递归查找接口及其所有父接口的常量
-		property := pe.findInInterfaceAndParents(vm, interfaceName)
+		property, acl := pe.findInInterfaceAndParents(vm, interfaceName)
+		if acl != nil {
+			return nil, acl
+		}
 		if property != nil {
 			return property, nil
 		}
@@ -77,17 +80,17 @@ func (pe *CallSelfProperty) GetValue(ctx data.Context) (data.GetValue, data.Cont
 }
 
 // findInInterfaceAndParents 递归查找接口及其所有父接口的常量
-func (pe *CallSelfProperty) findInInterfaceAndParents(vm data.VM, interfaceName string) data.Value {
+func (pe *CallSelfProperty) findInInterfaceAndParents(vm data.VM, interfaceName string) (data.Value, data.Control) {
 	interfaceStmt, acl := vm.GetOrLoadInterface(interfaceName)
 	if acl != nil {
-		return acl
+		return nil, acl
 	}
 
 	// 检查当前接口是否实现了 GetStaticProperty 接口
 	if interfaceGetter, ok := interfaceStmt.(data.GetStaticProperty); ok {
 		property, has := interfaceGetter.GetStaticProperty(pe.Property)
 		if has {
-			return property
+			return property, nil
 		}
 	}
 
@@ -97,7 +100,7 @@ func (pe *CallSelfProperty) findInInterfaceAndParents(vm data.VM, interfaceName 
 		return pe.findInInterfaceAndParents(vm, *interfaceExtend)
 	}
 
-	return nil
+	return nil, nil
 }
 
 // SetProperty 设置当前类静态属性的值
