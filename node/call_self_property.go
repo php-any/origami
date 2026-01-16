@@ -79,8 +79,8 @@ func (pe *CallSelfProperty) GetValue(ctx data.Context) (data.GetValue, data.Cont
 // findInInterfaceAndParents 递归查找接口及其所有父接口的常量
 func (pe *CallSelfProperty) findInInterfaceAndParents(vm data.VM, interfaceName string) data.Value {
 	interfaceStmt, acl := vm.GetOrLoadInterface(interfaceName)
-	if acl != nil || interfaceStmt == nil {
-		return nil
+	if acl != nil {
+		return acl
 	}
 
 	// 检查当前接口是否实现了 GetStaticProperty 接口
