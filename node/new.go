@@ -37,9 +37,10 @@ func createInstanceAndCallConstructor(
 			for index, param := range params {
 				if len(arguments) > index {
 					arg := arguments[index]
+					var tempV data.GetValue
 					switch argTV := arg.(type) {
 					case *NamedArgument:
-						tempV, acl := argTV.GetValue(ctx)
+						tempV, acl = argTV.GetValue(ctx)
 						if acl != nil {
 							return nil, acl
 						}
@@ -48,17 +49,24 @@ func createInstanceAndCallConstructor(
 							return nil, data.NewErrorThrow(from, err)
 						}
 						fnCtx.SetVariableValue(vari, tempV.(data.Value))
+						if promotedParam, ok := param.(*PromotedParameter); ok {
+							acl = promotedParam.SetValue(object, tempV.(data.Value))
+						}
 					default:
-						tempV, acl := argTV.GetValue(ctx)
+						tempV, acl = argTV.GetValue(ctx)
 						if acl != nil {
 							return nil, acl
 						}
-
 						if index >= len(varies) {
 							return nil, data.NewErrorThrow(from, fmt.Errorf("对象(%v)构造函数参数数量超出限制: %d", object.Class.GetName(), index))
 						}
-
 						fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
+						if promotedParam, ok := param.(*PromotedParameter); ok {
+							acl = promotedParam.SetValue(object, tempV.(data.Value))
+						}
+					}
+					if acl != nil {
+						return nil, acl
 					}
 				} else if promotedParam, ok := param.(*PromotedParameter); ok {
 					// 触发初始化默认值

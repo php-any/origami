@@ -166,6 +166,8 @@ func NewBaseType(ty string) Types {
 		return NullType{}
 	case "self":
 		return StaticType{}
+	case "closure", "\\Closure":
+		return ClosureType{}
 	default:
 		return Class{Name: ty}
 	}
@@ -213,6 +215,22 @@ func (s StaticType) Is(value Value) bool {
 
 func (s StaticType) String() string {
 	return "static"
+}
+
+type ClosureType struct{}
+
+func (s ClosureType) Is(value Value) bool {
+	switch value.(type) {
+	case *FuncValue, *ArrayValue:
+		return true
+	case *StringValue:
+		return true
+	}
+	return false
+}
+
+func (s ClosureType) String() string {
+	return "closure"
 }
 
 type NullType struct{}

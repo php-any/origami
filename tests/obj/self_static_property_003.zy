@@ -1,0 +1,91 @@
+namespace tests\obj;
+
+// 测试 self:: 静态属性访问 - 多级继承
+class GrandParentClass {
+    public static $grandParentProp = "grandparent_value";
+    
+    public function getGrandParentProp() {
+        return self::$grandParentProp;
+    }
+}
+
+class ParentClass extends GrandParentClass {
+    public static $parentProp = "parent_value";
+    
+    public function getParentProp() {
+        return self::$parentProp;
+    }
+    
+    public function getGrandParentPropFromParent() {
+        return self::$grandParentProp;
+    }
+}
+
+class ChildClass extends ParentClass {
+    public static $childProp = "child_value";
+    
+    public function getChildProp() {
+        return self::$childProp;
+    }
+    
+    public function getParentPropFromChild() {
+        return self::$parentProp;
+    }
+    
+    public function getGrandParentPropFromChild() {
+        return self::$grandParentProp;
+    }
+}
+
+$grandParent = new GrandParentClass();
+$parent = new ParentClass();
+$child = new ChildClass();
+
+// 测试祖父类访问自己的静态属性
+$grandParentVal = $grandParent->getGrandParentProp();
+if($grandParentVal == "grandparent_value") {
+    Log::info("祖父类 self:: 访问自己的静态属性成功");
+} else {
+    Log::fatal("祖父类 self:: 访问自己的静态属性失败，期望 'grandparent_value'，得到: " . $grandParentVal);
+}
+
+// 测试父类访问自己的静态属性
+$parentVal = $parent->getParentProp();
+if($parentVal == "parent_value") {
+    Log::info("父类 self:: 访问自己的静态属性成功");
+} else {
+    Log::fatal("父类 self:: 访问自己的静态属性失败，期望 'parent_value'，得到: " . $parentVal);
+}
+
+// 测试父类访问祖父类的静态属性
+$grandParentFromParent = $parent->getGrandParentPropFromParent();
+if($grandParentFromParent == "grandparent_value") {
+    Log::info("父类 self:: 访问祖父类静态属性成功");
+} else {
+    Log::fatal("父类 self:: 访问祖父类静态属性失败，期望 'grandparent_value'，得到: " . $grandParentFromParent);
+}
+
+// 测试子类访问自己的静态属性
+$childVal = $child->getChildProp();
+if($childVal == "child_value") {
+    Log::info("子类 self:: 访问自己的静态属性成功");
+} else {
+    Log::fatal("子类 self:: 访问自己的静态属性失败，期望 'child_value'，得到: " . $childVal);
+}
+
+// 测试子类访问父类的静态属性
+$parentPropFromChild = $child->getParentPropFromChild();
+if($parentPropFromChild == "parent_value") {
+    Log::info("子类 self:: 访问父类静态属性成功");
+} else {
+    Log::fatal("子类 self:: 访问父类静态属性失败，期望 'parent_value'，得到: " . $parentPropFromChild);
+}
+
+// 测试子类访问祖父类的静态属性
+$grandParentFromChild = $child->getGrandParentPropFromChild();
+if($grandParentFromChild == "grandparent_value") {
+    Log::info("子类 self:: 访问祖父类静态属性成功");
+} else {
+    Log::fatal("子类 self:: 访问祖父类静态属性失败，期望 'grandparent_value'，得到: " . $grandParentFromChild);
+}
+

@@ -17,4 +17,4 @@ class B extends A
 }
 
 $data = new B(a: "c");
-echo $data->getName()
+echo $data

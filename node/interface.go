@@ -1,15 +1,18 @@
 package node
 
 import (
+	"sync"
+
 	"github.com/php-any/origami/data"
 )
 
 // InterfaceStatement 表示接口定义语句
 type InterfaceStatement struct {
 	*Node
-	Name    string        // 接口名
-	Extends *string       // 父接口名
-	Methods []data.Method // 方法列表
+	Name           string        // 接口名
+	Extends        *string       // 父接口名
+	Methods        []data.Method // 方法列表
+	StaticProperty sync.Map      // 静态属性列表
 }
 
 // NewInterfaceStatement 创建一个新的接口定义语句
@@ -108,4 +111,12 @@ func (m *InterfaceMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 // GetReturnType 返回返回类型
 func (m *InterfaceMethod) GetReturnType() data.Types {
 	return m.ReturnType
+}
+
+// GetStaticProperty 获取接口的静态属性
+func (i *InterfaceStatement) GetStaticProperty(name string) (data.Value, bool) {
+	if f, ok := i.StaticProperty.Load(name); ok {
+		return f.(data.Value), true
+	}
+	return nil, false
 }

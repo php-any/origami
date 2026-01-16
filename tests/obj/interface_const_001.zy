@@ -1,0 +1,35 @@
+namespace tests\obj;
+
+// 测试接口常量解析
+interface TestInterface {
+    public const VERBOSITY_SILENT = 8;
+    public const VERBOSITY_NORMAL = 1;
+}
+
+class TestClass implements TestInterface {
+    public function getSilent() {
+        return self::VERBOSITY_SILENT;
+    }
+    
+    public function getNormal() {
+        return self::VERBOSITY_NORMAL;
+    }
+}
+
+$obj = new TestClass();
+
+// 测试访问接口常量
+$silent = $obj->getSilent();
+if($silent == 8) {
+    Log::info("self:: 访问接口常量 VERBOSITY_SILENT 成功");
+} else {
+    Log::fatal("self:: 访问接口常量 VERBOSITY_SILENT 失败，期望 8，得到: " . $silent);
+}
+
+$normal = $obj->getNormal();
+if($normal == 1) {
+    Log::info("self:: 访问接口常量 VERBOSITY_NORMAL 成功");
+} else {
+    Log::fatal("self:: 访问接口常量 VERBOSITY_NORMAL 失败，期望 1，得到: " . $normal);
+}
+

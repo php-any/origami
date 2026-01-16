@@ -177,6 +177,28 @@ func (vm *VM) GetInterface(pkg string) (data.InterfaceStmt, bool) {
 	return nil, false
 }
 
+func (vm *VM) GetOrLoadInterface(pkg string) (data.InterfaceStmt, data.Control) {
+	if pkg[0:1] == "\\" {
+		pkg = pkg[1:]
+	}
+
+	if inf, ok := vm.interfaceMap[pkg]; ok {
+		return inf, nil
+	}
+
+	// 使用 LoadClass 来加载接口（接口和类使用相同的加载机制）
+	acl := vm.parser.GetClassPathManager().LoadClass(pkg, vm.parser)
+	if acl != nil {
+		return nil, acl
+	}
+
+	if inf, ok := vm.interfaceMap[pkg]; ok {
+		return inf, nil
+	}
+
+	return nil, utils.NewThrowf("找不到 %s; interface 定义需要和文件名称一致才能自动加载", pkg)
+}
+
 func (vm *VM) AddFunc(f data.FuncStmt) data.Control {
 	vm.mu.RLock()
 	defer vm.mu.RUnlock()

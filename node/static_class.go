@@ -29,7 +29,11 @@ func (s *StaticClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 获取当前类的类名
-	// TODO: 实现真正的 late static binding，返回实际调用时的类名
+	parent, ok := classCtx.Context.(*data.ClassMethodContext)
+	for ok {
+		classCtx = parent
+		parent, ok = classCtx.Context.(*data.ClassMethodContext)
+	}
 	currentClass := classCtx.Class
 	className := currentClass.GetName()
 

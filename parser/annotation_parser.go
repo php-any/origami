@@ -45,7 +45,6 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 			if acl != nil {
 				return nil, acl
 			}
-
 			// 解析注解参数
 			arguments := make([]data.GetValue, 0)
 			if p.current().Type() == token.LPAREN {
@@ -86,7 +85,6 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 		if acl != nil {
 			return nil, acl
 		}
-
 		// 解析注解参数
 		arguments := make([]data.GetValue, 0)
 		if p.current().Type() == token.LPAREN {

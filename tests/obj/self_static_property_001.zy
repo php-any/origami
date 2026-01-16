@@ -1,0 +1,46 @@
+namespace tests\obj;
+
+// 测试 self:: 静态属性访问 - 基本功能
+class TestSelfStaticProperty {
+    public static $prop1 = "value1";
+    public static $prop2 = 100;
+    
+    public function getProp1() {
+        return self::$prop1;
+    }
+    
+    public function getProp2() {
+        return self::$prop2;
+    }
+    
+    public function setProp1($value) {
+        self::$prop1 = $value;
+    }
+}
+
+$obj = new TestSelfStaticProperty();
+
+// 测试读取静态属性
+$val1 = $obj->getProp1();
+if($val1 == "value1") {
+    Log::info("self:: 读取当前类静态属性 prop1 成功");
+} else {
+    Log::fatal("self:: 读取当前类静态属性 prop1 失败，期望 'value1'，得到: " . $val1);
+}
+
+$val2 = $obj->getProp2();
+if($val2 == 100) {
+    Log::info("self:: 读取当前类静态属性 prop2 成功");
+} else {
+    Log::fatal("self:: 读取当前类静态属性 prop2 失败，期望 100，得到: " . $val2);
+}
+
+// 测试设置静态属性
+$obj->setProp1("new_value");
+$val3 = $obj->getProp1();
+if($val3 == "new_value") {
+    Log::info("self:: 设置当前类静态属性成功");
+} else {
+    Log::fatal("self:: 设置当前类静态属性失败，期望 'new_value'，得到: " . $val3);
+}
+

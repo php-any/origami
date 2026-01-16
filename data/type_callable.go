@@ -5,7 +5,9 @@ type Callable struct {
 
 func (c Callable) Is(value Value) bool {
 	switch value.(type) {
-	case *FuncValue:
+	case *FuncValue, *ArrayValue:
+		return true
+	case *StringValue:
 		return true
 	}
 	return false

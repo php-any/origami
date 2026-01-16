@@ -35,7 +35,11 @@ func (c *ClassValue) GetValue(ctx Context) (GetValue, Control) {
 func (c *ClassValue) AsString() string {
 	result := ""
 	c.property.Range(func(key string, value Value) bool {
-		result += fmt.Sprintf("\t%s: %s\n", key, value.AsString())
+		if v, ok := value.(GetName); ok {
+			result += fmt.Sprintf("\t%s: %s\n", key, v.GetName())
+		} else {
+			result += fmt.Sprintf("\t%s: %s\n", key, value.AsString())
+		}
 		return true
 	})
 

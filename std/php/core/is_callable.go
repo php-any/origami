@@ -30,6 +30,10 @@ func (f *IsCallableFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		return data.NewBoolValue(true), nil
 	}
 
+	if _, ok := value.(data.GetName); ok {
+		return data.NewBoolValue(true), nil
+	}
+
 	// 2. String (function name)
 	if str, ok := value.(data.AsString); ok {
 		name := str.AsString()

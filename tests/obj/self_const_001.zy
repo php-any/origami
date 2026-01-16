@@ -1,0 +1,45 @@
+namespace tests\obj;
+
+// 测试 self:: 常量访问
+class TestSelfConst {
+    public const VERBOSITY_NORMAL = 1;
+    public const VERBOSITY_VERBOSE = 2;
+    public const VERBOSITY_DEBUG = 3;
+    
+    public function getNormal() {
+        return self::VERBOSITY_NORMAL;
+    }
+    
+    public function getVerbose() {
+        return self::VERBOSITY_VERBOSE;
+    }
+    
+    public function getDebug() {
+        return self::VERBOSITY_DEBUG;
+    }
+}
+
+$obj = new TestSelfConst();
+
+// 测试访问常量
+$normal = $obj->getNormal();
+if($normal == 1) {
+    Log::info("self:: 访问常量 VERBOSITY_NORMAL 成功");
+} else {
+    Log::fatal("self:: 访问常量 VERBOSITY_NORMAL 失败，期望 1，得到: " . $normal);
+}
+
+$verbose = $obj->getVerbose();
+if($verbose == 2) {
+    Log::info("self:: 访问常量 VERBOSITY_VERBOSE 成功");
+} else {
+    Log::fatal("self:: 访问常量 VERBOSITY_VERBOSE 失败，期望 2，得到: " . $verbose);
+}
+
+$debug = $obj->getDebug();
+if($debug == 3) {
+    Log::info("self:: 访问常量 VERBOSITY_DEBUG 成功");
+} else {
+    Log::fatal("self:: 访问常量 VERBOSITY_DEBUG 失败，期望 3，得到: " . $debug);
+}
+

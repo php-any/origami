@@ -159,6 +159,29 @@ func (vm *TempVM) GetInterface(pkg string) (data.InterfaceStmt, bool) {
 	return nil, false
 }
 
+func (vm *TempVM) GetOrLoadInterface(pkg string) (data.InterfaceStmt, data.Control) {
+	// 优先从本请求新增的接口中查找
+	if c, ok := vm.addedInterfaces[pkg]; ok {
+		return c, nil
+	}
+
+	// 从 Base VM 查找或加载
+	ret, acl := vm.Base.GetOrLoadInterface(pkg)
+	if acl == nil && ret != nil {
+		return ret, nil
+	}
+	if acl != nil {
+		return nil, acl
+	}
+
+	// 如果 Base 加载后，再次检查新增的接口
+	if c, ok := vm.addedInterfaces[pkg]; ok {
+		return c, nil
+	}
+
+	return nil, data.NewErrorThrow(nil, fmt.Errorf("interface %s not found", pkg))
+}
+
 func (vm *TempVM) GetFunc(pkg string) (data.FuncStmt, bool) {
 	if f, ok := vm.addedFuncs[pkg]; ok {
 		return f, true

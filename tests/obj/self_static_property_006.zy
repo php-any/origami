@@ -1,0 +1,57 @@
+namespace tests\obj;
+
+// 测试 self:: 静态属性访问 - 继承 + 接口实现
+interface TestInterface {
+    public static $interfaceProp;
+}
+
+class ParentClass {
+    public static $parentProp = "parent_value";
+}
+
+class ChildClass extends ParentClass implements TestInterface {
+    public static $interfaceProp = "interface_value";
+    public static $childProp = "child_value";
+    
+    public function getParentProp() {
+        // 应该能从父类继承
+        return self::$parentProp;
+    }
+    
+    public function getInterfaceProp() {
+        // 应该能从接口实现
+        return self::$interfaceProp;
+    }
+    
+    public function getChildProp() {
+        // 自己的属性
+        return self::$childProp;
+    }
+}
+
+$obj = new ChildClass();
+
+// 测试访问父类的静态属性
+$parentVal = $obj->getParentProp();
+if($parentVal == "parent_value") {
+    Log::info("self:: 在继承+接口实现中访问父类静态属性成功");
+} else {
+    Log::fatal("self:: 在继承+接口实现中访问父类静态属性失败，期望 'parent_value'，得到: " . $parentVal);
+}
+
+// 测试访问接口的静态属性
+$interfaceVal = $obj->getInterfaceProp();
+if($interfaceVal == "interface_value") {
+    Log::info("self:: 在继承+接口实现中访问接口静态属性成功");
+} else {
+    Log::fatal("self:: 在继承+接口实现中访问接口静态属性失败，期望 'interface_value'，得到: " . $interfaceVal);
+}
+
+// 测试访问自己的静态属性
+$childVal = $obj->getChildProp();
+if($childVal == "child_value") {
+    Log::info("self:: 在继承+接口实现中访问自己的静态属性成功");
+} else {
+    Log::fatal("self:: 在继承+接口实现中访问自己的静态属性失败，期望 'child_value'，得到: " . $childVal);
+}
+

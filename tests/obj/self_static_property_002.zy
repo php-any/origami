@@ -1,0 +1,78 @@
+namespace tests\obj;
+
+// 测试 self:: 静态属性访问 - 继承
+class ParentClass {
+    public static $parentProp = "parent_value";
+    public static $sharedProp = "parent_shared";
+    
+    public function getParentProp() {
+        return self::$parentProp;
+    }
+    
+    public function getSharedProp() {
+        return self::$sharedProp;
+    }
+}
+
+class ChildClass extends ParentClass {
+    public static $childProp = "child_value";
+    public static $sharedProp = "child_shared";
+    
+    public function getChildProp() {
+        return self::$childProp;
+    }
+    
+    public function getParentPropFromChild() {
+        // 应该能访问父类的静态属性
+        return self::$parentProp;
+    }
+    
+    public function getSharedPropFromChild() {
+        // 子类重写了 sharedProp，应该返回子类的值
+        return self::$sharedProp;
+    }
+}
+
+$parent = new ParentClass();
+$child = new ChildClass();
+
+// 测试父类访问自己的静态属性
+$parentVal = $parent->getParentProp();
+if($parentVal == "parent_value") {
+    Log::info("父类 self:: 访问自己的静态属性成功");
+} else {
+    Log::fatal("父类 self:: 访问自己的静态属性失败，期望 'parent_value'，得到: " . $parentVal);
+}
+
+// 测试子类访问自己的静态属性
+$childVal = $child->getChildProp();
+if($childVal == "child_value") {
+    Log::info("子类 self:: 访问自己的静态属性成功");
+} else {
+    Log::fatal("子类 self:: 访问自己的静态属性失败，期望 'child_value'，得到: " . $childVal);
+}
+
+// 测试子类访问父类的静态属性（继承）
+$parentPropFromChild = $child->getParentPropFromChild();
+if($parentPropFromChild == "parent_value") {
+    Log::info("子类 self:: 访问父类静态属性（继承）成功");
+} else {
+    Log::fatal("子类 self:: 访问父类静态属性（继承）失败，期望 'parent_value'，得到: " . $parentPropFromChild);
+}
+
+// 测试子类访问重写的静态属性
+$sharedPropFromChild = $child->getSharedPropFromChild();
+if($sharedPropFromChild == "child_shared") {
+    Log::info("子类 self:: 访问重写的静态属性成功（返回子类的值）");
+} else {
+    Log::fatal("子类 self:: 访问重写的静态属性失败，期望 'child_shared'，得到: " . $sharedPropFromChild);
+}
+
+// 测试父类访问自己的 sharedProp
+$parentShared = $parent->getSharedProp();
+if($parentShared == "parent_shared") {
+    Log::info("父类 self:: 访问自己的 sharedProp 成功");
+} else {
+    Log::fatal("父类 self:: 访问自己的 sharedProp 失败，期望 'parent_shared'，得到: " . $parentShared);
+}
+

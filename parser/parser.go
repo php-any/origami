@@ -124,6 +124,8 @@ func (p *Parser) parseProgram(statements []data.GetValue) (*node.Program, data.C
 			if n, ok := stmt.(*node.Namespace); ok {
 				p.namespace = n
 				statements = append(statements, stmt)
+			} else if _, ok := stmt.(*node.ClassStatement); ok {
+				continue
 			} else {
 				if n, ok := stmt.(*node.UseStatement); ok {
 					p.uses[n.Alias] = n.Namespace

@@ -1,0 +1,38 @@
+namespace tests\obj;
+
+// 测试 self:: 常量访问 - 接口
+interface TestInterface {
+    public const INTERFACE_CONST = "interface_value";
+}
+
+class TestClass implements TestInterface {
+    public const INTERFACE_CONST = "interface_value";
+    public const CLASS_CONST = "class_value";
+    
+    public function getInterfaceConst() {
+        return self::INTERFACE_CONST;
+    }
+    
+    public function getClassConst() {
+        return self::CLASS_CONST;
+    }
+}
+
+$obj = new TestClass();
+
+// 测试访问接口常量
+$interfaceConst = $obj->getInterfaceConst();
+if($interfaceConst == "interface_value") {
+    Log::info("self:: 访问接口常量成功");
+} else {
+    Log::fatal("self:: 访问接口常量失败，期望 'interface_value'，得到: " . $interfaceConst);
+}
+
+// 测试访问类自己的常量
+$classConst = $obj->getClassConst();
+if($classConst == "class_value") {
+    Log::info("self:: 访问类自己的常量成功");
+} else {
+    Log::fatal("self:: 访问类自己的常量失败，期望 'class_value'，得到: " . $classConst);
+}
+

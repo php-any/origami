@@ -1,0 +1,39 @@
+namespace tests\obj;
+
+// 测试 self:: 常量访问 - 接口继承链
+interface ParentInterface {
+    public const PARENT_CONST = "parent_value";
+}
+
+interface ChildInterface extends ParentInterface {
+    public const CHILD_CONST = "child_value";
+}
+
+class TestClass implements ChildInterface {
+    public function getParentConst() {
+        return self::PARENT_CONST;
+    }
+    
+    public function getChildConst() {
+        return self::CHILD_CONST;
+    }
+}
+
+$obj = new TestClass();
+
+// 测试访问父接口的常量
+$parentConst = $obj->getParentConst();
+if($parentConst == "parent_value") {
+    Log::info("self:: 访问父接口常量成功");
+} else {
+    Log::fatal("self:: 访问父接口常量失败，期望 'parent_value'，得到: " . $parentConst);
+}
+
+// 测试访问子接口的常量
+$childConst = $obj->getChildConst();
+if($childConst == "child_value") {
+    Log::info("self:: 访问子接口常量成功");
+} else {
+    Log::fatal("self:: 访问子接口常量失败，期望 'child_value'，得到: " . $childConst);
+}
+

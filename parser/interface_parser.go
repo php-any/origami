@@ -58,22 +58,58 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 	}
 	p.next()
 
-	// 解析接口方法
+	// 解析接口成员（方法和静态属性）
 	var methods []data.Method
+	staticProperties := make(map[string]data.Property)
+
 	for !p.isEOF() && p.current().Type() != token.RBRACE {
-		// 解析方法修饰符
+		// 解析访问修饰符
 		modifier := p.parseModifier()
 		if modifier == "" {
-			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少方法修饰符"))
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少访问修饰符"))
 		}
 
-		// 解析方法
-		method, acl := p.parseInterfaceMethod(modifier)
-		if acl != nil {
-			return nil, acl
+		// 解析static关键字
+		isStatic := false
+		if p.current().Type() == token.STATIC {
+			isStatic = true
+			p.next()
 		}
-		if method != nil {
-			methods = append(methods, method)
+
+		// 解析属性或方法
+		if p.current().Type() == token.VAR ||
+			p.current().Type() == token.CONST ||
+			p.current().Type() == token.VARIABLE ||
+			isIdentOrTypeToken(p.current().Type()) ||
+			(p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type())) {
+			// 解析属性（使用 ClassParser 的 parsePropertyWithAnnotations 方法）
+			cp := &ClassParser{
+				Parser:               p.parser,
+				FunctionParserCommon: NewFunctionParserCommon(p.parser),
+			}
+			prop, acl := cp.parsePropertyWithAnnotations(modifier, isStatic, false, nil)
+			if acl != nil {
+				return nil, acl
+			}
+			if prop != nil {
+				if isStatic || prop.GetIsStatic() {
+					staticProperties[prop.GetName()] = prop
+				}
+			}
+		} else if p.current().Type() == token.FUNC {
+			// 解析方法
+			method, acl := p.parseInterfaceMethod(modifier)
+			if acl != nil {
+				return nil, acl
+			}
+			if method != nil {
+				methods = append(methods, method)
+			}
+		} else if p.current().Type() == token.SEMICOLON {
+			p.next()
+			continue
+		} else {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少属性或方法声明"))
 		}
 
 		// 跳过分号
@@ -94,6 +130,21 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 		extends,
 		methods,
 	)
+
+	// 处理静态属性
+	for s, property := range staticProperties {
+		defaultValue := property.GetDefaultValue()
+		if defaultValue != nil {
+			baseCtx := p.vm.CreateContext([]data.Variable{})
+			v, acl := defaultValue.GetValue(baseCtx)
+			if acl != nil {
+				return nil, acl
+			}
+			i.StaticProperty.Store(s, v)
+		} else {
+			i.StaticProperty.Store(s, data.NewNullValue())
+		}
+	}
 
 	if i.Extends != nil {
 		extends, ok := p.vm.GetInterface(*i.Extends)
@@ -179,7 +230,9 @@ func (p *InterfaceParser) parseInterfaceMethod(modifier string) (data.Method, da
 	}
 
 	// 解析分号
-	p.nextAndCheck(token.SEMICOLON)
+	if p.checkPositionIs(0, token.SEMICOLON) {
+		p.next()
+	}
 	// 创建接口方法（接口方法没有方法体）
 	return node.NewInterfaceMethod(
 		tracker.EndBefore(),

@@ -183,6 +183,26 @@ func (vm *LspVM) GetInterface(interfaceName string) (data.InterfaceStmt, bool) {
 	return iface, exists
 }
 
+// GetOrLoadInterface 尝试获取或从磁盘加载接口定义。
+func (vm *LspVM) GetOrLoadInterface(pkg string) (data.InterfaceStmt, data.Control) {
+	if pkg[0:1] == "\\" {
+		pkg = pkg[1:]
+	}
+
+	if iface, ok := vm.GetInterface(pkg); ok {
+		return iface, nil
+	}
+
+	// 使用 loadClassFromCache，因为接口和类使用相同的加载机制
+	if err := vm.loadClassFromCache(pkg); err == nil {
+		if iface, ok := vm.GetInterface(pkg); ok {
+			return iface, nil
+		}
+	}
+
+	return nil, utils.NewThrowf("找不到 %s; interface 定义需要和文件名称一致才能自动加载", pkg)
+}
+
 // AddFunc 添加或覆盖函数。
 func (vm *LspVM) AddFunc(f data.FuncStmt) data.Control {
 	if f == nil {

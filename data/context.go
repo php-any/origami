@@ -41,6 +41,7 @@ type VM interface {
 
 	AddInterface(i InterfaceStmt) Control
 	GetInterface(pkg string) (InterfaceStmt, bool)
+	GetOrLoadInterface(pkg string) (InterfaceStmt, Control)
 	AddFunc(f FuncStmt) Control
 	GetFunc(pkg string) (FuncStmt, bool)
 	RegisterFunction(name string, fn interface{}) Control

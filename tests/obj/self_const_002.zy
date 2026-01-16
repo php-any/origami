@@ -1,0 +1,37 @@
+namespace tests\obj;
+
+// 测试 self:: 常量访问 - 继承
+class ParentClass {
+    public const PARENT_CONST = "parent_value";
+}
+
+class ChildClass extends ParentClass {
+    public const CHILD_CONST = "child_value";
+    
+    public function getParentConst() {
+        return self::PARENT_CONST;
+    }
+    
+    public function getChildConst() {
+        return self::CHILD_CONST;
+    }
+}
+
+$obj = new ChildClass();
+
+// 测试访问父类的常量
+$parentConst = $obj->getParentConst();
+if($parentConst == "parent_value") {
+    Log::info("self:: 访问父类常量成功");
+} else {
+    Log::fatal("self:: 访问父类常量失败，期望 'parent_value'，得到: " . $parentConst);
+}
+
+// 测试访问自己的常量
+$childConst = $obj->getChildConst();
+if($childConst == "child_value") {
+    Log::info("self:: 访问自己的常量成功");
+} else {
+    Log::fatal("self:: 访问自己的常量失败，期望 'child_value'，得到: " . $childConst);
+}
+
