@@ -4,6 +4,8 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"syscall"
+	"unsafe"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -78,15 +80,70 @@ func (f *SapiWindowsVt100SupportFunction) Call(ctx data.Context) (data.GetValue,
 	// 获取第二个参数：enable（可选）
 	enableValue, _ := ctx.GetIndexValue(1)
 
-	// 调用 Windows 特定的实现
-	return f.callWindowsImpl(file, enableValue)
+	// 如果不是 Windows 系统，直接返回 false
+	if runtime.GOOS != "windows" {
+		return data.NewBoolValue(false), nil
+	}
+
+	// Windows 特定的实现
+	return f.handleWindowsVT100(file, enableValue)
 }
 
-// callWindowsImpl 在 Windows 上调用 Windows API
-// 这个函数的具体实现使用条件编译（见 sapi_windows_vt100_support_windows.go）
-func (f *SapiWindowsVt100SupportFunction) callWindowsImpl(file *os.File, enableValue data.Value) (data.GetValue, data.Control) {
-	// 默认实现（非 Windows 系统不会到达这里，但为了编译通过）
-	return data.NewBoolValue(false), nil
+// handleWindowsVT100 处理 Windows VT100 支持
+func (f *SapiWindowsVt100SupportFunction) handleWindowsVT100(file *os.File, enableValue data.Value) (data.GetValue, data.Control) {
+	// Windows API 常量
+	const (
+		ENABLE_VIRTUAL_TERMINAL_PROCESSING uint32 = 0x0004
+	)
+
+	// 动态加载 kernel32.dll 中的函数
+	kernel32 := syscall.NewLazyDLL("kernel32.dll")
+	getConsoleMode := kernel32.NewProc("GetConsoleMode")
+	setConsoleMode := kernel32.NewProc("SetConsoleMode")
+
+	fd := file.Fd()
+	handle := syscall.Handle(fd)
+
+	// 获取当前控制台模式
+	var mode uint32
+	ret, _, err := getConsoleMode.Call(uintptr(handle), uintptr(unsafe.Pointer(&mode)))
+	if ret == 0 {
+		// GetConsoleMode 失败（例如不是控制台流），返回 false
+		return data.NewBoolValue(false), nil
+	}
+
+	if enableValue == nil {
+		// 如果没有提供 enable 参数，返回当前状态
+		enabled := (mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0
+		return data.NewBoolValue(enabled), nil
+	}
+
+	// 如果提供了 enable 参数，设置状态
+	var enable bool
+	if boolVal, ok := enableValue.(*data.BoolValue); ok {
+		enable = boolVal.Value
+	} else {
+		// 参数类型错误，返回 false
+		return data.NewBoolValue(false), nil
+	}
+
+	// 设置新的控制台模式
+	var newMode uint32
+	if enable {
+		newMode = mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING
+	} else {
+		newMode = mode &^ ENABLE_VIRTUAL_TERMINAL_PROCESSING
+	}
+
+	ret, _, err = setConsoleMode.Call(uintptr(handle), uintptr(newMode))
+	if ret == 0 {
+		// SetConsoleMode 失败，返回 false
+		_ = err // 忽略错误，因为我们已经检查了返回值
+		return data.NewBoolValue(false), nil
+	}
+
+	// 设置成功，返回 true
+	return data.NewBoolValue(true), nil
 }
 
 func (f *SapiWindowsVt100SupportFunction) GetName() string {
