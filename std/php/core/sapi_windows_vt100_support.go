@@ -80,11 +80,6 @@ func (f *SapiWindowsVt100SupportFunction) Call(ctx data.Context) (data.GetValue,
 	// 获取第二个参数：enable（可选）
 	enableValue, _ := ctx.GetIndexValue(1)
 
-	// 如果不是 Windows 系统，直接返回 false
-	if runtime.GOOS != "windows" {
-		return data.NewBoolValue(false), nil
-	}
-
 	// Windows 特定的实现
 	return f.handleWindowsVT100(file, enableValue)
 }
@@ -102,11 +97,11 @@ func (f *SapiWindowsVt100SupportFunction) handleWindowsVT100(file *os.File, enab
 	setConsoleMode := kernel32.NewProc("SetConsoleMode")
 
 	fd := file.Fd()
-	handle := syscall.Handle(fd)
+	handle := uintptr(fd)
 
 	// 获取当前控制台模式
 	var mode uint32
-	ret, _, err := getConsoleMode.Call(uintptr(handle), uintptr(unsafe.Pointer(&mode)))
+	ret, _, err := getConsoleMode.Call(handle, uintptr(unsafe.Pointer(&mode)))
 	if ret == 0 {
 		// GetConsoleMode 失败（例如不是控制台流），返回 false
 		return data.NewBoolValue(false), nil
@@ -135,7 +130,7 @@ func (f *SapiWindowsVt100SupportFunction) handleWindowsVT100(file *os.File, enab
 		newMode = mode &^ ENABLE_VIRTUAL_TERMINAL_PROCESSING
 	}
 
-	ret, _, err = setConsoleMode.Call(uintptr(handle), uintptr(newMode))
+	ret, _, err = setConsoleMode.Call(handle, uintptr(newMode))
 	if ret == 0 {
 		// SetConsoleMode 失败，返回 false
 		_ = err // 忽略错误，因为我们已经检查了返回值
