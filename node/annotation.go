@@ -93,7 +93,13 @@ func (a *Annotation) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 				}
 				if argObj, ok := params[index].(*Parameter); ok {
 					if argObj.DefaultValue == nil {
-						return nil, data.NewErrorThrow(a.from, fmt.Errorf("调用 %s 构造函数时参数 %s 缺少值和默认值", a.Name, argObj.Name))
+						// 将被注解的 AST 目标按需注入构造函数：
+						// 只要构造函数声明了名为 target 的参数，就注入，不再强依赖是否实现 TypeMacro
+						if argObj.Name == TargetName {
+							fnCtx.SetVariableValue(argObj, data.NewAnyValue(a.Target))
+						} else {
+							return nil, data.NewErrorThrow(a.from, fmt.Errorf("调用 %s 构造函数时参数 %s 缺少值和默认值", a.Name, argObj.Name))
+						}
 					}
 					// 调用 GetValue 来触发默认值的设置
 					_, acl := argObj.GetValue(fnCtx)
@@ -101,12 +107,6 @@ func (a *Annotation) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 						return nil, acl
 					}
 				}
-			}
-
-			// 将被注解的 AST 目标按需注入构造函数：
-			// 只要构造函数声明了名为 target 的参数，就注入，不再强依赖是否实现 TypeMacro
-			if vari, err := findVariable(varies, TargetName); err == nil {
-				fnCtx.SetVariableValue(vari, data.NewAnyValue(a.Target))
 			}
 
 			// 将构造函数参数属性的值赋值给对象属性（PHP 8 构造函数参数属性提升）
