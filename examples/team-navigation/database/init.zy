@@ -52,7 +52,7 @@ function initTables($db) {
     try {
         $db->exec($addIconColumn);
         Log::info("添加项目表 icon 字段成功");
-    } catch (_) {
+    } catch (Exception) {
         // 字段已存在或表不存在，忽略错误
         Log::info("项目表 icon 字段可能已存在或表不存在");
     }
