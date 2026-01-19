@@ -236,6 +236,7 @@ func (c *ClassValue) SetVM(vm VM) {
 
 type ClassMethodContext struct {
 	*ClassValue
+	// Static ClassStmt //运行时（后期）类结构
 }
 
 func (c *ClassMethodContext) SetVariableValue(variable Variable, value Value) Control {

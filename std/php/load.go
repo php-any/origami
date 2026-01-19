@@ -49,6 +49,7 @@ func Load(vm data.VM) {
 		NewCountFunction(),
 		NewInArrayFunction(),
 		array.NewArrayKeyExistsFunction(),
+		array.NewArrayKeysFunction(),
 		NewMd5Function(),
 		NewBase64EncodeFunction(),
 		NewBase64DecodeFunction(),
@@ -80,6 +81,7 @@ func Load(vm data.VM) {
 
 		NewStrrposFunction(),
 		NewStrriposFunction(),
+		NewStriposFunction(),
 		NewPregMatchFunction(),
 		core.NewIsCallableFunction(),
 		NewIsStringFunction(),
@@ -123,6 +125,7 @@ func Load(vm data.VM) {
 		file.NewFilesizeFunction(),
 		file.NewFilemtimeFunction(),
 		NewIsResourceFunction(),
+		NewGetResourceTypeFunction(),
 		proc.NewProcOpenFunction(),
 		proc.NewProcCloseFunction(),
 		proc.NewProcGetStatusFunction(),

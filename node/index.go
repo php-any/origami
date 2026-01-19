@@ -138,6 +138,8 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		}
 	case *data.NullValue:
 		return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("null 无法处理索引的类型值"), "UndefinedIndexExpression")
+	case *data.BoolValue:
+		return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("bool 无法处理索引的类型值"), "UndefinedIndexExpression")
 	}
-	return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("无法处理索引的类型值"))
+	return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("无法处理索引的类型值"), "UndefinedIndexExpression")
 }
