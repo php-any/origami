@@ -32,8 +32,6 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	switch fv := call.(type) {
 	case *data.FuncValue:
 		return pe.handleFuncValue(ctx, call)
-	case *ChangeCtxAndCallFuncValue:
-		return fv.GetValue(ctx)
 	case *StaticMethodFuncValue:
 		// 静态方法包装器，调用 GetValue 获取 FuncValue 然后继续处理
 		funcValue, acl := fv.GetValue(ctx)

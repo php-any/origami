@@ -212,7 +212,7 @@ func (p *InterfaceParser) parseInterfaceMethod(modifier string) (data.Method, da
 	var returnType data.Types
 	if p.current().Type() == token.COLON {
 		p.next()
-		if p.current().Type() == token.IDENTIFIER {
+		if p.checkPositionIs(0, token.IDENTIFIER, token.BOOL, token.NULL, token.ARRAY) {
 			name := p.current().Literal()
 			p.next()
 

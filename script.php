@@ -3,7 +3,8 @@
 class A {
     public function __construct(private string $name = "A", $a = "b")
     {
-        echo $a;
+        var_dump($name);
+        var_dump($a);
     }
 
     public function getName():string {
@@ -13,8 +14,11 @@ class A {
 
 class B extends A
 {
-
+    public function __construct()
+    {
+        parent::__construct("name", "d2");
+    }
 }
 
-$data = new B(a: "c");
-echo $data
+$data = new B();
+var_dump($data);

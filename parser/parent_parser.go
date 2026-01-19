@@ -32,8 +32,14 @@ func (pp *ParentParser) Parse() (data.GetValue, data.Control) {
 
 		if pp.checkPositionIs(0, token.LPAREN) {
 			// 创建静态方法调用表达式
-			vp := &VariableParser{pp.Parser}
-			expr := node.NewCallParentMethod(tokenFrom, methodName)
+			// 解析参数列表
+			vp := VariableParser{Parser: pp.Parser}
+			args, acl := vp.parseFunctionCall()
+			if acl != nil {
+				return nil, acl
+			}
+
+			expr := node.NewCallParentMethod(tokenFrom, methodName, args)
 			return vp.parseSuffix(expr)
 		} else {
 			// 创建静态属性访问表达式
