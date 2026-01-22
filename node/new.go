@@ -83,13 +83,13 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 			if acl != nil {
 				return acl
 			}
-			return val.SetValue(fnCtx, data.NewZValValue(zv))
+			return param.SetValue(fnCtx, data.NewZValValue(zv))
 		case *IndexExpression:
 			zv, acl := val.GetZVal(ctx)
 			if acl != nil {
 				return acl
 			}
-			return val.SetValue(fnCtx, data.NewZValValue(zv))
+			return param.SetValue(fnCtx, data.NewZValValue(zv))
 		case data.Variable:
 			return param.SetValue(fnCtx, data.NewZValValue(ctx.GetIndexZVal(val.GetIndex())))
 		default:

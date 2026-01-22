@@ -13,6 +13,6 @@ class B
     }
 }
 
-$line = new A();;
-$data = new B($line[0]);
+$line = new A();
+$data = new B($line->data[0]);
 var_dump($line);
