@@ -1,7 +1,7 @@
 package data
 
 type ArrayValueSlice struct {
-	source []Value
+	source []*ZVal
 }
 
 // Call 实现数组的 slice 方法
@@ -49,7 +49,11 @@ func (a *ArrayValueSlice) Call(ctx Context) (GetValue, Control) {
 	}
 
 	// 返回切片
-	return NewArrayValue(a.source[start:end]), nil
+	slice := make([]Value, end-start)
+	for i := start; i < end; i++ {
+		slice[i-start] = a.source[i].Value
+	}
+	return NewArrayValue(slice), nil
 }
 
 func (a *ArrayValueSlice) GetName() string {

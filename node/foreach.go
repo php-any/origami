@@ -182,7 +182,8 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		var c data.Control
 
 		// 遍历数组
-		for i, element := range array.Value {
+		valueList := array.ToValueList()
+		for i, element := range valueList {
 			// 设置值变量
 			ctx.SetVariableValue(u.Value, element)
 

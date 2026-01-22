@@ -24,7 +24,8 @@ func (f *SprintfFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	valuesValue, _ := ctx.GetIndexValue(1)
 	if valuesValue != nil {
 		if paramsArray, ok := valuesValue.(*data.ArrayValue); ok {
-			for _, val := range paramsArray.Value {
+			valueList := paramsArray.ToValueList()
+			for _, val := range valueList {
 				// Convert data.Value to Go value for fmt.Sprintf
 
 				// Simple conversion for common types

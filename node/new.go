@@ -37,55 +37,33 @@ func createInstanceAndCallConstructor(
 			for index, param := range params {
 				if len(arguments) > index {
 					arg := arguments[index]
-					var tempV data.GetValue
 					switch argTV := arg.(type) {
 					case *NamedArgument:
-						tempV, acl = argTV.GetValue(ctx)
-						if acl != nil {
-							return nil, acl
-						}
-						vari, err := findVariable(varies, argTV.Name)
+						param, err := findParams(params, argTV.Name)
 						if err != nil {
 							return nil, data.NewErrorThrow(from, err)
 						}
-						fnCtx.SetVariableValue(vari, tempV.(data.Value))
-						if promotedParam, ok := param.(*PromotedParameter); ok {
-							acl = promotedParam.SetValue(object, tempV.(data.Value))
-						}
+						acl = paramSetValue(fnCtx, ctx, object, param, argTV, varies, index, arguments)
 					default:
-						tempV, acl = argTV.GetValue(ctx)
-						if acl != nil {
-							return nil, acl
-						}
-						if index >= len(varies) {
-							return nil, data.NewErrorThrow(from, fmt.Errorf("对象(%v)构造函数参数数量超出限制: %d", object.Class.GetName(), index))
-						}
-						fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
-						if promotedParam, ok := param.(*PromotedParameter); ok {
-							acl = promotedParam.SetValue(object, tempV.(data.Value))
-						}
+						acl = paramSetValue(fnCtx, ctx, object, param, argTV, varies, index, arguments)
 					}
-					if acl != nil {
-						return nil, acl
-					}
-				} else if promotedParam, ok := param.(*PromotedParameter); ok {
-					// 触发初始化默认值
-					_, acl := promotedParam.GetValue(object)
-					if acl != nil {
-						return nil, acl
-					}
-				} else if argObj, ok := param.(*Parameter); ok {
-					if argObj.DefaultValue == nil {
-						return nil, data.NewErrorThrow(from, fmt.Errorf("调用 %s 构造函数时参数 %s 缺少值和默认值", object.Class.GetName(), argObj.Name))
-					}
-					// 调用 GetValue 来触发默认值的设置
-					_, acl := argObj.GetValue(fnCtx)
-					if acl != nil {
-						return nil, acl
+				} else {
+					switch param := param.(type) {
+					case *PromotedParameter:
+						// 触发初始化默认值
+						_, acl = param.GetValue(object)
+					case *CallerContextParameter:
+						fnCtx = ctx
+					default:
+						_, acl = param.GetValue(fnCtx)
 					}
 				}
 			}
-
+			if acl != nil {
+				return nil, acl
+			}
+			// 将本次调用的参数表达式列表记录到函数上下文中
+			fnCtx.SetCallArgs(arguments)
 			_, acl = method.Call(fnCtx)
 			if acl != nil {
 				return nil, acl
@@ -94,6 +72,73 @@ func createInstanceAndCallConstructor(
 	}
 
 	return object, acl
+}
+
+func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, varies []data.Variable, index int, arguments []data.GetValue) data.Control {
+	switch param := param.(type) {
+	case *ParameterReference:
+		switch val := arguments[index].(type) {
+		case *CallObjectProperty:
+			zv, acl := val.GetZVal(ctx)
+			if acl != nil {
+				return acl
+			}
+			return val.SetValue(fnCtx, data.NewZValValue(zv))
+		case *IndexExpression:
+			zv, acl := val.GetZVal(ctx)
+			if acl != nil {
+				return acl
+			}
+			return val.SetValue(fnCtx, data.NewZValValue(zv))
+		case data.Variable:
+			return param.SetValue(fnCtx, data.NewZValValue(ctx.GetIndexZVal(val.GetIndex())))
+		default:
+			return data.NewErrorThrow(param.GetFrom(), fmt.Errorf("引用参数只能传入变量"))
+		}
+	case *Parameters: // 可变参数
+		args, acl := fnCtx.GetVariableValue(param)
+		var ares *data.ArrayValue
+		var ok bool
+		if ares, ok = args.(*data.ArrayValue); !ok {
+			ares = data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
+		}
+
+		for i := index; i < len(arguments); i++ {
+			arg := arguments[i]
+			tempV, acl := arg.GetValue(ctx)
+			if acl != nil {
+				return acl
+			}
+			if tempV == nil {
+				ares.List = append(ares.List, data.NewZVal(data.NewNullValue()))
+				fnCtx.SetVariableValue(param, ares)
+			} else {
+				ares.List = append(ares.List, data.NewZVal(tempV.(data.Value)))
+				fnCtx.SetVariableValue(param, ares)
+			}
+		}
+		return acl
+	case *PromotedParameter: // 属性提升
+		tempV, acl := argTV.GetValue(ctx)
+		if acl != nil {
+			return acl
+		}
+		if index >= len(varies) {
+			return data.NewErrorThrow(nil, fmt.Errorf("对象构造函数参数数量超出限制"))
+		}
+		acl = fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
+		if acl == nil {
+			acl = param.SetValue(object, tempV.(data.Value))
+		}
+		return acl
+	case data.Variable:
+		tempV, acl := argTV.GetValue(ctx)
+		if acl != nil {
+			return acl
+		}
+		return fnCtx.SetVariableValue(param, tempV.(data.Value))
+	}
+	return data.NewErrorThrow(nil, fmt.Errorf("无法识别的参数类型 %T", param))
 }
 
 // createInstanceAndCallConstructorWithStmt 使用已加载的类语句创建实例并调用构造函数

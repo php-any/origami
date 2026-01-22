@@ -1,16 +1,20 @@
 package data
 
 type ArrayValueFilter struct {
-	source []Value
+	source []*ZVal
 }
 
 // Call 实现数组的 filter 方法
 // 遍历数组中的每个元素，调用回调函数，返回所有使回调函数返回 true 的元素组成的新数组
 func (a *ArrayValueFilter) Call(ctx Context) (GetValue, Control) {
+	// 将 source 转换为 []Value 用于 NewArrayValue
+	tempArray := &ArrayValue{List: a.source}
+	sourceValues := tempArray.ToValueList()
+
 	// 获取回调函数参数
 	callback, ok := ctx.GetIndexValue(0)
 	if !ok {
-		return NewArrayValue(a.source), nil
+		return NewArrayValue(sourceValues), nil
 	}
 
 	// 创建结果数组
@@ -20,8 +24,9 @@ func (a *ArrayValueFilter) Call(ctx Context) (GetValue, Control) {
 	case *FuncValue:
 		vars := callable.Value.GetVariables()
 		fnCtx := ctx.CreateContext(vars)
-		for i, element := range a.source {
-			args := []Value{element, NewIntValue(i), NewArrayValue(a.source)}
+		for i, zval := range a.source {
+			element := zval.Value
+			args := []Value{element, NewIntValue(i), NewArrayValue(sourceValues)}
 			for ai := 0; ai < len(vars) && ai < len(args); ai++ {
 				fnCtx.SetVariableValue(NewVariable("", ai, nil), args[ai])
 			}
@@ -39,9 +44,10 @@ func (a *ArrayValueFilter) Call(ctx Context) (GetValue, Control) {
 		return NewArrayValue(result), nil
 	case CallableValue:
 		// 遍历数组元素并应用回调函数
-		for i, element := range a.source {
+		for i, zval := range a.source {
+			element := zval.Value
 			// 调用回调函数，传递元素、索引和数组
-			filterResult, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(a.source))
+			filterResult, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(sourceValues))
 			if ctl != nil {
 				return nil, ctl
 			}

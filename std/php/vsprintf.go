@@ -40,8 +40,9 @@ func (f *VsprintfFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	// 将参数数组转换为 Go 的 []interface{}
 	var args []interface{}
 	if arrayVal, ok := argsValue.(*data.ArrayValue); ok {
-		args = make([]interface{}, len(arrayVal.Value))
-		for i, val := range arrayVal.Value {
+		valueList := arrayVal.ToValueList()
+		args = make([]interface{}, len(valueList))
+		for i, val := range valueList {
 			// 将值转换为 Go 类型
 			switch v := val.(type) {
 			case *data.StringValue:

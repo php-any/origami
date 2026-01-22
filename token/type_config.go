@@ -89,6 +89,7 @@ const (
 	GET                                 // $_GET
 	REQUEST                             // $_REQUEST
 	SERVER                              // $_SERVER
+	FUNC_GET_ARGS                       // func_get_args 获取函数参数
 
 	KEYWORD_END TokenType = iota + 100
 

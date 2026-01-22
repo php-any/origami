@@ -3,6 +3,7 @@ package node
 import (
 	"errors"
 	"fmt"
+
 	"github.com/php-any/origami/data"
 )
 
@@ -45,7 +46,7 @@ func (ie *Range) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	switch v := temp.(type) {
 	case *data.ArrayValue:
-		stop := len(v.Value)
+		stop := len(v.List)
 		if ie.Stop != nil {
 			temp, acl := ie.Stop.GetValue(ctx)
 			if acl != nil {
@@ -56,14 +57,15 @@ func (ie *Range) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 				if err != nil {
 					return nil, data.NewErrorThrow(ie.GetFrom(), err)
 				}
-				if iTemp >= len(v.Value) {
-					return nil, data.NewErrorThrow(ie.GetFrom(), errors.New(fmt.Sprintf("数组索引超出范围, 索引(%v), 长度(%v)", iTemp, len(v.Value))))
+				if iTemp >= len(v.List) {
+					return nil, data.NewErrorThrow(ie.GetFrom(), errors.New(fmt.Sprintf("数组索引超出范围, 索引(%v), 长度(%v)", iTemp, len(v.List))))
 				}
 				stop = iTemp + 1
 			}
 		}
 
-		newArr := v.Value[start:stop]
+		valueList := v.ToValueList()
+		newArr := valueList[start:stop]
 		return data.NewArrayValue(newArr), nil
 	case *data.StringValue:
 		stop := len(v.Value)

@@ -1,7 +1,7 @@
 package data
 
 type ArrayValueIndexOf struct {
-	source []Value
+	source []*ZVal
 }
 
 // Call 实现数组的 indexOf 方法
@@ -38,7 +38,7 @@ func (a *ArrayValueIndexOf) Call(ctx Context) (GetValue, Control) {
 
 	// 查找元素
 	for i := fromIndex; i < len(a.source); i++ {
-		if a.source[i].AsString() == searchElement.AsString() {
+		if a.source[i].Value.AsString() == searchElement.AsString() {
 			return NewIntValue(i), nil
 		}
 	}

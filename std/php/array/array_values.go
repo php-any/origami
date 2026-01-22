@@ -23,7 +23,7 @@ func (f *ArrayValuesFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	// 处理数组
 	if arrayVal, ok := arrayValue.(*data.ArrayValue); ok {
 		// 对于 ArrayValue，直接返回所有值（已经是数字索引）
-		return data.NewArrayValue(arrayVal.Value), nil
+		return data.NewArrayValue(arrayVal.ToValueList()), nil
 	}
 
 	// 处理对象（关联数组）

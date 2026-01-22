@@ -95,6 +95,7 @@ var TokenDefinitions = []TokenDefinition{
 	{Type: MATCH, Literal: "match", WordType: KEYWORD},
 	{Type: ENUM, Literal: "enum", WordType: KEYWORD},
 	{Type: READONLY, Literal: "readonly", WordType: KEYWORD},
+	{Type: FUNC_GET_ARGS, Literal: "func_get_args", WordType: KEYWORD},
 	{Type: FN, Literal: "fn", WordType: KEYWORD},
 	{Type: SPAWN, Literal: "spawn", WordType: KEYWORD},
 	{Type: THIS, Literal: "$this", WordType: KEYWORD},

@@ -99,7 +99,10 @@ func (f *PregMatchFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 		if r, ok := matchesValue.(*data.ReferenceValue); ok {
 			r.Ctx.SetVariableValue(r.Val, newMatches)
 		} else if arr, ok := matchesValue.(*data.ArrayValue); ok {
-			arr.Value = matchStrs
+			arr.List = make([]*data.ZVal, len(matchStrs))
+			for i, val := range matchStrs {
+				arr.List[i] = data.NewZVal(val)
+			}
 		}
 	}
 

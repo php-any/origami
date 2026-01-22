@@ -23,13 +23,13 @@ func (f *ArrayPopFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	if !ok {
 		return data.NewNullValue(), nil
 	}
-	if len(arrayRef.Value) == 0 {
+	if len(arrayRef.List) == 0 {
 		return data.NewNullValue(), nil
 	}
 
 	// 弹出最后一个元素
-	lastElement := arrayRef.Value[len(arrayRef.Value)-1]
-	arrayRef.Value = arrayRef.Value[:len(arrayRef.Value)-1]
+	lastElement := arrayRef.List[len(arrayRef.List)-1].Value
+	arrayRef.List = arrayRef.List[:len(arrayRef.List)-1]
 
 	return lastElement, nil
 }

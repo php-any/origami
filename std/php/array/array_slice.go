@@ -63,7 +63,7 @@ func (f *ArraySliceFunction) Call(ctx data.Context) (data.GetValue, data.Control
 
 	// 处理数组
 	if arrayVal, ok := arrayValue.(*data.ArrayValue); ok {
-		arrLen := len(arrayVal.Value)
+		arrLen := len(arrayVal.List)
 
 		// 处理负偏移量
 		if offset < 0 {
@@ -99,7 +99,8 @@ func (f *ArraySliceFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		}
 
 		// 提取切片
-		result := arrayVal.Value[offset:end]
+		valueList := arrayVal.ToValueList()
+		result := valueList[offset:end]
 		return data.NewArrayValue(result), nil
 	}
 

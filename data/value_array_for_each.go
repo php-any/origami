@@ -1,7 +1,7 @@
 package data
 
 type ArrayValueForEach struct {
-	source []Value
+	source []*ZVal
 }
 
 // Call 实现数组的 forEach 方法
@@ -13,13 +13,18 @@ func (a *ArrayValueForEach) Call(ctx Context) (GetValue, Control) {
 		return NewNullValue(), nil
 	}
 
+	// 将 source 转换为 []Value 用于 NewArrayValue
+	tempArray := &ArrayValue{List: a.source}
+	sourceValues := tempArray.ToValueList()
+
 	// 同时支持 *FuncValue 与 CallableValue
 	switch callable := callback.(type) {
 	case *FuncValue:
 		vars := callable.Value.GetVariables()
 		fnCtx := ctx.CreateContext(vars)
-		for i, element := range a.source {
-			args := []Value{element, NewIntValue(i), NewArrayValue(a.source)}
+		for i, zval := range a.source {
+			element := zval.Value
+			args := []Value{element, NewIntValue(i), NewArrayValue(sourceValues)}
 			for ai := 0; ai < len(vars) && ai < len(args); ai++ {
 				fnCtx.SetVariableValue(NewVariable("", ai, nil), args[ai])
 			}
@@ -31,9 +36,10 @@ func (a *ArrayValueForEach) Call(ctx Context) (GetValue, Control) {
 		return NewNullValue(), nil
 	case CallableValue:
 		// 遍历数组元素
-		for i, element := range a.source {
+		for i, zval := range a.source {
+			element := zval.Value
 			// 调用回调函数，传递元素、索引和数组
-			_, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(a.source))
+			_, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(sourceValues))
 			if ctl != nil {
 				return nil, ctl
 			}

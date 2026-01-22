@@ -1,7 +1,7 @@
 package data
 
 type ArrayValueShift struct {
-	source *[]Value
+	source *[]*ZVal
 }
 
 // Call 实现数组的 shift 方法
@@ -15,7 +15,7 @@ func (a *ArrayValueShift) Call(ctx Context) (GetValue, Control) {
 	firstElement := (*a.source)[0]
 	*a.source = (*a.source)[1:]
 
-	return firstElement, nil
+	return firstElement.Value, nil
 }
 
 func (a *ArrayValueShift) GetName() string {

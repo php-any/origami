@@ -9,16 +9,18 @@ import (
 
 // CallParentMethod 表示父类方法调用表达式
 type CallParentMethod struct {
-	*Node     `pp:"-"`
-	Method    string // 方法名
-	Arguments []data.GetValue
+	*Node        `pp:"-"`
+	Method       string // 方法名
+	CurrentClass string
+	Arguments    []data.GetValue
 }
 
-func NewCallParentMethod(from data.From, method string, args []data.GetValue) *CallParentMethod {
+func NewCallParentMethod(from data.From, currentClass, method string, args []data.GetValue) *CallParentMethod {
 	return &CallParentMethod{
-		Node:      NewNode(from),
-		Method:    method,
-		Arguments: args,
+		Node:         NewNode(from),
+		CurrentClass: currentClass,
+		Method:       method,
+		Arguments:    args,
 	}
 }
 
@@ -29,13 +31,17 @@ func (pe *CallParentMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	if !ok {
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("parent:: 只能在类方法中使用"))
 	}
+	class, ok := ctx.GetVM().GetClass(pe.CurrentClass)
+	if !ok {
+		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("parent:: 只能在类方法中使用"))
+	}
 
 	// 获取父类
-	if classCtx.Class.GetExtend() == nil {
+	if class.GetExtend() == nil {
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("当前类没有父类"))
 	}
 
-	parentClassName := *classCtx.Class.GetExtend()
+	parentClassName := *class.GetExtend()
 	vm := ctx.GetVM()
 	parentClass, acl := vm.GetOrLoadClass(parentClassName)
 	if acl != nil {
@@ -55,10 +61,11 @@ func (pe *CallParentMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 
 	temp := &CallObjectMethod{
 		Node:   pe.Node,
-		Object: classCtx,
+		Object: classCtx.ClassValue,
 		Args:   pe.Arguments,
 	}
-	newCtx, acl := temp.callMethodParams(classCtx, ctx, method)
+
+	newCtx, acl := temp.callMethodParams(classCtx.ClassValue, ctx, method)
 	if acl != nil {
 		return nil, acl
 	}

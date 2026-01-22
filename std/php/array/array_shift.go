@@ -17,13 +17,13 @@ func (f *ArrayShiftFunction) Call(ctx data.Context) (data.GetValue, data.Control
 
 	// Check if it's an array
 	if arr, ok := arrayValue.(*data.ArrayValue); ok {
-		if len(arr.Value) == 0 {
+		if len(arr.List) == 0 {
 			return data.NewNullValue(), nil
 		}
 
 		// Shift first element
-		first := arr.Value[0]
-		arr.Value = arr.Value[1:]
+		first := arr.List[0].Value
+		arr.List = arr.List[1:]
 
 		// Re-index numerical keys?
 		// PHP array_shift re-indexes numerical keys.

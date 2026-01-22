@@ -22,8 +22,9 @@ func (f *SplAutoloadUnregisterFunction) Call(ctx data.Context) (data.GetValue, d
 
 	switch cb := a1.(type) {
 	case *data.ArrayValue:
-		className := cb.Value[0].AsString()
-		methodName := cb.Value[1].AsString()
+		valueList := cb.ToValueList()
+		className := valueList[0].AsString()
+		methodName := valueList[1].AsString()
 
 		stmt, acl := ctx.GetVM().GetOrLoadClass(className)
 		if acl != nil {

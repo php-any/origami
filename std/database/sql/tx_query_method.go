@@ -27,7 +27,8 @@ func (h *TxQueryMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	arg0 := a0.(*data.StringValue).AsString()
 	arg1 := make([]any, 0)
-	for _, v := range a1.(*data.ArrayValue).Value {
+	valueList := a1.(*data.ArrayValue).ToValueList()
+	for _, v := range valueList {
 		arg1 = append(arg1, ConvertValueToGoType(v))
 	}
 

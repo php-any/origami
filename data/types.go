@@ -54,11 +54,11 @@ type MultipleReturnType struct {
 func (m MultipleReturnType) Is(value Value) bool {
 	// 多返回值类型检查数组中的每个元素
 	if arr, ok := value.(*ArrayValue); ok {
-		if len(arr.Value) != len(m.Types) {
+		if len(arr.List) != len(m.Types) {
 			return false
 		}
 		for i, typ := range m.Types {
-			if !typ.Is(arr.Value[i]) {
+			if !typ.Is(arr.List[i].Value) {
 				return false
 			}
 		}

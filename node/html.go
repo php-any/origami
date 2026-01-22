@@ -277,7 +277,8 @@ func (h *HtmlForNode) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	switch array := arrayValue.(type) {
 	case *data.ArrayValue:
 		// 遍历数组
-		for i, element := range array.Value {
+		valueList := array.ToValueList()
+		for i, element := range valueList {
 			// 设置值变量
 			ctx.SetVariableValue(h.Value, element)
 
@@ -551,7 +552,8 @@ func (h *HtmlTemplateNode) processIfForTemplate(ctx data.Context, ifValue *AttrI
 		}
 
 		// 获取数组长度
-		length := len(arrayData.Value)
+		valueList := arrayData.ToValueList()
+		length := len(valueList)
 		if length == 0 {
 			return false, "", nil
 		}
@@ -560,7 +562,7 @@ func (h *HtmlTemplateNode) processIfForTemplate(ctx data.Context, ifValue *AttrI
 		var result string
 		for i := 0; i < length; i++ {
 			// 获取当前元素
-			item := arrayData.Value[i]
+			item := valueList[i]
 
 			// 设置循环变量
 			if forValue.Val != nil {

@@ -32,7 +32,8 @@ func (f *StrtrFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	case *data.ArrayValue:
 		pairs = make(map[string]string)
-		for i, val := range v.Value {
+		valueList := v.ToValueList()
+		for i, val := range valueList {
 			pairs[fmt.Sprintf("%d", i)] = val.AsString()
 		}
 	}

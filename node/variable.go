@@ -2,7 +2,6 @@ package node
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/php-any/origami/data"
 )
@@ -127,8 +126,8 @@ func (vl *VariableList) SetValue(ctx data.Context, value data.Value) data.Contro
 	}
 	for i, v := range vl.Vars {
 		var val data.Value = data.NewNullValue()
-		if i < len(arr.Value) {
-			val = arr.Value[i]
+		if i < len(arr.List) {
+			val = arr.List[i].Value
 		}
 		ctl := v.SetValue(ctx, val)
 		if ctl != nil {
@@ -160,14 +159,8 @@ func NewVariableReference(from data.From, name string, index int, ty data.Types)
 
 // GetValue 获取变量表达式的值
 func (v *VariableReference) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	temp, ok := ctx.GetVariableValue(v)
-	if ok != nil {
-		return nil, data.NewErrorThrow(v.from, fmt.Errorf("引用变量必须有值"))
-	}
-	if ref, ok := temp.(*data.ReferenceValue); ok {
-		return ref.GetValue(ref.Ctx)
-	}
-	return nil, nil
+	value, _ := ctx.GetIndexValue(v.Index)
+	return value, nil
 }
 
 func (v *VariableReference) GetIndex() int {
@@ -186,13 +179,6 @@ func (v *VariableReference) SetValue(ctx data.Context, value data.Value) data.Co
 			return data.NewErrorThrow(v.from, errors.New("变量类型和赋值类型不一致, 变量类型("+v.Type.String()+"), 赋值("+value.AsString()+")"))
 		}
 	}
-	temp, ok := ctx.GetVariableValue(v)
-	if ok != nil {
-		return ok
-	}
-	if ref, ok := temp.(*data.ReferenceValue); ok {
-		return ref.Ctx.SetVariableValue(v, value)
-	}
 
-	return nil
+	return ctx.SetVariableValue(v, value)
 }

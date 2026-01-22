@@ -25,11 +25,11 @@ func (f *NextFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	case *data.ArrayValue:
 		// 处理数组：对于 ArrayValue，next() 移动到第二个元素
 		// 在 PHP 中，如果没有调用过指针函数，next() 会先移动到第二个元素
-		if len(val.Value) < 2 {
+		if len(val.List) < 2 {
 			return data.NewNullValue(), nil
 		}
 		// 返回第二个元素（模拟指针移动到第二个位置）
-		return val.Value[1], nil
+		return val.List[1].Value, nil
 
 	case *data.ObjectValue:
 		// 处理对象（关联数组）：移动到第二个元素

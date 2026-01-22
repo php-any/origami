@@ -1,32 +1,18 @@
 <?php
 
-class AA {
-    public function __construct($a = "aa")
-    {
-        var_dump($a);
-    }
-}
-
-class A extends AA{
-    public function __construct(private string $name = "A", $a = "b")
-    {
-        var_dump($name);
-        var_dump($a);
-        parent::__construct($a);
-    }
-
-    public function getName():string {
-        return $this->name;
-    }
-}
-
-class B extends A
+class A
 {
-    public function __construct()
+    public $data = ["123"];
+}
+
+class B
+{
+    public function __construct(&$data)
     {
-        parent::__construct("name", "d2");
+        $data = "456";
     }
 }
 
-$data = new B();
-var_dump($data);
+$line = new A();;
+$data = new B($line[0]);
+var_dump($line);

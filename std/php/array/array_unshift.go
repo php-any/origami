@@ -21,14 +21,14 @@ func (f *ArrayUnshiftFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 
 	if valuesValue != nil {
 		if paramsArray, ok := valuesValue.(*data.ArrayValue); ok {
-			values = paramsArray.Value
+			values = paramsArray.ToValueList()
 		}
 	}
 
 	if len(values) == 0 {
 		// No values to prepend, just return count
 		if arr, ok := arrayValue.(*data.ArrayValue); ok {
-			return data.NewIntValue(len(arr.Value)), nil
+			return data.NewIntValue(len(arr.List)), nil
 		}
 		return data.NewIntValue(0), nil
 	}
@@ -38,13 +38,16 @@ func (f *ArrayUnshiftFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 		// array_unshift prepends passed elements to the front of the array.
 		// Note that the list of elements is prepended as a whole, so that the prepended elements stay in the same order.
 
-		newArr := make([]data.Value, len(values)+len(arr.Value))
-		copy(newArr, values)
-		copy(newArr[len(values):], arr.Value)
+		// 创建新的 List，先添加新值，再添加旧值
+		newList := make([]*data.ZVal, 0, len(values)+len(arr.List))
+		for _, val := range values {
+			newList = append(newList, data.NewZVal(val))
+		}
+		newList = append(newList, arr.List...)
 
-		arr.Value = newArr
+		arr.List = newList
 
-		return data.NewIntValue(len(arr.Value)), nil
+		return data.NewIntValue(len(arr.List)), nil
 	}
 
 	// Warning: array_unshift() expects parameter 1 to be array

@@ -40,7 +40,8 @@ func (h *StmtQueryContextMethod) Call(ctx data.Context) (data.GetValue, data.Con
 		return nil, utils.NewThrow(errors.New("参数类型不支持, index: 0"))
 	}
 	arg1 := make([]any, 0)
-	for _, v := range a1.(*data.ArrayValue).Value {
+	valueList := a1.(*data.ArrayValue).ToValueList()
+	for _, v := range valueList {
 		arg1 = append(arg1, ConvertValueToGoType(v))
 	}
 

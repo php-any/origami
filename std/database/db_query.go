@@ -37,8 +37,9 @@ func (d *DbQueryMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	var args []interface{}
 	if paramValue, ok := ctx.GetIndexValue(1); ok {
 		if paramArray, ok := paramValue.(*data.ArrayValue); ok {
-			args = make([]interface{}, len(paramArray.Value))
-			for i, param := range paramArray.Value {
+			valueList := paramArray.ToValueList()
+			args = make([]interface{}, len(valueList))
+			for i, param := range valueList {
 				args[i] = ConvertValueToGoType(param)
 			}
 		} else {

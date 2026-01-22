@@ -50,7 +50,7 @@ func (f *PregMatchAllFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 			if r, ok := matchesValue.(*data.ReferenceValue); ok {
 				r.Ctx.SetVariableValue(r.Val, empty)
 			} else if arr, ok := matchesValue.(*data.ArrayValue); ok {
-				arr.Value = []data.Value{}
+				arr.List = []*data.ZVal{}
 			}
 		}
 		return data.NewIntValue(0), nil
@@ -79,7 +79,10 @@ func (f *PregMatchAllFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 		if r, ok := matchesValue.(*data.ReferenceValue); ok {
 			r.Ctx.SetVariableValue(r.Val, newMatches)
 		} else if arr, ok := matchesValue.(*data.ArrayValue); ok {
-			arr.Value = groups
+			arr.List = make([]*data.ZVal, len(groups))
+			for i, val := range groups {
+				arr.List[i] = data.NewZVal(val)
+			}
 		}
 	}
 

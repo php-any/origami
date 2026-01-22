@@ -5,21 +5,25 @@ import (
 )
 
 func NewArrayValue(v []Value) Value {
+	list := make([]*ZVal, len(v))
+	for i, val := range v {
+		list[i] = NewZVal(val)
+	}
 	return &ArrayValue{
-		Value: v,
+		List: list,
 	}
 }
 
 type ArrayValue struct {
-	Value    []Value
+	List     []*ZVal
 	iterator int // 迭代器当前位置索引
 }
 
 func (a *ArrayValue) Current(ctx Context) (Value, Control) {
-	if a.iterator >= len(a.Value) {
+	if a.iterator >= len(a.List) {
 		return NewNullValue(), nil
 	}
-	return a.Value[a.iterator], nil
+	return a.List[a.iterator].Value, nil
 }
 
 func (a *ArrayValue) Key(ctx Context) (Value, Control) {
@@ -37,7 +41,7 @@ func (a *ArrayValue) Rewind(ctx Context) (Value, Control) {
 }
 
 func (a *ArrayValue) Valid(ctx Context) (Value, Control) {
-	valid := a.iterator >= 0 && a.iterator < len(a.Value)
+	valid := a.iterator >= 0 && a.iterator < len(a.List)
 	return NewBoolValue(valid), nil
 }
 
@@ -47,8 +51,8 @@ func (a *ArrayValue) GetValue(ctx Context) (GetValue, Control) {
 
 func (a *ArrayValue) AsString() string {
 	str := "["
-	for _, value := range a.Value {
-		str = str + value.AsString() + ", "
+	for _, zval := range a.List {
+		str = str + zval.Value.AsString() + ", "
 	}
 	if len(str) > 2 {
 		str = str[:len(str)-2]
@@ -59,55 +63,55 @@ func (a *ArrayValue) AsString() string {
 }
 
 func (a *ArrayValue) AsBool() (bool, error) {
-	return len(a.Value) > 0, nil
+	return len(a.List) > 0, nil
 }
 
 func (a *ArrayValue) GetMethod(name string) (Method, bool) {
 	switch name {
 	case "push":
-		return &ArrayValuePush{&a.Value}, true
+		return &ArrayValuePush{&a.List}, true
 	case "pop":
-		return &ArrayValuePop{&a.Value}, true
+		return &ArrayValuePop{&a.List}, true
 	case "shift":
-		return &ArrayValueShift{&a.Value}, true
+		return &ArrayValueShift{&a.List}, true
 	case "unshift":
-		return &ArrayValueUnshift{&a.Value}, true
+		return &ArrayValueUnshift{&a.List}, true
 	case "slice":
-		return &ArrayValueSlice{a.Value}, true
+		return &ArrayValueSlice{a.List}, true
 	case "splice":
-		return &ArrayValueSplice{&a.Value}, true
+		return &ArrayValueSplice{&a.List}, true
 	case "join":
-		return &ArrayValueJoin{a.Value}, true
+		return &ArrayValueJoin{a.List}, true
 	case "reverse":
-		return &ArrayValueReverse{a.Value}, true
+		return &ArrayValueReverse{a.List}, true
 	case "sort":
-		return &ArrayValueSort{&a.Value}, true
+		return &ArrayValueSort{&a.List}, true
 	case "indexOf":
-		return &ArrayValueIndexOf{a.Value}, true
+		return &ArrayValueIndexOf{a.List}, true
 	case "includes":
-		return &ArrayValueIncludes{a.Value}, true
+		return &ArrayValueIncludes{a.List}, true
 	case "forEach":
-		return &ArrayValueForEach{a.Value}, true
+		return &ArrayValueForEach{a.List}, true
 	case "map":
-		return &ArrayValueMap{a.Value}, true
+		return &ArrayValueMap{a.List}, true
 	case "filter":
-		return &ArrayValueFilter{a.Value}, true
+		return &ArrayValueFilter{a.List}, true
 	case "reduce":
-		return &ArrayValueReduce{a.Value}, true
+		return &ArrayValueReduce{a.List}, true
 	case "concat":
-		return &ArrayValueConcat{a.Value}, true
+		return &ArrayValueConcat{a.List}, true
 	case "every":
-		return &ArrayValueEvery{a.Value}, true
+		return &ArrayValueEvery{a.List}, true
 	case "some":
-		return &ArrayValueSome{a.Value}, true
+		return &ArrayValueSome{a.List}, true
 	case "find":
-		return &ArrayValueFind{a.Value}, true
+		return &ArrayValueFind{a.List}, true
 	case "findIndex":
-		return &ArrayValueFindIndex{a.Value}, true
+		return &ArrayValueFindIndex{a.List}, true
 	case "flat":
-		return &ArrayValueFlat{a.Value}, true
+		return &ArrayValueFlat{a.List}, true
 	case "flatMap":
-		return &ArrayValueFlatMap{a.Value}, true
+		return &ArrayValueFlatMap{a.List}, true
 	}
 
 	return nil, false
@@ -116,7 +120,7 @@ func (a *ArrayValue) GetMethod(name string) (Method, bool) {
 func (a *ArrayValue) GetProperty(name string) (Value, Control) {
 	switch name {
 	case "length":
-		return NewIntValue(len(a.Value)), nil
+		return NewIntValue(len(a.List)), nil
 	}
 	return nil, NewErrorThrow(nil, fmt.Errorf("ArrayValue.GetProperty called with name %s", name))
 }
@@ -131,4 +135,12 @@ func (a *ArrayValue) Unmarshal(data []byte, serializer Serializer) error {
 
 func (a *ArrayValue) ToGoValue(serializer Serializer) (any, error) {
 	return serializer.MarshalArray(a)
+}
+
+func (a *ArrayValue) ToValueList() []Value {
+	args := make([]Value, len(a.List))
+	for i, zval := range a.List {
+		args[i] = zval.Value
+	}
+	return args
 }

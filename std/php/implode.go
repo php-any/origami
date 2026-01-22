@@ -45,7 +45,8 @@ func (f *ImplodeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	// 将数组元素转换为字符串并连接
 	var parts []string
-	for _, val := range array.Value {
+	valueList := array.ToValueList()
+	for _, val := range valueList {
 		parts = append(parts, val.AsString())
 	}
 

@@ -89,195 +89,252 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("当前值(%#v)不支持调用函数, 你调用的函数(%s)", TryGetCallClassName(o), pe.Method)))
 }
 
-func (pe *CallObjectMethod) callMethodParams(class, ctx data.Context, method data.Method) (data.Context, data.Control) {
+func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method data.Method) (data.Context, data.Control) {
 	varies := method.GetVariables()
-	fnCtx := class.CreateContext(varies)
+	fnCtx := object.CreateContext(varies)
 	// 入参的值设置到上下文中
-	for index, arg := range method.GetParams() {
-		argClone := arg
-		switch argObj := argClone.(type) {
-		case *Parameter:
-			if index < len(pe.Args) {
-				param := pe.Args[index]
-				switch paramTV := param.(type) {
-				case *NamedArgument:
-					tempV, acl := paramTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					vari, err := findVariable(varies, paramTV.Name)
-					if err != nil {
-						return nil, data.NewErrorThrow(pe.from, err)
-					}
-					acl = vari.SetValue(fnCtx, tempV.(data.Value))
-					if acl != nil {
-						return nil, acl
-					}
-				default:
-					tempV, acl := paramTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					acl = argObj.SetValue(fnCtx, tempV.(data.Value))
-					if acl != nil {
-						return nil, acl
-					}
-				}
-			} else if argObj.DefaultValue == nil {
-				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("调用 %s 函数时参数 %s 缺少值和默认值", pe.Method, argObj.Name))
-			} else {
-				argObj.GetValue(fnCtx)
-			}
-		case *Parameters:
-			args, _ := fnCtx.GetVariableValue(argObj)
-			var ares *data.ArrayValue
-			var ok bool
-			if ares, ok = args.(*data.ArrayValue); !ok {
-				ares = data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
-				fnCtx.SetVariableValue(argObj, ares)
-			}
-
-			for i := index; i < len(pe.Args); i++ {
-				param := pe.Args[i]
-				tempV, acl := param.GetValue(ctx)
-				if acl != nil {
-					if a, ok := acl.(data.AddStack); ok {
-						a.AddStackWithInfo(argObj.from, TryGetCallClassName(pe.Object), pe.Method)
-					}
-					return nil, acl
-				}
-				ares.Value = append(ares.Value, tempV.(data.Value))
-				fnCtx.SetVariableValue(argObj, ares)
-			}
-		case *ParametersReference:
-			args, _ := fnCtx.GetVariableValue(argObj)
-			var ares *data.ArrayValue
-			var ok bool
-			if ares, ok = args.(*data.ArrayValue); !ok {
-				ares = data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
-				fnCtx.SetVariableValue(argObj, ares)
-			}
-
-			for i := index; i < len(pe.Args); i++ {
-				param := pe.Args[i]
-				if val, ok := param.(data.Variable); ok {
-					ares.Value = append(ares.Value, data.NewReferenceValue(val, ctx))
-					fnCtx.SetVariableValue(argObj, ares)
-				} else {
-					return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
-				}
-			}
-		case *data.ParameterTODO:
-			if index < len(pe.Args) {
-				param := pe.Args[index]
-				switch paramTV := param.(type) {
-				case *NamedArgument:
-					tempV, acl := paramTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					vari, err := findVariable(varies, paramTV.Name)
-					if err != nil {
-						return nil, data.NewErrorThrow(pe.from, err)
-					}
-					acl = vari.SetValue(fnCtx, tempV.(data.Value))
-					if acl != nil {
-						return nil, acl
-					}
-				default:
-					tempV, acl := paramTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					acl = argObj.SetValue(fnCtx, tempV.(data.Value))
-					if acl != nil {
-						return nil, acl
-					}
-				}
-			} else if argObj.DefaultValue == nil {
-				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("调用 %s 函数时参数 %s 缺少值", pe.Method, argObj.Name))
-			} else {
-				argObj.GetValue(fnCtx)
-			}
-		case *data.ParametersTODO:
-			args, _ := fnCtx.GetVariableValue(argObj)
-			var ares *data.ArrayValue
-			var ok bool
-			if ares, ok = args.(*data.ArrayValue); !ok {
-				ares = data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
-				fnCtx.SetVariableValue(argObj, ares)
-			}
-
-			for i := index; i < len(pe.Args); i++ {
-				param := pe.Args[i]
-				tempV, acl := param.GetValue(ctx)
+	for index, param := range method.GetParams() {
+		if len(pe.Args) > index {
+			var acl data.Control
+			arg := pe.Args[index]
+			var tempV data.GetValue
+			switch argTV := arg.(type) {
+			case *NamedArgument:
+				tempV, acl = argTV.GetValue(ctx)
 				if acl != nil {
 					return nil, acl
 				}
-				ares.Value = append(ares.Value, tempV.(data.Value))
-				fnCtx.SetVariableValue(argObj, ares)
-			}
-		case *ParameterReference:
-			if index < len(pe.Args) {
-				param := pe.Args[index]
-				switch paramTV := param.(type) {
-				case *NamedArgument:
-					vari, err := findVariable(varies, paramTV.Name)
-					if err != nil {
-						return nil, data.NewErrorThrow(pe.from, err)
-					}
-					if val, ok := paramTV.Value.(data.Variable); ok {
-						acl := vari.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
-						if acl != nil {
-							return nil, acl
-						}
-					} else {
-						return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
-					}
-				default:
-					if val, ok := paramTV.(data.Variable); ok {
-						acl := argObj.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
-						if acl != nil {
-							return nil, acl
-						}
-					} else {
-						return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
-					}
+				vari, err := findVariable(varies, argTV.Name)
+				if err != nil {
+					return nil, data.NewErrorThrow(pe.from, err)
 				}
-			} else {
-				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能是必传参数, fn: %s", pe.Method))
-			}
-		case data.Variable:
-			if index < len(pe.Args) {
-				param := pe.Args[index]
-				switch paramTV := param.(type) {
-				case *NamedArgument:
-					tempV, acl := paramTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					vari, err := findVariable(varies, paramTV.Name)
-					if err != nil {
-						return nil, data.NewErrorThrow(pe.from, err)
-					}
-					acl = vari.SetValue(fnCtx, tempV.(data.Value))
-					if acl != nil {
-						return nil, acl
-					}
-				default:
-					tempV, acl := paramTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					acl = argObj.SetValue(fnCtx, tempV.(data.Value))
-					if acl != nil {
-						return nil, acl
-					}
+				fnCtx.SetVariableValue(vari, tempV.(data.Value))
+				if promotedParam, ok := param.(*PromotedParameter); ok {
+					acl = promotedParam.SetValue(object, tempV.(data.Value))
 				}
-			} else {
-				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("无法调用函数(%s), 缺少参数", pe.Method))
+			default:
+				tempV, acl = argTV.GetValue(ctx)
+				if acl != nil {
+					return nil, acl
+				}
+				if index >= len(varies) {
+					return nil, data.NewErrorThrow(pe.from, fmt.Errorf("对象(%v)构造函数参数数量超出限制: %d", object, index))
+				}
+				fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
+				if promotedParam, ok := param.(*PromotedParameter); ok {
+					acl = promotedParam.SetValue(object, tempV.(data.Value))
+				}
+			}
+			if acl != nil {
+				return nil, acl
+			}
+		} else if promotedParam, ok := param.(*PromotedParameter); ok {
+			// 触发初始化默认值
+			_, acl := promotedParam.GetValue(object)
+			if acl != nil {
+				return nil, acl
+			}
+		} else if argObj, ok := param.(*Parameter); ok {
+			if argObj.DefaultValue == nil {
+				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("调用 %s 构造函数时参数 %s 缺少值和默认值", object, argObj.Name))
+			}
+			// 调用 GetValue 来触发默认值的设置
+			_, acl := argObj.GetValue(fnCtx)
+			if acl != nil {
+				return nil, acl
 			}
 		}
+
+		//argClone := arg
+		//switch argObj := argClone.(type) {
+		//case *PromotedParameter:
+		//	// 触发初始化默认值
+		//	_, acl := promotedParam.GetValue(object)
+		//	if acl != nil {
+		//		return nil, acl
+		//	}
+		//case *Parameter:
+		//	if index < len(pe.Args) {
+		//		param := pe.Args[index]
+		//		switch paramTV := param.(type) {
+		//		case *NamedArgument:
+		//			tempV, acl := paramTV.GetValue(ctx)
+		//			if acl != nil {
+		//				return nil, acl
+		//			}
+		//			vari, err := findVariable(varies, paramTV.Name)
+		//			if err != nil {
+		//				return nil, data.NewErrorThrow(pe.from, err)
+		//			}
+		//			acl = vari.SetValue(fnCtx, tempV.(data.Value))
+		//			if acl != nil {
+		//				return nil, acl
+		//			}
+		//		default:
+		//			tempV, acl := paramTV.GetValue(ctx)
+		//			if acl != nil {
+		//				return nil, acl
+		//			}
+		//			acl = argObj.SetValue(fnCtx, tempV.(data.Value))
+		//			if acl != nil {
+		//				return nil, acl
+		//			}
+		//		}
+		//	} else if argObj.DefaultValue == nil {
+		//		return nil, data.NewErrorThrow(pe.from, fmt.Errorf("调用 %s 函数时参数 %s 缺少值和默认值", pe.Method, argObj.Name))
+		//	} else {
+		//		argObj.GetValue(fnCtx)
+		//	}
+		//case *Parameters:
+		//	args, _ := fnCtx.GetVariableValue(argObj)
+		//	var ares *data.ArrayValue
+		//	var ok bool
+		//	if ares, ok = args.(*data.ArrayValue); !ok {
+		//		ares = data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
+		//		fnCtx.SetVariableValue(argObj, ares)
+		//	}
+		//
+		//	for i := index; i < len(pe.Args); i++ {
+		//		param := pe.Args[i]
+		//		tempV, acl := param.GetValue(ctx)
+		//		if acl != nil {
+		//			if a, ok := acl.(data.AddStack); ok {
+		//				a.AddStackWithInfo(argObj.from, TryGetCallClassName(pe.Object), pe.Method)
+		//			}
+		//			return nil, acl
+		//		}
+		//		ares.Value = append(ares.Value, tempV.(data.Value))
+		//		fnCtx.SetVariableValue(argObj, ares)
+		//	}
+		//case *ParametersReference:
+		//	args, _ := fnCtx.GetVariableValue(argObj)
+		//	var ares *data.ArrayValue
+		//	var ok bool
+		//	if ares, ok = args.(*data.ArrayValue); !ok {
+		//		ares = data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
+		//		fnCtx.SetVariableValue(argObj, ares)
+		//	}
+		//
+		//	for i := index; i < len(pe.Args); i++ {
+		//		param := pe.Args[i]
+		//		if val, ok := param.(data.Variable); ok {
+		//			ares.Value = append(ares.Value, data.NewReferenceValue(val, ctx))
+		//			fnCtx.SetVariableValue(argObj, ares)
+		//		} else {
+		//			return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
+		//		}
+		//	}
+		//case *data.ParameterTODO:
+		//	if index < len(pe.Args) {
+		//		param := pe.Args[index]
+		//		switch paramTV := param.(type) {
+		//		case *NamedArgument:
+		//			tempV, acl := paramTV.GetValue(ctx)
+		//			if acl != nil {
+		//				return nil, acl
+		//			}
+		//			vari, err := findVariable(varies, paramTV.Name)
+		//			if err != nil {
+		//				return nil, data.NewErrorThrow(pe.from, err)
+		//			}
+		//			acl = vari.SetValue(fnCtx, tempV.(data.Value))
+		//			if acl != nil {
+		//				return nil, acl
+		//			}
+		//		default:
+		//			tempV, acl := paramTV.GetValue(ctx)
+		//			if acl != nil {
+		//				return nil, acl
+		//			}
+		//			acl = argObj.SetValue(fnCtx, tempV.(data.Value))
+		//			if acl != nil {
+		//				return nil, acl
+		//			}
+		//		}
+		//	} else if argObj.DefaultValue == nil {
+		//		return nil, data.NewErrorThrow(pe.from, fmt.Errorf("调用 %s 函数时参数 %s 缺少值", pe.Method, argObj.Name))
+		//	} else {
+		//		argObj.GetValue(fnCtx)
+		//	}
+		//case *data.ParametersTODO:
+		//	args, _ := fnCtx.GetVariableValue(argObj)
+		//	var ares *data.ArrayValue
+		//	var ok bool
+		//	if ares, ok = args.(*data.ArrayValue); !ok {
+		//		ares = data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
+		//		fnCtx.SetVariableValue(argObj, ares)
+		//	}
+		//
+		//	for i := index; i < len(pe.Args); i++ {
+		//		param := pe.Args[i]
+		//		tempV, acl := param.GetValue(ctx)
+		//		if acl != nil {
+		//			return nil, acl
+		//		}
+		//		ares.Value = append(ares.Value, tempV.(data.Value))
+		//		fnCtx.SetVariableValue(argObj, ares)
+		//	}
+		//case *ParameterReference:
+		//	if index < len(pe.Args) {
+		//		param := pe.Args[index]
+		//		switch paramTV := param.(type) {
+		//		case *NamedArgument:
+		//			vari, err := findVariable(varies, paramTV.Name)
+		//			if err != nil {
+		//				return nil, data.NewErrorThrow(pe.from, err)
+		//			}
+		//			if val, ok := paramTV.Value.(data.Variable); ok {
+		//				acl := vari.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
+		//				if acl != nil {
+		//					return nil, acl
+		//				}
+		//			} else {
+		//				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
+		//			}
+		//		default:
+		//			if val, ok := paramTV.(data.Variable); ok {
+		//				acl := argObj.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
+		//				if acl != nil {
+		//					return nil, acl
+		//				}
+		//			} else {
+		//				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
+		//			}
+		//		}
+		//	} else {
+		//		return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能是必传参数, fn: %s", pe.Method))
+		//	}
+		//case data.Variable:
+		//	if index < len(pe.Args) {
+		//		param := pe.Args[index]
+		//		switch paramTV := param.(type) {
+		//		case *NamedArgument:
+		//			tempV, acl := paramTV.GetValue(ctx)
+		//			if acl != nil {
+		//				return nil, acl
+		//			}
+		//			vari, err := findVariable(varies, paramTV.Name)
+		//			if err != nil {
+		//				return nil, data.NewErrorThrow(pe.from, err)
+		//			}
+		//			acl = vari.SetValue(fnCtx, tempV.(data.Value))
+		//			if acl != nil {
+		//				return nil, acl
+		//			}
+		//		default:
+		//			tempV, acl := paramTV.GetValue(ctx)
+		//			if acl != nil {
+		//				return nil, acl
+		//			}
+		//			acl = argObj.SetValue(fnCtx, tempV.(data.Value))
+		//			if acl != nil {
+		//				return nil, acl
+		//			}
+		//		}
+		//	} else {
+		//		return nil, data.NewErrorThrow(pe.from, fmt.Errorf("无法调用函数(%s), 缺少参数", pe.Method))
+		//	}
+		//}
 	}
 
 	return fnCtx, nil
@@ -288,6 +345,17 @@ func findVariable(varies []data.Variable, name string) (data.Variable, error) {
 		check := vary.GetName()
 		if check == name {
 			return vary, nil
+		}
+	}
+	return nil, errors.New("无法找到变量: " + name)
+}
+
+func findParams(varies []data.GetValue, name string) (data.GetValue, error) {
+	for _, vary := range varies {
+		if check, ok := vary.(data.GetName); ok {
+			if check.GetName() == name {
+				return vary, nil
+			}
 		}
 	}
 	return nil, errors.New("无法找到变量: " + name)

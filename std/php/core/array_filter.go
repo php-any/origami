@@ -69,7 +69,7 @@ func (f *ArrayFilterFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 
 	switch arr := arrayValue.(type) {
 	case *data.ArrayValue:
-		sourceArray = arr.Value
+		sourceArray = arr.ToValueList()
 	case *data.ObjectValue:
 		// 对象作为关联数组处理
 		sourceMap = arr.GetProperties()
@@ -228,11 +228,12 @@ func (f *ArrayFilterFunction) resolveCallback(ctx data.Context, cb data.GetValue
 	case *data.FuncValue:
 		return c, nil
 	case *data.ArrayValue:
-		if len(c.Value) < 2 {
+		valueList := c.ToValueList()
+		if len(valueList) < 2 {
 			return nil, utils.NewThrow(errors.New("array_filter 回调数组长度不足"))
 		}
-		className := c.Value[0].AsString()
-		methodName := c.Value[1].AsString()
+		className := valueList[0].AsString()
+		methodName := valueList[1].AsString()
 
 		stmt, acl := ctx.GetVM().GetOrLoadClass(className)
 		if acl != nil {
@@ -310,7 +311,7 @@ func isTruthy(v data.Value) bool {
 
 	// 检查空数组
 	if arrVal, ok := v.(*data.ArrayValue); ok {
-		return len(arrVal.Value) > 0
+		return len(arrVal.List) > 0
 	}
 
 	// 检查空对象

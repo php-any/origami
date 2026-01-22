@@ -1,7 +1,7 @@
 package data
 
 type ArrayValueFlat struct {
-	source []Value
+	source []*ZVal
 }
 
 // Call 实现数组的 flat 方法
@@ -17,8 +17,12 @@ func (a *ArrayValueFlat) Call(ctx Context) (GetValue, Control) {
 		}
 	}
 
+	// 将 source 转换为 []Value
+	tempArray := &ArrayValue{List: a.source}
+	sourceValues := tempArray.ToValueList()
+
 	// 递归扁平化数组
-	result := a.flattenArray(a.source, depth)
+	result := a.flattenArray(sourceValues, depth)
 	return NewArrayValue(result), nil
 }
 
@@ -32,7 +36,9 @@ func (a *ArrayValueFlat) flattenArray(arr []Value, depth int) []Value {
 	for _, element := range arr {
 		// 如果元素是数组且深度大于0，则递归扁平化
 		if arrayElement, ok := element.(*ArrayValue); ok && depth > 0 {
-			flattened := a.flattenArray(arrayElement.Value, depth-1)
+			// 将 List 转换为 []Value
+			listValues := arrayElement.ToValueList()
+			flattened := a.flattenArray(listValues, depth-1)
 			result = append(result, flattened...)
 		} else {
 			result = append(result, element)

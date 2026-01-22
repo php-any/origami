@@ -63,7 +63,8 @@ func (m *ReflectionClassNewInstanceArgsMethod) Call(ctx data.Context) (data.GetV
 	// 将参数数组转换为 GetValue 列表
 	args := make([]data.GetValue, 0)
 	if arrayValue, ok := argsValue.(*data.ArrayValue); ok {
-		for _, v := range arrayValue.Value {
+		valueList := arrayValue.ToValueList()
+		for _, v := range valueList {
 			args = append(args, v)
 		}
 	} else {

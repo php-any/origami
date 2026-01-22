@@ -25,11 +25,14 @@ func (f *ArrayPushFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 		if paramsValue != nil {
 			if paramsArray, ok := paramsValue.(*data.ArrayValue); ok {
 				// Parameters 返回的是 ArrayValue，包含所有参数
-				v.Value = append(v.Value, paramsArray.Value...)
+				paramsList := paramsArray.ToValueList()
+				for _, val := range paramsList {
+					v.List = append(v.List, data.NewZVal(val))
+				}
 			}
 		}
 
-		return data.NewIntValue(len(v.Value)), nil
+		return data.NewIntValue(len(v.List)), nil
 	default:
 		return data.NewIntValue(0), nil
 	}

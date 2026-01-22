@@ -1,7 +1,7 @@
 package data
 
 type ArrayValuePop struct {
-	source *[]Value
+	source *[]*ZVal
 }
 
 // Call 实现数组的 pop 方法
@@ -15,7 +15,7 @@ func (a *ArrayValuePop) Call(ctx Context) (GetValue, Control) {
 	lastElement := (*a.source)[len(*a.source)-1]
 	*a.source = (*a.source)[:len(*a.source)-1]
 
-	return lastElement, nil
+	return lastElement.Value, nil
 }
 
 func (a *ArrayValuePop) GetName() string {

@@ -64,19 +64,20 @@ var parserRouter = map[token.TokenType]func(parser *Parser) StatementParser{
 	token.REQUEST:    NewGlobalsParser,
 	token.SERVER:     NewGlobalsParser,
 
-	token.TERNARY:      NewNullableParser,
-	token.AT:           NewAnnotationParser,
-	token.HASH:         NewAnnotationParser, // #[] 格式的注解也使用 AnnotationParser
-	token.JS_SERVER:    NewJsServerParser,
-	token.STATIC:       NewStaticParser,
-	token.FN:           NewFnParser,
-	token.DECLARE:      NewDeclareParser,
-	token.INCLUDE:      NewIncludeParser,
-	token.INCLUDE_ONCE: NewIncludeParser,
-	token.REQUIRE:      NewIncludeParser,
-	token.REQUIRE_ONCE: NewIncludeParser,
-	token.FINAL:        NewFinalParser,
-	token.YIELD:        NewYieldParser,
+	token.TERNARY:       NewNullableParser,
+	token.AT:            NewAnnotationParser,
+	token.HASH:          NewAnnotationParser, // #[] 格式的注解也使用 AnnotationParser
+	token.JS_SERVER:     NewJsServerParser,
+	token.STATIC:        NewStaticParser,
+	token.FN:            NewFnParser,
+	token.DECLARE:       NewDeclareParser,
+	token.INCLUDE:       NewIncludeParser,
+	token.INCLUDE_ONCE:  NewIncludeParser,
+	token.REQUIRE:       NewIncludeParser,
+	token.REQUIRE_ONCE:  NewIncludeParser,
+	token.FINAL:         NewFinalParser,
+	token.YIELD:         NewYieldParser,
+	token.FUNC_GET_ARGS: NewFuncGetArgsParser,
 }
 
 func AddParse(t token.TokenType, parser func(parser *Parser) StatementParser) {

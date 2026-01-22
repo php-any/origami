@@ -48,9 +48,10 @@ func (f *IsCallableFunction) Call(ctx data.Context) (data.GetValue, data.Control
 
 	// 3. Array [obj|class, method]
 	if arr, ok := value.(*data.ArrayValue); ok {
-		if len(arr.Value) == 2 {
-			objOrClass := arr.Value[0]
-			methodNameVal := arr.Value[1]
+		valueList := arr.ToValueList()
+		if len(valueList) == 2 {
+			objOrClass := valueList[0]
+			methodNameVal := valueList[1]
 
 			if methodName, ok := methodNameVal.(data.AsString); ok {
 				method := methodName.AsString()

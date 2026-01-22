@@ -26,6 +26,7 @@ type Parser struct {
 	expressionParser *ExpressionParser // 表达式解析器
 
 	identTryString bool
+	currentClass   string
 
 	namespace        *node.Namespace
 	uses             map[string]string // 类引用

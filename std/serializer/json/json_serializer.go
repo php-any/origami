@@ -48,8 +48,9 @@ func (j *JsonSerializer) UnmarshalNull(data []byte, v *data.NullValue) error {
 // Array
 func (j *JsonSerializer) MarshalArray(v *data.ArrayValue) ([]byte, error) {
 	// 递归序列化数组中的每个元素
-	items := make([]json.RawMessage, 0, len(v.Value))
-	for _, elem := range v.Value {
+	valueList := v.ToValueList()
+	items := make([]json.RawMessage, 0, len(valueList))
+	for _, elem := range valueList {
 		if vs, ok := elem.(data.ValueSerializer); ok {
 			// 为每个元素创建新的序列化器
 			b, err := vs.Marshal(j)
@@ -73,10 +74,11 @@ func (j *JsonSerializer) UnmarshalArray(msg []byte, v *data.ArrayValue) error {
 	}
 
 	values := make([]data.Value, 0, len(items))
+	valueList := v.ToValueList()
 	for idx, item := range items {
 		// 优先使用已有元素的类型信息
-		if idx < len(v.Value) && v.Value[idx] != nil {
-			val, err := j.unmarshalWithExpected(item, v.Value[idx])
+		if idx < len(valueList) && valueList[idx] != nil {
+			val, err := j.unmarshalWithExpected(item, valueList[idx])
 			if err != nil {
 				return err
 			}
@@ -91,7 +93,11 @@ func (j *JsonSerializer) UnmarshalArray(msg []byte, v *data.ArrayValue) error {
 		}
 		values = append(values, val)
 	}
-	v.Value = values
+	// 将 values 转换为 []*ZVal 并赋值给 v.List
+	v.List = make([]*data.ZVal, len(values))
+	for i, val := range values {
+		v.List[i] = data.NewZVal(val)
+	}
 	return nil
 }
 

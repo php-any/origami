@@ -31,7 +31,7 @@ func (f *SortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 如果数组为空，返回 true
-	if len(arrayRef.Value) == 0 {
+	if len(arrayRef.List) == 0 {
 		return data.NewBoolValue(true), nil
 	}
 
@@ -45,8 +45,8 @@ func (f *SortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	// 对数组进行排序
 	// PHP 的 sort() 函数会重新索引数组的键
-	sort.Slice(arrayRef.Value, func(i, j int) bool {
-		return compareValues(arrayRef.Value[i], arrayRef.Value[j], flags)
+	sort.Slice(arrayRef.List, func(i, j int) bool {
+		return compareValues(arrayRef.List[i].Value, arrayRef.List[j].Value, flags)
 	})
 
 	return data.NewBoolValue(true), nil

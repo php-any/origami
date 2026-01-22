@@ -23,7 +23,7 @@ func (f *ArrayKeysFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	switch v := arrayValue.(type) {
 	case *data.ArrayValue:
 		// 处理普通数组（数值索引）
-		length := len(v.Value)
+		length := len(v.List)
 		keys := make([]data.Value, 0, length)
 		for i := 0; i < length; i++ {
 			keys = append(keys, data.NewIntValue(i))

@@ -72,7 +72,8 @@ func (a *AttrForValue) ProcessHtml(ctx data.Context, htmlNode *HtmlNode) (bool, 
 	}
 
 	// 获取数组长度
-	length := len(arrayData.Value)
+	valueList := arrayData.ToValueList()
+	length := len(valueList)
 	if length == 0 {
 		return false, "", nil
 	}
@@ -81,7 +82,7 @@ func (a *AttrForValue) ProcessHtml(ctx data.Context, htmlNode *HtmlNode) (bool, 
 	var result string
 	for i := 0; i < length; i++ {
 		// 获取当前元素
-		item := arrayData.Value[i]
+		item := valueList[i]
 
 		// 设置循环变量
 		if a.Val != nil {

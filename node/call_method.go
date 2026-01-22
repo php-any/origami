@@ -107,7 +107,7 @@ func (pe *CallMethod) handleFuncValue(ctx data.Context, call data.GetValue) (dat
 				if acl != nil {
 					return nil, acl
 				}
-				ares.Value = append(ares.Value, tempV.(data.Value))
+				ares.List = append(ares.List, data.NewZVal(tempV.(data.Value)))
 				fnCtx.SetVariableValue(argObj, ares)
 			}
 		case *ParameterReference:

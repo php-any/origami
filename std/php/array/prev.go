@@ -25,11 +25,11 @@ func (f *PrevFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	case *data.ArrayValue:
 		// 处理数组：对于 ArrayValue，prev() 移动到倒数第二个元素
 		// 在 PHP 中，如果没有调用过指针函数，prev() 会移动到倒数第二个元素
-		if len(val.Value) < 2 {
+		if len(val.List) < 2 {
 			return data.NewNullValue(), nil
 		}
 		// 返回倒数第二个元素（模拟指针向后移动）
-		return val.Value[len(val.Value)-2], nil
+		return val.List[len(val.List)-2].Value, nil
 
 	case *data.ObjectValue:
 		// 处理对象（关联数组）：移动到倒数第二个元素

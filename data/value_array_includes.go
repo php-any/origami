@@ -1,7 +1,7 @@
 package data
 
 type ArrayValueIncludes struct {
-	source []Value
+	source []*ZVal
 }
 
 // Call 实现数组的 includes 方法
@@ -38,7 +38,7 @@ func (a *ArrayValueIncludes) Call(ctx Context) (GetValue, Control) {
 
 	// 查找元素
 	for i := fromIndex; i < len(a.source); i++ {
-		if a.source[i].AsString() == searchElement.AsString() {
+		if a.source[i].Value.AsString() == searchElement.AsString() {
 			return NewBoolValue(true), nil
 		}
 	}

@@ -284,16 +284,19 @@ func convertFromBoolValue[S any](val *data.BoolValue) (S, error) {
 func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 	var result S
 
+	// 将 List 转换为 []Value
+	valueList := val.ToValueList()
+
 	// 先尝试直接类型断言（性能优化）
-	if s, ok := any(val.Value).(S); ok {
+	if s, ok := any(valueList).(S); ok {
 		return s, nil
 	}
 
 	// 尝试转换到基本类型切片
 	switch any(result).(type) {
 	case []int:
-		slice := make([]int, 0, len(val.Value))
-		for _, item := range val.Value {
+		slice := make([]int, 0, len(valueList))
+		for _, item := range valueList {
 			if intVal, err := convertValue[int](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
@@ -302,8 +305,8 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 		}
 		return any(slice).(S), nil
 	case []int8:
-		slice := make([]int8, 0, len(val.Value))
-		for _, item := range val.Value {
+		slice := make([]int8, 0, len(valueList))
+		for _, item := range valueList {
 			if intVal, err := convertValue[int8](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
@@ -312,8 +315,8 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 		}
 		return any(slice).(S), nil
 	case []int16:
-		slice := make([]int16, 0, len(val.Value))
-		for _, item := range val.Value {
+		slice := make([]int16, 0, len(valueList))
+		for _, item := range valueList {
 			if intVal, err := convertValue[int16](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
@@ -322,8 +325,8 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 		}
 		return any(slice).(S), nil
 	case []int32:
-		slice := make([]int32, 0, len(val.Value))
-		for _, item := range val.Value {
+		slice := make([]int32, 0, len(valueList))
+		for _, item := range valueList {
 			if intVal, err := convertValue[int32](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
@@ -332,8 +335,8 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 		}
 		return any(slice).(S), nil
 	case []int64:
-		slice := make([]int64, 0, len(val.Value))
-		for _, item := range val.Value {
+		slice := make([]int64, 0, len(valueList))
+		for _, item := range valueList {
 			if intVal, err := convertValue[int64](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
@@ -342,8 +345,8 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 		}
 		return any(slice).(S), nil
 	case []uint:
-		slice := make([]uint, 0, len(val.Value))
-		for _, item := range val.Value {
+		slice := make([]uint, 0, len(valueList))
+		for _, item := range valueList {
 			if intVal, err := convertValue[uint](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
@@ -352,8 +355,8 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 		}
 		return any(slice).(S), nil
 	case []uint8:
-		slice := make([]uint8, 0, len(val.Value))
-		for _, item := range val.Value {
+		slice := make([]uint8, 0, len(valueList))
+		for _, item := range valueList {
 			if intVal, err := convertValue[uint8](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
@@ -362,8 +365,8 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 		}
 		return any(slice).(S), nil
 	case []uint16:
-		slice := make([]uint16, 0, len(val.Value))
-		for _, item := range val.Value {
+		slice := make([]uint16, 0, len(valueList))
+		for _, item := range valueList {
 			if intVal, err := convertValue[uint16](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
@@ -372,8 +375,8 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 		}
 		return any(slice).(S), nil
 	case []uint32:
-		slice := make([]uint32, 0, len(val.Value))
-		for _, item := range val.Value {
+		slice := make([]uint32, 0, len(valueList))
+		for _, item := range valueList {
 			if intVal, err := convertValue[uint32](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
@@ -382,8 +385,8 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 		}
 		return any(slice).(S), nil
 	case []uint64:
-		slice := make([]uint64, 0, len(val.Value))
-		for _, item := range val.Value {
+		slice := make([]uint64, 0, len(valueList))
+		for _, item := range valueList {
 			if intVal, err := convertValue[uint64](item); err == nil {
 				slice = append(slice, intVal)
 			} else {
@@ -392,8 +395,8 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 		}
 		return any(slice).(S), nil
 	case []float32:
-		slice := make([]float32, 0, len(val.Value))
-		for _, item := range val.Value {
+		slice := make([]float32, 0, len(valueList))
+		for _, item := range valueList {
 			if floatVal, err := convertValue[float32](item); err == nil {
 				slice = append(slice, floatVal)
 			} else {
@@ -402,8 +405,8 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 		}
 		return any(slice).(S), nil
 	case []float64:
-		slice := make([]float64, 0, len(val.Value))
-		for _, item := range val.Value {
+		slice := make([]float64, 0, len(valueList))
+		for _, item := range valueList {
 			if floatVal, err := convertValue[float64](item); err == nil {
 				slice = append(slice, floatVal)
 			} else {
@@ -412,8 +415,8 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 		}
 		return any(slice).(S), nil
 	case []string:
-		slice := make([]string, 0, len(val.Value))
-		for _, item := range val.Value {
+		slice := make([]string, 0, len(valueList))
+		for _, item := range valueList {
 			if strVal, err := convertValue[string](item); err == nil {
 				slice = append(slice, strVal)
 			} else {
@@ -422,8 +425,8 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 		}
 		return any(slice).(S), nil
 	case []bool:
-		slice := make([]bool, 0, len(val.Value))
-		for _, item := range val.Value {
+		slice := make([]bool, 0, len(valueList))
+		for _, item := range valueList {
 			if boolVal, err := convertValue[bool](item); err == nil {
 				slice = append(slice, boolVal)
 			} else {
@@ -442,9 +445,9 @@ func convertFromArrayValue[S any](val *data.ArrayValue) (S, error) {
 	}
 
 	// 创建目标切片
-	slice := reflect.MakeSlice(targetType, len(val.Value), len(val.Value))
+	slice := reflect.MakeSlice(targetType, len(valueList), len(valueList))
 
-	for i, item := range val.Value {
+	for i, item := range valueList {
 		// 递归转换每个元素
 		if converted, err := convertValue[any](item); err == nil {
 			slice.Index(i).Set(reflect.ValueOf(converted))

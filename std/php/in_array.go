@@ -43,7 +43,8 @@ func (f *InArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 在数组中查找
-	for _, val := range arrayVal.Value {
+	valueList := arrayVal.ToValueList()
+	for _, val := range valueList {
 		if strict {
 			// 严格模式：类型和值都必须相同
 			if needleValue == val {

@@ -24,7 +24,7 @@ func (f *KeyFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	switch val := arrayValue.(type) {
 	case *data.ArrayValue:
 		// 处理数组：对于 ArrayValue，当前键是第一个索引（0）
-		if len(val.Value) == 0 {
+		if len(val.List) == 0 {
 			return data.NewNullValue(), nil
 		}
 		// 返回第一个索引（0）

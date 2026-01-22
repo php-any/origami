@@ -23,6 +23,177 @@ func NewIndexExpression(token *TokenFrom, array data.GetValue, index data.GetVal
 	}
 }
 
+func (ie *IndexExpression) GetZVal(ctx data.Context) (*data.ZVal, data.Control) {
+	temp, acl := ie.Array.GetValue(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	index, acl := ie.Index.GetValue(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+
+	switch v := temp.(type) {
+	case *data.ArrayValue:
+		i := 0
+		switch iv := index.(type) {
+		case *data.IntValue:
+			var err error
+			i, err = iv.AsInt()
+			if err != nil {
+				return nil, data.NewErrorThrow(ie.GetFrom(), err)
+			}
+			if i >= len(v.List) {
+				return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("数组索引超出范围"), "UndefinedIndexExpression")
+			}
+		case *data.StringValue:
+			if len(v.List) == 0 {
+				return data.NewZVal(data.NewNullValue()), nil
+			}
+
+			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("未实现自动转化为对象的能力"))
+		case data.AsInt:
+			var err error
+			i, err = iv.AsInt()
+			if err != nil {
+				return nil, data.NewErrorThrow(ie.GetFrom(), err)
+			}
+			if i >= len(v.List) {
+				return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("数组索引超出范围"), "UndefinedIndexExpression")
+			}
+		case *data.BoolValue:
+			if iv.Value {
+				i = 1
+			}
+			if i >= len(v.List) {
+				return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("数组索引超出范围"), "UndefinedIndexExpression")
+			}
+		default:
+			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("无法处理索引的类型值"))
+		}
+
+		return v.List[i], nil
+	}
+	return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("无法处理索引的类型值"), "UndefinedIndexExpression")
+}
+
+func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Control {
+	// 获取数组值
+	arrayVal, acl := ie.Array.GetValue(ctx)
+	if acl != nil {
+		return acl
+	}
+
+	// 如果数组是 null，需要创建新数组
+	if _, ok := arrayVal.(*data.NullValue); ok {
+		if _, ok := ie.Array.(*IndexExpression); ok {
+			// 多级访问，自动创建空对象
+			arrayVal = data.NewObjectValue()
+			_, acl = NewBinaryAssign(ie.GetFrom(), ie.Array, arrayVal).GetValue(ctx)
+			if acl != nil {
+				return acl
+			}
+		}
+	}
+
+	// 获取索引值
+	indexVal, acl := ie.Index.GetValue(ctx)
+	if acl != nil {
+		return acl
+	}
+
+	switch arr := arrayVal.(type) {
+	case *data.ArrayValue:
+		// 数组索引赋值
+		i := 0
+		if iv, ok := indexVal.(data.AsInt); ok {
+			var err error
+			i, err = iv.AsInt()
+			if err != nil {
+				return data.NewErrorThrow(ie.GetFrom(), err)
+			}
+		} else if iv, ok := indexVal.(data.AsString); ok {
+			// 字符串索引：将数组转换为对象
+			objectVal := data.NewObjectValue()
+			valueList := arr.ToValueList()
+			for i2, val := range valueList {
+				objectVal.SetProperty(fmt.Sprintf("%d", i2), val)
+			}
+			objectVal.SetProperty(iv.AsString(), value)
+			// 重新赋值
+			_, acl = NewBinaryAssign(ie.GetFrom(), ie.Array, objectVal).GetValue(ctx)
+			if acl != nil {
+				return acl
+			}
+			return nil
+		} else {
+			return data.NewErrorThrow(ie.GetFrom(), errors.New("数组索引不是整数类型"))
+		}
+
+		if i < 0 {
+			return data.NewErrorThrow(ie.GetFrom(), errors.New("数组索引不能为负数"))
+		}
+
+		// 如果索引超出范围，自动扩容
+		if i >= len(arr.List) {
+			for j := len(arr.List); j <= i; j++ {
+				arr.List = append(arr.List, data.NewZVal(data.NewNullValue()))
+			}
+		}
+
+		// 设置值
+		arr.List[i] = data.NewZVal(value)
+		return nil
+
+	case data.SetProperty:
+		// 对象属性赋值
+		if iv, ok := indexVal.(data.AsString); ok {
+			arr.SetProperty(iv.AsString(), value)
+			return nil
+		} else if iv, ok := indexVal.(data.AsInt); ok {
+			// 整数索引转换为字符串
+			if i, err := iv.AsInt(); err == nil {
+				arr.SetProperty(fmt.Sprintf("%d", i), value)
+				return nil
+			}
+		}
+		return data.NewErrorThrow(ie.GetFrom(), errors.New("对象索引必须是字符串或整数"))
+
+	case *data.ClassValue:
+		// 类实例属性赋值
+		if iv, ok := indexVal.(data.AsString); ok {
+			name := iv.AsString()
+			if prop, ok := arr.GetPropertyStmt(name); ok {
+				if prop.GetModifier() != data.ModifierPublic {
+					return data.NewErrorThrow(ie.GetFrom(), errors.New("对象属性不是公开的"))
+				}
+				// 使用 SetProperty 方法设置属性值
+				return arr.SetProperty(name, value)
+			}
+			return data.NewErrorThrow(ie.GetFrom(), errors.New("对象不存在指定属性"))
+		}
+		return data.NewErrorThrow(ie.GetFrom(), errors.New("ClassValue索引必须是字符串"))
+
+	case *data.ThisValue:
+		// $this[$name] 动态设置当前对象属性
+		if iv, ok := indexVal.(data.AsString); ok {
+			name := iv.AsString()
+			if prop, ok := arr.Class.GetProperty(name); ok {
+				if prop.GetModifier() != data.ModifierPublic {
+					return data.NewErrorThrow(ie.GetFrom(), errors.New("对象属性不是公开的"))
+				}
+				// ThisValue 包含 ClassValue，直接使用 SetProperty
+				return arr.ClassValue.SetProperty(name, value)
+			}
+			return data.NewErrorThrow(ie.GetFrom(), errors.New("对象不存在指定属性"))
+		}
+		return data.NewErrorThrow(ie.GetFrom(), errors.New("ThisValue索引必须是字符串"))
+
+	default:
+		return data.NewErrorThrow(ie.GetFrom(), errors.New("无法设置索引表达式的值"))
+	}
+}
+
 // GetValue 获取数组访问表达式的值
 func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	temp, acl := ie.Array.GetValue(ctx)
@@ -44,11 +215,11 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			if err != nil {
 				return nil, data.NewErrorThrow(ie.GetFrom(), err)
 			}
-			if i >= len(v.Value) {
+			if i >= len(v.List) {
 				return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("数组索引超出范围"), "UndefinedIndexExpression")
 			}
 		case *data.StringValue:
-			if len(v.Value) == 0 {
+			if len(v.List) == 0 {
 				return data.NewNullValue(), nil
 			}
 
@@ -59,21 +230,21 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			if err != nil {
 				return nil, data.NewErrorThrow(ie.GetFrom(), err)
 			}
-			if i >= len(v.Value) {
+			if i >= len(v.List) {
 				return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("数组索引超出范围"), "UndefinedIndexExpression")
 			}
 		case *data.BoolValue:
 			if iv.Value {
 				i = 1
 			}
-			if i >= len(v.Value) {
+			if i >= len(v.List) {
 				return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("数组索引超出范围"), "UndefinedIndexExpression")
 			}
 		default:
 			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("无法处理索引的类型值"))
 		}
 
-		return v.Value[i], nil
+		return v.List[i].Value, nil
 	case *data.ObjectValue:
 		// 支持整数索引（转换为字符串）和字符串索引
 		var key string

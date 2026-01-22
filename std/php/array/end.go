@@ -90,11 +90,11 @@ func (f *EndFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	switch val := arrayValue.(type) {
 	case *data.ArrayValue:
 		// 处理数组
-		if len(val.Value) == 0 {
+		if len(val.List) == 0 {
 			return data.NewBoolValue(false), nil
 		}
 		// 返回最后一个元素
-		return val.Value[len(val.Value)-1], nil
+		return val.List[len(val.List)-1].Value, nil
 
 	case *data.ObjectValue:
 		// 处理对象（关联数组）

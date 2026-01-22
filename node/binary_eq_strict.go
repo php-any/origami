@@ -71,13 +71,13 @@ func isStrictEqual(value1, value2 data.GetValue) bool {
 	case *data.ArrayValue:
 		if v2, ok2 := value2.(*data.ArrayValue); ok2 {
 			// 数组比较：长度和每个元素都相等
-			if len(v1.Value) != len(v2.Value) {
+			if len(v1.List) != len(v2.List) {
 				return false
 			}
-			for i, val1 := range v1.Value {
-				val2 := v2.Value[i]
+			for i, zval1 := range v1.List {
+				zval2 := v2.List[i]
 				// 递归比较数组元素
-				if !isStrictEqual(val1, val2) {
+				if !isStrictEqual(zval1.Value, zval2.Value) {
 					return false
 				}
 			}

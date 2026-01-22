@@ -245,7 +245,7 @@ type ParameterReference struct {
 	*Parameter
 }
 
-func NewParameterReference(from data.From, name string, index int, ty data.Types) data.GetValue {
+func NewParameterReference(from data.From, name string, index int, ty data.Types) data.Parameter {
 	return &ParameterReference{
 		Parameter: &Parameter{
 			Node:  NewNode(from),

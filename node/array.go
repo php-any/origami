@@ -34,7 +34,7 @@ func (n *Array) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			}
 			if arrayValue, ok := spreadValue.(*data.ArrayValue); ok {
 				// 将展开的数组元素添加到结果数组中
-				arr = append(arr, arrayValue.Value...)
+				arr = append(arr, arrayValue.ToValueList()...)
 			} else {
 				return nil, data.NewErrorThrow(n.from, data.NewError(n.from, "展开运算符只能用于数组", nil))
 			}

@@ -21,7 +21,8 @@ func (h *RowScanMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	arg0 := make([]any, 0)
-	for _, v := range a0.(*data.ArrayValue).Value {
+	valueList := a0.(*data.ArrayValue).ToValueList()
+	for _, v := range valueList {
 		arg0 = append(arg0, ConvertValueToGoType(v))
 	}
 

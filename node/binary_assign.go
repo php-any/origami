@@ -97,7 +97,8 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 					}
 				} else if iv, ok := indexVal.(data.AsString); ok {
 					objectVal := data.NewObjectValue()
-					for i2, value := range arr.Value {
+					valueList := arr.ToValueList()
+					for i2, value := range valueList {
 						objectVal.SetProperty(fmt.Sprintf("%d", i2), value)
 					}
 					objectVal.SetProperty(iv.AsString(), v)
@@ -113,13 +114,13 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 				if i < 0 {
 					return nil, data.NewErrorThrow(b.from, errors.New("数组索引不能为负数"))
 				}
-				if i >= len(arr.Value) {
+				if i >= len(arr.List) {
 					// 自动扩容，填充 null
-					for j := len(arr.Value); j <= i; j++ {
-						arr.Value = append(arr.Value, data.NewNullValue())
+					for j := len(arr.List); j <= i; j++ {
+						arr.List = append(arr.List, data.NewZVal(data.NewNullValue()))
 					}
 				}
-				arr.Value[i] = v
+				arr.List[i] = data.NewZVal(v)
 				return v, nil
 			case data.SetProperty:
 				// 对象属性赋值
@@ -183,7 +184,8 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 			return v, l.SetProperty(ctx, l.Property, v)
 		case *Array:
 			if rv, ok := rv.(*data.ArrayValue); ok {
-				for i, value := range rv.Value {
+				valueList := rv.ToValueList()
+				for i, value := range valueList {
 					set := l.V[i]
 					if set, ok := set.(data.Variable); ok {
 						set.SetValue(ctx, value)

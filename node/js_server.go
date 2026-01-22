@@ -267,7 +267,7 @@ func formatDataObjectValue(obj *data.ObjectValue) string {
 
 // formatDataArrayValue 格式化 data.ArrayValue 为 JavaScript 数组格式
 func formatDataArrayValue(arr *data.ArrayValue) string {
-	values := arr.Value
+	values := arr.ToValueList()
 	if len(values) == 0 {
 		return "[]"
 	}

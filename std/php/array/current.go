@@ -25,11 +25,11 @@ func (f *CurrentFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	case *data.ArrayValue:
 		// 处理数组：对于 ArrayValue，当前元素是第一个元素（因为没有内部指针）
 		// 在 PHP 中，如果没有调用过指针函数，current() 返回第一个元素
-		if len(val.Value) == 0 {
+		if len(val.List) == 0 {
 			return data.NewNullValue(), nil
 		}
 		// 返回第一个元素（模拟当前指针在第一个位置）
-		return val.Value[0], nil
+		return val.List[0].Value, nil
 
 	case *data.ObjectValue:
 		// 处理对象（关联数组）：返回第一个元素

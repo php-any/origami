@@ -59,11 +59,11 @@ func (f *EmptyFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 					return data.NewBoolValue(true), nil
 				}
 				// 检查索引是否在范围内
-				if i < 0 || i >= len(arr.Value) {
+				if i < 0 || i >= len(arr.List) {
 					return data.NewBoolValue(true), nil // 索引越界，视为空
 				}
 				// 获取元素值
-				elementValue := arr.Value[i]
+				elementValue := arr.List[i].Value
 				return f.isEmptyValue(elementValue), nil
 			} else if sv, ok := indexValue.(data.AsString); ok {
 				// 字符串索引（关联数组），使用 GetProperty
@@ -195,7 +195,7 @@ func (f *EmptyFunction) isEmptyValue(v data.GetValue) data.GetValue {
 
 	// 检查数组
 	if arrayVal, ok := v.(*data.ArrayValue); ok {
-		if len(arrayVal.Value) == 0 {
+		if len(arrayVal.List) == 0 {
 			return data.NewBoolValue(true)
 		}
 		return data.NewBoolValue(false)

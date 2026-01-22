@@ -23,8 +23,9 @@ func (f *SplAutoloadRegisterFunction) Call(ctx data.Context) (data.GetValue, dat
 
 	switch f := a1.(type) {
 	case *data.ArrayValue:
-		class := f.Value[0]
-		methodName := f.Value[1].AsString()
+		valueList := f.ToValueList()
+		class := valueList[0]
+		methodName := valueList[1].AsString()
 		var method data.Method
 		var ok bool
 

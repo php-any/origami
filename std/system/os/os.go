@@ -34,7 +34,8 @@ func (o *OS) Hostname() (string, error) {
 
 func (o *OS) Path(paths data.ArrayValue) string {
 	var rets []string
-	for _, value := range paths.Value {
+	valueList := paths.ToValueList()
+	for _, value := range valueList {
 		rets = append(rets, value.AsString())
 	}
 	return filepath.Join(rets...)

@@ -52,6 +52,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 		className = p.namespace.GetName() + "\\" + className
 	}
 
+	p.currentClass = className
 	p.vm.SetClassPathCache(className, *p.source)
 
 	var types []data.Types
@@ -390,81 +391,12 @@ func (p *ClassParser) ParseConstructorParameters() ([]data.GetValue, []data.Prop
 
 	// 解析参数列表
 	for {
-		// 检查是否有访问修饰符（private、public、protected、readonly）
-		var paramModifier string
-		var isReadonly bool
-
-		// 检查 readonly 关键字
-		if p.current().Type() == token.READONLY {
-			isReadonly = true
-			p.next()
+		param, property, acl := parseSingleParameter(p.Parser)
+		if property != nil {
+			properties = append(properties, property)
 		}
-
-		// 检查访问修饰符
-		if p.current().Type() == token.PUBLIC || p.current().Type() == token.PRIVATE || p.current().Type() == token.PROTECTED {
-			switch p.current().Type() {
-			case token.PUBLIC:
-				paramModifier = "public"
-			case token.PRIVATE:
-				paramModifier = "private"
-			case token.PROTECTED:
-				paramModifier = "protected"
-			}
-			p.next()
-		} else {
-			// 没有访问修饰符，使用默认值（但不会创建属性）
-			paramModifier = ""
-		}
-
-		// 解析参数类型（支持联合类型：string|int|null）
-		paramType := p.parseConstructorParameterType()
-
-		// 解析参数名（必须是变量）
-		if p.current().Type() != token.VARIABLE {
-			return nil, nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("参数缺少变量名"+p.current().Literal()))
-		}
-		name := p.current().Literal()
-		p.next()
-
-		// 添加参数到作用域
-		val := p.scopeManager.CurrentScope().AddVariable(name, paramType, tracking.EndBefore())
-
-		// 解析默认值
-		var defaultValue data.GetValue
-		if p.current().Type() == token.ASSIGN {
-			p.next()
-			exprParser := NewExpressionParser(p.Parser)
-			var acl data.Control
-			defaultValue, acl = exprParser.Parse()
-			if acl != nil {
-				return nil, nil, acl
-			}
-		}
-
-		// 如果有访问修饰符，创建属性（属性提升）
-		if paramModifier != "" {
-			// 属性类型直接使用 paramType（已经支持联合类型）
-			propertyType := paramType
-
-			prop := node.NewPropertyWithPromoted(
-				tracking.EndBefore(),
-				name,
-				paramModifier,
-				false, // 构造函数参数不能是静态的
-				isReadonly,
-				true, // 标记为属性提升
-				defaultValue,
-				propertyType,
-			)
-			properties = append(properties, prop)
-		}
-
-		// 创建参数节点（如果有访问修饰符，创建属性提升参数）
-		var param data.GetValue
-		if paramModifier != "" {
-			param = node.NewPromotedParameter(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, val.GetType())
-		} else {
-			param = node.NewParameter(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, val.GetType())
+		if acl != nil {
+			return nil, nil, acl
 		}
 		params = append(params, param)
 
@@ -482,70 +414,6 @@ func (p *ClassParser) ParseConstructorParameters() ([]data.GetValue, []data.Prop
 	}
 	p.nextAndCheck(token.RPAREN)
 	return params, properties, nil
-}
-
-// parseConstructorParameterType 解析构造函数参数类型（支持联合类型：string|int|null）
-func (p *ClassParser) parseConstructorParameterType() data.Types {
-	if isIdentOrTypeToken(p.current().Type()) || p.checkPositionIs(0, token.NULL, token.FALSE) {
-		// 检查是否是联合类型：string|int|null
-		var unionTypes []data.Types
-
-		// 解析第一个类型
-		var firstType data.Types
-		if p.checkPositionIs(0, token.NULL, token.FALSE) {
-			firstType = data.NewBaseType(p.current().Literal())
-			p.next()
-		} else {
-			firstType = p.parseType()
-		}
-
-		if firstType != nil {
-			unionTypes = append(unionTypes, firstType)
-
-			// 处理后续的 |Type
-			for p.current().Type() == token.BIT_OR {
-				p.next() // 跳过 |
-				var nextType data.Types
-				if p.checkPositionIs(0, token.NULL, token.FALSE) {
-					nextType = data.NewBaseType(p.current().Literal())
-					p.next()
-				} else if isIdentOrTypeToken(p.current().Type()) {
-					nextType = p.parseType()
-				} else {
-					break
-				}
-				if nextType != nil {
-					unionTypes = append(unionTypes, nextType)
-				}
-			}
-
-			// 创建类型
-			if len(unionTypes) == 1 {
-				return unionTypes[0]
-			} else {
-				return data.NewUnionType(unionTypes)
-			}
-		}
-	} else if p.checkPositionIs(0, token.TERNARY) && (isIdentOrTypeToken(p.peek(1).Type()) || p.peek(1).Type() == token.SELF) {
-		// ?int 或 ?self 方式
-		p.next()
-		if p.current().Type() == token.SELF {
-			p.next()
-			var baseType data.Types
-			if p.currentClassName != "" {
-				baseType = data.NewBaseType(p.currentClassName)
-			} else {
-				baseType = data.NewBaseType("self")
-			}
-			return data.NewNullableType(baseType)
-		} else {
-			base := data.NewBaseType(p.current().Literal())
-			p.next()
-			return data.NewNullableType(base)
-		}
-	}
-	// 没有类型声明，使用 mixed
-	return data.NewBaseType("mixed")
 }
 
 // parseModifier 解析访问修饰符
@@ -769,7 +637,7 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 				firstType = data.NewBaseType("self")
 			}
 		} else {
-			firstType = p.parseType()
+			firstType = parseType(p.Parser)
 		}
 
 		if firstType != nil {
@@ -791,7 +659,7 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 						nextType = data.NewBaseType("self")
 					}
 				} else if isIdentOrTypeToken(p.current().Type()) {
-					nextType = p.parseType()
+					nextType = parseType(p.Parser)
 				} else {
 					break
 				}
@@ -1131,7 +999,7 @@ func (p *ClassParser) parseGeneric() []data.Types {
 
 	var types []data.Types
 	for {
-		typ := p.parseType()
+		typ := parseType(p.Parser)
 		if typ == nil {
 			break
 		}
@@ -1242,63 +1110,4 @@ func (p *ClassParser) mergeTraits(class *node.ClassStatement, traitNames []strin
 	}
 
 	return nil
-}
-
-func (p *ClassParser) parseType() data.Types {
-	// 支持类型关键字（bool, int, string, float, array 等）
-	if !isIdentOrTypeToken(p.current().Type()) {
-		if p.current().Type() == token.GENERIC_TYPE {
-			T := p.current().Literal()
-			p.next()
-			return data.NewGenericType(T, nil)
-		}
-		return nil
-	}
-
-	typeName := p.current().Literal()
-
-	// 处理 self 关键字
-	if p.current().Type() == token.SELF {
-		p.next()
-		if p.currentClassName != "" {
-			// 使用当前类名作为类型
-			return data.NewBaseType(p.currentClassName)
-		}
-		// 如果没有当前类名，返回 self 作为类型名（运行时解析）
-		return data.NewBaseType("self")
-	}
-
-	p.next()
-
-	subTypes := make([]data.Types, 0)
-	// 检查是否为泛型类型
-	if p.current().Type() == token.LT {
-		p.next() // 跳过 <
-		for {
-			typ := p.parseType()
-			if typ == nil {
-				break
-			}
-			subTypes = append(subTypes, typ)
-			if p.current().Type() == token.GT {
-				p.next() // 跳过 >
-				break
-			}
-			if p.current().Type() == token.COMMA {
-				p.next() // 跳过 ,
-			} else {
-				break
-			}
-		}
-	}
-
-	if !data.ISBaseType(typeName) {
-		if full, ok := p.findFullClassNameByNamespace(typeName); ok {
-			typeName = full
-			return data.NewBaseType(typeName)
-		}
-		return data.NewGenericType(typeName, subTypes)
-	} else {
-		return data.NewBaseType(typeName)
-	}
 }

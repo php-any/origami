@@ -1,7 +1,7 @@
 package data
 
 type ArrayValueReverse struct {
-	source []Value
+	source []*ZVal
 }
 
 // Call 实现数组的 reverse 方法
@@ -13,7 +13,11 @@ func (a *ArrayValueReverse) Call(ctx Context) (GetValue, Control) {
 	}
 
 	// 返回反转后的数组
-	return NewArrayValue(a.source), nil
+	values := make([]Value, len(a.source))
+	for i, zval := range a.source {
+		values[i] = zval.Value
+	}
+	return NewArrayValue(values), nil
 }
 
 func (a *ArrayValueReverse) GetName() string {

@@ -28,10 +28,11 @@ func (f *ArrayMergeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	var allValues []data.Value
 
 	// 遍历 Parameters 中的每个数组参数
-	for _, paramValue := range paramsArray.Value {
+	paramsList := paramsArray.ToValueList()
+	for _, paramValue := range paramsList {
 		// 处理数组
 		if arrayVal, ok := paramValue.(*data.ArrayValue); ok {
-			allValues = append(allValues, arrayVal.Value...)
+			allValues = append(allValues, arrayVal.ToValueList()...)
 		} else if objectVal, ok := paramValue.(*data.ObjectValue); ok {
 			// 处理对象（关联数组）
 			properties := objectVal.GetProperties()

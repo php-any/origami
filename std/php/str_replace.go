@@ -38,11 +38,17 @@ func (f *StrReplaceFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		result := subject
 		replaceCount := 0
 
-		for i, searchItem := range searchArray.Value {
+		searchList := searchArray.ToValueList()
+		var replaceList []data.Value
+		if replaceArray != nil {
+			replaceList = replaceArray.ToValueList()
+		}
+
+		for i, searchItem := range searchList {
 			searchStr := searchItem.AsString()
 			replaceStr := ""
-			if replaceArray != nil && i < len(replaceArray.Value) {
-				replaceStr = replaceArray.Value[i].AsString()
+			if replaceArray != nil && i < len(replaceList) {
+				replaceStr = replaceList[i].AsString()
 			} else if replaceValue != nil {
 				replaceStr = replaceValue.AsString()
 			}

@@ -22,7 +22,7 @@ func (d *DbWhereMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	var args []data.Value
 	if ok {
 		if arr, ok := a2.(*data.ArrayValue); ok {
-			args = append([]data.Value{}, arr.Value...)
+			args = append([]data.Value{}, arr.ToValueList()...)
 		}
 	}
 

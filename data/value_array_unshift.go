@@ -1,20 +1,20 @@
 package data
 
 type ArrayValueUnshift struct {
-	source *[]Value
+	source *[]*ZVal
 }
 
 // Call 实现数组的 unshift 方法
 // 将一个或多个元素添加到数组的开头，并返回新的数组长度
 func (a *ArrayValueUnshift) Call(ctx Context) (GetValue, Control) {
 	// 获取所有参数
-	var args []Value
+	var args []*ZVal
 	for _, argument := range a.GetParams() {
 		// argument data.Parameters
 		argv, _ := argument.GetValue(ctx)
 		if ar, ok := argv.(*ArrayValue); ok {
-			for _, v := range ar.Value {
-				args = append(args, v)
+			for _, zval := range ar.List {
+				args = append(args, zval)
 			}
 		}
 	}

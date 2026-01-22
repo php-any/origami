@@ -54,7 +54,8 @@ func (l *Log) formatMessage(level, levelColor, msg string, args data.ArrayValue)
 
 	// 检查args是否为空数组
 	argsStr := ""
-	if args.Value != nil && len(args.Value) > 0 {
+	valueList := args.ToValueList()
+	if valueList != nil && len(valueList) > 0 {
 		argsStr = fmt.Sprintf(" %v", args.AsString())
 	}
 

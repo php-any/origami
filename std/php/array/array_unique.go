@@ -38,7 +38,7 @@ func (f *ArrayUniqueFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 
 	// 处理数组
 	if arrayVal, ok := arrayValue.(*data.ArrayValue); ok {
-		return f.processArray(arrayVal.Value, flags), nil
+		return f.processArray(arrayVal.ToValueList(), flags), nil
 	}
 
 	// 处理对象（关联数组）

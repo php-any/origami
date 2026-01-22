@@ -26,13 +26,14 @@ func (f *ArrayKeyExistsFunction) Call(ctx data.Context) (data.GetValue, data.Con
 		// 对于数组，检查索引是否存在
 		if keyInt, ok := keyValue.(data.AsInt); ok {
 			if i, err := keyInt.AsInt(); err == nil {
-				if i >= 0 && i < len(arrayVal.Value) {
+				if i >= 0 && i < len(arrayVal.List) {
 					return data.NewBoolValue(true), nil
 				}
 			}
 		}
 		// 检查字符串键（关联数组）
-		for i, val := range arrayVal.Value {
+		valueList := arrayVal.ToValueList()
+		for i, val := range valueList {
 			// 这里简化处理，实际应该检查数组的键
 			// 暂时返回 false
 			_ = i

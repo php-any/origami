@@ -46,7 +46,8 @@ func (h *TxQueryContextMethod) Call(ctx data.Context) (data.GetValue, data.Contr
 	}
 	arg1 := a1.(*data.StringValue).AsString()
 	arg2 := make([]any, 0)
-	for _, v := range a2.(*data.ArrayValue).Value {
+	valueList := a2.(*data.ArrayValue).ToValueList()
+	for _, v := range valueList {
 		arg2 = append(arg2, v)
 	}
 

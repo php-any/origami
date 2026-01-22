@@ -65,8 +65,7 @@ func objectToArrayValues(obj hasRangeProperties) []data.Value {
 
 // mergeArrayWithObject 将数组与对象/类实例合并，返回新数组
 func mergeArrayWithObject(arr *data.ArrayValue, obj hasRangeProperties) *data.ArrayValue {
-	result := make([]data.Value, len(arr.Value))
-	copy(result, arr.Value)
+	result := arr.ToValueList()
 	objValues := objectToArrayValues(obj)
 	result = append(result, objValues...)
 	return data.NewArrayValue(result).(*data.ArrayValue)
@@ -75,7 +74,7 @@ func mergeArrayWithObject(arr *data.ArrayValue, obj hasRangeProperties) *data.Ar
 // mergeObjectWithArray 将对象/类实例与数组合并，返回新数组
 func mergeObjectWithArray(obj hasRangeProperties, arr *data.ArrayValue) *data.ArrayValue {
 	result := objectToArrayValues(obj)
-	result = append(result, arr.Value...)
+	result = append(result, arr.ToValueList()...)
 	return data.NewArrayValue(result).(*data.ArrayValue)
 }
 
@@ -163,9 +162,8 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		switch r := rv.(type) {
 		case *data.ArrayValue:
 			// 合并两个数组：先复制左边数组，然后追加右边数组的元素
-			result := make([]data.Value, len(l.Value))
-			copy(result, l.Value)
-			result = append(result, r.Value...)
+			result := l.ToValueList()
+			result = append(result, r.ToValueList()...)
 			return data.NewArrayValue(result), nil
 		case *data.ObjectValue:
 			// 数组与对象相加：将对象的属性值添加到数组中
@@ -175,8 +173,7 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			return mergeArrayWithObject(l, r), nil
 		default:
 			// 如果右边不是数组、对象或类，将右边作为单个元素添加到数组中
-			result := make([]data.Value, len(l.Value))
-			copy(result, l.Value)
+			result := l.ToValueList()
 			result = append(result, r.(data.Value))
 			return data.NewArrayValue(result), nil
 		}

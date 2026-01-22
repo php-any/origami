@@ -51,12 +51,13 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 					fd = i
 				}
 				// 解析值为数组 ['pipe', 'r'] 或 ['pipe', 'w']
-				if arr, ok := value.(*data.ArrayValue); ok && len(arr.Value) >= 2 {
+				if arr, ok := value.(*data.ArrayValue); ok && len(arr.List) >= 2 {
 					var descType, descMode string
-					if typeVal, ok := arr.Value[0].(data.AsString); ok {
+					valueList := arr.ToValueList()
+					if typeVal, ok := valueList[0].(data.AsString); ok {
 						descType = typeVal.AsString()
 					}
-					if modeVal, ok := arr.Value[1].(data.AsString); ok {
+					if modeVal, ok := valueList[1].(data.AsString); ok {
 						descMode = modeVal.AsString()
 					}
 					if descType == "pipe" {
@@ -67,13 +68,15 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 			})
 		} else if arr, ok := descriptorspecValue.(*data.ArrayValue); ok {
 			// 如果是 ArrayValue，也尝试解析
-			for i, val := range arr.Value {
-				if arrVal, ok := val.(*data.ArrayValue); ok && len(arrVal.Value) >= 2 {
+			valueList := arr.ToValueList()
+			for i, val := range valueList {
+				if arrVal, ok := val.(*data.ArrayValue); ok && len(arrVal.List) >= 2 {
 					var descType, descMode string
-					if typeVal, ok := arrVal.Value[0].(data.AsString); ok {
+					arrValList := arrVal.ToValueList()
+					if typeVal, ok := arrValList[0].(data.AsString); ok {
 						descType = typeVal.AsString()
 					}
-					if modeVal, ok := arrVal.Value[1].(data.AsString); ok {
+					if modeVal, ok := arrValList[1].(data.AsString); ok {
 						descMode = modeVal.AsString()
 					}
 					if descType == "pipe" {

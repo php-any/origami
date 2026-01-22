@@ -1,7 +1,7 @@
 package data
 
 type ArrayValueSplice struct {
-	source *[]Value
+	source *[]*ZVal
 }
 
 // Call 实现数组的 splice 方法
@@ -49,28 +49,32 @@ func (a *ArrayValueSplice) Call(ctx Context) (GetValue, Control) {
 	}
 
 	// 获取要删除的元素
-	deletedElements := make([]Value, deleteCount)
+	deletedElements := make([]*ZVal, deleteCount)
 	copy(deletedElements, (*a.source)[start:start+deleteCount])
 
 	// 获取要插入的元素
-	var insertElements []Value
+	var insertElements []*ZVal
 	for i := 2; ; i++ {
 		arg, ok := ctx.GetIndexValue(i)
 		if !ok {
 			break
 		}
-		insertElements = append(insertElements, arg)
+		insertElements = append(insertElements, NewZVal(arg))
 	}
 
 	// 执行 splice 操作
-	newArray := make([]Value, 0, len(*a.source)-deleteCount+len(insertElements))
+	newArray := make([]*ZVal, 0, len(*a.source)-deleteCount+len(insertElements))
 	newArray = append(newArray, (*a.source)[:start]...)
 	newArray = append(newArray, insertElements...)
 	newArray = append(newArray, (*a.source)[start+deleteCount:]...)
 	*a.source = newArray
 
 	// 返回被删除的元素
-	return NewArrayValue(deletedElements), nil
+	deletedValues := make([]Value, len(deletedElements))
+	for i, zval := range deletedElements {
+		deletedValues[i] = zval.Value
+	}
+	return NewArrayValue(deletedValues), nil
 }
 
 func (a *ArrayValueSplice) GetName() string {

@@ -47,11 +47,12 @@ func (f *CallUserFuncFunction) resolveCallback(ctx data.Context, cb data.GetValu
 	case *data.FuncValue:
 		return c, nil
 	case *data.ArrayValue:
-		if len(c.Value) < 2 {
+		valueList := c.ToValueList()
+		if len(valueList) < 2 {
 			return nil, utils.NewThrow(errors.New("call_user_func 回调数组长度不足"))
 		}
-		className := c.Value[0].AsString()
-		methodName := c.Value[1].AsString()
+		className := valueList[0].AsString()
+		methodName := valueList[1].AsString()
 
 		stmt, acl := ctx.GetVM().GetOrLoadClass(className)
 		if acl != nil {
