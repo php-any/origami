@@ -53,36 +53,36 @@ func (y *YieldStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 	if key == nil {
 		key = data.NewNullValue()
 	}
-	// 返回yield控制流，保存当前上下文
+	// 返回 yield 控制流（普通 yield 使用 YieldValueControl）
 	return nil, data.NewYieldControlWithContext(key, value, ctx)
 }
 
-//// YieldFromStatement 表示yield from语句
-//type YieldFromStatement struct {
-//	*Node  `pp:"-"`
-//	Source data.GetValue // 要委托的生成器或可迭代对象
-//}
-//
-//// NewYieldFromStatement 创建一个新的yield from语句
-//func NewYieldFromStatement(from *TokenFrom, source data.GetValue) *YieldFromStatement {
-//	return &YieldFromStatement{
-//		Node:   NewNode(from),
-//		Source: source,
-//	}
-//}
-//
-//// GetValue 获取yield from语句的值
-//func (y *YieldFromStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-//	// 解析源表达式
-//	source, ctl := y.Source.GetValue(ctx)
-//	if ctl != nil {
-//		return nil, ctl
-//	}
-//
-//	if source == nil {
-//		return nil, data.NewErrorThrow(y.GetFrom(), data.NewError(y.GetFrom(), "yield from 需要一个可迭代对象", nil))
-//	}
-//
-//	// 返回yield from控制流，保存当前上下文
-//	return nil, data.NewYieldControlWithContext(data.NewNullValue(), source, ctx)
-//}
+// YieldFromStatement 表示yield from语句
+type YieldFromStatement struct {
+	*Node  `pp:"-"`
+	Source data.GetValue // 要委托的生成器或可迭代对象
+}
+
+// NewYieldFromStatement 创建一个新的yield from语句
+func NewYieldFromStatement(from *TokenFrom, source data.GetValue) *YieldFromStatement {
+	return &YieldFromStatement{
+		Node:   NewNode(from),
+		Source: source,
+	}
+}
+
+// GetValue 获取yield from语句的值
+func (y *YieldFromStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	// 解析源表达式
+	source, ctl := y.Source.GetValue(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+
+	if source == nil {
+		return nil, data.NewErrorThrow(y.GetFrom(), data.NewError(y.GetFrom(), "yield from 需要一个可迭代对象", nil))
+	}
+
+	// 返回 yield from 控制流：使用单独的 YieldFromControl，实现委托逻辑
+	return nil, NewYieldFromControl(ctx, source)
+}

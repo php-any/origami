@@ -1,7 +1,7 @@
 namespace tests\obj;
 
 // 测试 self:: 静态属性访问 - 基本功能
-class TestSelfStaticProperty {
+class TestSelfStaticProperty001 {
     public static $prop1 = "value1";
     public static $prop2 = 100;
     
@@ -18,7 +18,7 @@ class TestSelfStaticProperty {
     }
 }
 
-$obj = new TestSelfStaticProperty();
+$obj = new TestSelfStaticProperty001();
 
 // 测试读取静态属性
 $val1 = $obj->getProp1();

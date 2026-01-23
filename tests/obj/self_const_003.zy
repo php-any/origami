@@ -1,11 +1,11 @@
 namespace tests\obj;
 
 // 测试 self:: 常量访问 - 接口
-interface TestInterface {
+interface TestInterface003 {
     public const INTERFACE_CONST = "interface_value";
 }
 
-class TestClass implements TestInterface {
+class TestClass003 implements TestInterface003 {
     public const INTERFACE_CONST = "interface_value";
     public const CLASS_CONST = "class_value";
     
@@ -18,7 +18,7 @@ class TestClass implements TestInterface {
     }
 }
 
-$obj = new TestClass();
+$obj = new TestClass003();
 
 // 测试访问接口常量
 $interfaceConst = $obj->getInterfaceConst();

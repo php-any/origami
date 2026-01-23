@@ -1,11 +1,11 @@
 namespace tests\obj;
 
 // 测试 self:: 常量访问 - 继承
-class ParentClass {
+class ParentClass004 {
     public const PARENT_CONST = "parent_value";
 }
 
-class ChildClass extends ParentClass {
+class ChildClass004 extends ParentClass004 {
     public const CHILD_CONST = "child_value";
     
     public function getParentConst() {
@@ -17,7 +17,7 @@ class ChildClass extends ParentClass {
     }
 }
 
-$obj = new ChildClass();
+$obj = new ChildClass004();
 
 // 测试访问父类的常量
 $parentConst = $obj->getParentConst();

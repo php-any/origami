@@ -142,7 +142,7 @@ if($gen6 != null) {
     if(count($values) == 3 && $values[0] == 100 && $values[1] == 200 && $values[2] == 300) {
         Log::info("yield from 数组测试通过");
     } else {
-        Log::fatal("yield from 数组测试失败");
+        Log::fatal("yield from 数组测试失败", $values);
     }
 } else {
     Log::fatal("arrayGenerator 创建失败");

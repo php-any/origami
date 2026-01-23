@@ -1,7 +1,7 @@
 namespace tests\obj;
 
 // 测试 self:: 静态属性访问 - 多级继承
-class GrandParentClass {
+class GrandParentClass003 {
     public static $grandParentProp = "grandparent_value";
     
     public function getGrandParentProp() {
@@ -9,7 +9,7 @@ class GrandParentClass {
     }
 }
 
-class ParentClass extends GrandParentClass {
+class ParentClass003 extends GrandParentClass003 {
     public static $parentProp = "parent_value";
     
     public function getParentProp() {
@@ -21,7 +21,7 @@ class ParentClass extends GrandParentClass {
     }
 }
 
-class ChildClass extends ParentClass {
+class ChildClass003 extends ParentClass003 {
     public static $childProp = "child_value";
     
     public function getChildProp() {
@@ -37,9 +37,9 @@ class ChildClass extends ParentClass {
     }
 }
 
-$grandParent = new GrandParentClass();
-$parent = new ParentClass();
-$child = new ChildClass();
+$grandParent = new GrandParentClass003();
+$parent = new ParentClass003();
+$child = new ChildClass003();
 
 // 测试祖父类访问自己的静态属性
 $grandParentVal = $grandParent->getGrandParentProp();

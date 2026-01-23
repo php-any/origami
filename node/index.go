@@ -73,6 +73,18 @@ func (ie *IndexExpression) GetZVal(ctx data.Context) (*data.ZVal, data.Control) 
 		}
 
 		return v.List[i], nil
+	case *data.ObjectValue:
+		switch iv := index.(type) {
+		case data.AsString:
+			ov, acl := v.GetZVal(iv.AsString())
+			if acl != nil {
+				return nil, acl
+			}
+			if ov == nil {
+				return data.NewZVal(data.NewNullValue()), nil
+			}
+			return ov, nil
+		}
 	}
 	return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("无法处理索引的类型值"), "UndefinedIndexExpression")
 }

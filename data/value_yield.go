@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// NewYieldControlWithContext 创建一个带上下文的 yield 控制流
+// NewYieldControlWithContext 创建一个带上下文的 yield 控制流（仅用于普通 yield）
 func NewYieldControlWithContext(key Value, value Value, ctx Context) YieldValueControl {
 	return &YieldValue{
 		Key:     key,
@@ -13,7 +13,7 @@ func NewYieldControlWithContext(key Value, value Value, ctx Context) YieldValueC
 	}
 }
 
-// YieldValue 表示 yield 控制流值
+// YieldValue 表示普通 yield 的控制流值
 type YieldValue struct {
 	Key     Value
 	Value   Value

@@ -78,11 +78,13 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 				}
 				return ret, nil
 			case data.YieldControl:
+				// 把当前函数的执行状态保存下来; 表示“我不仅有这次 yield 的 key/value，还自带一整套如何构造生成器堆栈状态的逻辑
 				generator := rv.CreateStackState(ctx, f, f.Body, bodyIndex)
 				// 将生成器包装成类值，支持 $data->valid() 等调用
 				generatorClass := NewGeneratorClass(generator)
 				return generatorClass.GetValue(ctx)
 			case data.YieldValueControl:
+				// 把当前函数的执行状态保存下来; 表示“这里刚发生了一次 yield，我只告诉你当前的 key/value 和上下文”，但不知道如何把“后续执行状态”组织成生成器。
 				generator := NewFuncYieldStackState(ctx, f, f.Body, bodyIndex+1, rv.GetYieldKey(), rv.GetYieldValue())
 				// 将生成器包装成类值，支持 $data->valid() 等调用
 				generatorClass := NewGeneratorClass(generator)

@@ -1,15 +1,15 @@
 namespace tests\obj;
 
 // 测试 self:: 常量访问 - 接口继承链
-interface ParentInterface {
+interface ParentInterfaceConst004 {
     public const PARENT_CONST = "parent_value";
 }
 
-interface ChildInterface extends ParentInterface {
+interface ChildInterfaceConst004 extends ParentInterfaceConst004 {
     public const CHILD_CONST = "child_value";
 }
 
-class TestClass implements ChildInterface {
+class TestConstClass004 implements ChildInterfaceConst004 {
     public function getParentConst() {
         return self::PARENT_CONST;
     }
@@ -19,7 +19,7 @@ class TestClass implements ChildInterface {
     }
 }
 
-$obj = new TestClass();
+$obj = new TestConstClass004();
 
 // 测试访问父接口的常量
 $parentConst = $obj->getParentConst();

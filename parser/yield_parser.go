@@ -37,7 +37,7 @@ func (p *YieldParser) Parse() (data.GetValue, data.Control) {
 		}
 
 		from := tracker.EndBefore()
-		return node.NewYieldStatement(from, nil, expr), nil
+		return node.NewYieldFromStatement(from, expr), nil
 	}
 
 	// 普通 yield 语句

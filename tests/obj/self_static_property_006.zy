@@ -1,15 +1,15 @@
 namespace tests\obj;
 
 // 测试 self:: 静态属性访问 - 继承 + 接口实现
-interface TestInterface {
+interface TestInterface006 {
     public static $interfaceProp;
 }
 
-class ParentClass {
+class ParentClass006 {
     public static $parentProp = "parent_value";
 }
 
-class ChildClass extends ParentClass implements TestInterface {
+class ChildClass006 extends ParentClass006 implements TestInterface006 {
     public static $interfaceProp = "interface_value";
     public static $childProp = "child_value";
     
@@ -29,7 +29,7 @@ class ChildClass extends ParentClass implements TestInterface {
     }
 }
 
-$obj = new ChildClass();
+$obj = new ChildClass006();
 
 // 测试访问父类的静态属性
 $parentVal = $obj->getParentProp();

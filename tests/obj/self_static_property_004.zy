@@ -1,11 +1,11 @@
 namespace tests\obj;
 
 // 测试 self:: 静态属性访问 - 接口实现
-interface TestInterface {
+interface TestInterface004 {
     public static $interfaceProp;
 }
 
-class TestClass implements TestInterface {
+class TestClass004 implements TestInterface004 {
     public static $interfaceProp = "interface_value";
     public static $classProp = "class_value";
     
@@ -18,7 +18,7 @@ class TestClass implements TestInterface {
     }
 }
 
-$obj = new TestClass();
+$obj = new TestClass004();
 
 // 测试访问接口定义的静态属性
 $interfaceVal = $obj->getInterfaceProp();

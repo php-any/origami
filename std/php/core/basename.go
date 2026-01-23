@@ -36,18 +36,18 @@ func (f *BasenameFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		return data.NewStringValue(""), nil
 	}
 
-	// PHP 的 basename 函数只查找最后一个正斜杠 "/"
-	// 它不会将反斜杠 "\" 视为路径分隔符
-	// 如果路径以斜杠结尾，移除它
-	normalizedPath := strings.TrimSuffix(path, "/")
+	// PHP 的 basename 在 Windows 路径下会同时识别 "/" 和 "\" 作为分隔符
+	// 因此这里同时处理这两种分隔符
+	// 1. 先移除末尾的路径分隔符（无论是 "/" 还是 "\"）
+	normalizedPath := strings.TrimRight(path, "/\\")
 
 	// 如果路径为空（只有斜杠），返回空字符串
 	if normalizedPath == "" {
 		return data.NewStringValue(""), nil
 	}
 
-	// 获取最后一个正斜杠后的部分
-	lastSlash := strings.LastIndex(normalizedPath, "/")
+	// 获取最后一个路径分隔符后的部分（支持 "/" 和 "\"）
+	lastSlash := strings.LastIndexAny(normalizedPath, "/\\")
 	var basename string
 	if lastSlash == -1 {
 		// 如果没有找到正斜杠，返回整个字符串

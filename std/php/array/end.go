@@ -83,7 +83,7 @@ func (f *EndFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	arrayValue, _ := ctx.GetIndexValue(0)
 
 	if arrayValue == nil {
-		return data.NewBoolValue(false), nil
+		return data.NewNullValue(), nil
 	}
 
 	// 使用类型 switch 处理不同类型
@@ -91,7 +91,7 @@ func (f *EndFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	case *data.ArrayValue:
 		// 处理数组
 		if len(val.List) == 0 {
-			return data.NewBoolValue(false), nil
+			return data.NewNullValue(), nil
 		}
 		// 返回最后一个元素
 		return val.List[len(val.List)-1].Value, nil
@@ -109,7 +109,7 @@ func (f *EndFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		})
 
 		if !hasValue {
-			return data.NewBoolValue(false), nil
+			return data.NewNullValue(), nil
 		}
 		return lastValue, nil
 
@@ -120,7 +120,7 @@ func (f *EndFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 			if checkInterfaceStructure(val.Class, targetInterface) {
 				// 重置迭代器到开始位置
 				if ctl := callVoidMethod(val, "rewind"); ctl != nil {
-					return data.NewBoolValue(false), nil
+					return data.NewNullValue(), nil
 				}
 
 				var lastValue data.Value
@@ -131,7 +131,7 @@ func (f *EndFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 					// 检查当前位置是否有效
 					valid, ctl := callBoolMethod(val, "valid")
 					if ctl != nil {
-						return data.NewBoolValue(false), nil
+						return data.NewNullValue(), nil
 					}
 					if !valid {
 						break
@@ -140,29 +140,29 @@ func (f *EndFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 					// 获取当前元素
 					currentVal, ctl := callValueMethod(val, "current")
 					if ctl != nil {
-						return data.NewBoolValue(false), nil
+						return data.NewNullValue(), nil
 					}
 					lastValue = currentVal
 					hasValue = true
 
 					// 移动到下一个位置
 					if ctl := callVoidMethod(val, "next"); ctl != nil {
-						return data.NewBoolValue(false), nil
+						return data.NewNullValue(), nil
 					}
 				}
 
 				if !hasValue {
-					return data.NewBoolValue(false), nil
+					return data.NewNullValue(), nil
 				}
 				return lastValue, nil
 			}
 		}
 		// 不是 Iterator 接口，返回 null
-		return data.NewBoolValue(false), nil
+		return data.NewNullValue(), nil
 
 	default:
 		// 不是数组类型，返回 null
-		return data.NewBoolValue(false), nil
+		return data.NewNullValue(), nil
 	}
 }
 

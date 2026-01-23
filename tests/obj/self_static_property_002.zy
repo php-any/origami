@@ -1,7 +1,7 @@
 namespace tests\obj;
 
 // 测试 self:: 静态属性访问 - 继承
-class ParentClass {
+class ParentClass002 {
     public static $parentProp = "parent_value";
     public static $sharedProp = "parent_shared";
     
@@ -14,7 +14,7 @@ class ParentClass {
     }
 }
 
-class ChildClass extends ParentClass {
+class ChildClass002 extends ParentClass002 {
     public static $childProp = "child_value";
     public static $sharedProp = "child_shared";
     
@@ -33,8 +33,8 @@ class ChildClass extends ParentClass {
     }
 }
 
-$parent = new ParentClass();
-$child = new ChildClass();
+$parent = new ParentClass002();
+$child = new ChildClass002();
 
 // 测试父类访问自己的静态属性
 $parentVal = $parent->getParentProp();

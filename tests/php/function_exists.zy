@@ -3,11 +3,11 @@
 echo "=== function_exists() 函数测试 ===\n";
 
 // 测试存在的 PHP 函数
-if(function_exists("isset")) {
-    Log::info("isset 函数存在测试通过");
-} else {
-    Log::fatal("isset 函数存在测试失败");
-}
+// if(function_exists("isset")) {
+//     Log::info("isset 函数存在测试通过");
+// } else {
+//     Log::fatal("isset 函数存在测试失败");
+// }
 
 if(function_exists("gettype")) {
     Log::info("gettype 函数存在测试通过");

@@ -108,6 +108,7 @@ var TokenDefinitions = []TokenDefinition{
 	{Type: UNSET, Literal: "unset", WordType: KEYWORD},
 	{Type: COMPACT, Literal: "compact", WordType: KEYWORD},
 	{Type: DIR, Literal: "__DIR__", WordType: KEYWORD},
+	{Type: FILE, Literal: "__FILE__", WordType: KEYWORD},
 	{Type: JS_SERVER, Literal: "$.SERVER", WordType: KEYWORD},
 
 	// 运算符

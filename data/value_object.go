@@ -63,6 +63,11 @@ func (o *ObjectValue) GetProperty(name string) (Value, Control) {
 	return v, nil
 }
 
+func (o *ObjectValue) GetZVal(name string) (*ZVal, Control) {
+	v, _ := o.property.GetZVal(name)
+	return v, nil
+}
+
 func (o *ObjectValue) SetProperty(name string, value Value) Control {
 	o.property.Set(name, value)
 	return nil
