@@ -33,7 +33,7 @@ func (m *ReflectionClassGetParentClassMethod) GetReturnType() data.Types {
 }
 
 // Call 执行 getParentClass 方法
-// 返回被反射类的父类名称
+// 返回被反射类的父类的 ReflectionClass 实例
 // 如果类没有父类，返回 false
 func (m *ReflectionClassGetParentClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	_, classStmt := getReflectionClassInfo(ctx)
@@ -46,5 +46,13 @@ func (m *ReflectionClassGetParentClassMethod) Call(ctx data.Context) (data.GetVa
 	}
 
 	parentClassName := *classStmt.GetExtend()
-	return data.NewStringValue(parentClassName), nil
+
+	// 创建 ReflectionClass 实例用于父类
+	classClass := &ReflectionClassClass{}
+	classValue := data.NewClassValue(classClass, ctx.CreateBaseContext())
+
+	// 存储父类名到实例属性中
+	classValue.ObjectValue.SetProperty("_className", data.NewStringValue(parentClassName))
+
+	return classValue, nil
 }

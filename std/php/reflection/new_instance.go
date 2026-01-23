@@ -50,20 +50,14 @@ func (m *ReflectionClassNewInstanceMethod) Call(ctx data.Context) (data.GetValue
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("Class %s does not exist", className))
 	}
 
-	// 获取可变参数数组
-	argsVar := node.NewVariable(nil, "args", 0, nil)
-	argsValue, acl := ctx.GetVariableValue(argsVar)
-	if acl != nil {
-		return nil, acl
-	}
-
-	// 将参数数组转换为 GetValue 列表
-	args := make([]data.GetValue, 0)
-	if arrayValue, ok := argsValue.(*data.ArrayValue); ok {
-		valueList := arrayValue.ToValueList()
-		for _, v := range valueList {
-			args = append(args, v)
+	// 收集可变参数（从索引 0 开始）
+	args := make([]data.Value, 0)
+	for i := 0; ; i++ {
+		argValue, ok := ctx.GetIndexValue(i)
+		if !ok {
+			break
 		}
+		args = append(args, argValue)
 	}
 
 	// 使用 createInstanceAndCallConstructor 创建实例
@@ -78,17 +72,13 @@ func (m *ReflectionClassNewInstanceMethod) Call(ctx data.Context) (data.GetValue
 			varies := method.GetVariables()
 			fnCtx := object.CreateContext(varies)
 			// 入参的值设置到上下文中
-			for index, arg := range args {
-				tempV, acl := arg.GetValue(ctx)
-				if acl != nil {
-					return nil, acl
-				}
+			for index, argValue := range args {
 				if index >= len(varies) {
 					return nil, data.NewErrorThrow(nil, fmt.Errorf("对象(%v)构造函数参数数量超出限制: %d", object.Class.GetName(), index))
 				}
-				fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
+				fnCtx.SetVariableValue(varies[index], argValue)
 			}
-			_, acl = method.Call(fnCtx)
+			_, acl := method.Call(fnCtx)
 			if acl != nil {
 				return nil, acl
 			}

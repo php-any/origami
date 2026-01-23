@@ -1,6 +1,8 @@
 <?php
-
 namespace tests\php;
+
+use ReflectionNamedType;
+use ReflectionType;
 
 echo "=== ReflectionClass 功能测试 ===\n";
 
@@ -9,31 +11,31 @@ class TestReflectionClass {
     public $publicProp = "public";
     protected $protectedProp = "protected";
     private $privateProp = "private";
-    
+
     public function __construct($value = "default") {
         $this->publicProp = $value;
     }
-    
+
     public function publicMethod() {
         return "public method";
     }
-    
+
     public function methodWithParams($param1, $param2 = "default") {
         return $param1 . $param2;
     }
-    
+
     public function methodWithTypedParams(string $strParam, int $intParam = 0) {
         return $strParam . $intParam;
     }
-    
+
     public function methodWithClassParam(TestReflectionClass $objParam) {
         return $objParam->publicProp;
     }
-    
+
     protected function protectedMethod() {
         return "protected method";
     }
-    
+
     private function privateMethod() {
         return "private method";
     }
@@ -42,7 +44,7 @@ class TestReflectionClass {
 // 定义继承类
 class ChildReflectionClass extends TestReflectionClass {
     public $childProp = "child";
-    
+
     public function childMethod() {
         return "child method";
     }
@@ -54,7 +56,7 @@ $tempChild = new ChildReflectionClass("temp");
 
 // 测试 ReflectionClass::__construct 和 getName
 echo "=== 测试 ReflectionClass::getName ===\n";
-$reflector = new ReflectionClass("tests\\php\\TestReflectionClass");
+$reflector = new \ReflectionClass("tests\\php\\TestReflectionClass");
 $className = $reflector->getName();
 if ($className == "tests\\php\\TestReflectionClass") {
     Log::info("getName() 测试通过");
@@ -110,7 +112,7 @@ if ($propertyCount >= 3) { // 至少应该有 publicProp, protectedProp, private
 
 // 测试 ReflectionClass::isSubclassOf
 echo "\n=== 测试 ReflectionClass::isSubclassOf ===\n";
-$childReflector = new ReflectionClass("tests\\php\\ChildReflectionClass");
+$childReflector = new \ReflectionClass("tests\\php\\ChildReflectionClass");
 $isSubclass = $childReflector->isSubclassOf("tests\\php\\TestReflectionClass");
 if ($isSubclass) {
     Log::info("isSubclassOf() 测试通过");
@@ -121,7 +123,8 @@ if ($isSubclass) {
 // 测试 ReflectionClass::getParentClass
 echo "\n=== 测试 ReflectionClass::getParentClass ===\n";
 $parentClass = $childReflector->getParentClass();
-if ($parentClass == "tests\\php\\TestReflectionClass") {
+// getParentClass 返回的是 ReflectionClass 实例，需要取名字再比较
+if ($parentClass && $parentClass->getName() == "tests\\php\\TestReflectionClass") {
     Log::info("getParentClass() 测试通过");
 } else {
     Log::fatal("getParentClass() 测试失败，期望: tests\\php\\TestReflectionClass, 实际: {$parentClass}");
@@ -176,7 +179,7 @@ if ($newObjArgs->publicProp == "args value") {
 // 测试使用对象创建 ReflectionClass
 echo "\n=== 测试使用对象创建 ReflectionClass ===\n";
 $obj = new TestReflectionClass("object test");
-$reflectorFromObj = new ReflectionClass($obj);
+$reflectorFromObj = new \ReflectionClass($obj);
 $classNameFromObj = $reflectorFromObj->getName();
 if ($classNameFromObj == "tests\\php\\TestReflectionClass") {
     Log::info("从对象创建 ReflectionClass 测试通过");
@@ -266,11 +269,11 @@ if ($methodWithParams != null) {
         if (count($params) >= 2) {
             $param1 = $params[0];
             $param2 = $params[1];
-            
+
             // 验证返回的是对象
             if (is_object($param1) && is_object($param2)) {
                 Log::info("ReflectionMethod::getParameters() 返回对象测试通过");
-                
+
                 // 检查参数名
                 $param1Name = $param1->getName();
                 $param2Name = $param2->getName();
@@ -279,7 +282,7 @@ if ($methodWithParams != null) {
                 } else {
                     Log::fatal("ReflectionMethod::getParameters() 参数名测试失败，期望: param1, param2, 实际: {$param1Name}, {$param2Name}");
                 }
-                
+
                 // 检查参数位置
                 $param1Pos = $param1->getPosition();
                 $param2Pos = $param2->getPosition();
@@ -288,7 +291,7 @@ if ($methodWithParams != null) {
                 } else {
                     Log::fatal("ReflectionParameter::getPosition() 测试失败，期望: 0, 1, 实际: {$param1Pos}, {$param2Pos}");
                 }
-                
+
                 // 检查参数是否可选
                 $param1Optional = $param1->isOptional();
                 $param2Optional = $param2->isOptional();
@@ -297,7 +300,7 @@ if ($methodWithParams != null) {
                 } else {
                     Log::fatal("ReflectionParameter::isOptional() 测试失败，期望: false, true, 实际: " . ($param1Optional ? "true" : "false") . ", " . ($param2Optional ? "true" : "false"));
                 }
-                
+
                 // 测试 ReflectionParameter::getType
                 // methodWithParams 的参数没有类型声明，所以应该返回 null
                 $param1Type = $param1->getType();
@@ -307,7 +310,7 @@ if ($methodWithParams != null) {
                 } else {
                     Log::fatal("ReflectionParameter::getType() 测试失败，无类型声明应该返回 null");
                 }
-                
+
                 // 测试用户代码逻辑：当 $type 为 null 时的处理
                 // 验证用户代码：if (! $type instanceof ReflectionNamedType || $type->isBuiltin())
                 // 当 $type 为 null 时，! $type instanceof ReflectionNamedType 为 true，所以会跳过
@@ -335,29 +338,29 @@ if ($methodWithTypedParams != null) {
     if (count($typedParams) >= 2) {
         $strParam = $typedParams[0];
         $intParam = $typedParams[1];
-        
+
         $strType = $strParam->getType();
         $intType = $intParam->getType();
-        
+
         if ($strType !== null && $intType !== null) {
             // 验证返回的是 ReflectionNamedType 对象
             if (is_object($strType) && is_object($intType)) {
                 Log::info("ReflectionParameter::getType() 返回对象测试通过");
-                
+
                 // 测试 instanceof ReflectionNamedType
                 if ($strType instanceof ReflectionNamedType && $intType instanceof ReflectionNamedType) {
                     Log::info("instanceof ReflectionNamedType 测试通过");
                 } else {
                     Log::fatal("instanceof ReflectionNamedType 测试失败");
                 }
-                
+
                 // 测试 instanceof ReflectionType（应该也返回 true，因为 ReflectionNamedType 继承 ReflectionType）
                 if ($strType instanceof ReflectionType && $intType instanceof ReflectionType) {
                     Log::info("instanceof ReflectionType 测试通过（继承关系正确）");
                 } else {
                     Log::fatal("instanceof ReflectionType 测试失败");
                 }
-                
+
                 // 测试 ReflectionType::getName()
                 $strTypeName = $strType->getName();
                 $intTypeName = $intType->getName();
@@ -366,7 +369,7 @@ if ($methodWithTypedParams != null) {
                 } else {
                     Log::fatal("ReflectionType::getName() 测试失败，期望: string, int, 实际: {$strTypeName}, {$intTypeName}");
                 }
-                
+
                 // 测试 ReflectionType::isBuiltin()
                 // 验证内置类型的 isBuiltin() 返回 true
                 $strIsBuiltin = $strType->isBuiltin();
@@ -376,7 +379,7 @@ if ($methodWithTypedParams != null) {
                 } else {
                     Log::fatal("ReflectionType::isBuiltin() 测试失败，期望: true, true, 实际: " . ($strIsBuiltin ? "true" : "false") . ", " . ($intIsBuiltin ? "true" : "false"));
                 }
-                
+
                 // 测试用户代码中的逻辑：! $type instanceof ReflectionNamedType || $type->isBuiltin()
                 // 对于内置类型，这个条件应该为 true（因为 isBuiltin() 返回 true）
                 if (!($strType instanceof ReflectionNamedType) || $strType->isBuiltin()) {
@@ -384,7 +387,7 @@ if ($methodWithTypedParams != null) {
                 } else {
                     Log::fatal("内置类型检查逻辑测试失败");
                 }
-                
+
                 if (!($intType instanceof ReflectionNamedType) || $intType->isBuiltin()) {
                     Log::info("内置类型检查逻辑测试通过：int 类型");
                 } else {
@@ -411,13 +414,13 @@ if ($methodWithClassParam != null) {
     if (count($classParams) >= 1) {
         $objParam = $classParams[0];
         $objType = $objParam->getType();
-        
+
         if ($objType !== null) {
             if (is_object($objType)) {
                 // 验证是 ReflectionNamedType
                 if ($objType instanceof ReflectionNamedType) {
                     Log::info("自定义类类型返回 ReflectionNamedType 测试通过");
-                    
+
                     // 测试 isBuiltin()，应该返回 false（因为 TestReflectionClass 不是内置类型）
                     $objIsBuiltin = $objType->isBuiltin();
                     if (!$objIsBuiltin) {
@@ -425,7 +428,7 @@ if ($methodWithClassParam != null) {
                     } else {
                         Log::fatal("ReflectionType::isBuiltin() 测试失败，自定义类应该返回 false，实际: " . ($objIsBuiltin ? "true" : "false"));
                     }
-                    
+
                     // 测试用户代码中的逻辑：! $type instanceof ReflectionNamedType || $type->isBuiltin()
                     // 对于非内置类型，这个条件应该为 false（因为 instanceof 为 true 且 isBuiltin() 为 false）
                     if (!($objType instanceof ReflectionNamedType) || $objType->isBuiltin()) {
@@ -433,7 +436,7 @@ if ($methodWithClassParam != null) {
                     } else {
                         Log::info("非内置类型检查逻辑测试通过：! instanceof ReflectionNamedType || isBuiltin() 返回 false");
                     }
-                    
+
                     // 验证类型名称
                     $objTypeName = $objType->getName();
                     if ($objTypeName == "tests\\php\\TestReflectionClass" || $objTypeName == "TestReflectionClass") {
@@ -459,7 +462,7 @@ if ($methodWithClassParam != null) {
 
 // 测试 isInstantiable 是否能正确跟踪类信息
 echo "\n=== 测试 isInstantiable 跟踪类信息 ===\n";
-$reflector2 = new ReflectionClass("tests\\php\\TestReflectionClass");
+$reflector2 = new \ReflectionClass("tests\\php\\TestReflectionClass");
 $isInstantiable2 = $reflector2->isInstantiable();
 if ($isInstantiable2) {
     Log::info("isInstantiable() 类信息跟踪测试通过");
@@ -468,4 +471,3 @@ if ($isInstantiable2) {
 }
 
 echo "\n=== ReflectionClass 所有测试完成 ===\n";
-

@@ -160,6 +160,12 @@ func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Co
 
 	// 解析参数类型（支持联合类型：string|int|null）
 	paramType := parseConstructorParameterType(parser)
+	// 对于普通带类型声明但未被 parseConstructorParameterType 捕获的情况（如简单的 string $a, int $b），
+	// 回退使用前面解析到的 varType 文本来构造基础类型，确保类型信息不会丢失，
+	// 以便 ReflectionParameter::getType() 等功能可以拿到非空的类型。
+	if paramType == nil && varType != "" {
+		paramType = data.NewBaseType(varType)
+	}
 
 	// 添加参数到作用域
 	val := parser.scopeManager.CurrentScope().AddVariable(name, paramType, tracking.EndBefore())
