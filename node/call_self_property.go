@@ -41,9 +41,10 @@ func (pe *CallSelfProperty) GetValue(ctx data.Context) (data.GetValue, data.Cont
 		}
 	}
 
-	// 如果当前类没有，检查父类
-	extend := currentClass.GetExtend()
 	vm := ctx.GetVM()
+
+	// 首先在当前类及其所有父类中查找静态属性/常量
+	extend := currentClass.GetExtend()
 	for extend != nil {
 		parentClass, acl := vm.GetOrLoadClass(*extend)
 		if acl != nil {
@@ -58,21 +59,32 @@ func (pe *CallSelfProperty) GetValue(ctx data.Context) (data.GetValue, data.Cont
 			}
 		}
 
-		// 继续向上查找父类
 		extend = parentClass.GetExtend()
 	}
 
-	// 如果父类也没有，检查实现的接口
-	implements := currentClass.GetImplements()
-	for _, interfaceName := range implements {
-		// 递归查找接口及其所有父接口的常量
-		property, acl := pe.findInInterfaceAndParents(vm, interfaceName)
+	// 然后在当前类及其所有父类实现的接口中查找常量
+	classToCheck := currentClass
+	for classToCheck != nil {
+		implements := classToCheck.GetImplements()
+		for _, interfaceName := range implements {
+			// 递归查找接口及其所有父接口的常量
+			property, acl := pe.findInInterfaceAndParents(vm, interfaceName)
+			if acl != nil {
+				return nil, acl
+			}
+			if property != nil {
+				return property, nil
+			}
+		}
+		// 向上遍历父类继承链
+		if classToCheck.GetExtend() == nil {
+			break
+		}
+		parentClass, acl := vm.GetOrLoadClass(*classToCheck.GetExtend())
 		if acl != nil {
 			return nil, acl
 		}
-		if property != nil {
-			return property, nil
-		}
+		classToCheck = parentClass
 	}
 
 	// 所有地方都没有找到，返回错误
