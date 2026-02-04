@@ -32,6 +32,7 @@ var parserRouter = map[token.TokenType]func(parser *Parser) StatementParser{
 	token.NAMESPACE:  NewNamespaceParser,
 	token.USE:        NewUseParser,
 	token.NEW:        NewNewParser,
+	token.CLONE:      NewCloneParser,
 	token.ECHO:       NewEchoParser,
 	token.THIS:       NewThisParser,
 	token.PARENT:     NewParentParser,

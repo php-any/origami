@@ -210,3 +210,13 @@ func (vm *TempVM) SetConstant(name string, value data.Value) data.Control {
 func (vm *TempVM) GetConstant(name string) (data.Value, bool) {
 	return vm.Base.GetConstant(name)
 }
+
+// SetExceptionHandler 委托到底层 VM，确保异常处理在整个进程内全局生效
+func (vm *TempVM) SetExceptionHandler(handler data.Value) data.Value {
+	return vm.Base.SetExceptionHandler(handler)
+}
+
+// GetExceptionHandler 从底层 VM 获取当前异常处理回调
+func (vm *TempVM) GetExceptionHandler() data.Value {
+	return vm.Base.GetExceptionHandler()
+}

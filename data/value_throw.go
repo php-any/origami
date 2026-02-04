@@ -23,7 +23,7 @@ type StackFrame struct {
 
 // ThrowValue 表示异常抛出控制流
 type ThrowValue struct {
-	object           *ClassValue
+	Object           *ClassValue
 	getMessage       Method
 	getTraceAsString Method
 
@@ -50,11 +50,11 @@ func (t *ThrowValue) GetFrom() From {
 }
 
 func (t *ThrowValue) GetName() string {
-	if t.object == nil {
+	if t.Object == nil {
 		return t.Name
 	}
 
-	return t.object.Class.GetName()
+	return t.Object.Class.GetName()
 }
 
 func (t *ThrowValue) GetExtend() *string {
@@ -136,7 +136,7 @@ func NewErrorThrowFromClassValue(from From, object *ClassValue) Control {
 	}
 
 	t := &ThrowValue{
-		object: object,
+		Object: object,
 		Name:   object.GetName(),
 		Error:  NewError(from, fmt.Sprintf("Throw %s: %s", object.Class.GetName(), err), nil),
 	}

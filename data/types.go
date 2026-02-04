@@ -1,5 +1,7 @@
 package data
 
+import "strings"
+
 type Types interface {
 	Is(value Value) bool
 	// String 范围标识识别是什么类型, 泛型类返回不需要泛型信息
@@ -169,6 +171,18 @@ func NewBaseType(ty string) Types {
 	case "closure", "\\Closure":
 		return ClosureType{}
 	default:
+		if len(ty) > 1 {
+			if strings.Index(ty, "|") > 1 {
+				arr := make([]Types, 0)
+				for _, t := range strings.SplitN(ty, "|", -1) {
+					arr = append(arr, NewBaseType(t))
+				}
+				return NewUnionType(arr)
+			}
+			if ty[0] == '?' {
+				return NewNullableType(NewBaseType(ty[1:]))
+			}
+		}
 		return Class{Name: ty}
 	}
 }

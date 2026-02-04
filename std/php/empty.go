@@ -12,120 +12,29 @@ func NewEmptyFunction() data.FuncStmt {
 type EmptyFunction struct{}
 
 func (f *EmptyFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 获取参数值（引用参数）
+	// 获取参数值（ASTWrapper）
 	varValue, _ := ctx.GetIndexValue(0)
 
-	// 检查参数值是否是 IndexReferenceValue（数组元素引用）
-	if indexRefValue, ok := varValue.(*data.IndexReferenceValue); ok {
-		// 处理数组元素访问
-		parentCtx := indexRefValue.Ctx
-		indexExpr := indexRefValue.Expr
-
-		// 类型断言为 IndexExpression
-		// indexExpr 本身就是 IndexExpression，不需要调用 GetValue
-		indexExpression, ok := indexExpr.(*node.IndexExpression)
-		if !ok {
-			return data.NewBoolValue(true), nil // 无法解析，视为空
-		}
-
-		// 获取数组/对象
-		arrayValue, acl := indexExpression.Array.GetValue(parentCtx)
+	// 如果参数是 ASTValue，我们需要自己计算它的值
+	if astValue, ok := varValue.(*data.ASTValue); ok {
+		// 使用 Call 时的 Context 来计算值，这样可以捕获未定义变量的错误
+		// 但是我们需要禁用错误抛出，因为 empty 应该抑制未定义变量错误
+		// 这里我们假设 GetValue 返回 error control 表示变量未定义或其他错误
+		val, acl := astValue.Node.GetValue(astValue.Ctx)
 		if acl != nil {
-			return data.NewBoolValue(true), nil // 数组不存在，视为空
-		}
-
-		if arrayValue == nil {
+			// 发生了错误（例如未定义变量 ReferenceError），empty 返回 true
 			return data.NewBoolValue(true), nil
 		}
 
-		// 获取索引值
-		indexValue, acl := indexExpression.Index.GetValue(parentCtx)
-		if acl != nil {
-			return data.NewBoolValue(true), nil
-		}
-
-		if indexValue == nil {
-			return data.NewBoolValue(true), nil
-		}
-
-		// 检查数组或对象中是否存在该键
-		switch arr := arrayValue.(type) {
-		case *data.ArrayValue:
-			// 数组索引访问
-			if iv, ok := indexValue.(data.AsInt); ok {
-				// 整数索引
-				i, err := iv.AsInt()
-				if err != nil {
-					return data.NewBoolValue(true), nil
-				}
-				// 检查索引是否在范围内
-				if i < 0 || i >= len(arr.List) {
-					return data.NewBoolValue(true), nil // 索引越界，视为空
-				}
-				// 获取元素值
-				elementValue := arr.List[i].Value
-				return f.isEmptyValue(elementValue), nil
-			} else if sv, ok := indexValue.(data.AsString); ok {
-				// 字符串索引（关联数组），使用 GetProperty
-				indexStr := sv.AsString()
-				val, acl := arr.GetProperty(indexStr)
-				if acl != nil {
-					return nil, acl
-				}
-				return f.isEmptyValue(val), nil
-			} else {
-				return data.NewBoolValue(true), nil
-			}
-		case *data.ObjectValue:
-			// 对象属性访问
-			if sv, ok := indexValue.(data.AsString); ok {
-				propValue, acl := arr.GetProperty(sv.AsString())
-				if acl != nil {
-					return nil, acl
-				}
-				// 即使 has 为 true，propValue 也可能是 NullValue（表示属性存在但值为 null）
-				return f.isEmptyValue(propValue), nil
-			}
-			return data.NewBoolValue(true), nil
-		}
-
-		return data.NewBoolValue(true), nil
+		// 递归检查计算出的值
+		return f.isEmptyValue(val), nil
 	}
 
-	// 检查参数值是否是 ReferenceValue（变量引用）
-	if refValue, ok := varValue.(*data.ReferenceValue); ok {
-		parentCtx := refValue.Ctx
-		varRef := refValue.Val
-
-		v, acl := varRef.GetValue(parentCtx)
-		if acl != nil {
-			// 变量不存在，视为空
-			return data.NewBoolValue(true), nil
-		}
-
-		if v == nil {
-			return data.NewBoolValue(true), nil
-		}
-
-		internalV, intervalCtl := v.GetValue(parentCtx)
-		if intervalCtl != nil {
-			return data.NewBoolValue(true), nil
-		}
-
-		return f.isEmptyValue(internalV), nil
-	}
-
-	// 如果不是引用类型，直接检查值
 	if varValue == nil {
 		return data.NewBoolValue(true), nil
 	}
 
-	internalV, intervalCtl := varValue.GetValue(ctx)
-	if intervalCtl != nil {
-		return data.NewBoolValue(true), nil
-	}
-
-	return f.isEmptyValue(internalV), nil
+	return f.isEmptyValue(varValue), nil
 }
 
 // isEmptyValue 检查值是否为空
@@ -139,7 +48,8 @@ func (f *EmptyFunction) isEmptyValue(v data.GetValue) data.GetValue {
 		return data.NewBoolValue(true)
 	}
 
-	// 先检查具体类型，避免接口类型匹配的顺序问题
+	// ... (rest of isEmptyValue logic)
+
 	// 检查浮点数（FloatValue 同时实现了 AsInt、AsFloat 和 AsString）
 	if floatVal, ok := v.(*data.FloatValue); ok {
 		if floatVal.Value == 0.0 {
@@ -211,7 +121,7 @@ func (f *EmptyFunction) GetName() string {
 
 func (f *EmptyFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameterReference(nil, "var", 0, data.Mixed{}),
+		node.NewParameterRawAST(nil, "var", 0, data.Mixed{}),
 	}
 }
 

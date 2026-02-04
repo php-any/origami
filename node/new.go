@@ -131,6 +131,8 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 			acl = param.SetValue(object, tempV.(data.Value))
 		}
 		return acl
+	case *ParameterRawAST:
+		return fnCtx.SetVariableValue(param.Parameter, data.NewASTValue(argTV, ctx))
 	case data.Variable:
 		tempV, acl := argTV.GetValue(ctx)
 		if acl != nil {

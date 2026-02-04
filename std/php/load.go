@@ -79,6 +79,8 @@ func Load(vm data.VM) {
 		core.NewStrContainsFunction(),
 		core.NewArrayFilterFunction(),
 
+		core.NewSetExceptionHandlerFunction(),
+
 		NewStrrposFunction(),
 		NewStrriposFunction(),
 		NewStriposFunction(),
@@ -92,6 +94,7 @@ func Load(vm data.VM) {
 		NewIsNullFunction(),
 		NewIsNumericFunction(),
 		NewIsObjectFunction(),
+		NewIsIterableFunction(),
 		array.NewArrayShiftFunction(),
 		array.NewArrayUnshiftFunction(),
 		array.NewArraySliceFunction(),
@@ -141,6 +144,7 @@ func Load(vm data.VM) {
 	// 注册核心类
 	vm.AddClass(&core.ClosureClass{})
 	vm.AddClass(&core.BackedEnumClass{})
+	vm.AddClass(&core.StdClass{})
 	vm.AddClass(&reflection.ReflectionClassClass{})
 	vm.AddClass(&reflection.ReflectionMethodClass{})
 	vm.AddClass(&reflection.ReflectionParameterClass{})

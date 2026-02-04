@@ -2,7 +2,6 @@ package parser
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/token"
@@ -36,8 +35,9 @@ func (p *FunctionParserCommon) ParseFunctionBody() ([]data.GetValue, data.Contro
 				body = append(body, stmt)
 			} else if last == p.position {
 				t := p.current()
-				fmt.Println(t)
-				panic("出现死循环")
+				return nil, data.NewErrorThrow(p.newFrom(), errors.New("出现死循环 "+t.Literal()))
+			} else {
+				last = p.position
 			}
 		}
 		p.next() // 跳过结束花括号

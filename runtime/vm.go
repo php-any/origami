@@ -46,6 +46,11 @@ type VM struct {
 	classPathMap map[string]string
 
 	acl func(acl data.Control)
+
+	// PHP 级 set_exception_handler 注册的回调
+	exceptionHandler data.Value
+	// 防止在异常处理回调中递归调用自身
+	inExceptionHandler bool
 }
 
 func (vm *VM) SetClassPathCache(name string, path string) {
@@ -64,7 +69,51 @@ func (vm *VM) SetThrowControl(fn func(acl data.Control)) {
 }
 
 func (vm *VM) ThrowControl(acl data.Control) {
+	// 优先尝试调用用户通过 set_exception_handler 注册的 PHP 回调
+	if tv, ok := acl.(*data.ThrowValue); ok && vm.exceptionHandler != nil && !vm.inExceptionHandler {
+		// 只在真正有异常对象时尝试回调
+		if tv != nil && tv.Error != nil {
+			// 仅处理一次，避免回调内部再次抛出未捕获异常导致无限递归
+			vm.inExceptionHandler = true
+			defer func() { vm.inExceptionHandler = false }()
+
+			// 目前仅支持 Closure/匿名函数形式的回调（*data.FuncValue）
+			if fv, ok := vm.exceptionHandler.(*data.FuncValue); ok {
+				// 使用回调自身的变量列表创建上下文
+				vars := fv.Value.GetVariables()
+				ctx := vm.CreateContext(vars)
+
+				// 参数签名：handler(Throwable $exception)
+				if len(vars) >= 1 && tv != nil && tv.Object != nil {
+					// 将异常对象本身传给回调
+					_ = ctx.SetVariableValue(vars[0], tv.Object)
+				}
+
+				if _, hAcl := fv.Call(ctx); hAcl != nil {
+					// 如果回调自身又产生未处理控制流，继续交给底层处理
+					vm.acl(hAcl)
+					return
+				}
+				// 回调执行完毕后直接返回，不再走默认处理
+				return
+			}
+		}
+	}
+
+	// 默认行为：交给底层 Go 级别处理（打印并退出 / LSP 诊断等）
 	vm.acl(acl)
+}
+
+// SetExceptionHandler 设置 PHP 级异常处理回调，返回旧的回调（如果有）
+func (vm *VM) SetExceptionHandler(handler data.Value) data.Value {
+	old := vm.exceptionHandler
+	vm.exceptionHandler = handler
+	return old
+}
+
+// GetExceptionHandler 返回当前注册的 PHP 级异常处理回调
+func (vm *VM) GetExceptionHandler() data.Value {
+	return vm.exceptionHandler
 }
 
 func (vm *VM) AddClass(c data.ClassStmt) data.Control {

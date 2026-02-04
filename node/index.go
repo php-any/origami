@@ -85,6 +85,8 @@ func (ie *IndexExpression) GetZVal(ctx data.Context) (*data.ZVal, data.Control) 
 			}
 			return ov, nil
 		}
+	case *data.NullValue:
+		return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("NULL值不支持数组索引操作"), "UndefinedIndexExpression")
 	}
 	return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("无法处理索引的类型值"), "UndefinedIndexExpression")
 }

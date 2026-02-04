@@ -130,6 +130,9 @@ func (p *Parameter) SetValue(ctx data.Context, value data.Value) data.Control {
 	if p.Type.Is(value) {
 		return ctx.SetVariableValue(p, value)
 	}
+	if p.Type.Is(value) {
+		return ctx.SetVariableValue(p, value)
+	}
 	return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
 }
 
@@ -375,4 +378,25 @@ func (c *CallFunctionLater) GetVariables() []data.Variable {
 		c.Fun, _ = c.Ctx.GetVM().GetFunc(c.Name)
 	}
 	return c.Fun.GetVariables()
+}
+
+// ParameterRawAST 表示需要接收原始 AST 结构的参数
+type ParameterRawAST struct {
+	*Parameter
+}
+
+// NewParameterRawAST 创建一个新的 ParameterRawAST
+func NewParameterRawAST(from data.From, name string, index int, ty data.Types) data.GetValue {
+	return &ParameterRawAST{
+		Parameter: &Parameter{
+			Node:  NewNode(from),
+			Name:  name,
+			Index: index,
+			Type:  ty,
+		},
+	}
+}
+
+func (p *ParameterRawAST) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return p.Parameter.GetValue(ctx)
 }

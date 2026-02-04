@@ -771,8 +771,11 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 	tracker := p.StartTracking()
 	p.scopeManager.NewScope(false)
 	// 解析方法名
-	if !p.checkPositionIs(0, token.IDENTIFIER, token.SELF) {
-		return nil, nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("方法名不符合规范, 不能使用符号或者关键字(%s)", p.current().Literal()))
+	// PHP 允许使用大部分关键字作为方法名（例如 unset、clone 等），
+	// 这里仅禁止明显的符号/非法 token，放开关键字作为方法名的场景。
+	if !(p.checkPositionIs(0, token.IDENTIFIER, token.SELF) ||
+		(p.current().Type() > token.KEYWORD_START && p.current().Type() < token.VALUE_START)) {
+		return nil, nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("方法名不符合规范, 不能使用符号(%s)", p.current().Literal()))
 	}
 	name := p.current().Literal()
 	p.next()
