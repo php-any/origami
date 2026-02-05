@@ -9,6 +9,8 @@ func Load(vm data.VM) {
 	// 注册函数
 	vm.AddFunc(NewPregMatchAllFunction())
 	vm.AddFunc(NewPregSplitFunction())
+	vm.AddFunc(NewPregReplaceFunction())
+	vm.AddFunc(NewPregReplaceCallbackFunction())
 
 	// 注册常量
 	InitConstants(vm)

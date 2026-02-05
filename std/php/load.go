@@ -8,6 +8,7 @@ import (
 	"github.com/php-any/origami/std/php/core"
 	"github.com/php-any/origami/std/php/directory"
 	"github.com/php-any/origami/std/php/file"
+	"github.com/php-any/origami/std/php/iconv"
 	"github.com/php-any/origami/std/php/preg"
 	"github.com/php-any/origami/std/php/proc"
 	"github.com/php-any/origami/std/php/reflection"
@@ -44,6 +45,7 @@ func Load(vm data.VM) {
 		NewUcfirstFunction(),
 		NewLcfirstFunction(),
 		NewUcwordsFunction(),
+		NewStrSplitFunction(),
 		NewExplodeFunction(),
 		NewImplodeFunction(),
 		NewCountFunction(),
@@ -161,6 +163,9 @@ func Load(vm data.VM) {
 
 	// 加载 preg 包（注册函数和常量）
 	preg.Load(vm)
+
+	// 加载 iconv 系列函数
+	iconv.Load(vm)
 
 	// 加载 PHP 原生注解类
 	attribute.Load(vm)

@@ -473,6 +473,22 @@ func (p *Parser) findFullClassNameByNamespace(name string) (string, bool) {
 	}
 
 	if strings.Index(name, "\\") != -1 {
+		// 当存在 use A\D as P;
+		// - P 映射到完整命名空间 A\D
+		// - 对于 P\ClassName 这种形式，需要展开为 A\D\ClassName
+		parts := strings.Split(name, "\\")
+		if len(parts) > 1 {
+			alias := parts[0]
+			if ns, ok := p.uses[alias]; ok {
+				// 用 use 映射的完整前缀替换别名，再拼接后续部分
+				full := ns
+				if len(parts) > 1 {
+					full = full + "\\" + strings.Join(parts[1:], "\\")
+				}
+				return full, true
+			}
+		}
+		// 含有 \ 但没有命中任何 use 别名时，认为已经是完整类名（可能是绝对或相对命名空间）
 		return name, true
 	}
 

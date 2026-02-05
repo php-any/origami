@@ -81,13 +81,14 @@ func (vp *VariableParser) parseSuffix(expr data.GetValue) (data.GetValue, data.C
 				// 手动解析方法/属性调用（因为我们已经跳过了 ->）
 				tracker2 := vp.StartTracking()
 				var callExpr data.GetValue
-				// 先处理花括号动态属性：$obj->{$name}
+				// 先处理花括号动态属性：$obj->{$name} 或 $obj->{expr}
 				if vp.current().Type() == token.LBRACE {
 					vp.next() // 跳过 {
-					if vp.current().Type() != token.VARIABLE {
-						return nil, data.NewErrorThrow(tracker2.EndBefore(), errors.New("符号'->{'后面需要跟随变量"))
+					// 支持任意表达式作为属性名：$obj?->{expr}
+					nameExpr, acl := vp.expressionParser.Parse()
+					if acl != nil {
+						return nil, acl
 					}
-					nameExpr := vp.parseVariable()
 					vp.nextAndCheck(token.RBRACE)
 					callExpr = node.NewIndexExpression(tracker2.EndBefore(), expr, nameExpr)
 				} else if !(vp.checkPositionIs(0, token.IDENTIFIER, token.VARIABLE) || (vp.current().Type() > token.KEYWORD_START && vp.current().Type() < token.VALUE_START)) {
@@ -387,14 +388,12 @@ func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, 
 		// 语法：$obj->{$name} 或更通用的 $obj->{expr}
 		vp.next() // 跳过 {
 
-		// 这里先实现最常用的变量形式：$obj->{$name}
-		if vp.current().Type() != token.VARIABLE {
-			from := tracker.End()
-			return nil, data.NewErrorThrow(from, errors.New("符号'->{'后面需要跟随变量"))
+		// 允许任意表达式作为动态属性名：$obj->{expr}
+		// 例如 $obj->{$name}、$obj->{getName()}、$obj->{$a.$b} 等
+		nameExpr, acl := vp.expressionParser.Parse()
+		if acl != nil {
+			return nil, acl
 		}
-
-		// 复用变量解析逻辑，保证符号表/类型信息一致
-		nameExpr := vp.parseVariable()
 
 		// 期望右花括号 }
 		vp.nextAndCheck(token.RBRACE)
