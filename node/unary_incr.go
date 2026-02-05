@@ -25,7 +25,7 @@ func (u *UnaryIncr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, rCtl
 	}
 
-	// 根据类型进行自增操作
+	// 根据具体值类型进行自增
 	switch v := rv.(type) {
 	case *data.IntValue:
 		i, err := v.AsInt()
@@ -33,47 +33,52 @@ func (u *UnaryIncr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			return nil, data.NewErrorThrow(u.from, err)
 		}
 		newValue := data.NewIntValue(i + 1)
-
-		// 如果是变量，需要更新变量的值
 		if variable, ok := u.Right.(data.Variable); ok {
-			ctl := variable.SetValue(ctx, newValue)
-			if ctl != nil {
+			if ctl := variable.SetValue(ctx, newValue); ctl != nil {
 				return nil, ctl
 			}
 		}
-
 		return newValue, nil
+
 	case *data.FloatValue:
 		f, err := v.AsFloat()
 		if err != nil {
 			return nil, data.NewErrorThrow(u.from, err)
 		}
 		newValue := data.NewFloatValue(f + 1.0)
-
-		// 如果是变量，需要更新变量的值
 		if variable, ok := u.Right.(data.Variable); ok {
-			ctl := variable.SetValue(ctx, newValue)
-			if ctl != nil {
+			if ctl := variable.SetValue(ctx, newValue); ctl != nil {
 				return nil, ctl
 			}
 		}
-
 		return newValue, nil
+
 	case *data.NullValue:
 		i, err := v.AsInt()
 		if err != nil {
 			return nil, data.NewErrorThrow(u.from, err)
 		}
 		newValue := data.NewIntValue(i + 1)
-
-		// 如果是变量，需要更新变量的值
 		if variable, ok := u.Right.(data.Variable); ok {
-			ctl := variable.SetValue(ctx, newValue)
-			if ctl != nil {
+			if ctl := variable.SetValue(ctx, newValue); ctl != nil {
 				return nil, ctl
 			}
 		}
+		return newValue, nil
+	}
 
+	// 兜底：任何实现了 AsInt 的类型都按 int 自增
+	if asInt, ok := rv.(data.AsInt); ok {
+		i, err := asInt.AsInt()
+		if err != nil {
+			return nil, data.NewErrorThrow(u.from, err)
+		}
+		newValue := data.NewIntValue(i + 1)
+		if variable, ok := u.Right.(data.Variable); ok {
+			if ctl := variable.SetValue(ctx, newValue); ctl != nil {
+				return nil, ctl
+			}
+		}
 		return newValue, nil
 	}
 

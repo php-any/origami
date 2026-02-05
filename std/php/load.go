@@ -68,6 +68,9 @@ func Load(vm data.VM) {
 		NewStrReplaceFunction(),
 		NewStrtolowerFunction(),
 		NewStrtoupperFunction(),
+		NewOrdFunction(),
+		NewNormalizerIsNormalizedFunction(),
+		NewNormalizerNormalizeFunction(),
 		core.NewSplAutoloadRegisterFunction(),
 		core.NewSplAutoloadUnregisterFunction(),
 		core.NewArrayFunction(),
@@ -147,6 +150,7 @@ func Load(vm data.VM) {
 	vm.AddClass(&core.ClosureClass{})
 	vm.AddClass(&core.BackedEnumClass{})
 	vm.AddClass(&core.StdClass{})
+	vm.AddClass(&core.NormalizerClass{})
 	vm.AddClass(&reflection.ReflectionClassClass{})
 	vm.AddClass(&reflection.ReflectionMethodClass{})
 	vm.AddClass(&reflection.ReflectionParameterClass{})
