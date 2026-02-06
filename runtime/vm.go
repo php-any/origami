@@ -83,11 +83,7 @@ func (vm *VM) ThrowControl(acl data.Control) {
 				vars := fv.Value.GetVariables()
 				ctx := vm.CreateContext(vars)
 
-				// 参数签名：handler(Throwable $exception)
-				if len(vars) >= 1 && tv != nil && tv.Object != nil {
-					// 将异常对象本身传给回调
-					_ = ctx.SetVariableValue(vars[0], tv.Object)
-				}
+				_ = ctx.SetVariableValue(vars[0], acl)
 
 				if _, hAcl := fv.Call(ctx); hAcl != nil {
 					// 如果回调自身又产生未处理控制流，继续交给底层处理

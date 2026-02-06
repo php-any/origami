@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -105,7 +106,9 @@ func (p *SwitchParser) parseSwitchCase() (*node.SwitchCase, data.Control) {
 		return nil, acl
 	}
 	// 解析冒号
-	p.nextAndCheck(token.COLON)
+	if p.checkPositionIs(0, token.COLON) {
+		p.next()
+	}
 
 	// 解析case体（语句列表）
 	var statements []data.GetValue

@@ -48,6 +48,8 @@ func Load(vm data.VM) {
 		NewStrSplitFunction(),
 		NewExplodeFunction(),
 		NewImplodeFunction(),
+		NewPackFunction(),
+		NewUnpackFunction(),
 		NewCountFunction(),
 		NewInArrayFunction(),
 		array.NewArrayKeyExistsFunction(),
@@ -69,6 +71,8 @@ func Load(vm data.VM) {
 		NewStrtolowerFunction(),
 		NewStrtoupperFunction(),
 		NewOrdFunction(),
+		NewStrRepeatFunction(),
+		NewMaxFunction(),
 		NewNormalizerIsNormalizedFunction(),
 		NewNormalizerNormalizeFunction(),
 		core.NewSplAutoloadRegisterFunction(),
@@ -85,6 +89,7 @@ func Load(vm data.VM) {
 		core.NewArrayFilterFunction(),
 
 		core.NewSetExceptionHandlerFunction(),
+		core.NewRestoreExceptionHandlerFunction(),
 
 		NewStrrposFunction(),
 		NewStrriposFunction(),
@@ -118,6 +123,7 @@ func Load(vm data.VM) {
 		core.NewTriggerErrorFunction(),
 		core.NewHeadersSentFunction(),
 		core.NewExtensionLoadedFunction(),
+		core.NewExitFunction(),
 		core.NewUnlinkFunction(),
 		core.NewRmdirFunction(),
 		core.NewCopyFunction(),

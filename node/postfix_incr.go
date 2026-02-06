@@ -2,6 +2,7 @@ package node
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/php-any/origami/data"
 )
@@ -13,6 +14,9 @@ type PostfixIncr struct {
 }
 
 func NewPostfixIncr(from data.From, left data.GetValue) *PostfixIncr {
+	if l, ok := left.(*IfStatement); ok {
+		fmt.Println(l)
+	}
 	return &PostfixIncr{
 		Node: NewNode(from),
 		Left: left,

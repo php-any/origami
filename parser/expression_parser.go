@@ -688,31 +688,41 @@ func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 		ep.next()
 		return node.NewNumberLiteral(tokenFrom, value), nil
 	default:
-		if parser, ok := parserRouter[ep.current().Type()]; ok {
+		startType := ep.current().Type()
+		if parser, ok := parserRouter[startType]; ok {
 			expr, acl := parser(ep.Parser).Parse()
 			if acl != nil {
 				return nil, acl
 			}
 
-			// 检查是否有后缀自增自减
+			// 检查是否有后缀自增自减：
+			// 仅当起始 token 不是语句关键字时，才将后缀 ++ / -- 绑定到该表达式，
+			// 避免诸如 "if (...) ++$i;" 被错误解析成 "if(...)++"。
 			if ep.current().Type() == token.INCR || ep.current().Type() == token.DECR {
-				operator := ep.current()
-				ep.next()
-				for ep.current().Type() == token.SEMICOLON {
-					// 跳过没意义的分号
+				switch startType {
+				// 这些是语句级关键字，不应该在表达式里直接绑定后缀 ++ / --
+				case token.IF, token.ELSE, token.FOR, token.FOREACH, token.WHILE,
+					token.SWITCH, token.TRY, token.CATCH, token.FINALLY:
+					// 跳过，让外层语句级解析去处理
+				default:
+					operator := ep.current()
 					ep.next()
-				}
-				// 对于后缀自增自减，使用当前 token 的位置信息即可
-				if operator.Type() == token.INCR {
-					return node.NewPostfixIncr(
-						ep.FromCurrentToken(),
-						expr,
-					), nil
-				} else {
-					return node.NewPostfixDecr(
-						ep.FromCurrentToken(),
-						expr,
-					), nil
+					for ep.current().Type() == token.SEMICOLON {
+						// 跳过没意义的分号
+						ep.next()
+					}
+					// 对于后缀自增自减，使用当前 token 的位置信息即可
+					if operator.Type() == token.INCR {
+						return node.NewPostfixIncr(
+							ep.FromCurrentToken(),
+							expr,
+						), nil
+					} else {
+						return node.NewPostfixDecr(
+							ep.FromCurrentToken(),
+							expr,
+						), nil
+					}
 				}
 			}
 
