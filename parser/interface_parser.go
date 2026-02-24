@@ -208,25 +208,97 @@ func (p *InterfaceParser) parseInterfaceMethod(modifier string) (data.Method, da
 	if acl != nil {
 		return nil, acl
 	}
-	// 解析返回类型（可选）
+	// 解析返回类型（可选，支持可空与联合类型：?Type、A|B）
 	var returnType data.Types
 	if p.current().Type() == token.COLON {
-		p.next()
-		if p.checkPositionIs(0, token.IDENTIFIER, token.BOOL, token.NULL, token.ARRAY) {
-			name := p.current().Literal()
-			p.next()
+		p.next() // 跳过冒号
 
-			// 如果是基础类型，直接返回
-			if data.ISBaseType(name) {
-				returnType = data.NewBaseType(name)
-			} else {
+		// 解析返回类型列表（与 ClassParser 中的方法返回类型逻辑保持一致）
+		var returnTypes []data.Types
+
+		for {
+			// 检查是否是可空类型语法 ?type
+			isNullable := false
+			if p.current().Type() == token.TERNARY {
+				isNullable = true
+				p.next() // 跳过问号
+			}
+
+			// 解析一个“返回类型原子”，支持联合类型：string|int|false
+			var unionTypes []data.Types
+
+			parseOneTypeAtom := func() (data.Types, data.Control) {
+				if !p.checkPositionIs(0,
+					token.IDENTIFIER,
+					token.STRING,
+					token.INT,
+					token.FLOAT,
+					token.BOOL,
+					token.ARRAY,
+					token.NULL,
+					token.FALSE,
+					token.STATIC,
+					token.SELF,
+				) {
+					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("无法识别返回类型的定义符号"))
+				}
+
+				name := p.current().Literal()
+				p.next()
+
+				// 如果是基础类型，直接返回
+				if data.ISBaseType(name) {
+					return data.NewBaseType(name), nil
+				}
+
 				// 尝试解析完整的类名（包括命名空间）
 				if full, ok := p.findFullClassNameByNamespace(name); ok {
-					returnType = data.NewBaseType(full)
-				} else {
-					returnType = data.NewBaseType(name)
+					return data.NewBaseType(full), nil
 				}
+
+				// 如果无法解析，返回原始名称
+				return data.NewBaseType(name), nil
 			}
+
+			// 第一个类型原子
+			firstType, acl := parseOneTypeAtom()
+			if acl != nil {
+				return nil, acl
+			}
+			unionTypes = append(unionTypes, firstType)
+
+			// 后续的 |Type 原子
+			for p.current().Type() == token.BIT_OR {
+				p.next() // 跳过 |
+				nextType, acl := parseOneTypeAtom()
+				if acl != nil {
+					return nil, acl
+				}
+				unionTypes = append(unionTypes, nextType)
+			}
+
+			// 将本次解析出的类型（可能是单一，也可能是联合）加入返回类型列表
+			var thisType data.Types
+			if len(unionTypes) == 1 {
+				thisType = unionTypes[0]
+			} else {
+				thisType = data.NewUnionType(unionTypes)
+			}
+
+			if isNullable {
+				thisType = data.NewNullableType(thisType)
+			}
+
+			returnTypes = append(returnTypes, thisType)
+
+			// 支持多返回值列表时可以继续解析；接口方法当前只需要一个返回类型，遇到逗号/其他符号时停止
+			break
+		}
+
+		if len(returnTypes) == 1 {
+			returnType = returnTypes[0]
+		} else if len(returnTypes) > 1 {
+			returnType = data.NewMultipleReturnType(returnTypes)
 		}
 	}
 

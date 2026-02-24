@@ -688,8 +688,22 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 			}
 			propertyType = data.NewNullableType(baseType)
 		} else {
-			base := data.NewBaseType(p.current().Literal())
+			// 处理 ?ClassName 这种可空类类型，需要结合命名空间解析完整类名
+			name := p.current().Literal()
 			p.next()
+
+			var base data.Types
+			// 内置基础类型（int/string/bool 等）保持原样
+			if data.ISBaseType(name) {
+				base = data.NewBaseType(name)
+			} else if full, ok := p.findFullClassNameByNamespace(name); ok {
+				// 若当前命名空间下存在对应类，则使用完整类名
+				base = data.NewBaseType(full)
+			} else {
+				// 否则回退为原始名称
+				base = data.NewBaseType(name)
+			}
+
 			propertyType = data.NewNullableType(base)
 		}
 	}

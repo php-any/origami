@@ -60,6 +60,8 @@ throw_unhandled_exception();
 
 > 关键点：脚本必须**只依赖已经在项目里存在的类/函数**，并能通过日志或输出看到行为差异。
 
+**类命名约定**：`tests/php/` 下所有测试共用命名空间 `tests\php`，因此**类名不要起得太通用**，以免与其他测试或将来新增测试冲突。应为测试中定义的类使用**唯一前缀**（例如与测试主题相关：`MagicMethods_CallTester`、`MagicMethods_BaseCallParent`），而不是泛用名（如 `CallTester`、`BaseCallParent`）。
+
 ### 3. 通过 Origami 运行脚本进行端到端验证
 
 1. 在项目根目录下运行（代理应使用 Shell 工具执行）：
@@ -107,6 +109,8 @@ go run ./origami.go tests/php/set_exception_handler_test.php
 1. **先实现/修改函数并注册到 VM**
 2. **再在 `tests/php/` 下新建一个可直接运行的 `.php` 脚本**
 3. **最后通过 `go run ./origami.go tests/php/xxx_test.php` 实际运行验证**
+4. **测试脚本中的类名使用唯一前缀**：因所有测试共用命名空间 `tests\php`，类名不要写太通用的（如 `CallTester`、`BaseParent`），应加与测试主题相关的前缀（如 `MagicMethods_CallTester`），避免与其他测试冲突。
+5. **永远不要忽略 `data.Control` 返回值**：当你调用任何返回 `(X, data.Control)` 的函数（如 `vm.GetOrLoadClass` / `vm.GetOrLoadInterface` / `node.NewXXX().GetValue` 等），**必须**检查 `acl != nil` 并及时向上返回或处理，禁止写成 `_, _ = fn(...)`、`_ , _ := fn(...)` 这种丢弃控制流的用法，否则会吞掉运行时错误、抑制 throw/return/continue/break 等控制信号。
 
-只有当这三步都完成且脚本行为符合预期时，这次函数补充才算完成。 
+只有当以上步骤都完成且脚本行为符合预期时，这次函数补充才算完成。 
 

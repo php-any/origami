@@ -345,11 +345,25 @@ func (m *DefaultClassPathManager) LoadClass(className string, parser *Parser) da
 		return acl
 	}
 
-	// 检查类是否成功加载
-	if _, ok := parser.vm.GetClass(className); ok {
+	// 检查类或接口是否成功加载
+	if cls, ok := parser.vm.GetClass(className); ok {
+		// 提前确保该类直接 implements 的接口都已加载（便于类型检查阶段直接 GetInterface）
+		vm := parser.vm
+		for _, ifaceName := range cls.GetImplements() {
+			if _, acl := vm.GetOrLoadInterface(ifaceName); acl != nil {
+				return acl
+			}
+		}
 		return nil
 	}
-	if _, ok := parser.vm.GetInterface(className); ok {
+	if iface, ok := parser.vm.GetInterface(className); ok {
+		// 提前确保接口的父接口已加载
+		vm := parser.vm
+		if ext := iface.GetExtend(); ext != nil {
+			if _, acl := vm.GetOrLoadInterface(*ext); acl != nil {
+				return acl
+			}
+		}
 		return nil
 	}
 
