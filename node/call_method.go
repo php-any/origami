@@ -40,6 +40,15 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		}
 		// 递归处理，现在应该是 FuncValue 了
 		return pe.handleFuncValue(ctx, funcValue)
+	default:
+		// 魔法方法 __invoke：对象作为可调用时调用 $object->__invoke(...$args)
+		if obj, ok := call.(data.GetMethod); ok {
+			if invoke, has := obj.GetMethod("__invoke"); has {
+				if objCtx, ok := call.(data.Context); ok {
+					return pe.invokeMagicInvoke(ctx, objCtx, invoke)
+				}
+			}
+		}
 	}
 
 	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("不存在对应函数:"+TryGetCallClassName(pe.Method)))
@@ -147,6 +156,25 @@ func (pe *CallMethod) handleFuncValue(ctx data.Context, call data.GetValue) (dat
 	fnCtx.SetCallArgs(pe.Args)
 
 	return fn.Call(fnCtx)
+}
+
+// invokeMagicInvoke 调用对象的 __invoke(...$args)，用于对象作为可调用时的魔法分发
+func (pe *CallMethod) invokeMagicInvoke(ctx data.Context, object data.Context, invoke data.Method) (data.GetValue, data.Control) {
+	varies := invoke.GetVariables()
+	fnCtx := object.CreateContext(varies)
+	for i, arg := range pe.Args {
+		if i >= len(varies) {
+			break
+		}
+		v, acl := arg.GetValue(ctx)
+		if acl != nil {
+			return nil, acl
+		}
+		if val, ok := v.(data.Value); ok {
+			fnCtx.SetVariableValue(varies[i], val)
+		}
+	}
+	return invoke.Call(fnCtx)
 }
 
 func (pe *CallMethod) newFunParamsError(from data.From, name string, paramName string) data.Control {

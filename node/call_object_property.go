@@ -49,12 +49,30 @@ func (pe *CallObjectProperty) SetValue(ctx data.Context, value data.Value) data.
 		return acl
 	}
 	switch object := temp.(type) {
-	case *data.ClassValue: // 需要检查属性类型
+	case *data.ThisValue:
 		property, ok := object.GetPropertyStmt(pe.Property)
 		if ok {
 			if property.GetType() != nil && !property.GetType().Is(value) {
 				return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("%s 属性 %s 因为类型不一致无法赋值", TryGetCallClassName(object), pe.Property))
 			}
+			return object.SetProperty(pe.Property, value)
+		}
+		// 无声明属性时尝试 __set(string $name, mixed $value)
+		if magic, hasSet := object.GetMethod("__set"); hasSet {
+			return pe.invokeMagicSet(object, magic, pe.Property, value)
+		}
+		return object.SetProperty(pe.Property, value)
+	case *data.ClassValue:
+		property, ok := object.GetPropertyStmt(pe.Property)
+		if ok {
+			if property.GetType() != nil && !property.GetType().Is(value) {
+				return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("%s 属性 %s 因为类型不一致无法赋值", TryGetCallClassName(object), pe.Property))
+			}
+			return object.SetProperty(pe.Property, value)
+		}
+		// 无声明属性时尝试 __set(string $name, mixed $value)
+		if magic, hasSet := object.GetMethod("__set"); hasSet {
+			return pe.invokeMagicSet(object, magic, pe.Property, value)
 		}
 		return object.SetProperty(pe.Property, value)
 	case data.SetProperty:
@@ -73,6 +91,30 @@ func NewObjectProperty(token *TokenFrom, object data.GetValue, property string) 
 	}
 }
 
+// invokeMagicGet 调用 __get(string $name)，用于读取不存在或不可见属性时的魔法分发
+func (pe *CallObjectProperty) invokeMagicGet(object data.Context, magic data.Method, name string) (data.GetValue, data.Control) {
+	varies := magic.GetVariables()
+	if len(varies) < 1 {
+		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("__get 需要至少 1 个参数 (name)"))
+	}
+	fnCtx := object.CreateContext(varies)
+	fnCtx.SetVariableValue(varies[0], data.NewStringValue(name))
+	return magic.Call(fnCtx)
+}
+
+// invokeMagicSet 调用 __set(string $name, mixed $value)，用于写入不存在或不可见属性时的魔法分发
+func (pe *CallObjectProperty) invokeMagicSet(object data.Context, magic data.Method, name string, value data.Value) data.Control {
+	varies := magic.GetVariables()
+	if len(varies) < 2 {
+		return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("__set 需要至少 2 个参数 (name, value)"))
+	}
+	fnCtx := object.CreateContext(varies)
+	fnCtx.SetVariableValue(varies[0], data.NewStringValue(name))
+	fnCtx.SetVariableValue(varies[1], value)
+	_, acl := magic.Call(fnCtx)
+	return acl
+}
+
 // GetValue 获取对象属性访问表达式的值
 func (pe *CallObjectProperty) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	o, ctl := pe.Object.GetValue(ctx)
@@ -88,20 +130,28 @@ func (pe *CallObjectProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 		if ok {
 			return property.GetValue(ctx)
 		}
+		// 无声明属性时尝试 __get(string $name)
+		if magic, hasGet := v.GetMethod("__get"); hasGet {
+			return pe.invokeMagicGet(v, magic, pe.Property)
+		}
+		return nil, data.NewErrorThrow(pe.from, fmt.Errorf("对象(%s)不存在属性(%s)", v.Class.GetName(), pe.Property))
 	case *data.ClassValue:
 		property, ok := v.GetPropertyStmt(pe.Property)
 		if ok {
 			if property.GetModifier() != data.ModifierPublic {
-				return nil, data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("对象(%s)属性(%s)不是公开的", v.Class.GetName(), pe.Property)))
-			}
-			return property.GetValue(v)
-		} else {
-			property, acl := v.ObjectValue.GetProperty(pe.Property)
-			if acl != nil {
-				return nil, acl
+				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("对象(%s)属性(%s)不是公开的", v.Class.GetName(), pe.Property))
 			}
 			return property.GetValue(v)
 		}
+		// 无声明属性时尝试 __get(string $name)
+		if magic, hasGet := v.GetMethod("__get"); hasGet {
+			return pe.invokeMagicGet(v, magic, pe.Property)
+		}
+		dynVal, acl := v.ObjectValue.GetProperty(pe.Property)
+		if acl != nil {
+			return nil, acl
+		}
+		return dynVal, nil
 	case data.GetProperty:
 		ov, acl := v.GetProperty(pe.Property)
 		if acl != nil {
@@ -109,7 +159,6 @@ func (pe *CallObjectProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 		}
 		return ov.GetValue(ctx)
 	default:
-		return nil, data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("值(%s)不是对象, 不能操作属性(%s)", TryGetCallClassName(pe.Object), pe.Property)))
+		return nil, data.NewErrorThrow(pe.from, fmt.Errorf("值(%s)不是对象, 不能操作属性(%s)", TryGetCallClassName(pe.Object), pe.Property))
 	}
-	return nil, data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("对象(%s)不存在属性(%s)", TryGetCallClassName(pe.Object), pe.Property)))
 }

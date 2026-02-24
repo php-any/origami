@@ -98,7 +98,16 @@ func (p *Parser) ParseFile(filename string) (*node.Program, data.Control) {
 	// 进行分词
 	ext := len(filename)
 	if ext > 4 && filename[ext-4:] == ".php" {
-		p.tokens = p.lexer.TokenizeTemplate(string(content))
+		phpContent := string(content)
+		// 与 PHP 行为一致：解析前去掉 shebang，避免将 #!/usr/bin/env php 当作文本输出
+		if len(phpContent) >= 2 && phpContent[0] == '#' && phpContent[1] == '!' {
+			if nl := strings.Index(phpContent, "\n"); nl != -1 {
+				phpContent = phpContent[nl+1:]
+			} else {
+				phpContent = ""
+			}
+		}
+		p.tokens = p.lexer.TokenizeTemplate(phpContent)
 	} else {
 		p.tokens = p.lexer.Tokenize(string(content))
 	}

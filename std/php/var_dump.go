@@ -19,47 +19,78 @@ func NewVarDumpFunction() data.FuncStmt {
 type VarDumpFunction struct{}
 
 func (f *VarDumpFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	line := 0
-	pos := 0
-	file := ""
+	// 从调用处取输出位置（文件:行:列）
+	file, line, pos := "", 0, 0
 	for _, arg := range ctx.GetCallArgs() {
-		if arg, ok := arg.(node.GetFrom); ok {
-			from := arg.GetFrom()
-			file = from.GetSource()
-			line, pos, _, _ = from.GetRange()
-			line++
-			pos++
+		if g, ok := arg.(node.GetFrom); ok {
+			from := g.GetFrom()
+			if from != nil {
+				file = from.GetSource()
+				line, pos, _, _ = from.GetRange()
+				line++
+				pos++
+			}
+			break
 		}
 	}
-	// 参数定义里只有一个 node.Parameters，取到实际传入的所有参数
+	loc := file + ":" + strconv.Itoa(line) + ":" + strconv.Itoa(pos)
+
 	for _, argument := range f.GetParams() {
 		argv, _ := argument.GetValue(ctx)
-
-		switch temp := argv.(type) {
-		case data.Variable:
-			// 如果是变量，取出真实值再打印
-			v, acl := ctx.GetVariableValue(temp)
+		if argv == nil {
+			continue
+		}
+		// 可变参数得到的是 ArrayValue，逐项按 PHP 风格输出，并带位置
+		if arr, ok := argv.(*data.ArrayValue); ok {
+			for _, zval := range arr.List {
+				if zval != nil && zval.Value != nil {
+					varDumpOne(loc, zval.Value)
+				}
+			}
+			continue
+		}
+		if v, ok := argv.(data.Variable); ok {
+			val, acl := ctx.GetVariableValue(v)
 			if acl != nil {
 				return nil, acl
 			}
-			switch arg := v.(type) {
-			case data.AsString:
-				fmt.Println(arg.AsString())
-			default:
-				fmt.Println(arg)
+			if val != nil {
+				varDumpOne(loc, val)
 			}
-		default:
-			// 直接是值，按类型打印
-			switch arg := temp.(type) {
-			case data.AsString:
-				fmt.Println(file + ":" + strconv.Itoa(line) + ":" + strconv.Itoa(pos) + "\n" + arg.AsString())
-			default:
-				fmt.Println(arg)
-			}
+			continue
+		}
+		if val, ok := argv.(data.Value); ok {
+			varDumpOne(loc, val)
 		}
 	}
-
 	return nil, nil
+}
+
+// varDumpOne 先输出位置，再输出单个值（PHP 风格，如 int(17)）
+func varDumpOne(loc string, v data.Value) {
+	fmt.Println(loc)
+	switch arg := v.(type) {
+	case *data.IntValue:
+		fmt.Printf("int(%d)\n", arg.Value)
+	case *data.FloatValue:
+		fmt.Printf("float(%v)\n", arg.Value)
+	case *data.BoolValue:
+		if arg.Value {
+			fmt.Println("bool(true)")
+		} else {
+			fmt.Println("bool(false)")
+		}
+	case *data.StringValue:
+		fmt.Printf("string(%d) %q\n", len(arg.Value), arg.Value)
+	case *data.NullValue:
+		fmt.Println("NULL")
+	default:
+		if s, ok := v.(data.AsString); ok {
+			fmt.Println(s.AsString())
+		} else {
+			fmt.Println(v)
+		}
+	}
 }
 
 func (f *VarDumpFunction) GetName() string {

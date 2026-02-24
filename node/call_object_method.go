@@ -46,6 +46,10 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 
 			return method.Call(fnCtx)
 		}
+		// 方法未找到时尝试魔法方法 __call(string $name, array $arguments)
+		if magic, hasCall := class.GetMethod("__call"); hasCall {
+			return pe.invokeMagicCall(class, ctx, magic, pe.Method, pe.Args)
+		}
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("this 对象不存在对应函数: "+pe.Method))
 	case *data.ClassValue:
 		method, has := class.GetMethod(pe.Method)
@@ -64,7 +68,10 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 
 			return method.Call(fnCtx)
 		}
-
+		// 方法未找到时尝试魔法方法 __call(string $name, array $arguments)
+		if magic, hasCall := class.GetMethod("__call"); hasCall {
+			return pe.invokeMagicCall(class, ctx, magic, pe.Method, pe.Args)
+		}
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("类(%s)不存在对应函数(%s)", class.Class.GetName(), pe.Method))
 	default:
 		if class, ok := o.(data.GetMethod); ok {
@@ -84,9 +91,39 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 
 				return method.Call(fnCtx)
 			}
+			// 方法未找到时尝试魔法方法 __call，$this 为当前对象
+			if magic, hasCall := class.GetMethod("__call"); hasCall {
+				if objCtx, ok := o.(data.Context); ok {
+					return pe.invokeMagicCall(objCtx, ctx, magic, pe.Method, pe.Args)
+				}
+			}
 		}
 	}
-	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("当前值(%#v)不支持调用函数, 你调用的函数(%s)", TryGetCallClassName(o), pe.Method)))
+	return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("当前值(%#v)不支持调用函数, 你调用的函数(%s)", TryGetCallClassName(o), pe.Method))
+}
+
+// invokeMagicCall 调用 __call(string $name, array $arguments)，用于未定义方法时的魔法分发
+func (pe *CallObjectMethod) invokeMagicCall(object data.Context, ctx data.Context, magic data.Method, methodName string, args []data.GetValue) (data.GetValue, data.Control) {
+	var argsList []data.Value
+	for _, arg := range args {
+		v, acl := arg.GetValue(ctx)
+		if acl != nil {
+			return nil, acl
+		}
+		if val, ok := v.(data.Value); ok {
+			argsList = append(argsList, val)
+		} else {
+			argsList = append(argsList, data.NewNullValue())
+		}
+	}
+	varies := magic.GetVariables()
+	if len(varies) < 2 {
+		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("__call 需要至少 2 个参数 (name, arguments)"))
+	}
+	fnCtx := object.CreateContext(varies)
+	fnCtx.SetVariableValue(varies[0], data.NewStringValue(methodName))
+	fnCtx.SetVariableValue(varies[1], data.NewArrayValue(argsList))
+	return magic.Call(fnCtx)
 }
 
 func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method data.Method) (data.Context, data.Control) {

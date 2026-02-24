@@ -98,6 +98,7 @@ func Load(vm data.VM) {
 		core.NewIsCallableFunction(),
 		NewIsStringFunction(),
 		NewIsIntFunction(),
+		NewIsScalarFunction(),
 		NewIsArrayFunction(),
 		NewIsBoolFunction(),
 		NewIsFloatFunction(),
@@ -146,6 +147,7 @@ func Load(vm data.VM) {
 		stream.NewFopenFunction(),
 		stream.NewFcloseFunction(),
 		stream.NewFwriteFunction(),
+		stream.NewFflushFunction(),
 		stream.NewStreamGetContentsFunction(),
 		stream.NewStreamIsattyFunction(),
 	} {

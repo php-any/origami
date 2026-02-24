@@ -69,6 +69,16 @@ func (s *StreamInfo) Write(p []byte) (int, error) {
 	return s.File.Write(p)
 }
 
+// Flush 将缓冲数据刷新到底层（如 os.File.Sync），便于立即看到 stdout 等输出
+func (s *StreamInfo) Flush() error {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if s.Closed || s.File == nil {
+		return io.ErrClosedPipe
+	}
+	return s.File.Sync()
+}
+
 // Seek 设置文件偏移量
 func (s *StreamInfo) Seek(offset int64, whence int) (int64, error) {
 	s.mutex.Lock()

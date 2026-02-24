@@ -7,6 +7,15 @@ import (
 	"github.com/php-any/origami/node"
 )
 
+// safeAsString 将 Value 转为字符串，避免 AsString() 内部 panic 导致进程退出
+func safeAsString(v data.Value) string {
+	if v == nil {
+		return ""
+	}
+	defer func() { _ = recover() }()
+	return v.AsString()
+}
+
 // StrStartsWithFunction 实现 str_starts_with 函数
 //
 // 使用 str_starts_with 检查字符串是否以指定子串开头
@@ -45,9 +54,9 @@ func (f *StrStartsWithFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 		return data.NewBoolValue(false), nil
 	}
 
-	// 转换为字符串
-	haystack := haystackValue.AsString()
-	needle := needleValue.AsString()
+	// 转换为字符串（使用安全转换，避免某些 Value 实现 AsString 时 panic）
+	haystack := safeAsString(haystackValue)
+	needle := safeAsString(needleValue)
 
 	// 如果 needle 为空字符串，PHP 8.0+ 返回 true
 	if needle == "" {

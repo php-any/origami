@@ -92,8 +92,10 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	switch l := lv.(type) {
 	case *data.StringValue:
 		lStr := l.AsString()
-		rStr := rv.(data.Value).AsString()
-
+		rStr, rCtl := ValueToDisplayString(ctx, rv)
+		if rCtl != nil {
+			return nil, rCtl
+		}
 		return data.NewStringValue(lStr + rStr), nil
 	case *data.IntValue:
 		switch r := rv.(type) {
@@ -194,7 +196,7 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			return nil, data.NewErrorThrow(b.from, fmt.Errorf("对象不能与非对象/数组类型相加: %T", r))
 		}
 	case *data.ClassValue:
-		// 类实例相加是合并操作（与对象类似）
+		// 类实例相加是合并操作（与对象类似）；否则尝试 __toString 后字符串拼接
 		switch r := rv.(type) {
 		case *data.ObjectValue:
 			// 类实例与对象相加：合并属性（如果键相同，保留左边类实例的值）
@@ -206,8 +208,16 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			// 类实例与数组相加：先添加类实例的属性值，然后添加数组元素
 			return mergeObjectWithArray(l, r), nil
 		default:
-			// 如果右边不是对象、类或数组，返回错误
-			return nil, data.NewErrorThrow(b.from, fmt.Errorf("类实例不能与非对象/数组类型相加: %T", r))
+			// 右边非对象/类/数组：若类有 __toString，则转为字符串后拼接
+			lStr, lCtl := ValueToDisplayString(ctx, l)
+			if lCtl != nil {
+				return nil, lCtl
+			}
+			rStr, rCtl := ValueToDisplayString(ctx, rv)
+			if rCtl != nil {
+				return nil, rCtl
+			}
+			return data.NewStringValue(lStr + rStr), nil
 		}
 	case *data.AnyValue:
 		lStr := l.AsString()

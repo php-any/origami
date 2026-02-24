@@ -63,12 +63,14 @@ func (f *FwriteFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	// 获取可选的 length 参数
 	var maxLength int = len(content)
-	lengthValue, _ := ctx.GetIndexValue(2)
-	if lengthValue != nil {
-		if intVal, ok := lengthValue.(data.AsInt); ok {
-			if length, err := intVal.AsInt(); err == nil && length >= 0 {
-				if length < maxLength {
-					maxLength = length
+	lengthValue, ok := ctx.GetIndexValue(2)
+	if ok {
+		if _, ok := lengthValue.(*data.NullValue); !ok {
+			if intVal, ok := lengthValue.(data.AsInt); ok {
+				if length, err := intVal.AsInt(); err == nil && length >= 0 {
+					if length < maxLength {
+						maxLength = length
+					}
 				}
 			}
 		}
@@ -99,7 +101,7 @@ func (f *FwriteFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "stream", 0, nil, nil),
 		node.NewParameter(nil, "data", 1, nil, nil),
-		node.NewParameter(nil, "length", 2, node.NewNullLiteral(nil), nil),
+		node.NewParameter(nil, "length", 2, nil, nil),
 	}
 }
 

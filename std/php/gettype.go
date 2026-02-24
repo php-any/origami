@@ -3,6 +3,7 @@ package php
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/std/php/core"
 )
 
 func NewGettypeFunction() data.FuncStmt {
@@ -23,12 +24,20 @@ func (f *GettypeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	tp := "unknown"
-	switch internalV.(type) {
+	switch v := internalV.(type) {
 	case *data.ArrayValue:
 		tp = "array"
 	case *data.BoolValue:
 		tp = "bool"
+	case *core.ResourceValue:
+		tp = "resource"
 	case *data.ClassValue:
+		if v.Class != nil {
+			if _, ok := v.Class.(*core.ResourceClass); ok {
+				tp = "resource"
+				break
+			}
+		}
 		tp = "class"
 	case *data.FloatValue:
 		tp = "float"

@@ -31,9 +31,15 @@ func (b *BinaryLink) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, rCtl
 	}
 
-	// 统一转字符串拼接，尽量与 PHP 的字符串连接行为一致
-	leftStr := lv.(data.Value).AsString()
-	rightStr := rv.(data.Value).AsString()
+	// 统一转字符串拼接；对象会通过 __toString 转字符串
+	leftStr, lCtl := ValueToDisplayString(ctx, lv)
+	if lCtl != nil {
+		return nil, lCtl
+	}
+	rightStr, rCtl := ValueToDisplayString(ctx, rv)
+	if rCtl != nil {
+		return nil, rCtl
+	}
 
 	return data.NewStringValue(leftStr + rightStr), nil
 }

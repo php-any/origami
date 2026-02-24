@@ -18,12 +18,15 @@ func (f *ArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, utils.NewThrow(errors.New("缺少参数, index: 0"))
 	}
 
-	switch f := a1.(type) {
+	switch v := a1.(type) {
 	case *data.ArrayValue:
-		return f, nil
+		return v, nil
+	case *data.StringValue, *data.IntValue, *data.FloatValue, *data.BoolValue, *data.NullValue:
+		// PHP: (array) 标量 => array(0 => 标量)
+		return data.NewArrayValue([]data.Value{a1}), nil
+	default:
+		return data.NewArrayValue([]data.Value{a1}), nil
 	}
-
-	return nil, utils.NewThrow(errors.New("无法转化数组"))
 }
 
 func (f *ArrayFunction) GetName() string { return "array" }

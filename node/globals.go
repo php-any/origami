@@ -118,8 +118,15 @@ func (g *GlobalsNode) getServer(ctx data.Context) (data.GetValue, data.Control) 
 				}
 			}
 		} else {
-			// 没有 HTTP 请求时，填充一些基本系统信息
+			// 没有 HTTP 请求时，填充基本系统信息；argv 直接取自 os.Args[1:]（脚本路径 + 额外参数，与 PHP 一致）
 			serverObj.SetProperty("SERVER_SOFTWARE", data.NewStringValue("Origami"))
+			if len(os.Args) > 1 {
+				arr := make([]data.Value, 0, len(os.Args)-1)
+				for _, s := range os.Args[1:] {
+					arr = append(arr, data.NewStringValue(s))
+				}
+				serverObj.SetProperty("argv", data.NewArrayValue(arr))
+			}
 		}
 		groups.Store("$_SERVER", serverObj)
 		return serverObj, nil
