@@ -237,7 +237,7 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 				return data.NewNullValue(), nil
 			}
 
-			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("未实现自动转化为对象的能力"))
+			return nil, data.NewErrorThrow(ie.GetFrom(), fmt.Errorf("array[%s] 未实现自动转化为对象的能力", iv.AsString()))
 		case data.AsInt:
 			var err error
 			i, err = iv.AsInt()

@@ -1,6 +1,8 @@
 package array
 
 import (
+	"fmt"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -24,28 +26,67 @@ func (f *ArrayMergeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		return data.NewArrayValue([]data.Value{}), nil
 	}
 
-	// 收集所有数组参数的值
-	var allValues []data.Value
+	// PHP 语义：
+	// - 对于 string 键：后面的数组覆盖前面的键；
+	// - 对于 int 键：重新按顺序从 0 开始编号（列表语义）。
+	//
+	// 在 Origami 中：
+	// - 纯列表用 ArrayValue 表示
+	// - 关联数组用 ObjectValue 表示（属性名即键）
 
-	// 遍历 Parameters 中的每个数组参数
+	// 所有参数都是“纯列表数组”时，按列表语义合并到 ArrayValue
+	// 一旦出现 ObjectValue（关联数组），结果统一用 ObjectValue 表示，
+	// 以便支持 $options['format'] 这种字符串键访问。
+
+	allListValues := make([]data.Value, 0)
+	resultAssoc := (*data.ObjectValue)(nil)
+
 	paramsList := paramsArray.ToValueList()
 	for _, paramValue := range paramsList {
-		// 处理数组
-		if arrayVal, ok := paramValue.(*data.ArrayValue); ok {
-			allValues = append(allValues, arrayVal.ToValueList()...)
-		} else if objectVal, ok := paramValue.(*data.ObjectValue); ok {
-			// 处理对象（关联数组）
-			properties := objectVal.GetProperties()
-			for _, val := range properties {
-				allValues = append(allValues, val)
+		switch v := paramValue.(type) {
+		case *data.ArrayValue:
+			// 列表数组：依次取值
+			values := v.ToValueList()
+			if resultAssoc != nil {
+				// 结果已经是关联数组：这些值追加成新的 int 键
+				for _, val := range values {
+					// 使用当前属性数量作为新键（转成字符串）
+					key := len(resultAssoc.GetProperties())
+					resultAssoc.SetProperty(fmt.Sprintf("%d", key), val)
+				}
+			} else {
+				allListValues = append(allListValues, values...)
 			}
-		} else {
-			// 非数组类型，直接添加
-			allValues = append(allValues, paramValue)
+
+		case *data.ObjectValue:
+			// 关联数组：需要按键合并
+			if resultAssoc == nil {
+				resultAssoc = data.NewObjectValue()
+				// 把之前累积的列表值先转成 0..n-1 的 int 键
+				for i, val := range allListValues {
+					resultAssoc.SetProperty(fmt.Sprintf("%d", i), val)
+				}
+			}
+			for key, val := range v.GetProperties() {
+				// 这里 key 是 string，保持为关联键；若有同名键，直接覆盖
+				resultAssoc.SetProperty(key, val)
+			}
+
+		default:
+			// 非数组参数，PHP 中会发 warning，我们这里简单按值附加
+			if resultAssoc != nil {
+				key := len(resultAssoc.GetProperties())
+				resultAssoc.SetProperty(fmt.Sprintf("%d", key), v)
+			} else {
+				allListValues = append(allListValues, v)
+			}
 		}
 	}
 
-	return data.NewArrayValue(allValues), nil
+	if resultAssoc != nil {
+		return resultAssoc, nil
+	}
+	return data.NewArrayValue(allListValues), nil
 }
 
 func (f *ArrayMergeFunction) GetName() string {

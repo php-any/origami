@@ -842,8 +842,9 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 					token.FALSE,
 					token.STATIC,
 					token.SELF,
+					token.PARENT,
 				) {
-					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("无法识别返回类型的定义符号"))
+					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("无法识别返回类型的定义符号"+p.current().Literal()))
 				}
 
 				// 处理 self 关键字
@@ -853,6 +854,18 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 						return data.NewBaseType(p.currentClassName), nil
 					}
 					return data.NewBaseType("self"), nil
+				}
+
+				// 处理 parent 关键字：返回父类名（若有），否则字符串 "parent"
+				if p.current().Type() == token.PARENT {
+					p.next()
+					if p.currentClassName != "" {
+						// 当前类名可能是完整名，通过 VM 查找父类
+						if cls, ok := p.vm.GetClass(p.currentClassName); ok && cls.GetExtend() != nil {
+							return data.NewBaseType(*cls.GetExtend()), nil
+						}
+					}
+					return data.NewBaseType("parent"), nil
 				}
 
 				name := p.current().Literal()

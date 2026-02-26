@@ -3,6 +3,7 @@ package php
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -14,13 +15,48 @@ func NewVarDumpFunction() data.FuncStmt {
 }
 
 // VarDumpFunction 实现 PHP 风格的 var_dump
-// 为了简单，当前实现主要是把参数按顺序打印出来，
-// 字符串按内容打印，其它类型用 fmt.Println 输出其值。
 type VarDumpFunction struct{}
 
 func (f *VarDumpFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 从调用处取输出位置（文件:行:列）
-	file, line, pos := "", 0, 0
+	file, line, _ := getCallLocation(ctx)
+	loc := file + ":" + strconv.Itoa(line) + ":"
+
+	for _, argument := range f.GetParams() {
+		argv, _ := argument.GetValue(ctx)
+		if argv == nil {
+			continue
+		}
+		// 本轮打印内的对象序号，每次 var_dump 调用从 1 自增，不影响并发
+		objectID := uint64(0)
+		if arr, ok := argv.(*data.ArrayValue); ok {
+			for _, zval := range arr.List {
+				if zval != nil && zval.Value != nil {
+					fmt.Println(loc)
+					varDumpValue(zval.Value, "", &objectID)
+				}
+			}
+			continue
+		}
+		if v, ok := argument.(data.Variable); ok {
+			val, acl := ctx.GetVariableValue(v)
+			if acl != nil {
+				return nil, acl
+			}
+			if val != nil {
+				fmt.Println(loc)
+				varDumpValue(val, "", &objectID)
+			}
+			continue
+		}
+		if val, ok := argv.(data.Value); ok {
+			fmt.Println(loc)
+			varDumpValue(val, "", &objectID)
+		}
+	}
+	return nil, nil
+}
+
+func getCallLocation(ctx data.Context) (file string, line int, pos int) {
 	for _, arg := range ctx.GetCallArgs() {
 		if g, ok := arg.(node.GetFrom); ok {
 			from := g.GetFrom()
@@ -28,67 +64,84 @@ func (f *VarDumpFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 				file = from.GetSource()
 				line, pos, _, _ = from.GetRange()
 				line++
-				pos++
+				return file, line, pos
 			}
 			break
 		}
 	}
-	loc := file + ":" + strconv.Itoa(line) + ":" + strconv.Itoa(pos)
-
-	for _, argument := range f.GetParams() {
-		argv, _ := argument.GetValue(ctx)
-		if argv == nil {
-			continue
-		}
-		// 可变参数得到的是 ArrayValue，逐项按 PHP 风格输出，并带位置
-		if arr, ok := argv.(*data.ArrayValue); ok {
-			for _, zval := range arr.List {
-				if zval != nil && zval.Value != nil {
-					varDumpOne(loc, zval.Value)
-				}
-			}
-			continue
-		}
-		if v, ok := argv.(data.Variable); ok {
-			val, acl := ctx.GetVariableValue(v)
-			if acl != nil {
-				return nil, acl
-			}
-			if val != nil {
-				varDumpOne(loc, val)
-			}
-			continue
-		}
-		if val, ok := argv.(data.Value); ok {
-			varDumpOne(loc, val)
-		}
-	}
-	return nil, nil
+	return "", 0, 0
 }
 
-// varDumpOne 先输出位置，再输出单个值（PHP 风格，如 int(17)）
-func varDumpOne(loc string, v data.Value) {
-	fmt.Println(loc)
+// escapeSingleQuoted 将键中的 \ 和 ' 转义，用于 PHP 风格 'key' 输出
+func escapeSingleQuoted(s string) string {
+	return strings.NewReplacer(`\`, `\\`, `'`, `\'`).Replace(s)
+}
+
+// varDumpValue 输出单个值的 PHP var_dump 格式；objectID 仅在本轮打印内自增，用于 class Name#id
+func varDumpValue(v data.Value, indent string, objectID *uint64) {
 	switch arg := v.(type) {
 	case *data.IntValue:
-		fmt.Printf("int(%d)\n", arg.Value)
+		fmt.Printf("%sint(%d)\n", indent, arg.Value)
 	case *data.FloatValue:
-		fmt.Printf("float(%v)\n", arg.Value)
+		fmt.Printf("%sfloat(%v)\n", indent, arg.Value)
 	case *data.BoolValue:
 		if arg.Value {
-			fmt.Println("bool(true)")
+			fmt.Printf("%sbool(true)\n", indent)
 		} else {
-			fmt.Println("bool(false)")
+			fmt.Printf("%sbool(false)\n", indent)
 		}
 	case *data.StringValue:
-		fmt.Printf("string(%d) %q\n", len(arg.Value), arg.Value)
+		fmt.Printf("%sstring(%d) %q\n", indent, len(arg.Value), arg.Value)
 	case *data.NullValue:
-		fmt.Println("NULL")
+		fmt.Printf("%sNULL\n", indent)
+	case *data.ArrayValue:
+		fmt.Printf("%sarray(%d) {\n", indent, len(arg.List))
+		inner := indent + "  "
+		for i, zval := range arg.List {
+			if zval == nil || zval.Value == nil {
+				fmt.Printf("%s[%d] =>\n%sNULL\n", inner, i, inner)
+				continue
+			}
+			fmt.Printf("%s[%d] =>\n", inner, i)
+			varDumpValue(zval.Value, inner, objectID)
+		}
+		fmt.Printf("%s}\n", indent)
+	case *data.ObjectValue:
+		n := 0
+		arg.RangeProperties(func(string, data.Value) bool { n++; return true })
+		fmt.Printf("%sarray(%d) {\n", indent, n)
+		inner := indent + "  "
+		arg.RangeProperties(func(k string, val data.Value) bool {
+			fmt.Printf("%s'%s' =>\n", inner, escapeSingleQuoted(k))
+			if val != nil {
+				varDumpValue(val, inner, objectID)
+			} else {
+				fmt.Printf("%sNULL\n", inner)
+			}
+			return true
+		})
+		fmt.Printf("%s}\n", indent)
+	case *data.ClassValue:
+		n := 0
+		arg.RangeProperties(func(string, data.Value) bool { n++; return true })
+		*objectID++
+		fmt.Printf("%sclass %s#%d (%d) {\n", indent, arg.Class.GetName(), *objectID, n)
+		inner := indent + "  "
+		arg.RangeProperties(func(k string, val data.Value) bool {
+			fmt.Printf("%spublic $%s =>\n", inner, k)
+			if val != nil {
+				varDumpValue(val, inner, objectID)
+			} else {
+				fmt.Printf("%sNULL\n", inner)
+			}
+			return true
+		})
+		fmt.Printf("%s}\n", indent)
 	default:
 		if s, ok := v.(data.AsString); ok {
-			fmt.Println(s.AsString())
+			fmt.Printf("%s%s\n", indent, strings.TrimSpace(s.AsString()))
 		} else {
-			fmt.Println(v)
+			fmt.Printf("%s%s\n", indent, fmt.Sprint(v))
 		}
 	}
 }
@@ -98,7 +151,6 @@ func (f *VarDumpFunction) GetName() string {
 }
 
 func (f *VarDumpFunction) GetParams() []data.GetValue {
-	// 使用 node.Parameters 支持任意数量的参数
 	return []data.GetValue{
 		node.NewParameters(nil, "args", 0, nil, nil),
 	}

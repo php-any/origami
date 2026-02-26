@@ -60,6 +60,10 @@ func (v *VariableExpression) SetValue(ctx data.Context, value data.Value) data.C
 	if v.Type.Is(value) {
 		return ctx.SetVariableValue(v, value)
 	}
+	if _, ok := value.(*data.NullValue); ok {
+		// 兼容 php, 允许赋值不对的类型到变量; TODO 未来再优化
+		return ctx.SetVariableValue(v, value)
+	}
 	return data.NewErrorThrow(v.from, errors.New("变量类型和赋值类型不一致, 变量类型("+v.Type.String()+"), 赋值("+value.AsString()+")"))
 }
 

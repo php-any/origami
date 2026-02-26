@@ -24,8 +24,7 @@ func NewPregMatchAllFunction() data.FuncStmt {
 func (f *PregMatchAllFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	patternValue, _ := ctx.GetIndexValue(0)
 	subjectValue, _ := ctx.GetIndexValue(1)
-	matchesValue, _ := ctx.GetIndexValue(2)
-	// flagsValue, _ := ctx.GetIndexValue(3)  // 目前忽略
+	flagsValue, _ := ctx.GetIndexValue(3)
 	// offsetValue, _ := ctx.GetIndexValue(4) // 目前忽略
 
 	if patternValue == nil || subjectValue == nil {
@@ -41,52 +40,116 @@ func (f *PregMatchAllFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 		return data.NewBoolValue(false), nil
 	}
 
-	// 查找所有匹配以及分组
+	// 解析 flags（支持 PREG_PATTERN_ORDER / PREG_SET_ORDER、PREG_OFFSET_CAPTURE）
+	flags := 0
+	if flagsValue != nil {
+		if asInt, ok := flagsValue.(data.AsInt); ok {
+			if v, err := asInt.AsInt(); err == nil {
+				flags = v
+			}
+		}
+	}
+	patternOrder := flags&2 == 0 // !(flags & PREG_SET_ORDER)
+	offsetCapture := flags&256 != 0
+
+	// 查找所有匹配以及分组（索引数组）
 	allLocs := re.FindAllStringSubmatchIndex(subject, -1)
 	if len(allLocs) == 0 {
 		// 无匹配时返回 0，并将 $matches 设为空数组
-		if matchesValue != nil {
-			empty := data.NewArrayValue([]data.Value{})
-			if r, ok := matchesValue.(*data.ReferenceValue); ok {
-				r.Ctx.SetVariableValue(r.Val, empty)
-			} else if arr, ok := matchesValue.(*data.ArrayValue); ok {
-				arr.List = []*data.ZVal{}
-			}
+		empty := data.NewArrayValue([]data.Value{})
+		// 通过参数引用写回调用方的 $matches
+		if z := ctx.GetIndexZVal(2); z != nil {
+			z.Value = empty
 		}
 		return data.NewIntValue(0), nil
 	}
 
-	// 每个匹配 loc: [start0,end0, start1,end1, ...]
-	groupCount := len(allLocs[0]) / 2
-	groups := make([]data.Value, groupCount)
+	// loc: [start0,end0, start1,end1, ...]，第 0 组是完整匹配，后续是各捕获分组
+	if patternOrder {
+		// PREG_PATTERN_ORDER：$matches[group][matchIndex]
+		groupCount := len(allLocs[0]) / 2
+		groups := make([]data.Value, groupCount)
 
-	for g := 0; g < groupCount; g++ {
-		var groupMatches []data.Value
+		for g := 0; g < groupCount; g++ {
+			var groupMatches []data.Value
+			for _, loc := range allLocs {
+				start := loc[g*2]
+				end := loc[g*2+1]
+
+				// 未匹配的分组
+				if start == -1 || end == -1 {
+					if offsetCapture {
+						// ['', 0]
+						pair := []data.Value{
+							data.NewStringValue(""),
+							data.NewIntValue(0),
+						}
+						groupMatches = append(groupMatches, data.NewArrayValue(pair))
+					} else {
+						groupMatches = append(groupMatches, data.NewStringValue(""))
+					}
+					continue
+				}
+
+				text := data.NewStringValue(subject[start:end])
+				if offsetCapture {
+					pair := []data.Value{
+						text,
+						data.NewIntValue(start),
+					}
+					groupMatches = append(groupMatches, data.NewArrayValue(pair))
+				} else {
+					groupMatches = append(groupMatches, text)
+				}
+			}
+			groups[g] = data.NewArrayValue(groupMatches)
+		}
+
+		matchesArr := data.NewArrayValue(groups)
+		if z := ctx.GetIndexZVal(2); z != nil {
+			z.Value = matchesArr
+		}
+	} else {
+		// PREG_SET_ORDER：$matches[matchIndex][group]
+		var rows []data.Value
 		for _, loc := range allLocs {
-			start := loc[g*2]
-			end := loc[g*2+1]
-			if start == -1 || end == -1 {
-				groupMatches = append(groupMatches, data.NewStringValue(""))
-			} else {
-				groupMatches = append(groupMatches, data.NewStringValue(subject[start:end]))
+			groupCount := len(loc) / 2
+			var row []data.Value
+			for g := 0; g < groupCount; g++ {
+				start := loc[g*2]
+				end := loc[g*2+1]
+				if start == -1 || end == -1 {
+					if offsetCapture {
+						pair := []data.Value{
+							data.NewStringValue(""),
+							data.NewIntValue(0),
+						}
+						row = append(row, data.NewArrayValue(pair))
+					} else {
+						row = append(row, data.NewStringValue(""))
+					}
+					continue
+				}
+				text := data.NewStringValue(subject[start:end])
+				if offsetCapture {
+					pair := []data.Value{
+						text,
+						data.NewIntValue(start),
+					}
+					row = append(row, data.NewArrayValue(pair))
+				} else {
+					row = append(row, text)
+				}
 			}
+			rows = append(rows, data.NewArrayValue(row))
 		}
-		groups[g] = data.NewArrayValue(groupMatches)
+		matchesArr := data.NewArrayValue(rows)
+		if z := ctx.GetIndexZVal(2); z != nil {
+			z.Value = matchesArr
+		}
 	}
 
-	if matchesValue != nil {
-		newMatches := data.NewArrayValue(groups)
-		if r, ok := matchesValue.(*data.ReferenceValue); ok {
-			r.Ctx.SetVariableValue(r.Val, newMatches)
-		} else if arr, ok := matchesValue.(*data.ArrayValue); ok {
-			arr.List = make([]*data.ZVal, len(groups))
-			for i, val := range groups {
-				arr.List[i] = data.NewZVal(val)
-			}
-		}
-	}
-
-	// 返回匹配到的次数
+	// 返回匹配到的次数（完整匹配数量）
 	return data.NewIntValue(len(allLocs)), nil
 }
 
@@ -98,7 +161,8 @@ func (f *PregMatchAllFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "pattern", 0, nil, nil),
 		node.NewParameter(nil, "subject", 1, nil, nil),
-		node.NewParameter(nil, "matches", 2, node.NewNullLiteral(nil), nil),
+		// 第三个参数为 &array $matches，按 PHP 语义需要按引用传递
+		node.NewParameterReference(nil, "matches", 2, data.NewBaseType("array")),
 		node.NewParameter(nil, "flags", 3, node.NewIntLiteral(nil, "0"), nil),
 		node.NewParameter(nil, "offset", 4, node.NewIntLiteral(nil, "0"), nil),
 	}

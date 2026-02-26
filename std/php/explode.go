@@ -25,13 +25,15 @@ func (f *ExplodeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	separator := separatorValue.AsString()
 	str := stringValue.AsString()
 
-	// 处理 limit 参数
-	limit := -1
+	// 处理 limit 参数（遵循 PHP explode 语义）
+	hasLimit := false
+	limit := 0
 	if limitValue != nil {
 		if _, ok := limitValue.(*data.NullValue); !ok {
 			if limitInt, ok := limitValue.(data.AsInt); ok {
 				if l, err := limitInt.AsInt(); err == nil {
 					limit = l
+					hasLimit = true
 				}
 			}
 		}
@@ -39,15 +41,28 @@ func (f *ExplodeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	// 分割字符串
 	var parts []string
-	if limit < 0 {
-		// 没有限制，分割所有
+	if !hasLimit {
+		// 未提供 limit 或为 null：分割所有
 		parts = strings.Split(str, separator)
-	} else if limit == 0 {
-		// limit 为 0，返回包含原字符串的数组
-		parts = []string{str}
-	} else {
-		// 限制分割次数
+	} else if limit > 0 {
+		// 正数 limit：与 PHP 一致，限制返回元素数量
 		parts = strings.SplitN(str, separator, limit)
+	} else if limit == 0 {
+		// limit = 0 时视为 1，与 PHP 行为一致
+		parts = strings.Split(str, separator)
+	} else { // limit < 0
+		// 负数 limit：返回除最后 -limit 个元素之外的所有元素
+		all := strings.Split(str, separator)
+		if len(all) == 1 {
+			// PHP 特例：未找到分隔符且 limit<0 时返回空数组
+			parts = []string{}
+		} else {
+			n := len(all) + limit // limit 为负数
+			if n < 0 {
+				n = 0
+			}
+			parts = all[:n]
+		}
 	}
 
 	// 转换为 Value 数组

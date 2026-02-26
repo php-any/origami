@@ -261,7 +261,9 @@ func (ep *ExpressionParser) parseLogicalAnd() (data.GetValue, data.Control) {
 		operator := ep.current()
 		ep.next()
 
-		right, acl := ep.parseAssignment()
+		// PHP 中 && 优先级高于 ?:，故右侧用 parseBitwiseOr，不能再用 parseAssignment，
+		// 否则会把 "a && b ? c : d" 解析成 a && (b ? c : d) 而非 (a && b) ? c : d
+		right, acl := ep.parseBitwiseOr()
 		if acl != nil {
 			return nil, acl
 		}

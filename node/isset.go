@@ -34,7 +34,10 @@ func (i *IssetStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 
 		// 如果获取值出错，返回 false
 		if ctl != nil {
-			return data.NewBoolValue(false), nil
+			if acl, ok := ctl.(data.GetName); ok && "UndefinedIndexExpression" == acl.GetName() {
+				return data.NewBoolValue(false), nil
+			}
+			return nil, ctl
 		}
 
 		// 检查值是否为 null

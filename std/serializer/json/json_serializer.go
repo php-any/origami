@@ -26,9 +26,20 @@ func (j *JsonSerializer) UnmarshalInt(data []byte, v *data.IntValue) error {
 	return json.Unmarshal(data, &v.Value)
 }
 
+// marshalNoHTMLEscape 用 json.Encoder + SetEscapeHTML(false) 编码，使 < > & 不变成 \u003c 等，与 PHP json_encode 默认一致
+func marshalNoHTMLEscape(v interface{}) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return bytes.TrimSuffix(buf.Bytes(), []byte("\n")), nil
+}
+
 // String
 func (j *JsonSerializer) MarshalString(v *data.StringValue) ([]byte, error) {
-	return json.Marshal(v.Value)
+	return marshalNoHTMLEscape(v.Value)
 }
 
 func (j *JsonSerializer) UnmarshalString(data []byte, v *data.StringValue) error {
@@ -47,24 +58,27 @@ func (j *JsonSerializer) UnmarshalNull(data []byte, v *data.NullValue) error {
 
 // Array
 func (j *JsonSerializer) MarshalArray(v *data.ArrayValue) ([]byte, error) {
-	// 递归序列化数组中的每个元素
 	valueList := v.ToValueList()
-	items := make([]json.RawMessage, 0, len(valueList))
-	for _, elem := range valueList {
+	var buf bytes.Buffer
+	buf.WriteByte('[')
+	for i, elem := range valueList {
+		if i > 0 {
+			buf.WriteByte(',')
+		}
+		var b []byte
+		var err error
 		if vs, ok := elem.(data.ValueSerializer); ok {
-			// 为每个元素创建新的序列化器
-			b, err := vs.Marshal(j)
+			b, err = vs.Marshal(j)
 			if err != nil {
 				return nil, err
 			}
-			items = append(items, b)
 		} else {
-			// 如果不支持序列化，转换为字符串
-			b, _ := json.Marshal(elem.AsString())
-			items = append(items, b)
+			b, _ = marshalNoHTMLEscape(elem.AsString())
 		}
+		buf.Write(b)
 	}
-	return json.Marshal(items)
+	buf.WriteByte(']')
+	return buf.Bytes(), nil
 }
 
 func (j *JsonSerializer) UnmarshalArray(msg []byte, v *data.ArrayValue) error {
@@ -119,16 +133,13 @@ func (j *JsonSerializer) MarshalObject(v *data.ObjectValue) ([]byte, error) {
 		}
 		first = false
 
-		// 写入键
-		keyBytes, err := json.Marshal(k)
+		keyBytes, err := marshalNoHTMLEscape(k)
 		if err != nil {
 			marshalErr = err
 			return false
 		}
 		buf.Write(keyBytes)
 		buf.WriteByte(':')
-
-		// 写入值
 		if vs, ok := val.(data.ValueSerializer); ok {
 			b, err := vs.Marshal(j)
 			if err != nil {
@@ -137,7 +148,7 @@ func (j *JsonSerializer) MarshalObject(v *data.ObjectValue) ([]byte, error) {
 			}
 			buf.Write(b)
 		} else {
-			b, _ := json.Marshal(val.AsString())
+			b, _ := marshalNoHTMLEscape(val.AsString())
 			buf.Write(b)
 		}
 		return true
@@ -232,16 +243,13 @@ func (j *JsonSerializer) MarshalClass(v *data.ClassValue) ([]byte, error) {
 		}
 		first = false
 
-		// 写入键
-		keyBytes, err := json.Marshal(k)
+		keyBytes, err := marshalNoHTMLEscape(k)
 		if err != nil {
 			marshalErr = err
 			return false
 		}
 		buf.Write(keyBytes)
 		buf.WriteByte(':')
-
-		// 写入值
 		if vs, ok := val.(data.ValueSerializer); ok {
 			b, err := vs.Marshal(j)
 			if err != nil {
@@ -250,7 +258,7 @@ func (j *JsonSerializer) MarshalClass(v *data.ClassValue) ([]byte, error) {
 			}
 			buf.Write(b)
 		} else {
-			b, _ := json.Marshal(val.AsString())
+			b, _ := marshalNoHTMLEscape(val.AsString())
 			buf.Write(b)
 		}
 		return true

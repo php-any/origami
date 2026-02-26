@@ -46,8 +46,8 @@ func (f *InArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	valueList := arrayVal.ToValueList()
 	for _, val := range valueList {
 		if strict {
-			// 严格模式：类型和值都必须相同
-			if needleValue == val {
+			// 严格模式：PHP === 语义，类型和值都必须相同（按值比较，非指针）
+			if valueEqualStrict(needleValue, val) {
 				return data.NewBoolValue(true), nil
 			}
 		} else {
@@ -79,4 +79,36 @@ func (f *InArrayFunction) GetVariables() []data.Variable {
 		node.NewVariable(nil, "haystack", 1, data.NewBaseType("array")),
 		node.NewVariable(nil, "strict", 2, data.NewBaseType("bool")),
 	}
+}
+
+// valueEqualStrict 实现 PHP === 语义：类型相同且值相同（按值比较，非指针）
+func valueEqualStrict(a, b data.Value) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	switch va := a.(type) {
+	case *data.StringValue:
+		if vb, ok := b.(*data.StringValue); ok {
+			return va.Value == vb.Value
+		}
+	case *data.IntValue:
+		if vb, ok := b.(*data.IntValue); ok {
+			return va.Value == vb.Value
+		}
+	case *data.FloatValue:
+		if vb, ok := b.(*data.FloatValue); ok {
+			return va.Value == vb.Value
+		}
+	case *data.BoolValue:
+		if vb, ok := b.(*data.BoolValue); ok {
+			return va.Value == vb.Value
+		}
+	case *data.NullValue:
+		_, ok := b.(*data.NullValue)
+		return ok
+	default:
+		// 其他类型（如 ArrayValue、ObjectValue）在 PHP 中 === 为引用相等，这里保守按指针比较
+		return a == b
+	}
+	return false
 }

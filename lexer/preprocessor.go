@@ -469,6 +469,63 @@ func processStringInterpolation(t Token) Token {
 				}
 			}
 		}
+		// PHP 双引号字符串中的裸变量插值：$var 或 $var_name（无花括号）；$.SERVER(...) 已在上方处理
+		if quote == '"' && r == '$' && i+1 < len(runes) {
+			nextChar := runes[i+1]
+			if (unicode.IsLetter(nextChar) || nextChar == '_' || ('\u4e00' <= nextChar && nextChar <= '\u9fff')) && !unicode.IsDigit(nextChar) {
+				hasInterpolation = true
+				if len(currentStr) > 0 {
+					children = append(children, NewWorkerToken(
+						token.STRING,
+						string(quote)+string(currentStr)+string(quote),
+						t.Start(), t.End(), t.Line(), t.Pos(),
+					))
+					currentStr = nil
+				}
+				if len(children) == 0 {
+					children = append(children, NewWorkerToken(
+						token.STRING, "", t.Start(), t.Start(), t.Line(), t.Pos(),
+					))
+				}
+				j := i + 1
+				for j < len(runes) && (unicode.IsLetter(runes[j]) || unicode.IsDigit(runes[j]) || runes[j] == '_' || ('\u4e00' <= runes[j] && runes[j] <= '\u9fff')) {
+					j++
+				}
+				exprContent := string(runes[i:j])
+				baseStart := t.Start() + 1 + i
+				baseLine := t.Line()
+				baseColumn := t.Pos() + i
+				l := NewLexer()
+				codeTokens := l.Tokenize(exprContent)
+				values := make([]Token, 0)
+				for _, codeToken := range codeTokens {
+					relativeLine := codeToken.Line()
+					relativeColumn := codeToken.Pos()
+					var absoluteLine, absoluteColumn int
+					if relativeLine == 0 {
+						absoluteLine = baseLine
+						absoluteColumn = relativeColumn + baseColumn
+					} else {
+						absoluteLine = relativeLine + baseLine
+						absoluteColumn = relativeColumn
+					}
+					values = append(values, NewWorkerToken(
+						codeToken.Type(), codeToken.Literal(),
+						codeToken.Start()+baseStart, codeToken.End()+baseStart,
+						absoluteLine, absoluteColumn,
+					))
+				}
+				children = append(children, NewLingToken(
+					token.INTERPOLATION_VALUE,
+					exprContent,
+					t.Start()+1+i, t.Start()+1+j,
+					t.Line(), t.Pos()+i,
+					values,
+				))
+				i = j - 1
+				continue
+			}
+		}
 		if r == '{' && i+2 < len(runes) && runes[i+1] == '$' {
 			// 检查 $ 后面是否是有效的变量名起始字符
 			nextChar := runes[i+2]

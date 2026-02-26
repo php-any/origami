@@ -52,7 +52,8 @@ func (s *ExceptionClass) GetExtend() *string {
 }
 
 func (s *ExceptionClass) GetImplements() []string {
-	return nil
+	// PHP 中 Exception 实现 Throwable 接口
+	return []string{"Throwable"}
 }
 
 func (s *ExceptionClass) GetProperty(_ string) (data.Property, bool) {

@@ -48,10 +48,29 @@ func (pe *CallParentMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 		return nil, acl
 	}
 
-	// 获取父类方法
-	method, has := parentClass.GetMethod(pe.Method)
+	// 获取父类方法：需要沿继承链向上查找（父类本身或其父类中定义的方法）
+	var (
+		method data.Method
+		has    bool
+	)
+	current := parentClass
+	for current != nil {
+		method, has = current.GetMethod(pe.Method)
+		if has {
+			break
+		}
+		if current.GetExtend() == nil {
+			break
+		}
+		nextName := *current.GetExtend()
+		next, acl := vm.GetOrLoadClass(nextName)
+		if acl != nil {
+			return nil, acl
+		}
+		current = next
+	}
 	if !has {
-		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("父类 %s 没有方法 %s", parentClassName, pe.Method))
+		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("父类 %s 及其继承链中都没有方法 %s", parentClassName, pe.Method))
 	}
 
 	// 检查方法访问权限

@@ -21,11 +21,14 @@ type StackFrame struct {
 	MethodName string
 }
 
-// ThrowValue 表示异常抛出控制流
 type ThrowValue struct {
 	Object           *ClassValue
 	getMessage       Method
 	getTraceAsString Method
+
+	// previous 表示前一个异常，用于异常链；目前 Origami 尚未维护完整链，
+	// 该字段暂未在 NewErrorThrow* 中赋值，getPrevious() 将返回 null。
+	previous *ThrowValue
 
 	Name string
 
@@ -79,6 +82,16 @@ func (t *ThrowValue) GetMethod(name string) (Method, bool) {
 		return t.getMessage, true
 	case "getTraceAsString":
 		return t.getTraceAsString, true
+	case "getPrevious":
+		return &ThrowValueGetPreviousMethod{source: t}, true
+	case "getCode":
+		return &ThrowValueGetCodeMethod{source: t}, true
+	case "getFile":
+		return &ThrowValueGetFileMethod{source: t}, true
+	case "getLine":
+		return &ThrowValueGetLineMethod{source: t}, true
+	case "getTrace":
+		return &ThrowValueGetTraceMethod{source: t}, true
 	}
 	return nil, false
 }
@@ -87,6 +100,11 @@ func (t *ThrowValue) GetMethods() []Method {
 	return []Method{
 		t.getMessage,
 		t.getTraceAsString,
+		&ThrowValueGetPreviousMethod{source: t},
+		&ThrowValueGetCodeMethod{source: t},
+		&ThrowValueGetFileMethod{source: t},
+		&ThrowValueGetLineMethod{source: t},
+		&ThrowValueGetTraceMethod{source: t},
 	}
 }
 
@@ -301,4 +319,142 @@ func (t *ThrowValueGetTraceAsStringMethod) GetVariables() []Variable {
 // GetReturnType 返回方法返回类型
 func (t *ThrowValueGetTraceAsStringMethod) GetReturnType() Types {
 	return NewBaseType("string")
+}
+
+// ---------------- 额外的 Throwable 方法实现 ----------------
+
+// getPrevious(): ?Throwable
+type ThrowValueGetPreviousMethod struct {
+	source *ThrowValue
+}
+
+func (m *ThrowValueGetPreviousMethod) Call(ctx Context) (GetValue, Control) {
+	if m.source == nil || m.source.previous == nil {
+		return NewNullValue(), nil
+	}
+	return m.source.previous, nil
+}
+
+func (m *ThrowValueGetPreviousMethod) GetName() string       { return "getPrevious" }
+func (m *ThrowValueGetPreviousMethod) GetModifier() Modifier { return ModifierPublic }
+func (m *ThrowValueGetPreviousMethod) GetIsStatic() bool     { return false }
+func (m *ThrowValueGetPreviousMethod) GetParams() []GetValue { return []GetValue{} }
+func (m *ThrowValueGetPreviousMethod) GetVariables() []Variable {
+	return []Variable{}
+}
+
+func (m *ThrowValueGetPreviousMethod) GetReturnType() Types {
+	return NewBaseType("Throwable")
+}
+
+// getCode(): int
+type ThrowValueGetCodeMethod struct {
+	source *ThrowValue
+}
+
+func (m *ThrowValueGetCodeMethod) Call(ctx Context) (GetValue, Control) {
+	// 目前 Error 中未区分错误码，这里统一返回 0
+	return NewIntValue(0), nil
+}
+
+func (m *ThrowValueGetCodeMethod) GetName() string       { return "getCode" }
+func (m *ThrowValueGetCodeMethod) GetModifier() Modifier { return ModifierPublic }
+func (m *ThrowValueGetCodeMethod) GetIsStatic() bool     { return false }
+func (m *ThrowValueGetCodeMethod) GetParams() []GetValue { return []GetValue{} }
+func (m *ThrowValueGetCodeMethod) GetVariables() []Variable {
+	return []Variable{}
+}
+
+func (m *ThrowValueGetCodeMethod) GetReturnType() Types {
+	return NewBaseType("int")
+}
+
+// getFile(): string
+type ThrowValueGetFileMethod struct {
+	source *ThrowValue
+}
+
+func (m *ThrowValueGetFileMethod) Call(ctx Context) (GetValue, Control) {
+	if m.source == nil || m.source.Error == nil || m.source.Error.From == nil {
+		return NewStringValue(""), nil
+	}
+	return NewStringValue(m.source.Error.From.GetSource()), nil
+}
+
+func (m *ThrowValueGetFileMethod) GetName() string       { return "getFile" }
+func (m *ThrowValueGetFileMethod) GetModifier() Modifier { return ModifierPublic }
+func (m *ThrowValueGetFileMethod) GetIsStatic() bool     { return false }
+func (m *ThrowValueGetFileMethod) GetParams() []GetValue { return []GetValue{} }
+func (m *ThrowValueGetFileMethod) GetVariables() []Variable {
+	return []Variable{}
+}
+
+func (m *ThrowValueGetFileMethod) GetReturnType() Types {
+	return NewBaseType("string")
+}
+
+// getLine(): int
+type ThrowValueGetLineMethod struct {
+	source *ThrowValue
+}
+
+func (m *ThrowValueGetLineMethod) Call(ctx Context) (GetValue, Control) {
+	if m.source == nil || m.source.Error == nil || m.source.Error.From == nil {
+		return NewIntValue(0), nil
+	}
+	sl, _ := m.source.Error.From.GetStartPosition()
+	return NewIntValue(sl + 1), nil
+}
+
+func (m *ThrowValueGetLineMethod) GetName() string       { return "getLine" }
+func (m *ThrowValueGetLineMethod) GetModifier() Modifier { return ModifierPublic }
+func (m *ThrowValueGetLineMethod) GetIsStatic() bool     { return false }
+func (m *ThrowValueGetLineMethod) GetParams() []GetValue { return []GetValue{} }
+func (m *ThrowValueGetLineMethod) GetVariables() []Variable {
+	return []Variable{}
+}
+
+func (m *ThrowValueGetLineMethod) GetReturnType() Types {
+	return NewBaseType("int")
+}
+
+// getTrace(): array
+type ThrowValueGetTraceMethod struct {
+	source *ThrowValue
+}
+
+func (m *ThrowValueGetTraceMethod) Call(ctx Context) (GetValue, Control) {
+	frames := make([]Value, 0, len(m.source.StackFrames))
+
+	for _, frame := range m.source.StackFrames {
+		obj := NewObjectValue()
+		if frame.From != nil {
+			sl, _ := frame.From.GetStartPosition()
+			obj.SetProperty("file", NewStringValue(frame.From.GetSource()))
+			obj.SetProperty("line", NewIntValue(sl+1))
+		}
+		if frame.ClassName != "" {
+			obj.SetProperty("class", NewStringValue(frame.ClassName))
+		}
+		if frame.MethodName != "" {
+			obj.SetProperty("function", NewStringValue(frame.MethodName))
+			// 简化：统一认为是对象方法
+			obj.SetProperty("type", NewStringValue("->"))
+		}
+		frames = append(frames, obj)
+	}
+
+	return NewArrayValue(frames), nil
+}
+
+func (m *ThrowValueGetTraceMethod) GetName() string       { return "getTrace" }
+func (m *ThrowValueGetTraceMethod) GetModifier() Modifier { return ModifierPublic }
+func (m *ThrowValueGetTraceMethod) GetIsStatic() bool     { return false }
+func (m *ThrowValueGetTraceMethod) GetParams() []GetValue { return []GetValue{} }
+func (m *ThrowValueGetTraceMethod) GetVariables() []Variable {
+	return []Variable{}
+}
+
+func (m *ThrowValueGetTraceMethod) GetReturnType() Types {
+	return NewBaseType("array")
 }

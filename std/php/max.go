@@ -21,16 +21,18 @@ func NewMaxFunction() data.FuncStmt {
 }
 
 func (f *MaxFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 收集所有实参
-	var args []data.Value
-	for i := 0; ; i++ {
-		v, ok := ctx.GetIndexValue(i)
-		if !ok {
-			break
-		}
-		args = append(args, v)
+	// 所有参数通过 Parameters 聚合在索引 0 上
+	paramsVal, _ := ctx.GetIndexValue(0)
+	if paramsVal == nil {
+		return data.NewNullValue(), nil
 	}
 
+	paramsArr, ok := paramsVal.(*data.ArrayValue)
+	if !ok {
+		return data.NewNullValue(), nil
+	}
+
+	args := paramsArr.ToValueList()
 	if len(args) == 0 {
 		return data.NewNullValue(), nil
 	}

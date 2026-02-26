@@ -1,9 +1,12 @@
 package stream
 
 import (
+	"errors"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/std/php/core"
+	"github.com/php-any/origami/utils"
 )
 
 // FwriteFunction 实现 fwrite 函数
@@ -46,6 +49,9 @@ func (f *FwriteFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	// 获取要写入的数据
 	dataValue, _ := ctx.GetIndexValue(1)
+	if _, ok := dataValue.(*data.BoolValue); ok {
+		return nil, utils.NewThrow(errors.New("debug"))
+	}
 	if dataValue == nil {
 		return data.NewIntValue(0), nil
 	}

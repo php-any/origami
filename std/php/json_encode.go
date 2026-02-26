@@ -25,9 +25,29 @@ func (f *JsonEncodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 
 	// 获取第一个参数（要编码的值）
 	valueParam := params[0]
-	value, _ := valueParam.GetValue(ctx)
-	if value == nil {
+	raw, _ := valueParam.GetValue(ctx)
+	if raw == nil {
 		return data.NewStringValue("null"), nil
+	}
+
+	// 若是实现了 JsonSerializable 的对象，则优先调用 jsonSerialize() 的返回值进行编码
+	value := raw
+	if v, ok := raw.(data.Value); ok {
+		jsonSerializable := data.Class{Name: "JsonSerializable"}
+		if jsonSerializable.Is(v) {
+			if obj, ok := raw.(*data.ClassValue); ok {
+				if method, has := obj.GetMethod("jsonSerialize"); has {
+					// 在对象上下文中调用 jsonSerialize()
+					res, acl := method.Call(obj.CreateContext(method.GetVariables()))
+					if acl != nil {
+						return nil, acl
+					}
+					if res != nil {
+						value = res
+					}
+				}
+			}
+		}
 	}
 
 	// 创建 JSON 序列化器

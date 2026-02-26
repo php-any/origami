@@ -34,7 +34,12 @@ description: Ensure that when implementing or modifying PHP runtime or std/php f
 
 1. 在 `tests/php/` 目录下创建一个**新的 .php 文件**，文件名建议遵循：
    - `<function_name>_test.php`，例如：`set_exception_handler_test.php`
-2. 脚本内容要尽量**最小化但可见效果**，典型结构：
+2. **测试脚本格式规范**（参考同目录下 `json_serializable_test.php`、`ksort_test.php` 等）：
+   - 首行 `<?php` 后空一行，接着必须写 `namespace tests\php;`
+   - 文件顶部用 **docblock** `/** ... */` 简要说明本测试目的（一两行即可）
+   - 失败时用 **Log::fatal('...')** 报错并终止，成功时用 **Log::info('...测试通过')** 收尾
+   - 不要用 `throw new \Exception()` 或 `echo "ok\n"` 表示通过/失败，统一用 Log
+3. 脚本内容要尽量**最小化但可见效果**，典型结构：
 
 ```php
 <?php
@@ -112,5 +117,13 @@ go run ./origami.go tests/php/set_exception_handler_test.php
 4. **测试脚本中的类名使用唯一前缀**：因所有测试共用命名空间 `tests\php`，类名不要写太通用的（如 `CallTester`、`BaseParent`），应加与测试主题相关的前缀（如 `MagicMethods_CallTester`），避免与其他测试冲突。
 5. **永远不要忽略 `data.Control` 返回值**：当你调用任何返回 `(X, data.Control)` 的函数（如 `vm.GetOrLoadClass` / `vm.GetOrLoadInterface` / `node.NewXXX().GetValue` 等），**必须**检查 `acl != nil` 并及时向上返回或处理，禁止写成 `_, _ = fn(...)`、`_ , _ := fn(...)` 这种丢弃控制流的用法，否则会吞掉运行时错误、抑制 throw/return/continue/break 等控制信号。
 
-只有当以上步骤都完成且脚本行为符合预期时，这次函数补充才算完成。 
+只有当以上步骤都完成且脚本行为符合预期时，这次函数补充才算完成。
+
+## 测试脚本与问题定位（避免“测试文件总是错”）
+
+1. **不要默认怪测试文件**：当用户说“测试错了”或“输出不对”时，先认定是**运行时/解析器**的问题，除非能明确证明是测试用例写错（例如断言与 PHP 官方文档不符）。
+2. **用真实代码定位**：若问题来自真实项目（如 Symfony、vendor 下的代码），以**用户给出的具体文件与行号**为准（例如 `vendor/symfony/console/Descriptor/TextDescriptor.php:233`），在该行写的是“应该输出 `$content` 却输出了 `true`”时，优先考虑：
+   - **运算符优先级**：如 `a && b ? c : d` 在 PHP 中为 `(a && b) ? c : d`；若解析成 `a && (b ? c : d)` 会得到错误结果。应在 `parser/expression_parser.go` 中保证 `&&`/`||` 的右侧不吞掉其后的 `? :`（例如 `parseLogicalAnd` 的右侧用 `parseBitwiseOr` 而非 `parseAssignment`）。
+   - **其它解析/求值顺序**：对照 PHP 官方运算符优先级表检查解析层级。
+3. **测试脚本的用途**：`tests/php/` 下的脚本用于**回归/最小复现**。若 bug 已在真实文件中定位，可先在该真实文件上验证修复，再在 `tests/php/` 里补一个最小用例（例如只包含有问题的表达式）防止回退。 
 

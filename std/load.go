@@ -23,6 +23,10 @@ func Load(vm data.VM) {
 	}
 
 	vm.AddClass(log.NewLogClass())
+	// 注册 Throwable / Stringable / JsonSerializable 接口与 Exception 类
+	vm.AddInterface(exception.NewThrowableInterface())
+	vm.AddInterface(exception.NewStringableInterface())
+	vm.AddInterface(exception.NewJsonSerializableInterface())
 	vm.AddClass(exception.NewExceptionClass())
 	vm.AddClass(os.NewOSClass())
 	reflect.Load(vm)

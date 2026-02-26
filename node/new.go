@@ -83,15 +83,18 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 			if acl != nil {
 				return acl
 			}
-			return param.SetValue(fnCtx, data.NewZValValue(zv))
+			fnCtx.SetIndexZVal(param.Index, zv)
 		case *IndexExpression:
 			zv, acl := val.GetZVal(ctx)
 			if acl != nil {
 				return acl
 			}
-			return param.SetValue(fnCtx, data.NewZValValue(zv))
+			fnCtx.SetIndexZVal(param.Index, zv)
 		case data.Variable:
-			return param.SetValue(fnCtx, data.NewZValValue(ctx.GetIndexZVal(val.GetIndex())))
+			// 引用参数传入变量时，需要保证存在一个共享的 ZVal：
+			zv := ctx.GetIndexZVal(val.GetIndex())
+			fnCtx.SetIndexZVal(param.Index, zv)
+			return nil
 		default:
 			return data.NewErrorThrow(param.GetFrom(), fmt.Errorf("引用参数只能传入变量"))
 		}
@@ -105,6 +108,38 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 
 		for i := index; i < len(arguments); i++ {
 			arg := arguments[i]
+			// 支持展开实参 ...expr
+			if spread, ok := arg.(*SpreadArgument); ok {
+				tempV, acl := spread.Expr.GetValue(ctx)
+				if acl != nil {
+					return acl
+				}
+				if tempV == nil {
+					continue
+				}
+				switch v := tempV.(type) {
+				case *data.ArrayValue:
+					for _, z := range v.List {
+						ares.List = append(ares.List, data.NewZVal(z.Value))
+					}
+					fnCtx.SetVariableValue(param, ares)
+				case *data.ObjectValue:
+					// 关联数组展开：按属性遍历值（键在具体函数内部再决策如何使用）
+					v.RangeProperties(func(_ string, val data.Value) bool {
+						ares.List = append(ares.List, data.NewZVal(val))
+						return true
+					})
+					fnCtx.SetVariableValue(param, ares)
+				default:
+					// 其他类型退化为普通单值参数
+					if value, ok := tempV.(data.Value); ok {
+						ares.List = append(ares.List, data.NewZVal(value))
+						fnCtx.SetVariableValue(param, ares)
+					}
+				}
+				continue
+			}
+
 			tempV, acl := arg.GetValue(ctx)
 			if acl != nil {
 				return acl

@@ -2,6 +2,7 @@ package php
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -72,7 +73,10 @@ func (f *PackFunction) GetVariables() []data.Variable {
 //
 // 目前仅实现:
 //   - "C"  : 返回数组 [第一个字节]
-//   - "C*" : 返回数组 [所有字节] （数组索引从 0 开始，近似 PHP 行为）
+//   - "C*" : 返回数组 [所有字节]
+//
+// 返回的数组索引从 1 开始（使用 ObjectValue，键为 "1".."n"），
+// 以匹配 PHP 对 unpack("C*") 的行为，便于在 PHP 代码中使用 $a[1], $a[2] 访问。
 type UnpackFunction struct{}
 
 func NewUnpackFunction() data.FuncStmt { return &UnpackFunction{} }
@@ -93,18 +97,20 @@ func (f *UnpackFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		if len(s) == 0 {
 			return data.NewBoolValue(false), nil
 		}
-		return data.NewArrayValue([]data.Value{
-			data.NewIntValue(int(s[0])),
-		}), nil
+		obj := data.NewObjectValue()
+		obj.SetProperty("1", data.NewIntValue(int(s[0])))
+		return obj, nil
 	case "C*":
 		if len(s) == 0 {
-			return data.NewArrayValue([]data.Value{}), nil
+			return data.NewObjectValue(), nil
 		}
-		values := make([]data.Value, len(s))
+		obj := data.NewObjectValue()
 		for i := 0; i < len(s); i++ {
-			values[i] = data.NewIntValue(int(s[i]))
+			// PHP 中索引从 1 开始
+			key := fmt.Sprintf("%d", i+1)
+			obj.SetProperty(key, data.NewIntValue(int(s[i])))
 		}
-		return data.NewArrayValue(values), nil
+		return obj, nil
 	default:
 		return data.NewBoolValue(false), nil
 	}

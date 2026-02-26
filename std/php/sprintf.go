@@ -2,6 +2,7 @@ package php
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -48,13 +49,12 @@ func (f *SprintfFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 
-	// PHP sprintf format strings are mostly compatible with Go fmt, but not entirely.
-	// e.g. PHP uses %1$s for argument swapping, Go uses %[1]s.
-	// We might need to replace $ with [x] syntax if present?
-	// Simple implementation: direct pass to fmt.Sprintf
+	// PHP sprintf 格式串与 Go fmt 略有差异：
+	// - PHP 支持位置参数：%1$s、%2$d 等；Go 使用 %[1]s 这样的语法。
+	// 这里做一次简单转换：%1$-20s -> %[1]-20s 等。
+	goFormat := phpToGoFormat(format)
 
-	// Handle basic cases
-	result := fmt.Sprintf(format, args...)
+	result := fmt.Sprintf(goFormat, args...)
 
 	return data.NewStringValue(result), nil
 }
@@ -75,4 +75,12 @@ func (f *SprintfFunction) GetVariables() []data.Variable {
 		node.NewVariable(nil, "format", 0, data.NewBaseType("string")),
 		node.NewVariable(nil, "values", 1, data.NewBaseType("mixed")),
 	}
+}
+
+// phpToGoFormat 将 PHP 的 %1$s / %2$-10s 风格占位符转换为 Go 的 %[1]s / %[2]-10s。
+var phpPositionalRe = regexp.MustCompile(`%([0-9]+)\$([+#0\- ]*\d*(?:\.\d+)?[bcdeEfFgGosxX])`)
+
+func phpToGoFormat(format string) string {
+	// 将 %1$s / %2$-10s 转为 %[1]s / %[2]-10s
+	return phpPositionalRe.ReplaceAllString(format, "%[$1]$2")
 }

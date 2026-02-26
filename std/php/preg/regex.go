@@ -117,6 +117,7 @@ func Compile(pattern string) (*regexp.Regexp, error) {
 
 			// 处理修饰符
 			prefix := ""
+			extended := false
 			if len(modifiers) > 0 {
 				for _, mod := range modifiers {
 					switch mod {
@@ -126,8 +127,15 @@ func Compile(pattern string) (*regexp.Regexp, error) {
 						prefix += "(?m)"
 					case 's':
 						prefix += "(?s)"
+					case 'x':
+						// 扩展模式：忽略模式中的空白和注释
+						extended = true
 					}
 				}
+			}
+
+			if extended {
+				regexBody = stripExtendedWhitespace(regexBody)
 			}
 
 			pattern = prefix + regexBody
@@ -135,4 +143,50 @@ func Compile(pattern string) (*regexp.Regexp, error) {
 	}
 
 	return regexp.Compile(pattern)
+}
+
+// stripExtendedWhitespace 近似实现 PHP /x 修饰符的行为：
+// - 在字符类 [] 外，移除未转义的空白字符（空格、制表符等）
+// 这里不处理 # 注释，因为当前项目中使用 /x 的模式主要依赖空白，而非行内注释。
+func stripExtendedWhitespace(pattern string) string {
+	var b strings.Builder
+	inCharClass := false
+	escaped := false
+
+	for i := 0; i < len(pattern); i++ {
+		ch := pattern[i]
+
+		if escaped {
+			b.WriteByte(ch)
+			escaped = false
+			continue
+		}
+
+		if ch == '\\' {
+			escaped = true
+			b.WriteByte(ch)
+			continue
+		}
+
+		if ch == '[' && !inCharClass {
+			inCharClass = true
+			b.WriteByte(ch)
+			continue
+		}
+
+		if ch == ']' && inCharClass {
+			inCharClass = false
+			b.WriteByte(ch)
+			continue
+		}
+
+		// 在字符类外，移除空白字符
+		if !inCharClass && (ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\f') {
+			continue
+		}
+
+		b.WriteByte(ch)
+	}
+
+	return b.String()
 }
