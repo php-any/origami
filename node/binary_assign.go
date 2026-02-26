@@ -193,6 +193,12 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 				}
 			}
 			return data.NewBoolValue(true), nil
+		case *GlobalsNode:
+			// CLI 超全局（如 $argv/$argc）目前视为“只读视图”：
+			// - 典型用法是 $argv ??= $_SERVER['argv'] ?? []，在 PHP 中 $argv 已经预先填充
+			// - 为了兼容该场景，这里计算右值但忽略写入，直接返回右值即可。
+			//   这样既不会 panic，也不会破坏现有 $_SERVER['argv'] 语义。
+			return rv, nil
 		default:
 			return nil, data.NewErrorThrow(b.from, fmt.Errorf("TODO 赋值表达式遇到未支持的类型: %T", l))
 		}

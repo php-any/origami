@@ -389,6 +389,19 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 				if m.Ret.Is(ret) {
 					return ret, nil
 				}
+				// 声明返回 string 时，允许返回带 __toString 的对象并自动转为字符串（与 PHP 一致）
+				if m.Ret != nil && m.Ret.String() == "string" {
+					if obj, ok := ret.(*data.ClassValue); ok {
+						if toStr, ok := obj.GetMethod("__toString"); ok && toStr != nil {
+							fnCtx := obj.CreateContext(toStr.GetVariables())
+							fnCtx.SetCallArgs([]data.GetValue{})
+							val, ctl := toStr.Call(fnCtx)
+							if ctl == nil && val != nil {
+								return val, nil
+							}
+						}
+					}
+				}
 				return nil, data.NewErrorThrow(m.GetFrom(), fmt.Errorf("方法(%s)返回值类型错误; 请检查类型和数量匹配", m.Name))
 			case data.AddStack:
 				if c, ok := statement.(GetFrom); ok {

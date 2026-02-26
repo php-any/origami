@@ -9,8 +9,8 @@ import (
 // CloneExpression 表示 clone 表达式
 // 语法：clone <expression>
 type CloneExpression struct {
-	*Node        `pp:"-"`
-	Target       data.GetValue
+	*Node  `pp:"-"`
+	Target data.GetValue
 }
 
 // NewCloneExpression 创建一个新的 clone 表达式节点
@@ -34,6 +34,11 @@ func (n *CloneExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	}
 	if value == nil {
 		return nil, data.NewErrorThrow(n.from, fmt.Errorf("clone 关键字后面的表达式不能为 null"))
+	}
+
+	// $this 在运行时为 ThisValue，需解包为 ClassValue 再克隆
+	if thisVal, ok := value.(*data.ThisValue); ok {
+		value = thisVal.ClassValue
 	}
 
 	// 仅支持对象克隆
@@ -72,4 +77,3 @@ func (n *CloneExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 
 	return cloned, nil
 }
-

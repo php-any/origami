@@ -63,8 +63,14 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 			name := ident.Value
 			val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
 			key = node.NewVariableWithFirst(tracker.EndBefore(), val)
-		} else if _, ok := keyTemp.(*node.ValueReference); ok {
-			// 不需要处理
+		} else if vr, ok := keyTemp.(*node.ValueReference); ok {
+			// foreach ($arr as &$v) 场景：
+			// 解析出来的是 ValueReference，真正的变量在 vr.Value 里
+			if v, ok := vr.Value.(data.Variable); ok {
+				key = v
+			} else {
+				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
+			}
 		} else {
 			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
 		}
@@ -81,8 +87,13 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 				name := ident.Value
 				val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
 				value = node.NewVariableWithFirst(tracker.EndBefore(), val)
-			} else if _, ok := keyTemp.(*node.ValueReference); ok {
-				// 不需要处理
+			} else if vr, ok := keyTemp.(*node.ValueReference); ok {
+				// foreach ($arr as $k => &$v) 场景，同样从 ValueReference 中取出变量
+				if v, ok := vr.Value.(data.Variable); ok {
+					value = v
+				} else {
+					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
+				}
 			} else {
 				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
 			}

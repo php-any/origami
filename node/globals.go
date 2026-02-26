@@ -25,6 +25,32 @@ func NewGlobalsNode(from data.From, name string) *GlobalsNode {
 func (g *GlobalsNode) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	// 根据变量名返回对应的全局变量
 	switch g.Name {
+	case "$argc":
+		// CLI 下 $argc = count($_SERVER['argv'] ?? [])
+		server, ctl := g.getServer(ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if obj, ok := server.(*data.ObjectValue); ok {
+			argvVal, _ := obj.GetProperty("argv")
+			if arr, ok := argvVal.(*data.ArrayValue); ok {
+				return data.NewIntValue(len(arr.List)), nil
+			}
+		}
+		return data.NewIntValue(0), nil
+	case "$argv":
+		// CLI 下 $argv 直接复用 $_SERVER['argv']
+		server, ctl := g.getServer(ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if obj, ok := server.(*data.ObjectValue); ok {
+			argvVal, _ := obj.GetProperty("argv")
+			if argvVal != nil {
+				return argvVal, nil
+			}
+		}
+		return data.NewArrayValue([]data.Value{}), nil
 	case "$GLOBALS":
 		return g.getGlobals(ctx)
 	case "$_ENV":

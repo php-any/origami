@@ -10,12 +10,14 @@ func (i Class) Is(value Value) bool {
 		if i.Name == c.Class.GetName() {
 			return true
 		}
+		// 先直接比较 implements 列表中的字符串（不依赖接口是否已加载）
 		for _, s := range c.Class.GetImplements() {
-			// 直接实现的接口
 			if i.Name == s {
 				return true
 			}
-			// 接口继承：类实现的接口可能继承了目标接口
+		}
+		// 再在已加载的接口上检查继承链（WrappableOutputFormatterInterface extends OutputFormatterInterface 之类）
+		for _, s := range c.Class.GetImplements() {
 			if interfaceExtends(c.GetVM(), s, i.Name) {
 				return true
 			}
@@ -29,6 +31,8 @@ func (i Class) Is(value Value) bool {
 			if i.Name == s {
 				return true
 			}
+		}
+		for _, s := range c.Class.GetImplements() {
 			if interfaceExtends(c.GetVM(), s, i.Name) {
 				return true
 			}
@@ -67,7 +71,7 @@ func extendISClass(check string, extend *string, vm VM) bool {
 }
 
 // interfaceExtends 检查接口 ifaceName 是否直接或通过继承链实现了目标接口 target。
-// 用于类型系统中判断：类实现的接口本身也继承了其他接口的情况。
+// 这里只基于 VM 中已注册的接口做判断，不负责触发自动加载；接口加载应在类/接口文件加载阶段完成。
 func interfaceExtends(vm VM, ifaceName, target string) bool {
 	if ifaceName == target {
 		return true

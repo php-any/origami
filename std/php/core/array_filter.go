@@ -95,8 +95,16 @@ func (f *ArrayFilterFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 		}
 	}
 
-	// 如果没有回调函数，过滤掉所有 falsy 值
+	// 如果没有回调函数（参数缺省或显式传入 null），过滤掉所有 falsy 值
+	noCallback := false
 	if callbackValue == nil {
+		noCallback = true
+	} else {
+		if _, isNull := callbackValue.(*data.NullValue); isNull {
+			noCallback = true
+		}
+	}
+	if noCallback {
 		var result []data.Value
 		if isAssociative {
 			// 关联数组：保留键
@@ -119,11 +127,9 @@ func (f *ArrayFilterFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	}
 
 	// 有回调函数，需要调用回调
-	var result []data.Value
-	var resultMap map[string]data.Value
-	if isAssociative {
-		resultMap = make(map[string]data.Value)
-	}
+	// 统一使用与 preg_replace_callback / array_map 一致的回调调用约定：
+	// - 将参数写入新的函数上下文（CreateContext）
+	// - 保留闭包/箭头函数对外部变量的捕获行为
 
 	// 解析回调函数
 	fn, acl := f.resolveCallback(ctx, callbackValue)
@@ -131,91 +137,67 @@ func (f *ArrayFilterFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 		return nil, acl
 	}
 
-	vars := fn.Value.GetVariables()
-	fnCtx := ctx.CreateContext(vars)
-
 	// 处理关联数组
 	if isAssociative {
-		index := 0
+		resultObj := data.NewObjectValue()
 		for key, element := range sourceMap {
-			var filterResult data.GetValue
-			var ctl data.Control
-
+			var args []data.Value
 			switch mode {
 			case 1: // ARRAY_FILTER_USE_KEY - 只传递键
-				args := []data.Value{data.NewStringValue(key)}
-				for ai := 0; ai < len(vars) && ai < len(args); ai++ {
-					fnCtx.SetVariableValue(node.NewVariable(nil, "", ai, nil), args[ai])
-				}
-				filterResult, ctl = fn.Value.Call(fnCtx)
+				args = []data.Value{data.NewStringValue(key)}
 			case 2: // ARRAY_FILTER_USE_BOTH - 传递值和键
-				args := []data.Value{element, data.NewStringValue(key)}
-				for ai := 0; ai < len(vars) && ai < len(args); ai++ {
-					fnCtx.SetVariableValue(node.NewVariable(nil, "", ai, nil), args[ai])
-				}
-				filterResult, ctl = fn.Value.Call(fnCtx)
+				args = []data.Value{element, data.NewStringValue(key)}
 			default: // 0 - 只传递值
-				args := []data.Value{element}
-				for ai := 0; ai < len(vars) && ai < len(args); ai++ {
-					fnCtx.SetVariableValue(node.NewVariable(nil, "", ai, nil), args[ai])
-				}
-				filterResult, ctl = fn.Value.Call(fnCtx)
+				args = []data.Value{element}
 			}
 
+			ret, ctl := f.callCallback(ctx, fn, args)
 			if ctl != nil {
 				return nil, ctl
 			}
-
-			fv := filterResult.(data.Value)
-			if boolResult, ok := fv.(data.AsBool); ok {
-				if isTrue, err := boolResult.AsBool(); err == nil && isTrue {
-					resultMap[key] = element
-				}
+			if ret == nil {
+				continue
 			}
-			index++
-		}
-		resultObj := data.NewObjectValue()
-		for k, v := range resultMap {
-			resultObj.SetProperty(k, v)
+
+			// 使用 PHP 的 truthy 语义决定是否保留元素
+			if boolVal, ok := ret.(data.AsBool); ok {
+				if isTrue, err := boolVal.AsBool(); err == nil && isTrue {
+					resultObj.SetProperty(key, element)
+				}
+			} else if isTruthy(ret) {
+				resultObj.SetProperty(key, element)
+			}
 		}
 		return resultObj, nil
 	}
 
 	// 处理索引数组
+	var result []data.Value
 	for i, element := range sourceArray {
-		var filterResult data.GetValue
-		var ctl data.Control
-
+		var args []data.Value
 		switch mode {
 		case 1: // ARRAY_FILTER_USE_KEY - 只传递键
-			args := []data.Value{data.NewIntValue(i)}
-			for ai := 0; ai < len(vars) && ai < len(args); ai++ {
-				fnCtx.SetVariableValue(node.NewVariable(nil, "", ai, nil), args[ai])
-			}
-			filterResult, ctl = fn.Value.Call(fnCtx)
+			args = []data.Value{data.NewIntValue(i)}
 		case 2: // ARRAY_FILTER_USE_BOTH - 传递值和键
-			args := []data.Value{element, data.NewIntValue(i)}
-			for ai := 0; ai < len(vars) && ai < len(args); ai++ {
-				fnCtx.SetVariableValue(node.NewVariable(nil, "", ai, nil), args[ai])
-			}
-			filterResult, ctl = fn.Value.Call(fnCtx)
+			args = []data.Value{element, data.NewIntValue(i)}
 		default: // 0 - 只传递值
-			args := []data.Value{element}
-			for ai := 0; ai < len(vars) && ai < len(args); ai++ {
-				fnCtx.SetVariableValue(node.NewVariable(nil, "", ai, nil), args[ai])
-			}
-			filterResult, ctl = fn.Value.Call(fnCtx)
+			args = []data.Value{element}
 		}
 
+		ret, ctl := f.callCallback(ctx, fn, args)
 		if ctl != nil {
 			return nil, ctl
 		}
+		if ret == nil {
+			continue
+		}
 
-		fv := filterResult.(data.Value)
-		if boolResult, ok := fv.(data.AsBool); ok {
-			if isTrue, err := boolResult.AsBool(); err == nil && isTrue {
+		if boolVal, ok := ret.(data.AsBool); ok {
+			if isTrue, err := boolVal.AsBool(); err == nil && isTrue {
 				result = append(result, element)
 			}
+		} else if isTruthy(ret) {
+			result = append(result, element)
 		}
 	}
 
@@ -270,6 +252,34 @@ func (f *ArrayFilterFunction) resolveCallback(ctx data.Context, cb data.GetValue
 		}
 		return nil, utils.NewThrow(errors.New("array_filter 回调不可调用"))
 	}
+}
+
+// callCallback 使用给定参数调用回调，并返回其结果值
+// 行为与 PregReplaceCallbackFunction.callCallback 保持一致，避免闭包/箭头函数语义分裂。
+func (f *ArrayFilterFunction) callCallback(ctx data.Context, fn *data.FuncValue, args []data.Value) (data.Value, data.Control) {
+	// 使用函数自身的变量表长度创建调用上下文，确保：
+	// - 对于普通函数，slots 数量与形参一致
+	// - 对于 LambdaExpression，slots 覆盖所有 f.vars（参数 + use 捕获变量），
+	//   这样在 Lambda.Call 中通过 ctx.GetIndexZVal(i) 拷贝参数时不会越界。
+	vars := fn.Value.GetVariables()
+	callCtx := ctx.CreateContext(vars)
+	for i := range args {
+		if i >= len(vars) {
+			break
+		}
+		callCtx.SetIndexZVal(i, data.NewZVal(args[i]))
+	}
+	ret, ctl := fn.Call(callCtx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	if ret == nil {
+		return nil, nil
+	}
+	if v, ok := ret.(data.Value); ok {
+		return v, nil
+	}
+	return nil, nil
 }
 
 // isTruthy 检查值是否为 truthy

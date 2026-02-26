@@ -470,7 +470,17 @@ func processStringInterpolation(t Token) Token {
 			}
 		}
 		// PHP 双引号字符串中的裸变量插值：$var 或 $var_name（无花括号）；$.SERVER(...) 已在上方处理
+		// 注意：如果 $ 前面是反斜杠（如 "\$var"），则不应触发插值，而是输出字面量 "$var"
 		if quote == '"' && r == '$' && i+1 < len(runes) {
+			// 处理被反斜杠转义的 $："\$var" => "$var"
+			if i > 0 && runes[i-1] == '\\' {
+				// 去掉 currentStr 中最后一个反斜杠，改为一个 '$'
+				if len(currentStr) > 0 {
+					currentStr = currentStr[:len(currentStr)-1]
+				}
+				currentStr = append(currentStr, '$')
+				continue
+			}
 			nextChar := runes[i+1]
 			if (unicode.IsLetter(nextChar) || nextChar == '_' || ('\u4e00' <= nextChar && nextChar <= '\u9fff')) && !unicode.IsDigit(nextChar) {
 				hasInterpolation = true

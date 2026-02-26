@@ -13,3 +13,4 @@ zy-lsp
 /.gocache
 /.gocache/README
 /.gocache/trim.txt
+cli_test

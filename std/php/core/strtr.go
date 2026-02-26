@@ -16,9 +16,51 @@ func NewStrtrFunction() data.FuncStmt {
 	return &StrtrFunction{}
 }
 
+// strtrToString 尝试将任意值转换为字符串：
+// - 对普通标量/数组等，使用 AsString
+// - 对对象，若存在 __toString 方法，则优先调用该方法获取字符串结果
+func strtrToString(ctx data.Context, v data.Value) (string, data.Control) {
+	if v == nil {
+		return "", nil
+	}
+
+	switch sv := v.(type) {
+	case *data.StringValue:
+		return sv.Value, nil
+	case *data.ClassValue:
+		if m, ok := sv.GetMethod("__toString"); ok && m != nil {
+			fnCtx := sv.CreateContext(m.GetVariables())
+			fnCtx.SetCallArgs([]data.GetValue{})
+			ret, ctl := m.Call(fnCtx)
+			if ctl != nil {
+				return "", ctl
+			}
+			if ret == nil {
+				return "", nil
+			}
+			if s, ok := ret.(*data.StringValue); ok {
+				return s.Value, nil
+			}
+			if val, ok := ret.(data.Value); ok {
+				return val.AsString(), nil
+			}
+			return "", nil
+		}
+		return sv.AsString(), nil
+	case *data.ThisValue:
+		// ThisValue 内部持有 ClassValue，共享同样的 __toString 逻辑
+		return strtrToString(ctx, sv.ClassValue)
+	default:
+		return v.AsString(), nil
+	}
+}
+
 func (f *StrtrFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	strValue, _ := ctx.GetIndexValue(0)
-	str := strValue.AsString()
+	str, ctl := strtrToString(ctx, strValue)
+	if ctl != nil {
+		return nil, ctl
+	}
 
 	fromValue, _ := ctx.GetIndexValue(1)
 

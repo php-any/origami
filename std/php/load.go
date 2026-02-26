@@ -9,6 +9,7 @@ import (
 	"github.com/php-any/origami/std/php/directory"
 	"github.com/php-any/origami/std/php/file"
 	"github.com/php-any/origami/std/php/iconv"
+	"github.com/php-any/origami/std/php/intl"
 	"github.com/php-any/origami/std/php/preg"
 	"github.com/php-any/origami/std/php/proc"
 	"github.com/php-any/origami/std/php/reflection"
@@ -54,6 +55,7 @@ func Load(vm data.VM) {
 		NewInArrayFunction(),
 		array.NewArrayKeyExistsFunction(),
 		array.NewArrayKeysFunction(),
+		array.NewArrayKeyFirstFunction(),
 		NewMd5Function(),
 		NewBase64EncodeFunction(),
 		NewBase64DecodeFunction(),
@@ -67,6 +69,7 @@ func Load(vm data.VM) {
 		array.NewArrayValuesFunction(),
 		array.NewArrayUniqueFunction(),
 		array.NewArrayIntersectFunction(),
+		array.NewArrayReverseFunction(),
 		array.NewSortFunction(),
 		array.NewKsortFunction(),
 		array.NewArrayMapFunction(),
@@ -182,6 +185,9 @@ func Load(vm data.VM) {
 
 	// 加载 iconv 系列函数
 	iconv.Load(vm)
+
+	// 加载 intl 扩展（grapheme_strlen、grapheme_substr 等）
+	intl.Load(vm)
 
 	// 加载 PHP 原生注解类
 	attribute.Load(vm)
