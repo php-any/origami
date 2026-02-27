@@ -79,7 +79,7 @@ func (f *ArrayShiftFunction) GetName() string {
 
 func (f *ArrayShiftFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, nil),
+		node.NewParameterReference(nil, "array", 0, data.NewBaseType("array")),
 	}
 }
 

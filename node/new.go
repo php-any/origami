@@ -94,10 +94,10 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 			// 引用参数传入变量时，需要保证存在一个共享的 ZVal：
 			zv := ctx.GetIndexZVal(val.GetIndex())
 			fnCtx.SetIndexZVal(param.Index, zv)
-			return nil
 		default:
 			return data.NewErrorThrow(param.GetFrom(), fmt.Errorf("引用参数只能传入变量"))
 		}
+		return nil
 	case *Parameters: // 可变参数
 		args, acl := fnCtx.GetVariableValue(param)
 		var ares *data.ArrayValue
@@ -175,6 +175,7 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 		}
 		return fnCtx.SetVariableValue(param, tempV.(data.Value))
 	}
+
 	return data.NewErrorThrow(nil, fmt.Errorf("无法识别的参数类型 %T", param))
 }
 

@@ -1,21 +1,5 @@
 <?php
 
-/**
- * 最小复现场景：数组按“引用”共享被提前消费。
- *
- * 在 PHP 官方 CLI 中，下面代码的语义是：
- *
- *   $tokens = $argv;       // 拷贝一份数组
- *   array_shift($tokens);  // 只修改 $tokens，不影响 $argv
- *
- * 但在当前 Origami 实现中，数组赋值更像“共享底层存储”，
- * 导致对 $tokens 的 array_shift 会把 $argv 一并改掉。
- *
- * 运行对比：
- *   1) php script.php hello 33
- *   2) go run ./origami.go ./script.php hello 33
- */
-
 // 用真实的 CLI 参数来演示（更贴近 ArgvInput/$_SERVER['argv'] 场景）
 echo "==== 原始 \$argv ====\n";
 var_dump($argv);
