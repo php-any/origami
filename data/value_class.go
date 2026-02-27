@@ -217,6 +217,9 @@ func (c *ClassValue) SetProperty(name string, value Value) Control {
 	if set, ok := c.Class.(SetProperty); ok {
 		return set.SetProperty(name, value)
 	} else {
+		if arr, ok := value.(*ArrayValue); ok {
+			value = CloneArrayValue(arr)
+		}
 		c.property.Set(name, value)
 	}
 	return nil
