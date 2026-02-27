@@ -117,7 +117,7 @@ func (f *PregMatchFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "pattern", 0, nil, nil),
 		node.NewParameter(nil, "subject", 1, nil, nil),
-		node.NewParameter(nil, "matches", 2, node.NewNullLiteral(nil), nil),
+		node.NewParameterReference(nil, "matches", 2, data.NewBaseType("array")),
 		node.NewParameter(nil, "flags", 3, node.NewIntLiteral(nil, "0"), nil),
 		node.NewParameter(nil, "offset", 4, node.NewIntLiteral(nil, "0"), nil),
 	}

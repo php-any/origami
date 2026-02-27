@@ -79,8 +79,20 @@ func (p *TryParser) parseCatchBlock(tracker *PositionTracker) (*node.CatchBlock,
 	// 解析异常类型
 	var exceptionType string
 	if p.checkPositionIs(0, token.IDENTIFIER) {
-		exceptionType = p.current().Literal()
+		name := p.current().Literal()
 		p.next()
+
+		// 与参数/返回值类型解析保持一致：优先解析为完整类名（考虑命名空间与 use）
+		if data.ISBaseType(name) {
+			exceptionType = name
+		} else if full, ok := p.findFullClassNameByNamespace(name); ok {
+			// 例如：use Symfony\Component\Console\Exception\ExceptionInterface;
+			// catch (ExceptionInterface $e) => 解析为完整类名
+			exceptionType = full
+		} else {
+			// 找不到就保留原始名称
+			exceptionType = name
+		}
 	} else {
 		// 如果没有指定异常类型，使用默认的Exception
 		exceptionType = "Exception"

@@ -1,10 +1,5 @@
 package data
 
-import (
-	"fmt"
-	"strings"
-)
-
 // Error 表示节点执行过程中的错误
 type Error struct {
 	From     From     // 错误发生的来源
@@ -25,31 +20,7 @@ func NewError(from From, message string, cause error) *Error {
 
 // Error 实现 error 接口
 func (e *Error) Error() string {
-	var sb strings.Builder
-
-	// 添加错误信息
-	sb.WriteString(e.message)
-
-	// 添加错误来源
-	if e.From != nil {
-		sl, sp := e.From.GetStartPosition()
-		sb.WriteString(fmt.Sprintf(" at %s:%d:%d", e.From.GetSource(), sl+1, sp+1))
-	}
-
-	// 添加原始错误
-	//if e.cause != nil {
-	//	sb.WriteString(fmt.Sprintf("\nCaused by: %v", e.cause))
-	//}
-
-	// 添加子错误
-	if len(e.children) > 0 {
-		sb.WriteString("\nRelated errors:")
-		for _, child := range e.children {
-			sb.WriteString(fmt.Sprintf("\n  %v", child))
-		}
-	}
-
-	return sb.String()
+	return e.message
 }
 
 // GetFrom 获取错误来源

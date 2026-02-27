@@ -14,6 +14,21 @@ func NewArrayValue(v []Value) Value {
 	}
 }
 
+// CloneArrayValue 创建一个新的 ArrayValue。
+// 为了性能，这里仅复制 []*ZVal 切片本身（浅拷贝），不重新分配每个 ZVal：
+// - 结构不共享：两个数组的 List 是不同的 slice，结构性修改（如 array_shift/append）互不影响
+// - 元素仍按 ZVal 语义工作：写入单个元素时会替换对应 ZVal，不会影响其他数组
+func CloneArrayValue(src *ArrayValue) *ArrayValue {
+	if src == nil {
+		return nil
+	}
+	list := make([]*ZVal, len(src.List))
+	copy(list, src.List)
+	return &ArrayValue{
+		List: list,
+	}
+}
+
 type ArrayValue struct {
 	List     []*ZVal
 	iterator int // 迭代器当前位置索引

@@ -48,8 +48,12 @@ func (v *ArgvVariable) GetIndex() int       { return 0 }
 func (v *ArgvVariable) GetName() string     { return "$argv" }
 func (v *ArgvVariable) GetType() data.Types { return nil }
 func (v *ArgvVariable) SetValue(ctx data.Context, value data.Value) data.Control {
-	// 保守实现：$argv 只读，不允许通过赋值修改（避免与 $_SERVER['argv'] 语义打架）
-	return data.NewErrorThrow(v.from, errors.New("$argv is read-only in Origami runtime"))
+	// 允许脚本对 $argv 重新赋值；为了避免与其它数组共享底层结构，这里对数组做一次 Clone。
+	if arr, ok := value.(*data.ArrayValue); ok {
+		argvValue = data.CloneArrayValue(arr)
+		return nil
+	}
+	return data.NewErrorThrow(v.from, errors.New("$argv expects array value"))
 }
 
 // $argc = len($argv)

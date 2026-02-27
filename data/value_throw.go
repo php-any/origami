@@ -61,10 +61,16 @@ func (t *ThrowValue) GetName() string {
 }
 
 func (t *ThrowValue) GetExtend() *string {
+	if t.Object != nil {
+		return t.Object.Class.GetExtend()
+	}
 	return nil
 }
 
 func (t *ThrowValue) GetImplements() []string {
+	if t.Object != nil {
+		return t.Object.Class.GetImplements()
+	}
 	return nil
 }
 
@@ -156,7 +162,7 @@ func NewErrorThrowFromClassValue(from From, object *ClassValue) Control {
 	t := &ThrowValue{
 		Object: object,
 		Name:   object.GetName(),
-		Error:  NewError(from, fmt.Sprintf("Throw %s: %s", object.Class.GetName(), err), nil),
+		Error:  NewError(from, err, nil),
 	}
 	t.getMessage = &ThrowValueGetMessageMethod{
 		source: t,

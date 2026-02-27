@@ -68,3 +68,7 @@ func (g *GotoStatement) GetValue(ctx data.Context) (data.GetValue, data.Control)
 	// 直接把自身作为控制流返回，由 Program 统一调度
 	return nil, g
 }
+
+func (g *GotoStatement) ForWrite() data.Value {
+	return g
+}

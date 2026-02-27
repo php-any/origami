@@ -115,7 +115,7 @@ func (t *TryStatement) tryValue(ctx data.Context, c data.Control) (data.GetValue
 		return nil, c
 	}
 
-	return nil, nil
+	return nil, c
 }
 
 // NewTryStatement 创建一个新的try语句
