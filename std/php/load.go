@@ -79,6 +79,7 @@ func Load(vm data.VM) {
 		NewOrdFunction(),
 		NewChrFunction(),
 		NewStrRepeatFunction(),
+		NewLevenshteinFunction(),
 		NewMaxFunction(),
 		NewNormalizerIsNormalizedFunction(),
 		NewNormalizerNormalizeFunction(),
@@ -202,6 +203,12 @@ func initPhpDefaultDefines(vm data.VM) {
 	// 数组相关常量
 	vm.SetConstant("ARRAY_FILTER_USE_KEY", data.NewIntValue(1))
 	vm.SetConstant("ARRAY_FILTER_USE_BOTH", data.NewIntValue(2))
+	vm.SetConstant("SORT_REGULAR", data.NewIntValue(0))
+	vm.SetConstant("SORT_NUMERIC", data.NewIntValue(1))
+	vm.SetConstant("SORT_STRING", data.NewIntValue(2))
+	vm.SetConstant("SORT_LOCALE_STRING", data.NewIntValue(3))
+	vm.SetConstant("SORT_NATURAL", data.NewIntValue(5))
+	vm.SetConstant("SORT_FLAG_CASE", data.NewIntValue(6-5)) // 组合时常用 SORT_NATURAL | SORT_FLAG_CASE
 
 	// 错误级别常量
 	vm.SetConstant("E_ERROR", data.NewIntValue(1))

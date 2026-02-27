@@ -11,6 +11,7 @@ func Load(vm data.VM) {
 	vm.AddFunc(NewPregSplitFunction())
 	vm.AddFunc(NewPregReplaceFunction())
 	vm.AddFunc(NewPregReplaceCallbackFunction())
+	vm.AddFunc(NewPregGrepFunction())
 
 	// 注册常量
 	InitConstants(vm)
