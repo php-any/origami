@@ -177,6 +177,7 @@ func Load(vm data.VM) {
 	// 注册异常类
 	vm.AddClass(exception.NewLogicExceptionClass())
 	vm.AddClass(exception.NewInvalidArgumentExceptionClass())
+	vm.AddClass(exception.NewRuntimeExceptionClass())
 
 	initPhpDefaultDefines(vm)
 

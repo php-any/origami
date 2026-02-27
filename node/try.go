@@ -38,7 +38,6 @@ func (t *TryStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 			if add, ok := c.(data.AddStack); ok {
 				add.AddStackWithInfo(statement.(GetFrom).GetFrom(), "try: ", TryGetCallClassName(statement))
 			}
-			return nil, c
 			break
 		}
 	}

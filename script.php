@@ -1,56 +1,39 @@
 <?php
 
-namespace tests\php;
-
 /**
- * array_filter + 闭包 过滤命令列表行为测试。
+ * 最小复现场景：数组按“引用”共享被提前消费。
  *
- * 复现 Symfony TextDescriptor::describeApplication 中的这一段：
+ * 在 PHP 官方 CLI 中，下面代码的语义是：
  *
- * foreach ($namespaces as &$namespace) {
- *     $namespace['commands'] = array_filter(
- *         $namespace['commands'],
- *         fn ($name) => isset($commands[$name])
- *     );
- * }
+ *   $tokens = $argv;       // 拷贝一份数组
+ *   array_shift($tokens);  // 只修改 $tokens，不影响 $argv
  *
- * 目标：在 Origami 中，过滤后的 $namespaces[0]['commands'] 应与 PHP CLI 保持一致，
- * 即仍然是 ['completion', 'hello', 'help', 'list']。
+ * 但在当前 Origami 实现中，数组赋值更像“共享底层存储”，
+ * 导致对 $tokens 的 array_shift 会把 $argv 一并改掉。
+ *
+ * 运行对比：
+ *   1) php script.php hello 33
+ *   2) go run ./origami.go ./script.php hello 33
  */
 
-$commands = [
-    'completion' => 'C',
-    'hello'      => 'H',
-    'help'       => 'He',
-    'list'       => 'L',
-];
+// 用真实的 CLI 参数来演示（更贴近 ArgvInput/$_SERVER['argv'] 场景）
+echo "==== 原始 \$argv ====\n";
+var_dump($argv);
 
-$namespaces = [
-    [
-        'id'       => '_global',
-        'commands' => ['completion', 'hello', 'help', 'list'],
-    ],
-];
+// 这里模拟诸如 ArgvInput::getParameterOption 中的 `$tokens = $this->tokens` 赋值
+$tokens = $argv;
 
-// 使用与 TextDescriptor::describeApplication 一致的 foreach 按值遍历写法，
-// 只校验循环体内 $namespace['commands'] 的过滤结果。
-foreach ($namespaces as $namespace) {
-    $namespace['commands'] = array_filter(
-        $namespace['commands'],
-        fn ($name) => isset($commands[$name])
-    );
+// 消费一部分 tokens（比如解析完脚本名/命令名后向前推进）
+array_shift($tokens);
 
-    // 期望过滤结果不变：所有命令都在 $commands 中，array_filter 不应清空列表
-    $expected = ['completion', 'hello', 'help', 'list'];
+echo "\n==== array_shift(\$tokens) 之后 ====\n";
+echo "\$argv 现在是：\n";
+var_dump($argv);
 
-    if ($namespace['commands'] !== $expected) {
-        Log::fatal(
-            'array_filter namespace commands 测试失败，期望 '
-            .'['.implode(', ', $expected).'] 实际 '
-            .'['.implode(', ', $namespace['commands']).']'
-        );
-    }
-}
+echo "\n\$tokens 是：\n";
+var_dump($tokens);
 
-Log::info('array_filter namespace commands 测试通过');
+echo "\n==== 预期（PHP CLI） vs 实际（Origami 当前实现）说明 ====\n";
+echo "- 在 PHP 中：\$argv 仍然包含完整参数（不会被上面的 array_shift 改动）。\n";
+echo "- 在 Origami 中：若你看到 \$argv 与 \$tokens 同时被截短，就说明数组按引用共享被提前消费了。\n";
 

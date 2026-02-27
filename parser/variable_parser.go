@@ -36,6 +36,33 @@ func (vp *VariableParser) parseVariable() data.Variable {
 	name := vp.current().Literal()
 	vp.next()
 
+	// 特殊变量：CLI 超全局 $argv / $argc 以及其它 PHP 超全局
+	switch name {
+	case "$argv":
+		// 在运行时由 node/argv_variable.go 中的 ArgvVariable 完成取值
+		return node.NewArgvVariable(tracker.EndBefore())
+	case "$argc":
+		// 在运行时由 node/argv_variable.go 中的 ArgcVariable 完成取值
+		return node.NewArgcVariable(tracker.EndBefore())
+	case "$GLOBALS":
+		return node.NewGlobalsArrayVariable(tracker.EndBefore())
+	case "$_ENV":
+		return node.NewEnvVariable(tracker.EndBefore())
+	case "$_SERVER":
+		return node.NewServerVariable(tracker.EndBefore())
+	case "$_GET":
+		return node.NewGetVariable(tracker.EndBefore())
+	case "$_POST":
+		return node.NewPostVariable(tracker.EndBefore())
+	case "$_COOKIE":
+		return node.NewCookieVariable(tracker.EndBefore())
+	case "$_SESSION":
+		return node.NewSessionVariable(tracker.EndBefore())
+	case "$_REQUEST":
+		return node.NewRequestVariable(tracker.EndBefore())
+
+	}
+
 	// 查找变量索引
 	varInfo := vp.scopeManager.LookupVariable(name)
 	if varInfo == nil {
