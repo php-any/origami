@@ -26,13 +26,11 @@ func (f *VarDumpFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		if argv == nil {
 			continue
 		}
-		// 本轮打印内的对象序号，每次 var_dump 调用从 1 自增，不影响并发
-		objectID := uint64(0)
 		if arr, ok := argv.(*data.ArrayValue); ok {
 			for _, zval := range arr.List {
 				if zval != nil && zval.Value != nil {
 					fmt.Println(loc)
-					varDumpValue(zval.Value, "", &objectID)
+					varDumpValue(zval.Value, "")
 				}
 			}
 			continue
@@ -44,13 +42,13 @@ func (f *VarDumpFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 			}
 			if val != nil {
 				fmt.Println(loc)
-				varDumpValue(val, "", &objectID)
+				varDumpValue(val, "")
 			}
 			continue
 		}
 		if val, ok := argv.(data.Value); ok {
 			fmt.Println(loc)
-			varDumpValue(val, "", &objectID)
+			varDumpValue(val, "")
 		}
 	}
 	return nil, nil
@@ -77,8 +75,8 @@ func escapeSingleQuoted(s string) string {
 	return strings.NewReplacer(`\`, `\\`, `'`, `\'`).Replace(s)
 }
 
-// varDumpValue 输出单个值的 PHP var_dump 格式；objectID 仅在本轮打印内自增，用于 class Name#id
-func varDumpValue(v data.Value, indent string, objectID *uint64) {
+// varDumpValue 输出单个值的 PHP var_dump 格式；对象使用 Go 指针地址作为 ID
+func varDumpValue(v data.Value, indent string) {
 	switch arg := v.(type) {
 	case *data.IntValue:
 		fmt.Printf("%sint(%d)\n", indent, arg.Value)
@@ -103,7 +101,7 @@ func varDumpValue(v data.Value, indent string, objectID *uint64) {
 				continue
 			}
 			fmt.Printf("%s[%d] =>\n", inner, i)
-			varDumpValue(zval.Value, inner, objectID)
+			varDumpValue(zval.Value, inner)
 		}
 		fmt.Printf("%s}\n", indent)
 	case *data.ObjectValue:
@@ -114,7 +112,7 @@ func varDumpValue(v data.Value, indent string, objectID *uint64) {
 		arg.RangeProperties(func(k string, val data.Value) bool {
 			fmt.Printf("%s'%s' =>\n", inner, escapeSingleQuoted(k))
 			if val != nil {
-				varDumpValue(val, inner, objectID)
+				varDumpValue(val, inner)
 			} else {
 				fmt.Printf("%sNULL\n", inner)
 			}
@@ -124,13 +122,13 @@ func varDumpValue(v data.Value, indent string, objectID *uint64) {
 	case *data.ClassValue:
 		n := 0
 		arg.RangeProperties(func(string, data.Value) bool { n++; return true })
-		*objectID++
-		fmt.Printf("%sclass %s#%d (%d) {\n", indent, arg.Class.GetName(), *objectID, n)
+		ptrAddr := fmt.Sprintf("%p", arg)
+		fmt.Printf("%sclass %s#%s (%d) {\n", indent, arg.Class.GetName(), ptrAddr, n)
 		inner := indent + "  "
 		arg.RangeProperties(func(k string, val data.Value) bool {
 			fmt.Printf("%spublic $%s =>\n", inner, k)
 			if val != nil {
-				varDumpValue(val, inner, objectID)
+				varDumpValue(val, inner)
 			} else {
 				fmt.Printf("%sNULL\n", inner)
 			}

@@ -71,6 +71,11 @@ func (c *Context) SetVariableValue(variable data.Variable, value data.Value) dat
 		c.variables[variable.GetIndex()] = v.Ctx.GetIndexZVal(v.Val.GetIndex())
 	case *data.ArrayValue:
 		c.variables[variable.GetIndex()].Value = data.CloneArrayValue(v)
+	case *data.ObjectValue:
+		// PHP 中 array 是按值赋值 + copy-on-write。
+		// 在 Origami 里，关联数组可能由 ObjectValue 表示，这里也做一次结构级克隆，
+		// 避免 `$b = $this->a; $b['k']=...` 反向修改到 `$this->a`（Symfony InputDefinition::$arguments 等场景）。
+		c.variables[variable.GetIndex()].Value = data.CloneObjectValue(v)
 	default:
 		if len(c.variables) <= variable.GetIndex() {
 			return data.NewErrorThrow(variable.(*node.VariableExpression).GetFrom(), errors.New("index out of range"))

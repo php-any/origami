@@ -14,6 +14,31 @@ func NewObjectValue() *ObjectValue {
 	}
 }
 
+// CloneObjectValue 创建一个新的 ObjectValue 副本。
+// 语义上用于模拟 PHP 数组的 copy-on-write（特别是关联数组在 Origami 中可能用 ObjectValue 表示）：
+// - 仅复制属性存储结构本身（PropertyStore），不深拷贝每个元素的 Value
+// - 这样结构性修改（新增/覆盖某个 key）不会影响原对象
+// - 元素内部若是对象/数组，仍按其自身语义共享
+func CloneObjectValue(src *ObjectValue) *ObjectValue {
+	if src == nil {
+		return nil
+	}
+
+	clone := &ObjectValue{
+		Value:    src.Value,
+		Context:  src.Context,
+		property: NewOrderedMap(),
+	}
+
+	// 按插入顺序复制所有键值对
+	src.property.Range(func(key string, value Value) bool {
+		clone.property.Set(key, value)
+		return true
+	})
+
+	return clone
+}
+
 type ObjectValue struct {
 	Value
 	Context
