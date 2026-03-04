@@ -117,8 +117,15 @@ func getReflectionMethodInfo(ctx data.Context) (string, string, data.Method) {
 
 				if className != "" && methodName != "" {
 					vm := ctx.GetVM()
-					stmt, _ := vm.GetOrLoadClass(className)
-					if stmt != nil {
+					v, acl := vm.LoadPkg(className)
+					if acl != nil {
+						return "", "", nil
+					}
+					if v != nil {
+						stmt, ok := v.(data.ClassStmt)
+						if !ok {
+							return "", "", nil
+						}
 						// 首先在当前类中查找方法
 						method, exists := stmt.GetMethod(methodName)
 						if exists {
@@ -135,8 +142,12 @@ func getReflectionMethodInfo(ctx data.Context) (string, string, data.Method) {
 						last := stmt
 						for last.GetExtend() != nil {
 							ext := last.GetExtend()
-							parentStmt, _ := vm.GetOrLoadClass(*ext)
-							if parentStmt == nil {
+							pkgVal, acl := vm.LoadPkg(*ext)
+							if acl != nil {
+								return "", "", nil
+							}
+							parentStmt, ok := pkgVal.(data.ClassStmt)
+							if !ok || parentStmt == nil {
 								break
 							}
 

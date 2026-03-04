@@ -63,12 +63,12 @@ func (m *ReflectionClassConstructMethod) Call(ctx data.Context) (data.GetValue, 
 
 	// 加载类
 	vm := ctx.GetVM()
-	stmt, acl := vm.GetOrLoadClass(className)
+	stmt, acl := vm.LoadPkg(className)
 	if acl != nil {
 		return nil, acl
 	}
 	if stmt == nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("Class %s does not exist", className))
+		return nil, data.NewErrorThrow(nil, fmt.Errorf("class %s does not exist", className))
 	}
 
 	// 将类信息存储到当前对象的属性中

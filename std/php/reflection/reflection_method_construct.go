@@ -73,11 +73,12 @@ func (m *ReflectionMethodConstructMethod) Call(ctx data.Context) (data.GetValue,
 
 	// 加载类
 	vm := ctx.GetVM()
-	stmt, acl := vm.GetOrLoadClass(className)
+	pkgVal, acl := vm.LoadPkg(className)
 	if acl != nil {
 		return nil, acl
 	}
-	if stmt == nil {
+	stmt, ok := pkgVal.(data.ClassStmt)
+	if !ok || stmt == nil {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("Class %s does not exist", className))
 	}
 
@@ -94,11 +95,12 @@ func (m *ReflectionMethodConstructMethod) Call(ctx data.Context) (data.GetValue,
 		last := stmt
 		for last.GetExtend() != nil {
 			ext := last.GetExtend()
-			parentStmt, acl := vm.GetOrLoadClass(*ext)
+			pkgVal, acl := vm.LoadPkg(*ext)
 			if acl != nil {
 				return nil, acl
 			}
-			if parentStmt == nil {
+			parentStmt, ok := pkgVal.(data.ClassStmt)
+			if !ok || parentStmt == nil {
 				break
 			}
 

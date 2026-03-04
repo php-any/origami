@@ -126,8 +126,15 @@ func getReflectionParameterInfo(ctx data.Context) (string, string, int, data.Get
 
 				if className != "" && methodName != "" {
 					vm := ctx.GetVM()
-					stmt, _ := vm.GetOrLoadClass(className)
-					if stmt != nil {
+					v, acl := vm.LoadPkg(className)
+					if acl != nil {
+						return "", "", -1, nil
+					}
+					if v != nil {
+						stmt, ok := v.(data.ClassStmt)
+						if !ok {
+							return "", "", -1, nil
+						}
 						method, exists := stmt.GetMethod(methodName)
 						if exists {
 							params := method.GetParams()

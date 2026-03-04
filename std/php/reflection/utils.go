@@ -22,8 +22,17 @@ func getReflectionClassInfo(ctx data.Context) (string, data.ClassStmt) {
 		if strVal, ok := classNameVal.(*data.StringValue); ok {
 			className := strVal.AsString()
 			vm := ctx.GetVM()
-			stmt, _ := vm.GetOrLoadClass(className)
-			return className, stmt
+			// 使用 LoadPkg 加载类或接口；仅当返回值实现 ClassStmt 时才作为类语句返回。
+			v, acl := vm.LoadPkg(className)
+			if acl != nil {
+				return "", nil
+			}
+			if v != nil {
+				if stmt, ok := v.(data.ClassStmt); ok {
+					return className, stmt
+				}
+			}
+			return className, nil
 		}
 	}
 	return "", nil
