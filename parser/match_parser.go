@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -124,16 +125,26 @@ func (p *MatchParser) parseMatchArm() (*node.MatchArm, data.Control) {
 			// 跳过 instanceof
 			p.nextAndCheck(token.INSTANCEOF)
 
-			// 使用与表达式解析器相同的逻辑解析类名（支持 \BackedEnum 这类全限定名）
-			className, acl := p.getClassName(true)
-			if acl != nil {
-				return nil, acl
+			var right data.GetValue
+			switch p.current().Type() {
+			case token.VARIABLE:
+				vp := &VariableParser{p.Parser}
+				right = vp.parseVariable()
+			case token.IDENTIFIER, token.PARENT, token.SELF, token.STATIC:
+				// 支持 `instanceof Foo` / `instanceof parent` / `instanceof self` / `instanceof static`
+				className, acl := p.getClassName(true)
+				if acl != nil {
+					return nil, acl
+				}
+				right = node.NewStringLiteral(tracker.EndBefore(), className)
+			default:
+				return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("expected variable, string or identifier; str(%s)", p.current().Literal()))
 			}
 
 			cond := node.NewInstanceOfExpression(
 				tracker.EndBefore(),
 				left,
-				className,
+				right,
 			)
 			conditions = append(conditions, cond)
 		} else {

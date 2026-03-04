@@ -217,8 +217,11 @@ func (c *ClassValue) SetProperty(name string, value Value) Control {
 	if set, ok := c.Class.(SetProperty); ok {
 		return set.SetProperty(name, value)
 	} else {
-		if arr, ok := value.(*ArrayValue); ok {
+		switch arr := value.(type) {
+		case *ArrayValue:
 			value = CloneArrayValue(arr)
+		case *ObjectValue:
+			value = CloneObjectValue(arr)
 		}
 		c.property.Set(name, value)
 	}

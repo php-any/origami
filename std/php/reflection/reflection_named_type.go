@@ -66,12 +66,27 @@ func newReflectionNamedType(ctx data.Context, typeInfo data.Types) *data.ClassVa
 	typeClass := &ReflectionNamedTypeClass{}
 	typeValue := data.NewClassValue(typeClass, ctx.CreateBaseContext())
 
-	// 存储类型信息到实例属性中
+	// 存储类型信息到实例属性中：
+	// - _typeName: 与 PHP ReflectionNamedType::getName() 一致，不包含前导 '?'
+	// - _allowsNull: 是否允许 null，供 allowsNull() 使用
 	typeName := ""
+	allowsNull := false
+
 	if typeInfo != nil {
-		typeName = typeInfo.String()
+		switch t := typeInfo.(type) {
+		case data.NullableType:
+			// 对于 ?Foo，ReflectionNamedType::getName() 应返回 "Foo"，allowsNull() 返回 true
+			allowsNull = true
+			if t.BaseType != nil {
+				typeName = t.BaseType.String()
+			}
+		default:
+			typeName = typeInfo.String()
+		}
 	}
+
 	typeValue.ObjectValue.SetProperty("_typeName", data.NewStringValue(typeName))
+	typeValue.ObjectValue.SetProperty("_allowsNull", data.NewBoolValue(allowsNull))
 
 	return typeValue
 }

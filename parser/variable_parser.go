@@ -39,9 +39,36 @@ func (vp *VariableParser) parseVariable() data.Variable {
 	// 特殊变量：CLI 超全局 $argv / $argc 以及其它 PHP 超全局
 	switch name {
 	case "$argv":
+		// 首先判断当前是否处于全局作用域（无父作用域）
+		isGlobalScope := vp.scopeManager.CurrentScope() != nil && vp.scopeManager.CurrentScope().GetParent() == nil
+		if !isGlobalScope {
+			// 查找变量索引
+			varInfo := vp.scopeManager.LookupVariable(name)
+			if varInfo == nil {
+				// 如果变量不存在，在当前作用域中创建它
+				val := vp.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+				varInfo = node.NewVariableWithFirst(tracker.EndBefore(), val)
+			}
+
+			// 创建变量表达式
+			return node.NewVariableWithFirst(tracker.EndBefore(), varInfo)
+		}
 		// 在运行时由 node/argv_variable.go 中的 ArgvVariable 完成取值
 		return node.NewArgvVariable(tracker.EndBefore())
 	case "$argc":
+		isGlobalScope := vp.scopeManager.CurrentScope() != nil && vp.scopeManager.CurrentScope().GetParent() == nil
+		if !isGlobalScope {
+			// 查找变量索引
+			varInfo := vp.scopeManager.LookupVariable(name)
+			if varInfo == nil {
+				// 如果变量不存在，在当前作用域中创建它
+				val := vp.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+				varInfo = node.NewVariableWithFirst(tracker.EndBefore(), val)
+			}
+
+			// 创建变量表达式
+			return node.NewVariableWithFirst(tracker.EndBefore(), varInfo)
+		}
 		// 在运行时由 node/argv_variable.go 中的 ArgcVariable 完成取值
 		return node.NewArgcVariable(tracker.EndBefore())
 	case "$GLOBALS":

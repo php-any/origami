@@ -96,6 +96,7 @@ func getReflectionTypeInfo(ctx data.Context) (string, data.Types) {
 		if objCtx.ObjectValue != nil {
 			props := objCtx.ObjectValue.GetProperties()
 			typeNameVal, hasTypeName := props["_typeName"]
+			allowsNullVal, hasAllowsNull := props["_allowsNull"]
 
 			if hasTypeName {
 				var typeName string
@@ -104,8 +105,25 @@ func getReflectionTypeInfo(ctx data.Context) (string, data.Types) {
 				}
 
 				if typeName != "" {
-					// 尝试从类型名重建类型对象
-					typeInfo := data.NewBaseType(typeName)
+					// 根据 allowsNull 重建 Types：
+					// - name = "Foo", allowsNull = true  => NullableType(Foo)
+					// - name = "Foo", allowsNull = false => BaseType(Foo)
+					var typeInfo data.Types
+					base := data.NewBaseType(typeName)
+
+					allowsNull := false
+					if hasAllowsNull {
+						if b, ok := allowsNullVal.(*data.BoolValue); ok {
+							allowsNull = b.Value
+						}
+					}
+
+					if allowsNull {
+						typeInfo = data.NewNullableType(base)
+					} else {
+						typeInfo = base
+					}
+
 					return typeName, typeInfo
 				}
 			}

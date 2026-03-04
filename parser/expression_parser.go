@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/php-any/origami/data"
@@ -304,22 +305,27 @@ func (ep *ExpressionParser) parseEquality() (data.GetValue, data.Control) {
 	// 处理 instanceof 关键字
 	if ep.current().Type() == token.INSTANCEOF {
 		ep.next() // 跳过 instanceof 关键字
-		var className string
-		if ep.current().Literal() == "object" {
-			className = ep.current().Literal()
-			ep.next()
-		} else {
-			className, acl = ep.getClassName(true)
+		var right data.GetValue
+		switch ep.current().Type() {
+		case token.VARIABLE:
+			vp := &VariableParser{ep.Parser}
+			right = vp.parseVariable()
+		case token.IDENTIFIER, token.PARENT, token.SELF, token.STATIC:
+			// 支持 `instanceof Foo` / `instanceof parent` / `instanceof self` / `instanceof static`
+			className, acl := ep.getClassName(true)
 			if acl != nil {
 				return nil, acl
 			}
+			right = node.NewStringLiteral(tracker.EndBefore(), className)
+		default:
+			return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("expected variable, string or identifier; str(%s)", ep.current().Literal()))
 		}
 
 		// 创建 instanceof 表达式
 		expr = node.NewInstanceOfExpression(
 			tracker.EndBefore(),
 			expr,
-			className,
+			right,
 		)
 	}
 

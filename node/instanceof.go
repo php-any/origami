@@ -8,11 +8,11 @@ import (
 type InstanceOfExpression struct {
 	*Node
 	Object    data.GetValue // 对象表达式
-	ClassName string        // 类名
+	ClassName data.GetValue // 类名
 }
 
 // NewInstanceOfExpression 创建一个新的 instanceof 表达式
-func NewInstanceOfExpression(from data.From, object data.GetValue, className string) *InstanceOfExpression {
+func NewInstanceOfExpression(from data.From, object data.GetValue, className data.GetValue) *InstanceOfExpression {
 	return &InstanceOfExpression{
 		Node:      NewNode(from),
 		Object:    object,
@@ -28,9 +28,27 @@ func (i *InstanceOfExpression) GetValue(ctx data.Context) (data.GetValue, data.C
 		return nil, c
 	}
 
+	switch right := i.ClassName.(type) {
+	case *StringLiteral:
+		class := right.Value
+		return instanceof(ctx, class, objectValue)
+	case *VariableExpression:
+		r, acl := right.GetValue(ctx)
+		if acl != nil {
+			return nil, acl
+		}
+		class := r.(data.AsString).AsString()
+		return instanceof(ctx, class, objectValue)
+	}
+
+	// 如果不是类实例，返回 false
+	return data.NewBoolValue(false), nil
+}
+
+func instanceof(ctx data.Context, class string, objectValue data.GetValue) (data.GetValue, data.Control) {
 	// 检查对象值是否为类实例
 	if classValue, ok := objectValue.(*data.ClassValue); ok {
-		c, acl := ctx.GetVM().LoadPkg(i.ClassName)
+		c, acl := ctx.GetVM().LoadPkg(class)
 		if acl != nil {
 			return nil, acl
 		}
@@ -46,7 +64,7 @@ func (i *InstanceOfExpression) GetValue(ctx data.Context) (data.GetValue, data.C
 		}
 	} else if thisValue, ok := objectValue.(*data.ThisValue); ok {
 		// 处理 ThisValue（$this）
-		c, acl := ctx.GetVM().LoadPkg(i.ClassName)
+		c, acl := ctx.GetVM().LoadPkg(class)
 		if acl != nil {
 			return nil, acl
 		}
@@ -62,7 +80,7 @@ func (i *InstanceOfExpression) GetValue(ctx data.Context) (data.GetValue, data.C
 		}
 	}
 
-	switch i.ClassName {
+	switch class {
 	case "object":
 		switch objectValue.(type) {
 		case *data.ClassValue:
@@ -70,8 +88,11 @@ func (i *InstanceOfExpression) GetValue(ctx data.Context) (data.GetValue, data.C
 		case *data.ObjectValue:
 			return data.NewBoolValue(true), nil
 		}
+	case "Closure", "closure":
+		switch objectValue.(type) {
+		case *data.FuncValue:
+			return data.NewBoolValue(true), nil
+		}
 	}
-
-	// 如果不是类实例，返回 false
 	return data.NewBoolValue(false), nil
 }

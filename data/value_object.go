@@ -96,8 +96,11 @@ func (o *ObjectValue) GetZVal(name string) (*ZVal, Control) {
 func (o *ObjectValue) SetProperty(name string, value Value) Control {
 	// 为了更贴近 PHP 数组的 copy-on-write 语义，当属性值是数组时存储一个克隆，
 	// 避免多个属性/变量共享同一个 ArrayValue 实例，被 array_shift/array_pop 等原地修改时互相影响。
-	if arr, ok := value.(*ArrayValue); ok {
+	switch arr := value.(type) {
+	case *ArrayValue:
 		value = CloneArrayValue(arr)
+	case *ObjectValue:
+		value = CloneObjectValue(arr)
 	}
 	o.property.Set(name, value)
 	return nil
