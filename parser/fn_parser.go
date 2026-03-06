@@ -91,9 +91,13 @@ func (fp *FnParser) Parse() (data.GetValue, data.Control) {
 
 	// 构建 parent 映射，自动捕获外部变量
 	parent := make(map[int]int)
-	for _, parentVariable := range fp.scopeManager.CurrentScope().GetVariables() {
-		for _, childVariable := range vars {
+	for _, childVariable := range vars {
+		for _, parentVariable := range fp.scopeManager.CurrentScope().GetVariables() {
 			if childVariable.GetName() == parentVariable.GetName() {
+				// 形参由调用方传入，不应从父作用域捕获，否则体内会误读外层同名变量
+				if isParameterName(params, childVariable.GetName()) {
+					continue
+				}
 				parent[childVariable.GetIndex()] = parentVariable.GetIndex()
 			}
 		}
@@ -114,4 +118,14 @@ func (fp *FnParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	return fn, nil
+}
+
+// isParameterName 判断 name 是否为 params 中某个形参的名称（形参不应从父作用域捕获）
+func isParameterName(params []data.GetValue, name string) bool {
+	for _, p := range params {
+		if v, ok := p.(interface{ GetName() string }); ok && v.GetName() == name {
+			return true
+		}
+	}
+	return false
 }
