@@ -534,7 +534,7 @@ func (ep *ExpressionParser) parseFactor() (data.GetValue, data.Control) {
 // parseUnary 解析一元表达式
 func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
-	if ep.current().Type() == token.SUB || ep.current().Type() == token.NOT {
+	if ep.current().Type() == token.SUB || ep.current().Type() == token.NOT || ep.current().Type() == token.BIT_NOT {
 		operator := ep.current().Literal()
 		ep.next()
 

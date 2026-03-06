@@ -42,6 +42,15 @@ func (u *UnaryExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 			}
 			return data.NewBoolValue(!bv), nil
 		}
+	case "~":
+		// PHP 的按位取反按整型处理：~int
+		if b, ok := right.(data.AsInt); ok {
+			bv, err := b.AsInt()
+			if err != nil {
+				return nil, data.NewErrorThrow(u.from, err)
+			}
+			return data.NewIntValue(^bv), nil
+		}
 	}
 	return nil, nil
 }

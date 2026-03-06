@@ -1085,7 +1085,7 @@ func (p *ClassParser) mergeTraitsIntoMaps(traitNames []string, properties *[]dat
 	for _, traitName := range traitNames {
 		trait, acl := vm.GetOrLoadClass(traitName)
 		if acl != nil {
-			return data.NewErrorThrow(p.newFrom(), fmt.Errorf("无法加载 trait %s: %v", traitName, acl))
+			return acl
 		}
 		if trait == nil {
 			return data.NewErrorThrow(p.newFrom(), fmt.Errorf("trait %s 不存在", traitName))
@@ -1136,7 +1136,7 @@ func (p *ClassParser) mergeTraits(class *node.ClassStatement, traitNames []strin
 		// 从 VM 加载 trait（trait 和 class 一样存储在 classMap 中）
 		trait, acl := vm.GetOrLoadClass(traitName)
 		if acl != nil {
-			return data.NewErrorThrow(class.GetFrom(), fmt.Errorf("无法加载 trait %s: %v", traitName, acl))
+			return acl
 		}
 
 		if trait == nil {
