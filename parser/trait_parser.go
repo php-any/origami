@@ -66,6 +66,19 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 	methods := map[string]data.Method{}
 	staticMethods := map[string]data.Method{}
 	for !p.currentIsTypeOrEOF(token.RBRACE) {
+		// 解析 trait 内的 use Trait1, Trait2;（trait 组合）
+		if p.current().Type() == token.USE {
+			traitNames, acl := p.parseTraitUse()
+			if acl != nil {
+				return nil, acl
+			}
+			acl = p.mergeTraitsIntoMaps(traitNames, &properties, methods, staticProperties, staticMethods)
+			if acl != nil {
+				return nil, acl
+			}
+			continue
+		}
+
 		// 先尝试解析注解
 		var memberAnnotations []*node.Annotation
 		for p.checkPositionIs(0, token.AT, token.HASH) {

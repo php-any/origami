@@ -71,6 +71,12 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 			} else {
 				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
 			}
+		} else if vr, ok := keyTemp.(*node.Array); ok {
+			fl := make([]data.Variable, len(vr.V))
+			for i, getValue := range vr.V {
+				fl[i] = getValue.(data.Variable)
+			}
+			key = &node.ForeachValueTarget{V: fl}
 		} else {
 			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
 		}
@@ -94,6 +100,13 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 				} else {
 					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
 				}
+			} else if vr, ok := keyTemp.(*node.Array); ok {
+				// 支持 foreach($a as [1, 3]) {}
+				fl := make([]data.Variable, len(vr.V))
+				for i, getValue := range vr.V {
+					fl[i] = getValue.(data.Variable)
+				}
+				value = &node.ForeachValueTarget{V: fl}
 			} else {
 				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
 			}

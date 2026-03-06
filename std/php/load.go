@@ -141,6 +141,7 @@ func Load(vm data.VM) {
 		core.NewGetenvFunction(),
 		core.NewSapiWindowsVt100SupportFunction(),
 		core.NewCliSetProcessTitleFunction(),
+		core.NewChdirFunction(),
 		file.NewFileExistsFunction(),
 		file.NewIsReadableFunction(),
 		file.NewIsWritableFunction(),

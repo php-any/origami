@@ -185,8 +185,10 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		valueList := array.ToValueList()
 		for i, element := range valueList {
 			// 设置值变量
-			ctx.SetVariableValue(u.Value, element)
-
+			acl := u.Value.SetValue(ctx, element)
+			if acl != nil {
+				return nil, acl
+			}
 			// 如果有键变量，设置键变量
 			if u.Key != nil {
 				keyValue := data.NewIntValue(i)
@@ -308,4 +310,41 @@ func NewForeachStatement(token *TokenFrom, array data.GetValue, key data.Variabl
 		Value: value,
 		Body:  body,
 	}
+}
+
+type ForeachValueTarget struct {
+	V []data.Variable
+}
+
+func (f *ForeachValueTarget) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return f, nil
+}
+
+func (f *ForeachValueTarget) GetIndex() int {
+	return 0
+}
+
+func (f *ForeachValueTarget) GetName() string {
+	return ""
+}
+
+func (f *ForeachValueTarget) GetType() data.Types {
+	return nil
+}
+
+func (f *ForeachValueTarget) SetValue(ctx data.Context, value data.Value) data.Control {
+	switch d := value.(type) {
+	case *data.ArrayValue:
+		for i, val := range d.List {
+			f.V[i].SetValue(ctx, val.Value)
+		}
+	case *data.ObjectValue:
+		i := 0
+		for _, val := range d.GetProperties() {
+			f.V[i].SetValue(ctx, val)
+			i++
+		}
+	}
+
+	return nil
 }

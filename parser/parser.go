@@ -345,25 +345,24 @@ func (p *Parser) checkClassName(name string) {
 
 }
 
-// 获取类的完整路径, 类定义自己不用, 但是继承、实现接口需要调用
+// 获取类的完整路径。
+//   - 对于未带命名空间分隔符的简单类名，先尝试 use 别名，再按当前 namespace 解析
+//   - 对于包含命名空间分隔符但不以 "\" 开头的限定名（如 Configuration\ApplicationBuilder），
+//     需要按 PHP 规则将其视为「当前命名空间下的相对类名」：
+//     namespace Illuminate\Foundation;
+//     new Configuration\ApplicationBuilder;
+//     等价于：
+//     new \Illuminate\Foundation\Configuration\ApplicationBuilder;
 func (p *Parser) getClassName(try bool) (string, data.Control) {
 	className := p.current().Literal()
 	p.next()
 
-	if strings.Index(className, "\\") == -1 {
-		// 如果只有一个单词, 则认为可能是别名
-		if full, ok := p.uses[className]; ok {
-			return full, nil
-		}
-		// 也有可能是同一个包内的类
-		if try {
-			if full, ok := p.findFullClassNameByNamespace(className); ok {
-				return full, nil
-			}
-		}
+	if !try {
+		return className, nil
 	}
 
-	return className, nil
+	full, _ := p.findFullClassNameByNamespace(className)
+	return full, nil
 }
 
 // parseStatement 解析语句
@@ -481,7 +480,7 @@ func (p *Parser) findFullClassNameByNamespace(name string) (string, bool) {
 		return full, true
 	}
 
-	if strings.Index(name, "\\") != -1 {
+	if strings.Contains(name, "\\") {
 		// 当存在 use A\D as P;
 		// - P 映射到完整命名空间 A\D
 		// - 对于 P\ClassName 这种形式，需要展开为 A\D\ClassName
@@ -497,8 +496,43 @@ func (p *Parser) findFullClassNameByNamespace(name string) (string, bool) {
 				return full, true
 			}
 		}
-		// 含有 \ 但没有命中任何 use 别名时，认为已经是完整类名（可能是绝对或相对命名空间）
-		return name, true
+
+		// 含有 "\" 但没有命中任何 use 别名时：
+		// - 若以 "\" 开头，视为全局完全限定名，去掉前导 "\" 直接返回
+		// - 否则按 PHP 规则，将其视为当前 namespace 下的相对类名：
+		//     namespace A\B;
+		//     new C\D(); => A\B\C\D
+		if strings.HasPrefix(name, "\\") {
+			trimmed := strings.TrimPrefix(name, "\\")
+			// 尝试根据类路径管理器确认文件是否存在；存在则使用去掉 "\" 的形式
+			if _, ok := p.ClassPathManager.FindClassFile(trimmed); ok {
+				return trimmed, true
+			}
+			return trimmed, true
+		}
+
+		if p.namespace != nil {
+			tryName := p.namespace.GetName() + "\\" + name
+			// 先查已加载类/接口
+			if stmt, ok := p.vm.GetClass(tryName); ok {
+				return stmt.GetName(), true
+			}
+			if stmt, ok := p.vm.GetInterface(tryName); ok {
+				return stmt.GetName(), true
+			}
+			// 再查物理文件
+			if _, ok := p.ClassPathManager.FindClassFile(tryName); ok {
+				return tryName, true
+			}
+		}
+
+		// 如果当前命名空间下没有匹配，尝试将 name 视为全局 FQCN
+		if _, ok := p.ClassPathManager.FindClassFile(name); ok {
+			return name, true
+		}
+
+		// 找不到匹配时，返回原始名字，让后续 VM 在运行期再尝试 autoload 或报错
+		return name, false
 	}
 
 	if p.namespace != nil {
@@ -538,7 +572,7 @@ func (p *Parser) findFullFunNameByNamespace(name string) (string, bool) {
 		return full, true
 	}
 	tryName := name
-	if p.namespace != nil && strings.Index(name, "\\") == -1 {
+	if p.namespace != nil && !strings.Contains(name, "\\") {
 		tryName = p.namespace.GetName() + "\\" + name
 	}
 	if stmt, ok := p.vm.GetFunc(tryName); ok {

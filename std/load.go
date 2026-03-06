@@ -18,6 +18,7 @@ func Load(vm data.VM) {
 		NewStringFunction(),
 		NewBoolFunction(),
 		NewFloatFunction(),
+		NewObjectFunction(),
 	} {
 		vm.AddFunc(fun)
 	}

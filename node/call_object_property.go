@@ -53,6 +53,8 @@ func (pe *CallObjectProperty) SetValue(ctx data.Context, value data.Value) data.
 		property, ok := object.GetPropertyStmt(pe.Property)
 		if ok {
 			if property.GetType() != nil && !property.GetType().Is(value) {
+				test := property.GetType()
+				test.Is(value)
 				return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("%s 属性 %s 因为类型不一致无法赋值", TryGetCallClassName(object), pe.Property))
 			}
 			return object.SetProperty(pe.Property, value)

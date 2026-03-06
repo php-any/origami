@@ -63,76 +63,12 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 				return nil, data.NewErrorThrow(b.GetFrom(), errors.New("object is not set property"))
 			}
 		case *IndexExpression:
-			// 索引赋值 $this->where[key] = value
-			idxExpr := l
-			arrayVal, acl := idxExpr.Array.GetValue(ctx)
-			if acl != nil {
-				return nil, acl
+			// 统一走 IndexExpression 自身的 SetValue 逻辑，以支持任意嵌套：
+			// $namespace['commands'][1]['sub'] = 'foo';
+			if ctl := l.SetValue(ctx, v); ctl != nil {
+				return nil, ctl
 			}
-			if _, ok := arrayVal.(*data.NullValue); ok {
-				if ie, ok := idxExpr.Array.(*IndexExpression); ok {
-					// 多级访问，自动创建空数组
-					arrayVal = data.NewObjectValue()
-					_, acl = NewBinaryAssign(b.from, ie, arrayVal).GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-				}
-			}
-
-			indexVal, acl := idxExpr.Index.GetValue(ctx)
-			if acl != nil {
-				return nil, acl
-			}
-
-			switch arr := arrayVal.(type) {
-			case *data.ArrayValue:
-				// 数组索引赋值
-				i := 0
-				if iv, ok := indexVal.(data.AsInt); ok {
-					var err error
-					i, err = iv.AsInt()
-					if err != nil {
-						return nil, data.NewErrorThrow(b.from, err)
-					}
-				} else if iv, ok := indexVal.(data.AsString); ok {
-					objectVal := data.NewObjectValue()
-					valueList := arr.ToValueList()
-					for i2, value := range valueList {
-						objectVal.SetProperty(fmt.Sprintf("%d", i2), value)
-					}
-					objectVal.SetProperty(iv.AsString(), v)
-					// 重新赋值
-					_, acl = NewBinaryAssign(b.from, idxExpr.Array, objectVal).GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-
-				} else {
-					return nil, data.NewErrorThrow(b.from, errors.New("数组索引不是整数类型"))
-				}
-				if i < 0 {
-					return nil, data.NewErrorThrow(b.from, errors.New("数组索引不能为负数"))
-				}
-				if i >= len(arr.List) {
-					// 自动扩容，填充 null
-					for j := len(arr.List); j <= i; j++ {
-						arr.List = append(arr.List, data.NewZVal(data.NewNullValue()))
-					}
-				}
-				arr.List[i] = data.NewZVal(v)
-				return v, nil
-			case data.SetProperty:
-				// 对象属性赋值
-				if iv, ok := indexVal.(data.AsString); ok {
-					arr.SetProperty(iv.AsString(), v)
-					return v, nil
-				} else {
-					return nil, data.NewErrorThrow(b.from, errors.New("对象属性索引不是字符串类型"))
-				}
-			default:
-				return nil, data.NewErrorThrow(b.from, errors.New("索引赋值仅支持数组或对象"))
-			}
+			return v, nil
 		case *CallStaticProperty:
 			return v, l.SetProperty(ctx, l.Property, v)
 		case *CallSelfProperty:
@@ -216,6 +152,11 @@ func (b *BinaryAssignVariable) GetValue(ctx data.Context) (data.GetValue, data.C
 	}
 
 	if v, ok := rv.(data.Value); ok {
+		return v, b.Left.SetValue(ctx, v)
+	}
+
+	if rv == nil {
+		v := data.NewNullValue()
 		return v, b.Left.SetValue(ctx, v)
 	}
 

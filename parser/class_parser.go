@@ -1078,6 +1078,56 @@ func (p *ClassParser) parseTraitUse() ([]string, data.Control) {
 	return traitNames, nil
 }
 
+// mergeTraitsIntoMaps 将 trait 的方法和属性合并到 trait 解析过程中的 maps 中（用于 trait 内的 use 语句）
+func (p *ClassParser) mergeTraitsIntoMaps(traitNames []string, properties *[]data.Property, methods map[string]data.Method, staticProperties map[string]data.Property, staticMethods map[string]data.Method) data.Control {
+	vm := p.vm
+
+	for _, traitName := range traitNames {
+		trait, acl := vm.GetOrLoadClass(traitName)
+		if acl != nil {
+			return data.NewErrorThrow(p.newFrom(), fmt.Errorf("无法加载 trait %s: %v", traitName, acl))
+		}
+		if trait == nil {
+			return data.NewErrorThrow(p.newFrom(), fmt.Errorf("trait %s 不存在", traitName))
+		}
+
+		// 合并 trait 的方法
+		for _, method := range trait.GetMethods() {
+			methodName := method.GetName()
+			if method.GetIsStatic() {
+				if _, exists := staticMethods[methodName]; !exists {
+					staticMethods[methodName] = method
+				}
+			} else {
+				if _, exists := methods[methodName]; !exists {
+					methods[methodName] = method
+				}
+			}
+		}
+
+		// 合并 trait 的属性
+		for _, property := range trait.GetPropertyList() {
+			propertyName := property.GetName()
+			hasProperty := false
+			for _, prop := range *properties {
+				if prop.GetName() == propertyName {
+					hasProperty = true
+					break
+				}
+			}
+			if hasProperty || staticProperties[propertyName] != nil {
+				continue
+			}
+			if property.GetIsStatic() {
+				staticProperties[propertyName] = property
+			} else {
+				*properties = append(*properties, property)
+			}
+		}
+	}
+	return nil
+}
+
 // mergeTraits 合并 trait 的方法和属性到类中
 func (p *ClassParser) mergeTraits(class *node.ClassStatement, traitNames []string) data.Control {
 	vm := p.vm

@@ -95,18 +95,47 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 	// 获取数组值
 	arrayVal, acl := ie.Array.GetValue(ctx)
 	if acl != nil {
-		return acl
+		// 在赋值语境下，未定义索引（UndefinedIndexExpression）应视为 null，
+		// 以便支持 PHP 风格的链式自动创建：
+		// $namespace['commands'][1] = 'foo';
+		if tv, ok := acl.(*data.ThrowValue); ok && tv.Name == "UndefinedIndexExpression" {
+			arrayVal = data.NewNullValue()
+		} else {
+			return acl
+		}
 	}
 
-	// 如果数组是 null，需要创建新数组
+	// 如果数组当前为 null，根据左侧表达式类型决定如何自动创建容器
 	if _, ok := arrayVal.(*data.NullValue); ok {
-		if _, ok := ie.Array.(*IndexExpression); ok {
-			// 多级访问，自动创建空对象
-			arrayVal = data.NewObjectValue()
-			_, acl = NewBinaryAssign(ie.GetFrom(), ie.Array, arrayVal).GetValue(ctx)
-			if acl != nil {
-				return acl
+		switch base := ie.Array.(type) {
+		case data.Variable:
+			// 场景：$namespace['commands'] = ... 或 $namespace['commands'][1] = ...
+			obj := data.NewObjectValue()
+			if ctl := base.SetValue(ctx, obj); ctl != nil {
+				return ctl
 			}
+			// 变量赋值时会对 ObjectValue 做 clone，这里需要重新从上下文读取，
+			// 确保后续写入操作作用在真实存储的容器上。
+			var errCtl data.Control
+			arrayVal, errCtl = ie.Array.GetValue(ctx)
+			if errCtl != nil {
+				return errCtl
+			}
+		case *IndexExpression:
+			// 多级访问，自动创建空对象并挂到上一层：
+			// $config['db']['host'] = '...';
+			obj := data.NewObjectValue()
+			if _, errCtl := NewBinaryAssign(ie.GetFrom(), base, obj).GetValue(ctx); errCtl != nil {
+				return errCtl
+			}
+			// 同样需要重新读取当前数组值，拿到实际挂在上一层上的容器（可能经历了 clone）
+			var errCtl2 data.Control
+			arrayVal, errCtl2 = ie.Array.GetValue(ctx)
+			if errCtl2 != nil {
+				return errCtl2
+			}
+		default:
+			// 其它情况保持 null，后续类型分支会给出统一错误信息
 		}
 	}
 
