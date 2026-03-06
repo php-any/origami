@@ -31,13 +31,13 @@ func (sp *StaticParser) Parse() (data.GetValue, data.Control) {
 	if sp.checkPositionIs(0, token.SCOPE_RESOLUTION) &&
 		(sp.checkPositionIs(1, token.IDENTIFIER) || sp.checkPositionIs(1, token.VARIABLE) || sp.checkPositionIs(1, token.CLASS)) {
 		sp.next() // 跳过 ::
-		
+
 		// 检查是否是 static::class
 		if sp.current().Type() == token.CLASS {
 			sp.next() // 跳过 class
 			return node.NewStaticClass(tracker.EndBefore()), nil
 		}
-		
+
 		// static::xxx / static::$xxx
 		isVariable := sp.current().Type() == token.VARIABLE
 		memberName := sp.current().Literal()
@@ -241,6 +241,10 @@ func (sp *StaticParser) parseStaticArrowFunction(tracker *PositionTracker) (data
 	for _, parentVariable := range sp.scopeManager.CurrentScope().GetVariables() {
 		for _, childVariable := range vars {
 			if childVariable.GetName() == parentVariable.GetName() {
+				// 形参由调用方传入，不应从父作用域捕获，否则体内会误读外层同名变量
+				if isParameterName(params, childVariable.GetName()) {
+					continue
+				}
 				parent[childVariable.GetIndex()] = parentVariable.GetIndex()
 			}
 		}

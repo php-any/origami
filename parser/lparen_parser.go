@@ -130,6 +130,10 @@ func (ep *LparenParser) parseLambdaExpression(tracking *PositionTracker) (data.G
 	for _, parentVariable := range fp.scopeManager.CurrentScope().GetVariables() {
 		for _, childVariable := range vars {
 			if childVariable.GetName() == parentVariable.GetName() {
+				// 形参由调用方传入，不应从父作用域捕获，否则体内会误读外层同名变量
+				if isParameterName(params, childVariable.GetName()) {
+					continue
+				}
 				parent[childVariable.GetIndex()] = parentVariable.GetIndex()
 			}
 		}
