@@ -610,6 +610,19 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 // parsePrimary 解析基本表达式
 func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 	switch ep.current().Type() {
+	case token.DOLLAR:
+		// 处理 PHP 变量变量的基础形式：$$field
+		tracker := ep.StartTracking()
+		ep.next() // 跳过第一个 $
+		if ep.current().Type() != token.VARIABLE {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("当前仅支持 $$var 形式的变量变量"))
+		}
+		// 解析名称变量（例如 $field）
+		vp := &VariableParser{ep.Parser}
+		nameExpr := vp.parseVariable()
+		// 捕获当前作用域中的所有变量，作为运行时名称解析的候选集合
+		vars := ep.GetVariables()
+		return node.NewVarVar(tracker.EndBefore(), nameExpr, vars), nil
 	case token.INT:
 		value := ep.current().Literal()
 		ep.next()
