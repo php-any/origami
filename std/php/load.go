@@ -19,7 +19,10 @@ import (
 func Load(vm data.VM) {
 	for _, fun := range []data.FuncStmt{
 		NewTimeFunction(),
+		NewDateDefaultTimezoneGetFunction(),
 		NewTimezoneNameFromAbbrFunction(),
+		NewTimezoneNameGetFunction(),
+		NewTimezoneOpenFunction(),
 		NewSleepFunction(),
 		NewIsDirFunction(),
 		NewIsFileFunction(),

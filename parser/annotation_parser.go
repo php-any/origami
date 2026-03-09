@@ -77,8 +77,7 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 		p.next()
 
 		// PHP @ 错误抑制：@self::、@static::、@parent::、@$var、@Name:: 等为表达式，非注解
-		if p.current().Type() == token.SELF || p.current().Type() == token.PARENT ||
-			p.current().Type() == token.STATIC || p.current().Type() == token.VARIABLE {
+		if p.checkPositionIs(0, token.SELF, token.PARENT, token.STATIC, token.VARIABLE, token.THIS) || !p.checkPositionIs(1, token.LPAREN) {
 			expr, acl := NewExpressionParser(p.Parser).Parse()
 			if acl != nil {
 				return nil, acl
@@ -94,7 +93,8 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 		}
 
 		// 解析注解名称
-		if p.current().Type() != token.IDENTIFIER {
+		t := p.current()
+		if t.Type() != token.IDENTIFIER {
 			return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("注解缺少名称"))
 		}
 

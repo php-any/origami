@@ -26,10 +26,9 @@ func (sp *StaticParser) Parse() (data.GetValue, data.Control) {
 	// 跳过 static
 	sp.next()
 
-	// 1) 支持 static::xxx() / static::$prop / static::class 这种静态调用方式
+	// 1) 支持 static::xxx() / static::$prop / static::class / static::{expr}() 这类静态调用方式
 	//    与 self::/parent:: 类似，只是关键字不同
-	if sp.checkPositionIs(0, token.SCOPE_RESOLUTION) &&
-		(sp.checkPositionIs(1, token.IDENTIFIER) || sp.checkPositionIs(1, token.VARIABLE) || sp.checkPositionIs(1, token.CLASS)) {
+	if sp.checkPositionIs(0, token.SCOPE_RESOLUTION) {
 		sp.next() // 跳过 ::
 
 		// 检查是否是 static::class
@@ -38,27 +37,56 @@ func (sp *StaticParser) Parse() (data.GetValue, data.Control) {
 			return node.NewStaticClass(tracker.EndBefore()), nil
 		}
 
-		// static::xxx / static::$xxx
-		isVariable := sp.current().Type() == token.VARIABLE
-		memberName := sp.current().Literal()
-		sp.next()
 		tokenFrom := tracker.EndBefore()
 
-		// 如果是 VARIABLE，去掉 $ 前缀
-		if isVariable && len(memberName) > 0 && memberName[0] == '$' {
-			memberName = memberName[1:]
+		// 支持 static::{'method'.$suffix}() 动态方法名
+		if sp.current().Type() == token.LBRACE {
+			// 跳过 '{'
+			sp.next()
+			// 解析大括号内的任意表达式，直到遇到右大括号
+			exprParser := NewExpressionParser(sp.Parser)
+			nameExpr, acl := exprParser.Parse()
+			if acl != nil {
+				return nil, acl
+			}
+			if sp.current().Type() != token.RBRACE {
+				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("static::{...} 缺少右大括号 '}'"))
+			}
+			sp.next() // 跳过 '}'
+
+			// 期望后面紧跟括号：static::{expr}()
+			if !sp.checkPositionIs(0, token.LPAREN) {
+				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("static::{...} 目前仅支持方法调用形式 static::{...}()"))
+			}
+
+			// 构造一个 "动态静态方法调用" 节点：在运行时用 nameExpr.AsString() 取方法名，再交给现有逻辑
+			dyn := node.NewDynamicCallStaticKeywordMethod(tokenFrom, nameExpr)
+			vp := &VariableParser{sp.Parser}
+			return vp.parseSuffix(dyn)
 		}
 
-		if sp.checkPositionIs(0, token.LPAREN) {
-			// 静态方法调用：static::method()
-			vp := &VariableParser{sp.Parser}
-			expr := node.NewCallStaticKeywordMethod(tokenFrom, memberName)
-			return vp.parseSuffix(expr)
-		} else {
-			// 静态属性访问：static::$property
-			vp := &VariableParser{sp.Parser}
-			expr := node.NewCallStaticKeywordProperty(tokenFrom, memberName)
-			return vp.parseSuffix(expr)
+		// static::xxx / static::$xxx
+		if sp.checkPositionIs(0, token.IDENTIFIER) || sp.checkPositionIs(0, token.VARIABLE) {
+			isVariable := sp.current().Type() == token.VARIABLE
+			memberName := sp.current().Literal()
+			sp.next()
+
+			// 如果是 VARIABLE，去掉 $ 前缀
+			if isVariable && len(memberName) > 0 && memberName[0] == '$' {
+				memberName = memberName[1:]
+			}
+
+			if sp.checkPositionIs(0, token.LPAREN) {
+				// 静态方法调用：static::method()
+				vp := &VariableParser{sp.Parser}
+				expr := node.NewCallStaticKeywordMethod(tokenFrom, memberName)
+				return vp.parseSuffix(expr)
+			} else {
+				// 静态属性访问：static::$property
+				vp := &VariableParser{sp.Parser}
+				expr := node.NewCallStaticKeywordProperty(tokenFrom, memberName)
+				return vp.parseSuffix(expr)
+			}
 		}
 	}
 

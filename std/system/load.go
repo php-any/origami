@@ -7,4 +7,5 @@ import (
 func Load(vm data.VM) {
 	vm.AddClass(&DateTimeClass{})
 	vm.AddInterface(newDateTimeInterface())
+	vm.AddClass(&DateTimeZoneClass{})
 }
