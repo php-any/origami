@@ -5,7 +5,8 @@ type InterfaceStmt interface {
 	GetFrom() From
 	GetValue(ctx Context) (GetValue, Control)
 	GetName() string
-	GetExtend() *string                   // 父接口名
+	// GetExtend() *string // 父接口名
+	GetExtends() []string                 // 父接口名
 	GetMethod(name string) (Method, bool) // 方法列表
 	GetMethods() []Method                 // 方法列表
 }

@@ -491,10 +491,12 @@ func checkInterfaceIs(ctx data.Context, source data.InterfaceStmt, target string
 		return true
 	}
 
-	if source.GetExtend() != nil {
-		vm := ctx.GetVM()
-		if interfaceStmt, ok := vm.GetInterface(*source.GetExtend()); ok {
-			return checkInterfaceIs(ctx, interfaceStmt, target)
+	vm := ctx.GetVM()
+	for _, parentName := range source.GetExtends() {
+		if interfaceStmt, ok := vm.GetInterface(parentName); ok {
+			if checkInterfaceIs(ctx, interfaceStmt, target) {
+				return true
+			}
 		}
 	}
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/lexer"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
 )
@@ -29,27 +30,82 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 	p.next()
 
 	// 解析接口名
-	interfaceName := p.parseInterfaceName()
-	if interfaceName == "" {
+	shortName := p.parseInterfaceName()
+	if shortName == "" {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少接口名"))
 	}
+
+	interfaceName := shortName
 
 	if p.namespace != nil {
 		interfaceName = p.namespace.GetName() + "\\" + interfaceName
 	}
 
 	// 解析继承
-	var extends *string
+	var extends []string
 	if p.current().Type() == token.EXTENDS {
 		p.next()
-		extendsName, acl := p.getClassName(true)
-		if acl != nil {
-			return nil, acl
+
+		for {
+			extendsName, acl := p.getClassName(true)
+			if acl != nil {
+				return nil, acl
+			}
+			if extendsName == "" {
+				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少继承的接口名"))
+			}
+			extends = append(extends, extendsName)
+
+			// 支持多个继承接口：interface A extends B, C, D
+			if p.current().Type() == token.COMMA {
+				p.next()
+				continue
+			}
+			break
 		}
-		if extendsName == "" {
-			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少继承的接口名"))
+	}
+
+	// 在接口体内，将 self::X 重写为 ShortInterfaceName::X，避免在接口常量表达式中依赖 self:: 的运行时语义。
+	// 只修改当前接口 body 范围内的 token，不影响其它位置。
+	{
+		startIdx := p.parser.position
+		// 找到当前接口的左花括号
+		for startIdx < len(p.parser.tokens) && p.parser.tokens[startIdx].Type() != token.LBRACE {
+			startIdx++
 		}
-		extends = &extendsName
+		if startIdx < len(p.parser.tokens) && p.parser.tokens[startIdx].Type() == token.LBRACE {
+			braceCount := 1
+			endIdx := startIdx
+			for i := startIdx + 1; i < len(p.parser.tokens); i++ {
+				switch p.parser.tokens[i].Type() {
+				case token.LBRACE:
+					braceCount++
+				case token.RBRACE:
+					braceCount--
+					if braceCount == 0 {
+						endIdx = i
+						i = len(p.parser.tokens)
+					}
+				}
+			}
+
+			for i := startIdx + 1; i < endIdx; i++ {
+				if p.parser.tokens[i].Type() == token.SELF {
+					// 仅处理 self::X 形式
+					if i+1 < len(p.parser.tokens) && p.parser.tokens[i+1].Type() == token.SCOPE_RESOLUTION {
+						tok := p.parser.tokens[i]
+						p.parser.tokens[i] = lexer.NewWorkerToken(
+							token.IDENTIFIER,
+							shortName,
+							tok.Start(),
+							tok.End(),
+							tok.Line(),
+							tok.Pos(),
+						)
+					}
+				}
+			}
+		}
 	}
 
 	// 解析接口体
@@ -61,9 +117,30 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 	// 解析接口成员（方法和静态属性）
 	var methods []data.Method
 	staticProperties := make(map[string]data.Property)
+	staticPropertyOrder := make([]string, 0)
 
 	for !p.isEOF() && p.current().Type() != token.RBRACE {
 		tracker := p.StartTracking()
+
+		// 跳过 PHP 8 属性 #[...]（目前接口成员上的属性仅用于元信息，这里先忽略其语义）
+		for p.checkPositionIs(0, token.HASH) && p.checkPositionIs(1, token.LBRACKET) {
+			p.next() // 跳过 #
+			if p.current().Type() != token.LBRACKET {
+				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("属性注解格式错误，期望 #[...]"))
+			}
+			p.next() // 跳过 [
+
+			depth := 1
+			for depth > 0 && !p.isEOF() {
+				if p.current().Type() == token.LBRACKET {
+					depth++
+				} else if p.current().Type() == token.RBRACKET {
+					depth--
+				}
+				p.next()
+			}
+		}
+
 		// 解析访问修饰符
 		modifier := p.parseModifier()
 		if modifier == "" {
@@ -94,7 +171,9 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 			}
 			if prop != nil {
 				if isStatic || prop.GetIsStatic() {
-					staticProperties[prop.GetName()] = prop
+					name := prop.GetName()
+					staticProperties[name] = prop
+					staticPropertyOrder = append(staticPropertyOrder, name)
 				}
 			}
 		} else if p.current().Type() == token.FUNC {
@@ -132,8 +211,14 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 		methods,
 	)
 
-	// 处理静态属性
-	for s, property := range staticProperties {
+	// 先把接口本身注册到 VM，避免在后续静态属性求值或类型检查中通过 VM 再次触发加载，造成自身依赖死循环
+	if acl := p.vm.AddInterface(i); acl != nil {
+		return nil, acl
+	}
+
+	// 处理静态属性（按解析顺序求值，确保依赖已有常量的表达式能正确工作）
+	for _, s := range staticPropertyOrder {
+		property := staticProperties[s]
 		defaultValue := property.GetDefaultValue()
 		if defaultValue != nil {
 			baseCtx := p.vm.CreateContext([]data.Variable{})
@@ -147,17 +232,17 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 		}
 	}
 
-	if i.Extends != nil {
-		extends, ok := p.vm.GetInterface(*i.Extends)
-		if ok {
-			temp := extends.GetName()
-			i.Extends = &temp
+	// 规范化父接口名（如果已加载则替换为其完整名称）
+	if len(i.Extends) > 0 {
+		for idx, name := range i.Extends {
+			if ext, ok := p.vm.GetInterface(name); ok {
+				i.Extends[idx] = ext.GetName()
+			}
 		}
 	}
 
-	// 接口定义本身不返回值，但需要注册到虚拟机中
-	// 创建接口定义
-	return i, p.vm.AddInterface(i)
+	// 接口定义本身不返回值，这里仅返回语法树节点；注册已在前面完成
+	return i, nil
 }
 
 // parseInterfaceName 解析接口名
@@ -197,7 +282,8 @@ func (p *InterfaceParser) parseInterfaceMethod(modifier string) (data.Method, da
 	}
 
 	// 解析方法名
-	if p.current().Type() != token.IDENTIFIER {
+	if !(p.checkPositionIs(0, token.IDENTIFIER, token.SELF) ||
+		(p.current().Type() > token.KEYWORD_START && p.current().Type() < token.VALUE_START)) {
 		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("缺少方法名"))
 	}
 	name := p.current().Literal()

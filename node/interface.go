@@ -10,13 +10,13 @@ import (
 type InterfaceStatement struct {
 	*Node
 	Name           string        // 接口名
-	Extends        *string       // 父接口名
+	Extends        []string      // 父接口名列表
 	Methods        []data.Method // 方法列表
 	StaticProperty sync.Map      // 静态属性列表
 }
 
 // NewInterfaceStatement 创建一个新的接口定义语句
-func NewInterfaceStatement(from data.From, name string, extends *string, methods []data.Method) *InterfaceStatement {
+func NewInterfaceStatement(from data.From, name string, extends []string, methods []data.Method) *InterfaceStatement {
 	return &InterfaceStatement{
 		Node:    NewNode(from),
 		Name:    name,
@@ -36,8 +36,8 @@ func (i *InterfaceStatement) GetName() string {
 	return i.Name
 }
 
-// GetExtend 返回父接口名
-func (i *InterfaceStatement) GetExtend() *string {
+// GetExtends 返回父接口名列表
+func (i *InterfaceStatement) GetExtends() []string {
 	return i.Extends
 }
 

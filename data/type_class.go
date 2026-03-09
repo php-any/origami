@@ -94,20 +94,34 @@ func interfaceExtends(vm VM, ifaceName, target string) bool {
 		return true
 	}
 
-	// 沿着接口的 extends 链向上查找
-	ext := iface.GetExtend()
-	for ext != nil {
-		if *ext == target {
+	// 沿着接口的 extends 链向上查找（支持多个父接口）
+	visited := make(map[string]bool)
+	var queue []string
+
+	queue = append(queue, iface.GetExtends()...)
+
+	for len(queue) > 0 {
+		// 取出队首元素
+		name := queue[0]
+		queue = queue[1:]
+
+		if name == target {
 			return true
 		}
-		parent, ok := vm.GetInterface(*ext)
+		if visited[name] {
+			continue
+		}
+		visited[name] = true
+
+		parent, ok := vm.GetInterface(name)
 		if !ok {
-			break
+			continue
 		}
 		if parent.GetName() == target {
 			return true
 		}
-		ext = parent.GetExtend()
+
+		queue = append(queue, parent.GetExtends()...)
 	}
 
 	return false

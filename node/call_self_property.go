@@ -107,9 +107,14 @@ func (pe *CallSelfProperty) findInInterfaceAndParents(vm data.VM, interfaceName 
 	}
 
 	// 递归检查接口的父接口
-	interfaceExtend := interfaceStmt.GetExtend()
-	if interfaceExtend != nil {
-		return pe.findInInterfaceAndParents(vm, *interfaceExtend)
+	for _, parentName := range interfaceStmt.GetExtends() {
+		property, acl := pe.findInInterfaceAndParents(vm, parentName)
+		if acl != nil {
+			return nil, acl
+		}
+		if property != nil {
+			return property, nil
+		}
 	}
 
 	return nil, nil

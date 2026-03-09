@@ -29,7 +29,8 @@ func (s *DateTimeClass) GetExtend() *string {
 }
 
 func (s *DateTimeClass) GetImplements() []string {
-	return nil
+	// System\DateTime 实现 PHP 顶层接口 DateTimeInterface
+	return []string{"DateTimeInterface"}
 }
 
 func (s *DateTimeClass) GetProperty(_ string) (data.Property, bool) {

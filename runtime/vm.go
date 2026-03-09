@@ -196,22 +196,6 @@ func (vm *VM) LoadPkg(pkg string) (data.GetValue, data.Control) {
 		return c, nil
 	}
 
-	// 先检查是否存在对应的物理文件；存在则按正常流程加载
-	if _, ok := vm.parser.GetClassPathManager().FindClassFile(pkg); ok {
-		if acl := vm.parser.GetClassPathManager().LoadClass(pkg, vm.parser); acl != nil {
-			return nil, acl
-		}
-		if c, ok := vm.classMap[pkg]; ok {
-			return c, nil
-		}
-		if c, ok := vm.interfaceMap[pkg]; ok {
-			return c, nil
-		}
-	}
-
-	// 若未找到物理文件，则仍尝试通过 autoload 机制加载（例如 Composer 的 PSR-4），
-	// LoadClass 在未找到类时会返回一个 “类不存在或无法加载” 的错误，这里按约定吞掉，
-	// 将“未找到类/接口”视为正常情况并返回 nil。
 	acl := vm.parser.GetClassPathManager().LoadClass(pkg, vm.parser)
 	if acl != nil {
 		return nil, acl

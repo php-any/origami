@@ -1,6 +1,17 @@
 <?php
 
-$a = 2;
-$field = "a";
+class User {
+    public string $name;
+}
 
-echo $$field;
+$user = new User();
+$user->name = "张三";
+
+$data = [
+    "a" => 1,
+    "b" => 2,
+    "c" => "ee",
+    "user" => $user,
+];
+
+echo serialize($data);

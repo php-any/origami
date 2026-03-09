@@ -339,6 +339,17 @@ func (m *DefaultClassPathManager) LoadClass(className string, parser *Parser) da
 		return data.TryErrorThrow(parser.newFrom(), fmt.Errorf("类 %s 不存在或无法加载", className))
 	}
 
+	// 如果类/接口已经记录了所在文件，并且与当前待加载文件一致，则认为该文件已加载过，避免重复解析
+	if cachedPath, ok := parser.vm.GetClassPathCache(className); ok {
+		if _, ok := parser.vm.GetClass(className); ok {
+			return nil
+		}
+		if _, ok := parser.vm.GetInterface(className); ok {
+			return nil
+		}
+		return data.TryErrorThrow(parser.newFrom(), fmt.Errorf("类 %s 重复加载, file (%s)", className, cachedPath))
+	}
+	parser.vm.SetClassPathCache(className, filePath)
 	// 加载文件
 	_, acl := parser.vm.LoadAndRun(filePath)
 	if acl != nil {
@@ -359,8 +370,8 @@ func (m *DefaultClassPathManager) LoadClass(className string, parser *Parser) da
 	if iface, ok := parser.vm.GetInterface(className); ok {
 		// 提前确保接口的父接口已加载
 		vm := parser.vm
-		if ext := iface.GetExtend(); ext != nil {
-			if _, acl := vm.GetOrLoadInterface(*ext); acl != nil {
+		for _, ext := range iface.GetExtends() {
+			if _, acl := vm.GetOrLoadInterface(ext); acl != nil {
 				return acl
 			}
 		}
