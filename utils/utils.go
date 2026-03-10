@@ -45,6 +45,10 @@ func convertValue[S any](v data.Value) (S, error) {
 				}
 			}
 		}
+		// 如果 GetSource 转换失败，尝试直接类型断言（例如 S = data.Value）
+		if converted, ok := any(val).(S); ok {
+			return converted, nil
+		}
 		return result, fmt.Errorf("无法从 ClassValue 转换到 %T", result)
 
 	case *data.AnyValue:
@@ -69,6 +73,10 @@ func convertValue[S any](v data.Value) (S, error) {
 		return convertFromArrayValue[S](val)
 
 	default:
+		// 尝试直接类型断言
+		if converted, ok := any(v).(S); ok {
+			return converted, nil
+		}
 		return result, fmt.Errorf("不支持的值类型: %T", v)
 	}
 }

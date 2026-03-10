@@ -87,6 +87,15 @@ func (c *ClassValue) GetProperty(name string) (Value, Control) {
 		return gv.(Value), acl
 	}
 
+	// 查找动态属性（通过 SetProperty 存入 ObjectValue.property 的属性）
+	if c.ObjectValue != nil {
+		if v, _ := c.ObjectValue.GetProperty(name); v != nil {
+			if _, isNull := v.(*NullValue); !isNull {
+				return v, nil
+			}
+		}
+	}
+
 	return NewNullValue(), nil
 }
 

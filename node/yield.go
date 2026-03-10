@@ -49,11 +49,8 @@ func (y *YieldStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 		value = data.NewNullValue()
 	}
 
-	// 如果没有指定 key，使用 null 作为默认值（但 GetKey() 应该始终返回非 nil）
-	if key == nil {
-		key = data.NewNullValue()
-	}
 	// 返回 yield 控制流（普通 yield 使用 YieldValueControl）
+	// key 为 nil 表示未显式指定，Generator 会自动分配自增整数 key
 	return nil, data.NewYieldControlWithContext(key, value, ctx)
 }
 

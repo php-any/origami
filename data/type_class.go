@@ -38,6 +38,23 @@ func (i Class) Is(value Value) bool {
 		if i.Name == "iterable" {
 			return true
 		}
+	case *ThrowValue:
+		// ThrowValue 也要支持类继承和接口实现判断，逻辑与 ClassValue 基本一致。
+		if i.Name == c.GetName() {
+			return true
+		}
+		if c.Object != nil {
+			vm := c.Object.GetVM()
+			// 先直接比较 implements 列表中的字符串（不依赖接口是否已加载）
+			for _, s := range c.GetImplements() {
+				if i.Name == s {
+					return true
+				} else if interfaceExtends(vm, s, i.Name) {
+					return true
+				}
+			}
+			return extendISClass(i.Name, c.GetExtend(), vm)
+		}
 	}
 
 	return false

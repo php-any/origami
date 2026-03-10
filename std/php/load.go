@@ -19,6 +19,7 @@ import (
 func Load(vm data.VM) {
 	for _, fun := range []data.FuncStmt{
 		NewTimeFunction(),
+		NewStrftimeFunction(),
 		NewDateDefaultTimezoneGetFunction(),
 		NewTimezoneNameFromAbbrFunction(),
 		NewTimezoneNameGetFunction(),
@@ -81,6 +82,7 @@ func Load(vm data.VM) {
 		array.NewSortFunction(),
 		array.NewKsortFunction(),
 		array.NewArrayMapFunction(),
+		array.NewArrayReduceFunction(),
 		NewStrReplaceFunction(),
 		NewStrtolowerFunction(),
 		NewStrtoupperFunction(),
@@ -125,6 +127,7 @@ func Load(vm data.VM) {
 		array.NewArrayShiftFunction(),
 		array.NewArrayUnshiftFunction(),
 		array.NewArraySliceFunction(),
+		NewIteratorToArrayFunction(),
 		array.NewEndFunction(),
 		array.NewResetFunction(),
 		array.NewNextFunction(),
@@ -183,6 +186,10 @@ func Load(vm data.VM) {
 	vm.AddClass(&reflection.ReflectionTypeClass{})
 	vm.AddClass(&reflection.ReflectionNamedTypeClass{})
 	vm.AddClass(&directory.DirectoryIteratorClass{})
+	vm.AddClass(&core.ArrayIteratorClass{})
+
+	// 注册 PHP 内置接口
+	vm.AddInterface(NewArrayAccessInterface())
 
 	// 注册异常类
 	vm.AddClass(exception.NewLogicExceptionClass())

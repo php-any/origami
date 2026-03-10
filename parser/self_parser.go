@@ -29,13 +29,13 @@ func (sp *SelfParser) Parse() (data.GetValue, data.Control) {
 	if sp.checkPositionIs(0, token.SCOPE_RESOLUTION) &&
 		(sp.checkPositionIs(1, token.IDENTIFIER, token.VARIABLE, token.CLASS)) {
 		sp.next() // 跳过 ::
-		
+
 		// 检查是否是 self::class
 		if sp.current().Type() == token.CLASS {
 			sp.next() // 跳过 class
 			return node.NewSelfClass(tracker.EndBefore()), nil
 		}
-		
+
 		isVariable := sp.current().Type() == token.VARIABLE
 		memberName := sp.current().Literal()
 		sp.next()
@@ -47,8 +47,14 @@ func (sp *SelfParser) Parse() (data.GetValue, data.Control) {
 		}
 
 		if sp.checkPositionIs(0, token.LPAREN) {
-			// 创建静态方法调用表达式
 			vp := &VariableParser{sp.Parser}
+			// 如果已知当前类名（解析时），直接使用 CallStaticMethodLater
+			// 这样在闭包等非 ClassMethodContext 中也能正确工作
+			if sp.currentClass != "" {
+				expr := node.NewCallStaticMethodLater(tokenFrom, sp.currentClass, memberName, sp.currentClass)
+				return vp.parseSuffix(expr)
+			}
+			// 否则回退到运行时解析
 			expr := node.NewCallSelfMethod(tokenFrom, memberName)
 			return vp.parseSuffix(expr)
 		} else {

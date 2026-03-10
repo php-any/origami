@@ -1,9 +1,5 @@
 package data
 
-import (
-	"fmt"
-)
-
 func NewNullValue() Value {
 	return &NullValue{}
 }
@@ -21,7 +17,7 @@ func (s *NullValue) GetValue(ctx Context) (GetValue, Control) {
 }
 
 func (s *NullValue) AsString() string {
-	return fmt.Sprint("null")
+	return ""
 }
 
 func (s *NullValue) AsInt() (int, error) {

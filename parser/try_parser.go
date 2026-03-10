@@ -76,26 +76,41 @@ func (p *TryParser) parseCatchBlock(tracker *PositionTracker) (*node.CatchBlock,
 	}
 	p.next() // 跳过左括号
 
-	// 解析异常类型
-	var exceptionType string
-	if p.checkPositionIs(0, token.IDENTIFIER) {
+	// 解析异常类型（支持多类型 catch (A | B | C $e)，用 NewUnionType 表示）
+	typeNames := make([]string, 0)
+	for {
+		if !p.checkPositionIs(0, token.IDENTIFIER) {
+			if len(typeNames) == 0 {
+				typeNames = append(typeNames, "Exception")
+			}
+			break
+		}
 		name := p.current().Literal()
 		p.next()
-
 		// 与参数/返回值类型解析保持一致：优先解析为完整类名（考虑命名空间与 use）
 		if data.ISBaseType(name) {
-			exceptionType = name
+			typeNames = append(typeNames, name)
 		} else if full, ok := p.findFullClassNameByNamespace(name); ok {
-			// 例如：use Symfony\Component\Console\Exception\ExceptionInterface;
-			// catch (ExceptionInterface $e) => 解析为完整类名
-			exceptionType = full
+			typeNames = append(typeNames, full)
 		} else {
-			// 找不到就保留原始名称
-			exceptionType = name
+			typeNames = append(typeNames, name)
 		}
+		if !p.checkPositionIs(0, token.BIT_OR) {
+			break
+		}
+		p.next() // 跳过 |
+	}
+
+	// 构建 data.Types：单类型用 BaseType，多类型用 NewUnionType
+	var exceptionType data.Types
+	types := make([]data.Types, 0, len(typeNames))
+	for _, n := range typeNames {
+		types = append(types, data.NewBaseType(n))
+	}
+	if len(types) == 1 {
+		exceptionType = types[0]
 	} else {
-		// 如果没有指定异常类型，使用默认的Exception
-		exceptionType = "Exception"
+		exceptionType = data.NewUnionType(types)
 	}
 
 	// 检查是否有变量名
@@ -106,7 +121,7 @@ func (p *TryParser) parseCatchBlock(tracker *PositionTracker) (*node.CatchBlock,
 			return nil, acl
 		}
 		variable1 := stmt.(*node.VariableExpression)
-		variable1.Type = data.NewBaseType(exceptionType)
+		variable1.Type = exceptionType
 		variable = variable1
 
 		acl = p.nextAndCheck(token.RPAREN) // 跳过右括号
@@ -116,7 +131,7 @@ func (p *TryParser) parseCatchBlock(tracker *PositionTracker) (*node.CatchBlock,
 	} else {
 		name := p.current().Literal()
 		p.next()
-		val := p.scopeManager.CurrentScope().AddVariable(name, data.NewBaseType(exceptionType), tracker.EndBefore())
+		val := p.scopeManager.CurrentScope().AddVariable(name, exceptionType, tracker.EndBefore())
 		variable = node.NewVariableWithFirst(tracker.EndBefore(), val)
 	}
 

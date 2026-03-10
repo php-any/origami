@@ -5,7 +5,7 @@ import (
 )
 
 func Load(vm data.VM) {
-	vm.AddClass(&DateTimeClass{})
 	vm.AddInterface(newDateTimeInterface())
-	vm.AddClass(&DateTimeZoneClass{})
+	vm.AddClass(&PhpDateTimeClass{})  // 全局 DateTime
+	vm.AddClass(&DateTimeZoneClass{}) // 全局 DateTimeZone
 }

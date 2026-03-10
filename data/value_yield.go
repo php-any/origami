@@ -27,7 +27,15 @@ func (y *YieldValue) GetValue(ctx Context) (GetValue, Control) {
 
 // AsString 实现 Value 接口
 func (y *YieldValue) AsString() string {
-	return fmt.Sprintf("yield %s => %s", y.Key.AsString(), y.Value.AsString())
+	keyStr := "nil"
+	if y.Key != nil {
+		keyStr = y.Key.AsString()
+	}
+	valueStr := "nil"
+	if y.Value != nil {
+		valueStr = y.Value.AsString()
+	}
+	return fmt.Sprintf("yield %s => %s", keyStr, valueStr)
 }
 
 // GetYieldKey 实现 YieldValueControl 接口

@@ -1,0 +1,88 @@
+<?php
+
+// 实现 Iterator 接口的类
+class MyIterator implements Iterator
+{
+    private $data = [1, 2, 3, 4, 5];
+    private $position= 0;
+
+    public function __construct()
+    {
+        $this->position = 0;
+    }
+
+    public function rewind(): void
+    {
+        echo "rewind() called\n";
+        $this->position = 0;
+    }
+
+    public function current(): mixed
+    {
+        echo "current() called\n";
+        return $this->data[$this->position];
+    }
+
+    public function key(): mixed
+    {
+        echo "key() called\n";
+        return $this->position;
+    }
+
+    public function next(): void
+    {
+        echo "next() called\n";
+        ++$this->position;
+    }
+
+    public function valid(): bool
+    {
+        echo "valid() called\n";
+        return isset($this->data[$this->position]);
+    }
+}
+
+// 实现 IteratorAggregate 接口的类
+class MyCollection implements IteratorAggregate
+{
+    private $data = ['a' => 1, 'b' => 2, 'c' => 3];
+
+    public function getIterator(): Traversable
+    {
+        echo "getIterator() called\n";
+        return new ArrayIterator($this->data);
+    }
+}
+
+Log::info("=== iterator_to_array 测试 ===\n");
+
+// 测试 1: 基本 Iterator
+Log::info("测试 1: 基本 Iterator（保留键名）");
+$iter = new MyIterator();
+$arr = iterator_to_array($iter);
+Log::info("结果类型：" . gettype($arr));
+if (is_array($arr)) {
+    Log::info("数组内容：" . json_encode($arr));
+} else {
+    Log::fatal("✗ 应该返回数组");
+}
+
+// 测试 2: Iterator 不使用键名
+Log::info("\n测试 2: Iterator（不保留键名）");
+$iter2 = new MyIterator();
+$arr2 = iterator_to_array($iter2, false);
+Log::info("数组内容：" . json_encode($arr2));
+
+// 测试 3: IteratorAggregate
+Log::info("\n测试 3: IteratorAggregate");
+$collection = new MyCollection();
+$arr3 = iterator_to_array($collection);
+Log::info("数组内容：" . json_encode($arr3));
+
+// 测试 4: 使用 PHP 内置的 ArrayIterator
+Log::info("\n测试 4: ArrayIterator");
+$arrayIter = new ArrayIterator([10, 20, 30]);
+$arr4 = iterator_to_array($arrayIter);
+Log::info("数组内容：" . json_encode($arr4));
+
+Log::info("\n=== 所有测试完成 ===");

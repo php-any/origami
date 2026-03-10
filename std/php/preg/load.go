@@ -12,6 +12,8 @@ func Load(vm data.VM) {
 	vm.AddFunc(NewPregReplaceFunction())
 	vm.AddFunc(NewPregReplaceCallbackFunction())
 	vm.AddFunc(NewPregGrepFunction())
+	vm.AddFunc(NewPregLastErrorFunction())
+	vm.AddFunc(NewPregLastErrorMsgFunction())
 
 	// 注册常量
 	InitConstants(vm)

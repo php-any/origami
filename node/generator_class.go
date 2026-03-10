@@ -38,7 +38,7 @@ func (g *GeneratorClass) GetExtend() *string {
 
 // GetImplements 返回实现的接口
 func (g *GeneratorClass) GetImplements() []string {
-	return nil
+	return []string{"Iterator"}
 }
 
 // GetProperty 获取属性

@@ -75,6 +75,8 @@ func (c *ReflectionClassClass) GetMethod(name string) (data.Method, bool) {
 		return &ReflectionClassNewInstanceArgsMethod{}, true
 	case "getAttributes":
 		return &ReflectionClassGetAttributesMethod{}, true
+	case "implementsInterface":
+		return &ReflectionClassImplementsInterfaceMethod{}, true
 	}
 	return nil, false
 }
@@ -99,6 +101,7 @@ func (c *ReflectionClassClass) GetMethods() []data.Method {
 		&ReflectionClassIsInstantiableMethod{},
 		&ReflectionClassGetConstructorMethod{},
 		&ReflectionClassGetAttributesMethod{},
+		&ReflectionClassImplementsInterfaceMethod{},
 	}
 }
 

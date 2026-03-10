@@ -14,6 +14,12 @@ func NewFuncYieldStackState(ctx data.Context, fn data.FuncStmt, body []data.GetV
 		Body:         body,
 		CurrentKey:   currentKey,
 		CurrentValue: currentValue,
+		autoKeyIndex: 0,
+	}
+	// 如果 currentKey 为 nil（第一次 yield 没有显式 key），分配 autoKey=0
+	if currentKey == nil {
+		generator.CurrentKey = data.NewIntValue(0)
+		generator.autoKeyIndex = 1
 	}
 	return generator
 }
@@ -25,6 +31,7 @@ type FuncYieldStackState struct {
 	Body         []data.GetValue
 	CurrentKey   data.Value
 	CurrentValue data.Value
+	autoKeyIndex int
 }
 
 func (f *FuncYieldStackState) AsString() string {
@@ -43,7 +50,7 @@ func (f *FuncYieldStackState) Current(_ data.Context) (data.Value, data.Control)
 
 func (f *FuncYieldStackState) Key(_ data.Context) (data.Value, data.Control) {
 	if f.CurrentKey == nil {
-		return data.NewNullValue(), nil
+		return data.NewIntValue(0), nil
 	}
 	return f.CurrentKey, nil
 }
@@ -60,13 +67,23 @@ func (f *FuncYieldStackState) Next(_ data.Context) data.Control {
 		if ctl != nil {
 			switch rv := ctl.(type) {
 			case data.YieldControl:
-				f.CurrentKey = rv.GetYieldKey()
+				key := rv.GetYieldKey()
+				if key == nil {
+					key = data.NewIntValue(f.autoKeyIndex)
+					f.autoKeyIndex++
+				}
+				f.CurrentKey = key
 				f.CurrentValue = rv.GetYieldValue()
 				f.Body[bodyIndex] = rv
 				return nil
 			case data.YieldValueControl:
 				// 遇到 yield，更新键和值
-				f.CurrentKey = rv.GetYieldKey()
+				key := rv.GetYieldKey()
+				if key == nil {
+					key = data.NewIntValue(f.autoKeyIndex)
+					f.autoKeyIndex++
+				}
+				f.CurrentKey = key
 				f.CurrentValue = rv.GetYieldValue()
 				f.BodyIndex = bodyIndex + 1
 				return nil

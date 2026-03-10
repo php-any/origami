@@ -172,6 +172,10 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 		}
 
 		if p.checkPositionIs(0, token.OBJECT_OPERATOR, token.DOT) {
+			// 先检查是否是已知常量（如 \DIRECTORY_SEPARATOR），常量不能被当作变量
+			if v, ok := p.vm.GetConstant(name); ok {
+				return v, nil
+			}
 			val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
 			expr := node.NewVariableWithFirst(tracker.EndBefore(), val)
 			vp := &VariableParser{p.Parser}

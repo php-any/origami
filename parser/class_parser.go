@@ -1091,16 +1091,18 @@ func (p *ClassParser) mergeTraitsIntoMaps(traitNames []string, properties *[]dat
 			return data.NewErrorThrow(p.newFrom(), fmt.Errorf("trait %s 不存在", traitName))
 		}
 
-		// 合并 trait 的方法
+		// 合并 trait 的实例方法
 		for _, method := range trait.GetMethods() {
 			methodName := method.GetName()
-			if method.GetIsStatic() {
+			if _, exists := methods[methodName]; !exists {
+				methods[methodName] = method
+			}
+		}
+		// 合并 trait 的静态方法（静态方法只存放在 ClassStatement.StaticMethods 中）
+		if cs, ok := trait.(*node.ClassStatement); ok {
+			for methodName, method := range cs.StaticMethods {
 				if _, exists := staticMethods[methodName]; !exists {
 					staticMethods[methodName] = method
-				}
-			} else {
-				if _, exists := methods[methodName]; !exists {
-					methods[methodName] = method
 				}
 			}
 		}
@@ -1143,19 +1145,20 @@ func (p *ClassParser) mergeTraits(class *node.ClassStatement, traitNames []strin
 			return data.NewErrorThrow(class.GetFrom(), fmt.Errorf("trait %s 不存在", traitName))
 		}
 
-		// 合并 trait 的方法
+		// 合并 trait 的实例方法
 		traitMethods := trait.GetMethods()
 		for _, method := range traitMethods {
 			methodName := method.GetName()
 			// 如果类中已经有同名方法，跳过（类的方法优先级更高）
 			if _, exists := class.Methods[methodName]; !exists {
-				// 检查是否是静态方法
-				if method.GetIsStatic() {
-					if _, exists := class.StaticMethods[methodName]; !exists {
-						class.StaticMethods[methodName] = method
-					}
-				} else {
-					class.Methods[methodName] = method
+				class.Methods[methodName] = method
+			}
+		}
+		// 合并 trait 的静态方法（只存放在 ClassStatement.StaticMethods 中）
+		if cs, ok := trait.(*node.ClassStatement); ok {
+			for methodName, method := range cs.StaticMethods {
+				if _, exists := class.StaticMethods[methodName]; !exists {
+					class.StaticMethods[methodName] = method
 				}
 			}
 		}

@@ -7,6 +7,86 @@ import (
 	"github.com/php-any/origami/data"
 )
 
+// callArrayAccessOffsetGet 调用 ArrayAccess 接口的 offsetGet 方法
+func callArrayAccessOffsetGet(ctx data.Context, classValue *data.ClassValue, index data.GetValue) (data.GetValue, data.Control) {
+	method, exists := classValue.GetMethod("offsetGet")
+	if !exists {
+		return nil, nil
+	}
+
+	// 创建参数上下文
+	fnCtx := classValue.CreateContext(method.GetVariables())
+
+	// 设置参数值
+	params := method.GetParams()
+	if len(params) >= 1 {
+		if p0, ok := params[0].(interface {
+			SetValue(data.Context, data.Value) data.Control
+		}); ok {
+			if ctl := p0.SetValue(fnCtx, index.(data.Value)); ctl != nil {
+				return nil, ctl
+			}
+		}
+	}
+
+	// 调用方法并获取返回值
+	result, ctl := method.Call(fnCtx)
+	if ctl != nil {
+		return nil, ctl
+	}
+
+	if val, ok := result.(data.Value); ok {
+		return val, nil
+	}
+	return nil, nil
+}
+
+// callArrayAccessOffsetSet 调用 ArrayAccess 接口的 offsetSet 方法
+func callArrayAccessOffsetSet(ctx data.Context, classValue *data.ClassValue, index data.GetValue, value data.Value) data.Control {
+	method, exists := classValue.GetMethod("offsetSet")
+	if !exists {
+		return nil
+	}
+
+	// 创建参数上下文
+	fnCtx := classValue.CreateContext(method.GetVariables())
+
+	// 设置参数值
+	params := method.GetParams()
+	if len(params) >= 2 {
+		// 设置第一个参数 (offset)
+		if p0, ok := params[0].(interface {
+			SetValue(data.Context, data.Value) data.Control
+		}); ok {
+			if ctl := p0.SetValue(fnCtx, index.(data.Value)); ctl != nil {
+				return ctl
+			}
+		}
+		// 设置第二个参数 (value)
+		if p1, ok := params[1].(interface {
+			SetValue(data.Context, data.Value) data.Control
+		}); ok {
+			if ctl := p1.SetValue(fnCtx, value); ctl != nil {
+				return ctl
+			}
+		}
+	}
+
+	// 调用方法
+	_, ctl := method.Call(fnCtx)
+	return ctl
+}
+
+// checkArrayAccess 检查类是否实现了 ArrayAccess 接口
+func checkArrayAccess(ctx data.Context, classStmt data.ClassStmt) bool {
+	if asBool, ctl := instanceof(ctx, "ArrayAccess", &data.ClassValue{Class: classStmt}); ctl == nil {
+		if boolVal, ok := asBool.(*data.BoolValue); ok {
+			return boolVal.Value
+		}
+	}
+	return false
+}
+
 // IndexExpression 表示数组访问表达式
 type IndexExpression struct {
 	*Node `pp:"-"`
@@ -203,6 +283,11 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 		return data.NewErrorThrow(ie.GetFrom(), errors.New("对象索引必须是字符串或整数"))
 
 	case *data.ClassValue:
+		// 检查是否实现了 ArrayAccess 接口
+		if checkArrayAccess(ctx, arr.Class) {
+			// 实现了 ArrayAccess，调用 offsetSet 方法
+			return callArrayAccessOffsetSet(ctx, arr, indexVal, value)
+		}
 		// 类实例属性赋值
 		if iv, ok := indexVal.(data.AsString); ok {
 			name := iv.AsString()
@@ -215,9 +300,14 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 			}
 			return data.NewErrorThrow(ie.GetFrom(), errors.New("对象不存在指定属性"))
 		}
-		return data.NewErrorThrow(ie.GetFrom(), errors.New("ClassValue索引必须是字符串"))
+		return data.NewErrorThrow(ie.GetFrom(), errors.New("ClassValue 索引必须是字符串"))
 
 	case *data.ThisValue:
+		// 检查是否实现了 ArrayAccess 接口
+		if checkArrayAccess(ctx, arr.Class) {
+			// 实现了 ArrayAccess，调用 offsetSet 方法
+			return callArrayAccessOffsetSet(ctx, arr.ClassValue, indexVal, value)
+		}
 		// $this[$name] 动态设置当前对象属性
 		if iv, ok := indexVal.(data.AsString); ok {
 			name := iv.AsString()
@@ -230,7 +320,7 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 			}
 			return data.NewErrorThrow(ie.GetFrom(), errors.New("对象不存在指定属性"))
 		}
-		return data.NewErrorThrow(ie.GetFrom(), errors.New("ThisValue索引必须是字符串"))
+		return data.NewErrorThrow(ie.GetFrom(), errors.New("ThisValue 索引必须是字符串"))
 
 	default:
 		return data.NewErrorThrow(ie.GetFrom(), errors.New("无法设置索引表达式的值"))
@@ -309,6 +399,11 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		}
 		return ov, nil
 	case *data.ClassValue:
+		// 检查是否实现了 ArrayAccess 接口
+		if checkArrayAccess(ctx, v.Class) {
+			// 实现了 ArrayAccess，调用 offsetGet 方法
+			return callArrayAccessOffsetGet(ctx, v, index)
+		}
 		// 支持对类实例通过字符串索引访问公开属性：
 		// $obj[$name]，在动态属性语法 $obj->$name 降级为索引访问后会走到这里
 		if iv, ok := index.(data.AsString); ok {
@@ -318,11 +413,23 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 					return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("对象属性不是公开的"))
 				}
 				return prop.GetValue(v)
+			} else if prop, acl := v.ObjectValue.GetProperty(name); acl == nil {
+				switch prop := prop.(type) {
+				case *data.NullValue:
+					return nil, data.NewErrorThrow(ie.GetFrom(), fmt.Errorf("%s对象不存在指定属性：%s", v.Class.GetName(), name))
+				default:
+					return prop.GetValue(ctx)
+				}
 			}
 			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("对象不存在指定属性"))
 		}
-		return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("ClassValue无法处理索引的类型值"))
+		return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("ClassValue 无法处理索引的类型值"))
 	case *data.ThisValue:
+		// 检查是否实现了 ArrayAccess 接口
+		if checkArrayAccess(ctx, v.Class) {
+			// 实现了 ArrayAccess，调用 offsetGet 方法
+			return callArrayAccessOffsetGet(ctx, v.ClassValue, index)
+		}
 		// $this[$name] 动态访问当前对象属性
 		if iv, ok := index.(data.AsString); ok {
 			name := iv.AsString()
@@ -331,10 +438,16 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 					return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("对象属性不是公开的"))
 				}
 				return prop.GetValue(ctx)
+			} else if prop, acl := v.ObjectValue.GetProperty(name); acl == nil {
+				switch prop := prop.(type) {
+				case *data.NullValue:
+					return nil, data.NewErrorThrow(ie.GetFrom(), fmt.Errorf("this(%s) 对象不存在指定属性：%s", v.Class.GetName(), name))
+				default:
+					return prop.GetValue(ctx)
+				}
 			}
-			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("对象不存在指定属性"))
 		}
-		return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("ThisValue无法处理索引的类型值"))
+		return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("ThisValue 无法处理索引的类型值"))
 	case *data.StringValue:
 		// 获取字符串指定位置符号
 		if iv, ok := index.(data.AsInt); ok {

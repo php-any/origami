@@ -4,12 +4,10 @@ namespace tests\php;
 
 /**
  * DateTimeInterface 接口测试：
- * - System\DateTime 实现 \DateTimeInterface
+ * - 全局 DateTime 实现 \DateTimeInterface
  * - instanceof \DateTimeInterface 为 true
- * - DateTimeInterface 类型提示可以接受 System\DateTime 实例
+ * - DateTimeInterface 类型提示可以接受 DateTime 实例
  */
-
-use System\DateTime as SystemDateTime;
 
 class DateTimeInterface_Acceptor
 {
@@ -19,7 +17,7 @@ class DateTimeInterface_Acceptor
     }
 }
 
-$dt = new SystemDateTime();
+$dt = new \DateTime();
 
 if (!($dt instanceof \DateTimeInterface)) {
     Log::fatal('DateTimeInterface instanceof 测试失败：期望 true');

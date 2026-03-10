@@ -196,7 +196,7 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			}
 
 			// 执行循环体
-			for _, statement := range u.Body {
+			for bodyIndex, statement := range u.Body {
 				v, c = statement.GetValue(ctx)
 				if c != nil {
 					switch ctrl := c.(type) {
@@ -206,13 +206,17 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 						}
 					case data.ContinueControl:
 						if ctrl.IsContinue() {
-							continue
+							goto nextArrayElement
 						}
+					case data.YieldValueControl:
+						// yield：包装成 ForeachArrayYieldControl，保存迭代状态
+						return nil, NewForeachArrayYieldControl(u, valueList, i, bodyIndex+1, ctrl)
 					}
 					// return/throw 直接返回
 					return nil, c
 				}
 			}
+		nextArrayElement:
 		}
 		return v, nil
 	case data.Iterator:
@@ -310,6 +314,119 @@ func NewForeachStatement(token *TokenFrom, array data.GetValue, key data.Variabl
 		Value: value,
 		Body:  body,
 	}
+}
+
+// ForeachArrayYieldControl 表示在 foreach 数组循环体内遇到 yield 时的暂停状态
+// 实现 data.YieldControl，使得 FuncYieldStackState.Next() 可以正确恢复迭代
+type ForeachArrayYieldControl struct {
+	*ForeachStatement
+	ValueList  []data.Value
+	ArrayIndex int // 当前数组元素的索引（下次恢复后还需继续遍历的位置）
+	BodyIndex  int // 当前 body 中的位置（下次从哪里继续）
+	Value      data.YieldValueControl
+}
+
+func NewForeachArrayYieldControl(stmt *ForeachStatement, valueList []data.Value, arrayIndex int, bodyIndex int, v data.YieldValueControl) *ForeachArrayYieldControl {
+	return &ForeachArrayYieldControl{
+		ForeachStatement: stmt,
+		ValueList:        valueList,
+		ArrayIndex:       arrayIndex,
+		BodyIndex:        bodyIndex,
+		Value:            v,
+	}
+}
+
+func (f *ForeachArrayYieldControl) GetYieldKey() data.Value {
+	return f.Value.GetYieldKey()
+}
+
+func (f *ForeachArrayYieldControl) GetYieldValue() data.Value {
+	return f.Value.GetYieldValue()
+}
+
+func (f *ForeachArrayYieldControl) AsString() string {
+	return "foreach array yield"
+}
+
+func (f *ForeachArrayYieldControl) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	// 推进到下一个 yield
+	ctl := f.Next(ctx)
+	if ctl != nil {
+		// ctl == f 表示找到了下一个 yield；ctl == error 表示发生了错误
+		return nil, ctl
+	}
+	// 迭代完毕，返回 nil
+	return nil, nil
+}
+
+// Next 从上次暂停的位置继续执行，直到找到下一个 yield 或迭代完毕
+// 返回的 Control 是：nil（结束）、self（下一个 yield）或 error
+func (f *ForeachArrayYieldControl) Next(ctx data.Context) data.Control {
+	// 先继续当前数组元素的剩余 body
+	startBodyIndex := f.BodyIndex
+	f.BodyIndex = 0
+
+	for i := f.ArrayIndex; i < len(f.ValueList); i++ {
+		element := f.ValueList[i]
+		// 设置变量
+		if acl := f.ForeachStatement.Value.SetValue(ctx, element); acl != nil {
+			return acl
+		}
+		if f.ForeachStatement.Key != nil {
+			ctx.SetVariableValue(f.ForeachStatement.Key, data.NewIntValue(i))
+		}
+
+		startBody := startBodyIndex
+		startBodyIndex = 0 // 后续元素从头开始
+
+		for bodyIndex := startBody; bodyIndex < len(f.Body); bodyIndex++ {
+			statement := f.Body[bodyIndex]
+			_, c := statement.GetValue(ctx)
+			if c != nil {
+				if ctrl, ok := c.(data.BreakControl); ok && ctrl.IsBreak() {
+					return nil
+				}
+				if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
+					break // 跳到下一个数组元素
+				}
+				if ctrl, ok := c.(data.YieldValueControl); ok {
+					f.Value = ctrl
+					f.ArrayIndex = i
+					f.BodyIndex = bodyIndex + 1
+					return f
+				}
+				return c
+			}
+		}
+	}
+	return nil
+}
+
+func (f *ForeachArrayYieldControl) Rewind(ctx data.Context) (data.Value, data.Control) {
+	return data.NewNullValue(), nil
+}
+
+func (f *ForeachArrayYieldControl) Valid(ctx data.Context) (data.Value, data.Control) {
+	return data.NewBoolValue(true), nil
+}
+
+func (f *ForeachArrayYieldControl) Current(ctx data.Context) (data.Value, data.Control) {
+	return f.Value.GetYieldValue(), nil
+}
+
+func (f *ForeachArrayYieldControl) Key(ctx data.Context) (data.Value, data.Control) {
+	return f.Value.GetYieldKey(), nil
+}
+
+func (f *ForeachArrayYieldControl) CreateStackState(ctx data.Context, fn data.FuncStmt, originalBody []data.GetValue, bodyIndex int) data.Generator {
+	// 构建 newBody：将 bodyIndex 位置（foreach语句）替换为 f 自身
+	newBody := make([]data.GetValue, len(originalBody))
+	copy(newBody, originalBody)
+	newBody[bodyIndex] = f
+	// 获取当前 yield 的值
+	currentKey := f.Value.GetYieldKey()
+	currentValue := f.Value.GetYieldValue()
+	return NewFuncYieldStackState(ctx, fn, newBody, bodyIndex, currentKey, currentValue)
 }
 
 type ForeachValueTarget struct {

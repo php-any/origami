@@ -29,10 +29,34 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 
 	switch expr := pe.stmt.(type) {
 	case data.GetStaticMethod:
+		// 先在当前类上查找静态方法
 		method, has = expr.GetStaticMethod(pe.Method)
 		if has {
 			if cls, ok := expr.(data.ClassStmt); ok {
 				classStmt = cls
+			}
+		} else if cls, ok := expr.(data.ClassStmt); ok {
+			// 若当前类未找到，再沿继承链向上查找
+			extend := cls.GetExtend()
+			for extend != nil {
+				vm := ctx.GetVM()
+				ext, acl := vm.GetOrLoadClass(*extend)
+				if acl != nil {
+					return nil, acl
+				}
+				extend = nil
+				if getter, ok := ext.(data.GetStaticMethod); ok {
+					if m, ok := getter.GetStaticMethod(pe.Method); ok {
+						method = m
+						classStmt = ext
+						has = true
+						break
+					}
+					extend = ext.GetExtend()
+				}
+			}
+			if !has {
+				return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("(%s)无法调用函数(%s)。", cls.GetName(), pe.Method))
 			}
 		} else {
 			return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("无法调用函数(%s)。", pe.Method))
@@ -43,11 +67,55 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 			return nil, acl
 		}
 		switch expr := c.(type) {
+		case *data.StringValue:
+			// 动态字符串类名：$className::method()
+			className := expr.Value
+			vm := ctx.GetVM()
+			stmt, acl := vm.GetOrLoadClass(className)
+			if acl != nil {
+				return nil, acl
+			}
+			if stmt == nil {
+				return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("无法调用静态方法(%s::%s), 未找到类", className, pe.Method))
+			}
+			if tokenFrom, ok := pe.GetFrom().(*TokenFrom); ok {
+				callStaticMethod := NewCallStaticMethod(tokenFrom, stmt, pe.Method)
+				return callStaticMethod.GetValue(ctx)
+			}
+			// fallback: 直接查找静态方法
+			if getter, ok := stmt.(data.GetStaticMethod); ok {
+				if m, ok := getter.GetStaticMethod(pe.Method); ok {
+					classStmt = stmt
+					method = m
+					has = true
+				}
+			}
 		case data.GetStaticMethod:
+			// 先在当前类上查找静态方法
 			method, has = expr.GetStaticMethod(pe.Method)
 			if has {
 				if cls, ok := expr.(data.ClassStmt); ok {
 					classStmt = cls
+				}
+			} else if cls, ok := expr.(data.ClassStmt); ok {
+				// 若当前类未找到，再沿继承链向上查找
+				extend := cls.GetExtend()
+				for extend != nil {
+					vm := ctx.GetVM()
+					ext, acl := vm.GetOrLoadClass(*extend)
+					if acl != nil {
+						return nil, acl
+					}
+					extend = nil
+					if getter, ok := ext.(data.GetStaticMethod); ok {
+						if m, ok := getter.GetStaticMethod(pe.Method); ok {
+							method = m
+							classStmt = ext
+							has = true
+							break
+						}
+						extend = ext.GetExtend()
+					}
 				}
 			}
 		case data.GetMethod:

@@ -76,8 +76,8 @@ func (ep *ExpressionParser) parseAssignment() (data.GetValue, data.Control) {
 		}
 	}
 
-	// 检查各种赋值运算符（含字符串连接赋值 .= 和空合并赋值 ??=）
-	for ep.checkPositionIs(0, token.ASSIGN, token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ, token.CONCAT_EQ, token.NULL_COALESCE_ASSIGN) {
+	// 检查各种赋值运算符（含字符串连接赋值 .= 和空合并赋值 ??=，以及位运算赋值）
+	for ep.checkPositionIs(0, token.ASSIGN, token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ, token.CONCAT_EQ, token.NULL_COALESCE_ASSIGN, token.BIT_OR_EQ, token.BIT_AND_EQ, token.BIT_XOR_EQ, token.SHL_EQ, token.SHR_EQ, token.POWER_EQ) {
 		operator := ep.current()
 		ep.next()
 
@@ -586,8 +586,8 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 	}
 	expr, acl := ep.parsePrimary()
 	if acl == nil {
-		// 检查各种赋值运算符（含字符串连接赋值 .=、位移赋值 >>= <<= 和空合并赋值 ??=）
-		for ep.checkPositionIs(0, token.ASSIGN, token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ, token.CONCAT_EQ, token.SHL_EQ, token.SHR_EQ, token.NULL_COALESCE_ASSIGN) {
+		// 检查各种赋值运算符（含字符串连接赋值 .=、位移赋值 >>= <<= 和空合并赋值 ??=，以及位运算赋值）
+		for ep.checkPositionIs(0, token.ASSIGN, token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ, token.CONCAT_EQ, token.SHL_EQ, token.SHR_EQ, token.NULL_COALESCE_ASSIGN, token.BIT_OR_EQ, token.BIT_AND_EQ, token.BIT_XOR_EQ, token.POWER_EQ) {
 			operator := ep.current()
 			ep.next()
 

@@ -6,7 +6,7 @@ import (
 )
 
 // newDateTimeInterface 定义 PHP 顶层接口 DateTimeInterface。
-// 目前仅包含与 System\DateTime 包装类一致的最小方法集合，用于类型提示和 instanceof 判断。
+// 目前仅包含与 DateTime / DateTimeImmutable 最小公共子集一致的方法集合，用于类型提示和 instanceof 判断。
 func newDateTimeInterface() data.InterfaceStmt {
 	methods := []data.Method{
 		// format(string $format): string

@@ -347,7 +347,7 @@ func (m *ClassMethod) AddAnnotations(a *data.ClassValue) {
 }
 
 func (m *ClassMethod) GetIsStatic() bool {
-	return false
+	return m.IsStatic
 }
 
 // GetName 返回方法名
@@ -377,7 +377,7 @@ func (m *ClassMethod) GetReturnType() data.Types {
 func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	var v data.GetValue
 	var ctl data.Control
-	for _, statement := range m.Body {
+	for bodyIndex, statement := range m.Body {
 		v, ctl = statement.GetValue(ctx)
 		if ctl != nil {
 			switch rv := ctl.(type) {
@@ -403,6 +403,16 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 					}
 				}
 				return nil, data.NewErrorThrow(m.GetFrom(), fmt.Errorf("方法(%s)返回值类型错误; 请检查类型和数量匹配", m.Name))
+			case data.YieldControl:
+				// Generator 方法：将执行状态保存为生成器
+				generator := rv.CreateStackState(ctx, m, m.Body, bodyIndex)
+				generatorClass := NewGeneratorClass(generator)
+				return generatorClass.GetValue(ctx)
+			case data.YieldValueControl:
+				// Generator 方法：将执行状态保存为生成器
+				generator := NewFuncYieldStackState(ctx, m, m.Body, bodyIndex+1, rv.GetYieldKey(), rv.GetYieldValue())
+				generatorClass := NewGeneratorClass(generator)
+				return generatorClass.GetValue(ctx)
 			case data.AddStack:
 				if c, ok := statement.(GetFrom); ok {
 					rv.AddStackWithInfo(c.GetFrom(), "body", TryGetCallClassName(statement))

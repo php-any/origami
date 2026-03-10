@@ -6,9 +6,9 @@ import (
 	"github.com/php-any/origami/data"
 )
 
-// CatchBlock 表示一个 catch 块
+// CatchBlock 表示一个 catch 块（单类型为 BaseType，多类型为 NewUnionType）
 type CatchBlock struct {
-	ExceptionType string
+	ExceptionType data.Types
 	Variable      data.Variable
 	Body          []data.GetValue
 }
@@ -80,35 +80,27 @@ func (t *TryStatement) tryValue(ctx data.Context, c data.Control) (data.GetValue
 	// 检查是否是异常控制
 	if cv, ok := c.(*data.ThrowValue); ok {
 		// 这里是 go 作用域返回的异常处理
-		// 查找匹配的 catch 块
+		// 查找匹配的 catch 块（直接使用 ExceptionType.Is(异常值) 判断，UnionType 内任一匹配即可）
 		for _, catchBlock := range t.CatchBlocks {
-			// 将异常对象设置到 catch 变量中
-			if catchBlock.Variable != nil {
-				// 这里需要将异常对象设置到变量中
-				ok, acl := checkClassIs(ctx, cv, catchBlock.Variable.GetType().String())
-				if acl != nil {
-					return nil, acl
-				}
-				if ok {
+			if catchBlock.ExceptionType != nil && catchBlock.ExceptionType.Is(cv) {
+				if catchBlock.Variable != nil {
 					ctx.SetVariableValue(catchBlock.Variable, c)
-				} else {
-					continue
 				}
-			}
 
-			// 执行 catch 块
-			for _, catchStmt := range catchBlock.Body {
-				_, c = catchStmt.GetValue(ctx)
-				if c != nil {
-					// catch 块中有新的异常或 return，直接返回
-					// finally 块会在 GetValue 方法中执行
-					return nil, c
+				// 执行 catch 块
+				for _, catchStmt := range catchBlock.Body {
+					_, c = catchStmt.GetValue(ctx)
+					if c != nil {
+						// catch 块中有新的异常或 return，直接返回
+						// finally 块会在 GetValue 方法中执行
+						return nil, c
+					}
 				}
-			}
 
-			// 异常已被处理，返回 nil 表示已处理
-			// finally 块会在 GetValue 方法中执行
-			return nil, nil
+				// 异常已被处理，返回 nil 表示已处理
+				// finally 块会在 GetValue 方法中执行
+				return nil, nil
+			}
 		}
 	} else {
 		// 其他类型的控制流（如 return、break 等）

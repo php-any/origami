@@ -2,7 +2,6 @@ package core
 
 import (
 	"path/filepath"
-	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -26,8 +25,7 @@ func (f *DirnameFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		path = pathValue.AsString()
 	}
 
-	arr := strings.Split(path, "/")
-	dir := filepath.Join(arr[:len(arr)-1]...)
+	dir := filepath.Dir(path)
 
 	return data.NewStringValue(dir), nil
 }

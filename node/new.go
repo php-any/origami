@@ -168,6 +168,16 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 		return acl
 	case *ParameterRawAST:
 		return fnCtx.SetVariableValue(param.Parameter, data.NewASTValue(argTV, ctx))
+	case *Parameter:
+		// 普通参数：求值实参，然后设置到上下文
+		tempV, acl := argTV.GetValue(ctx)
+		if acl != nil {
+			return acl
+		}
+		if tempV == nil {
+			return nil
+		}
+		return param.SetValue(fnCtx, tempV.(data.Value))
 	case data.Variable:
 		tempV, acl := argTV.GetValue(ctx)
 		if acl != nil {

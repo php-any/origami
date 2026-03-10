@@ -1,6 +1,0 @@
-namespace test
-
-
-require __DIR__.'/script.php';
-
-var_dump(Test::$prefixLengthsPsr4);
