@@ -89,11 +89,46 @@ func (m *MatchStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 
 // isMatch 检查两个值是否匹配
 func (m *MatchStatement) isMatch(value1, value2 data.GetValue) bool {
-	// 简单的相等比较，可以根据需要扩展
+	// 首先尝试字符串比较
 	if strValue1, ok := value1.(data.AsString); ok {
 		if strValue2, ok := value2.(data.AsString); ok {
 			return strValue1.AsString() == strValue2.AsString()
 		}
 	}
+
+	// 尝试整数比较
+	if intValue1, ok := value1.(data.AsInt); ok {
+		if intValue2, ok := value2.(data.AsInt); ok {
+			i1, err1 := intValue1.AsInt()
+			i2, err2 := intValue2.AsInt()
+			if err1 == nil && err2 == nil {
+				return i1 == i2
+			}
+		}
+	}
+
+	// 尝试浮点数比较
+	if floatValue1, ok := value1.(data.AsFloat); ok {
+		if floatValue2, ok := value2.(data.AsFloat); ok {
+			f1, err1 := floatValue1.AsFloat()
+			f2, err2 := floatValue2.AsFloat()
+			if err1 == nil && err2 == nil {
+				return f1 == f2
+			}
+		}
+	}
+
+	// 尝试布尔值比较
+	if boolValue1, ok := value1.(data.AsBool); ok {
+		if boolValue2, ok := value2.(data.AsBool); ok {
+			b1, err1 := boolValue1.AsBool()
+			b2, err2 := boolValue2.AsBool()
+			if err1 == nil && err2 == nil {
+				return b1 == b2
+			}
+		}
+	}
+
+	// 如果都不匹配，使用反射进行深度比较
 	return false
 }

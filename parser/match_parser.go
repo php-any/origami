@@ -156,7 +156,8 @@ func (p *MatchParser) parseMatchArm() (*node.MatchArm, data.Control) {
 			}
 
 			// 解析表达式（支持复杂表达式）
-			condition, acl := p.parseStatement()
+			// 使用 expressionParser 而不是 parseStatement，避免消耗分号等后续符号
+			condition, acl := p.expressionParser.Parse()
 			if acl != nil {
 				return nil, acl
 			}

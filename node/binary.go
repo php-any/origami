@@ -56,6 +56,8 @@ func NewBinaryExpression(from data.From, left data.GetValue, operator lexer.Toke
 		return NewBinaryShl(from, left, right)
 	case token.SHR:
 		return NewBinaryShr(from, left, right)
+	case token.SPACESHIP:
+		return NewBinarySpaceship(from, left, right)
 	// 复合赋值运算符
 	case token.ADD_EQ:
 		// a += b 等价于 a = a + b

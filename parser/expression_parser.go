@@ -406,7 +406,7 @@ func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 			return NewHtmlParser(ep.Parser).Parse()
 		}
 	}
-	for ep.checkPositionIs(0, token.LT, token.LE, token.GT, token.GE) {
+	for ep.checkPositionIs(0, token.LT, token.LE, token.GT, token.GE, token.SPACESHIP) {
 		operator := ep.current()
 		ep.next()
 

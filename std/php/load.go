@@ -170,9 +170,14 @@ func Load(vm data.VM) {
 		stream.NewFflushFunction(),
 		stream.NewStreamGetContentsFunction(),
 		stream.NewStreamIsattyFunction(),
+		NewJoinPathsFunction(),
+		NewPathinfoFunction(),
 	} {
 		vm.AddFunc(fun)
 	}
+
+	// 初始化 pathinfo 常量
+	InitPathinfoConstants(vm)
 
 	// 注册核心类
 	vm.AddClass(&core.ClosureClass{})
@@ -190,6 +195,7 @@ func Load(vm data.VM) {
 
 	// 注册 PHP 内置接口
 	vm.AddInterface(NewArrayAccessInterface())
+	vm.AddInterface(NewCountableInterface())
 
 	// 注册异常类
 	vm.AddClass(exception.NewLogicExceptionClass())
