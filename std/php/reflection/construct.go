@@ -1,13 +1,36 @@
 package reflection
 
 import (
-	"errors"
 	"fmt"
-	"os"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
+
+// createReflectionException 创建 ReflectionException 异常
+func createReflectionException(message string, ctx data.Context) data.Control {
+	// 使用 NewExpression 创建实例并调用构造函数
+	messageExpr := node.NewStringLiteral(nil, message)
+	newExpr := node.NewNewExpression(nil, "ReflectionException", []data.GetValue{messageExpr})
+
+	object, acl := newExpr.GetValue(ctx)
+	if acl != nil {
+		return acl
+	}
+
+	classValue, ok := object.(*data.ClassValue)
+	if !ok {
+		return data.NewErrorThrow(nil, fmt.Errorf("ReflectionClass error: failed to create instance"))
+	}
+
+	// 抛出异常
+	return data.NewErrorThrowFromClassValue(nil, classValue)
+}
+
+// TODO: 修复 try-catch 异常传播问题
+// 目前的问题是：当 catch 块抛出新的异常时，这个新异常没有被正确传播
+// 导致 try-catch 块后面的代码继续执行
+// 临时解决方案：直接抛出致命错误，终止程序
 
 // ReflectionClassConstructMethod 实现 ReflectionClass::__construct
 // 构造函数用于初始化 ReflectionClass 实例，接收一个类名或对象作为参数
@@ -46,22 +69,28 @@ func (m *ReflectionClassConstructMethod) GetReturnType() data.Types { return nil
 func (m *ReflectionClassConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取第一个参数：类名或对象
 	classValue, _ := ctx.GetIndexValue(0)
-	_, _ = fmt.Fprintf(os.Stderr, "[DEBUG] ReflectionClass::__construct classValue type=%T\n", classValue)
 	if classValue == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("ReflectionClass::__construct() expects parameter 1 to be string or object"))
+		return nil, createReflectionException("Argument #1 ($class) must be of type object|string, null given", ctx)
 	}
 
 	var className string
 
-	// 检查参数类型
-	if classVal, ok := classValue.(data.GetName); ok {
+	switch classVal := classValue.(type) {
+	case data.GetName:
 		// 参数是对象，获取其类名
 		className = classVal.GetName()
-	} else if classVal, ok := classValue.(*data.StringValue); ok {
+	case *data.StringValue:
 		className = classVal.AsString()
-	} else {
-		_, _ = fmt.Fprintf(os.Stderr, "[DEBUG] ReflectionClass::__construct classValue type=%T value=%#v\n", classValue, classValue)
-		return nil, data.NewErrorThrow(nil, errors.New("ReflectionClass::__construct() expects parameter 1 to be string or object"))
+	case *data.BoolValue:
+		return nil, createReflectionException(fmt.Sprintf("Argument #1 ($class) must be of type object|string, false given (value: %v). This error typically occurs when Laravel's container tries to resolve an invalid dependency. Check your service provider bindings.", classVal.Value), ctx)
+	case *data.NullValue:
+		return nil, createReflectionException("Argument #1 ($class) must not be null", ctx)
+	default:
+		// 对于非字符串和非对象的类型，抛出 ReflectionException
+		// TODO: 修复 try-catch 异常传播后，改回使用 createReflectionException
+		typeName := fmt.Sprintf("%T", classValue)
+		// 临时方案：直接抛出致命错误
+		return nil, createReflectionException(fmt.Sprintf("ReflectionClass::__construct(): Argument #1 ($class) must be of type object|string, %s given", typeName), ctx)
 	}
 
 	// 加载类

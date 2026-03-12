@@ -40,7 +40,8 @@ func (s *ExceptionClass) GetError() *data.Error {
 }
 
 func (s *ExceptionClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewClassValue(s, ctx), nil
+	newS := *s
+	return data.NewClassValue(&newS, ctx), nil
 }
 
 func (s *ExceptionClass) GetName() string {

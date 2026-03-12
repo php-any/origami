@@ -155,7 +155,7 @@ func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method da
 					return nil, acl
 				}
 				if index >= len(varies) {
-					return nil, data.NewErrorThrow(pe.from, fmt.Errorf("对象(%v)构造函数参数数量超出限制: %d", object, index))
+					return nil, data.NewErrorThrow(pe.from, fmt.Errorf("对象 (%v) 构造函数参数数量超出限制：%d", object, index))
 				}
 				fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
 				if promotedParam, ok := param.(*PromotedParameter); ok {

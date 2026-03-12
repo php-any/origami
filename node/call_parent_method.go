@@ -31,9 +31,14 @@ func (pe *CallParentMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	if !ok {
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("parent:: 只能在类方法中使用"))
 	}
-	class, ok := ctx.GetVM().GetClass(pe.CurrentClass)
-	if !ok {
-		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("parent:: 只能在类方法中使用"))
+	var class data.ClassStmt
+	if pe.CurrentClass != "" {
+		class, ok = ctx.GetVM().GetClass(pe.CurrentClass)
+		if !ok {
+			return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("parent:: 只能在类方法中使用"))
+		}
+	} else {
+		class = classCtx.Class
 	}
 
 	// 获取父类

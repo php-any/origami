@@ -29,6 +29,7 @@ func Load(vm data.VM) {
 	vm.AddInterface(exception.NewStringableInterface())
 	vm.AddInterface(exception.NewJsonSerializableInterface())
 	vm.AddClass(exception.NewExceptionClass())
+	vm.AddClass(exception.NewReflectionExceptionClass())
 	vm.AddClass(os.NewOSClass())
 	reflect.Load(vm)
 	channel.Load(vm)

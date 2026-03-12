@@ -258,7 +258,9 @@ func (vp *VariableParser) parseFunctionCall() ([]data.GetValue, data.Control) {
 				}
 				vp.next()
 			} else {
-				expr, acl := vp.parseStatement()
+				// 解析单个参数表达式，但不消费逗号（避免将多个参数解析为一个 VariableList）
+				// 使用 parseTernary 而不是 parseStatement/Parse，因为后者会消费逗号
+				expr, acl := vp.expressionParser.parseTernary()
 				if acl != nil {
 					return nil, acl
 				}
