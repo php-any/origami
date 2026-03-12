@@ -3,6 +3,7 @@ package reflection
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -45,6 +46,7 @@ func (m *ReflectionClassConstructMethod) GetReturnType() data.Types { return nil
 func (m *ReflectionClassConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取第一个参数：类名或对象
 	classValue, _ := ctx.GetIndexValue(0)
+	_, _ = fmt.Fprintf(os.Stderr, "[DEBUG] ReflectionClass::__construct classValue type=%T\n", classValue)
 	if classValue == nil {
 		return nil, data.NewErrorThrow(nil, errors.New("ReflectionClass::__construct() expects parameter 1 to be string or object"))
 	}
@@ -58,6 +60,7 @@ func (m *ReflectionClassConstructMethod) Call(ctx data.Context) (data.GetValue, 
 	} else if classVal, ok := classValue.(*data.StringValue); ok {
 		className = classVal.AsString()
 	} else {
+		_, _ = fmt.Fprintf(os.Stderr, "[DEBUG] ReflectionClass::__construct classValue type=%T value=%#v\n", classValue, classValue)
 		return nil, data.NewErrorThrow(nil, errors.New("ReflectionClass::__construct() expects parameter 1 to be string or object"))
 	}
 

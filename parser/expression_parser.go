@@ -302,33 +302,6 @@ func (ep *ExpressionParser) parseEquality() (data.GetValue, data.Control) {
 		)
 	}
 
-	// 处理 instanceof 关键字
-	if ep.current().Type() == token.INSTANCEOF {
-		ep.next() // 跳过 instanceof 关键字
-		var right data.GetValue
-		switch ep.current().Type() {
-		case token.VARIABLE:
-			vp := &VariableParser{ep.Parser}
-			right = vp.parseVariable()
-		case token.IDENTIFIER, token.PARENT, token.SELF, token.STATIC:
-			// 支持 `instanceof Foo` / `instanceof parent` / `instanceof self` / `instanceof static`
-			className, acl := ep.getClassName(true)
-			if acl != nil {
-				return nil, acl
-			}
-			right = node.NewStringLiteral(tracker.EndBefore(), className)
-		default:
-			return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("expected variable, string or identifier; str(%s)", ep.current().Literal()))
-		}
-
-		// 创建 instanceof 表达式
-		expr = node.NewInstanceOfExpression(
-			tracker.EndBefore(),
-			expr,
-			right,
-		)
-	}
-
 	// 处理 like 关键字
 	if ep.current().Type() == token.LIKE {
 		ep.next() // 跳过 like 关键字
@@ -586,7 +559,28 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 	}
 	expr, acl := ep.parsePrimary()
 	if acl == nil {
-		// 检查各种赋值运算符（含字符串连接赋值 .=、位移赋值 >>= <<= 和空合并赋值 ??=，以及位运算赋值）
+		// PHP 语义：instanceof 优先级高于一元运算符（!、~、-）
+		// 所以 !$x instanceof Foo 应解析为 !($x instanceof Foo)
+		// 在 parsePrimary 返回后立即处理 instanceof，就能确保这一语义
+		if ep.current().Type() == token.INSTANCEOF {
+			ep.next() // 跳过 instanceof
+			var right data.GetValue
+			switch ep.current().Type() {
+			case token.VARIABLE:
+				vp := &VariableParser{ep.Parser}
+				right = vp.parseVariable()
+			case token.IDENTIFIER, token.PARENT, token.SELF, token.STATIC:
+				className, acl2 := ep.getClassName(true)
+				if acl2 != nil {
+					return nil, acl2
+				}
+				right = node.NewStringLiteral(tracker.EndBefore(), className)
+			default:
+				return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("instanceof: expected class name; got %s", ep.current().Literal()))
+			}
+			expr = node.NewInstanceOfExpression(tracker.EndBefore(), expr, right)
+		}
+		// 检查各种赋值运算符
 		for ep.checkPositionIs(0, token.ASSIGN, token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ, token.CONCAT_EQ, token.SHL_EQ, token.SHR_EQ, token.NULL_COALESCE_ASSIGN, token.BIT_OR_EQ, token.BIT_AND_EQ, token.BIT_XOR_EQ, token.POWER_EQ) {
 			operator := ep.current()
 			ep.next()

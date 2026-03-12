@@ -80,7 +80,7 @@ if($result == "a") {
 }
 
 // 测试 Iterator 对象
-class ArrayIterator implements Iterator {
+class MyArrayIterator implements Iterator {
     private $data;
     private int $pos;
 
@@ -111,7 +111,7 @@ class ArrayIterator implements Iterator {
 }
 
 $nums = [10, 20, 30, 40];
-$it = new ArrayIterator($nums);
+$it = new MyArrayIterator($nums);
 
 $result = reset($it);
 if($result == 10) {

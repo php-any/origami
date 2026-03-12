@@ -318,6 +318,7 @@ type ClassMethod struct {
 	vars        []data.Variable
 	Annotations []*data.ClassValue // 方法注解列表
 	Ret         data.Types         // 返回类型
+	IsGenerator bool               // 是否是生成器方法（含 yield）
 }
 
 func (m *ClassMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
@@ -328,14 +329,15 @@ func (m *ClassMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 // NewMethod 创建一个新的方法
 func NewMethod(from data.From, name string, modifier string, isStatic bool, params []data.GetValue, body []data.GetValue, vars []data.Variable, ret data.Types) data.Method {
 	return &ClassMethod{
-		Node:     NewNode(from),
-		Name:     name,
-		Modifier: data.NewModifier(modifier),
-		IsStatic: isStatic,
-		Params:   params,
-		Body:     body,
-		vars:     vars,
-		Ret:      ret,
+		Node:        NewNode(from),
+		Name:        name,
+		Modifier:    data.NewModifier(modifier),
+		IsStatic:    isStatic,
+		Params:      params,
+		Body:        body,
+		vars:        vars,
+		Ret:         ret,
+		IsGenerator: containsYield(body),
 	}
 }
 
@@ -375,6 +377,13 @@ func (m *ClassMethod) GetReturnType() data.Types {
 }
 
 func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	// PHP 语义：如果方法是 generator（含 yield），调用时立即返回 Generator 对象，不执行方法体
+	if m.IsGenerator {
+		generator := NewFuncYieldStackState(ctx, m, m.Body, 0, nil, nil)
+		generatorClass := NewGeneratorClass(generator)
+		return generatorClass.GetValue(ctx)
+	}
+
 	var v data.GetValue
 	var ctl data.Control
 	for bodyIndex, statement := range m.Body {

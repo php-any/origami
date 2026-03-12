@@ -58,6 +58,9 @@ type VM interface {
 	// 常量管理
 	SetConstant(name string, value Value) Control
 	GetConstant(name string) (Value, bool)
+
+	// 全局变量管理
+	EnsureGlobalZVal(name string) *ZVal
 }
 
 type ClassStmt interface {

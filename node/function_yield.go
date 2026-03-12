@@ -15,9 +15,10 @@ func NewFuncYieldStackState(ctx data.Context, fn data.FuncStmt, body []data.GetV
 		CurrentKey:   currentKey,
 		CurrentValue: currentValue,
 		autoKeyIndex: 0,
+		initialized:  currentKey != nil || currentValue != nil, // 如果有初始值，表示已执行过第一次 yield
 	}
 	// 如果 currentKey 为 nil（第一次 yield 没有显式 key），分配 autoKey=0
-	if currentKey == nil {
+	if currentKey == nil && currentValue != nil {
 		generator.CurrentKey = data.NewIntValue(0)
 		generator.autoKeyIndex = 1
 	}
@@ -32,6 +33,7 @@ type FuncYieldStackState struct {
 	CurrentKey   data.Value
 	CurrentValue data.Value
 	autoKeyIndex int
+	initialized  bool // true 表示已执行过第一次 yield（有 CurrentValue）
 }
 
 func (f *FuncYieldStackState) AsString() string {
@@ -67,14 +69,28 @@ func (f *FuncYieldStackState) Next(_ data.Context) data.Control {
 		if ctl != nil {
 			switch rv := ctl.(type) {
 			case data.YieldControl:
-				key := rv.GetYieldKey()
-				if key == nil {
-					key = data.NewIntValue(f.autoKeyIndex)
-					f.autoKeyIndex++
+				// 判断是否是已经初始化过的 YieldFromControl（即 body 中当前语句就是这个控制流对象本身）
+				if statement == rv {
+					// 已初始化的 yield from：直接取已设置的 key/value
+					key := rv.GetYieldKey()
+					if key == nil {
+						key = data.NewIntValue(f.autoKeyIndex)
+						f.autoKeyIndex++
+					}
+					f.CurrentKey = key
+					f.CurrentValue = rv.GetYieldValue()
+					f.BodyIndex = bodyIndex // 保持在当前位置，下次继续执行这个 yield from
+				} else {
+					// 第一次遇到：调用 CreateStackState 初始化并推进到第一个元素
+					newState := rv.CreateStackState(ctx, f.Fn, f.Body, bodyIndex)
+					if ns, ok := newState.(*FuncYieldStackState); ok {
+						f.Body = ns.Body
+						f.BodyIndex = ns.BodyIndex
+						f.CurrentKey = ns.CurrentKey
+						f.CurrentValue = ns.CurrentValue
+						f.initialized = true
+					}
 				}
-				f.CurrentKey = key
-				f.CurrentValue = rv.GetYieldValue()
-				f.Body[bodyIndex] = rv
 				return nil
 			case data.YieldValueControl:
 				// 遇到 yield，更新键和值
@@ -107,10 +123,24 @@ func (f *FuncYieldStackState) Next(_ data.Context) data.Control {
 }
 
 func (f *FuncYieldStackState) Rewind(_ data.Context) (data.Value, data.Control) {
-	return nil, nil
+	// PHP 语义：第一次 rewind 时如果未初始化，先执行到第一个 yield
+	if !f.initialized {
+		f.initialized = true
+		ctl := f.Next(f.ctx)
+		return data.NewNullValue(), ctl
+	}
+	return data.NewNullValue(), nil
 }
 
 func (f *FuncYieldStackState) Valid(_ data.Context) (data.Value, data.Control) {
+	// 如果未初始化，先执行到第一个 yield
+	if !f.initialized {
+		f.initialized = true
+		ctl := f.Next(f.ctx)
+		if ctl != nil {
+			return data.NewBoolValue(false), ctl
+		}
+	}
 	if f.CurrentValue == nil {
 		return data.NewBoolValue(false), nil
 	}

@@ -182,21 +182,21 @@ func (vp *VariableParser) parseSuffix(expr data.GetValue) (data.GetValue, data.C
 		case token.SCOPE_RESOLUTION:
 			vp.next() // 跳过 ::
 			tracker := vp.StartTracking()
-			if vp.checkPositionIs(1, token.CLASS) {
-				// 处理 ::class 语法
+			if vp.checkPositionIs(0, token.CLASS) {
+				// 处理 $var::class 语法
 				vp.next() // 跳过 class
 				// 生成 ClassConstant 节点
 				return node.NewClassConstant(tracker.EndBefore(), expr), nil
-			} else if vp.checkPositionIs(0, token.LPAREN) {
-				// 处理 ::test()
+			} else if vp.checkPositionIs(1, token.LPAREN) {
+				// 处理 $var::method() 静态方法调用
 				fnName := vp.current().Literal()
-				vp.next()
-				// 创建函数调用表达式
+				vp.next() // 跳过方法名
+				// 创建静态方法调用表达式（运行时会动态解析类名）
 				vp := &VariableParser{vp.Parser}
 				expr := node.NewCallStaticMethod(tracker.EndBefore(), expr, fnName)
 				return vp.parseSuffix(expr)
 			} else {
-				// 处理 ::test;
+				// 处理 $var::PROPERTY 静态属性访问
 				attrName := vp.current().Literal()
 				vp.next()
 				vp := &VariableParser{vp.Parser}

@@ -19,6 +19,7 @@ func NewVM(parser *parser.Parser) data.VM {
 		interfaceMap: make(map[string]data.InterfaceStmt),
 		funcMap:      make(map[string]data.FuncStmt),
 		constantMap:  make(map[string]data.Value),
+		globalVars:   make(map[string]*data.ZVal),
 		classPathMap: make(map[string]string),
 		acl: func(acl data.Control) {
 			parser.ShowControl(acl)
@@ -41,6 +42,7 @@ type VM struct {
 	interfaceMap map[string]data.InterfaceStmt
 	funcMap      map[string]data.FuncStmt
 	constantMap  map[string]data.Value // 全局常量映射
+	globalVars   map[string]*data.ZVal // 全局变量 ZVal 映射
 
 	// 类解释过程中的缓存, 用于支持循环依赖
 	classPathMap map[string]string
@@ -279,7 +281,11 @@ func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 		return nil, acl
 	}
 
-	return program.GetValue(vm.CreateContext(p.GetVariables()))
+	vars := p.GetVariables()
+	ctx := vm.CreateContext(vars)
+	// 将顶层变量注册到全局变量表，供 global 语句使用
+	vm.RegisterGlobalContext(vars, ctx)
+	return program.GetValue(ctx)
 }
 
 func (vm *VM) ParseFile(file string, object data.Value) (data.Value, data.Control) {
@@ -350,4 +356,35 @@ func (vm *VM) GetConstant(name string) (data.Value, bool) {
 
 	value, ok := vm.constantMap[name]
 	return value, ok
+}
+
+// EnsureGlobalZVal 获取或创建全局变量的 ZVal
+// 如果该全局变量不存在，则创建一个初始值为 null 的 ZVal
+func (vm *VM) EnsureGlobalZVal(name string) *data.ZVal {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+	if zv, ok := vm.globalVars[name]; ok {
+		return zv
+	}
+	zv := data.NewZVal(data.NewNullValue())
+	vm.globalVars[name] = zv
+	return zv
+}
+
+// RegisterGlobalContext 将顶层 ctx 中的变量注册到全局变量表
+func (vm *VM) RegisterGlobalContext(vars []data.Variable, ctx data.Context) {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+	for _, v := range vars {
+		if v == nil {
+			continue
+		}
+		name := v.GetName()
+		if _, exists := vm.globalVars[name]; !exists {
+			zv := ctx.GetIndexZVal(v.GetIndex())
+			if zv != nil {
+				vm.globalVars[name] = zv
+			}
+		}
+	}
 }

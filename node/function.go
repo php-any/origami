@@ -9,24 +9,64 @@ import (
 // FunctionStatement 表示函数定义语句
 type FunctionStatement struct {
 	data.FuncStmt
-	*Node  `pp:"-"`
-	Name   string          // 函数名
-	Params []data.GetValue // 参数列表
-	Body   []data.GetValue // 函数体
-	vars   []data.Variable // 符号表
-	Ret    data.Types      // 返回值类型
+	*Node       `pp:"-"`
+	Name        string          // 函数名
+	Params      []data.GetValue // 参数列表
+	Body        []data.GetValue // 函数体
+	vars        []data.Variable // 符号表
+	Ret         data.Types      // 返回值类型
+	IsGenerator bool            // 是否是生成器函数（含 yield）
 }
 
 // NewFunctionStatement 创建一个新的函数定义语句
 func NewFunctionStatement(from data.From, name string, params []data.GetValue, body []data.GetValue, vars []data.Variable, ret data.Types) *FunctionStatement {
 	return &FunctionStatement{
-		Node:   NewNode(from),
-		Name:   name,
-		Params: params,
-		Body:   body,
-		vars:   vars,
-		Ret:    ret,
+		Node:        NewNode(from),
+		Name:        name,
+		Params:      params,
+		Body:        body,
+		vars:        vars,
+		Ret:         ret,
+		IsGenerator: containsYield(body),
 	}
+}
+
+// containsYield 递归检测函数体是否含有 yield 语句
+func containsYield(body []data.GetValue) bool {
+	for _, stmt := range body {
+		if isYieldNode(stmt) {
+			return true
+		}
+	}
+	return false
+}
+
+// isYieldNode 检查节点是否是 yield 语句（只检查直接节点，不深入嵌套函数/闭包）
+func isYieldNode(node data.GetValue) bool {
+	if node == nil {
+		return false
+	}
+	switch n := node.(type) {
+	case *YieldStatement, *YieldFromStatement:
+		return true
+	case *ForeachStatement:
+		return containsYield(n.Body)
+	case *ForStatement:
+		return containsYield(n.Body)
+	case *IfStatement:
+		if containsYield(n.ThenBranch) {
+			return true
+		}
+		for _, elif := range n.ElseIf {
+			if containsYield(elif.ThenBranch) {
+				return true
+			}
+		}
+		if containsYield(n.ElseBranch) {
+			return true
+		}
+	}
+	return false
 }
 
 // GetName 返回函数名
@@ -61,6 +101,13 @@ func (f *FunctionStatement) GetReturnType() data.Types {
 }
 
 func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control) {
+	// PHP 语义：如果函数是 generator（含 yield），调用时立即返回 Generator 对象，不执行函数体
+	if f.IsGenerator {
+		generator := NewFuncYieldStackState(ctx, f, f.Body, 0, nil, nil)
+		generatorClass := NewGeneratorClass(generator)
+		return generatorClass.GetValue(ctx)
+	}
+
 	var v data.GetValue
 	var ctl data.Control
 	for bodyIndex, statement := range f.Body {

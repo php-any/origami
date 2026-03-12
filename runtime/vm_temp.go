@@ -211,6 +211,11 @@ func (vm *TempVM) GetConstant(name string) (data.Value, bool) {
 	return vm.Base.GetConstant(name)
 }
 
+// EnsureGlobalZVal 委托给底层 VM，全局变量是全局共享的
+func (vm *TempVM) EnsureGlobalZVal(name string) *data.ZVal {
+	return vm.Base.EnsureGlobalZVal(name)
+}
+
 // SetExceptionHandler 委托到底层 VM，确保异常处理在整个进程内全局生效
 func (vm *TempVM) SetExceptionHandler(handler data.Value) data.Value {
 	return vm.Base.SetExceptionHandler(handler)
