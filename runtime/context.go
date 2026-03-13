@@ -78,7 +78,7 @@ func (c *Context) SetVariableValue(variable data.Variable, value data.Value) dat
 		c.variables[variable.GetIndex()].Value = data.CloneObjectValue(v)
 	default:
 		if len(c.variables) <= variable.GetIndex() {
-			return data.NewErrorThrow(variable.(*node.VariableExpression).GetFrom(), errors.New("index out of range"))
+			return data.NewErrorThrow(variable.(node.GetFrom).GetFrom(), errors.New("index out of range"))
 		}
 		c.variables[variable.GetIndex()].Value = value
 	}
