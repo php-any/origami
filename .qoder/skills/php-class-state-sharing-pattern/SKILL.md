@@ -1,5 +1,5 @@
 ---
-name: class-state-sharing-pattern
+name: php-class-state-sharing-pattern
 description: 类声明和函数状态共享的正确模式。确保类状态数据存储在类中，方法通过instance字段访问实例状态。用于避免RecursiveDirectoryIterator等类实现中的常见错误。
 ---
 

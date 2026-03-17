@@ -14,6 +14,7 @@ import (
 func Load(vm data.VM) {
 	for _, fun := range []data.FuncStmt{
 		NewDumpFunction(),
+		NewDebugFunction(),
 		NewIntFunction(),
 		NewStringFunction(),
 		NewBoolFunction(),

@@ -30,14 +30,42 @@ func (r *RecursiveDirectoryIteratorClass) GetName() string {
 }
 
 func (r *RecursiveDirectoryIteratorClass) GetExtend() *string {
-	return nil
+	// RecursiveDirectoryIterator extends FilesystemIterator
+	parent := "FilesystemIterator"
+	return &parent
 }
 
 func (r *RecursiveDirectoryIteratorClass) GetImplements() []string {
+	// RecursiveDirectoryIterator implements RecursiveIterator (on top of inherited SeekableIterator)
 	return []string{"RecursiveIterator"}
 }
 
 func (r *RecursiveDirectoryIteratorClass) GetProperty(name string) (data.Property, bool) {
+	return nil, false
+}
+
+// GetStaticProperty 返回 FilesystemIterator / RecursiveDirectoryIterator 常量（与 PHP 保持一致）
+func (r *RecursiveDirectoryIteratorClass) GetStaticProperty(name string) (data.Value, bool) {
+	switch name {
+	case "CURRENT_AS_PATHNAME":
+		return data.NewIntValue(32), true
+	case "CURRENT_AS_FILEINFO":
+		return data.NewIntValue(0), true
+	case "CURRENT_AS_SELF":
+		return data.NewIntValue(16), true
+	case "KEY_AS_PATHNAME":
+		return data.NewIntValue(0), true
+	case "KEY_AS_FILENAME":
+		return data.NewIntValue(256), true
+	case "FOLLOW_SYMLINKS":
+		return data.NewIntValue(512), true
+	case "SKIP_DOTS":
+		return data.NewIntValue(4096), true
+	case "UNIX_PATHS":
+		return data.NewIntValue(8192), true
+	case "NEW_CURRENT_AND_KEY":
+		return data.NewIntValue(256), true
+	}
 	return nil, false
 }
 

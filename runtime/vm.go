@@ -135,16 +135,20 @@ func (vm *VM) AddInterface(i data.InterfaceStmt) data.Control {
 
 	// 检查 interfaceMap、classMap 中是否已存在
 	if has, ok := vm.classMap[i.GetName()]; ok {
-		if i.GetFrom().GetSource() == has.GetFrom().GetSource() {
+		iFrom := i.GetFrom()
+		hasFrom := has.GetFrom()
+		if iFrom != nil && hasFrom != nil && iFrom.GetSource() == hasFrom.GetSource() {
 			return nil // 同文件不需要报错
 		}
-		return data.NewErrorThrow(i.GetFrom(), fmt.Errorf("已存在同名的 interface: %s", i.GetName()))
+		return data.NewErrorThrow(iFrom, fmt.Errorf("已存在同名的 interface: %s", i.GetName()))
 	}
 	if has, ok := vm.interfaceMap[i.GetName()]; ok {
-		if i.GetFrom().GetSource() == has.GetFrom().GetSource() {
+		iFrom := i.GetFrom()
+		hasFrom := has.GetFrom()
+		if iFrom != nil && hasFrom != nil && iFrom.GetSource() == hasFrom.GetSource() {
 			return nil // 同文件不需要报错
 		}
-		return data.NewErrorThrow(i.GetFrom(), fmt.Errorf("已存在同名的类或接口: %s", i.GetName()))
+		return data.NewErrorThrow(iFrom, fmt.Errorf("已存在同名的类或接口: %s", i.GetName()))
 	}
 
 	vm.interfaceMap[i.GetName()] = i

@@ -91,6 +91,12 @@ func NewBinaryExpression(from data.From, left data.GetValue, operator lexer.Toke
 			tokenFrom = NewTokenFrom(nil, 0, 0, 0, 0)
 		}
 		return NewBinaryAssign(from, left, NewNullCoalesceExpression(tokenFrom, left, right))
+	case token.BIT_OR_EQ:
+		return NewBinaryAssign(from, left, NewBinaryBitOr(from, left, right))
+	case token.BIT_XOR_EQ:
+		return NewBinaryAssign(from, left, NewBinaryBitXor(from, left, right))
+	case token.BIT_AND_EQ:
+		return NewBinaryAssign(from, left, NewBinaryBitAnd(from, left, right))
 	default:
 		panic("unhandled default case " + operator.Literal())
 	}

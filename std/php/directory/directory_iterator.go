@@ -23,12 +23,15 @@ func (c *DirectoryIteratorClass) GetValue(ctx data.Context) (data.GetValue, data
 // GetName 返回类名 "DirectoryIterator"
 func (c *DirectoryIteratorClass) GetName() string { return "DirectoryIterator" }
 
-// GetExtend 返回父类名，DirectoryIterator 没有父类
-func (c *DirectoryIteratorClass) GetExtend() *string { return nil }
+// GetExtend DirectoryIterator extends SplFileInfo
+func (c *DirectoryIteratorClass) GetExtend() *string {
+	parent := "SplFileInfo"
+	return &parent
+}
 
-// GetImplements 返回实现的接口列表，DirectoryIterator 实现 Iterator 接口
+// GetImplements DirectoryIterator implements Iterator, SeekableIterator
 func (c *DirectoryIteratorClass) GetImplements() []string {
-	return []string{"Iterator"}
+	return []string{"Iterator", "SeekableIterator"}
 }
 
 // GetProperty 获取属性，DirectoryIterator 没有属性

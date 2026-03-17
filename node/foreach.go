@@ -67,116 +67,12 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 
 	// 检查数组值是否为数组类型
 	switch array := arrayValue.(type) {
+	case *data.ThisValue:
+		// this 实例：与 *data.ClassValue 处理逻辑完全相同
+		return u.foreachClassValue(ctx, array.ClassValue)
 	case *data.ClassValue:
 		// 类实例：若实现语言层 Iterator 接口，则按五方法迭代
-		var v data.GetValue
-		var c data.Control
-
-		if targetInterface, ok := ctx.GetVM().GetInterface("Iterator"); ok {
-			if checkInterfaceStructure(array.Class, targetInterface) {
-				// rewind
-				if ctl := callVoidMethod(array, "rewind"); ctl != nil {
-					return nil, ctl
-				}
-
-				for {
-					// valid
-					valid, ctl := callBoolMethod(array, "valid")
-					if ctl != nil {
-						return nil, ctl
-					}
-					if !valid {
-						break
-					}
-
-					// current
-					valV, ctl := callValueMethod(array, "current")
-					if ctl != nil {
-						return nil, ctl
-					}
-
-					// key
-					var keyV data.Value
-					if u.Key != nil {
-						kv, kctl := callValueMethod(array, "key")
-						if kctl != nil {
-							return nil, kctl
-						}
-						keyV = kv
-					}
-
-					ctx.SetVariableValue(u.Value, valV)
-					if u.Key != nil {
-						ctx.SetVariableValue(u.Key, keyV)
-					}
-
-					for _, statement := range u.Body {
-						v, c = statement.GetValue(ctx)
-						if c != nil {
-							if ctrl, ok := c.(data.BreakControl); ok && ctrl.IsBreak() {
-								return nil, nil
-							}
-							if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
-								// 推进迭代器进入下一次
-								if ctl := callVoidMethod(array, "next"); ctl != nil {
-									return nil, ctl
-								}
-								break
-							}
-							return nil, checkThrowControlFrom(statement, c)
-						}
-					}
-
-					// next
-					if ctl := callVoidMethod(array, "next"); ctl != nil {
-						return nil, ctl
-					}
-				}
-
-				return v, nil
-			}
-		}
-
-		// 非 Iterator 类实例则按对象属性遍历
-		{
-			var v data.GetValue
-			var c data.Control
-			var shouldBreak bool
-			var shouldReturn bool
-
-			// 使用 RangeProperties 保证遍历顺序与插入顺序一致
-			array.RangeProperties(func(i string, element data.Value) bool {
-				ctx.SetVariableValue(u.Value, element)
-				if u.Key != nil {
-					ctx.SetVariableValue(u.Key, data.NewStringValue(i))
-				}
-
-				for _, statement := range u.Body {
-					v, c = statement.GetValue(ctx)
-					if c != nil {
-						if ctrl, ok := c.(data.BreakControl); ok && ctrl.IsBreak() {
-							shouldBreak = true
-							return false // 停止遍历
-						}
-						if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
-							return true // 继续下一次迭代
-						}
-						shouldReturn = true
-						return false // 停止遍历
-					}
-				}
-				return true
-			})
-
-			if shouldBreak {
-				return nil, nil
-			}
-			if shouldReturn {
-				return nil, c
-			}
-			return v, nil
-		}
-		// 不再 fallthrough 到数组
+		return u.foreachClassValue(ctx, array)
 	case *data.ArrayValue:
 		var v data.GetValue
 		var c data.Control
@@ -221,56 +117,141 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		return v, nil
 	case data.Iterator:
 		// 直接实现 Iterator 接口的值
-		var v data.GetValue
-		var c data.Control
+		return u.foreachIterator(ctx, array)
+	case *data.NullValue:
+		return nil, nil
+	}
 
-		// rewind
-		_, ctl := array.Rewind(ctx)
+	return nil, data.NewErrorThrow(u.from, fmt.Errorf("foreach 只能遍历数组、对象或实现 Iterator 的值"))
+}
+
+// foreachIterator 处理实现了 data.Iterator 接口的值的 foreach 逻辑。
+func (u *ForeachStatement) foreachIterator(ctx data.Context, array data.Iterator) (data.GetValue, data.Control) {
+	var v data.GetValue
+	var c data.Control
+
+	// rewind
+	_, ctl := array.Rewind(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+
+	for {
+		// valid
+		validV, ctl := array.Valid(ctx)
 		if ctl != nil {
+			return nil, ctl
+		}
+		// 将 valid 结果转换为 bool
+		if validBool, ok := validV.(data.AsBool); ok {
+			valid, err := validBool.AsBool()
+			if err != nil {
+				return nil, utils.NewThrow(err)
+			}
+			if !valid {
+				break
+			}
+		} else {
+			// 如果无法转换为 bool，则检查是否为非空值
+			if validV == nil {
+				break
+			}
+		}
+
+		// current
+		valV, ctl := array.Current(ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		ctx.SetVariableValue(u.Value, valV)
+
+		// key
+		if u.Key != nil {
+			kv, kctl := array.Key(ctx)
+			if kctl != nil {
+				return nil, kctl
+			}
+			ctx.SetVariableValue(u.Key, kv)
+		}
+
+		shouldSkipNext := false
+		for _, statement := range u.Body {
+			v, c = statement.GetValue(ctx)
+			if c != nil {
+				if ctrl, ok := c.(data.BreakControl); ok && ctrl.IsBreak() {
+					return nil, nil
+				}
+				if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
+					// 推进迭代器进入下一次
+					if ctl := array.Next(ctx); ctl != nil {
+						return nil, ctl
+					}
+					shouldSkipNext = true
+					break
+				}
+				return nil, checkThrowControlFrom(statement, c)
+			}
+		}
+
+		// next（如果 continue 已经调用过则跳过）
+		if !shouldSkipNext {
+			if ctl := array.Next(ctx); ctl != nil {
+				return nil, ctl
+			}
+		}
+	}
+
+	return v, nil
+}
+
+// foreachClassValue 处理 *data.ClassValue（及内嵌它的类型）的 foreach 逻辑：
+// 优先检查 Iterator，再检查 IteratorAggregate，否则按对象属性遍历。
+func (u *ForeachStatement) foreachClassValue(ctx data.Context, array *data.ClassValue) (data.GetValue, data.Control) {
+	var v data.GetValue
+	var c data.Control
+
+	// 检查是否实现了 Iterator 接口（支持继承链）
+	isIterator, ctl := checkClassIs(ctx, array.Class, "Iterator")
+	if ctl != nil {
+		return nil, ctl
+	}
+	if isIterator {
+		// rewind
+		if ctl := callVoidMethod(array, "rewind"); ctl != nil {
 			return nil, ctl
 		}
 
 		for {
 			// valid
-			validV, ctl := array.Valid(ctx)
+			valid, ctl := callBoolMethod(array, "valid")
 			if ctl != nil {
 				return nil, ctl
 			}
-			// 将 valid 结果转换为 bool
-			if validBool, ok := validV.(data.AsBool); ok {
-				valid, err := validBool.AsBool()
-				if err != nil {
-					return nil, utils.NewThrow(err)
-				}
-				if !valid {
-					break
-				}
-			} else {
-				// 如果无法转换为 bool，则检查是否为非空值
-				if validV == nil {
-					break
-				}
+			if !valid {
+				break
 			}
 
 			// current
-			valV, ctl := array.Current(ctx)
+			valV, ctl := callValueMethod(array, "current")
 			if ctl != nil {
 				return nil, ctl
 			}
-			ctx.SetVariableValue(u.Value, valV)
 
 			// key
 			var keyV data.Value
 			if u.Key != nil {
-				kv, kctl := array.Key(ctx)
+				kv, kctl := callValueMethod(array, "key")
 				if kctl != nil {
 					return nil, kctl
 				}
 				keyV = kv
+			}
+
+			ctx.SetVariableValue(u.Value, valV)
+			if u.Key != nil {
 				ctx.SetVariableValue(u.Key, keyV)
 			}
 
-			shouldSkipNext := false
 			for _, statement := range u.Body {
 				v, c = statement.GetValue(ctx)
 				if c != nil {
@@ -279,30 +260,83 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 					}
 					if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
 						// 推进迭代器进入下一次
-						if ctl := array.Next(ctx); ctl != nil {
+						if ctl := callVoidMethod(array, "next"); ctl != nil {
 							return nil, ctl
 						}
-						shouldSkipNext = true
 						break
 					}
 					return nil, checkThrowControlFrom(statement, c)
 				}
 			}
 
-			// next（如果 continue 已经调用过则跳过）
-			if !shouldSkipNext {
-				if ctl := array.Next(ctx); ctl != nil {
-					return nil, ctl
-				}
+			// next
+			if ctl := callVoidMethod(array, "next"); ctl != nil {
+				return nil, ctl
 			}
 		}
 
 		return v, nil
-	case *data.NullValue:
-		return nil, nil
 	}
 
-	return nil, data.NewErrorThrow(u.from, fmt.Errorf("foreach 只能遍历数组、对象或实现 Iterator 的值"))
+	// 检查是否实现了 IteratorAggregate 接口（支持继承链）
+	isAggregate, ctl := checkClassIs(ctx, array.Class, "IteratorAggregate")
+	if ctl != nil {
+		return nil, ctl
+	}
+	if isAggregate {
+		// 调用 getIterator() 获取真正的迭代器
+		inner, ctl := callValueMethod(array, "getIterator")
+		if ctl != nil {
+			return nil, ctl
+		}
+		// 根据返回值类型分发处理
+		switch iter := inner.(type) {
+		case *data.ThisValue:
+			return u.foreachClassValue(ctx, iter.ClassValue)
+		case *data.ClassValue:
+			return u.foreachClassValue(ctx, iter)
+		case data.Iterator:
+			return u.foreachIterator(ctx, iter)
+		}
+		// getIterator 返回值不可迭代
+		return nil, data.NewErrorThrow(u.from, fmt.Errorf("getIterator() 必须返回一个可迭代的对象"))
+	}
+
+	// 非 Iterator/IteratorAggregate 类实例则按对象属性遍历
+	var shouldBreak bool
+	var shouldReturn bool
+
+	// 使用 RangeProperties 保证遍历顺序与插入顺序一致
+	array.RangeProperties(func(i string, element data.Value) bool {
+		ctx.SetVariableValue(u.Value, element)
+		if u.Key != nil {
+			ctx.SetVariableValue(u.Key, data.NewStringValue(i))
+		}
+
+		for _, statement := range u.Body {
+			v, c = statement.GetValue(ctx)
+			if c != nil {
+				if ctrl, ok := c.(data.BreakControl); ok && ctrl.IsBreak() {
+					shouldBreak = true
+					return false // 停止遍历
+				}
+				if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
+					return true // 继续下一次迭代
+				}
+				shouldReturn = true
+				return false // 停止遍历
+			}
+		}
+		return true
+	})
+
+	if shouldBreak {
+		return nil, nil
+	}
+	if shouldReturn {
+		return nil, c
+	}
+	return v, nil
 }
 
 // NewForeachStatement 创建一个新的foreach语句

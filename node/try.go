@@ -21,15 +21,12 @@ type TryStatement struct {
 	FinallyBlock []data.GetValue
 }
 
-func (t *TryStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+func (t *TryStatement) GetValue(ctx data.Context) (v data.GetValue, c data.Control) {
 	defer func() {
 		if r := recover(); r != nil {
-			t.tryValue(ctx, data.NewErrorThrow(t.from, fmt.Errorf("go作用域异常退出的 panic(%v)", r)))
+			v, c = t.tryValue(ctx, data.NewErrorThrow(t.from, fmt.Errorf("go作用域异常退出的 panic(%v)", r)))
 		}
 	}()
-
-	var v data.GetValue
-	var c data.Control
 
 	// 执行 try 块
 	for _, statement := range t.TryBlock {

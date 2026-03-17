@@ -185,9 +185,9 @@ func Load(vm data.VM) {
 	vm.AddClass(&core.StdClass{})
 	vm.AddClass(&core.NormalizerClass{})
 	vm.AddClass(&core.WeakMapClass{})
-	vm.AddClass(&core.IteratorInterface{})
-	vm.AddClass(&core.RecursiveIteratorInterface{})
-	vm.AddClass(&core.OuterIteratorInterface{})
+	vm.AddInterface(core.NewIteratorInterface())
+	vm.AddInterface(core.NewRecursiveIteratorInterface())
+	vm.AddInterface(core.NewOuterIteratorInterface())
 	vm.AddClass(&core.RecursiveDirectoryIteratorClass{})
 	vm.AddClass(&core.RecursiveIteratorIteratorClass{})
 	vm.AddClass(&reflection.ReflectionClassClass{})
@@ -196,12 +196,16 @@ func Load(vm data.VM) {
 	vm.AddClass(&reflection.ReflectionAttributeClass{})
 	vm.AddClass(&reflection.ReflectionTypeClass{})
 	vm.AddClass(&reflection.ReflectionNamedTypeClass{})
+	vm.AddClass(directory.NewSplFileInfoClass())
 	vm.AddClass(&directory.DirectoryIteratorClass{})
+	vm.AddClass(directory.NewFilesystemIteratorClass())
 	vm.AddClass(&core.ArrayIteratorClass{})
+	vm.AddClass(core.NewFilterIteratorClass())
 
 	// 注册 PHP 内置接口
 	vm.AddInterface(NewArrayAccessInterface())
 	vm.AddInterface(NewCountableInterface())
+	vm.AddInterface(directory.NewSeekableIteratorInterface())
 
 	// 注册异常类
 	vm.AddClass(exception.NewLogicExceptionClass())
@@ -298,8 +302,19 @@ func initPhpDefaultDefines(vm data.VM) {
 	vm.SetConstant("M_LNPI", data.NewFloatValue(1.14472988584940017414))
 	vm.SetConstant("M_EULER", data.NewFloatValue(0.57721566490153286061))
 
-	// 布尔值常量
+	// 布尔値常量
 	vm.SetConstant("TRUE", data.NewBoolValue(true))
 	vm.SetConstant("FALSE", data.NewBoolValue(false))
 	vm.SetConstant("NULL", data.NewNullValue())
+
+	// FilesystemIterator flags 常量
+	vm.SetConstant("FilesystemIterator::CURRENT_AS_PATHNAME", data.NewIntValue(directory.FSI_CURRENT_AS_PATHNAME))
+	vm.SetConstant("FilesystemIterator::CURRENT_AS_FILEINFO", data.NewIntValue(directory.FSI_CURRENT_AS_FILEINFO))
+	vm.SetConstant("FilesystemIterator::CURRENT_AS_SELF", data.NewIntValue(directory.FSI_CURRENT_AS_SELF))
+	vm.SetConstant("FilesystemIterator::KEY_AS_PATHNAME", data.NewIntValue(directory.FSI_KEY_AS_PATHNAME))
+	vm.SetConstant("FilesystemIterator::KEY_AS_FILENAME", data.NewIntValue(directory.FSI_KEY_AS_FILENAME))
+	vm.SetConstant("FilesystemIterator::FOLLOW_SYMLINKS", data.NewIntValue(directory.FSI_FOLLOW_SYMLINKS))
+	vm.SetConstant("FilesystemIterator::SKIP_DOTS", data.NewIntValue(directory.FSI_SKIP_DOTS))
+	vm.SetConstant("FilesystemIterator::UNIX_PATHS", data.NewIntValue(directory.FSI_UNIX_PATHS))
+	vm.SetConstant("FilesystemIterator::NEW_CURRENT_AND_KEY", data.NewIntValue(directory.FSI_NEW_CURRENT_AND_KEY))
 }
