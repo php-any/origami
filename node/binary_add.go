@@ -145,6 +145,40 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			return data.NewFloatValue(lf + rf), nil
 		}
 
+	case *data.BoolValue:
+		// 布尔值与任何类型相加：转换为整数（true->1, false->0）后相加
+		var li int
+		if l.Value {
+			li = 1
+		} else {
+			li = 0
+		}
+		switch r := rv.(type) {
+		case data.AsInt:
+			ri, err := r.AsInt()
+			if err != nil {
+				// 如果无法转换为整数，尝试字符串拼接
+				if str, ok := rv.(data.AsString); ok {
+					return data.NewStringValue(fmt.Sprintf("%d", li) + str.AsString()), nil
+				}
+				return nil, data.NewErrorThrow(b.from, err)
+			}
+			return data.NewIntValue(li + ri), nil
+		case data.AsFloat:
+			rf, err := r.AsFloat()
+			if err != nil {
+				// 如果无法转换为浮点数，尝试字符串拼接
+				if str, ok := rv.(data.AsString); ok {
+					return data.NewStringValue(fmt.Sprintf("%d", li) + str.AsString()), nil
+				}
+				return nil, data.NewErrorThrow(b.from, err)
+			}
+			return data.NewFloatValue(float64(li) + rf), nil
+		case data.AsString:
+			// 布尔值与字符串相加：转换为字符串后拼接
+			return data.NewStringValue(fmt.Sprintf("%d", li) + r.AsString()), nil
+		}
+
 	case *data.NullValue:
 		if riv, ok := rv.(data.AsInt); ok {
 			ri, err := riv.AsInt()

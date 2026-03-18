@@ -3,26 +3,41 @@ package core
 import (
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
 
+// RecursiveDirectoryIterator 内部状态属性名（存储在 ClassValue.ObjectValue.property）
+// 类似 FilterIterator 模式，保证 PHP 子类继承时状态隔离
+const (
+	rdiPathKey  = "__rdi_path__"  // string: 根目录路径
+	rdiFilesKey = "__rdi_files__" // *rdiFilesValue: 文件列表
+	rdiPosKey   = "__rdi_pos__"   // int: 当前位置
+	rdiFlagsKey = "__rdi_flags__" // int: flags
+)
+
+// rdiFilesValue 包装文件列表，实现 data.Value 接口
+type rdiFilesValue struct {
+	files []string
+}
+
+func (s *rdiFilesValue) GetValue(ctx data.Context) (data.GetValue, data.Control) { return s, nil }
+func (s *rdiFilesValue) AsString() string                                        { return "rdiFiles" }
+func (s *rdiFilesValue) Marshal(serializer data.Serializer) ([]byte, error)      { return nil, nil }
+func (s *rdiFilesValue) Unmarshal(b []byte, serializer data.Serializer) error    { return nil }
+func (s *rdiFilesValue) ToGoValue(serializer data.Serializer) (any, error)       { return nil, nil }
+
 // RecursiveDirectoryIteratorClass 实现 PHP 的 RecursiveDirectoryIterator 类
+// 状态通过 ClassValue.ObjectValue.property 存储，方法通过 ctx 访问（skill: php-class-state-sharing-pattern）
 type RecursiveDirectoryIteratorClass struct {
 	node.Node
-	files []string // 文件列表
-	pos   int      // 当前位置
-	path  string   // 目录路径
 }
 
 // NewRecursiveDirectoryIteratorClass 创建新的 RecursiveDirectoryIterator 类
 func NewRecursiveDirectoryIteratorClass() *RecursiveDirectoryIteratorClass {
-	return &RecursiveDirectoryIteratorClass{
-		files: []string{},
-		pos:   0,
-		path:  "",
-	}
+	return &RecursiveDirectoryIteratorClass{}
 }
 
 func (r *RecursiveDirectoryIteratorClass) GetName() string {
@@ -74,341 +89,358 @@ func (r *RecursiveDirectoryIteratorClass) GetPropertyList() []data.Property {
 }
 
 func (r *RecursiveDirectoryIteratorClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 创建新的实例，每个实例有自己的状态
-	clone := &RecursiveDirectoryIteratorClass{
-		files: make([]string, len(r.files)),
-		pos:   r.pos,
-		path:  r.path,
-	}
-	return data.NewClassValue(clone, ctx), nil
+	cv := data.NewClassValue(r, ctx.CreateBaseContext())
+	// 初始化实例属性
+	cv.SetProperty(rdiPathKey, data.NewStringValue(""))
+	cv.SetProperty(rdiFilesKey, &rdiFilesValue{})
+	cv.SetProperty(rdiPosKey, data.NewIntValue(0))
+	cv.SetProperty(rdiFlagsKey, data.NewIntValue(4096)) // SKIP_DOTS
+	return cv, nil
 }
 
 func (r *RecursiveDirectoryIteratorClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
 	case "__construct":
-		return &RecursiveDirectoryIteratorConstruct{instance: r}, true
+		return &RDIConstruct{}, true
 	case "rewind":
-		return &RecursiveDirectoryIteratorRewind{instance: r}, true
+		return &RDIRewind{}, true
 	case "current":
-		return &RecursiveDirectoryIteratorCurrent{instance: r}, true
+		return &RDICurrent{}, true
 	case "key":
-		return &RecursiveDirectoryIteratorKey{instance: r}, true
+		return &RDIKey{}, true
 	case "next":
-		return &RecursiveDirectoryIteratorNext{instance: r}, true
+		return &RDINext{}, true
 	case "valid":
-		return &RecursiveDirectoryIteratorValid{instance: r}, true
+		return &RDIValid{}, true
 	case "hasChildren":
-		return &RecursiveDirectoryIteratorHasChildren{instance: r}, true
+		return &RDIHasChildren{}, true
 	case "getChildren":
-		return &RecursiveDirectoryIteratorGetChildren{instance: r}, true
+		return &RDIGetChildren{}, true
 	case "getFilename":
-		return &RecursiveDirectoryIteratorGetFilename{instance: r}, true
+		return &RDIGetFilename{}, true
 	case "getPathname":
-		return &RecursiveDirectoryIteratorGetPathname{instance: r}, true
+		return &RDIGetPathname{}, true
+	case "getPath":
+		return &RDIGetPath{}, true
+	case "getRealPath":
+		return &RDIGetRealPath{}, true
+	case "getSubPath":
+		return &RDIGetSubPath{}, true
+	case "getSubPathname":
+		return &RDIGetSubPathname{}, true
 	case "isDir":
-		return &RecursiveDirectoryIteratorIsDir{instance: r}, true
+		return &RDIIsDir{}, true
 	case "isFile":
-		return &RecursiveDirectoryIteratorIsFile{instance: r}, true
+		return &RDIIsFile{}, true
 	}
 	return nil, false
 }
 
 func (r *RecursiveDirectoryIteratorClass) GetMethods() []data.Method {
 	return []data.Method{
-		&RecursiveDirectoryIteratorConstruct{instance: r},
-		&RecursiveDirectoryIteratorRewind{instance: r},
-		&RecursiveDirectoryIteratorCurrent{instance: r},
-		&RecursiveDirectoryIteratorKey{instance: r},
-		&RecursiveDirectoryIteratorNext{instance: r},
-		&RecursiveDirectoryIteratorValid{instance: r},
-		&RecursiveDirectoryIteratorHasChildren{instance: r},
-		&RecursiveDirectoryIteratorGetChildren{instance: r},
-		&RecursiveDirectoryIteratorGetFilename{instance: r},
-		&RecursiveDirectoryIteratorGetPathname{instance: r},
-		&RecursiveDirectoryIteratorIsDir{instance: r},
-		&RecursiveDirectoryIteratorIsFile{instance: r},
+		&RDIConstruct{},
+		&RDIRewind{},
+		&RDICurrent{},
+		&RDIKey{},
+		&RDINext{},
+		&RDIValid{},
+		&RDIHasChildren{},
+		&RDIGetChildren{},
+		&RDIGetFilename{},
+		&RDIGetPathname{},
+		&RDIGetPath{},
+		&RDIGetRealPath{},
+		&RDIGetSubPath{},
+		&RDIGetSubPathname{},
+		&RDIIsDir{},
+		&RDIIsFile{},
 	}
 }
 
 func (r *RecursiveDirectoryIteratorClass) GetConstruct() data.Method {
-	return &RecursiveDirectoryIteratorConstruct{instance: r}
+	return &RDIConstruct{}
 }
 
-// RecursiveDirectoryIteratorConstruct 构造函数
-type RecursiveDirectoryIteratorConstruct struct {
-	instance *RecursiveDirectoryIteratorClass
+// ---- 辅助：从 ctx 获取 ClassValue ----
+
+func rdiGetCV(ctx data.Context) *data.ClassValue {
+	if cmc, ok := ctx.(*data.ClassMethodContext); ok {
+		return cmc.ClassValue
+	}
+	if cv, ok := ctx.(*data.ClassValue); ok {
+		return cv
+	}
+	return nil
 }
 
-func (m *RecursiveDirectoryIteratorConstruct) GetName() string            { return "__construct" }
-func (m *RecursiveDirectoryIteratorConstruct) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *RecursiveDirectoryIteratorConstruct) GetIsStatic() bool          { return false }
-func (m *RecursiveDirectoryIteratorConstruct) GetReturnType() data.Types  { return nil }
-func (m *RecursiveDirectoryIteratorConstruct) GetParams() []data.GetValue {
+// ---- 状态读写 ----
+
+func rdiGetPath(cv *data.ClassValue) string {
+	v, _ := cv.ObjectValue.GetProperty(rdiPathKey)
+	if sv, ok := v.(*data.StringValue); ok {
+		return sv.Value
+	}
+	return ""
+}
+
+func rdiSetPath(cv *data.ClassValue, path string) {
+	cv.ObjectValue.SetProperty(rdiPathKey, data.NewStringValue(path))
+}
+
+func rdiGetFiles(cv *data.ClassValue) []string {
+	v, _ := cv.ObjectValue.GetProperty(rdiFilesKey)
+	if fv, ok := v.(*rdiFilesValue); ok {
+		return fv.files
+	}
+	return nil
+}
+
+func rdiSetFiles(cv *data.ClassValue, files []string) {
+	v, _ := cv.ObjectValue.GetProperty(rdiFilesKey)
+	if fv, ok := v.(*rdiFilesValue); ok {
+		fv.files = files
+	} else {
+		cv.ObjectValue.SetProperty(rdiFilesKey, &rdiFilesValue{files: files})
+	}
+}
+
+func rdiGetPos(cv *data.ClassValue) int {
+	v, _ := cv.ObjectValue.GetProperty(rdiPosKey)
+	if iv, ok := v.(*data.IntValue); ok {
+		return int(iv.Value)
+	}
+	return 0
+}
+
+func rdiSetPos(cv *data.ClassValue, pos int) {
+	cv.ObjectValue.SetProperty(rdiPosKey, data.NewIntValue(pos))
+}
+
+func rdiGetFlags(cv *data.ClassValue) int {
+	v, _ := cv.ObjectValue.GetProperty(rdiFlagsKey)
+	if iv, ok := v.(*data.IntValue); ok {
+		return int(iv.Value)
+	}
+	return 4096 // SKIP_DOTS
+}
+
+func rdiSetFlags(cv *data.ClassValue, flags int) {
+	cv.ObjectValue.SetProperty(rdiFlagsKey, data.NewIntValue(flags))
+}
+
+// ---- 状态辅助方法 ----
+
+func rdiCurrentFile(cv *data.ClassValue) string {
+	files := rdiGetFiles(cv)
+	pos := rdiGetPos(cv)
+	if pos >= 0 && pos < len(files) {
+		return files[pos]
+	}
+	return ""
+}
+
+func rdiLoadFiles(cv *data.ClassValue, path string, flags int) error {
+	skipDots := (flags & 4096) != 0 // SKIP_DOTS = 4096
+
+	dir, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+
+	entries, err := dir.Readdirnames(0)
+	if err != nil {
+		return err
+	}
+
+	var files []string
+	if !skipDots {
+		files = append(files, path+"/.")
+		files = append(files, path+"/..")
+	}
+
+	sorted := make([]string, 0, len(entries))
+	for _, name := range entries {
+		if name != "." && name != ".." {
+			sorted = append(sorted, name)
+		}
+	}
+	sort.Strings(sorted)
+
+	for _, name := range sorted {
+		files = append(files, filepath.Join(path, name))
+	}
+
+	rdiSetFiles(cv, files)
+	rdiSetPos(cv, 0)
+	return nil
+}
+
+// ---- __construct ----
+
+type RDIConstruct struct{}
+
+func (m *RDIConstruct) GetName() string            { return "__construct" }
+func (m *RDIConstruct) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *RDIConstruct) GetIsStatic() bool          { return false }
+func (m *RDIConstruct) GetReturnType() data.Types  { return nil }
+func (m *RDIConstruct) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "path", 0, nil, data.NewBaseType("string")),
 		node.NewParameter(nil, "flags", 1, nil, data.NewBaseType("int")),
 	}
 }
-func (m *RecursiveDirectoryIteratorConstruct) GetVariables() []data.Variable {
+func (m *RDIConstruct) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "path", 0, data.NewBaseType("string")),
 		node.NewVariable(nil, "flags", 1, data.NewBaseType("int")),
 	}
 }
-func (m *RecursiveDirectoryIteratorConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
+func (m *RDIConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
+		return nil, nil
+	}
+
 	pathVal, _ := ctx.GetIndexValue(0)
-	var path string
-	if pathStr, ok := pathVal.(data.AsString); ok {
-		path = pathStr.AsString()
+	path := ""
+	if ps, ok := pathVal.(data.AsString); ok {
+		path = ps.AsString()
 	}
 
-	// 直接访问实例状态
-	m.instance.path = path
-	m.instance.pos = 0
-	m.instance.files = []string{}
-
-	// 按照PHP RecursiveDirectoryIterator的行为：
-	// 1. 首先添加 . 和 .. （特殊目录）
-	// 2. 然后添加实际的文件和目录
-	m.instance.files = append(m.instance.files, path+"/.")
-	m.instance.files = append(m.instance.files, path+"/..")
-
-	// 添加实际的文件和目录
-	entries, err := os.ReadDir(path)
-	if err != nil {
-		return nil, data.NewErrorThrow(nil, err)
-	}
-
-	for _, entry := range entries {
-		name := entry.Name()
-		if name != "." && name != ".." {
-			fullPath := filepath.Join(path, name)
-			m.instance.files = append(m.instance.files, fullPath)
+	flagsVal, hasFlagsVal := ctx.GetIndexValue(1)
+	flags := 4096 // 默认 SKIP_DOTS
+	if hasFlagsVal {
+		if fi, ok := flagsVal.(interface{ AsInt() int }); ok {
+			flags = fi.AsInt()
+		} else if fi64, ok := flagsVal.(interface{ AsInt64() int64 }); ok {
+			flags = int(fi64.AsInt64())
 		}
 	}
 
+	rdiSetPath(cv, path)
+	rdiSetFlags(cv, flags)
+
+	if err := rdiLoadFiles(cv, path, flags); err != nil {
+		return nil, data.NewErrorThrow(nil, err)
+	}
+
 	return nil, nil
 }
 
-// RecursiveDirectoryIteratorRewind 重置迭代器
-type RecursiveDirectoryIteratorRewind struct {
-	instance *RecursiveDirectoryIteratorClass
-}
+// ---- rewind ----
 
-func (m *RecursiveDirectoryIteratorRewind) GetName() string               { return "rewind" }
-func (m *RecursiveDirectoryIteratorRewind) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *RecursiveDirectoryIteratorRewind) GetIsStatic() bool             { return false }
-func (m *RecursiveDirectoryIteratorRewind) GetReturnType() data.Types     { return nil }
-func (m *RecursiveDirectoryIteratorRewind) GetParams() []data.GetValue    { return nil }
-func (m *RecursiveDirectoryIteratorRewind) GetVariables() []data.Variable { return nil }
-func (m *RecursiveDirectoryIteratorRewind) Call(ctx data.Context) (data.GetValue, data.Control) {
-	m.instance.pos = 0
+type RDIRewind struct{}
+
+func (m *RDIRewind) GetName() string               { return "rewind" }
+func (m *RDIRewind) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDIRewind) GetIsStatic() bool             { return false }
+func (m *RDIRewind) GetReturnType() data.Types     { return nil }
+func (m *RDIRewind) GetParams() []data.GetValue    { return nil }
+func (m *RDIRewind) GetVariables() []data.Variable { return nil }
+func (m *RDIRewind) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
+		return nil, nil
+	}
+	rdiSetPos(cv, 0)
 	return nil, nil
 }
 
-// RecursiveDirectoryIteratorCurrent 返回当前元素
-type RecursiveDirectoryIteratorCurrent struct {
-	instance *RecursiveDirectoryIteratorClass
-}
+// ---- current：返回 $this（ClassValue 本身，即迭代器对象作为 SplFileInfo） ----
 
-func (m *RecursiveDirectoryIteratorCurrent) GetName() string               { return "current" }
-func (m *RecursiveDirectoryIteratorCurrent) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *RecursiveDirectoryIteratorCurrent) GetIsStatic() bool             { return false }
-func (m *RecursiveDirectoryIteratorCurrent) GetReturnType() data.Types     { return nil }
-func (m *RecursiveDirectoryIteratorCurrent) GetParams() []data.GetValue    { return nil }
-func (m *RecursiveDirectoryIteratorCurrent) GetVariables() []data.Variable { return nil }
-func (m *RecursiveDirectoryIteratorCurrent) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// PHP 的 RecursiveDirectoryIterator::current() 返回 $this，即迭代器对象本身
-	if objCtx, ok := ctx.(*data.ClassMethodContext); ok {
-		return objCtx.ClassValue, nil
+type RDICurrent struct{}
+
+func (m *RDICurrent) GetName() string               { return "current" }
+func (m *RDICurrent) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDICurrent) GetIsStatic() bool             { return false }
+func (m *RDICurrent) GetReturnType() data.Types     { return nil }
+func (m *RDICurrent) GetParams() []data.GetValue    { return nil }
+func (m *RDICurrent) GetVariables() []data.Variable { return nil }
+func (m *RDICurrent) Call(ctx data.Context) (data.GetValue, data.Control) {
+	// PHP RecursiveDirectoryIterator::current() 返回 $this
+	if cmc, ok := ctx.(*data.ClassMethodContext); ok {
+		return cmc.ClassValue, nil
 	}
 	return data.NewNullValue(), nil
 }
 
-// RecursiveDirectoryIteratorKey 返回当前键
-type RecursiveDirectoryIteratorKey struct {
-	instance *RecursiveDirectoryIteratorClass
-}
+// ---- key ----
 
-func (m *RecursiveDirectoryIteratorKey) GetName() string               { return "key" }
-func (m *RecursiveDirectoryIteratorKey) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *RecursiveDirectoryIteratorKey) GetIsStatic() bool             { return false }
-func (m *RecursiveDirectoryIteratorKey) GetReturnType() data.Types     { return data.Int{} }
-func (m *RecursiveDirectoryIteratorKey) GetParams() []data.GetValue    { return nil }
-func (m *RecursiveDirectoryIteratorKey) GetVariables() []data.Variable { return nil }
-func (m *RecursiveDirectoryIteratorKey) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if m.instance.pos < 0 || m.instance.pos >= len(m.instance.files) {
+type RDIKey struct{}
+
+func (m *RDIKey) GetName() string               { return "key" }
+func (m *RDIKey) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDIKey) GetIsStatic() bool             { return false }
+func (m *RDIKey) GetReturnType() data.Types     { return data.Mixed{} }
+func (m *RDIKey) GetParams() []data.GetValue    { return nil }
+func (m *RDIKey) GetVariables() []data.Variable { return nil }
+func (m *RDIKey) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
 		return data.NewStringValue(""), nil
 	}
-	// 返回完整路径作为key，与PHP原生行为一致
-	return data.NewStringValue(m.instance.files[m.instance.pos]), nil
+	return data.NewStringValue(rdiCurrentFile(cv)), nil
 }
 
-// RecursiveDirectoryIteratorNext 移动到下一个元素
-type RecursiveDirectoryIteratorNext struct {
-	instance *RecursiveDirectoryIteratorClass
-}
+// ---- next ----
 
-func (m *RecursiveDirectoryIteratorNext) GetName() string               { return "next" }
-func (m *RecursiveDirectoryIteratorNext) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *RecursiveDirectoryIteratorNext) GetIsStatic() bool             { return false }
-func (m *RecursiveDirectoryIteratorNext) GetReturnType() data.Types     { return nil }
-func (m *RecursiveDirectoryIteratorNext) GetParams() []data.GetValue    { return nil }
-func (m *RecursiveDirectoryIteratorNext) GetVariables() []data.Variable { return nil }
-func (m *RecursiveDirectoryIteratorNext) Call(ctx data.Context) (data.GetValue, data.Control) {
-	m.instance.pos++
+type RDINext struct{}
+
+func (m *RDINext) GetName() string               { return "next" }
+func (m *RDINext) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDINext) GetIsStatic() bool             { return false }
+func (m *RDINext) GetReturnType() data.Types     { return nil }
+func (m *RDINext) GetParams() []data.GetValue    { return nil }
+func (m *RDINext) GetVariables() []data.Variable { return nil }
+func (m *RDINext) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
+		return nil, nil
+	}
+	rdiSetPos(cv, rdiGetPos(cv)+1)
 	return nil, nil
 }
 
-// RecursiveDirectoryIteratorValid 检查当前位置是否有效
-type RecursiveDirectoryIteratorValid struct {
-	instance *RecursiveDirectoryIteratorClass
-}
+// ---- valid ----
 
-func (m *RecursiveDirectoryIteratorValid) GetName() string               { return "valid" }
-func (m *RecursiveDirectoryIteratorValid) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *RecursiveDirectoryIteratorValid) GetIsStatic() bool             { return false }
-func (m *RecursiveDirectoryIteratorValid) GetReturnType() data.Types     { return data.Bool{} }
-func (m *RecursiveDirectoryIteratorValid) GetParams() []data.GetValue    { return nil }
-func (m *RecursiveDirectoryIteratorValid) GetVariables() []data.Variable { return nil }
-func (m *RecursiveDirectoryIteratorValid) Call(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewBoolValue(m.instance.pos >= 0 && m.instance.pos < len(m.instance.files)), nil
-}
+type RDIValid struct{}
 
-// RecursiveDirectoryIteratorHasChildren 检查当前元素是否有子元素
-type RecursiveDirectoryIteratorHasChildren struct {
-	instance *RecursiveDirectoryIteratorClass
-}
-
-func (m *RecursiveDirectoryIteratorHasChildren) GetName() string { return "hasChildren" }
-func (m *RecursiveDirectoryIteratorHasChildren) GetModifier() data.Modifier {
-	return data.ModifierPublic
-}
-func (m *RecursiveDirectoryIteratorHasChildren) GetIsStatic() bool             { return false }
-func (m *RecursiveDirectoryIteratorHasChildren) GetReturnType() data.Types     { return data.Bool{} }
-func (m *RecursiveDirectoryIteratorHasChildren) GetParams() []data.GetValue    { return nil }
-func (m *RecursiveDirectoryIteratorHasChildren) GetVariables() []data.Variable { return nil }
-func (m *RecursiveDirectoryIteratorHasChildren) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if m.instance.pos < 0 || m.instance.pos >= len(m.instance.files) {
+func (m *RDIValid) GetName() string               { return "valid" }
+func (m *RDIValid) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDIValid) GetIsStatic() bool             { return false }
+func (m *RDIValid) GetReturnType() data.Types     { return data.Bool{} }
+func (m *RDIValid) GetParams() []data.GetValue    { return nil }
+func (m *RDIValid) GetVariables() []data.Variable { return nil }
+func (m *RDIValid) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
 		return data.NewBoolValue(false), nil
 	}
+	files := rdiGetFiles(cv)
+	pos := rdiGetPos(cv)
+	return data.NewBoolValue(pos >= 0 && pos < len(files)), nil
+}
 
-	path := m.instance.files[m.instance.pos]
-	info, err := os.Stat(path)
-	if err != nil {
+// ---- hasChildren ----
+
+type RDIHasChildren struct{}
+
+func (m *RDIHasChildren) GetName() string               { return "hasChildren" }
+func (m *RDIHasChildren) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDIHasChildren) GetIsStatic() bool             { return false }
+func (m *RDIHasChildren) GetReturnType() data.Types     { return data.Bool{} }
+func (m *RDIHasChildren) GetParams() []data.GetValue    { return nil }
+func (m *RDIHasChildren) GetVariables() []data.Variable { return nil }
+func (m *RDIHasChildren) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
 		return data.NewBoolValue(false), nil
 	}
-	return data.NewBoolValue(info.IsDir()), nil
-}
-
-// RecursiveDirectoryIteratorGetChildren 返回子迭代器
-type RecursiveDirectoryIteratorGetChildren struct {
-	instance *RecursiveDirectoryIteratorClass
-}
-
-func (m *RecursiveDirectoryIteratorGetChildren) GetName() string { return "getChildren" }
-func (m *RecursiveDirectoryIteratorGetChildren) GetModifier() data.Modifier {
-	return data.ModifierPublic
-}
-func (m *RecursiveDirectoryIteratorGetChildren) GetIsStatic() bool             { return false }
-func (m *RecursiveDirectoryIteratorGetChildren) GetReturnType() data.Types     { return nil }
-func (m *RecursiveDirectoryIteratorGetChildren) GetParams() []data.GetValue    { return nil }
-func (m *RecursiveDirectoryIteratorGetChildren) GetVariables() []data.Variable { return nil }
-func (m *RecursiveDirectoryIteratorGetChildren) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if m.instance.pos < 0 || m.instance.pos >= len(m.instance.files) {
-		// 返回空的迭代器
-		emptyClass := NewRecursiveDirectoryIteratorClass()
-		return data.NewClassValue(emptyClass, ctx.CreateBaseContext()), nil
-	}
-
-	path := m.instance.files[m.instance.pos]
-
-	// 创建子迭代器实例
-	childClass := NewRecursiveDirectoryIteratorClass()
-	childClass.path = path
-
-	// 加载子目录内容
-	entries, err := os.ReadDir(path)
-	if err != nil {
-		return data.NewClassValue(childClass, ctx.CreateBaseContext()), nil
-	}
-
-	for _, entry := range entries {
-		name := entry.Name()
-		if name != "." && name != ".." {
-			childClass.files = append(childClass.files, filepath.Join(path, name))
-		}
-	}
-
-	return data.NewClassValue(childClass, ctx.CreateBaseContext()), nil
-}
-
-// RecursiveDirectoryIteratorGetFilename 获取文件名
-type RecursiveDirectoryIteratorGetFilename struct {
-	instance *RecursiveDirectoryIteratorClass
-}
-
-func (m *RecursiveDirectoryIteratorGetFilename) GetName() string { return "getFilename" }
-func (m *RecursiveDirectoryIteratorGetFilename) GetModifier() data.Modifier {
-	return data.ModifierPublic
-}
-func (m *RecursiveDirectoryIteratorGetFilename) GetIsStatic() bool             { return false }
-func (m *RecursiveDirectoryIteratorGetFilename) GetReturnType() data.Types     { return data.String{} }
-func (m *RecursiveDirectoryIteratorGetFilename) GetParams() []data.GetValue    { return nil }
-func (m *RecursiveDirectoryIteratorGetFilename) GetVariables() []data.Variable { return nil }
-func (m *RecursiveDirectoryIteratorGetFilename) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if m.instance.pos < 0 || m.instance.pos >= len(m.instance.files) {
-		return data.NewStringValue(""), nil
-	}
-
-	currentPath := m.instance.files[m.instance.pos]
-	_, filename := filepath.Split(currentPath)
-
-	// 特殊处理 . 和 .. 目录
-	if filename == "." || filename == ".." {
-		return data.NewStringValue(filename), nil
-	}
-
-	return data.NewStringValue(filename), nil
-}
-
-// RecursiveDirectoryIteratorGetPathname 获取完整路径名
-type RecursiveDirectoryIteratorGetPathname struct {
-	instance *RecursiveDirectoryIteratorClass
-}
-
-func (m *RecursiveDirectoryIteratorGetPathname) GetName() string { return "getPathname" }
-func (m *RecursiveDirectoryIteratorGetPathname) GetModifier() data.Modifier {
-	return data.ModifierPublic
-}
-func (m *RecursiveDirectoryIteratorGetPathname) GetIsStatic() bool             { return false }
-func (m *RecursiveDirectoryIteratorGetPathname) GetReturnType() data.Types     { return data.String{} }
-func (m *RecursiveDirectoryIteratorGetPathname) GetParams() []data.GetValue    { return nil }
-func (m *RecursiveDirectoryIteratorGetPathname) GetVariables() []data.Variable { return nil }
-func (m *RecursiveDirectoryIteratorGetPathname) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if m.instance.pos < 0 || m.instance.pos >= len(m.instance.files) {
-		return data.NewStringValue(""), nil
-	}
-	return data.NewStringValue(m.instance.files[m.instance.pos]), nil
-}
-
-// RecursiveDirectoryIteratorIsDir 检查是否为目录
-type RecursiveDirectoryIteratorIsDir struct {
-	instance *RecursiveDirectoryIteratorClass
-}
-
-func (m *RecursiveDirectoryIteratorIsDir) GetName() string               { return "isDir" }
-func (m *RecursiveDirectoryIteratorIsDir) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *RecursiveDirectoryIteratorIsDir) GetIsStatic() bool             { return false }
-func (m *RecursiveDirectoryIteratorIsDir) GetReturnType() data.Types     { return data.Bool{} }
-func (m *RecursiveDirectoryIteratorIsDir) GetParams() []data.GetValue    { return nil }
-func (m *RecursiveDirectoryIteratorIsDir) GetVariables() []data.Variable { return nil }
-func (m *RecursiveDirectoryIteratorIsDir) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if m.instance.pos < 0 || m.instance.pos >= len(m.instance.files) {
+	currentPath := rdiCurrentFile(cv)
+	if currentPath == "" {
 		return data.NewBoolValue(false), nil
 	}
-
-	currentPath := m.instance.files[m.instance.pos]
 	info, err := os.Stat(currentPath)
 	if err != nil {
 		return data.NewBoolValue(false), nil
@@ -416,23 +448,232 @@ func (m *RecursiveDirectoryIteratorIsDir) Call(ctx data.Context) (data.GetValue,
 	return data.NewBoolValue(info.IsDir()), nil
 }
 
-// RecursiveDirectoryIteratorIsFile 检查是否为文件
-type RecursiveDirectoryIteratorIsFile struct {
-	instance *RecursiveDirectoryIteratorClass
-}
+// ---- getChildren：返回子目录的 RecursiveDirectoryIterator ----
 
-func (m *RecursiveDirectoryIteratorIsFile) GetName() string               { return "isFile" }
-func (m *RecursiveDirectoryIteratorIsFile) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *RecursiveDirectoryIteratorIsFile) GetIsStatic() bool             { return false }
-func (m *RecursiveDirectoryIteratorIsFile) GetReturnType() data.Types     { return data.Bool{} }
-func (m *RecursiveDirectoryIteratorIsFile) GetParams() []data.GetValue    { return nil }
-func (m *RecursiveDirectoryIteratorIsFile) GetVariables() []data.Variable { return nil }
-func (m *RecursiveDirectoryIteratorIsFile) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if m.instance.pos < 0 || m.instance.pos >= len(m.instance.files) {
-		return data.NewBoolValue(false), nil
+type RDIGetChildren struct{}
+
+func (m *RDIGetChildren) GetName() string               { return "getChildren" }
+func (m *RDIGetChildren) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDIGetChildren) GetIsStatic() bool             { return false }
+func (m *RDIGetChildren) GetReturnType() data.Types     { return nil }
+func (m *RDIGetChildren) GetParams() []data.GetValue    { return nil }
+func (m *RDIGetChildren) GetVariables() []data.Variable { return nil }
+func (m *RDIGetChildren) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
+		childClass := NewRecursiveDirectoryIteratorClass()
+		return data.NewClassValue(childClass, ctx.CreateBaseContext()), nil
+	}
+	currentPath := rdiCurrentFile(cv)
+	flags := rdiGetFlags(cv)
+
+	childClass := NewRecursiveDirectoryIteratorClass()
+	childCV := data.NewClassValue(childClass, ctx.CreateBaseContext())
+	// 初始化属性
+	childCV.SetProperty(rdiPathKey, data.NewStringValue(currentPath))
+	childCV.SetProperty(rdiFilesKey, &rdiFilesValue{})
+	childCV.SetProperty(rdiPosKey, data.NewIntValue(0))
+	childCV.SetProperty(rdiFlagsKey, data.NewIntValue(flags))
+
+	if currentPath != "" {
+		rdiLoadFiles(childCV, currentPath, flags)
 	}
 
-	currentPath := m.instance.files[m.instance.pos]
+	return childCV, nil
+}
+
+// ---- getFilename ----
+
+type RDIGetFilename struct{}
+
+func (m *RDIGetFilename) GetName() string               { return "getFilename" }
+func (m *RDIGetFilename) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDIGetFilename) GetIsStatic() bool             { return false }
+func (m *RDIGetFilename) GetReturnType() data.Types     { return data.String{} }
+func (m *RDIGetFilename) GetParams() []data.GetValue    { return nil }
+func (m *RDIGetFilename) GetVariables() []data.Variable { return nil }
+func (m *RDIGetFilename) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
+		return data.NewStringValue(""), nil
+	}
+	currentPath := rdiCurrentFile(cv)
+	_, filename := filepath.Split(currentPath)
+	return data.NewStringValue(filename), nil
+}
+
+// ---- getPathname ----
+
+type RDIGetPathname struct{}
+
+func (m *RDIGetPathname) GetName() string               { return "getPathname" }
+func (m *RDIGetPathname) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDIGetPathname) GetIsStatic() bool             { return false }
+func (m *RDIGetPathname) GetReturnType() data.Types     { return data.String{} }
+func (m *RDIGetPathname) GetParams() []data.GetValue    { return nil }
+func (m *RDIGetPathname) GetVariables() []data.Variable { return nil }
+func (m *RDIGetPathname) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
+		return data.NewStringValue(""), nil
+	}
+	return data.NewStringValue(rdiCurrentFile(cv)), nil
+}
+
+// ---- getPath（当前文件所在目录） ----
+
+type RDIGetPath struct{}
+
+func (m *RDIGetPath) GetName() string               { return "getPath" }
+func (m *RDIGetPath) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDIGetPath) GetIsStatic() bool             { return false }
+func (m *RDIGetPath) GetReturnType() data.Types     { return data.String{} }
+func (m *RDIGetPath) GetParams() []data.GetValue    { return nil }
+func (m *RDIGetPath) GetVariables() []data.Variable { return nil }
+func (m *RDIGetPath) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
+		return data.NewStringValue(""), nil
+	}
+	currentPath := rdiCurrentFile(cv)
+	if currentPath == "" {
+		return data.NewStringValue(rdiGetPath(cv)), nil
+	}
+	return data.NewStringValue(filepath.Dir(currentPath)), nil
+}
+
+// ---- getRealPath ----
+
+type RDIGetRealPath struct{}
+
+func (m *RDIGetRealPath) GetName() string               { return "getRealPath" }
+func (m *RDIGetRealPath) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDIGetRealPath) GetIsStatic() bool             { return false }
+func (m *RDIGetRealPath) GetReturnType() data.Types     { return data.String{} }
+func (m *RDIGetRealPath) GetParams() []data.GetValue    { return nil }
+func (m *RDIGetRealPath) GetVariables() []data.Variable { return nil }
+func (m *RDIGetRealPath) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
+		return data.NewStringValue(""), nil
+	}
+	currentPath := rdiCurrentFile(cv)
+	if currentPath == "" {
+		return data.NewStringValue(""), nil
+	}
+	realPath, err := filepath.EvalSymlinks(currentPath)
+	if err != nil {
+		if absPath, err2 := filepath.Abs(currentPath); err2 == nil {
+			return data.NewStringValue(absPath), nil
+		}
+		return data.NewStringValue(currentPath), nil
+	}
+	return data.NewStringValue(realPath), nil
+}
+
+// ---- getSubPath：相对于根路径的子目录路径 ----
+
+type RDIGetSubPath struct{}
+
+func (m *RDIGetSubPath) GetName() string               { return "getSubPath" }
+func (m *RDIGetSubPath) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDIGetSubPath) GetIsStatic() bool             { return false }
+func (m *RDIGetSubPath) GetReturnType() data.Types     { return data.String{} }
+func (m *RDIGetSubPath) GetParams() []data.GetValue    { return nil }
+func (m *RDIGetSubPath) GetVariables() []data.Variable { return nil }
+func (m *RDIGetSubPath) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
+		return data.NewStringValue(""), nil
+	}
+	currentPath := rdiCurrentFile(cv)
+	if currentPath == "" {
+		return data.NewStringValue(""), nil
+	}
+	rootPath := rdiGetPath(cv)
+	dir := filepath.Dir(currentPath)
+	if dir == rootPath {
+		return data.NewStringValue(""), nil
+	}
+	rel, err := filepath.Rel(rootPath, dir)
+	if err != nil {
+		return data.NewStringValue(""), nil
+	}
+	return data.NewStringValue(rel), nil
+}
+
+// ---- getSubPathname：相对于根路径的完整相对路径 ----
+
+type RDIGetSubPathname struct{}
+
+func (m *RDIGetSubPathname) GetName() string               { return "getSubPathname" }
+func (m *RDIGetSubPathname) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDIGetSubPathname) GetIsStatic() bool             { return false }
+func (m *RDIGetSubPathname) GetReturnType() data.Types     { return data.String{} }
+func (m *RDIGetSubPathname) GetParams() []data.GetValue    { return nil }
+func (m *RDIGetSubPathname) GetVariables() []data.Variable { return nil }
+func (m *RDIGetSubPathname) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
+		return data.NewStringValue(""), nil
+	}
+	currentPath := rdiCurrentFile(cv)
+	if currentPath == "" {
+		return data.NewStringValue(""), nil
+	}
+	rootPath := rdiGetPath(cv)
+	rel, err := filepath.Rel(rootPath, currentPath)
+	if err != nil {
+		return data.NewStringValue(""), nil
+	}
+	return data.NewStringValue(rel), nil
+}
+
+// ---- isDir ----
+
+type RDIIsDir struct{}
+
+func (m *RDIIsDir) GetName() string               { return "isDir" }
+func (m *RDIIsDir) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDIIsDir) GetIsStatic() bool             { return false }
+func (m *RDIIsDir) GetReturnType() data.Types     { return data.Bool{} }
+func (m *RDIIsDir) GetParams() []data.GetValue    { return nil }
+func (m *RDIIsDir) GetVariables() []data.Variable { return nil }
+func (m *RDIIsDir) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
+		return data.NewBoolValue(false), nil
+	}
+	currentPath := rdiCurrentFile(cv)
+	if currentPath == "" {
+		return data.NewBoolValue(false), nil
+	}
+	info, err := os.Stat(currentPath)
+	if err != nil {
+		return data.NewBoolValue(false), nil
+	}
+	return data.NewBoolValue(info.IsDir()), nil
+}
+
+// ---- isFile ----
+
+type RDIIsFile struct{}
+
+func (m *RDIIsFile) GetName() string               { return "isFile" }
+func (m *RDIIsFile) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDIIsFile) GetIsStatic() bool             { return false }
+func (m *RDIIsFile) GetReturnType() data.Types     { return data.Bool{} }
+func (m *RDIIsFile) GetParams() []data.GetValue    { return nil }
+func (m *RDIIsFile) GetVariables() []data.Variable { return nil }
+func (m *RDIIsFile) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
+		return data.NewBoolValue(false), nil
+	}
+	currentPath := rdiCurrentFile(cv)
+	if currentPath == "" {
+		return data.NewBoolValue(false), nil
+	}
 	info, err := os.Stat(currentPath)
 	if err != nil {
 		return data.NewBoolValue(false), nil

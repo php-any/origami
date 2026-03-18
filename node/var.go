@@ -41,5 +41,5 @@ func NewStaticVarStatement(token *TokenFrom, name string, initializer data.GetVa
 
 func (s *StaticVarStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	// 静态局部变量语句本身不返回值
-	return nil, nil
+	return s.Initializer, nil
 }

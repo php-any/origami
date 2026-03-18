@@ -81,71 +81,210 @@ func (c *ReflectionParameterClass) GetConstruct() data.Method {
 	return &ReflectionParameterConstructMethod{}
 }
 
-// newReflectionParameter 创建一个新的 ReflectionParameter 实例
-// 这是一个辅助函数，用于创建 ReflectionParameter 对象
+// newReflectionParameter 创建一个新的 ReflectionParameter 实例（通过类名+方法名+索引）
 func newReflectionParameter(ctx data.Context, className string, methodName string, paramIndex int, param data.GetValue) *data.ClassValue {
 	paramClass := &ReflectionParameterClass{}
 	paramValue := data.NewClassValue(paramClass, ctx.CreateBaseContext())
 
-	// 存储参数信息到实例属性中
 	paramValue.ObjectValue.SetProperty("_className", data.NewStringValue(className))
 	paramValue.ObjectValue.SetProperty("_methodName", data.NewStringValue(methodName))
 	paramValue.ObjectValue.SetProperty("_paramIndex", data.NewIntValue(paramIndex))
 
-	// 存储参数对象本身（用于后续获取参数信息）
-	// 注意：这里我们需要存储参数的索引，因为 param 是 GetValue 类型，不能直接存储
-	// 实际使用时，我们会从方法中重新获取参数
+	// 预先提取并存储参数信息，供 className=="" 时（Closure）直接使用
+	paramValue.ObjectValue.SetProperty("_paramName", data.NewStringValue(extractParamName(param)))
+	if isVariadicParam(param) {
+		paramValue.ObjectValue.SetProperty("_isVariadic", data.NewBoolValue(true))
+	}
+	if ts := extractParamType(param); ts != "" {
+		paramValue.ObjectValue.SetProperty("_paramType", data.NewStringValue(ts))
+	}
+	if paramHasDefault(param) {
+		paramValue.ObjectValue.SetProperty("_hasDefault", data.NewBoolValue(true))
+	}
+
+	return paramValue
+}
+
+// newReflectionParameterFromVirtual 通过 virtualParam 直接创建 ReflectionParameter 实例（用于 Closure）
+func newReflectionParameterFromVirtual(ctx data.Context, className string, methodName string, paramIndex int, vp *virtualParam) *data.ClassValue {
+	paramClass := &ReflectionParameterClass{}
+	paramValue := data.NewClassValue(paramClass, ctx.CreateBaseContext())
+
+	paramValue.ObjectValue.SetProperty("_className", data.NewStringValue(className))
+	paramValue.ObjectValue.SetProperty("_methodName", data.NewStringValue(methodName))
+	paramValue.ObjectValue.SetProperty("_paramIndex", data.NewIntValue(paramIndex))
+	paramValue.ObjectValue.SetProperty("_paramName", data.NewStringValue(vp.name))
+	if vp.variadic {
+		paramValue.ObjectValue.SetProperty("_isVariadic", data.NewBoolValue(true))
+	}
+	if vp.typeStr != "" {
+		paramValue.ObjectValue.SetProperty("_paramType", data.NewStringValue(vp.typeStr))
+	}
+	if vp.hasDefault {
+		paramValue.ObjectValue.SetProperty("_hasDefault", data.NewBoolValue(true))
+	}
+	// 标记为 virtual（Closure 参数），后续 getReflectionParameterInfo 使用
+	paramValue.ObjectValue.SetProperty("_isVirtual", data.NewBoolValue(true))
 
 	return paramValue
 }
 
 // getReflectionParameterInfo 从上下文中获取 ReflectionParameter 的参数信息
+// 当 _isVirtual=true 时，从预存属性构造 virtualParam 返回
 func getReflectionParameterInfo(ctx data.Context) (string, string, int, data.GetValue) {
-	if objCtx, ok := ctx.(*data.ClassMethodContext); ok {
-		// 从 ObjectValue 的 property 中获取类名、方法名和参数索引
-		// 使用 GetProperties 方法获取所有属性，确保能获取到动态设置的属性
-		if objCtx.ObjectValue != nil {
-			props := objCtx.ObjectValue.GetProperties()
-			classNameVal, hasClassName := props["_className"]
-			methodNameVal, hasMethodName := props["_methodName"]
-			paramIndexVal, hasParamIndex := props["_paramIndex"]
+	objCtx, ok := ctx.(*data.ClassMethodContext)
+	if !ok {
+		return "", "", -1, nil
+	}
+	if objCtx.ObjectValue == nil {
+		return "", "", -1, nil
+	}
 
-			if hasClassName && hasMethodName && hasParamIndex {
-				var className, methodName string
-				var paramIndex int
+	props := objCtx.ObjectValue.GetProperties()
 
-				if strVal, ok := classNameVal.(*data.StringValue); ok {
-					className = strVal.AsString()
-				}
-				if strVal, ok := methodNameVal.(*data.StringValue); ok {
-					methodName = strVal.AsString()
-				}
-				if intVal, ok := paramIndexVal.(*data.IntValue); ok {
-					paramIndex, _ = intVal.AsInt()
-				}
+	classNameVal, _ := props["_className"]
+	methodNameVal, _ := props["_methodName"]
+	paramIndexVal, hasParamIndex := props["_paramIndex"]
 
-				if className != "" && methodName != "" {
-					vm := ctx.GetVM()
-					v, acl := vm.LoadPkg(className)
-					if acl != nil {
-						return "", "", -1, nil
-					}
-					if v != nil {
-						stmt, ok := v.(data.ClassStmt)
-						if !ok {
-							return "", "", -1, nil
-						}
-						method, exists := stmt.GetMethod(methodName)
-						if exists {
-							params := method.GetParams()
-							if paramIndex >= 0 && paramIndex < len(params) {
-								return className, methodName, paramIndex, params[paramIndex]
-							}
-						}
+	if !hasParamIndex {
+		return "", "", -1, nil
+	}
+
+	var className, methodName string
+	var paramIndex int
+	if sv, ok := classNameVal.(*data.StringValue); ok {
+		className = sv.AsString()
+	}
+	if sv, ok := methodNameVal.(*data.StringValue); ok {
+		methodName = sv.AsString()
+	}
+	if iv, ok := paramIndexVal.(*data.IntValue); ok {
+		paramIndex, _ = iv.AsInt()
+	}
+
+	// Closure / virtual 路径：className 为空或 _isVirtual=true，从预存属性构造 virtualParam
+	isVirtual := false
+	if vv, ok := props["_isVirtual"]; ok {
+		if bv, ok := vv.(*data.BoolValue); ok {
+			isVirtual = bv.Value
+		}
+	}
+	if className == "" || isVirtual {
+		name := ""
+		if nv, ok := props["_paramName"]; ok {
+			if sv, ok := nv.(*data.StringValue); ok {
+				name = sv.AsString()
+			}
+		}
+		isVar := false
+		if vv, ok := props["_isVariadic"]; ok {
+			if bv, ok := vv.(*data.BoolValue); ok {
+				isVar = bv.Value
+			}
+		}
+		typeStr := ""
+		if tv, ok := props["_paramType"]; ok {
+			if sv, ok := tv.(*data.StringValue); ok {
+				typeStr = sv.AsString()
+			}
+		}
+		hasDef := false
+		if dv, ok := props["_hasDefault"]; ok {
+			if bv, ok := dv.(*data.BoolValue); ok {
+				hasDef = bv.Value
+			}
+		}
+		vp := &virtualParam{name: name, index: paramIndex, typeStr: typeStr, variadic: isVar, hasDefault: hasDef}
+		return className, methodName, paramIndex, vp
+	}
+
+	// 常规路径：通过类名+方法名+索引查找参数
+	if className != "" && methodName != "" {
+		vm := ctx.GetVM()
+		v, acl := vm.LoadPkg(className)
+		if acl != nil {
+			return "", "", -1, nil
+		}
+		if v != nil {
+			if stmt, ok := v.(data.ClassStmt); ok {
+				if method, exists := stmt.GetMethod(methodName); exists {
+					params := method.GetParams()
+					if paramIndex >= 0 && paramIndex < len(params) {
+						return className, methodName, paramIndex, params[paramIndex]
 					}
 				}
 			}
 		}
 	}
+
 	return "", "", -1, nil
+}
+
+// virtualParam 是轻量级虚拟参数，用于 Closure 的 ReflectionParameter
+type virtualParam struct {
+	name       string
+	index      int
+	typeStr    string
+	variadic   bool
+	hasDefault bool
+}
+
+func (p *virtualParam) GetName() string { return p.name }
+func (p *virtualParam) GetIndex() int   { return p.index }
+func (p *virtualParam) GetType() data.Types {
+	if p.typeStr == "" {
+		return nil
+	}
+	return data.NewBaseType(p.typeStr)
+}
+func (p *virtualParam) IsVariadic() bool { return p.variadic }
+func (p *virtualParam) HasDefault() bool { return p.hasDefault }
+func (p *virtualParam) AsString() string { return p.name }
+func (p *virtualParam) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return data.NewStringValue(p.name), nil
+}
+
+// ---- 辅助函数：从 data.GetValue (参数节点) 提取信息 ----
+
+// extractParamName 提取参数名
+func extractParamName(param data.GetValue) string {
+	type nameGetter interface{ GetName() string }
+	if ng, ok := param.(nameGetter); ok {
+		return ng.GetName()
+	}
+	return ""
+}
+
+// isVariadicParam 判断参数是否为可变参数
+func isVariadicParam(param data.GetValue) bool {
+	type variadicChecker interface{ IsVariadic() bool }
+	if vc, ok := param.(variadicChecker); ok {
+		return vc.IsVariadic()
+	}
+	return false
+}
+
+// extractParamType 提取参数类型字符串
+func extractParamType(param data.GetValue) string {
+	type typeGetter interface{ GetType() data.Types }
+	if tg, ok := param.(typeGetter); ok {
+		if t := tg.GetType(); t != nil {
+			return t.String()
+		}
+	}
+	return ""
+}
+
+// paramHasDefault 判断参数是否有默认值
+func paramHasDefault(param data.GetValue) bool {
+	type defaultChecker interface{ HasDefault() bool }
+	if dc, ok := param.(defaultChecker); ok {
+		return dc.HasDefault()
+	}
+	// node.Parameter 没有 HasDefault，检查是否能获取默认值（非 nil）
+	type defaultValGetter interface{ GetDefaultValue() data.GetValue }
+	if dg, ok := param.(defaultValGetter); ok {
+		return dg.GetDefaultValue() != nil
+	}
+	return false
 }

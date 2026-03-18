@@ -8,7 +8,7 @@ import (
 )
 
 // createReflectionException 创建 ReflectionException 异常
-func createReflectionException(message string, ctx data.Context) data.Control {
+func createReflectionException(message string, ctx data.Context, from data.From) data.Control {
 	// 使用 NewExpression 创建实例并调用构造函数
 	messageExpr := node.NewStringLiteral(nil, message)
 	newExpr := node.NewNewExpression(nil, "ReflectionException", []data.GetValue{messageExpr})
@@ -20,11 +20,11 @@ func createReflectionException(message string, ctx data.Context) data.Control {
 
 	classValue, ok := object.(*data.ClassValue)
 	if !ok {
-		return data.NewErrorThrow(nil, fmt.Errorf("ReflectionClass error: failed to create instance"))
+		return data.NewErrorThrow(from, fmt.Errorf("ReflectionClass error: failed to create instance"))
 	}
 
-	// 抛出异常
-	return data.NewErrorThrowFromClassValue(nil, classValue)
+	// 抛出异常，使用传入的 from 作为位置信息
+	return data.NewErrorThrowFromClassValue(from, classValue)
 }
 
 // TODO: 修复 try-catch 异常传播问题
@@ -34,7 +34,9 @@ func createReflectionException(message string, ctx data.Context) data.Control {
 
 // ReflectionClassConstructMethod 实现 ReflectionClass::__construct
 // 构造函数用于初始化 ReflectionClass 实例，接收一个类名或对象作为参数
-type ReflectionClassConstructMethod struct{}
+type ReflectionClassConstructMethod struct {
+	node.Node
+}
 
 // GetName 返回方法名 "__construct"
 func (m *ReflectionClassConstructMethod) GetName() string { return "__construct" }
@@ -70,7 +72,7 @@ func (m *ReflectionClassConstructMethod) Call(ctx data.Context) (data.GetValue, 
 	// 获取第一个参数：类名或对象
 	classValue, _ := ctx.GetIndexValue(0)
 	if classValue == nil {
-		return nil, createReflectionException("Argument #1 ($class) must be of type object|string, null given", ctx)
+		return nil, createReflectionException("Argument #1 ($class) must be of type object|string, null given", ctx, m.GetFrom())
 	}
 
 	var className string
@@ -82,15 +84,15 @@ func (m *ReflectionClassConstructMethod) Call(ctx data.Context) (data.GetValue, 
 	case *data.StringValue:
 		className = classVal.AsString()
 	case *data.BoolValue:
-		return nil, createReflectionException(fmt.Sprintf("Argument #1 ($class) must be of type object|string, false given (value: %v). This error typically occurs when Laravel's container tries to resolve an invalid dependency. Check your service provider bindings.", classVal.Value), ctx)
+		return nil, createReflectionException(fmt.Sprintf("Argument #1 ($class) must be of type object|string, false given (value: %v). This error typically occurs when Laravel's container tries to resolve an invalid dependency. Check your service provider bindings.", classVal.Value), ctx, m.GetFrom())
 	case *data.NullValue:
-		return nil, createReflectionException("Argument #1 ($class) must not be null", ctx)
+		return nil, createReflectionException("Argument #1 ($class) must not be null", ctx, m.GetFrom())
 	default:
 		// 对于非字符串和非对象的类型，抛出 ReflectionException
 		// TODO: 修复 try-catch 异常传播后，改回使用 createReflectionException
 		typeName := fmt.Sprintf("%T", classValue)
 		// 临时方案：直接抛出致命错误
-		return nil, createReflectionException(fmt.Sprintf("ReflectionClass::__construct(): Argument #1 ($class) must be of type object|string, %s given", typeName), ctx)
+		return nil, createReflectionException(fmt.Sprintf("ReflectionClass::__construct(): Argument #1 ($class) must be of type object|string, %s given", typeName), ctx, m.GetFrom())
 	}
 
 	// 加载类
@@ -100,7 +102,17 @@ func (m *ReflectionClassConstructMethod) Call(ctx data.Context) (data.GetValue, 
 		return nil, acl
 	}
 	if stmt == nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("class %s does not exist", className))
+		// 类不存在，创建带有位置信息的异常
+		var from data.From
+		if objCtx, ok := ctx.(*data.ClassMethodContext); ok && objCtx.Class != nil {
+			from = objCtx.Class.GetFrom()
+		}
+		throw := data.NewErrorThrow(from, fmt.Errorf("class %s does not exist", className))
+		if tv, ok := throw.(*data.ThrowValue); ok {
+			// 添加当前位置作为堆栈帧
+			tv.AddStackWithInfo(from, "ReflectionClass", "__construct")
+		}
+		return nil, throw
 	}
 
 	// 将类信息存储到当前对象的属性中

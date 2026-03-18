@@ -64,4 +64,9 @@ func main() {
 	if err != nil {
 		p.ShowControl(err)
 	}
+
+	// 执行 register_shutdown_function 注册的回调
+	if rvm, ok := vm.(*runtime.VM); ok {
+		rvm.RunShutdownCallbacks()
+	}
 }

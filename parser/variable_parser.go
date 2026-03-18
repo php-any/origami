@@ -455,6 +455,15 @@ func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, 
 		vp.nextAndCheck(token.RBRACE)
 
 		from := tracker.EndBefore()
+		// 如果后面紧跟 (，则是动态方法调用 $obj->{expr}(...)
+		if vp.current().Type() == token.LPAREN {
+			stmt, acl := vp.parseFunctionCall()
+			if acl != nil {
+				return nil, acl
+			}
+			from = tracker.EndBefore()
+			return node.NewCallObjectDynamicMethod(from, object, nameExpr, stmt), nil
+		}
 		return node.NewIndexExpression(
 			from,
 			object,
@@ -478,6 +487,15 @@ func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, 
 		// 复用变量解析逻辑，确保变量索引、类型信息等保持一致
 		nameExpr := vp.parseVariable()
 		from := tracker.EndBefore()
+		// 如果后面紧跟 (，则是动态方法调用 $obj->$name(...)
+		if vp.current().Type() == token.LPAREN {
+			stmt, acl := vp.parseFunctionCall()
+			if acl != nil {
+				return nil, acl
+			}
+			from = tracker.EndBefore()
+			return node.NewCallObjectDynamicMethod(from, object, nameExpr, stmt), nil
+		}
 		return node.NewIndexExpression(
 			from,
 			object,

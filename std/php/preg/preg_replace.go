@@ -69,7 +69,7 @@ func (f *PregReplaceFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 				continue
 			}
 
-			re, err := Compile(pat)
+			re, err := CompileAny(pat)
 			if err != nil {
 				// 编译错误：整体返回 false
 				return data.NewBoolValue(false), nil

@@ -42,6 +42,11 @@ func (m *ReflectionParameterIsVariadicMethod) Call(ctx data.Context) (data.GetVa
 		return data.NewBoolValue(false), nil
 	}
 
+	// 优先处理 virtualParam（Closure 参数）
+	if vp, ok := param.(*virtualParam); ok {
+		return data.NewBoolValue(vp.IsVariadic()), nil
+	}
+
 	// 检查参数是否是可变参数类型
 	// node.Parameters 和 data.Parameters 都表示可变参数
 	if _, ok := param.(*node.Parameters); ok {

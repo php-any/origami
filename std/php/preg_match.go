@@ -27,8 +27,8 @@ func (f *PregMatchFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	pattern := patternValue.AsString()
 	subject := subjectValue.AsString()
 
-	// 使用 preg.Compile 统一处理 PHP 风格的正则表达式
-	re, err := preg.Compile(pattern)
+	// 使用 preg.CompileAny 统一处理 PHP 风格的正则表达式（支持 lookahead/lookbehind）
+	re, err := preg.CompileAny(pattern)
 	if err != nil {
 		// PHP 行为: 发出 warning，返回 false；这里只返回 false
 		return data.NewBoolValue(false), nil
@@ -38,49 +38,15 @@ func (f *PregMatchFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	// preg_match finds the first match.
 	loc := re.FindStringSubmatchIndex(subject)
 	if loc == nil {
+		// 无匹配时，清空 $matches
+		if z := ctx.GetIndexZVal(2); z != nil {
+			z.Value = data.NewArrayValue([]data.Value{})
+		}
 		return data.NewIntValue(0), nil // No match
 	}
 
-	// If matches is provided, populate it.
-	if matchesValue != nil {
-		// matchesValue should be a reference or we should update it if it's passed by reference.
-		// In Origami, if we get a Value, is it a reference?
-		// We need to check if it's a variable reference or just a value.
-		// `ctx.GetIndexValue` returns a value.
-		// If the user passed a variable, we might need to update it.
-		// But `Call` receives values.
-		// Wait, `preg_match` 3rd arg is `array &$matches`.
-		// In Origami, how do we handle references?
-		// Let's look at `data/value_reference.go` or similar.
-		// Or `ctx.GetIndexValue` might return the value, but we can't update the variable in the caller scope unless we have the variable name or reference.
-		// However, `GetIndexValue` gets the value of the argument.
-		// If the argument was passed by reference, we might need to handle it.
-		// But `GetIndexValue` resolves the value.
-		// Let's check `data.Context` or `data.VM` to see how references are handled.
-		// Actually, standard functions in this codebase seem to just take values.
-		// If I look at `exec` or similar?
-		// Let's assume for now we can't easily update the variable unless we have a mechanism.
-		// But wait, `preg_match` is useless without matches if we want to capture.
-		// Let's check if `matchesValue` is a `*data.ReferenceValue`?
-		// If so, we can update it.
-
-		// Let's try to cast to ReferenceValue or similar?
-		// `data.Value` interface.
-		// Let's check `data/value_reference.go`.
-
-		// Assuming we can update it if it's a reference.
-		// But `GetIndexValue` might return the dereferenced value?
-		// Let's check `data/context.go`.
-
-		// If I can't update it, I'll just skip it for now or try to update if it's an object/array (passed by value in PHP but objects are ref, arrays are value).
-		// But `matches` is an output parameter.
-
-		// Let's populate a new array and try to assign it?
-		// If `matchesValue` is a `Reference`, we can `SetValue`.
-		// I'll check `data.Reference` interface if it exists.
-
-		// For now, I'll construct the array.
-
+	// 如果传入了第三个参数，填充匹配结果
+	{
 		matchStrs := []data.Value{}
 		// loc contains [start, end, start, end...]
 		for i := 0; i < len(loc); i += 2 {
@@ -91,17 +57,13 @@ func (f *PregMatchFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 				matchStrs = append(matchStrs, data.NewStringValue(subject[start:end]))
 			}
 		}
-
 		newMatches := data.NewArrayValue(matchStrs)
-
-		// How to assign back?
-		// If `matchesValue` is a reference, we can set it.
-		if r, ok := matchesValue.(*data.ReferenceValue); ok {
-			r.Ctx.SetVariableValue(r.Val, newMatches)
-		} else if arr, ok := matchesValue.(*data.ArrayValue); ok {
-			arr.List = make([]*data.ZVal, len(matchStrs))
-			for i, val := range matchStrs {
-				arr.List[i] = data.NewZVal(val)
+		// 通过 ZVal 引用写回（与 preg_match_all 保持一致）
+		if z := ctx.GetIndexZVal(2); z != nil {
+			z.Value = newMatches
+		} else if matchesValue != nil {
+			if r, ok := matchesValue.(*data.ReferenceValue); ok {
+				r.Ctx.SetVariableValue(r.Val, newMatches)
 			}
 		}
 	}

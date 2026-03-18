@@ -18,9 +18,13 @@ import (
 
 func Load(vm data.VM) {
 	for _, fun := range []data.FuncStmt{
+		NewErrorReportingFunction(),
+		NewSetErrorHandlerFunction(),
+		NewRegisterShutdownFunctionFunction(),
 		NewTimeFunction(),
 		NewStrftimeFunction(),
 		NewDateDefaultTimezoneGetFunction(),
+		NewDateDefaultTimezoneSetFunction(),
 		NewTimezoneNameFromAbbrFunction(),
 		NewTimezoneNameGetFunction(),
 		NewTimezoneOpenFunction(),
@@ -38,6 +42,7 @@ func Load(vm data.VM) {
 		NewPropertyExistsFunction(),
 		NewMethodExistsFunction(),
 		NewClassAliasFunction(),
+		NewIsAFunction(),
 		NewGetClassFunction(),
 		NewGettypeFunction(),
 		NewGetDebugTypeFunction(),
@@ -166,6 +171,7 @@ func Load(vm data.VM) {
 		proc.NewProcCloseFunction(),
 		proc.NewProcGetStatusFunction(),
 		proc.NewProcTerminateFunction(),
+		proc.NewShellExecFunction(),
 		stream.NewFopenFunction(),
 		stream.NewFcloseFunction(),
 		stream.NewFwriteFunction(),
@@ -200,6 +206,7 @@ func Load(vm data.VM) {
 	vm.AddClass(&reflection.ReflectionAttributeClass{})
 	vm.AddClass(&reflection.ReflectionTypeClass{})
 	vm.AddClass(&reflection.ReflectionNamedTypeClass{})
+	vm.AddClass(&reflection.ReflectionFunctionClass{})
 	vm.AddClass(directory.NewSplFileInfoClass())
 	vm.AddClass(&directory.DirectoryIteratorClass{})
 	vm.AddClass(directory.NewFilesystemIteratorClass())

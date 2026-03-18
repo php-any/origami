@@ -73,7 +73,7 @@ func (f *PregReplaceCallbackFunction) Call(ctx data.Context) (data.GetValue, dat
 			if pat == "" {
 				continue
 			}
-			re, err := Compile(pat)
+			re, err := CompileAny(pat)
 			if err != nil {
 				return data.NewBoolValue(false), nil
 			}

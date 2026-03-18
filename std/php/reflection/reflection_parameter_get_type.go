@@ -45,6 +45,15 @@ func (m *ReflectionParameterGetTypeMethod) Call(ctx data.Context) (data.GetValue
 
 	var paramType data.Types
 
+	// 优先处理 virtualParam（Closure 参数）
+	if vp, ok := param.(*virtualParam); ok {
+		t := vp.GetType()
+		if t == nil {
+			return data.NewNullValue(), nil
+		}
+		return newReflectionNamedType(ctx, t), nil
+	}
+
 	// 尝试多种类型断言来获取参数类型
 	if paramVar, ok := param.(data.Variable); ok {
 		paramType = paramVar.GetType()

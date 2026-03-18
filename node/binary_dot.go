@@ -2,6 +2,7 @@ package node
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/php-any/origami/data"
 )
@@ -20,6 +21,42 @@ func NewBinaryDot(from data.From, left, right data.GetValue) *BinaryDot {
 	}
 }
 
+// unwrapValue 解包可能嵌套在 ZVal 或 ReferenceValue 中的值
+func unwrapValue(v data.GetValue) data.GetValue {
+	if v == nil {
+		return v
+	}
+
+	// 使用反射检查 ZVal 类型（因为 ZVal 没有实现 GetValue 接口）
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Ptr && !rv.IsNil() {
+		// 检查是否是 ZVal 类型（通过类型名称）
+		if rv.Type().String() == "*data.ZVal" {
+			// 获取 Value 字段
+			valueField := rv.Elem().FieldByName("Value")
+			if valueField.IsValid() && !valueField.IsNil() {
+				if val, ok := valueField.Interface().(data.GetValue); ok {
+					return unwrapValue(val)
+				}
+			}
+		}
+	}
+
+	// 处理 ReferenceValue - 获取引用的实际值
+	if ref, ok := v.(*data.ReferenceValue); ok {
+		actualVal, _ := ref.Val.GetValue(ref.Ctx)
+		return unwrapValue(actualVal)
+	}
+
+	// 处理 IndexReferenceValue
+	if ref, ok := v.(*data.IndexReferenceValue); ok {
+		actualVal, _ := ref.Expr.GetValue(ref.Ctx)
+		return unwrapValue(actualVal)
+	}
+
+	return v
+}
+
 func (b *BinaryDot) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取左操作数的值
 	lv, lCtl := b.Left.GetValue(ctx)
@@ -32,6 +69,10 @@ func (b *BinaryDot) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	if rCtl != nil {
 		return nil, rCtl
 	}
+
+	// 解包可能的 ZVal 或 ReferenceValue
+	lv = unwrapValue(lv)
+	rv = unwrapValue(rv)
 
 	// 将两个操作数都转换为字符串
 	leftStr := ""

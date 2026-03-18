@@ -210,11 +210,12 @@ func (c *ClassValue) RangeProperties(fn func(key string, value Value) bool) {
 func (c *ClassValue) CreateContext(vars []Variable) Context {
 	ctx := c.Context.CreateContext(vars)
 	return &ClassMethodContext{
-		&ClassValue{
+		ClassValue: &ClassValue{
 			ObjectValue: c.ObjectValue,
 			Class:       c.Class,
 			Context:     ctx,
 		},
+		StaticClass: nil, // 默认没有后期静态绑定类，由调用者设置
 	}
 }
 
@@ -251,7 +252,7 @@ func (c *ClassValue) SetVM(vm VM) {
 
 type ClassMethodContext struct {
 	*ClassValue
-	// Static ClassStmt //运行时（后期）类结构
+	StaticClass ClassStmt // 运行时（后期）类结构，用于 static:: 后期静态绑定
 }
 
 func (c *ClassMethodContext) SetVariableValue(variable Variable, value Value) Control {

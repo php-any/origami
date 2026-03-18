@@ -53,6 +53,9 @@ type VM struct {
 	exceptionHandler data.Value
 	// 防止在异常处理回调中递归调用自身
 	inExceptionHandler bool
+
+	// PHP 级 register_shutdown_function 注册的回调列表
+	shutdownCallbacks []data.Value
 }
 
 func (vm *VM) SetClassPathCache(name string, path string) {
@@ -113,6 +116,24 @@ func (vm *VM) SetExceptionHandler(handler data.Value) data.Value {
 // GetExceptionHandler 返回当前注册的 PHP 级异常处理回调
 func (vm *VM) GetExceptionHandler() data.Value {
 	return vm.exceptionHandler
+}
+
+// AddShutdownCallback 注册一个 shutdown 回调
+func (vm *VM) AddShutdownCallback(cb data.Value) {
+	vm.shutdownCallbacks = append(vm.shutdownCallbacks, cb)
+}
+
+// RunShutdownCallbacks 依次执行所有已注册的 shutdown 回调
+func (vm *VM) RunShutdownCallbacks() {
+	for _, cb := range vm.shutdownCallbacks {
+		if fv, ok := cb.(*data.FuncValue); ok {
+			vars := fv.Value.GetVariables()
+			ctx := vm.CreateContext(vars)
+			if _, acl := fv.Call(ctx); acl != nil {
+				vm.acl(acl)
+			}
+		}
+	}
 }
 
 func (vm *VM) AddClass(c data.ClassStmt) data.Control {

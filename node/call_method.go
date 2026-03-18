@@ -40,6 +40,9 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		}
 		// 递归处理，现在应该是 FuncValue 了
 		return pe.handleFuncValue(ctx, funcValue)
+	case *staticMethodFuncWithLateBinding:
+		// 后期静态绑定静态方法包装器
+		return pe.handleStaticMethodWithLateBinding(ctx, fv)
 	default:
 		// 魔法方法 __invoke：对象作为可调用时调用 $object->__invoke(...$args)
 		if obj, ok := call.(data.GetMethod); ok {
@@ -52,6 +55,39 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("不存在对应函数:"+TryGetCallClassName(pe.Method)))
+}
+
+// handleStaticMethodWithLateBinding 处理后期静态绑定的静态方法调用
+func (pe *CallMethod) handleStaticMethodWithLateBinding(ctx data.Context, sm *staticMethodFuncWithLateBinding) (data.GetValue, data.Control) {
+	fn := sm.method
+	varies := fn.GetVariables()
+
+	// 创建类方法上下文，绑定调用时的类（用于 static:: 后期静态绑定）
+	classValue := data.NewClassValue(sm.callClass, ctx)
+	fnCtx := classValue.CreateContext(varies)
+	// 设置后期静态绑定类
+	if cmc, ok := fnCtx.(*data.ClassMethodContext); ok {
+		cmc.StaticClass = sm.callClass
+	}
+
+	// 入参的值设置到上下文中
+	for index := range fn.GetParams() {
+		if index < len(pe.Args) {
+			param := pe.Args[index]
+			tempV, acl := param.GetValue(ctx)
+			if acl != nil {
+				return nil, acl
+			}
+			if index < len(varies) {
+				fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
+			}
+		}
+	}
+
+	// 将本次调用的参数表达式列表记录到方法上下文中
+	fnCtx.SetCallArgs(pe.Args)
+
+	return fn.Call(fnCtx)
 }
 
 // handleFuncValue 处理 FuncValue 类型的调用

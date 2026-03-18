@@ -14,7 +14,7 @@ type ClassStatement struct {
 	Name            string                   // 类名
 	Extends         *string                  // 父类名
 	Implements      []string                 // 实现的接口列表
-	StaticProperty  sync.Map                 // 静态属性列表
+	StaticProperty  sync.Map                 // 静态属性存储（运行时值）
 	PropertiesIndex []string                 // 属性列表
 	Properties      map[string]data.Property // 属性列表
 	Methods         map[string]data.Method   // 方法列表

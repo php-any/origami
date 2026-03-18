@@ -46,7 +46,7 @@ func (f *PregSplitFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	}
 
 	// 编译正则表达式
-	re, err := Compile(pattern)
+	re, err := CompileAny(pattern)
 	if err != nil {
 		// PHP 行为: 发出 warning，返回 false；这里只返回 false
 		return data.NewBoolValue(false), nil

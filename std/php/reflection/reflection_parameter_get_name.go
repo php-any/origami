@@ -42,6 +42,10 @@ func (m *ReflectionParameterGetNameMethod) Call(ctx data.Context) (data.GetValue
 	}
 
 	var paramName string
+	// 优先处理 virtualParam（Closure 参数）
+	if vp, ok := param.(*virtualParam); ok {
+		return data.NewStringValue(vp.GetName()), nil
+	}
 	// 尝试多种类型断言来获取参数名
 	if paramVar, ok := param.(data.Variable); ok {
 		paramName = paramVar.GetName()
