@@ -473,7 +473,14 @@ func processStringInterpolation(t Token) Token {
 		// 注意：如果 $ 前面是反斜杠（如 "\$var"），则不应触发插值，而是输出字面量 "$var"
 		if quote == '"' && r == '$' && i+1 < len(runes) {
 			// 处理被反斜杠转义的 $："\$var" => "$var"
-			if i > 0 && runes[i-1] == '\\' {
+			// 但 "\\$var" => "\" + 变量插值（因为 \\ 转义为单个 \，后面的 $ 不被转义）
+			// 统计 $ 前面连续的 \ 数量
+			backslashCount := 0
+			for k := i - 1; k >= 0 && runes[k] == '\\'; k-- {
+				backslashCount++
+			}
+			// 如果连续 \ 数量为奇数，则 $ 被最后一个 \ 转义，不进行插值
+			if backslashCount%2 == 1 {
 				// 去掉 currentStr 中最后一个反斜杠，改为一个 '$'
 				if len(currentStr) > 0 {
 					currentStr = currentStr[:len(currentStr)-1]
