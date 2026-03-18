@@ -128,20 +128,33 @@ func (pe *CallMethod) handleFuncValue(ctx data.Context, call data.GetValue) (dat
 					if err != nil {
 						return nil, data.NewErrorThrow(pe.from, err)
 					}
-					if val, ok := paramTV.Value.(data.Variable); ok {
+					switch val := paramTV.Value.(type) {
+					case *CallObjectProperty:
+						// $obj->prop 作为引用参数：共享 ZVal 指针
+						zv, acl := val.GetZVal(ctx)
+						if acl != nil {
+							return nil, acl
+						}
+						fnCtx.SetIndexZVal(vari.(*ParameterReference).Index, zv)
+					case data.Variable:
 						acl := vari.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
 						if acl != nil {
 							return nil, acl
 						}
-					} else {
+					default:
 						return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
 					}
+				case *CallObjectProperty:
+					// $obj->prop 作为引用参数：通过 GetZVal 共享 ZVal 指针，而非走 ReferenceValue 路径
+					zv, acl := paramTV.GetZVal(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+					fnCtx.SetIndexZVal(argObj.Index, zv)
 				default:
 					if val, ok := paramTV.(data.Variable); ok {
-						acl := argObj.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
-						if acl != nil {
-							return nil, acl
-						}
+						zv := ctx.GetIndexZVal(val.GetIndex())
+						fnCtx.SetIndexZVal(argObj.Index, zv)
 					} else {
 						return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
 					}

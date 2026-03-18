@@ -3,7 +3,6 @@ package node
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/php-any/origami/data"
@@ -43,9 +42,6 @@ func (s *IncludeStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	v, ok := val.(data.Value)
 	if !ok {
 		return data.NewBoolValue(false), nil
-	}
-	if strings.Contains(v.AsString(), "laravel/config/app.php") {
-		return IncludeCore(ctx, v, s.Once, s.Required, s.from)
 	}
 
 	return IncludeCore(ctx, v, s.Once, s.Required, s.from)
