@@ -217,7 +217,7 @@ func parserType(parser *Parser, name string) string {
 		return name
 	}
 	if strings.Contains(name, "\\") {
-		return name
+		return name[1:]
 	}
 
 	class, ok := parser.findFullClassNameByNamespace(name)
