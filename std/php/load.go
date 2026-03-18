@@ -74,6 +74,7 @@ func Load(vm data.VM) {
 		NewRawurlencodeFunction(),
 		NewRawurldecodeFunction(),
 		array.NewArrayMergeFunction(),
+		array.NewArrayCombineFunction(),
 		array.NewArrayPushFunction(),
 		array.NewArrayPopFunction(),
 		array.NewArrayValuesFunction(),
