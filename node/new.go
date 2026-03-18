@@ -58,6 +58,9 @@ func createInstanceAndCallConstructor(
 						_, acl = param.GetValue(fnCtx)
 					}
 				}
+				if acl != nil {
+					return nil, acl
+				}
 			}
 			if acl != nil {
 				return nil, acl
