@@ -36,6 +36,7 @@ func Load(vm data.VM) {
 		NewClassExistsFunction(),
 		NewInterfaceExistsFunction(),
 		NewPropertyExistsFunction(),
+		NewMethodExistsFunction(),
 		NewClassAliasFunction(),
 		NewGetClassFunction(),
 		NewGettypeFunction(),
