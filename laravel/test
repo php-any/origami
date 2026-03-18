@@ -1,6 +1,63 @@
 #!/usr/bin/env php
 <?php
 
-$data = null;
+class A
+{
+    public function __construct(
+        Traversable $iterator,
+    ) {}
+}
 
-echo $data;
+class B implements \Iterator
+{
+    public function __construct()
+    {
+
+    }
+
+    public function hasChildren(): bool
+    {
+        // TODO: Implement hasChildren() method.
+    }
+
+    public function getChildren(): ?RecursiveIterator
+    {
+        // TODO: Implement getChildren() method.
+    }
+
+    public function accept(): bool
+    {
+        // TODO: Implement accept() method.
+    }
+
+    public function current(): mixed
+    {
+        // TODO: Implement current() method.
+    }
+
+    public function next(): void
+    {
+        // TODO: Implement next() method.
+    }
+
+    public function key(): mixed
+    {
+        // TODO: Implement key() method.
+    }
+
+    public function valid(): bool
+    {
+        // TODO: Implement valid() method.
+    }
+
+    public function rewind(): void
+    {
+        // TODO: Implement rewind() method.
+    }
+}
+
+$data = new B();
+
+new A($data);
+
+echo "OK";

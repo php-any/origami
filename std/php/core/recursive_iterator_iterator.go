@@ -11,21 +11,28 @@ import (
 // RecursiveIteratorIteratorClass 实现 PHP 的 RecursiveIteratorIterator 类
 type RecursiveIteratorIteratorClass struct {
 	node.Node
-	innerIterator data.GetValue // 内部迭代器
-	mode          int           // 迭代模式
-	currentKey    data.Value    // 当前键
-	currentValue  data.Value    // 当前值
-	valid         bool          // 是否有效
+	innerIterator  data.GetValue         // 内部迭代器
+	mode           int                   // 迭代模式
+	currentKey     data.Value            // 当前键
+	currentValue   data.Value            // 当前值
+	valid          bool                  // 是否有效
+	StaticProperty map[string]data.Value // 静态属性（类常量）
 }
 
 func NewRecursiveIteratorIteratorClass() *RecursiveIteratorIteratorClass {
-	fmt.Printf("NewRecursiveIteratorIteratorClass called\n")
 	return &RecursiveIteratorIteratorClass{
 		innerIterator: nil,
 		mode:          0,
 		currentKey:    data.NewStringValue(""),
 		currentValue:  nil,
 		valid:         false,
+		StaticProperty: map[string]data.Value{
+			"SELF_FIRST":       data.NewIntValue(1),
+			"CHILD_FIRST":      data.NewIntValue(2),
+			"LEAVES_ONLY":      data.NewIntValue(0),
+			"SELF_FIRST_SELF":  data.NewIntValue(4),
+			"CHILD_FIRST_SELF": data.NewIntValue(8),
+		},
 	}
 }
 
@@ -45,6 +52,13 @@ func (r *RecursiveIteratorIteratorClass) GetProperty(name string) (data.Property
 	return nil, false
 }
 
+func (r *RecursiveIteratorIteratorClass) GetStaticProperty(name string) (data.Value, bool) {
+	if v, ok := r.StaticProperty[name]; ok {
+		return v, true
+	}
+	return nil, false
+}
+
 func (r *RecursiveIteratorIteratorClass) GetPropertyList() []data.Property {
 	return nil
 }
@@ -52,11 +66,12 @@ func (r *RecursiveIteratorIteratorClass) GetPropertyList() []data.Property {
 func (r *RecursiveIteratorIteratorClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	// 创建新的实例，每个实例有自己的状态（遵循技能文档规范）
 	clone := &RecursiveIteratorIteratorClass{
-		innerIterator: r.innerIterator,
-		mode:          r.mode,
-		currentKey:    r.currentKey,
-		currentValue:  r.currentValue,
-		valid:         r.valid,
+		innerIterator:  r.innerIterator,
+		mode:           r.mode,
+		currentKey:     r.currentKey,
+		currentValue:   r.currentValue,
+		valid:          r.valid,
+		StaticProperty: r.StaticProperty,
 	}
 	return data.NewClassValue(clone, ctx.CreateBaseContext()), nil
 }

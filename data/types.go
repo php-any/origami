@@ -168,7 +168,7 @@ func NewBaseType(ty string) Types {
 		return NullType{}
 	case "self":
 		return StaticType{}
-	case "closure", "\\Closure":
+	case "closure", "Closure":
 		return ClosureType{}
 	default:
 		if len(ty) > 1 {
