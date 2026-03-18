@@ -177,6 +177,7 @@ func (p *Parameter) SetValue(ctx data.Context, value data.Value) data.Control {
 	if p.Type.Is(value) {
 		return ctx.SetVariableValue(p, value)
 	}
+	// TODO TEST
 	if p.Type.Is(value) {
 		return ctx.SetVariableValue(p, value)
 	}

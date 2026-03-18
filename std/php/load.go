@@ -185,6 +185,7 @@ func Load(vm data.VM) {
 	vm.AddClass(&core.StdClass{})
 	vm.AddClass(&core.NormalizerClass{})
 	vm.AddClass(&core.WeakMapClass{})
+	vm.AddInterface(core.NewTraversableInterface())
 	vm.AddInterface(core.NewIteratorInterface())
 	vm.AddInterface(core.NewRecursiveIteratorInterface())
 	vm.AddInterface(core.NewOuterIteratorInterface())
