@@ -268,20 +268,6 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 		arr.List[i] = data.NewZVal(value)
 		return nil
 
-	case data.SetProperty:
-		// 对象属性赋值
-		if iv, ok := indexVal.(data.AsString); ok {
-			arr.SetProperty(iv.AsString(), value)
-			return nil
-		} else if iv, ok := indexVal.(data.AsInt); ok {
-			// 整数索引转换为字符串
-			if i, err := iv.AsInt(); err == nil {
-				arr.SetProperty(fmt.Sprintf("%d", i), value)
-				return nil
-			}
-		}
-		return data.NewErrorThrow(ie.GetFrom(), errors.New("对象索引必须是字符串或整数"))
-
 	case *data.ClassValue:
 		// 检查是否实现了 ArrayAccess 接口
 		if checkArrayAccess(ctx, arr.Class) {
@@ -321,6 +307,20 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 			return data.NewErrorThrow(ie.GetFrom(), errors.New("对象不存在指定属性"))
 		}
 		return data.NewErrorThrow(ie.GetFrom(), errors.New("ThisValue 索引必须是字符串"))
+
+	case data.SetProperty:
+		// 对象属性赋值
+		if iv, ok := indexVal.(data.AsString); ok {
+			arr.SetProperty(iv.AsString(), value)
+			return nil
+		} else if iv, ok := indexVal.(data.AsInt); ok {
+			// 整数索引转换为字符串
+			if i, err := iv.AsInt(); err == nil {
+				arr.SetProperty(fmt.Sprintf("%d", i), value)
+				return nil
+			}
+		}
+		return data.NewErrorThrow(ie.GetFrom(), errors.New("对象索引必须是字符串或整数"))
 
 	default:
 		return data.NewErrorThrow(ie.GetFrom(), errors.New("无法设置索引表达式的值"))
