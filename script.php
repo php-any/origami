@@ -1,17 +1,14 @@
 <?php
 
-class Foo {
-    public function handleException($e) {
-        echo "handleException called: " . $e . "\n";
-    }
+class A {}
 
-    public function bar() {
-        $method = "handleException";
-        $this->{$method}("test error");
-    }
+$var[0] = new A();
+
+
+$class = is_object($var[0]) ? get_class($var[0]) : $var[0];
+
+var_dump($class);
+
+if (! class_exists($class)) {
+    return false;
 }
-
-$obj = new Foo();
-$method = "handleException";
-$obj->{$method}("hello");
-$obj->bar();

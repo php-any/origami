@@ -60,12 +60,12 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 			}
 		}
 		if acl != nil {
+			if acl, ok := acl.(data.AddStack); ok {
+				acl.AddStackWithInfo(pe.from, "", pe.FunName+fmt.Sprintf("(%d:%s)", index, TryGetCallClassName(param)))
+			}
+			ctx.GetVM().ThrowControl(acl)
 			return nil, acl
 		}
-	}
-
-	if acl != nil {
-		return nil, acl
 	}
 
 	// 将本次调用的参数表达式列表记录到函数上下文中

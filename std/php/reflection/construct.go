@@ -102,17 +102,7 @@ func (m *ReflectionClassConstructMethod) Call(ctx data.Context) (data.GetValue, 
 		return nil, acl
 	}
 	if stmt == nil {
-		// 类不存在，创建带有位置信息的异常
-		var from data.From
-		if objCtx, ok := ctx.(*data.ClassMethodContext); ok && objCtx.Class != nil {
-			from = objCtx.Class.GetFrom()
-		}
-		throw := data.NewErrorThrow(from, fmt.Errorf("class %s does not exist", className))
-		if tv, ok := throw.(*data.ThrowValue); ok {
-			// 添加当前位置作为堆栈帧
-			tv.AddStackWithInfo(from, "ReflectionClass", "__construct")
-		}
-		return nil, throw
+		return nil, data.NewErrorThrow(m.GetFrom(), fmt.Errorf("class %s does not exist", className))
 	}
 
 	// 将类信息存储到当前对象的属性中

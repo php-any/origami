@@ -232,16 +232,17 @@ func (p *Parameter) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 
 	if _, ok := val.(data.AsNull); ok {
 		if p.DefaultValue != nil {
-			val, acl := p.DefaultValue.GetValue(ctx)
+			var val data.GetValue
+			val, acl = p.DefaultValue.GetValue(ctx)
 			if acl != nil {
 				return nil, acl
 			}
 
-			p.SetValue(ctx, val.(data.Value))
+			acl = p.SetValue(ctx, val.(data.Value))
 		}
 	}
 
-	return val, nil
+	return val, acl
 }
 
 // NewParameters 接收多个参数值

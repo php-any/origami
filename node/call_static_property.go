@@ -30,7 +30,7 @@ func (pe *CallStaticProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 			return property, nil
 		}
 
-		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("无法调用属性(%s)。", pe.Property)))
+		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("无法调用属性(%s::%s)。", TryGetCallClassName(pe.Stmt), pe.Property)))
 	default:
 		next, acl := pe.Stmt.GetValue(ctx)
 		if acl != nil {

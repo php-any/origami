@@ -341,7 +341,7 @@ func (f *ArrayFilterFunction) GetName() string {
 func (f *ArrayFilterFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "array", 0, nil, data.NewBaseType("array")),
-		node.NewParameter(nil, "callback", 1, node.NewNullLiteral(nil), data.NewBaseType("callable")),
+		node.NewParameter(nil, "callback", 1, node.NewNullLiteral(nil), data.NewNullableType(data.NewBaseType("callable"))),
 		node.NewParameter(nil, "mode", 2, node.NewIntLiteral(nil, "0"), data.NewBaseType("int")),
 	}
 }

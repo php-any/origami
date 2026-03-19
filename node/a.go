@@ -164,6 +164,8 @@ func TryGetCallClassName(call data.GetValue) string {
 		return "array(...)"
 	case *data.ObjectValue:
 		return "object{...}"
+	case *Parameter:
+		return fmt.Sprintf("$%s", c.Name)
 	}
 	// 未实现的打印内容，附带具体类型
 	return fmt.Sprintf("?(%T)", call)

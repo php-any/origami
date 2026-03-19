@@ -27,6 +27,9 @@ func (f *IsObjectFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	if _, ok := value.(*data.FuncValue); ok {
 		return data.NewBoolValue(true), nil
 	}
+	if _, ok := value.(*data.ThrowValue); ok {
+		return data.NewBoolValue(true), nil
+	}
 	return data.NewBoolValue(false), nil
 }
 

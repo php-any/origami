@@ -50,9 +50,9 @@ func (f *GetClassFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	}
 
 	// 检查是否为 ClassValue（对象）
-	if classValue, ok := objectValue.(*data.ClassValue); ok {
+	if classValue, ok := objectValue.(data.GetName); ok {
 		// 返回对象的类名
-		return data.NewStringValue(classValue.Class.GetName()), nil
+		return data.NewStringValue(classValue.GetName()), nil
 	}
 
 	// 不是对象，返回 false

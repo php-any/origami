@@ -49,9 +49,12 @@ func (f *MethodExistsFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 
 	// 如果是字符串，视为类名，加载类后查询
 	var className string
-	if strValue, ok := objectOrClassValue.(*data.StringValue); ok {
-		className = strValue.Value
-	} else {
+	switch o := objectOrClassValue.(type) {
+	case *data.StringValue:
+		className = o.Value
+	case data.GetName:
+		className = o.GetName()
+	default:
 		className = objectOrClassValue.AsString()
 	}
 

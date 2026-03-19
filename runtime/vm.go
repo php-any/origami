@@ -74,7 +74,7 @@ func (vm *VM) SetThrowControl(fn func(acl data.Control)) {
 }
 
 func (vm *VM) ThrowControl(acl data.Control) {
-	// vm.acl(acl)
+	vm.acl(acl) // TODO 临时调试
 	// 优先尝试调用用户通过 set_exception_handler 注册的 PHP 回调
 	if tv, ok := acl.(*data.ThrowValue); ok && vm.exceptionHandler != nil && !vm.inExceptionHandler {
 		// 只在真正有异常对象时尝试回调

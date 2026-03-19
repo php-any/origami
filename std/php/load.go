@@ -10,6 +10,7 @@ import (
 	"github.com/php-any/origami/std/php/file"
 	"github.com/php-any/origami/std/php/iconv"
 	"github.com/php-any/origami/std/php/intl"
+	"github.com/php-any/origami/std/php/pdo"
 	"github.com/php-any/origami/std/php/preg"
 	"github.com/php-any/origami/std/php/proc"
 	"github.com/php-any/origami/std/php/reflection"
@@ -224,6 +225,9 @@ func Load(vm data.VM) {
 	vm.AddClass(exception.NewRuntimeExceptionClass())
 
 	initPhpDefaultDefines(vm)
+
+	// 加载 PDO 扩展
+	pdo.Load(vm)
 
 	// 加载 preg 包（注册函数和常量）
 	preg.Load(vm)

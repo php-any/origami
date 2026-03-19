@@ -53,7 +53,10 @@ func (n *Kv) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			return nil, acl
 		}
 
-		obj.SetProperty(kv.(data.Value).AsString(), vv.(data.Value))
+		acl = obj.SetProperty(kv.(data.Value).AsString(), vv.(data.Value))
+		if acl != nil {
+			return nil, acl
+		}
 	}
 	return obj, nil
 }
