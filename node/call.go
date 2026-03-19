@@ -59,6 +59,9 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 				_, acl = param.GetValue(fnCtx)
 			}
 		}
+		if acl != nil {
+			return nil, acl
+		}
 	}
 
 	if acl != nil {

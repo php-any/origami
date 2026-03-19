@@ -185,6 +185,9 @@ func (vm *VM) GetClass(pkg string) (data.ClassStmt, bool) {
 }
 
 func (vm *VM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
+	if len(pkg) == 0 {
+		return nil, nil
+	}
 	if pkg[0:1] == "\\" {
 		pkg = pkg[1:]
 	}
@@ -206,6 +209,9 @@ func (vm *VM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
 }
 
 func (vm *VM) LoadPkg(pkg string) (data.GetValue, data.Control) {
+	if len(pkg) == 0 {
+		return nil, nil
+	}
 	if pkg[0:1] == "\\" {
 		temp := pkg[1:]
 		if c, ok := vm.classMap[temp]; ok {
@@ -246,6 +252,9 @@ func (vm *VM) GetInterface(pkg string) (data.InterfaceStmt, bool) {
 }
 
 func (vm *VM) GetOrLoadInterface(pkg string) (data.InterfaceStmt, data.Control) {
+	if len(pkg) == 0 {
+		return nil, nil
+	}
 	if pkg[0:1] == "\\" {
 		pkg = pkg[1:]
 	}
