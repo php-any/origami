@@ -35,15 +35,8 @@ func (f *IsCallableFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	// 2. String (function name)
-	if str, ok := value.(data.AsString); ok {
-		name := str.AsString()
-		// Check if function exists
-		_, exists := ctx.GetVM().GetFunc(name)
-		if exists {
-			return data.NewBoolValue(true), nil
-		}
-		// Also check static method string "Class::method"
-		// Not implemented in simple check, but standard PHP supports it.
+	if _, ok := value.(*data.FuncValue); ok {
+		return data.NewBoolValue(true), nil
 	}
 
 	// 3. Array [obj|class, method]
