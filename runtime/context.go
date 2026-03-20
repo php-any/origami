@@ -90,7 +90,7 @@ func (c *Context) SetVariableValue(variable data.Variable, value data.Value) dat
 func (c *Context) CreateContext(vars []data.Variable) data.Context {
 	return &Context{
 		vm:        c.vm,
-		variables: makeSliceVariable(len(vars)),
+		variables: makeSliceVariableWithNames(vars),
 	}
 }
 
@@ -130,6 +130,47 @@ func makeSliceVariable(i int) []*data.ZVal {
 		l[i] = data.NewZVal(data.NewNullValue())
 	}
 	return l
+}
+
+// makeSliceVariableWithNames 创建带变量名的 ZVal 切片
+func makeSliceVariableWithNames(vars []data.Variable) []*data.ZVal {
+	l := make([]*data.ZVal, len(vars))
+	for i, v := range l {
+		_ = v
+		name := ""
+		if i < len(vars) && vars[i] != nil {
+			name = vars[i].GetName()
+		}
+		l[i] = data.NewNamedZVal(name, data.NewNullValue())
+	}
+	return l
+}
+
+// SetVariableByName 通过变量名设置变量值，用于 extract 等动态赋值场景
+func (c *Context) SetVariableByName(name string, value data.Value) {
+	for _, zv := range c.variables {
+		if zv != nil && zv.Name == name {
+			switch v := value.(type) {
+			case *data.ArrayValue:
+				zv.Value = data.CloneArrayValue(v)
+			case *data.ObjectValue:
+				zv.Value = data.CloneObjectValue(v)
+			default:
+				zv.Value = value
+			}
+			return
+		}
+	}
+}
+
+// HasVariableByName 检查调用者上下文中是否已存在指定名称的变量
+func (c *Context) HasVariableByName(name string) bool {
+	for _, zv := range c.variables {
+		if zv != nil && zv.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // NewContextToDo 不实现具体功能的上下文

@@ -39,6 +39,11 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	var acl data.Control
 	// 入参的值设置到上下文中
 	for index, param := range params {
+		// CallerContextParameter 无论有无传参都需切换为调用者上下文
+		if _, ok := param.(*CallerContextParameter); ok {
+			fnCtx = ctx
+			continue
+		}
 		if len(arguments) > index {
 			arg := arguments[index]
 			switch argTV := arg.(type) {
@@ -52,12 +57,7 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 				acl = paramSetValue(fnCtx, ctx, nil, param, argTV, varies, index, arguments)
 			}
 		} else {
-			switch param := param.(type) {
-			case *CallerContextParameter:
-				fnCtx = ctx
-			default:
-				_, acl = param.GetValue(fnCtx)
-			}
+			_, acl = param.GetValue(fnCtx)
 		}
 		if acl != nil {
 			if acl, ok := acl.(data.AddStack); ok {

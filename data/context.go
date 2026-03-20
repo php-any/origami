@@ -28,6 +28,11 @@ type Context interface {
 	// 记录/获取本次调用传入的参数列表（用于 func_get_args 等函数）
 	SetCallArgs(args []GetValue)
 	GetCallArgs() []GetValue
+
+	// SetVariableByName 通过变量名设置变量值，用于 extract 等动态赋值场景
+	SetVariableByName(name string, value Value)
+	// HasVariableByName 检查调用者上下文中是否已存在指定名称的变量，用于 EXTR_SKIP 等 flags
+	HasVariableByName(name string) bool
 }
 
 type VM interface {

@@ -185,6 +185,7 @@ func Load(vm data.VM) {
 		stream.NewStreamIsattyFunction(),
 		NewJoinPathsFunction(),
 		NewPathinfoFunction(),
+		NewExtractFunction(),
 	} {
 		vm.AddFunc(fun)
 	}
@@ -325,6 +326,16 @@ func initPhpDefaultDefines(vm data.VM) {
 	vm.SetConstant("TRUE", data.NewBoolValue(true))
 	vm.SetConstant("FALSE", data.NewBoolValue(false))
 	vm.SetConstant("NULL", data.NewNullValue())
+
+	// extract 相关常量（PHP extract flags）
+	vm.SetConstant("EXTR_OVERWRITE", data.NewIntValue(0))        // 默认：覆盖已有变量
+	vm.SetConstant("EXTR_SKIP", data.NewIntValue(1))             // 跳过已有变量（不覆盖）
+	vm.SetConstant("EXTR_PREFIX_SAME", data.NewIntValue(2))      // 同名时加前缀
+	vm.SetConstant("EXTR_PREFIX_ALL", data.NewIntValue(3))       // 所有变量都加前缀
+	vm.SetConstant("EXTR_PREFIX_INVALID", data.NewIntValue(4))   // 非法标识符时加前缀
+	vm.SetConstant("EXTR_IF_EXISTS", data.NewIntValue(6))        // 仅导入已存在的变量
+	vm.SetConstant("EXTR_PREFIX_IF_EXISTS", data.NewIntValue(7)) // 已存在时加前缀导入
+	vm.SetConstant("EXTR_REFS", data.NewIntValue(256))           // 以引用方式导入
 
 	// FilesystemIterator flags 常量
 	vm.SetConstant("FilesystemIterator::CURRENT_AS_PATHNAME", data.NewIntValue(directory.FSI_CURRENT_AS_PATHNAME))

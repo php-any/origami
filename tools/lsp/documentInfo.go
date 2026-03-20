@@ -297,6 +297,21 @@ func (ctx *LspContext) GetCallArgs() []data.GetValue {
 	return nil
 }
 
+// SetVariableByName LSP 下不需要真实展开符号表，提供空实现以满足接口
+func (ctx *LspContext) SetVariableByName(name string, value data.Value) {
+	if ctx.dataCtx != nil {
+		ctx.dataCtx.SetVariableByName(name, value)
+	}
+}
+
+// HasVariableByName LSP 下简单返回 false
+func (ctx *LspContext) HasVariableByName(name string) bool {
+	if ctx.dataCtx != nil {
+		return ctx.dataCtx.HasVariableByName(name)
+	}
+	return false
+}
+
 // identifyVariableTypes 识别变量类型
 func (d *DocumentInfo) identifyVariableTypes(ctx *LspContext, stmt data.GetValue) data.Types {
 	var inferredType data.Types
