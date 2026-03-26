@@ -54,65 +54,7 @@ jobs:
           name: lsp-${{ matrix.os }}-${{ matrix.arch }}
           path: bin/zy-lsp-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}
 
-  package-extension:
-    needs: build-lsp
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        target: [linux-x64, win32-x64, darwin-x64, darwin-arm64]
-        include:
-          - target: linux-x64
-            os: linux
-            arch: x64
-            ext: ""
-          - target: win32-x64
-            os: windows
-            arch: x64
-            ext: ".exe"
-          - target: darwin-x64
-            os: darwin
-            arch: x64
-            ext: ""
-          - target: darwin-arm64
-            os: darwin
-            arch: arm64
-            ext: ""
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      - name: Install dependencies
-        working-directory: zy-extension
-        run: npm ci
-
-      - name: Download LSP binary
-        uses: actions/download-artifact@v4
-        with:
-          name: lsp-${{ matrix.os }}-${{ matrix.arch }}
-          path: zy-extension/bin
-
-      - name: Rename binary for extension
-        working-directory: zy-extension/bin
-        run: |
-          mv zy-lsp-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }} zy-lsp${{ matrix.ext }}
-          chmod +x zy-lsp${{ matrix.ext }}
-
-      - name: Package VSIX
-        working-directory: zy-extension
-        run: npx vsce package --target ${{ matrix.target }} -o origami-${{ matrix.target }}.vsix
-
-      - name: Upload VSIX artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: vsix-${{ matrix.target }}
-          path: zy-extension/origami-${{ matrix.target }}.vsix
-
   create-release:
-    needs: package-extension
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -124,6 +66,9 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: artifacts/**/*.vsix
+          files: |
+            artifacts/**/origami-*.vsix
+            artifacts/**/*.txt
           draft: false
           prerelease: false
+          fail_on_unmatched_files: false
