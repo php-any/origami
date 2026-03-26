@@ -67,8 +67,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            artifacts/**/origami-*.vsix
-            artifacts/**/*.txt
+            artifacts/**/zy-lsp-*
           draft: false
           prerelease: false
           fail_on_unmatched_files: false
