@@ -6,6 +6,55 @@ on:
       - "v*"
 
 jobs:
+  build-main:
+    name: Build Main Binary
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: x64
+            goos: linux
+            goarch: amd64
+            ext: ""
+          - os: windows
+            arch: x64
+            goos: windows
+            goarch: amd64
+            ext: ".exe"
+          - os: darwin
+            arch: x64
+            goos: darwin
+            goarch: amd64
+            ext: ""
+          - os: darwin
+            arch: arm64
+            goos: darwin
+            goarch: arm64
+            ext: ""
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.23.6"
+
+      - name: Build main binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p bin
+          go build -o bin/zy-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }} .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: main-${{ matrix.os }}-${{ matrix.arch }}
+          path: bin/zy-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}
+
   build-lsp:
     name: Build LSP
     runs-on: ubuntu-latest
@@ -67,7 +116,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            artifacts/**/zy-lsp-*
+            artifacts/**/zy-*
           draft: false
           prerelease: false
           fail_on_unmatched_files: false
