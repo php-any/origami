@@ -83,7 +83,7 @@ func (ctx *LspContext) SetNamespace(name string) data.Context {
 	if ctx.dataCtx != nil {
 		return ctx.dataCtx.SetNamespace(name)
 	}
-	return ctx
+	return ctx.dataCtx
 }
 
 func (ctx *LspContext) GetNamespace() string {
@@ -107,8 +107,8 @@ func (ctx *LspContext) GetIndexValue(index int) (data.Value, bool) {
 	return nil, false
 }
 
-func (ctx *LspContext) SetIndexZVal(index int, v *data.ZVal) *data.ZVal {
-	return nil
+func (ctx *LspContext) SetIndexZVal(index int, v *data.ZVal) {
+	// LSP 上下文中不需要实际存储
 }
 
 func (ctx *LspContext) GetIndexZVal(index int) *data.ZVal {
@@ -126,14 +126,14 @@ func (ctx *LspContext) CreateContext(vars []data.Variable) data.Context {
 	if ctx.dataCtx != nil {
 		return ctx.dataCtx.CreateContext(vars)
 	}
-	return ctx
+	return ctx.dataCtx
 }
 
 func (ctx *LspContext) CreateBaseContext() data.Context {
 	if ctx.dataCtx != nil {
 		return ctx.dataCtx.CreateBaseContext()
 	}
-	return ctx
+	return ctx.dataCtx
 }
 
 func (ctx *LspContext) GetVM() data.VM {
@@ -524,17 +524,17 @@ func (d *DocumentInfo) foreachNode(ctx *LspContext, stmt data.GetValue, parent d
 		}
 
 	case *node.ForStatement:
-		// for语句：遍历初始化、条件、增量、循环体
-		if n.Initializer != nil {
-			d.foreachNode(ctx, n.Initializer, parent, check)
+		// for 语句：遍历初始化、条件、增量、循环体
+		for _, init := range n.Initializers {
+			d.foreachNode(ctx, init, parent, check)
 		}
 		if n.Condition != nil {
 			d.foreachNode(ctx, n.Condition, parent, check)
 		}
-		if n.Increment != nil {
-			d.foreachNode(ctx, n.Increment, parent, check)
+		for _, inc := range n.Increments {
+			d.foreachNode(ctx, inc, parent, check)
 		}
-
+	
 		for _, stmt := range n.Body {
 			d.foreachNode(ctx, stmt, parent, check)
 		}
@@ -766,9 +766,9 @@ func (d *DocumentInfo) foreachNode(ctx *LspContext, stmt data.GetValue, parent d
 
 	case *node.Kv:
 		// 键值对：遍历所有键值
-		for key, value := range n.V {
-			d.foreachNode(ctx, key, parent, check)
-			d.foreachNode(ctx, value, parent, check)
+		for _, kv := range n.V {
+			d.foreachNode(ctx, kv.Key, parent, check)
+			d.foreachNode(ctx, kv.Value, parent, check)
 		}
 
 	case *node.VariableList:

@@ -485,6 +485,15 @@ func (vm *LspVM) GetConstant(name string) (data.Value, bool) {
 	return value, ok
 }
 
+// EnsureGlobalZVal 获取或创建全局变量，LSP 模式下返回空实现
+func (vm *LspVM) EnsureGlobalZVal(name string) *data.ZVal {
+	// LSP 模式不实际执行代码，返回空的 ZVal
+	return &data.ZVal{
+		Name:  name,
+		Value: data.NewAnyValue(nil),
+	}
+}
+
 func (vm *LspVM) loadClassFromCache(name string) data.Control {
 	vm.mu.RLock()
 	path, ok := vm.classPathCache[name]
