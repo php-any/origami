@@ -15,7 +15,13 @@ func (Z *ZValValue) GetValue(_ Context) (GetValue, Control) {
 }
 
 func (Z *ZValValue) AsString() string {
-	return fmt.Sprintf("%d", Z.ZVal)
+	if Z.ZVal == nil {
+		return ""
+	}
+	if Z.ZVal.Value == nil {
+		return ""
+	}
+	return Z.ZVal.Value.AsString()
 }
 
 func (Z *ZValValue) Marshal(serializer Serializer) ([]byte, error) {
