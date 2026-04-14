@@ -461,7 +461,7 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			}
 			return data.NewStringValue(string(v.Value[i])), nil
 		} else {
-			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("字符串无法处理非int值"))
+			return nil, data.NewErrorThrow(ie.GetFrom(), fmt.Errorf("字符串无法处理非int值; index = %v", index))
 		}
 	case *data.NullValue:
 		return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("null 无法处理索引的类型值"), "UndefinedIndexExpression")

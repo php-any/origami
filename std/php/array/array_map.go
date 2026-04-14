@@ -28,32 +28,52 @@ func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	// 收集所有数组参数
 	// 注意：签名里第二个参数使用了 node.NewParameters("arrays", 1, ...)，
 	// 因此索引 1 上拿到的是一个 Parameters 聚合数组，里面按顺序存放所有实际传入的数组参数。
-	var arrays []*data.ArrayValue
+	type arrayInput struct {
+		values []*data.ZVal // 按顺序的值列表
+		keys   []string     // ObjectValue 的键列表（若为 nil 则表示索引数组）
+	}
+	var inputs []arrayInput
+	var firstIsObject bool
+
 	paramsVal, _ := ctx.GetIndexValue(1)
 	if paramsVal != nil {
 		if paramsArr, ok := paramsVal.(*data.ArrayValue); ok {
-			for _, z := range paramsArr.List {
+			for idx, z := range paramsArr.List {
 				if z.Value == nil {
 					continue
 				}
-				if av, ok := z.Value.(*data.ArrayValue); ok {
-					arrays = append(arrays, av)
-				} else {
+				switch v := z.Value.(type) {
+				case *data.ArrayValue:
+					inputs = append(inputs, arrayInput{values: v.List, keys: nil})
+				case *data.ObjectValue:
+					// ObjectValue 是关联数组，提取键值对并保留顺序
+					var items []*data.ZVal
+					var keys []string
+					v.RangeProperties(func(key string, val data.Value) bool {
+						items = append(items, &data.ZVal{Value: val})
+						keys = append(keys, key)
+						return true
+					})
+					inputs = append(inputs, arrayInput{values: items, keys: keys})
+					if idx == 0 {
+						firstIsObject = true
+					}
+				default:
 					// 非数组参数：按照 PHP 行为，这里简化为忽略
 				}
 			}
 		}
 	}
 
-	if len(arrays) == 0 {
+	if len(inputs) == 0 {
 		return data.NewArrayValue([]data.Value{}), nil
 	}
 
 	// 计算最短数组长度
-	minLen := len(arrays[0].List)
-	for _, a := range arrays[1:] {
-		if len(a.List) < minLen {
-			minLen = len(a.List)
+	minLen := len(inputs[0].values)
+	for _, inp := range inputs[1:] {
+		if len(inp.values) < minLen {
+			minLen = len(inp.values)
 		}
 	}
 	if minLen == 0 {
@@ -64,13 +84,14 @@ func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 
 	for i := 0; i < minLen; i++ {
 		// 收集本次调用的参数：各数组在索引 i 的元素
-		args := make([]data.Value, 0, len(arrays))
-		for _, arr := range arrays {
-			if i < len(arr.List) {
-				args = append(args, arr.List[i].Value)
+		args := make([]data.Value, 0, len(inputs))
+		for _, inp := range inputs {
+			if i < len(inp.values) {
+				args = append(args, inp.values[i].Value)
 			}
 		}
 
+		var result data.Value
 		switch cb := cbVal.(type) {
 		case *data.FuncValue:
 			// 与 ArrayValueMap / forEach 一致的闭包调用方式：
@@ -85,9 +106,9 @@ func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 				return nil, ctl
 			}
 			if v, ok := ret.(data.Value); ok {
-				results = append(results, v)
+				result = v
 			} else {
-				results = append(results, data.NewNullValue())
+				result = data.NewNullValue()
 			}
 		case data.CallableValue:
 			// 若实现了 CallableValue，则直接调用其 Call 接口。
@@ -106,11 +127,23 @@ func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 			if ctl != nil {
 				return nil, ctl
 			}
-			results = append(results, ret)
+			result = ret
 		default:
 			// 非可调用，当前简单退化为 null；更严格行为可改为抛异常。
-			results = append(results, data.NewNullValue())
+			result = data.NewNullValue()
 		}
+		results = append(results, result)
+	}
+
+	// 如果第一个输入是 ObjectValue（关联数组），则保留原始键名
+	if firstIsObject && inputs[0].keys != nil {
+		obj := data.NewObjectValue()
+		for i, v := range results {
+			if i < len(inputs[0].keys) {
+				obj.SetProperty(inputs[0].keys[i], v)
+			}
+		}
+		return obj, nil
 	}
 
 	return data.NewArrayValue(results), nil
