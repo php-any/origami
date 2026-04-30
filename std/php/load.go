@@ -80,7 +80,11 @@ func Load(vm data.VM) {
 		NewUrldecodeFunction(),
 		NewRawurlencodeFunction(),
 		NewRawurldecodeFunction(),
+		NewParseUrlFunction(),
+		NewStrcspnFunction(),
+		NewStrspnFunction(),
 		array.NewArrayMergeFunction(),
+		array.NewArrayReplaceFunction(),
 		array.NewArrayCombineFunction(),
 		array.NewArrayPushFunction(),
 		array.NewArrayPopFunction(),
@@ -136,6 +140,7 @@ func Load(vm data.VM) {
 		array.NewArrayShiftFunction(),
 		array.NewArrayUnshiftFunction(),
 		array.NewArraySliceFunction(),
+		array.NewArraySpliceFunction(),
 		NewIteratorToArrayFunction(),
 		array.NewEndFunction(),
 		array.NewResetFunction(),
@@ -193,6 +198,9 @@ func Load(vm data.VM) {
 	// 初始化 pathinfo 常量
 	InitPathinfoConstants(vm)
 
+	// 初始化 parse_url 常量
+	InitParseUrlConstants(vm)
+
 	// 注册核心类
 	vm.AddClass(&core.ClosureClass{})
 	vm.AddClass(&core.BackedEnumClass{})
@@ -228,6 +236,7 @@ func Load(vm data.VM) {
 	vm.AddClass(exception.NewLogicExceptionClass())
 	vm.AddClass(exception.NewInvalidArgumentExceptionClass())
 	vm.AddClass(exception.NewRuntimeExceptionClass())
+	vm.AddClass(exception.NewUnexpectedValueExceptionClass())
 
 	initPhpDefaultDefines(vm)
 

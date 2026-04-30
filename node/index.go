@@ -257,11 +257,26 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 			return data.NewErrorThrow(ie.GetFrom(), errors.New("数组索引不能为负数"))
 		}
 
-		// 如果索引超出范围，自动扩容
+		// 如果索引超出范围，自动扩容或转换为关联数组
 		if i >= len(arr.List) {
-			for j := len(arr.List); j <= i; j++ {
-				arr.List = append(arr.List, data.NewZVal(data.NewNullValue()))
+			if i == len(arr.List) {
+				// 连续索引，正常追加
+				arr.List = append(arr.List, data.NewZVal(value))
+				return nil
 			}
+			// 非连续索引（稀疏数组）：转换为 ObjectValue
+			// PHP 行为: $a=[]; $a[5]='x' => array(5=>'x')，不会用 null 填充
+			objectVal := data.NewObjectValue()
+			valueList := arr.ToValueList()
+			for i2, val := range valueList {
+				objectVal.SetProperty(fmt.Sprintf("%d", i2), val)
+			}
+			objectVal.SetProperty(fmt.Sprintf("%d", i), value)
+			_, acl = NewBinaryAssign(ie.GetFrom(), ie.Array, objectVal).GetValue(ctx)
+			if acl != nil {
+				return acl
+			}
+			return nil
 		}
 
 		// 设置值
@@ -456,7 +471,11 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			if err != nil {
 				return nil, data.NewErrorThrow(ie.GetFrom(), err)
 			}
-			if i >= len(v.Value) {
+			// PHP 支持负数索引：$str[-1] 表示最后一个字符
+			if i < 0 {
+				i = len(v.Value) + i
+			}
+			if i < 0 || i >= len(v.Value) {
 				return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("字符串索引超出范围"))
 			}
 			return data.NewStringValue(string(v.Value[i])), nil

@@ -23,16 +23,18 @@ func (pe *CallObjectProperty) GetZVal(ctx data.Context) (*data.ZVal, data.Contro
 	if acl != nil {
 		return nil, acl
 	}
-	switch object := temp.(type) {
-	case data.GetPropertyStmt: // 需要检查属性类型
+	// 优先通过声明属性获取 ZVal
+	if object, ok := temp.(data.GetPropertyStmt); ok {
 		property, ok := object.GetPropertyStmt(pe.Property)
 		if ok {
 			return property.GetZVal(object)
 		}
-	default:
-		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("object is not get property"))
 	}
-	return nil, nil
+	// 声明属性未找到时，尝试从动态属性（ObjectValue）获取 ZVal 引用
+	if object, ok := temp.(data.GetPropertyZVal); ok {
+		return object.GetPropertyZVal(pe.Property)
+	}
+	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("object is not get property"))
 }
 
 func (pe *CallObjectProperty) GetName() string {

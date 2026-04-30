@@ -88,6 +88,12 @@ func (o *ObjectValue) GetProperty(name string) (Value, Control) {
 	return v, nil
 }
 
+// HasProperty 检查属性是否存在（区分"不存在"和"存在但值为null"）
+func (o *ObjectValue) HasProperty(name string) bool {
+	_, ok := o.property.Get(name)
+	return ok
+}
+
 func (o *ObjectValue) GetZVal(name string) (*ZVal, Control) {
 	v, _ := o.property.GetZVal(name)
 	return v, nil

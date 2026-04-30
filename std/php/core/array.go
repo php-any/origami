@@ -21,6 +21,9 @@ func (f *ArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	switch v := a1.(type) {
 	case *data.ArrayValue:
 		return v, nil
+	case *data.ObjectValue:
+		// PHP: (array) 关联数组/对象 => 保持为数组（ObjectValue 在 Go 运行时中即为 PHP 关联数组）
+		return v, nil
 	case *data.StringValue, *data.IntValue, *data.FloatValue, *data.BoolValue, *data.NullValue:
 		// PHP: (array) 标量 => array(0 => 标量)
 		return data.NewArrayValue([]data.Value{a1}), nil

@@ -154,9 +154,13 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 		}
 
 		// 函数静态调用 Log::info 或 Log::$property
-		if p.checkPositionIs(0, token.SCOPE_RESOLUTION) &&
-			(p.checkPositionIs(1, token.IDENTIFIER, token.COMPACT, token.UNSET, token.ISSET) || p.checkPositionIs(1, token.VARIABLE)) {
-			return p.parseStaticCall(tracker, name)
+		// PHP 允许保留字（如 for, list, match 等）作为方法名
+		if p.checkPositionIs(0, token.SCOPE_RESOLUTION) {
+			nextType := p.tokens[p.position+1].Type()
+			if nextType == token.IDENTIFIER || nextType == token.COMPACT || nextType == token.UNSET || nextType == token.ISSET || nextType == token.VARIABLE ||
+				(nextType > token.KEYWORD_START && nextType < token.KEYWORD_END && nextType != token.CLASS) {
+				return p.parseStaticCall(tracker, name)
+			}
 		}
 
 		// 处理 ::class 语法

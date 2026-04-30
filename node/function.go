@@ -177,9 +177,20 @@ func (p *Parameter) SetValue(ctx data.Context, value data.Value) data.Control {
 	if p.Type.Is(value) {
 		return ctx.SetVariableValue(p, value)
 	}
-	// TODO TEST
-	if p.Type.Is(value) {
-		return ctx.SetVariableValue(p, value)
+	// PHP 8.0 兼容：允许 null 隐式转换为标量类型（PHP 8.0 只会发出 deprecation warning）
+	if _, isNull := value.(*data.NullValue); isNull {
+		switch p.Type.(type) {
+		case data.String:
+			return ctx.SetVariableValue(p, data.NewStringValue(""))
+		case data.Int:
+			return ctx.SetVariableValue(p, data.NewIntValue(0))
+		case data.Bool:
+			return ctx.SetVariableValue(p, data.NewBoolValue(false))
+		case data.Float:
+			return ctx.SetVariableValue(p, data.NewFloatValue(0.0))
+		case data.Arrays:
+			return ctx.SetVariableValue(p, value)
+		}
 	}
 	return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+TryGetCallClassName(value)+")"))
 }

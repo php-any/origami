@@ -87,6 +87,7 @@ var TokenDefinitions = []TokenDefinition{
 	{Type: ENUM, Literal: "enum", WordType: KEYWORD},
 	{Type: READONLY, Literal: "readonly", WordType: KEYWORD},
 	{Type: FUNC_GET_ARGS, Literal: "func_get_args", WordType: KEYWORD},
+	{Type: FUNC_NUM_ARGS, Literal: "func_num_args", WordType: KEYWORD},
 	{Type: GLOBAL, Literal: "global", WordType: KEYWORD},
 	{Type: FN, Literal: "fn", WordType: KEYWORD},
 	{Type: SPAWN, Literal: "spawn", WordType: KEYWORD},

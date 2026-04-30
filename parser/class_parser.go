@@ -262,18 +262,39 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 		properties,
 		methods,
 	)
+	// 两遍评估静态属性/常量：第一遍处理不依赖 self:: 的，第二遍处理依赖 self:: 的
+	var deferredStatic []struct {
+		name     string
+		defValue data.GetValue
+	}
 	for s, property := range staticProperties {
 		defaultValue := property.GetDefaultValue()
 		if defaultValue != nil {
 			baseCtx := p.vm.CreateContext([]data.Variable{})
 			v, acl := defaultValue.GetValue(baseCtx)
 			if acl != nil {
-				return nil, acl
+				// 可能因为 self:: 引用未解析的常量而失败，延迟处理
+				deferredStatic = append(deferredStatic, struct {
+					name     string
+					defValue data.GetValue
+				}{name: s, defValue: defaultValue})
+				continue
 			}
 			c.StaticProperty.Store(s, v)
 		} else {
 			c.StaticProperty.Store(s, data.NewNullValue())
 		}
+	}
+	// 第二遍：使用 ClassMethodContext 评估延迟的静态属性
+	for _, deferred := range deferredStatic {
+		baseCtx := p.vm.CreateContext([]data.Variable{})
+		classValue := data.NewClassValue(c, baseCtx)
+		classCtx := classValue.CreateContext([]data.Variable{})
+		v, acl := deferred.defValue.GetValue(classCtx)
+		if acl != nil {
+			return nil, acl
+		}
+		c.StaticProperty.Store(deferred.name, v)
 	}
 	c.StaticMethods = staticMethods
 

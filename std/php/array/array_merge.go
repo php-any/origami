@@ -26,18 +26,6 @@ func (f *ArrayMergeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		return data.NewArrayValue([]data.Value{}), nil
 	}
 
-	// PHP 语义：
-	// - 对于 string 键：后面的数组覆盖前面的键；
-	// - 对于 int 键：重新按顺序从 0 开始编号（列表语义）。
-	//
-	// 在 Origami 中：
-	// - 纯列表用 ArrayValue 表示
-	// - 关联数组用 ObjectValue 表示（属性名即键）
-
-	// 所有参数都是“纯列表数组”时，按列表语义合并到 ArrayValue
-	// 一旦出现 ObjectValue（关联数组），结果统一用 ObjectValue 表示，
-	// 以便支持 $options['format'] 这种字符串键访问。
-
 	allListValues := make([]data.Value, 0)
 	resultAssoc := (*data.ObjectValue)(nil)
 

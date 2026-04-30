@@ -79,7 +79,9 @@ func (m *WeakMapOffsetExistsMethod) GetIsStatic() bool {
 }
 
 func (m *WeakMapOffsetExistsMethod) GetVariables() []data.Variable {
-	return nil
+	return []data.Variable{
+		node.NewVariable(nil, "object", 0, nil),
+	}
 }
 
 func (m *WeakMapOffsetExistsMethod) GetReturnType() data.Types {
@@ -114,7 +116,9 @@ func (m *WeakMapOffsetGetMethod) GetIsStatic() bool {
 }
 
 func (m *WeakMapOffsetGetMethod) GetVariables() []data.Variable {
-	return nil
+	return []data.Variable{
+		node.NewVariable(nil, "object", 0, nil),
+	}
 }
 
 func (m *WeakMapOffsetGetMethod) GetReturnType() data.Types {
@@ -149,7 +153,10 @@ func (m *WeakMapOffsetSetMethod) GetIsStatic() bool {
 }
 
 func (m *WeakMapOffsetSetMethod) GetVariables() []data.Variable {
-	return nil
+	return []data.Variable{
+		node.NewVariable(nil, "object", 0, nil),
+		node.NewVariable(nil, "value", 1, nil),
+	}
 }
 
 func (m *WeakMapOffsetSetMethod) GetReturnType() data.Types {
@@ -184,7 +191,9 @@ func (m *WeakMapOffsetUnsetMethod) GetIsStatic() bool {
 }
 
 func (m *WeakMapOffsetUnsetMethod) GetVariables() []data.Variable {
-	return nil
+	return []data.Variable{
+		node.NewVariable(nil, "object", 0, nil),
+	}
 }
 
 func (m *WeakMapOffsetUnsetMethod) GetReturnType() data.Types {
@@ -218,7 +227,7 @@ func (m *WeakMapCountMethod) GetIsStatic() bool {
 }
 
 func (m *WeakMapCountMethod) GetVariables() []data.Variable {
-	return nil
+	return []data.Variable{}
 }
 
 func (m *WeakMapCountMethod) GetReturnType() data.Types {

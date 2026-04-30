@@ -90,6 +90,7 @@ const (
 	REQUEST                             // $_REQUEST
 	SERVER                              // $_SERVER
 	FUNC_GET_ARGS                       // func_get_args 获取函数参数
+	FUNC_NUM_ARGS                       // func_num_args 获取函数参数数量
 	GLOBAL                              // global 声明全局变量
 
 	KEYWORD_END TokenType = iota + 100

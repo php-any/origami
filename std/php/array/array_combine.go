@@ -53,6 +53,25 @@ func (f *ArrayCombineFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 		return data.NewBoolValue(false), nil
 	}
 
+	// 检查所有 key 是否为连续整数 0,1,2,...,n-1
+	// 如果是，返回 ArrayValue（PHP 行为：整数键的 array_combine 返回索引数组）
+	allSequential := true
+	for i, key := range keys {
+		if iv, ok := key.(*data.IntValue); ok {
+			if iv.Value != i {
+				allSequential = false
+				break
+			}
+		} else {
+			allSequential = false
+			break
+		}
+	}
+
+	if allSequential {
+		return data.NewArrayValue(values), nil
+	}
+
 	result := data.NewObjectValue()
 	for i, key := range keys {
 		result.SetProperty(key.AsString(), values[i])

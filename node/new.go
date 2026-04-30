@@ -415,7 +415,7 @@ func (n *NewVariableExpression) GetValue(ctx data.Context) (data.GetValue, data.
 	}
 
 	if className == "" {
-		return nil, data.NewErrorThrow(n.from, fmt.Errorf("new表达式中的类名变量不能为空"))
+		return nil, data.NewErrorThrow(n.from, fmt.Errorf("new表达式中的类名变量不能为空, classNameValue type: %T", classNameValue))
 	}
 
 	return createInstanceAndCallConstructor(n.from, className, n.Arguments, ctx)
