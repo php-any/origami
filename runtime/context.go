@@ -69,6 +69,11 @@ func (c *Context) SetVariableValue(variable data.Variable, value data.Value) dat
 	switch v := value.(type) {
 	case *data.ReferenceValue:
 		c.variables[variable.GetIndex()] = v.Ctx.GetIndexZVal(v.Val.GetIndex())
+	case *data.ArraySlotRef:
+		// &$array[] 语法：局部变量与数组元素共享 ZVal
+		if v.Arr != nil && v.Idx >= 0 && v.Idx < len(v.Arr.List) {
+			c.variables[variable.GetIndex()] = v.Arr.List[v.Idx]
+		}
 	case *data.ArrayValue:
 		c.variables[variable.GetIndex()].Value = data.CloneArrayValue(v)
 	case *data.ObjectValue:

@@ -31,9 +31,10 @@ func (pe *CallParentMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	var object *data.ClassValue
 	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
 		object = classCtx.ClassValue
-		// 优先使用解析时的 CurrentClass（方法定义所在类），
-		// 但如果 CurrentClass 是 trait（无父类或 VM 中不存在），则回退到运行时类
-		if pe.CurrentClass != "" {
+		// SelfClass 优先：由外层 parent:: 调用设置，表示代码定义所在类
+		if classCtx.SelfClass != nil {
+			class = classCtx.SelfClass
+		} else if pe.CurrentClass != "" {
 			if cls, has := ctx.GetVM().GetClass(pe.CurrentClass); has && cls.GetExtend() != nil {
 				class = cls
 			} else {
@@ -71,19 +72,20 @@ func (pe *CallParentMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 
 	// 获取父类方法：需要沿继承链向上查找（父类本身或其父类中定义的方法）
 	var (
-		method data.Method
-		has    bool
+		method     data.Method
+		foundClass data.ClassStmt // 实际定义方法的类
+		has        bool
 	)
 	current := parentClass
 	for current != nil {
 		method, has = current.GetMethod(pe.Method)
 		if !has {
-			// 也检查静态方法（parent::staticMethod()）
 			if gsm, ok := current.(data.GetStaticMethod); ok {
 				method, has = gsm.GetStaticMethod(pe.Method)
 			}
 		}
 		if has {
+			foundClass = current
 			break
 		}
 		if current.GetExtend() == nil {
@@ -100,7 +102,6 @@ func (pe *CallParentMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("父类 %s 及其继承链中都没有方法 %s", parentClassName, pe.Method))
 	}
 
-	// 检查方法访问权限
 	if method.GetModifier() == data.ModifierPrivate {
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("父类方法 %s 是私有的，无法访问", pe.Method))
 	}
@@ -114,6 +115,16 @@ func (pe *CallParentMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	newCtx, acl := temp.callMethodParams(object, ctx, method)
 	if acl != nil {
 		return nil, acl
+	}
+
+	// 通过 SelfClass 告知被调用方法其代码定义所在的类。
+	// 这样方法内的 self:: / parent:: 会从 foundClass 开始解析，
+	// 而非从运行时子类开始，从而正确处理 trait 合并场景。
+	if cmc, ok := newCtx.(*data.ClassMethodContext); ok {
+		cmc.SelfClass = foundClass
+		if cmc.StaticClass == nil {
+			cmc.StaticClass = cmc.ClassValue.Class
+		}
 	}
 
 	return method.Call(newCtx)

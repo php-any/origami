@@ -34,12 +34,46 @@ type IndexReferenceValue struct {
 	Ctx  Context
 }
 
+// ArraySlotRef 表示数组槽位引用，用于 &$array[] 语法
+// 使局部变量与数组元素共享 ZVal，实现 PHP 引用语义
+type ArraySlotRef struct {
+	Arr *ArrayValue
+	Idx int
+}
+
 func (s *ReferenceValue) GetValue(ctx Context) (GetValue, Control) {
 	return s, nil
 }
 
 func (s *IndexReferenceValue) GetValue(ctx Context) (GetValue, Control) {
 	return s, nil
+}
+
+func (s *ArraySlotRef) GetValue(ctx Context) (GetValue, Control) {
+	return s, nil
+}
+
+func (s *ArraySlotRef) AsString() string {
+	if s.Arr != nil && s.Idx < len(s.Arr.List) {
+		return s.Arr.List[s.Idx].Value.AsString()
+	}
+	return ""
+}
+
+func (s *ArraySlotRef) AsBool() (bool, error) {
+	if s.Arr != nil && s.Idx < len(s.Arr.List) {
+		if b, ok := s.Arr.List[s.Idx].Value.(AsBool); ok {
+			return b.AsBool()
+		}
+	}
+	return false, nil
+}
+
+func (s *ArraySlotRef) Marshal(serializer Serializer) ([]byte, error) {
+	if s.Arr != nil && s.Idx < len(s.Arr.List) {
+		return s.Arr.List[s.Idx].Value.(ValueSerializer).Marshal(serializer)
+	}
+	return nil, fmt.Errorf("ArraySlotRef: invalid index")
 }
 
 func (s *ReferenceValue) AsString() string {

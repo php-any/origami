@@ -272,6 +272,7 @@ func (c *ClassValue) SetVM(vm VM) {
 type ClassMethodContext struct {
 	*ClassValue
 	StaticClass ClassStmt // 运行时（后期）类结构，用于 static:: 后期静态绑定
+	SelfClass   ClassStmt // 代码定义所在的类，用于 self:: 和 parent:: 解析（处理 trait 合并场景）
 }
 
 func (c *ClassMethodContext) SetVariableValue(variable Variable, value Value) Control {
