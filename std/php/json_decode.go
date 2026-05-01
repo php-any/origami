@@ -39,11 +39,31 @@ func (f *JsonDecodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		jsonString = v.(data.Value).AsString()
 	}
 
-	// 检查是否有第二个参数（目标类名）
+	// 检查是否有第二个参数
 	if len(params) > 1 && params[1] != nil {
 		classParam := params[1]
 		classValue, _ := classParam.GetValue(ctx)
 		if classValue != nil {
+			// 如果是布尔值，这是 $assoc 参数（true=关联数组, false=对象）
+			if boolVal, ok := classValue.(*data.BoolValue); ok {
+				serializer := json.NewJsonSerializer()
+				if boolVal.Value {
+					// true: 返回关联数组 (ObjectValue)
+					value := data.NewObjectValue()
+					err := value.Unmarshal([]byte(jsonString), serializer)
+					if err != nil {
+						return data.NewNullValue(), nil
+					}
+					return value, nil
+				}
+				// false: 返回对象，当前用 ObjectValue 代替
+				value := data.NewObjectValue()
+				err := value.Unmarshal([]byte(jsonString), serializer)
+				if err != nil {
+					return data.NewNullValue(), nil
+				}
+				return value, nil
+			}
 			// 获取类名
 			var className string
 			switch v := classValue.(type) {

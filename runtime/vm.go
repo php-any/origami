@@ -56,6 +56,18 @@ type VM struct {
 
 	// PHP 级 register_shutdown_function 注册的回调列表
 	shutdownCallbacks []data.Value
+
+	// 调用深度追踪（用于检测无限递归）
+	callDepth int
+}
+
+func (vm *VM) EnterCall() int {
+	vm.callDepth++
+	return vm.callDepth
+}
+
+func (vm *VM) LeaveCall() {
+	vm.callDepth--
 }
 
 func (vm *VM) SetClassPathCache(name string, path string) {

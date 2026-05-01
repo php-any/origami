@@ -56,7 +56,30 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 				}
 			}
 			if !has {
-				return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("(%s)无法调用函数(%s)。", cls.GetName(), pe.Method))
+				// 检查 __callStatic 魔术方法（包括父类）
+				checkClass := cls
+				for checkClass != nil {
+					if getter, ok := checkClass.(data.GetStaticMethod); ok {
+						if magic, hasMagic := getter.GetStaticMethod("__callStatic"); hasMagic {
+							method = magic
+							classStmt = cls // use original class for static
+							has = true
+							break
+						}
+					}
+					if checkClass.GetExtend() == nil {
+						break
+					}
+					vm := ctx.GetVM()
+					parent, acl := vm.GetOrLoadClass(*checkClass.GetExtend())
+					if acl != nil || parent == nil {
+						break
+					}
+					checkClass = parent
+				}
+				if !has {
+					return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("(%s)无法调用函数(%s)。", cls.GetName(), pe.Method))
+				}
 			}
 		} else {
 			return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("无法调用函数(%s)。", pe.Method))
@@ -137,7 +160,19 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 
 	// 静态方法需要 ClassMethodContext，返回包装器让 CallMethod 正确处理
 	if classStmt != nil {
-		return data.NewFuncValue(&staticMethodFunc{class: classStmt, method: method}), nil
+		// __callStatic 需要特殊处理：调用方传入的实参需要重打包为 [methodName, args]
+		if method.GetName() == "__callStatic" {
+			return data.NewFuncValue(&callStaticFunc{
+				class:          classStmt,
+				method:         method,
+				originalMethod: pe.Method,
+			}), nil
+		}
+		return data.NewFuncValue(&staticMethodFunc{
+			class:          classStmt,
+			method:         method,
+			originalMethod: pe.Method,
+		}), nil
 	}
 
 	// 如果没有类信息，直接返回 FuncValue（向后兼容）
@@ -214,8 +249,9 @@ func (s *StaticMethodFuncValue) GetValue(ctx data.Context) (data.GetValue, data.
 
 // staticMethodFunc 适配器：将 data.Method 包装为 data.FuncStmt，并在调用时切换到 ClassMethodContext
 type staticMethodFunc struct {
-	class  data.ClassStmt
-	method data.Method
+	class          data.ClassStmt
+	method         data.Method
+	originalMethod string // 用于 __callStatic 时保存原始方法名
 }
 
 func (s *staticMethodFunc) GetName() string               { return s.method.GetName() }
@@ -225,8 +261,70 @@ func (s *staticMethodFunc) Call(callCtx data.Context) (data.GetValue, data.Contr
 	// 创建类方法上下文，使用传入的 callCtx（包含已设置的参数），绑定当前类，保证 self:: 可用
 	classValue := data.NewClassValue(s.class, callCtx)
 	fnCtx := classValue.CreateContext(s.method.GetVariables())
-	for i := 0; i < len(s.method.GetVariables()); i++ {
-		fnCtx.SetIndexZVal(i, callCtx.GetIndexZVal(i))
+	if s.method.GetName() == "__callStatic" {
+		// __callStatic($method, $args): 将原始参数包装为 [$methodName, [$originalArgs...]]
+		vars := s.method.GetVariables()
+		if len(vars) >= 2 {
+			fnCtx.SetVariableValue(vars[0], data.NewStringValue(s.originalMethod))
+			argList := make([]data.Value, 0)
+			for i := 0; ; i++ {
+				zv, ok := callCtx.GetIndexValue(i)
+				if !ok || zv == nil {
+					break
+				}
+				argList = append(argList, zv)
+			}
+			fnCtx.SetVariableValue(vars[1], data.NewArrayValue(argList))
+		}
+	} else {
+		for i := 0; i < len(s.method.GetVariables()); i++ {
+			fnCtx.SetIndexZVal(i, callCtx.GetIndexZVal(i))
+		}
+	}
+	return s.method.Call(fnCtx)
+}
+
+// callStaticFunc 专门用于 __callStatic，将调用方实参重打包为 [methodName, args]
+type callStaticFunc struct {
+	class          data.ClassStmt
+	method         data.Method
+	originalMethod string
+}
+
+func (s *callStaticFunc) GetName() string { return s.method.GetName() }
+func (s *callStaticFunc) GetParams() []data.GetValue {
+	// 接受任意数量的任意参数
+	return []data.GetValue{NewParametersNoName(0)}
+}
+func (s *callStaticFunc) GetVariables() []data.Variable {
+	return []data.Variable{data.NewVariable("args", 0, nil)}
+}
+func (s *callStaticFunc) Call(callCtx data.Context) (data.GetValue, data.Control) {
+	classValue := data.NewClassValue(s.class, callCtx)
+	fnCtx := classValue.CreateContext(s.method.GetVariables())
+
+	// 获取调用方传入的所有实参（使用安全的 GetIndexValue）
+	callerArgs := make([]data.Value, 0)
+	for i := 0; ; i++ {
+		v, ok := callCtx.GetIndexValue(i)
+		if !ok || v == nil {
+			break
+		}
+		// 如果实参是 Parameters 打包的数组，展开它
+		if arr, isArr := v.(*data.ArrayValue); isArr {
+			for _, z := range arr.List {
+				callerArgs = append(callerArgs, z.Value)
+			}
+		} else {
+			callerArgs = append(callerArgs, v)
+		}
+	}
+
+	// __callStatic($method, $args)
+	vars := s.method.GetVariables()
+	if len(vars) >= 2 {
+		fnCtx.SetVariableValue(vars[0], data.NewStringValue(s.originalMethod))
+		fnCtx.SetVariableValue(vars[1], data.NewArrayValue(callerArgs))
 	}
 	return s.method.Call(fnCtx)
 }

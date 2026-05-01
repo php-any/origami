@@ -56,16 +56,17 @@ func (pe *CallStaticKeywordProperty) findPropertyDefiningClass(vm data.VM, start
 
 // GetValue 获取 static::$prop 访问的值
 func (pe *CallStaticKeywordProperty) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 与 self:: 一样，必须在类方法上下文中使用
-	classCtx, ok := ctx.(*data.ClassMethodContext)
-	if !ok {
+	// 与 self:: 一样，必须在类上下文中使用
+	var lateStaticClass data.ClassStmt
+	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
+		lateStaticClass = classCtx.Class
+		if classCtx.StaticClass != nil {
+			lateStaticClass = classCtx.StaticClass
+		}
+	} else if classVal, ok := ctx.(*data.ClassValue); ok {
+		lateStaticClass = classVal.Class
+	} else {
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("static:: 只能在类方法中使用"))
-	}
-
-	// 获取后期静态绑定类（运行时类）
-	lateStaticClass := classCtx.Class
-	if classCtx.StaticClass != nil {
-		lateStaticClass = classCtx.StaticClass
 	}
 
 	vm := ctx.GetVM()
@@ -92,16 +93,17 @@ func (pe *CallStaticKeywordProperty) GetValue(ctx data.Context) (data.GetValue, 
 
 // SetProperty 设置 static::$prop 的值
 func (pe *CallStaticKeywordProperty) SetProperty(ctx data.Context, name string, value data.Value) data.Control {
-	// 与 self:: 一样，必须在类方法上下文中使用
-	classCtx, ok := ctx.(*data.ClassMethodContext)
-	if !ok {
+	// 与 self:: 一样，必须在类上下文中使用
+	var lateStaticClass data.ClassStmt
+	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
+		lateStaticClass = classCtx.Class
+		if classCtx.StaticClass != nil {
+			lateStaticClass = classCtx.StaticClass
+		}
+	} else if classVal, ok := ctx.(*data.ClassValue); ok {
+		lateStaticClass = classVal.Class
+	} else {
 		return data.NewErrorThrow(pe.GetFrom(), errors.New("static:: 只能在类方法中使用"))
-	}
-
-	// 获取后期静态绑定类（运行时类）
-	lateStaticClass := classCtx.Class
-	if classCtx.StaticClass != nil {
-		lateStaticClass = classCtx.StaticClass
 	}
 
 	vm := ctx.GetVM()

@@ -7,53 +7,62 @@ import (
 
 // ArrayMapFunction 实现 PHP 内置函数 array_map
 // array_map(callable $callback, array $array, array ...$arrays): array
-// 当前实现支持：
-// - $callback 为匿名函数 / Closure（*data.FuncValue）或实现 CallableValue 的对象
-// - 至少一个数组参数
-// - 多个数组时，按 PHP 语义以最短数组长度为准
 type ArrayMapFunction struct{}
 
 func NewArrayMapFunction() data.FuncStmt {
 	return &ArrayMapFunction{}
 }
 
+// toValueList 将数组值（可能是 ArrayValue 或 ObjectValue）统一转换为 []data.Value 切片
+// ObjectValue 使用 RangeProperties 保证顺序
+func toValueList(v data.Value) []data.Value {
+	switch arr := v.(type) {
+	case *data.ArrayValue:
+		return arr.ToValueList()
+	case *data.ObjectValue:
+		result := make([]data.Value, 0)
+		arr.RangeProperties(func(key string, value data.Value) bool {
+			result = append(result, value)
+			return true
+		})
+		return result
+	default:
+		return nil
+	}
+}
+
 func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 第一个参数：callback
 	cbVal, has := ctx.GetIndexValue(0)
 	if !has || cbVal == nil {
-		// PHP 中 callback 省略会导致 TypeError，这里简单返回空数组
 		return data.NewArrayValue([]data.Value{}), nil
 	}
 
-	// 收集所有数组参数
-	// 注意：签名里第二个参数使用了 node.NewParameters("arrays", 1, ...)，
-	// 因此索引 1 上拿到的是一个 Parameters 聚合数组，里面按顺序存放所有实际传入的数组参数。
-	var arrays []*data.ArrayValue
+	// 收集所有数组参数（支持 ArrayValue 和 ObjectValue）
 	paramsVal, _ := ctx.GetIndexValue(1)
+	var arrayLists [][]data.Value
 	if paramsVal != nil {
 		if paramsArr, ok := paramsVal.(*data.ArrayValue); ok {
 			for _, z := range paramsArr.List {
 				if z.Value == nil {
 					continue
 				}
-				if av, ok := z.Value.(*data.ArrayValue); ok {
-					arrays = append(arrays, av)
-				} else {
-					// 非数组参数：按照 PHP 行为，这里简化为忽略
+				vals := toValueList(z.Value)
+				if vals != nil {
+					arrayLists = append(arrayLists, vals)
 				}
 			}
 		}
 	}
 
-	if len(arrays) == 0 {
+	if len(arrayLists) == 0 {
 		return data.NewArrayValue([]data.Value{}), nil
 	}
 
 	// 计算最短数组长度
-	minLen := len(arrays[0].List)
-	for _, a := range arrays[1:] {
-		if len(a.List) < minLen {
-			minLen = len(a.List)
+	minLen := len(arrayLists[0])
+	for _, a := range arrayLists[1:] {
+		if len(a) < minLen {
+			minLen = len(a)
 		}
 	}
 	if minLen == 0 {
@@ -63,18 +72,15 @@ func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	results := make([]data.Value, 0, minLen)
 
 	for i := 0; i < minLen; i++ {
-		// 收集本次调用的参数：各数组在索引 i 的元素
-		args := make([]data.Value, 0, len(arrays))
-		for _, arr := range arrays {
-			if i < len(arr.List) {
-				args = append(args, arr.List[i].Value)
+		args := make([]data.Value, 0, len(arrayLists))
+		for _, arr := range arrayLists {
+			if i < len(arr) {
+				args = append(args, arr[i])
 			}
 		}
 
 		switch cb := cbVal.(type) {
 		case *data.FuncValue:
-			// 与 ArrayValueMap / forEach 一致的闭包调用方式：
-			// 使用函数定义的变量创建上下文，并按顺序写入实参。
 			vars := cb.Value.GetVariables()
 			fnCtx := ctx.CreateContext(vars)
 			for ai := 0; ai < len(vars) && ai < len(args); ai++ {
@@ -90,8 +96,6 @@ func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 				results = append(results, data.NewNullValue())
 			}
 		case data.CallableValue:
-			// 若实现了 CallableValue，则直接调用其 Call 接口。
-			// 仅支持最多三个参数（与 ArrayValueMap/ForEach 一致的约定）。
 			var arg0, arg1, arg2 data.Value = data.NewNullValue(), data.NewNullValue(), data.NewNullValue()
 			if len(args) > 0 {
 				arg0 = args[0]
@@ -108,7 +112,6 @@ func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 			}
 			results = append(results, ret)
 		default:
-			// 非可调用，当前简单退化为 null；更严格行为可改为抛异常。
 			results = append(results, data.NewNullValue())
 		}
 	}

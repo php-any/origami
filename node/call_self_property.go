@@ -22,14 +22,15 @@ func NewCallSelfProperty(from data.From, property string) *CallSelfProperty {
 
 // GetValue 获取当前类静态属性访问表达式的值
 func (pe *CallSelfProperty) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 检查是否在类方法上下文中
-	classCtx, ok := ctx.(*data.ClassMethodContext)
-	if !ok {
+	// 检查是否在类上下文中（类方法或类级初始化器）
+	var currentClass data.ClassStmt
+	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
+		currentClass = classCtx.Class
+	} else if classVal, ok := ctx.(*data.ClassValue); ok {
+		currentClass = classVal.Class
+	} else {
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("self:: 只能在类方法中使用"))
 	}
-
-	// 获取当前类
-	currentClass := classCtx.Class
 
 	// 先检查当前类是否实现了 GetStaticProperty 接口
 	getter, ok := currentClass.(data.GetStaticProperty)
@@ -122,14 +123,15 @@ func (pe *CallSelfProperty) findInInterfaceAndParents(vm data.VM, interfaceName 
 
 // SetProperty 设置当前类静态属性的值
 func (pe *CallSelfProperty) SetProperty(ctx data.Context, name string, value data.Value) data.Control {
-	// 检查是否在类方法上下文中
-	classCtx, ok := ctx.(*data.ClassMethodContext)
-	if !ok {
+	// 检查是否在类上下文中（类方法或类级初始化器）
+	var currentClass data.ClassStmt
+	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
+		currentClass = classCtx.Class
+	} else if classVal, ok := ctx.(*data.ClassValue); ok {
+		currentClass = classVal.Class
+	} else {
 		return data.NewErrorThrow(pe.GetFrom(), errors.New("self:: 只能在类方法中使用"))
 	}
-
-	// 获取当前类
-	currentClass := classCtx.Class
 
 	switch c := currentClass.(type) {
 	case *ClassStatement:

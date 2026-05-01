@@ -63,16 +63,17 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 	// 解析 trait 成员（方法和属性）
 	properties := make([]data.Property, 0)
 	staticProperties := make(map[string]data.Property)
+	staticPropertiesIndex := make([]string, 0) // 保持静态属性/常量声明顺序
 	methods := map[string]data.Method{}
 	staticMethods := map[string]data.Method{}
 	for !p.currentIsTypeOrEOF(token.RBRACE) {
 		// 解析 trait 内的 use Trait1, Trait2;（trait 组合）
 		if p.current().Type() == token.USE {
-			traitNames, acl := p.parseTraitUse()
+			traitNames, aliases, acl := p.parseTraitUse()
 			if acl != nil {
 				return nil, acl
 			}
-			acl = p.mergeTraitsIntoMaps(traitNames, &properties, methods, staticProperties, staticMethods)
+			acl = p.mergeTraitsIntoMaps(traitNames, aliases, &properties, methods, staticProperties, staticMethods)
 			if acl != nil {
 				return nil, acl
 			}
@@ -137,6 +138,7 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 			if prop != nil {
 				if isStatic || prop.GetIsStatic() {
 					staticProperties[prop.GetName()] = prop
+					staticPropertiesIndex = append(staticPropertiesIndex, prop.GetName())
 				} else {
 					properties = append(properties, prop)
 				}
@@ -171,11 +173,13 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 		properties,
 		methods,
 	)
-	for s, property := range staticProperties {
+	// 用 ClassValue 作为上下文，使 self::/parent::/static:: 在常量初始化器中可用
+	traitVal := data.NewClassValue(trait, p.vm.CreateContext([]data.Variable{}))
+	for _, s := range staticPropertiesIndex {
+		property := staticProperties[s]
 		defaultValue := property.GetDefaultValue()
 		if defaultValue != nil {
-			baseCtx := p.vm.CreateContext([]data.Variable{})
-			v, acl := defaultValue.GetValue(baseCtx)
+			v, acl := defaultValue.GetValue(traitVal)
 			if acl != nil {
 				return nil, acl
 			}

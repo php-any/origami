@@ -9,6 +9,10 @@ func (i Object) Is(value Value) bool {
 		return true
 	case *ClassValue:
 		return true
+	case *ThisValue:
+		return true
+	case *ThrowValue:
+		return true
 	}
 	return false
 }

@@ -91,7 +91,9 @@ func newReflectionParameter(ctx data.Context, className string, methodName strin
 	paramValue.ObjectValue.SetProperty("_paramIndex", data.NewIntValue(paramIndex))
 
 	// 预先提取并存储参数信息，供 className=="" 时（Closure）直接使用
-	paramValue.ObjectValue.SetProperty("_paramName", data.NewStringValue(extractParamName(param)))
+	paramName := extractParamName(param)
+	paramValue.ObjectValue.SetProperty("_paramName", data.NewStringValue(paramName))
+	paramValue.ObjectValue.SetProperty("name", data.NewStringValue(paramName))
 	if isVariadicParam(param) {
 		paramValue.ObjectValue.SetProperty("_isVariadic", data.NewBoolValue(true))
 	}
@@ -114,6 +116,7 @@ func newReflectionParameterFromVirtual(ctx data.Context, className string, metho
 	paramValue.ObjectValue.SetProperty("_methodName", data.NewStringValue(methodName))
 	paramValue.ObjectValue.SetProperty("_paramIndex", data.NewIntValue(paramIndex))
 	paramValue.ObjectValue.SetProperty("_paramName", data.NewStringValue(vp.name))
+	paramValue.ObjectValue.SetProperty("name", data.NewStringValue(vp.name))
 	if vp.variadic {
 		paramValue.ObjectValue.SetProperty("_isVariadic", data.NewBoolValue(true))
 	}

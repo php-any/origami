@@ -693,6 +693,14 @@ func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 			}
 			return expr, nil
 		}
+	case token.AT:
+		// @ 错误抑制符：跳过并解析后续表达式
+		ep.next()
+		return ep.parsePrimary()
+	case token.NAMESPACE_SEPARATOR:
+		// \function_name: 跳过 \ 并解析后续表达式
+		ep.next()
+		return ep.parsePrimary()
 	case token.START_TAG, token.END_TAG, token.SEMICOLON:
 		ep.next()
 		return nil, nil

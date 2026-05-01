@@ -59,17 +59,17 @@ func NewCallStaticKeywordMethod(from data.From, method string) *CallStaticKeywor
 
 // GetValue 获取 static::method() 调用的值
 func (pe *CallStaticKeywordMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 与 self:: 一样，必须在类方法上下文中使用
-	classCtx, ok := ctx.(*data.ClassMethodContext)
-	if !ok {
+	// 与 self:: 一样，必须在类上下文中使用
+	var currentClass data.ClassStmt
+	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
+		currentClass = classCtx.Class
+		if classCtx.StaticClass != nil {
+			currentClass = classCtx.StaticClass
+		}
+	} else if classVal, ok := ctx.(*data.ClassValue); ok {
+		currentClass = classVal.Class
+	} else {
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("static:: 只能在类方法中使用"))
-	}
-
-	// 获取当前类（后期静态绑定：使用调用时的类）
-	currentClass := classCtx.Class
-	// 如果有 StaticClass（后期静态绑定类），使用它
-	if classCtx.StaticClass != nil {
-		currentClass = classCtx.StaticClass
 	}
 
 	// 检查类是否实现了 GetStaticMethod 接口

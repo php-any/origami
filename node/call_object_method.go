@@ -44,6 +44,7 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 				return nil, acl
 			}
 
+			fnCtx.SetCallArgs(pe.Args)
 			return method.Call(fnCtx)
 		}
 		// 方法未找到时尝试魔法方法 __call(string $name, array $arguments)
@@ -54,8 +55,14 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	case *data.ClassValue:
 		method, has := class.GetMethod(pe.Method)
 		if has {
-			if method.GetModifier() != data.ModifierPublic {
-				return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("对象属性访问表达式对象属性访问函数非公开"))
+			if method.GetModifier() == data.ModifierPrivate {
+				if !isCallerInClassHierarchy(ctx, class.Class) {
+					return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("不能调用 private 方法: "+pe.Method))
+				}
+			} else if method.GetModifier() == data.ModifierProtected {
+				if !isCallerInClassHierarchy(ctx, class.Class) {
+					return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("对象属性访问表达式对象属性访问函数非公开"))
+				}
 			}
 
 			fnCtx, acl := pe.callMethodParams(class, ctx, method)
@@ -66,6 +73,7 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 				return nil, acl
 			}
 
+			fnCtx.SetCallArgs(pe.Args)
 			return method.Call(fnCtx)
 		}
 		// 方法未找到时尝试魔法方法 __call(string $name, array $arguments)
@@ -89,6 +97,7 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 					return nil, acl
 				}
 
+				fnCtx.SetCallArgs(pe.Args)
 				return method.Call(fnCtx)
 			}
 			// 方法未找到时尝试魔法方法 __call，$this 为当前对象
@@ -129,56 +138,83 @@ func (pe *CallObjectMethod) invokeMagicCall(object data.Context, ctx data.Contex
 func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method data.Method) (data.Context, data.Control) {
 	varies := method.GetVariables()
 	fnCtx := object.CreateContext(varies)
-	// 入参的值设置到上下文中
-	for index, param := range method.GetParams() {
-		if len(pe.Args) > index {
+	params := method.GetParams()
+
+	// 先展开所有参数中的 ...$arr (SpreadArgument)，构建展平后的实参列表
+	var flatArgs []data.Value
+	for _, arg := range pe.Args {
+		if spread, ok := arg.(*SpreadArgument); ok {
+			spreadVal, acl := spread.GetValue(ctx)
+			if acl != nil {
+				return nil, acl
+			}
+			if arr, ok := spreadVal.(*data.ArrayValue); ok {
+				for _, z := range arr.List {
+					flatArgs = append(flatArgs, z.Value)
+				}
+			} else if objVal, ok := spreadVal.(*data.ObjectValue); ok {
+				objVal.RangeProperties(func(key string, value data.Value) bool {
+					flatArgs = append(flatArgs, value)
+					return true
+				})
+			}
+			continue
+		}
+		v, acl := arg.GetValue(ctx)
+		if acl != nil {
+			return nil, acl
+		}
+		if val, ok := v.(data.Value); ok {
+			flatArgs = append(flatArgs, val)
+		} else {
+			flatArgs = append(flatArgs, data.NewNullValue())
+		}
+	}
+
+	// 将展平的实参绑定到方法参数
+	for index, param := range params {
+		if index < len(flatArgs) {
 			var acl data.Control
-			arg := pe.Args[index]
-			var tempV data.GetValue
-			switch argTV := arg.(type) {
-			case *NamedArgument:
-				tempV, acl = argTV.GetValue(ctx)
-				if acl != nil {
-					return nil, acl
-				}
-				vari, err := findVariable(varies, argTV.Name)
-				if err != nil {
-					return nil, data.NewErrorThrow(pe.from, err)
-				}
-				fnCtx.SetVariableValue(vari, tempV.(data.Value))
-				if promotedParam, ok := param.(*PromotedParameter); ok {
-					acl = promotedParam.SetValue(object, tempV.(data.Value))
-				}
+			switch p := param.(type) {
+			case *Parameter:
+				fnCtx.SetVariableValue(varies[index], flatArgs[index])
+			case *ParameterReference:
+				// 引用参数：直接设置值
+				fnCtx.SetVariableValue(varies[index], flatArgs[index])
+			case *Parameters:
+				// 可变参数：收集剩余的所有实参
+				remaining := flatArgs[index:]
+				arr := data.NewArrayValue(remaining)
+				fnCtx.SetVariableValue(varies[index], arr)
+				index = len(params) // 跳过后续参数
+			case *PromotedParameter:
+				fnCtx.SetVariableValue(varies[index], flatArgs[index])
+				acl = p.SetValue(object, flatArgs[index])
 			default:
-				tempV, acl = argTV.GetValue(ctx)
+				fnCtx.SetVariableValue(varies[index], flatArgs[index])
+			}
+			if acl != nil {
+				return nil, acl
+			}
+		} else {
+			// 实参不足
+			if pVar, ok := param.(*Parameters); ok {
+				// Variadic 带 0 实参 → 空数组（PHP 语义）
+				arr := data.NewArrayValue([]data.Value{})
+				fnCtx.SetVariableValue(pVar, arr)
+			} else if promotedParam, ok := param.(*PromotedParameter); ok {
+				_, acl := promotedParam.GetValue(object)
 				if acl != nil {
 					return nil, acl
 				}
-				if index >= len(varies) {
-					return nil, data.NewErrorThrow(pe.from, fmt.Errorf("对象 (%v) 构造函数参数数量超出限制：%d", object, index))
+			} else if argObj, ok := param.(*Parameter); ok {
+				if argObj.DefaultValue == nil {
+					return nil, data.NewErrorThrow(pe.from, fmt.Errorf("调用 %s 构造函数时参数 %s 缺少值和默认值", object, argObj.Name))
 				}
-				fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
-				if promotedParam, ok := param.(*PromotedParameter); ok {
-					acl = promotedParam.SetValue(object, tempV.(data.Value))
+				_, acl := argObj.GetValue(fnCtx)
+				if acl != nil {
+					return nil, acl
 				}
-			}
-			if acl != nil {
-				return nil, acl
-			}
-		} else if promotedParam, ok := param.(*PromotedParameter); ok {
-			// 触发初始化默认值
-			_, acl := promotedParam.GetValue(object)
-			if acl != nil {
-				return nil, acl
-			}
-		} else if argObj, ok := param.(*Parameter); ok {
-			if argObj.DefaultValue == nil {
-				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("调用 %s 构造函数时参数 %s 缺少值和默认值", object, argObj.Name))
-			}
-			// 调用 GetValue 来触发默认值的设置
-			_, acl := argObj.GetValue(fnCtx)
-			if acl != nil {
-				return nil, acl
 			}
 		}
 	}
@@ -205,4 +241,46 @@ func findParams(varies []data.GetValue, name string) (data.GetValue, error) {
 		}
 	}
 	return nil, errors.New("无法找到变量: " + name)
+}
+
+// isCallerInClassHierarchy 检查调用者是否在目标类的类层次结构中
+// 用于确定是否允许调用 protected 方法
+func isCallerInClassHierarchy(ctx data.Context, targetClass data.ClassStmt) bool {
+	// 检查是否通过 Closure::bind() 绑定了作用域（允许访问私有成员）
+	if bc, ok := ctx.(*data.BoundContext); ok {
+		if bc.ScopeClass == targetClass.GetName() {
+			return true
+		}
+	}
+
+	// 从上下文链中查找 ClassMethodContext 或 ClassValue
+	var callerClass data.ClassStmt
+	if cmc, ok := ctx.(*data.ClassMethodContext); ok {
+		callerClass = cmc.Class
+	} else if cv, ok := ctx.(*data.ClassValue); ok {
+		callerClass = cv.Class
+	} else {
+		return false
+	}
+
+	// 检查调用者类是否与目标类相同，或者是目标类的子类
+	if callerClass.GetName() == targetClass.GetName() {
+		return true
+	}
+
+	// 沿继承链向上查找
+	vm := ctx.GetVM()
+	extend := callerClass.GetExtend()
+	for extend != nil {
+		if *extend == targetClass.GetName() {
+			return true
+		}
+		cls, acl := vm.GetOrLoadClass(*extend)
+		if acl != nil {
+			return false
+		}
+		extend = cls.GetExtend()
+	}
+
+	return false
 }

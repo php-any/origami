@@ -31,7 +31,13 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 
 	switch fv := call.(type) {
 	case *data.FuncValue:
-		return pe.handleFuncValue(ctx, call)
+		ret, acl := pe.handleFuncValue(ctx, call)
+		if acl != nil {
+			if _, ok := acl.(ToClosure); ok {
+				return data.NewFuncValue(fv.Value), nil
+			}
+		}
+		return ret, acl
 	case *StaticMethodFuncValue:
 		// 静态方法包装器，调用 GetValue 获取 FuncValue 然后继续处理
 		funcValue, acl := fv.GetValue(ctx)
@@ -44,6 +50,19 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		// 后期静态绑定静态方法包装器
 		return pe.handleStaticMethodWithLateBinding(ctx, fv)
 	default:
+		// 检查是否所有参数都是 SpreadArgument(nil)（first-class callable）
+		allSpread := len(pe.Args) == 1
+		if allSpread {
+			if _, ok := pe.Args[0].(*SpreadArgument); !ok {
+				allSpread = false
+			}
+		}
+		if allSpread && len(pe.Args) == 1 {
+			if _, ok := pe.Args[0].(*SpreadArgument); ok {
+				// first-class callable: 返回包装的调用
+				return call, nil
+			}
+		}
 		// 魔法方法 __invoke：对象作为可调用时调用 $object->__invoke(...$args)
 		if obj, ok := call.(data.GetMethod); ok {
 			if invoke, has := obj.GetMethod("__invoke"); has {

@@ -1,0 +1,34 @@
+namespace tests\obj;
+
+// 测试 trait 方法别名：use Trait { method as alias; }
+trait Greetable {
+    public function sayHello() {
+        return "Hello";
+    }
+
+    public function sayGoodbye() {
+        return "Goodbye";
+    }
+}
+
+class Greeter1 {
+    use Greetable {
+        sayHello as greet;
+    }
+}
+
+$g = new Greeter1();
+
+// 原方法名仍然可用
+if($g->sayHello() == "Hello") {
+    Log::info("trait 别名 - 原方法仍可用");
+} else {
+    Log::fatal("trait 别名 - 原方法调用失败: " . $g->sayHello());
+}
+
+// 别名方法也可用
+if($g->greet() == "Hello") {
+    Log::info("trait 别名 - 别名方法调用成功");
+} else {
+    Log::fatal("trait 别名 - 别名方法调用失败: " . $g->greet());
+}

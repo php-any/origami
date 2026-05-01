@@ -27,11 +27,10 @@ func NewNewParser(parser *Parser) StatementParser {
 func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 	// 允许 new() 作为函数调用, 方便兼容 go 语言的库
 	if p.checkPositionIs(1, token.LPAREN) {
-		tracker := p.StartTracking()
 		name := "new"
-		p.next()
 		if full, ok := p.uses[name]; ok {
-			// 创建函数调用表达式
+			tracker := p.StartTracking()
+			p.next()
 			vp := &VariableParser{p.Parser}
 			stmt, acl := vp.parseFunctionCall()
 			fn, ok := p.vm.GetFunc(full)
@@ -151,7 +150,61 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 		return n, nil
 	}
 
+	// 支持 new (expression)(args) 语法
+	if p.checkPositionIs(0, token.LPAREN) {
+		p.next() // 跳过 (
+		exprParser := NewExpressionParser(p.Parser)
+		classNameExpr, acl := exprParser.Parse()
+		if acl != nil {
+			return nil, acl
+		}
+		if !p.checkPositionIs(0, token.RPAREN) {
+			return nil, data.NewErrorThrow(p.newFrom(), errors.New("new (expression) 缺少右括号"))
+		}
+		p.next() // 跳过 )
+		var args []data.GetValue
+		if p.current().Type() == token.LPAREN {
+			vp := &VariableParser{p.Parser}
+			args, acl = vp.parseFunctionCall()
+			if acl != nil {
+				return nil, acl
+			}
+		} else {
+			args = []data.GetValue{}
+		}
+		return node.NewNewExpressionDynamic(
+			tracker.EndBefore(),
+			classNameExpr,
+			args,
+		), nil
+	}
 	// 解析类名
+	// 支持 new $variable 或 new $obj->prop 等动态类名表达式
+	// 动态类名：new $variable(...) 或 new $this->prop(...) 等
+	if p.current().Type() == token.VARIABLE || p.current().Type() == token.DOLLAR || p.current().Type() == token.THIS {
+		// 使用表达式解析器来解析动态类名表达式
+		exprParser := NewExpressionParser(p.Parser)
+		classNameExpr, acl := exprParser.Parse()
+		if acl != nil {
+			return nil, acl
+		}
+		// 解析构造函数参数
+		var args []data.GetValue
+		if p.current().Type() == token.LPAREN {
+			vp := &VariableParser{p.Parser}
+			args, acl = vp.parseFunctionCall()
+			if acl != nil {
+				return nil, acl
+			}
+		} else {
+			args = []data.GetValue{}
+		}
+		return node.NewNewExpressionDynamic(
+			tracker.EndBefore(),
+			classNameExpr,
+			args,
+		), nil
+	}
 	if !p.checkPositionIs(0, token.IDENTIFIER, token.GENERIC_TYPE) {
 		return nil, data.NewErrorThrow(p.newFrom(), errors.New("new关键字后面必须跟类名或变量; 当前="+p.current().Literal()))
 	}
@@ -435,7 +488,7 @@ func (p *NewStructParser) parseAnonymousClass(tracker *PositionTracker) (data.Ge
 			// 语法：use Trait1, Trait2;
 			// 在匿名类中可以使用 trait，trait 的方法和属性会被直接合并到类中
 			// 例如：new class { use MyTrait; }
-			traitNames, acl := cp.parseTraitUse()
+			traitNames, _, acl := cp.parseTraitUse()
 			if acl != nil {
 				return nil, acl
 			}

@@ -524,6 +524,8 @@ func (p *Parser) findFullClassNameByNamespace(name string) (string, bool) {
 			if _, ok := p.ClassPathManager.FindClassFile(tryName); ok {
 				return tryName, true
 			}
+			// 文件未找到，但仍返回命名空间前缀的名称，让 Composer autoloader 处理
+			return tryName, false
 		}
 
 		// 如果当前命名空间下没有匹配，尝试将 name 视为全局 FQCN
@@ -545,10 +547,11 @@ func (p *Parser) findFullClassNameByNamespace(name string) (string, bool) {
 			return stmt.GetName(), true
 		}
 		// 能找到文件就当时有类了
-		_, ok := p.ClassPathManager.FindClassFile(tryName)
-		if ok {
+		if _, ok := p.ClassPathManager.FindClassFile(tryName); ok {
 			return tryName, true
 		}
+		// 文件未找到，但仍返回命名空间前缀的名称，让 Composer autoloader 处理
+		return tryName, false
 	} else {
 		// 尝试全局
 		if stmt, ok := p.vm.GetClass(name); ok {
@@ -558,27 +561,31 @@ func (p *Parser) findFullClassNameByNamespace(name string) (string, bool) {
 			return stmt.GetName(), true
 		}
 		// 能找到文件就当时有类了
-		_, ok := p.ClassPathManager.FindClassFile(name)
-		if ok {
+		if _, ok := p.ClassPathManager.FindClassFile(name); ok {
 			return name, true
 		}
+		// 返回原始名称，让 VM 后续通过 Composer autoloader 加载
+		return name, false
 	}
-
-	return name, false
 }
 
 func (p *Parser) findFullFunNameByNamespace(name string) (string, bool) {
 	if full, ok := p.uses[name]; ok {
 		return full, true
 	}
-	tryName := name
-	if p.namespace != nil && !strings.Contains(name, "\\") {
-		tryName = p.namespace.GetName() + "\\" + name
+	// 去除前导 \（全局函数引用）
+	searchName := name
+	if strings.HasPrefix(name, "\\") {
+		searchName = name[1:]
+	}
+	tryName := searchName
+	if p.namespace != nil && !strings.Contains(searchName, "\\") {
+		tryName = p.namespace.GetName() + "\\" + searchName
 	}
 	if stmt, ok := p.vm.GetFunc(tryName); ok {
 		return stmt.GetName(), true
 	}
-	if stmt, ok := p.vm.GetFunc(name); ok {
+	if stmt, ok := p.vm.GetFunc(searchName); ok {
 		return stmt.GetName(), true
 	}
 

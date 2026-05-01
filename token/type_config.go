@@ -76,6 +76,7 @@ const (
 	DEFAULT                             // default 默认值
 	UNUSED                              // _ 符号, 跳过变量
 	DIR                                 // __DIR__ 魔术常量
+	CLASS_MAGIC                         // __CLASS__ 当前类名
 	FILE                                // __FILE__
 	LINE                                // __LINE__
 	GENERIC_TYPE                        // 泛型类型参数
@@ -90,6 +91,7 @@ const (
 	REQUEST                             // $_REQUEST
 	SERVER                              // $_SERVER
 	FUNC_GET_ARGS                       // func_get_args 获取函数参数
+	FUNC_NUM_ARGS                       // func_num_args 获取函数参数个数
 	GLOBAL                              // global 声明全局变量
 
 	KEYWORD_END TokenType = iota + 100

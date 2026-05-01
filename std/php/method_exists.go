@@ -70,21 +70,31 @@ func (f *MethodExistsFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 		return data.NewBoolValue(false), nil
 	}
 
-	// 检查当前类方法
+	// 检查当前类方法（实例方法 + 静态方法）
 	if _, found := classStmt.GetMethod(methodName); found {
 		return data.NewBoolValue(true), nil
+	}
+	if gsm, ok := classStmt.(data.GetStaticMethod); ok {
+		if _, found := gsm.GetStaticMethod(methodName); found {
+			return data.NewBoolValue(true), nil
+		}
 	}
 
 	// 检查继承链中的方法
 	last := classStmt
 	for last.GetExtend() != nil {
 		ext := last.GetExtend()
-		parentClass, acl := vm.GetClass(*ext)
-		if !acl {
+		parentClass, acl := vm.GetOrLoadClass(*ext)
+		if acl != nil || parentClass == nil {
 			break
 		}
 		if _, found := parentClass.GetMethod(methodName); found {
 			return data.NewBoolValue(true), nil
+		}
+		if gsm, ok := parentClass.(data.GetStaticMethod); ok {
+			if _, found := gsm.GetStaticMethod(methodName); found {
+				return data.NewBoolValue(true), nil
+			}
 		}
 		last = parentClass
 	}

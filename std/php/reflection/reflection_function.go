@@ -42,6 +42,10 @@ func (c *ReflectionFunctionClass) GetMethod(name string) (data.Method, bool) {
 		return &ReflectionFunctionGetParametersMethod{}, true
 	case "getNumberOfParameters":
 		return &ReflectionFunctionGetNumberOfParametersMethod{}, true
+	case "isAnonymous":
+		return &ReflectionFunctionIsAnonymousMethod{}, true
+	case "getClosureScopeClass":
+		return &ReflectionFunctionGetClosureScopeClassMethod{}, true
 	}
 	return nil, false
 }
@@ -222,4 +226,42 @@ func (m *ReflectionFunctionGetNumberOfParametersMethod) Call(ctx data.Context) (
 		return cv, nil
 	}
 	return data.NewIntValue(0), nil
+}
+
+// ---- isAnonymous ----
+
+type ReflectionFunctionIsAnonymousMethod struct{}
+
+func (m *ReflectionFunctionIsAnonymousMethod) GetName() string            { return "isAnonymous" }
+func (m *ReflectionFunctionIsAnonymousMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *ReflectionFunctionIsAnonymousMethod) GetIsStatic() bool          { return false }
+func (m *ReflectionFunctionIsAnonymousMethod) GetReturnType() data.Types  { return data.Bool{} }
+func (m *ReflectionFunctionIsAnonymousMethod) GetParams() []data.GetValue { return []data.GetValue{} }
+func (m *ReflectionFunctionIsAnonymousMethod) GetVariables() []data.Variable {
+	return []data.Variable{}
+}
+func (m *ReflectionFunctionIsAnonymousMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	return data.NewBoolValue(false), nil
+}
+
+// ---- getClosureScopeClass ----
+
+type ReflectionFunctionGetClosureScopeClassMethod struct{}
+
+func (m *ReflectionFunctionGetClosureScopeClassMethod) GetName() string {
+	return "getClosureScopeClass"
+}
+func (m *ReflectionFunctionGetClosureScopeClassMethod) GetModifier() data.Modifier {
+	return data.ModifierPublic
+}
+func (m *ReflectionFunctionGetClosureScopeClassMethod) GetIsStatic() bool         { return false }
+func (m *ReflectionFunctionGetClosureScopeClassMethod) GetReturnType() data.Types { return nil }
+func (m *ReflectionFunctionGetClosureScopeClassMethod) GetParams() []data.GetValue {
+	return []data.GetValue{}
+}
+func (m *ReflectionFunctionGetClosureScopeClassMethod) GetVariables() []data.Variable {
+	return []data.Variable{}
+}
+func (m *ReflectionFunctionGetClosureScopeClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	return data.NewNullValue(), nil
 }

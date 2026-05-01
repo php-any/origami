@@ -85,6 +85,8 @@ func (vp *VariableParser) parseVariable() data.Variable {
 		return node.NewCookieVariable(tracker.EndBefore())
 	case "$_SESSION":
 		return node.NewSessionVariable(tracker.EndBefore())
+	case "$_FILES":
+		return node.NewFilesVariable(tracker.EndBefore())
 	case "$_REQUEST":
 		return node.NewRequestVariable(tracker.EndBefore())
 
@@ -144,12 +146,12 @@ func (vp *VariableParser) parseSuffix(expr data.GetValue) (data.GetValue, data.C
 						return nil, acl
 					}
 					vp.nextAndCheck(token.RBRACE)
-					callExpr = node.NewIndexExpression(tracker2.EndBefore(), expr, nameExpr)
+					callExpr = node.NewCallObjectDynamicProperty(tracker2.EndBefore(), expr, nameExpr)
 				} else if !(vp.checkPositionIs(0, token.IDENTIFIER, token.VARIABLE) || (vp.current().Type() > token.KEYWORD_START && vp.current().Type() < token.VALUE_START)) {
 					return nil, data.NewErrorThrow(tracker2.EndBefore(), errors.New("符号'?->'后面需要跟随单词"))
 				} else if vp.current().Type() == token.VARIABLE {
 					nameExpr := vp.parseVariable()
-					callExpr = node.NewIndexExpression(tracker2.EndBefore(), expr, nameExpr)
+					callExpr = node.NewCallObjectDynamicProperty(tracker2.EndBefore(), expr, nameExpr)
 				} else {
 					method := vp.current().Literal()
 					vp.next()
@@ -216,8 +218,10 @@ func (vp *VariableParser) parseFunctionCall() ([]data.GetValue, data.Control) {
 	args := make([]data.GetValue, 0)
 	if vp.current().Type() != token.RPAREN {
 		for {
-			// 优先检查命名参数
-			if vp.checkPositionIs(0, token.IDENTIFIER) && vp.checkPositionIs(1, token.COLON) {
+			// 优先检查命名参数（标识符或关键字后跟冒号，PHP 8.0+）
+			if (vp.checkPositionIs(0, token.IDENTIFIER, token.DEFAULT) ||
+				(vp.current().Type() > token.KEYWORD_START && vp.current().Type() < token.VALUE_START)) &&
+				vp.checkPositionIs(1, token.COLON) {
 				tracker := vp.StartTracking()
 				name := vp.current().Literal()
 				vp.next()
@@ -238,10 +242,20 @@ func (vp *VariableParser) parseFunctionCall() ([]data.GetValue, data.Control) {
 				}
 				vp.next()
 			} else if vp.current().Type() == token.ELLIPSIS {
-				// 展开实参 ...expr：仅解析为独立节点，不在这里做语义展开
 				tracker := vp.StartTracking()
 				vp.next() // 跳过 ...
-
+				// 如果 ... 后紧跟 ) 或 , 则是 first-class callable（如 $fn = $obj->method(...)）
+				if vp.current().Type() == token.RPAREN || vp.current().Type() == token.COMMA {
+					// 使用 ToClosure 标记，让外层 CallObjectMethod 处理
+					from := tracker.EndBefore()
+					args = append(args, node.NewSpreadArgument(from, nil))
+					if vp.current().Type() != token.COMMA {
+						break
+					}
+					vp.next()
+					continue
+				}
+				// 展开实参 ...expr
 				expr, acl := vp.parseStatement()
 				if acl != nil {
 					return nil, acl
@@ -464,11 +478,7 @@ func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, 
 			from = tracker.EndBefore()
 			return node.NewCallObjectDynamicMethod(from, object, nameExpr, stmt), nil
 		}
-		return node.NewIndexExpression(
-			from,
-			object,
-			nameExpr,
-		), nil
+		return node.NewCallObjectDynamicProperty(from, object, nameExpr), nil
 	}
 
 	// 支持三种情况：
@@ -496,11 +506,7 @@ func (vp *VariableParser) parseMethodCall(object data.GetValue) (data.GetValue, 
 			from = tracker.EndBefore()
 			return node.NewCallObjectDynamicMethod(from, object, nameExpr, stmt), nil
 		}
-		return node.NewIndexExpression(
-			from,
-			object,
-			nameExpr,
-		), nil
+		return node.NewCallObjectDynamicProperty(from, object, nameExpr), nil
 	}
 
 	method := vp.current().Literal()

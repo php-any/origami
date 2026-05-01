@@ -174,10 +174,10 @@ func (p *Parameter) SetValue(ctx data.Context, value data.Value) data.Control {
 	if p.Type == nil {
 		return ctx.SetVariableValue(p, value)
 	}
-	if p.Type.Is(value) {
+	// null 可以传递给任何类型的参数（PHP 兼容）
+	if _, isNull := value.(*data.NullValue); isNull {
 		return ctx.SetVariableValue(p, value)
 	}
-	// TODO TEST
 	if p.Type.Is(value) {
 		return ctx.SetVariableValue(p, value)
 	}
@@ -254,6 +254,18 @@ func NewParameters(from data.From, name string, index int, defaultValue data.Get
 			Index:        index,
 			Type:         ty,
 			DefaultValue: defaultValue,
+		},
+	}
+}
+
+// NewParametersNoName 接收任意数量参数（用于 __callStatic 等场景）
+func NewParametersNoName(index int) data.GetValue {
+	return &Parameters{
+		Parameter: &Parameter{
+			Node:  NewNode(nil),
+			Name:  "args",
+			Index: index,
+			Type:  nil,
 		},
 	}
 }

@@ -69,8 +69,14 @@ func (pe *CallObjectDynamicMethod) GetValue(ctx data.Context) (data.GetValue, da
 	case *data.ClassValue:
 		method, has := class.GetMethod(methodName)
 		if has {
-			if method.GetModifier() != data.ModifierPublic {
-				return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("对象方法 %s 非公开", methodName))
+			if method.GetModifier() == data.ModifierPrivate {
+				if !isCallerInClassHierarchy(ctx, class.Class) {
+					return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("不能调用 private 方法: %s", methodName))
+				}
+			} else if method.GetModifier() == data.ModifierProtected {
+				if !isCallerInClassHierarchy(ctx, class.Class) {
+					return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("对象方法 %s 非公开", methodName))
+				}
 			}
 			fnCtx, acl := proxy.callMethodParams(class, ctx, method)
 			if acl != nil {

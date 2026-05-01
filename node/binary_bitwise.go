@@ -1,12 +1,29 @@
 package node
 
 import (
-	"errors"
-
 	"github.com/php-any/origami/data"
 )
 
-// Bitwise AND: $a & $b
+// toIntOrZero 将值转为整数，null/非数字字符串返回 0
+func toIntOrZero(v data.GetValue) int {
+	if v == nil {
+		return 0
+	}
+	if _, isNull := v.(*data.NullValue); isNull {
+		return 0
+	}
+	if _, ok := v.(*data.StringValue); ok {
+		return 0 // 字符串按位操作返回 0（PHP 兼容）
+	}
+	if iv, ok := v.(data.AsInt); ok {
+		n, err := iv.AsInt()
+		if err == nil {
+			return n
+		}
+	}
+	return 0
+}
+
 type BinaryBitAnd struct {
 	*Node `pp:"-"`
 	Left  data.GetValue
@@ -14,11 +31,7 @@ type BinaryBitAnd struct {
 }
 
 func NewBinaryBitAnd(from data.From, left, right data.GetValue) *BinaryBitAnd {
-	return &BinaryBitAnd{
-		Node:  NewNode(from),
-		Left:  left,
-		Right: right,
-	}
+	return &BinaryBitAnd{Node: NewNode(from), Left: left, Right: right}
 }
 
 func (b *BinaryBitAnd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
@@ -30,29 +43,9 @@ func (b *BinaryBitAnd) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 	if rCtl != nil {
 		return nil, rCtl
 	}
-
-	li, ok := lv.(data.AsInt)
-	if !ok {
-		return nil, data.NewErrorThrow(b.from, errors.New("按位与左操作数必须是整数"))
-	}
-	ri, ok := rv.(data.AsInt)
-	if !ok {
-		return nil, data.NewErrorThrow(b.from, errors.New("按位与右操作数必须是整数"))
-	}
-
-	ln, err := li.AsInt()
-	if err != nil {
-		return nil, data.NewErrorThrow(b.from, err)
-	}
-	rn, err := ri.AsInt()
-	if err != nil {
-		return nil, data.NewErrorThrow(b.from, err)
-	}
-
-	return data.NewIntValue(int(ln & rn)), nil
+	return data.NewIntValue(toIntOrZero(lv) & toIntOrZero(rv)), nil
 }
 
-// Bitwise XOR: $a ^ $b
 type BinaryBitXor struct {
 	*Node `pp:"-"`
 	Left  data.GetValue
@@ -60,11 +53,7 @@ type BinaryBitXor struct {
 }
 
 func NewBinaryBitXor(from data.From, left, right data.GetValue) *BinaryBitXor {
-	return &BinaryBitXor{
-		Node:  NewNode(from),
-		Left:  left,
-		Right: right,
-	}
+	return &BinaryBitXor{Node: NewNode(from), Left: left, Right: right}
 }
 
 func (b *BinaryBitXor) GetValue(ctx data.Context) (data.GetValue, data.Control) {
@@ -76,29 +65,9 @@ func (b *BinaryBitXor) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 	if rCtl != nil {
 		return nil, rCtl
 	}
-
-	li, ok := lv.(data.AsInt)
-	if !ok {
-		return nil, data.NewErrorThrow(b.from, errors.New("按位异或左操作数必须是整数"))
-	}
-	ri, ok := rv.(data.AsInt)
-	if !ok {
-		return nil, data.NewErrorThrow(b.from, errors.New("按位异或右操作数必须是整数"))
-	}
-
-	ln, err := li.AsInt()
-	if err != nil {
-		return nil, data.NewErrorThrow(b.from, err)
-	}
-	rn, err := ri.AsInt()
-	if err != nil {
-		return nil, data.NewErrorThrow(b.from, err)
-	}
-
-	return data.NewIntValue(int(ln ^ rn)), nil
+	return data.NewIntValue(toIntOrZero(lv) ^ toIntOrZero(rv)), nil
 }
 
-// Bitwise OR: $a | $b
 type BinaryBitOr struct {
 	*Node `pp:"-"`
 	Left  data.GetValue
@@ -106,11 +75,7 @@ type BinaryBitOr struct {
 }
 
 func NewBinaryBitOr(from data.From, left, right data.GetValue) *BinaryBitOr {
-	return &BinaryBitOr{
-		Node:  NewNode(from),
-		Left:  left,
-		Right: right,
-	}
+	return &BinaryBitOr{Node: NewNode(from), Left: left, Right: right}
 }
 
 func (b *BinaryBitOr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
@@ -122,24 +87,5 @@ func (b *BinaryBitOr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	if rCtl != nil {
 		return nil, rCtl
 	}
-
-	li, ok := lv.(data.AsInt)
-	if !ok {
-		return nil, data.NewErrorThrow(b.from, errors.New("按位或左操作数必须是整数"))
-	}
-	ri, ok := rv.(data.AsInt)
-	if !ok {
-		return nil, data.NewErrorThrow(b.from, errors.New("按位或右操作数必须是整数"))
-	}
-
-	ln, err := li.AsInt()
-	if err != nil {
-		return nil, data.NewErrorThrow(b.from, err)
-	}
-	rn, err := ri.AsInt()
-	if err != nil {
-		return nil, data.NewErrorThrow(b.from, err)
-	}
-
-	return data.NewIntValue(int(ln | rn)), nil
+	return data.NewIntValue(toIntOrZero(lv) | toIntOrZero(rv)), nil
 }

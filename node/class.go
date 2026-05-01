@@ -384,6 +384,15 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return generatorClass.GetValue(ctx)
 	}
 
+	// 调用深度限制，防止无限递归导致栈溢出
+	if vm := ctx.GetVM(); vm != nil {
+		if depth := vm.EnterCall(); depth > 500 {
+			vm.LeaveCall()
+			return nil, data.NewErrorThrow(m.GetFrom(), fmt.Errorf("方法 %s 调用深度超过限制(%d)", m.Name, depth))
+		}
+		defer vm.LeaveCall()
+	}
+
 	var v data.GetValue
 	var ctl data.Control
 	for bodyIndex, statement := range m.Body {
@@ -398,6 +407,10 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 				if m.Ret.Is(ret) {
 					return ret, nil
 				}
+				// 允许 null 返回（PHP 兼容：方法可能隐式返回 null）
+				if _, isNull := ret.(*data.NullValue); isNull {
+					return data.NewStringValue(""), nil
+				}
 				// 声明返回 string 时，允许返回带 __toString 的对象并自动转为字符串（与 PHP 一致）
 				if m.Ret != nil && m.Ret.String() == "string" {
 					if obj, ok := ret.(*data.ClassValue); ok {
@@ -411,7 +424,7 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 						}
 					}
 				}
-				return nil, data.NewErrorThrow(m.GetFrom(), fmt.Errorf("方法(%s)返回值类型错误; 请检查类型和数量匹配", m.Name))
+				return nil, data.NewErrorThrow(m.GetFrom(), fmt.Errorf("方法(%s)返回值类型错误; 期望 %s, 实际 %T", m.Name, m.Ret.String(), ret))
 			case data.YieldControl:
 				// Generator 方法：将执行状态保存为生成器
 				generator := rv.CreateStackState(ctx, m, m.Body, bodyIndex)

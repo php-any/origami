@@ -3,6 +3,7 @@ package parser
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/token"
 )
 
 // BreakParser 表示break语句解析器
@@ -20,10 +21,26 @@ func NewBreakParser(parser *Parser) StatementParser {
 // Parse 解析break语句
 func (p *BreakParser) Parse() (data.GetValue, data.Control) {
 	from := p.FromCurrentToken()
-	// 跳过break关键字
-	p.next()
+	p.next() // 跳过 break
 
-	return node.NewBreakStatement(
-		from,
-	), nil
+	levels := 1
+	if p.current().Type() == token.INT {
+		if n, err := parseInt(p.current().Literal()); err == nil {
+			levels = n
+		}
+		p.next()
+	}
+
+	return node.NewBreakStatementWithLevel(from, levels), nil
+}
+
+func parseInt(s string) (int, error) {
+	n := 0
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			break
+		}
+		n = n*10 + int(c-'0')
+	}
+	return n, nil
 }

@@ -437,14 +437,16 @@ func NewNewSelfExpression(from *TokenFrom, arguments []data.GetValue) *NewSelfEx
 
 // GetValue 实现 Value 接口
 func (n *NewSelfExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 检查是否在类方法上下文中
-	classCtx, ok := ctx.(*data.ClassMethodContext)
-	if !ok {
+	// 检查是否在类上下文中（类方法或类级初始化器）
+	var currentClass data.ClassStmt
+	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
+		currentClass = classCtx.Class
+	} else if classVal, ok := ctx.(*data.ClassValue); ok {
+		currentClass = classVal.Class
+	} else {
 		return nil, data.NewErrorThrow(n.from, fmt.Errorf("new self 只能在类方法中使用"))
 	}
 
-	// 获取当前类名
-	currentClass := classCtx.Class
 	className := currentClass.GetName()
 
 	return createInstanceAndCallConstructor(n.from, className, n.Arguments, ctx)
@@ -468,16 +470,50 @@ func NewNewStaticExpression(from *TokenFrom, arguments []data.GetValue) *NewStat
 
 // GetValue 实现 Value 接口
 func (n *NewStaticExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 检查是否在类方法上下文中
-	classCtx, ok := ctx.(*data.ClassMethodContext)
-	if !ok {
+	// 检查是否在类上下文中（类方法或类级初始化器）
+	var currentClass data.ClassStmt
+	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
+		currentClass = classCtx.Class
+	} else if classVal, ok := ctx.(*data.ClassValue); ok {
+		currentClass = classVal.Class
+	} else {
 		return nil, data.NewErrorThrow(n.from, fmt.Errorf("new static 只能在类方法中使用"))
 	}
 
 	// 获取当前类的类名
 	// TODO: 实现真正的 late static binding，返回实际调用时的类名（子类）
-	currentClass := classCtx.Class
 	className := currentClass.GetName()
 
+	return createInstanceAndCallConstructor(n.from, className, n.Arguments, ctx)
+}
+
+// NewExpressionDynamic 表示 new $expr(...) 动态类名实例化
+type NewExpressionDynamic struct {
+	*Node     `pp:"-"`
+	ClassExpr data.GetValue // 类名表达式（运行时求值为字符串）
+	Arguments []data.GetValue
+}
+
+func NewNewExpressionDynamic(from *TokenFrom, classExpr data.GetValue, arguments []data.GetValue) *NewExpressionDynamic {
+	return &NewExpressionDynamic{
+		Node:      NewNode(from),
+		ClassExpr: classExpr,
+		Arguments: arguments,
+	}
+}
+
+func (n *NewExpressionDynamic) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	// 求值类名表达式
+	classVal, acl := n.ClassExpr.GetValue(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	className := ""
+	if s, ok := classVal.(data.AsString); ok {
+		className = s.AsString()
+	}
+	if className == "" {
+		return nil, data.NewErrorThrow(n.from, fmt.Errorf("new 表达式类名求值结果为空"))
+	}
 	return createInstanceAndCallConstructor(n.from, className, n.Arguments, ctx)
 }

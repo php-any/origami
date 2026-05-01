@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go run *)",
+      "Bash(php -r \"echo 'composer not found';\")",
+      "Bash(composer install *)",
+      "Bash(python3 -c ' *)",
+      "Bash(perl -i -pe 's/^traitAliases = append/\\\\t\\\\t\\\\t\\\\ttraitAliases = append/' parser/class_parser.go)",
+      "Bash(perl -i -pe 's/traitNames, acl := p\\\\.parseTraitUse\\\\\\(\\\\\\)/traitNames, aliases, acl := p.parseTraitUse\\(\\)/' parser/trait_parser.go)",
+      "Bash(perl -i -0777 -pe 's/if p\\\\.current\\\\\\(\\\\\\)\\\\.Type\\\\\\(\\\\\\) == token\\\\.USE \\\\{\\\\s*\\\\n\\\\s*traitNames, aliases, acl := p\\\\.parseTraitUse\\\\\\(\\\\\\)\\\\s*\\\\n\\\\s*if acl != nil \\\\{\\\\s*\\\\n\\\\s*return nil, acl\\\\s*\\\\n\\\\s*\\\\}\\\\s*\\\\n\\\\s*acl = p\\\\.mergeTraitsIntoMaps\\\\\\(traitNames/if p.current\\(\\).Type\\(\\) == token.USE {\\\\n\\\\t\\\\t\\\\t\\\\ttraitNames, aliases, acl := p.parseTraitUse\\(\\)\\\\n\\\\t\\\\t\\\\t\\\\tif acl != nil {\\\\n\\\\t\\\\t\\\\t\\\\t\\\\treturn nil, acl\\\\n\\\\t\\\\t\\\\t\\\\t}\\\\n\\\\t\\\\t\\\\t\\\\ttraitAliases = append\\(traitAliases, aliases...\\)\\\\n\\\\t\\\\t\\\\t\\\\tacl = p.mergeTraitsIntoMaps\\(traitNames, traitAliases/' parser/trait_parser.go)",
+      "Bash(python3)",
+      "Bash(go build *)"
+    ]
+  }
+}

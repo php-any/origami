@@ -19,38 +19,75 @@ func NewIssetStatement(token *TokenFrom, args []data.GetValue) *IssetStatement {
 }
 
 // GetValue 获取 isset 语句的值
-// isset 检查变量是否存在且不为 null，返回 bool 值
-// 如果所有参数都已设置且不为 null，返回 true；否则返回 false
 func (i *IssetStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 如果没有参数，返回 false
 	if len(i.Args) == 0 {
 		return data.NewBoolValue(false), nil
 	}
 
-	// 遍历所有参数表达式，检查每个变量是否存在且不为 null
 	for _, argExpr := range i.Args {
-		// 获取参数值
-		varValue, ctl := argExpr.GetValue(ctx)
+		// 对 IndexExpression，尝试使用 ArrayAccess::offsetExists
+		if ie, ok := argExpr.(*IndexExpression); ok {
+			if isSet, handled := isSetViaOffsetExists(ctx, ie); handled {
+				return data.NewBoolValue(isSet), nil
+			}
+		}
 
-		// 如果获取值出错，返回 false
+		varValue, ctl := argExpr.GetValue(ctx)
 		if ctl != nil {
 			if acl, ok := ctl.(data.GetName); ok && "UndefinedIndexExpression" == acl.GetName() {
 				return data.NewBoolValue(false), nil
 			}
 			return nil, ctl
 		}
-
-		// 检查值是否为 null
 		if varValue == nil {
 			return data.NewBoolValue(false), nil
 		}
-
-		// 检查是否为 null 值
 		if _, isNull := varValue.(*data.NullValue); isNull {
 			return data.NewBoolValue(false), nil
 		}
 	}
 
-	// 所有参数都已设置且不为 null，返回 true
 	return data.NewBoolValue(true), nil
+}
+
+// isSetViaOffsetExists 对实现了 ArrayAccess 的对象使用 offsetExists 检查
+func isSetViaOffsetExists(ctx data.Context, ie *IndexExpression) (bool, bool) {
+	array, acl := ie.Array.GetValue(ctx)
+	if acl != nil {
+		return false, false
+	}
+	index, acl := ie.Index.GetValue(ctx)
+	if acl != nil {
+		return false, false
+	}
+
+	var obj *data.ClassValue
+	switch v := array.(type) {
+	case *data.ClassValue:
+		obj = v
+	case *data.ThisValue:
+		obj = v.ClassValue
+	default:
+		return false, false
+	}
+
+	method, exists := obj.GetMethod("offsetExists")
+	if !exists {
+		return false, false
+	}
+
+	fnCtx := obj.CreateContext(method.GetVariables())
+	if len(method.GetVariables()) > 0 {
+		if iv, ok := index.(data.Value); ok {
+			fnCtx.SetVariableValue(method.GetVariables()[0], iv)
+		}
+	}
+	ret, ctl := method.Call(fnCtx)
+	if ctl != nil {
+		return false, false
+	}
+	if bv, ok := ret.(*data.BoolValue); ok {
+		return bv.Value, true
+	}
+	return false, true
 }

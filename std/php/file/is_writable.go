@@ -57,6 +57,20 @@ func (f *IsWritableFunction) Call(ctx data.Context) (data.GetValue, data.Control
 
 // isWritablePath 检查路径是否可写
 func isWritablePath(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	if info.IsDir() {
+		// 对于目录，尝试创建一个临时文件来验证可写性
+		f, err := os.CreateTemp(path, ".origami_write_test_*")
+		if err != nil {
+			return false
+		}
+		f.Close()
+		os.Remove(f.Name())
+		return true
+	}
 	file, err := os.OpenFile(path, os.O_WRONLY, 0)
 	if err != nil {
 		return false

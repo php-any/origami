@@ -1,0 +1,34 @@
+namespace tests\obj;
+
+// 测试类方法优先级高于 trait 别名
+trait AliasBase {
+    public function hello() {
+        return "trait hello";
+    }
+}
+
+class AliasOverride {
+    use AliasBase {
+        hello as greeting;
+    }
+
+    public function greeting() {
+        return "class greeting";
+    }
+}
+
+$a = new AliasOverride();
+
+// 类方法优先
+if($a->greeting() == "class greeting") {
+    Log::info("trait 别名不覆盖类方法 - 成功");
+} else {
+    Log::fatal("trait 别名不覆盖类方法 - 失败: " . $a->greeting());
+}
+
+// trait 原方法仍可用
+if($a->hello() == "trait hello") {
+    Log::info("trait 别名不覆盖类方法 - trait 原方法仍可用");
+} else {
+    Log::fatal("trait 别名不覆盖类方法 - trait 原方法失效");
+}

@@ -60,17 +60,19 @@ func (m *ClosureBindMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 		return nil, utils.NewThrow(errors.New("缺少参数: closure"))
 	}
 
-	closureThis, ok := ctx.GetIndexValue(1)
+	_, ok = ctx.GetIndexValue(1)
 	if !ok {
 		return nil, utils.NewThrow(errors.New("缺少参数: newThis"))
 	}
-	if closureThis == nil {
-		return nil, utils.NewThrow(errors.New("newThis TODO"))
-	}
+
+	newScope, _ := ctx.GetIndexValue(2)
 
 	// 仅接受可调用类型
-	switch closureVal.(type) {
+	switch fv := closureVal.(type) {
 	case *data.FuncValue:
+		if scopeStr, ok := newScope.(*data.StringValue); ok && scopeStr.Value != "" {
+			return data.NewBoundFuncValue(fv.Value, scopeStr.Value), nil
+		}
 		return closureVal, nil
 	default:
 		return nil, utils.NewThrow(errors.New("Closure::bind 需要传入闭包/可调用类型"))

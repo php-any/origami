@@ -48,6 +48,10 @@ func (f *LambdaExpression) Call(ctx data.Context) (data.GetValue, data.Control) 
 		// 普通场景：基于当前 ctx 再创建一层函数上下文，隔离变量写入。
 		execCtx = ctx.CreateContext(f.vars)
 	}
+	// 保留 BoundContext scope（来自 Closure::bind）以便闭包内可以访问私有成员
+	if bc := getBoundContext(ctx); bc != nil {
+		execCtx = &data.BoundContext{Context: execCtx, ScopeClass: bc.ScopeClass}
+	}
 	// 将调用方 ctx 中已经绑定好的参数 ZVal 复制到新的执行上下文中
 	for i := range f.vars {
 		zv := ctx.GetIndexZVal(i)
@@ -99,4 +103,19 @@ func (f *LambdaExpression) Call(ctx data.Context) (data.GetValue, data.Control) 
 	}
 
 	return v, nil
+}
+
+// getBoundContext 从上下文链中查找 BoundContext（来自 Closure::bind）
+func getBoundContext(ctx data.Context) *data.BoundContext {
+	if bc, ok := ctx.(*data.BoundContext); ok {
+		return bc
+	}
+	// 沿上下文链向上查找
+	if cmc, ok := ctx.(*data.ClassMethodContext); ok {
+		return getBoundContext(cmc.ClassValue)
+	}
+	if cv, ok := ctx.(*data.ClassValue); ok {
+		return getBoundContext(cv.Context)
+	}
+	return nil
 }

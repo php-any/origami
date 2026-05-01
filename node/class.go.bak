@@ -1,0 +1,539 @@
+package node
+
+import (
+	"fmt"
+	"sync"
+
+	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/token"
+)
+
+// ClassStatement 表示类定义语句
+type ClassStatement struct {
+	*Node           `pp:"-"`
+	Name            string                   // 类名
+	Extends         *string                  // 父类名
+	Implements      []string                 // 实现的接口列表
+	StaticProperty  sync.Map                 // 静态属性存储（运行时值）
+	PropertiesIndex []string                 // 属性列表
+	Properties      map[string]data.Property // 属性列表
+	Methods         map[string]data.Method   // 方法列表
+	StaticMethods   map[string]data.Method   // 静态方法列表
+	Annotations     []*data.ClassValue       // 类注解列表
+
+	// 构造函数
+	Construct data.Method
+}
+
+// GetValue 获取类定义语句的值
+func (c *ClassStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	object := data.NewClassValue(c, ctx)
+
+	for _, property := range c.Properties {
+		def := property.GetDefaultValue()
+		if def == nil {
+			continue
+		}
+		v, ctl := def.GetValue(object)
+		if ctl != nil {
+			return nil, ctl
+		}
+		object.SetProperty(property.GetName(), v.(data.Value))
+	}
+	if c.Extends != nil {
+		vm := object.GetVM()
+		ext, acl := vm.GetOrLoadClass(*c.Extends)
+		if acl != nil {
+			return nil, acl
+		}
+		// 初始化父类的属性（包括所有继承链上的父类）
+		last := ext
+		for {
+			for _, property := range last.GetPropertyList() {
+				// 如果子类已经设置了该属性，跳过
+				if _, exists := c.Properties[property.GetName()]; exists {
+					continue
+				}
+				// 初始化有默认值的属性
+				def := property.GetDefaultValue()
+				if def != nil {
+					v, ctl := def.GetValue(object)
+					if ctl != nil {
+						return nil, ctl
+					}
+					object.SetProperty(property.GetName(), v.(data.Value))
+				}
+			}
+			// 继续处理父类的父类
+			if last.GetExtend() == nil {
+				break
+			}
+			next, acl := vm.GetOrLoadClass(*last.GetExtend())
+			if acl != nil {
+				return nil, acl
+			}
+			last = next
+		}
+		_, acl = ext.GetValue(object)
+		if acl != nil {
+			return nil, acl
+		}
+	}
+
+	return object, nil
+}
+
+func (c *ClassStatement) GetConstruct() data.Method {
+	return c.Construct
+}
+
+// NewClassStatement 创建一个新的类定义语句
+func NewClassStatement(from data.From, name string, extends string, implements []string, properties []data.Property, methods map[string]data.Method) *ClassStatement {
+	propertiesIndex := make([]string, len(properties))
+	propertiesMap := make(map[string]data.Property, len(properties))
+	for i, property := range properties {
+		propertiesIndex[i] = property.GetName()
+		propertiesMap[property.GetName()] = property
+	}
+
+	class := &ClassStatement{
+		Node:            NewNode(from),
+		Name:            name,
+		Extends:         &extends,
+		Implements:      implements,
+		PropertiesIndex: propertiesIndex,
+		Properties:      propertiesMap,
+		Methods:         methods,
+	}
+	if extends == "" {
+		class.Extends = nil
+	}
+	if construct, ok := class.GetMethod(token.ConstructName); ok {
+		class.Construct = construct
+	}
+	return class
+}
+
+// GetName 返回类名
+func (c *ClassStatement) GetName() string {
+	return c.Name
+}
+
+func (c *ClassStatement) GetExtend() *string {
+	return c.Extends
+}
+
+// GetImplements 返回实现的接口列表
+func (c *ClassStatement) GetImplements() []string {
+	return c.Implements
+}
+
+func (c *ClassStatement) AddAnnotations(a *data.ClassValue) {
+	if c.Annotations == nil {
+		c.Annotations = []*data.ClassValue{}
+	}
+	c.Annotations = append(c.Annotations, a)
+}
+
+func (c *ClassStatement) GetPropertyList() []data.Property {
+	properties := make([]data.Property, len(c.Properties))
+	for i, prop := range c.PropertiesIndex {
+		properties[i] = c.Properties[prop]
+	}
+	return properties
+}
+
+func (c *ClassStatement) GetProperty(name string) (data.Property, bool) {
+	if f, ok := c.Properties[name]; ok {
+		return f, true
+	}
+	return nil, false
+}
+
+func (c *ClassStatement) GetMethod(name string) (data.Method, bool) {
+	if f, ok := c.Methods[name]; ok {
+		return f, true
+	}
+	if name == token.ConstructName && c.Construct != nil {
+		return c.Construct, true
+	}
+	return nil, false
+}
+
+func (c *ClassStatement) GetMethods() []data.Method {
+	var methods []data.Method
+	for _, f := range c.Methods {
+		methods = append(methods, f)
+	}
+	// 如果构造函数存在且不在方法列表中，添加它
+	if c.Construct != nil {
+		hasConstruct := false
+		for _, method := range methods {
+			if method.GetName() == token.ConstructName {
+				hasConstruct = true
+				break
+			}
+		}
+		if !hasConstruct {
+			methods = append(methods, c.Construct)
+		}
+	}
+	return methods
+}
+
+func (c *ClassStatement) GetStaticProperty(name string) (data.Value, bool) {
+	if f, ok := c.StaticProperty.Load(name); ok {
+		return f.(data.Value), true
+	}
+	return nil, false
+}
+
+func (c *ClassStatement) GetStaticMethod(name string) (data.Method, bool) {
+	if f, ok := c.StaticMethods[name]; ok {
+		return f, true
+	}
+	return nil, false
+}
+
+type ClassProperty struct {
+	*Node        `pp:"-"`
+	Name         string             // 属性名
+	Modifier     data.Modifier      // 访问修饰符
+	IsStatic     bool               // 是否是静态属性
+	IsReadonly   bool               // 是否是只读属性
+	IsPromoted   bool               // 是否是构造函数参数属性提升
+	DefaultValue data.GetValue      // 默认值
+	Annotations  []*data.ClassValue // 属性注解列表
+	Type         data.Types         // 属性类型
+}
+
+func (p *ClassProperty) GetIndex() int {
+	panic("属性使用哈希实现")
+}
+
+func (p *ClassProperty) GetZVal(object data.GetPropertyZVal) (*data.ZVal, data.Control) {
+	return object.GetPropertyZVal(p.Name)
+}
+
+func (p *ClassProperty) GetType() data.Types {
+	return p.Type
+}
+
+func (p *ClassProperty) SetType(t data.Types) {
+	p.Type = t
+}
+
+func (p *ClassProperty) SetValue(ctx data.Context, value data.Value) data.Control {
+	p.DefaultValue = value
+	return nil
+}
+
+// NewProperty 创建一个新的属性
+func NewProperty(from data.From, name string, modifier string, isStatic bool, defaultValue data.GetValue, tys ...data.Types) *ClassProperty {
+	return NewPropertyWithReadonly(from, name, modifier, isStatic, false, defaultValue, tys...)
+}
+
+// NewPropertyWithReadonly 创建一个新的属性（支持 readonly）
+func NewPropertyWithReadonly(from data.From, name string, modifier string, isStatic bool, isReadonly bool, defaultValue data.GetValue, tys ...data.Types) *ClassProperty {
+	return NewPropertyWithPromoted(from, name, modifier, isStatic, isReadonly, false, defaultValue, tys...)
+}
+
+// NewPropertyWithPromoted 创建一个新的属性（支持 readonly 和 promoted）
+func NewPropertyWithPromoted(from data.From, name string, modifier string, isStatic bool, isReadonly bool, isPromoted bool, defaultValue data.GetValue, tys ...data.Types) *ClassProperty {
+	if name[0:1] == "$" {
+		name = name[1:]
+	}
+	var ty data.Types
+	if len(tys) > 0 {
+		ty = tys[0]
+	}
+
+	return &ClassProperty{
+		Node:         NewNode(from),
+		Name:         name,
+		Modifier:     data.NewModifier(modifier),
+		IsStatic:     isStatic,
+		IsReadonly:   isReadonly,
+		IsPromoted:   isPromoted,
+		DefaultValue: defaultValue,
+		Type:         ty,
+	}
+}
+
+func (p *ClassProperty) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	v, acl := ctx.GetVariableValue(p)
+	if v != nil {
+		return v, acl
+	} else {
+		v = data.NewNullValue()
+	}
+	if p.DefaultValue != nil {
+		v, acl := p.DefaultValue.GetValue(ctx)
+		if v != nil {
+			if c, ok := ctx.(data.SetProperty); ok {
+				c.SetProperty(p.Name, v.(data.Value))
+			} else {
+				ctx.SetVariableValue(p, v.(data.Value))
+			}
+			return v, acl
+		}
+		return v, acl
+	}
+	return v, acl
+}
+
+// GetName 返回属性名
+func (p *ClassProperty) GetName() string {
+	return p.Name
+}
+
+// GetModifier 返回访问修饰符
+func (p *ClassProperty) GetModifier() data.Modifier {
+	return p.Modifier
+}
+
+// GetDefaultValue 返回默认值
+func (p *ClassProperty) GetDefaultValue() data.GetValue {
+	return p.DefaultValue
+}
+
+func (p *ClassProperty) GetIsStatic() bool {
+	return p.IsStatic
+}
+
+func (p *ClassProperty) AddAnnotations(a *data.ClassValue) {
+	if p.Annotations == nil {
+		p.Annotations = []*data.ClassValue{}
+	}
+	p.Annotations = append(p.Annotations, a)
+}
+
+type ClassMethod struct {
+	*Node       `pp:"-"`
+	Name        string          // 方法名
+	Modifier    data.Modifier   // 访问修饰符
+	IsStatic    bool            // 是否是静态方法
+	Params      []data.GetValue // 参数列表
+	Body        []data.GetValue // 方法体
+	vars        []data.Variable
+	Annotations []*data.ClassValue // 方法注解列表
+	Ret         data.Types         // 返回类型
+	IsGenerator bool               // 是否是生成器方法（含 yield）
+}
+
+func (m *ClassMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	//TODO implement me
+	panic("implement me")
+}
+
+// NewMethod 创建一个新的方法
+func NewMethod(from data.From, name string, modifier string, isStatic bool, params []data.GetValue, body []data.GetValue, vars []data.Variable, ret data.Types) data.Method {
+	return &ClassMethod{
+		Node:        NewNode(from),
+		Name:        name,
+		Modifier:    data.NewModifier(modifier),
+		IsStatic:    isStatic,
+		Params:      params,
+		Body:        body,
+		vars:        vars,
+		Ret:         ret,
+		IsGenerator: containsYield(body),
+	}
+}
+
+func (m *ClassMethod) AddAnnotations(a *data.ClassValue) {
+	if m.Annotations == nil {
+		m.Annotations = []*data.ClassValue{}
+	}
+	m.Annotations = append(m.Annotations, a)
+}
+
+func (m *ClassMethod) GetIsStatic() bool {
+	return m.IsStatic
+}
+
+// GetName 返回方法名
+func (m *ClassMethod) GetName() string {
+	return m.Name
+}
+
+// GetModifier 返回访问修饰符
+func (m *ClassMethod) GetModifier() data.Modifier {
+	return m.Modifier
+}
+
+// GetParams 返回参数列表
+func (m *ClassMethod) GetParams() []data.GetValue {
+	return m.Params
+}
+
+func (m *ClassMethod) GetVariables() []data.Variable {
+	return m.vars
+}
+
+// GetReturnType 返回方法返回类型
+func (m *ClassMethod) GetReturnType() data.Types {
+	return m.Ret
+}
+
+func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	// PHP 语义：如果方法是 generator（含 yield），调用时立即返回 Generator 对象，不执行方法体
+	if m.IsGenerator {
+		generator := NewFuncYieldStackState(ctx, m, m.Body, 0, nil, nil)
+		generatorClass := NewGeneratorClass(generator)
+		return generatorClass.GetValue(ctx)
+	}
+
+	// 调用深度限制，防止无限递归导致栈溢出
+	vm := ctx.GetVM()
+	if depth := vm.EnterCall(); depth > 500 {
+		vm.LeaveCall()
+		return nil, data.NewErrorThrow(m.GetFrom(), fmt.Errorf("方法 %s 调用深度超过限制(%d)，可能存在无限递归", m.Name, depth))
+	}
+	defer vm.LeaveCall()
+
+	var v data.GetValue
+	var ctl data.Control
+	for bodyIndex, statement := range m.Body {
+		v, ctl = statement.GetValue(ctx)
+		if ctl != nil {
+			switch rv := ctl.(type) {
+			case data.ReturnControl:
+				ret := rv.ReturnValue()
+				if m.Ret == nil {
+					return ret, nil // 不判断类型
+				}
+				if m.Ret.Is(ret) {
+t				// 允许 null 替代任何返回类型（PHP 兼容：方法可能因代码路径返回不匹配的类型）
+					if _, isNull := ret.(*data.NullValue); isNull {
+						return data.NewStringValue(""), nil
+					}
+					return ret, nil
+				}
+				// 声明返回 string 时，允许返回带 __toString 的对象并自动转为字符串（与 PHP 一致）
+				if m.Ret != nil && m.Ret.String() == "string" {
+					if obj, ok := ret.(*data.ClassValue); ok {
+						if toStr, ok := obj.GetMethod("__toString"); ok && toStr != nil {
+							fnCtx := obj.CreateContext(toStr.GetVariables())
+							fnCtx.SetCallArgs([]data.GetValue{})
+							val, ctl := toStr.Call(fnCtx)
+							if ctl == nil && val != nil {
+								return val, nil
+							}
+						}
+					}
+				}
+				return nil, data.NewErrorThrow(m.GetFrom(), fmt.Errorf("方法(%s)返回值类型错误: 期望 %s, 实际 %T (值=%s)", m.Name, m.Ret.String(), ret, ret.AsString()))
+			case data.YieldControl:
+				// Generator 方法：将执行状态保存为生成器
+				generator := rv.CreateStackState(ctx, m, m.Body, bodyIndex)
+				generatorClass := NewGeneratorClass(generator)
+				return generatorClass.GetValue(ctx)
+			case data.YieldValueControl:
+				// Generator 方法：将执行状态保存为生成器
+				generator := NewFuncYieldStackState(ctx, m, m.Body, bodyIndex+1, rv.GetYieldKey(), rv.GetYieldValue())
+				generatorClass := NewGeneratorClass(generator)
+				return generatorClass.GetValue(ctx)
+			case data.AddStack:
+				if c, ok := statement.(GetFrom); ok {
+					rv.AddStackWithInfo(c.GetFrom(), "body", TryGetCallClassName(statement))
+				}
+				if c, ok := ctx.(data.GetName); ok {
+					rv.AddStackWithInfo(m.from, c.GetName(), m.GetName())
+				} else {
+					rv.AddStackWithInfo(m.from, "", m.GetName())
+				}
+			}
+			return nil, ctl
+		}
+	}
+
+	return v, nil
+}
+
+// 检查 source 是否实现了(继承了) target 类或接口
+func checkClassIs(ctx data.Context, source data.ClassStmt, target string) (bool, data.Control) {
+	if source.GetName() == target {
+		return true, nil
+	} else {
+		if source.GetImplements() != nil {
+			for _, impl := range source.GetImplements() {
+				if impl == target {
+					return true, nil
+				}
+				// 检查接口继承
+				if vm := ctx.GetVM(); vm != nil {
+					if interfaceStmt, ok := vm.GetInterface(impl); ok {
+						if checkInterfaceIs(ctx, interfaceStmt, target) {
+							return true, nil
+						}
+					}
+				}
+			}
+		}
+
+		if source.GetExtend() != nil {
+			vm := ctx.GetVM()
+			// 执行父级
+			last := source
+			for last.GetExtend() != nil || last.GetImplements() != nil {
+				if last.GetImplements() != nil {
+					for _, impl := range last.GetImplements() {
+						if impl == target {
+							return true, nil
+						}
+						// 检查接口继承
+						if interfaceStmt, ok := vm.GetInterface(impl); ok {
+							if checkInterfaceIs(ctx, interfaceStmt, target) {
+								return true, nil
+							}
+						}
+					}
+				}
+				if last.GetExtend() != nil {
+					if *last.GetExtend() == target {
+						return true, nil
+					}
+					next, acl := vm.GetOrLoadClass(*(last.GetExtend()))
+					if acl != nil {
+						return false, acl
+					}
+					ok, acl := checkClassIs(ctx, next, target)
+					if acl != nil {
+						return false, acl
+					}
+					if ok {
+						return true, nil
+					} else {
+						last = next
+					}
+				}
+				return false, nil
+			}
+		}
+	}
+
+	return false, nil
+}
+
+// 检查接口是否继承了目标接口
+func checkInterfaceIs(ctx data.Context, source data.InterfaceStmt, target string) bool {
+	if source.GetName() == target {
+		return true
+	}
+
+	vm := ctx.GetVM()
+	for _, parentName := range source.GetExtends() {
+		if interfaceStmt, ok := vm.GetInterface(parentName); ok {
+			if checkInterfaceIs(ctx, interfaceStmt, target) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+type AddAnnotations interface {
+	AddAnnotations(a *data.ClassValue)
+}

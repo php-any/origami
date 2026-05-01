@@ -32,13 +32,11 @@ func (cc *ClassConstant) GetValue(ctx data.Context) (data.GetValue, data.Control
 	if strValue, ok := exprValue.(*StringLiteral); ok {
 		className := strValue.Value
 		// 尝试获取完整的类地址（包括命名空间）
-		class, acl := ctx.GetVM().GetOrLoadClass(className)
-		if acl == nil {
-			// 返回完整的类名（包括命名空间）
+		if class, acl := ctx.GetVM().GetOrLoadClass(className); acl == nil {
 			return data.NewStringValue(class.GetName()), nil
-		} else {
-			return nil, acl
 		}
+		// 类不存在时也返回类名字符串（PHP ::class 行为）
+		return data.NewStringValue(className), nil
 	}
 
 	// 如果表达式是变量，获取变量的值

@@ -2,6 +2,7 @@ package node
 
 import (
 	"fmt"
+	"runtime/debug"
 
 	"github.com/php-any/origami/data"
 )
@@ -24,7 +25,8 @@ type TryStatement struct {
 func (t *TryStatement) GetValue(ctx data.Context) (v data.GetValue, c data.Control) {
 	defer func() {
 		if r := recover(); r != nil {
-			v, c = t.tryValue(ctx, data.NewErrorThrow(t.from, fmt.Errorf("go作用域异常退出的 panic(%v)", r)))
+			stack := string(debug.Stack())
+			v, c = t.tryValue(ctx, data.NewErrorThrow(t.from, fmt.Errorf("go作用域异常退出的 panic(%v)\nstack: %s", r, stack)))
 		}
 	}()
 

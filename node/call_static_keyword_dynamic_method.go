@@ -22,9 +22,13 @@ func NewDynamicCallStaticKeywordMethod(from data.From, nameExpr data.GetValue) *
 }
 
 func (pe *CallStaticKeywordDynamicMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 与 static::method 一样，必须在类方法上下文中使用
-	classCtx, ok := ctx.(*data.ClassMethodContext)
-	if !ok {
+	// 与 static::method 一样，必须在类上下文中使用
+	var currentClass data.ClassStmt
+	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
+		currentClass = classCtx.Class
+	} else if classVal, ok := ctx.(*data.ClassValue); ok {
+		currentClass = classVal.Class
+	} else {
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("static:: 只能在类方法中使用"))
 	}
 
@@ -40,9 +44,6 @@ func (pe *CallStaticKeywordDynamicMethod) GetValue(ctx data.Context) (data.GetVa
 	if methodName == "" {
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("static::{...} 方法名不能为空"))
 	}
-
-	// 后续逻辑与 CallStaticKeywordMethod 相同：在当前类及其继承链中查找静态方法
-	currentClass := classCtx.Class
 
 	getter, ok := currentClass.(data.GetStaticMethod)
 	if !ok {

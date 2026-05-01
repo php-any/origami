@@ -54,17 +54,8 @@ func (v *VariableExpression) GetType() data.Types {
 }
 
 func (v *VariableExpression) SetValue(ctx data.Context, value data.Value) data.Control {
-	if v.Type == nil {
-		return ctx.SetVariableValue(v, value)
-	}
-	if v.Type.Is(value) {
-		return ctx.SetVariableValue(v, value)
-	}
-	if _, ok := value.(*data.NullValue); ok {
-		// 兼容 php, 允许赋值不对的类型到变量; TODO 未来再优化
-		return ctx.SetVariableValue(v, value)
-	}
-	return data.NewErrorThrow(v.from, errors.New("变量类型和赋值类型不一致, 变量类型("+v.Type.String()+"), 赋值("+value.AsString()+")"))
+	// PHP 兼容：变量可以被赋予任何类型的值
+	return ctx.SetVariableValue(v, value)
 }
 
 // VariableList 支持多变量解包赋值
@@ -119,24 +110,45 @@ func (vl *VariableList) GetType() data.Types {
 }
 
 func (vl *VariableList) SetValue(ctx data.Context, value data.Value) data.Control {
-	// value 应为 ArrayValue，依次赋值
-	arr, ok := value.(*data.ArrayValue)
-	if !ok {
-		// 单值赋给第一个变量
-		if len(vl.Vars) > 0 {
-			return vl.Vars[0].SetValue(ctx, value)
+	// 处理 ArrayValue
+	if arr, ok := value.(*data.ArrayValue); ok {
+		for i, v := range vl.Vars {
+			var val data.Value = data.NewNullValue()
+			if i < len(arr.List) {
+				val = arr.List[i].Value
+			}
+			if ctl := v.SetValue(ctx, val); ctl != nil {
+				return ctl
+			}
 		}
 		return nil
 	}
-	for i, v := range vl.Vars {
-		var val data.Value = data.NewNullValue()
-		if i < len(arr.List) {
-			val = arr.List[i].Value
+	// 处理实现了 ArrayAccess 的对象（如 Collection）
+	if cv, ok := value.(*data.ClassValue); ok {
+		if method, exists := cv.GetMethod("offsetGet"); exists {
+			for i, v := range vl.Vars {
+				fnCtx := cv.CreateContext(method.GetVariables())
+				if len(method.GetVariables()) > 0 {
+					fnCtx.SetVariableValue(method.GetVariables()[0], data.NewIntValue(i))
+				}
+				ret, ctl := method.Call(fnCtx)
+				if ctl != nil {
+					return ctl
+				}
+				var val data.Value = data.NewNullValue()
+				if rv, ok := ret.(data.Value); ok {
+					val = rv
+				}
+				if ctl := v.SetValue(ctx, val); ctl != nil {
+					return ctl
+				}
+			}
+			return nil
 		}
-		ctl := v.SetValue(ctx, val)
-		if ctl != nil {
-			return ctl
-		}
+	}
+	// 单值赋给第一个变量
+	if len(vl.Vars) > 0 {
+		return vl.Vars[0].SetValue(ctx, value)
 	}
 	return nil
 }

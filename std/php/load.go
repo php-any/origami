@@ -10,6 +10,7 @@ import (
 	"github.com/php-any/origami/std/php/file"
 	"github.com/php-any/origami/std/php/iconv"
 	"github.com/php-any/origami/std/php/intl"
+	"github.com/php-any/origami/std/php/math"
 	"github.com/php-any/origami/std/php/pdo"
 	"github.com/php-any/origami/std/php/preg"
 	"github.com/php-any/origami/std/php/proc"
@@ -44,6 +45,7 @@ func Load(vm data.VM) {
 		NewMethodExistsFunction(),
 		NewClassAliasFunction(),
 		NewIsAFunction(),
+		NewIsSubclassOfFunction(),
 		NewGetClassFunction(),
 		NewGettypeFunction(),
 		NewGetDebugTypeFunction(),
@@ -82,6 +84,9 @@ func Load(vm data.VM) {
 		NewRawurldecodeFunction(),
 		array.NewArrayMergeFunction(),
 		array.NewArrayCombineFunction(),
+		array.NewArrayReplaceRecursiveFunction(),
+		array.NewArrayReplaceFunction(),
+		array.NewArrayMergeRecursiveFunction(),
 		array.NewArrayPushFunction(),
 		array.NewArrayPopFunction(),
 		array.NewArrayValuesFunction(),
@@ -90,6 +95,8 @@ func Load(vm data.VM) {
 		array.NewArrayReverseFunction(),
 		array.NewSortFunction(),
 		array.NewKsortFunction(),
+		array.NewKrsortFunction(),
+		math.NewMinFunction(),
 		array.NewArrayMapFunction(),
 		array.NewArrayReduceFunction(),
 		NewStrReplaceFunction(),
@@ -98,6 +105,8 @@ func Load(vm data.VM) {
 		NewOrdFunction(),
 		NewChrFunction(),
 		NewStrRepeatFunction(),
+		NewStrcspnFunction(),
+		NewStrspnFunction(),
 		NewLevenshteinFunction(),
 		NewMaxFunction(),
 		NewNormalizerIsNormalizedFunction(),
@@ -136,6 +145,10 @@ func Load(vm data.VM) {
 		array.NewArrayShiftFunction(),
 		array.NewArrayUnshiftFunction(),
 		array.NewArraySliceFunction(),
+		array.NewArrayDiffFunction(),
+		array.NewArraySpliceFunction(),
+		array.NewArrayPadFunction(),
+		array.NewArrayWalkFunction(),
 		NewIteratorToArrayFunction(),
 		array.NewEndFunction(),
 		array.NewResetFunction(),
@@ -146,6 +159,18 @@ func Load(vm data.VM) {
 		NewSprintfFunction(),
 		NewVsprintfFunction(),
 		NewVarDumpFunction(),
+		NewChmodFunction(),
+		NewClassImplementsFunction(),
+		NewClassParentsFunction(),
+		NewClassUsesFunction(),
+		NewClearstatcacheFunction(),
+		NewFilterVarFunction(),
+		NewFuncNumArgsFunction(),
+		NewGetCfgVarFunction(),
+		NewParseUrlFunction(),
+		NewTempnamFunction(),
+		NewUmaskFunction(),
+		NewVarExportFunction(),
 		core.NewStreamResolveIncludePathFunction(),
 		core.NewDefinedFunction(),
 		core.NewDefineFunction(),
@@ -209,6 +234,7 @@ func Load(vm data.VM) {
 	vm.AddClass(&reflection.ReflectionClassClass{})
 	vm.AddClass(&reflection.ReflectionMethodClass{})
 	vm.AddClass(&reflection.ReflectionParameterClass{})
+	vm.AddClass(&reflection.ReflectionPropertyClass{})
 	vm.AddClass(&reflection.ReflectionAttributeClass{})
 	vm.AddClass(&reflection.ReflectionTypeClass{})
 	vm.AddClass(&reflection.ReflectionNamedTypeClass{})
@@ -223,11 +249,13 @@ func Load(vm data.VM) {
 	vm.AddInterface(NewArrayAccessInterface())
 	vm.AddInterface(NewCountableInterface())
 	vm.AddInterface(directory.NewSeekableIteratorInterface())
+	vm.AddInterface(exception.NewThrowableInterface())
 
 	// 注册异常类
 	vm.AddClass(exception.NewLogicExceptionClass())
 	vm.AddClass(exception.NewInvalidArgumentExceptionClass())
 	vm.AddClass(exception.NewRuntimeExceptionClass())
+	vm.AddClass(exception.NewBadMethodCallExceptionClass())
 
 	initPhpDefaultDefines(vm)
 
@@ -347,4 +375,23 @@ func initPhpDefaultDefines(vm data.VM) {
 	vm.SetConstant("FilesystemIterator::SKIP_DOTS", data.NewIntValue(directory.FSI_SKIP_DOTS))
 	vm.SetConstant("FilesystemIterator::UNIX_PATHS", data.NewIntValue(directory.FSI_UNIX_PATHS))
 	vm.SetConstant("FilesystemIterator::NEW_CURRENT_AND_KEY", data.NewIntValue(directory.FSI_NEW_CURRENT_AND_KEY))
+
+	// parse_url constants
+	vm.SetConstant("PHP_URL_FRAGMENT", data.NewIntValue(7))
+	vm.SetConstant("PHP_URL_HOST", data.NewIntValue(1))
+	vm.SetConstant("PHP_URL_PASS", data.NewIntValue(4))
+	vm.SetConstant("PHP_URL_PATH", data.NewIntValue(5))
+	vm.SetConstant("PHP_URL_PORT", data.NewIntValue(2))
+	vm.SetConstant("PHP_URL_QUERY", data.NewIntValue(6))
+	vm.SetConstant("PHP_URL_SCHEME", data.NewIntValue(0))
+	vm.SetConstant("PHP_URL_USER", data.NewIntValue(3))
+	// File constants
+	// Filter constants
+	vm.SetConstant("FILE_APPEND", data.NewIntValue(8))
+	vm.SetConstant("FILE_USE_INCLUDE_PATH", data.NewIntValue(1))
+	vm.SetConstant("FILTER_CALLBACK", data.NewIntValue(1024))
+	vm.SetConstant("FILTER_NULL_ON_FAILURE", data.NewIntValue(134217728))
+	vm.SetConstant("FILTER_REQUIRE_ARRAY", data.NewIntValue(8))
+	vm.SetConstant("FILTER_VALIDATE_BOOLEAN", data.NewIntValue(258))
+	vm.SetConstant("FILTER_VALIDATE_INT", data.NewIntValue(257))
 }

@@ -1,0 +1,26 @@
+namespace tests\obj;
+
+// 测试多个别名
+trait MultiMethod {
+    public function foo() {
+        return "foo";
+    }
+
+    public function bar() {
+        return "bar";
+    }
+}
+
+class MultiAlias {
+    use MultiMethod {
+        foo as fooAlias;
+        bar as barAlias;
+    }
+}
+
+$m = new MultiAlias();
+if($m->fooAlias() == "foo" && $m->barAlias() == "bar") {
+    Log::info("trait 多别名 - 两个别名均生效");
+} else {
+    Log::fatal("trait 多别名 - 失败");
+}

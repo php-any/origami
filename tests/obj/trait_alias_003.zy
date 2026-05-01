@@ -1,0 +1,28 @@
+namespace tests\obj;
+
+// 测试 TraitName::method 形式的别名
+trait Named {
+    public function action() {
+        return "action";
+    }
+}
+
+class NamedUser {
+    use Named {
+        Named::action as doAction;
+    }
+}
+
+$n = new NamedUser();
+if($n->doAction() == "action") {
+    Log::info("trait TraitName::method as alias - 成功");
+} else {
+    Log::fatal("trait TraitName::method as alias - 失败");
+}
+
+// 原方法仍可用
+if($n->action() == "action") {
+    Log::info("trait TraitName::method as alias - 原方法仍可用");
+} else {
+    Log::fatal("trait TraitName::method as alias - 原方法调用失败");
+}

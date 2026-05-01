@@ -149,9 +149,11 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 	// 解析类成员
 	properties := make([]data.Property, 0)
 	staticProperties := make(map[string]data.Property)
+	staticPropertiesIndex := make([]string, 0) // 保持静态属性/常量声明顺序
 	methods := map[string]data.Method{}
 	staticMethods := map[string]data.Method{}
 	var traits []string                       // trait 列表
+	var traitAliases []data.TraitAlias        // trait 方法别名列表
 	var constructorProperties []data.Property // 构造函数中声明的属性
 	for !p.currentIsTypeOrEOF(token.RBRACE) {
 		// 先尝试解析注解
@@ -168,11 +170,12 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 
 		// 检查是否是 use 语句（用于 trait）
 		if p.current().Type() == token.USE {
-			traitNames, acl := p.parseTraitUse()
+			traitNames, aliases, acl := p.parseTraitUse()
 			if acl != nil {
 				return nil, acl
 			}
 			traits = append(traits, traitNames...)
+			traitAliases = append(traitAliases, aliases...)
 			continue
 		}
 
@@ -222,6 +225,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 			if prop != nil {
 				if isStatic || prop.GetIsStatic() {
 					staticProperties[prop.GetName()] = prop
+					staticPropertiesIndex = append(staticPropertiesIndex, prop.GetName())
 				} else {
 					properties = append(properties, prop)
 				}
@@ -262,11 +266,13 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 		properties,
 		methods,
 	)
-	for s, property := range staticProperties {
+	// 用 ClassValue 作为上下文，使 self::/parent::/static:: 在常量初始化器中可用
+	classVal := data.NewClassValue(c, p.vm.CreateContext([]data.Variable{}))
+	for _, s := range staticPropertiesIndex {
+		property := staticProperties[s]
 		defaultValue := property.GetDefaultValue()
 		if defaultValue != nil {
-			baseCtx := p.vm.CreateContext([]data.Variable{})
-			v, acl := defaultValue.GetValue(baseCtx)
+			v, acl := defaultValue.GetValue(classVal)
 			if acl != nil {
 				return nil, acl
 			}
@@ -279,7 +285,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 
 	// 合并 trait 的方法和属性
 	if len(traits) > 0 {
-		acl := p.mergeTraits(c, traits)
+		acl := p.mergeTraits(c, traits, traitAliases)
 		if acl != nil {
 			return nil, acl
 		}
@@ -1050,7 +1056,8 @@ func (p *ClassParser) parseGeneric() []data.Types {
 // 解析类型（支持嵌套泛型）
 // parseTraitUse 解析 use 语句，用于嵌入 trait
 // 语法：use Trait1, Trait2;
-func (p *ClassParser) parseTraitUse() ([]string, data.Control) {
+// 支持别名块：use Trait { method as alias; }
+func (p *ClassParser) parseTraitUse() ([]string, []data.TraitAlias, data.Control) {
 	p.next() // 跳过 use 关键字
 
 	var traitNames []string
@@ -1058,7 +1065,7 @@ func (p *ClassParser) parseTraitUse() ([]string, data.Control) {
 		// 解析 trait 名称
 		traitName, acl := p.getClassName(true)
 		if acl != nil {
-			return nil, acl
+			return nil, nil, acl
 		}
 		traitNames = append(traitNames, traitName)
 
@@ -1070,16 +1077,86 @@ func (p *ClassParser) parseTraitUse() ([]string, data.Control) {
 		}
 	}
 
+	// 解析可选的别名块 { method as alias; ... }
+	var aliases []data.TraitAlias
+	if p.current().Type() == token.LBRACE {
+		aliases = p.parseTraitAliasBlock()
+	}
+
 	// 跳过分号
 	if p.current().Type() == token.SEMICOLON {
 		p.next()
 	}
 
-	return traitNames, nil
+	return traitNames, aliases, nil
+}
+
+// parseTraitAliasBlock 解析 trait use 语句中的别名块
+// 语法：{ method1 as alias1; method2 as alias2; }
+func (p *ClassParser) parseTraitAliasBlock() []data.TraitAlias {
+	p.next() // 跳过 {
+
+	var aliases []data.TraitAlias
+	for !p.currentIsTypeOrEOF(token.RBRACE) {
+		// 跳过可能的分号分隔符
+		if p.current().Type() == token.SEMICOLON {
+			p.next()
+			continue
+		}
+
+		// 解析方法名（可能带 TraitName:: 前缀）
+		if p.current().Type() == token.IDENTIFIER {
+			methodName := p.current().Literal()
+			p.next()
+
+			// 处理 TraitName::method 形式
+			if p.current().Type() == token.SCOPE_RESOLUTION {
+				p.next() // 跳过 ::
+				if p.current().Type() == token.IDENTIFIER {
+					methodName = p.current().Literal()
+					p.next()
+				}
+			}
+
+			// 期望 as 关键字
+			if p.current().Type() == token.AS {
+				p.next() // 跳过 as
+
+				// 可能跳过 visibility 修饰符 (public/protected/private)
+				if p.current().Type() == token.PUBLIC || p.current().Type() == token.PROTECTED || p.current().Type() == token.PRIVATE {
+					p.next()
+				}
+
+				// 解析别名
+				if p.current().Type() == token.IDENTIFIER {
+					aliasName := p.current().Literal()
+					p.next()
+					aliases = append(aliases, data.TraitAlias{
+						Method: methodName,
+						Alias:  aliasName,
+					})
+				}
+			} else {
+				// 不是 as，可能是 visibility change only: method as public;
+				// 跳过直到分号或 }
+				for !p.currentIsTypeOrEOF(token.SEMICOLON) && !p.currentIsTypeOrEOF(token.RBRACE) {
+					p.next()
+				}
+			}
+		} else {
+			p.next() // 跳过不识别的 token
+		}
+	}
+
+	if p.current().Type() == token.RBRACE {
+		p.next() // 跳过 }
+	}
+
+	return aliases
 }
 
 // mergeTraitsIntoMaps 将 trait 的方法和属性合并到 trait 解析过程中的 maps 中（用于 trait 内的 use 语句）
-func (p *ClassParser) mergeTraitsIntoMaps(traitNames []string, properties *[]data.Property, methods map[string]data.Method, staticProperties map[string]data.Property, staticMethods map[string]data.Method) data.Control {
+func (p *ClassParser) mergeTraitsIntoMaps(traitNames []string, aliases []data.TraitAlias, properties *[]data.Property, methods map[string]data.Method, staticProperties map[string]data.Property, staticMethods map[string]data.Method) data.Control {
 	vm := p.vm
 
 	for _, traitName := range traitNames {
@@ -1127,11 +1204,28 @@ func (p *ClassParser) mergeTraitsIntoMaps(traitNames []string, properties *[]dat
 			}
 		}
 	}
+
+	// 应用 trait 方法别名
+	for _, alias := range aliases {
+		if method, ok := methods[alias.Method]; ok {
+			if _, exists := methods[alias.Alias]; !exists {
+				methods[alias.Alias] = method
+			}
+		}
+		if method, ok := staticMethods[alias.Method]; ok {
+			if _, exists := staticMethods[alias.Alias]; !exists {
+				staticMethods[alias.Alias] = method
+			}
+		}
+	}
+
 	return nil
 }
 
+// 注意: 此函数在 mergeTraits 之前定义，与 mergeTraits 不同，它不负责写回 class.StaticProperty
+
 // mergeTraits 合并 trait 的方法和属性到类中
-func (p *ClassParser) mergeTraits(class *node.ClassStatement, traitNames []string) data.Control {
+func (p *ClassParser) mergeTraits(class *node.ClassStatement, traitNames []string, aliases []data.TraitAlias) data.Control {
 	vm := p.vm
 
 	for _, traitName := range traitNames {
@@ -1174,8 +1268,8 @@ func (p *ClassParser) mergeTraits(class *node.ClassStatement, traitNames []strin
 					// 静态属性需要设置默认值
 					defaultValue := property.GetDefaultValue()
 					if defaultValue != nil {
-						baseCtx := vm.CreateContext([]data.Variable{})
-						v, acl := defaultValue.GetValue(baseCtx)
+						classVal := data.NewClassValue(class, vm.CreateContext([]data.Variable{}))
+						v, acl := defaultValue.GetValue(classVal)
 						if acl != nil {
 							return acl
 						}
@@ -1188,6 +1282,29 @@ func (p *ClassParser) mergeTraits(class *node.ClassStatement, traitNames []strin
 					class.Properties[propertyName] = property
 					class.PropertiesIndex = append(class.PropertiesIndex, propertyName)
 				}
+			}
+		}
+		// 合并 trait 的静态属性（trait 解析时只存入 StaticProperty，不在 GetPropertyList 中）
+		if cs, ok := trait.(*node.ClassStatement); ok {
+			cs.StaticProperty.Range(func(key, value any) bool {
+				if _, exists := class.StaticProperty.Load(key); !exists {
+					class.StaticProperty.Store(key, value.(data.Value))
+				}
+				return true
+			})
+		}
+	}
+
+	// 应用 trait 方法别名
+	for _, alias := range aliases {
+		if method, ok := class.Methods[alias.Method]; ok {
+			if _, exists := class.Methods[alias.Alias]; !exists {
+				class.Methods[alias.Alias] = method
+			}
+		}
+		if method, ok := class.StaticMethods[alias.Method]; ok {
+			if _, exists := class.StaticMethods[alias.Alias]; !exists {
+				class.StaticMethods[alias.Alias] = method
 			}
 		}
 	}

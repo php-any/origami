@@ -36,8 +36,12 @@ func (f *CallUserFuncFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	}
 	// 创建调用上下文，传入实参
 	callCtx := ctx.CreateContext(make([]data.Variable, len(argValues)))
-	for i, _ := range argValues {
+	for i := range argValues {
 		callCtx.SetIndexZVal(i, ctx.GetIndexZVal(i))
+	}
+	// BoundFuncValue 需要保留以确保 BoundContext 被创建
+	if bfv, ok := cb.(*data.BoundFuncValue); ok {
+		return bfv.Call(callCtx)
 	}
 	return fn.Call(callCtx)
 }
@@ -46,6 +50,8 @@ func (f *CallUserFuncFunction) resolveCallback(ctx data.Context, cb data.GetValu
 	switch c := cb.(type) {
 	case *data.FuncValue:
 		return c, nil
+	case *data.BoundFuncValue:
+		return &c.FuncValue, nil
 	case *data.ArrayValue:
 		valueList := c.ToValueList()
 		if len(valueList) < 2 {

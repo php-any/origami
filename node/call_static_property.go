@@ -29,7 +29,12 @@ func (pe *CallStaticProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 		if ok {
 			return property, nil
 		}
-
+		// 在父类中查找
+		if cs, ok := expr.(data.ClassStmt); ok {
+			if prop, found := pe.findStaticPropertyInParents(ctx, cs); found {
+				return prop, nil
+			}
+		}
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("无法调用属性(%s::%s)。", TryGetCallClassName(pe.Stmt), pe.Property)))
 	default:
 		next, acl := pe.Stmt.GetValue(ctx)
@@ -44,11 +49,19 @@ func (pe *CallStaticProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 					return property, nil
 				}
 			}
+			if prop, found := pe.findStaticPropertyInParents(ctx, expr.Class); found {
+				return prop, nil
+			}
 
 		case data.GetStaticProperty:
 			property, ok := expr.GetStaticProperty(pe.Property)
 			if ok {
 				return property, nil
+			}
+			if cs, ok := expr.(data.ClassStmt); ok {
+				if prop, found := pe.findStaticPropertyInParents(ctx, cs); found {
+					return prop, nil
+				}
 			}
 		}
 	}
@@ -57,6 +70,25 @@ func (pe *CallStaticProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 		name = getName.GetName()
 	}
 	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("(%v)没有静态属性(%s)。", name, pe.Property)))
+}
+
+// findStaticPropertyInParents 在父类继承链中查找静态属性/常量
+func (pe *CallStaticProperty) findStaticPropertyInParents(ctx data.Context, class data.ClassStmt) (data.Value, bool) {
+	vm := ctx.GetVM()
+	extend := class.GetExtend()
+	for extend != nil {
+		parent, acl := vm.GetOrLoadClass(*extend)
+		if acl != nil || parent == nil {
+			break
+		}
+		if gsp, ok := parent.(data.GetStaticProperty); ok {
+			if prop, found := gsp.GetStaticProperty(pe.Property); found {
+				return prop, true
+			}
+		}
+		extend = parent.GetExtend()
+	}
+	return nil, false
 }
 
 func (pe *CallStaticProperty) SetProperty(ctx data.Context, name string, value data.Value) data.Control {

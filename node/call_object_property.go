@@ -70,6 +70,15 @@ func (pe *CallObjectProperty) SetValue(ctx data.Context, value data.Value) data.
 			if property.GetType() != nil && !property.GetType().Is(value) {
 				return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("%s 属性 %s 因为类型不一致无法赋值", TryGetCallClassName(object), pe.Property))
 			}
+			if property.GetModifier() == data.ModifierPrivate {
+				if !isCallerInClassHierarchy(ctx, object.Class) {
+					return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("对象(%s)属性(%s)是私有的", object.Class.GetName(), pe.Property))
+				}
+			} else if property.GetModifier() == data.ModifierProtected {
+				if !isCallerInClassHierarchy(ctx, object.Class) {
+					return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("对象(%s)属性(%s)不是公开的", object.Class.GetName(), pe.Property))
+				}
+			}
 			return object.SetProperty(pe.Property, value)
 		}
 		// 无声明属性时尝试 __set(string $name, mixed $value)
@@ -127,6 +136,8 @@ func (pe *CallObjectProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 		return nil, ctl
 	}
 	switch v := o.(type) {
+	case *data.NullValue:
+		return data.NewNullValue(), nil
 	case *data.ThisValue:
 		property, ok := v.GetPropertyStmt(pe.Property)
 		if ok {
@@ -140,8 +151,14 @@ func (pe *CallObjectProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 	case *data.ClassValue:
 		property, ok := v.GetPropertyStmt(pe.Property)
 		if ok {
-			if property.GetModifier() != data.ModifierPublic {
-				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("对象(%s)属性(%s)不是公开的", v.Class.GetName(), pe.Property))
+			if property.GetModifier() == data.ModifierPrivate {
+				if !isCallerInClassHierarchy(ctx, v.Class) {
+					return nil, data.NewErrorThrow(pe.from, fmt.Errorf("对象(%s)属性(%s)是私有的", v.Class.GetName(), pe.Property))
+				}
+			} else if property.GetModifier() == data.ModifierProtected {
+				if !isCallerInClassHierarchy(ctx, v.Class) {
+					return nil, data.NewErrorThrow(pe.from, fmt.Errorf("对象(%s)属性(%s)不是公开的", v.Class.GetName(), pe.Property))
+				}
 			}
 			return property.GetValue(v)
 		}

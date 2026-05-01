@@ -65,8 +65,8 @@ func (c *ClassValue) GetPropertyStmt(name string) (Property, bool) {
 	last := c.Class
 	for last.GetExtend() != nil {
 		ext := last.GetExtend()
-		next, ok := vm.GetClass(*ext)
-		if !ok {
+		next, acl := vm.GetOrLoadClass(*ext)
+		if acl != nil || next == nil {
 			return nil, false
 		}
 
@@ -118,19 +118,38 @@ func (c *ClassValue) GetMethod(name string) (Method, bool) {
 	last := c.Class
 	for last.GetExtend() != nil {
 		ext := last.GetExtend()
-		next, ok := vm.GetClass(*ext)
-		if !ok {
+		next, acl := vm.GetOrLoadClass(*ext)
+		if acl != nil || next == nil {
 			return nil, false
 		}
 
 		fn, ok := next.GetMethod(name)
 		if ok {
-			//if fn.GetModifier() == ModifierPrivate {
-			//	return nil, false
-			//}
 			return fn, true
 		}
 		last = next
+	}
+
+	// PHP 允许在实例上调用静态方法：$obj->staticMethod()
+	if gsm, ok := c.Class.(GetStaticMethod); ok {
+		if m, ok := gsm.GetStaticMethod(name); ok {
+			return m, true
+		}
+	}
+	// 也在父类中查找静态方法
+	last2 := c.Class
+	for last2.GetExtend() != nil {
+		ext := last2.GetExtend()
+		next, acl := vm.GetOrLoadClass(*ext)
+		if acl != nil || next == nil {
+			break
+		}
+		if gsm, ok := next.(GetStaticMethod); ok {
+			if m, ok := gsm.GetStaticMethod(name); ok {
+				return m, true
+			}
+		}
+		last2 = next
 	}
 
 	return nil, false

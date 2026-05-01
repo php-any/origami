@@ -149,7 +149,10 @@ func (m *WeakMapOffsetSetMethod) GetIsStatic() bool {
 }
 
 func (m *WeakMapOffsetSetMethod) GetVariables() []data.Variable {
-	return nil
+	return []data.Variable{
+		node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
+		node.NewVariable(nil, "value", 1, data.NewBaseType("mixed")),
+	}
 }
 
 func (m *WeakMapOffsetSetMethod) GetReturnType() data.Types {

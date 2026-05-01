@@ -352,11 +352,7 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 				return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("数组索引超出范围"), "UndefinedIndexExpression")
 			}
 		case *data.StringValue:
-			if len(v.List) == 0 {
-				return data.NewNullValue(), nil
-			}
-
-			return nil, data.NewErrorThrow(ie.GetFrom(), fmt.Errorf("array[%s] 未实现自动转化为对象的能力", iv.AsString()))
+			return data.NewNullValue(), nil
 		case data.AsInt:
 			var err error
 			i, err = iv.AsInt()
@@ -456,7 +452,10 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			if err != nil {
 				return nil, data.NewErrorThrow(ie.GetFrom(), err)
 			}
-			if i >= len(v.Value) {
+			if i < 0 {
+				i = len(v.Value) + i
+			}
+			if i < 0 || i >= len(v.Value) {
 				return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("字符串索引超出范围"))
 			}
 			return data.NewStringValue(string(v.Value[i])), nil
@@ -464,9 +463,9 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("字符串无法处理非int值"))
 		}
 	case *data.NullValue:
-		return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("null 无法处理索引的类型值"), "UndefinedIndexExpression")
+		return data.NewNullValue(), nil
 	case *data.BoolValue:
-		return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("bool 无法处理索引的类型值"), "UndefinedIndexExpression")
+		return data.NewNullValue(), nil
 	}
 	return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("无法处理索引的类型值"), "UndefinedIndexExpression")
 }

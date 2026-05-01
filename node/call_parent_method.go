@@ -26,19 +26,35 @@ func NewCallParentMethod(from data.From, currentClass, method string, args []dat
 
 // GetValue 获取父类方法调用表达式的值
 func (pe *CallParentMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 检查是否在类方法上下文中
-	classCtx, ok := ctx.(*data.ClassMethodContext)
-	if !ok {
-		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("parent:: 只能在类方法中使用"))
-	}
+	// 检查是否在类上下文中（类方法或类级初始化器）
 	var class data.ClassStmt
-	if pe.CurrentClass != "" {
-		class, ok = ctx.GetVM().GetClass(pe.CurrentClass)
-		if !ok {
-			return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("parent:: 只能在类方法中使用"))
+	var object *data.ClassValue
+	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
+		object = classCtx.ClassValue
+		// 优先使用解析时的 CurrentClass（方法定义所在类），
+		// 但如果 CurrentClass 是 trait（无父类或 VM 中不存在），则回退到运行时类
+		if pe.CurrentClass != "" {
+			if cls, has := ctx.GetVM().GetClass(pe.CurrentClass); has && cls.GetExtend() != nil {
+				class = cls
+			} else {
+				class = classCtx.Class
+			}
+		} else {
+			class = classCtx.Class
+		}
+	} else if classVal, ok := ctx.(*data.ClassValue); ok {
+		object = classVal
+		if pe.CurrentClass != "" {
+			if cls, has := ctx.GetVM().GetClass(pe.CurrentClass); has && cls.GetExtend() != nil {
+				class = cls
+			} else {
+				class = classVal.Class
+			}
+		} else {
+			class = classVal.Class
 		}
 	} else {
-		class = classCtx.Class
+		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("parent:: 只能在类方法中使用"))
 	}
 
 	// 获取父类
@@ -61,6 +77,12 @@ func (pe *CallParentMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	current := parentClass
 	for current != nil {
 		method, has = current.GetMethod(pe.Method)
+		if !has {
+			// 也检查静态方法（parent::staticMethod()）
+			if gsm, ok := current.(data.GetStaticMethod); ok {
+				method, has = gsm.GetStaticMethod(pe.Method)
+			}
+		}
 		if has {
 			break
 		}
@@ -85,11 +107,11 @@ func (pe *CallParentMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 
 	temp := &CallObjectMethod{
 		Node:   pe.Node,
-		Object: classCtx.ClassValue,
+		Object: object,
 		Args:   pe.Arguments,
 	}
 
-	newCtx, acl := temp.callMethodParams(classCtx.ClassValue, ctx, method)
+	newCtx, acl := temp.callMethodParams(object, ctx, method)
 	if acl != nil {
 		return nil, acl
 	}

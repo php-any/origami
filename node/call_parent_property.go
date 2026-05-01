@@ -22,18 +22,22 @@ func NewCallParentProperty(from data.From, property string) *CallParentProperty 
 
 // GetValue 获取父类属性访问表达式的值
 func (pe *CallParentProperty) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 检查是否在类方法上下文中
-	classCtx, ok := ctx.(*data.ClassMethodContext)
-	if !ok {
+	// 检查是否在类上下文中（类方法或类级初始化器）
+	var currClass data.ClassStmt
+	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
+		currClass = classCtx.Class
+	} else if classVal, ok := ctx.(*data.ClassValue); ok {
+		currClass = classVal.Class
+	} else {
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("parent:: 只能在类方法中使用"))
 	}
 
 	// 获取父类
-	if classCtx.Class.GetExtend() == nil {
+	if currClass.GetExtend() == nil {
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("当前类没有父类"))
 	}
 
-	parentClassName := *classCtx.Class.GetExtend()
+	parentClassName := *currClass.GetExtend()
 	vm := ctx.GetVM()
 	parentClass, acl := vm.GetOrLoadClass(parentClassName)
 	if acl != nil {

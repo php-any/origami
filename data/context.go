@@ -60,6 +60,10 @@ type VM interface {
 	SetClassPathCache(name, path string)
 	GetClassPathCache(name string) (string, bool)
 
+	// 调用深度追踪（用于检测无限递归）
+	EnterCall() (depth int)
+	LeaveCall()
+
 	// 常量管理
 	SetConstant(name string, value Value) Control
 	GetConstant(name string) (Value, bool)
@@ -199,6 +203,10 @@ func (v VariableTODO) SetValue(ctx Context, value Value) Control {
 	if v.ty == nil {
 		return ctx.SetVariableValue(v, value)
 	}
+	// null 可以传递给任何类型的参数（PHP 兼容）
+	if _, isNull := value.(*NullValue); isNull {
+		return ctx.SetVariableValue(v, value)
+	}
 	if v.ty.Is(value) {
 		return ctx.SetVariableValue(v, value)
 	}
@@ -292,6 +300,10 @@ func (p *ParameterTODO) GetType() Types {
 
 func (p *ParameterTODO) SetValue(ctx Context, value Value) Control {
 	if p.Type == nil {
+		return ctx.SetVariableValue(p, value)
+	}
+	// null 可以传递给任何类型的参数（PHP 兼容）
+	if _, isNull := value.(*NullValue); isNull {
 		return ctx.SetVariableValue(p, value)
 	}
 	if p.Type.Is(value) {

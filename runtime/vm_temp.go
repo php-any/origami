@@ -225,3 +225,11 @@ func (vm *TempVM) SetExceptionHandler(handler data.Value) data.Value {
 func (vm *TempVM) GetExceptionHandler() data.Value {
 	return vm.Base.GetExceptionHandler()
 }
+
+func (vm *TempVM) EnterCall() int {
+	return vm.Base.EnterCall()
+}
+
+func (vm *TempVM) LeaveCall() {
+	vm.Base.LeaveCall()
+}

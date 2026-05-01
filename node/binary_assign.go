@@ -15,14 +15,14 @@ type BinaryAssign struct {
 
 func NewBinaryAssign(from data.From, left, right data.GetValue) BinaryExpression {
 	switch l := left.(type) {
-	case data.Variable:
-		return &BinaryAssignVariable{
+	case *VariableList:
+		return &BinaryAssignVariableList{
 			Node:  NewNode(from),
 			Left:  l,
 			Right: right,
 		}
-	case *VariableList:
-		return &BinaryAssignVariableList{
+	case data.Variable:
+		return &BinaryAssignVariable{
 			Node:  NewNode(from),
 			Left:  l,
 			Right: right,
@@ -40,6 +40,9 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 	rv, rCtl := b.Right.GetValue(ctx)
 	if rCtl != nil {
 		return nil, rCtl
+	}
+	if rv == nil {
+		rv = data.NewNullValue()
 	}
 	if v, ok := rv.(data.Value); ok {
 		switch l := b.Left.(type) {
@@ -116,15 +119,42 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 			// 由于不同的比较类型，我们需要通过反射或类型断言来提取 Left 和 Right
 			// 为简化，这里只给出友好的错误信息
 			return nil, data.NewErrorThrow(b.from, fmt.Errorf("赋值表达式的左侧不能是比较表达式，请使用括号: (%T)", l))
+		case *CallStaticPropertyLater:
+			return v, l.SetProperty(ctx, l.property, v)
 		case *CallStaticKeywordProperty:
 			return v, l.SetProperty(ctx, l.Property, v)
 		case *Array:
 			if rv, ok := rv.(*data.ArrayValue); ok {
 				valueList := rv.ToValueList()
 				for i, value := range valueList {
-					set := l.V[i]
-					if set, ok := set.(data.Variable); ok {
-						set.SetValue(ctx, value)
+					if i < len(l.V) {
+						set := l.V[i]
+						if set, ok := set.(data.Variable); ok {
+							set.SetValue(ctx, value)
+						}
+					}
+				}
+			} else if cv, ok := v.(*data.ClassValue); ok {
+				// 支持实现了 ArrayAccess 的对象解构（如 Collection）
+				if method, exists := cv.GetMethod("offsetGet"); exists {
+					for i, set := range l.V {
+						fnCtx := cv.CreateContext(method.GetVariables())
+						if len(method.GetVariables()) > 0 {
+							fnCtx.SetVariableValue(method.GetVariables()[0], data.NewIntValue(i))
+						}
+						ret, ctl := method.Call(fnCtx)
+						if ctl != nil {
+							return nil, ctl
+						}
+						var val data.Value = data.NewNullValue()
+						if rv2, ok2 := ret.(data.Value); ok2 {
+							val = rv2
+						}
+						if s, ok2 := set.(data.Variable); ok2 {
+							if ctl := s.SetValue(ctx, val); ctl != nil {
+								return nil, ctl
+							}
+						}
 					}
 				}
 			}
@@ -136,7 +166,7 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 		}
 	}
 
-	return nil, data.NewErrorThrow(b.from, errors.New("TODO BinaryAssign"))
+	return nil, data.NewErrorThrow(b.from, fmt.Errorf("TODO BinaryAssign rv=%T left=%T", rv, b.Left))
 }
 
 type BinaryAssignVariable struct {
@@ -160,7 +190,7 @@ func (b *BinaryAssignVariable) GetValue(ctx data.Context) (data.GetValue, data.C
 		return v, b.Left.SetValue(ctx, v)
 	}
 
-	return nil, data.NewErrorThrow(b.from, errors.New("TODO BinaryAssign"))
+	return nil, data.NewErrorThrow(b.from, fmt.Errorf("TODO BinaryAssign rv=%T left=%T", rv, b.Left))
 }
 
 type BinaryAssignVariableList struct {
@@ -189,6 +219,29 @@ func (b *BinaryAssignVariableList) GetValue(ctx data.Context) (data.GetValue, da
 
 	// 处理普通值
 	if v, ok := rv.(data.Value); ok {
+		// 如果值是实现了 ArrayAccess 的对象，通过 offsetGet 逐个取值
+		if cv, ok2 := v.(*data.ClassValue); ok2 {
+			if method, exists := cv.GetMethod("offsetGet"); exists {
+				for i, lv := range b.Left.Vars {
+					fnCtx := cv.CreateContext(method.GetVariables())
+					if len(method.GetVariables()) > 0 {
+						fnCtx.SetVariableValue(method.GetVariables()[0], data.NewIntValue(i))
+					}
+					ret, ctl := method.Call(fnCtx)
+					if ctl != nil {
+						return nil, ctl
+					}
+					var val data.Value = data.NewNullValue()
+					if rv, ok3 := ret.(data.Value); ok3 {
+						val = rv
+					}
+					if ctl := lv.SetValue(ctx, val); ctl != nil {
+						return nil, ctl
+					}
+				}
+				return v, nil
+			}
+		}
 		// 使用VariableList的SetValue方法来处理多变量赋值
 		ctl := b.Left.SetValue(ctx, v)
 		if ctl != nil {

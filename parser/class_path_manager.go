@@ -340,14 +340,13 @@ func (m *DefaultClassPathManager) LoadClass(className string, parser *Parser) da
 	}
 
 	// 如果类/接口已经记录了所在文件，并且与当前待加载文件一致，则认为该文件已加载过，避免重复解析
-	if cachedPath, ok := parser.vm.GetClassPathCache(className); ok {
+	if _, ok := parser.vm.GetClassPathCache(className); ok {
 		if _, ok := parser.vm.GetClass(className); ok {
 			return nil
 		}
 		if _, ok := parser.vm.GetInterface(className); ok {
 			return nil
 		}
-		return data.TryErrorThrow(parser.newFrom(), fmt.Errorf("类 %s 重复加载, file (%s)", className, cachedPath))
 	}
 	parser.vm.SetClassPathCache(className, filePath)
 	// 加载文件

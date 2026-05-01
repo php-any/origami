@@ -12,30 +12,28 @@ import (
 func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Control) {
 	tracking := parser.StartTracking()
 
-	// 检查是否有访问修饰符（private、public、protected、readonly）
+	// 检查 readonly 关键字和访问修饰符（允许 private readonly 或 readonly private 顺序）
 	var paramModifier string
 	var isReadonly bool
-
-	// 检查 readonly 关键字
-	if parser.checkPositionIs(0, token.READONLY) {
-		isReadonly = true
-		parser.next()
-	}
-
-	// 检查访问修饰符
-	if parser.checkPositionIs(0, token.PUBLIC, token.PRIVATE, token.PROTECTED) {
-		switch parser.current().Type() {
-		case token.PUBLIC:
-			paramModifier = "public"
-		case token.PRIVATE:
-			paramModifier = "private"
-		case token.PROTECTED:
-			paramModifier = "protected"
+	for {
+		if parser.checkPositionIs(0, token.READONLY) {
+			isReadonly = true
+			parser.next()
+			continue
 		}
-		parser.next()
-	} else {
-		// 没有访问修饰符，使用默认值（但不会创建属性）
-		paramModifier = ""
+		if parser.checkPositionIs(0, token.PUBLIC, token.PRIVATE, token.PROTECTED) {
+			switch parser.current().Type() {
+			case token.PUBLIC:
+				paramModifier = "public"
+			case token.PRIVATE:
+				paramModifier = "private"
+			case token.PROTECTED:
+				paramModifier = "protected"
+			}
+			parser.next()
+			continue
+		}
+		break
 	}
 
 	// 检查是否有属性注解（如 #[\SensitiveParameter]）
