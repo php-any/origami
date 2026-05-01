@@ -80,10 +80,12 @@ func (fp *FnParser) Parse() (data.GetValue, data.Control) {
 	fp.next() // 跳过 =>
 
 	// 解析函数体（箭头函数是单个表达式）
-	body, acl := fpHelper.parseBlock()
+	exprParser := NewExpressionParser(fp.Parser)
+	bodyExpr, acl := exprParser.Parse()
 	if acl != nil {
 		return nil, acl
 	}
+	body := []data.GetValue{bodyExpr}
 
 	vars := fp.scopeManager.CurrentScope().GetVariables()
 	// 弹出函数作用域

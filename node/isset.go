@@ -37,6 +37,11 @@ func (i *IssetStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 			if acl, ok := ctl.(data.GetName); ok && "UndefinedIndexExpression" == acl.GetName() {
 				return data.NewBoolValue(false), nil
 			}
+			// PHP 中 isset 抑制 notice/warning 级错误（未定义属性、静态属性缺失等），
+			// 但不抑制真正的 Exception 对象。origami 通过 Name=="Exception" 区分内部错误。
+			if tv, isThrow := ctl.(*data.ThrowValue); isThrow && tv.Name == "Exception" {
+				return data.NewBoolValue(false), nil
+			}
 			return nil, ctl
 		}
 		if varValue == nil {

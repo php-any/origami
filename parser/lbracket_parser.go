@@ -32,6 +32,42 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 		return node.NewArray(from, []data.GetValue{}), nil
 	}
 
+	// 处理跳过的元素: [, $a] 或 [,, $a]
+	if ep.current().Type() == token.COMMA {
+		// 第一个元素被跳过，创建空占位并进入逗号分隔数组模式
+		arr := []data.GetValue{data.NewNullValue()}
+		for ep.current().Type() == token.COMMA {
+			ep.next()
+			if ep.checkPositionIs(0, token.RBRACKET) {
+				arr = append(arr, data.NewNullValue())
+				break
+			}
+			if ep.current().Type() == token.COMMA {
+				arr = append(arr, data.NewNullValue())
+				continue
+			}
+			if ep.current().Type() == token.ELLIPSIS {
+				ep.next()
+				spreadExpr, acl := ep.parseStatement()
+				if acl != nil {
+					return nil, acl
+				}
+				arr = append(arr, node.NewArraySpread(spreadExpr))
+			} else {
+				stmt, acl := ep.parseStatement()
+				if acl != nil {
+					return nil, acl
+				}
+				arr = append(arr, stmt)
+			}
+		}
+		if ep.current().Type() == token.RBRACKET {
+			ep.next()
+		}
+		from := tracker.EndBefore()
+		return node.NewArray(from, arr), nil
+	}
+
 	// 检查第一个元素是否是展开运算符
 	var expr data.GetValue
 	var acl data.Control
@@ -93,6 +129,37 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 					}
 					if stmt == nil {
 						return nil, data.NewErrorThrow(ep.FromCurrentToken(), fmt.Errorf("数组元素解析失败，无法识别当前 token: %s (类型: %d)", ep.current().Literal(), ep.current().Type()))
+					}
+					// 支持混合 key => value: [$val, $key => $val2]
+					if ep.checkPositionIs(0, token.ARRAY_KEY_VALUE) {
+						kv := make([]node.KvPair, 0, len(arr)+1)
+						for i, v := range arr {
+							kv = append(kv, node.KvPair{Key: data.NewIntValue(i), Value: v})
+						}
+						ep.next() // =>
+						val, acl := ep.parseStatement()
+						if acl != nil {
+							return nil, acl
+						}
+						kv = append(kv, node.KvPair{Key: stmt, Value: val})
+						// 后续全部按 KvPair 解析
+						ep.nextAndCheckStip(token.COMMA)
+						for ep.current().Type() != token.RBRACKET {
+							key, acl := ep.parseStatement()
+							if acl != nil {
+								return nil, acl
+							}
+							ep.next()
+							nextVal, acl := ep.parseStatement()
+							if acl != nil {
+								return nil, acl
+							}
+							kv = append(kv, node.KvPair{Key: key, Value: nextVal})
+							ep.nextAndCheckStip(token.COMMA)
+						}
+						ep.next()
+						from := tracker.EndBefore()
+						return node.NewKv(from, kv), nil
 					}
 					arr = append(arr, stmt)
 				}

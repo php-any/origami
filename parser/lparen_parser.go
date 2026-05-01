@@ -72,6 +72,10 @@ func (ep *LparenParser) parseTypeCast(tracking *PositionTracker) (data.GetValue,
 
 // isLambdaExpression 检查是否是 Lambda 表达式
 func (ep *LparenParser) isLambdaExpression() bool {
+	// 如果紧跟 fn 关键字，这是箭头函数 fn() => expr，不是 Lambda (a, b) => expr
+	if ep.checkPositionIs(1, token.FN) {
+		return false
+	}
 	// 检查是否包含 => 符号，需要正确处理括号嵌套
 	pos := 1 // 从 ( 后面开始检查
 	parenCount := 0

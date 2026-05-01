@@ -85,7 +85,8 @@ func (pe *CallStaticKeywordProperty) GetValue(ctx data.Context) (data.GetValue, 
 
 	property, has := getter.GetStaticProperty(pe.Property)
 	if !has {
-		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("类 %s 没有静态属性 %s", definingClass.GetName(), pe.Property))
+		// PHP 兼容：未定义的静态属性访问返回 null（warning 级别，非致命错误）
+		return data.NewNullValue(), nil
 	}
 
 	return property, nil
