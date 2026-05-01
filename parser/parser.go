@@ -551,6 +551,16 @@ func (p *Parser) findFullClassNameByNamespace(name string) (string, bool) {
 			return tryName, true
 		}
 		// 文件未找到，但仍返回命名空间前缀的名称，让 Composer autoloader 处理
+		// 当前命名空间未找到，尝试全局类（兼容 PHP 函数/常量 fallback 行为）
+		if stmt, ok := p.vm.GetClass(name); ok {
+			return stmt.GetName(), true
+		}
+		if stmt, ok := p.vm.GetInterface(name); ok {
+			return stmt.GetName(), true
+		}
+		if _, ok := p.ClassPathManager.FindClassFile(name); ok {
+			return name, true
+		}
 		return tryName, false
 	} else {
 		// 尝试全局
