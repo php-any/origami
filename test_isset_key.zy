@@ -1,0 +1,11 @@
+<?php
+$composer = json_decode(file_get_contents('laravel/composer.json'), true);
+echo "foreach keys match 'autoload': ";
+foreach ($composer as $k => $v) {
+    if ($k === 'autoload') {
+        echo "FOUND!\n";
+    }
+}
+echo "isset: " . (isset($composer['autoload']) ? 'yes' : 'no') . "\n";
+echo "array_key_exists: " . (array_key_exists('autoload', $composer) ? 'yes' : 'no') . "\n";
+echo "\$composer['autoload']: " . gettype($composer['autoload']) . "\n";

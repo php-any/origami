@@ -1,0 +1,30 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+$app = require_once 'laravel/bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+
+if (!$app->hasBeenBootstrapped()) {
+    $bootstrappers = [
+        Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables::class,
+        Illuminate\Foundation\Bootstrap\LoadConfiguration::class,
+        Illuminate\Foundation\Bootstrap\HandleExceptions::class,
+        Illuminate\Foundation\Bootstrap\RegisterFacades::class,
+        Illuminate\Foundation\Bootstrap\RegisterProviders::class,
+        Illuminate\Foundation\Bootstrap\BootProviders::class,
+    ];
+    $app->bootstrapWith($bootstrappers);
+}
+
+// 模拟 resolvePath
+$paths = $app->make('config')->get('view.paths');
+echo "Config paths: ";
+var_dump($paths);
+
+echo "\nRealpath test:\n";
+foreach ($paths as $path) {
+    echo "  path: " . $path . "\n";
+    echo "  realpath: ";
+    $rp = realpath($path);
+    var_dump($rp);
+}

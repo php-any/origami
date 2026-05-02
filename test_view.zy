@@ -1,0 +1,28 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+$app = require_once 'laravel/bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+
+if (!$app->hasBeenBootstrapped()) {
+    $bootstrappers = [
+        Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables::class,
+        Illuminate\Foundation\Bootstrap\LoadConfiguration::class,
+        Illuminate\Foundation\Bootstrap\HandleExceptions::class,
+        Illuminate\Foundation\Bootstrap\RegisterFacades::class,
+        Illuminate\Foundation\Bootstrap\RegisterProviders::class,
+        Illuminate\Foundation\Bootstrap\BootProviders::class,
+    ];
+    $app->bootstrapWith($bootstrappers);
+}
+
+echo "View paths from config: ";
+var_dump($app->make('config')->get('view.paths'));
+
+try {
+    $view = view('welcome');
+    echo "View: " . $view->getPath() . "\n";
+} catch (\Throwable $e) {
+    echo "Error: " . $e->getMessage() . "\n";
+    echo "File: " . $e->getFile() . ":" . $e->getLine() . "\n";
+}

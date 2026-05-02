@@ -1,0 +1,7 @@
+<?php
+$json = '{"foo": "bar"}';
+echo "json_decode as array:\n";
+$result = json_decode($json, true);
+echo "count: " . count($result) . "\n";
+echo "keys: " . implode(',', array_keys($result)) . "\n";
+echo "foo: " . $result['foo'] . "\n";

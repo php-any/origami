@@ -1,0 +1,13 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+use Dotenv\Parser\Lexer;
+
+$value = 'Laravel';
+echo "Testing Lexer::lex('$value'):\n";
+$generator = Lexer::lex($value);
+echo "Generator class: " . get_class($generator) . "\n";
+
+$tokens = iterator_to_array($generator);
+echo "Tokens: " . implode(', ', $tokens) . "\n";
+echo "Count: " . count($tokens) . "\n";

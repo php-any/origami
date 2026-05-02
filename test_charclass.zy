@@ -1,0 +1,17 @@
+<?php
+// 测试最后一种模式（匹配普通字符）
+$pattern = '#(([^(\s\'"\#$]|\(|\)){1,1000})A#';
+$content = 'Laravel';
+echo "Pattern: $pattern\n";
+echo "Content: $content\n";
+$result = preg_match($pattern, $content, $matches, 0, 0);
+echo "preg_match: " . ($result === false ? 'FALSE' : $result) . "\n";
+if ($result) {
+    echo "Match: " . $matches[0] . "\n";
+}
+
+// 简化测试
+echo "\nSimple test:\n";
+$simple = '#[A-Za-z]+A#';
+$r = preg_match($simple, 'Hello', $m);
+echo "Result: $r, Match: " . ($m[0] ?? 'none') . "\n";

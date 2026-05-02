@@ -1,0 +1,17 @@
+<?php
+// 测试 json_decode 的数组模式
+$r1 = json_decode('{"foo":"bar","nested":"val"}', true);
+echo "r1 keys: " . implode(',', array_keys($r1)) . "\n";
+
+$r2 = json_decode('["a","b","c"]', true);
+echo "r2 count: " . count($r2) . "\n";
+echo "r2: " . implode(',', $r2) . "\n";
+
+$r3 = json_decode('42', true);
+echo "r3: $r3 (type: " . gettype($r3) . ")\n";
+
+$r4 = json_decode('"hello"', true);
+echo "r4: $r4 (type: " . gettype($r4) . ")\n";
+
+$r5 = json_decode('true', true);
+echo "r5: " . ($r5 ? 'true' : 'false') . " (type: " . gettype($r5) . ")\n";

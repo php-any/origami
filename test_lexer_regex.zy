@@ -1,0 +1,19 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+// 直接复制 Lexer 的代码逻辑
+$PATTERNS = [
+    '[\r\n]{1,1000}', '[^\S\r\n]{1,1000}', '\\', '\'', '"', '\#', '\$', '([^(\s\\\'"\#\$)]|\(|\)){1,1000}',
+];
+
+$regex = '((' . implode(')|(', $PATTERNS) . '))A';
+echo "Regex: $regex\n";
+
+$content = 'Laravel';
+echo "Content: $content\n";
+echo "Content[0]: " . $content[0] . "\n";
+
+$matchResult = preg_match($regex, $content, $matches, 0, 0);
+echo "preg_match result: $matchResult\n";
+echo "matches: ";
+var_dump($matches);

@@ -1,0 +1,23 @@
+<?php
+// 模拟 server.php 的请求处理流程
+require 'laravel/vendor/autoload.php';
+
+putenv('APP_KEY=base64:7X1ZM4KlTvQVXom4E7u5YftL4H7NjbZQJGJ1lCqVUWs=');
+
+$_SERVER['REQUEST_METHOD'] = 'GET';
+$_SERVER['REQUEST_URI'] = '/';
+$_SERVER['QUERY_STRING'] = '';
+$_SERVER['HTTP_HOST'] = '127.0.0.1';
+$_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+$_SERVER['SERVER_NAME'] = '127.0.0.1';
+$_SERVER['SERVER_PORT'] = '8000';
+$_SERVER['SCRIPT_NAME'] = '/index.php';
+$_SERVER['SCRIPT_FILENAME'] = __DIR__ . '/laravel/public/index.php';
+
+echo "Requiring index.php...\n";
+try {
+    require 'laravel/public/index.php';
+    echo "SUCCESS!\n";
+} catch (\Throwable $e) {
+    echo "ERROR: " . $e->getMessage() . "\n";
+}

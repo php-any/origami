@@ -1,0 +1,4 @@
+<?php
+$pattern = '~(*UTF8)\A[\p{Ll}\p{Lu}\p{M}\p{N}_.]+\z~';
+$subject = 'APP_NAME';
+echo "preg_match: " . preg_match($pattern, $subject) . "\n";

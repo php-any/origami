@@ -74,6 +74,9 @@ func Load(vm data.VM) {
 		array.NewArrayKeyExistsFunction(),
 		array.NewArrayKeysFunction(),
 		array.NewArrayKeyFirstFunction(),
+		array.NewArraySearchFunction(),
+		array.NewArrayFillKeysFunction(),
+		array.NewArrayIsListFunction(),
 		NewMd5Function(),
 		NewMd5FileFunction(),
 		NewBase64EncodeFunction(),
@@ -96,17 +99,39 @@ func Load(vm data.VM) {
 		array.NewSortFunction(),
 		array.NewKsortFunction(),
 		array.NewKrsortFunction(),
+		array.NewArrayDiffUkeyFunction(),
 		math.NewMinFunction(),
 		array.NewArrayMapFunction(),
 		array.NewArrayReduceFunction(),
 		NewStrReplaceFunction(),
+		NewStrIreplaceFunction(),
 		NewStrtolowerFunction(),
+		NewStrcasecmpFunction(),
 		NewStrtoupperFunction(),
 		NewOrdFunction(),
 		NewChrFunction(),
 		NewStrRepeatFunction(),
 		NewStrcspnFunction(),
 		NewStrspnFunction(),
+		NewStrpbrkFunction(),
+		NewStrtokFunction(),
+		NewHttpResponseCodeFunction(),
+		NewHeaderFunction(),
+		NewHeadersSentFunction(),
+		NewMbConvertCaseFunction(),
+		NewMbConvertEncodingFunction(),
+		NewMbListEncodingsFunction(),
+		NewMbStrtoupperFunction(),
+		NewMbStrtolowerFunction(),
+		NewMbStrlenFunction(),
+		NewCeilFunction(),
+		NewFloorFunction(),
+		NewRoundFunction(),
+		NewPowFunction(),
+		NewRandomBytesFunction(),
+		NewRandomIntFunction(),
+		NewStrtotimeFunction(),
+		NewGmdateFunction(),
 		NewLevenshteinFunction(),
 		NewMaxFunction(),
 		NewNormalizerIsNormalizedFunction(),
@@ -245,10 +270,15 @@ func Load(vm data.VM) {
 	vm.AddClass(&core.ArrayIteratorClass{})
 	vm.AddClass(core.NewFilterIteratorClass())
 
+	// 注册 DateTime 类
+	vm.AddClass(NewDateTimeClass())
+
 	// 注册 PHP 内置接口
 	vm.AddInterface(NewArrayAccessInterface())
 	vm.AddInterface(NewCountableInterface())
 	vm.AddInterface(directory.NewSeekableIteratorInterface())
+	vm.AddInterface(NewSerializableInterface())
+	vm.AddInterface(NewSessionHandlerInterface())
 	vm.AddInterface(exception.NewThrowableInterface())
 
 	// 注册异常类
@@ -270,6 +300,16 @@ func Load(vm data.VM) {
 
 	// 加载 intl 扩展（grapheme_strlen、grapheme_substr 等）
 	intl.Load(vm)
+
+	// mb_convert_case 常量
+	vm.SetConstant("MB_CASE_UPPER", data.NewIntValue(MB_CASE_UPPER))
+	vm.SetConstant("MB_CASE_LOWER", data.NewIntValue(MB_CASE_LOWER))
+	vm.SetConstant("MB_CASE_TITLE", data.NewIntValue(MB_CASE_TITLE))
+	vm.SetConstant("MB_CASE_FOLD", data.NewIntValue(MB_CASE_FOLD))
+	vm.SetConstant("MB_CASE_UPPER_SIMPLE", data.NewIntValue(MB_CASE_UPPER_SIMPLE))
+	vm.SetConstant("MB_CASE_LOWER_SIMPLE", data.NewIntValue(MB_CASE_LOWER_SIMPLE))
+	vm.SetConstant("MB_CASE_TITLE_SIMPLE", data.NewIntValue(MB_CASE_TITLE_SIMPLE))
+	vm.SetConstant("MB_CASE_FOLD_SIMPLE", data.NewIntValue(MB_CASE_FOLD_SIMPLE))
 
 	// 加载 PHP 原生注解类
 	attribute.Load(vm)

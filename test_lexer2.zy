@@ -1,0 +1,17 @@
+<?php
+$regex = '((' . implode(')|(', [
+    '[\r\n]{1,1000}', '[^\S\r\n]{1,1000}', '\\', '\'', '"', '\#', '\$', '([^(\s\\\'"\#\$)]|\(|\)){1,1000}',
+]) . '))A';
+
+echo "Regex: $regex\n";
+
+$content = 'Laravel';
+echo "Content: '$content'\n";
+echo "Content[0]: " . $content[0] . "\n";
+echo "isset: " . (isset($content[0]) ? 'yes' : 'no') . "\n";
+
+$r = preg_match($regex, $content, $matches, 0, 0);
+echo "\npreg_match result: " . ($r === false ? 'FALSE (error)' : $r) . "\n";
+if ($r) {
+    echo "Match: " . $matches[0] . "\n";
+}

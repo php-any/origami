@@ -1,0 +1,12 @@
+<?php
+function myGen() {
+    yield 'a';
+    yield 'b';
+    yield 'c';
+}
+
+$gen = myGen();
+echo "Generator class: " . get_class($gen) . "\n";
+echo "iterator_to_array: ";
+$arr = iterator_to_array($gen);
+var_dump($arr);

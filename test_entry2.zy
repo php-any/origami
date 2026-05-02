@@ -1,0 +1,10 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+use Dotenv\Parser\EntryParser;
+
+$result = EntryParser::parse('APP_NAME=Laravel');
+echo "Result class: " . get_class($result) . "\n";
+echo "Success? " . ($result->isSuccess() ? 'yes' : 'no') . "\n";
+echo "mapError returns: ";
+var_dump($result->mapError(function($e) { return $e; }));

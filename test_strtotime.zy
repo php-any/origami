@@ -1,0 +1,4 @@
+<?php
+echo "strtotime('now'): " . strtotime('now') . "\n";
+echo "strtotime('now - 7200 seconds'): " . strtotime('now - 7200 seconds') . "\n";
+echo "time(): " . time() . "\n";

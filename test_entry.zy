@@ -1,0 +1,15 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+use Dotenv\Parser\EntryParser;
+
+$result = EntryParser::parse('APP_NAME=Laravel');
+echo "Result type: " . get_class($result) . "\n";
+echo "Result methods: ";
+// 检查 Result 接口
+if ($result instanceof GrahamCampbell\ResultType\Result) {
+    echo "is Result\n";
+    // 尝试获取值
+    $entry = $result->get();
+    echo "Entry: " . $entry->getName() . " = " . $entry->getValue() . "\n";
+}

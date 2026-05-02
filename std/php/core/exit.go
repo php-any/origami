@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/php-any/origami/data"
@@ -34,7 +35,7 @@ func (f *ExitFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		if asInt, ok := statusVal.(data.AsInt); ok {
 			if v, err := asInt.AsInt(); err == nil {
 				code = v
-				os.Exit(code)
+				_ = code
 			}
 		}
 		// 其它情况当作字符串输出
@@ -43,8 +44,7 @@ func (f *ExitFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 			_, _ = os.Stdout.WriteString(s)
 		}
 	}
-	os.Exit(code)
-	return nil, nil
+	return nil, data.NewErrorThrow(nil, fmt.Errorf("exit(%d)", code))
 }
 
 func (f *ExitFunction) GetName() string {

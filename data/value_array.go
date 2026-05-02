@@ -42,6 +42,12 @@ func (a *ArrayValue) Current(ctx Context) (Value, Control) {
 }
 
 func (a *ArrayValue) Key(ctx Context) (Value, Control) {
+	if a.iterator >= 0 && a.iterator < len(a.List) {
+		z := a.List[a.iterator]
+		if z != nil && z.Name != "" {
+			return NewStringValue(z.Name), nil
+		}
+	}
 	return NewIntValue(a.iterator), nil
 }
 

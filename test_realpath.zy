@@ -1,0 +1,6 @@
+<?php
+$path = "D:\github.cocm\php-any\origami\laravel/resources/views";
+echo "Path: $path\n";
+echo "realpath: " . realpath($path) . "\n";
+echo "file_exists realpath: " . (file_exists(realpath($path)) ? 'yes' : 'no') . "\n";
+echo "is_dir realpath: " . (is_dir(realpath($path)) ? 'yes' : 'no') . "\n";

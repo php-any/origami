@@ -1,0 +1,12 @@
+<?php
+$viewPath = "D:\github.cocm\php-any\origami\laravel/resources/views/welcome.blade.php";
+echo "Path: $viewPath\n";
+echo "file_exists: " . (file_exists($viewPath) ? 'yes' : 'no') . "\n";
+echo "is_file: " . (is_file($viewPath) ? 'yes' : 'no') . "\n";
+
+// 直接在 view 目录找
+$dir = "D:\github.cocm\php-any\origami\laravel\resources\views";
+echo "\nDir: $dir\n";
+echo "is_dir: " . (is_dir($dir) ? 'yes' : 'no') . "\n";
+$files = scandir($dir);
+echo "Files: " . implode(', ', $files) . "\n";

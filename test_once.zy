@@ -1,0 +1,12 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+echo "First include:\n";
+$app = require_once 'laravel/bootstrap/app.php';
+echo "Result type: " . gettype($app) . "\n";
+
+echo "\nSecond include:\n";
+$app2 = require_once 'laravel/bootstrap/app.php';
+echo "Result type: " . gettype($app2) . "\n";
+echo "Value: ";
+var_dump($app2);

@@ -78,8 +78,8 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		var c data.Control
 
 		// 遍历数组
-		valueList := array.ToValueList()
-		for i, element := range valueList {
+		for i, zval := range array.List {
+			element := zval.Value
 			// 设置值变量
 			acl := u.Value.SetValue(ctx, element)
 			if acl != nil {
@@ -87,7 +87,12 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			}
 			// 如果有键变量，设置键变量
 			if u.Key != nil {
-				keyValue := data.NewIntValue(i)
+				var keyValue data.Value
+				if zval.Name != "" {
+					keyValue = data.NewStringValue(zval.Name)
+				} else {
+					keyValue = data.NewIntValue(i)
+				}
 				ctx.SetVariableValue(u.Key, keyValue)
 			}
 
@@ -106,7 +111,7 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 						}
 					case data.YieldValueControl:
 						// yield：包装成 ForeachArrayYieldControl，保存迭代状态
-						return nil, NewForeachArrayYieldControl(u, valueList, i, bodyIndex+1, ctrl)
+						return nil, NewForeachArrayYieldControl(u, nil, i, bodyIndex+1, ctrl)
 					}
 					// return/throw 直接返回
 					return nil, c

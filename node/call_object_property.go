@@ -141,7 +141,7 @@ func (pe *CallObjectProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 	case *data.ThisValue:
 		property, ok := v.GetPropertyStmt(pe.Property)
 		if ok {
-			return property.GetValue(ctx)
+			return property.GetValue(v)
 		}
 		// 无声明属性时尝试 __get(string $name)
 		if magic, hasGet := v.GetMethod("__get"); hasGet {

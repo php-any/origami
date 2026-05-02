@@ -1,0 +1,31 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+use Dotenv\Parser\Lines;
+
+$content = file_get_contents('laravel/.env');
+echo "Content length: " . strlen($content) . "\n";
+
+// Step 1: Split
+$lines = preg_split("/(\r\n|\n|\r)/", $content);
+echo "Lines after preg_split: " . count($lines) . "\n";
+
+// Step 2: Lines::process
+$processed = Lines::process($lines);
+echo "Lines after process: " . count($processed) . "\n";
+echo "First 5 processed lines:\n";
+for ($i = 0; $i < min(5, count($processed)); $i++) {
+    echo "  $i: '" . $processed[$i] . "'\n";
+}
+
+// Step 3: Parse each processed line
+use Dotenv\Parser\EntryParser;
+foreach ($processed as $i => $line) {
+    try {
+        $entry = EntryParser::parse($line);
+        echo "  $i: OK -> " . $entry->getName() . "\n";
+    } catch (\Throwable $e) {
+        echo "  $i: ERROR: " . $e->getMessage() . " (line: '$line')\n";
+    }
+    if ($i >= 10) break;
+}

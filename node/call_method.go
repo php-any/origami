@@ -50,17 +50,32 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		// 后期静态绑定静态方法包装器
 		return pe.handleStaticMethodWithLateBinding(ctx, fv)
 	default:
-		// 检查是否所有参数都是 SpreadArgument(nil)（first-class callable）
+		// 检查是否是 first-class callable: 单个 SpreadArgument(nil)
 		allSpread := len(pe.Args) == 1
 		if allSpread {
-			if _, ok := pe.Args[0].(*SpreadArgument); !ok {
+			spread, ok := pe.Args[0].(*SpreadArgument)
+			if !ok || spread.Expr != nil {
 				allSpread = false
 			}
 		}
-		if allSpread && len(pe.Args) == 1 {
-			if _, ok := pe.Args[0].(*SpreadArgument); ok {
-				// first-class callable: 返回包装的调用
-				return call, nil
+		if allSpread {
+			// first-class callable: 返回包装的调用
+			return call, nil
+		}
+		// PHP 数组可调用: [$obj, 'method'](...$args)
+		if arr, ok2 := call.(*data.ArrayValue); ok2 && len(arr.List) == 2 {
+			objVal := arr.List[0].Value
+			methodVal := arr.List[1].Value
+			if obj, ok3 := objVal.(data.GetMethod); ok3 {
+				methodName := ""
+				if sv, ok4 := methodVal.(*data.StringValue); ok4 {
+					methodName = sv.Value
+				} else {
+					methodName = methodVal.AsString()
+				}
+				if method, has := obj.GetMethod(methodName); has {
+					return pe.doCallWithArgs(ctx, obj, method)
+				}
 			}
 		}
 		// 魔法方法 __invoke：对象作为可调用时调用 $object->__invoke(...$args)
@@ -191,6 +206,27 @@ func (pe *CallMethod) handleFuncValue(ctx data.Context, call data.GetValue) (dat
 							return nil, acl
 						}
 						fnCtx.SetIndexZVal(vari.(*ParameterReference).Index, zv)
+					case *CallStaticProperty:
+						v, acl := val.GetValue(ctx)
+						if acl != nil {
+							return nil, acl
+						}
+						zv := data.NewZVal(v.(data.Value))
+						fnCtx.SetIndexZVal(vari.(*ParameterReference).Index, zv)
+					case *CallStaticPropertyLater:
+						v, acl := val.GetValue(ctx)
+						if acl != nil {
+							return nil, acl
+						}
+						zv := data.NewZVal(v.(data.Value))
+						fnCtx.SetIndexZVal(vari.(*ParameterReference).Index, zv)
+					case *CallStaticKeywordProperty:
+						v, acl := val.GetValue(ctx)
+						if acl != nil {
+							return nil, acl
+						}
+						zv := data.NewZVal(v.(data.Value))
+						fnCtx.SetIndexZVal(vari.(*ParameterReference).Index, zv)
 					case data.Variable:
 						acl := vari.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
 						if acl != nil {
@@ -205,6 +241,28 @@ func (pe *CallMethod) handleFuncValue(ctx data.Context, call data.GetValue) (dat
 					if acl != nil {
 						return nil, acl
 					}
+					fnCtx.SetIndexZVal(argObj.Index, zv)
+				case *CallStaticProperty:
+					// Class::$prop 作为引用参数：获取值并创建 ZVal
+					v, acl := paramTV.GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+					zv := data.NewZVal(v.(data.Value))
+					fnCtx.SetIndexZVal(argObj.Index, zv)
+				case *CallStaticPropertyLater:
+					v, acl := paramTV.GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+					zv := data.NewZVal(v.(data.Value))
+					fnCtx.SetIndexZVal(argObj.Index, zv)
+				case *CallStaticKeywordProperty:
+					v, acl := paramTV.GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+					zv := data.NewZVal(v.(data.Value))
 					fnCtx.SetIndexZVal(argObj.Index, zv)
 				default:
 					if val, ok := paramTV.(data.Variable); ok {
@@ -224,6 +282,58 @@ func (pe *CallMethod) handleFuncValue(ctx data.Context, call data.GetValue) (dat
 	fnCtx.SetCallArgs(pe.Args)
 
 	return fn.Call(fnCtx)
+}
+
+// doCallWithArgs PHP 数组可调用 [$obj, 'method'](...$args) 的支持
+func (pe *CallMethod) doCallWithArgs(ctx data.Context, object data.GetMethod, method data.Method) (data.GetValue, data.Control) {
+	varies := method.GetVariables()
+	var fnCtx data.Context
+	if objCtx, ok := object.(data.Context); ok {
+		fnCtx = objCtx.CreateContext(varies)
+	} else if cv, ok := object.(*data.ClassValue); ok {
+		fnCtx = cv.CreateContext(varies)
+	} else {
+		fnCtx = ctx.CreateContext(varies)
+	}
+
+	// 先展开所有参数中的 ...$arr (SpreadArgument)，构建展平后的实参列表
+	var flatArgs []data.Value
+	for _, arg := range pe.Args {
+		if spread, ok := arg.(*SpreadArgument); ok {
+			spreadVal, acl := spread.GetValue(ctx)
+			if acl != nil {
+				return nil, acl
+			}
+			if arr, ok := spreadVal.(*data.ArrayValue); ok {
+				for _, z := range arr.List {
+					flatArgs = append(flatArgs, z.Value)
+				}
+			} else if objVal, ok := spreadVal.(*data.ObjectValue); ok {
+				objVal.RangeProperties(func(key string, value data.Value) bool {
+					flatArgs = append(flatArgs, value)
+					return true
+				})
+			}
+			continue
+		}
+		v, acl := arg.GetValue(ctx)
+		if acl != nil {
+			return nil, acl
+		}
+		if val, ok := v.(data.Value); ok {
+			flatArgs = append(flatArgs, val)
+		} else {
+			flatArgs = append(flatArgs, data.NewNullValue())
+		}
+	}
+
+	// 将展平的实参绑定到方法参数
+	for i := 0; i < len(flatArgs) && i < len(varies); i++ {
+		fnCtx.SetVariableValue(varies[i], flatArgs[i])
+	}
+
+	fnCtx.SetCallArgs(pe.Args)
+	return method.Call(fnCtx)
 }
 
 // invokeMagicInvoke 调用对象的 __invoke(...$args)，用于对象作为可调用时的魔法分发

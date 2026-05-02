@@ -1,0 +1,5 @@
+<?php
+$arr = array('foo' => 'bar', 'nested' => 'value');
+echo "count: " . count($arr) . "\n";
+echo "keys: " . implode(',', array_keys($arr)) . "\n";
+echo "arr['foo']: " . $arr['foo'] . "\n";

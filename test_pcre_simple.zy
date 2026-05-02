@@ -1,0 +1,15 @@
+<?php
+$tests = [
+    '(test)A',
+    '(hello)A',
+    '([\r\n])A',
+    '([^\S])A',
+    '((a)|(b))A',
+    '(([abc]))A',
+];
+
+foreach ($tests as $p) {
+    echo "Pattern: $p -> ";
+    $r = @preg_match($p, 'a', $m);
+    echo "result: " . ($r === false ? 'FALSE' : $r) . "\n";
+}

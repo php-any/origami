@@ -28,6 +28,15 @@ func (f *ArraySpliceFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	switch arr := arrZVal.Value.(type) {
 	case *data.ArrayValue:
 		source = &arr.List
+	case *data.ObjectValue:
+		// ObjectValue -> 转为 ArrayValue 再操作
+		tmp, _ := data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
+		arr.RangeProperties(func(key string, v data.Value) bool {
+			tmp.List = append(tmp.List, data.NewZVal(v))
+			return true
+		})
+		arrZVal.Value = tmp
+		source = &tmp.List
 	default:
 		return data.NewArrayValue([]data.Value{}), nil
 	}
@@ -74,14 +83,23 @@ func (f *ArraySpliceFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	deletedElements := make([]*data.ZVal, deleteCount)
 	copy(deletedElements, (*source)[start:start+deleteCount])
 
-	// 获取要插入的元素（从第3个参数开始）
+	// 获取要插入的元素（replacement 是第4个参数，一个数组）
 	var insertElements []*data.ZVal
-	for i := 3; ; i++ {
-		arg, ok := ctx.GetIndexValue(i)
-		if !ok || arg == nil {
-			break
+	if replacementArg, ok := ctx.GetIndexValue(3); ok && replacementArg != nil {
+		// replacement 是一个数组，展开其元素插入
+		if replacementArray, isArr := replacementArg.(*data.ArrayValue); isArr {
+			for _, z := range replacementArray.List {
+				insertElements = append(insertElements, z)
+			}
+		} else if replacementObj, isObj := replacementArg.(*data.ObjectValue); isObj {
+			replacementObj.RangeProperties(func(key string, v data.Value) bool {
+				insertElements = append(insertElements, data.NewZVal(v))
+				return true
+			})
+		} else {
+			// 单个值
+			insertElements = append(insertElements, data.NewZVal(replacementArg))
 		}
-		insertElements = append(insertElements, data.NewZVal(arg))
 	}
 
 	// 执行 splice 操作
@@ -106,8 +124,9 @@ func (f *ArraySpliceFunction) GetName() string {
 func (f *ArraySpliceFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameterReference(nil, "array", 0, data.NewBaseType("array")),
-		node.NewParameter(nil, "offset", 1, nil, nil),
-		node.NewParameters(nil, "replacements", 2, nil, nil),
+		node.NewParameter(nil, "offset", 1, nil, data.NewBaseType("int")),
+		node.NewParameter(nil, "length", 2, node.NewNullLiteral(nil), data.NewBaseType("int")),
+		node.NewParameter(nil, "replacement", 3, node.NewNullLiteral(nil), data.NewBaseType("array")),
 	}
 }
 
@@ -115,6 +134,7 @@ func (f *ArraySpliceFunction) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
 		node.NewVariable(nil, "offset", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "replacements", 2, data.NewBaseType("array")),
+		node.NewVariable(nil, "length", 2, data.NewBaseType("int")),
+		node.NewVariable(nil, "replacement", 3, data.NewBaseType("array")),
 	}
 }

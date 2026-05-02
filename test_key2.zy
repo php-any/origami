@@ -1,0 +1,9 @@
+<?php
+$key = 'base64:7X1ZM4KlTvQVXom4E7u5YftL4H7NjbZQJGJ1lCqVUWs=';
+$after = '7X1ZM4KlTvQVXom4E7u5YftL4H7NjbZQJGJ1lCqVUWs=';
+$decoded = base64_decode($after);
+echo "decoded: " . ($decoded === false ? 'FALSE' : 'length=' . strlen($decoded)) . "\n";
+echo "strlen decoded: " . strlen($decoded) . "\n";
+
+// 测试 mb_strlen
+echo "mb_strlen: " . mb_strlen($decoded, '8bit') . "\n";

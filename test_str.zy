@@ -1,0 +1,14 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+use Dotenv\Util\Str;
+
+$name = 'APP_NAME';
+echo "Str::len: " . Str::len($name) . "\n";
+echo "Str::substr($name, 0, 6): " . Str::substr($name, 0, 6) . "\n";
+echo "ctype_space check: ";
+// ctype_space might not exist
+echo "SKIP\n";
+
+$pattern = '~(*UTF8)\A[\p{Ll}\p{Lu}\p{M}\p{N}_.]+\z~';
+echo "preg_match: " . preg_match($pattern, $name) . "\n";

@@ -179,8 +179,11 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 			continue
 		}
 
-		// 解析 abstract 关键字（可以在访问修饰符之前）
+		// 解析 final 和 abstract 关键字（可以在访问修饰符之前）
 		isAbstractMethod := false
+		if p.current().Type() == token.FINAL {
+			p.next()
+		}
 		if p.current().Type() == token.ABSTRACT {
 			isAbstractMethod = true
 			p.next()
@@ -788,6 +791,10 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool, isAbstract bool, annotations []*node.Annotation, properties *[]data.Property, staticProperties *map[string]data.Property) (data.Method, []data.Property, data.Control) {
 	// 跳过function关键字
 	p.next()
+	// 跳过 & 引用返回标记
+	if p.current().Type() == token.BIT_AND {
+		p.next()
+	}
 	tracker := p.StartTracking()
 	p.scopeManager.NewScope(false)
 	// 解析方法名

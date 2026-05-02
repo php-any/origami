@@ -1,0 +1,40 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+$app = require_once 'laravel/bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+
+if (!$app->hasBeenBootstrapped()) {
+    $bootstrappers = [
+        Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables::class,
+        Illuminate\Foundation\Bootstrap\LoadConfiguration::class,
+        Illuminate\Foundation\Bootstrap\HandleExceptions::class,
+        Illuminate\Foundation\Bootstrap\RegisterFacades::class,
+        Illuminate\Foundation\Bootstrap\RegisterProviders::class,
+        Illuminate\Foundation\Bootstrap\BootProviders::class,
+    ];
+    $app->bootstrapWith($bootstrappers);
+}
+
+// 测试 resolvePath 作为回调
+$files = $app['files'];
+$paths = $app['config']['view.paths'];
+
+echo "Path: " . $paths[0] . "\n";
+echo "realpath direct: " . realpath($paths[0]) . "\n";
+
+// 创建临时 finder 对象来测试
+$finder = new Illuminate\View\FileViewFinder($files, $paths);
+echo "Paths from finder: ";
+var_dump($finder->getPaths());
+
+// 手动调用 resolvePath (需要反射)
+$ref = new ReflectionClass($finder);
+$method = $ref->getMethod('resolvePath');
+$method->setAccessible(true);
+echo "resolvePath: " . $method->invoke($finder, $paths[0]) . "\n";
+
+// 测试 array_map 回调
+$callback = [$finder, 'resolvePath'];
+echo "array_map result: ";
+var_dump(array_map($callback, $paths));

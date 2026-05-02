@@ -1,0 +1,18 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+$app = require_once 'laravel/bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+
+echo "Kernel: " . get_class($kernel) . "\n";
+
+try {
+    $input = new Symfony\Component\Console\Input\ArgvInput;
+    $output = new Symfony\Component\Console\Output\ConsoleOutput;
+    $status = $kernel->handle($input, $output);
+    echo "Status: $status\n";
+} catch (\Throwable $e) {
+    echo "Error: " . $e->getMessage() . "\n";
+    echo "File: " . $e->getFile() . ":" . $e->getLine() . "\n";
+    echo "Trace:\n" . $e->getTraceAsString() . "\n";
+}

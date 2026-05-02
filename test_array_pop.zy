@@ -1,0 +1,7 @@
+<?php
+$arr = [1, 2, 3];
+echo "Before pop: " . implode(',', $arr) . "\n";
+$val = array_pop($arr);
+echo "Popped: $val\n";
+echo "After pop: " . implode(',', $arr) . "\n";
+echo "Count: " . count($arr) . "\n";

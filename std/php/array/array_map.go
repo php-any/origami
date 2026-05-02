@@ -95,6 +95,33 @@ func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 			} else {
 				results = append(results, data.NewNullValue())
 			}
+		case *data.ArrayValue:
+			// PHP 数组可调用: [$obj, 'method']
+			if len(cb.List) == 2 {
+				objVal := cb.List[0].Value
+				methodVal := cb.List[1].Value
+				if obj, ok := objVal.(data.GetMethod); ok {
+					methodName := methodVal.AsString()
+					if method, has := obj.GetMethod(methodName); has {
+						varies := method.GetVariables()
+						fnCtx := ctx.CreateContext(varies)
+						for ai := 0; ai < len(varies) && ai < len(args); ai++ {
+							fnCtx.SetVariableValue(varies[ai], args[ai])
+						}
+						ret, ctl := method.Call(fnCtx)
+						if ctl != nil {
+							return nil, ctl
+						}
+						if v, ok := ret.(data.Value); ok {
+							results = append(results, v)
+						} else {
+							results = append(results, data.NewNullValue())
+						}
+						continue
+					}
+				}
+			}
+			results = append(results, data.NewNullValue())
 		case data.CallableValue:
 			var arg0, arg1, arg2 data.Value = data.NewNullValue(), data.NewNullValue(), data.NewNullValue()
 			if len(args) > 0 {

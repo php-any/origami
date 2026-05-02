@@ -1,0 +1,233 @@
+<?php
+
+use Net\Http\Server;
+
+/**
+ * HTTP服务器基础功能演示
+ * 
+ * 本示例展示了Origami HTTP服务器的基础功能：
+ * - 创建HTTP服务器
+ * - 设置路由
+ * - 处理请求和响应
+ * - 中间件使用
+ */
+
+// 创建HTTP服务器
+$server = new Server("0.0.0.0", port: 8080);
+
+// 全局日志中间件
+$server->middleware(($request, $response, $next) => {
+    $startTime = time();
+    $method = $request->method();
+    $path = $request->path();
+    $ip = $request->ip();
+    
+    Log::info("请求开始: {$method} {$path} from {$ip}");
+    
+    $next($request, $response);
+    
+    $duration = time() - $startTime;
+    Log::info("请求完成: {$method} {$path} 耗时: {$duration}秒");
+});
+
+// CORS中间件
+$server->middleware(($request, $response, $next) => {
+    $response->header("Access-Control-Allow-Origin", "*");
+    $response->header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    $response->header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    if ($request->method() == "OPTIONS") {
+        $response->writeHeader(200);
+        return;
+    }
+    
+    $next($request, $response);
+});
+
+// 异常捕捉中间件
+$server->middleware(($request, $response, $next) => {
+    try {
+        $next($request, $response);
+    } catch (Exception $e) {
+        Log::error("请求处理异常: " . $e->getMessage());
+        Log::error("异常堆栈: " . $e->getTraceAsString());
+        
+        $response->writeHeader(500);
+        $response->json({
+            "error": "服务器内部错误",
+            "message": $e->getMessage(),
+            "timestamp": time(),
+            "path": $request->path(),
+            "method": $request->method()
+        });
+    } catch (Error $e) {
+        Log::error("请求处理错误: " . $e->getMessage());
+        Log::error("错误堆栈: " . $e->getTraceAsString());
+        
+        $response->writeHeader(500);
+        $response->json({
+            "error": "服务器内部错误",
+            "message": $e->getMessage(),
+            "timestamp": time(),
+            "path": $request->path(),
+            "method": $request->method()
+        });
+    }
+});
+
+// 首页路由
+$server->get("/", ($request, $response) => {
+    $response->json({
+        "message": "欢迎使用Origami HTTP服务器",
+        "version": "1.0.0",
+        "timestamp": time(),
+        "endpoints": [
+            "/user/{id} - 获取用户信息",
+            "/user - 创建用户",
+            "/search - 搜索功能",
+            "/health - 健康检查"
+        ]
+    });
+});
+
+// 获取用户信息
+$server->get("/user/{id}", ($request, $response) => {
+    $userId = $request->pathValue("id");
+    
+    $response->json({
+        "id": $userId,
+        "name": "用户" . $userId,
+        "email": "user" . $userId . "@example.com",
+        "created_at": time()
+    });
+});
+
+// 创建用户
+$server->post("/user", ($request, $response) => {
+    $name = $request->postFormValue("name");
+    $email = $request->postFormValue("email");
+    
+    if ($name == null || $email == null) {
+        $response->writeHeader(400);
+        $response->json({
+            "error": "缺少必要参数",
+            "required": ["name", "email"]
+        });
+        return;
+    }
+    
+    $response->json({
+        "message": "用户创建成功",
+        "user": {
+            "id": rand(1, 1000),
+            "name": $name,
+            "email": $email,
+            "created_at": time()
+        }
+    });
+});
+
+// 搜索功能
+$server->get("/search", ($request, $response) => {
+    $keyword = $request->formValue("keyword");
+    $page = $request->formValue("page") ?? "1";
+    
+    $response->json({
+        "keyword": $keyword,
+        "page": $page,
+        "results": [
+            "结果1: " . $keyword,
+            "结果2: " . $keyword,
+            "结果3: " . $keyword
+        ]
+    });
+});
+
+// 健康检查
+$server->get("/health", ($request, $response) => {
+    $response->json({
+        "status": "healthy",
+        "uptime": time(),
+        "server": "Origami HTTP Server"
+    });
+});
+
+// 定义用户类用于bind示例
+class User {
+    public string $name;
+    public string $email;
+    public int $age;
+}
+
+// 定义文章类用于bind示例
+class Article {
+    public string $title;
+    public string $content;
+    public int $userId;
+}
+
+// 使用bind方法绑定JSON数据到对象
+$server->post("/bind/user", ($request, $response) => {
+    // 使用bind方法将JSON数据绑定到User类
+    $user = $request->bind(User::class);
+    
+    if ($user == null) {
+        $response->writeHeader(400);
+        $response->json({
+            "error": "绑定失败",
+            "message": "无法将请求数据绑定到User对象"
+        });
+        return;
+    }
+    
+    $response->json({
+        "message": "用户数据绑定成功",
+        "user": {
+            "name": $user->name,
+            "email": $user->email,
+            "age": $user->age
+        }
+    });
+});
+
+// 使用bind方法绑定JSON数据到文章对象
+$server->post("/bind/article", ($request, $response) => {
+    // 使用bind方法将JSON数据绑定到Article类
+    $article = $request->bind(Article::class);
+    
+    if ($article == null) {
+        $response->writeHeader(400);
+        $response->json({
+            "error": "绑定失败",
+            "message": "无法将请求数据绑定到Article对象"
+        });
+        return;
+    }
+    
+    $response->json({
+        "message": "文章数据绑定成功",
+        "article": {
+            "title": $article->title,
+            "content": $article->content,
+            "userId": $article->userId
+        }
+    });
+});
+
+// 错误处理示例
+$server->get("/error", ($request, $response) => {
+    throw new Exception("test error");
+});
+
+Log::info("HTTP服务器启动在: http://127.0.0.1:8080");
+Log::info("可以访问以下端点进行测试:");
+Log::info("  GET  / - 首页");
+Log::info("  GET  /user/1 - 获取用户信息");
+Log::info("  POST /user - 创建用户 (需要name和email参数)");
+Log::info("  GET  /search?keyword=test - 搜索功能");
+Log::info("  GET  /health - 健康检查");
+Log::info("  POST /bind/user - 绑定JSON数据到User对象");
+Log::info("  POST /bind/article - 绑定JSON数据到Article对象");
+Log::info("  GET  /error - 错误处理示例");
+
+$server->run();

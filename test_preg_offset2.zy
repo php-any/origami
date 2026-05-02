@@ -1,0 +1,13 @@
+<?php
+$pattern = '(([a-zA-Z_]+))A';
+$content = 'Laravel';
+echo "Testing preg_match with pattern: $pattern\n";
+echo "Content: $content\n";
+
+$r = preg_match($pattern, $content, $matches, 0, 0);
+echo "result at offset 0: " . ($r === false ? 'FALSE' : $r) . "\n";
+if ($r) echo "  match: " . $matches[0] . "\n";
+
+$r2 = preg_match($pattern, $content, $matches, 0, 7);
+echo "result at offset 7: " . ($r2 === false ? 'FALSE' : $r2) . "\n";
+if ($r2) echo "  match: " . $matches[0] . "\n";

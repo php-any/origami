@@ -1,0 +1,34 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+$app = require_once 'laravel/bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+
+if (!$app->hasBeenBootstrapped()) {
+    $bootstrappers = [
+        Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables::class,
+        Illuminate\Foundation\Bootstrap\LoadConfiguration::class,
+        Illuminate\Foundation\Bootstrap\HandleExceptions::class,
+        Illuminate\Foundation\Bootstrap\RegisterFacades::class,
+        Illuminate\Foundation\Bootstrap\RegisterProviders::class,
+        Illuminate\Foundation\Bootstrap\BootProviders::class,
+    ];
+    $app->bootstrapWith($bootstrappers);
+}
+
+$paths = $app['config']['view.paths'];
+echo "Path: " . $paths[0] . "\n";
+
+// 测试 [$obj, 'method'] 作为 array_map 回调
+class TestFinder {
+    public function resolvePath($path) {
+        echo "resolvePath called with: $path\n";
+        return realpath($path) ?: $path;
+    }
+}
+
+$tf = new TestFinder();
+$callback = [$tf, 'resolvePath'];
+$result = array_map($callback, $paths);
+echo "result: ";
+var_dump($result);

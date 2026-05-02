@@ -1,0 +1,9 @@
+<?php
+// 验证 BoolValue 检测
+function test_bool($v) {
+    echo "gettype: " . gettype($v) . "\n";
+    echo "is_bool: " . (is_bool($v) ? 'yes' : 'no') . "\n";
+    echo "bool val: " . ($v ? 'true' : 'false') . "\n";
+}
+test_bool(true);
+test_bool(false);

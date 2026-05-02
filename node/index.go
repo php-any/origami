@@ -226,6 +226,11 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 	}
 
 	switch arr := arrayVal.(type) {
+	case *data.NullValue:
+		// $null[] = value → 初始化为数组后追加（PHP 语义）
+		newArr := data.NewArrayValue([]data.Value{value}).(*data.ArrayValue)
+		_, acl = NewBinaryAssign(ie.GetFrom(), ie.Array, newArr).GetValue(ctx)
+		return acl
 	case *data.ArrayValue:
 		// 数组索引赋值
 		i := 0
@@ -236,18 +241,16 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 				return data.NewErrorThrow(ie.GetFrom(), err)
 			}
 		} else if iv, ok := indexVal.(data.AsString); ok {
-			// 字符串索引：将数组转换为对象
-			objectVal := data.NewObjectValue()
-			valueList := arr.ToValueList()
-			for i2, val := range valueList {
-				objectVal.SetProperty(fmt.Sprintf("%d", i2), val)
+			// 字符串键：查找匹配 Name 的项并更新，找不到则追加
+			key := iv.AsString()
+			for _, zval := range arr.List {
+				if zval != nil && zval.Name == key {
+					zval.Value = value
+					return nil
+				}
 			}
-			objectVal.SetProperty(iv.AsString(), value)
-			// 重新赋值
-			_, acl = NewBinaryAssign(ie.GetFrom(), ie.Array, objectVal).GetValue(ctx)
-			if acl != nil {
-				return acl
-			}
+			// 未找到，追加新项
+			arr.List = append(arr.List, &data.ZVal{Name: key, Value: value})
 			return nil
 		} else {
 			return data.NewErrorThrow(ie.GetFrom(), errors.New("数组索引不是整数类型"))
@@ -257,14 +260,21 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 			return data.NewErrorThrow(ie.GetFrom(), errors.New("数组索引不能为负数"))
 		}
 
-		// 如果索引超出范围，自动扩容
+		// PHP 数组是稀疏的：arr[22]=val 不填充 0-21。超出长度时仅当推入末尾才扩容，否则转为 ObjectValue
 		if i >= len(arr.List) {
-			for j := len(arr.List); j <= i; j++ {
+			if i == len(arr.List) {
 				arr.List = append(arr.List, data.NewZVal(data.NewNullValue()))
+			} else {
+				obj := data.NewObjectValue()
+				for idx, z := range arr.List {
+					obj.SetProperty(fmt.Sprintf("%d", idx), z.Value)
+				}
+				obj.SetProperty(fmt.Sprintf("%d", i), value)
+				_, acl = NewBinaryAssign(ie.GetFrom(), ie.Array, obj).GetValue(ctx)
+				return acl
 			}
 		}
 
-		// 设置值
 		arr.List[i] = data.NewZVal(value)
 		return nil
 
@@ -352,6 +362,13 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 				return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("数组索引超出范围"), "UndefinedIndexExpression")
 			}
 		case *data.StringValue:
+			// 字符串键：在数组中搜索匹配的 Name
+			key := iv.Value
+			for _, zval := range v.List {
+				if zval != nil && zval.Name == key {
+					return zval.Value, nil
+				}
+			}
 			return data.NewNullValue(), nil
 		case data.AsInt:
 			var err error

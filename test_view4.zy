@@ -1,0 +1,37 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+$app = require_once 'laravel/bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+
+if (!$app->hasBeenBootstrapped()) {
+    $bootstrappers = [
+        Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables::class,
+        Illuminate\Foundation\Bootstrap\LoadConfiguration::class,
+        Illuminate\Foundation\Bootstrap\HandleExceptions::class,
+        Illuminate\Foundation\Bootstrap\RegisterFacades::class,
+        Illuminate\Foundation\Bootstrap\RegisterProviders::class,
+        Illuminate\Foundation\Bootstrap\BootProviders::class,
+    ];
+    $app->bootstrapWith($bootstrappers);
+}
+
+// 模拟 ViewServiceProvider 的注册
+echo "config['view.paths']: ";
+var_dump($app['config']['view.paths']);
+
+// 对比
+echo "\nconfig->get('view.paths'): ";
+var_dump($app['config']->get('view.paths'));
+
+// 模拟 FileViewFinder 构造
+$files = $app['files'];
+echo "\nfiles: " . get_class($files) . "\n";
+
+$paths = $app['config']['view.paths'];
+echo "paths type: " . gettype($paths) . "\n";
+
+// 直接创建 finder
+$finder = new Illuminate\View\FileViewFinder($files, $paths ?: []);
+echo "finder paths: ";
+var_dump($finder->getPaths());

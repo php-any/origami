@@ -1,0 +1,13 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+use Dotenv\Parser\EntryParser;
+
+echo "Testing EntryParser::parse:\n";
+$line = 'APP_NAME=Laravel';
+try {
+    $result = EntryParser::parse($line);
+    echo "Result: " . gettype($result) . "\n";
+} catch (\Throwable $e) {
+    echo "Error: " . $e->getMessage() . "\n";
+}

@@ -1,0 +1,16 @@
+<?php
+$tests = [
+    '([\r\n]{1,1000})A' => 'a',
+    '([^\S\r\n]{1,1000})A' => 'a',
+    '(\\)A' => '\',
+    '(\')A' => '\'',
+    '(")A' => '"',
+    '(\#)A' => '#',
+    '(\$)A' => '$',
+    '(([^(\s\'"\#\$)]|\(|\)){1,1000})A' => 'L',
+];
+
+foreach ($tests as $pattern => $subject) {
+    $r = @preg_match($pattern, $subject, $m);
+    echo "$pattern | $subject -> " . ($r === false ? 'FALSE' : $r) . "\n";
+}

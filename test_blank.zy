@@ -1,0 +1,13 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+use Dotenv\Parser\EntryParser;
+
+$test = "";
+echo "Testing empty string:\n";
+try {
+    $result = EntryParser::parse($test);
+    echo "OK\n";
+} catch (\Throwable $e) {
+    echo "Error: " . $e->getMessage() . "\n";
+}

@@ -1,0 +1,23 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+use Dotenv\Parser\Parser;
+use Dotenv\Util\Regex;
+
+$content = file_get_contents('laravel/.env');
+echo "Content length: " . strlen($content) . "\n";
+
+// 模拟 Parser::parse 的流程
+echo "\nSplitting content...\n";
+$splitResult = Regex::split("/(\r\n|\n|\r)/", $content);
+echo "Split result: ";
+var_dump($splitResult->isSuccess());
+
+echo "\nTrying Parser directly...\n";
+$parser = new Parser();
+try {
+    $entries = $parser->parse($content);
+    echo "Parse success! Entries: " . count($entries) . "\n";
+} catch (\Throwable $e) {
+    echo "Parse error: " . $e->getMessage() . "\n";
+}

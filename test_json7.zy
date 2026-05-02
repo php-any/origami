@@ -1,0 +1,24 @@
+<?php
+$json = '{"foo": "bar", "nested": {"a": 1, "b": 2}}';
+echo "json_decode false:\n";
+$obj = json_decode($json, false);
+echo "obj->foo: " . $obj->foo . "\n";
+echo "obj->nested->a: " . $obj->nested->a . "\n";
+
+echo "\njson_decode true:\n";
+$arr = json_decode($json, true);
+echo "type: " . gettype($arr) . "\n";
+echo "count: " . count($arr) . "\n";
+foreach ($arr as $k => $v) {
+    echo "  key: '$k' => ";
+    if (is_array($v)) {
+        echo "array(";
+        foreach ($v as $k2 => $v2) {
+            echo "'$k2'=>";
+            var_dump($v2);
+        }
+        echo ")";
+    } else {
+        var_dump($v);
+    }
+}

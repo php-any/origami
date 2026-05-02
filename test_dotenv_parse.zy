@@ -1,0 +1,23 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+use Dotenv\Parser\EntryParser;
+use Dotenv\Parser\Lines;
+use Dotenv\Util\Regex;
+
+$content = file_get_contents('laravel/.env');
+echo "Content length: " . strlen($content) . "\n";
+
+// 先看第一行
+$lines = preg_split("/(\r\n|\n|\r)/", $content);
+echo "Lines: " . count($lines) . "\n";
+foreach ($lines as $i => $line) {
+    echo "  $i: '" . $line . "'\n";
+    try {
+        $result = EntryParser::parse($line);
+        echo "    => OK\n";
+    } catch (\Throwable $e) {
+        echo "    => ERROR: " . $e->getMessage() . "\n";
+    }
+    if ($i > 5) break;
+}

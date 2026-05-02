@@ -1,0 +1,35 @@
+<?php
+$content = 'Laravel';
+
+// Build up pattern parts one by one
+$parts = [
+    '[\r\n]{1,1000}',
+    '[^\S\r\n]{1,1000}', 
+    '\\',
+    '\'',
+    '"',
+    '\#',
+    '\$',
+    '([^(\s\\\'"\#\$)]|\(|\)){1,1000}',
+];
+
+// Test each part
+foreach ($parts as $i => $part) {
+    $pattern = "(($part))A";
+    echo "Part $i: $pattern\n";
+    $r = @preg_match($pattern, $content, $m);
+    echo "  -> " . ($r === false ? 'FALSE' : $r) . "\n";
+}
+
+// Build up incrementally
+echo "\nBuilding incrementally:\n";
+$regex = '(';
+for ($i = 0; $i < count($parts); $i++) {
+    if ($i > 0) $regex .= '|(';
+    $regex .= $parts[$i] . ')';
+}
+$regex .= ')A';
+echo "Full: $regex\n";
+$r = @preg_match($regex, $content, $m);
+echo "  -> " . ($r === false ? 'FALSE' : $r) . "\n";
+if ($r) echo "  match: " . $m[0] . "\n";

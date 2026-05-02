@@ -1,0 +1,8 @@
+<?php
+$composer = json_decode(file_get_contents('laravel/composer.json'), true);
+echo "type: " . gettype($composer) . "\n";
+echo "count: " . count($composer) . "\n";
+echo "keys: " . implode(',', array_keys($composer)) . "\n";
+foreach ($composer as $k => $v) {
+    echo "  '$k' => " . gettype($v) . "\n";
+}

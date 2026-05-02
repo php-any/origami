@@ -1,0 +1,17 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+use Dotenv\Parser\Parser;
+
+$content = file_get_contents('laravel/.env');
+echo "Content length: " . strlen($content) . "\n";
+
+echo "\nTrying Parser directly...\n";
+$parser = new Parser();
+try {
+    $entries = $parser->parse($content);
+    echo "Parse success! Entries: " . count($entries) . "\n";
+} catch (\Throwable $e) {
+    echo "Parse error: " . $e->getMessage() . "\n";
+    echo "Type: " . get_class($e) . "\n";
+}

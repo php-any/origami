@@ -32,12 +32,10 @@ func (f *ArrayKeyExistsFunction) Call(ctx data.Context) (data.GetValue, data.Con
 			}
 		}
 		// 检查字符串键（关联数组）
-		valueList := arrayVal.ToValueList()
-		for i, val := range valueList {
-			// 这里简化处理，实际应该检查数组的键
-			// 暂时返回 false
-			_ = i
-			_ = val
+		for _, zval := range arrayVal.List {
+			if zval != nil && zval.Name == keyStr {
+				return data.NewBoolValue(true), nil
+			}
 		}
 		return data.NewBoolValue(false), nil
 	}

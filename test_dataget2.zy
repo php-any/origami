@@ -1,0 +1,15 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+$composer = json_decode(file_get_contents('laravel/composer.json'), true);
+echo "composer type: " . gettype($composer) . "\n";
+echo "autoload type: " . gettype($composer['autoload']) . "\n";
+
+$psr4 = data_get($composer, 'autoload.psr-4');
+echo "psr-4 type: " . gettype($psr4) . "\n";
+if (is_array($psr4)) {
+    echo "count: " . count($psr4) . "\n";
+    foreach ($psr4 as $k => $v) {
+        echo "  $k => " . (is_array($v) ? implode(',', $v) : $v) . "\n";
+    }
+}

@@ -1,0 +1,10 @@
+<?php
+// 简化测试
+echo "Test 1: basic\n";
+echo preg_match('/[A-Z_]+/', 'APP_NAME') . "\n";
+
+echo "Test 2: Unicode\n";
+echo preg_match('~(*UTF8)\A[\p{Ll}\p{Lu}\p{M}\p{N}_.]+\z~', 'APP_NAME') . "\n";
+
+echo "Test 3: with ~ delimiter\n";
+echo preg_match('~^[A-Z_]+$~', 'APP_NAME') . "\n";

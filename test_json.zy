@@ -1,0 +1,6 @@
+<?php
+$json = '{"App\\\": "app/", "Database\Factories\\": "database/factories/"}';
+echo "json_decode(assoc=false):\n";
+var_dump(json_decode($json, false));
+echo "\njson_decode(assoc=true):\n";
+var_dump(json_decode($json, true));

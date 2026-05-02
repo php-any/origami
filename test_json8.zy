@@ -1,0 +1,17 @@
+<?php
+$json = '{"foo": "bar"}';
+
+// 测试是否是 json_decode 的问题
+$result = json_decode($json, true);
+echo "type: " . gettype($result) . "\n";
+echo "count: " . count($result) . "\n";
+
+// 如果是数组，检查键
+if (is_array($result)) {
+    $keys = array_keys($result);
+    echo "keys count: " . count($keys) . "\n";
+    echo "keys: ";
+    var_dump($keys);
+    echo "foo key exists: " . (isset($result['foo']) ? 'yes' : 'no') . "\n";
+    echo "0 key exists: " . (isset($result[0]) ? 'yes' : 'no') . "\n";
+}

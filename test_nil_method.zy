@@ -1,0 +1,44 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+$app = require_once 'laravel/bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+
+if (!$app->hasBeenBootstrapped()) {
+    $bootstrappers = [
+        Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables::class,
+        Illuminate\Foundation\Bootstrap\LoadConfiguration::class,
+        Illuminate\Foundation\Bootstrap\HandleExceptions::class,
+        Illuminate\Foundation\Bootstrap\RegisterFacades::class,
+        Illuminate\Foundation\Bootstrap\RegisterProviders::class,
+        Illuminate\Foundation\Bootstrap\BootProviders::class,
+    ];
+    $app->bootstrapWith($bootstrappers);
+}
+
+// 尝试顺序创建每个中间件，找到 nil method 问题
+$tests = [
+    'view' => 'view',
+    'view.finder' => 'view.finder',
+    'view.engine.resolver' => 'view.engine.resolver',
+    Illuminate\View\Engines\EngineResolver::class => Illuminate\View\Engines\EngineResolver::class,
+    Illuminate\Contracts\View\Factory::class => Illuminate\Contracts\View\Factory::class,
+    Illuminate\View\Factory::class => Illuminate\View\Factory::class,
+    Illuminate\Contracts\Encryption\Encrypter::class => Illuminate\Contracts\Encryption\Encrypter::class,
+    Illuminate\Encryption\Encrypter::class => Illuminate\Encryption\Encrypter::class,
+    'encrypter' => 'encrypter',
+    Illuminate\View\Middleware\ShareErrorsFromSession::class => Illuminate\View\Middleware\ShareErrorsFromSession::class,
+    Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class => Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+    App\Http\Middleware\VerifyCsrfToken::class => App\Http\Middleware\VerifyCsrfToken::class,
+];
+
+foreach ($tests as $name => $abstract) {
+    echo "\n$name: ";
+    try {
+        $obj = $app->make($abstract);
+        echo "OK (" . get_class($obj) . ")";
+    } catch (\Throwable $e) {
+        echo "ERROR: " . $e->getMessage();
+    }
+}
+echo "\n";

@@ -174,7 +174,7 @@ func (j *JsonSerializer) UnmarshalObject(data []byte, v *data.ObjectValue) error
 		if acl != nil {
 			return errors.New(acl.AsString())
 		}
-		if existing != nil {
+		if existing != nil && !isNullValue(existing) {
 			val, err := j.unmarshalWithExpected(raw, existing)
 			if err != nil {
 				return err
@@ -421,4 +421,9 @@ func (j *JsonSerializer) unmarshalWithExpected(raw []byte, expected data.Value) 
 		// 未知具体类型，回退到猜测
 		return j.unmarshalValue(raw)
 	}
+}
+
+func isNullValue(v data.Value) bool {
+	_, ok := v.(*data.NullValue)
+	return ok
 }

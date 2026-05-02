@@ -1,0 +1,12 @@
+<?php
+$key = 'base64:7X1ZM4KlTvQVXom4E7u5YftL4H7NjbZQJGJ1lCqVUWs=';
+echo "key: $key\n";
+
+$prefix = 'base64:';
+echo "starts with base64: " . (str_starts_with($key, $prefix) ? 'yes' : 'no') . "\n";
+
+$after = substr($key, strlen($prefix));
+echo "after: $after\n";
+
+$decoded = base64_decode($after);
+echo "decoded: " . ($decoded === false ? 'FALSE' : bin2hex($decoded)) . "\n";

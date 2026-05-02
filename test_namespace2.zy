@@ -1,0 +1,45 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+// 完全模拟 Console Kernel 的 bootstrapping
+$app = require_once 'laravel/bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+
+// 手动执行 bootstrap
+$bootstrappers = [
+    Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables::class,
+    Illuminate\Foundation\Bootstrap\LoadConfiguration::class,
+    Illuminate\Foundation\Bootstrap\HandleExceptions::class,
+    Illuminate\Foundation\Bootstrap\RegisterFacades::class,
+    Illuminate\Foundation\Bootstrap\SetRequestForConsole::class,
+    Illuminate\Foundation\Bootstrap\RegisterProviders::class,
+    Illuminate\Foundation\Bootstrap\BootProviders::class,
+];
+if (!$app->hasBeenBootstrapped()) {
+    $app->bootstrapWith($bootstrappers);
+}
+
+// 现在测试 getNamespace
+echo "path(): " . $app->path() . "\n";
+echo "basePath('app'): " . $app->basePath('app') . "\n";
+echo "realpath(path()): " . realpath($app->path()) . "\n";
+echo "realpath(basePath('app')): " . realpath($app->basePath('app')) . "\n";
+
+// 读取 composer.json 并查找匹配
+$composer = json_decode(file_get_contents($app->basePath('composer.json')), true);
+echo "composer OK\n";
+
+foreach ((array) ($composer['autoload']['psr-4'] ?? []) as $namespace => $path) {
+    foreach ((array) $path as $pathChoice) {
+        $rp1 = realpath($app->path());
+        $rp2 = realpath($app->basePath($pathChoice));
+        echo "  $namespace -> $pathChoice: rp1=$rp1, rp2=$rp2, match=" . ($rp1 === $rp2 ? 'YES' : 'NO') . "\n";
+    }
+}
+
+echo "\ngetNamespace: ";
+try {
+    echo $app->getNamespace() . "\n";
+} catch (\Throwable $e) {
+    echo "ERROR: " . $e->getMessage() . "\n";
+}

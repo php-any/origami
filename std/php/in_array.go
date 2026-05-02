@@ -20,9 +20,21 @@ func (f *InArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewBoolValue(false), nil
 	}
 
-	// 检查是否为数组
-	arrayVal, ok := haystackValue.(*data.ArrayValue)
-	if !ok {
+	// 收集所有值（支持 ArrayValue / ObjectValue / ClassValue）
+	var valueList []data.Value
+	if arrayVal, ok := haystackValue.(*data.ArrayValue); ok {
+		valueList = arrayVal.ToValueList()
+	} else if objectVal, ok := haystackValue.(*data.ObjectValue); ok {
+		objectVal.RangeProperties(func(key string, v data.Value) bool {
+			valueList = append(valueList, v)
+			return true
+		})
+	} else if classVal, ok := haystackValue.(*data.ClassValue); ok {
+		classVal.ObjectValue.RangeProperties(func(key string, v data.Value) bool {
+			valueList = append(valueList, v)
+			return true
+		})
+	} else {
 		return data.NewBoolValue(false), nil
 	}
 
@@ -43,15 +55,12 @@ func (f *InArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 在数组中查找
-	valueList := arrayVal.ToValueList()
 	for _, val := range valueList {
 		if strict {
-			// 严格模式：PHP === 语义，类型和值都必须相同（按值比较，非指针）
 			if valueEqualStrict(needleValue, val) {
 				return data.NewBoolValue(true), nil
 			}
 		} else {
-			// 非严格模式：比较字符串值
 			if needleValue.AsString() == val.AsString() {
 				return data.NewBoolValue(true), nil
 			}
@@ -81,7 +90,7 @@ func (f *InArrayFunction) GetVariables() []data.Variable {
 	}
 }
 
-// valueEqualStrict 实现 PHP === 语义：类型相同且值相同（按值比较，非指针）
+// valueEqualStrict 实现 PHP === 语义
 func valueEqualStrict(a, b data.Value) bool {
 	if a == nil || b == nil {
 		return a == b
@@ -107,7 +116,6 @@ func valueEqualStrict(a, b data.Value) bool {
 		_, ok := b.(*data.NullValue)
 		return ok
 	default:
-		// 其他类型（如 ArrayValue、ObjectValue）在 PHP 中 === 为引用相等，这里保守按指针比较
 		return a == b
 	}
 	return false

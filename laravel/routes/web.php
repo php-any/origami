@@ -14,5 +14,5 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', function () {
-    return view('welcome');
+    return '<h1>Laravel on Origami</h1><p>PHP interpreter - full request lifecycle working!</p>';
 });

@@ -1,0 +1,266 @@
+<?php
+
+namespace App\Controllers;
+
+use Net\Annotation\Controller;
+use Net\Annotation\Route;
+use Net\Annotation\GetMapping;
+use Net\Annotation\PostMapping;
+use Net\Annotation\PutMapping;
+use Net\Annotation\DeleteMapping;
+use Database\DB;
+use App\Models\Project;
+use App\Models\ProjectEnvironment;
+use App\Models\ProjectTool;
+use App\Models\ToolLink;
+
+@Controller
+@Route(prefix: "/api/projects")
+class ProjectController {
+    @GetMapping(path: "/")
+    public function lists($request, $response) {
+        $projects = new DB<Project>()->orderBy("display_order ASC")->get();
+        $result = [];
+        for (_, $project in $projects) {
+            // 获取项目环境
+            $envs = DB<ProjectEnvironment>()->where("project_id = ?", $project->id)
+                ->orderBy("display_order ASC")->get();
+            $envList = [];
+            for (_, $env in $envs) {
+                $envList[] = [
+                    "id" => $env->id,
+                    "environmentName" => $env->environmentName,
+                    "url" => $env->url,
+                    "status" => $env->status,
+                    "statusColor" => $env->statusColor,
+                    "displayOrder" => $env->displayOrder
+                ];
+            }
+            
+            // 获取项目关联的工具
+            $projectTools = DB<ProjectTool>()->where("project_id = ?", $project->id)
+                ->orderBy("display_order ASC")->get();
+            
+            $envList = $envs;
+
+            // 获取项目关联的工具
+            $toolList = [];
+            for (_, $projectTool in $projectTools) {
+                $tools = DB<ToolLink>()->where("id = ?", $projectTool->toolId)->get();
+                if ($tools != null && $tools->length > 0) {
+                    $toolList[] = $tools[0];
+                }
+            }
+            
+            $result[] = [
+                "id" => $project->id,
+                "name" => $project->name,
+                "description" => $project->description,
+                "icon" => $project->icon,
+                "displayOrder" => $project->displayOrder,
+                "environments" => $envList,
+                "tools" => $toolList
+            ];
+        }
+        
+        $response->header("Content-Type", "application/json; charset=utf-8");
+        $response->write(json_encode($result));
+    }
+
+    @PostMapping(path: "/")
+    public function create($request, $response) {
+        $body = $request->body();
+        $data = json_decode($body);
+        
+        $project = new Project();
+        $project->name = $data->name;
+        $project->description = $data->description ?? null;
+        $project->icon = $data->icon ?? null;
+        $project->displayOrder = $data->displayOrder ?? 0;
+        
+        $result = DB<Project>()->insert($project);
+        $projectId = $result->insertId;
+        
+        // 创建项目环境
+        if ($data->environments != null) {
+            for (_, $env in $data->environments) {
+                $envObj = new ProjectEnvironment();
+                $envObj->projectId = $projectId;
+                $envObj->environmentName = $env->environmentName;
+                $envObj->url = $env->url;
+                $envObj->status = $env->status ?? "运行中";
+                $envObj->statusColor = $env->statusColor ?? "green";
+                $envObj->displayOrder = $env->displayOrder ?? 0;
+                DB<ProjectEnvironment>()->insert($envObj);
+            }
+        }
+        
+        // 创建项目工具关联
+        if ($data->tools != null) {
+            for ($i = 0; $i < $data->tools->length; $i++) {
+                $toolId = $data->tools[$i];
+                $projectTool = new ProjectTool();
+                $projectTool->projectId = $projectId;
+                $projectTool->toolId = (int)$toolId;
+                $projectTool->displayOrder = $i + 1;
+                DB<ProjectTool>()->insert($projectTool);
+            }
+        }
+        
+        $response->header("Content-Type", "application/json; charset=utf-8");
+        $response->write(json_encode(["success" => true, "id" => $projectId]));
+    }
+
+    @PutMapping(path: "/{id}")
+    public function update($request, $response) {
+        $id = $request->pathValue("id");
+        if ($id == null) {
+            $path = $request->path();
+            $pathParts = $path->split("/");
+            $id = $pathParts[$pathParts->length - 1];
+        }
+        
+        $body = $request->body();
+        $data = json_decode($body);
+        
+        $project = new Project();
+        $project->name = $data->name;
+        $project->description = $data->description ?? null;
+        $project->icon = $data->icon ?? null;
+        $project->displayOrder = $data->displayOrder ?? 0;
+        
+        $result = DB<Project>()->where("id = ?", (int)$id)->update($project);
+        
+        // 同步更新环境：先删除现有环境，再创建新环境
+        // 删除现有环境
+        DB<ProjectEnvironment>()->where("project_id = ?", (int)$id)->delete();
+        // 创建新环境（如果有）
+        if ($data->environments != null && $data->environments->length > 0) {
+            for (_, $env in $data->environments) {
+                if ($env->environmentName != null && $env->url != null) {
+                    $envObj = new ProjectEnvironment();
+                    $envObj->projectId = (int)$id;
+                    $envObj->environmentName = $env->environmentName;
+                    $envObj->url = $env->url;
+                    $envObj->status = $env->status ?? "运行中";
+                    $envObj->statusColor = $env->statusColor ?? "green";
+                    $envObj->displayOrder = $env->displayOrder ?? 0;
+                    DB<ProjectEnvironment>()->insert($envObj);
+                }
+            }
+        }
+        
+        // 同步更新工具关联：先删除现有工具关联，再创建新关联
+        // 删除现有工具关联
+        DB<ProjectTool>()->where("project_id = ?", (int)$id)->delete();
+        // 创建新工具关联（如果有）
+        if ($data->tools != null && $data->tools->length > 0) {
+            for ($i = 0; $i < $data->tools->length; $i++) {
+                $toolId = $data->tools[$i];
+                if ($toolId != null) {
+                    $projectTool = new ProjectTool();
+                    $projectTool->projectId = (int)$id;
+                    $projectTool->toolId = (int)$toolId;
+                    $projectTool->displayOrder = $i + 1;
+                    DB<ProjectTool>()->insert($projectTool);
+                }
+            }
+        }
+        
+        $response->header("Content-Type", "application/json; charset=utf-8");
+        $response->write(json_encode(["success" => true, "rowsAffected" => $result]));
+    }
+
+    @DeleteMapping(path: "/{id}")
+    public function delete($request, $response) {
+        $id = $request->pathValue("id");
+        if ($id == null) {
+            $path = $request->path();
+            $pathParts = $path->split("/");
+            $id = $pathParts[$pathParts->length - 1];
+        }
+        
+        // 删除关联的工具关系
+        DB<ProjectTool>()->where("project_id = ?", (int)$id)->delete();
+        // 删除关联的环境（级联删除）
+        DB<ProjectEnvironment>()->where("project_id = ?", (int)$id)->delete();
+        // 删除项目
+        $result = DB<Project>()->where("id = ?", (int)$id)->delete();
+        
+        $response->header("Content-Type", "application/json; charset=utf-8");
+        $response->write(json_encode(["success" => true, "rowsAffected" => $result]));
+    }
+
+    @PostMapping(path: "/{projectId}/environments")
+    public function createEnvironment($request, $response) {
+        $projectId = $request->pathValue("projectId");
+        if ($projectId == null) {
+            $path = $request->path();
+            $pathParts = $path->split("/");
+            $projectId = $pathParts[$pathParts->length - 2];
+        }
+        
+        $body = $request->body();
+        $data = json_decode($body);
+        
+        $env = new ProjectEnvironment();
+        $env->projectId = (int)$projectId;
+        $env->environmentName = $data->environmentName;
+        $env->url = $data->url;
+        $env->status = $data->status ?? "运行中";
+        $env->statusColor = $data->statusColor ?? "green";
+        $env->displayOrder = $data->displayOrder ?? 0;
+        
+        $result = DB<ProjectEnvironment>()->insert($env);
+        
+        $response->header("Content-Type", "application/json; charset=utf-8");
+        $response->write(json_encode(["success" => true, "id" => $result->insertId]));
+    }
+
+    @PutMapping(path: "/{projectId}/environments/{envId}")
+    public function updateEnvironment($request, $response) {
+        $projectId = $request->pathValue("projectId");
+        $envId = $request->pathValue("envId");
+        
+        if ($envId == null || $projectId == null) {
+            $path = $request->path();
+            $pathParts = $path->split("/");
+            $envId = $pathParts[$pathParts->length - 1];
+            $projectId = $pathParts[$pathParts->length - 3];
+        }
+        
+        $body = $request->body();
+        $data = json_decode($body);
+        
+        $env = new ProjectEnvironment();
+        $env->environmentName = $data->environmentName;
+        $env->url = $data->url;
+        $env->status = $data->status ?? "运行中";
+        $env->statusColor = $data->statusColor ?? "green";
+        $env->displayOrder = $data->displayOrder ?? 0;
+        
+        $result = DB<ProjectEnvironment>()->where("id = ? AND project_id = ?", (int)$envId, (int)$projectId)->update($env);
+        
+        $response->header("Content-Type", "application/json; charset=utf-8");
+        $response->write(json_encode(["success" => true, "rowsAffected" => $result]));
+    }
+
+    @DeleteMapping(path: "/{projectId}/environments/{envId}")
+    public function deleteEnvironment($request, $response) {
+        $projectId = $request->pathValue("projectId");
+        $envId = $request->pathValue("envId");
+        
+        if ($envId == null || $projectId == null) {
+            $path = $request->path();
+            $pathParts = $path->split("/");
+            $envId = $pathParts[$pathParts->length - 1];
+            $projectId = $pathParts[$pathParts->length - 3];
+        }
+        
+        $result = DB<ProjectEnvironment>()->where("id = ? AND project_id = ?", (int)$envId, (int)$projectId)->delete();
+        
+        $response->header("Content-Type", "application/json; charset=utf-8");
+        $response->write(json_encode(["success" => true, "rowsAffected" => $result]));
+    }
+}
+

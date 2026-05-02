@@ -1,0 +1,17 @@
+<?php
+$composer = json_decode(file_get_contents('laravel/composer.json'), true);
+echo "composer type: " . gettype($composer) . "\n";
+echo "autoload key exists: " . (isset($composer['autoload']) ? 'yes' : 'no') . "\n";
+
+if (isset($composer['autoload'])) {
+    echo "autoload type: " . gettype($composer['autoload']) . "\n";
+    echo "psr-4 key exists: " . (isset($composer['autoload']['psr-4']) ? 'yes' : 'no') . "\n";
+    if (isset($composer['autoload']['psr-4'])) {
+        $psr4 = $composer['autoload']['psr-4'];
+        echo "psr-4 type: " . gettype($psr4) . "\n";
+        echo "psr-4 count: " . count($psr4) . "\n";
+        foreach ($psr4 as $ns => $path) {
+            echo "  $ns => $path\n";
+        }
+    }
+}

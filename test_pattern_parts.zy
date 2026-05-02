@@ -1,0 +1,17 @@
+<?php
+$tests = [
+    '([\r\n]{1,1000})A' => 'a',
+    '([^\S\r\n]{1,1000})A' => ' ',  // whitespace
+    '(\\)A' => '\',
+    "(')A" => "'",
+    '(")A' => '"',
+    '(\#)A' => '#',
+    '(\$)A' => '$',
+    '(([^a-z]|\(|\)){1,1000})A' => 'L',  // simplified
+];
+
+foreach ($tests as $pattern => $subject) {
+    $r = preg_match($pattern, $subject, $m);
+    $status = $r === false ? 'FALSE' : $r;
+    echo "$pattern | $subject -> $status\n";
+}

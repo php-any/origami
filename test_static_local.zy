@@ -1,0 +1,9 @@
+<?php
+function test() {
+    static $count = 0;
+    $count++;
+    echo "count: $count\n";
+}
+test();
+test();
+test();

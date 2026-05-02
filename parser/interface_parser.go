@@ -141,11 +141,8 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 			}
 		}
 
-		// 解析访问修饰符
+		// 解析访问修饰符（接口成员默认 public）
 		modifier := p.parseModifier()
-		if modifier == "" {
-			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少访问修饰符"))
-		}
 
 		// 解析static关键字
 		isStatic := false

@@ -1,0 +1,7 @@
+<?php
+$json = '{"foo": "bar"}';
+echo "json: $json\n";
+echo "json_decode: ";
+$result = json_decode($json, true);
+var_dump($result);
+echo "gettype: " . gettype($result) . "\n";

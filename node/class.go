@@ -151,7 +151,7 @@ func (c *ClassStatement) GetProperty(name string) (data.Property, bool) {
 }
 
 func (c *ClassStatement) GetMethod(name string) (data.Method, bool) {
-	if f, ok := c.Methods[name]; ok {
+	if f, ok := c.Methods[name]; ok && f != nil {
 		return f, true
 	}
 	if name == token.ConstructName && c.Construct != nil {

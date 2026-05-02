@@ -1,0 +1,12 @@
+<?php
+$json = '{"foo": "bar"}';
+echo "json_decode with true:\n";
+$result = json_decode($json, true);
+echo "type: " . gettype($result) . "\n";
+if (is_array($result)) {
+    echo "keys: " . implode(',', array_keys($result)) . "\n";
+    echo "count: " . count($result) . "\n";
+    foreach ($result as $k => $v) {
+        echo "  $k => $v (" . gettype($v) . ")\n";
+    }
+}

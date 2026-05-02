@@ -1,0 +1,7 @@
+<?php
+$regex = '/([A-Za-z_]+)A/';
+$content = 'Laravel9';
+echo "preg_match with offset:\n";
+$result = preg_match($regex, $content, $matches, 0, 0);
+echo "result: $result\n";
+echo "matches[0]: " . ($matches[0] ?? 'NONE') . "\n";

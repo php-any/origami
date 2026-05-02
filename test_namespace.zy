@@ -1,0 +1,29 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+$app = require_once 'laravel/bootstrap/app.php';
+
+// 模拟 getNamespace 的逻辑
+$composerPath = $app->basePath('composer.json');
+echo "composer.json path: " . $composerPath . "\n";
+echo "file_exists: " . (file_exists($composerPath) ? 'yes' : 'no') . "\n";
+
+$content = file_get_contents($composerPath);
+echo "content length: " . strlen($content) . "\n";
+
+$composer = json_decode($content, true);
+echo "json_decode result: " . ($composer === null ? 'NULL' : 'OK') . "\n";
+
+if ($composer) {
+    $psr4 = $composer['autoload']['psr-4'] ?? [];
+    echo "psr-4 entries: " . count($psr4) . "\n";
+    foreach ($psr4 as $namespace => $path) {
+        echo "  $namespace => " . json_encode($path) . "\n";
+        foreach ((array)$path as $pathChoice) {
+            echo "    path(): " . $app->path() . "\n";
+            echo "    basePath($pathChoice): " . $app->basePath($pathChoice) . "\n";
+            echo "    realpath(path()): " . realpath($app->path()) . "\n";
+            echo "    realpath(basePath): " . realpath($app->basePath($pathChoice)) . "\n";
+        }
+    }
+}

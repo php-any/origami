@@ -109,7 +109,7 @@ func (c *ClassValue) GetPropertyZVal(name string) (*ZVal, Control) {
 }
 
 func (c *ClassValue) GetMethod(name string) (Method, bool) {
-	if fn, ok := c.Class.GetMethod(name); ok {
+	if fn, ok := c.Class.GetMethod(name); ok && fn != nil {
 		return fn, true
 	}
 
@@ -124,7 +124,7 @@ func (c *ClassValue) GetMethod(name string) (Method, bool) {
 		}
 
 		fn, ok := next.GetMethod(name)
-		if ok {
+		if ok && fn != nil {
 			return fn, true
 		}
 		last = next

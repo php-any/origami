@@ -1,0 +1,19 @@
+<?php
+$json = '{"foo": "bar"}';
+$obj = json_decode($json, false);
+echo "type: " . gettype($obj) . "\n";
+echo "foo: " . $obj->foo . "\n";
+$obj->foo = "changed";
+echo "foo after change: " . $obj->foo . "\n";
+
+$arr = json_decode($json, true);
+echo "type: " . gettype($arr) . "\n";
+echo "count: " . count($arr) . "\n";
+if (isset($arr['foo'])) {
+    echo "arr['foo']: " . $arr['foo'] . "\n";
+} else {
+    echo "arr['foo'] NOT SET\n";
+    foreach ($arr as $k => $v) {
+        echo "  $k => $v\n";
+    }
+}

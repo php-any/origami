@@ -1,0 +1,26 @@
+<?php
+$pattern = '((\))A';
+echo "Pattern: $pattern\n";
+echo "preg_match: " . ($r = preg_match($pattern, 'xx', $m)) . "\n";
+
+// 手动解析
+echo "\nManual parse:\n";
+echo "  chars: ";
+for ($i = 0; $i < strlen($pattern); $i++) {
+    echo "$i:" . $pattern[$i] . " ";
+}
+echo "\n";
+
+// 找到 closing ')'
+$endIndex = -1;
+for ($i = strlen($pattern) - 1; $i > 0; $i--) {
+    if ($pattern[$i] == ')' && $pattern[$i-1] != '\') {
+        $endIndex = $i;
+        break;
+    }
+}
+echo "endIndex: $endIndex\n";
+if ($endIndex >= 0) {
+    echo "Body: " . substr($pattern, 1, $endIndex - 1) . "\n";
+    echo "Modifiers: " . substr($pattern, $endIndex + 1) . "\n";
+}

@@ -87,6 +87,27 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 				return acl
 			}
 			fnCtx.SetIndexZVal(param.Index, zv)
+		case *CallStaticProperty:
+			v, acl := val.GetValue(ctx)
+			if acl != nil {
+				return acl
+			}
+			zv := data.NewZVal(v.(data.Value))
+			fnCtx.SetIndexZVal(param.Index, zv)
+		case *CallStaticPropertyLater:
+			v, acl := val.GetValue(ctx)
+			if acl != nil {
+				return acl
+			}
+			zv := data.NewZVal(v.(data.Value))
+			fnCtx.SetIndexZVal(param.Index, zv)
+		case *CallStaticKeywordProperty:
+			v, acl := val.GetValue(ctx)
+			if acl != nil {
+				return acl
+			}
+			zv := data.NewZVal(v.(data.Value))
+			fnCtx.SetIndexZVal(param.Index, zv)
 		case *IndexExpression:
 			zv, acl := val.GetZVal(ctx)
 			if acl != nil {

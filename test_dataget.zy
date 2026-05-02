@@ -1,0 +1,13 @@
+<?php
+$composer = json_decode(file_get_contents('laravel/composer.json'), true);
+echo "data_get autoload.psr-4:\n";
+$result = data_get($composer, 'autoload.psr-4');
+echo "type: " . gettype($result) . "\n";
+if (is_array($result)) {
+    echo "count: " . count($result) . "\n";
+    foreach ($result as $k => $v) {
+        echo "  $k => " . json_encode($v) . "\n";
+    }
+} else {
+    echo "not array: " . var_export($result, true) . "\n";
+}

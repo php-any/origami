@@ -1,0 +1,24 @@
+<?php
+// 使用 Lexer 相同的括号分隔符
+$PATTERNS = [
+    '[\r\n]{1,1000}', '[^\S\r\n]{1,1000}', '\\', '\'', '"', '\#', '\$', '([^(\s\\\'"\#\$)]|\(|\)){1,1000}',
+];
+
+$regex = '((' . implode(')|(', $PATTERNS) . '))A';
+echo "Regex: $regex\n";
+
+// 测试 preg_match
+$content = 'Laravel';
+$result = preg_match($regex, $content, $matches, 0, 0);
+echo "Result type: " . gettype($result) . "\n";
+echo "Result: ";
+var_dump($result);
+echo "Matches: ";
+var_dump($matches);
+
+// 检查是否是 false
+if ($result === false) {
+    echo "preg_match returned FALSE (error)\n";
+} else {
+    echo "preg_match returned int: $result\n";
+}

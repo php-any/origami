@@ -9,12 +9,12 @@ import (
 	"github.com/php-any/origami/utils"
 )
 
-// 缓存 include_once/require_once 已加载文件
+// 缓存 include_once/require_once 已加载文件的返回值
 var includeOnceCache = struct {
 	mu    sync.Mutex
-	files map[string]struct{}
+	files map[string]data.GetValue
 }{
-	files: make(map[string]struct{}),
+	files: make(map[string]data.GetValue),
 }
 
 // IncludeStatement 表示 include/require/include_once/require_once 语句
@@ -78,9 +78,9 @@ func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool,
 
 	if once {
 		includeOnceCache.mu.Lock()
-		if _, ok := includeOnceCache.files[filePath]; ok {
+		if cached, ok := includeOnceCache.files[filePath]; ok {
 			includeOnceCache.mu.Unlock()
-			return data.NewBoolValue(true), nil
+			return cached, nil
 		}
 		includeOnceCache.mu.Unlock()
 	}
@@ -114,7 +114,11 @@ func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool,
 
 	if once {
 		includeOnceCache.mu.Lock()
-		includeOnceCache.files[filePath] = struct{}{}
+		if vv, ok := v.(data.Value); ok {
+			includeOnceCache.files[filePath] = vv
+		} else {
+			includeOnceCache.files[filePath] = data.NewBoolValue(true)
+		}
 		includeOnceCache.mu.Unlock()
 	}
 

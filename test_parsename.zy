@@ -1,0 +1,20 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+use Dotenv\Parser\EntryParser;
+use Dotenv\Util\Regex;
+
+// 测试 isValidName
+$name = 'APP_NAME';
+$pattern = '~(*UTF8)\A[\p{Ll}\p{Lu}\p{M}\p{N}_.]+\z~';
+echo "preg_match: " . preg_match($pattern, $name) . "\n";
+
+// 直接测试 Regex::matches
+$result = Regex::matches($pattern, $name);
+echo "Regex::matches class: " . get_class($result) . "\n";
+
+// 看 success() 是否可用
+$opt = $result->success();
+echo "Option class: " . get_class($opt) . "\n";
+echo "Option isDefined: " . ($opt->isDefined() ? 'yes' : 'no') . "\n";
+echo "Option get: " . $opt->get() . "\n";

@@ -1,0 +1,34 @@
+<?php
+
+namespace App\Models;
+
+use Database\Annotation\Table;
+use Database\Annotation\Column;
+use Database\Annotation\Id;
+use Database\Annotation\GeneratedValue;
+
+// 项目模型
+@Table("projects")
+class Project {
+    @Id
+    @GeneratedValue("AUTO")
+    public int $id;
+
+    @Column("name")
+    public string $name;
+
+    @Column("description")
+    public ?string $description;
+
+    @Column("icon")
+    public ?string $icon;
+
+    @Column("display_order")
+    public int $displayOrder;
+
+    @Column("created_at")
+    public ?string $createdAt;
+
+    @Column("updated_at")
+    public ?string $updatedAt;
+}

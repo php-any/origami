@@ -1,0 +1,34 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+$app = require_once 'laravel/bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+
+if (!$app->hasBeenBootstrapped()) {
+    $bootstrappers = [
+        Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables::class,
+        Illuminate\Foundation\Bootstrap\LoadConfiguration::class,
+        Illuminate\Foundation\Bootstrap\HandleExceptions::class,
+        Illuminate\Foundation\Bootstrap\RegisterFacades::class,
+        Illuminate\Foundation\Bootstrap\RegisterProviders::class,
+        Illuminate\Foundation\Bootstrap\BootProviders::class,
+    ];
+    $app->bootstrapWith($bootstrappers);
+}
+
+// 直接获取 view factory
+$factory = $app->make('view');
+echo "View factory: " . get_class($factory) . "\n";
+
+$finder = $app->make('view.finder');
+echo "View finder: " . get_class($finder) . "\n";
+echo "Finder paths: ";
+var_dump($finder->getPaths());
+
+echo "\nLooking for welcome...\n";
+try {
+    $path = $finder->find('welcome');
+    echo "Found: " . $path . "\n";
+} catch (\Throwable $e) {
+    echo "Not found: " . $e->getMessage() . "\n";
+}

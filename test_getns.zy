@@ -1,0 +1,36 @@
+<?php
+require 'laravel/vendor/autoload.php';
+
+$app = require_once 'laravel/bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+
+// 模拟 artisan 的引导：只执行 Console Kernel 的 bootstrappers
+$app->bootstrapWith([
+    Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables::class,
+    Illuminate\Foundation\Bootstrap\LoadConfiguration::class,
+    Illuminate\Foundation\Bootstrap\HandleExceptions::class,
+    Illuminate\Foundation\Bootstrap\RegisterFacades::class,
+    Illuminate\Foundation\Bootstrap\SetRequestForConsole::class,
+    Illuminate\Foundation\Bootstrap\RegisterProviders::class,
+    Illuminate\Foundation\Bootstrap\BootProviders::class,
+]);
+
+echo "path(): " . $app->path() . "\n";
+echo "basePath('app'): " . $app->basePath('app') . "\n";
+echo "basePath('app/'): " . $app->basePath('app/') . "\n";
+
+$composer = json_decode(file_get_contents($app->basePath('composer.json')), true);
+foreach ($composer['autoload']['psr-4'] as $ns => $path) {
+    foreach ((array)$path as $pathChoice) {
+        $rp1 = realpath($app->path());
+        $rp2 = realpath($app->basePath($pathChoice));
+        echo "$ns -> $pathChoice: rp1=$rp1, rp2=$rp2, match=" . ($rp1 === $rp2 ? 'YES' : 'NO') . "\n";
+    }
+}
+
+echo "\ngetNamespace: ";
+try {
+    echo $app->getNamespace() . "\n";
+} catch (\Throwable $e) {
+    echo "ERROR: " . $e->getMessage() . "\n";
+}

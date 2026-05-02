@@ -1,0 +1,15 @@
+<?php
+function tokenize($str) {
+    $offset = 0;
+    while (isset($str[$offset])) {
+        echo "  [yielding at offset $offset]\n";
+        yield $str[$offset];
+        $offset++;
+        echo "  [resumed, offset now $offset]\n";
+    }
+}
+
+$gen = tokenize('ABC');
+foreach ($gen as $char) {
+    echo "Got: $char\n";
+}

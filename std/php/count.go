@@ -53,6 +53,35 @@ func (f *CountFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewIntValue(len(properties)), nil
 	}
 
+	// 处理 ClassValue / ThisValue（支持 Countable 接口）
+	if classVal, ok := value.(*data.ClassValue); ok {
+		if method, has := classVal.GetMethod("count"); has {
+			fnCtx := classVal.CreateContext(method.GetVariables())
+			ret, ctl := method.Call(fnCtx)
+			if ctl == nil {
+				if iv, ok2 := ret.(data.AsInt); ok2 {
+					if i, err := iv.AsInt(); err == nil {
+						return data.NewIntValue(i), nil
+					}
+				}
+			}
+		}
+		return data.NewIntValue(len(classVal.ObjectValue.GetProperties())), nil
+	}
+	if thisVal, ok := value.(*data.ThisValue); ok {
+		if method, has := thisVal.GetMethod("count"); has {
+			fnCtx := thisVal.CreateContext(method.GetVariables())
+			ret, ctl := method.Call(fnCtx)
+			if ctl == nil {
+				if iv, ok2 := ret.(data.AsInt); ok2 {
+					if i, err := iv.AsInt(); err == nil {
+						return data.NewIntValue(i), nil
+					}
+				}
+			}
+		}
+		return data.NewIntValue(1), nil
+	}
 	// 其他类型返回 1
 	return data.NewIntValue(1), nil
 }

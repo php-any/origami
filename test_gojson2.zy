@@ -1,0 +1,9 @@
+<?php
+$r = json_decode('{"key":"value"}', true);
+echo "type: " . gettype($r) . "\n";
+echo "count: " . count($r) . "\n";
+echo "keys: ";
+var_dump(array_keys($r));
+foreach ($r as $k => $v) {
+    echo "  k='$k' v='$v'\n";
+}

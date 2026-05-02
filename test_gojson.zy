@@ -1,0 +1,15 @@
+<?php
+echo "1: false => ";
+$r = json_decode('{"key":"value"}', false);
+echo is_object($r) ? ("obj, key=" . $r->key) : (is_array($r) ? "array" : "null");
+echo "\n";
+
+echo "2: true => ";
+$r = json_decode('{"key":"value"}', true);
+echo is_array($r) ? ("array, key=" . ($r['key'] ?? 'MISSING')) : "not array";
+echo "\n";
+
+echo "3: null => ";
+$r = json_decode('{"key":"value"}', null);
+echo is_object($r) ? ("obj, key=" . $r->key) : (is_array($r) ? "array" : "null");
+echo "\n";

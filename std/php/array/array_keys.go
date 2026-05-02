@@ -22,11 +22,15 @@ func (f *ArrayKeysFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 
 	switch v := arrayValue.(type) {
 	case *data.ArrayValue:
-		// 处理普通数组（数值索引）
+		// 处理数组，检查是否有字符串键（Name 字段）
 		length := len(v.List)
 		keys := make([]data.Value, 0, length)
 		for i := 0; i < length; i++ {
-			keys = append(keys, data.NewIntValue(i))
+			if v.List[i] != nil && v.List[i].Name != "" {
+				keys = append(keys, data.NewStringValue(v.List[i].Name))
+			} else {
+				keys = append(keys, data.NewIntValue(i))
+			}
 		}
 		return data.NewArrayValue(keys), nil
 

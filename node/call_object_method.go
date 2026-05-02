@@ -115,6 +115,27 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 func (pe *CallObjectMethod) invokeMagicCall(object data.Context, ctx data.Context, magic data.Method, methodName string, args []data.GetValue) (data.GetValue, data.Control) {
 	var argsList []data.Value
 	for _, arg := range args {
+		// 展开 ...$arr (SpreadArgument)
+		if spread, ok := arg.(*SpreadArgument); ok {
+			spreadVal, acl := spread.GetValue(ctx)
+			if acl != nil {
+				if _, isToClosure := acl.(ToClosure); isToClosure {
+					continue
+				}
+				return nil, acl
+			}
+			if arr, ok := spreadVal.(*data.ArrayValue); ok {
+				for _, z := range arr.List {
+					argsList = append(argsList, z.Value)
+				}
+			} else if objVal, ok := spreadVal.(*data.ObjectValue); ok {
+				objVal.RangeProperties(func(key string, value data.Value) bool {
+					argsList = append(argsList, value)
+					return true
+				})
+			}
+			continue
+		}
 		v, acl := arg.GetValue(ctx)
 		if acl != nil {
 			return nil, acl

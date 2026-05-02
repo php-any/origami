@@ -1,0 +1,9 @@
+<?php
+$content = "APP_NAME=Laravel\nAPP_ENV=local\nAPP_KEY=base64:7X1ZM4KlTvQVXom4E7u5YftL4H7NjbZQJGJ1lCqVUWs=";
+echo "content: $content\n";
+$result = preg_split("/(\r\n|\n|\r)/", $content);
+echo "result type: " . gettype($result) . "\n";
+echo "count: " . count($result) . "\n";
+foreach ($result as $i => $line) {
+    echo "  $i: '$line'\n";
+}

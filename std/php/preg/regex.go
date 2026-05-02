@@ -97,10 +97,22 @@ func parsePhpPattern(pattern string) (goPattern string, r2Pattern string, r2Flag
 	}
 
 	delimiter := pattern[0]
+	// 括号风格的分隔符映射（PHP PCRE 支持）
+	closingDelimiter := delimiter
+	switch delimiter {
+	case '{':
+		closingDelimiter = '}'
+	case '(':
+		closingDelimiter = ')'
+	case '[':
+		closingDelimiter = ']'
+	case '<':
+		closingDelimiter = '>'
+	}
 	endIndex := -1
 	// 从尾部向前查找未转义的分隔符
 	for i := len(pattern) - 1; i > 0; i-- {
-		if pattern[i] == delimiter && pattern[i-1] != '\\' {
+		if pattern[i] == closingDelimiter && pattern[i-1] != '\\' {
 			endIndex = i
 			break
 		}
@@ -115,6 +127,12 @@ func parsePhpPattern(pattern string) (goPattern string, r2Pattern string, r2Flag
 
 	// 处理占有量词
 	regexBody = convertPossessiveQuantifiers(regexBody)
+
+	// 移除 PCRE 动词如 (*UTF8) (*UCP) 等，regexp2 不需要这些
+	pcreVerbs := []string{"(*UTF8)", "(*UCP)", "(*UTF)"}
+	for _, verb := range pcreVerbs {
+		regexBody = strings.Replace(regexBody, verb, "", 1)
+	}
 
 	// 处理修饰符
 	goPrefix := ""

@@ -1,0 +1,15 @@
+<?php
+$json = '{"foo": "bar", "nested": {"key": "val"}}';
+echo "json_decode as object:\n";
+$result = json_decode($json, false);
+echo "gettype: " . gettype($result) . "\n";
+if (is_object($result)) {
+    echo "keys: " . implode(',', array_keys(get_object_vars($result))) . "\n";
+    echo "foo: " . $result->foo . "\n";
+} else {
+    var_dump($result);
+}
+
+echo "\njson_decode as array:\n";
+$result2 = json_decode($json, true);
+var_dump($result2);
