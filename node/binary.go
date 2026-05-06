@@ -58,6 +58,8 @@ func NewBinaryExpression(from data.From, left data.GetValue, operator lexer.Toke
 		return NewBinaryShr(from, left, right)
 	case token.SPACESHIP:
 		return NewBinarySpaceship(from, left, right)
+	case token.POWER:
+		return NewBinaryPow(from, left, right)
 	// 复合赋值运算符
 	case token.ADD_EQ:
 		// a += b 等价于 a = a + b
@@ -97,6 +99,8 @@ func NewBinaryExpression(from data.From, left data.GetValue, operator lexer.Toke
 		return NewBinaryAssign(from, left, NewBinaryBitXor(from, left, right))
 	case token.BIT_AND_EQ:
 		return NewBinaryAssign(from, left, NewBinaryBitAnd(from, left, right))
+	case token.POWER_EQ:
+		return NewBinaryAssign(from, left, NewBinaryPow(from, left, right))
 	default:
 		panic("unhandled default case " + operator.Literal())
 	}

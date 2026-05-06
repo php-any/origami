@@ -557,11 +557,11 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 			), nil
 		}
 	}
-	expr, acl := ep.parsePrimary()
+	expr, acl := ep.parsePower()
 	if acl == nil {
 		// PHP 语义：instanceof 优先级高于一元运算符（!、~、-）
 		// 所以 !$x instanceof Foo 应解析为 !($x instanceof Foo)
-		// 在 parsePrimary 返回后立即处理 instanceof，就能确保这一语义
+		// instanceof 在 parsePower 之后处理，确保 ** 优先级高于 instanceof
 		if ep.current().Type() == token.INSTANCEOF {
 			ep.next() // 跳过 instanceof
 			var right data.GetValue
@@ -599,6 +599,34 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 	}
 
 	return expr, acl
+}
+
+// parsePower 解析幂运算表达式（** 运算符，右结合）
+func (ep *ExpressionParser) parsePower() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parsePrimary()
+	if acl != nil {
+		return nil, acl
+	}
+
+	if ep.current().Type() == token.POWER {
+		operator := ep.current()
+		ep.next()
+
+		// 右结合：右边递归调用 parsePower
+		right, acl := ep.parsePower()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+
+	return expr, nil
 }
 
 // parsePrimary 解析基本表达式
