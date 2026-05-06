@@ -1,0 +1,66 @@
+  <?php
+
+echo "=== 函数参数展开(...) 测试 ===\n";
+
+// 基本函数参数展开
+function sum($a, $b, $c) {
+    return $a + $b + $c;
+}
+$nums = [1, 2, 3];
+$result = sum(...$nums);
+if ($result == 6) {
+    Log::info("基本参数展开测试通过");
+} else {
+    Log::fatal("基本参数展开测试失败, 期望 6, 实际 {$result}");
+}
+
+// 展开与普通参数混合
+function greet($greeting, $name, $punctuation) {
+    return $greeting . " " . $name . $punctuation;
+}
+$parts = ["World", "!"];
+$result2 = greet("Hello", ...$parts);
+if ($result2 == "Hello World!") {
+    Log::info("展开与普通参数混合测试通过");
+} else {
+    Log::fatal("展开与普通参数混合测试失败, 期望 'Hello World!', 实际 '{$result2}'");
+}
+
+// 多个展开参数
+function concat4($a, $b, $c, $d) {
+    return $a . $b . $c . $d;
+}
+$left = ["A", "B"];
+$right = ["C", "D"];
+$result3 = concat4(...$left, ...$right);
+if ($result3 == "ABCD") {
+    Log::info("多个展开参数测试通过");
+} else {
+    Log::fatal("多个展开参数测试失败, 期望 'ABCD', 实际 '{$result3}'");
+}
+
+// 展开空数组
+function noArgs() {
+    return "ok";
+}
+$empty = [];
+$result4 = noArgs(...$empty);
+if ($result4 == "ok") {
+    Log::info("展开空数组测试通过");
+} else {
+    Log::fatal("展开空数组测试失败");
+}
+
+// 展开关联数组(按索引传递)
+function showPair($first, $second) {
+    return $first . "-" . $second;
+}
+$assoc = ["hello", "world"];
+$result5 = showPair(...$assoc);
+if ($result5 == "hello-world") {
+    Log::info("展开关联数组测试通过");
+} else {
+    Log::fatal("展开关联数组测试失败, 实际 '{$result5}'");
+}
+
+echo "=== 函数参数展开(...) 测试完成 ===\n";

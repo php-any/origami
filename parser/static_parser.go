@@ -174,10 +174,9 @@ func (sp *StaticParser) parseStaticFunction(tracker *PositionTracker) (data.GetV
 	// 弹出函数作用域
 	sp.scopeManager.PopScope()
 
-	// 如果有 use 子句，使用 LambdaExpression 并构建 parent 映射
+	// 构建 parent 映射（捕获 use 声明的变量）
+	parent := make(map[int]int)
 	if len(captures) > 0 {
-		// 构建 parent 映射，仅捕获 use 声明的变量
-		parent := make(map[int]int)
 		for _, outer := range sp.scopeManager.CurrentScope().GetVariables() {
 			for _, child := range vars {
 				if child.GetName() == outer.GetName() {
@@ -189,33 +188,21 @@ func (sp *StaticParser) parseStaticFunction(tracker *PositionTracker) (data.GetV
 				}
 			}
 		}
-
-		// 静态闭包使用 LambdaExpression（支持 use 子句）
-		fn := node.NewLambdaExpression(
-			tracker.EndBefore(),
-			params,
-			body,
-			vars,
-			parent,
-		)
-
-		// 设置返回类型（如果指定了）
-		if ret != nil {
-			fn.FunctionStatement.Ret = ret
-		}
-
-		return fn, nil
 	}
 
-	// 没有 use 子句，使用 FunctionStatement
-	fn := data.NewFuncValue(node.NewFunctionStatement(
+	// 始终使用 LambdaExpression（保留定义时的上下文，确保 self:: 在闭包中正确解析）
+	fn := node.NewLambdaExpression(
 		tracker.EndBefore(),
-		"",
 		params,
 		body,
 		vars,
-		ret,
-	))
+		parent,
+	)
+
+	// 设置返回类型（如果指定了）
+	if ret != nil {
+		fn.FunctionStatement.Ret = ret
+	}
 
 	return fn, nil
 }

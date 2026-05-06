@@ -1,8 +1,6 @@
 package proc
 
 import (
-	"syscall"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/std/php/core"
@@ -36,20 +34,9 @@ func (f *ProcTerminateFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 		return data.NewBoolValue(false), nil
 	}
 
-	// 获取信号（可选，默认为 SIGTERM）
-	signalValue, _ := ctx.GetIndexValue(1)
-	signal := syscall.SIGTERM
-	if signalValue != nil {
-		if intVal, ok := signalValue.(data.AsInt); ok {
-			if sig, err := intVal.AsInt(); err == nil {
-				signal = syscall.Signal(sig)
-			}
-		}
-	}
-
-	// 发送信号终止进程
+	// 终止进程（跨平台兼容，Windows 不支持 syscall.Signal）
 	if procInfo.Cmd != nil && procInfo.Cmd.Process != nil {
-		err := procInfo.Cmd.Process.Signal(signal)
+		err := procInfo.Cmd.Process.Kill()
 		if err != nil {
 			return data.NewBoolValue(false), nil
 		}

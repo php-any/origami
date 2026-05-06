@@ -1,0 +1,85 @@
+<?php
+
+echo "=== match 表达式高级测试 ===\n";
+
+// match 多条件合并
+$day = "Saturday";
+$type = match ($day) {
+    "Monday", "Tuesday", "Wednesday", "Thursday", "Friday" => "weekday",
+    "Saturday", "Sunday" => "weekend",
+    default => "unknown"
+};
+if ($type == "weekend") {
+    Log::info("match 多条件合并测试通过");
+} else {
+    Log::fatal("match 多条件合并测试失败, 实际 '{$type}'");
+}
+
+// match 严格比较 (===)
+$val = "42";
+$result = match ($val) {
+    42 => "integer 42",
+    "42" => "string 42",
+    default => "none"
+};
+if ($result == "string 42") {
+    Log::info("match 严格比较测试通过");
+} else {
+    Log::fatal("match 严格比较测试失败, 实际 '{$result}'");
+}
+
+// match 返回值直接使用
+function getStatusName($code) {
+    return match ($code) {
+        200 => "OK",
+        301 => "Moved Permanently",
+        404 => "Not Found",
+        500 => "Internal Server Error",
+        default => "Unknown"
+    };
+}
+if (getStatusName(200) == "OK" && getStatusName(404) == "Not Found") {
+    Log::info("match 在函数中使用测试通过");
+} else {
+    Log::fatal("match 在函数中使用测试失败");
+}
+
+// match 用于类型分发
+describe = fn($value) => match (true) {
+    $value == null => "null",
+    $value == true => "true",
+    $value == false => "false",
+    default => "other"
+};
+if (describe(null) == "null" && describe(true) == "true" && describe(false) == "false" && describe(42) == "other") {
+    Log::info("match 类型分发测试通过");
+} else {
+    Log::fatal("match 类型分发测试失败");
+}
+
+// match 无匹配无 default
+$noMatch = match (999) {
+    1 => "one",
+    2 => "two"
+};
+if ($noMatch === null) {
+    Log::info("match 无匹配返回 null 测试通过");
+} else {
+    Log::fatal("match 无匹配测试失败");
+}
+
+// match 表达式结果用于运算
+$num = 3;
+$result2 = match ($num) {
+    1 => 10,
+    2 => 20,
+    3 => 30,
+    default => 0
+} * 2;
+if ($result2 == 60) {
+    Log::info("match 表达式运算测试通过");
+} else {
+    Log::fatal("match 表达式运算测试失败, 实际 {$result2}");
+}
+
+echo "=== match 表达式高级测试完成 ===\n";

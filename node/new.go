@@ -132,6 +132,11 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 
 		for i := index; i < len(arguments); i++ {
 			arg := arguments[i]
+			if arg == nil {
+				ares.List = append(ares.List, data.NewZVal(data.NewNullValue()))
+				fnCtx.SetVariableValue(param, ares)
+				continue
+			}
 			// 支持展开实参 ...expr
 			if spread, ok := arg.(*SpreadArgument); ok {
 				tempV, acl := spread.Expr.GetValue(ctx)

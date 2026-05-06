@@ -130,8 +130,26 @@ func (ie *IndexExpression) GetZVal(ctx data.Context) (*data.ZVal, data.Control) 
 			if len(v.List) == 0 {
 				return data.NewZVal(data.NewNullValue()), nil
 			}
-
-			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("未实现自动转化为对象的能力"))
+			// 通过 ZVal.Name 查找字符串键
+			key := iv.AsString()
+			for _, zval := range v.List {
+				if zval.Name == key {
+					return zval, nil
+				}
+			}
+			// 未找到，返回 null（PHP 行为）
+			return data.NewZVal(data.NewNullValue()), nil
+		case data.AsString:
+			if len(v.List) == 0 {
+				return data.NewZVal(data.NewNullValue()), nil
+			}
+			key := iv.AsString()
+			for _, zval := range v.List {
+				if zval.Name == key {
+					return zval, nil
+				}
+			}
+			return data.NewZVal(data.NewNullValue()), nil
 		case data.AsInt:
 			var err error
 			i, err = iv.AsInt()
@@ -359,7 +377,7 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 				return nil, data.NewErrorThrow(ie.GetFrom(), err)
 			}
 			if i >= len(v.List) {
-				return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("数组索引超出范围"), "UndefinedIndexExpression")
+				return data.NewNullValue(), nil
 			}
 		case *data.StringValue:
 			// 字符串键：在数组中搜索匹配的 Name
@@ -377,14 +395,14 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 				return nil, data.NewErrorThrow(ie.GetFrom(), err)
 			}
 			if i >= len(v.List) {
-				return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("数组索引超出范围"), "UndefinedIndexExpression")
+				return data.NewNullValue(), nil
 			}
 		case *data.BoolValue:
 			if iv.Value {
 				i = 1
 			}
 			if i >= len(v.List) {
-				return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("数组索引超出范围"), "UndefinedIndexExpression")
+				return data.NewNullValue(), nil
 			}
 		default:
 			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("无法处理索引的类型值"))

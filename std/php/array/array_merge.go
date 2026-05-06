@@ -39,32 +39,74 @@ func (f *ArrayMergeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	// 以便支持 $options['format'] 这种字符串键访问。
 
 	allListValues := make([]data.Value, 0)
+	allListNames := make([]string, 0)
 	resultAssoc := (*data.ObjectValue)(nil)
 
 	paramsList := paramsArray.ToValueList()
 	for _, paramValue := range paramsList {
 		switch v := paramValue.(type) {
 		case *data.ArrayValue:
-			// 列表数组：依次取值
-			values := v.ToValueList()
+			// 列表数组：依次取值，保留 ZVal.Name（如有）
 			if resultAssoc != nil {
-				// 结果已经是关联数组：这些值追加成新的 int 键
-				for _, val := range values {
-					// 使用当前属性数量作为新键（转成字符串）
-					key := len(resultAssoc.GetProperties())
-					resultAssoc.SetProperty(fmt.Sprintf("%d", key), val)
+				// 结果已经是关联数组
+				for _, zval := range v.List {
+					if zval.Name != "" {
+						// 有字符串键：作为关联键
+						resultAssoc.SetProperty(zval.Name, zval.Value)
+					} else {
+						// 无键：追加成新的 int 键
+						key := len(resultAssoc.GetProperties())
+						resultAssoc.SetProperty(fmt.Sprintf("%d", key), zval.Value)
+					}
 				}
 			} else {
-				allListValues = append(allListValues, values...)
+				hasStringKeys := false
+				for _, zval := range v.List {
+					if zval.Name != "" {
+						hasStringKeys = true
+						break
+					}
+				}
+				if hasStringKeys {
+					// 需要切换到关联数组模式
+					resultAssoc = data.NewObjectValue()
+					// 先把之前累积的列表值转成 int 键
+					for i, val := range allListValues {
+						k := allListNames[i]
+						if k == "" {
+							k = fmt.Sprintf("%d", i)
+						}
+						resultAssoc.SetProperty(k, val)
+					}
+					// 再添加当前数组的值
+					intIdx := len(allListValues)
+					for _, zval := range v.List {
+						if zval.Name != "" {
+							resultAssoc.SetProperty(zval.Name, zval.Value)
+						} else {
+							resultAssoc.SetProperty(fmt.Sprintf("%d", intIdx), zval.Value)
+							intIdx++
+						}
+					}
+				} else {
+					for _, zval := range v.List {
+						allListValues = append(allListValues, zval.Value)
+						allListNames = append(allListNames, zval.Name)
+					}
+				}
 			}
 
 		case *data.ObjectValue:
 			// 关联数组：需要按键合并
 			if resultAssoc == nil {
 				resultAssoc = data.NewObjectValue()
-				// 把之前累积的列表值先转成 0..n-1 的 int 键
+				// 把之前累积的列表值先转成 int 键（保留字符串键）
 				for i, val := range allListValues {
-					resultAssoc.SetProperty(fmt.Sprintf("%d", i), val)
+					k := allListNames[i]
+					if k == "" {
+						k = fmt.Sprintf("%d", i)
+					}
+					resultAssoc.SetProperty(k, val)
 				}
 			}
 			for key, val := range v.GetProperties() {
@@ -79,6 +121,7 @@ func (f *ArrayMergeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 				resultAssoc.SetProperty(fmt.Sprintf("%d", key), v)
 			} else {
 				allListValues = append(allListValues, v)
+				allListNames = append(allListNames, "")
 			}
 		}
 	}

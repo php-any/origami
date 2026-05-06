@@ -16,6 +16,7 @@ type FunctionStatement struct {
 	vars        []data.Variable // 符号表
 	Ret         data.Types      // 返回值类型
 	IsGenerator bool            // 是否是生成器函数（含 yield）
+	defineCtx   data.Context    // 闭包定义时的上下文（用于保留 self:: 语义）
 }
 
 // NewFunctionStatement 创建一个新的函数定义语句
@@ -29,6 +30,11 @@ func NewFunctionStatement(from data.From, name string, params []data.GetValue, b
 		Ret:         ret,
 		IsGenerator: containsYield(body),
 	}
+}
+
+// SetDefineCtx 设置闭包定义时的上下文
+func (f *FunctionStatement) SetDefineCtx(ctx data.Context) {
+	f.defineCtx = ctx
 }
 
 // containsYield 递归检测函数体是否含有 yield 语句
@@ -108,10 +114,26 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 		return generatorClass.GetValue(ctx)
 	}
 
+	// 闭包场景：如果定义时的上下文是类方法上下文，保留其 Class 信息以确保 self:: 正确解析
+	execCtx := ctx
+	if f.defineCtx != nil {
+		if defineClassCtx, ok := f.defineCtx.(*data.ClassMethodContext); ok {
+			// 创建新的 ClassMethodContext，保留定义时的类，但使用调用方的上下文链
+			execCtx = defineClassCtx.ClassValue.CreateContext(f.vars)
+			// 将调用方 ctx 中已经绑定好的参数 ZVal 复制到新的执行上下文中
+			for i := range f.vars {
+				zv := ctx.GetIndexZVal(i)
+				if zv != nil {
+					execCtx.SetIndexZVal(i, zv)
+				}
+			}
+		}
+	}
+
 	var v data.GetValue
 	var ctl data.Control
 	for bodyIndex, statement := range f.Body {
-		v, ctl = statement.GetValue(ctx)
+		v, ctl = statement.GetValue(execCtx)
 		if ctl != nil {
 			switch rv := ctl.(type) {
 			case data.ReturnControl:
@@ -125,17 +147,17 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 				}
 				return ret, nil
 			case data.YieldControl:
-				// 把当前函数的执行状态保存下来; 表示“我不仅有这次 yield 的 key/value，还自带一整套如何构造生成器堆栈状态的逻辑
-				generator := rv.CreateStackState(ctx, f, f.Body, bodyIndex)
+				// 把当前函数的执行状态保存下来; 表示"我不仅有这次 yield 的 key/value，还自带一整套如何构造生成器堆栈状态的逻辑
+				generator := rv.CreateStackState(execCtx, f, f.Body, bodyIndex)
 				// 将生成器包装成类值，支持 $data->valid() 等调用
 				generatorClass := NewGeneratorClass(generator)
-				return generatorClass.GetValue(ctx)
+				return generatorClass.GetValue(execCtx)
 			case data.YieldValueControl:
-				// 把当前函数的执行状态保存下来; 表示“这里刚发生了一次 yield，我只告诉你当前的 key/value 和上下文”，但不知道如何把“后续执行状态”组织成生成器。
-				generator := NewFuncYieldStackState(ctx, f, f.Body, bodyIndex+1, rv.GetYieldKey(), rv.GetYieldValue())
+				// 把当前函数的执行状态保存下来; 表示"这里刚发生了一次 yield，我只告诉你当前的 key/value 和上下文"，但不知道如何把"后续执行状态"组织成生成器。
+				generator := NewFuncYieldStackState(execCtx, f, f.Body, bodyIndex+1, rv.GetYieldKey(), rv.GetYieldValue())
 				// 将生成器包装成类值，支持 $data->valid() 等调用
 				generatorClass := NewGeneratorClass(generator)
-				return generatorClass.GetValue(ctx)
+				return generatorClass.GetValue(execCtx)
 			case data.AddStack:
 				if from, ok := statement.(GetFrom); ok {
 					rv.AddStackWithInfo(from.GetFrom(), "function body", TryGetCallClassName(statement))

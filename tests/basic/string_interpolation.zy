@@ -1,0 +1,80 @@
+<?php
+
+echo "=== 字符串插值测试 ===\n";
+
+// 基本变量插值
+$name = "Origami";
+$result = "Hello, $name!";
+if ($result == "Hello, Origami!") {
+    Log::info("基本变量插值测试通过");
+} else {
+    Log::fatal("基本变量插值测试失败, 实际 '{$result}'");
+}
+
+// 数组元素插值
+$arr = ["key" => "value"];
+$result2 = "Value is: {$arr['key']}";
+if ($result2 == "Value is: value") {
+    Log::info("数组元素插值测试通过");
+} else {
+    Log::fatal("数组元素插值测试失败, 实际 '{$result2}'");
+}
+
+// 花括号变量插值
+$var = "test";
+$result3 = "prefix{$var}suffix";
+if ($result3 == "prefixtestsuffix") {
+    Log::info("花括号变量插值测试通过");
+} else {
+    Log::fatal("花括号变量插值测试失败, 实际 '{$result3}'");
+}
+
+// 数字插值
+$count = 42;
+$result4 = "Count: $count";
+if ($result4 == "Count: 42") {
+    Log::info("数字插值测试通过");
+} else {
+    Log::fatal("数字插值测试失败, 实际 '{$result4}'");
+}
+
+// 多个变量插值
+$first = "Hello";
+$second = "World";
+$result5 = "$first, $second!";
+if ($result5 == "Hello, World!") {
+    Log::info("多变量插值测试通过");
+} else {
+    Log::fatal("多变量插值测试失败, 实际 '{$result5}'");
+}
+
+// 对象属性插值
+class User {
+    public $name = "Alice";
+}
+$user = new User();
+$result6 = "User: {$user->name}";
+if ($result6 == "User: Alice") {
+    Log::info("对象属性插值测试通过");
+} else {
+    Log::fatal("对象属性插值测试失败, 实际 '{$result6}'");
+}
+
+// 双引号中转义
+$result7 = "She said \"hello\"";
+if ($result7 == "She said \"hello\"") {
+    Log::info("双引号转义测试通过");
+} else {
+    Log::fatal("双引号转义测试失败, 实际 '{$result7}'");
+}
+
+// 单引号不插值
+$name = "Origami";
+$result8 = 'Hello, $name!';
+if ($result8 == "Hello, \$name!") {
+    Log::info("单引号不插值测试通过");
+} else {
+    Log::fatal("单引号不插值测试失败, 实际 '{$result8}'");
+}
+
+echo "=== 字符串插值测试完成 ===\n";

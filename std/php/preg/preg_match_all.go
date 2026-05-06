@@ -55,24 +55,8 @@ func (f *PregMatchAllFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	// 查找所有匹配以及分组（索引数组）
 	allLocs := re.FindAllStringSubmatchIndex(subject, -1)
 	if len(allLocs) == 0 {
-		// 无匹配时返回 0，并将 $matches 设为空数组
-		var empty data.Value
-		if patternOrder {
-			// PREG_PATTERN_ORDER: 为所有捕获组创建空数组
-			// 需要确定捕获组数量：尝试对空字符串匹配获取 group count
-			groupCount := 1 // 至少 group 0
-			if goRe, goErr := Compile(pattern); goErr == nil {
-				groupCount = goRe.NumSubexp() + 1 // NumSubexp 返回捕获组数量，+1 包含 group 0
-			}
-			groups := make([]data.Value, groupCount)
-			for i := 0; i < groupCount; i++ {
-				groups[i] = data.NewArrayValue([]data.Value{})
-			}
-			empty = data.NewArrayValue(groups)
-		} else {
-			// PREG_SET_ORDER: $matches = [] (no rows)
-			empty = data.NewArrayValue([]data.Value{})
-		}
+		// 无匹配时返回 0，$matches 设为空数组
+		empty := data.NewArrayValue([]data.Value{})
 		// 通过参数引用写回调用方的 $matches
 		if z := ctx.GetIndexZVal(2); z != nil {
 			z.Value = empty

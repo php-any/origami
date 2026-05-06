@@ -3,7 +3,7 @@
 echo "=== stream_* 函数测试 ===\n";
 
 // 测试 fopen() 和 fclose() 函数
-$filename = "/tmp/test_stream.txt";
+$filename = "tests/php/test_stream.txt";
 // 创建测试文件 - 使用 file_put_contents 先创建文件
 file_put_contents($filename, "Hello World\nTest Content");
 

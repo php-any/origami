@@ -139,7 +139,28 @@ func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 			}
 			results = append(results, ret)
 		default:
-			results = append(results, data.NewNullValue())
+			// 尝试作为字符串函数名
+			funcName := cbVal.AsString()
+			fnStmt, exists := ctx.GetVM().GetFunc(funcName)
+			if exists {
+				fnValue := data.NewFuncValue(fnStmt)
+				vars := fnValue.Value.GetVariables()
+				fnCtx := ctx.CreateContext(vars)
+				for ai := 0; ai < len(vars) && ai < len(args); ai++ {
+					fnCtx.SetVariableValue(data.NewVariable("", ai, nil), args[ai])
+				}
+				ret, ctl := fnValue.Value.Call(fnCtx)
+				if ctl != nil {
+					return nil, ctl
+				}
+				if v, ok := ret.(data.Value); ok {
+					results = append(results, v)
+				} else {
+					results = append(results, data.NewNullValue())
+				}
+			} else {
+				results = append(results, data.NewNullValue())
+			}
 		}
 	}
 

@@ -51,13 +51,17 @@ func (m *ReflectionClassNewInstanceMethod) Call(ctx data.Context) (data.GetValue
 	}
 
 	// 收集可变参数（从索引 0 开始）
+	// 可变参数被调用机制打包为 ArrayValue，需要解包
 	args := make([]data.Value, 0)
-	for i := 0; ; i++ {
-		argValue, ok := ctx.GetIndexValue(i)
-		if !ok {
-			break
+	if argValue, ok := ctx.GetIndexValue(0); ok {
+		if arr, ok := argValue.(*data.ArrayValue); ok {
+			// 可变参数：遍历数组元素
+			for _, item := range arr.List {
+				args = append(args, item.Value)
+			}
+		} else {
+			args = append(args, argValue)
 		}
-		args = append(args, argValue)
 	}
 
 	// 使用 createInstanceAndCallConstructor 创建实例
