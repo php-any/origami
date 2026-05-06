@@ -284,13 +284,14 @@ func isCallerInClassHierarchy(ctx data.Context, targetClass data.ClassStmt) bool
 		return false
 	}
 
-	// 检查调用者类是否与目标类相同，或者是目标类的子类
+	// 检查调用者类是否与目标类相同
 	if callerClass.GetName() == targetClass.GetName() {
 		return true
 	}
 
-	// 沿继承链向上查找
 	vm := ctx.GetVM()
+
+	// 检查调用者类是否是目标类的子类（调用者继承自目标）
 	extend := callerClass.GetExtend()
 	for extend != nil {
 		if *extend == targetClass.GetName() {
@@ -301,6 +302,20 @@ func isCallerInClassHierarchy(ctx data.Context, targetClass data.ClassStmt) bool
 			return false
 		}
 		extend = cls.GetExtend()
+	}
+
+	// 检查目标类是否是调用者类的子类（目标继承自调用者）
+	// 父类可以访问子类实例上的 protected 属性
+	targetExtend := targetClass.GetExtend()
+	for targetExtend != nil {
+		if *targetExtend == callerClass.GetName() {
+			return true
+		}
+		cls, acl := vm.GetOrLoadClass(*targetExtend)
+		if acl != nil {
+			return false
+		}
+		targetExtend = cls.GetExtend()
 	}
 
 	return false

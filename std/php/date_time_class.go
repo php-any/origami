@@ -21,13 +21,21 @@ func NewDateTimeClass() *DateTimeClass {
 	return &DateTimeClass{}
 }
 
-func (c *DateTimeClass) GetName() string                                 { return "DateTime" }
-func (c *DateTimeClass) GetExtend() *string                              { return nil }
-func (c *DateTimeClass) GetImplements() []string                         { return nil }
-func (c *DateTimeClass) GetProperty(name string) (data.Property, bool)   { return nil, false }
-func (c *DateTimeClass) GetPropertyList() []data.Property                { return nil }
-func (c *DateTimeClass) GetConstruct() data.Method                       { return &DateTimeConstructMethod{} }
-func (c *DateTimeClass) GetStaticMethod(name string) (data.Method, bool) { return nil, false }
+func (c *DateTimeClass) GetName() string                               { return "DateTime" }
+func (c *DateTimeClass) GetExtend() *string                            { return nil }
+func (c *DateTimeClass) GetImplements() []string                       { return nil }
+func (c *DateTimeClass) GetProperty(name string) (data.Property, bool) { return nil, false }
+func (c *DateTimeClass) GetPropertyList() []data.Property              { return nil }
+func (c *DateTimeClass) GetConstruct() data.Method                     { return &DateTimeConstructMethod{} }
+func (c *DateTimeClass) GetStaticMethod(name string) (data.Method, bool) {
+	switch name {
+	case "getLastErrors":
+		return &DateTimeGetLastErrorsMethod{}, true
+	case "createFromFormat":
+		return &DateTimeCreateFromFormatMethod{}, true
+	}
+	return nil, false
+}
 func (c *DateTimeClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
@@ -547,6 +555,22 @@ func (m *DateTimeToStringMethod) GetIsStatic() bool             { return false }
 func (m *DateTimeToStringMethod) GetReturnType() data.Types     { return data.NewBaseType("string") }
 func (m *DateTimeToStringMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
 func (m *DateTimeToStringMethod) GetVariables() []data.Variable { return []data.Variable{} }
+
+// ---- getLastErrors ----
+type DateTimeGetLastErrorsMethod struct{}
+
+func (m *DateTimeGetLastErrorsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	// 返回空数组，此解释器不跟踪日期解析错误
+	return data.NewArrayValue([]data.Value{}), nil
+}
+func (m *DateTimeGetLastErrorsMethod) GetName() string            { return "getLastErrors" }
+func (m *DateTimeGetLastErrorsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *DateTimeGetLastErrorsMethod) GetIsStatic() bool          { return true }
+func (m *DateTimeGetLastErrorsMethod) GetReturnType() data.Types {
+	return data.NewNullableType(data.NewBaseType("array"))
+}
+func (m *DateTimeGetLastErrorsMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
+func (m *DateTimeGetLastErrorsMethod) GetVariables() []data.Variable { return []data.Variable{} }
 
 // convertDateFormat 简单的时间格式转换
 func convertDateFormat(format, str string) (time.Time, error) {

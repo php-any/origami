@@ -58,7 +58,13 @@ func unwrapValue(v data.GetValue) data.GetValue {
 }
 
 func (b *BinaryDot) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if b == nil {
+		return data.NewNullValue(), nil
+	}
 	// 获取左操作数的值
+	if b.Left == nil {
+		return data.NewNullValue(), nil
+	}
 	lv, lCtl := b.Left.GetValue(ctx)
 	if lCtl != nil {
 		return nil, lCtl

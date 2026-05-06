@@ -99,6 +99,7 @@ func Load(vm data.VM) {
 		array.NewArrayReverseFunction(),
 		array.NewSortFunction(),
 		array.NewRsortFunction(),
+		array.NewUsortFunction(),
 		array.NewKsortFunction(),
 		array.NewKrsortFunction(),
 		array.NewArrayDiffUkeyFunction(),
@@ -159,6 +160,9 @@ func Load(vm data.VM) {
 		core.NewStrContainsFunction(),
 		core.NewArrayFilterFunction(),
 		core.NewHtmlspecialcharsFunction(),
+		core.NewStripTagsFunction(),
+		core.NewSetlocaleFunction(),
+		core.NewSplObjectHashFunction(),
 
 		core.NewSetExceptionHandlerFunction(),
 		core.NewRestoreExceptionHandlerFunction(),
@@ -265,6 +269,14 @@ func Load(vm data.VM) {
 	vm.AddClass(&core.StdClass{})
 	vm.AddClass(&core.NormalizerClass{})
 	vm.AddClass(&core.WeakMapClass{})
+
+	// 注册 DOM 类
+	vm.AddClass(core.NewDOMNodeClass())
+	vm.AddClass(core.NewDOMDocumentClass())
+	vm.AddClass(core.NewDOMElementClass())
+	vm.AddClass(core.NewDOMTextClass())
+	vm.AddClass(core.NewDOMCommentClass())
+	vm.AddClass(core.NewDOMNodeListClass())
 	vm.AddInterface(core.NewTraversableInterface())
 	vm.AddInterface(core.NewIteratorAggregateInterface())
 	vm.AddInterface(core.NewIteratorInterface())
@@ -441,6 +453,16 @@ func initPhpDefaultDefines(vm data.VM) {
 	vm.SetConstant("PHP_URL_QUERY", data.NewIntValue(6))
 	vm.SetConstant("PHP_URL_SCHEME", data.NewIntValue(0))
 	vm.SetConstant("PHP_URL_USER", data.NewIntValue(3))
+
+	// setlocale constants
+	vm.SetConstant("LC_ALL", data.NewIntValue(0))
+	vm.SetConstant("LC_COLLATE", data.NewIntValue(1))
+	vm.SetConstant("LC_CTYPE", data.NewIntValue(2))
+	vm.SetConstant("LC_MONETARY", data.NewIntValue(3))
+	vm.SetConstant("LC_NUMERIC", data.NewIntValue(4))
+	vm.SetConstant("LC_TIME", data.NewIntValue(5))
+	vm.SetConstant("LC_MESSAGES", data.NewIntValue(6))
+
 	// File constants
 	// Filter constants
 	vm.SetConstant("FILE_APPEND", data.NewIntValue(8))

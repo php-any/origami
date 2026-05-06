@@ -78,6 +78,16 @@ func createInstanceAndCallConstructor(
 }
 
 func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, varies []data.Variable, index int, arguments []data.GetValue) data.Control {
+	// 处理 nil 实参（包括 nil 指针包装在接口中的情况）
+	if argTV == nil {
+		switch param := param.(type) {
+		case *Parameter:
+			return param.SetValue(fnCtx, data.NewNullValue())
+		case data.Variable:
+			return fnCtx.SetVariableValue(param, data.NewNullValue())
+		}
+		return nil
+	}
 	switch param := param.(type) {
 	case *ParameterReference:
 		switch val := arguments[index].(type) {
@@ -499,7 +509,12 @@ func (n *NewStaticExpression) GetValue(ctx data.Context) (data.GetValue, data.Co
 	// 检查是否在类上下文中（类方法或类级初始化器）
 	var currentClass data.ClassStmt
 	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
-		currentClass = classCtx.Class
+		// 支持 late static binding：优先使用 StaticClass
+		if classCtx.StaticClass != nil {
+			currentClass = classCtx.StaticClass
+		} else {
+			currentClass = classCtx.Class
+		}
 	} else if classVal, ok := ctx.(*data.ClassValue); ok {
 		currentClass = classVal.Class
 	} else {
@@ -507,7 +522,6 @@ func (n *NewStaticExpression) GetValue(ctx data.Context) (data.GetValue, data.Co
 	}
 
 	// 获取当前类的类名
-	// TODO: 实现真正的 late static binding，返回实际调用时的类名（子类）
 	className := currentClass.GetName()
 
 	return createInstanceAndCallConstructor(n.from, className, n.Arguments, ctx)

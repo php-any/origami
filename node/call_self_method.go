@@ -41,6 +41,25 @@ func (pe *CallSelfMethod) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	// 获取当前类的静态方法
 	method, has := getter.GetStaticMethod(pe.Method)
 	if !has {
+		// 沿继承链向上查找（trait 中 self:: 应能访问使用类继承链上的方法）
+		vm := ctx.GetVM()
+		extend := currentClass.GetExtend()
+		for extend != nil {
+			parent, acl := vm.GetOrLoadClass(*extend)
+			if acl != nil || parent == nil {
+				break
+			}
+			if parentGetter, ok := parent.(data.GetStaticMethod); ok {
+				if m, ok := parentGetter.GetStaticMethod(pe.Method); ok {
+					method = m
+					has = true
+					break
+				}
+			}
+			extend = parent.GetExtend()
+		}
+	}
+	if !has {
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("当前类 %s 没有静态方法 %s", currentClass.GetName(), pe.Method))
 	}
 

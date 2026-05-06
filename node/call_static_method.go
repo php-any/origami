@@ -24,7 +24,8 @@ func NewCallStaticMethod(from *TokenFrom, path data.GetValue, method string) *Ca
 // GetValue 获取对象属性访问表达式的值
 func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	var method data.Method
-	var classStmt data.ClassStmt
+	var classStmt data.ClassStmt // 方法定义所在的类
+	var callClass data.ClassStmt // 实际调用的类（用于 late static binding）
 	var has bool
 
 	switch expr := pe.stmt.(type) {
@@ -34,8 +35,10 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 		if has {
 			if cls, ok := expr.(data.ClassStmt); ok {
 				classStmt = cls
+				callClass = cls
 			}
 		} else if cls, ok := expr.(data.ClassStmt); ok {
+			callClass = cls // 记录原始调用类
 			// 若当前类未找到，再沿继承链向上查找
 			extend := cls.GetExtend()
 			for extend != nil {
@@ -109,6 +112,7 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 			if getter, ok := stmt.(data.GetStaticMethod); ok {
 				if m, ok := getter.GetStaticMethod(pe.Method); ok {
 					classStmt = stmt
+					callClass = stmt
 					method = m
 					has = true
 				}
@@ -119,8 +123,10 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 			if has {
 				if cls, ok := expr.(data.ClassStmt); ok {
 					classStmt = cls
+					callClass = cls
 				}
 			} else if cls, ok := expr.(data.ClassStmt); ok {
+				callClass = cls
 				// 若当前类未找到，再沿继承链向上查找
 				extend := cls.GetExtend()
 				for extend != nil {
@@ -170,6 +176,7 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 		}
 		return data.NewFuncValue(&staticMethodFunc{
 			class:          classStmt,
+			callClass:      callClass,
 			method:         method,
 			originalMethod: pe.Method,
 		}), nil
@@ -249,7 +256,8 @@ func (s *StaticMethodFuncValue) GetValue(ctx data.Context) (data.GetValue, data.
 
 // staticMethodFunc 适配器：将 data.Method 包装为 data.FuncStmt，并在调用时切换到 ClassMethodContext
 type staticMethodFunc struct {
-	class          data.ClassStmt
+	class          data.ClassStmt // 方法定义所在的类
+	callClass      data.ClassStmt // 实际调用的类（用于 late static binding）
 	method         data.Method
 	originalMethod string // 用于 __callStatic 时保存原始方法名
 }
@@ -261,6 +269,12 @@ func (s *staticMethodFunc) Call(callCtx data.Context) (data.GetValue, data.Contr
 	// 创建类方法上下文，使用传入的 callCtx（包含已设置的参数），绑定当前类，保证 self:: 可用
 	classValue := data.NewClassValue(s.class, callCtx)
 	fnCtx := classValue.CreateContext(s.method.GetVariables())
+	// 设置后期静态绑定类
+	if cmc, ok := fnCtx.(*data.ClassMethodContext); ok {
+		if s.callClass != nil {
+			cmc.StaticClass = s.callClass
+		}
+	}
 	if s.method.GetName() == "__callStatic" {
 		// __callStatic($method, $args): 将原始参数包装为 [$methodName, [$originalArgs...]]
 		vars := s.method.GetVariables()
