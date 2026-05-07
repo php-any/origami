@@ -201,11 +201,18 @@ func (p *Preprocessor) Process() []Token {
 			filtered = append(filtered, processStringInterpolation(t))
 		case token.DOLLAR:
 			// 处理$标识符组合
-			if i+1 < len(p.tokens) && (p.tokens[i+1].Type() == token.IDENTIFIER || (p.tokens[i+1].Type() >= token.KEYWORD_START && p.tokens[i+1].Type() <= token.KEYWORD_END)) ||
-				p.tokens[i+1].Type() == token.NULL || // 添加对null的支持
-				p.tokens[i+1].Type() == token.TRUE || // 添加对true的支持
-				p.tokens[i+1].Type() == token.FALSE { // 添加对false的支持
-
+			// 处理$标识符组合（包括类型关键字如 bool、int、string、float、array 等）
+			nextType := p.tokens[i+1].Type()
+			if i+1 < len(p.tokens) && (nextType == token.IDENTIFIER ||
+				(nextType >= token.KEYWORD_START && nextType <= token.KEYWORD_END) ||
+				nextType == token.NULL ||
+				nextType == token.TRUE ||
+				nextType == token.FALSE ||
+				nextType == token.BOOL ||
+				nextType == token.INT ||
+				nextType == token.FLOAT ||
+				nextType == token.STRING ||
+				nextType == token.ARRAY) {
 				// 将$和标识符合并为一个变量token，保留$符号
 				next := p.tokens[i+1]
 				filtered = append(filtered, NewWorkerToken(

@@ -36,6 +36,10 @@ func (f *ObjectFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		obj := data.NewObjectValue()
 		for i, z := range val.List {
 			key := fmt.Sprintf("%d", i)
+			if z != nil && z.Name != "" {
+				key = z.Name
+			}
+
 			if z == nil || z.Value == nil {
 				obj.SetProperty(key, data.NewNullValue())
 			} else {
