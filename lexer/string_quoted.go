@@ -5,13 +5,27 @@ import (
 )
 
 // handleSingleQuotedString 处理单引号字符串
+// PHP 单引号字符串中，只有 \\ (literal backslash) 和 \' (literal quote) 是转义序列
+// \\' 在字符串末尾时表示 literal backslash 后跟结束引号
 func handleSingleQuotedString(input string, start int) (SpecialToken, int, bool) {
 	pos := start + 1
-	escaped := false
 
 	for pos < len(input) {
-		if !escaped && input[pos] == '\'' {
-			// 找到字符串结束，包含结束引号
+		ch := input[pos]
+
+		// 处理反斜杠转义
+		if ch == '\\' && pos+1 < len(input) {
+			next := input[pos+1]
+			if next == '\\' || next == '\'' {
+				// \\ -> literal backslash, 跳过两个字符
+				// \' -> literal single quote, 跳过两个字符（这是字符串内容的一部分，不是结束）
+				pos += 2
+				continue
+			}
+		}
+
+		// 处理单引号结束
+		if ch == '\'' {
 			literal := input[start : pos+1]
 			return SpecialToken{
 				Type:    token.STRING,
@@ -20,12 +34,6 @@ func handleSingleQuotedString(input string, start int) (SpecialToken, int, bool)
 			}, pos + 1, true
 		}
 
-		// 处理转义字符
-		if input[pos] == '\\' {
-			escaped = !escaped
-		} else {
-			escaped = false
-		}
 		pos++
 	}
 
@@ -39,7 +47,6 @@ func handleDoubleQuotedString(input string, start int) (SpecialToken, int, bool)
 
 	for pos < len(input) {
 		if !escaped && input[pos] == '"' {
-			// 找到字符串结束，包含结束引号
 			literal := input[start : pos+1]
 			return SpecialToken{
 				Type:    token.STRING,
@@ -48,7 +55,6 @@ func handleDoubleQuotedString(input string, start int) (SpecialToken, int, bool)
 			}, pos + 1, true
 		}
 
-		// 处理转义字符
 		if input[pos] == '\\' {
 			escaped = !escaped
 		} else {
@@ -65,7 +71,6 @@ func handleBacktickString(input string, start int) (SpecialToken, int, bool) {
 	pos := start + 1
 	for pos < len(input) {
 		if input[pos] == '`' {
-			// 找到字符串结束，包含结束引号
 			literal := input[start : pos+1]
 			return SpecialToken{
 				Type:    token.STRING,

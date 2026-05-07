@@ -17,21 +17,18 @@ func NewFuncGetArgs(from data.From) data.GetValue {
 }
 
 // GetValue 获取 func_get_args 的值（返回所有函数参数）
+// 使用 GetIndexValue 按索引读取已求值的参数，避免在错误上下文中重新求值表达式
 func (f *FuncGetArgs) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	args := ctx.GetCallArgs()
 	if args == nil || len(args) == 0 {
 		return data.NewArrayValue(nil), nil
 	}
 
-	// 对每个参数表达式求值
 	values := make([]data.Value, 0, len(args))
-	for _, arg := range args {
-		v, acl := arg.GetValue(ctx)
-		if acl != nil {
-			return nil, acl
-		}
-		if val, ok := v.(data.Value); ok {
-			values = append(values, val)
+	for i := 0; i < len(args); i++ {
+		v, ok := ctx.GetIndexValue(i)
+		if ok && v != nil {
+			values = append(values, v)
 		} else {
 			values = append(values, data.NewNullValue())
 		}

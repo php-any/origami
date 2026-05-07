@@ -37,7 +37,7 @@ func (f *ClassExistsFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	// $autoload 为 true 时，尝试加载类
 	stmt, acl := vm.GetOrLoadClass(className)
 	if acl != nil {
-		return nil, acl
+		return data.NewBoolValue(false), nil
 	}
 	if stmt == nil {
 		return data.NewBoolValue(false), nil

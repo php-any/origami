@@ -104,6 +104,7 @@ func Load(vm data.VM) {
 		array.NewKrsortFunction(),
 		array.NewArrayDiffUkeyFunction(),
 		array.NewArrayIntersectKeyFunction(),
+		array.NewArrayFlipFunction(),
 		math.NewMinFunction(),
 		array.NewArrayMapFunction(),
 		array.NewArrayReduceFunction(),
