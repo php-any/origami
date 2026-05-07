@@ -3,6 +3,20 @@
 
 define('LARAVEL_START', microtime(true));
 
+// Origami: intercept 'serve' command to use Net\Http\Server directly
+$isServeCommand = false;
+foreach ($argv ?? [] as $i => $arg) {
+    if ($i > 0 && $arg === 'serve') {
+        $isServeCommand = true;
+        break;
+    }
+}
+if ($isServeCommand) {
+    // Delegate to the Origami HTTP server (参考 examples/http/index.php)
+    require __DIR__ . '/server.php';
+    return 0;
+}
+
 // Origami: load .env with simple parser (vlucas/phpdotenv needs nested closures)
 require __DIR__.'/bootstrap/simple_dotenv.php';
 origami_load_dotenv(__DIR__ . '/.env');

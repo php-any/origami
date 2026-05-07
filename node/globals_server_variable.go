@@ -59,5 +59,10 @@ func (v *ServerVariable) GetIndex() int       { return 0 }
 func (v *ServerVariable) GetName() string     { return "$_SERVER" }
 func (v *ServerVariable) GetType() data.Types { return nil }
 func (v *ServerVariable) SetValue(ctx data.Context, value data.Value) data.Control {
+	// 允许设置 $_SERVER 值，使 Symfony/Laravel 的 Request::capture() 等能正常工作
+	if objectValue, ok := value.(*data.ObjectValue); ok {
+		serverValue = objectValue
+		return nil
+	}
 	return data.NewErrorThrow(v.from, nil)
 }

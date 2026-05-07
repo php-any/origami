@@ -1,23 +1,61 @@
 <?php
 
+use Net\Http\Server;
+use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Http\Request;
+
 /**
- * Laravel Origami HTTP Server
+ * Laravel HTTP 服务器 (Origami)
  *
- * 基于 origami Net\Http\Server 实现的 Laravel 开发服务器。
- * 跳过 artisan bootstrap/cache 编译，直接手动启动 Kernel。
+ * 使用 Net\Http\Server 替代 PHP 内置开发服务器。
+ * 参考 examples/http/index.php 的实现模式。
  *
- * 用法: ./origami laravel/server.php
+ * 用法: go run ./origami.go ./laravel/server.php
  */
 
-use Net\Http\Server;
+// 解析命令行参数
+$port = 8000;
+$host = '127.0.0.1';
+foreach ($argv ?? [] as $i => $arg) {
+    if ($arg === '--port' && isset($argv[$i + 1])) $port = (int)$argv[$i + 1];
+    if ($arg === '--host' && isset($argv[$i + 1])) $host = $argv[$i + 1];
+}
 
-$host = getenv('SERVER_HOST') ?: '127.0.0.1';
-$port = (int)(getenv('SERVER_PORT') ?: 8000);
-$publicPath = __DIR__ . '/public';
+// 确保 APP_KEY 已设置
+if (empty(getenv('APP_KEY'))) {
+    putenv('APP_KEY=base64:7X1ZM4KlTvQVXom4E7u5YftL4H7NjbZQJGJ1lCqVUWs=');
+}
 
+// 加载 .env 文件
+$envFile = __DIR__ . '/.env';
+if (file_exists($envFile)) {
+    $content = file_get_contents($envFile);
+    $lines = explode("\n", str_replace("\r\n", "\n", $content));
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '' || $line[0] === '#') continue;
+        $eqPos = strpos($line, '=');
+        if ($eqPos !== false) {
+            $key = trim(substr($line, 0, $eqPos));
+            $value = trim(substr($line, $eqPos + 1));
+            if (strlen($value) >= 2 && $value[0] === '"' && $value[strlen($value) - 1] === '"') {
+                $value = substr($value, 1, -1);
+            }
+            putenv("$key=$value");
+            $_ENV[$key] = $value;
+        }
+    }
+}
+
+// 引导 Laravel（仅一次）
+require __DIR__ . '/vendor/autoload.php';
+$app = require_once __DIR__ . '/bootstrap/app.php';
+$kernel = $app->make(Kernel::class);
+
+// 创建 HTTP 服务器
 $server = new Server($host, port: $port);
 
-// 请求日志
+// 请求日志中间件
 $server->middleware(function ($request, $response, $next) {
     $start = time();
     $method = $request->method();
@@ -26,17 +64,16 @@ $server->middleware(function ($request, $response, $next) {
     Log::info("[{$method}] {$path} " . (time() - $start) . "s");
 });
 
-// 静态资源
+// 静态资源中间件
+$publicPath = __DIR__ . '/public';
 $server->middleware(function ($request, $response, $next) use ($publicPath) {
     $method = $request->method();
     if ($method != 'GET' && $method != 'HEAD') {
-        $next($request, $response);
-        return;
+        $next($request, $response); return;
     }
     $path = $request->path();
     if ($path == '/' || $path == '') {
-        $next($request, $response);
-        return;
+        $next($request, $response); return;
     }
     $filePath = $publicPath . $path;
     if (is_file($filePath)) {
@@ -48,83 +85,35 @@ $server->middleware(function ($request, $response, $next) use ($publicPath) {
             'woff' => 'font/woff', 'woff2' => 'font/woff2',
             'ttf' => 'font/ttf', 'html' => 'text/html',
         ];
-        $mime = isset($mimes[$ext]) ? $mimes[$ext] : 'application/octet-stream';
-        $response->header('Content-Type', $mime);
+        $response->header('Content-Type', $mimes[$ext] ?? 'application/octet-stream');
         $response->write(file_get_contents($filePath));
         return;
     }
     $next($request, $response);
 });
 
-// 错误处理
-$server->middleware(function ($request, $response, $next) {
-    try {
-        $next($request, $response);
-    } catch (\Exception $e) {
-        Log::error("[Server] " . $e->getMessage());
-        $response->writeHeader(500);
-        $response->header('Content-Type', 'text/html; charset=utf-8');
-        $response->write("500 Server Error");
+// Laravel 请求处理
+$server->any(function($req, $res) use ($kernel, $app) {
+    $laravelRequest = Request::capture();
+
+    // 临时解决：禁用 Laravel 的部分全局中间件直接在 Kernel 中处理
+    // 去掉 CORS 等中间件以简化初始运行
+    $laravelResponse = $kernel->handle($laravelRequest);
+
+    // 写回状态码
+    $res->writeHeader($laravelResponse->getStatusCode());
+
+    // 设置 Content-Type
+    $res->header('Content-Type', 'text/html; charset=utf-8');
+
+    // 写入响应内容
+    $content = $laravelResponse->getContent();
+    if ($content !== false && $content !== null) {
+        $res->write($content);
     }
+
+    $kernel->terminate($laravelRequest, $laravelResponse);
 });
-
-// Laravel 入口：设置超全局变量，直接 require public/index.php
-$server->any(function ($request, $response) use ($publicPath, $port) {
-    $requestPath = $request->path();
-    $queryString = '';
-    $qPos = strpos($requestPath, '?');
-    if ($qPos !== false) {
-        $queryString = substr($requestPath, $qPos + 1);
-        $requestPath = substr($requestPath, 0, $qPos);
-    }
-
-    $_SERVER['REQUEST_METHOD'] = $request->method();
-    $_SERVER['REQUEST_URI'] = $requestPath;
-    $_SERVER['QUERY_STRING'] = $queryString;
-    $_SERVER['HTTP_HOST'] = $request->header('Host');
-    $_SERVER['REMOTE_ADDR'] = $request->ip();
-    $_SERVER['SERVER_NAME'] = '127.0.0.1';
-    $_SERVER['SERVER_PORT'] = (string)$port;
-    $_SERVER['SCRIPT_NAME'] = '/index.php';
-    $_SERVER['SCRIPT_FILENAME'] = $publicPath . '/index.php';
-
-    try {
-        require $publicPath . '/index.php';
-    } catch (\Exception $e) {
-        Log::error("[Laravel] " . $e->getMessage());
-        $response->writeHeader(500);
-        $response->write("Error: " . $e->getMessage());
-    }
-});
-
-// 确保 APP_KEY 已设置（暂时绕过 Dotenv 兼容性问题）
-if (empty(getenv('APP_KEY'))) {
-    putenv('APP_KEY=base64:7X1ZM4KlTvQVXom4E7u5YftL4H7NjbZQJGJ1lCqVUWs=');
-}
-
-// 手动加载 .env 文件（绕过 Dotenv 的 Generator/Lexer 依赖问题）
-$envFile = __DIR__ . '/.env';
-if (file_exists($envFile)) {
-    $content = file_get_contents($envFile);
-    $lines = explode("\n", str_replace("\r\n", "\n", $content));
-    foreach ($lines as $line) {
-        $line = trim($line);
-        if ($line === '' || $line[0] === '#') {
-            continue;
-        }
-        $eqPos = strpos($line, '=');
-        if ($eqPos !== false) {
-            $key = trim(substr($line, 0, $eqPos));
-            $value = substr($line, $eqPos + 1);
-            $value = trim($value);
-            if (strlen($value) >= 2 && $value[0] === '"' && $value[strlen($value) - 1] === '"') {
-                $value = substr($value, 1, -1);
-            }
-            putenv("$key=$value");
-            $_ENV[$key] = $value;
-        }
-    }
-}
 
 Log::info("Laravel 开发服务器启动在: http://{$host}:{$port}");
 Log::info("按 Ctrl+C 停止服务器");

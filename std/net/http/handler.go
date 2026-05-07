@@ -60,6 +60,7 @@ type Handler struct {
 }
 
 func (f Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	node.ResetSuperglobals()
 	ctx := f.Ctx.CreateContext(f.Value.GetVariables())
 
 	request := NewRequestClassFrom(r)
@@ -82,6 +83,7 @@ type HotHandler struct {
 }
 
 func (f HotHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	node.ResetSuperglobals()
 	// 先创建本次请求的函数上下文，再将该 ctx 的 VM 替换为 TempVM
 	ctx := f.Ctx.CreateContext(f.Value.GetVariables())
 	ctx.SetVM(runtimesrc.NewTempVM(f.Ctx.GetVM()))
