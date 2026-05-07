@@ -66,7 +66,7 @@ func (sp *StaticParser) Parse() (data.GetValue, data.Control) {
 		}
 
 		// static::xxx / static::$xxx
-		if sp.checkPositionIs(0, token.IDENTIFIER) || sp.checkPositionIs(0, token.VARIABLE) {
+		if sp.current().Type() != token.LPAREN {
 			isVariable := sp.current().Type() == token.VARIABLE
 			memberName := sp.current().Literal()
 			sp.next()

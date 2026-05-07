@@ -21,6 +21,26 @@ func (f *ArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	switch v := a1.(type) {
 	case *data.ArrayValue:
 		return v, nil
+	case *data.ObjectValue:
+		// PHP: (array)  => convert object properties to array elements
+		result := &data.ArrayValue{List: make([]*data.ZVal, 0)}
+		v.RangeProperties(func(key string, val data.Value) bool {
+			zv := data.NewZVal(val)
+			zv.Name = key
+			result.List = append(result.List, zv)
+			return true
+		})
+		return result, nil
+	case *data.ClassValue:
+		// PHP: (array)  => convert object properties to array elements
+		result := &data.ArrayValue{List: make([]*data.ZVal, 0)}
+		v.RangeProperties(func(key string, val data.Value) bool {
+			zv := data.NewZVal(val)
+			zv.Name = key
+			result.List = append(result.List, zv)
+			return true
+		})
+		return result, nil
 	case *data.StringValue, *data.IntValue, *data.FloatValue, *data.BoolValue, *data.NullValue:
 		// PHP: (array) 标量 => array(0 => 标量)
 		return data.NewArrayValue([]data.Value{a1}), nil

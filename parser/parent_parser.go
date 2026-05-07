@@ -24,7 +24,8 @@ func (pp *ParentParser) Parse() (data.GetValue, data.Control) {
 	pp.next()
 
 	// 检查是否是 parent:: 语法
-	if pp.checkPositionIs(0, token.SCOPE_RESOLUTION) && pp.checkPositionIs(1, token.IDENTIFIER) {
+	// 在 PHP 中，parent:: 后面可以跟任何标识符（包括关键字如 from、match 等用作方法名）
+	if pp.checkPositionIs(0, token.SCOPE_RESOLUTION) {
 		pp.next() // 跳过 ::
 		methodName := pp.current().Literal()
 		pp.next()

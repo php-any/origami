@@ -60,6 +60,10 @@ func (c *ReflectionMethodClass) GetMethod(name string) (data.Method, bool) {
 		return &ReflectionMethodGetNumberOfParametersMethod{}, true
 	case "getDeclaringClass":
 		return &ReflectionMethodGetDeclaringClassMethod{}, true
+	case "setAccessible":
+		return &ReflectionMethodSetAccessibleMethod{}, true
+	case "invoke":
+		return &ReflectionMethodInvokeMethod{}, true
 	}
 	return nil, false
 }
@@ -77,6 +81,8 @@ func (c *ReflectionMethodClass) GetMethods() []data.Method {
 		&ReflectionMethodGetParametersMethod{},
 		&ReflectionMethodGetNumberOfParametersMethod{},
 		&ReflectionMethodGetDeclaringClassMethod{},
+		&ReflectionMethodSetAccessibleMethod{},
+		&ReflectionMethodInvokeMethod{},
 	}
 }
 

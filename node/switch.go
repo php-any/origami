@@ -24,8 +24,13 @@ func (s *SwitchCase) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			v = statement
 		}
 		if c != nil {
-			if _, ok := c.(data.BreakControl); ok {
+			switch c.(type) {
+			case data.BreakControl:
 				return v, nil
+			case data.ReturnControl:
+				return v, c
+			case data.ThrowControl:
+				return nil, c
 			}
 		}
 	}
@@ -67,7 +72,11 @@ func (s *SwitchStatement) GetValue(ctx data.Context) (data.GetValue, data.Contro
 
 		// 比较条件值
 		if s.isMatch(conditionValue, caseValue) {
-			return caseStmt.GetValue(ctx)
+			v, ctl := caseStmt.GetValue(ctx)
+			if ctl != nil {
+				return v, ctl
+			}
+			return v, nil
 		}
 	}
 
@@ -79,12 +88,16 @@ func (s *SwitchStatement) GetValue(ctx data.Context) (data.GetValue, data.Contro
 			if stmt, ok := statement.(data.GetValue); ok {
 				v, c = stmt.GetValue(ctx)
 			} else {
-				// 如果是表达式，直接获取值
 				v = statement
 			}
 			if c != nil {
-				if _, ok := c.(data.BreakControl); ok {
+				switch c.(type) {
+				case data.BreakControl:
 					return v, nil
+				case data.ReturnControl:
+					return v, c
+				case data.ThrowControl:
+					return nil, c
 				}
 			}
 		}

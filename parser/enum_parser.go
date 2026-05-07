@@ -88,6 +88,7 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 	var cases []enumCase
 	methods := map[string]data.Method{}
 	staticMethods := map[string]data.Method{}
+	properties := []data.Property{}
 
 	for !p.currentIsTypeOrEOF(token.RBRACE) {
 		if p.current().Type() == token.SEMICOLON {
@@ -155,6 +156,35 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 			}
 
 			cases = append(cases, enumCase{name: caseName, value: val})
+		} else if p.current().Type() == token.CONST {
+			// parse enum constant: public const VALUES = [...];
+			p.next()
+
+			if p.current().Type() != token.IDENTIFIER {
+				return nil, data.NewErrorThrow(p.newFrom(), errors.New("enum constant missing name"))
+			}
+			constName := p.current().Literal()
+			p.next()
+
+			var defaultValue data.GetValue
+			if p.current().Type() == token.ASSIGN {
+				p.next()
+				exprParser := NewExpressionParser(p.Parser)
+				var acl data.Control
+				defaultValue, acl = exprParser.Parse()
+				if acl != nil {
+					return nil, acl
+				}
+			}
+
+			if p.current().Type() == token.SEMICOLON {
+				p.next()
+			}
+
+			if defaultValue != nil {
+				prop := node.NewProperty(p.newFrom(), constName, modifier, true, defaultValue)
+				properties = append(properties, prop)
+			}
 		} else if p.current().Type() == token.FUNC {
 			// 解析方法
 			method, _, acl := cp.parseMethodWithAnnotations(modifier, isStatic, false, memberAnnotations, nil, nil)
@@ -169,17 +199,14 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 				}
 			}
 		} else {
-			return nil, data.NewErrorThrow(p.newFrom(), errors.New("enum 体内只支持 case 声明和方法声明"))
+			return nil, data.NewErrorThrow(p.newFrom(), errors.New("enum 体内只支持 case 声明、常量声明和方法声明"))
 		}
 	}
 
 	// 跳过枚举体结束右括号
 	p.next()
 
-	// 不直接定义属性：
-	//   - value 属性与构造函数都由 BackedEnum 提供
-	//   - 这里保持 properties 为空
-	properties := []data.Property{}
+	// properties 中包含 enum 常量（已通过 const 声明解析添加）
 
 	// enum 反 desugar 成：
 	//   class EnumName extends BackedEnum { ... }

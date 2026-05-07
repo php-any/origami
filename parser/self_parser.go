@@ -25,9 +25,9 @@ func (sp *SelfParser) Parse() (data.GetValue, data.Control) {
 	tracker := sp.StartTracking()
 	sp.next()
 
-	// 检查是否是 self:: 语法（支持 IDENTIFIER、VARIABLE 或 CLASS）
-	if sp.checkPositionIs(0, token.SCOPE_RESOLUTION) &&
-		(sp.checkPositionIs(1, token.IDENTIFIER, token.VARIABLE, token.CLASS)) {
+	// 检查是否是 self:: 语法
+	// 在 PHP 中，self:: 后面可以跟任何标识符（包括关键字如 from、match 等用作方法名）
+	if sp.checkPositionIs(0, token.SCOPE_RESOLUTION) {
 		sp.next() // 跳过 ::
 
 		// 检查是否是 self::class
