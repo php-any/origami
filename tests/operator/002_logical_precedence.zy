@@ -1,0 +1,47 @@
+namespace tests\operator;
+
+// 测试逻辑运算符优先级：&& 高于 ||，! 最高
+
+// Test 1: && 优先级高于 ||
+$r1 = true || false && false;
+// 期望: true || (false && false) = true || false = true
+if ($r1 !== true) {
+    Log::fatal("[FAIL] && 优先级: true || false && false 应得 true, 实际: ", $r1);
+} else {
+    Log::info("[PASS] && 优先级 test1 正确");
+}
+
+// Test 2: ! 优先级最高
+$r2 = !true && false;
+// 期望: (!true) && false = false && false = false
+if ($r2 !== false) {
+    Log::fatal("[FAIL] ! 优先级: !true && false 应得 false, 实际: ", $r2);
+} else {
+    Log::info("[PASS] ! 优先级 test2 正确");
+}
+
+// Test 3: 组合逻辑
+$a = 1;
+$b = 2;
+$c = 3;
+$r3 = $a < $b && $b < $c;
+if ($r3 !== true) {
+    Log::fatal("[FAIL] 组合逻辑: 1<2 && 2<3 应得 true, 实际: ", $r3);
+} else {
+    Log::info("[PASS] 组合逻辑 test3 正确");
+}
+
+// Test 4: 短路求值 - ||
+$sideEffect = false;
+function setTrue() {
+    $GLOBALS['sideEffect'] = true;
+    return true;
+}
+$r4 = true || setTrue();
+if ($sideEffect !== false) {
+    Log::fatal("[FAIL] || 短路: true || func() 不应调用函数");
+} else {
+    Log::info("[PASS] || 短路 test4 正确");
+}
+
+Log::info("逻辑运算符优先级测试完成");

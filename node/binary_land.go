@@ -1,6 +1,8 @@
 package node
 
 import (
+	"errors"
+
 	"github.com/php-any/origami/data"
 )
 
@@ -19,13 +21,21 @@ func NewBinaryLand(from data.From, left, right data.GetValue) *BinaryLand {
 }
 
 func (b *BinaryLand) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if b.Left == nil {
+		return nil, data.NewErrorThrow(b.from, errors.New("逻辑与(&&)的左操作数为空"))
+	}
 	lv, lCtl := b.Left.GetValue(ctx)
 	if lCtl != nil {
 		return nil, lCtl
 	}
 
 	// 短路求值：如果左操作数为假，直接返回假
-	lb, err := lv.(data.AsBool).AsBool()
+	lbVal, ok := lv.(data.AsBool)
+	if !ok {
+		// 左值不是 bool 类型时，非 nil 视为 true (PHP 语义兼容)
+		return b.Right.GetValue(ctx)
+	}
+	lb, err := lbVal.AsBool()
 	if err != nil {
 		return nil, data.NewErrorThrow(b.from, err)
 	}

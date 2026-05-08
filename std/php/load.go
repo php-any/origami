@@ -55,6 +55,7 @@ func Load(vm data.VM) {
 		NewUnserializeFunction(),
 		NewEmptyFunction(),
 		NewStrlenFunction(),
+		NewHashFunction(),
 		NewStrposFunction(),
 		NewSubstrFunction(),
 		NewSubstrCountFunction(),

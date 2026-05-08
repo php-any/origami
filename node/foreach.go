@@ -130,6 +130,57 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	return nil, data.NewErrorThrow(u.from, fmt.Errorf("foreach 只能遍历数组、对象或实现 Iterator 的值"))
 }
 
+// foreachObjectValue 处理 *data.ObjectValue（关联数组）的 foreach 迭代。
+func (u *ForeachStatement) foreachObjectValue(ctx data.Context, obj *data.ObjectValue) (data.GetValue, data.Control) {
+	var v data.GetValue
+	var c data.Control
+	var shouldBreak bool
+
+	// 使用 RangeProperties 保持插入顺序遍历
+	obj.RangeProperties(func(key string, element data.Value) bool {
+		// 设置值变量
+		if acl := u.Value.SetValue(ctx, element); acl != nil {
+			c = acl
+			shouldBreak = true
+			return false
+		}
+		// 如果有键变量，设置键变量
+		if u.Key != nil {
+			if acl := ctx.SetVariableValue(u.Key, data.NewStringValue(key)); acl != nil {
+				c = acl
+				shouldBreak = true
+				return false
+			}
+		}
+
+		// 执行循环体
+		for _, statement := range u.Body {
+			v, c = statement.GetValue(ctx)
+			if c != nil {
+				switch ctrl := c.(type) {
+				case data.BreakControl:
+					if ctrl.IsBreak() {
+						shouldBreak = true
+						return false
+					}
+				case data.ContinueControl:
+					if ctrl.IsContinue() {
+						return true
+					}
+				}
+				shouldBreak = true
+				return false
+			}
+		}
+		return true
+	})
+
+	if shouldBreak {
+		return nil, nil
+	}
+	return v, c
+}
+
 // foreachIterator 处理实现了 data.Iterator 接口的值的 foreach 逻辑。
 func (u *ForeachStatement) foreachIterator(ctx data.Context, array data.Iterator) (data.GetValue, data.Control) {
 	var v data.GetValue

@@ -57,10 +57,16 @@ func (c *Context) GetIndexValue(index int) (data.Value, bool) {
 }
 
 func (c *Context) SetIndexZVal(index int, v *data.ZVal) {
+	if index < 0 || index >= len(c.variables) {
+		return
+	}
 	c.variables[index] = v
 }
 
 func (c *Context) GetIndexZVal(index int) *data.ZVal {
+	if index < 0 || index >= len(c.variables) {
+		return nil
+	}
 	return c.variables[index]
 }
 

@@ -99,7 +99,8 @@ func (ep *ExpressionParser) parseAssignment() (data.GetValue, data.Control) {
 // parseTernary 解析三目运算符表达式
 func (ep *ExpressionParser) parseTernary() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
-	expr, acl := ep.parseConcatenation()
+	// ?? 优先级高于 ?:，先解析可能的 ?? 表达式作为三元表达式的左操作数
+	expr, acl := ep.parseNullCoalesce()
 	if acl != nil {
 		return nil, acl
 	}
@@ -178,23 +179,31 @@ func (ep *ExpressionParser) parseTernary() (data.GetValue, data.Control) {
 		} else {
 			return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("三目运算符 ?: 缺少冒号"))
 		}
-	case token.NULL_COALESCE:
-		ep.next() // 跳过 ??
-
-		// 解析右操作数
-		right, acl := ep.parseTernary()
-		if acl != nil {
-			return nil, acl
-		}
-		// 创建空合并运算符表达式
-		return node.NewNullCoalesceExpression(
-			tracker.EndBefore(),
-			expr,
-			right,
-		), nil
 	default:
 		return expr, nil
 	}
+}
+
+// parseNullCoalesce 解析 ??（null 合并运算符），优先级介于 ?: 和连接表达式之间。
+func (ep *ExpressionParser) parseNullCoalesce() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseConcatenation()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.NULL_COALESCE {
+		ep.next() // 跳过 ??
+		right, acl := ep.parseConcatenation()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewNullCoalesceExpression(
+			tracker.EndBefore(),
+			expr,
+			right,
+		)
+	}
+	return expr, nil
 }
 
 // parseConcatenation 解析字符串连接表达式

@@ -162,7 +162,6 @@ return [
             App\Providers\EventServiceProvider::class,
             App\Providers\RouteServiceProvider::class,
         ])->toArray();
-        file_put_contents('laravel/bootstrap/cache/debug_providers.txt', count($p) . " providers:\n" . implode("\n", $p));
         return $p;
     })(),
 

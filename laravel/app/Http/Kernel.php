@@ -29,8 +29,8 @@ class Kernel extends HttpKernel
     protected $middleware = [
         // \App\Http\Middleware\TrustHosts::class,
         \App\Http\Middleware\TrustProxies::class,
+        // TODO: HandleCors middleware has DI compatibility issue with Origami, needs investigation
         // \Illuminate\Http\Middleware\HandleCors::class,
-        // TODO: ArrayAccess on Container not yet supported in Origami
         // \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
         \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
         \App\Http\Middleware\TrimStrings::class,
