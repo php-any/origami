@@ -1,8 +1,6 @@
 package node
 
 import (
-	"fmt"
-
 	"github.com/php-any/origami/data"
 )
 
@@ -29,9 +27,9 @@ func (e *EchoStatement) GetValue(ctx data.Context) (data.GetValue, data.Control)
 		}
 
 		if s, ok := v.(data.Value); ok {
-			fmt.Printf("%s", s.AsString())
+			data.WriteOutput(s.AsString())
 		} else if v != nil {
-			fmt.Printf("%s", v)
+			data.WriteOutput(v.(data.Value).AsString())
 		}
 	}
 

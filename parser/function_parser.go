@@ -114,6 +114,9 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 		name = fp.namespace.GetName() + "\\" + name
 	}
 
+	// 设置当前函数名（用于 __FUNCTION__/__METHOD__ 魔术常量）
+	fp.currentFunction = name
+
 	fp.next()
 
 	// 创建新的函数作用域

@@ -79,6 +79,8 @@ const (
 	CLASS_MAGIC                         // __CLASS__ 当前类名
 	FILE                                // __FILE__
 	LINE                                // __LINE__
+	FUNCTION_MAGIC                      // __FUNCTION__ 当前函数名
+	METHOD_MAGIC                        // __METHOD__ 当前方法名 (Class::method)
 	GENERIC_TYPE                        // 泛型类型参数
 	CLASS_CONSTANT                      // ::class 类常量关键字
 	JS_SERVER                           // 渲染为js值
@@ -93,6 +95,11 @@ const (
 	FUNC_GET_ARGS                       // func_get_args 获取函数参数
 	FUNC_NUM_ARGS                       // func_num_args 获取函数参数个数
 	GLOBAL                              // global 声明全局变量
+	ENDIF                               // endif 替代语法结束
+	ENDFOREACH                          // endforeach 替代语法结束
+	ENDWHILE                            // endwhile 替代语法结束
+	ENDFOR                              // endfor 替代语法结束
+	ENDSWITCH                           // endswitch 替代语法结束
 
 	KEYWORD_END TokenType = iota + 100
 

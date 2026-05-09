@@ -89,6 +89,11 @@ var TokenDefinitions = []TokenDefinition{
 	{Type: FUNC_GET_ARGS, Literal: "func_get_args", WordType: KEYWORD},
 	{Type: FUNC_NUM_ARGS, Literal: "func_num_args", WordType: KEYWORD},
 	{Type: GLOBAL, Literal: "global", WordType: KEYWORD},
+	{Type: ENDIF, Literal: "endif", WordType: KEYWORD},
+	{Type: ENDFOREACH, Literal: "endforeach", WordType: KEYWORD},
+	{Type: ENDWHILE, Literal: "endwhile", WordType: KEYWORD},
+	{Type: ENDFOR, Literal: "endfor", WordType: KEYWORD},
+	{Type: ENDSWITCH, Literal: "endswitch", WordType: KEYWORD},
 	{Type: FN, Literal: "fn", WordType: KEYWORD},
 	{Type: SPAWN, Literal: "spawn", WordType: KEYWORD},
 	{Type: THIS, Literal: "$this", WordType: KEYWORD},
@@ -103,6 +108,9 @@ var TokenDefinitions = []TokenDefinition{
 	{Type: DIR, Literal: "__DIR__", WordType: KEYWORD},
 	{Type: CLASS_MAGIC, Literal: "__CLASS__", WordType: KEYWORD},
 	{Type: FILE, Literal: "__FILE__", WordType: KEYWORD},
+	{Type: LINE, Literal: "__LINE__", WordType: KEYWORD},
+	{Type: FUNCTION_MAGIC, Literal: "__FUNCTION__", WordType: KEYWORD},
+	{Type: METHOD_MAGIC, Literal: "__METHOD__", WordType: KEYWORD},
 	{Type: JS_SERVER, Literal: "$.SERVER", WordType: KEYWORD},
 
 	// 运算符

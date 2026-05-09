@@ -110,6 +110,10 @@ func Load(vm data.VM) {
 		array.NewArrayMapFunction(),
 		array.NewArrayReduceFunction(),
 		NewStrReplaceFunction(),
+		NewSubstrReplaceFunction(),
+		NewStrStrFunction(),
+		NewStrChrFunction(),
+		NewStrIStrFunction(),
 		NewStrIreplaceFunction(),
 		NewStrtolowerFunction(),
 		NewStrcasecmpFunction(),
@@ -167,6 +171,8 @@ func Load(vm data.VM) {
 		core.NewStripTagsFunction(),
 		core.NewSetlocaleFunction(),
 		core.NewSplObjectHashFunction(),
+
+		NewTokenGetAllFunction(),
 
 		core.NewSetExceptionHandlerFunction(),
 		core.NewRestoreExceptionHandlerFunction(),
@@ -273,6 +279,7 @@ func Load(vm data.VM) {
 	vm.AddClass(&core.StdClass{})
 	vm.AddClass(&core.NormalizerClass{})
 	vm.AddClass(&core.WeakMapClass{})
+		vm.AddClass(&core.FiberClass{})
 
 	// 注册 DOM 类
 	vm.AddClass(core.NewDOMNodeClass())
@@ -304,6 +311,7 @@ func Load(vm data.VM) {
 
 	// 注册 DateTime 类
 	vm.AddClass(NewDateTimeClass())
+	vm.AddClass(NewDateTimeImmutableClass())
 
 	// 注册 PHP 内置接口
 	vm.AddInterface(NewArrayAccessInterface())
@@ -314,12 +322,17 @@ func Load(vm data.VM) {
 	vm.AddInterface(exception.NewThrowableInterface())
 
 	// 注册异常类
+		vm.AddClass(exception.NewExceptionClass())
 	vm.AddClass(exception.NewLogicExceptionClass())
 	vm.AddClass(exception.NewInvalidArgumentExceptionClass())
 	vm.AddClass(exception.NewRuntimeExceptionClass())
 	vm.AddClass(exception.NewBadMethodCallExceptionClass())
+	vm.AddClass(exception.NewErrorExceptionClass())
 
 	initPhpDefaultDefines(vm)
+
+	// 注册 PHP token 常量
+	InitTokenConstants(vm)
 
 	// 加载 PDO 扩展
 	pdo.Load(vm)

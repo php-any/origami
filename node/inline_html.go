@@ -1,8 +1,6 @@
 package node
 
 import (
-	"fmt"
-
 	"github.com/php-any/origami/data"
 )
 
@@ -22,6 +20,6 @@ func NewInlineHTMLNode(token *TokenFrom, content string) *InlineHTMLNode {
 
 // GetValue 直接输出内容
 func (n *InlineHTMLNode) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	fmt.Print(n.Content)
+	data.WriteOutput(n.Content)
 	return nil, nil
 }

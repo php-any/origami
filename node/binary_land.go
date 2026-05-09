@@ -1,7 +1,7 @@
 package node
 
 import (
-	"errors"
+	"fmt"
 
 	"github.com/php-any/origami/data"
 )
@@ -22,7 +22,12 @@ func NewBinaryLand(from data.From, left, right data.GetValue) *BinaryLand {
 
 func (b *BinaryLand) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	if b.Left == nil {
-		return nil, data.NewErrorThrow(b.from, errors.New("逻辑与(&&)的左操作数为空"))
+		loc := "unknown"
+		if b.from != nil {
+			line, _ := b.from.GetStartPosition()
+			loc = fmt.Sprintf("%s:%d", b.from.GetSource(), line)
+		}
+		return nil, data.NewErrorThrow(b.from, fmt.Errorf("逻辑与(&&)的左操作数为空 at %s", loc))
 	}
 	lv, lCtl := b.Left.GetValue(ctx)
 	if lCtl != nil {

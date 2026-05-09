@@ -1,157 +1,121 @@
 package core
 
 import (
+	"strings"
+
 	"github.com/php-any/origami/data"
 )
 
-// outputBufferStack is a simple per-VM output buffer stack.
-// We store it as a VM-level constant map to keep state across calls.
-var obStack = &outputBufferStack{buffers: []string{""}}
-
+// outputBufferStack 输出缓冲栈
 type outputBufferStack struct {
-	buffers []string
+	buffers []strings.Builder
 }
 
+var obStack = &outputBufferStack{buffers: []strings.Builder{{}}}
+
 func (s *outputBufferStack) push() {
-	s.buffers = append(s.buffers, "")
+	s.buffers = append(s.buffers, strings.Builder{})
+	s.syncWriter()
 }
 
 func (s *outputBufferStack) pop() string {
 	if len(s.buffers) <= 1 {
 		return ""
 	}
-	last := s.buffers[len(s.buffers)-1]
+	last := s.buffers[len(s.buffers)-1].String()
 	s.buffers = s.buffers[:len(s.buffers)-1]
+	s.syncWriter()
 	return last
 }
 
-func (s *outputBufferStack) current() *string {
+func (s *outputBufferStack) contents() string {
 	if len(s.buffers) == 0 {
-		s.buffers = []string{""}
+		return ""
 	}
-	return &s.buffers[len(s.buffers)-1]
+	return s.buffers[len(s.buffers)-1].String()
 }
 
-func (s *outputBufferStack) write(data string) {
-	cur := s.current()
-	*cur += data
+func (s *outputBufferStack) syncWriter() {
+	if len(s.buffers) <= 1 {
+		data.WriteOutput = data.DefaultOutputWriter
+		return
+	}
+	buf := &s.buffers[len(s.buffers)-1]
+	data.WriteOutput = func(str string) {
+		buf.WriteString(str)
+	}
 }
 
-// ObStartFunction 实现 ob_start 函数
+// ObStartFunction 实现 ob_start
 type ObStartFunction struct{}
 
-func NewObStartFunction() data.FuncStmt {
-	return &ObStartFunction{}
-}
-
+func NewObStartFunction() data.FuncStmt { return &ObStartFunction{} }
 func (f *ObStartFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	obStack.push()
 	return data.NewBoolValue(true), nil
 }
+func (f *ObStartFunction) GetName() string                    { return "ob_start" }
+func (f *ObStartFunction) GetModifier() data.Modifier         { return data.ModifierPublic }
+func (f *ObStartFunction) GetIsStatic() bool                  { return false }
+func (f *ObStartFunction) GetParams() []data.GetValue         { return nil }
+func (f *ObStartFunction) GetVariables() []data.Variable      { return nil }
+func (f *ObStartFunction) GetReturnType() data.Types          { return nil }
 
-func (f *ObStartFunction) GetName() string {
-	return "ob_start"
-}
-
-func (f *ObStartFunction) GetParams() []data.GetValue {
-	return []data.GetValue{}
-}
-
-func (f *ObStartFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
-}
-
-// ObGetCleanFunction 实现 ob_get_clean 函数
+// ObGetCleanFunction 实现 ob_get_clean
 type ObGetCleanFunction struct{}
 
-func NewObGetCleanFunction() data.FuncStmt {
-	return &ObGetCleanFunction{}
-}
-
+func NewObGetCleanFunction() data.FuncStmt { return &ObGetCleanFunction{} }
 func (f *ObGetCleanFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	content := obStack.pop()
 	return data.NewStringValue(content), nil
 }
+func (f *ObGetCleanFunction) GetName() string                    { return "ob_get_clean" }
+func (f *ObGetCleanFunction) GetModifier() data.Modifier         { return data.ModifierPublic }
+func (f *ObGetCleanFunction) GetIsStatic() bool                  { return false }
+func (f *ObGetCleanFunction) GetParams() []data.GetValue         { return nil }
+func (f *ObGetCleanFunction) GetVariables() []data.Variable      { return nil }
+func (f *ObGetCleanFunction) GetReturnType() data.Types          { return nil }
 
-func (f *ObGetCleanFunction) GetName() string {
-	return "ob_get_clean"
-}
-
-func (f *ObGetCleanFunction) GetParams() []data.GetValue {
-	return []data.GetValue{}
-}
-
-func (f *ObGetCleanFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
-}
-
-// ObGetContentsFunction 实现 ob_get_contents 函数
+// ObGetContentsFunction 实现 ob_get_contents
 type ObGetContentsFunction struct{}
 
-func NewObGetContentsFunction() data.FuncStmt {
-	return &ObGetContentsFunction{}
-}
-
+func NewObGetContentsFunction() data.FuncStmt { return &ObGetContentsFunction{} }
 func (f *ObGetContentsFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	content := *obStack.current()
+	content := obStack.contents()
 	return data.NewStringValue(content), nil
 }
+func (f *ObGetContentsFunction) GetName() string                    { return "ob_get_contents" }
+func (f *ObGetContentsFunction) GetModifier() data.Modifier         { return data.ModifierPublic }
+func (f *ObGetContentsFunction) GetIsStatic() bool                  { return false }
+func (f *ObGetContentsFunction) GetParams() []data.GetValue         { return nil }
+func (f *ObGetContentsFunction) GetVariables() []data.Variable      { return nil }
+func (f *ObGetContentsFunction) GetReturnType() data.Types          { return nil }
 
-func (f *ObGetContentsFunction) GetName() string {
-	return "ob_get_contents"
-}
-
-func (f *ObGetContentsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{}
-}
-
-func (f *ObGetContentsFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
-}
-
-// ObEndCleanFunction 实现 ob_end_clean 函数
+// ObEndCleanFunction 实现 ob_end_clean
 type ObEndCleanFunction struct{}
 
-func NewObEndCleanFunction() data.FuncStmt {
-	return &ObEndCleanFunction{}
-}
-
+func NewObEndCleanFunction() data.FuncStmt { return &ObEndCleanFunction{} }
 func (f *ObEndCleanFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	obStack.pop()
 	return data.NewBoolValue(true), nil
 }
+func (f *ObEndCleanFunction) GetName() string                    { return "ob_end_clean" }
+func (f *ObEndCleanFunction) GetModifier() data.Modifier         { return data.ModifierPublic }
+func (f *ObEndCleanFunction) GetIsStatic() bool                  { return false }
+func (f *ObEndCleanFunction) GetParams() []data.GetValue         { return nil }
+func (f *ObEndCleanFunction) GetVariables() []data.Variable      { return nil }
+func (f *ObEndCleanFunction) GetReturnType() data.Types          { return nil }
 
-func (f *ObEndCleanFunction) GetName() string {
-	return "ob_end_clean"
-}
-
-func (f *ObEndCleanFunction) GetParams() []data.GetValue {
-	return []data.GetValue{}
-}
-
-func (f *ObEndCleanFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
-}
-
-// ObGetLevelFunction 实现 ob_get_level 函数
+// ObGetLevelFunction 实现 ob_get_level
 type ObGetLevelFunction struct{}
 
-func NewObGetLevelFunction() data.FuncStmt {
-	return &ObGetLevelFunction{}
-}
-
+func NewObGetLevelFunction() data.FuncStmt { return &ObGetLevelFunction{} }
 func (f *ObGetLevelFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewIntValue(len(obStack.buffers) - 1), nil
 }
-
-func (f *ObGetLevelFunction) GetName() string {
-	return "ob_get_level"
-}
-
-func (f *ObGetLevelFunction) GetParams() []data.GetValue {
-	return []data.GetValue{}
-}
-
-func (f *ObGetLevelFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
-}
+func (f *ObGetLevelFunction) GetName() string                    { return "ob_get_level" }
+func (f *ObGetLevelFunction) GetModifier() data.Modifier         { return data.ModifierPublic }
+func (f *ObGetLevelFunction) GetIsStatic() bool                  { return false }
+func (f *ObGetLevelFunction) GetParams() []data.GetValue         { return nil }
+func (f *ObGetLevelFunction) GetVariables() []data.Variable      { return nil }
+func (f *ObGetLevelFunction) GetReturnType() data.Types          { return nil }

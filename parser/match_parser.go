@@ -2,7 +2,6 @@ package parser
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -44,20 +43,17 @@ func (p *MatchParser) Parse() (data.GetValue, data.Control) {
 			p.next()
 			p.nextAndCheck(token.ARRAY_KEY_VALUE)
 			if p.current().Type() == token.LBRACE {
-				// 手动解析代码块，不消耗右大括号
 				def, acl = p.parseBlock()
 				if acl != nil {
 					return nil, acl
 				}
 			} else {
-				// 这是一个表达式
 				stmt, acl := p.parseStatement()
 				if acl != nil {
 					return nil, acl
 				}
 				def = []data.GetValue{stmt}
 			}
-			// 解析分号（可选）
 			if p.checkPositionIs(0, token.SEMICOLON, token.COMMA) {
 				p.next()
 			}
@@ -69,13 +65,11 @@ func (p *MatchParser) Parse() (data.GetValue, data.Control) {
 			if arm != nil {
 				arms = append(arms, *arm)
 			} else {
-				// 报告错误：期望 match arm 或 default
 				return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("match 语句中期望匹配分支或 'default'"))
 			}
 		}
 	}
 
-	// 解析右大括号
 	p.nextAndCheck(token.RBRACE)
 
 	return node.NewMatchStatement(
@@ -88,9 +82,8 @@ func (p *MatchParser) Parse() (data.GetValue, data.Control) {
 
 // parseMatchCondition 解析match条件表达式
 func (p *MatchParser) parseMatchCondition() (data.GetValue, data.Control) {
-	// 检查是否是括号形式 match (condition)
 	if p.current().Type() == token.LPAREN {
-		p.next() // 跳过左括号
+		p.next()
 
 		condition, acl := p.parseStatement()
 		if acl != nil {
@@ -99,12 +92,9 @@ func (p *MatchParser) parseMatchCondition() (data.GetValue, data.Control) {
 		if p.current().Type() != token.RPAREN {
 			return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("match 缺少右括号 ')'"))
 		}
-		p.next() // 跳过右括号
-
+		p.next()
 		return condition, nil
 	}
-
-	// 直接解析表达式
 	return p.parseStatement()
 }
 
@@ -112,62 +102,22 @@ func (p *MatchParser) parseMatchCondition() (data.GetValue, data.Control) {
 func (p *MatchParser) parseMatchArm() (*node.MatchArm, data.Control) {
 	tracker := p.StartTracking()
 
-	// 解析条件部分（可以是多个条件，用逗号分隔）
 	var conditions []data.GetValue
 	for !p.checkPositionIs(0, token.EOF, token.ARRAY_KEY_VALUE) {
-		// 特殊处理：支持 `$value instanceof \BackedEnum` 作为 match 条件
-		if (p.current().Type() == token.VARIABLE || p.current().Type() == token.IDENTIFIER) &&
-			p.checkPositionIs(1, token.INSTANCEOF) {
-			// 先解析左侧变量/表达式
-			vp := &VariableParser{p.Parser}
-			left := vp.parseVariable()
-
-			// 跳过 instanceof
-			p.nextAndCheck(token.INSTANCEOF)
-
-			var right data.GetValue
-			switch p.current().Type() {
-			case token.VARIABLE:
-				vp := &VariableParser{p.Parser}
-				right = vp.parseVariable()
-			case token.IDENTIFIER, token.PARENT, token.SELF, token.STATIC:
-				// 支持 `instanceof Foo` / `instanceof parent` / `instanceof self` / `instanceof static`
-				className, acl := p.getClassName(true)
-				if acl != nil {
-					return nil, acl
-				}
-				right = node.NewStringLiteral(tracker.EndBefore(), className)
-			default:
-				return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("expected variable, string or identifier; str(%s)", p.current().Literal()))
-			}
-
-			cond := node.NewInstanceOfExpression(
-				tracker.EndBefore(),
-				left,
-				right,
-			)
-			conditions = append(conditions, cond)
-		} else {
-			// 支持表达式，而不仅仅是值
-			// 需要解析到 => 之前的所有内容作为表达式
-			// 先检查是否已经到了 =>
-			if p.checkPositionIs(0, token.ARRAY_KEY_VALUE) {
-				break
-			}
-
-			// 解析表达式（支持复杂表达式）
-			// 使用 expressionParser 而不是 parseStatement，避免消耗分号等后续符号
-			condition, acl := p.expressionParser.Parse()
-			if acl != nil {
-				return nil, acl
-			}
-			if condition == nil {
-				return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("match 左边表达式不能为空"))
-			}
-			conditions = append(conditions, condition)
+		if p.checkPositionIs(0, token.ARRAY_KEY_VALUE) {
+			break
 		}
 
-		// 多个条件时用逗号分隔：cond1, cond2 => ...
+		// 统一使用 expressionParser 解析完整条件表达式，支持 instanceof + && + || 等组合
+		condition, acl := p.expressionParser.Parse()
+		if acl != nil {
+			return nil, acl
+		}
+		if condition == nil {
+			return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("match 左边表达式不能为空"))
+		}
+		conditions = append(conditions, condition)
+
 		if p.current().Type() == token.COMMA {
 			p.next()
 			continue
@@ -178,22 +128,18 @@ func (p *MatchParser) parseMatchArm() (*node.MatchArm, data.Control) {
 		}
 	}
 
-	// 解析箭头 =>
 	p.nextAndCheck(token.ARRAY_KEY_VALUE)
 
-	// 解析表达式或代码块
 	var expression data.GetValue
 	var statements []data.GetValue
 
 	if p.current().Type() == token.LBRACE {
-		// 手动解析代码块，不消耗右大括号
 		var acl data.Control
 		statements, acl = p.parseBlock()
 		if acl != nil {
 			return nil, acl
 		}
 	} else {
-		// 这是一个表达式
 		var acl data.Control
 		expression, acl = p.parseStatement()
 		if acl != nil {
@@ -201,7 +147,6 @@ func (p *MatchParser) parseMatchArm() (*node.MatchArm, data.Control) {
 		}
 	}
 
-	// 解析分号（可选）
 	if p.checkPositionIs(0, token.SEMICOLON, token.COMMA) {
 		p.next()
 	}

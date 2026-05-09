@@ -561,6 +561,7 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("常量声明缺少名称"))
 		}
 		name := p.current().Literal()
+		p.currentFunction = name
 		p.next()
 
 		// 解析默认值
@@ -805,6 +806,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 		return nil, nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("方法名不符合规范, 不能使用符号(%s)", p.current().Literal()))
 	}
 	name := p.current().Literal()
+	p.currentFunction = name
 	p.next()
 
 	// 检查是否是构造函数

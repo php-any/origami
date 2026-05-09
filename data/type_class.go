@@ -1,5 +1,7 @@
 package data
 
+import "strings"
+
 type Class struct {
 	Name string
 }
@@ -7,18 +9,7 @@ type Class struct {
 func (i Class) Is(value Value) bool {
 	switch c := value.(type) {
 	case *ClassValue:
-		if i.Name == c.Class.GetName() {
-			return true
-		}
-		// 先直接比较 implements 列表中的字符串（不依赖接口是否已加载）
-		for _, s := range c.Class.GetImplements() {
-			if i.Name == s {
-				return true
-			} else if interfaceExtends(c.GetVM(), s, i.Name) {
-				return true
-			}
-		}
-		return extendISClass(i.Name, c.Class.GetExtend(), c.GetVM())
+		return isClassValueInstanceOf(i.Name, c.Class, c.GetVM())
 	case *ThisValue:
 		if i.Name == c.Class.GetName() {
 			return true
@@ -39,25 +30,38 @@ func (i Class) Is(value Value) bool {
 			return true
 		}
 	case *ThrowValue:
-		// ThrowValue 也要支持类继承和接口实现判断，逻辑与 ClassValue 基本一致。
-		if i.Name == c.GetName() {
-			return true
-		}
+		// ThrowValue 在 PHP 层面也是可抛出的，应能被 catch 捕获。
+		// 有 Object 时直接复用 ClassValue 的类型检查逻辑；
+		// 无 Object 时（Go 内部错误）也视为可抛出的异常。
 		if c.Object != nil {
-			vm := c.Object.GetVM()
-			// 先直接比较 implements 列表中的字符串（不依赖接口是否已加载）
-			for _, s := range c.GetImplements() {
-				if i.Name == s {
-					return true
-				} else if interfaceExtends(vm, s, i.Name) {
-					return true
-				}
-			}
-			return extendISClass(i.Name, c.GetExtend(), vm)
+			return isClassValueInstanceOf(i.Name, c.Object.Class, c.Object.GetVM())
+		}
+		// Go 内部错误：允许被 catch (Throwable / Exception / Error) 捕获
+		baseName := i.Name
+		if idx := strings.LastIndex(i.Name, "\\"); idx >= 0 {
+			baseName = i.Name[idx+1:]
+		}
+		if baseName == "Throwable" || baseName == "Exception" || baseName == "Error" {
+			return true
 		}
 	}
 
 	return false
+}
+
+// isClassValueInstanceOf 检查一个 ClassStmt 是否实现了目标类型（类名或接口名）
+func isClassValueInstanceOf(target string, class ClassStmt, vm VM) bool {
+	if target == class.GetName() {
+		return true
+	}
+	for _, s := range class.GetImplements() {
+		if target == s {
+			return true
+		} else if interfaceExtends(vm, s, target) {
+			return true
+		}
+	}
+	return extendISClass(target, class.GetExtend(), vm)
 }
 
 func (i Class) String() string {
@@ -83,8 +87,6 @@ func extendISClass(check string, extend *string, vm VM) bool {
 	return false
 }
 
-// interfaceExtends 检查接口 ifaceName 是否直接或通过继承链实现了目标接口 target。
-// 这里只基于 VM 中已注册的接口做判断，不负责触发自动加载；接口加载应在类/接口文件加载阶段完成。
 func interfaceExtends(vm VM, ifaceName, target string) bool {
 	if ifaceName == target {
 		return true
@@ -98,7 +100,7 @@ func interfaceExtends(vm VM, ifaceName, target string) bool {
 	if !ok {
 		_, acl := vm.LoadPkg(ifaceName)
 		if acl != nil {
-			vm.ThrowControl(acl) // TODO
+			vm.ThrowControl(acl)
 		}
 		iface, ok = vm.GetInterface(ifaceName)
 		if !ok {
@@ -106,19 +108,15 @@ func interfaceExtends(vm VM, ifaceName, target string) bool {
 		}
 	}
 
-	// 直接同名
 	if iface.GetName() == target {
 		return true
 	}
 
-	// 沿着接口的 extends 链向上查找（支持多个父接口）
 	visited := make(map[string]bool)
 	var queue []string
-
 	queue = append(queue, iface.GetExtends()...)
 
 	for len(queue) > 0 {
-		// 取出队首元素
 		name := queue[0]
 		queue = queue[1:]
 

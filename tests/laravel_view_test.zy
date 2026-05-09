@@ -1,0 +1,48 @@
+<?php
+/**
+ * Laravel 视图渲染测试
+ * 测试 Blade 视图能否正常编译和渲染（含替代语法转换）。
+ */
+
+$_ENV['APP_KEY'] = 'base64:7X1ZM4KlTvQVXom4E7u5YftL4H7NjbZQJGJ1lCqVUWs=';
+putenv('APP_KEY=base64:7X1ZM4KlTvQVXom4E7u5YftL4H7NjbZQJGJ1lCqVUWs=');
+
+require __DIR__ . '/../laravel/vendor/autoload.php';
+
+$app = require_once __DIR__ . '/../laravel/bootstrap/app.php';
+
+$bootstrappers = [
+    Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables::class,
+    Illuminate\Foundation\Bootstrap\LoadConfiguration::class,
+    Illuminate\Foundation\Bootstrap\HandleExceptions::class,
+    Illuminate\Foundation\Bootstrap\RegisterFacades::class,
+    Illuminate\Foundation\Bootstrap\RegisterProviders::class,
+    Illuminate\Foundation\Bootstrap\BootProviders::class,
+];
+$app->bootstrapWith($bootstrappers);
+
+Log::info("====== 视图渲染测试 ======");
+
+try {
+    $view = view('test', [
+        'name' => 'Origami',
+        'greeting' => '你好，世界！',
+        'items' => ['项目一', '项目二', '项目三'],
+    ]);
+
+    echo "视图对象: " . get_class($view) . "\n";
+    echo "视图路径: " . $view->getPath() . "\n";
+
+    $html = $view->render();
+    echo "渲染成功! 长度: " . strlen($html) . " 字节\n";
+
+    // 显示渲染结果
+    echo "\n===== 渲染结果 =====\n";
+    echo $html;
+    echo "\n====================\n";
+
+    Log::info("[PASS] 视图渲染成功");
+} catch (\Exception $e) {
+    Log::fatal("[FAIL] " . $e->getMessage());
+    echo "文件: " . $e->getFile() . ":" . $e->getLine() . "\n";
+}

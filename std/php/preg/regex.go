@@ -83,6 +83,18 @@ func convertPossessiveQuantifiers(pattern string) string {
 	return result.String()
 }
 
+// convertRecursivePatterns 将 PCRE 递归子模式替换为非递归等价物。
+// 处理: (?R), (?-N), (?+N), (?&name), (?P>name)
+// 替换为 [^()]* 以支持常见嵌套括号场景（不完美但实用）。
+func convertRecursivePatterns(pattern string) string {
+	result := strings.ReplaceAll(pattern, "(?R)", "[^()]*")
+	result = regexp.MustCompile(`\(\?-\d+\)`).ReplaceAllString(result, "[^()]*")
+	result = regexp.MustCompile(`\(\?\+\d+\)`).ReplaceAllString(result, "[^()]*")
+	result = regexp.MustCompile(`\(\?&\w+\)`).ReplaceAllString(result, "[^()]*")
+	result = regexp.MustCompile(`\(\?P>\w+\)`).ReplaceAllString(result, "[^()]*")
+	return result
+}
+
 // parsePhpPattern 解析 PHP 风格的正则表达式，返回 (goPattern, regexp2Pattern, regexp2Flags)。
 // goPattern 已转换为 Go regexp 可用的格式（无 lookahead 时），
 // regexp2Pattern 是 PCRE 兼容的模式字符串（不含修饰符前缀），
@@ -127,6 +139,11 @@ func parsePhpPattern(pattern string) (goPattern string, r2Pattern string, r2Flag
 
 	// 处理占有量词
 	regexBody = convertPossessiveQuantifiers(regexBody)
+
+	// 处理 PCRE 递归子模式 (?R) (?-1) (?+1) (?&name) 等，
+	// Go 的 regexp/regexp2 不支持递归匹配，
+	// 替换为匹配非括号字符 [^()]* 以支持常见嵌套括号场景。
+	regexBody = convertRecursivePatterns(regexBody)
 
 	// 移除 PCRE 动词如 (*UTF8) (*UCP) 等，regexp2 不需要这些
 	pcreVerbs := []string{"(*UTF8)", "(*UCP)", "(*UTF)"}

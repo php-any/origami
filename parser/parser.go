@@ -27,6 +27,7 @@ type Parser struct {
 
 	identTryString bool
 	currentClass   string
+	currentFunction string
 
 	namespace        *node.Namespace
 	uses             map[string]string // 类引用
@@ -107,7 +108,9 @@ func (p *Parser) ParseFile(filename string) (*node.Program, data.Control) {
 				phpContent = ""
 			}
 		}
-		p.tokens = p.lexer.TokenizeTemplate(phpContent)
+			// 转换 PHP 替代语法（if: endif; 等）为标准花括号语法
+			phpContent = convertAltPHPSyntax(filename, phpContent)
+			p.tokens = p.lexer.TokenizeTemplate(phpContent)
 	} else {
 		p.tokens = p.lexer.Tokenize(string(content))
 	}

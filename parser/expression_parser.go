@@ -267,6 +267,7 @@ func (ep *ExpressionParser) parseLogicalAnd() (data.GetValue, data.Control) {
 	if acl != nil {
 		return nil, acl
 	}
+	if expr == nil { return nil, nil }
 	for ep.current().Type() == token.LAND {
 		operator := ep.current()
 		ep.next()
