@@ -8,9 +8,11 @@ import (
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/runtime"
 	"github.com/php-any/origami/std"
+	netannotation "github.com/php-any/origami/std/net/annotation"
 	"github.com/php-any/origami/std/net/http"
 	"github.com/php-any/origami/std/php"
 	"github.com/php-any/origami/std/system"
+	_ "modernc.org/sqlite"
 )
 
 func showHelp() {
@@ -34,14 +36,13 @@ func showHelp() {
 func main() {
 	// 创建解析器
 	p := parser.NewParser()
-	// 创建全局命名空间
-	p.AddScanNamespace("tests", "./tests")
 
 	// 创建程序运行的环境
 	vm := runtime.NewVM(p)
 	std.Load(vm)
 	php.Load(vm)
 	http.Load(vm)
+	netannotation.Load(vm)
 	system.Load(vm)
 
 	// 检查命令行参数

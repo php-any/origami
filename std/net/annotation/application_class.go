@@ -106,7 +106,7 @@ func (m *ApplicationConstructMethod) Call(ctx data.Context) (data.GetValue, data
 		m.app.port = int64(v.Value)
 	}
 
-	m.app.scan = "./src/controllers"
+	m.app.scan = "./controllers"
 	if scan, ok := ctx.GetIndexValue(2); ok && scan != nil {
 		if anyV, ok := scan.(*data.StringValue); ok {
 			m.app.scan = anyV.AsString()
@@ -139,28 +139,41 @@ func (m *ApplicationConstructMethod) BuildBoot(ctx data.Context) []data.GetValue
 	return []data.GetValue{}
 }
 
-// 扫描目录下 *.zy 相关文件
+// 扫描目录下控制器脚本（.zy / .php）
 func (m *ApplicationConstructMethod) Scan(ctx data.Context) data.Control {
-	// 递归扫描 m.app.scan（默认 ./src）下的 .zy 文件（包含任意子目录），不做 http.zy 等特殊过滤
-	cwd, err := os.Getwd()
-	if err != nil {
-		return utils.NewThrow(err)
+	// 递归扫描 m.app.scan（默认 ./controllers，相对 main 文件目录）下的 .zy / .php 文件
+	// 相对路径以当前解析的 main 文件所在目录为基准，避免依赖进程工作目录
+	baseDir := ""
+	if temp, ok := ctx.GetVM().(*runtime.TempVM); ok && temp != nil {
+		if p := temp.GetParser(); p != nil {
+			if src := p.SourcePath(); src != "" {
+				baseDir = filepath.Dir(src)
+			}
+		}
+	}
+	if baseDir == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return utils.NewThrow(err)
+		}
+		baseDir = cwd
 	}
 
 	base := m.app.scan
 	if !filepath.IsAbs(base) {
-		base = filepath.Join(cwd, base)
+		base = filepath.Join(baseDir, base)
 	}
 
 	var files []string
-	err = filepath.WalkDir(base, func(path string, d os.DirEntry, wErr error) error {
+	err := filepath.WalkDir(base, func(path string, d os.DirEntry, wErr error) error {
 		if wErr != nil {
 			return wErr
 		}
 		if d.IsDir() {
 			return nil
 		}
-		if filepath.Ext(path) != ".zy" {
+		ext := filepath.Ext(path)
+		if ext != ".zy" && ext != ".php" {
 			return nil
 		}
 		files = append(files, path)

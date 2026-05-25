@@ -70,6 +70,11 @@ func (vm *TempVM) CreateContext(vars []data.Variable) data.Context {
 	return ctx
 }
 
+// GetParser 返回当前请求绑定的解析器（LoadAndRun 之后可用）
+func (vm *TempVM) GetParser() *parser.Parser {
+	return vm.parser
+}
+
 func (vm *TempVM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	p := vm.Base.parser.Clone()
 	p.SetVM(vm)

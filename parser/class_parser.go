@@ -356,13 +356,23 @@ func callClassAnnotation(p *Parser, ans *[]*node.Annotation, c node.AddAnnotatio
 	for _, an := range *ans {
 		an.Target = c.(data.GetValue)
 	}
+	callAnn := make([]*node.CallAnn, 0)
 	for _, an := range *ans {
 		obj, acl := an.GetValue(p.vm.CreateContext(nil))
 		if acl != nil {
-			return acl
+			if ann, ok := acl.(*node.CallAnn); ok {
+				callAnn = append(callAnn, ann)
+			} else {
+				return acl
+			}
 		}
 		if o, ok := obj.(*data.ClassValue); ok {
 			c.AddAnnotations(o)
+		}
+	}
+	for i := len(callAnn) - 1; i >= 0; i-- {
+		if acl := callAnn[i].InitAnnotation(); acl != nil {
+			return acl
 		}
 	}
 	return nil

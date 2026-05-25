@@ -25,8 +25,8 @@ type Parser struct {
 	scopeManager     *ScopeManager     // 作用域管理器
 	expressionParser *ExpressionParser // 表达式解析器
 
-	identTryString bool
-	currentClass   string
+	identTryString  bool
+	currentClass    string
 	currentFunction string
 
 	namespace        *node.Namespace
@@ -85,6 +85,14 @@ func (p *Parser) SetVM(vm data.VM) {
 }
 
 // ParseFile 解析文件
+// SourcePath 返回当前正在解析的源文件路径（无文件时为空）
+func (p *Parser) SourcePath() string {
+	if p.source == nil {
+		return ""
+	}
+	return *p.source
+}
+
 func (p *Parser) ParseFile(filename string) (*node.Program, data.Control) {
 	// 读取文件内容
 	content, err := os.ReadFile(filename)
@@ -108,9 +116,9 @@ func (p *Parser) ParseFile(filename string) (*node.Program, data.Control) {
 				phpContent = ""
 			}
 		}
-			// 转换 PHP 替代语法（if: endif; 等）为标准花括号语法
-			phpContent = convertAltPHPSyntax(filename, phpContent)
-			p.tokens = p.lexer.TokenizeTemplate(phpContent)
+		// 转换 PHP 替代语法（if: endif; 等）为标准花括号语法
+		phpContent = convertAltPHPSyntax(filename, phpContent)
+		p.tokens = p.lexer.TokenizeTemplate(phpContent)
 	} else {
 		p.tokens = p.lexer.Tokenize(string(content))
 	}
@@ -175,6 +183,27 @@ func (p *Parser) peek(offset int) lexer.Token {
 		return lexer.NewWorkerToken(token.EOF, "", 0, 0, 0, 0)
 	}
 	return p.tokens[pos]
+}
+
+// peekSkippingTrivia 向前查看 token，跳过空白、换行与注释
+func (p *Parser) peekSkippingTrivia(offset int) lexer.Token {
+	pos := p.position + offset
+	for pos < len(p.tokens) {
+		t := p.tokens[pos]
+		switch t.Type() {
+		case token.WHITESPACE, token.NEWLINE, token.COMMENT, token.MULTILINE_COMMENT:
+			pos++
+			continue
+		default:
+			// PHP 模板词法里换行可能不是 token.NEWLINE
+			if lit := t.Literal(); lit == "\n" || lit == "\r\n" || lit == "\r" {
+				pos++
+				continue
+			}
+		}
+		return t
+	}
+	return lexer.NewWorkerToken(token.EOF, "", 0, 0, 0, 0)
 }
 
 // 检查后续单词的可能类型
@@ -375,6 +404,9 @@ func (p *Parser) parseStatement() (data.GetValue, data.Control) {
 		stmt := node.NewInlineHTMLNode(p.FromCurrentToken(), p.current().Literal())
 		p.next()
 		return stmt, nil
+	case token.AT, token.HASH:
+		// 顶层 @Foo / #[Foo] 为注解（如 @Application），勿当作 @ 错误抑制符
+		return NewAnnotationParser(p).Parse()
 	default:
 		return p.expressionParser.Parse()
 	}

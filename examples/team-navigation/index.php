@@ -5,7 +5,7 @@ use Net\Http\app;
 use Database\Sql\open;
 
 // 加载数据库初始化脚本
-include("./database/init.php");
+include(__DIR__ . "/database/init.php");
 
 // 初始化数据库连接
 Log::info("=== 初始化数据库连接 ===");
@@ -30,10 +30,10 @@ Database\registerDefaultConnection($db);
 if (!$dbExists) {
     Log::info("开始初始化数据库...");
     // 初始化数据库表结构
-    Database\initTables($db);
+    \Database\initTables($db);
 
     // 初始化示例数据
-    Database\initSampleData($db, $dbExists);
+    \Database\initSampleData($db, $dbExists);
     Log::info("数据库初始化完成");
 } else {
     Log::info("数据库已存在，跳过初始化");
@@ -51,11 +51,11 @@ $server->middleware(function ($request, $response, $next) {
 
 // 匹配任意方法 + 任意路由，统一交给 app 分发
 $server->any(function ($request, $response) {
-    app($request, $response);
+    app($request, $response, __DIR__ . "/src/main.php");
 });
 
 // 静态资源解析：将 /assets/* 映射到 ./pages 目录
-$server->static("/assets/", "./pages/assets");
+$server->static("/assets/", __DIR__ . "/pages/assets");
 
 Log::info("团队导航页服务启动在: http://127.0.0.1:8080");
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/lexer"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
 )
@@ -11,6 +12,20 @@ import (
 // AnnotationParser 表示注解解析器
 type AnnotationParser struct {
 	*Parser
+}
+
+// isAnnotationDeclStart 判断 @ 后是否为类/函数等声明（PHP 模式下 class 等可能为 IDENTIFIER）
+func isAnnotationDeclStart(tok lexer.Token) bool {
+	switch tok.Type() {
+	case token.CLASS, token.INTERFACE, token.TRAIT, token.FUNC, token.ABSTRACT, token.FINAL, token.READONLY, token.AT, token.HASH:
+		return true
+	case token.IDENTIFIER:
+		switch tok.Literal() {
+		case "class", "interface", "trait", "function", "abstract", "final", "readonly":
+			return true
+		}
+	}
+	return false
 }
 
 // NewAnnotationParser 创建一个新的注解解析器
@@ -77,7 +92,7 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 		p.next()
 
 		// PHP @ 错误抑制：@self::、@static::、@parent::、@$var、@Name:: 等为表达式，非注解
-		if p.checkPositionIs(0, token.SELF, token.PARENT, token.STATIC, token.VARIABLE, token.THIS) || !p.checkPositionIs(1, token.LPAREN) {
+		if p.checkPositionIs(0, token.SELF, token.PARENT, token.STATIC, token.VARIABLE, token.THIS) {
 			expr, acl := NewExpressionParser(p.Parser).Parse()
 			if acl != nil {
 				return nil, acl
@@ -85,6 +100,14 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 			return node.NewErrorSuppress(tracker.EndBefore(), expr), nil
 		}
 		if p.current().Type() == token.IDENTIFIER && p.checkPositionIs(1, token.NAMESPACE_SEPARATOR) {
+			expr, acl := NewExpressionParser(p.Parser).Parse()
+			if acl != nil {
+				return nil, acl
+			}
+			return node.NewErrorSuppress(tracker.EndBefore(), expr), nil
+		}
+		// @Foo 无括号且紧跟 class/function 等声明时视为注解（如 @Controller class X）
+		if !p.checkPositionIs(1, token.LPAREN) && !isAnnotationDeclStart(p.peekSkippingTrivia(1)) {
 			expr, acl := NewExpressionParser(p.Parser).Parse()
 			if acl != nil {
 				return nil, acl
