@@ -1,6 +1,0 @@
-<?php
-$r = json_decode('{"foo":"bar","hello":"world"}', true);
-echo "type: " . gettype($r) . "\n";
-foreach ($r as $k => $v) {
-    echo "key='$k' value='$v'\n";
-}
