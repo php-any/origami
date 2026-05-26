@@ -8,36 +8,37 @@ use Database\Annotation\Id;
 use Database\Annotation\GeneratedValue;
 
 // 工具链接模型
-@Table("tool_links")
-class ToolLink {
-    @Id
-    @GeneratedValue("AUTO")
+#[Table('tool_links')]
+class ToolLink
+{
+    #[Id]
+    #[GeneratedValue('AUTO')]
     public int $id;
 
-    @Column("name")
+    #[Column('name')]
     public string $name;
 
-    @Column("url")
+    #[Column('url')]
     public string $url;
 
-    @Column("icon")
+    #[Column('icon')]
     public ?string $icon;
 
-    @Column("category")
+    #[Column('category')]
     public ?string $category;
 
-    @Column("description")
+    #[Column('description')]
     public ?string $description;
 
-    @Column("is_favorite")
+    #[Column('is_favorite')]
     public int $isFavorite;
 
-    @Column("display_order")
+    #[Column('display_order')]
     public int $displayOrder;
 
-    @Column("created_at")
+    #[Column('created_at')]
     public ?string $createdAt;
 
-    @Column("updated_at")
+    #[Column('updated_at')]
     public ?string $updatedAt;
 }

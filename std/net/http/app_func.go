@@ -35,7 +35,7 @@ func (h *AppFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 	if filePath == "" {
-		filePath = "./src/main.zy"
+		filePath = "./src/main.php"
 	}
 
 	// 获取当前工作目录
@@ -101,7 +101,7 @@ func (h *AppFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "request", 0, nil, nil),
 		node.NewParameter(nil, "response", 1, nil, nil),
-		node.NewParameter(nil, "filePath", 2, data.NewStringValue("./src/main.zy"), data.String{}),
+		node.NewParameter(nil, "filePath", 2, data.NewStringValue("./src/main.php"), data.String{}),
 		node.NewParameter(nil, "fun", 3, data.NewStringValue("App\\main"), data.String{}),
 	}
 }

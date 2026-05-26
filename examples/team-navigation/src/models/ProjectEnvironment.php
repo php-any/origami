@@ -8,33 +8,34 @@ use Database\Annotation\Id;
 use Database\Annotation\GeneratedValue;
 
 // 项目环境模型
-@Table("project_environments")
-class ProjectEnvironment {
-    @Id
-    @GeneratedValue("AUTO")
+#[Table('project_environments')]
+class ProjectEnvironment
+{
+    #[Id]
+    #[GeneratedValue('AUTO')]
     public int $id;
 
-    @Column("project_id")
+    #[Column('project_id')]
     public int $projectId;
 
-    @Column("environment_name")
+    #[Column('environment_name')]
     public string $environmentName;
 
-    @Column("url")
+    #[Column('url')]
     public string $url;
 
-    @Column("status")
+    #[Column('status')]
     public string $status;
 
-    @Column("status_color")
+    #[Column('status_color')]
     public string $statusColor;
 
-    @Column("display_order")
+    #[Column('display_order')]
     public int $displayOrder;
 
-    @Column("created_at")
+    #[Column('created_at')]
     public ?string $createdAt;
 
-    @Column("updated_at")
+    #[Column('updated_at')]
     public ?string $updatedAt;
 }

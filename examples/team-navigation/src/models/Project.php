@@ -8,27 +8,28 @@ use Database\Annotation\Id;
 use Database\Annotation\GeneratedValue;
 
 // 项目模型
-@Table("projects")
-class Project {
-    @Id
-    @GeneratedValue("AUTO")
+#[Table('projects')]
+class Project
+{
+    #[Id]
+    #[GeneratedValue('AUTO')]
     public int $id;
 
-    @Column("name")
+    #[Column('name')]
     public string $name;
 
-    @Column("description")
+    #[Column('description')]
     public ?string $description;
 
-    @Column("icon")
+    #[Column('icon')]
     public ?string $icon;
 
-    @Column("display_order")
+    #[Column('display_order')]
     public int $displayOrder;
 
-    @Column("created_at")
+    #[Column('created_at')]
     public ?string $createdAt;
 
-    @Column("updated_at")
+    #[Column('updated_at')]
     public ?string $updatedAt;
 }

@@ -106,9 +106,12 @@ func (d *DbGetMethod) createClassInstance(classType data.Class, rows *sql.Rows, 
 	if acl != nil {
 		return nil, acl
 	}
+	if classStmt == nil {
+		return nil, utils.NewThrowf("找不到类 %s", classType.Name)
+	}
 
 	// 创建类实例
-	instance := data.NewClassValue(classStmt, vm.CreateContext([]data.Variable{}))
+	instance := data.NewClassValue(classStmt, ctx)
 
 	// 使用扫描器扫描数据库行并设置属性
 	scanner := NewDatabaseScanner()

@@ -147,7 +147,7 @@
                                         </template>
                                     </div>
                                     <a class="project-card-link"
-                                        :href="@{($p->environments != null && $p->environments->length > 0) ? $p->environments[0]->url : '#'}"
+                                        :href="@{($p->environments != null && count($p->environments) > 0) ? $p->environments[0]->url : '#'}"
                                         target="_blank">
                                         <h4 class="project-name-modern">{$p->name}</h4>
                                     </a>
@@ -155,7 +155,7 @@
                                 <p class="project-desc-modern" if="$p->description != null && $p->description != ''">
                                     {$p->description}</p>
 
-                                <div class="project-tools-modern" if="$p->tools != null && $p->tools->length > 0">
+                                <div class="project-tools-modern" if="$p->tools != null && count($p->tools) > 0">
                                     <div class="tools-list">
                                         <a class="tool-tag-modern" :href="{$t->url}" target="_blank" :title="{$t->name}"
                                             for="$t in $p->tools">
@@ -171,7 +171,7 @@
                                 </div>
 
                                 <div class="project-environments-modern"
-                                    if="$p->environments != null && $p->environments->length > 0">
+                                    if="$p->environments != null && count($p->environments) > 0">
                                     <div class="environments-list">
                                         <a class="env-item-modern env-status-{$e->statusColor ?? 'green'}"
                                             :href="{$e->url}" target="_blank" :title="{$e->url}"

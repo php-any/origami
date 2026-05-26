@@ -8,22 +8,22 @@ use Database\Annotation\Id;
 use Database\Annotation\GeneratedValue;
 
 // 项目与工具关联模型
-@Table("project_tools")
-class ProjectTool {
-    @Id
-    @GeneratedValue("AUTO")
+#[Table('project_tools')]
+class ProjectTool
+{
+    #[Id]
+    #[GeneratedValue('AUTO')]
     public int $id;
 
-    @Column("project_id")
+    #[Column('project_id')]
     public int $projectId;
 
-    @Column("tool_id")
+    #[Column('tool_id')]
     public int $toolId;
 
-    @Column("display_order")
+    #[Column('display_order')]
     public int $displayOrder;
 
-    @Column("created_at")
+    #[Column('created_at')]
     public ?string $createdAt;
 }
-

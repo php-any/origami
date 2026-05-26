@@ -55,7 +55,7 @@ $server->any(function ($request, $response) {
 });
 
 // 静态资源解析：将 /assets/* 映射到 ./pages 目录
-$server->static("/assets/", "./pages/assets");
+$server->static("/assets/", __DIR__ . "/pages/assets");
 
 Log::info("团队导航页服务启动在: http://127.0.0.1:8080");
 

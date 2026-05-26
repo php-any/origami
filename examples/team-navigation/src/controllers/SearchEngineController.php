@@ -11,82 +11,86 @@ use Net\Annotation\DeleteMapping;
 use Database\DB;
 use App\Models\SearchEngine;
 
-@Controller
-@Route(prefix: "/api/search-engines")
-class SearchEngineController {
-    @GetMapping(path: "/")
-    public function lists($request, $response) {
-        $result = new DB<SearchEngine>()->orderBy("display_order ASC, id ASC")->get();
-        $response->header("Content-Type", "application/json; charset=utf-8");
+#[Controller]
+#[Route(prefix: '/api/search-engines')]
+class SearchEngineController
+{
+    #[GetMapping(path: '/')]
+    public function lists($request, $response): void
+    {
+        $result = DB::bind(SearchEngine::class)->orderBy('display_order ASC, id ASC')->get();
+        $response->header('Content-Type', 'application/json; charset=utf-8');
         $response->write(json_encode($result));
     }
 
-    @PostMapping(path: "/")
-    public function create($request, $response) {
+    #[PostMapping(path: '/')]
+    public function create($request, $response): void
+    {
         $body = $request->body();
         $data = json_decode($body);
-        
+
         // 如果设置为默认，先取消其他默认设置
         if (($data->isDefault ?? 0) == 1) {
-            DB<SearchEngine>()->where("is_default = ?", 1)->update(["is_default": 0]);
+            DB::bind(SearchEngine::class)->where('is_default = ?', 1)->update(['is_default' => 0]);
         }
-        
+
         $engine = new SearchEngine();
         $engine->name = $data->name;
         $engine->urlTemplate = $data->urlTemplate;
-        $engine->icon = $data->icon ?? "";
+        $engine->icon = $data->icon ?? '';
         $engine->isDefault = $data->isDefault ?? 0;
         $engine->displayOrder = $data->displayOrder ?? 0;
-        
-        $result = DB<SearchEngine>()->insert($engine);
-        
-        $response->header("Content-Type", "application/json; charset=utf-8");
-        $response->write(json_encode(["success" => true, "id" => $result->insertId]));
+
+        $result = DB::bind(SearchEngine::class)->insert($engine);
+
+        $response->header('Content-Type', 'application/json; charset=utf-8');
+        $response->write(json_encode(['success' => true, 'id' => $result->insertId]));
     }
 
-    @PutMapping(path: "/{id}")
-    public function update($request, $response) {
-        $id = $request->pathValue("id");
-        if ($id == null) {
+    #[PutMapping(path: '/{id}')]
+    public function update($request, $response): void
+    {
+        $id = $request->pathValue('id');
+        if ($id === null) {
             $path = $request->path();
-            $pathParts = $path->split("/");
-            $id = $pathParts[$pathParts->length - 1];
+            $pathParts = explode('/', $path);
+            $id = $pathParts[count($pathParts) - 1];
         }
-        
+
         $body = $request->body();
         $data = json_decode($body);
-        
+
         // 如果设置为默认，先取消其他默认设置
         if (($data->isDefault ?? 0) == 1) {
-            DB<SearchEngine>()->where("is_default = ? AND id != ?", 1, (int)$id)->update(["is_default": 0]);
+            DB::bind(SearchEngine::class)->where('is_default = ? AND id != ?', 1, (int) $id)->update(['is_default' => 0]);
         }
-        
+
         $engine = new SearchEngine();
         $engine->name = $data->name;
         $engine->urlTemplate = $data->urlTemplate;
-        $engine->icon = $data->icon ?? "";
+        $engine->icon = $data->icon ?? '';
         $engine->isDefault = $data->isDefault ?? 0;
         $engine->displayOrder = $data->displayOrder ?? 0;
-        
-        $result = DB<SearchEngine>()->where("id = ?", (int)$id)->update($engine);
-        
-        $response->header("Content-Type", "application/json; charset=utf-8");
-        $response->write(json_encode(["success" => true, "rowsAffected" => $result]));
+
+        $result = DB::bind(SearchEngine::class)->where('id = ?', (int) $id)->update($engine);
+
+        $response->header('Content-Type', 'application/json; charset=utf-8');
+        $response->write(json_encode(['success' => true, 'rowsAffected' => $result]));
     }
 
-    @DeleteMapping(path: "/{id}")
-    public function delete($request, $response) {
-        $id = $request->pathValue("id");
-        if ($id == null) {
+    #[DeleteMapping(path: '/{id}')]
+    public function delete($request, $response): void
+    {
+        $id = $request->pathValue('id');
+        if ($id === null) {
             $path = $request->path();
-            $pathParts = $path->split("/");
-            $id = $pathParts[$pathParts->length - 1];
+            $pathParts = explode('/', $path);
+            $id = $pathParts[count($pathParts) - 1];
         }
-        
-        $result = DB<SearchEngine>()->where("id = ?", (int)$id)->delete();
-        
-        $response->header("Content-Type", "application/json; charset=utf-8");
-        $response->write(json_encode(["success" => true, "rowsAffected" => $result]));
+
+        $result = DB::bind(SearchEngine::class)->where('id = ?', (int) $id)->delete();
+
+        $response->header('Content-Type', 'application/json; charset=utf-8');
+        $response->write(json_encode(['success' => true, 'rowsAffected' => $result]));
     }
 }
-

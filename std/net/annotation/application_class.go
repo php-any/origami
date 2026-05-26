@@ -160,11 +160,14 @@ func (m *ApplicationConstructMethod) Scan(ctx data.Context) data.Control {
 		if d.IsDir() {
 			return nil
 		}
-		if filepath.Ext(path) != ".zy" {
+		ext := filepath.Ext(path)
+		switch ext {
+		case ".zy", ".php":
+			files = append(files, path)
+			return nil
+		default:
 			return nil
 		}
-		files = append(files, path)
-		return nil
 	})
 	if err != nil {
 		return utils.NewThrow(err)

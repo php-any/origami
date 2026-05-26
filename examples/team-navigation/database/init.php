@@ -11,8 +11,9 @@ namespace Database;
  * 初始化数据库表结构
  * @param $db 数据库连接对象
  */
-function initTables($db) {
-    Log::info("创建数据库表...");
+function initTables($db): void
+{
+    Log::info('创建数据库表...');
 
     // 创建工具链接表
     $createToolLinksTable = "
@@ -28,9 +29,9 @@ function initTables($db) {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )";
-    
+
     $result1 = $db->exec($createToolLinksTable);
-    Log::info("创建工具链接表结果: " . $result1);
+    Log::info('创建工具链接表结果: ' . $result1);
 
     // 创建项目表
     $createProjectsTable = "
@@ -45,18 +46,18 @@ function initTables($db) {
         )";
 
     $result2 = $db->exec($createProjectsTable);
-    Log::info("创建项目表结果: " . $result2);
-    
+    Log::info('创建项目表结果: ' . $result2);
+
     // 如果表已存在但没有 icon 字段，则添加该字段
     $addIconColumn = "
         ALTER TABLE projects ADD COLUMN icon VARCHAR(500);
     ";
     try {
         $db->exec($addIconColumn);
-        Log::info("添加项目表 icon 字段成功");
+        Log::info('添加项目表 icon 字段成功');
     } catch (Exception) {
         // 字段已存在或表不存在，忽略错误
-        Log::info("项目表 icon 字段可能已存在或表不存在");
+        Log::info('项目表 icon 字段可能已存在或表不存在');
     }
 
     // 创建项目环境表
@@ -75,7 +76,7 @@ function initTables($db) {
         )";
 
     $result3 = $db->exec($createProjectEnvsTable);
-    Log::info("创建项目环境表结果: " . $result3);
+    Log::info('创建项目环境表结果: ' . $result3);
 
     // 创建项目与工具关联表
     $createProjectToolsTable = "
@@ -91,7 +92,7 @@ function initTables($db) {
         )";
 
     $result4 = $db->exec($createProjectToolsTable);
-    Log::info("创建项目工具关联表结果: " . $result4);
+    Log::info('创建项目工具关联表结果: ' . $result4);
 
     // 创建搜索引擎表
     $createSearchEnginesTable = "
@@ -107,7 +108,7 @@ function initTables($db) {
         )";
 
     $result5 = $db->exec($createSearchEnginesTable);
-    Log::info("创建搜索引擎表结果: " . $result5);
+    Log::info('创建搜索引擎表结果: ' . $result5);
 }
 
 /**
@@ -115,58 +116,63 @@ function initTables($db) {
  * @param $db 数据库连接对象
  * @param $dbExists 数据库文件是否已存在
  */
-function initSampleData($db, $dbExists) {
+function initSampleData($db, $dbExists): void
+{
     // 检查工具链接表是否有数据
     $toolCount = 0;
     try {
-        $row = $db->queryRow("SELECT COUNT(*) FROM tool_links");
+        $row = $db->queryRow('SELECT COUNT(*) FROM tool_links');
         $row->scan($toolCount);
     } catch (Exception $e) {
-        // 表可能不存在，忽略错误
         $toolCount = 0;
     }
 
     // 如果是新数据库或表为空，初始化示例数据
     $toolIdMap = [];
     if (!$dbExists || $toolCount == 0) {
-        Log::info("初始化示例工具链接数据...");
+        Log::info('初始化示例工具链接数据...');
         $initTools = [
-            ["GitLab", "https://gitlab.com", "/assets/icons/gitlab.png", "代码管理", "代码仓库和 CI/CD", 1],
-            ["Jira", "https://www.atlassian.com/software/jira", "/assets/icons/jira.png", "项目管理", "任务跟踪和问题管理", 2],
-            ["Jenkins", "https://www.jenkins.io", "/assets/icons/jenkins.png", "CI/CD", "持续集成和部署", 3],
-            ["Grafana", "https://grafana.com", "/assets/icons/grafana.png", "监控", "监控和可视化", 4],
-            ["Prometheus", "https://prometheus.io", "/assets/icons/prometheus.png", "监控", "指标监控系统", 5],
-            ["Kibana", "https://www.elastic.co/kibana", "/assets/icons/kibana.png", "日志", "日志查询和分析", 6],
-            ["Confluence", "https://www.atlassian.com/software/confluence", "/assets/icons/confluence.png", "文档", "团队文档和知识库", 7],
-            ["SonarQube", "https://www.sonarqube.org", "/assets/icons/sonarqube.png", "代码质量", "代码质量检测", 8],
-            ["Nexus", "https://www.sonatype.com/products/nexus-repository", "/assets/icons/nexus.png", "制品", "Maven/NPM 仓库", 9],
-            ["VPN", "https://vpn.example.com", "/assets/icons/vpn.png", "网络", "VPN 连接", 10],
-            ["Harbor", "https://goharbor.io", "/assets/icons/harbor.png", "容器", "容器镜像仓库", 11],
-            ["Kubernetes", "https://kubernetes.io", "/assets/icons/kubernetes.png", "容器", "容器编排平台", 12],
-            ["Redis", "https://redis.io", "/assets/icons/redis.png", "缓存", "内存数据库和缓存", 13],
-            ["MySQL", "https://www.mysql.com", "/assets/icons/mysql.png", "数据库", "关系型数据库管理", 14],
-            ["Postman", "https://www.postman.com", "/assets/icons/postman.png", "开发工具", "API 测试和文档", 15],
-            ["Swagger", "https://swagger.io", "/assets/icons/swagger.png", "开发工具", "API 文档和测试", 16],
-            ["Sentry", "https://sentry.io", "/assets/icons/sentry.png", "监控", "错误追踪和监控", 17],
-            ["Artifactory", "https://jfrog.com/artifactory/", "/assets/icons/artifactory.png", "制品", "统一制品仓库", 18],
-            ["MinIO", "https://min.io", "/assets/icons/minio.png", "存储", "对象存储服务", 19],
-            ["Portainer", "https://www.portainer.io", "/assets/icons/portainer.png", "容器", "Docker 管理界面", 20]
+            ['GitLab', 'https://gitlab.com', '/assets/icons/gitlab.png', '代码管理', '代码仓库和 CI/CD', 1],
+            ['Jira', 'https://www.atlassian.com/software/jira', '/assets/icons/jira.png', '项目管理', '任务跟踪和问题管理', 2],
+            ['Jenkins', 'https://www.jenkins.io', '/assets/icons/jenkins.png', 'CI/CD', '持续集成和部署', 3],
+            ['Grafana', 'https://grafana.com', '/assets/icons/grafana.png', '监控', '监控和可视化', 4],
+            ['Prometheus', 'https://prometheus.io', '/assets/icons/prometheus.png', '监控', '指标监控系统', 5],
+            ['Kibana', 'https://www.elastic.co/kibana', '/assets/icons/kibana.png', '日志', '日志查询和分析', 6],
+            ['Confluence', 'https://www.atlassian.com/software/confluence', '/assets/icons/confluence.png', '文档', '团队文档和知识库', 7],
+            ['SonarQube', 'https://www.sonarqube.org', '/assets/icons/sonarqube.png', '代码质量', '代码质量检测', 8],
+            ['Nexus', 'https://www.sonatype.com/products/nexus-repository', '/assets/icons/nexus.png', '制品', 'Maven/NPM 仓库', 9],
+            ['VPN', 'https://vpn.example.com', '/assets/icons/vpn.png', '网络', 'VPN 连接', 10],
+            ['Harbor', 'https://goharbor.io', '/assets/icons/harbor.png', '容器', '容器镜像仓库', 11],
+            ['Kubernetes', 'https://kubernetes.io', '/assets/icons/kubernetes.png', '容器', '容器编排平台', 12],
+            ['Redis', 'https://redis.io', '/assets/icons/redis.png', '缓存', '内存数据库和缓存', 13],
+            ['MySQL', 'https://www.mysql.com', '/assets/icons/mysql.png', '数据库', '关系型数据库管理', 14],
+            ['Postman', 'https://www.postman.com', '/assets/icons/postman.png', '开发工具', 'API 测试和文档', 15],
+            ['Swagger', 'https://swagger.io', '/assets/icons/swagger.png', '开发工具', 'API 文档和测试', 16],
+            ['Sentry', 'https://sentry.io', '/assets/icons/sentry.png', '监控', '错误追踪和监控', 17],
+            ['Artifactory', 'https://jfrog.com/artifactory/', '/assets/icons/artifactory.png', '制品', '统一制品仓库', 18],
+            ['MinIO', 'https://min.io', '/assets/icons/minio.png', '存储', '对象存储服务', 19],
+            ['Portainer', 'https://www.portainer.io', '/assets/icons/portainer.png', '容器', 'Docker 管理界面', 20],
         ];
-        
-        for ($i = 0; $i < $initTools->length; $i++) {
+
+        for ($i = 0; $i < count($initTools); $i++) {
             $tool = $initTools[$i];
-            // 前10个工具自动收藏，后10个不收藏
             $isFavorite = $i < 10 ? 1 : 0;
-            $result = $db->exec("INSERT INTO tool_links (name, url, icon, category, description, is_favorite, display_order) VALUES (?, ?, ?, ?, ?, ?, ?)", 
-                $tool[0], $tool[1], $tool[2], $tool[3], $tool[4], $isFavorite, $tool[5]);
+            $result = $db->exec(
+                'INSERT INTO tool_links (name, url, icon, category, description, is_favorite, display_order) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                $tool[0],
+                $tool[1],
+                $tool[2],
+                $tool[3],
+                $tool[4],
+                $isFavorite,
+                $tool[5]
+            );
             $toolId = $result->lastInsertId();
-            // 使用 display_order 作为 key，保存实际插入的 ID
             $toolIdMap[$tool[5]] = $toolId;
         }
     } else {
-        // 如果工具已存在，查询现有工具的 ID
-        $existingTools = $db->queryRows("SELECT id, display_order FROM tool_links ORDER BY display_order ASC");
-        for (_, $tool in $existingTools) {
+        $existingTools = $db->queryRows('SELECT id, display_order FROM tool_links ORDER BY display_order ASC');
+        foreach ($existingTools as $tool) {
             $toolIdMap[$tool->display_order] = $tool->id;
         }
     }
@@ -174,50 +180,59 @@ function initSampleData($db, $dbExists) {
     // 检查项目表是否有数据
     $projectCount = 0;
     try {
-        $row = $db->queryRow("SELECT COUNT(*) FROM projects");
+        $row = $db->queryRow('SELECT COUNT(*) FROM projects');
         $row->scan($projectCount);
     } catch (Exception $e) {
-        // 表可能不存在，忽略错误
         $projectCount = 0;
     }
 
-    // 如果是新数据库或项目表为空，初始化示例数据
     if (!$dbExists || $projectCount == 0) {
-        Log::info("初始化示例项目数据...");
-        // 使用工具 display_order 作为 key，映射到实际的 tool_id
-        // 结构: [name, display_order, description, icon, tools(orderId[])]
+        Log::info('初始化示例项目数据...');
         $initProjects = [
-            ["Origami", 1, "折言脚本语言与运行时示例项目", "🎨", [1, 3, 7]],
-            ["Web API", 2, "面向业务的 REST API 服务，提供对外接口", "🌐", [1, 3, 4]],
-            ["Admin 后台", 3, "内部运营与配置管理后台系统", "⚙️", [1, 2, 6]],
-            ["Mobile App", 4, "移动端应用的后端与集成服务", "📱", [1, 3, 8]]
+            ['Origami', 1, '折言脚本语言与运行时示例项目', '🎨', [1, 3, 7]],
+            ['Web API', 2, '面向业务的 REST API 服务，提供对外接口', '🌐', [1, 3, 4]],
+            ['Admin 后台', 3, '内部运营与配置管理后台系统', '⚙️', [1, 2, 6]],
+            ['Mobile App', 4, '移动端应用的后端与集成服务', '📱', [1, 3, 8]],
         ];
-        
-        for (_, $project in $initProjects) {
-            $result = $db->exec("INSERT INTO projects (name, description, icon, display_order) VALUES (?, ?, ?, ?)", 
-                $project[0], $project[2], $project[3], $project[1]);
+
+        foreach ($initProjects as $project) {
+            $result = $db->exec(
+                'INSERT INTO projects (name, description, icon, display_order) VALUES (?, ?, ?, ?)',
+                $project[0],
+                $project[2],
+                $project[3],
+                $project[1]
+            );
             $projectId = $result->lastInsertId();
-            
-            // 为每个项目创建默认环境
+
             $defaultEnvs = [
-                ["开发环境", "https://github.com/php-any/origami", "运行中", "green"],
-                ["测试环境", "https://github.com/php-any/origami", "运行中", "green"],
-                ["生产环境", "https://github.com/php-any/origami", "运行中", "green"]
+                ['开发环境', 'https://github.com/php-any/origami', '运行中', 'green'],
+                ['测试环境', 'https://github.com/php-any/origami', '运行中', 'green'],
+                ['生产环境', 'https://github.com/php-any/origami', '运行中', 'green'],
             ];
-            
-            for (_, $env in $defaultEnvs) {
-                $db->exec("INSERT INTO project_environments (project_id, environment_name, url, status, status_color) VALUES (?, ?, ?, ?, ?)", 
-                    $projectId, $env[0], $env[1], $env[2], $env[3]);
+
+            foreach ($defaultEnvs as $env) {
+                $db->exec(
+                    'INSERT INTO project_environments (project_id, environment_name, url, status, status_color) VALUES (?, ?, ?, ?, ?)',
+                    $projectId,
+                    $env[0],
+                    $env[1],
+                    $env[2],
+                    $env[3]
+                );
             }
-            
-            // 绑定项目关联的工具（使用 toolIdMap 获取实际的工具ID）
+
             $toolOrderIds = $project[4];
-            for ($i = 0; $i < $toolOrderIds->length; $i++) {
+            for ($i = 0; $i < count($toolOrderIds); $i++) {
                 $toolOrderId = $toolOrderIds[$i];
-                $actualToolId = $toolIdMap[$toolOrderId];
-                if ($actualToolId != null) {
-                    $db->exec("INSERT INTO project_tools (project_id, tool_id, display_order) VALUES (?, ?, ?)", 
-                        $projectId, $actualToolId, $i + 1);
+                $actualToolId = $toolIdMap[$toolOrderId] ?? null;
+                if ($actualToolId !== null) {
+                    $db->exec(
+                        'INSERT INTO project_tools (project_id, tool_id, display_order) VALUES (?, ?, ?)',
+                        $projectId,
+                        $actualToolId,
+                        $i + 1
+                    );
                 }
             }
         }
@@ -226,28 +241,31 @@ function initSampleData($db, $dbExists) {
     // 检查搜索引擎表是否有数据
     $searchEngineCount = 0;
     try {
-        $row = $db->queryRow("SELECT COUNT(*) FROM search_engines");
+        $row = $db->queryRow('SELECT COUNT(*) FROM search_engines');
         $row->scan($searchEngineCount);
     } catch (Exception $e) {
-        // 表可能不存在，忽略错误
         $searchEngineCount = 0;
     }
 
-    // 如果是新数据库或搜索引擎表为空，初始化示例数据
     if (!$dbExists || $searchEngineCount == 0) {
-        Log::info("初始化搜索引擎数据...");
+        Log::info('初始化搜索引擎数据...');
         $initSearchEngines = [
-            ["百度", "https://www.baidu.com/s?wd={keyword}", "🔍", 1, 1],
-            ["Google", "https://www.google.com/search?q={keyword}", "🌐", 0, 2],
-            ["Bing", "https://www.bing.com/search?q={keyword}", "🔎", 0, 3],
-            ["GitHub", "https://github.com/search?q={keyword}", "💻", 0, 4],
-            ["DuckDuckGo", "https://duckduckgo.com/?q={keyword}", "🦆", 0, 5]
+            ['百度', 'https://www.baidu.com/s?wd={keyword}', '🔍', 1, 1],
+            ['Google', 'https://www.google.com/search?q={keyword}', '🌐', 0, 2],
+            ['Bing', 'https://www.bing.com/search?q={keyword}', '🔎', 0, 3],
+            ['GitHub', 'https://github.com/search?q={keyword}', '💻', 0, 4],
+            ['DuckDuckGo', 'https://duckduckgo.com/?q={keyword}', '🦆', 0, 5],
         ];
-        
-        for (_, $engine in $initSearchEngines) {
-            $db->exec("INSERT INTO search_engines (name, url_template, icon, is_default, display_order) VALUES (?, ?, ?, ?, ?)", 
-                $engine[0], $engine[1], $engine[2], $engine[3], $engine[4]);
+
+        foreach ($initSearchEngines as $engine) {
+            $db->exec(
+                'INSERT INTO search_engines (name, url_template, icon, is_default, display_order) VALUES (?, ?, ?, ?, ?)',
+                $engine[0],
+                $engine[1],
+                $engine[2],
+                $engine[3],
+                $engine[4]
+            );
         }
     }
 }
-

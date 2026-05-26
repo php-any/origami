@@ -5,10 +5,12 @@ import (
 )
 
 func NewDBClass() *DBClass {
-	return (&DBClass{}).Clone(nil).(*DBClass)
+	bindMethod := &DbBindMethod{}
+	return (&DBClass{bindMethod: bindMethod}).Clone(nil).(*DBClass)
 }
 
 type DBClass struct {
+	bindMethod    data.Method
 	construct     data.Method
 	getMethod     data.Method
 	firstMethod   data.Method
@@ -38,7 +40,13 @@ func (d *DBClass) Clone(m map[string]data.Types) data.ClassGeneric {
 		source = &db{}
 	}
 
+	bindMethod := d.bindMethod
+	if bindMethod == nil {
+		bindMethod = &DbBindMethod{}
+	}
+
 	return &DBClass{
+		bindMethod:    bindMethod,
 		construct:     &DbConstructMethod{source},
 		getMethod:     &DbGetMethod{source},
 		firstMethod:   &DbFirstMethod{source: source, scanner: nil},
@@ -63,6 +71,7 @@ func (d *DBClass) Clone(m map[string]data.Types) data.ClassGeneric {
 // CloneWithSource 使用现有的 db 对象创建新的 DBClass
 func (d *DBClass) CloneWithSource(source *db) *DBClass {
 	return &DBClass{
+		bindMethod:    d.bindMethod,
 		construct:     &DbConstructMethod{source},
 		getMethod:     &DbGetMethod{source},
 		firstMethod:   &DbFirstMethod{source: source, scanner: nil},
@@ -164,4 +173,11 @@ func (d *DBClass) GetMethods() []data.Method {
 
 func (d *DBClass) GetConstruct() data.Method {
 	return d.construct
+}
+
+func (d *DBClass) GetStaticMethod(name string) (data.Method, bool) {
+	if name == "bind" {
+		return d.bindMethod, true
+	}
+	return nil, false
 }

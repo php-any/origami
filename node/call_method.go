@@ -275,6 +275,38 @@ func (pe *CallMethod) handleFuncValue(ctx data.Context, call data.GetValue) (dat
 			} else {
 				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能是必传参数, fn: %s", pe.Method))
 			}
+		case data.Parameter: // 兜底
+			if index < len(pe.Args) {
+				param := pe.Args[index]
+				switch paramTV := param.(type) {
+				case *NamedArgument:
+					tempV, acl := paramTV.GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+					vari, err := findVariable(varies, paramTV.Name)
+					if err != nil {
+						return nil, data.NewErrorThrow(pe.from, err)
+					}
+					acl = vari.SetValue(fnCtx, tempV.(data.Value))
+					if acl != nil {
+						return nil, acl
+					}
+				default:
+					tempV, acl := paramTV.GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+					acl = argObj.SetValue(fnCtx, tempV.(data.Value))
+					if acl != nil {
+						return nil, acl
+					}
+				}
+			} else if argObj.GetDefaultValue() == nil {
+				return nil, pe.newFunParamsError(pe.GetFrom(), fn.GetName(), argObj.GetName())
+			} else {
+				argObj.GetValue(fnCtx)
+			}
 		}
 	}
 

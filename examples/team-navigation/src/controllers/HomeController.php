@@ -11,32 +11,34 @@ use App\Models\ProjectTool;
 use App\Models\ToolLink;
 use App\Models\SearchEngine;
 
-@Controller
-class HomeController {
-    @GetMapping(path: "/")
-    public function index($request, $response) {
+#[Controller]
+class HomeController
+{
+    #[GetMapping(path: '/')]
+    public function index($request, $response): void
+    {
         // 加载工具（用于首页工具区及收藏）
-        $tools = new DB<ToolLink>()->orderBy("display_order ASC")->get();
+        $tools = DB::bind(ToolLink::class)->orderBy('display_order ASC')->get();
         $favoriteTools = [];
-        for (_, $t in $tools) {
+        foreach ($tools as $t) {
             if (($t->isFavorite ?? 0) == 1) {
                 $favoriteTools[] = $t;
             }
         }
 
         // 加载项目并挂载环境与工具
-        $projects = new DB<Project>()->orderBy("display_order ASC")->get();
-        for (_, $p in $projects) {
-            $envs = DB<ProjectEnvironment>()->where("project_id = ?", $p->id)
-                ->orderBy("display_order ASC")->get();
+        $projects = DB::bind(Project::class)->orderBy('display_order ASC')->get();
+        foreach ($projects as $p) {
+            $envs = DB::bind(ProjectEnvironment::class)->where('project_id = ?', $p->id)
+                ->orderBy('display_order ASC')->get();
             $p->environments = $envs;
 
-            $projectTools = DB<ProjectTool>()->where("project_id = ?", $p->id)
-                ->orderBy("display_order ASC")->get();
+            $projectTools = DB::bind(ProjectTool::class)->where('project_id = ?', $p->id)
+                ->orderBy('display_order ASC')->get();
             $pTools = [];
-            for (_, $pt in $projectTools) {
-                $ts = DB<ToolLink>()->where("id = ?", $pt->toolId)->get();
-                if ($ts != null && $ts->length > 0) {
+            foreach ($projectTools as $pt) {
+                $ts = DB::bind(ToolLink::class)->where('id = ?', $pt->toolId)->get();
+                if ($ts !== null && count($ts) > 0) {
                     $pTools[] = $ts[0];
                 }
             }
@@ -44,45 +46,46 @@ class HomeController {
         }
 
         // 加载搜索引擎
-        $searchEngines = new DB<SearchEngine>()->orderBy("display_order ASC, id ASC")->get();
+        $searchEngines = DB::bind(SearchEngine::class)->orderBy('display_order ASC, id ASC')->get();
         $defaultSearchEngine = null;
-        for (_, $engine in $searchEngines) {
+        foreach ($searchEngines as $engine) {
             if (($engine->isDefault ?? 0) == 1) {
                 $defaultSearchEngine = $engine;
                 break;
             }
         }
-        if ($defaultSearchEngine == null && $searchEngines != null && $searchEngines->length > 0) {
+        if ($defaultSearchEngine === null && $searchEngines !== null && count($searchEngines) > 0) {
             $defaultSearchEngine = $searchEngines[0];
         }
 
-        $response->view("./src/views/index.html", {
-            "projects": $projects,
-            "tools": $tools,
-            "favoriteTools": $favoriteTools,
-            "searchEngines": $searchEngines,
-            "defaultSearchEngine": $defaultSearchEngine
-        });
+        $response->view('./src/views/index.html', [
+            'projects' => $projects,
+            'tools' => $tools,
+            'favoriteTools' => $favoriteTools,
+            'searchEngines' => $searchEngines,
+            'defaultSearchEngine' => $defaultSearchEngine,
+        ]);
     }
 
-    @GetMapping(path: "/admin")
-    public function admin($request, $response) {
+    #[GetMapping(path: '/admin')]
+    public function admin($request, $response): void
+    {
         // 加载工具
-        $tools = new DB<ToolLink>()->orderBy("display_order ASC")->get();
+        $tools = DB::bind(ToolLink::class)->orderBy('display_order ASC')->get();
 
         // 加载项目并挂载环境与工具
-        $projects = new DB<Project>()->orderBy("display_order ASC")->get();
-        for (_, $p in $projects) {
-            $envs = DB<ProjectEnvironment>()->where("project_id = ?", $p->id)
-                ->orderBy("display_order ASC")->get();
+        $projects = DB::bind(Project::class)->orderBy('display_order ASC')->get();
+        foreach ($projects as $p) {
+            $envs = DB::bind(ProjectEnvironment::class)->where('project_id = ?', $p->id)
+                ->orderBy('display_order ASC')->get();
             $p->environments = $envs;
 
-            $projectTools = DB<ProjectTool>()->where("project_id = ?", $p->id)
-                ->orderBy("display_order ASC")->get();
+            $projectTools = DB::bind(ProjectTool::class)->where('project_id = ?', $p->id)
+                ->orderBy('display_order ASC')->get();
             $pTools = [];
-            for (_, $pt in $projectTools) {
-                $ts = DB<ToolLink>()->where("id = ?", $pt->toolId)->get();
-                if ($ts != null && $ts->length > 0) {
+            foreach ($projectTools as $pt) {
+                $ts = DB::bind(ToolLink::class)->where('id = ?', $pt->toolId)->get();
+                if ($ts !== null && count($ts) > 0) {
                     $pTools[] = $ts[0];
                 }
             }
@@ -90,15 +93,12 @@ class HomeController {
         }
 
         // 加载搜索引擎
-        $searchEngines = new DB<SearchEngine>()->orderBy("display_order ASC, id ASC")->get();
+        $searchEngines = DB::bind(SearchEngine::class)->orderBy('display_order ASC, id ASC')->get();
 
-        $response->view("./src/views/admin.html", {
-            "tools": $tools,
-            "projects": $projects,
-            "searchEngines": $searchEngines
-        });
+        $response->view('./src/views/admin.html', [
+            'tools' => $tools,
+            'projects' => $projects,
+            'searchEngines' => $searchEngines,
+        ]);
     }
-
 }
-
-

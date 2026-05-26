@@ -1,6 +1,6 @@
 <?php
 
- namespace App\Models;
+namespace App\Models;
 
 use Database\Annotation\Table;
 use Database\Annotation\Column;
@@ -8,31 +8,31 @@ use Database\Annotation\Id;
 use Database\Annotation\GeneratedValue;
 
 // 搜索引擎模型
-@Table("search_engines")
-class SearchEngine {
-    @Id
-    @GeneratedValue("AUTO")
+#[Table('search_engines')]
+class SearchEngine
+{
+    #[Id]
+    #[GeneratedValue('AUTO')]
     public int $id;
 
-    @Column("name")
+    #[Column('name')]
     public string $name;
 
-    @Column("url_template")
+    #[Column('url_template')]
     public string $urlTemplate;
 
-    @Column("icon")
+    #[Column('icon')]
     public ?string $icon;
 
-    @Column("is_default")
+    #[Column('is_default')]
     public int $isDefault;
 
-    @Column("display_order")
+    #[Column('display_order')]
     public int $displayOrder;
 
-    @Column("created_at")
+    #[Column('created_at')]
     public ?string $createdAt;
 
-    @Column("updated_at")
+    #[Column('updated_at')]
     public ?string $updatedAt;
 }
-
