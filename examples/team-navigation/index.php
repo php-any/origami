@@ -51,7 +51,7 @@ $server->middleware(function ($request, $response, $next) {
 
 // 匹配任意方法 + 任意路由，统一交给 app 分发
 $server->any(function ($request, $response) {
-    app($request, $response);
+    app($request, $response, hotReload: true);
 });
 
 // 静态资源解析：将 /assets/* 映射到 ./pages 目录

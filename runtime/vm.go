@@ -59,6 +59,9 @@ type VM struct {
 
 	// 调用深度追踪（用于检测无限递归）
 	callDepth int
+
+	// 注解 @Controller 注册的 HTTP 路由（生产模式 app(hotReload: false) 写入此处）
+	httpRoutes []Route
 }
 
 func (vm *VM) EnterCall() int {

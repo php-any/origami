@@ -112,10 +112,8 @@ func (m *ControllerConstructMethod) GetReturnType() data.Types {
 }
 
 func (m *ControllerConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	var vm *runtime.TempVM
-	if temp, ok := ctx.GetVM().(*runtime.TempVM); ok {
-		vm = temp
-	} else {
+	vm := ctx.GetVM()
+	if !runtime.SupportsHTTPRoutes(vm) {
 		return nil, utils.NewThrow(errors.New("@Controller 注解只能在 app() 内加载"))
 	}
 	// 读取 name
@@ -181,16 +179,16 @@ func (m *ControllerConstructMethod) Call(ctx data.Context) (data.GetValue, data.
 							switch gc := ann.Class.(type) {
 							case *GetMappingClass:
 								full := join(prefix, gc.Path())
-								vm.Cache = append(vm.Cache, runtime.Route{Method: "GET", Path: full, Target: method})
+								runtime.AppendHTTPRoute(vm, runtime.Route{Method: "GET", Path: full, Target: method})
 							case *PostMappingClass:
 								full := join(prefix, gc.Path())
-								vm.Cache = append(vm.Cache, runtime.Route{Method: "POST", Path: full, Target: method})
+								runtime.AppendHTTPRoute(vm, runtime.Route{Method: "POST", Path: full, Target: method})
 							case *PutMappingClass:
 								full := join(prefix, gc.Path())
-								vm.Cache = append(vm.Cache, runtime.Route{Method: "PUT", Path: full, Target: method})
+								runtime.AppendHTTPRoute(vm, runtime.Route{Method: "PUT", Path: full, Target: method})
 							case *DeleteMappingClass:
 								full := join(prefix, gc.Path())
-								vm.Cache = append(vm.Cache, runtime.Route{Method: "DELETE", Path: full, Target: method})
+								runtime.AppendHTTPRoute(vm, runtime.Route{Method: "DELETE", Path: full, Target: method})
 							}
 						}
 					}

@@ -129,10 +129,10 @@ func (m *ApplicationConstructMethod) Call(ctx data.Context) (data.GetValue, data
 }
 
 func (m *ApplicationConstructMethod) BuildBoot(ctx data.Context) []data.GetValue {
-	if temp, ok := ctx.GetVM().(*runtime.TempVM); ok {
+	if runtime.SupportsHTTPRoutes(ctx.GetVM()) {
 		return []data.GetValue{
 			&RegisterRoute{
-				vm: temp,
+				vm: ctx.GetVM(),
 			},
 		}
 	}

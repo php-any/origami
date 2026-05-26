@@ -10,11 +10,11 @@ import (
 )
 
 type RegisterRoute struct {
-	vm *runtime.TempVM
+	vm data.VM
 }
 
 func (r *RegisterRoute) GetValue(ctx data.Context) (v data.GetValue, acl data.Control) {
-	routes := r.vm.Cache
+	routes := runtime.HTTPRoutes(r.vm)
 
 	mux := http.NewServeMux()
 	for _, rt := range routes {

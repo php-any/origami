@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -11,9 +12,30 @@ import (
 	"github.com/php-any/origami/utils"
 )
 
-type AppFunction struct{}
+type AppFunction struct {
+	// runMain 按解析后的绝对 filePath 缓存（hotReload=false 时每个路径仅 LoadAndRun 一次）
+	runMain sync.Map
+}
+
+type mainLoadEntry struct {
+	once sync.Once
+	acl  data.Control
+}
 
 func NewAppFunction() data.FuncStmt { return &AppFunction{} }
+
+func (h *AppFunction) loadMainFile(vm data.VM, filePath string, hotReload bool) data.Control {
+	if hotReload {
+		_, acl := vm.LoadAndRun(filePath)
+		return acl
+	}
+	v, _ := h.runMain.LoadOrStore(filePath, &mainLoadEntry{})
+	entry := v.(*mainLoadEntry)
+	entry.once.Do(func() {
+		_, entry.acl = vm.LoadAndRun(filePath)
+	})
+	return entry.acl
+}
 
 func (h *AppFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取 request 和 response 参数
@@ -63,10 +85,19 @@ func (h *AppFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, utils.NewThrow(errors.New("无法引入目录"))
 	}
 
-	// 获取 VM 实例，使用 LoadAndRun 加载并执行文件（参考 std/include.go）
-	vm := runtime.NewTempVM(ctx.GetVM())
-	_, acl := vm.LoadAndRun(filePath)
-	if acl != nil {
+	hotReload := true
+	if hotReloadArg, ok := ctx.GetIndexValue(4); ok && hotReloadArg != nil {
+		if bv, ok := hotReloadArg.(data.AsBool); ok {
+			hotReload, _ = bv.AsBool()
+		}
+	}
+
+	baseVM := ctx.GetVM()
+	vm := baseVM
+	if hotReload {
+		vm = runtime.NewTempVM(baseVM)
+	}
+	if acl := h.loadMainFile(vm, filePath, hotReload); acl != nil {
 		return nil, acl
 	}
 
@@ -103,6 +134,7 @@ func (h *AppFunction) GetParams() []data.GetValue {
 		node.NewParameter(nil, "response", 1, nil, nil),
 		node.NewParameter(nil, "filePath", 2, data.NewStringValue("./src/main.php"), data.String{}),
 		node.NewParameter(nil, "fun", 3, data.NewStringValue("App\\main"), data.String{}),
+		node.NewParameter(nil, "hotReload", 4, data.NewBoolValue(true), data.NewBaseType("bool")),
 	}
 }
 func (h *AppFunction) GetVariables() []data.Variable {
@@ -111,6 +143,7 @@ func (h *AppFunction) GetVariables() []data.Variable {
 		node.NewVariable(nil, "response", 1, nil),
 		node.NewVariable(nil, "filePath", 2, nil),
 		node.NewVariable(nil, "fun", 3, nil),
+		node.NewVariable(nil, "hotReload", 4, nil),
 	}
 }
 func (h *AppFunction) GetReturnType() data.Types { return data.NewBaseType("mixed") }
