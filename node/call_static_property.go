@@ -121,9 +121,10 @@ func (pe *CallStaticProperty) SetProperty(ctx data.Context, name string, value d
 // CallStaticPropertyLater 延迟的静态属性访问（类未加载时）
 type CallStaticPropertyLater struct {
 	*Node
-	className string // 类名（字符串形式）
-	property  string // 属性名
-	namespace string // 命名空间
+	className string              // 类名（字符串形式）
+	property  string              // 属性名
+	namespace string              // 命名空间
+	access    *CallStaticProperty `pp:"-"` // 解析后缓存
 }
 
 // NewCallStaticPropertyLater 创建延迟的静态属性访问
@@ -136,17 +137,15 @@ func NewCallStaticPropertyLater(from *TokenFrom, className, property, namespace 
 	}
 }
 
-// GetValue 获取延迟静态属性访问的值
-func (pe *CallStaticPropertyLater) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+func (pe *CallStaticPropertyLater) resolveAccess(ctx data.Context) (*CallStaticProperty, data.Control) {
+	if pe.access != nil {
+		return pe.access, nil
+	}
 	vm := ctx.GetVM()
-
-	// 通过 LoadPkg 同时支持类和接口，避免在找不到类时提前抛错。
 	target, acl := vm.LoadPkg(pe.className)
 	if acl != nil {
 		return nil, acl
 	}
-
-	// 如果当前命名空间下找不到，再尝试带 namespace 前缀
 	if target == nil {
 		fullName := pe.className
 		if pe.namespace != "" {
@@ -157,49 +156,31 @@ func (pe *CallStaticPropertyLater) GetValue(ctx data.Context) (data.GetValue, da
 			return nil, acl
 		}
 	}
-
 	if target == nil {
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("无法访问静态属性(%s::%s), 未找到类或接口", pe.className, pe.property))
 	}
-
-	// 创建实际的静态属性访问
 	tokenFrom, ok := pe.GetFrom().(*TokenFrom)
 	if !ok {
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("无法获取TokenFrom信息"))
 	}
-	callStaticProperty := NewCallStaticProperty(tokenFrom, target, pe.property)
-	return callStaticProperty.GetValue(ctx)
+	pe.access = NewCallStaticProperty(tokenFrom, target, pe.property)
+	return pe.access, nil
+}
+
+// GetValue 获取延迟静态属性访问的值
+func (pe *CallStaticPropertyLater) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	access, acl := pe.resolveAccess(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	return access.GetValue(ctx)
 }
 
 // SetProperty 设置延迟静态属性的值
 func (pe *CallStaticPropertyLater) SetProperty(ctx data.Context, name string, value data.Value) data.Control {
-	vm := ctx.GetVM()
-
-	target, acl := vm.LoadPkg(pe.className)
+	access, acl := pe.resolveAccess(ctx)
 	if acl != nil {
 		return acl
 	}
-
-	if target == nil {
-		fullName := pe.className
-		if pe.namespace != "" {
-			fullName = pe.namespace + "\\" + pe.className
-		}
-		target, acl = vm.LoadPkg(fullName)
-		if acl != nil {
-			return acl
-		}
-	}
-
-	if target == nil {
-		return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("无法设置静态属性(%s::%s), 未找到类或接口", pe.className, pe.property))
-	}
-
-	// 创建实际的静态属性访问并设置值
-	tokenFrom, ok := pe.GetFrom().(*TokenFrom)
-	if !ok {
-		return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("无法获取TokenFrom信息"))
-	}
-	callStaticProperty := NewCallStaticProperty(tokenFrom, target, pe.property)
-	return callStaticProperty.SetProperty(ctx, name, value)
+	return access.SetProperty(ctx, name, value)
 }

@@ -189,9 +189,10 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 // CallStaticMethodLater 延迟的静态方法调用（类未加载时）
 type CallStaticMethodLater struct {
 	*Node
-	className string // 类名（字符串形式）
-	method    string // 方法名
-	namespace string // 命名空间
+	className string            // 类名（字符串形式）
+	method    string            // 方法名
+	namespace string            // 命名空间
+	call      *CallStaticMethod `pp:"-"` // 解析后缓存
 }
 
 // NewCallStaticMethodLater 创建延迟的静态方法调用
@@ -204,15 +205,15 @@ func NewCallStaticMethodLater(from *TokenFrom, className, method, namespace stri
 	}
 }
 
-// GetValue 获取延迟静态方法调用的值
-func (pe *CallStaticMethodLater) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 尝试加载类
+func (pe *CallStaticMethodLater) resolveCall(ctx data.Context) (*CallStaticMethod, data.Control) {
+	if pe.call != nil {
+		return pe.call, nil
+	}
 	stmt, acl := ctx.GetVM().GetOrLoadClass(pe.className)
 	if acl != nil {
 		return nil, acl
 	}
 	if stmt == nil {
-		// 如果还是找不到，尝试使用命名空间
 		fullClassName := pe.className
 		if pe.namespace != "" {
 			fullClassName = pe.namespace + "\\" + pe.className
@@ -225,15 +226,21 @@ func (pe *CallStaticMethodLater) GetValue(ctx data.Context) (data.GetValue, data
 			return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("无法调用静态方法(%s::%s), 未找到类", pe.className, pe.method))
 		}
 	}
-
-	// 创建实际的静态方法调用
 	tokenFrom, ok := pe.GetFrom().(*TokenFrom)
 	if !ok {
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("无法获取TokenFrom信息"))
 	}
-	callStaticMethod := NewCallStaticMethod(tokenFrom, stmt, pe.method)
+	pe.call = NewCallStaticMethod(tokenFrom, stmt, pe.method)
+	return pe.call, nil
+}
 
-	return callStaticMethod.GetValue(ctx)
+// GetValue 获取延迟静态方法调用的值
+func (pe *CallStaticMethodLater) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	call, acl := pe.resolveCall(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	return call.GetValue(ctx)
 }
 
 func NewStaticMethodFuncValue(class data.ClassStmt, method data.Method) *StaticMethodFuncValue {

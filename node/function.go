@@ -435,32 +435,27 @@ type CallFunctionLater struct {
 	Fun  data.FuncStmt
 }
 
-func (c *CallFunctionLater) Call(ctx data.Context) (data.GetValue, data.Control) {
+func (c *CallFunctionLater) resolveFun() data.FuncStmt {
 	if c.Fun == nil {
 		c.Fun, _ = c.Ctx.GetVM().GetFunc(c.Name)
 	}
-	return c.Fun.Call(ctx)
+	return c.Fun
+}
+
+func (c *CallFunctionLater) Call(ctx data.Context) (data.GetValue, data.Control) {
+	return c.resolveFun().Call(ctx)
 }
 
 func (c *CallFunctionLater) GetName() string {
-	if c.Fun == nil {
-		c.Fun, _ = c.Ctx.GetVM().GetFunc(c.Name)
-	}
-	return c.Fun.GetName()
+	return c.resolveFun().GetName()
 }
 
 func (c *CallFunctionLater) GetParams() []data.GetValue {
-	if c.Fun == nil {
-		c.Fun, _ = c.Ctx.GetVM().GetFunc(c.Name)
-	}
-	return c.Fun.GetParams()
+	return c.resolveFun().GetParams()
 }
 
 func (c *CallFunctionLater) GetVariables() []data.Variable {
-	if c.Fun == nil {
-		c.Fun, _ = c.Ctx.GetVM().GetFunc(c.Name)
-	}
-	return c.Fun.GetVariables()
+	return c.resolveFun().GetVariables()
 }
 
 // ParameterRawAST 表示需要接收原始 AST 结构的参数

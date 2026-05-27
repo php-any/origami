@@ -14,15 +14,24 @@ func createInstanceAndCallConstructor(
 	arguments []data.GetValue,
 	ctx data.Context,
 ) (data.GetValue, data.Control) {
-	vm := ctx.GetVM()
-	stmt, acl := vm.GetOrLoadClass(className)
+	stmt, acl := ctx.GetVM().GetOrLoadClass(className)
 	if acl != nil {
 		if throwValue, ok := acl.(*data.ThrowValue); ok {
 			throwValue.AddStackWithInfo(from, className, "__construct")
 		}
 		return nil, acl
 	}
+	return createInstanceFromClassStmt(from, stmt, arguments, ctx)
+}
 
+// createInstanceFromClassStmt 使用已解析的类语句创建实例并调用构造函数。
+// 仅供静态 new 节点在 resolve 之后调用；动态 new 应走 createInstanceAndCallConstructor。
+func createInstanceFromClassStmt(
+	from data.From,
+	stmt data.ClassStmt,
+	arguments []data.GetValue,
+	ctx data.Context,
+) (data.GetValue, data.Control) {
 	object, acl := stmt.GetValue(ctx.CreateBaseContext())
 	if acl != nil {
 		return nil, acl
@@ -330,12 +339,14 @@ func createInstanceAndCallConstructorWithStmt(
 	return object, acl
 }
 
-// NewExpression 表示 new 表达式
+// NewExpression 表示 new 表达式（编译期类名字面量，如 new Foo）。
+// 动态类名必须使用 NewVariableExpression（new $class）或 NewExpressionDynamic（new $expr），
+// 二者每次执行都会重新求值类名，不会写入本结构的 class 缓存。
 type NewExpression struct {
 	*Node     `pp:"-"`
 	ClassName string
 	Arguments []data.GetValue
-	// 是否执行构造函数
+	class     data.ClassStmt `pp:"-"` // 仅静态 FQCN：首次 GetOrLoadClass 后缓存
 }
 
 // NewNewExpression 创建一个新的 new 表达式节点
@@ -347,9 +358,28 @@ func NewNewExpression(from *TokenFrom, className string, arguments []data.GetVal
 	}
 }
 
+func (n *NewExpression) resolveClass(ctx data.Context) (data.ClassStmt, data.Control) {
+	if n.class != nil {
+		return n.class, nil
+	}
+	stmt, acl := ctx.GetVM().GetOrLoadClass(n.ClassName)
+	if acl != nil {
+		if throwValue, ok := acl.(*data.ThrowValue); ok {
+			throwValue.AddStackWithInfo(n.from, n.ClassName, "__construct")
+		}
+		return nil, acl
+	}
+	n.class = stmt
+	return stmt, nil
+}
+
 // GetValue 实现 Value 接口
 func (n *NewExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	return createInstanceAndCallConstructor(n.from, n.ClassName, n.Arguments, ctx)
+	stmt, acl := n.resolveClass(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	return createInstanceFromClassStmt(n.from, stmt, n.Arguments, ctx)
 }
 
 // NewGenerated new T()
@@ -385,9 +415,11 @@ type NewClassGenerated struct {
 	T []string
 }
 
-func (n *NewClassGenerated) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	vm := ctx.GetVM()
-	stmt, acl := vm.GetOrLoadClass(n.ClassName)
+func (n *NewClassGenerated) resolveClass(ctx data.Context) (data.ClassStmt, data.Control) {
+	if n.class != nil {
+		return n.class, nil
+	}
+	stmt, acl := ctx.GetVM().GetOrLoadClass(n.ClassName)
 	if acl != nil {
 		return nil, acl
 	}
@@ -402,14 +434,22 @@ func (n *NewClassGenerated) GetValue(ctx data.Context) (data.GetValue, data.Cont
 				panic("TODO 未支持的泛型类型")
 			}
 		}
-
 		stmt = classGeneric.Clone(mT)
 	}
+	n.class = stmt
+	return stmt, nil
+}
 
+func (n *NewClassGenerated) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	stmt, acl := n.resolveClass(ctx)
+	if acl != nil {
+		return nil, acl
+	}
 	return createInstanceAndCallConstructorWithStmt(n.from, stmt, n.Arguments, ctx)
 }
 
-// NewVariableExpression 表示使用变量作为类名的 new 表达式
+// NewVariableExpression 表示使用变量作为类名的 new 表达式（如 new $class）。
+// 每次 GetValue 都会重新求值 ClassNameExpr，不缓存 ClassStmt。
 type NewVariableExpression struct {
 	*Node
 	ClassNameExpr data.GetValue // 类名表达式（变量）
@@ -527,7 +567,8 @@ func (n *NewStaticExpression) GetValue(ctx data.Context) (data.GetValue, data.Co
 	return createInstanceAndCallConstructor(n.from, className, n.Arguments, ctx)
 }
 
-// NewExpressionDynamic 表示 new $expr(...) 动态类名实例化
+// NewExpressionDynamic 表示 new $expr(...) / new ($expr)(...) 等动态类名实例化。
+// 每次 GetValue 都会重新求值 ClassExpr，不缓存 ClassStmt。
 type NewExpressionDynamic struct {
 	*Node     `pp:"-"`
 	ClassExpr data.GetValue // 类名表达式（运行时求值为字符串）

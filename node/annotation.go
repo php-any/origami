@@ -20,6 +20,7 @@ type Annotation struct {
 	Name      string          // 注解名称
 	Arguments []data.GetValue // 注解参数
 	Target    data.GetValue
+	class     data.ClassStmt `pp:"-"` // 首次解析后缓存
 }
 
 // NewAnnotation 创建一个新的注解节点
@@ -41,10 +42,21 @@ func (a *Annotation) GetArguments() []data.GetValue {
 	return a.Arguments
 }
 
+func (a *Annotation) resolveClass(ctx data.Context) (data.ClassStmt, data.Control) {
+	if a.class != nil {
+		return a.class, nil
+	}
+	stmt, acl := ctx.GetVM().GetOrLoadClass(a.Name)
+	if acl != nil {
+		return nil, acl
+	}
+	a.class = stmt
+	return stmt, nil
+}
+
 // GetValue 获取注解节点的值
 func (a *Annotation) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	vm := ctx.GetVM()
-	stmt, acl := vm.GetOrLoadClass(a.Name)
+	stmt, acl := a.resolveClass(ctx)
 	if acl != nil {
 		return nil, acl
 	}
