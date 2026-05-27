@@ -29,6 +29,55 @@ var phpReservedTypeNames = map[string]struct{}{
 	"false": {}, "true": {}, "null": {}, "void": {}, "mixed": {},
 }
 
+type GenericMethodDocRule struct {
+	TemplateDoc string
+	ReturnDoc   string
+	ParamDocs   []string
+}
+
+type GenericClassDocRule struct {
+	TemplateDoc        string
+	ReturnDocByPHPType map[string]string
+	MethodRules        map[string]GenericMethodDocRule
+}
+
+// genericDocRules 用于配置泛型类的 PHPDoc 生成规则，便于扩展更多泛型容器。
+var genericDocRules = map[string]GenericClassDocRule{
+	"Database\\DB": {
+		TemplateDoc: "T",
+		ReturnDocByPHPType: map[string]string{
+			"DB":    "DB<T>",
+			"array": "array<T>",
+		},
+		MethodRules: map[string]GenericMethodDocRule{
+			"bind": {
+				TemplateDoc: "T",
+				ParamDocs: []string{
+					"@param class-string<T> $className",
+					"@param string|null $connectionName",
+				},
+			},
+			"first":   {ReturnDoc: "T|null"},
+			"groupBy": {ReturnDoc: "DB<T>"},
+			"join":    {ReturnDoc: "DB<T>"},
+			"limit":   {ReturnDoc: "DB<T>"},
+			"offset":  {ReturnDoc: "DB<T>"},
+			"orderBy": {ReturnDoc: "DB<T>"},
+			"select":  {ReturnDoc: "DB<T>"},
+			"table":   {ReturnDoc: "DB<T>"},
+			"get":     {ReturnDoc: "array<T>"},
+			"query":   {ReturnDoc: "array<T>"},
+			"where": {
+				ReturnDoc: "DB<T>",
+				ParamDocs: []string{
+					"@param string $sql",
+					"@param mixed ...$args",
+				},
+			},
+		},
+	},
+}
+
 // Generate 加载 Go 实现的标准库并通过反射生成 PHP 伪代码。
 func Generate(outputDir string) error {
 	if outputDir == "" {
@@ -186,8 +235,9 @@ type FunctionSignature struct {
 	Name       string
 	Params     []Parameter
 	ReturnType string
+	ReturnDoc  string
+	ParamDocs  []string
 	FakeReturn string // 虚假 return 语句，便于 IDE 分析
-	Comment    string
 }
 
 // ClassSignature 表示类签名
@@ -195,6 +245,7 @@ type ClassSignature struct {
 	Name                 string
 	ClassName            string
 	Description          string
+	TemplateDoc          string // 如 "T"，用于输出 @template T
 	Methods              []MethodSignature
 	AnnotationCtorParams []Parameter
 	Properties           []PropertySignature
@@ -202,13 +253,15 @@ type ClassSignature struct {
 
 // MethodSignature 表示方法签名
 type MethodSignature struct {
-	Name       string
-	Params     []Parameter
-	ReturnType string
-	FakeReturn string
-	Modifier   string
-	IsStatic   bool
-	Comment    string
+	Name        string
+	Params      []Parameter
+	ReturnType  string
+	ReturnDoc   string
+	TemplateDoc string // 如 "T"，用于输出 @template T（常用于静态工厂）
+	ParamDocs   []string
+	FakeReturn  string
+	Modifier    string
+	IsStatic    bool
 }
 
 // PropertySignature 表示属性签名
@@ -218,7 +271,6 @@ type PropertySignature struct {
 	Modifier string
 	IsStatic bool
 	Default  string
-	Comment  string
 }
 
 // Parameter 表示参数
@@ -327,6 +379,12 @@ func analyzeClass(ctx data.Context, class data.ClassStmt) ClassSignature {
 
 	namespace := classNamespace(className)
 	forAnnotation := isAnnotationNamespace(className)
+	classRule, hasClassRule := genericDocRuleForClass(namespace, shortClassName)
+
+	// 泛型容器类：从配置填充类级 template 文档。
+	if hasClassRule {
+		sig.TemplateDoc = classRule.TemplateDoc
+	}
 	if ctor := class.GetConstruct(); ctor != nil {
 		sig.AnnotationCtorParams = analyzeMethodParams(ctor, forAnnotation, namespace)
 	}
@@ -344,8 +402,28 @@ func analyzeClass(ctx data.Context, class data.ClassStmt) ClassSignature {
 
 		methodSig.Params = analyzeMethodParams(method, false, namespace)
 
-		methodSig.ReturnType = formatPHPReturnType(methodReturnType(method), namespace, shortClassName)
+		rawReturnType := methodReturnType(method)
+		methodSig.ReturnType = formatPHPReturnType(rawReturnType, namespace, shortClassName)
+		methodSig.ReturnDoc = formatPHPReturnDoc(rawReturnType, methodSig.ReturnType, namespace, shortClassName)
 		methodSig.FakeReturn = fakeReturnStatement(methodSig.ReturnType, "        ")
+
+		// 泛型文档规则：优先应用类级返回类型映射，再应用方法级覆盖。
+		if hasClassRule {
+			if mapped, ok := classRule.ReturnDocByPHPType[methodSig.ReturnType]; ok {
+				methodSig.ReturnDoc = mapped
+			}
+			if mr, ok := classRule.MethodRules[methodSig.Name]; ok {
+				if mr.TemplateDoc != "" {
+					methodSig.TemplateDoc = mr.TemplateDoc
+				}
+				if mr.ReturnDoc != "" {
+					methodSig.ReturnDoc = mr.ReturnDoc
+				}
+				if len(mr.ParamDocs) > 0 {
+					methodSig.ParamDocs = mr.ParamDocs
+				}
+			}
+		}
 
 		if methodSig.Name == "__construct" {
 			if len(sig.AnnotationCtorParams) == 0 {
@@ -375,6 +453,15 @@ func classNamespace(className string) string {
 	}
 	parts := strings.Split(className, "\\")
 	return strings.Join(parts[:len(parts)-1], "\\")
+}
+
+func genericDocRuleForClass(namespace, shortClassName string) (GenericClassDocRule, bool) {
+	key := shortClassName
+	if namespace != "" {
+		key = namespace + `\` + shortClassName
+	}
+	rule, ok := genericDocRules[key]
+	return rule, ok
 }
 
 func methodReturnType(method data.Method) data.Types {
@@ -613,6 +700,35 @@ func formatPHPReturnType(ty data.Types, namespace, shortClassName string) string
 	return formatted
 }
 
+func formatPHPReturnDoc(ty data.Types, phpReturnType, namespace, _ string) string {
+	if phpReturnType == "" || ty == nil {
+		return ""
+	}
+
+	raw := strings.TrimSpace(ty.String())
+	if raw == "" || raw == "void" {
+		return ""
+	}
+
+	// 仅当反射类型含泛型信息时输出 @return，普通类型跳过。
+	if strings.Contains(raw, "<") && strings.Contains(raw, ">") {
+		return normalizePHPDocType(raw, namespace)
+	}
+
+	return ""
+}
+
+func normalizePHPDocType(raw, namespace string) string {
+	docType := strings.TrimSpace(raw)
+	if docType == "" {
+		return ""
+	}
+	if namespace != "" {
+		docType = strings.ReplaceAll(docType, namespace+"\\", "")
+	}
+	return docType
+}
+
 func formatDefaultValue(v data.GetValue) string {
 	if v == nil {
 		return ""
@@ -651,7 +767,9 @@ func analyzeFunction(fn data.FuncStmt) FunctionSignature {
 	sig.Params = analyzeMethodParams(fn, false, "")
 
 	if returnTypeInterface, ok := fn.(data.GetReturnType); ok {
-		sig.ReturnType = formatPHPReturnType(returnTypeInterface.GetReturnType(), "", "")
+		rawReturnType := returnTypeInterface.GetReturnType()
+		sig.ReturnType = formatPHPReturnType(rawReturnType, "", "")
+		sig.ReturnDoc = formatPHPReturnDoc(rawReturnType, sig.ReturnType, "", "")
 		sig.FakeReturn = fakeReturnStatement(sig.ReturnType, "    ")
 	}
 
@@ -723,55 +841,50 @@ func generatePHPPseudoCode(module PseudoCode) string {
 {{if .Namespace}}namespace {{.Namespace}};
 
 {{end}}
-/**
- * {{.ModuleName}} - {{.Description}}
- * 
- * 此文件包含 {{.ModuleName}} 模块的伪代码接口定义
- * 这些是自动生成的接口，仅用于参考，不包含具体实现
- */
 {{if .Functions}}
 {{range .Functions}}
+{{if or .ReturnDoc .ParamDocs}}
 /**
- * {{.Name}} 函数
- * {{if .Comment}}{{.Comment}}{{end}}
+{{if .ParamDocs}}{{range .ParamDocs}}
+ * {{.}}{{end}}{{end}}{{if .ReturnDoc}}
+ * @return {{.ReturnDoc}}{{end}}
  */
-function {{.Name}}({{range $i, $param := .Params}}{{if $i}}, {{end}}{{if eq $param.IsVariadic true}}...${{$param.Name}}{{else}}{{if ne $param.Type "mixed"}}{{$param.Type}} {{end}}${{$param.Name}}{{$param.Default}}{{end}}{{end}}){{if .ReturnType}} : {{.ReturnType}}{{end}} {
+{{end}}function {{.Name}}({{range $i, $param := .Params}}{{if $i}}, {{end}}{{if eq $param.IsVariadic true}}...${{$param.Name}}{{else}}{{if ne $param.Type "mixed"}}{{$param.Type}} {{end}}${{$param.Name}}{{$param.Default}}{{end}}{{end}}){{if .ReturnType}} : {{.ReturnType}}{{end}} {
 {{if .FakeReturn}}{{.FakeReturn}}{{else}}    // 实现逻辑
 {{end}}}
 {{end}}
 {{end}}
 {{if .Classes}}
 {{range .Classes}}
+{{if .TemplateDoc}}
 /**
- * {{.Name}} 类
- * {{.Description}}
+ * @template {{.TemplateDoc}}
  */
+{{end}}
 {{if $.IsAnnotation}}#[\Attribute]
 class {{.ClassName}} {
     public function __construct({{range $i, $param := .AnnotationCtorParams}}{{if $i}}, {{end}}{{if eq $param.IsVariadic true}}...${{$param.Name}}{{else}}{{if ne $param.Type "mixed"}}{{$param.Type}} {{end}}${{$param.Name}}{{$param.Default}}{{end}}{{end}}) {}
 {{if .Methods}}{{range .Methods}}
-    /**
-     * {{.Name}} 方法
-     * {{if .Comment}}{{.Comment}}{{end}}
-     */
-    {{.Modifier}} {{if .IsStatic}}static {{end}}function {{.Name}}({{range $i, $param := .Params}}{{if $i}}, {{end}}{{if eq $param.IsVariadic true}}...${{$param.Name}}{{else}}{{if ne $param.Type "mixed"}}{{$param.Type}} {{end}}${{$param.Name}}{{$param.Default}}{{end}}{{end}}){{if .ReturnType}} : {{.ReturnType}}{{end}} {
+{{if or .TemplateDoc .ReturnDoc .ParamDocs}}    /**
+{{if .TemplateDoc}}     * @template {{.TemplateDoc}}
+{{end}}{{if .ParamDocs}}{{range .ParamDocs}}     * {{.}}
+{{end}}{{end}}{{if .ReturnDoc}}     * @return {{.ReturnDoc}}
+{{end}}     */
+{{end}}    {{.Modifier}} {{if .IsStatic}}static {{end}}function {{.Name}}({{range $i, $param := .Params}}{{if $i}}, {{end}}{{if eq $param.IsVariadic true}}...${{$param.Name}}{{else}}{{if ne $param.Type "mixed"}}{{$param.Type}} {{end}}${{$param.Name}}{{$param.Default}}{{end}}{{end}}){{if .ReturnType}} : {{.ReturnType}}{{end}} {
 {{if .FakeReturn}}{{.FakeReturn}}{{else}}        // 实现逻辑
 {{end}}    }
 {{end}}{{end}}
 }
 {{else}}class {{.ClassName}} {
 {{if .Properties}}{{range .Properties}}
-    /**
-     * {{.Name}} 属性
-     * {{if .Comment}}{{.Comment}}{{end}}
-     */
     {{.Modifier}} {{if .IsStatic}}static {{end}}${{.Name}}{{if .Type}} : {{.Type}}{{end}}{{if .Default}} = {{.Default}}{{end}};
 {{end}}{{end}}{{if .Methods}}{{range .Methods}}
-    /**
-     * {{.Name}} 方法
-     * {{if .Comment}}{{.Comment}}{{end}}
-     */
-    {{.Modifier}} {{if .IsStatic}}static {{end}}function {{.Name}}({{range $i, $param := .Params}}{{if $i}}, {{end}}{{if eq $param.IsVariadic true}}...${{$param.Name}}{{else}}{{if ne $param.Type "mixed"}}{{$param.Type}} {{end}}${{$param.Name}}{{$param.Default}}{{end}}{{end}}){{if .ReturnType}} : {{.ReturnType}}{{end}} {
+{{if or .TemplateDoc .ReturnDoc .ParamDocs}}    /**
+{{if .TemplateDoc}}     * @template {{.TemplateDoc}}
+{{end}}{{if .ParamDocs}}{{range .ParamDocs}}     * {{.}}
+{{end}}{{end}}{{if .ReturnDoc}}     * @return {{.ReturnDoc}}
+{{end}}     */
+{{end}}    {{.Modifier}} {{if .IsStatic}}static {{end}}function {{.Name}}({{range $i, $param := .Params}}{{if $i}}, {{end}}{{if eq $param.IsVariadic true}}...${{$param.Name}}{{else}}{{if ne $param.Type "mixed"}}{{$param.Type}} {{end}}${{$param.Name}}{{$param.Default}}{{end}}{{end}}){{if .ReturnType}} : {{.ReturnType}}{{end}} {
 {{if .FakeReturn}}{{.FakeReturn}}{{else}}        // 实现逻辑
 {{end}}    }
 {{end}}{{end}}
