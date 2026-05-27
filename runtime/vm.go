@@ -3,6 +3,7 @@ package runtime
 import (
 	"fmt"
 	"os"
+	"sort"
 	"sync"
 
 	"github.com/php-any/origami/data"
@@ -315,6 +316,34 @@ func (vm *VM) GetFunc(pkg string) (data.FuncStmt, bool) {
 		}
 	}
 	return nil, false
+}
+
+// AllFuncs 返回 VM 中已注册的全部函数（按名称排序）。
+func (vm *VM) AllFuncs() []data.FuncStmt {
+	vm.mu.RLock()
+	defer vm.mu.RUnlock()
+	funcs := make([]data.FuncStmt, 0, len(vm.funcMap))
+	for _, f := range vm.funcMap {
+		funcs = append(funcs, f)
+	}
+	sort.Slice(funcs, func(i, j int) bool {
+		return funcs[i].GetName() < funcs[j].GetName()
+	})
+	return funcs
+}
+
+// AllClasses 返回 VM 中已注册的全部类（按名称排序）。
+func (vm *VM) AllClasses() []data.ClassStmt {
+	vm.mu.RLock()
+	defer vm.mu.RUnlock()
+	classes := make([]data.ClassStmt, 0, len(vm.classMap))
+	for _, c := range vm.classMap {
+		classes = append(classes, c)
+	}
+	sort.Slice(classes, func(i, j int) bool {
+		return classes[i].GetName() < classes[j].GetName()
+	})
+	return classes
 }
 
 func (vm *VM) CreateContext(vars []data.Variable) data.Context {

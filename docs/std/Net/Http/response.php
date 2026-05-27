@@ -1,3 +1,5 @@
+<?php
+
 namespace Net\Http;
 
 
@@ -20,7 +22,7 @@ class Response {
      * json 方法
      * 
      */
-    public static function json(object $data) {
+    public function json(object $data) {
         // 实现逻辑
     }
 
@@ -28,7 +30,7 @@ class Response {
      * header 方法
      * 
      */
-    public function header() : Net\Http\Header {
+    public function header($key, $value) : Net\Http\Header {
         // 实现逻辑
     }
 
@@ -36,7 +38,7 @@ class Response {
      * write 方法
      * 
      */
-    public static function write($param0) {
+    public function write($param0) {
         // 实现逻辑
     }
 
@@ -44,7 +46,15 @@ class Response {
      * writeHeader 方法
      * 
      */
-    public static function writeHeader($param0) {
+    public function writeHeader($param0) {
+        // 实现逻辑
+    }
+
+    /**
+     * view 方法
+     * 
+     */
+    public function view($templatePath, object $data) {
         // 实现逻辑
     }
 

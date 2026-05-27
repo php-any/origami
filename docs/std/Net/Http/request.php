@@ -1,3 +1,5 @@
+<?php
+
 namespace Net\Http;
 
 
@@ -20,7 +22,7 @@ class Request {
      * userAgent 方法
      * 
      */
-    public static function userAgent() {
+    public function userAgent() {
         // 实现逻辑
     }
 
@@ -28,7 +30,7 @@ class Request {
      * cookiesNamed 方法
      * 
      */
-    public static function cookiesNamed($param0) {
+    public function cookiesNamed($param0) {
         // 实现逻辑
     }
 
@@ -36,7 +38,7 @@ class Request {
      * pathValue 方法
      * 
      */
-    public static function pathValue($param0) {
+    public function pathValue($param0) {
         // 实现逻辑
     }
 
@@ -44,7 +46,7 @@ class Request {
      * setPathValue 方法
      * 
      */
-    public static function setPathValue($param0, $param1) {
+    public function setPathValue($param0, $param1) {
         // 实现逻辑
     }
 
@@ -52,7 +54,7 @@ class Request {
      * context 方法
      * 
      */
-    public static function context() : object {
+    public function context() : object {
         // 实现逻辑
     }
 
@@ -60,7 +62,7 @@ class Request {
      * postFormValue 方法
      * 
      */
-    public static function postFormValue($param0) {
+    public function postFormValue($param0) {
         // 实现逻辑
     }
 
@@ -68,7 +70,7 @@ class Request {
      * protoAtLeast 方法
      * 
      */
-    public static function protoAtLeast($param0, $param1) {
+    public function protoAtLeast($param0, $param1) {
         // 实现逻辑
     }
 
@@ -76,7 +78,7 @@ class Request {
      * cookies 方法
      * 
      */
-    public static function cookies() {
+    public function cookies() {
         // 实现逻辑
     }
 
@@ -84,7 +86,7 @@ class Request {
      * parseMultipartForm 方法
      * 
      */
-    public static function parseMultipartForm($param0) {
+    public function parseMultipartForm($param0) {
         // 实现逻辑
     }
 
@@ -92,7 +94,7 @@ class Request {
      * addCookie 方法
      * 
      */
-    public static function addCookie($param0) {
+    public function addCookie($param0) {
         // 实现逻辑
     }
 
@@ -100,7 +102,7 @@ class Request {
      * clone 方法
      * 
      */
-    public static function clone() {
+    public function clone() {
         // 实现逻辑
     }
 
@@ -108,7 +110,7 @@ class Request {
      * formFile 方法
      * 
      */
-    public static function formFile($param0) {
+    public function formFile($param0) {
         // 实现逻辑
     }
 
@@ -116,7 +118,7 @@ class Request {
      * basicAuth 方法
      * 
      */
-    public static function basicAuth() {
+    public function basicAuth() {
         // 实现逻辑
     }
 
@@ -124,7 +126,7 @@ class Request {
      * cookie 方法
      * 
      */
-    public static function cookie($param0) {
+    public function cookie($param0) {
         // 实现逻辑
     }
 
@@ -132,7 +134,7 @@ class Request {
      * referer 方法
      * 
      */
-    public static function referer() {
+    public function referer() {
         // 实现逻辑
     }
 
@@ -140,7 +142,7 @@ class Request {
      * writeProxy 方法
      * 
      */
-    public static function writeProxy($param0) {
+    public function writeProxy($param0) {
         // 实现逻辑
     }
 
@@ -148,7 +150,7 @@ class Request {
      * parseForm 方法
      * 
      */
-    public static function parseForm() {
+    public function parseForm() {
         // 实现逻辑
     }
 
@@ -156,7 +158,7 @@ class Request {
      * withContext 方法
      * 
      */
-    public static function withContext() {
+    public function withContext() {
         // 实现逻辑
     }
 
@@ -164,7 +166,7 @@ class Request {
      * write 方法
      * 
      */
-    public static function write($param0) {
+    public function write($param0) {
         // 实现逻辑
     }
 
@@ -172,7 +174,7 @@ class Request {
      * formValue 方法
      * 
      */
-    public static function formValue($param0) {
+    public function formValue($param0) {
         // 实现逻辑
     }
 
@@ -180,7 +182,7 @@ class Request {
      * multipartReader 方法
      * 
      */
-    public static function multipartReader() {
+    public function multipartReader() {
         // 实现逻辑
     }
 
@@ -188,7 +190,7 @@ class Request {
      * setBasicAuth 方法
      * 
      */
-    public static function setBasicAuth($param0, $param1) {
+    public function setBasicAuth($param0, $param1) {
         // 实现逻辑
     }
 

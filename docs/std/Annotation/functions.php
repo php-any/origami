@@ -1,3 +1,7 @@
+<?php
+
+namespace Annotation;
+
 
 /**
  * functions - 标准库函数
@@ -8,17 +12,11 @@
 
 
 /**
- * dump 函数
+ * __internal_spring_inline 函数
  * 
  */
-function dump(...$args) {
+function __internal_spring_inline($request, $response) {
     // 实现逻辑
 }
 
-/**
- * include 函数
- * 
- */
-function include($filename) {
-    // 实现逻辑
-}
+

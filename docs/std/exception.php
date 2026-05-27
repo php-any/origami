@@ -1,3 +1,5 @@
+<?php
+
 
 /**
  * exception - Exception 类
@@ -27,6 +29,14 @@ class Exception {
      * 
      */
     public function getMessage() : string {
+        // 实现逻辑
+    }
+
+    /**
+     * getTraceAsString 方法
+     * 
+     */
+    public function getTraceAsString() : string {
         // 实现逻辑
     }
 

@@ -1,3 +1,5 @@
+<?php
+
 
 /**
  * channel - Channel 类

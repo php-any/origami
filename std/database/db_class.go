@@ -168,7 +168,25 @@ func (d *DBClass) GetMethod(name string) (data.Method, bool) {
 }
 
 func (d *DBClass) GetMethods() []data.Method {
-	return []data.Method{}
+	return []data.Method{
+		d.bindMethod,
+		d.construct,
+		d.getMethod,
+		d.firstMethod,
+		d.whereMethod,
+		d.tableMethod,
+		d.selectMethod,
+		d.orderByMethod,
+		d.groupByMethod,
+		d.limitMethod,
+		d.offsetMethod,
+		d.joinMethod,
+		d.insertMethod,
+		d.updateMethod,
+		d.deleteMethod,
+		d.queryMethod,
+		d.execMethod,
+	}
 }
 
 func (d *DBClass) GetConstruct() data.Method {

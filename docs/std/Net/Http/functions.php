@@ -1,4 +1,6 @@
-namespace Database\Sql;
+<?php
+
+namespace Net\Http;
 
 
 /**
@@ -10,10 +12,10 @@ namespace Database\Sql;
 
 
 /**
- * open 函数
+ * app 函数
  * 
  */
-function open($driverName, $dataSourceName) {
+function app($request, $response, string $filePath, string $fun, bool $hotReload) {
     // 实现逻辑
 }
 

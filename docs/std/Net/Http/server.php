@@ -1,3 +1,5 @@
+<?php
+
 namespace Net\Http;
 
 
@@ -81,6 +83,22 @@ class Server {
     }
 
     /**
+     * static 方法
+     * 
+     */
+    public function static(string $prefix, string $dir) {
+        // 实现逻辑
+    }
+
+    /**
+     * any 方法
+     * 
+     */
+    public function any($handle) {
+        // 实现逻辑
+    }
+
+    /**
      * group 方法
      * 
      */
@@ -104,11 +122,13 @@ class Server {
         // 实现逻辑
     }
 
+    /**
+     * serveHTTP 方法
+     * 
+     */
+    public function serveHTTP($param0, $param1) {
+        // 实现逻辑
+    }
+
 }
 
-/**
- * 加载并分发应用入口（默认 src/main.php 中的 App\main）
- *
- * @param hotReload 为 true（默认）时每个请求重新解析脚本；为 false 时仅启动期加载一次，适合生产
- */
-function app($request, $response, $filePath = "./src/main.php", $fun = "App\\main", $hotReload = true) {}

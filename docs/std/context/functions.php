@@ -1,3 +1,5 @@
+<?php
+
 namespace context;
 
 
@@ -26,6 +28,30 @@ function withCancel($parent) {
 }
 
 /**
+ * withCancelCause 函数
+ * 
+ */
+function withCancelCause($parent) {
+    // 实现逻辑
+}
+
+/**
+ * withDeadline 函数
+ * 
+ */
+function withDeadline($parent, $d) {
+    // 实现逻辑
+}
+
+/**
+ * withDeadlineCause 函数
+ * 
+ */
+function withDeadlineCause($parent, $d, $cause) {
+    // 实现逻辑
+}
+
+/**
  * withTimeout 函数
  * 
  */
@@ -34,10 +60,26 @@ function withTimeout($parent, $timeout) {
 }
 
 /**
+ * withTimeoutCause 函数
+ * 
+ */
+function withTimeoutCause($parent, $timeout, $cause) {
+    // 实现逻辑
+}
+
+/**
  * withValue 函数
  * 
  */
 function withValue($parent, $key, $val) {
+    // 实现逻辑
+}
+
+/**
+ * withoutCancel 函数
+ * 
+ */
+function withoutCancel($parent) {
     // 实现逻辑
 }
 

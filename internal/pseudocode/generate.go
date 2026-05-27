@@ -1,0 +1,856 @@
+package pseudocode
+
+import (
+	"fmt"
+	"os"
+	"reflect"
+	"sort"
+	"strconv"
+	"strings"
+	"text/template"
+
+	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/parser"
+	"github.com/php-any/origami/runtime"
+	"github.com/php-any/origami/std"
+	"github.com/php-any/origami/std/context"
+	netannotation "github.com/php-any/origami/std/net/annotation"
+	"github.com/php-any/origami/std/net/http"
+	"github.com/php-any/origami/std/system"
+)
+
+const pseudoCodeExt = ".php"
+const defaultOutputDir = ".zy/std"
+
+// phpReservedTypeNames 在 PHP 中大小写不敏感，不能作为类名（如 List -> list）。
+var phpReservedTypeNames = map[string]struct{}{
+	"list": {}, "array": {}, "callable": {}, "self": {}, "parent": {}, "static": {},
+	"false": {}, "true": {}, "null": {}, "void": {}, "mixed": {},
+}
+
+// Generate 加载 Go 实现的标准库并通过反射生成 PHP 伪代码。
+func Generate(outputDir string) error {
+	if outputDir == "" {
+		outputDir = defaultOutputDir
+	}
+
+	p := parser.NewParser()
+	vm := runtime.NewVM(p).(*runtime.VM)
+	loadStdLibraries(vm)
+
+	ctx := vm.CreateContext(nil)
+	modules := buildModules(ctx, vm.AllFuncs(), vm.AllClasses())
+
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		return fmt.Errorf("创建输出目录失败: %w", err)
+	}
+
+	indexContent := generatePseudoCodeIndex(modules)
+	if err := os.WriteFile(outputDir+"/pseudo_README.md", []byte(indexContent), 0o644); err != nil {
+		return fmt.Errorf("写入索引文件失败: %w", err)
+	}
+
+	for _, module := range modules {
+		if module.ModuleName == "" {
+			continue
+		}
+
+		content := generatePHPPseudoCode(module)
+
+		var filepath string
+		if module.Namespace != "" {
+			dirPath := strings.ReplaceAll(module.Namespace, "\\", "/")
+			fullDirPath := fmt.Sprintf("%s/%s", outputDir, dirPath)
+			if err := os.MkdirAll(fullDirPath, 0o755); err != nil {
+				return fmt.Errorf("创建目录 %s 失败: %w", fullDirPath, err)
+			}
+			filepath = fmt.Sprintf("%s/%s%s", fullDirPath, strings.ToLower(module.ModuleName), pseudoCodeExt)
+		} else {
+			filepath = fmt.Sprintf("%s/%s%s", outputDir, strings.ToLower(module.ModuleName), pseudoCodeExt)
+		}
+
+		if err := os.WriteFile(filepath, []byte(content), 0o644); err != nil {
+			return fmt.Errorf("写入 %s 失败: %w", filepath, err)
+		}
+		removeLegacyZyStub(filepath)
+	}
+
+	fmt.Println("标准库伪代码生成完成！")
+	fmt.Printf("输出目录: %s\n", outputDir)
+	fmt.Printf("共生成 %d 个模块\n", len(modules))
+	return nil
+}
+
+func removeLegacyZyStub(phpPath string) {
+	zyPath := strings.TrimSuffix(phpPath, pseudoCodeExt) + ".zy"
+	_ = os.Remove(zyPath)
+}
+
+func loadStdLibraries(vm data.VM) {
+	std.Load(vm)
+	http.Load(vm)
+	netannotation.Load(vm)
+	system.Load(vm)
+	context.Load(vm)
+}
+
+func buildModules(ctx data.Context, functions []data.FuncStmt, classes []data.ClassStmt) []PseudoCode {
+	var modules []PseudoCode
+
+	if len(functions) > 0 {
+		funcModulesByNamespace := make(map[string]*PseudoCode)
+		for _, fn := range functions {
+			fullName := fn.GetName()
+			namespace := ""
+			shortName := fullName
+
+			if strings.Contains(fullName, "\\") {
+				parts := strings.Split(fullName, "\\")
+				namespace = strings.Join(parts[:len(parts)-1], "\\")
+				shortName = parts[len(parts)-1]
+			}
+
+			module, ok := funcModulesByNamespace[namespace]
+			if !ok {
+				module = &PseudoCode{
+					ModuleName:   "functions",
+					Description:  "标准库函数",
+					Namespace:    namespace,
+					IsAnnotation: isAnnotationNamespace(namespace),
+				}
+				funcModulesByNamespace[namespace] = module
+			}
+
+			sig := analyzeFunction(fn)
+			sig.Name = shortName
+			module.Functions = append(module.Functions, sig)
+		}
+
+		for _, m := range funcModulesByNamespace {
+			modules = append(modules, *m)
+		}
+	}
+
+	for _, class := range classes {
+		classSig := analyzeClass(ctx, class)
+
+		className := class.GetName()
+		var moduleName string
+		var namespace string
+
+		if strings.Contains(className, "\\") {
+			parts := strings.Split(className, "\\")
+			namespace = strings.Join(parts[:len(parts)-1], "\\")
+			moduleName = strings.ToLower(parts[len(parts)-1])
+		} else {
+			moduleName = strings.ToLower(className)
+		}
+
+		var module *PseudoCode
+		for i := range modules {
+			if modules[i].ModuleName == moduleName && modules[i].Namespace == namespace {
+				module = &modules[i]
+				break
+			}
+		}
+
+		if module == nil {
+			modules = append(modules, PseudoCode{
+				ModuleName:   moduleName,
+				Description:  fmt.Sprintf("%s 类", className),
+				Namespace:    namespace,
+				IsAnnotation: isAnnotationNamespace(namespace),
+			})
+			module = &modules[len(modules)-1]
+		}
+
+		module.Classes = append(module.Classes, classSig)
+	}
+
+	return modules
+}
+
+// PseudoCode 表示伪代码结构
+type PseudoCode struct {
+	ModuleName   string
+	Description  string
+	Namespace    string
+	IsAnnotation bool
+	Functions    []FunctionSignature
+	Classes      []ClassSignature
+}
+
+// FunctionSignature 表示函数签名
+type FunctionSignature struct {
+	Name       string
+	Params     []Parameter
+	ReturnType string
+	FakeReturn string // 虚假 return 语句，便于 IDE 分析
+	Comment    string
+}
+
+// ClassSignature 表示类签名
+type ClassSignature struct {
+	Name                 string
+	ClassName            string
+	Description          string
+	Methods              []MethodSignature
+	AnnotationCtorParams []Parameter
+	Properties           []PropertySignature
+}
+
+// MethodSignature 表示方法签名
+type MethodSignature struct {
+	Name       string
+	Params     []Parameter
+	ReturnType string
+	FakeReturn string
+	Modifier   string
+	IsStatic   bool
+	Comment    string
+}
+
+// PropertySignature 表示属性签名
+type PropertySignature struct {
+	Name     string
+	Type     string
+	Modifier string
+	IsStatic bool
+	Default  string
+	Comment  string
+}
+
+// Parameter 表示参数
+type Parameter struct {
+	Name       string
+	Type       string
+	IsVariadic bool
+	Default    string // 含前导空格，如 ` = "App"`
+}
+
+func resolveClassStmt(class data.ClassStmt, ctx data.Context) data.ClassStmt {
+	if cg, ok := class.(data.ClassGeneric); ok {
+		if cloned, ok := cg.Clone(nil).(data.ClassStmt); ok {
+			class = cloned
+		}
+	}
+
+	val, ctl := class.GetValue(ctx)
+	if ctl != nil {
+		return class
+	}
+	if cv, ok := val.(*data.ClassValue); ok && cv.Class != nil {
+		return cv.Class
+	}
+	if stmt, ok := val.(data.ClassStmt); ok {
+		return stmt
+	}
+	return class
+}
+
+// collectClassMethods 收集类方法，并合并 GetConstruct / GetStaticMethod 暴露的方法。
+func collectClassMethods(class data.ClassStmt) []data.Method {
+	seen := make(map[string]bool)
+	var collected []data.Method
+	add := func(m data.Method) {
+		if m == nil {
+			return
+		}
+		name := m.GetName()
+		if name == "" || seen[name] {
+			return
+		}
+		seen[name] = true
+		collected = append(collected, m)
+	}
+
+	for _, m := range class.GetMethods() {
+		add(m)
+	}
+	add(class.GetConstruct())
+
+	if gsm, ok := class.(data.GetStaticMethod); ok {
+		for _, name := range probeStaticMethodNames(class) {
+			if m, ok := gsm.GetStaticMethod(name); ok {
+				add(m)
+			}
+		}
+	}
+
+	sort.Slice(collected, func(i, j int) bool {
+		if collected[i].GetName() == "__construct" {
+			return true
+		}
+		if collected[j].GetName() == "__construct" {
+			return false
+		}
+		return collected[i].GetName() < collected[j].GetName()
+	})
+
+	return collected
+}
+
+// probeStaticMethodNames 探测可能存在的静态方法名（GetMethods 未包含时）。
+func probeStaticMethodNames(class data.ClassStmt) []string {
+	candidates := []string{
+		"bind", "path", "debug", "error", "info", "warn", "notice", "trace", "fatal",
+		"createFromFormat", "getLastErrors",
+	}
+	var names []string
+	for _, name := range candidates {
+		if _, ok := class.GetMethod(name); ok {
+			continue
+		}
+		names = append(names, name)
+	}
+	return names
+}
+
+func analyzeClass(ctx data.Context, class data.ClassStmt) ClassSignature {
+	class = resolveClassStmt(class, ctx)
+	className := class.GetName()
+
+	var shortClassName string
+	if strings.Contains(className, "\\") {
+		parts := strings.Split(className, "\\")
+		shortClassName = parts[len(parts)-1]
+	} else {
+		shortClassName = className
+	}
+
+	sig := ClassSignature{
+		Name:        className,
+		ClassName:   safePHPClassName(shortClassName),
+		Description: fmt.Sprintf("%s 类", shortClassName),
+	}
+
+	namespace := classNamespace(className)
+	forAnnotation := isAnnotationNamespace(className)
+	if ctor := class.GetConstruct(); ctor != nil {
+		sig.AnnotationCtorParams = analyzeMethodParams(ctor, forAnnotation, namespace)
+	}
+
+	for _, method := range collectClassMethods(class) {
+		if method == nil {
+			continue
+		}
+
+		methodSig := MethodSignature{
+			Name:     method.GetName(),
+			Modifier: "public",
+			IsStatic: method.GetIsStatic(),
+		}
+
+		methodSig.Params = analyzeMethodParams(method, false, namespace)
+
+		methodSig.ReturnType = formatPHPReturnType(methodReturnType(method), namespace, shortClassName)
+		methodSig.FakeReturn = fakeReturnStatement(methodSig.ReturnType, "        ")
+
+		if methodSig.Name == "__construct" {
+			if len(sig.AnnotationCtorParams) == 0 {
+				sig.AnnotationCtorParams = append([]Parameter(nil), methodSig.Params...)
+			}
+			if forAnnotation {
+				continue
+			}
+		}
+
+		sig.Methods = append(sig.Methods, methodSig)
+	}
+
+	return sig
+}
+
+func safePHPClassName(name string) string {
+	if _, reserved := phpReservedTypeNames[strings.ToLower(name)]; reserved {
+		return name + "Stub"
+	}
+	return name
+}
+
+func classNamespace(className string) string {
+	if !strings.Contains(className, "\\") {
+		return ""
+	}
+	parts := strings.Split(className, "\\")
+	return strings.Join(parts[:len(parts)-1], "\\")
+}
+
+func methodReturnType(method data.Method) data.Types {
+	if returnTypeInterface, ok := method.(data.GetReturnType); ok {
+		return returnTypeInterface.GetReturnType()
+	}
+	return nil
+}
+
+type methodParamsSource interface {
+	GetParams() []data.GetValue
+	GetVariables() []data.Variable
+}
+
+func analyzeMethodParams(method methodParamsSource, forAnnotation bool, namespace string) []Parameter {
+	params := method.GetParams()
+	vars := method.GetVariables()
+
+	varByIndex := make(map[int]data.Variable)
+	varByName := make(map[string]data.Variable)
+	for _, v := range vars {
+		varByIndex[v.GetIndex()] = v
+		varByName[v.GetName()] = v
+	}
+
+	var result []Parameter
+	for i, param := range params {
+		if param == nil {
+			continue
+		}
+		p := analyzeParam(param, forAnnotation, len(result))
+		if p == nil {
+			continue
+		}
+		if v, ok := varByIndex[i]; ok {
+			enrichParamFromVariable(p, v, namespace)
+		} else if v, ok := varByName[p.Name]; ok {
+			enrichParamFromVariable(p, v, namespace)
+		}
+		result = append(result, *p)
+	}
+	return result
+}
+
+func enrichParamFromVariable(p *Parameter, v data.Variable, namespace string) {
+	if ty := v.GetType(); ty != nil {
+		p.Type = formatPHPType(ty, namespace)
+	}
+	applyNullableDefault(p)
+}
+
+func applyNullableDefault(p *Parameter) {
+	if p.Default == " = null" && p.Type != "mixed" && !strings.HasPrefix(p.Type, "?") {
+		p.Type = "?" + p.Type
+	}
+}
+
+func analyzeParams(params []data.GetValue, forAnnotation bool) []Parameter {
+	var result []Parameter
+	for _, param := range params {
+		if param == nil {
+			continue
+		}
+		if p := analyzeParam(param, forAnnotation, len(result)); p != nil {
+			result = append(result, *p)
+		}
+	}
+	return result
+}
+
+func analyzeParam(param data.GetValue, forAnnotation bool, index int) *Parameter {
+	paramName := ""
+	paramType := "mixed"
+	isVariadic := false
+	var defaultValue data.GetValue
+
+	switch p := param.(type) {
+	case *node.Parameter:
+		paramName = p.GetName()
+		if p.GetType() != nil {
+			paramType = p.GetType().String()
+		}
+		defaultValue = p.GetDefaultValue()
+	case *node.PromotedParameter:
+		paramName = p.GetName()
+		if p.GetType() != nil {
+			paramType = p.GetType().String()
+		}
+		defaultValue = p.GetDefaultValue()
+	case data.Parameter:
+		paramName = p.GetName()
+		if p.GetType() != nil {
+			paramType = p.GetType().String()
+		}
+		defaultValue = p.GetDefaultValue()
+	case data.Variable:
+		paramName = p.GetName()
+		if p.GetType() != nil {
+			paramType = p.GetType().String()
+		}
+	default:
+		if _, ok := param.(*node.Parameters); ok {
+			isVariadic = true
+			paramName = fmt.Sprintf("param%d", index)
+		} else {
+			return nil
+		}
+	}
+
+	if paramName == "" {
+		paramName = fmt.Sprintf("param%d", index)
+	}
+
+	if forAnnotation && paramName == node.TargetName {
+		return nil
+	}
+
+	if _, ok := param.(*node.Parameters); ok {
+		isVariadic = true
+	}
+	if isVariadicParameter(param) {
+		isVariadic = true
+	}
+
+	p := &Parameter{
+		Name:       paramName,
+		Type:       formatPHPTypeFromString(paramType, ""),
+		IsVariadic: isVariadic,
+		Default:    formatDefaultValue(defaultValue),
+	}
+	applyNullableDefault(p)
+	return p
+}
+
+func isVariadicParameter(param data.GetValue) bool {
+	if _, ok := param.(*node.Parameters); ok {
+		return true
+	}
+	t := reflect.TypeOf(param)
+	if t != nil && t.Kind() == reflect.Ptr && t.Elem().Name() == "ParametersTODO" {
+		return true
+	}
+	return false
+}
+
+func formatPHPTypeFromString(s, namespace string) string {
+	if s == "" || s == "mixed" {
+		return "mixed"
+	}
+	return formatPHPType(&stubType{s: s}, namespace)
+}
+
+type stubType struct{ s string }
+
+func (t *stubType) Is(data.Value) bool { return true }
+func (t *stubType) String() string     { return t.s }
+
+func formatPHPType(ty data.Types, namespace string) string {
+	if ty == nil {
+		return "mixed"
+	}
+	raw := strings.TrimSpace(ty.String())
+	if raw == "" || raw == "void" || raw == "LspTypes" {
+		return "mixed"
+	}
+	if raw == "<T>" || strings.HasPrefix(raw, "<") || strings.HasSuffix(raw, ">") {
+		return "mixed"
+	}
+	if strings.Contains(raw, "\\") {
+		if namespace != "" && strings.HasPrefix(raw, namespace+"\\") {
+			short := strings.TrimPrefix(raw, namespace+"\\")
+			if short != "" && isValidPHPIdentifier(short) {
+				return short
+			}
+		}
+		return "\\" + raw
+	}
+	if strings.Contains(raw, "|") {
+		parts := strings.Split(raw, "|")
+		for i, part := range parts {
+			parts[i] = formatPHPTypeFromString(strings.TrimSpace(part), namespace)
+		}
+		return strings.Join(parts, "|")
+	}
+	if strings.HasPrefix(raw, "?") {
+		inner := formatPHPTypeFromString(raw[1:], namespace)
+		if inner == "mixed" {
+			return "mixed"
+		}
+		return "?" + inner
+	}
+	return raw
+}
+
+func isValidPHPIdentifier(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i, r := range s {
+		if i == 0 {
+			if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || r == '_' {
+				continue
+			}
+			return false
+		}
+		if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func formatPHPReturnType(ty data.Types, namespace, shortClassName string) string {
+	if ty == nil {
+		return ""
+	}
+	if g, ok := ty.(data.Generic); ok && g.Name == "" {
+		if namespace == "Database" && shortClassName == "DB" {
+			return "DB"
+		}
+		return ""
+	}
+	formatted := formatPHPType(ty, namespace)
+	if formatted == "" || formatted == "mixed" {
+		if g, ok := ty.(data.Generic); ok && (g.Name == "" || g.Name == "M") {
+			if namespace == "Database" {
+				return "DB"
+			}
+			return ""
+		}
+	}
+	if formatted == "mixed" {
+		return ""
+	}
+	return formatted
+}
+
+func formatDefaultValue(v data.GetValue) string {
+	if v == nil {
+		return ""
+	}
+	switch val := v.(type) {
+	case *data.StringValue:
+		return " = " + strconv.Quote(val.AsString())
+	case *data.IntValue:
+		return fmt.Sprintf(" = %d", val.Value)
+	case *data.FloatValue:
+		return fmt.Sprintf(" = %g", val.Value)
+	case *data.BoolValue:
+		if val.Value {
+			return " = true"
+		}
+		return " = false"
+	case *data.NullValue:
+		return " = null"
+	default:
+		return ""
+	}
+}
+
+func isAnnotationNamespace(namespace string) bool {
+	if namespace == "" {
+		return false
+	}
+	return strings.Contains(strings.ToLower(strings.ReplaceAll(namespace, "\\", "/")), "annotation")
+}
+
+func analyzeFunction(fn data.FuncStmt) FunctionSignature {
+	sig := FunctionSignature{
+		Name: fn.GetName(),
+	}
+
+	sig.Params = analyzeMethodParams(fn, false, "")
+
+	if returnTypeInterface, ok := fn.(data.GetReturnType); ok {
+		sig.ReturnType = formatPHPReturnType(returnTypeInterface.GetReturnType(), "", "")
+		sig.FakeReturn = fakeReturnStatement(sig.ReturnType, "    ")
+	}
+
+	return sig
+}
+
+// fakeReturnStatement 根据返回类型生成占位 return，使伪代码通过静态检查。
+func fakeReturnStatement(returnType, indent string) string {
+	if indent == "" {
+		indent = "    "
+	}
+	rt := strings.TrimSpace(returnType)
+	if rt == "" {
+		return ""
+	}
+
+	ret := func(expr string) string {
+		return indent + "return " + expr + ";\n"
+	}
+
+	if strings.HasPrefix(rt, "?") {
+		return ret("null")
+	}
+
+	if strings.Contains(rt, "|") {
+		parts := strings.Split(rt, "|")
+		for _, p := range parts {
+			if strings.TrimSpace(p) == "null" {
+				return ret("null")
+			}
+		}
+		return fakeReturnStatement(strings.TrimSpace(parts[0]), indent)
+	}
+
+	switch rt {
+	case "void", "never":
+		return ""
+	case "string":
+		return ret("''")
+	case "int":
+		return ret("0")
+	case "float":
+		return ret("0.0")
+	case "bool":
+		return ret("false")
+	case "array":
+		return ret("[]")
+	case "object":
+		return ret("new \\stdClass()")
+	case "callable":
+		return indent + "return static function () {};\n"
+	case "static":
+		return ret("new static()")
+	case "self":
+		return ret("new self()")
+	case "mixed":
+		return ret("null")
+	default:
+		if isValidPHPIdentifier(rt) || strings.HasPrefix(rt, "\\") {
+			return ret("new " + rt + "()")
+		}
+		return ret("null")
+	}
+}
+
+func generatePHPPseudoCode(module PseudoCode) string {
+	tmpl := `<?php
+
+{{if .Namespace}}namespace {{.Namespace}};
+
+{{end}}
+/**
+ * {{.ModuleName}} - {{.Description}}
+ * 
+ * 此文件包含 {{.ModuleName}} 模块的伪代码接口定义
+ * 这些是自动生成的接口，仅用于参考，不包含具体实现
+ */
+{{if .Functions}}
+{{range .Functions}}
+/**
+ * {{.Name}} 函数
+ * {{if .Comment}}{{.Comment}}{{end}}
+ */
+function {{.Name}}({{range $i, $param := .Params}}{{if $i}}, {{end}}{{if eq $param.IsVariadic true}}...${{$param.Name}}{{else}}{{if ne $param.Type "mixed"}}{{$param.Type}} {{end}}${{$param.Name}}{{$param.Default}}{{end}}{{end}}){{if .ReturnType}} : {{.ReturnType}}{{end}} {
+{{if .FakeReturn}}{{.FakeReturn}}{{else}}    // 实现逻辑
+{{end}}}
+{{end}}
+{{end}}
+{{if .Classes}}
+{{range .Classes}}
+/**
+ * {{.Name}} 类
+ * {{.Description}}
+ */
+{{if $.IsAnnotation}}#[\Attribute]
+class {{.ClassName}} {
+    public function __construct({{range $i, $param := .AnnotationCtorParams}}{{if $i}}, {{end}}{{if eq $param.IsVariadic true}}...${{$param.Name}}{{else}}{{if ne $param.Type "mixed"}}{{$param.Type}} {{end}}${{$param.Name}}{{$param.Default}}{{end}}{{end}}) {}
+{{if .Methods}}{{range .Methods}}
+    /**
+     * {{.Name}} 方法
+     * {{if .Comment}}{{.Comment}}{{end}}
+     */
+    {{.Modifier}} {{if .IsStatic}}static {{end}}function {{.Name}}({{range $i, $param := .Params}}{{if $i}}, {{end}}{{if eq $param.IsVariadic true}}...${{$param.Name}}{{else}}{{if ne $param.Type "mixed"}}{{$param.Type}} {{end}}${{$param.Name}}{{$param.Default}}{{end}}{{end}}){{if .ReturnType}} : {{.ReturnType}}{{end}} {
+{{if .FakeReturn}}{{.FakeReturn}}{{else}}        // 实现逻辑
+{{end}}    }
+{{end}}{{end}}
+}
+{{else}}class {{.ClassName}} {
+{{if .Properties}}{{range .Properties}}
+    /**
+     * {{.Name}} 属性
+     * {{if .Comment}}{{.Comment}}{{end}}
+     */
+    {{.Modifier}} {{if .IsStatic}}static {{end}}${{.Name}}{{if .Type}} : {{.Type}}{{end}}{{if .Default}} = {{.Default}}{{end}};
+{{end}}{{end}}{{if .Methods}}{{range .Methods}}
+    /**
+     * {{.Name}} 方法
+     * {{if .Comment}}{{.Comment}}{{end}}
+     */
+    {{.Modifier}} {{if .IsStatic}}static {{end}}function {{.Name}}({{range $i, $param := .Params}}{{if $i}}, {{end}}{{if eq $param.IsVariadic true}}...${{$param.Name}}{{else}}{{if ne $param.Type "mixed"}}{{$param.Type}} {{end}}${{$param.Name}}{{$param.Default}}{{end}}{{end}}){{if .ReturnType}} : {{.ReturnType}}{{end}} {
+{{if .FakeReturn}}{{.FakeReturn}}{{else}}        // 实现逻辑
+{{end}}    }
+{{end}}{{end}}
+}
+{{end}}
+{{end}}
+{{end}}`
+
+	t, err := template.New("php_pseudocode").Parse(tmpl)
+	if err != nil {
+		panic(err)
+	}
+
+	var buf strings.Builder
+	if err := t.Execute(&buf, module); err != nil {
+		panic(err)
+	}
+
+	return buf.String()
+}
+
+func generatePseudoCodeIndex(modules []PseudoCode) string {
+	tmpl := `# 标准库伪代码参考
+
+Origami 标准库的伪代码接口定义。
+
+## 模块列表
+
+{{range .}}
+### [{{.ModuleName}}]({{if .Namespace}}./{{.Namespace}}/{{.ModuleName}}.php{{else}}./{{.ModuleName}}.php{{end}})
+
+{{.Description}}
+
+{{end}}
+
+## 快速开始
+
+` + "`" + `php
+<?php
+// 使用标准库函数
+dump("Hello World");
+
+// 使用标准库类
+$log = new Log();
+$log->info("Application started");
+
+// 使用反射
+$reflect = new Reflect();
+$classInfo = $reflect->getClassInfo("MyClass");
+` + "`" + `
+
+## 模块说明
+
+{{range .}}
+### {{.ModuleName}}
+
+{{.Description}}
+
+**主要功能：**
+{{if .Functions}}
+- 函数：{{range .Functions}}{{.Name}}{{end}}
+{{end}}
+{{if .Classes}}
+- 类：{{range .Classes}}{{.Name}}{{end}}
+{{end}}
+
+[查看伪代码]({{if .Namespace}}./{{.Namespace}}/{{.ModuleName}}.php{{else}}./{{.ModuleName}}.php{{end}})
+{{end}}
+`
+
+	t, err := template.New("index").Parse(tmpl)
+	if err != nil {
+		panic(err)
+	}
+
+	var buf strings.Builder
+	if err := t.Execute(&buf, modules); err != nil {
+		panic(err)
+	}
+
+	return buf.String()
+}
