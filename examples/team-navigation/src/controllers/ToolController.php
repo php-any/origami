@@ -10,13 +10,15 @@ use Net\Annotation\PutMapping;
 use Net\Annotation\DeleteMapping;
 use Database\DB;
 use App\Models\ToolLink;
+use Net\Http\Request;
+use Net\Http\Response;
 
 #[Controller]
 #[Route(prefix: '/api/tools')]
 class ToolController
 {
     #[GetMapping(path: '/')]
-    public function lists($request, $response): void
+    public function lists(Request $request, Response $response): void
     {
         $result = DB::bind(ToolLink::class)->orderBy('display_order ASC')->get();
         $response->header('Content-Type', 'application/json; charset=utf-8');
@@ -24,7 +26,7 @@ class ToolController
     }
 
     #[PostMapping(path: '/')]
-    public function create($request, $response): void
+    public function create(Request $request, Response $response): void
     {
         $body = $request->body();
         $data = json_decode($body);
@@ -45,7 +47,7 @@ class ToolController
     }
 
     #[PutMapping(path: '/{id}')]
-    public function update($request, $response): void
+    public function update(Request $request, Response $response): void
     {
         $id = $request->pathValue('id');
         if ($id === null) {
@@ -73,7 +75,7 @@ class ToolController
     }
 
     #[DeleteMapping(path: '/{id}')]
-    public function delete($request, $response): void
+    public function delete(Request $request, Response $response): void
     {
         $id = $request->pathValue('id');
         if ($id === null) {

@@ -230,6 +230,23 @@ func (s *RequestClass) GetMethods() []data.Method {
 		s.formValue,
 		s.multipartReader,
 		s.setBasicAuth,
+		&RequestMethodMethod{source: s.source},
+		&RequestUrlMethod{source: s.source},
+		&RequestFullUrlMethod{source: s.source},
+		&RequestPathMethod{source: s.source},
+		&RequestQueryMethod{source: s.source},
+		&RequestHeaderMethod{source: s.source},
+		&RequestIpMethod{source: s.source},
+		&RequestHasMethod{source: s.source},
+		&RequestInputMethod{source: s.source},
+		&RequestOnlyMethod{source: s.source},
+		&RequestExceptMethod{source: s.source},
+		&RequestAllMethod{source: s.source},
+		&RequestFileMethod{source: s.source},
+		&RequestIsMethodMethod{source: s.source},
+		&RequestIsSecureMethod{source: s.source},
+		&RequestBindMethod{source: s.source},
+		&RequestBodyMethod{source: s.source},
 	}
 }
 

@@ -81,19 +81,19 @@ Log::info("=== 数据库操作演示 ===");
 Log::info("\n1. 基本查询操作:");
 
 // 获取所有用户
-$users = DB<User>()->get();
+$users = DB::bind(User::class)->get();
 Log::info("所有用户数量: " . $users->length);
 
 // 条件查询
-$youngUsers = DB<User>()->where("age < ?", 30)->get();
+$youngUsers = DB::bind(User::class)->where("age < ?", 30)->get();
 Log::info("年轻用户数量: " . $youngUsers->length);
 
 // 排序查询
-$sortedUsers = DB<User>()->orderBy("age DESC")->get();
+$sortedUsers = DB::bind(User::class)->orderBy("age DESC")->get();
 Log::info("按年龄排序的用户数量: " . $sortedUsers->length);
 
 // 限制查询
-$limitedUsers = DB<User>()->limit(5)->get();
+$limitedUsers = DB::bind(User::class)->limit(5)->get();
 Log::info("限制5个用户: " . $limitedUsers->length);
 
 // 2. 插入操作
@@ -104,7 +104,7 @@ $newUser->userName = "张三";
 $newUser->email = "zhangsan@example.com";
 $newUser->age = 25;
 
-$insertResult = DB<User>()->insert($newUser);
+$insertResult = DB::bind(User::class)->insert($newUser);
 Log::info("插入用户结果: " . $insertResult);
 
 $newUser2 = new User();
@@ -112,7 +112,7 @@ $newUser2->userName = "李四";
 $newUser2->email = "lisi@example.com";
 $newUser2->age = 30;
 
-$insertResult2 = DB<User>()->insert($newUser2);
+$insertResult2 = DB::bind(User::class)->insert($newUser2);
 Log::info("插入第二个用户结果: " . $insertResult2);
 
 // 故意插入重复数据来触发错误
@@ -122,7 +122,7 @@ $duplicateUser->userName = "重复用户";
 $duplicateUser->email = "zhangsan@example.com"; // 使用相同的邮箱
 $duplicateUser->age = 35;
 
-$duplicateResult = DB<User>()->insert($duplicateUser);
+$duplicateResult = DB::bind(User::class)->insert($duplicateUser);
 Log::info("重复插入结果: " . $duplicateResult);
 
 // 3. 更新操作
@@ -131,35 +131,35 @@ Log::info("\n3. 更新操作:");
 $updateUser = new User();
 $updateUser->age = 26;
 
-$updateResult = DB<User>()->where("name = ?", "张三")->update($updateUser);
+$updateResult = DB::bind(User::class)->where("name = ?", "张三")->update($updateUser);
 Log::info("更新用户年龄结果: " . $updateResult);
 
 // 4. 删除操作
 Log::info("\n4. 删除操作:");
 
-$deleteResult = DB<User>()->where("name = ?", "李四")->delete();
+$deleteResult = DB::bind(User::class)->where("name = ?", "李四")->delete();
 Log::info("删除用户结果: " . $deleteResult);
 
 // 5. 复杂查询
 Log::info("\n5. 复杂查询:");
 
 // 分组查询
-$ageGroups = DB<User>()->select("age")->groupBy("age")->get();
+$ageGroups = DB::bind(User::class)->select("age")->groupBy("age")->get();
 Log::info("年龄分组数量: " . $ageGroups->length);
 
 // 聚合查询
-$avgAge = DB<User>()->select("AVG(age) as avg_age")->first();
+$avgAge = DB::bind(User::class)->select("AVG(age) as avg_age")->first();
 Log::info("平均年龄: " . $avgAge);
 
 // 6. 原生SQL查询
 Log::info("\n6. 原生SQL查询:");
 
 // 执行原生查询
-$sqlResult = DB<User>()->query("SELECT COUNT(*) as total FROM users");
+$sqlResult = DB::bind(User::class)->query("SELECT COUNT(*) as total FROM users");
 Log::info("用户总数: " . $sqlResult);
 
 // 执行原生更新
-$execResult = DB<User>()->exec("UPDATE users SET age = age + 1 WHERE age < 30");
+$execResult = DB::bind(User::class)->exec("UPDATE users SET age = age + 1 WHERE age < 30");
 Log::info("更新年轻用户年龄结果: " . $execResult);
 
 // 7. 关联查询
@@ -171,38 +171,38 @@ $newPost->title = "我的第一篇文章";
 $newPost->content = "这是文章内容...";
 $newPost->user_id = 1;
 
-$postResult = DB<Post>()->insert($newPost);
+$postResult = DB::bind(Post::class)->insert($newPost);
 Log::info("插入文章结果: " . $postResult);
 
 // 查询用户及其文章
-$userPosts = DB<User>()->join("posts", "users.id = posts.user_id")->get();
+$userPosts = DB::bind(User::class)->join("posts", "users.id = posts.user_id")->get();
 Log::info("用户文章关联查询结果数量: " . $userPosts->length);
 
 // 8. 分页查询
 Log::info("\n8. 分页查询:");
 
-$page1 = DB<User>()->limit(2)->offset(0)->get();
+$page1 = DB::bind(User::class)->limit(2)->offset(0)->get();
 Log::info("第1页用户数量: " . $page1->length);
 
-$page2 = DB<User>()->limit(2)->offset(2)->get();
+$page2 = DB::bind(User::class)->limit(2)->offset(2)->get();
 Log::info("第2页用户数量: " . $page2->length);
 
 // 9. 统计信息
 Log::info("\n9. 统计信息:");
 
-$totalUsers = DB<User>()->query("SELECT COUNT(*) as count FROM users");
+$totalUsers = DB::bind(User::class)->query("SELECT COUNT(*) as count FROM users");
 Log::info("总用户数: " . $totalUsers);
 
-$totalPosts = DB<Post>()->query("SELECT COUNT(*) as count FROM posts");
+$totalPosts = DB::bind(Post::class)->query("SELECT COUNT(*) as count FROM posts");
 Log::info("总文章数: " . $totalPosts);
 
 // 10. 清理数据
 Log::info("\n10. 清理数据:");
 
-$cleanPosts = DB<Post>()->delete();
+$cleanPosts = DB::bind(Post::class)->delete();
 Log::info("清理文章结果: " . $cleanPosts);
 
-$cleanUsers = DB<User>()->delete();
+$cleanUsers = DB::bind(User::class)->delete();
 Log::info("清理用户结果: " . $cleanUsers);
 
 Log::info("\n=== 数据库操作演示完成 ===");

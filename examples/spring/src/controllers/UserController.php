@@ -11,19 +11,19 @@ use Net\Annotation\GetMapping;
 use Net\Annotation\PostMapping;
 use Spring\Model\Users;
 
-@Controller
-@Route(prefix: "/api")
+#[Controller]
+#[Route(prefix: "/api")]
 class UserController {
-    @GetMapping(path: "/users")
+    #[GetMapping(path: "/users")]
     public function users($request, $response) {
         $response->header("Content-Type", "text/html; charset=utf-8");
         $response->write("<html><body><h1>用户列表</h1></body></html>");
     }
 
-    @GetMapping(path: "/user/{id}")
+    #[GetMapping(path: "/user/{id}")]
     public function user($request, $response) {
+        $id = $request->pathValue('id');
         $user = new Users();
-        $user->id = $id;
         $user->name = "张三";
         $user->age = 20;
         $user->email = "zhangsan@example.com";

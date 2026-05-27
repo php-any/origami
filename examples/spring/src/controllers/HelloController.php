@@ -7,26 +7,26 @@ use Net\Annotation\Route;
 use Net\Annotation\GetMapping;
 use Net\Annotation\PostMapping;
 
-@Controller
-@Route(prefix: "/api")
+#[Controller]
+#[Route(prefix: "/api")]
 class HelloController {
-    @GetMapping(path: "/hello")
+    #[GetMapping(path: "/hello")]
     public function hello($request, $response) {
         $response->header("Content-Type", "text/plain; charset=utf-8");
         $response->write("Hello World!");
     }
 
-    @GetMapping(path: "/users")
+    #[GetMapping(path: "/users")]
     public function users($request, $response) {
         $response->header("Content-Type", "text/html; charset=utf-8");
         $response->write("<html><body><h1>用户列表</h1></body></html>");
     }
 
-    @Route(prefix: "/api")
-    @GetMapping(path: "/java")
-    public function users(request, response) {
-        response->header("Content-Type", "text/html; charset=utf-8");
-        response->write("test java style 222");
+    #[Route(prefix: "/api")]
+    #[GetMapping(path: "/java")]
+    public function users($request, $response) {
+        $response->header("Content-Type", "text/html; charset=utf-8");
+        $response->write("test java style 222");
     }
 }
 

@@ -10,12 +10,14 @@ use App\Models\ProjectEnvironment;
 use App\Models\ProjectTool;
 use App\Models\ToolLink;
 use App\Models\SearchEngine;
+use Net\Http\Request;
+use Net\Http\Response;
 
 #[Controller]
 class HomeController
 {
     #[GetMapping(path: '/')]
-    public function index($request, $response): void
+    public function index(Request $request, Response $response): void
     {
         // 加载工具（用于首页工具区及收藏）
         $tools = DB::bind(ToolLink::class)->orderBy('display_order ASC')->get();
@@ -68,7 +70,7 @@ class HomeController
     }
 
     #[GetMapping(path: '/admin')]
-    public function admin($request, $response): void
+    public function admin(Request $request, Response $response): void
     {
         // 加载工具
         $tools = DB::bind(ToolLink::class)->orderBy('display_order ASC')->get();

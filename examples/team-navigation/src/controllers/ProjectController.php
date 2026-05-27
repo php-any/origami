@@ -13,13 +13,15 @@ use App\Models\Project;
 use App\Models\ProjectEnvironment;
 use App\Models\ProjectTool;
 use App\Models\ToolLink;
+use Net\Http\Request;
+use Net\Http\Response;
 
 #[Controller]
 #[Route(prefix: '/api/projects')]
 class ProjectController
 {
     #[GetMapping(path: '/')]
-    public function lists($request, $response): void
+    public function lists(Request $request, Response $response): void
     {
         $projects = DB::bind(Project::class)->orderBy('display_order ASC')->get();
         $result = [];
@@ -67,7 +69,7 @@ class ProjectController
     }
 
     #[PostMapping(path: '/')]
-    public function create($request, $response): void
+    public function create(Request $request, Response $response): void
     {
         $body = $request->body();
         $data = json_decode($body);
@@ -112,7 +114,7 @@ class ProjectController
     }
 
     #[PutMapping(path: '/{id}')]
-    public function update($request, $response): void
+    public function update(Request $request, Response $response): void
     {
         $id = $request->pathValue('id');
         if ($id === null) {
@@ -169,7 +171,7 @@ class ProjectController
     }
 
     #[DeleteMapping(path: '/{id}')]
-    public function delete($request, $response): void
+    public function delete(Request $request, Response $response): void
     {
         $id = $request->pathValue('id');
         if ($id === null) {
@@ -187,7 +189,7 @@ class ProjectController
     }
 
     #[PostMapping(path: '/{projectId}/environments')]
-    public function createEnvironment($request, $response): void
+    public function createEnvironment(Request $request, Response $response): void
     {
         $projectId = $request->pathValue('projectId');
         if ($projectId === null) {
@@ -214,7 +216,7 @@ class ProjectController
     }
 
     #[PutMapping(path: '/{projectId}/environments/{envId}')]
-    public function updateEnvironment($request, $response): void
+    public function updateEnvironment(Request $request, Response $response): void
     {
         $projectId = $request->pathValue('projectId');
         $envId = $request->pathValue('envId');
@@ -243,7 +245,7 @@ class ProjectController
     }
 
     #[DeleteMapping(path: '/{projectId}/environments/{envId}')]
-    public function deleteEnvironment($request, $response): void
+    public function deleteEnvironment(Request $request, Response $response): void
     {
         $projectId = $request->pathValue('projectId');
         $envId = $request->pathValue('envId');

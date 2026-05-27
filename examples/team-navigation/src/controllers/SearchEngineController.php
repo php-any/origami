@@ -10,13 +10,15 @@ use Net\Annotation\PutMapping;
 use Net\Annotation\DeleteMapping;
 use Database\DB;
 use App\Models\SearchEngine;
+use Net\Http\Request;
+use Net\Http\Response;
 
 #[Controller]
 #[Route(prefix: '/api/search-engines')]
 class SearchEngineController
 {
     #[GetMapping(path: '/')]
-    public function lists($request, $response): void
+    public function lists(Request $request, Response $response): void
     {
         $result = DB::bind(SearchEngine::class)->orderBy('display_order ASC, id ASC')->get();
         $response->header('Content-Type', 'application/json; charset=utf-8');
@@ -24,7 +26,7 @@ class SearchEngineController
     }
 
     #[PostMapping(path: '/')]
-    public function create($request, $response): void
+    public function create(Request $request, Response $response): void
     {
         $body = $request->body();
         $data = json_decode($body);
@@ -48,7 +50,7 @@ class SearchEngineController
     }
 
     #[PutMapping(path: '/{id}')]
-    public function update($request, $response): void
+    public function update(Request $request, Response $response): void
     {
         $id = $request->pathValue('id');
         if ($id === null) {
@@ -79,7 +81,7 @@ class SearchEngineController
     }
 
     #[DeleteMapping(path: '/{id}')]
-    public function delete($request, $response): void
+    public function delete(Request $request, Response $response): void
     {
         $id = $request->pathValue('id');
         if ($id === null) {
