@@ -100,6 +100,7 @@ const (
 	ENDWHILE                            // endwhile 替代语法结束
 	ENDFOR                              // endfor 替代语法结束
 	ENDSWITCH                           // endswitch 替代语法结束
+	HEREDOC_START                       // <<< heredoc/nowdoc 起始关键字
 
 	KEYWORD_END TokenType = iota + 100
 

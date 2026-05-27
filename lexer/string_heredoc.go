@@ -30,35 +30,56 @@ func handleHeredocString(input string, start int, identifier string) (SpecialTok
 		pos++
 	}
 
-	// 查找结束标识符（支持前导空格/制表符）
-	searchStart := pos
-	for searchStart < len(input) {
-		// 查找换行符
-		newlinePos := strings.IndexByte(input[searchStart:], '\n')
-		if newlinePos == -1 {
-			return SpecialToken{}, start, false
-		}
-		newlinePos += searchStart
-
-		// 跳过换行符和前导空格/制表符
-		markerStart := newlinePos + 1
+	// 查找结束标识符（支持前导空格/制表符；结束标记须独占一行）
+	tryCloseMarker := func(at int) (int, bool) {
+		markerStart := at
 		for markerStart < len(input) && (input[markerStart] == ' ' || input[markerStart] == '\t') {
 			markerStart++
 		}
-
-		// 检查是否是结束标识符
-		if markerStart+len(identifier) <= len(input) && input[markerStart:markerStart+len(identifier)] == identifier {
-			// 找到结束标识符
-			endPos := markerStart + len(identifier)
-			literal := input[start:endPos]
-			return SpecialToken{
-				Type:    token.STRING,
-				Literal: literal,
-				Length:  endPos - start,
-			}, endPos, true
+		if markerStart+len(identifier) > len(input) {
+			return 0, false
 		}
+		if input[markerStart:markerStart+len(identifier)] != identifier {
+			return 0, false
+		}
+		after := markerStart + len(identifier)
+		for after < len(input) && (input[after] == ' ' || input[after] == '\t') {
+			after++
+		}
+		if after >= len(input) || input[after] == '\n' || input[after] == '\r' || input[after] == ';' {
+			return markerStart + len(identifier), true
+		}
+		return 0, false
+	}
 
-		// 继续查找下一个换行符
+	emit := func(endPos int) (SpecialToken, int, bool) {
+		literal := input[start:endPos]
+		tt := token.HEREDOC
+		if _, isNowdoc := HeredocTokenType(literal); isNowdoc {
+			tt = token.NOWDOC
+		}
+		return SpecialToken{
+			Type:    tt,
+			Literal: literal,
+			Length:  endPos - start,
+		}, endPos, true
+	}
+
+	searchStart := pos
+	if endPos, ok := tryCloseMarker(searchStart); ok {
+		return emit(endPos)
+	}
+
+	for searchStart < len(input) {
+		newlinePos := strings.IndexByte(input[searchStart:], '\n')
+		if newlinePos == -1 {
+			break
+		}
+		newlinePos += searchStart
+		markerStart := newlinePos + 1
+		if endPos, ok := tryCloseMarker(markerStart); ok {
+			return emit(endPos)
+		}
 		searchStart = newlinePos + 1
 	}
 

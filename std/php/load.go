@@ -120,6 +120,7 @@ func Load(vm data.VM) {
 		NewStrtoupperFunction(),
 		NewOrdFunction(),
 		NewChrFunction(),
+		NewStrPadFunction(),
 		NewStrRepeatFunction(),
 		core.NewPhpVersionFunction(),
 		NewStrcspnFunction(),
@@ -279,7 +280,7 @@ func Load(vm data.VM) {
 	vm.AddClass(&core.StdClass{})
 	vm.AddClass(&core.NormalizerClass{})
 	vm.AddClass(&core.WeakMapClass{})
-		vm.AddClass(&core.FiberClass{})
+	vm.AddClass(&core.FiberClass{})
 
 	// 注册 DOM 类
 	vm.AddClass(core.NewDOMNodeClass())
@@ -322,7 +323,7 @@ func Load(vm data.VM) {
 	vm.AddInterface(exception.NewThrowableInterface())
 
 	// 注册异常类
-		vm.AddClass(exception.NewExceptionClass())
+	vm.AddClass(exception.NewExceptionClass())
 	vm.AddClass(exception.NewLogicExceptionClass())
 	vm.AddClass(exception.NewInvalidArgumentExceptionClass())
 	vm.AddClass(exception.NewRuntimeExceptionClass())

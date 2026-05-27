@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"strings"
 	"unicode"
 
 	"github.com/php-any/origami/token"
@@ -196,8 +197,11 @@ func (p *Preprocessor) Process() []Token {
 		switch t.Type() {
 		case token.WHITESPACE, token.COMMENT, token.MULTILINE_COMMENT:
 			continue
+		case token.HEREDOC:
+			filtered = append(filtered, processHeredocInterpolation(t))
+		case token.NOWDOC:
+			filtered = append(filtered, t)
 		case token.STRING:
-			// 2. 字符串插值
 			filtered = append(filtered, processStringInterpolation(t))
 		case token.DOLLAR:
 			// 处理$标识符组合
@@ -829,6 +833,23 @@ func processStringInterpolation(t Token) Token {
 		t.Line(),
 		t.Pos(),
 	)
+}
+
+// processHeredocInterpolation 处理 heredoc 字符串；nowdoc 不插值，heredoc 规则同双引号字符串
+func processHeredocInterpolation(t Token) Token {
+	body, isNowdoc, ok := ExtractHeredocBody(t.Literal())
+	if !ok || isNowdoc || !strings.Contains(body, "$") {
+		return t
+	}
+	synthetic := NewWorkerToken(
+		token.STRING,
+		"\""+body+"\"",
+		t.Start(),
+		t.End(),
+		t.Line(),
+		t.Pos(),
+	)
+	return processStringInterpolation(synthetic)
 }
 
 // isValidVarChar 检查是否是有效的变量名字符

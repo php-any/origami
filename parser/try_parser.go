@@ -113,7 +113,7 @@ func (p *TryParser) parseCatchBlock(tracker *PositionTracker) (*node.CatchBlock,
 		exceptionType = data.NewUnionType(types)
 	}
 
-	// 检查是否有变量名
+	// 检查是否有变量名：catch (Exception $e) 或 catch (Throwable)
 	var variable data.Variable
 	if p.checkPositionIs(0, token.VARIABLE) {
 		stmt, acl := p.parseStatement()
@@ -128,11 +128,12 @@ func (p *TryParser) parseCatchBlock(tracker *PositionTracker) (*node.CatchBlock,
 		if acl != nil {
 			return nil, acl
 		}
-	} else {
-		name := p.current().Literal()
+	} else if p.checkPositionIs(0, token.RPAREN) {
+		// PHP 8+: catch (Throwable) 无绑定变量
+		variable = nil
 		p.next()
-		val := p.scopeManager.CurrentScope().AddVariable(name, exceptionType, tracker.EndBefore())
-		variable = node.NewVariableWithFirst(tracker.EndBefore(), val)
+	} else {
+		return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("catch 子句语法错误，期望 $变量 或 )"))
 	}
 
 	// 解析catch块体

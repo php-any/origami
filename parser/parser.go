@@ -25,8 +25,8 @@ type Parser struct {
 	scopeManager     *ScopeManager     // 作用域管理器
 	expressionParser *ExpressionParser // 表达式解析器
 
-	identTryString bool
-	currentClass   string
+	identTryString  bool
+	currentClass    string
 	currentFunction string
 
 	namespace        *node.Namespace
@@ -108,9 +108,9 @@ func (p *Parser) ParseFile(filename string) (*node.Program, data.Control) {
 				phpContent = ""
 			}
 		}
-			// 转换 PHP 替代语法（if: endif; 等）为标准花括号语法
-			phpContent = convertAltPHPSyntax(filename, phpContent)
-			p.tokens = p.lexer.TokenizeTemplate(phpContent)
+		// 转换 PHP 替代语法（if: endif; 等）为标准花括号语法
+		phpContent = convertAltPHPSyntax(filename, phpContent)
+		p.tokens = p.lexer.TokenizeTemplate(phpContent)
 	} else {
 		p.tokens = p.lexer.Tokenize(string(content))
 	}
@@ -392,6 +392,9 @@ func (p *Parser) parseValue() (data.GetValue, bool) {
 		value := p.current().Literal()
 		p.next()
 		return node.NewFloatLiteral(tracker.EndBefore(), value), true
+	case token.HEREDOC, token.NOWDOC:
+		stmt, acl := NewHeredocParser(p).ParseLiteral()
+		return stmt, acl == nil
 	case token.STRING:
 		// 检查是否是 LingToken（插值字符串）
 		if lingToken, ok := p.current().(*lexer.LingToken); ok {

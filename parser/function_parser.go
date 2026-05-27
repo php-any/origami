@@ -25,6 +25,12 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 	// 跳过 function 关键字
 	fp.next()
 	tracker := fp.StartTracking()
+	// 跳过 & 引用返回标记（function &name() {}）
+	returnsReference := false
+	if fp.checkPositionIs(0, token.BIT_AND) {
+		returnsReference = true
+		fp.next()
+	}
 	// 解析函数名
 	if !fp.checkPositionIs(0, token.IDENTIFIER) {
 		if fp.checkPositionIs(0, token.LPAREN) {
@@ -148,6 +154,7 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 		body,
 		vars,
 		ret,
+		returnsReference,
 	)
 
 	//if acl := fp.vm.AddFunc(f); acl != nil {

@@ -49,10 +49,10 @@ if ($result5 == "Hello, World!") {
 }
 
 // 对象属性插值
-class User {
+class InterpolationUser {
     public $name = "Alice";
 }
-$user = new User();
+$user = new InterpolationUser();
 $result6 = "User: {$user->name}";
 if ($result6 == "User: Alice") {
     Log::info("对象属性插值测试通过");

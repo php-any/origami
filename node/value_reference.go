@@ -31,6 +31,33 @@ func (v *ValueReference) GetValue(ctx data.Context) (data.GetValue, data.Control
 	if ie, ok := v.Value.(*IndexExpression); ok {
 		return v.resolveIndexRef(ctx, ie)
 	}
+	// 按引用返回的函数调用：&getRef($x)
+	if call, ok := v.Value.(*CallExpression); ok {
+		ret, ctl := call.GetValue(ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if ref, ok := ret.(data.Value); ok {
+			switch ref.(type) {
+			case *data.ReferenceValue, *data.ArraySlotRef, *data.IndexReferenceValue:
+				return ref, nil
+			}
+		}
+		return nil, data.NewErrorThrow(v.from, errors.New("只能引用变量"))
+	}
+	if call, ok := v.Value.(*CallLater); ok {
+		ret, ctl := call.GetValue(ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if ref, ok := ret.(data.Value); ok {
+			switch ref.(type) {
+			case *data.ReferenceValue, *data.ArraySlotRef, *data.IndexReferenceValue:
+				return ref, nil
+			}
+		}
+		return nil, data.NewErrorThrow(v.from, errors.New("只能引用变量"))
+	}
 	return nil, data.NewErrorThrow(v.from, errors.New("只能引用变量"))
 }
 

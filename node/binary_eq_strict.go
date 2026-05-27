@@ -105,6 +105,16 @@ func isStrictEqual(value1, value2 data.GetValue) bool {
 			return true
 		}
 		return false
+	case *data.ClassValue:
+		// PHP === 对对象比较同一性（同一实例）
+		v2, ok2 := value2.(*data.ClassValue)
+		return ok2 && v1 == v2
+	case *data.ThisValue:
+		t2, ok2 := value2.(*data.ThisValue)
+		if !ok2 {
+			return false
+		}
+		return v1.ClassValue == t2.ClassValue
 	default:
 		// 对于其他类型，尝试字符串比较
 		if strValue1, ok := value1.(data.AsString); ok {

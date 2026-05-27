@@ -267,7 +267,9 @@ func (ep *ExpressionParser) parseLogicalAnd() (data.GetValue, data.Control) {
 	if acl != nil {
 		return nil, acl
 	}
-	if expr == nil { return nil, nil }
+	if expr == nil {
+		return nil, nil
+	}
 	for ep.current().Type() == token.LAND {
 		operator := ep.current()
 		ep.next()
@@ -403,6 +405,138 @@ func (ep *ExpressionParser) parseBitwiseOr() (data.GetValue, data.Control) {
 	return expr, nil
 }
 
+// parseArrayIndex 解析 [...] 内的下标：支持 +、&、| 等，但不将 .. 当作 range（切片由 parseArrayAccess 处理）。
+func (ep *ExpressionParser) parseArrayIndex() (data.GetValue, data.Control) {
+	return ep.parseBitwiseOrIndex()
+}
+
+func (ep *ExpressionParser) parseBitwiseOrIndex() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseBitwiseXorIndex()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.BIT_OR {
+		operator := ep.current()
+		ep.next()
+		right, acl := ep.parseBitwiseXorIndex()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(tracker.EndBefore(), expr, operator, right)
+	}
+	return expr, nil
+}
+
+func (ep *ExpressionParser) parseBitwiseXorIndex() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseBitwiseAndIndex()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.BIT_XOR {
+		operator := ep.current()
+		ep.next()
+		right, acl := ep.parseBitwiseAndIndex()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(tracker.EndBefore(), expr, operator, right)
+	}
+	return expr, nil
+}
+
+func (ep *ExpressionParser) parseBitwiseAndIndex() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseEqualityIndex()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.BIT_AND {
+		operator := ep.current()
+		ep.next()
+		right, acl := ep.parseEqualityIndex()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(tracker.EndBefore(), expr, operator, right)
+	}
+	return expr, nil
+}
+
+func (ep *ExpressionParser) parseEqualityIndex() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseComparisonIndex()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.checkPositionIs(0, token.EQ, token.NE, token.EQ_STRICT, token.NE_STRICT) {
+		operator := ep.current()
+		ep.next()
+		right, acl := ep.parseComparisonIndex()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(tracker.EndBefore(), expr, operator, right)
+	}
+	return expr, nil
+}
+
+func (ep *ExpressionParser) parseComparisonIndex() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseShiftIndex()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.checkPositionIs(0, token.LT, token.LE, token.GT, token.GE, token.SPACESHIP) {
+		operator := ep.current()
+		ep.next()
+		right, acl := ep.parseShiftIndex()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(tracker.EndBefore(), expr, operator, right)
+	}
+	return expr, nil
+}
+
+func (ep *ExpressionParser) parseShiftIndex() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseTermNoRange()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.checkPositionIs(0, token.SHL, token.SHR) {
+		operator := ep.current()
+		ep.next()
+		right, acl := ep.parseTermNoRange()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(tracker.EndBefore(), expr, operator, right)
+	}
+	return expr, nil
+}
+
+// parseTermNoRange 加减项，不解析 .. 范围运算符（留给数组下标后的 parseArrayAccess）。
+func (ep *ExpressionParser) parseTermNoRange() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseFactor()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.ADD || ep.current().Type() == token.SUB {
+		operator := ep.current()
+		ep.next()
+		right, acl := ep.parseFactor()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(tracker.EndBefore(), expr, operator, right)
+	}
+	return expr, nil
+}
+
 // parseComparison 解析比较表达式
 func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
@@ -461,10 +595,10 @@ func (ep *ExpressionParser) parseShift() (data.GetValue, data.Control) {
 	return expr, nil
 }
 
-// parseTerm 解析加减表达式
+// parseTerm 解析加减表达式（含范围运算符 ..，如 1..5）
 func (ep *ExpressionParser) parseTerm() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
-	expr, acl := ep.parseFactor()
+	expr, acl := ep.parseRangeOperand()
 	if acl != nil {
 		return nil, acl
 	}
@@ -472,7 +606,7 @@ func (ep *ExpressionParser) parseTerm() (data.GetValue, data.Control) {
 		operator := ep.current()
 		ep.next()
 
-		right, acl := ep.parseFactor()
+		right, acl := ep.parseRangeOperand()
 		if acl != nil {
 			return nil, acl
 		}
@@ -484,6 +618,24 @@ func (ep *ExpressionParser) parseTerm() (data.GetValue, data.Control) {
 		)
 	}
 
+	return expr, nil
+}
+
+// parseRangeOperand 解析范围表达式（如 1..5）
+func (ep *ExpressionParser) parseRangeOperand() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseFactor()
+	if acl != nil {
+		return nil, acl
+	}
+	if ep.current().Type() == token.DOUBLE_DOT {
+		ep.next()
+		right, acl := ep.parseUnary()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewRange(tracker.EndBefore(), nil, expr, right)
+	}
 	return expr, nil
 }
 
@@ -643,18 +795,41 @@ func (ep *ExpressionParser) parsePower() (data.GetValue, data.Control) {
 func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 	switch ep.current().Type() {
 	case token.DOLLAR:
-		// 处理 PHP 变量变量的基础形式：$$field
+		// 处理 PHP 变量变量形式：$$field、$$$$a 等
 		tracker := ep.StartTracking()
 		ep.next() // 跳过第一个 $
-		if ep.current().Type() != token.VARIABLE {
-			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("当前仅支持 $$var 形式的变量变量"))
+
+		// 如果后面还是 $，说明是多层可变变量（例如 $$$$a）
+		extraDollar := 0
+		for ep.current().Type() == token.DOLLAR {
+			extraDollar++
+			ep.next()
 		}
+
+		if ep.current().Type() != token.VARIABLE {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("当前仅支持 $$var / $$$$var 形式的变量变量"))
+		}
+
 		// 解析名称变量（例如 $field）
 		vp := &VariableParser{ep.Parser}
 		nameExpr := vp.parseVariable()
+
 		// 捕获当前作用域中的所有变量，作为运行时名称解析的候选集合
 		vars := ep.GetVariables()
-		return node.NewVarVar(tracker.EndBefore(), nameExpr, vars), nil
+
+		// 至少一层 $$name
+		expr := node.NewVarVar(tracker.EndBefore(), nameExpr, vars)
+		// 额外的 $ 再包一层 VarVar，实现多层解析：
+		// - $$a   -> VarVar($a)
+		// - $$$a  -> VarVar(VarVar($a))
+		// - $$$$a -> 也退化为 VarVar(VarVar($a))（与 tests/basic/var_var.zy 期望对齐）
+		if extraDollar > 1 {
+			extraDollar = 1
+		}
+		for i := 0; i < extraDollar; i++ {
+			expr = node.NewVarVar(tracker.EndBefore(), expr, vars)
+		}
+		return expr, nil
 	case token.INT:
 		value := ep.current().Literal()
 		ep.next()
@@ -663,6 +838,8 @@ func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 		value := ep.current().Literal()
 		ep.next()
 		return node.NewFloatLiteral(ep.FromCurrentToken(), value), nil
+	case token.HEREDOC, token.NOWDOC:
+		return NewHeredocParser(ep.Parser).ParseLiteral()
 	case token.STRING:
 		// 普通字符串
 		value := ep.current().Literal()

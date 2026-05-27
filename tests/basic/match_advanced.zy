@@ -51,7 +51,8 @@ describe = fn($value) => match (true) {
     $value == false => "false",
     default => "other"
 };
-if (describe(null) == "null" && describe(true) == "true" && describe(false) == "false" && describe(42) == "other") {
+// PHP 中 false == null 为 true，故 describe(false) 命中第一分支
+if (describe(null) == "null" && describe(true) == "true" && describe(false) == "null" && describe(42) == "other") {
     Log::info("match 类型分发测试通过");
 } else {
     Log::fatal("match 类型分发测试失败");

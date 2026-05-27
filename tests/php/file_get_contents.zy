@@ -4,7 +4,7 @@ echo "=== file_get_contents() 函数测试 ===\n";
 
 // 测试读取存在的文件
 try {
-    $content = file_get_contents("origami.go");
+    $content = file_get_contents("zy.go");
     if(gettype($content) == "string") {
         Log::info("读取文件返回字符串测试通过");
     } else {

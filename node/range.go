@@ -26,6 +26,9 @@ func NewRange(token *TokenFrom, array data.GetValue, start, stop data.GetValue) 
 
 // GetValue 获取数组访问表达式的值
 func (ie *Range) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if ie.Array == nil {
+		return ie.evalNumericRange(ctx)
+	}
 	temp, acl := ie.Array.GetValue(ctx)
 	if acl != nil {
 		return nil, acl
@@ -90,4 +93,45 @@ func (ie *Range) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("无法处理范围的类型值"))
+}
+
+// evalNumericRange 将 start..stop 生成为整数数组（含端点）
+func (ie *Range) evalNumericRange(ctx data.Context) (data.GetValue, data.Control) {
+	start, acl := ie.evalRangeEndpoint(ctx, ie.Start)
+	if acl != nil {
+		return nil, acl
+	}
+	stop, acl := ie.evalRangeEndpoint(ctx, ie.Stop)
+	if acl != nil {
+		return nil, acl
+	}
+	var list []data.Value
+	if start <= stop {
+		for i := start; i <= stop; i++ {
+			list = append(list, data.NewIntValue(i))
+		}
+	} else {
+		for i := start; i >= stop; i-- {
+			list = append(list, data.NewIntValue(i))
+		}
+	}
+	return data.NewArrayValue(list), nil
+}
+
+func (ie *Range) evalRangeEndpoint(ctx data.Context, expr data.GetValue) (int, data.Control) {
+	if expr == nil {
+		return 0, nil
+	}
+	temp, acl := expr.GetValue(ctx)
+	if acl != nil {
+		return 0, acl
+	}
+	if asIntV, ok := temp.(data.AsInt); ok {
+		i, err := asIntV.AsInt()
+		if err != nil {
+			return 0, data.NewErrorThrow(ie.GetFrom(), err)
+		}
+		return i, nil
+	}
+	return 0, data.NewErrorThrow(ie.GetFrom(), errors.New("范围端点必须是整数"))
 }

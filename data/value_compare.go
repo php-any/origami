@@ -3,14 +3,14 @@ package data
 // Compare 比较两个值，返回 -1、0 或 1
 // 返回值：-1（v1 < v2）、0（v1 == v2）、1（v1 > v2）
 func Compare(v1, v2 Value) int {
-	// 处理 null
-	if _, ok := v1.(AsNull); ok {
-		if _, ok := v2.(AsNull); ok {
+	// 处理 null（须用具体类型，AsNull 接口会被 FloatValue 等误实现）
+	if _, ok := v1.(*NullValue); ok {
+		if _, ok := v2.(*NullValue); ok {
 			return 0
 		}
 		return -1
 	}
-	if _, ok := v2.(AsNull); ok {
+	if _, ok := v2.(*NullValue); ok {
 		return 1
 	}
 

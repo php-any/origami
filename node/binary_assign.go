@@ -159,6 +159,12 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 				}
 			}
 			return data.NewBoolValue(true), nil
+		case *VarVar:
+			// $$var = ... ：委托给 VarVar 自身的 SetValue
+			if ctl := l.SetValue(ctx, v); ctl != nil {
+				return nil, ctl
+			}
+			return v, nil
 		// 其它 data.Variable 类型（包括各类超全局变量节点），统一走其自身的 SetValue 逻辑；
 		// 若某个超全局是只读的，应在对应节点的 SetValue 中返回错误或忽略写入。
 		default:

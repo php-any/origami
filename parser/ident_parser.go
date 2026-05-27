@@ -104,10 +104,10 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 
 	// 检查 startToken 和 checkToken 之间是否连贯
 	if p.isTokensAdjacent(startToken, checkToken) {
-		// ( 函数调用 div()
+		// ( 函数调用 div() 或可调用变量 describe()
 		if p.checkPositionIs(0, token.LPAREN) {
-			// 创建函数调用表达式
 			vp := &VariableParser{p.Parser}
+			// 创建全局/命名空间函数调用表达式
 			if full, ok := p.findFullFunNameByNamespace(name); ok {
 				stmt, acl := vp.parseFunctionCall()
 				if acl != nil {
@@ -120,6 +120,10 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 				callExpr := node.NewCallExpression(tracker.EndBefore(), full, stmt, fn)
 				// 支持函数调用结果继续链式操作：app()->name, app()[0], app()()
 				return vp.parseSuffix(callExpr)
+			}
+			// 若不存在同名函数，再退化为可调用变量（如 $fn = fn(...); $fn()）
+			if varInfo := p.scopeManager.LookupVariable(name); varInfo != nil {
+				return vp.parseSuffix(varInfo)
 			} else if InLSP {
 				stmt, acl := vp.parseFunctionCall()
 				if acl != nil {
@@ -246,6 +250,12 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 	// 是否是define后的字符串
 	if v, ok := p.vm.GetConstant(name); ok {
 		return v, nil
+	}
+
+	// 赋值目标：describe = ... 将裸标识符视为变量名
+	if p.checkPositionIs(0, token.ASSIGN, token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ, token.CONCAT_EQ, token.NULL_COALESCE_ASSIGN) {
+		val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+		return node.NewVariableWithFirst(tracker.EndBefore(), val), nil
 	}
 
 	return node.NewStringLiteral(tracker.EndBefore(), name), nil

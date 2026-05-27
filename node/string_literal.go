@@ -100,43 +100,36 @@ type StringLiteral struct {
 	Value string
 }
 
-// NewStringLiteral 创建一个新的字符串字面量
+// NewStringLiteral 创建一个新的字符串字面量（仅处理引号字符串；heredoc/nowdoc 见 NewHeredocLiteral / NewNowdocLiteral）
 func NewStringLiteral(token *TokenFrom, value string) data.GetValue {
-	// 检查是否是 heredoc/nowdoc
-	if len(value) >= 3 && value[:3] == "<<<" {
-		// heredoc/nowdoc 格式: <<<'IDENTIFIER'\n内容\nIDENTIFIER 或 <<<IDENTIFIER\n内容\nIDENTIFIER
-		// 找到第一个换行符（内容开始）
-		firstNewline := strings.IndexByte(value, '\n')
-		if firstNewline == -1 {
-			firstNewline = strings.IndexByte(value, '\r')
-		}
-		if firstNewline != -1 {
-			// 找到最后一个换行符（结束标记前）
-			lastNewline := strings.LastIndexByte(value, '\n')
-			if lastNewline == -1 {
-				lastNewline = strings.LastIndexByte(value, '\r')
-			}
-			if lastNewline > firstNewline {
-				// 提取内容部分（第一个换行符后到最后一个换行符前）
-				value = value[firstNewline+1 : lastNewline]
-			}
-		}
-	} else {
-		// 普通引号字符串：区分双引号与单引号，再去掉首尾引号并解析转义
-		if len(value) >= 2 && (value[0] == '"' || value[0] == '\'') {
-			isDouble := value[0] == '"'
-			value = value[1 : len(value)-1]
-			if isDouble {
-				value = unescapeDoubleQuoted(value) // 支持 \033 \x1B \e \n \t 等
-			} else {
-				value = unescapeSingleQuoted(value) // 仅 \\ 与 \'
-			}
+	if len(value) >= 2 && (value[0] == '"' || value[0] == '\'') {
+		isDouble := value[0] == '"'
+		value = value[1 : len(value)-1]
+		if isDouble {
+			value = unescapeDoubleQuoted(value)
+		} else {
+			value = unescapeSingleQuoted(value)
 		}
 	}
-
 	return &StringLiteral{
 		Node:  NewNode(token),
 		Value: value,
+	}
+}
+
+// NewHeredocLiteral 创建 heredoc 字符串字面量（正文已由 HeredocParser 提取）
+func NewHeredocLiteral(token *TokenFrom, body string) data.GetValue {
+	return &StringLiteral{
+		Node:  NewNode(token),
+		Value: body,
+	}
+}
+
+// NewNowdocLiteral 创建 nowdoc 字符串字面量
+func NewNowdocLiteral(token *TokenFrom, body string) data.GetValue {
+	return &StringLiteral{
+		Node:  NewNode(token),
+		Value: body,
 	}
 }
 

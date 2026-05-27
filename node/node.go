@@ -1,6 +1,8 @@
 package node
 
 import (
+	"fmt"
+
 	"github.com/php-any/origami/data"
 )
 
@@ -54,6 +56,8 @@ func (p *Program) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			case LabelControl:
 				acl.Offset = offset + 1
 				return p.runLabel(ctx, acl)
+			case data.GotoControl:
+				return p.runGoto(ctx, acl)
 			default:
 				if acl, ok := acl.(data.AddStack); ok {
 					if statement, ok := statement.(GetFrom); ok {
@@ -67,6 +71,27 @@ func (p *Program) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	return v, nil
+}
+
+func (p *Program) findLabelOffset(name string) (int, bool) {
+	for i, stmt := range p.Statements {
+		if ls, ok := stmt.(*LabelStatement); ok && ls.Name == name {
+			return i + 1, true
+		}
+	}
+	return 0, false
+}
+
+func (p *Program) runGoto(ctx data.Context, gotoCtl data.GotoControl) (data.GetValue, data.Control) {
+	offset, ok := p.findLabelOffset(gotoCtl.GetLabel())
+	if !ok {
+		var from data.From
+		if g, ok := gotoCtl.(*GotoStatement); ok {
+			from = g.GetFrom()
+		}
+		return nil, data.NewErrorThrow(from, fmt.Errorf("未定义的标签 '%s'", gotoCtl.GetLabel()))
+	}
+	return p.runLabel(ctx, LabelControl{Name: gotoCtl.GetLabel(), Offset: offset})
 }
 
 func (p *Program) runLabel(ctx data.Context, label LabelControl) (data.GetValue, data.Control) {
@@ -86,7 +111,7 @@ func (p *Program) runLabel(ctx data.Context, label LabelControl) (data.GetValue,
 				if acl.GetLabel() == label.Name {
 					return p.runLabel(ctx, label)
 				}
-				return v, c
+				return p.runGoto(ctx, acl)
 			default:
 				ctx.GetVM().ThrowControl(c)
 				return v, nil

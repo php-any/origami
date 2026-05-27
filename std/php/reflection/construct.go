@@ -95,14 +95,19 @@ func (m *ReflectionClassConstructMethod) Call(ctx data.Context) (data.GetValue, 
 		return nil, createReflectionException(fmt.Sprintf("ReflectionClass::__construct(): Argument #1 ($class) must be of type object|string, %s given", typeName), ctx, m.GetFrom())
 	}
 
-	// 加载类
+	// 加载类；失败须抛 ReflectionException，供 Laravel 等 catch (ReflectionException) 处理
 	vm := ctx.GetVM()
 	stmt, acl := vm.LoadPkg(className)
 	if acl != nil {
-		return nil, acl
+		if tv, ok := acl.(*data.ThrowValue); ok && tv.Object != nil {
+			return nil, acl
+		}
+		return nil, createReflectionException(
+			fmt.Sprintf(`Class "%s" does not exist`, className), ctx, m.GetFrom())
 	}
 	if stmt == nil {
-		return nil, data.NewErrorThrow(m.GetFrom(), fmt.Errorf("class %s does not exist", className))
+		return nil, createReflectionException(
+			fmt.Sprintf(`Class "%s" does not exist`, className), ctx, m.GetFrom())
 	}
 
 	// 将类信息存储到当前对象的属性中

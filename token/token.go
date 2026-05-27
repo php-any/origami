@@ -156,6 +156,7 @@ var TokenDefinitions = []TokenDefinition{
 	{Type: RBRACE, Literal: "}", WordType: OPERATOR},
 	{Type: LBRACKET, Literal: "[", WordType: OPERATOR},
 	{Type: RBRACKET, Literal: "]", WordType: OPERATOR},
+	{Type: HEREDOC_START, Literal: "<<<", WordType: KEYWORD},
 	{Type: SPACESHIP, Literal: "<=>", WordType: OPERATOR},
 	{Type: NULLSAFE_CALL, Literal: "??->", WordType: OPERATOR},
 	{Type: NULL_COALESCE_ASSIGN, Literal: "??=", WordType: OPERATOR}, // 必须在 ?? 之前，因为 ??= 更长

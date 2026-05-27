@@ -36,6 +36,78 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	params := fn.GetParams()
 	arguments := pe.Args
 	fnCtx := ctx.CreateContext(varies)
+
+	// 简单函数 + 展开参数的快速通道：所有形参都是普通 Parameter，且存在 SpreadArgument
+	simpleParams := true
+	for _, p := range params {
+		if _, ok := p.(*Parameter); !ok {
+			simpleParams = false
+			break
+		}
+	}
+	if simpleParams {
+		hasSpread := false
+		for _, a := range arguments {
+			if _, ok := a.(*SpreadArgument); ok {
+				hasSpread = true
+				break
+			}
+		}
+		if hasSpread {
+			// 按调用实参顺序，将普通参数与 ...expr 展平成一维数组，然后依次绑定到形参
+			var flat []data.Value
+			for _, arg := range arguments {
+				if spread, ok := arg.(*SpreadArgument); ok {
+					// first-class callable 场景（Expr==nil）退回通用路径
+					if spread.Expr == nil {
+						hasSpread = false
+						break
+					}
+					spreadVal, acl := spread.GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+					if spreadVal == nil {
+						continue
+					}
+					switch v := spreadVal.(type) {
+					case *data.ArrayValue:
+						for _, z := range v.List {
+							flat = append(flat, z.Value)
+						}
+					case *data.ObjectValue:
+						v.RangeProperties(func(_ string, val data.Value) bool {
+							flat = append(flat, val)
+							return true
+						})
+					default:
+						if val, ok := spreadVal.(data.Value); ok {
+							flat = append(flat, val)
+						}
+					}
+				} else {
+					v, acl := arg.GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+					if v == nil {
+						flat = append(flat, data.NewNullValue())
+					} else if val, ok := v.(data.Value); ok {
+						flat = append(flat, val)
+					}
+				}
+			}
+
+			if hasSpread {
+				for i := 0; i < len(params) && i < len(flat) && i < len(varies); i++ {
+					fnCtx.SetVariableValue(varies[i], flat[i])
+				}
+				fnCtx.SetCallArgs(pe.Args)
+				return fn.Call(fnCtx)
+			}
+		}
+	}
+
 	var acl data.Control
 	// 入参的值设置到上下文中
 	for index, param := range params {
@@ -60,8 +132,12 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 			_, acl = param.GetValue(fnCtx)
 		}
 		if acl != nil {
-			if acl, ok := acl.(data.AddStack); ok {
-				acl.AddStackWithInfo(pe.from, "", pe.FunName+fmt.Sprintf("(%d:%s)", index, TryGetCallClassName(param)))
+			if addStack, ok := acl.(data.AddStack); ok {
+				addStack.AddStackWithInfo(pe.from, "", pe.FunName+fmt.Sprintf("(%d:%s)", index, TryGetCallClassName(param)))
+			}
+			// 实参求值中的 throw 须向上冒泡，由调用方的 try/catch 处理，不能在此 fatal
+			if _, ok := acl.(data.ThrowControl); ok {
+				return nil, acl
 			}
 			ctx.GetVM().ThrowControl(acl)
 			return nil, acl

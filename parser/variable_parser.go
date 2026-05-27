@@ -325,12 +325,7 @@ func (vp *VariableParser) parseArrayAccess(array data.GetValue) (data.GetValue, 
 			return nil, acl
 		}
 		vp.nextAndCheck(token.RBRACKET)
-		return node.NewRange(
-			from,
-			array,
-			nil,
-			stop,
-		), nil
+		return node.NewRange(from, array, nil, stop), nil
 	}
 
 	var index data.GetValue
@@ -349,6 +344,13 @@ func (vp *VariableParser) parseArrayAccess(array data.GetValue) (data.GetValue, 
 		index, acl = vp.expressionParser.Parse()
 		if acl != nil {
 			return nil, acl
+		}
+		// Parse() 在 parseTerm 会把 1..5 收成 Array==nil 的 Range；下标语境应挂到当前数组
+		if r, ok := index.(*node.Range); ok && r.Array == nil {
+			if vp.current().Type() == token.RBRACKET {
+				vp.next()
+				return node.NewRange(from, array, r.Start, r.Stop), nil
+			}
 		}
 	}
 
@@ -439,10 +441,10 @@ func (vp *VariableParser) parsePropertyAccess(object data.GetValue) (data.GetVal
 	//	}
 	//}
 
-	// 尝试兼容 php . 符号作为字符串链接
+	// PHP . 为字符串连接（非对象属性；属性访问使用 ->）
 	property, acl := vp.parseStatement()
 	from := tracker.EndBefore()
-	return node.NewBinaryAdd(
+	return node.NewBinaryDot(
 		from,
 		object,
 		property,

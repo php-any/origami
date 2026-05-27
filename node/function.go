@@ -9,26 +9,28 @@ import (
 // FunctionStatement 表示函数定义语句
 type FunctionStatement struct {
 	data.FuncStmt
-	*Node       `pp:"-"`
-	Name        string          // 函数名
-	Params      []data.GetValue // 参数列表
-	Body        []data.GetValue // 函数体
-	vars        []data.Variable // 符号表
-	Ret         data.Types      // 返回值类型
-	IsGenerator bool            // 是否是生成器函数（含 yield）
-	defineCtx   data.Context    // 闭包定义时的上下文（用于保留 self:: 语义）
+	*Node            `pp:"-"`
+	Name             string          // 函数名
+	Params           []data.GetValue // 参数列表
+	Body             []data.GetValue // 函数体
+	vars             []data.Variable // 符号表
+	Ret              data.Types      // 返回值类型
+	IsGenerator      bool            // 是否是生成器函数（含 yield）
+	ReturnsReference bool            // 是否按引用返回（function &name()）
+	defineCtx        data.Context    // 闭包定义时的上下文（用于保留 self:: 语义）
 }
 
 // NewFunctionStatement 创建一个新的函数定义语句
-func NewFunctionStatement(from data.From, name string, params []data.GetValue, body []data.GetValue, vars []data.Variable, ret data.Types) *FunctionStatement {
+func NewFunctionStatement(from data.From, name string, params []data.GetValue, body []data.GetValue, vars []data.Variable, ret data.Types, returnsReference bool) *FunctionStatement {
 	return &FunctionStatement{
-		Node:        NewNode(from),
-		Name:        name,
-		Params:      params,
-		Body:        body,
-		vars:        vars,
-		Ret:         ret,
-		IsGenerator: containsYield(body),
+		Node:             NewNode(from),
+		Name:             name,
+		Params:           params,
+		Body:             body,
+		vars:             vars,
+		Ret:              ret,
+		IsGenerator:      containsYield(body),
+		ReturnsReference: returnsReference,
 	}
 }
 
@@ -138,6 +140,13 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 			switch rv := ctl.(type) {
 			case data.ReturnControl:
 				ret := rv.ReturnValue()
+				if f.ReturnsReference {
+					if rs, ok := statement.(*ReturnStatement); ok && rs.Value != nil {
+						if variable, ok := rs.Value.(data.Variable); ok {
+							ret = data.NewReferenceValue(variable, execCtx)
+						}
+					}
+				}
 				if f.Ret != nil {
 					if f.Ret.Is(ret) {
 						return ret, nil

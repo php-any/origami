@@ -78,9 +78,9 @@ func (p *ForParser) Parse() (data.GetValue, data.Control) {
 				}
 			}
 		} else {
-			name := "_"
-			val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
-			value = node.NewVariableWithFirst(tracker.EndBefore(), val)
+			// for $v in $arr：单变量表示元素值，不是键
+			value = key
+			key = nil
 		}
 
 		p.nextAndCheck(token.IN)

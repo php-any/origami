@@ -1,6 +1,7 @@
 package php
 
 import (
+	"strings"
 	"unicode/utf8"
 
 	"github.com/php-any/origami/data"
@@ -85,7 +86,12 @@ func (f *NormalizerNormalizeFunction) Call(ctx data.Context) (data.GetValue, dat
 	}
 	s := strVal.AsString()
 	if !utf8.ValidString(s) {
-		return data.NewBoolValue(false), nil
+		// 为了提升与 Symfony polyfill/string 的兼容性，这里对非法 UTF-8 做宽松处理：
+		//   - 使用 ToValidUTF8 丢弃非法序列，返回“尽可能接近”的字符串
+		//   - 避免返回 false 触发 UnicodeString::__construct 内部的 InvalidArgumentException
+		// 与真实 intl 行为略有不同，但能保证 Laravel/Symfony 控制台在异常渲染时不中断。
+		clean := strings.ToValidUTF8(s, "")
+		return data.NewStringValue(clean), nil
 	}
 	return data.NewStringValue(s), nil
 }

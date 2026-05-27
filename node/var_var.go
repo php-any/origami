@@ -62,3 +62,36 @@ func (v *VarVar) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	// 与 PHP 行为对齐：未找到变量时返回 null
 	return data.NewNullValue(), nil
 }
+
+// SetValue 支持 $$var = ... 形式的赋值：
+// - 若名称能在捕获的 Vars 中找到对应变量，则委托给该变量的 SetValue
+// - 否则退化为通过名称在当前上下文创建/写入一个新的局部变量（SetVariableByName）
+func (v *VarVar) SetValue(ctx data.Context, value data.Value) data.Control {
+	nameVal, acl := v.NameExpr.GetValue(ctx)
+	if acl != nil {
+		return acl
+	}
+	val, ok := nameVal.(data.Value)
+	if !ok {
+		return data.NewErrorThrow(v.from, errors.New("变量变量名称必须是可转换为字符串的值"))
+	}
+	name := val.AsString()
+	if name == "" {
+		// 空名称：忽略写入
+		return nil
+	}
+
+	// 优先在捕获的变量列表中查找并写入
+	for _, vari := range v.Vars {
+		if vari == nil {
+			continue
+		}
+		if vari.GetName() == name {
+			return vari.SetValue(ctx, value)
+		}
+	}
+
+	// 否则退化为通过名称直接写入当前上下文（类似 extract 的行为）
+	ctx.SetVariableByName(name, value)
+	return nil
+}

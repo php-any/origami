@@ -78,6 +78,27 @@ func mergeObjectWithArray(obj hasRangeProperties, arr *data.ArrayValue) *data.Ar
 	return data.NewArrayValue(result).(*data.ArrayValue)
 }
 
+func addOperandIsFloat(v data.GetValue) bool {
+	val, ok := v.(data.Value)
+	if !ok {
+		return false
+	}
+	_, ok = val.(*data.FloatValue)
+	return ok
+}
+
+func addOperandAsFloat64(v data.GetValue) (float64, bool) {
+	val, ok := v.(data.Value)
+	if !ok {
+		return 0, false
+	}
+	if f, ok := val.(data.AsFloat); ok {
+		fl, err := f.AsFloat()
+		return fl, err == nil
+	}
+	return 0, false
+}
+
 func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	lv, lCtl := b.Left.GetValue(ctx)
 	if lCtl != nil {
@@ -87,6 +108,15 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	rv, rCtl := b.Right.GetValue(ctx)
 	if rCtl != nil {
 		return nil, rCtl
+	}
+
+	// PHP：任一侧为 float 时，+ 结果为 float
+	if addOperandIsFloat(lv) || addOperandIsFloat(rv) {
+		if lf, ok := addOperandAsFloat64(lv); ok {
+			if rf, ok := addOperandAsFloat64(rv); ok {
+				return data.NewFloatValue(lf + rf), nil
+			}
+		}
 	}
 
 	switch l := lv.(type) {
@@ -110,6 +140,16 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			}
 
 			return data.NewIntValue(li + ri), nil
+		case data.AsFloat:
+			li, err := l.AsInt()
+			if err != nil {
+				return nil, data.NewErrorThrow(b.from, err)
+			}
+			rf, err := r.AsFloat()
+			if err != nil {
+				return nil, data.NewErrorThrow(b.from, err)
+			}
+			return data.NewFloatValue(float64(li) + rf), nil
 		case data.AsString:
 			return data.NewStringValue(l.AsString() + r.AsString()), nil
 		}

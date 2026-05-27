@@ -3,6 +3,7 @@ package node
 import (
 	"fmt"
 	"runtime/debug"
+	"strings"
 
 	"github.com/php-any/origami/data"
 )
@@ -64,10 +65,28 @@ func (t *TryStatement) GetValue(ctx data.Context) (v data.GetValue, c data.Contr
 	return v, c
 }
 
+func catchTypeMatches(exceptionType data.Types, cv *data.ThrowValue) bool {
+	if exceptionType == nil {
+		return false
+	}
+	if exceptionType.Is(cv) {
+		return true
+	}
+	// catch (Throwable)：PHP 捕获所有 Error/Exception 子类；extend 链未挂上 Throwable 时回退到 Exception 判断
+	if classType, ok := exceptionType.(data.Class); ok && isThrowableTypeName(classType.Name) {
+		return data.NewBaseType("Exception").Is(cv) || data.NewBaseType("Error").Is(cv)
+	}
+	return false
+}
+
+func isThrowableTypeName(name string) bool {
+	return name == "Throwable" || strings.HasSuffix(name, "\\Throwable")
+}
+
 func (t *TryStatement) tryValue(ctx data.Context, c data.Control) (data.GetValue, data.Control) {
 	if cv, ok := c.(*data.ThrowValue); ok {
 		for _, catchBlock := range t.CatchBlocks {
-			if catchBlock.ExceptionType != nil && catchBlock.ExceptionType.Is(cv) {
+			if catchTypeMatches(catchBlock.ExceptionType, cv) {
 				if catchBlock.Variable != nil {
 					ctx.SetVariableValue(catchBlock.Variable, c)
 				}

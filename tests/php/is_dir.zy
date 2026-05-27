@@ -17,7 +17,7 @@ if(!is_dir("non_existent_directory_12345")) {
 }
 
 // 测试文件（应该返回 false）
-if(!is_dir("origami.go")) {
+if(!is_dir("zy.go")) {
     Log::info("文件测试通过（文件不是目录）");
 } else {
     Log::fatal("文件测试失败（文件被识别为目录）");
