@@ -218,6 +218,9 @@ func (vp *VariableParser) parseFunctionCall() ([]data.GetValue, data.Control) {
 	args := make([]data.GetValue, 0)
 	if vp.current().Type() != token.RPAREN {
 		for {
+			if vp.current().Type() == token.RPAREN {
+				break
+			}
 			// 优先检查命名参数（标识符或关键字后跟冒号，PHP 8.0+）
 			if (vp.checkPositionIs(0, token.IDENTIFIER, token.DEFAULT) ||
 				(vp.current().Type() > token.KEYWORD_START && vp.current().Type() < token.VALUE_START && vp.current().Type() != token.RPAREN)) &&

@@ -3,6 +3,8 @@ package node
 import (
 	"errors"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/php-any/origami/data"
 )
@@ -87,5 +89,15 @@ func (v *ArgcVariable) GetIndex() int       { return 0 }
 func (v *ArgcVariable) GetName() string     { return "$argc" }
 func (v *ArgcVariable) GetType() data.Types { return nil }
 func (v *ArgcVariable) SetValue(ctx data.Context, value data.Value) data.Control {
-	return data.NewErrorThrow(v.from, errors.New("$argc is read-only in Origami runtime"))
+	if iv, ok := value.(*data.IntValue); ok {
+		argcValue = iv
+		return nil
+	}
+	if value != nil {
+		if i, err := strconv.Atoi(strings.TrimSpace(value.AsString())); err == nil {
+			argcValue = data.NewIntValue(i).(*data.IntValue)
+			return nil
+		}
+	}
+	return data.NewErrorThrow(v.from, errors.New("$argc expects int value"))
 }

@@ -1,8 +1,6 @@
 package data
 
-import (
-	"fmt"
-)
+import "strconv"
 
 func NewFloatValue(v float64) Value {
 	return &FloatValue{
@@ -31,7 +29,7 @@ func (s *FloatValue) GetValue(ctx Context) (GetValue, Control) {
 }
 
 func (s *FloatValue) AsString() string {
-	return fmt.Sprintf("%f", s.Value)
+	return strconv.FormatFloat(s.Value, 'g', 14, 64)
 }
 
 func (s *FloatValue) AsInt() (int, error) {

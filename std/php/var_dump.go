@@ -121,7 +121,7 @@ func varDumpValue(v data.Value, indent string, depth int) {
 			fmt.Printf("%sbool(false)\n", indent)
 		}
 	case *data.StringValue:
-		fmt.Printf("%sstring(%d) %q\n", indent, len(arg.Value), arg.Value)
+		fmt.Printf("%sstring(%d) \"%s\"\n", indent, len(arg.Value), arg.Value)
 	case *data.NullValue:
 		fmt.Printf("%sNULL\n", indent)
 	case *data.ArrayValue:
@@ -129,10 +129,10 @@ func varDumpValue(v data.Value, indent string, depth int) {
 		inner := indent + "  "
 		for i, zval := range arg.List {
 			if zval == nil || zval.Value == nil {
-				fmt.Printf("%s[%d] =>\n%sNULL\n", inner, i, inner)
+				fmt.Printf("%s[%d]=>\n%sNULL\n", inner, i, inner)
 				continue
 			}
-			fmt.Printf("%s[%d] =>\n", inner, i)
+			fmt.Printf("%s[%d]=>\n", inner, i)
 			varDumpValue(zval.Value, inner, depth+1)
 		}
 		fmt.Printf("%s}\n", indent)
@@ -142,7 +142,11 @@ func varDumpValue(v data.Value, indent string, depth int) {
 		fmt.Printf("%sarray(%d) {\n", indent, n)
 		inner := indent + "  "
 		arg.RangeProperties(func(k string, val data.Value) bool {
-			fmt.Printf("%s'%s' =>\n", inner, escapeSingleQuoted(k))
+			if idx, err := strconv.Atoi(k); err == nil {
+				fmt.Printf("%s[%d]=>\n", inner, idx)
+			} else {
+				fmt.Printf("%s[%q]=>\n", inner, k)
+			}
 			if val != nil {
 				varDumpValue(val, inner, depth+1)
 			} else {

@@ -91,7 +91,7 @@ func (b *BinaryDot) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	case *data.IntValue:
 		leftStr = fmt.Sprintf("%d", l.Value)
 	case *data.FloatValue:
-		leftStr = fmt.Sprintf("%f", l.Value)
+		leftStr = l.AsString()
 	case *data.BoolValue:
 		if l.Value {
 			leftStr = "1"
@@ -118,7 +118,7 @@ func (b *BinaryDot) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	case *data.IntValue:
 		rightStr = fmt.Sprintf("%d", r.Value)
 	case *data.FloatValue:
-		rightStr = fmt.Sprintf("%f", r.Value)
+		rightStr = r.AsString()
 	case *data.BoolValue:
 		if r.Value {
 			rightStr = "1"

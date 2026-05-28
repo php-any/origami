@@ -161,6 +161,12 @@ func (ep *LparenParser) parseParenthesizedExpression(tracking *PositionTracker) 
 	}
 	// 检查是否有右括号
 	if ep.current().Type() != token.RPAREN {
+		// 某些表达式路径会在 parseStatement 阶段提前消费掉 ')'（如 ($i-1)），
+		// 这里兼容该情况，避免误报“缺少右括号”。
+		if ep.position > 0 && ep.tokens[ep.position-1].Type() == token.RPAREN {
+			vp := &VariableParser{ep.Parser}
+			return vp.parseSuffix(expr)
+		}
 		return nil, data.NewErrorThrow(tracking.EndBefore(), fmt.Errorf("缺少右括号 ')'"))
 	}
 	ep.next() // 跳过右括号

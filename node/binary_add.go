@@ -172,7 +172,7 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 				return nil, data.NewErrorThrow(b.from, err)
 			}
 			rf := r.AsString()
-			return data.NewStringValue(fmt.Sprintf("%f", lf) + rf), nil
+			return data.NewStringValue(data.NewFloatValue(lf).AsString() + rf), nil
 		case data.AsFloat:
 			lf, err := l.AsFloat()
 			if err != nil {

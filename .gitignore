@@ -14,4 +14,5 @@ zy-lsp
 /.gocache/README
 /.gocache/trim.txt
 cli_test
+php-src
 .zy

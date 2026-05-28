@@ -525,10 +525,26 @@ func (ep *ExpressionParser) parseTermNoRange() (data.GetValue, data.Control) {
 	if acl != nil {
 		return nil, acl
 	}
-	for ep.current().Type() == token.ADD || ep.current().Type() == token.SUB {
+	for ep.current().Type() == token.ADD || ep.current().Type() == token.SUB || isSignedNumberToken(ep.current()) {
 		operator := ep.current()
-		ep.next()
-		right, acl := ep.parseFactor()
+
+		var right data.GetValue
+		if isSignedNumberToken(operator) {
+			lit := operator.Literal()
+			if len(lit) <= 1 {
+				return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("非法数字字面量"))
+			}
+			opType := token.ADD
+			if lit[0] == '-' {
+				opType = token.SUB
+			}
+			operator = lexer.NewWorkerToken(opType, string(lit[0]), operator.Start(), operator.Start()+1, operator.Line(), operator.Pos())
+			right = node.NewNumberLiteral(node.NewTokenFrom(ep.source, operator.End(), ep.current().End(), ep.current().Line(), ep.current().Pos()+1), lit[1:])
+			ep.next()
+		} else {
+			ep.next()
+			right, acl = ep.parseFactor()
+		}
 		if acl != nil {
 			return nil, acl
 		}
@@ -602,11 +618,26 @@ func (ep *ExpressionParser) parseTerm() (data.GetValue, data.Control) {
 	if acl != nil {
 		return nil, acl
 	}
-	for ep.current().Type() == token.ADD || ep.current().Type() == token.SUB {
+	for ep.current().Type() == token.ADD || ep.current().Type() == token.SUB || isSignedNumberToken(ep.current()) {
 		operator := ep.current()
-		ep.next()
 
-		right, acl := ep.parseRangeOperand()
+		var right data.GetValue
+		if isSignedNumberToken(operator) {
+			lit := operator.Literal()
+			if len(lit) <= 1 {
+				return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("非法数字字面量"))
+			}
+			opType := token.ADD
+			if lit[0] == '-' {
+				opType = token.SUB
+			}
+			operator = lexer.NewWorkerToken(opType, string(lit[0]), operator.Start(), operator.Start()+1, operator.Line(), operator.Pos())
+			right = node.NewNumberLiteral(node.NewTokenFrom(ep.source, operator.End(), ep.current().End(), ep.current().Line(), ep.current().Pos()+1), lit[1:])
+			ep.next()
+		} else {
+			ep.next()
+			right, acl = ep.parseRangeOperand()
+		}
 		if acl != nil {
 			return nil, acl
 		}
@@ -619,6 +650,19 @@ func (ep *ExpressionParser) parseTerm() (data.GetValue, data.Control) {
 	}
 
 	return expr, nil
+}
+
+func isSignedNumberToken(t lexer.Token) bool {
+	if t == nil {
+		return false
+	}
+	switch t.Type() {
+	case token.INT, token.FLOAT, token.NUMBER:
+	default:
+		return false
+	}
+	lit := t.Literal()
+	return len(lit) > 1 && (lit[0] == '+' || lit[0] == '-')
 }
 
 // parseRangeOperand 解析范围表达式（如 1..5）

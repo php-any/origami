@@ -42,12 +42,14 @@ func (v *ServerVariable) GetValue(ctx data.Context) (data.GetValue, data.Control
 			}
 		} else {
 			serverValue.SetProperty("SERVER_SOFTWARE", data.NewStringValue("Origami"))
-			if len(os.Args) > 1 {
+			registerArgcArgv := os.Getenv("ORIGAMI_PHPT_REGISTER_ARGC_ARGV")
+			if registerArgcArgv != "0" && len(os.Args) > 1 {
 				arr := make([]data.Value, 0, len(os.Args)-1)
 				for _, s := range os.Args[1:] {
 					arr = append(arr, data.NewStringValue(s))
 				}
 				serverValue.SetProperty("argv", data.NewArrayValue(arr))
+				serverValue.SetProperty("argc", data.NewIntValue(len(arr)))
 			}
 		}
 	}
