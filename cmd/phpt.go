@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"mime"
-	"mime/multipart"
 	"net/url"
 	"os"
 	"os/exec"
@@ -448,7 +447,7 @@ func buildRequestSetupLines(sections map[string]string) []string {
 		if len(rawPost) > maxPost {
 			postExceeded = true
 			setup = append(setup, fmt.Sprintf(
-				`echo "Warning: PHP Request Startup: POST Content-Length of %d bytes exceeds the limit of %d bytes in Unknown on line 0\n\n";`,
+				`echo "Warning: PHP Request Startup: POST Content-Length of %d bytes exceeds the limit of %d bytes in Unknown on line 0\n";`,
 				len(rawPost), maxPost,
 			))
 		}
@@ -459,7 +458,33 @@ func buildRequestSetupLines(sections map[string]string) []string {
 		}
 	}
 	if postRaw := strings.TrimSpace(sections["POST_RAW"]); postRaw != "" {
-		setup = append(setup, parsePostRawSetupLines(postRaw)...)
+		postRawExceeded := false
+		if maxPost, ok := parseIniSizeBytes(iniValues["post_max_size"]); ok {
+			// Calculate POST_RAW body length (excluding Content-Type header line)
+			rawLines := strings.Split(postRaw, "\n")
+			bodyStart := 0
+			for i, line := range rawLines {
+				if strings.HasPrefix(strings.TrimSpace(line), "Content-Type:") {
+					bodyStart = i + 1
+					break
+				}
+			}
+			body := strings.Join(rawLines[bodyStart:], "\n")
+			if len(body) > maxPost {
+				postRawExceeded = true
+				setup = append(setup, fmt.Sprintf(
+					`echo "Warning: PHP Request Startup: POST Content-Length of %d bytes exceeds the limit of %d bytes in Unknown on line 0\n";`,
+					len(body), maxPost,
+				))
+			}
+		}
+		if !postRawExceeded {
+			postRawLines, postRawWarning := parsePostRawSetupLines(postRaw)
+			if postRawWarning != "" {
+				setup = append(setup, fmt.Sprintf(`echo %s . PHP_EOL;`, phpStringLiteral(postRawWarning)))
+			}
+			setup = append(setup, postRawLines...)
+		}
 	}
 	if postExceeded && iniBoolValue(iniValues, "always_populate_raw_post_data", false) &&
 		strings.Contains(sections["FILE"], "$HTTP_RAW_POST_DATA") {
@@ -487,10 +512,10 @@ func buildRequestSetupLines(sections map[string]string) []string {
 	return setup
 }
 
-func parsePostRawSetupLines(raw string) []string {
+func parsePostRawSetupLines(raw string) ([]string, string) {
 	lines := strings.Split(strings.ReplaceAll(raw, "\r\n", "\n"), "\n")
 	if len(lines) < 2 {
-		return nil
+		return nil, ""
 	}
 	contentTypeLine := strings.TrimSpace(lines[0])
 	body := strings.Join(lines[1:], "\n")
@@ -498,41 +523,73 @@ func parsePostRawSetupLines(raw string) []string {
 		contentTypeLine = strings.TrimSpace(contentTypeLine[idx+1:])
 	}
 	mediaType, params, err := mime.ParseMediaType(contentTypeLine)
-	if err != nil || !strings.HasPrefix(mediaType, "multipart/") {
-		return nil
+	if !strings.HasPrefix(mediaType, "multipart/") {
+		return nil, ""
 	}
 	boundary := params["boundary"]
+	if boundary == "" && err != nil {
+		// Check if the error indicates an invalid boundary (e.g., unclosed quote)
+		boundaryIdx := strings.Index(strings.ToLower(contentTypeLine), "boundary=")
+		if boundaryIdx >= 0 {
+			afterBoundary := strings.TrimSpace(contentTypeLine[boundaryIdx+len("boundary="):])
+			// Check for unclosed quote (starts with " but doesn't have matching closing ")
+			if len(afterBoundary) > 0 && afterBoundary[0] == '"' && !strings.Contains(afterBoundary[1:], "\"") {
+				return nil, "Warning: PHP Request Startup: Invalid boundary in multipart/form-data POST data in Unknown"
+			}
+		}
+		// Fallback: extract boundary manually when mime.ParseMediaType fails
+		boundary = rfc1867ExtractBoundary(contentTypeLine)
+	}
 	if boundary == "" {
-		return nil
+		// PHP produces a warning when boundary is missing in multipart/form-data
+		return nil, "Warning: PHP Request Startup: Missing boundary in multipart/form-data POST data in Unknown"
 	}
 
-	reader := multipart.NewReader(strings.NewReader(body), boundary)
+	parts := rfc1867SplitParts(body, boundary)
 	setup := make([]string, 0, 16)
-	for {
-		part, err := reader.NextPart()
-		if err != nil {
-			break
-		}
-		name := part.FormName()
+	var warning string
+	anonymousIndex := 0
+	for _, part := range parts {
+		name, filename, contentType, payload := rfc1867ParsePart(part)
 		if name == "" {
-			_ = part.Close()
+			// Check if this part has a filename but no name (anonymous upload)
+			if filename != "" {
+				name = fmt.Sprintf("%d", anonymousIndex)
+				anonymousIndex++
+			} else {
+				// Check if this part has a Content-Disposition header but no name
+				// This indicates garbled MIME headers
+				if warning == "" {
+					headerEnd := strings.Index(part, "\r\n\r\n")
+					if headerEnd < 0 {
+						headerEnd = strings.Index(part, "\n\n")
+					}
+					if headerEnd >= 0 {
+						headerSection := part[:headerEnd]
+						headers := rfc1867ParseHeaders(headerSection)
+						if headers["content-disposition"] != "" {
+							warning = "Warning: PHP Request Startup: File Upload Mime headers garbled in Unknown"
+						}
+					}
+				}
+				continue
+			}
+		}
+		// Validate name: brackets must be balanced
+		// PHP rejects uploads with malformed bracket notation (e.g., "foo[]bar")
+		if !rfc1867ValidateName(name) {
 			continue
 		}
-		payload, _ := io.ReadAll(part)
-		filename := part.FileName()
-		contentType := part.Header.Get("Content-Type")
 		if filename == "" {
-			setup = append(setup, buildArrayAssignmentLine("$_POST", name, strings.TrimRight(string(payload), "\n"), map[string]int{}))
-			_ = part.Close()
+			setup = append(setup, buildArrayAssignmentLine("$_POST", name, strings.TrimRight(payload, "\n"), map[string]int{}))
 			continue
 		}
 
 		tmpFile, createErr := os.CreateTemp("", "origami-phpt-upload-*")
 		if createErr != nil {
-			_ = part.Close()
 			continue
 		}
-		_, _ = tmpFile.Write(payload)
+		_, _ = tmpFile.WriteString(payload)
 		_ = tmpFile.Close()
 
 		setup = append(setup,
@@ -545,9 +602,268 @@ func parsePostRawSetupLines(raw string) []string {
 				len(payload),
 			),
 		)
-		_ = part.Close()
 	}
-	return setup
+	return setup, warning
+}
+
+// rfc1867ExtractBoundary extracts the boundary parameter from a Content-Type header
+// when mime.ParseMediaType fails (e.g., due to non-standard parameter formats).
+func rfc1867ExtractBoundary(ct string) string {
+	// Look for boundary= parameter
+	idx := strings.Index(strings.ToLower(ct), "boundary=")
+	if idx < 0 {
+		return ""
+	}
+	boundary := ct[idx+len("boundary="):]
+	// Remove surrounding quotes if present
+	if len(boundary) > 0 && boundary[0] == '"' {
+		boundary = boundary[1:]
+		if endIdx := strings.IndexByte(boundary, '"'); endIdx >= 0 {
+			boundary = boundary[:endIdx]
+		}
+	} else {
+		// Unquoted: take until semicolon, comma, or whitespace
+		endIdx := strings.IndexAny(boundary, ";, \t")
+		if endIdx >= 0 {
+			boundary = boundary[:endIdx]
+		}
+	}
+	return strings.TrimSpace(boundary)
+}
+
+// rfc1867ValidateName validates that brackets in the name are properly balanced.
+// PHP rejects uploads with malformed bracket notation (e.g., "foo[]bar", "foo[bar").
+func rfc1867ValidateName(name string) bool {
+	c := 0
+	for i := 0; i < len(name); i++ {
+		if name[i] == '[' {
+			c++
+		} else if name[i] == ']' {
+			c--
+			// After ], the next char must be [ or end of string
+			if i+1 < len(name) && name[i+1] != '[' {
+				return false
+			}
+		}
+		if c < 0 {
+			return false
+		}
+	}
+	// Brackets should always be closed
+	return c == 0
+}
+
+// rfc1867SplitParts splits a multipart body by boundary, following PHP's RFC1867 parsing.
+func rfc1867SplitParts(body, boundary string) []string {
+	delim := "--" + boundary
+	var parts []string
+	remaining := body
+
+	for {
+		idx := strings.Index(remaining, delim)
+		if idx < 0 {
+			break
+		}
+		remaining = remaining[idx+len(delim):]
+		// Skip CRLF or LF after delimiter
+		remaining = strings.TrimPrefix(remaining, "\r\n")
+		remaining = strings.TrimPrefix(remaining, "\n")
+
+		// Check for closing delimiter
+		if strings.HasPrefix(remaining, "--") {
+			break
+		}
+
+		// Find next boundary
+		nextIdx := strings.Index(remaining, delim)
+		if nextIdx < 0 {
+			break
+		}
+		part := remaining[:nextIdx]
+		// Remove trailing CRLF/LF before boundary
+		part = strings.TrimSuffix(part, "\r\n")
+		part = strings.TrimSuffix(part, "\n")
+		parts = append(parts, part)
+		remaining = remaining[nextIdx:]
+	}
+	return parts
+}
+
+// rfc1867ParsePart parses a single multipart part, extracting name, filename, content-type and body.
+// Follows PHP's RFC1867 quoting rules for the name and filename parameters.
+func rfc1867ParsePart(part string) (name, filename, contentType, body string) {
+	// Split headers from body by double newline
+	headerEnd := strings.Index(part, "\r\n\r\n")
+	if headerEnd < 0 {
+		headerEnd = strings.Index(part, "\n\n")
+		if headerEnd < 0 {
+			return "", "", "", ""
+		}
+		body = part[headerEnd+2:]
+	} else {
+		body = part[headerEnd+4:]
+	}
+	headerSection := part[:headerEnd]
+
+	// Parse headers
+	headers := rfc1867ParseHeaders(headerSection)
+
+	// Extract Content-Disposition parameters
+	cd := headers["content-disposition"]
+	if cd == "" {
+		return "", "", "", ""
+	}
+
+	// Parse name and filename from Content-Disposition
+	name, filename = rfc1867ParseContentDisposition(cd)
+	contentType = headers["content-type"]
+
+	return name, filename, contentType, body
+}
+
+// rfc1867ParseHeaders parses a header section into a map of lowercase key -> value.
+func rfc1867ParseHeaders(section string) map[string]string {
+	headers := make(map[string]string)
+	lines := strings.Split(section, "\n")
+	currentKey := ""
+	currentVal := ""
+	for _, line := range lines {
+		line = strings.TrimRight(line, "\r")
+		if len(line) == 0 {
+			continue
+		}
+		// Continuation line (starts with whitespace)
+		if line[0] == ' ' || line[0] == '\t' {
+			if currentKey != "" {
+				currentVal += " " + strings.TrimSpace(line)
+			}
+			continue
+		}
+		// Save previous header
+		if currentKey != "" {
+			headers[currentKey] = currentVal
+		}
+		idx := strings.IndexByte(line, ':')
+		if idx < 0 {
+			currentKey = ""
+			currentVal = ""
+			continue
+		}
+		currentKey = strings.ToLower(strings.TrimSpace(line[:idx]))
+		currentVal = strings.TrimSpace(line[idx+1:])
+	}
+	if currentKey != "" {
+		headers[currentKey] = currentVal
+	}
+	return headers
+}
+
+// rfc1867ParseContentDisposition parses name and filename from a Content-Disposition value
+// following PHP's RFC1867 quoting rules (php_ap_getword_conf equivalent).
+func rfc1867ParseContentDisposition(cd string) (name, filename string) {
+	// Split by ';' respecting quotes (like PHP's php_ap_getword with stop=';')
+	pairs := rfc1867GetwordSplit(cd, ';')
+	for _, pair := range pairs {
+		pair = strings.TrimSpace(pair)
+		eqIdx := strings.IndexByte(pair, '=')
+		if eqIdx < 0 {
+			continue
+		}
+		key := strings.TrimSpace(pair[:eqIdx])
+		val := strings.TrimSpace(pair[eqIdx+1:])
+		switch strings.ToLower(key) {
+		case "name":
+			name = rfc1867GetwordConf(val)
+		case "filename":
+			filename = rfc1867GetwordConf(val)
+		}
+	}
+	return name, filename
+}
+
+// rfc1867GetwordSplit splits a string by a delimiter character, respecting quoted substrings.
+// Equivalent to PHP's php_ap_getword function.
+func rfc1867GetwordSplit(s string, stop byte) []string {
+	var parts []string
+	pos := 0
+	start := 0
+	for pos < len(s) {
+		ch := s[pos]
+		if ch == '"' || ch == '\'' {
+			// Skip quoted string
+			quote := ch
+			pos++
+			for pos < len(s) && s[pos] != quote {
+				if s[pos] == '\\' && pos+1 < len(s) && s[pos+1] == quote {
+					pos += 2
+				} else {
+					pos++
+				}
+			}
+			if pos < len(s) {
+				pos++
+			}
+		} else if ch == stop {
+			parts = append(parts, s[start:pos])
+			pos++
+			// Skip consecutive delimiters
+			for pos < len(s) && s[pos] == stop {
+				pos++
+			}
+			start = pos
+		} else {
+			pos++
+		}
+	}
+	if start < len(s) {
+		parts = append(parts, s[start:])
+	}
+	return parts
+}
+
+// rfc1867GetwordConf unquotes a value following PHP's php_ap_getword_conf / substring_conf logic.
+// Handles single-quoted, double-quoted, and unquoted values with backslash escape rules.
+func rfc1867GetwordConf(s string) string {
+	s = strings.TrimLeft(s, " \t")
+	if len(s) == 0 {
+		return ""
+	}
+
+	if s[0] == '"' || s[0] == '\'' {
+		quote := s[0]
+		return rfc1867SubstringConf(s[1:], quote)
+	}
+
+	// Unquoted: find end (whitespace)
+	end := 0
+	for end < len(s) && s[end] != ' ' && s[end] != '\t' {
+		end++
+	}
+	return rfc1867SubstringConf(s[:end], 0)
+}
+
+// rfc1867SubstringConf processes escape sequences in a value string.
+// Follows PHP's substring_conf logic:
+//   - If quote is 0 (unquoted): only \\ → \ is handled
+//   - If quote is '"' or '\”: \\ → \ and \<quote> → <quote> are handled
+func rfc1867SubstringConf(s string, quote byte) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if i < len(s)-1 && s[i] == '\\' {
+			next := s[i+1]
+			if next == '\\' || (quote != 0 && next == quote) {
+				b.WriteByte(next)
+				i++
+				continue
+			}
+		}
+		if quote != 0 && s[i] == quote {
+			break
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
 }
 
 func buildArgvDisabledWarningLines() []string {
@@ -625,6 +941,10 @@ func parseIniSizeBytes(raw string) (int, bool) {
 	if err != nil || n < 0 {
 		return 0, false
 	}
+	if n == 0 {
+		// PHP: post_max_size=0 means unlimited
+		return 0, false
+	}
 	return n * multiplier, true
 }
 
@@ -641,6 +961,22 @@ func iniBoolValue(values map[string]string, key string, defaultValue bool) bool 
 	default:
 		return defaultValue
 	}
+}
+
+// sanitizePhpVarName replaces characters that PHP converts to underscores in variable names.
+// PHP replaces: space, dot, open-bracket, single-quote, double-quote, etc.
+func sanitizePhpVarName(key string) string {
+	var b strings.Builder
+	b.Grow(len(key))
+	for _, r := range key {
+		switch r {
+		case ' ', '.', '[', ']', '"', '\'':
+			b.WriteByte('_')
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func queryToPhpAssignments(target, raw, separator string) []string {
@@ -679,6 +1015,9 @@ func queryToPhpAssignments(target, raw, separator string) []string {
 		if err != nil {
 			val = valRaw
 		}
+
+		// PHP sanitizes variable names: replace certain characters with underscores
+		key = sanitizePhpVarName(key)
 
 		lines = append(lines, buildArrayAssignmentLine(target, key, val, nextAutoIndex))
 	}

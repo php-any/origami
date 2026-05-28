@@ -145,7 +145,7 @@ func varDumpValue(v data.Value, indent string, depth int) {
 			if idx, err := strconv.Atoi(k); err == nil {
 				fmt.Printf("%s[%d]=>\n", inner, idx)
 			} else {
-				fmt.Printf("%s[%q]=>\n", inner, k)
+				fmt.Printf("%s[\"%s\"]=>\n", inner, k)
 			}
 			if val != nil {
 				varDumpValue(val, inner, depth+1)
