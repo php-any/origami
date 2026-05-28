@@ -15,13 +15,13 @@
 
 ```bash
 # ✅ 推荐：直接运行
-go run origami.go laravel/artisan list
+go run zy.go laravel/artisan list
 
 # ✅ 推荐：带参数运行
-go run origami.go script.php --arg1=value
+go run zy.go script.php --arg1=value
 
 # ❌ 禁止：先编译再运行（多余步骤）
-go build -o origami_bin origami.go
+go build -o origami_bin zy.go
 ./origami_bin laravel/artisan list
 ```
 

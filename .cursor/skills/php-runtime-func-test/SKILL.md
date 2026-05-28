@@ -1,6 +1,6 @@
 ---
 name: php-runtime-func-test
-description: Ensure that when implementing or modifying PHP runtime or std/php functions in the Origami project, the agent always creates a minimal PHP test script under tests/php/ and executes it via the Origami runner (go run ./origami.go ...) to verify behavior end-to-end.
+description: Ensure that when implementing or modifying PHP runtime or std/php functions in the Origami project, the agent always creates a minimal PHP test script under tests/php/ and executes it via the Origami runner (go run ./zy.go ...) to verify behavior end-to-end.
 ---
 
 # PHP Runtime Function + Test Script Workflow
@@ -72,7 +72,7 @@ throw_unhandled_exception();
 1. 在项目根目录下运行（代理应使用 Shell 工具执行）：
 
 ```bash
-go run ./origami.go tests/php/set_exception_handler_test.php
+go run ./zy.go tests/php/set_exception_handler_test.php
 ```
 
 2. 预期：
@@ -113,7 +113,7 @@ go run ./origami.go tests/php/set_exception_handler_test.php
 
 1. **先实现/修改函数并注册到 VM**
 2. **再在 `tests/php/` 下新建一个可直接运行的 `.php` 脚本**
-3. **最后通过 `go run ./origami.go tests/php/xxx_test.php` 实际运行验证**
+3. **最后通过 `go run ./zy.go tests/php/xxx_test.php` 实际运行验证**
 4. **测试脚本中的类名使用唯一前缀**：因所有测试共用命名空间 `tests\php`，类名不要写太通用的（如 `CallTester`、`BaseParent`），应加与测试主题相关的前缀（如 `MagicMethods_CallTester`），避免与其他测试冲突。
 5. **永远不要忽略 `data.Control` 返回值**：当你调用任何返回 `(X, data.Control)` 的函数（如 `vm.GetOrLoadClass` / `vm.GetOrLoadInterface` / `node.NewXXX().GetValue` 等），**必须**检查 `acl != nil` 并及时向上返回或处理，禁止写成 `_, _ = fn(...)`、`_ , _ := fn(...)` 这种丢弃控制流的用法，否则会吞掉运行时错误、抑制 throw/return/continue/break 等控制信号。
 

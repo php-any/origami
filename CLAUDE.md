@@ -65,6 +65,6 @@ Classes are auto-discovered from the filesystem. `ClassPathManager` maps class n
     
 Tests are `.zy` script files in `tests/` subdirectories (`tests/basic/`, `tests/func/`, `tests/obj/`, `tests/php/`, etc.). The test runner is `tests/run_tests.zy` which scans subdirectories and `include()`s each `.zy` file. Each test file should print output for manual inspection—there is no assertion framework. Red output in the console indicates failures.
 
-Run all tests: `go run origami.go tests/run_tests.zy`
+Run all tests: `go run zy.go tests/run_tests.zy`
 
 Go-level unit tests exist only in `lexer/` (lexer_test.go, preprocessor_test.go, special_test.go). There are no Go-level tests for the parser or runtime.

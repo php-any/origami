@@ -4,7 +4,7 @@ namespace tests\php;
 
 /**
  * 魔法方法测试：验证 __call、__invoke、__toString、__get、__set 是否在 Origami 中正常触发
- * 运行: go run ./origami.go tests/php/magic_methods_test.php
+ * 运行: go run ./zy.go tests/php/magic_methods_test.php
  * 通过：仅有 Log::info 输出；失败：出现 Log::fatal（红色）并带期望/实际值
  */
 

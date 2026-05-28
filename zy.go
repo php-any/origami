@@ -11,6 +11,7 @@ import (
 	"github.com/php-any/origami/std"
 	netannotation "github.com/php-any/origami/std/net/annotation"
 	"github.com/php-any/origami/std/net/http"
+	"github.com/php-any/origami/std/net/websocket"
 	"github.com/php-any/origami/std/php"
 	"github.com/php-any/origami/std/system"
 )
@@ -20,6 +21,7 @@ func init() {
 		std.Load(vm)
 		php.Load(vm)
 		http.Load(vm)
+		websocket.Load(vm)
 		netannotation.Load(vm)
 		system.Load(vm)
 	})

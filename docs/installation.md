@@ -66,7 +66,7 @@ cd origami
 ### 4. 编译折言语言
 
 ```bash
-go build -o origami origami.go
+go build -o origami zy.go
 ```
 
 ### 5. 验证安装
@@ -171,7 +171,7 @@ chmod +x origami
 # 清理并重新编译
 go clean
 go mod tidy
-go build -o origami origami.go
+go build -o origami zy.go
 ```
 
 ### 获取帮助

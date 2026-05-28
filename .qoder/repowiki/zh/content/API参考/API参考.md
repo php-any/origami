@@ -3,7 +3,7 @@
 <cite>
 **本文引用的文件**
 - [README.md](file://README.md)
-- [origami.go](file://origami.go)
+- [zy.go](file://zy.go)
 - [std/load.go](file://std/load.go)
 - [runtime/vm.go](file://runtime/vm.go)
 - [data/types.go](file://data/types.go)
@@ -54,7 +54,7 @@
 
 ```mermaid
 graph TB
-A["入口程序<br/>origami.go"] --> B["解析器<br/>parser.Parser"]
+A["入口程序<br/>zy.go"] --> B["解析器<br/>parser.Parser"]
 A --> C["虚拟机<br/>runtime.VM"]
 C --> D["标准库加载<br/>std.load.go"]
 D --> E["PHP标准库<br/>std/php/load.go"]
@@ -65,7 +65,7 @@ C --> I["数据类型与值<br/>data/types.go, data/value.go, data/zval.go"]
 ```
 
 图表来源
-- [origami.go:34-67](file://origami.go#L34-L67)
+- [zy.go:34-67](file://zy.go#L34-L67)
 - [std/load.go:14-38](file://std/load.go#L14-L38)
 - [runtime/vm.go:14-33](file://runtime/vm.go#L14-L33)
 - [data/types.go:1-262](file://data/types.go#L1-L262)
@@ -73,7 +73,7 @@ C --> I["数据类型与值<br/>data/types.go, data/value.go, data/zval.go"]
 - [data/zval.go:1-18](file://data/zval.go#L1-L18)
 
 章节来源
-- [origami.go:34-67](file://origami.go#L34-L67)
+- [zy.go:34-67](file://zy.go#L34-L67)
 - [std/load.go:14-38](file://std/load.go#L14-L38)
 - [runtime/vm.go:14-33](file://runtime/vm.go#L14-L33)
 
@@ -107,7 +107,7 @@ C --> I["数据类型与值<br/>data/types.go, data/value.go, data/zval.go"]
 ```mermaid
 sequenceDiagram
 participant CLI as "命令行"
-participant Main as "入口程序<br/>origami.go"
+participant Main as "入口程序<br/>zy.go"
 participant Parser as "解析器<br/>parser.Parser"
 participant VM as "虚拟机<br/>runtime.VM"
 participant Std as "标准库加载<br/>std.load.go"
@@ -124,7 +124,7 @@ VM-->>CLI : 执行结果/控制流
 ```
 
 图表来源
-- [origami.go:34-67](file://origami.go#L34-L67)
+- [zy.go:34-67](file://zy.go#L34-L67)
 - [std/load.go:14-38](file://std/load.go#L14-L38)
 - [runtime/vm.go:275-289](file://runtime/vm.go#L275-L289)
 
@@ -255,7 +255,7 @@ Types <|.. Generic
 - 控制流与错误定位：ShowControl用于输出错误位置与上下文
 
 章节来源
-- [origami.go:35-45](file://origami.go#L35-L45)
+- [zy.go:35-45](file://zy.go#L35-L45)
 - [runtime/vm.go:275-289](file://runtime/vm.go#L275-L289)
 - [runtime/vm.go:162-181](file://runtime/vm.go#L162-L181)
 - [runtime/vm.go:183-213](file://runtime/vm.go#L183-L213)
@@ -268,7 +268,7 @@ Types <|.. Generic
 
 ```mermaid
 graph LR
-Origami["入口程序<br/>origami.go"] --> Parser["解析器<br/>parser.Parser"]
+Origami["入口程序<br/>zy.go"] --> Parser["解析器<br/>parser.Parser"]
 Origami --> VM["运行时<br/>runtime.VM"]
 VM --> Data["数据模型<br/>data.*"]
 VM --> Std["标准库加载<br/>std.load.go"]
@@ -279,12 +279,12 @@ Std --> DB["数据库模块<br/>std/database/db_class.go"]
 ```
 
 图表来源
-- [origami.go:8-14](file://origami.go#L8-L14)
+- [zy.go:8-14](file://zy.go#L8-L14)
 - [std/load.go:3-12](file://std/load.go#L3-L12)
 - [runtime/vm.go:14-33](file://runtime/vm.go#L14-L33)
 
 章节来源
-- [origami.go:8-14](file://origami.go#L8-L14)
+- [zy.go:8-14](file://zy.go#L8-L14)
 - [std/load.go:3-12](file://std/load.go#L3-L12)
 - [runtime/vm.go:14-33](file://runtime/vm.go#L14-L33)
 
@@ -310,7 +310,7 @@ Std --> DB["数据库模块<br/>std/database/db_class.go"]
   - LSP/诊断：底层处理可用于LSP诊断与错误提示
 
 章节来源
-- [origami.go:47-66](file://origami.go#L47-L66)
+- [zy.go:47-66](file://zy.go#L47-L66)
 - [runtime/vm.go:69-116](file://runtime/vm.go#L69-L116)
 - [runtime/vm.go:118-152](file://runtime/vm.go#L118-L152)
 - [runtime/vm.go:162-181](file://runtime/vm.go#L162-L181)

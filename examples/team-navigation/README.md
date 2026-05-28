@@ -18,7 +18,7 @@
 
 ```bash
 cd examples/team-navigation
-go run ../../origami.go index.php
+go run ../../zy.go index.php
 ```
 
 服务监听 `http://127.0.0.1:8080`。
@@ -127,7 +127,7 @@ app($request, $response, $filePath = "./src/main.php", $fun = "App\\main", $hotR
 
 ```bash
 # 生产：关闭热重载
-ORIGAMI_HOT_RELOAD=0 go run ../../origami.go index.php
+ORIGAMI_HOT_RELOAD=0 go run ../../zy.go index.php
 ```
 
 ### 2. 两种加载路径（`std/net/http/app_func.go`）
@@ -212,7 +212,7 @@ HTTP 包还提供 `HotHandler`，在 `ServeHTTP` 里同样把上下文 VM 换成
 1. 在 `examples/team-navigation` 目录下启动服务，保证相对路径（数据库、`./src/views`、`./pages/assets`）正确。
 2. 开发时保持默认热重载，改 PHP 后刷新即可验证。
 3. 部署时设置 `ORIGAMI_HOT_RELOAD=0` 或显式 `app(..., hotReload: false)`。
-4. 若改了 `index.php` 或 Go 标准库，需重启 `go run ../../origami.go index.php`。
+4. 若改了 `index.php` 或 Go 标准库，需重启 `go run ../../zy.go index.php`。
 
 `src/main.php` 中的注释也概括了这一点：注解会注入路由扫描，且每个请求使用独立 VM 隔离。
 
