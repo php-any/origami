@@ -67,11 +67,23 @@ func (f *UnsetFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 					arr.SetProperty(propName, data.NewNullValue())
 				}
 			case *data.ClassValue:
-				// 类对象属性删除
+				if iv, ok := indexValue.(data.Value); ok && node.CheckArrayAccess(ctx, arr.Class) {
+					if ctl := node.CallArrayAccessOffsetUnset(ctx, arr, iv); ctl != nil {
+						return nil, ctl
+					}
+					continue
+				}
 				if sv, ok := indexValue.(data.AsString); ok {
 					propName := sv.AsString()
-					// 设置为 null（实际上相当于删除）
 					arr.SetProperty(propName, data.NewNullValue())
+				}
+			case *data.ThisValue:
+				if arr.ClassValue != nil && node.CheckArrayAccess(ctx, arr.Class) {
+					if iv, ok := indexValue.(data.Value); ok {
+						if ctl := node.CallArrayAccessOffsetUnset(ctx, arr.ClassValue, iv); ctl != nil {
+							return nil, ctl
+						}
+					}
 				}
 			}
 		} else if callProp, ok := argExpr.(*node.CallObjectProperty); ok {

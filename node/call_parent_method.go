@@ -99,11 +99,25 @@ func (pe *CallParentMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 		current = next
 	}
 	if !has {
+		if magic, ok := findMagicCallOnClass(class, vm); ok {
+			proxy := &CallObjectMethod{
+				Node:   pe.Node,
+				Object: object,
+				Method: pe.Method,
+				Args:   pe.Arguments,
+			}
+			return proxy.invokeMagicCall(object, ctx, magic, pe.Method, pe.Arguments)
+		}
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("父类 %s 及其继承链中都没有方法 %s", parentClassName, pe.Method))
 	}
 
 	if method.GetModifier() == data.ModifierPrivate {
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("父类方法 %s 是私有的，无法访问", pe.Method))
+	}
+
+	if _, ok := method.(*AbstractMethod); ok {
+		msg := fmt.Sprintf("Uncaught Error: Cannot call abstract method %s::%s()", foundClass.GetName(), pe.Method)
+		return nil, data.NewPHPUncaughtError(pe.GetFrom(), msg)
 	}
 
 	temp := &CallObjectMethod{

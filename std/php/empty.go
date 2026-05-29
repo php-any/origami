@@ -17,6 +17,11 @@ func (f *EmptyFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	// 如果参数是 ASTValue，我们需要自己计算它的值
 	if astValue, ok := varValue.(*data.ASTValue); ok {
+		if ie, ok := astValue.Node.(*node.IndexExpression); ok {
+			if isEmpty, handled := node.EmptyViaArrayAccess(astValue.Ctx, ie); handled {
+				return data.NewBoolValue(isEmpty), nil
+			}
+		}
 		// 使用 Call 时的 Context 来计算值，这样可以捕获未定义变量的错误
 		// 但是我们需要禁用错误抛出，因为 empty 应该抑制未定义变量错误
 		// 这里我们假设 GetValue 返回 error control 表示变量未定义或其他错误

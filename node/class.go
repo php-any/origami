@@ -23,10 +23,18 @@ type ClassStatement struct {
 
 	// 构造函数
 	Construct data.Method
+
+	// IsAbstract 为 true 表示 abstract class（允许未实现接口/抽象方法）
+	IsAbstract bool
 }
 
 // GetValue 获取类定义语句的值
 func (c *ClassStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if !c.IsAbstract {
+		if acl := ValidateConcreteClassAbstractMethods(ctx.GetVM(), c); acl != nil {
+			return nil, acl
+		}
+	}
 	object := data.NewClassValue(c, ctx)
 
 	for _, property := range c.Properties {
@@ -319,6 +327,7 @@ type ClassMethod struct {
 	Annotations []*data.ClassValue // 方法注解列表
 	Ret         data.Types         // 返回类型
 	IsGenerator bool               // 是否是生成器方法（含 yield）
+	staticLocals *data.StaticLocals // 方法内 static 局部变量
 }
 
 func (m *ClassMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
@@ -376,7 +385,18 @@ func (m *ClassMethod) GetReturnType() data.Types {
 	return m.Ret
 }
 
+func (m *ClassMethod) methodStaticLocals() *data.StaticLocals {
+	if m.staticLocals == nil {
+		m.staticLocals = data.NewStaticLocals()
+	}
+	return m.staticLocals
+}
+
 func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	if b, ok := ctx.(data.StaticLocalsBinder); ok {
+		b.BindStaticLocals(m.methodStaticLocals())
+	}
+
 	// PHP 语义：如果方法是 generator（含 yield），调用时立即返回 Generator 对象，不执行方法体
 	if m.IsGenerator {
 		generator := NewFuncYieldStackState(ctx, m, m.Body, 0, nil, nil)
@@ -436,6 +456,9 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 				generatorClass := NewGeneratorClass(generator)
 				return generatorClass.GetValue(ctx)
 			case data.AddStack:
+				if tv, ok := rv.(*data.ThrowValue); ok && tv.PHPUncaughtError {
+					return nil, ctl
+				}
 				if c, ok := statement.(GetFrom); ok {
 					rv.AddStackWithInfo(c.GetFrom(), "body", TryGetCallClassName(statement))
 				}

@@ -4,6 +4,20 @@ import (
 	"github.com/php-any/origami/data"
 )
 
+// IsAbstractClassStmt 判断类语句是否表示 abstract class
+func IsAbstractClassStmt(stmt data.ClassStmt) bool {
+	switch s := stmt.(type) {
+	case *AbstractClassStatement:
+		return true
+	case *ClassStatement:
+		return s.IsAbstract
+	case *ClassGeneric:
+		return s.IsAbstract
+	default:
+		return false
+	}
+}
+
 // AbstractClassStatement 表示抽象类定义语句
 type AbstractClassStatement struct {
 	*ClassStatement

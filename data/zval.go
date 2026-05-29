@@ -4,6 +4,15 @@ package data
 type ZVal struct {
 	Name  string // 变量名称，用于 extract 等按名称操作
 	Value Value
+	// RefSlotCount 表示有多少变量通过 &$arr[i] 等方式绑定到该槽位（用于 COW / 写穿）
+	RefSlotCount int
+}
+
+// AddRefSlot 标记该数组槽位被引用绑定（如 $x =& $arr[0]）
+func (z *ZVal) AddRefSlot() {
+	if z != nil {
+		z.RefSlotCount++
+	}
 }
 
 // NewZVal 创建一个新的 ZVal

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/php-any/origami/data"
@@ -150,6 +151,7 @@ func (vm *VM) RunShutdownCallbacks() {
 			}
 		}
 	}
+	runHeaderCallbacks(vm)
 }
 
 func (vm *VM) AddClass(c data.ClassStmt) data.Control {
@@ -192,12 +194,20 @@ func (vm *VM) AddInterface(i data.InterfaceStmt) data.Control {
 	return nil
 }
 
-func (vm *VM) GetClass(pkg string) (data.ClassStmt, bool) {
-	if v, ok := vm.classMap[pkg]; ok {
+func (vm *VM) findClassCaseInsensitive(name string) (data.ClassStmt, bool) {
+	if v, ok := vm.classMap[name]; ok {
 		return v, true
 	}
-
+	for k, v := range vm.classMap {
+		if strings.EqualFold(k, name) {
+			return v, true
+		}
+	}
 	return nil, false
+}
+
+func (vm *VM) GetClass(pkg string) (data.ClassStmt, bool) {
+	return vm.findClassCaseInsensitive(pkg)
 }
 
 func (vm *VM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
@@ -208,7 +218,7 @@ func (vm *VM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
 		pkg = pkg[1:]
 	}
 
-	if v, ok := vm.classMap[pkg]; ok {
+	if v, ok := vm.findClassCaseInsensitive(pkg); ok {
 		return v, nil
 	}
 
@@ -217,7 +227,7 @@ func (vm *VM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
 		return nil, acl
 	}
 
-	if v, ok := vm.classMap[pkg]; ok {
+	if v, ok := vm.findClassCaseInsensitive(pkg); ok {
 		return v, nil
 	}
 
@@ -350,7 +360,30 @@ func (vm *VM) CreateContext(vars []data.Variable) data.Context {
 	return vm.ctx.CreateContext(vars)
 }
 
+// EvalCode 执行 eval() 传入的 PHP 代码（在当前上下文中）
+func (vm *VM) EvalCode(code string, ctx data.Context, evalFrom data.From) (data.GetValue, data.Control) {
+	p := vm.parser.Clone()
+	parentFile := ""
+	parentLine := 0
+	if evalFrom != nil {
+		parentFile = evalFrom.GetSource()
+		parentLine, _ = evalFrom.GetStartPosition()
+		parentLine++
+	}
+	evalPath := fmt.Sprintf("%s(%d) : eval()'d code", parentFile, parentLine)
+	src := strings.TrimSpace(code)
+	if !strings.HasPrefix(src, "<?") {
+		src = "<?php\n" + src
+	}
+	program, acl := p.ParseString(src, evalPath)
+	if acl != nil {
+		return nil, acl
+	}
+	return program.GetValue(ctx)
+}
+
 func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
+	data.ResetUserOutput()
 	// 解析文件
 	p := vm.parser.Clone()
 

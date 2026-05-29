@@ -60,6 +60,9 @@ func (pe *CallSelfMethod) GetValue(ctx data.Context) (data.GetValue, data.Contro
 		}
 	}
 	if !has {
+		if fn, ok := tryNewInstanceMagicCallViaStaticFunc(ctx, pe.Method); ok {
+			return data.NewFuncValue(fn), nil
+		}
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("当前类 %s 没有静态方法 %s", currentClass.GetName(), pe.Method))
 	}
 

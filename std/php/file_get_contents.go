@@ -2,9 +2,11 @@ package php
 
 import (
 	"os"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/std/php/core"
 	"github.com/php-any/origami/utils"
 )
 
@@ -33,6 +35,10 @@ func (f *FileGetContentsFunction) Call(ctx data.Context) (data.GetValue, data.Co
 
 	if filePath == "" {
 		return nil, utils.NewThrowf("FileGetContentsFunction called with no file path")
+	}
+
+	if filePath == "php://input" || strings.HasPrefix(filePath, "php://input") {
+		return data.NewStringValue(core.PhptInputBody()), nil
 	}
 
 	bytes, err := os.ReadFile(filePath)

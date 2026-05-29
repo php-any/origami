@@ -18,6 +18,7 @@ type FunctionStatement struct {
 	IsGenerator      bool            // 是否是生成器函数（含 yield）
 	ReturnsReference bool            // 是否按引用返回（function &name()）
 	defineCtx        data.Context    // 闭包定义时的上下文（用于保留 self:: 语义）
+	staticLocals     *data.StaticLocals
 }
 
 // NewFunctionStatement 创建一个新的函数定义语句
@@ -60,6 +61,10 @@ func isYieldNode(node data.GetValue) bool {
 	case *ForeachStatement:
 		return containsYield(n.Body)
 	case *ForStatement:
+		return containsYield(n.Body)
+	case *WhileStatement:
+		return containsYield(n.Body)
+	case *DoWhileStatement:
 		return containsYield(n.Body)
 	case *IfStatement:
 		if containsYield(n.ThenBranch) {
@@ -108,7 +113,18 @@ func (f *FunctionStatement) GetReturnType() data.Types {
 	return f.Ret
 }
 
+func (f *FunctionStatement) funcStaticLocals() *data.StaticLocals {
+	if f.staticLocals == nil {
+		f.staticLocals = data.NewStaticLocals()
+	}
+	return f.staticLocals
+}
+
 func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control) {
+	if b, ok := ctx.(data.StaticLocalsBinder); ok {
+		b.BindStaticLocals(f.funcStaticLocals())
+	}
+
 	// PHP 语义：如果函数是 generator（含 yield），调用时立即返回 Generator 对象，不执行函数体
 	if f.IsGenerator {
 		generator := NewFuncYieldStackState(ctx, f, f.Body, 0, nil, nil)
@@ -128,6 +144,9 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 				if zv != nil {
 					execCtx.SetIndexZVal(i, zv)
 				}
+			}
+			if b, ok := execCtx.(data.StaticLocalsBinder); ok {
+				b.BindStaticLocals(f.funcStaticLocals())
 			}
 		}
 	}
@@ -168,6 +187,9 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 				generatorClass := NewGeneratorClass(generator)
 				return generatorClass.GetValue(execCtx)
 			case data.AddStack:
+				if tv, ok := rv.(*data.ThrowValue); ok && tv.PHPUncaughtError {
+					return nil, ctl
+				}
 				if from, ok := statement.(GetFrom); ok {
 					rv.AddStackWithInfo(from.GetFrom(), "function body", TryGetCallClassName(statement))
 				}

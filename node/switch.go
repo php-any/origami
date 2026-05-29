@@ -108,9 +108,15 @@ func (s *SwitchStatement) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	return data.NewNullValue(), nil
 }
 
-// isMatch 检查两个值是否匹配
+// isMatch 检查两个值是否匹配（PHP switch 松散比较 ==）
 func (s *SwitchStatement) isMatch(value1, value2 data.GetValue) bool {
-	// 简单的相等比较，可以根据需要扩展
+	if i1, ok := value1.(data.AsInt); ok {
+		if i2, ok := value2.(data.AsInt); ok {
+			n1, err1 := i1.AsInt()
+			n2, err2 := i2.AsInt()
+			return err1 == nil && err2 == nil && n1 == n2
+		}
+	}
 	if strValue1, ok := value1.(data.AsString); ok {
 		if strValue2, ok := value2.(data.AsString); ok {
 			return strValue1.AsString() == strValue2.AsString()

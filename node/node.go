@@ -48,6 +48,7 @@ func (p *Program) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	var v data.GetValue
 	var c data.Control
 	for offset, statement := range p.Statements {
+		checkTimeLimit(fromForStatement(p, statement))
 		v, c = statement.GetValue(ctx)
 		if c != nil {
 			switch acl := c.(type) {
@@ -59,6 +60,10 @@ func (p *Program) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			case data.GotoControl:
 				return p.runGoto(ctx, acl)
 			default:
+				if tv, ok := c.(*data.ThrowValue); ok && tv.PHPUncaughtError {
+					ctx.GetVM().ThrowControl(c)
+					return v, nil
+				}
 				if acl, ok := acl.(data.AddStack); ok {
 					if statement, ok := statement.(GetFrom); ok {
 						acl.AddStackWithInfo(statement.GetFrom(), "program", "")

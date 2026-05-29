@@ -7,12 +7,21 @@ import (
 type Array struct {
 	*Node `pp:"-"`
 	V     []data.GetValue
+	Keys  []KvPair // array(1, 2=>3) 中 => 之后的键值对
 }
 
 func NewArray(token *TokenFrom, arr []data.GetValue) data.GetValue {
 	return &Array{
 		Node: NewNode(token),
 		V:    arr,
+	}
+}
+
+func NewArrayWithKeys(token *TokenFrom, list []data.GetValue, keys []KvPair) data.GetValue {
+	return &Array{
+		Node: NewNode(token),
+		V:    list,
+		Keys: keys,
 	}
 }
 
@@ -43,5 +52,36 @@ func (n *Array) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			arr = append(arr, v.(data.Value))
 		}
 	}
-	return data.NewArrayValue(arr), nil
+	av := data.NewArrayValue(arr).(*data.ArrayValue)
+	for _, pair := range n.Keys {
+		kv, acl := pair.Key.GetValue(ctx)
+		if acl != nil {
+			return nil, acl
+		}
+		vv, acl := pair.Value.GetValue(ctx)
+		if acl != nil {
+			return nil, acl
+		}
+		setArrayLiteralEntry(av, kv.(data.Value), vv.(data.Value))
+	}
+	return av, nil
+}
+
+func setArrayLiteralEntry(av *data.ArrayValue, key, val data.Value) {
+	if iv, ok := key.(data.AsInt); ok {
+		i, _ := iv.AsInt()
+		for len(av.List) <= i {
+			av.List = append(av.List, data.NewZVal(data.NewNullValue()))
+		}
+		av.List[i] = data.NewZVal(val)
+		return
+	}
+	keyStr := key.AsString()
+	for _, z := range av.List {
+		if z != nil && z.Name == keyStr {
+			z.Value = val
+			return
+		}
+	}
+	av.List = append(av.List, &data.ZVal{Name: keyStr, Value: val})
 }

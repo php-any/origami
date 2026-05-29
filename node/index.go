@@ -3,13 +3,130 @@ package node
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/php-any/origami/data"
 )
 
+// emitUndefinedArrayKeyWarning 输出 PHP 8+ 未定义数组键 Warning
+func emitUndefinedArrayKeyWarning(from data.From, key string, intKey bool) {
+	file := "Unknown"
+	line := 0
+	if from != nil {
+		if src := from.GetSource(); src != "" {
+			file = src
+		}
+		if sl, _ := from.GetStartPosition(); sl >= 0 {
+			line = sl + 1
+		}
+	}
+	if intKey {
+		fmt.Fprintf(os.Stderr, "\nWarning: Undefined array key %s in %s on line %d\n", key, file, line)
+	} else {
+		fmt.Fprintf(os.Stderr, "\nWarning: Undefined array key \"%s\" in %s on line %d\n", key, file, line)
+	}
+}
+
 // emitNullOffsetDeprecation prints a PHP 8.1 deprecation when null is used as an array offset.
-func emitNullOffsetDeprecation() {
-	fmt.Print("Deprecated: Using null as an array offset is deprecated, use an empty string instead in Unknown on line 0\n")
+func emitNullOffsetDeprecation(from data.From) {
+	file := "Unknown"
+	line := 0
+	if from != nil {
+		if src := from.GetSource(); src != "" {
+			file = src
+		}
+		if sl, _ := from.GetStartPosition(); sl >= 0 {
+			line = sl + 1
+		}
+	}
+	fmt.Printf("Deprecated: Using null as an array offset is deprecated, use an empty string instead in %s on line %d\n", file, line)
+}
+
+// callArrayAccessOffsetExists 调用 ArrayAccess::offsetExists
+func callArrayAccessOffsetExists(ctx data.Context, classValue *data.ClassValue, index data.Value) (bool, data.Control) {
+	method, exists := classValue.GetMethod("offsetExists")
+	if !exists {
+		return false, nil
+	}
+	fnCtx := classValue.CreateContext(method.GetVariables())
+	if len(method.GetVariables()) > 0 {
+		fnCtx.SetVariableValue(method.GetVariables()[0], index)
+	}
+	ret, ctl := method.Call(fnCtx)
+	if ctl != nil {
+		return false, ctl
+	}
+	if bv, ok := ret.(*data.BoolValue); ok {
+		return bv.Value, nil
+	}
+	return false, nil
+}
+
+// EmptyViaArrayAccess 对 empty($obj[$k]) 按 PHP 语义走 offsetExists/offsetGet
+func EmptyViaArrayAccess(ctx data.Context, ie *IndexExpression) (bool, bool) {
+	array, acl := ie.Array.GetValue(ctx)
+	if acl != nil {
+		return true, true
+	}
+	index, acl := ie.Index.GetValue(ctx)
+	if acl != nil {
+		return true, true
+	}
+	iv, ok := index.(data.Value)
+	if !ok {
+		return false, false
+	}
+	var obj *data.ClassValue
+	switch v := array.(type) {
+	case *data.ClassValue:
+		obj = v
+	case *data.ThisValue:
+		obj = v.ClassValue
+	default:
+		return false, false
+	}
+	if !checkArrayAccess(ctx, obj.Class) {
+		return false, false
+	}
+	exists, ctl := callArrayAccessOffsetExists(ctx, obj, iv)
+	if ctl != nil {
+		return true, true
+	}
+	if !exists {
+		return true, true
+	}
+	val, ctl := callArrayAccessOffsetGet(ctx, obj, index)
+	if ctl != nil {
+		return true, true
+	}
+	return isEmptyPHPValue(val), true
+}
+
+func isEmptyPHPValue(v data.GetValue) bool {
+	if v == nil {
+		return true
+	}
+	if _, ok := v.(*data.NullValue); ok {
+		return true
+	}
+	if s, ok := v.(data.AsString); ok {
+		str := s.AsString()
+		return str == "" || str == "0"
+	}
+	if i, ok := v.(data.AsInt); ok {
+		n, _ := i.AsInt()
+		return n == 0
+	}
+	if f, ok := v.(*data.FloatValue); ok {
+		return f.Value == 0
+	}
+	if b, ok := v.(*data.BoolValue); ok {
+		return !b.Value
+	}
+	if a, ok := v.(*data.ArrayValue); ok {
+		return len(a.List) == 0
+	}
+	return false
 }
 
 // callArrayAccessOffsetGet 调用 ArrayAccess 接口的 offsetGet 方法
@@ -40,10 +157,122 @@ func callArrayAccessOffsetGet(ctx data.Context, classValue *data.ClassValue, ind
 		return nil, ctl
 	}
 
-	if val, ok := result.(data.Value); ok {
-		return val, nil
+	if result != nil {
+		if v, ok := result.(data.Value); ok {
+			return tagArrayAccessOffsetCopy(v, classValue.Class.GetName()), nil
+		}
+		return result, nil
 	}
 	return nil, nil
+}
+
+func tagArrayAccessOffsetCopy(val data.Value, className string) data.Value {
+	if val == nil || className == "" {
+		return val
+	}
+	switch v := val.(type) {
+	case *data.ArrayValue:
+		if v.IndirectOverloadClass != "" {
+			return v
+		}
+		tagged := data.CloneArrayValue(v)
+		tagged.IndirectOverloadClass = className
+		return tagged
+	case *data.ObjectValue:
+		if v.IndirectOverloadClass != "" {
+			return v
+		}
+		tagged := data.CloneObjectValue(v)
+		tagged.IndirectOverloadClass = className
+		return tagged
+	default:
+		return val
+	}
+}
+
+// arrayAccessOverloadedClass 若索引表达式根对象为 ArrayAccess 则返回类名
+func arrayAccessOverloadedClass(ctx data.Context, ie *IndexExpression) (string, bool) {
+	array, acl := ie.Array.GetValue(ctx)
+	if acl != nil {
+		return "", false
+	}
+	switch v := array.(type) {
+	case *data.ClassValue:
+		if checkArrayAccess(ctx, v.Class) {
+			return v.Class.GetName(), true
+		}
+	case *data.ThisValue:
+		if v.ClassValue != nil && checkArrayAccess(ctx, v.Class) {
+			return v.Class.GetName(), true
+		}
+	}
+	return "", false
+}
+
+func indirectOverloadTag(v data.GetValue) string {
+	if arr, ok := v.(*data.ArrayValue); ok {
+		return arr.IndirectOverloadClass
+	}
+	if obj, ok := v.(*data.ObjectValue); ok {
+		return obj.IndirectOverloadClass
+	}
+	return ""
+}
+
+// blockIndirectOverloadAssign 对 ArrayAccess offsetGet 返回的副本做嵌套赋值时发出 Notice 并阻止写入
+func blockIndirectOverloadAssign(ie *IndexExpression, arrayVal data.GetValue) bool {
+	if _, ok := ie.Array.(data.Variable); ok {
+		return false
+	}
+	if _, ok := ie.Array.(*IndexExpression); !ok {
+		return false
+	}
+	if className := indirectOverloadTag(arrayVal); className != "" {
+		emitIndirectModificationNoticeAssign(ie.GetFrom(), className)
+		return true
+	}
+	return false
+}
+
+func emitIndirectModificationNotice(from data.From, className string) {
+	emitIndirectModificationNoticeLine(from, className, 0)
+}
+
+// emitIndirectModificationNoticeAssign 用于 .= / = 等赋值左侧（行号比 PostfixIncr 多 1）
+func emitIndirectModificationNoticeAssign(from data.From, className string) {
+	emitIndirectModificationNoticeLine(from, className, 1)
+}
+
+func emitIndirectModificationNoticeLine(from data.From, className string, lineAdjust int) {
+	file := "Unknown"
+	line := 0
+	if from != nil {
+		if src := from.GetSource(); src != "" {
+			file = src
+		}
+		if sl, _ := from.GetStartPosition(); sl >= 0 {
+			line = sl + lineAdjust
+		}
+	}
+	fmt.Fprintf(os.Stderr, "\nNotice: Indirect modification of overloaded element of %s has no effect in %s on line %d\n", className, file, line)
+}
+
+// CallArrayAccessOffsetUnset 调用 ArrayAccess::offsetUnset
+func CallArrayAccessOffsetUnset(ctx data.Context, classValue *data.ClassValue, index data.Value) data.Control {
+	return callArrayAccessOffsetUnset(ctx, classValue, index)
+}
+
+func callArrayAccessOffsetUnset(ctx data.Context, classValue *data.ClassValue, index data.Value) data.Control {
+	method, exists := classValue.GetMethod("offsetUnset")
+	if !exists {
+		return nil
+	}
+	fnCtx := classValue.CreateContext(method.GetVariables())
+	if len(method.GetVariables()) > 0 {
+		fnCtx.SetVariableValue(method.GetVariables()[0], index)
+	}
+	_, ctl := method.Call(fnCtx)
+	return ctl
 }
 
 // callArrayAccessOffsetSet 调用 ArrayAccess 接口的 offsetSet 方法
@@ -82,7 +311,11 @@ func callArrayAccessOffsetSet(ctx data.Context, classValue *data.ClassValue, ind
 	return ctl
 }
 
-// checkArrayAccess 检查类是否实现了 ArrayAccess 接口
+// CheckArrayAccess 检查类是否实现了 ArrayAccess 接口
+func CheckArrayAccess(ctx data.Context, classStmt data.ClassStmt) bool {
+	return checkArrayAccess(ctx, classStmt)
+}
+
 func checkArrayAccess(ctx data.Context, classStmt data.ClassStmt) bool {
 	if asBool, ctl := instanceof(ctx, "ArrayAccess", &data.ClassValue{Class: classStmt}); ctl == nil {
 		if boolVal, ok := asBool.(*data.BoolValue); ok {
@@ -242,6 +475,10 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 		}
 	}
 
+	if blockIndirectOverloadAssign(ie, arrayVal) {
+		return nil
+	}
+
 	// 获取索引值
 	indexVal, acl := ie.Index.GetValue(ctx)
 	if acl != nil {
@@ -258,16 +495,9 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 		// 数组索引赋值
 		// Handle null index first (before interface type assertions)
 		if _, isNull := indexVal.(*data.NullValue); isNull {
-			emitNullOffsetDeprecation()
-			// null is treated as empty string
-			key := ""
-			for _, zval := range arr.List {
-				if zval != nil && zval.Name == key {
-					zval.Value = value
-					return nil
-				}
-			}
-			arr.List = append(arr.List, &data.ZVal{Name: key, Value: value})
+			// $arr[] = $val（PHP 追加，不触发 null 下标弃用提示）
+			arr.List = append(arr.List, data.NewZVal(value))
+			writeBackArrayProperty(ctx, ie.Array, arr)
 			return nil
 		}
 		i := 0
@@ -283,11 +513,13 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 			for _, zval := range arr.List {
 				if zval != nil && zval.Name == key {
 					zval.Value = value
+					writeBackArrayProperty(ctx, ie.Array, arr)
 					return nil
 				}
 			}
 			// 未找到，追加新项
 			arr.List = append(arr.List, &data.ZVal{Name: key, Value: value})
+			writeBackArrayProperty(ctx, ie.Array, arr)
 			return nil
 		} else {
 			return data.NewErrorThrow(ie.GetFrom(), errors.New("数组索引不是整数类型"))
@@ -298,21 +530,8 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 		}
 
 		// PHP 数组是稀疏的：arr[22]=val 不填充 0-21。超出长度时仅当推入末尾才扩容，否则转为 ObjectValue
-		if i >= len(arr.List) {
-			if i == len(arr.List) {
-				arr.List = append(arr.List, data.NewZVal(data.NewNullValue()))
-			} else {
-				obj := data.NewObjectValue()
-				for idx, z := range arr.List {
-					obj.SetProperty(fmt.Sprintf("%d", idx), z.Value)
-				}
-				obj.SetProperty(fmt.Sprintf("%d", i), value)
-				_, acl = NewBinaryAssign(ie.GetFrom(), ie.Array, obj).GetValue(ctx)
-				return acl
-			}
-		}
-
-		arr.List[i] = data.NewZVal(value)
+		arr.SetIntKey(i, value)
+		writeBackArrayProperty(ctx, ie.Array, arr)
 		return nil
 
 	case *data.ClassValue:
@@ -358,7 +577,7 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 	case data.SetProperty:
 		// 对象属性赋值
 		if _, isNull := indexVal.(*data.NullValue); isNull {
-			emitNullOffsetDeprecation()
+			emitNullOffsetDeprecation(ie.GetFrom())
 			arr.SetProperty("", value)
 			return nil
 		}
@@ -373,6 +592,22 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 			}
 		}
 		return data.NewErrorThrow(ie.GetFrom(), errors.New("对象索引必须是字符串或整数"))
+
+	case *data.IndexReferenceValue:
+		sub := &IndexExpression{
+			Node:  ie.Node,
+			Array: arr.Expr,
+			Index: ie.Index,
+		}
+		return sub.SetValue(arr.Ctx, value)
+
+	case *data.ReferenceValue:
+		sub := &IndexExpression{
+			Node:  ie.Node,
+			Array: arr.Val,
+			Index: ie.Index,
+		}
+		return sub.SetValue(arr.Ctx, value)
 
 	default:
 		return data.NewErrorThrow(ie.GetFrom(), errors.New("无法设置索引表达式的值"))
@@ -395,7 +630,7 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		i := 0
 		switch iv := index.(type) {
 		case *data.NullValue:
-			emitNullOffsetDeprecation()
+			emitNullOffsetDeprecation(ie.GetFrom())
 			// null is treated as empty string
 			for _, zval := range v.List {
 				if zval != nil && zval.Name == "" {
@@ -409,9 +644,11 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			if err != nil {
 				return nil, data.NewErrorThrow(ie.GetFrom(), err)
 			}
-			if i >= len(v.List) {
-				return data.NewNullValue(), nil
+			if val, ok := arrayIntKeyValue(v, i); ok {
+				return val, nil
 			}
+			emitUndefinedArrayKeyWarning(ie.GetFrom(), fmt.Sprintf("%d", i), true)
+			return data.NewNullValue(), nil
 		case *data.StringValue:
 			// 字符串键：在数组中搜索匹配的 Name
 			key := iv.Value
@@ -420,6 +657,7 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 					return zval.Value, nil
 				}
 			}
+			emitUndefinedArrayKeyWarning(ie.GetFrom(), key, false)
 			return data.NewNullValue(), nil
 		case data.AsInt:
 			var err error
@@ -427,26 +665,28 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			if err != nil {
 				return nil, data.NewErrorThrow(ie.GetFrom(), err)
 			}
-			if i >= len(v.List) {
-				return data.NewNullValue(), nil
+			if val, ok := arrayIntKeyValue(v, i); ok {
+				return val, nil
 			}
+			emitUndefinedArrayKeyWarning(ie.GetFrom(), fmt.Sprintf("%d", i), true)
+			return data.NewNullValue(), nil
 		case *data.BoolValue:
 			if iv.Value {
 				i = 1
 			}
-			if i >= len(v.List) {
-				return data.NewNullValue(), nil
+			if val, ok := arrayIntKeyValue(v, i); ok {
+				return val, nil
 			}
+			emitUndefinedArrayKeyWarning(ie.GetFrom(), fmt.Sprintf("%d", i), true)
+			return data.NewNullValue(), nil
 		default:
 			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("无法处理索引的类型值"))
 		}
-
-		return v.List[i].Value, nil
 	case *data.ObjectValue:
 		// 支持整数索引（转换为字符串）和字符串索引
 		var key string
 		if _, isNull := index.(*data.NullValue); isNull {
-			emitNullOffsetDeprecation()
+			emitNullOffsetDeprecation(ie.GetFrom())
 			key = ""
 		} else if iv, ok := index.(data.AsString); ok {
 			key = iv.AsString()
@@ -540,3 +780,207 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	}
 	return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("无法处理索引的类型值"), "UndefinedIndexExpression")
 }
+
+// assignIndexConcat 处理 $obj[$i][$k] .= $rhs，只获取一次容器，避免 ArrayAccess 重复 offsetGet
+func assignIndexConcat(ctx data.Context, ie *IndexExpression, dot *BinaryDot) (data.GetValue, data.Control) {
+	rv, rCtl := dot.Right.GetValue(ctx)
+	if rCtl != nil {
+		return nil, rCtl
+	}
+	if rv == nil {
+		rv = data.NewNullValue()
+	}
+
+	arrayVal, acl := ie.Array.GetValue(ctx)
+	if acl != nil {
+		if tv, ok := acl.(*data.ThrowValue); ok && tv.Name == "UndefinedIndexExpression" {
+			arrayVal = data.NewNullValue()
+		} else {
+			return nil, acl
+		}
+	}
+
+	if blockIndirectOverloadAssign(ie, arrayVal) {
+		return indexValueOnContainer(ctx, arrayVal, ie.Index, ie.GetFrom())
+	}
+
+	indexVal, acl := ie.Index.GetValue(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+
+	lv, acl := indexValueOnContainer(ctx, arrayVal, indexVal, ie.GetFrom())
+	if acl != nil {
+		return nil, acl
+	}
+
+	newVal := concatPHPValues(lv, rv)
+	v, ok := newVal.(data.Value)
+	if !ok {
+		return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("concat assign failed"))
+	}
+	if ctl := indexSetValueOnContainer(ctx, ie, arrayVal, indexVal, v); ctl != nil {
+		return nil, ctl
+	}
+	return v, nil
+}
+
+func indexValueOnContainer(ctx data.Context, container data.GetValue, indexExpr data.GetValue, from data.From) (data.GetValue, data.Control) {
+	index, acl := indexExpr.GetValue(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	switch v := container.(type) {
+	case *data.ArrayValue:
+		tmp := &IndexExpression{Node: NewNode(from), Index: indexExpr}
+		return tmp.readArrayIndex(ctx, v, index)
+	case *data.ObjectValue:
+		key, ok := indexKeyString(index)
+		if !ok {
+			return nil, data.NewErrorThrow(from, errors.New("ObjectValue无法处理索引的类型值"))
+		}
+		val, acl := v.GetProperty(key)
+		if acl != nil {
+			return nil, acl
+		}
+		return val, nil
+	case *data.ClassValue:
+		if checkArrayAccess(ctx, v.Class) {
+			return callArrayAccessOffsetGet(ctx, v, index)
+		}
+	case *data.ThisValue:
+		if checkArrayAccess(ctx, v.Class) {
+			return callArrayAccessOffsetGet(ctx, v.ClassValue, index)
+		}
+	case data.GetProperty:
+		key, ok := indexKeyString(index)
+		if !ok {
+			return nil, data.NewErrorThrow(from, errors.New("对象索引必须是字符串或整数"))
+		}
+		val, acl := v.GetProperty(key)
+		if acl != nil {
+			return nil, acl
+		}
+		return val, nil
+	}
+	return nil, data.NewErrorThrow(from, errors.New("无法读取容器索引值"))
+}
+
+func (ie *IndexExpression) readArrayIndex(ctx data.Context, arr *data.ArrayValue, index data.GetValue) (data.GetValue, data.Control) {
+	switch iv := index.(type) {
+	case *data.StringValue:
+		key := iv.Value
+		for _, zval := range arr.List {
+			if zval != nil && zval.Name == key {
+				return zval.Value, nil
+			}
+		}
+		emitUndefinedArrayKeyWarning(ie.GetFrom(), key, false)
+		return data.NewNullValue(), nil
+	case data.AsInt:
+		i, err := iv.AsInt()
+		if err != nil {
+			return nil, data.NewErrorThrow(ie.GetFrom(), err)
+		}
+		if val, ok := arrayIntKeyValue(arr, i); ok {
+			return val, nil
+		}
+		emitUndefinedArrayKeyWarning(ie.GetFrom(), fmt.Sprintf("%d", i), true)
+		return data.NewNullValue(), nil
+	default:
+		return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("无法处理索引的类型值"))
+	}
+}
+
+// arrayIntKeyValue 按键读取数组元素；键存在时返回值（可为 null），不存在时 ok=false
+func arrayIntKeyValue(arr *data.ArrayValue, i int) (data.GetValue, bool) {
+	z, _ := arr.FindSlotByIntKey(i)
+	if z == nil {
+		return nil, false
+	}
+	if z.Value == nil {
+		return data.NewNullValue(), true
+	}
+	return z.Value, true
+}
+
+func indexSetValueOnContainer(ctx data.Context, ie *IndexExpression, container data.GetValue, indexVal data.GetValue, value data.Value) data.Control {
+	switch arr := container.(type) {
+	case *data.ArrayValue:
+		if _, isNull := indexVal.(*data.NullValue); isNull {
+			arr.List = append(arr.List, data.NewZVal(value))
+			writeBackArrayProperty(ctx, ie.Array, arr)
+			return nil
+		}
+		if iv, ok := indexVal.(data.AsString); ok {
+			key := iv.AsString()
+			for _, zval := range arr.List {
+				if zval != nil && zval.Name == key {
+					zval.Value = value
+					writeBackArrayProperty(ctx, ie.Array, arr)
+					return nil
+				}
+			}
+			arr.List = append(arr.List, &data.ZVal{Name: key, Value: value})
+			writeBackArrayProperty(ctx, ie.Array, arr)
+			return nil
+		}
+		if iv, ok := indexVal.(data.AsInt); ok {
+			i, err := iv.AsInt()
+			if err != nil {
+				return data.NewErrorThrow(ie.GetFrom(), err)
+			}
+			arr.SetIntKey(i, value)
+			writeBackArrayProperty(ctx, ie.Array, arr)
+			return nil
+		}
+	case *data.ClassValue:
+		if checkArrayAccess(ctx, arr.Class) {
+			return callArrayAccessOffsetSet(ctx, arr, indexVal, value)
+		}
+	case *data.ThisValue:
+		if checkArrayAccess(ctx, arr.Class) {
+			return callArrayAccessOffsetSet(ctx, arr.ClassValue, indexVal, value)
+		}
+	case data.SetProperty:
+		if iv, ok := indexVal.(data.AsString); ok {
+			arr.SetProperty(iv.AsString(), value)
+			return nil
+		}
+		if iv, ok := indexVal.(data.AsInt); ok {
+			if i, err := iv.AsInt(); err == nil {
+				arr.SetProperty(fmt.Sprintf("%d", i), value)
+				return nil
+			}
+		}
+	}
+	return data.NewErrorThrow(ie.GetFrom(), errors.New("无法在容器上设置索引值"))
+}
+
+func indexKeyString(index data.GetValue) (string, bool) {
+	if _, isNull := index.(*data.NullValue); isNull {
+		return "", true
+	}
+	if iv, ok := index.(data.AsString); ok {
+		return iv.AsString(), true
+	}
+	if iv, ok := index.(data.AsInt); ok {
+		if i, err := iv.AsInt(); err == nil {
+			return fmt.Sprintf("%d", i), true
+		}
+	}
+	return "", false
+}
+
+func concatPHPValues(left, right data.GetValue) data.Value {
+	dot := &BinaryDot{Left: &literalGetValue{left}, Right: &literalGetValue{right}}
+	v, _ := dot.GetValue(nil)
+	if val, ok := v.(data.Value); ok {
+		return val
+	}
+	return data.NewNullValue()
+}
+
+type literalGetValue struct{ v data.GetValue }
+
+func (l *literalGetValue) GetValue(data.Context) (data.GetValue, data.Control) { return l.v, nil }

@@ -298,6 +298,19 @@ func (c *ClassMethodContext) GetIndexZVal(index int) *ZVal {
 	return c.Context.GetIndexZVal(index)
 }
 
+func (c *ClassMethodContext) BindStaticLocals(store *StaticLocals) {
+	if b, ok := c.Context.(StaticLocalsBinder); ok {
+		b.BindStaticLocals(store)
+	}
+}
+
+func (c *ClassMethodContext) StaticLocalsStore() *StaticLocals {
+	if b, ok := c.Context.(StaticLocalsBinder); ok {
+		return b.StaticLocalsStore()
+	}
+	return nil
+}
+
 func (c *ClassMethodContext) GoContext() context.Context {
 	return context.Background()
 }

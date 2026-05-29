@@ -324,12 +324,12 @@ func (sp *StaticParser) parseStaticVariable(tracker *PositionTracker) (data.GetV
 	if len(varName) > 0 && varName[0] == '$' {
 		varName = varName[1:]
 	}
-	sp.scopeManager.CurrentScope().AddVariable(varName, varType, tracker.EndBefore())
+	vari := sp.scopeManager.CurrentScope().AddVariable(varName, varType, tracker.EndBefore())
 
 	// 创建静态局部变量声明语句
 	return node.NewStaticVarStatement(
 		tracker.EndBefore(),
-		name,
+		vari,
 		initializer,
 	), nil
 }

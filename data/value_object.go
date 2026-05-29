@@ -25,9 +25,10 @@ func CloneObjectValue(src *ObjectValue) *ObjectValue {
 	}
 
 	clone := &ObjectValue{
-		Value:    src.Value,
-		Context:  src.Context,
-		property: NewOrderedMap(),
+		Value:                   src.Value,
+		Context:                 src.Context,
+		property:                NewOrderedMap(),
+		IndirectOverloadClass:   src.IndirectOverloadClass,
 	}
 
 	// 按插入顺序复制所有键值对
@@ -44,6 +45,8 @@ type ObjectValue struct {
 	Context
 	property PropertyStore
 	iterator int // 迭代器当前位置索引
+	// IndirectOverloadClass 非空表示该对象来自 ArrayAccess::offsetGet 的副本
+	IndirectOverloadClass string
 }
 
 func (o *ObjectValue) GoContext() context.Context {
@@ -91,6 +94,10 @@ func (o *ObjectValue) GetProperty(name string) (Value, Control) {
 func (o *ObjectValue) GetZVal(name string) (*ZVal, Control) {
 	v, _ := o.property.GetZVal(name)
 	return v, nil
+}
+
+func (o *ObjectValue) UnsetProperty(name string) {
+	o.property.Delete(name)
 }
 
 func (o *ObjectValue) SetProperty(name string, value Value) Control {

@@ -32,6 +32,10 @@ func createInstanceFromClassStmt(
 	arguments []data.GetValue,
 	ctx data.Context,
 ) (data.GetValue, data.Control) {
+	if IsAbstractClassStmt(stmt) {
+		msg := fmt.Sprintf("Uncaught Error: Cannot instantiate abstract class %s", stmt.GetName())
+		return nil, data.NewPHPUncaughtError(from, msg)
+	}
 	object, acl := stmt.GetValue(ctx.CreateBaseContext())
 	if acl != nil {
 		return nil, acl

@@ -20,6 +20,9 @@ func NewEchoStatement(token *TokenFrom, expr []data.GetValue) *EchoStatement {
 
 // GetValue 获取 echo 语句的值
 func (e *EchoStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if MarkHeaderOutputStarted != nil {
+		MarkHeaderOutputStarted()
+	}
 	for _, expr := range e.Expressions {
 		v, c := expr.GetValue(ctx)
 		if c != nil {

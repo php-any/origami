@@ -3,6 +3,7 @@ package parser
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/lexer"
@@ -179,14 +180,17 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 			continue
 		}
 
-		// 解析 final 和 abstract 关键字（可以在访问修饰符之前）
+		// 解析 final 和 abstract 关键字（可以在访问修饰符之前，顺序任意）
 		isAbstractMethod := false
-		if p.current().Type() == token.FINAL {
-			p.next()
-		}
-		if p.current().Type() == token.ABSTRACT {
-			isAbstractMethod = true
-			p.next()
+		isFinalMethod := false
+		for p.current().Type() == token.FINAL || p.current().Type() == token.ABSTRACT {
+			if p.current().Type() == token.FINAL {
+				isFinalMethod = true
+				p.next()
+			} else {
+				isAbstractMethod = true
+				p.next()
+			}
 		}
 
 		// 解析访问修饰符
@@ -195,10 +199,18 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 			return nil, data.NewErrorThrow(p.newFrom(), errors.New("缺少访问修饰符"))
 		}
 
-		// 解析 abstract 关键字（也可以在访问修饰符之后）
-		if p.current().Type() == token.ABSTRACT {
-			isAbstractMethod = true
-			p.next()
+		// 解析 abstract/final 关键字（也可以在访问修饰符之后）
+		for p.current().Type() == token.FINAL || p.current().Type() == token.ABSTRACT {
+			if p.current().Type() == token.FINAL {
+				isFinalMethod = true
+				p.next()
+			} else {
+				isAbstractMethod = true
+				p.next()
+			}
+		}
+		if isAbstractMethod && isFinalMethod {
+			return nil, data.NewCompileFatal(p.newFrom(), "Cannot use the final modifier on an abstract method")
 		}
 
 		// 解析readonly关键字（在访问修饰符之后）
@@ -269,6 +281,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 		properties,
 		methods,
 	)
+	c.IsAbstract = p.definingAbstractClass
 	// 用 ClassValue 作为上下文，使 self::/parent::/static:: 在常量初始化器中可用
 	classVal := data.NewClassValue(c, p.vm.CreateContext([]data.Variable{}))
 	for _, s := range staticPropertiesIndex {
@@ -823,6 +836,50 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 	}
 	if acl != nil {
 		return nil, nil, acl
+	}
+
+	if name == "__call" || name == "__callStatic" {
+		if len(params) != 2 {
+			className := p.currentClass
+			if className == "" {
+				className = "Unknown"
+			}
+			msg := fmt.Sprintf("Method %s::%s() must take exactly 2 arguments", className, name)
+			return nil, nil, data.NewCompileFatal(tracker.EndBefore(), msg)
+		}
+	} else if name == "__get" {
+		if len(params) != 1 {
+			className := p.currentClass
+			if className == "" {
+				className = "Unknown"
+			}
+			msg := fmt.Sprintf("Method %s::%s() must take exactly 1 argument", className, name)
+			return nil, nil, data.NewCompileFatal(tracker.EndBefore(), msg)
+		}
+	} else if name == "__set" {
+		if len(params) != 2 {
+			className := p.currentClass
+			if className == "" {
+				className = "Unknown"
+			}
+			msg := fmt.Sprintf("Method %s::%s() must take exactly 2 arguments", className, name)
+			return nil, nil, data.NewCompileFatal(tracker.EndBefore(), msg)
+		}
+	}
+	if (name == "__call" || name == "__callStatic" || name == "__get" || name == "__set") && modifier != "public" {
+		from := tracker.EndBefore()
+		className := p.currentClass
+		if className == "" {
+			className = "Unknown"
+		}
+		sl, _ := from.GetStartPosition()
+		src := from.GetSource()
+		if src == "" && p.source != nil {
+			src = *p.source
+		}
+		_, _ = fmt.Fprintf(os.Stderr,
+			"Warning: The magic method %s::%s() must have public visibility in %s on line %d\n",
+			className, name, src, sl+1)
 	}
 
 	// 解析返回类型

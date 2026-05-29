@@ -25,10 +25,12 @@ func (i *IssetStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	for _, argExpr := range i.Args {
-		// 对 IndexExpression，尝试使用 ArrayAccess::offsetExists
 		if ie, ok := argExpr.(*IndexExpression); ok {
-			if isSet, handled := isSetViaOffsetExists(ctx, ie); handled {
-				return data.NewBoolValue(isSet), nil
+			if isSet, handled := issetIndexExpression(ctx, ie); handled {
+				if !isSet {
+					return data.NewBoolValue(false), nil
+				}
+				continue
 			}
 		}
 
@@ -95,4 +97,141 @@ func isSetViaOffsetExists(ctx data.Context, ie *IndexExpression) (bool, bool) {
 		return bv.Value, true
 	}
 	return false, true
+}
+
+// issetIndexExpression 检查数组/对象下标是否存在（不触发 PHP 8 未定义键 Warning）
+func issetIndexExpression(ctx data.Context, ie *IndexExpression) (isSet bool, handled bool) {
+	if isSet, handled := isSetViaOffsetExists(ctx, ie); handled {
+		return isSet, true
+	}
+	array, acl := ie.Array.GetValue(ctx)
+	if acl != nil {
+		return false, true
+	}
+	index, acl := ie.Index.GetValue(ctx)
+	if acl != nil {
+		return false, true
+	}
+	switch arr := array.(type) {
+	case *data.StringValue:
+		// 必须在 data.GetProperty 之前：StringValue 也实现了 GetProperty，不能按对象属性处理
+		if iv, ok := index.(data.AsInt); ok {
+			i, err := iv.AsInt()
+			if err != nil {
+				return false, true
+			}
+			if i < 0 {
+				i = len(arr.Value) + i
+			}
+			return i >= 0 && i < len(arr.Value), true
+		}
+		return false, true
+	case *data.ArrayValue:
+		switch iv := index.(type) {
+		case *data.StringValue:
+			for _, z := range arr.List {
+				if z != nil && z.Name == iv.Value {
+					return z.Value != nil, true
+				}
+			}
+			return false, true
+		case data.AsInt:
+			i, err := iv.AsInt()
+			if err != nil {
+				return false, true
+			}
+			z, _ := arr.FindSlotByIntKey(i)
+			return z != nil && z.Value != nil, true
+		}
+	case *data.ObjectValue:
+		key, ok := indexKeyString(index)
+		if !ok {
+			return false, true
+		}
+		val, acl := arr.GetProperty(key)
+		if acl != nil {
+			return false, true
+		}
+		_, isNull := val.(*data.NullValue)
+		return val != nil && !isNull, true
+	case data.GetProperty:
+		if _, ok := arr.(*data.StringValue); ok {
+			return false, false
+		}
+		key, ok := indexKeyString(index)
+		if !ok {
+			return false, true
+		}
+		val, acl := arr.GetProperty(key)
+		if acl != nil {
+			return false, true
+		}
+		_, isNull := val.(*data.NullValue)
+		return val != nil && !isNull, true
+	}
+	return false, false
+}
+
+// indexExpressionKeyExists 判断下标槽位是否存在（与 isset 不同：值为 null 仍算存在）
+func indexExpressionKeyExists(ctx data.Context, ie *IndexExpression) (exists bool, handled bool) {
+	if _, handled := isSetViaOffsetExists(ctx, ie); handled {
+		return false, false
+	}
+	array, acl := ie.Array.GetValue(ctx)
+	if acl != nil {
+		return false, true
+	}
+	index, acl := ie.Index.GetValue(ctx)
+	if acl != nil {
+		return false, true
+	}
+	switch arr := array.(type) {
+	case *data.StringValue:
+		if iv, ok := index.(data.AsInt); ok {
+			i, err := iv.AsInt()
+			if err != nil {
+				return false, true
+			}
+			if i < 0 {
+				i = len(arr.Value) + i
+			}
+			return i >= 0 && i < len(arr.Value), true
+		}
+		return false, true
+	case *data.ArrayValue:
+		switch iv := index.(type) {
+		case *data.StringValue:
+			for _, z := range arr.List {
+				if z != nil && z.Name == iv.Value {
+					return true, true
+				}
+			}
+			return false, true
+		case data.AsInt:
+			i, err := iv.AsInt()
+			if err != nil {
+				return false, true
+			}
+			z, _ := arr.FindSlotByIntKey(i)
+			return z != nil, true
+		}
+	case *data.ObjectValue:
+		key, ok := indexKeyString(index)
+		if !ok {
+			return false, true
+		}
+		_, acl := arr.GetProperty(key)
+		return acl == nil, true
+	case data.GetProperty:
+		if _, ok := arr.(*data.StringValue); ok {
+			return false, false
+		}
+		key, ok := indexKeyString(index)
+		if !ok {
+			return false, true
+		}
+		_, acl := arr.GetProperty(key)
+		return acl == nil, true
+	}
+	return false, false
 }

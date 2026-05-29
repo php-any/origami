@@ -32,6 +32,9 @@ type Parser struct {
 	namespace        *node.Namespace
 	uses             map[string]string // 类引用
 	ClassPathManager ClassPathManager  // 类路径管理器
+
+	// definingAbstractClass 为 true 时正在解析 abstract class
+	definingAbstractClass bool
 }
 
 // NewParser 创建一个新的解析器
@@ -138,6 +141,13 @@ func (p *Parser) parseProgram(statements []data.GetValue) (*node.Program, data.C
 				p.namespace = n
 				statements = append(statements, stmt)
 			} else if _, ok := stmt.(*node.ClassStatement); ok {
+				// 类已在 ClassParser.Parse 中 AddClass 注册，勿在 Program 中再次执行 GetValue
+				continue
+			} else if _, ok := stmt.(*node.AbstractClassStatement); ok {
+				continue
+			} else if _, ok := stmt.(*node.ClassGeneric); ok {
+				continue
+			} else if _, ok := stmt.(*node.InterfaceStatement); ok {
 				continue
 			} else {
 				if n, ok := stmt.(*node.UseStatement); ok {
@@ -261,6 +271,15 @@ func (p *Parser) ShowControl(acl data.Control) {
 			from = node.NewTokenFrom(p.source, p.current().Start(), p.current().End(), p.current().Line(), p.current().Pos())
 		}
 		p.errors = append(p.errors, data.NewErrorThrow(from, errors.New(err)))
+
+		if throwValue.PHPUncaughtError {
+			p.printPHPUncaughtError(throwValue.Error.Error(), from, throwValue.StackFrames)
+			return
+		}
+		if throwValue.PHPCompileFatal {
+			p.printPHPCompileFatal(throwValue.Error.Error(), from)
+			return
+		}
 
 		// 先打印运行时错误信息
 		p.printRuntimeError(err, from)

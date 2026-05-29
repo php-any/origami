@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+	"strconv"
 )
 
 func NewArrayValue(v []Value) Value {
@@ -25,13 +26,35 @@ func CloneArrayValue(src *ArrayValue) *ArrayValue {
 	list := make([]*ZVal, len(src.List))
 	copy(list, src.List)
 	return &ArrayValue{
-		List: list,
+		List:                    list,
+		IndirectOverloadClass: src.IndirectOverloadClass,
 	}
+}
+
+// CloneArrayValueForCallArgs 为 __call 的 $arguments 克隆数组实参：非引用元素复制 ZVal，引用槽位共享 ZVal
+func CloneArrayValueForCallArgs(src *ArrayValue) *ArrayValue {
+	if src == nil {
+		return nil
+	}
+	list := make([]*ZVal, len(src.List))
+	for i, z := range src.List {
+		if z == nil {
+			continue
+		}
+		if z.RefSlotCount > 0 {
+			list[i] = z
+		} else {
+			list[i] = NewZVal(z.Value)
+		}
+	}
+	return &ArrayValue{List: list}
 }
 
 type ArrayValue struct {
 	List     []*ZVal
 	iterator int // 迭代器当前位置索引
+	// IndirectOverloadClass 非空表示该数组来自 ArrayAccess::offsetGet 的副本，对其元素的间接修改无效
+	IndirectOverloadClass string
 }
 
 func (a *ArrayValue) Current(ctx Context) (Value, Control) {
@@ -164,4 +187,94 @@ func (a *ArrayValue) ToValueList() []Value {
 		args[i] = zval.Value
 	}
 	return args
+}
+
+// IntArrayKeyName 将整数键编码为 ZVal.Name（稀疏整数键，插入顺序在 List 末尾）
+func IntArrayKeyName(i int) string {
+	return strconv.Itoa(i)
+}
+
+// ParseIntArrayKeyName 若 name 为纯整数字符串则返回该整数键，否则 ok=false
+func ParseIntArrayKeyName(name string) (int, bool) {
+	if name == "" {
+		return 0, false
+	}
+	n, err := strconv.Atoi(name)
+	if err != nil {
+		return 0, false
+	}
+	if strconv.Itoa(n) != name {
+		return 0, false
+	}
+	return n, true
+}
+
+// FindSlotByIntKey 按 PHP 整数键查找槽位（含稀疏键 Name=="6" 等）
+func (a *ArrayValue) FindSlotByIntKey(i int) (*ZVal, int) {
+	keyStr := IntArrayKeyName(i)
+	for j, z := range a.List {
+		if z != nil && z.Name == keyStr {
+			return z, j
+		}
+	}
+	if i >= 0 && i < len(a.List) {
+		if z := a.List[i]; z != nil && z.Name == "" {
+			return z, i
+		}
+	}
+	return nil, -1
+}
+
+// SetIntKey 设置整数键（不将稀疏数组转为 ObjectValue）
+func (a *ArrayValue) SetIntKey(i int, value Value) {
+	if z, _ := a.FindSlotByIntKey(i); z != nil {
+		z.Value = value
+		return
+	}
+	if i < 0 {
+		return
+	}
+	if i == len(a.List) {
+		a.List = append(a.List, NewZVal(value))
+		return
+	}
+	if i > len(a.List) {
+		a.List = append(a.List, NewNamedZVal(IntArrayKeyName(i), value))
+		return
+	}
+	if slot := a.List[i]; slot != nil && slot.RefSlotCount > 0 {
+		slot.Value = value
+	} else {
+		a.List[i] = NewZVal(value)
+	}
+}
+
+// UnsetKey 删除整数或字符串键（不存在则无操作）
+func (a *ArrayValue) UnsetKey(index Value) {
+	if iv, ok := index.(AsInt); ok {
+		i, err := iv.AsInt()
+		if err != nil {
+			return
+		}
+		keyStr := IntArrayKeyName(i)
+		for j, z := range a.List {
+			if z == nil {
+				continue
+			}
+			if z.Name == keyStr || (z.Name == "" && j == i) {
+				a.List = append(a.List[:j], a.List[j+1:]...)
+				return
+			}
+		}
+		return
+	}
+	if sv, ok := index.(AsString); ok {
+		key := sv.AsString()
+		for j, z := range a.List {
+			if z != nil && z.Name == key {
+				a.List = append(a.List[:j], a.List[j+1:]...)
+				return
+			}
+		}
+	}
 }

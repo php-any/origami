@@ -1,6 +1,8 @@
 package node
 
 import (
+	"fmt"
+
 	"github.com/php-any/origami/data"
 )
 
@@ -65,23 +67,56 @@ func (u *UnsetStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 			}
 			switch arr := arrayValue.(type) {
 			case *data.ArrayValue:
-				if iv, ok := indexValue.(data.AsInt); ok {
-					i, err := iv.AsInt()
-					if err == nil && i >= 0 && i < len(arr.List) {
-						arr.List[i] = data.NewZVal(data.NewNullValue())
-					}
+				if iv, ok := indexValue.(data.Value); ok {
+					arr.UnsetKey(iv)
 				}
+				writeBackArrayProperty(ctx, indexExpr.Array, arr)
 			case *data.ObjectValue:
 				if sv, ok := indexValue.(data.AsString); ok {
-					arr.SetProperty(sv.AsString(), data.NewNullValue())
+					arr.UnsetProperty(sv.AsString())
+				} else if iv, ok := indexValue.(data.AsInt); ok {
+					if i, err := iv.AsInt(); err == nil {
+						arr.UnsetProperty(fmt.Sprintf("%d", i))
+					}
 				}
 			case *data.ClassValue:
+				if iv, ok := indexValue.(data.Value); ok && CheckArrayAccess(ctx, arr.Class) {
+					if ctl := CallArrayAccessOffsetUnset(ctx, arr, iv); ctl != nil {
+						return nil, ctl
+					}
+					continue
+				}
 				if sv, ok := indexValue.(data.AsString); ok {
 					arr.SetProperty(sv.AsString(), data.NewNullValue())
+				}
+			case *data.ThisValue:
+				if arr.ClassValue != nil && CheckArrayAccess(ctx, arr.Class) {
+					if iv, ok := indexValue.(data.Value); ok {
+						if ctl := CallArrayAccessOffsetUnset(ctx, arr.ClassValue, iv); ctl != nil {
+							return nil, ctl
+						}
+					}
 				}
 			}
 		}
 	}
 
 	return data.NewNullValue(), nil
+}
+
+func writeBackArrayProperty(ctx data.Context, arrayExpr data.GetValue, arr *data.ArrayValue) {
+	switch a := arrayExpr.(type) {
+	case *CallObjectProperty:
+		obj, acl := a.Object.GetValue(ctx)
+		if acl != nil {
+			return
+		}
+		if cv, ok := obj.(*data.ClassValue); ok {
+			cv.SetProperty(a.Property, arr)
+		} else if tv, ok := obj.(*data.ThisValue); ok && tv.ClassValue != nil {
+			tv.ClassValue.SetProperty(a.Property, arr)
+		}
+	case *IndexExpression:
+		writeBackArrayProperty(ctx, a.Array, arr)
+	}
 }

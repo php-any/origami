@@ -35,6 +35,12 @@ type Context interface {
 	HasVariableByName(name string) bool
 }
 
+// StaticLocalsBinder 支持函数/方法内 static 局部变量
+type StaticLocalsBinder interface {
+	BindStaticLocals(store *StaticLocals)
+	StaticLocalsStore() *StaticLocals
+}
+
 type VM interface {
 	AddClass(c ClassStmt) Control
 	GetClass(pkg string) (ClassStmt, bool)

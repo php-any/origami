@@ -20,6 +20,19 @@ type Context struct {
 
 	// 记录本次函数/方法调用时的实参表达式列表（用于 func_get_args 等）
 	callArgs []data.GetValue
+
+	// 当前调用绑定的 static 局部变量存储（由 ClassMethod/FunctionStatement.Call 设置）
+	staticLocals *data.StaticLocals
+}
+
+// BindStaticLocals 绑定函数级 static 局部变量存储
+func (c *Context) BindStaticLocals(store *data.StaticLocals) {
+	c.staticLocals = store
+}
+
+// StaticLocalsStore 返回绑定的 static 存储
+func (c *Context) StaticLocalsStore() *data.StaticLocals {
+	return c.staticLocals
 }
 
 // NewContext 创建一个新的运行时上下文
@@ -78,7 +91,9 @@ func (c *Context) SetVariableValue(variable data.Variable, value data.Value) dat
 	case *data.ArraySlotRef:
 		// &$array[] 语法：局部变量与数组元素共享 ZVal
 		if v.Arr != nil && v.Idx >= 0 && v.Idx < len(v.Arr.List) {
-			c.variables[variable.GetIndex()] = v.Arr.List[v.Idx]
+			slot := v.Arr.List[v.Idx]
+			slot.AddRefSlot()
+			c.variables[variable.GetIndex()] = slot
 		}
 	case *data.ArrayValue:
 		c.variables[variable.GetIndex()].Value = data.CloneArrayValue(v)

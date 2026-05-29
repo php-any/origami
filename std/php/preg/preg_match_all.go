@@ -55,11 +55,11 @@ func (f *PregMatchAllFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	// 查找所有匹配以及分组（索引数组）
 	allLocs := re.FindAllStringSubmatchIndex(subject, -1)
 	if len(allLocs) == 0 {
-		// 无匹配时返回 0，$matches 设为空数组
-		empty := data.NewArrayValue([]data.Value{})
-		// 通过参数引用写回调用方的 $matches
+		// 与 PHP 一致：无匹配时 $matches[0] 仍为 []（可安全 foreach，不触发未定义键 Warning）
+		emptyGroup := data.NewArrayValue([]data.Value{})
+		matchesArr := data.NewArrayValue([]data.Value{emptyGroup})
 		if z := ctx.GetIndexZVal(2); z != nil {
-			z.Value = empty
+			z.Value = matchesArr
 		}
 		return data.NewIntValue(0), nil
 	}

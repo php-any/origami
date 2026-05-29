@@ -37,6 +37,12 @@ func NewBinaryAssign(from data.From, left, right data.GetValue) BinaryExpression
 }
 
 func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	// 仅 $idx .= $rhs（右侧 BinaryDot 的左操作数与赋值左端为同一节点）
+	if ie, ok := b.Left.(*IndexExpression); ok {
+		if dot, ok := b.Right.(*BinaryDot); ok && dot.Left == ie {
+			return assignIndexConcat(ctx, ie, dot)
+		}
+	}
 	rv, rCtl := b.Right.GetValue(ctx)
 	if rCtl != nil {
 		return nil, rCtl
@@ -66,8 +72,6 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 				return nil, data.NewErrorThrow(b.GetFrom(), errors.New("object is not set property"))
 			}
 		case *IndexExpression:
-			// 统一走 IndexExpression 自身的 SetValue 逻辑，以支持任意嵌套：
-			// $namespace['commands'][1]['sub'] = 'foo';
 			if ctl := l.SetValue(ctx, v); ctl != nil {
 				return nil, ctl
 			}

@@ -89,6 +89,8 @@ func (vp *VariableParser) parseVariable() data.Variable {
 		return node.NewFilesVariable(tracker.EndBefore())
 	case "$_REQUEST":
 		return node.NewRequestVariable(tracker.EndBefore())
+	case "$HTTP_RAW_POST_DATA":
+		return node.NewHttpRawPostDataVariable(tracker.EndBefore())
 
 	}
 
@@ -335,9 +337,9 @@ func (vp *VariableParser) parseArrayAccess(array data.GetValue) (data.GetValue, 
 	var acl data.Control
 
 	if vp.current().Type() == token.RBRACKET {
-		// arr[]
+		// arr[] — PHP 追加语义，索引为 null
 		vp.next()
-		index = node.NewObjectProperty(from, array, "length")
+		index = node.NewNullLiteral(from)
 		return node.NewIndexExpression(
 			from,
 			array,

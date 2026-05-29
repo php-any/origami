@@ -81,10 +81,16 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 					checkClass = parent
 				}
 				if !has {
+					if fn, ok := tryNewInstanceMagicCallViaStaticFunc(ctx, pe.Method); ok {
+						return data.NewFuncValue(fn), nil
+					}
 					return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("(%s)无法调用函数(%s)。", cls.GetName(), pe.Method))
 				}
 			}
 		} else {
+			if fn, ok := tryNewInstanceMagicCallViaStaticFunc(ctx, pe.Method); ok {
+				return data.NewFuncValue(fn), nil
+			}
 			return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("无法调用函数(%s)。", pe.Method))
 		}
 	default:
@@ -157,6 +163,9 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	}
 
 	if !has {
+		if fn, ok := tryNewInstanceMagicCallViaStaticFunc(ctx, pe.Method); ok {
+			return data.NewFuncValue(fn), nil
+		}
 		name := ""
 		if getName, ok := pe.stmt.(data.ClassStmt); ok {
 			name = getName.GetName()

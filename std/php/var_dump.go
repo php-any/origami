@@ -4,10 +4,34 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
+	"unsafe"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
+
+var (
+	varDumpObjMu   sync.Mutex
+	varDumpObjIDs  = map[uintptr]int{}
+	varDumpObjNext int
+)
+
+func varDumpObjectHandle(v *data.ClassValue) int {
+	if v == nil {
+		return 0
+	}
+	// 同一 PHP 对象可能在每次方法调用时包装为新的 ClassValue，用 ObjectValue 标识身份
+	key := uintptr(unsafe.Pointer(v.ObjectValue))
+	varDumpObjMu.Lock()
+	defer varDumpObjMu.Unlock()
+	if id, ok := varDumpObjIDs[key]; ok {
+		return id
+	}
+	varDumpObjNext++
+	varDumpObjIDs[key] = varDumpObjNext
+	return varDumpObjNext
+}
 
 // NewVarDumpFunction 创建 var_dump 函数
 func NewVarDumpFunction() data.FuncStmt {
@@ -18,42 +42,41 @@ func NewVarDumpFunction() data.FuncStmt {
 type VarDumpFunction struct{}
 
 func (f *VarDumpFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	data.MarkUserOutput()
 	file, line, _ := getCallLocation(ctx)
 	loc := file + ":" + strconv.Itoa(line) + ":"
 
-	for _, argument := range f.GetParams() {
-		argv, _ := argument.GetValue(ctx)
-		if argv == nil {
+	for _, v := range varDumpCollectArgs(ctx) {
+		fmt.Println(loc)
+		varDumpValue(v, "", 0)
+	}
+	return nil, nil
+}
+
+// varDumpCollectArgs 收集 var_dump 实参（兼容 Parameters 打包为单个 array）
+func varDumpCollectArgs(ctx data.Context) []data.Value {
+	var out []data.Value
+	for i := 0; ; i++ {
+		val, ok := ctx.GetIndexValue(i)
+		if !ok {
+			break
+		}
+		if val == nil {
 			continue
 		}
-		if arr, ok := argv.(*data.ArrayValue); ok {
-			for _, zval := range arr.List {
-				if zval != nil && zval.Value != nil {
-					fmt.Println(loc)
-					varDumpValue(zval.Value, "", 0)
+		if arr, ok := val.(*data.ArrayValue); ok {
+			for _, z := range arr.List {
+				if z != nil && z.Value != nil {
+					out = append(out, z.Value)
 				}
 			}
 			continue
 		}
-		if v, ok := argument.(data.Variable); ok {
-			val, acl := ctx.GetVariableValue(v)
-			if acl != nil {
-				return nil, acl
-			}
-			fmt.Println(loc)
-			if val != nil {
-				varDumpValue(val, "", 0)
-			} else {
-				varDumpValue(data.NewNullValue(), "", 0)
-			}
-			continue
-		}
-		if val, ok := argv.(data.Value); ok {
-			fmt.Println(loc)
-			varDumpValue(val, "", 0)
+		if v, ok := val.(data.Value); ok {
+			out = append(out, v)
 		}
 	}
-	return nil, nil
+	return out
 }
 
 func getCallLocation(ctx data.Context) (file string, line int, pos int) {
@@ -77,6 +100,19 @@ func escapeSingleQuoted(s string) string {
 	return strings.NewReplacer(`\`, `\\`, `'`, `\'`).Replace(s)
 }
 
+// varDumpArrayKeyLine 输出 array 元素键（稀疏整数键 Name 为 "6" 时显示 [6]=>）
+func varDumpArrayKeyLine(inner string, listIndex int, zval *data.ZVal) {
+	if zval != nil && zval.Name != "" {
+		if n, ok := data.ParseIntArrayKeyName(zval.Name); ok {
+			fmt.Printf("%s[%d]=>\n", inner, n)
+			return
+		}
+		fmt.Printf("%s[\"%s\"]=>\n", inner, escapeSingleQuoted(zval.Name))
+		return
+	}
+	fmt.Printf("%s[%d]=>\n", inner, listIndex)
+}
+
 // maxVarDumpDepth 防止循环引用导致栈溢出或长时间无输出
 const maxVarDumpDepth = 5
 
@@ -90,21 +126,57 @@ func dumpClassValue(arg *data.ClassValue, indent string, depth int) {
 		fmt.Printf("%s... (max depth)\n", indent)
 		return
 	}
+	propList := arg.Class.GetPropertyList()
+	props := arg.GetProperties()
+	className := arg.Class.GetName()
 	n := 0
-	arg.RangeProperties(func(string, data.Value) bool { n++; return true })
-	ptrAddr := fmt.Sprintf("%p", arg)
-	fmt.Printf("%sclass %s#%s (%d) {\n", indent, arg.Class.GetName(), ptrAddr, n)
+	for _, p := range propList {
+		if p.GetIsStatic() {
+			continue
+		}
+		n++
+	}
+	fmt.Printf("%sobject(%s)#%d (%d) {\n", indent, className, varDumpObjectHandle(arg), n)
 	inner := indent + "  "
-	arg.RangeProperties(func(k string, val data.Value) bool {
-		fmt.Printf("%spublic $%s =>\n", inner, k)
+	for _, p := range propList {
+		if p.GetIsStatic() {
+			continue
+		}
+		val := props[p.GetName()]
+		fmt.Printf("%s%s=>\n", inner, varDumpPropertyKey(p, className))
 		if val != nil {
 			varDumpValue(val, inner, depth+1)
 		} else {
 			fmt.Printf("%sNULL\n", inner)
 		}
-		return true
-	})
+	}
 	fmt.Printf("%s}\n", indent)
+}
+
+func varDumpPropertyKey(p data.Property, className string) string {
+	switch p.GetModifier() {
+	case data.ModifierProtected:
+		return fmt.Sprintf(`["%s":protected]`, p.GetName())
+	case data.ModifierPrivate:
+		return fmt.Sprintf(`["%s":"%s":private]`, p.GetName(), className)
+	default:
+		return fmt.Sprintf(`["%s"]`, p.GetName())
+	}
+}
+
+// varDumpZVal 输出数组槽位（含 PHP 引用标记 &）
+func varDumpZVal(zval *data.ZVal, indent string, depth int) {
+	if zval == nil || zval.Value == nil {
+		fmt.Printf("%sNULL\n", indent)
+		return
+	}
+	if zval.RefSlotCount > 0 {
+		if sv, ok := zval.Value.(*data.StringValue); ok {
+			fmt.Printf("%s&string(%d) \"%s\"\n", indent, len(sv.Value), sv.Value)
+			return
+		}
+	}
+	varDumpValue(zval.Value, indent, depth)
 }
 
 // varDumpValue 输出单个值的 PHP var_dump 格式；对象使用 Go 指针地址作为 ID
@@ -129,11 +201,12 @@ func varDumpValue(v data.Value, indent string, depth int) {
 		inner := indent + "  "
 		for i, zval := range arg.List {
 			if zval == nil || zval.Value == nil {
-				fmt.Printf("%s[%d]=>\n%sNULL\n", inner, i, inner)
+				varDumpArrayKeyLine(inner, i, zval)
+				fmt.Printf("%sNULL\n", inner)
 				continue
 			}
-			fmt.Printf("%s[%d]=>\n", inner, i)
-			varDumpValue(zval.Value, inner, depth+1)
+			varDumpArrayKeyLine(inner, i, zval)
+			varDumpZVal(zval, inner, depth+1)
 		}
 		fmt.Printf("%s}\n", indent)
 	case *data.ObjectValue:

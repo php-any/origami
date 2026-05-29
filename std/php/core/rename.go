@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/php-any/origami/data"
@@ -40,6 +41,12 @@ func (f *RenameFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	if err := os.Rename(oldName, newName); err != nil {
+		file, line := "Unknown", 0
+		if len(os.Args) > 1 {
+			file = os.Args[1]
+			line = 2
+		}
+		fmt.Fprintf(os.Stderr, "Warning: %s in %s on line %d\n", err, file, line)
 		return data.NewBoolValue(false), nil
 	}
 

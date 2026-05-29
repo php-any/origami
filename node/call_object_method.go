@@ -45,7 +45,8 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 			}
 
 			fnCtx.SetCallArgs(pe.Args)
-			return method.Call(fnCtx)
+			ret, acl := method.Call(fnCtx)
+			return pe.wrapMethodCallResult(class.ClassValue, ret, acl)
 		}
 		// 方法未找到时尝试魔法方法 __call(string $name, array $arguments)
 		if magic, hasCall := class.GetMethod("__call"); hasCall {
@@ -74,7 +75,8 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 			}
 
 			fnCtx.SetCallArgs(pe.Args)
-			return method.Call(fnCtx)
+			ret, acl := method.Call(fnCtx)
+			return pe.wrapMethodCallResult(class, ret, acl)
 		}
 		// 方法未找到时尝试魔法方法 __call(string $name, array $arguments)
 		if magic, hasCall := class.GetMethod("__call"); hasCall {
@@ -111,6 +113,23 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("当前值(%#v)不支持调用函数, 你调用的函数(%s)", TryGetCallClassName(o), pe.Method))
 }
 
+func (pe *CallObjectMethod) wrapMethodCallResult(class *data.ClassValue, ret data.GetValue, acl data.Control) (data.GetValue, data.Control) {
+	if acl != nil {
+		if tv, ok := acl.(*data.ThrowValue); ok && tv.PHPUncaughtError {
+			tv.AddStackWithInfo(pe.GetFrom(), class.Class.GetName(), pe.Method)
+		}
+	}
+	return ret, acl
+}
+
+// magicCallArgValue 为 __call 的 $arguments 数组准备实参（数组需 COW 克隆，保留元素级引用）
+func magicCallArgValue(val data.Value) data.Value {
+	if arr, ok := val.(*data.ArrayValue); ok {
+		return data.CloneArrayValueForCallArgs(arr)
+	}
+	return val
+}
+
 // invokeMagicCall 调用 __call(string $name, array $arguments)，用于未定义方法时的魔法分发
 func (pe *CallObjectMethod) invokeMagicCall(object data.Context, ctx data.Context, magic data.Method, methodName string, args []data.GetValue) (data.GetValue, data.Control) {
 	var argsList []data.Value
@@ -126,11 +145,11 @@ func (pe *CallObjectMethod) invokeMagicCall(object data.Context, ctx data.Contex
 			}
 			if arr, ok := spreadVal.(*data.ArrayValue); ok {
 				for _, z := range arr.List {
-					argsList = append(argsList, z.Value)
+					argsList = append(argsList, magicCallArgValue(z.Value))
 				}
 			} else if objVal, ok := spreadVal.(*data.ObjectValue); ok {
 				objVal.RangeProperties(func(key string, value data.Value) bool {
-					argsList = append(argsList, value)
+					argsList = append(argsList, magicCallArgValue(value))
 					return true
 				})
 			}
@@ -141,7 +160,7 @@ func (pe *CallObjectMethod) invokeMagicCall(object data.Context, ctx data.Contex
 			return nil, acl
 		}
 		if val, ok := v.(data.Value); ok {
-			argsList = append(argsList, val)
+			argsList = append(argsList, magicCallArgValue(val))
 		} else {
 			argsList = append(argsList, data.NewNullValue())
 		}
@@ -319,4 +338,144 @@ func isCallerInClassHierarchy(ctx data.Context, targetClass data.ClassStmt) bool
 	}
 
 	return false
+}
+
+// findClassMethodContext 从上下文链中查找含 $this 的类方法上下文
+func findClassMethodContext(ctx data.Context) *data.ClassMethodContext {
+	for c := ctx; c != nil; {
+		switch v := c.(type) {
+		case *data.ClassMethodContext:
+			return v
+		case *data.ClassValue:
+			if v.Context != nil {
+				c = v.Context
+				continue
+			}
+			return nil
+		default:
+			return nil
+		}
+	}
+	return nil
+}
+
+// findMagicCallOnClass 沿继承链查找实例 __call
+func findMagicCallOnClass(class data.ClassStmt, vm data.VM) (data.Method, bool) {
+	for class != nil {
+		if m, ok := class.GetMethod("__call"); ok {
+			return m, true
+		}
+		if class.GetExtend() == nil {
+			break
+		}
+		parent, acl := vm.GetOrLoadClass(*class.GetExtend())
+		if acl != nil || parent == nil {
+			break
+		}
+		class = parent
+	}
+	return nil, false
+}
+
+// tryNewInstanceMagicCallViaStaticFunc 在实例方法内 Class::missing() 时转调当前作用域的 __call($this)
+func tryNewInstanceMagicCallViaStaticFunc(ctx data.Context, methodName string) (data.FuncStmt, bool) {
+	cmc := findClassMethodContext(ctx)
+	if cmc == nil {
+		return nil, false
+	}
+	magic, ok := findMagicCallOnClass(cmc.Class, ctx.GetVM())
+	if !ok {
+		return nil, false
+	}
+	return &instanceMagicCallViaStaticFunc{
+		objectCtx:      cmc,
+		magic:          magic,
+		originalMethod: methodName,
+	}, true
+}
+
+// instanceMagicCallViaStaticFunc 将 A::foo() 形式的未定义静态调用转为 $this->__call('foo', $args)
+type instanceMagicCallViaStaticFunc struct {
+	objectCtx      *data.ClassMethodContext
+	magic          data.Method
+	originalMethod string
+}
+
+func (s *instanceMagicCallViaStaticFunc) GetName() string               { return s.magic.GetName() }
+func (s *instanceMagicCallViaStaticFunc) GetParams() []data.GetValue    { return []data.GetValue{NewParametersNoName(0)} }
+func (s *instanceMagicCallViaStaticFunc) GetVariables() []data.Variable { return []data.Variable{data.NewVariable("args", 0, nil)} }
+
+// objectMethodCallable 将 [$obj, 'method'] 转为可调用（支持 __call）
+type objectMethodCallable struct {
+	obj    *data.ClassValue
+	method string
+}
+
+// NewObjectMethodCallable 创建实例方法回调（供 call_user_func 等使用）
+func NewObjectMethodCallable(obj *data.ClassValue, method string) data.FuncStmt {
+	return &objectMethodCallable{obj: obj, method: method}
+}
+
+func (o *objectMethodCallable) GetName() string               { return o.method }
+func (o *objectMethodCallable) GetParams() []data.GetValue    { return []data.GetValue{NewParametersNoName(0)} }
+func (o *objectMethodCallable) GetVariables() []data.Variable { return []data.Variable{data.NewVariable("args", 0, nil)} }
+
+func (o *objectMethodCallable) Call(callCtx data.Context) (data.GetValue, data.Control) {
+	proxy := &CallObjectMethod{Object: o.obj, Method: o.method}
+	if method, has := o.obj.GetMethod(o.method); has {
+		fnCtx, acl := proxy.callMethodParams(o.obj, callCtx, method)
+		if acl != nil {
+			return nil, acl
+		}
+		return method.Call(fnCtx)
+	}
+	if magic, has := o.obj.GetMethod("__call"); has {
+		return proxy.invokeMagicCallFromCallCtx(o.obj, callCtx, magic, o.method)
+	}
+	return nil, data.NewErrorThrow(nil, fmt.Errorf("未找到方法 %s", o.method))
+}
+
+// invokeMagicCallFromCallCtx 从调用上下文收集实参并调用 __call
+func (pe *CallObjectMethod) invokeMagicCallFromCallCtx(object data.Context, callCtx data.Context, magic data.Method, methodName string) (data.GetValue, data.Control) {
+	var argsList []data.Value
+	for i := 0; ; i++ {
+		v, ok := callCtx.GetIndexValue(i)
+		if !ok || v == nil {
+			break
+		}
+		argsList = append(argsList, magicCallArgValue(v))
+	}
+	varies := magic.GetVariables()
+	if len(varies) < 2 {
+		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("__call 需要至少 2 个参数"))
+	}
+	fnCtx := object.CreateContext(varies)
+	fnCtx.SetVariableValue(varies[0], data.NewStringValue(methodName))
+	fnCtx.SetVariableValue(varies[1], data.NewArrayValue(argsList))
+	return magic.Call(fnCtx)
+}
+
+func (s *instanceMagicCallViaStaticFunc) Call(callCtx data.Context) (data.GetValue, data.Control) {
+	callerArgs := make([]data.Value, 0)
+	for i := 0; ; i++ {
+		v, ok := callCtx.GetIndexValue(i)
+		if !ok || v == nil {
+			break
+		}
+		if arr, isArr := v.(*data.ArrayValue); isArr {
+			for _, z := range arr.List {
+				callerArgs = append(callerArgs, magicCallArgValue(z.Value))
+			}
+		} else {
+			callerArgs = append(callerArgs, v)
+		}
+	}
+	varies := s.magic.GetVariables()
+	if len(varies) < 2 {
+		return nil, data.NewErrorThrow(nil, fmt.Errorf("__call 需要至少 2 个参数"))
+	}
+	fnCtx := s.objectCtx.CreateContext(varies)
+	fnCtx.SetVariableValue(varies[0], data.NewStringValue(s.originalMethod))
+	fnCtx.SetVariableValue(varies[1], data.NewArrayValue(callerArgs))
+	return s.magic.Call(fnCtx)
 }

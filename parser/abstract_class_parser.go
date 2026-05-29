@@ -31,8 +31,10 @@ func (p *AbstractClassParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	// 使用 ClassParser 解析类定义
+	p.definingAbstractClass = true
 	classParser := NewClassParser(p.Parser)
 	classStmt, acl := classParser.Parse()
+	p.definingAbstractClass = false
 	if acl != nil {
 		return nil, acl
 	}

@@ -1,9 +1,13 @@
 package php
 
 import (
+	"fmt"
 	"runtime"
+	"time"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
+	ortruntime "github.com/php-any/origami/runtime"
 	"github.com/php-any/origami/std/exception"
 	"github.com/php-any/origami/std/php/array"
 	"github.com/php-any/origami/std/php/attribute"
@@ -21,6 +25,14 @@ import (
 )
 
 func Load(vm data.VM) {
+	core.InitIniDefaults()
+	core.InitPhptInputFromEnv()
+	node.CheckExecutionTimeLimit = func(file string, line int) {
+		core.CheckExecutionTimeLimit(file, line)
+	}
+	node.MarkHeaderOutputStarted = core.MarkHeaderOutputStarted
+	ortruntime.RunHeaderCallbacksFn = core.RunHeaderCallbacks
+
 	for _, fun := range []data.FuncStmt{
 		NewErrorReportingFunction(),
 		NewSetErrorHandlerFunction(),
@@ -56,6 +68,7 @@ func Load(vm data.VM) {
 		NewSerializeFunction(),
 		NewUnserializeFunction(),
 		NewEmptyFunction(),
+		NewEvalFunction(),
 		NewStrlenFunction(),
 		NewHashFunction(),
 		NewStrposFunction(),
@@ -70,6 +83,7 @@ func Load(vm data.VM) {
 		NewStrSplitFunction(),
 		NewExplodeFunction(),
 		NewImplodeFunction(),
+		NewJoinFunction(),
 		NewPackFunction(),
 		NewUnpackFunction(),
 		NewCountFunction(),
@@ -241,6 +255,8 @@ func Load(vm data.VM) {
 		core.NewGetenvFunction(),
 		core.NewIniSetFunction(),
 		core.NewIniGetFunction(),
+		core.NewSetTimeLimitFunction(),
+		core.NewHeaderRegisterCallbackFunction(),
 		core.NewSapiWindowsVt100SupportFunction(),
 		core.NewObStartFunction(),
 		core.NewObGetCleanFunction(),
@@ -409,6 +425,9 @@ func initPhpDefaultDefines(vm data.VM) {
 	vm.SetConstant("PHP_OS_FAMILY", data.NewStringValue(phpOSFamily))
 	vm.SetConstant("PHP_SAPI", data.NewStringValue("cli"))
 	vm.SetConstant("PHP_EOL", data.NewStringValue("\n"))
+	t := time.Now()
+	vm.SetConstant("PHP_BUILD_DATE", data.NewStringValue(fmt.Sprintf("%s %2d %d %02d:%02d:%02d",
+		t.Format("Jan"), t.Day(), t.Year(), t.Hour(), t.Minute(), t.Second())))
 
 	// 整数相关常量
 	vm.SetConstant("PHP_INT_MAX", data.NewIntValue(9223372036854775807))

@@ -22,6 +22,15 @@ func NewNullCoalesceExpression(from *TokenFrom, left, right data.GetValue) *Null
 
 // GetValue 获取空合并运算符表达式的值
 func (n *NullCoalesceExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	// PHP：$a[$k] ?? $b 在键不存在时不触发 Undefined array key Warning
+	if ie, ok := n.Left.(*IndexExpression); ok {
+		if exists, handled := indexExpressionKeyExists(ctx, ie); handled {
+			if !exists {
+				return n.Right.GetValue(ctx)
+			}
+		}
+	}
+
 	// 计算左操作数的值
 	leftValue, ctl := n.Left.GetValue(ctx)
 	if ctl != nil {

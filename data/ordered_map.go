@@ -8,6 +8,7 @@ type PropertyStore interface {
 	Set(key string, value Value)
 	Get(key string) (Value, bool)
 	GetZVal(key string) (*ZVal, bool)
+	Delete(key string)
 	Range(fn func(key string, value Value) bool)
 	Len() int
 	GetByIndex(index int) (string, Value, bool)
@@ -59,6 +60,30 @@ func (om *OrderedMap) Set(key string, value Value) {
 		om.indexMap[key] = index
 		om.nameMap[index] = key
 	}
+}
+
+// Delete 删除键（不存在则无操作）
+func (om *OrderedMap) Delete(key string) {
+	om.mu.Lock()
+	defer om.mu.Unlock()
+	if _, exists := om.indexMap[key]; !exists {
+		return
+	}
+	newData := make([]*ZVal, 0, len(om.data))
+	newIndex := make(map[string]int)
+	newName := make(map[int]string)
+	for i, z := range om.data {
+		k, ok := om.nameMap[i]
+		if !ok || k == key {
+			continue
+		}
+		newIndex[k] = len(newData)
+		newName[len(newData)] = k
+		newData = append(newData, z)
+	}
+	om.data = newData
+	om.indexMap = newIndex
+	om.nameMap = newName
 }
 
 // Get 获取值

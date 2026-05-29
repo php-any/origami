@@ -36,6 +36,11 @@ func (c *ClassGeneric) GetProperty(name string) (data.Property, bool) {
 }
 
 func (c *ClassGeneric) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if !c.IsAbstract {
+		if acl := ValidateConcreteClassAbstractMethods(ctx.GetVM(), c); acl != nil {
+			return nil, acl
+		}
+	}
 	object := data.NewClassValue(c, ctx)
 
 	for _, property := range c.Properties {

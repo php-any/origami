@@ -54,23 +54,55 @@ func (ep *ArrayParser) Parse() (data.GetValue, data.Control) {
 		from := tracker.EndBefore()
 		return node.NewArray(from, []data.GetValue{expr}), nil
 	case token.COMMA:
-		arr := []data.GetValue{expr}
+		list := []data.GetValue{expr}
+		var keys []node.KvPair
 		for ep.current().Type() == token.COMMA {
 			ep.next()
 			if ep.checkPositionIs(0, token.RPAREN) {
 				continue
 			}
-			stmt, acl := ep.parseStatement()
+			elem, acl := ep.parseStatement()
 			if acl != nil {
 				return nil, acl
 			}
-			arr = append(arr, stmt)
+			if ep.current().Type() == token.ARRAY_KEY_VALUE {
+				ep.next()
+				val, acl := ep.parseStatement()
+				if acl != nil {
+					return nil, acl
+				}
+				keys = append(keys, node.KvPair{Key: elem, Value: val})
+				for ep.current().Type() == token.COMMA {
+					ep.next()
+					if ep.checkPositionIs(0, token.RPAREN) {
+						break
+					}
+					key, acl := ep.parseStatement()
+					if acl != nil {
+						return nil, acl
+					}
+					if ep.current().Type() != token.ARRAY_KEY_VALUE {
+						return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("array() 语法错误"))
+					}
+					ep.next()
+					val, acl := ep.parseStatement()
+					if acl != nil {
+						return nil, acl
+					}
+					keys = append(keys, node.KvPair{Key: key, Value: val})
+				}
+				break
+			}
+			list = append(list, elem)
 		}
 		if ep.current().Type() == token.RPAREN {
 			ep.next()
 		}
 		from := tracker.EndBefore()
-		return node.NewArray(from, arr), nil
+		if len(keys) > 0 {
+			return node.NewArrayWithKeys(from, list, keys), nil
+		}
+		return node.NewArray(from, list), nil
 	case token.ARRAY_KEY_VALUE: // => 关联数组
 		v := []node.KvPair{}
 		ep.next() // =>

@@ -7,6 +7,7 @@ func (u *WhileStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 	var c data.Control
 
 	for {
+		checkTimeLimit(u.GetFrom())
 		// 判断条件
 		if u.Condition != nil {
 			condValue, ctl := u.Condition.GetValue(ctx)

@@ -32,6 +32,11 @@ type ThrowValue struct {
 
 	Name string
 
+	// PHPCompileFatal 为 true 时按 PHP 编译期 Fatal error 格式输出（无 ZY 前缀、无堆栈）
+	PHPCompileFatal bool
+	// PHPUncaughtError 为 true 时按 PHP Uncaught Error 格式输出（含 Stack trace / thrown in）
+	PHPUncaughtError bool
+
 	Error *Error
 	// 调用栈信息
 	StackFrames []StackFrame
@@ -184,6 +189,31 @@ func NewErrorThrow(from From, err error) Control {
 	t.getTraceAsString = &ThrowValueGetTraceAsStringMethod{
 		source: t,
 	}
+	return t
+}
+
+// NewCompileFatal 返回 PHP 编译期 Fatal error 控制流（类定义/签名校验等）
+func NewCompileFatal(from From, message string) Control {
+	t := &ThrowValue{
+		Error:           NewError(from, message, nil),
+		Name:            "CompileFatal",
+		PHPCompileFatal: true,
+	}
+	t.getMessage = &ThrowValueGetMessageMethod{source: t}
+	t.getTraceAsString = &ThrowValueGetTraceAsStringMethod{source: t}
+	return t
+}
+
+// NewPHPUncaughtError 返回 PHP Uncaught Error 控制流（抽象方法调用等）
+func NewPHPUncaughtError(from From, message string) Control {
+	t := &ThrowValue{
+		Error:            NewError(from, message, nil),
+		Name:             "Error",
+		PHPCompileFatal:  true,
+		PHPUncaughtError: true,
+	}
+	t.getMessage = &ThrowValueGetMessageMethod{source: t}
+	t.getTraceAsString = &ThrowValueGetTraceAsStringMethod{source: t}
 	return t
 }
 

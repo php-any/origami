@@ -45,6 +45,51 @@ func (p *Parser) printDetailedError(err string, from data.From) {
 	_, _ = fmt.Fprintln(os.Stderr, strings.Repeat("=", 80))
 }
 
+// printPHPUncaughtError 打印 PHP Uncaught Error（含 Stack trace，与 zend 一致）
+func (p *Parser) printPHPUncaughtError(msg string, from data.From, frames []data.StackFrame) {
+	if from == nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Fatal error: %s in Unknown on line 0\n", msg)
+		return
+	}
+	sl, _ := from.GetStartPosition()
+	file := from.GetSource()
+	prefix := ""
+	if data.HasUserOutput() {
+		prefix = "\n"
+	}
+	_, _ = fmt.Fprintf(os.Stderr, "%sFatal error: %s in %s:%d\n", prefix, msg, file, sl+1)
+	_, _ = fmt.Fprintln(os.Stderr, "Stack trace:")
+	for i, frame := range frames {
+		var stackSl int
+		var source string
+		if frame.From != nil {
+			stackSl, _ = frame.From.GetStartPosition()
+			source = frame.From.GetSource()
+		}
+		if frame.ClassName == "" {
+			_, _ = fmt.Fprintf(os.Stderr, "#%d %s(%d): %s()\n", i, source, stackSl+1, frame.MethodName)
+		} else {
+			_, _ = fmt.Fprintf(os.Stderr, "#%d %s(%d): %s->%s()\n", i, source, stackSl+1, frame.ClassName, frame.MethodName)
+		}
+	}
+	_, _ = fmt.Fprintf(os.Stderr, "#%d {main}\n", len(frames))
+	_, _ = fmt.Fprintf(os.Stderr, "  thrown in %s on line %d\n", file, sl+1)
+}
+
+// printPHPCompileFatal 打印 PHP 编译期 Fatal error（与 zend 格式一致）
+func (p *Parser) printPHPCompileFatal(msg string, from data.From) {
+	prefix := ""
+	if data.HasUserOutput() {
+		prefix = "\n"
+	}
+	if from == nil {
+		_, _ = fmt.Fprintf(os.Stderr, "%sFatal error: %s in Unknown on line 0\n", prefix, msg)
+		return
+	}
+	sl, _ := from.GetStartPosition()
+	_, _ = fmt.Fprintf(os.Stderr, "%sFatal error: %s in %s on line %d\n", prefix, msg, from.GetSource(), sl+1)
+}
+
 // printRuntimeError 打印运行时错误信息（例如数据库/IO等在执行阶段的异常）
 func (p *Parser) printRuntimeError(err string, from data.From) {
 	// 规范化错误文本：去掉前缀 "throw ", 分离 Caused by 段，避免重复展示
