@@ -177,6 +177,12 @@ func runSinglePhpt(path string) phptResult {
 		return phptResult{status: "FAIL", reason: "解析失败: " + err.Error()}
 	}
 
+	if extReq := strings.TrimSpace(sections["EXTENSIONS"]); extReq != "" {
+		if reason := checkExtensions(extReq); reason != "" {
+			return phptResult{status: "SKIP", reason: reason}
+		}
+	}
+
 	fileCode := firstNonEmpty(sections["FILE"], sections["FILEEOF"])
 	if strings.TrimSpace(fileCode) == "" {
 		return phptResult{status: "FAIL", reason: "缺少 --FILE-- 或 --FILEEOF-- 区块"}
@@ -447,7 +453,7 @@ func buildRequestSetupLines(sections map[string]string) []string {
 		if len(rawPost) > maxPost {
 			postExceeded = true
 			setup = append(setup, fmt.Sprintf(
-				`echo "Warning: PHP Request Startup: POST Content-Length of %d bytes exceeds the limit of %d bytes in Unknown on line 0\n";`,
+				`echo "Warning: PHP Request Startup: POST Content-Length of %d bytes exceeds the limit of %d bytes in Unknown on line 0\n\n";`,
 				len(rawPost), maxPost,
 			))
 		}
@@ -473,7 +479,7 @@ func buildRequestSetupLines(sections map[string]string) []string {
 			if len(body) > maxPost {
 				postRawExceeded = true
 				setup = append(setup, fmt.Sprintf(
-					`echo "Warning: PHP Request Startup: POST Content-Length of %d bytes exceeds the limit of %d bytes in Unknown on line 0\n";`,
+					`echo "Warning: PHP Request Startup: POST Content-Length of %d bytes exceeds the limit of %d bytes in Unknown on line 0\n\n";`,
 					len(body), maxPost,
 				))
 			}
@@ -1017,7 +1023,12 @@ func queryToPhpAssignments(target, raw, separator string) []string {
 		}
 
 		// PHP sanitizes variable names: replace certain characters with underscores
-		key = sanitizePhpVarName(key)
+		// Only sanitize the root variable name, preserving bracket notation for arrays
+		if idx := strings.IndexByte(key, '['); idx >= 0 {
+			key = sanitizePhpVarName(key[:idx]) + key[idx:]
+		} else {
+			key = sanitizePhpVarName(key)
+		}
 
 		lines = append(lines, buildArrayAssignmentLine(target, key, val, nextAutoIndex))
 	}
@@ -1326,4 +1337,29 @@ func normalizeNonASCII(s string) string {
 		b.WriteRune(r)
 	}
 	return b.String()
+}
+
+// phptSupportedExtensions lists extensions that origami supports.
+// Most PHP extensions are not available in origami, so tests requiring them will be skipped.
+var phptSupportedExtensions = map[string]struct{}{
+	"core":      {},
+	"standard":  {},
+	"pcre":      {},
+	"json":      {},
+	"tokenizer": {},
+}
+
+// checkExtensions checks if all required extensions are supported.
+// Returns a skip reason if any extension is missing, or empty string if all are available.
+func checkExtensions(extReq string) string {
+	for _, ext := range strings.Fields(extReq) {
+		ext = strings.TrimSpace(ext)
+		if ext == "" {
+			continue
+		}
+		if _, ok := phptSupportedExtensions[ext]; !ok {
+			return fmt.Sprintf("Extension %s required but not loaded", ext)
+		}
+	}
+	return ""
 }

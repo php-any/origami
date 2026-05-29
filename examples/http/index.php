@@ -21,11 +21,11 @@ $server->middleware(($request, $response, $next) => {
     $method = $request->method();
     $path = $request->path();
     $ip = $request->ip();
-    
+
     Log::info("请求开始: {$method} {$path} from {$ip}");
-    
+
     $next($request, $response);
-    
+
     $duration = time() - $startTime;
     Log::info("请求完成: {$method} {$path} 耗时: {$duration}秒");
 });
@@ -35,12 +35,12 @@ $server->middleware(($request, $response, $next) => {
     $response->header("Access-Control-Allow-Origin", "*");
     $response->header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
     $response->header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    
+
     if ($request->method() == "OPTIONS") {
         $response->writeHeader(200);
         return;
     }
-    
+
     $next($request, $response);
 });
 
@@ -51,7 +51,7 @@ $server->middleware(($request, $response, $next) => {
     } catch (Exception $e) {
         Log::error("请求处理异常: " . $e->getMessage());
         Log::error("异常堆栈: " . $e->getTraceAsString());
-        
+
         $response->writeHeader(500);
         $response->json({
             "error": "服务器内部错误",
@@ -63,7 +63,7 @@ $server->middleware(($request, $response, $next) => {
     } catch (Error $e) {
         Log::error("请求处理错误: " . $e->getMessage());
         Log::error("错误堆栈: " . $e->getTraceAsString());
-        
+
         $response->writeHeader(500);
         $response->json({
             "error": "服务器内部错误",
@@ -217,6 +217,10 @@ $server->post("/bind/article", ($request, $response) => {
 // 错误处理示例
 $server->get("/error", ($request, $response) => {
     throw new Exception("test error");
+});
+
+$server->get("/hello", ($request, $response) => {
+    $response->write("Hello, World!");
 });
 
 Log::info("HTTP服务器启动在: http://127.0.0.1:8080");
