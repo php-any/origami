@@ -203,7 +203,7 @@ func runSinglePhpt(path string) phptResult {
 	}
 
 	if expectf := sections["EXPECTF"]; expectf != "" {
-		ok, diff, matchErr := matchExpectF(actual, expectf)
+		ok, diff, matchErr := matchExpectF(actual, strings.TrimLeft(expectf, "\r\n"))
 		if matchErr != nil {
 			return phptResult{status: "FAIL", reason: "EXPECTF 解析失败: " + matchErr.Error()}
 		}
@@ -1277,7 +1277,9 @@ func normalizeOutput(s string) string {
 			line = strings.ReplaceAll(line, `string(6) "ÿÿÿ"`, `string(3) "���"`)
 		}
 		// Origami 的 var_dump 调试前缀：/path/to/file.php:123:
-		if strings.HasPrefix(trimmed, "/") && strings.HasSuffix(trimmed, ":") {
+		isUnixPath := strings.HasPrefix(trimmed, "/")
+		isWinPath := len(trimmed) > 2 && trimmed[1] == ':' && (trimmed[2] == '\\' || trimmed[2] == '/')
+		if (isUnixPath || isWinPath) && strings.HasSuffix(trimmed, ":") {
 			lastColon := strings.LastIndex(trimmed, ":")
 			prevColon := strings.LastIndex(trimmed[:lastColon], ":")
 			if prevColon > 0 {

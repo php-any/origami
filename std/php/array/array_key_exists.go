@@ -1,6 +1,9 @@
 package array
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -17,6 +20,11 @@ func (f *ArrayKeyExistsFunction) Call(ctx data.Context) (data.GetValue, data.Con
 
 	if keyValue == nil || arrayValue == nil {
 		return data.NewBoolValue(false), nil
+	}
+
+	// PHP 8.1: deprecation when null is passed as key
+	if _, isNull := keyValue.(*data.NullValue); isNull {
+		fmt.Fprintln(os.Stderr, "Deprecated: Using null as the key parameter for array_key_exists() is deprecated, use an empty string instead in Unknown on line 0")
 	}
 
 	keyStr := keyValue.AsString()

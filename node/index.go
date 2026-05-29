@@ -7,6 +7,11 @@ import (
 	"github.com/php-any/origami/data"
 )
 
+// emitNullOffsetDeprecation prints a PHP 8.1 deprecation when null is used as an array offset.
+func emitNullOffsetDeprecation() {
+	fmt.Print("Deprecated: Using null as an array offset is deprecated, use an empty string instead in Unknown on line 0\n")
+}
+
 // callArrayAccessOffsetGet 调用 ArrayAccess 接口的 offsetGet 方法
 func callArrayAccessOffsetGet(ctx data.Context, classValue *data.ClassValue, index data.GetValue) (data.GetValue, data.Control) {
 	method, exists := classValue.GetMethod("offsetGet")
@@ -251,6 +256,20 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 		return acl
 	case *data.ArrayValue:
 		// 数组索引赋值
+		// Handle null index first (before interface type assertions)
+		if _, isNull := indexVal.(*data.NullValue); isNull {
+			emitNullOffsetDeprecation()
+			// null is treated as empty string
+			key := ""
+			for _, zval := range arr.List {
+				if zval != nil && zval.Name == key {
+					zval.Value = value
+					return nil
+				}
+			}
+			arr.List = append(arr.List, &data.ZVal{Name: key, Value: value})
+			return nil
+		}
 		i := 0
 		if iv, ok := indexVal.(data.AsInt); ok {
 			var err error
@@ -338,6 +357,11 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 
 	case data.SetProperty:
 		// 对象属性赋值
+		if _, isNull := indexVal.(*data.NullValue); isNull {
+			emitNullOffsetDeprecation()
+			arr.SetProperty("", value)
+			return nil
+		}
 		if iv, ok := indexVal.(data.AsString); ok {
 			arr.SetProperty(iv.AsString(), value)
 			return nil
@@ -370,6 +394,15 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	case *data.ArrayValue:
 		i := 0
 		switch iv := index.(type) {
+		case *data.NullValue:
+			emitNullOffsetDeprecation()
+			// null is treated as empty string
+			for _, zval := range v.List {
+				if zval != nil && zval.Name == "" {
+					return zval.Value, nil
+				}
+			}
+			return data.NewNullValue(), nil
 		case *data.IntValue:
 			var err error
 			i, err = iv.AsInt()
@@ -412,7 +445,10 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	case *data.ObjectValue:
 		// 支持整数索引（转换为字符串）和字符串索引
 		var key string
-		if iv, ok := index.(data.AsString); ok {
+		if _, isNull := index.(*data.NullValue); isNull {
+			emitNullOffsetDeprecation()
+			key = ""
+		} else if iv, ok := index.(data.AsString); ok {
 			key = iv.AsString()
 		} else if iv, ok := index.(data.AsInt); ok {
 			// 将整数索引转换为字符串

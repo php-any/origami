@@ -59,6 +59,10 @@ func (u *UnsetStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 			if acl != nil || indexValue == nil {
 				continue
 			}
+			// PHP 8.1: null is treated as empty string (no deprecation for unset)
+			if _, isNull := indexValue.(*data.NullValue); isNull {
+				indexValue = data.NewStringValue("")
+			}
 			switch arr := arrayValue.(type) {
 			case *data.ArrayValue:
 				if iv, ok := indexValue.(data.AsInt); ok {

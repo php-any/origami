@@ -1,6 +1,8 @@
 package php
 
 import (
+	"runtime"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/std/exception"
 	"github.com/php-any/origami/std/php/array"
@@ -229,6 +231,7 @@ func Load(vm data.VM) {
 		core.NewHeadersSentFunction(),
 		core.NewExtensionLoadedFunction(),
 		core.NewExitFunction(),
+		core.NewDieFunction(),
 		core.NewUnlinkFunction(),
 		core.NewRmdirFunction(),
 		core.NewMkdirFunction(),
@@ -401,8 +404,9 @@ func initPhpDefaultDefines(vm data.VM) {
 	vm.SetConstant("PHP_RELEASE_VERSION", data.NewIntValue(0))
 	vm.SetConstant("PHP_VERSION_ID", data.NewIntValue(80225))
 	vm.SetConstant("PHP_EXTRA_VERSION", data.NewStringValue(""))
-	vm.SetConstant("PHP_OS", data.NewStringValue("Linux"))
-	vm.SetConstant("PHP_OS_FAMILY", data.NewStringValue("Linux"))
+	phpOS, phpOSFamily := detectOS()
+	vm.SetConstant("PHP_OS", data.NewStringValue(phpOS))
+	vm.SetConstant("PHP_OS_FAMILY", data.NewStringValue(phpOSFamily))
 	vm.SetConstant("PHP_SAPI", data.NewStringValue("cli"))
 	vm.SetConstant("PHP_EOL", data.NewStringValue("\n"))
 
@@ -490,4 +494,27 @@ func initPhpDefaultDefines(vm data.VM) {
 	vm.SetConstant("FILTER_REQUIRE_ARRAY", data.NewIntValue(8))
 	vm.SetConstant("FILTER_VALIDATE_BOOLEAN", data.NewIntValue(258))
 	vm.SetConstant("FILTER_VALIDATE_INT", data.NewIntValue(257))
+}
+
+func detectOS() (phpOS, phpOSFamily string) {
+	switch runtime.GOOS {
+	case "darwin":
+		return "Darwin", "Darwin"
+	case "windows":
+		return "WINNT", "Windows"
+	case "linux":
+		return "Linux", "Linux"
+	case "freebsd":
+		return "FreeBSD", "BSD"
+	case "openbsd":
+		return "OpenBSD", "BSD"
+	case "netbsd":
+		return "NetBSD", "BSD"
+	case "dragonfly":
+		return "DragonFly", "BSD"
+	case "solaris":
+		return "SunOS", "Solaris"
+	default:
+		return runtime.GOOS, runtime.GOOS
+	}
 }
