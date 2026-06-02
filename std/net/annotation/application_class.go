@@ -106,16 +106,36 @@ func (m *ApplicationConstructMethod) Call(ctx data.Context) (data.GetValue, data
 		m.app.port = int64(v.Value)
 	}
 
-	m.app.scan = "./src/controllers"
+	// 获取 scan 参数
+	scanSpecified := false
 	if scan, ok := ctx.GetIndexValue(2); ok && scan != nil {
 		if anyV, ok := scan.(*data.StringValue); ok {
 			m.app.scan = anyV.AsString()
+			scanSpecified = true
 		}
 	}
 
 	if target, ok := ctx.GetIndexValue(3); ok {
 		if anyT, ok := target.(*data.AnyValue); ok {
 			m.app.target = anyT.Value
+		}
+	}
+
+	// 若未指定 scan，则从 target 函数的文件路径推导
+	if !scanSpecified {
+		switch fn := m.app.target.(type) {
+		case *node.FunctionStatement:
+			if from := fn.GetFrom(); from != nil {
+				filePath := from.GetSource()
+				if filePath != "" {
+					dir := filepath.Dir(filePath)
+					m.app.scan = filepath.Join(dir, "controllers")
+				}
+			}
+		}
+		// 兜底默认值
+		if m.app.scan == "" {
+			m.app.scan = "./src/controllers"
 		}
 	}
 

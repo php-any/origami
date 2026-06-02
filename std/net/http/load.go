@@ -13,4 +13,5 @@ func Load(vm data.VM) {
 	vm.AddClass(NewRequestClass())
 	// 添加函数
 	vm.AddFunc(NewAppFunction())
+	vm.AddFunc(NewAppFlashFunction())
 }

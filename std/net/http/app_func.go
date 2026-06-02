@@ -2,8 +2,6 @@ package http
 
 import (
 	"errors"
-	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/php-any/origami/data"
@@ -49,40 +47,9 @@ func (h *AppFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, utils.NewThrow(errors.New("缺少参数: response"))
 	}
 
-	// 获取可选的 filePath 参数，默认为 "./main.zy"
-	var filePath string
-	if filePathValue, ok := ctx.GetIndexValue(2); ok {
-		if pathStr, ok := filePathValue.(data.AsString); ok {
-			filePath = pathStr.AsString()
-		}
-	}
-	if filePath == "" {
-		filePath = "./src/main.php"
-	}
-
-	// 获取当前工作目录
-	currentDir, err := os.Getwd()
-	if err != nil {
-		return nil, utils.NewThrowf("获取当前目录失败: %v", err)
-	}
-
-	// 如果路径是相对路径，则基于当前目录解析
-	if !filepath.IsAbs(filePath) {
-		filePath = filepath.Join(currentDir, filePath)
-	}
-
-	// 检查文件是否存在
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return nil, utils.NewThrowf("文件(%s)不存在", filePath)
-	}
-
-	// 检查文件是否为目录
-	fileInfo, err := os.Stat(filePath)
-	if err != nil {
-		return nil, utils.NewThrowf("无法访问文件: %s", filePath)
-	}
-	if fileInfo.IsDir() {
-		return nil, utils.NewThrow(errors.New("无法引入目录"))
+	filePath, acl := resolveAppFilePath(ctx, 2, "./src/main.php")
+	if acl != nil {
+		return nil, acl
 	}
 
 	hotReload := true

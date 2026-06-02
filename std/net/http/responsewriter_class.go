@@ -45,6 +45,8 @@ func (s *ResponseWriterClass) GetMethod(name string) (data.Method, bool) {
 		return &ResponseWriterWriteHeaderMethod{source: s.source}, true
 	case "view":
 		return &ResponseWriterViewMethod{source: s.source}, true
+	case "status":
+		return &ResponseWriterStatusMethod{source: s.source}, true
 	}
 	return nil, false
 }
@@ -56,6 +58,7 @@ func (s *ResponseWriterClass) GetMethods() []data.Method {
 		&ResponseWriterWriteMethod{source: s.source},
 		&ResponseWriterWriteHeaderMethod{source: s.source},
 		&ResponseWriterViewMethod{source: s.source},
+		&ResponseWriterStatusMethod{source: s.source},
 	}
 }
 

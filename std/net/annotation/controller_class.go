@@ -172,23 +172,38 @@ func (m *ControllerConstructMethod) Call(ctx data.Context) (data.GetValue, data.
 					return P + path
 				}
 
+				controllerInst, acl := node.InstantiateController(cls, ctx)
+				if acl != nil {
+					return nil, acl
+				}
+				classValue := data.NewClassValue(cls, ctx)
+
+				appendRoute := func(method, path string, target data.Method) {
+					receiver := controllerInst
+					if target.GetIsStatic() {
+						receiver = classValue
+					}
+					runtime.AppendHTTPRoute(vm, runtime.Route{
+						Method:   method,
+						Path:     path,
+						Target:   target,
+						Receiver: receiver,
+					})
+				}
+
 				// 遍历类方法，读取方法注解并注册到 router.routes
 				for _, method := range cls.GetMethods() {
 					if cm, ok := method.(*node.ClassMethod); ok {
 						for _, ann := range cm.Annotations {
 							switch gc := ann.Class.(type) {
 							case *GetMappingClass:
-								full := join(prefix, gc.Path())
-								runtime.AppendHTTPRoute(vm, runtime.Route{Method: "GET", Path: full, Target: method})
+								appendRoute("GET", join(prefix, gc.Path()), method)
 							case *PostMappingClass:
-								full := join(prefix, gc.Path())
-								runtime.AppendHTTPRoute(vm, runtime.Route{Method: "POST", Path: full, Target: method})
+								appendRoute("POST", join(prefix, gc.Path()), method)
 							case *PutMappingClass:
-								full := join(prefix, gc.Path())
-								runtime.AppendHTTPRoute(vm, runtime.Route{Method: "PUT", Path: full, Target: method})
+								appendRoute("PUT", join(prefix, gc.Path()), method)
 							case *DeleteMappingClass:
-								full := join(prefix, gc.Path())
-								runtime.AppendHTTPRoute(vm, runtime.Route{Method: "DELETE", Path: full, Target: method})
+								appendRoute("DELETE", join(prefix, gc.Path()), method)
 							}
 						}
 					}
