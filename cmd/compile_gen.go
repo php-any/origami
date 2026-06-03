@@ -141,6 +141,19 @@ func (g *Generator) genGetValue(v data.GetValue) {
 		g.genBinaryOp("BinaryLor", n.Left, n.Right)
 	case *node.BinarySpaceship:
 		g.genBinaryOp("BinarySpaceship", n.Left, n.Right)
+	// 一元/后缀运算
+	case *node.UnaryExpression:
+		g.genUnaryExpression(n)
+	case *node.UnaryIncr:
+		g.genUnaryIncr(n)
+	case *node.UnaryDecr:
+		g.genUnaryDecr(n)
+	case *node.PostfixIncr:
+		g.genPostfixIncr(n)
+	case *node.PostfixDecr:
+		g.genPostfixDecr(n)
+	case *node.ErrorSuppress:
+		g.genErrorSuppress(n)
 	// 控制流
 	case *node.IfStatement:
 		g.genIfStatement(n)
