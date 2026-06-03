@@ -61,10 +61,15 @@ type VM interface {
 	SetThrowControl(func(acl Control))
 	ThrowControl(acl Control)
 	LoadAndRun(file string) (GetValue, Control)
+	// RegisterCompiledFile 注册预编译的文件 AST，LoadAndRun 时优先使用
+	RegisterCompiledFile(file string, fn func() (GetValue, []Variable))
 	ParseFile(file string, data Value) (Value, Control)
 
 	SetClassPathCache(name, path string)
 	GetClassPathCache(name string) (string, bool)
+
+	// AddNamespace 添加命名空间路径映射（用于 composer autoload 等场景）
+	AddNamespace(namespace string, path string)
 
 	// 调用深度追踪（用于检测无限递归）
 	EnterCall() (depth int)

@@ -202,6 +202,11 @@ func (vm *TempVM) GetClassPathCache(name string) (string, bool) {
 	return vm.Base.GetClassPathCache(name)
 }
 
+// AddNamespace 添加命名空间路径映射（委托给 Base VM，因为命名空间映射是全局共享的）
+func (vm *TempVM) AddNamespace(namespace string, path string) {
+	vm.Base.AddNamespace(namespace, path)
+}
+
 // SetConstant 设置全局常量（委托给 Base VM，因为常量是全局的）
 func (vm *TempVM) SetConstant(name string, value data.Value) data.Control {
 	return vm.Base.SetConstant(name, value)
@@ -233,4 +238,9 @@ func (vm *TempVM) EnterCall() int {
 
 func (vm *TempVM) LeaveCall() {
 	vm.Base.LeaveCall()
+}
+
+// RegisterCompiledFile 注册预编译的文件 AST（委托给 Base VM）
+func (vm *TempVM) RegisterCompiledFile(file string, fn func() (data.GetValue, []data.Variable)) {
+	vm.Base.RegisterCompiledFile(file, fn)
 }

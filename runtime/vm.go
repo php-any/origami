@@ -16,13 +16,14 @@ import (
 // NewVM 创建一个新的虚拟机
 func NewVM(parser *parser.Parser) data.VM {
 	vm := &VM{
-		parser:       parser,
-		classMap:     make(map[string]data.ClassStmt),
-		interfaceMap: make(map[string]data.InterfaceStmt),
-		funcMap:      make(map[string]data.FuncStmt),
-		constantMap:  make(map[string]data.Value),
-		globalVars:   make(map[string]*data.ZVal),
-		classPathMap: make(map[string]string),
+		parser:        parser,
+		classMap:      make(map[string]data.ClassStmt),
+		interfaceMap:  make(map[string]data.InterfaceStmt),
+		funcMap:       make(map[string]data.FuncStmt),
+		constantMap:   make(map[string]data.Value),
+		globalVars:    make(map[string]*data.ZVal),
+		classPathMap:  make(map[string]string),
+		compiledFiles: make(map[string]func() (data.GetValue, []data.Variable)),
 		acl: func(acl data.Control) {
 			parser.ShowControl(acl)
 			os.Exit(1)
@@ -64,6 +65,9 @@ type VM struct {
 
 	// 注解 @Controller 注册的 HTTP 路由（生产模式 app(hotReload: false) 写入此处）
 	httpRoutes []Route
+
+	// 预编译文件注册表
+	compiledFiles map[string]func() (data.GetValue, []data.Variable)
 }
 
 func (vm *VM) EnterCall() int {
@@ -84,6 +88,11 @@ func (vm *VM) SetClassPathCache(name string, path string) {
 func (vm *VM) GetClassPathCache(name string) (string, bool) {
 	path, ok := vm.classPathMap[name]
 	return path, ok
+}
+
+// AddNamespace 添加命名空间路径映射到类路径管理器
+func (vm *VM) AddNamespace(namespace string, path string) {
+	vm.parser.GetClassPathManager().AddNamespace(namespace, path)
 }
 
 func (vm *VM) SetThrowControl(fn func(acl data.Control)) {
@@ -382,7 +391,23 @@ func (vm *VM) EvalCode(code string, ctx data.Context, evalFrom data.From) (data.
 	return program.GetValue(ctx)
 }
 
+func (vm *VM) RegisterCompiledFile(file string, fn func() (data.GetValue, []data.Variable)) {
+	vm.compiledFiles[file] = fn
+}
+
 func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
+	// 检查预编译注册表
+	if fn, ok := vm.compiledFiles[file]; ok {
+		program, vars := fn()
+		ctx := vm.CreateContext(vars)
+		vm.RegisterGlobalContext(vars, ctx)
+		result, ctrl := program.GetValue(ctx)
+		if data.FlushAllBuffersFn != nil {
+			data.FlushAllBuffersFn()
+		}
+		return result, ctrl
+	}
+
 	data.ResetUserOutput()
 	// 解析文件
 	p := vm.parser.Clone()
@@ -396,7 +421,14 @@ func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	ctx := vm.CreateContext(vars)
 	// 将顶层变量注册到全局变量表，供 global 语句使用
 	vm.RegisterGlobalContext(vars, ctx)
-	return program.GetValue(ctx)
+	result, ctrl := program.GetValue(ctx)
+
+	// 脚本结束时刷新所有输出缓冲区（模拟 PHP 行为）
+	if data.FlushAllBuffersFn != nil {
+		data.FlushAllBuffersFn()
+	}
+
+	return result, ctrl
 }
 
 func (vm *VM) ParseFile(file string, object data.Value) (data.Value, data.Control) {
