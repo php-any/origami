@@ -485,6 +485,12 @@ func (vm *LspVM) GetConstant(name string) (data.Value, bool) {
 	return value, ok
 }
 
+// RegisterCompiledFile LSP 模式下不执行预编译文件，此处为空实现
+func (vm *LspVM) RegisterCompiledFile(file string, fn func() (data.GetValue, []data.Variable)) {}
+
+// AddNamespace LSP 模式下命名空间由扫描目录处理，此处为空实现
+func (vm *LspVM) AddNamespace(namespace string, path string) {}
+
 // EnsureGlobalZVal 获取或创建全局变量，LSP 模式下返回空实现
 func (vm *LspVM) EnsureGlobalZVal(name string) *data.ZVal {
 	// LSP 模式不实际执行代码，返回空的 ZVal
