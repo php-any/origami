@@ -47,9 +47,14 @@ func runCompileCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("不是目录: %s", vendorDir)
 	}
 
-	fmt.Printf("扫描目录: %s\n", vendorDir)
-	fmt.Printf("输出目录: %s\n", compileOutput)
-	fmt.Printf("包名: %s\n", compilePkg)
+	files, err := collectPhpFiles(vendorDir)
+	if err != nil {
+		return fmt.Errorf("扫描失败: %w", err)
+	}
+	if len(files) == 0 {
+		return fmt.Errorf("未找到 .php 文件: %s", vendorDir)
+	}
 
+	fmt.Printf("找到 %d 个 PHP 文件\n", len(files))
 	return nil
 }
