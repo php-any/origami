@@ -55,6 +55,18 @@ func runCompileCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("未找到 .php 文件: %s", vendorDir)
 	}
 
-	fmt.Printf("找到 %d 个 PHP 文件\n", len(files))
+	fmt.Printf("找到 %d 个 PHP 文件，开始解析...\n", len(files))
+
+	parsed, parseErrs := parseFiles(files)
+	if len(parseErrs) > 0 {
+		for _, e := range parseErrs {
+			fmt.Fprintf(os.Stderr, "警告: %v\n", e)
+		}
+	}
+	if len(parsed) == 0 {
+		return fmt.Errorf("没有文件解析成功")
+	}
+
+	fmt.Printf("成功解析 %d 个文件\n", len(parsed))
 	return nil
 }
