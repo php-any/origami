@@ -161,6 +161,21 @@ func (g *Generator) genGetValue(v data.GetValue) {
 		g.genReturnStatement(n)
 	case *node.EchoStatement:
 		g.genEchoStatement(n)
+	// 函数/方法调用
+	case *node.CallExpression:
+		g.genCallExpression(n)
+	case *node.CallMethod:
+		g.genCallMethod(n)
+	case *node.CallStaticMethod:
+		g.genCallStaticMethod(n)
+	case *node.CallObjectMethod:
+		g.genCallObjectMethod(n)
+	case *node.CallParentMethod:
+		g.genCallParentMethod(n)
+	case *node.CallSelfMethod:
+		g.genCallSelfMethod(n)
+	case *node.NullsafeCall:
+		g.genNullsafeCall(n)
 	// 未支持的类型
 	default:
 		g.printf("nil /* TODO: unsupported %T */", v)
