@@ -205,6 +205,38 @@ func (g *Generator) genGetValue(v data.GetValue) {
 		g.genSelfClass(n)
 	case *node.Parent:
 		g.genParent(n)
+	// 数组/索引
+	case *node.Array:
+		g.genArray(n)
+	case *node.IndexExpression:
+		g.genIndexExpression(n)
+	// 三元/空合并
+	case *node.TernaryExpression:
+		g.genTernaryExpression(n)
+	case *node.NullCoalesceExpression:
+		g.genNullCoalesceExpression(n)
+	// 闭包/Lambda/函数
+	case *node.LambdaExpression:
+		g.genLambdaExpression(n)
+	case *node.FunctionStatement:
+		g.genFunctionStatement(n)
+	// include/const
+	case *node.IncludeStatement:
+		g.genIncludeStatement(n)
+	case *node.ConstStatement:
+		g.genConstStatement(n)
+	// 展开/命名参数
+	case *node.SpreadArgument:
+		g.genSpreadArgument(n)
+	case *node.NamedArgument:
+		g.genNamedArgument(n)
+	// compact/range/kv
+	case *node.CompactStatement:
+		g.genCompactStatement(n)
+	case *node.Range:
+		g.genRange(n)
+	case *node.Kv:
+		g.genKv(n)
 	// 未支持的类型
 	default:
 		g.printf("nil /* TODO: unsupported %T */", v)
