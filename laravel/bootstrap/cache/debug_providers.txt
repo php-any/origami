@@ -1,0 +1,27 @@
+26 providers:
+Illuminate\Auth\AuthServiceProvider
+Illuminate\Broadcasting\BroadcastServiceProvider
+Illuminate\Bus\BusServiceProvider
+Illuminate\Cache\CacheServiceProvider
+Illuminate\Foundation\Providers\ConsoleSupportServiceProvider
+Illuminate\Cookie\CookieServiceProvider
+Illuminate\Database\DatabaseServiceProvider
+Illuminate\Encryption\EncryptionServiceProvider
+Illuminate\Filesystem\FilesystemServiceProvider
+Illuminate\Foundation\Providers\FoundationServiceProvider
+Illuminate\Hashing\HashServiceProvider
+Illuminate\Mail\MailServiceProvider
+Illuminate\Notifications\NotificationServiceProvider
+Illuminate\Pagination\PaginationServiceProvider
+Illuminate\Auth\Passwords\PasswordResetServiceProvider
+Illuminate\Pipeline\PipelineServiceProvider
+Illuminate\Queue\QueueServiceProvider
+Illuminate\Redis\RedisServiceProvider
+Illuminate\Session\SessionServiceProvider
+Illuminate\Translation\TranslationServiceProvider
+Illuminate\Validation\ValidationServiceProvider
+Illuminate\View\ViewServiceProvider
+App\Providers\AppServiceProvider
+App\Providers\AuthServiceProvider
+App\Providers\EventServiceProvider
+App\Providers\RouteServiceProvider

@@ -14,6 +14,7 @@ type ParsedFile struct {
 	Path      string
 	Program   *node.Program
 	Variables []data.Variable
+	Namespace string // 文件的命名空间
 }
 
 // parseFiles 批量解析 PHP 文件为 AST
@@ -38,6 +39,7 @@ func parseFiles(files []string) ([]ParsedFile, []error) {
 			Path:      file,
 			Program:   program,
 			Variables: vars,
+			Namespace: clone.GetNamespace(),
 		})
 	}
 	return parsed, errs

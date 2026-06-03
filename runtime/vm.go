@@ -392,12 +392,17 @@ func (vm *VM) EvalCode(code string, ctx data.Context, evalFrom data.From) (data.
 }
 
 func (vm *VM) RegisterCompiledFile(file string, fn func() (data.GetValue, []data.Variable)) {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
 	vm.compiledFiles[file] = fn
 }
 
 func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	// 检查预编译注册表
-	if fn, ok := vm.compiledFiles[file]; ok {
+	vm.mu.RLock()
+	fn, ok := vm.compiledFiles[file]
+	vm.mu.RUnlock()
+	if ok {
 		program, vars := fn()
 		ctx := vm.CreateContext(vars)
 		vm.RegisterGlobalContext(vars, ctx)

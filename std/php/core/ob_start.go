@@ -8,13 +8,13 @@ import (
 
 // outputBufferStack 输出缓冲栈
 type outputBufferStack struct {
-	buffers []strings.Builder
+	buffers []*strings.Builder
 }
 
-var obStack = &outputBufferStack{buffers: []strings.Builder{{}}}
+var obStack = &outputBufferStack{buffers: []*strings.Builder{{}}}
 
 func (s *outputBufferStack) push() {
-	s.buffers = append(s.buffers, strings.Builder{})
+	s.buffers = append(s.buffers, &strings.Builder{})
 	s.syncWriter()
 }
 
@@ -40,10 +40,32 @@ func (s *outputBufferStack) syncWriter() {
 		data.WriteOutput = data.DefaultOutputWriter
 		return
 	}
-	buf := &s.buffers[len(s.buffers)-1]
+	buf := s.buffers[len(s.buffers)-1]
 	data.WriteOutput = func(str string) {
 		buf.WriteString(str)
 	}
+}
+
+// FlushAllBuffers 刷新所有输出缓冲区（脚本结束时调用）
+func FlushAllBuffers() {
+	for len(obStack.buffers) > 1 {
+		content := obStack.buffers[len(obStack.buffers)-1].String()
+		obStack.buffers = obStack.buffers[:len(obStack.buffers)-1]
+		if content != "" {
+			// 写入到父缓冲区（当前栈顶）
+			if len(obStack.buffers) > 1 {
+				obStack.buffers[len(obStack.buffers)-1].WriteString(content)
+			} else {
+				// 如果没有父缓冲区，写入到 stdout
+				data.DefaultOutputWriter(content)
+			}
+		}
+	}
+	obStack.syncWriter()
+}
+
+func init() {
+	data.FlushAllBuffersFn = FlushAllBuffers
 }
 
 // ObStartFunction 实现 ob_start
@@ -66,6 +88,9 @@ type ObGetCleanFunction struct{}
 
 func NewObGetCleanFunction() data.FuncStmt { return &ObGetCleanFunction{} }
 func (f *ObGetCleanFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	if len(obStack.buffers) <= 1 {
+		return data.NewBoolValue(false), nil
+	}
 	content := obStack.pop()
 	return data.NewStringValue(content), nil
 }
@@ -81,6 +106,9 @@ type ObGetContentsFunction struct{}
 
 func NewObGetContentsFunction() data.FuncStmt { return &ObGetContentsFunction{} }
 func (f *ObGetContentsFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	if len(obStack.buffers) <= 1 {
+		return data.NewBoolValue(false), nil
+	}
 	content := obStack.contents()
 	return data.NewStringValue(content), nil
 }
@@ -96,6 +124,9 @@ type ObEndCleanFunction struct{}
 
 func NewObEndCleanFunction() data.FuncStmt { return &ObEndCleanFunction{} }
 func (f *ObEndCleanFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	if len(obStack.buffers) <= 1 {
+		return data.NewBoolValue(false), nil
+	}
 	obStack.pop()
 	return data.NewBoolValue(true), nil
 }

@@ -67,6 +67,58 @@ func generateASTFile(parsed []ParsedFile, outputDir, pkgName string) error {
 }
 
 func generateGoMod(outputDir, pkgName string) error {
-	content := fmt.Sprintf("module %s\n\ngo 1.21\n\nrequire github.com/php-any/origami v0.0.0\n", pkgName)
+	content := fmt.Sprintf("module %s\n\ngo 1.25.0\n\nrequire github.com/php-any/origami v0.0.0\n", pkgName)
+
+	// 自动检测 origami 仓库路径并添加 replace 指令
+	if origamiPath := findOrigamiPath(); origamiPath != "" {
+		absOutput, err := filepath.Abs(outputDir)
+		if err == nil {
+			relPath, err := filepath.Rel(absOutput, origamiPath)
+			if err == nil {
+				// 统一使用正斜杠，确保跨平台兼容
+				relPath = filepath.ToSlash(relPath)
+				content += fmt.Sprintf("\nreplace github.com/php-any/origami => %s\n", relPath)
+			}
+		}
+	}
+
 	return os.WriteFile(filepath.Join(outputDir, "go.mod"), []byte(content), 0644)
+}
+
+// findOrigamiPath 查找 origami 仓库根目录（包含 go.mod 且 module 名为 github.com/php-any/origami）
+func findOrigamiPath() string {
+	// 尝试从可执行文件位置向上查找
+	execPath, err := os.Executable()
+	if err == nil {
+		if path := searchGoModUp(filepath.Dir(execPath)); path != "" {
+			return path
+		}
+	}
+	// 尝试从当前工作目录向上查找
+	if cwd, err := os.Getwd(); err == nil {
+		if path := searchGoModUp(cwd); path != "" {
+			return path
+		}
+	}
+	return ""
+}
+
+// searchGoModUp 从给定目录向上搜索包含 origami module 定义的 go.mod
+func searchGoModUp(dir string) string {
+	for i := 0; i < 10; i++ { // 最多向上搜索 10 层
+		gomod := filepath.Join(dir, "go.mod")
+		data, err := os.ReadFile(gomod)
+		if err == nil {
+			content := string(data)
+			if strings.Contains(content, "module github.com/php-any/origami") {
+				return dir
+			}
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return ""
 }

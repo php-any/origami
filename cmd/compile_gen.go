@@ -10,10 +10,11 @@ import (
 
 // Generator 将 AST 节点转换为 Go 构造代码
 type Generator struct {
-	buf     strings.Builder
-	indent  int
-	imports map[string]bool
-	file    string
+	buf       strings.Builder
+	indent    int
+	imports   map[string]bool
+	file      string
+	namespace string // 当前文件的命名空间
 }
 
 // NewGenerator 创建新的代码生成器
@@ -26,6 +27,7 @@ func NewGenerator() *Generator {
 // Generate 为一个解析后的文件生成 Go 代码
 func (g *Generator) Generate(pf ParsedFile) string {
 	g.file = pf.Path
+	g.namespace = pf.Namespace
 	g.buf.Reset()
 	g.imports = make(map[string]bool)
 	g.indent = 0

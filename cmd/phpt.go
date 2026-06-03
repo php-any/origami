@@ -3,6 +3,7 @@ package cmd
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/spf13/cobra"
@@ -438,12 +440,17 @@ func runPhpSnippet(code string, sections map[string]string, phptPath string) (st
 			cmdArgs = append(cmdArgs, strings.Fields(rawArgs)...)
 		}
 	}
-	cmd := exec.Command(executable, cmdArgs...)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, executable, cmdArgs...)
 	cmd.Env = os.Environ()
 	if sections != nil {
 		cmd.Env = appendPhptProcessEnv(cmd.Env, sections)
 	}
 	output, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return normalizeOutput(string(output)), fmt.Errorf("执行超时 (30s)")
+	}
 	return normalizeOutput(string(output)), err
 }
 

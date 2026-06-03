@@ -9,7 +9,15 @@
       "Bash(perl -i -pe 's/traitNames, acl := p\\\\.parseTraitUse\\\\\\(\\\\\\)/traitNames, aliases, acl := p.parseTraitUse\\(\\)/' parser/trait_parser.go)",
       "Bash(perl -i -0777 -pe 's/if p\\\\.current\\\\\\(\\\\\\)\\\\.Type\\\\\\(\\\\\\) == token\\\\.USE \\\\{\\\\s*\\\\n\\\\s*traitNames, aliases, acl := p\\\\.parseTraitUse\\\\\\(\\\\\\)\\\\s*\\\\n\\\\s*if acl != nil \\\\{\\\\s*\\\\n\\\\s*return nil, acl\\\\s*\\\\n\\\\s*\\\\}\\\\s*\\\\n\\\\s*acl = p\\\\.mergeTraitsIntoMaps\\\\\\(traitNames/if p.current\\(\\).Type\\(\\) == token.USE {\\\\n\\\\t\\\\t\\\\t\\\\ttraitNames, aliases, acl := p.parseTraitUse\\(\\)\\\\n\\\\t\\\\t\\\\t\\\\tif acl != nil {\\\\n\\\\t\\\\t\\\\t\\\\t\\\\treturn nil, acl\\\\n\\\\t\\\\t\\\\t\\\\t}\\\\n\\\\t\\\\t\\\\t\\\\ttraitAliases = append\\(traitAliases, aliases...\\)\\\\n\\\\t\\\\t\\\\t\\\\tacl = p.mergeTraitsIntoMaps\\(traitNames, traitAliases/' parser/trait_parser.go)",
       "Bash(python3)",
-      "Bash(go build *)"
+      "Bash(go build *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(./origami compile *)",
+      "Bash(git check-ignore *)",
+      "Bash(go mod *)",
+      "Bash(go version *)",
+      "Bash(go env *)",
+      "Bash(where go *)"
     ]
   }
 }

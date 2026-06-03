@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-
+	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
 
@@ -16,7 +15,7 @@ func (g *Generator) genCallExpression(n *node.CallExpression) {
 		g.printf(",\n")
 	}
 	g.indent--
-	g.printf("}}, \"\")")
+	g.printf("}}, %q)", g.namespace)
 }
 
 // genCallMethod 生成方法调用节点（通过方法引用调用）
@@ -38,18 +37,14 @@ func (g *Generator) genCallMethod(n *node.CallMethod) {
 }
 
 // genCallStaticMethod 生成静态方法调用节点（Class::method()）
+// stmt 是未导出字段且编译期无法直接序列化，使用 CallStaticMethodLater 延迟解析
 func (g *Generator) genCallStaticMethod(n *node.CallStaticMethod) {
-	g.printf("node.NewCallStaticMethod(from,\n")
-	g.indent++
-	// stmt 是未导出字段，通过 GetFrom 和 Method 重建
-	// 这里生成 nil 作为 path，运行时需要通过其他方式解析
-	fmt.Fprintf(&g.buf, "nil, // stmt: 需要运行时解析\n")
-	for j := 0; j < g.indent; j++ {
-		g.buf.WriteString("\t")
+	// 从 stmt 中提取类名（如果 stmt 是 ClassStmt）
+	className := ""
+	if cls, ok := n.GetStmt().(data.ClassStmt); ok {
+		className = cls.GetName()
 	}
-	g.printf("%q,\n", n.Method)
-	g.indent--
-	g.printf(")")
+	g.printf("node.NewCallStaticMethodLater(from, %q, %q, %q)", className, n.Method, g.namespace)
 }
 
 // genCallObjectMethod 生成对象方法调用节点（$obj->method()）

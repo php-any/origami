@@ -37,3 +37,7 @@ var WriteOutput OutputWriter = DefaultOutputWriter
 func ResetOutputWriter() {
 	WriteOutput = DefaultOutputWriter
 }
+
+// FlushAllBuffersFn 脚本结束时刷新所有输出缓冲区的回调函数
+// 由 core 包设置，避免循环依赖
+var FlushAllBuffersFn func()

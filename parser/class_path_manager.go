@@ -382,6 +382,9 @@ func (m *DefaultClassPathManager) LoadClass(className string, parser *Parser) da
 
 var autoload = make([]*data.FuncValue, 0)
 
+// autoloadLoading tracks classes currently being autoloaded to prevent recursion.
+var autoloadLoading = make(map[string]bool)
+
 func AddAutoLoad(fun *data.FuncValue) {
 	autoload = append(autoload, fun)
 }
@@ -400,6 +403,13 @@ func RemoveAutoLoad(fun *data.FuncValue) {
 }
 
 func CallAutoLoad(name string, ctx data.Context) (bool, data.Control) {
+	// 防止 autoload 重入：如果当前已经在加载此类，直接返回 false
+	if autoloadLoading[name] {
+		return false, nil
+	}
+	autoloadLoading[name] = true
+	defer delete(autoloadLoading, name)
+
 	for _, fn := range autoload {
 		ctx := ctx.CreateContext(fn.Value.GetVariables())
 
