@@ -113,3 +113,10 @@ func (tf *TokenFrom) ToLSPPosition() (startLine, startChar, endLine, endChar int
 func (tf *TokenFrom) IsValid() bool {
 	return tf.filePath != nil && tf.startPos >= 0 && tf.endPos >= tf.startPos
 }
+
+// NewFrom 创建一个简化的 TokenFrom，用于预编译代码生成
+func NewFrom(path string) *TokenFrom {
+	return &TokenFrom{
+		filePath: &path,
+	}
+}
