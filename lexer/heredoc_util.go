@@ -30,6 +30,7 @@ func ExtractHeredocBody(literal string) (body string, isNowdoc bool, ok bool) {
 	}
 	body = literal[firstContent:lastNewline]
 	body = strings.TrimSuffix(body, "\r")
+	body = NormalizeToLF(body)
 	return body, isNowdoc, true
 }
 
