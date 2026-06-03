@@ -176,6 +176,35 @@ func (g *Generator) genGetValue(v data.GetValue) {
 		g.genCallSelfMethod(n)
 	case *node.NullsafeCall:
 		g.genNullsafeCall(n)
+	// OOP 节点
+	case *node.ClassStatement:
+		g.genClassStatement(n)
+	case *node.InterfaceStatement:
+		g.genInterfaceStatement(n)
+	case *node.NewExpression:
+		g.genNewExpression(n)
+	case *node.NewVariableExpression:
+		g.genNewVariableExpression(n)
+	case *node.NewExpressionDynamic:
+		g.genNewExpressionDynamic(n)
+	case *node.NewSelfExpression:
+		g.genNewSelfExpression(n)
+	case *node.NewStaticExpression:
+		g.genNewStaticExpression(n)
+	case *node.InstanceOfExpression:
+		g.genInstanceOfExpression(n)
+	case *node.CloneExpression:
+		g.genCloneExpression(n)
+	case *node.InitClass:
+		g.genInitClass(n)
+	case *node.ClassConstant:
+		g.genClassConstant(n)
+	case *node.StaticClass:
+		g.genStaticClass(n)
+	case *node.SelfClass:
+		g.genSelfClass(n)
+	case *node.Parent:
+		g.genParent(n)
 	// 未支持的类型
 	default:
 		g.printf("nil /* TODO: unsupported %T */", v)
