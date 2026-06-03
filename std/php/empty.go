@@ -21,6 +21,9 @@ func (f *EmptyFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 			if isEmpty, handled := node.EmptyViaArrayAccess(astValue.Ctx, ie); handled {
 				return data.NewBoolValue(isEmpty), nil
 			}
+			if isEmpty, handled := node.EmptyIndexExpression(astValue.Ctx, ie); handled {
+				return data.NewBoolValue(isEmpty), nil
+			}
 		}
 		// 使用 Call 时的 Context 来计算值，这样可以捕获未定义变量的错误
 		// 但是我们需要禁用错误抛出，因为 empty 应该抑制未定义变量错误

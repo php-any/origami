@@ -31,8 +31,9 @@ func (v *ServerVariable) GetValue(ctx data.Context) (data.GetValue, data.Control
 			serverValue.SetProperty("SERVER_NAME", data.NewStringValue(httpReq.Host))
 			serverValue.SetProperty("SERVER_PORT", data.NewStringValue(httpReq.URL.Port()))
 			serverValue.SetProperty("REMOTE_ADDR", data.NewStringValue(httpReq.RemoteAddr))
-			serverValue.SetProperty("SCRIPT_NAME", data.NewStringValue(httpReq.URL.Path))
-			serverValue.SetProperty("PATH_INFO", data.NewStringValue(httpReq.URL.Path))
+			// SCRIPT_NAME 勿用 URL.Path（如 "/"），否则 Symfony/Laravel 的 baseUrl 计算错误导致路由不匹配
+			serverValue.SetProperty("SCRIPT_NAME", data.NewStringValue("/index.php"))
+			serverValue.SetProperty("PHP_SELF", data.NewStringValue("/index.php"))
 
 			for key, values := range httpReq.Header {
 				if len(values) > 0 {

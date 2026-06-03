@@ -101,10 +101,29 @@ func isSetViaOffsetExists(ctx data.Context, ie *IndexExpression) (bool, bool) {
 
 // issetIndexExpression 检查数组/对象下标是否存在（不触发 PHP 8 未定义键 Warning）
 func issetIndexExpression(ctx data.Context, ie *IndexExpression) (isSet bool, handled bool) {
+	// isset($a[$k]['x'])：必须在 isSetViaOffsetExists 之前处理，因其会对 ie.Array 调用 GetValue
+	if inner, ok := ie.Array.(*IndexExpression); ok {
+		parentSet, handled := issetIndexExpression(ctx, inner)
+		if !handled {
+			return false, false
+		}
+		if !parentSet {
+			return false, true
+		}
+		parentVal, ok := indexExpressionReadNoWarn(ctx, inner)
+		if !ok {
+			return false, true
+		}
+		index, acl := ie.Index.GetValue(ctx)
+		if acl != nil {
+			return false, true
+		}
+		return issetOnContainer(parentVal, index)
+	}
 	if isSet, handled := isSetViaOffsetExists(ctx, ie); handled {
 		return isSet, true
 	}
-	array, acl := ie.Array.GetValue(ctx)
+	container, acl := indexExpressionContainer(ctx, ie.Array)
 	if acl != nil {
 		return false, true
 	}
@@ -112,9 +131,41 @@ func issetIndexExpression(ctx data.Context, ie *IndexExpression) (isSet bool, ha
 	if acl != nil {
 		return false, true
 	}
-	switch arr := array.(type) {
+	return issetOnContainer(container, index)
+}
+
+// indexExpressionContainer 求值下标表达式的“容器”部分（$a[$k] 中的 $a，或 $this->prop）
+func indexExpressionContainer(ctx data.Context, arrayOperand data.GetValue) (data.GetValue, data.Control) {
+	if inner, ok := arrayOperand.(*IndexExpression); ok {
+		parentVal, ok := indexExpressionReadNoWarn(ctx, inner)
+		if !ok {
+			return data.NewNullValue(), nil
+		}
+		return parentVal, nil
+	}
+	return arrayOperand.GetValue(ctx)
+}
+
+// indexExpressionReadNoWarn 在已知 isset(IE) 为真时读取 IE 的值（不触发未定义键 Warning）
+func indexExpressionReadNoWarn(ctx data.Context, ie *IndexExpression) (data.GetValue, bool) {
+	container, acl := indexExpressionContainer(ctx, ie.Array)
+	if acl != nil {
+		return nil, false
+	}
+	index, acl := ie.Index.GetValue(ctx)
+	if acl != nil {
+		return nil, false
+	}
+	val, ok := readIndexNoWarn(container, index)
+	if !ok {
+		return nil, false
+	}
+	return val, true
+}
+
+func issetOnContainer(container data.GetValue, index data.GetValue) (isSet bool, handled bool) {
+	switch arr := container.(type) {
 	case *data.StringValue:
-		// 必须在 data.GetProperty 之前：StringValue 也实现了 GetProperty，不能按对象属性处理
 		if iv, ok := index.(data.AsInt); ok {
 			i, err := iv.AsInt()
 			if err != nil {
@@ -172,12 +223,85 @@ func issetIndexExpression(ctx data.Context, ie *IndexExpression) (isSet bool, ha
 	return false, false
 }
 
+func readIndexNoWarn(container data.GetValue, index data.GetValue) (data.GetValue, bool) {
+	switch arr := container.(type) {
+	case *data.ArrayValue:
+		switch iv := index.(type) {
+		case *data.StringValue:
+			for _, z := range arr.List {
+				if z != nil && z.Name == iv.Value {
+					if z.Value == nil {
+						return data.NewNullValue(), true
+					}
+					return z.Value, true
+				}
+			}
+			return nil, false
+		case data.AsInt:
+			i, err := iv.AsInt()
+			if err != nil {
+				return nil, false
+			}
+			z, _ := arr.FindSlotByIntKey(i)
+			if z == nil {
+				return nil, false
+			}
+			if z.Value == nil {
+				return data.NewNullValue(), true
+			}
+			return z.Value, true
+		}
+	case *data.ObjectValue:
+		key, ok := indexKeyString(index)
+		if !ok {
+			return nil, false
+		}
+		val, acl := arr.GetProperty(key)
+		if acl != nil {
+			return nil, false
+		}
+		return val, true
+	case data.GetProperty:
+		if _, ok := arr.(*data.StringValue); ok {
+			return nil, false
+		}
+		key, ok := indexKeyString(index)
+		if !ok {
+			return nil, false
+		}
+		val, acl := arr.GetProperty(key)
+		if acl != nil {
+			return nil, false
+		}
+		return val, true
+	}
+	return nil, false
+}
+
 // indexExpressionKeyExists 判断下标槽位是否存在（与 isset 不同：值为 null 仍算存在）
 func indexExpressionKeyExists(ctx data.Context, ie *IndexExpression) (exists bool, handled bool) {
+	if inner, ok := ie.Array.(*IndexExpression); ok {
+		parentExists, handled := indexExpressionKeyExists(ctx, inner)
+		if !handled {
+			return false, false
+		}
+		if !parentExists {
+			return false, true
+		}
+		parentVal, ok := indexExpressionReadNoWarn(ctx, inner)
+		if !ok {
+			return false, true
+		}
+		index, acl := ie.Index.GetValue(ctx)
+		if acl != nil {
+			return false, true
+		}
+		return indexKeyExistsOnContainer(parentVal, index), true
+	}
 	if _, handled := isSetViaOffsetExists(ctx, ie); handled {
 		return false, false
 	}
-	array, acl := ie.Array.GetValue(ctx)
+	container, acl := indexExpressionContainer(ctx, ie.Array)
 	if acl != nil {
 		return false, true
 	}
@@ -185,53 +309,57 @@ func indexExpressionKeyExists(ctx data.Context, ie *IndexExpression) (exists boo
 	if acl != nil {
 		return false, true
 	}
-	switch arr := array.(type) {
+	return indexKeyExistsOnContainer(container, index), true
+}
+
+func indexKeyExistsOnContainer(container data.GetValue, index data.GetValue) bool {
+	switch arr := container.(type) {
 	case *data.StringValue:
 		if iv, ok := index.(data.AsInt); ok {
 			i, err := iv.AsInt()
 			if err != nil {
-				return false, true
+				return false
 			}
 			if i < 0 {
 				i = len(arr.Value) + i
 			}
-			return i >= 0 && i < len(arr.Value), true
+			return i >= 0 && i < len(arr.Value)
 		}
-		return false, true
+		return false
 	case *data.ArrayValue:
 		switch iv := index.(type) {
 		case *data.StringValue:
 			for _, z := range arr.List {
 				if z != nil && z.Name == iv.Value {
-					return true, true
+					return true
 				}
 			}
-			return false, true
+			return false
 		case data.AsInt:
 			i, err := iv.AsInt()
 			if err != nil {
-				return false, true
+				return false
 			}
 			z, _ := arr.FindSlotByIntKey(i)
-			return z != nil, true
+			return z != nil
 		}
 	case *data.ObjectValue:
 		key, ok := indexKeyString(index)
 		if !ok {
-			return false, true
+			return false
 		}
 		_, acl := arr.GetProperty(key)
-		return acl == nil, true
+		return acl == nil
 	case data.GetProperty:
 		if _, ok := arr.(*data.StringValue); ok {
-			return false, false
+			return false
 		}
 		key, ok := indexKeyString(index)
 		if !ok {
-			return false, true
+			return false
 		}
 		_, acl := arr.GetProperty(key)
-		return acl == nil, true
+		return acl == nil
 	}
-	return false, false
+	return false
 }

@@ -102,6 +102,52 @@ func EmptyViaArrayAccess(ctx data.Context, ie *IndexExpression) (bool, bool) {
 	return isEmptyPHPValue(val), true
 }
 
+// EmptyIndexExpression 计算 empty($a[$k]) / empty($a[$k]['x'])（未定义键视为 empty，不触发 Warning）
+func EmptyIndexExpression(ctx data.Context, ie *IndexExpression) (isEmpty bool, handled bool) {
+	if inner, ok := ie.Array.(*IndexExpression); ok {
+		exists, handled := indexExpressionKeyExists(ctx, inner)
+		if !handled {
+			return true, false
+		}
+		if !exists {
+			return true, true
+		}
+		parentVal, ok := indexExpressionReadNoWarn(ctx, inner)
+		if !ok {
+			return true, true
+		}
+		index, acl := ie.Index.GetValue(ctx)
+		if acl != nil {
+			return true, true
+		}
+		return emptyOnContainer(parentVal, index), true
+	}
+	exists, handled := indexExpressionKeyExists(ctx, ie)
+	if !handled {
+		return true, false
+	}
+	if !exists {
+		return true, true
+	}
+	container, acl := indexExpressionContainer(ctx, ie.Array)
+	if acl != nil {
+		return true, true
+	}
+	index, acl := ie.Index.GetValue(ctx)
+	if acl != nil {
+		return true, true
+	}
+	return emptyOnContainer(container, index), true
+}
+
+func emptyOnContainer(container data.GetValue, index data.GetValue) bool {
+	val, ok := readIndexNoWarn(container, index)
+	if !ok {
+		return true
+	}
+	return isEmptyPHPValue(val)
+}
+
 func isEmptyPHPValue(v data.GetValue) bool {
 	if v == nil {
 		return true
@@ -428,9 +474,32 @@ func (ie *IndexExpression) GetZVal(ctx data.Context) (*data.ZVal, data.Control) 
 }
 
 func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Control {
-	// 获取数组值
-	arrayVal, acl := ie.Array.GetValue(ctx)
+	indexVal, acl := ie.Index.GetValue(ctx)
 	if acl != nil {
+		return acl
+	}
+
+	var arrayVal data.GetValue
+	var arrayAcl data.Control
+	// $parent[$key][$sub] = $val：父键不存在时 PHP 自动 vivify 子数组，且不触发未定义键 Warning
+	if inner, ok := ie.Array.(*IndexExpression); ok {
+		exists, handled := indexExpressionKeyExists(ctx, inner)
+		if handled && !exists {
+			emptyArr := data.NewArrayValue(nil).(*data.ArrayValue)
+			if ctl := inner.SetValue(ctx, emptyArr); ctl != nil {
+				return ctl
+			}
+		}
+		if v, ok := indexExpressionReadNoWarn(ctx, inner); ok {
+			arrayVal = v
+		} else {
+			arrayVal = data.NewNullValue()
+		}
+	}
+	if arrayVal == nil {
+		arrayVal, arrayAcl = ie.Array.GetValue(ctx)
+	}
+	if arrayAcl != nil {
 		// 在赋值语境下，未定义索引（UndefinedIndexExpression）应视为 null，
 		// 以便支持 PHP 风格的链式自动创建：
 		// $namespace['commands'][1] = 'foo';
@@ -458,10 +527,10 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 				return errCtl
 			}
 		case *IndexExpression:
-			// 多级访问，自动创建空对象并挂到上一层：
-			// $config['db']['host'] = '...';
-			obj := data.NewObjectValue()
-			if _, errCtl := NewBinaryAssign(ie.GetFrom(), base, obj).GetValue(ctx); errCtl != nil {
+			// 多级访问，自动创建空数组并挂到上一层（PHP：$arr[$k][$k2]= 会 vivify 子数组）
+			// $this->routes[$method][$uri] = $route 等
+			subArr := data.NewArrayValue(nil).(*data.ArrayValue)
+			if _, errCtl := NewBinaryAssign(ie.GetFrom(), base, subArr).GetValue(ctx); errCtl != nil {
 				return errCtl
 			}
 			// 同样需要重新读取当前数组值，拿到实际挂在上一层上的容器（可能经历了 clone）
@@ -477,12 +546,6 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 
 	if blockIndirectOverloadAssign(ie, arrayVal) {
 		return nil
-	}
-
-	// 获取索引值
-	indexVal, acl := ie.Index.GetValue(ctx)
-	if acl != nil {
-		return acl
 	}
 
 	switch arr := arrayVal.(type) {

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/utils"
 )
 
@@ -80,6 +81,36 @@ func (m *DirectoryIteratorRewindMethod) Call(ctx data.Context) (data.GetValue, d
 		return nil, utils.NewThrow(errors.New("DirectoryIterator not initialized"))
 	}
 	iterData.Rewind()
+	return nil, nil
+}
+
+// DirectoryIteratorSeekMethod 实现 DirectoryIterator::seek (SeekableIterator 接口)
+type DirectoryIteratorSeekMethod struct{}
+
+func (m *DirectoryIteratorSeekMethod) GetName() string            { return "seek" }
+func (m *DirectoryIteratorSeekMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *DirectoryIteratorSeekMethod) GetIsStatic() bool          { return false }
+func (m *DirectoryIteratorSeekMethod) GetParams() []data.GetValue {
+	return []data.GetValue{
+		node.NewParameter(nil, "position", 0, data.NewIntValue(0), data.Int{}),
+	}
+}
+func (m *DirectoryIteratorSeekMethod) GetVariables() []data.Variable {
+	return []data.Variable{node.NewVariable(nil, "position", 0, data.Int{})}
+}
+func (m *DirectoryIteratorSeekMethod) GetReturnType() data.Types { return nil }
+
+func (m *DirectoryIteratorSeekMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	iterData, ok := getDirectoryIteratorInfo(ctx)
+	if !ok || iterData == nil {
+		return nil, utils.NewThrow(errors.New("DirectoryIterator not initialized"))
+	}
+	posVal, _ := ctx.GetIndexValue(0)
+	pos := 0
+	if iv, ok := posVal.(data.AsInt); ok {
+		pos, _ = iv.AsInt()
+	}
+	iterData.Seek(pos)
 	return nil, nil
 }
 

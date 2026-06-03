@@ -104,6 +104,8 @@ func (r *RecursiveDirectoryIteratorClass) GetMethod(name string) (data.Method, b
 		return &RDIConstruct{}, true
 	case "rewind":
 		return &RDIRewind{}, true
+	case "seek":
+		return &RDISeek{}, true
 	case "current":
 		return &RDICurrent{}, true
 	case "key":
@@ -140,6 +142,7 @@ func (r *RecursiveDirectoryIteratorClass) GetMethods() []data.Method {
 	return []data.Method{
 		&RDIConstruct{},
 		&RDIRewind{},
+		&RDISeek{},
 		&RDICurrent{},
 		&RDIKey{},
 		&RDINext{},
@@ -325,6 +328,42 @@ func (m *RDIConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, data.NewErrorThrow(nil, err)
 	}
 
+	return nil, nil
+}
+
+// ---- seek (SeekableIterator) ----
+
+type RDISeek struct{}
+
+func (m *RDISeek) GetName() string            { return "seek" }
+func (m *RDISeek) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *RDISeek) GetIsStatic() bool          { return false }
+func (m *RDISeek) GetReturnType() data.Types  { return nil }
+func (m *RDISeek) GetParams() []data.GetValue {
+	return []data.GetValue{node.NewParameter(nil, "position", 0, data.NewIntValue(0), data.Int{})}
+}
+func (m *RDISeek) GetVariables() []data.Variable {
+	return []data.Variable{node.NewVariable(nil, "position", 0, data.Int{})}
+}
+func (m *RDISeek) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
+		return nil, nil
+	}
+	pos := 0
+	if posVal, ok := ctx.GetIndexValue(0); ok {
+		if iv, ok := posVal.(data.AsInt); ok {
+			pos, _ = iv.AsInt()
+		}
+	}
+	if pos < 0 {
+		pos = 0
+	}
+	files := rdiGetFiles(cv)
+	if pos > len(files) {
+		pos = len(files)
+	}
+	rdiSetPos(cv, pos)
 	return nil, nil
 }
 

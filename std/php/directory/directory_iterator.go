@@ -57,6 +57,8 @@ func (c *DirectoryIteratorClass) GetMethod(name string) (data.Method, bool) {
 		return &DirectoryIteratorNextMethod{}, true
 	case "rewind":
 		return &DirectoryIteratorRewindMethod{}, true
+	case "seek":
+		return &DirectoryIteratorSeekMethod{}, true
 	case "valid":
 		return &DirectoryIteratorValidMethod{}, true
 	case "getFilename":
@@ -95,6 +97,7 @@ func (c *DirectoryIteratorClass) GetMethods() []data.Method {
 		&DirectoryIteratorKeyMethod{},
 		&DirectoryIteratorNextMethod{},
 		&DirectoryIteratorRewindMethod{},
+		&DirectoryIteratorSeekMethod{},
 		&DirectoryIteratorValidMethod{},
 		&DirectoryIteratorGetFilenameMethod{},
 		&DirectoryIteratorGetBasenameMethod{},
@@ -195,6 +198,19 @@ func (d *DirectoryIteratorData) Next() {
 // Rewind 重置迭代器
 func (d *DirectoryIteratorData) Rewind() {
 	d.iterator = 0
+}
+
+// Seek 定位到指定下标（SeekableIterator::seek）
+func (d *DirectoryIteratorData) Seek(position int) {
+	if position < 0 {
+		d.iterator = 0
+		return
+	}
+	if position > len(d.entries) {
+		d.iterator = len(d.entries)
+		return
+	}
+	d.iterator = position
 }
 
 // Valid 检查迭代器是否有效

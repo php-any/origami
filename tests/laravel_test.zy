@@ -12,10 +12,10 @@ $_ENV['APP_KEY'] = 'base64:7X1ZM4KlTvQVXom4E7u5YftL4H7NjbZQJGJ1lCqVUWs=';
 putenv('APP_KEY=base64:7X1ZM4KlTvQVXom4E7u5YftL4H7NjbZQJGJ1lCqVUWs=');
 check("环境变量", true);
 
-require __DIR__ . '/../laravel/vendor/autoload.php';
+require __DIR__ . '/../examples/laravel/vendor/autoload.php';
 check("Composer autoload", true);
 
-$app = require_once __DIR__ . '/../laravel/bootstrap/app.php';
+$app = require_once __DIR__ . '/../examples/laravel/bootstrap/app.php';
 check("Application", true);
 check("\$app instanceof ArrayAccess", $app instanceof ArrayAccess);
 
@@ -39,7 +39,7 @@ $request = new \Illuminate\Http\Request([], [], [], [], [], [
     'REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/',
     'HTTP_HOST' => 'localhost', 'SERVER_NAME' => 'localhost',
     'SERVER_PORT' => '80',
-    'SCRIPT_FILENAME' => __DIR__ . '/../laravel/public/index.php',
+    'SCRIPT_FILENAME' => __DIR__ . '/../examples/laravel/public/index.php',
 ]);
 check("测试请求", true);
 

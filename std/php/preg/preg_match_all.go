@@ -55,9 +55,13 @@ func (f *PregMatchAllFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	// 查找所有匹配以及分组（索引数组）
 	allLocs := re.FindAllStringSubmatchIndex(subject, -1)
 	if len(allLocs) == 0 {
-		// 与 PHP 一致：无匹配时 $matches[0] 仍为 []（可安全 foreach，不触发未定义键 Warning）
-		emptyGroup := data.NewArrayValue([]data.Value{})
-		matchesArr := data.NewArrayValue([]data.Value{emptyGroup})
+		// 无匹配：PREG_PATTERN_ORDER 时 $matches[0]=[]；PREG_SET_ORDER 时 $matches=[]
+		var matchesArr *data.ArrayValue
+		if patternOrder {
+			matchesArr = data.NewArrayValue([]data.Value{data.NewArrayValue([]data.Value{})}).(*data.ArrayValue)
+		} else {
+			matchesArr = data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
+		}
 		if z := ctx.GetIndexZVal(2); z != nil {
 			z.Value = matchesArr
 		}
@@ -79,10 +83,10 @@ func (f *PregMatchAllFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 				// 未匹配的分组
 				if start == -1 || end == -1 {
 					if offsetCapture {
-						// ['', 0]
+						// 未参与匹配的分组：['', -1]（与 PHP PREG_OFFSET_CAPTURE 一致）
 						pair := []data.Value{
 							data.NewStringValue(""),
-							data.NewIntValue(0),
+							data.NewIntValue(-1),
 						}
 						groupMatches = append(groupMatches, data.NewArrayValue(pair))
 					} else {
@@ -122,7 +126,7 @@ func (f *PregMatchAllFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 					if offsetCapture {
 						pair := []data.Value{
 							data.NewStringValue(""),
-							data.NewIntValue(0),
+							data.NewIntValue(-1),
 						}
 						row = append(row, data.NewArrayValue(pair))
 					} else {
