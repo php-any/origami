@@ -1,0 +1,62 @@
+name: vs2022
+on:
+  push:
+    branches:
+      - dev
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  Windows:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        r: ['release']
+        rtools: ['42']
+    env:
+      R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RTOOLS_VERSION: ${{ matrix.rtools }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: ${{ matrix.r }}
+          rtools-version: ${{ matrix.rtools }}
+          Ncpus: 2
+
+      - name: Install dependencies
+        run: |
+          install.packages(c("remotes"))
+          remotes::install_deps(dependencies = TRUE)
+          remotes::install_cran("rcmdcheck")
+        shell: Rscript {0}
+
+      - name: Install GLMMadaptive from GitHub
+        run: |
+          install.packages('devtools')
+          library(devtools)
+          install_github("drizopoulos/GLMMadaptive")
+        shell: Rscript {0}
+
+      - name: Check
+        env:
+          _R_CHECK_CRAN_INCOMING_: false
+        run: |
+          options(crayon.enabled = TRUE)
+          rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"), error_on = "warning", check_dir = "check")
+        shell: Rscript {0}
+
+      - name: Build binary
+        run: |
+          R CMD INSTALL --build --no-test-load .
+        shell: cmd
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows.zip
+          path: check/*.zip
