@@ -68,5 +68,11 @@ func runCompileCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("成功解析 %d 个文件\n", len(parsed))
+
+	if err := generateOutput(parsed, compileOutput, compilePkg); err != nil {
+		return fmt.Errorf("生成失败: %w", err)
+	}
+
+	fmt.Printf("已生成 Go 包到 %s\n", compileOutput)
 	return nil
 }
