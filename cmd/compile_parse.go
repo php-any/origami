@@ -6,6 +6,7 @@ import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/parser"
+	"github.com/php-any/origami/runtime"
 )
 
 // ParsedFile 表示一个已解析的 PHP 文件
@@ -18,6 +19,10 @@ type ParsedFile struct {
 // parseFiles 批量解析 PHP 文件为 AST
 func parseFiles(files []string) ([]ParsedFile, []error) {
 	p := parser.NewParser()
+	vm := runtime.NewVM(p)
+	if runtimeLoader != nil {
+		runtimeLoader(vm)
+	}
 	var parsed []ParsedFile
 	var errs []error
 
