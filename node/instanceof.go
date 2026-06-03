@@ -22,27 +22,45 @@ func NewInstanceOfExpression(from data.From, object data.GetValue, className dat
 
 // GetValue 获取 instanceof 表达式的值
 func (i *InstanceOfExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 计算对象表达式的值
 	objectValue, c := i.Object.GetValue(ctx)
 	if c != nil {
 		return nil, c
 	}
 
-	switch right := i.ClassName.(type) {
+	className, acl := resolveInstanceofClassName(ctx, i.ClassName)
+	if acl != nil {
+		return nil, acl
+	}
+	if className == "" {
+		return data.NewBoolValue(false), nil
+	}
+	return instanceof(ctx, className, objectValue)
+}
+
+// resolveInstanceofClassName 从 instanceof 右侧表达式解析待比较的类名
+func resolveInstanceofClassName(ctx data.Context, classExpr data.GetValue) (string, data.Control) {
+	switch right := classExpr.(type) {
 	case *StringLiteral:
-		class := right.Value
-		return instanceof(ctx, class, objectValue)
-	case *VariableExpression:
-		r, acl := right.GetValue(ctx)
-		if acl != nil {
-			return nil, acl
-		}
-		class := r.(data.AsString).AsString()
-		return instanceof(ctx, class, objectValue)
+		return right.Value, nil
 	}
 
-	// 如果不是类实例，返回 false
-	return data.NewBoolValue(false), nil
+	r, acl := classExpr.GetValue(ctx)
+	if acl != nil {
+		return "", acl
+	}
+	switch v := r.(type) {
+	case data.AsString:
+		return v.AsString(), nil
+	case *data.ClassValue:
+		return v.Class.GetName(), nil
+	case data.GetName:
+		return v.GetName(), nil
+	case *data.ThisValue:
+		if v.Class != nil {
+			return v.Class.GetName(), nil
+		}
+	}
+	return "", nil
 }
 
 func instanceof(ctx data.Context, class string, objectValue data.GetValue) (data.GetValue, data.Control) {

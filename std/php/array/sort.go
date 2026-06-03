@@ -172,7 +172,7 @@ func (f *SortFunction) GetName() string {
 
 func (f *SortFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, data.Mixed{}),
+		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
 		node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.Int{}),
 	}
 }

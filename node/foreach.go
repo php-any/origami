@@ -543,12 +543,20 @@ func (f *ForeachValueTarget) SetValue(ctx data.Context, value data.Value) data.C
 	switch d := value.(type) {
 	case *data.ArrayValue:
 		for i, val := range d.List {
+			if i >= len(f.V) || f.V[i] == nil {
+				continue
+			}
 			f.V[i].SetValue(ctx, val.Value)
 		}
 	case *data.ObjectValue:
 		i := 0
 		for _, val := range d.GetProperties() {
-			f.V[i].SetValue(ctx, val)
+			if i >= len(f.V) {
+				break
+			}
+			if f.V[i] != nil {
+				f.V[i].SetValue(ctx, val)
+			}
 			i++
 		}
 	}

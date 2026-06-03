@@ -364,13 +364,14 @@ type ParameterReference struct {
 	*Parameter
 }
 
-func NewParameterReference(from data.From, name string, index int, ty data.Types) data.Parameter {
+func NewParameterReference(from data.From, name string, index int, defaultValue data.GetValue, ty data.Types) data.Parameter {
 	return &ParameterReference{
 		Parameter: &Parameter{
-			Node:  NewNode(from),
-			Name:  name,
-			Index: index,
-			Type:  ty,
+			Node:         NewNode(from),
+			Name:         name,
+			Index:        index,
+			Type:         ty,
+			DefaultValue: defaultValue,
 		},
 	}
 }

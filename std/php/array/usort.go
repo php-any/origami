@@ -95,7 +95,7 @@ func (f *UsortFunction) GetName() string {
 
 func (f *UsortFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, data.Mixed{}),
+		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
 		node.NewParameter(nil, "callback", 1, nil, data.Mixed{}),
 	}
 }

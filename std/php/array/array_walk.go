@@ -71,7 +71,7 @@ func (fn *ArrayWalkFunction) GetName() string {
 
 func (fn *ArrayWalkFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, data.NewBaseType("array")),
+		node.NewParameterReference(nil, "array", 0, nil, data.NewBaseType("array")),
 		node.NewParameter(nil, "callback", 1, nil, nil),
 		node.NewParameter(nil, "arg", 2, nil, nil),
 	}

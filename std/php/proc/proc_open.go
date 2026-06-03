@@ -213,7 +213,7 @@ func (f *ProcOpenFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "command", 0, nil, nil),
 		node.NewParameter(nil, "descriptorspec", 1, node.NewNullLiteral(nil), nil),
-		node.NewParameterReference(nil, "pipes", 2, data.Mixed{}),
+		node.NewParameterReference(nil, "pipes", 2, nil, data.Mixed{}),
 		node.NewParameter(nil, "cwd", 3, node.NewNullLiteral(nil), nil),
 		node.NewParameter(nil, "env_vars", 4, node.NewNullLiteral(nil), nil),
 		node.NewParameter(nil, "options", 5, node.NewNullLiteral(nil), nil),

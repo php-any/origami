@@ -66,7 +66,7 @@ func (f *StrIreplaceFunction) GetParams() []data.GetValue {
 		node.NewParameter(nil, "search", 0, nil, nil),
 		node.NewParameter(nil, "replace", 1, nil, nil),
 		node.NewParameter(nil, "subject", 2, nil, nil),
-		node.NewParameterReference(nil, "count", 3, data.NewBaseType("int")),
+		node.NewParameterReference(nil, "count", 3, nil, data.NewBaseType("int")),
 	}
 }
 

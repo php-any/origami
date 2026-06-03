@@ -113,12 +113,16 @@ func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Co
 			name = parser.current().Literal()
 			parser.next()
 		}
-		// (?string $data) 可空类型参数
-		if !isVar && parser.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(parser.peek(1).Type()) && parser.checkPositionIs(2, token.IDENTIFIER, token.VARIABLE, token.ELLIPSIS) {
+		// (?string $data) / (?array &$data = null) 可空类型参数（含引用、可变参数）
+		if !isVar && parser.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(parser.peek(1).Type()) {
 			isVar = true
 			parser.next() // 跳过问号
 			varType = "?" + parserType(parser, parser.current().Literal())
 			parser.next()
+			if parser.checkPositionIs(0, token.BIT_AND) {
+				isReference = true
+				parser.next()
+			}
 			if parser.checkPositionIs(0, token.ELLIPSIS) {
 				isParams = true
 				parser.next()
@@ -162,7 +166,11 @@ func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Co
 	// 回退使用前面解析到的 varType 文本来构造基础类型，确保类型信息不会丢失，
 	// 以便 ReflectionParameter::getType() 等功能可以拿到非空的类型。
 	if paramType == nil && varType != "" {
-		paramType = data.NewBaseType(varType)
+		if len(varType) > 1 && varType[0] == '?' {
+			paramType = data.NewNullableType(data.NewBaseType(varType[1:]))
+		} else {
+			paramType = data.NewBaseType(varType)
+		}
 	}
 
 	// 添加参数到作用域
@@ -199,12 +207,9 @@ func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Co
 	if isParams {
 		return node.NewParameters(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, val.GetType()), nil, nil
 	} else if isReference {
-		if defaultValue != nil {
-			// return nil, data.NewErrorThrow(tracking.EndBefore(), errors.New("参数为引用的变量不能有默认值"))
-		}
 		// 覆盖变量为引用
 		parser.scopeManager.CurrentScope().SetVariable(val.GetName(), node.NewVariableReference(tracking.EndBefore(), val.GetName(), val.GetIndex(), val.GetType()))
-		return node.NewParameterReference(tracking.EndBefore(), val.GetName(), val.GetIndex(), val.GetType()), nil, nil
+		return node.NewParameterReference(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, val.GetType()), nil, nil
 	} else {
 		return node.NewParameter(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, val.GetType()), nil, nil
 	}
@@ -268,8 +273,8 @@ func parseConstructorParameterType(p *Parser) data.Types {
 				return data.NewUnionType(unionTypes)
 			}
 		}
-	} else if p.checkPositionIs(0, token.TERNARY) && (isIdentOrTypeToken(p.peek(1).Type()) || p.peek(1).Type() == token.SELF) {
-		// ?int 或 ?self 方式
+	} else if p.checkPositionIs(0, token.TERNARY) && (isIdentOrTypeToken(p.peek(1).Type()) || p.peek(1).Type() == token.SELF || p.peek(1).Type() == token.PARENT) {
+		// ?int、?self、?parent 方式
 		p.next()
 		if p.current().Type() == token.SELF {
 			p.next()
@@ -280,11 +285,24 @@ func parseConstructorParameterType(p *Parser) data.Types {
 				baseType = data.NewBaseType("self")
 			}
 			return data.NewNullableType(baseType)
-		} else {
-			base := data.NewBaseType(p.current().Literal())
-			p.next()
-			return data.NewNullableType(base)
 		}
+		if p.current().Type() == token.PARENT {
+			p.next()
+			var baseType data.Types
+			if p.currentClass != "" {
+				if cls, ok := p.vm.GetClass(p.currentClass); ok && cls.GetExtend() != nil {
+					baseType = data.NewBaseType(*cls.GetExtend())
+				} else {
+					baseType = data.NewBaseType("parent")
+				}
+			} else {
+				baseType = data.NewBaseType("parent")
+			}
+			return data.NewNullableType(baseType)
+		}
+		base := data.NewBaseType(p.current().Literal())
+		p.next()
+		return data.NewNullableType(base)
 	}
 	// 没有类型声明，使用 mixed
 	return data.NewBaseType("mixed")
@@ -312,6 +330,17 @@ func parseType(p *Parser) data.Types {
 		}
 		// 如果没有当前类名，返回 self 作为类型名（运行时解析）
 		return data.NewBaseType("self")
+	}
+
+	// 处理 parent 关键字（构造器提升等：parent $parameterBag）
+	if p.current().Type() == token.PARENT {
+		p.next()
+		if p.currentClass != "" {
+			if cls, ok := p.vm.GetClass(p.currentClass); ok && cls.GetExtend() != nil {
+				return data.NewBaseType(*cls.GetExtend())
+			}
+		}
+		return data.NewBaseType("parent")
 	}
 
 	p.next()

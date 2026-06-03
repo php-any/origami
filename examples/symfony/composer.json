@@ -1,0 +1,31 @@
+{
+    "name": "origami/symfony-example",
+    "description": "Origami Symfony 6.4 独立组件示例，逐步验证兼容性",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "^8.1",
+        "symfony/config": "^6.4",
+        "symfony/console": "^6.4",
+        "symfony/dependency-injection": "^6.4",
+        "symfony/event-dispatcher": "^6.4",
+        "symfony/finder": "^6.4",
+        "symfony/http-foundation": "^6.4",
+        "symfony/http-kernel": "^6.4",
+        "symfony/routing": "^6.4",
+        "symfony/string": "^6.4",
+        "symfony/var-dumper": "^6.4",
+        "symfony/yaml": "^6.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

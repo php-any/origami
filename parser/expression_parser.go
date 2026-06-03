@@ -2,7 +2,6 @@ package parser
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/php-any/origami/data"
@@ -771,18 +770,36 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 		if ep.current().Type() == token.INSTANCEOF {
 			ep.next() // 跳过 instanceof
 			var right data.GetValue
+			var acl2 data.Control
 			switch ep.current().Type() {
-			case token.VARIABLE:
-				vp := &VariableParser{ep.Parser}
-				right = vp.parseVariable()
-			case token.IDENTIFIER, token.PARENT, token.SELF, token.STATIC:
-				className, acl2 := ep.getClassName(true)
+			case token.SELF:
+				ep.next()
+				cn := ep.currentClass
+				if cn == "" {
+					cn = "self"
+				}
+				right = node.NewStringLiteral(tracker.EndBefore(), cn)
+			case token.PARENT:
+				ep.next()
+				cn := "parent"
+				if ep.currentClass != "" {
+					if cls, ok := ep.vm.GetClass(ep.currentClass); ok && cls.GetExtend() != nil {
+						cn = *cls.GetExtend()
+					}
+				}
+				right = node.NewStringLiteral(tracker.EndBefore(), cn)
+			case token.STATIC:
+				ep.next()
+				cn := ep.currentClass
+				if cn == "" {
+					cn = "static"
+				}
+				right = node.NewStringLiteral(tracker.EndBefore(), cn)
+			default:
+				right, acl2 = ep.parsePower()
 				if acl2 != nil {
 					return nil, acl2
 				}
-				right = node.NewStringLiteral(tracker.EndBefore(), className)
-			default:
-				return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("instanceof: expected class name; got %s", ep.current().Literal()))
 			}
 			expr = node.NewInstanceOfExpression(tracker.EndBefore(), expr, right)
 		}

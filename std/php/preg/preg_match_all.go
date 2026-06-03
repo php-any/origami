@@ -166,7 +166,7 @@ func (f *PregMatchAllFunction) GetParams() []data.GetValue {
 		node.NewParameter(nil, "pattern", 0, nil, nil),
 		node.NewParameter(nil, "subject", 1, nil, nil),
 		// 第三个参数为 &array $matches，按 PHP 语义需要按引用传递
-		node.NewParameterReference(nil, "matches", 2, data.NewBaseType("array")),
+		node.NewParameterReference(nil, "matches", 2, nil, data.NewBaseType("array")),
 		node.NewParameter(nil, "flags", 3, node.NewIntLiteral(nil, "0"), nil),
 		node.NewParameter(nil, "offset", 4, node.NewIntLiteral(nil, "0"), nil),
 	}

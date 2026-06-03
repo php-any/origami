@@ -44,7 +44,7 @@ func (f *ArrayPushFunction) GetName() string {
 
 func (f *ArrayPushFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, data.Mixed{}),
+		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
 		node.NewParameters(nil, "values", 1, nil, nil),
 	}
 }

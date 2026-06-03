@@ -40,7 +40,7 @@ func (f *ArrayPopFunction) GetName() string {
 
 func (f *ArrayPopFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, data.Mixed{}),
+		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
 	}
 }
 

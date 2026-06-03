@@ -95,7 +95,7 @@ func (f *NextFunction) GetName() string {
 
 func (f *NextFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, data.Mixed{}),
+		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
 	}
 }
 

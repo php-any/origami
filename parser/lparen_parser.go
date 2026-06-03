@@ -76,28 +76,42 @@ func (ep *LparenParser) isLambdaExpression() bool {
 	if ep.checkPositionIs(1, token.FN) {
 		return false
 	}
-	// 检查是否包含 => 符号，需要正确处理括号嵌套
+	// 括号表达式：(new Foo())、(array) 等，绝不是 (params) => body
+	if ep.checkPositionIs(1, token.NEW, token.ARRAY, token.ISSET, token.EMPTY, token.ECHO, token.INCLUDE, token.REQUIRE) {
+		return false
+	}
+	// 检查是否包含 => 符号，需要正确处理 () 与 [] 嵌套（数组内的 => 不是 lambda）
 	pos := 1 // 从 ( 后面开始检查
 	parenCount := 0
+	bracketCount := 0
 
 	for pos < len(ep.tokens)-ep.position {
 		tokenType := ep.tokens[ep.position+pos].Type()
 
-		if tokenType == token.LPAREN {
+		switch tokenType {
+		case token.LPAREN:
 			parenCount++
-		} else if tokenType == token.RPAREN {
+		case token.RPAREN:
 			parenCount--
 			if parenCount < 0 {
-				// 找到了匹配的右括号，检查后面是否有 =>
+				// 找到了与起始 '(' 匹配的 ')'：仅当紧跟 => 才是 lambda，否则为普通括号表达式
 				if pos+1 < len(ep.tokens)-ep.position &&
 					ep.tokens[ep.position+pos+1].Type() == token.ARRAY_KEY_VALUE {
 					return true
 				}
-				break
+				return false
 			}
-		} else if tokenType == token.ARRAY_KEY_VALUE && parenCount == 0 {
-			// 在括号平衡的情况下找到了 =>
-			return true
+		case token.LBRACKET:
+			bracketCount++
+		case token.RBRACKET:
+			if bracketCount > 0 {
+				bracketCount--
+			}
+		case token.ARRAY_KEY_VALUE:
+			// 仅当不在数组字面量内、且仍在参数列表括号层时，才是 (params) => body
+			if parenCount == 0 && bracketCount == 0 {
+				return true
+			}
 		}
 		pos++
 	}
@@ -154,10 +168,21 @@ func (ep *LparenParser) parseLambdaExpression(tracking *PositionTracker) (data.G
 
 // parseParenthesizedExpression 解析括号表达式
 func (ep *LparenParser) parseParenthesizedExpression(tracking *PositionTracker) (data.GetValue, data.Control) {
-	// 解析括号内的表达式
-	expr, acl := ep.parseStatement()
+	// 括号内须解析完整表达式；仅用 parseTernary 会在 (a ? b : c) + d 处提前结束
+	exprParser := NewExpressionParser(ep.Parser)
+	expr, acl := exprParser.parseTernary()
 	if acl != nil {
 		return nil, acl
+	}
+	termTracker := ep.StartTracking()
+	for ep.current().Type() == token.ADD || ep.current().Type() == token.SUB {
+		op := ep.current()
+		ep.next()
+		right, acl := exprParser.parseRangeOperand()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(termTracker.EndBefore(), expr, op, right)
 	}
 	// 检查是否有右括号
 	if ep.current().Type() != token.RPAREN {

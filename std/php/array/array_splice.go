@@ -123,7 +123,7 @@ func (f *ArraySpliceFunction) GetName() string {
 
 func (f *ArraySpliceFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, data.NewBaseType("array")),
+		node.NewParameterReference(nil, "array", 0, nil, data.NewBaseType("array")),
 		node.NewParameter(nil, "offset", 1, nil, data.NewBaseType("int")),
 		node.NewParameter(nil, "length", 2, node.NewNullLiteral(nil), data.NewBaseType("int")),
 		node.NewParameter(nil, "replacement", 3, node.NewNullLiteral(nil), data.NewBaseType("array")),

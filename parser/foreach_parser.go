@@ -72,9 +72,9 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
 			}
 		} else if vr, ok := keyTemp.(*node.Array); ok {
-			fl := make([]data.Variable, len(vr.V))
-			for i, getValue := range vr.V {
-				fl[i] = getValue.(data.Variable)
+			fl, acl := parseForeachListVars(p, vr, tracker)
+			if acl != nil {
+				return nil, acl
 			}
 			key = &node.ForeachValueTarget{V: fl}
 		} else {
@@ -101,10 +101,9 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
 				}
 			} else if vr, ok := keyTemp.(*node.Array); ok {
-				// 支持 foreach($a as [1, 3]) {}
-				fl := make([]data.Variable, len(vr.V))
-				for i, getValue := range vr.V {
-					fl[i] = getValue.(data.Variable)
+				fl, acl := parseForeachListVars(p, vr, tracker)
+				if acl != nil {
+					return nil, acl
 				}
 				value = &node.ForeachValueTarget{V: fl}
 			} else {
@@ -135,4 +134,25 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 		value,
 		body,
 	), nil
+}
+
+// parseForeachListVars 解析 foreach ($a as [$x, , $z]) 中的列表解构；null 表示跳过该槽位
+func parseForeachListVars(p *ForeachParser, arr *node.Array, tracker *PositionTracker) ([]data.Variable, data.Control) {
+	fl := make([]data.Variable, len(arr.V))
+	for i, getValue := range arr.V {
+		if v, ok := getValue.(data.Variable); ok {
+			fl[i] = v
+			continue
+		}
+		if _, ok := getValue.(*node.NullLiteral); ok {
+			fl[i] = nil
+			continue
+		}
+		if _, ok := getValue.(*data.NullValue); ok {
+			fl[i] = nil
+			continue
+		}
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 列表解构中需要变量或空占位"))
+	}
+	return fl, nil
 }
