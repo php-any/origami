@@ -1,6 +1,8 @@
 package node
 
 import (
+	"strings"
+
 	"github.com/php-any/origami/data"
 )
 
@@ -39,34 +41,103 @@ func (i *InstanceOfExpression) GetValue(ctx data.Context) (data.GetValue, data.C
 
 // resolveInstanceofClassName 从 instanceof 右侧表达式解析待比较的类名
 func resolveInstanceofClassName(ctx data.Context, classExpr data.GetValue) (string, data.Control) {
+	var name string
 	switch right := classExpr.(type) {
 	case *StringLiteral:
-		return right.Value, nil
-	}
-
-	r, acl := classExpr.GetValue(ctx)
-	if acl != nil {
-		return "", acl
-	}
-	switch v := r.(type) {
-	case data.AsString:
-		return v.AsString(), nil
-	case *data.ClassValue:
-		return v.Class.GetName(), nil
-	case data.GetName:
-		return v.GetName(), nil
-	case *data.ThisValue:
-		if v.Class != nil {
-			return v.Class.GetName(), nil
+		name = right.Value
+	default:
+		r, acl := classExpr.GetValue(ctx)
+		if acl != nil {
+			return "", acl
+		}
+		switch v := r.(type) {
+		case data.AsString:
+			name = v.AsString()
+		case *data.ClassValue:
+			name = v.Class.GetName()
+		case data.GetName:
+			name = v.GetName()
+		case *data.ThisValue:
+			if v.Class != nil {
+				name = v.Class.GetName()
+			}
 		}
 	}
-	return "", nil
+	if name == "" {
+		return "", nil
+	}
+	return resolveRuntimeClassName(ctx, name), nil
+}
+
+// resolveRuntimeClassName 按 PHP 命名空间规则解析类名，优先返回已加载的类/接口
+func resolveRuntimeClassName(ctx data.Context, name string) string {
+	if name == "" {
+		return name
+	}
+	if strings.HasPrefix(name, "\\") {
+		return strings.TrimPrefix(name, "\\")
+	}
+
+	vm := ctx.GetVM()
+	ns := ctx.GetNamespace()
+
+	if vm != nil {
+		if _, ok := vm.GetClass(name); ok {
+			return name
+		}
+		if _, ok := vm.GetInterface(name); ok {
+			return name
+		}
+	}
+
+	for _, candidate := range runtimeClassNameCandidates(ns, name) {
+		if vm != nil {
+			if _, ok := vm.GetClass(candidate); ok {
+				return candidate
+			}
+			if _, ok := vm.GetInterface(candidate); ok {
+				return candidate
+			}
+		}
+	}
+	candidates := runtimeClassNameCandidates(ns, name)
+	if len(candidates) > 0 {
+		return candidates[0]
+	}
+	return name
+}
+
+func runtimeClassNameCandidates(ns, name string) []string {
+	if strings.Contains(name, "\\") {
+		if ns != "" && !strings.HasPrefix(name, ns+"\\") {
+			return []string{ns + "\\" + name, name}
+		}
+		return []string{name}
+	}
+	if ns != "" {
+		return []string{ns + "\\" + name, name}
+	}
+	return []string{name}
+}
+
+func loadClassOrInterfaceForInstanceof(ctx data.Context, class string) (data.GetValue, data.Control) {
+	vm := ctx.GetVM()
+	if vm == nil {
+		return nil, nil
+	}
+	if c, ok := vm.GetClass(class); ok {
+		return c, nil
+	}
+	if inf, ok := vm.GetInterface(class); ok {
+		return inf, nil
+	}
+	return vm.LoadPkg(class)
 }
 
 func instanceof(ctx data.Context, class string, objectValue data.GetValue) (data.GetValue, data.Control) {
 	// 检查对象值是否为类实例
 	if classValue, ok := objectValue.(*data.ClassValue); ok {
-		c, acl := ctx.GetVM().LoadPkg(class)
+		c, acl := loadClassOrInterfaceForInstanceof(ctx, class)
 		if acl != nil {
 			return nil, acl
 		}
@@ -82,7 +153,7 @@ func instanceof(ctx data.Context, class string, objectValue data.GetValue) (data
 		}
 	} else if thisValue, ok := objectValue.(*data.ThisValue); ok {
 		// 处理 ThisValue（$this）
-		c, acl := ctx.GetVM().LoadPkg(class)
+		c, acl := loadClassOrInterfaceForInstanceof(ctx, class)
 		if acl != nil {
 			return nil, acl
 		}

@@ -801,6 +801,11 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 					return nil, acl2
 				}
 			}
+			if lit, ok := right.(*node.StringLiteral); ok {
+				if full, _ := ep.findFullClassNameByNamespace(lit.Value); full != "" {
+					right = node.NewStringLiteral(tracker.EndBefore(), full)
+				}
+			}
 			expr = node.NewInstanceOfExpression(tracker.EndBefore(), expr, right)
 		}
 		// 检查各种赋值运算符
