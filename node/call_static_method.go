@@ -21,6 +21,11 @@ func NewCallStaticMethod(from *TokenFrom, path data.GetValue, method string) *Ca
 	}
 }
 
+// GetStmt 获取类引用表达式
+func (pe *CallStaticMethod) GetStmt() data.GetValue {
+	return pe.stmt
+}
+
 // GetValue 获取对象属性访问表达式的值
 func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	var method data.Method

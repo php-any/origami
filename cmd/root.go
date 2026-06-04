@@ -35,7 +35,7 @@ func IsDirectScriptArg(arg string) bool {
 		return false
 	}
 	switch arg {
-	case "gen-std", "help", "completion", "phpt":
+	case "gen-std", "help", "completion", "phpt", "compile":
 		return false
 	}
 	return true
@@ -60,6 +60,7 @@ func RunScriptFile(scriptPath string) error {
 func init() {
 	rootCmd.AddCommand(genStdCmd)
 	rootCmd.AddCommand(phptCmd)
+	rootCmd.AddCommand(compileCmd)
 }
 
 // RootHelp 显示根命令帮助信息。

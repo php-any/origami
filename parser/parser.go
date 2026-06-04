@@ -231,6 +231,14 @@ func (p *Parser) GetVariables() []data.Variable {
 	return p.scopeManager.CurrentScope().GetVariables()
 }
 
+// GetNamespace 获取当前解析文件的命名空间名称
+func (p *Parser) GetNamespace() string {
+	if p.namespace != nil {
+		return p.namespace.GetName()
+	}
+	return ""
+}
+
 // next 移动到下一个词法单元
 func (p *Parser) next() {
 	p.position++
