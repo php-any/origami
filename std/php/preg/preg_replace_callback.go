@@ -192,9 +192,9 @@ func (f *PregReplaceCallbackFunction) callWithSubmatches(ctx data.Context, fn *d
 	return nil, nil
 }
 
-func (f *PregReplaceCallbackFunction) GetName() string { return "preg_replace_callback" }
+func (f *PregReplaceCallbackFunction) GetName() string            { return "preg_replace_callback" }
 func (f *PregReplaceCallbackFunction) GetModifier() data.Modifier { return data.ModifierPublic }
-func (f *PregReplaceCallbackFunction) GetIsStatic() bool { return false }
+func (f *PregReplaceCallbackFunction) GetIsStatic() bool          { return false }
 func (f *PregReplaceCallbackFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "pattern", 0, nil, nil),

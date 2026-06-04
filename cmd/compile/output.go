@@ -17,7 +17,7 @@ func generateOutput(parsed []ParsedFile, outputDir, pkgName string) error {
 		return err
 	}
 
-	if err := generateASTFile(parsed, outputDir, pkgName); err != nil {
+	if err := generateASTFiles(parsed, outputDir, pkgName); err != nil {
 		return err
 	}
 
@@ -48,22 +48,45 @@ func generateRegisterFile(parsed []ParsedFile, outputDir, pkgName string) error 
 	return os.WriteFile(filepath.Join(outputDir, "register.go"), []byte(b.String()), 0644)
 }
 
-func generateASTFile(parsed []ParsedFile, outputDir, pkgName string) error {
-	gen := NewGenerator()
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("package %s\n\n", pkgName))
-	b.WriteString("import (\n")
-	b.WriteString("\t\"github.com/php-any/origami/data\"\n")
-	b.WriteString("\t\"github.com/php-any/origami/node\"\n")
-	b.WriteString(")\n\n")
-
-	for _, pf := range parsed {
-		code := gen.Generate(pf)
-		b.WriteString(code)
-		b.WriteString("\n\n")
+func generateASTFiles(parsed []ParsedFile, outputDir, pkgName string) error {
+	// 移除旧版单文件输出及上次生成的分文件 AST
+	_ = os.Remove(filepath.Join(outputDir, "vendor_ast.go"))
+	matches, err := filepath.Glob(filepath.Join(outputDir, "ast_*.go"))
+	if err != nil {
+		return fmt.Errorf("扫描旧 AST 文件失败: %w", err)
+	}
+	for _, f := range matches {
+		if err := os.Remove(f); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("删除旧 AST 文件 %s 失败: %w", f, err)
+		}
 	}
 
-	return os.WriteFile(filepath.Join(outputDir, "vendor_ast.go"), []byte(b.String()), 0644)
+	for _, pf := range parsed {
+		gen := NewGenerator()
+		code := gen.Generate(pf)
+		imports := map[string]bool{
+			"github.com/php-any/origami/data": true,
+			"github.com/php-any/origami/node": true,
+		}
+		for imp := range gen.imports {
+			imports[imp] = true
+		}
+
+		var b strings.Builder
+		b.WriteString(fmt.Sprintf("package %s\n\n", pkgName))
+		b.WriteString("import (\n")
+		for imp := range imports {
+			b.WriteString(fmt.Sprintf("\t%q\n", imp))
+		}
+		b.WriteString(")\n\n")
+		b.WriteString(code)
+
+		outPath := filepath.Join(outputDir, gen.goFileNameForPath(pf.Path))
+		if err := os.WriteFile(outPath, []byte(b.String()), 0644); err != nil {
+			return fmt.Errorf("写入 %s 失败: %w", outPath, err)
+		}
+	}
+	return nil
 }
 
 func generateGoMod(outputDir, pkgName string) error {

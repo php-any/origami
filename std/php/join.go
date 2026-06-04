@@ -19,5 +19,5 @@ func (f *JoinFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 func (f *JoinFunction) GetName() string { return "join" }
 
-func (f *JoinFunction) GetParams() []data.GetValue  { return f.inner.GetParams() }
+func (f *JoinFunction) GetParams() []data.GetValue    { return f.inner.GetParams() }
 func (f *JoinFunction) GetVariables() []data.Variable { return f.inner.GetVariables() }

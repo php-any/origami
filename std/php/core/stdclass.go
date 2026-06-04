@@ -25,4 +25,3 @@ func (s *StdClass) GetPropertyList() []data.Property              { return nil }
 func (s *StdClass) GetMethod(name string) (data.Method, bool)     { return nil, false }
 func (s *StdClass) GetMethods() []data.Method                     { return nil }
 func (s *StdClass) GetConstruct() data.Method                     { return nil }
-

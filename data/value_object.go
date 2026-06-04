@@ -25,10 +25,10 @@ func CloneObjectValue(src *ObjectValue) *ObjectValue {
 	}
 
 	clone := &ObjectValue{
-		Value:                   src.Value,
-		Context:                 src.Context,
-		property:                NewOrderedMap(),
-		IndirectOverloadClass:   src.IndirectOverloadClass,
+		Value:                 src.Value,
+		Context:               src.Context,
+		property:              NewOrderedMap(),
+		IndirectOverloadClass: src.IndirectOverloadClass,
 	}
 
 	// 按插入顺序复制所有键值对

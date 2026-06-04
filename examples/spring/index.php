@@ -21,18 +21,6 @@ $server->middleware(function ($request, $response, $next) {
     Log::info("响应时间: " . $duration . "ms");
 });
 
-// CORS 中间件（可选）
-// 如果需要跨域支持，取消下面的注释
-// use Spring\Middleware\CorsMiddleware;
-// $corsMiddleware = new CorsMiddleware();
-// $server->middleware([$corsMiddleware, 'handle']);
-
-// 认证中间件（可选）
-// 如果需要对某些接口进行认证，取消下面的注释
-// use Spring\Middleware\AuthMiddleware;
-// $authMiddleware = new AuthMiddleware();
-// $server->middleware([$authMiddleware, 'handle']);
-
 $server->any(function ($request, $response) {
     app_flash($request, $response, __DIR__ . '/src');
 });

@@ -19,7 +19,9 @@ func (c *DateTimeImmutableClass) GetExtend() *string                            
 func (c *DateTimeImmutableClass) GetImplements() []string                       { return nil }
 func (c *DateTimeImmutableClass) GetProperty(name string) (data.Property, bool) { return nil, false }
 func (c *DateTimeImmutableClass) GetPropertyList() []data.Property              { return nil }
-func (c *DateTimeImmutableClass) GetConstruct() data.Method                     { return &DateTimeImmutableConstructMethod{} }
+func (c *DateTimeImmutableClass) GetConstruct() data.Method {
+	return &DateTimeImmutableConstructMethod{}
+}
 
 func (c *DateTimeImmutableClass) GetMethods() []data.Method {
 	return []data.Method{
@@ -44,12 +46,12 @@ func (c *DateTimeImmutableClass) GetValue(ctx data.Context) (data.GetValue, data
 // DateTimeImmutableConstructMethod 构造函数
 type DateTimeImmutableConstructMethod struct{}
 
-func (m *DateTimeImmutableConstructMethod) GetName() string                        { return "__construct" }
-func (m *DateTimeImmutableConstructMethod) GetModifier() data.Modifier             { return data.ModifierPublic }
-func (m *DateTimeImmutableConstructMethod) GetIsStatic() bool                      { return false }
-func (m *DateTimeImmutableConstructMethod) GetParams() []data.GetValue             { return nil }
-func (m *DateTimeImmutableConstructMethod) GetVariables() []data.Variable          { return nil }
-func (m *DateTimeImmutableConstructMethod) GetReturnType() data.Types              { return nil }
+func (m *DateTimeImmutableConstructMethod) GetName() string               { return "__construct" }
+func (m *DateTimeImmutableConstructMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *DateTimeImmutableConstructMethod) GetIsStatic() bool             { return false }
+func (m *DateTimeImmutableConstructMethod) GetParams() []data.GetValue    { return nil }
+func (m *DateTimeImmutableConstructMethod) GetVariables() []data.Variable { return nil }
+func (m *DateTimeImmutableConstructMethod) GetReturnType() data.Types     { return nil }
 func (m *DateTimeImmutableConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewNullValue(), nil
 }

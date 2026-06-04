@@ -50,6 +50,15 @@ func (vm *TempVM) AddClass(c data.ClassStmt) data.Control {
 	return nil
 }
 
+// AddedClasses 返回本 TempVM 解析阶段注册的类（不合并 Base VM）。
+func (vm *TempVM) AddedClasses() []data.ClassStmt {
+	out := make([]data.ClassStmt, 0, len(vm.addedClasses))
+	for _, c := range vm.addedClasses {
+		out = append(out, c)
+	}
+	return out
+}
+
 func (vm *TempVM) AddInterface(i data.InterfaceStmt) data.Control {
 	vm.addedInterfaces[i.GetName()] = i
 	return nil

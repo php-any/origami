@@ -72,4 +72,3 @@ func getCurrentExceptionHandler(vm data.VM) data.Value {
 		return nil
 	}
 }
-

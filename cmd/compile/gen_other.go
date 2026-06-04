@@ -93,14 +93,42 @@ func (g *Generator) genNullCoalesceExpression(n *node.NullCoalesceExpression) {
 // LambdaExpression 嵌入 FunctionStatement，包含未导出字段 parent/ctx 和闭包捕获语义，
 // 无法在编译期完整序列化。
 func (g *Generator) genLambdaExpression(n *node.LambdaExpression) {
-	g.printf("nil /* TODO: LambdaExpression — 包含闭包捕获语义，暂不支持编译期代码生成 */")
+	fs := n.FunctionStatement
+	g.printf("node.NewLambdaExpression(from,\n")
+	g.indent++
+	g.genParamList(fs.Params)
+	g.printf(",\n")
+	g.printf("[]data.GetValue{\n")
+	g.indent++
+	for _, stmt := range fs.Body {
+		g.genGetValue(stmt)
+		g.printf(",\n")
+	}
+	g.indent--
+	g.printf("},\n")
+	g.genMethodVars(fs.GetVariables())
+	g.printf(",\n")
+	g.genParentMap(n.GetParentBindings())
+	g.printf(",\n")
+	g.indent--
+	g.printf(")")
 }
 
-// genFunctionStatement 生成函数定义语句
-// FunctionStatement 包含未导出字段 vars/defineCtx/staticLocals 和运行时 FuncStmt 接口，
-// 无法在编译期完整序列化。
 func (g *Generator) genFunctionStatement(n *node.FunctionStatement) {
-	g.printf("nil /* TODO: FunctionStatement %q — 太复杂，暂不支持编译期代码生成 */", n.Name)
+	g.printf("node.NewFunctionStatement(from, %q, ", n.Name)
+	g.genParamList(n.Params)
+	g.printf(", []data.GetValue{\n")
+	g.indent++
+	for _, stmt := range n.Body {
+		g.genGetValue(stmt)
+		g.printf(",\n")
+	}
+	g.indent--
+	g.printf("}, ")
+	g.genMethodVars(n.GetVariables())
+	g.printf(", ")
+	g.genTypes(n.Ret)
+	g.printf(", %v)", n.ReturnsReference)
 }
 
 // genIncludeStatement 生成 include/require 语句

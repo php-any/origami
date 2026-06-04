@@ -12,8 +12,8 @@ type StrStrFunction struct {
 	name string // "strstr" 或 "strchr"
 }
 
-func NewStrStrFunction() data.FuncStmt           { return &StrStrFunction{name: "strstr"} }
-func NewStrChrFunction() data.FuncStmt           { return &StrStrFunction{name: "strchr"} }
+func NewStrStrFunction() data.FuncStmt { return &StrStrFunction{name: "strstr"} }
+func NewStrChrFunction() data.FuncStmt { return &StrStrFunction{name: "strchr"} }
 
 func (f *StrStrFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	haystack, _ := ctx.GetIndexValue(0)
@@ -45,9 +45,9 @@ func (f *StrStrFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewStringValue(h[pos:]), nil
 }
 
-func (f *StrStrFunction) GetName() string { return f.name }
+func (f *StrStrFunction) GetName() string            { return f.name }
 func (f *StrStrFunction) GetModifier() data.Modifier { return data.ModifierPublic }
-func (f *StrStrFunction) GetIsStatic() bool { return false }
+func (f *StrStrFunction) GetIsStatic() bool          { return false }
 func (f *StrStrFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "haystack", 0, nil, data.String{}),
@@ -100,9 +100,9 @@ func (f *StrIStrFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewStringValue(origH[pos:]), nil
 }
 
-func (f *StrIStrFunction) GetName() string { return "stristr" }
+func (f *StrIStrFunction) GetName() string            { return "stristr" }
 func (f *StrIStrFunction) GetModifier() data.Modifier { return data.ModifierPublic }
-func (f *StrIStrFunction) GetIsStatic() bool { return false }
+func (f *StrIStrFunction) GetIsStatic() bool          { return false }
 func (f *StrIStrFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "haystack", 0, nil, data.String{}),

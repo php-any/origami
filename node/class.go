@@ -317,16 +317,16 @@ func (p *ClassProperty) AddAnnotations(a *data.ClassValue) {
 }
 
 type ClassMethod struct {
-	*Node       `pp:"-"`
-	Name        string          // 方法名
-	Modifier    data.Modifier   // 访问修饰符
-	IsStatic    bool            // 是否是静态方法
-	Params      []data.GetValue // 参数列表
-	Body        []data.GetValue // 方法体
-	vars        []data.Variable
-	Annotations []*data.ClassValue // 方法注解列表
-	Ret         data.Types         // 返回类型
-	IsGenerator bool               // 是否是生成器方法（含 yield）
+	*Node        `pp:"-"`
+	Name         string          // 方法名
+	Modifier     data.Modifier   // 访问修饰符
+	IsStatic     bool            // 是否是静态方法
+	Params       []data.GetValue // 参数列表
+	Body         []data.GetValue // 方法体
+	vars         []data.Variable
+	Annotations  []*data.ClassValue // 方法注解列表
+	Ret          data.Types         // 返回类型
+	IsGenerator  bool               // 是否是生成器方法（含 yield）
 	staticLocals *data.StaticLocals // 方法内 static 局部变量
 }
 

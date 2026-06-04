@@ -16,3 +16,4 @@ zy-lsp
 cli_test
 php-src
 .zy
+/examples/spring/dist/

@@ -24,6 +24,11 @@ func NewLambdaExpression(from data.From, params []data.GetValue, body []data.Get
 	}
 }
 
+// GetParentBindings 返回 use 捕获的父作用域变量索引映射（编译期代码生成使用）
+func (f *LambdaExpression) GetParentBindings() map[int]int {
+	return f.parent
+}
+
 func (f *LambdaExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewFuncValue(&LambdaExpression{
 		FunctionStatement: &FunctionStatement{

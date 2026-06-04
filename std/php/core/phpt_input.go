@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	phptInputMu  sync.RWMutex
+	phptInputMu   sync.RWMutex
 	phptInputBody string
 )
 

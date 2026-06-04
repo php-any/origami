@@ -61,12 +61,12 @@ func (f *FiberClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 // FiberGetCurrentMethod 静态方法 getCurrent
 type FiberGetCurrentMethod struct{}
 
-func (m *FiberGetCurrentMethod) GetName() string             { return "getCurrent" }
-func (m *FiberGetCurrentMethod) GetModifier() data.Modifier  { return data.ModifierPublic }
-func (m *FiberGetCurrentMethod) GetIsStatic() bool           { return true }
-func (m *FiberGetCurrentMethod) GetParams() []data.GetValue  { return nil }
+func (m *FiberGetCurrentMethod) GetName() string               { return "getCurrent" }
+func (m *FiberGetCurrentMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *FiberGetCurrentMethod) GetIsStatic() bool             { return true }
+func (m *FiberGetCurrentMethod) GetParams() []data.GetValue    { return nil }
 func (m *FiberGetCurrentMethod) GetVariables() []data.Variable { return nil }
-func (m *FiberGetCurrentMethod) GetReturnType() data.Types   { return nil }
+func (m *FiberGetCurrentMethod) GetReturnType() data.Types     { return nil }
 func (m *FiberGetCurrentMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewNullValue(), nil
 }

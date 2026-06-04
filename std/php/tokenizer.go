@@ -12,106 +12,106 @@ import (
 // These are NOT PHP 8 canonical values; only internal consistency matters
 // since PHP code references them by constant name, not by numeric value.
 const (
-	T_REQUIRE_ONCE              = 258
-	T_LOGICAL_AND              = 259
-	T_LOGICAL_OR               = 260
-	T_LOGICAL_XOR              = 261
-	T_CLONE                    = 262
-	T_ELSEIF                   = 263
-	T_ELSE                     = 264
-	T_ENDIF                    = 265
-	T_ECHO                     = 266
-	T_DO                       = 267
-	T_WHILE                    = 268
-	T_ENDWHILE                 = 269
-	T_FOR                      = 270
-	T_ENDFOR                   = 271
-	T_FOREACH                  = 272
-	T_ENDFOREACH               = 273
-	T_DECLARE                  = 274
-	T_ENDDECLARE               = 275
-	T_AS                       = 276
-	T_SWITCH                   = 277
-	T_ENDSWITCH                = 278
-	T_CASE                     = 279
-	T_DEFAULT                  = 280
-	T_BREAK                    = 281
-	T_CONTINUE                 = 282
-	T_GOTO                     = 283
-	T_FUNCTION                 = 284
-	T_CONST                    = 285
-	T_RETURN                   = 286
-	T_YIELD                    = 287
-	T_TRY                      = 288
-	T_CATCH                    = 289
-	T_FINALLY                  = 290
-	T_THROW                    = 291
-	T_IF                       = 292
-	T_INSTANCEOF               = 293
-	T_NEW                      = 294
-	T_EXIT                     = 295
-	T_EMPTY                    = 296
-	T_EVAL                     = 297
-	T_INCLUDE                  = 298
-	T_INCLUDE_ONCE             = 299
-	T_REQUIRE                  = 300
-	T_USE                      = 301
-	T_GLOBAL                   = 302
-	T_ISSET                    = 303
-	T_UNSET                    = 304
-	T_LIST                     = 305
-	T_ARRAY                    = 306
-	T_PRINT                    = 307
-	T_NAMESPACE                = 308
-	T_OBJECT_OPERATOR          = 309
-	T_PAAMAYIM_NEKUDOTAYIM     = 310
-	T_DOUBLE_ARROW             = 311
-	T_DOUBLE_COLON             = 312
-	T_NS_SEPARATOR             = 313
-	T_ELLIPSIS                 = 314
-	T_COALESCE                 = 315
-	T_SPACESHIP                = 316
-	T_POW                      = 317
-	T_POW_EQUAL                = 318
+	T_REQUIRE_ONCE         = 258
+	T_LOGICAL_AND          = 259
+	T_LOGICAL_OR           = 260
+	T_LOGICAL_XOR          = 261
+	T_CLONE                = 262
+	T_ELSEIF               = 263
+	T_ELSE                 = 264
+	T_ENDIF                = 265
+	T_ECHO                 = 266
+	T_DO                   = 267
+	T_WHILE                = 268
+	T_ENDWHILE             = 269
+	T_FOR                  = 270
+	T_ENDFOR               = 271
+	T_FOREACH              = 272
+	T_ENDFOREACH           = 273
+	T_DECLARE              = 274
+	T_ENDDECLARE           = 275
+	T_AS                   = 276
+	T_SWITCH               = 277
+	T_ENDSWITCH            = 278
+	T_CASE                 = 279
+	T_DEFAULT              = 280
+	T_BREAK                = 281
+	T_CONTINUE             = 282
+	T_GOTO                 = 283
+	T_FUNCTION             = 284
+	T_CONST                = 285
+	T_RETURN               = 286
+	T_YIELD                = 287
+	T_TRY                  = 288
+	T_CATCH                = 289
+	T_FINALLY              = 290
+	T_THROW                = 291
+	T_IF                   = 292
+	T_INSTANCEOF           = 293
+	T_NEW                  = 294
+	T_EXIT                 = 295
+	T_EMPTY                = 296
+	T_EVAL                 = 297
+	T_INCLUDE              = 298
+	T_INCLUDE_ONCE         = 299
+	T_REQUIRE              = 300
+	T_USE                  = 301
+	T_GLOBAL               = 302
+	T_ISSET                = 303
+	T_UNSET                = 304
+	T_LIST                 = 305
+	T_ARRAY                = 306
+	T_PRINT                = 307
+	T_NAMESPACE            = 308
+	T_OBJECT_OPERATOR      = 309
+	T_PAAMAYIM_NEKUDOTAYIM = 310
+	T_DOUBLE_ARROW         = 311
+	T_DOUBLE_COLON         = 312
+	T_NS_SEPARATOR         = 313
+	T_ELLIPSIS             = 314
+	T_COALESCE             = 315
+	T_SPACESHIP            = 316
+	T_POW                  = 317
+	T_POW_EQUAL            = 318
 
-	T_INLINE_HTML               = 319
-	T_OPEN_TAG                  = 320
-	T_OPEN_TAG_WITH_ECHO        = 321
-	T_CLOSE_TAG                 = 322
-	T_WHITESPACE                = 323
-	T_COMMENT                   = 324
-	T_DOC_COMMENT               = 325
-	T_STRING                    = 326
-	T_VARIABLE                  = 327
-	T_LNUMBER                   = 328
-	T_DNUMBER                   = 329
-	T_NUM_STRING                = 330
-	T_CONSTANT_ENCAPSED_STRING  = 331
-	T_ENCAPSED_AND_WHITESPACE   = 332
-	T_CHARACTER                 = 333
-	T_BAD_CHARACTER             = 334
-	T_ABSTRACT                  = 335
-	T_FINAL                     = 336
-	T_PRIVATE                   = 337
-	T_PROTECTED                 = 338
-	T_PUBLIC                    = 339
-	T_STATIC                    = 340
-	T_TRAIT                     = 341
-	T_INTERFACE                 = 342
-	T_CLASS                     = 343
-	T_CALLABLE                  = 344
-	T_EXTENDS                   = 345
-	T_IMPLEMENTS                = 346
-	T_VAR                       = 347
-	T_READONLY                  = 348
-	T_ENUM                      = 349
-	T_NAME_FULLY_QUALIFIED      = 350
-	T_NAME_RELATIVE             = 351
-	T_NAME_QUALIFIED            = 352
-	T_MATCH                     = 353
-	T_ATTRIBUTE                 = 354
-	T_NULLSAFE_OBJECT_OPERATOR  = 355
-	T_FN                        = 356
+	T_INLINE_HTML              = 319
+	T_OPEN_TAG                 = 320
+	T_OPEN_TAG_WITH_ECHO       = 321
+	T_CLOSE_TAG                = 322
+	T_WHITESPACE               = 323
+	T_COMMENT                  = 324
+	T_DOC_COMMENT              = 325
+	T_STRING                   = 326
+	T_VARIABLE                 = 327
+	T_LNUMBER                  = 328
+	T_DNUMBER                  = 329
+	T_NUM_STRING               = 330
+	T_CONSTANT_ENCAPSED_STRING = 331
+	T_ENCAPSED_AND_WHITESPACE  = 332
+	T_CHARACTER                = 333
+	T_BAD_CHARACTER            = 334
+	T_ABSTRACT                 = 335
+	T_FINAL                    = 336
+	T_PRIVATE                  = 337
+	T_PROTECTED                = 338
+	T_PUBLIC                   = 339
+	T_STATIC                   = 340
+	T_TRAIT                    = 341
+	T_INTERFACE                = 342
+	T_CLASS                    = 343
+	T_CALLABLE                 = 344
+	T_EXTENDS                  = 345
+	T_IMPLEMENTS               = 346
+	T_VAR                      = 347
+	T_READONLY                 = 348
+	T_ENUM                     = 349
+	T_NAME_FULLY_QUALIFIED     = 350
+	T_NAME_RELATIVE            = 351
+	T_NAME_QUALIFIED           = 352
+	T_MATCH                    = 353
+	T_ATTRIBUTE                = 354
+	T_NULLSAFE_OBJECT_OPERATOR = 355
+	T_FN                       = 356
 
 	T_TRUE  = 357
 	T_FALSE = 358
@@ -120,75 +120,75 @@ const (
 
 // keywordMap maps PHP keywords to their token constants
 var keywordMap = map[string]int{
-	"abstract":       T_ABSTRACT,
-	"and":            T_LOGICAL_AND,
-	"array":          T_ARRAY,
-	"as":             T_AS,
-	"break":          T_BREAK,
-	"callable":       T_CALLABLE,
-	"case":           T_CASE,
-	"catch":          T_CATCH,
-	"class":          T_CLASS,
-	"clone":          T_CLONE,
-	"const":          T_CONST,
-	"continue":       T_CONTINUE,
-	"declare":        T_DECLARE,
-	"default":        T_DEFAULT,
-	"die":            T_EXIT,
-	"do":             T_DO,
-	"echo":           T_ECHO,
-	"else":           T_ELSE,
-	"elseif":         T_ELSEIF,
-	"empty":          T_EMPTY,
-	"enddeclare":     T_ENDDECLARE,
-	"endfor":         T_ENDFOR,
-	"endforeach":     T_ENDFOREACH,
-	"endif":          T_ENDIF,
-	"endswitch":      T_ENDSWITCH,
-	"endwhile":       T_ENDWHILE,
-	"enum":           T_ENUM,
-	"eval":           T_EVAL,
-	"exit":           T_EXIT,
-	"extends":        T_EXTENDS,
-	"final":          T_FINAL,
-	"finally":        T_FINALLY,
-	"fn":             T_FN,
-	"for":            T_FOR,
-	"foreach":        T_FOREACH,
-	"function":       T_FUNCTION,
-	"global":         T_GLOBAL,
-	"goto":           T_GOTO,
-	"if":             T_IF,
-	"implements":     T_IMPLEMENTS,
-	"include":        T_INCLUDE,
-	"include_once":   T_INCLUDE_ONCE,
-	"instanceof":     T_INSTANCEOF,
-	"interface":      T_INTERFACE,
-	"isset":          T_ISSET,
-	"list":           T_LIST,
-	"match":          T_MATCH,
-	"namespace":      T_NAMESPACE,
-	"new":            T_NEW,
-	"or":             T_LOGICAL_OR,
-	"print":          T_PRINT,
-	"private":        T_PRIVATE,
-	"protected":      T_PROTECTED,
-	"public":         T_PUBLIC,
-	"readonly":       T_READONLY,
-	"require":        T_REQUIRE,
-	"require_once":   T_REQUIRE_ONCE,
-	"return":         T_RETURN,
-	"static":         T_STATIC,
-	"switch":         T_SWITCH,
-	"throw":          T_THROW,
-	"trait":          T_TRAIT,
-	"try":            T_TRY,
-	"unset":          T_UNSET,
-	"use":            T_USE,
-	"var":            T_VAR,
-	"while":          T_WHILE,
-	"xor":            T_LOGICAL_XOR,
-	"yield":          T_YIELD,
+	"abstract":     T_ABSTRACT,
+	"and":          T_LOGICAL_AND,
+	"array":        T_ARRAY,
+	"as":           T_AS,
+	"break":        T_BREAK,
+	"callable":     T_CALLABLE,
+	"case":         T_CASE,
+	"catch":        T_CATCH,
+	"class":        T_CLASS,
+	"clone":        T_CLONE,
+	"const":        T_CONST,
+	"continue":     T_CONTINUE,
+	"declare":      T_DECLARE,
+	"default":      T_DEFAULT,
+	"die":          T_EXIT,
+	"do":           T_DO,
+	"echo":         T_ECHO,
+	"else":         T_ELSE,
+	"elseif":       T_ELSEIF,
+	"empty":        T_EMPTY,
+	"enddeclare":   T_ENDDECLARE,
+	"endfor":       T_ENDFOR,
+	"endforeach":   T_ENDFOREACH,
+	"endif":        T_ENDIF,
+	"endswitch":    T_ENDSWITCH,
+	"endwhile":     T_ENDWHILE,
+	"enum":         T_ENUM,
+	"eval":         T_EVAL,
+	"exit":         T_EXIT,
+	"extends":      T_EXTENDS,
+	"final":        T_FINAL,
+	"finally":      T_FINALLY,
+	"fn":           T_FN,
+	"for":          T_FOR,
+	"foreach":      T_FOREACH,
+	"function":     T_FUNCTION,
+	"global":       T_GLOBAL,
+	"goto":         T_GOTO,
+	"if":           T_IF,
+	"implements":   T_IMPLEMENTS,
+	"include":      T_INCLUDE,
+	"include_once": T_INCLUDE_ONCE,
+	"instanceof":   T_INSTANCEOF,
+	"interface":    T_INTERFACE,
+	"isset":        T_ISSET,
+	"list":         T_LIST,
+	"match":        T_MATCH,
+	"namespace":    T_NAMESPACE,
+	"new":          T_NEW,
+	"or":           T_LOGICAL_OR,
+	"print":        T_PRINT,
+	"private":      T_PRIVATE,
+	"protected":    T_PROTECTED,
+	"public":       T_PUBLIC,
+	"readonly":     T_READONLY,
+	"require":      T_REQUIRE,
+	"require_once": T_REQUIRE_ONCE,
+	"return":       T_RETURN,
+	"static":       T_STATIC,
+	"switch":       T_SWITCH,
+	"throw":        T_THROW,
+	"trait":        T_TRAIT,
+	"try":          T_TRY,
+	"unset":        T_UNSET,
+	"use":          T_USE,
+	"var":          T_VAR,
+	"while":        T_WHILE,
+	"xor":          T_LOGICAL_XOR,
+	"yield":        T_YIELD,
 
 	// Soft type names (tokenized as T_STRING in PHP < 8, but we treat as T_STRING)
 	"int":      T_STRING,
@@ -224,9 +224,9 @@ func (f *TokenGetAllFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	return data.NewArrayValue(tokens), nil
 }
 
-func (f *TokenGetAllFunction) GetName() string                    { return "token_get_all" }
-func (f *TokenGetAllFunction) GetModifier() data.Modifier         { return data.ModifierPublic }
-func (f *TokenGetAllFunction) GetIsStatic() bool                  { return false }
+func (f *TokenGetAllFunction) GetName() string            { return "token_get_all" }
+func (f *TokenGetAllFunction) GetModifier() data.Modifier { return data.ModifierPublic }
+func (f *TokenGetAllFunction) GetIsStatic() bool          { return false }
 func (f *TokenGetAllFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "source", 0, nil, data.String{}),
@@ -801,105 +801,105 @@ func tokenizePhp(source string) []data.Value {
 // InitTokenConstants 注册 PHP token 常量
 func InitTokenConstants(vm data.VM) {
 	consts := map[string]int{
-		"T_REQUIRE_ONCE":                T_REQUIRE_ONCE,
-		"T_LOGICAL_AND":                 T_LOGICAL_AND,
-		"T_LOGICAL_OR":                  T_LOGICAL_OR,
-		"T_LOGICAL_XOR":                 T_LOGICAL_XOR,
-		"T_CLONE":                       T_CLONE,
-		"T_ELSEIF":                      T_ELSEIF,
-		"T_ELSE":                        T_ELSE,
-		"T_ENDIF":                       T_ENDIF,
-		"T_ECHO":                        T_ECHO,
-		"T_DO":                          T_DO,
-		"T_WHILE":                       T_WHILE,
-		"T_ENDWHILE":                    T_ENDWHILE,
-		"T_FOR":                         T_FOR,
-		"T_ENDFOR":                      T_ENDFOR,
-		"T_FOREACH":                     T_FOREACH,
-		"T_ENDFOREACH":                  T_ENDFOREACH,
-		"T_DECLARE":                     T_DECLARE,
-		"T_ENDDECLARE":                  T_ENDDECLARE,
-		"T_AS":                          T_AS,
-		"T_SWITCH":                      T_SWITCH,
-		"T_ENDSWITCH":                   T_ENDSWITCH,
-		"T_CASE":                        T_CASE,
-		"T_DEFAULT":                     T_DEFAULT,
-		"T_BREAK":                       T_BREAK,
-		"T_CONTINUE":                    T_CONTINUE,
-		"T_GOTO":                        T_GOTO,
-		"T_FUNCTION":                    T_FUNCTION,
-		"T_CONST":                       T_CONST,
-		"T_RETURN":                      T_RETURN,
-		"T_YIELD":                       T_YIELD,
-		"T_TRY":                         T_TRY,
-		"T_CATCH":                       T_CATCH,
-		"T_FINALLY":                     T_FINALLY,
-		"T_THROW":                       T_THROW,
-		"T_IF":                          T_IF,
-		"T_INSTANCEOF":                  T_INSTANCEOF,
-		"T_NEW":                         T_NEW,
-		"T_EXIT":                        T_EXIT,
-		"T_EVAL":                        T_EVAL,
-		"T_EMPTY":                       T_EMPTY,
-		"T_INCLUDE":                     T_INCLUDE,
-		"T_INCLUDE_ONCE":                T_INCLUDE_ONCE,
-		"T_REQUIRE":                     T_REQUIRE,
-		"T_USE":                         T_USE,
-		"T_GLOBAL":                      T_GLOBAL,
-		"T_ISSET":                       T_ISSET,
-		"T_UNSET":                       T_UNSET,
-		"T_LIST":                        T_LIST,
-		"T_ARRAY":                       T_ARRAY,
-		"T_PRINT":                       T_PRINT,
-		"T_NAMESPACE":                   T_NAMESPACE,
-		"T_OBJECT_OPERATOR":             T_OBJECT_OPERATOR,
-		"T_PAAMAYIM_NEKUDOTAYIM":        T_PAAMAYIM_NEKUDOTAYIM,
-		"T_DOUBLE_ARROW":                T_DOUBLE_ARROW,
-		"T_DOUBLE_COLON":                T_DOUBLE_COLON,
-		"T_NS_SEPARATOR":                T_NS_SEPARATOR,
-		"T_ELLIPSIS":                    T_ELLIPSIS,
-		"T_COALESCE":                    T_COALESCE,
-		"T_SPACESHIP":                   T_SPACESHIP,
-		"T_POW":                         T_POW,
-		"T_POW_EQUAL":                   T_POW_EQUAL,
-		"T_INLINE_HTML":                 T_INLINE_HTML,
-		"T_OPEN_TAG":                    T_OPEN_TAG,
-		"T_OPEN_TAG_WITH_ECHO":          T_OPEN_TAG_WITH_ECHO,
-		"T_CLOSE_TAG":                   T_CLOSE_TAG,
-		"T_WHITESPACE":                  T_WHITESPACE,
-		"T_COMMENT":                     T_COMMENT,
-		"T_DOC_COMMENT":                 T_DOC_COMMENT,
-		"T_STRING":                      T_STRING,
-		"T_VARIABLE":                    T_VARIABLE,
-		"T_LNUMBER":                     T_LNUMBER,
-		"T_DNUMBER":                     T_DNUMBER,
-		"T_NUM_STRING":                  T_NUM_STRING,
-		"T_CONSTANT_ENCAPSED_STRING":    T_CONSTANT_ENCAPSED_STRING,
-		"T_ENCAPSED_AND_WHITESPACE":     T_ENCAPSED_AND_WHITESPACE,
-		"T_CHARACTER":                   T_CHARACTER,
-		"T_BAD_CHARACTER":               T_BAD_CHARACTER,
-		"T_ABSTRACT":                    T_ABSTRACT,
-		"T_FINAL":                       T_FINAL,
-		"T_PRIVATE":                     T_PRIVATE,
-		"T_PROTECTED":                   T_PROTECTED,
-		"T_PUBLIC":                      T_PUBLIC,
-		"T_STATIC":                      T_STATIC,
-		"T_TRAIT":                       T_TRAIT,
-		"T_INTERFACE":                   T_INTERFACE,
-		"T_CLASS":                       T_CLASS,
-		"T_CALLABLE":                    T_CALLABLE,
-		"T_EXTENDS":                     T_EXTENDS,
-		"T_IMPLEMENTS":                  T_IMPLEMENTS,
-		"T_VAR":                         T_VAR,
-		"T_READONLY":                    T_READONLY,
-		"T_ENUM":                        T_ENUM,
-		"T_NAME_FULLY_QUALIFIED":        T_NAME_FULLY_QUALIFIED,
-		"T_NAME_RELATIVE":               T_NAME_RELATIVE,
-		"T_NAME_QUALIFIED":              T_NAME_QUALIFIED,
-		"T_MATCH":                       T_MATCH,
-		"T_ATTRIBUTE":                   T_ATTRIBUTE,
-		"T_NULLSAFE_OBJECT_OPERATOR":    T_NULLSAFE_OBJECT_OPERATOR,
-		"T_FN":                          T_FN,
+		"T_REQUIRE_ONCE":             T_REQUIRE_ONCE,
+		"T_LOGICAL_AND":              T_LOGICAL_AND,
+		"T_LOGICAL_OR":               T_LOGICAL_OR,
+		"T_LOGICAL_XOR":              T_LOGICAL_XOR,
+		"T_CLONE":                    T_CLONE,
+		"T_ELSEIF":                   T_ELSEIF,
+		"T_ELSE":                     T_ELSE,
+		"T_ENDIF":                    T_ENDIF,
+		"T_ECHO":                     T_ECHO,
+		"T_DO":                       T_DO,
+		"T_WHILE":                    T_WHILE,
+		"T_ENDWHILE":                 T_ENDWHILE,
+		"T_FOR":                      T_FOR,
+		"T_ENDFOR":                   T_ENDFOR,
+		"T_FOREACH":                  T_FOREACH,
+		"T_ENDFOREACH":               T_ENDFOREACH,
+		"T_DECLARE":                  T_DECLARE,
+		"T_ENDDECLARE":               T_ENDDECLARE,
+		"T_AS":                       T_AS,
+		"T_SWITCH":                   T_SWITCH,
+		"T_ENDSWITCH":                T_ENDSWITCH,
+		"T_CASE":                     T_CASE,
+		"T_DEFAULT":                  T_DEFAULT,
+		"T_BREAK":                    T_BREAK,
+		"T_CONTINUE":                 T_CONTINUE,
+		"T_GOTO":                     T_GOTO,
+		"T_FUNCTION":                 T_FUNCTION,
+		"T_CONST":                    T_CONST,
+		"T_RETURN":                   T_RETURN,
+		"T_YIELD":                    T_YIELD,
+		"T_TRY":                      T_TRY,
+		"T_CATCH":                    T_CATCH,
+		"T_FINALLY":                  T_FINALLY,
+		"T_THROW":                    T_THROW,
+		"T_IF":                       T_IF,
+		"T_INSTANCEOF":               T_INSTANCEOF,
+		"T_NEW":                      T_NEW,
+		"T_EXIT":                     T_EXIT,
+		"T_EVAL":                     T_EVAL,
+		"T_EMPTY":                    T_EMPTY,
+		"T_INCLUDE":                  T_INCLUDE,
+		"T_INCLUDE_ONCE":             T_INCLUDE_ONCE,
+		"T_REQUIRE":                  T_REQUIRE,
+		"T_USE":                      T_USE,
+		"T_GLOBAL":                   T_GLOBAL,
+		"T_ISSET":                    T_ISSET,
+		"T_UNSET":                    T_UNSET,
+		"T_LIST":                     T_LIST,
+		"T_ARRAY":                    T_ARRAY,
+		"T_PRINT":                    T_PRINT,
+		"T_NAMESPACE":                T_NAMESPACE,
+		"T_OBJECT_OPERATOR":          T_OBJECT_OPERATOR,
+		"T_PAAMAYIM_NEKUDOTAYIM":     T_PAAMAYIM_NEKUDOTAYIM,
+		"T_DOUBLE_ARROW":             T_DOUBLE_ARROW,
+		"T_DOUBLE_COLON":             T_DOUBLE_COLON,
+		"T_NS_SEPARATOR":             T_NS_SEPARATOR,
+		"T_ELLIPSIS":                 T_ELLIPSIS,
+		"T_COALESCE":                 T_COALESCE,
+		"T_SPACESHIP":                T_SPACESHIP,
+		"T_POW":                      T_POW,
+		"T_POW_EQUAL":                T_POW_EQUAL,
+		"T_INLINE_HTML":              T_INLINE_HTML,
+		"T_OPEN_TAG":                 T_OPEN_TAG,
+		"T_OPEN_TAG_WITH_ECHO":       T_OPEN_TAG_WITH_ECHO,
+		"T_CLOSE_TAG":                T_CLOSE_TAG,
+		"T_WHITESPACE":               T_WHITESPACE,
+		"T_COMMENT":                  T_COMMENT,
+		"T_DOC_COMMENT":              T_DOC_COMMENT,
+		"T_STRING":                   T_STRING,
+		"T_VARIABLE":                 T_VARIABLE,
+		"T_LNUMBER":                  T_LNUMBER,
+		"T_DNUMBER":                  T_DNUMBER,
+		"T_NUM_STRING":               T_NUM_STRING,
+		"T_CONSTANT_ENCAPSED_STRING": T_CONSTANT_ENCAPSED_STRING,
+		"T_ENCAPSED_AND_WHITESPACE":  T_ENCAPSED_AND_WHITESPACE,
+		"T_CHARACTER":                T_CHARACTER,
+		"T_BAD_CHARACTER":            T_BAD_CHARACTER,
+		"T_ABSTRACT":                 T_ABSTRACT,
+		"T_FINAL":                    T_FINAL,
+		"T_PRIVATE":                  T_PRIVATE,
+		"T_PROTECTED":                T_PROTECTED,
+		"T_PUBLIC":                   T_PUBLIC,
+		"T_STATIC":                   T_STATIC,
+		"T_TRAIT":                    T_TRAIT,
+		"T_INTERFACE":                T_INTERFACE,
+		"T_CLASS":                    T_CLASS,
+		"T_CALLABLE":                 T_CALLABLE,
+		"T_EXTENDS":                  T_EXTENDS,
+		"T_IMPLEMENTS":               T_IMPLEMENTS,
+		"T_VAR":                      T_VAR,
+		"T_READONLY":                 T_READONLY,
+		"T_ENUM":                     T_ENUM,
+		"T_NAME_FULLY_QUALIFIED":     T_NAME_FULLY_QUALIFIED,
+		"T_NAME_RELATIVE":            T_NAME_RELATIVE,
+		"T_NAME_QUALIFIED":           T_NAME_QUALIFIED,
+		"T_MATCH":                    T_MATCH,
+		"T_ATTRIBUTE":                T_ATTRIBUTE,
+		"T_NULLSAFE_OBJECT_OPERATOR": T_NULLSAFE_OBJECT_OPERATOR,
+		"T_FN":                       T_FN,
 	}
 	for name, val := range consts {
 		vm.SetConstant(name, data.NewIntValue(val))

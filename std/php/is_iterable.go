@@ -91,5 +91,3 @@ func isTraversableInterface(name string) bool {
 
 	return false
 }
-
-

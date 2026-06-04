@@ -1,7 +1,6 @@
 package compile
 
 import (
-	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
 
@@ -40,10 +39,7 @@ func (g *Generator) genCallMethod(n *node.CallMethod) {
 // stmt 是未导出字段且编译期无法直接序列化，使用 CallStaticMethodLater 延迟解析
 func (g *Generator) genCallStaticMethod(n *node.CallStaticMethod) {
 	// 从 stmt 中提取类名（如果 stmt 是 ClassStmt）
-	className := ""
-	if cls, ok := n.GetStmt().(data.ClassStmt); ok {
-		className = cls.GetName()
-	}
+	className := staticCallClassName(n.GetStmt())
 	g.printf("node.NewCallStaticMethodLater(from, %q, %q, %q)", className, n.Method, g.namespace)
 }
 
@@ -81,6 +77,10 @@ func (g *Generator) genCallParentMethod(n *node.CallParentMethod) {
 // genCallSelfMethod 生成 self 方法调用节点（self::method()）
 func (g *Generator) genCallSelfMethod(n *node.CallSelfMethod) {
 	g.printf("node.NewCallSelfMethod(from, %q)", n.Method)
+}
+
+func (g *Generator) genCallSelfProperty(n *node.CallSelfProperty) {
+	g.printf("node.NewCallSelfProperty(from, %q)", n.Property)
 }
 
 // genNullsafeCall 生成空安全调用节点（?->）

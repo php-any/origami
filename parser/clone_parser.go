@@ -38,4 +38,3 @@ func (p *CloneParser) Parse() (data.GetValue, data.Control) {
 	from := tracker.EndBefore()
 	return node.NewCloneExpression(from, expr), nil
 }
-

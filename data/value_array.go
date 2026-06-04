@@ -26,7 +26,7 @@ func CloneArrayValue(src *ArrayValue) *ArrayValue {
 	list := make([]*ZVal, len(src.List))
 	copy(list, src.List)
 	return &ArrayValue{
-		List:                    list,
+		List:                  list,
 		IndirectOverloadClass: src.IndirectOverloadClass,
 	}
 }

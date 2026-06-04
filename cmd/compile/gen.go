@@ -36,7 +36,8 @@ func (g *Generator) Generate(pf ParsedFile) string {
 
 	g.printf("func %s() (data.GetValue, []data.Variable) {\n", funcName)
 	g.indent++
-	g.printf("from := node.NewFrom(%q)\n", pf.Path)
+	g.printf("filePath := %q\n", pf.Path)
+	g.printf("from := node.NewTokenFrom(&filePath, 0, 0, 0, 0)\n")
 	g.printf("\n")
 	g.printf("stmts := []data.GetValue{\n")
 	g.indent++
@@ -66,21 +67,12 @@ func (g *Generator) Generate(pf ParsedFile) string {
 
 // funcNameForPath 将文件路径转换为合法的 Go 函数名
 func (g *Generator) funcNameForPath(path string) string {
-	name := strings.TrimSuffix(path, ".php")
-	name = strings.TrimSuffix(name, ".zy")
-	var b strings.Builder
-	for _, c := range name {
-		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') {
-			b.WriteRune(c)
-		} else {
-			b.WriteByte('_')
-		}
-	}
-	result := b.String()
-	if len(result) > 0 && result[0] >= 'a' && result[0] <= 'z' {
-		result = string(rune(result[0]-32)) + result[1:]
-	}
-	return "AST_" + result
+	return funcNameFromPath(path)
+}
+
+// goFileNameForPath 将 PHP 路径映射为同包内的 Go 源文件名
+func (g *Generator) goFileNameForPath(path string) string {
+	return goFileNameFromPath(path)
 }
 
 // genGetValue 根据节点类型分派到对应的生成函数
@@ -176,6 +168,8 @@ func (g *Generator) genGetValue(v data.GetValue) {
 		g.genCallParentMethod(n)
 	case *node.CallSelfMethod:
 		g.genCallSelfMethod(n)
+	case *node.CallSelfProperty:
+		g.genCallSelfProperty(n)
 	case *node.NullsafeCall:
 		g.genNullsafeCall(n)
 	// OOP 节点
@@ -239,6 +233,28 @@ func (g *Generator) genGetValue(v data.GetValue) {
 		g.genRange(n)
 	case *node.Kv:
 		g.genKv(n)
+	case *node.UseStatement:
+		g.genUseStatement(n)
+	case *node.Namespace:
+		g.genNamespace(n)
+	case *node.BinaryAssignVariable:
+		g.genBinaryAssignVariable(n)
+	case *node.BinaryAssignVariableList:
+		g.genBinaryAssignVariableList(n)
+	case *node.This:
+		g.genThis(n)
+	case *node.CallObjectProperty:
+		g.genCallObjectProperty(n)
+	case *node.Parameter:
+		g.genParameter(n)
+	case *node.PromotedParameter:
+		g.genPromotedParameter(n)
+	case *node.Parameters:
+		g.genParameters(n)
+	case *node.ParameterReference:
+		g.genParameterReference(n)
+	case *node.AbstractClassStatement:
+		g.genAbstractClassStatement(n)
 	// 未支持的类型
 	default:
 		g.printf("nil /* TODO: unsupported %T */", v)
@@ -260,15 +276,18 @@ func (g *Generator) genBinaryOp(typeName string, left, right data.GetValue) {
 // printf 带缩进的格式化输出
 func (g *Generator) printf(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
+	if g.indent <= 0 {
+		g.buf.WriteString(msg)
+		return
+	}
+	pad := strings.Repeat("\t", g.indent)
 	lines := strings.Split(msg, "\n")
 	for i, line := range lines {
 		if i > 0 {
 			g.buf.WriteString("\n")
-			if len(line) > 0 {
-				for j := 0; j < g.indent; j++ {
-					g.buf.WriteString("\t")
-				}
-			}
+		}
+		if len(line) > 0 {
+			g.buf.WriteString(pad)
 		}
 		g.buf.WriteString(line)
 	}

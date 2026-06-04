@@ -401,9 +401,13 @@ type instanceMagicCallViaStaticFunc struct {
 	originalMethod string
 }
 
-func (s *instanceMagicCallViaStaticFunc) GetName() string               { return s.magic.GetName() }
-func (s *instanceMagicCallViaStaticFunc) GetParams() []data.GetValue    { return []data.GetValue{NewParametersNoName(0)} }
-func (s *instanceMagicCallViaStaticFunc) GetVariables() []data.Variable { return []data.Variable{data.NewVariable("args", 0, nil)} }
+func (s *instanceMagicCallViaStaticFunc) GetName() string { return s.magic.GetName() }
+func (s *instanceMagicCallViaStaticFunc) GetParams() []data.GetValue {
+	return []data.GetValue{NewParametersNoName(0)}
+}
+func (s *instanceMagicCallViaStaticFunc) GetVariables() []data.Variable {
+	return []data.Variable{data.NewVariable("args", 0, nil)}
+}
 
 // objectMethodCallable 将 [$obj, 'method'] 转为可调用（支持 __call）
 type objectMethodCallable struct {
@@ -416,9 +420,13 @@ func NewObjectMethodCallable(obj *data.ClassValue, method string) data.FuncStmt 
 	return &objectMethodCallable{obj: obj, method: method}
 }
 
-func (o *objectMethodCallable) GetName() string               { return o.method }
-func (o *objectMethodCallable) GetParams() []data.GetValue    { return []data.GetValue{NewParametersNoName(0)} }
-func (o *objectMethodCallable) GetVariables() []data.Variable { return []data.Variable{data.NewVariable("args", 0, nil)} }
+func (o *objectMethodCallable) GetName() string { return o.method }
+func (o *objectMethodCallable) GetParams() []data.GetValue {
+	return []data.GetValue{NewParametersNoName(0)}
+}
+func (o *objectMethodCallable) GetVariables() []data.Variable {
+	return []data.Variable{data.NewVariable("args", 0, nil)}
+}
 
 func (o *objectMethodCallable) Call(callCtx data.Context) (data.GetValue, data.Control) {
 	proxy := &CallObjectMethod{Object: o.obj, Method: o.method}
