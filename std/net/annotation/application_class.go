@@ -64,6 +64,12 @@ type Application struct {
 	target any // 被注解的目标（通常是类）
 }
 
+// scanningDirs 记录正在扫描中的目录，防止 main.php 在 scan 目录内时递归触发 Scan
+var scanningDirs = make(map[string]bool)
+
+// loadingFiles 记录正在加载中的文件，Scan() 跳过这些文件避免重复注册
+var loadingFiles = make(map[string]bool)
+
 func newApplication() *Application { return &Application{name: "App", port: 8080} }
 
 // 构造函数：接收参数与 target（如存在）
@@ -145,6 +151,33 @@ func (m *ApplicationConstructMethod) Call(ctx data.Context) (data.GetValue, data
 		fn.Body = append(m.BuildBoot(ctx), fn.Body...)
 	}
 
+	// 防止重入：当 main.php 在 scan 目录内时，Scan() 会再次加载 main.php，
+	// 触发 #[Application] 构造函数，此时应跳过重复扫描。
+	// 使用 per-directory map 支持多个独立 Application 共存。
+	scanDir := m.app.scan
+	if !filepath.IsAbs(scanDir) {
+		cwd, _ := os.Getwd()
+		scanDir = filepath.Join(cwd, scanDir)
+	}
+	scanDir = filepath.Clean(scanDir)
+
+	if scanningDirs[scanDir] {
+		return nil, nil
+	}
+	scanningDirs[scanDir] = true
+	defer func() { delete(scanningDirs, scanDir) }()
+
+	// 标记入口文件为加载中，Scan() 跳过该文件避免重复注册函数/类
+	if fn, ok := m.app.target.(*node.FunctionStatement); ok {
+		if from := fn.GetFrom(); from != nil {
+			entryFile := from.GetSource()
+			if entryFile != "" {
+				loadingFiles[entryFile] = true
+				defer func() { delete(loadingFiles, entryFile) }()
+			}
+		}
+	}
+
 	return nil, m.Scan(ctx)
 }
 
@@ -195,10 +228,18 @@ func (m *ApplicationConstructMethod) Scan(ctx data.Context) data.Control {
 
 	vm := ctx.GetVM()
 	for _, f := range files {
+		// 跳过正在加载中的入口文件，避免重复注册函数/类
+		if loadingFiles[f] {
+			continue
+		}
 		if _, acl := vm.LoadAndRun(f); acl != nil {
 			return acl
 		}
 	}
+
+	// 所有文件加载完成后，注册待处理的路由（包含中间件信息）
+	RegisterPendingRoutes(vm)
+
 	return nil
 }
 

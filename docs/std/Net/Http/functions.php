@@ -25,4 +25,22 @@ function appFlash($request, $response, string $dir) {
     // 实现逻辑
 }
 
+/**
+ * appScan 函数（启动时扫描：扫描目录下的注解路由，返回路由表，配合 Server::flash 使用）
+ *
+ * 在服务启动阶段调用，扫描指定目录下所有 #[Controller] 类的注解路由，
+ * 返回路由描述数组。每个元素包含:
+ *   - method: HTTP 方法（GET/POST/PUT/DELETE 等）
+ *   - path: 完整路径（prefix + mapping path）
+ *   - controller: 控制器类名
+ *   - action: 方法名
+ *   - middleware: 中间件/拦截器列表
+ *
+ * @param string $dir 应用目录路径
+ * @return array 路由描述数组
+ */
+function appScan(string $dir): array {
+    // 实现逻辑
+}
+
 

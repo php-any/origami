@@ -47,3 +47,10 @@ func CompiledDeleteMappingValue(path string) *data.ClassValue {
 	dc := &DeleteMappingClass{source: m, construct: &DeleteMappingConstructMethod{mapping: m}}
 	return &data.ClassValue{ObjectValue: data.NewObjectValue(), Class: dc}
 }
+
+// CompiledMiddlewareValue 构建预编译的 @Middleware 注解实例
+func CompiledMiddlewareValue(className string) *data.ClassValue {
+	m := &Middleware{className: className}
+	mc := &MiddlewareClass{source: m, construct: &MiddlewareConstructMethod{middleware: m}}
+	return &data.ClassValue{ObjectValue: data.NewObjectValue(), Class: mc}
+}

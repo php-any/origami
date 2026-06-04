@@ -183,15 +183,16 @@ func (m *ControllerConstructMethod) Call(ctx data.Context) (data.GetValue, data.
 					if target.GetIsStatic() {
 						receiver = classValue
 					}
-					runtime.AppendHTTPRoute(vm, runtime.Route{
-						Method:   method,
-						Path:     path,
-						Target:   target,
-						Receiver: receiver,
+					AddPendingRoute(PendingRoute{
+						Method:         method,
+						Path:           path,
+						Target:         target,
+						Receiver:       receiver,
+						ControllerName: cls.GetName(),
 					})
 				}
 
-				// 遍历类方法，读取方法注解并注册到 router.routes
+				// 遍历类方法，读取方法注解并存储到待注册列表
 				for _, method := range cls.GetMethods() {
 					if cm, ok := method.(*node.ClassMethod); ok {
 						for _, ann := range cm.Annotations {

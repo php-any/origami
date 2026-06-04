@@ -5,12 +5,16 @@ namespace Spring\Controller;
 use Net\Annotation\Controller;
 use Net\Annotation\Route;
 use Net\Annotation\GetMapping;
+use Net\Annotation\Middleware;
 use Spring\Config\AppConfig;
+use Spring\Middleware\LogInterceptor;
 
+#[Middleware(LogInterceptor::class)]
 #[Controller]
 #[Route(prefix: "/api")]
 class HelloController {
-    
+    public int $count = 0;
+
     #[GetMapping(path: "/hello")]
     public function hello($request, $response) {
         $response->header("Content-Type", "application/json; charset=utf-8");
@@ -21,7 +25,8 @@ class HelloController {
                 "greeting" => "Hello World!",
                 "app_name" => AppConfig::get('app.name'),
                 "app_version" => AppConfig::get('app.version'),
-                "timestamp" => time()
+                "timestamp" => time(),
+                "count" => $this->count++
             ]
         ]);
     }
@@ -41,7 +46,7 @@ class HelloController {
             ]
         ]);
     }
-    
+
     #[GetMapping(path: "/status")]
     public function status($request, $response) {
         $response->header("Content-Type", "application/json; charset=utf-8");
@@ -56,5 +61,3 @@ class HelloController {
         ]);
     }
 }
-
-

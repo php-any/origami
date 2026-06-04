@@ -4,8 +4,9 @@ namespace App;
 
 use Net\Annotation\Application;
 
-#[Application(name: 'spring')]
+// 扫描整个 src 目录，包括 controllers 和 middleware
+#[Application(name: 'spring', scan: 'examples/spring/src')]
 function main($request, $response): void
 {
-    
+
 }

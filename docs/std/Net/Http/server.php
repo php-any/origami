@@ -92,9 +92,22 @@ class Server {
 
     /**
      * any 方法
-     * 
+     *
      */
     public function any($handle) {
+        // 实现逻辑
+    }
+
+    /**
+     * flash 方法（启动时扫描注解路由并直接注册到 Server）
+     *
+     * 在启动阶段扫描指定目录下的所有 Controller 类及其注解路由，
+     * 将每个路由直接注册到 Server（通过 get/post/put/delete 等方法），
+     * 而不是使用 any 兜底路由。请求到达时直接匹配已注册路由，无需再次扫描。
+     *
+     * @param string $dir 应用目录路径（包含 controllers、middleware 等子目录）
+     */
+    public function flash(string $dir) {
         // 实现逻辑
     }
 

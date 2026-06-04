@@ -6,8 +6,11 @@ use Net\Annotation\Controller;
 use Net\Annotation\Route;
 use Net\Annotation\GetMapping;
 use Net\Annotation\PostMapping;
+use Net\Annotation\Middleware;
 use Spring\Service\AuthService;
+use Spring\Middleware\LogInterceptor;
 
+#[Middleware(LogInterceptor::class)]
 #[Controller]
 #[Route(prefix: "/api")]
 class AuthController {

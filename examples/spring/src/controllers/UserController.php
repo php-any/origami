@@ -2,19 +2,21 @@
 
 namespace Spring\Controller;
 
-use Net\Http\Server;
-use Net\Http\app;
-use Net\Http\Response;
 use Net\Annotation\Controller;
 use Net\Annotation\Route;
 use Net\Annotation\GetMapping;
 use Net\Annotation\PostMapping;
+use Net\Annotation\Middleware;
 use Spring\Service\UserService;
+use Spring\Middleware\AuthInterceptor;
+use Spring\Middleware\LogInterceptor;
 
+#[Middleware(AuthInterceptor::class)]
+#[Middleware(LogInterceptor::class)]
 #[Controller]
 #[Route(prefix: "/api")]
 class UserController {
-    
+
     private $userService;
 
     private function getUserService() {
@@ -23,16 +25,13 @@ class UserController {
         }
         return $this->userService;
     }
-    
+
     #[GetMapping(path: "/users")]
     public function users($request, $response) {
         $users = $this->getUserService()->findAll();
-        
-        // 转换为数组格式
         $userArray = array_map(function($user) {
             return $user->toArray();
         }, $users);
-        
         $response->header("Content-Type", "application/json; charset=utf-8");
         $response->json([
             "code" => 200,
@@ -46,7 +45,6 @@ class UserController {
     public function user($request, $response) {
         $id = (int)$request->pathValue('id');
         $user = $this->getUserService()->findById($id);
-        
         if (!$user) {
             $response->status(404)->json([
                 "code" => 404,
@@ -55,19 +53,16 @@ class UserController {
             ]);
             return;
         }
-        
         $response->json([
             "code" => 200,
             "message" => "success",
             "data" => $user->toArray()
         ]);
     }
-    
+
     #[PostMapping(path: "/users")]
     public function createUser($request, $response) {
         $body = $request->body();
-        
-        // 简单验证
         if (!isset($body['name']) || !isset($body['email'])) {
             $response->status(400)->json([
                 "code" => 400,
@@ -76,9 +71,7 @@ class UserController {
             ]);
             return;
         }
-        
         $user = $this->getUserService()->create($body);
-        
         $response->status(201)->json([
             "code" => 201,
             "message" => "created",

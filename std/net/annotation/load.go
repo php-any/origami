@@ -11,6 +11,7 @@ func Load(vm data.VM) {
 	vm.AddClass(&ControllerClass{})
 	vm.AddClass(&RouteClass{})
 	vm.AddClass(&InjectClass{})
+	vm.AddClass(&MiddlewareClass{})
 	vm.AddClass(&GetMappingClass{})
 	vm.AddClass(&PostMappingClass{})
 	vm.AddClass(&PutMappingClass{})

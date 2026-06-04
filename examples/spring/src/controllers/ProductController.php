@@ -8,8 +8,13 @@ use Net\Annotation\GetMapping;
 use Net\Annotation\PostMapping;
 use Net\Annotation\PutMapping;
 use Net\Annotation\DeleteMapping;
+use Net\Annotation\Middleware;
 use Spring\Service\ProductService;
+use Spring\Middleware\AuthInterceptor;
+use Spring\Middleware\LogInterceptor;
 
+#[Middleware(AuthInterceptor::class)]
+#[Middleware(LogInterceptor::class)]
 #[Controller]
 #[Route(prefix: "/api")]
 class ProductController {

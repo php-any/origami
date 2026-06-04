@@ -25,11 +25,17 @@ func NewTempVM(vm data.VM) data.VM {
 	}
 }
 
+// MiddlewareInfo 中间件信息
+type MiddlewareInfo struct {
+	ClassName string // 中间件类名
+}
+
 type Route struct {
-	Method   string
-	Path     string
-	Target   data.Method
-	Receiver data.GetValue // 注册路由时已实例化的控制器（或静态方法的 ClassValue）；非空时在其上调用 Target
+	Method      string
+	Path        string
+	Target      data.Method
+	Receiver    data.GetValue    // 注册路由时已实例化的控制器（或静态方法的 ClassValue）；非空时在其上调用 Target
+	Middlewares []MiddlewareInfo // 中间件列表（从 @Middleware 注解收集）
 }
 
 // TempVM 用于模拟 php-fpm 请求级生效的 VM（热重载）
