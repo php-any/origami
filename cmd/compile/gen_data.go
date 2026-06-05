@@ -37,9 +37,9 @@ func (g *Generator) genClassAnnotation(cv *data.ClassValue) {
 		g.printf("nil")
 		return
 	}
-	g.needAnnotationImport()
 	switch c := cv.Class.(type) {
 	case *annotation.RouteClass:
+		g.needAnnotationImport()
 		g.printf("annotation.CompiledRouteValue(%q)", c.Prefix())
 	case *annotation.ControllerClass:
 		name := ""
@@ -47,15 +47,23 @@ func (g *Generator) genClassAnnotation(cv *data.ClassValue) {
 			// Controller 通常无 name 参数，保持空字符串
 		}
 		_ = name
+		g.needAnnotationImport()
 		g.printf("annotation.CompiledControllerValue(%q)", name)
 	case *annotation.GetMappingClass:
+		g.needAnnotationImport()
 		g.printf("annotation.CompiledGetMappingValue(%q)", c.Path())
 	case *annotation.PostMappingClass:
+		g.needAnnotationImport()
 		g.printf("annotation.CompiledPostMappingValue(%q)", c.Path())
 	case *annotation.PutMappingClass:
+		g.needAnnotationImport()
 		g.printf("annotation.CompiledPutMappingValue(%q)", c.Path())
 	case *annotation.DeleteMappingClass:
+		g.needAnnotationImport()
 		g.printf("annotation.CompiledDeleteMappingValue(%q)", c.Path())
+	case *annotation.MiddlewareClass:
+		g.needAnnotationImport()
+		g.printf("annotation.CompiledMiddlewareValue(%q)", c.ClassName())
 	default:
 		g.printf("nil /* annotation %T */", cv.Class)
 	}
