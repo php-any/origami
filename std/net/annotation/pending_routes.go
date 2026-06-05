@@ -1,8 +1,6 @@
 package annotation
 
 import (
-	"fmt"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/runtime"
 )
@@ -45,8 +43,6 @@ func RegisterPendingRoutes(vm data.VM) {
 				middlewares = append(middlewares, runtime.MiddlewareInfo{ClassName: className})
 			}
 		}
-
-		fmt.Printf("[DEBUG] RegisterPendingRoutes: %s %s, controller=%s, middlewares=%v\n", pr.Method, pr.Path, pr.ControllerName, middlewares)
 
 		// 注册路由
 		runtime.AppendHTTPRoute(vm, runtime.Route{
