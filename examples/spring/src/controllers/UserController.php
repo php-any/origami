@@ -12,7 +12,6 @@ use Spring\Middleware\AuthInterceptor;
 use Spring\Middleware\LogInterceptor;
 
 #[Middleware(AuthInterceptor::class)]
-#[Middleware(LogInterceptor::class)]
 #[Controller]
 #[Route(prefix: "/api")]
 class UserController {

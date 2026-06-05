@@ -34,7 +34,7 @@ func (c *ControllerClass) GetExtend() *string {
 }
 
 func (c *ControllerClass) GetImplements() []string {
-	return []string{node.TypeFeature} // 特性注解
+	return []string{node.TypeFeature, node.TypeTargetClass}
 }
 
 func (c *ControllerClass) GetProperty(_ string) (data.Property, bool) {

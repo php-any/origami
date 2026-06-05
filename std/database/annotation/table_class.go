@@ -39,7 +39,7 @@ func (t *TableClass) GetExtend() *string {
 }
 
 func (t *TableClass) GetImplements() []string {
-	return []string{node.TypeFeature} // 特性注解
+	return []string{node.TypeFeature, node.TypeTargetClass}
 }
 
 func (t *TableClass) GetProperty(name string) (data.Property, bool) {

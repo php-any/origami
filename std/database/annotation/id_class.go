@@ -35,7 +35,7 @@ func (i *IdClass) GetExtend() *string {
 }
 
 func (i *IdClass) GetImplements() []string {
-	return []string{node.TypeFeature} // 特性注解
+	return []string{node.TypeFeature, node.TypeTargetProperty}
 }
 
 func (i *IdClass) GetProperty(_ string) (data.Property, bool) {

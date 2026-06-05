@@ -27,7 +27,7 @@ func (d *DeleteMappingClass) GetExtend() *string {
 }
 
 func (d *DeleteMappingClass) GetImplements() []string {
-	return []string{node.TypeFeature} // 特性注解
+	return []string{node.TypeFeature, node.TypeTargetMethod}
 }
 
 func (d *DeleteMappingClass) GetProperty(_ string) (data.Property, bool) {

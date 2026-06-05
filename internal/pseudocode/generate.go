@@ -78,6 +78,35 @@ var genericDocRules = map[string]GenericClassDocRule{
 	},
 }
 
+// repeatableAnnotationClasses 声明可重复使用的注解类。
+// 键为完整类名（如 Net\Annotation\Middleware）或短类名（如 Middleware，仅 annotation 命名空间）。
+var repeatableAnnotationClasses = map[string]struct{}{}
+
+// annotationTargetByClass 为未在 GetImplements 中声明 TypeTarget* 的注解类提供 TARGET_* 回退配置。
+var annotationTargetByClass = map[string][]string{
+	"Net\\Annotation\\Middleware":          {"TARGET_CLASS"},
+	"Net\\Annotation\\Controller":          {"TARGET_CLASS"},
+	"Net\\Annotation\\Route":               {"TARGET_CLASS"},
+	"Net\\Annotation\\Application":         {"TARGET_FUNCTION"},
+	"Net\\Annotation\\GetMapping":          {"TARGET_METHOD"},
+	"Net\\Annotation\\PostMapping":         {"TARGET_METHOD"},
+	"Net\\Annotation\\PutMapping":          {"TARGET_METHOD"},
+	"Net\\Annotation\\DeleteMapping":       {"TARGET_METHOD"},
+	"Annotation\\Inject":                   {"TARGET_PARAMETER", "TARGET_PROPERTY"},
+	"Database\\Annotation\\Table":          {"TARGET_CLASS"},
+	"Database\\Annotation\\Column":         {"TARGET_PROPERTY"},
+	"Database\\Annotation\\Id":             {"TARGET_PROPERTY"},
+	"Database\\Annotation\\GeneratedValue": {"TARGET_PROPERTY"},
+}
+
+var targetMarkerToFlag = map[string]string{
+	node.TypeTargetClass:     "TARGET_CLASS",
+	node.TypeTargetMethod:    "TARGET_METHOD",
+	node.TypeTargetProperty:  "TARGET_PROPERTY",
+	node.TypeTargetFunction:  "TARGET_FUNCTION",
+	node.TypeTargetParameter: "TARGET_PARAMETER",
+}
+
 // Generate 加载 Go 实现的标准库并通过反射生成 PHP 伪代码。
 func Generate(outputDir string) error {
 	if outputDir == "" {
@@ -246,6 +275,7 @@ type ClassSignature struct {
 	ClassName            string
 	Description          string
 	TemplateDoc          string // 如 "T"，用于输出 @template T
+	AttributeFlags       string // Attribute 构造参数，如 \Attribute::TARGET_CLASS | \Attribute::IS_REPEATABLE
 	Methods              []MethodSignature
 	AnnotationCtorParams []Parameter
 	Properties           []PropertySignature
@@ -379,6 +409,9 @@ func analyzeClass(ctx data.Context, class data.ClassStmt) ClassSignature {
 
 	namespace := classNamespace(className)
 	forAnnotation := isAnnotationNamespace(className)
+	if forAnnotation {
+		sig.AttributeFlags = buildAttributeFlags(class, className, namespace, shortClassName)
+	}
 	classRule, hasClassRule := genericDocRuleForClass(namespace, shortClassName)
 
 	// 泛型容器类：从配置填充类级 template 文档。
@@ -759,6 +792,73 @@ func isAnnotationNamespace(namespace string) bool {
 	return strings.Contains(strings.ToLower(strings.ReplaceAll(namespace, "\\", "/")), "annotation")
 }
 
+func isRepeatableAnnotation(class data.ClassStmt, className, namespace, shortClassName string) bool {
+	if _, ok := repeatableAnnotationClasses[className]; ok {
+		return true
+	}
+	if namespace != "" {
+		if _, ok := repeatableAnnotationClasses[namespace+`\`+shortClassName]; ok {
+			return true
+		}
+	}
+	if _, ok := repeatableAnnotationClasses[shortClassName]; ok {
+		return true
+	}
+	for _, impl := range class.GetImplements() {
+		if impl == node.TypeRepeatable {
+			return true
+		}
+	}
+	return false
+}
+
+func resolveAnnotationTargetFlags(class data.ClassStmt, className, namespace, shortClassName string) []string {
+	var flags []string
+	seen := make(map[string]bool)
+	add := func(flag string) {
+		if flag == "" || seen[flag] {
+			return
+		}
+		seen[flag] = true
+		flags = append(flags, flag)
+	}
+
+	for _, impl := range class.GetImplements() {
+		if flag, ok := targetMarkerToFlag[impl]; ok {
+			add(flag)
+		}
+	}
+
+	if len(flags) == 0 {
+		keys := []string{className}
+		if namespace != "" {
+			keys = append(keys, namespace+`\`+shortClassName)
+		}
+		keys = append(keys, shortClassName)
+		for _, key := range keys {
+			if targets, ok := annotationTargetByClass[key]; ok {
+				for _, target := range targets {
+					add(target)
+				}
+				break
+			}
+		}
+	}
+
+	return flags
+}
+
+func buildAttributeFlags(class data.ClassStmt, className, namespace, shortClassName string) string {
+	var parts []string
+	for _, flag := range resolveAnnotationTargetFlags(class, className, namespace, shortClassName) {
+		parts = append(parts, `\Attribute::`+flag)
+	}
+	if isRepeatableAnnotation(class, className, namespace, shortClassName) {
+		parts = append(parts, `\Attribute::IS_REPEATABLE`)
+	}
+	return strings.Join(parts, " | ")
+}
+
 func analyzeFunction(fn data.FuncStmt) FunctionSignature {
 	sig := FunctionSignature{
 		Name: fn.GetName(),
@@ -861,8 +961,9 @@ func generatePHPPseudoCode(module PseudoCode) string {
  * @template {{.TemplateDoc}}
  */
 {{end}}
-{{if $.IsAnnotation}}#[\Attribute]
-class {{.ClassName}} {
+{{if $.IsAnnotation}}{{if .AttributeFlags}}#[\Attribute({{.AttributeFlags}})]
+{{else}}#[\Attribute]
+{{end}}class {{.ClassName}} {
     public function __construct({{range $i, $param := .AnnotationCtorParams}}{{if $i}}, {{end}}{{if eq $param.IsVariadic true}}...${{$param.Name}}{{else}}{{if ne $param.Type "mixed"}}{{$param.Type}} {{end}}${{$param.Name}}{{$param.Default}}{{end}}{{end}}) {}
 {{if .Methods}}{{range .Methods}}
 {{if or .TemplateDoc .ReturnDoc .ParamDocs}}    /**

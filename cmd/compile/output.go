@@ -8,12 +8,12 @@ import (
 )
 
 // generateOutput 生成最终的 Go 源码文件
-func generateOutput(parsed []ParsedFile, outputDir, pkgName string) error {
+func generateOutput(parsed []ParsedFile, entryPaths map[string]bool, outputDir, pkgName string) error {
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("创建输出目录失败: %w", err)
 	}
 
-	if err := generateRegisterFile(parsed, outputDir, pkgName); err != nil {
+	if err := generateRegisterFile(parsed, entryPaths, outputDir, pkgName); err != nil {
 		return err
 	}
 
@@ -28,20 +28,31 @@ func generateOutput(parsed []ParsedFile, outputDir, pkgName string) error {
 	return nil
 }
 
-func generateRegisterFile(parsed []ParsedFile, outputDir, pkgName string) error {
+func generateRegisterFile(parsed []ParsedFile, entryPaths map[string]bool, outputDir, pkgName string) error {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("package %s\n\n", pkgName))
 	b.WriteString("import (\n")
 	b.WriteString("\t\"github.com/php-any/origami/data\"\n")
 	b.WriteString(")\n\n")
-	b.WriteString("// Register 将预编译的 vendor AST 注册到 VM\n")
+	b.WriteString("// Register 将预编译的 AST 注册到 VM\n")
+	b.WriteString("// - entry 文件：注册到 compiledFiles，供 run_php_file() 显式执行\n")
+	b.WriteString("// - 其余文件：直接执行 AST 函数，让类/函数/接口自动挂靠到 VM\n")
 	b.WriteString("func Register(vm data.VM) {\n")
 	for _, pf := range parsed {
 		gen := NewGenerator()
 		funcName := gen.funcNameForPath(pf.Path)
-		b.WriteString(fmt.Sprintf("\tvm.RegisterCompiledFile(%q, func() (data.GetValue, []data.Variable) {\n", pf.Path))
-		b.WriteString(fmt.Sprintf("\t\treturn %s()\n", funcName))
-		b.WriteString("\t})\n")
+		if entryPaths[pf.Path] {
+			// entry 文件：注册到 compiledFiles，仅当 run_php_file() 被调用时才执行
+			b.WriteString(fmt.Sprintf("\tvm.RegisterCompiledFile(%q, func() (data.GetValue, []data.Variable) {\n", pf.Path))
+			b.WriteString(fmt.Sprintf("\t\treturn %s()\n", funcName))
+			b.WriteString("\t})\n")
+		} else {
+			// 声明文件：直接执行，类/函数/接口自动注册进 VM
+			b.WriteString(fmt.Sprintf("\tif program, vars := %s(); program != nil {\n", funcName))
+			b.WriteString("\t\tctx := vm.CreateContext(vars)\n")
+			b.WriteString("\t\tprogram.GetValue(ctx) //nolint:errcheck\n")
+			b.WriteString("\t}\n")
+		}
 	}
 	b.WriteString("}\n")
 

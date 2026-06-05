@@ -35,9 +35,11 @@ func (a *ApplicationClass) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	}, ctx.CreateBaseContext()), nil
 }
 
-func (a *ApplicationClass) GetName() string                            { return "Net\\Annotation\\Application" }
-func (a *ApplicationClass) GetExtend() *string                         { return nil }
-func (a *ApplicationClass) GetImplements() []string                    { return []string{node.TypeFeature} }
+func (a *ApplicationClass) GetName() string    { return "Net\\Annotation\\Application" }
+func (a *ApplicationClass) GetExtend() *string { return nil }
+func (a *ApplicationClass) GetImplements() []string {
+	return []string{node.TypeFeature, node.TypeTargetFunction}
+}
 func (a *ApplicationClass) GetProperty(_ string) (data.Property, bool) { return nil, false }
 func (a *ApplicationClass) GetPropertyList() []data.Property           { return []data.Property{} }
 func (a *ApplicationClass) GetMethod(name string) (data.Method, bool) {
@@ -66,9 +68,6 @@ type Application struct {
 
 // scanningDirs 记录正在扫描中的目录，防止 main.php 在 scan 目录内时递归触发 Scan
 var scanningDirs = make(map[string]bool)
-
-// loadingFiles 记录正在加载中的文件，Scan() 跳过这些文件避免重复注册
-var loadingFiles = make(map[string]bool)
 
 func newApplication() *Application { return &Application{name: "App", port: 8080} }
 
@@ -167,17 +166,6 @@ func (m *ApplicationConstructMethod) Call(ctx data.Context) (data.GetValue, data
 	scanningDirs[scanDir] = true
 	defer func() { delete(scanningDirs, scanDir) }()
 
-	// 标记入口文件为加载中，Scan() 跳过该文件避免重复注册函数/类
-	if fn, ok := m.app.target.(*node.FunctionStatement); ok {
-		if from := fn.GetFrom(); from != nil {
-			entryFile := from.GetSource()
-			if entryFile != "" {
-				loadingFiles[entryFile] = true
-				defer func() { delete(loadingFiles, entryFile) }()
-			}
-		}
-	}
-
 	return nil, m.Scan(ctx)
 }
 
@@ -192,7 +180,7 @@ func (m *ApplicationConstructMethod) BuildBoot(ctx data.Context) []data.GetValue
 	return []data.GetValue{}
 }
 
-// 扫描目录下 *.zy 相关文件
+// Scan 扫描目录下 *.zy 相关文件
 func (m *ApplicationConstructMethod) Scan(ctx data.Context) data.Control {
 	// 递归扫描 m.app.scan（默认 ./src）下的 .zy 文件（包含任意子目录），不做 http.zy 等特殊过滤
 	cwd, err := os.Getwd()
@@ -228,8 +216,9 @@ func (m *ApplicationConstructMethod) Scan(ctx data.Context) data.Control {
 
 	vm := ctx.GetVM()
 	for _, f := range files {
-		// 跳过正在加载中的入口文件，避免重复注册函数/类
-		if loadingFiles[f] {
+		f = utils.NormalizePhpFilePath(f)
+		// 跳过已加载过的文件，避免重复注册函数/类
+		if vm.GetPhpFileCache(f) {
 			continue
 		}
 		if _, acl := vm.LoadAndRun(f); acl != nil {

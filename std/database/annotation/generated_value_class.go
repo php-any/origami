@@ -39,7 +39,7 @@ func (g *GeneratedValueClass) GetExtend() *string {
 }
 
 func (g *GeneratedValueClass) GetImplements() []string {
-	return []string{node.TypeFeature} // 特性注解
+	return []string{node.TypeFeature, node.TypeTargetProperty}
 }
 
 func (g *GeneratedValueClass) GetProperty(name string) (data.Property, bool) {

@@ -20,9 +20,11 @@ func (p *PostMappingClass) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	}, ctx.CreateBaseContext()), nil
 }
 
-func (p *PostMappingClass) GetName() string                            { return "Net\\Annotation\\PostMapping" }
-func (p *PostMappingClass) GetExtend() *string                         { return nil }
-func (p *PostMappingClass) GetImplements() []string                    { return []string{node.TypeFeature} }
+func (p *PostMappingClass) GetName() string    { return "Net\\Annotation\\PostMapping" }
+func (p *PostMappingClass) GetExtend() *string { return nil }
+func (p *PostMappingClass) GetImplements() []string {
+	return []string{node.TypeFeature, node.TypeTargetMethod}
+}
 func (p *PostMappingClass) GetProperty(_ string) (data.Property, bool) { return nil, false }
 func (p *PostMappingClass) GetPropertyList() []data.Property           { return []data.Property{} }
 func (p *PostMappingClass) GetMethod(name string) (data.Method, bool) {

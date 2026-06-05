@@ -35,7 +35,7 @@ func (i *InjectClass) GetExtend() *string {
 }
 
 func (i *InjectClass) GetImplements() []string {
-	return []string{node.TypeMacro} // 宏注解
+	return []string{node.TypeMacro, node.TypeTargetParameter, node.TypeTargetProperty}
 }
 
 func (i *InjectClass) GetProperty(_ string) (data.Property, bool) {

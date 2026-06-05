@@ -54,7 +54,6 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	p.currentClass = className
-	p.vm.SetClassPathCache(className, *p.source)
 
 	var types []data.Types
 	var genericParamNames []string

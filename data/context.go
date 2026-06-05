@@ -61,12 +61,17 @@ type VM interface {
 	SetThrowControl(func(acl Control))
 	ThrowControl(acl Control)
 	LoadAndRun(file string) (GetValue, Control)
-	// RegisterCompiledFile 注册预编译的文件 AST，LoadAndRun 时优先使用
+	// RegisterCompiledFile 注册预编译的文件 AST
 	RegisterCompiledFile(file string, fn func() (GetValue, []Variable))
+	// RunCompiledFile 执行已通过 RegisterCompiledFile 注册的预编译文件；
+	// 仅供 run_php_file() 内建函数调用，普通 LoadAndRun 不走此路径
+	RunCompiledFile(file string) (GetValue, Control)
 	ParseFile(file string, data Value) (Value, Control)
 
-	SetClassPathCache(name, path string)
-	GetClassPathCache(name string) (string, bool)
+	// SetPhpFileCache 标记 PHP 文件已被引入/加载
+	SetPhpFileCache(file string)
+	// GetPhpFileCache 判断 PHP 文件是否已被引入/加载
+	GetPhpFileCache(file string) bool
 
 	// AddNamespace 添加命名空间路径映射（用于 composer autoload 等场景）
 	AddNamespace(namespace string, path string)

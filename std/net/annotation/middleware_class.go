@@ -1,8 +1,6 @@
 package annotation
 
 import (
-	"fmt"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -35,7 +33,7 @@ func (m *MiddlewareClass) GetExtend() *string {
 }
 
 func (m *MiddlewareClass) GetImplements() []string {
-	return []string{node.TypeFeature}
+	return []string{node.TypeFeature, node.TypeRepeatable, node.TypeTargetClass}
 }
 
 // GetProperty 返回动态属性，从 source 中读取 className
@@ -153,7 +151,6 @@ func (m *MiddlewareConstructMethod) Call(ctx data.Context) (data.GetValue, data.
 		if anyT, ok := tv.(*data.AnyValue); ok {
 			if cls, ok := anyT.Value.(*node.ClassStatement); ok {
 				// 注册到控制器中间件
-				fmt.Printf("[DEBUG] MiddlewareConstructMethod: controller=%s, className=%s\n", cls.GetName(), m.middleware.className)
 				AddControllerMiddleware(cls.GetName(), m.middleware.className)
 			}
 		}

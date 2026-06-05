@@ -43,7 +43,7 @@ func generateMainFile(entryFile, outputDir, pkgName string) error {
 	b.WriteString("\n")
 	b.WriteString("\tRegister(vm)\n")
 	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("\t_, err := vm.LoadAndRun(%q)\n", absEntry))
+	b.WriteString(fmt.Sprintf("\t_, err := vm.RunCompiledFile(%q)\n", absEntry))
 	b.WriteString("\tif err != nil {\n")
 	b.WriteString("\t\tfmt.Fprintf(os.Stderr, \"错误: %v\\n\", err)\n")
 	b.WriteString("\t\tos.Exit(1)\n")

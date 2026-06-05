@@ -29,8 +29,7 @@ func parseFiles(files []string) ([]ParsedFile, []error) {
 
 	for _, file := range files {
 		tempVM := runtime.NewTempVM(baseVM).(*runtime.TempVM)
-		clone := p.Clone()
-		clone.SetVM(tempVM)
+		clone := tempVM.PrepareParse(p)
 		program, acl := clone.ParseFile(file)
 		if acl != nil {
 			errs = append(errs, fmt.Errorf("解析 %s 失败: %v", file, acl))

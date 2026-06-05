@@ -13,6 +13,10 @@ import (
 	"github.com/php-any/origami/utils"
 )
 
+func normalizePhpFilePath(file string) string {
+	return utils.NormalizePhpFilePath(file)
+}
+
 // NewVM 创建一个新的虚拟机
 func NewVM(parser *parser.Parser) data.VM {
 	vm := &VM{
@@ -22,7 +26,7 @@ func NewVM(parser *parser.Parser) data.VM {
 		funcMap:       make(map[string]data.FuncStmt),
 		constantMap:   make(map[string]data.Value),
 		globalVars:    make(map[string]*data.ZVal),
-		classPathMap:  make(map[string]string),
+		phpFileCache:  make(map[string]struct{}),
 		compiledFiles: make(map[string]func() (data.GetValue, []data.Variable)),
 		acl: func(acl data.Control) {
 			parser.ShowControl(acl)
@@ -47,8 +51,8 @@ type VM struct {
 	constantMap  map[string]data.Value // 全局常量映射
 	globalVars   map[string]*data.ZVal // 全局变量 ZVal 映射
 
-	// 类解释过程中的缓存, 用于支持循环依赖
-	classPathMap map[string]string
+	// 已引入/加载过的 PHP 文件缓存
+	phpFileCache map[string]struct{}
 
 	acl func(acl data.Control)
 
@@ -79,15 +83,25 @@ func (vm *VM) LeaveCall() {
 	vm.callDepth--
 }
 
-func (vm *VM) SetClassPathCache(name string, path string) {
-	vm.mu.RLock()
-	defer vm.mu.RUnlock()
-	vm.classPathMap[name] = path
+func (vm *VM) SetPhpFileCache(file string) {
+	file = normalizePhpFilePath(file)
+	if file == "" {
+		return
+	}
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+	vm.phpFileCache[file] = struct{}{}
 }
 
-func (vm *VM) GetClassPathCache(name string) (string, bool) {
-	path, ok := vm.classPathMap[name]
-	return path, ok
+func (vm *VM) GetPhpFileCache(file string) bool {
+	file = normalizePhpFilePath(file)
+	if file == "" {
+		return false
+	}
+	vm.mu.RLock()
+	defer vm.mu.RUnlock()
+	_, ok := vm.phpFileCache[file]
+	return ok
 }
 
 // AddNamespace 添加命名空间路径映射到类路径管理器
@@ -167,11 +181,21 @@ func (vm *VM) AddClass(c data.ClassStmt) data.Control {
 	vm.mu.RLock()
 	defer vm.mu.RUnlock()
 	// 检查 interfaceMap、classMap 中是否已存在
-	if _, ok := vm.classMap[c.GetName()]; ok {
-		return data.NewErrorThrow(c.GetFrom(), fmt.Errorf("已存在同名的 class: %s", c.GetName()))
+	if has, ok := vm.classMap[c.GetName()]; ok {
+		cFrom := c.GetFrom()
+		hasFrom := has.GetFrom()
+		if cFrom != nil && hasFrom != nil && utils.SamePhpFile(cFrom.GetSource(), hasFrom.GetSource()) {
+			return nil // 同文件重复引入，跳过
+		}
+		return data.NewErrorThrow(cFrom, fmt.Errorf("已存在同名的 class: %s", c.GetName()))
 	}
-	if _, ok := vm.interfaceMap[c.GetName()]; ok {
-		return data.NewErrorThrow(c.GetFrom(), fmt.Errorf("已存在同名的类或接口: %s", c.GetName()))
+	if has, ok := vm.interfaceMap[c.GetName()]; ok {
+		cFrom := c.GetFrom()
+		hasFrom := has.GetFrom()
+		if cFrom != nil && hasFrom != nil && utils.SamePhpFile(cFrom.GetSource(), hasFrom.GetSource()) {
+			return nil
+		}
+		return data.NewErrorThrow(cFrom, fmt.Errorf("已存在同名的类或接口: %s", c.GetName()))
 	}
 	vm.classMap[c.GetName()] = c
 	return nil
@@ -185,7 +209,7 @@ func (vm *VM) AddInterface(i data.InterfaceStmt) data.Control {
 	if has, ok := vm.classMap[i.GetName()]; ok {
 		iFrom := i.GetFrom()
 		hasFrom := has.GetFrom()
-		if iFrom != nil && hasFrom != nil && iFrom.GetSource() == hasFrom.GetSource() {
+		if iFrom != nil && hasFrom != nil && utils.SamePhpFile(iFrom.GetSource(), hasFrom.GetSource()) {
 			return nil // 同文件不需要报错
 		}
 		return data.NewErrorThrow(iFrom, fmt.Errorf("已存在同名的 interface: %s", i.GetName()))
@@ -193,7 +217,7 @@ func (vm *VM) AddInterface(i data.InterfaceStmt) data.Control {
 	if has, ok := vm.interfaceMap[i.GetName()]; ok {
 		iFrom := i.GetFrom()
 		hasFrom := has.GetFrom()
-		if iFrom != nil && hasFrom != nil && iFrom.GetSource() == hasFrom.GetSource() {
+		if iFrom != nil && hasFrom != nil && utils.SamePhpFile(iFrom.GetSource(), hasFrom.GetSource()) {
 			return nil // 同文件不需要报错
 		}
 		return data.NewErrorThrow(iFrom, fmt.Errorf("已存在同名的类或接口: %s", i.GetName()))
@@ -397,21 +421,35 @@ func (vm *VM) RegisterCompiledFile(file string, fn func() (data.GetValue, []data
 	vm.compiledFiles[file] = fn
 }
 
-func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
-	// 检查预编译注册表
+func (vm *VM) RunCompiledFile(file string) (data.GetValue, data.Control) {
+	file = normalizePhpFilePath(file)
+	if vm.GetPhpFileCache(file) {
+		return nil, nil
+	}
+	vm.SetPhpFileCache(file)
+
 	vm.mu.RLock()
 	fn, ok := vm.compiledFiles[file]
 	vm.mu.RUnlock()
-	if ok {
-		program, vars := fn()
-		ctx := vm.CreateContext(vars)
-		vm.RegisterGlobalContext(vars, ctx)
-		result, ctrl := program.GetValue(ctx)
-		if data.FlushAllBuffersFn != nil {
-			data.FlushAllBuffersFn()
-		}
-		return result, ctrl
+	if !ok {
+		return nil, utils.NewThrowf("run_php_file: 未找到预编译文件 %s", file)
 	}
+	program, vars := fn()
+	ctx := vm.CreateContext(vars)
+	vm.RegisterGlobalContext(vars, ctx)
+	result, ctrl := program.GetValue(ctx)
+	if data.FlushAllBuffersFn != nil {
+		data.FlushAllBuffersFn()
+	}
+	return result, ctrl
+}
+
+func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
+	file = normalizePhpFilePath(file)
+	if vm.GetPhpFileCache(file) {
+		return nil, nil
+	}
+	vm.SetPhpFileCache(file)
 
 	data.ResetUserOutput()
 	// 解析文件

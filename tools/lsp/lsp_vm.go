@@ -27,8 +27,8 @@ type LspVM struct {
 	functionFiles  map[string]string
 	constants      map[string]data.Value // 全局常量映射
 
-	fileSymbols    map[string]*fileSymbolSet
-	classPathCache map[string]string
+	fileSymbols  map[string]*fileSymbolSet
+	phpFileCache map[string]struct{}
 
 	throwControl func(data.Control)
 }
@@ -49,7 +49,7 @@ func NewLspVMWithScanDir(scanDirectory string) *LspVM {
 		functionFiles:  make(map[string]string),
 		constants:      make(map[string]data.Value),
 		fileSymbols:    make(map[string]*fileSymbolSet),
-		classPathCache: make(map[string]string),
+		phpFileCache:   make(map[string]struct{}),
 		throwControl: func(acl data.Control) {
 			if acl != nil {
 				logrus.Errorf("LspVM 错误：%v", acl.AsString())
@@ -91,9 +91,6 @@ func (vm *LspVM) AddClass(c data.ClassStmt) data.Control {
 	vm.classFiles[className] = filePath
 	vm.addSymbolToFileLocked(symbolKindClass, filePath, className)
 
-	if filePath != "" {
-		vm.classPathCache[className] = filePath
-	}
 	return nil
 }
 
@@ -444,22 +441,26 @@ func sendParseErrorDiagnostic(acl data.Control) {
 	logrus.Infof("已发送解析错误诊断：%#v", params)
 }
 
-func (vm *LspVM) SetClassPathCache(name string, path string) {
-	normalized := normalizeFilePath(path)
+func (vm *LspVM) SetPhpFileCache(file string) {
+	normalized := normalizeFilePath(file)
 	if normalized == "" {
 		return
 	}
 
 	vm.mu.Lock()
-	vm.classPathCache[name] = normalized
+	vm.phpFileCache[normalized] = struct{}{}
 	vm.mu.Unlock()
 }
 
-func (vm *LspVM) GetClassPathCache(name string) (string, bool) {
+func (vm *LspVM) GetPhpFileCache(file string) bool {
+	normalized := normalizeFilePath(file)
+	if normalized == "" {
+		return false
+	}
 	vm.mu.RLock()
-	path, ok := vm.classPathCache[name]
+	_, ok := vm.phpFileCache[normalized]
 	vm.mu.RUnlock()
-	return path, ok
+	return ok
 }
 
 // SetConstant 设置全局常量
@@ -494,9 +495,26 @@ func (vm *LspVM) EnsureGlobalZVal(name string) *data.ZVal {
 	}
 }
 
+// AddNamespace 添加命名空间路径映射，LSP 仅为满足接口。
+func (vm *LspVM) AddNamespace(namespace string, path string) {}
+
+// EnterCall 调用深度追踪，LSP 仅为满足接口。
+func (vm *LspVM) EnterCall() int { return 0 }
+
+// LeaveCall 调用深度追踪，LSP 仅为满足接口。
+func (vm *LspVM) LeaveCall() {}
+
+// RegisterCompiledFile LSP 不使用预编译文件，仅为满足接口。
+func (vm *LspVM) RegisterCompiledFile(file string, fn func() (data.GetValue, []data.Variable)) {}
+
+// RunCompiledFile LSP 不执行预编译文件，仅为满足接口。
+func (vm *LspVM) RunCompiledFile(file string) (data.GetValue, data.Control) {
+	return nil, nil
+}
+
 func (vm *LspVM) loadClassFromCache(name string) data.Control {
 	vm.mu.RLock()
-	path, ok := vm.classPathCache[name]
+	path, ok := vm.classFiles[name]
 	vm.mu.RUnlock()
 	if !ok || path == "" {
 		return utils.NewThrowf("class %s not found in cache", name)

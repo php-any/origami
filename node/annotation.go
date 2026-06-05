@@ -8,8 +8,16 @@ import (
 
 // 注解类型常量
 const (
-	TypeFeature = "TypeFeature" // 特性注解
-	TypeMacro   = "TypeMacro"   // 宏注解
+	TypeFeature    = "TypeFeature"    // 特性注解
+	TypeMacro      = "TypeMacro"      // 宏注解
+	TypeRepeatable = "TypeRepeatable" // 可重复使用的注解（对应 Attribute::IS_REPEATABLE）
+
+	// Attribute 目标类型标记（用于 gen-std 生成 TARGET_* 伪代码）
+	TypeTargetClass     = "TypeTargetClass"
+	TypeTargetMethod    = "TypeTargetMethod"
+	TypeTargetProperty  = "TypeTargetProperty"
+	TypeTargetFunction  = "TypeTargetFunction"
+	TypeTargetParameter = "TypeTargetParameter"
 
 	TargetName = "target"
 )

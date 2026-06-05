@@ -74,7 +74,20 @@ func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool,
 		}
 		filePath = filepath.Join(currentDir, filePath)
 	}
-	filePath = filepath.Clean(filePath)
+	filePath = utils.NormalizePhpFilePath(filePath)
+
+	vm := ctx.GetVM()
+	if vm.GetPhpFileCache(filePath) {
+		if once {
+			includeOnceCache.mu.Lock()
+			if cached, ok := includeOnceCache.files[filePath]; ok {
+				includeOnceCache.mu.Unlock()
+				return cached, nil
+			}
+			includeOnceCache.mu.Unlock()
+		}
+		return data.NewBoolValue(true), nil
+	}
 
 	if once {
 		includeOnceCache.mu.Lock()
@@ -106,7 +119,6 @@ func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool,
 		return data.NewBoolValue(false), nil
 	}
 
-	vm := ctx.GetVM()
 	v, acl := vm.LoadAndRun(filePath)
 	if acl != nil {
 		return nil, acl

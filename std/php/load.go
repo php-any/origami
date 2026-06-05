@@ -69,6 +69,7 @@ func Load(vm data.VM) {
 		NewUnserializeFunction(),
 		NewEmptyFunction(),
 		NewEvalFunction(),
+		NewRunPhpFileFunction(),
 		NewStrlenFunction(),
 		NewHashFunction(),
 		NewStrposFunction(),

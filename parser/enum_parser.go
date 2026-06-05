@@ -61,8 +61,6 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 	if p.namespace != nil {
 		enumName = p.namespace.GetName() + "\\" + enumName
 	}
-	p.vm.SetClassPathCache(enumName, *p.source)
-
 	// 解析可选的底层类型: enum Status: string
 	// 当前解析器接受类型标注，但不再依赖其具体值做行为分支（避免 string-only 硬编码）
 	if p.current().Type() == token.COLON {

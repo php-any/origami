@@ -42,7 +42,7 @@ func (c *ColumnClass) GetExtend() *string {
 }
 
 func (c *ColumnClass) GetImplements() []string {
-	return []string{node.TypeFeature} // 特性注解
+	return []string{node.TypeFeature, node.TypeTargetProperty}
 }
 
 func (c *ColumnClass) GetProperty(name string) (data.Property, bool) {

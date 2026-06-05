@@ -339,8 +339,8 @@ func (m *DefaultClassPathManager) LoadClass(className string, parser *Parser) da
 		return data.TryErrorThrow(parser.newFrom(), fmt.Errorf("类 %s 不存在或无法加载", className))
 	}
 
-	// 如果类/接口已经记录了所在文件，并且与当前待加载文件一致，则认为该文件已加载过，避免重复解析
-	if _, ok := parser.vm.GetClassPathCache(className); ok {
+	// 文件已加载过时，若类/接口已注册则直接返回，避免重复解析
+	if parser.vm.GetPhpFileCache(filePath) {
 		if _, ok := parser.vm.GetClass(className); ok {
 			return nil
 		}
@@ -348,7 +348,6 @@ func (m *DefaultClassPathManager) LoadClass(className string, parser *Parser) da
 			return nil
 		}
 	}
-	parser.vm.SetClassPathCache(className, filePath)
 	// 加载文件
 	_, acl := parser.vm.LoadAndRun(filePath)
 	if acl != nil {

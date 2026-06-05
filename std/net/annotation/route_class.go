@@ -28,7 +28,7 @@ func (r *RouteClass) GetExtend() *string {
 }
 
 func (r *RouteClass) GetImplements() []string {
-	return []string{node.TypeFeature} // 特性注解
+	return []string{node.TypeFeature, node.TypeTargetClass}
 }
 
 func (r *RouteClass) GetProperty(_ string) (data.Property, bool) {

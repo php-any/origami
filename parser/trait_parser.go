@@ -51,8 +51,6 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 		traitName = p.namespace.GetName() + "\\" + traitName
 	}
 
-	p.vm.SetClassPathCache(traitName, *p.source)
-
 	// trait 不支持泛型、继承和接口实现
 	// 解析 trait 体
 	if p.current().Type() != token.LBRACE {

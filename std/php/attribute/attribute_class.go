@@ -58,6 +58,8 @@ func (c *AttributeClass) GetStaticProperty(name string) (data.Value, bool) {
 		return data.NewIntValue(32), true
 	case "TARGET_ALL":
 		return data.NewIntValue(63), true
+	case "IS_REPEATABLE":
+		return data.NewIntValue(64), true
 	}
 	return nil, false
 }
@@ -126,4 +128,5 @@ const (
 	TARGET_CLASS_CONSTANT = 16 // 可以应用于类常量
 	TARGET_PARAMETER      = 32 // 可以应用于参数
 	TARGET_ALL            = 63 // 可以应用于所有目标
+	IS_REPEATABLE         = 64 // 允许在同一目标上重复使用
 )

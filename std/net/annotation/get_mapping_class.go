@@ -27,7 +27,7 @@ func (g *GetMappingClass) GetExtend() *string {
 }
 
 func (g *GetMappingClass) GetImplements() []string {
-	return []string{node.TypeFeature} // 特性注解
+	return []string{node.TypeFeature, node.TypeTargetMethod}
 }
 
 func (g *GetMappingClass) GetProperty(_ string) (data.Property, bool) {

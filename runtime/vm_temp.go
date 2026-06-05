@@ -86,10 +86,22 @@ func (vm *TempVM) CreateContext(vars []data.Variable) data.Context {
 	return ctx
 }
 
-func (vm *TempVM) LoadAndRun(file string) (data.GetValue, data.Control) {
-	p := vm.Base.parser.Clone()
+// PrepareParse 克隆 Parser 并绑定到本 TempVM，供解析阶段 GetOrLoadClass 等使用。
+func (vm *TempVM) PrepareParse(base *parser.Parser) *parser.Parser {
+	p := base.Clone()
 	p.SetVM(vm)
 	vm.parser = p
+	return p
+}
+
+func (vm *TempVM) LoadAndRun(file string) (data.GetValue, data.Control) {
+	file = normalizePhpFilePath(file)
+	if vm.Base.GetPhpFileCache(file) {
+		return nil, nil
+	}
+	vm.Base.SetPhpFileCache(file)
+
+	p := vm.PrepareParse(vm.Base.parser)
 
 	program, acl := p.ParseFile(file)
 	if acl != nil {
@@ -212,9 +224,9 @@ func (vm *TempVM) RegisterReflectClass(name string, instance interface{}) data.C
 }
 func (vm *TempVM) SetThrowControl(fn func(acl data.Control)) { vm.Base.SetThrowControl(fn) }
 func (vm *TempVM) ThrowControl(acl data.Control)             { vm.Base.ThrowControl(acl) }
-func (vm *TempVM) SetClassPathCache(name, path string)       { vm.Base.SetClassPathCache(name, path) }
-func (vm *TempVM) GetClassPathCache(name string) (string, bool) {
-	return vm.Base.GetClassPathCache(name)
+func (vm *TempVM) SetPhpFileCache(file string)               { vm.Base.SetPhpFileCache(file) }
+func (vm *TempVM) GetPhpFileCache(file string) bool {
+	return vm.Base.GetPhpFileCache(file)
 }
 
 // AddNamespace 添加命名空间路径映射（委托给 Base VM，因为命名空间映射是全局共享的）
@@ -258,4 +270,9 @@ func (vm *TempVM) LeaveCall() {
 // RegisterCompiledFile 注册预编译的文件 AST（委托给 Base VM）
 func (vm *TempVM) RegisterCompiledFile(file string, fn func() (data.GetValue, []data.Variable)) {
 	vm.Base.RegisterCompiledFile(file, fn)
+}
+
+// RunCompiledFile 执行预编译文件（委托给 Base VM）
+func (vm *TempVM) RunCompiledFile(file string) (data.GetValue, data.Control) {
+	return vm.Base.RunCompiledFile(file)
 }

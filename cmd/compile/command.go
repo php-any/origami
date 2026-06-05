@@ -3,6 +3,7 @@ package compile
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/php-any/origami/data"
 	"github.com/spf13/cobra"
@@ -74,6 +75,12 @@ func runCompileCommand(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("找到 %d 个 PHP 文件，开始解析...\n", len(files))
 
+	// 解析 --entry 为规范路径集合（支持文件或目录）
+	entryPaths, err := resolveEntryPaths(compileEntry)
+	if err != nil {
+		return fmt.Errorf("解析 --entry 失败: %w", err)
+	}
+
 	parsed, parseErrs := parseFiles(files)
 	if len(parseErrs) > 0 {
 		for _, e := range parseErrs {
@@ -84,16 +91,24 @@ func runCompileCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("没有文件解析成功")
 	}
 
-	fmt.Printf("成功解析 %d 个文件\n", len(parsed))
+	fmt.Printf("成功解析 %d 个文件（其中 entry %d 个）\n", len(parsed), len(entryPaths))
 
-	if err := generateOutput(parsed, compileOutput, compilePkg); err != nil {
+	if err := generateOutput(parsed, entryPaths, compileOutput, compilePkg); err != nil {
 		return fmt.Errorf("生成失败: %w", err)
 	}
 
 	fmt.Printf("已生成 Go 包到 %s\n", compileOutput)
 
 	if compileBuild {
-		if err := generateMainFile(compileEntry, compileOutput, compilePkg); err != nil {
+		if compileEntry == "" {
+			return fmt.Errorf("--build 模式需要指定 --entry 参数")
+		}
+		// --build 时 entry 必须是单个文件
+		entryFile, err := resolveSingleEntry(compileEntry)
+		if err != nil {
+			return fmt.Errorf("--build 模式 --entry 需要指定单个 PHP 文件: %w", err)
+		}
+		if err := generateMainFile(entryFile, compileOutput, compilePkg); err != nil {
 			return fmt.Errorf("生成 main.go 失败: %w", err)
 		}
 		if err := buildBinary(compileOutput); err != nil {
@@ -103,4 +118,51 @@ func runCompileCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// resolveEntryPaths 解析 --entry 参数，支持单文件或目录，返回规范路径集合。
+// 若 entry 为空，返回空 map（无 entry 文件）。
+func resolveEntryPaths(entry string) (map[string]bool, error) {
+	result := make(map[string]bool)
+	if entry == "" {
+		return result, nil
+	}
+	info, err := os.Stat(entry)
+	if err != nil {
+		return nil, fmt.Errorf("路径不存在: %s", entry)
+	}
+	if info.IsDir() {
+		files, err := collectPhpFiles(entry)
+		if err != nil {
+			return nil, err
+		}
+		for _, f := range files {
+			abs, err := filepath.Abs(f)
+			if err != nil {
+				return nil, err
+			}
+			result[abs] = true
+			result[f] = true // 同时保留相对路径，方便匹配
+		}
+	} else {
+		abs, err := filepath.Abs(entry)
+		if err != nil {
+			return nil, err
+		}
+		result[abs] = true
+		result[entry] = true
+	}
+	return result, nil
+}
+
+// resolveSingleEntry 确保 --build entry 是单个文件，返回其路径。
+func resolveSingleEntry(entry string) (string, error) {
+	info, err := os.Stat(entry)
+	if err != nil {
+		return "", fmt.Errorf("路径不存在: %s", entry)
+	}
+	if info.IsDir() {
+		return "", fmt.Errorf("%s 是目录，--build 模式需要指定单个入口文件", entry)
+	}
+	return entry, nil
 }
