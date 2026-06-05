@@ -1,0 +1,9 @@
+{
+    "name": "origami/spring-example",
+    "description": "Origami Spring 风格示例",
+    "autoload": {
+        "psr-4": {
+            "Spring\\": "src/"
+        }
+    }
+}

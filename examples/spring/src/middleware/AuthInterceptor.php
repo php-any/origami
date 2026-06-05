@@ -3,7 +3,7 @@
 namespace Spring\Middleware;
 
 /**
- * 认证拦截器 - 实现 Spring 风格的中间件生命周期
+ * 认证拦截器 - 实现洋葱模型中间件
  *
  * 使用方式：
  * #[Middleware(AuthInterceptor::class)]
@@ -19,15 +19,18 @@ class AuthInterceptor {
     ];
 
     /**
-     * 前置处理 - 在控制器方法执行前调用
-     * 返回 false 可以中断请求
+     * 洋葱模型中间件处理
+     *
+     * @param $request  请求对象
+     * @param $response 响应对象
+     * @param $next     调用下一个中间件或控制器的回调
      */
-    public function preHandle($request, $response) {
+    public function handle($request, $response, $next) {
         $path = $request->path();
 
         // 检查是否需要排除
         if ($this->shouldExclude($path)) {
-            return true;
+            return $next($request, $response);
         }
 
         // 获取 Authorization header
@@ -39,7 +42,7 @@ class AuthInterceptor {
                 "message" => "未提供认证令牌",
                 "data" => null
             ]);
-            return false; // 中断请求
+            return; // 不调用 $next，中断请求
         }
 
         // 验证 token（简化示例）
@@ -49,24 +52,15 @@ class AuthInterceptor {
                 "message" => "无效的认证令牌",
                 "data" => null
             ]);
-            return false; // 中断请求
+            return; // 不调用 $next，中断请求
         }
 
         echo "[Auth] 认证通过: " . $path . "\n";
-        return true;
-    }
 
-    /**
-     * 后置处理 - 在控制器方法执行后调用
-     */
-    public function postHandle($request, $response) {
-        echo "[Auth] 后置处理完成\n";
-    }
+        // 调用下一个中间件或控制器
+        $next($request, $response);
 
-    /**
-     * 完成处理 - 整个请求完成后调用
-     */
-    public function afterCompletion($request, $response) {
+        // 后置处理（洋葱回溯阶段）
         echo "[Auth] 请求处理完成\n";
     }
 

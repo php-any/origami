@@ -60,20 +60,8 @@ func (h *ServerFlashMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 			reqProxy := data.NewProxyValue(request, ctx)
 			resProxy := data.NewProxyValue(response, ctx)
 
-			// 执行控制器级拦截器 preHandle
-			if !executePreHandle(vm, ctx, rt.Middlewares, reqProxy, resProxy) {
-				return
-			}
-
-			// 执行控制器方法
-			var lastACL data.Control
-			executeControllerMethod(rt, reqProxy, resProxy, ctx, &lastACL)
-
-			// 执行控制器级拦截器 postHandle
-			executePostHandle(vm, ctx, rt.Middlewares, reqProxy, resProxy)
-
-			// 执行控制器级拦截器 afterCompletion
-			executeAfterCompletion(vm, ctx, rt.Middlewares, reqProxy, resProxy)
+			// 使用洋葱模型执行中间件链 + 控制器
+			executeMiddlewareChain(vm, ctx, rt, reqProxy, resProxy)
 		})
 
 		// 包装服务器级中间件

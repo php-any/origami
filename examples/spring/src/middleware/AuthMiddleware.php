@@ -4,9 +4,9 @@ namespace Spring\Middleware;
 
 /**
  * 认证中间件示例
- * 
+ *
  * 使用方法（在 index.php 中）：
- * $server->middleware([new AuthMiddleware(), 'handle']);
+ * $server->middleware(new AuthMiddleware());
  */
 class AuthMiddleware {
     

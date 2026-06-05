@@ -19,7 +19,7 @@ func NewServerClassFromGroup(prefix string, server *ServerClass) data.ClassStmt 
 		Prefix:      prefix,
 		Host:        server.Host,
 		Port:        server.Port,
-		Middlewares: append([]Middleware{}, server.Middlewares...),
+		Middlewares: append([]MiddlewareFunc{}, server.Middlewares...),
 	}
 }
 
@@ -31,7 +31,7 @@ type ServerClass struct {
 
 	Host        string
 	Port        int
-	Middlewares []Middleware
+	Middlewares []MiddlewareFunc
 }
 
 func (s *ServerClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {

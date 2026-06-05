@@ -19,7 +19,8 @@
       "Bash(netstat -ano)",
       "Bash(awk '{print $5}')",
       "Bash(xargs -I {} taskkill //F //PID {})",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(git stash *)"
     ]
   }
 }

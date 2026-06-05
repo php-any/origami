@@ -17,10 +17,10 @@ func newHandler(v data.FuncStmt, ctx data.Context) (Handler, error) {
 	return Handler{Value: v, Ctx: ctx.CreateContext(v.GetVariables())}, nil
 }
 
-// Middleware 定义：接收下一个 http.Handler，返回包装后的 http.Handler
-type Middleware func(http.Handler) http.Handler
+// MiddlewareFunc 定义：接收下一个 http.Handler，返回包装后的 http.Handler
+type MiddlewareFunc func(http.Handler) http.Handler
 
-func newMiddleware(v data.FuncStmt, ctx data.Context) (Middleware, error) {
+func newMiddleware(v data.FuncStmt, ctx data.Context) (MiddlewareFunc, error) {
 	if len(v.GetVariables()) < 3 {
 		return nil, errors.New("invalid variable definition")
 	}
@@ -46,7 +46,7 @@ func newMiddleware(v data.FuncStmt, ctx data.Context) (Middleware, error) {
 	}, nil
 }
 
-func applyMiddlewares(final http.Handler, middlewares []Middleware) http.Handler {
+func applyMiddlewares(final http.Handler, middlewares []MiddlewareFunc) http.Handler {
 	h := final
 	for i := len(middlewares) - 1; i >= 0; i-- {
 		h = middlewares[i](h)

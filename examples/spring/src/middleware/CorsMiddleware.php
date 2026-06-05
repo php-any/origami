@@ -4,9 +4,9 @@ namespace Spring\Middleware;
 
 /**
  * CORS 中间件示例
- * 
+ *
  * 使用方法（在 index.php 中）：
- * $server->middleware([new CorsMiddleware(), 'handle']);
+ * $server->middleware(new CorsMiddleware());
  */
 class CorsMiddleware {
     

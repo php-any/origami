@@ -3,7 +3,7 @@
 namespace Spring\Middleware;
 
 /**
- * 日志拦截器 - 记录请求日志
+ * 日志拦截器 - 记录请求日志（洋葱模型）
  *
  * 使用方式：
  * #[Middleware(LogInterceptor::class)]
@@ -13,26 +13,24 @@ namespace Spring\Middleware;
 class LogInterceptor {
 
     /**
-     * 前置处理 - 记录请求开始
+     * 洋葱模型中间件处理
+     *
+     * @param $request  请求对象
+     * @param $response 响应对象
+     * @param $next     调用下一个中间件或控制器的回调
      */
-    public function preHandle($request, $response) {
+    public function handle($request, $response, $next) {
         $method = $request->method();
         $path = $request->path();
+
+        // 前置处理
         echo "[LOG] >>> {$method} {$path}\n";
-        return true;
-    }
 
-    /**
-     * 后置处理 - 记录响应状态
-     */
-    public function postHandle($request, $response) {
+        // 调用下一个中间件或控制器
+        $next($request, $response);
+
+        // 后置处理（洋葱回溯阶段）
         echo "[LOG] <<< 响应完成\n";
-    }
-
-    /**
-     * 完成处理 - 记录请求结束
-     */
-    public function afterCompletion($request, $response) {
         echo "[LOG] === 请求处理结束\n";
     }
 }
