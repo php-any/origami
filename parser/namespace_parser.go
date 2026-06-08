@@ -26,18 +26,27 @@ func (np *NamespaceParser) Parse() (data.GetValue, data.Control) {
 	tracker := np.StartTracking()
 	np.next()
 
-	// 解析命名空间名称
-	var name string = np.current().Literal()
-	if name == "" {
-		return nil, data.NewErrorThrow(np.newFrom(), fmt.Errorf("命名空间名称不能为空"))
+	// 解析可选的命名空间名称（namespace Foo; / namespace Foo { }）
+	var name string
+	if np.current().Type() == token.IDENTIFIER {
+		name = np.current().Literal()
+		np.next()
 	}
 
-	np.AddScanNamespace(name, filepath.Dir(*np.source))
+	if name != "" {
+		np.AddScanNamespace(name, filepath.Dir(*np.source))
+	}
 
 	// 解析命名空间体
 	statements := make([]data.GetValue, 0)
 	from := tracker.EndBefore()
 	np.namespace = node.NewNamespace(from, name, statements)
+
+	// namespace Foo; 声明式语法
+	if np.current().Type() == token.SEMICOLON {
+		np.next()
+		return np.namespace, nil
+	}
 
 	if np.current().Type() == token.LBRACE {
 		np.next() // 跳过 {
