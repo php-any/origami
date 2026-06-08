@@ -409,6 +409,18 @@ func CallAutoLoad(name string, ctx data.Context) (bool, data.Control) {
 			return false, acl
 		}
 
+		// 调用完回调后，优先检查类/接口是否已经被成功加载。
+		// 这与 PHP 行为保持一致：autoload 回调通常不返回值，
+		// 但只要 side effect 定义了对应类，就算加载成功。
+		if vm := ctx.GetVM(); vm != nil {
+			if _, ok := vm.GetClass(name); ok {
+				return true, nil
+			}
+			if _, ok := vm.GetInterface(name); ok {
+				return true, nil
+			}
+		}
+
 		if b, ok := v.(*data.BoolValue); ok {
 			if !b.Value {
 				continue
