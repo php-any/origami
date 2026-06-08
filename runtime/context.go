@@ -103,10 +103,11 @@ func (c *Context) SetVariableValue(variable data.Variable, value data.Value) dat
 		// 避免 `$b = $this->a; $b['k']=...` 反向修改到 `$this->a`（Symfony InputDefinition::$arguments 等场景）。
 		c.variables[variable.GetIndex()].Value = data.CloneObjectValue(v)
 	default:
-		if len(c.variables) <= variable.GetIndex() {
+		idx := variable.GetIndex()
+		if len(c.variables) <= idx {
 			return data.NewErrorThrow(variable.(node.GetFrom).GetFrom(), errors.New("index out of range"))
 		}
-		c.variables[variable.GetIndex()].Value = value
+		c.variables[idx].Value = value
 	}
 
 	return nil

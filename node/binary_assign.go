@@ -21,6 +21,51 @@ func NewBinaryAssign(from data.From, left, right data.GetValue) BinaryExpression
 			Left:  l,
 			Right: right,
 		}
+	case *VariableExpression:
+		// 解析阶段模式识别：对常见整数赋值模式发出 VarFastAssign 节点。
+		// 统一使用单一具体类型，保证接口调用位点单态（monomorphic）；
+		// 预提取变量索引与字面量值，运行时快速路径无节点类型断言。
+		switch r := right.(type) {
+		case *VariableExpression:
+			return &VarFastAssign{
+				Node:   NewNode(from),
+				Dst:    l,
+				DstIdx: l.Index,
+				LhsIdx: r.Index, // src 变量索引存入 LhsIdx
+				Slow:   right,
+				op:     vfaOpCopy,
+			}
+		case *BinaryMul:
+			lhsIdx, lhsLit := preExtract(r.Left)
+			rhsIdx, rhsLit := preExtract(r.Right)
+			return &VarFastAssign{
+				Node:   NewNode(from),
+				Dst:    l,
+				DstIdx: l.Index,
+				LhsIdx: lhsIdx,
+				RhsIdx: rhsIdx,
+				LhsLit: lhsLit,
+				RhsLit: rhsLit,
+				Slow:   right,
+				op:     vfaOpMul,
+			}
+		case *BinaryAdd:
+			lhsIdx, lhsLit := preExtract(r.Left)
+			rhsIdx, rhsLit := preExtract(r.Right)
+			return &VarFastAssign{
+				Node:   NewNode(from),
+				Dst:    l,
+				DstIdx: l.Index,
+				LhsIdx: lhsIdx,
+				RhsIdx: rhsIdx,
+				LhsLit: lhsLit,
+				RhsLit: rhsLit,
+				Slow:   right,
+				op:     vfaOpAdd,
+			}
+		default:
+			return &BinaryAssignVariable{Node: NewNode(from), Left: l, Right: right}
+		}
 	case data.Variable:
 		return &BinaryAssignVariable{
 			Node:  NewNode(from),

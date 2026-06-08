@@ -10,12 +10,19 @@ type BinaryLe struct {
 	Right data.GetValue
 }
 
-func NewBinaryLe(from data.From, left, right data.GetValue) *BinaryLe {
-	return &BinaryLe{
-		Node:  NewNode(from),
-		Left:  left,
-		Right: right,
+func NewBinaryLe(from data.From, left, right data.GetValue) data.GetValue {
+	le := &BinaryLe{Node: NewNode(from), Left: left, Right: right}
+	// 解析阶段模式识别：$var <= IntLiteral 是 for 循环条件最常见形式，
+	// 发出 VarIntLe 节点，实现 BoolTest 接口，允许 ForStatement 绕过
+	// BoolValue 分配直接获取 bool 值。
+	if ve, ok := left.(*VariableExpression); ok {
+		if lit, ok := right.(*IntLiteral); ok {
+			if iv, ok := lit.V.(*data.IntValue); ok {
+				return &VarIntLe{Node: NewNode(from), VarIdx: ve.Index, Lit: iv.Value, Le: le}
+			}
+		}
 	}
+	return le
 }
 
 func (b *BinaryLe) GetValue(ctx data.Context) (data.GetValue, data.Control) {

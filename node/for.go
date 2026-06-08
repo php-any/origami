@@ -19,22 +19,36 @@ func (u *ForStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 	for {
 		// 判断条件
 		if u.Condition != nil {
-			condValue, ctl := u.Condition.GetValue(ctx)
-			if ctl != nil {
-				return nil, ctl
-			}
-			shouldContinue := true
-			if boolValue, ok := condValue.(data.AsBool); ok {
-				b, err := boolValue.AsBool()
-				if err != nil {
-					return nil, data.NewErrorThrow(u.from, err)
+			// 快速路径：实现了 BoolTest 的节点（如 VarIntLe）直接返回 bool，
+			// 无需分配 *BoolValue，适合 for 循环计数器场景。
+			if bt, ok := u.Condition.(BoolTest); ok {
+				shouldContinue, ctl := bt.testBool(ctx)
+				if ctl != nil {
+					return nil, ctl
 				}
-				shouldContinue = b
+				if !shouldContinue {
+					break
+				}
 			} else {
-				shouldContinue = condValue != nil
-			}
-			if !shouldContinue {
-				break
+				condValue, ctl := u.Condition.GetValue(ctx)
+				if ctl != nil {
+					return nil, ctl
+				}
+				shouldContinue := true
+				if bv, ok := condValue.(*data.BoolValue); ok {
+					shouldContinue = bv.Value
+				} else if boolValue, ok := condValue.(data.AsBool); ok {
+					b, err := boolValue.AsBool()
+					if err != nil {
+						return nil, data.NewErrorThrow(u.from, err)
+					}
+					shouldContinue = b
+				} else {
+					shouldContinue = condValue != nil
+				}
+				if !shouldContinue {
+					break
+				}
 			}
 		}
 
@@ -86,6 +100,13 @@ type ForStatement struct {
 
 // NewForStatement 创建一个新的for语句
 func NewForStatement(token *TokenFrom, initializers []data.GetValue, condition data.GetValue, increments []data.GetValue, body []data.GetValue) *ForStatement {
+	// 解析阶段优化：for 循环的增量表达式返回值始终被丢弃（`_, ctl := increment.GetValue(ctx)`），
+	// 将 VarPostIncr（1 次分配）替换为 VarStmtIncr（原地改写，0 次分配）。
+	for i, inc := range increments {
+		if vpi, ok := inc.(*VarPostIncr); ok {
+			increments[i] = &VarStmtIncr{Node: vpi.Node, VarIdx: vpi.VarIdx, Fallback: vpi.Fallback}
+		}
+	}
 	return &ForStatement{
 		Node:         NewNode(token),
 		Initializers: initializers,

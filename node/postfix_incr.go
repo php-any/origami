@@ -12,7 +12,13 @@ type PostfixIncr struct {
 	Left  data.GetValue
 }
 
-func NewPostfixIncr(from data.From, left data.GetValue) *PostfixIncr {
+func NewPostfixIncr(from data.From, left data.GetValue) data.GetValue {
+	// 解析阶段模式识别：当左侧是简单变量时，发出 VarPostIncr 专用节点。
+	// 预提取 ZVal 索引，运行时快速路径无需节点类型断言。
+	if ve, ok := left.(*VariableExpression); ok {
+		fb := &PostfixIncr{Node: NewNode(from), Left: left}
+		return &VarPostIncr{Node: NewNode(from), VarIdx: ve.Index, Var: ve, Fallback: fb}
+	}
 	return &PostfixIncr{
 		Node: NewNode(from),
 		Left: left,
