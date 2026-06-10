@@ -14,16 +14,11 @@ use Spring\Middleware\LogInterceptor;
 #[Controller]
 #[Route(prefix: "/api")]
 class AuthController {
-    
-    private $authService;
 
-    private function getAuthService() {
-        if ($this->authService === null) {
-            $this->authService = new AuthService();
-        }
-        return $this->authService;
-    }
-    
+    public function __construct(
+        private AuthService $authService,
+    ) {}
+
     #[PostMapping(path: "/auth/login")]
     public function login($request, $response) {
         $body = $request->body();
@@ -36,9 +31,9 @@ class AuthController {
             ]);
             return;
         }
-        
-        $result = $this->getAuthService()->login($body['username'], $body['password']);
-        
+
+        $result = $this->authService->login($body['username'], $body['password']);
+
         if (!$result['success']) {
             $response->status(401)->json([
                 "code" => 401,
@@ -47,7 +42,7 @@ class AuthController {
             ]);
             return;
         }
-        
+
         $response->json([
             "code" => 200,
             "message" => "登录成功",
@@ -57,11 +52,11 @@ class AuthController {
             ]
         ]);
     }
-    
+
     #[PostMapping(path: "/auth/register")]
     public function register($request, $response) {
         $body = $request->body();
-        
+
         if (!isset($body['username']) || !isset($body['password']) || !isset($body['email'])) {
             $response->status(400)->json([
                 "code" => 400,
@@ -70,9 +65,9 @@ class AuthController {
             ]);
             return;
         }
-        
-        $result = $this->getAuthService()->register($body);
-        
+
+        $result = $this->authService->register($body);
+
         if (!$result['success']) {
             $response->status(400)->json([
                 "code" => 400,
@@ -81,19 +76,18 @@ class AuthController {
             ]);
             return;
         }
-        
+
         $response->status(201)->json([
             "code" => 201,
             "message" => "注册成功",
             "data" => $result['user']
         ]);
     }
-    
+
     #[GetMapping(path: "/auth/profile")]
     public function profile($request, $response) {
-        // 从请求头获取 token
         $token = $request->header('Authorization', '');
-        
+
         if (empty($token)) {
             $response->status(401)->json([
                 "code" => 401,
@@ -102,10 +96,9 @@ class AuthController {
             ]);
             return;
         }
-        
-        // 验证 token（简化示例，实际应使用 JWT 等）
-        $user = $this->getAuthService()->verifyToken($token);
-        
+
+        $user = $this->authService->verifyToken($token);
+
         if (!$user) {
             $response->status(401)->json([
                 "code" => 401,
@@ -114,14 +107,14 @@ class AuthController {
             ]);
             return;
         }
-        
+
         $response->json([
             "code" => 200,
             "message" => "success",
             "data" => $user
         ]);
     }
-    
+
     #[PostMapping(path: "/auth/logout")]
     public function logout($request, $response) {
         $response->json([

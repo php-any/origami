@@ -112,6 +112,18 @@ class Server {
     }
 
     /**
+     * boot 方法（加载 #[Application] 引导类并注册注解路由）
+     *
+     * 单应用场景：传入引导类 FQCN，扫描范围由类上的 #[Application(scan: ...)] 声明。
+     * 多应用场景请使用 flash() 扫描目录下多个 main.php。
+     *
+     * @param string $application 引导类名，如 SpringApplication::class
+     */
+    public function boot(string $application) {
+        // 实现逻辑
+    }
+
+    /**
      * group 方法
      * 
      */

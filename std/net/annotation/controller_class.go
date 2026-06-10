@@ -172,23 +172,20 @@ func (m *ControllerConstructMethod) Call(ctx data.Context) (data.GetValue, data.
 					return P + path
 				}
 
-				controllerInst, acl := node.InstantiateController(cls, ctx)
-				if acl != nil {
-					return nil, acl
-				}
+				RegisterDeferredController(cls.GetName(), cls, ctx)
 				classValue := data.NewClassValue(cls, ctx)
 
 				appendRoute := func(method, path string, target data.Method) {
-					receiver := controllerInst
+					var staticReceiver data.GetValue
 					if target.GetIsStatic() {
-						receiver = classValue
+						staticReceiver = classValue
 					}
 					AddPendingRoute(PendingRoute{
 						Method:         method,
 						Path:           path,
 						Target:         target,
-						Receiver:       receiver,
 						ControllerName: cls.GetName(),
+						StaticReceiver: staticReceiver,
 					})
 				}
 

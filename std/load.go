@@ -3,6 +3,7 @@ package std
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/std/channel"
+	"github.com/php-any/origami/std/container"
 	"github.com/php-any/origami/std/database"
 	"github.com/php-any/origami/std/exception"
 	"github.com/php-any/origami/std/log"
@@ -36,4 +37,5 @@ func Load(vm data.VM) {
 	channel.Load(vm)
 	loop.Load(vm)
 	database.Load(vm)
+	container.Load(vm)
 }

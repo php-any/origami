@@ -2,8 +2,10 @@
 
 namespace Spring\Service;
 
+use Container\Singleton;
 use Spring\Model\User;
 
+#[Singleton]
 class AuthService {
     
     private $users = [];

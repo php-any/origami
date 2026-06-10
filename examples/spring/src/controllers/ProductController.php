@@ -18,20 +18,15 @@ use Spring\Middleware\LogInterceptor;
 #[Controller]
 #[Route(prefix: "/api")]
 class ProductController {
-    
-    private $productService;
 
-    private function getProductService() {
-        if ($this->productService === null) {
-            $this->productService = new ProductService();
-        }
-        return $this->productService;
-    }
-    
+    public function __construct(
+        private ProductService $productService,
+    ) {}
+
     #[GetMapping(path: "/products")]
     public function listProducts($request, $response) {
-        $products = $this->getProductService()->findAll();
-        
+        $products = $this->productService->findAll();
+
         $response->header("Content-Type", "application/json; charset=utf-8");
         $response->json([
             "code" => 200,
@@ -40,12 +35,12 @@ class ProductController {
             "total" => count($products)
         ]);
     }
-    
+
     #[GetMapping(path: "/product/{id}")]
     public function getProduct($request, $response) {
         $id = (int)$request->pathValue('id');
-        $product = $this->getProductService()->findById($id);
-        
+        $product = $this->productService->findById($id);
+
         if (!$product) {
             $response->status(404)->json([
                 "code" => 404,
@@ -54,19 +49,18 @@ class ProductController {
             ]);
             return;
         }
-        
+
         $response->json([
             "code" => 200,
             "message" => "success",
             "data" => $product
         ]);
     }
-    
+
     #[PostMapping(path: "/products")]
     public function createProduct($request, $response) {
         $body = $request->body();
-        
-        // 简单验证
+
         if (!isset($body['name']) || !isset($body['price'])) {
             $response->status(400)->json([
                 "code" => 400,
@@ -75,23 +69,23 @@ class ProductController {
             ]);
             return;
         }
-        
-        $product = $this->getProductService()->create($body);
-        
+
+        $product = $this->productService->create($body);
+
         $response->status(201)->json([
             "code" => 201,
             "message" => "created",
             "data" => $product
         ]);
     }
-    
+
     #[PutMapping(path: "/product/{id}")]
     public function updateProduct($request, $response) {
         $id = (int)$request->pathValue('id');
         $body = $request->body();
-        
-        $product = $this->getProductService()->update($id, $body);
-        
+
+        $product = $this->productService->update($id, $body);
+
         if (!$product) {
             $response->status(404)->json([
                 "code" => 404,
@@ -100,19 +94,19 @@ class ProductController {
             ]);
             return;
         }
-        
+
         $response->json([
             "code" => 200,
             "message" => "updated",
             "data" => $product
         ]);
     }
-    
+
     #[DeleteMapping(path: "/product/{id}")]
     public function deleteProduct($request, $response) {
         $id = (int)$request->pathValue('id');
-        $result = $this->getProductService()->delete($id);
-        
+        $result = $this->productService->delete($id);
+
         if (!$result) {
             $response->status(404)->json([
                 "code" => 404,
@@ -121,21 +115,21 @@ class ProductController {
             ]);
             return;
         }
-        
+
         $response->json([
             "code" => 200,
             "message" => "deleted",
             "data" => null
         ]);
     }
-    
+
     #[GetMapping(path: "/products/search")]
     public function searchProducts($request, $response) {
         $keyword = $request->input('keyword') ?? '';
         $category = $request->input('category') ?? '';
-        
-        $products = $this->getProductService()->search($keyword, $category);
-        
+
+        $products = $this->productService->search($keyword, $category);
+
         $response->json([
             "code" => 200,
             "message" => "success",

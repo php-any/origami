@@ -9,7 +9,7 @@ func TestPathToFuncSuffix(t *testing.T) {
 	}{
 		{"user/login.php", "User_Login"},
 		{"user_login.php", "UserLogin"},
-		{"examples/spring/src/config/AppConfig.php", "Examples_Spring_Src_Config_AppConfig"},
+		{"examples/spring/src/config/DatabaseBootstrap.php", "Examples_Spring_Src_Config_DatabaseBootstrap"},
 		{"examples/spring/index.php", "Examples_Spring_Index"},
 	}
 	for _, tt := range tests {

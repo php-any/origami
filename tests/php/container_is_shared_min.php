@@ -1,16 +1,10 @@
 <?php
-class MiniContainer {
-    protected array $instances = [];
-    protected array $bindings = [];
 
-    public function isShared(string $abstract): bool {
-        return isset($this->instances[$abstract]) ||
-               (isset($this->bindings[$abstract]['shared']) &&
-               $this->bindings[$abstract]['shared'] === true);
-    }
-}
-
-$c = new MiniContainer();
+$c = \Container\Container::getInstance();
 $abstract = 'App\\Http\\Kernel';
-$r = $c->isShared($abstract);
-echo "isShared=" . ($r ? '1' : '0') . "\n";
+
+if ($c->isShared($abstract)) {
+    echo "isShared=1\n";
+} else {
+    echo "isShared=0\n";
+}

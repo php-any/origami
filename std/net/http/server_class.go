@@ -53,6 +53,8 @@ func (s *ServerClass) GetMethod(name string) (data.Method, bool) {
 		return &ServerAnyMethod{server: s}, true
 	case "flash":
 		return &ServerFlashMethod{server: s}, true
+	case "boot":
+		return &ServerBootMethod{server: s}, true
 	case "group":
 		return &ServerGroupMethod{server: s}, true
 	case "middleware":
@@ -78,6 +80,7 @@ func (s *ServerClass) GetMethods() []data.Method {
 		&ServerStaticMethod{server: s},
 		&ServerAnyMethod{server: s},
 		&ServerFlashMethod{server: s},
+		&ServerBootMethod{server: s},
 		&ServerGroupMethod{server: s},
 		&ServerMiddlewareMethod{server: s},
 		&ServerRunMethod{server: s},

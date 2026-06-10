@@ -16,18 +16,13 @@ use Spring\Middleware\LogInterceptor;
 #[Route(prefix: "/api")]
 class UserController {
 
-    private $userService;
-
-    private function getUserService() {
-        if ($this->userService === null) {
-            $this->userService = new UserService();
-        }
-        return $this->userService;
-    }
+    public function __construct(
+        private UserService $userService,
+    ) {}
 
     #[GetMapping(path: "/users")]
     public function users($request, $response) {
-        $users = $this->getUserService()->findAll();
+        $users = $this->userService->findAll();
         $userArray = array_map(function($user) {
             return $user->toArray();
         }, $users);
@@ -43,7 +38,7 @@ class UserController {
     #[GetMapping(path: "/user/{id}")]
     public function user($request, $response) {
         $id = (int)$request->pathValue('id');
-        $user = $this->getUserService()->findById($id);
+        $user = $this->userService->findById($id);
         if (!$user) {
             $response->status(404)->json([
                 "code" => 404,
@@ -70,7 +65,7 @@ class UserController {
             ]);
             return;
         }
-        $user = $this->getUserService()->create($body);
+        $user = $this->userService->create($body);
         $response->status(201)->json([
             "code" => 201,
             "message" => "created",

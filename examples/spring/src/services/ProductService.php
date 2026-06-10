@@ -2,9 +2,11 @@
 
 namespace Spring\Service;
 
+use Container\Singleton;
 use Database\DB;
 use Spring\Model\Entity\ProductEntity;
 
+#[Singleton]
 class ProductService {
 
     private function db() {

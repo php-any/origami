@@ -236,6 +236,18 @@ func (m *ApplicationConstructMethod) Scan(ctx data.Context) data.Control {
 		return utils.NewThrow(err)
 	}
 
+	var scanCleanup func()
+	if OnApplicationScanStart != nil {
+		var startACL data.Control
+		scanCleanup, startACL = OnApplicationScanStart(ctx)
+		if startACL != nil {
+			return startACL
+		}
+	}
+	if scanCleanup != nil {
+		defer scanCleanup()
+	}
+
 	vm := ctx.GetVM()
 	for _, f := range files {
 		f = utils.NormalizePhpFilePath(f)
@@ -247,6 +259,5 @@ func (m *ApplicationConstructMethod) Scan(ctx data.Context) data.Control {
 		}
 	}
 
-	RegisterPendingRoutes(vm)
-	return nil
+	return RegisterPendingRoutes(vm)
 }

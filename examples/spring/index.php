@@ -1,12 +1,15 @@
 <?php
 
 use Net\Http\Server;
-use Spring\Config\AppConfig;
 use Spring\Middleware\CorsMiddleware;
+use Spring\SpringApplication;
 
 require __DIR__ . '/vendor/autoload.php';
 
-$server = new Server(AppConfig::SERVER_HOST, port: AppConfig::SERVER_PORT);
+$host = '0.0.0.0';
+$port = 8080;
+
+$server = new Server($host, port: $port);
 
 // CORS 中间件
 $server->middleware(new CorsMiddleware());
@@ -28,11 +31,10 @@ $server->middleware(function ($request, $response, $next) {
 // 静态资源：CSS / JS
 $server->static("/assets/", __DIR__ . "/pages/assets");
 
-// 扫描路由并触发 SpringApplication::boot()
-$routes = $server->flash(__DIR__ . '/src');
+// 加载引导类（#[Application] 声明扫描范围；扫描完成后自动调用 SpringApplication::boot()）
+$routes = $server->boot(SpringApplication::class);
 
-$host = AppConfig::SERVER_HOST === '0.0.0.0' ? '127.0.0.1' : AppConfig::SERVER_HOST;
-Log::info("HTTP 服务监听: http://" . $host . ":" . AppConfig::SERVER_PORT);
+Log::info("HTTP 服务监听: http://" . $host . ":" . $port);
 Log::info("已注册路由 (" . count($routes) . " 条):");
 foreach ($routes as $route) {
     $method = str_pad($route['method'], 7);

@@ -473,6 +473,27 @@ func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	return result, ctrl
 }
 
+func bindTemplateVariables(ctx data.Context, varList []data.Variable, props map[string]data.Value) {
+	for name, value := range props {
+		for _, variable := range varList {
+			if variable.GetName() == name {
+				variable.SetValue(ctx, value)
+			}
+		}
+	}
+}
+
+func templatePropsFromArray(arr *data.ArrayValue) map[string]data.Value {
+	props := make(map[string]data.Value)
+	for _, z := range arr.List {
+		if z == nil || z.Name == "" {
+			continue
+		}
+		props[z.Name] = z.Value
+	}
+	return props
+}
+
 func (vm *VM) ParseFile(file string, object data.Value) (data.Value, data.Control) {
 	// 解析文件
 	p := vm.parser.Clone()
@@ -486,21 +507,12 @@ func (vm *VM) ParseFile(file string, object data.Value) (data.Value, data.Contro
 	ctx := vm.CreateContext(varList)
 	switch v := object.(type) {
 	case *data.ObjectValue:
-		for name, value := range v.GetProperties() {
-			for _, variable := range varList {
-				if variable.GetName() == name {
-					variable.SetValue(ctx, value)
-				}
-			}
-		}
+		bindTemplateVariables(ctx, varList, v.GetProperties())
 	case *data.ClassValue:
-		for name, value := range v.GetProperties() {
-			for _, variable := range varList {
-				if variable.GetName() == name {
-					variable.SetValue(ctx, value)
-				}
-			}
-		}
+		bindTemplateVariables(ctx, varList, v.GetProperties())
+	case *data.ArrayValue:
+		// 关联数组（字符串键）与 object 一样按名注入；纯数字下标不映射到模板变量
+		bindTemplateVariables(ctx, varList, templatePropsFromArray(v))
 	default:
 		return nil, utils.NewThrowf("DIY解析文件无法设置指定值到文件域, file(%s)", file)
 	}
