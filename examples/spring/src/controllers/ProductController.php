@@ -131,8 +131,8 @@ class ProductController {
     
     #[GetMapping(path: "/products/search")]
     public function searchProducts($request, $response) {
-        $keyword = $request->query('keyword', '');
-        $category = $request->query('category', '');
+        $keyword = $request->input('keyword') ?? '';
+        $category = $request->input('category') ?? '';
         
         $products = $this->getProductService()->search($keyword, $category);
         

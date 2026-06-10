@@ -15,7 +15,8 @@ class AuthInterceptor {
     private $excludePaths = [
         '/api/auth/login',
         '/api/auth/register',
-        '/api/hello'
+        '/api/hello',
+        '/api/queries',
     ];
 
     /**

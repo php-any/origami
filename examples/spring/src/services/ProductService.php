@@ -2,141 +2,101 @@
 
 namespace Spring\Service;
 
-use Spring\Model\Product;
+use Database\DB;
+use Spring\Model\Entity\ProductEntity;
 
 class ProductService {
-    
-    private $products = [];
-    
-    public function __construct() {
-        // 初始化示例数据
-        $this->products = [
-            1 => new Product(1, "iPhone 15 Pro", 7999.00, "电子产品", "Apple 最新旗舰手机"),
-            2 => new Product(2, "MacBook Pro 14", 14999.00, "电子产品", "专业级笔记本电脑"),
-            3 => new Product(3, "AirPods Pro", 1899.00, "电子产品", "无线降噪耳机"),
-            4 => new Product(4, "iPad Air", 4799.00, "电子产品", "轻薄平板电脑"),
-            5 => new Product(5, "机械键盘", 599.00, "配件", "Cherry 轴机械键盘")
-        ];
+
+    private function db() {
+        return DB::model(ProductEntity::class);
     }
-    
-    /**
-     * 获取所有商品
-     */
+
     public function findAll() {
-        return array_values($this->products);
+        $entities = $this->db()->orderBy("id ASC")->get();
+        return QueryDemoService::entitiesToArray($entities);
     }
-    
-    /**
-     * 根据 ID 查找商品
-     */
+
     public function findById($id) {
-        return $this->products[$id] ?? null;
-    }
-    
-    /**
-     * 创建新商品
-     */
-    public function create($data) {
-        $id = count($this->products) + 1;
-        
-        $name = $data['name'] ?? '';
-        $price = (float)($data['price'] ?? 0);
-        $category = $data['category'] ?? '未分类';
-        $description = $data['description'] ?? '';
-        
-        $product = new Product($id, $name, $price, $category, $description);
-        $this->products[$id] = $product;
-        
-        return $product;
-    }
-    
-    /**
-     * 更新商品信息
-     */
-    public function update($id, $data) {
-        if (!isset($this->products[$id])) {
+        $entity = $this->db()->where("id = ?", $id)->first();
+        if (!$entity) {
             return null;
         }
-        
-        $product = $this->products[$id];
-        
+        return $entity->toArray();
+    }
+
+    public function create($data) {
+        $entity = new ProductEntity();
+        $entity->name = $data['name'] ?? '';
+        $entity->price = (float)($data['price'] ?? 0);
+        $entity->category = $data['category'] ?? '未分类';
+        $entity->description = $data['description'] ?? '';
+
+        $result = DB::insert($entity);
+        $entity->id = $result->insertId;
+
+        return $entity->toArray();
+    }
+
+    public function update($id, $data) {
+        if (!$this->db()->where("id = ?", $id)->first()) {
+            return null;
+        }
+
+        $entity = new ProductEntity();
         if (isset($data['name'])) {
-            $product->setName($data['name']);
+            $entity->name = $data['name'];
         }
         if (isset($data['price'])) {
-            $product->setPrice((float)$data['price']);
+            $entity->price = (float)$data['price'];
         }
         if (isset($data['category'])) {
-            $product->setCategory($data['category']);
+            $entity->category = $data['category'];
         }
         if (isset($data['description'])) {
-            $product->setDescription($data['description']);
+            $entity->description = $data['description'];
         }
-        
-        return $product;
+
+        $this->db()->where("id = ?", $id)->update($entity);
+        return $this->findById($id);
     }
-    
-    /**
-     * 删除商品
-     */
+
     public function delete($id) {
-        if (!isset($this->products[$id])) {
+        if (!$this->db()->where("id = ?", $id)->first()) {
             return false;
         }
-        
-        unset($this->products[$id]);
+        $this->db()->where("id = ?", $id)->delete();
         return true;
     }
-    
-    /**
-     * 搜索商品
-     */
+
     public function search($keyword = '', $category = '') {
-        $results = [];
-        
-        foreach ($this->products as $product) {
-            $matchKeyword = empty($keyword) || 
-                           stripos($product->getName(), $keyword) !== false ||
-                           stripos($product->getDescription(), $keyword) !== false;
-            
-            $matchCategory = empty($category) || 
-                            $product->getCategory() === $category;
-            
-            if ($matchKeyword && $matchCategory) {
-                $results[] = $product;
-            }
+        $query = $this->db();
+
+        if (!empty($keyword) && !empty($category)) {
+            $query = $query->where(
+                "(name LIKE ? OR description LIKE ?) AND category = ?",
+                "%" . $keyword . "%",
+                "%" . $keyword . "%",
+                $category
+            );
+        } elseif (!empty($keyword)) {
+            $query = $query->where("name LIKE ? OR description LIKE ?", "%" . $keyword . "%", "%" . $keyword . "%");
+        } elseif (!empty($category)) {
+            $query = $query->where("category = ?", $category);
         }
-        
-        return $results;
+
+        return QueryDemoService::entitiesToArray($query->orderBy("id ASC")->get());
     }
-    
-    /**
-     * 按分类获取商品
-     */
+
     public function findByCategory($category) {
-        $results = [];
-        
-        foreach ($this->products as $product) {
-            if ($product->getCategory() === $category) {
-                $results[] = $product;
-            }
-        }
-        
-        return $results;
+        $entities = $this->db()->where("category = ?", $category)->orderBy("price DESC")->get();
+        return QueryDemoService::entitiesToArray($entities);
     }
-    
-    /**
-     * 获取价格区间内的商品
-     */
+
     public function findByPriceRange($minPrice, $maxPrice) {
-        $results = [];
-        
-        foreach ($this->products as $product) {
-            if ($product->getPrice() >= $minPrice && $product->getPrice() <= $maxPrice) {
-                $results[] = $product;
-            }
-        }
-        
-        return $results;
+        $entities = $this->db()
+            ->where("price >= ? AND price <= ?", $minPrice, $maxPrice)
+            ->orderBy("price ASC")
+            ->get();
+        return QueryDemoService::entitiesToArray($entities);
     }
 }

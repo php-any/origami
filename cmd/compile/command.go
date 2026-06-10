@@ -84,8 +84,9 @@ func runCompileCommand(cmd *cobra.Command, args []string) error {
 	parsed, parseErrs := parseFiles(files)
 	if len(parseErrs) > 0 {
 		for _, e := range parseErrs {
-			fmt.Fprintf(os.Stderr, "警告: %v\n", e)
+			fmt.Fprintf(os.Stderr, "解析失败: %v\n", e)
 		}
+		return fmt.Errorf("有 %d 个文件解析失败，编译终止", len(parseErrs))
 	}
 	if len(parsed) == 0 {
 		return fmt.Errorf("没有文件解析成功")

@@ -167,6 +167,48 @@ func (ds *DatabaseScanner) ScanRowsToInstances(rows *sql.Rows, classStmt data.Cl
 	return instances, nil
 }
 
+// MapObjectToInstance 将单行对象（sql 查询结果）映射为实体实例。
+func (ds *DatabaseScanner) MapObjectToInstance(row *data.ObjectValue, classStmt data.ClassStmt, ctx data.Context) (*data.ClassValue, data.Control) {
+	if row == nil {
+		return nil, utils.NewThrow(errors.New("行数据不能为空"))
+	}
+
+	columnMap := make(map[string]data.Value)
+	row.RangeProperties(func(key string, val data.Value) bool {
+		columnMap[key] = val
+		return true
+	})
+
+	instance := data.NewClassValue(classStmt, ctx)
+	for _, property := range classStmt.GetPropertyList() {
+		propertyName := property.GetName()
+		value := ds.matchColumnValue(columnMap, classStmt, propertyName)
+		instance.SetProperty(propertyName, value)
+	}
+	return instance, nil
+}
+
+func (ds *DatabaseScanner) matchColumnValue(columnMap map[string]data.Value, classStmt data.ClassStmt, propertyName string) data.Value {
+	if value, exists := columnMap[propertyName]; exists {
+		return value
+	}
+
+	annotationColumnName := getColumnName(classStmt, propertyName)
+	if annotationColumnName != propertyName {
+		if value, exists := columnMap[annotationColumnName]; exists {
+			return value
+		}
+	}
+
+	if value, exists := columnMap[ds.toCamelCase(propertyName)]; exists {
+		return value
+	}
+	if value, exists := columnMap[ds.toSnakeCase(propertyName)]; exists {
+		return value
+	}
+	return data.NewNullValue()
+}
+
 // convertToValue 将数据库值转换为脚本值
 func (ds *DatabaseScanner) convertToValue(val interface{}) data.Value {
 	if val == nil {

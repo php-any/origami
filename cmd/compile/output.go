@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -56,7 +57,7 @@ func generateRegisterFile(parsed []ParsedFile, entryPaths map[string]bool, outpu
 	}
 	b.WriteString("}\n")
 
-	return os.WriteFile(filepath.Join(outputDir, "register.go"), []byte(b.String()), 0644)
+	return writeFormattedGoFile(filepath.Join(outputDir, "register.go"), []byte(b.String()))
 }
 
 func generateASTFiles(parsed []ParsedFile, outputDir, pkgName string) error {
@@ -74,7 +75,10 @@ func generateASTFiles(parsed []ParsedFile, outputDir, pkgName string) error {
 
 	for _, pf := range parsed {
 		gen := NewGenerator()
-		code := gen.Generate(pf)
+		code, err := gen.Generate(pf)
+		if err != nil {
+			return err
+		}
 		imports := map[string]bool{
 			"github.com/php-any/origami/data": true,
 			"github.com/php-any/origami/node": true,
@@ -86,15 +90,20 @@ func generateASTFiles(parsed []ParsedFile, outputDir, pkgName string) error {
 		var b strings.Builder
 		b.WriteString(fmt.Sprintf("package %s\n\n", pkgName))
 		b.WriteString("import (\n")
+		impList := make([]string, 0, len(imports))
 		for imp := range imports {
+			impList = append(impList, imp)
+		}
+		sort.Strings(impList)
+		for _, imp := range impList {
 			b.WriteString(fmt.Sprintf("\t%q\n", imp))
 		}
 		b.WriteString(")\n\n")
 		b.WriteString(code)
 
 		outPath := filepath.Join(outputDir, gen.goFileNameForPath(pf.Path))
-		if err := os.WriteFile(outPath, []byte(b.String()), 0644); err != nil {
-			return fmt.Errorf("写入 %s 失败: %w", outPath, err)
+		if err := writeFormattedGoFile(outPath, []byte(b.String())); err != nil {
+			return err
 		}
 	}
 	return nil

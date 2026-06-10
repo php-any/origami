@@ -16,30 +16,15 @@ func (d *DbBindMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, utils.NewThrow(errors.New("缺少模型类名参数"))
 	}
 	className := a0.(data.AsString).AsString()
-	if className == "" {
-		return nil, utils.NewThrow(errors.New("模型类名不能为空"))
-	}
 
-	vm := ctx.GetVM()
-	classStmt, acl := vm.GetOrLoadClass(className)
-	if acl != nil {
-		return nil, acl
-	}
-	if classStmt == nil {
-		return nil, utils.NewThrowf("找不到类 %s", className)
-	}
-
-	source := &db{
-		model: data.Class{Name: classStmt.GetName()},
-	}
-	if connName, ok := ctx.GetIndexValue(1); ok {
-		if connNameStr, ok := connName.(data.AsString); ok {
-			source.setConnectionName(connNameStr.AsString())
+	connName := ""
+	if conn, ok := ctx.GetIndexValue(1); ok {
+		if connStr, ok := conn.(data.AsString); ok {
+			connName = connStr.AsString()
 		}
 	}
 
-	newDBClass := (&DBClass{}).CloneWithSource(source)
-	return data.NewClassValue(newDBClass, vm.CreateContext([]data.Variable{})), nil
+	return newBuilderValue(ctx, className, connName)
 }
 
 func (d *DbBindMethod) GetName() string {

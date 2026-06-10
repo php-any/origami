@@ -2,120 +2,72 @@
 
 namespace Spring\Service;
 
-use Spring\Model\User;
+use Database\DB;
+use Spring\Model\Entity\UserEntity;
 
 class UserService {
-    
-    private $users = [];
-    
-    public function __construct() {
-        // 初始化示例数据
-        $this->users = [
-            1 => new User(1, "张三", "zhangsan@example.com", 25),
-            2 => new User(2, "李四", "lisi@example.com", 30),
-            3 => new User(3, "王五", "wangwu@example.com", 28)
-        ];
+
+    private function db() {
+        return DB::model(UserEntity::class);
     }
-    
-    /**
-     * 获取所有用户
-     */
+
     public function findAll() {
-        return array_values($this->users);
+        return $this->db()->orderBy("id ASC")->get();
     }
-    
-    /**
-     * 根据 ID 查找用户
-     */
+
     public function findById($id) {
-        return $this->users[$id] ?? null;
+        return $this->db()->where("id = ?", $id)->first();
     }
-    
-    /**
-     * 根据邮箱查找用户
-     */
+
     public function findByEmail($email) {
-        foreach ($this->users as $user) {
-            if ($user->getEmail() === $email) {
-                return $user;
-            }
-        }
-        return null;
+        return $this->db()->where("email = ?", $email)->first();
     }
-    
-    /**
-     * 创建新用户
-     */
+
     public function create($data) {
-        $id = count($this->users) + 1;
-        
-        $name = $data['name'] ?? '';
-        $email = $data['email'] ?? '';
-        $age = $data['age'] ?? 0;
-        
-        $user = new User($id, $name, $email, $age);
-        $this->users[$id] = $user;
-        
-        return $user;
+        $entity = new UserEntity();
+        $entity->name = $data['name'] ?? '';
+        $entity->email = $data['email'] ?? '';
+        $entity->age = (int)($data['age'] ?? 0);
+
+        $result = DB::insert($entity);
+        $entity->id = $result->insertId;
+
+        return $entity;
     }
-    
-    /**
-     * 更新用户信息
-     */
+
     public function update($id, $data) {
-        if (!isset($this->users[$id])) {
+        $existing = $this->findById($id);
+        if (!$existing) {
             return null;
         }
-        
-        $user = $this->users[$id];
-        
+
+        $entity = new UserEntity();
         if (isset($data['name'])) {
-            $user->setName($data['name']);
+            $entity->name = $data['name'];
         }
         if (isset($data['email'])) {
-            $user->setEmail($data['email']);
+            $entity->email = $data['email'];
         }
         if (isset($data['age'])) {
-            $user->setAge($data['age']);
+            $entity->age = (int)$data['age'];
         }
-        
-        return $user;
+
+        $this->db()->where("id = ?", $id)->update($entity);
+        return $this->findById($id);
     }
-    
-    /**
-     * 删除用户
-     */
+
     public function delete($id) {
-        if (!isset($this->users[$id])) {
+        if (!$this->findById($id)) {
             return false;
         }
-        
-        unset($this->users[$id]);
+        $this->db()->where("id = ?", $id)->delete();
         return true;
     }
-    
-    /**
-     * 搜索用户
-     */
+
     public function search($keyword, $field = 'name') {
-        $results = [];
-        
-        foreach ($this->users as $user) {
-            $value = '';
-            switch ($field) {
-                case 'name':
-                    $value = $user->getName();
-                    break;
-                case 'email':
-                    $value = $user->getEmail();
-                    break;
-            }
-            
-            if (stripos($value, $keyword) !== false) {
-                $results[] = $user;
-            }
+        if ($field === 'email') {
+            return $this->db()->where("email LIKE ?", "%" . $keyword . "%")->get();
         }
-        
-        return $results;
+        return $this->db()->where("name LIKE ?", "%" . $keyword . "%")->get();
     }
 }

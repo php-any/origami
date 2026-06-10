@@ -3,7 +3,6 @@ package annotation
 import (
 	"errors"
 
-	"github.com/php-any/origami/runtime"
 	"github.com/php-any/origami/utils"
 
 	"os"
@@ -11,17 +10,21 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/runtime"
 )
 
 // ApplicationClass 应用入口注解（类似 Spring Boot 应用入口）
-// 默认作为“特性注解”，但构造函数声明了 target，调度器会按需注入被注解的 AST 目标
+// 标注引导类，在 flash / app 加载时扫描控制器、调用 boot()，并将 exit() 注册为 shutdown 回调。
+//
 // 用法示例：
-// @Application(name: "DemoApp", port: 8081, scan: ["App\\Controller\\"])
-// class Main {}
+//
+//	#[Application(name: "DemoApp", scan: __DIR__)]
+//	class DemoApplication {
+//	    public static function boot(): void { ... }
+//	    public static function exit(): void { ... }
+//	}
 type ApplicationClass struct {
 	node.Node
-	process   data.Method
-	register  data.Method
 	construct data.Method
 }
 
@@ -29,8 +32,6 @@ func (a *ApplicationClass) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	source := newApplication()
 
 	return data.NewClassValue(&ApplicationClass{
-		process:   &ApplicationProcessMethod{source},
-		register:  &ApplicationRegisterMethod{source},
 		construct: &ApplicationConstructMethod{source},
 	}, ctx.CreateBaseContext()), nil
 }
@@ -38,23 +39,18 @@ func (a *ApplicationClass) GetValue(ctx data.Context) (data.GetValue, data.Contr
 func (a *ApplicationClass) GetName() string    { return "Net\\Annotation\\Application" }
 func (a *ApplicationClass) GetExtend() *string { return nil }
 func (a *ApplicationClass) GetImplements() []string {
-	return []string{node.TypeFeature, node.TypeTargetFunction}
+	return []string{node.TypeFeature, node.TypeTargetClass}
 }
 func (a *ApplicationClass) GetProperty(_ string) (data.Property, bool) { return nil, false }
 func (a *ApplicationClass) GetPropertyList() []data.Property           { return []data.Property{} }
 func (a *ApplicationClass) GetMethod(name string) (data.Method, bool) {
-	switch name {
-	case "process":
-		return a.process, true
-	case "register":
-		return a.register, true
-	case "__construct":
+	if name == "__construct" {
 		return a.construct, true
 	}
 	return nil, false
 }
 func (a *ApplicationClass) GetMethods() []data.Method {
-	return []data.Method{a.process, a.register, a.construct}
+	return []data.Method{a.construct}
 }
 func (a *ApplicationClass) GetConstruct() data.Method { return a.construct }
 
@@ -63,7 +59,7 @@ type Application struct {
 	name   string
 	port   int64
 	scan   string
-	target any // 被注解的目标（通常是类）
+	target any // 被注解的引导类
 }
 
 // scanningDirs 记录正在扫描中的目录，防止 main.php 在 scan 目录内时递归触发 Scan
@@ -71,7 +67,6 @@ var scanningDirs = make(map[string]bool)
 
 func newApplication() *Application { return &Application{name: "App", port: 8080} }
 
-// 构造函数：接收参数与 target（如存在）
 type ApplicationConstructMethod struct{ app *Application }
 
 func (m *ApplicationConstructMethod) GetName() string            { return "__construct" }
@@ -111,7 +106,6 @@ func (m *ApplicationConstructMethod) Call(ctx data.Context) (data.GetValue, data
 		m.app.port = int64(v.Value)
 	}
 
-	// 获取 scan 参数
 	scanSpecified := false
 	if scan, ok := ctx.GetIndexValue(2); ok && scan != nil {
 		if anyV, ok := scan.(*data.StringValue); ok {
@@ -126,33 +120,20 @@ func (m *ApplicationConstructMethod) Call(ctx data.Context) (data.GetValue, data
 		}
 	}
 
-	// 若未指定 scan，则从 target 函数的文件路径推导
 	if !scanSpecified {
-		switch fn := m.app.target.(type) {
-		case *node.FunctionStatement:
-			if from := fn.GetFrom(); from != nil {
+		if cls, ok := m.app.target.(*node.ClassStatement); ok {
+			if from := cls.GetFrom(); from != nil {
 				filePath := from.GetSource()
 				if filePath != "" {
-					dir := filepath.Dir(filePath)
-					m.app.scan = filepath.Join(dir, "controllers")
+					m.app.scan = filepath.Dir(filePath)
 				}
 			}
 		}
-		// 兜底默认值
 		if m.app.scan == "" {
-			m.app.scan = "./src/controllers"
+			m.app.scan = "./src"
 		}
 	}
 
-	// 若被标注的是函数 main，则在函数体首部注入一次性启动逻辑调用：__spring_bootstrap($request, $response)
-	switch fn := m.app.target.(type) {
-	case *node.FunctionStatement:
-		fn.Body = append(m.BuildBoot(ctx), fn.Body...)
-	}
-
-	// 防止重入：当 main.php 在 scan 目录内时，Scan() 会再次加载 main.php，
-	// 触发 #[Application] 构造函数，此时应跳过重复扫描。
-	// 使用 per-directory map 支持多个独立 Application 共存。
 	scanDir := m.app.scan
 	if !filepath.IsAbs(scanDir) {
 		cwd, _ := os.Getwd()
@@ -160,29 +141,70 @@ func (m *ApplicationConstructMethod) Call(ctx data.Context) (data.GetValue, data
 	}
 	scanDir = filepath.Clean(scanDir)
 
+	// main.php 位于 scan 目录内时，Scan 会再次加载本文件；此处跳过后续扫描与 boot，保证生命周期只执行一次。
 	if scanningDirs[scanDir] {
 		return nil, nil
 	}
 	scanningDirs[scanDir] = true
 	defer func() { delete(scanningDirs, scanDir) }()
 
-	return nil, m.Scan(ctx)
-}
-
-func (m *ApplicationConstructMethod) BuildBoot(ctx data.Context) []data.GetValue {
-	if runtime.SupportsHTTPRoutes(ctx.GetVM()) {
-		return []data.GetValue{
-			&RegisterRoute{
-				vm: ctx.GetVM(),
-			},
-		}
+	if acl := m.Scan(ctx); acl != nil {
+		return nil, acl
 	}
-	return []data.GetValue{}
+	if acl := m.invokeBoot(ctx); acl != nil {
+		return nil, acl
+	}
+	m.registerExit(ctx)
+	return nil, nil
 }
 
-// Scan 扫描目录下 *.zy 相关文件
+func (m *ApplicationConstructMethod) invokeBoot(ctx data.Context) data.Control {
+	cls, ok := m.app.target.(*node.ClassStatement)
+	if !ok {
+		return nil
+	}
+
+	baseCtx := ctx.CreateBaseContext()
+	cv := data.NewClassValue(cls, baseCtx)
+
+	method, has := cls.GetStaticMethod("boot")
+	if !has {
+		return nil
+	}
+
+	fnCtx := cv.CreateContext(method.GetVariables())
+	_, acl := method.Call(fnCtx)
+	return acl
+}
+
+func (m *ApplicationConstructMethod) registerExit(ctx data.Context) {
+	cls, ok := m.app.target.(*node.ClassStatement)
+	if !ok {
+		return
+	}
+
+	method, has := cls.GetStaticMethod("exit")
+	if !has {
+		return
+	}
+
+	fn, acl := node.NewStaticMethodFuncValue(cls, method).GetValue(ctx)
+	if acl != nil {
+		return
+	}
+	fv, ok := fn.(*data.FuncValue)
+	if !ok {
+		return
+	}
+
+	vm, ok := ctx.GetVM().(*runtime.VM)
+	if !ok {
+		return
+	}
+	vm.AddShutdownCallback(fv)
+}
+
 func (m *ApplicationConstructMethod) Scan(ctx data.Context) data.Control {
-	// 递归扫描 m.app.scan（默认 ./src）下的 .zy 文件（包含任意子目录），不做 http.zy 等特殊过滤
 	cwd, err := os.Getwd()
 	if err != nil {
 		return utils.NewThrow(err)
@@ -217,7 +239,6 @@ func (m *ApplicationConstructMethod) Scan(ctx data.Context) data.Control {
 	vm := ctx.GetVM()
 	for _, f := range files {
 		f = utils.NormalizePhpFilePath(f)
-		// 跳过已加载过的文件，避免重复注册函数/类
 		if vm.GetPhpFileCache(f) {
 			continue
 		}
@@ -226,34 +247,6 @@ func (m *ApplicationConstructMethod) Scan(ctx data.Context) data.Control {
 		}
 	}
 
-	// 所有文件加载完成后，注册待处理的路由（包含中间件信息）
 	RegisterPendingRoutes(vm)
-
 	return nil
-}
-
-// 处理方法（保留占位，供框架在启动时选择性触发）
-type ApplicationProcessMethod struct{ app *Application }
-
-func (m *ApplicationProcessMethod) GetName() string               { return "process" }
-func (m *ApplicationProcessMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *ApplicationProcessMethod) GetIsStatic() bool             { return false }
-func (m *ApplicationProcessMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
-func (m *ApplicationProcessMethod) GetVariables() []data.Variable { return []data.Variable{} }
-func (m *ApplicationProcessMethod) GetReturnType() data.Types     { return data.NewBaseType("string") }
-func (m *ApplicationProcessMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewStringValue("Application processed: " + m.app.name), nil
-}
-
-// 注册方法（保留占位，供框架在启动时选择性触发）
-type ApplicationRegisterMethod struct{ app *Application }
-
-func (m *ApplicationRegisterMethod) GetName() string               { return "register" }
-func (m *ApplicationRegisterMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *ApplicationRegisterMethod) GetIsStatic() bool             { return false }
-func (m *ApplicationRegisterMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
-func (m *ApplicationRegisterMethod) GetVariables() []data.Variable { return []data.Variable{} }
-func (m *ApplicationRegisterMethod) GetReturnType() data.Types     { return data.NewBaseType("string") }
-func (m *ApplicationRegisterMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewStringValue("Application registered on port " + data.NewIntValue(int(m.app.port)).AsString()), nil
 }

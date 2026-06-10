@@ -50,7 +50,7 @@ func generateMainFile(entryFile, outputDir, pkgName string) error {
 	b.WriteString("\t}\n")
 	b.WriteString("}\n")
 
-	return os.WriteFile(filepath.Join(outputDir, "main.go"), []byte(b.String()), 0644)
+	return writeFormattedGoFile(filepath.Join(outputDir, "main.go"), []byte(b.String()))
 }
 
 // buildBinary 调用 go build 编译为二进制

@@ -114,7 +114,7 @@ func (m *ControllerConstructMethod) GetReturnType() data.Types {
 func (m *ControllerConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	vm := ctx.GetVM()
 	if !runtime.SupportsHTTPRoutes(vm) {
-		return nil, utils.NewThrow(errors.New("@Controller 注解只能在 app() 内加载"))
+		return nil, utils.NewThrow(errors.New("@Controller 注解需在引导类 flash 扫描时加载"))
 	}
 	// 读取 name
 	a0, ok := ctx.GetIndexValue(0)

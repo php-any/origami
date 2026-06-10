@@ -32,20 +32,7 @@ func (d *DbExecMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, utils.NewThrow(errors.New("SQL 语句必须是字符串"))
 	}
 
-	// 获取参数
-	var args []interface{}
-	if paramValue, ok := ctx.GetIndexValue(1); ok {
-		if paramArray, ok := paramValue.(*data.ArrayValue); ok {
-			valueList := paramArray.ToValueList()
-			args = make([]interface{}, len(valueList))
-			for i, param := range valueList {
-				args[i] = ConvertValueToGoType(param)
-			}
-		} else {
-			// 单个参数
-			args = []interface{}{ConvertValueToGoType(paramValue)}
-		}
-	}
+	args := collectBindArgs(ctx, 1)
 
 	// 执行 SQL 语句
 	result, err := conn.Exec(sqlStr, args...)
@@ -89,15 +76,15 @@ func (d *DbExecMethod) GetIsStatic() bool {
 
 func (d *DbExecMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameter(nil, "sql", 0, nil, data.NewBaseType("string")),
-		node.NewParameter(nil, "params", 1, data.NewNullValue(), data.NewBaseType("array")),
+		data.NewParameter("sql", 0),
+		node.NewParameters(nil, "args", 1, nil, nil),
 	}
 }
 
 func (d *DbExecMethod) GetVariables() []data.Variable {
 	return []data.Variable{
-		node.NewVariable(nil, "sql", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "params", 1, data.NewBaseType("array")),
+		data.NewVariable("sql", 0, data.NewBaseType("string")),
+		data.NewVariable("args", 1, data.NewBaseType("array")),
 	}
 }
 

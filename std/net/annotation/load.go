@@ -16,5 +16,4 @@ func Load(vm data.VM) {
 	vm.AddClass(&PostMappingClass{})
 	vm.AddClass(&PutMappingClass{})
 	vm.AddClass(&DeleteMappingClass{})
-	vm.AddFunc(newSpringInlineFunc())
 }

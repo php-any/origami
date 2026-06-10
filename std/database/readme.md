@@ -19,6 +19,17 @@ class User {
     public float $coin;
 }
 
+// 推荐：查询与映射分两步
+$rows = DB::sql("SELECT * FROM users WHERE age > ?", 18);    // 1. 查数据，得行对象（参数写法同 where）
+$users = DB::toEntity(User::class, $rows);                 // 2. 行对象 → 实体
+
+DB::insert($user);                                          // 插入实体
+DB::execute("UPDATE users SET age = ? WHERE id = ?", 30, 1);
+
+// ORM 链式（由构建器自动映射实体）
+DB::model(User::class)->where("name = ?", "测试用户")->first();
+DB::model(User::class)->select("id, name")->get();
+
 // 使用默认连接（自动表名）
 $data = DB<User>();
 $data->where("name = ?", "测试用户")->first();

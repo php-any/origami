@@ -30,6 +30,9 @@ class AppConfig {
     // 分页配置
     const PAGE_SIZE = 20;
     const MAX_PAGE_SIZE = 100;
+
+    // 数据库配置
+    const DB_PATH = 'spring.db';
     
     // CORS 配置
     const ALLOWED_ORIGINS = ['*'];
