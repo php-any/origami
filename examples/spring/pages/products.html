@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>产品（虚构目录）</title>
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <style>
+    body.page-inline-ok { outline: 2px solid #22c55e; }
+  </style>
+  <script type="text/zy">
+    // 虚构的产品目录，仅用于演示展示效果（无价格/付费信息）
+    $products = [
+      { name: "光影相册", tag: "工具", note: "智能整理与分享你的照片" },
+      { name: "纸飞机清单", tag: "效率", note: "轻量任务与提醒，跨端同步" },
+      { name: "像素滤镜", tag: "娱乐", note: "为图片一键添加像素风" },
+      { name: "习惯打卡", tag: "健康", note: "用数据建立自律与反馈" }
+    ];
+  </script>
+</head>
+<body class="page-inline-ok">
+  <nav class="nav">
+    <a href="/index">首页</a>
+    <a href="/about">关于</a>
+    <a href="/products">产品</a>
+    <a href="/contact">联系</a>
+  </nav>
+  <div class="container">
+    <h1>产品目录（虚构）</h1>
+    <p>以下条目仅用于演示展示效果，不代表真实内容与定价。</p>
+    <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;">
+      <div class="card" for="$p in $products">
+        <h2>{$p->name}</h2>
+        <p>类型：{$p->tag}</p>
+        <p>{$p->note}</p>
+        <button class="btn" type="button">了解详情</button>
+      </div>
+    </div>
+  </div>
+  <script src="/assets/js/app.js"></script>
+  <script>
+    document.body.setAttribute('data-inline', 'ok');
+  </script>
+</body>
+</html>
+
+
