@@ -42,4 +42,9 @@ class PageController {
     public function contact($request, $response) {
         $this->render($response, "contact");
     }
+
+    #[GetMapping(path: "/chat")]
+    public function chat($request, $response) {
+        $this->render($response, "chat");
+    }
 }

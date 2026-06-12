@@ -23,6 +23,7 @@ class SpringApplication {
         Log::info("========================================");
         Log::info("Spring Demo v1.0.0 引导完成");
         Log::info("IoC 容器已就绪（服务通过 #[Singleton] 等注解自动注册）");
+        Log::info("WebSocket 聊天室: ws://0.0.0.0:8080/ws/chat");
         Log::info("========================================");
     }
 

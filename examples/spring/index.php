@@ -33,7 +33,7 @@ $server->static("/assets/", __DIR__ . "/pages/assets");
 
 // 加载引导类（#[Application] 声明扫描范围；扫描完成后自动调用 SpringApplication::boot()）
 $routes = $server->boot(SpringApplication::class);
-
+ 
 Log::info("HTTP 服务监听: http://" . $host . ":" . $port);
 Log::info("已注册路由 (" . count($routes) . " 条):");
 foreach ($routes as $route) {
