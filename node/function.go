@@ -2,9 +2,22 @@ package node
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/php-any/origami/data"
 )
+
+// saveStaticLocals 在函数返回前将静态变量的值从执行上下文写回静态存储。
+// 返回值是一个收集索引并逐个写回的闭包，避免死锁。
+func saveStaticLocals(store *data.StaticLocals, execCtx data.Context) func() {
+	return func() {
+		for _, idx := range store.CollectIndices() {
+			if val, ok := execCtx.GetIndexValue(idx); ok {
+				store.SetNoLock(idx, val)
+			}
+		}
+	}
+}
 
 // FunctionStatement 表示函数定义语句
 type FunctionStatement struct {
@@ -150,6 +163,8 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 			}
 		}
 	}
+
+	defer saveStaticLocals(f.funcStaticLocals(), execCtx)()
 
 	var v data.GetValue
 	var ctl data.Control
@@ -475,19 +490,35 @@ func (c *CallFunctionLater) resolveFun() data.FuncStmt {
 }
 
 func (c *CallFunctionLater) Call(ctx data.Context) (data.GetValue, data.Control) {
-	return c.resolveFun().Call(ctx)
+	fn := c.resolveFun()
+	if fn == nil {
+		return nil, data.NewErrorThrow(nil, fmt.Errorf("无法调用函数(%s), 未找到函数", c.Name))
+	}
+	return fn.Call(ctx)
 }
 
 func (c *CallFunctionLater) GetName() string {
-	return c.resolveFun().GetName()
+	fn := c.resolveFun()
+	if fn == nil {
+		return c.Name
+	}
+	return fn.GetName()
 }
 
 func (c *CallFunctionLater) GetParams() []data.GetValue {
-	return c.resolveFun().GetParams()
+	fn := c.resolveFun()
+	if fn == nil {
+		return nil
+	}
+	return fn.GetParams()
 }
 
 func (c *CallFunctionLater) GetVariables() []data.Variable {
-	return c.resolveFun().GetVariables()
+	fn := c.resolveFun()
+	if fn == nil {
+		return nil
+	}
+	return fn.GetVariables()
 }
 
 // ParameterRawAST 表示需要接收原始 AST 结构的参数

@@ -1,7 +1,6 @@
 package node
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/php-any/origami/data"
@@ -35,7 +34,7 @@ func (pe *CallStaticProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 				return prop, nil
 			}
 		}
-		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("无法调用属性(%s::%s)。", TryGetCallClassName(pe.Stmt), pe.Property)))
+		return nil, data.NewPHPUncaughtError(pe.GetFrom(), fmt.Sprintf("Uncaught Error: Access to undeclared static property %s::$%s", TryGetCallClassName(pe.Stmt), pe.Property))
 	default:
 		next, acl := pe.Stmt.GetValue(ctx)
 		if acl != nil {
@@ -65,11 +64,7 @@ func (pe *CallStaticProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 			}
 		}
 	}
-	name := ""
-	if getName, ok := pe.Stmt.(data.ClassStmt); ok {
-		name = getName.GetName()
-	}
-	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("(%v)没有静态属性(%s)。", name, pe.Property)))
+	return nil, data.NewPHPUncaughtError(pe.GetFrom(), fmt.Sprintf("Uncaught Error: Access to undeclared static property %s::$%s", pe.getClassName(), pe.Property))
 }
 
 // findStaticPropertyInParents 在父类继承链中查找静态属性/常量
@@ -91,31 +86,58 @@ func (pe *CallStaticProperty) findStaticPropertyInParents(ctx data.Context, clas
 	return nil, false
 }
 
-func (pe *CallStaticProperty) SetProperty(ctx data.Context, name string, value data.Value) data.Control {
-	switch c := pe.Stmt.(type) {
-	case *ClassStatement:
-		c.StaticProperty.Store(name, value)
-		return nil
-	case *ClassGeneric:
-		c.StaticProperty.Store(name, value)
-		return nil
-	case data.SetProperty:
-		return c.SetProperty(name, value)
-	default:
-		c, acl := pe.Stmt.GetValue(ctx)
-		if acl != nil {
-			return acl
+func (pe *CallStaticProperty) hasDeclaredStaticProperty(vm data.VM) bool {
+	class, ok := pe.Stmt.(data.ClassStmt)
+	if !ok {
+		return false
+	}
+	// 检查当前类
+	if prop, ok := class.GetProperty(pe.Property); ok && prop.GetIsStatic() {
+		return true
+	}
+	// 检查父类
+	extend := class.GetExtend()
+	seen := map[string]bool{}
+	for extend != nil {
+		if seen[*extend] {
+			break
 		}
-		switch c := c.(type) {
+		seen[*extend] = true
+		parent, acl := vm.GetOrLoadClass(*extend)
+		if acl != nil || parent == nil {
+			break
+		}
+		if prop, ok := parent.GetProperty(pe.Property); ok && prop.GetIsStatic() {
+			return true
+		}
+		extend = parent.GetExtend()
+	}
+	return false
+}
+
+func (pe *CallStaticProperty) getClassName() string {
+	if getName, ok := pe.Stmt.(data.ClassStmt); ok {
+		return getName.GetName()
+	}
+	return ""
+}
+
+func (pe *CallStaticProperty) SetProperty(ctx data.Context, name string, value data.Value) data.Control {
+	vm := ctx.GetVM()
+	if pe.hasDeclaredStaticProperty(vm) {
+		switch c := pe.Stmt.(type) {
+		case *ClassStatement:
+			c.StaticProperty.Store(name, value)
+			return nil
+		case *ClassGeneric:
+			c.ClassStatement.StaticProperty.Store(name, value)
+			return nil
 		case data.SetProperty:
 			return c.SetProperty(name, value)
 		}
+		return nil
 	}
-	cname := ""
-	if getName, ok := pe.Stmt.(data.ClassStmt); ok {
-		cname = getName.GetName()
-	}
-	return data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("类(%s)没有静态属性(%s)。", cname, pe.Property)))
+	return data.NewPHPUncaughtError(pe.GetFrom(), fmt.Sprintf("Uncaught Error: Access to undeclared static property %s::$%s", pe.getClassName(), pe.Property))
 }
 
 // CallStaticPropertyLater 延迟的静态属性访问（类未加载时）

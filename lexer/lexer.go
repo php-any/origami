@@ -301,7 +301,7 @@ func (l *Lexer) matchTokenWithDAG(input string, pos int) (*token.TokenDefinition
 	return nil, 0, false
 }
 
-// matchKeywordWithDAG 使用 DAG 匹配关键字
+// matchKeywordWithDAG 使用 DAG 匹配关键字（不区分大小写，PHP 关键字大小写不敏感）
 func (l *Lexer) matchKeywordWithDAG(input string, pos int) (*token.TokenDefinition, int, bool) {
 	current := l.root
 	var longestMatch *token.TokenDefinition
@@ -315,8 +315,16 @@ func (l *Lexer) matchKeywordWithDAG(input string, pos int) (*token.TokenDefiniti
 			break
 		}
 
-		// 检查当前节点是否有子节点
-		if child, exists := current.children[r]; exists {
+		// 检查当前节点是否有子节点（不区分大小写）
+		child, exists := current.children[r]
+		if !exists {
+			// 尝试小写版本
+			lowerR := unicode.ToLower(r)
+			if lowerR != r {
+				child, exists = current.children[lowerR]
+			}
+		}
+		if exists {
 			current = child
 			currentPos += size
 

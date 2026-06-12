@@ -107,7 +107,7 @@ func (c *Context) SetVariableValue(variable data.Variable, value data.Value) dat
 		if len(c.variables) <= idx {
 			return data.NewErrorThrow(variable.(node.GetFrom).GetFrom(), errors.New("index out of range"))
 		}
-		c.variables[idx].Value = value
+		data.AssignScalarToZVal(c.variables[idx], value)
 	}
 
 	return nil

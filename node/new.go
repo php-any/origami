@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/token"
 )
 
 // createInstanceAndCallConstructor 创建类实例并调用构造函数
@@ -84,6 +85,14 @@ func createInstanceFromClassStmt(
 			if acl != nil {
 				return nil, acl
 			}
+		}
+
+		// 注册析构函数：在对象创建时如果类定义了 __destruct，注册 shutdown 回调
+		if destructMethod, hasDestruct := object.GetMethod(token.DestructName); hasDestruct && destructMethod != nil {
+			object.GetVM().AddShutdownCallback(&data.DestructorCallback{
+				Method: destructMethod,
+				Object: object,
+			})
 		}
 	}
 

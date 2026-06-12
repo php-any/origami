@@ -56,7 +56,8 @@ func (s *StaticVarStatement) GetValue(ctx data.Context) (data.GetValue, data.Con
 	store := staticLocalsFromCtx(ctx)
 	idx := s.Var.GetIndex()
 	if store != nil {
-		if _, ok := store.Get(idx); !ok {
+		zv := store.GetZVal(idx)
+		if zv == nil {
 			val := data.NewNullValue()
 			if s.Initializer != nil {
 				init, ctl := s.Initializer.GetValue(ctx)
@@ -67,13 +68,10 @@ func (s *StaticVarStatement) GetValue(ctx data.Context) (data.GetValue, data.Con
 					val = v
 				}
 			}
-			store.Init(idx, val)
+			zv = store.InitZVal(idx, val)
 		}
-		if v, ok := store.Get(idx); ok {
-			if ctl := s.Var.SetValue(ctx, v); ctl != nil {
-				return nil, ctl
-			}
-		}
+		// 共享 ZVal 指针，使递归调用中修改立刻可见
+		ctx.SetIndexZVal(idx, zv)
 		return nil, nil
 	}
 	if s.Initializer != nil {

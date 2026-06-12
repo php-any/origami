@@ -96,9 +96,6 @@ func (vm *TempVM) PrepareParse(base *parser.Parser) *parser.Parser {
 
 func (vm *TempVM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	file = normalizePhpFilePath(file)
-	if vm.Base.GetPhpFileCache(file) {
-		return nil, nil
-	}
 	vm.Base.SetPhpFileCache(file)
 
 	p := vm.PrepareParse(vm.Base.parser)
@@ -242,6 +239,11 @@ func (vm *TempVM) SetConstant(name string, value data.Value) data.Control {
 // GetConstant 获取全局常量（从 Base VM 获取，因为常量是全局的）
 func (vm *TempVM) GetConstant(name string) (data.Value, bool) {
 	return vm.Base.GetConstant(name)
+}
+
+// AddShutdownCallback 委托给底层 VM
+func (vm *TempVM) AddShutdownCallback(cb data.Value) {
+	vm.Base.AddShutdownCallback(cb)
 }
 
 // EnsureGlobalZVal 委托给底层 VM，全局变量是全局共享的

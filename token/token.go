@@ -70,6 +70,7 @@ var TokenDefinitions = []TokenDefinition{
 	{Type: DECLARE, Literal: "declare", WordType: KEYWORD},
 	{Type: VAR, Literal: "var", WordType: KEYWORD},
 	{Type: ECHO, Literal: "echo", WordType: KEYWORD},
+	{Type: ECHO, Literal: "print", WordType: KEYWORD},
 	{Type: GOTO, Literal: "goto", WordType: KEYWORD},
 	{Type: THROW, Literal: "throw", WordType: KEYWORD},
 	{Type: TRY, Literal: "try", WordType: KEYWORD},

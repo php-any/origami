@@ -77,16 +77,15 @@ func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool,
 	filePath = utils.NormalizePhpFilePath(filePath)
 
 	vm := ctx.GetVM()
-	if vm.GetPhpFileCache(filePath) {
-		if once {
-			includeOnceCache.mu.Lock()
-			if cached, ok := includeOnceCache.files[filePath]; ok {
-				includeOnceCache.mu.Unlock()
-				return cached, nil
-			}
+
+	// _once 变体：如果已缓存过返回值，直接返回
+	if once {
+		includeOnceCache.mu.Lock()
+		if cached, ok := includeOnceCache.files[filePath]; ok {
 			includeOnceCache.mu.Unlock()
+			return cached, nil
 		}
-		return data.NewBoolValue(true), nil
+		includeOnceCache.mu.Unlock()
 	}
 
 	if once {

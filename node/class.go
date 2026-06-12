@@ -23,6 +23,8 @@ type ClassStatement struct {
 
 	// 构造函数
 	Construct data.Method
+	// 析构函数
+	Destruct data.Method
 
 	// IsAbstract 为 true 表示 abstract class（允许未实现接口/抽象方法）
 	IsAbstract bool
@@ -95,6 +97,10 @@ func (c *ClassStatement) GetConstruct() data.Method {
 	return c.Construct
 }
 
+func (c *ClassStatement) GetDestruct() data.Method {
+	return c.Destruct
+}
+
 // NewClassStatement 创建一个新的类定义语句
 func NewClassStatement(from data.From, name string, extends string, implements []string, properties []data.Property, methods map[string]data.Method) *ClassStatement {
 	propertiesIndex := make([]string, len(properties))
@@ -118,6 +124,9 @@ func NewClassStatement(from data.From, name string, extends string, implements [
 	}
 	if construct, ok := class.GetMethod(token.ConstructName); ok {
 		class.Construct = construct
+	}
+	if destruct, ok := class.GetMethod(token.DestructName); ok {
+		class.Destruct = destruct
 	}
 	return class
 }

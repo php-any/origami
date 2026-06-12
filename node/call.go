@@ -32,6 +32,9 @@ func NewCallExpression(token *TokenFrom, fn string, arguments []data.GetValue, f
 // GetValue 获取函数调用表达式的值
 func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	fn := pe.Fun
+	if fn == nil {
+		return nil, data.NewErrorThrow(pe.from, fmt.Errorf("无法调用函数(%s), 未找到函数", pe.FunName))
+	}
 	varies := fn.GetVariables()
 	params := fn.GetParams()
 	arguments := pe.Args

@@ -103,7 +103,8 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 	checkToken := p.current()
 
 	// 检查 startToken 和 checkToken 之间是否连贯
-	if p.isTokensAdjacent(startToken, checkToken) {
+	// 函数调用时允许空格（PHP 允许 func (...)
+	if p.isTokensAdjacent(startToken, checkToken) || p.current().Type() == token.LPAREN {
 		// ( 函数调用 div() 或可调用变量 describe()
 		if p.checkPositionIs(0, token.LPAREN) {
 			vp := &VariableParser{p.Parser}

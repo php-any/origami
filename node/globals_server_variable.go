@@ -43,6 +43,12 @@ func (v *ServerVariable) GetValue(ctx data.Context) (data.GetValue, data.Control
 			}
 		} else {
 			serverValue.SetProperty("SERVER_SOFTWARE", data.NewStringValue("Origami"))
+			for _, env := range os.Environ() {
+				parts := strings.SplitN(env, "=", 2)
+				if len(parts) == 2 {
+					serverValue.SetProperty(parts[0], data.NewStringValue(parts[1]))
+				}
+			}
 			registerArgcArgv := os.Getenv("ORIGAMI_PHPT_REGISTER_ARGC_ARGV")
 			if registerArgcArgv != "0" && len(os.Args) > 1 {
 				arr := make([]data.Value, 0, len(os.Args)-1)

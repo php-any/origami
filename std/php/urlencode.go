@@ -1,32 +1,46 @@
 package php
 
 import (
-	"net/url"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
 
+type UrlencodeFunction struct{}
+
 func NewUrlencodeFunction() data.FuncStmt {
 	return &UrlencodeFunction{}
 }
 
-type UrlencodeFunction struct{}
-
 func (f *UrlencodeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	stringValue, _ := ctx.GetIndexValue(0)
-
 	if stringValue == nil {
 		return data.NewStringValue(""), nil
 	}
-
-	// 转换为字符串
 	str := stringValue.AsString()
+	var b strings.Builder
+	b.Grow(len(str) * 3 / 2)
+	for i := 0; i < len(str); i++ {
+		c := str[i]
+		if c == ' ' {
+			b.WriteByte('+')
+		} else if isUrlencodeUnreserved(c) {
+			b.WriteByte(c)
+		} else {
+			b.WriteByte('%')
+			b.WriteByte(hextable[c>>4])
+			b.WriteByte(hextable[c&0x0f])
+		}
+	}
+	return data.NewStringValue(b.String()), nil
+}
 
-	// URL 编码
-	encoded := url.QueryEscape(str)
-
-	return data.NewStringValue(encoded), nil
+// isUrlencodeUnreserved matches PHP urlencode: ALPHA, DIGIT, -, _, .
+// Note: ~ IS encoded (%7E) in urlencode, unlike rawurlencode.
+func isUrlencodeUnreserved(c byte) bool {
+	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
+		c == '-' || c == '_' || c == '.'
 }
 
 func (f *UrlencodeFunction) GetName() string {

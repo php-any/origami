@@ -166,10 +166,29 @@ func (vm *VM) AddShutdownCallback(cb data.Value) {
 // RunShutdownCallbacks 依次执行所有已注册的 shutdown 回调
 func (vm *VM) RunShutdownCallbacks() {
 	for _, cb := range vm.shutdownCallbacks {
-		if fv, ok := cb.(*data.FuncValue); ok {
-			vars := fv.Value.GetVariables()
+		switch v := cb.(type) {
+		case *data.FuncValue:
+			vars := v.Value.GetVariables()
 			ctx := vm.CreateContext(vars)
-			if _, acl := fv.Call(ctx); acl != nil {
+			if _, acl := v.Call(ctx); acl != nil {
+				vm.acl(acl)
+			}
+		case data.CallableValue:
+			if _, acl := v.Call(); acl != nil {
+				vm.acl(acl)
+			}
+		case *data.StringValue:
+			fn, found := vm.GetFunc(v.Value)
+			if found && fn != nil {
+				fv := data.NewFuncValue(fn)
+				vars := fv.Value.GetVariables()
+				ctx := vm.CreateContext(vars)
+				if _, acl := fv.Call(ctx); acl != nil {
+					vm.acl(acl)
+				}
+			}
+		case *data.DestructorCallback:
+			if _, acl := v.Call(); acl != nil {
 				vm.acl(acl)
 			}
 		}
@@ -177,9 +196,26 @@ func (vm *VM) RunShutdownCallbacks() {
 	runHeaderCallbacks(vm)
 }
 
+// isAbstractClass 判断 ClassStmt 是否为抽象类。
+func isAbstractClass(c data.ClassStmt) bool {
+	if cs, ok := c.(*node.ClassStatement); ok {
+		return cs.IsAbstract
+	}
+	if cg, ok := c.(*node.ClassGeneric); ok {
+		return cg.IsAbstract
+	}
+	return false
+}
+
 func (vm *VM) AddClass(c data.ClassStmt) data.Control {
 	vm.mu.RLock()
 	defer vm.mu.RUnlock()
+	// 编译时检查：非抽象类必须实现所有抽象/接口方法
+	if !isAbstractClass(c) {
+		if acl := node.ValidateConcreteClassAbstractMethods(vm, c); acl != nil {
+			return acl
+		}
+	}
 	// 检查 interfaceMap、classMap 中是否已存在
 	if has, ok := vm.classMap[c.GetName()]; ok {
 		cFrom := c.GetFrom()
@@ -446,9 +482,6 @@ func (vm *VM) RunCompiledFile(file string) (data.GetValue, data.Control) {
 
 func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	file = normalizePhpFilePath(file)
-	if vm.GetPhpFileCache(file) {
-		return nil, nil
-	}
 	vm.SetPhpFileCache(file)
 
 	data.ResetUserOutput()

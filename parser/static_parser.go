@@ -100,7 +100,24 @@ func (sp *StaticParser) Parse() (data.GetValue, data.Control) {
 		return sp.parseStaticArrowFunction(tracker)
 	} else if sp.checkPositionIs(0, token.VARIABLE) {
 		// static $variable = value - 静态局部变量
-		return sp.parseStaticVariable(tracker)
+		stmt, ctl := sp.parseStaticVariable(tracker)
+		if ctl != nil {
+			return nil, ctl
+		}
+		// 支持 static $a=1, $b=2 逗号分隔的多个变量
+		if sp.current().Type() == token.COMMA {
+			stmts := []data.GetValue{stmt}
+			for sp.current().Type() == token.COMMA {
+				sp.next() // 跳过逗号
+				s, c := sp.parseStaticVariable(tracker)
+				if c != nil {
+					return nil, c
+				}
+				stmts = append(stmts, s)
+			}
+			return node.NewBlockStatement(tracker.EndBefore(), stmts), nil
+		}
+		return stmt, nil
 	} else {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("static 后必须跟 function、fn 或变量声明"))
 	}

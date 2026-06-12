@@ -1,20 +1,12 @@
 package php
 
 import (
-	"net/url"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
 
-// RawurlencodeFunction 实现 rawurlencode 函数
-//
-// 语义参考 PHP:
-//
-//	rawurlencode(string $string): string
-//
-// 使用 Go 的 url.PathEscape，与 PHP 的 rawurlencode 行为接近：
-//   - 空格编码为 %20，而不是 '+'
 type RawurlencodeFunction struct{}
 
 func NewRawurlencodeFunction() data.FuncStmt {
@@ -23,16 +15,34 @@ func NewRawurlencodeFunction() data.FuncStmt {
 
 func (f *RawurlencodeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	stringValue, _ := ctx.GetIndexValue(0)
-
 	if stringValue == nil {
 		return data.NewStringValue(""), nil
 	}
-
-	str := stringValue.AsString()
-	encoded := url.PathEscape(str)
-
-	return data.NewStringValue(encoded), nil
+	return data.NewStringValue(rawurlencode(stringValue.AsString())), nil
 }
+
+func rawurlencode(s string) string {
+	var b strings.Builder
+	b.Grow(len(s) * 3 / 2)
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if isUnreserved(c) {
+			b.WriteByte(c)
+		} else {
+			b.WriteByte('%')
+			b.WriteByte(hextable[c>>4])
+			b.WriteByte(hextable[c&0x0f])
+		}
+	}
+	return b.String()
+}
+
+func isUnreserved(c byte) bool {
+	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
+		c == '-' || c == '_' || c == '.' || c == '~'
+}
+
+const hextable = "0123456789ABCDEF"
 
 func (f *RawurlencodeFunction) GetName() string {
 	return "rawurlencode"

@@ -86,6 +86,9 @@ type VM interface {
 
 	// 全局变量管理
 	EnsureGlobalZVal(name string) *ZVal
+
+	// AddShutdownCallback 注册 shutdown 回调
+	AddShutdownCallback(cb Value)
 }
 
 type ClassStmt interface {
@@ -105,6 +108,29 @@ type ClassStmt interface {
 
 type SetVM interface {
 	SetVM(vm VM)
+}
+
+// DestructorCallback 封装对象的析构函数调用，供 VM shutdown 时使用
+type DestructorCallback struct {
+	Method Method
+	Object *ClassValue
+}
+
+func (d *DestructorCallback) GetValue(ctx Context) (GetValue, Control) {
+	return d, nil
+}
+
+func (d *DestructorCallback) AsString() string {
+	return ""
+}
+
+func (d *DestructorCallback) Call() (Value, Control) {
+	vars := d.Method.GetVariables()
+	fnCtx := d.Object.CreateContext(vars)
+	if _, acl := d.Method.Call(fnCtx); acl != nil {
+		return nil, acl
+	}
+	return nil, nil
 }
 
 type Modifier int

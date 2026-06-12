@@ -32,7 +32,9 @@ func (f *RegisterShutdownFunctionFunction) GetName() string {
 }
 
 func (f *RegisterShutdownFunctionFunction) GetParams() []data.GetValue {
-	return nil
+	return []data.GetValue{
+		data.NewParameter("callback", 0),
+	}
 }
 
 func (f *RegisterShutdownFunctionFunction) GetVariables() []data.Variable {
