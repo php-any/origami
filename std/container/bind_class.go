@@ -66,6 +66,8 @@ func (m *BindConstructMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 	if acl != nil {
 		return nil, acl
 	}
-	activeEngine(ctx).Bind(abstract, cls.Name)
+	if e := activeEngine(ctx); e != nil {
+		e.Bind(abstract, cls.Name)
+	}
 	return nil, nil
 }

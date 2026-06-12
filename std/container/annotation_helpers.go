@@ -98,6 +98,8 @@ func registerClassAnnotation(ctx data.Context, lifetime Lifetime) data.Control {
 		return acl
 	}
 	metadataSetLifetime(cls.Name, lifetime, alias)
-	activeEngine(ctx).RegisterClass(cls.Name, lifetime, alias)
+	if e := activeEngine(ctx); e != nil {
+		e.RegisterClass(cls.Name, lifetime, alias)
+	}
 	return nil
 }

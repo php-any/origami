@@ -32,6 +32,21 @@ const (
 // 运行时快速路径：GetIndexZVal（数组下标）+ *IntValue 断言 + AssignIntToZVal。
 //
 // 降级路径（非整数或复杂右侧）：调用 Slow（原始右侧节点）再走普通赋值。
+// NewVarFastAssignCompiled 供 compile 子命令重建 VarFastAssign 节点。
+func NewVarFastAssignCompiled(from data.From, dst *VariableExpression, dstIdx, lhsIdx, rhsIdx, lhsLit, rhsLit int, op byte, slow data.GetValue) *VarFastAssign {
+	return &VarFastAssign{
+		Node:   NewNode(from),
+		Dst:    dst,
+		DstIdx: dstIdx,
+		LhsIdx: lhsIdx,
+		RhsIdx: rhsIdx,
+		LhsLit: lhsLit,
+		RhsLit: rhsLit,
+		Slow:   slow,
+		op:     vfaOp(op),
+	}
+}
+
 type VarFastAssign struct {
 	*Node  `pp:"-"`
 	Dst    *VariableExpression

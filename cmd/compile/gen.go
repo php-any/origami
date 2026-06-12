@@ -7,17 +7,17 @@ import (
 
 // Generator 将 AST 节点转换为 Go 构造代码
 type Generator struct {
-	buf       strings.Builder
-	indent    int
-	imports   map[string]bool
-	file      string
-	namespace string // 当前文件的命名空间
+	buf           strings.Builder
+	indent        int
+	importAliases map[string]string // import path -> alias（空字符串表示使用默认包名）
+	file          string
+	namespace     string // 当前文件的命名空间
 }
 
 // NewGenerator 创建新的代码生成器
 func NewGenerator() *Generator {
 	return &Generator{
-		imports: make(map[string]bool),
+		importAliases: make(map[string]string),
 	}
 }
 
@@ -26,7 +26,7 @@ func (g *Generator) Generate(pf ParsedFile) (string, error) {
 	g.file = pf.Path
 	g.namespace = pf.Namespace
 	g.buf.Reset()
-	g.imports = make(map[string]bool)
+	g.importAliases = make(map[string]string)
 	g.indent = 0
 
 	funcName := g.funcNameForPath(pf.Path)

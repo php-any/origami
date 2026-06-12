@@ -5,6 +5,8 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/std/container"
+	dbannotation "github.com/php-any/origami/std/database/annotation"
 	"github.com/php-any/origami/std/net/annotation"
 )
 
@@ -404,6 +406,18 @@ func (g *Generator) emitClassAnnotation(cv *data.ClassValue) error {
 	case *annotation.MiddlewareClass:
 		g.needAnnotationImport()
 		g.printf("annotation.CompiledMiddlewareValue(%q)", c.ClassName())
+	case *dbannotation.TableClass:
+		g.needDatabaseAnnotationImport()
+		g.printf("dbannotation.CompiledTableValue(%q)", c.Name())
+	case *container.SingletonAnnotationClass:
+		g.needContainerImport()
+		g.printf("container.CompiledSingletonValue()")
+	case *container.ScopedAnnotationClass:
+		g.needContainerImport()
+		g.printf("container.CompiledScopedValue()")
+	case *container.ComponentClass:
+		g.needContainerImport()
+		g.printf("container.CompiledComponentValue()")
 	default:
 		return newEmitError(g.file, cv, "unsupported annotation type "+reflect.TypeOf(c).String())
 	}

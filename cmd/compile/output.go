@@ -79,24 +79,28 @@ func generateASTFiles(parsed []ParsedFile, outputDir, pkgName string) error {
 		if err != nil {
 			return err
 		}
-		imports := map[string]bool{
-			"github.com/php-any/origami/data": true,
-			"github.com/php-any/origami/node": true,
+		importAliases := map[string]string{
+			"github.com/php-any/origami/data": "",
+			"github.com/php-any/origami/node": "",
 		}
-		for imp := range gen.imports {
-			imports[imp] = true
+		for imp, alias := range gen.importAliases {
+			importAliases[imp] = alias
 		}
 
 		var b strings.Builder
 		b.WriteString(fmt.Sprintf("package %s\n\n", pkgName))
 		b.WriteString("import (\n")
-		impList := make([]string, 0, len(imports))
-		for imp := range imports {
+		impList := make([]string, 0, len(importAliases))
+		for imp := range importAliases {
 			impList = append(impList, imp)
 		}
 		sort.Strings(impList)
 		for _, imp := range impList {
-			b.WriteString(fmt.Sprintf("\t%q\n", imp))
+			if alias := importAliases[imp]; alias != "" {
+				b.WriteString(fmt.Sprintf("\t%s %q\n", alias, imp))
+			} else {
+				b.WriteString(fmt.Sprintf("\t%q\n", imp))
+			}
 		}
 		b.WriteString(")\n\n")
 		b.WriteString(code)

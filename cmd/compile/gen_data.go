@@ -31,8 +31,20 @@ func (g *Generator) genTypes(ty data.Types) {
 	}
 }
 
+func (g *Generator) needImport(path, alias string) {
+	g.importAliases[path] = alias
+}
+
 func (g *Generator) needAnnotationImport() {
-	g.imports["github.com/php-any/origami/std/net/annotation"] = true
+	g.needImport("github.com/php-any/origami/std/net/annotation", "annotation")
+}
+
+func (g *Generator) needDatabaseAnnotationImport() {
+	g.needImport("github.com/php-any/origami/std/database/annotation", "dbannotation")
+}
+
+func (g *Generator) needContainerImport() {
+	g.needImport("github.com/php-any/origami/std/container", "container")
 }
 
 func modifierName(m data.Modifier) string {

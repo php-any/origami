@@ -75,6 +75,11 @@ func (t *TableClass) GetConstruct() data.Method {
 	return t.construct
 }
 
+// Name 返回表名（供 compile 子命令读取注解参数）
+func (t *TableClass) Name() string {
+	return t.name
+}
+
 // TableConstructMethod 构造函数 - 特性注解只接收注解参数
 type TableConstructMethod struct {
 	tableClass *TableClass // 引用注解实例
