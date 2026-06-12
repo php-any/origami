@@ -5,8 +5,8 @@ namespace Spring\Controller;
 use Net\Annotation\Controller;
 use Net\Annotation\GetMapping;
 use Net\Annotation\Route;
-use Net\Websocket\upgrade;
 use Spring\Service\WebSocketHub;
+use function Net\Websocket\upgrade;
 
 /**
  * WebSocket 聊天室端点
@@ -23,7 +23,7 @@ class WebSocketController {
     ) {}
 
     #[GetMapping(path: "/chat")]
-    public function chat($request, $response) {
+    public function chat($request, $response):void {
         $conn = upgrade($request, $response, true);
         $this->hub->add($conn);
 
@@ -69,7 +69,7 @@ class WebSocketController {
                 ]));
             }
         } catch (\Throwable $e) {
-            Log::info("WebSocket 会话结束: " . $e->getMessage());
+            \Log::info("WebSocket 会话结束: " . $e->getMessage());
         } finally {
             $this->hub->remove($conn);
             try {

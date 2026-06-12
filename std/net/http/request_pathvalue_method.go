@@ -19,7 +19,7 @@ func (h *RequestPathValueMethod) Call(ctx data.Context) (data.GetValue, data.Con
 	}
 
 	ret0 := h.source.PathValue(param0)
-	return data.NewAnyValue(ret0), nil
+	return data.NewStringValue(ret0), nil
 }
 
 func (h *RequestPathValueMethod) GetName() string            { return "pathValue" }

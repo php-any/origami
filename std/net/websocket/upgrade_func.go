@@ -56,16 +56,16 @@ func (h *UpgradeFunction) GetModifier() data.Modifier { return data.ModifierPubl
 func (h *UpgradeFunction) GetIsStatic() bool          { return true }
 func (h *UpgradeFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameter(nil, "request", 0, nil, nil),
-		node.NewParameter(nil, "response", 1, nil, nil),
+		node.NewParameter(nil, "request", 0, nil, data.Class{Name: "Net\\Http\\Request"}),
+		node.NewParameter(nil, "response", 1, nil, data.Class{Name: "Net\\Http\\Response"}),
 		node.NewParameter(nil, "checkOrigin", 2, data.NewBoolValue(false), data.NewBaseType("bool")),
 	}
 }
 func (h *UpgradeFunction) GetVariables() []data.Variable {
 	return []data.Variable{
-		node.NewVariable(nil, "request", 0, nil),
-		node.NewVariable(nil, "response", 1, nil),
-		node.NewVariable(nil, "checkOrigin", 2, nil),
+		node.NewVariable(nil, "request", 0, data.Class{Name: "Net\\Http\\Request"}),
+		node.NewVariable(nil, "response", 1, data.Class{Name: "Net\\Http\\Response"}),
+		node.NewVariable(nil, "checkOrigin", 2, data.NewBaseType("bool")),
 	}
 }
-func (h *UpgradeFunction) GetReturnType() data.Types { return data.NewBaseType("mixed") }
+func (h *UpgradeFunction) GetReturnType() data.Types { return data.Class{Name: "Net\\Websocket\\Conn"} }

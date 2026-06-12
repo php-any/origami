@@ -17,6 +17,7 @@ import (
 	"github.com/php-any/origami/std/context"
 	netannotation "github.com/php-any/origami/std/net/annotation"
 	"github.com/php-any/origami/std/net/http"
+	"github.com/php-any/origami/std/net/websocket"
 	"github.com/php-any/origami/std/system"
 )
 
@@ -168,6 +169,7 @@ func removeLegacyZyStub(phpPath string) {
 func loadStdLibraries(vm data.VM) {
 	std.Load(vm)
 	http.Load(vm)
+	websocket.Load(vm)
 	netannotation.Load(vm)
 	system.Load(vm)
 	context.Load(vm)
@@ -940,8 +942,9 @@ func generatePHPPseudoCode(module PseudoCode) string {
 
 {{if .Namespace}}namespace {{.Namespace}};
 
-{{end}}
-{{if .Functions}}
+{{else}}namespace {
+
+{{end}}{{if .Functions}}
 {{range .Functions}}
 {{if or .ReturnDoc .ParamDocs}}
 /**
@@ -992,6 +995,8 @@ func generatePHPPseudoCode(module PseudoCode) string {
 }
 {{end}}
 {{end}}
+{{end}}{{if not .Namespace}}
+}
 {{end}}`
 
 	t, err := template.New("php_pseudocode").Parse(tmpl)
