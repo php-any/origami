@@ -1,7 +1,9 @@
 package http
 
 import (
+	"errors"
 	"fmt"
+
 	httpsrc "net/http"
 
 	"github.com/php-any/origami/data"
@@ -13,8 +15,14 @@ type ServerRunMethod struct {
 }
 
 func (h *ServerRunMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	err := httpsrc.ListenAndServe(h.server.Host+":"+fmt.Sprintf("%d", h.server.Port), h.server.source)
-	if err != nil {
+	srv := &httpsrc.Server{
+		Addr:    h.server.Host + ":" + fmt.Sprintf("%d", h.server.Port),
+		Handler: h.server.source,
+	}
+	ctx.GetVM().AddShutdownCallback(newServerShutdownCallback(srv))
+
+	err := srv.ListenAndServe()
+	if err != nil && !errors.Is(err, httpsrc.ErrServerClosed) {
 		return nil, utils.NewThrow(err)
 	}
 	return nil, nil

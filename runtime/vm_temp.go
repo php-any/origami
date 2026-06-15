@@ -259,6 +259,14 @@ func (vm *TempVM) GetExceptionHandler() data.Value {
 	return vm.Base.GetExceptionHandler()
 }
 
+func (vm *TempVM) AddShutdownCallback(cb data.Value) {
+	vm.Base.AddShutdownCallback(cb)
+}
+
+func (vm *TempVM) RunShutdownCallbacks() {
+	vm.Base.RunShutdownCallbacks()
+}
+
 func (vm *TempVM) EnterCall() int {
 	return vm.Base.EnterCall()
 }

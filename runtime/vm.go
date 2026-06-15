@@ -63,6 +63,7 @@ type VM struct {
 
 	// PHP 级 register_shutdown_function 注册的回调列表
 	shutdownCallbacks []data.Value
+	shutdownRunOnce   sync.Once
 
 	// 调用深度追踪（用于检测无限递归）
 	callDepth int
@@ -156,25 +157,6 @@ func (vm *VM) SetExceptionHandler(handler data.Value) data.Value {
 // GetExceptionHandler 返回当前注册的 PHP 级异常处理回调
 func (vm *VM) GetExceptionHandler() data.Value {
 	return vm.exceptionHandler
-}
-
-// AddShutdownCallback 注册一个 shutdown 回调
-func (vm *VM) AddShutdownCallback(cb data.Value) {
-	vm.shutdownCallbacks = append(vm.shutdownCallbacks, cb)
-}
-
-// RunShutdownCallbacks 依次执行所有已注册的 shutdown 回调
-func (vm *VM) RunShutdownCallbacks() {
-	for _, cb := range vm.shutdownCallbacks {
-		if fv, ok := cb.(*data.FuncValue); ok {
-			vars := fv.Value.GetVariables()
-			ctx := vm.CreateContext(vars)
-			if _, acl := fv.Call(ctx); acl != nil {
-				vm.acl(acl)
-			}
-		}
-	}
-	runHeaderCallbacks(vm)
 }
 
 func (vm *VM) AddClass(c data.ClassStmt) data.Control {

@@ -2,7 +2,7 @@ package php
 
 import (
 	"github.com/php-any/origami/data"
-	"github.com/php-any/origami/runtime"
+	"github.com/php-any/origami/node"
 )
 
 // RegisterShutdownFunctionFunction 实现 register_shutdown_function 函数
@@ -19,11 +19,7 @@ func (f *RegisterShutdownFunctionFunction) Call(ctx data.Context) (data.GetValue
 		return data.NewNullValue(), nil
 	}
 
-	switch v := ctx.GetVM().(type) {
-	case *runtime.VM:
-		v.AddShutdownCallback(cb)
-	}
-
+	ctx.GetVM().AddShutdownCallback(cb)
 	return data.NewNullValue(), nil
 }
 
@@ -32,11 +28,13 @@ func (f *RegisterShutdownFunctionFunction) GetName() string {
 }
 
 func (f *RegisterShutdownFunctionFunction) GetParams() []data.GetValue {
-	return nil
+	return []data.GetValue{
+		node.NewParameter(nil, "callback", 0, nil, nil),
+	}
 }
 
 func (f *RegisterShutdownFunctionFunction) GetVariables() []data.Variable {
 	return []data.Variable{
-		data.NewVariable("callback", 0, nil),
+		node.NewVariable(nil, "callback", 0, nil),
 	}
 }

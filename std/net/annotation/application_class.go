@@ -10,7 +10,6 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	"github.com/php-any/origami/runtime"
 )
 
 // ApplicationClass 应用入口注解（类似 Spring Boot 应用入口）
@@ -64,6 +63,9 @@ type Application struct {
 
 // scanningDirs 记录正在扫描中的目录，防止 main.php 在 scan 目录内时递归触发 Scan
 var scanningDirs = make(map[string]bool)
+
+// registeredExitClasses 记录已注册 exit 回调的引导类，避免扫描重入时重复注册。
+var registeredExitClasses = make(map[string]bool)
 
 func newApplication() *Application { return &Application{name: "App", port: 8080} }
 
@@ -141,8 +143,9 @@ func (m *ApplicationConstructMethod) Call(ctx data.Context) (data.GetValue, data
 	}
 	scanDir = filepath.Clean(scanDir)
 
-	// main.php 位于 scan 目录内时，Scan 会再次加载本文件；此处跳过后续扫描与 boot，保证生命周期只执行一次。
+	// main.php 位于 scan 目录内时，Scan 会再次加载本文件；此处跳过后续扫描与 boot，但仍注册 exit。
 	if scanningDirs[scanDir] {
+		m.registerExit(ctx)
 		return nil, nil
 	}
 	scanningDirs[scanDir] = true
@@ -183,6 +186,11 @@ func (m *ApplicationConstructMethod) registerExit(ctx data.Context) {
 		return
 	}
 
+	className := cls.GetName()
+	if registeredExitClasses[className] {
+		return
+	}
+
 	method, has := cls.GetStaticMethod("exit")
 	if !has {
 		return
@@ -197,11 +205,8 @@ func (m *ApplicationConstructMethod) registerExit(ctx data.Context) {
 		return
 	}
 
-	vm, ok := ctx.GetVM().(*runtime.VM)
-	if !ok {
-		return
-	}
-	vm.AddShutdownCallback(fv)
+	ctx.GetVM().AddShutdownCallback(fv)
+	registeredExitClasses[className] = true
 }
 
 func (m *ApplicationConstructMethod) Scan(ctx data.Context) data.Control {
