@@ -1,9 +1,6 @@
 package node
 
 import (
-	"os"
-	"strings"
-
 	"github.com/php-any/origami/data"
 )
 
@@ -20,19 +17,7 @@ func NewEnvVariable(from data.From) data.Variable {
 }
 
 func (v *EnvVariable) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	if envValue == nil {
-		envValue = data.NewObjectValue()
-	}
-
-	// 每次调用时合并一次环境变量（与之前逻辑一致）
-	for _, env := range os.Environ() {
-		parts := strings.SplitN(env, "=", 2)
-		if len(parts) == 2 {
-			envValue.SetProperty(parts[0], data.NewStringValue(parts[1]))
-		}
-	}
-
-	return envValue, nil
+	return ensureEnvValue(), nil
 }
 
 func (v *EnvVariable) GetIndex() int       { return 0 }

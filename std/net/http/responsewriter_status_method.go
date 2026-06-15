@@ -1,26 +1,22 @@
 package http
 
 import (
-	httpsrc "net/http"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/utils"
 )
 
 type ResponseWriterStatusMethod struct {
-	source httpsrc.ResponseWriter
+	w *bufferedWriter
 }
 
 func (h *ResponseWriterStatusMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	param0, err := utils.ConvertFromIndex[int](ctx, 0)
+	code, err := utils.ConvertFromIndex[int](ctx, 0)
 	if err != nil {
 		return nil, utils.NewThrowf("参数转换失败: %v", err)
 	}
-
-	h.source.WriteHeader(param0)
-	// 返回 Response 自身以支持链式调用
-	return data.NewProxyValue(NewResponseWriterClassFrom(h.source), ctx.CreateBaseContext()), nil
+	h.w.SetStatus(code)
+	return responseSelf(h.w, ctx)
 }
 
 func (h *ResponseWriterStatusMethod) GetName() string            { return "status" }
@@ -36,4 +32,6 @@ func (h *ResponseWriterStatusMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "statusCode", 0, nil),
 	}
 }
-func (h *ResponseWriterStatusMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *ResponseWriterStatusMethod) GetReturnType() data.Types {
+	return data.Class{Name: "Net\\Http\\Response"}
+}

@@ -18,8 +18,10 @@ func mountAnnotationRoutes(server *ServerClass, vm data.VM, ctx data.Context, la
 	for _, rt := range routes {
 		rt := rt
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			request := NewRequestClassFrom(r)
-			response := NewResponseWriterClassFrom(w)
+			rw, response := beginResponse(w)
+			defer rw.commitPending()
+			r, request := beginRequest(r)
+			defer detachRequestAttrs(r)
 
 			reqProxy := data.NewProxyValue(request, ctx)
 			resProxy := data.NewProxyValue(response, ctx)
@@ -29,10 +31,7 @@ func mountAnnotationRoutes(server *ServerClass, vm data.VM, ctx data.Context, la
 			}
 		})
 
-		var final http.Handler = handler
-		if len(server.Middlewares) > 0 {
-			final = applyMiddlewares(final, server.Middlewares)
-		}
+		final := server.finalizeHandler(handler)
 
 		methodPath := strings.ToUpper(rt.Method) + " " + rt.Path
 		server.source.Handle(methodPath, final)

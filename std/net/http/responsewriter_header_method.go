@@ -1,40 +1,33 @@
 package http
 
 import (
-	httpsrc "net/http"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/utils"
 )
 
 type ResponseWriterHeaderMethod struct {
-	source httpsrc.ResponseWriter
+	w *bufferedWriter
 }
 
 func (h *ResponseWriterHeaderMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 检查是否有参数
 	_, hasKey := ctx.GetIndexValue(0)
-
-	// 如果没有参数，返回 Header 对象
 	if !hasKey {
-		ret0 := h.source.Header()
+		ret0 := h.w.Header()
 		return data.NewProxyValue(NewHeaderClassFrom(&ret0), ctx), nil
 	}
 
-	// 如果有参数，设置响应头
-	param0, err := utils.ConvertFromIndex[string](ctx, 0)
+	key, err := utils.ConvertFromIndex[string](ctx, 0)
+	if err != nil {
+		return nil, utils.NewThrowf("参数转换失败: %v", err)
+	}
+	value, err := utils.ConvertFromIndex[string](ctx, 1)
 	if err != nil {
 		return nil, utils.NewThrowf("参数转换失败: %v", err)
 	}
 
-	param1, err := utils.ConvertFromIndex[string](ctx, 1)
-	if err != nil {
-		return nil, utils.NewThrowf("参数转换失败: %v", err)
-	}
-
-	h.source.Header().Set(param0, param1)
-	return nil, nil
+	h.w.SetHeader(key, value)
+	return responseSelf(h.w, ctx)
 }
 
 func (h *ResponseWriterHeaderMethod) GetName() string            { return "header" }

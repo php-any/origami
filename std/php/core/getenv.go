@@ -1,8 +1,6 @@
 package core
 
 import (
-	"os"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -35,8 +33,8 @@ func (f *GetenvFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewBoolValue(false), nil
 	}
 
-	// 获取环境变量的值，使用 LookupEnv 来区分"不存在"和"值为空字符串"
-	value, exists := os.LookupEnv(name)
+	// 获取环境变量：优先 $_ENV / $_SERVER（Symfony Dotenv 默认写入此处），再回退 OS 环境
+	value, exists := node.LookupEnvVar(name)
 	if !exists {
 		// 环境变量不存在，返回 false
 		return data.NewBoolValue(false), nil

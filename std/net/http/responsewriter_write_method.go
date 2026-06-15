@@ -1,15 +1,13 @@
 package http
 
 import (
-	httpsrc "net/http"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/utils"
 )
 
 type ResponseWriterWriteMethod struct {
-	source httpsrc.ResponseWriter
+	w *bufferedWriter
 }
 
 func (h *ResponseWriterWriteMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -18,11 +16,12 @@ func (h *ResponseWriterWriteMethod) Call(ctx data.Context) (data.GetValue, data.
 		return nil, utils.NewThrowf("write方法缺少参数: %v", 0)
 	}
 
-	ret0, ret1 := h.source.Write([]byte(param0.AsString()))
-	if ret1 != nil {
-		return nil, utils.NewThrow(ret1)
+	n, err := h.w.Write([]byte(param0.AsString()))
+	if err != nil {
+		return nil, utils.NewThrow(err)
 	}
-	return data.NewIntValue(ret0), nil
+	_ = n
+	return responseSelf(h.w, ctx)
 }
 
 func (h *ResponseWriterWriteMethod) GetName() string            { return "write" }
@@ -38,4 +37,6 @@ func (h *ResponseWriterWriteMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "param0", 0, nil),
 	}
 }
-func (h *ResponseWriterWriteMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *ResponseWriterWriteMethod) GetReturnType() data.Types {
+	return data.Class{Name: "Net\\Http\\Response"}
+}

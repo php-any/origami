@@ -1,8 +1,6 @@
 package http
 
 import (
-	httpsrc "net/http"
-
 	"github.com/php-any/origami/std/serializer/json"
 	"github.com/php-any/origami/utils"
 
@@ -15,7 +13,7 @@ type GetProperties interface {
 }
 
 type ResponseWriterJsonMethod struct {
-	source httpsrc.ResponseWriter
+	w *bufferedWriter
 }
 
 func (h *ResponseWriterJsonMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -24,21 +22,19 @@ func (h *ResponseWriterJsonMethod) Call(ctx data.Context) (data.GetValue, data.C
 		return nil, utils.NewThrowf("json 方法缺少参数: %v", 0)
 	}
 
-	switch msg := param0.(type) {
-	case data.ValueSerializer:
-		bytes, err := msg.Marshal(json.NewJsonSerializer())
-		if err != nil {
-			return nil, utils.NewThrow(err)
-		}
-		h.source.Header().Set("Content-Type", "application/json; charset=utf-8")
-		ret0, ret1 := h.source.Write(bytes)
-		if ret1 != nil {
-			return nil, utils.NewThrow(ret1)
-		}
-		return data.NewIntValue(ret0), nil
+	msg, ok := param0.(data.ValueSerializer)
+	if !ok {
+		return nil, utils.NewThrowf("使用未支持json序列化的结构%#v", param0)
 	}
 
-	return nil, utils.NewThrowf("使用未支持json序列化的结构%#v", param0)
+	bytes, err := msg.Marshal(json.NewJsonSerializer())
+	if err != nil {
+		return nil, utils.NewThrow(err)
+	}
+	if err := h.w.WriteJSON(bytes); err != nil {
+		return nil, utils.NewThrow(err)
+	}
+	return nil, nil
 }
 
 func (h *ResponseWriterJsonMethod) GetName() string            { return "json" }

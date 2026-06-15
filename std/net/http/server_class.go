@@ -15,11 +15,12 @@ func NewServerClass() data.ClassStmt {
 
 func NewServerClassFromGroup(prefix string, server *ServerClass) data.ClassStmt {
 	return &ServerClass{
-		source:      server.source,
-		Prefix:      prefix,
-		Host:        server.Host,
-		Port:        server.Port,
-		Middlewares: append([]MiddlewareFunc{}, server.Middlewares...),
+		source:       server.source,
+		Prefix:       prefix,
+		Host:         server.Host,
+		Port:         server.Port,
+		middlewares:  append([]middlewareEntry{}, server.middlewares...),
+		errorHandler: server.errorHandler,
 	}
 }
 
@@ -29,9 +30,10 @@ type ServerClass struct {
 
 	Prefix string
 
-	Host        string
-	Port        int
-	Middlewares []MiddlewareFunc
+	Host         string
+	Port         int
+	middlewares  []middlewareEntry
+	errorHandler *errorHandlerSlot
 }
 
 func (s *ServerClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
@@ -59,6 +61,8 @@ func (s *ServerClass) GetMethod(name string) (data.Method, bool) {
 		return &ServerGroupMethod{server: s}, true
 	case "middleware":
 		return &ServerMiddlewareMethod{server: s}, true
+	case "onError":
+		return &ServerOnErrorMethod{server: s}, true
 	case "run":
 		return &ServerRunMethod{server: s}, true
 	case "serveHTTP":
@@ -83,6 +87,7 @@ func (s *ServerClass) GetMethods() []data.Method {
 		&ServerBootMethod{server: s},
 		&ServerGroupMethod{server: s},
 		&ServerMiddlewareMethod{server: s},
+		&ServerOnErrorMethod{server: s},
 		&ServerRunMethod{server: s},
 		&ServerServeHTTPMethod{server: s},
 	}

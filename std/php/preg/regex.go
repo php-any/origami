@@ -328,6 +328,62 @@ func (m *r2Matcher) ReplaceAllStringFunc(src string, repl func(string) string) s
 	return sb.String()
 }
 
+// HasModifier 检查 PHP 正则是否带有指定修饰符（如 A、i、m）。
+func HasModifier(pattern string, mod byte) bool {
+	if len(pattern) < 2 {
+		return false
+	}
+	delimiter := pattern[0]
+	closingDelimiter := delimiter
+	switch delimiter {
+	case '{':
+		closingDelimiter = '}'
+	case '(':
+		closingDelimiter = ')'
+	case '[':
+		closingDelimiter = ']'
+	case '<':
+		closingDelimiter = '>'
+	}
+	endIndex := -1
+	for i := len(pattern) - 1; i > 0; i-- {
+		if pattern[i] == closingDelimiter && pattern[i-1] != '\\' {
+			endIndex = i
+			break
+		}
+	}
+	if endIndex == -1 {
+		return false
+	}
+	modifiers := pattern[endIndex+1:]
+	return strings.Contains(modifiers, string(mod))
+}
+
+// FindSubmatchAt 在 subject 的 offset 位置起搜索，返回相对于完整 subject 的分组下标。
+// anchored 为 true 时（PHP /A 修饰符），匹配必须从 offset 处开始。
+func FindSubmatchAt(m Matcher, subject string, offset int, anchored bool) []int {
+	if offset < 0 {
+		offset = 0
+	}
+	if offset > len(subject) {
+		return nil
+	}
+	search := subject[offset:]
+	loc := m.FindStringSubmatchIndex(search)
+	if loc == nil {
+		return nil
+	}
+	if anchored && loc[0] != 0 {
+		return nil
+	}
+	for i := 0; i < len(loc); i++ {
+		if loc[i] >= 0 {
+			loc[i] += offset
+		}
+	}
+	return loc
+}
+
 // CompileAny 将 PHP 风格的正则表达式编译为 Matcher。
 // 优先尝试 Go 原生 regexp；若编译失败（如含 lookahead/lookbehind），
 // 则使用 regexp2（完整 PCRE 支持）。

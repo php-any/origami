@@ -1,7 +1,6 @@
 package core
 
 import (
-	"os"
 	"strings"
 
 	"github.com/php-any/origami/data"
@@ -46,8 +45,8 @@ func (f *PutenvFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	key := parts[0]
 	value := parts[1]
 
-	// 设置环境变量
-	err := os.Setenv(key, value)
+	// 设置环境变量，并同步 $_ENV / $_SERVER
+	err := node.SetEnvVar(key, value)
 	if err != nil {
 		return data.NewBoolValue(false), nil
 	}

@@ -1,8 +1,6 @@
 package http
 
 import (
-	httpsrc "net/http"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/utils"
@@ -10,11 +8,10 @@ import (
 
 // ResponseWriterViewMethod 支持渲染 HTML 模板并可传入参数
 type ResponseWriterViewMethod struct {
-	source httpsrc.ResponseWriter
+	w *bufferedWriter
 }
 
 func (h *ResponseWriterViewMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 第一个参数：模板文件路径（必填）
 	pathValue, ok := ctx.GetIndexValue(0)
 	if !ok {
 		return nil, utils.NewThrowf("view 方法缺少模板路径参数: %v", 0)
@@ -34,15 +31,12 @@ func (h *ResponseWriterViewMethod) Call(ctx data.Context) (data.GetValue, data.C
 		return nil, acl
 	}
 
-	// 设置 Content-Type 并输出
-	h.source.Header().Set("Content-Type", "text/html; charset=utf-8")
+	h.w.SetHeader("Content-Type", "text/html; charset=utf-8")
 	if rendered != nil {
 		if val, ok := rendered.(data.Value); ok {
-			_, err := h.source.Write([]byte(val.AsString()))
-			if err != nil {
+			if _, err := h.w.Write([]byte(val.AsString())); err != nil {
 				return nil, utils.NewThrow(err)
 			}
-			return nil, nil
 		}
 	}
 	return nil, nil

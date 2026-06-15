@@ -202,6 +202,8 @@ func (s *RequestClass) GetMethod(name string) (data.Method, bool) {
 		return &RequestBindMethod{source: s.source}, true
 	case "body":
 		return &RequestBodyMethod{source: s.source}, true
+	case "attribute":
+		return &RequestAttributeMethod{source: s.source}, true
 	}
 	return nil, false
 }
@@ -247,6 +249,7 @@ func (s *RequestClass) GetMethods() []data.Method {
 		&RequestIsSecureMethod{source: s.source},
 		&RequestBindMethod{source: s.source},
 		&RequestBodyMethod{source: s.source},
+		&RequestAttributeMethod{source: s.source},
 	}
 }
 

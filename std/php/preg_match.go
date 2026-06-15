@@ -18,7 +18,7 @@ func (f *PregMatchFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	subjectValue, _ := ctx.GetIndexValue(1)
 	matchesValue, _ := ctx.GetIndexValue(2)
 	// flagsValue, _ := ctx.GetIndexValue(3)
-	// offsetValue, _ := ctx.GetIndexValue(4)
+	offsetValue, _ := ctx.GetIndexValue(4)
 
 	if patternValue == nil || subjectValue == nil {
 		return data.NewBoolValue(false), nil
@@ -26,6 +26,14 @@ func (f *PregMatchFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 
 	pattern := patternValue.AsString()
 	subject := subjectValue.AsString()
+	offset := 0
+	if offsetValue != nil {
+		if asInt, ok := offsetValue.(data.AsInt); ok {
+			if v, err := asInt.AsInt(); err == nil {
+				offset = v
+			}
+		}
+	}
 
 	// 使用 preg.CompileAny 统一处理 PHP 风格的正则表达式（支持 lookahead/lookbehind）
 	re, err := preg.CompileAny(pattern)
@@ -34,9 +42,8 @@ func (f *PregMatchFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 		return data.NewBoolValue(false), nil
 	}
 
-	// Find matches
-	// preg_match finds the first match.
-	loc := re.FindStringSubmatchIndex(subject)
+	anchored := preg.HasModifier(pattern, 'A')
+	loc := preg.FindSubmatchAt(re, subject, offset, anchored)
 	if loc == nil {
 		// 无匹配时，清空 $matches
 		if z := ctx.GetIndexZVal(2); z != nil {
