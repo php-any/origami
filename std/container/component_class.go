@@ -91,7 +91,7 @@ func (m *SingletonAnnotationConstructMethod) GetIsStatic() bool          { retur
 func (m *SingletonAnnotationConstructMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
-		node.NewParameter(nil, node.TargetName, 1, nil, nil),
+		node.NewParameter(nil, node.TargetName, 1, data.NewNullValue(), nil),
 	}
 }
 func (m *SingletonAnnotationConstructMethod) GetVariables() []data.Variable {

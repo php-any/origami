@@ -1,6 +1,8 @@
 package http
 
 import (
+	"bufio"
+	"net"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -132,5 +134,38 @@ func TestNewBufferedWriter_Idempotent(t *testing.T) {
 	bw2 := newBufferedWriter(bw1)
 	if bw1 != bw2 {
 		t.Fatal("newBufferedWriter should be idempotent")
+	}
+}
+
+type hijackRecorder struct {
+	*httptest.ResponseRecorder
+}
+
+func (h *hijackRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return nil, nil, nil
+}
+
+func TestBufferedWriter_Hijack(t *testing.T) {
+	rec := &hijackRecorder{ResponseRecorder: httptest.NewRecorder()}
+	bw := newBufferedWriter(rec)
+
+	h, ok := any(bw).(interface {
+		Hijack() (net.Conn, *bufio.ReadWriter, error)
+	})
+	if !ok {
+		t.Fatal("bufferedWriter should implement Hijack")
+	}
+	if _, _, err := h.Hijack(); err != nil {
+		t.Fatalf("Hijack() err = %v", err)
+	}
+}
+
+func TestBufferedWriter_Hijack_NotSupported(t *testing.T) {
+	rec := httptest.NewRecorder()
+	bw := newBufferedWriter(rec)
+
+	_, _, err := bw.Hijack()
+	if err == nil {
+		t.Fatal("expected error when underlying writer does not implement Hijacker")
 	}
 }

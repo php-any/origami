@@ -192,6 +192,7 @@ func Load(vm data.VM) {
 		core.NewStripTagsFunction(),
 		core.NewSetlocaleFunction(),
 		core.NewSplObjectHashFunction(),
+		core.NewSplObjectIdFunction(),
 
 		NewTokenGetAllFunction(),
 

@@ -1,9 +1,11 @@
 package http
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"mime"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,6 +50,21 @@ func (b *bufferedWriter) WriteHeader(code int) {
 func (b *bufferedWriter) Write(p []byte) (int, error) {
 	b.sendHeader()
 	return b.ResponseWriter.Write(p)
+}
+
+// Hijack 委托底层 ResponseWriter，供 WebSocket 等协议升级使用。
+func (b *bufferedWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if h, ok := b.ResponseWriter.(httpsrc.Hijacker); ok {
+		return h.Hijack()
+	}
+	return nil, nil, fmt.Errorf("response does not implement http.Hijacker")
+}
+
+// Flush 委托底层 ResponseWriter（若实现 http.Flusher）。
+func (b *bufferedWriter) Flush() {
+	if f, ok := b.ResponseWriter.(httpsrc.Flusher); ok {
+		f.Flush()
+	}
 }
 
 func (b *bufferedWriter) SetStatus(code int) {
