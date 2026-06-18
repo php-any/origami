@@ -576,6 +576,14 @@ func analyzeParam(param data.GetValue, forAnnotation bool, index int, namespace 
 	var defaultValue data.GetValue
 
 	switch p := param.(type) {
+	case *node.AnnotationTargetParameter:
+		paramName = p.GetName()
+		paramTypes = p.GetType()
+		defaultValue = p.GetDefaultValue()
+	case *node.ParameterRawAST:
+		paramName = p.GetName()
+		paramTypes = p.GetType()
+		defaultValue = p.GetDefaultValue()
 	case *node.Parameter:
 		paramName = p.GetName()
 		paramTypes = p.GetType()
@@ -602,10 +610,6 @@ func analyzeParam(param data.GetValue, forAnnotation bool, index int, namespace 
 
 	if paramName == "" {
 		paramName = fmt.Sprintf("param%d", index)
-	}
-
-	if forAnnotation && paramName == node.TargetName {
-		return nil
 	}
 
 	if _, ok := param.(*node.Parameters); ok {

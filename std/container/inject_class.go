@@ -44,13 +44,13 @@ func (m *InjectConstructMethod) GetIsStatic() bool          { return false }
 func (m *InjectConstructMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "service", 0, data.NewStringValue(""), data.NewBaseType("string")),
-		node.NewParameter(nil, node.TargetName, 1, nil, nil),
+		node.NewAnnotationTargetParameter(nil, 1),
 	}
 }
 func (m *InjectConstructMethod) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "service", 0, nil),
-		node.NewVariable(nil, "target", 1, nil),
+		node.NewAnnotationTargetVariable(nil, 1),
 	}
 }
 func (m *InjectConstructMethod) GetReturnType() data.Types { return nil }

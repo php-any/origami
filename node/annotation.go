@@ -22,6 +22,45 @@ const (
 	TargetName = "target"
 )
 
+// AnnotationTargetParameter 注解构造函数中的 target 参数，接收被注解的 AST 节点。
+type AnnotationTargetParameter struct {
+	*Parameter
+}
+
+// NewAnnotationTargetParameter 创建注解 target 参数：默认 null，类型为 AstNode。
+func NewAnnotationTargetParameter(from data.From, index int) data.GetValue {
+	return &AnnotationTargetParameter{
+		Parameter: &Parameter{
+			Node:         NewNode(from),
+			Name:         TargetName,
+			Index:        index,
+			Type:         data.AST{},
+			DefaultValue: data.NewNullValue(),
+		},
+	}
+}
+
+func (p *AnnotationTargetParameter) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return p.Parameter.GetValue(ctx)
+}
+
+// NewAnnotationTargetVariable 创建与 target 参数配套的变量声明。
+func NewAnnotationTargetVariable(from data.From, index int) data.Variable {
+	return NewVariable(from, TargetName, index, data.AST{})
+}
+
+func asAnnotationTargetParam(param data.GetValue) data.Variable {
+	switch p := param.(type) {
+	case *AnnotationTargetParameter:
+		return p.Parameter
+	case *Parameter:
+		if p.Name == TargetName {
+			return p
+		}
+	}
+	return nil
+}
+
 // Annotation 表示注解节点
 type Annotation struct {
 	*Node
@@ -111,15 +150,15 @@ func (a *Annotation) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 				if index >= len(varies) {
 					break
 				}
-				if argObj, ok := params[index].(*Parameter); ok {
+				param := params[index]
+				if targetParam := asAnnotationTargetParam(param); targetParam != nil {
+					// 将被注解的 AST 目标按需注入构造函数
+					fnCtx.SetVariableValue(targetParam, data.NewAnyValue(a.Target))
+					continue
+				}
+				if argObj, ok := param.(*Parameter); ok {
 					if argObj.DefaultValue == nil {
-						// 将被注解的 AST 目标按需注入构造函数：
-						// 只要构造函数声明了名为 target 的参数，就注入，不再强依赖是否实现 TypeMacro
-						if argObj.Name == TargetName {
-							fnCtx.SetVariableValue(argObj, data.NewAnyValue(a.Target))
-						} else {
-							return nil, data.NewErrorThrow(a.from, fmt.Errorf("调用 %s 构造函数时参数 %s 缺少值和默认值", a.Name, argObj.Name))
-						}
+						return nil, data.NewErrorThrow(a.from, fmt.Errorf("调用 %s 构造函数时参数 %s 缺少值和默认值", a.Name, argObj.Name))
 					}
 					// 调用 GetValue 来触发默认值的设置
 					_, acl := argObj.GetValue(fnCtx)

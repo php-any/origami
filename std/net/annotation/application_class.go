@@ -79,7 +79,7 @@ func (m *ApplicationConstructMethod) GetParams() []data.GetValue {
 		node.NewParameter(nil, "name", 0, data.NewStringValue("App"), data.NewBaseType("string")),
 		node.NewParameter(nil, "port", 1, data.NewIntValue(8080), data.NewBaseType("int")),
 		node.NewParameter(nil, "scan", 2, data.NewNullValue(), nil),
-		node.NewParameter(nil, node.TargetName, 3, nil, nil),
+		node.NewAnnotationTargetParameter(nil, 3),
 	}
 }
 func (m *ApplicationConstructMethod) GetVariables() []data.Variable {
@@ -87,7 +87,7 @@ func (m *ApplicationConstructMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "name", 0, nil),
 		node.NewVariable(nil, "port", 1, nil),
 		node.NewVariable(nil, "scan", 2, nil),
-		node.NewVariable(nil, "target", 3, nil),
+		node.NewAnnotationTargetVariable(nil, 3),
 	}
 }
 func (m *ApplicationConstructMethod) GetReturnType() data.Types { return data.NewBaseType("string") }

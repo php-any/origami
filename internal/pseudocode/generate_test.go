@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 )
 
 func TestFormatPHPTypeUnionClassNames(t *testing.T) {
@@ -48,7 +49,6 @@ func TestFormatPHPTypeMultipleReturnAsUnion(t *testing.T) {
 }
 
 func TestGenerateHTTPReturnTypes(t *testing.T) {
-	dir := t.TempDir()
 	if err := Generate(dir); err != nil {
 		t.Fatal(err)
 	}
@@ -84,5 +84,21 @@ func TestGenerateHTTPReturnTypes(t *testing.T) {
 	}
 	if !strings.Contains(resp, "function json(object|array $data)") {
 		t.Fatalf("response.php json param type invalid:\n%s", resp)
+	}
+}
+
+func TestAnalyzeAnnotationTargetParameter(t *testing.T) {
+	param := analyzeParam(node.NewAnnotationTargetParameter(nil, 1), true, 1, "Container")
+	if param == nil {
+		t.Fatal("annotation target param should not be skipped")
+	}
+	if param.Name != "target" {
+		t.Fatalf("param name = %q, want target", param.Name)
+	}
+	if param.Type != "?AstNode" {
+		t.Fatalf("param type = %q, want ?AstNode", param.Type)
+	}
+	if param.Default != " = null" {
+		t.Fatalf("param default = %q, want ' = null'", param.Default)
 	}
 }

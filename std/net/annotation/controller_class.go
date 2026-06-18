@@ -96,14 +96,14 @@ func (m *ControllerConstructMethod) GetIsStatic() bool {
 func (m *ControllerConstructMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
-		node.NewParameter(nil, node.TargetName, 1, nil, nil),
+		node.NewAnnotationTargetParameter(nil, 1),
 	}
 }
 
 func (m *ControllerConstructMethod) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "name", 0, nil),
-		node.NewVariable(nil, "target", 1, nil),
+		node.NewAnnotationTargetVariable(nil, 1),
 	}
 }
 

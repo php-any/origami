@@ -41,13 +41,13 @@ func (m *ComponentConstructMethod) GetIsStatic() bool          { return false }
 func (m *ComponentConstructMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
-		node.NewParameter(nil, node.TargetName, 1, nil, nil),
+		node.NewAnnotationTargetParameter(nil, 1),
 	}
 }
 func (m *ComponentConstructMethod) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "name", 0, nil),
-		node.NewVariable(nil, "target", 1, nil),
+		node.NewAnnotationTargetVariable(nil, 1),
 	}
 }
 func (m *ComponentConstructMethod) GetReturnType() data.Types { return nil }
@@ -91,13 +91,13 @@ func (m *SingletonAnnotationConstructMethod) GetIsStatic() bool          { retur
 func (m *SingletonAnnotationConstructMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
-		node.NewParameter(nil, node.TargetName, 1, data.NewNullValue(), nil),
+		node.NewAnnotationTargetParameter(nil, 1),
 	}
 }
 func (m *SingletonAnnotationConstructMethod) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "name", 0, nil),
-		node.NewVariable(nil, "target", 1, nil),
+		node.NewAnnotationTargetVariable(nil, 1),
 	}
 }
 func (m *SingletonAnnotationConstructMethod) GetReturnType() data.Types { return nil }
@@ -141,13 +141,13 @@ func (m *ScopedAnnotationConstructMethod) GetIsStatic() bool          { return f
 func (m *ScopedAnnotationConstructMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
-		node.NewParameter(nil, node.TargetName, 1, nil, nil),
+		node.NewAnnotationTargetParameter(nil, 1),
 	}
 }
 func (m *ScopedAnnotationConstructMethod) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "name", 0, nil),
-		node.NewVariable(nil, "target", 1, nil),
+		node.NewAnnotationTargetVariable(nil, 1),
 	}
 }
 func (m *ScopedAnnotationConstructMethod) GetReturnType() data.Types { return nil }

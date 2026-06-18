@@ -44,13 +44,13 @@ func (m *BindConstructMethod) GetIsStatic() bool          { return false }
 func (m *BindConstructMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "abstract", 0, data.NewNullValue(), data.NewBaseType("string")),
-		node.NewParameter(nil, node.TargetName, 1, nil, nil),
+		node.NewAnnotationTargetParameter(nil, 1),
 	}
 }
 func (m *BindConstructMethod) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "abstract", 0, nil),
-		node.NewVariable(nil, "target", 1, nil),
+		node.NewAnnotationTargetVariable(nil, 1),
 	}
 }
 func (m *BindConstructMethod) GetReturnType() data.Types { return nil }

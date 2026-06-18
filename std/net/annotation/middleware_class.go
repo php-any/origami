@@ -121,14 +121,14 @@ func (m *MiddlewareConstructMethod) GetIsStatic() bool {
 func (m *MiddlewareConstructMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "className", 0, nil, nil),
-		node.NewParameter(nil, node.TargetName, 1, nil, nil),
+		node.NewAnnotationTargetParameter(nil, 1),
 	}
 }
 
 func (m *MiddlewareConstructMethod) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "className", 0, nil),
-		node.NewVariable(nil, "target", 1, nil),
+		node.NewAnnotationTargetVariable(nil, 1),
 	}
 }
 

@@ -90,14 +90,14 @@ func (m *GetMappingConstructMethod) GetIsStatic() bool {
 func (m *GetMappingConstructMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "path", 0, data.NewStringValue("/"), data.NewBaseType("string")),
-		node.NewParameter(nil, node.TargetName, 1, nil, nil),
+		node.NewAnnotationTargetParameter(nil, 1),
 	}
 }
 
 func (m *GetMappingConstructMethod) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "path", 0, nil),
-		node.NewVariable(nil, "target", 1, nil),
+		node.NewAnnotationTargetVariable(nil, 1),
 	}
 }
 
