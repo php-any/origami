@@ -7,10 +7,11 @@ import (
 	"github.com/php-any/origami/utils"
 )
 
-// DbBindMethod 实现 DB::bind(Model::class) 静态工厂，等价于 DB<Model>() 泛型语法。
-type DbBindMethod struct{}
+// DbModelMethod 实现 DB::model(Model::class)，用于运行时类名或无法使用泛型时的构建器工厂。
+// 静态类型场景优先使用 DB<Model>()。
+type DbModelMethod struct{}
 
-func (d *DbBindMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+func (d *DbModelMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	a0, ok := ctx.GetIndexValue(0)
 	if !ok {
 		return nil, utils.NewThrow(errors.New("缺少模型类名参数"))
@@ -27,32 +28,21 @@ func (d *DbBindMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return newBuilderValue(ctx, className, connName)
 }
 
-func (d *DbBindMethod) GetName() string {
-	return "bind"
-}
-
-func (d *DbBindMethod) GetModifier() data.Modifier {
-	return data.ModifierPublic
-}
-
-func (d *DbBindMethod) GetIsStatic() bool {
-	return true
-}
-
-func (d *DbBindMethod) GetParams() []data.GetValue {
+func (d *DbModelMethod) GetName() string            { return "model" }
+func (d *DbModelMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (d *DbModelMethod) GetIsStatic() bool          { return true }
+func (d *DbModelMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		data.NewParameter("className", 0),
 		data.NewParameterDefault("connectionName", 1, data.NewNullValue(), nil),
 	}
 }
-
-func (d *DbBindMethod) GetVariables() []data.Variable {
+func (d *DbModelMethod) GetVariables() []data.Variable {
 	return []data.Variable{
 		data.NewVariable("className", 0, data.NewBaseType("string")),
 		data.NewVariable("connectionName", 1, data.NewBaseType("string")),
 	}
 }
-
-func (d *DbBindMethod) GetReturnType() data.Types {
+func (d *DbModelMethod) GetReturnType() data.Types {
 	return data.NewBaseType("Database\\DB")
 }

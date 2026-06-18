@@ -19,4 +19,4 @@ func (h *RequestMultipartReaderMethod) GetModifier() data.Modifier    { return d
 func (h *RequestMultipartReaderMethod) GetIsStatic() bool             { return false }
 func (h *RequestMultipartReaderMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
 func (h *RequestMultipartReaderMethod) GetVariables() []data.Variable { return []data.Variable{} }
-func (h *RequestMultipartReaderMethod) GetReturnType() data.Types     { return data.NewBaseType("void") }
+func (h *RequestMultipartReaderMethod) GetReturnType() data.Types     { return data.NewBaseType("array") }

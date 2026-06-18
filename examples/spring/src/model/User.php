@@ -3,54 +3,54 @@
 namespace Spring\Model;
 
 class User {
-    private $id;
-    private $name;
-    private $email;
-    private $age;
-    
-    public function __construct($id = null, $name = '', $email = '', $age = 0) {
+    private ?int $id;
+    private string $name;
+    private string $email;
+    private int $age;
+
+    public function __construct(?int $id = null, string $name = '', string $email = '', int $age = 0) {
         $this->id = $id;
         $this->name = $name;
         $this->email = $email;
         $this->age = $age;
     }
-    
-    public function getId() {
+
+    public function getId(): ?int {
         return $this->id;
     }
-    
-    public function setId($id) {
+
+    public function setId(?int $id): void {
         $this->id = $id;
     }
-    
-    public function getName() {
+
+    public function getName(): string {
         return $this->name;
     }
-    
-    public function setName($name) {
+
+    public function setName(string $name): void {
         $this->name = $name;
     }
-    
-    public function getEmail() {
+
+    public function getEmail(): string {
         return $this->email;
     }
-    
-    public function setEmail($email) {
+
+    public function setEmail(string $email): void {
         $this->email = $email;
     }
-    
-    public function getAge() {
+
+    public function getAge(): int {
         return $this->age;
     }
-    
-    public function setAge($age) {
+
+    public function setAge(int $age): void {
         $this->age = $age;
     }
-    
+
     /**
      * 转换为数组
      */
-    public function toArray() {
+    public function toArray(): array {
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -58,11 +58,11 @@ class User {
             'age' => $this->age
         ];
     }
-    
+
     /**
      * JSON 序列化
      */
-    public function toJson() {
+    public function toJson(): string {
         return json_encode($this->toArray());
     }
 }

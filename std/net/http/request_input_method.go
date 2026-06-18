@@ -84,4 +84,10 @@ func (h *RequestInputMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "key", 0, nil),
 	}
 }
-func (h *RequestInputMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *RequestInputMethod) GetReturnType() data.Types {
+	return data.NewUnionType([]data.Types{
+		data.NewBaseType("array"),
+		data.NewBaseType("string"),
+		data.NewBaseType("null"),
+	})
+}

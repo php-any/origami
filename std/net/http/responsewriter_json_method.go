@@ -42,16 +42,18 @@ func (h *ResponseWriterJsonMethod) GetModifier() data.Modifier { return data.Mod
 func (h *ResponseWriterJsonMethod) GetIsStatic() bool          { return false }
 func (h *ResponseWriterJsonMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameter(nil, "data", 0, nil, data.Object{}),
+		node.NewParameter(nil, "data", 0, nil, data.NewUnionType([]data.Types{
+			data.NewBaseType("object"),
+			data.NewBaseType("array"),
+		})),
 	}
 }
 func (h *ResponseWriterJsonMethod) GetVariables() []data.Variable {
 	return []data.Variable{
-		node.NewVariable(nil, "data", 0, data.Object{}),
+		node.NewVariable(nil, "data", 0, data.NewUnionType([]data.Types{
+			data.NewBaseType("object"),
+			data.NewBaseType("array"),
+		})),
 	}
 }
 func (h *ResponseWriterJsonMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
-
-func propertiesToJsonString(properties map[string]data.Value) []byte {
-	return []byte("")
-}

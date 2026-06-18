@@ -34,4 +34,6 @@ func (h *ServerGroupMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "prefix", 0, nil),
 	}
 }
-func (h *ServerGroupMethod) GetReturnType() data.Types { return data.NewBaseType(h.server.GetName()) }
+func (h *ServerGroupMethod) GetReturnType() data.Types {
+	return data.Class{Name: "Net\\Http\\Server"}
+}

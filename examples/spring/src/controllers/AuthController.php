@@ -7,6 +7,8 @@ use Net\Annotation\Route;
 use Net\Annotation\GetMapping;
 use Net\Annotation\PostMapping;
 use Net\Annotation\Middleware;
+use Net\Http\Request;
+use Net\Http\Response;
 use Spring\Service\AuthService;
 use Spring\Middleware\LogInterceptor;
 
@@ -20,7 +22,7 @@ class AuthController {
     ) {}
 
     #[PostMapping(path: "/auth/login")]
-    public function login($request, $response) {
+    public function login(Request $request, Response $response): void {
         $body = $request->body();
 
         if (!isset($body['username']) || !isset($body['password'])) {
@@ -54,7 +56,7 @@ class AuthController {
     }
 
     #[PostMapping(path: "/auth/register")]
-    public function register($request, $response) {
+    public function register(Request $request, Response $response): void {
         $body = $request->body();
 
         if (!isset($body['username']) || !isset($body['password']) || !isset($body['email'])) {
@@ -85,7 +87,7 @@ class AuthController {
     }
 
     #[GetMapping(path: "/auth/profile")]
-    public function profile($request, $response) {
+    public function profile(Request $request, Response $response): void {
         $token = $request->header('Authorization', '');
 
         if (empty($token)) {
@@ -116,7 +118,7 @@ class AuthController {
     }
 
     #[PostMapping(path: "/auth/logout")]
-    public function logout($request, $response) {
+    public function logout(Request $request, Response $response): void {
         $response->json([
             "code" => 200,
             "message" => "退出登录成功",

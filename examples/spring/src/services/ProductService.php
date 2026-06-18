@@ -9,16 +9,16 @@ use Spring\Model\Entity\ProductEntity;
 #[Singleton]
 class ProductService {
 
-    private function db() {
-        return DB::model(ProductEntity::class);
+    private function db(): DB {
+        return DB<ProductEntity>();
     }
 
-    public function findAll() {
+    public function findAll(): array {
         $entities = $this->db()->orderBy("id ASC")->get();
         return QueryDemoService::entitiesToArray($entities);
     }
 
-    public function findById($id) {
+    public function findById(int $id): ?array {
         $entity = $this->db()->where("id = ?", $id)->first();
         if (!$entity) {
             return null;
@@ -26,7 +26,7 @@ class ProductService {
         return $entity->toArray();
     }
 
-    public function create($data) {
+    public function create(array $data): array {
         $entity = new ProductEntity();
         $entity->name = $data['name'] ?? '';
         $entity->price = (float)($data['price'] ?? 0);
@@ -39,7 +39,7 @@ class ProductService {
         return $entity->toArray();
     }
 
-    public function update($id, $data) {
+    public function update(int $id, array $data): ?array {
         if (!$this->db()->where("id = ?", $id)->first()) {
             return null;
         }
@@ -62,7 +62,7 @@ class ProductService {
         return $this->findById($id);
     }
 
-    public function delete($id) {
+    public function delete(int $id): bool {
         if (!$this->db()->where("id = ?", $id)->first()) {
             return false;
         }
@@ -70,7 +70,7 @@ class ProductService {
         return true;
     }
 
-    public function search($keyword = '', $category = '') {
+    public function search(string $keyword = '', string $category = ''): array {
         $query = $this->db();
 
         if (!empty($keyword) && !empty($category)) {
@@ -89,12 +89,12 @@ class ProductService {
         return QueryDemoService::entitiesToArray($query->orderBy("id ASC")->get());
     }
 
-    public function findByCategory($category) {
+    public function findByCategory(string $category): array {
         $entities = $this->db()->where("category = ?", $category)->orderBy("price DESC")->get();
         return QueryDemoService::entitiesToArray($entities);
     }
 
-    public function findByPriceRange($minPrice, $maxPrice) {
+    public function findByPriceRange(float $minPrice, float $maxPrice): array {
         $entities = $this->db()
             ->where("price >= ? AND price <= ?", $minPrice, $maxPrice)
             ->orderBy("price ASC")

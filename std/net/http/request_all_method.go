@@ -48,4 +48,4 @@ func (h *RequestAllMethod) GetModifier() data.Modifier    { return data.Modifier
 func (h *RequestAllMethod) GetIsStatic() bool             { return false }
 func (h *RequestAllMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
 func (h *RequestAllMethod) GetVariables() []data.Variable { return []data.Variable{} }
-func (h *RequestAllMethod) GetReturnType() data.Types     { return data.NewBaseType("void") }
+func (h *RequestAllMethod) GetReturnType() data.Types     { return data.NewBaseType("array") }

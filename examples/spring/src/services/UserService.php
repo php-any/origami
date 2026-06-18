@@ -9,23 +9,23 @@ use Spring\Model\Entity\UserEntity;
 #[Singleton]
 class UserService {
 
-    private function db() {
-        return DB::model(UserEntity::class);
+    private function db(): DB {
+        return DB<UserEntity>();
     }
 
-    public function findAll() {
+    public function findAll(): array {
         return $this->db()->orderBy("id ASC")->get();
     }
 
-    public function findById($id) {
+    public function findById(int $id): ?UserEntity {
         return $this->db()->where("id = ?", $id)->first();
     }
 
-    public function findByEmail($email) {
+    public function findByEmail(string $email): ?UserEntity {
         return $this->db()->where("email = ?", $email)->first();
     }
 
-    public function create($data) {
+    public function create(array $data): UserEntity {
         $entity = new UserEntity();
         $entity->name = $data['name'] ?? '';
         $entity->email = $data['email'] ?? '';
@@ -37,7 +37,7 @@ class UserService {
         return $entity;
     }
 
-    public function update($id, $data) {
+    public function update(int $id, array $data): ?UserEntity {
         $existing = $this->findById($id);
         if (!$existing) {
             return null;
@@ -58,7 +58,7 @@ class UserService {
         return $this->findById($id);
     }
 
-    public function delete($id) {
+    public function delete(int $id): bool {
         if (!$this->findById($id)) {
             return false;
         }
@@ -66,7 +66,7 @@ class UserService {
         return true;
     }
 
-    public function search($keyword, $field = 'name') {
+    public function search(string $keyword, string $field = 'name'): array {
         if ($field === 'email') {
             return $this->db()->where("email LIKE ?", "%" . $keyword . "%")->get();
         }

@@ -6,6 +6,8 @@ use Net\Annotation\Controller;
 use Net\Annotation\Route;
 use Net\Annotation\GetMapping;
 use Net\Annotation\Middleware;
+use Net\Http\Request;
+use Net\Http\Response;
 use Spring\Middleware\LogInterceptor;
 use Spring\Service\QueryDemoService;
 
@@ -23,7 +25,7 @@ class QueryController {
      * GET /api/queries/users?min_age=25&limit=5
      */
     #[GetMapping(path: "/simple/users")]
-    public function singleTableUsers($request, $response) {
+    public function singleTableUsers(Request $request, Response $response): void {
         $minAge = 0;
         $limit = 10;
         $minAgeInput = $request->input('min_age');
@@ -56,7 +58,7 @@ class QueryController {
      * GET /api/queries/users/search?keyword=张
      */
     #[GetMapping(path: "/users/search")]
-    public function searchUsers($request, $response) {
+    public function searchUsers(Request $request, Response $response): void {
         $keyword = $request->input('keyword') ?? '';
         $rows = $this->queryService->searchUsers($keyword);
         $data = QueryDemoService::rowsToArray($rows);
@@ -74,7 +76,7 @@ class QueryController {
      * GET /api/queries/products/stats
      */
     #[GetMapping(path: "/products/stats")]
-    public function productStats($request, $response) {
+    public function productStats(Request $request, Response $response): void {
         $rows = $this->queryService->aggregateByCategory();
         $data = QueryDemoService::rowsToArray($rows);
 
@@ -91,7 +93,7 @@ class QueryController {
      * GET /api/queries/products/above-avg
      */
     #[GetMapping(path: "/products/above-avg")]
-    public function productsAboveAvg($request, $response) {
+    public function productsAboveAvg(Request $request, Response $response): void {
         $rows = $this->queryService->productsAboveCategoryAvg();
         $data = QueryDemoService::rowsToArray($rows);
 
@@ -108,7 +110,7 @@ class QueryController {
      * GET /api/queries/orders/join-products
      */
     #[GetMapping(path: "/orders/join-products")]
-    public function joinOrderProducts($request, $response) {
+    public function joinOrderProducts(Request $request, Response $response): void {
         $rows = $this->queryService->innerJoinOrderProducts();
         $data = QueryDemoService::rowsToArray($rows);
 
@@ -125,7 +127,7 @@ class QueryController {
      * GET /api/queries/users/join-orders
      */
     #[GetMapping(path: "/users/join-orders")]
-    public function joinUserOrders($request, $response) {
+    public function joinUserOrders(Request $request, Response $response): void {
         $rows = $this->queryService->leftJoinUserOrders();
         $data = QueryDemoService::rowsToArray($rows);
 
@@ -142,7 +144,7 @@ class QueryController {
      * GET /api/queries/orders/details
      */
     #[GetMapping(path: "/orders/details")]
-    public function orderDetails($request, $response) {
+    public function orderDetails(Request $request, Response $response): void {
         $rows = $this->queryService->orderDetails();
         $data = QueryDemoService::rowsToArray($rows);
 
@@ -159,7 +161,7 @@ class QueryController {
      * GET /api/queries/orders/completed-stats
      */
     #[GetMapping(path: "/orders/completed-stats")]
-    public function completedOrderStats($request, $response) {
+    public function completedOrderStats(Request $request, Response $response): void {
         $rows = $this->queryService->completedOrderStats();
         $data = QueryDemoService::rowsToArray($rows);
 

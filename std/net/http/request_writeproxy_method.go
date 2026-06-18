@@ -36,4 +36,4 @@ func (h *RequestWriteProxyMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "param0", 0, nil),
 	}
 }
-func (h *RequestWriteProxyMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *RequestWriteProxyMethod) GetReturnType() data.Types { return data.NewBaseType("int") }

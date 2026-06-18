@@ -12,7 +12,7 @@ class UserEntity {
     public int $age;
     public ?string $created_at;
 
-    public function toArray() {
+    public function toArray(): array {
         return [
             'id' => $this->id,
             'name' => $this->name,

@@ -3,10 +3,10 @@
 namespace Spring\Model;
 
 class Users {
-    public $id;
-    public $name;
-    public $age;
-    public $email;
+    public int $id;
+    public string $name;
+    public int $age;
+    public string $email;
 
     public function getName(): string {
         return $this->name;
@@ -19,7 +19,7 @@ class Users {
     public function getAge(): int {
         return $this->age;
     }
-    
+
     public function setAge(int $age): void {
         $this->age = $age;
     }
@@ -27,7 +27,7 @@ class Users {
     public function getEmail(): string {
         return $this->email;
     }
-    
+
     public function setEmail(string $email): void {
         $this->email = $email;
     }
@@ -35,7 +35,7 @@ class Users {
     public function getId(): int {
         return $this->id;
     }
-    
+
     public function setId(int $id): void {
         $this->id = $id;
     }

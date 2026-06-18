@@ -80,4 +80,4 @@ func (h *RequestOnlyMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "keys", 0, nil),
 	}
 }
-func (h *RequestOnlyMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *RequestOnlyMethod) GetReturnType() data.Types { return data.NewBaseType("array") }

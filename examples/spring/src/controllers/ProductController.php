@@ -9,6 +9,8 @@ use Net\Annotation\PostMapping;
 use Net\Annotation\PutMapping;
 use Net\Annotation\DeleteMapping;
 use Net\Annotation\Middleware;
+use Net\Http\Request;
+use Net\Http\Response;
 use Spring\Service\ProductService;
 use Spring\Middleware\AuthInterceptor;
 use Spring\Middleware\LogInterceptor;
@@ -24,7 +26,7 @@ class ProductController {
     ) {}
 
     #[GetMapping(path: "/products")]
-    public function listProducts($request, $response) {
+    public function listProducts(Request $request, Response $response): void {
         $products = $this->productService->findAll();
 
         $response->header("Content-Type", "application/json; charset=utf-8");
@@ -37,7 +39,7 @@ class ProductController {
     }
 
     #[GetMapping(path: "/product/{id}")]
-    public function getProduct($request, $response) {
+    public function getProduct(Request $request, Response $response): void {
         $id = (int)$request->pathValue('id');
         $product = $this->productService->findById($id);
 
@@ -58,7 +60,7 @@ class ProductController {
     }
 
     #[PostMapping(path: "/products")]
-    public function createProduct($request, $response) {
+    public function createProduct(Request $request, Response $response): void {
         $body = $request->body();
 
         if (!isset($body['name']) || !isset($body['price'])) {
@@ -80,7 +82,7 @@ class ProductController {
     }
 
     #[PutMapping(path: "/product/{id}")]
-    public function updateProduct($request, $response) {
+    public function updateProduct(Request $request, Response $response): void {
         $id = (int)$request->pathValue('id');
         $body = $request->body();
 
@@ -103,7 +105,7 @@ class ProductController {
     }
 
     #[DeleteMapping(path: "/product/{id}")]
-    public function deleteProduct($request, $response) {
+    public function deleteProduct(Request $request, Response $response): void {
         $id = (int)$request->pathValue('id');
         $result = $this->productService->delete($id);
 
@@ -124,7 +126,7 @@ class ProductController {
     }
 
     #[GetMapping(path: "/products/search")]
-    public function searchProducts($request, $response) {
+    public function searchProducts(Request $request, Response $response): void {
         $keyword = $request->input('keyword') ?? '';
         $category = $request->input('category') ?? '';
 

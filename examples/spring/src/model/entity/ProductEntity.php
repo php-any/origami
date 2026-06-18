@@ -13,7 +13,7 @@ class ProductEntity {
     public string $description;
     public ?string $created_at;
 
-    public function toArray() {
+    public function toArray(): array {
         return [
             'id' => $this->id,
             'name' => $this->name,

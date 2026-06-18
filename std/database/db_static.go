@@ -8,45 +8,6 @@ import (
 	"github.com/php-any/origami/utils"
 )
 
-// DbModelMethod 实现 DB::model(Model::class)，语义更清晰的构建器工厂（等价于 bind / DB<Model>()）。
-type DbModelMethod struct{}
-
-func (d *DbModelMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	a0, ok := ctx.GetIndexValue(0)
-	if !ok {
-		return nil, utils.NewThrow(errors.New("缺少模型类名参数"))
-	}
-	className := a0.(data.AsString).AsString()
-
-	connName := ""
-	if conn, ok := ctx.GetIndexValue(1); ok {
-		if connStr, ok := conn.(data.AsString); ok {
-			connName = connStr.AsString()
-		}
-	}
-
-	return newBuilderValue(ctx, className, connName)
-}
-
-func (d *DbModelMethod) GetName() string            { return "model" }
-func (d *DbModelMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (d *DbModelMethod) GetIsStatic() bool          { return true }
-func (d *DbModelMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("className", 0),
-		data.NewParameterDefault("connectionName", 1, data.NewNullValue(), nil),
-	}
-}
-func (d *DbModelMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("className", 0, data.NewBaseType("string")),
-		data.NewVariable("connectionName", 1, data.NewBaseType("string")),
-	}
-}
-func (d *DbModelMethod) GetReturnType() data.Types {
-	return data.NewBaseType("Database\\DB")
-}
-
 // DbStaticInsertMethod 实现 DB::insert($entity)，从实体自动推断模型并插入。
 type DbStaticInsertMethod struct{}
 
@@ -94,27 +55,45 @@ func (d *DbStaticInsertMethod) GetReturnType() data.Types {
 	return data.NewBaseType("object")
 }
 
-// DbStaticExecuteMethod 实现 DB::execute($sql, $params)，执行原生 INSERT/UPDATE/DELETE/DDL。
+// DbStaticQueryMethod 实现 DB::query($sql, ...$args)，执行原生 SELECT 并返回行对象数组。
+type DbStaticQueryMethod struct{}
+
+func (d *DbStaticQueryMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	sqlStr, goArgs, ctl := parseSQLCallArgs(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	return (&db{}).runQuery(ctx, sqlStr, goArgs)
+}
+
+func (d *DbStaticQueryMethod) GetName() string            { return "query" }
+func (d *DbStaticQueryMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (d *DbStaticQueryMethod) GetIsStatic() bool          { return true }
+func (d *DbStaticQueryMethod) GetParams() []data.GetValue {
+	return []data.GetValue{
+		data.NewParameter("sql", 0),
+		node.NewParameters(nil, "args", 1, nil, nil),
+	}
+}
+func (d *DbStaticQueryMethod) GetVariables() []data.Variable {
+	return []data.Variable{
+		data.NewVariable("sql", 0, data.NewBaseType("string")),
+		data.NewVariable("args", 1, data.NewBaseType("array")),
+	}
+}
+func (d *DbStaticQueryMethod) GetReturnType() data.Types {
+	return data.NewBaseType("array")
+}
+
+// DbStaticExecuteMethod 实现 DB::execute($sql, ...$args)，执行原生 INSERT/UPDATE/DELETE/DDL。
 type DbStaticExecuteMethod struct{}
 
 func (d *DbStaticExecuteMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	sqlVal, ok := ctx.GetIndexValue(0)
-	if !ok {
-		return nil, utils.NewThrow(errors.New("缺少 SQL 语句"))
+	sqlStr, goArgs, ctl := parseSQLCallArgs(ctx)
+	if ctl != nil {
+		return nil, ctl
 	}
-	sql, ok := sqlVal.(data.Value)
-	if !ok {
-		return nil, utils.NewThrow(errors.New("SQL 语句必须是字符串"))
-	}
-
-	args := []data.Value{sql}
-	if paramVal, ok := ctx.GetIndexValue(1); ok {
-		if _, isNull := paramVal.(*data.NullValue); !isNull {
-			args = append(args, paramVal.(data.Value))
-		}
-	}
-
-	return callDefaultBuilderMethod(ctx, "", "exec", args)
+	return (&db{}).runExecute(ctx, sqlStr, goArgs)
 }
 
 func (d *DbStaticExecuteMethod) GetName() string            { return "execute" }

@@ -46,5 +46,8 @@ func (h *ResponseWriterHeaderMethod) GetVariables() []data.Variable {
 	}
 }
 func (h *ResponseWriterHeaderMethod) GetReturnType() data.Types {
-	return data.NewBaseType("Net\\Http\\Header")
+	return data.NewUnionType([]data.Types{
+		data.Class{Name: "Net\\Http\\Header"},
+		data.Class{Name: "Net\\Http\\Response"},
+	})
 }

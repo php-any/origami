@@ -3,6 +3,7 @@
 namespace Spring\Config;
 
 use Database\DB;
+use Database\Sql\DB as SqlDB;
 use Database\Sql\open;
 use Spring\Model\Entity\OrderEntity;
 use Spring\Model\Entity\ProductEntity;
@@ -13,7 +14,7 @@ use Spring\Model\Entity\UserEntity;
  */
 class DatabaseBootstrap {
 
-    public static function init($dbPath = null) {
+    public static function init(?string $dbPath = null): void {
         if ($dbPath === null) {
             $dbPath = __DIR__ . '/../../spring.db';
         }
@@ -31,7 +32,7 @@ class DatabaseBootstrap {
         Log::info("数据库初始化完成");
     }
 
-    private static function createTables($db) {
+    private static function createTables(SqlDB $db): void {
         $db->exec("
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -68,8 +69,8 @@ class DatabaseBootstrap {
         ");
     }
 
-    private static function seedData() {
-        $userCount = DB::sql("SELECT COUNT(*) AS cnt FROM users");
+    private static function seedData(): void {
+        $userCount = DB::query("SELECT COUNT(*) AS cnt FROM users");
         if ($userCount[0]->cnt > 0) {
             Log::info("数据库已有数据，跳过种子数据");
             return;

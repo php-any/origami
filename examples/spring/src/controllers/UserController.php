@@ -7,6 +7,8 @@ use Net\Annotation\Route;
 use Net\Annotation\GetMapping;
 use Net\Annotation\PostMapping;
 use Net\Annotation\Middleware;
+use Net\Http\Request;
+use Net\Http\Response;
 use Spring\Service\UserService;
 use Spring\Middleware\AuthInterceptor;
 use Spring\Middleware\LogInterceptor;
@@ -21,7 +23,7 @@ class UserController {
     ) {}
 
     #[GetMapping(path: "/users")]
-    public function users($request, $response) {
+    public function users(Request $request, Response $response): void {
         $users = $this->userService->findAll();
         $userArray = array_map(function($user) {
             return $user->toArray();
@@ -36,7 +38,7 @@ class UserController {
     }
 
     #[GetMapping(path: "/user/{id}")]
-    public function user($request, $response) {
+    public function user(Request $request, Response $response): void {
         $id = (int)$request->pathValue('id');
         $user = $this->userService->findById($id);
         if (!$user) {
@@ -55,7 +57,7 @@ class UserController {
     }
 
     #[PostMapping(path: "/users")]
-    public function createUser($request, $response) {
+    public function createUser(Request $request, Response $response): void {
         $body = $request->body();
         if (!isset($body['name']) || !isset($body['email'])) {
             $response->status(400)->json([

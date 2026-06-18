@@ -15,7 +15,7 @@ $server = new Server($host, port: $port);
 $server->middleware(new CorsMiddleware());
 
 // 请求日志中间件
-$server->middleware(function ($request, $response, $next) {
+$server->middleware(function (Net\Http\Request $request, Net\Http\Response $response, callable $next): void {
     $method = $request->method();
     $path = $request->path();
     $startTime = microtime(true);

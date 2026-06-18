@@ -24,4 +24,6 @@ func (h *RequestWithContextMethod) GetParams() []data.GetValue {
 func (h *RequestWithContextMethod) GetVariables() []data.Variable {
 	return []data.Variable{}
 }
-func (h *RequestWithContextMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *RequestWithContextMethod) GetReturnType() data.Types {
+	return data.Class{Name: "Net\\Http\\Request"}
+}

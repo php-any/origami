@@ -2,6 +2,9 @@
 
 namespace Spring\Middleware;
 
+use Net\Http\Request;
+use Net\Http\Response;
+
 /**
  * 认证拦截器 - 实现洋葱模型中间件
  *
@@ -12,7 +15,7 @@ namespace Spring\Middleware;
  */
 class AuthInterceptor {
 
-    private $excludePaths = [
+    private array $excludePaths = [
         '/api/auth/login',
         '/api/auth/register',
         '/api/hello',
@@ -21,17 +24,14 @@ class AuthInterceptor {
 
     /**
      * 洋葱模型中间件处理
-     *
-     * @param $request  请求对象
-     * @param $response 响应对象
-     * @param $next     调用下一个中间件或控制器的回调
      */
-    public function handle($request, $response, $next) {
+    public function handle(Request $request, Response $response, callable $next): void {
         $path = $request->path();
 
         // 检查是否需要排除
         if ($this->shouldExclude($path)) {
-            return $next($request, $response);
+            $next($request, $response);
+            return;
         }
 
         // 获取 Authorization header
@@ -68,7 +68,7 @@ class AuthInterceptor {
     /**
      * 检查路径是否应该排除
      */
-    private function shouldExclude($path) {
+    private function shouldExclude(string $path): bool {
         foreach ($this->excludePaths as $excludePath) {
             if (strpos($path, $excludePath) === 0) {
                 return true;
@@ -80,7 +80,7 @@ class AuthInterceptor {
     /**
      * 验证 Token
      */
-    private function verifyToken($token) {
+    private function verifyToken(string $token): bool {
         // 简化示例：实际应使用 JWT 验证
         return !empty($token) && strlen($token) > 10;
     }

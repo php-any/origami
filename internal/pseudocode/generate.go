@@ -51,23 +51,25 @@ var genericDocRules = map[string]GenericClassDocRule{
 			"array": "array<T>",
 		},
 		MethodRules: map[string]GenericMethodDocRule{
-			"bind": {
+			"model": {
 				TemplateDoc: "T",
 				ParamDocs: []string{
 					"@param class-string<T> $className",
 					"@param string|null $connectionName",
 				},
 			},
-			"first":   {ReturnDoc: "T|null"},
-			"groupBy": {ReturnDoc: "DB<T>"},
-			"join":    {ReturnDoc: "DB<T>"},
-			"limit":   {ReturnDoc: "DB<T>"},
-			"offset":  {ReturnDoc: "DB<T>"},
-			"orderBy": {ReturnDoc: "DB<T>"},
-			"select":  {ReturnDoc: "DB<T>"},
-			"table":   {ReturnDoc: "DB<T>"},
-			"get":     {ReturnDoc: "array<T>"},
-			"query":   {ReturnDoc: "array<T>"},
+			"first":      {ReturnDoc: "T|null"},
+			"groupBy":    {ReturnDoc: "DB<T>"},
+			"join":       {ReturnDoc: "DB<T>"},
+			"limit":      {ReturnDoc: "DB<T>"},
+			"offset":     {ReturnDoc: "DB<T>"},
+			"orderBy":    {ReturnDoc: "DB<T>"},
+			"select":     {ReturnDoc: "DB<T>"},
+			"table":      {ReturnDoc: "DB<T>"},
+			"connection": {ReturnDoc: "DB<T>"},
+			"get":        {ReturnDoc: "array<T>"},
+			"query":      {ReturnDoc: "array<T>"},
+			"execute":    {ReturnDoc: "object"},
 			"where": {
 				ReturnDoc: "DB<T>",
 				ParamDocs: []string{
@@ -527,7 +529,7 @@ func analyzeMethodParams(method methodParamsSource, forAnnotation bool, namespac
 		if param == nil {
 			continue
 		}
-		p := analyzeParam(param, forAnnotation, len(result))
+		p := analyzeParam(param, forAnnotation, len(result), namespace)
 		if p == nil {
 			continue
 		}
@@ -560,43 +562,35 @@ func analyzeParams(params []data.GetValue, forAnnotation bool) []Parameter {
 		if param == nil {
 			continue
 		}
-		if p := analyzeParam(param, forAnnotation, len(result)); p != nil {
+		if p := analyzeParam(param, forAnnotation, len(result), ""); p != nil {
 			result = append(result, *p)
 		}
 	}
 	return result
 }
 
-func analyzeParam(param data.GetValue, forAnnotation bool, index int) *Parameter {
+func analyzeParam(param data.GetValue, forAnnotation bool, index int, namespace string) *Parameter {
 	paramName := ""
-	paramType := "mixed"
+	var paramTypes data.Types
 	isVariadic := false
 	var defaultValue data.GetValue
 
 	switch p := param.(type) {
 	case *node.Parameter:
 		paramName = p.GetName()
-		if p.GetType() != nil {
-			paramType = p.GetType().String()
-		}
+		paramTypes = p.GetType()
 		defaultValue = p.GetDefaultValue()
 	case *node.PromotedParameter:
 		paramName = p.GetName()
-		if p.GetType() != nil {
-			paramType = p.GetType().String()
-		}
+		paramTypes = p.GetType()
 		defaultValue = p.GetDefaultValue()
 	case data.Parameter:
 		paramName = p.GetName()
-		if p.GetType() != nil {
-			paramType = p.GetType().String()
-		}
+		paramTypes = p.GetType()
 		defaultValue = p.GetDefaultValue()
 	case data.Variable:
 		paramName = p.GetName()
-		if p.GetType() != nil {
-			paramType = p.GetType().String()
-		}
+		paramTypes = p.GetType()
 	default:
 		if _, ok := param.(*node.Parameters); ok {
 			isVariadic = true
@@ -623,7 +617,7 @@ func analyzeParam(param data.GetValue, forAnnotation bool, index int) *Parameter
 
 	p := &Parameter{
 		Name:       paramName,
-		Type:       formatPHPTypeFromString(paramType, ""),
+		Type:       formatPHPType(paramTypes, namespace),
 		IsVariadic: isVariadic,
 		Default:    formatDefaultValue(defaultValue),
 	}
@@ -658,12 +652,34 @@ func formatPHPType(ty data.Types, namespace string) string {
 	if ty == nil {
 		return "mixed"
 	}
+	switch t := ty.(type) {
+	case data.UnionType:
+		parts := make([]string, len(t.Types))
+		for i, pt := range t.Types {
+			parts[i] = formatPHPType(pt, namespace)
+		}
+		return strings.Join(parts, "|")
+	case data.MultipleReturnType:
+		// 部分 Go 绑定误用多返回值类型表示联合类型，生成时用 | 连接。
+		parts := make([]string, len(t.Types))
+		for i, pt := range t.Types {
+			parts[i] = formatPHPType(pt, namespace)
+		}
+		return strings.Join(parts, "|")
+	}
 	raw := strings.TrimSpace(ty.String())
 	if raw == "" || raw == "void" || raw == "LspTypes" {
 		return "mixed"
 	}
 	if raw == "<T>" || strings.HasPrefix(raw, "<") || strings.HasSuffix(raw, ">") {
 		return "mixed"
+	}
+	if strings.Contains(raw, "|") {
+		parts := strings.Split(raw, "|")
+		for i, part := range parts {
+			parts[i] = formatPHPTypeFromString(strings.TrimSpace(part), namespace)
+		}
+		return strings.Join(parts, "|")
 	}
 	if strings.Contains(raw, "\\") {
 		if namespace != "" && strings.HasPrefix(raw, namespace+"\\") {
@@ -673,13 +689,6 @@ func formatPHPType(ty data.Types, namespace string) string {
 			}
 		}
 		return "\\" + raw
-	}
-	if strings.Contains(raw, "|") {
-		parts := strings.Split(raw, "|")
-		for i, part := range parts {
-			parts[i] = formatPHPTypeFromString(strings.TrimSpace(part), namespace)
-		}
-		return strings.Join(parts, "|")
 	}
 	if strings.HasPrefix(raw, "?") {
 		inner := formatPHPTypeFromString(raw[1:], namespace)

@@ -5,8 +5,8 @@ import (
 )
 
 // collectBindArgs 从上下文收集 SQL 绑定参数，支持两种写法：
-//   - DB::sql($sql, $a, $b)          与 where 一致的可变参数
-//   - DB::sql($sql, [$a, $b])        兼容旧版数组传参
+//   - DB::query($sql, $a, $b)        与 where 一致的可变参数
+//   - DB::query($sql, [$a, $b])      数组传参
 func collectBindArgs(ctx data.Context, bindIndex int) []interface{} {
 	paramValue, ok := ctx.GetIndexValue(bindIndex)
 	if !ok {

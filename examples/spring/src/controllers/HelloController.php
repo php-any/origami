@@ -6,6 +6,8 @@ use Net\Annotation\Controller;
 use Net\Annotation\Route;
 use Net\Annotation\GetMapping;
 use Net\Annotation\Middleware;
+use Net\Http\Request;
+use Net\Http\Response;
 use Spring\Middleware\LogInterceptor;
 
 #[Middleware(LogInterceptor::class)]
@@ -15,7 +17,7 @@ class HelloController {
     public int $count = 0;
 
     #[GetMapping(path: "/hello")]
-    public function hello($request, $response) {
+    public function hello(Request $request, Response $response): void {
         $response->header("Content-Type", "application/json; charset=utf-8");
         $response->json([
             "code" => 200,
@@ -31,7 +33,7 @@ class HelloController {
     }
 
     #[GetMapping(path: "/info")]
-    public function info($request, $response) {
+    public function info(Request $request, Response $response): void {
         $response->header("Content-Type", "application/json; charset=utf-8");
         $response->json([
             "code" => 200,
@@ -47,7 +49,7 @@ class HelloController {
     }
 
     #[GetMapping(path: "/status")]
-    public function status($request, $response) {
+    public function status(Request $request, Response $response): void {
         $response->header("Content-Type", "application/json; charset=utf-8");
         $response->json([
             "code" => 200,

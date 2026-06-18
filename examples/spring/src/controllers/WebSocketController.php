@@ -5,6 +5,8 @@ namespace Spring\Controller;
 use Net\Annotation\Controller;
 use Net\Annotation\GetMapping;
 use Net\Annotation\Route;
+use Net\Http\Request;
+use Net\Http\Response;
 use Spring\Service\WebSocketHub;
 use function Net\Websocket\upgrade;
 
@@ -23,7 +25,7 @@ class WebSocketController {
     ) {}
 
     #[GetMapping(path: "/chat")]
-    public function chat($request, $response):void {
+    public function chat(Request $request, Response $response): void {
         $conn = upgrade($request, $response, true);
         $this->hub->add($conn);
 

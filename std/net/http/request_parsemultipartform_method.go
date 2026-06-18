@@ -35,4 +35,6 @@ func (h *RequestParseMultipartFormMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "param0", 0, nil),
 	}
 }
-func (h *RequestParseMultipartFormMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *RequestParseMultipartFormMethod) GetReturnType() data.Types {
+	return data.NewBaseType("mixed")
+}

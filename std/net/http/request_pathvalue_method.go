@@ -35,4 +35,4 @@ func (h *RequestPathValueMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "param0", 0, nil),
 	}
 }
-func (h *RequestPathValueMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *RequestPathValueMethod) GetReturnType() data.Types { return data.NewBaseType("string") }

@@ -48,6 +48,7 @@ func Load(vm data.VM) {
 		NewIsDirFunction(),
 		NewIsFileFunction(),
 		NewScandirFunction(),
+		NewGlobFunction(),
 		NewFileGetContentsFunction(),
 		NewFilePutContentsFunction(),
 		NewMicrotimeFunction(),
@@ -296,6 +297,7 @@ func Load(vm data.VM) {
 
 	// 初始化 pathinfo 常量
 	InitPathinfoConstants(vm)
+	InitGlobConstants(vm)
 
 	// 注册核心类
 	vm.AddClass(&core.ClosureClass{})

@@ -35,4 +35,4 @@ func (h *HeaderValuesMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "param0", 0, nil),
 	}
 }
-func (h *HeaderValuesMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *HeaderValuesMethod) GetReturnType() data.Types { return data.NewBaseType("array") }

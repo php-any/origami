@@ -97,6 +97,11 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 	}
 	if v, ok := rv.(data.Value); ok {
 		switch l := b.Left.(type) {
+		case *CallObjectDynamicProperty:
+			if ctl := l.SetValue(ctx, v); ctl != nil {
+				return nil, ctl
+			}
+			return v, nil
 		case *CallObjectProperty:
 			temp, acl := l.Object.GetValue(ctx)
 			if acl != nil {

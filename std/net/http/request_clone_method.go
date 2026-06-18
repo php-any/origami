@@ -24,4 +24,6 @@ func (h *RequestCloneMethod) GetParams() []data.GetValue {
 func (h *RequestCloneMethod) GetVariables() []data.Variable {
 	return []data.Variable{}
 }
-func (h *RequestCloneMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *RequestCloneMethod) GetReturnType() data.Types {
+	return data.Class{Name: "Net\\Http\\Request"}
+}

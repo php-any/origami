@@ -11,10 +11,11 @@ $db = open("mysql", "root:password@/database");
 database\registerDefaultConnection($db);
 
 // 使用默认连接
-$data = DB<User>();
+$data = DB::model(User::class);
 
 // 使用指定连接
-$data = DB<User>("connection_name");
+$data = DB::model(User::class, "connection_name");
+$data = DB::model(User::class)->connection("connection_name");
 ```
 
 ## 注解
@@ -36,29 +37,29 @@ class User {
 
 ```zy
 // 基础查询
-$users = DB<User>()->get();
-$user = DB<User>()->first();
+$users = DB::model(User::class)->get();
+$user = DB::model(User::class)->first();
 
 // 条件查询
-$users = DB<User>()->where("age > ?", 18)->get();
+$users = DB::model(User::class)->where("age > ?", 18)->get();
 
 // 字段选择
-$users = DB<User>()->select("id, name, age")->get();
+$users = DB::model(User::class)->select("id, name, age")->get();
 
 // 排序
-$users = DB<User>()->orderBy("age DESC")->get();
+$users = DB::model(User::class)->orderBy("age DESC")->get();
 
 // 限制
-$users = DB<User>()->limit(10)->get();
+$users = DB::model(User::class)->limit(10)->get();
 
 // 分页
-$users = DB<User>()->offset(20)->limit(10)->get();
+$users = DB::model(User::class)->offset(20)->limit(10)->get();
 
 // 分组
-$stats = DB<User>()->select("age, COUNT(*) as count")->groupBy("age")->get();
+$stats = DB::model(User::class)->select("age, COUNT(*) as count")->groupBy("age")->get();
 
 // 连接
-$results = DB<User>()->join("INNER JOIN profiles p ON users.id = p.user_id")->get();
+$results = DB::model(User::class)->join("INNER JOIN profiles p ON users.id = p.user_id")->get();
 ```
 
 ## CRUD 操作
@@ -68,27 +69,32 @@ $results = DB<User>()->join("INNER JOIN profiles p ON users.id = p.user_id")->ge
 $user = new User();
 $user->userName = "张三";
 $user->age = 25;
-$result = DB<User>()->insert($user);
+$result = DB::model(User::class)->insert($user);
 
 // 查询
-$user = DB<User>()->where("id = ?", 1)->first();
-$users = DB<User>()->where("age > ?", 18)->get();
+$user = DB::model(User::class)->where("id = ?", 1)->first();
+$users = DB::model(User::class)->where("age > ?", 18)->get();
 
 // 更新
-$result = DB<User>()->where("id = ?", 1)->update(["age" => 26]);
+$result = DB::model(User::class)->where("id = ?", 1)->update(["age" => 26]);
 
 // 删除
-$result = DB<User>()->where("id = ?", 1)->delete();
+$result = DB::model(User::class)->where("id = ?", 1)->delete();
 ```
 
 ## 原生 SQL
 
 ```zy
-// 查询
-$results = DB<User>()->query("SELECT * FROM users WHERE age > ?", [18]);
+// 静态查询（无需绑定模型）
+$rows = DB::query("SELECT * FROM users WHERE age > ?", 18);
+$users = DB::toEntity(User::class, $rows);
 
-// 执行
-$result = DB<User>()->exec("INSERT INTO users (name, age) VALUES (?, ?)", ["张三", 25]);
+// 构建器实例查询
+$results = DB::model(User::class)->query("SELECT * FROM users WHERE age > ?", 18);
+
+// 写操作
+$result = DB::execute("INSERT INTO users (name, age) VALUES (?, ?)", "张三", 25);
+$result = DB::model(User::class)->execute("UPDATE users SET age = ? WHERE id = ?", 26, 1);
 ```
 
 ## 连接管理函数

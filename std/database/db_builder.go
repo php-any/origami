@@ -7,7 +7,7 @@ import (
 	"github.com/php-any/origami/utils"
 )
 
-// newBuilderValue 根据模型类名创建 DB 查询构建器实例（bind / model 的内部实现）。
+// newBuilderValue 根据模型类名创建 DB 查询构建器实例（model / DB<Model>() 的内部实现）。
 func newBuilderValue(ctx data.Context, className, connName string) (*data.ClassValue, data.Control) {
 	if className == "" {
 		return nil, utils.NewThrow(errors.New("模型类名不能为空"))
@@ -56,41 +56,6 @@ func classNameFromEntity(val data.Value) (string, data.Control) {
 // callBuilderMethod 在指定模型的构建器上调用实例方法。
 func callBuilderMethod(ctx data.Context, className, connName, methodName string, args []data.Value) (data.GetValue, data.Control) {
 	builder, acl := newBuilderValue(ctx, className, connName)
-	if acl != nil {
-		return nil, acl
-	}
-
-	m, ok := builder.GetMethod(methodName)
-	if !ok {
-		return nil, utils.NewThrowf("DB 构建器不存在方法 %s", methodName)
-	}
-
-	vars := m.GetVariables()
-	fnCtx := builder.CreateContext(vars)
-	for i, arg := range args {
-		if i < len(vars) {
-			if ctl := fnCtx.SetVariableValue(vars[i], arg); ctl != nil {
-				return nil, ctl
-			}
-		}
-	}
-	return m.Call(fnCtx)
-}
-
-// newDefaultBuilderValue 创建不绑定具体模型的构建器（用于 select / execute 等原生 SQL）。
-func newDefaultBuilderValue(ctx data.Context, connName string) (*data.ClassValue, data.Control) {
-	source := &db{}
-	if connName != "" {
-		source.setConnectionName(connName)
-	}
-	vm := ctx.GetVM()
-	newDBClass := (&DBClass{}).CloneWithSource(source)
-	return data.NewClassValue(newDBClass, vm.CreateContext([]data.Variable{})), nil
-}
-
-// callDefaultBuilderMethod 在默认连接构建器上调用实例方法（无需指定实体类）。
-func callDefaultBuilderMethod(ctx data.Context, connName, methodName string, args []data.Value) (data.GetValue, data.Control) {
-	builder, acl := newDefaultBuilderValue(ctx, connName)
 	if acl != nil {
 		return nil, acl
 	}

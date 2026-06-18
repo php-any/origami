@@ -35,4 +35,4 @@ func (h *RequestFormValueMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "param0", 0, nil),
 	}
 }
-func (h *RequestFormValueMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *RequestFormValueMethod) GetReturnType() data.Types { return data.NewBaseType("string") }

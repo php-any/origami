@@ -29,7 +29,7 @@ $db->ping();
 database\registerDefaultConnection($db);
 
 // 使用查询构建器
-$users = DB<User>()->where("age > ?", 18)->get();
+$users = DB::model(User::class)->where("age > ?", 18)->get();
 ```
 
 ### 定义模型类
@@ -80,12 +80,20 @@ database\registerConnection("logs", $logDb);
 ### 连接使用
 
 ```zy
-// 使用默认连接
-$data = DB<User>();
+// 默认连接
+$users = DB::model(User::class)->get();
 
-// 使用指定连接
-$data = DB<User>("users");
-$logData = DB<Log>("logs");
+// 构造时指定连接
+$users = DB::model(User::class, "slave")->get();
+
+// 链式切换连接（推荐）
+$users = DB::model(User::class)->connection("slave")->where("age > ?", 18)->get();
+
+// 原生 SQL 指定连接
+$rows = DB::connection("slave")->query("SELECT * FROM users");
+
+// 动态类名 + 指定连接
+$users = DB::model(User::class, "slave")->get();
 ```
 
 ### 连接管理函数
@@ -169,29 +177,39 @@ class User {
 
 ## 查询构建器
 
+### 创建构建器
+
+```zy
+// 推荐：通过类名绑定模型
+$users = DB::model(User::class)->where("age > ?", 18)->get();
+
+// 动态类名（运行时字符串）
+$users = DB::model($className)->where("age > ?", 18)->get();
+```
+
 ### 基础查询
 
 ```zy
 // 查询所有记录
-$users = DB<User>()->get();
+$users = DB::model(User::class)->get();
 
 // 查询单条记录
-$user = DB<User>()->first();
+$user = DB::model(User::class)->first();
 
 // 条件查询
-$users = DB<User>()->where("age > ?", 18)->get();
+$users = DB::model(User::class)->where("age > ?", 18)->get();
 ```
 
 ### 字段选择
 
 ```zy
 // 选择特定字段
-$users = DB<User>()
+$users = DB::model(User::class)
     ->select("id, name, age")
     ->get();
 
 // 使用别名
-$users = DB<User>()
+$users = DB::model(User::class)
     ->select("id as user_id, name as user_name")
     ->get();
 ```
@@ -200,16 +218,16 @@ $users = DB<User>()
 
 ```zy
 // 单个条件
-$users = DB<User>()->where("age > ?", 18)->get();
+$users = DB::model(User::class)->where("age > ?", 18)->get();
 
 // 多个条件
-$users = DB<User>()
+$users = DB::model(User::class)
     ->where("age > ?", 18)
     ->where("status = ?", "active")
     ->get();
 
 // 复杂条件
-$users = DB<User>()
+$users = DB::model(User::class)
     ->where("(age > ? OR age < ?) AND status = ?", [18, 65, "active"])
     ->get();
 ```
@@ -218,13 +236,13 @@ $users = DB<User>()
 
 ```zy
 // 升序排序
-$users = DB<User>()->orderBy("age")->get();
+$users = DB::model(User::class)->orderBy("age")->get();
 
 // 降序排序
-$users = DB<User>()->orderBy("age DESC")->get();
+$users = DB::model(User::class)->orderBy("age DESC")->get();
 
 // 多字段排序
-$users = DB<User>()
+$users = DB::model(User::class)
     ->orderBy("status ASC, age DESC")
     ->get();
 ```
@@ -233,7 +251,7 @@ $users = DB<User>()
 
 ```zy
 // 按年龄分组统计
-$stats = DB<User>()
+$stats = DB::model(User::class)
     ->select("age, COUNT(*) as count")
     ->groupBy("age")
     ->get();
@@ -243,10 +261,10 @@ $stats = DB<User>()
 
 ```zy
 // 限制记录数
-$users = DB<User>()->limit(10)->get();
+$users = DB::model(User::class)->limit(10)->get();
 
 // 分页查询
-$users = DB<User>()
+$users = DB::model(User::class)
     ->offset(20)
     ->limit(10)
     ->get();
@@ -256,13 +274,13 @@ $users = DB<User>()
 
 ```zy
 // 内连接
-$results = DB<User>()
+$results = DB::model(User::class)
     ->join("INNER JOIN user_profiles up ON users.id = up.user_id")
     ->select("users.*, up.bio, up.avatar")
     ->get();
 
 // 左连接
-$results = DB<User>()
+$results = DB::model(User::class)
     ->join("LEFT JOIN orders o ON users.id = o.user_id")
     ->where("o.status = ?", "pending")
     ->get();
@@ -279,7 +297,7 @@ $user->userName = "张三";
 $user->age = 25;
 $user->coin = 100.0;
 
-$result = DB<User>()->insert($user);
+$result = DB::model(User::class)->insert($user);
 echo "插入成功，ID: " . $result->lastInsertId;
 
 // 插入数组数据
@@ -289,26 +307,26 @@ $userData = [
     "coin" => 200.0
 ];
 
-$result = DB<User>()->insert($userData);
+$result = DB::model(User::class)->insert($userData);
 ```
 
 ### 查询 (Read)
 
 ```zy
 // 查询所有记录
-$users = DB<User>()->get();
+$users = DB::model(User::class)->get();
 
 // 查询单条记录
-$user = DB<User>()->where("id = ?", 1)->first();
+$user = DB::model(User::class)->where("id = ?", 1)->first();
 
 // 条件查询
-$activeUsers = DB<User>()
+$activeUsers = DB::model(User::class)
     ->where("status = ?", "active")
     ->orderBy("created_at DESC")
     ->get();
 
 // 统计查询
-$count = DB<User>()->where("age > ?", 18)->get();
+$count = DB::model(User::class)->where("age > ?", 18)->get();
 echo "成年用户数量: " . count($count);
 ```
 
@@ -321,7 +339,7 @@ $updateData = [
     "age" => 26
 ];
 
-$result = DB<User>()
+$result = DB::model(User::class)
     ->where("id = ?", 1)
     ->update($updateData);
 
@@ -332,7 +350,7 @@ $user = new User();
 $user->coin = 1000.0;
 $user->age = 30;
 
-$result = DB<User>()
+$result = DB::model(User::class)
     ->where("name = ?", "张三")
     ->update($user);
 ```
@@ -341,69 +359,82 @@ $result = DB<User>()
 
 ```zy
 // 删除记录
-$result = DB<User>()
+$result = DB::model(User::class)
     ->where("id = ?", 1)
     ->delete();
 
 echo "删除了 " . $result->rowsAffected . " 条记录";
 
 // 批量删除
-$result = DB<User>()
+$result = DB::model(User::class)
     ->where("status = ?", "inactive")
     ->delete();
 ```
 
 ## 原生 SQL 支持
 
+原生 SQL 统一使用 `query`（读）和 `execute`（写），静态方法与构建器实例方法语义相同。
+
+### 静态方法（推荐用于复杂 SQL）
+
+```zy
+// 查询：返回行对象数组
+$rows = DB::query("SELECT * FROM users WHERE age > ?", 18);
+$users = DB::toEntity(User::class, $rows);
+
+// 写操作
+$result = DB::execute("UPDATE users SET age = ? WHERE id = ?", 30, 1);
+```
+
 ### 查询操作 (query)
 
 ```zy
-// 简单查询
-$results = DB<User>()->query("SELECT * FROM users WHERE age > ?", [18]);
+// 简单查询（构建器实例）
+$results = DB::model(User::class)->query("SELECT * FROM users WHERE age > ?", 18);
 
 // 复杂查询
-$results = DB<User>()->query("
+$results = DB::model(User::class)->query("
     SELECT u.name, p.title
     FROM users u
     JOIN posts p ON u.id = p.user_id
     WHERE u.age > ?
-", [18]);
+", 18);
 
 // 统计查询
-$stats = DB<User>()->query("
+$stats = DB::model(User::class)->query("
     SELECT COUNT(*) as total, AVG(age) as avg_age
     FROM users
 ");
 ```
 
-### 执行操作 (exec)
+### 执行操作 (execute)
 
 ```zy
 // 插入操作
-$result = DB<User>()->exec("
+$result = DB::model(User::class)->execute("
     INSERT INTO users (name, age, coin)
     VALUES (?, ?, ?)
-", ["新用户", 25, 100.0]);
+", "新用户", 25, 100.0);
 
 echo "插入成功，ID: " . $result->lastInsertId;
 
 // 更新操作
-$result = DB<User>()->exec("
+$result = DB::model(User::class)->execute("
     UPDATE users
     SET age = ?
     WHERE name = ?
-", [30, "新用户"]);
+", 30, "新用户");
 
 echo "更新了 " . $result->rowsAffected . " 条记录";
 
 // 删除操作
-$result = DB<User>()->exec("
+$result = DB::model(User::class)->execute("
     DELETE FROM users
     WHERE age < ?
-", [18]);
+", 18);
 
 // DDL 操作
-$result = DB<User>()->exec("
+$result = DB::model(User::class)->execute("
     CREATE TABLE IF NOT EXISTS logs (
         id INT AUTO_INCREMENT PRIMARY KEY,
         message TEXT,
@@ -423,8 +454,8 @@ $db->begin();
 
 try {
     // 执行多个操作
-    DB<User>()->insert($user1);
-    DB<User>()->insert($user2);
+    DB::model(User::class)->insert($user1);
+    DB::model(User::class)->insert($user2);
 
     // 提交事务
     $db->commit();
@@ -451,7 +482,7 @@ foreach ($users as $userData) {
     $user->userName = $userData["name"];
     $user->age = $userData["age"];
 
-    DB<User>()->insert($user);
+    DB::model(User::class)->insert($user);
 }
 ```
 
@@ -459,7 +490,7 @@ foreach ($users as $userData) {
 
 ```zy
 // 多表连接查询
-$results = DB<User>()->query("
+$results = DB::model(User::class)->query("
     SELECT
         u.id,
         u.name,
@@ -476,7 +507,7 @@ $results = DB<User>()->query("
 ", ["active"]);
 
 // 子查询
-$results = DB<User>()->query("
+$results = DB::model(User::class)->query("
     SELECT * FROM users
     WHERE id IN (
         SELECT user_id FROM orders
@@ -514,39 +545,39 @@ class UserProfile {
 
 ```zy
 // 为不同模块使用不同连接
-$userData = DB<User>("users");      // 用户数据库
-$logData = DB<Log>("logs");         // 日志数据库
-$cacheData = DB<Cache>("cache");     // 缓存数据库
+$userData = DB::model(User::class, "users");      // 用户数据库
+$logData = DB::model(Log::class, "logs");         // 日志数据库
+$cacheData = DB::model(Cache::class, "cache");    // 缓存数据库
 ```
 
 ### 3. 使用参数绑定防止 SQL 注入
 
 ```zy
 // ✅ 正确：使用参数绑定
-$users = DB<User>()->where("name = ?", $userName)->get();
+$users = DB::model(User::class)->where("name = ?", $userName)->get();
 
 // ❌ 错误：直接拼接 SQL
-$users = DB<User>()->query("SELECT * FROM users WHERE name = '" . $userName . "'");
+$users = DB::model(User::class)->query("SELECT * FROM users WHERE name = '" . $userName . "'");
 ```
 
 ### 4. 合理使用索引
 
 ```zy
 // 为常用查询字段创建索引
-DB<User>()->exec("CREATE INDEX idx_users_age ON users(age)");
-DB<User>()->exec("CREATE INDEX idx_users_status ON users(status)");
+DB::model(User::class)->execute("CREATE INDEX idx_users_age ON users(age)");
+DB::model(User::class)->execute("CREATE INDEX idx_users_status ON users(status)");
 ```
 
 ### 5. 错误处理
 
 ```zy
 try {
-    $user = DB<User>()->where("id = ?", $userId)->first();
+    $user = DB::model(User::class)->where("id = ?", $userId)->first();
     if ($user === null) {
         throw new Exception("用户不存在");
     }
 
-    $result = DB<User>()
+    $result = DB::model(User::class)
         ->where("id = ?", $userId)
         ->update(["last_login" => date("Y-m-d H:i:s")]);
 
@@ -559,13 +590,13 @@ try {
 
 ```zy
 // 使用 select 限制字段
-$users = DB<User>()
+$users = DB::model(User::class)
     ->select("id, name, email")
     ->where("status = ?", "active")
     ->get();
 
 // 使用 limit 限制结果集
-$recentUsers = DB<User>()
+$recentUsers = DB::model(User::class)
     ->orderBy("created_at DESC")
     ->limit(100)
     ->get();
@@ -573,7 +604,7 @@ $recentUsers = DB<User>()
 // 使用分页
 $page = 1;
 $pageSize = 20;
-$users = DB<User>()
+$users = DB::model(User::class)
     ->offset(($page - 1) * $pageSize)
     ->limit($pageSize)
     ->get();
@@ -601,7 +632,7 @@ A: 可以启用查询日志或使用原生 SQL 进行调试：
 
 ```zy
 // 使用原生 SQL 查看实际执行的查询
-$results = DB<User>()->query("EXPLAIN SELECT * FROM users WHERE age > ?", [18]);
+$results = DB::model(User::class)->query("EXPLAIN SELECT * FROM users WHERE age > ?", 18);
 ```
 
 ### Q: 如何处理大量数据？
@@ -613,7 +644,7 @@ $page = 1;
 $pageSize = 1000;
 
 do {
-    $users = DB<User>()
+    $users = DB::model(User::class)
         ->offset(($page - 1) * $pageSize)
         ->limit($pageSize)
         ->get();

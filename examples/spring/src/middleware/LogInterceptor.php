@@ -2,6 +2,9 @@
 
 namespace Spring\Middleware;
 
+use Net\Http\Request;
+use Net\Http\Response;
+
 /**
  * 日志拦截器 - 记录请求日志（洋葱模型）
  *
@@ -14,12 +17,8 @@ class LogInterceptor {
 
     /**
      * 洋葱模型中间件处理
-     *
-     * @param $request  请求对象
-     * @param $response 响应对象
-     * @param $next     调用下一个中间件或控制器的回调
      */
-    public function handle($request, $response, $next) {
+    public function handle(Request $request, Response $response, callable $next): void {
         $method = $request->method();
         $path = $request->path();
 

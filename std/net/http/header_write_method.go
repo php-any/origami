@@ -36,4 +36,4 @@ func (h *HeaderWriteMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "param0", 0, nil),
 	}
 }
-func (h *HeaderWriteMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *HeaderWriteMethod) GetReturnType() data.Types { return data.NewBaseType("int") }

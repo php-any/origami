@@ -73,4 +73,9 @@ func (h *RequestFileMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "key", 0, nil),
 	}
 }
-func (h *RequestFileMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *RequestFileMethod) GetReturnType() data.Types {
+	return data.NewUnionType([]data.Types{
+		data.NewBaseType("array"),
+		data.NewBaseType("string"),
+	})
+}

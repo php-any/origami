@@ -9,7 +9,7 @@ use Spring\Model\Entity\UserEntity;
 /**
  * 数据库查询示例服务
  *
- * 演示：先 sql 查数据，再 toEntity 转实体；JOIN/聚合直接返回行对象。
+ * 演示：先 query 查数据，再 toEntity 转实体；JOIN/聚合直接返回行对象。
  */
 #[Singleton]
 class QueryDemoService {
@@ -17,11 +17,11 @@ class QueryDemoService {
     /**
      * 单表查询：查出行数据 → 映射为 UserEntity
      */
-    public function singleTableQuery($minAge = 0, $limit = 10) {
+    public function singleTableQuery(int $minAge = 0, int $limit = 10): array {
         if ($limit <= 0) {
             $limit = 10;
         }
-        $rows = DB::sql(
+        $rows = DB::query(
             "SELECT * FROM users WHERE age >= ? ORDER BY age DESC LIMIT ?",
             $minAge,
             $limit
@@ -32,9 +32,9 @@ class QueryDemoService {
     /**
      * 单表模糊搜索
      */
-    public function searchUsers($keyword) {
+    public function searchUsers(string $keyword): array {
         $pattern = "%" . $keyword . "%";
-        $rows = DB::sql(
+        $rows = DB::query(
             "SELECT * FROM users WHERE name LIKE ? OR email LIKE ? ORDER BY name ASC",
             $pattern,
             $pattern
@@ -42,14 +42,14 @@ class QueryDemoService {
         return DB::toEntity(UserEntity::class, $rows);
     }
 
-    public function aggregateByCategory() {
-        return DB::sql(
+    public function aggregateByCategory(): array {
+        return DB::query(
             "SELECT category, COUNT(*) AS product_count, AVG(price) AS avg_price, MIN(price) AS min_price, MAX(price) AS max_price FROM products GROUP BY category ORDER BY product_count DESC"
         );
     }
 
-    public function productsAboveCategoryAvg() {
-        return DB::sql("
+    public function productsAboveCategoryAvg(): array {
+        return DB::query("
             SELECT p.id, p.name, p.price, p.category
             FROM products p
             WHERE p.price > (
@@ -59,8 +59,8 @@ class QueryDemoService {
         ");
     }
 
-    public function innerJoinOrderProducts() {
-        return DB::sql("
+    public function innerJoinOrderProducts(): array {
+        return DB::query("
             SELECT orders.id, orders.quantity, orders.total_price, orders.status,
                    p.name AS product_name, p.category AS product_category
             FROM orders
@@ -69,8 +69,8 @@ class QueryDemoService {
         ");
     }
 
-    public function leftJoinUserOrders() {
-        return DB::sql("
+    public function leftJoinUserOrders(): array {
+        return DB::query("
             SELECT u.id AS user_id, u.name AS user_name, u.email,
                    o.id AS order_id, o.total_price, o.status
             FROM users u
@@ -79,8 +79,8 @@ class QueryDemoService {
         ");
     }
 
-    public function orderDetails() {
-        return DB::sql("
+    public function orderDetails(): array {
+        return DB::query("
             SELECT
                 o.id AS order_id,
                 u.name AS user_name,
@@ -98,8 +98,8 @@ class QueryDemoService {
         ");
     }
 
-    public function completedOrderStats() {
-        return DB::sql("
+    public function completedOrderStats(): array {
+        return DB::query("
             SELECT
                 u.id AS user_id,
                 u.name AS user_name,
@@ -113,7 +113,7 @@ class QueryDemoService {
         ");
     }
 
-    public static function rowsToArray($rows) {
+    public static function rowsToArray(array $rows): array {
         $result = [];
         foreach ($rows as $row) {
             if (is_array($row)) {
@@ -133,7 +133,7 @@ class QueryDemoService {
         return $result;
     }
 
-    public static function entitiesToArray($entities) {
+    public static function entitiesToArray(array $entities): array {
         $result = [];
         foreach ($entities as $entity) {
             if (method_exists($entity, 'toArray')) {

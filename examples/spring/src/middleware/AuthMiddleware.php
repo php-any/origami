@@ -2,6 +2,9 @@
 
 namespace Spring\Middleware;
 
+use Net\Http\Request;
+use Net\Http\Response;
+
 /**
  * 认证中间件示例
  *
@@ -9,27 +12,28 @@ namespace Spring\Middleware;
  * $server->middleware(new AuthMiddleware());
  */
 class AuthMiddleware {
-    
-    private $excludePaths = [
+
+    private array $excludePaths = [
         '/api/auth/login',
         '/api/auth/register',
         '/api/hello'
     ];
-    
+
     /**
      * 处理请求
      */
-    public function handle($request, $response, $next) {
+    public function handle(Request $request, Response $response, callable $next): void {
         $path = $request->path();
-        
+
         // 检查是否需要排除
         if ($this->shouldExclude($path)) {
-            return $next($request, $response);
+            $next($request, $response);
+            return;
         }
-        
+
         // 获取 Authorization header
         $token = $request->header('Authorization', '');
-        
+
         if (empty($token)) {
             $response->status(401)->json([
                 "code" => 401,
@@ -38,7 +42,7 @@ class AuthMiddleware {
             ]);
             return;
         }
-        
+
         // 验证 token（简化示例）
         if (!$this->verifyToken($token)) {
             $response->status(401)->json([
@@ -48,16 +52,16 @@ class AuthMiddleware {
             ]);
             return;
         }
-        
+
         // Token 有效，继续处理
         Log::info("认证通过: " . $path);
-        return $next($request, $response);
+        $next($request, $response);
     }
-    
+
     /**
      * 检查路径是否应该排除
      */
-    private function shouldExclude($path) {
+    private function shouldExclude(string $path): bool {
         foreach ($this->excludePaths as $excludePath) {
             if (strpos($path, $excludePath) === 0) {
                 return true;
@@ -65,11 +69,11 @@ class AuthMiddleware {
         }
         return false;
     }
-    
+
     /**
      * 验证 Token
      */
-    private function verifyToken($token) {
+    private function verifyToken(string $token): bool {
         // 简化示例：实际应使用 JWT 验证
         // 这里只是简单检查 token 格式
         return !empty($token) && strlen($token) > 10;

@@ -14,7 +14,7 @@ class OrderEntity {
     public string $status;
     public ?string $created_at;
 
-    public function toArray() {
+    public function toArray(): array {
         return [
             'id' => $this->id,
             'user_id' => $this->user_id,

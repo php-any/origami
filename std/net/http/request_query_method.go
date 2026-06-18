@@ -36,4 +36,4 @@ func (h *RequestQueryMethod) GetModifier() data.Modifier    { return data.Modifi
 func (h *RequestQueryMethod) GetIsStatic() bool             { return false }
 func (h *RequestQueryMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
 func (h *RequestQueryMethod) GetVariables() []data.Variable { return []data.Variable{} }
-func (h *RequestQueryMethod) GetReturnType() data.Types     { return data.NewBaseType("void") }
+func (h *RequestQueryMethod) GetReturnType() data.Types     { return data.NewBaseType("array") }

@@ -55,4 +55,9 @@ func (h *RequestHeaderMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "key", 0, nil),
 	}
 }
-func (h *RequestHeaderMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *RequestHeaderMethod) GetReturnType() data.Types {
+	return data.NewUnionType([]data.Types{
+		data.NewBaseType("array"),
+		data.NewBaseType("string"),
+	})
+}
