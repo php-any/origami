@@ -23,6 +23,7 @@ type bufferedWriter struct {
 	status     int
 	statusSet  bool
 	headerSent bool
+	formatter  *formatHandlerSlot
 }
 
 func newBufferedWriter(w httpsrc.ResponseWriter) *bufferedWriter {
@@ -188,8 +189,11 @@ func (b *bufferedWriter) SetCookie(c *httpsrc.Cookie) {
 	httpsrc.SetCookie(b.ResponseWriter, c)
 }
 
-func beginResponse(w httpsrc.ResponseWriter) (*bufferedWriter, data.ClassStmt) {
+func beginResponse(w httpsrc.ResponseWriter, r *httpsrc.Request) (*bufferedWriter, data.ClassStmt) {
 	bw := newBufferedWriter(w)
+	if r != nil {
+		bw.formatter = requestFormatterFor(r)
+	}
 	return bw, &ResponseWriterClass{w: bw}
 }
 

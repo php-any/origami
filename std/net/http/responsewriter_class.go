@@ -54,6 +54,12 @@ func (s *ResponseWriterClass) GetMethod(name string) (data.Method, bool) {
 		return &ResponseWriterHtmlMethod{w: s.w}, true
 	case "file":
 		return &ResponseWriterFileMethod{w: s.w}, true
+	case "success":
+		return &ResponseWriterSuccessMethod{w: s.w}, true
+	case "error":
+		return &ResponseWriterErrorMethod{w: s.w}, true
+	case "format":
+		return &ResponseWriterFormatMethod{w: s.w}, true
 	}
 	return nil, false
 }
@@ -71,6 +77,9 @@ func (s *ResponseWriterClass) GetMethods() []data.Method {
 		&ResponseWriterCookieMethod{w: s.w},
 		&ResponseWriterHtmlMethod{w: s.w},
 		&ResponseWriterFileMethod{w: s.w},
+		&ResponseWriterSuccessMethod{w: s.w},
+		&ResponseWriterErrorMethod{w: s.w},
+		&ResponseWriterFormatMethod{w: s.w},
 	}
 }
 

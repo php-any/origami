@@ -32,12 +32,24 @@ func applyMiddlewares(final httpsrc.Handler, entries []middlewareEntry) httpsrc.
 
 func (s *ServerClass) finalizeHandler(h httpsrc.Handler) httpsrc.Handler {
 	h = applyMiddlewares(h, s.middlewares)
+	h = withResponseFormatter(s, h)
 	return withErrorHandler(s, h)
 }
 
 type errorHandlerSlot struct {
 	fn  data.FuncStmt
 	ctx data.Context
+}
+
+func withResponseFormatter(server *ServerClass, next httpsrc.Handler) httpsrc.Handler {
+	slot := server.formatHandler
+	if slot == nil {
+		return next
+	}
+	return httpsrc.HandlerFunc(func(w httpsrc.ResponseWriter, r *httpsrc.Request) {
+		attachRequestFormatter(r, slot)
+		next.ServeHTTP(w, r)
+	})
 }
 
 func withErrorHandler(server *ServerClass, next httpsrc.Handler) httpsrc.Handler {
@@ -61,7 +73,7 @@ func invokeErrorHandler(server *ServerClass, w httpsrc.ResponseWriter, r *httpsr
 		panic(recovered)
 	}
 
-	rw, response := beginResponse(w)
+	rw, response := beginResponse(w, r)
 	defer rw.commitPending()
 	r, request := beginRequest(r)
 

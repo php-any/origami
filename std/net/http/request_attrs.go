@@ -17,9 +17,29 @@ func attachRequestAttrs(r *httpsrc.Request) {
 	requestAttrBags.LoadOrStore(r, make(map[string]data.Value))
 }
 
+var requestFormatterSlots sync.Map
+
+func attachRequestFormatter(r *httpsrc.Request, slot *formatHandlerSlot) {
+	if r == nil || slot == nil {
+		return
+	}
+	requestFormatterSlots.Store(r, slot)
+}
+
+func requestFormatterFor(r *httpsrc.Request) *formatHandlerSlot {
+	if r == nil {
+		return nil
+	}
+	if v, ok := requestFormatterSlots.Load(r); ok {
+		return v.(*formatHandlerSlot)
+	}
+	return nil
+}
+
 func detachRequestAttrs(r *httpsrc.Request) {
 	if r != nil {
 		requestAttrBags.Delete(r)
+		requestFormatterSlots.Delete(r)
 	}
 }
 

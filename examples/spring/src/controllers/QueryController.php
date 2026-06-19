@@ -43,14 +43,11 @@ class QueryController {
         $rows = $this->queryService->singleTableQuery($minAge, $limit);
         $data = QueryDemoService::rowsToArray($rows);
 
-        $response->header("Content-Type", "application/json; charset=utf-8");
-        $response->json([
-            "code" => 200,
-            "message" => "单表查询：users WHERE age >= ? ORDER BY age DESC LIMIT ?",
-            "data" => $data,
-            "total" => count($data),
-            "params" => ["min_age" => $minAge, "limit" => $limit],
-        ]);
+        $response->success([
+            'rows' => $data,
+            'total' => count($data),
+            'params' => ['min_age' => $minAge, 'limit' => $limit],
+        ], '单表查询：users WHERE age >= ? ORDER BY age DESC LIMIT ?');
     }
 
     /**
@@ -63,12 +60,10 @@ class QueryController {
         $rows = $this->queryService->searchUsers($keyword);
         $data = QueryDemoService::rowsToArray($rows);
 
-        $response->json([
-            "code" => 200,
-            "message" => "单表模糊查询：name/email LIKE",
-            "data" => $data,
-            "total" => count($data),
-        ]);
+        $response->success([
+            'rows' => $data,
+            'total' => count($data),
+        ], '单表模糊查询：name/email LIKE');
     }
 
     /**
@@ -80,12 +75,10 @@ class QueryController {
         $rows = $this->queryService->aggregateByCategory();
         $data = QueryDemoService::rowsToArray($rows);
 
-        $response->json([
-            "code" => 200,
-            "message" => "聚合查询：GROUP BY category",
-            "data" => $data,
-            "total" => count($data),
-        ]);
+        $response->success([
+            'rows' => $data,
+            'total' => count($data),
+        ], '聚合查询：GROUP BY category');
     }
 
     /**
@@ -97,12 +90,10 @@ class QueryController {
         $rows = $this->queryService->productsAboveCategoryAvg();
         $data = QueryDemoService::rowsToArray($rows);
 
-        $response->json([
-            "code" => 200,
-            "message" => "子查询：price > 品类均价",
-            "data" => $data,
-            "total" => count($data),
-        ]);
+        $response->success([
+            'rows' => $data,
+            'total' => count($data),
+        ], '子查询：price > 品类均价');
     }
 
     /**
@@ -114,12 +105,10 @@ class QueryController {
         $rows = $this->queryService->innerJoinOrderProducts();
         $data = QueryDemoService::rowsToArray($rows);
 
-        $response->json([
-            "code" => 200,
-            "message" => "INNER JOIN：orders + products",
-            "data" => $data,
-            "total" => count($data),
-        ]);
+        $response->success([
+            'rows' => $data,
+            'total' => count($data),
+        ], 'INNER JOIN：orders + products');
     }
 
     /**
@@ -131,12 +120,10 @@ class QueryController {
         $rows = $this->queryService->leftJoinUserOrders();
         $data = QueryDemoService::rowsToArray($rows);
 
-        $response->json([
-            "code" => 200,
-            "message" => "LEFT JOIN：users + orders（含无订单用户）",
-            "data" => $data,
-            "total" => count($data),
-        ]);
+        $response->success([
+            'rows' => $data,
+            'total' => count($data),
+        ], 'LEFT JOIN：users + orders（含无订单用户）');
     }
 
     /**
@@ -148,12 +135,10 @@ class QueryController {
         $rows = $this->queryService->orderDetails();
         $data = QueryDemoService::rowsToArray($rows);
 
-        $response->json([
-            "code" => 200,
-            "message" => "三表 JOIN：users + orders + products",
-            "data" => $data,
-            "total" => count($data),
-        ]);
+        $response->success([
+            'rows' => $data,
+            'total' => count($data),
+        ], '三表 JOIN：users + orders + products');
     }
 
     /**
@@ -165,11 +150,9 @@ class QueryController {
         $rows = $this->queryService->completedOrderStats();
         $data = QueryDemoService::rowsToArray($rows);
 
-        $response->json([
-            "code" => 200,
-            "message" => "JOIN + GROUP BY：已完成订单消费汇总",
-            "data" => $data,
-            "total" => count($data),
-        ]);
+        $response->success([
+            'rows' => $data,
+            'total' => count($data),
+        ], 'JOIN + GROUP BY：已完成订单消费汇总');
     }
 }

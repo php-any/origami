@@ -3,7 +3,14 @@
 namespace Spring\DTO;
 
 /**
- * 统一响应 DTO
+ * 统一响应 DTO（历史参考）
+ *
+ * 标准库已内置相同语义，请优先使用 Net\Http\Response：
+ * - $response->success($data, $message = 'success', $status = 200)
+ * - $response->error($message = 'error', $code = 500, $data = null)
+ * - $server->onFormat(function ($code, $message, $data) { ... })  // 自定义信封
+ *
+ * 默认 JSON 信封：{ code, message, data, timestamp }
  */
 class ResponseDTO {
     private int $code;
@@ -46,23 +53,14 @@ class ResponseDTO {
         return $this->timestamp;
     }
 
-    /**
-     * 成功响应
-     */
     public static function success(mixed $data = null, string $message = 'success'): self {
         return new self(200, $message, $data);
     }
 
-    /**
-     * 失败响应
-     */
     public static function error(int $code = 500, string $message = 'error', mixed $data = null): self {
         return new self($code, $message, $data);
     }
 
-    /**
-     * 转换为数组
-     */
     public function toArray(): array {
         return [
             'code' => $this->code,
@@ -72,9 +70,6 @@ class ResponseDTO {
         ];
     }
 
-    /**
-     * JSON 序列化
-     */
     public function toJson(): string {
         return json_encode($this->toArray());
     }

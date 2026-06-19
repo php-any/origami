@@ -28,12 +28,9 @@ class UserController {
         $userArray = array_map(function($user) {
             return $user->toArray();
         }, $users);
-        $response->header("Content-Type", "application/json; charset=utf-8");
-        $response->json([
-            "code" => 200,
-            "message" => "success",
-            "data" => $userArray,
-            "total" => count($userArray)
+        $response->success([
+            'list' => $userArray,
+            'total' => count($userArray),
         ]);
     }
 
@@ -42,36 +39,20 @@ class UserController {
         $id = (int)$request->pathValue('id');
         $user = $this->userService->findById($id);
         if (!$user) {
-            $response->status(404)->json([
-                "code" => 404,
-                "message" => "用户不存在",
-                "data" => null
-            ]);
+            $response->error('用户不存在', 404);
             return;
         }
-        $response->json([
-            "code" => 200,
-            "message" => "success",
-            "data" => $user->toArray()
-        ]);
+        $response->success($user->toArray());
     }
 
     #[PostMapping(path: "/users")]
     public function createUser(Request $request, Response $response): void {
         $body = $request->body();
         if (!isset($body['name']) || !isset($body['email'])) {
-            $response->status(400)->json([
-                "code" => 400,
-                "message" => "缺少必要参数：name 和 email",
-                "data" => null
-            ]);
+            $response->error('缺少必要参数：name 和 email', 400);
             return;
         }
         $user = $this->userService->create($body);
-        $response->status(201)->json([
-            "code" => 201,
-            "message" => "created",
-            "data" => $user->toArray()
-        ]);
+        $response->success($user->toArray(), 'created', 201);
     }
 }

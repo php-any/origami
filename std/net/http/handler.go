@@ -27,7 +27,7 @@ func newMiddleware(v data.FuncStmt, ctx data.Context) (MiddlewareFunc, error) {
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			rw, response := beginResponse(w)
+			rw, response := beginResponse(w, r)
 			defer rw.commitPending()
 			r, request := beginRequest(r)
 			defer detachRequestAttrs(r)
@@ -54,7 +54,7 @@ type Handler struct {
 
 func (f Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	node.ResetSuperglobals()
-	rw, response := beginResponse(w)
+	rw, response := beginResponse(w, r)
 	defer rw.commitPending()
 	r, request := beginRequest(r)
 	defer detachRequestAttrs(r)
@@ -78,7 +78,7 @@ type HotHandler struct {
 
 func (f HotHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	node.ResetSuperglobals()
-	rw, response := beginResponse(w)
+	rw, response := beginResponse(w, r)
 	defer rw.commitPending()
 	r, request := beginRequest(r)
 	defer detachRequestAttrs(r)

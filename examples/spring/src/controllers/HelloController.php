@@ -18,47 +18,32 @@ class HelloController {
 
     #[GetMapping(path: "/hello")]
     public function hello(Request $request, Response $response): void {
-        $response->header("Content-Type", "application/json; charset=utf-8");
-        $response->json([
-            "code" => 200,
-            "message" => "success",
-            "data" => [
-                "greeting" => "Hello World!",
-                "app_name" => 'Spring Demo',
-                "app_version" => '1.0.0',
-                "timestamp" => time(),
-                "count" => $this->count++
-            ]
+        $response->success([
+            "greeting" => "Hello World!",
+            "app_name" => 'Spring Demo',
+            "app_version" => '1.0.0',
+            "timestamp" => time(),
+            "count" => $this->count++
         ]);
     }
 
     #[GetMapping(path: "/info")]
     public function info(Request $request, Response $response): void {
-        $response->header("Content-Type", "application/json; charset=utf-8");
-        $response->json([
-            "code" => 200,
-            "message" => "success",
-            "data" => [
-                "name" => 'Spring Demo',
-                "version" => '1.0.0',
-                "timezone" => 'Asia/Shanghai',
-                "api_prefix" => '/api',
-                "api_version" => 'v1'
-            ]
+        $response->success([
+            "name" => 'Spring Demo',
+            "version" => '1.0.0',
+            "timezone" => 'Asia/Shanghai',
+            "api_prefix" => '/api',
+            "api_version" => 'v1'
         ]);
     }
 
     #[GetMapping(path: "/status")]
     public function status(Request $request, Response $response): void {
-        $response->header("Content-Type", "application/json; charset=utf-8");
-        $response->json([
-            "code" => 200,
-            "message" => "success",
-            "data" => [
-                "status" => "running",
-                "uptime" => "ok",
-                "timestamp" => time()
-            ]
+        $response->success([
+            "status" => "running",
+            "uptime" => "ok",
+            "timestamp" => time()
         ]);
     }
 }

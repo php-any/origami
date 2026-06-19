@@ -35,21 +35,13 @@ class AuthMiddleware {
         $token = $request->header('Authorization', '');
 
         if (empty($token)) {
-            $response->status(401)->json([
-                "code" => 401,
-                "message" => "未提供认证令牌",
-                "data" => null
-            ]);
+            $response->error('未提供认证令牌', 401);
             return;
         }
 
         // 验证 token（简化示例）
         if (!$this->verifyToken($token)) {
-            $response->status(401)->json([
-                "code" => 401,
-                "message" => "无效的认证令牌",
-                "data" => null
-            ]);
+            $response->error('无效的认证令牌', 401);
             return;
         }
 

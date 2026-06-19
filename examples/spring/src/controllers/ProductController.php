@@ -29,12 +29,9 @@ class ProductController {
     public function listProducts(Request $request, Response $response): void {
         $products = $this->productService->findAll();
 
-        $response->header("Content-Type", "application/json; charset=utf-8");
-        $response->json([
-            "code" => 200,
-            "message" => "success",
-            "data" => $products,
-            "total" => count($products)
+        $response->success([
+            'list' => $products,
+            'total' => count($products),
         ]);
     }
 
@@ -44,19 +41,11 @@ class ProductController {
         $product = $this->productService->findById($id);
 
         if (!$product) {
-            $response->status(404)->json([
-                "code" => 404,
-                "message" => "商品不存在",
-                "data" => null
-            ]);
+            $response->error('商品不存在', 404);
             return;
         }
 
-        $response->json([
-            "code" => 200,
-            "message" => "success",
-            "data" => $product
-        ]);
+        $response->success($product);
     }
 
     #[PostMapping(path: "/products")]
@@ -64,21 +53,13 @@ class ProductController {
         $body = $request->body();
 
         if (!isset($body['name']) || !isset($body['price'])) {
-            $response->status(400)->json([
-                "code" => 400,
-                "message" => "缺少必要参数：name 和 price",
-                "data" => null
-            ]);
+            $response->error('缺少必要参数：name 和 price', 400);
             return;
         }
 
         $product = $this->productService->create($body);
 
-        $response->status(201)->json([
-            "code" => 201,
-            "message" => "created",
-            "data" => $product
-        ]);
+        $response->success($product, 'created', 201);
     }
 
     #[PutMapping(path: "/product/{id}")]
@@ -89,19 +70,11 @@ class ProductController {
         $product = $this->productService->update($id, $body);
 
         if (!$product) {
-            $response->status(404)->json([
-                "code" => 404,
-                "message" => "商品不存在",
-                "data" => null
-            ]);
+            $response->error('商品不存在', 404);
             return;
         }
 
-        $response->json([
-            "code" => 200,
-            "message" => "updated",
-            "data" => $product
-        ]);
+        $response->success($product, 'updated');
     }
 
     #[DeleteMapping(path: "/product/{id}")]
@@ -110,19 +83,11 @@ class ProductController {
         $result = $this->productService->delete($id);
 
         if (!$result) {
-            $response->status(404)->json([
-                "code" => 404,
-                "message" => "商品不存在",
-                "data" => null
-            ]);
+            $response->error('商品不存在', 404);
             return;
         }
 
-        $response->json([
-            "code" => 200,
-            "message" => "deleted",
-            "data" => null
-        ]);
+        $response->success(null, 'deleted');
     }
 
     #[GetMapping(path: "/products/search")]
@@ -132,11 +97,9 @@ class ProductController {
 
         $products = $this->productService->search($keyword, $category);
 
-        $response->json([
-            "code" => 200,
-            "message" => "success",
-            "data" => $products,
-            "total" => count($products)
+        $response->success([
+            'list' => $products,
+            'total' => count($products),
         ]);
     }
 }

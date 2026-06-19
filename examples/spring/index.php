@@ -11,6 +11,12 @@ $port = 8080;
 
 $server = new Server($host, port: $port);
 
+// API 统一 JSON 信封：{ code, message, data, timestamp }
+// 如需自定义结构，可注册 onFormat 闭包，例如：
+// $server->onFormat(fn (int $code, string $message, mixed $data) => [
+//     'errno' => $code, 'msg' => $message, 'result' => $data,
+// ]);
+
 // CORS 中间件
 $server->middleware(new CorsMiddleware());
 

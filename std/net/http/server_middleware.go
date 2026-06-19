@@ -45,7 +45,7 @@ func (h *ServerMiddlewareMethod) Call(ctx data.Context) (data.GetValue, data.Con
 
 		mw := func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				rw, response := beginResponse(w)
+				rw, response := beginResponse(w, r)
 				defer rw.commitPending()
 				r, request := beginRequest(r)
 				defer detachRequestAttrs(r)

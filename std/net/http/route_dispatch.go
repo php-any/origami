@@ -63,7 +63,7 @@ func DispatchHTTPRoutes(vm data.VM, ctx data.Context) (data.GetValue, data.Contr
 	for _, rt := range routes {
 		rt := rt
 		mux.HandleFunc(rt.Method+" "+rt.Path, func(w http.ResponseWriter, r *http.Request) {
-			rw, response := beginResponse(w)
+			rw, response := beginResponse(w, r)
 			defer rw.commitPending()
 			r, request := beginRequest(r)
 			defer detachRequestAttrs(r)

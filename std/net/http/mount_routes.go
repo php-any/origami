@@ -18,7 +18,7 @@ func mountAnnotationRoutes(server *ServerClass, vm data.VM, ctx data.Context, la
 	for _, rt := range routes {
 		rt := rt
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			rw, response := beginResponse(w)
+			rw, response := beginResponse(w, r)
 			defer rw.commitPending()
 			r, request := beginRequest(r)
 			defer detachRequestAttrs(r)
