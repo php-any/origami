@@ -31,3 +31,15 @@ func (s *StaticLocals) Init(index int, val Value) Value {
 	s.Vals[index] = val
 	return val
 }
+
+// Update 在 static 变量已注册后同步最新值（用于 ++/-- 等修改）。
+func (s *StaticLocals) Update(index int, val Value) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.Vals[index]; ok {
+		s.Vals[index] = val
+	}
+}

@@ -6,7 +6,7 @@ import (
 
 // MatchArm 表示match语句的一个分支
 type MatchArm struct {
-	*Node
+	*Node      `pp:"-"`
 	Conditions []data.GetValue // 条件表达式列表
 	Expression data.GetValue   // 表达式（当Statements为空时使用）
 	Statements []data.GetValue // 语句列表（当Expression为空时使用）
@@ -33,7 +33,7 @@ func (m *MatchArm) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 
 // MatchStatement 表示match语句
 type MatchStatement struct {
-	*Node
+	*Node     `pp:"-"`
 	Condition data.GetValue // 匹配条件
 	Arms      []MatchArm    // 匹配分支列表
 	Default   []data.GetValue

@@ -110,7 +110,17 @@ func (c *Context) SetVariableValue(variable data.Variable, value data.Value) dat
 		c.variables[idx].Value = value
 	}
 
+	c.syncStaticLocal(variable.GetIndex())
 	return nil
+}
+
+func (c *Context) syncStaticLocal(index int) {
+	if c.staticLocals == nil {
+		return
+	}
+	if zv := c.GetIndexZVal(index); zv != nil {
+		c.staticLocals.Update(index, zv.Value)
+	}
 }
 
 // CreateContext 创建函数上下文

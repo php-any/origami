@@ -10,23 +10,14 @@
 //
 //  1. special_handlers.go 中的特殊处理器（specialHandlers 注册表）
 //  2. emit_data.go 中的 data 标量 Value（IntValue、StringValue 等）
-//  3. reflect_emit.go registerConstructors 中的构造函数映射
-//  4. 反射结构体字面量（仅导出字段，跳过 pp:"-" 嵌入 *Node）
+//  3. 反射结构体字面量（emitStructLiteral）自动处理。
 //
-// ## 情形 A：节点字段均可导出，且有 NewXxx 构造函数
+// ## 情形 A：节点字段均可导出，嵌入的 *Node 带 pp:"-" 标签
 //
-// 在 reflect_emit.go 的 registerConstructors 追加一条 ctorSpec 即可，例如：
+// 无需任何改动。Emit 会自动通过反射遍历字段，生成 &node.Xxx{Node: node.NewNode(from), ...}。
+// 确保嵌入的 *Node 带 pp:"-" 标签，所有字段已导出。
 //
-//	{(*node.TryStatement)(nil), ctorSpec{"node", "NewTryStatement", []string{"from", "Body", "Catches", "Finally"}}},
-//
-// 首项固定为 "from"，其余为结构体导出字段名，顺序与构造函数参数一致。
-//
-// ## 情形 B：节点字段均可导出，无合适构造函数
-//
-// 无需改动。Emit 会自动走 emitStructLiteral，生成 &node.Xxx{Node: node.NewNode(from), ...}。
-// 确保嵌入的 *Node 带 pp:"-" 标签，非导出复杂字段不存在。
-//
-// ## 情形 C：含未导出字段、运行时引用或需转换逻辑
+// ## 情形 B：含未导出字段、运行时引用或需转换逻辑
 //
 // 在 special_handlers.go 中：
 //
@@ -39,7 +30,7 @@
 // 若未导出字段仅为 primitive/string，可在特殊处理器中用 reflect 读取，或于 node 包
 // 添加 Compile 专用构造函数 / getter。
 //
-// ## 情形 D：新增 data 标量或注解类型
+// ## 情形 C：新增 data 标量或注解类型
 //
 // 标量 Value：在 emit_data.go 的 dataValueEmitters 注册发射函数。
 // 框架注解：在 special_handlers.go 的 emitClassAnnotation 增加 case，

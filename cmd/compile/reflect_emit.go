@@ -10,69 +10,6 @@ import (
 )
 
 // 新增 AST 节点的扩展方式见 doc.go。
-//
-// ctorSpec 描述通过 NewXxx 构造函数发射节点的方式。
-type ctorSpec struct {
-	pkg      string
-	funcName string
-	// fields 与构造函数参数一一对应（首项为 from，其余为结构体字段名）
-	fields []string
-}
-
-var constructorSpecs map[reflect.Type]ctorSpec
-
-func init() {
-	registerConstructors()
-}
-
-func registerConstructors() {
-	specs := []struct {
-		typ  any
-		spec ctorSpec
-	}{
-		{(*node.ForeachStatement)(nil), ctorSpec{"node", "NewForeachStatement", []string{"from", "Array", "Key", "Value", "Body"}}},
-		{(*node.IssetStatement)(nil), ctorSpec{"node", "NewIssetStatement", []string{"from", "Args"}}},
-		{(*node.UnsetStatement)(nil), ctorSpec{"node", "NewUnsetStatement", []string{"from", "Args"}}},
-		{(*node.ThrowStatement)(nil), ctorSpec{"node", "NewThrowStatement", []string{"from", "Value"}}},
-		{(*node.SwitchStatement)(nil), ctorSpec{"node", "NewSwitchStatement", []string{"from", "Condition", "Cases", "DefaultCase"}}},
-		{(*node.IfStatement)(nil), ctorSpec{"node", "NewIfStatement", []string{"from", "Condition", "ThenBranch", "ElseIf", "ElseBranch"}}},
-		{(*node.BinaryAssign)(nil), ctorSpec{"node", "NewBinaryAssign", []string{"from", "Left", "Right"}}},
-		{(*node.BinaryLink)(nil), ctorSpec{"node", "NewBinaryLink", []string{"from", "Left", "Right"}}},
-		{(*node.BinaryAdd)(nil), ctorSpec{"node", "NewBinaryAdd", []string{"from", "Left", "Right"}}},
-		{(*node.BinarySub)(nil), ctorSpec{"node", "NewBinarySub", []string{"from", "Left", "Right"}}},
-		{(*node.BinaryMul)(nil), ctorSpec{"node", "NewBinaryMul", []string{"from", "Left", "Right"}}},
-		{(*node.BinaryQuo)(nil), ctorSpec{"node", "NewBinaryQuo", []string{"from", "Left", "Right"}}},
-		{(*node.BinaryRem)(nil), ctorSpec{"node", "NewBinaryRem", []string{"from", "Left", "Right"}}},
-		{(*node.BinaryPow)(nil), ctorSpec{"node", "NewBinaryPow", []string{"from", "Left", "Right"}}},
-		{(*node.BinaryDot)(nil), ctorSpec{"node", "NewBinaryDot", []string{"from", "Left", "Right"}}},
-		{(*node.BinaryEq)(nil), ctorSpec{"node", "NewBinaryEq", []string{"from", "Left", "Right"}}},
-		{(*node.BinaryNe)(nil), ctorSpec{"node", "NewBinaryNe", []string{"from", "Left", "Right"}}},
-		{(*node.BinaryEqStrict)(nil), ctorSpec{"node", "NewBinaryEqStrict", []string{"from", "Left", "Right"}}},
-		{(*node.BinaryNeStrict)(nil), ctorSpec{"node", "NewBinaryNeStrict", []string{"from", "Left", "Right"}}},
-		{(*node.BinaryLt)(nil), ctorSpec{"node", "NewBinaryLt", []string{"from", "Left", "Right"}}},
-		{(*node.BinaryLe)(nil), ctorSpec{"node", "NewBinaryLe", []string{"from", "Left", "Right"}}},
-		{(*node.BinaryGt)(nil), ctorSpec{"node", "NewBinaryGt", []string{"from", "Left", "Right"}}},
-		{(*node.BinaryGe)(nil), ctorSpec{"node", "NewBinaryGe", []string{"from", "Left", "Right"}}},
-		{(*node.BinaryLand)(nil), ctorSpec{"node", "NewBinaryLand", []string{"from", "Left", "Right"}}},
-		{(*node.BinaryLor)(nil), ctorSpec{"node", "NewBinaryLor", []string{"from", "Left", "Right"}}},
-		{(*node.BinarySpaceship)(nil), ctorSpec{"node", "NewBinarySpaceship", []string{"from", "Left", "Right"}}},
-		{(*node.TernaryExpression)(nil), ctorSpec{"node", "NewTernaryExpression", []string{"from", "Condition", "TrueValue", "FalseValue"}}},
-		{(*node.NullCoalesceExpression)(nil), ctorSpec{"node", "NewNullCoalesceExpression", []string{"from", "Left", "Right"}}},
-		{(*node.IndexExpression)(nil), ctorSpec{"node", "NewIndexExpression", []string{"from", "Array", "Index"}}},
-		{(*node.EchoStatement)(nil), ctorSpec{"node", "NewEchoStatement", []string{"from", "Expressions"}}},
-		{(*node.WhileStatement)(nil), ctorSpec{"node", "NewWhileStatement", []string{"from", "Condition", "Body"}}},
-		{(*node.DoWhileStatement)(nil), ctorSpec{"node", "NewDoWhileStatement", []string{"from", "Condition", "Body"}}},
-		{(*node.ForStatement)(nil), ctorSpec{"node", "NewForStatement", []string{"from", "Initializers", "Condition", "Increments", "Body"}}},
-		{(*node.BreakStatement)(nil), ctorSpec{"node", "NewBreakStatement", []string{"from"}}},
-		{(*node.ContinueStatement)(nil), ctorSpec{"node", "NewContinueStatement", []string{"from"}}},
-		{(*node.GlobalStatement)(nil), ctorSpec{"node", "NewGlobalStatement", []string{"from", "Names", "Indexes"}}},
-		{(*node.BlockStatement)(nil), ctorSpec{"node", "NewBlockStatement", []string{"from", "Statements"}}},
-	}
-	constructorSpecs = make(map[reflect.Type]ctorSpec, len(specs))
-	for _, item := range specs {
-		constructorSpecs[reflect.TypeOf(item.typ)] = item.spec
-	}
-}
 
 // Emit 将 AST 节点反射转译为 Go 源码字面量。
 func (g *Generator) Emit(v data.GetValue) error {
@@ -90,10 +27,6 @@ func (g *Generator) Emit(v data.GetValue) error {
 		return emit(g, v)
 	}
 
-	if err := g.emitViaConstructor(v); err == nil {
-		return nil
-	}
-
 	if err := g.emitStructLiteral(v); err == nil {
 		return nil
 	}
@@ -104,43 +37,6 @@ func (g *Generator) Emit(v data.GetValue) error {
 // genGetValue 是 Emit 的别名，供遗留辅助函数调用。
 func (g *Generator) genGetValue(v data.GetValue) error {
 	return g.Emit(v)
-}
-
-func (g *Generator) emitViaConstructor(v data.GetValue) error {
-	typ := derefType(reflect.TypeOf(v))
-	spec, ok := constructorSpecs[typ]
-	if !ok {
-		return fmt.Errorf("no constructor spec for %s", typ)
-	}
-
-	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Ptr {
-		rv = rv.Elem()
-	}
-
-	g.printf("%s.%s(", spec.pkg, spec.funcName)
-	for i, fieldName := range spec.fields {
-		if i > 0 {
-			g.printf(",\n")
-			g.indent++
-		}
-		if fieldName == "from" {
-			g.printf("from")
-			continue
-		}
-		fv := rv.FieldByName(fieldName)
-		if !fv.IsValid() {
-			return fmt.Errorf("constructor field %s not found on %s", fieldName, typ.Name())
-		}
-		if err := g.emitReflectValue(fv); err != nil {
-			return err
-		}
-	}
-	if len(spec.fields) > 1 {
-		g.indent--
-	}
-	g.printf(")")
-	return nil
 }
 
 func (g *Generator) emitStructLiteral(v data.GetValue) error {
@@ -440,11 +336,4 @@ func (g *Generator) emitMethod(method data.Method) error {
 		return g.emitClassMethod(cm)
 	}
 	return newEmitError(g.file, nil, fmt.Sprintf("unsupported method type %T", method))
-}
-
-func derefType(t reflect.Type) reflect.Type {
-	if t.Kind() == reflect.Ptr {
-		return t.Elem()
-	}
-	return t
 }

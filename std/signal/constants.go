@@ -13,6 +13,5 @@ func initConstants(vm data.VM) {
 	vm.SetConstant("SIGQUIT", data.NewIntValue(int(syscall.SIGQUIT)))
 	vm.SetConstant("SIGABRT", data.NewIntValue(int(syscall.SIGABRT)))
 	vm.SetConstant("SIGKILL", data.NewIntValue(int(syscall.SIGKILL)))
-	vm.SetConstant("SIGUSR1", data.NewIntValue(int(syscall.SIGUSR1)))
-	vm.SetConstant("SIGUSR2", data.NewIntValue(int(syscall.SIGUSR2)))
+	initPlatformSignalConstants(vm)
 }

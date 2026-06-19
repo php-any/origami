@@ -199,7 +199,21 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 		}
 	}
 
+	f.persistStaticLocals(execCtx)
 	return v, nil
+}
+
+func (f *FunctionStatement) persistStaticLocals(ctx data.Context) {
+	store := f.funcStaticLocals()
+	if store == nil {
+		return
+	}
+	for _, v := range f.vars {
+		idx := v.GetIndex()
+		if zv := ctx.GetIndexZVal(idx); zv != nil {
+			store.Update(idx, zv.Value)
+		}
+	}
 }
 
 // Parameter 表示函数参数

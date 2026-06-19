@@ -150,10 +150,45 @@ func (f *VarPostIncr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		if iv, ok := zv.Value.(*data.IntValue); ok {
 			old := iv                                      // 旧指针直接作为返回值（原始值），无额外分配
 			zv.Value = &data.IntValue{Value: iv.Value + 1} // 仅一次分配
+			syncStaticLocalFromCtx(ctx, f.VarIdx)
 			return old, nil
 		}
 	}
 	return f.Fallback.GetValue(ctx)
+}
+
+// VarPostDecr: $var--（简单变量后自减，表达式语境）
+type VarPostDecr struct {
+	*Node    `pp:"-"`
+	VarIdx   int
+	Var      *VariableExpression
+	Fallback *PostfixDecr
+}
+
+func (f *VarPostDecr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if zv := ctx.GetIndexZVal(f.VarIdx); zv != nil {
+		if iv, ok := zv.Value.(*data.IntValue); ok {
+			old := iv
+			zv.Value = &data.IntValue{Value: iv.Value - 1}
+			syncStaticLocalFromCtx(ctx, f.VarIdx)
+			return old, nil
+		}
+	}
+	return f.Fallback.GetValue(ctx)
+}
+
+func syncStaticLocalFromCtx(ctx data.Context, index int) {
+	binder, ok := ctx.(data.StaticLocalsBinder)
+	if !ok {
+		return
+	}
+	store := binder.StaticLocalsStore()
+	if store == nil {
+		return
+	}
+	if zv := ctx.GetIndexZVal(index); zv != nil {
+		store.Update(index, zv.Value)
+	}
 }
 
 // ------------------------------------------------------------------

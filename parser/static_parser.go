@@ -282,8 +282,27 @@ func (sp *StaticParser) parseStaticArrowFunction(tracker *PositionTracker) (data
 	return fn, nil
 }
 
-// parseStaticVariable 解析 static $variable = value 格式
+// parseStaticVariable 解析 static $variable = value[, $variable = value...] 格式
 func (sp *StaticParser) parseStaticVariable(tracker *PositionTracker) (data.GetValue, data.Control) {
+	statements := make([]data.GetValue, 0, 2)
+	for {
+		stmt, acl := sp.parseOneStaticVariable(tracker)
+		if acl != nil {
+			return nil, acl
+		}
+		statements = append(statements, stmt)
+		if sp.current().Type() != token.COMMA {
+			break
+		}
+		sp.next()
+	}
+	if len(statements) == 1 {
+		return statements[0], nil
+	}
+	return node.NewBlockStatement(tracker.EndBefore(), statements), nil
+}
+
+func (sp *StaticParser) parseOneStaticVariable(tracker *PositionTracker) (data.GetValue, data.Control) {
 	// 解析类型声明（可选，如 static int $count = 0）
 	var varType data.Types
 	if isIdentOrTypeToken(sp.current().Type()) {
