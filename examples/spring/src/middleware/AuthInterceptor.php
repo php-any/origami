@@ -39,27 +39,22 @@ class AuthInterceptor {
 
         if (empty($token)) {
             $response->error('未提供认证令牌', 401);
-            return; // 不调用 $next，中断请求
+            return;
         }
 
         // 验证 token（简化示例）
         if (!$this->verifyToken($token)) {
             $response->error('无效的认证令牌', 401);
-            return; // 不调用 $next，中断请求
+            return;
         }
 
-        echo "[Auth] 认证通过: " . $path . "\n";
+        \Log::info("[Auth] 认证通过: " . $path);
 
-        // 调用下一个中间件或控制器
         $next($request, $response);
 
-        // 后置处理（洋葱回溯阶段）
-        echo "[Auth] 请求处理完成\n";
+        \Log::info("[Auth] 请求处理完成");
     }
 
-    /**
-     * 检查路径是否应该排除
-     */
     private function shouldExclude(string $path): bool {
         foreach ($this->excludePaths as $excludePath) {
             if (strpos($path, $excludePath) === 0) {
@@ -69,11 +64,7 @@ class AuthInterceptor {
         return false;
     }
 
-    /**
-     * 验证 Token
-     */
     private function verifyToken(string $token): bool {
-        // 简化示例：实际应使用 JWT 验证
         return !empty($token) && strlen($token) > 10;
     }
 }

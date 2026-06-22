@@ -1,6 +1,6 @@
 <?php
 
-namespace Spring\Config;
+namespace Spring\Bootstrap;
 
 use Database\DB;
 use Database\Sql\DB as SqlDB;
@@ -16,20 +16,20 @@ class DatabaseBootstrap {
 
     public static function init(?string $dbPath = null): void {
         if ($dbPath === null) {
-            $dbPath = __DIR__ . '/../../spring.db';
+            $dbPath = dirname(__DIR__) . '/spring.db';
         }
 
-        Log::info("=== 初始化 SQLite 数据库 ===");
-        Log::info("数据库路径: " . $dbPath);
+        \Log::info("=== 初始化 SQLite 数据库 ===");
+        \Log::info("数据库路径: " . $dbPath);
 
         $db = open("sqlite", $dbPath);
         $db->ping();
-        Database\registerDefaultConnection($db);
+        \Database\registerDefaultConnection($db);
 
         self::createTables($db);
         self::seedData();
 
-        Log::info("数据库初始化完成");
+        \Log::info("数据库初始化完成");
     }
 
     private static function createTables(SqlDB $db): void {
@@ -72,11 +72,11 @@ class DatabaseBootstrap {
     private static function seedData(): void {
         $userCount = DB::query("SELECT COUNT(*) AS cnt FROM users");
         if ($userCount[0]->cnt > 0) {
-            Log::info("数据库已有数据，跳过种子数据");
+            \Log::info("数据库已有数据，跳过种子数据");
             return;
         }
 
-        Log::info("插入种子数据...");
+        \Log::info("插入种子数据...");
 
         $users = [
             ["name" => "张三", "email" => "zhangsan@example.com", "age" => 25],
@@ -126,6 +126,6 @@ class DatabaseBootstrap {
             DB::insert($order);
         }
 
-        Log::info("种子数据插入完成");
+        \Log::info("种子数据插入完成");
     }
 }

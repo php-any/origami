@@ -27,11 +27,7 @@ class CorsMiddleware {
         $this->allowedHeaders = $allowedHeaders;
     }
 
-    /**
-     * 处理请求
-     */
     public function handle(Request $request, Response $response, callable $next): void {
-        // 设置 CORS headers
         $origin = $request->header('Origin', '*');
 
         if (in_array('*', $this->allowedOrigins) || in_array($origin, $this->allowedOrigins)) {
@@ -40,15 +36,13 @@ class CorsMiddleware {
 
         $response->header('Access-Control-Allow-Methods', implode(', ', $this->allowedMethods));
         $response->header('Access-Control-Allow-Headers', implode(', ', $this->allowedHeaders));
-        $response->header('Access-Control-Max-Age', '86400'); // 24 小时
+        $response->header('Access-Control-Max-Age', '86400');
 
-        // 处理 OPTIONS 预检请求
         if ($request->method() === 'OPTIONS') {
             $response->status(204)->write('');
             return;
         }
 
-        // 继续处理请求
         $next($request, $response);
     }
 }

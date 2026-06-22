@@ -3,7 +3,7 @@
 namespace Spring;
 
 use Net\Annotation\Application;
-use Spring\Config\DatabaseBootstrap;
+use Spring\Bootstrap\DatabaseBootstrap;
 
 /**
  * Spring 应用引导类
@@ -17,8 +17,8 @@ use Spring\Config\DatabaseBootstrap;
 class SpringApplication {
 
     public static function boot(): void {
-        $dbPath = dirname(__DIR__) . '/spring.db';
-        DatabaseBootstrap::init($dbPath);
+        $config = require dirname(__DIR__) . '/config/database.php';
+        DatabaseBootstrap::init($config['database']);
 
         \Log::info("========================================");
         \Log::info("Spring Demo v1.0.0 引导完成");

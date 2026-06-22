@@ -15,21 +15,15 @@ use Net\Http\Response;
  */
 class LogInterceptor {
 
-    /**
-     * 洋葱模型中间件处理
-     */
     public function handle(Request $request, Response $response, callable $next): void {
         $method = $request->method();
         $path = $request->path();
 
-        // 前置处理
-        echo "[LOG] >>> {$method} {$path}\n";
+        \Log::info("[LOG] >>> {$method} {$path}");
 
-        // 调用下一个中间件或控制器
         $next($request, $response);
 
-        // 后置处理（洋葱回溯阶段）
-        echo "[LOG] <<< 响应完成\n";
-        echo "[LOG] === 请求处理结束\n";
+        \Log::info("[LOG] <<< 响应完成");
+        \Log::info("[LOG] === 请求处理结束");
     }
 }
