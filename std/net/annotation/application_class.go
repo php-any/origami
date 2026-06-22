@@ -143,6 +143,11 @@ func (m *ApplicationConstructMethod) Call(ctx data.Context) (data.GetValue, data
 	}
 	scanDir = filepath.Clean(scanDir)
 
+	// 编译模式下只解析参数，跳过扫描目录和调用 boot()
+	if data.CompileMode {
+		return nil, nil
+	}
+
 	// main.php 位于 scan 目录内时，Scan 会再次加载本文件；此处跳过后续扫描与 boot，但仍注册 exit。
 	if scanningDirs[scanDir] {
 		m.registerExit(ctx)

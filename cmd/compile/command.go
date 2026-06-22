@@ -46,16 +46,16 @@ func NewCommand(loader func(vm data.VM)) *cobra.Command {
 }
 
 func runCompileCommand(cmd *cobra.Command, args []string) error {
+	vendorDir := args[0]
+
 	if compileBuild {
 		if compileEntry == "" {
-			return fmt.Errorf("--build 模式需要指定 --entry 参数")
+			compileEntry = filepath.Join(vendorDir, "index.php")
 		}
 		if compilePkg == "build" {
 			compilePkg = "main"
 		}
 	}
-
-	vendorDir := args[0]
 
 	info, err := os.Stat(vendorDir)
 	if err != nil {
@@ -101,9 +101,6 @@ func runCompileCommand(cmd *cobra.Command, args []string) error {
 	fmt.Printf("已生成 Go 包到 %s\n", compileOutput)
 
 	if compileBuild {
-		if compileEntry == "" {
-			return fmt.Errorf("--build 模式需要指定 --entry 参数")
-		}
 		// --build 时 entry 必须是单个文件
 		entryFile, err := resolveSingleEntry(compileEntry)
 		if err != nil {

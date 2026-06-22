@@ -41,3 +41,8 @@ func ResetOutputWriter() {
 // FlushAllBuffersFn 脚本结束时刷新所有输出缓冲区的回调函数
 // 由 core 包设置，避免循环依赖
 var FlushAllBuffersFn func()
+
+// CompileMode 编译模式标记。
+// 设为 true 时，注解构造函数应跳过有副作用的操作（扫描目录、初始化数据库、调用 boot 等），
+// 供 compile 子命令在纯解析阶段使用。
+var CompileMode bool

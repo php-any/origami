@@ -418,6 +418,9 @@ func (g *Generator) emitClassAnnotation(cv *data.ClassValue) error {
 	case *container.ComponentClass:
 		g.needContainerImport()
 		g.printf("container.CompiledComponentValue()")
+	case *annotation.ApplicationClass:
+		g.needAnnotationImport()
+		g.printf("annotation.CompiledApplicationValue()")
 	default:
 		return newEmitError(g.file, cv, "unsupported annotation type "+reflect.TypeOf(c).String())
 	}

@@ -54,3 +54,10 @@ func CompiledMiddlewareValue(className string) *data.ClassValue {
 	mc := &MiddlewareClass{source: m, construct: &MiddlewareConstructMethod{middleware: m}}
 	return &data.ClassValue{ObjectValue: data.NewObjectValue(), Class: mc}
 }
+
+// CompiledApplicationValue 构建预编译的 @Application 注解实例（编译模式）
+func CompiledApplicationValue() *data.ClassValue {
+	a := newApplication()
+	ac := &ApplicationClass{construct: &ApplicationConstructMethod{app: a}}
+	return &data.ClassValue{ObjectValue: data.NewObjectValue(), Class: ac}
+}

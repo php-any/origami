@@ -24,6 +24,11 @@ func parseFiles(files []string) ([]ParsedFile, []error) {
 	if runtimeLoader != nil {
 		runtimeLoader(baseVM)
 	}
+
+	// 编译模式下跳过 #[Application] 注解的扫描/启动逻辑
+	data.CompileMode = true
+	defer func() { data.CompileMode = false }()
+
 	var parsed []ParsedFile
 	var errs []error
 
