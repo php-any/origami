@@ -77,25 +77,19 @@ func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool,
 	filePath = utils.NormalizePhpFilePath(filePath)
 
 	vm := ctx.GetVM()
-	if vm.GetPhpFileCache(filePath) {
-		if once {
-			includeOnceCache.mu.Lock()
-			if cached, ok := includeOnceCache.files[filePath]; ok {
-				includeOnceCache.mu.Unlock()
-				return cached, nil
-			}
-			includeOnceCache.mu.Unlock()
-		}
-		return data.NewBoolValue(true), nil
-	}
 
-	if once {
-		includeOnceCache.mu.Lock()
-		if cached, ok := includeOnceCache.files[filePath]; ok {
-			includeOnceCache.mu.Unlock()
-			return cached, nil
-		}
+	// 检查返回值缓存，无论 once 与否都需要检查，
+	// 因为 require 对同一个文件可能被多次调用（如 autoload_psr4.php），
+	// 需要返回文件的实际返回值而非 true
+	includeOnceCache.mu.Lock()
+	if cached, ok := includeOnceCache.files[filePath]; ok {
 		includeOnceCache.mu.Unlock()
+		return cached, nil
+	}
+	includeOnceCache.mu.Unlock()
+
+	if vm.GetPhpFileCache(filePath) {
+		return data.NewBoolValue(true), nil
 	}
 
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -124,15 +118,14 @@ func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool,
 		return nil, acl
 	}
 
-	if once {
-		includeOnceCache.mu.Lock()
-		if vv, ok := v.(data.Value); ok {
-			includeOnceCache.files[filePath] = vv
-		} else {
-			includeOnceCache.files[filePath] = data.NewBoolValue(true)
-		}
-		includeOnceCache.mu.Unlock()
+	// 始终缓存返回值，确保多次 require 同一文件时能返回实际值而非 true
+	includeOnceCache.mu.Lock()
+	if vv, ok := v.(data.Value); ok {
+		includeOnceCache.files[filePath] = vv
+	} else {
+		includeOnceCache.files[filePath] = data.NewBoolValue(true)
 	}
+	includeOnceCache.mu.Unlock()
 
 	return v, nil
 }
