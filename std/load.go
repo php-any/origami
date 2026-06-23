@@ -8,6 +8,7 @@ import (
 	"github.com/php-any/origami/std/exception"
 	"github.com/php-any/origami/std/log"
 	"github.com/php-any/origami/std/loop"
+	"github.com/php-any/origami/std/protowire"
 	"github.com/php-any/origami/std/reflect"
 	"github.com/php-any/origami/std/signal"
 	"github.com/php-any/origami/std/system/os"
@@ -41,4 +42,5 @@ func Load(vm data.VM) {
 	loop.Load(vm)
 	database.Load(vm)
 	container.Load(vm)
+	protowire.Load(vm)
 }
