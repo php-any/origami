@@ -42,9 +42,13 @@ func generateRegisterFile(parsed []ParsedFile, entryPaths map[string]bool, outpu
 	for _, pf := range parsed {
 		gen := NewGenerator()
 		funcName := gen.funcNameForPath(pf.Path)
-		if entryPaths[pf.Path] {
+		if entryPaths[filepath.Clean(pf.Path)] {
 			// entry 文件：注册到 compiledFiles，仅当 run_php_file() 被调用时才执行
-			b.WriteString(fmt.Sprintf("\tvm.RegisterCompiledFile(%q, func() (data.GetValue, []data.Variable) {\n", pf.Path))
+			absPath, err := filepath.Abs(pf.Path)
+			if err != nil {
+				absPath = pf.Path
+			}
+			b.WriteString(fmt.Sprintf("\tvm.RegisterCompiledFile(%q, func() (data.GetValue, []data.Variable) {\n", absPath))
 			b.WriteString(fmt.Sprintf("\t\treturn %s()\n", funcName))
 			b.WriteString("\t})\n")
 		} else {
