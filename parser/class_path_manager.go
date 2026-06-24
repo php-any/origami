@@ -348,10 +348,16 @@ func (m *DefaultClassPathManager) LoadClass(className string, parser *Parser) da
 			return nil
 		}
 	}
-	// 加载文件
-	_, acl := parser.vm.LoadAndRun(filePath)
-	if acl != nil {
-		return acl
+	// 加载文件（编译模式下仅解析不执行代码）
+	if data.CompileMode {
+		if acl := parser.vm.CompileLoad(filePath); acl != nil {
+			return acl
+		}
+	} else {
+		_, acl := parser.vm.LoadAndRun(filePath)
+		if acl != nil {
+			return acl
+		}
 	}
 
 	// 检查类或接口是否成功加载

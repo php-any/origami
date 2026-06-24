@@ -455,6 +455,19 @@ func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	return result, ctrl
 }
 
+// CompileLoad 编译模式专用：仅解析文件并注册类/函数/接口，不执行顶层代码。
+func (vm *VM) CompileLoad(file string) data.Control {
+	file = normalizePhpFilePath(file)
+	if vm.GetPhpFileCache(file) {
+		return nil
+	}
+	vm.SetPhpFileCache(file)
+
+	p := vm.parser.Clone()
+	_, acl := p.ParseFile(file)
+	return acl
+}
+
 func bindTemplateVariables(ctx data.Context, varList []data.Variable, props map[string]data.Value) {
 	for name, value := range props {
 		for _, variable := range varList {

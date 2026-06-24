@@ -110,6 +110,11 @@ func (vm *TempVM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	return program.GetValue(vm.CreateContext(p.GetVariables()))
 }
 
+// CompileLoad 编译模式专用：仅解析并注册类/函数/接口，不执行顶层代码。
+func (vm *TempVM) CompileLoad(file string) data.Control {
+	return vm.Base.CompileLoad(file)
+}
+
 func (vm *TempVM) ParseFile(file string, data data.Value) (data.Value, data.Control) {
 	return vm.Base.ParseFile(file, data)
 }
@@ -142,6 +147,12 @@ func (vm *TempVM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
 	if c, ok := vm.addedClasses[pkg]; ok {
 		return c, nil
 	}
+	// 编译模式下类可能注册到 baseVM（CompileLoad 不经过 TempVM）
+	if data.CompileMode {
+		if c, ok := vm.Base.GetClass(pkg); ok {
+			return c, nil
+		}
+	}
 
 	return nil, data.NewErrorThrow(nil, fmt.Errorf("class %s not found", pkg))
 }
@@ -172,6 +183,15 @@ func (vm *TempVM) LoadPkg(pkg string) (data.GetValue, data.Control) {
 	}
 	if c, ok := vm.addedInterfaces[pkg]; ok {
 		return c, nil
+	}
+	// 编译模式下类可能注册到 baseVM（CompileLoad 不经过 TempVM）
+	if data.CompileMode {
+		if c, ok := vm.Base.GetClass(pkg); ok {
+			return c, nil
+		}
+		if c, ok := vm.Base.GetInterface(pkg); ok {
+			return c, nil
+		}
 	}
 	return nil, nil
 }

@@ -309,6 +309,11 @@ func (vm *LspVM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	return nil, nil
 }
 
+// CompileLoad LSP 不执行代码。
+func (vm *LspVM) CompileLoad(file string) data.Control {
+	return nil
+}
+
 // ParseFile LSP 不执行解释。
 func (vm *LspVM) ParseFile(file string, value data.Value) (data.Value, data.Control) {
 	return nil, nil

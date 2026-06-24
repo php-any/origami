@@ -371,6 +371,9 @@ func callClassAnnotation(p *Parser, ans *[]*node.Annotation, c node.AddAnnotatio
 	for _, an := range *ans {
 		obj, acl := an.GetValue(p.vm.CreateContext(nil))
 		if acl != nil {
+			if data.CompileMode {
+				continue // 编译模式下跳过不存在的注解类
+			}
 			return acl
 		}
 		if o, ok := obj.(*data.ClassValue); ok {

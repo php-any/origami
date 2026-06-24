@@ -61,6 +61,8 @@ type VM interface {
 	SetThrowControl(func(acl Control))
 	ThrowControl(acl Control)
 	LoadAndRun(file string) (GetValue, Control)
+	// CompileLoad 仅解析文件并注册类/函数/接口，不执行代码（编译模式专用）
+	CompileLoad(file string) Control
 	// RegisterCompiledFile 注册预编译的文件 AST
 	RegisterCompiledFile(file string, fn func() (GetValue, []Variable))
 	// RunCompiledFile 执行已通过 RegisterCompiledFile 注册的预编译文件；

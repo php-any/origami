@@ -152,6 +152,9 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 
 			stmt, acl := p.vm.GetOrLoadClass(an.Name)
 			if acl != nil {
+				if data.CompileMode {
+					continue // 编译模式下跳过不存在的注解类
+				}
 				if acl, ok := acl.(data.AddStack); ok {
 					acl.AddStackWithInfo(p.newFrom(), "annotation", an.Name)
 				}
