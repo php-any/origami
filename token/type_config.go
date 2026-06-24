@@ -68,7 +68,6 @@ const (
 	ENUM                                // enum 枚举定义 (PHP 8.1+)
 	READONLY                            // readonly 只读属性 (PHP 8.1+)
 	FN                                  // fn 箭头函数 (PHP 7.4+)
-	SPAWN                               // spawn 异步
 	THIS                                // this
 	PARENT                              // parent
 	SELF                                // self

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/utils"
 )
 
@@ -18,11 +19,12 @@ func (d *DbWhereMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	sql := a1.(data.AsString).AsString()
 
-	a2, ok := ctx.GetIndexValue(1)
 	var args []data.Value
-	if ok {
+	if a2, ok := ctx.GetIndexValue(1); ok {
 		if arr, ok := a2.(*data.ArrayValue); ok {
-			args = append([]data.Value{}, arr.ToValueList()...)
+			args = flattenBindArgList(arr.ToValueList())
+		} else if val, ok := a2.(data.Value); ok {
+			args = []data.Value{val}
 		}
 	}
 
@@ -52,8 +54,8 @@ func (d *DbWhereMethod) GetIsStatic() bool {
 
 func (d *DbWhereMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
-		data.NewParameter("sql", 0),   // 接收字符串参数
-		data.NewParameters("args", 1), // 接收剩余参数数组
+		data.NewParameter("sql", 0),
+		node.NewParameters(nil, "args", 1, nil, nil),
 	}
 }
 

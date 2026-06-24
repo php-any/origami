@@ -1,6 +1,15 @@
 # 封装 DB 操作类
 
-代码映射成脚本域的操作如下
+## 入口一览
+
+| 场景 | 推荐写法 | 说明 |
+|------|---------|------|
+| ORM 链式查询 | `DB::model(User::class)` | 通过类名绑定模型并自动映射实体 |
+| ORM 链式查询（动态类名） | `DB::model($class)` | 运行时类名字符串 |
+| 原生 SELECT | `DB::query($sql, ...$args)` | 返回行对象，配合 `toEntity` 映射 |
+| 原生写操作 | `DB::execute($sql, ...$args)` | 返回 `{ rowsAffected, lastInsertId, success }` |
+| 插入实体 | `DB::insert($entity)` | 从实体推断模型类并插入 |
+| 指定连接 | `->connection($name)` / `DB::connection($name)` | 链式或静态切换命名连接 |
 
 ```
 namespace App;
@@ -19,18 +28,47 @@ class User {
     public float $coin;
 }
 
-// 使用默认连接（自动表名）
-$data = DB<User>();
-$data->where("name = ?", "测试用户")->first();
+// 原生 SQL：查询 + 映射分两步
+$rows = DB::query("SELECT * FROM users WHERE age > ?", 18);
+$users = DB::toEntity(User::class, $rows);
 
-// 使用指定连接（自动表名）
-$data = DB<User>("slave");
-$data->where("name = ?", "测试用户")->first();
+DB::insert($user);
+DB::execute("UPDATE users SET age = ? WHERE id = ?", 30, 1);
 
-// 显式指定表名（覆盖注解）
-$data = DB<User>();
-$data->table("custom_table")->where("id = ?", 1)->first();
+// ORM 链式（类名入口，自动映射实体）
+DB::model(User::class)->where("name = ?", "测试用户")->first();
+DB::model(User::class)->select("id, name")->get();
+
+// 动态类名
+DB::model(User::class)->where("name = ?", "测试用户")->first();
 ```
+
+### 切换连接
+
+```php
+// 链式切换（推荐，可与其他条件任意组合）
+DB::model(User::class)->connection("slave")->where("id = ?", 1)->first();
+
+// 原生 SQL 走从库
+$rows = DB::connection("slave")->query("SELECT * FROM users WHERE age > ?", 18);
+
+// model / insert 第二参数也可指定连接
+DB::model(User::class, "slave")->get();
+DB::insert($user, "master");
+```
+
+## 原生 SQL API
+
+`Database\DB` 提供统一的原生 SQL 入口，静态方法与实例方法语义一致：
+
+| 操作 | 静态方法 | 实例方法 | 返回值 |
+|------|---------|---------|--------|
+| SELECT 查询 | `DB::query($sql, ...$args)` | `->query($sql, ...$args)` | 行对象数组 |
+| 写操作 / DDL | `DB::execute($sql, ...$args)` | `->execute($sql, ...$args)` | `{ rowsAffected, lastInsertId, success }` |
+
+参数支持可变参数（与 `where` 一致）或数组传参：`DB::query($sql, [$a, $b])`。
+
+底层连接封装（`database\sql`）仍使用 Go `database/sql` 命名：`Query` / `Exec`。
 
 ## 自动表名功能
 
@@ -48,7 +86,7 @@ class User {
 }
 
 // 自动使用 @Table 注解中的表名
-$data = DB<User>();
+$data = DB::model(User::class);
 $data->where("name = ?", "测试用户")->first();
 $data->insert($user);
 $data->where("id = ?", 1)->update($updateUser);
@@ -59,57 +97,16 @@ $data->where("id = ?", 1)->delete();
 
 ```php
 // 显式调用 table() 方法会覆盖 @Table 注解
-$data = DB<User>();
+$data = DB::model(User::class);
 $data->table("custom_table")->where("id = ?", 1)->first();
 ```
-
-## 原生 SQL 支持
-
-数据库模块支持执行原生 SQL 语句，提供最大的灵活性：
-
-### 查询操作 (query)
-
-```php
-// 执行 SELECT 查询
-$results = $data->query("SELECT * FROM users WHERE age > ?", [25]);
-
-// 复杂查询
-$results = $data->query("SELECT u.name, p.title FROM users u JOIN posts p ON u.id = p.user_id WHERE u.age > ?", [18]);
-
-// 统计查询
-$stats = $data->query("SELECT COUNT(*) as total, AVG(age) as avg_age FROM users");
-```
-
-### 执行操作 (exec)
-
-```php
-// 执行 INSERT 语句
-$result = $data->exec("INSERT INTO users (name, age, coin) VALUES (?, ?, ?)", ["新用户", 25, 100.0]);
-
-// 执行 UPDATE 语句
-$result = $data->exec("UPDATE users SET age = ? WHERE name = ?", [30, "新用户"]);
-
-// 执行 DELETE 语句
-$result = $data->exec("DELETE FROM users WHERE age < ?", [18]);
-
-// 执行 DDL 语句
-$result = $data->exec("CREATE TABLE IF NOT EXISTS logs (id INT AUTO_INCREMENT PRIMARY KEY, message TEXT)");
-```
-
-### 返回值说明
-
-- **query()**: 返回数组，包含查询结果对象
-- **exec()**: 返回对象，包含：
-  - `rowsAffected`: 影响的行数
-  - `lastInsertId`: 最后插入的 ID（仅 INSERT 语句）
-  - `success`: 操作是否成功
 
 ## 连接管理
 
 数据库连接管理器支持多连接管理：
 
-- `DB<User>()` - 使用默认连接
-- `DB<User>("连接名称")` - 使用指定名称的连接
+- `DB::model(User::class)` - 使用默认连接
+- `DB::model(User::class, "连接名称")` - 使用指定名称的连接
 
 连接需要在 Go 代码中预先注册到连接管理器中。
 
@@ -162,6 +159,6 @@ database\registerDefaultConnection($db);
 database\registerConnection("slave", $db);
 
 // 使用连接查询
-$user = DB<User>()->where("id = ?", 1)->first();
-$userFromSlave = DB<User>("slave")->where("id = ?", 1)->first();
+$user = DB::model(User::class)->where("id = ?", 1)->first();
+$userFromSlave = DB::model(User::class, "slave")->where("id = ?", 1)->first();
 ```

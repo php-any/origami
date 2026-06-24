@@ -18,5 +18,13 @@ func NewBlockStatement(token *TokenFrom, statements []data.GetValue) *BlockState
 
 // GetValue 获取语句块的值
 func (bs *BlockStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	return nil, nil
+	var v data.GetValue
+	var ctl data.Control
+	for _, stmt := range bs.Statements {
+		v, ctl = stmt.GetValue(ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+	}
+	return v, nil
 }

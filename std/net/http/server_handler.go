@@ -31,9 +31,7 @@ func (h *ServerHandleMethod) Call(ctx data.Context) (data.GetValue, data.Control
 			return nil, utils.NewThrow(errors.New("路由处理函数入参不对"))
 		}
 		router := h.server.Prefix + param0
-		if len(h.server.Middlewares) > 0 {
-			final = applyMiddlewares(final, h.server.Middlewares)
-		}
+		final = h.server.finalizeHandler(final)
 
 		// 使用 Go 1.22+ 的方法路由语法
 		methodPath := strings.ToUpper(h.name) + " " + router
@@ -78,9 +76,7 @@ func (h *ServerAnyMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 			return nil, utils.NewThrow(errors.New("路由处理函数入参不对"))
 		}
 
-		if len(h.server.Middlewares) > 0 {
-			final = applyMiddlewares(final, h.server.Middlewares)
-		}
+		final = h.server.finalizeHandler(final)
 
 		// 使用 Go 1.22+ ServeMux 的方法路由语法：为常见方法注册前缀 "/" 的通配路由
 		methods := []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "TRACE"}

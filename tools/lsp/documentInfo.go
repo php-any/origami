@@ -534,7 +534,7 @@ func (d *DocumentInfo) foreachNode(ctx *LspContext, stmt data.GetValue, parent d
 		for _, inc := range n.Increments {
 			d.foreachNode(ctx, inc, parent, check)
 		}
-	
+
 		for _, stmt := range n.Body {
 			d.foreachNode(ctx, stmt, parent, check)
 		}
@@ -788,10 +788,6 @@ func (d *DocumentInfo) foreachNode(ctx *LspContext, stmt data.GetValue, parent d
 		if n.DefaultValue != nil {
 			d.foreachNode(ctx, n.DefaultValue, parent, check)
 		}
-	case *node.SpawnStatement:
-		// spawn语句：遍历调用表达式
-		d.foreachNode(ctx, n.Call, parent, check)
-
 	case *node.CallMethod:
 		// 方法调用：遍历对象和参数
 		if n.Method != nil {

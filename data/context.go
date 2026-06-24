@@ -86,6 +86,10 @@ type VM interface {
 
 	// 全局变量管理
 	EnsureGlobalZVal(name string) *ZVal
+
+	// shutdown 回调（register_shutdown_function、Application::exit 等）
+	AddShutdownCallback(cb Value)
+	RunShutdownCallbacks()
 }
 
 type ClassStmt interface {

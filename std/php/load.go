@@ -48,6 +48,7 @@ func Load(vm data.VM) {
 		NewIsDirFunction(),
 		NewIsFileFunction(),
 		NewScandirFunction(),
+		NewGlobFunction(),
 		NewFileGetContentsFunction(),
 		NewFilePutContentsFunction(),
 		NewMicrotimeFunction(),
@@ -100,10 +101,12 @@ func Load(vm data.VM) {
 		NewMd5FileFunction(),
 		NewBase64EncodeFunction(),
 		NewBase64DecodeFunction(),
+		NewBin2hexFunction(),
 		NewUrlencodeFunction(),
 		NewUrldecodeFunction(),
 		NewRawurlencodeFunction(),
 		NewRawurldecodeFunction(),
+		NewHttpBuildQueryFunction(),
 		array.NewArrayMergeFunction(),
 		array.NewArrayCombineFunction(),
 		array.NewArrayReplaceRecursiveFunction(),
@@ -189,6 +192,7 @@ func Load(vm data.VM) {
 		core.NewStripTagsFunction(),
 		core.NewSetlocaleFunction(),
 		core.NewSplObjectHashFunction(),
+		core.NewSplObjectIdFunction(),
 
 		NewTokenGetAllFunction(),
 
@@ -284,6 +288,7 @@ func Load(vm data.VM) {
 		stream.NewFflushFunction(),
 		stream.NewStreamGetContentsFunction(),
 		stream.NewStreamIsattyFunction(),
+		stream.NewStreamContextCreateFunction(),
 		NewJoinPathsFunction(),
 		NewPathinfoFunction(),
 		NewExtractFunction(),
@@ -293,6 +298,7 @@ func Load(vm data.VM) {
 
 	// 初始化 pathinfo 常量
 	InitPathinfoConstants(vm)
+	InitGlobConstants(vm)
 
 	// 注册核心类
 	vm.AddClass(&core.ClosureClass{})

@@ -86,6 +86,13 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("未定义的函数:"+name+" []。"))
 	}
 
+	// PHP 允许函数名与 '(' 之间存在空白：andi (1, 2)
+	if p.checkPositionIs(0, token.LPAREN) {
+		if call, acl := p.parseIdentCall(tracker, name); acl != nil || call != nil {
+			return call, acl
+		}
+	}
+
 	// 检查是否是变量的类型
 	if p.checkPositionIs(0, token.ASSIGN) {
 		val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
@@ -106,43 +113,7 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 	if p.isTokensAdjacent(startToken, checkToken) {
 		// ( 函数调用 div() 或可调用变量 describe()
 		if p.checkPositionIs(0, token.LPAREN) {
-			vp := &VariableParser{p.Parser}
-			// 创建全局/命名空间函数调用表达式
-			if full, ok := p.findFullFunNameByNamespace(name); ok {
-				stmt, acl := vp.parseFunctionCall()
-				if acl != nil {
-					return nil, acl
-				}
-				fn, ok := p.vm.GetFunc(full)
-				if !ok {
-					return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("函数(%s)先加载后才能使用", name))
-				}
-				callExpr := node.NewCallExpression(tracker.EndBefore(), full, stmt, fn)
-				// 支持函数调用结果继续链式操作：app()->name, app()[0], app()()
-				return vp.parseSuffix(callExpr)
-			}
-			// 若不存在同名函数，再退化为可调用变量（如 $fn = fn(...); $fn()）
-			if varInfo := p.scopeManager.LookupVariable(name); varInfo != nil {
-				return vp.parseSuffix(varInfo)
-			} else if InLSP {
-				stmt, acl := vp.parseFunctionCall()
-				if acl != nil {
-					return nil, acl
-				}
-				callExpr := node.NewCallExpression(tracker.EndBefore(), name, stmt, nil)
-				return vp.parseSuffix(callExpr)
-			} else {
-				namespace := ""
-				if p.namespace != nil {
-					namespace = p.namespace.Name
-				}
-				stmt, acl := vp.parseFunctionCall()
-				if acl != nil {
-					return nil, acl
-				}
-				callExpr := node.NewCallTodo(node.NewCallExpression(tracker.EndBefore(), name, stmt, nil), namespace)
-				return vp.parseSuffix(callExpr)
-			}
+			return p.parseIdentCall(tracker, name)
 		}
 		// 变量定义
 		if p.checkPositionIs(0, token.COLON) && p.checkPositionIs(1, token.IDENTIFIER) {
@@ -259,6 +230,44 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	return node.NewStringLiteral(tracker.EndBefore(), name), nil
+}
+
+// parseIdentCall 解析标识符函数调用 name(...) 或可调用变量 name(...)
+func (p *IdentParser) parseIdentCall(tracker *PositionTracker, name string) (data.GetValue, data.Control) {
+	vp := &VariableParser{p.Parser}
+	if full, ok := p.findFullFunNameByNamespace(name); ok {
+		stmt, acl := vp.parseFunctionCall()
+		if acl != nil {
+			return nil, acl
+		}
+		fn, ok := p.vm.GetFunc(full)
+		if !ok {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("函数(%s)先加载后才能使用", name))
+		}
+		callExpr := node.NewCallExpression(tracker.EndBefore(), full, stmt, fn)
+		return vp.parseSuffix(callExpr)
+	}
+	if varInfo := p.scopeManager.LookupVariable(name); varInfo != nil {
+		return vp.parseSuffix(varInfo)
+	}
+	if InLSP {
+		stmt, acl := vp.parseFunctionCall()
+		if acl != nil {
+			return nil, acl
+		}
+		callExpr := node.NewCallExpression(tracker.EndBefore(), name, stmt, nil)
+		return vp.parseSuffix(callExpr)
+	}
+	namespace := ""
+	if p.namespace != nil {
+		namespace = p.namespace.Name
+	}
+	stmt, acl := vp.parseFunctionCall()
+	if acl != nil {
+		return nil, acl
+	}
+	callExpr := node.NewCallTodo(node.NewCallExpression(tracker.EndBefore(), name, stmt, nil), namespace)
+	return vp.parseSuffix(callExpr)
 }
 
 // parseStaticCall 解析静态调用（如 Log::info 或 Log::property）

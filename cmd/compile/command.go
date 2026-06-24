@@ -31,14 +31,14 @@ func NewCommand(loader func(vm data.VM)) *cobra.Command {
 
 示例:
   zy compile vendor/
-  zy compile vendor/ -o .zy/build
+  zy compile vendor/ -o dist
   zy compile . --build --entry=app.php
   zy compile . --build --entry=app.php -o dist/myapp`,
 		SilenceUsage: true,
 		Args:         cobra.ExactArgs(1),
 		RunE:         runCompileCommand,
 	}
-	cmd.Flags().StringVarP(&compileOutput, "output", "o", ".zy/build", "输出目录")
+	cmd.Flags().StringVarP(&compileOutput, "output", "o", "", "输出目录（默认 <dir>/build/dist）")
 	cmd.Flags().StringVar(&compilePkg, "pkg", "build", "生成的 Go 包名")
 	cmd.Flags().BoolVarP(&compileBuild, "build", "b", false, "编译为独立二进制")
 	cmd.Flags().StringVar(&compileEntry, "entry", "", "入口 PHP 文件（--build 模式必填）")
@@ -46,16 +46,21 @@ func NewCommand(loader func(vm data.VM)) *cobra.Command {
 }
 
 func runCompileCommand(cmd *cobra.Command, args []string) error {
+	vendorDir := args[0]
+
+	// 默认输出到 <dir>/build/dist
+	if compileOutput == "" {
+		compileOutput = filepath.Join(vendorDir, "build", "dist")
+	}
+
 	if compileBuild {
 		if compileEntry == "" {
-			return fmt.Errorf("--build 模式需要指定 --entry 参数")
+			compileEntry = filepath.Join(vendorDir, "index.php")
 		}
 		if compilePkg == "build" {
 			compilePkg = "main"
 		}
 	}
-
-	vendorDir := args[0]
 
 	info, err := os.Stat(vendorDir)
 	if err != nil {
@@ -84,8 +89,9 @@ func runCompileCommand(cmd *cobra.Command, args []string) error {
 	parsed, parseErrs := parseFiles(files)
 	if len(parseErrs) > 0 {
 		for _, e := range parseErrs {
-			fmt.Fprintf(os.Stderr, "警告: %v\n", e)
+			fmt.Fprintf(os.Stderr, "解析失败: %v\n", e)
 		}
+		return fmt.Errorf("有 %d 个文件解析失败，编译终止", len(parseErrs))
 	}
 	if len(parsed) == 0 {
 		return fmt.Errorf("没有文件解析成功")
@@ -100,9 +106,6 @@ func runCompileCommand(cmd *cobra.Command, args []string) error {
 	fmt.Printf("已生成 Go 包到 %s\n", compileOutput)
 
 	if compileBuild {
-		if compileEntry == "" {
-			return fmt.Errorf("--build 模式需要指定 --entry 参数")
-		}
 		// --build 时 entry 必须是单个文件
 		entryFile, err := resolveSingleEntry(compileEntry)
 		if err != nil {
@@ -111,7 +114,7 @@ func runCompileCommand(cmd *cobra.Command, args []string) error {
 		if err := generateMainFile(entryFile, compileOutput, compilePkg); err != nil {
 			return fmt.Errorf("生成 main.go 失败: %w", err)
 		}
-		if err := buildBinary(compileOutput); err != nil {
+		if err := buildBinary(compileOutput, vendorDir); err != nil {
 			return fmt.Errorf("编译失败: %w", err)
 		}
 		fmt.Println("编译完成！")
@@ -137,20 +140,10 @@ func resolveEntryPaths(entry string) (map[string]bool, error) {
 			return nil, err
 		}
 		for _, f := range files {
-			abs, err := filepath.Abs(f)
-			if err != nil {
-				return nil, err
-			}
-			result[abs] = true
-			result[f] = true // 同时保留相对路径，方便匹配
+			result[filepath.Clean(f)] = true
 		}
 	} else {
-		abs, err := filepath.Abs(entry)
-		if err != nil {
-			return nil, err
-		}
-		result[abs] = true
-		result[entry] = true
+		result[filepath.Clean(entry)] = true
 	}
 	return result, nil
 }

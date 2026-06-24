@@ -11,49 +11,79 @@ type PendingRoute struct {
 	Path           string
 	Target         data.Method
 	Receiver       data.GetValue
-	ControllerName string // 控制器名称，用于关联中间件
+	ControllerName string
+	StaticReceiver data.GetValue
 }
 
-// pendingRoutes 全局存储待注册路由
+type pendingController struct {
+	ClassStmt data.ClassStmt
+	Ctx       data.Context
+}
+
 var pendingRoutes []PendingRoute
 
-// controllerMiddlewares 全局存储控制器中间件
-// key: 控制器名称, value: 中间件类名列表
+// 扫描阶段收集控制器，全部文件加载后再实例化（保证 DI 依赖已注册）
+var pendingControllers = make(map[string]pendingController)
+
 var controllerMiddlewares = make(map[string][]string)
 
-// AddPendingRoute 添加待注册路由
 func AddPendingRoute(r PendingRoute) {
 	pendingRoutes = append(pendingRoutes, r)
 }
 
-// AddControllerMiddleware 添加控制器中间件
+func RegisterDeferredController(name string, cls data.ClassStmt, ctx data.Context) {
+	pendingControllers[name] = pendingController{ClassStmt: cls, Ctx: ctx}
+}
+
 func AddControllerMiddleware(controllerName, middlewareClassName string) {
 	controllerMiddlewares[controllerName] = append(controllerMiddlewares[controllerName], middlewareClassName)
 }
 
-// RegisterPendingRoutes 注册所有待处理路由
-// 合并路由信息和中间件信息后注册
-func RegisterPendingRoutes(vm data.VM) {
+func instantiatePendingControllers() (map[string]data.GetValue, data.Control) {
+	instances := make(map[string]data.GetValue, len(pendingControllers))
+	for name, pc := range pendingControllers {
+		inst, acl := ControllerInstantiator(pc.ClassStmt, pc.Ctx)
+		if acl != nil {
+			return nil, acl
+		}
+		instances[name] = inst
+	}
+	return instances, nil
+}
+
+func RegisterPendingRoutes(vm data.VM) data.Control {
+	instances, acl := instantiatePendingControllers()
+	if acl != nil {
+		return acl
+	}
+
 	for _, pr := range pendingRoutes {
-		// 获取该控制器的中间件
 		middlewares := []runtime.MiddlewareInfo{}
-		if mws, ok :=
-			controllerMiddlewares[pr.ControllerName]; ok {
+		if mws, ok := controllerMiddlewares[pr.ControllerName]; ok {
 			for _, className := range mws {
 				middlewares = append(middlewares, runtime.MiddlewareInfo{ClassName: className})
 			}
 		}
 
-		// 注册路由
+		receiver := pr.Receiver
+		if receiver == nil && pr.StaticReceiver != nil {
+			receiver = pr.StaticReceiver
+		}
+		if receiver == nil {
+			receiver = instances[pr.ControllerName]
+		}
+
 		runtime.AppendHTTPRoute(vm, runtime.Route{
 			Method:      pr.Method,
 			Path:        pr.Path,
 			Target:      pr.Target,
-			Receiver:    pr.Receiver,
+			Receiver:    receiver,
 			Middlewares: middlewares,
 		})
 	}
-	// 清理
+
 	pendingRoutes = nil
+	pendingControllers = make(map[string]pendingController)
 	controllerMiddlewares = make(map[string][]string)
+	return nil
 }

@@ -63,11 +63,12 @@ type VM struct {
 
 	// PHP 级 register_shutdown_function 注册的回调列表
 	shutdownCallbacks []data.Value
+	shutdownRunOnce   sync.Once
 
 	// 调用深度追踪（用于检测无限递归）
 	callDepth int
 
-	// 注解 @Controller 注册的 HTTP 路由（生产模式 app(hotReload: false) 写入此处）
+	// 注解 @Controller 注册的 HTTP 路由（flash 引导后写入此处）
 	httpRoutes []Route
 
 	// 预编译文件注册表
@@ -156,25 +157,6 @@ func (vm *VM) SetExceptionHandler(handler data.Value) data.Value {
 // GetExceptionHandler 返回当前注册的 PHP 级异常处理回调
 func (vm *VM) GetExceptionHandler() data.Value {
 	return vm.exceptionHandler
-}
-
-// AddShutdownCallback 注册一个 shutdown 回调
-func (vm *VM) AddShutdownCallback(cb data.Value) {
-	vm.shutdownCallbacks = append(vm.shutdownCallbacks, cb)
-}
-
-// RunShutdownCallbacks 依次执行所有已注册的 shutdown 回调
-func (vm *VM) RunShutdownCallbacks() {
-	for _, cb := range vm.shutdownCallbacks {
-		if fv, ok := cb.(*data.FuncValue); ok {
-			vars := fv.Value.GetVariables()
-			ctx := vm.CreateContext(vars)
-			if _, acl := fv.Call(ctx); acl != nil {
-				vm.acl(acl)
-			}
-		}
-	}
-	runHeaderCallbacks(vm)
 }
 
 func (vm *VM) AddClass(c data.ClassStmt) data.Control {
@@ -473,6 +455,27 @@ func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	return result, ctrl
 }
 
+func bindTemplateVariables(ctx data.Context, varList []data.Variable, props map[string]data.Value) {
+	for name, value := range props {
+		for _, variable := range varList {
+			if variable.GetName() == name {
+				variable.SetValue(ctx, value)
+			}
+		}
+	}
+}
+
+func templatePropsFromArray(arr *data.ArrayValue) map[string]data.Value {
+	props := make(map[string]data.Value)
+	for _, z := range arr.List {
+		if z == nil || z.Name == "" {
+			continue
+		}
+		props[z.Name] = z.Value
+	}
+	return props
+}
+
 func (vm *VM) ParseFile(file string, object data.Value) (data.Value, data.Control) {
 	// 解析文件
 	p := vm.parser.Clone()
@@ -486,21 +489,12 @@ func (vm *VM) ParseFile(file string, object data.Value) (data.Value, data.Contro
 	ctx := vm.CreateContext(varList)
 	switch v := object.(type) {
 	case *data.ObjectValue:
-		for name, value := range v.GetProperties() {
-			for _, variable := range varList {
-				if variable.GetName() == name {
-					variable.SetValue(ctx, value)
-				}
-			}
-		}
+		bindTemplateVariables(ctx, varList, v.GetProperties())
 	case *data.ClassValue:
-		for name, value := range v.GetProperties() {
-			for _, variable := range varList {
-				if variable.GetName() == name {
-					variable.SetValue(ctx, value)
-				}
-			}
-		}
+		bindTemplateVariables(ctx, varList, v.GetProperties())
+	case *data.ArrayValue:
+		// 关联数组（字符串键）与 object 一样按名注入；纯数字下标不映射到模板变量
+		bindTemplateVariables(ctx, varList, templatePropsFromArray(v))
 	default:
 		return nil, utils.NewThrowf("DIY解析文件无法设置指定值到文件域, file(%s)", file)
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -41,9 +42,13 @@ func generateRegisterFile(parsed []ParsedFile, entryPaths map[string]bool, outpu
 	for _, pf := range parsed {
 		gen := NewGenerator()
 		funcName := gen.funcNameForPath(pf.Path)
-		if entryPaths[pf.Path] {
+		if entryPaths[filepath.Clean(pf.Path)] {
 			// entry 文件：注册到 compiledFiles，仅当 run_php_file() 被调用时才执行
-			b.WriteString(fmt.Sprintf("\tvm.RegisterCompiledFile(%q, func() (data.GetValue, []data.Variable) {\n", pf.Path))
+			absPath, err := filepath.Abs(pf.Path)
+			if err != nil {
+				absPath = pf.Path
+			}
+			b.WriteString(fmt.Sprintf("\tvm.RegisterCompiledFile(%q, func() (data.GetValue, []data.Variable) {\n", absPath))
 			b.WriteString(fmt.Sprintf("\t\treturn %s()\n", funcName))
 			b.WriteString("\t})\n")
 		} else {
@@ -56,7 +61,7 @@ func generateRegisterFile(parsed []ParsedFile, entryPaths map[string]bool, outpu
 	}
 	b.WriteString("}\n")
 
-	return os.WriteFile(filepath.Join(outputDir, "register.go"), []byte(b.String()), 0644)
+	return writeFormattedGoFile(filepath.Join(outputDir, "register.go"), []byte(b.String()))
 }
 
 func generateASTFiles(parsed []ParsedFile, outputDir, pkgName string) error {
@@ -74,27 +79,39 @@ func generateASTFiles(parsed []ParsedFile, outputDir, pkgName string) error {
 
 	for _, pf := range parsed {
 		gen := NewGenerator()
-		code := gen.Generate(pf)
-		imports := map[string]bool{
-			"github.com/php-any/origami/data": true,
-			"github.com/php-any/origami/node": true,
+		code, err := gen.Generate(pf)
+		if err != nil {
+			return err
 		}
-		for imp := range gen.imports {
-			imports[imp] = true
+		importAliases := map[string]string{
+			"github.com/php-any/origami/data": "",
+			"github.com/php-any/origami/node": "",
+		}
+		for imp, alias := range gen.importAliases {
+			importAliases[imp] = alias
 		}
 
 		var b strings.Builder
 		b.WriteString(fmt.Sprintf("package %s\n\n", pkgName))
 		b.WriteString("import (\n")
-		for imp := range imports {
-			b.WriteString(fmt.Sprintf("\t%q\n", imp))
+		impList := make([]string, 0, len(importAliases))
+		for imp := range importAliases {
+			impList = append(impList, imp)
+		}
+		sort.Strings(impList)
+		for _, imp := range impList {
+			if alias := importAliases[imp]; alias != "" {
+				b.WriteString(fmt.Sprintf("\t%s %q\n", alias, imp))
+			} else {
+				b.WriteString(fmt.Sprintf("\t%q\n", imp))
+			}
 		}
 		b.WriteString(")\n\n")
 		b.WriteString(code)
 
 		outPath := filepath.Join(outputDir, gen.goFileNameForPath(pf.Path))
-		if err := os.WriteFile(outPath, []byte(b.String()), 0644); err != nil {
-			return fmt.Errorf("写入 %s 失败: %w", outPath, err)
+		if err := writeFormattedGoFile(outPath, []byte(b.String())); err != nil {
+			return err
 		}
 	}
 	return nil

@@ -504,6 +504,12 @@ func (vm *LspVM) EnterCall() int { return 0 }
 // LeaveCall 调用深度追踪，LSP 仅为满足接口。
 func (vm *LspVM) LeaveCall() {}
 
+// AddShutdownCallback LSP 不执行 shutdown，仅为满足接口。
+func (vm *LspVM) AddShutdownCallback(cb data.Value) {}
+
+// RunShutdownCallbacks LSP 不执行 shutdown，仅为满足接口。
+func (vm *LspVM) RunShutdownCallbacks() {}
+
 // RegisterCompiledFile LSP 不使用预编译文件，仅为满足接口。
 func (vm *LspVM) RegisterCompiledFile(file string, fn func() (data.GetValue, []data.Variable)) {}
 

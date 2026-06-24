@@ -42,4 +42,4 @@ func (h *HeaderWriteSubsetMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "param1", 1, nil),
 	}
 }
-func (h *HeaderWriteSubsetMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *HeaderWriteSubsetMethod) GetReturnType() data.Types { return data.NewBaseType("int") }

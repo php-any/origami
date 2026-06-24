@@ -82,4 +82,4 @@ func (h *RequestExceptMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "keys", 0, nil),
 	}
 }
-func (h *RequestExceptMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *RequestExceptMethod) GetReturnType() data.Types { return data.NewBaseType("array") }

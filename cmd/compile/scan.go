@@ -14,6 +14,10 @@ func collectPhpFiles(dir string) ([]string, error) {
 			return err
 		}
 		if d.IsDir() {
+			// 跳过 .zy 内部运行时桩文件目录（非用户业务代码）
+			if d.Name() == ".zy" {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if strings.HasSuffix(strings.ToLower(path), ".php") {

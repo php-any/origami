@@ -9,4 +9,7 @@ function fetchData($url: string): string {
 }
 
 // 启动异步协程
-spawn fetchData("https://api.example.com");
+spawn(function(): void {
+    fetchData("https://api.example.com");
+});
+sleep(2);

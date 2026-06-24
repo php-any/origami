@@ -19,4 +19,4 @@ func (h *RequestUserAgentMethod) GetModifier() data.Modifier    { return data.Mo
 func (h *RequestUserAgentMethod) GetIsStatic() bool             { return false }
 func (h *RequestUserAgentMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
 func (h *RequestUserAgentMethod) GetVariables() []data.Variable { return []data.Variable{} }
-func (h *RequestUserAgentMethod) GetReturnType() data.Types     { return data.NewBaseType("void") }
+func (h *RequestUserAgentMethod) GetReturnType() data.Types     { return data.NewBaseType("string") }

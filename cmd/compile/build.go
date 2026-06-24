@@ -50,11 +50,12 @@ func generateMainFile(entryFile, outputDir, pkgName string) error {
 	b.WriteString("\t}\n")
 	b.WriteString("}\n")
 
-	return os.WriteFile(filepath.Join(outputDir, "main.go"), []byte(b.String()), 0644)
+	return writeFormattedGoFile(filepath.Join(outputDir, "main.go"), []byte(b.String()))
 }
 
-// buildBinary 调用 go build 编译为二进制
-func buildBinary(outputDir string) error {
+// buildBinary 调用 go build 编译为二进制。
+// outputDir 为 Go 源码所在目录，binaryDir 为最终二进制输出目录。
+func buildBinary(outputDir, binaryDir string) error {
 	goCmd, err := exec.LookPath("go")
 	if err != nil {
 		return fmt.Errorf("未找到 go 命令: %w", err)
@@ -66,7 +67,7 @@ func buildBinary(outputDir string) error {
 		exeSuffix = ".exe"
 	}
 
-	outputPath := filepath.Join(outputDir, binaryName+exeSuffix)
+	binaryPath := filepath.Join(binaryDir, binaryName+exeSuffix)
 	fmt.Printf("正在解析依赖 ...\n")
 	tidy := exec.Command(goCmd, "mod", "tidy")
 	tidy.Dir = outputDir
@@ -76,9 +77,14 @@ func buildBinary(outputDir string) error {
 		return fmt.Errorf("go mod tidy 失败: %w", err)
 	}
 
-	fmt.Printf("正在编译 %s ...\n", outputPath)
+	fmt.Printf("正在编译 %s ...\n", binaryPath)
 
-	cmd := exec.Command(goCmd, "build", "-o", outputPath, ".")
+	// -o 使用绝对路径，确保二进制输出到指定目录
+	absPath, err := filepath.Abs(binaryPath)
+	if err != nil {
+		absPath = binaryPath
+	}
+	cmd := exec.Command(goCmd, "build", "-o", absPath, ".")
 	cmd.Dir = outputDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -87,6 +93,6 @@ func buildBinary(outputDir string) error {
 		return fmt.Errorf("go build 失败: %w", err)
 	}
 
-	fmt.Printf("二进制文件已生成: %s\n", outputPath)
+	fmt.Printf("二进制文件已生成: %s\n", binaryPath)
 	return nil
 }

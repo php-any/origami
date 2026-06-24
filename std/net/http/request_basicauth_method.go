@@ -19,4 +19,4 @@ func (h *RequestBasicAuthMethod) GetModifier() data.Modifier    { return data.Mo
 func (h *RequestBasicAuthMethod) GetIsStatic() bool             { return false }
 func (h *RequestBasicAuthMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
 func (h *RequestBasicAuthMethod) GetVariables() []data.Variable { return []data.Variable{} }
-func (h *RequestBasicAuthMethod) GetReturnType() data.Types     { return data.NewBaseType("void") }
+func (h *RequestBasicAuthMethod) GetReturnType() data.Types     { return data.NewBaseType("array") }

@@ -19,4 +19,4 @@ func (h *RequestCookiesMethod) GetModifier() data.Modifier    { return data.Modi
 func (h *RequestCookiesMethod) GetIsStatic() bool             { return false }
 func (h *RequestCookiesMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
 func (h *RequestCookiesMethod) GetVariables() []data.Variable { return []data.Variable{} }
-func (h *RequestCookiesMethod) GetReturnType() data.Types     { return data.NewBaseType("void") }
+func (h *RequestCookiesMethod) GetReturnType() data.Types     { return data.NewBaseType("array") }

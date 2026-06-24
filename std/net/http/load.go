@@ -13,7 +13,4 @@ func Load(vm data.VM) {
 	vm.AddClass(NewCookieClass())
 	vm.AddClass(NewResponseWriterClass())
 	vm.AddClass(NewRequestClass())
-	// 添加函数
-	vm.AddFunc(NewAppFunction())
-	vm.AddFunc(NewAppFlashFunction())
 }

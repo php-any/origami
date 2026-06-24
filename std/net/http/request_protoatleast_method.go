@@ -41,4 +41,4 @@ func (h *RequestProtoAtLeastMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "param1", 1, nil),
 	}
 }
-func (h *RequestProtoAtLeastMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *RequestProtoAtLeastMethod) GetReturnType() data.Types { return data.NewBaseType("bool") }

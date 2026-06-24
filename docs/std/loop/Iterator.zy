@@ -1,5 +1,0 @@
-namespace loop;
-
-interface Iterator {
-    public function current(): mixed;
-}

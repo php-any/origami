@@ -57,7 +57,7 @@ For detailed documentation, please visit the [Documentation Center](docs/README.
 
 ## 📝 Examples
 
-See the [examples directory](examples/) for complete examples, or visit the [test cases](tests/) for more usage patterns.
+See [examples/spring](examples/spring/) for the web application demo (REST API + SQLite + HTML pages), or visit the [test cases](tests/) for more usage patterns.
 
 ## 💬 Discussion Group
 

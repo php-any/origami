@@ -95,7 +95,6 @@ var TokenDefinitions = []TokenDefinition{
 	{Type: ENDFOR, Literal: "endfor", WordType: KEYWORD},
 	{Type: ENDSWITCH, Literal: "endswitch", WordType: KEYWORD},
 	{Type: FN, Literal: "fn", WordType: KEYWORD},
-	{Type: SPAWN, Literal: "spawn", WordType: KEYWORD},
 	{Type: THIS, Literal: "$this", WordType: KEYWORD},
 	{Type: PARENT, Literal: "parent", WordType: KEYWORD},
 	{Type: SELF, Literal: "self", WordType: KEYWORD},

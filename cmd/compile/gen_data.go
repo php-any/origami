@@ -5,7 +5,6 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	"github.com/php-any/origami/std/net/annotation"
 )
 
 func (g *Generator) genTypes(ty data.Types) {
@@ -32,45 +31,20 @@ func (g *Generator) genTypes(ty data.Types) {
 	}
 }
 
-func (g *Generator) genClassAnnotation(cv *data.ClassValue) {
-	if cv == nil {
-		g.printf("nil")
-		return
-	}
-	switch c := cv.Class.(type) {
-	case *annotation.RouteClass:
-		g.needAnnotationImport()
-		g.printf("annotation.CompiledRouteValue(%q)", c.Prefix())
-	case *annotation.ControllerClass:
-		name := ""
-		if c.GetConstruct() != nil {
-			// Controller 通常无 name 参数，保持空字符串
-		}
-		_ = name
-		g.needAnnotationImport()
-		g.printf("annotation.CompiledControllerValue(%q)", name)
-	case *annotation.GetMappingClass:
-		g.needAnnotationImport()
-		g.printf("annotation.CompiledGetMappingValue(%q)", c.Path())
-	case *annotation.PostMappingClass:
-		g.needAnnotationImport()
-		g.printf("annotation.CompiledPostMappingValue(%q)", c.Path())
-	case *annotation.PutMappingClass:
-		g.needAnnotationImport()
-		g.printf("annotation.CompiledPutMappingValue(%q)", c.Path())
-	case *annotation.DeleteMappingClass:
-		g.needAnnotationImport()
-		g.printf("annotation.CompiledDeleteMappingValue(%q)", c.Path())
-	case *annotation.MiddlewareClass:
-		g.needAnnotationImport()
-		g.printf("annotation.CompiledMiddlewareValue(%q)", c.ClassName())
-	default:
-		g.printf("nil /* annotation %T */", cv.Class)
-	}
+func (g *Generator) needImport(path, alias string) {
+	g.importAliases[path] = alias
 }
 
 func (g *Generator) needAnnotationImport() {
-	g.imports["github.com/php-any/origami/std/net/annotation"] = true
+	g.needImport("github.com/php-any/origami/std/net/annotation", "annotation")
+}
+
+func (g *Generator) needDatabaseAnnotationImport() {
+	g.needImport("github.com/php-any/origami/std/database/annotation", "dbannotation")
+}
+
+func (g *Generator) needContainerImport() {
+	g.needImport("github.com/php-any/origami/std/container", "container")
 }
 
 func modifierName(m data.Modifier) string {
@@ -82,6 +56,31 @@ func modifierName(m data.Modifier) string {
 	default:
 		return "public"
 	}
+}
+
+func (g *Generator) genMethodVars(vars []data.Variable) {
+	g.printf("[]data.Variable{\n")
+	g.indent++
+	for _, v := range vars {
+		g.printf("data.NewVariable(%q, %d, nil),\n", v.GetName(), v.GetIndex())
+	}
+	g.indent--
+	g.printf("}")
+}
+
+func (g *Generator) genStringSlice(ss []string) {
+	if len(ss) == 0 {
+		g.printf("nil")
+		return
+	}
+	g.printf("[]string{")
+	for i, s := range ss {
+		if i > 0 {
+			g.printf(", ")
+		}
+		g.printf("%q", s)
+	}
+	g.printf("}")
 }
 
 func (g *Generator) genParentMap(parent map[int]int) {

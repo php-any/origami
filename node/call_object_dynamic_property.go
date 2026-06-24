@@ -1,6 +1,7 @@
 package node
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/php-any/origami/data"
@@ -110,6 +111,58 @@ func (pe *CallObjectDynamicProperty) GetValue(ctx data.Context) (data.GetValue, 
 	}
 }
 
+func (pe *CallObjectDynamicProperty) SetValue(ctx data.Context, value data.Value) data.Control {
+	temp, acl := pe.Object.GetValue(ctx)
+	if acl != nil {
+		return acl
+	}
+	raw, acl := pe.NameExpr.GetValue(ctx)
+	if acl != nil {
+		return acl
+	}
+	name := raw.(data.Value).AsString()
+
+	switch object := temp.(type) {
+	case *data.ThisValue:
+		property, ok := object.GetPropertyStmt(name)
+		if ok {
+			if property.GetType() != nil && !property.GetType().Is(value) {
+				return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("%s 属性 %s 因为类型不一致无法赋值", TryGetCallClassName(object), name))
+			}
+			return object.SetProperty(name, value)
+		}
+		if magic, hasSet := object.GetMethod("__set"); hasSet {
+			return pe.invokeMagicSet(object, magic, name, value)
+		}
+		return object.SetProperty(name, value)
+	case *data.ClassValue:
+		property, ok := object.GetPropertyStmt(name)
+		if ok {
+			if property.GetType() != nil && !property.GetType().Is(value) {
+				return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("%s 属性 %s 因为类型不一致无法赋值", TryGetCallClassName(object), name))
+			}
+			if property.GetModifier() == data.ModifierPrivate {
+				if !isCallerInClassHierarchy(ctx, object.Class) {
+					return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("对象(%s)属性(%s)是私有的", object.Class.GetName(), name))
+				}
+			} else if property.GetModifier() == data.ModifierProtected {
+				if !isCallerInClassHierarchy(ctx, object.Class) {
+					return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("对象(%s)属性(%s)不是公开的", object.Class.GetName(), name))
+				}
+			}
+			return object.SetProperty(name, value)
+		}
+		if magic, hasSet := object.GetMethod("__set"); hasSet {
+			return pe.invokeMagicSet(object, magic, name, value)
+		}
+		return object.SetProperty(name, value)
+	case data.SetProperty:
+		return object.SetProperty(name, value)
+	default:
+		return data.NewErrorThrow(pe.GetFrom(), errors.New("object is not set property"))
+	}
+}
+
 // invokeMagicGet 调用 __get(string $name)
 func (pe *CallObjectDynamicProperty) invokeMagicGet(object data.Context, magic data.Method, name string) (data.GetValue, data.Control) {
 	varies := magic.GetVariables()
@@ -119,4 +172,17 @@ func (pe *CallObjectDynamicProperty) invokeMagicGet(object data.Context, magic d
 	fnCtx := object.CreateContext(varies)
 	fnCtx.SetVariableValue(varies[0], data.NewStringValue(name))
 	return magic.Call(fnCtx)
+}
+
+// invokeMagicSet 调用 __set(string $name, mixed $value)
+func (pe *CallObjectDynamicProperty) invokeMagicSet(object data.Context, magic data.Method, name string, value data.Value) data.Control {
+	varies := magic.GetVariables()
+	if len(varies) < 2 {
+		return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("__set 需要至少 2 个参数 (name, value)"))
+	}
+	fnCtx := object.CreateContext(varies)
+	fnCtx.SetVariableValue(varies[0], data.NewStringValue(name))
+	fnCtx.SetVariableValue(varies[1], value)
+	_, acl := magic.Call(fnCtx)
+	return acl
 }

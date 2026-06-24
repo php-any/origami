@@ -3,11 +3,15 @@ package std
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/std/channel"
+	"github.com/php-any/origami/std/cli"
+	"github.com/php-any/origami/std/container"
 	"github.com/php-any/origami/std/database"
 	"github.com/php-any/origami/std/exception"
 	"github.com/php-any/origami/std/log"
 	"github.com/php-any/origami/std/loop"
+	"github.com/php-any/origami/std/protowire"
 	"github.com/php-any/origami/std/reflect"
+	"github.com/php-any/origami/std/signal"
 	"github.com/php-any/origami/std/system/os"
 )
 
@@ -20,6 +24,7 @@ func Load(vm data.VM) {
 		NewBoolFunction(),
 		NewFloatFunction(),
 		NewObjectFunction(),
+		NewSpawnFunction(),
 	} {
 		vm.AddFunc(fun)
 	}
@@ -34,6 +39,10 @@ func Load(vm data.VM) {
 	vm.AddClass(os.NewOSClass())
 	reflect.Load(vm)
 	channel.Load(vm)
+	signal.Load(vm)
 	loop.Load(vm)
 	database.Load(vm)
+	container.Load(vm)
+	protowire.Load(vm)
+	cli.Load(vm)
 }

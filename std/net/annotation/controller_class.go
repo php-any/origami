@@ -96,14 +96,14 @@ func (m *ControllerConstructMethod) GetIsStatic() bool {
 func (m *ControllerConstructMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
-		node.NewParameter(nil, node.TargetName, 1, nil, nil),
+		node.NewAnnotationTargetParameter(nil, 1),
 	}
 }
 
 func (m *ControllerConstructMethod) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "name", 0, nil),
-		node.NewVariable(nil, "target", 1, nil),
+		node.NewAnnotationTargetVariable(nil, 1),
 	}
 }
 
@@ -114,7 +114,7 @@ func (m *ControllerConstructMethod) GetReturnType() data.Types {
 func (m *ControllerConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	vm := ctx.GetVM()
 	if !runtime.SupportsHTTPRoutes(vm) {
-		return nil, utils.NewThrow(errors.New("@Controller 注解只能在 app() 内加载"))
+		return nil, utils.NewThrow(errors.New("@Controller 注解需在引导类 flash 扫描时加载"))
 	}
 	// 读取 name
 	a0, ok := ctx.GetIndexValue(0)
@@ -172,23 +172,20 @@ func (m *ControllerConstructMethod) Call(ctx data.Context) (data.GetValue, data.
 					return P + path
 				}
 
-				controllerInst, acl := node.InstantiateController(cls, ctx)
-				if acl != nil {
-					return nil, acl
-				}
+				RegisterDeferredController(cls.GetName(), cls, ctx)
 				classValue := data.NewClassValue(cls, ctx)
 
 				appendRoute := func(method, path string, target data.Method) {
-					receiver := controllerInst
+					var staticReceiver data.GetValue
 					if target.GetIsStatic() {
-						receiver = classValue
+						staticReceiver = classValue
 					}
 					AddPendingRoute(PendingRoute{
 						Method:         method,
 						Path:           path,
 						Target:         target,
-						Receiver:       receiver,
 						ControllerName: cls.GetName(),
+						StaticReceiver: staticReceiver,
 					})
 				}
 

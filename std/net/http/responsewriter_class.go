@@ -8,57 +8,78 @@ import (
 )
 
 func NewResponseWriterClass() data.ClassStmt {
-	return &ResponseWriterClass{
-		source: nil,
-	}
+	return &ResponseWriterClass{w: newBufferedWriter(nil)}
 }
 
-func NewResponseWriterClassFrom(source httpsrc.ResponseWriter) data.ClassStmt {
-	return &ResponseWriterClass{
-		source: source,
-	}
+func NewResponseWriterClassFrom(w httpsrc.ResponseWriter) data.ClassStmt {
+	return &ResponseWriterClass{w: newBufferedWriter(w)}
 }
 
 type ResponseWriterClass struct {
 	node.Node
-	source httpsrc.ResponseWriter
+	w *bufferedWriter
 }
 
 func (s *ResponseWriterClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewProxyValue(NewResponseWriterClassFrom(nil), ctx.CreateBaseContext()), nil
+	return data.NewProxyValue(NewResponseWriterClass(), ctx.CreateBaseContext()), nil
 }
 
 func (s *ResponseWriterClass) GetName() string         { return "Net\\Http\\Response" }
 func (s *ResponseWriterClass) GetExtend() *string      { return nil }
 func (s *ResponseWriterClass) GetImplements() []string { return nil }
 func (s *ResponseWriterClass) AsString() string        { return "Response{}" }
-func (s *ResponseWriterClass) GetSource() any          { return s.source }
+func (s *ResponseWriterClass) GetSource() any          { return s.w }
+
 func (s *ResponseWriterClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
 	case "json":
-		return &ResponseWriterJsonMethod{source: s.source}, true
+		return &ResponseWriterJsonMethod{w: s.w}, true
 	case "header":
-		return &ResponseWriterHeaderMethod{source: s.source}, true
+		return &ResponseWriterHeaderMethod{w: s.w}, true
 	case "write":
-		return &ResponseWriterWriteMethod{source: s.source}, true
+		return &ResponseWriterWriteMethod{w: s.w}, true
 	case "writeHeader":
-		return &ResponseWriterWriteHeaderMethod{source: s.source}, true
+		return &ResponseWriterWriteHeaderMethod{w: s.w}, true
 	case "view":
-		return &ResponseWriterViewMethod{source: s.source}, true
+		return &ResponseWriterViewMethod{w: s.w}, true
 	case "status":
-		return &ResponseWriterStatusMethod{source: s.source}, true
+		return &ResponseWriterStatusMethod{w: s.w}, true
+	case "redirect":
+		return &ResponseWriterRedirectMethod{w: s.w}, true
+	case "noContent":
+		return &ResponseWriterNoContentMethod{w: s.w}, true
+	case "cookie":
+		return &ResponseWriterCookieMethod{w: s.w}, true
+	case "html":
+		return &ResponseWriterHtmlMethod{w: s.w}, true
+	case "file":
+		return &ResponseWriterFileMethod{w: s.w}, true
+	case "success":
+		return &ResponseWriterSuccessMethod{w: s.w}, true
+	case "error":
+		return &ResponseWriterErrorMethod{w: s.w}, true
+	case "format":
+		return &ResponseWriterFormatMethod{w: s.w}, true
 	}
 	return nil, false
 }
 
 func (s *ResponseWriterClass) GetMethods() []data.Method {
 	return []data.Method{
-		&ResponseWriterJsonMethod{source: s.source},
-		&ResponseWriterHeaderMethod{source: s.source},
-		&ResponseWriterWriteMethod{source: s.source},
-		&ResponseWriterWriteHeaderMethod{source: s.source},
-		&ResponseWriterViewMethod{source: s.source},
-		&ResponseWriterStatusMethod{source: s.source},
+		&ResponseWriterJsonMethod{w: s.w},
+		&ResponseWriterHeaderMethod{w: s.w},
+		&ResponseWriterWriteMethod{w: s.w},
+		&ResponseWriterWriteHeaderMethod{w: s.w},
+		&ResponseWriterViewMethod{w: s.w},
+		&ResponseWriterStatusMethod{w: s.w},
+		&ResponseWriterRedirectMethod{w: s.w},
+		&ResponseWriterNoContentMethod{w: s.w},
+		&ResponseWriterCookieMethod{w: s.w},
+		&ResponseWriterHtmlMethod{w: s.w},
+		&ResponseWriterFileMethod{w: s.w},
+		&ResponseWriterSuccessMethod{w: s.w},
+		&ResponseWriterErrorMethod{w: s.w},
+		&ResponseWriterFormatMethod{w: s.w},
 	}
 }
 

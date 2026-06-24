@@ -1,24 +1,21 @@
 package http
 
 import (
-	httpsrc "net/http"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/utils"
 )
 
 type ResponseWriterWriteHeaderMethod struct {
-	source httpsrc.ResponseWriter
+	w *bufferedWriter
 }
 
 func (h *ResponseWriterWriteHeaderMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	param0, err := utils.ConvertFromIndex[int](ctx, 0)
+	code, err := utils.ConvertFromIndex[int](ctx, 0)
 	if err != nil {
 		return nil, utils.NewThrowf("参数转换失败: %v", err)
 	}
-
-	h.source.WriteHeader(param0)
+	h.w.WriteHeader(code)
 	return nil, nil
 }
 

@@ -2,16 +2,26 @@
 
 use Net\Http\Server;
 use Spring\Middleware\CorsMiddleware;
+use Spring\SpringApplication;
 
 require __DIR__ . '/vendor/autoload.php';
 
-$server = new Server("0.0.0.0", port: 8080);
+$host = '0.0.0.0';
+$port = 8080;
 
-// CORS 中间件 - 处理跨域请求
+$server = new Server($host, port: $port);
+
+// API 统一 JSON 信封：{ code, message, data, timestamp }
+// 如需自定义结构，可注册 onFormat 闭包，例如：
+// $server->onFormat(fn (int $code, string $message, mixed $data) => [
+//     'errno' => $code, 'msg' => $message, 'result' => $data,
+// ]);
+
+// CORS 中间件
 $server->middleware(new CorsMiddleware());
 
-// 日志中间件 - 记录所有请求
-$server->middleware(function ($request, $response, $next) {
+// 请求日志中间件
+$server->middleware(function (Net\Http\Request $request, Net\Http\Response $response, callable $next): void {
     $method = $request->method();
     $path = $request->path();
     $startTime = microtime(true);
@@ -20,22 +30,21 @@ $server->middleware(function ($request, $response, $next) {
 
     $next($request, $response);
 
-    $endTime = microtime(true);
-    $duration = round(($endTime - $startTime) * 1000, 2);
+    $duration = round((microtime(true) - $startTime) * 1000, 2);
     Log::info("响应时间: " . $duration . "ms");
 });
 
-// 扫描和注册路由
-$routes = $server->flash(__DIR__ . '/src');
+// 静态资源：CSS / JS
+$server->static("/assets/", __DIR__ . "/pages/assets");
 
-Log::info("========================================");
-Log::info("Spring 风格示例服务启动");
-Log::info("访问地址: http://127.0.0.1:8080");
+// 加载引导类（#[Application] 声明扫描范围；扫描完成后自动调用 SpringApplication::boot()）
+$routes = $server->boot(SpringApplication::class);
+ 
+Log::info("HTTP 服务监听: http://" . $host . ":" . $port);
 Log::info("已注册路由 (" . count($routes) . " 条):");
 foreach ($routes as $route) {
     $method = str_pad($route['method'], 7);
     Log::info("  " . $method . " " . $route['path']);
 }
-Log::info("========================================");
 
 $server->run();

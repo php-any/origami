@@ -5,30 +5,40 @@ import (
 )
 
 func NewDBClass() *DBClass {
-	bindMethod := &DbBindMethod{}
-	return (&DBClass{bindMethod: bindMethod}).Clone(nil).(*DBClass)
+	return (&DBClass{
+		modelMethod:            &DbModelMethod{},
+		staticConnectionMethod: &DbStaticConnectionMethod{},
+		staticInsertMethod:     &DbStaticInsertMethod{},
+		staticQueryMethod:      &DbStaticQueryMethod{},
+		staticExecuteMethod:    &DbStaticExecuteMethod{},
+		staticToEntityMethod:   &DbToEntityMethod{},
+	}).Clone(nil).(*DBClass)
 }
 
 type DBClass struct {
-	bindMethod    data.Method
-	construct     data.Method
-	getMethod     data.Method
-	firstMethod   data.Method
-	whereMethod   data.Method
-	tableMethod   data.Method
-	selectMethod  data.Method
-	orderByMethod data.Method
-	groupByMethod data.Method
-	limitMethod   data.Method
-	offsetMethod  data.Method
-	joinMethod    data.Method
-	// CRUD 方法
-	insertMethod data.Method
-	updateMethod data.Method
-	deleteMethod data.Method
-	// 原生 SQL 方法
-	queryMethod data.Method
-	execMethod  data.Method
+	modelMethod            data.Method
+	staticConnectionMethod data.Method
+	staticInsertMethod     data.Method
+	staticQueryMethod      data.Method
+	staticExecuteMethod    data.Method
+	staticToEntityMethod   data.Method
+	construct              data.Method
+	getMethod              data.Method
+	firstMethod            data.Method
+	whereMethod            data.Method
+	tableMethod            data.Method
+	connectionMethod       data.Method
+	selectMethod           data.Method
+	orderByMethod          data.Method
+	groupByMethod          data.Method
+	limitMethod            data.Method
+	offsetMethod           data.Method
+	joinMethod             data.Method
+	insertMethod           data.Method
+	updateMethod           data.Method
+	deleteMethod           data.Method
+	queryMethod            data.Method
+	executeMethod          data.Method
 }
 
 func (d *DBClass) Clone(m map[string]data.Types) data.ClassGeneric {
@@ -36,60 +46,87 @@ func (d *DBClass) Clone(m map[string]data.Types) data.ClassGeneric {
 	if m != nil {
 		source = newDB(m)
 	} else {
-		// 如果没有泛型参数，创建一个空的 db 对象
 		source = &db{}
 	}
 
-	bindMethod := d.bindMethod
-	if bindMethod == nil {
-		bindMethod = &DbBindMethod{}
+	modelMethod := d.modelMethod
+	if modelMethod == nil {
+		modelMethod = &DbModelMethod{}
+	}
+	staticConnectionMethod := d.staticConnectionMethod
+	if staticConnectionMethod == nil {
+		staticConnectionMethod = &DbStaticConnectionMethod{}
+	}
+	staticInsertMethod := d.staticInsertMethod
+	if staticInsertMethod == nil {
+		staticInsertMethod = &DbStaticInsertMethod{}
+	}
+	staticQueryMethod := d.staticQueryMethod
+	if staticQueryMethod == nil {
+		staticQueryMethod = &DbStaticQueryMethod{}
+	}
+	staticExecuteMethod := d.staticExecuteMethod
+	if staticExecuteMethod == nil {
+		staticExecuteMethod = &DbStaticExecuteMethod{}
+	}
+	staticToEntityMethod := d.staticToEntityMethod
+	if staticToEntityMethod == nil {
+		staticToEntityMethod = &DbToEntityMethod{}
 	}
 
 	return &DBClass{
-		bindMethod:    bindMethod,
-		construct:     &DbConstructMethod{source},
-		getMethod:     &DbGetMethod{source},
-		firstMethod:   &DbFirstMethod{source: source, scanner: nil},
-		whereMethod:   &DbWhereMethod{source},
-		tableMethod:   &DbTableMethod{source},
-		selectMethod:  &DbSelectMethod{source},
-		orderByMethod: &DbOrderByMethod{source},
-		groupByMethod: &DbGroupByMethod{source},
-		limitMethod:   &DbLimitMethod{source},
-		offsetMethod:  &DbOffsetMethod{source},
-		joinMethod:    &DbJoinMethod{source},
-		// CRUD 方法
-		insertMethod: &DbInsertMethod{source},
-		updateMethod: &DbUpdateMethod{source},
-		deleteMethod: &DbDeleteMethod{source},
-		// 原生 SQL 方法
-		queryMethod: &DbQueryMethod{source},
-		execMethod:  &DbExecMethod{source},
+		modelMethod:            modelMethod,
+		staticConnectionMethod: staticConnectionMethod,
+		staticInsertMethod:     staticInsertMethod,
+		staticQueryMethod:      staticQueryMethod,
+		staticExecuteMethod:    staticExecuteMethod,
+		staticToEntityMethod:   staticToEntityMethod,
+		construct:              &DbConstructMethod{source},
+		getMethod:              &DbGetMethod{source},
+		firstMethod:            &DbFirstMethod{source: source, scanner: nil},
+		whereMethod:            &DbWhereMethod{source},
+		tableMethod:            &DbTableMethod{source},
+		connectionMethod:       &DbConnectionMethod{source},
+		selectMethod:           &DbSelectMethod{source},
+		orderByMethod:          &DbOrderByMethod{source},
+		groupByMethod:          &DbGroupByMethod{source},
+		limitMethod:            &DbLimitMethod{source},
+		offsetMethod:           &DbOffsetMethod{source},
+		joinMethod:             &DbJoinMethod{source},
+		insertMethod:           &DbInsertMethod{source},
+		updateMethod:           &DbUpdateMethod{source},
+		deleteMethod:           &DbDeleteMethod{source},
+		queryMethod:            &DbQueryMethod{source},
+		executeMethod:          &DbExecuteMethod{source},
 	}
 }
 
 // CloneWithSource 使用现有的 db 对象创建新的 DBClass
 func (d *DBClass) CloneWithSource(source *db) *DBClass {
 	return &DBClass{
-		bindMethod:    d.bindMethod,
-		construct:     &DbConstructMethod{source},
-		getMethod:     &DbGetMethod{source},
-		firstMethod:   &DbFirstMethod{source: source, scanner: nil},
-		whereMethod:   &DbWhereMethod{source},
-		tableMethod:   &DbTableMethod{source},
-		selectMethod:  &DbSelectMethod{source},
-		orderByMethod: &DbOrderByMethod{source},
-		groupByMethod: &DbGroupByMethod{source},
-		limitMethod:   &DbLimitMethod{source},
-		offsetMethod:  &DbOffsetMethod{source},
-		joinMethod:    &DbJoinMethod{source},
-		// CRUD 方法
-		insertMethod: &DbInsertMethod{source},
-		updateMethod: &DbUpdateMethod{source},
-		deleteMethod: &DbDeleteMethod{source},
-		// 原生 SQL 方法
-		queryMethod: &DbQueryMethod{source},
-		execMethod:  &DbExecMethod{source},
+		modelMethod:            d.modelMethod,
+		staticConnectionMethod: d.staticConnectionMethod,
+		staticInsertMethod:     d.staticInsertMethod,
+		staticQueryMethod:      d.staticQueryMethod,
+		staticExecuteMethod:    d.staticExecuteMethod,
+		staticToEntityMethod:   d.staticToEntityMethod,
+		construct:              &DbConstructMethod{source},
+		getMethod:              &DbGetMethod{source},
+		firstMethod:            &DbFirstMethod{source: source, scanner: nil},
+		whereMethod:            &DbWhereMethod{source},
+		tableMethod:            &DbTableMethod{source},
+		connectionMethod:       &DbConnectionMethod{source},
+		selectMethod:           &DbSelectMethod{source},
+		orderByMethod:          &DbOrderByMethod{source},
+		groupByMethod:          &DbGroupByMethod{source},
+		limitMethod:            &DbLimitMethod{source},
+		offsetMethod:           &DbOffsetMethod{source},
+		joinMethod:             &DbJoinMethod{source},
+		insertMethod:           &DbInsertMethod{source},
+		updateMethod:           &DbUpdateMethod{source},
+		deleteMethod:           &DbDeleteMethod{source},
+		queryMethod:            &DbQueryMethod{source},
+		executeMethod:          &DbExecuteMethod{source},
 	}
 }
 
@@ -138,6 +175,8 @@ func (d *DBClass) GetMethod(name string) (data.Method, bool) {
 		return d.whereMethod, true
 	case "table":
 		return d.tableMethod, true
+	case "connection":
+		return d.connectionMethod, true
 	case "select":
 		return d.selectMethod, true
 	case "orderBy":
@@ -150,18 +189,16 @@ func (d *DBClass) GetMethod(name string) (data.Method, bool) {
 		return d.offsetMethod, true
 	case "join":
 		return d.joinMethod, true
-	// CRUD 方法
 	case "insert":
 		return d.insertMethod, true
 	case "update":
 		return d.updateMethod, true
 	case "delete":
 		return d.deleteMethod, true
-	// 原生 SQL 方法
 	case "query":
 		return d.queryMethod, true
-	case "exec":
-		return d.execMethod, true
+	case "execute":
+		return d.executeMethod, true
 	}
 
 	return nil, false
@@ -169,12 +206,18 @@ func (d *DBClass) GetMethod(name string) (data.Method, bool) {
 
 func (d *DBClass) GetMethods() []data.Method {
 	return []data.Method{
-		d.bindMethod,
+		d.modelMethod,
+		d.staticConnectionMethod,
+		d.staticInsertMethod,
+		d.staticQueryMethod,
+		d.staticExecuteMethod,
+		d.staticToEntityMethod,
 		d.construct,
 		d.getMethod,
 		d.firstMethod,
 		d.whereMethod,
 		d.tableMethod,
+		d.connectionMethod,
 		d.selectMethod,
 		d.orderByMethod,
 		d.groupByMethod,
@@ -185,7 +228,7 @@ func (d *DBClass) GetMethods() []data.Method {
 		d.updateMethod,
 		d.deleteMethod,
 		d.queryMethod,
-		d.execMethod,
+		d.executeMethod,
 	}
 }
 
@@ -194,8 +237,19 @@ func (d *DBClass) GetConstruct() data.Method {
 }
 
 func (d *DBClass) GetStaticMethod(name string) (data.Method, bool) {
-	if name == "bind" {
-		return d.bindMethod, true
+	switch name {
+	case "model":
+		return d.modelMethod, true
+	case "connection":
+		return d.staticConnectionMethod, true
+	case "insert":
+		return d.staticInsertMethod, true
+	case "query":
+		return d.staticQueryMethod, true
+	case "toEntity":
+		return d.staticToEntityMethod, true
+	case "execute":
+		return d.staticExecuteMethod, true
 	}
 	return nil, false
 }

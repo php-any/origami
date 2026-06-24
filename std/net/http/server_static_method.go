@@ -67,10 +67,7 @@ func (h *ServerStaticMethod) Call(ctx data.Context) (data.GetValue, data.Control
 
 	// StripPrefix 必须与注册的前缀完全一致（包含末尾斜杠）
 	fs := http.StripPrefix(route, http.FileServer(http.Dir(dir)))
-	var final http.Handler = fs
-	if len(h.server.Middlewares) > 0 {
-		final = applyMiddlewares(final, h.server.Middlewares)
-	}
+	final := h.server.finalizeHandler(fs)
 
 	// 仅注册 GET/HEAD
 	h.server.source.Handle("GET "+route, final)

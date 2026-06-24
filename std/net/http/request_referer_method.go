@@ -19,4 +19,4 @@ func (h *RequestRefererMethod) GetModifier() data.Modifier    { return data.Modi
 func (h *RequestRefererMethod) GetIsStatic() bool             { return false }
 func (h *RequestRefererMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
 func (h *RequestRefererMethod) GetVariables() []data.Variable { return []data.Variable{} }
-func (h *RequestRefererMethod) GetReturnType() data.Types     { return data.NewBaseType("void") }
+func (h *RequestRefererMethod) GetReturnType() data.Types     { return data.NewBaseType("string") }

@@ -27,31 +27,24 @@ func newMiddleware(v data.FuncStmt, ctx data.Context) (MiddlewareFunc, error) {
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			mctx := ctx.CreateContext(v.GetVariables())
+			rw, response := beginResponse(w, r)
+			defer rw.commitPending()
+			r, request := beginRequest(r)
+			defer detachRequestAttrs(r)
 
-			request := NewRequestClassFrom(r)
-			response := NewResponseWriterClassFrom(w)
+			mctx := ctx.CreateContext(v.GetVariables())
 			nextHandler := data.NewFuncValue(NextHandler{next: next})
 
 			mctx.SetVariableValue(data.NewVariable("r", 0, nil), data.NewProxyValue(request, mctx))
 			mctx.SetVariableValue(data.NewVariable("w", 1, nil), data.NewProxyValue(response, mctx))
 			mctx.SetVariableValue(data.NewVariable("next", 2, nil), nextHandler)
 
-			// 检查中间件是否抛出异常
 			_, acl := v.Call(mctx)
 			if acl != nil {
 				ctx.GetVM().ThrowControl(acl)
 			}
 		})
 	}, nil
-}
-
-func applyMiddlewares(final http.Handler, middlewares []MiddlewareFunc) http.Handler {
-	h := final
-	for i := len(middlewares) - 1; i >= 0; i-- {
-		h = middlewares[i](h)
-	}
-	return h
 }
 
 type Handler struct {
@@ -61,17 +54,18 @@ type Handler struct {
 
 func (f Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	node.ResetSuperglobals()
-	ctx := f.Ctx.CreateContext(f.Value.GetVariables())
+	rw, response := beginResponse(w, r)
+	defer rw.commitPending()
+	r, request := beginRequest(r)
+	defer detachRequestAttrs(r)
 
-	request := NewRequestClassFrom(r)
-	response := NewResponseWriterClassFrom(w)
+	ctx := f.Ctx.CreateContext(f.Value.GetVariables())
 
 	ctx.SetVariableValue(data.NewVariable("r", 0, nil), data.NewProxyValue(request, ctx))
 	ctx.SetVariableValue(data.NewVariable("w", 1, nil), data.NewProxyValue(response, ctx))
 
 	_, acl := f.Value.Call(ctx)
 	if acl != nil {
-		// 使用panic抛出异常到NextHandler
 		panic(acl)
 	}
 }
@@ -84,12 +78,13 @@ type HotHandler struct {
 
 func (f HotHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	node.ResetSuperglobals()
-	// 先创建本次请求的函数上下文，再将该 ctx 的 VM 替换为 TempVM
+	rw, response := beginResponse(w, r)
+	defer rw.commitPending()
+	r, request := beginRequest(r)
+	defer detachRequestAttrs(r)
+
 	ctx := f.Ctx.CreateContext(f.Value.GetVariables())
 	ctx.SetVM(runtimesrc.NewTempVM(f.Ctx.GetVM()))
-
-	request := NewRequestClassFrom(r)
-	response := NewResponseWriterClassFrom(w)
 
 	ctx.SetVariableValue(data.NewVariable("r", 0, nil), data.NewProxyValue(request, ctx))
 	ctx.SetVariableValue(data.NewVariable("w", 1, nil), data.NewProxyValue(response, ctx))
@@ -115,15 +110,13 @@ func (f NextHandler) Call(ctx data.Context) (_ data.GetValue, acl data.Control) 
 		return nil, utils.NewThrow(err)
 	}
 
-	// 使用defer和recover来捕获panic
 	defer func() {
 		if r := recover(); r != nil {
 			if acl2, ok2 := r.(data.Control); ok2 {
 				acl = acl2
 				return
-			} else {
-				panic(r)
 			}
+			panic(r)
 		}
 	}()
 

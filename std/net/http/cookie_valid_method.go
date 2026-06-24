@@ -20,4 +20,4 @@ func (h *CookieValidMethod) GetModifier() data.Modifier    { return data.Modifie
 func (h *CookieValidMethod) GetIsStatic() bool             { return false }
 func (h *CookieValidMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
 func (h *CookieValidMethod) GetVariables() []data.Variable { return []data.Variable{} }
-func (h *CookieValidMethod) GetReturnType() data.Types     { return data.NewBaseType("void") }
+func (h *CookieValidMethod) GetReturnType() data.Types     { return data.NewBaseType("bool") }

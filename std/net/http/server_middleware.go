@@ -19,29 +19,38 @@ func (h *ServerMiddlewareMethod) Call(ctx data.Context) (data.GetValue, data.Con
 		return nil, utils.NewThrow(errors.New("需要传入中间件闭包或类实例"))
 	}
 
-	// 闭包: function($r, $w, $next) { ... }
+	priority := 0
+	if _, has := ctx.GetIndexValue(1); has {
+		var err error
+		priority, err = utils.ConvertFromIndex[int](ctx, 1)
+		if err != nil {
+			return nil, utils.NewThrowf("priority 参数转换失败: %v", err)
+		}
+	}
+
 	if fv, ok := v.(*data.FuncValue); ok {
 		mw, err := newMiddleware(fv.Value, ctx)
 		if err != nil {
 			return nil, utils.NewThrow(err)
 		}
-		h.server.Middlewares = append(h.server.Middlewares, mw)
+		h.server.middlewares = append(h.server.middlewares, middlewareEntry{priority: priority, fn: mw})
 		return nil, nil
 	}
 
-	// 类实例: new CorsMiddleware() — 要求实现 handle($request, $response, $next)
 	if cv, ok := v.(*data.ClassValue); ok {
 		method, has := cv.GetMethod("handle")
 		if !has {
-			return nil, utils.NewThrow(errors.New("中间件类必须实现 handle 方法"))
+			return nil, utils.NewThrow(errors.New("中间件类必须实现 handle($request, $response, $next) 方法"))
 		}
 
 		mw := func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				mctx := cv.CreateContext(method.GetVariables())
+				rw, response := beginResponse(w, r)
+				defer rw.commitPending()
+				r, request := beginRequest(r)
+				defer detachRequestAttrs(r)
 
-				request := NewRequestClassFrom(r)
-				response := NewResponseWriterClassFrom(w)
+				mctx := cv.CreateContext(method.GetVariables())
 				nextHandler := data.NewFuncValue(ServerMiddlewareNext{
 					next: next,
 					vars: method.GetVariables(),
@@ -57,7 +66,7 @@ func (h *ServerMiddlewareMethod) Call(ctx data.Context) (data.GetValue, data.Con
 				}
 			})
 		}
-		h.server.Middlewares = append(h.server.Middlewares, mw)
+		h.server.middlewares = append(h.server.middlewares, middlewareEntry{priority: priority, fn: mw})
 		return nil, nil
 	}
 
@@ -104,8 +113,8 @@ func (f ServerMiddlewareNext) GetParams() []data.GetValue {
 func (f ServerMiddlewareNext) GetVariables() []data.Variable {
 	if len(f.vars) >= 3 {
 		return []data.Variable{
-			f.vars[0], // request
-			f.vars[1], // response
+			f.vars[0],
+			f.vars[1],
 		}
 	}
 	return []data.Variable{
@@ -120,11 +129,13 @@ func (h *ServerMiddlewareMethod) GetIsStatic() bool          { return false }
 func (h *ServerMiddlewareMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "mid", 0, nil, nil),
+		node.NewParameter(nil, "priority", 1, data.NewIntValue(0), data.NewBaseType("int")),
 	}
 }
 func (h *ServerMiddlewareMethod) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "mid", 0, nil),
+		node.NewVariable(nil, "priority", 1, nil),
 	}
 }
 func (h *ServerMiddlewareMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

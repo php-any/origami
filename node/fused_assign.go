@@ -32,6 +32,21 @@ const (
 // 运行时快速路径：GetIndexZVal（数组下标）+ *IntValue 断言 + AssignIntToZVal。
 //
 // 降级路径（非整数或复杂右侧）：调用 Slow（原始右侧节点）再走普通赋值。
+// NewVarFastAssignCompiled 供 compile 子命令重建 VarFastAssign 节点。
+func NewVarFastAssignCompiled(from data.From, dst *VariableExpression, dstIdx, lhsIdx, rhsIdx, lhsLit, rhsLit int, op byte, slow data.GetValue) *VarFastAssign {
+	return &VarFastAssign{
+		Node:   NewNode(from),
+		Dst:    dst,
+		DstIdx: dstIdx,
+		LhsIdx: lhsIdx,
+		RhsIdx: rhsIdx,
+		LhsLit: lhsLit,
+		RhsLit: rhsLit,
+		Slow:   slow,
+		op:     vfaOp(op),
+	}
+}
+
 type VarFastAssign struct {
 	*Node  `pp:"-"`
 	Dst    *VariableExpression
@@ -135,10 +150,45 @@ func (f *VarPostIncr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		if iv, ok := zv.Value.(*data.IntValue); ok {
 			old := iv                                      // 旧指针直接作为返回值（原始值），无额外分配
 			zv.Value = &data.IntValue{Value: iv.Value + 1} // 仅一次分配
+			syncStaticLocalFromCtx(ctx, f.VarIdx)
 			return old, nil
 		}
 	}
 	return f.Fallback.GetValue(ctx)
+}
+
+// VarPostDecr: $var--（简单变量后自减，表达式语境）
+type VarPostDecr struct {
+	*Node    `pp:"-"`
+	VarIdx   int
+	Var      *VariableExpression
+	Fallback *PostfixDecr
+}
+
+func (f *VarPostDecr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if zv := ctx.GetIndexZVal(f.VarIdx); zv != nil {
+		if iv, ok := zv.Value.(*data.IntValue); ok {
+			old := iv
+			zv.Value = &data.IntValue{Value: iv.Value - 1}
+			syncStaticLocalFromCtx(ctx, f.VarIdx)
+			return old, nil
+		}
+	}
+	return f.Fallback.GetValue(ctx)
+}
+
+func syncStaticLocalFromCtx(ctx data.Context, index int) {
+	binder, ok := ctx.(data.StaticLocalsBinder)
+	if !ok {
+		return
+	}
+	store := binder.StaticLocalsStore()
+	if store == nil {
+		return
+	}
+	if zv := ctx.GetIndexZVal(index); zv != nil {
+		store.Update(index, zv.Value)
+	}
 }
 
 // ------------------------------------------------------------------

@@ -51,7 +51,6 @@ var parserRouter = map[token.TokenType]func(parser *Parser) StatementParser{
 	token.METHOD_MAGIC:   NewMethodMagicParser,
 	token.TRY:            NewTryParser,
 	token.THROW:          NewThrowParser,
-	token.SPAWN:          NewSpawnParser,
 	token.UNUSED:         NewUnusedParser,
 	token.ISSET:          NewIssetParser,
 	token.UNSET:          NewUnsetParser,
