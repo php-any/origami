@@ -3,6 +3,7 @@ package std
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/std/channel"
+	"github.com/php-any/origami/std/cli"
 	"github.com/php-any/origami/std/container"
 	"github.com/php-any/origami/std/database"
 	"github.com/php-any/origami/std/exception"
@@ -43,4 +44,5 @@ func Load(vm data.VM) {
 	database.Load(vm)
 	container.Load(vm)
 	protowire.Load(vm)
+	cli.Load(vm)
 }
