@@ -1,5 +1,5 @@
 <?php
-class MiniContainer {
+class MiniContainerLine859 {
     protected array $abstractAliases = [];
 
     public function getContextualConcrete(string $abstract): mixed {
@@ -10,5 +10,5 @@ class MiniContainer {
     }
 }
 
-$c = new MiniContainer();
+$c = new MiniContainerLine859();
 echo $c->getContextualConcrete('App\\Http\\Kernel') === null ? "ok\n" : "fail\n";

@@ -1,0 +1,8 @@
+<?php
+namespace tests\obj\a;
+
+class A {
+    public function a() {
+        Log::info("子目录自定加载类成功");
+    }
+}

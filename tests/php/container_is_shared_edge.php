@@ -1,5 +1,5 @@
 <?php
-class MiniContainer {
+class MiniContainerEdge {
     protected array $instances = [];
     protected array $bindings = [];
 
@@ -14,7 +14,7 @@ class MiniContainer {
     }
 }
 
-$c = new MiniContainer();
+$c = new MiniContainerEdge();
 $abstract = 'App\\Http\\Kernel';
 $c->bindPartial($abstract);
 $r = $c->isShared($abstract);

@@ -64,13 +64,20 @@ func (f *VarFastAssign) GetValue(ctx data.Context) (data.GetValue, data.Control)
 	if dstZv != nil {
 		switch f.op {
 		case vfaOpCopy:
-			// $dst = $src：LhsIdx 是 src 变量索引
-			if srcZv := ctx.GetIndexZVal(f.LhsIdx); srcZv != nil {
-				if iv, ok := srcZv.Value.(*data.IntValue); ok {
-					data.AssignIntToZVal(dstZv, iv.Value)
-					if dv, ok := dstZv.Value.(*data.IntValue); ok {
-						return dv, nil
+			// $dst = $src 或 $dst = IntLiteral（LhsIdx == -1 表示字面量，见 LhsLit）
+			if f.LhsIdx >= 0 {
+				if srcZv := ctx.GetIndexZVal(f.LhsIdx); srcZv != nil {
+					if iv, ok := srcZv.Value.(*data.IntValue); ok {
+						data.AssignIntToZVal(dstZv, iv.Value)
+						if dv, ok := dstZv.Value.(*data.IntValue); ok {
+							return dv, nil
+						}
 					}
+				}
+			} else if f.LhsIdx == -1 {
+				data.AssignIntToZVal(dstZv, f.LhsLit)
+				if dv, ok := dstZv.Value.(*data.IntValue); ok {
+					return dv, nil
 				}
 			}
 		case vfaOpMul:
@@ -100,6 +107,10 @@ func (f *VarFastAssign) GetValue(ctx data.Context) (data.GetValue, data.Control)
 		return nil, ctl
 	}
 	if v, ok := rv.(data.Value); ok {
+		if zv := ctx.GetIndexZVal(f.DstIdx); zv != nil && data.IsScalarAssignFast(v) {
+			data.AssignScalarToZVal(zv, v)
+			return zv.Value, nil
+		}
 		return v, f.Dst.SetValue(ctx, v)
 	}
 	if rv == nil {
@@ -211,6 +222,7 @@ func (f *VarStmtIncr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	if zv := ctx.GetIndexZVal(f.VarIdx); zv != nil {
 		if iv, ok := zv.Value.(*data.IntValue); ok {
 			iv.Value++ // 原地改写，0 次分配
+			syncStaticLocalFromCtx(ctx, f.VarIdx)
 			return iv, nil
 		}
 	}

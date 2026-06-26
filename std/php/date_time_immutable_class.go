@@ -16,7 +16,7 @@ func NewDateTimeImmutableClass() *DateTimeImmutableClass {
 
 func (c *DateTimeImmutableClass) GetName() string                               { return "DateTimeImmutable" }
 func (c *DateTimeImmutableClass) GetExtend() *string                            { return nil }
-func (c *DateTimeImmutableClass) GetImplements() []string                       { return nil }
+func (c *DateTimeImmutableClass) GetImplements() []string                       { return []string{"DateTimeInterface"} }
 func (c *DateTimeImmutableClass) GetProperty(name string) (data.Property, bool) { return nil, false }
 func (c *DateTimeImmutableClass) GetPropertyList() []data.Property              { return nil }
 func (c *DateTimeImmutableClass) GetConstruct() data.Method {

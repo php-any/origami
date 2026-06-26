@@ -79,7 +79,7 @@ if ($consumer->read('x') !== 'file:x') {
 
 // #[Bind] 注解（scan 触发类加载时注册）
 $c3 = new \Container\Container();
-$c3->scan(__DIR__ . '/container_fixtures');
+$c3->scan(__DIR__ . '/container_fixtures/phase3');
 $annotated = $c3->make(\tests\php\container_fixtures\Phase3Bind_CacheInterface::class);
 if (!($annotated instanceof \tests\php\container_fixtures\Phase3Bind_AnnotatedCache)) {
     Log::fatal('#[Bind] 注解未注册实现');

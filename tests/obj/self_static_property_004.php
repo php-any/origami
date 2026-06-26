@@ -1,0 +1,39 @@
+<?php
+namespace tests\obj;
+
+// 测试 self:: 静态属性访问 - 接口实现
+interface TestInterface004 {
+    public static $interfaceProp;
+}
+
+class TestClass004 implements TestInterface004 {
+    public static $interfaceProp = "interface_value";
+    public static $classProp = "class_value";
+    
+    public function getInterfaceProp() {
+        return self::$interfaceProp;
+    }
+    
+    public function getClassProp() {
+        return self::$classProp;
+    }
+}
+
+$obj = new TestClass004();
+
+// 测试访问接口定义的静态属性
+$interfaceVal = $obj->getInterfaceProp();
+if($interfaceVal == "interface_value") {
+    Log::info("self:: 访问接口静态属性成功");
+} else {
+    Log::fatal("self:: 访问接口静态属性失败，期望 'interface_value'，得到: " . $interfaceVal);
+}
+
+// 测试访问类自己的静态属性
+$classVal = $obj->getClassProp();
+if($classVal == "class_value") {
+    Log::info("self:: 访问类自己的静态属性成功");
+} else {
+    Log::fatal("self:: 访问类自己的静态属性失败，期望 'class_value'，得到: " . $classVal);
+}
+

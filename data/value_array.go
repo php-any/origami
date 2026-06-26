@@ -249,6 +249,15 @@ func (a *ArrayValue) SetIntKey(i int, value Value) {
 	}
 }
 
+// normalizeDenseIntKeys 将 Name=="" 的连续槽位转为显式整数字符串键，避免 unset 中间元素时误压缩后续键
+func (a *ArrayValue) normalizeDenseIntKeys() {
+	for j, z := range a.List {
+		if z != nil && z.Name == "" {
+			z.Name = IntArrayKeyName(j)
+		}
+	}
+}
+
 // UnsetKey 删除整数或字符串键（不存在则无操作）
 func (a *ArrayValue) UnsetKey(index Value) {
 	if iv, ok := index.(AsInt); ok {
@@ -256,12 +265,10 @@ func (a *ArrayValue) UnsetKey(index Value) {
 		if err != nil {
 			return
 		}
+		a.normalizeDenseIntKeys()
 		keyStr := IntArrayKeyName(i)
 		for j, z := range a.List {
-			if z == nil {
-				continue
-			}
-			if z.Name == keyStr || (z.Name == "" && j == i) {
+			if z != nil && z.Name == keyStr {
 				a.List = append(a.List[:j], a.List[j+1:]...)
 				return
 			}

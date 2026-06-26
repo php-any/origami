@@ -1,0 +1,12 @@
+<?php
+namespace tests\basic;
+
+$numm = 100;
+
+for(; $numm > 0;) {
+    $numm--;
+}
+
+if($count == 0) {
+    Log::info("模拟 while 功能成功运行");
+}

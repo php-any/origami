@@ -113,14 +113,34 @@ func phpSerializeValue(v data.Value, serializer *jsonser.JsonSerializer) (string
 		className := val.Class.GetName()
 		classNameLen := len([]byte(className))
 
-		// 按插入顺序遍历当前实例上已存在的属性（不强求覆盖 PHP 对“未显式赋值默认属性”的行为）
 		type kv struct {
 			key string
 			val data.Value
 		}
 		props := make([]kv, 0)
+		seen := make(map[string]struct{})
+		// 按类声明顺序输出公共属性（与 PHP serialize 一致）
+		for _, prop := range val.Class.GetPropertyList() {
+			if prop.GetModifier() != data.ModifierPublic {
+				continue
+			}
+			name := prop.GetName()
+			v, ctl := val.ObjectValue.GetProperty(name)
+			if ctl != nil || v == nil {
+				continue
+			}
+			if _, isNull := v.(*data.NullValue); isNull {
+				continue
+			}
+			props = append(props, kv{key: name, val: v})
+			seen[name] = struct{}{}
+		}
+		// 动态公共属性追加在声明属性之后
 		val.RangeProperties(func(k string, v data.Value) bool {
 			if v == nil {
+				return true
+			}
+			if _, ok := seen[k]; ok {
 				return true
 			}
 			props = append(props, kv{key: k, val: v})

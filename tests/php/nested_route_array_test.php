@@ -1,5 +1,5 @@
 <?php
-class C {
+class NestedRoute_C {
     protected $routes = [];
     public function add() {
         $this->routes['GET']['/'] = 'hello';
@@ -8,7 +8,7 @@ class C {
         return $this->routes['GET'] ?? [];
     }
 }
-$c = new C();
+$c = new NestedRoute_C();
 $c->add();
 $bucket = $c->getGet();
 echo "bucket count=" . count($bucket) . "\n";

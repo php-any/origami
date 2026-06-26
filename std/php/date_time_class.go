@@ -23,7 +23,7 @@ func NewDateTimeClass() *DateTimeClass {
 
 func (c *DateTimeClass) GetName() string                               { return "DateTime" }
 func (c *DateTimeClass) GetExtend() *string                            { return nil }
-func (c *DateTimeClass) GetImplements() []string                       { return nil }
+func (c *DateTimeClass) GetImplements() []string                       { return []string{"DateTimeInterface"} }
 func (c *DateTimeClass) GetProperty(name string) (data.Property, bool) { return nil, false }
 func (c *DateTimeClass) GetPropertyList() []data.Property              { return nil }
 func (c *DateTimeClass) GetConstruct() data.Method                     { return &DateTimeConstructMethod{} }

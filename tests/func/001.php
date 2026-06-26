@@ -1,0 +1,8 @@
+<?php
+namespace tests\func;
+
+function test() {
+    Log::info("执行 test 函数正常")
+}
+
+test();

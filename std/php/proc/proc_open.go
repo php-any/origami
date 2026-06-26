@@ -3,6 +3,7 @@ package proc
 import (
 	"io"
 	"os/exec"
+	"runtime"
 	"strconv"
 
 	"github.com/php-any/origami/data"
@@ -108,8 +109,8 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		pipesZVal.Value = pipes
 	}
 
-	// 创建命令
-	cmdObj := exec.Command("sh", "-c", cmd)
+	// 创建命令（Windows 用 cmd /C，Unix 用 sh -c）
+	cmdObj := shellCommand(cmd)
 
 	// 处理描述符
 	var stdoutPipe, stderrPipe io.ReadCloser
@@ -203,6 +204,13 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	}()
 
 	return procResource, nil
+}
+
+func shellCommand(cmd string) *exec.Cmd {
+	if runtime.GOOS == "windows" {
+		return exec.Command("cmd", "/C", cmd)
+	}
+	return exec.Command("sh", "-c", cmd)
 }
 
 func (f *ProcOpenFunction) GetName() string {

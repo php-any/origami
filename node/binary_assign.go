@@ -63,6 +63,18 @@ func NewBinaryAssign(from data.From, left, right data.GetValue) BinaryExpression
 				Slow:   right,
 				op:     vfaOpAdd,
 			}
+		case *IntLiteral:
+			if iv, ok := r.V.(*data.IntValue); ok {
+				return &VarFastAssign{
+					Node:   NewNode(from),
+					Dst:    l,
+					DstIdx: l.Index,
+					LhsIdx: -1,
+					LhsLit: iv.Value,
+					Slow:   right,
+					op:     vfaOpCopy,
+				}
+			}
 		default:
 			return &BinaryAssignVariable{Node: NewNode(from), Left: l, Right: right}
 		}
@@ -242,6 +254,15 @@ func (b *BinaryAssignVariable) GetValue(ctx data.Context) (data.GetValue, data.C
 	}
 
 	if v, ok := rv.(data.Value); ok {
+		// 标量按值写入局部变量槽，避免与 AST 字面量等共享 *IntValue 指针，
+		// 以便 for 循环 VarStmtIncr 可安全原地自增。
+		// 仅适用于 *VariableExpression；对象属性等 Variable 无有效索引。
+		if ve, ok := b.Left.(*VariableExpression); ok {
+			if zv := ctx.GetIndexZVal(ve.Index); zv != nil && data.IsScalarAssignFast(v) {
+				data.AssignScalarToZVal(zv, v)
+				return zv.Value, nil
+			}
+		}
 		return v, b.Left.SetValue(ctx, v)
 	}
 

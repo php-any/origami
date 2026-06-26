@@ -2,7 +2,12 @@
 
 namespace tests\php;
 
-require __DIR__.'/../../cli_test/vendor/autoload.php';
+$autoload = __DIR__.'/../../cli_test/vendor/autoload.php';
+if (!is_file($autoload)) {
+    Log::info("skip: cli_test vendor 不存在，跳过 Symfony ArgvInput 测试");
+    return;
+}
+require $autoload;
 
 use Go\Test\Application;
 use Symfony\Component\Console\Input\ArgvInput;

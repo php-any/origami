@@ -1,3 +1,4 @@
+<?php
 namespace tests\obj;
 
 class Users {

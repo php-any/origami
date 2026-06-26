@@ -117,6 +117,15 @@ func writeBackArrayProperty(ctx data.Context, arrayExpr data.GetValue, arr *data
 			tv.ClassValue.SetProperty(a.Property, arr)
 		}
 	case *IndexExpression:
-		writeBackArrayProperty(ctx, a.Array, arr)
+		// $obj[$k][$sub][] = $v：须把子数组写回父容器对应键，不能直接用子数组覆盖父属性
+		indexVal, acl := a.Index.GetValue(ctx)
+		if acl != nil {
+			return
+		}
+		parentVal, acl := a.Array.GetValue(ctx)
+		if acl != nil {
+			return
+		}
+		_ = indexSetValueOnContainer(ctx, a, parentVal, indexVal, arr)
 	}
 }

@@ -7,7 +7,7 @@ namespace tests\php;
  */
 
 $c = new \Container\Container();
-$c->scan(__DIR__ . '/container_fixtures');
+$c->scan(__DIR__ . '/container_fixtures/phase2');
 
 // 类型提示构造器注入 + #[Bind]
 $order = $c->make(\tests\php\container_fixtures\Phase2Anno_OrderService::class);

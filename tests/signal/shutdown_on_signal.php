@@ -1,5 +1,10 @@
 <?php
 
+if (getenv('ORIGAMI_WAIT_SIGNAL') !== '1') {
+    Log::info('skip: shutdown_on_signal 需手动发送 SIGTERM/SIGINT，批量测试中跳过');
+    return;
+}
+
 register_shutdown_function(function () {
     echo "SHUTDOWN_OK\n";
 });
