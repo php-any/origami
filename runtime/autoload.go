@@ -12,3 +12,11 @@ func AddAutoLoad(fun *data.FuncValue) {
 func RemoveAutoLoad(fun *data.FuncValue) {
 	parser.RemoveAutoLoad(fun)
 }
+
+func GetAutoLoad() []*data.FuncValue {
+	return parser.GetAutoLoad()
+}
+
+func CallAutoLoad(name string, ctx data.Context) (bool, data.Control) {
+	return parser.CallAutoLoad(name, ctx)
+}

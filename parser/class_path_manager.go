@@ -404,6 +404,16 @@ func RemoveAutoLoad(fun *data.FuncValue) {
 	autoload = filtered
 }
 
+// GetAutoLoad 返回已注册的 autoload 回调副本（顺序与注册一致）
+func GetAutoLoad() []*data.FuncValue {
+	if len(autoload) == 0 {
+		return nil
+	}
+	result := make([]*data.FuncValue, len(autoload))
+	copy(result, autoload)
+	return result
+}
+
 func CallAutoLoad(name string, ctx data.Context) (bool, data.Control) {
 	for _, fn := range autoload {
 		ctx := ctx.CreateContext(fn.Value.GetVariables())

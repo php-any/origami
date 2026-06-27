@@ -14,6 +14,9 @@ func IsAbstractClassStmt(stmt data.ClassStmt) bool {
 	case *ClassGeneric:
 		return s.IsAbstract
 	default:
+		if abstract, ok := stmt.(interface{ IsBuiltinAbstractClass() bool }); ok {
+			return abstract.IsBuiltinAbstractClass()
+		}
 		return false
 	}
 }

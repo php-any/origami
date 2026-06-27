@@ -12,7 +12,6 @@ import (
 	"github.com/php-any/origami/std/php/array"
 	"github.com/php-any/origami/std/php/attribute"
 	"github.com/php-any/origami/std/php/core"
-	"github.com/php-any/origami/std/php/directory"
 	"github.com/php-any/origami/std/php/file"
 	"github.com/php-any/origami/std/php/iconv"
 	"github.com/php-any/origami/std/php/intl"
@@ -21,6 +20,7 @@ import (
 	"github.com/php-any/origami/std/php/preg"
 	"github.com/php-any/origami/std/php/proc"
 	"github.com/php-any/origami/std/php/reflection"
+	"github.com/php-any/origami/std/php/spl"
 	"github.com/php-any/origami/std/php/stream"
 )
 
@@ -176,13 +176,11 @@ func Load(vm data.VM) {
 		NewMaxFunction(),
 		NewNormalizerIsNormalizedFunction(),
 		NewNormalizerNormalizeFunction(),
-		core.NewSplAutoloadRegisterFunction(),
-		core.NewSplAutoloadUnregisterFunction(),
+		core.NewCallUserFuncFunction(),
 		core.NewArrayFunction(),
 		core.NewDirnameFunction(),
 		core.NewBasenameFunction(),
 		core.NewRealpathFunction(),
-		core.NewCallUserFuncFunction(),
 		core.NewStrtrFunction(),
 		core.NewStrStartsWithFunction(),
 		core.NewStrEndsWithFunction(),
@@ -191,9 +189,6 @@ func Load(vm data.VM) {
 		core.NewHtmlspecialcharsFunction(),
 		core.NewStripTagsFunction(),
 		core.NewSetlocaleFunction(),
-		core.NewSplObjectHashFunction(),
-		core.NewSplObjectIdFunction(),
-
 		NewTokenGetAllFunction(),
 
 		core.NewSetExceptionHandlerFunction(),
@@ -315,13 +310,6 @@ func Load(vm data.VM) {
 	vm.AddClass(core.NewDOMTextClass())
 	vm.AddClass(core.NewDOMCommentClass())
 	vm.AddClass(core.NewDOMNodeListClass())
-	vm.AddInterface(core.NewTraversableInterface())
-	vm.AddInterface(core.NewIteratorAggregateInterface())
-	vm.AddInterface(core.NewIteratorInterface())
-	vm.AddInterface(core.NewRecursiveIteratorInterface())
-	vm.AddInterface(core.NewOuterIteratorInterface())
-	vm.AddClass(core.NewRecursiveDirectoryIteratorClass())
-	vm.AddClass(core.NewRecursiveIteratorIteratorClass())
 	vm.AddClass(&reflection.ReflectionClassClass{})
 	vm.AddClass(&reflection.ReflectionMethodClass{})
 	vm.AddClass(&reflection.ReflectionParameterClass{})
@@ -330,11 +318,9 @@ func Load(vm data.VM) {
 	vm.AddClass(&reflection.ReflectionTypeClass{})
 	vm.AddClass(&reflection.ReflectionNamedTypeClass{})
 	vm.AddClass(&reflection.ReflectionFunctionClass{})
-	vm.AddClass(directory.NewSplFileInfoClass())
-	vm.AddClass(&directory.DirectoryIteratorClass{})
-	vm.AddClass(directory.NewFilesystemIteratorClass())
-	vm.AddClass(&core.ArrayIteratorClass{})
-	vm.AddClass(core.NewFilterIteratorClass())
+
+	// 加载 SPL 扩展
+	spl.Load(vm)
 
 	// 注册 DateTime 类
 	vm.AddClass(NewDateTimeClass())
@@ -343,7 +329,6 @@ func Load(vm data.VM) {
 	// 注册 PHP 内置接口
 	vm.AddInterface(NewArrayAccessInterface())
 	vm.AddInterface(NewCountableInterface())
-	vm.AddInterface(directory.NewSeekableIteratorInterface())
 	vm.AddInterface(NewSerializableInterface())
 	vm.AddInterface(NewSessionHandlerInterface())
 	vm.AddInterface(exception.NewThrowableInterface())
@@ -355,6 +340,13 @@ func Load(vm data.VM) {
 	vm.AddClass(exception.NewRuntimeExceptionClass())
 	vm.AddClass(exception.NewBadMethodCallExceptionClass())
 	vm.AddClass(exception.NewErrorExceptionClass())
+	vm.AddClass(exception.NewUnexpectedValueExceptionClass())
+	vm.AddClass(exception.NewUnderflowExceptionClass())
+	vm.AddClass(exception.NewOverflowExceptionClass())
+	vm.AddClass(exception.NewOutOfBoundsExceptionClass())
+	vm.AddClass(exception.NewOutOfRangeExceptionClass())
+	vm.AddClass(exception.NewBadFunctionCallExceptionClass())
+	vm.AddClass(exception.NewDomainExceptionClass())
 
 	initPhpDefaultDefines(vm)
 
@@ -480,17 +472,6 @@ func initPhpDefaultDefines(vm data.VM) {
 	vm.SetConstant("EXTR_IF_EXISTS", data.NewIntValue(6))        // 仅导入已存在的变量
 	vm.SetConstant("EXTR_PREFIX_IF_EXISTS", data.NewIntValue(7)) // 已存在时加前缀导入
 	vm.SetConstant("EXTR_REFS", data.NewIntValue(256))           // 以引用方式导入
-
-	// FilesystemIterator flags 常量
-	vm.SetConstant("FilesystemIterator::CURRENT_AS_PATHNAME", data.NewIntValue(directory.FSI_CURRENT_AS_PATHNAME))
-	vm.SetConstant("FilesystemIterator::CURRENT_AS_FILEINFO", data.NewIntValue(directory.FSI_CURRENT_AS_FILEINFO))
-	vm.SetConstant("FilesystemIterator::CURRENT_AS_SELF", data.NewIntValue(directory.FSI_CURRENT_AS_SELF))
-	vm.SetConstant("FilesystemIterator::KEY_AS_PATHNAME", data.NewIntValue(directory.FSI_KEY_AS_PATHNAME))
-	vm.SetConstant("FilesystemIterator::KEY_AS_FILENAME", data.NewIntValue(directory.FSI_KEY_AS_FILENAME))
-	vm.SetConstant("FilesystemIterator::FOLLOW_SYMLINKS", data.NewIntValue(directory.FSI_FOLLOW_SYMLINKS))
-	vm.SetConstant("FilesystemIterator::SKIP_DOTS", data.NewIntValue(directory.FSI_SKIP_DOTS))
-	vm.SetConstant("FilesystemIterator::UNIX_PATHS", data.NewIntValue(directory.FSI_UNIX_PATHS))
-	vm.SetConstant("FilesystemIterator::NEW_CURRENT_AND_KEY", data.NewIntValue(directory.FSI_NEW_CURRENT_AND_KEY))
 
 	// parse_url constants
 	vm.SetConstant("PHP_URL_FRAGMENT", data.NewIntValue(7))
