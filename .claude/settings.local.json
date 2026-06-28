@@ -20,7 +20,12 @@
       "Bash(awk '{print $5}')",
       "Bash(xargs -I {} taskkill //F //PID {})",
       "Bash(git checkout *)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(go get *)",
+      "Bash(go env *)",
+      "Read(//c/Users/User/go/pkg/mod/github.com/openai//**)",
+      "Read(//c/Users/User/go/pkg/mod/github.com/openai/**)",
+      "Bash(go test *)"
     ]
   }
 }

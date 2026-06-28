@@ -411,6 +411,22 @@ func analyzeClass(ctx data.Context, class data.ClassStmt) ClassSignature {
 		Description: fmt.Sprintf("%s 类", shortClassName),
 	}
 
+	// 提取属性声明
+	for _, prop := range class.GetPropertyList() {
+		if prop == nil {
+			continue
+		}
+		propSig := PropertySignature{
+			Name:     prop.GetName(),
+			Modifier: "public",
+			IsStatic: prop.GetIsStatic(),
+		}
+		if propType := prop.GetType(); propType != nil {
+			propSig.Type = formatPHPType(propType, "")
+		}
+		sig.Properties = append(sig.Properties, propSig)
+	}
+
 	namespace := classNamespace(className)
 	forAnnotation := isAnnotationNamespace(className)
 	if forAnnotation {

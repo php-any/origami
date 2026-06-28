@@ -7,9 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Run
 
 ```bash
-go build -o origami .        # Build the interpreter
-./origami <script.zy>        # Run a script
-./origami tests/run_tests.zy # Run all test suites
+go build -o origami .         # Build the interpreter
+./origami <script.php>        # Run a script (.php 或 .zy 后缀)
+./origami tests/run_tests.php # Run all test suites
 ```
 
 The LSP server is a separate module:
@@ -55,7 +55,7 @@ Source → lexer/ → tokens → parser/ → node/ (AST) → runtime/ (VM) execu
 
 ### Class autoloading
 
-Classes are auto-discovered from the filesystem. `ClassPathManager` maps class names to file paths. A class `Foo\Bar` must be in a file named `Bar.zy` within a directory structure mirroring the namespace. The convention mirrors PSR-4.
+Classes are auto-discovered from the filesystem. `ClassPathManager` maps class names to file paths. A class `Foo\Bar` must be in a file named `Bar.php` (or `Bar.zy`) within a directory structure mirroring the namespace. The convention mirrors PSR-4.
 
 ### TempVM (request-level isolation)
 
@@ -63,8 +63,8 @@ Classes are auto-discovered from the filesystem. `ClassPathManager` maps class n
 
 ## Tests
     
-Tests are `.zy` script files in `tests/` subdirectories (`tests/basic/`, `tests/func/`, `tests/obj/`, `tests/php/`, etc.). The test runner is `tests/run_tests.zy` which scans subdirectories and `include()`s each `.zy` file. Each test file should print output for manual inspection—there is no assertion framework. Red output in the console indicates failures.
+Tests are `.php` script files in `tests/` subdirectories (`tests/basic/`, `tests/func/`, `tests/obj/`, `tests/php/`, etc.). The test runner is `tests/run_tests.php` which scans subdirectories and `include()`s each `.php` file. Each test file should print output for manual inspection—there is no assertion framework. Red output in the console indicates failures.
 
-Run all tests: `go run zy.go tests/run_tests.zy`
+Run all tests: `go run zy.go tests/run_tests.php`
 
 Go-level unit tests exist only in `lexer/` (lexer_test.go, preprocessor_test.go, special_test.go). There are no Go-level tests for the parser or runtime.
