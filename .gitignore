@@ -17,5 +17,4 @@ cli_test
 php-src
 .zy
 /examples/spring/dist/
-/extensions/
 /examples/spring/spring.db

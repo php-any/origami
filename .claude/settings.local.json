@@ -25,7 +25,16 @@
       "Bash(go env *)",
       "Read(//c/Users/User/go/pkg/mod/github.com/openai//**)",
       "Read(//c/Users/User/go/pkg/mod/github.com/openai/**)",
-      "Bash(go test *)"
+      "Bash(go test *)",
+      "Bash(go mod *)",
+      "Bash(go vet *)",
+      "Bash(gofmt -e *.go)",
+      "Bash(where gcc *)",
+      "Bash(where cl *)",
+      "Bash(where cc *)",
+      "Bash(gofmt -l *.go)",
+      "Bash(gofmt -w *.go)",
+      "WebSearch"
     ]
   }
 }
