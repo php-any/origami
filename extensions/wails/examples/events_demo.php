@@ -1,19 +1,19 @@
 <?php
 /**
- * Wails v3 事件系统 + 窗口操作 示例
+ * Wails v3 事件系统 + 窗口控制 示例
  *
  * 演示 Wails v3 的:
- *   - 事件通信模型 (Events::on / Events::emit / Events::off)
- *   - app.OnEvent / app.EmitEvent 对应关系
- *   - 窗口状态控制 (maximise / minimise / fullscreen / setSize / setPosition)
- *   - 主题切换 (setDarkTheme / setLightTheme / setSystemDefaultTheme)
+ *   - 双向事件通信 (前端 wails.Events.Emit/On  ↔  PHP Events::on/emit)
+ *   - 窗口状态控制 (maximise / minimise / fullscreen / setSize / center)
  *   - 屏幕信息获取 (Screen::getAll)
  *   - 环境信息获取 (Environment::get)
  *
  * 对应 Go API:
- *   app.OnEvent("event:name", func(e *application.CustomEvent) { ... })
- *   app.EmitEvent("event:name", data)
- *   app.OffEvent("event:name")
+ *   app.Event.On("name", func(e *application.CustomEvent) { ... })
+ *   app.Event.EmitEvent(&application.CustomEvent{Name: "name", Data: ...})
+ *
+ * 运行:
+ *   go run ./cmd examples/events_demo.php
  */
 
 use Wails\Application;
@@ -24,125 +24,190 @@ use Wails\Runtime\Log;
 use Wails\Runtime\Screen;
 use Wails\Runtime\Environment;
 
-// ── 1. 构造应用 ──
-$options = new App([
-    'Title'     => '🔔 Wails v3 Events Demo',
-    'Width'     => 640,
-    'Height'    => 480,
-    'MinWidth'  => 400,
-    'MinHeight' => 300,
-    'MaxWidth'  => 1200,
-    'MaxHeight' => 800,
-]);
+// ── 1. 前端页面 ──
+$html = <<<HTML
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wails v3 Events Demo</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; padding: 28px;
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    background: #0f172a; color: #e2e8f0;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { opacity: .6; margin: 0 0 20px; font-size: 13px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .card { background: #1e293b; border-radius: 14px; padding: 18px; }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; opacity: .6; margin: 0 0 12px; }
+  .counter { font-size: 40px; font-weight: 700; text-align: center; margin: 4px 0 12px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  button {
+    font: inherit; flex: 1; min-width: 84px; padding: 10px 12px; border: 0; border-radius: 10px;
+    cursor: pointer; background: #6366f1; color: #fff; font-weight: 600; transition: filter .12s;
+  }
+  button:hover { filter: brightness(1.12); }
+  button.ghost { background: #334155; }
+  pre { margin: 0; font-size: 12px; white-space: pre-wrap; line-height: 1.5; opacity: .85; }
+  #log { height: 120px; overflow: auto; background: #0b1220; border-radius: 10px; padding: 10px; font-size: 12px; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:6px; background:#334155; font-size:11px; }
+</style>
+</head>
+<body>
+  <h1>🔔 Wails v3 Events Demo</h1>
+  <p class="sub">前端按钮通过事件与 Origami PHP 后端通信</p>
 
-// ── 2. Dom 就绪 — 初始化事件和获取系统信息 ──
-$options->onDomReady(function () {
-    // —— 获取环境信息 ——
-    $env = Environment::get();
-    Log::info(sprintf(
-        "Environment: %s / %s / %s",
-        $env[0] ?? '?',  // BuildType
-        $env[1] ?? '?',  // Platform
-        $env[2] ?? '?'   // Arch
-    ));
+  <div class="grid">
+    <div class="card">
+      <h2>计数器 (后端维护)</h2>
+      <div class="counter" id="counter">0</div>
+      <div class="row">
+        <button onclick="emit('counter:decrement')">− 减少</button>
+        <button onclick="emit('counter:increment')">+ 增加</button>
+      </div>
+    </div>
 
-    // —— 获取屏幕信息 ——
-    $screens = Screen::getAll();
-    $count = count($screens);
-    Log::info("Detected {$count} display(s)");
+    <div class="card">
+      <h2>窗口控制</h2>
+      <div class="row">
+        <button class="ghost" onclick="emit('window:center')">居中</button>
+        <button class="ghost" onclick="emit('window:maximise')">最大化</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="ghost" onclick="emit('window:fullscreen')">全屏切换</button>
+        <button class="ghost" onclick="emit('window:resize', [960, 640])">960×640</button>
+      </div>
+    </div>
 
-    foreach ($screens as $i => $screen) {
-        $isCurrent  = ($screen[0] ?? false) ? "current" : "";
-        $isPrimary  = ($screen[1] ?? false) ? "primary" : "";
-        $resolution = "{$screen[2]}x{$screen[3]}";
-        Log::info("  Display {$i}: {$resolution} {$isCurrent} {$isPrimary}");
+    <div class="card" style="grid-column: 1 / -1">
+      <h2>系统信息 <span class="badge" id="env">…</span></h2>
+      <pre id="screens">正在获取屏幕信息…</pre>
+    </div>
+
+    <div class="card" style="grid-column: 1 / -1">
+      <h2>事件日志</h2>
+      <div id="log"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { Events } from "/wails/runtime.js";
+    // type="module" 有独立作用域，内联 onclick 在全局作用域，需把 emit 挂到 window
+    window.emit = emit;
+    function emit(name, data) { Events.Emit(name, data ?? null); log('→ ' + name); }
+    function log(msg) {
+      const d = document.getElementById('log');
+      d.innerHTML += msg + '<br>'; d.scrollTop = d.scrollHeight;
     }
 
-    // 居中窗口
+    // 后端推送：计数器变化
+    Events.On('counter:changed', (ev) => {
+      document.getElementById('counter').textContent = ev.data;
+      log('← counter:changed = ' + ev.data);
+    });
+    // 后端推送：系统信息
+    Events.On('system:info', (ev) => {
+      const d = ev.data || {};
+      document.getElementById('env').textContent = (d.os || '?') + ' / ' + (d.arch || '?');
+      document.getElementById('screens').textContent = d.screens || '(无屏幕信息)';
+    });
+    // 后端推送：窗口状态
+    Events.On('window:state', (ev) => log('← window:state: ' + JSON.stringify(ev.data)));
+
+    // 页面加载完成后向后端要一次系统信息
+    window.addEventListener('DOMContentLoaded', () => emit('app:requestInfo'));
+  </script>
+</body>
+</html>
+HTML;
+
+// ── 2. 应用配置 ──
+$options = new App([
+    'Title'     => '🔔 Wails v3 Events Demo',
+    'Width'     => 720,
+    'Height'    => 640,
+    'MinWidth'  => 520,
+    'MinHeight' => 480,
+    'HTML'      => $html,
+]);
+
+// 后端维护的计数器状态
+$counter = 0;
+
+// ── 3. DOM 就绪 ──
+$options->onDomReady(function () {
     Window::center();
-
-    // 向前端发送 ready 事件
-    Events::emit("app:ready", [
-        'title'   => 'Wails v3 Events Demo',
-        'message' => 'Backend is ready!',
-    ]);
-
-    Log::info("Sent 'app:ready' event to frontend");
+    Log::info("Events demo ready");
 });
 
-// ── 3. 监听前端事件 (对应 JS: wails.Events.Emit({name: "...", data: ...})) ──
+// ── 4. 监听前端事件 ──
 
-// 计数器事件
-Events::on("counter:increment", function ($data) {
-    $value = $data[0] ?? 0;
-    Log::info("Counter ++ => {$value}");
-    Window::setTitle("🔔 Counter: {$value}");
+Events::on("counter:increment", function () use (&$counter) {
+    $counter++;
+    Log::info("Counter => {$counter}");
+    Events::emit("counter:changed", $counter);
 });
 
-Events::on("counter:decrement", function ($data) {
-    $value = $data[0] ?? 0;
-    Log::info("Counter -- => {$value}");
-    Window::setTitle("🔔 Counter: {$value}");
+Events::on("counter:decrement", function () use (&$counter) {
+    $counter--;
+    Log::info("Counter => {$counter}");
+    Events::emit("counter:changed", $counter);
 });
 
-// 窗口状态控制事件
-Events::on("window:toggleMax", function () {
+Events::on("window:center", function () {
+    Window::center();
+});
+
+Events::on("window:maximise", function () {
     Window::toggleMaximise();
-    $isMax = Window::isMaximised();
-    Log::info("Window maximised: " . ($isMax ? "YES" : "NO"));
-    Events::emit("window:stateChanged", [
-        'maximised' => $isMax,
-    ]);
+    Events::emit("window:state", ['maximised' => Window::isMaximised()]);
 });
 
-Events::on("window:toggleFullscreen", function () {
+Events::on("window:fullscreen", function () {
     if (Window::isFullscreen()) {
         Window::unfullscreen();
     } else {
         Window::fullscreen();
     }
-    $isFs = Window::isFullscreen();
-    Log::info("Fullscreen: " . ($isFs ? "YES" : "NO"));
+    Events::emit("window:state", ['fullscreen' => Window::isFullscreen()]);
 });
 
-Events::on("window:resize", function ($data) {
-    $w = max(400, $data[0] ?? 800);
-    $h = max(300, $data[1] ?? 600);
+Events::on("window:resize", function ($size) {
+    $w = max(400, $size[0] ?? 800);
+    $h = max(300, $size[1] ?? 600);
     Window::setSize($w, $h);
+    Window::center();
     Log::info("Resized to {$w}x{$h}");
 });
 
-Events::on("window:move", function ($data) {
-    $x = $data[0] ?? 0;
-    $y = $data[1] ?? 0;
-    Window::setPosition($x, $y);
-    Log::info("Moved to ({$x}, {$y})");
+// 前端请求系统信息
+Events::on("app:requestInfo", function () {
+    $env = Environment::get();
+    $screens = Screen::getAll();
+
+    $lines = [];
+    foreach ($screens as $i => $s) {
+        $primary = ($s[1] ?? false) ? " (primary)" : "";
+        $lines[] = "Display {$i}: {$s[2]}x{$s[3]}{$primary}";
+    }
+
+    Events::emit("system:info", [
+        'os'      => $env[0] ?? '?',
+        'arch'    => $env[2] ?? '?',
+        'screens' => implode("\n", $lines),
+    ]);
+    Log::info("Sent system info to frontend");
 });
 
-// 主题切换事件
-Events::on("theme:dark", function () {
-    Window::setDarkTheme();
-    Events::emit("theme:changed", ['theme' => 'dark']);
-    Log::info("Switched to dark theme");
-});
-
-Events::on("theme:light", function () {
-    Window::setLightTheme();
-    Events::emit("theme:changed", ['theme' => 'light']);
-    Log::info("Switched to light theme");
-});
-
-Events::on("theme:system", function () {
-    Window::setSystemDefaultTheme();
-    Events::emit("theme:changed", ['theme' => 'system']);
-    Log::info("Switched to system default theme");
-});
-
-// ── 4. 退出时清理 ──
+// ── 5. 退出清理 ──
 $options->onShutdown(function () {
-    Events::emit("app:closing");
-    Log::info("Application closing, sent 'app:closing' event");
+    Log::info("Events demo closing");
 });
 
-// ── 5. 启动 ──
+// ── 6. 启动 ──
 Application::run($options);

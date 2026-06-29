@@ -368,8 +368,8 @@ func (m *windowsOptionsConstruct) Call(ctx data.Context) (data.GetValue, data.Co
 	setDefaultBoolProperty(cv, "IsZoomControlEnabled", false)
 	setDefaultBoolProperty(cv, "EnableSwipeGestures", false)
 	setDefaultBoolProperty(cv, "WebviewDisableRendererCodeIntegrity", false)
-	setDefaultIntProperty(cv, "Theme", 0)         // SystemDefault
-	setDefaultIntProperty(cv, "BackdropType", 0)  // Auto
+	setDefaultIntProperty(cv, "Theme", 0)        // SystemDefault
+	setDefaultIntProperty(cv, "BackdropType", 0) // Auto
 	setDefaultFloatProperty(cv, "ZoomFactor", 1.0)
 	setDefaultIntProperty(cv, "ResizeDebounceMS", 0)
 	setDefaultStringProperty(cv, "WebviewUserDataPath", "")
@@ -445,13 +445,11 @@ func (m *macOptionsConstruct) Call(ctx data.Context) (data.GetValue, data.Contro
 	setDefaultBoolProperty(cv, "DisableZoom", false)
 	setDefaultStringProperty(cv, "Appearance", "")
 
-	if v, ok := ctx.GetIndexValue(0); ok {
-		if av, ok := v.(*data.ArrayValue); ok {
-			applyArrayToClassValue(cv, av, []string{
-				"WebviewIsTransparent", "WindowIsTranslucent",
-				"ContentProtection", "DisableZoom", "Appearance",
-			})
-		}
+	if opts, ok := optionsFromConstructor(ctx); ok {
+		applyOptionsMap(cv, opts, []string{
+			"WebviewIsTransparent", "WindowIsTranslucent",
+			"ContentProtection", "DisableZoom", "Appearance", "TitleBar",
+		})
 	}
 	return nil, nil
 }
@@ -511,13 +509,11 @@ func (m *macTitleBarConstruct) Call(ctx data.Context) (data.GetValue, data.Contr
 	setDefaultBoolProperty(cv, "UseToolbar", false)
 	setDefaultBoolProperty(cv, "HideToolbarSeparator", false)
 
-	if v, ok := ctx.GetIndexValue(0); ok {
-		if av, ok := v.(*data.ArrayValue); ok {
-			applyArrayToClassValue(cv, av, []string{
-				"TitlebarAppearsTransparent", "HideTitle", "HideTitleBar",
-				"FullSizeContent", "UseToolbar", "HideToolbarSeparator",
-			})
-		}
+	if opts, ok := optionsFromConstructor(ctx); ok {
+		applyOptionsMap(cv, opts, []string{
+			"TitlebarAppearsTransparent", "HideTitle", "HideTitleBar",
+			"FullSizeContent", "UseToolbar", "HideToolbarSeparator",
+		})
 	}
 	return nil, nil
 }

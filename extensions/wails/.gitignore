@@ -1,0 +1,8 @@
+# 构建产物
+/wails
+/wailsrunner
+
+# 测试探针文件
+.html_probe.txt
+.keys_probe.txt
+.todo_probe.json

@@ -120,8 +120,8 @@ func (m *keysCmdOrCtrlMethod) GetVariables() []data.Variable {
 }
 
 func (m *keysCmdOrCtrlMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if v, ok := ctx.GetIndexValue(0); ok {
-		return data.NewStringValue("cmdorctrl+" + toString(v)), nil
+	if key := firstArgString(ctx); key != "" {
+		return data.NewStringValue("cmdorctrl+" + key), nil
 	}
 	return data.NewStringValue(""), nil
 }
@@ -147,8 +147,8 @@ func (m *keysOptionOrAltMethod) GetVariables() []data.Variable {
 }
 
 func (m *keysOptionOrAltMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if v, ok := ctx.GetIndexValue(0); ok {
-		return data.NewStringValue("optionoralt+" + toString(v)), nil
+	if key := firstArgString(ctx); key != "" {
+		return data.NewStringValue("optionoralt+" + key), nil
 	}
 	return data.NewStringValue(""), nil
 }
@@ -174,8 +174,8 @@ func (m *keysShiftMethod) GetVariables() []data.Variable {
 }
 
 func (m *keysShiftMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if v, ok := ctx.GetIndexValue(0); ok {
-		return data.NewStringValue("shift+" + toString(v)), nil
+	if key := firstArgString(ctx); key != "" {
+		return data.NewStringValue("shift+" + key), nil
 	}
 	return data.NewStringValue(""), nil
 }
@@ -201,8 +201,8 @@ func (m *keysControlMethod) GetVariables() []data.Variable {
 }
 
 func (m *keysControlMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if v, ok := ctx.GetIndexValue(0); ok {
-		return data.NewStringValue("ctrl+" + toString(v)), nil
+	if key := firstArgString(ctx); key != "" {
+		return data.NewStringValue("ctrl+" + key), nil
 	}
 	return data.NewStringValue(""), nil
 }
@@ -230,20 +230,12 @@ func (m *keysComboMethod) GetVariables() []data.Variable {
 }
 
 func (m *keysComboMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	result := ""
-	if v, ok := ctx.GetIndexValue(0); ok {
-		result = toString(v)
+	key := firstArgString(ctx)
+	prefix := modifierPrefixFromValue(argValueAt(ctx, 1))
+	if prefix == "" {
+		return data.NewStringValue(key), nil
 	}
-	if v, ok := ctx.GetIndexValue(1); ok {
-		if av, ok := v.(*data.ArrayValue); ok {
-			for _, z := range av.List {
-				if z != nil {
-					result = toString(z.Value) + "+" + result
-				}
-			}
-		}
-	}
-	return data.NewStringValue(result), nil
+	return data.NewStringValue(prefix + key), nil
 }
 
 // ====== parse(acceleratorString) ======
@@ -267,8 +259,8 @@ func (m *keysParseMethod) GetVariables() []data.Variable {
 }
 
 func (m *keysParseMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if v, ok := ctx.GetIndexValue(0); ok {
-		return data.NewStringValue(toString(v)), nil
+	if accel := firstArgString(ctx); accel != "" {
+		return data.NewStringValue(accel), nil
 	}
 	return data.NewStringValue(""), nil
 }

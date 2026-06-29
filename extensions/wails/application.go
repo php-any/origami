@@ -87,7 +87,7 @@ func (m *appRunMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, nil
 	}
 	// 调用 Wails v3 的 Run — 这会阻塞直到应用退出
-	if err := RunApp(v); err != nil {
+	if err := RunApp(ctx, v); err != nil {
 		return nil, data.NewErrorThrow(nil, err)
 	}
 	return nil, nil

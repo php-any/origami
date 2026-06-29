@@ -123,6 +123,11 @@ func (m *optionsAppConstruct) Call(ctx data.Context) (data.GetValue, data.Contro
 	setDefaultBoolProperty(cv, "EnableDefaultContextMenu", false)
 	setDefaultIntProperty(cv, "WindowStartState", 0) // Normal
 
+	// 前端内容来源 (三选一)
+	setDefaultStringProperty(cv, "HTML", "")     // 内联 HTML 字符串
+	setDefaultStringProperty(cv, "URL", "")      // 外部/内部 URL
+	setDefaultStringProperty(cv, "AssetDir", "") // 本地资源目录 (embed/dist)
+
 	// 存储回调占位
 	cv.SetProperty("_onStartup", data.NewArrayValue(nil))
 	cv.SetProperty("_onDomReady", data.NewArrayValue(nil))
@@ -134,35 +139,34 @@ func (m *optionsAppConstruct) Call(ctx data.Context) (data.GetValue, data.Contro
 	cv.SetProperty("_errorFormatter", data.NewNullValue())
 
 	// 从传入的数组选项中读取并覆盖
-	if v, ok := ctx.GetIndexValue(0); ok {
-		if av, ok := v.(*data.ArrayValue); ok {
-			applyArrayToClassValue(cv, av, []string{
-				"Title", "Width", "Height", "DisableResize", "Frameless",
-				"MinWidth", "MinHeight", "MaxWidth", "MaxHeight",
-				"StartHidden", "HideWindowOnClose", "AlwaysOnTop",
-				"CSSDragProperty", "CSSDragValue",
-				"EnableDefaultContextMenu",
-				"WindowStartState",
-			})
-			// 特殊处理嵌套对象
-			for _, key := range []string{
-				"BackgroundColour", "SingleInstanceLock", "DragAndDrop",
-				"Windows", "Mac", "Linux", "AssetServer", "Debug",
-			} {
-				if v, ok := arrayGet(av, key); ok {
-					cv.SetProperty(key, v)
-				}
+	if opts, ok := optionsFromConstructor(ctx); ok {
+		applyOptionsMap(cv, opts, []string{
+			"Title", "Width", "Height", "DisableResize", "Frameless",
+			"MinWidth", "MinHeight", "MaxWidth", "MaxHeight",
+			"StartHidden", "HideWindowOnClose", "AlwaysOnTop",
+			"CSSDragProperty", "CSSDragValue",
+			"EnableDefaultContextMenu",
+			"WindowStartState",
+			"HTML", "URL", "AssetDir",
+		})
+		// 特殊处理嵌套对象
+		for _, key := range []string{
+			"BackgroundColour", "SingleInstanceLock", "DragAndDrop",
+			"Windows", "Mac", "Linux", "AssetServer", "Debug",
+		} {
+			if v, ok := optionGet(opts, key); ok {
+				cv.SetProperty(key, v)
 			}
-			// _bind 和 _menu 使用不同属性名
-			if v, ok := arrayGet(av, "Bind"); ok {
-				cv.SetProperty("_bind", v)
-			}
-			if v, ok := arrayGet(av, "Menu"); ok {
-				cv.SetProperty("_menu", v)
-			}
-			if v, ok := arrayGet(av, "BindingsAllowedOrigins"); ok {
-				cv.SetProperty("_bindingsAllowedOrigins", v)
-			}
+		}
+		// _bind 和 _menu 使用不同属性名
+		if v, ok := optionGet(opts, "Bind"); ok {
+			cv.SetProperty("_bind", v)
+		}
+		if v, ok := optionGet(opts, "Menu"); ok {
+			cv.SetProperty("_menu", v)
+		}
+		if v, ok := optionGet(opts, "BindingsAllowedOrigins"); ok {
+			cv.SetProperty("_bindingsAllowedOrigins", v)
 		}
 	}
 	return nil, nil

@@ -2,9 +2,14 @@ package wails
 
 import (
 	"errors"
+	"fmt"
+	"os"
+	"runtime"
+	"testing/fstest"
 
 	"github.com/php-any/origami/data"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 // ============================================================================
@@ -60,9 +65,13 @@ func buildAppOptions(v data.Value) (*application.Options, error) {
 
 	name := getPropString(cv, "Title", "Origami App")
 
-	return &application.Options{
+	opts := &application.Options{
 		Name: name,
-	}, nil
+	}
+	// macOS 默认关闭最后一个窗口后 app 不退出（停留在 Dock）。
+	// 对单窗口示例而言这并不符合预期，这里让关闭最后窗口即退出程序。
+	opts.Mac.ApplicationShouldTerminateAfterLastWindowClosed = true
+	return opts, nil
 }
 
 // ============================================================================
@@ -162,9 +171,11 @@ func buildMacWindow(v data.Value) application.MacWindow {
 	if v, ctrl := cv.GetProperty("TitleBar"); ctrl == nil && v != nil {
 		if tbCV, ok := v.(*data.ClassValue); ok {
 			opts.TitleBar = application.MacTitleBar{
-				AppearsTransparent:   getPropBool(tbCV, "AppearsTransparent", false),
+				AppearsTransparent: getPropBool(tbCV, "TitlebarAppearsTransparent",
+					getPropBool(tbCV, "AppearsTransparent", false)),
+				Hide: getPropBool(tbCV, "HideTitleBar",
+					getPropBool(tbCV, "Hide", false)),
 				HideTitle:            getPropBool(tbCV, "HideTitle", false),
-				Hide:                 getPropBool(tbCV, "Hide", false),
 				FullSizeContent:      getPropBool(tbCV, "FullSizeContent", false),
 				UseToolbar:           getPropBool(tbCV, "UseToolbar", false),
 				HideToolbarSeparator: getPropBool(tbCV, "HideToolbarSeparator", false),
@@ -323,27 +334,157 @@ func buildMessageDialog(v data.Value) *application.MessageDialog {
 }
 
 // ============================================================================
+// 资源服务辅助
+// ============================================================================
+
+// htmlAssetServer 把一段内联 HTML 封装为内存文件系统并交给 Wails 的
+// BundledAssetFileServer 提供服务。这样 /wails/runtime.js 也会被自动提供。
+// 注意：runtime.js 是 ES 模块，前端须用 <script type="module"> + import 引入。
+func htmlAssetServer(html string) application.AssetOptions {
+	fsys := fstest.MapFS{
+		"index.html": &fstest.MapFile{Data: []byte(html)},
+	}
+	return application.AssetOptions{
+		Handler:        application.BundledAssetFileServer(fsys),
+		DisableLogging: true,
+	}
+}
+
+// defaultHTML 在用户未提供 HTML / 资源目录 / URL 时生成一个友好的默认页面，
+// 避免窗口显示 Wails 的内置默认页。
+func defaultHTML(title string) string {
+	if title == "" {
+		title = "Origami + Wails v3"
+	}
+	return fmt.Sprintf(`<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>%[1]s</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin:0; font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+         display:flex; min-height:100vh; align-items:center; justify-content:center;
+         background: linear-gradient(135deg,#1e293b,#0f172a); color:#e2e8f0; }
+  .card { text-align:center; padding:48px 64px; border-radius:20px;
+          background:rgba(255,255,255,.05); box-shadow:0 20px 60px rgba(0,0,0,.4); }
+  h1 { margin:0 0 12px; font-size:28px; }
+  p { margin:0; opacity:.7; }
+  .logo { font-size:56px; margin-bottom:16px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">🚀</div>
+    <h1>%[1]s</h1>
+    <p>Powered by Origami + Wails v3</p>
+  </div>
+</body>
+</html>`, title)
+}
+
+// getCallbackProp 读取 ClassValue 上的一个可调用闭包属性。
+func getCallbackProp(cv *data.ClassValue, name string) data.Value {
+	if cv == nil {
+		return nil
+	}
+	if v, ctrl := cv.GetProperty(name); ctrl == nil && isCallable(v) {
+		return v
+	}
+	return nil
+}
+
+// ============================================================================
 // Wails Application Entry Point
 // ============================================================================
 
-func RunApp(v data.Value) error {
+// RunApp 构建并启动 Wails 应用，阻塞直到应用退出。
+// ctx 用于在 Wails 回调线程中执行 PHP 闭包（生命周期 / 事件回调）。
+func RunApp(ctx data.Context, v data.Value) error {
+	wailsRootCtx = ctx
+
+	cv, _ := v.(*data.ClassValue)
+
 	appOpts, err := buildAppOptions(v)
 	if err != nil {
 		return err
 	}
 
-	wailsApp = application.New(*appOpts)
+	// ── 资源服务：资源目录 / 内联 HTML / 外部 URL ──
+	html, assetDir, customURL := "", "", ""
+	if cv != nil {
+		html = getPropString(cv, "HTML", "")
+		assetDir = getPropString(cv, "AssetDir", "")
+		customURL = getPropString(cv, "URL", "")
+	}
+	switch {
+	case assetDir != "":
+		appOpts.Assets = application.AssetOptions{
+			Handler: application.BundledAssetFileServer(os.DirFS(assetDir)),
+		}
+	case customURL == "":
+		if html == "" {
+			html = defaultHTML(appOpts.Name)
+		}
+		appOpts.Assets = htmlAssetServer(html)
+	}
 
-	winOpts := buildWindowOptions(v)
-	if winOpts == nil {
-		winOpts = &application.WebviewWindowOptions{
-			Title:  "Origami App",
-			Width:  800,
-			Height: 600,
+	// ── 生命周期：onShutdown / onBeforeClose ──
+	if shutdownCB := getCallbackProp(cv, "_onShutdown"); shutdownCB != nil {
+		appOpts.OnShutdown = func() { invokeCallback(shutdownCB) }
+	}
+	if beforeCloseCB := getCallbackProp(cv, "_onBeforeClose"); beforeCloseCB != nil {
+		appOpts.ShouldQuit = func() bool {
+			// onBeforeClose 返回 true 表示阻止关闭 → ShouldQuit 取反
+			return !toBool(invokeCallback(beforeCloseCB))
 		}
 	}
 
+	wailsApp = application.New(*appOpts)
+
+	// 注册脚本里在 run 之前排队的事件监听器
+	flushPendingEventListeners()
+
+	winOpts := buildWindowOptions(v)
+	if winOpts == nil {
+		winOpts = &application.WebviewWindowOptions{Title: "Origami App", Width: 800, Height: 600}
+	}
+	if customURL != "" {
+		winOpts.URL = customURL
+	} else {
+		winOpts.URL = "/"
+	}
+
 	wailsMainWindow = wailsApp.Window.NewWithOptions(*winOpts)
+
+	// ── 菜单 ──
+	// macOS 上 WebviewWindow.SetMenu 是空操作，必须通过 Application Menu 设置，
+	// 否则自定义菜单项和快捷键都不会生效。
+	if cv != nil {
+		if mv, ctrl := cv.GetProperty("_menu"); ctrl == nil && mv != nil {
+			if menu := buildApplicationMenu(mv); menu != nil {
+				switch runtime.GOOS {
+				case "darwin":
+					wailsApp.Menu.Set(menu)
+				default:
+					wailsMainWindow.SetMenu(menu)
+				}
+			}
+		}
+	}
+
+	// ── 生命周期：onStartup / onDomReady ──
+	if startupCB := getCallbackProp(cv, "_onStartup"); startupCB != nil {
+		wailsApp.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
+			invokeCallback(startupCB)
+		})
+	}
+	if domReadyCB := getCallbackProp(cv, "_onDomReady"); domReadyCB != nil {
+		wailsMainWindow.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
+			invokeCallback(domReadyCB)
+		})
+	}
 
 	return wailsApp.Run()
 }

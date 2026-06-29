@@ -277,14 +277,12 @@ func (m *reOnMethod) GetVariables() []data.Variable {
 	}
 }
 func (m *reOnMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsApp != nil {
-		if v, ok := ctx.GetIndexValue(0); ok {
-			eventName := toString(v)
-			wailsApp.Event.On(eventName, func(e *application.CustomEvent) {
-				// PHP 回调在此处调用 (待实现)
-			})
-		}
+	name, ok := ctx.GetIndexValue(0)
+	if !ok {
+		return nil, nil
 	}
+	cb, _ := ctx.GetIndexValue(1)
+	registerEventListener(toString(name), cb, false)
 	return nil, nil
 }
 
@@ -307,14 +305,12 @@ func (m *reOnceMethod) GetVariables() []data.Variable {
 	}
 }
 func (m *reOnceMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsApp != nil {
-		if v, ok := ctx.GetIndexValue(0); ok {
-			eventName := toString(v)
-			wailsApp.Event.OnMultiple(eventName, func(e *application.CustomEvent) {
-				// PHP 回调在此处调用 (待实现)
-			}, 1)
-		}
+	name, ok := ctx.GetIndexValue(0)
+	if !ok {
+		return nil, nil
 	}
+	cb, _ := ctx.GetIndexValue(1)
+	registerEventListener(toString(name), cb, true)
 	return nil, nil
 }
 
@@ -325,16 +321,24 @@ func (m *reEmitMethod) GetModifier() data.Modifier { return data.ModifierPublic 
 func (m *reEmitMethod) GetIsStatic() bool          { return true }
 func (m *reEmitMethod) GetReturnType() data.Types  { return nil }
 func (m *reEmitMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "eventName", 0, data.NewStringValue(""), data.NewBaseType("string"))}
+	return []data.GetValue{
+		node.NewParameter(nil, "eventName", 0, data.NewStringValue(""), data.NewBaseType("string")),
+		node.NewParameter(nil, "data", 1, data.NewNullValue(), nil),
+	}
 }
 func (m *reEmitMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "eventName", 0, data.NewBaseType("string"))}
+	return []data.Variable{
+		node.NewVariable(nil, "eventName", 0, data.NewBaseType("string")),
+		node.NewVariable(nil, "data", 1, nil),
+	}
 }
 func (m *reEmitMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsApp != nil {
-		if v, ok := ctx.GetIndexValue(0); ok {
-			wailsApp.Event.Emit(toString(v))
+	if v, ok := ctx.GetIndexValue(0); ok {
+		var payload data.Value
+		if d, ok := ctx.GetIndexValue(1); ok {
+			payload = d
 		}
+		emitWailsEvent(toString(v), payload)
 	}
 	return nil, nil
 }
