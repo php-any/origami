@@ -3,11 +3,13 @@ package wails
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // ============================================================================
 // Wails\Runtime\Dialog — 对话框操作 (静态方法)
+//
+// 使用 Wails v3 的 app.Dialog.* API
 // ============================================================================
 
 type RuntimeDialogClass struct{}
@@ -34,23 +36,29 @@ var rdMethods = map[string]data.Method{
 }
 
 func (c *RuntimeDialogClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := rdMethods[name]; return m, ok
+	m, ok := rdMethods[name]
+	return m, ok
 }
 func (c *RuntimeDialogClass) GetStaticMethod(name string) (data.Method, bool) {
-	m, ok := rdMethods[name]; return m, ok
+	m, ok := rdMethods[name]
+	return m, ok
 }
 func (c *RuntimeDialogClass) GetMethods() []data.Method {
 	methods := make([]data.Method, 0, len(rdMethods))
-	for _, m := range rdMethods { methods = append(methods, m) }
+	for _, m := range rdMethods {
+		methods = append(methods, m)
+	}
 	return methods
 }
 
+// ====== openFile ======
+
 type rdOpenFileMethod struct{}
 
-func (m *rdOpenFileMethod) GetName() string { return "openFile" }
+func (m *rdOpenFileMethod) GetName() string            { return "openFile" }
 func (m *rdOpenFileMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *rdOpenFileMethod) GetIsStatic() bool { return true }
-func (m *rdOpenFileMethod) GetReturnType() data.Types { return data.NewBaseType("string") }
+func (m *rdOpenFileMethod) GetIsStatic() bool          { return true }
+func (m *rdOpenFileMethod) GetReturnType() data.Types  { return data.NewBaseType("string") }
 func (m *rdOpenFileMethod) GetParams() []data.GetValue {
 	return []data.GetValue{node.NewParameter(nil, "options", 0, data.NewArrayValue(nil), data.NewBaseType("Wails\\Dialog\\OpenDialogOptions"))}
 }
@@ -58,20 +66,32 @@ func (m *rdOpenFileMethod) GetVariables() []data.Variable {
 	return []data.Variable{node.NewVariable(nil, "options", 0, data.NewBaseType("Wails\\Dialog\\OpenDialogOptions"))}
 }
 func (m *rdOpenFileMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx == nil { return data.NewStringValue(""), nil }
-	var opts runtime.OpenDialogOptions
-	if v, ok := ctx.GetIndexValue(0); ok { opts = buildOpenDialogOptions(v) }
-	result, err := runtime.OpenFileDialog(wailsCtx, opts)
-	if err != nil { return data.NewStringValue(""), nil }
+	if wailsApp == nil {
+		return data.NewStringValue(""), nil
+	}
+	var opts data.Value
+	if v, ok := ctx.GetIndexValue(0); ok {
+		opts = v
+	}
+	d := buildOpenFileDialogBuilder(opts)
+	if d == nil {
+		return data.NewStringValue(""), nil
+	}
+	result, err := d.PromptForSingleSelection()
+	if err != nil {
+		return data.NewStringValue(""), nil
+	}
 	return data.NewStringValue(result), nil
 }
 
+// ====== openMultipleFiles ======
+
 type rdOpenMultipleFilesMethod struct{}
 
-func (m *rdOpenMultipleFilesMethod) GetName() string { return "openMultipleFiles" }
+func (m *rdOpenMultipleFilesMethod) GetName() string            { return "openMultipleFiles" }
 func (m *rdOpenMultipleFilesMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *rdOpenMultipleFilesMethod) GetIsStatic() bool { return true }
-func (m *rdOpenMultipleFilesMethod) GetReturnType() data.Types { return data.NewBaseType("array") }
+func (m *rdOpenMultipleFilesMethod) GetIsStatic() bool          { return true }
+func (m *rdOpenMultipleFilesMethod) GetReturnType() data.Types  { return data.NewBaseType("array") }
 func (m *rdOpenMultipleFilesMethod) GetParams() []data.GetValue {
 	return []data.GetValue{node.NewParameter(nil, "options", 0, data.NewArrayValue(nil), data.NewBaseType("Wails\\Dialog\\OpenDialogOptions"))}
 }
@@ -79,22 +99,36 @@ func (m *rdOpenMultipleFilesMethod) GetVariables() []data.Variable {
 	return []data.Variable{node.NewVariable(nil, "options", 0, data.NewBaseType("Wails\\Dialog\\OpenDialogOptions"))}
 }
 func (m *rdOpenMultipleFilesMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx == nil { return data.NewArrayValue(nil), nil }
-	var opts runtime.OpenDialogOptions
-	if v, ok := ctx.GetIndexValue(0); ok { opts = buildOpenDialogOptions(v) }
-	results, err := runtime.OpenMultipleFilesDialog(wailsCtx, opts)
-	if err != nil { return data.NewArrayValue(nil), nil }
+	if wailsApp == nil {
+		return data.NewArrayValue(nil), nil
+	}
+	var opts data.Value
+	if v, ok := ctx.GetIndexValue(0); ok {
+		opts = v
+	}
+	d := buildOpenFileDialogBuilder(opts)
+	if d == nil {
+		return data.NewArrayValue(nil), nil
+	}
+	results, err := d.PromptForMultipleSelection()
+	if err != nil {
+		return data.NewArrayValue(nil), nil
+	}
 	vals := make([]data.Value, len(results))
-	for i, r := range results { vals[i] = data.NewStringValue(r) }
+	for i, r := range results {
+		vals[i] = data.NewStringValue(r)
+	}
 	return data.NewArrayValue(vals), nil
 }
 
+// ====== openDirectory ======
+
 type rdOpenDirectoryMethod struct{}
 
-func (m *rdOpenDirectoryMethod) GetName() string { return "openDirectory" }
+func (m *rdOpenDirectoryMethod) GetName() string            { return "openDirectory" }
 func (m *rdOpenDirectoryMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *rdOpenDirectoryMethod) GetIsStatic() bool { return true }
-func (m *rdOpenDirectoryMethod) GetReturnType() data.Types { return data.NewBaseType("string") }
+func (m *rdOpenDirectoryMethod) GetIsStatic() bool          { return true }
+func (m *rdOpenDirectoryMethod) GetReturnType() data.Types  { return data.NewBaseType("string") }
 func (m *rdOpenDirectoryMethod) GetParams() []data.GetValue {
 	return []data.GetValue{node.NewParameter(nil, "options", 0, data.NewArrayValue(nil), data.NewBaseType("Wails\\Dialog\\OpenDialogOptions"))}
 }
@@ -102,20 +136,32 @@ func (m *rdOpenDirectoryMethod) GetVariables() []data.Variable {
 	return []data.Variable{node.NewVariable(nil, "options", 0, data.NewBaseType("Wails\\Dialog\\OpenDialogOptions"))}
 }
 func (m *rdOpenDirectoryMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx == nil { return data.NewStringValue(""), nil }
-	var opts runtime.OpenDialogOptions
-	if v, ok := ctx.GetIndexValue(0); ok { opts = buildOpenDialogOptions(v) }
-	result, err := runtime.OpenDirectoryDialog(wailsCtx, opts)
-	if err != nil { return data.NewStringValue(""), nil }
+	if wailsApp == nil {
+		return data.NewStringValue(""), nil
+	}
+	var opts data.Value
+	if v, ok := ctx.GetIndexValue(0); ok {
+		opts = v
+	}
+	d := buildOpenDirectoryDialogBuilder(opts)
+	if d == nil {
+		return data.NewStringValue(""), nil
+	}
+	result, err := d.PromptForSingleSelection()
+	if err != nil {
+		return data.NewStringValue(""), nil
+	}
 	return data.NewStringValue(result), nil
 }
 
+// ====== saveFile ======
+
 type rdSaveFileMethod struct{}
 
-func (m *rdSaveFileMethod) GetName() string { return "saveFile" }
+func (m *rdSaveFileMethod) GetName() string            { return "saveFile" }
 func (m *rdSaveFileMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *rdSaveFileMethod) GetIsStatic() bool { return true }
-func (m *rdSaveFileMethod) GetReturnType() data.Types { return data.NewBaseType("string") }
+func (m *rdSaveFileMethod) GetIsStatic() bool          { return true }
+func (m *rdSaveFileMethod) GetReturnType() data.Types  { return data.NewBaseType("string") }
 func (m *rdSaveFileMethod) GetParams() []data.GetValue {
 	return []data.GetValue{node.NewParameter(nil, "options", 0, data.NewArrayValue(nil), data.NewBaseType("Wails\\Dialog\\SaveDialogOptions"))}
 }
@@ -123,20 +169,32 @@ func (m *rdSaveFileMethod) GetVariables() []data.Variable {
 	return []data.Variable{node.NewVariable(nil, "options", 0, data.NewBaseType("Wails\\Dialog\\SaveDialogOptions"))}
 }
 func (m *rdSaveFileMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx == nil { return data.NewStringValue(""), nil }
-	var opts runtime.SaveDialogOptions
-	if v, ok := ctx.GetIndexValue(0); ok { opts = buildSaveDialogOptions(v) }
-	result, err := runtime.SaveFileDialog(wailsCtx, opts)
-	if err != nil { return data.NewStringValue(""), nil }
+	if wailsApp == nil {
+		return data.NewStringValue(""), nil
+	}
+	var opts data.Value
+	if v, ok := ctx.GetIndexValue(0); ok {
+		opts = v
+	}
+	d := buildSaveFileDialogBuilder(opts)
+	if d == nil {
+		return data.NewStringValue(""), nil
+	}
+	result, err := d.PromptForSingleSelection()
+	if err != nil {
+		return data.NewStringValue(""), nil
+	}
 	return data.NewStringValue(result), nil
 }
 
+// ====== message ======
+
 type rdMessageMethod struct{}
 
-func (m *rdMessageMethod) GetName() string { return "message" }
+func (m *rdMessageMethod) GetName() string            { return "message" }
 func (m *rdMessageMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *rdMessageMethod) GetIsStatic() bool { return true }
-func (m *rdMessageMethod) GetReturnType() data.Types { return data.NewBaseType("string") }
+func (m *rdMessageMethod) GetIsStatic() bool          { return true }
+func (m *rdMessageMethod) GetReturnType() data.Types  { return data.NewBaseType("string") }
 func (m *rdMessageMethod) GetParams() []data.GetValue {
 	return []data.GetValue{node.NewParameter(nil, "options", 0, data.NewArrayValue(nil), data.NewBaseType("Wails\\Dialog\\MessageDialogOptions"))}
 }
@@ -144,16 +202,26 @@ func (m *rdMessageMethod) GetVariables() []data.Variable {
 	return []data.Variable{node.NewVariable(nil, "options", 0, data.NewBaseType("Wails\\Dialog\\MessageDialogOptions"))}
 }
 func (m *rdMessageMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx == nil { return data.NewStringValue(""), nil }
-	var opts runtime.MessageDialogOptions
-	if v, ok := ctx.GetIndexValue(0); ok { opts = buildMessageDialogOptions(v) }
-	result, err := runtime.MessageDialog(wailsCtx, opts)
-	if err != nil { return data.NewStringValue(""), nil }
-	return data.NewStringValue(result), nil
+	if wailsApp == nil {
+		return data.NewStringValue(""), nil
+	}
+	var opts data.Value
+	if v, ok := ctx.GetIndexValue(0); ok {
+		opts = v
+	}
+	d := buildMessageDialog(opts)
+	if d == nil {
+		return data.NewStringValue(""), nil
+	}
+	d.Show()
+	// MessageDialog.Show() returns void; default button label can't be captured in current API
+	return data.NewStringValue(""), nil
 }
 
 // ============================================================================
 // Wails\Runtime\Events — 事件系统 (静态方法)
+//
+// Wails v3: app.Event.On / app.Event.Emit / app.Event.Off
 // ============================================================================
 
 type RuntimeEventsClass struct{}
@@ -179,10 +247,12 @@ var reMethods = map[string]data.Method{
 }
 
 func (c *RuntimeEventsClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := reMethods[name]; return m, ok
+	m, ok := reMethods[name]
+	return m, ok
 }
 func (c *RuntimeEventsClass) GetStaticMethod(name string) (data.Method, bool) {
-	m, ok := reMethods[name]; return m, ok
+	m, ok := reMethods[name]
+	return m, ok
 }
 func (c *RuntimeEventsClass) GetMethods() []data.Method {
 	return []data.Method{&reOnMethod{}, &reOnceMethod{}, &reEmitMethod{}, &reOffMethod{}}
@@ -190,10 +260,10 @@ func (c *RuntimeEventsClass) GetMethods() []data.Method {
 
 type reOnMethod struct{}
 
-func (m *reOnMethod) GetName() string { return "on" }
+func (m *reOnMethod) GetName() string            { return "on" }
 func (m *reOnMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *reOnMethod) GetIsStatic() bool { return true }
-func (m *reOnMethod) GetReturnType() data.Types { return nil }
+func (m *reOnMethod) GetIsStatic() bool          { return true }
+func (m *reOnMethod) GetReturnType() data.Types  { return nil }
 func (m *reOnMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "eventName", 0, data.NewStringValue(""), data.NewBaseType("string")),
@@ -207,9 +277,12 @@ func (m *reOnMethod) GetVariables() []data.Variable {
 	}
 }
 func (m *reOnMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx != nil {
+	if wailsApp != nil {
 		if v, ok := ctx.GetIndexValue(0); ok {
-			runtime.EventsOn(wailsCtx, toString(v), func(data ...interface{}) {})
+			eventName := toString(v)
+			wailsApp.Event.On(eventName, func(e *application.CustomEvent) {
+				// PHP 回调在此处调用 (待实现)
+			})
 		}
 	}
 	return nil, nil
@@ -217,10 +290,10 @@ func (m *reOnMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 type reOnceMethod struct{}
 
-func (m *reOnceMethod) GetName() string { return "once" }
+func (m *reOnceMethod) GetName() string            { return "once" }
 func (m *reOnceMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *reOnceMethod) GetIsStatic() bool { return true }
-func (m *reOnceMethod) GetReturnType() data.Types { return nil }
+func (m *reOnceMethod) GetIsStatic() bool          { return true }
+func (m *reOnceMethod) GetReturnType() data.Types  { return nil }
 func (m *reOnceMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "eventName", 0, data.NewStringValue(""), data.NewBaseType("string")),
@@ -234,9 +307,12 @@ func (m *reOnceMethod) GetVariables() []data.Variable {
 	}
 }
 func (m *reOnceMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx != nil {
+	if wailsApp != nil {
 		if v, ok := ctx.GetIndexValue(0); ok {
-			runtime.EventsOnce(wailsCtx, toString(v), func(data ...interface{}) {})
+			eventName := toString(v)
+			wailsApp.Event.OnMultiple(eventName, func(e *application.CustomEvent) {
+				// PHP 回调在此处调用 (待实现)
+			}, 1)
 		}
 	}
 	return nil, nil
@@ -244,10 +320,10 @@ func (m *reOnceMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 type reEmitMethod struct{}
 
-func (m *reEmitMethod) GetName() string { return "emit" }
+func (m *reEmitMethod) GetName() string            { return "emit" }
 func (m *reEmitMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *reEmitMethod) GetIsStatic() bool { return true }
-func (m *reEmitMethod) GetReturnType() data.Types { return nil }
+func (m *reEmitMethod) GetIsStatic() bool          { return true }
+func (m *reEmitMethod) GetReturnType() data.Types  { return nil }
 func (m *reEmitMethod) GetParams() []data.GetValue {
 	return []data.GetValue{node.NewParameter(nil, "eventName", 0, data.NewStringValue(""), data.NewBaseType("string"))}
 }
@@ -255,9 +331,9 @@ func (m *reEmitMethod) GetVariables() []data.Variable {
 	return []data.Variable{node.NewVariable(nil, "eventName", 0, data.NewBaseType("string"))}
 }
 func (m *reEmitMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx != nil {
+	if wailsApp != nil {
 		if v, ok := ctx.GetIndexValue(0); ok {
-			runtime.EventsEmit(wailsCtx, toString(v))
+			wailsApp.Event.Emit(toString(v))
 		}
 	}
 	return nil, nil
@@ -265,10 +341,10 @@ func (m *reEmitMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 type reOffMethod struct{}
 
-func (m *reOffMethod) GetName() string { return "off" }
+func (m *reOffMethod) GetName() string            { return "off" }
 func (m *reOffMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *reOffMethod) GetIsStatic() bool { return true }
-func (m *reOffMethod) GetReturnType() data.Types { return nil }
+func (m *reOffMethod) GetIsStatic() bool          { return true }
+func (m *reOffMethod) GetReturnType() data.Types  { return nil }
 func (m *reOffMethod) GetParams() []data.GetValue {
 	return []data.GetValue{node.NewParameter(nil, "eventName", 0, data.NewStringValue(""), data.NewBaseType("string"))}
 }
@@ -276,9 +352,9 @@ func (m *reOffMethod) GetVariables() []data.Variable {
 	return []data.Variable{node.NewVariable(nil, "eventName", 0, data.NewBaseType("string"))}
 }
 func (m *reOffMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx != nil {
+	if wailsApp != nil {
 		if v, ok := ctx.GetIndexValue(0); ok {
-			runtime.EventsOff(wailsCtx, toString(v))
+			wailsApp.Event.Off(toString(v))
 		}
 	}
 	return nil, nil
@@ -286,6 +362,8 @@ func (m *reOffMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 // ============================================================================
 // Wails\Runtime\Log — 日志操作 (静态方法)
+//
+// Wails v3: app.Logger (*slog.Logger) — Info, Debug, Warn, Error
 // ============================================================================
 
 type RuntimeLogClass struct{}
@@ -314,23 +392,27 @@ var rlMethods = map[string]data.Method{
 }
 
 func (c *RuntimeLogClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := rlMethods[name]; return m, ok
+	m, ok := rlMethods[name]
+	return m, ok
 }
 func (c *RuntimeLogClass) GetStaticMethod(name string) (data.Method, bool) {
-	m, ok := rlMethods[name]; return m, ok
+	m, ok := rlMethods[name]
+	return m, ok
 }
 func (c *RuntimeLogClass) GetMethods() []data.Method {
 	methods := make([]data.Method, 0, len(rlMethods))
-	for _, m := range rlMethods { methods = append(methods, m) }
+	for _, m := range rlMethods {
+		methods = append(methods, m)
+	}
 	return methods
 }
 
 type rlPrintMethod struct{}
 
-func (m *rlPrintMethod) GetName() string { return "print" }
+func (m *rlPrintMethod) GetName() string            { return "print" }
 func (m *rlPrintMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *rlPrintMethod) GetIsStatic() bool { return true }
-func (m *rlPrintMethod) GetReturnType() data.Types { return nil }
+func (m *rlPrintMethod) GetIsStatic() bool          { return true }
+func (m *rlPrintMethod) GetReturnType() data.Types  { return nil }
 func (m *rlPrintMethod) GetParams() []data.GetValue {
 	return []data.GetValue{node.NewParameter(nil, "message", 0, data.NewStringValue(""), data.NewBaseType("string"))}
 }
@@ -338,18 +420,20 @@ func (m *rlPrintMethod) GetVariables() []data.Variable {
 	return []data.Variable{node.NewVariable(nil, "message", 0, data.NewBaseType("string"))}
 }
 func (m *rlPrintMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx != nil {
-		if v, ok := ctx.GetIndexValue(0); ok { runtime.LogPrint(wailsCtx, toString(v)) }
+	if wailsApp != nil {
+		if v, ok := ctx.GetIndexValue(0); ok {
+			wailsApp.Logger.Info(toString(v))
+		}
 	}
 	return nil, nil
 }
 
 type rlTraceMethod struct{}
 
-func (m *rlTraceMethod) GetName() string { return "trace" }
+func (m *rlTraceMethod) GetName() string            { return "trace" }
 func (m *rlTraceMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *rlTraceMethod) GetIsStatic() bool { return true }
-func (m *rlTraceMethod) GetReturnType() data.Types { return nil }
+func (m *rlTraceMethod) GetIsStatic() bool          { return true }
+func (m *rlTraceMethod) GetReturnType() data.Types  { return nil }
 func (m *rlTraceMethod) GetParams() []data.GetValue {
 	return []data.GetValue{node.NewParameter(nil, "message", 0, data.NewStringValue(""), data.NewBaseType("string"))}
 }
@@ -357,18 +441,20 @@ func (m *rlTraceMethod) GetVariables() []data.Variable {
 	return []data.Variable{node.NewVariable(nil, "message", 0, data.NewBaseType("string"))}
 }
 func (m *rlTraceMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx != nil {
-		if v, ok := ctx.GetIndexValue(0); ok { runtime.LogTrace(wailsCtx, toString(v)) }
+	if wailsApp != nil {
+		if v, ok := ctx.GetIndexValue(0); ok {
+			wailsApp.Logger.Debug(toString(v))
+		}
 	}
 	return nil, nil
 }
 
 type rlDebugMethod struct{}
 
-func (m *rlDebugMethod) GetName() string { return "debug" }
+func (m *rlDebugMethod) GetName() string            { return "debug" }
 func (m *rlDebugMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *rlDebugMethod) GetIsStatic() bool { return true }
-func (m *rlDebugMethod) GetReturnType() data.Types { return nil }
+func (m *rlDebugMethod) GetIsStatic() bool          { return true }
+func (m *rlDebugMethod) GetReturnType() data.Types  { return nil }
 func (m *rlDebugMethod) GetParams() []data.GetValue {
 	return []data.GetValue{node.NewParameter(nil, "message", 0, data.NewStringValue(""), data.NewBaseType("string"))}
 }
@@ -376,18 +462,20 @@ func (m *rlDebugMethod) GetVariables() []data.Variable {
 	return []data.Variable{node.NewVariable(nil, "message", 0, data.NewBaseType("string"))}
 }
 func (m *rlDebugMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx != nil {
-		if v, ok := ctx.GetIndexValue(0); ok { runtime.LogDebug(wailsCtx, toString(v)) }
+	if wailsApp != nil {
+		if v, ok := ctx.GetIndexValue(0); ok {
+			wailsApp.Logger.Debug(toString(v))
+		}
 	}
 	return nil, nil
 }
 
 type rlInfoMethod struct{}
 
-func (m *rlInfoMethod) GetName() string { return "info" }
+func (m *rlInfoMethod) GetName() string            { return "info" }
 func (m *rlInfoMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *rlInfoMethod) GetIsStatic() bool { return true }
-func (m *rlInfoMethod) GetReturnType() data.Types { return nil }
+func (m *rlInfoMethod) GetIsStatic() bool          { return true }
+func (m *rlInfoMethod) GetReturnType() data.Types  { return nil }
 func (m *rlInfoMethod) GetParams() []data.GetValue {
 	return []data.GetValue{node.NewParameter(nil, "message", 0, data.NewStringValue(""), data.NewBaseType("string"))}
 }
@@ -395,18 +483,20 @@ func (m *rlInfoMethod) GetVariables() []data.Variable {
 	return []data.Variable{node.NewVariable(nil, "message", 0, data.NewBaseType("string"))}
 }
 func (m *rlInfoMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx != nil {
-		if v, ok := ctx.GetIndexValue(0); ok { runtime.LogInfo(wailsCtx, toString(v)) }
+	if wailsApp != nil {
+		if v, ok := ctx.GetIndexValue(0); ok {
+			wailsApp.Logger.Info(toString(v))
+		}
 	}
 	return nil, nil
 }
 
 type rlWarningMethod struct{}
 
-func (m *rlWarningMethod) GetName() string { return "warning" }
+func (m *rlWarningMethod) GetName() string            { return "warning" }
 func (m *rlWarningMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *rlWarningMethod) GetIsStatic() bool { return true }
-func (m *rlWarningMethod) GetReturnType() data.Types { return nil }
+func (m *rlWarningMethod) GetIsStatic() bool          { return true }
+func (m *rlWarningMethod) GetReturnType() data.Types  { return nil }
 func (m *rlWarningMethod) GetParams() []data.GetValue {
 	return []data.GetValue{node.NewParameter(nil, "message", 0, data.NewStringValue(""), data.NewBaseType("string"))}
 }
@@ -414,18 +504,20 @@ func (m *rlWarningMethod) GetVariables() []data.Variable {
 	return []data.Variable{node.NewVariable(nil, "message", 0, data.NewBaseType("string"))}
 }
 func (m *rlWarningMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx != nil {
-		if v, ok := ctx.GetIndexValue(0); ok { runtime.LogWarning(wailsCtx, toString(v)) }
+	if wailsApp != nil {
+		if v, ok := ctx.GetIndexValue(0); ok {
+			wailsApp.Logger.Warn(toString(v))
+		}
 	}
 	return nil, nil
 }
 
 type rlErrorMethod struct{}
 
-func (m *rlErrorMethod) GetName() string { return "error" }
+func (m *rlErrorMethod) GetName() string            { return "error" }
 func (m *rlErrorMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *rlErrorMethod) GetIsStatic() bool { return true }
-func (m *rlErrorMethod) GetReturnType() data.Types { return nil }
+func (m *rlErrorMethod) GetIsStatic() bool          { return true }
+func (m *rlErrorMethod) GetReturnType() data.Types  { return nil }
 func (m *rlErrorMethod) GetParams() []data.GetValue {
 	return []data.GetValue{node.NewParameter(nil, "message", 0, data.NewStringValue(""), data.NewBaseType("string"))}
 }
@@ -433,18 +525,20 @@ func (m *rlErrorMethod) GetVariables() []data.Variable {
 	return []data.Variable{node.NewVariable(nil, "message", 0, data.NewBaseType("string"))}
 }
 func (m *rlErrorMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx != nil {
-		if v, ok := ctx.GetIndexValue(0); ok { runtime.LogError(wailsCtx, toString(v)) }
+	if wailsApp != nil {
+		if v, ok := ctx.GetIndexValue(0); ok {
+			wailsApp.Logger.Error(toString(v))
+		}
 	}
 	return nil, nil
 }
 
 type rlFatalMethod struct{}
 
-func (m *rlFatalMethod) GetName() string { return "fatal" }
+func (m *rlFatalMethod) GetName() string            { return "fatal" }
 func (m *rlFatalMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *rlFatalMethod) GetIsStatic() bool { return true }
-func (m *rlFatalMethod) GetReturnType() data.Types { return nil }
+func (m *rlFatalMethod) GetIsStatic() bool          { return true }
+func (m *rlFatalMethod) GetReturnType() data.Types  { return nil }
 func (m *rlFatalMethod) GetParams() []data.GetValue {
 	return []data.GetValue{node.NewParameter(nil, "message", 0, data.NewStringValue(""), data.NewBaseType("string"))}
 }
@@ -452,14 +546,20 @@ func (m *rlFatalMethod) GetVariables() []data.Variable {
 	return []data.Variable{node.NewVariable(nil, "message", 0, data.NewBaseType("string"))}
 }
 func (m *rlFatalMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx != nil {
-		if v, ok := ctx.GetIndexValue(0); ok { runtime.LogFatal(wailsCtx, toString(v)) }
+	if wailsApp != nil {
+		if v, ok := ctx.GetIndexValue(0); ok {
+			msg := toString(v)
+			wailsApp.Logger.Error(msg)
+			application.Fatal("%s", msg)
+		}
 	}
 	return nil, nil
 }
 
 // ============================================================================
 // Wails\Runtime\Browser — 浏览器操作 (静态方法)
+//
+// Wails v3: app.Browser.OpenURL()
 // ============================================================================
 
 type RuntimeBrowserClass struct{}
@@ -478,23 +578,25 @@ func (c *RuntimeBrowserClass) GetPropertyList() []data.Property              { r
 func (c *RuntimeBrowserClass) GetConstruct() data.Method                     { return nil }
 
 func (c *RuntimeBrowserClass) GetMethod(name string) (data.Method, bool) {
-	if name == "openURL" { return &rbOpenURLMethod{}, true }
+	if name == "openURL" {
+		return &rbOpenURLMethod{}, true
+	}
 	return nil, false
 }
 func (c *RuntimeBrowserClass) GetStaticMethod(name string) (data.Method, bool) {
-	if name == "openURL" { return &rbOpenURLMethod{}, true }
+	if name == "openURL" {
+		return &rbOpenURLMethod{}, true
+	}
 	return nil, false
 }
-func (c *RuntimeBrowserClass) GetMethods() []data.Method {
-	return []data.Method{&rbOpenURLMethod{}}
-}
+func (c *RuntimeBrowserClass) GetMethods() []data.Method { return []data.Method{&rbOpenURLMethod{}} }
 
 type rbOpenURLMethod struct{}
 
-func (m *rbOpenURLMethod) GetName() string { return "openURL" }
+func (m *rbOpenURLMethod) GetName() string            { return "openURL" }
 func (m *rbOpenURLMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *rbOpenURLMethod) GetIsStatic() bool { return true }
-func (m *rbOpenURLMethod) GetReturnType() data.Types { return nil }
+func (m *rbOpenURLMethod) GetIsStatic() bool          { return true }
+func (m *rbOpenURLMethod) GetReturnType() data.Types  { return nil }
 func (m *rbOpenURLMethod) GetParams() []data.GetValue {
 	return []data.GetValue{node.NewParameter(nil, "url", 0, data.NewStringValue(""), data.NewBaseType("string"))}
 }
@@ -502,14 +604,18 @@ func (m *rbOpenURLMethod) GetVariables() []data.Variable {
 	return []data.Variable{node.NewVariable(nil, "url", 0, data.NewBaseType("string"))}
 }
 func (m *rbOpenURLMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx != nil {
-		if v, ok := ctx.GetIndexValue(0); ok { runtime.BrowserOpenURL(wailsCtx, toString(v)) }
+	if wailsApp != nil {
+		if v, ok := ctx.GetIndexValue(0); ok {
+			wailsApp.Browser.OpenURL(toString(v))
+		}
 	}
 	return nil, nil
 }
 
 // ============================================================================
 // Wails\Runtime\Screen — 屏幕信息 (静态方法)
+//
+// Wails v3: app.Screen.GetAll() []*Screen
 // ============================================================================
 
 type RuntimeScreenClass struct{}
@@ -528,36 +634,39 @@ func (c *RuntimeScreenClass) GetPropertyList() []data.Property              { re
 func (c *RuntimeScreenClass) GetConstruct() data.Method                     { return nil }
 
 func (c *RuntimeScreenClass) GetMethod(name string) (data.Method, bool) {
-	if name == "getAll" { return &rsGetAllMethod{}, true }
+	if name == "getAll" {
+		return &rsGetAllMethod{}, true
+	}
 	return nil, false
 }
 func (c *RuntimeScreenClass) GetStaticMethod(name string) (data.Method, bool) {
-	if name == "getAll" { return &rsGetAllMethod{}, true }
+	if name == "getAll" {
+		return &rsGetAllMethod{}, true
+	}
 	return nil, false
 }
-func (c *RuntimeScreenClass) GetMethods() []data.Method {
-	return []data.Method{&rsGetAllMethod{}}
-}
+func (c *RuntimeScreenClass) GetMethods() []data.Method { return []data.Method{&rsGetAllMethod{}} }
 
 type rsGetAllMethod struct{}
 
-func (m *rsGetAllMethod) GetName() string { return "getAll" }
-func (m *rsGetAllMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *rsGetAllMethod) GetIsStatic() bool { return true }
-func (m *rsGetAllMethod) GetReturnType() data.Types { return data.NewBaseType("array") }
-func (m *rsGetAllMethod) GetParams() []data.GetValue { return nil }
+func (m *rsGetAllMethod) GetName() string               { return "getAll" }
+func (m *rsGetAllMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *rsGetAllMethod) GetIsStatic() bool             { return true }
+func (m *rsGetAllMethod) GetReturnType() data.Types     { return data.NewBaseType("array") }
+func (m *rsGetAllMethod) GetParams() []data.GetValue    { return nil }
 func (m *rsGetAllMethod) GetVariables() []data.Variable { return nil }
 func (m *rsGetAllMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx == nil { return data.NewArrayValue(nil), nil }
-	screens, err := runtime.ScreenGetAll(wailsCtx)
-	if err != nil { return data.NewArrayValue(nil), nil }
+	if wailsApp == nil {
+		return data.NewArrayValue(nil), nil
+	}
+	screens := wailsApp.Screen.GetAll()
 	vals := make([]data.Value, 0, len(screens))
 	for _, s := range screens {
 		vals = append(vals, data.NewArrayValue([]data.Value{
-			data.NewBoolValue(s.IsCurrent),
-			data.NewBoolValue(s.IsPrimary),
-			data.NewIntValue(s.Width),
-			data.NewIntValue(s.Height),
+			data.NewBoolValue(false),        // isCurrent (no equivalent in v3 Screen)
+			data.NewBoolValue(s.IsPrimary),  // isPrimary
+			data.NewIntValue(s.Size.Width),  // width
+			data.NewIntValue(s.Size.Height), // height
 		}))
 	}
 	return data.NewArrayValue(vals), nil
@@ -565,6 +674,8 @@ func (m *rsGetAllMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 // ============================================================================
 // Wails\Runtime\Environment — 环境信息 (静态方法)
+//
+// Wails v3: app.Env.Info() EnvironmentInfo{OS, Arch, ...}
 // ============================================================================
 
 type RuntimeEnvironmentClass struct{}
@@ -583,31 +694,35 @@ func (c *RuntimeEnvironmentClass) GetPropertyList() []data.Property             
 func (c *RuntimeEnvironmentClass) GetConstruct() data.Method                     { return nil }
 
 func (c *RuntimeEnvironmentClass) GetMethod(name string) (data.Method, bool) {
-	if name == "get" { return &reGetMethod{}, true }
+	if name == "get" {
+		return &reGetMethod{}, true
+	}
 	return nil, false
 }
 func (c *RuntimeEnvironmentClass) GetStaticMethod(name string) (data.Method, bool) {
-	if name == "get" { return &reGetMethod{}, true }
+	if name == "get" {
+		return &reGetMethod{}, true
+	}
 	return nil, false
 }
-func (c *RuntimeEnvironmentClass) GetMethods() []data.Method {
-	return []data.Method{&reGetMethod{}}
-}
+func (c *RuntimeEnvironmentClass) GetMethods() []data.Method { return []data.Method{&reGetMethod{}} }
 
 type reGetMethod struct{}
 
-func (m *reGetMethod) GetName() string { return "get" }
-func (m *reGetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *reGetMethod) GetIsStatic() bool { return true }
-func (m *reGetMethod) GetReturnType() data.Types { return data.NewBaseType("array") }
-func (m *reGetMethod) GetParams() []data.GetValue { return nil }
+func (m *reGetMethod) GetName() string               { return "get" }
+func (m *reGetMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *reGetMethod) GetIsStatic() bool             { return true }
+func (m *reGetMethod) GetReturnType() data.Types     { return data.NewBaseType("array") }
+func (m *reGetMethod) GetParams() []data.GetValue    { return nil }
 func (m *reGetMethod) GetVariables() []data.Variable { return nil }
 func (m *reGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx == nil { return data.NewArrayValue(nil), nil }
-	info := runtime.Environment(wailsCtx)
+	if wailsApp == nil {
+		return data.NewArrayValue(nil), nil
+	}
+	info := wailsApp.Env.Info()
 	return data.NewArrayValue([]data.Value{
-		data.NewStringValue(info.BuildType),
-		data.NewStringValue(info.Platform),
-		data.NewStringValue(info.Arch),
+		data.NewStringValue(info.OS),   // BuildType → OS
+		data.NewStringValue(info.OS),   // Platform → OS
+		data.NewStringValue(info.Arch), // Arch
 	}), nil
 }

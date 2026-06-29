@@ -1,21 +1,73 @@
-# Wails 扩展示例
+# Wails v3 扩展示例
 
-本目录包含 Wails 扩展的使用示例。所有示例使用 Origami PHP 语法。
+本目录包含 Wails v3 扩展的完整使用示例。所有示例使用 Origami PHP 语法。
 
 ## 示例列表
 
-| 文件 | 说明 | 难度 |
-|------|------|------|
-| `hello.php` | 最简桌面应用 — 窗口配置、生命周期回调 | ⭐ 入门 |
-| `menu_demo.php` | 菜单栏 + 对话框 + 快捷键 + 右键菜单 | ⭐⭐ 中级 |
-| `events_demo.php` | 前后端事件通信 + 窗口操作 + 屏幕信息 | ⭐⭐ 中级 |
-| `platform_options.php` | 平台专属选项 + 系统托盘 + 拖放 | ⭐⭐⭐ 高级 |
+| 文件 | 说明 | 涵盖内容 |
+|------|------|----------|
+| `hello.php` | ⭐ 入门 — 最小桌面应用 | `App`, `Window`, 生命周期回调 (`onStartup` / `onDomReady` / `onShutdown` / `onBeforeClose`) |
+| `menu_demo.php` | ⭐⭐ 中级 — 菜单 + 对话框 | `Menu`, `MenuItem`, 键盘快捷键, 文件/消息对话框, 关闭确认 |
+| `events_demo.php` | ⭐⭐ 中级 — 事件 + 窗口控制 | `Events` (on/emit/off), 窗口状态控制, 主题切换, 屏幕/环境信息 |
+| `platform_options.php` | ⭐⭐⭐ 高级 — 平台选项 | Windows/Mac/Linux 专属选项, macOS 沉浸式标题栏, 拖放, 单实例锁 |
+
+## Wails v3 API 对照
+
+### 应用创建
+
+| PHP | Go (Wails v3) |
+|-----|---------------|
+| `new App(['Title' => '...', 'Width' => 800, 'Height' => 600])` | `application.Options{Name: "..."}` + `application.WebviewWindowOptions{Title: "...", Width: 800, Height: 600}` |
+| `Application::run($options)` | `app := application.New(opts)` → `app.Window.NewWithOptions(winOpts)` → `app.Run()` |
+| `Application::quit()` | `app.Quit()` |
+
+### 窗口操作
+
+| PHP | Go (Wails v3) |
+|-----|---------------|
+| `Window::setTitle("...")` | `window.SetTitle("...")` |
+| `Window::center()` | `window.Center()` |
+| `Window::setSize(1024, 768)` | `window.SetSize(1024, 768)` |
+| `Window::fullscreen()` / `Window::unfullscreen()` | `window.Fullscreen()` / `window.UnFullscreen()` |
+| `Window::maximise()` / `Window::unmaximise()` | `window.Maximise()` / `window.UnMaximise()` |
+| `Window::isMaximised()` / `Window::isFullscreen()` | `window.IsMaximised()` / `window.IsFullscreen()` |
+| `Window::setDarkTheme()` / `Window::setLightTheme()` | `window.SetDarkTheme()` / `window.SetLightTheme()` |
+| `Window::execJS("...")` | `window.ExecJS("...")` |
+
+### 对话框
+
+| PHP | Go (Wails v3) |
+|-----|---------------|
+| `Dialog::openFile($opts)` | `app.Dialog.OpenFile().SetTitle(...).AddFilter(...).Show()` |
+| `Dialog::openDirectory($opts)` | `app.Dialog.OpenDirectory().SetTitle(...).Show()` |
+| `Dialog::saveFile($opts)` | `app.Dialog.SaveFile().SetTitle(...).SetDefaultFilename(...).Show()` |
+| `Dialog::message($opts)` | `app.Dialog.Info().SetTitle(...).SetMessage(...).Show()` |
+
+### 事件
+
+| PHP | Go (Wails v3) |
+|-----|---------------|
+| `Events::on("name", $callback)` | `app.OnEvent("name", func(e *application.CustomEvent) {})` |
+| `Events::emit("name", $data)` | `app.EmitEvent("name", data)` |
+| `Events::off("name")` | `app.OffEvent("name")` |
+
+### 日志
+
+| PHP | Go (Wails v3) |
+|-----|---------------|
+| `Log::info("msg")` | `app.Logger.Info("msg")` |
+| `Log::warning("msg")` | `app.Logger.Warning("msg")` |
+| `Log::error("msg")` | `app.Logger.Error("msg")` |
 
 ## 运行方式
 
-### 1. 创建 Go 启动文件
+```bash
+# 在含有 Go main 入口的项目中加载扩展:
+cd cmd/wailsapp
+go run main.go
+```
 
-在项目根目录创建 `cmd/wailsapp/main.go`:
+Go 启动代码示例:
 
 ```go
 package main
@@ -31,81 +83,4 @@ func main() {
         vm.LoadAndRun("examples/hello.php")
     })
 }
-```
-
-### 2. 运行
-
-```bash
-cd cmd/wailsapp
-go run main.go
-```
-
-### 3. 开发模式
-
-`wails dev` 需要前端源码目录。确保 `AssetServer.AssetsDir` 指向前端构建产物目录，
-或使用 Go 的 `embed.FS` 嵌入前端资源。
-
-## PHP API 快速参考
-
-### 应用
-
-```php
-$app = new Wails\Options\App(['Title' => 'My App', 'Width' => 800, 'Height' => 600]);
-$app->onDomReady(fn() => Wails\Runtime\Window::center());
-$app->onBeforeClose(fn() => false); // return true to prevent close
-Wails\Application::run($app);
-Wails\Application::quit();
-```
-
-### 窗口
-
-```php
-Wails\Runtime\Window::setTitle("Hello");
-Wails\Runtime\Window::setSize(1024, 768);
-Wails\Runtime\Window::center();
-Wails\Runtime\Window::maximise();
-Wails\Runtime\Window::fullscreen();
-Wails\Runtime\Window::execJS("alert('hi')");
-[$w, $h] = Wails\Runtime\Window::getSize();
-$isFull = Wails\Runtime\Window::isFullscreen();
-```
-
-### 对话框
-
-```php
-$filters = [new Wails\Dialog\FileFilter("Images", "*.jpg;*.png")];
-$path = Wails\Runtime\Dialog::openFile(new Wails\Dialog\OpenDialogOptions([
-    'Title' => '打开图片', 'Filters' => $filters,
-]));
-Wails\Runtime\Dialog::message(new Wails\Dialog\MessageDialogOptions([
-    'Type' => Wails\DialogType::INFO, 'Title' => '提示', 'Message' => '操作完成',
-]));
-```
-
-### 菜单
-
-```php
-$menu = new Wails\Menu\Menu();
-$menu->addText("打开", Wails\Menu\Keys::cmdOrCtrl("o"), fn() => print("Open"));
-$menu->addSeparator();
-$menu->addCheckbox("选项", true, "", fn($d) => print($d->Checked ? "ON" : "OFF"));
-$menu->addSubMenu("子菜单", $subMenu);
-```
-
-### 事件
-
-```php
-Wails\Runtime\Events::on("event:name", fn($data) => print($data[0]));
-Wails\Runtime\Events::emit("event:name", "payload");
-Wails\Runtime\Events::off("event:name");
-```
-
-### 其他
-
-```php
-Wails\Runtime\Log::info("message");
-Wails\Runtime\Log::error("oops");
-Wails\Runtime\Browser::openURL("https://example.com");
-$screens = Wails\Runtime\Screen::getAll();
-$env = Wails\Runtime\Environment::get(); // [BuildType, Platform, Arch]
 ```

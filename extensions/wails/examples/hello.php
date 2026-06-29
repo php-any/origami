@@ -1,12 +1,17 @@
 <?php
 /**
- * Wails Hello World — 最简桌面应用
+ * Wails v3 Hello World — 最简桌面应用
  *
- * 演示: 窗口配置、DomReady 回调、窗口居中
+ * 演示 Wails v3 的基本使用模式:
+ *   - application.Options 配置应用名称
+ *   - WebviewWindowOptions 配置窗口标题和尺寸
+ *   - 生命周期回调 (onStartup / onDomReady / onShutdown / onBeforeClose)
+ *   - 窗口操作 (center / setTitle)
  *
- * 运行方式:
- *   在 Go main 中加载 wails 扩展，然后执行此脚本。
- *   详见 README.md 中的 Go 启动代码。
+ * 对应 Go API:
+ *   app := application.New(application.Options{Name: "..."})
+ *   app.Window.NewWithOptions(application.WebviewWindowOptions{...})
+ *   app.Run()
  */
 
 use Wails\Application;
@@ -14,34 +19,38 @@ use Wails\Options\App;
 use Wails\Runtime\Window;
 use Wails\Runtime\Log;
 
-// ── 1. 配置应用选项 ──
+// ── 1. 创建应用选项 ──
+// App 同时承载 application.Options 和 WebviewWindowOptions 的属性
 $options = new App([
-    'Title'  => '🎉 Hello Wails from Origami!',
+    'Title'  => '🎉 Hello Wails v3 from Origami!',
     'Width'  => 800,
     'Height' => 600,
-    'DisableResize' => false,
-    'Frameless'      => false,
-    // 背景色 (可选)
-    // 'BackgroundColour' => new \Wails\Options\RGBA(240, 248, 255, 255),
 ]);
 
-// ── 2. Dom 就绪时居中窗口 ──
+// ── 2. 生命周期回调 ──
+
+// 应用启动时
+$options->onStartup(function () {
+    Log::info("Application started!");
+});
+
+// DOM 就绪时：居中窗口 + 更新标题
 $options->onDomReady(function () {
-    Log::info("应用已启动 — DOM 就绪");
+    Log::info("DOM is ready!");
     Window::center();
-    Window::setTitle("✅ 欢迎使用 Origami + Wails");
+    Window::setTitle("✅ 欢迎使用 Origami + Wails v3");
 });
 
-// ── 3. 关闭前确认 ──
+// 关闭前确认 (返回 true 可阻止关闭)
 $options->onBeforeClose(function () {
-    Log::warning("应用即将关闭...");
-    return false; // 返回 true 可阻止关闭
+    Log::warning("Application about to close...");
+    return false;
 });
 
-// ── 4. 退出时清理 ──
+// 退出时清理
 $options->onShutdown(function () {
-    Log::info("应用已退出");
+    Log::info("Application shutdown complete");
 });
 
-// ── 5. 启动 ──
+// ── 3. 启动应用 (阻塞) ──
 Application::run($options);

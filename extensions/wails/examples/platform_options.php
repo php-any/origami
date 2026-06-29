@@ -1,11 +1,21 @@
 <?php
 /**
- * Wails 平台专属选项 + 系统托盘 示例
+ * Wails v3 平台专属选项 + 拖放 示例
  *
- * 演示: Windows/macOS/Linux 平台选项、系统托盘、系统默认主题
+ * 演示 Wails v3 的:
+ *   - 平台专属窗口选项 (Windows / Mac / Linux)
+ *   - macOS 沉浸式标题栏 (TitleBar: 透明 + 全尺寸内容)
+ *   - 背景色和材质 (BackgroundColour / BackdropType)
+ *   - 拖放支持 (DragAndDrop)
+ *   - 窗口启动状态 (WindowStartState)
+ *   - 单实例锁 (SingleInstanceLock)
  *
- * 运行方式:
- *   在 Go main 中加载 wails 扩展，然后执行此脚本。
+ * 对应 Go API:
+ *   WebviewWindowOptions{
+ *       Windows: application.WindowsWindow{...},
+ *       Mac:     application.MacWindow{...},
+ *       Linux:   application.LinuxWindow{...},
+ *   }
  */
 
 use Wails\Application;
@@ -14,10 +24,8 @@ use Wails\Options\RGBA;
 use Wails\Options\Windows;
 use Wails\Options\Mac;
 use Wails\Options\Linux;
-use Wails\Options\SystemTray;
 use Wails\Options\Mac\TitleBar as MacTitleBar;
 use Wails\Options\Mac\AboutInfo;
-use Wails\Options\AssetServer;
 use Wails\Options\Debug;
 use Wails\Options\SingleInstanceLock;
 use Wails\Options\DragAndDrop;
@@ -32,7 +40,8 @@ use Wails\Runtime\Events;
 
 // ── 1. 平台专属选项 ──
 
-// Windows 选项
+// —— Windows 选项 ——
+// 对应: application.WindowsWindow
 $winOptions = new Windows([
     'WebviewIsTransparent' => false,
     'WindowIsTranslucent'  => false,
@@ -44,15 +53,19 @@ $winOptions = new Windows([
     'ResizeDebounceMS'     => 100,
 ]);
 
-// macOS 选项
+// —— macOS 选项 ——
+// 对应: application.MacWindow
 $titleBar = new MacTitleBar([
-    'TitlebarAppearsTransparent' => true,
-    'FullSizeContent'            => true,
+    'TitlebarAppearsTransparent' => true,   // 透明标题栏
+    'FullSizeContent'            => true,   // 内容延伸至标题栏区域
     'UseToolbar'                 => false,
     'HideToolbarSeparator'       => true,
 ]);
 
-$aboutInfo = new AboutInfo("My App", "Version 1.0 — Powered by Origami");
+$aboutInfo = new AboutInfo(
+    "Origami Wails v3 Demo",
+    "Version 1.0 — Built with Origami + Wails v3"
+);
 
 $macOptions = new Mac([
     'WebviewIsTransparent' => true,
@@ -62,85 +75,74 @@ $macOptions = new Mac([
     'About'                => $aboutInfo,
 ]);
 
-// Linux 选项
+// —— Linux 选项 ——
+// 对应: application.LinuxWindow
 $linuxOptions = new Linux([
     'WindowIsTranslucent' => false,
     'WebviewGpuPolicy'    => WebviewGpuPolicy::ON_DEMAND,
-    'ProgramName'         => 'origami-wails-demo',
+    'ProgramName'         => 'origami-wails-v3-demo',
 ]);
 
-// ── 2. 系统托盘 ──
-$tray = new SystemTray([
-    'Title'       => 'Origami Wails App',
-    'Tooltip'     => '右键打开菜单',
-    'StartHidden' => false,
-]);
-
-// ── 3. 调试选项 ──
+// ── 2. 调试选项 ──
 $debug = new Debug([
     'OpenInspectorOnStartup' => false,
 ]);
 
-// ── 4. 资源服务器 ──
-$assetServer = new AssetServer([
-    'AssetsDir' => './frontend/dist',
-]);
-
-// ── 5. 拖放支持 ──
+// ── 3. 拖放支持 ──
+// 对应: WebviewWindowOptions.EnableDragAndDrop (v3.0.0-alpha.56+ 已重命名为 EnableFileDrop)
 $dragDrop = new DragAndDrop([
     'EnableFileDrop'     => true,
     'DisableWebViewDrop' => false,
 ]);
 
-// ── 6. 单实例锁 ──
+// ── 4. 单实例锁 ──
 $singleLock = new SingleInstanceLock([
-    'UniqueId' => 'com.origami.wails-demo',
+    'UniqueId' => 'com.origami.wails-v3-demo',
 ]);
 
-// ── 7. 组装应用 ──
+// ── 5. 组装应用 ──
 $options = new App([
-    'Title'              => '✨ Platform Options Demo',
-    'Width'              => 1024,
-    'Height'             => 768,
-    'WindowStartState'   => WindowStartState::NORMAL,
-    'BackgroundColour'   => new RGBA(30, 30, 30, 255),
-    'AlwaysOnTop'        => false,
-    'Frameless'          => false, // macOS 无边框 + Titlebar 透明 = 沉浸式
+    'Title'            => '✨ Wails v3 Platform Demo',
+    'Width'            => 1024,
+    'Height'           => 768,
+    'WindowStartState' => WindowStartState::NORMAL,
 
-    // 拖放
-    'CSSDragProperty'    => '--wails-draggable',
-    'CSSDragValue'       => 'drag',
-    'DragAndDrop'        => $dragDrop,
+    // 深色背景
+    'BackgroundColour' => new RGBA(30, 30, 30, 255),
 
-    // 安全
-    'EnableFraudulentWebsiteDetection' => true,
+    // 禁用调整大小
+    'DisableResize'    => false,
+    'Frameless'        => false,
 
-    // 平台
-    'Windows'            => $winOptions,
-    'Mac'                => $macOptions,
-    'Linux'              => $linuxOptions,
-
-    // 资源
-    'AssetServer'        => $assetServer,
+    // 平台专属
+    'Windows'          => $winOptions,
+    'Mac'              => $macOptions,
+    'Linux'            => $linuxOptions,
 
     // 其他
     'Debug'              => $debug,
+    'DragAndDrop'        => $dragDrop,
     'SingleInstanceLock' => $singleLock,
     'LogLevel'           => LogLevel::INFO,
 ]);
 
-// ── 8. 生命周期 ──
+// ── 6. 生命周期 ──
 $options->onDomReady(function () {
     Window::center();
 
-    // 拖放事件 — 文件拖到窗口
+    // 拖放文件事件监听
     Events::on("wails:file-drop", function ($paths) {
-        Log::info("收到文件: " . implode(", ", $paths));
+        Log::info("Files dropped: " . implode(", ", $paths));
     });
 
-    Log::info("平台专属选项示例已启动");
-    Log::info("运行平台: " . PHP_OS);
+    Log::info("Wails v3 platform options demo started");
+    Log::info("Current OS: " . PHP_OS);
 });
 
-// ── 9. 启动 ──
+$options->onBeforeClose(function () {
+    Log::info("Shutting down...");
+    return false;
+});
+
+// ── 7. 启动 ──
 Application::run($options);

@@ -2,7 +2,7 @@ package wails
 
 import "github.com/php-any/origami/data"
 
-// Load 将 Wails 扩展注册到 VM 中
+// Load 将 Wails v3 扩展注册到 VM 中
 //
 // 注册所有 Wails 相关的类，包括:
 //   - 配置类 (Options\App, Options\RGBA, 平台选项, 等)
@@ -32,7 +32,6 @@ func Load(vm data.VM) {
 	vm.AddClass(NewMacTitleBarClass())
 	vm.AddClass(NewMacAboutInfoClass())
 	vm.AddClass(NewLinuxOptionsClass())
-	vm.AddClass(NewSystemTrayClass())
 
 	// ── 枚举 ──
 	vm.AddClass(NewWindowStartStateClass())

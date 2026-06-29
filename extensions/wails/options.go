@@ -9,7 +9,7 @@ import (
 // ============================================================================
 // Wails\Options\App — Wails 主配置类
 //
-// 对应 Go 的 options.App 结构体。
+// 对应 Wails v3 的 application.Options + application.WebviewWindowOptions
 //
 // 用法示例 (PHP):
 //
@@ -19,7 +19,7 @@ import (
 //	    'Height' => 768,
 //	    'Bind'   => [$myService],
 //	]);
-//	$app->onDomReady(function($ctx) {
+//	$app->onDomReady(function() {
 //	    echo "App is ready!\n";
 //	});
 // ============================================================================
@@ -105,7 +105,7 @@ func (m *optionsAppConstruct) Call(ctx data.Context) (data.GetValue, data.Contro
 		return nil, nil
 	}
 
-	// 设置所有默认值
+	// 设置所有默认值 (映射到 WebviewWindowOptions)
 	setDefaultStringProperty(cv, "Title", "")
 	setDefaultIntProperty(cv, "Width", 1024)
 	setDefaultIntProperty(cv, "Height", 768)
@@ -121,7 +121,6 @@ func (m *optionsAppConstruct) Call(ctx data.Context) (data.GetValue, data.Contro
 	setDefaultStringProperty(cv, "CSSDragProperty", "--wails-draggable")
 	setDefaultStringProperty(cv, "CSSDragValue", "drag")
 	setDefaultBoolProperty(cv, "EnableDefaultContextMenu", false)
-	setDefaultBoolProperty(cv, "EnableFraudulentWebsiteDetection", false)
 	setDefaultIntProperty(cv, "WindowStartState", 0) // Normal
 
 	// 存储回调占位
@@ -142,7 +141,7 @@ func (m *optionsAppConstruct) Call(ctx data.Context) (data.GetValue, data.Contro
 				"MinWidth", "MinHeight", "MaxWidth", "MaxHeight",
 				"StartHidden", "HideWindowOnClose", "AlwaysOnTop",
 				"CSSDragProperty", "CSSDragValue",
-				"EnableDefaultContextMenu", "EnableFraudulentWebsiteDetection",
+				"EnableDefaultContextMenu",
 				"WindowStartState",
 			})
 			// 特殊处理嵌套对象
@@ -177,18 +176,12 @@ func (m *optionsAppOnStartupMethod) GetName() string            { return "onStar
 func (m *optionsAppOnStartupMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *optionsAppOnStartupMethod) GetIsStatic() bool          { return false }
 func (m *optionsAppOnStartupMethod) GetReturnType() data.Types  { return nil }
-
 func (m *optionsAppOnStartupMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "callback", 0, nil, data.NewBaseType("callable")),
-	}
+	return []data.GetValue{node.NewParameter(nil, "callback", 0, nil, data.NewBaseType("callable"))}
 }
 func (m *optionsAppOnStartupMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "callback", 0, data.NewBaseType("callable")),
-	}
+	return []data.Variable{node.NewVariable(nil, "callback", 0, data.NewBaseType("callable"))}
 }
-
 func (m *optionsAppOnStartupMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := getThis(ctx)
 	if cv == nil {
@@ -208,18 +201,12 @@ func (m *optionsAppOnDomReadyMethod) GetName() string            { return "onDom
 func (m *optionsAppOnDomReadyMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *optionsAppOnDomReadyMethod) GetIsStatic() bool          { return false }
 func (m *optionsAppOnDomReadyMethod) GetReturnType() data.Types  { return nil }
-
 func (m *optionsAppOnDomReadyMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "callback", 0, nil, data.NewBaseType("callable")),
-	}
+	return []data.GetValue{node.NewParameter(nil, "callback", 0, nil, data.NewBaseType("callable"))}
 }
 func (m *optionsAppOnDomReadyMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "callback", 0, data.NewBaseType("callable")),
-	}
+	return []data.Variable{node.NewVariable(nil, "callback", 0, data.NewBaseType("callable"))}
 }
-
 func (m *optionsAppOnDomReadyMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := getThis(ctx)
 	if cv == nil {
@@ -239,18 +226,12 @@ func (m *optionsAppOnShutdownMethod) GetName() string            { return "onShu
 func (m *optionsAppOnShutdownMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *optionsAppOnShutdownMethod) GetIsStatic() bool          { return false }
 func (m *optionsAppOnShutdownMethod) GetReturnType() data.Types  { return nil }
-
 func (m *optionsAppOnShutdownMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "callback", 0, nil, data.NewBaseType("callable")),
-	}
+	return []data.GetValue{node.NewParameter(nil, "callback", 0, nil, data.NewBaseType("callable"))}
 }
 func (m *optionsAppOnShutdownMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "callback", 0, data.NewBaseType("callable")),
-	}
+	return []data.Variable{node.NewVariable(nil, "callback", 0, data.NewBaseType("callable"))}
 }
-
 func (m *optionsAppOnShutdownMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := getThis(ctx)
 	if cv == nil {
@@ -270,18 +251,12 @@ func (m *optionsAppOnBeforeCloseMethod) GetName() string            { return "on
 func (m *optionsAppOnBeforeCloseMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *optionsAppOnBeforeCloseMethod) GetIsStatic() bool          { return false }
 func (m *optionsAppOnBeforeCloseMethod) GetReturnType() data.Types  { return nil }
-
 func (m *optionsAppOnBeforeCloseMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "callback", 0, nil, data.NewBaseType("callable")),
-	}
+	return []data.GetValue{node.NewParameter(nil, "callback", 0, nil, data.NewBaseType("callable"))}
 }
 func (m *optionsAppOnBeforeCloseMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "callback", 0, data.NewBaseType("callable")),
-	}
+	return []data.Variable{node.NewVariable(nil, "callback", 0, data.NewBaseType("callable"))}
 }
-
 func (m *optionsAppOnBeforeCloseMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := getThis(ctx)
 	if cv == nil {
@@ -301,18 +276,12 @@ func (m *optionsAppBindMethod) GetName() string            { return "bind" }
 func (m *optionsAppBindMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *optionsAppBindMethod) GetIsStatic() bool          { return false }
 func (m *optionsAppBindMethod) GetReturnType() data.Types  { return nil }
-
 func (m *optionsAppBindMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "service", 0, nil, data.NewBaseType("object")),
-	}
+	return []data.GetValue{node.NewParameter(nil, "service", 0, nil, data.NewBaseType("object"))}
 }
 func (m *optionsAppBindMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "service", 0, data.NewBaseType("object")),
-	}
+	return []data.Variable{node.NewVariable(nil, "service", 0, data.NewBaseType("object"))}
 }
-
 func (m *optionsAppBindMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := getThis(ctx)
 	if cv == nil {
@@ -335,18 +304,12 @@ func (m *optionsAppSetMenuMethod) GetName() string            { return "setMenu"
 func (m *optionsAppSetMenuMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *optionsAppSetMenuMethod) GetIsStatic() bool          { return false }
 func (m *optionsAppSetMenuMethod) GetReturnType() data.Types  { return nil }
-
 func (m *optionsAppSetMenuMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "menu", 0, nil, data.NewBaseType("Wails\\Menu\\Menu")),
-	}
+	return []data.GetValue{node.NewParameter(nil, "menu", 0, nil, data.NewBaseType("Wails\\Menu\\Menu"))}
 }
 func (m *optionsAppSetMenuMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "menu", 0, data.NewBaseType("Wails\\Menu\\Menu")),
-	}
+	return []data.Variable{node.NewVariable(nil, "menu", 0, data.NewBaseType("Wails\\Menu\\Menu"))}
 }
-
 func (m *optionsAppSetMenuMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := getThis(ctx)
 	if cv == nil {
@@ -368,18 +331,12 @@ func (m *optionsAppBindingsAllowedOriginsMethod) GetModifier() data.Modifier {
 }
 func (m *optionsAppBindingsAllowedOriginsMethod) GetIsStatic() bool         { return false }
 func (m *optionsAppBindingsAllowedOriginsMethod) GetReturnType() data.Types { return nil }
-
 func (m *optionsAppBindingsAllowedOriginsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "origins", 0, data.NewStringValue(""), data.NewBaseType("string")),
-	}
+	return []data.GetValue{node.NewParameter(nil, "origins", 0, data.NewStringValue(""), data.NewBaseType("string"))}
 }
 func (m *optionsAppBindingsAllowedOriginsMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "origins", 0, data.NewBaseType("string")),
-	}
+	return []data.Variable{node.NewVariable(nil, "origins", 0, data.NewBaseType("string"))}
 }
-
 func (m *optionsAppBindingsAllowedOriginsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := getThis(ctx)
 	if cv == nil {
@@ -399,18 +356,12 @@ func (m *optionsAppSetErrorFormatterMethod) GetName() string            { return
 func (m *optionsAppSetErrorFormatterMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *optionsAppSetErrorFormatterMethod) GetIsStatic() bool          { return false }
 func (m *optionsAppSetErrorFormatterMethod) GetReturnType() data.Types  { return nil }
-
 func (m *optionsAppSetErrorFormatterMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "formatter", 0, nil, data.NewBaseType("callable")),
-	}
+	return []data.GetValue{node.NewParameter(nil, "formatter", 0, nil, data.NewBaseType("callable"))}
 }
 func (m *optionsAppSetErrorFormatterMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "formatter", 0, data.NewBaseType("callable")),
-	}
+	return []data.Variable{node.NewVariable(nil, "formatter", 0, data.NewBaseType("callable"))}
 }
-
 func (m *optionsAppSetErrorFormatterMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := getThis(ctx)
 	if cv == nil {

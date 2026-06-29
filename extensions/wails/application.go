@@ -2,7 +2,6 @@ package wails
 
 import (
 	"github.com/php-any/origami/data"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // ============================================================================
@@ -87,7 +86,7 @@ func (m *appRunMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if !ok || v == nil {
 		return nil, nil
 	}
-	// 调用 Wails 的实际 run — 这会阻塞直到应用退出
+	// 调用 Wails v3 的 Run — 这会阻塞直到应用退出
 	if err := RunApp(v); err != nil {
 		return nil, data.NewErrorThrow(nil, err)
 	}
@@ -106,8 +105,8 @@ func (m *appQuitMethod) GetParams() []data.GetValue    { return nil }
 func (m *appQuitMethod) GetVariables() []data.Variable { return nil }
 
 func (m *appQuitMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx != nil {
-		runtime.Quit(wailsCtx)
+	if wailsApp != nil {
+		wailsApp.Quit()
 	}
 	return nil, nil
 }
@@ -124,8 +123,8 @@ func (m *appHideMethod) GetParams() []data.GetValue    { return nil }
 func (m *appHideMethod) GetVariables() []data.Variable { return nil }
 
 func (m *appHideMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx != nil {
-		runtime.Hide(wailsCtx)
+	if wailsMainWindow != nil {
+		wailsMainWindow.Hide()
 	}
 	return nil, nil
 }
@@ -142,8 +141,8 @@ func (m *appShowMethod) GetParams() []data.GetValue    { return nil }
 func (m *appShowMethod) GetVariables() []data.Variable { return nil }
 
 func (m *appShowMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if wailsCtx != nil {
-		runtime.Show(wailsCtx)
+	if wailsMainWindow != nil {
+		wailsMainWindow.Show()
 	}
 	return nil, nil
 }
