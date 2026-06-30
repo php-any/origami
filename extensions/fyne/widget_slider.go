@@ -78,7 +78,7 @@ func (m *sliderConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	slider := widget.NewSlider(min, max)
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, slider)
 			classVal.SetProperty("_slider", data.NewAnyValue(slider))
 		}
@@ -115,7 +115,7 @@ func (m *sliderSetValueMethod) GetVariables() []data.Variable {
 }
 func (m *sliderSetValueMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if s := getSlider(classVal); s != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if f, ok := v.(data.AsFloat); ok {
@@ -139,7 +139,7 @@ func (m *sliderGetValueMethod) GetParams() []data.GetValue    { return nil }
 func (m *sliderGetValueMethod) GetVariables() []data.Variable { return nil }
 func (m *sliderGetValueMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if s := getSlider(classVal); s != nil {
 				return data.NewFloatValue(s.Value), nil
 			}
@@ -166,12 +166,15 @@ func (m *sliderOnChangedMethod) GetVariables() []data.Variable {
 }
 func (m *sliderOnChangedMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if s := getSlider(classVal); s != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
-					callback := v
+					var callback data.FuncStmt
+					if fv, ok := v.(*data.FuncValue); ok {
+						callback = fv.Value
+					}
 					s.OnChanged = func(value float64) {
-						callback.GetValue(ctx)
+						callPHPCallbackWith(callback, ctx, data.NewFloatValue(value))
 					}
 				}
 			}

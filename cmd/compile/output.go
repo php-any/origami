@@ -9,12 +9,12 @@ import (
 )
 
 // generateOutput 生成最终的 Go 源码文件
-func generateOutput(parsed []ParsedFile, entryPaths map[string]bool, outputDir, pkgName string) error {
+func generateOutput(parsed []ParsedFile, entryPaths map[string]bool, sourceDir, outputDir, pkgName string) error {
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("创建输出目录失败: %w", err)
 	}
 
-	if err := generateRegisterFile(parsed, entryPaths, outputDir, pkgName); err != nil {
+	if err := generateRegisterFile(parsed, entryPaths, sourceDir, outputDir, pkgName); err != nil {
 		return err
 	}
 
@@ -22,46 +22,24 @@ func generateOutput(parsed []ParsedFile, entryPaths map[string]bool, outputDir, 
 		return err
 	}
 
-	if err := generateGoMod(outputDir, pkgName); err != nil {
+	if err := generateGoMod(sourceDir, outputDir, pkgName); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func generateRegisterFile(parsed []ParsedFile, entryPaths map[string]bool, outputDir, pkgName string) error {
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("package %s\n\n", pkgName))
-	b.WriteString("import (\n")
-	b.WriteString("\t\"github.com/php-any/origami/data\"\n")
-	b.WriteString(")\n\n")
-	b.WriteString("// Register 将预编译的 AST 注册到 VM\n")
-	b.WriteString("// - entry 文件：注册到 compiledFiles，供 run_php_file() 显式执行\n")
-	b.WriteString("// - 其余文件：直接执行 AST 函数，让类/函数/接口自动挂靠到 VM\n")
-	b.WriteString("func Register(vm data.VM) {\n")
-	for _, pf := range parsed {
-		gen := NewGenerator()
-		funcName := gen.funcNameForPath(pf.Path)
-		if entryPaths[filepath.Clean(pf.Path)] {
-			// entry 文件：注册到 compiledFiles，仅当 run_php_file() 被调用时才执行
-			absPath, err := filepath.Abs(pf.Path)
-			if err != nil {
-				absPath = pf.Path
-			}
-			b.WriteString(fmt.Sprintf("\tvm.RegisterCompiledFile(%q, func() (data.GetValue, []data.Variable) {\n", absPath))
-			b.WriteString(fmt.Sprintf("\t\treturn %s()\n", funcName))
-			b.WriteString("\t})\n")
-		} else {
-			// 声明文件：直接执行，类/函数/接口自动注册进 VM
-			b.WriteString(fmt.Sprintf("\tif program, vars := %s(); program != nil {\n", funcName))
-			b.WriteString("\t\tctx := vm.CreateContext(vars)\n")
-			b.WriteString("\t\tprogram.GetValue(ctx) //nolint:errcheck\n")
-			b.WriteString("\t}\n")
-		}
+func generateRegisterFile(parsed []ParsedFile, entryPaths map[string]bool, sourceDir, outputDir, pkgName string) error {
+	tmpl, err := loadTemplate(sourceDir, "register.go.tmpl")
+	if err != nil {
+		return err
 	}
-	b.WriteString("}\n")
-
-	return writeFormattedGoFile(filepath.Join(outputDir, "register.go"), []byte(b.String()))
+	data := buildTemplateData(parsed, entryPaths, pkgName)
+	content, err := renderTemplate(tmpl, data)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(outputDir, "register.go"), content, 0644)
 }
 
 func generateASTFiles(parsed []ParsedFile, outputDir, pkgName string) error {
@@ -117,22 +95,16 @@ func generateASTFiles(parsed []ParsedFile, outputDir, pkgName string) error {
 	return nil
 }
 
-func generateGoMod(outputDir, pkgName string) error {
-	content := fmt.Sprintf("module %s\n\ngo 1.25.0\n\nrequire github.com/php-any/origami v0.0.0\n", pkgName)
-
-	// 自动检测 origami 仓库路径并添加 replace 指令
-	if origamiPath := findOrigamiPath(); origamiPath != "" {
-		absOutput, err := filepath.Abs(outputDir)
-		if err == nil {
-			relPath, err := filepath.Rel(absOutput, origamiPath)
-			if err == nil {
-				// 统一使用正斜杠，确保跨平台兼容
-				relPath = filepath.ToSlash(relPath)
-				content += fmt.Sprintf("\nreplace github.com/php-any/origami => %s\n", relPath)
-			}
-		}
+func generateGoMod(sourceDir, outputDir, pkgName string) error {
+	tmpl, err := loadTemplate(sourceDir, "go.mod.tmpl")
+	if err != nil {
+		return err
 	}
-
+	data := &TemplateData{Pkg: pkgName}
+	content, err := renderGoMod(tmpl, data)
+	if err != nil {
+		return err
+	}
 	return os.WriteFile(filepath.Join(outputDir, "go.mod"), []byte(content), 0644)
 }
 

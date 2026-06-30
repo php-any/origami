@@ -126,7 +126,7 @@ func (m *windowSetContentMethod) GetVariables() []data.Variable {
 
 func (m *windowSetContentMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			w := getFyneWindow(classVal)
 			if w == nil {
 				return nil, nil
@@ -156,7 +156,7 @@ func (m *windowShowMethod) GetVariables() []data.Variable { return nil }
 
 func (m *windowShowMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if w := getFyneWindow(classVal); w != nil {
 				w.Show()
 			}
@@ -178,7 +178,7 @@ func (m *windowHideMethod) GetVariables() []data.Variable { return nil }
 
 func (m *windowHideMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if w := getFyneWindow(classVal); w != nil {
 				w.Hide()
 			}
@@ -200,7 +200,7 @@ func (m *windowCloseMethod) GetVariables() []data.Variable { return nil }
 
 func (m *windowCloseMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if w := getFyneWindow(classVal); w != nil {
 				w.Close()
 			}
@@ -222,7 +222,7 @@ func (m *windowShowAndRunMethod) GetVariables() []data.Variable { return nil }
 
 func (m *windowShowAndRunMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if w := getFyneWindow(classVal); w != nil {
 				w.ShowAndRun()
 			}
@@ -253,7 +253,7 @@ func (m *windowResizeMethod) GetVariables() []data.Variable {
 
 func (m *windowResizeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if w := getFyneWindow(classVal); w != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if sizeCV, ok := v.(*data.ClassValue); ok {
@@ -285,7 +285,7 @@ func (m *windowCenterOnScreenMethod) GetVariables() []data.Variable { return nil
 
 func (m *windowCenterOnScreenMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if w := getFyneWindow(classVal); w != nil {
 				w.CenterOnScreen()
 			}
@@ -316,7 +316,7 @@ func (m *windowSetTitleMethod) GetVariables() []data.Variable {
 
 func (m *windowSetTitleMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if w := getFyneWindow(classVal); w != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if s, ok := v.(data.AsString); ok {
@@ -342,7 +342,7 @@ func (m *windowGetTitleMethod) GetVariables() []data.Variable { return nil }
 
 func (m *windowGetTitleMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if w := getFyneWindow(classVal); w != nil {
 				return data.NewStringValue(w.Title()), nil
 			}
@@ -373,7 +373,7 @@ func (m *windowSetFixedSizeMethod) GetVariables() []data.Variable {
 
 func (m *windowSetFixedSizeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if w := getFyneWindow(classVal); w != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if b, ok := v.(data.AsBool); ok {
@@ -409,7 +409,7 @@ func (m *windowSetPaddedMethod) GetVariables() []data.Variable {
 
 func (m *windowSetPaddedMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if w := getFyneWindow(classVal); w != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if b, ok := v.(data.AsBool); ok {
@@ -436,7 +436,7 @@ func (m *windowRequestFocusMethod) GetVariables() []data.Variable { return nil }
 
 func (m *windowRequestFocusMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if w := getFyneWindow(classVal); w != nil {
 				w.RequestFocus()
 			}
@@ -458,7 +458,7 @@ func (m *windowFullScreenMethod) GetVariables() []data.Variable { return nil }
 
 func (m *windowFullScreenMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if w := getFyneWindow(classVal); w != nil {
 				return data.NewBoolValue(w.FullScreen()), nil
 			}
@@ -489,7 +489,7 @@ func (m *windowSetFullScreenMethod) GetVariables() []data.Variable {
 
 func (m *windowSetFullScreenMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if w := getFyneWindow(classVal); w != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if b, ok := v.(data.AsBool); ok {

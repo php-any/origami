@@ -51,7 +51,7 @@ func (m *toolbarConstruct) GetVariables() []data.Variable { return nil }
 func (m *toolbarConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	toolbar := widget.NewToolbar()
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, toolbar)
 			classVal.SetProperty("_toolbar", data.NewAnyValue(toolbar))
 		}
@@ -89,7 +89,7 @@ func (m *toolbarAppendMethod) GetVariables() []data.Variable {
 
 func (m *toolbarAppendMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if t := getToolbar(classVal); t != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if itemCV, ok := v.(*data.ClassValue); ok {
@@ -148,17 +148,17 @@ func (m *toolbarActionConstruct) GetVariables() []data.Variable {
 
 func (m *toolbarActionConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// icon 暂时忽略，使用 nil
-	var callback data.GetValue
+	var callback data.FuncStmt
 	if v, ok := ctx.GetIndexValue(1); ok {
-		callback = v
+		if fv, ok := v.(*data.FuncValue); ok {
+			callback = fv.Value
+		}
 	}
 	action := widget.NewToolbarAction(nil, func() {
-		if callback != nil {
-			callback.GetValue(ctx)
-		}
+		callPHPCallback(callback, ctx)
 	})
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			classVal.SetProperty("_toolbarItem", data.NewAnyValue(action))
 		}
 	}
@@ -171,7 +171,7 @@ type ToolbarSeparatorClass struct{}
 func NewToolbarSeparatorClass() data.ClassStmt { return &ToolbarSeparatorClass{} }
 
 func (c *ToolbarSeparatorClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	cv, _ := data.NewClassValue(c, ctx).(*data.ClassValue)
+	cv := data.NewClassValue(c, ctx)
 	cv.SetProperty("_toolbarItem", data.NewAnyValue(widget.NewToolbarSeparator()))
 	return cv, nil
 }
@@ -192,7 +192,7 @@ type ToolbarSpacerClass struct{}
 func NewToolbarSpacerClass() data.ClassStmt { return &ToolbarSpacerClass{} }
 
 func (c *ToolbarSpacerClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	cv, _ := data.NewClassValue(c, ctx).(*data.ClassValue)
+	cv := data.NewClassValue(c, ctx)
 	cv.SetProperty("_toolbarItem", data.NewAnyValue(widget.NewToolbarSpacer()))
 	return cv, nil
 }

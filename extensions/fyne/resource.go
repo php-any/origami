@@ -6,7 +6,6 @@ import (
 	fyneLib "fyne.io/fyne/v2"
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	"github.com/php-any/origami/token"
 )
 
 // ResourceClass 是 Fyne\Resource 类

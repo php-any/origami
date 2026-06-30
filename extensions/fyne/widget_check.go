@@ -71,17 +71,17 @@ func (m *checkConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 			label = s.AsString()
 		}
 	}
-	var callback data.GetValue
+	var callback data.FuncStmt
 	if v, ok := ctx.GetIndexValue(1); ok {
-		callback = v
+		if fv, ok := v.(*data.FuncValue); ok {
+			callback = fv.Value
+		}
 	}
 	check := widget.NewCheck(label, func(checked bool) {
-		if callback != nil {
-			callback.GetValue(ctx)
-		}
+		callPHPCallbackWith(callback, ctx, data.NewBoolValue(checked))
 	})
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, check)
 			classVal.SetProperty("_check", data.NewAnyValue(check))
 		}
@@ -118,7 +118,7 @@ func (m *checkSetCheckedMethod) GetVariables() []data.Variable {
 }
 func (m *checkSetCheckedMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if c := getCheck(classVal); c != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if b, ok := v.(data.AsBool); ok {
@@ -142,7 +142,7 @@ func (m *checkIsCheckedMethod) GetParams() []data.GetValue    { return nil }
 func (m *checkIsCheckedMethod) GetVariables() []data.Variable { return nil }
 func (m *checkIsCheckedMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if c := getCheck(classVal); c != nil {
 				return data.NewBoolValue(c.Checked), nil
 			}
@@ -169,12 +169,15 @@ func (m *checkOnChangedMethod) GetVariables() []data.Variable {
 }
 func (m *checkOnChangedMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if c := getCheck(classVal); c != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
-					callback := v
+					var callback data.FuncStmt
+					if fv, ok := v.(*data.FuncValue); ok {
+						callback = fv.Value
+					}
 					c.OnChanged = func(checked bool) {
-						callback.GetValue(ctx)
+						callPHPCallbackWith(callback, ctx, data.NewBoolValue(checked))
 					}
 				}
 			}

@@ -76,7 +76,7 @@ func (m *canvasImageConstruct) Call(ctx data.Context) (data.GetValue, data.Contr
 		img = &canvas.Image{}
 	}
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, img)
 			classVal.SetProperty("_image", data.NewAnyValue(img))
 		}
@@ -113,7 +113,7 @@ func (m *canvasImageSetFileMethod) GetVariables() []data.Variable {
 }
 func (m *canvasImageSetFileMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if img := getCanvasImage(classVal); img != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if s, ok := v.(data.AsString); ok {
@@ -146,7 +146,7 @@ func (m *canvasImageSetFillModeMethod) GetVariables() []data.Variable {
 }
 func (m *canvasImageSetFillModeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if img := getCanvasImage(classVal); img != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if s, ok := v.(data.AsString); ok {
@@ -184,12 +184,12 @@ func (m *canvasImageSetTranslucencyMethod) GetVariables() []data.Variable {
 }
 func (m *canvasImageSetTranslucencyMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if img := getCanvasImage(classVal); img != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if f, ok := v.(data.AsFloat); ok {
 						a, _ := f.AsFloat()
-						img.Translucency = float32(a)
+						img.Translucency = a
 					}
 				}
 			}

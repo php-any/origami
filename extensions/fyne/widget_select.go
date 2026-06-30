@@ -78,17 +78,17 @@ func (m *selectConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 			}
 		}
 	}
-	var callback data.GetValue
+	var callback data.FuncStmt
 	if v, ok := ctx.GetIndexValue(1); ok {
-		callback = v
+		if fv, ok := v.(*data.FuncValue); ok {
+			callback = fv.Value
+		}
 	}
 	s := widget.NewSelect(options, func(selected string) {
-		if callback != nil {
-			callback.GetValue(ctx)
-		}
+		callPHPCallbackWith(callback, ctx, data.NewStringValue(selected))
 	})
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, s)
 			classVal.SetProperty("_select", data.NewAnyValue(s))
 		}
@@ -125,7 +125,7 @@ func (m *selectSetSelectedMethod) GetVariables() []data.Variable {
 }
 func (m *selectSetSelectedMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if s := getSelect(classVal); s != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if str, ok := v.(data.AsString); ok {
@@ -148,7 +148,7 @@ func (m *selectClearSelectedMethod) GetParams() []data.GetValue    { return nil 
 func (m *selectClearSelectedMethod) GetVariables() []data.Variable { return nil }
 func (m *selectClearSelectedMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if s := getSelect(classVal); s != nil {
 				s.ClearSelected()
 			}
@@ -167,7 +167,7 @@ func (m *selectGetSelectedMethod) GetParams() []data.GetValue    { return nil }
 func (m *selectGetSelectedMethod) GetVariables() []data.Variable { return nil }
 func (m *selectGetSelectedMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if s := getSelect(classVal); s != nil {
 				return data.NewStringValue(s.Selected), nil
 			}
@@ -194,12 +194,15 @@ func (m *selectOnChangedMethod) GetVariables() []data.Variable {
 }
 func (m *selectOnChangedMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if s := getSelect(classVal); s != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
-					callback := v
+					var callback data.FuncStmt
+					if fv, ok := v.(*data.FuncValue); ok {
+						callback = fv.Value
+					}
 					s.OnChanged = func(selected string) {
-						callback.GetValue(ctx)
+						callPHPCallbackWith(callback, ctx, data.NewStringValue(selected))
 					}
 				}
 			}

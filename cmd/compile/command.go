@@ -99,7 +99,7 @@ func runCompileCommand(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("成功解析 %d 个文件（其中 entry %d 个）\n", len(parsed), len(entryPaths))
 
-	if err := generateOutput(parsed, entryPaths, compileOutput, compilePkg); err != nil {
+	if err := generateOutput(parsed, entryPaths, vendorDir, compileOutput, compilePkg); err != nil {
 		return fmt.Errorf("生成失败: %w", err)
 	}
 
@@ -107,11 +107,11 @@ func runCompileCommand(cmd *cobra.Command, args []string) error {
 
 	if compileBuild {
 		// --build 时 entry 必须是单个文件
-		entryFile, err := resolveSingleEntry(compileEntry)
+		_, err := resolveSingleEntry(compileEntry)
 		if err != nil {
 			return fmt.Errorf("--build 模式 --entry 需要指定单个 PHP 文件: %w", err)
 		}
-		if err := generateMainFile(entryFile, compileOutput, compilePkg); err != nil {
+		if err := generateMainFile(parsed, entryPaths, vendorDir, compileOutput, compilePkg); err != nil {
 			return fmt.Errorf("生成 main.go 失败: %w", err)
 		}
 		if err := buildBinary(compileOutput, vendorDir); err != nil {

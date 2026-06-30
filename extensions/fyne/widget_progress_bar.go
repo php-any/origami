@@ -54,7 +54,7 @@ func (m *progressBarConstruct) GetVariables() []data.Variable { return nil }
 func (m *progressBarConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	pb := widget.NewProgressBar()
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, pb)
 			classVal.SetProperty("_progressBar", data.NewAnyValue(pb))
 		}
@@ -91,7 +91,7 @@ func (m *progressBarSetValueMethod) GetVariables() []data.Variable {
 }
 func (m *progressBarSetValueMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if pb := getProgressBar(classVal); pb != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if f, ok := v.(data.AsFloat); ok {
@@ -115,7 +115,7 @@ func (m *progressBarGetValueMethod) GetParams() []data.GetValue    { return nil 
 func (m *progressBarGetValueMethod) GetVariables() []data.Variable { return nil }
 func (m *progressBarGetValueMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if pb := getProgressBar(classVal); pb != nil {
 				return data.NewFloatValue(pb.Value), nil
 			}

@@ -31,6 +31,9 @@ func newCanvasObjectClass(name string, extend *string) *CanvasObjectClass {
 	return c
 }
 
+func (c *CanvasObjectClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return data.NewClassValue(c, ctx), nil
+}
 func (c *CanvasObjectClass) GetFrom() data.From                              { return nil }
 func (c *CanvasObjectClass) GetName() string                                 { return c.name }
 func (c *CanvasObjectClass) GetExtend() *string                              { return c.extend }
@@ -84,7 +87,7 @@ func (m *canvasObjectShowMethod) GetParams() []data.GetValue    { return nil }
 func (m *canvasObjectShowMethod) GetVariables() []data.Variable { return nil }
 func (m *canvasObjectShowMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if obj := getFyneObject(classVal); obj != nil {
 				obj.Show()
 			}
@@ -103,7 +106,7 @@ func (m *canvasObjectHideMethod) GetParams() []data.GetValue    { return nil }
 func (m *canvasObjectHideMethod) GetVariables() []data.Variable { return nil }
 func (m *canvasObjectHideMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if obj := getFyneObject(classVal); obj != nil {
 				obj.Hide()
 			}
@@ -130,7 +133,7 @@ func (m *canvasObjectMoveMethod) GetVariables() []data.Variable {
 }
 func (m *canvasObjectMoveMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if obj := getFyneObject(classVal); obj != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if posCV, ok := v.(*data.ClassValue); ok {
@@ -167,7 +170,7 @@ func (m *canvasObjectResizeMethod) GetVariables() []data.Variable {
 }
 func (m *canvasObjectResizeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if obj := getFyneObject(classVal); obj != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if sizeCV, ok := v.(*data.ClassValue); ok {
@@ -196,7 +199,7 @@ func (m *canvasObjectRefreshMethod) GetParams() []data.GetValue    { return nil 
 func (m *canvasObjectRefreshMethod) GetVariables() []data.Variable { return nil }
 func (m *canvasObjectRefreshMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if obj := getFyneObject(classVal); obj != nil {
 				obj.Refresh()
 			}
@@ -215,7 +218,7 @@ func (m *canvasObjectVisibleMethod) GetParams() []data.GetValue    { return nil 
 func (m *canvasObjectVisibleMethod) GetVariables() []data.Variable { return nil }
 func (m *canvasObjectVisibleMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if obj := getFyneObject(classVal); obj != nil {
 				return data.NewBoolValue(obj.Visible()), nil
 			}
@@ -236,7 +239,7 @@ func (m *canvasObjectGetPositionMethod) GetParams() []data.GetValue    { return 
 func (m *canvasObjectGetPositionMethod) GetVariables() []data.Variable { return nil }
 func (m *canvasObjectGetPositionMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if obj := getFyneObject(classVal); obj != nil {
 				return NewPositionValue(obj.Position(), ctx), nil
 			}
@@ -255,7 +258,7 @@ func (m *canvasObjectGetSizeMethod) GetParams() []data.GetValue    { return nil 
 func (m *canvasObjectGetSizeMethod) GetVariables() []data.Variable { return nil }
 func (m *canvasObjectGetSizeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if obj := getFyneObject(classVal); obj != nil {
 				return NewSizeValue(obj.Size(), ctx), nil
 			}

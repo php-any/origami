@@ -73,13 +73,13 @@ func (m *canvasTextConstruct) Call(ctx data.Context) (data.GetValue, data.Contro
 			text = s.AsString()
 		}
 	}
-	c := color.Black
+	var c color.Color = color.Black
 	if v, ok := ctx.GetIndexValue(1); ok {
 		c = fyneColorToGo(v)
 	}
 	t := canvas.NewText(text, c)
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, t)
 			classVal.SetProperty("_text", data.NewAnyValue(t))
 		}
@@ -116,7 +116,7 @@ func (m *canvasTextSetTextMethod) GetVariables() []data.Variable {
 }
 func (m *canvasTextSetTextMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if t := getCanvasText(classVal); t != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if s, ok := v.(data.AsString); ok {
@@ -139,7 +139,7 @@ func (m *canvasTextGetTextMethod) GetParams() []data.GetValue    { return nil }
 func (m *canvasTextGetTextMethod) GetVariables() []data.Variable { return nil }
 func (m *canvasTextGetTextMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if t := getCanvasText(classVal); t != nil {
 				return data.NewStringValue(t.Text), nil
 			}
@@ -166,7 +166,7 @@ func (m *canvasTextSetSizeMethod) GetVariables() []data.Variable {
 }
 func (m *canvasTextSetSizeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if t := getCanvasText(classVal); t != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if f, ok := v.(data.AsFloat); ok {

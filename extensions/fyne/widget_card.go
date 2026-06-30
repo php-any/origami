@@ -1,6 +1,7 @@
 package fyne
 
 import (
+	fyneLib "fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -86,7 +87,7 @@ func (m *cardConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	card := widget.NewCard(title, subtitle, content)
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, card)
 			classVal.SetProperty("_card", data.NewAnyValue(card))
 		}
@@ -123,7 +124,7 @@ func (m *cardSetTitleMethod) GetVariables() []data.Variable {
 }
 func (m *cardSetTitleMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if c := getCard(classVal); c != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if s, ok := v.(data.AsString); ok {
@@ -154,7 +155,7 @@ func (m *cardSetSubTitleMethod) GetVariables() []data.Variable {
 }
 func (m *cardSetSubTitleMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if c := getCard(classVal); c != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if s, ok := v.(data.AsString); ok {
@@ -185,7 +186,7 @@ func (m *cardSetContentMethod) GetVariables() []data.Variable {
 }
 func (m *cardSetContentMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if c := getCard(classVal); c != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if contentCV, ok := v.(*data.ClassValue); ok {

@@ -74,19 +74,19 @@ func (m *buttonConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 获取回调闭包
-	var callback data.GetValue
+	var callback data.FuncStmt
 	if v, ok := ctx.GetIndexValue(1); ok {
-		callback = v
+		if fv, ok := v.(*data.FuncValue); ok {
+			callback = fv.Value
+		}
 	}
 
 	btn := widget.NewButton(text, func() {
-		if callback != nil {
-			callback.GetValue(ctx)
-		}
+		callPHPCallback(callback, ctx)
 	})
 
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, btn)
 			classVal.SetProperty("_button", data.NewAnyValue(btn))
 		}
@@ -123,7 +123,7 @@ func (m *buttonSetTextMethod) GetVariables() []data.Variable {
 }
 func (m *buttonSetTextMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if b := getButton(classVal); b != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if s, ok := v.(data.AsString); ok {
@@ -146,7 +146,7 @@ func (m *buttonGetTextMethod) GetParams() []data.GetValue    { return nil }
 func (m *buttonGetTextMethod) GetVariables() []data.Variable { return nil }
 func (m *buttonGetTextMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if b := getButton(classVal); b != nil {
 				return data.NewStringValue(b.Text), nil
 			}
@@ -173,7 +173,7 @@ func (m *buttonSetImportanceMethod) GetVariables() []data.Variable {
 }
 func (m *buttonSetImportanceMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if b := getButton(classVal); b != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if s, ok := v.(data.AsString); ok {

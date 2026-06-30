@@ -75,17 +75,17 @@ func (m *radioGroupConstruct) Call(ctx data.Context) (data.GetValue, data.Contro
 			}
 		}
 	}
-	var callback data.GetValue
+	var callback data.FuncStmt
 	if v, ok := ctx.GetIndexValue(1); ok {
-		callback = v
+		if fv, ok := v.(*data.FuncValue); ok {
+			callback = fv.Value
+		}
 	}
 	rg := widget.NewRadioGroup(options, func(selected string) {
-		if callback != nil {
-			callback.GetValue(ctx)
-		}
+		callPHPCallbackWith(callback, ctx, data.NewStringValue(selected))
 	})
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, rg)
 			classVal.SetProperty("_radioGroup", data.NewAnyValue(rg))
 		}
@@ -122,7 +122,7 @@ func (m *radioGroupSetSelectedMethod) GetVariables() []data.Variable {
 }
 func (m *radioGroupSetSelectedMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if rg := getRadioGroup(classVal); rg != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if s, ok := v.(data.AsString); ok {
@@ -145,7 +145,7 @@ func (m *radioGroupGetSelectedMethod) GetParams() []data.GetValue    { return ni
 func (m *radioGroupGetSelectedMethod) GetVariables() []data.Variable { return nil }
 func (m *radioGroupGetSelectedMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if rg := getRadioGroup(classVal); rg != nil {
 				return data.NewStringValue(rg.Selected), nil
 			}
@@ -172,12 +172,15 @@ func (m *radioGroupOnChangedMethod) GetVariables() []data.Variable {
 }
 func (m *radioGroupOnChangedMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if rg := getRadioGroup(classVal); rg != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
-					callback := v
+					var callback data.FuncStmt
+					if fv, ok := v.(*data.FuncValue); ok {
+						callback = fv.Value
+					}
 					rg.OnChanged = func(selected string) {
-						callback.GetValue(ctx)
+						callPHPCallbackWith(callback, ctx, data.NewStringValue(selected))
 					}
 				}
 			}

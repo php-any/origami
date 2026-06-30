@@ -1,7 +1,7 @@
 package fyne
 
 import (
-	"fyne.io/fyne/v2/widget"
+	"fyne.io/fyne/v2/container"
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/token"
@@ -52,9 +52,9 @@ func (m *tabsConstruct) GetParams() []data.GetValue    { return nil }
 func (m *tabsConstruct) GetVariables() []data.Variable { return nil }
 
 func (m *tabsConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
-	tabs := widget.NewTabs()
+	tabs := container.NewAppTabs()
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, tabs)
 			classVal.SetProperty("_tabs", data.NewAnyValue(tabs))
 		}
@@ -62,10 +62,10 @@ func (m *tabsConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return nil, nil
 }
 
-func getTabs(cv *data.ClassValue) *widget.Tabs {
+func getTabs(cv *data.ClassValue) *container.AppTabs {
 	if v, _ := cv.GetProperty("_tabs"); v != nil {
 		if av, ok := v.(*data.AnyValue); ok {
-			if t, ok := av.Value.(*widget.Tabs); ok {
+			if t, ok := av.Value.(*container.AppTabs); ok {
 				return t
 			}
 		}
@@ -94,7 +94,7 @@ func (m *tabsAppendMethod) GetVariables() []data.Variable {
 
 func (m *tabsAppendMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if t := getTabs(classVal); t != nil {
 				text := ""
 				if v, ok := ctx.GetIndexValue(0); ok {
@@ -105,7 +105,7 @@ func (m *tabsAppendMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 				if v, ok := ctx.GetIndexValue(1); ok {
 					if contentCV, ok := v.(*data.ClassValue); ok {
 						if obj := getFyneObject(contentCV); obj != nil {
-							item := widget.NewTabItem(text, obj)
+							item := container.NewTabItem(text, obj)
 							t.Append(item)
 						}
 					}
@@ -134,7 +134,7 @@ func (m *tabsSelectMethod) GetVariables() []data.Variable {
 }
 func (m *tabsSelectMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if t := getTabs(classVal); t != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if i, ok := v.(data.AsInt); ok {

@@ -26,7 +26,15 @@ func (f *MinFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		// 处理数组参数
 		if arr, isArr := v.(*data.ArrayValue); isArr {
 			for _, z := range arr.List {
-				if intVal, ok := z.Value.(data.AsInt); ok {
+				// 必须先检查 AsFloat，因为 FloatValue 同时实现了 AsFloat 和 AsInt，
+				// 如果先检查 AsInt 会导致浮点数被截断为整数
+				if floatVal, ok := z.Value.(data.AsFloat); ok {
+					fv, _ := floatVal.AsFloat()
+					if fv < minVal || !hasValue {
+						minVal = fv
+						hasValue = true
+					}
+				} else if intVal, ok := z.Value.(data.AsInt); ok {
 					if iv, err := intVal.AsInt(); err == nil {
 						fv := float64(iv)
 						if fv < minVal || !hasValue {
@@ -34,29 +42,24 @@ func (f *MinFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 							hasValue = true
 						}
 					}
-				} else if floatVal, ok := z.Value.(data.AsFloat); ok {
-					fv, _ := floatVal.AsFloat()
-					if fv < minVal || !hasValue {
-						minVal = fv
-						hasValue = true
-					}
 				}
 			}
 			continue
 		}
-		if intVal, ok := v.(data.AsInt); ok {
+		// 同样，先检查 AsFloat 再检查 AsInt
+		if floatVal, ok := v.(data.AsFloat); ok {
+			fv, _ := floatVal.AsFloat()
+			if fv < minVal || !hasValue {
+				minVal = fv
+				hasValue = true
+			}
+		} else if intVal, ok := v.(data.AsInt); ok {
 			if iv, err := intVal.AsInt(); err == nil {
 				fv := float64(iv)
 				if fv < minVal || !hasValue {
 					minVal = fv
 					hasValue = true
 				}
-			}
-		} else if floatVal, ok := v.(data.AsFloat); ok {
-			fv, _ := floatVal.AsFloat()
-			if fv < minVal || !hasValue {
-				minVal = fv
-				hasValue = true
 			}
 		}
 	}

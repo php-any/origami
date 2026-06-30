@@ -921,6 +921,12 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("无法识别返回类型的定义符号"+p.current().Literal()))
 				}
 
+				// 处理 static 关键字（返回类型中的 static 表示调用类的实例）
+				if p.current().Type() == token.STATIC {
+					p.next()
+					return data.NewBaseType("static"), nil
+				}
+
 				// 处理 self 关键字
 				if p.current().Type() == token.SELF {
 					p.next()

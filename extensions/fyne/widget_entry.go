@@ -66,7 +66,7 @@ func (m *entryConstruct) GetVariables() []data.Variable { return nil }
 func (m *entryConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	entry := widget.NewEntry()
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, entry)
 			classVal.SetProperty("_entry", data.NewAnyValue(entry))
 		}
@@ -103,7 +103,7 @@ func (m *entrySetTextMethod) GetVariables() []data.Variable {
 }
 func (m *entrySetTextMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if e := getEntry(classVal); e != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if s, ok := v.(data.AsString); ok {
@@ -126,7 +126,7 @@ func (m *entryGetTextMethod) GetParams() []data.GetValue    { return nil }
 func (m *entryGetTextMethod) GetVariables() []data.Variable { return nil }
 func (m *entryGetTextMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if e := getEntry(classVal); e != nil {
 				return data.NewStringValue(e.Text), nil
 			}
@@ -153,7 +153,7 @@ func (m *entrySetPlaceHolderMethod) GetVariables() []data.Variable {
 }
 func (m *entrySetPlaceHolderMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if e := getEntry(classVal); e != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if s, ok := v.(data.AsString); ok {
@@ -184,7 +184,7 @@ func (m *entrySetPasswordMethod) GetVariables() []data.Variable {
 }
 func (m *entrySetPasswordMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if e := getEntry(classVal); e != nil {
 				password := true
 				if v, ok := ctx.GetIndexValue(0); ok {
@@ -217,7 +217,7 @@ func (m *entrySetMultiLineMethod) GetVariables() []data.Variable {
 }
 func (m *entrySetMultiLineMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if e := getEntry(classVal); e != nil {
 				multiLine := true
 				if v, ok := ctx.GetIndexValue(0); ok {
@@ -250,14 +250,15 @@ func (m *entryOnChangedMethod) GetVariables() []data.Variable {
 }
 func (m *entryOnChangedMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if e := getEntry(classVal); e != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
-					callback := v
+					var callback data.FuncStmt
+					if fv, ok := v.(*data.FuncValue); ok {
+						callback = fv.Value
+					}
 					e.OnChanged = func(text string) {
-						fnCtx := ctx.CreateContext(nil)
-						fnCtx.SetIndexValue(0, data.NewStringValue(text))
-						callback.GetValue(fnCtx)
+						callPHPCallbackWith(callback, ctx, data.NewStringValue(text))
 					}
 				}
 			}

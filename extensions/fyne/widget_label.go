@@ -1,7 +1,6 @@
 package fyne
 
 import (
-	fyneLib "fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -70,7 +69,7 @@ func (m *labelConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	label := widget.NewLabel(text)
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, label)
 			classVal.SetProperty("_label", data.NewAnyValue(label))
 		}
@@ -107,7 +106,7 @@ func (m *labelSetTextMethod) GetVariables() []data.Variable {
 }
 func (m *labelSetTextMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if l := getLabel(classVal); l != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if s, ok := v.(data.AsString); ok {
@@ -130,7 +129,7 @@ func (m *labelGetTextMethod) GetParams() []data.GetValue    { return nil }
 func (m *labelGetTextMethod) GetVariables() []data.Variable { return nil }
 func (m *labelGetTextMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if l := getLabel(classVal); l != nil {
 				return data.NewStringValue(l.Text), nil
 			}

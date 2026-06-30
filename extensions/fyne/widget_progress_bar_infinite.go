@@ -43,7 +43,7 @@ func (m *progressBarInfiniteConstruct) GetVariables() []data.Variable { return n
 func (m *progressBarInfiniteConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	pb := widget.NewProgressBarInfinite()
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, pb)
 		}
 	}

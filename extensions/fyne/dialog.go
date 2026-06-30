@@ -122,7 +122,7 @@ func (m *dialogShowConfirmMethod) GetVariables() []data.Variable {
 }
 func (m *dialogShowConfirmMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	title, message := "", ""
-	var callback data.GetValue
+	var callback data.FuncStmt
 	var w fyneLib.Window
 	if v, ok := ctx.GetIndexValue(0); ok {
 		if s, ok := v.(data.AsString); ok {
@@ -135,7 +135,9 @@ func (m *dialogShowConfirmMethod) Call(ctx data.Context) (data.GetValue, data.Co
 		}
 	}
 	if v, ok := ctx.GetIndexValue(2); ok {
-		callback = v
+		if fv, ok := v.(*data.FuncValue); ok {
+			callback = fv.Value
+		}
 	}
 	if v, ok := ctx.GetIndexValue(3); ok {
 		w = getFyneWindowFromArg(v)
@@ -144,11 +146,7 @@ func (m *dialogShowConfirmMethod) Call(ctx data.Context) (data.GetValue, data.Co
 		return nil, utils.NewThrow(errors.New("Dialog::showConfirm requires a valid Window"))
 	}
 	dialog.ShowConfirm(title, message, func(confirmed bool) {
-		if callback != nil {
-			fnCtx := ctx.CreateContext(nil)
-			fnCtx.SetIndexValue(0, data.NewBoolValue(confirmed))
-			callback.GetValue(fnCtx)
-		}
+		callPHPCallbackWith(callback, ctx, data.NewBoolValue(confirmed))
 	}, w)
 	return nil, nil
 }

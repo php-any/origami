@@ -47,7 +47,7 @@ func (c *LayoutClass) GetStaticMethod(name string) (data.Method, bool) {
 }
 
 // wrapLayout 将 fyne.Layout 包装为 ClassValue
-func wrapLayout(l fyne.Layout, ctx data.Context) *data.ClassValue {
+func wrapLayout(l fyneLib.Layout, ctx data.Context) *data.ClassValue {
 	cl := NewLayoutClass()
 	cv, _ := cl.GetValue(ctx)
 	if classVal, ok := cv.(*data.ClassValue); ok {
@@ -148,7 +148,7 @@ func (m *layoutNewMaxLayoutMethod) GetReturnType() data.Types {
 func (m *layoutNewMaxLayoutMethod) GetParams() []data.GetValue    { return nil }
 func (m *layoutNewMaxLayoutMethod) GetVariables() []data.Variable { return nil }
 func (m *layoutNewMaxLayoutMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	return wrapLayout(layout.NewMaxLayout(), ctx), nil
+	return wrapLayout(layout.NewStackLayout(), ctx), nil
 }
 
 // ====== Form ======

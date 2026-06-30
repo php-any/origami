@@ -18,3 +18,4 @@ php-src
 .zy
 /examples/spring/dist/
 /examples/spring/spring.db
+/extensions/fyne/examples/music-app/build/

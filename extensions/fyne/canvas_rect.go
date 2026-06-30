@@ -65,13 +65,13 @@ func (m *canvasRectConstruct) GetVariables() []data.Variable {
 }
 
 func (m *canvasRectConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
-	c := color.Black
+	var c color.Color = color.Black
 	if v, ok := ctx.GetIndexValue(0); ok {
 		c = fyneColorToGo(v)
 	}
 	rect := canvas.NewRectangle(c)
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, rect)
 			classVal.SetProperty("_rect", data.NewAnyValue(rect))
 		}
@@ -108,7 +108,7 @@ func (m *canvasRectSetFillColorMethod) GetVariables() []data.Variable {
 }
 func (m *canvasRectSetFillColorMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if r := getCanvasRect(classVal); r != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					r.FillColor = fyneColorToGo(v)
@@ -137,7 +137,7 @@ func (m *canvasRectSetStrokeColorMethod) GetVariables() []data.Variable {
 }
 func (m *canvasRectSetStrokeColorMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if r := getCanvasRect(classVal); r != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					r.StrokeColor = fyneColorToGo(v)
@@ -166,7 +166,7 @@ func (m *canvasRectSetStrokeWidthMethod) GetVariables() []data.Variable {
 }
 func (m *canvasRectSetStrokeWidthMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if r := getCanvasRect(classVal); r != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if f, ok := v.(data.AsFloat); ok {

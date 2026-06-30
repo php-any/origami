@@ -99,7 +99,7 @@ func (m *appConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 		a = app.New()
 	}
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			classVal.SetProperty("_app", data.NewAnyValue(a))
 		}
 	}
@@ -135,7 +135,7 @@ func (m *appNewWindowMethod) Call(ctx data.Context) (data.GetValue, data.Control
 		}
 	}
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			a := getApp(classVal)
 			if a == nil {
 				return nil, utils.NewThrow(errors.New("App not initialized"))
@@ -160,7 +160,7 @@ func (m *appRunMethod) GetVariables() []data.Variable { return nil }
 
 func (m *appRunMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			a := getApp(classVal)
 			if a != nil {
 				a.Run()
@@ -183,7 +183,7 @@ func (m *appQuitMethod) GetVariables() []data.Variable { return nil }
 
 func (m *appQuitMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			a := getApp(classVal)
 			if a != nil {
 				a.Quit()

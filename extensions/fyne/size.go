@@ -68,7 +68,7 @@ func (m *sizeConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	// 将 fyne.Size 存储到对象的隐藏属性
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			classVal.SetProperty("_size", data.NewAnyValue(fyneLib.NewSize(float32(width), float32(height))))
 		}
 	}

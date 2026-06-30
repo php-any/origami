@@ -67,7 +67,7 @@ func (m *positionConstruct) Call(ctx data.Context) (data.GetValue, data.Control)
 		}
 	}
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			classVal.SetProperty("_pos", data.NewAnyValue(fyneLib.NewPos(float32(x), float32(y))))
 		}
 	}

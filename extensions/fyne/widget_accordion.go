@@ -57,7 +57,7 @@ func (m *accordionConstruct) GetVariables() []data.Variable { return nil }
 func (m *accordionConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	accordion := widget.NewAccordion()
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, accordion)
 			classVal.SetProperty("_accordion", data.NewAnyValue(accordion))
 		}
@@ -97,7 +97,7 @@ func (m *accordionAppendMethod) GetVariables() []data.Variable {
 
 func (m *accordionAppendMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if a := getAccordion(classVal); a != nil {
 				title := ""
 				if v, ok := ctx.GetIndexValue(0); ok {
@@ -137,7 +137,7 @@ func (m *accordionOpenMethod) GetVariables() []data.Variable {
 }
 func (m *accordionOpenMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if a := getAccordion(classVal); a != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if i, ok := v.(data.AsInt); ok {
@@ -169,7 +169,7 @@ func (m *accordionCloseMethod) GetVariables() []data.Variable {
 }
 func (m *accordionCloseMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if a := getAccordion(classVal); a != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if i, ok := v.(data.AsInt); ok {

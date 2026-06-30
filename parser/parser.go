@@ -594,7 +594,7 @@ func (p *Parser) findFullClassNameByNamespace(name string) (string, bool) {
 		if _, ok := p.ClassPathManager.FindClassFile(name); ok {
 			return name, true
 		}
-		return tryName, false
+		return tryName, true
 	} else {
 		// 尝试全局
 		if stmt, ok := p.vm.GetClass(name); ok {

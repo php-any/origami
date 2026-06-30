@@ -397,6 +397,7 @@ func (vm *VM) EvalCode(code string, ctx data.Context, evalFrom data.From) (data.
 }
 
 func (vm *VM) RegisterCompiledFile(file string, fn func() (data.GetValue, []data.Variable)) {
+	file = normalizePhpFilePath(file)
 	vm.mu.Lock()
 	defer vm.mu.Unlock()
 	vm.compiledFiles[file] = fn

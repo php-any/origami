@@ -258,6 +258,12 @@ func (fp FunctionParser) parserReturnType() (data.Types, data.Control) {
 				) {
 					return nil, data.NewErrorThrow(fp.newFrom(), errors.New("无法识别返回类型的定义符号"))
 				}
+				// 处理 static 关键字
+				if fp.current().Type() == token.STATIC {
+					fp.next()
+					return data.NewBaseType("static"), nil
+				}
+
 				name := fp.current().Literal()
 				fp.next()
 

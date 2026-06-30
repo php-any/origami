@@ -57,7 +57,7 @@ func (m *formConstruct) GetVariables() []data.Variable { return nil }
 func (m *formConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	form := widget.NewForm()
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, form)
 			classVal.SetProperty("_form", data.NewAnyValue(form))
 		}
@@ -97,7 +97,7 @@ func (m *formAppendMethod) GetVariables() []data.Variable {
 
 func (m *formAppendMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if f := getForm(classVal); f != nil {
 				label := ""
 				if v, ok := ctx.GetIndexValue(0); ok {
@@ -136,12 +136,15 @@ func (m *formOnSubmitMethod) GetVariables() []data.Variable {
 }
 func (m *formOnSubmitMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if f := getForm(classVal); f != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
-					callback := v
+					var callback data.FuncStmt
+					if fv, ok := v.(*data.FuncValue); ok {
+						callback = fv.Value
+					}
 					f.OnSubmit = func() {
-						callback.GetValue(ctx)
+						callPHPCallback(callback, ctx)
 					}
 				}
 			}
@@ -168,12 +171,15 @@ func (m *formOnCancelMethod) GetVariables() []data.Variable {
 }
 func (m *formOnCancelMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if f := getForm(classVal); f != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
-					callback := v
+					var callback data.FuncStmt
+					if fv, ok := v.(*data.FuncValue); ok {
+						callback = fv.Value
+					}
 					f.OnCancel = func() {
-						callback.GetValue(ctx)
+						callPHPCallback(callback, ctx)
 					}
 				}
 			}

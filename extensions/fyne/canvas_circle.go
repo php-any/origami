@@ -65,13 +65,13 @@ func (m *canvasCircleConstruct) GetVariables() []data.Variable {
 }
 
 func (m *canvasCircleConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
-	c := color.Black
+	var c color.Color = color.Black
 	if v, ok := ctx.GetIndexValue(0); ok {
 		c = fyneColorToGo(v)
 	}
 	circle := canvas.NewCircle(c)
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, circle)
 			classVal.SetProperty("_circle", data.NewAnyValue(circle))
 		}
@@ -108,7 +108,7 @@ func (m *canvasCircleSetFillColorMethod) GetVariables() []data.Variable {
 }
 func (m *canvasCircleSetFillColorMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if c := getCanvasCircle(classVal); c != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					c.FillColor = fyneColorToGo(v)
@@ -137,7 +137,7 @@ func (m *canvasCircleSetStrokeColorMethod) GetVariables() []data.Variable {
 }
 func (m *canvasCircleSetStrokeColorMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if c := getCanvasCircle(classVal); c != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					c.StrokeColor = fyneColorToGo(v)
@@ -166,7 +166,7 @@ func (m *canvasCircleSetStrokeWidthMethod) GetVariables() []data.Variable {
 }
 func (m *canvasCircleSetStrokeWidthMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if c := getCanvasCircle(classVal); c != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if f, ok := v.(data.AsFloat); ok {

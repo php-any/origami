@@ -62,13 +62,13 @@ func (m *canvasLineConstruct) GetVariables() []data.Variable {
 }
 
 func (m *canvasLineConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
-	c := color.Black
+	var c color.Color = color.Black
 	if v, ok := ctx.GetIndexValue(0); ok {
 		c = fyneColorToGo(v)
 	}
 	line := canvas.NewLine(c)
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			setFyneObject(classVal, line)
 			classVal.SetProperty("_line", data.NewAnyValue(line))
 		}
@@ -105,7 +105,7 @@ func (m *canvasLineSetStrokeColorMethod) GetVariables() []data.Variable {
 }
 func (m *canvasLineSetStrokeColorMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if l := getCanvasLine(classVal); l != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					l.StrokeColor = fyneColorToGo(v)
@@ -134,7 +134,7 @@ func (m *canvasLineSetStrokeWidthMethod) GetVariables() []data.Variable {
 }
 func (m *canvasLineSetStrokeWidthMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			if l := getCanvasLine(classVal); l != nil {
 				if v, ok := ctx.GetIndexValue(0); ok {
 					if f, ok := v.(data.AsFloat); ok {

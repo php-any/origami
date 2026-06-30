@@ -75,7 +75,7 @@ func (m *colorConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 	if cv, ok := ctx.(*data.ClassMethodContext); ok {
-		if classVal, ok := cv.GetThis().(*data.ClassValue); ok {
+		if classVal := cv.ClassValue; classVal != nil {
 			classVal.SetProperty("r", data.NewIntValue(r))
 			classVal.SetProperty("g", data.NewIntValue(g))
 			classVal.SetProperty("b", data.NewIntValue(b))

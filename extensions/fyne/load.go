@@ -4,6 +4,9 @@ import "github.com/php-any/origami/data"
 
 // Load 将 Fyne 扩展注册到 VM 中
 func Load(vm data.VM) {
+	// 基础类型（必须先注册，其他组件 extend 它）
+	vm.AddClass(newCanvasObjectClass("Fyne\\CanvasObject", nil))
+
 	// 核心类型
 	vm.AddClass(NewAppClass())
 	vm.AddClass(NewWindowClass())
@@ -42,6 +45,9 @@ func Load(vm data.VM) {
 	vm.AddClass(NewToolbarActionClass())
 	vm.AddClass(NewToolbarSeparatorClass())
 	vm.AddClass(NewToolbarSpacerClass())
+
+	// BottomTabBar (iOS 风格)
+	vm.AddClass(NewBottomTabBarClass())
 
 	// Dialog
 	vm.AddClass(NewDialogClass())

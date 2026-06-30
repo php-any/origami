@@ -8,16 +8,20 @@ import (
 )
 
 // ContainerClass 是 Fyne\Container 类，提供静态工厂方法
-type ContainerClass struct{}
+type ContainerClass struct {
+	*CanvasObjectClass
+}
 
-func NewContainerClass() data.ClassStmt { return &ContainerClass{} }
+func NewContainerClass() data.ClassStmt {
+	parentName := "Fyne\\CanvasObject"
+	return &ContainerClass{
+		CanvasObjectClass: newCanvasObjectClass("Fyne\\Container", &parentName),
+	}
+}
 
 func (c *ContainerClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(c, ctx), nil
 }
-func (c *ContainerClass) GetFrom() data.From                            { return nil }
-func (c *ContainerClass) GetName() string                               { return "Fyne\\Container" }
-func (c *ContainerClass) GetExtend() *string                            { return nil }
 func (c *ContainerClass) GetImplements() []string                       { return nil }
 func (c *ContainerClass) GetProperty(name string) (data.Property, bool) { return nil, false }
 func (c *ContainerClass) GetPropertyList() []data.Property              { return nil }
@@ -260,7 +264,7 @@ func (m *containerNewMaxMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 		}
 	}
 	objs := extractFyneObjects(args)
-	c := container.NewMax(objs...)
+	c := container.NewStack(objs...)
 	return wrapContainer(c, ctx), nil
 }
 
