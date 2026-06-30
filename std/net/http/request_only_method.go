@@ -37,18 +37,14 @@ func (h *RequestOnlyMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 		return data.NewObjectValue(), nil
 	}
 
-	// 只返回指定的键
+	// 只返回指定的键，优先级：路由参数 → 查询参数 → 表单数据
 	result := data.NewObjectValue()
 
-	// 从表单数据获取
-	if h.source.Form != nil {
-		for _, key := range keys {
-			if values, exists := h.source.Form[key]; exists && len(values) > 0 {
-				if len(values) == 1 {
-					result.SetProperty(key, data.NewStringValue(values[0]))
-				} else {
-					result.SetProperty(key, data.NewStringValue(strings.Join(values, ",")))
-				}
+	// 从路由参数获取（最低优先级）
+	for _, key := range keys {
+		if pathVals := collectPathValues(h.source); pathVals != nil {
+			if val, exists := pathVals[key]; exists {
+				result.SetProperty(key, data.NewStringValue(val))
 			}
 		}
 	}
@@ -60,6 +56,19 @@ func (h *RequestOnlyMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 				result.SetProperty(key, data.NewStringValue(values[0]))
 			} else {
 				result.SetProperty(key, data.NewStringValue(strings.Join(values, ",")))
+			}
+		}
+	}
+
+	// 从 POST 表单数据获取（最高优先级）
+	if h.source.PostForm != nil {
+		for _, key := range keys {
+			if values, exists := h.source.PostForm[key]; exists && len(values) > 0 {
+				if len(values) == 1 {
+					result.SetProperty(key, data.NewStringValue(values[0]))
+				} else {
+					result.SetProperty(key, data.NewStringValue(strings.Join(values, ",")))
+				}
 			}
 		}
 	}

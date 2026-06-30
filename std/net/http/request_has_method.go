@@ -23,9 +23,9 @@ func (h *RequestHasMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 		return nil, utils.NewThrowf("参数转换失败: %v", err)
 	}
 
-	// 检查表单数据
-	if h.source.Form != nil {
-		if values, exists := h.source.Form[param0]; exists && len(values) > 0 && values[0] != "" {
+	// 检查 POST 表单数据
+	if h.source.PostForm != nil {
+		if values, exists := h.source.PostForm[param0]; exists && len(values) > 0 && values[0] != "" {
 			return data.NewBoolValue(true), nil
 		}
 	}
@@ -33,6 +33,13 @@ func (h *RequestHasMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 	// 检查查询参数
 	if values, exists := h.source.URL.Query()[param0]; exists && len(values) > 0 && values[0] != "" {
 		return data.NewBoolValue(true), nil
+	}
+
+	// 检查路由参数
+	if pathVals := collectPathValues(h.source); pathVals != nil {
+		if val, exists := pathVals[param0]; exists && val != "" {
+			return data.NewBoolValue(true), nil
+		}
 	}
 
 	return data.NewBoolValue(false), nil

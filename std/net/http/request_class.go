@@ -54,6 +54,8 @@ func NewRequestClass() data.ClassStmt {
 		basicAuth:          &RequestBasicAuthMethod{source: nil},
 		cookies:            &RequestCookiesMethod{source: nil},
 		addCookie:          &RequestAddCookieMethod{source: nil},
+		post:               &RequestPostMethod{source: nil},
+		route:              &RequestRouteMethod{source: nil},
 	}
 }
 
@@ -82,6 +84,8 @@ func NewRequestClassFrom(source *httpsrc.Request) data.ClassStmt {
 		cookie:             &RequestCookieMethod{source: source},
 		userAgent:          &RequestUserAgentMethod{source: source},
 		writeProxy:         &RequestWriteProxyMethod{source: source},
+		post:               &RequestPostMethod{source: source},
+		route:              &RequestRouteMethod{source: source},
 	}
 }
 
@@ -110,6 +114,8 @@ type RequestClass struct {
 	withContext        data.Method
 	cookie             data.Method
 	cookies            data.Method
+	post               data.Method
+	route              data.Method
 }
 
 func (s *RequestClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
@@ -204,6 +210,10 @@ func (s *RequestClass) GetMethod(name string) (data.Method, bool) {
 		return &RequestBodyMethod{source: s.source}, true
 	case "attribute":
 		return &RequestAttributeMethod{source: s.source}, true
+	case "post":
+		return s.post, true
+	case "route":
+		return s.route, true
 	}
 	return nil, false
 }
@@ -232,6 +242,8 @@ func (s *RequestClass) GetMethods() []data.Method {
 		s.formValue,
 		s.multipartReader,
 		s.setBasicAuth,
+		s.post,
+		s.route,
 		&RequestMethodMethod{source: s.source},
 		&RequestUrlMethod{source: s.source},
 		&RequestFullUrlMethod{source: s.source},
@@ -250,6 +262,8 @@ func (s *RequestClass) GetMethods() []data.Method {
 		&RequestBindMethod{source: s.source},
 		&RequestBodyMethod{source: s.source},
 		&RequestAttributeMethod{source: s.source},
+		&RequestPostMethod{source: s.source},
+		&RequestRouteMethod{source: s.source},
 	}
 }
 

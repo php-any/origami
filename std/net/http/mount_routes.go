@@ -17,11 +17,16 @@ func mountAnnotationRoutes(server *ServerClass, vm data.VM, ctx data.Context, la
 
 	for _, rt := range routes {
 		rt := rt
+		// 预提取路由路径中的参数名列表
+		pathParamKeys := extractPathParamKeys(rt.Path)
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			rw, response := beginResponse(w, r)
 			defer rw.commitPending()
 			r, request := beginRequest(r)
 			defer detachRequestAttrs(r)
+
+			// 将路径参数键名关联到请求，以便 all/input/only/except/has/post/route 等方法获取
+			setPathValueKeys(r, pathParamKeys)
 
 			reqProxy := data.NewProxyValue(request, ctx)
 			resProxy := data.NewProxyValue(response, ctx)

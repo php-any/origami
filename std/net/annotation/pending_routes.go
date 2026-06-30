@@ -2,7 +2,9 @@ package annotation
 
 import (
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/runtime"
+	httpstd "github.com/php-any/origami/std/net/http"
 )
 
 // PendingRoute 待注册路由
@@ -18,6 +20,52 @@ type PendingRoute struct {
 type pendingController struct {
 	ClassStmt data.ClassStmt
 	Ctx       data.Context
+}
+
+// registerMethodBindings 读取方法上的参数绑定注解，注册到 http 包的绑定表
+func registerMethodBindings(target data.Method, cm *node.ClassMethod) {
+	vars := target.GetVariables()
+	if len(vars) == 0 {
+		return
+	}
+
+	bindings := make([]httpstd.ParamBind, len(vars))
+	// 默认全部为自动绑定
+	for i := range bindings {
+		bindings[i] = httpstd.BindAuto
+	}
+
+	// 读取方法注解中的参数绑定声明
+	for _, ann := range cm.Annotations {
+		switch a := ann.Class.(type) {
+		case *PathVariableClass:
+			for _, name := range a.ParamNames() {
+				for i, v := range vars {
+					if v.GetName() == name {
+						bindings[i] = httpstd.BindPath
+					}
+				}
+			}
+		case *RequestParamClass:
+			for _, name := range a.ParamNames() {
+				for i, v := range vars {
+					if v.GetName() == name {
+						bindings[i] = httpstd.BindQuery
+					}
+				}
+			}
+		case *RequestBodyClass:
+			for _, name := range a.ParamNames() {
+				for i, v := range vars {
+					if v.GetName() == name {
+						bindings[i] = httpstd.BindBody
+					}
+				}
+			}
+		}
+	}
+
+	httpstd.RegisterParamBindings(httpstd.MethodID(target), bindings)
 }
 
 var pendingRoutes []PendingRoute

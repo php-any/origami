@@ -196,12 +196,16 @@ func (m *ControllerConstructMethod) Call(ctx data.Context) (data.GetValue, data.
 							switch gc := ann.Class.(type) {
 							case *GetMappingClass:
 								appendRoute("GET", join(prefix, gc.Path()), method)
+								registerMethodBindings(method, cm)
 							case *PostMappingClass:
 								appendRoute("POST", join(prefix, gc.Path()), method)
+								registerMethodBindings(method, cm)
 							case *PutMappingClass:
 								appendRoute("PUT", join(prefix, gc.Path()), method)
+								registerMethodBindings(method, cm)
 							case *DeleteMappingClass:
 								appendRoute("DELETE", join(prefix, gc.Path()), method)
+								registerMethodBindings(method, cm)
 							}
 						}
 					}

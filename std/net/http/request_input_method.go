@@ -22,10 +22,14 @@ func (h *RequestInputMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	// 检查是否有参数
 	_, hasKey := ctx.GetIndexValue(0)
 
-	// 如果没有参数，返回所有输入数据
+	// 如果没有参数，返回所有输入数据（路由参数 + 查询参数 + 表单数据）
 	if !hasKey {
-		// 合并查询参数和表单数据
 		result := data.NewObjectValue()
+
+		// 添加路由参数（最低优先级）
+		for key, val := range collectPathValues(h.source) {
+			result.SetProperty(key, data.NewStringValue(val))
+		}
 
 		// 添加查询参数
 		for key, values := range h.source.URL.Query() {
@@ -36,9 +40,9 @@ func (h *RequestInputMethod) Call(ctx data.Context) (data.GetValue, data.Control
 			}
 		}
 
-		// 添加表单数据
-		if h.source.Form != nil {
-			for key, values := range h.source.Form {
+		// 添加 POST 表单数据（最高优先级）
+		if h.source.PostForm != nil {
+			for key, values := range h.source.PostForm {
 				if len(values) == 1 {
 					result.SetProperty(key, data.NewStringValue(values[0]))
 				} else {
@@ -56,9 +60,9 @@ func (h *RequestInputMethod) Call(ctx data.Context) (data.GetValue, data.Control
 		return nil, utils.NewThrowf("参数转换失败: %v", err)
 	}
 
-	// 优先从表单数据获取
-	if h.source.Form != nil {
-		if values, exists := h.source.Form[param0]; exists && len(values) > 0 {
+	// 优先从 POST 表单数据获取
+	if h.source.PostForm != nil {
+		if values, exists := h.source.PostForm[param0]; exists && len(values) > 0 {
 			return data.NewStringValue(values[0]), nil
 		}
 	}
@@ -66,6 +70,13 @@ func (h *RequestInputMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	// 然后从查询参数获取
 	if values, exists := h.source.URL.Query()[param0]; exists && len(values) > 0 {
 		return data.NewStringValue(values[0]), nil
+	}
+
+	// 最后从路由参数获取
+	if pathVals := collectPathValues(h.source); pathVals != nil {
+		if val, exists := pathVals[param0]; exists {
+			return data.NewStringValue(val), nil
+		}
 	}
 
 	return data.NewAnyValue(nil), nil

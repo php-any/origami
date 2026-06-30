@@ -16,4 +16,8 @@ func Load(vm data.VM) {
 	vm.AddClass(&PostMappingClass{})
 	vm.AddClass(&PutMappingClass{})
 	vm.AddClass(&DeleteMappingClass{})
+	// 参数绑定注解
+	vm.AddClass(&PathVariableClass{})
+	vm.AddClass(&RequestParamClass{})
+	vm.AddClass(&RequestBodyClass{})
 }
