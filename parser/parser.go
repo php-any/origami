@@ -594,7 +594,8 @@ func (p *Parser) findFullClassNameByNamespace(name string) (string, bool) {
 		if _, ok := p.ClassPathManager.FindClassFile(name); ok {
 			return name, true
 		}
-		return tryName, true
+		// 文件未找到，返回命名空间前缀名称供运行期 autoload，但 ok=false 避免与函数后置调用 div{} 混淆
+		return tryName, false
 	} else {
 		// 尝试全局
 		if stmt, ok := p.vm.GetClass(name); ok {
