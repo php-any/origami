@@ -33,6 +33,20 @@ func (s *BoolValue) AsBool() (bool, error) {
 	return s.Value, nil
 }
 
+func (s *BoolValue) AsInt() (int, error) {
+	if s.Value {
+		return 1, nil
+	}
+	return 0, nil
+}
+
+func (s *BoolValue) AsFloat() (float64, error) {
+	if s.Value {
+		return 1, nil
+	}
+	return 0, nil
+}
+
 func (s *BoolValue) Marshal(serializer Serializer) ([]byte, error) {
 	return serializer.MarshalBool(s)
 }
