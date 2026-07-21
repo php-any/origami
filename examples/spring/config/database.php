@@ -5,5 +5,5 @@
  */
 return [
     'driver' => 'sqlite',
-    'database' => __DIR__ . '/spring.db',
+    'database' => realpath(__DIR__ . '../storage/spring.db'),
 ];

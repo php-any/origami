@@ -157,8 +157,8 @@ func ExecuteCommand(ctx data.Context, commandName string) data.Control {
 	baseCtx := ctx.CreateBaseContext()
 	cv := data.NewClassValue(cls, baseCtx)
 
-	// 查找 execute 方法
-	method, has := cls.GetMethod("execute")
+	// 查找 execute 方法（支持继承自基类，如 Bootstrap\Console\Command）
+	method, has := cv.GetMethod("execute")
 	if !has {
 		return data.NewErrorThrow(nil, errors.New("命令 "+commandName+" 缺少 execute 方法"))
 	}

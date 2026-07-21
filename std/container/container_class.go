@@ -28,8 +28,9 @@ func newContainerClass(engine *Engine) *ContainerClass {
 		hasMethod:         &ContainerHasMethod{},
 		isSharedMethod:    &ContainerIsSharedMethod{},
 		aliasMethod:       &ContainerAliasMethod{},
-		getInstanceMethod: &ContainerGetInstanceMethod{},
-		registerProviders: &ContainerRegisterProvidersMethod{},
+		getInstanceMethod:   &ContainerGetInstanceMethod{},
+		applicationMethod:   &ContainerApplicationMethod{},
+		registerProviders:   &ContainerRegisterProvidersMethod{},
 		createScopeMethod: &ContainerCreateScopeMethod{},
 		scanMethod:        &ContainerScanMethod{},
 	}
@@ -47,8 +48,9 @@ type ContainerClass struct {
 	hasMethod         data.Method
 	isSharedMethod    data.Method
 	aliasMethod       data.Method
-	getInstanceMethod data.Method
-	registerProviders data.Method
+	getInstanceMethod   data.Method
+	applicationMethod   data.Method
+	registerProviders   data.Method
 	createScopeMethod data.Method
 	scanMethod        data.Method
 }
@@ -106,6 +108,9 @@ func (c *ContainerClass) GetMethod(name string) (data.Method, bool) {
 func (c *ContainerClass) GetStaticMethod(name string) (data.Method, bool) {
 	if name == "getInstance" {
 		return c.getInstanceMethod, true
+	}
+	if name == "application" {
+		return c.applicationMethod, true
 	}
 	return nil, false
 }

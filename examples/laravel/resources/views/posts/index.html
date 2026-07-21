@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h1>文章列表</h1>
+<div class="post-list">
+    <article class="card" for="$post in $posts">
+        <h2><a href="/posts/{$post->id}">{$post->title}</a></h2>
+        <p class="excerpt">{$post->body}</p>
+    </article>
+</div>
+</body>
+</html>

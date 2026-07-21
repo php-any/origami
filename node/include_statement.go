@@ -17,6 +17,14 @@ var includeOnceCache = struct {
 	files: make(map[string]data.GetValue),
 }
 
+// ClearIncludeCache 清空 include/require 返回值缓存，供开发模式热重载使用。
+// 缓存为进程级全局，若不清理会导致重载时 require 命中旧值而跳过重新执行。
+func ClearIncludeCache() {
+	includeOnceCache.mu.Lock()
+	defer includeOnceCache.mu.Unlock()
+	includeOnceCache.files = make(map[string]data.GetValue)
+}
+
 // IncludeStatement 表示 include/require/include_once/require_once 语句
 type IncludeStatement struct {
 	*Node

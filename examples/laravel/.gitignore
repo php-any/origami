@@ -1,0 +1,4 @@
+laravel
+vendor/
+storage/*.db
+.env

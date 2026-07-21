@@ -29,8 +29,17 @@ func Load(vm data.VM) {
 
 func onApplicationScanStart(ctx data.Context) (func(), data.Control) {
 	e := NewEngine()
-	restore := setRegisteringEngine(e)
-	return func() { restore() }, nil
+	restoreEngine := setRegisteringEngine(e)
+
+	inst := newContainerClass(e)
+	cv := data.NewClassValue(inst, ctx.CreateBaseContext())
+	e.setHost(cv)
+	restoreContainer := setApplicationContainer(cv)
+
+	return func() {
+		restoreContainer()
+		restoreEngine()
+	}, nil
 }
 
 func instantiateController(stmt data.ClassStmt, ctx data.Context) (data.GetValue, data.Control) {

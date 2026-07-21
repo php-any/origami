@@ -391,6 +391,12 @@ func AddAutoLoad(fun *data.FuncValue) {
 	autoload = append(autoload, fun)
 }
 
+// ClearAutoLoad 清空全部 autoload 回调，供开发模式热重载使用，
+// 避免旧 VM 注册的回调残留污染新 VM。
+func ClearAutoLoad() {
+	autoload = autoload[:0]
+}
+
 func RemoveAutoLoad(fun *data.FuncValue) {
 	if len(autoload) == 0 {
 		return

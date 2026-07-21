@@ -61,3 +61,31 @@ func TestParseFileBindsAssociativeArray(t *testing.T) {
 		t.Fatalf("rendered %q does not contain injected greeting", sv.AsString())
 	}
 }
+
+func TestParseFileInterpolatesHtmlAttributeValue(t *testing.T) {
+	dir := t.TempDir()
+	htmlPath := filepath.Join(dir, "page.html")
+	if err := os.WriteFile(htmlPath, []byte(`<html><body><a href="/posts/{$id}">go</a></body></html>`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	p := parser.NewParser()
+	vm := NewVM(p).(*VM)
+
+	arr := &data.ArrayValue{
+		List: []*data.ZVal{
+			data.NewNamedZVal("id", data.NewIntValue(42)),
+		},
+	}
+	rendered, acl := vm.ParseFile(htmlPath, arr)
+	if acl != nil {
+		t.Fatalf("ParseFile with interpolated attribute failed: %v", acl)
+	}
+	sv, ok := rendered.(*data.StringValue)
+	if !ok {
+		t.Fatalf("expected StringValue, got %T", rendered)
+	}
+	if !strings.Contains(sv.AsString(), `href="/posts/42"`) {
+		t.Fatalf("rendered %q does not contain interpolated href", sv.AsString())
+	}
+}

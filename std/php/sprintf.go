@@ -3,6 +3,7 @@ package php
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -53,27 +54,7 @@ func (f *SprintfFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// - PHP 支持位置参数：%1$s、%2$d 等；Go 使用 %[1]s 这样的语法。
 	// 这里做一次简单转换：%1$-20s -> %[1]-20s 等。
 	goFormat := phpToGoFormat(format)
-
-	// 对于 %s 格式符，Go 不会自动将 int/bool 转为字符串
-	// 需要将参数转为字符串以兼容 PHP 行为
-	if needsStringConversion(goFormat) {
-		for i, arg := range args {
-			switch v := arg.(type) {
-			case int:
-				args[i] = fmt.Sprintf("%d", v)
-			case int64:
-				args[i] = fmt.Sprintf("%d", v)
-			case float64:
-				args[i] = fmt.Sprintf("%g", v)
-			case bool:
-				if v {
-					args[i] = "1"
-				} else {
-					args[i] = ""
-				}
-			}
-		}
-	}
+	args = coerceArgsForFormat(goFormat, args)
 
 	result := fmt.Sprintf(goFormat, args...)
 
@@ -106,10 +87,113 @@ func phpToGoFormat(format string) string {
 	return phpPositionalRe.ReplaceAllString(format, "%[$1]$2")
 }
 
-// needsStringConversion 检查格式串中是否包含 %s
-// 如果有，Go 不会自动将 int/bool 转为字符串，需要手动转换
-var stringSpecRe = regexp.MustCompile(`%[+#0\- ]*\d*(?:\.\d+)?s`)
+// goFmtSpecRe 匹配 Go fmt 占位符（含 phpToGoFormat 转换后的 %[n] 位置参数）。
+var goFmtSpecRe = regexp.MustCompile(`%(?:%|(?:\[(\d+)\])?([+#0\- ]*)(\d*)(?:\.(\d+))?([bcdeEfFgGosxX]))`)
 
-func needsStringConversion(format string) bool {
-	return stringSpecRe.MatchString(format)
+// coerceArgsForFormat 按各占位符类型单独转换实参，兼容 PHP 的弱类型 sprintf 行为。
+func coerceArgsForFormat(format string, args []interface{}) []interface{} {
+	if len(args) == 0 {
+		return args
+	}
+
+	result := append([]interface{}(nil), args...)
+	nextIndex := 0
+
+	for _, m := range goFmtSpecRe.FindAllStringSubmatch(format, -1) {
+		if m[0] == "%%" {
+			continue
+		}
+
+		verb := m[5]
+		argIdx := nextIndex
+		if m[1] != "" {
+			if n, err := strconv.Atoi(m[1]); err == nil && n > 0 {
+				argIdx = n - 1
+			}
+		} else {
+			nextIndex++
+		}
+
+		if argIdx < 0 || argIdx >= len(result) {
+			continue
+		}
+		result[argIdx] = coerceArgForVerb(verb, result[argIdx])
+	}
+
+	return result
+}
+
+func coerceArgForVerb(verb string, arg interface{}) interface{} {
+	switch verb {
+	case "s":
+		return coerceToString(arg)
+	case "d", "b", "o", "x", "X":
+		return coerceToInt(arg)
+	case "f", "F", "e", "E", "g", "G":
+		return coerceToFloat(arg)
+	default:
+		return arg
+	}
+}
+
+func coerceToString(arg interface{}) interface{} {
+	switch v := arg.(type) {
+	case string:
+		return v
+	case int:
+		return strconv.Itoa(v)
+	case int64:
+		return strconv.FormatInt(v, 10)
+	case float64:
+		return strconv.FormatFloat(v, 'g', -1, 64)
+	case bool:
+		if v {
+			return "1"
+		}
+		return ""
+	default:
+		return fmt.Sprint(arg)
+	}
+}
+
+func coerceToInt(arg interface{}) interface{} {
+	switch v := arg.(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
+	case bool:
+		if v {
+			return 1
+		}
+		return 0
+	case string:
+		if i, err := strconv.Atoi(v); err == nil {
+			return i
+		}
+	}
+	return arg
+}
+
+func coerceToFloat(arg interface{}) interface{} {
+	switch v := arg.(type) {
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case bool:
+		if v {
+			return 1.0
+		}
+		return 0.0
+	case string:
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return f
+		}
+	}
+	return arg
 }

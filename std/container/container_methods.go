@@ -292,6 +292,23 @@ func (m *ContainerGetInstanceMethod) Call(ctx data.Context) (data.GetValue, data
 	return ensureDefaultInstance(ctx)
 }
 
+// --- application ---
+
+type ContainerApplicationMethod struct{ containerStaticMethod }
+
+func (m *ContainerApplicationMethod) GetName() string               { return "application" }
+func (m *ContainerApplicationMethod) GetParams() []data.GetValue    { return nil }
+func (m *ContainerApplicationMethod) GetVariables() []data.Variable { return nil }
+func (m *ContainerApplicationMethod) GetReturnType() data.Types {
+	return data.NewBaseType("Container\\Container")
+}
+func (m *ContainerApplicationMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	if c := ApplicationContainer(); c != nil {
+		return c, nil
+	}
+	return nil, utils.NewThrow(errors.New("Application 容器不可用：请在 #[Application] 扫描上下文中调用"))
+}
+
 // --- registerProviders ---
 
 type ContainerRegisterProvidersMethod struct{ containerMethod }

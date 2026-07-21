@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{$title} - Laravel Demo</title>
+    <link rel="stylesheet" href="/assets/css/app.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="brand">Laravel Demo</a>
+        <div class="nav-links">
+            <a href="/">首页</a>
+            <a href="/posts">文章</a>
+            <a href="/api/health">API</a>
+        </div>
+    </nav>
+    <main class="container">
+        {$content}
+    </main>
+    <footer class="footer">
+        <p>Origami Laravel 风格示例 &mdash; 声明式路由 + IoC + Eloquent 风格 Model</p>
+    </footer>
+    <script src="/assets/js/app.js"></script>
+</body>
+</html>

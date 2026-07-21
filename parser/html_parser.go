@@ -52,7 +52,7 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 	attributes := make(map[string]node.HtmlAttributeValue)
 	for !h.isEOF() && h.current().Type() != token.GT && h.current().Type() != token.QUO {
 		// 只解析属性名称
-		attrName, isCode, acl := h.parseAttributeName()
+		attrName, _, acl := h.parseAttributeName()
 		if acl != nil {
 			return nil, acl
 		}
@@ -79,15 +79,9 @@ func (h *HtmlParser) parseHtmlContent() (data.GetValue, data.Control) {
 			// 对于普通属性，使用默认解析
 			h.nextAndCheck(token.ASSIGN)
 			var attrValue data.GetValue
-
-			if isCode {
-				attrValue, acl = h.parseAttributeValue()
-				if acl != nil {
-					return nil, acl
-				}
-			} else {
-				attrValue = node.NewStringLiteral(h.FromCurrentToken(), h.current().Literal())
-				h.next()
+			attrValue, acl = h.parseAttributeValue()
+			if acl != nil {
+				return nil, acl
 			}
 
 			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), attrName, attrValue)
@@ -268,33 +262,105 @@ func (h *HtmlParser) parseAttributeValue() (data.GetValue, data.Control) {
 			return v, nil
 		}
 	case token.STRING:
-		// 记录字符串 token 在原始文件中的起始位置
 		strToken := h.current()
-		strStartPos := strToken.Start()
-		strStartLine := strToken.Line()
-		strStartLinePos := strToken.Pos()
-
-		str := strToken.Literal()
+		raw := strToken.Literal()
 		h.next()
 
-		// 使用普通 lexer 重新分词
-		normalLexer := lexer.NewLexer()
-		rawTokens := normalLexer.Tokenize(str)
-
-		// 调整 tokens 的位置信息，使其指向原始文件中的位置
-		tokens := adjustTokenPositions(rawTokens, strStartPos, strStartLine, strStartLinePos)
-
-		// 编译脚本为 Program
-		prog, acl := h.Parser.parseTokensAsExpression(tokens)
-		if acl != nil {
-			return nil, acl
+		// 去掉首尾引号，仅解析属性内容本身
+		if len(raw) >= 2 {
+			if (raw[0] == '"' && raw[len(raw)-1] == '"') || (raw[0] == '\'' && raw[len(raw)-1] == '\'') {
+				raw = raw[1 : len(raw)-1]
+			}
 		}
-		return prog, nil
+		return h.parseAttributeInterpolatedString(raw, strToken)
 	}
 
 	value := h.current().Literal()
 	h.next()
 	return node.NewStringLiteral(h.FromCurrentToken(), value), nil
+}
+
+func (h *HtmlParser) parseAttributeInterpolatedString(raw string, strToken lexer.Token) (data.GetValue, data.Control) {
+	from := node.NewTokenFrom(h.source, strToken.Start(), strToken.End(), strToken.Line(), strToken.Pos())
+	runes := []rune(raw)
+	parts := make([]data.GetValue, 0)
+	current := make([]rune, 0)
+
+	flushString := func() {
+		if len(current) == 0 {
+			return
+		}
+		parts = append(parts, node.NewStringLiteral(from, string(current)))
+		current = current[:0]
+	}
+
+	for i := 0; i < len(runes); i++ {
+		if runes[i] == '{' && i+2 < len(runes) && runes[i+1] == '$' {
+			nextChar := runes[i+2]
+			if !((unicode.IsLetter(nextChar) || nextChar == '_' || nextChar > 127) && !unicode.IsDigit(nextChar)) {
+				current = append(current, runes[i])
+				continue
+			}
+
+			exprStart := i + 2
+			j := exprStart
+			braceDepth := 1
+			parenDepth := 0
+			bracketDepth := 0
+
+			for j < len(runes) {
+				switch runes[j] {
+				case '{':
+					braceDepth++
+				case '}':
+					braceDepth--
+					if braceDepth == 0 {
+						goto foundExpr
+					}
+				case '(':
+					parenDepth++
+				case ')':
+					parenDepth--
+				case '[':
+					bracketDepth++
+				case ']':
+					bracketDepth--
+				}
+				j++
+			}
+
+			current = append(current, runes[i])
+			continue
+
+		foundExpr:
+			flushString()
+			exprContent := string(runes[exprStart:j])
+			codeTokens := lexer.NewLexer().Tokenize("$" + exprContent)
+			expr, acl := h.parseTokensAsExpression(codeTokens)
+			if acl != nil {
+				return nil, acl
+			}
+			parts = append(parts, expr)
+			i = j
+			continue
+		}
+
+		current = append(current, runes[i])
+	}
+
+	flushString()
+
+	if len(parts) == 0 {
+		return node.NewStringLiteral(from, raw), nil
+	}
+	if len(parts) == 1 {
+		return parts[0], nil
+	}
+	result := parts[0]
+	for i := 1; i < len(parts); i++ {
+		result = node.NewBinaryLink(from, result, parts[i])
+	}
+	return result, nil
 }
 
 // parseTagName 解析标签名
@@ -478,7 +544,7 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 	attributes := make(map[string]node.HtmlAttributeValue)
 	for !h.isEOF() && h.current().Type() != token.GT && h.current().Type() != token.QUO {
 		// 只解析属性名称
-		attrName, isCode, acl := h.parseAttributeName()
+		attrName, _, acl := h.parseAttributeName()
 		if acl != nil {
 			return nil, acl
 		}
@@ -505,14 +571,9 @@ func (h *HtmlParser) parseSingleHtmlTag() (data.GetValue, data.Control) {
 			// 对于普通属性，使用默认解析
 			h.next()
 			var attrValue data.GetValue
-			if isCode {
-				attrValue, acl = h.parseAttributeValue()
-				if acl != nil {
-					return nil, acl
-				}
-			} else {
-				attrValue = node.NewStringLiteral(h.FromCurrentToken(), h.current().Literal())
-				h.next()
+			attrValue, acl = h.parseAttributeValue()
+			if acl != nil {
+				return nil, acl
 			}
 			attributes[attrName] = node.NewAttrValueAdapter(h.FromCurrentToken(), attrName, attrValue)
 		}

@@ -20,20 +20,6 @@ $server = new Server($host, port: $port);
 // CORS 中间件
 $server->middleware(new CorsMiddleware());
 
-// 请求日志中间件
-$server->middleware(function (Net\Http\Request $request, Net\Http\Response $response, callable $next): void {
-    $method = $request->method();
-    $path = $request->path();
-    $startTime = microtime(true);
-
-    Log::info("HTTP " . $method . " " . $path);
-
-    $next($request, $response);
-
-    $duration = round((microtime(true) - $startTime) * 1000, 2);
-    Log::info("响应时间: " . $duration . "ms");
-});
-
 // 静态资源：CSS / JS
 $server->static("/assets/", __DIR__ . "/pages/assets");
 

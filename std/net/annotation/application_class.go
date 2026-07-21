@@ -160,9 +160,6 @@ func (m *ApplicationConstructMethod) Call(ctx data.Context) (data.GetValue, data
 	if acl := m.Scan(ctx); acl != nil {
 		return nil, acl
 	}
-	if acl := m.invokeBoot(ctx); acl != nil {
-		return nil, acl
-	}
 	m.registerExit(ctx)
 	return nil, nil
 }
@@ -268,6 +265,10 @@ func (m *ApplicationConstructMethod) Scan(ctx data.Context) data.Control {
 		if _, acl := vm.LoadAndRun(f); acl != nil {
 			return acl
 		}
+	}
+
+	if acl := m.invokeBoot(ctx); acl != nil {
+		return acl
 	}
 
 	return netdata.RegisterPendingRoutes()

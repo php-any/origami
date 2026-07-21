@@ -14,4 +14,5 @@ func Load(vm data.VM) {
 	vm.AddClass(NewResponseWriterClass())
 	vm.AddClass(NewRequestClass())
 	vm.AddClass(NewUploadedFileClass())
+	vm.AddClass(NewRouterClass())
 }

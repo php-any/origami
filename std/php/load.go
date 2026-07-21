@@ -72,6 +72,7 @@ func Load(vm data.VM) {
 		NewEvalFunction(),
 		NewRunPhpFileFunction(),
 		NewStrlenFunction(),
+		NewStrvalFunction(),
 		NewHashFunction(),
 		NewStrposFunction(),
 		NewSubstrFunction(),
@@ -95,7 +96,19 @@ func Load(vm data.VM) {
 		array.NewArrayKeysFunction(),
 		array.NewArrayKeyFirstFunction(),
 		array.NewArraySearchFunction(),
+		array.NewArrayFillFunction(),
 		array.NewArrayFillKeysFunction(),
+		array.NewArrayColumnFunction(),
+		array.NewArrayChunkFunction(),
+		array.NewArrayCountValuesFunction(),
+		array.NewArraySumFunction(),
+		array.NewArrayProductFunction(),
+		array.NewArrayKeyLastFunction(),
+		array.NewArrayChangeKeyCaseFunction(),
+		array.NewArrayWalkRecursiveFunction(),
+		array.NewArrayUdiffFunction(),
+		array.NewArrayUintersectFunction(),
+		array.NewArrayMultisortFunction(),
 		array.NewArrayIsListFunction(),
 		NewMd5Function(),
 		NewMd5FileFunction(),
@@ -393,6 +406,10 @@ func initPhpDefaultDefines(vm data.VM) {
 	vm.SetConstant("SORT_LOCALE_STRING", data.NewIntValue(3))
 	vm.SetConstant("SORT_NATURAL", data.NewIntValue(5))
 	vm.SetConstant("SORT_FLAG_CASE", data.NewIntValue(6-5)) // 组合时常用 SORT_NATURAL | SORT_FLAG_CASE
+	vm.SetConstant("SORT_ASC", data.NewIntValue(4))
+	vm.SetConstant("SORT_DESC", data.NewIntValue(3))
+	vm.SetConstant("CASE_LOWER", data.NewIntValue(0))
+	vm.SetConstant("CASE_UPPER", data.NewIntValue(1))
 
 	// 错误级别常量
 	vm.SetConstant("E_ERROR", data.NewIntValue(1))

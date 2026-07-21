@@ -38,6 +38,7 @@ type PendingRoute struct {
 	StaticReceiver data.GetValue
 	Operation      *OperationInfo
 	HandlerSpec    HandlerSpec
+	Middlewares    []string // 路由级中间件（Route::middleware / group）
 }
 
 type pendingController struct {

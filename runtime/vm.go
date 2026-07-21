@@ -102,6 +102,23 @@ func (vm *VM) GetPhpFileCache(file string) bool {
 	return ok
 }
 
+// ClearPhpFileCache 清空已加载 PHP 文件缓存，供开发模式热重载使用。
+func (vm *VM) ClearPhpFileCache() {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+	vm.phpFileCache = make(map[string]struct{})
+}
+
+// GlobalValue 读取 PHP 全局变量当前值。
+func (vm *VM) GlobalValue(name string) data.Value {
+	vm.mu.RLock()
+	defer vm.mu.RUnlock()
+	if zv, ok := vm.globalVars[name]; ok && zv != nil {
+		return zv.Value
+	}
+	return nil
+}
+
 // AddNamespace 添加命名空间路径映射到类路径管理器
 func (vm *VM) AddNamespace(namespace string, path string) {
 	vm.parser.GetClassPathManager().AddNamespace(namespace, path)

@@ -9,7 +9,6 @@ use Net\Annotation\Middleware;
 use Net\Http\Response;
 use Spring\Middleware\LogInterceptor;
 
-#[Middleware(LogInterceptor::class)]
 #[Controller]
 #[Route(prefix: "/api")]
 class HelloController {

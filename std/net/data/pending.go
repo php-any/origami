@@ -52,6 +52,9 @@ func RegisterPendingRoutes() data.Control {
 				middlewares = append(middlewares, MiddlewareInfo{ClassName: className})
 			}
 		}
+		for _, className := range pr.Middlewares {
+			middlewares = append(middlewares, MiddlewareInfo{ClassName: className})
+		}
 
 		receiver := pr.Receiver
 		if receiver == nil && pr.StaticReceiver != nil {

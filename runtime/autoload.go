@@ -13,6 +13,11 @@ func RemoveAutoLoad(fun *data.FuncValue) {
 	parser.RemoveAutoLoad(fun)
 }
 
+// ClearAutoLoad 清空全部 autoload 回调，供开发模式热重载使用。
+func ClearAutoLoad() {
+	parser.ClearAutoLoad()
+}
+
 func GetAutoLoad() []*data.FuncValue {
 	return parser.GetAutoLoad()
 }

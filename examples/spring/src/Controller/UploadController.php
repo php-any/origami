@@ -70,7 +70,7 @@ class UploadController {
             return;
         }
 
-        $savedPath = $avatar->store($this->uploadDir);
+        $savedPath = $avatar->store($this->uploadDir, 'avatar.png');
 
         $response->success([
             'original_name' => $avatar->originalName(),

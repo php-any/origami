@@ -109,6 +109,8 @@ func (m *CliApplicationConstructMethod) Call(ctx data.Context) (data.GetValue, d
 		m.app.version = v.AsString()
 	}
 
+	lastCliApplication = m.app
+
 	scanSpecified := false
 	if scan, ok := ctx.GetIndexValue(2); ok && scan != nil {
 		if anyV, ok := scan.(*data.StringValue); ok {
