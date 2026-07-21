@@ -14,5 +14,9 @@
             "bootstrap/config.php",
             "bootstrap/helpers.php"
         ]
+    },
+    "require": {
+        "illuminate/support": "^10.49",
+        "illuminate/collections": "^10.49"
     }
 }

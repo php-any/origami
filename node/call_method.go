@@ -105,15 +105,21 @@ func (pe *CallMethod) handleStaticMethodWithLateBinding(ctx data.Context, sm *st
 	}
 
 	// 入参的值设置到上下文中
-	for index := range fn.GetParams() {
+	params := fn.GetParams()
+	for index, param := range params {
 		if index < len(pe.Args) {
-			param := pe.Args[index]
-			tempV, acl := param.GetValue(ctx)
+			arg := pe.Args[index]
+			tempV, acl := arg.GetValue(ctx)
 			if acl != nil {
 				return nil, acl
 			}
 			if index < len(varies) {
 				fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
+			}
+		} else {
+			// 调用方未传该参数，触发默认值填充
+			if _, acl := param.GetValue(fnCtx); acl != nil {
+				return nil, acl
 			}
 		}
 	}

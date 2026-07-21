@@ -227,10 +227,12 @@ func (f *MbSubstrFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	length := runeLen
 	hasLength := false
 	if lenVal, ok := ctx.GetIndexValue(2); ok && lenVal != nil {
-		if asInt, ok := lenVal.(data.AsInt); ok {
-			if v, err := asInt.AsInt(); err == nil {
-				length = v
-				hasLength = true
+		if _, isNull := lenVal.(*data.NullValue); !isNull {
+			if asInt, ok := lenVal.(data.AsInt); ok {
+				if v, err := asInt.AsInt(); err == nil {
+					length = v
+					hasLength = true
+				}
 			}
 		}
 	}
@@ -273,5 +275,92 @@ func (f *MbSubstrFunction) GetVariables() []data.Variable {
 		node.NewVariable(nil, "start", 1, data.NewBaseType("int")),
 		node.NewVariable(nil, "length", 2, data.NewNullableType(data.NewBaseType("int"))),
 		node.NewVariable(nil, "encoding", 3, data.NewNullableType(data.NewBaseType("string"))),
+	}
+}
+
+// MbStrimwidthFunction 实现 mb_strimwidth 函数
+// mb_strimwidth(string $string, int $start, int $width, string $trim_marker = "", ?string $encoding = null): string
+type MbStrimwidthFunction struct{}
+
+func NewMbStrimwidthFunction() data.FuncStmt { return &MbStrimwidthFunction{} }
+
+func (f *MbStrimwidthFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	strVal, _ := ctx.GetIndexValue(0)
+	startVal, _ := ctx.GetIndexValue(1)
+	widthVal, _ := ctx.GetIndexValue(2)
+	if strVal == nil || startVal == nil || widthVal == nil {
+		return data.NewStringValue(""), nil
+	}
+
+	s := strVal.AsString()
+	start := 0
+	if asInt, ok := startVal.(data.AsInt); ok {
+		if v, err := asInt.AsInt(); err == nil {
+			start = v
+		}
+	}
+	width := 0
+	if asInt, ok := widthVal.(data.AsInt); ok {
+		if v, err := asInt.AsInt(); err == nil {
+			width = v
+		}
+	}
+
+	trimMarker := ""
+	if markerVal, ok := ctx.GetIndexValue(3); ok && markerVal != nil {
+		trimMarker = markerVal.AsString()
+	}
+
+	runes := []rune(s)
+	runeLen := len(runes)
+
+	if start < 0 {
+		start = runeLen + start
+		if start < 0 {
+			start = 0
+		}
+	}
+	if start >= runeLen {
+		return data.NewStringValue(""), nil
+	}
+
+	sub := runes[start:]
+	markerRunes := []rune(trimMarker)
+	markerLen := len(markerRunes)
+
+	if width <= 0 {
+		return data.NewStringValue(string(sub)), nil
+	}
+
+	if len(sub) <= width {
+		return data.NewStringValue(string(sub)), nil
+	}
+
+	// 需要截断并附加 trim_marker
+	cutLen := width - markerLen
+	if cutLen < 0 {
+		cutLen = 0
+	}
+	result := string(sub[:cutLen]) + trimMarker
+	return data.NewStringValue(result), nil
+}
+
+func (f *MbStrimwidthFunction) GetName() string { return "mb_strimwidth" }
+func (f *MbStrimwidthFunction) GetParams() []data.GetValue {
+	return []data.GetValue{
+		node.NewParameter(nil, "string", 0, nil, nil),
+		node.NewParameter(nil, "start", 1, nil, nil),
+		node.NewParameter(nil, "width", 2, nil, nil),
+		node.NewParameter(nil, "trim_marker", 3, data.NewStringValue(""), nil),
+		node.NewParameter(nil, "encoding", 4, node.NewNullLiteral(nil), nil),
+	}
+}
+func (f *MbStrimwidthFunction) GetVariables() []data.Variable {
+	return []data.Variable{
+		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+		node.NewVariable(nil, "start", 1, data.NewBaseType("int")),
+		node.NewVariable(nil, "width", 2, data.NewBaseType("int")),
+		node.NewVariable(nil, "trim_marker", 3, data.NewBaseType("string")),
+		node.NewVariable(nil, "encoding", 4, data.NewNullableType(data.NewBaseType("string"))),
 	}
 }

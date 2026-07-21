@@ -312,8 +312,22 @@ func (s *staticMethodFunc) Call(callCtx data.Context) (data.GetValue, data.Contr
 			fnCtx.SetVariableValue(vars[1], data.NewArrayValue(argList))
 		}
 	} else {
-		for i := 0; i < len(s.method.GetVariables()); i++ {
-			fnCtx.SetIndexZVal(i, callCtx.GetIndexZVal(i))
+		params := s.method.GetParams()
+		vars := s.method.GetVariables()
+		for i := 0; i < len(vars); i++ {
+			zval := callCtx.GetIndexZVal(i)
+			if zval == nil {
+				// 调用方未传该参数，通过 param.GetValue 触发默认值填充
+				if i < len(params) {
+					if _, acl := params[i].GetValue(fnCtx); acl != nil {
+						return nil, acl
+					}
+				} else {
+					fnCtx.SetVariableValue(vars[i], data.NewNullValue())
+				}
+			} else {
+				fnCtx.SetIndexZVal(i, zval)
+			}
 		}
 	}
 	return s.method.Call(fnCtx)

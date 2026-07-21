@@ -19,38 +19,57 @@ func (f *ImplodeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	// 处理参数顺序：implode 可以接受 (separator, array) 或 (array, separator)
 	var separator string
-	var array *data.ArrayValue
+	var valueList []data.Value
 
-	if separatorValue != nil {
-		if _, ok := separatorValue.(*data.ArrayValue); ok {
-			// 第一个参数是数组，第二个参数应该是分隔符
-			array = separatorValue.(*data.ArrayValue)
-			if arrayValue != nil {
-				separator = arrayValue.AsString()
-			}
-		} else {
-			// 第一个参数是分隔符
+	if separatorValue != nil && isImplodeArray(separatorValue) {
+		valueList = implodeValueList(separatorValue)
+		if arrayValue != nil {
+			separator = arrayValue.AsString()
+		}
+	} else {
+		if separatorValue != nil {
 			separator = separatorValue.AsString()
-			if arrayValue != nil {
-				if arr, ok := arrayValue.(*data.ArrayValue); ok {
-					array = arr
-				}
-			}
+		}
+		if arrayValue != nil {
+			valueList = implodeValueList(arrayValue)
 		}
 	}
 
-	if array == nil {
+	if valueList == nil {
 		return data.NewStringValue(""), nil
 	}
 
-	// 将数组元素转换为字符串并连接
 	var parts []string
-	valueList := array.ToValueList()
 	for _, val := range valueList {
 		parts = append(parts, val.AsString())
 	}
 
 	return data.NewStringValue(strings.Join(parts, separator)), nil
+}
+
+func isImplodeArray(v data.Value) bool {
+	switch v.(type) {
+	case *data.ArrayValue, *data.ObjectValue:
+		return true
+	default:
+		return false
+	}
+}
+
+func implodeValueList(v data.Value) []data.Value {
+	switch arr := v.(type) {
+	case *data.ArrayValue:
+		return arr.ToValueList()
+	case *data.ObjectValue:
+		var list []data.Value
+		arr.RangeProperties(func(_ string, val data.Value) bool {
+			list = append(list, val)
+			return true
+		})
+		return list
+	default:
+		return nil
+	}
 }
 
 func (f *ImplodeFunction) GetName() string {
