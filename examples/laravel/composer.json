@@ -17,6 +17,7 @@
     },
     "require": {
         "illuminate/support": "^10.49",
-        "illuminate/collections": "^10.49"
+        "illuminate/collections": "^10.49",
+        "illuminate/validation": "^10.49"
     }
 }

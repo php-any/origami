@@ -16,8 +16,7 @@ func NewPregMatchFunction() data.FuncStmt {
 func (f *PregMatchFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	patternValue, _ := ctx.GetIndexValue(0)
 	subjectValue, _ := ctx.GetIndexValue(1)
-	matchesValue, _ := ctx.GetIndexValue(2)
-	// flagsValue, _ := ctx.GetIndexValue(3)
+	flagsValue, _ := ctx.GetIndexValue(3)
 	offsetValue, _ := ctx.GetIndexValue(4)
 
 	if patternValue == nil || subjectValue == nil {
@@ -34,6 +33,14 @@ func (f *PregMatchFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 			}
 		}
 	}
+	flags := 0
+	if flagsValue != nil {
+		if asInt, ok := flagsValue.(data.AsInt); ok {
+			if v, err := asInt.AsInt(); err == nil {
+				flags = v
+			}
+		}
+	}
 
 	// 使用 preg.CompileAny 统一处理 PHP 风格的正则表达式（支持 lookahead/lookbehind）
 	re, err := preg.CompileAny(pattern)
@@ -43,8 +50,8 @@ func (f *PregMatchFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	}
 
 	anchored := preg.HasModifier(pattern, 'A')
-	loc := preg.FindSubmatchAt(re, subject, offset, anchored)
-	if loc == nil {
+	captures := preg.FindCaptures(re, subject, offset, anchored)
+	if captures == nil {
 		// 无匹配时，清空 $matches
 		if z := ctx.GetIndexZVal(2); z != nil {
 			z.Value = data.NewArrayValue([]data.Value{})
@@ -53,26 +60,9 @@ func (f *PregMatchFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	}
 
 	// 如果传入了第三个参数，填充匹配结果
-	{
-		matchStrs := []data.Value{}
-		// loc contains [start, end, start, end...]
-		for i := 0; i < len(loc); i += 2 {
-			start, end := loc[i], loc[i+1]
-			if start == -1 {
-				matchStrs = append(matchStrs, data.NewStringValue("")) // Unmatched group?
-			} else {
-				matchStrs = append(matchStrs, data.NewStringValue(subject[start:end]))
-			}
-		}
-		newMatches := data.NewArrayValue(matchStrs)
-		// 通过 ZVal 引用写回（与 preg_match_all 保持一致）
-		if z := ctx.GetIndexZVal(2); z != nil {
-			z.Value = newMatches
-		} else if matchesValue != nil {
-			if r, ok := matchesValue.(*data.ReferenceValue); ok {
-				r.Ctx.SetVariableValue(r.Val, newMatches)
-			}
-		}
+	newMatches := preg.BuildMatchArray(captures, flags)
+	if z := ctx.GetIndexZVal(2); z != nil {
+		z.Value = newMatches
 	}
 
 	return data.NewIntValue(1), nil // Match found

@@ -208,11 +208,89 @@ func (ep *ExpressionParser) parseNullCoalesce() (data.GetValue, data.Control) {
 // parseConcatenation 解析字符串连接表达式
 func (ep *ExpressionParser) parseConcatenation() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
-	expr, acl := ep.parseLogicalOr()
+	expr, acl := ep.parseLogicalOrKeyword()
 	if acl != nil {
 		return nil, acl
 	}
 	for ep.current().Type() == token.DOT {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseLogicalOrKeyword()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+
+	return expr, nil
+}
+
+// parseLogicalOrKeyword 解析 or 关键字逻辑或（优先级低于 ||）
+func (ep *ExpressionParser) parseLogicalOrKeyword() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseLogicalXorKeyword()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.OR {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseLogicalXorKeyword()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+
+	return expr, nil
+}
+
+// parseLogicalXorKeyword 解析 xor 关键字逻辑异或
+func (ep *ExpressionParser) parseLogicalXorKeyword() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseLogicalAndKeyword()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.XOR {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseLogicalAndKeyword()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+
+	return expr, nil
+}
+
+// parseLogicalAndKeyword 解析 and 关键字逻辑与（优先级低于 &&）
+func (ep *ExpressionParser) parseLogicalAndKeyword() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseLogicalOr()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.AND {
 		operator := ep.current()
 		ep.next()
 
@@ -790,11 +868,7 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 				right = node.NewStringLiteral(tracker.EndBefore(), cn)
 			case token.STATIC:
 				ep.next()
-				cn := ep.currentClass
-				if cn == "" {
-					cn = "static"
-				}
-				right = node.NewStringLiteral(tracker.EndBefore(), cn)
+				right = node.NewStaticClass(tracker.EndBefore())
 			default:
 				right, acl2 = ep.parsePower()
 				if acl2 != nil {

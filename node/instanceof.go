@@ -45,6 +45,14 @@ func resolveInstanceofClassName(ctx data.Context, classExpr data.GetValue) (stri
 	switch right := classExpr.(type) {
 	case *StringLiteral:
 		name = right.Value
+	case *StaticClass:
+		val, acl := right.GetValue(ctx)
+		if acl != nil {
+			return "", acl
+		}
+		if sv, ok := val.(*data.StringValue); ok {
+			name = sv.AsString()
+		}
 	default:
 		r, acl := classExpr.GetValue(ctx)
 		if acl != nil {

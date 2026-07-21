@@ -15,7 +15,15 @@ func (h *ExceptionExceptionMethod) Call(ctx data.Context) (data.GetValue, data.C
 		return nil, acl
 	}
 
-	h.source.Exception(msg.(*data.StringValue).AsString())
+	message := ""
+	if msg != nil {
+		if sv, ok := msg.(*data.StringValue); ok {
+			message = sv.AsString()
+		} else if v, ok := msg.(data.Value); ok {
+			message = v.AsString()
+		}
+	}
+	h.source.Exception(message)
 	return nil, nil
 }
 

@@ -1,6 +1,8 @@
 package array
 
 import (
+	"strconv"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -32,51 +34,121 @@ func (fn *ArrayMergeRecursiveFunction) Call(ctx data.Context) (data.GetValue, da
 	return result, nil
 }
 
-func mergeRecursive(base, other data.Value) data.Value {
-	baseObj, bOk := base.(*data.ObjectValue)
-	otherObj, oOk := other.(*data.ObjectValue)
-	if bOk && oOk {
-		out := data.NewObjectValue()
-		for k, v := range baseObj.GetProperties() {
-			out.SetProperty(k, v)
-		}
-		for k, v := range otherObj.GetProperties() {
-			if bv, _ := baseObj.GetProperty(k); bv != nil {
-				if _, isNull := bv.(*data.NullValue); !isNull {
-					out.SetProperty(k, mergeRecursive(bv, v))
-					continue
-				}
+type arrayEntry struct {
+	key   string
+	name  string
+	value data.Value
+}
+
+func arrayEntries(v data.Value) ([]arrayEntry, bool) {
+	switch val := v.(type) {
+	case *data.ArrayValue:
+		entries := make([]arrayEntry, 0, len(val.List))
+		for i, z := range val.List {
+			if z == nil {
+				continue
 			}
-			out.SetProperty(k, v)
+			key := z.Name
+			if key == "" {
+				key = data.IntArrayKeyName(i)
+			}
+			entries = append(entries, arrayEntry{key: key, name: z.Name, value: z.Value})
 		}
-		return out
+		return entries, true
+	case *data.ObjectValue:
+		entries := make([]arrayEntry, 0, len(val.GetProperties()))
+		for key, prop := range val.GetProperties() {
+			entries = append(entries, arrayEntry{key: key, name: key, value: prop})
+		}
+		return entries, true
+	default:
+		return nil, false
+	}
+}
+
+func entriesToArrayValue(entries []arrayEntry) *data.ArrayValue {
+	list := make([]*data.ZVal, len(entries))
+	for i, entry := range entries {
+		z := data.NewZVal(deepCopyVal(entry.value))
+		z.Name = entry.name
+		list[i] = z
+	}
+	return &data.ArrayValue{List: list}
+}
+
+func mergeRecursive(base, other data.Value) data.Value {
+	baseEntries, bOk := arrayEntries(base)
+	otherEntries, oOk := arrayEntries(other)
+	if bOk && oOk {
+		merged := make(map[string]arrayEntry, len(baseEntries)+len(otherEntries))
+		order := make([]string, 0, len(baseEntries)+len(otherEntries))
+
+		addEntry := func(entry arrayEntry) {
+			if existing, ok := merged[entry.key]; ok {
+				merged[entry.key] = arrayEntry{
+					key:   entry.key,
+					name:  entry.name,
+					value: mergeRecursive(existing.value, entry.value),
+				}
+				return
+			}
+			merged[entry.key] = arrayEntry{
+				key:   entry.key,
+				name:  entry.name,
+				value: deepCopyVal(entry.value),
+			}
+			order = append(order, entry.key)
+		}
+
+		for _, entry := range baseEntries {
+			addEntry(entry)
+		}
+		for _, entry := range otherEntries {
+			addEntry(entry)
+		}
+
+		result := make([]arrayEntry, 0, len(order))
+		for _, key := range order {
+			result = append(result, merged[key])
+		}
+		return entriesToArrayValue(result)
 	}
 
-	baseArr, bOk := base.(*data.ArrayValue)
-	otherArr, oOk := other.(*data.ArrayValue)
-	if bOk && oOk {
-		bVals := baseArr.ToValueList()
-		oVals := otherArr.ToValueList()
-		maxLen := len(bVals)
-		if len(oVals) > maxLen {
-			maxLen = len(oVals)
+	if isListArray(base) && !isArrayLike(other) {
+		entries, ok := arrayEntries(base)
+		if ok {
+			entries = append(entries, arrayEntry{
+				key:   strconv.Itoa(len(entries)),
+				name:  "",
+				value: other,
+			})
+			return entriesToArrayValue(entries)
 		}
-		result := make([]data.Value, maxLen)
-		for i := 0; i < maxLen; i++ {
-			var bv data.Value = data.NewNullValue()
-			var ov data.Value = data.NewNullValue()
-			if i < len(bVals) {
-				bv = bVals[i]
-			}
-			if i < len(oVals) {
-				ov = oVals[i]
-			}
-			result[i] = mergeRecursive(bv, ov)
-		}
-		return data.NewArrayValue(result)
 	}
 
 	return other
+}
+
+func isArrayLike(v data.Value) bool {
+	switch v.(type) {
+	case *data.ArrayValue, *data.ObjectValue:
+		return true
+	default:
+		return false
+	}
+}
+
+func isListArray(v data.Value) bool {
+	arr, ok := v.(*data.ArrayValue)
+	if !ok {
+		return false
+	}
+	for _, z := range arr.List {
+		if z != nil && z.Name != "" {
+			return false
+		}
+	}
+	return true
 }
 
 func deepCopyVal(v data.Value) data.Value {
@@ -88,12 +160,16 @@ func deepCopyVal(v data.Value) data.Value {
 		}
 		return out
 	case *data.ArrayValue:
-		vals := val.ToValueList()
-		result := make([]data.Value, len(vals))
-		for i, item := range vals {
-			result[i] = deepCopyVal(item)
+		list := make([]*data.ZVal, len(val.List))
+		for i, z := range val.List {
+			if z == nil {
+				continue
+			}
+			copied := data.NewZVal(deepCopyVal(z.Value))
+			copied.Name = z.Name
+			list[i] = copied
 		}
-		return data.NewArrayValue(result)
+		return &data.ArrayValue{List: list}
 	}
 	return v
 }

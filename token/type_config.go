@@ -99,6 +99,9 @@ const (
 	ENDWHILE                            // endwhile 替代语法结束
 	ENDFOR                              // endfor 替代语法结束
 	ENDSWITCH                           // endswitch 替代语法结束
+	OR                                  // or 逻辑或关键字（优先级低于 ||）
+	AND                                 // and 逻辑与关键字（优先级低于 &&）
+	XOR                                 // xor 逻辑异或关键字
 	HEREDOC_START                       // <<< heredoc/nowdoc 起始关键字
 
 	KEYWORD_END TokenType = iota + 100

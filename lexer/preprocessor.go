@@ -58,9 +58,11 @@ func cannotAddSemicolon(t Token) bool {
 		return true
 	case token.BIT_XOR: // 按位异或后不用补充
 		return true
-	case token.LAND: // 逻辑与后不用补充
+	case token.LAND, token.AND: // 逻辑与后不用补充
 		return true
-	case token.LOR: // 逻辑或后不用补充
+	case token.LOR, token.OR: // 逻辑或后不用补充
+		return true
+	case token.XOR: // xor 后不用补充
 		return true
 	case token.EQ, token.NE, token.EQ_STRICT, token.NE_STRICT: // 比较运算符后不用补充
 		return true
@@ -144,7 +146,7 @@ func cannotAddSemicolonAfter(t Token) bool {
 		return true
 	case token.BIT_AND, token.BIT_OR, token.BIT_XOR: // 位运算符前不用补充
 		return true
-	case token.LAND, token.LOR: // 逻辑运算符前不用补充
+	case token.LAND, token.LOR, token.AND, token.OR, token.XOR: // 逻辑运算符前不用补充
 		return true
 	case token.EQ, token.NE, token.EQ_STRICT, token.NE_STRICT: // 比较运算符前不用补充
 		return true

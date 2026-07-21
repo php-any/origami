@@ -40,10 +40,12 @@ func NewBinaryExpression(from data.From, left data.GetValue, operator lexer.Toke
 		return NewBinaryGt(from, left, right)
 	case token.GE:
 		return NewBinaryGe(from, left, right)
-	case token.LAND:
+	case token.LAND, token.AND:
 		return NewBinaryLand(from, left, right)
-	case token.LOR:
+	case token.LOR, token.OR:
 		return NewBinaryLor(from, left, right)
+	case token.XOR:
+		return NewBinaryLxor(from, left, right)
 	case token.DOT:
 		return NewBinaryDot(from, left, right)
 	case token.BIT_AND:

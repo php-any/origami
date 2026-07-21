@@ -25,13 +25,11 @@ func (s *StaticClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	// 检查是否在类上下文中（类方法或类级初始化器）
 	var currentClass data.ClassStmt
 	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
-		// 获取最外层的类方法上下文
-		parent, ok2 := classCtx.Context.(*data.ClassMethodContext)
-		for ok2 {
-			classCtx = parent
-			parent, ok2 = classCtx.Context.(*data.ClassMethodContext)
+		if classCtx.StaticClass != nil {
+			currentClass = classCtx.StaticClass
+		} else {
+			currentClass = classCtx.Class
 		}
-		currentClass = classCtx.Class
 	} else if classVal, ok := ctx.(*data.ClassValue); ok {
 		currentClass = classVal.Class
 	} else {

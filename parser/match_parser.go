@@ -141,7 +141,7 @@ func (p *MatchParser) parseMatchArm() (*node.MatchArm, data.Control) {
 		}
 	} else {
 		var acl data.Control
-		expression, acl = p.parseStatement()
+		expression, acl = p.expressionParser.Parse()
 		if acl != nil {
 			return nil, acl
 		}

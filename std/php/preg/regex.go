@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/dlclark/regexp2"
+	"github.com/php-any/origami/data"
 )
 
 // convertPossessiveQuantifiers 将 PHP 的占有量词转换为 Go regexp 兼容的语法
@@ -326,6 +327,116 @@ func (m *r2Matcher) ReplaceAllStringFunc(src string, repl func(string) string) s
 	}
 	sb.WriteString(src[pos:])
 	return sb.String()
+}
+
+// Capture 表示单个捕获分组（含命名分组）。
+type Capture struct {
+	Text         string
+	Participated bool
+	Name         string
+}
+
+// FindCaptures 在 subject[offset:] 上执行匹配，返回全部分组（含未参与分组）。
+func FindCaptures(m Matcher, subject string, offset int, anchored bool) []Capture {
+	if offset < 0 {
+		offset = 0
+	}
+	if offset > len(subject) {
+		return nil
+	}
+	search := subject[offset:]
+
+	switch matcher := m.(type) {
+	case *goMatcher:
+		return findGoCaptures(matcher.re, search, anchored)
+	case *r2Matcher:
+		return findR2Captures(matcher.re, search, anchored)
+	default:
+		loc := FindSubmatchAt(m, subject, offset, anchored)
+		if loc == nil {
+			return nil
+		}
+		caps := make([]Capture, 0, len(loc)/2)
+		for i := 0; i < len(loc); i += 2 {
+			start, end := loc[i], loc[i+1]
+			cap := Capture{Participated: start >= 0}
+			if cap.Participated {
+				cap.Text = subject[start:end]
+			}
+			caps = append(caps, cap)
+		}
+		return caps
+	}
+}
+
+func findGoCaptures(re *regexp.Regexp, search string, anchored bool) []Capture {
+	loc := re.FindStringSubmatchIndex(search)
+	if loc == nil {
+		return nil
+	}
+	if anchored && loc[0] != 0 {
+		return nil
+	}
+	submatch := re.FindStringSubmatch(search)
+	names := re.SubexpNames()
+	caps := make([]Capture, 0, len(submatch))
+	for i, text := range submatch {
+		cap := Capture{
+			Text:         text,
+			Participated: i < len(loc) && loc[i*2] >= 0,
+		}
+		if i < len(names) {
+			cap.Name = names[i]
+		}
+		caps = append(caps, cap)
+	}
+	return caps
+}
+
+func findR2Captures(re *regexp2.Regexp, search string, anchored bool) []Capture {
+	match, err := re.FindStringMatch(search)
+	if err != nil || match == nil {
+		return nil
+	}
+	groups := match.Groups()
+	if anchored && len(groups) > 0 && groups[0].Index != 0 {
+		return nil
+	}
+	caps := make([]Capture, 0, len(groups))
+	for _, g := range groups {
+		participated := g.Length > 0 || len(g.Captures) > 0
+		if g.Length == 0 && g.Index == 0 && len(g.Captures) == 0 && g.Name == "" {
+			participated = false
+		}
+		cap := Capture{
+			Text:         g.String(),
+			Participated: participated,
+			Name:         g.Name,
+		}
+		caps = append(caps, cap)
+	}
+	return caps
+}
+
+// BuildMatchArray 构造 PHP preg_match 的 $matches 数组（数值键 + 命名键）。
+func BuildMatchArray(captures []Capture, flags int) data.Value {
+	unmatchedAsNull := flags&512 != 0 // PREG_UNMATCHED_AS_NULL
+	list := make([]*data.ZVal, len(captures))
+	for i, cap := range captures {
+		var val data.Value
+		switch {
+		case !cap.Participated && unmatchedAsNull:
+			val = data.NewNullValue()
+		default:
+			val = data.NewStringValue(cap.Text)
+		}
+		z := data.NewZVal(val)
+		if cap.Name != "" {
+			z.Name = cap.Name
+		}
+		list[i] = z
+	}
+	return &data.ArrayValue{List: list}
 }
 
 // HasModifier 检查 PHP 正则是否带有指定修饰符（如 A、i、m）。

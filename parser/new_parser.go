@@ -222,13 +222,7 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 		return nil, acl
 	}
 
-	if p.checkPositionIs(0, token.COMMA, token.RPAREN, token.SEMICOLON) {
-		return node.NewNewExpression(
-			tracker.EndBefore(),
-			className,
-			[]data.GetValue{},
-		), nil
-	}
+	vp := VariableParser{Parser: p.Parser}
 
 	// 处理泛型参数
 	var genericTypes []data.Types
@@ -250,11 +244,15 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 		}
 		p.next() // 跳过 >
 	}
-	// 解析参数列表
-	vp := VariableParser{Parser: p.Parser}
-	args, acl := vp.parseFunctionCall()
-	if acl != nil {
-		return nil, acl
+
+	var args []data.GetValue
+	if p.checkPositionIs(0, token.LPAREN) {
+		args, acl = vp.parseFunctionCall()
+		if acl != nil {
+			return nil, acl
+		}
+	} else {
+		args = []data.GetValue{}
 	}
 
 	// 如果有泛型参数，创建泛型 new 表达式

@@ -80,6 +80,11 @@ func (pe *CallStaticKeywordMethod) GetValue(ctx data.Context) (data.GetValue, da
 
 	// 获取当前类的静态方法
 	method, has := getter.GetStaticMethod(pe.Method)
+	if has {
+		if _, isAbstract := method.(*AbstractMethod); isAbstract {
+			has = false
+		}
+	}
 	if !has {
 		extend := currentClass.GetExtend()
 		for extend != nil {
@@ -93,8 +98,11 @@ func (pe *CallStaticKeywordMethod) GetValue(ctx data.Context) (data.GetValue, da
 			if ok {
 				method, has = getter.GetStaticMethod(pe.Method)
 				if has {
-					// 返回包装器，携带调用类信息用于后期静态绑定
-					return newStaticMethodFuncWithLateBinding(currentClass, method), nil
+					if _, isAbstract := method.(*AbstractMethod); isAbstract {
+						has = false
+					} else {
+						return newStaticMethodFuncWithLateBinding(currentClass, method), nil
+					}
 				}
 				extend = ext.GetExtend()
 			}

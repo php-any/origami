@@ -69,6 +69,7 @@ func Load(vm data.VM) {
 		NewSerializeFunction(),
 		NewUnserializeFunction(),
 		NewEmptyFunction(),
+		NewAssertFunction(),
 		NewEvalFunction(),
 		NewRunPhpFileFunction(),
 		NewStrlenFunction(),
@@ -85,6 +86,7 @@ func Load(vm data.VM) {
 		NewUcwordsFunction(),
 		NewStrSplitFunction(),
 		NewExplodeFunction(),
+		NewStrGetcsvFunction(),
 		NewImplodeFunction(),
 		NewJoinFunction(),
 		NewPackFunction(),
@@ -220,6 +222,7 @@ func Load(vm data.VM) {
 		NewPregMatchFunction(),
 		core.NewIsCallableFunction(),
 		NewIsStringFunction(),
+		NewIsCountableFunction(),
 		NewIsIntFunction(),
 		NewIsScalarFunction(),
 		NewIsArrayFunction(),
@@ -407,6 +410,8 @@ func initPhpDefaultDefines(vm data.VM) {
 	// 数组相关常量
 	vm.SetConstant("ARRAY_FILTER_USE_KEY", data.NewIntValue(1))
 	vm.SetConstant("ARRAY_FILTER_USE_BOTH", data.NewIntValue(2))
+	vm.SetConstant("COUNT_NORMAL", data.NewIntValue(0))
+	vm.SetConstant("COUNT_RECURSIVE", data.NewIntValue(1))
 	vm.SetConstant("SORT_REGULAR", data.NewIntValue(0))
 	vm.SetConstant("SORT_NUMERIC", data.NewIntValue(1))
 	vm.SetConstant("SORT_STRING", data.NewIntValue(2))

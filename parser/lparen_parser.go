@@ -77,12 +77,12 @@ func (ep *LparenParser) isLambdaExpression() bool {
 		return false
 	}
 	// 括号表达式：(new Foo())、(array) 等，绝不是 (params) => body
-	if ep.checkPositionIs(1, token.NEW, token.ARRAY, token.ISSET, token.EMPTY, token.ECHO, token.INCLUDE, token.REQUIRE) {
+	if ep.checkPositionIs(1, token.NEW, token.ARRAY, token.ISSET, token.EMPTY, token.ECHO, token.INCLUDE, token.REQUIRE, token.FN) {
 		return false
 	}
 	// 检查是否包含 => 符号，需要正确处理 () 与 [] 嵌套（数组内的 => 不是 lambda）
-	pos := 1 // 从 ( 后面开始检查
-	parenCount := 0
+	pos := 1        // 从 ( 后面开始检查
+	parenCount := 1 // 已处于起始 ( 之内
 	bracketCount := 0
 
 	for pos < len(ep.tokens)-ep.position {
@@ -93,7 +93,7 @@ func (ep *LparenParser) isLambdaExpression() bool {
 			parenCount++
 		case token.RPAREN:
 			parenCount--
-			if parenCount < 0 {
+			if parenCount == 0 {
 				// 找到了与起始 '(' 匹配的 ')'：仅当紧跟 => 才是 lambda，否则为普通括号表达式
 				if pos+1 < len(ep.tokens)-ep.position &&
 					ep.tokens[ep.position+pos+1].Type() == token.ARRAY_KEY_VALUE {
