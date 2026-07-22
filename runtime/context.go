@@ -95,6 +95,16 @@ func (c *Context) SetVariableValue(variable data.Variable, value data.Value) dat
 			slot.AddRefSlot()
 			c.variables[variable.GetIndex()] = slot
 		}
+	case *data.IndexReferenceValue:
+		if ie, ok := v.Expr.(*node.IndexExpression); ok {
+			zv, ctl := ie.GetOrCreateZVal(v.Ctx)
+			if ctl != nil {
+				return ctl
+			}
+			if zv != nil {
+				c.variables[variable.GetIndex()] = zv
+			}
+		}
 	case *data.ArrayValue:
 		c.variables[variable.GetIndex()].Value = data.CloneArrayValue(v)
 	case *data.ObjectValue:

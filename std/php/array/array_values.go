@@ -28,16 +28,12 @@ func (f *ArrayValuesFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 
 	// 处理对象（关联数组）
 	if objectVal, ok := arrayValue.(*data.ObjectValue); ok {
-		// 获取所有属性值
-		properties := objectVal.GetProperties()
-		values := make([]data.Value, 0, len(properties))
-
-		// 收集所有值（忽略键）
-		for _, val := range properties {
+		values := make([]data.Value, 0)
+		// 必须按插入顺序收集，与 array_keys / foreach 一致（不可用 map range）
+		objectVal.RangeProperties(func(_ string, val data.Value) bool {
 			values = append(values, val)
-		}
-
-		// 返回重新索引的数组（从 0 开始）
+			return true
+		})
 		return data.NewArrayValue(values), nil
 	}
 

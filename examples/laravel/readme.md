@@ -2,7 +2,61 @@
 
 基于 [Origami](https://github.com/php-any/origami) 的 Laravel 风格 Web 框架演示。本示例展示如何用 Origami 的注解 IoC、HTTP 路由、容器与 CLI 注解，搭出一套**目录结构与分层方式接近 Laravel** 的小型应用框架。
 
-> 这是 **Origami 能力演示**，不是 Laravel 复刻。未实现 Blade、Eloquent ORM、队列、事件总线等；对应能力由 Origami 标准库 + 本示例 `bootstrap/` 层模拟。
+> 这是 **Origami 能力演示**，正在**逐步引入官方 `illuminate/*` 包**并做冒烟验证；尚未达到完整 `laravel/framework`。未覆盖能力仍由 Origami 标准库 + 本示例 `bootstrap/` 层模拟。
+
+---
+
+## Illuminate 包集成进度
+
+在 `examples/laravel` 下通过 Composer 引入 Laravel 10 的 `illuminate/*` 组件，并用 `./laravel run tests/*_smoke.php` 验证。
+
+```bash
+cd examples/laravel
+go build -mod=mod -o laravel .
+bash tests/run_illuminate_smokes.sh   # 当前 28 项冒烟
+```
+
+| 包 | 冒烟 | 说明 |
+|----|------|------|
+| support / collections | ✅ | 集合、Str、Arr 等 |
+| container | ✅ | bind / singleton / instance |
+| bus | ✅ | dispatchNow |
+| pipeline / events | ✅ | 管道与事件 |
+| config | ✅ | Repository + Arr::set 点号键 |
+| validation | ✅ | 校验器 |
+| filesystem / hashing / encryption | ✅ | 文件与加密 |
+| pagination / translation | ✅ | 分页与翻译行 |
+| cache / database | ✅ | 无 TTL / 无 schema 的收窄测试 |
+| log / view / http | ✅ | PSR 桩 / FileViewFinder / Request |
+| session / cookie | ✅ | 无 flash / 无 TTL cookie |
+| routing / console / process | ✅ | 注册与编译 / Symfony Command / Factory::result |
+| auth | ✅ | GenericUser + Gate::allows |
+| mail | ✅ | Address + ArrayTransport（无 Transport::send） |
+| queue | ✅ | SyncQueue 容器 + JobName（push 待 UuidInterface） |
+| redis | ✅ | RedisManager 驱动切换（无真实连接） |
+| broadcasting | ✅ | log 驱动 + PSR Logger 桩 |
+| **待引入** | | notifications, testing, filesystem cloud, … |
+
+**go-support 扩展**（`go-support/load.go`）：仅 Laravel 示例 VM 注册 `parse_str`、`html_entity_decode`、`getcwd` 等，**不改 Origami 核心**。
+
+**已知上游缺口**（需单独提 PR，不在示例里 hack）：
+
+- `Request::decodedPath()` 等在子类上的方法解析
+- Carbon `parent::` 与 `DateTimeImmutable` 接口
+- PhpEngine `extract` + `require` 作用域共享
+- Symfony Mime `Email` / `Envelope::create` 与 `RawMessage` 发送路径
+- 抽象类 `Illuminate\Redis\Connections\Connection` 子类化
+- `ramsey/uuid` 的 `UuidInterface` 解析（queue `SyncQueue::push`）
+
+完整 Laravel 路线（建议顺序）：
+
+1. **扩 illuminate 冒烟** — notifications、testing、filesystem cloud 等（当前 28 项）
+2. **替换 bootstrap 模拟层**
+   - 用真实 `illuminate/routing` 替换 `bootstrap/routing/Route.php`
+   - 用 `illuminate/console` 替换部分 Artisan 基类（`bootstrap/console/Command.php` 等）
+3. **上游 blocker 修完后加深冒烟**
+   - `SyncQueue::push` / `Mailer::raw` / `Redis::connection` 等端到端路径
+4. **终极目标** — 引入 `laravel/framework` 或等价 Provider 链，让 `public/index.php` 走标准 Laravel 引导
 
 ---
 

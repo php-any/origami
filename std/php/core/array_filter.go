@@ -62,23 +62,47 @@ func (f *ArrayFilterFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 		return data.NewArrayValue([]data.Value{}), nil
 	}
 
-	// 转换为数组
+	type assocEntry struct {
+		key string
+		val data.Value
+	}
+
 	var sourceArray []data.Value
-	var sourceMap map[string]data.Value
+	var entries []assocEntry
 	isAssociative := false
 
 	switch arr := arrayValue.(type) {
 	case *data.ArrayValue:
-		sourceArray = arr.ToValueList()
-	case *data.ObjectValue:
-		// 对象作为关联数组处理
-		sourceMap = arr.GetProperties()
-		isAssociative = true
-		// 转换为数组格式，保留键值对信息
-		sourceArray = make([]data.Value, 0, len(sourceMap))
-		for _, v := range sourceMap {
-			sourceArray = append(sourceArray, v)
+		// 带字符串键的 ArrayValue 按关联数组处理，且必须保持 List 插入顺序
+		hasNamed := false
+		for _, z := range arr.List {
+			if z != nil && z.Name != "" {
+				hasNamed = true
+				break
+			}
 		}
+		if hasNamed {
+			isAssociative = true
+			for i, z := range arr.List {
+				if z == nil {
+					continue
+				}
+				key := z.Name
+				if key == "" {
+					key = data.NewIntValue(i).AsString()
+				}
+				entries = append(entries, assocEntry{key: key, val: z.Value})
+			}
+		} else {
+			sourceArray = arr.ToValueList()
+		}
+	case *data.ObjectValue:
+		// ObjectValue 关联数组：必须用 RangeProperties，禁止 GetProperties()+map range（顺序随机）
+		isAssociative = true
+		arr.RangeProperties(func(key string, value data.Value) bool {
+			entries = append(entries, assocEntry{key: key, val: value})
+			return true
+		})
 	default:
 		return data.NewArrayValue([]data.Value{}), nil
 	}
@@ -105,25 +129,22 @@ func (f *ArrayFilterFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 		}
 	}
 	if noCallback {
-		var result []data.Value
 		if isAssociative {
-			// 关联数组：保留键
 			resultObj := data.NewObjectValue()
-			for k, v := range sourceMap {
-				if isTruthy(v) {
-					resultObj.SetProperty(k, v)
+			for _, e := range entries {
+				if isTruthy(e.val) {
+					resultObj.SetProperty(e.key, e.val)
 				}
 			}
 			return resultObj, nil
-		} else {
-			// 索引数组
-			for _, element := range sourceArray {
-				if isTruthy(element) {
-					result = append(result, element)
-				}
-			}
-			return data.NewArrayValue(result), nil
 		}
+		var result []data.Value
+		for _, element := range sourceArray {
+			if isTruthy(element) {
+				result = append(result, element)
+			}
+		}
+		return data.NewArrayValue(result), nil
 	}
 
 	// 有回调函数，需要调用回调
@@ -137,18 +158,18 @@ func (f *ArrayFilterFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 		return nil, acl
 	}
 
-	// 处理关联数组
+	// 处理关联数组（保持插入顺序）
 	if isAssociative {
 		resultObj := data.NewObjectValue()
-		for key, element := range sourceMap {
+		for _, e := range entries {
 			var args []data.Value
 			switch mode {
 			case 1: // ARRAY_FILTER_USE_KEY - 只传递键
-				args = []data.Value{data.NewStringValue(key)}
+				args = []data.Value{data.NewStringValue(e.key)}
 			case 2: // ARRAY_FILTER_USE_BOTH - 传递值和键
-				args = []data.Value{element, data.NewStringValue(key)}
+				args = []data.Value{e.val, data.NewStringValue(e.key)}
 			default: // 0 - 只传递值
-				args = []data.Value{element}
+				args = []data.Value{e.val}
 			}
 
 			ret, ctl := f.callCallback(ctx, fn, args)
@@ -162,10 +183,10 @@ func (f *ArrayFilterFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 			// 使用 PHP 的 truthy 语义决定是否保留元素
 			if boolVal, ok := ret.(data.AsBool); ok {
 				if isTrue, err := boolVal.AsBool(); err == nil && isTrue {
-					resultObj.SetProperty(key, element)
+					resultObj.SetProperty(e.key, e.val)
 				}
 			} else if isTruthy(ret) {
-				resultObj.SetProperty(key, element)
+				resultObj.SetProperty(e.key, e.val)
 			}
 		}
 		return resultObj, nil

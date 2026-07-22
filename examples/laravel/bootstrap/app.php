@@ -6,10 +6,10 @@
 
 use Bootstrap\View\View;
 
-require dirname(__DIR__) . '/vendor/autoload.php';
+// 必须在 vendor/autoload 之前注册 env()，否则 illuminate/support/helpers.php
+// 会先定义依赖 PhpOption/phpdotenv 的 Env::get()，而示例未安装这些包。
 require __DIR__ . '/env.php';
-require __DIR__ . '/config.php';
-require __DIR__ . '/helpers.php';
+require dirname(__DIR__) . '/vendor/autoload.php';
 
 load_env();
 

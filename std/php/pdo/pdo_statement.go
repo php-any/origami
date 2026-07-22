@@ -3,6 +3,8 @@ package pdo
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -20,6 +22,8 @@ type pdoStmtState struct {
 	fetchMode   int
 	cols        []string // 列名缓存
 	colsFetched bool
+	// bound 按 PDO 1-based 位置参数存储（bindValue / bindParam）
+	bound map[int]interface{}
 }
 
 // -------------------------------------------------------------------
@@ -117,28 +121,64 @@ func (m *stmtExecuteMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 		return data.NewBoolValue(false), nil
 	}
 
-	// 收集参数
+	// 收集参数：优先 execute($params)，否则使用 bindValue 绑定的位置参数
 	var args []interface{}
 	if paramVal, ok := ctx.GetIndexValue(0); ok && paramVal != nil {
 		if _, isNull := paramVal.(*data.NullValue); !isNull {
 			if arr, ok := paramVal.(*data.ArrayValue); ok {
 				for _, v := range arr.ToValueList() {
-					args = append(args, v.AsString())
+					args = append(args, phpValueToDriver(v))
 				}
 			}
 		}
 	}
+	if len(args) == 0 && len(m.state.bound) > 0 {
+		max := 0
+		for k := range m.state.bound {
+			if k > max {
+				max = k
+			}
+		}
+		args = make([]interface{}, max)
+		for i := 1; i <= max; i++ {
+			args[i-1] = m.state.bound[i]
+		}
+	}
 
-	rows, err := m.state.stmt.Query(args...)
+	sqlUpper := strings.ToUpper(strings.TrimSpace(m.state.sqlStr))
+	isQuery := strings.HasPrefix(sqlUpper, "SELECT") ||
+		strings.HasPrefix(sqlUpper, "WITH") ||
+		strings.HasPrefix(sqlUpper, "PRAGMA") ||
+		strings.HasPrefix(sqlUpper, "EXPLAIN") ||
+		strings.HasPrefix(sqlUpper, "SHOW")
+
+	if isQuery {
+		rows, err := m.state.stmt.Query(args...)
+		if err != nil {
+			if m.state.pdoState != nil && m.state.pdoState.getErrMode() == PDO_ERRMODE_EXCEPTION {
+				return nil, pdoException(err.Error(), ctx)
+			}
+			return data.NewBoolValue(false), nil
+		}
+		m.state.rows = rows
+		m.state.cols = nil
+		m.state.colsFetched = false
+		return data.NewBoolValue(true), nil
+	}
+
+	result, err := m.state.stmt.Exec(args...)
 	if err != nil {
 		if m.state.pdoState != nil && m.state.pdoState.getErrMode() == PDO_ERRMODE_EXCEPTION {
 			return nil, pdoException(err.Error(), ctx)
 		}
 		return data.NewBoolValue(false), nil
 	}
-	m.state.rows = rows
-	m.state.cols = nil
-	m.state.colsFetched = false
+	if m.state.pdoState != nil {
+		if id, err := result.LastInsertId(); err == nil {
+			m.state.pdoState.lastInsertID = id
+		}
+	}
+	m.state.rows = nil
 	return data.NewBoolValue(true), nil
 }
 
@@ -441,8 +481,57 @@ func (m *stmtBindParamMethod) GetVariables() []data.Variable {
 	}
 }
 func (m *stmtBindParamMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 简化实现：暂不支持按名绑定，execute 时直接传参
+	paramVal, ok := ctx.GetIndexValue(0)
+	if !ok || paramVal == nil {
+		return data.NewBoolValue(false), nil
+	}
+	varVal, ok := ctx.GetIndexValue(1)
+	if !ok {
+		return data.NewBoolValue(false), nil
+	}
+
+	if m.state.bound == nil {
+		m.state.bound = make(map[int]interface{})
+	}
+
+	idx := 0
+	if ai, ok := paramVal.(interface{ AsInt() (int, error) }); ok {
+		if v, err := ai.AsInt(); err == nil {
+			idx = v
+		}
+	}
+	if idx <= 0 {
+		// 非正整数位置：若是数字字符串则解析，否则按调用顺序追加
+		if n, err := strconv.Atoi(strings.TrimSpace(paramVal.AsString())); err == nil && n > 0 {
+			idx = n
+		} else {
+			idx = len(m.state.bound) + 1
+		}
+	}
+	driverVal := phpValueToDriver(varVal)
+	m.state.bound[idx] = driverVal
 	return data.NewBoolValue(true), nil
+}
+
+func phpValueToDriver(v data.Value) interface{} {
+	if v == nil {
+		return nil
+	}
+	switch t := v.(type) {
+	case *data.NullValue:
+		return nil
+	case *data.BoolValue:
+		return t.Value
+	case *data.IntValue:
+		if i, err := t.AsInt(); err == nil {
+			return i
+		}
+	case *data.FloatValue:
+		if f, err := t.AsFloat(); err == nil {
+			return f
+		}
+	}
+	return v.AsString()
 }
 
 // -------------------------------------------------------------------

@@ -77,8 +77,15 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		var v data.GetValue
 		var c data.Control
 
+		// PHP foreach 在循环体内 unset 当前数组元素时仍遍历开始时存在的全部条目；
+		// 对底层 List 做快照，避免 Go range 在原地修改 slice 时跳过元素（Arr::set 等）。
+		listSnapshot := append([]*data.ZVal(nil), array.List...)
+
 		// 遍历数组
-		for i, zval := range array.List {
+		for i, zval := range listSnapshot {
+			if zval == nil {
+				continue
+			}
 			element := zval.Value
 			// 设置值变量
 			acl := u.Value.SetValue(ctx, element)

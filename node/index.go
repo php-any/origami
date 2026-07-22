@@ -473,6 +473,68 @@ func (ie *IndexExpression) GetZVal(ctx data.Context) (*data.ZVal, data.Control) 
 	return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("无法处理索引的类型值"), "UndefinedIndexExpression")
 }
 
+// GetOrCreateZVal 返回索引槽位 ZVal；键不存在时 vivify（用于 &$arr[$key] 引用绑定）。
+func (ie *IndexExpression) GetOrCreateZVal(ctx data.Context) (*data.ZVal, data.Control) {
+	temp, acl := ie.Array.GetValue(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	index, acl := ie.Index.GetValue(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+
+	switch v := temp.(type) {
+	case *data.ArrayValue:
+		if _, isNull := index.(*data.NullValue); isNull {
+			v.List = append(v.List, data.NewZVal(data.NewNullValue()))
+			writeBackArrayProperty(ctx, ie.Array, v)
+			return v.List[len(v.List)-1], nil
+		}
+		if sv, ok := index.(data.AsString); ok {
+			key := sv.AsString()
+			for _, zval := range v.List {
+				if zval != nil && zval.Name == key {
+					return zval, nil
+				}
+			}
+			zv := data.NewNamedZVal(key, data.NewNullValue())
+			v.List = append(v.List, zv)
+			writeBackArrayProperty(ctx, ie.Array, v)
+			return zv, nil
+		}
+		if iv, ok := index.(data.AsInt); ok {
+			i, err := iv.AsInt()
+			if err != nil {
+				return nil, data.NewErrorThrow(ie.GetFrom(), err)
+			}
+			if z, _ := v.FindSlotByIntKey(i); z != nil {
+				return z, nil
+			}
+			zv := data.NewZVal(data.NewNullValue())
+			v.SetIntKey(i, zv.Value)
+			writeBackArrayProperty(ctx, ie.Array, v)
+			if z, _ := v.FindSlotByIntKey(i); z != nil {
+				return z, nil
+			}
+			return zv, nil
+		}
+	case *data.ObjectValue:
+		key, ok := indexKeyString(index)
+		if !ok {
+			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("ObjectValue无法处理索引的类型值"))
+		}
+		if zv, acl := v.GetZVal(key); acl == nil && zv != nil {
+			return zv, nil
+		}
+		v.SetProperty(key, data.NewNullValue())
+		if zv, acl := v.GetZVal(key); acl == nil && zv != nil {
+			return zv, nil
+		}
+	}
+	return ie.GetZVal(ctx)
+}
+
 func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Control {
 	indexVal, acl := ie.Index.GetValue(ctx)
 	if acl != nil {

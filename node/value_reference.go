@@ -78,11 +78,27 @@ func (v *ValueReference) resolveIndexRef(ctx data.Context, ie *IndexExpression) 
 		if !ok {
 			idx = data.NewNullValue()
 		}
+		// &$array[] 推空槽位
+		if _, isNull := idx.(*data.NullValue); isNull {
+			arr.List = append(arr.List, data.NewZVal(data.NewNullValue()))
+			return &data.ArraySlotRef{Arr: arr, Idx: len(arr.List) - 1}, nil
+		}
+		// 字符串键：&$array['key']
+		if sv, ok := idx.(data.AsString); ok {
+			key := sv.AsString()
+			for i, zval := range arr.List {
+				if zval != nil && zval.Name == key {
+					return &data.ArraySlotRef{Arr: arr, Idx: i}, nil
+				}
+			}
+			arr.List = append(arr.List, data.NewNamedZVal(key, data.NewNullValue()))
+			return &data.ArraySlotRef{Arr: arr, Idx: len(arr.List) - 1}, nil
+		}
 		i, err := toArrayIndex(idx)
 		if err != nil {
 			return nil, data.NewErrorThrow(v.from, err)
 		}
-		// &$array[] 推空槽位
+		// &$array[] 推空槽位（整数下标追加）
 		if i == len(arr.List) {
 			arr.List = append(arr.List, data.NewZVal(data.NewNullValue()))
 		}

@@ -308,13 +308,13 @@ func (m *pdoConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control
 		return nil, pdoException(pingErr.Error(), ctx)
 	}
 
-	// 将 *sql.DB 存入 $this 的属性
-	if thisCtx, ok := ctx.(interface {
-		SetProperty(string, data.Value)
-	}); ok {
-		state := &pdoState{db: db, driverName: driver, errMode: PDO_ERRMODE_EXCEPTION}
-		thisCtx.SetProperty("__pdo_state__", &pdoStateValue{state: state})
+	// 将 *sql.DB 存入实例动态属性（与 SPL ArrayObject 同路径：ClassValue.ObjectValue）
+	cv := pdoGetClassValue(ctx)
+	if cv == nil {
+		return nil, data.NewErrorThrow(nil, fmt.Errorf("PDO::__construct() missing instance context"))
 	}
+	state := &pdoState{db: db, driverName: driver, errMode: PDO_ERRMODE_EXCEPTION}
+	cv.ObjectValue.SetProperty("__pdo_state__", &pdoStateValue{state: state})
 
 	return nil, nil
 }
@@ -554,10 +554,11 @@ func (m *pdoBeginTransactionMethod) Call(ctx data.Context) (data.GetValue, data.
 		}
 		return data.NewBoolValue(false), nil
 	}
-	// 存储 tx
-	if p, ok := ctx.(interface{ SetProperty(string, data.Value) }); ok {
-		p.SetProperty("__pdo_tx__", &pdoTxValue{tx: tx})
+	cv := pdoGetClassValue(ctx)
+	if cv == nil {
+		return nil, data.NewErrorThrow(nil, fmt.Errorf("PDO::beginTransaction() missing instance context"))
 	}
+	cv.ObjectValue.SetProperty("__pdo_tx__", &pdoTxValue{tx: tx})
 	return data.NewBoolValue(true), nil
 }
 
@@ -862,28 +863,36 @@ func (v *pdoTxValue) SetValue(_ data.Value)                                 {}
 // 辅助函数
 // -------------------------------------------------------------------
 
+func pdoGetClassValue(ctx data.Context) *data.ClassValue {
+	if cmc, ok := ctx.(*data.ClassMethodContext); ok {
+		return cmc.ClassValue
+	}
+	if cv, ok := ctx.(*data.ClassValue); ok {
+		return cv
+	}
+	return nil
+}
+
 func getPDOState(ctx data.Context) (*pdoState, data.Control) {
-	if getter, ok := ctx.(interface {
-		GetProperty(string) (data.Value, bool)
-	}); ok {
-		if v, found := getter.GetProperty("__pdo_state__"); found {
-			if sv, ok := v.(*pdoStateValue); ok {
-				return sv.state, nil
-			}
-		}
+	cv := pdoGetClassValue(ctx)
+	if cv == nil {
+		return nil, data.NewErrorThrow(nil, fmt.Errorf("PDO object is not initialized"))
+	}
+	v, _ := cv.ObjectValue.GetProperty("__pdo_state__")
+	if sv, ok := v.(*pdoStateValue); ok {
+		return sv.state, nil
 	}
 	return nil, data.NewErrorThrow(nil, fmt.Errorf("PDO object is not initialized"))
 }
 
 func getTx(ctx data.Context) *sql.Tx {
-	if getter, ok := ctx.(interface {
-		GetProperty(string) (data.Value, bool)
-	}); ok {
-		if v, found := getter.GetProperty("__pdo_tx__"); found {
-			if tv, ok := v.(*pdoTxValue); ok {
-				return tv.tx
-			}
-		}
+	cv := pdoGetClassValue(ctx)
+	if cv == nil {
+		return nil
+	}
+	v, _ := cv.ObjectValue.GetProperty("__pdo_tx__")
+	if tv, ok := v.(*pdoTxValue); ok {
+		return tv.tx
 	}
 	return nil
 }

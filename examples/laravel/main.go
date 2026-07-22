@@ -6,6 +6,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "modernc.org/sqlite"
 
+	gosupport "github.com/php-any/origami/examples/laravel/go-support"
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/runtime"
 	"github.com/php-any/origami/std"
@@ -18,7 +19,22 @@ import (
 )
 
 func main() {
-	runArtisan(os.Args[1:])
+	args := os.Args[1:]
+	// ./laravel run path/to/script.php — 加载 go-support 后直接跑脚本（用于 illuminate 冒烟）
+	if len(args) >= 2 && args[0] == "run" {
+		runScript(args[1])
+		return
+	}
+	runArtisan(args)
+}
+
+func runScript(path string) {
+	vm, p := buildVM()
+	if _, ctl := vm.LoadAndRun(path); ctl != nil {
+		p.ShowControl(ctl)
+		os.Exit(1)
+	}
+	vm.RunShutdownCallbacks()
 }
 
 func buildVM() (*runtime.VM, *parser.Parser) {
@@ -32,6 +48,7 @@ func buildVM() (*runtime.VM, *parser.Parser) {
 	netannotation.Load(vm)
 	cliannotation.Load(vm)
 	system.Load(vm)
+	gosupport.Load(vm)
 
 	return vm, p
 }
