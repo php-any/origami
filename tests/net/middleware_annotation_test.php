@@ -4,6 +4,8 @@ use Net\Annotation\Controller;
 use Net\Annotation\GetMapping;
 use Net\Annotation\Middleware;
 use Net\Annotation\Route;
+use Net\Http\Request;
+use Net\Http\Response;
 
 // 测试 Spring 风格的中间件注解
 
@@ -53,13 +55,13 @@ class UserController {
     // 方法级别中间件（会与类级别中间件合并）
     #[Middleware(LogMiddleware::class)]
     #[GetMapping("/profile")]
-    public function getProfile($r, $w) {
+    public function getProfile(Request $r, Response $w) {
         echo "获取用户资料\n";
     }
 
     // 只有类级别中间件
     #[GetMapping("/list")]
-    public function getList($r, $w) {
+    public function getList(Request $r, Response $w) {
         echo "获取用户列表\n";
     }
 }
