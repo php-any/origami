@@ -10,8 +10,13 @@ use Bootstrap\View\View;
 // 会先定义依赖 PhpOption/phpdotenv 的 Env::get()，而示例未安装这些包。
 require __DIR__ . '/env.php';
 require dirname(__DIR__) . '/vendor/autoload.php';
+require __DIR__ . '/foundation.php';
+require __DIR__ . '/database.php';
+require __DIR__ . '/auth.php';
 
 load_env();
+bootstrap_illuminate();
+bootstrap_auth();
 
 function bootstrap_app(): array
 {

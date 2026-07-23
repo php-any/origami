@@ -5,10 +5,9 @@ namespace App\Services;
 use App\Models\ApiToken;
 use App\Models\User;
 use Container\Annotation\Singleton;
-use Database\DB;
 
 /**
- * 认证服务（类似 Laravel Auth）
+ * 认证服务：登录发 token；当前用户由 illuminate/auth Guard 解析
  */
 #[Singleton]
 class AuthService
@@ -37,31 +36,36 @@ class AuthService
 
         $token = bin2hex(random_bytes(16));
 
-        $apiToken = new ApiToken();
-        $apiToken->user_id = $user->id;
-        $apiToken->token = $token;
-        DB::insert($apiToken);
-
-        $info = $this->userService->toArray($user);
+        ApiToken::query()->create([
+            'user_id' => $user->id,
+            'token' => $token,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
 
         return [
             'token' => $token,
-            'user' => $info,
+            'user' => $this->userService->toArray($user),
         ];
     }
 
-    public static function userFromToken(string $token): ?array
+    public static function userFromToken(string $token): ?User
     {
-        if ($token === '') {
-            return null;
-        }
+        auth_set_token($token);
+        $user = auth()->user();
 
-        $row = DB::model(ApiToken::class)->where('token = ?', $token)->first();
-        if ($row === null) {
-            return null;
-        }
+        return $user instanceof User ? $user : null;
+    }
 
-        $user = DB::model(User::class)->where('id = ?', $row->user_id)->first();
+    public static function userFromRequest($request): ?User
+    {
+        auth_set_request($request);
+        $user = auth()->user();
+
+        return $user instanceof User ? $user : null;
+    }
+
+    public static function userToArray(?User $user): ?array
+    {
         if ($user === null) {
             return null;
         }
@@ -72,12 +76,5 @@ class AuthService
             'email' => $user->email,
             'created_at' => $user->created_at,
         ];
-    }
-
-    public static function userFromRequest($request): ?array
-    {
-        $token = $request->header('Authorization', '');
-
-        return self::userFromToken($token);
     }
 }

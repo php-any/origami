@@ -2,36 +2,34 @@
 
 namespace App\Console\Commands;
 
-use Bootstrap\Console\Command;
 use App\Models\Post;
 use App\Services\DatabaseManager;
+use Bootstrap\Console\Command;
 use Cli\Annotation\Command as CommandAttribute;
-use Database\DB;
 
 #[CommandAttribute(name: 'post:list', description: 'List all posts')]
 class PostListCommand extends Command
 {
     public function handle(): void
     {
-        app_make(DatabaseManager::class);
+        app_make(DatabaseManager::class)->connect();
 
-        $posts = DB::model(Post::class)->orderBy('id ASC')->get();
+        $posts = Post::query()->orderBy('id')->get();
 
         $this->output->title('Posts');
 
         if (count($posts) === 0) {
-            $this->output->warning('No posts found.');
+            $this->warn('No posts found.');
             return;
         }
 
-        $table = $this->table();
-        $table->setHeaders(['ID', 'User', 'Title']);
+        $rows = [];
         foreach ($posts as $post) {
-            $table->addRow([(string) $post->id, (string) $post->user_id, $post->title]);
+            $rows[] = [(string) $post->id, (string) $post->user_id, $post->title];
         }
-        $table->render();
+        $this->table(['ID', 'User', 'Title'], $rows);
 
-        $this->output->comment('Total: ' . count($posts));
-        $this->output->newLine();
+        $this->comment('Total: ' . count($posts));
+        $this->newLine();
     }
 }

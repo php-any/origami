@@ -4,24 +4,18 @@ namespace App\Services;
 
 use App\Models\User;
 use Container\Annotation\Singleton;
-use Database\DB;
 
 #[Singleton]
 class UserService
 {
-    private function query(): DB
-    {
-        return DB::model(User::class);
-    }
-
     public function all(): array
     {
-        return $this->query()->orderBy('id ASC')->get();
+        return User::query()->orderBy('id')->get()->all();
     }
 
     public function find(int $id): ?User
     {
-        return $this->query()->where('id = ?', $id)->first();
+        return User::query()->find($id);
     }
 
     /**
@@ -30,25 +24,21 @@ class UserService
      */
     public function findMany(array $ids): array
     {
-        $ids = array_values(array_unique(array_filter($ids, fn ($id) => $id > 0)));
+        $ids = array_values(array_unique(array_filter($ids, static fn ($id) => $id > 0)));
         if ($ids === []) {
             return [];
         }
 
-        $placeholders = implode(', ', array_fill(0, count($ids), '?'));
-        $users = $this->query()->where('id IN (' . $placeholders . ')', $ids)->get();
-
-        $indexed = [];
-        foreach ($users as $user) {
-            $indexed[$user->id] = $user;
-        }
-
-        return $indexed;
+        return User::query()
+            ->whereIn('id', $ids)
+            ->get()
+            ->keyBy('id')
+            ->all();
     }
 
     public function findByEmail(string $email): ?User
     {
-        return $this->query()->where('email = ?', $email)->first();
+        return User::query()->where('email', $email)->first();
     }
 
     public function toArray(User $user): array

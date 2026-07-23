@@ -25,11 +25,12 @@ class AuthController
 
     public function me(Request $request, Response $response): void
     {
-        $user = AuthService::userFromRequest($request);
+        auth_set_request($request);
+        $user = auth()->user();
         if ($user === null) {
             $response->error('Unauthenticated.', 401);
             return;
         }
-        $response->success($user);
+        $response->success(AuthService::userToArray($user));
     }
 }

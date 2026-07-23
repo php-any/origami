@@ -12,7 +12,9 @@ function config_load(): array
         $base = dirname(__DIR__);
         $config = [
             'app' => require $base . '/config/app.php',
+            'auth' => require $base . '/config/auth.php',
             'database' => require $base . '/config/database.php',
+            'view' => require $base . '/config/view.php',
         ];
     }
 
@@ -21,6 +23,10 @@ function config_load(): array
 
 function config(string $key, mixed $default = null): mixed
 {
+    if (function_exists('illuminate_config')) {
+        return illuminate_config()->get($key, $default);
+    }
+
     $segments = explode('.', $key);
     $value = config_load();
 

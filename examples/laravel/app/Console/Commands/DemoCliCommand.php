@@ -24,63 +24,63 @@ class DemoCliCommand extends Command
 
     public function handle(): void
     {
-        if ($this->input->hasOption('help')) {
+        if ($this->optionEnabled('help')) {
             $this->showUsage();
             return;
         }
 
-        $name = (string) $this->input->getArgument('name');
+        $name = (string) ($this->argument('name') ?? 'World');
 
         $this->output->title('CLI Demo');
-        $this->output->info("Hello, {$name}!");
+        $this->info("Hello, {$name}!");
         $this->output->success('Formatted success message');
-        $this->output->warning('Formatted warning message');
-        $this->output->error('Formatted error message (stderr)');
+        $this->warn('Formatted warning message');
+        $this->error('Formatted error message (stderr)');
 
-        if ($this->input->hasOption('verbose')) {
+        if ($this->optionEnabled('verbose')) {
             $this->output->section('Parsed Input');
-            $this->output->comment('Arguments: ' . json_encode($this->input->getArguments(), JSON_UNESCAPED_UNICODE));
-            $this->output->comment('Options: ' . json_encode($this->input->getOptions(), JSON_UNESCAPED_UNICODE));
+            $this->comment('Arguments: ' . json_encode($this->arguments(), JSON_UNESCAPED_UNICODE));
+            $this->comment('Options: ' . json_encode($this->options(), JSON_UNESCAPED_UNICODE));
         }
 
         $this->output->section('Table Output');
-        $limit = max(1, (int) $this->input->getOption('limit'));
-        $table = $this->table();
-        $table->setHeaders(['#', 'Feature', 'Class']);
+        $limit = max(1, (int) ($this->option('limit') ?? 3));
         $features = [
-            ['Arguments / Options', 'Bootstrap\\Console\\ArgvInput'],
-            ['Styled Output', 'Bootstrap\\Console\\Output'],
-            ['Table', 'Bootstrap\\Console\\Table'],
-            ['Progress Bar', 'Bootstrap\\Console\\ProgressBar'],
-            ['User Input', 'Bootstrap\\Console\\Prompt'],
+            ['Arguments / Options', 'Symfony ArgvInput via illuminate/console'],
+            ['Styled Output', 'Illuminate\\Console\\OutputStyle'],
+            ['Table', 'Symfony\\Component\\Console\\Helper\\Table'],
+            ['Progress Bar', 'SymfonyStyle::createProgressBar'],
+            ['User Input', 'Command::ask / confirm / choice'],
         ];
+        $rows = [];
         foreach (array_slice($features, 0, $limit) as $index => $row) {
-            $table->addRow([(string) ($index + 1), $row[0], $row[1]]);
+            $rows[] = [(string) ($index + 1), $row[0], $row[1]];
         }
-        $table->render();
+        $this->table(['#', 'Feature', 'Class'], $rows);
 
         $this->output->section('Progress Bar');
-        $bar = $this->createProgressBar(20);
+        $bar = $this->output->createProgressBar(20);
         $bar->start();
         for ($i = 0; $i < 20; $i++) {
             $bar->advance();
         }
         $bar->finish();
+        $this->newLine();
 
-        if ($this->input->hasOption('interactive')) {
+        if ($this->optionEnabled('interactive')) {
             $this->output->section('Interactive Prompts');
-            $answer = $this->prompt->ask('Your name', $name);
-            $confirmed = $this->prompt->confirm('Continue demo?', true);
-            $choice = $this->prompt->choice('Pick a color', ['red', 'green', 'blue'], 'green');
+            $answer = $this->ask('Your name', $name);
+            $confirmed = $this->confirm('Continue demo?', true);
+            $choice = $this->choice('Pick a color', ['red', 'green', 'blue'], 'green');
 
-            $this->output->info("ask => {$answer}");
-            $this->output->info('confirm => ' . ($confirmed ? 'yes' : 'no'));
-            $this->output->info("choice => {$choice}");
+            $this->info("ask => {$answer}");
+            $this->info('confirm => ' . ($confirmed ? 'yes' : 'no'));
+            $this->info("choice => {$choice}");
         } else {
-            $this->output->comment('Add --interactive to try ask / confirm / choice prompts.');
+            $this->comment('Add --interactive to try ask / confirm / choice prompts.');
         }
 
-        $this->output->newLine();
+        $this->newLine();
         $this->output->success('CLI demo finished.');
     }
 

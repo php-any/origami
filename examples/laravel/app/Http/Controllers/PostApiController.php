@@ -38,7 +38,7 @@ class PostApiController
             return;
         }
 
-        $item = $this->postService->create((int) $user['id'], $request->title, $request->body);
+        $item = $this->postService->create((int) $user->id, $request->title, $request->body);
         $response->success($item, 'created', 201);
     }
 }

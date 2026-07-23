@@ -32,16 +32,16 @@ class AboutCommand extends Command
                 ['Laravel Version', CommandRegistry::getAppVersion()],
                 ['PHP Version', PHP_VERSION],
                 ['Environment', (string) config('app.env', 'local')],
-                ['Debug Mode', $debug ? Style::yellow(Style::bold('ENABLED')) : 'OFF'],
+                ['Debug Mode', $debug ? 'ENABLED' : 'OFF'],
                 ['URL', $url],
                 ['Timezone', (string) config('app.timezone', '')],
                 ['Locale', (string) config('app.locale', '')],
             ],
             'Cache' => [
-                ['Config', Style::yellow(Style::bold('NOT CACHED'))],
-                ['Events', Style::yellow(Style::bold('NOT CACHED'))],
-                ['Routes', Style::yellow(Style::bold('NOT CACHED'))],
-                ['Views', Style::yellow(Style::bold('NOT CACHED'))],
+                ['Config', 'NOT CACHED'],
+                ['Events', 'NOT CACHED'],
+                ['Routes', 'NOT CACHED'],
+                ['Views', 'NOT CACHED'],
             ],
             'Drivers' => [
                 ['Database', $dbDefault],
@@ -49,32 +49,41 @@ class AboutCommand extends Command
             ],
         ];
 
-        if ($this->input->hasOption('json')) {
-            $data = [];
+        if ($this->optionEnabled('json')) {
+            // 用 list-of-pairs，避免 Origami 嵌套关联数组丢键
+            $payload = [];
             foreach ($sections as $section => $rows) {
-                $key = strtolower(preg_replace('/\s+/', '_', $section) ?? $section);
-                $data[$key] = [];
-                foreach ($rows as [$label, $value]) {
-                    $data[$key][strtolower(str_replace(' ', '_', $label))] = $value;
+                $items = [];
+                foreach ($rows as $pair) {
+                    $items[] = [(string) $pair[0], (string) $pair[1]];
                 }
+                $payload[] = [(string) $section, $items];
             }
-            $this->output->writeln(json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            $this->line(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             return;
         }
 
         $first = true;
         foreach ($sections as $section => $rows) {
             if (!$first) {
-                $this->output->newLine();
+                $this->newLine();
             }
             $first = false;
 
-            $this->output->twoColumnDetail(Style::green(Style::bold($section)));
-            foreach ($rows as [$label, $value]) {
-                $this->output->twoColumnDetail($label, $value);
+            $this->twoColumnDetail(Style::green(Style::bold($section)));
+            foreach ($rows as $pair) {
+                $label = (string) $pair[0];
+                $value = (string) $pair[1];
+                if ($section === 'Environment' && $label === 'Debug Mode' && $value === 'ENABLED') {
+                    $value = Style::yellow(Style::bold('ENABLED'));
+                }
+                if ($section === 'Cache') {
+                    $value = Style::yellow(Style::bold($value));
+                }
+                $this->twoColumnDetail($label, $value);
             }
         }
 
-        $this->output->newLine();
+        $this->newLine();
     }
 }

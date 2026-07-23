@@ -10,20 +10,18 @@ use Database\Seeders\DatabaseSeeder;
  */
 class DatabaseBootstrap
 {
-    private const MODEL_DIR = __DIR__ . '/../Models';
-
     public static function migrate(?string $dbPath = null, bool $cli = false): void
     {
         if ($dbPath === null) {
             $dbPath = app_make(DatabaseManager::class)->path();
         }
 
-        self::out($cli, '=== 数据库迁移 ===');
+        self::out($cli, '=== 数据库迁移（#[Table] Entity）===');
         self::out($cli, '数据库路径: ' . $dbPath);
 
         $db = app_make(DatabaseManager::class)->connect($dbPath);
 
-        $result = \Database\migrate($db, self::MODEL_DIR);
+        $result = \Database\migrate($db, entity_model_dir());
         self::out($cli, 'Schema 同步: 新建表 ' . $result->createdCount . ' 个, 新增列 ' . $result->alteredCount . ' 个');
         foreach ($result->created as $item) {
             self::out($cli, '  创建表: ' . $item->table);

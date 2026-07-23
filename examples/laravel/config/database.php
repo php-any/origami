@@ -6,7 +6,8 @@ return [
     'connections' => [
         'sqlite' => [
             'driver' => 'sqlite',
-            'database' => realpath(env('DB_DATABASE', __DIR__ . '/../storage/laravel.db')),
+            'database' => env('DB_DATABASE', base_path('storage/laravel.db')),
+            'prefix' => '',
         ],
     ],
 ];

@@ -2,28 +2,23 @@
 
 namespace App\Models;
 
-use Database\Annotation\Column;
-use Database\Annotation\GeneratedValue;
-use Database\Annotation\Id;
-use Database\Annotation\Table;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/**
- * API 访问令牌（类似 Laravel personal_access_tokens）
- */
-#[Table('api_tokens')]
-class ApiToken
+class ApiToken extends Model
 {
-    #[Id]
-    #[GeneratedValue('AUTO')]
-    #[Column('id', nullable: false)]
-    public int $id;
+    protected $table = 'api_tokens';
 
-    #[Column('user_id', nullable: false)]
-    public int $user_id;
+    public $timestamps = false;
 
-    #[Column('token', nullable: false, length: 64)]
-    public string $token;
+    protected $fillable = [
+        'user_id',
+        'token',
+        'created_at',
+    ];
 
-    #[Column('created_at', nullable: true)]
-    public ?string $created_at;
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 }

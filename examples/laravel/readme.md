@@ -13,7 +13,7 @@
 ```bash
 cd examples/laravel
 go build -mod=mod -o laravel .
-bash tests/run_illuminate_smokes.sh   # 当前 28 项冒烟
+bash tests/run_illuminate_smokes.sh   # 当前 34 项冒烟（含 routing/eloquent/auth/console bridge）
 ```
 
 | 包 | 冒烟 | 说明 |
@@ -27,15 +27,20 @@ bash tests/run_illuminate_smokes.sh   # 当前 28 项冒烟
 | filesystem / hashing / encryption | ✅ | 文件与加密 |
 | pagination / translation | ✅ | 分页与翻译行 |
 | cache / database | ✅ | 无 TTL / 无 schema 的收窄测试 |
-| log / view / http | ✅ | PSR 桩 / FileViewFinder / Request |
+| log / view / http | ✅ | PSR 桩 / **PhpEngine + FileViewFinder** / Request |
 | session / cookie | ✅ | 无 flash / 无 TTL cookie |
 | routing / console / process | ✅ | 注册与编译 / Symfony Command / Factory::result |
-| auth | ✅ | GenericUser + Gate::allows |
+| auth | ✅ | GenericUser + Gate::allows + **api Token Guard 桥接** |
 | mail | ✅ | Address + ArrayTransport（无 Transport::send） |
-| queue | ✅ | SyncQueue 容器 + JobName（push 待 UuidInterface） |
-| redis | ✅ | RedisManager 驱动切换（无真实连接） |
+| queue | ✅ | SyncQueue::push（字符串 job）+ Str::uuid / JobName |
+| redis | ✅ | RedisManager 驱动切换（无真实连接；connection 待 Arr/抽象类） |
 | broadcasting | ✅ | log 驱动 + PSR Logger 桩 |
-| **待引入** | | notifications, testing, filesystem cloud, … |
+| notifications | ✅ | Notification / Action / AnonymousNotifiable |
+| testing | ✅ | AssertableJsonString（无 PHPUnit assert*） |
+| **阶段 2 桥接** | ✅ | `foundation.php` + Route 双注册 + Config Repository + View Finder + **Console illuminate 双轨** |
+| **Eloquent 双轨** | ✅ | `app/Models` Eloquent + `app/Models/Entity` #[Table] 迁移 |
+| **Auth Guard** | ✅ | `config/auth.php` + `ApiTokenGuard` + `Authenticate` 中间件 |
+| **待引入** | | filesystem cloud (S3)、完整 PHPUnit 测试栈、laravel/framework |
 
 **go-support 扩展**（`go-support/load.go`）：仅 Laravel 示例 VM 注册 `parse_str`、`html_entity_decode`、`getcwd` 等，**不改 Origami 核心**。
 
@@ -43,20 +48,28 @@ bash tests/run_illuminate_smokes.sh   # 当前 28 项冒烟
 
 - `Request::decodedPath()` 等在子类上的方法解析
 - Carbon `parent::` 与 `DateTimeImmutable` 接口
-- PhpEngine `extract` + `require` 作用域共享
 - Symfony Mime `Email` / `Envelope::create` 与 `RawMessage` 发送路径
-- 抽象类 `Illuminate\Redis\Connections\Connection` 子类化
-- `ramsey/uuid` 的 `UuidInterface` 解析（queue `SyncQueue::push`）
+- 抽象类 `Illuminate\Redis\Connections\Connection` 子类化 / Redis `connection()`
+- Closure 版 `SyncQueue::push`（依赖 `Illuminate\Foundation\Bus\Dispatchable`）
+
+> 已在 Origami 核心修复：同文件 `extends` vendor 父类、嵌套 ArrayAccess 写入、点号数字键（`config('view.paths.0')`）、`get_parent_class()`、foreach 仅公开属性、`preg_replace` 反引用、闭包/`foreach`+`yield`（Symfony `Helper\Table`）、**`hex2bin`/`dechex`/`hexdec`/`gettimeofday`/`escapeshellarg`/`pack n*`、ASI 在 `extends`/注释换行误插分号、`(string)` 调 `__toString`、`extract`+`require` 作用域共享（PhpEngine）**。
+
+## 阶段 2：bootstrap → Illuminate 桥接（Console / Auth / Eloquent 已完成）
+
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| `bootstrap/foundation.php` | ✅ | Illuminate Container、Router、Config、View Factory |
+| `Bootstrap\Routing\Route` | ✅ | 双注册：`illuminate/routing` 目录 + `Net\Http\Router` 分发 |
+| `config()` | ✅ | 委托 `Illuminate\Config\Repository` |
+| `Bootstrap\View\View` | ✅ | `FileViewFinder` 解析路径，Origami `response->view()` 渲染 |
+| `bootstrap/console/*` | ✅ | `Bootstrap\Console\Command` 继承 `Illuminate\Console\Command`；`#[CliApplication]` 无参 `execute()` 双轨 |
+| Eloquent Model | ✅ | `app/Models/*` Eloquent；schema 由 `app/Models/Entity` #[Table] 迁移 |
+| `illuminate/auth` Guard | ✅ | `ApiTokenGuard` + `auth()` / `Authenticate` 中间件 |
 
 完整 Laravel 路线（建议顺序）：
 
-1. **扩 illuminate 冒烟** — notifications、testing、filesystem cloud 等（当前 28 项）
-2. **替换 bootstrap 模拟层**
-   - 用真实 `illuminate/routing` 替换 `bootstrap/routing/Route.php`
-   - 用 `illuminate/console` 替换部分 Artisan 基类（`bootstrap/console/Command.php` 等）
-3. **上游 blocker 修完后加深冒烟**
-   - `SyncQueue::push` / `Mailer::raw` / `Redis::connection` 等端到端路径
-4. **终极目标** — 引入 `laravel/framework` 或等价 Provider 链，让 `public/index.php` 走标准 Laravel 引导
+1. **继续加深冒烟** — `Mailer::raw` / `Redis::connection` / Closure `SyncQueue::push`（Foundation stub）
+2. **终极目标** — 引入 `laravel/framework` 或等价 Provider 链，让 `public/index.php` 走标准 Laravel 引导
 
 ---
 
@@ -87,8 +100,11 @@ bash tests/run_illuminate_smokes.sh   # 当前 28 项冒烟
 | 框架核心 | `vendor/laravel/framework` | Origami std + `bootstrap/` |
 | 路由注册 | `RouteServiceProvider` + `routes/*.php` | 相同模式 |
 | 控制器 DI | 容器自动注入 | `#[Singleton]` + 扫描期 `Container::application()` |
-| ORM | Eloquent | `#[Table]` Entity + `Database\DB` |
-| 配置 | `config()` Facade | `bootstrap/config.php` 中的 `config()` 函数 |
+| ORM | Eloquent | `App\Models\*` Eloquent + `App\Models\Entity\*` #[Table] 迁移双轨 |
+| 配置 | `config()` Facade | `Illuminate\Config\Repository` + `config()` 辅助函数 |
+| 路由 Facade | `Illuminate\Support\Facades\Route` | `Bootstrap\Routing\Route`（Illuminate Router + Origami 分发桥接） |
+| 视图 | Blade | `Illuminate\View\FileViewFinder` 解析 + Origami HTML 渲染 |
+| Artisan 命令 | `Illuminate\Console\Command` | 同基类 + Origami `#[Command]` / `#[CliApplication]` 双轨分发 |
 | HTTP 入口 | `public/index.php` → `bootstrap/app.php` | 相同思路，底层为 Origami `Net\Http\Server` |
 
 ---
@@ -123,8 +139,9 @@ HTTP 与 CLI **共用**，顺序固定：
 ```
 vendor/autoload.php
   → bootstrap/env.php      load_env()
+  → bootstrap/foundation.php  illuminate_container() / router / config / view
   → bootstrap/config.php   config_load() / config()
-  → bootstrap/helpers.php  app_make()
+  → bootstrap/helpers.php  app_make() / base_path() / resource_path()
   → bootstrap_app()        设置视图路径，返回配置数组
 ```
 
@@ -464,10 +481,10 @@ HTTP 生产/开发入口仍是 `public/index.php`；`./laravel serve` 在命令�
 
 | 限制 | 说明 |
 |------|------|
-| **中间件无构造函数 DI** | 中间件由框架直接 `new`，不能注入依赖；`Authenticate` 通过 `AuthService::userFromRequest()` 静态方法访问服务 |
+| **中间件无构造函数 DI** | 中间件由框架直接 `new`，不能注入依赖；`Authenticate` 通过 `auth()` Guard 解析当前用户 |
 | **Request attribute 类型** | 不宜在 `$request` 上存 PHP 数组等复杂结构；认证用户通过 token 查库，而非写入 request attribute |
 | **HTML 模板 `for` 属性** | 含 `for="$x in $items"` 的片段需以 `<!DOCTYPE html>` 开头，否则 HTML 解析器不识别 `for` |
-| **无 Blade / Eloquent** | 视图是纯 HTML + `response->view()`；Model 为 `#[Table]` Entity + `Database\DB` |
+| **无 Blade** | 视图是 HTML + `response->view()`；PhpEngine / Blade 待上游 `extract`+`require` |
 | **双容器隔离** | HTTP 与 CLI 使用不同 Container 实例；在 CLI 命令中勿假设 HTTP Application 容器中的绑定 |
 
 ---
@@ -486,9 +503,10 @@ HTTP 生产/开发入口仍是 `public/index.php`；`./laravel serve` 在命令�
 
 ### 新增 Artisan 命令
 
-1. 在 `app/Console/Commands/` 创建类，继承 `Bootstrap\Console\Command`
-2. 标注 `#[Command(name: 'foo:bar')]`
-3. `bootstrap/console/Kernel.php` 的 `#[CliApplication(scan: .../Commands)]` 自动发现
+1. 在 `app/Console/Commands/` 创建类，继承 `Bootstrap\Console\Command`（即 `Illuminate\Console\Command`）
+2. 标注 `#[Command(name: 'foo:bar')]`（Origami 发现用）
+3. 用 `$signature` 或 `defineInput()` 声明参数；在 `handle()` 里用 `$this->info()` / `$this->option()` 等 Illuminate API
+4. `bootstrap/console/Kernel.php` 的 `#[CliApplication(scan: .../Commands)]` 自动发现
 
 ### 新增 Provider
 

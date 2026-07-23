@@ -3,12 +3,23 @@
 namespace App\Console\Commands;
 
 use Bootstrap\Console\Command;
-use Bootstrap\Console\InputDefinition;
 use Cli\Annotation\Command as CommandAttribute;
 
 #[CommandAttribute(name: 'inspire', description: 'Display an inspiring quote')]
 class InspireCommand extends Command
 {
+    /**
+     * Laravel 风格 signature（与 #[Command] 双轨；Origami 仍靠注解发现）。
+     *
+     * @var string
+     */
+    protected $signature = 'inspire {--quiet : Minimal output}';
+
+    /**
+     * @var string
+     */
+    protected $description = 'Display an inspiring quote';
+
     private array $quotes = [
         'Simplicity is the ultimate sophistication.',
         'Make it work, make it right, make it fast.',
@@ -16,23 +27,17 @@ class InspireCommand extends Command
         'The best way to predict the future is to invent it.',
     ];
 
-    protected function defineInput(): InputDefinition
-    {
-        return (new InputDefinition())
-            ->addOption('quiet', 'q', false, null, 'Minimal output');
-    }
-
     public function handle(): void
     {
         $quote = $this->quotes[array_rand($this->quotes)];
 
-        if ($this->input->hasOption('quiet')) {
-            $this->output->writeln($quote);
+        if ($this->optionEnabled('quiet')) {
+            $this->line($quote);
             return;
         }
 
-        $this->output->newLine();
-        $this->output->writeln('  "' . $quote . '"');
-        $this->output->newLine();
+        $this->newLine();
+        $this->line('  "' . $quote . '"');
+        $this->newLine();
     }
 }

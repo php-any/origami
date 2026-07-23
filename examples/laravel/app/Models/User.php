@@ -2,31 +2,32 @@
 
 namespace App\Models;
 
-use Database\Annotation\Column;
-use Database\Annotation\GeneratedValue;
-use Database\Annotation\Id;
-use Database\Annotation\Table;
+use Illuminate\Auth\Authenticatable;
+use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/**
- * 用户模型（类似 Laravel Eloquent Model）
- */
-#[Table('users')]
-class User
+class User extends Model implements AuthenticatableContract
 {
-    #[Id]
-    #[GeneratedValue('AUTO')]
-    #[Column('id', nullable: false)]
-    public int $id;
+    use Authenticatable;
 
-    #[Column('name', nullable: false, length: 100)]
-    public string $name;
+    protected $table = 'users';
 
-    #[Column('email', nullable: false, length: 150)]
-    public string $email;
+    public $timestamps = false;
 
-    #[Column('password', nullable: false, length: 255)]
-    public string $password;
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+        'created_at',
+    ];
 
-    #[Column('created_at', nullable: true)]
-    public ?string $created_at;
+    protected $hidden = [
+        'password',
+    ];
+
+    public function posts(): HasMany
+    {
+        return $this->hasMany(Post::class);
+    }
 }

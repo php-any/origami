@@ -11,8 +11,8 @@ class MigrateCommand extends Command
 {
     public function handle(): void
     {
-        $this->output->info('Running migrations...');
+        $this->info('Running migrations...');
         DatabaseBootstrap::migrateAndSeed(null, true);
-        $this->output->success('Migrations completed.');
+        $this->info('Migrations completed.');
     }
 }

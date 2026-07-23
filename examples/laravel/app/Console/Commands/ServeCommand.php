@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use Bootstrap\Routing\Route;
 use Bootstrap\Console\Command;
 use Bootstrap\Console\InputDefinition;
+use Bootstrap\Routing\Route;
 use Cli\Annotation\Command as CommandAttribute;
 
 #[CommandAttribute(name: 'serve', description: 'Serve the application on the PHP development server')]
@@ -19,11 +19,11 @@ class ServeCommand extends Command
 
     public function handle(): void
     {
-        $port = (int) strval($this->input->getArgument('port') ?? '8080');
-        $host = (string) ($this->input->getOption('host') ?? '0.0.0.0');
+        $port = (int) strval($this->argument('port') ?? '8080');
+        $host = (string) ($this->option('host') ?? '0.0.0.0');
 
         if ($port < 1 || $port > 65535) {
-            $this->output->error('Invalid port. Must be between 1 and 65535.');
+            $this->error('Invalid port. Must be between 1 and 65535.');
             return;
         }
 
@@ -32,18 +32,18 @@ class ServeCommand extends Command
         $server = bootstrap_http_server($port, $host);
         $routes = Route::getRoutes();
 
-        $this->output->newLine();
-        $this->output->info(sprintf('Server running on [http://%s:%d].', $host, $port));
-        $this->output->comment('Press Ctrl+C to stop the server');
-        $this->output->newLine();
+        $this->newLine();
+        $this->info(sprintf('Server running on [http://%s:%d].', $host, $port));
+        $this->comment('Press Ctrl+C to stop the server');
+        $this->newLine();
 
         if (count($routes) > 0) {
-            $this->output->comment('Registered routes (' . count($routes) . '):');
+            $this->comment('Registered routes (' . count($routes) . '):');
             foreach ($routes as $route) {
                 $method = str_pad($route['method'], 7);
-                $this->output->comment('  ' . $method . ' ' . $route['path']);
+                $this->comment('  ' . $method . ' ' . $route['path']);
             }
-            $this->output->newLine();
+            $this->newLine();
         }
 
         $server->run();

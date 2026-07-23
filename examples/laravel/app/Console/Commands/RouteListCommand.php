@@ -3,9 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Application;
-use Bootstrap\Routing\Route;
 use Bootstrap\Console\Command;
 use Bootstrap\Console\InputDefinition;
+use Bootstrap\Routing\Route;
 use Cli\Annotation\Command as CommandAttribute;
 use Net\Http\Server;
 
@@ -24,13 +24,11 @@ class RouteListCommand extends Command
         $server->boot(Application::class);
 
         $routes = Route::getRoutes();
-        $filter = strtoupper((string) ($this->input->getOption('method') ?? ''));
+        $filter = strtoupper((string) ($this->option('method') ?? ''));
 
         $this->output->title('Registered Routes');
 
-        $table = $this->table();
-        $table->setHeaders(['Method', 'URI', 'Action']);
-
+        $rows = [];
         $count = 0;
         foreach ($routes as $route) {
             if ($filter !== '' && strtoupper($route['method']) !== $filter) {
@@ -38,12 +36,12 @@ class RouteListCommand extends Command
             }
 
             $action = $route['controller'] . '@' . $route['action'];
-            $table->addRow([$route['method'], $route['path'], $action]);
+            $rows[] = [$route['method'], $route['path'], $action];
             $count++;
         }
 
-        $table->render();
-        $this->output->comment("Total: {$count} routes");
-        $this->output->newLine();
+        $this->table(['Method', 'URI', 'Action'], $rows);
+        $this->comment("Total: {$count} routes");
+        $this->newLine();
     }
 }

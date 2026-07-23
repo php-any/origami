@@ -35,6 +35,12 @@ tests=(
   tests/illuminate_queue_smoke.php
   tests/illuminate_redis_smoke.php
   tests/illuminate_broadcasting_smoke.php
+  tests/illuminate_notifications_smoke.php
+  tests/illuminate_testing_smoke.php
+  tests/routing_bridge_smoke.php
+  tests/eloquent_smoke.php
+  tests/auth_bridge_smoke.php
+  tests/console_bridge_smoke.php
 )
 
 failed=0

@@ -19,17 +19,17 @@ class DbSeedCommand extends Command
 
     public function handle(): void
     {
-        if (!$this->input->hasOption('force')) {
-            if (!$this->prompt->confirm('This will seed the database. Continue?', true)) {
-                $this->output->warning('Seeding cancelled.');
+        if (!$this->optionEnabled('force')) {
+            if (!$this->confirm('This will seed the database. Continue?', true)) {
+                $this->warn('Seeding cancelled.');
                 return;
             }
         }
 
         app_make(DatabaseManager::class);
 
-        $this->output->info('Seeding database...');
+        $this->info('Seeding database...');
         DatabaseBootstrap::seed(true);
-        $this->output->success('Database seeded.');
+        $this->info('Database seeded.');
     }
 }
