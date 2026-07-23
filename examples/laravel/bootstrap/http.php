@@ -11,6 +11,8 @@ function bootstrap_http_server(int $port = 8080, string $host = '0.0.0.0'): Serv
 {
     $server = new Server($host, port: $port);
     $server->static('/assets/', dirname(__DIR__) . '/public/assets');
+    // Telescope SPA 静态资源（官方 public/）
+    $server->static('/vendor/telescope/', dirname(__DIR__) . '/vendor/laravel/telescope/public');
     $server->boot(Application::class);
 
     return $server;

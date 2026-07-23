@@ -193,7 +193,8 @@ func makeSliceVariableWithNames(vars []data.Variable) []*data.ZVal {
 	return l
 }
 
-// SetVariableByName 通过变量名设置变量值，用于 extract 等动态赋值场景
+// SetVariableByName 通过变量名设置变量值，用于 extract 等动态赋值场景。
+// 若该名称尚无槽位，则追加新槽（Laravel getRequire: extract 注入的键在闭包体内未必被静态引用）。
 func (c *Context) SetVariableByName(name string, value data.Value) {
 	for _, zv := range c.variables {
 		if zv != nil && zv.Name == name {
@@ -208,6 +209,24 @@ func (c *Context) SetVariableByName(name string, value data.Value) {
 			return
 		}
 	}
+	var stored data.Value = value
+	switch v := value.(type) {
+	case *data.ArrayValue:
+		stored = data.CloneArrayValue(v)
+	case *data.ObjectValue:
+		stored = data.CloneObjectValue(v)
+	}
+	c.variables = append(c.variables, data.NewNamedZVal(name, stored))
+}
+
+// GetVariableByName 通过变量名读取变量值
+func (c *Context) GetVariableByName(name string) (data.Value, bool) {
+	for _, zv := range c.variables {
+		if zv != nil && zv.Name == name {
+			return zv.Value, true
+		}
+	}
+	return nil, false
 }
 
 // HasVariableByName 检查调用者上下文中是否已存在指定名称的变量

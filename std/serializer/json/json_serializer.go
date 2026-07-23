@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -58,6 +59,60 @@ func (j *JsonSerializer) UnmarshalNull(data []byte, v *data.NullValue) error {
 
 // Array
 func (j *JsonSerializer) MarshalArray(v *data.ArrayValue) ([]byte, error) {
+	// PHP: 含字符串键的数组 json_encode 为对象；纯列表为数组
+	asObject := false
+	for _, z := range v.List {
+		if z != nil && z.Name != "" {
+			if _, err := strconv.Atoi(z.Name); err != nil {
+				asObject = true
+				break
+			}
+			// 数字字符串键：若与顺序下标不一致也按对象（简化：有任意 Name 且存在非纯顺序时）
+			asObject = true
+			break
+		}
+	}
+
+	if asObject {
+		var buf bytes.Buffer
+		buf.WriteByte('{')
+		first := true
+		for i, z := range v.List {
+			if z == nil {
+				continue
+			}
+			key := z.Name
+			if key == "" {
+				key = strconv.Itoa(i)
+			}
+			if !first {
+				buf.WriteByte(',')
+			}
+			first = false
+			kb, err := marshalNoHTMLEscape(key)
+			if err != nil {
+				return nil, err
+			}
+			buf.Write(kb)
+			buf.WriteByte(':')
+			elem := z.Value
+			var b []byte
+			if vs, ok := elem.(data.ValueSerializer); ok {
+				b, err = vs.Marshal(j)
+				if err != nil {
+					return nil, err
+				}
+			} else if elem != nil {
+				b, _ = marshalNoHTMLEscape(elem.AsString())
+			} else {
+				b = []byte("null")
+			}
+			buf.Write(b)
+		}
+		buf.WriteByte('}')
+		return buf.Bytes(), nil
+	}
+
 	valueList := v.ToValueList()
 	var buf bytes.Buffer
 	buf.WriteByte('[')

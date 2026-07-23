@@ -2,6 +2,7 @@ package stream
 
 import (
 	"io"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -66,6 +67,7 @@ func (f *StreamGetContentsFunction) Call(ctx data.Context) (data.GetValue, data.
 
 	// 检查流是否已关闭
 	if streamInfo.IsClosed() {
+		// PHP：对已关闭流返回 false；但对空读场景返回 "" 更利于 ?string 调用方（如 Symfony Terminal）
 		return data.NewBoolValue(false), nil
 	}
 
@@ -113,9 +115,11 @@ func (f *StreamGetContentsFunction) Call(ctx data.Context) (data.GetValue, data.
 		// 读取所有剩余数据
 		// 对于管道，io.ReadAll 会阻塞直到 EOF（进程结束）
 		content, err = io.ReadAll(streamReader)
-		// io.ReadAll 在成功时返回 nil，在遇到 EOF 时也返回 nil
-		// 只有在遇到其他错误时才返回非 nil 错误
-		if err != nil {
+		// 管道在进程退出后可能返回 "file already closed"；有数据则返回已读内容，否则空串
+		if err != nil && len(content) == 0 {
+			if err == io.EOF || isBenignPipeReadError(err) {
+				return data.NewStringValue(""), nil
+			}
 			return data.NewBoolValue(false), nil
 		}
 	} else {
@@ -123,13 +127,23 @@ func (f *StreamGetContentsFunction) Call(ctx data.Context) (data.GetValue, data.
 		content = make([]byte, maxLength)
 		n, readErr := streamReader.Read(content)
 		// Read 可能返回 EOF，这是正常的（表示读取结束）
-		if readErr != nil && readErr != io.EOF {
+		if readErr != nil && readErr != io.EOF && !isBenignPipeReadError(readErr) && n == 0 {
 			return data.NewBoolValue(false), nil
 		}
 		content = content[:n]
 	}
 
 	return data.NewStringValue(string(content)), nil
+}
+
+func isBenignPipeReadError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "file already closed") ||
+		strings.Contains(msg, "broken pipe") ||
+		strings.Contains(msg, "EOF")
 }
 
 func (f *StreamGetContentsFunction) GetName() string {

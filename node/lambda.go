@@ -15,10 +15,11 @@ type LambdaExpression struct {
 func NewLambdaExpression(from data.From, params []data.GetValue, body []data.GetValue, vars []data.Variable, parent map[int]int) *LambdaExpression {
 	return &LambdaExpression{
 		FunctionStatement: &FunctionStatement{
-			Node:   NewNode(from),
-			Params: params,
-			Body:   body,
-			vars:   vars,
+			Node:        NewNode(from),
+			Params:      params,
+			Body:        body,
+			vars:        vars,
+			IsGenerator: containsYield(body),
 		},
 		parent: parent,
 	}
@@ -32,10 +33,13 @@ func (f *LambdaExpression) GetParentBindings() map[int]int {
 func (f *LambdaExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewFuncValue(&LambdaExpression{
 		FunctionStatement: &FunctionStatement{
-			Node:   f.Node,
-			Params: f.Params,
-			Body:   f.Body,
-			vars:   f.vars,
+			Node:        f.Node,
+			Params:      f.Params,
+			Body:        f.Body,
+			vars:        f.vars,
+			IsGenerator: f.IsGenerator,
+			Name:        f.Name,
+			Ret:         f.Ret,
 		},
 		ctx:    ctx,
 		parent: f.parent,
@@ -86,14 +90,29 @@ func (f *LambdaExpression) Call(ctx data.Context) (data.GetValue, data.Control) 
 		}
 	}
 
+	// PHP：含 yield 的闭包调用时立即返回 Generator（Symfony TableRows 依赖）
+	if f.IsGenerator {
+		generator := NewFuncYieldStackState(execCtx, f, f.Body, 0, nil, nil)
+		generatorClass := NewGeneratorClass(generator)
+		return generatorClass.GetValue(execCtx)
+	}
+
 	var v data.GetValue
 	var ctl data.Control
-	for _, statement := range f.Body {
+	for bodyIndex, statement := range f.Body {
 		v, ctl = statement.GetValue(execCtx)
 		if ctl != nil {
 			switch rv := ctl.(type) {
 			case data.ReturnControl:
 				return rv.ReturnValue(), nil
+			case data.YieldControl:
+				generator := rv.CreateStackState(execCtx, f, f.Body, bodyIndex)
+				generatorClass := NewGeneratorClass(generator)
+				return generatorClass.GetValue(execCtx)
+			case data.YieldValueControl:
+				generator := NewFuncYieldStackState(execCtx, f, f.Body, bodyIndex+1, rv.GetYieldKey(), rv.GetYieldValue())
+				generatorClass := NewGeneratorClass(generator)
+				return generatorClass.GetValue(execCtx)
 			case data.AddStack:
 				switch call := statement.(type) {
 				case *CallExpression:

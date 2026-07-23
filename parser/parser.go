@@ -140,8 +140,14 @@ func (p *Parser) parseProgram(statements []data.GetValue) (*node.Program, data.C
 			if n, ok := stmt.(*node.Namespace); ok {
 				p.namespace = n
 				statements = append(statements, stmt)
+			} else if _, ok := stmt.(*node.ClassRegisterStmt); ok {
+				if p.namespace != nil {
+					p.namespace.Statements = append(p.namespace.Statements, stmt)
+				} else {
+					statements = append(statements, stmt)
+				}
 			} else if _, ok := stmt.(*node.ClassStatement); ok {
-				// 类已在 ClassParser.Parse 中 AddClass 注册，勿在 Program 中再次执行 GetValue
+				// 兼容旧 AST：类定义应通过 ClassRegisterStmt 注册
 				continue
 			} else if _, ok := stmt.(*node.AbstractClassStatement); ok {
 				continue

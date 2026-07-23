@@ -2,6 +2,7 @@ package container
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,11 +36,39 @@ func annotationTargetClass(ctx data.Context) (*node.ClassStatement, data.Control
 	if !ok {
 		return nil, utils.NewThrow(errors.New("target 类型错误"))
 	}
-	cls, ok := anyT.Value.(*node.ClassStatement)
-	if !ok {
-		return nil, utils.NewThrow(errors.New("注解只能用于类"))
+	if cls := classStatementFromAny(anyT.Value); cls != nil {
+		return cls, nil
 	}
-	return cls, nil
+	return nil, utils.NewThrow(fmt.Errorf("注解只能用于类 (target=%T)", anyT.Value))
+}
+
+func classStatementFromAny(v any) *node.ClassStatement {
+	switch t := v.(type) {
+	case *node.ClassStatement:
+		return t
+	case *node.ClassRegisterStmt:
+		return t.Class
+	case *node.AbstractClassStatement:
+		return t.ClassStatement
+	case *node.ClassGeneric:
+		return t.ClassStatement
+	case data.GetValue:
+		// 解开二次装箱的 GetValue，避免无限递归
+		switch u := t.(type) {
+		case *node.ClassStatement:
+			return u
+		case *node.ClassRegisterStmt:
+			return u.Class
+		case *node.AbstractClassStatement:
+			return u.ClassStatement
+		case *node.ClassGeneric:
+			return u.ClassStatement
+		default:
+			return nil
+		}
+	default:
+		return nil
+	}
 }
 
 func annotationTargetParameter(ctx data.Context) (*node.Parameter, string, data.Control) {

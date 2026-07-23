@@ -14,6 +14,9 @@ class Application
 {
     public static function boot(): void
     {
+        bootstrap_app();
+        bootstrap_telescope_http();
+
         \Container\Container::application()->registerProviders([
             AppServiceProvider::class,
             RouteServiceProvider::class,
@@ -23,6 +26,7 @@ class Application
         \Log::info(config('app.name') . ' v1.0.0 启动中...');
         \Log::info('环境: ' . config('app.env'));
         \Log::info('路由: routes/*.php 已就绪');
+        \Log::info('Telescope: /telescope');
         \Log::info('========================================');
     }
 

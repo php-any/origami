@@ -265,7 +265,7 @@ func indirectOverloadTag(v data.GetValue) string {
 	return ""
 }
 
-// blockIndirectOverloadAssign 对 ArrayAccess offsetGet 返回的副本做嵌套赋值时发出 Notice 并阻止写入
+// blockIndirectOverloadAssign 检测 ArrayAccess offsetGet 副本的嵌套赋值（由 assignNestedArrayAccess 处理）
 func blockIndirectOverloadAssign(ie *IndexExpression, arrayVal data.GetValue) bool {
 	if _, ok := ie.Array.(data.Variable); ok {
 		return false
@@ -273,11 +273,7 @@ func blockIndirectOverloadAssign(ie *IndexExpression, arrayVal data.GetValue) bo
 	if _, ok := ie.Array.(*IndexExpression); !ok {
 		return false
 	}
-	if className := indirectOverloadTag(arrayVal); className != "" {
-		emitIndirectModificationNoticeAssign(ie.GetFrom(), className)
-		return true
-	}
-	return false
+	return indirectOverloadTag(arrayVal) != ""
 }
 
 func emitIndirectModificationNotice(from data.From, className string) {
@@ -414,24 +410,18 @@ func (ie *IndexExpression) GetZVal(ctx data.Context) (*data.ZVal, data.Control) 
 			if len(v.List) == 0 {
 				return data.NewZVal(data.NewNullValue()), nil
 			}
-			// 通过 ZVal.Name 查找字符串键
 			key := iv.AsString()
-			for _, zval := range v.List {
-				if zval.Name == key {
-					return zval, nil
-				}
+			if zval, ok := v.LookupZValByStringKey(key); ok {
+				return zval, nil
 			}
-			// 未找到，返回 null（PHP 行为）
 			return data.NewZVal(data.NewNullValue()), nil
 		case data.AsString:
 			if len(v.List) == 0 {
 				return data.NewZVal(data.NewNullValue()), nil
 			}
 			key := iv.AsString()
-			for _, zval := range v.List {
-				if zval.Name == key {
-					return zval, nil
-				}
+			if zval, ok := v.LookupZValByStringKey(key); ok {
+				return zval, nil
 			}
 			return data.NewZVal(data.NewNullValue()), nil
 		case data.AsInt:
@@ -493,10 +483,8 @@ func (ie *IndexExpression) GetOrCreateZVal(ctx data.Context) (*data.ZVal, data.C
 		}
 		if sv, ok := index.(data.AsString); ok {
 			key := sv.AsString()
-			for _, zval := range v.List {
-				if zval != nil && zval.Name == key {
-					return zval, nil
-				}
+			if zval, ok := v.LookupZValByStringKey(key); ok {
+				return zval, nil
 			}
 			zv := data.NewNamedZVal(key, data.NewNullValue())
 			v.List = append(v.List, zv)
@@ -607,6 +595,9 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 	}
 
 	if blockIndirectOverloadAssign(ie, arrayVal) {
+		if ctl := assignNestedArrayAccess(ctx, ie, value); ctl != nil {
+			return ctl
+		}
 		return nil
 	}
 
@@ -635,12 +626,10 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 		} else if iv, ok := indexVal.(data.AsString); ok {
 			// 字符串键：查找匹配 Name 的项并更新，找不到则追加
 			key := iv.AsString()
-			for _, zval := range arr.List {
-				if zval != nil && zval.Name == key {
-					zval.Value = value
-					writeBackArrayProperty(ctx, ie.Array, arr)
-					return nil
-				}
+			if zval, ok := arr.LookupZValByStringKey(key); ok {
+				zval.Value = value
+				writeBackArrayProperty(ctx, ie.Array, arr)
+				return nil
 			}
 			// 未找到，追加新项
 			arr.List = append(arr.List, &data.ZVal{Name: key, Value: value})
@@ -777,10 +766,11 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		case *data.StringValue:
 			// 字符串键：在数组中搜索匹配的 Name
 			key := iv.Value
-			for _, zval := range v.List {
-				if zval != nil && zval.Name == key {
-					return zval.Value, nil
+			if zval, ok := v.LookupZValByStringKey(key); ok {
+				if zval.Value == nil {
+					return data.NewNullValue(), nil
 				}
+				return zval.Value, nil
 			}
 			emitUndefinedArrayKeyWarning(ie.GetFrom(), key, false)
 			return data.NewNullValue(), nil
@@ -906,6 +896,162 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("无法处理索引的类型值"), "UndefinedIndexExpression")
 }
 
+func unpackIndexChain(ie *IndexExpression) (root data.GetValue, indices []data.GetValue) {
+	current := ie
+	for {
+		indices = append([]data.GetValue{current.Index}, indices...)
+		switch arr := current.Array.(type) {
+		case *IndexExpression:
+			current = arr
+		default:
+			return arr, indices
+		}
+	}
+}
+
+func clearIndirectOverloadTag(val data.GetValue) data.GetValue {
+	switch v := val.(type) {
+	case *data.ArrayValue:
+		v.IndirectOverloadClass = ""
+		return v
+	case *data.ObjectValue:
+		v.IndirectOverloadClass = ""
+		return v
+	default:
+		return val
+	}
+}
+
+// assignNestedArrayAccess 对 ArrayAccess offsetGet 副本做嵌套赋值后写回 offsetSet
+func assignNestedArrayAccess(ctx data.Context, ie *IndexExpression, value data.Value) data.Control {
+	root, keyIndices := unpackIndexChain(ie)
+	if len(keyIndices) < 2 {
+		return nil
+	}
+
+	rootVal, acl := root.GetValue(ctx)
+	if acl != nil {
+		return acl
+	}
+
+	var aaRoot *data.ClassValue
+	var firstKey data.Value
+	current := rootVal
+
+	for i := 0; i < len(keyIndices)-1; i++ {
+		key, acl := keyIndices[i].GetValue(ctx)
+		if acl != nil {
+			return acl
+		}
+		keyVal, ok := key.(data.Value)
+		if !ok {
+			return data.NewErrorThrow(ie.GetFrom(), errors.New("ArrayAccess 索引必须是标量"))
+		}
+		if i == 0 {
+			switch v := current.(type) {
+			case *data.ClassValue:
+				if checkArrayAccess(ctx, v.Class) {
+					aaRoot = v
+					firstKey = keyVal
+					next, acl := callArrayAccessOffsetGet(ctx, v, keyVal)
+					if acl != nil {
+						return acl
+					}
+					current = next
+					continue
+				}
+			case *data.ThisValue:
+				if checkArrayAccess(ctx, v.Class) {
+					aaRoot = v.ClassValue
+					firstKey = keyVal
+					next, acl := callArrayAccessOffsetGet(ctx, v.ClassValue, keyVal)
+					if acl != nil {
+						return acl
+					}
+					current = next
+					continue
+				}
+			}
+		}
+		next, acl := indexValueOnContainer(ctx, current, keyIndices[i], ie.GetFrom())
+		if acl != nil {
+			if tv, ok := acl.(*data.ThrowValue); ok && tv.Name == "UndefinedIndexExpression" {
+				sub := data.NewArrayValue(nil).(*data.ArrayValue)
+				if ctl := setIndexOnContainer(ctx, current, keyIndices[i], sub, ie.GetFrom()); ctl != nil {
+					return ctl
+				}
+				current = sub
+				continue
+			}
+			return acl
+		}
+		current = next
+	}
+
+	if acl := setIndexOnContainer(ctx, current, keyIndices[len(keyIndices)-1], value, ie.GetFrom()); acl != nil {
+		return acl
+	}
+
+	if aaRoot != nil {
+		wb := clearIndirectOverloadTag(current)
+		if v, ok := wb.(data.Value); ok {
+			return callArrayAccessOffsetSet(ctx, aaRoot, firstKey, v)
+		}
+		return data.NewErrorThrow(ie.GetFrom(), errors.New("ArrayAccess offsetSet 需要可写容器"))
+	}
+	return nil
+}
+
+func setIndexOnContainer(ctx data.Context, container data.GetValue, indexExpr data.GetValue, value data.Value, from data.From) data.Control {
+	indexVal, acl := indexExpr.GetValue(ctx)
+	if acl != nil {
+		return acl
+	}
+	switch arr := container.(type) {
+	case *data.ArrayValue:
+		if _, isNull := indexVal.(*data.NullValue); isNull {
+			arr.List = append(arr.List, data.NewZVal(value))
+			return nil
+		}
+		if iv, ok := indexVal.(data.AsString); ok {
+			key := iv.AsString()
+			if zval, ok := arr.LookupZValByStringKey(key); ok {
+				zval.Value = value
+				return nil
+			}
+			arr.List = append(arr.List, &data.ZVal{Name: key, Value: value})
+			return nil
+		}
+		if iv, ok := indexVal.(data.AsInt); ok {
+			i, err := iv.AsInt()
+			if err != nil {
+				return data.NewErrorThrow(from, err)
+			}
+			arr.SetIntKey(i, value)
+			return nil
+		}
+	case *data.ObjectValue:
+		key, ok := indexKeyString(indexVal)
+		if !ok {
+			return data.NewErrorThrow(from, errors.New("ObjectValue无法处理索引的类型值"))
+		}
+		arr.SetProperty(key, value)
+		return nil
+	case data.SetProperty:
+		if iv, ok := indexVal.(data.AsString); ok {
+			arr.SetProperty(iv.AsString(), value)
+			return nil
+		}
+		if iv, ok := indexVal.(data.AsInt); ok {
+			if i, err := iv.AsInt(); err == nil {
+				arr.SetProperty(fmt.Sprintf("%d", i), value)
+				return nil
+			}
+		}
+	}
+	return data.NewErrorThrow(from, errors.New("无法在容器上设置索引值"))
+}
+
 // assignIndexConcat 处理 $obj[$i][$k] .= $rhs，只获取一次容器，避免 ArrayAccess 重复 offsetGet
 func assignIndexConcat(ctx data.Context, ie *IndexExpression, dot *BinaryDot) (data.GetValue, data.Control) {
 	rv, rCtl := dot.Right.GetValue(ctx)
@@ -926,7 +1072,23 @@ func assignIndexConcat(ctx data.Context, ie *IndexExpression, dot *BinaryDot) (d
 	}
 
 	if blockIndirectOverloadAssign(ie, arrayVal) {
-		return indexValueOnContainer(ctx, arrayVal, ie.Index, ie.GetFrom())
+		indexVal, acl := ie.Index.GetValue(ctx)
+		if acl != nil {
+			return nil, acl
+		}
+		lv, acl := indexValueOnContainer(ctx, arrayVal, indexVal, ie.GetFrom())
+		if acl != nil {
+			return nil, acl
+		}
+		newVal := concatPHPValues(lv, rv)
+		v, ok := newVal.(data.Value)
+		if !ok {
+			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("concat assign failed"))
+		}
+		if ctl := assignNestedArrayAccess(ctx, ie, v); ctl != nil {
+			return nil, ctl
+		}
+		return v, nil
 	}
 
 	indexVal, acl := ie.Index.GetValue(ctx)
@@ -995,10 +1157,8 @@ func (ie *IndexExpression) readArrayIndex(ctx data.Context, arr *data.ArrayValue
 	switch iv := index.(type) {
 	case *data.StringValue:
 		key := iv.Value
-		for _, zval := range arr.List {
-			if zval != nil && zval.Name == key {
-				return zval.Value, nil
-			}
+		if zval, ok := arr.LookupZValByStringKey(key); ok {
+			return zval.Value, nil
 		}
 		emitUndefinedArrayKeyWarning(ie.GetFrom(), key, false)
 		return data.NewNullValue(), nil
@@ -1039,12 +1199,10 @@ func indexSetValueOnContainer(ctx data.Context, ie *IndexExpression, container d
 		}
 		if iv, ok := indexVal.(data.AsString); ok {
 			key := iv.AsString()
-			for _, zval := range arr.List {
-				if zval != nil && zval.Name == key {
-					zval.Value = value
-					writeBackArrayProperty(ctx, ie.Array, arr)
-					return nil
-				}
+			if zval, ok := arr.LookupZValByStringKey(key); ok {
+				zval.Value = value
+				writeBackArrayProperty(ctx, ie.Array, arr)
+				return nil
 			}
 			arr.List = append(arr.List, &data.ZVal{Name: key, Value: value})
 			writeBackArrayProperty(ctx, ie.Array, arr)

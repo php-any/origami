@@ -60,6 +60,8 @@ func (pe *CallObjectDynamicMethod) GetValue(ctx data.Context) (data.GetValue, da
 			if acl != nil {
 				return nil, acl
 			}
+			// 与 CallObjectMethod 一致：供 func_num_args()/func_get_args() 使用
+			fnCtx.SetCallArgs(pe.Args)
 			return method.Call(fnCtx)
 		}
 		if magic, hasCall := class.GetMethod("__call"); hasCall {
@@ -82,12 +84,20 @@ func (pe *CallObjectDynamicMethod) GetValue(ctx data.Context) (data.GetValue, da
 			if acl != nil {
 				return nil, acl
 			}
+			fnCtx.SetCallArgs(pe.Args)
 			return method.Call(fnCtx)
 		}
 		if magic, hasCall := class.GetMethod("__call"); hasCall {
 			return proxy.invokeMagicCall(class, ctx, magic, methodName, pe.Args)
 		}
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("类(%s)不存在对应函数(%s)", class.Class.GetName(), methodName))
+	case *data.FuncValue:
+		// PHP: $closure->__invoke(...$args) ≡ $closure(...$args)
+		if methodName == "__invoke" {
+			cm := &CallMethod{Node: pe.Node, Method: pe.Object, Args: pe.Args}
+			return cm.handleFuncValue(ctx, class)
+		}
+		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("当前值不支持调用函数 %s", methodName))
 	default:
 		if gm, ok := o.(data.GetMethod); ok {
 			method, has := gm.GetMethod(methodName)
@@ -99,6 +109,7 @@ func (pe *CallObjectDynamicMethod) GetValue(ctx data.Context) (data.GetValue, da
 				if acl != nil {
 					return nil, acl
 				}
+				fnCtx.SetCallArgs(pe.Args)
 				return method.Call(fnCtx)
 			}
 			if magic, hasCall := gm.GetMethod("__call"); hasCall {

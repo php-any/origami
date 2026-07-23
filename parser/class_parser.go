@@ -306,64 +306,23 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 		}
 	}
 
-	if c.Construct == nil {
-		// 寻找父级构造函数
-		vm := p.vm
-		var last data.ClassStmt = c
-		for last != nil && last.GetExtend() != nil {
-			ext := *last.GetExtend()
-
-			var acl data.Control
-			last, acl = vm.GetOrLoadClass(ext)
-			if acl != nil {
-				return nil, acl
-			}
-			if construct, ok := last.GetMethod(token.ConstructName); ok {
-				c.Construct = construct
-				break
-			}
-		}
-	}
-
-	var acl data.Control
-
-	// 构建类语句：处理泛型
+	// 解析期立即注册类，保证同文件后续 ClassName:: / new ClassName 可解析。
+	// 父类构造函数与注解延迟到 ClassRegisterStmt（require 之后）再解析。
 	var classStmt data.ClassStmt = c
-
 	if types != nil {
-		// 创建泛型类
-		cg := &node.ClassGeneric{
+		classStmt = &node.ClassGeneric{
 			ClassStatement: c,
 			Generic:        types,
 		}
-		classStmt = cg
-		acl = p.vm.AddClass(classStmt)
-		if acl != nil {
-			return nil, acl
-		}
-		if addAnn, ok := classStmt.(node.AddAnnotations); ok {
-			acl = callClassAnnotation(p.Parser, &annotations, addAnn)
-			if acl != nil {
-				return nil, acl
-			}
-		}
-		return classStmt, acl
 	}
-
-	acl = p.vm.AddClass(classStmt)
-	if acl != nil {
+	if acl := p.vm.AddClass(classStmt); acl != nil {
 		return nil, acl
 	}
-	if addAnn, ok := classStmt.(node.AddAnnotations); ok {
-		acl = callClassAnnotation(p.Parser, &annotations, addAnn)
-		if acl != nil {
-			return nil, acl
-		}
-	}
-	return classStmt, acl
+
+	return node.NewClassRegisterStmt(tracker.EndBefore(), c, annotations, types), nil
 }
 
-// 调用注解
+// 调用注解（属性/方法解析期使用）
 func callClassAnnotation(p *Parser, ans *[]*node.Annotation, c node.AddAnnotations) data.Control {
 	for _, an := range *ans {
 		an.Target = c.(data.GetValue)

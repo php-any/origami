@@ -83,6 +83,13 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 			return pe.invokeMagicCall(class, ctx, magic, pe.Method, pe.Args)
 		}
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("类(%s)不存在对应函数(%s)", class.Class.GetName(), pe.Method))
+	case *data.FuncValue:
+		// PHP: $closure->__invoke(...$args) ≡ $closure(...$args)
+		if pe.Method == "__invoke" {
+			cm := &CallMethod{Node: pe.Node, Method: pe.Object, Args: pe.Args}
+			return cm.handleFuncValue(ctx, class)
+		}
+		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("当前值(%#v)不支持调用函数, 你调用的函数(%s)", TryGetCallClassName(o), pe.Method))
 	default:
 		if class, ok := o.(data.GetMethod); ok {
 			method, has := class.GetMethod(pe.Method)

@@ -39,6 +39,7 @@ func Load(vm data.VM) {
 		&ParseStrFunction{},
 		&HtmlEntityDecodeFunction{},
 		&GetcwdFunction{},
+		&GethostnameFunction{},
 	} {
 		vm.AddFunc(fn)
 	}
@@ -51,6 +52,7 @@ func Load(vm data.VM) {
 
 	vm.SetConstant("JSON_ERROR_NONE", data.NewIntValue(0))
 	vm.SetConstant("JSON_UNESCAPED_SLASHES", data.NewIntValue(64))
+	vm.SetConstant("JSON_INVALID_UTF8_SUBSTITUTE", data.NewIntValue(4194304))
 }
 
 func valueAsString(v data.Value) string {

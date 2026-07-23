@@ -6,17 +6,20 @@
 
 use Bootstrap\View\View;
 
-// 必须在 vendor/autoload 之前注册 env()，否则 illuminate/support/helpers.php
-// 会先定义依赖 PhpOption/phpdotenv 的 Env::get()，而示例未安装这些包。
+// 在 vendor/autoload 之前注册简化 env()，避免 Foundation helpers 的 Env::get 路径抢先定义。
 require __DIR__ . '/env.php';
 require dirname(__DIR__) . '/vendor/autoload.php';
 require __DIR__ . '/foundation.php';
 require __DIR__ . '/database.php';
 require __DIR__ . '/auth.php';
+require_once __DIR__ . '/telescope.php';
 
 load_env();
 bootstrap_illuminate();
 bootstrap_auth();
+
+// 让 app() 解析到 Foundation Application（setInstance 已在构造时完成）
+Illuminate\Foundation\Application::setInstance(illuminate_container());
 
 function bootstrap_app(): array
 {

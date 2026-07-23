@@ -67,20 +67,7 @@ func (y *YieldFromControl) CreateStackState(ctx data.Context, fn data.FuncStmt, 
 			// 出现控制流时，由外层处理；此处仅简单忽略，生成器在 Next 时会重新触发
 			return NewFuncYieldStackState(ctx, fn, originalBody, bodyIndex+1, nil, nil)
 		}
-		if srcValue == nil {
-			// 空源，直接构造一个已关闭的生成器
-			return NewFuncYieldStackState(ctx, fn, originalBody, bodyIndex+1, nil, nil)
-		}
-
-		switch v := srcValue.(type) {
-		case data.Generator:
-			y.iter = v
-		default:
-			// 如果不是生成器，尝试将其视为数组或可迭代对象，并转换为内置生成器
-			if arr, ok := srcValue.(*data.ArrayValue); ok {
-				y.iter = newArrayGenerator(ctx, arr)
-			}
-		}
+		y.iter = resolveYieldFromSource(ctx, srcValue)
 	}
 
 	// 如果仍然无法获得有效的 iter，则退化为一个空生成器
@@ -89,7 +76,8 @@ func (y *YieldFromControl) CreateStackState(ctx data.Context, fn data.FuncStmt, 
 	}
 
 	// 构建新的函数体，将 bodyIndex 位置的 yield from 语句替换为 y 自身。
-	newBody := originalBody[:bodyIndex]
+	newBody := make([]data.GetValue, 0, len(originalBody))
+	newBody = append(newBody, originalBody[:bodyIndex]...)
 	newBody = append(newBody, y)
 	newBody = append(newBody, originalBody[bodyIndex+1:]...)
 
@@ -105,6 +93,31 @@ func (y *YieldFromControl) CreateStackState(ctx data.Context, fn data.FuncStmt, 
 	}
 
 	return NewFuncYieldStackState(ctx, fn, newBody, bodyIndex, y.key, y.value)
+}
+
+// resolveYieldFromSource 将 yield from 右侧解析为可委托的 Generator。
+// 生成器函数/方法返回的是 *ClassValue{Class:*GeneratorClass}，需解包内部 data.Generator。
+func resolveYieldFromSource(ctx data.Context, srcValue data.GetValue) data.Generator {
+	if srcValue == nil {
+		return nil
+	}
+	switch v := srcValue.(type) {
+	case data.Generator:
+		return v
+	case *data.ClassValue:
+		if gc, ok := v.Class.(*GeneratorClass); ok && gc.generator != nil {
+			return gc.generator
+		}
+	case *data.ThisValue:
+		if v.ClassValue != nil {
+			if gc, ok := v.ClassValue.Class.(*GeneratorClass); ok && gc.generator != nil {
+				return gc.generator
+			}
+		}
+	case *data.ArrayValue:
+		return newArrayGenerator(ctx, v)
+	}
+	return nil
 }
 
 // advance 将内部迭代器向前推进一次，并更新当前的 key/value。

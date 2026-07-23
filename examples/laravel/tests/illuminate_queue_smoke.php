@@ -2,15 +2,16 @@
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
-use Illuminate\Container\Container;
 use Illuminate\Events\Dispatcher;
+use Illuminate\Foundation\Application;
+use Illuminate\Queue\CallQueuedClosure;
 use Illuminate\Queue\Jobs\JobName;
 use Illuminate\Queue\SyncQueue;
 use Illuminate\Support\Str;
 
 /**
- * SyncQueue::push（字符串 job）+ Str::uuid（ramsey/uuid）。
- * Closure push 仍需 Illuminate\Foundation\Bus\Dispatchable（laravel/framework）。
+ * SyncQueue::push（字符串 job）+ Str::uuid + Foundation CallQueuedClosure 可加载。
+ * 完整 Closure 序列化仍缺 ReflectionFunction::getFileName/getStartLine 等（另开上游）。
  */
 
 $uuid = (string) Str::uuid();
@@ -21,7 +22,7 @@ if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
     exit(1);
 }
 
-$container = new Container();
+$container = new Application(dirname(__DIR__));
 $container->instance('events', new Dispatcher($container));
 
 $queue = new SyncQueue();
@@ -53,7 +54,6 @@ class QueueSmoke_Job
 
 $id = $queue->push(QueueSmoke_Job::class . '@handle', ['x' => 1]);
 if ($id !== 0 && $id !== '0') {
-    // SyncQueue::push 返回 0
     echo "FAIL: unexpected push id\n";
     var_export($id);
     echo "\n";
@@ -62,6 +62,16 @@ if ($id !== 0 && $id !== '0') {
 
 if (!$ran) {
     echo "FAIL: SyncQueue::push job not executed\n";
+    exit(1);
+}
+
+if (!class_exists(CallQueuedClosure::class)) {
+    echo "FAIL: CallQueuedClosure missing\n";
+    exit(1);
+}
+
+if (!class_exists(\Illuminate\Foundation\Bus\PendingDispatch::class)) {
+    echo "FAIL: PendingDispatch missing\n";
     exit(1);
 }
 

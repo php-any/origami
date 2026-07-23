@@ -304,7 +304,13 @@ func (ctx *LspContext) SetVariableByName(name string, value data.Value) {
 	}
 }
 
-// HasVariableByName LSP 下简单返回 false
+func (ctx *LspContext) GetVariableByName(name string) (data.Value, bool) {
+	if ctx.dataCtx != nil {
+		return ctx.dataCtx.GetVariableByName(name)
+	}
+	return nil, false
+}
+
 func (ctx *LspContext) HasVariableByName(name string) bool {
 	if ctx.dataCtx != nil {
 		return ctx.dataCtx.HasVariableByName(name)

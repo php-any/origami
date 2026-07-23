@@ -26,6 +26,9 @@ type ClassStatement struct {
 
 	// IsAbstract 为 true 表示 abstract class（允许未实现接口/抽象方法）
 	IsAbstract bool
+
+	// AnnotationsApplied 标记类注解是否已在执行期应用过，避免普通 require 重复执行时重复注册 @Route/@Command
+	AnnotationsApplied bool
 }
 
 // GetValue 获取类定义语句的值

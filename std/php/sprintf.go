@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -56,7 +57,15 @@ func (f *SprintfFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	goFormat := phpToGoFormat(format)
 	args = coerceArgsForFormat(goFormat, args)
 
+	// 残缺格式串（如 ProgressBar 误走到 sprintf('%', $x)）勿把 Go fmt 的 %!(NOVERB) 泄露给用户
+	if hasIncompletePrintfVerb(goFormat) {
+		return data.NewBoolValue(false), nil
+	}
+
 	result := fmt.Sprintf(goFormat, args...)
+	if strings.Contains(result, "%!(NOVERB)") || strings.Contains(result, "%!(EXTRA") {
+		return data.NewBoolValue(false), nil
+	}
 
 	return data.NewStringValue(result), nil
 }
@@ -196,4 +205,55 @@ func coerceToFloat(arg interface{}) interface{} {
 		}
 	}
 	return arg
+}
+
+// hasIncompletePrintfVerb 检测以孤立 % 结尾或非法残缺占位符（PHP 会报错，勿走 Go fmt）。
+func hasIncompletePrintfVerb(format string) bool {
+	for i := 0; i < len(format); i++ {
+		if format[i] != '%' {
+			continue
+		}
+		if i+1 >= len(format) {
+			return true
+		}
+		if format[i+1] == '%' {
+			i++
+			continue
+		}
+		// 跳过可选的 %[n] flags width.precision
+		j := i + 1
+		if j < len(format) && format[j] == '[' {
+			for j < len(format) && format[j] != ']' {
+				j++
+			}
+			if j >= len(format) {
+				return true
+			}
+			j++
+		}
+		for j < len(format) && strings.ContainsRune("+#0- ", rune(format[j])) {
+			j++
+		}
+		for j < len(format) && format[j] >= '0' && format[j] <= '9' {
+			j++
+		}
+		if j < len(format) && format[j] == '.' {
+			j++
+			for j < len(format) && format[j] >= '0' && format[j] <= '9' {
+				j++
+			}
+		}
+		if j >= len(format) {
+			return true
+		}
+		verb := format[j]
+		if !strings.ContainsRune("bcdeEfFgGosxXvtT", rune(verb)) {
+			// 允许 Go 额外动词；若仍不是字母则视为残缺
+			if (verb < 'a' || verb > 'z') && (verb < 'A' || verb > 'Z') {
+				return true
+			}
+		}
+		i = j
+	}
+	return false
 }

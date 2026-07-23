@@ -52,6 +52,7 @@ func Load(vm data.VM) {
 		NewFileGetContentsFunction(),
 		NewFilePutContentsFunction(),
 		NewMicrotimeFunction(),
+		NewGettimeofdayFunction(),
 		NewNumberFormatFunction(),
 		NewFunctionExistsFunction(),
 		NewClassExistsFunction(),
@@ -62,6 +63,7 @@ func Load(vm data.VM) {
 		NewIsAFunction(),
 		NewIsSubclassOfFunction(),
 		NewGetClassFunction(),
+		NewGetParentClassFunction(),
 		NewGettypeFunction(),
 		NewGetDebugTypeFunction(),
 		NewJsonEncodeFunction(),
@@ -100,6 +102,7 @@ func Load(vm data.VM) {
 		array.NewArraySearchFunction(),
 		array.NewArrayFillFunction(),
 		array.NewArrayFillKeysFunction(),
+		array.NewRangeFunction(),
 		array.NewArrayColumnFunction(),
 		array.NewArrayChunkFunction(),
 		array.NewArrayCountValuesFunction(),
@@ -117,6 +120,11 @@ func Load(vm data.VM) {
 		NewBase64EncodeFunction(),
 		NewBase64DecodeFunction(),
 		NewBin2hexFunction(),
+		NewHex2binFunction(),
+		NewDechexFunction(),
+		NewHexdecFunction(),
+		NewDecbinFunction(),
+		NewEscapeshellargFunction(),
 		NewUrlencodeFunction(),
 		NewUrldecodeFunction(),
 		NewRawurlencodeFunction(),
@@ -424,6 +432,11 @@ func initPhpDefaultDefines(vm data.VM) {
 	vm.SetConstant("SORT_DESC", data.NewIntValue(3))
 	vm.SetConstant("CASE_LOWER", data.NewIntValue(0))
 	vm.SetConstant("CASE_UPPER", data.NewIntValue(1))
+
+	// str_pad
+	vm.SetConstant("STR_PAD_LEFT", data.NewIntValue(0))
+	vm.SetConstant("STR_PAD_RIGHT", data.NewIntValue(1))
+	vm.SetConstant("STR_PAD_BOTH", data.NewIntValue(2))
 
 	// 错误级别常量
 	vm.SetConstant("E_ERROR", data.NewIntValue(1))

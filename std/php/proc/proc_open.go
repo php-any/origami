@@ -21,46 +21,56 @@ func NewProcOpenFunction() data.FuncStmt {
 }
 
 func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 获取命令参数
+	// 获取命令参数：string 或 list（PHP proc_open(['bin', 'arg'], ...)）
 	cmdValue, _ := ctx.GetIndexValue(0)
 	if cmdValue == nil {
 		return data.NewBoolValue(false), nil
 	}
 
-	var cmd string
-	if s, ok := cmdValue.(data.AsString); ok {
-		cmd = s.AsString()
-	} else {
-		cmd = cmdValue.AsString()
-	}
-
-	if cmd == "" {
-		return data.NewBoolValue(false), nil
+	var cmdObj *exec.Cmd
+	switch c := cmdValue.(type) {
+	case *data.ArrayValue:
+		parts := c.ToValueList()
+		if len(parts) == 0 {
+			return data.NewBoolValue(false), nil
+		}
+		name := parts[0].AsString()
+		args := make([]string, 0, len(parts)-1)
+		for _, p := range parts[1:] {
+			args = append(args, p.AsString())
+		}
+		if name == "" {
+			return data.NewBoolValue(false), nil
+		}
+		cmdObj = exec.Command(name, args...)
+	default:
+		var cmd string
+		if s, ok := cmdValue.(data.AsString); ok {
+			cmd = s.AsString()
+		} else {
+			cmd = cmdValue.AsString()
+		}
+		if cmd == "" {
+			return data.NewBoolValue(false), nil
+		}
+		cmdObj = shellCommand(cmd)
 	}
 
 	// 获取描述符数组（可选）
 	// PHP 格式: [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']]
 	descriptorspecValue, _ := ctx.GetIndexValue(1)
-	var descriptorspec map[int][]interface{}
-	descriptorspec = make(map[int][]interface{})
+	descriptorspec := make(map[int][]interface{})
 	if descriptorspecValue != nil {
 		if obj, ok := descriptorspecValue.(*data.ObjectValue); ok {
 			obj.RangeProperties(func(key string, value data.Value) bool {
-				// 解析键为整数（文件描述符编号）
-				var fd int
-				if i, err := strconv.Atoi(key); err == nil {
-					fd = i
+				fd, err := strconv.Atoi(key)
+				if err != nil {
+					return true
 				}
-				// 解析值为数组 ['pipe', 'r'] 或 ['pipe', 'w']
 				if arr, ok := value.(*data.ArrayValue); ok && len(arr.List) >= 2 {
-					var descType, descMode string
 					valueList := arr.ToValueList()
-					if typeVal, ok := valueList[0].(data.AsString); ok {
-						descType = typeVal.AsString()
-					}
-					if modeVal, ok := valueList[1].(data.AsString); ok {
-						descMode = modeVal.AsString()
-					}
+					descType := valueList[0].AsString()
+					descMode := valueList[1].AsString()
 					if descType == "pipe" {
 						descriptorspec[fd] = []interface{}{descType, descMode}
 					}
@@ -68,21 +78,26 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 				return true
 			})
 		} else if arr, ok := descriptorspecValue.(*data.ArrayValue); ok {
-			// 如果是 ArrayValue，也尝试解析
-			valueList := arr.ToValueList()
-			for i, val := range valueList {
-				if arrVal, ok := val.(*data.ArrayValue); ok && len(arrVal.List) >= 2 {
-					var descType, descMode string
-					arrValList := arrVal.ToValueList()
-					if typeVal, ok := arrValList[0].(data.AsString); ok {
-						descType = typeVal.AsString()
+			// 保留 PHP 数组键（1/2），不能用 ToValueList 的 0..n-1 下标
+			for i, zval := range arr.List {
+				if zval == nil || zval.Value == nil {
+					continue
+				}
+				fd := i
+				if zval.Name != "" {
+					if parsed, err := strconv.Atoi(zval.Name); err == nil {
+						fd = parsed
 					}
-					if modeVal, ok := arrValList[1].(data.AsString); ok {
-						descMode = modeVal.AsString()
-					}
-					if descType == "pipe" {
-						descriptorspec[i] = []interface{}{descType, descMode}
-					}
+				}
+				arrVal, ok := zval.Value.(*data.ArrayValue)
+				if !ok || len(arrVal.List) < 2 {
+					continue
+				}
+				arrValList := arrVal.ToValueList()
+				descType := arrValList[0].AsString()
+				descMode := arrValList[1].AsString()
+				if descType == "pipe" {
+					descriptorspec[fd] = []interface{}{descType, descMode}
 				}
 			}
 		}
@@ -92,25 +107,12 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	// 对于引用参数，需要获取 ZVal 引用以便直接更新
 	// 参数索引 2 对应 pipes 参数（引用参数）
 	pipesZVal := ctx.GetIndexZVal(2)
-	// 初始化 pipes 数组/对象
-	if _, ok := pipesZVal.Value.(*data.NullValue); ok {
-		pipesZVal.Value = data.NewObjectValue()
+	if pipesZVal == nil {
+		return data.NewBoolValue(false), nil
 	}
-
-	pipesValue := pipesZVal.Value
-	// 由于 PHP 中 $pipes 是数组，我们需要使用 ObjectValue 来存储（因为 ObjectValue 可以支持数字键）
-	// 但最终需要确保可以通过数组索引访问
-	var pipes *data.ObjectValue
-	if obj, ok := pipesValue.(*data.ObjectValue); ok {
-		pipes = obj
-	} else {
-		// 如果类型不对，创建新的 ObjectValue
-		pipes = data.NewObjectValue()
-		pipesZVal.Value = pipes
-	}
-
-	// 创建命令（Windows 用 cmd /C，Unix 用 sh -c）
-	cmdObj := shellCommand(cmd)
+	// PHP：proc_open 会重建 $pipes；勿复用上次已 fclose 的流资源对象
+	pipes := data.NewObjectValue()
+	pipesZVal.Value = pipes
 
 	// 处理描述符
 	var stdoutPipe, stderrPipe io.ReadCloser
@@ -151,7 +153,7 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	}
 
 	// 创建进程信息对象
-	procInfo := NewProcessInfo(cmdObj, cmd)
+	procInfo := NewProcessInfo(cmdObj, cmdObj.Path)
 	realPID := cmdObj.Process.Pid
 
 	// 创建进程资源类，使用真实的系统进程ID作为资源ID

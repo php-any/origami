@@ -55,7 +55,11 @@ func (s *IncludeStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	return IncludeCore(ctx, v, s.Once, s.Required, s.from)
 }
 
-// IncludeCore 统一的 include/require 逻辑，可被语句或函数重用
+// IncludeCore 统一的 include/require 逻辑，可被语句或函数重用。
+//
+// PHP 语义：require 在独立文件作用域执行，按名注入调用者（含 extract）已有变量。
+// 注意：当前为单向注入（视图场景），并非完整共享符号表写回。
+// require_once 仍缓存返回值；普通 require 每次重新执行（视图引擎需要）。
 func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool, from data.From) (data.GetValue, data.Control) {
 	var filePath string
 	switch p := pathVal.(type) {
@@ -86,18 +90,17 @@ func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool,
 
 	vm := ctx.GetVM()
 
-	// 检查返回值缓存，无论 once 与否都需要检查，
-	// 因为 require 对同一个文件可能被多次调用（如 autoload_psr4.php），
-	// 需要返回文件的实际返回值而非 true
-	includeOnceCache.mu.Lock()
-	if cached, ok := includeOnceCache.files[filePath]; ok {
+	if once {
+		includeOnceCache.mu.Lock()
+		if cached, ok := includeOnceCache.files[filePath]; ok {
+			includeOnceCache.mu.Unlock()
+			return cached, nil
+		}
 		includeOnceCache.mu.Unlock()
-		return cached, nil
-	}
-	includeOnceCache.mu.Unlock()
 
-	if vm.GetPhpFileCache(filePath) {
-		return data.NewBoolValue(true), nil
+		if vm.GetPhpFileCache(filePath) {
+			return data.NewBoolValue(true), nil
+		}
 	}
 
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -121,19 +124,23 @@ func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool,
 		return data.NewBoolValue(false), nil
 	}
 
-	v, acl := vm.LoadAndRun(filePath)
+	v, acl := vm.LoadInCallerContext(ctx, filePath)
 	if acl != nil {
 		return nil, acl
 	}
 
-	// 始终缓存返回值，确保多次 require 同一文件时能返回实际值而非 true
-	includeOnceCache.mu.Lock()
-	if vv, ok := v.(data.Value); ok {
-		includeOnceCache.files[filePath] = vv
-	} else {
-		includeOnceCache.files[filePath] = data.NewBoolValue(true)
+	if once {
+		if !vm.GetPhpFileCache(filePath) {
+			vm.SetPhpFileCache(filePath)
+		}
+		includeOnceCache.mu.Lock()
+		if vv, ok := v.(data.Value); ok {
+			includeOnceCache.files[filePath] = vv
+		} else {
+			includeOnceCache.files[filePath] = data.NewBoolValue(true)
+		}
+		includeOnceCache.mu.Unlock()
 	}
-	includeOnceCache.mu.Unlock()
 
 	return v, nil
 }

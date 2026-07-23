@@ -15,11 +15,48 @@ func (f *StringFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewStringValue(""), nil
 	}
 
+	// PHP (string) / 字符串强转：对象优先调用 __toString
+	switch val := v.(type) {
+	case *data.NullValue:
+		return data.NewStringValue(""), nil
+	case *data.BoolValue:
+		if val.Value {
+			return data.NewStringValue("1"), nil
+		}
+		return data.NewStringValue(""), nil
+	case *data.StringValue:
+		return val, nil
+	case *data.ArrayValue:
+		return data.NewStringValue("Array"), nil
+	case *data.ClassValue:
+		if method, ok := val.GetMethod("__toString"); ok && method != nil {
+			fnCtx := val.CreateContext(method.GetVariables())
+			fnCtx.SetCallArgs([]data.GetValue{})
+			ret, ctl := method.Call(fnCtx)
+			if ctl != nil {
+				return nil, ctl
+			}
+			if sv, ok := ret.(data.Value); ok {
+				return data.NewStringValue(sv.AsString()), nil
+			}
+			if gv, ok := ret.(data.GetValue); ok {
+				v2, ctl2 := gv.GetValue(fnCtx)
+				if ctl2 != nil {
+					return nil, ctl2
+				}
+				if sv, ok := v2.(data.Value); ok {
+					return data.NewStringValue(sv.AsString()), nil
+				}
+			}
+		}
+		return data.NewStringValue("Object"), nil
+	case *data.ObjectValue:
+		return data.NewStringValue("Object"), nil
+	}
+
 	if s, ok := v.(data.AsString); ok {
 		return data.NewStringValue(s.AsString()), nil
 	}
-
-	// Fallback: Value implements AsString in our Value interface
 	return data.NewStringValue(v.AsString()), nil
 }
 

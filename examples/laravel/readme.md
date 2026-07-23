@@ -1,75 +1,89 @@
 # Laravel 风格示例
 
-基于 [Origami](https://github.com/php-any/origami) 的 Laravel 风格 Web 框架演示。本示例展示如何用 Origami 的注解 IoC、HTTP 路由、容器与 CLI 注解，搭出一套**目录结构与分层方式接近 Laravel** 的小型应用框架。
+基于 [Origami](https://github.com/php-any/origami) 的 Laravel 风格 Web 框架演示。本示例通过官方 **`laravel/framework` ^10** 提供 Illuminate 内核，并用 **`laravel/telescope` ^4** 冒烟作为生态兼容验收门槛。
 
-> 这是 **Origami 能力演示**，正在**逐步引入官方 `illuminate/*` 包**并做冒烟验证；尚未达到完整 `laravel/framework`。未覆盖能力仍由 Origami 标准库 + 本示例 `bootstrap/` 层模拟。
+> **本阶段：** HTTP 仍由 Origami `Net\Http\Server` 分发；**Telescope 仪表盘已接入**（`/telescope` SPA + `telescope-api` + 请求录音）。完整 `Http\Kernel` 仍不使用。
 
 ---
 
-## Illuminate 包集成进度
-
-在 `examples/laravel` 下通过 Composer 引入 Laravel 10 的 `illuminate/*` 组件，并用 `./laravel run tests/*_smoke.php` 验证。
+## Illuminate / Framework 集成进度
 
 ```bash
 cd examples/laravel
 go build -mod=mod -o laravel .
-bash tests/run_illuminate_smokes.sh   # 当前 34 项冒烟（含 routing/eloquent/auth/console bridge）
+bash tests/run_illuminate_smokes.sh   # 含 foundation + telescope 三件套
 ```
 
-| 包 | 冒烟 | 说明 |
-|----|------|------|
-| support / collections | ✅ | 集合、Str、Arr 等 |
-| container | ✅ | bind / singleton / instance |
-| bus | ✅ | dispatchNow |
-| pipeline / events | ✅ | 管道与事件 |
-| config | ✅ | Repository + Arr::set 点号键 |
-| validation | ✅ | 校验器 |
-| filesystem / hashing / encryption | ✅ | 文件与加密 |
-| pagination / translation | ✅ | 分页与翻译行 |
-| cache / database | ✅ | 无 TTL / 无 schema 的收窄测试 |
-| log / view / http | ✅ | PSR 桩 / **PhpEngine + FileViewFinder** / Request |
-| session / cookie | ✅ | 无 flash / 无 TTL cookie |
-| routing / console / process | ✅ | 注册与编译 / Symfony Command / Factory::result |
-| auth | ✅ | GenericUser + Gate::allows + **api Token Guard 桥接** |
-| mail | ✅ | Address + ArrayTransport（无 Transport::send） |
-| queue | ✅ | SyncQueue::push（字符串 job）+ Str::uuid / JobName |
-| redis | ✅ | RedisManager 驱动切换（无真实连接；connection 待 Arr/抽象类） |
-| broadcasting | ✅ | log 驱动 + PSR Logger 桩 |
-| notifications | ✅ | Notification / Action / AnonymousNotifiable |
-| testing | ✅ | AssertableJsonString（无 PHPUnit assert*） |
-| **阶段 2 桥接** | ✅ | `foundation.php` + Route 双注册 + Config Repository + View Finder + **Console illuminate 双轨** |
-| **Eloquent 双轨** | ✅ | `app/Models` Eloquent + `app/Models/Entity` #[Table] 迁移 |
-| **Auth Guard** | ✅ | `config/auth.php` + `ApiTokenGuard` + `Authenticate` 中间件 |
-| **待引入** | | filesystem cloud (S3)、完整 PHPUnit 测试栈、laravel/framework |
+| 包 / 能力 | 冒烟 | 说明 |
+|-----------|------|------|
+| **laravel/framework** | ✅ | 替换原分包 `illuminate/*`；`Illuminate\Foundation\Application` |
+| support / collections / container / … | ✅ | 随 framework 自带 |
+| **Foundation Application** | ✅ | `tests/foundation_application_smoke.php`：`app()` / `environment` / `config` / `PendingDispatch` |
+| routing / auth / eloquent 桥接 | ✅ | 双轨：Illuminate 登记 + Origami 分发 / ApiToken Guard / Capsule |
+| queue | ✅ | 字符串 job `SyncQueue::push` + `CallQueuedClosure` 可加载；Closure 序列化仍缺 Reflection `getFileName` |
+| **laravel/telescope** | ✅ | 仪表盘 `/telescope` + API + 请求录音入库 |
+| **待深化** | | 完整 `telescope:install` Artisan、HTTP Kernel、全量官方 Watcher 事件 |
 
-**go-support 扩展**（`go-support/load.go`）：仅 Laravel 示例 VM 注册 `parse_str`、`html_entity_decode`、`getcwd` 等，**不改 Origami 核心**。
+**go-support 扩展**（`go-support/load.go`）：仅 Laravel 示例 VM 注册 `parse_str`、`html_entity_decode`、`getcwd`、`gethostname` 等，**不改 Origami 核心**。
 
-**已知上游缺口**（需单独提 PR，不在示例里 hack）：
+**已知上游缺口**（部分已在 Origami 核心修复）：
 
-- `Request::decodedPath()` 等在子类上的方法解析
-- Carbon `parent::` 与 `DateTimeImmutable` 接口
-- Symfony Mime `Email` / `Envelope::create` 与 `RawMessage` 发送路径
-- 抽象类 `Illuminate\Redis\Connections\Connection` 子类化 / Redis `connection()`
-- Closure 版 `SyncQueue::push`（依赖 `Illuminate\Foundation\Bus\Dispatchable`）
+| 缺口 | 状态 |
+|------|------|
+| Collection 高阶代理（`$c->partition->isException()` / `SetCallArgs`） | ✅ 已修 |
+| `Closure->__invoke` / `every->__invoke`（Telescope filter） | ✅ 已修 |
+| `new static(...$args)` 展开（`IncomingEntry::make`） | ✅ 已修 |
+| `::new` 关键字作静态方法名（`EntryModelFactory::new`） | ✅ 已修 |
+| `flatMap()->all()` 空结果成 object → `OrigamiEntriesRepository` 绕过 | ✅ 桥接 |
+| EntryModel `created_at` / Carbon `parent::format` | ✅ 桥接用 Query Builder `find`/`get` |
+| `Str::orderedUuid` → CombGenerator | 冒烟侧 `Str::createUuidsUsing(Uuid::uuid4)` |
+| Closure `SyncQueue::push` 完整序列化 | 仍缺 `ReflectionFunction::getFileName` 等 |
+| Carbon `Illuminate\Support\Carbon` `parent::` 递归 | 仍用 `nesbot/carbon` + DateFactory |
 
-> 已在 Origami 核心修复：同文件 `extends` vendor 父类、嵌套 ArrayAccess 写入、点号数字键（`config('view.paths.0')`）、`get_parent_class()`、foreach 仅公开属性、`preg_replace` 反引用、闭包/`foreach`+`yield`（Symfony `Helper\Table`）、**`hex2bin`/`dechex`/`hexdec`/`gettimeofday`/`escapeshellarg`/`pack n*`、ASI 在 `extends`/注释换行误插分号、`(string)` 调 `__toString`、`extract`+`require` 作用域共享（PhpEngine）**。
+---
 
-## 阶段 2：bootstrap → Illuminate 桥接（Console / Auth / Eloquent 已完成）
+## Telescope 接入
+
+| 能力 | 状态 |
+|------|------|
+| `/telescope` SPA layout | ✅ `DashboardController`（无 Blade） |
+| `/vendor/telescope/*` 静态资源 | ✅ `Server::static` |
+| `/telescope/telescope-api/*` | ✅ `ApiController`（requests/logs/queries/exceptions + stub） |
+| 业务请求录音 + store | ✅ `RecordTelescope` 中间件 |
+| 建表 / Repository | ✅ `bootstrap/telescope.php` + `OrigamiEntriesRepository` |
+
+```bash
+./laravel serve
+# 浏览器打开 http://127.0.0.1:8080/telescope
+# 先访问首页 / 产生 entries，再在 UI 查看 Requests / Logs
+```
+
+| 脚本 | 断言 |
+|------|------|
+| `tests/telescope_autoload_smoke.php` | 类可加载 |
+| `tests/telescope_storage_smoke.php` | store → find |
+| `tests/telescope_watcher_smoke.php` | filter + recordLog + LogWatcher + store |
+| `tests/telescope_dashboard_smoke.php` | 静态资源 + request/log 入库 + entry 序列化 |
+
+---
+
+## 阶段：Foundation Application 引导
 
 | 组件 | 状态 | 说明 |
 |------|------|------|
-| `bootstrap/foundation.php` | ✅ | Illuminate Container、Router、Config、View Factory |
-| `Bootstrap\Routing\Route` | ✅ | 双注册：`illuminate/routing` 目录 + `Net\Http\Router` 分发 |
-| `config()` | ✅ | 委托 `Illuminate\Config\Repository` |
-| `Bootstrap\View\View` | ✅ | `FileViewFinder` 解析路径，Origami `response->view()` 渲染 |
-| `bootstrap/console/*` | ✅ | `Bootstrap\Console\Command` 继承 `Illuminate\Console\Command`；`#[CliApplication]` 无参 `execute()` 双轨 |
-| Eloquent Model | ✅ | `app/Models/*` Eloquent；schema 由 `app/Models/Entity` #[Table] 迁移 |
-| `illuminate/auth` Guard | ✅ | `ApiTokenGuard` + `auth()` / `Authenticate` 中间件 |
+| `bootstrap/foundation.php` | ✅ | `Illuminate\Foundation\Application` + config / files / view / router |
+| Capsule | ✅ | 挂到同一 Application（`bootstrap/database.php`） |
+| Auth Guard | ✅ | `ApiTokenGuard` + Foundation `auth()` helper |
+| `config()` / 路径 helpers | ✅ | 与 Foundation helpers `function_exists` 共存 |
+| HTTP Kernel | ❌ 本阶段不做 | 仍为 Origami Server |
 
-完整 Laravel 路线（建议顺序）：
-
-1. **继续加深冒烟** — `Mailer::raw` / `Redis::connection` / Closure `SyncQueue::push`（Foundation stub）
-2. **终极目标** — 引入 `laravel/framework` 或等价 Provider 链，让 `public/index.php` 走标准 Laravel 引导
+```
+vendor/autoload.php
+  → bootstrap/env.php（先于 helpers 的简化 env）
+  → Foundation Application
+  → database / auth / telescope 桥接
+  → bootstrap_app()
+```
 
 ---
 
@@ -79,358 +93,23 @@ bash tests/run_illuminate_smokes.sh   # 当前 34 项冒烟（含 routing/eloque
 
 | 层级 | 目录 | 职责 | 不应包含 |
 |------|------|------|----------|
-| **引导 / 框架模拟** | `bootstrap/` | 环境、配置加载、Route/View Facade、CLI 基类、HTTP 启动 | 业务逻辑 |
+| **引导 / 框架桥接** | `bootstrap/` | Foundation Application、Route/View Facade、CLI、Telescope | 业务逻辑 |
 | **配置数据** | `config/` | 返回配置数组的 PHP 文件 | 执行逻辑 |
-| **应用代码** | `app/` | 控制器、服务、模型、中间件、Provider、命令 | 框架 Facade |
+| **应用代码** | `app/` | 控制器、服务、模型、中间件、Provider、命令 | 框架核心 |
 | **路由声明** | `routes/` | URL → 控制器映射 | 业务实现 |
 | **公开入口** | `public/` | Web 根目录、静态资源 | 应用引导 |
 | **视图** | `resources/views/` | HTML 模板 | PHP 类 |
-
-**核心约定：**
-
-- `bootstrap/` = 模拟 Laravel 框架包（`Illuminate\*`）中的基础设施
-- `app/` = 纯应用代码，类似真实 Laravel 项目里的 `app/`
-- 配置通过 `config/*.php` + `config()` 读取，**不**在 `app/` 下放 Config 类
-- 路由统一在 `routes/*.php` 声明，**不**在控制器上用路由注解
 
 ### 与 Laravel 的关键差异
 
 | 能力 | Laravel | 本示例 |
 |------|---------|--------|
-| 框架核心 | `vendor/laravel/framework` | Origami std + `bootstrap/` |
-| 路由注册 | `RouteServiceProvider` + `routes/*.php` | 相同模式 |
-| 控制器 DI | 容器自动注入 | `#[Singleton]` + 扫描期 `Container::application()` |
-| ORM | Eloquent | `App\Models\*` Eloquent + `App\Models\Entity\*` #[Table] 迁移双轨 |
-| 配置 | `config()` Facade | `Illuminate\Config\Repository` + `config()` 辅助函数 |
-| 路由 Facade | `Illuminate\Support\Facades\Route` | `Bootstrap\Routing\Route`（Illuminate Router + Origami 分发桥接） |
-| 视图 | Blade | `Illuminate\View\FileViewFinder` 解析 + Origami HTML 渲染 |
-| Artisan 命令 | `Illuminate\Console\Command` | 同基类 + Origami `#[Command]` / `#[CliApplication]` 双轨分发 |
-| HTTP 入口 | `public/index.php` → `bootstrap/app.php` | 相同思路，底层为 Origami `Net\Http\Server` |
-
----
-
-## 架构概览
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  main.go（Go 二进制）                                        │
-│    └─ 加载 Origami VM → 执行 artisan.php / HTTP 引导         │
-└─────────────────────────────────────────────────────────────┘
-                              │
-          ┌───────────────────┴───────────────────┐
-          ▼                                       ▼
-   Artisan CLI 路径                          HTTP 请求路径
-          │                                       │
-   artisan.php                            public/index.php
-   bootstrap/app.php                      bootstrap/app.php
-   bootstrap_cli_container()              bootstrap/http.php
-   bootstrap/console/Kernel.php           Application::boot()
-   #[Command] 命令                        routes → 中间件 → 控制器
-```
-
----
-
-## 引导流程
-
-### 1. 公共引导（`bootstrap/app.php`）
-
-HTTP 与 CLI **共用**，顺序固定：
-
-```
-vendor/autoload.php
-  → bootstrap/env.php      load_env()
-  → bootstrap/foundation.php  illuminate_container() / router / config / view
-  → bootstrap/config.php   config_load() / config()
-  → bootstrap/helpers.php  app_make() / base_path() / resource_path()
-  → bootstrap_app()        设置视图路径，返回配置数组
-```
-
-```php
-// bootstrap/app.php
-function bootstrap_app(): array
-{
-    View::setBasePath(dirname(__DIR__) . '/resources/views');
-    return config_load();
-}
-```
-
-### 2. HTTP 生命周期
-
-```
-public/index.php
-  → bootstrap_app()
-  → bootstrap_http_server()
-       → Net\Http\Server::boot(Application::class)
-            → #[Application] 扫描 app/
-            → Application::boot()
-                 → Container::application()->registerProviders([...])
-                 → AppServiceProvider::boot()   // 连接数据库
-                 → RouteServiceProvider::boot() // require routes/*.php
-            → RegisterPendingRoutes()            // 实例化控制器、挂载路由
-  → Server::run()
-       → 中间件链 → 控制器方法 → Response
-```
-
-`Container::application()` 返回 **Application 扫描期** 的容器实例，与 `#[Singleton]` 注解、`Controller` 构造函数注入使用**同一 IoC Engine**。这是 HTTP 路径能正确 DI 的关键。
-
-### 3. CLI 生命周期
-
-```
-main.go → artisan.php
-  → bootstrap_app()
-  → bootstrap_cli_container()   // Container::getInstance()
-  → bootstrap/console/Kernel.php   // #[CliApplication] 扫描 Commands
-  → ExecuteCommand($cmd)
-```
-
-CLI **不**走 `#[Application]` 扫描，因此使用 `Container::getInstance()` 独立容器，仅注册 `AppServiceProvider`（数据库连接）。路由 Provider 不在 CLI 引导链中。
-
-Artisan 命令内解析服务：
-
-```php
-app_make(DatabaseManager::class)->connect();
-app_make(UserService::class)->all();
-```
-
----
-
-## IoC 容器与 Service Provider
-
-### 双容器设计
-
-| 容器 | 获取方式 | 使用场景 |
-|------|----------|----------|
-| Application 容器 | `Container::application()` | HTTP 引导、`#[Application]` 扫描期间 |
-| 默认容器 | `Container::getInstance()` | Artisan CLI、`bootstrap_cli_container()` |
-
-两者在引导时各自 `registerProviders()`，绑定**同一套 Provider 类**，但运行在**不同的 Engine 实例**上。HTTP 请求中控制器、`#[Singleton]` 服务共享 Application 容器；CLI 命令共享默认容器。
-
-### Provider 职责
-
-```php
-// app/Providers/AppServiceProvider.php
-class AppServiceProvider extends ServiceProvider
-{
-    public function register(): void
-    {
-        $this->container->singleton(DatabaseManager::class);
-    }
-
-    public function boot(): void
-    {
-        $this->container->make(DatabaseManager::class)->connect();
-    }
-}
-```
-
-```php
-// app/Providers/RouteServiceProvider.php
-class RouteServiceProvider extends ServiceProvider
-{
-    public function boot(): void
-    {
-        require base_path('routes/web.php');
-        require base_path('routes/api.php');
-    }
-}
-```
-
-```php
-// app/Application.php — 仅负责注册 Provider，不含业务逻辑
-Container::application()->registerProviders([
-    AppServiceProvider::class,
-    RouteServiceProvider::class,
-]);
-```
-
-**约定：**
-
-- `register()` — 绑定服务到容器
-- `boot()` — 副作用初始化（连库、加载路由文件等）
-- HTTP 启动**不**自动 migrate/seed；数据库结构变更由 `./laravel migrate` 负责
-
-### 服务层 DI
-
-业务服务通过 `#[Singleton]` 注册，构造函数类型提示自动注入：
-
-```php
-#[Singleton]
-class PostService
-{
-    public function __construct(private UserService $userService) {}
-}
-```
-
-控制器同理：
-
-```php
-class HomeController
-{
-    public function __construct(private PostService $postService) {}
-}
-```
-
-Origami 在 `RegisterPendingRoutes()` 阶段通过 Application 容器 `make()` 实例化控制器，整个请求生命周期复用该实例。
-
----
-
-## 配置与环境
-
-### 环境变量（`.env`）
-
-```bash
-# .env.example
-APP_NAME=LaravelDemo
-APP_ENV=local
-DB_DATABASE=storage/laravel.db
-```
-
-`bootstrap/env.php` 提供：
-
-- `load_env()` — 解析 `.env` 到 `$_ENV` / `putenv`
-- `env('KEY', $default)` — 读取环境变量
-
-### 配置文件（`config/`）
-
-```php
-// config/app.php
-return [
-    'name' => env('APP_NAME', 'LaravelDemo'),
-    'env'  => env('APP_ENV', 'local'),
-];
-```
-
-`bootstrap/config.php` 提供：
-
-- `config_load()` — 加载 `config/*.php`，懒加载、单例缓存
-- `config('app.name')` — 点号路径访问
-
-配置在 bootstrap 层读取，**不**注册为容器服务。需要配置的类（如 `DatabaseManager`）内部直接调用 `config()`。
-
----
-
-## 路由
-
-路由声明在 `routes/*.php`，通过 `Bootstrap\Routing\Route` Facade 转发到 Origami `Net\Http\Router`：
-
-```php
-// routes/web.php
-use Bootstrap\Routing\Route;
-
-Route::group(['middleware' => [LogRequest::class]], function () {
-    Route::get('/', [HomeController::class, 'index']);
-    Route::get('/posts/{id}', [PostController::class, 'show']);
-});
-```
-
-```php
-// routes/api.php
-Route::group(['prefix' => 'api', 'middleware' => [LogRequest::class]], function () {
-    Route::post('/login', [AuthController::class, 'login']);
-
-    Route::group(['middleware' => [Authenticate::class]], function () {
-        Route::get('/me', [AuthController::class, 'me']);
-        Route::post('/posts', [PostApiController::class, 'store']);
-    });
-});
-```
-
-中间件采用 Origami 洋葱模型，类需实现 `handle($request, $response, $next)`。
-
----
-
-## 数据库
-
-| 组件 | 位置 | 说明 |
-|------|------|------|
-| Model | `app/Models/` | `#[Table]` / `#[Column]` 注解 Entity |
-| 连接管理 | `app/Services/DatabaseManager.php` | Provider 注册 singleton，HTTP boot 时 connect |
-| 迁移/种子 | `app/Database/DatabaseBootstrap.php` | 仅 CLI `migrate` / `db:seed` 调用 |
-| 种子数据 | `database/seeders/DatabaseSeeder.php` | |
-
-```bash
-./laravel migrate    # Schema 同步 + 种子
-./laravel db:seed    # 仅种子（users 表已有数据时自动跳过）
-```
-
-HTTP 启动只 `connect()`，**不**执行 migrate/seed。
-
----
-
-## 视图
-
-`Bootstrap\View\View` 提供 layout 两阶段渲染（Origami `response->view()` 第三参数）：
-
-```php
-use Bootstrap\View\View;
-
-View::render($response, 'home', [
-    'title' => '首页',
-    'posts' => $recent,
-]);
-// 等价于：渲染 home.html → 注入 layouts/app.html 的 {$content}
-```
-
-模板文件在 `resources/views/`，页面 partial 放 `home.html`、`posts/index.html`，公共布局在 `layouts/app.html`。
-
-> **限制：** 含 `for="$item in $items"` 的模板片段需以 `<!DOCTYPE html>` 开头，否则 Origami HTML 解析器无法识别 `for` 属性。
-
----
-
-## 认证（API）
-
-- 登录：`AuthService::attempt()` 验证密码，写入 `api_tokens` 表
-- 鉴权：`Authenticate` 中间件通过 token 查库校验
-- 受保护路由从 token 解析当前用户，**不**硬编码 `user_id`
-
-```bash
-curl -X POST http://localhost:8080/api/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"alice@example.com","password":"secret123"}'
-
-curl http://localhost:8080/api/me -H "Authorization: <token>"
-```
-
----
-
-## 目录结构
-
-```
-laravel/
-├── main.go                     # Go 入口，加载 VM，分发 Artisan 命令
-├── artisan.php                 # CLI 引导
-├── public/
-│   ├── index.php               # HTTP 入口
-│   └── assets/                 # 静态资源
-├── bootstrap/                  # 框架模拟层（≈ Illuminate）
-│   ├── app.php                 # 公共引导
-│   ├── env.php                 # .env → env()
-│   ├── config.php              # config/*.php → config()
-│   ├── helpers.php             # app_make()
-│   ├── http.php                # HTTP Server 引导
-│   ├── routing/Route.php       # Route Facade
-│   ├── view/View.php           # 视图 layout
-│   └── console/                # CLI 基类 + Kernel
-├── config/                     # 配置文件
-│   ├── app.php
-│   └── database.php
-├── routes/                     # 路由声明
-│   ├── web.php
-│   └── api.php
-├── app/                        # 应用代码
-│   ├── Application.php         # #[Application] HTTP 入口
-│   ├── Providers/              # Service Provider
-│   ├── Http/
-│   │   ├── Controllers/
-│   │   ├── Middleware/
-│   │   └── Requests/           # 校验 DTO
-│   ├── Services/               # #[Singleton] 业务服务
-│   ├── Models/                 # 数据库 Entity
-│   ├── Database/               # 迁移/种子 CLI 逻辑
-│   └── Console/Commands/       # Artisan 命令
-├── database/seeders/
-└── resources/views/
-```
+| 框架核心 | `laravel/framework` | **同**（已引入） |
+| HTTP 入口 | `public/index.php` → Http Kernel | Origami `Net\Http\Server` |
+| 路由 Facade | `Illuminate\Support\Facades\Route` | `Bootstrap\Routing\Route`（Illuminate Router + Origami 分发） |
+| 视图 | Blade | FileViewFinder + Origami HTML |
+| Artisan | `Illuminate\Console\Command` | 同基类 + Origami `#[Command]` 双轨 |
+| Telescope | 完整仪表盘 | **已接入** `/telescope`（Origami 路由代理 + 官方 SPA 资源） |
 
 ---
 
@@ -439,13 +118,12 @@ laravel/
 ```bash
 cd examples/laravel
 cp .env.example .env
-composer dump-autoload
+composer install
 go build -mod=mod -o laravel .
 
-./laravel migrate          # 首次：建表 + 种子
-./laravel serve            # 启动 HTTP
-./laravel route:list       # 查看路由
-./laravel about            # 应用信息
+./laravel migrate
+./laravel serve
+bash tests/run_illuminate_smokes.sh
 ```
 
 ### 常用命令
@@ -454,81 +132,37 @@ go build -mod=mod -o laravel .
 |------|------|
 | `./laravel serve [port]` | 启动开发服务器 |
 | `./laravel migrate` | Schema 同步 + 种子 |
-| `./laravel db:seed` | 仅种子 |
-| `./laravel route:list` | 路由列表 |
-| `./laravel user:list` | 用户列表 |
-| `./laravel post:list` | 文章列表 |
-| `./laravel make:user name email` | 创建用户 |
+| `./laravel run tests/xxx_smoke.php` | 单条冒烟 |
+| `bash tests/run_illuminate_smokes.sh` | 全量冒烟（含 Telescope） |
 
 > 目录下若有 Composer 的 `vendor/`，构建/运行请加 `-mod=mod`。
 
 ---
 
-## Go 二进制入口
+## 目录结构（摘要）
 
-`main.go` 构建 Origami VM，加载标准库（`php`、`Net\Http`、`Container`、`Cli` 注解等），然后：
-
-1. 执行 `artisan.php` 完成 PHP 侧引导（env、config、CLI 容器）
-2. 调用 `ExecuteCommand($cmd)` 分发 Artisan 命令
-
-HTTP 生产/开发入口仍是 `public/index.php`；`./laravel serve` 在命令内同样调用 `bootstrap_http_server()`，与 `index.php` 共享同一 HTTP 引导链。
-
----
-
-## Origami 运行时限制
-
-本示例在 Origami 之上模拟 Laravel，以下行为与真实 Laravel 不同，扩展时需注意：
-
-| 限制 | 说明 |
-|------|------|
-| **中间件无构造函数 DI** | 中间件由框架直接 `new`，不能注入依赖；`Authenticate` 通过 `auth()` Guard 解析当前用户 |
-| **Request attribute 类型** | 不宜在 `$request` 上存 PHP 数组等复杂结构；认证用户通过 token 查库，而非写入 request attribute |
-| **HTML 模板 `for` 属性** | 含 `for="$x in $items"` 的片段需以 `<!DOCTYPE html>` 开头，否则 HTML 解析器不识别 `for` |
-| **无 Blade** | 视图是 HTML + `response->view()`；PhpEngine / Blade 待上游 `extract`+`require` |
-| **双容器隔离** | HTTP 与 CLI 使用不同 Container 实例；在 CLI 命令中勿假设 HTTP Application 容器中的绑定 |
+```
+laravel/
+├── main.go
+├── artisan.php
+├── composer.json          # laravel/framework + laravel/telescope
+├── bootstrap/
+│   ├── foundation.php     # Foundation Application
+│   ├── telescope.php      # Telescope 建表 / Repository
+│   ├── database.php       # Capsule → 同一 app
+│   └── …
+├── config/telescope.php
+├── app/Providers/TelescopeServiceProvider.php
+└── tests/
+    ├── foundation_application_smoke.php
+    ├── telescope_*_smoke.php
+    └── run_illuminate_smokes.sh
+```
 
 ---
 
-## 扩展指南
+## 扩展与后续
 
-### 新增路由
-
-1. 在 `routes/web.php` 或 `routes/api.php` 添加 `Route::get/post/...`
-2. 控制器放 `app/Http/Controllers/`，构造函数声明依赖
-
-### 新增服务
-
-1. 在 `app/Services/` 创建类，标注 `#[Singleton]`
-2. 在控制器/其他服务构造函数中类型提示注入
-
-### 新增 Artisan 命令
-
-1. 在 `app/Console/Commands/` 创建类，继承 `Bootstrap\Console\Command`（即 `Illuminate\Console\Command`）
-2. 标注 `#[Command(name: 'foo:bar')]`（Origami 发现用）
-3. 用 `$signature` 或 `defineInput()` 声明参数；在 `handle()` 里用 `$this->info()` / `$this->option()` 等 Illuminate API
-4. `bootstrap/console/Kernel.php` 的 `#[CliApplication(scan: .../Commands)]` 自动发现
-
-### 新增 Provider
-
-1. 创建 `app/Providers/XxxServiceProvider.php`，继承 `Container\ServiceProvider`
-2. HTTP：加入 `Application::boot()` 的 `registerProviders` 数组
-3. CLI：如需 CLI 可用，加入 `bootstrap/app.php` 的 `bootstrap_cli_container()`
-
----
-
-## 与 Laravel 对照
-
-| Laravel | 本示例 |
-|---------|--------|
-| `public/index.php` | `public/index.php` |
-| `bootstrap/app.php` | `bootstrap/app.php` |
-| `config/*.php` + `config()` | `config/` + `bootstrap/config.php` |
-| `.env` + `env()` | `.env` + `bootstrap/env.php` |
-| `Illuminate\Support\Facades\Route` | `Bootstrap\Routing\Route` |
-| `AppServiceProvider` | `app/Providers/AppServiceProvider.php` |
-| `RouteServiceProvider` | `app/Providers/RouteServiceProvider.php` |
-| `php artisan serve` | `./laravel serve` |
-| `php artisan migrate` | `./laravel migrate` |
-| `app/Http/Controllers` | 控制器 + 构造函数 DI |
-| `app/Models` + Eloquent | `app/Models` + `#[Table]` Entity |
-| `Container` + `ServiceProvider` | Origami `Container\Container` + `Container\ServiceProvider` |
+1. 让更多官方 Watcher 走 Illuminate 事件（Query/Exception 自动录音）。
+2. 长期：`public/index.php` 可选走 `Illuminate\Foundation\Http\Kernel`。
+3. 可选：原生 `Str::orderedUuid` / Closure 队列序列化补齐后去掉桥接绕过。

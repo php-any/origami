@@ -309,6 +309,11 @@ func (vm *LspVM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	return nil, nil
 }
 
+// LoadInCallerContext LSP 不执行代码。
+func (vm *LspVM) LoadInCallerContext(parent data.Context, file string) (data.GetValue, data.Control) {
+	return nil, nil
+}
+
 // CompileLoad LSP 不执行代码。
 func (vm *LspVM) CompileLoad(file string) data.Control {
 	return nil

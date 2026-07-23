@@ -81,11 +81,18 @@ func (f *PregReplaceCallbackFunction) Call(ctx data.Context) (data.GetValue, dat
 				end := loc[1]
 
 				matchValues := make([]data.Value, 0, len(loc)/2)
+				lastPart := -1
 				for g := 0; g < len(loc); g += 2 {
 					if loc[g] >= 0 && loc[g+1] >= 0 && loc[g] < len(replaced) && loc[g+1] <= len(replaced) {
-						matchValues = append(matchValues, data.NewStringValue(replaced[loc[g]:loc[g+1]]))
+						lastPart = g / 2
+					}
+				}
+				for g := 0; g <= lastPart; g++ {
+					gi := g * 2
+					if loc[gi] >= 0 && loc[gi+1] >= 0 && loc[gi] < len(replaced) && loc[gi+1] <= len(replaced) {
+						matchValues = append(matchValues, data.NewStringValue(replaced[loc[gi]:loc[gi+1]]))
 					} else {
-						matchValues = append(matchValues, data.NewNullValue())
+						matchValues = append(matchValues, data.NewStringValue(""))
 					}
 				}
 

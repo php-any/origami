@@ -40,10 +40,8 @@ func (f *ArrayKeyExistsFunction) Call(ctx data.Context) (data.GetValue, data.Con
 			}
 		}
 		// 检查字符串键（关联数组）
-		for _, zval := range arrayVal.List {
-			if zval != nil && zval.Name == keyStr {
-				return data.NewBoolValue(true), nil
-			}
+		if _, ok := arrayVal.LookupZValByStringKey(keyStr); ok {
+			return data.NewBoolValue(true), nil
 		}
 		return data.NewBoolValue(false), nil
 	}

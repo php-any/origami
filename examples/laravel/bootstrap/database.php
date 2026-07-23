@@ -2,10 +2,9 @@
 
 /**
  * Eloquent Capsule 引导。
- * Capsule 构造会改写 config；构造后重新 instance 一份完整 Fluent 配置。
+ * 挂到 Foundation Application，避免双容器。
  */
 
-use Illuminate\Container\Container as IlluminateContainer;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Support\Fluent;
 
@@ -41,15 +40,29 @@ function bootstrap_eloquent(?string $databasePath = null): Capsule
         ]);
     };
 
-    $container = new IlluminateContainer();
+    $container = illuminate_container();
+
+    // Capsule 会改写 config；用 Fluent 临时覆盖 database.*，构造后再恢复 Repository
+    $originalConfig = $container->make('config');
     $container->instance('config', $makeConfig());
 
     $capsule = new Capsule($container);
-    // Capsule::setupDefaultConfiguration 会改写 default；换回完整配置
     $container->instance('config', $makeConfig());
 
     $capsule->setAsGlobal();
     $capsule->bootEloquent();
+
+    // 恢复完整 Config Repository，并写回 database 连接
+    if ($originalConfig instanceof \Illuminate\Config\Repository) {
+        $originalConfig->set('database.default', $default);
+        $originalConfig->set('database.connections', $connections);
+        $container->instance('config', $originalConfig);
+    }
+
+    // 绑定 db 以便 Telescope / 其它组件解析
+    if (!$container->bound('db')) {
+        $container->instance('db', $capsule->getDatabaseManager());
+    }
 
     return $capsule;
 }

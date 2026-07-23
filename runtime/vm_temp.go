@@ -95,6 +95,41 @@ func (vm *TempVM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	return program.GetValue(vm.CreateContext(p.GetVariables()))
 }
 
+// LoadInCallerContext 在 TempVM 上解析并执行，保证请求级类/函数注册不泄漏到 Base。
+// 不设置 PhpFileCache，允许同一视图文件被多次 require。
+func (vm *TempVM) LoadInCallerContext(parent data.Context, file string) (data.GetValue, data.Control) {
+	file = normalizePhpFilePath(file)
+
+	p := vm.PrepareParse(vm.Base.parser)
+	program, acl := p.ParseFile(file)
+	if acl != nil {
+		return nil, acl
+	}
+
+	vars := p.GetVariables()
+	ctx := vm.CreateContext(vars)
+
+	for _, variable := range vars {
+		name := variable.GetName()
+		if name == "" {
+			continue
+		}
+		if val, ok := parent.GetVariableByName(name); ok && val != nil {
+			if ctl := variable.SetValue(ctx, val); ctl != nil {
+				return nil, ctl
+			}
+			continue
+		}
+		vm.Base.bindIncludedVarToGlobal(name, variable.GetIndex(), ctx)
+	}
+
+	result, ctrl := program.GetValue(ctx)
+	if data.FlushAllBuffersFn != nil {
+		data.FlushAllBuffersFn()
+	}
+	return result, ctrl
+}
+
 // CompileLoad 编译模式专用：仅解析并注册类/函数/接口，不执行顶层代码。
 func (vm *TempVM) CompileLoad(file string) data.Control {
 	return vm.Base.CompileLoad(file)

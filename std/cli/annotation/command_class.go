@@ -154,8 +154,15 @@ func ExecuteCommand(ctx data.Context, commandName string) data.Control {
 		return nil
 	}
 
-	baseCtx := ctx.CreateBaseContext()
-	cv := data.NewClassValue(cls, baseCtx)
+	// 与 `new Command` 一致：初始化属性并调用 __construct（illuminate/console 依赖此初始化）
+	obj, acl := node.InstantiateClass(cls, ctx, nil)
+	if acl != nil {
+		return acl
+	}
+	cv, ok := obj.(*data.ClassValue)
+	if !ok {
+		return data.NewErrorThrow(nil, errors.New("命令 "+commandName+" 实例化失败"))
+	}
 
 	// 查找 execute 方法（支持继承自基类，如 Bootstrap\Console\Command）
 	method, has := cv.GetMethod("execute")
@@ -164,6 +171,6 @@ func ExecuteCommand(ctx data.Context, commandName string) data.Control {
 	}
 
 	fnCtx := cv.CreateContext(method.GetVariables())
-	_, acl := method.Call(fnCtx)
+	_, acl = method.Call(fnCtx)
 	return acl
 }

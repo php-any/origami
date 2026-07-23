@@ -39,7 +39,11 @@ func (p *AbstractClassParser) Parse() (data.GetValue, data.Control) {
 		return nil, acl
 	}
 
-	// 将类定义包装为抽象类
+	// 将类定义包装为抽象类（注册延迟到 ClassRegisterStmt 执行时）
+	if crs, ok := classStmt.(*node.ClassRegisterStmt); ok {
+		return crs, nil
+	}
+
 	var abstractClassStmt data.ClassStmt
 	if c, ok := classStmt.(*node.ClassStatement); ok {
 		abstractClassStmt = node.NewAbstractClassStatement(c)

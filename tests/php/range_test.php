@@ -26,4 +26,15 @@ if ($d !== ['a', 'b', 'c']) {
     Log::fatal('range(a,c) failed: ' . var_export($d, true));
 }
 
+// PHP：数字字符串走数值路径，不是字符路径
+$e = range('1', '3');
+if ($e !== [1, 2, 3]) {
+    Log::fatal('range("1","3") failed: ' . var_export($e, true));
+}
+
+$f = range('10', '12');
+if ($f !== [10, 11, 12]) {
+    Log::fatal('range("10","12") failed: ' . var_export($f, true));
+}
+
 Log::info('range_test 测试通过');

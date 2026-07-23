@@ -2,6 +2,7 @@ package preg
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/dlclark/regexp2"
@@ -404,10 +405,8 @@ func findR2Captures(re *regexp2.Regexp, search string, anchored bool) []Capture 
 	}
 	caps := make([]Capture, 0, len(groups))
 	for _, g := range groups {
-		participated := g.Length > 0 || len(g.Captures) > 0
-		if g.Length == 0 && g.Index == 0 && len(g.Captures) == 0 && g.Name == "" {
-			participated = false
-		}
+		// regexp2 未参与的可选组：Index=0、Length=0 且无 Captures
+		participated := !(g.Length == 0 && g.Index == 0 && len(g.Captures) == 0)
 		cap := Capture{
 			Text:         g.String(),
 			Participated: participated,
@@ -419,8 +418,21 @@ func findR2Captures(re *regexp2.Regexp, search string, anchored bool) []Capture 
 }
 
 // BuildMatchArray 构造 PHP preg_match 的 $matches 数组（数值键 + 命名键）。
+// 未参与匹配的尾部可选捕获组不写入数组（与 PHP isset($matches[n]) 语义一致，ProgressBar 依赖此点）。
 func BuildMatchArray(captures []Capture, flags int) data.Value {
 	unmatchedAsNull := flags&512 != 0 // PREG_UNMATCHED_AS_NULL
+
+	last := -1
+	for i, cap := range captures {
+		if cap.Participated {
+			last = i
+		}
+	}
+	if last < 0 {
+		return &data.ArrayValue{List: []*data.ZVal{}}
+	}
+	captures = captures[:last+1]
+
 	list := make([]*data.ZVal, len(captures))
 	for i, cap := range captures {
 		var val data.Value
@@ -437,6 +449,125 @@ func BuildMatchArray(captures []Capture, flags int) data.Value {
 		list[i] = z
 	}
 	return &data.ArrayValue{List: list}
+}
+
+// ExpandPhpReplacement 将 PHP preg_replace 替换串中的反引用展开为最终文本。
+// 支持 $n / ${n} / \n；\\ 表示字面反斜杠（OutputWrapper 的 '\\1'、escape 的 '$1\\\\$2' 依赖此语义）。
+func ExpandPhpReplacement(repl string, groups []string) string {
+	var b strings.Builder
+	for i := 0; i < len(repl); i++ {
+		c := repl[i]
+		switch c {
+		case '\\':
+			if i+1 >= len(repl) {
+				b.WriteByte('\\')
+				break
+			}
+			n := repl[i+1]
+			if n >= '0' && n <= '9' {
+				num, next := readReplacementIndex(repl, i+1)
+				b.WriteString(groupText(groups, num))
+				i = next - 1
+				continue
+			}
+			// \\ → 一个反斜杠；其它 \x → 字面 x（与 PHP 常见行为接近）
+			if n == '\\' {
+				b.WriteByte('\\')
+				i++
+				continue
+			}
+			b.WriteByte(n)
+			i++
+		case '$':
+			if i+1 >= len(repl) {
+				b.WriteByte('$')
+				break
+			}
+			n := repl[i+1]
+			if n == '$' {
+				b.WriteByte('$')
+				i++
+				continue
+			}
+			if n == '{' {
+				end := strings.IndexByte(repl[i+2:], '}')
+				if end >= 0 {
+					numStr := repl[i+2 : i+2+end]
+					if num, err := strconv.Atoi(numStr); err == nil {
+						b.WriteString(groupText(groups, num))
+						i = i + 2 + end
+						continue
+					}
+				}
+				b.WriteByte('$')
+				continue
+			}
+			if n >= '0' && n <= '9' {
+				num, next := readReplacementIndex(repl, i+1)
+				b.WriteString(groupText(groups, num))
+				i = next - 1
+				continue
+			}
+			b.WriteByte('$')
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
+}
+
+func readReplacementIndex(s string, start int) (num int, next int) {
+	num = 0
+	i := start
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+		num = num*10 + int(s[i]-'0')
+		i++
+		// PHP 只取合理位数的分组号；此处允许多位
+	}
+	return num, i
+}
+
+func groupText(groups []string, n int) string {
+	if n < 0 || n >= len(groups) {
+		return ""
+	}
+	return groups[n]
+}
+
+// ReplaceAllPhp 按 PHP 语义执行替换（展开 \1 / $1，支持 limit）。
+func ReplaceAllPhp(m Matcher, src, repl string, limit int) (string, int) {
+	all := m.FindAllStringSubmatchIndex(src, -1)
+	if len(all) == 0 {
+		return src, 0
+	}
+	max := len(all)
+	if limit > 0 && max > limit {
+		max = limit
+	}
+
+	var b strings.Builder
+	pos := 0
+	count := 0
+	for mi := 0; mi < max; mi++ {
+		loc := all[mi]
+		if len(loc) < 2 || loc[0] < 0 {
+			continue
+		}
+		b.WriteString(src[pos:loc[0]])
+		groups := make([]string, 0, len(loc)/2)
+		for g := 0; g < len(loc); g += 2 {
+			if loc[g] >= 0 && loc[g+1] >= 0 {
+				groups = append(groups, src[loc[g]:loc[g+1]])
+			} else {
+				groups = append(groups, "")
+			}
+		}
+		b.WriteString(ExpandPhpReplacement(repl, groups))
+		pos = loc[1]
+		count++
+	}
+	b.WriteString(src[pos:])
+	return b.String(), count
 }
 
 // HasModifier 检查 PHP 正则是否带有指定修饰符（如 A、i、m）。

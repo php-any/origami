@@ -20,21 +20,29 @@ func (f *FcloseFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewBoolValue(false), nil
 	}
 
-	// 从资源对象中获取 StreamInfo
-	var streamInfo *StreamInfo
-	if res, ok := streamValue.(*core.ResourceValue); ok {
-		resource := res.GetResource()
-		if info, ok := resource.(*StreamInfo); ok {
-			streamInfo = info
-		} else {
-			return data.NewBoolValue(false), nil
-		}
-	} else {
+	res, ok := streamValue.(*core.ResourceValue)
+	if !ok {
+		return data.NewBoolValue(false), nil
+	}
+	resource := res.GetResource()
+	if resource == nil {
 		return data.NewBoolValue(false), nil
 	}
 
-	// 关闭流
-	err := streamInfo.Close()
+	var err error
+	switch info := resource.(type) {
+	case *StreamInfo:
+		err = info.Close()
+	case *StreamInfoFromReader:
+		// proc_open 管道
+		err = info.Close()
+	default:
+		if closer, ok := resource.(interface{ Close() error }); ok {
+			err = closer.Close()
+		} else {
+			return data.NewBoolValue(false), nil
+		}
+	}
 	if err != nil {
 		return data.NewBoolValue(false), nil
 	}

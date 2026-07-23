@@ -31,6 +31,8 @@ type Context interface {
 
 	// SetVariableByName 通过变量名设置变量值，用于 extract 等动态赋值场景
 	SetVariableByName(name string, value Value)
+	// GetVariableByName 通过变量名读取变量值（含 extract 动态注入的槽）
+	GetVariableByName(name string) (Value, bool)
 	// HasVariableByName 检查调用者上下文中是否已存在指定名称的变量，用于 EXTR_SKIP 等 flags
 	HasVariableByName(name string) bool
 }
@@ -61,6 +63,9 @@ type VM interface {
 	SetThrowControl(func(acl Control))
 	ThrowControl(acl Control)
 	LoadAndRun(file string) (GetValue, Control)
+	// LoadInCallerContext 解析并执行文件，把调用者上下文中的同名变量注入到被引入文件作用域
+	//（对齐 PHP require/include 共享当前符号表，供 extract + require 视图引擎使用）
+	LoadInCallerContext(parent Context, file string) (GetValue, Control)
 	// CompileLoad 仅解析文件并注册类/函数/接口，不执行代码（编译模式专用）
 	CompileLoad(file string) Control
 	// RegisterCompiledFile 注册预编译的文件 AST

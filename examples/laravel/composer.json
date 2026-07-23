@@ -7,6 +7,7 @@
             "Bootstrap\\Auth\\": "bootstrap/auth/",
             "Bootstrap\\Console\\": "bootstrap/console/",
             "Bootstrap\\Routing\\": "bootstrap/routing/",
+            "Bootstrap\\Telescope\\": "bootstrap/telescope/",
             "Bootstrap\\View\\": "bootstrap/view/",
             "Database\\Seeders\\": "database/seeders/"
         },
@@ -17,36 +18,17 @@
         ]
     },
     "require": {
-        "illuminate/support": "^10.49",
-        "illuminate/collections": "^10.49",
-        "illuminate/validation": "^10.49",
-        "illuminate/pipeline": "^10.49",
-        "illuminate/events": "^10.49",
-        "illuminate/config": "^10.49",
-        "illuminate/filesystem": "^10.49",
-        "illuminate/hashing": "^10.49",
-        "illuminate/encryption": "^10.49",
-        "illuminate/pagination": "^10.49",
+        "php": "^8.1",
         "carbonphp/carbon-doctrine-types": "2.1.0",
-        "illuminate/cache": "^10.49",
-        "illuminate/database": "^10.49",
-        "illuminate/log": "^10.49",
-        "illuminate/view": "^10.49",
-        "illuminate/http": "^10.49",
-        "illuminate/session": "^10.49",
-        "illuminate/cookie": "^10.49",
-        "illuminate/routing": "^10.49",
-        "illuminate/console": "^10.49",
-        "illuminate/process": "^10.49",
-        "illuminate/bus": "^10.49",
-        "illuminate/container": "^10.49",
-        "illuminate/translation": "^10.49",
-        "illuminate/auth": "^10.49",
-        "illuminate/mail": "^10.49",
-        "illuminate/queue": "^10.49",
-        "illuminate/redis": "^10.49",
-        "illuminate/broadcasting": "^10.49",
-        "illuminate/notifications": "^10.49",
-        "illuminate/testing": "^10.49"
-    }
+        "laravel/framework": "^10.49",
+        "laravel/telescope": "^4.17"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
 }

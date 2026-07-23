@@ -1,19 +1,20 @@
 <?php
 
 /**
- * Illuminate 基础容器（阶段 2：替换 bootstrap 模拟层的核心）
+ * Illuminate Foundation Application 引导（阶段 3：laravel/framework）
  */
 
 use Illuminate\Config\Repository as ConfigRepository;
-use Illuminate\Container\Container as IlluminateContainer;
-use Illuminate\Events\Dispatcher;
 use Illuminate\Filesystem\Filesystem;
-use Illuminate\Routing\Router as IlluminateRouter;
+use Illuminate\Foundation\Application as FoundationApplication;
 use Illuminate\View\Engines\EngineResolver;
 use Illuminate\View\Factory as ViewFactory;
 use Illuminate\View\FileViewFinder;
 
-function illuminate_container(): IlluminateContainer
+/**
+ * @return FoundationApplication
+ */
+function illuminate_container(): FoundationApplication
 {
     static $container = null;
 
@@ -21,21 +22,24 @@ function illuminate_container(): IlluminateContainer
         return $container;
     }
 
-    $container = new IlluminateContainer();
-    $container->instance('app', $container);
-    $container->instance('path', dirname(__DIR__));
+    $basePath = dirname(__DIR__);
+    $container = new FoundationApplication($basePath);
 
-    $container->singleton('events', function () use ($container) {
-        return new Dispatcher($container);
-    });
+    // 环境（environment() / isLocal() 依赖）
+    $env = (string) env('APP_ENV', 'local');
+    $container->instance('env', $env);
+    $container['env'] = $env;
 
+    // 配置：合并 config/*.php
     $container->singleton('config', function () {
         return new ConfigRepository(config_load());
     });
 
-    $container->singleton('files', function () {
-        return new Filesystem();
-    });
+    if (!$container->bound('files')) {
+        $container->singleton('files', function () {
+            return new Filesystem();
+        });
+    }
 
     $container->singleton('view.finder', function ($app) {
         $base = rtrim((string) $app->make('config')->get('view.paths.0', ''), '/');
@@ -51,23 +55,30 @@ function illuminate_container(): IlluminateContainer
         return new ViewFactory($resolver, $app->make('view.finder'), $app->make('events'));
     });
 
-    $container->singleton('router', function ($app) {
-        return new IlluminateRouter($app->make('events'), $app);
-    });
+    // router 已由 RoutingServiceProvider 注册
 
     return $container;
 }
 
-function illuminate_router(): IlluminateRouter
+/**
+ * @return \Illuminate\Routing\Router
+ */
+function illuminate_router()
 {
     return illuminate_container()->make('router');
 }
 
+/**
+ * @return ConfigRepository
+ */
 function illuminate_config()
 {
     return illuminate_container()->make('config');
 }
 
+/**
+ * @return ViewFactory
+ */
 function illuminate_view(): ViewFactory
 {
     return illuminate_container()->make('view');

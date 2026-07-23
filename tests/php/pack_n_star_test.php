@@ -22,4 +22,12 @@ if ($u[1] !== 4660) {
     Log::fatal('pack/unpack n* roundtrip failed');
 }
 
+$empty = unpack('n*', '');
+if ($empty === false) {
+    Log::fatal('unpack(n*, "") should return empty result, not false');
+}
+if (isset($empty[1])) {
+    Log::fatal('unpack(n*, "") should have no elements');
+}
+
 Log::info('pack/unpack n* 测试通过');

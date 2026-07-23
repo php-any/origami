@@ -422,19 +422,20 @@ func GetAutoLoad() []*data.FuncValue {
 
 func CallAutoLoad(name string, ctx data.Context) (bool, data.Control) {
 	for _, fn := range autoload {
-		ctx := ctx.CreateContext(fn.Value.GetVariables())
+		callCtx := ctx.CreateContext(fn.Value.GetVariables())
 
-		ctx.GetIndexZVal(0).Value = data.NewStringValue(name)
+		if zv := callCtx.GetIndexZVal(0); zv != nil {
+			zv.Value = data.NewStringValue(name)
+		}
 
-		v, acl := fn.Call(ctx)
+		_, acl := fn.Call(callCtx)
 		if acl != nil {
 			return false, acl
 		}
 
-		// 调用完回调后，优先检查类/接口是否已经被成功加载。
-		// 这与 PHP 行为保持一致：autoload 回调通常不返回值，
-		// 但只要 side effect 定义了对应类，就算加载成功。
-		if vm := ctx.GetVM(); vm != nil {
+		// PHP：回调返回值无意义；只要 side effect 定义了类/接口即成功。
+		// 不得把 null/非 bool 返回值当成“已加载”而跳过后续回调。
+		if vm := callCtx.GetVM(); vm != nil {
 			if _, ok := vm.GetClass(name); ok {
 				return true, nil
 			}
@@ -442,18 +443,15 @@ func CallAutoLoad(name string, ctx data.Context) (bool, data.Control) {
 				return true, nil
 			}
 		}
-
-		if b, ok := v.(*data.BoolValue); ok {
-			if !b.Value {
-				continue
-			}
-		}
-		if v == nil {
-			continue
-		}
-
-		return true, nil
 	}
 
+	if vm := ctx.GetVM(); vm != nil {
+		if _, ok := vm.GetClass(name); ok {
+			return true, nil
+		}
+		if _, ok := vm.GetInterface(name); ok {
+			return true, nil
+		}
+	}
 	return false, nil
 }

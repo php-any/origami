@@ -24,6 +24,58 @@ func createInstanceAndCallConstructor(
 	return createInstanceFromClassStmt(from, stmt, arguments, ctx)
 }
 
+// flattenSpreadArguments 将构造/调用实参中的 ...$arr 展平成一维列表。
+// 无 SpreadArgument 时原样返回；与 call.go / call_method.go 语义对齐。
+func flattenSpreadArguments(ctx data.Context, arguments []data.GetValue) ([]data.GetValue, data.Control) {
+	hasSpread := false
+	for _, a := range arguments {
+		if _, ok := a.(*SpreadArgument); ok {
+			hasSpread = true
+			break
+		}
+	}
+	if !hasSpread {
+		return arguments, nil
+	}
+
+	var flat []data.GetValue
+	for _, arg := range arguments {
+		spread, ok := arg.(*SpreadArgument)
+		if !ok {
+			flat = append(flat, arg)
+			continue
+		}
+		// first-class callable（Expr==nil）无法作为构造实参展开
+		if spread.Expr == nil {
+			flat = append(flat, arg)
+			continue
+		}
+		spreadVal, acl := spread.GetValue(ctx)
+		if acl != nil {
+			return nil, acl
+		}
+		if spreadVal == nil {
+			continue
+		}
+		switch v := spreadVal.(type) {
+		case *data.ArrayValue:
+			for _, z := range v.List {
+				flat = append(flat, z.Value)
+			}
+		case *data.ObjectValue:
+			v.RangeProperties(func(_ string, val data.Value) bool {
+				flat = append(flat, val)
+				return true
+			})
+		default:
+			if val, ok := spreadVal.(data.Value); ok {
+				flat = append(flat, val)
+			}
+		}
+	}
+	return flat, nil
+}
+
 // createInstanceFromClassStmt 使用已解析的类语句创建实例并调用构造函数。
 // 仅供静态 new 节点在 resolve 之后调用；动态 new 应走 createInstanceAndCallConstructor。
 func createInstanceFromClassStmt(
@@ -46,6 +98,12 @@ func createInstanceFromClassStmt(
 			varies := method.GetVariables()
 			params := method.GetParams()
 			fnCtx := object.CreateContext(varies)
+
+			arguments, acl = flattenSpreadArguments(ctx, arguments)
+			if acl != nil {
+				return nil, acl
+			}
+
 			// 入参的值设置到上下文中
 			for index, param := range params {
 				if len(arguments) > index {
@@ -259,6 +317,12 @@ func createInstanceAndCallConstructorWithStmt(
 			varies := method.GetVariables()
 			params := method.GetParams()
 			fnCtx := object.CreateContext(varies)
+
+			arguments, acl = flattenSpreadArguments(ctx, arguments)
+			if acl != nil {
+				return nil, acl
+			}
+
 			// 入参的值设置到上下文中
 			for index, arg := range arguments {
 				switch argTV := arg.(type) {

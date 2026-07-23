@@ -128,13 +128,7 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 			return vp.parseSuffix(expr)
 		}
 
-		// 函数静态调用 Log::info 或 Log::$property
-		if p.checkPositionIs(0, token.SCOPE_RESOLUTION) &&
-			(p.checkPositionIs(1, token.IDENTIFIER, token.COMPACT, token.UNSET, token.ISSET) || p.checkPositionIs(1, token.VARIABLE)) {
-			return p.parseStaticCall(tracker, name)
-		}
-
-		// 处理 ::class 语法
+		// 处理 ::class 语法（须优先于「关键字作方法名」，避免 class 被当成静态成员）
 		if p.checkPositionIs(0, token.SCOPE_RESOLUTION) && p.checkPositionIs(1, token.CLASS) {
 			className := name
 			if full, ok := p.findFullClassNameByNamespace(className); ok {
@@ -144,6 +138,17 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 			p.next() // 跳过 class
 			// 返回类名字符串
 			return data.NewStringValue(className), nil
+		}
+
+		// 函数静态调用 Log::info / Factory::new() 等（PHP 允许关键字作方法名，但 class 除外）
+		if p.checkPositionIs(0, token.SCOPE_RESOLUTION) {
+			nextType := p.tokens[p.position+1].Type()
+			isStaticMember := nextType == token.IDENTIFIER || nextType == token.VARIABLE ||
+				nextType == token.COMPACT || nextType == token.UNSET || nextType == token.ISSET ||
+				(nextType > token.KEYWORD_START && nextType < token.VALUE_START && nextType != token.CLASS)
+			if isStaticMember {
+				return p.parseStaticCall(tracker, name)
+			}
 		}
 
 		if p.checkPositionIs(0, token.OBJECT_OPERATOR, token.DOT) {

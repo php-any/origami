@@ -178,3 +178,21 @@ func (f *GetcwdFunction) GetVariables() []data.Variable {
 	return nil
 }
 func (f *GetcwdFunction) GetReturnType() data.Types { return data.NewBaseType("string") }
+
+type GethostnameFunction struct{}
+
+func (f *GethostnameFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	name, err := os.Hostname()
+	if err != nil {
+		return data.NewBoolValue(false), nil
+	}
+	return data.NewStringValue(name), nil
+}
+func (f *GethostnameFunction) GetName() string            { return "gethostname" }
+func (f *GethostnameFunction) GetModifier() data.Modifier { return data.ModifierPublic }
+func (f *GethostnameFunction) GetIsStatic() bool          { return false }
+func (f *GethostnameFunction) GetParams() []data.GetValue { return nil }
+func (f *GethostnameFunction) GetVariables() []data.Variable {
+	return nil
+}
+func (f *GethostnameFunction) GetReturnType() data.Types { return data.NewBaseType("string") }

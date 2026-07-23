@@ -13,41 +13,53 @@ type StrvalFunction struct{}
 
 func (f *StrvalFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	v, _ := ctx.GetIndexValue(0)
-	return strvalValue(v), nil
+	return strvalValue(v)
 }
 
-func strvalValue(v data.Value) data.Value {
+func strvalValue(v data.Value) (data.GetValue, data.Control) {
 	if v == nil {
-		return data.NewStringValue("")
+		return data.NewStringValue(""), nil
 	}
 	switch val := v.(type) {
 	case *data.NullValue:
-		return data.NewStringValue("")
+		return data.NewStringValue(""), nil
 	case *data.BoolValue:
 		if val.Value {
-			return data.NewStringValue("1")
+			return data.NewStringValue("1"), nil
 		}
-		return data.NewStringValue("")
+		return data.NewStringValue(""), nil
 	case *data.StringValue:
-		return val
+		return val, nil
 	case *data.IntValue, *data.FloatValue:
-		return data.NewStringValue(val.AsString())
+		return data.NewStringValue(val.AsString()), nil
 	case *data.ArrayValue:
-		return data.NewStringValue("Array")
+		return data.NewStringValue("Array"), nil
 	case *data.ClassValue:
 		if method, ok := val.GetMethod("__toString"); ok {
-			ret, ctl := method.Call(val.Context)
-			if ctl == nil {
-				if sv, ok := ret.(data.Value); ok {
-					return data.NewStringValue(sv.AsString())
+			fnCtx := val.CreateContext(method.GetVariables())
+			fnCtx.SetCallArgs([]data.GetValue{})
+			ret, ctl := method.Call(fnCtx)
+			if ctl != nil {
+				return nil, ctl
+			}
+			if sv, ok := ret.(data.Value); ok {
+				return data.NewStringValue(sv.AsString()), nil
+			}
+			if gv, ok := ret.(data.GetValue); ok {
+				v2, ctl2 := gv.GetValue(fnCtx)
+				if ctl2 != nil {
+					return nil, ctl2
+				}
+				if sv, ok := v2.(data.Value); ok {
+					return data.NewStringValue(sv.AsString()), nil
 				}
 			}
 		}
-		return data.NewStringValue("Object")
+		return data.NewStringValue("Object"), nil
 	case *data.ObjectValue:
-		return data.NewStringValue("Object")
+		return data.NewStringValue("Object"), nil
 	default:
-		return data.NewStringValue(v.AsString())
+		return data.NewStringValue(v.AsString()), nil
 	}
 }
 

@@ -117,8 +117,15 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 							goto nextArrayElement
 						}
 					case data.YieldValueControl:
-						// yield：包装成 ForeachArrayYieldControl，保存迭代状态
-						return nil, NewForeachArrayYieldControl(u, nil, i, bodyIndex+1, ctrl)
+						// yield：包装成 ForeachArrayYieldControl，保存迭代状态。
+						// 必须快照剩余可遍历元素；ValueList 为 nil 时 Resume 会立刻结束（只产出第一个 yield）。
+						valueList := make([]data.Value, len(listSnapshot))
+						for j, z := range listSnapshot {
+							if z != nil {
+								valueList[j] = z.Value
+							}
+						}
+						return nil, NewForeachArrayYieldControl(u, valueList, i, bodyIndex+1, ctrl)
 					}
 					// return/throw 直接返回
 					return nil, c
@@ -365,12 +372,18 @@ func (u *ForeachStatement) foreachClassValue(ctx data.Context, array *data.Class
 		return nil, data.NewErrorThrow(u.from, fmt.Errorf("getIterator() 必须返回一个可迭代的对象"))
 	}
 
-	// 非 Iterator/IteratorAggregate 类实例则按对象属性遍历
+	// 非 Iterator/IteratorAggregate 类实例则按对象属性遍历。
+	// PHP：foreach 只遍历当前作用域可见的属性；在类外仅 public（TableSeparator 等私有属性对象依赖此语义）。
 	var shouldBreak bool
 	var shouldReturn bool
 
-	// 使用 RangeProperties 保证遍历顺序与插入顺序一致
 	array.RangeProperties(func(i string, element data.Value) bool {
+		if stmt, ok := array.GetPropertyStmt(i); ok {
+			if stmt.GetModifier() != data.ModifierPublic {
+				return true // 跳过 private/protected
+			}
+		}
+
 		ctx.SetVariableValue(u.Value, element)
 		if u.Key != nil {
 			ctx.SetVariableValue(u.Key, data.NewStringValue(i))
@@ -465,6 +478,9 @@ func (f *ForeachArrayYieldControl) Next(ctx data.Context) data.Control {
 
 	for i := f.ArrayIndex; i < len(f.ValueList); i++ {
 		element := f.ValueList[i]
+		if element == nil {
+			continue
+		}
 		// 设置变量
 		if acl := f.ForeachStatement.Value.SetValue(ctx, element); acl != nil {
 			return acl

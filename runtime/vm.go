@@ -469,6 +469,61 @@ func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	return result, ctrl
 }
 
+// LoadInCallerContext 在独立文件作用域中执行，但按名注入调用者已有变量（含 extract 动态槽）。
+// 不设置 PhpFileCache，允许同一视图文件被多次 require（PhpEngine）。
+//
+// 对调用者中不存在的变量，与 $GLOBALS 对齐：顶层 include（如 tests/run_tests.php）
+// 里的赋值可被函数内 global 关键字看到。
+func (vm *VM) LoadInCallerContext(parent data.Context, file string) (data.GetValue, data.Control) {
+	file = normalizePhpFilePath(file)
+
+	p := vm.parser.Clone()
+	program, acl := p.ParseFile(file)
+	if acl != nil {
+		return nil, acl
+	}
+
+	vars := p.GetVariables()
+	ctx := vm.CreateContext(vars)
+
+	for _, variable := range vars {
+		name := variable.GetName()
+		if name == "" {
+			continue
+		}
+		if val, ok := parent.GetVariableByName(name); ok && val != nil {
+			// 调用者已有（extract / 闭包 use）：优先注入，不覆盖为全局槽
+			if ctl := variable.SetValue(ctx, val); ctl != nil {
+				return nil, ctl
+			}
+			continue
+		}
+		// 顶层 include：共享/注册全局 ZVal，供 global 关键字使用
+		vm.bindIncludedVarToGlobal(name, variable.GetIndex(), ctx)
+	}
+
+	result, ctrl := program.GetValue(ctx)
+	if data.FlushAllBuffersFn != nil {
+		data.FlushAllBuffersFn()
+	}
+	return result, ctrl
+}
+
+// bindIncludedVarToGlobal 将被引入文件的变量槽与 $GLOBALS 对齐。
+// 若全局已有同名 ZVal 则复用；否则把当前槽注册进全局表。
+func (vm *VM) bindIncludedVarToGlobal(name string, index int, ctx data.Context) {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+	if existing, ok := vm.globalVars[name]; ok && existing != nil {
+		ctx.SetIndexZVal(index, existing)
+		return
+	}
+	zv := ctx.GetIndexZVal(index)
+	if zv != nil {
+		vm.globalVars[name] = zv
+	}
+}
+
 // CompileLoad 编译模式专用：仅解析文件并注册类/函数/接口，不执行顶层代码。
 func (vm *VM) CompileLoad(file string) data.Control {
 	file = normalizePhpFilePath(file)

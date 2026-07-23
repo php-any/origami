@@ -25,14 +25,10 @@ func NewCallStaticKeywordProperty(from data.From, property string) *CallStaticKe
 // findPropertyDefiningClass 沿继承链查找定义了指定静态属性的类
 // 这是实现后期静态绑定的关键：static::$property 应该访问定义该属性的类中的属性
 func (pe *CallStaticKeywordProperty) findPropertyDefiningClass(vm data.VM, startClass data.ClassStmt) (data.ClassStmt, data.Control) {
-	// 首先检查当前类是否定义了该静态属性
-	if cs, ok := startClass.(*ClassStatement); ok {
-		if _, has := cs.StaticProperty.Load(pe.Property); has {
-			return startClass, nil
-		}
+	if hasStaticPropertySlot(startClass, pe.Property) {
+		return startClass, nil
 	}
 
-	// 沿继承链向上查找
 	extend := startClass.GetExtend()
 	for extend != nil {
 		parentClass, acl := vm.GetOrLoadClass(*extend)
@@ -40,18 +36,34 @@ func (pe *CallStaticKeywordProperty) findPropertyDefiningClass(vm data.VM, start
 			return nil, acl
 		}
 
-		// 检查父类是否定义了该静态属性
-		if cs, ok := parentClass.(*ClassStatement); ok {
-			if _, has := cs.StaticProperty.Load(pe.Property); has {
-				return parentClass, nil
-			}
+		if hasStaticPropertySlot(parentClass, pe.Property) {
+			return parentClass, nil
 		}
 
 		extend = parentClass.GetExtend()
 	}
 
-	// 没有找到定义该属性的类，返回起始类（让后续代码报错）
 	return startClass, nil
+}
+
+func hasStaticPropertySlot(class data.ClassStmt, name string) bool {
+	switch c := class.(type) {
+	case *ClassStatement:
+		_, has := c.StaticProperty.Load(name)
+		return has
+	case *AbstractClassStatement:
+		_, has := c.StaticProperty.Load(name)
+		return has
+	case *ClassGeneric:
+		_, has := c.StaticProperty.Load(name)
+		return has
+	default:
+		if gsp, ok := class.(data.GetStaticProperty); ok {
+			_, has := gsp.GetStaticProperty(name)
+			return has
+		}
+	}
+	return false
 }
 
 // GetValue 获取 static::$prop 访问的值
@@ -118,6 +130,9 @@ func (pe *CallStaticKeywordProperty) SetProperty(ctx data.Context, name string, 
 	// 在定义该属性的类中设置静态属性
 	switch c := definingClass.(type) {
 	case *ClassStatement:
+		c.StaticProperty.Store(name, value)
+		return nil
+	case *AbstractClassStatement:
 		c.StaticProperty.Store(name, value)
 		return nil
 	case *ClassGeneric:

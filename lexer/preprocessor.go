@@ -110,6 +110,8 @@ func cannotAddSemicolon(t Token) bool {
 		return true
 	case token.LPAREN: // 左圆括号后不用补充
 		return true
+	case token.EXTENDS, token.IMPLEMENTS: // extends/implements 后换行接接口名时不能补分号
+		return true
 	default:
 		return false // 其他情况需要补充分号
 	}
@@ -299,14 +301,20 @@ func (p *Preprocessor) Process() []Token {
 	}
 
 	// 3. 自动补分号（TS风格）
+	// 注释被过滤后可能留下连续 NEWLINE；前瞻需跳过它们，
+	// 否则 `2\n/** c */\n=>` 会在 `=>` 前误插入分号（破坏 match 分支等）。
 	var result []Token
 	for i := 0; i < len(filtered); i++ {
 		t := filtered[i]
 		if t.Type() == token.NEWLINE {
 			// 检查前一个token是否需要补分号
 			if i > 0 && !cannotAddSemicolon(filtered[i-1]) {
-				// 检查后一个token是否需要补分号
-				if i+1 < len(filtered) && !cannotAddSemicolonAfter(filtered[i+1]) {
+				// 跳过连续换行，看真正的下一有效 token
+				j := i + 1
+				for j < len(filtered) && filtered[j].Type() == token.NEWLINE {
+					j++
+				}
+				if j < len(filtered) && !cannotAddSemicolonAfter(filtered[j]) {
 					// 将换行符替换为分号，保持原有位置信息但不修改 Literal
 					semicolon := NewWorkerToken(
 						token.SEMICOLON,

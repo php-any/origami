@@ -31,4 +31,10 @@ if ($round !== 12345) {
     Log::fatal('dechex/hexdec 往返失败: ' . var_export($round, true));
 }
 
+// PHP：任意位置非法字符被忽略
+$skip = hexdec('a-b');
+if ($skip !== 171) {
+    Log::fatal('hexdec(a-b) 失败: ' . var_export($skip, true));
+}
+
 Log::info('dechex/hexdec 函数测试通过');

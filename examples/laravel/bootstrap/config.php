@@ -2,40 +2,67 @@
 
 /**
  * 配置加载（类似 Laravel config/ + config() 辅助函数）
+ * 若 Foundation helpers 已定义 config()，则不再重定义。
  */
 
-function config_load(): array
-{
-    static $config = null;
+if (!function_exists('config_load')) {
+    function config_load(): array
+    {
+        static $config = null;
 
-    if ($config === null) {
-        $base = dirname(__DIR__);
-        $config = [
-            'app' => require $base . '/config/app.php',
-            'auth' => require $base . '/config/auth.php',
-            'database' => require $base . '/config/database.php',
-            'view' => require $base . '/config/view.php',
-        ];
+        if ($config === null) {
+            $base = dirname(__DIR__);
+            $files = [
+                'app',
+                'auth',
+                'database',
+                'view',
+                'telescope',
+            ];
+            $config = [];
+            foreach ($files as $name) {
+                $path = $base . '/config/' . $name . '.php';
+                if (is_file($path)) {
+                    $config[$name] = require $path;
+                }
+            }
+        }
+
+        return $config;
     }
-
-    return $config;
 }
 
-function config(string $key, mixed $default = null): mixed
-{
-    if (function_exists('illuminate_config')) {
-        return illuminate_config()->get($key, $default);
-    }
+if (!function_exists('config')) {
+    function config(string|array|null $key = null, mixed $default = null): mixed
+    {
+        if (function_exists('illuminate_config')) {
+            $repo = illuminate_config();
+            if ($key === null) {
+                return $repo;
+            }
+            if (is_array($key)) {
+                $repo->set($key);
 
-    $segments = explode('.', $key);
-    $value = config_load();
+                return null;
+            }
 
-    foreach ($segments as $segment) {
-        if (!is_array($value) || !array_key_exists($segment, $value)) {
+            return $repo->get($key, $default);
+        }
+
+        if ($key === null || is_array($key)) {
             return $default;
         }
-        $value = $value[$segment];
-    }
 
-    return $value;
+        $segments = explode('.', $key);
+        $value = config_load();
+
+        foreach ($segments as $segment) {
+            if (!is_array($value) || !array_key_exists($segment, $value)) {
+                return $default;
+            }
+            $value = $value[$segment];
+        }
+
+        return $value;
+    }
 }

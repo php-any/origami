@@ -88,27 +88,16 @@ func (f *PregReplaceFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 			}
 
 			// 处理 limit：<=0 表示无限制；>0 表示每个 pattern / subject 的最大替换次数
-			if limit <= 0 {
-				// 直接统计全部匹配次数
-				matches := re.FindAllStringIndex(replaced, -1)
-				if len(matches) == 0 {
-					continue
-				}
-				localCount += len(matches)
-				replaced = re.ReplaceAllString(replaced, r)
-			} else {
-				remaining := limit
-				// 用 ReplaceAllStringFunc 控制替换次数
-				replaced = re.ReplaceAllStringFunc(replaced, func(match string) string {
-					if remaining > 0 {
-						remaining--
-						localCount++
-						return r
-					}
-					// 超出 limit，保持原样
-					return match
-				})
+			nLimit := limit
+			if nLimit <= 0 {
+				nLimit = -1
 			}
+			var n int
+			replaced, n = ReplaceAllPhp(re, replaced, r, nLimit)
+			if n == 0 {
+				continue
+			}
+			localCount += n
 		}
 
 		totalCount += localCount

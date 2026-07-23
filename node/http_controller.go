@@ -7,9 +7,14 @@ import (
 	"github.com/php-any/origami/data"
 )
 
+// InstantiateClass 创建类实例并调用构造函数（无额外参数时传 nil）。
+func InstantiateClass(stmt data.ClassStmt, ctx data.Context, arguments []data.GetValue) (data.GetValue, data.Control) {
+	return createInstanceFromClassStmt(nil, stmt, arguments, ctx)
+}
+
 // InstantiateController 在路由注册阶段实例化控制器（仅调用一次）。
 func InstantiateController(stmt data.ClassStmt, ctx data.Context) (data.GetValue, data.Control) {
-	obj, acl := createInstanceFromClassStmt(nil, stmt, nil, ctx)
+	obj, acl := InstantiateClass(stmt, ctx, nil)
 	if acl != nil {
 		return nil, acl
 	}

@@ -3,10 +3,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="${PHPWEBSTUDY_GO_BIN:-/Users/lvluo/Library/PhpWebStudy/env/golang/bin}:$PATH"
+export GOTOOLCHAIN=local
 
 go build -mod=mod -o laravel .
 
 tests=(
+  tests/foundation_application_smoke.php
   tests/illuminate_support_smoke.php
   tests/illuminate_container_smoke.php
   tests/illuminate_bus_smoke.php
@@ -41,6 +43,10 @@ tests=(
   tests/eloquent_smoke.php
   tests/auth_bridge_smoke.php
   tests/console_bridge_smoke.php
+  tests/telescope_autoload_smoke.php
+  tests/telescope_storage_smoke.php
+  tests/telescope_watcher_smoke.php
+  tests/telescope_dashboard_smoke.php
 )
 
 failed=0

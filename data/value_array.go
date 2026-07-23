@@ -209,6 +209,21 @@ func ParseIntArrayKeyName(name string) (int, bool) {
 	return n, true
 }
 
+// LookupZValByStringKey 按字符串键查找槽位；纯数字字符串键会回退整数键查找（如 "0" → 列表下标 0）
+func (a *ArrayValue) LookupZValByStringKey(key string) (*ZVal, bool) {
+	for _, zval := range a.List {
+		if zval != nil && zval.Name == key {
+			return zval, true
+		}
+	}
+	if i, ok := ParseIntArrayKeyName(key); ok {
+		if z, _ := a.FindSlotByIntKey(i); z != nil {
+			return z, true
+		}
+	}
+	return nil, false
+}
+
 // FindSlotByIntKey 按 PHP 整数键查找槽位（含稀疏键 Name=="6" 等）
 func (a *ArrayValue) FindSlotByIntKey(i int) (*ZVal, int) {
 	keyStr := IntArrayKeyName(i)

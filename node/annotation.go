@@ -153,7 +153,9 @@ func (a *Annotation) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 				param := params[index]
 				if targetParam := asAnnotationTargetParam(param); targetParam != nil {
 					// 将被注解的 AST 目标按需注入构造函数
-					fnCtx.SetVariableValue(targetParam, data.NewAnyValue(a.Target))
+					// 注意：a.Target 类型是 data.GetValue，直接塞进 any 会二次装箱导致
+					// anyT.Value.(*ClassStatement) 失败，需先解开具体类型。
+					fnCtx.SetVariableValue(targetParam, data.NewAnyValue(unwrapAnnotationTarget(a.Target)))
 					continue
 				}
 				if argObj, ok := param.(*Parameter); ok {
@@ -204,6 +206,25 @@ func (a *Annotation) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	return object, acl
+}
+
+// unwrapAnnotationTarget 解开 data.GetValue 接口，避免 NewAnyValue 二次装箱
+func unwrapAnnotationTarget(target data.GetValue) any {
+	if target == nil {
+		return nil
+	}
+	switch t := target.(type) {
+	case *ClassStatement:
+		return t
+	case *ClassRegisterStmt:
+		return t.Class
+	case *AbstractClassStatement:
+		return t.ClassStatement
+	case *ClassGeneric:
+		return t.ClassStatement
+	default:
+		return target
+	}
 }
 
 type CallAnn struct {

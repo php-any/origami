@@ -128,8 +128,12 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 	if acl != nil {
 		return nil, acl
 	}
+	annotationTarget := next
+	if crs, ok := next.(*node.ClassRegisterStmt); ok && crs.Class != nil {
+		annotationTarget = crs.Class
+	}
 	for _, an := range annotations {
-		an.Target = next
+		an.Target = annotationTarget
 	}
 
 	// 注解的构造处理是需要延后执行的
