@@ -9,16 +9,14 @@ namespace tests\php;
 $dir = __DIR__ . '/_extract_require_tmp';
 @mkdir($dir, 0777, true);
 $view = $dir . '/view.php';
-file_put_contents($view, '<?php echo "Hi ".$name;');
+file_put_contents($view, '<?php return "Hi ".$name;');
 
 $__path = $view;
 $__data = ['name' => 'Origami'];
 
 $out = (static function () use ($__path, $__data) {
     extract($__data, EXTR_SKIP);
-    ob_start();
-    require $__path;
-    return ob_get_clean();
+    return require $__path;
 })();
 
 @unlink($view);

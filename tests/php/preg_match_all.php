@@ -36,6 +36,23 @@ if (
     Log::fatal("未匹配测试失败, count={$count}, matches=" . json_encode($matches));
 }
 
+// 未匹配但含捕获分组：仍应初始化 $matches[1] 为空数组
+$matches = [];
+$count = preg_match_all('/\{(.*?)\}/', 'no-braces', $matches);
+if (
+    $count == 0 &&
+    is_array($matches) &&
+    count($matches) == 2 &&
+    is_array($matches[0]) &&
+    count($matches[0]) == 0 &&
+    is_array($matches[1]) &&
+    count($matches[1]) == 0
+) {
+    Log::info("未匹配捕获分组测试通过");
+} else {
+    Log::fatal("未匹配捕获分组测试失败, count={$count}, matches=" . json_encode($matches));
+}
+
 // 修饰符测试：不区分大小写
 $matches = [];
 $count = preg_match_all('/ONE/i', $subject, $matches);
