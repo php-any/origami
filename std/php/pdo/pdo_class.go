@@ -1,9 +1,12 @@
 package pdo
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"runtime"
 	"strings"
+	"sync"
 
 	// 如果需要 MySQL 支持，请在 go.mod 中添加 github.com/go-sql-driver/mysql
 	// 如果需要 SQLite 支持，请在 go.mod 中添加 modernc.org/sqlite
@@ -18,13 +21,23 @@ import (
 // PDO 内部状态
 // -------------------------------------------------------------------
 
+// pdoState：一个 PDO 实例从共享连接池借出一条连接。
+// - db 指向按 DSN 共享的 *sql.DB 连接池（可服务多个 PDO）
+// - conn 是本实例持有的那一条连接；close 时归还到池，不关闭池
+// - 同实例多 goroutine 访问由 mu 串行化（*sql.Conn 非并发安全）
+// - 多线程：每个线程/请求各自 new PDO，从池并行借出多条连接
 type pdoState struct {
-	db           *sql.DB
-	driverName   string
-	errMode      int // PDO::ERRMODE_*
-	lastError    string
-	lastSQLState string
-	lastInsertID int64
+	mu            sync.Mutex
+	db            *sql.DB // 共享池引用，close 时不 Close(db)
+	conn          *sql.Conn
+	tx            *sql.Tx
+	driverName    string
+	serverVersion string
+	errMode       int // PDO::ERRMODE_*
+	lastError     string
+	lastSQLState  string
+	lastInsertID  int64
+	closed        bool
 }
 
 func (s *pdoState) getErrMode() int {
@@ -32,6 +45,63 @@ func (s *pdoState) getErrMode() int {
 		return PDO_ERRMODE_EXCEPTION
 	}
 	return s.errMode
+}
+
+func (s *pdoState) ctx() context.Context {
+	return context.Background()
+}
+
+func (s *pdoState) ensureOpen() error {
+	if s == nil || s.closed || s.conn == nil {
+		return fmt.Errorf("PDO connection is closed")
+	}
+	return nil
+}
+
+func (s *pdoState) queryLocked(query string, args ...any) (*sql.Rows, error) {
+	if err := s.ensureOpen(); err != nil {
+		return nil, err
+	}
+	if s.tx != nil {
+		return s.tx.QueryContext(s.ctx(), query, args...)
+	}
+	return s.conn.QueryContext(s.ctx(), query, args...)
+}
+
+func (s *pdoState) execLocked(query string, args ...any) (sql.Result, error) {
+	if err := s.ensureOpen(); err != nil {
+		return nil, err
+	}
+	if s.tx != nil {
+		return s.tx.ExecContext(s.ctx(), query, args...)
+	}
+	return s.conn.ExecContext(s.ctx(), query, args...)
+}
+
+// release 归还借出的连接到共享池。不关闭 *sql.DB。
+func (s *pdoState) release() {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return
+	}
+	s.closed = true
+	if s.tx != nil {
+		_ = s.tx.Rollback()
+		s.tx = nil
+	}
+	if s.conn != nil {
+		_ = s.conn.Close() // database/sql：Close 把连接放回池
+		s.conn = nil
+	}
+	s.db = nil
+}
+
+func pdoStateFinalizer(s *pdoState) {
+	s.release()
 }
 
 // -------------------------------------------------------------------
@@ -86,6 +156,8 @@ func (c *PDOClass) GetMethod(name string) (data.Method, bool) {
 		return &pdoErrorInfoMethod{}, true
 	case "inTransaction":
 		return &pdoInTransactionMethod{}, true
+	case "close":
+		return &pdoCloseMethod{}, true
 	case "getAvailableDrivers":
 		return &pdoGetAvailableDriversMethod{}, true
 	}
@@ -93,6 +165,17 @@ func (c *PDOClass) GetMethod(name string) (data.Method, bool) {
 }
 
 func (c *PDOClass) GetMethods() []data.Method { return nil }
+
+func (c *PDOClass) GetStaticMethod(name string) (data.Method, bool) {
+	switch name {
+	case "connect":
+		return &pdoConnectMethod{}, true
+	case "getAvailableDrivers":
+		return &pdoGetAvailableDriversMethod{}, true
+	default:
+		return nil, false
+	}
+}
 
 // GetStaticProperty 实现 PDO 类常量（PHP 里用 PDO::FETCH_ASSOC 等方式访问）
 func (c *PDOClass) GetStaticProperty(name string) (data.Value, bool) {
@@ -232,6 +315,8 @@ func (c *PDOClass) GetStaticProperty(name string) (data.Value, bool) {
 		return data.NewIntValue(PDO_MYSQL_ATTR_SSL_CIPHER), true
 	case "MYSQL_ATTR_SSL_VERIFY_SERVER_CERT":
 		return data.NewIntValue(PDO_MYSQL_ATTR_SSL_VERIFY_SERVER_CERT), true
+	case "MYSQL_ATTR_LOCAL_INFILE_DIRECTORY":
+		return data.NewIntValue(PDO_MYSQL_ATTR_LOCAL_INFILE_DIRECTORY), true
 	}
 	return nil, false
 }
@@ -300,23 +385,75 @@ func (m *pdoConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	goDriver := phpDriverToGo(driver)
-	db, err2 := sql.Open(goDriver, goDSN)
+	db, err2 := getSharedDB(goDriver, goDSN)
 	if err2 != nil {
 		return nil, pdoException(err2.Error(), ctx)
 	}
-	if pingErr := db.Ping(); pingErr != nil {
-		return nil, pdoException(pingErr.Error(), ctx)
+	// 从共享池借出一条连接；本 PDO 生命周期内所有 SQL 都走这条连接。
+	conn, connErr := db.Conn(context.Background())
+	if connErr != nil {
+		return nil, pdoException(connErr.Error(), ctx)
 	}
 
-	// 将 *sql.DB 存入实例动态属性（与 SPL ArrayObject 同路径：ClassValue.ObjectValue）
 	cv := pdoGetClassValue(ctx)
 	if cv == nil {
+		_ = conn.Close() // 归还到池
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("PDO::__construct() missing instance context"))
 	}
-	state := &pdoState{db: db, driverName: driver, errMode: PDO_ERRMODE_EXCEPTION}
+	state := &pdoState{
+		db:            db,
+		conn:          conn,
+		driverName:    driver,
+		serverVersion: queryServerVersionConn(conn, driver),
+		errMode:       PDO_ERRMODE_EXCEPTION,
+	}
+	runtime.SetFinalizer(state, pdoStateFinalizer)
 	cv.ObjectValue.SetProperty("__pdo_state__", &pdoStateValue{state: state})
 
 	return nil, nil
+}
+
+type pdoConnectMethod struct{}
+
+func (m *pdoConnectMethod) GetName() string            { return "connect" }
+func (m *pdoConnectMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *pdoConnectMethod) GetIsStatic() bool          { return true }
+func (m *pdoConnectMethod) GetReturnType() data.Types  { return nil }
+func (m *pdoConnectMethod) GetParams() []data.GetValue {
+	return (&pdoConstructMethod{}).GetParams()
+}
+func (m *pdoConnectMethod) GetVariables() []data.Variable {
+	return (&pdoConstructMethod{}).GetVariables()
+}
+func (m *pdoConnectMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	if _, ctl := (&pdoConstructMethod{}).Call(ctx); ctl != nil {
+		return nil, ctl
+	}
+	cv := pdoGetClassValue(ctx)
+	if cv == nil {
+		return nil, data.NewErrorThrow(nil, fmt.Errorf("PDO::connect() missing class context"))
+	}
+	return cv, nil
+}
+
+func queryServerVersionConn(conn *sql.Conn, driver string) string {
+	var query string
+	switch strings.ToLower(driver) {
+	case "mysql":
+		query = "SELECT VERSION()"
+	case "sqlite":
+		query = "SELECT sqlite_version()"
+	case "pgsql", "postgres", "postgresql":
+		query = "SHOW server_version"
+	default:
+		return ""
+	}
+
+	var version string
+	if err := conn.QueryRowContext(context.Background(), query).Scan(&version); err != nil {
+		return ""
+	}
+	return version
 }
 
 // -------------------------------------------------------------------
@@ -429,16 +566,19 @@ func (m *pdoQueryMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	query := sqlVal.AsString()
 
-	rows, err := state.db.Query(query)
+	state.mu.Lock()
+	rows, err := state.queryLocked(query)
 	if err != nil {
 		state.lastError = err.Error()
+		state.mu.Unlock()
 		if state.getErrMode() == PDO_ERRMODE_EXCEPTION {
 			return nil, pdoException(err.Error(), ctx)
 		}
 		return data.NewBoolValue(false), nil
 	}
-
+	// 在持锁期间缓冲并关闭 Rows，释放本 PDO 借出连接上的游标
 	stmtClass := newPDOStatementClass(rows, state)
+	state.mu.Unlock()
 	return data.NewClassValue(stmtClass, ctx), nil
 }
 
@@ -469,9 +609,11 @@ func (m *pdoExecMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewBoolValue(false), nil
 	}
 
-	result, err := state.db.Exec(sqlVal.AsString())
+	state.mu.Lock()
+	result, err := state.execLocked(sqlVal.AsString())
 	if err != nil {
 		state.lastError = err.Error()
+		state.mu.Unlock()
 		if state.getErrMode() == PDO_ERRMODE_EXCEPTION {
 			return nil, pdoException(err.Error(), ctx)
 		}
@@ -481,6 +623,7 @@ func (m *pdoExecMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if lastID, err2 := result.LastInsertId(); err2 == nil {
 		state.lastInsertID = lastID
 	}
+	state.mu.Unlock()
 	return data.NewIntValue(int(affected)), nil
 }
 
@@ -517,16 +660,9 @@ func (m *pdoPrepareMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 		return data.NewBoolValue(false), nil
 	}
 
-	stmt, err := state.db.Prepare(sqlVal.AsString())
-	if err != nil {
-		state.lastError = err.Error()
-		if state.getErrMode() == PDO_ERRMODE_EXCEPTION {
-			return nil, pdoException(err.Error(), ctx)
-		}
-		return data.NewBoolValue(false), nil
-	}
-
-	stmtClass := newPDOStatementClassFromPrepared(stmt, state, sqlVal.AsString())
+	// 只保存 SQL：execute 时在当前 session（conn 或 tx）上执行，
+	// 保证 beginTransaction / exec("BEGIN") 后仍落在同一条独占连接上。
+	stmtClass := newPDOStatementFromSQL(state, sqlVal.AsString())
 	return data.NewClassValue(stmtClass, ctx), nil
 }
 
@@ -547,18 +683,22 @@ func (m *pdoBeginTransactionMethod) Call(ctx data.Context) (data.GetValue, data.
 	if acl != nil {
 		return nil, acl
 	}
-	tx, err := state.db.Begin()
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.tx != nil {
+		if state.getErrMode() == PDO_ERRMODE_EXCEPTION {
+			return nil, pdoException("There is already an active transaction", ctx)
+		}
+		return data.NewBoolValue(false), nil
+	}
+	tx, err := state.conn.BeginTx(state.ctx(), nil)
 	if err != nil {
 		if state.getErrMode() == PDO_ERRMODE_EXCEPTION {
 			return nil, pdoException(err.Error(), ctx)
 		}
 		return data.NewBoolValue(false), nil
 	}
-	cv := pdoGetClassValue(ctx)
-	if cv == nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("PDO::beginTransaction() missing instance context"))
-	}
-	cv.ObjectValue.SetProperty("__pdo_tx__", &pdoTxValue{tx: tx})
+	state.tx = tx
 	return data.NewBoolValue(true), nil
 }
 
@@ -571,13 +711,19 @@ func (m *pdoCommitMethod) GetReturnType() data.Types     { return nil }
 func (m *pdoCommitMethod) GetParams() []data.GetValue    { return nil }
 func (m *pdoCommitMethod) GetVariables() []data.Variable { return nil }
 func (m *pdoCommitMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	tx := getTx(ctx)
-	if tx == nil {
+	state, acl := getPDOState(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.tx == nil {
 		return data.NewBoolValue(false), nil
 	}
-	if err := tx.Commit(); err != nil {
+	if err := state.tx.Commit(); err != nil {
 		return data.NewBoolValue(false), nil
 	}
+	state.tx = nil
 	return data.NewBoolValue(true), nil
 }
 
@@ -590,13 +736,19 @@ func (m *pdoRollBackMethod) GetReturnType() data.Types     { return nil }
 func (m *pdoRollBackMethod) GetParams() []data.GetValue    { return nil }
 func (m *pdoRollBackMethod) GetVariables() []data.Variable { return nil }
 func (m *pdoRollBackMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	tx := getTx(ctx)
-	if tx == nil {
+	state, acl := getPDOState(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.tx == nil {
 		return data.NewBoolValue(false), nil
 	}
-	if err := tx.Rollback(); err != nil {
+	if err := state.tx.Rollback(); err != nil {
 		return data.NewBoolValue(false), nil
 	}
+	state.tx = nil
 	return data.NewBoolValue(true), nil
 }
 
@@ -751,6 +903,8 @@ func (m *pdoGetAttributeMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 		return data.NewIntValue(state.errMode), nil
 	case PDO_ATTR_DRIVER_NAME:
 		return data.NewStringValue(state.driverName), nil
+	case PDO_ATTR_SERVER_VERSION:
+		return data.NewStringValue(state.serverVersion), nil
 	}
 	return data.NewNullValue(), nil
 }
@@ -815,7 +969,35 @@ func (m *pdoInTransactionMethod) GetReturnType() data.Types     { return nil }
 func (m *pdoInTransactionMethod) GetParams() []data.GetValue    { return nil }
 func (m *pdoInTransactionMethod) GetVariables() []data.Variable { return nil }
 func (m *pdoInTransactionMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewBoolValue(getTx(ctx) != nil), nil
+	state, acl := getPDOState(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	return data.NewBoolValue(state.tx != nil), nil
+}
+
+// -------------------------------------------------------------------
+// close(): void — 归还连接到共享池
+// -------------------------------------------------------------------
+
+type pdoCloseMethod struct{}
+
+func (m *pdoCloseMethod) GetName() string               { return "close" }
+func (m *pdoCloseMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *pdoCloseMethod) GetIsStatic() bool             { return false }
+func (m *pdoCloseMethod) GetReturnType() data.Types     { return nil }
+func (m *pdoCloseMethod) GetParams() []data.GetValue    { return nil }
+func (m *pdoCloseMethod) GetVariables() []data.Variable { return nil }
+func (m *pdoCloseMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	state, acl := getPDOState(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	runtime.SetFinalizer(state, nil)
+	state.release()
+	return nil, nil
 }
 
 // -------------------------------------------------------------------
@@ -840,7 +1022,7 @@ func (m *pdoGetAvailableDriversMethod) Call(ctx data.Context) (data.GetValue, da
 }
 
 // -------------------------------------------------------------------
-// pdoStateValue / pdoTxValue — 存储 Go 对象的 Value 包装
+// pdoStateValue — 存储 Go 对象的 Value 包装
 // -------------------------------------------------------------------
 
 type pdoStateValue struct {
@@ -850,14 +1032,6 @@ type pdoStateValue struct {
 func (v *pdoStateValue) GetValue(_ data.Context) (data.GetValue, data.Control) { return v, nil }
 func (v *pdoStateValue) AsString() string                                      { return "[PDO]" }
 func (v *pdoStateValue) SetValue(_ data.Value)                                 {}
-
-type pdoTxValue struct {
-	tx *sql.Tx
-}
-
-func (v *pdoTxValue) GetValue(_ data.Context) (data.GetValue, data.Control) { return v, nil }
-func (v *pdoTxValue) AsString() string                                      { return "[PDOTx]" }
-func (v *pdoTxValue) SetValue(_ data.Value)                                 {}
 
 // -------------------------------------------------------------------
 // 辅助函数
@@ -883,18 +1057,6 @@ func getPDOState(ctx data.Context) (*pdoState, data.Control) {
 		return sv.state, nil
 	}
 	return nil, data.NewErrorThrow(nil, fmt.Errorf("PDO object is not initialized"))
-}
-
-func getTx(ctx data.Context) *sql.Tx {
-	cv := pdoGetClassValue(ctx)
-	if cv == nil {
-		return nil
-	}
-	v, _ := cv.ObjectValue.GetProperty("__pdo_tx__")
-	if tv, ok := v.(*pdoTxValue); ok {
-		return tv.tx
-	}
-	return nil
 }
 
 func pdoException(msg string, ctx data.Context) data.Control {

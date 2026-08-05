@@ -54,6 +54,25 @@ func (m *ReflectionClassHasMethodMethod) Call(ctx data.Context) (data.GetValue, 
 		return data.NewBoolValue(false), nil
 	}
 
-	_, exists := classStmt.GetMethod(methodName)
-	return data.NewBoolValue(exists), nil
+	current := classStmt
+	for current != nil {
+		if _, exists := current.GetMethod(methodName); exists {
+			return data.NewBoolValue(true), nil
+		}
+		if staticMethods, ok := current.(data.GetStaticMethod); ok {
+			if _, exists := staticMethods.GetStaticMethod(methodName); exists {
+				return data.NewBoolValue(true), nil
+			}
+		}
+		extend := current.GetExtend()
+		if extend == nil || *extend == "" {
+			break
+		}
+		parent, acl := ctx.GetVM().GetOrLoadClass(*extend)
+		if acl != nil || parent == nil {
+			break
+		}
+		current = parent
+	}
+	return data.NewBoolValue(false), nil
 }

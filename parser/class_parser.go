@@ -306,8 +306,9 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 		}
 	}
 
-	// 解析期立即注册类，保证同文件后续 ClassName:: / new ClassName 可解析。
-	// 父类构造函数与注解延迟到 ClassRegisterStmt（require 之后）再解析。
+	// 顶层无条件类：解析期注册，保证同文件后续 ClassName:: / new ClassName 可解析。
+	// 条件类（if/循环/函数体内）：仅由 ClassRegisterStmt 在执行期注册（对齐 PHP）。
+	// 父类构造函数与注解延迟到 ClassRegisterStmt 再解析。
 	var classStmt data.ClassStmt = c
 	if types != nil {
 		classStmt = &node.ClassGeneric{
@@ -315,8 +316,10 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 			Generic:        types,
 		}
 	}
-	if acl := p.vm.AddClass(classStmt); acl != nil {
-		return nil, acl
+	if p.conditionalDeclDepth == 0 {
+		if acl := p.vm.AddClass(classStmt); acl != nil {
+			return nil, acl
+		}
 	}
 
 	return node.NewClassRegisterStmt(tracker.EndBefore(), c, annotations, types), nil
@@ -711,9 +714,13 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 		}
 	}
 
-	// 解析分号
+	// 解析分号，或 PHP 8.4 property hooks 块（先跳过钩子体，属性按普通成员注册）
 	if p.current().Type() == token.SEMICOLON {
 		p.next()
+	} else if p.current().Type() == token.LBRACE {
+		if acl := p.skipPropertyHooksBlock(); acl != nil {
+			return nil, acl
+		}
 	}
 
 	ret := node.NewPropertyWithReadonly(
@@ -760,6 +767,30 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 	}
 
 	return ret, acl
+}
+
+// skipPropertyHooksBlock 跳过 PHP 8.4 property hooks 体 `{ get ... set ... }`。
+// 当前仅保证语法可解析；钩子逻辑后续再接到属性读写路径。
+func (p *ClassParser) skipPropertyHooksBlock() data.Control {
+	from := p.newFrom()
+	if p.current().Type() != token.LBRACE {
+		return data.NewErrorThrow(from, errors.New("property hooks 缺少 '{'"))
+	}
+	depth := 0
+	for !p.isEOF() {
+		tok := p.current().Type()
+		p.next()
+		switch tok {
+		case token.LBRACE:
+			depth++
+		case token.RBRACE:
+			depth--
+			if depth == 0 {
+				return nil
+			}
+		}
+	}
+	return data.NewErrorThrow(from, errors.New("property hooks 未闭合"))
 }
 
 // parseMethodWithAnnotations 解析方法（带注解）
@@ -1030,19 +1061,21 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 				return nil, nil, acl
 			}
 			if o, ok := object.(*data.ClassValue); ok {
-				if o.Class.GetConstruct() != nil {
-					obj, acl := an.GetValue(p.vm.CreateContext(o.Class.GetConstruct().GetVariables()))
-					if acl != nil {
-						if ann, ok := acl.(*node.CallAnn); !ok {
-							return nil, nil, acl
-						} else {
-							callAnn = append(callAnn, ann)
-						}
+				var variables []data.Variable
+				if construct := o.Class.GetConstruct(); construct != nil {
+					variables = construct.GetVariables()
+				}
+				obj, acl := an.GetValue(p.vm.CreateContext(variables))
+				if acl != nil {
+					if ann, ok := acl.(*node.CallAnn); !ok {
+						return nil, nil, acl
+					} else {
+						callAnn = append(callAnn, ann)
 					}
-					if c, ok := ret.(node.AddAnnotations); ok {
-						if o, ok := obj.(*data.ClassValue); ok {
-							c.AddAnnotations(o)
-						}
+				}
+				if c, ok := ret.(node.AddAnnotations); ok {
+					if o, ok := obj.(*data.ClassValue); ok {
+						c.AddAnnotations(o)
 					}
 				}
 			}

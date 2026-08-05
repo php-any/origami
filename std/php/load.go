@@ -36,6 +36,7 @@ func Load(vm data.VM) {
 	for _, fun := range []data.FuncStmt{
 		NewErrorReportingFunction(),
 		NewSetErrorHandlerFunction(),
+		NewRestoreErrorHandlerFunction(),
 		NewRegisterShutdownFunctionFunction(),
 		NewTimeFunction(),
 		NewStrftimeFunction(),
@@ -52,6 +53,8 @@ func Load(vm data.VM) {
 		NewFileGetContentsFunction(),
 		NewFilePutContentsFunction(),
 		NewMicrotimeFunction(),
+		NewMemoryGetPeakUsageFunction(),
+		NewDebugBacktraceFunction(),
 		NewGettimeofdayFunction(),
 		NewNumberFormatFunction(),
 		NewFunctionExistsFunction(),
@@ -62,12 +65,15 @@ func Load(vm data.VM) {
 		NewClassAliasFunction(),
 		NewIsAFunction(),
 		NewIsSubclassOfFunction(),
+		NewVersionCompareFunction(),
 		NewGetClassFunction(),
 		NewGetParentClassFunction(),
 		NewGettypeFunction(),
 		NewGetDebugTypeFunction(),
 		NewJsonEncodeFunction(),
 		NewJsonDecodeFunction(),
+		NewJsonLastErrorFunction(),
+		NewJsonLastErrorMsgFunction(),
 		NewSerializeFunction(),
 		NewUnserializeFunction(),
 		NewEmptyFunction(),
@@ -77,6 +83,16 @@ func Load(vm data.VM) {
 		NewStrlenFunction(),
 		NewStrvalFunction(),
 		NewHashFunction(),
+		NewHashHmacFunction(),
+		NewHashInitFunction(),
+		NewHashUpdateFunction(),
+		NewHashUpdateStreamFunction(),
+		NewHashFinalFunction(),
+		NewHashFileFunction(),
+		NewFinfoOpenFunction(),
+		NewFinfoFileFunction(),
+		NewFinfoBufferFunction(),
+		NewFinfoCloseFunction(),
 		NewStrposFunction(),
 		NewSubstrFunction(),
 		NewSubstrCountFunction(),
@@ -99,6 +115,12 @@ func Load(vm data.VM) {
 		array.NewArrayRandFunction(),
 		array.NewArrayKeysFunction(),
 		array.NewArrayKeyFirstFunction(),
+		array.NewArrayFirstFunction(),
+		array.NewArrayLastFunction(),
+		array.NewArrayFindFunction(),
+		array.NewArrayFindKeyFunction(),
+		array.NewArrayAnyFunction(),
+		array.NewArrayAllFunction(),
 		array.NewArraySearchFunction(),
 		array.NewArrayFillFunction(),
 		array.NewArrayFillKeysFunction(),
@@ -123,6 +145,8 @@ func Load(vm data.VM) {
 		NewHex2binFunction(),
 		NewDechexFunction(),
 		NewHexdecFunction(),
+		NewOctdecFunction(),
+		NewDecoctFunction(),
 		NewDecbinFunction(),
 		NewEscapeshellargFunction(),
 		NewUrlencodeFunction(),
@@ -143,6 +167,8 @@ func Load(vm data.VM) {
 		array.NewArrayReverseFunction(),
 		array.NewSortFunction(),
 		array.NewRsortFunction(),
+		array.NewAsortFunction(),
+		array.NewArsortFunction(),
 		array.NewUsortFunction(),
 		array.NewKsortFunction(),
 		array.NewKrsortFunction(),
@@ -162,6 +188,7 @@ func Load(vm data.VM) {
 		NewStrtolowerFunction(),
 		NewStrcmpFunction(),
 		NewStrcasecmpFunction(),
+		NewStrncasecmpFunction(),
 		NewStrtoupperFunction(),
 		NewOrdFunction(),
 		NewChrFunction(),
@@ -176,9 +203,14 @@ func Load(vm data.VM) {
 		NewStripsCslashesFunction(),
 		NewHttpResponseCodeFunction(),
 		NewHeaderFunction(),
+		NewSetCookieFunction(),
+		NewHashEqualsFunction(),
 		NewHeadersSentFunction(),
 		NewMbConvertCaseFunction(),
 		NewMbConvertEncodingFunction(),
+		NewMbDetectEncodingFunction(),
+		NewErrorGetLastFunction(),
+		NewErrorClearLastFunction(),
 		NewMbListEncodingsFunction(),
 		NewMbStrtoupperFunction(),
 		NewMbStrtolowerFunction(),
@@ -199,12 +231,17 @@ func Load(vm data.VM) {
 		NewCeilFunction(),
 		NewFloorFunction(),
 		NewRoundFunction(),
+		NewAbsFunction(),
 		NewPowFunction(),
 		NewRandomBytesFunction(),
 		NewRandomIntFunction(),
 		NewStrtotimeFunction(),
 		NewGmdateFunction(),
 		NewLevenshteinFunction(),
+		NewCountCharsFunction(),
+		NewIntdivFunction(),
+		NewStrrevFunction(),
+		NewGethostnameFunction(),
 		NewMaxFunction(),
 		NewNormalizerIsNormalizedFunction(),
 		NewNormalizerNormalizeFunction(),
@@ -219,6 +256,7 @@ func Load(vm data.VM) {
 		core.NewStrContainsFunction(),
 		core.NewArrayFilterFunction(),
 		core.NewHtmlspecialcharsFunction(),
+		core.NewHtmlEntityDecodeFunction(),
 		core.NewStripTagsFunction(),
 		core.NewSetlocaleFunction(),
 		NewTokenGetAllFunction(),
@@ -268,11 +306,15 @@ func Load(vm data.VM) {
 		NewFuncNumArgsFunction(),
 		NewGetCfgVarFunction(),
 		NewParseUrlFunction(),
+		NewParseStrFunction(),
+		NewInetPtonFunction(),
+		NewInetNtopFunction(),
 		NewTempnamFunction(),
 		NewUmaskFunction(),
 		NewVarExportFunction(),
 		core.NewStreamResolveIncludePathFunction(),
 		core.NewDefinedFunction(),
+		core.NewConstantFunction(),
 		core.NewDefineFunction(),
 		core.NewTriggerErrorFunction(),
 		core.NewHeadersSentFunction(),
@@ -298,6 +340,7 @@ func Load(vm data.VM) {
 		core.NewObGetLevelFunction(),
 		core.NewCliSetProcessTitleFunction(),
 		core.NewChdirFunction(),
+		core.NewGetcwdFunction(),
 		file.NewFileExistsFunction(),
 		file.NewIsReadableFunction(),
 		file.NewIsWritableFunction(),
@@ -311,15 +354,23 @@ func Load(vm data.VM) {
 		proc.NewProcTerminateFunction(),
 		proc.NewShellExecFunction(),
 		stream.NewFopenFunction(),
+		NewStreamSetChunkSizeFunction(),
+		NewFileInodeFunction(),
 		stream.NewFcloseFunction(),
+		stream.NewFreadFunction(),
+		stream.NewFeofFunction(),
+		stream.NewFseekFunction(),
 		stream.NewFwriteFunction(),
 		stream.NewFflushFunction(),
 		stream.NewStreamGetContentsFunction(),
 		stream.NewStreamIsattyFunction(),
+		stream.NewStreamSetBlockingFunction(),
+		stream.NewStreamSelectFunction(),
 		stream.NewStreamContextCreateFunction(),
 		NewJoinPathsFunction(),
 		NewPathinfoFunction(),
 		NewExtractFunction(),
+		NewGetDefinedVarsFunction(),
 	} {
 		vm.AddFunc(fun)
 	}
@@ -327,6 +378,11 @@ func Load(vm data.VM) {
 	// 初始化 pathinfo 常量
 	InitPathinfoConstants(vm)
 	InitGlobConstants(vm)
+	InitFinfoConstants(vm)
+	InitJsonConstants(vm)
+	vm.SetConstant("SEEK_SET", data.NewIntValue(0))
+	vm.SetConstant("SEEK_CUR", data.NewIntValue(1))
+	vm.SetConstant("SEEK_END", data.NewIntValue(2))
 
 	// 注册核心类
 	vm.AddClass(&core.ClosureClass{})
@@ -335,6 +391,8 @@ func Load(vm data.VM) {
 	vm.AddClass(&core.NormalizerClass{})
 	vm.AddClass(&core.WeakMapClass{})
 	vm.AddClass(&core.FiberClass{})
+	vm.AddClass(&core.RandomizerClass{})
+	vm.AddClass(NewFinfoClass())
 
 	// 注册 DOM 类
 	vm.AddClass(core.NewDOMNodeClass())
@@ -358,6 +416,8 @@ func Load(vm data.VM) {
 	// 注册 DateTime 类
 	vm.AddClass(NewDateTimeClass())
 	vm.AddClass(NewDateTimeImmutableClass())
+	vm.AddClass(NewDateIntervalClass())
+	vm.AddClass(NewDatePeriodClass())
 
 	// 注册 PHP 内置接口
 	vm.AddInterface(NewArrayAccessInterface())
@@ -368,6 +428,13 @@ func Load(vm data.VM) {
 
 	// 注册异常类
 	vm.AddClass(exception.NewExceptionClass())
+	vm.AddClass(exception.NewErrorClass())
+	vm.AddClass(exception.NewValueErrorClass())
+	vm.AddClass(exception.NewTypeErrorClass())
+	vm.AddClass(exception.NewArgumentCountErrorClass())
+	vm.AddClass(exception.NewUnhandledMatchErrorClass())
+	vm.AddClass(exception.NewArithmeticErrorClass())
+	vm.AddClass(exception.NewDivisionByZeroErrorClass())
 	vm.AddClass(exception.NewLogicExceptionClass())
 	vm.AddClass(exception.NewInvalidArgumentExceptionClass())
 	vm.AddClass(exception.NewRuntimeExceptionClass())
@@ -416,6 +483,8 @@ func initPhpDefaultDefines(vm data.VM) {
 	// 目录和路径相关常量
 	vm.SetConstant("DIRECTORY_SEPARATOR", data.NewStringValue("/"))
 	vm.SetConstant("PATH_SEPARATOR", data.NewStringValue(":"))
+	vm.SetConstant("DEBUG_BACKTRACE_PROVIDE_OBJECT", data.NewIntValue(1))
+	vm.SetConstant("DEBUG_BACKTRACE_IGNORE_ARGS", data.NewIntValue(2))
 
 	// 数组相关常量
 	vm.SetConstant("ARRAY_FILTER_USE_KEY", data.NewIntValue(1))
@@ -456,18 +525,19 @@ func initPhpDefaultDefines(vm data.VM) {
 	vm.SetConstant("E_USER_DEPRECATED", data.NewIntValue(16384))
 	vm.SetConstant("E_ALL", data.NewIntValue(32767))
 
-	// PHP 版本和系统信息常量
-	vm.SetConstant("PHP_VERSION", data.NewStringValue("8.0.0"))
+	// PHP 版本和系统信息常量（对齐 Laravel 13 + Symfony 8.x：按 PHP 8.4 语义推进）
+	vm.SetConstant("PHP_VERSION", data.NewStringValue("8.4.1"))
 	vm.SetConstant("PHP_MAJOR_VERSION", data.NewIntValue(8))
-	vm.SetConstant("PHP_MINOR_VERSION", data.NewIntValue(0))
-	vm.SetConstant("PHP_RELEASE_VERSION", data.NewIntValue(0))
-	vm.SetConstant("PHP_VERSION_ID", data.NewIntValue(80225))
+	vm.SetConstant("PHP_MINOR_VERSION", data.NewIntValue(4))
+	vm.SetConstant("PHP_RELEASE_VERSION", data.NewIntValue(1))
+	vm.SetConstant("PHP_VERSION_ID", data.NewIntValue(80401))
 	vm.SetConstant("PHP_EXTRA_VERSION", data.NewStringValue(""))
 	phpOS, phpOSFamily := detectOS()
 	vm.SetConstant("PHP_OS", data.NewStringValue(phpOS))
 	vm.SetConstant("PHP_OS_FAMILY", data.NewStringValue(phpOSFamily))
 	vm.SetConstant("PHP_SAPI", data.NewStringValue("cli"))
 	vm.SetConstant("PHP_EOL", data.NewStringValue("\n"))
+	loadPasswordFunctions(vm)
 	t := time.Now()
 	vm.SetConstant("PHP_BUILD_DATE", data.NewStringValue(fmt.Sprintf("%s %2d %d %02d:%02d:%02d",
 		t.Format("Jan"), t.Day(), t.Year(), t.Hour(), t.Minute(), t.Second())))
@@ -476,6 +546,9 @@ func initPhpDefaultDefines(vm data.VM) {
 	vm.SetConstant("PHP_INT_MAX", data.NewIntValue(9223372036854775807))
 	vm.SetConstant("PHP_INT_MIN", data.NewIntValue(-9223372036854775808))
 	vm.SetConstant("PHP_INT_SIZE", data.NewIntValue(8))
+
+	// 路径最大长度（对齐 PHP PATH_MAX；FileViewFinder 等会用 strlen < PHP_MAXPATHLEN-1）
+	vm.SetConstant("PHP_MAXPATHLEN", data.NewIntValue(4096))
 
 	// 浮点数相关常量
 	vm.SetConstant("PHP_FLOAT_MAX", data.NewFloatValue(1.7976931348623157e+308))

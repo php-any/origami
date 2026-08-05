@@ -2,11 +2,12 @@ package node
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/php-any/origami/data"
 )
 
-// ClassConstant 表示 ::class 语法节点
+// ClassConstant 表示 ::class 语法节点（含 $obj::class / $name::class）
 type ClassConstant struct {
 	From *TokenFrom
 	Expr data.GetValue
@@ -20,61 +21,64 @@ func NewClassConstant(from *TokenFrom, expr data.GetValue) *ClassConstant {
 	}
 }
 
-// GetValue 获取类常量值
+// GetValue 获取类常量值。PHP：$obj::class 返回实例的类名字符串，不触发类加载错误。
 func (cc *ClassConstant) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 获取表达式值
 	exprValue, control := cc.Expr.GetValue(ctx)
 	if control != nil {
 		return nil, control
 	}
 
-	// 如果表达式是字符串字面量，直接返回类名
-	if strValue, ok := exprValue.(*StringLiteral); ok {
-		className := strValue.Value
-		// 尝试获取完整的类地址（包括命名空间）
-		if class, acl := ctx.GetVM().GetOrLoadClass(className); acl == nil {
-			return data.NewStringValue(class.GetName()), nil
-		}
-		// 类不存在时也返回类名字符串（PHP ::class 行为）
-		return data.NewStringValue(className), nil
+	if name, ok := classNameFromValue(exprValue); ok {
+		return resolveClassNameString(ctx, name), nil
 	}
 
-	// 如果表达式是变量，获取变量的值
 	if varExpr, ok := exprValue.(*VariableExpression); ok {
-		// 获取变量的值
-		if varValue, control := varExpr.GetValue(ctx); control == nil {
-			switch v := varValue.(type) {
-			case *data.ClassValue:
-				// 返回完整的类名（包括命名空间）
-				return data.NewStringValue(v.Class.GetName()), nil
-			case *data.StringValue:
-				// 尝试获取完整的类地址
-				if vm := ctx.GetVM(); vm != nil {
-					if class, acl := vm.GetOrLoadClass(v.AsString()); acl == nil {
-						return data.NewStringValue(class.GetName()), nil
-					} else {
-						return nil, acl
-					}
-				}
-			}
+		varValue, ctl := varExpr.GetValue(ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if name, ok := classNameFromValue(varValue); ok {
+			return resolveClassNameString(ctx, name), nil
 		}
 		return nil, data.NewErrorThrow(cc.From, fmt.Errorf("无法获取变量类型"))
 	}
 
-	// 将表达式转换为字符串
-	if value, ok := exprValue.(data.Value); ok {
-		className := value.AsString()
-		// 尝试获取完整的类地址
-		if vm := ctx.GetVM(); vm != nil {
-			if class, acl := vm.GetOrLoadClass(className); acl == nil {
-				return data.NewStringValue(class.GetName()), nil
-			} else {
-				return nil, acl
-			}
-		}
-		return data.NewStringValue(className), nil
-	}
-
-	// 如果无法转换，返回空字符串
 	return data.NewStringValue(""), nil
+}
+
+func classNameFromValue(v data.GetValue) (string, bool) {
+	switch t := v.(type) {
+	case *data.ClassValue:
+		if t.Class != nil {
+			return t.Class.GetName(), true
+		}
+	case *data.ThisValue:
+		if t.Class != nil {
+			return t.Class.GetName(), true
+		}
+	case *StringLiteral:
+		return t.Value, true
+	case *data.StringValue:
+		return t.AsString(), true
+	}
+	return "", false
+}
+
+func resolveClassNameString(ctx data.Context, className string) data.GetValue {
+	className = strings.TrimPrefix(className, "\\")
+	if className == "" {
+		return data.NewStringValue("")
+	}
+	vm := ctx.GetVM()
+	if vm == nil {
+		return data.NewStringValue(className)
+	}
+	if class, ok := vm.GetClass(className); ok && class != nil {
+		return data.NewStringValue(class.GetName())
+	}
+	if class, acl := vm.GetOrLoadClass(className); acl == nil && class != nil {
+		return data.NewStringValue(class.GetName())
+	}
+	// PHP：类不存在时 ::class 仍返回给定名称字符串
+	return data.NewStringValue(className)
 }

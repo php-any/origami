@@ -3,6 +3,7 @@ package node
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/php-any/origami/data"
 )
@@ -32,6 +33,10 @@ func NewCallExpression(token *TokenFrom, fn string, arguments []data.GetValue, f
 // GetValue 获取函数调用表达式的值
 func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	fn := pe.Fun
+	// PHP 8.1 一等函数可调用语法：strlen(...) 返回 Closure，不执行函数。
+	if isFirstClassCallableArgs(pe.Args) {
+		return data.NewFuncValue(fn), nil
+	}
 	varies := fn.GetVariables()
 	params := fn.GetParams()
 	arguments := pe.Args
@@ -161,9 +166,11 @@ func NewCallTodo(call *CallExpression, namespace string) *CallLater {
 type CallLater struct {
 	*CallExpression
 	namespace string
+	resolveMu sync.Mutex
 }
 
 func (pe *CallLater) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	pe.resolveMu.Lock()
 	if pe.Fun == nil {
 		fn, ok := ctx.GetVM().GetFunc(pe.FunName)
 		if !ok {
@@ -176,6 +183,7 @@ func (pe *CallLater) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 
 				fn, ok = ctx.GetVM().GetFunc(namespace + pe.FunName)
 				if !ok {
+					pe.resolveMu.Unlock()
 					return nil, data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("无法调用函数(%s), 未找到函数", pe.FunName)))
 				}
 			}
@@ -184,5 +192,6 @@ func (pe *CallLater) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		pe.FunName = fn.GetName()
 		pe.Fun = fn
 	}
+	pe.resolveMu.Unlock()
 	return pe.CallExpression.GetValue(ctx)
 }

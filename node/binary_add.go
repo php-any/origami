@@ -2,6 +2,7 @@ package node
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/php-any/origami/data"
 )
@@ -25,57 +26,70 @@ type hasRangeProperties interface {
 	RangeProperties(func(key string, value data.Value) bool)
 }
 
-// mergeObjects 合并两个对象/类实例，如果键相同，保留左边对象的值
-func mergeObjects(left, right hasRangeProperties) *data.ObjectValue {
-	result := data.NewObjectValue()
-
-	// 先添加左边对象的所有属性
-	left.RangeProperties(func(key string, value data.Value) bool {
-		result.SetProperty(key, value)
-		return true
-	})
-
-	// 获取左边对象的所有键，用于检查
-	leftKeys := make(map[string]bool)
-	left.RangeProperties(func(key string, value data.Value) bool {
-		leftKeys[key] = true
-		return true
-	})
-
-	// 然后添加右边对象的属性（只添加左边不存在的键）
-	right.RangeProperties(func(key string, value data.Value) bool {
-		if !leftKeys[key] {
-			result.SetProperty(key, value)
-		}
-		return true
-	})
-
-	return result
+// arraySlotKey 返回 PHP 数组槽位对应的键名（空 Name 的密集整数键用下标）。
+func arraySlotKey(z *data.ZVal, index int) string {
+	if z != nil && z.Name != "" {
+		return z.Name
+	}
+	return data.IntArrayKeyName(index)
 }
 
-// objectToArrayValues 将对象/类实例的属性值转换为数组元素
-func objectToArrayValues(obj hasRangeProperties) []data.Value {
-	var result []data.Value
+// objectToNamedArray 将对象/类属性转为带键名的 ArrayValue（用于 array + 语义）。
+func objectToNamedArray(obj hasRangeProperties) *data.ArrayValue {
+	list := make([]*data.ZVal, 0)
 	obj.RangeProperties(func(key string, value data.Value) bool {
-		result = append(result, value)
+		list = append(list, data.NewNamedZVal(key, value))
 		return true
 	})
-	return result
+	return &data.ArrayValue{List: list}
 }
 
-// mergeArrayWithObject 将数组与对象/类实例合并，返回新数组
-func mergeArrayWithObject(arr *data.ArrayValue, obj hasRangeProperties) *data.ArrayValue {
-	result := arr.ToValueList()
-	objValues := objectToArrayValues(obj)
-	result = append(result, objValues...)
-	return data.NewArrayValue(result).(*data.ArrayValue)
+// valueAsArrayForUnion 将 Array/Object/Class 统一为可按键并集的 ArrayValue。
+func valueAsArrayForUnion(v data.Value) (*data.ArrayValue, bool) {
+	switch x := v.(type) {
+	case *data.ArrayValue:
+		return x, true
+	case *data.ObjectValue:
+		return objectToNamedArray(x), true
+	case *data.ClassValue:
+		return objectToNamedArray(x), true
+	default:
+		return nil, false
+	}
 }
 
-// mergeObjectWithArray 将对象/类实例与数组合并，返回新数组
-func mergeObjectWithArray(obj hasRangeProperties, arr *data.ArrayValue) *data.ArrayValue {
-	result := objectToArrayValues(obj)
-	result = append(result, arr.ToValueList()...)
-	return data.NewArrayValue(result).(*data.ArrayValue)
+// mergeArrayUnion 实现 PHP 的 array + array：左侧键优先，仅追加右侧不存在的键。
+func mergeArrayUnion(left, right *data.ArrayValue) *data.ArrayValue {
+	result := make([]*data.ZVal, 0, len(left.List)+len(right.List))
+	seen := make(map[string]struct{}, len(left.List)+len(right.List))
+
+	appendSlot := func(key string, value data.Value) {
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		if _, isInt := data.ParseIntArrayKeyName(key); isInt {
+			if n, err := strconv.Atoi(key); err == nil && n == len(result) {
+				result = append(result, data.NewZVal(value))
+				return
+			}
+		}
+		result = append(result, data.NewNamedZVal(key, value))
+	}
+
+	for i, z := range left.List {
+		if z == nil {
+			continue
+		}
+		appendSlot(arraySlotKey(z, i), z.Value)
+	}
+	for i, z := range right.List {
+		if z == nil {
+			continue
+		}
+		appendSlot(arraySlotKey(z, i), z.Value)
+	}
+	return &data.ArrayValue{List: result}
 }
 
 func addOperandIsFloat(v data.GetValue) bool {
@@ -234,65 +248,33 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewStringValue(lStr + rStr), nil
 
 	case *data.ArrayValue:
-		// 数组相加是合并操作
-		switch r := rv.(type) {
-		case *data.ArrayValue:
-			// 合并两个数组：先复制左边数组，然后追加右边数组的元素
-			result := l.ToValueList()
-			result = append(result, r.ToValueList()...)
-			return data.NewArrayValue(result), nil
-		case *data.ObjectValue:
-			// 数组与对象相加：将对象的属性值添加到数组中
-			return mergeArrayWithObject(l, r), nil
-		case *data.ClassValue:
-			// 数组与类实例相加：将类的属性值添加到数组中
-			return mergeArrayWithObject(l, r), nil
-		default:
-			// 如果右边不是数组、对象或类，将右边作为单个元素添加到数组中
-			result := l.ToValueList()
-			result = append(result, r.(data.Value))
-			return data.NewArrayValue(result), nil
+		// PHP 数组 + ：按键并集；关联字面量 ['a'=>…] 在 Origami 里可能是 ObjectValue。
+		if ra, ok := valueAsArrayForUnion(rv.(data.Value)); ok {
+			return mergeArrayUnion(l, ra), nil
 		}
+		// 右边非数组/对象：作为下一个元素追加
+		result := l.ToValueList()
+		result = append(result, rv.(data.Value))
+		return data.NewArrayValue(result), nil
 	case *data.ObjectValue:
-		// 对象相加是合并操作
-		switch r := rv.(type) {
-		case *data.ObjectValue:
-			// 合并两个对象：如果键相同，保留左边的值
-			return mergeObjects(l, r), nil
-		case *data.ClassValue:
-			// 对象与类实例相加：合并属性（如果键相同，保留左边对象的值）
-			return mergeObjects(l, r), nil
-		case *data.ArrayValue:
-			// 对象与数组相加：先添加对象的属性值，然后添加数组元素
-			return mergeObjectWithArray(l, r), nil
-		default:
-			// 如果右边不是对象、类或数组，返回错误
-			return nil, data.NewErrorThrow(b.from, fmt.Errorf("对象不能与非对象/数组类型相加: %T", r))
+		if ra, ok := valueAsArrayForUnion(rv.(data.Value)); ok {
+			return mergeArrayUnion(objectToNamedArray(l), ra), nil
 		}
+		return nil, data.NewErrorThrow(b.from, fmt.Errorf("对象不能与非对象/数组类型相加: %T", rv))
 	case *data.ClassValue:
-		// 类实例相加是合并操作（与对象类似）；否则尝试 __toString 后字符串拼接
-		switch r := rv.(type) {
-		case *data.ObjectValue:
-			// 类实例与对象相加：合并属性（如果键相同，保留左边类实例的值）
-			return mergeObjects(l, r), nil
-		case *data.ClassValue:
-			// 合并两个类实例：合并属性（如果键相同，保留左边的值）
-			return mergeObjects(l, r), nil
-		case *data.ArrayValue:
-			// 类实例与数组相加：先添加类实例的属性值，然后添加数组元素
-			return mergeObjectWithArray(l, r), nil
-		default:
-			// 右边非对象/类/数组：若类有 __toString，则转为字符串后拼接
-			lStr, lCtl := ValueToDisplayString(ctx, l)
-			if lCtl != nil {
-				return nil, lCtl
-			}
-			rStr, rCtl := ValueToDisplayString(ctx, rv)
-			if rCtl != nil {
-				return nil, rCtl
-			}
-			return data.NewStringValue(lStr + rStr), nil
+		if ra, ok := valueAsArrayForUnion(rv.(data.Value)); ok {
+			return mergeArrayUnion(objectToNamedArray(l), ra), nil
 		}
+		// 右边非对象/类/数组：若类有 __toString，则转为字符串后拼接
+		lStr, lCtl := ValueToDisplayString(ctx, l)
+		if lCtl != nil {
+			return nil, lCtl
+		}
+		rStr, rCtl := ValueToDisplayString(ctx, rv)
+		if rCtl != nil {
+			return nil, rCtl
+		}
+		return data.NewStringValue(lStr + rStr), nil
 	case *data.AnyValue:
 		lStr := l.AsString()
 		rStr := rv.(data.Value).AsString()

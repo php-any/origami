@@ -7,6 +7,7 @@ import (
 
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -62,11 +63,14 @@ type Application struct {
 	target any // 被注解的引导类
 }
 
-// scanningDirs 记录正在扫描中的目录，防止 main.php 在 scan 目录内时递归触发 Scan
-var scanningDirs = make(map[string]bool)
-
-// registeredExitClasses 记录已注册 exit 回调的引导类，避免扫描重入时重复注册。
-var registeredExitClasses = make(map[string]bool)
+var applicationState = struct {
+	sync.Mutex
+	scanningDirs          map[string]bool
+	registeredExitClasses map[string]bool
+}{
+	scanningDirs:          make(map[string]bool),
+	registeredExitClasses: make(map[string]bool),
+}
 
 func newApplication() *Application { return &Application{name: "App", port: 8080} }
 
@@ -150,12 +154,19 @@ func (m *ApplicationConstructMethod) Call(ctx data.Context) (data.GetValue, data
 	}
 
 	// main.php 位于 scan 目录内时，Scan 会再次加载本文件；此处跳过后续扫描与 boot，但仍注册 exit。
-	if scanningDirs[scanDir] {
+	applicationState.Lock()
+	if applicationState.scanningDirs[scanDir] {
+		applicationState.Unlock()
 		m.registerExit(ctx)
 		return nil, nil
 	}
-	scanningDirs[scanDir] = true
-	defer func() { delete(scanningDirs, scanDir) }()
+	applicationState.scanningDirs[scanDir] = true
+	applicationState.Unlock()
+	defer func() {
+		applicationState.Lock()
+		delete(applicationState.scanningDirs, scanDir)
+		applicationState.Unlock()
+	}()
 
 	if acl := m.Scan(ctx); acl != nil {
 		return nil, acl
@@ -190,26 +201,38 @@ func (m *ApplicationConstructMethod) registerExit(ctx data.Context) {
 	}
 
 	className := cls.GetName()
-	if registeredExitClasses[className] {
+	applicationState.Lock()
+	if applicationState.registeredExitClasses[className] {
+		applicationState.Unlock()
 		return
 	}
+	applicationState.registeredExitClasses[className] = true
+	applicationState.Unlock()
 
 	method, has := cls.GetStaticMethod("exit")
 	if !has {
+		applicationState.Lock()
+		delete(applicationState.registeredExitClasses, className)
+		applicationState.Unlock()
 		return
 	}
 
 	fn, acl := node.NewStaticMethodFuncValue(cls, method).GetValue(ctx)
 	if acl != nil {
+		applicationState.Lock()
+		delete(applicationState.registeredExitClasses, className)
+		applicationState.Unlock()
 		return
 	}
 	fv, ok := fn.(*data.FuncValue)
 	if !ok {
+		applicationState.Lock()
+		delete(applicationState.registeredExitClasses, className)
+		applicationState.Unlock()
 		return
 	}
 
 	ctx.GetVM().AddShutdownCallback(fv)
-	registeredExitClasses[className] = true
 }
 
 func (m *ApplicationConstructMethod) Scan(ctx data.Context) data.Control {
@@ -245,9 +268,9 @@ func (m *ApplicationConstructMethod) Scan(ctx data.Context) data.Control {
 	}
 
 	var scanCleanup func()
-	if OnApplicationScanStart != nil {
+	if hook := applicationScanStartHook(); hook != nil {
 		var startACL data.Control
-		scanCleanup, startACL = OnApplicationScanStart(ctx)
+		scanCleanup, startACL = hook(ctx)
 		if startACL != nil {
 			return startACL
 		}

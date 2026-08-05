@@ -134,6 +134,14 @@ func (r *RecursiveDirectoryIteratorClass) GetMethod(name string) (data.Method, b
 		return &RDIIsDir{}, true
 	case "isFile":
 		return &RDIIsFile{}, true
+	case "isLink":
+		return &RDIIsLink{}, true
+	case "getSize":
+		return &RDIGetSize{}, true
+	case "getMTime":
+		return &RDIGetMTime{}, true
+	case "getPerms":
+		return &RDIGetPerms{}, true
 	}
 	return nil, false
 }
@@ -271,7 +279,7 @@ func rdiLoadFiles(cv *data.ClassValue, path string, flags int) error {
 	sort.Strings(sorted)
 
 	for _, name := range sorted {
-		files = append(files, filepath.Join(path, name))
+		files = append(files, phpPathJoin(path, name))
 	}
 
 	rdiSetFiles(cv, files)
@@ -310,6 +318,8 @@ func (m *RDIConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if ps, ok := pathVal.(data.AsString); ok {
 		path = ps.AsString()
 	}
+	// 保留逻辑路径中的「..」（对齐 PHP）。filepath.Join/Clean 会解析「..」，
+	// 破坏 Flysystem PathPrefixer 与构造路径的前缀一致性。
 
 	flagsVal, hasFlagsVal := ctx.GetIndexValue(1)
 	flags := 4096 // 默认 SKIP_DOTS
@@ -537,8 +547,7 @@ func (m *RDIGetFilename) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewStringValue(""), nil
 	}
 	currentPath := rdiCurrentFile(cv)
-	_, filename := filepath.Split(currentPath)
-	return data.NewStringValue(filename), nil
+	return data.NewStringValue(phpPathBase(currentPath)), nil
 }
 
 // ---- getPathname ----
@@ -578,7 +587,7 @@ func (m *RDIGetPath) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if currentPath == "" {
 		return data.NewStringValue(rdiGetPath(cv)), nil
 	}
-	return data.NewStringValue(filepath.Dir(currentPath)), nil
+	return data.NewStringValue(phpPathDir(currentPath)), nil
 }
 
 // ---- getRealPath ----
@@ -630,15 +639,15 @@ func (m *RDIGetSubPath) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewStringValue(""), nil
 	}
 	rootPath := rdiGetPath(cv)
-	dir := filepath.Dir(currentPath)
-	if dir == rootPath {
+	rel := phpPathRel(rootPath, currentPath)
+	if rel == "" {
 		return data.NewStringValue(""), nil
 	}
-	rel, err := filepath.Rel(rootPath, dir)
-	if err != nil {
+	sub := phpPathDir(rel)
+	if sub == "." {
 		return data.NewStringValue(""), nil
 	}
-	return data.NewStringValue(rel), nil
+	return data.NewStringValue(sub), nil
 }
 
 // ---- getSubPathname：相对于根路径的完整相对路径 ----
@@ -661,10 +670,7 @@ func (m *RDIGetSubPathname) Call(ctx data.Context) (data.GetValue, data.Control)
 		return data.NewStringValue(""), nil
 	}
 	rootPath := rdiGetPath(cv)
-	rel, err := filepath.Rel(rootPath, currentPath)
-	if err != nil {
-		return data.NewStringValue(""), nil
-	}
+	rel := phpPathRel(rootPath, currentPath)
 	return data.NewStringValue(rel), nil
 }
 
@@ -718,4 +724,108 @@ func (m *RDIIsFile) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewBoolValue(false), nil
 	}
 	return data.NewBoolValue(!info.IsDir()), nil
+}
+
+// ---- isLink ----
+
+type RDIIsLink struct{}
+
+func (m *RDIIsLink) GetName() string               { return "isLink" }
+func (m *RDIIsLink) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDIIsLink) GetIsStatic() bool             { return false }
+func (m *RDIIsLink) GetReturnType() data.Types     { return data.Bool{} }
+func (m *RDIIsLink) GetParams() []data.GetValue    { return nil }
+func (m *RDIIsLink) GetVariables() []data.Variable { return nil }
+func (m *RDIIsLink) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
+		return data.NewBoolValue(false), nil
+	}
+	currentPath := rdiCurrentFile(cv)
+	if currentPath == "" {
+		return data.NewBoolValue(false), nil
+	}
+	info, err := os.Lstat(currentPath)
+	if err != nil {
+		return data.NewBoolValue(false), nil
+	}
+	return data.NewBoolValue(info.Mode()&os.ModeSymlink != 0), nil
+}
+
+// ---- getSize ----
+
+type RDIGetSize struct{}
+
+func (m *RDIGetSize) GetName() string               { return "getSize" }
+func (m *RDIGetSize) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDIGetSize) GetIsStatic() bool             { return false }
+func (m *RDIGetSize) GetReturnType() data.Types     { return data.Int{} }
+func (m *RDIGetSize) GetParams() []data.GetValue    { return nil }
+func (m *RDIGetSize) GetVariables() []data.Variable { return nil }
+func (m *RDIGetSize) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
+		return data.NewIntValue(0), nil
+	}
+	currentPath := rdiCurrentFile(cv)
+	if currentPath == "" {
+		return data.NewIntValue(0), nil
+	}
+	info, err := os.Stat(currentPath)
+	if err != nil {
+		return data.NewIntValue(0), nil
+	}
+	return data.NewIntValue(int(info.Size())), nil
+}
+
+// ---- getMTime ----
+
+type RDIGetMTime struct{}
+
+func (m *RDIGetMTime) GetName() string               { return "getMTime" }
+func (m *RDIGetMTime) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDIGetMTime) GetIsStatic() bool             { return false }
+func (m *RDIGetMTime) GetReturnType() data.Types     { return data.Int{} }
+func (m *RDIGetMTime) GetParams() []data.GetValue    { return nil }
+func (m *RDIGetMTime) GetVariables() []data.Variable { return nil }
+func (m *RDIGetMTime) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
+		return data.NewIntValue(0), nil
+	}
+	currentPath := rdiCurrentFile(cv)
+	if currentPath == "" {
+		return data.NewIntValue(0), nil
+	}
+	info, err := os.Stat(currentPath)
+	if err != nil {
+		return data.NewIntValue(0), nil
+	}
+	return data.NewIntValue(int(info.ModTime().Unix())), nil
+}
+
+// ---- getPerms ----
+
+type RDIGetPerms struct{}
+
+func (m *RDIGetPerms) GetName() string               { return "getPerms" }
+func (m *RDIGetPerms) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RDIGetPerms) GetIsStatic() bool             { return false }
+func (m *RDIGetPerms) GetReturnType() data.Types     { return data.Int{} }
+func (m *RDIGetPerms) GetParams() []data.GetValue    { return nil }
+func (m *RDIGetPerms) GetVariables() []data.Variable { return nil }
+func (m *RDIGetPerms) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := rdiGetCV(ctx)
+	if cv == nil {
+		return data.NewIntValue(0), nil
+	}
+	currentPath := rdiCurrentFile(cv)
+	if currentPath == "" {
+		return data.NewIntValue(0), nil
+	}
+	info, err := os.Stat(currentPath)
+	if err != nil {
+		return data.NewIntValue(0), nil
+	}
+	return data.NewIntValue(int(info.Mode().Perm())), nil
 }

@@ -14,13 +14,14 @@ type OperationInfo struct {
 
 // Route 已注册的 HTTP 注解路由。
 type Route struct {
-	Method      string
-	Path        string
-	Target      data.Method
-	Receiver    data.GetValue // 注册路由时已实例化的控制器（或静态方法的 ClassValue）；非空时在其上调用 Target
-	Middlewares []MiddlewareInfo
-	Operation   *OperationInfo
-	HandlerSpec HandlerSpec
+	Method          string
+	Path            string
+	Target          data.Method
+	Receiver        data.GetValue                                    // 静态方法或显式注册对象的接收者
+	ReceiverFactory func(data.Context) (data.GetValue, data.Control) // 普通控制器按请求创建，避免跨请求共享对象状态
+	Middlewares     []MiddlewareInfo
+	Operation       *OperationInfo
+	HandlerSpec     HandlerSpec
 }
 
 // MiddlewareInfo 中间件信息（从 @Middleware 注解收集）。

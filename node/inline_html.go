@@ -20,6 +20,6 @@ func NewInlineHTMLNode(token *TokenFrom, content string) *InlineHTMLNode {
 
 // GetValue 直接输出内容
 func (n *InlineHTMLNode) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	data.WriteOutput(n.Content)
+	data.EmitOutput(ctx, n.Content)
 	return nil, nil
 }

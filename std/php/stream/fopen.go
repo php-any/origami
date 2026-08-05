@@ -137,6 +137,15 @@ func (f *FopenFunction) handlePhpStream(filename string, mode string, ctx data.C
 		}
 		file = os.Stderr
 		fd = 2
+	case "temp", "memory":
+		// 可寻址的匿名临时流；Symfony Process 用它累计 stdout/stderr。
+		var err error
+		file, err = os.CreateTemp("", "origami-php-stream-*")
+		if err != nil {
+			return data.NewBoolValue(false), nil
+		}
+		_ = os.Remove(file.Name())
+		fd = int(file.Fd())
 	default:
 		// 不支持的流类型
 		return data.NewBoolValue(false), nil

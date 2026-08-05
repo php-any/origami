@@ -134,6 +134,8 @@ func (sp *StaticParser) parseStaticFunction(tracker *PositionTracker) (data.GetV
 	if acl != nil {
 		return nil, acl
 	}
+	// use 变量必须在解析函数体前注册，避免仅传给内层 use 时 parent 映射丢失
+	fp.registerClosureUseCaptures(captures)
 
 	// 解析返回类型
 	ret, acl := fp.parserReturnType()

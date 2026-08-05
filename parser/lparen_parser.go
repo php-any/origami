@@ -59,7 +59,10 @@ func (ep *LparenParser) parseTypeCast(tracking *PositionTracker) (data.GetValue,
 	ep.next()                     // 跳过类型名
 	ep.nextAndCheck(token.RPAREN) // 跳过右括号
 
-	val, acl := ep.parseStatement()
+	// PHP 类型转换是一元运算，优先级高于 . / + / == 等；
+	// 不能用 parseStatement，否则 (int)$v."'" 会变成 (int)($v."'")。
+	exprParser := NewExpressionParser(ep.Parser)
+	val, acl := exprParser.parseUnary()
 	if acl != nil {
 		return nil, acl
 	}
@@ -94,10 +97,11 @@ func (ep *LparenParser) isLambdaExpression() bool {
 		case token.RPAREN:
 			parenCount--
 			if parenCount == 0 {
-				// 找到了与起始 '(' 匹配的 ')'：仅当紧跟 => 才是 lambda，否则为普通括号表达式
+				// 找到了与起始 '(' 匹配的 ')'：仅当紧跟 => 才可能是 lambda
 				if pos+1 < len(ep.tokens)-ep.position &&
 					ep.tokens[ep.position+pos+1].Type() == token.ARRAY_KEY_VALUE {
-					return true
+					// PHP 关联数组可用 (expr) => value 作键；括号内必须像参数列表才是 lambda
+					return ep.looksLikeLambdaParameterList(1, pos)
 				}
 				return false
 			}
@@ -110,12 +114,176 @@ func (ep *LparenParser) isLambdaExpression() bool {
 		case token.ARRAY_KEY_VALUE:
 			// 仅当不在数组字面量内、且仍在参数列表括号层时，才是 (params) => body
 			if parenCount == 0 && bracketCount == 0 {
-				return true
+				return ep.looksLikeLambdaParameterList(1, pos)
 			}
 		}
 		pos++
 	}
 	return false
+}
+
+// looksLikeLambdaParameterList 判断 tokens[start, end) 是否像 lambda 参数列表。
+// 用于区分 (a, b) => expr 与 PHP 数组键 (is_int($k) ? $v : $k) => $v。
+func (ep *LparenParser) looksLikeLambdaParameterList(start, end int) bool {
+	if start >= end {
+		return true // () =>
+	}
+
+	i := start
+	for i < end {
+		if !ep.segmentLooksLikeLambdaParameter(&i, end) {
+			return false
+		}
+		if i >= end {
+			return true
+		}
+		if ep.tokens[ep.position+i].Type() != token.COMMA {
+			return false
+		}
+		i++ // 跳过 ,
+	}
+	return true
+}
+
+// segmentLooksLikeLambdaParameter 判断从 *i 起的一段是否像单个参数，成功后 *i 指向段末（逗号或 end）。
+func (ep *LparenParser) segmentLooksLikeLambdaParameter(i *int, end int) bool {
+	tok := func(off int) token.TokenType {
+		return ep.tokens[ep.position+off].Type()
+	}
+
+	// 跳过参数属性 #[...]
+	for *i < end && tok(*i) == token.HASH {
+		*i++
+		if *i < end && tok(*i) == token.LBRACKET {
+			depth := 1
+			*i++
+			for *i < end && depth > 0 {
+				switch tok(*i) {
+				case token.LBRACKET:
+					depth++
+				case token.RBRACKET:
+					depth--
+				}
+				*i++
+			}
+		}
+	}
+
+	// 跳过可见性 / readonly
+	for *i < end {
+		switch tok(*i) {
+		case token.PUBLIC, token.PRIVATE, token.PROTECTED, token.READONLY:
+			*i++
+			continue
+		}
+		break
+	}
+
+	// 可选类型：?Type、Type|Type、namespace\Type
+	if *i < end && tok(*i) == token.TERNARY && *i+1 < end && isIdentOrTypeToken(tok(*i+1)) {
+		*i += 2
+		for *i < end && (tok(*i) == token.BIT_OR || tok(*i) == token.NAMESPACE_SEPARATOR || isIdentOrTypeToken(tok(*i))) {
+			*i++
+		}
+	} else if *i < end && isIdentOrTypeToken(tok(*i)) {
+		// ident( 是函数调用，不是类型声明（类型后应为 $var / | / & / ...）
+		if *i+1 < end && tok(*i+1) == token.LPAREN {
+			return false
+		}
+		*i++
+		for *i < end {
+			t := tok(*i)
+			if t == token.NAMESPACE_SEPARATOR || t == token.BIT_OR || isIdentOrTypeToken(t) {
+				*i++
+				continue
+			}
+			// 泛型 Type<...>
+			if t == token.LT {
+				depth := 1
+				*i++
+				for *i < end && depth > 0 {
+					switch tok(*i) {
+					case token.LT:
+						depth++
+					case token.GT:
+						depth--
+					}
+					*i++
+				}
+				continue
+			}
+			break
+		}
+	}
+
+	if *i < end && tok(*i) == token.BIT_AND {
+		*i++
+	}
+	if *i < end && tok(*i) == token.ELLIPSIS {
+		*i++
+	}
+
+	if *i >= end {
+		return false
+	}
+
+	switch tok(*i) {
+	case token.VARIABLE:
+		*i++
+	case token.IDENTIFIER, token.UNUSED:
+		// Origami 简写：(a, b) =>；PHP 参数名必须是 $var
+		next := *i + 1
+		if next < end {
+			switch tok(next) {
+			case token.COMMA, token.ASSIGN:
+				*i++
+			default:
+				return false
+			}
+		} else {
+			*i++
+		}
+	default:
+		return false
+	}
+
+	// 默认值 = expr：跳过到本段结束（顶层逗号）
+	if *i < end && tok(*i) == token.ASSIGN {
+		*i++
+		parenDepth := 0
+		bracketDepth := 0
+		braceDepth := 0
+		for *i < end {
+			switch tok(*i) {
+			case token.LPAREN:
+				parenDepth++
+			case token.RPAREN:
+				if parenDepth > 0 {
+					parenDepth--
+				}
+			case token.LBRACKET:
+				bracketDepth++
+			case token.RBRACKET:
+				if bracketDepth > 0 {
+					bracketDepth--
+				}
+			case token.LBRACE:
+				braceDepth++
+			case token.RBRACE:
+				if braceDepth > 0 {
+					braceDepth--
+				}
+			case token.COMMA:
+				if parenDepth == 0 && bracketDepth == 0 && braceDepth == 0 {
+					return true
+				}
+			}
+			*i++
+		}
+		return true
+	}
+
+	return true
 }
 
 // parseLambdaExpression 解析 Lambda 表达式

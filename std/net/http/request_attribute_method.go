@@ -25,7 +25,9 @@ func (h *RequestAttributeMethod) Call(ctx data.Context) (data.GetValue, data.Con
 
 	value, hasValue := ctx.GetIndexValue(1)
 	if !hasValue {
-		val, ok := bag[key]
+		bag.RLock()
+		val, ok := bag.values[key]
+		bag.RUnlock()
 		if !ok || val == nil {
 			return data.NewNullValue(), nil
 		}
@@ -33,10 +35,14 @@ func (h *RequestAttributeMethod) Call(ctx data.Context) (data.GetValue, data.Con
 	}
 
 	if _, isNull := value.(*data.NullValue); isNull {
-		delete(bag, key)
+		bag.Lock()
+		delete(bag.values, key)
+		bag.Unlock()
 		return nil, nil
 	}
-	bag[key] = value.(data.Value)
+	bag.Lock()
+	bag.values[key] = value.(data.Value)
+	bag.Unlock()
 	return nil, nil
 }
 

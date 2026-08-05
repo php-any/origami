@@ -47,6 +47,12 @@ func (u *UnsetStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 
 		// 变量类型（普通变量 $var）
 		if variable, ok := argExpr.(data.Variable); ok {
+			// foreach (... as &$v) 后的 unset($v)：只断开本地引用，不能清空被引用的数组元素
+			if zv := ctx.GetIndexZVal(variable.GetIndex()); zv != nil && zv.RefSlotCount > 0 {
+				zv.RefSlotCount--
+				ctx.SetIndexZVal(variable.GetIndex(), data.NewZVal(data.NewNullValue()))
+				continue
+			}
 			variable.SetValue(ctx, data.NewNullValue())
 			continue
 		}

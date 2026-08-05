@@ -197,7 +197,7 @@ func (c *FilesystemIteratorClass) GetPath() string { return c.path }
 
 func (c *FilesystemIteratorClass) GetPathname() string {
 	if c.iterator >= 0 && c.iterator < len(c.entries) {
-		return filepath.Join(c.path, c.entries[c.iterator])
+		return phpPathJoin(c.path, c.entries[c.iterator])
 	}
 	return c.path
 }

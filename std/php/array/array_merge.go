@@ -1,8 +1,6 @@
 package array
 
 import (
-	"fmt"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -13,123 +11,78 @@ func NewArrayMergeFunction() data.FuncStmt {
 
 type ArrayMergeFunction struct{}
 
+// isStringArrayKey 判断是否为 PHP array_merge 中的“字符串键”。
+// 空 Name、以及纯数字字符串 Name（如 "0"）都按整数键处理，会被重新编号。
+func isStringArrayKey(name string) bool {
+	if name == "" {
+		return false
+	}
+	_, isInt := data.ParseIntArrayKeyName(name)
+	return !isInt
+}
+
 func (f *ArrayMergeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 获取 Parameters 参数（包含所有传入的数组）
 	paramsValue, _ := ctx.GetIndexValue(0)
 	if paramsValue == nil {
 		return data.NewArrayValue([]data.Value{}), nil
 	}
 
-	// Parameters 返回的是 ArrayValue，包含所有参数
 	paramsArray, ok := paramsValue.(*data.ArrayValue)
 	if !ok {
 		return data.NewArrayValue([]data.Value{}), nil
 	}
 
 	// PHP 语义：
-	// - 对于 string 键：后面的数组覆盖前面的键；
-	// - 对于 int 键：重新按顺序从 0 开始编号（列表语义）。
-	//
-	// 在 Origami 中：
-	// - 纯列表用 ArrayValue 表示
-	// - 关联数组用 ObjectValue 表示（属性名即键）
+	// - string 键：后面的覆盖前面的；
+	// - int 键（含 "0"/"1" 这类数字字符串键）：按出现顺序从 0 重新编号。
+	result := make([]*data.ZVal, 0)
+	stringKeyIndex := map[string]int{} // string key -> slot in result
+	nextInt := 0
 
-	// 所有参数都是“纯列表数组”时，按列表语义合并到 ArrayValue
-	// 一旦出现 ObjectValue（关联数组），结果统一用 ObjectValue 表示，
-	// 以便支持 $options['format'] 这种字符串键访问。
+	appendInt := func(v data.Value) {
+		result = append(result, data.NewNamedZVal(data.IntArrayKeyName(nextInt), v))
+		nextInt++
+	}
 
-	allListValues := make([]data.Value, 0)
-	allListNames := make([]string, 0)
-	resultAssoc := (*data.ObjectValue)(nil)
+	setString := func(key string, v data.Value) {
+		if idx, ok := stringKeyIndex[key]; ok {
+			result[idx].Value = v
+			return
+		}
+		stringKeyIndex[key] = len(result)
+		result = append(result, data.NewNamedZVal(key, v))
+	}
 
-	paramsList := paramsArray.ToValueList()
-	for _, paramValue := range paramsList {
+	for _, paramValue := range paramsArray.ToValueList() {
 		switch v := paramValue.(type) {
 		case *data.ArrayValue:
-			// 列表数组：依次取值，保留 ZVal.Name（如有）
-			if resultAssoc != nil {
-				// 结果已经是关联数组
-				for _, zval := range v.List {
-					if zval.Name != "" {
-						// 有字符串键：作为关联键
-						resultAssoc.SetProperty(zval.Name, zval.Value)
-					} else {
-						// 无键：追加成新的 int 键
-						key := len(resultAssoc.GetProperties())
-						resultAssoc.SetProperty(fmt.Sprintf("%d", key), zval.Value)
-					}
+			for _, zval := range v.List {
+				if zval == nil {
+					continue
 				}
-			} else {
-				hasStringKeys := false
-				for _, zval := range v.List {
-					if zval.Name != "" {
-						hasStringKeys = true
-						break
-					}
-				}
-				if hasStringKeys {
-					// 需要切换到关联数组模式
-					resultAssoc = data.NewObjectValue()
-					// 先把之前累积的列表值转成 int 键
-					for i, val := range allListValues {
-						k := allListNames[i]
-						if k == "" {
-							k = fmt.Sprintf("%d", i)
-						}
-						resultAssoc.SetProperty(k, val)
-					}
-					// 再添加当前数组的值
-					intIdx := len(allListValues)
-					for _, zval := range v.List {
-						if zval.Name != "" {
-							resultAssoc.SetProperty(zval.Name, zval.Value)
-						} else {
-							resultAssoc.SetProperty(fmt.Sprintf("%d", intIdx), zval.Value)
-							intIdx++
-						}
-					}
+				if isStringArrayKey(zval.Name) {
+					setString(zval.Name, zval.Value)
 				} else {
-					for _, zval := range v.List {
-						allListValues = append(allListValues, zval.Value)
-						allListNames = append(allListNames, zval.Name)
-					}
+					appendInt(zval.Value)
 				}
 			}
 
 		case *data.ObjectValue:
-			// 关联数组：需要按键合并
-			if resultAssoc == nil {
-				resultAssoc = data.NewObjectValue()
-				// 把之前累积的列表值先转成 int 键（保留字符串键）
-				for i, val := range allListValues {
-					k := allListNames[i]
-					if k == "" {
-						k = fmt.Sprintf("%d", i)
-					}
-					resultAssoc.SetProperty(k, val)
-				}
-			}
 			for key, val := range v.GetProperties() {
-				// 这里 key 是 string，保持为关联键；若有同名键，直接覆盖
-				resultAssoc.SetProperty(key, val)
+				if isStringArrayKey(key) {
+					setString(key, val)
+				} else {
+					appendInt(val)
+				}
 			}
 
 		default:
-			// 非数组参数，PHP 中会发 warning，我们这里简单按值附加
-			if resultAssoc != nil {
-				key := len(resultAssoc.GetProperties())
-				resultAssoc.SetProperty(fmt.Sprintf("%d", key), v)
-			} else {
-				allListValues = append(allListValues, v)
-				allListNames = append(allListNames, "")
-			}
+			// 非数组参数：PHP 会 warning；这里按值附加为下一个 int 键
+			appendInt(v)
 		}
 	}
 
-	if resultAssoc != nil {
-		return resultAssoc, nil
-	}
-	return data.NewArrayValue(allListValues), nil
+	return &data.ArrayValue{List: result}, nil
 }
 
 func (f *ArrayMergeFunction) GetName() string {
@@ -137,7 +90,6 @@ func (f *ArrayMergeFunction) GetName() string {
 }
 
 func (f *ArrayMergeFunction) GetParams() []data.GetValue {
-	// 使用可变参数
 	return []data.GetValue{
 		node.NewParameters(nil, "arrays", 0, nil, nil),
 	}

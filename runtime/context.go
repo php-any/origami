@@ -239,6 +239,17 @@ func (c *Context) HasVariableByName(name string) bool {
 	return false
 }
 
+// GetDefinedVariables 返回当前作用域符号表的快照。
+func (c *Context) GetDefinedVariables() map[string]data.Value {
+	result := make(map[string]data.Value)
+	for _, zv := range c.variables {
+		if zv != nil && zv.Name != "" {
+			result[zv.Name] = zv.Value
+		}
+	}
+	return result
+}
+
 // NewContextToDo 不实现具体功能的上下文
 func NewContextToDo() data.Context {
 	vm := NewVM(&parser.Parser{})

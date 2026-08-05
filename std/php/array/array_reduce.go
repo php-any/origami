@@ -31,55 +31,27 @@ func (f *ArrayReduceFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 		return carry, nil
 	}
 
-	// 转换为数组
-	arr, ok := arrayVal.(*data.ArrayValue)
-	if !ok {
-		return carry, nil
-	}
-
 	if callbackVal == nil {
 		return carry, nil
 	}
 
-	// 调用回调函数
+	// 调用回调函数（支持 FuncValue；静态闭包等）
 	callCallback := func(accumulator, item data.Value) (data.Value, data.Control) {
-		switch cb := callbackVal.(type) {
-		case *data.FuncValue:
-			vars := cb.Value.GetVariables()
-			fnCtx := ctx.CreateContext(vars)
-			// 参数：$carry（累积值）, $item（当前元素）
-			if len(vars) > 0 {
-				fnCtx.SetIndexZVal(0, data.NewZVal(accumulator))
-			}
-			if len(vars) > 1 {
-				fnCtx.SetIndexZVal(1, data.NewZVal(item))
-			}
-			ret, ctl := cb.Call(fnCtx)
-			if ctl != nil {
-				if rv, ok := ctl.(data.ReturnControl); ok {
-					if v, ok := rv.ReturnValue().(data.Value); ok {
-						return v, nil
-					}
-					return data.NewNullValue(), nil
-				}
-				return nil, ctl
-			}
-			if ret == nil {
-				return data.NewNullValue(), nil
-			}
-			if v, ok := ret.(data.Value); ok {
-				return v, nil
-			}
-			return data.NewNullValue(), nil
-		default:
-			return accumulator, nil
+		ret, ctl := invokeCallback(ctx, callbackVal, []data.Value{accumulator, item})
+		if ctl != nil {
+			return nil, ctl
 		}
+		if ret == nil {
+			return data.NewNullValue(), nil
+		}
+		return ret, nil
 	}
 
-	// 遍历数组
-	for _, item := range arr.List {
+	// 遍历数组：兼容 ArrayValue 列表与 ObjectValue 关联数组
+	// （iterator_to_array 在 use_keys=true 时常返回 ObjectValue）
+	for _, e := range toKVEntries(arrayVal) {
 		var ctl data.Control
-		carry, ctl = callCallback(carry, item.Value)
+		carry, ctl = callCallback(carry, e.value)
 		if ctl != nil {
 			return nil, ctl
 		}

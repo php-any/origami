@@ -77,8 +77,9 @@ func (f *CurrentFunction) GetName() string {
 }
 
 func (f *CurrentFunction) GetParams() []data.GetValue {
+	// PHP 8.0+：current() 按值接收，允许 current(array_slice(...)) 等临时值
 	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
+		node.NewParameter(nil, "array", 0, nil, data.Mixed{}),
 	}
 }
 

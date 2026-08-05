@@ -15,15 +15,17 @@ func NewGetVariable(from data.From) data.Variable {
 }
 
 func (v *GetVariable) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	if getValue == nil {
-		getValue = data.NewObjectValue()
-		if httpReq := getHTTPRequest(ctx); httpReq != nil {
-			for key, values := range httpReq.URL.Query() {
-				if len(values) > 0 {
-					getValue.SetProperty(key, data.NewStringValue(values[0]))
-				}
+	if httpReq := getHTTPRequest(ctx); httpReq != nil {
+		obj := data.NewObjectValue()
+		for key, values := range httpReq.URL.Query() {
+			if len(values) > 0 {
+				obj.SetProperty(key, data.NewStringValue(values[0]))
 			}
 		}
+		return obj, nil
+	}
+	if getValue == nil {
+		getValue = data.NewObjectValue()
 	}
 	return getValue, nil
 }

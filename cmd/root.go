@@ -51,6 +51,16 @@ func RunScriptFile(scriptPath string) error {
 	vm, p := getRuntimeVM()
 	_, err := vm.LoadAndRun(scriptPath)
 	if err != nil {
+		if exit, ok := err.(interface {
+			IsExit() bool
+			GetCode() int
+		}); ok && exit.IsExit() {
+			vm.RunShutdownCallbacks()
+			if code := exit.GetCode(); code != 0 {
+				os.Exit(code)
+			}
+			return nil
+		}
 		p.ShowControl(err)
 	}
 	vm.RunShutdownCallbacks()

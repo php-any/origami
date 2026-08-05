@@ -26,10 +26,14 @@ func ApplyAnnotations(p *Parser, target node.AddAnnotations, annotations []*node
 			return acl
 		}
 		cv, ok := object.(*data.ClassValue)
-		if !ok || cv.Class.GetConstruct() == nil {
+		if !ok {
 			continue
 		}
-		obj, acl := an.GetValue(p.vm.CreateContext(cv.Class.GetConstruct().GetVariables()))
+		var vars []data.Variable
+		if construct := cv.Class.GetConstruct(); construct != nil {
+			vars = construct.GetVariables()
+		}
+		obj, acl := an.GetValue(p.vm.CreateContext(vars))
 		if acl != nil {
 			if ann, ok := acl.(*node.CallAnn); ok {
 				callAnn = append(callAnn, ann)

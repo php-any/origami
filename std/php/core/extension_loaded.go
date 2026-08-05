@@ -1,12 +1,13 @@
 package core
 
 import (
+	"strings"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
 
 // ExtensionLoadedFunction 实现 extension_loaded 函数
-// 当前实现固定返回 true，用于兼容性检测。
 type ExtensionLoadedFunction struct{}
 
 func NewExtensionLoadedFunction() data.FuncStmt {
@@ -14,7 +15,17 @@ func NewExtensionLoadedFunction() data.FuncStmt {
 }
 
 func (f *ExtensionLoadedFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 忽略具体扩展名，固定返回 true
+	extension, _ := ctx.GetIndexValue(0)
+	name := ""
+	if extension != nil {
+		name = strings.ToLower(extension.AsString())
+	}
+
+	// 不可把未实现的原生扩展报告为已加载，否则依赖会选择不可用的快路径。
+	switch name {
+	case "gmp", "bcmath":
+		return data.NewBoolValue(false), nil
+	}
 	return data.NewBoolValue(true), nil
 }
 

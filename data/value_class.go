@@ -81,17 +81,21 @@ func (c *ClassValue) GetPropertyStmt(name string) (Property, bool) {
 }
 
 func (c *ClassValue) GetProperty(name string) (Value, Control) {
-	stmt, ok := c.GetPropertyStmt(name)
-	if ok {
-		gv, acl := stmt.GetValue(c.Context)
-		return gv.(Value), acl
+	// 实例属性优先从 ObjectValue 读取（含声明属性被写入后的值）
+	if c.ObjectValue != nil && c.ObjectValue.HasProperty(name) {
+		return c.ObjectValue.GetProperty(name)
 	}
 
-	// 查找动态属性（通过 SetProperty 存入 ObjectValue.property 的属性）
-	if c.ObjectValue != nil {
-		if v, _ := c.ObjectValue.GetProperty(name); v != nil {
-			if _, isNull := v.(*NullValue); !isNull {
-				return v, nil
+	stmt, ok := c.GetPropertyStmt(name)
+	if ok {
+		// 必须用 ClassValue 自身作 Context，ClassProperty 通过 GetName 从 ObjectValue 取/初始化
+		gv, acl := stmt.GetValue(c)
+		if acl != nil {
+			return nil, acl
+		}
+		if gv != nil {
+			if val, ok := gv.(Value); ok {
+				return val, nil
 			}
 		}
 	}

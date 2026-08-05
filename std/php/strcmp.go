@@ -138,3 +138,61 @@ func (f *StrcasecmpFunction) Call(ctx data.Context) (data.GetValue, data.Control
 
 	return data.NewIntValue(result), nil
 }
+
+// StrncasecmpFunction 实现 strncasecmp 全局函数（不区分大小写，按长度比较）
+type StrncasecmpFunction struct{}
+
+func NewStrncasecmpFunction() data.FuncStmt {
+	return &StrncasecmpFunction{}
+}
+
+func (f *StrncasecmpFunction) GetName() string {
+	return "strncasecmp"
+}
+
+func (f *StrncasecmpFunction) GetParams() []data.GetValue {
+	return []data.GetValue{
+		node.NewParameter(nil, "str1", 0, nil, data.Mixed{}),
+		node.NewParameter(nil, "str2", 1, nil, data.Mixed{}),
+		node.NewParameter(nil, "length", 2, nil, data.Int{}),
+	}
+}
+
+func (f *StrncasecmpFunction) GetVariables() []data.Variable {
+	return []data.Variable{
+		node.NewVariable(nil, "str1", 0, data.Mixed{}),
+		node.NewVariable(nil, "str2", 1, data.Mixed{}),
+		node.NewVariable(nil, "length", 2, data.Int{}),
+	}
+}
+
+func (f *StrncasecmpFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	str1Value, _ := ctx.GetIndexValue(0)
+	str2Value, _ := ctx.GetIndexValue(1)
+	lenValue, _ := ctx.GetIndexValue(2)
+
+	str1 := ""
+	if str1Value != nil {
+		str1 = str1Value.AsString()
+	}
+	str2 := ""
+	if str2Value != nil {
+		str2 = str2Value.AsString()
+	}
+	n := 0
+	if asInt, ok := lenValue.(data.AsInt); ok {
+		if v, err := asInt.AsInt(); err == nil {
+			n = v
+		}
+	}
+	if n < 0 {
+		n = 0
+	}
+	if n < len(str1) {
+		str1 = str1[:n]
+	}
+	if n < len(str2) {
+		str2 = str2[:n]
+	}
+	return data.NewIntValue(strings.Compare(strings.ToLower(str1), strings.ToLower(str2))), nil
+}

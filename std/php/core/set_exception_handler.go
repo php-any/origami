@@ -3,7 +3,6 @@ package core
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	"github.com/php-any/origami/runtime"
 )
 
 // SetExceptionHandlerFunction 实现 set_exception_handler 函数
@@ -27,17 +26,13 @@ func (f *SetExceptionHandlerFunction) Call(ctx data.Context) (data.GetValue, dat
 
 	vm := ctx.GetVM()
 
-	// 根据 VM 实现类型设置异常处理回调
-	var old data.Value
-	switch v := vm.(type) {
-	case *runtime.VM:
-		old = v.SetExceptionHandler(cb)
-	case *runtime.TempVM:
-		old = v.SetExceptionHandler(cb)
-	default:
-		// 其他 VM 实现（如 LspVM）忽略设置，仅返回 null
+	handlerVM, supported := vm.(interface {
+		SetExceptionHandler(data.Value) data.Value
+	})
+	if !supported {
 		return data.NewNullValue(), nil
 	}
+	old := handlerVM.SetExceptionHandler(cb)
 
 	if old == nil {
 		return data.NewNullValue(), nil
@@ -63,12 +58,10 @@ func (f *SetExceptionHandlerFunction) GetVariables() []data.Variable {
 
 // getCurrentExceptionHandler 辅助函数，从 VM 中获取当前异常处理回调
 func getCurrentExceptionHandler(vm data.VM) data.Value {
-	switch v := vm.(type) {
-	case *runtime.VM:
-		return v.GetExceptionHandler()
-	case *runtime.TempVM:
-		return v.GetExceptionHandler()
-	default:
-		return nil
+	if handlerVM, ok := vm.(interface {
+		GetExceptionHandler() data.Value
+	}); ok {
+		return handlerVM.GetExceptionHandler()
 	}
+	return nil
 }

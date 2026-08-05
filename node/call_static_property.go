@@ -3,6 +3,7 @@ package node
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/php-any/origami/data"
 )
@@ -29,10 +30,19 @@ func (pe *CallStaticProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 		if ok {
 			return property, nil
 		}
-		// 在父类中查找
+		// 类：沿父类 / implements 查找
 		if cs, ok := expr.(data.ClassStmt); ok {
-			if prop, found := pe.findStaticPropertyInParents(ctx, cs); found {
+			if prop, found := LookupStaticProperty(ctx.GetVM(), cs, pe.Property); found {
 				return prop, nil
+			}
+		}
+		// 接口：沿 extends 父接口查找常量
+		if is, ok := expr.(data.InterfaceStmt); ok {
+			vm := ctx.GetVM()
+			for _, parent := range is.GetExtends() {
+				if prop, found := lookupStaticPropertyOnInterface(vm, parent, pe.Property); found {
+					return prop, nil
+				}
 			}
 		}
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New(fmt.Sprintf("无法调用属性(%s::%s)。", TryGetCallClassName(pe.Stmt), pe.Property)))
@@ -49,7 +59,7 @@ func (pe *CallStaticProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 					return property, nil
 				}
 			}
-			if prop, found := pe.findStaticPropertyInParents(ctx, expr.Class); found {
+			if prop, found := LookupStaticProperty(ctx.GetVM(), expr.Class, pe.Property); found {
 				return prop, nil
 			}
 
@@ -59,8 +69,16 @@ func (pe *CallStaticProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 				return property, nil
 			}
 			if cs, ok := expr.(data.ClassStmt); ok {
-				if prop, found := pe.findStaticPropertyInParents(ctx, cs); found {
+				if prop, found := LookupStaticProperty(ctx.GetVM(), cs, pe.Property); found {
 					return prop, nil
+				}
+			}
+			if is, ok := expr.(data.InterfaceStmt); ok {
+				vm := ctx.GetVM()
+				for _, parent := range is.GetExtends() {
+					if prop, found := lookupStaticPropertyOnInterface(vm, parent, pe.Property); found {
+						return prop, nil
+					}
 				}
 			}
 		}
@@ -125,6 +143,7 @@ type CallStaticPropertyLater struct {
 	property  string              // 属性名
 	namespace string              // 命名空间
 	access    *CallStaticProperty `pp:"-"` // 解析后缓存
+	resolveMu sync.Mutex
 }
 
 // NewCallStaticPropertyLater 创建延迟的静态属性访问
@@ -138,6 +157,8 @@ func NewCallStaticPropertyLater(from *TokenFrom, className, property, namespace 
 }
 
 func (pe *CallStaticPropertyLater) resolveAccess(ctx data.Context) (*CallStaticProperty, data.Control) {
+	pe.resolveMu.Lock()
+	defer pe.resolveMu.Unlock()
 	if pe.access != nil {
 		return pe.access, nil
 	}

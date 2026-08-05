@@ -88,6 +88,11 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 
 	// PHP 允许函数名与 '(' 之间存在空白：andi (1, 2)
 	if p.checkPositionIs(0, token.LPAREN) {
+		// 词法器会把 \func_get_args 收成单个 IDENTIFIER "\func_get_args"
+		// （Carbon 等大量使用 \func_get_args()），这里还原为语言结构节点
+		if builtin, ok := globalLanguageConstruct(name); ok {
+			return p.parseGlobalLanguageConstruct(tracker, builtin)
+		}
 		if call, acl := p.parseIdentCall(tracker, name); acl != nil || call != nil {
 			return call, acl
 		}
@@ -113,6 +118,9 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 	if p.isTokensAdjacent(startToken, checkToken) {
 		// ( 函数调用 div() 或可调用变量 describe()
 		if p.checkPositionIs(0, token.LPAREN) {
+			if builtin, ok := globalLanguageConstruct(name); ok {
+				return p.parseGlobalLanguageConstruct(tracker, builtin)
+			}
 			return p.parseIdentCall(tracker, name)
 		}
 		// 变量定义
@@ -151,11 +159,13 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 			}
 		}
 
-		if p.checkPositionIs(0, token.OBJECT_OPERATOR, token.DOT) {
-			// 先检查是否是已知常量（如 \DIRECTORY_SEPARATOR），常量不能被当作变量
-			if v, ok := p.vm.GetConstant(name); ok {
-				return v, nil
-			}
+		if p.checkPositionIs(0, token.DOT) {
+			// 字符串连接左侧的裸标识符按常量运行时解析（APP_ROOT . '/x'）
+			expr := node.NewConstantName(tracker.EndBefore(), name)
+			vp := &VariableParser{p.Parser}
+			return vp.parseSuffix(expr)
+		}
+		if p.checkPositionIs(0, token.OBJECT_OPERATOR) {
 			val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
 			expr := node.NewVariableWithFirst(tracker.EndBefore(), val)
 			vp := &VariableParser{p.Parser}
@@ -223,21 +233,19 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 		}
 	}
 
-	// 是否是define后的字符串
-	if v, ok := p.vm.GetConstant(name); ok {
-		return v, nil
-	}
-
+	// 常量一律运行时查找：define() 与请求级覆盖（如 PHP_SAPI）在解析期尚不可见或可能变化。
 	// 赋值目标：describe = ... 将裸标识符视为变量名
 	if p.checkPositionIs(0, token.ASSIGN, token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ, token.CONCAT_EQ, token.NULL_COALESCE_ASSIGN) {
 		val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
 		return node.NewVariableWithFirst(tracker.EndBefore(), val), nil
 	}
 
-	return node.NewStringLiteral(tracker.EndBefore(), name), nil
+	return node.NewConstantName(tracker.EndBefore(), name), nil
 }
 
-// parseIdentCall 解析标识符函数调用 name(...) 或可调用变量 name(...)
+// parseIdentCall 解析标识符函数调用 name(...)
+// PHP：函数名与变量名空间分离，bare name(...) 始终是函数调用；
+// 变量作为可调用必须写 $name(...)。同名形参不得抢占函数调用。
 func (p *IdentParser) parseIdentCall(tracker *PositionTracker, name string) (data.GetValue, data.Control) {
 	vp := &VariableParser{p.Parser}
 	if full, ok := p.findFullFunNameByNamespace(name); ok {
@@ -251,9 +259,6 @@ func (p *IdentParser) parseIdentCall(tracker *PositionTracker, name string) (dat
 		}
 		callExpr := node.NewCallExpression(tracker.EndBefore(), full, stmt, fn)
 		return vp.parseSuffix(callExpr)
-	}
-	if varInfo := p.scopeManager.LookupVariable(name); varInfo != nil {
-		return vp.parseSuffix(varInfo)
 	}
 	if InLSP {
 		stmt, acl := vp.parseFunctionCall()
@@ -277,9 +282,11 @@ func (p *IdentParser) parseIdentCall(tracker *PositionTracker, name string) (dat
 
 // parseStaticCall 解析静态调用（如 Log::info 或 Log::property）
 func (p *IdentParser) parseStaticCall(tracker *PositionTracker, className string) (data.GetValue, data.Control) {
-	// 尝试获取完整的类名
+	// 尝试获取完整的类名。
+	// findFullClassNameByNamespace 在 ok=false 时仍可能返回命名空间候选名（供 autoload），
+	// 必须采用，否则未加载类的静态访问会丢前缀。
 	fullClassName := className
-	if full, ok := p.findFullClassNameByNamespace(className); ok {
+	if full, _ := p.findFullClassNameByNamespace(className); full != "" {
 		fullClassName = full
 	}
 
@@ -291,9 +298,31 @@ func (p *IdentParser) parseStaticCall(tracker *PositionTracker, className string
 	// 获取方法名或属性名
 	isVariable := p.current().Type() == token.VARIABLE
 	fnName := p.current().Literal()
+
+	// Class::$method()：变量方法名需运行时求值（DateFactory / Str::$method）
+	if isVariable && p.checkPositionIs(1, token.LPAREN) {
+		varInfo := p.scopeManager.LookupVariable(fnName)
+		from := tracker.EndBefore()
+		if varInfo == nil {
+			val := p.scopeManager.CurrentScope().AddVariable(fnName, nil, from)
+			varInfo = node.NewVariableWithFirst(from, val)
+		}
+		methodExpr := node.NewVariableWithFirst(from, varInfo)
+		p.next() // 跳过变量
+		vp := &VariableParser{p.Parser}
+		var classRef data.GetValue
+		if has {
+			classRef = stmt
+		} else {
+			classRef = node.NewStringLiteral(from, fullClassName)
+		}
+		expr := node.NewCallStaticDynamicMethod(from, classRef, methodExpr)
+		return vp.parseSuffix(expr)
+	}
+
 	p.next()
 
-	// 如果是 VARIABLE，去掉 $ 前缀
+	// 如果是 VARIABLE，去掉 $ 前缀（静态属性 Class::$prop）
 	if isVariable && len(fnName) > 0 && fnName[0] == '$' {
 		fnName = fnName[1:]
 	}
@@ -326,11 +355,10 @@ func (p *IdentParser) parseStaticCall(tracker *PositionTracker, className string
 			expr := node.NewCallStaticProperty(tracker.EndBefore(), stmt, fnName)
 			return vp.parseSuffix(expr)
 		} else {
-			if strings.Index(fullClassName, "\\") == -1 && p.namespace != nil {
-				fullClassName = p.namespace.Name + "\\" + fullClassName
-			}
-
-			// 类未加载，创建延迟调用
+			// 类未加载，创建延迟调用。
+			// 不要再拼当前命名空间：findFullClassNameByNamespace 已处理
+			// use / 当前命名空间 / 全局类；盲目前缀会破坏 `use SortDirection`
+			// 这类全局导入（变成 Illuminate\...\SortDirection）。
 			vp := &VariableParser{p.Parser}
 			expr := node.NewCallStaticPropertyLater(tracker.EndBefore(), fullClassName, fnName, namespace)
 			return vp.parseSuffix(expr)
@@ -366,4 +394,37 @@ func (p *IdentParser) parseClassInit(tracker *PositionTracker, className string)
 	p.nextAndCheck(token.RBRACE)
 
 	return node.NewInitClass(tracker.EndBefore(), className, kv), nil
+}
+
+// globalLanguageConstruct 识别被词法器收成 "\func_get_args" 形式的全局语言结构
+func globalLanguageConstruct(name string) (string, bool) {
+	n := name
+	for strings.HasPrefix(n, "\\") {
+		n = n[1:]
+	}
+	switch n {
+	case "func_get_args", "func_num_args":
+		return n, true
+	default:
+		return "", false
+	}
+}
+
+func (p *IdentParser) parseGlobalLanguageConstruct(tracker *PositionTracker, builtin string) (data.GetValue, data.Control) {
+	if p.checkPositionIs(0, token.LPAREN) {
+		p.next()
+		if p.current().Type() != token.RPAREN {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("%s() 不接受参数", builtin))
+		}
+		p.next()
+	}
+	from := tracker.EndBefore()
+	switch builtin {
+	case "func_get_args":
+		return node.NewFuncGetArgs(from), nil
+	case "func_num_args":
+		return node.NewFuncNumArgs(from), nil
+	default:
+		return nil, data.NewErrorThrow(from, fmt.Errorf("未知语言结构: %s", builtin))
+	}
 }

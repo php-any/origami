@@ -31,31 +31,24 @@ func (f *ArrayKeyExistsFunction) Call(ctx data.Context) (data.GetValue, data.Con
 
 	// 检查数组
 	if arrayVal, ok := arrayValue.(*data.ArrayValue); ok {
-		// 对于数组，检查索引是否存在
 		if keyInt, ok := keyValue.(data.AsInt); ok {
 			if i, err := keyInt.AsInt(); err == nil {
-				if i >= 0 && i < len(arrayVal.List) {
+				// 必须按 PHP 整数键查找，不能用 List 下标（命名键会占槽位）
+				if z, _ := arrayVal.FindSlotByIntKey(i); z != nil {
 					return data.NewBoolValue(true), nil
 				}
+				return data.NewBoolValue(false), nil
 			}
 		}
-		// 检查字符串键（关联数组）
 		if _, ok := arrayVal.LookupZValByStringKey(keyStr); ok {
 			return data.NewBoolValue(true), nil
 		}
 		return data.NewBoolValue(false), nil
 	}
 
-	// 检查对象
+	// 关联数组在运行时可能以 ObjectValue 表示；键存在且值为 null 时仍应返回 true（对齐 PHP）
 	if objectVal, ok := arrayValue.(*data.ObjectValue); ok {
-		val, acl := objectVal.GetProperty(keyStr)
-		if acl != nil {
-			return data.NewBoolValue(false), acl
-		}
-		if _, isNull := val.(*data.NullValue); isNull {
-			return data.NewBoolValue(false), nil
-		}
-		return data.NewBoolValue(true), nil
+		return data.NewBoolValue(objectVal.HasProperty(keyStr)), nil
 	}
 
 	return data.NewBoolValue(false), nil

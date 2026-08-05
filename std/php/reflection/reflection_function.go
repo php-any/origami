@@ -46,6 +46,8 @@ func (c *ReflectionFunctionClass) GetMethod(name string) (data.Method, bool) {
 		return &ReflectionFunctionIsAnonymousMethod{}, true
 	case "getClosureScopeClass":
 		return &ReflectionFunctionGetClosureScopeClassMethod{}, true
+	case "getStaticVariables":
+		return &ReflectionFunctionGetStaticVariablesMethod{}, true
 	}
 	return nil, false
 }
@@ -56,6 +58,9 @@ func (c *ReflectionFunctionClass) GetMethods() []data.Method {
 		&ReflectionFunctionConstructMethod{},
 		&ReflectionFunctionGetParametersMethod{},
 		&ReflectionFunctionGetNumberOfParametersMethod{},
+		&ReflectionFunctionIsAnonymousMethod{},
+		&ReflectionFunctionGetClosureScopeClassMethod{},
+		&ReflectionFunctionGetStaticVariablesMethod{},
 	}
 }
 
@@ -102,6 +107,7 @@ func (m *ReflectionFunctionConstructMethod) Call(ctx data.Context) (data.GetValu
 		// 存储 Closure 的参数列表供后续 getParameters 使用
 		params := fv.Value.GetParams()
 		objCtx.ObjectValue.SetProperty("_isClosure", data.NewBoolValue(true))
+		objCtx.ObjectValue.SetProperty("_function", fv)
 		// 将参数数量存储为整数
 		objCtx.ObjectValue.SetProperty("_paramCount", data.NewIntValue(len(params)))
 		// 逐个存储参数名
@@ -264,4 +270,47 @@ func (m *ReflectionFunctionGetClosureScopeClassMethod) GetVariables() []data.Var
 }
 func (m *ReflectionFunctionGetClosureScopeClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewNullValue(), nil
+}
+
+// ---- getStaticVariables ----
+
+type ReflectionFunctionGetStaticVariablesMethod struct{}
+
+func (m *ReflectionFunctionGetStaticVariablesMethod) GetName() string {
+	return "getStaticVariables"
+}
+func (m *ReflectionFunctionGetStaticVariablesMethod) GetModifier() data.Modifier {
+	return data.ModifierPublic
+}
+func (m *ReflectionFunctionGetStaticVariablesMethod) GetIsStatic() bool { return false }
+func (m *ReflectionFunctionGetStaticVariablesMethod) GetReturnType() data.Types {
+	return data.Arrays{}
+}
+func (m *ReflectionFunctionGetStaticVariablesMethod) GetParams() []data.GetValue {
+	return []data.GetValue{}
+}
+func (m *ReflectionFunctionGetStaticVariablesMethod) GetVariables() []data.Variable {
+	return []data.Variable{}
+}
+func (m *ReflectionFunctionGetStaticVariablesMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	objCtx, ok := ctx.(*data.ClassMethodContext)
+	if !ok || objCtx.ObjectValue == nil {
+		return data.NewArrayValue([]data.Value{}), nil
+	}
+	function, ok := objCtx.ObjectValue.GetProperties()["_function"].(*data.FuncValue)
+	if !ok || function == nil {
+		return data.NewArrayValue([]data.Value{}), nil
+	}
+	getter, ok := function.Value.(interface {
+		GetStaticVariables() map[string]data.Value
+	})
+	if !ok {
+		return data.NewArrayValue([]data.Value{}), nil
+	}
+	values := getter.GetStaticVariables()
+	list := make([]*data.ZVal, 0, len(values))
+	for name, value := range values {
+		list = append(list, data.NewNamedZVal(name, value))
+	}
+	return &data.ArrayValue{List: list}, nil
 }

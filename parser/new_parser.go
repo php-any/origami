@@ -120,10 +120,49 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 	if p.checkPositionIs(0, token.STATIC) {
 		p.next() // 跳过 static
 
+		vp := VariableParser{Parser: p.Parser}
+
+		// new static::$className(...) — 类名来自后期静态绑定属性
+		// 亦支持下标：new static::$classes[$key](...)（Laravel HasCollection::newCollection）
+		if p.checkPositionIs(0, token.SCOPE_RESOLUTION) {
+			p.next() // 跳过 ::
+			if !p.checkPositionIs(0, token.VARIABLE) {
+				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("new static:: 后需要 $属性名"))
+			}
+			propLit := p.current().Literal()
+			propName := strings.TrimPrefix(propLit, "$")
+			p.next()
+			var classNameExpr data.GetValue = node.NewCallStaticKeywordProperty(tracker.EndBefore(), propName)
+
+			// 只消费 [...] 下标，不要走完整 parseSuffix（否则会把构造参数 (...) 当成方法调用）
+			var acl data.Control
+			for p.checkPositionIs(0, token.LBRACKET) {
+				classNameExpr, acl = vp.parseArrayAccess(classNameExpr)
+				if acl != nil {
+					return nil, acl
+				}
+			}
+
+			var args []data.GetValue
+			if p.checkPositionIs(0, token.LPAREN) {
+				args, acl = vp.parseFunctionCall()
+				if acl != nil {
+					return nil, acl
+				}
+			} else {
+				args = []data.GetValue{}
+			}
+
+			n := node.NewNewExpressionDynamic(tracker.EndBefore(), classNameExpr, args)
+			if p.checkPositionIs(0, token.OBJECT_OPERATOR) {
+				return vp.parseSuffix(n)
+			}
+			return n, nil
+		}
+
 		// 检查是否有参数列表（括号）
 		var args []data.GetValue
 		var acl data.Control
-		vp := VariableParser{Parser: p.Parser}
 
 		if p.checkPositionIs(0, token.LPAREN) {
 			// 有括号，解析参数列表

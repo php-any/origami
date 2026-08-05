@@ -12,6 +12,9 @@ type ReflectionExceptionClass struct {
 	node.Node
 	exception        data.Method
 	getMessage       *ExceptionGetMessageMethod
+	getTrace         *ExceptionGetTraceMethod
+	getFile          *ExceptionGetFileMethod
+	getLine          *ExceptionGetLineMethod
 	getTraceAsString *ExceptionGetTraceAsStringMethod
 }
 
@@ -21,6 +24,9 @@ func NewReflectionExceptionClass() *ReflectionExceptionClass {
 	return &ReflectionExceptionClass{
 		exception:        &ExceptionExceptionMethod{source},
 		getMessage:       &ExceptionGetMessageMethod{source},
+		getTrace:         &ExceptionGetTraceMethod{source},
+		getFile:          &ExceptionGetFileMethod{source},
+		getLine:          &ExceptionGetLineMethod{source},
 		getTraceAsString: &ExceptionGetTraceAsStringMethod{source},
 	}
 }
@@ -70,6 +76,12 @@ func (s *ReflectionExceptionClass) GetMethod(name string) (data.Method, bool) {
 		return s.exception, true
 	case "getMessage":
 		return s.getMessage, true
+	case "getTrace":
+		return s.getTrace, true
+	case "getFile":
+		return s.getFile, true
+	case "getLine":
+		return s.getLine, true
 	case "getTraceAsString":
 		return s.getTraceAsString, true
 	}
@@ -80,6 +92,9 @@ func (s *ReflectionExceptionClass) GetMethods() []data.Method {
 	return []data.Method{
 		s.exception,
 		s.getMessage,
+		s.getTrace,
+		s.getFile,
+		s.getLine,
 		s.getTraceAsString,
 	}
 }

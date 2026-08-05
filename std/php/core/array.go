@@ -41,7 +41,10 @@ func (f *ArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 			return true
 		})
 		return result, nil
-	case *data.StringValue, *data.IntValue, *data.FloatValue, *data.BoolValue, *data.NullValue:
+	case *data.NullValue:
+		// PHP: (array) null => []（空数组，不是 [null]）
+		return data.NewArrayValue([]data.Value{}), nil
+	case *data.StringValue, *data.IntValue, *data.FloatValue, *data.BoolValue:
 		// PHP: (array) 标量 => array(0 => 标量)
 		return data.NewArrayValue([]data.Value{a1}), nil
 	default:

@@ -71,60 +71,82 @@ func (m *ReflectionMethodConstructMethod) Call(ctx data.Context) (data.GetValue,
 	}
 	methodName := methodNameValue.AsString()
 
-	// 加载类
+	// 加载类或接口
 	vm := ctx.GetVM()
-	pkgVal, acl := vm.LoadPkg(className)
-	if acl != nil {
-		return nil, acl
-	}
-	stmt, ok := pkgVal.(data.ClassStmt)
-	if !ok || stmt == nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("Class %s does not exist", className))
-	}
+	var method data.Method
+	var exists bool
 
-	// 查找方法（包括继承的方法）
-	method, exists := stmt.GetMethod(methodName)
-	if !exists {
-		if classStmt, ok := stmt.(data.GetStaticMethod); ok {
-			method, exists = classStmt.GetStaticMethod(methodName)
-		}
-	}
-
-	if !exists {
-		// 如果当前类没有找到，查找继承的方法
-		last := stmt
-		for last.GetExtend() != nil {
-			ext := last.GetExtend()
-			pkgVal, acl := vm.LoadPkg(*ext)
-			if acl != nil {
-				return nil, acl
-			}
-			parentStmt, ok := pkgVal.(data.ClassStmt)
-			if !ok || parentStmt == nil {
-				break
-			}
-
-			method, exists = parentStmt.GetMethod(methodName)
-			if exists {
-				// 检查访问权限，私有方法不能继承
-				if method.GetModifier() != data.ModifierPrivate {
-					break
+	if iface, acl := vm.GetOrLoadInterface(className); acl == nil && iface != nil {
+		method, exists = iface.GetMethod(methodName)
+		if !exists {
+			for _, ext := range iface.GetExtends() {
+				parent, pacl := vm.GetOrLoadInterface(ext)
+				if pacl != nil || parent == nil {
+					continue
 				}
-				// 如果是私有方法，继续向上查找
-				method = nil
-				exists = false
-			} else if classStmt, ok := parentStmt.(data.GetStaticMethod); ok {
-				method, exists = classStmt.GetStaticMethod(methodName)
+				method, exists = parent.GetMethod(methodName)
 				if exists {
 					break
 				}
 			}
+		}
+		if !exists {
+			return nil, data.NewErrorThrow(nil, fmt.Errorf("Method %s::%s() does not exist", className, methodName))
+		}
+	} else {
+		pkgVal, acl := vm.LoadPkg(className)
+		if acl != nil {
+			return nil, acl
+		}
+		stmt, ok := pkgVal.(data.ClassStmt)
+		if !ok || stmt == nil {
+			return nil, data.NewErrorThrow(nil, fmt.Errorf("Class %s does not exist", className))
+		}
 
-			last = parentStmt
+		// 查找方法（包括继承的方法）
+		method, exists = stmt.GetMethod(methodName)
+		if !exists {
+			if classStmt, ok := stmt.(data.GetStaticMethod); ok {
+				method, exists = classStmt.GetStaticMethod(methodName)
+			}
 		}
 
 		if !exists {
-			return nil, data.NewErrorThrow(nil, fmt.Errorf("Method %s::%s() does not exist", className, methodName))
+			// 如果当前类没有找到，查找继承的方法
+			last := stmt
+			for last.GetExtend() != nil {
+				ext := last.GetExtend()
+				pkgVal, acl := vm.LoadPkg(*ext)
+				if acl != nil {
+					return nil, acl
+				}
+				parentStmt, ok := pkgVal.(data.ClassStmt)
+				if !ok || parentStmt == nil {
+					break
+				}
+
+				method, exists = parentStmt.GetMethod(methodName)
+				if exists {
+					// 检查访问权限，私有方法不能继承
+					if method.GetModifier() != data.ModifierPrivate {
+						break
+					}
+					// 如果是私有方法，继续向上查找
+					method = nil
+					exists = false
+				} else if classStmt, ok := parentStmt.(data.GetStaticMethod); ok {
+					method, exists = classStmt.GetStaticMethod(methodName)
+					if exists {
+						break
+					}
+				}
+
+				last = parentStmt
+			}
+
+			if !exists {
+				return nil, data.NewErrorThrow(nil, fmt.Errorf("Method %s::%s() does not exist", className, methodName))
+			}
 		}
 	}
 

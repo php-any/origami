@@ -26,6 +26,7 @@ func writeHandlerReturnValue(resProxy data.Value, ret data.GetValue) data.Contro
 	if !ok {
 		return nil
 	}
+
 	serializer, ok := val.(data.ValueSerializer)
 	if !ok {
 		return nil

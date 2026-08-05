@@ -30,6 +30,25 @@ func (f *LambdaExpression) GetParentBindings() map[int]int {
 	return f.parent
 }
 
+// GetStaticVariables 返回闭包 use 捕获的变量，对齐 ReflectionFunction::getStaticVariables()。
+func (f *LambdaExpression) GetStaticVariables() map[string]data.Value {
+	result := make(map[string]data.Value, len(f.parent))
+	if f.ctx == nil {
+		return result
+	}
+	for childIndex, parentIndex := range f.parent {
+		if childIndex < 0 || childIndex >= len(f.vars) {
+			continue
+		}
+		value, ok := f.ctx.GetIndexValue(parentIndex)
+		if !ok || value == nil {
+			continue
+		}
+		result[f.vars[childIndex].GetName()] = value
+	}
+	return result
+}
+
 func (f *LambdaExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewFuncValue(&LambdaExpression{
 		FunctionStatement: &FunctionStatement{
@@ -53,13 +72,16 @@ func (f *LambdaExpression) Call(ctx data.Context) (data.GetValue, data.Control) 
 		// 在类方法中定义的 lambda：使用定义时对象创建新的 ClassMethodContext 作为执行上下文，
 		// 以保证 this 语义正确。
 		execCtx = defineClassCtx.ClassValue.CreateContext(f.vars)
+		// VM 属于本次调用而不是闭包定义作用域。常驻对象中的闭包可能跨请求复用，
+		// 但输出、HTTP 和调用栈必须落到当前调用方 VM。
+		execCtx.SetVM(ctx.GetVM())
 	} else {
 		// 普通场景：基于当前 ctx 再创建一层函数上下文，隔离变量写入。
 		execCtx = ctx.CreateContext(f.vars)
 	}
-	// 保留 BoundContext scope（来自 Closure::bind）以便闭包内可以访问私有成员
+	// 保留 BoundContext（来自 Closure::bind/bindTo）以便闭包内可以访问 $this 与私有成员
 	if bc := getBoundContext(ctx); bc != nil {
-		execCtx = &data.BoundContext{Context: execCtx, ScopeClass: bc.ScopeClass}
+		execCtx = &data.BoundContext{Context: execCtx, ScopeClass: bc.ScopeClass, BoundThis: bc.BoundThis}
 	}
 	// 将调用方 ctx 中已经绑定好的参数 ZVal 复制到新的执行上下文中
 	for i := range f.vars {
@@ -99,12 +121,24 @@ func (f *LambdaExpression) Call(ctx data.Context) (data.GetValue, data.Control) 
 
 	var v data.GetValue
 	var ctl data.Control
-	for bodyIndex, statement := range f.Body {
+	for bodyIndex := 0; bodyIndex < len(f.Body); bodyIndex++ {
+		statement := f.Body[bodyIndex]
 		v, ctl = statement.GetValue(execCtx)
 		if ctl != nil {
 			switch rv := ctl.(type) {
+			case data.ExitControl:
+				return nil, ctl
 			case data.ReturnControl:
 				return rv.ReturnValue(), nil
+			case data.GotoControl:
+				offset, acl := resolveGotoBodyIndex(f.from, f.Body, rv)
+				if acl != nil {
+					return nil, acl
+				}
+				bodyIndex = offset - 1
+				continue
+			case LabelControl:
+				continue
 			case data.YieldControl:
 				generator := rv.CreateStackState(execCtx, f, f.Body, bodyIndex)
 				generatorClass := NewGeneratorClass(generator)
@@ -129,17 +163,7 @@ func (f *LambdaExpression) Call(ctx data.Context) (data.GetValue, data.Control) 
 	return v, nil
 }
 
-// getBoundContext 从上下文链中查找 BoundContext（来自 Closure::bind）
+// getBoundContext 从上下文链中查找 BoundContext（来自 Closure::bind/bindTo）
 func getBoundContext(ctx data.Context) *data.BoundContext {
-	if bc, ok := ctx.(*data.BoundContext); ok {
-		return bc
-	}
-	// 沿上下文链向上查找
-	if cmc, ok := ctx.(*data.ClassMethodContext); ok {
-		return getBoundContext(cmc.ClassValue)
-	}
-	if cv, ok := ctx.(*data.ClassValue); ok {
-		return getBoundContext(cv.Context)
-	}
-	return nil
+	return data.FindBoundContext(ctx)
 }

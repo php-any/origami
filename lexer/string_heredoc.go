@@ -46,7 +46,8 @@ func handleHeredocString(input string, start int, identifier string) (SpecialTok
 		for after < len(input) && (input[after] == ' ' || input[after] == '\t') {
 			after++
 		}
-		if after >= len(input) || input[after] == '\n' || input[after] == '\r' || input[after] == ';' {
+		if after >= len(input) || input[after] == '\n' || input[after] == '\r' || input[after] == ';' ||
+			input[after] == ')' || input[after] == ',' {
 			return markerStart + len(identifier), true
 		}
 		return 0, false

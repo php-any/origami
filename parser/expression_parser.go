@@ -183,16 +183,18 @@ func (ep *ExpressionParser) parseTernary() (data.GetValue, data.Control) {
 	}
 }
 
-// parseNullCoalesce 解析 ??（null 合并运算符），优先级介于 ?: 和连接表达式之间。
+// parseNullCoalesce 解析 ??（null 合并运算符），优先级介于 ?: 和 or 之间。
+// PHP 中 ?? 为右结合：$a ?? $b ?? $c === $a ?? ($b ?? $c)，
+// 这样链式中间的未定义数组键不会触发 Warning（仅左操作数受 ?? 抑制）。
 func (ep *ExpressionParser) parseNullCoalesce() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
-	expr, acl := ep.parseConcatenation()
+	expr, acl := ep.parseLogicalOrKeyword()
 	if acl != nil {
 		return nil, acl
 	}
-	for ep.current().Type() == token.NULL_COALESCE {
+	if ep.current().Type() == token.NULL_COALESCE {
 		ep.next() // 跳过 ??
-		right, acl := ep.parseConcatenation()
+		right, acl := ep.parseNullCoalesce()
 		if acl != nil {
 			return nil, acl
 		}
@@ -205,30 +207,9 @@ func (ep *ExpressionParser) parseNullCoalesce() (data.GetValue, data.Control) {
 	return expr, nil
 }
 
-// parseConcatenation 解析字符串连接表达式
+// parseConcatenation 已并入 parseTerm（与 +、- 同级，高于 ===）；保留别名以免外部调用断裂。
 func (ep *ExpressionParser) parseConcatenation() (data.GetValue, data.Control) {
-	tracker := ep.StartTracking()
-	expr, acl := ep.parseLogicalOrKeyword()
-	if acl != nil {
-		return nil, acl
-	}
-	for ep.current().Type() == token.DOT {
-		operator := ep.current()
-		ep.next()
-
-		right, acl := ep.parseLogicalOrKeyword()
-		if acl != nil {
-			return nil, acl
-		}
-		expr = node.NewBinaryExpression(
-			tracker.EndBefore(),
-			expr,
-			operator,
-			right,
-		)
-	}
-
-	return expr, nil
+	return ep.parseLogicalOrKeyword()
 }
 
 // parseLogicalOrKeyword 解析 or 关键字逻辑或（优先级低于 ||）
@@ -595,14 +576,15 @@ func (ep *ExpressionParser) parseShiftIndex() (data.GetValue, data.Control) {
 	return expr, nil
 }
 
-// parseTermNoRange 加减项，不解析 .. 范围运算符（留给数组下标后的 parseArrayAccess）。
+// parseTermNoRange 加减/字符串连接项，不解析 .. 范围运算符（留给数组下标后的 parseArrayAccess）。
+// PHP 中 . 与 +、- 同级且左结合，高于 ===。
 func (ep *ExpressionParser) parseTermNoRange() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
 	expr, acl := ep.parseFactor()
 	if acl != nil {
 		return nil, acl
 	}
-	for ep.current().Type() == token.ADD || ep.current().Type() == token.SUB || isSignedNumberToken(ep.current()) {
+	for ep.current().Type() == token.ADD || ep.current().Type() == token.SUB || ep.current().Type() == token.DOT || isSignedNumberToken(ep.current()) {
 		operator := ep.current()
 
 		var right data.GetValue
@@ -688,14 +670,15 @@ func (ep *ExpressionParser) parseShift() (data.GetValue, data.Control) {
 	return expr, nil
 }
 
-// parseTerm 解析加减表达式（含范围运算符 ..，如 1..5）
+// parseTerm 解析加减/字符串连接表达式（含范围运算符 ..，如 1..5）。
+// PHP 中 . 与 +、- 同级且左结合，高于 ===。
 func (ep *ExpressionParser) parseTerm() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
 	expr, acl := ep.parseRangeOperand()
 	if acl != nil {
 		return nil, acl
 	}
-	for ep.current().Type() == token.ADD || ep.current().Type() == token.SUB || isSignedNumberToken(ep.current()) {
+	for ep.current().Type() == token.ADD || ep.current().Type() == token.SUB || ep.current().Type() == token.DOT || isSignedNumberToken(ep.current()) {
 		operator := ep.current()
 
 		var right data.GetValue

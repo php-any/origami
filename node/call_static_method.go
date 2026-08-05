@@ -2,6 +2,7 @@ package node
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/php-any/origami/data"
 )
@@ -64,6 +65,28 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 				}
 			}
 			if !has {
+				// PHP: 实例方法上下文中可用 self::foo() / ClassName::foo() 调用非静态方法
+				if objCtx, ok := ctx.(*data.ClassMethodContext); ok && objCtx.ClassValue != nil && objCtx.ObjectValue != nil {
+					checkClass := cls
+					for checkClass != nil {
+						if m, ok := checkClass.GetMethod(pe.Method); ok {
+							return data.NewFuncValue(&instanceViaSelfFunc{
+								this:   objCtx.ClassValue,
+								method: m,
+							}), nil
+						}
+						if checkClass.GetExtend() == nil {
+							break
+						}
+						vm := ctx.GetVM()
+						parent, acl := vm.GetOrLoadClass(*checkClass.GetExtend())
+						if acl != nil || parent == nil {
+							break
+						}
+						checkClass = parent
+					}
+				}
+
 				// 检查 __callStatic 魔术方法（包括父类）
 				checkClass := cls
 				for checkClass != nil {
@@ -207,6 +230,7 @@ type CallStaticMethodLater struct {
 	method    string            // 方法名
 	namespace string            // 命名空间
 	call      *CallStaticMethod `pp:"-"` // 解析后缓存
+	resolveMu sync.Mutex
 }
 
 // NewCallStaticMethodLater 创建延迟的静态方法调用
@@ -220,6 +244,8 @@ func NewCallStaticMethodLater(from *TokenFrom, className, method, namespace stri
 }
 
 func (pe *CallStaticMethodLater) resolveCall(ctx data.Context) (*CallStaticMethod, data.Control) {
+	pe.resolveMu.Lock()
+	defer pe.resolveMu.Unlock()
 	if pe.call != nil {
 		return pe.call, nil
 	}
@@ -328,6 +354,36 @@ func (s *staticMethodFunc) Call(callCtx data.Context) (data.GetValue, data.Contr
 			} else {
 				fnCtx.SetIndexZVal(i, zval)
 			}
+		}
+	}
+	return s.method.Call(fnCtx)
+}
+
+// instanceViaSelfFunc 支持实例方法上下文中的 self::nonStaticMethod() 调用
+type instanceViaSelfFunc struct {
+	this   *data.ClassValue
+	method data.Method
+}
+
+func (s *instanceViaSelfFunc) GetName() string               { return s.method.GetName() }
+func (s *instanceViaSelfFunc) GetParams() []data.GetValue    { return s.method.GetParams() }
+func (s *instanceViaSelfFunc) GetVariables() []data.Variable { return s.method.GetVariables() }
+func (s *instanceViaSelfFunc) Call(callCtx data.Context) (data.GetValue, data.Control) {
+	fnCtx := s.this.CreateContext(s.method.GetVariables())
+	params := s.method.GetParams()
+	vars := s.method.GetVariables()
+	for i := 0; i < len(vars); i++ {
+		zval := callCtx.GetIndexZVal(i)
+		if zval == nil {
+			if i < len(params) {
+				if _, acl := params[i].GetValue(fnCtx); acl != nil {
+					return nil, acl
+				}
+			} else {
+				fnCtx.SetVariableValue(vars[i], data.NewNullValue())
+			}
+		} else {
+			fnCtx.SetIndexZVal(i, zval)
 		}
 	}
 	return s.method.Call(fnCtx)

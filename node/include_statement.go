@@ -3,27 +3,19 @@ package node
 import (
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/utils"
 )
 
-// 缓存 include_once/require_once 已加载文件的返回值
-var includeOnceCache = struct {
-	mu    sync.Mutex
-	files map[string]data.GetValue
-}{
-	files: make(map[string]data.GetValue),
+type includeOnceCacheHost interface {
+	GetIncludeOnceResult(file string) (data.GetValue, bool)
+	SetIncludeOnceResult(file string, result data.GetValue)
 }
 
 // ClearIncludeCache 清空 include/require 返回值缓存，供开发模式热重载使用。
-// 缓存为进程级全局，若不清理会导致重载时 require 命中旧值而跳过重新执行。
-func ClearIncludeCache() {
-	includeOnceCache.mu.Lock()
-	defer includeOnceCache.mu.Unlock()
-	includeOnceCache.files = make(map[string]data.GetValue)
-}
+// 嵌入层应同时对常驻 runtime.VM 调用 ClearIncludeOnceCache()。
+func ClearIncludeCache() {}
 
 // IncludeStatement 表示 include/require/include_once/require_once 语句
 type IncludeStatement struct {
@@ -91,12 +83,11 @@ func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool,
 	vm := ctx.GetVM()
 
 	if once {
-		includeOnceCache.mu.Lock()
-		if cached, ok := includeOnceCache.files[filePath]; ok {
-			includeOnceCache.mu.Unlock()
-			return cached, nil
+		if host, ok := vm.(includeOnceCacheHost); ok {
+			if cached, ok := host.GetIncludeOnceResult(filePath); ok {
+				return cached, nil
+			}
 		}
-		includeOnceCache.mu.Unlock()
 
 		if vm.GetPhpFileCache(filePath) {
 			return data.NewBoolValue(true), nil
@@ -133,13 +124,13 @@ func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool,
 		if !vm.GetPhpFileCache(filePath) {
 			vm.SetPhpFileCache(filePath)
 		}
-		includeOnceCache.mu.Lock()
-		if vv, ok := v.(data.Value); ok {
-			includeOnceCache.files[filePath] = vv
-		} else {
-			includeOnceCache.files[filePath] = data.NewBoolValue(true)
+		if host, ok := vm.(includeOnceCacheHost); ok {
+			if vv, ok := v.(data.Value); ok {
+				host.SetIncludeOnceResult(filePath, vv)
+			} else {
+				host.SetIncludeOnceResult(filePath, data.NewBoolValue(true))
+			}
 		}
-		includeOnceCache.mu.Unlock()
 	}
 
 	return v, nil

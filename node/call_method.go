@@ -3,6 +3,7 @@ package node
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/php-any/origami/data"
 )
@@ -38,6 +39,8 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			}
 		}
 		return ret, acl
+	case *data.BoundFuncValue:
+		return pe.handleBoundFuncValue(ctx, fv)
 	case *StaticMethodFuncValue:
 		// 静态方法包装器，调用 GetValue 获取 FuncValue 然后继续处理
 		funcValue, acl := fv.GetValue(ctx)
@@ -62,19 +65,58 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			// first-class callable: 返回包装的调用
 			return call, nil
 		}
-		// PHP 数组可调用: [$obj, 'method'](...$args)
-		if arr, ok2 := call.(*data.ArrayValue); ok2 && len(arr.List) == 2 {
+		// PHP 可变函数：$fn = 'login_page'; $fn();
+		if name := callableFunctionName(call); name != "" {
+			fn, ok := ctx.GetVM().GetFunc(name)
+			if !ok && len(name) > 0 && name[0] == '\\' {
+				fn, ok = ctx.GetVM().GetFunc(name[1:])
+			}
+			if ok {
+				if isFirstClassCallableArgs(pe.Args) {
+					return data.NewFuncValue(fn), nil
+				}
+				return pe.invokeFuncStmt(ctx, fn, fn.Call)
+			}
+			return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("Call to undefined function %s()", name))
+		}
+		// PHP 数组可调用: [$obj, 'method'](...$args) 或 ['ClassName', 'method'](...)
+		if arr, ok2 := call.(*data.ArrayValue); ok2 && len(arr.List) >= 2 {
 			objVal := arr.List[0].Value
 			methodVal := arr.List[1].Value
-			if obj, ok3 := objVal.(data.GetMethod); ok3 {
-				methodName := ""
-				if sv, ok4 := methodVal.(*data.StringValue); ok4 {
-					methodName = sv.Value
-				} else {
-					methodName = methodVal.AsString()
+			methodName := ""
+			if sv, ok4 := methodVal.(*data.StringValue); ok4 {
+				methodName = sv.Value
+			} else if methodVal != nil {
+				methodName = methodVal.AsString()
+			}
+			if methodName != "" {
+				if obj, ok3 := objVal.(data.GetMethod); ok3 {
+					if method, has := obj.GetMethod(methodName); has {
+						return pe.doCallWithArgs(ctx, obj, method)
+					}
 				}
-				if method, has := obj.GetMethod(methodName); has {
-					return pe.doCallWithArgs(ctx, obj, method)
+				if className := callableFunctionName(objVal); className != "" {
+					stmt, acl := ctx.GetVM().GetOrLoadClass(className)
+					if acl != nil {
+						return nil, acl
+					}
+					if stmt != nil {
+						var method data.Method
+						var ok bool
+						method, ok = stmt.GetMethod(methodName)
+						if !ok {
+							if sm, ok2 := stmt.(data.GetStaticMethod); ok2 {
+								method, ok = sm.GetStaticMethod(methodName)
+							}
+						}
+						if ok {
+							fv, acl := NewStaticMethodFuncValue(stmt, method).GetValue(ctx)
+							if acl != nil {
+								return nil, acl
+							}
+							return pe.handleFuncValue(ctx, fv)
+						}
+					}
 				}
 			}
 		}
@@ -91,6 +133,37 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("不存在对应函数:"+TryGetCallClassName(pe.Method)))
 }
 
+// callableFunctionName 从字符串/可转为字符串的值取出函数名；空串表示不是函数名回调。
+func callableFunctionName(v data.GetValue) string {
+	if v == nil {
+		return ""
+	}
+	switch s := v.(type) {
+	case *data.StringValue:
+		return strings.TrimSpace(s.Value)
+	case *data.NullValue:
+		return ""
+	case data.AsString:
+		// 避免把数组/对象误当成函数名
+		if _, ok := v.(*data.ArrayValue); ok {
+			return ""
+		}
+		if _, ok := v.(*data.ObjectValue); ok {
+			return ""
+		}
+		if _, ok := v.(*data.ClassValue); ok {
+			return ""
+		}
+		name := strings.TrimSpace(s.AsString())
+		if name == "" || name == "Array" || strings.HasPrefix(name, "Object") {
+			return ""
+		}
+		return name
+	default:
+		return ""
+	}
+}
+
 // handleStaticMethodWithLateBinding 处理后期静态绑定的静态方法调用
 func (pe *CallMethod) handleStaticMethodWithLateBinding(ctx data.Context, sm *staticMethodFuncWithLateBinding) (data.GetValue, data.Control) {
 	fn := sm.method
@@ -104,27 +177,72 @@ func (pe *CallMethod) handleStaticMethodWithLateBinding(ctx data.Context, sm *st
 		cmc.StaticClass = sm.callClass
 	}
 
-	// 入参的值设置到上下文中
 	params := fn.GetParams()
+	flatArgs, namedArgs, acl := flattenCallArgsForBinding(ctx, pe.Args)
+	if acl != nil {
+		return nil, acl
+	}
+
+	bound := make([]bool, len(params))
+	for _, named := range namedArgs {
+		variable, err := findVariable(varies, named.Name)
+		if err != nil {
+			return nil, data.NewErrorThrow(pe.from, err)
+		}
+		for i, v := range varies {
+			if v.GetName() == named.Name && i < len(bound) {
+				bound[i] = true
+				break
+			}
+		}
+		if acl := variable.SetValue(fnCtx, named.Value); acl != nil {
+			return nil, acl
+		}
+	}
+
+	pos := 0
 	for index, param := range params {
-		if index < len(pe.Args) {
-			arg := pe.Args[index]
-			tempV, acl := arg.GetValue(ctx)
-			if acl != nil {
+		if index < len(bound) && bound[index] {
+			continue
+		}
+		switch p := param.(type) {
+		case *ParameterReference:
+			rawArg := nthPositionalExpr(pe.Args, pos)
+			if rawArg == nil {
+				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能是必传参数, fn: %s", fn.GetName()))
+			}
+			pos++
+			if acl := bindByRefParam(fnCtx, ctx, p, rawArg); acl != nil {
 				return nil, acl
 			}
-			if index < len(varies) {
-				fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
+		case *Parameter:
+			if pos < len(flatArgs) {
+				if acl := p.SetValue(fnCtx, flatArgs[pos]); acl != nil {
+					return nil, acl
+				}
+				pos++
+			} else if p.DefaultValue == nil {
+				return nil, pe.newFunParamsError(pe.GetFrom(), fn.GetName(), p.Name)
+			} else if _, acl := p.GetValue(fnCtx); acl != nil {
+				return nil, acl
 			}
-		} else {
-			// 调用方未传该参数，触发默认值填充
-			if _, acl := param.GetValue(fnCtx); acl != nil {
+		case *Parameters:
+			fnCtx.SetVariableValue(p, data.NewArrayValue(flatArgs[pos:]))
+			pos = len(flatArgs)
+		case data.Parameter:
+			if pos < len(flatArgs) {
+				if acl := p.SetValue(fnCtx, flatArgs[pos]); acl != nil {
+					return nil, acl
+				}
+				pos++
+			} else if p.GetDefaultValue() == nil {
+				return nil, pe.newFunParamsError(pe.GetFrom(), fn.GetName(), p.GetName())
+			} else if _, acl := p.GetValue(fnCtx); acl != nil {
 				return nil, acl
 			}
 		}
 	}
 
-	// 将本次调用的参数表达式列表记录到方法上下文中
 	fnCtx.SetCallArgs(pe.Args)
 
 	return fn.Call(fnCtx)
@@ -136,38 +254,65 @@ func (pe *CallMethod) handleFuncValue(ctx data.Context, call data.GetValue) (dat
 	if !ok {
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("期望 FuncValue 类型"))
 	}
-	fn := fv.Value
+	// PHP 8.1: $fn(...) / $listener(...) 一等可调用，返回闭包本身
+	if isFirstClassCallableArgs(pe.Args) {
+		return fv, nil
+	}
+	return pe.invokeFuncStmt(ctx, fv.Value, fv.Call)
+}
+
+// handleBoundFuncValue 处理 bindTo/bind 后的 BoundFuncValue 变量调用 $fn(...)
+func (pe *CallMethod) handleBoundFuncValue(ctx data.Context, bfv *data.BoundFuncValue) (data.GetValue, data.Control) {
+	if isFirstClassCallableArgs(pe.Args) {
+		return bfv, nil
+	}
+	return pe.invokeFuncStmt(ctx, bfv.Value, bfv.Call)
+}
+
+func (pe *CallMethod) invokeFuncStmt(ctx data.Context, fn data.FuncStmt, invoke func(data.Context) (data.GetValue, data.Control)) (data.GetValue, data.Control) {
 	varies := fn.GetVariables()
 	fnCtx := ctx.CreateContext(varies)
-	// 入参的值设置到上下文中
-	for index, arg := range fn.GetParams() {
+	params := fn.GetParams()
+
+	// 先展开 ...$arr，再按位置/命名绑定（Laravel Event：$listener(...array_values($payload))）
+	flatArgs, namedArgs, acl := flattenCallArgsForBinding(ctx, pe.Args)
+	if acl != nil {
+		return nil, acl
+	}
+
+	bound := make([]bool, len(params))
+	for _, na := range namedArgs {
+		vari, err := findVariable(varies, na.Name)
+		if err != nil {
+			return nil, data.NewErrorThrow(pe.from, err)
+		}
+		idx := -1
+		for i, v := range varies {
+			if v.GetName() == na.Name {
+				idx = i
+				break
+			}
+		}
+		if idx >= 0 && idx < len(bound) {
+			bound[idx] = true
+		}
+		if acl := vari.SetValue(fnCtx, na.Value); acl != nil {
+			return nil, acl
+		}
+	}
+
+	pos := 0
+	for index, arg := range params {
+		if index < len(bound) && bound[index] {
+			continue
+		}
 		switch argObj := arg.(type) {
 		case *Parameter:
-			if index < len(pe.Args) {
-				param := pe.Args[index]
-				switch paramTV := param.(type) {
-				case *NamedArgument:
-					tempV, acl := paramTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					vari, err := findVariable(varies, paramTV.Name)
-					if err != nil {
-						return nil, data.NewErrorThrow(pe.from, err)
-					}
-					acl = vari.SetValue(fnCtx, tempV.(data.Value))
-					if acl != nil {
-						return nil, acl
-					}
-				default:
-					tempV, acl := paramTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					acl = argObj.SetValue(fnCtx, tempV.(data.Value))
-					if acl != nil {
-						return nil, acl
-					}
+			if pos < len(flatArgs) {
+				acl := argObj.SetValue(fnCtx, flatArgs[pos])
+				pos++
+				if acl != nil {
+					return nil, acl
 				}
 			} else if argObj.DefaultValue == nil {
 				return nil, pe.newFunParamsError(pe.GetFrom(), fn.GetName(), argObj.Name)
@@ -175,138 +320,24 @@ func (pe *CallMethod) handleFuncValue(ctx data.Context, call data.GetValue) (dat
 				argObj.GetValue(fnCtx)
 			}
 		case *Parameters:
-			args, acl := fnCtx.GetVariableValue(argObj)
-			if acl != nil {
-				return nil, acl
-			}
-			var ares *data.ArrayValue
-			var ok bool
-			if ares, ok = args.(*data.ArrayValue); !ok {
-				ares = data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
-				fnCtx.SetVariableValue(argObj, ares)
-			}
-
-			for i := index; i < len(pe.Args); i++ {
-				param := pe.Args[i]
-				tempV, acl := param.GetValue(ctx)
-				if acl != nil {
-					return nil, acl
-				}
-				ares.List = append(ares.List, data.NewZVal(tempV.(data.Value)))
-				fnCtx.SetVariableValue(argObj, ares)
-			}
+			remaining := flatArgs[pos:]
+			fnCtx.SetVariableValue(argObj, data.NewArrayValue(remaining))
+			pos = len(flatArgs)
 		case *ParameterReference:
-			if index < len(pe.Args) {
-				param := pe.Args[index]
-				switch paramTV := param.(type) {
-				case *NamedArgument:
-					vari, err := findVariable(varies, paramTV.Name)
-					if err != nil {
-						return nil, data.NewErrorThrow(pe.from, err)
-					}
-					switch val := paramTV.Value.(type) {
-					case *CallObjectProperty:
-						// $obj->prop 作为引用参数：共享 ZVal 指针
-						zv, acl := val.GetZVal(ctx)
-						if acl != nil {
-							return nil, acl
-						}
-						fnCtx.SetIndexZVal(vari.(*ParameterReference).Index, zv)
-					case *CallStaticProperty:
-						v, acl := val.GetValue(ctx)
-						if acl != nil {
-							return nil, acl
-						}
-						zv := data.NewZVal(v.(data.Value))
-						fnCtx.SetIndexZVal(vari.(*ParameterReference).Index, zv)
-					case *CallStaticPropertyLater:
-						v, acl := val.GetValue(ctx)
-						if acl != nil {
-							return nil, acl
-						}
-						zv := data.NewZVal(v.(data.Value))
-						fnCtx.SetIndexZVal(vari.(*ParameterReference).Index, zv)
-					case *CallStaticKeywordProperty:
-						v, acl := val.GetValue(ctx)
-						if acl != nil {
-							return nil, acl
-						}
-						zv := data.NewZVal(v.(data.Value))
-						fnCtx.SetIndexZVal(vari.(*ParameterReference).Index, zv)
-					case data.Variable:
-						acl := vari.SetValue(fnCtx, data.NewReferenceValue(val, ctx))
-						if acl != nil {
-							return nil, acl
-						}
-					default:
-						return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
-					}
-				case *CallObjectProperty:
-					// $obj->prop 作为引用参数：通过 GetZVal 共享 ZVal 指针，而非走 ReferenceValue 路径
-					zv, acl := paramTV.GetZVal(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					fnCtx.SetIndexZVal(argObj.Index, zv)
-				case *CallStaticProperty:
-					// Class::$prop 作为引用参数：获取值并创建 ZVal
-					v, acl := paramTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					zv := data.NewZVal(v.(data.Value))
-					fnCtx.SetIndexZVal(argObj.Index, zv)
-				case *CallStaticPropertyLater:
-					v, acl := paramTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					zv := data.NewZVal(v.(data.Value))
-					fnCtx.SetIndexZVal(argObj.Index, zv)
-				case *CallStaticKeywordProperty:
-					v, acl := paramTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					zv := data.NewZVal(v.(data.Value))
-					fnCtx.SetIndexZVal(argObj.Index, zv)
-				default:
-					if val, ok := paramTV.(data.Variable); ok {
-						zv := ctx.GetIndexZVal(val.GetIndex())
-						fnCtx.SetIndexZVal(argObj.Index, zv)
-					} else {
-						return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能传入变量, fn: %s", pe.Method))
-					}
-				}
-			} else {
+			rawArg := nthPositionalExpr(pe.Args, pos)
+			if rawArg == nil {
 				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能是必传参数, fn: %s", pe.Method))
 			}
-		case data.Parameter: // 兜底
-			if index < len(pe.Args) {
-				param := pe.Args[index]
-				switch paramTV := param.(type) {
-				case *NamedArgument:
-					tempV, acl := paramTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					vari, err := findVariable(varies, paramTV.Name)
-					if err != nil {
-						return nil, data.NewErrorThrow(pe.from, err)
-					}
-					acl = vari.SetValue(fnCtx, tempV.(data.Value))
-					if acl != nil {
-						return nil, acl
-					}
-				default:
-					tempV, acl := paramTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					acl = argObj.SetValue(fnCtx, tempV.(data.Value))
-					if acl != nil {
-						return nil, acl
-					}
+			pos++
+			if acl := bindByRefParam(fnCtx, ctx, argObj, rawArg); acl != nil {
+				return nil, acl
+			}
+		case data.Parameter:
+			if pos < len(flatArgs) {
+				acl := argObj.SetValue(fnCtx, flatArgs[pos])
+				pos++
+				if acl != nil {
+					return nil, acl
 				}
 			} else if argObj.GetDefaultValue() == nil {
 				return nil, pe.newFunParamsError(pe.GetFrom(), fn.GetName(), argObj.GetName())
@@ -319,7 +350,134 @@ func (pe *CallMethod) handleFuncValue(ctx data.Context, call data.GetValue) (dat
 	// 将本次调用的参数表达式列表记录到方法上下文中
 	fnCtx.SetCallArgs(pe.Args)
 
-	return fn.Call(fnCtx)
+	return invoke(fnCtx)
+}
+
+type namedArgValue struct {
+	Name  string
+	Value data.Value
+}
+
+// flattenCallArgsForBinding 将调用实参展开为位置实参列表 + 命名实参
+func flattenCallArgsForBinding(ctx data.Context, args []data.GetValue) ([]data.Value, []namedArgValue, data.Control) {
+	var flat []data.Value
+	var named []namedArgValue
+	for _, arg := range args {
+		switch a := arg.(type) {
+		case *NamedArgument:
+			v, acl := a.GetValue(ctx)
+			if acl != nil {
+				return nil, nil, acl
+			}
+			val, _ := v.(data.Value)
+			if val == nil {
+				val = data.NewNullValue()
+			}
+			named = append(named, namedArgValue{Name: a.Name, Value: val})
+		case *SpreadArgument:
+			if a.Expr == nil {
+				continue
+			}
+			spreadVal, acl := a.GetValue(ctx)
+			if acl != nil {
+				return nil, nil, acl
+			}
+			if arr, ok := spreadVal.(*data.ArrayValue); ok {
+				for _, z := range arr.List {
+					flat = append(flat, z.Value)
+				}
+			} else if objVal, ok := spreadVal.(*data.ObjectValue); ok {
+				objVal.RangeProperties(func(_ string, value data.Value) bool {
+					flat = append(flat, value)
+					return true
+				})
+			}
+		default:
+			v, acl := arg.GetValue(ctx)
+			if acl != nil {
+				return nil, nil, acl
+			}
+			if val, ok := v.(data.Value); ok && val != nil {
+				flat = append(flat, val)
+			} else {
+				flat = append(flat, data.NewNullValue())
+			}
+		}
+	}
+	return flat, named, nil
+}
+
+// nthPositionalExpr 返回第 n 个非命名位置实参表达式（不求值，供引用参数共享 ZVal）
+func nthPositionalExpr(args []data.GetValue, n int) data.GetValue {
+	i := 0
+	for _, a := range args {
+		if _, ok := a.(*NamedArgument); ok {
+			continue
+		}
+		if _, ok := a.(*SpreadArgument); ok {
+			// 展开实参无法作为引用目标；跳过计数由 flatArgs 路径覆盖
+			continue
+		}
+		if i == n {
+			return a
+		}
+		i++
+	}
+	return nil
+}
+
+// bindByRefParam 将实参以引用方式绑定到形参（共享 ZVal，写回调用方）
+func bindByRefParam(fnCtx, callCtx data.Context, param *ParameterReference, rawArg data.GetValue) data.Control {
+	switch v := rawArg.(type) {
+	case *NamedArgument:
+		return bindByRefParam(fnCtx, callCtx, param, v.Value)
+	case *CallObjectProperty:
+		zv, acl := v.GetZVal(callCtx)
+		if acl != nil {
+			return acl
+		}
+		fnCtx.SetIndexZVal(param.Index, zv)
+		return nil
+	case *CallStaticProperty:
+		val, acl := v.GetValue(callCtx)
+		if acl != nil {
+			return acl
+		}
+		fnCtx.SetIndexZVal(param.Index, data.NewZVal(val.(data.Value)))
+		return nil
+	case *CallStaticPropertyLater:
+		val, acl := v.GetValue(callCtx)
+		if acl != nil {
+			return acl
+		}
+		fnCtx.SetIndexZVal(param.Index, data.NewZVal(val.(data.Value)))
+		return nil
+	case *CallStaticKeywordProperty:
+		val, acl := v.GetValue(callCtx)
+		if acl != nil {
+			return acl
+		}
+		fnCtx.SetIndexZVal(param.Index, data.NewZVal(val.(data.Value)))
+		return nil
+	case data.Variable:
+		zv := callCtx.GetIndexZVal(v.GetIndex())
+		if zv == nil {
+			zv = data.NewZVal(data.NewNullValue())
+			callCtx.SetIndexZVal(v.GetIndex(), zv)
+		}
+		fnCtx.SetIndexZVal(param.Index, zv)
+		return nil
+	default:
+		val, acl := rawArg.GetValue(callCtx)
+		if acl != nil {
+			return acl
+		}
+		if val == nil {
+			fnCtx.SetIndexZVal(param.Index, data.NewZVal(data.NewNullValue()))
+			return nil
+		}
+		return fnCtx.SetVariableValue(param, val.(data.Value))
+	}
 }
 
 // doCallWithArgs PHP 数组可调用 [$obj, 'method'](...$args) 的支持
@@ -333,6 +491,7 @@ func (pe *CallMethod) doCallWithArgs(ctx data.Context, object data.GetMethod, me
 	} else {
 		fnCtx = ctx.CreateContext(varies)
 	}
+	fnCtx.SetVM(ctx.GetVM())
 
 	// 先展开所有参数中的 ...$arr (SpreadArgument)，构建展平后的实参列表
 	var flatArgs []data.Value
@@ -378,18 +537,61 @@ func (pe *CallMethod) doCallWithArgs(ctx data.Context, object data.GetMethod, me
 func (pe *CallMethod) invokeMagicInvoke(ctx data.Context, object data.Context, invoke data.Method) (data.GetValue, data.Control) {
 	varies := invoke.GetVariables()
 	fnCtx := object.CreateContext(varies)
-	for i, arg := range pe.Args {
-		if i >= len(varies) {
-			break
+	fnCtx.SetVM(ctx.GetVM())
+	params := invoke.GetParams()
+
+	var flatArgs []data.Value
+	for _, arg := range pe.Args {
+		if spread, ok := arg.(*SpreadArgument); ok {
+			spreadVal, acl := spread.GetValue(ctx)
+			if acl != nil {
+				return nil, acl
+			}
+			if arr, ok := spreadVal.(*data.ArrayValue); ok {
+				for _, z := range arr.List {
+					flatArgs = append(flatArgs, z.Value)
+				}
+			} else if objVal, ok := spreadVal.(*data.ObjectValue); ok {
+				objVal.RangeProperties(func(key string, value data.Value) bool {
+					flatArgs = append(flatArgs, value)
+					return true
+				})
+			}
+			continue
 		}
 		v, acl := arg.GetValue(ctx)
 		if acl != nil {
 			return nil, acl
 		}
 		if val, ok := v.(data.Value); ok {
-			fnCtx.SetVariableValue(varies[i], val)
+			flatArgs = append(flatArgs, val)
+		} else {
+			flatArgs = append(flatArgs, data.NewNullValue())
 		}
 	}
+
+	for index, param := range params {
+		if index < len(flatArgs) {
+			switch param.(type) {
+			case *Parameters:
+				remaining := flatArgs[index:]
+				fnCtx.SetVariableValue(varies[index], data.NewArrayValue(remaining))
+			default:
+				fnCtx.SetVariableValue(varies[index], flatArgs[index])
+			}
+		} else if _, ok := param.(*Parameters); ok {
+			fnCtx.SetVariableValue(varies[index], data.NewArrayValue([]data.Value{}))
+		} else if argObj, ok := param.(*Parameter); ok {
+			if argObj.DefaultValue == nil {
+				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("调用 __invoke 时参数 %s 缺少值和默认值", argObj.Name))
+			}
+			if _, acl := argObj.GetValue(fnCtx); acl != nil {
+				return nil, acl
+			}
+		}
+	}
+
+	fnCtx.SetCallArgs(pe.Args)
 	return invoke.Call(fnCtx)
 }
 

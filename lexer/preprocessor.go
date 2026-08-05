@@ -112,6 +112,10 @@ func cannotAddSemicolon(t Token) bool {
 		return true
 	case token.EXTENDS, token.IMPLEMENTS: // extends/implements 后换行接接口名时不能补分号
 		return true
+	case token.RETURN, token.THROW, token.YIELD:
+		// PHP 中 return/throw/yield 后的换行是空白，表达式可写在下一行；
+		// 不能像 TS ASI 那样在关键字后插入分号（否则 return\n$x 变成空 return）。
+		return true
 	default:
 		return false // 其他情况需要补充分号
 	}

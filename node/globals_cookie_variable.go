@@ -15,13 +15,15 @@ func NewCookieVariable(from data.From) data.Variable {
 }
 
 func (v *CookieVariable) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if httpReq := getHTTPRequest(ctx); httpReq != nil {
+		obj := data.NewObjectValue()
+		for _, cookie := range httpReq.Cookies() {
+			obj.SetProperty(cookie.Name, data.NewStringValue(cookie.Value))
+		}
+		return obj, nil
+	}
 	if cookieValue == nil {
 		cookieValue = data.NewObjectValue()
-		if httpReq := getHTTPRequest(ctx); httpReq != nil {
-			for _, cookie := range httpReq.Cookies() {
-				cookieValue.SetProperty(cookie.Name, data.NewStringValue(cookie.Value))
-			}
-		}
 	}
 	return cookieValue, nil
 }

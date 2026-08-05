@@ -26,10 +26,9 @@ func (f *ArrayPopFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	if len(arrayRef.List) == 0 {
 		return data.NewNullValue(), nil
 	}
-
-	// 弹出最后一个元素
-	lastElement := arrayRef.List[len(arrayRef.List)-1].Value
-	arrayRef.List = arrayRef.List[:len(arrayRef.List)-1]
+	lastIndex := len(arrayRef.List) - 1
+	lastElement := arrayRef.List[lastIndex].Value
+	arrayRef.List = arrayRef.List[:lastIndex]
 
 	return lastElement, nil
 }

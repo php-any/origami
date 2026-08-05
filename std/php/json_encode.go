@@ -20,6 +20,7 @@ func (f *JsonEncodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	// 获取参数
 	params := f.GetParams()
 	if len(params) == 0 {
+		clearJsonLastError()
 		return data.NewStringValue("null"), nil
 	}
 
@@ -27,6 +28,7 @@ func (f *JsonEncodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	valueParam := params[0]
 	raw, _ := valueParam.GetValue(ctx)
 	if raw == nil {
+		clearJsonLastError()
 		return data.NewStringValue("null"), nil
 	}
 
@@ -82,9 +84,11 @@ func (f *JsonEncodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	if err != nil {
-		return data.NewStringValue("null"), nil
+		setJsonLastError(JSON_ERROR_UNSUPPORTED_TYPE, "")
+		return data.NewBoolValue(false), nil
 	}
 
+	clearJsonLastError()
 	return data.NewStringValue(string(result)), nil
 }
 
@@ -95,11 +99,15 @@ func (f *JsonEncodeFunction) GetName() string {
 func (f *JsonEncodeFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "value", 0, nil, nil),
+		node.NewParameter(nil, "flags", 1, data.NewIntValue(0), nil),
+		node.NewParameter(nil, "depth", 2, data.NewIntValue(512), nil),
 	}
 }
 
 func (f *JsonEncodeFunction) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "value", 0, nil),
+		node.NewVariable(nil, "flags", 1, nil),
+		node.NewVariable(nil, "depth", 2, nil),
 	}
 }

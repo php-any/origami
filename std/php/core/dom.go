@@ -681,6 +681,14 @@ func htmlEntityDecode(s string) string {
 
 // htmlStripped strips PHP XML encoding header and whitespace
 func htmlStripped(s string) string {
+	s = strings.TrimSpace(s)
+	// libxml 接受 Termwind 使用的 `<?xml encoding="UTF-8">`（没有 `?>`）
+	// 作为编码提示；它不应成为 DOM 文本节点。
+	if strings.HasPrefix(strings.ToLower(s), "<?xml") {
+		if idx := strings.IndexByte(s, '>'); idx >= 0 {
+			s = s[idx+1:]
+		}
+	}
 	if idx := strings.Index(s, "?>"); idx >= 0 {
 		s = s[idx+2:]
 	}

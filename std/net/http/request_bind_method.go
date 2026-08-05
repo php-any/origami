@@ -38,6 +38,9 @@ func (h *RequestBindMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	if acl != nil {
 		return nil, acl
 	}
+	if classStmt == nil {
+		return nil, utils.NewThrowf("无法加载 DTO 类: %s", param0)
+	}
 
 	classInstance, acl := classStmt.GetValue(ctx)
 	if acl != nil {

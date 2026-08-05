@@ -347,6 +347,18 @@ func (m *DefaultClassPathManager) LoadClass(className string, parser *Parser) da
 		if _, ok := parser.vm.GetInterface(className); ok {
 			return nil
 		}
+	} else if waiter, ok := parser.vm.(interface {
+		WaitPhpFileLoad(file string) bool
+	}); ok {
+		// 其他请求正在加载同一文件：等待完成后再查一次，避免并发“未找到类”
+		if waiter.WaitPhpFileLoad(filePath) {
+			if _, ok := parser.vm.GetClass(className); ok {
+				return nil
+			}
+			if _, ok := parser.vm.GetInterface(className); ok {
+				return nil
+			}
+		}
 	}
 	// 加载文件（编译模式下仅解析不执行代码）
 	if data.CompileMode {
@@ -385,19 +397,28 @@ func (m *DefaultClassPathManager) LoadClass(className string, parser *Parser) da
 	return data.TryErrorThrow(parser.newFrom(), fmt.Errorf("文件 file://%s 中未找到类 %s", filePath, className))
 }
 
-var autoload = make([]*data.FuncValue, 0)
+var (
+	autoloadMu sync.RWMutex
+	autoload   = make([]*data.FuncValue, 0)
+)
 
 func AddAutoLoad(fun *data.FuncValue) {
+	autoloadMu.Lock()
 	autoload = append(autoload, fun)
+	autoloadMu.Unlock()
 }
 
 // ClearAutoLoad 清空全部 autoload 回调，供开发模式热重载使用，
 // 避免旧 VM 注册的回调残留污染新 VM。
 func ClearAutoLoad() {
+	autoloadMu.Lock()
 	autoload = autoload[:0]
+	autoloadMu.Unlock()
 }
 
 func RemoveAutoLoad(fun *data.FuncValue) {
+	autoloadMu.Lock()
+	defer autoloadMu.Unlock()
 	if len(autoload) == 0 {
 		return
 	}
@@ -412,6 +433,8 @@ func RemoveAutoLoad(fun *data.FuncValue) {
 
 // GetAutoLoad 返回已注册的 autoload 回调副本（顺序与注册一致）
 func GetAutoLoad() []*data.FuncValue {
+	autoloadMu.RLock()
+	defer autoloadMu.RUnlock()
 	if len(autoload) == 0 {
 		return nil
 	}
@@ -421,7 +444,12 @@ func GetAutoLoad() []*data.FuncValue {
 }
 
 func CallAutoLoad(name string, ctx data.Context) (bool, data.Control) {
-	for _, fn := range autoload {
+	autoloadMu.RLock()
+	fns := make([]*data.FuncValue, len(autoload))
+	copy(fns, autoload)
+	autoloadMu.RUnlock()
+
+	for _, fn := range fns {
 		callCtx := ctx.CreateContext(fn.Value.GetVariables())
 
 		if zv := callCtx.GetIndexZVal(0); zv != nil {

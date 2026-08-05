@@ -318,6 +318,13 @@ func (ctx *LspContext) HasVariableByName(name string) bool {
 	return false
 }
 
+func (ctx *LspContext) GetDefinedVariables() map[string]data.Value {
+	if ctx.dataCtx != nil {
+		return ctx.dataCtx.GetDefinedVariables()
+	}
+	return map[string]data.Value{}
+}
+
 // identifyVariableTypes 识别变量类型
 func (d *DocumentInfo) identifyVariableTypes(ctx *LspContext, stmt data.GetValue) data.Types {
 	var inferredType data.Types

@@ -67,11 +67,11 @@ func sfiSetPathname(cv *data.ClassValue, pathname string) {
 
 // ---- 辅助 ----
 func sfiGetFilename(cv *data.ClassValue) string {
-	return filepath.Base(sfiGetPathname(cv))
+	return phpPathBase(sfiGetPathname(cv))
 }
 
 func sfiGetPath(cv *data.ClassValue) string {
-	return filepath.Dir(sfiGetPathname(cv))
+	return phpPathDir(sfiGetPathname(cv))
 }
 
 func (c *SplFileInfoClass) GetMethod(name string) (data.Method, bool) {
@@ -100,6 +100,8 @@ func (c *SplFileInfoClass) GetMethod(name string) (data.Method, bool) {
 		return &SplFileInfoGetSizeMethod{}, true
 	case "getMTime":
 		return &SplFileInfoGetMTimeMethod{}, true
+	case "getPerms":
+		return &SplFileInfoGetPermsMethod{}, true
 	case "isReadable":
 		return &SplFileInfoIsReadableMethod{}, true
 	case "isWritable":
@@ -415,6 +417,28 @@ func (m *SplFileInfoGetMTimeMethod) Call(ctx data.Context) (data.GetValue, data.
 	return data.NewIntValue(int(info.ModTime().Unix())), nil
 }
 
+// ------- getPerms -------
+
+type SplFileInfoGetPermsMethod struct{}
+
+func (m *SplFileInfoGetPermsMethod) GetName() string               { return "getPerms" }
+func (m *SplFileInfoGetPermsMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *SplFileInfoGetPermsMethod) GetIsStatic() bool             { return false }
+func (m *SplFileInfoGetPermsMethod) GetReturnType() data.Types     { return data.Int{} }
+func (m *SplFileInfoGetPermsMethod) GetParams() []data.GetValue    { return nil }
+func (m *SplFileInfoGetPermsMethod) GetVariables() []data.Variable { return nil }
+func (m *SplFileInfoGetPermsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := sfiGetCV(ctx)
+	if cv == nil {
+		return data.NewIntValue(0), nil
+	}
+	info, err := os.Stat(sfiGetPathname(cv))
+	if err != nil {
+		return data.NewIntValue(0), nil
+	}
+	return data.NewIntValue(int(info.Mode().Perm())), nil
+}
+
 // ------- isReadable -------
 
 type SplFileInfoIsReadableMethod struct{}
@@ -518,7 +542,7 @@ func (m *SplFileInfoGetPathInfoMethod) Call(ctx data.Context) (data.GetValue, da
 		clone := NewSplFileInfoClass()
 		return data.NewClassValue(clone, ctx.CreateBaseContext()), nil
 	}
-	parentPath := filepath.Dir(sfiGetPathname(cv))
+	parentPath := phpPathDir(sfiGetPathname(cv))
 	clone := NewSplFileInfoClass()
 	cloneCV := data.NewClassValue(clone, ctx.CreateBaseContext())
 	cloneCV.SetProperty(sfiPathnameKey, data.NewStringValue(parentPath))

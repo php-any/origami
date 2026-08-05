@@ -40,9 +40,13 @@ func Load(vm data.VM) {
 		&HtmlEntityDecodeFunction{},
 		&GetcwdFunction{},
 		&GethostnameFunction{},
+		&DebugBacktraceFunction{},
 	} {
 		vm.AddFunc(fn)
 	}
+
+	vm.SetConstant("DEBUG_BACKTRACE_IGNORE_ARGS", data.NewIntValue(2))
+	vm.SetConstant("DEBUG_BACKTRACE_PROVIDE_OBJECT", data.NewIntValue(1))
 
 	// password_hash() algo constants（与 PHP 一致）
 	vm.SetConstant("PASSWORD_BCRYPT", data.NewIntValue(1))

@@ -91,3 +91,78 @@ func (f *HexdecFunction) GetParams() []data.GetValue {
 func (f *HexdecFunction) GetVariables() []data.Variable {
 	return []data.Variable{node.NewVariable(nil, "hex_string", 0, data.NewBaseType("string"))}
 }
+
+// OctdecFunction 实现 PHP 内置函数 octdec
+//
+//	octdec(string $octal_string): int|float
+func NewOctdecFunction() data.FuncStmt {
+	return &OctdecFunction{}
+}
+
+type OctdecFunction struct{}
+
+func (f *OctdecFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	v, _ := ctx.GetIndexValue(0)
+	if v == nil {
+		return data.NewIntValue(0), nil
+	}
+	s := strings.TrimSpace(v.AsString())
+	cleaned := make([]byte, 0, len(s))
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= '0' && c <= '7' {
+			cleaned = append(cleaned, c)
+		}
+	}
+	if len(cleaned) == 0 {
+		return data.NewIntValue(0), nil
+	}
+	n, err := strconv.ParseUint(string(cleaned), 8, 64)
+	if err != nil {
+		return data.NewIntValue(0), nil
+	}
+	return data.NewIntValue(int(n)), nil
+}
+
+func (f *OctdecFunction) GetName() string { return "octdec" }
+func (f *OctdecFunction) GetParams() []data.GetValue {
+	return []data.GetValue{node.NewParameter(nil, "octal_string", 0, nil, nil)}
+}
+func (f *OctdecFunction) GetVariables() []data.Variable {
+	return []data.Variable{node.NewVariable(nil, "octal_string", 0, data.NewBaseType("string"))}
+}
+
+// DecoctFunction 实现 PHP 内置函数 decoct
+//
+//	decoct(int $num): string
+func NewDecoctFunction() data.FuncStmt {
+	return &DecoctFunction{}
+}
+
+type DecoctFunction struct{}
+
+func (f *DecoctFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	v, _ := ctx.GetIndexValue(0)
+	n := int64(0)
+	if v != nil {
+		if iv, ok := v.(data.AsInt); ok {
+			if i, err := iv.AsInt(); err == nil {
+				n = int64(i)
+			}
+		} else {
+			s := strings.TrimSpace(v.AsString())
+			if parsed, err := strconv.ParseInt(s, 10, 64); err == nil {
+				n = parsed
+			}
+		}
+	}
+	return data.NewStringValue(fmt.Sprintf("%o", uint64(n))), nil
+}
+
+func (f *DecoctFunction) GetName() string { return "decoct" }
+func (f *DecoctFunction) GetParams() []data.GetValue {
+	return []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
+}
+func (f *DecoctFunction) GetVariables() []data.Variable {
+	return []data.Variable{node.NewVariable(nil, "num", 0, data.NewBaseType("int"))}
+}

@@ -54,4 +54,32 @@ if ($step == 11) {
     Log::fatal("多个 label goto 测试失败, 实际 {$step}");
 }
 
+// 函数体内 goto
+function retry_like($times, $callback) {
+    beginning:
+    $times--;
+    try {
+        return $callback($times);
+    } catch (Exception $e) {
+        if ($times < 1) {
+            throw $e;
+        }
+        goto beginning;
+    }
+}
+
+$attempts = 0;
+$got = retry_like(3, function ($left) use (&$attempts) {
+    $attempts++;
+    if ($attempts < 3) {
+        throw new Exception("fail");
+    }
+    return "ok";
+});
+if ($got == "ok" && $attempts == 3) {
+    Log::info("函数内 goto/retry 测试通过");
+} else {
+    Log::fatal("函数内 goto/retry 测试失败, got={$got}, attempts={$attempts}");
+}
+
 echo "=== goto 语句测试完成 ===\n";

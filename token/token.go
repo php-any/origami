@@ -45,6 +45,8 @@ var TokenDefinitions = []TokenDefinition{
 	{Type: BREAK, Literal: "break", WordType: KEYWORD},
 	{Type: CONTINUE, Literal: "continue", WordType: KEYWORD},
 	{Type: RETURN, Literal: "return", WordType: KEYWORD},
+	{Type: EXIT, Literal: "exit", WordType: KEYWORD},
+	{Type: DIE, Literal: "die", WordType: KEYWORD},
 	{Type: FUNC, Literal: "function", WordType: KEYWORD},
 	{Type: CLASS, Literal: "class", WordType: KEYWORD},
 	{Type: PUBLIC, Literal: "public", WordType: KEYWORD},

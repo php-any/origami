@@ -1,46 +1,64 @@
 package data
 
-import "fmt"
+import (
+	"fmt"
+	"sync/atomic"
+)
 
-// userOutputEmitted 表示本次请求是否已向 stdout 写出用户可见内容（echo/var_dump 等）
-var userOutputEmitted bool
+// userOutputEmitted 表示当前进程是否已向 stdout 写出用户可见内容。
+// 它只影响 CLI Fatal 输出前的换行格式，不承载请求状态。
+var userOutputEmitted atomic.Bool
 
 // MarkUserOutput 标记已有用户输出（用于 Fatal 前空行等格式）
 func MarkUserOutput() {
-	userOutputEmitted = true
+	userOutputEmitted.Store(true)
 }
 
 // HasUserOutput 是否已有用户输出
 func HasUserOutput() bool {
-	return userOutputEmitted
+	return userOutputEmitted.Load()
 }
 
-// ResetUserOutput 重置用户输出标记（每个脚本执行前调用）
+// ResetUserOutput 重置 CLI 脚本输出标记。
 func ResetUserOutput() {
-	userOutputEmitted = false
+	userOutputEmitted.Store(false)
 }
 
 // OutputWriter 是输出写入函数类型
 type OutputWriter func(string)
 
-// DefaultOutputWriter 默认输出到 stdout（供 ob_* 函数恢复时使用）
+// DefaultOutputWriter 默认输出到 stdout
 func DefaultOutputWriter(s string) {
 	MarkUserOutput()
 	fmt.Print(s)
 }
 
-// WriteOutput 是当前的输出写入函数
-// 由 ob_start/ob_get_clean 切换输出目标
-var WriteOutput OutputWriter = DefaultOutputWriter
+// WriteOutput 是不可替换的语言默认输出快路径。
+func WriteOutput(s string) { DefaultOutputWriter(s) }
 
-// ResetOutputWriter 恢复默认输出（直接 stdout）
-func ResetOutputWriter() {
-	WriteOutput = DefaultOutputWriter
+// OutputSink 可选接口：VM 实现后 echo/HTML/Response 走请求级输出，默认路径仍用 WriteOutput。
+type OutputSink interface {
+	WriteOutput(s string)
 }
 
-// FlushAllBuffersFn 脚本结束时刷新所有输出缓冲区的回调函数
-// 由 core 包设置，避免循环依赖
-var FlushAllBuffersFn func()
+// OutputBufferHost 为 VM 提供请求级 PHP 输出缓冲能力。
+type OutputBufferHost interface {
+	StartOutputBuffer()
+	CleanOutputBuffer() (string, bool)
+	OutputBufferContents() (string, bool)
+	OutputBufferLevel() int
+}
+
+// EmitOutput 优先写到当前 VM 的 OutputSink，否则走语言默认 WriteOutput。
+func EmitOutput(ctx Context, s string) {
+	if ctx != nil {
+		if sink, ok := ctx.GetVM().(OutputSink); ok {
+			sink.WriteOutput(s)
+			return
+		}
+	}
+	WriteOutput(s)
+}
 
 // CompileMode 编译模式标记。
 // 设为 true 时，注解构造函数应跳过有副作用的操作（扫描目录、初始化数据库、调用 boot 等），

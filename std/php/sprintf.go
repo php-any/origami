@@ -44,6 +44,12 @@ func (f *SprintfFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 					} else {
 						args = append(args, 0)
 					}
+				} else if gv, ok := val.(data.GetValue); ok {
+					s, acl := node.ValueToDisplayString(ctx, gv)
+					if acl != nil {
+						return nil, acl
+					}
+					args = append(args, s)
 				} else {
 					args = append(args, val.AsString())
 				}

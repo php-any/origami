@@ -1,9 +1,6 @@
 package core
 
-import (
-	"github.com/php-any/origami/data"
-	"github.com/php-any/origami/runtime"
-)
+import "github.com/php-any/origami/data"
 
 // RestoreExceptionHandlerFunction 实现 restore_exception_handler 函数
 //
@@ -30,13 +27,13 @@ func (f *RestoreExceptionHandlerFunction) Call(ctx data.Context) (data.GetValue,
 		return data.NewBoolValue(false), nil
 	}
 
-	// 根据 VM 类型清空 handler
-	switch v := vm.(type) {
-	case *runtime.VM:
-		v.SetExceptionHandler(nil)
-	case *runtime.TempVM:
-		v.SetExceptionHandler(nil)
+	handlerVM, ok := vm.(interface {
+		SetExceptionHandler(data.Value) data.Value
+	})
+	if !ok {
+		return data.NewBoolValue(false), nil
 	}
+	handlerVM.SetExceptionHandler(nil)
 
 	return data.NewBoolValue(true), nil
 }

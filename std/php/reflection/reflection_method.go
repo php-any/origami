@@ -64,6 +64,10 @@ func (c *ReflectionMethodClass) GetMethod(name string) (data.Method, bool) {
 		return &ReflectionMethodSetAccessibleMethod{}, true
 	case "invoke":
 		return &ReflectionMethodInvokeMethod{}, true
+	case "hasReturnType":
+		return &ReflectionMethodHasReturnTypeMethod{}, true
+	case "getAttributes":
+		return &ReflectionMethodGetAttributesMethod{}, true
 	}
 	return nil, false
 }
@@ -83,6 +87,8 @@ func (c *ReflectionMethodClass) GetMethods() []data.Method {
 		&ReflectionMethodGetDeclaringClassMethod{},
 		&ReflectionMethodSetAccessibleMethod{},
 		&ReflectionMethodInvokeMethod{},
+		&ReflectionMethodHasReturnTypeMethod{},
+		&ReflectionMethodGetAttributesMethod{},
 	}
 }
 
@@ -98,6 +104,14 @@ type ReflectionMethodValue struct {
 	className  string      // 被反射的类名
 	methodName string      // 被反射的方法名
 	method     data.Method // 被反射的方法对象
+}
+
+func newReflectionMethod(ctx data.Context, className, methodName string) *data.ClassValue {
+	methodClass := &ReflectionMethodClass{}
+	methodValue := data.NewClassValue(methodClass, ctx.CreateBaseContext())
+	methodValue.ObjectValue.SetProperty("_className", data.NewStringValue(className))
+	methodValue.ObjectValue.SetProperty("_methodName", data.NewStringValue(methodName))
+	return methodValue
 }
 
 // getReflectionMethodInfo 从上下文中获取 ReflectionMethod 的方法信息
@@ -123,6 +137,23 @@ func getReflectionMethodInfo(ctx data.Context) (string, string, data.Method) {
 
 				if className != "" && methodName != "" {
 					vm := ctx.GetVM()
+
+					// 优先按接口解析（ReflectionMethod 也可作用于 interface 方法）
+					if iface, acl := vm.GetOrLoadInterface(className); acl == nil && iface != nil {
+						if method, exists := iface.GetMethod(methodName); exists {
+							return className, methodName, method
+						}
+						for _, ext := range iface.GetExtends() {
+							parent, pacl := vm.GetOrLoadInterface(ext)
+							if pacl != nil || parent == nil {
+								continue
+							}
+							if method, exists := parent.GetMethod(methodName); exists {
+								return ext, methodName, method
+							}
+						}
+					}
+
 					v, acl := vm.LoadPkg(className)
 					if acl != nil {
 						return "", "", nil
@@ -136,6 +167,11 @@ func getReflectionMethodInfo(ctx data.Context) (string, string, data.Method) {
 						method, exists := stmt.GetMethod(methodName)
 						if exists {
 							return className, methodName, method
+						}
+						if staticMethods, ok := stmt.(data.GetStaticMethod); ok {
+							if method, exists := staticMethods.GetStaticMethod(methodName); exists {
+								return className, methodName, method
+							}
 						}
 
 						// 如果是构造函数，检查当前类的构造函数
@@ -162,6 +198,13 @@ func getReflectionMethodInfo(ctx data.Context) (string, string, data.Method) {
 							if exists {
 								// 检查访问权限，私有方法不能继承
 								if method.GetModifier() != data.ModifierPrivate {
+									declaringClassName = *ext
+									return declaringClassName, methodName, method
+								}
+							}
+							if staticMethods, ok := parentStmt.(data.GetStaticMethod); ok {
+								if method, exists := staticMethods.GetStaticMethod(methodName); exists &&
+									method.GetModifier() != data.ModifierPrivate {
 									declaringClassName = *ext
 									return declaringClassName, methodName, method
 								}

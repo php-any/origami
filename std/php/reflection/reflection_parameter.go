@@ -53,10 +53,14 @@ func (c *ReflectionParameterClass) GetMethod(name string) (data.Method, bool) {
 		return &ReflectionParameterGetDefaultValueMethod{}, true
 	case "getType":
 		return &ReflectionParameterGetTypeMethod{}, true
+	case "hasType":
+		return &ReflectionParameterHasTypeMethod{}, true
 	case "getDeclaringClass":
 		return &ReflectionParameterGetDeclaringClassMethod{}, true
 	case "isVariadic":
 		return &ReflectionParameterIsVariadicMethod{}, true
+	case "getAttributes":
+		return &ReflectionParameterGetAttributesMethod{}, true
 	}
 	return nil, false
 }
@@ -71,8 +75,10 @@ func (c *ReflectionParameterClass) GetMethods() []data.Method {
 		&ReflectionParameterIsDefaultValueAvailableMethod{},
 		&ReflectionParameterGetDefaultValueMethod{},
 		&ReflectionParameterGetTypeMethod{},
+		&ReflectionParameterHasTypeMethod{},
 		&ReflectionParameterGetDeclaringClassMethod{},
 		&ReflectionParameterIsVariadicMethod{},
+		&ReflectionParameterGetAttributesMethod{},
 	}
 }
 
@@ -201,9 +207,31 @@ func getReflectionParameterInfo(ctx data.Context) (string, string, int, data.Get
 		return className, methodName, paramIndex, vp
 	}
 
-	// 常规路径：通过类名+方法名+索引查找参数
+	// 常规路径：通过类名/接口名+方法名+索引查找参数
 	if className != "" && methodName != "" {
 		vm := ctx.GetVM()
+
+		if iface, acl := vm.GetOrLoadInterface(className); acl == nil && iface != nil {
+			if method, exists := iface.GetMethod(methodName); exists {
+				params := method.GetParams()
+				if paramIndex >= 0 && paramIndex < len(params) {
+					return className, methodName, paramIndex, params[paramIndex]
+				}
+			}
+			for _, ext := range iface.GetExtends() {
+				parent, pacl := vm.GetOrLoadInterface(ext)
+				if pacl != nil || parent == nil {
+					continue
+				}
+				if method, exists := parent.GetMethod(methodName); exists {
+					params := method.GetParams()
+					if paramIndex >= 0 && paramIndex < len(params) {
+						return ext, methodName, paramIndex, params[paramIndex]
+					}
+				}
+			}
+		}
+
 		v, acl := vm.LoadPkg(className)
 		if acl != nil {
 			return "", "", -1, nil

@@ -35,6 +35,10 @@ type Parser struct {
 
 	// definingAbstractClass 为 true 时正在解析 abstract class
 	definingAbstractClass bool
+
+	// conditionalDeclDepth > 0 表示处于 if/循环/函数等语句块内。
+	// PHP：仅顶层无条件 class/interface/enum/trait 在编译期注册；条件声明延后到执行期。
+	conditionalDeclDepth int
 }
 
 // NewParser 创建一个新的解析器
@@ -464,6 +468,9 @@ func (p *Parser) parseValue() (data.GetValue, bool) {
 
 // parseBlock 解析语句块
 func (p *Parser) parseBlock() ([]data.GetValue, data.Control) {
+	p.conditionalDeclDepth++
+	defer func() { p.conditionalDeclDepth-- }()
+
 	statements := make([]data.GetValue, 0)
 
 	// 检查是否是语句块开始
@@ -475,6 +482,10 @@ func (p *Parser) parseBlock() ([]data.GetValue, data.Control) {
 		}
 		if stmt != nil {
 			statements = append(statements, stmt)
+		}
+		// 单行语句后的分号必须吃掉，否则 if (...) stmt; else 会把 else 留给外层解析失败
+		for p.checkPositionIs(0, token.SEMICOLON) {
+			p.next()
 		}
 		return statements, nil
 	}

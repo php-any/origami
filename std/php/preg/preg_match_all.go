@@ -55,10 +55,15 @@ func (f *PregMatchAllFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	// 查找所有匹配以及分组（索引数组）
 	allLocs := re.FindAllStringSubmatchIndex(subject, -1)
 	if len(allLocs) == 0 {
-		// 无匹配：PREG_PATTERN_ORDER 时 $matches[0]=[]；PREG_SET_ORDER 时 $matches=[]
+		// 无匹配：PREG_PATTERN_ORDER 时仍要为每个捕获分组初始化空数组（与 PHP 一致）
 		var matchesArr *data.ArrayValue
 		if patternOrder {
-			matchesArr = data.NewArrayValue([]data.Value{data.NewArrayValue([]data.Value{})}).(*data.ArrayValue)
+			groupCount := matcherGroupCount(re)
+			groups := make([]data.Value, groupCount)
+			for g := 0; g < groupCount; g++ {
+				groups[g] = data.NewArrayValue([]data.Value{})
+			}
+			matchesArr = data.NewArrayValue(groups).(*data.ArrayValue)
 		} else {
 			matchesArr = data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
 		}

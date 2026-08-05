@@ -1,24 +1,35 @@
 package netdata
 
 import (
+	"sync"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/runtime"
 )
 
-var httpRoutes []Route
+var (
+	httpRoutesMu sync.RWMutex
+	httpRoutes   []Route
+)
 
 // AppendHTTPRoute 注册一条注解路由到全局路由表。
 func AppendHTTPRoute(r Route) {
+	httpRoutesMu.Lock()
+	defer httpRoutesMu.Unlock()
 	httpRoutes = append(httpRoutes, r)
 }
 
 // HTTPRoutes 返回已注册的注解路由列表。
 func HTTPRoutes() []Route {
-	return httpRoutes
+	httpRoutesMu.RLock()
+	defer httpRoutesMu.RUnlock()
+	return append([]Route(nil), httpRoutes...)
 }
 
 // ClearHTTPRoutes 清空注解路由表，供开发模式热重载使用。
 func ClearHTTPRoutes() {
+	httpRoutesMu.Lock()
+	defer httpRoutesMu.Unlock()
 	httpRoutes = nil
 }
 

@@ -27,9 +27,6 @@ func main() {
 	musicapp.Register(vm)
 
 	_, ctrl := vm.RunCompiledFile(musicapp.EntryPath)
-	if data.FlushAllBuffersFn != nil {
-		data.FlushAllBuffersFn()
-	}
 	if ctrl != nil {
 		fmt.Fprintf(os.Stderr, "run failed\n")
 		p.ShowControl(ctrl)

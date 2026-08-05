@@ -7,9 +7,7 @@
 use Illuminate\Config\Repository as ConfigRepository;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Foundation\Application as FoundationApplication;
-use Illuminate\View\Engines\EngineResolver;
-use Illuminate\View\Factory as ViewFactory;
-use Illuminate\View\FileViewFinder;
+use Illuminate\View\ViewServiceProvider;
 
 /**
  * @return FoundationApplication
@@ -41,19 +39,13 @@ function illuminate_container(): FoundationApplication
         });
     }
 
-    $container->singleton('view.finder', function ($app) {
-        $base = rtrim((string) $app->make('config')->get('view.paths.0', ''), '/');
-        if ($base === '') {
-            $base = dirname(__DIR__) . '/resources/views';
-        }
+    if (!$container->bound('view.engine.resolver')) {
+        (new ViewServiceProvider($container))->register();
+    }
 
-        return new FileViewFinder($app->make('files'), [$base]);
-    });
-
-    $container->singleton('view', function ($app) {
-        $resolver = new EngineResolver();
-        return new ViewFactory($resolver, $app->make('view.finder'), $app->make('events'));
-    });
+    if (!function_exists('view')) {
+        require dirname(__DIR__) . '/vendor/laravel/framework/src/Illuminate/Foundation/helpers.php';
+    }
 
     // router 已由 RoutingServiceProvider 注册
 
@@ -77,9 +69,9 @@ function illuminate_config()
 }
 
 /**
- * @return ViewFactory
+ * @return \Illuminate\Contracts\View\Factory
  */
-function illuminate_view(): ViewFactory
+function illuminate_view(): \Illuminate\Contracts\View\Factory
 {
     return illuminate_container()->make('view');
 }

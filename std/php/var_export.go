@@ -61,7 +61,18 @@ func varExportValue(v data.Value) string {
 	case *data.ArrayValue:
 		items := make([]string, 0, len(val.List))
 		for i, z := range val.List {
-			items = append(items, fmt.Sprintf("  %d => %s,", i, varExportValue(z.Value)))
+			if z == nil {
+				continue
+			}
+			keyRepr := fmt.Sprintf("%d", i)
+			if z.Name != "" {
+				if n, ok := data.ParseIntArrayKeyName(z.Name); ok {
+					keyRepr = fmt.Sprintf("%d", n)
+				} else {
+					keyRepr = fmt.Sprintf("'%s'", strings.ReplaceAll(z.Name, "'", "\\'"))
+				}
+			}
+			items = append(items, fmt.Sprintf("  %s => %s,", keyRepr, varExportValue(z.Value)))
 		}
 		return "array (\n" + strings.Join(items, "\n") + "\n)"
 	case *data.ObjectValue:

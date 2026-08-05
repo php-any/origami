@@ -48,6 +48,9 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 			if acl != nil {
 				return nil, acl
 			}
+			// use 变量必须在解析函数体前注册到闭包作用域，否则若函数体未直接引用
+			//（例如只再传给内层 use），parent 映射会丢失。
+			fp.registerClosureUseCaptures(captures)
 			if _, acl := fp.parserReturnType(); acl != nil {
 				return nil, acl
 			}
@@ -175,6 +178,14 @@ func (fp *FunctionParser) parseParameters() ([]data.GetValue, data.Control) {
 type UseCapture struct {
 	Name        string
 	IsReference bool
+}
+
+// registerClosureUseCaptures 将 use ($a, &$b) 中的变量立即注册到闭包作用域。
+// PHP：即便函数体未直接出现该变量（例如只再传给内层 use），也应存在于闭包作用域。
+func (fp *FunctionParser) registerClosureUseCaptures(captures []UseCapture) {
+	for _, c := range captures {
+		fp.scopeManager.CurrentScope().AddVariable(c.Name, nil, fp.FromCurrentToken())
+	}
 }
 
 // parseClosureUse 解析闭包的 use 捕获列表

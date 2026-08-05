@@ -15,8 +15,9 @@ type ArgvVariable struct {
 	*Node `pp:"-"`
 }
 
-// CLI 进程级缓存：$argv 对应的数组值（os.Args[1:]）
-var argvValue *data.ArrayValue
+// CLI 进程级缓存：$argv 对应的值（通常为 os.Args[1:]；也可被赋为 null）
+var argvValue data.Value
+var argvInitialized bool
 
 func NewArgvVariable(from data.From) data.Variable {
 	return &ArgvVariable{
@@ -26,22 +27,17 @@ func NewArgvVariable(from data.From) data.Variable {
 
 func (v *ArgvVariable) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	// CLI 语义：$argv = os.Args[1:]（脚本路径 + 额外参数）
-	if argvValue == nil {
+	if !argvInitialized {
 		if len(os.Args) <= 1 {
-			if av, ok := data.NewArrayValue([]data.Value{}).(*data.ArrayValue); ok {
-				argvValue = av
-			}
+			argvValue = data.NewArrayValue([]data.Value{})
 		} else {
 			arr := make([]data.Value, 0, len(os.Args)-1)
 			for _, s := range os.Args[1:] {
 				arr = append(arr, data.NewStringValue(s))
 			}
-			if av, ok := data.NewArrayValue(arr).(*data.ArrayValue); ok {
-				argvValue = av
-			} else {
-				argvValue = data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
-			}
+			argvValue = data.NewArrayValue(arr)
 		}
+		argvInitialized = true
 	}
 	return argvValue, nil
 }
@@ -50,9 +46,21 @@ func (v *ArgvVariable) GetIndex() int       { return 0 }
 func (v *ArgvVariable) GetName() string     { return "$argv" }
 func (v *ArgvVariable) GetType() data.Types { return nil }
 func (v *ArgvVariable) SetValue(ctx data.Context, value data.Value) data.Control {
+	// PHP 允许 $argv = null（如 laravel/pao: $argv = $_SERVER['argv'] ?? null）
+	if value == nil {
+		argvValue = data.NewNullValue()
+		argvInitialized = true
+		return nil
+	}
+	if _, isNull := value.(*data.NullValue); isNull {
+		argvValue = data.NewNullValue()
+		argvInitialized = true
+		return nil
+	}
 	// 允许脚本对 $argv 重新赋值；为了避免与其它数组共享底层结构，这里对数组做一次 Clone。
 	if arr, ok := value.(*data.ArrayValue); ok {
 		argvValue = data.CloneArrayValue(arr)
+		argvInitialized = true
 		return nil
 	}
 	return data.NewErrorThrow(v.from, errors.New("$argv expects array value"))

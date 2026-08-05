@@ -232,6 +232,25 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 		return nil, acl
 	}
 
+	// 求值 enum 内 public const，写入 StaticProperty（对齐 class 常量初始化）
+	classVal := data.NewClassValue(classStmt, p.vm.CreateContext([]data.Variable{}))
+	for _, prop := range properties {
+		cp, ok := prop.(*node.ClassProperty)
+		if !ok || !cp.GetIsStatic() {
+			continue
+		}
+		def := cp.GetDefaultValue()
+		if def == nil {
+			classStmt.StaticProperty.Store(cp.GetName(), data.NewNullValue())
+			continue
+		}
+		v, acl := def.GetValue(classVal)
+		if acl != nil {
+			return nil, acl
+		}
+		classStmt.StaticProperty.Store(cp.GetName(), v)
+	}
+
 	// 为每个 case 注入一个静态属性：public static $CASE = new EnumName(<value>);
 	// 此时类已注册到 VM，可以安全地构造枚举实例
 	for _, ccase := range cases {

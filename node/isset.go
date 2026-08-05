@@ -67,36 +67,7 @@ func isSetViaOffsetExists(ctx data.Context, ie *IndexExpression) (bool, bool) {
 	if acl != nil {
 		return false, false
 	}
-
-	var obj *data.ClassValue
-	switch v := array.(type) {
-	case *data.ClassValue:
-		obj = v
-	case *data.ThisValue:
-		obj = v.ClassValue
-	default:
-		return false, false
-	}
-
-	method, exists := obj.GetMethod("offsetExists")
-	if !exists {
-		return false, false
-	}
-
-	fnCtx := obj.CreateContext(method.GetVariables())
-	if len(method.GetVariables()) > 0 {
-		if iv, ok := index.(data.Value); ok {
-			fnCtx.SetVariableValue(method.GetVariables()[0], iv)
-		}
-	}
-	ret, ctl := method.Call(fnCtx)
-	if ctl != nil {
-		return false, false
-	}
-	if bv, ok := ret.(*data.BoolValue); ok {
-		return bv.Value, true
-	}
-	return false, true
+	return isSetViaOffsetExistsOnValue(ctx, array, index)
 }
 
 // issetIndexExpression 检查数组/对象下标是否存在（不触发 PHP 8 未定义键 Warning）
@@ -156,11 +127,36 @@ func indexExpressionReadNoWarn(ctx data.Context, ie *IndexExpression) (data.GetV
 	if acl != nil {
 		return nil, false
 	}
+	// ArrayAccess 的下标读取必须通过 offsetGet。
+	if val, ok := readIndexViaArrayAccess(ctx, container, index); ok {
+		return val, true
+	}
 	val, ok := readIndexNoWarn(container, index)
 	if !ok {
 		return nil, false
 	}
 	return val, true
+}
+
+// readIndexViaArrayAccess 对 ArrayAccess 对象调用 offsetGet。
+func readIndexViaArrayAccess(ctx data.Context, container data.GetValue, index data.GetValue) (data.GetValue, bool) {
+	var obj *data.ClassValue
+	switch v := container.(type) {
+	case *data.ClassValue:
+		obj = v
+	case *data.ThisValue:
+		obj = v.ClassValue
+	default:
+		return nil, false
+	}
+	if obj == nil || !checkArrayAccess(ctx, obj.Class) {
+		return nil, false
+	}
+	result, ctl := callArrayAccessOffsetGet(ctx, obj, index)
+	if ctl != nil || result == nil {
+		return nil, false
+	}
+	return result, true
 }
 
 func issetOnContainer(container data.GetValue, index data.GetValue) (isSet bool, handled bool) {
@@ -296,10 +292,13 @@ func indexExpressionKeyExists(ctx data.Context, ie *IndexExpression) (exists boo
 		if acl != nil {
 			return false, true
 		}
+		if exists, ok := offsetExistsOnContainer(ctx, parentVal, index); ok {
+			return exists, true
+		}
 		return indexKeyExistsOnContainer(parentVal, index), true
 	}
-	if _, handled := isSetViaOffsetExists(ctx, ie); handled {
-		return false, false
+	if exists, handled := isSetViaOffsetExists(ctx, ie); handled {
+		return exists, true
 	}
 	container, acl := indexExpressionContainer(ctx, ie.Array)
 	if acl != nil {
@@ -309,7 +308,48 @@ func indexExpressionKeyExists(ctx data.Context, ie *IndexExpression) (exists boo
 	if acl != nil {
 		return false, true
 	}
+	if exists, ok := offsetExistsOnContainer(ctx, container, index); ok {
+		return exists, true
+	}
 	return indexKeyExistsOnContainer(container, index), true
+}
+
+// offsetExistsOnContainer 对 ArrayAccess 调用 offsetExists；非 ArrayAccess 返回 handled=false
+func offsetExistsOnContainer(ctx data.Context, container data.GetValue, index data.GetValue) (exists bool, handled bool) {
+	return isSetViaOffsetExistsOnValue(ctx, container, index)
+}
+
+func isSetViaOffsetExistsOnValue(ctx data.Context, array data.GetValue, index data.GetValue) (bool, bool) {
+	var obj *data.ClassValue
+	switch v := array.(type) {
+	case *data.ClassValue:
+		obj = v
+	case *data.ThisValue:
+		obj = v.ClassValue
+	default:
+		return false, false
+	}
+	if obj == nil {
+		return false, false
+	}
+	method, exists := obj.GetMethod("offsetExists")
+	if !exists {
+		return false, false
+	}
+	fnCtx := obj.CreateContext(method.GetVariables())
+	if len(method.GetVariables()) > 0 {
+		if iv, ok := index.(data.Value); ok {
+			fnCtx.SetVariableValue(method.GetVariables()[0], iv)
+		}
+	}
+	ret, ctl := method.Call(fnCtx)
+	if ctl != nil {
+		return false, false
+	}
+	if bv, ok := ret.(*data.BoolValue); ok {
+		return bv.Value, true
+	}
+	return false, true
 }
 
 func indexKeyExistsOnContainer(container data.GetValue, index data.GetValue) bool {

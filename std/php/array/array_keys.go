@@ -27,7 +27,11 @@ func (f *ArrayKeysFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 		keys := make([]data.Value, 0, length)
 		for i := 0; i < length; i++ {
 			if v.List[i] != nil && v.List[i].Name != "" {
-				keys = append(keys, data.NewStringValue(v.List[i].Name))
+				if n, ok := data.ParseIntArrayKeyName(v.List[i].Name); ok {
+					keys = append(keys, data.NewIntValue(n))
+				} else {
+					keys = append(keys, data.NewStringValue(v.List[i].Name))
+				}
 			} else {
 				keys = append(keys, data.NewIntValue(i))
 			}
@@ -38,7 +42,11 @@ func (f *ArrayKeysFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 		// 处理对象（关联数组），按插入顺序（OrderedMap 顺序）返回键
 		keys := make([]data.Value, 0)
 		v.RangeProperties(func(key string, _ data.Value) bool {
-			keys = append(keys, data.NewStringValue(key))
+			if n, ok := data.ParseIntArrayKeyName(key); ok {
+				keys = append(keys, data.NewIntValue(n))
+			} else {
+				keys = append(keys, data.NewStringValue(key))
+			}
 			return true
 		})
 		return data.NewArrayValue(keys), nil

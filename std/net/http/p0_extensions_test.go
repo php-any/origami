@@ -3,6 +3,7 @@ package http
 import (
 	httpsrc "net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/php-any/origami/data"
@@ -28,12 +29,40 @@ func TestRequestAttrs_SetAndGet(t *testing.T) {
 	defer detachRequestAttrs(req)
 
 	bag := requestAttrs(req)
-	bag["user"] = data.NewStringValue("alice")
+	bag.Lock()
+	bag.values["user"] = data.NewStringValue("alice")
+	bag.Unlock()
 
-	if got := bag["user"].AsString(); got != "alice" {
+	bag.RLock()
+	got := bag.values["user"].AsString()
+	bag.RUnlock()
+	if got != "alice" {
 		t.Fatalf("attribute = %q, want alice", got)
 	}
 	_ = rec
+}
+
+func TestRequestAttrs_ConcurrentAccess(t *testing.T) {
+	req := httptest.NewRequest("GET", "/", nil)
+	attachRequestAttrs(req)
+	defer detachRequestAttrs(req)
+
+	bag := requestAttrs(req)
+	var wg sync.WaitGroup
+	for i := 0; i < 32; i++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			key := data.NewIntValue(index).AsString()
+			bag.Lock()
+			bag.values[key] = data.NewIntValue(index)
+			bag.Unlock()
+			bag.RLock()
+			_ = bag.values[key]
+			bag.RUnlock()
+		}(i)
+	}
+	wg.Wait()
 }
 
 func TestApplyMiddlewares_PriorityOrder(t *testing.T) {

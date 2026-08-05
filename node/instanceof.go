@@ -139,7 +139,12 @@ func loadClassOrInterfaceForInstanceof(ctx data.Context, class string) (data.Get
 	if inf, ok := vm.GetInterface(class); ok {
 		return inf, nil
 	}
-	return vm.LoadPkg(class)
+	v, acl := vm.LoadPkg(class)
+	if acl != nil {
+		// PHP 语义：instanceof 未知类名应返回 false（最多 warning），这里不抛错。
+		return nil, nil
+	}
+	return v, nil
 }
 
 func instanceof(ctx data.Context, class string, objectValue data.GetValue) (data.GetValue, data.Control) {
@@ -187,7 +192,7 @@ func instanceof(ctx data.Context, class string, objectValue data.GetValue) (data
 		}
 	case "Closure", "closure":
 		switch objectValue.(type) {
-		case *data.FuncValue:
+		case *data.FuncValue, *data.BoundFuncValue:
 			return data.NewBoolValue(true), nil
 		}
 	}

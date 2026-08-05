@@ -76,8 +76,13 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 		// 跳过 @ 符号
 		p.next()
 
+		isKnownFunctionCall := false
+		if p.checkPositionIs(0, token.IDENTIFIER) && p.checkPositionIs(1, token.LPAREN) {
+			_, isKnownFunctionCall = p.vm.GetFunc(p.current().Literal())
+		}
 		// PHP @ 错误抑制：@self::、@static::、@parent::、@$var、@Name:: 等为表达式，非注解
-		if p.checkPositionIs(0, token.SELF, token.PARENT, token.STATIC, token.VARIABLE, token.THIS) || !p.checkPositionIs(1, token.LPAREN) {
+		if p.checkPositionIs(0, token.SELF, token.PARENT, token.STATIC, token.VARIABLE, token.THIS) ||
+			isKnownFunctionCall || !p.checkPositionIs(1, token.LPAREN) {
 			expr, acl := NewExpressionParser(p.Parser).Parse()
 			if acl != nil {
 				return nil, acl
@@ -169,19 +174,21 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 				return nil, acl
 			}
 			if o, ok := object.(*data.ClassValue); ok {
-				if o.Class.GetConstruct() != nil {
-					obj, acl := an.GetValue(p.vm.CreateContext(o.Class.GetConstruct().GetVariables()))
-					if acl != nil {
-						if ann, ok := acl.(*node.CallAnn); !ok {
-							return nil, acl
-						} else {
-							callAnn = append(callAnn, ann)
-						}
+				var vars []data.Variable
+				if construct := o.Class.GetConstruct(); construct != nil {
+					vars = construct.GetVariables()
+				}
+				obj, acl := an.GetValue(p.vm.CreateContext(vars))
+				if acl != nil {
+					if ann, ok := acl.(*node.CallAnn); !ok {
+						return nil, acl
+					} else {
+						callAnn = append(callAnn, ann)
 					}
-					if c, ok := next.(node.AddAnnotations); ok {
-						if o, ok := obj.(*data.ClassValue); ok {
-							c.AddAnnotations(o)
-						}
+				}
+				if c, ok := next.(node.AddAnnotations); ok {
+					if o, ok := obj.(*data.ClassValue); ok {
+						c.AddAnnotations(o)
 					}
 				}
 			}

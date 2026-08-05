@@ -51,11 +51,12 @@ func callBoolMethod(obj *data.ClassValue, name string) (bool, data.Control) {
 
 // ForeachStatement 表示foreach语句
 type ForeachStatement struct {
-	*Node `pp:"-"`
-	Array data.GetValue // 要遍历的数组
-	Key   data.Variable // 键变量名（可选）
-	Value data.Variable // 值变量名
-	Body  []data.GetValue
+	*Node      `pp:"-"`
+	Array      data.GetValue // 要遍历的数组
+	Key        data.Variable // 键变量名（可选）
+	Value      data.Variable // 值变量名
+	ValueByRef bool          // foreach (... as &$v) 按引用绑定元素
+	Body       []data.GetValue
 }
 
 func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
@@ -73,6 +74,9 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	case *data.ClassValue:
 		// 类实例：若实现语言层 Iterator 接口，则按五方法迭代
 		return u.foreachClassValue(ctx, array)
+	case *data.ObjectValue:
+		// 关联数组（Kv 字面量）优先按 ObjectValue 遍历，以支持 foreach (... as &$v)
+		return u.foreachObjectValue(ctx, array)
 	case *data.ArrayValue:
 		var v data.GetValue
 		var c data.Control
@@ -87,9 +91,8 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 				continue
 			}
 			element := zval.Value
-			// 设置值变量
-			acl := u.Value.SetValue(ctx, element)
-			if acl != nil {
+			// 设置值变量（引用则与数组槽位共享 ZVal）
+			if acl := u.bindForeachValue(ctx, element, zval, nil, ""); acl != nil {
 				return nil, acl
 			}
 			// 如果有键变量，设置键变量
@@ -144,6 +147,27 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	return nil, data.NewErrorThrow(u.from, fmt.Errorf("foreach 只能遍历数组、对象或实现 Iterator 的值"))
 }
 
+// bindForeachValue 绑定循环值变量；ValueByRef 时与数组/对象属性槽位共享 ZVal。
+func (u *ForeachStatement) bindForeachValue(ctx data.Context, element data.Value, slot *data.ZVal, obj *data.ObjectValue, objKey string) data.Control {
+	if u.Value == nil {
+		return nil
+	}
+	if !u.ValueByRef {
+		return u.Value.SetValue(ctx, element)
+	}
+	if slot == nil && obj != nil && objKey != "" {
+		if zv, _ := obj.GetZVal(objKey); zv != nil {
+			slot = zv
+		}
+	}
+	if slot == nil {
+		return u.Value.SetValue(ctx, element)
+	}
+	slot.AddRefSlot()
+	ctx.SetIndexZVal(u.Value.GetIndex(), slot)
+	return nil
+}
+
 // foreachObjectValue 处理 *data.ObjectValue（关联数组）的 foreach 迭代。
 func (u *ForeachStatement) foreachObjectValue(ctx data.Context, obj *data.ObjectValue) (data.GetValue, data.Control) {
 	var v data.GetValue
@@ -152,8 +176,8 @@ func (u *ForeachStatement) foreachObjectValue(ctx data.Context, obj *data.Object
 
 	// 使用 RangeProperties 保持插入顺序遍历
 	obj.RangeProperties(func(key string, element data.Value) bool {
-		// 设置值变量
-		if acl := u.Value.SetValue(ctx, element); acl != nil {
+		// 设置值变量（引用则与属性槽位共享 ZVal）
+		if acl := u.bindForeachValue(ctx, element, nil, obj, key); acl != nil {
 			c = acl
 			shouldBreak = true
 			return false
@@ -423,6 +447,17 @@ func NewForeachStatement(token *TokenFrom, array data.GetValue, key data.Variabl
 		Key:   key,
 		Value: value,
 		Body:  body,
+	}
+}
+
+func NewForeachStatementByRef(token *TokenFrom, array data.GetValue, key data.Variable, value data.Variable, body []data.GetValue, valueByRef bool) *ForeachStatement {
+	return &ForeachStatement{
+		Node:       NewNode(token),
+		Array:      array,
+		Key:        key,
+		Value:      value,
+		ValueByRef: valueByRef,
+		Body:       body,
 	}
 }
 

@@ -89,19 +89,13 @@ func (pe *CallStaticKeywordProperty) GetValue(ctx data.Context) (data.GetValue, 
 		return nil, acl
 	}
 
-	// 从定义该属性的类中获取静态属性
-	getter, ok := definingClass.(data.GetStaticProperty)
-	if !ok {
-		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("类 %s 不支持静态属性访问", definingClass.GetName()))
+	// 从定义该属性的类中获取静态属性（含接口类常量）
+	if property, has := LookupStaticProperty(vm, definingClass, pe.Property); has {
+		return property, nil
 	}
 
-	property, has := getter.GetStaticProperty(pe.Property)
-	if !has {
-		// PHP 兼容：未定义的静态属性访问返回 null（warning 级别，非致命错误）
-		return data.NewNullValue(), nil
-	}
-
-	return property, nil
+	// PHP 兼容：未定义的静态属性访问返回 null（warning 级别，非致命错误）
+	return data.NewNullValue(), nil
 }
 
 // SetProperty 设置 static::$prop 的值

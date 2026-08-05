@@ -12,7 +12,8 @@ require dirname(__DIR__) . '/vendor/autoload.php';
 require __DIR__ . '/foundation.php';
 require __DIR__ . '/database.php';
 require __DIR__ . '/auth.php';
-require_once __DIR__ . '/telescope.php';
+require __DIR__ . '/telescope.php';
+require __DIR__ . '/illuminate_http_bridge.php';
 
 load_env();
 bootstrap_illuminate();

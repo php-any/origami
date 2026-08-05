@@ -14,6 +14,19 @@ import (
 	"github.com/php-any/origami/std/validation"
 )
 
+func TestResolveHandlerArgsNoParams(t *testing.T) {
+	args, acl := resolveHandlerArgs(nil, nil, netdata.HandlerSpec{}, nil, nil)
+	if acl != nil {
+		t.Fatalf("unexpected acl: %v", acl)
+	}
+	if args == nil {
+		t.Fatal("expected non-nil empty slice for zero-param handler")
+	}
+	if len(args) != 0 {
+		t.Fatalf("want empty args, got len=%d", len(args))
+	}
+}
+
 func TestResolvePathParamInt(t *testing.T) {
 	p := parser.NewParser()
 	vm := runtime.NewVM(p).(*runtime.VM)

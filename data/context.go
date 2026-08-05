@@ -35,6 +35,8 @@ type Context interface {
 	GetVariableByName(name string) (Value, bool)
 	// HasVariableByName 检查调用者上下文中是否已存在指定名称的变量，用于 EXTR_SKIP 等 flags
 	HasVariableByName(name string) bool
+	// GetDefinedVariables 返回当前作用域中已定义的变量，用于 get_defined_vars。
+	GetDefinedVariables() map[string]Value
 }
 
 // StaticLocalsBinder 支持函数/方法内 static 局部变量

@@ -4,13 +4,18 @@ import "github.com/php-any/origami/data"
 
 // AddShutdownCallback 注册一个 shutdown 回调。
 func (vm *VM) AddShutdownCallback(cb data.Value) {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
 	vm.shutdownCallbacks = append(vm.shutdownCallbacks, cb)
 }
 
 // RunShutdownCallbacks 依次执行所有已注册的 shutdown 回调（仅执行一次）。
 func (vm *VM) RunShutdownCallbacks() {
 	vm.shutdownRunOnce.Do(func() {
-		for _, cb := range vm.shutdownCallbacks {
+		vm.mu.Lock()
+		callbacks := append([]data.Value(nil), vm.shutdownCallbacks...)
+		vm.mu.Unlock()
+		for _, cb := range callbacks {
 			callShutdownCallback(vm, cb)
 		}
 		runHeaderCallbacks(vm)

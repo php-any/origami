@@ -12,6 +12,10 @@ func NewThrowableInterface() data.InterfaceStmt {
 	methods := []data.Method{
 		// getMessage(): string
 		node.NewInterfaceMethod(nil, "getMessage", "public", nil, data.NewBaseType("string")),
+		// getCode(): int
+		node.NewInterfaceMethod(nil, "getCode", "public", nil, data.NewBaseType("int")),
+		// getPrevious(): ?Throwable
+		node.NewInterfaceMethod(nil, "getPrevious", "public", nil, data.NewNullableType(data.NewBaseType("Throwable"))),
 		// getTraceAsString(): string
 		node.NewInterfaceMethod(nil, "getTraceAsString", "public", nil, data.NewBaseType("string")),
 	}

@@ -46,7 +46,14 @@ tests=(
   tests/telescope_autoload_smoke.php
   tests/telescope_storage_smoke.php
   tests/telescope_watcher_smoke.php
+  tests/telescope_watcher_start_smoke.php
+  tests/telescope_http_recording_smoke.php
+  tests/telescope_exception_watcher_smoke.php
+  tests/telescope_mail_watcher_smoke.php
   tests/telescope_dashboard_smoke.php
+  tests/telescope_api_dispatch_smoke.php
+  tests/telescope_request_show_smoke.php
+  tests/telescope_install_ready_smoke.php
 )
 
 failed=0

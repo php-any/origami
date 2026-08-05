@@ -1,24 +1,20 @@
 package core
 
 import (
-	"os"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
 
-// ExitFunction 实现 PHP 的 exit / die 语言结构（作为普通函数使用）
+// ExitFunction 实现 PHP 的 exit / die。
 //
 // 签名近似：
 //
-//	exit(int|string $status = 0): void
+//	exit(int|string $status = 0): never
 //
-// 当前实现：
-//   - 如果传入 int，则使用该值作为进程退出码
-//   - 如果传入 string，则打印到 stdout，退出码为 0
-//   - 如果未传参，则等价于 exit(0)
-//
-// 注意：这里直接调用 os.Exit() 终止当前进程，与 PHP 行为一致。
+// 行为：
+//   - int：返回 ExitControl(code)，由 CLI/HTTP 宿主决定是否终止进程
+//   - string：先写入当前输出，再返回 ExitControl(0)
+//   - 无参：等价于 exit(0)
 type ExitFunction struct{}
 
 func NewExitFunction() data.FuncStmt {
@@ -37,12 +33,11 @@ func (f *ExitFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		} else {
 			s := statusVal.AsString()
 			if s != "" {
-				_, _ = os.Stdout.WriteString(s)
+				data.EmitOutput(ctx, s)
 			}
 		}
 	}
-	os.Exit(code)
-	return data.NewNullValue(), nil
+	return data.NewNullValue(), data.NewExitControl(code)
 }
 
 func (f *ExitFunction) GetName() string {

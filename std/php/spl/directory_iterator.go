@@ -2,7 +2,6 @@ package spl
 
 import (
 	"os"
-	"path/filepath"
 	"sort"
 
 	"github.com/php-any/origami/data"
@@ -231,7 +230,7 @@ func (d *DirectoryIteratorData) GetPath() string {
 // GetPathname 获取完整路径名
 func (d *DirectoryIteratorData) GetPathname() string {
 	if d.iterator >= 0 && d.iterator < len(d.entries) {
-		return filepath.Join(d.path, d.entries[d.iterator])
+		return phpPathJoin(d.path, d.entries[d.iterator])
 	}
 	return d.path
 }
@@ -239,7 +238,7 @@ func (d *DirectoryIteratorData) GetPathname() string {
 // IsDir 检查当前项是否为目录
 func (d *DirectoryIteratorData) IsDir() bool {
 	if d.iterator >= 0 && d.iterator < len(d.entries) {
-		fullPath := filepath.Join(d.path, d.entries[d.iterator])
+		fullPath := phpPathJoin(d.path, d.entries[d.iterator])
 		info, err := os.Stat(fullPath)
 		if err != nil {
 			return false
@@ -252,7 +251,7 @@ func (d *DirectoryIteratorData) IsDir() bool {
 // IsFile 检查当前项是否为文件
 func (d *DirectoryIteratorData) IsFile() bool {
 	if d.iterator >= 0 && d.iterator < len(d.entries) {
-		fullPath := filepath.Join(d.path, d.entries[d.iterator])
+		fullPath := phpPathJoin(d.path, d.entries[d.iterator])
 		info, err := os.Stat(fullPath)
 		if err != nil {
 			return false
@@ -308,7 +307,7 @@ func (d *DirectoryIteratorData) GetExtension() string {
 // GetSize 获取文件大小（字节）
 func (d *DirectoryIteratorData) GetSize() int64 {
 	if d.iterator >= 0 && d.iterator < len(d.entries) {
-		fullPath := filepath.Join(d.path, d.entries[d.iterator])
+		fullPath := phpPathJoin(d.path, d.entries[d.iterator])
 		info, err := os.Stat(fullPath)
 		if err != nil {
 			return 0
@@ -321,7 +320,7 @@ func (d *DirectoryIteratorData) GetSize() int64 {
 // GetMTime 获取最后修改时间（Unix 时间戳）
 func (d *DirectoryIteratorData) GetMTime() int64 {
 	if d.iterator >= 0 && d.iterator < len(d.entries) {
-		fullPath := filepath.Join(d.path, d.entries[d.iterator])
+		fullPath := phpPathJoin(d.path, d.entries[d.iterator])
 		info, err := os.Stat(fullPath)
 		if err != nil {
 			return 0
@@ -334,7 +333,7 @@ func (d *DirectoryIteratorData) GetMTime() int64 {
 // IsReadable 检查文件是否可读
 func (d *DirectoryIteratorData) IsReadable() bool {
 	if d.iterator >= 0 && d.iterator < len(d.entries) {
-		fullPath := filepath.Join(d.path, d.entries[d.iterator])
+		fullPath := phpPathJoin(d.path, d.entries[d.iterator])
 		_, err := os.Stat(fullPath)
 		if err != nil {
 			return false
@@ -353,7 +352,7 @@ func (d *DirectoryIteratorData) IsReadable() bool {
 // IsWritable 检查文件是否可写
 func (d *DirectoryIteratorData) IsWritable() bool {
 	if d.iterator >= 0 && d.iterator < len(d.entries) {
-		fullPath := filepath.Join(d.path, d.entries[d.iterator])
+		fullPath := phpPathJoin(d.path, d.entries[d.iterator])
 		info, err := os.Stat(fullPath)
 		if err != nil {
 			return false

@@ -5,7 +5,9 @@ import (
 	"github.com/php-any/origami/node"
 )
 
-// DateTimeImmutableClass 实现 PHP DateTimeImmutable 类（简化版）
+// DateTimeImmutableClass 实现 PHP DateTimeImmutable（复用 DateTime 的时间存储与方法）。
+// 需实现 DateTimeInterface::{format,getTimestamp}，否则子类（如 Monolog\JsonSerializableDateTimeImmutable）
+// 会在抽象方法校验时误报未实现。
 type DateTimeImmutableClass struct {
 	node.Node
 }
@@ -20,38 +22,65 @@ func (c *DateTimeImmutableClass) GetImplements() []string                       
 func (c *DateTimeImmutableClass) GetProperty(name string) (data.Property, bool) { return nil, false }
 func (c *DateTimeImmutableClass) GetPropertyList() []data.Property              { return nil }
 func (c *DateTimeImmutableClass) GetConstruct() data.Method {
-	return &DateTimeImmutableConstructMethod{}
+	return &DateTimeConstructMethod{}
+}
+
+func (c *DateTimeImmutableClass) GetStaticMethod(name string) (data.Method, bool) {
+	switch name {
+	case "createFromFormat":
+		return &DateTimeCreateFromFormatMethod{}, true
+	case "getLastErrors":
+		return &DateTimeGetLastErrorsMethod{}, true
+	}
+	return nil, false
 }
 
 func (c *DateTimeImmutableClass) GetMethods() []data.Method {
 	return []data.Method{
-		&DateTimeImmutableConstructMethod{},
+		&DateTimeConstructMethod{},
+		&DateTimeGetTimestampMethod{},
+		&DateTimeFormatMethod{},
+		&DateTimeModifyMethod{},
+		&DateTimeSetTimestampMethod{},
+		&DateTimeSetTimezoneMethod{},
+		&DateTimeGetTimezoneMethod{},
+		&DateTimeAddMethod{},
+		&DateTimeSubMethod{},
+		&DateTimeDiffMethod{},
+		&DateTimeToStringMethod{},
 	}
 }
 
 func (c *DateTimeImmutableClass) GetMethod(name string) (data.Method, bool) {
-	methods := c.GetMethods()
-	for _, m := range methods {
-		if m.GetName() == name {
-			return m, true
-		}
+	switch name {
+	case "__construct":
+		return &DateTimeConstructMethod{}, true
+	case "getTimestamp":
+		return &DateTimeGetTimestampMethod{}, true
+	case "setTimestamp":
+		return &DateTimeSetTimestampMethod{}, true
+	case "setTimezone":
+		return &DateTimeSetTimezoneMethod{}, true
+	case "getTimezone":
+		return &DateTimeGetTimezoneMethod{}, true
+	case "format":
+		return &DateTimeFormatMethod{}, true
+	case "add":
+		return &DateTimeAddMethod{}, true
+	case "sub":
+		return &DateTimeSubMethod{}, true
+	case "diff":
+		return &DateTimeDiffMethod{}, true
+	case "modify":
+		return &DateTimeModifyMethod{}, true
+	case "createFromFormat":
+		return &DateTimeCreateFromFormatMethod{}, true
+	case "__toString":
+		return &DateTimeToStringMethod{}, true
 	}
 	return nil, false
 }
 
 func (c *DateTimeImmutableClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
-}
-
-// DateTimeImmutableConstructMethod 构造函数
-type DateTimeImmutableConstructMethod struct{}
-
-func (m *DateTimeImmutableConstructMethod) GetName() string               { return "__construct" }
-func (m *DateTimeImmutableConstructMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *DateTimeImmutableConstructMethod) GetIsStatic() bool             { return false }
-func (m *DateTimeImmutableConstructMethod) GetParams() []data.GetValue    { return nil }
-func (m *DateTimeImmutableConstructMethod) GetVariables() []data.Variable { return nil }
-func (m *DateTimeImmutableConstructMethod) GetReturnType() data.Types     { return nil }
-func (m *DateTimeImmutableConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewNullValue(), nil
 }

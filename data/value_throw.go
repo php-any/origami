@@ -125,18 +125,14 @@ func (t *ThrowValue) GetConstruct() Method {
 
 func NewErrorThrowFromClassValue(from From, object *ClassValue) Control {
 	err := ""
-	if str, ok := object.Class.(AsString); ok {
-		err = str.AsString()
-	} else if method, ok := object.GetMethod("getMessage"); ok {
+	// 优先调用实例 getMessage，避免 ClassStmt.AsString 读到共享/错误状态
+	if method, ok := object.GetMethod("getMessage"); ok {
 		ret, acl := method.Call(object)
 		if acl != nil {
 			return acl
 		}
-		switch ret.(type) {
-		case Value:
-			err = ret.(Value).AsString()
-		default:
-			panic(ret) // 不可能执行到这里的, 如果有报错就是解析器的问题
+		if v, ok := ret.(Value); ok {
+			err = v.AsString()
 		}
 	} else {
 		classStmt := object.Class
@@ -146,17 +142,15 @@ func NewErrorThrowFromClassValue(from From, object *ClassValue) Control {
 				if acl != nil {
 					return acl
 				}
-				switch ret.(type) {
-				case Value:
-					err = ret.(Value).AsString()
+				if v, ok := ret.(Value); ok {
+					err = v.AsString()
 				}
-				classStmt = nil
+				break
+			}
+			if classStmt.GetExtend() != nil {
+				classStmt, _ = object.GetVM().GetOrLoadClass(*classStmt.GetExtend())
 			} else {
-				if classStmt.GetExtend() != nil {
-					classStmt, _ = object.GetVM().GetOrLoadClass(*classStmt.GetExtend())
-				} else {
-					classStmt = nil
-				}
+				classStmt = nil
 			}
 		}
 		if err == "" {
@@ -274,6 +268,18 @@ type ThrowValueGetMessageMethod struct {
 }
 
 func (t *ThrowValueGetMessageMethod) Call(ctx Context) (GetValue, Control) {
+	// 优先走异常实例自己的 getMessage（含 $this->message 被改写的情况）
+	if t.source.Object != nil {
+		if method, ok := t.source.Object.GetMethod("getMessage"); ok {
+			ret, acl := method.Call(t.source.Object)
+			if acl != nil {
+				return nil, acl
+			}
+			if v, ok := ret.(Value); ok {
+				return NewStringValue(v.AsString()), nil
+			}
+		}
+	}
 	return NewStringValue(t.source.Error.Error()), nil
 }
 
@@ -365,6 +371,11 @@ type ThrowValueGetPreviousMethod struct {
 }
 
 func (m *ThrowValueGetPreviousMethod) Call(ctx Context) (GetValue, Control) {
+	if m.source != nil && m.source.Object != nil {
+		if method, ok := m.source.Object.GetMethod("getPrevious"); ok {
+			return method.Call(m.source.Object)
+		}
+	}
 	if m.source == nil || m.source.previous == nil {
 		return NewNullValue(), nil
 	}
@@ -380,7 +391,7 @@ func (m *ThrowValueGetPreviousMethod) GetVariables() []Variable {
 }
 
 func (m *ThrowValueGetPreviousMethod) GetReturnType() Types {
-	return NewBaseType("Throwable")
+	return NewNullableType(NewBaseType("Throwable"))
 }
 
 // getCode(): int

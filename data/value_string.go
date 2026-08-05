@@ -69,7 +69,7 @@ func (s *StringValue) GetProperty(name string) (Value, Control) {
 }
 
 func (s *StringValue) AsBool() (bool, error) {
-	return s.Value != "", nil
+	return s.Value != "" && s.Value != "0", nil
 }
 
 func (s *StringValue) Marshal(serializer Serializer) ([]byte, error) {

@@ -9,6 +9,10 @@ type ExceptionGetMessageMethod struct {
 }
 
 func (h *ExceptionGetMessageMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	// 优先读实例 $message（Laravel ModelNotFoundException::setModel 等会直接写该属性）
+	if msg, ok := instancePropertyString(ctx, "message"); ok {
+		return data.NewStringValue(msg), nil
+	}
 	return data.NewStringValue(h.source.GetMessage()), nil
 }
 

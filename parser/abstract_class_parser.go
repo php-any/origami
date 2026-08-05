@@ -25,6 +25,12 @@ func (p *AbstractClassParser) Parse() (data.GetValue, data.Control) {
 	// 跳过 abstract 关键字
 	p.next()
 
+	// PHP 8.2 允许 abstract readonly class / final readonly class。
+	// readonly 类语义当前由 ClassParser 兼容性处理，这里先接受修饰符顺序。
+	if p.current().Type() == token.READONLY {
+		p.next()
+	}
+
 	// 确保下一个是 class 关键字
 	if p.current().Type() != token.CLASS {
 		return nil, data.NewErrorThrow(p.newFrom(), errors.New("abstract 关键字后必须是 class 关键字"))

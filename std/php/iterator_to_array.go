@@ -91,7 +91,8 @@ func extractIteratorData(ctx data.Context, classVal *data.ClassValue, useKeys bo
 		}
 	}
 
-	result := make(map[string]data.Value)
+	result := make([]*data.ZVal, 0)
+	keyPositions := make(map[string]int)
 	index := 0
 
 	// 循环遍历迭代器
@@ -160,10 +161,21 @@ func extractIteratorData(ctx data.Context, classVal *data.ClassValue, useKeys bo
 			return nil, ctl
 		}
 
-		if val, ok := currentResult.(data.Value); ok {
-			result[key] = val
+		value, ok := currentResult.(data.Value)
+		if !ok {
+			value = data.NewNullValue()
+		}
+		zv := data.NewZVal(value)
+		if useKeys {
+			zv.Name = key
+			if position, exists := keyPositions[key]; exists {
+				result[position] = zv
+			} else {
+				keyPositions[key] = len(result)
+				result = append(result, zv)
+			}
 		} else {
-			result[key] = data.NewNullValue()
+			result = append(result, zv)
 		}
 
 		// 调用 next() 移动到下一个位置
@@ -184,24 +196,7 @@ func extractIteratorData(ctx data.Context, classVal *data.ClassValue, useKeys bo
 	// 构建结果数组
 	// PHP 语义：iterator_to_array 总是返回 array 类型
 	// 即使 use_keys=true，也返回关联数组（ArrayValue），而不是 ObjectValue
-	if useKeys {
-		// 使用键名，创建关联数组
-		objVal := data.NewObjectValue()
-		for k, v := range result {
-			objVal.SetProperty(k, v)
-		}
-		// 将 ObjectValue 包装成 ArrayValue 的第一个元素？不对！
-		// 应该直接将 ObjectValue 作为数组返回，但需要是 ArrayValue 类型
-		// 实际上 PHP 的 array 可以有关联键，我们用 ObjectValue 来表示关联数组
-		return objVal, nil
-	} else {
-		// 不使用键名，返回索引数组
-		values := make([]data.Value, 0, len(result))
-		for _, v := range result {
-			values = append(values, v)
-		}
-		return data.NewArrayValue(values), nil
-	}
+	return &data.ArrayValue{List: result}, nil
 }
 
 // checkInterface 检查类是否实现了指定接口

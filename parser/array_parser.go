@@ -114,9 +114,25 @@ func (ep *ArrayParser) Parse() (data.GetValue, data.Control) {
 		ep.nextAndCheckStip(token.COMMA)
 
 		for ep.current().Type() != token.RPAREN {
+			if ep.current().Type() == token.ELLIPSIS {
+				ep.next()
+				spreadExpr, acl := ep.parseStatement()
+				if acl != nil {
+					return nil, acl
+				}
+				if spreadExpr == nil {
+					return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("展开运算符后需要一个表达式"))
+				}
+				v = append(v, node.KvPair{Key: nil, Value: node.NewArraySpread(spreadExpr)})
+				ep.nextAndCheckStip(token.COMMA)
+				continue
+			}
 			key, acl := ep.parseStatement()
 			if acl != nil {
 				return nil, acl
+			}
+			if ep.current().Type() != token.ARRAY_KEY_VALUE {
+				return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("array() 关联元素缺少 =>"))
 			}
 			ep.next()
 			val, acl := ep.parseStatement()

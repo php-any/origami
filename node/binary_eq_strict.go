@@ -83,8 +83,15 @@ func isStrictEqual(value1, value2 data.GetValue) bool {
 			}
 			return true
 		}
+		// 空 ArrayValue 与空 ObjectValue（关联数组）在 PHP 中均为 []
+		if v2, ok2 := value2.(*data.ObjectValue); ok2 {
+			return len(v1.List) == 0 && len(v2.GetProperties()) == 0
+		}
 		return false
 	case *data.ObjectValue:
+		if v2, ok2 := value2.(*data.ArrayValue); ok2 {
+			return len(v1.GetProperties()) == 0 && len(v2.List) == 0
+		}
 		if v2, ok2 := value2.(*data.ObjectValue); ok2 {
 			// 对象比较：属性数量和每个属性都相等
 			props1 := v1.GetProperties()
@@ -106,15 +113,23 @@ func isStrictEqual(value1, value2 data.GetValue) bool {
 		}
 		return false
 	case *data.ClassValue:
-		// PHP === 对对象比较同一性（同一实例）
-		v2, ok2 := value2.(*data.ClassValue)
-		return ok2 && v1 == v2
-	case *data.ThisValue:
-		t2, ok2 := value2.(*data.ThisValue)
-		if !ok2 {
-			return false
+		// PHP === 对对象比较同一性（同一实例）。
+		// 方法调用会为 $this 再包一层 ClassValue，但共享同一 ObjectValue。
+		switch v2 := value2.(type) {
+		case *data.ClassValue:
+			return sameClassInstance(v1, v2)
+		case *data.ThisValue:
+			return sameClassInstance(v1, v2.ClassValue)
 		}
-		return v1.ClassValue == t2.ClassValue
+		return false
+	case *data.ThisValue:
+		switch v2 := value2.(type) {
+		case *data.ThisValue:
+			return sameClassInstance(v1.ClassValue, v2.ClassValue)
+		case *data.ClassValue:
+			return sameClassInstance(v1.ClassValue, v2)
+		}
+		return false
 	default:
 		// 对于其他类型，尝试字符串比较
 		if strValue1, ok := value1.(data.AsString); ok {
@@ -124,4 +139,15 @@ func isStrictEqual(value1, value2 data.GetValue) bool {
 		}
 		return false
 	}
+}
+
+// sameClassInstance 判断两个 ClassValue 是否指向同一 PHP 对象实例。
+func sameClassInstance(a, b *data.ClassValue) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	if a == b {
+		return true
+	}
+	return a.ObjectValue != nil && a.ObjectValue == b.ObjectValue
 }

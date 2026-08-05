@@ -9,8 +9,14 @@ type Class struct {
 func (i Class) Is(value Value) bool {
 	switch c := value.(type) {
 	case *ClassValue:
+		if i.Name == "iterable" {
+			return isIterableClassValue(c)
+		}
 		return isClassValueInstanceOf(i.Name, c.Class, c.GetVM())
 	case *ThisValue:
+		if i.Name == "iterable" {
+			return isIterableClassStmt(c.Class, c.GetVM())
+		}
 		if i.Name == c.Class.GetName() {
 			return true
 		}
@@ -46,6 +52,40 @@ func (i Class) Is(value Value) bool {
 		}
 	}
 
+	return false
+}
+
+// isIterableClassValue 对齐 PHP iterable：array | Traversable（含 Generator）
+func isIterableClassValue(c *ClassValue) bool {
+	if c == nil || c.Class == nil {
+		return false
+	}
+	return isIterableClassStmt(c.Class, c.GetVM())
+}
+
+func isIterableClassStmt(class ClassStmt, vm VM) bool {
+	if class == nil {
+		return false
+	}
+	name := class.GetName()
+	if name == "Generator" || strings.HasSuffix(name, "\\Generator") {
+		return true
+	}
+	for _, impl := range class.GetImplements() {
+		base := impl
+		if idx := strings.LastIndex(impl, "\\"); idx >= 0 {
+			base = impl[idx+1:]
+		}
+		switch base {
+		case "Iterator", "IteratorAggregate", "Traversable", "Generator":
+			return true
+		}
+		if interfaceExtends(vm, impl, "Traversable") ||
+			interfaceExtends(vm, impl, "Iterator") ||
+			interfaceExtends(vm, impl, "IteratorAggregate") {
+			return true
+		}
+	}
 	return false
 }
 

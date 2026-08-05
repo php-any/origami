@@ -15,13 +15,14 @@ import (
 // -------------------------------------------------------------------
 
 type pdoStmtState struct {
-	rows        *sql.Rows // query 返回的结果集
-	stmt        *sql.Stmt // prepared statement
-	sqlStr      string
-	pdoState    *pdoState
-	fetchMode   int
-	cols        []string // 列名缓存
-	colsFetched bool
+	sqlStr    string
+	pdoState  *pdoState
+	fetchMode int
+	cols      []string // 列名缓存
+	// 缓冲结果：借出的 *sql.Conn 在 Rows 未 Close 时不可复用；
+	// 若不缓冲，同 PDO 上后续语句会阻塞。对齐 PHP 默认 buffered query。
+	buffered []map[string]string
+	rowPos   int
 	// bound 按 PDO 1-based 位置参数存储（bindValue / bindParam）
 	bound map[int]interface{}
 }
@@ -36,24 +37,48 @@ type PDOStatementClass struct {
 }
 
 func newPDOStatementClass(rows *sql.Rows, pState *pdoState) *PDOStatementClass {
+	cols, buffered := bufferSQLRows(rows)
 	return &PDOStatementClass{
 		state: &pdoStmtState{
-			rows:      rows,
+			pdoState:  pState,
+			fetchMode: PDO_FETCH_BOTH,
+			cols:      cols,
+			buffered:  buffered,
+			rowPos:    0,
+		},
+	}
+}
+
+// newPDOStatementFromSQL 延迟到 execute 时在 PDO 当前借出的连接（或事务）上执行。
+func newPDOStatementFromSQL(pState *pdoState, sqlStr string) *PDOStatementClass {
+	return &PDOStatementClass{
+		state: &pdoStmtState{
+			sqlStr:    sqlStr,
 			pdoState:  pState,
 			fetchMode: PDO_FETCH_BOTH,
 		},
 	}
 }
 
-func newPDOStatementClassFromPrepared(stmt *sql.Stmt, pState *pdoState, sqlStr string) *PDOStatementClass {
-	return &PDOStatementClass{
-		state: &pdoStmtState{
-			stmt:      stmt,
-			sqlStr:    sqlStr,
-			pdoState:  pState,
-			fetchMode: PDO_FETCH_BOTH,
-		},
+// bufferSQLRows 读完并关闭 *sql.Rows，释放连接上的游标占用。
+func bufferSQLRows(rows *sql.Rows) ([]string, []map[string]string) {
+	if rows == nil {
+		return nil, nil
 	}
+	defer rows.Close()
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, nil
+	}
+	var buffered []map[string]string
+	for rows.Next() {
+		row, acl := scanRowToMap(rows, cols)
+		if acl != nil {
+			return cols, buffered
+		}
+		buffered = append(buffered, row)
+	}
+	return cols, buffered
 }
 
 func (c *PDOStatementClass) GetName() string                            { return "PDOStatement" }
@@ -117,7 +142,7 @@ func (m *stmtExecuteMethod) GetVariables() []data.Variable {
 }
 
 func (m *stmtExecuteMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if m.state.stmt == nil {
+	if m.state.pdoState == nil || strings.TrimSpace(m.state.sqlStr) == "" {
 		return data.NewBoolValue(false), nil
 	}
 
@@ -152,33 +177,38 @@ func (m *stmtExecuteMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 		strings.HasPrefix(sqlUpper, "EXPLAIN") ||
 		strings.HasPrefix(sqlUpper, "SHOW")
 
+	state := m.state.pdoState
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
 	if isQuery {
-		rows, err := m.state.stmt.Query(args...)
+		rows, err := state.queryLocked(m.state.sqlStr, args...)
 		if err != nil {
-			if m.state.pdoState != nil && m.state.pdoState.getErrMode() == PDO_ERRMODE_EXCEPTION {
+			state.lastError = err.Error()
+			if state.getErrMode() == PDO_ERRMODE_EXCEPTION {
 				return nil, pdoException(err.Error(), ctx)
 			}
 			return data.NewBoolValue(false), nil
 		}
-		m.state.rows = rows
-		m.state.cols = nil
-		m.state.colsFetched = false
+		m.state.cols, m.state.buffered = bufferSQLRows(rows)
+		m.state.rowPos = 0
 		return data.NewBoolValue(true), nil
 	}
 
-	result, err := m.state.stmt.Exec(args...)
+	result, err := state.execLocked(m.state.sqlStr, args...)
 	if err != nil {
-		if m.state.pdoState != nil && m.state.pdoState.getErrMode() == PDO_ERRMODE_EXCEPTION {
+		state.lastError = err.Error()
+		if state.getErrMode() == PDO_ERRMODE_EXCEPTION {
 			return nil, pdoException(err.Error(), ctx)
 		}
 		return data.NewBoolValue(false), nil
 	}
-	if m.state.pdoState != nil {
-		if id, err := result.LastInsertId(); err == nil {
-			m.state.pdoState.lastInsertID = id
-		}
+	if id, err := result.LastInsertId(); err == nil {
+		state.lastInsertID = id
 	}
-	m.state.rows = nil
+	m.state.buffered = nil
+	m.state.cols = nil
+	m.state.rowPos = 0
 	return data.NewBoolValue(true), nil
 }
 
@@ -202,7 +232,7 @@ func (m *stmtFetchMethod) GetVariables() []data.Variable {
 }
 
 func (m *stmtFetchMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if m.state.rows == nil {
+	if m.state.rowPos >= len(m.state.buffered) {
 		return data.NewBoolValue(false), nil
 	}
 
@@ -215,20 +245,15 @@ func (m *stmtFetchMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 
-	if !m.state.rows.Next() {
-		return data.NewBoolValue(false), nil
+	row := m.state.buffered[m.state.rowPos]
+	m.state.rowPos++
+	cols := m.state.cols
+	if len(cols) == 0 {
+		cols = make([]string, 0, len(row))
+		for k := range row {
+			cols = append(cols, k)
+		}
 	}
-
-	cols, err := m.state.rows.Columns()
-	if err != nil {
-		return data.NewBoolValue(false), nil
-	}
-
-	row, acl := scanRowToMap(m.state.rows, cols)
-	if acl != nil {
-		return nil, acl
-	}
-
 	return buildFetchResult(row, cols, mode), nil
 }
 
@@ -252,10 +277,6 @@ func (m *stmtFetchAllMethod) GetVariables() []data.Variable {
 }
 
 func (m *stmtFetchAllMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if m.state.rows == nil {
-		return data.NewArrayValue(nil), nil
-	}
-
 	mode := m.state.fetchMode
 	if modeVal, ok := ctx.GetIndexValue(0); ok && modeVal != nil {
 		if ai, ok := modeVal.(interface{ AsInt() (int, error) }); ok {
@@ -265,20 +286,19 @@ func (m *stmtFetchAllMethod) Call(ctx data.Context) (data.GetValue, data.Control
 		}
 	}
 
-	cols, err := m.state.rows.Columns()
-	if err != nil {
-		return data.NewArrayValue(nil), nil
-	}
-
-	var results []data.Value
-	for m.state.rows.Next() {
-		row, acl := scanRowToMap(m.state.rows, cols)
-		if acl != nil {
-			return nil, acl
+	cols := m.state.cols
+	results := make([]data.Value, 0, len(m.state.buffered)-m.state.rowPos)
+	for m.state.rowPos < len(m.state.buffered) {
+		row := m.state.buffered[m.state.rowPos]
+		m.state.rowPos++
+		if len(cols) == 0 {
+			cols = make([]string, 0, len(row))
+			for k := range row {
+				cols = append(cols, k)
+			}
 		}
 		results = append(results, buildFetchResult(row, cols, mode).(data.Value))
 	}
-
 	return data.NewArrayValue(results), nil
 }
 
@@ -302,7 +322,7 @@ func (m *stmtFetchColumnMethod) GetVariables() []data.Variable {
 }
 
 func (m *stmtFetchColumnMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if m.state.rows == nil || !m.state.rows.Next() {
+	if m.state.rowPos >= len(m.state.buffered) {
 		return data.NewBoolValue(false), nil
 	}
 
@@ -315,14 +335,17 @@ func (m *stmtFetchColumnMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 		}
 	}
 
-	cols, _ := m.state.rows.Columns()
-	row, acl := scanRowToMap(m.state.rows, cols)
-	if acl != nil {
-		return nil, acl
-	}
-
-	if colIdx < len(cols) {
+	row := m.state.buffered[m.state.rowPos]
+	m.state.rowPos++
+	cols := m.state.cols
+	if colIdx >= 0 && colIdx < len(cols) {
 		return data.NewStringValue(row[cols[colIdx]]), nil
+	}
+	// 无列名缓存时按 map 迭代顺序不稳定；优先用数字键兼容
+	if len(cols) == 0 && colIdx == 0 {
+		for _, v := range row {
+			return data.NewStringValue(v), nil
+		}
 	}
 	return data.NewBoolValue(false), nil
 }
@@ -357,14 +380,7 @@ func (m *stmtColumnCountMethod) GetReturnType() data.Types     { return nil }
 func (m *stmtColumnCountMethod) GetParams() []data.GetValue    { return nil }
 func (m *stmtColumnCountMethod) GetVariables() []data.Variable { return nil }
 func (m *stmtColumnCountMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if m.state.rows == nil {
-		return data.NewIntValue(0), nil
-	}
-	cols, err := m.state.rows.Columns()
-	if err != nil {
-		return data.NewIntValue(0), nil
-	}
-	return data.NewIntValue(len(cols)), nil
+	return data.NewIntValue(len(m.state.cols)), nil
 }
 
 // -------------------------------------------------------------------
@@ -380,10 +396,9 @@ func (m *stmtCloseCursorMethod) GetReturnType() data.Types     { return nil }
 func (m *stmtCloseCursorMethod) GetParams() []data.GetValue    { return nil }
 func (m *stmtCloseCursorMethod) GetVariables() []data.Variable { return nil }
 func (m *stmtCloseCursorMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if m.state.rows != nil {
-		m.state.rows.Close()
-		m.state.rows = nil
-	}
+	m.state.buffered = nil
+	m.state.cols = nil
+	m.state.rowPos = 0
 	return data.NewBoolValue(true), nil
 }
 
@@ -569,13 +584,22 @@ func scanRowToMap(rows *sql.Rows, cols []string) (map[string]string, data.Contro
 	}
 	row := make(map[string]string, len(cols))
 	for i, col := range cols {
-		if vals[i] == nil {
-			row[col] = ""
-		} else {
-			row[col] = fmt.Sprintf("%v", vals[i])
-		}
+		row[col] = driverValueString(vals[i])
 	}
 	return row, nil
+}
+
+func driverValueString(value any) string {
+	switch v := value.(type) {
+	case nil:
+		return ""
+	case []byte:
+		return string(v)
+	case string:
+		return v
+	default:
+		return fmt.Sprint(v)
+	}
 }
 
 func buildFetchResult(row map[string]string, cols []string, mode int) data.GetValue {

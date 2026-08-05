@@ -28,8 +28,14 @@ func (t *ThrowStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 		return nil, ctl
 	}
 
-	if obj, ok := v.(*data.ClassValue); ok {
+	switch obj := v.(type) {
+	case *data.ClassValue:
 		return nil, data.NewErrorThrowFromClassValue(t.from, obj)
+	case *data.ThisValue:
+		// return $this / 方法链式返回 $this 后再 throw
+		return nil, data.NewErrorThrowFromClassValue(t.from, obj.ClassValue)
+	case *data.ThrowValue:
+		return nil, obj
 	}
 
 	return nil, data.NewErrorThrow(t.from, errors.New(v.(data.Value).AsString()))

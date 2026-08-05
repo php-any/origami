@@ -84,7 +84,7 @@ func (m *ReflectionClassConstructMethod) Call(ctx data.Context) (data.GetValue, 
 	case *data.StringValue:
 		className = classVal.AsString()
 	case *data.BoolValue:
-		return nil, createReflectionException(fmt.Sprintf("Argument #1 ($class) must be of type object|string, false given (value: %v). This error typically occurs when Laravel's container tries to resolve an invalid dependency. Check your service provider bindings.", classVal.Value), ctx, m.GetFrom())
+		return nil, createReflectionException(fmt.Sprintf("Argument #1 ($class) must be of type object|string, bool given (value: %v)", classVal.Value), ctx, m.GetFrom())
 	case *data.NullValue:
 		return nil, createReflectionException("Argument #1 ($class) must not be null", ctx, m.GetFrom())
 	default:
@@ -95,7 +95,7 @@ func (m *ReflectionClassConstructMethod) Call(ctx data.Context) (data.GetValue, 
 		return nil, createReflectionException(fmt.Sprintf("ReflectionClass::__construct(): Argument #1 ($class) must be of type object|string, %s given", typeName), ctx, m.GetFrom())
 	}
 
-	// 加载类；失败须抛 ReflectionException，供 Laravel 等 catch (ReflectionException) 处理
+	// 加载类；失败须抛 ReflectionException，供调用方按 PHP 语义捕获。
 	vm := ctx.GetVM()
 	stmt, acl := vm.LoadPkg(className)
 	if acl != nil {

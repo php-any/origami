@@ -3,6 +3,7 @@ package http
 import (
 	"errors"
 	"strings"
+	"sync"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -26,6 +27,7 @@ type routerGroupState struct {
 }
 
 var (
+	routerStateMu    sync.RWMutex
 	routerGroupStack []routerGroupState
 	routeCatalog     []RouteCatalogEntry
 )
@@ -42,9 +44,9 @@ func (r *RouterClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(r, ctx.CreateBaseContext()), nil
 }
 
-func (r *RouterClass) GetName() string         { return "Net\\Http\\Router" }
-func (r *RouterClass) GetExtend() *string      { return nil }
-func (r *RouterClass) GetImplements() []string { return nil }
+func (r *RouterClass) GetName() string           { return "Net\\Http\\Router" }
+func (r *RouterClass) GetExtend() *string        { return nil }
+func (r *RouterClass) GetImplements() []string   { return nil }
 func (r *RouterClass) GetConstruct() data.Method { return nil }
 func (r *RouterClass) GetProperty(_ string) (data.Property, bool) {
 	return nil, false
@@ -75,17 +77,25 @@ func (r *RouterClass) GetMethods() []data.Method {
 }
 
 func currentRouterGroup() routerGroupState {
+	routerStateMu.RLock()
+	defer routerStateMu.RUnlock()
 	if len(routerGroupStack) == 0 {
 		return routerGroupState{}
 	}
-	return routerGroupStack[len(routerGroupStack)-1]
+	current := routerGroupStack[len(routerGroupStack)-1]
+	current.middlewares = append([]string(nil), current.middlewares...)
+	return current
 }
 
 func pushRouterGroup(state routerGroupState) {
+	routerStateMu.Lock()
+	defer routerStateMu.Unlock()
 	routerGroupStack = append(routerGroupStack, state)
 }
 
 func popRouterGroup() {
+	routerStateMu.Lock()
+	defer routerStateMu.Unlock()
 	if len(routerGroupStack) > 0 {
 		routerGroupStack = routerGroupStack[:len(routerGroupStack)-1]
 	}
@@ -206,7 +216,7 @@ func registerProgrammaticRoute(ctx data.Context, method, path string, action dat
 		return utils.NewThrowf("无法加载控制器: %s", controllerClass)
 	}
 
-	targetMethod, ok := classStmt.GetMethod(methodName)
+	targetMethod, ok := lookupClassMethod(vm, classStmt, methodName)
 	if !ok {
 		return utils.NewThrowf("控制器 %s 不存在方法 %s", controllerClass, methodName)
 	}
@@ -234,6 +244,7 @@ func registerProgrammaticRoute(ctx data.Context, method, path string, action dat
 		Middlewares:    middlewares,
 	})
 
+	routerStateMu.Lock()
 	routeCatalog = append(routeCatalog, RouteCatalogEntry{
 		Method:      method,
 		Path:        fullPath,
@@ -241,7 +252,33 @@ func registerProgrammaticRoute(ctx data.Context, method, path string, action dat
 		Action:      methodName,
 		Middlewares: append([]string{}, middlewares...),
 	})
+	routerStateMu.Unlock()
 	return nil
+}
+
+func lookupClassMethod(vm data.VM, classStmt data.ClassStmt, methodName string) (data.Method, bool) {
+	if classStmt == nil {
+		return nil, false
+	}
+	if m, ok := classStmt.GetMethod(methodName); ok && m != nil {
+		return m, true
+	}
+	last := classStmt
+	for last.GetExtend() != nil {
+		parentName := last.GetExtend()
+		if parentName == nil || *parentName == "" {
+			break
+		}
+		parent, acl := vm.GetOrLoadClass(*parentName)
+		if acl != nil || parent == nil {
+			return nil, false
+		}
+		if m, ok := parent.GetMethod(methodName); ok && m != nil {
+			return m, true
+		}
+		last = parent
+	}
+	return nil, false
 }
 
 // RouterMapMethod GET/POST/PUT/DELETE/PATCH 路由注册。
@@ -369,22 +406,25 @@ type RouterGetRoutesMethod struct{}
 func (m *RouterGetRoutesMethod) GetName() string            { return "getRoutes" }
 func (m *RouterGetRoutesMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *RouterGetRoutesMethod) GetIsStatic() bool          { return true }
-func (m *RouterGetRoutesMethod) GetParams() []data.GetValue  { return []data.GetValue{} }
+func (m *RouterGetRoutesMethod) GetParams() []data.GetValue { return []data.GetValue{} }
 func (m *RouterGetRoutesMethod) GetVariables() []data.Variable {
 	return []data.Variable{}
 }
 func (m *RouterGetRoutesMethod) GetReturnType() data.Types { return data.NewBaseType("array") }
 func (m *RouterGetRoutesMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	catalogIndex := make(map[string]RouteCatalogEntry, len(routeCatalog))
-	for _, rt := range routeCatalog {
+	routerStateMu.RLock()
+	catalog := append([]RouteCatalogEntry(nil), routeCatalog...)
+	routerStateMu.RUnlock()
+	catalogIndex := make(map[string]RouteCatalogEntry, len(catalog))
+	for _, rt := range catalog {
 		catalogIndex[rt.Method+" "+rt.Path] = rt
 	}
 
 	routes := netdata.HTTPRoutes()
 	if len(routes) == 0 {
 		// 尚未 RegisterPendingRoutes 时，仅返回声明式目录
-		items := make([]data.Value, 0, len(routeCatalog))
-		for _, rt := range routeCatalog {
+		items := make([]data.Value, 0, len(catalog))
+		for _, rt := range catalog {
 			items = append(items, routeEntryToObject(rt))
 		}
 		return data.NewArrayValue(items), nil
@@ -432,6 +472,8 @@ func routeEntryToObject(rt RouteCatalogEntry) data.Value {
 
 // ResetRouterState 清空路由注册状态，供热重载使用。
 func ResetRouterState() {
+	routerStateMu.Lock()
+	defer routerStateMu.Unlock()
 	routerGroupStack = nil
 	routeCatalog = nil
 }

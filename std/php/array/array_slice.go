@@ -98,25 +98,52 @@ func (f *ArraySliceFunction) Call(ctx data.Context) (data.GetValue, data.Control
 			}
 		}
 
-		// 提取切片
-		valueList := arrayVal.ToValueList()
-		result := valueList[offset:end]
-		return data.NewArrayValue(result), nil
+		// 提取切片。PHP：字符串键始终保留；整数键默认从 0 重排（除非 preserve_keys）。
+		result := &data.ArrayValue{List: make([]*data.ZVal, 0, end-offset)}
+		nextInt := 0
+		for i := offset; i < end; i++ {
+			z := arrayVal.List[i]
+			if z == nil {
+				continue
+			}
+			name := z.Name
+			_, isIntKey := data.ParseIntArrayKeyName(name)
+			isStringKey := name != "" && !isIntKey
+
+			if isStringKey {
+				result.List = append(result.List, data.NewNamedZVal(name, z.Value))
+				continue
+			}
+
+			if preserveKeys {
+				if name != "" {
+					result.List = append(result.List, data.NewNamedZVal(name, z.Value))
+				} else {
+					result.List = append(result.List, data.NewNamedZVal(data.IntArrayKeyName(i), z.Value))
+				}
+				continue
+			}
+
+			if nextInt == len(result.List) {
+				result.List = append(result.List, data.NewZVal(z.Value))
+			} else {
+				result.List = append(result.List, data.NewNamedZVal(data.IntArrayKeyName(nextInt), z.Value))
+			}
+			nextInt++
+		}
+		return result, nil
 	}
 
-	// 处理对象（关联数组）
+	// 处理对象（关联数组）。PHP：字符串键始终保留；整数键默认从 0 重排。
 	if objectVal, ok := arrayValue.(*data.ObjectValue); ok {
-		properties := objectVal.GetProperties()
-		keys := make([]string, 0, len(properties))
-		values := make([]data.Value, 0, len(properties))
-
-		// 收集键和值
-		for k, v := range properties {
+		keys := make([]string, 0)
+		values := make([]data.Value, 0)
+		objectVal.RangeProperties(func(k string, v data.Value) bool {
 			keys = append(keys, k)
 			values = append(values, v)
-		}
+			return true
+		})
 
-		// 处理负偏移量
 		arrLen := len(keys)
 		if offset < 0 {
 			offset = arrLen + offset
@@ -124,16 +151,12 @@ func (f *ArraySliceFunction) Call(ctx data.Context) (data.GetValue, data.Control
 				offset = 0
 			}
 		}
-
-		// 如果偏移量超出数组范围，返回空对象
 		if offset >= arrLen {
-			return data.NewObjectValue(), nil
+			return data.NewArrayValue([]data.Value{}), nil
 		}
 
-		// 计算结束位置
 		end := arrLen
 		if length == -999 {
-			// 未提供长度参数或为 null，表示到数组末尾
 			end = arrLen
 		} else if length >= 0 {
 			end = offset + length
@@ -141,31 +164,34 @@ func (f *ArraySliceFunction) Call(ctx data.Context) (data.GetValue, data.Control
 				end = arrLen
 			}
 		} else {
-			// 负长度：从 offset 开始，到距离末尾 |length| 的位置
-			// 例如 length=-1 表示排除最后1个元素，end = arrLen - 1
-			// length=-2 表示排除最后2个元素，end = arrLen - 2
 			end = arrLen + length
 			if end < offset {
 				end = offset
 			}
 		}
 
-		// 提取切片
-		if preserveKeys {
-			// 保留键
-			resultObj := data.NewObjectValue()
-			for i := offset; i < end; i++ {
-				resultObj.SetProperty(keys[i], values[i])
+		result := &data.ArrayValue{List: make([]*data.ZVal, 0, end-offset)}
+		nextInt := 0
+		for i := offset; i < end; i++ {
+			name := keys[i]
+			val := values[i]
+			_, isIntKey := data.ParseIntArrayKeyName(name)
+			if !isIntKey {
+				result.List = append(result.List, data.NewNamedZVal(name, val))
+				continue
 			}
-			return resultObj, nil
-		} else {
-			// 重新索引（从 0 开始）
-			result := make([]data.Value, 0, end-offset)
-			for i := offset; i < end; i++ {
-				result = append(result, values[i])
+			if preserveKeys {
+				result.List = append(result.List, data.NewNamedZVal(name, val))
+				continue
 			}
-			return data.NewArrayValue(result), nil
+			if nextInt == len(result.List) {
+				result.List = append(result.List, data.NewZVal(val))
+			} else {
+				result.List = append(result.List, data.NewNamedZVal(data.IntArrayKeyName(nextInt), val))
+			}
+			nextInt++
 		}
+		return result, nil
 	}
 
 	// 不是数组类型，返回空数组

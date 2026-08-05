@@ -23,7 +23,12 @@ func (f *UnsetFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	for _, argExpr := range callArgs {
 		// 检查参数表达式是否是 Variable 类型
 		if variable, ok := argExpr.(data.Variable); ok {
-			// 直接将变量设置为 null
+			// foreach (... as &$v) 后的 unset($v)：只断开本地引用，不能清空被引用的数组元素
+			if zv := ctx.GetIndexZVal(variable.GetIndex()); zv != nil && zv.RefSlotCount > 0 {
+				zv.RefSlotCount--
+				ctx.SetIndexZVal(variable.GetIndex(), data.NewZVal(data.NewNullValue()))
+				continue
+			}
 			ctl := variable.SetValue(ctx, data.NewNullValue())
 			if ctl != nil {
 				return nil, ctl

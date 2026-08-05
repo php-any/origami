@@ -147,6 +147,14 @@ func (pe *CallObjectProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 		if magic, hasGet := v.GetMethod("__get"); hasGet {
 			return pe.invokeMagicGet(v, magic, pe.Property)
 		}
+		// 与 ClassValue 一致：回退到实例动态属性（支持 $this->x .= 等）
+		if v.ObjectValue != nil && v.ObjectValue.HasProperty(pe.Property) {
+			dynVal, acl := v.ObjectValue.GetProperty(pe.Property)
+			if acl != nil {
+				return nil, acl
+			}
+			return dynVal, nil
+		}
 		return nil, data.NewErrorThrow(pe.from, fmt.Errorf("对象(%s)不存在属性(%s)", v.Class.GetName(), pe.Property))
 	case *data.ClassValue:
 		property, ok := v.GetPropertyStmt(pe.Property)

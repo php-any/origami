@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/php-any/origami/data"
 )
@@ -369,9 +370,10 @@ func checkArrayAccess(ctx data.Context, classStmt data.ClassStmt) bool {
 
 // IndexExpression 表示数组访问表达式
 type IndexExpression struct {
-	*Node `pp:"-"`
-	Array data.GetValue // 数组表达式
-	Index data.GetValue // 索引表达式
+	*Node  `pp:"-"`
+	Array  data.GetValue // 数组表达式
+	Index  data.GetValue // 索引表达式
+	Append bool          // true 表示 []，与显式 [null] 区分
 }
 
 // NewIndexExpression 创建一个新的数组访问表达式
@@ -380,6 +382,16 @@ func NewIndexExpression(token *TokenFrom, array data.GetValue, index data.GetVal
 		Node:  NewNode(token),
 		Array: array,
 		Index: index,
+	}
+}
+
+// NewAppendIndexExpression 创建省略下标的数组追加表达式。
+func NewAppendIndexExpression(token *TokenFrom, array data.GetValue) *IndexExpression {
+	return &IndexExpression{
+		Node:   NewNode(token),
+		Array:  array,
+		Index:  NewNullLiteral(token),
+		Append: true,
 	}
 }
 
@@ -476,10 +488,13 @@ func (ie *IndexExpression) GetOrCreateZVal(ctx data.Context) (*data.ZVal, data.C
 
 	switch v := temp.(type) {
 	case *data.ArrayValue:
-		if _, isNull := index.(*data.NullValue); isNull {
+		if ie.Append {
 			v.List = append(v.List, data.NewZVal(data.NewNullValue()))
 			writeBackArrayProperty(ctx, ie.Array, v)
 			return v.List[len(v.List)-1], nil
+		}
+		if _, isNull := index.(*data.NullValue); isNull {
+			emitNullOffsetDeprecation(ie.GetFrom())
 		}
 		if sv, ok := index.(data.AsString); ok {
 			key := sv.AsString()
@@ -603,16 +618,33 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 
 	switch arr := arrayVal.(type) {
 	case *data.NullValue:
-		// $null[] = value → 初始化为数组后追加（PHP 语义）
-		newArr := data.NewArrayValue([]data.Value{value}).(*data.ArrayValue)
+		var newArr *data.ArrayValue
+		if ie.Append {
+			// $null[] = value → 初始化为数组后追加（PHP 语义）
+			newArr = data.NewArrayValue([]data.Value{value}).(*data.ArrayValue)
+		} else if _, isNull := indexVal.(*data.NullValue); isNull {
+			emitNullOffsetDeprecation(ie.GetFrom())
+			newArr = data.NewArrayValue(nil).(*data.ArrayValue)
+			newArr.List = append(newArr.List, data.NewNamedZVal("", value))
+		} else {
+			newArr = data.NewArrayValue([]data.Value{value}).(*data.ArrayValue)
+		}
 		_, acl = NewBinaryAssign(ie.GetFrom(), ie.Array, newArr).GetValue(ctx)
 		return acl
 	case *data.ArrayValue:
 		// 数组索引赋值
-		// Handle null index first (before interface type assertions)
-		if _, isNull := indexVal.(*data.NullValue); isNull {
-			// $arr[] = $val（PHP 追加，不触发 null 下标弃用提示）
+		if ie.Append {
 			arr.List = append(arr.List, data.NewZVal(value))
+			writeBackArrayProperty(ctx, ie.Array, arr)
+			return nil
+		}
+		if _, isNull := indexVal.(*data.NullValue); isNull {
+			emitNullOffsetDeprecation(ie.GetFrom())
+			if z, ok := arr.LookupZValByStringKey(""); ok {
+				z.Value = value
+			} else {
+				arr.List = append(arr.List, data.NewNamedZVal("", value))
+			}
 			writeBackArrayProperty(ctx, ie.Array, arr)
 			return nil
 		}
@@ -626,13 +658,11 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 		} else if iv, ok := indexVal.(data.AsString); ok {
 			// 字符串键：查找匹配 Name 的项并更新，找不到则追加
 			key := iv.AsString()
-			if zval, ok := arr.LookupZValByStringKey(key); ok {
-				zval.Value = value
-				writeBackArrayProperty(ctx, ie.Array, arr)
-				return nil
+			if z, ok := arr.LookupZValByStringKey(key); ok {
+				z.Value = value
+			} else {
+				arr.List = append(arr.List, &data.ZVal{Name: key, Value: value})
 			}
-			// 未找到，追加新项
-			arr.List = append(arr.List, &data.ZVal{Name: key, Value: value})
 			writeBackArrayProperty(ctx, ie.Array, arr)
 			return nil
 		} else {
@@ -690,6 +720,9 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 
 	case data.SetProperty:
 		// 对象属性赋值
+		if ie.Append {
+			return appendToSetProperty(arr, value)
+		}
 		if _, isNull := indexVal.(*data.NullValue); isNull {
 			emitNullOffsetDeprecation(ie.GetFrom())
 			arr.SetProperty("", value)
@@ -709,23 +742,38 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 
 	case *data.IndexReferenceValue:
 		sub := &IndexExpression{
-			Node:  ie.Node,
-			Array: arr.Expr,
-			Index: ie.Index,
+			Node:   ie.Node,
+			Array:  arr.Expr,
+			Index:  ie.Index,
+			Append: ie.Append,
 		}
 		return sub.SetValue(arr.Ctx, value)
 
 	case *data.ReferenceValue:
 		sub := &IndexExpression{
-			Node:  ie.Node,
-			Array: arr.Val,
-			Index: ie.Index,
+			Node:   ie.Node,
+			Array:  arr.Val,
+			Index:  ie.Index,
+			Append: ie.Append,
 		}
 		return sub.SetValue(arr.Ctx, value)
 
 	default:
 		return data.NewErrorThrow(ie.GetFrom(), errors.New("无法设置索引表达式的值"))
 	}
+}
+
+func appendToSetProperty(target data.SetProperty, value data.Value) data.Control {
+	next := 0
+	if object, ok := target.(*data.ObjectValue); ok {
+		object.RangeProperties(func(key string, _ data.Value) bool {
+			if index, valid := data.ParseIntArrayKeyName(key); valid && index >= next {
+				next = index + 1
+			}
+			return true
+		})
+	}
+	return target.SetProperty(strconv.Itoa(next), value)
 }
 
 // GetValue 获取数组访问表达式的值
@@ -977,7 +1025,7 @@ func assignNestedArrayAccess(ctx data.Context, ie *IndexExpression, value data.V
 		if acl != nil {
 			if tv, ok := acl.(*data.ThrowValue); ok && tv.Name == "UndefinedIndexExpression" {
 				sub := data.NewArrayValue(nil).(*data.ArrayValue)
-				if ctl := setIndexOnContainer(ctx, current, keyIndices[i], sub, ie.GetFrom()); ctl != nil {
+				if ctl := setIndexOnContainer(ctx, current, keyIndices[i], false, sub, ie.GetFrom()); ctl != nil {
 					return ctl
 				}
 				current = sub
@@ -988,7 +1036,7 @@ func assignNestedArrayAccess(ctx data.Context, ie *IndexExpression, value data.V
 		current = next
 	}
 
-	if acl := setIndexOnContainer(ctx, current, keyIndices[len(keyIndices)-1], value, ie.GetFrom()); acl != nil {
+	if acl := setIndexOnContainer(ctx, current, keyIndices[len(keyIndices)-1], ie.Append, value, ie.GetFrom()); acl != nil {
 		return acl
 	}
 
@@ -1002,16 +1050,19 @@ func assignNestedArrayAccess(ctx data.Context, ie *IndexExpression, value data.V
 	return nil
 }
 
-func setIndexOnContainer(ctx data.Context, container data.GetValue, indexExpr data.GetValue, value data.Value, from data.From) data.Control {
+func setIndexOnContainer(ctx data.Context, container data.GetValue, indexExpr data.GetValue, appendIndex bool, value data.Value, from data.From) data.Control {
 	indexVal, acl := indexExpr.GetValue(ctx)
 	if acl != nil {
 		return acl
 	}
 	switch arr := container.(type) {
 	case *data.ArrayValue:
-		if _, isNull := indexVal.(*data.NullValue); isNull {
+		if appendIndex {
 			arr.List = append(arr.List, data.NewZVal(value))
 			return nil
+		}
+		if _, isNull := indexVal.(*data.NullValue); isNull {
+			emitNullOffsetDeprecation(from)
 		}
 		if iv, ok := indexVal.(data.AsString); ok {
 			key := iv.AsString()
@@ -1031,13 +1082,27 @@ func setIndexOnContainer(ctx data.Context, container data.GetValue, indexExpr da
 			return nil
 		}
 	case *data.ObjectValue:
+		if appendIndex {
+			return appendToSetProperty(arr, value)
+		}
 		key, ok := indexKeyString(indexVal)
 		if !ok {
 			return data.NewErrorThrow(from, errors.New("ObjectValue无法处理索引的类型值"))
 		}
 		arr.SetProperty(key, value)
 		return nil
+	case *data.ClassValue:
+		if checkArrayAccess(ctx, arr.Class) {
+			return callArrayAccessOffsetSet(ctx, arr, indexVal, value)
+		}
+	case *data.ThisValue:
+		if arr.ClassValue != nil && checkArrayAccess(ctx, arr.Class) {
+			return callArrayAccessOffsetSet(ctx, arr.ClassValue, indexVal, value)
+		}
 	case data.SetProperty:
+		if appendIndex {
+			return appendToSetProperty(arr, value)
+		}
 		if iv, ok := indexVal.(data.AsString); ok {
 			arr.SetProperty(iv.AsString(), value)
 			return nil
@@ -1192,10 +1257,13 @@ func arrayIntKeyValue(arr *data.ArrayValue, i int) (data.GetValue, bool) {
 func indexSetValueOnContainer(ctx data.Context, ie *IndexExpression, container data.GetValue, indexVal data.GetValue, value data.Value) data.Control {
 	switch arr := container.(type) {
 	case *data.ArrayValue:
-		if _, isNull := indexVal.(*data.NullValue); isNull {
+		if ie.Append {
 			arr.List = append(arr.List, data.NewZVal(value))
 			writeBackArrayProperty(ctx, ie.Array, arr)
 			return nil
+		}
+		if _, isNull := indexVal.(*data.NullValue); isNull {
+			emitNullOffsetDeprecation(ie.GetFrom())
 		}
 		if iv, ok := indexVal.(data.AsString); ok {
 			key := iv.AsString()
@@ -1226,6 +1294,9 @@ func indexSetValueOnContainer(ctx data.Context, ie *IndexExpression, container d
 			return callArrayAccessOffsetSet(ctx, arr.ClassValue, indexVal, value)
 		}
 	case data.SetProperty:
+		if ie.Append {
+			return appendToSetProperty(arr, value)
+		}
 		if iv, ok := indexVal.(data.AsString); ok {
 			arr.SetProperty(iv.AsString(), value)
 			return nil

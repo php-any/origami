@@ -103,17 +103,22 @@ func (f *EmptyFunction) isEmptyValue(v data.GetValue) data.GetValue {
 		return data.NewBoolValue(false)
 	}
 
-	// 检查布尔值
-	if boolVal, ok := v.(data.AsBool); ok {
-		if b, err := boolVal.AsBool(); err == nil && !b {
-			return data.NewBoolValue(true)
-		}
-		return data.NewBoolValue(false)
+	// ObjectValue 常用作关联数组：空关联数组应视为 empty（AsBool 恒 true，不能走通用 AsBool）
+	if objVal, ok := v.(*data.ObjectValue); ok {
+		return data.NewBoolValue(len(objVal.GetProperties()) == 0)
 	}
 
 	// 检查数组
 	if arrayVal, ok := v.(*data.ArrayValue); ok {
 		if len(arrayVal.List) == 0 {
+			return data.NewBoolValue(true)
+		}
+		return data.NewBoolValue(false)
+	}
+
+	// 检查布尔值
+	if boolVal, ok := v.(data.AsBool); ok {
+		if b, err := boolVal.AsBool(); err == nil && !b {
 			return data.NewBoolValue(true)
 		}
 		return data.NewBoolValue(false)

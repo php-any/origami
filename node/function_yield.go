@@ -88,6 +88,9 @@ func (f *FuncYieldStackState) Next(_ data.Context) data.Control {
 						f.BodyIndex = ns.BodyIndex
 						f.CurrentKey = ns.CurrentKey
 						f.CurrentValue = ns.CurrentValue
+						// 必须同步 autoKeyIndex，否则后续自动键会从 0 重计，
+						// iterator_to_array(use_keys=true) 会覆盖第一个元素（Dotenv Lexer 路径）。
+						f.autoKeyIndex = ns.autoKeyIndex
 						f.initialized = true
 					}
 				}

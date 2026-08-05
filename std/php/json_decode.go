@@ -3,6 +3,7 @@ package php
 import (
 	"encoding/json"
 	"strconv"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -64,8 +65,10 @@ func (f *JsonDecodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 				if cv, ok := classInstance.(*data.ClassValue); ok {
 					serializer := origamiJson.NewJsonSerializer()
 					if err := serializer.UnmarshalClass([]byte(jsonString), cv); err != nil {
+						setJsonLastError(JSON_ERROR_SYNTAX, "")
 						return data.NewNullValue(), nil
 					}
+					clearJsonLastError()
 					return cv, nil
 				}
 			} else {
@@ -74,19 +77,27 @@ func (f *JsonDecodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		}
 	}
 
-	if asArray {
+	// PHP: assoc=true → 关联数组；assoc=false 时数组/标量仍为 PHP array/标量，仅 {} 为对象
+	trimmed := strings.TrimSpace(jsonString)
+	useObject := !asArray && len(trimmed) > 0 && trimmed[0] == '{'
+
+	if !useObject {
 		v, err := goJsonDecode(jsonString)
 		if err != nil {
+			setJsonLastError(JSON_ERROR_SYNTAX, "")
 			return data.NewNullValue(), nil
 		}
+		clearJsonLastError()
 		return v, nil
 	}
 
 	serializer := origamiJson.NewJsonSerializer()
 	value := data.NewObjectValue()
 	if err := value.Unmarshal([]byte(jsonString), serializer); err != nil {
+		setJsonLastError(JSON_ERROR_SYNTAX, "")
 		return data.NewNullValue(), nil
 	}
+	clearJsonLastError()
 	return value, nil
 }
 

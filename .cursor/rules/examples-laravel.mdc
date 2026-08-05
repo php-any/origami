@@ -1,0 +1,13 @@
+---
+description: examples/laravel（旧）已偏离主线，请改用 laravel13
+globs: examples/laravel/**
+alwaysApply: false
+---
+
+# examples/laravel（旧目录）
+
+本目录基于 Laravel 10 + 大量自定义 bootstrap 桥接，**已偏离「跑通官方 Laravel」目标**。
+
+**新主线请使用 `examples/laravel13/`**（官方 Laravel 13 骨架 + Origami）。
+
+除非用户明确要求维护旧目录，否则不要在此继续加假 singleton / 手搓控制器 / 双轨路由补丁。

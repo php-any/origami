@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -13,10 +12,8 @@ func NormalizePhpFilePath(file string) string {
 		return ""
 	}
 	cleaned := filepath.Clean(file)
-	if !filepath.IsAbs(cleaned) {
-		if abs, err := filepath.Abs(cleaned); err == nil {
-			cleaned = abs
-		}
+	if abs, err := filepath.Abs(cleaned); err == nil {
+		cleaned = abs
 	}
 	if resolved, err := filepath.EvalSymlinks(cleaned); err == nil {
 		if filepath.IsAbs(resolved) {
@@ -26,10 +23,9 @@ func NormalizePhpFilePath(file string) string {
 		} else {
 			cleaned = resolved
 		}
-	} else if info, err := os.Stat(cleaned); err == nil && !info.IsDir() {
-		if abs, err := filepath.Abs(cleaned); err == nil {
-			cleaned = abs
-		}
+	} else if dir, err := filepath.EvalSymlinks(filepath.Dir(cleaned)); err == nil {
+		// 文件可能已被删除，但仍需与存在时解析出的路径保持一致（如 macOS /var -> /private/var）。
+		cleaned = filepath.Join(dir, filepath.Base(cleaned))
 	}
 	// macOS/Windows 默认大小写不敏感，PSR-4 命名空间大小写可能与目录名不一致，统一为小写
 	if isCaseInsensitiveFS() {

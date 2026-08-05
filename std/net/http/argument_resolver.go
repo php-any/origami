@@ -23,7 +23,7 @@ func resolveHandlerArgs(
 	resProxy data.Value,
 ) ([]data.Value, data.Control) {
 	if len(spec.Params) == 0 {
-		return nil, nil
+		return []data.Value{}, nil
 	}
 
 	args := make([]data.Value, len(spec.Params))

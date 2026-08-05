@@ -2,6 +2,7 @@ package proc
 
 import (
 	"io"
+	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -116,40 +117,59 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 
 	// 处理描述符
 	var stdoutPipe, stderrPipe io.ReadCloser
+	var stdoutWriter, stderrWriter *os.File
 	var err error
 
 	// 根据描述符配置创建管道
 	if len(descriptorspec) > 0 {
 		if desc, ok := descriptorspec[1]; ok && len(desc) >= 2 && desc[1] == "w" {
 			// stdout (1) - 读取管道
-			stdoutPipe, err = cmdObj.StdoutPipe()
+			var reader *os.File
+			reader, stdoutWriter, err = os.Pipe()
 			if err != nil {
 				return data.NewBoolValue(false), nil
 			}
+			stdoutPipe = reader
+			cmdObj.Stdout = stdoutWriter
 		}
 		if desc, ok := descriptorspec[2]; ok && len(desc) >= 2 && desc[1] == "w" {
 			// stderr (2) - 读取管道
-			stderrPipe, err = cmdObj.StderrPipe()
+			var reader *os.File
+			reader, stderrWriter, err = os.Pipe()
 			if err != nil {
 				return data.NewBoolValue(false), nil
 			}
+			stderrPipe = reader
+			cmdObj.Stderr = stderrWriter
 		}
 	} else {
 		// 如果没有指定描述符，默认创建所有管道
-		stdoutPipe, err = cmdObj.StdoutPipe()
+		var stdoutReader *os.File
+		stdoutReader, stdoutWriter, err = os.Pipe()
 		if err != nil {
 			return data.NewBoolValue(false), nil
 		}
-		stderrPipe, err = cmdObj.StderrPipe()
+		stdoutPipe = stdoutReader
+		cmdObj.Stdout = stdoutWriter
+		var stderrReader *os.File
+		stderrReader, stderrWriter, err = os.Pipe()
 		if err != nil {
 			return data.NewBoolValue(false), nil
 		}
+		stderrPipe = stderrReader
+		cmdObj.Stderr = stderrWriter
 	}
 
 	// 启动进程
 	err = cmdObj.Start()
 	if err != nil {
 		return data.NewBoolValue(false), nil
+	}
+	if stdoutWriter != nil {
+		_ = stdoutWriter.Close()
+	}
+	if stderrWriter != nil {
+		_ = stderrWriter.Close()
 	}
 
 	// 创建进程信息对象

@@ -34,21 +34,8 @@ func (f *IsAFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	// 如果是对象实例
 	if classValue, ok := objectOrClass.(*data.ClassValue); ok {
-		// 加载目标类/接口
-		target, acl := vm.LoadPkg(className)
-		if acl != nil {
-			return data.NewBoolValue(false), nil
-		}
-		if target == nil {
-			return data.NewBoolValue(false), nil
-		}
-		var targetName string
-		switch t := target.(type) {
-		case data.ClassStmt:
-			targetName = t.GetName()
-		case data.InterfaceStmt:
-			targetName = t.GetName()
-		default:
+		targetName, ok := resolveTypeNameForIsA(vm, className)
+		if !ok {
 			return data.NewBoolValue(false), nil
 		}
 		result, acl := checkClassIsHelper(ctx, classValue.Class, targetName)
@@ -60,20 +47,8 @@ func (f *IsAFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	// 如果是 ThisValue
 	if thisValue, ok := objectOrClass.(*data.ThisValue); ok {
-		target, acl := vm.LoadPkg(className)
-		if acl != nil {
-			return data.NewBoolValue(false), nil
-		}
-		if target == nil {
-			return data.NewBoolValue(false), nil
-		}
-		var targetName string
-		switch t := target.(type) {
-		case data.ClassStmt:
-			targetName = t.GetName()
-		case data.InterfaceStmt:
-			targetName = t.GetName()
-		default:
+		targetName, ok := resolveTypeNameForIsA(vm, className)
+		if !ok {
 			return data.NewBoolValue(false), nil
 		}
 		result, acl := checkClassIsHelper(ctx, thisValue.Class, targetName)
@@ -149,6 +124,32 @@ func checkClassIsHelper(ctx data.Context, source data.ClassStmt, target string) 
 	}
 
 	return false, nil
+}
+
+// resolveTypeNameForIsA 将 is_a 第二参数解析为已知类/接口名。
+// PHP 语义中未知类名应返回 false，而不是抛错。
+func resolveTypeNameForIsA(vm data.VM, className string) (string, bool) {
+	if className == "" {
+		return "", false
+	}
+	if cls, ok := vm.GetClass(className); ok && cls != nil {
+		return cls.GetName(), true
+	}
+	if iface, ok := vm.GetInterface(className); ok && iface != nil {
+		return iface.GetName(), true
+	}
+	pkg, acl := vm.LoadPkg(className)
+	if acl != nil || pkg == nil {
+		return "", false
+	}
+	switch v := pkg.(type) {
+	case data.ClassStmt:
+		return v.GetName(), true
+	case data.InterfaceStmt:
+		return v.GetName(), true
+	default:
+		return "", false
+	}
 }
 
 func (f *IsAFunction) GetName() string {

@@ -4,48 +4,40 @@ import (
 	"github.com/php-any/origami/data"
 )
 
-// SwitchCase 表示switch语句的一个分支
+// SwitchCase 表示 switch 语句的一个分支
 type SwitchCase struct {
 	*Node
-	CaseValue  data.GetValue   // case值
+	CaseValue  data.GetValue   // case 值
 	Statements []data.GetValue // 语句列表
 }
 
-// GetValue 获取switch分支的值
+// GetValue 执行该 case 的语句列表。
+// break / return / throw 通过 Control 向上传递，供 SwitchStatement 处理 fall-through。
 func (s *SwitchCase) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 执行语句列表
 	var v data.GetValue
 	var c data.Control
 	for _, statement := range s.Statements {
 		if stmt, ok := statement.(data.GetValue); ok {
 			v, c = stmt.GetValue(ctx)
 		} else {
-			// 如果是表达式，直接获取值
 			v = statement
 		}
 		if c != nil {
-			switch c.(type) {
-			case data.BreakControl:
-				return v, nil
-			case data.ReturnControl:
-				return v, c
-			case data.ThrowControl:
-				return nil, c
-			}
+			return v, c
 		}
 	}
 	return v, nil
 }
 
-// SwitchStatement 表示switch语句
+// SwitchStatement 表示 switch 语句
 type SwitchStatement struct {
 	*Node
 	Condition   data.GetValue   // 匹配条件
-	Cases       []SwitchCase    // case分支列表
-	DefaultCase []data.GetValue // default分支
+	Cases       []SwitchCase    // case 分支列表
+	DefaultCase []data.GetValue // default 分支
 }
 
-// NewSwitchStatement 创建一个新的switch语句
+// NewSwitchStatement 创建一个新的 switch 语句
 func NewSwitchStatement(from data.From, condition data.GetValue, cases []SwitchCase, defaultCase []data.GetValue) *SwitchStatement {
 	return &SwitchStatement{
 		Node:        NewNode(from),
@@ -55,32 +47,40 @@ func NewSwitchStatement(from data.From, condition data.GetValue, cases []SwitchC
 	}
 }
 
-// GetValue 获取switch语句的值
+// GetValue 获取 switch 语句的值（支持 PHP case 穿透）
 func (s *SwitchStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 计算条件值
 	conditionValue, c := s.Condition.GetValue(ctx)
 	if c != nil {
 		return nil, c
 	}
 
-	// 遍历所有case分支，找到匹配的条件
-	for _, caseStmt := range s.Cases {
-		caseValue, c := caseStmt.CaseValue.GetValue(ctx)
+	for i := range s.Cases {
+		caseValue, c := s.Cases[i].CaseValue.GetValue(ctx)
 		if c != nil {
 			return nil, c
 		}
 
-		// 比较条件值
-		if s.isMatch(conditionValue, caseValue) {
-			v, ctl := caseStmt.GetValue(ctx)
-			if ctl != nil {
-				return v, ctl
-			}
-			return v, nil
+		if !s.isMatch(conditionValue, caseValue) {
+			continue
 		}
+
+		// 从匹配的 case 开始向下穿透，直到 break/return/throw
+		var v data.GetValue
+		for j := i; j < len(s.Cases); j++ {
+			var ctl data.Control
+			v, ctl = s.Cases[j].GetValue(ctx)
+			if ctl != nil {
+				switch ctl.(type) {
+				case data.BreakControl:
+					return v, nil
+				default:
+					return v, ctl
+				}
+			}
+		}
+		return v, nil
 	}
 
-	// 如果没有匹配的case，执行default分支
 	if len(s.DefaultCase) > 0 {
 		var v data.GetValue
 		var c data.Control
@@ -94,27 +94,33 @@ func (s *SwitchStatement) GetValue(ctx data.Context) (data.GetValue, data.Contro
 				switch c.(type) {
 				case data.BreakControl:
 					return v, nil
-				case data.ReturnControl:
+				default:
 					return v, c
-				case data.ThrowControl:
-					return nil, c
 				}
 			}
 		}
 		return v, nil
 	}
 
-	// 如果没有匹配的分支，返回null
 	return data.NewNullValue(), nil
 }
 
 // isMatch 检查两个值是否匹配（PHP switch 松散比较 ==）
+// 优先按字符串比较，避免 StringValue 同时实现 AsInt 时把 "false"/"true" 都当成 0。
 func (s *SwitchStatement) isMatch(value1, value2 data.GetValue) bool {
+	_, isStr1 := value1.(*data.StringValue)
+	_, isStr2 := value2.(*data.StringValue)
+	if isStr1 && isStr2 {
+		return value1.(*data.StringValue).Value == value2.(*data.StringValue).Value
+	}
+
 	if i1, ok := value1.(data.AsInt); ok {
 		if i2, ok := value2.(data.AsInt); ok {
 			n1, err1 := i1.AsInt()
 			n2, err2 := i2.AsInt()
-			return err1 == nil && err2 == nil && n1 == n2
+			if err1 == nil && err2 == nil {
+				return n1 == n2
+			}
 		}
 	}
 	if strValue1, ok := value1.(data.AsString); ok {

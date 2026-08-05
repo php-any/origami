@@ -62,11 +62,9 @@ func (f *MethodExistsFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 		return data.NewBoolValue(false), nil
 	}
 
+	// PHP：类不存在时 method_exists 返回 false，不抛错
 	classStmt, acl := vm.GetOrLoadClass(className)
-	if acl != nil {
-		return nil, acl
-	}
-	if classStmt == nil {
+	if acl != nil || classStmt == nil {
 		return data.NewBoolValue(false), nil
 	}
 

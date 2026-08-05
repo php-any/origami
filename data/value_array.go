@@ -68,6 +68,9 @@ func (a *ArrayValue) Key(ctx Context) (Value, Control) {
 	if a.iterator >= 0 && a.iterator < len(a.List) {
 		z := a.List[a.iterator]
 		if z != nil && z.Name != "" {
+			if n, ok := ParseIntArrayKeyName(z.Name); ok {
+				return NewIntValue(n), nil
+			}
 			return NewStringValue(z.Name), nil
 		}
 	}

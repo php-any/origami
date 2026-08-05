@@ -54,9 +54,6 @@ func main() {
 	Register(vm)
 {{- if .HasEntry}}
 	_, ctrl := vm.RunCompiledFile(EntryPath)
-	if data.FlushAllBuffersFn != nil {
-		data.FlushAllBuffersFn()
-	}
 	if ctrl != nil {
 		fmt.Fprintf(os.Stderr, "run failed\n")
 		p.ShowControl(ctrl)

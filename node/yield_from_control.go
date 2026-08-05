@@ -15,6 +15,10 @@ type YieldFromControl struct {
 	// 当前 key/value（实现 YieldValueControl）
 	key   data.Value
 	value data.Value
+
+	// primed 表示已取出当前元素但尚未 next 过去。
+	// 对 SplFileInfo 等可变迭代器，必须先 yield 再 next，否则 current 会被原地改掉。
+	primed bool
 }
 
 // NewYieldFromControl 创建一个新的 YieldFromControl。
@@ -97,6 +101,7 @@ func (y *YieldFromControl) CreateStackState(ctx data.Context, fn data.FuncStmt, 
 
 // resolveYieldFromSource 将 yield from 右侧解析为可委托的 Generator。
 // 生成器函数/方法返回的是 *ClassValue{Class:*GeneratorClass}，需解包内部 data.Generator。
+// 也支持实现 Iterator / IteratorAggregate 的对象（如 RecursiveIteratorIterator）。
 func resolveYieldFromSource(ctx data.Context, srcValue data.GetValue) data.Generator {
 	if srcValue == nil {
 		return nil
@@ -108,11 +113,13 @@ func resolveYieldFromSource(ctx data.Context, srcValue data.GetValue) data.Gener
 		if gc, ok := v.Class.(*GeneratorClass); ok && gc.generator != nil {
 			return gc.generator
 		}
+		return newObjectIteratorGenerator(ctx, v)
 	case *data.ThisValue:
 		if v.ClassValue != nil {
 			if gc, ok := v.ClassValue.Class.(*GeneratorClass); ok && gc.generator != nil {
 				return gc.generator
 			}
+			return newObjectIteratorGenerator(ctx, v.ClassValue)
 		}
 	case *data.ArrayValue:
 		return newArrayGenerator(ctx, v)
@@ -120,11 +127,97 @@ func resolveYieldFromSource(ctx data.Context, srcValue data.GetValue) data.Gener
 	return nil
 }
 
-// advance 将内部迭代器向前推进一次，并更新当前的 key/value。
-// 返回值 ok 表示是否成功获取到一个新的元素。
+// objectIteratorGenerator 把实现 Iterator（或 IteratorAggregate）的 ClassValue 适配为 Generator。
+type objectIteratorGenerator struct {
+	obj     *data.ClassValue
+	started bool
+}
+
+func newObjectIteratorGenerator(ctx data.Context, obj *data.ClassValue) data.Generator {
+	if obj == nil || obj.Class == nil {
+		return nil
+	}
+
+	// IteratorAggregate → getIterator()
+	isAggregate, ctl := checkClassIs(ctx, obj.Class, "IteratorAggregate")
+	if ctl == nil && isAggregate {
+		inner, ictl := callValueMethod(obj, "getIterator")
+		if ictl != nil {
+			return nil
+		}
+		switch it := inner.(type) {
+		case *data.ClassValue:
+			return newObjectIteratorGenerator(ctx, it)
+		case *data.ThisValue:
+			if it.ClassValue != nil {
+				return newObjectIteratorGenerator(ctx, it.ClassValue)
+			}
+		case data.Generator:
+			return it
+		}
+	}
+
+	isIterator, ctl := checkClassIs(ctx, obj.Class, "Iterator")
+	if ctl != nil || !isIterator {
+		return nil
+	}
+
+	g := &objectIteratorGenerator{obj: obj}
+	// PHP Iterator：委托前先 rewind
+	_ = callVoidMethod(obj, "rewind")
+	g.started = true
+	return g
+}
+
+func (g *objectIteratorGenerator) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return g.Current(ctx)
+}
+func (g *objectIteratorGenerator) AsString() string { return "ObjectIteratorGenerator" }
+
+func (g *objectIteratorGenerator) Current(ctx data.Context) (data.Value, data.Control) {
+	return callValueMethod(g.obj, "current")
+}
+func (g *objectIteratorGenerator) Key(ctx data.Context) (data.Value, data.Control) {
+	return callValueMethod(g.obj, "key")
+}
+func (g *objectIteratorGenerator) Next(ctx data.Context) data.Control {
+	return callVoidMethod(g.obj, "next")
+}
+func (g *objectIteratorGenerator) Rewind(ctx data.Context) (data.Value, data.Control) {
+	if ctl := callVoidMethod(g.obj, "rewind"); ctl != nil {
+		return nil, ctl
+	}
+	return data.NewNullValue(), nil
+}
+func (g *objectIteratorGenerator) Valid(ctx data.Context) (data.Value, data.Control) {
+	ok, ctl := callBoolMethod(g.obj, "valid")
+	if ctl != nil {
+		return nil, ctl
+	}
+	return data.NewBoolValue(ok), nil
+}
+func (g *objectIteratorGenerator) Send(ctx data.Context, value data.Value) data.Control {
+	return nil
+}
+func (g *objectIteratorGenerator) Throw(ctx data.Context) data.Control {
+	return nil
+}
+func (g *objectIteratorGenerator) GetReturn(ctx data.Context) (data.Value, data.Control) {
+	return data.NewNullValue(), nil
+}
+
+// advance 读取内部迭代器的当前元素（不提前 next）。
+// 若此前已取出过元素（primed），则先 next 再读取。
 func (y *YieldFromControl) advance(ctx data.Context) (ok bool, ctl data.Control) {
 	if y.iter == nil {
 		return false, nil
+	}
+
+	if y.primed {
+		ctl = y.iter.Next(ctx)
+		if ctl != nil {
+			return false, ctl
+		}
 	}
 
 	valid, ctl := y.iter.Valid(ctx)
@@ -132,13 +225,12 @@ func (y *YieldFromControl) advance(ctx data.Context) (ok bool, ctl data.Control)
 		return false, ctl
 	}
 	if b, okBool := valid.(*data.BoolValue); !okBool || !b.Value {
-		// 已经结束
 		y.key = nil
 		y.value = nil
+		y.primed = false
 		return false, nil
 	}
 
-	// 读取当前元素
 	current, ctl := y.iter.Current(ctx)
 	if ctl != nil {
 		return false, ctl
@@ -150,13 +242,7 @@ func (y *YieldFromControl) advance(ctx data.Context) (ok bool, ctl data.Control)
 
 	y.key = key
 	y.value = current
-
-	// 将内部迭代器推进到下一位，为下一次 advance/Next 做准备
-	ctl = y.iter.Next(ctx)
-	if ctl != nil {
-		return false, ctl
-	}
-
+	y.primed = true
 	return true, nil
 }
 

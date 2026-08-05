@@ -2,6 +2,7 @@ package node
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/php-any/origami/data"
 )
@@ -60,11 +61,21 @@ func flattenSpreadArguments(ctx data.Context, arguments []data.GetValue) ([]data
 		switch v := spreadVal.(type) {
 		case *data.ArrayValue:
 			for _, z := range v.List {
+				if z == nil {
+					continue
+				}
+				// 关联字符串键展开为命名实参（new self(...$args) / LogRecord::with）
+				if z.Name != "" {
+					if _, isInt := data.ParseIntArrayKeyName(z.Name); !isInt {
+						flat = append(flat, NewNamedArgument(nil, z.Name, z.Value))
+						continue
+					}
+				}
 				flat = append(flat, z.Value)
 			}
 		case *data.ObjectValue:
-			v.RangeProperties(func(_ string, val data.Value) bool {
-				flat = append(flat, val)
+			v.RangeProperties(func(key string, val data.Value) bool {
+				flat = append(flat, NewNamedArgument(nil, key, val))
 				return true
 			})
 		default:
@@ -415,6 +426,7 @@ type NewExpression struct {
 	ClassName string
 	Arguments []data.GetValue
 	class     data.ClassStmt `pp:"-"` // 仅静态 FQCN：首次 GetOrLoadClass 后缓存
+	resolveMu sync.Mutex
 }
 
 // NewNewExpression 创建一个新的 new 表达式节点
@@ -427,6 +439,8 @@ func NewNewExpression(from *TokenFrom, className string, arguments []data.GetVal
 }
 
 func (n *NewExpression) resolveClass(ctx data.Context) (data.ClassStmt, data.Control) {
+	n.resolveMu.Lock()
+	defer n.resolveMu.Unlock()
 	if n.class != nil {
 		return n.class, nil
 	}

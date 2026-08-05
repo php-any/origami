@@ -225,6 +225,18 @@ type Matcher interface {
 
 type goMatcher struct{ re *regexp.Regexp }
 
+// matcherGroupCount returns the number of match groups (full match + captures).
+func matcherGroupCount(m Matcher) int {
+	switch m := m.(type) {
+	case *goMatcher:
+		return m.re.NumSubexp() + 1
+	case *r2Matcher:
+		return len(m.re.GetGroupNumbers())
+	default:
+		return 1
+	}
+}
+
 func (m *goMatcher) MatchString(s string) bool { return m.re.MatchString(s) }
 func (m *goMatcher) FindStringSubmatchIndex(s string) []int {
 	return m.re.FindStringSubmatchIndex(s)
@@ -418,22 +430,36 @@ func findR2Captures(re *regexp2.Regexp, search string, anchored bool) []Capture 
 }
 
 // BuildMatchArray 构造 PHP preg_match 的 $matches 数组（数值键 + 命名键）。
-// 未参与匹配的尾部可选捕获组不写入数组（与 PHP isset($matches[n]) 语义一致，ProgressBar 依赖此点）。
+// 默认：未参与匹配的尾部可选捕获组不写入数组（与 PHP isset($matches[n]) 语义一致，ProgressBar 依赖此点）。
+// PREG_UNMATCHED_AS_NULL：保留全部捕获组，未参与的为 null（brick/math BigNumber::of 依赖此点）。
+// 命名捕获与 PHP 一致：先写入命名键，再写入同值的数值键（Illuminate 路由绑定依赖 array_slice 后仍能看到命名键）。
 func BuildMatchArray(captures []Capture, flags int) data.Value {
 	unmatchedAsNull := flags&512 != 0 // PREG_UNMATCHED_AS_NULL
 
-	last := -1
-	for i, cap := range captures {
-		if cap.Participated {
-			last = i
+	if !unmatchedAsNull {
+		last := -1
+		for i, cap := range captures {
+			if cap.Participated {
+				last = i
+			}
 		}
-	}
-	if last < 0 {
+		if last < 0 {
+			return &data.ArrayValue{List: []*data.ZVal{}}
+		}
+		captures = captures[:last+1]
+	} else if len(captures) == 0 {
 		return &data.ArrayValue{List: []*data.ZVal{}}
 	}
-	captures = captures[:last+1]
 
-	list := make([]*data.ZVal, len(captures))
+	hasNamed := false
+	for _, cap := range captures {
+		if cap.Name != "" {
+			hasNamed = true
+			break
+		}
+	}
+
+	list := make([]*data.ZVal, 0, len(captures)*2)
 	for i, cap := range captures {
 		var val data.Value
 		switch {
@@ -442,11 +468,16 @@ func BuildMatchArray(captures []Capture, flags int) data.Value {
 		default:
 			val = data.NewStringValue(cap.Text)
 		}
-		z := data.NewZVal(val)
+
 		if cap.Name != "" {
-			z.Name = cap.Name
+			list = append(list, data.NewNamedZVal(cap.Name, val))
 		}
-		list[i] = z
+		if hasNamed {
+			// 混入命名键后 List 下标不再等于 PHP 整数键，必须显式编码。
+			list = append(list, data.NewNamedZVal(data.IntArrayKeyName(i), val))
+		} else {
+			list = append(list, data.NewZVal(val))
+		}
 	}
 	return &data.ArrayValue{List: list}
 }

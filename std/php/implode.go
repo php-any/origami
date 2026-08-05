@@ -41,7 +41,11 @@ func (f *ImplodeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	var parts []string
 	for _, val := range valueList {
-		parts = append(parts, val.AsString())
+		part, ctl := node.ValueToDisplayString(ctx, val)
+		if ctl != nil {
+			return nil, ctl
+		}
+		parts = append(parts, part)
 	}
 
 	return data.NewStringValue(strings.Join(parts, separator)), nil

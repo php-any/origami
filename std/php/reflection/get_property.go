@@ -53,17 +53,28 @@ func (m *ReflectionClassGetPropertyMethod) Call(ctx data.Context) (data.GetValue
 	}
 
 	propertyName := propertyNameValue.AsString()
-	_, classStmt := getReflectionClassInfo(ctx)
+	className, classStmt := getReflectionClassInfo(ctx)
 	if classStmt == nil {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("Property %s does not exist", propertyName))
 	}
 
-	// 查找属性
-	prop, exists := classStmt.GetProperty(propertyName)
-	if !exists {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("Property %s does not exist", propertyName))
+	currentName := className
+	current := classStmt
+	for current != nil {
+		if _, exists := current.GetProperty(propertyName); exists {
+			return newReflectionProperty(ctx, currentName, propertyName), nil
+		}
+		extend := current.GetExtend()
+		if extend == nil || *extend == "" {
+			break
+		}
+		parent, acl := ctx.GetVM().GetOrLoadClass(*extend)
+		if acl != nil || parent == nil {
+			break
+		}
+		currentName = *extend
+		current = parent
 	}
 
-	// 返回属性名（简化实现，实际应该返回 ReflectionProperty 对象）
-	return data.NewStringValue(prop.GetName()), nil
+	return nil, data.NewErrorThrow(nil, fmt.Errorf("Property %s does not exist", propertyName))
 }

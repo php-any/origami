@@ -134,7 +134,11 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 					if ep.checkPositionIs(0, token.ARRAY_KEY_VALUE) {
 						kv := make([]node.KvPair, 0, len(arr)+1)
 						for i, v := range arr {
-							kv = append(kv, node.KvPair{Key: data.NewIntValue(i), Value: v})
+							if _, isSpread := v.(*node.ArraySpread); isSpread {
+								kv = append(kv, node.KvPair{Key: nil, Value: v})
+							} else {
+								kv = append(kv, node.KvPair{Key: data.NewIntValue(i), Value: v})
+							}
 						}
 						ep.next() // =>
 						val, acl := ep.parseStatement()
@@ -142,20 +146,11 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 							return nil, acl
 						}
 						kv = append(kv, node.KvPair{Key: stmt, Value: val})
-						// 后续全部按 KvPair 解析
+						// 后续按 KvPair / ...spread 解析
 						ep.nextAndCheckStip(token.COMMA)
-						for ep.current().Type() != token.RBRACKET {
-							key, acl := ep.parseStatement()
-							if acl != nil {
-								return nil, acl
-							}
-							ep.next()
-							nextVal, acl := ep.parseStatement()
-							if acl != nil {
-								return nil, acl
-							}
-							kv = append(kv, node.KvPair{Key: key, Value: nextVal})
-							ep.nextAndCheckStip(token.COMMA)
+						kv, acl = ep.parseRemainingKvEntries(kv)
+						if acl != nil {
+							return nil, acl
 						}
 						ep.next()
 						from := tracker.EndBefore()
@@ -179,18 +174,9 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 			v = append(v, node.KvPair{Key: expr, Value: firstVal})
 			ep.nextAndCheckStip(token.COMMA)
 
-			for ep.current().Type() != token.RBRACKET {
-				key, acl := ep.parseStatement()
-				if acl != nil {
-					return nil, acl
-				}
-				ep.next()
-				val, acl := ep.parseStatement()
-				if acl != nil {
-					return nil, acl
-				}
-				v = append(v, node.KvPair{Key: key, Value: val})
-				ep.nextAndCheckStip(token.COMMA)
+			v, acl = ep.parseRemainingKvEntries(v)
+			if acl != nil {
+				return nil, acl
 			}
 			ep.next()
 			from := tracker.EndBefore()
@@ -228,4 +214,38 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 			return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("TODO: 语法错误"))
 		}
 	}
+}
+
+// parseRemainingKvEntries 解析关联数组中剩余的 key => value 或 ...$spread 项，直到 ]
+func (ep *LbracketParser) parseRemainingKvEntries(v []node.KvPair) ([]node.KvPair, data.Control) {
+	for ep.current().Type() != token.RBRACKET {
+		if ep.current().Type() == token.ELLIPSIS {
+			ep.next()
+			spreadExpr, acl := ep.parseStatement()
+			if acl != nil {
+				return nil, acl
+			}
+			if spreadExpr == nil {
+				return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("展开运算符后需要一个表达式"))
+			}
+			v = append(v, node.KvPair{Key: nil, Value: node.NewArraySpread(spreadExpr)})
+			ep.nextAndCheckStip(token.COMMA)
+			continue
+		}
+		key, acl := ep.parseStatement()
+		if acl != nil {
+			return nil, acl
+		}
+		if ep.current().Type() != token.ARRAY_KEY_VALUE {
+			return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("关联数组元素缺少 =>"))
+		}
+		ep.next() // =>
+		val, acl := ep.parseStatement()
+		if acl != nil {
+			return nil, acl
+		}
+		v = append(v, node.KvPair{Key: key, Value: val})
+		ep.nextAndCheckStip(token.COMMA)
+	}
+	return v, nil
 }

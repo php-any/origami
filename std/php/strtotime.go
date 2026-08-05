@@ -65,6 +65,13 @@ func parseRelativeTime(s string, base time.Time) (time.Time, error) {
 		}
 	}
 
+	// DateTime::modify / strtotime 相对量： "4 second", "+4 seconds", "-1 day"
+	if looksLikeRelativeModifier(s) {
+		if t, err := parseModifier(s, base); err == nil {
+			return t, nil
+		}
+	}
+
 	// Try standard Go formats
 	formats := []string{
 		"2006-01-02 15:04:05",
@@ -85,6 +92,17 @@ func parseRelativeTime(s string, base time.Time) (time.Time, error) {
 	return time.Time{}, &parseError{s}
 }
 
+func looksLikeRelativeModifier(s string) bool {
+	if s == "" {
+		return false
+	}
+	c := s[0]
+	if c == '+' || c == '-' {
+		return len(s) > 1
+	}
+	return c >= '0' && c <= '9'
+}
+
 type parseError struct{ s string }
 
 func (e *parseError) Error() string { return "cannot parse: " + e.s }
@@ -95,18 +113,23 @@ func parseModifier(s string, base time.Time) (time.Time, error) {
 		return base, nil
 	}
 
-	// Handle "now + 1 hour", "now - 7200 seconds"
+	// Handle "now + 1 hour", "now - 7200 seconds", "4 second"
 	op := '+'
 	if s[0] == '-' || s[0] == '+' {
 		op = rune(s[0])
 		s = trimLower(s[1:])
 	}
+	if s == "" {
+		return time.Time{}, &parseError{s}
+	}
 
 	var num int
 	var unit string
+	parsedDigit := false
 	for i, c := range s {
 		if c >= '0' && c <= '9' {
 			num = num*10 + int(c-'0')
+			parsedDigit = true
 		} else if c == ' ' {
 			unit = trimLower(s[i:])
 			break
@@ -115,15 +138,18 @@ func parseModifier(s string, base time.Time) (time.Time, error) {
 			break
 		}
 	}
+	if !parsedDigit {
+		return time.Time{}, &parseError{s}
+	}
 
 	if op == '-' {
 		num = -num
 	}
 
 	switch {
-	case unit == "second" || unit == "seconds":
+	case unit == "second" || unit == "seconds" || unit == "sec" || unit == "secs":
 		return base.Add(time.Duration(num) * time.Second), nil
-	case unit == "minute" || unit == "minutes":
+	case unit == "minute" || unit == "minutes" || unit == "min" || unit == "mins":
 		return base.Add(time.Duration(num) * time.Minute), nil
 	case unit == "hour" || unit == "hours":
 		return base.Add(time.Duration(num) * time.Hour), nil
@@ -136,7 +162,7 @@ func parseModifier(s string, base time.Time) (time.Time, error) {
 	case unit == "year" || unit == "years":
 		return base.AddDate(num, 0, 0), nil
 	default:
-		return base, nil
+		return time.Time{}, &parseError{s}
 	}
 }
 

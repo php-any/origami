@@ -11,6 +11,7 @@ type StreamInfoFromReader struct {
 	Reader io.ReadCloser
 	Mode   string
 	Closed bool
+	EOF    bool
 	mutex  sync.RWMutex
 }
 
@@ -55,7 +56,19 @@ func (s *StreamInfoFromReader) Read(p []byte) (int, error) {
 		return 0, io.EOF
 	}
 	// 在锁外执行实际的读取操作，避免阻塞
-	return reader.Read(p)
+	n, err := reader.Read(p)
+	if err == io.EOF {
+		s.mutex.Lock()
+		s.EOF = true
+		s.mutex.Unlock()
+	}
+	return n, err
+}
+
+func (s *StreamInfoFromReader) IsEOF() bool {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	return s.EOF
 }
 
 // Write 写入数据（不支持）

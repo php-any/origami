@@ -10,11 +10,16 @@ import (
 
 var requestAttrBags sync.Map
 
+type requestAttrBag struct {
+	sync.RWMutex
+	values map[string]data.Value
+}
+
 func attachRequestAttrs(r *httpsrc.Request) {
 	if r == nil {
 		return
 	}
-	requestAttrBags.LoadOrStore(r, make(map[string]data.Value))
+	requestAttrBags.LoadOrStore(r, &requestAttrBag{values: make(map[string]data.Value)})
 }
 
 var requestFormatterSlots sync.Map
@@ -43,15 +48,18 @@ func detachRequestAttrs(r *httpsrc.Request) {
 	}
 }
 
-func requestAttrs(r *httpsrc.Request) map[string]data.Value {
+func requestAttrs(r *httpsrc.Request) *requestAttrBag {
 	if r == nil {
 		return nil
 	}
 	if v, ok := requestAttrBags.Load(r); ok {
-		return v.(map[string]data.Value)
+		return v.(*requestAttrBag)
 	}
-	bag := make(map[string]data.Value)
-	requestAttrBags.Store(r, bag)
+	bag := &requestAttrBag{values: make(map[string]data.Value)}
+	actual, _ := requestAttrBags.LoadOrStore(r, bag)
+	if actual != nil {
+		return actual.(*requestAttrBag)
+	}
 	return bag
 }
 

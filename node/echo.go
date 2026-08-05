@@ -29,11 +29,11 @@ func (e *EchoStatement) GetValue(ctx data.Context) (data.GetValue, data.Control)
 			return nil, c
 		}
 
-		if s, ok := v.(data.Value); ok {
-			data.WriteOutput(s.AsString())
-		} else if v != nil {
-			data.WriteOutput(v.(data.Value).AsString())
+		s, c := ValueToDisplayString(ctx, v)
+		if c != nil {
+			return nil, c
 		}
+		data.EmitOutput(ctx, s)
 	}
 
 	return nil, nil

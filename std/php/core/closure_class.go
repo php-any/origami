@@ -71,7 +71,7 @@ func (m *ClosureBindMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	switch fv := closureVal.(type) {
 	case *data.FuncValue:
 		if scopeStr, ok := newScope.(*data.StringValue); ok && scopeStr.Value != "" {
-			return data.NewBoundFuncValue(fv.Value, scopeStr.Value), nil
+			return data.NewBoundFuncValue(fv.Value, scopeStr.Value, nil), nil
 		}
 		return closureVal, nil
 	default:

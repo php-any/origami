@@ -172,8 +172,11 @@ func (c *ClassStatement) GetMethod(name string) (data.Method, bool) {
 }
 
 func (c *ClassStatement) GetMethods() []data.Method {
-	var methods []data.Method
+	methods := make([]data.Method, 0, len(c.Methods)+len(c.StaticMethods)+1)
 	for _, f := range c.Methods {
+		methods = append(methods, f)
+	}
+	for _, f := range c.StaticMethods {
 		methods = append(methods, f)
 	}
 	// 如果构造函数存在且不在方法列表中，添加它
@@ -331,6 +334,7 @@ type ClassMethod struct {
 	Ret          data.Types         // 返回类型
 	IsGenerator  bool               // 是否是生成器方法（含 yield）
 	staticLocals *data.StaticLocals // 方法内 static 局部变量
+	staticOnce   sync.Once
 }
 
 func (m *ClassMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
@@ -389,9 +393,9 @@ func (m *ClassMethod) GetReturnType() data.Types {
 }
 
 func (m *ClassMethod) methodStaticLocals() *data.StaticLocals {
-	if m.staticLocals == nil {
+	m.staticOnce.Do(func() {
 		m.staticLocals = data.NewStaticLocals()
-	}
+	})
 	return m.staticLocals
 }
 
@@ -414,14 +418,35 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 			return nil, data.NewErrorThrow(m.GetFrom(), fmt.Errorf("方法 %s 调用深度超过限制(%d)", m.Name, depth))
 		}
 		defer vm.LeaveCall()
+		if tracker, ok := vm.(data.CallStackTracker); ok {
+			frame := data.CallFrame{Function: m.Name}
+			if m.IsStatic {
+				frame.Type = "::"
+			} else {
+				frame.Type = "->"
+			}
+			if cmc, ok := ctx.(*data.ClassMethodContext); ok && cmc.Class != nil {
+				frame.Class = cmc.Class.GetName()
+			}
+			if from := m.GetFrom(); from != nil {
+				frame.File = from.GetSource()
+				line, _ := from.GetStartPosition()
+				frame.Line = line + 1
+			}
+			tracker.PushCallFrame(frame)
+			defer tracker.PopCallFrame()
+		}
 	}
 
 	var v data.GetValue
 	var ctl data.Control
-	for bodyIndex, statement := range m.Body {
+	for bodyIndex := 0; bodyIndex < len(m.Body); bodyIndex++ {
+		statement := m.Body[bodyIndex]
 		v, ctl = statement.GetValue(ctx)
 		if ctl != nil {
 			switch rv := ctl.(type) {
+			case data.ExitControl:
+				return nil, ctl
 			case data.ReturnControl:
 				ret := rv.ReturnValue()
 				if m.Ret == nil {
@@ -431,8 +456,11 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 					return ret, nil
 				}
 				// 允许 null 返回（PHP 兼容：方法可能隐式返回 null）
+				if ret == nil {
+					return data.NewNullValue(), nil
+				}
 				if _, isNull := ret.(*data.NullValue); isNull {
-					return data.NewStringValue(""), nil
+					return data.NewNullValue(), nil
 				}
 				// 声明返回 string 时，允许返回带 __toString 的对象并自动转为字符串（与 PHP 一致）
 				if m.Ret != nil && m.Ret.String() == "string" {
@@ -448,6 +476,15 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 					}
 				}
 				return nil, data.NewErrorThrow(m.GetFrom(), fmt.Errorf("方法(%s)返回值类型错误; 期望 %s, 实际 %T", m.Name, m.Ret.String(), ret))
+			case data.GotoControl:
+				offset, acl := resolveGotoBodyIndex(m.from, m.Body, rv)
+				if acl != nil {
+					return nil, acl
+				}
+				bodyIndex = offset - 1
+				continue
+			case LabelControl:
+				continue
 			case data.YieldControl:
 				// Generator 方法：将执行状态保存为生成器
 				generator := rv.CreateStackState(ctx, m, m.Body, bodyIndex)
@@ -475,6 +512,9 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 
+	if v == nil {
+		return data.NewNullValue(), nil
+	}
 	return v, nil
 }
 

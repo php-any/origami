@@ -2,6 +2,8 @@ package runtime
 
 import (
 	"fmt"
+	"strings"
+	"sync"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/parser"
@@ -9,18 +11,20 @@ import (
 
 // NewTempVM 根据给定 VM 创建/返回一个临时 VM 实例
 func NewTempVM(vm data.VM) data.VM {
+	var base *VM
 	switch v := vm.(type) {
 	case *TempVM:
-		return v
+		base = v.Base
 	case *VM:
-		return &TempVM{
-			Base:            v,
-			addedClasses:    make(map[string]data.ClassStmt),
-			addedInterfaces: make(map[string]data.InterfaceStmt),
-			addedFuncs:      make(map[string]data.FuncStmt),
-		}
+		base = v
 	default:
 		return vm
+	}
+	return &TempVM{
+		Base:            base,
+		addedClasses:    make(map[string]data.ClassStmt),
+		addedInterfaces: make(map[string]data.InterfaceStmt),
+		addedFuncs:      make(map[string]data.FuncStmt),
 	}
 }
 
@@ -29,10 +33,13 @@ func NewTempVM(vm data.VM) data.VM {
 type TempVM struct {
 	Base   *VM
 	parser *parser.Parser
+	mu     sync.RWMutex
 
 	addedClasses    map[string]data.ClassStmt
 	addedInterfaces map[string]data.InterfaceStmt
 	addedFuncs      map[string]data.FuncStmt
+	outputBuffers   []*strings.Builder
+	throwHandler    func(data.Control)
 }
 
 func (vm *TempVM) AddClass(c data.ClassStmt) data.Control {
@@ -124,9 +131,6 @@ func (vm *TempVM) LoadInCallerContext(parent data.Context, file string) (data.Ge
 	}
 
 	result, ctrl := program.GetValue(ctx)
-	if data.FlushAllBuffersFn != nil {
-		data.FlushAllBuffersFn()
-	}
 	return result, ctrl
 }
 
@@ -262,11 +266,32 @@ func (vm *TempVM) RegisterFunction(name string, fn interface{}) data.Control {
 func (vm *TempVM) RegisterReflectClass(name string, instance interface{}) data.Control {
 	return vm.Base.RegisterReflectClass(name, instance)
 }
-func (vm *TempVM) SetThrowControl(fn func(acl data.Control)) { vm.Base.SetThrowControl(fn) }
-func (vm *TempVM) ThrowControl(acl data.Control)             { vm.Base.ThrowControl(acl) }
-func (vm *TempVM) SetPhpFileCache(file string)               { vm.Base.SetPhpFileCache(file) }
+func (vm *TempVM) SetThrowControl(fn func(acl data.Control)) {
+	vm.mu.Lock()
+	vm.throwHandler = fn
+	vm.mu.Unlock()
+}
+func (vm *TempVM) ThrowControl(acl data.Control) {
+	vm.mu.RLock()
+	handler := vm.throwHandler
+	vm.mu.RUnlock()
+	if handler != nil {
+		handler(acl)
+		return
+	}
+	panic(acl)
+}
+func (vm *TempVM) SetPhpFileCache(file string) { vm.Base.SetPhpFileCache(file) }
 func (vm *TempVM) GetPhpFileCache(file string) bool {
 	return vm.Base.GetPhpFileCache(file)
+}
+
+func (vm *TempVM) GetIncludeOnceResult(file string) (data.GetValue, bool) {
+	return vm.Base.GetIncludeOnceResult(file)
+}
+
+func (vm *TempVM) SetIncludeOnceResult(file string, result data.GetValue) {
+	vm.Base.SetIncludeOnceResult(file, result)
 }
 
 // AddNamespace 添加命名空间路径映射（委托给 Base VM，因为命名空间映射是全局共享的）
@@ -284,19 +309,29 @@ func (vm *TempVM) GetConstant(name string) (data.Value, bool) {
 	return vm.Base.GetConstant(name)
 }
 
-// EnsureGlobalZVal 委托给底层 VM，全局变量是全局共享的
+// EnsureGlobalZVal 委托给 Base；PHP global 是共享语言状态，不属于请求输出通道。
 func (vm *TempVM) EnsureGlobalZVal(name string) *data.ZVal {
 	return vm.Base.EnsureGlobalZVal(name)
 }
 
-// SetExceptionHandler 委托到底层 VM，确保异常处理在整个进程内全局生效
 func (vm *TempVM) SetExceptionHandler(handler data.Value) data.Value {
 	return vm.Base.SetExceptionHandler(handler)
 }
 
-// GetExceptionHandler 从底层 VM 获取当前异常处理回调
 func (vm *TempVM) GetExceptionHandler() data.Value {
 	return vm.Base.GetExceptionHandler()
+}
+
+func (vm *TempVM) SetErrorHandler(handler data.Value) data.Value {
+	return vm.Base.SetErrorHandler(handler)
+}
+
+func (vm *TempVM) RestoreErrorHandler() bool {
+	return vm.Base.RestoreErrorHandler()
+}
+
+func (vm *TempVM) GetErrorHandler() data.Value {
+	return vm.Base.GetErrorHandler()
 }
 
 func (vm *TempVM) AddShutdownCallback(cb data.Value) {
@@ -313,6 +348,18 @@ func (vm *TempVM) EnterCall() int {
 
 func (vm *TempVM) LeaveCall() {
 	vm.Base.LeaveCall()
+}
+
+func (vm *TempVM) PushCallFrame(frame data.CallFrame) {
+	vm.Base.PushCallFrame(frame)
+}
+
+func (vm *TempVM) PopCallFrame() {
+	vm.Base.PopCallFrame()
+}
+
+func (vm *TempVM) SnapshotCallStack() []data.CallFrame {
+	return vm.Base.SnapshotCallStack()
 }
 
 // RegisterCompiledFile 注册预编译的文件 AST（委托给 Base VM）

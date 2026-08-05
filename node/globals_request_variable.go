@@ -15,37 +15,41 @@ func NewRequestVariable(from data.From) data.Variable {
 }
 
 func (v *RequestVariable) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if httpReq := getHTTPRequest(ctx); httpReq != nil {
+		obj := data.NewObjectValue()
+		merge := func(src data.GetValue) {
+			if src == nil {
+				return
+			}
+			if o, ok := src.(*data.ObjectValue); ok {
+				o.RangeProperties(func(key string, value data.Value) bool {
+					obj.SetProperty(key, value)
+					return true
+				})
+			}
+		}
+		getVal, _ := (&GetVariable{Node: v.Node}).GetValue(ctx)
+		postVal, _ := (&PostVariable{Node: v.Node}).GetValue(ctx)
+		cookieVal, _ := (&CookieVariable{Node: v.Node}).GetValue(ctx)
+		merge(getVal)
+		merge(postVal)
+		merge(cookieVal)
+		return obj, nil
+	}
 	if requestValue == nil {
 		requestValue = data.NewObjectValue()
-
-		if getVal, _ := (&GetVariable{Node: v.Node}).GetValue(ctx); getVal != nil {
-			if getObj, ok := getVal.(*data.ObjectValue); ok {
-				getObj.RangeProperties(func(key string, value data.Value) bool {
-					requestValue.SetProperty(key, value)
-					return true
-				})
-			}
-		}
-
-		if postVal, _ := (&PostVariable{Node: v.Node}).GetValue(ctx); postVal != nil {
-			if postObj, ok := postVal.(*data.ObjectValue); ok {
-				postObj.RangeProperties(func(key string, value data.Value) bool {
-					requestValue.SetProperty(key, value)
-					return true
-				})
-			}
-		}
-
-		if cookieVal, _ := (&CookieVariable{Node: v.Node}).GetValue(ctx); cookieVal != nil {
-			if cookieObj, ok := cookieVal.(*data.ObjectValue); ok {
-				cookieObj.RangeProperties(func(key string, value data.Value) bool {
+		getVal, _ := (&GetVariable{Node: v.Node}).GetValue(ctx)
+		postVal, _ := (&PostVariable{Node: v.Node}).GetValue(ctx)
+		cookieVal, _ := (&CookieVariable{Node: v.Node}).GetValue(ctx)
+		for _, src := range []data.GetValue{getVal, postVal, cookieVal} {
+			if o, ok := src.(*data.ObjectValue); ok {
+				o.RangeProperties(func(key string, value data.Value) bool {
 					requestValue.SetProperty(key, value)
 					return true
 				})
 			}
 		}
 	}
-
 	return requestValue, nil
 }
 

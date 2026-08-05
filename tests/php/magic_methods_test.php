@@ -85,6 +85,16 @@ if ($s5 === "xToStringTester") {
     Log::fatal("__toString 测试失败，期望: xToStringTester, 实际: " . $s5);
 }
 
+// echo 应触发 __toString，而不是输出对象的调试结构
+ob_start();
+echo $toStringObj;
+$echoToString = ob_get_clean();
+if ($echoToString === "ToStringTester") {
+    Log::info("echo __toString 测试通过");
+} else {
+    Log::fatal("echo __toString 测试失败，期望: ToStringTester, 实际: " . $echoToString);
+}
+
 // ---------------------------------------------------------------------------
 // 4. __get / __set：访问不存在或不可见属性时触发
 // ---------------------------------------------------------------------------

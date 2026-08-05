@@ -91,6 +91,12 @@ func (o *ObjectValue) GetProperty(name string) (Value, Control) {
 	return v, nil
 }
 
+// HasProperty 判断属性/关联键是否真实存在（值为 null 仍算存在）
+func (o *ObjectValue) HasProperty(name string) bool {
+	_, ok := o.property.Get(name)
+	return ok
+}
+
 func (o *ObjectValue) GetZVal(name string) (*ZVal, Control) {
 	v, _ := o.property.GetZVal(name)
 	return v, nil
@@ -185,6 +191,9 @@ func (o *ObjectValue) Key(_ Context) (Value, Control) {
 	key, _, ok := o.property.GetByIndex(o.iterator)
 	if !ok {
 		return NewNullValue(), nil
+	}
+	if n, ok := ParseIntArrayKeyName(key); ok {
+		return NewIntValue(n), nil
 	}
 	return NewStringValue(key), nil
 }

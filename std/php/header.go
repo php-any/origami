@@ -1,6 +1,10 @@
 package php
 
 import (
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -11,10 +15,65 @@ type HeaderFunction struct{}
 func NewHeaderFunction() data.FuncStmt { return &HeaderFunction{} }
 
 func (f *HeaderFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// header() 通常用于设置 HTTP 响应头
-	// 在当前 origami HTTP 服务器中，响应头已由 Response 对象管理
-	// 这里仅返回 null 以保持兼容性
+	writer := responseWriterFromContext(ctx)
+	if writer == nil {
+		return data.NewNullValue(), nil
+	}
+
+	headerValue, _ := ctx.GetIndexValue(0)
+	if headerValue == nil {
+		return data.NewNullValue(), nil
+	}
+	line := headerValue.AsString()
+
+	replace := true
+	if value, ok := ctx.GetIndexValue(1); ok {
+		if boolean, ok := value.(data.AsBool); ok {
+			replace, _ = boolean.AsBool()
+		}
+	}
+	responseCode := 0
+	if value, ok := ctx.GetIndexValue(2); ok {
+		if integer, ok := value.(data.AsInt); ok {
+			responseCode, _ = integer.AsInt()
+		}
+	}
+
+	if strings.HasPrefix(strings.ToUpper(line), "HTTP/") {
+		parts := strings.Fields(line)
+		if len(parts) >= 2 {
+			if code, err := strconv.Atoi(parts[1]); err == nil {
+				writer.WriteHeader(code)
+			}
+		}
+	} else if name, value, ok := strings.Cut(line, ":"); ok {
+		name = http.CanonicalHeaderKey(strings.TrimSpace(name))
+		value = strings.TrimSpace(value)
+		if replace {
+			writer.Header().Set(name, value)
+		} else {
+			writer.Header().Add(name, value)
+		}
+	}
+	if responseCode > 0 {
+		writer.WriteHeader(responseCode)
+	}
 	return data.NewNullValue(), nil
+}
+
+type httpResponseHost interface {
+	HTTPResponseWriter() http.ResponseWriter
+}
+
+func responseWriterFromContext(ctx data.Context) http.ResponseWriter {
+	if ctx != nil {
+		if host, ok := ctx.GetVM().(httpResponseHost); ok {
+			if w := host.HTTPResponseWriter(); w != nil {
+				return w
+			}
+		}
+	}
+	return node.HTTPResponseWriter()
 }
 
 func (f *HeaderFunction) GetName() string { return "header" }

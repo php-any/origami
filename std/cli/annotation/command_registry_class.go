@@ -58,7 +58,9 @@ func (m *CommandRegistryGetCommandsMethod) GetParams() []data.GetValue { return 
 func (m *CommandRegistryGetCommandsMethod) GetVariables() []data.Variable {
 	return []data.Variable{}
 }
-func (m *CommandRegistryGetCommandsMethod) GetReturnType() data.Types { return data.NewBaseType("array") }
+func (m *CommandRegistryGetCommandsMethod) GetReturnType() data.Types {
+	return data.NewBaseType("array")
+}
 func (m *CommandRegistryGetCommandsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	names := make([]string, 0, len(registeredCommands))
 	for name := range registeredCommands {
@@ -86,7 +88,9 @@ func (m *CommandRegistryGetAppNameMethod) GetParams() []data.GetValue { return [
 func (m *CommandRegistryGetAppNameMethod) GetVariables() []data.Variable {
 	return []data.Variable{}
 }
-func (m *CommandRegistryGetAppNameMethod) GetReturnType() data.Types { return data.NewBaseType("string") }
+func (m *CommandRegistryGetAppNameMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
+}
 func (m *CommandRegistryGetAppNameMethod) Call(_ data.Context) (data.GetValue, data.Control) {
 	if lastCliApplication != nil && lastCliApplication.name != "" {
 		return data.NewStringValue(lastCliApplication.name), nil
@@ -103,7 +107,9 @@ func (m *CommandRegistryGetAppVersionMethod) GetParams() []data.GetValue { retur
 func (m *CommandRegistryGetAppVersionMethod) GetVariables() []data.Variable {
 	return []data.Variable{}
 }
-func (m *CommandRegistryGetAppVersionMethod) GetReturnType() data.Types { return data.NewBaseType("string") }
+func (m *CommandRegistryGetAppVersionMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
+}
 func (m *CommandRegistryGetAppVersionMethod) Call(_ data.Context) (data.GetValue, data.Control) {
 	if lastCliApplication != nil && lastCliApplication.version != "" {
 		return data.NewStringValue(lastCliApplication.version), nil
@@ -120,9 +126,11 @@ func (m *CommandRegistryGetLongVersionMethod) GetParams() []data.GetValue { retu
 func (m *CommandRegistryGetLongVersionMethod) GetVariables() []data.Variable {
 	return []data.Variable{}
 }
-func (m *CommandRegistryGetLongVersionMethod) GetReturnType() data.Types { return data.NewBaseType("string") }
+func (m *CommandRegistryGetLongVersionMethod) GetReturnType() data.Types {
+	return data.NewBaseType("string")
+}
 func (m *CommandRegistryGetLongVersionMethod) Call(_ data.Context) (data.GetValue, data.Control) {
-	name := "Laravel Framework"
+	name := "CLI"
 	version := "1.0.0"
 	if lastCliApplication != nil {
 		if lastCliApplication.name != "" {

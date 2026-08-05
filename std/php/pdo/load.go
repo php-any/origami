@@ -92,4 +92,8 @@ func Load(vm data.VM) {
 	vm.SetConstant("PDO::MYSQL_ATTR_SSL_KEY", data.NewIntValue(PDO_MYSQL_ATTR_SSL_KEY))
 	vm.SetConstant("PDO::MYSQL_ATTR_SSL_CIPHER", data.NewIntValue(PDO_MYSQL_ATTR_SSL_CIPHER))
 	vm.SetConstant("PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT", data.NewIntValue(PDO_MYSQL_ATTR_SSL_VERIFY_SERVER_CERT))
+	vm.SetConstant("PDO::MYSQL_ATTR_LOCAL_INFILE_DIRECTORY", data.NewIntValue(PDO_MYSQL_ATTR_LOCAL_INFILE_DIRECTORY))
+
+	// PHP 8.4 原生 Pdo\Mysql（polyfill 仅在 PHP_VERSION_ID < 80400 时定义）
+	vm.AddClass(&PdoMysqlClass{})
 }

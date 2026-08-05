@@ -151,8 +151,16 @@ func executeControllerMethod(vm data.VM, callCtx data.Context, rt netdata.Route,
 		return nil, nil
 	}
 
-	if rt.Receiver != nil {
-		return node.CallHTTPControllerMethod(rt.Receiver, rt.Target, args)
+	receiver := rt.Receiver
+	if rt.ReceiverFactory != nil {
+		var acl data.Control
+		receiver, acl = rt.ReceiverFactory(callCtx)
+		if acl != nil {
+			return nil, acl
+		}
+	}
+	if receiver != nil {
+		return node.CallHTTPControllerMethod(receiver, rt.Target, args)
 	}
 
 	mute := callCtx.CreateContext(rt.Target.GetVariables())

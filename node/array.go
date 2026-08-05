@@ -1,6 +1,8 @@
 package node
 
 import (
+	"strconv"
+
 	"github.com/php-any/origami/data"
 )
 
@@ -27,32 +29,44 @@ func NewArrayWithKeys(token *TokenFrom, list []data.GetValue, keys []KvPair) dat
 
 // GetValue 获取数字字面量的值
 func (n *Array) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	arr := []data.Value{}
-	for _, statement := range n.V {
-		v, acl := statement.GetValue(ctx)
-		if acl != nil {
-			return nil, acl
-		}
+	av := data.NewArrayValue(nil).(*data.ArrayValue)
+	nextIndex := 0
 
+	for _, statement := range n.V {
 		// 检查是否是展开运算符
 		if spread, ok := statement.(*ArraySpread); ok {
-			// 展开数组元素
 			spreadValue, acl := spread.GetValue(ctx)
 			if acl != nil {
 				return nil, acl
 			}
-			if arrayValue, ok := spreadValue.(*data.ArrayValue); ok {
-				// 将展开的数组元素添加到结果数组中
-				arr = append(arr, arrayValue.ToValueList()...)
-			} else {
+			arrayValue, ok := spreadValue.(*data.ArrayValue)
+			if !ok {
 				return nil, data.NewErrorThrow(n.from, data.NewError(n.from, "展开运算符只能用于数组", nil))
 			}
-		} else {
-			// 普通元素
-			arr = append(arr, v.(data.Value))
+			for _, z := range arrayValue.List {
+				if z == nil {
+					continue
+				}
+				if z.Name != "" {
+					setArrayLiteralEntry(av, data.NewStringValue(z.Name), z.Value)
+					if ik, err := strconv.Atoi(z.Name); err == nil && strconv.Itoa(ik) == z.Name && ik >= nextIndex {
+						nextIndex = ik + 1
+					}
+				} else {
+					setArrayLiteralEntry(av, data.NewIntValue(nextIndex), z.Value)
+					nextIndex++
+				}
+			}
+			continue
 		}
+
+		v, acl := statement.GetValue(ctx)
+		if acl != nil {
+			return nil, acl
+		}
+		setArrayLiteralEntry(av, data.NewIntValue(nextIndex), v.(data.Value))
+		nextIndex++
 	}
-	av := data.NewArrayValue(arr).(*data.ArrayValue)
 	for _, pair := range n.Keys {
 		kv, acl := pair.Key.GetValue(ctx)
 		if acl != nil {

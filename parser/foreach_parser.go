@@ -51,6 +51,7 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 	// 解析键和值变量
 	var key data.Variable
 	var value data.Variable
+	valueByRef := false
 
 	// 检查是否有键变量 (key => value)
 	var ok bool
@@ -68,6 +69,7 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 			// 解析出来的是 ValueReference，真正的变量在 vr.Value 里
 			if v, ok := vr.Value.(data.Variable); ok {
 				key = v
+				valueByRef = true
 			} else {
 				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
 			}
@@ -88,6 +90,7 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 		if acl != nil {
 			return nil, acl
 		}
+		valueByRef = false // 引用只作用于值变量
 		if value, ok = keyTemp.(data.Variable); !ok {
 			if ident, ok := keyTemp.(*node.StringLiteral); ok {
 				name := ident.Value
@@ -97,6 +100,7 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 				// foreach ($arr as $k => &$v) 场景，同样从 ValueReference 中取出变量
 				if v, ok := vr.Value.(data.Variable); ok {
 					value = v
+					valueByRef = true
 				} else {
 					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
 				}
@@ -127,12 +131,13 @@ func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
 		return nil, acl
 	}
 	from := tracker.EndBefore()
-	return node.NewForeachStatement(
+	return node.NewForeachStatementByRef(
 		from,
 		array,
 		key,
 		value,
 		body,
+		valueByRef,
 	), nil
 }
 

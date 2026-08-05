@@ -43,27 +43,69 @@ func (m *ReflectionClassGetMethodsMethod) GetReturnType() data.Types {
 // 返回被反射的类的所有方法列表（当前实现返回方法名数组）
 // TODO: 实现完整的过滤器逻辑，当前忽略 filter 参数
 func (m *ReflectionClassGetMethodsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 获取类信息
-	_, classStmt := getReflectionClassInfo(ctx)
+	className, classStmt := getReflectionClassInfo(ctx)
 	if classStmt == nil {
 		return data.NewArrayValue([]data.Value{}), nil
 	}
 
-	// 获取所有方法
-	methods := classStmt.GetMethods()
-	result := make([]data.Value, 0, len(methods))
+	filter := 0
+	if filterValue, ok := ctx.GetIndexValue(0); ok && filterValue != nil {
+		if _, isNull := filterValue.(*data.NullValue); !isNull {
+			if asInt, ok := filterValue.(data.AsInt); ok {
+				filter, _ = asInt.AsInt()
+			}
+		}
+	}
 
-	// 获取 filter 参数（可选）
-	_, _ = ctx.GetIndexValue(0)
-	// TODO: 实现完整的过滤器逻辑
+	result := make([]data.Value, 0)
+	seen := make(map[string]bool)
+	currentName := className
+	current := classStmt
+	inherited := false
 
-	for _, method := range methods {
-		// 应用过滤器（简化实现，暂时忽略过滤器）
-		// TODO: 实现完整的过滤器逻辑
-		methodName := method.GetName()
-		// 创建 ReflectionMethod 对象（简化实现，返回方法名）
-		result = append(result, data.NewStringValue(methodName))
+	for current != nil {
+		for _, method := range current.GetMethods() {
+			if method == nil || seen[method.GetName()] {
+				continue
+			}
+			if inherited && method.GetModifier() == data.ModifierPrivate {
+				continue
+			}
+			seen[method.GetName()] = true
+			if filter != 0 && reflectionMethodModifiers(method)&filter == 0 {
+				continue
+			}
+			result = append(result, newReflectionMethod(ctx, currentName, method.GetName()))
+		}
+
+		extend := current.GetExtend()
+		if extend == nil || *extend == "" {
+			break
+		}
+		parent, acl := ctx.GetVM().GetOrLoadClass(*extend)
+		if acl != nil || parent == nil {
+			break
+		}
+		currentName = *extend
+		current = parent
+		inherited = true
 	}
 
 	return data.NewArrayValue(result), nil
+}
+
+func reflectionMethodModifiers(method data.Method) int {
+	modifiers := 0
+	switch method.GetModifier() {
+	case data.ModifierPublic:
+		modifiers |= 1
+	case data.ModifierProtected:
+		modifiers |= 2
+	case data.ModifierPrivate:
+		modifiers |= 4
+	}
+	if method.GetIsStatic() {
+		modifiers |= 16
+	}
+	return modifiers
 }

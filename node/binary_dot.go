@@ -103,11 +103,10 @@ func (b *BinaryDot) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	case *data.ArrayValue:
 		leftStr = l.AsString()
 	default:
-		// 对于其他类型，尝试使用 AsString 方法
-		if strValue, ok := l.(data.AsString); ok {
-			leftStr = strValue.AsString()
-		} else {
-			leftStr = fmt.Sprintf("%v", l)
+		var acl data.Control
+		leftStr, acl = ValueToDisplayString(ctx, l)
+		if acl != nil {
+			return nil, acl
 		}
 	}
 
@@ -130,11 +129,10 @@ func (b *BinaryDot) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	case *data.ArrayValue:
 		rightStr = r.AsString()
 	default:
-		// 对于其他类型，尝试使用 AsString 方法
-		if strValue, ok := r.(data.AsString); ok {
-			rightStr = strValue.AsString()
-		} else {
-			rightStr = fmt.Sprintf("%v", r)
+		var acl data.Control
+		rightStr, acl = ValueToDisplayString(ctx, r)
+		if acl != nil {
+			return nil, acl
 		}
 	}
 

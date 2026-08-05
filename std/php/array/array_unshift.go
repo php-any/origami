@@ -60,14 +60,14 @@ func (f *ArrayUnshiftFunction) GetName() string {
 
 func (f *ArrayUnshiftFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, nil),
+		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
 		node.NewParameters(nil, "values", 1, nil, nil), // Variadic
 	}
 }
 
 func (f *ArrayUnshiftFunction) GetVariables() []data.Variable {
 	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-		node.NewVariable(nil, "values", 1, data.NewBaseType("mixed")), // How to mark variadic?
+		node.NewVariable(nil, "array", 0, data.Mixed{}),
+		node.NewVariable(nil, "values", 1, data.Mixed{}),
 	}
 }

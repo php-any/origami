@@ -125,11 +125,8 @@ func (vp *VariableParser) parseSuffix(expr data.GetValue) (data.GetValue, data.C
 			if acl != nil {
 				return nil, acl
 			}
-		case token.DOT:
-			expr, acl = vp.parsePropertyAccess(expr)
-			if acl != nil {
-				return nil, acl
-			}
+		// 注意：PHP 中 `.` 是字符串连接，不是属性访问（属性用 ->）。
+		// 不可在此消费 DOT，否则 (int)$v."x" / "'".(int)$v."'" 会被错误吞掉。
 		case token.TERNARY:
 			// 检查是否是链式空安全调用：?-> (PHP 8.0+)
 			if vp.checkPositionIs(1, token.OBJECT_OPERATOR) {
@@ -191,6 +188,27 @@ func (vp *VariableParser) parseSuffix(expr data.GetValue) (data.GetValue, data.C
 				vp.next() // 跳过 class
 				// 生成 ClassConstant 节点
 				return node.NewClassConstant(tracker.EndBefore(), expr), nil
+			} else if vp.current().Type() == token.LBRACE {
+				// $var::{expr}() 动态静态方法名（Laravel HigherOrderCollectionProxy 等）
+				vp.next() // 跳过 {
+				methodExpr, acl := vp.expressionParser.Parse()
+				if acl != nil {
+					return nil, acl
+				}
+				if vp.current().Type() != token.RBRACE {
+					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("$var::{...} 缺少右大括号 '}'"))
+				}
+				vp.next() // 跳过 }
+				if !vp.checkPositionIs(0, token.LPAREN) {
+					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("$var::{...} 目前仅支持方法调用形式 $var::{...}()"))
+				}
+				dyn := node.NewCallStaticDynamicMethod(tracker.EndBefore(), expr, methodExpr)
+				return vp.parseSuffix(dyn)
+			} else if vp.checkPositionIs(0, token.VARIABLE) && vp.checkPositionIs(1, token.LPAREN) {
+				// $class::$method()：动态方法名
+				methodExpr := vp.parseVariable()
+				dyn := node.NewCallStaticDynamicMethod(tracker.EndBefore(), expr, methodExpr)
+				return vp.parseSuffix(dyn)
 			} else if vp.checkPositionIs(1, token.LPAREN) {
 				// 处理 $var::method() 静态方法调用
 				fnName := vp.current().Literal()
@@ -202,6 +220,9 @@ func (vp *VariableParser) parseSuffix(expr data.GetValue) (data.GetValue, data.C
 			} else {
 				// 处理 $var::PROPERTY 静态属性访问
 				attrName := vp.current().Literal()
+				if len(attrName) > 0 && attrName[0] == '$' {
+					attrName = attrName[1:]
+				}
 				vp.next()
 				vp := &VariableParser{vp.Parser}
 				expr := node.NewCallStaticProperty(tracker.EndBefore(), expr, attrName)
@@ -337,14 +358,9 @@ func (vp *VariableParser) parseArrayAccess(array data.GetValue) (data.GetValue, 
 	var acl data.Control
 
 	if vp.current().Type() == token.RBRACKET {
-		// arr[] — PHP 追加语义，索引为 null
+		// arr[] — PHP 追加语义；必须与显式 arr[null] 区分
 		vp.next()
-		index = node.NewNullLiteral(from)
-		return node.NewIndexExpression(
-			from,
-			array,
-			index,
-		), nil
+		return node.NewAppendIndexExpression(from, array), nil
 	} else {
 		index, acl = vp.expressionParser.Parse()
 		if acl != nil {
@@ -447,7 +463,7 @@ func (vp *VariableParser) parsePropertyAccess(object data.GetValue) (data.GetVal
 	//}
 
 	// PHP . 为字符串连接（非对象属性；属性访问使用 ->）
-	property, acl := vp.parseStatement()
+	property, acl := vp.expressionParser.parseNullCoalesce()
 	from := tracker.EndBefore()
 	return node.NewBinaryDot(
 		from,

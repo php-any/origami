@@ -11,14 +11,14 @@ import (
 )
 
 func Load(vm data.VM) {
-	annotation.OnApplicationScanStart = onApplicationScanStart
+	annotation.SetApplicationScanStartHook(onApplicationScanStart)
 	containerannotation.RegisterClassLifetime = func(ctx data.Context, lifetime int) data.Control {
 		return RegisterClassAnnotation(ctx, Lifetime(lifetime))
 	}
 	containerannotation.BindClassAnnotation = bindClassAnnotation
 	containerannotation.InjectParameterAnnotation = injectParameterAnnotation
 	containerannotation.NamedParameterAnnotation = namedParameterAnnotation
-	netdata.ControllerInstantiator = instantiateController
+	netdata.SetControllerInstantiator(instantiateController)
 
 	vm.AddClass(NewContainerClass())
 	vm.AddClass(NewServiceProviderClass())

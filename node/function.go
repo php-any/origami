@@ -2,6 +2,7 @@ package node
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/php-any/origami/data"
 )
@@ -19,6 +20,7 @@ type FunctionStatement struct {
 	ReturnsReference bool            // 是否按引用返回（function &name()）
 	defineCtx        data.Context    // 闭包定义时的上下文（用于保留 self:: 语义）
 	staticLocals     *data.StaticLocals
+	staticOnce       sync.Once
 }
 
 // NewFunctionStatement 创建一个新的函数定义语句
@@ -114,9 +116,9 @@ func (f *FunctionStatement) GetReturnType() data.Types {
 }
 
 func (f *FunctionStatement) funcStaticLocals() *data.StaticLocals {
-	if f.staticLocals == nil {
+	f.staticOnce.Do(func() {
 		f.staticLocals = data.NewStaticLocals()
-	}
+	})
 	return f.staticLocals
 }
 
@@ -138,6 +140,8 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 		if defineClassCtx, ok := f.defineCtx.(*data.ClassMethodContext); ok {
 			// 创建新的 ClassMethodContext，保留定义时的类，但使用调用方的上下文链
 			execCtx = defineClassCtx.ClassValue.CreateContext(f.vars)
+			// 定义上下文只提供类作用域；运行时 VM 必须来自本次调用。
+			execCtx.SetVM(ctx.GetVM())
 			// 将调用方 ctx 中已经绑定好的参数 ZVal 复制到新的执行上下文中
 			for i := range f.vars {
 				zv := ctx.GetIndexZVal(i)
@@ -151,12 +155,28 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 		}
 	}
 
+	if vm := ctx.GetVM(); vm != nil {
+		if tracker, ok := vm.(data.CallStackTracker); ok {
+			frame := data.CallFrame{Function: f.Name}
+			if from := f.GetFrom(); from != nil {
+				frame.File = from.GetSource()
+				line, _ := from.GetStartPosition()
+				frame.Line = line + 1
+			}
+			tracker.PushCallFrame(frame)
+			defer tracker.PopCallFrame()
+		}
+	}
+
 	var v data.GetValue
 	var ctl data.Control
-	for bodyIndex, statement := range f.Body {
+	for bodyIndex := 0; bodyIndex < len(f.Body); bodyIndex++ {
+		statement := f.Body[bodyIndex]
 		v, ctl = statement.GetValue(execCtx)
 		if ctl != nil {
 			switch rv := ctl.(type) {
+			case data.ExitControl:
+				return nil, ctl
 			case data.ReturnControl:
 				ret := rv.ReturnValue()
 				if f.ReturnsReference {
@@ -174,6 +194,15 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 					}
 				}
 				return ret, nil
+			case data.GotoControl:
+				offset, acl := resolveGotoBodyIndex(f.from, f.Body, rv)
+				if acl != nil {
+					return nil, acl
+				}
+				bodyIndex = offset - 1
+				continue
+			case LabelControl:
+				continue
 			case data.YieldControl:
 				// 把当前函数的执行状态保存下来; 表示"我不仅有这次 yield 的 key/value，还自带一整套如何构造生成器堆栈状态的逻辑
 				generator := rv.CreateStackState(execCtx, f, f.Body, bodyIndex)
@@ -200,6 +229,9 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 	}
 
 	f.persistStaticLocals(execCtx)
+	if v == nil {
+		return data.NewNullValue(), nil
+	}
 	return v, nil
 }
 

@@ -42,6 +42,55 @@ class Route
     }
 
     /**
+     * 将 Illuminate Router 中的控制器路由同步到 Origami Router。
+     * 仅同步形如 "Class@method" 的控制器动作；Closure 路由会被跳过。
+     */
+    public static function syncIlluminateRoutes(string $prefix = ''): void
+    {
+        $prefix = ltrim($prefix, '/');
+        foreach (illuminate_router()->getRoutes() as $route) {
+            if (!$route instanceof IlluminateRoute) {
+                continue;
+            }
+            $uri = ltrim((string) $route->uri(), '/');
+            if ($prefix !== '' && !str_starts_with($uri, $prefix)) {
+                continue;
+            }
+
+            $uses = (string) $route->getActionName();
+            if ($uses === 'Closure' || !str_contains($uses, '@')) {
+                continue;
+            }
+            [$controller, $action] = explode('@', $uses, 2);
+            if ($controller === '' || $action === '') {
+                continue;
+            }
+
+            $routePath = '/' . self::origamiPathFromIlluminateUri($uri);
+            $actionArray = [$controller, $action];
+            foreach ($route->methods() as $method) {
+                if ($method === 'HEAD') {
+                    continue;
+                }
+                switch (strtoupper($method)) {
+                    case 'GET':
+                        OrigamiRouter::get($routePath, $actionArray);
+                        break;
+                    case 'POST':
+                        OrigamiRouter::post($routePath, $actionArray);
+                        break;
+                    case 'PUT':
+                        OrigamiRouter::put($routePath, $actionArray);
+                        break;
+                    case 'DELETE':
+                        OrigamiRouter::delete($routePath, $actionArray);
+                        break;
+                }
+            }
+        }
+    }
+
+    /**
      * @return list<array{method: string, path: string, controller: string, action: string, middleware: list<string>, name: ?string}>
      */
     public static function getRoutes(): array
@@ -60,6 +109,15 @@ class Route
         }
 
         return $routes;
+    }
+
+    /**
+     * 将 Illuminate 路由 URI 转为 Origami/Go ServeMux 路径模式。
+     * 例如 telescope/{view?} → telescope/{view...}
+     */
+    private static function origamiPathFromIlluminateUri(string $uri): string
+    {
+        return (string) preg_replace('/\{([^}]+)\?\}/', '{$1...}', $uri);
     }
 
   private static function catalogEntryFromIlluminateRoute(IlluminateRoute $route): ?array

@@ -141,5 +141,6 @@ func (pe *CallParentMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 		}
 	}
 
+	newCtx.SetCallArgs(pe.Arguments)
 	return method.Call(newCtx)
 }

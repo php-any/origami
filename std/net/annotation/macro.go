@@ -142,9 +142,19 @@ func hasValidationConstraints(vm data.VM, typeFQN string) bool {
 	if vm == nil || typeFQN == "" {
 		return false
 	}
-	cls, acl := vm.GetOrLoadClass(typeFQN)
-	if acl != nil || cls == nil {
-		return false
+	var cls data.ClassStmt
+	if loaded, ok := vm.GetClass(typeFQN); ok && loaded != nil {
+		cls = loaded
+	} else {
+		pkg, acl := vm.LoadPkg(typeFQN)
+		if acl != nil || pkg == nil {
+			return false
+		}
+		cast, ok := pkg.(data.ClassStmt)
+		if !ok {
+			return false
+		}
+		cls = cast
 	}
 	for _, prop := range cls.GetPropertyList() {
 		cp, ok := prop.(*node.ClassProperty)

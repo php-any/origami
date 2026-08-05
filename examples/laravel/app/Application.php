@@ -15,12 +15,12 @@ class Application
     public static function boot(): void
     {
         bootstrap_app();
-        bootstrap_telescope_http();
-
         \Container\Container::application()->registerProviders([
             AppServiceProvider::class,
             RouteServiceProvider::class,
         ]);
+
+        bootstrap_telescope_http();
 
         \Log::info('========================================');
         \Log::info(config('app.name') . ' v1.0.0 启动中...');
