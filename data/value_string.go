@@ -25,8 +25,12 @@ func (s *StringValue) AsString() string {
 	return s.Value
 }
 
-func (s *StringValue) AsInt() (int64, error) {
-	return strconv.ParseInt(s.Value, 10, 64)
+func (s *StringValue) AsInt() (int, error) {
+	n, err := strconv.ParseInt(s.Value, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return int(n), nil
 }
 
 func (s *StringValue) AsFloat() (float64, error) {

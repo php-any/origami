@@ -649,6 +649,22 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 			return nil
 		}
 		i := 0
+		// 必须先处理字符串键：StringValue 同时实现 AsInt，非数字字符串不应走 int 分支抛错
+		if sv, ok := indexVal.(*data.StringValue); ok {
+			key := sv.AsString()
+			if n, ok := data.ParseIntArrayKeyName(key); ok {
+				arr.SetIntKey(n, value)
+				writeBackArrayProperty(ctx, ie.Array, arr)
+				return nil
+			}
+			if z, ok := arr.LookupZValByStringKey(key); ok {
+				z.Value = value
+			} else {
+				arr.List = append(arr.List, &data.ZVal{Name: key, Value: value})
+			}
+			writeBackArrayProperty(ctx, ie.Array, arr)
+			return nil
+		}
 		if iv, ok := indexVal.(data.AsInt); ok {
 			var err error
 			i, err = iv.AsInt()
@@ -658,6 +674,11 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 		} else if iv, ok := indexVal.(data.AsString); ok {
 			// 字符串键：查找匹配 Name 的项并更新，找不到则追加
 			key := iv.AsString()
+			if n, ok := data.ParseIntArrayKeyName(key); ok {
+				arr.SetIntKey(n, value)
+				writeBackArrayProperty(ctx, ie.Array, arr)
+				return nil
+			}
 			if z, ok := arr.LookupZValByStringKey(key); ok {
 				z.Value = value
 			} else {

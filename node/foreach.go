@@ -99,7 +99,11 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			if u.Key != nil {
 				var keyValue data.Value
 				if zval.Name != "" {
-					keyValue = data.NewStringValue(zval.Name)
+					if n, ok := data.ParseIntArrayKeyName(zval.Name); ok {
+						keyValue = data.NewIntValue(n)
+					} else {
+						keyValue = data.NewStringValue(zval.Name)
+					}
 				} else {
 					keyValue = data.NewIntValue(i)
 				}
@@ -182,9 +186,15 @@ func (u *ForeachStatement) foreachObjectValue(ctx data.Context, obj *data.Object
 			shouldBreak = true
 			return false
 		}
-		// 如果有键变量，设置键变量
+		// 如果有键变量，设置键变量（数字字符串键对齐 PHP：foreach 给出 int）
 		if u.Key != nil {
-			if acl := ctx.SetVariableValue(u.Key, data.NewStringValue(key)); acl != nil {
+			var keyValue data.Value
+			if n, ok := data.ParseIntArrayKeyName(key); ok {
+				keyValue = data.NewIntValue(n)
+			} else {
+				keyValue = data.NewStringValue(key)
+			}
+			if acl := ctx.SetVariableValue(u.Key, keyValue); acl != nil {
 				c = acl
 				shouldBreak = true
 				return false

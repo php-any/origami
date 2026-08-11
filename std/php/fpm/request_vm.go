@@ -29,6 +29,8 @@ type RequestVM struct {
 	phpFileCache       map[string]struct{}
 	includeOnceResults map[string]data.GetValue
 	globalVars         map[string]*data.ZVal
+	globalsArray       *data.ObjectValue
+	sessionArray       *data.ObjectValue
 	callDepth          int
 	callStack          []data.CallFrame
 }
@@ -357,6 +359,22 @@ func (v *RequestVM) EnsureGlobalZVal(name string) *data.ZVal {
 	zv := data.NewZVal(data.NewNullValue())
 	v.globalVars[name] = zv
 	return zv
+}
+
+// EnsureGlobalsArray 返回本请求的 $GLOBALS 数组（不跨请求共享）。
+func (v *RequestVM) EnsureGlobalsArray() *data.ObjectValue {
+	if v.globalsArray == nil {
+		v.globalsArray = data.NewObjectValue()
+	}
+	return v.globalsArray
+}
+
+// EnsureSessionArray 返回本请求的 $_SESSION 数组（不跨请求共享）。
+func (v *RequestVM) EnsureSessionArray() *data.ObjectValue {
+	if v.sessionArray == nil {
+		v.sessionArray = data.NewObjectValue()
+	}
+	return v.sessionArray
 }
 
 func (v *RequestVM) SetExceptionHandler(handler data.Value) data.Value {

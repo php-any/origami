@@ -82,6 +82,7 @@ func Load(vm data.VM) {
 		NewRunPhpFileFunction(),
 		NewStrlenFunction(),
 		NewStrvalFunction(),
+		NewIntvalFunction(),
 		NewHashFunction(),
 		NewHashHmacFunction(),
 		NewHashInitFunction(),
@@ -354,6 +355,7 @@ func Load(vm data.VM) {
 		proc.NewProcTerminateFunction(),
 		proc.NewShellExecFunction(),
 		stream.NewFopenFunction(),
+		stream.NewFlockFunction(),
 		NewStreamSetChunkSizeFunction(),
 		NewFileInodeFunction(),
 		stream.NewFcloseFunction(),
@@ -383,6 +385,10 @@ func Load(vm data.VM) {
 	vm.SetConstant("SEEK_SET", data.NewIntValue(0))
 	vm.SetConstant("SEEK_CUR", data.NewIntValue(1))
 	vm.SetConstant("SEEK_END", data.NewIntValue(2))
+	vm.SetConstant("LOCK_SH", data.NewIntValue(stream.LockSH))
+	vm.SetConstant("LOCK_EX", data.NewIntValue(stream.LockEX))
+	vm.SetConstant("LOCK_UN", data.NewIntValue(stream.LockUN))
+	vm.SetConstant("LOCK_NB", data.NewIntValue(stream.LockNB))
 
 	// 注册核心类
 	vm.AddClass(&core.ClosureClass{})

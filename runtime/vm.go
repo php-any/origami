@@ -80,6 +80,10 @@ type VM struct {
 	callStack     []data.CallFrame
 	outputBuffers []*strings.Builder
 
+	// $GLOBALS / $_SESSION 的 VM 级数组（避免包级单例跨请求串态）
+	globalsArray *data.ObjectValue
+	sessionArray *data.ObjectValue
+
 	// 预编译文件注册表（见 compiledFiles sync.Map）
 }
 
@@ -809,6 +813,26 @@ func (vm *VM) EnsureGlobalZVal(name string) *data.ZVal {
 	zv := data.NewZVal(data.NewNullValue())
 	actual, _ := vm.globalVars.LoadOrStore(name, zv)
 	return actual.(*data.ZVal)
+}
+
+// EnsureGlobalsArray 返回本 VM 的 $GLOBALS 数组。
+func (vm *VM) EnsureGlobalsArray() *data.ObjectValue {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+	if vm.globalsArray == nil {
+		vm.globalsArray = data.NewObjectValue()
+	}
+	return vm.globalsArray
+}
+
+// EnsureSessionArray 返回本 VM 的 $_SESSION 数组。
+func (vm *VM) EnsureSessionArray() *data.ObjectValue {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+	if vm.sessionArray == nil {
+		vm.sessionArray = data.NewObjectValue()
+	}
+	return vm.sessionArray
 }
 
 // RegisterGlobalContext 将顶层 ctx 中的变量注册到全局变量表

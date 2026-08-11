@@ -40,6 +40,9 @@ type TempVM struct {
 	addedFuncs      map[string]data.FuncStmt
 	outputBuffers   []*strings.Builder
 	throwHandler    func(data.Control)
+
+	globalsArray *data.ObjectValue
+	sessionArray *data.ObjectValue
 }
 
 func (vm *TempVM) AddClass(c data.ClassStmt) data.Control {
@@ -312,6 +315,26 @@ func (vm *TempVM) GetConstant(name string) (data.Value, bool) {
 // EnsureGlobalZVal 委托给 Base；PHP global 是共享语言状态，不属于请求输出通道。
 func (vm *TempVM) EnsureGlobalZVal(name string) *data.ZVal {
 	return vm.Base.EnsureGlobalZVal(name)
+}
+
+// EnsureGlobalsArray 本 TempVM 独立的 $GLOBALS（热重载/请求包装不串态）。
+func (vm *TempVM) EnsureGlobalsArray() *data.ObjectValue {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+	if vm.globalsArray == nil {
+		vm.globalsArray = data.NewObjectValue()
+	}
+	return vm.globalsArray
+}
+
+// EnsureSessionArray 本 TempVM 独立的 $_SESSION。
+func (vm *TempVM) EnsureSessionArray() *data.ObjectValue {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+	if vm.sessionArray == nil {
+		vm.sessionArray = data.NewObjectValue()
+	}
+	return vm.sessionArray
 }
 
 func (vm *TempVM) SetExceptionHandler(handler data.Value) data.Value {

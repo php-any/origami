@@ -26,6 +26,7 @@
 每个 `fpm.RequestVM` 实例独立持有：
 
 - **全局变量槽**（`EnsureGlobalZVal`）：`$GLOBALS` 风格状态不跨请求共享
+- **`$GLOBALS` / `$_SESSION` 数组**（`EnsureGlobalsArray` / `EnsureSessionArray`）：避免进程级单例导致跨用户登录态泄漏（如 bbs1org 的 `$GLOBALS['__me_cache']`）
 - **请求内注册的类 / 接口 / 函数 / 常量**
 - **`include_once` 结果与 `phpFileCache`**
 - **输出缓冲栈**（`ob_start` / `ob_get_clean`）

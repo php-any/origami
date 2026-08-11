@@ -113,6 +113,49 @@ func addOperandAsFloat64(v data.GetValue) (float64, bool) {
 	return 0, false
 }
 
+// phpNumericAdd 对齐 PHP `+`：两侧按数值相加；两侧都能精确解析为 int 时结果为 int，否则为 float。
+func phpNumericAdd(from data.From, left, right data.GetValue) (data.GetValue, data.Control) {
+	li, leftIntOK := coercePHPInt(left)
+	ri, rightIntOK := coercePHPInt(right)
+	if leftIntOK && rightIntOK {
+		return data.NewIntValue(li + ri), nil
+	}
+	lf, ok := addOperandAsFloat64(left)
+	if !ok {
+		return nil, data.NewErrorThrow(from, fmt.Errorf("无法将左操作数转为数值: %T", left))
+	}
+	rf, ok := addOperandAsFloat64(right)
+	if !ok {
+		return nil, data.NewErrorThrow(from, fmt.Errorf("无法将右操作数转为数值: %T", right))
+	}
+	return data.NewFloatValue(lf + rf), nil
+}
+
+func coercePHPInt(v data.GetValue) (int, bool) {
+	switch t := v.(type) {
+	case *data.IntValue:
+		return t.Value, true
+	case *data.BoolValue:
+		if t.Value {
+			return 1, true
+		}
+		return 0, true
+	case *data.NullValue:
+		return 0, true
+	case *data.StringValue:
+		n, err := strconv.ParseInt(t.Value, 10, 64)
+		if err != nil {
+			return 0, false
+		}
+		return int(n), true
+	case data.AsInt:
+		n, err := t.AsInt()
+		return n, err == nil
+	default:
+		return 0, false
+	}
+}
+
 func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	lv, lCtl := b.Left.GetValue(ctx)
 	if lCtl != nil {
@@ -135,14 +178,12 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 
 	switch l := lv.(type) {
 	case *data.StringValue:
-		lStr := l.AsString()
-		rStr, rCtl := ValueToDisplayString(ctx, rv)
-		if rCtl != nil {
-			return nil, rCtl
-		}
-		return data.NewStringValue(lStr + rStr), nil
+		// PHP 的 + 永远是数值加法；字符串拼接用 .
+		return phpNumericAdd(b.from, lv, rv)
 	case *data.IntValue:
 		switch r := rv.(type) {
+		case *data.StringValue:
+			return phpNumericAdd(b.from, lv, r)
 		case data.AsInt:
 			li, err := l.AsInt()
 			if err != nil {
@@ -164,8 +205,6 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 				return nil, data.NewErrorThrow(b.from, err)
 			}
 			return data.NewFloatValue(float64(li) + rf), nil
-		case data.AsString:
-			return data.NewStringValue(l.AsString() + r.AsString()), nil
 		}
 	case *data.FloatValue:
 		switch r := rv.(type) {

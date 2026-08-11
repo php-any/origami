@@ -47,12 +47,32 @@ func (b *BinarySub) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		if err != nil {
 			return nil, data.NewErrorThrow(b.from, err)
 		}
-		ri, err := rv.(data.AsInt).AsInt()
-		if err != nil {
-			return nil, data.NewErrorThrow(b.from, err)
+		// 右操作数为数字字符串时走 int；含小数点等非纯 int 字符串走 float（对齐 PHP）
+		if rs, ok := rv.(*data.StringValue); ok {
+			if ri, err := rs.AsInt(); err == nil {
+				return data.NewIntValue(li - ri), nil
+			}
+			rf, err := rs.AsFloat()
+			if err != nil {
+				return nil, data.NewErrorThrow(b.from, err)
+			}
+			return data.NewFloatValue(float64(li) - rf), nil
 		}
-
-		return data.NewIntValue(li - ri), nil
+		if riv, ok := rv.(data.AsInt); ok {
+			ri, err := riv.AsInt()
+			if err != nil {
+				return nil, data.NewErrorThrow(b.from, err)
+			}
+			return data.NewIntValue(li - ri), nil
+		}
+		if rfv, ok := rv.(data.AsFloat); ok {
+			rf, err := rfv.AsFloat()
+			if err != nil {
+				return nil, data.NewErrorThrow(b.from, err)
+			}
+			return data.NewFloatValue(float64(li) - rf), nil
+		}
+		return nil, data.NewErrorThrow(b.from, errors.New("TODO 有未支持的类型减法"))
 	case *data.FloatValue:
 		li, err := lv.(data.AsFloat).AsFloat()
 		if err != nil {
