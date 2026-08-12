@@ -408,6 +408,7 @@ func Load(vm data.VM) {
 	vm.AddClass(core.NewDOMCommentClass())
 	vm.AddClass(core.NewDOMNodeListClass())
 	vm.AddClass(&reflection.ReflectionClassClass{})
+	vm.AddClass(&reflection.ReflectionObjectClass{})
 	vm.AddClass(&reflection.ReflectionMethodClass{})
 	vm.AddClass(&reflection.ReflectionParameterClass{})
 	vm.AddClass(&reflection.ReflectionPropertyClass{})

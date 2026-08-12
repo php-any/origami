@@ -114,39 +114,85 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	}
 
 	var acl data.Control
-	// 入参的值设置到上下文中
-	for index, param := range params {
-		// CallerContextParameter 无论有无传参都需切换为调用者上下文
-		if _, ok := param.(*CallerContextParameter); ok {
-			fnCtx = ctx
-			continue
+	// PHP 8 命名参数：先按名绑定，再按位置填未绑定形参，最后补默认值。
+	// 不能按 arguments[i] 对齐 params[i]，否则 named 会占位并在后续循环被默认值覆盖。
+	bound := make([]bool, len(params))
+	variadicIdx := -1
+	for i, p := range params {
+		if _, ok := p.(*Parameters); ok {
+			variadicIdx = i
+			break
 		}
-		if len(arguments) > index {
-			arg := arguments[index]
-			switch argTV := arg.(type) {
-			case *NamedArgument:
-				param, err := findParams(params, argTV.Name)
-				if err != nil {
-					return nil, data.NewErrorThrow(pe.from, err)
-				}
-				acl = paramSetValue(fnCtx, ctx, nil, param, argTV, varies, index, arguments)
-			default:
-				acl = paramSetValue(fnCtx, ctx, nil, param, argTV, varies, index, arguments)
+	}
+	paramIndexByName := func(name string) (int, error) {
+		for i, p := range params {
+			if gn, ok := p.(data.GetName); ok && gn.GetName() == name {
+				return i, nil
 			}
-		} else {
-			_, acl = param.GetValue(fnCtx)
+		}
+		return -1, errors.New("无法找到变量: " + name)
+	}
+	var positional []data.GetValue
+	for _, arg := range arguments {
+		switch a := arg.(type) {
+		case *NamedArgument:
+			idx, err := paramIndexByName(a.Name)
+			if err != nil {
+				if variadicIdx >= 0 {
+					positional = append(positional, a)
+					continue
+				}
+				return nil, data.NewErrorThrow(pe.from, err)
+			}
+			acl = paramSetValue(fnCtx, ctx, nil, params[idx], a, varies, idx, arguments)
+			if acl != nil {
+				break
+			}
+			bound[idx] = true
+		case *CallerContextParameter:
+			continue
+		default:
+			positional = append(positional, arg)
 		}
 		if acl != nil {
-			if addStack, ok := acl.(data.AddStack); ok {
-				addStack.AddStackWithInfo(pe.from, "", pe.FunName+fmt.Sprintf("(%d:%s)", index, TryGetCallClassName(param)))
+			break
+		}
+	}
+	if acl == nil {
+		pos := 0
+		for index, param := range params {
+			if _, ok := param.(*CallerContextParameter); ok {
+				fnCtx = ctx
+				continue
 			}
-			// 实参求值中的 throw 须向上冒泡，由调用方的 try/catch 处理，不能在此 fatal
-			if _, ok := acl.(data.ThrowControl); ok {
-				return nil, acl
+			if bound[index] {
+				continue
 			}
-			ctx.GetVM().ThrowControl(acl)
+			if pos < len(positional) {
+				arg := positional[pos]
+				pos++
+				acl = paramSetValue(fnCtx, ctx, nil, param, arg, varies, index, arguments)
+				if acl != nil {
+					break
+				}
+				bound[index] = true
+				continue
+			}
+			_, acl = param.GetValue(fnCtx)
+			if acl != nil {
+				break
+			}
+		}
+	}
+	if acl != nil {
+		if addStack, ok := acl.(data.AddStack); ok {
+			addStack.AddStackWithInfo(pe.from, "", pe.FunName)
+		}
+		if _, ok := acl.(data.ThrowControl); ok {
 			return nil, acl
 		}
+		ctx.GetVM().ThrowControl(acl)
+		return nil, acl
 	}
 
 	// 将本次调用的参数表达式列表记录到函数上下文中

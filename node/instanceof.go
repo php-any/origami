@@ -44,7 +44,9 @@ func resolveInstanceofClassName(ctx data.Context, classExpr data.GetValue) (stri
 	var name string
 	switch right := classExpr.(type) {
 	case *StringLiteral:
-		name = right.Value
+		// 解析期已通过 findFullClassNameByNamespace / self/parent 展开，
+		// 不可再按当前命名空间重写，否则 \GlobalClass 会被误加成 Ns\GlobalClass。
+		return strings.TrimPrefix(right.Value, "\\"), nil
 	case *StaticClass:
 		val, acl := right.GetValue(ctx)
 		if acl != nil {
@@ -77,7 +79,9 @@ func resolveInstanceofClassName(ctx data.Context, classExpr data.GetValue) (stri
 	return resolveRuntimeClassName(ctx, name), nil
 }
 
-// resolveRuntimeClassName 按 PHP 命名空间规则解析类名，优先返回已加载的类/接口
+// resolveRuntimeClassName 按 PHP 命名空间规则解析类名，优先返回已加载的类/接口。
+// 非限定名在命名空间内必须先匹配当前命名空间（PHP 类名无全局 fallback），
+// 再才考虑全局同名类；否则会把 tests\basic\BaseClass 误判成全局 BaseClass。
 func resolveRuntimeClassName(ctx data.Context, name string) string {
 	if name == "" {
 		return name
@@ -88,17 +92,9 @@ func resolveRuntimeClassName(ctx data.Context, name string) string {
 
 	vm := ctx.GetVM()
 	ns := ctx.GetNamespace()
+	candidates := runtimeClassNameCandidates(ns, name)
 
-	if vm != nil {
-		if _, ok := vm.GetClass(name); ok {
-			return name
-		}
-		if _, ok := vm.GetInterface(name); ok {
-			return name
-		}
-	}
-
-	for _, candidate := range runtimeClassNameCandidates(ns, name) {
+	for _, candidate := range candidates {
 		if vm != nil {
 			if _, ok := vm.GetClass(candidate); ok {
 				return candidate
@@ -108,7 +104,6 @@ func resolveRuntimeClassName(ctx data.Context, name string) string {
 			}
 		}
 	}
-	candidates := runtimeClassNameCandidates(ns, name)
 	if len(candidates) > 0 {
 		return candidates[0]
 	}

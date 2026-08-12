@@ -11,3 +11,5 @@ app/*
 /scripts/
 .venv*
 /bbs1org
+bbs1org
+DATA_DIR

@@ -177,13 +177,14 @@ func (u *ForeachStatement) foreachObjectValue(ctx data.Context, obj *data.Object
 	var v data.GetValue
 	var c data.Control
 	var shouldBreak bool
+	var shouldReturn bool
 
 	// 使用 RangeProperties 保持插入顺序遍历
 	obj.RangeProperties(func(key string, element data.Value) bool {
 		// 设置值变量（引用则与属性槽位共享 ZVal）
 		if acl := u.bindForeachValue(ctx, element, nil, obj, key); acl != nil {
 			c = acl
-			shouldBreak = true
+			shouldReturn = true
 			return false
 		}
 		// 如果有键变量，设置键变量（数字字符串键对齐 PHP：foreach 给出 int）
@@ -196,7 +197,7 @@ func (u *ForeachStatement) foreachObjectValue(ctx data.Context, obj *data.Object
 			}
 			if acl := ctx.SetVariableValue(u.Key, keyValue); acl != nil {
 				c = acl
-				shouldBreak = true
+				shouldReturn = true
 				return false
 			}
 		}
@@ -213,10 +214,13 @@ func (u *ForeachStatement) foreachObjectValue(ctx data.Context, obj *data.Object
 					}
 				case data.ContinueControl:
 					if ctrl.IsContinue() {
+						// 继续下一次迭代；勿把 ContinueControl 留到循环结束后泄漏
+						c = nil
 						return true
 					}
 				}
-				shouldBreak = true
+				// return / throw 等向上传递
+				shouldReturn = true
 				return false
 			}
 		}
@@ -226,7 +230,10 @@ func (u *ForeachStatement) foreachObjectValue(ctx data.Context, obj *data.Object
 	if shouldBreak {
 		return nil, nil
 	}
-	return v, c
+	if shouldReturn {
+		return v, c
+	}
+	return v, nil
 }
 
 // foreachIterator 处理实现了 data.Iterator 接口的值的 foreach 逻辑。

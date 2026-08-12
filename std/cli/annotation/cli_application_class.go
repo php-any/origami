@@ -266,8 +266,16 @@ func (m *CliApplicationConstructMethod) Scan(ctx data.Context) data.Control {
 	}
 
 	vm := ctx.GetVM()
+	currentFile := ""
+	if cls, ok := m.app.target.(*node.ClassStatement); ok && cls.GetFrom() != nil {
+		currentFile = utils.NormalizePhpFilePath(cls.GetFrom().GetSource())
+	}
 	for _, f := range files {
 		f = utils.NormalizePhpFilePath(f)
+		if currentFile != "" && f == currentFile {
+			// 避免 LoadAndRun 正在解析的本文件，防止重入死锁
+			continue
+		}
 		if vm.GetPhpFileCache(f) {
 			continue
 		}

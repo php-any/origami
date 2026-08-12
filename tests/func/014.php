@@ -15,11 +15,11 @@ $r3 = $increment();
 if ($r1 == 1 && $r2 == 2 && $r3 == 3) {
     Log::info("test 014: increment return values ok");
 } else {
-    Log::fatal("test 014: increment return values fail, got " + $r1 + "," + $r2 + "," + $r3);
+    Log::fatal("test 014: increment return values fail, got " . $r1 . "," . $r2 . "," . $r3);
 }
 
 if ($counter == 3) {
     Log::info("test 014: counter updated persistently ok");
 } else {
-    Log::fatal("test 014: counter not persisted correctly, got " + $counter);
+    Log::fatal("test 014: counter not persisted correctly, got " . $counter);
 }

@@ -17,23 +17,23 @@ $result = $normalClosureMixed();
 if ($result == 9) {
     Log::info("test 013: normal closure mixed capture result ok");
 } else {
-    Log::fatal("test 013: normal closure mixed capture result fail, got " + $result);
+    Log::fatal("test 013: normal closure mixed capture result fail, got " . $result);
 }
 
 if ($a == 2) {
     Log::info("test 013: outer a (ref) updated ok");
 } else {
-    Log::fatal("test 013: outer a (ref) not updated, got " + $a);
+    Log::fatal("test 013: outer a (ref) not updated, got " . $a);
 }
 
 if ($b == 4) {
     Log::info("test 013: outer b (ref) updated ok");
 } else {
-    Log::fatal("test 013: outer b (ref) not updated, got " + $b);
+    Log::fatal("test 013: outer b (ref) not updated, got " . $b);
 }
 
 if ($c == 3) {
     Log::info("test 013: outer c (by value) unchanged ok");
 } else {
-    Log::fatal("test 013: outer c (by value) changed, got " + $c);
+    Log::fatal("test 013: outer c (by value) changed, got " . $c);
 }

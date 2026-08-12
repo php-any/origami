@@ -12,11 +12,11 @@ $result = $normalClosureValue();
 if ($result == 52) {
     Log::info("test 011: normal closure value capture result ok");
 } else {
-    Log::fatal("test 011: normal closure value capture result fail, got " + $result);
+    Log::fatal("test 011: normal closure value capture result fail, got " . $result);
 }
 
 if ($normalValue == 50) {
     Log::info("test 011: outer normalValue unchanged ok");
 } else {
-    Log::fatal("test 011: outer normalValue changed, got " + $normalValue);
+    Log::fatal("test 011: outer normalValue changed, got " . $normalValue);
 }

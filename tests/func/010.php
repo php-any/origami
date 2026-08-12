@@ -14,17 +14,17 @@ $result = $staticClosureMixed();
 if ($result == 80) {
     Log::info("test 010: static closure mixed capture result ok");
 } else {
-    Log::fatal("test 010: static closure mixed capture result fail, got " + $result);
+    Log::fatal("test 010: static closure mixed capture result fail, got " . $result);
 }
 
 if ($val1 == 40) {
     Log::info("test 010: outer val1 (ref) updated ok");
 } else {
-    Log::fatal("test 010: outer val1 (ref) not updated, got " + $val1);
+    Log::fatal("test 010: outer val1 (ref) not updated, got " . $val1);
 }
 
 if ($val2 == 40) {
     Log::info("test 010: outer val2 (by value) unchanged ok");
 } else {
-    Log::fatal("test 010: outer val2 (by value) changed, got " + $val2);
+    Log::fatal("test 010: outer val2 (by value) changed, got " . $val2);
 }

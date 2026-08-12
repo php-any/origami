@@ -4,7 +4,7 @@ namespace tests\php;
 $base = dirname(__DIR__, 2).'/examples/laravel13';
 require $base.'/vendor/autoload.php';
 
-$app = Illuminate\Foundation\Application::configure(basePath: $base)->create();
+$app = \Illuminate\Foundation\Application::configure(basePath: $base)->create();
 
 $app->singleton('files', function () {
     return new \Illuminate\Filesystem\Filesystem;
@@ -19,7 +19,7 @@ if (!($f instanceof \Illuminate\Filesystem\Filesystem)) {
 }
 
 // Also register via real provider
-$app2 = Illuminate\Foundation\Application::configure(basePath: $base)->create();
+$app2 = \Illuminate\Foundation\Application::configure(basePath: $base)->create();
 $app2->register(new \Illuminate\Filesystem\FilesystemServiceProvider($app2));
 if (!$app2->bound('files')) {
     Log::fatal('provider 后 bound files 应为 true');

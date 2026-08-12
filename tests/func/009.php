@@ -13,11 +13,11 @@ $result = $staticClosureRef();
 if ($result == 25) {
     Log::info("test 009: static closure ref capture result ok");
 } else {
-    Log::fatal("test 009: static closure ref capture result fail, got " + $result);
+    Log::fatal("test 009: static closure ref capture result fail, got " . $result);
 }
 
 if ($ref == 25) {
     Log::info("test 009: outer ref updated ok");
 } else {
-    Log::fatal("test 009: outer ref not updated, got " + $ref);
+    Log::fatal("test 009: outer ref not updated, got " . $ref);
 }

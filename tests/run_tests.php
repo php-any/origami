@@ -21,7 +21,7 @@ for (_, $file in scandir($path)) {
                 } catch (Exception $e) {
                     Log::fatal("执行文件发生错误, file={$filePath}; error={$e->getMessage()}")
                 } catch (Error $e) {
-                    Log::fatal("执行文件发生Error, file={$filePath}; error=" + $e->getMessage())
+                    Log::fatal("执行文件发生Error, file={$filePath}; error=" . $e->getMessage())
                 }
             }
         }

@@ -220,12 +220,7 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 
 			return data.NewFloatValue(lf + float64(ri)), nil
 		case *data.StringValue:
-			lf, err := l.AsFloat()
-			if err != nil {
-				return nil, data.NewErrorThrow(b.from, err)
-			}
-			rf := r.AsString()
-			return data.NewStringValue(data.NewFloatValue(lf).AsString() + rf), nil
+			return phpNumericAdd(b.from, lv, r)
 		case data.AsFloat:
 			lf, err := l.AsFloat()
 			if err != nil {
@@ -239,52 +234,12 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		}
 
 	case *data.BoolValue:
-		// 布尔值与任何类型相加：转换为整数（true->1, false->0）后相加
-		var li int
-		if l.Value {
-			li = 1
-		} else {
-			li = 0
-		}
-		switch r := rv.(type) {
-		case data.AsInt:
-			ri, err := r.AsInt()
-			if err != nil {
-				// 如果无法转换为整数，尝试字符串拼接
-				if str, ok := rv.(data.AsString); ok {
-					return data.NewStringValue(fmt.Sprintf("%d", li) + str.AsString()), nil
-				}
-				return nil, data.NewErrorThrow(b.from, err)
-			}
-			return data.NewIntValue(li + ri), nil
-		case data.AsFloat:
-			rf, err := r.AsFloat()
-			if err != nil {
-				// 如果无法转换为浮点数，尝试字符串拼接
-				if str, ok := rv.(data.AsString); ok {
-					return data.NewStringValue(fmt.Sprintf("%d", li) + str.AsString()), nil
-				}
-				return nil, data.NewErrorThrow(b.from, err)
-			}
-			return data.NewFloatValue(float64(li) + rf), nil
-		case data.AsString:
-			// 布尔值与字符串相加：转换为字符串后拼接
-			return data.NewStringValue(fmt.Sprintf("%d", li) + r.AsString()), nil
-		}
+		// PHP：bool 转 0/1 后做数值加法
+		return phpNumericAdd(b.from, lv, rv)
 
 	case *data.NullValue:
-		if riv, ok := rv.(data.AsInt); ok {
-			ri, err := riv.AsInt()
-			if err != nil {
-				return nil, data.NewErrorThrow(b.from, err)
-			}
-			return data.NewIntValue(0 + ri), nil
-		}
-
-		lStr := l.AsString()
-		rStr := rv.(data.Value).AsString()
-
-		return data.NewStringValue(lStr + rStr), nil
+		// PHP：null 视为 0 参与数值加法
+		return phpNumericAdd(b.from, lv, rv)
 
 	case *data.ArrayValue:
 		// PHP 数组 + ：按键并集；关联字面量 ['a'=>…] 在 Origami 里可能是 ObjectValue。
@@ -304,21 +259,9 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		if ra, ok := valueAsArrayForUnion(rv.(data.Value)); ok {
 			return mergeArrayUnion(objectToNamedArray(l), ra), nil
 		}
-		// 右边非对象/类/数组：若类有 __toString，则转为字符串后拼接
-		lStr, lCtl := ValueToDisplayString(ctx, l)
-		if lCtl != nil {
-			return nil, lCtl
-		}
-		rStr, rCtl := ValueToDisplayString(ctx, rv)
-		if rCtl != nil {
-			return nil, rCtl
-		}
-		return data.NewStringValue(lStr + rStr), nil
+		return nil, data.NewErrorThrow(b.from, fmt.Errorf("对象不能与非对象/数组类型相加: %T", rv))
 	case *data.AnyValue:
-		lStr := l.AsString()
-		rStr := rv.(data.Value).AsString()
-
-		return data.NewStringValue(lStr + rStr), nil
+		return phpNumericAdd(b.from, lv, rv)
 	}
 
 	return nil, data.NewErrorThrow(b.from, fmt.Errorf("TODO 有未支持的类型加法 %v", lv))

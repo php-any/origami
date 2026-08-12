@@ -2,11 +2,11 @@
 namespace tests\func;
 
 function div($obj) {
-    return "<div>" + $obj->body + "</div>";
+    return "<div>" . $obj->body . "</div>";
 }
 
 function span($obj) {
-    return "<span>" + $obj->body + "</span>";
+    return "<span>" . $obj->body . "</span>";
 }
 
 $html = div {

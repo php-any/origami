@@ -13,11 +13,11 @@ $result = $normalClosureRef();
 if ($result == 63) {
     Log::info("test 012: normal closure ref capture result ok");
 } else {
-    Log::fatal("test 012: normal closure ref capture result fail, got " + $result);
+    Log::fatal("test 012: normal closure ref capture result fail, got " . $result);
 }
 
 if ($normalRef == 63) {
     Log::info("test 012: outer normalRef updated ok");
 } else {
-    Log::fatal("test 012: outer normalRef not updated, got " + $normalRef);
+    Log::fatal("test 012: outer normalRef not updated, got " . $normalRef);
 }

@@ -45,14 +45,15 @@ if (getStatusName(200) == "OK" && getStatusName(404) == "Not Found") {
 }
 
 // match 用于类型分发
-describe = fn($value) => match (true) {
+$describe = fn($value) => match (true) {
     $value == null => "null",
     $value == true => "true",
     $value == false => "false",
     default => "other"
 };
-// PHP 中 false == null 为 true，故 describe(false) 命中第一分支
-if (describe(null) == "null" && describe(true) == "true" && describe(false) == "null" && describe(42) == "other") {
+// PHP 中 false == null 为 true，故 $describe(false) 命中第一分支
+// bare describe(...) 是函数调用；闭包变量须用 $describe(...)
+if ($describe(null) == "null" && $describe(true) == "true" && $describe(false) == "null" && $describe(42) == "other") {
     Log::info("match 类型分发测试通过");
 } else {
     Log::fatal("match 类型分发测试失败");

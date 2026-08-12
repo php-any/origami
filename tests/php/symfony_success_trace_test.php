@@ -27,7 +27,8 @@ $io = new SymfonyStyle(new ArrayInput([]), $buf);
 // Inspect lineLength via dumping after constructing similar lines
 $ref = new \ReflectionObject($io);
 foreach ($ref->getProperties() as $p) {
-    $name = $p->getName();
+    // 当前 getProperties 返回属性名字符串；完整 ReflectionProperty 后续再补
+    $name = is_object($p) ? $p->getName() : (string)$p;
     if (str_contains($name, 'line') || str_contains($name, 'Length') || str_contains($name, 'buffer')) {
         Log::info('prop ' . $name);
     }

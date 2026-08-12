@@ -278,6 +278,31 @@ func (a *ArrayValue) normalizeDenseIntKeys() {
 
 // UnsetKey 删除整数或字符串键（不存在则无操作）
 func (a *ArrayValue) UnsetKey(index Value) {
+	// 先按字符串键处理：StringValue 同时实现 AsInt，非数字字符串不能在 AsInt 失败后直接 return
+	if sv, ok := index.(AsString); ok {
+		key := sv.AsString()
+		if _, isIntKey := ParseIntArrayKeyName(key); !isIntKey {
+			for j, z := range a.List {
+				if z != nil && z.Name == key {
+					a.List = append(a.List[:j], a.List[j+1:]...)
+					return
+				}
+			}
+			return
+		}
+		// 纯数字字符串键：按整数键删除
+		if n, err := strconv.Atoi(key); err == nil {
+			a.normalizeDenseIntKeys()
+			keyStr := IntArrayKeyName(n)
+			for j, z := range a.List {
+				if z != nil && z.Name == keyStr {
+					a.List = append(a.List[:j], a.List[j+1:]...)
+					return
+				}
+			}
+			return
+		}
+	}
 	if iv, ok := index.(AsInt); ok {
 		i, err := iv.AsInt()
 		if err != nil {
@@ -287,16 +312,6 @@ func (a *ArrayValue) UnsetKey(index Value) {
 		keyStr := IntArrayKeyName(i)
 		for j, z := range a.List {
 			if z != nil && z.Name == keyStr {
-				a.List = append(a.List[:j], a.List[j+1:]...)
-				return
-			}
-		}
-		return
-	}
-	if sv, ok := index.(AsString); ok {
-		key := sv.AsString()
-		for j, z := range a.List {
-			if z != nil && z.Name == key {
 				a.List = append(a.List[:j], a.List[j+1:]...)
 				return
 			}

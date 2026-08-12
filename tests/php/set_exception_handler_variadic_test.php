@@ -12,6 +12,7 @@ class ExcHandler_VariadicForward
 {
     public function handleException($e)
     {
+        restore_exception_handler();
         if ($e->getMessage() !== 'variadic-handler-ok') {
             Log::fatal('可变参数异常处理器消息错误: ' . $e->getMessage());
         }

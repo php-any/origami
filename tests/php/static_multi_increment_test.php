@@ -1,8 +1,9 @@
 <?php
-function f() {
+
+function static_multi_increment_f() {
   static $a = 0, $b = 0;
   echo $a++ . "," . $b++ . "\n";
 }
-f();
-f();
-f();
+static_multi_increment_f();
+static_multi_increment_f();
+static_multi_increment_f();

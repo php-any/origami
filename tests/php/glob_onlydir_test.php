@@ -12,7 +12,7 @@ use Illuminate\Foundation\Events\DiscoverEvents;
 use Illuminate\Support\Arr;
 $listenerPath = [];
 var_dump(Arr::wrap($listenerPath) === []);
-$r = DiscoverEvents::within([], base_path: dirname(__DIR__, 2).'/examples/laravel13');
+$r = DiscoverEvents::within([], basePath: dirname(__DIR__, 2).'/examples/laravel13');
 var_dump($r);
 
 // What about within with path that doesn't exist after glob empty?

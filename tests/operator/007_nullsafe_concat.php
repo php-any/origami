@@ -11,12 +11,13 @@ if ($r1 !== "Hello World") {
     Log::info("[PASS] 字符串连接 test1 正确");
 }
 
-// Test 2: . 与 + 比较
+// Test 2: . 与 + 比较（PHP 8+：. 优先级低于 +，故 "Number: " . 1 + 2 => "Number: 3"）
 $r2 = "Number: " . 1 + 2;
-// PHP 中 "." 和 "+" 优先级相同左结合, 所以:
-// ("Number: " . 1) + 2 = "Number: 1" + 2 = 0 + 2 = 2 (PHP 字符串转数字)
-// 这个测试跳过，因为 PHP 行为比较特殊
-
+if ($r2 !== "Number: 3") {
+    Log::fatal("[FAIL] . 与 + 优先级: 应得 'Number: 3', 实际: ", $r2);
+} else {
+    Log::info("[PASS] . 与 + 优先级 test2 正确");
+}
 // Test 3: 点号与三目
 $_ = function($v) { return $v ?? '-'; };
 $r3b = "Value: " . $_(null);

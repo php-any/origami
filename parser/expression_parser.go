@@ -207,9 +207,43 @@ func (ep *ExpressionParser) parseNullCoalesce() (data.GetValue, data.Control) {
 	return expr, nil
 }
 
-// parseConcatenation 已并入 parseTerm（与 +、- 同级，高于 ===）；保留别名以免外部调用断裂。
+// parseConcatenation 解析字符串连接（.）。
+// PHP 8+：. 优先级低于 +、- 与 << >>，故 "a" . 1 + 2 => "a" . (1 + 2)。
 func (ep *ExpressionParser) parseConcatenation() (data.GetValue, data.Control) {
-	return ep.parseLogicalOrKeyword()
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseShift()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.DOT {
+		operator := ep.current()
+		ep.next()
+		right, acl := ep.parseShift()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(tracker.EndBefore(), expr, operator, right)
+	}
+	return expr, nil
+}
+
+// parseConcatenationIndex 同 parseConcatenation，供数组下标表达式使用（不解析 ..）。
+func (ep *ExpressionParser) parseConcatenationIndex() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseShiftIndex()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.DOT {
+		operator := ep.current()
+		ep.next()
+		right, acl := ep.parseShiftIndex()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(tracker.EndBefore(), expr, operator, right)
+	}
+	return expr, nil
 }
 
 // parseLogicalOrKeyword 解析 or 关键字逻辑或（优先级低于 ||）
@@ -542,14 +576,14 @@ func (ep *ExpressionParser) parseEqualityIndex() (data.GetValue, data.Control) {
 
 func (ep *ExpressionParser) parseComparisonIndex() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
-	expr, acl := ep.parseShiftIndex()
+	expr, acl := ep.parseConcatenationIndex()
 	if acl != nil {
 		return nil, acl
 	}
 	for ep.checkPositionIs(0, token.LT, token.LE, token.GT, token.GE, token.SPACESHIP) {
 		operator := ep.current()
 		ep.next()
-		right, acl := ep.parseShiftIndex()
+		right, acl := ep.parseConcatenationIndex()
 		if acl != nil {
 			return nil, acl
 		}
@@ -576,15 +610,14 @@ func (ep *ExpressionParser) parseShiftIndex() (data.GetValue, data.Control) {
 	return expr, nil
 }
 
-// parseTermNoRange 加减/字符串连接项，不解析 .. 范围运算符（留给数组下标后的 parseArrayAccess）。
-// PHP 中 . 与 +、- 同级且左结合，高于 ===。
+// parseTermNoRange 加减项，不解析 .. 与字符串连接（. 由 parseConcatenationIndex 处理）。
 func (ep *ExpressionParser) parseTermNoRange() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
 	expr, acl := ep.parseFactor()
 	if acl != nil {
 		return nil, acl
 	}
-	for ep.current().Type() == token.ADD || ep.current().Type() == token.SUB || ep.current().Type() == token.DOT || isSignedNumberToken(ep.current()) {
+	for ep.current().Type() == token.ADD || ep.current().Type() == token.SUB || isSignedNumberToken(ep.current()) {
 		operator := ep.current()
 
 		var right data.GetValue
@@ -615,7 +648,7 @@ func (ep *ExpressionParser) parseTermNoRange() (data.GetValue, data.Control) {
 // parseComparison 解析比较表达式
 func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
-	expr, acl := ep.parseShift()
+	expr, acl := ep.parseConcatenation()
 	if acl != nil {
 		return nil, acl
 	}
@@ -629,7 +662,7 @@ func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
 		operator := ep.current()
 		ep.next()
 
-		right, acl := ep.parseShift()
+		right, acl := ep.parseConcatenation()
 		if acl != nil {
 			return nil, acl
 		}
@@ -670,15 +703,15 @@ func (ep *ExpressionParser) parseShift() (data.GetValue, data.Control) {
 	return expr, nil
 }
 
-// parseTerm 解析加减/字符串连接表达式（含范围运算符 ..，如 1..5）。
-// PHP 中 . 与 +、- 同级且左结合，高于 ===。
+// parseTerm 解析加减表达式（含范围运算符 ..，如 1..5）。
+// 字符串连接 . 由更外层的 parseConcatenation 处理（PHP 8+ 优先级低于 +、-）。
 func (ep *ExpressionParser) parseTerm() (data.GetValue, data.Control) {
 	tracker := ep.StartTracking()
 	expr, acl := ep.parseRangeOperand()
 	if acl != nil {
 		return nil, acl
 	}
-	for ep.current().Type() == token.ADD || ep.current().Type() == token.SUB || ep.current().Type() == token.DOT || isSignedNumberToken(ep.current()) {
+	for ep.current().Type() == token.ADD || ep.current().Type() == token.SUB || isSignedNumberToken(ep.current()) {
 		operator := ep.current()
 
 		var right data.GetValue
@@ -860,6 +893,11 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 			}
 			if lit, ok := right.(*node.StringLiteral); ok {
 				if full, _ := ep.findFullClassNameByNamespace(lit.Value); full != "" {
+					right = node.NewStringLiteral(tracker.EndBefore(), full)
+				}
+			} else if cn, ok := right.(*node.ConstantName); ok {
+				// bare instanceof A：须展开 use / 当前命名空间，不能运行时当常量名
+				if full, _ := ep.findFullClassNameByNamespace(cn.Name); full != "" {
 					right = node.NewStringLiteral(tracker.EndBefore(), full)
 				}
 			}

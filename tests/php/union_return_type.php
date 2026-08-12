@@ -101,7 +101,7 @@ class DynamicKeyIterator implements Iterator {
         if ($this->pos % 2 == 0) {
             return $this->pos; // 返回 int
         } else {
-            return "key" + $this->pos; // 返回 string
+            return "key" . $this->pos; // 返回 string
         }
     }
 
