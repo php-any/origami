@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 
+	"github.com/php-any/origami/data"
 	gosupport "github.com/php-any/origami/examples/laravel13/go-support"
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/runtime"
@@ -25,11 +26,8 @@ func main() {
 
 func runScript(path string) {
 	vm, p := buildVM()
-	if _, ctl := vm.LoadAndRun(path); ctl != nil {
-		p.ShowControl(ctl)
-		os.Exit(1)
-	}
-	vm.RunShutdownCallbacks()
+	_, ctl := vm.LoadAndRun(path)
+	finish(vm, p, ctl)
 }
 
 func buildVM() (*runtime.VM, *parser.Parser) {
@@ -55,8 +53,22 @@ func runArtisan(args []string) {
 	// Symfony ArgvInput 会 array_shift 掉首个脚本名，因此必须保留 "artisan"。
 	os.Args = append([]string{os.Args[0], "artisan"}, args...)
 
-	if _, ctl := vm.LoadAndRun("artisan"); ctl != nil {
+	_, ctl := vm.LoadAndRun("artisan")
+	finish(vm, p, ctl)
+}
+
+// finish 对齐 zy CLI：exit/die 返回 ExitControl，按退出码结束；其它 Control 才当作错误展示。
+func finish(vm *runtime.VM, p *parser.Parser, ctl data.Control) {
+	if ctl != nil {
+		if exit, ok := ctl.(data.ExitControl); ok && exit.IsExit() {
+			vm.RunShutdownCallbacks()
+			if code := exit.GetCode(); code != 0 {
+				os.Exit(code)
+			}
+			return
+		}
 		p.ShowControl(ctl)
+		vm.RunShutdownCallbacks()
 		os.Exit(1)
 	}
 	vm.RunShutdownCallbacks()

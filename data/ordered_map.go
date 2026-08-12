@@ -99,16 +99,31 @@ func (om *OrderedMap) Get(key string) (Value, bool) {
 	return nil, false
 }
 
-// Range 遍历所有键值对，按插入顺序
+// Range 遍历所有键值对，按插入顺序。
+// 必须先在读锁下快照再回调：Go 的 RWMutex 不可重入，若回调内对同一 map
+// 再 Get/Set（例如 foreach 写回当前关联数组），持 RLock 调用会直接死锁。
 func (om *OrderedMap) Range(fn func(key string, value Value) bool) {
-	om.mu.RLock()
-	defer om.mu.RUnlock()
+	type kv struct {
+		key string
+		val Value
+	}
 
+	om.mu.RLock()
+	items := make([]kv, 0, len(om.data))
 	for i, zval := range om.data {
 		if key, exists := om.nameMap[i]; exists {
-			if !fn(key, zval.Value) {
-				break
+			var val Value
+			if zval != nil {
+				val = zval.Value
 			}
+			items = append(items, kv{key: key, val: val})
+		}
+	}
+	om.mu.RUnlock()
+
+	for _, item := range items {
+		if !fn(item.key, item.val) {
+			break
 		}
 	}
 }

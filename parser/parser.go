@@ -280,6 +280,11 @@ func (p *Parser) stopNext() {
 }
 
 func (p *Parser) ShowControl(acl data.Control) {
+	// exit/die 是正常终止控制流，不是解析/运行时错误；由宿主按退出码结束进程。
+	if exit, ok := acl.(data.ExitControl); ok && exit.IsExit() {
+		return
+	}
+
 	err := acl.AsString()
 
 	// 优先检查是否是 ThrowValue；先打印错误，再打印调用栈

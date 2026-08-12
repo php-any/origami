@@ -231,12 +231,21 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			control = httpkernel.Terminate(requestCtx, k.kernel, request, sent)
 		}
 	}
+	// PHP exit/die 在请求生命周期内是正常结束，不当作错误。
+	if exit, ok := control.(data.ExitControl); ok && exit.IsExit() {
+		control = nil
+	}
 	if control != nil {
 		k.parser.ShowControl(control)
 		http.Error(recorder, "Laravel request failed", http.StatusInternalServerError)
 	} else if thrown := reqVM.TakeThrow(); thrown != nil {
-		k.parser.ShowControl(thrown)
-		http.Error(recorder, "Laravel request failed", http.StatusInternalServerError)
+		if exit, ok := thrown.(data.ExitControl); ok && exit.IsExit() {
+			thrown = nil
+		}
+		if thrown != nil {
+			k.parser.ShowControl(thrown)
+			http.Error(recorder, "Laravel request failed", http.StatusInternalServerError)
+		}
 	}
 	k.flushRecorder(w, recorder)
 }
