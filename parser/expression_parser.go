@@ -1070,9 +1070,13 @@ func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 			return expr, nil
 		}
 	case token.AT:
-		// @ 错误抑制符：跳过并解析后续表达式
+		// @ 错误抑制符：跳过并解析后续表达式，将结果包装为 ErrorSuppress
 		ep.next()
-		return ep.parsePrimary()
+		expr, acl := ep.parsePrimary()
+		if acl != nil {
+			return nil, acl
+		}
+		return node.NewErrorSuppress(ep.FromCurrentToken(), expr), nil
 	case token.NAMESPACE_SEPARATOR:
 		// \function_name: 跳过 \ 并解析后续表达式
 		ep.next()
