@@ -23,6 +23,9 @@ type LaravelRequestVM struct {
 
 	callDepth int
 	callStack []data.CallFrame
+
+	// implicitFlush 对应 ob_implicit_flush 状态（由 mu 保护）。
+	implicitFlush bool
 }
 
 // New 创建请求级 VM 包装。output 为本请求 HTTP body 写入目标。
@@ -101,6 +104,65 @@ func (v *LaravelRequestVM) OutputBufferLevel() int {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
 	return v.ob.level()
+}
+
+// FlushOutputBuffer 弹出并返回栈顶缓冲内容，并把内容写出到上一层（或最终输出）。
+func (v *LaravelRequestVM) FlushOutputBuffer() (string, bool) {
+	v.mu.Lock()
+	if v.ob.level() == 0 {
+		v.mu.Unlock()
+		return "", false
+	}
+	content := v.ob.flush()
+	v.mu.Unlock()
+	// 写出到上一层缓冲或最终输出。
+	v.WriteOutput(content)
+	return content, true
+}
+
+// CleanCurrentBuffer 清空栈顶缓冲内容但不结束缓冲。
+func (v *LaravelRequestVM) CleanCurrentBuffer() bool {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.ob.cleanCurrent()
+}
+
+// OutputBufferLength 返回栈顶缓冲的字节长度（无缓冲返回 false）。
+func (v *LaravelRequestVM) OutputBufferLength() (int, bool) {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+	if v.ob.level() == 0 {
+		return 0, false
+	}
+	return v.ob.length(), true
+}
+
+// OutputBufferStatus 返回缓冲层状态列表。
+func (v *LaravelRequestVM) OutputBufferStatus(full bool) []data.OutputBufferStatusInfo {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+	return v.ob.status(full)
+}
+
+// ListOutputHandlers 返回所有激活缓冲的处理器名。
+func (v *LaravelRequestVM) ListOutputHandlers() []string {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+	return v.ob.handlers()
+}
+
+// SetImplicitFlush 设置/清除隐式刷新标志。
+func (v *LaravelRequestVM) SetImplicitFlush(on bool) {
+	v.mu.Lock()
+	v.implicitFlush = on
+	v.mu.Unlock()
+}
+
+// IsImplicitFlush 返回当前隐式刷新标志。
+func (v *LaravelRequestVM) IsImplicitFlush() bool {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.implicitFlush
 }
 
 func (v *LaravelRequestVM) AddClass(c data.ClassStmt) data.Control {
