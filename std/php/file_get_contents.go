@@ -54,7 +54,8 @@ func (f *FileGetContentsFunction) Call(ctx data.Context) (data.GetValue, data.Co
 
 	bytes, err := os.ReadFile(filePath)
 	if err != nil {
-		return nil, utils.NewThrowf("FileGetContentsFunction called with file path '%s': %v", filePath, err)
+		// PHP 行为：file_get_contents 在文件不存在/读取失败时返回 false（并触发 warning）
+		return data.NewBoolValue(false), nil
 	}
 	return data.NewStringValue(string(bytes)), nil
 }
