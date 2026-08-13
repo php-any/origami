@@ -57,7 +57,12 @@ For detailed documentation, please visit the [Documentation Center](docs/README.
 
 ## 📝 Examples
 
-See [examples/spring](examples/spring/) for the web application demo (REST API + SQLite + HTML pages), or visit the [test cases](tests/) for more usage patterns.
+- [examples/spring](examples/spring/) — Web application demo (REST API + SQLite + HTML pages)
+- [examples/illuminate-db](examples/illuminate-db/) — Standalone [illuminate/database](https://github.com/illuminate/database) (Eloquent ORM) usage without the Laravel framework
+- [examples/laravel](examples/laravel/) — Laravel 10 ecosystem compatibility
+- [examples/laravel13](examples/laravel13/) — Official Laravel 13 skeleton on Origami
+
+See also the [test cases](tests/) for more usage patterns.
 
 ## 💬 Discussion Group
 

@@ -57,7 +57,12 @@ go build -o origami .
 
 ## 📝 示例
 
-查看 [示例目录](examples/) 了解完整示例，或访问 [测试用例](tests/) 查看更多使用模式。
+- [examples/spring](examples/spring/) — Web 应用示例（REST API + SQLite + HTML 页面）
+- [examples/illuminate-db](examples/illuminate-db/) — 独立使用 [illuminate/database](https://github.com/illuminate/database)（Eloquent ORM），不依赖 Laravel 框架
+- [examples/laravel](examples/laravel/) — Laravel 10 生态兼容示例
+- [examples/laravel13](examples/laravel13/) — 官方 Laravel 13 骨架在 Origami 上运行
+
+更多使用模式请参见 [测试用例](tests/)。
 
 ## 💬 讨论群
 
