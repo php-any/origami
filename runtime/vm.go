@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -79,6 +80,10 @@ type VM struct {
 	// PHP 调用栈（debug_backtrace）
 	callStack     []data.CallFrame
 	outputBuffers []*strings.Builder
+	// hasOutputBuffer 原子标记是否存在活动缓冲层，用于 WriteOutput 无缓冲时的零锁快速路径。
+	hasOutputBuffer atomic.Bool
+	// implicitFlush 对应 ob_implicit_flush 状态（由 mu 保护）。
+	implicitFlush bool
 
 	// $GLOBALS / $_SESSION 的 VM 级数组（避免包级单例跨请求串态）
 	globalsArray *data.ObjectValue
