@@ -44,7 +44,8 @@ func CloneArrayValueForCallArgs(src *ArrayValue) *ArrayValue {
 		if z.RefSlotCount > 0 {
 			list[i] = z
 		} else {
-			list[i] = NewZVal(z.Value)
+			// 复制 ZVal 时保留 Name（关联数组键），避免在 __call/__callStatic 参数传递中丢失键
+			list[i] = NewNamedZVal(z.Name, z.Value)
 		}
 	}
 	return &ArrayValue{List: list}

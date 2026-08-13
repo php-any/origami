@@ -29,6 +29,10 @@ type Context interface {
 	SetCallArgs(args []GetValue)
 	GetCallArgs() []GetValue
 
+	// 记录/获取本次调用展开后的扁平实参值列表（处理 ...$arr 展开，供 func_get_args/func_num_args 使用）
+	SetFlatCallArgs(values []Value)
+	GetFlatCallArgs() []Value
+
 	// SetVariableByName 通过变量名设置变量值，用于 extract 等动态赋值场景
 	SetVariableByName(name string, value Value)
 	// GetVariableByName 通过变量名读取变量值（含 extract 动态注入的槽）

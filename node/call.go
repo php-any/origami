@@ -108,6 +108,7 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 					fnCtx.SetVariableValue(varies[i], flat[i])
 				}
 				fnCtx.SetCallArgs(pe.Args)
+				fnCtx.SetFlatCallArgs(flat)
 				return fn.Call(fnCtx)
 			}
 		}
@@ -197,6 +198,7 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 
 	// 将本次调用的参数表达式列表记录到函数上下文中
 	fnCtx.SetCallArgs(pe.Args)
+	fnCtx.SetFlatCallArgs(collectCallArgValues(ctx, positional, fnCtx))
 
 	return fn.Call(fnCtx)
 }
