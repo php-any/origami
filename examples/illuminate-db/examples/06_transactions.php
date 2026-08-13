@@ -101,4 +101,19 @@ echo "闭包事务结果: {$result}\n";
 echo "事务后余额:\n";
 printBalances();
 
+echo "\n=== 通过 Capsule 静态调用事务控制 ===\n";
+// Capsule 静态转发事务方法（Origami 已支持大小写不敏感方法名匹配）
+Capsule::beginTransaction();
+Capsule::table('accounts')->where('owner', 'Alice')->increment('balance', 50);
+Capsule::rollback(); // 应回滚，余额不变
+
+$afterRollback = Capsule::table('accounts')->where('owner', 'Alice')->first();
+echo "Capsule::beginTransaction() + Capsule::rollback() 后 Alice 余额: ¥" . number_format($afterRollback->balance, 2) . "（应保持 ¥900.00）\n";
+
+Capsule::beginTransaction();
+Capsule::table('accounts')->where('owner', 'Alice')->increment('balance', 50);
+Capsule::commit();
+$afterCommit = Capsule::table('accounts')->where('owner', 'Alice')->first();
+echo "Capsule::beginTransaction() + Capsule::commit() 后 Alice 余额: ¥" . number_format($afterCommit->balance, 2) . "（应增加 ¥50）\n";
+
 echo "\n✓ 事务示例执行成功\n";

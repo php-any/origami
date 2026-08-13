@@ -244,6 +244,7 @@ func (pe *CallMethod) handleStaticMethodWithLateBinding(ctx data.Context, sm *st
 	}
 
 	fnCtx.SetCallArgs(pe.Args)
+	fnCtx.SetFlatCallArgs(flatArgs)
 
 	return fn.Call(fnCtx)
 }
@@ -349,6 +350,7 @@ func (pe *CallMethod) invokeFuncStmt(ctx data.Context, fn data.FuncStmt, invoke 
 
 	// 将本次调用的参数表达式列表记录到方法上下文中
 	fnCtx.SetCallArgs(pe.Args)
+	fnCtx.SetFlatCallArgs(flatArgs)
 
 	return invoke(fnCtx)
 }
@@ -530,6 +532,7 @@ func (pe *CallMethod) doCallWithArgs(ctx data.Context, object data.GetMethod, me
 	}
 
 	fnCtx.SetCallArgs(pe.Args)
+	fnCtx.SetFlatCallArgs(flatArgs)
 	return method.Call(fnCtx)
 }
 
@@ -592,6 +595,7 @@ func (pe *CallMethod) invokeMagicInvoke(ctx data.Context, object data.Context, i
 	}
 
 	fnCtx.SetCallArgs(pe.Args)
+	fnCtx.SetFlatCallArgs(flatArgs)
 	return invoke.Call(fnCtx)
 }
 
