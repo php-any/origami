@@ -108,6 +108,57 @@ func setDateTime(ctx data.Context, t time.Time) data.Control {
 	return data.NewErrorThrow(nil, errors.New("无法在非对象上下文中设置时间戳"))
 }
 
+// toClassValue 把 ClassValue 或其包装（ThisValue）解包为 *data.ClassValue。
+func toClassValue(v data.Value) (*data.ClassValue, bool) {
+	if cv, ok := v.(*data.ClassValue); ok {
+		return cv, true
+	}
+	if tv, ok := v.(*data.ThisValue); ok && tv.ClassValue != nil {
+		return tv.ClassValue, true
+	}
+	return nil, false
+}
+
+// dateIntervalIntProp 从 DateInterval 对象读取整型分量（y/m/d/h/i/s/invert 等）。
+func dateIntervalIntProp(interval *data.ClassValue, name string) int {
+	v, ctl := interval.GetProperty(name)
+	if ctl != nil || v == nil {
+		return 0
+	}
+	if iv, ok := v.(*data.IntValue); ok {
+		return iv.Value
+	}
+	if ai, ok := v.(data.AsInt); ok {
+		n, err := ai.AsInt()
+		if err != nil {
+			return 0
+		}
+		return n
+	}
+	return 0
+}
+
+// applyDateInterval 把 DateInterval 分量应用到时间 t 上。negate=true 表示减法。
+func applyDateInterval(t time.Time, interval *data.ClassValue, negate bool) time.Time {
+	y := dateIntervalIntProp(interval, "y")
+	m := dateIntervalIntProp(interval, "m")
+	d := dateIntervalIntProp(interval, "d")
+	h := dateIntervalIntProp(interval, "h")
+	i := dateIntervalIntProp(interval, "i")
+	s := dateIntervalIntProp(interval, "s")
+	invert := dateIntervalIntProp(interval, "invert")
+	sign := 1
+	if invert != 0 {
+		sign = -1
+	}
+	if negate {
+		sign = -sign
+	}
+	t = t.AddDate(sign*y, sign*m, sign*d)
+	t = t.Add(time.Duration(sign)*(time.Duration(h)*time.Hour + time.Duration(i)*time.Minute + time.Duration(s)*time.Second))
+	return t
+}
+
 // ---- __construct ----
 type DateTimeConstructMethod struct{}
 
@@ -414,8 +465,13 @@ func (m *DateTimeSetTimezoneMethod) GetVariables() []data.Variable {
 type DateTimeAddMethod struct{}
 
 func (m *DateTimeAddMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 简化：不做实际加法
 	cmc := ctx.(*data.ClassMethodContext)
+	if interval, ok := ctx.GetIndexValue(0); ok {
+		if iv, isCV := toClassValue(interval); isCV {
+			t, _ := getDateTime(ctx)
+			setDateTime(ctx, applyDateInterval(t, iv, false))
+		}
+	}
 	return cmc.ClassValue, nil
 }
 func (m *DateTimeAddMethod) GetName() string            { return "add" }
@@ -433,6 +489,12 @@ type DateTimeSubMethod struct{}
 
 func (m *DateTimeSubMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cmc := ctx.(*data.ClassMethodContext)
+	if interval, ok := ctx.GetIndexValue(0); ok {
+		if iv, isCV := toClassValue(interval); isCV {
+			t, _ := getDateTime(ctx)
+			setDateTime(ctx, applyDateInterval(t, iv, true))
+		}
+	}
 	return cmc.ClassValue, nil
 }
 func (m *DateTimeSubMethod) GetName() string            { return "sub" }

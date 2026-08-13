@@ -135,6 +135,21 @@ func TestConvertAltPHPSyntax(t *testing.T) {
 			input:    "<?php $x = $a ? $b : $c; echo $x; ?>",
 			expected: "<?php $x = $a ? $b : $c; echo $x; ?>",
 		},
+		{
+			name:     "ternary in if condition not misdetected",
+			input:    "<?php if ($a ? $b : $c) { echo 'x'; } ?>",
+			expected: "<?php if ($a ? $b : $c) { echo 'x'; } ?>",
+		},
+		{
+			name:     "forEach method name not misdetected",
+			input:    "<?php public function forEach(callable $cb): void { foreach ($cb as $x) {} } ?>",
+			expected: "<?php public function forEach(callable $cb): void { foreach ($cb as $x) {} } ?>",
+		},
+		{
+			name:     "empty string not corrupt restore",
+			input:    "<?php $a = ''; if ($x): echo 'y'; endif; ?>",
+			expected: "<?php $a = ''; if ($x) { echo 'y'; } ?>",
+		},
 	}
 
 	for _, tt := range tests {
