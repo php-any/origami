@@ -55,42 +55,71 @@ func (m *ReflectionClassGetAttributesMethod) Call(ctx data.Context) (data.GetVal
 	nameValue, _ := ctx.GetIndexValue(0)  // name 参数，可选，默认为 null
 	flagsValue, _ := ctx.GetIndexValue(1) // flags 参数，可选，默认为 0
 
+	flags := 0
+	if flagsValue != nil {
+		if asInt, ok := flagsValue.(data.AsInt); ok {
+			if v, err := asInt.AsInt(); err == nil {
+				flags = v
+			}
+		}
+	}
+	instanceof := flags&2 != 0 // ReflectionAttribute::IS_INSTANCEOF
+
 	// 获取类的注解/属性
-	// 检查是否是 ClassStatement 类型，并获取其注解
 	attributes := []data.Value{}
 
-	// 尝试将 classStmt 转换为 ClassStatement 以访问注解
 	if classStatement, ok := classStmt.(*node.ClassStatement); ok {
-		// 检查注解列表是否存在
 		if classStatement.Annotations != nil && len(classStatement.Annotations) > 0 {
-			// 如果指定了 name 参数，过滤特定名称的注解
 			var filterName string
 			if nameValue != nil {
-				if strVal, ok := nameValue.(*data.StringValue); ok {
-					filterName = strVal.AsString()
-				} else if nameValue.AsString() != "" {
-					filterName = nameValue.AsString()
+				if _, isNull := nameValue.(*data.NullValue); !isNull {
+					if strVal, ok := nameValue.(*data.StringValue); ok {
+						filterName = strVal.AsString()
+					} else if nameValue.AsString() != "" {
+						filterName = nameValue.AsString()
+					}
 				}
 			}
 
-			// 将注解转换为 ReflectionAttribute 对象
 			for _, annotation := range classStatement.Annotations {
-				// 如果指定了 name，只返回匹配的注解
 				if filterName != "" {
-					if annotation.Class.GetName() != filterName {
+					annName := annotation.Class.GetName()
+					if instanceof {
+						if !attributeMatchesName(ctx, annotation.Class, filterName) {
+							continue
+						}
+					} else if annName != filterName {
 						continue
 					}
 				}
-				// 创建 ReflectionAttribute 实例
 				attrValue := newReflectionAttribute(ctx, annotation)
 				attributes = append(attributes, attrValue)
 			}
 		}
 	}
 
-	// TODO: 实现 flags 参数的过滤逻辑
-	// flags 可以用于过滤继承的注解等
-	_ = flagsValue
-
 	return data.NewArrayValue(attributes), nil
+}
+
+// attributeMatchesName 判断注解类名是否等于 name，或（IS_INSTANCEOF）为 name 的子类。
+func attributeMatchesName(ctx data.Context, annClass data.ClassStmt, name string) bool {
+	if annClass == nil {
+		return false
+	}
+	current := annClass
+	for current != nil {
+		if current.GetName() == name {
+			return true
+		}
+		extend := current.GetExtend()
+		if extend == nil || *extend == "" {
+			break
+		}
+		parent, acl := ctx.GetVM().GetOrLoadClass(*extend)
+		if acl != nil || parent == nil {
+			break
+		}
+		current = parent
+	}
+	return false
 }

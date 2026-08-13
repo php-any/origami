@@ -41,14 +41,29 @@ func (m *ReflectionMethodGetAttributesMethod) Call(ctx data.Context) (data.GetVa
 			filterName = name.AsString()
 		}
 	}
+	flags := 0
+	if flagsValue, hasFlags := ctx.GetIndexValue(1); hasFlags && flagsValue != nil {
+		if asInt, ok := flagsValue.(data.AsInt); ok {
+			if v, err := asInt.AsInt(); err == nil {
+				flags = v
+			}
+		}
+	}
+	instanceof := flags&2 != 0
 
 	attributes := make([]data.Value, 0, len(method.Annotations))
 	for _, annotation := range method.Annotations {
 		if annotation == nil {
 			continue
 		}
-		if filterName != "" && annotation.GetName() != filterName {
-			continue
+		if filterName != "" {
+			if instanceof {
+				if !attributeMatchesName(ctx, annotation.Class, filterName) {
+					continue
+				}
+			} else if annotation.GetName() != filterName {
+				continue
+			}
 		}
 		attributes = append(attributes, newReflectionAttribute(ctx, annotation))
 	}

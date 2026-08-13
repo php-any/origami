@@ -26,14 +26,24 @@ func (c *ReflectionAttributeClass) GetExtend() *string { return nil }
 // GetImplements 返回实现的接口列表，ReflectionAttribute 不实现任何接口
 func (c *ReflectionAttributeClass) GetImplements() []string { return nil }
 
-// GetProperty 获取属性，ReflectionAttribute 没有属性
+// GetProperty 获取属性，ReflectionAttribute 没有实例属性
 func (c *ReflectionAttributeClass) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }
 
-// GetPropertyList 获取属性列表，ReflectionAttribute 没有属性
+// GetPropertyList 获取属性列表，ReflectionAttribute 没有实例属性
 func (c *ReflectionAttributeClass) GetPropertyList() []data.Property {
 	return nil
+}
+
+// GetStaticProperty 暴露 ReflectionAttribute 类常量（PHP 8+）
+func (c *ReflectionAttributeClass) GetStaticProperty(name string) (data.Value, bool) {
+	switch name {
+	case "IS_INSTANCEOF":
+		// ReflectionAttribute::IS_INSTANCEOF = 2
+		return data.NewIntValue(2), true
+	}
+	return nil, false
 }
 
 // GetMethod 根据方法名获取方法

@@ -31,8 +31,88 @@ func (n *Kv) GetType() data.Types {
 }
 
 func (n *Kv) SetValue(ctx data.Context, value data.Value) data.Control {
-	//TODO implement me
-	panic("implement me")
+	// PHP 7.1+ 键名解构：['action' => $action, 'uri' => $uri] = $route
+	for _, pair := range n.V {
+		if pair.Key == nil || pair.Value == nil {
+			continue
+		}
+		kv, acl := pair.Key.GetValue(ctx)
+		if acl != nil {
+			return acl
+		}
+		if kv == nil {
+			return data.NewErrorThrow(n.from, errors.New("数组解构键求值结果为 null"))
+		}
+		keyVal, ok := kv.(data.Value)
+		if !ok {
+			return data.NewErrorThrow(n.from, errors.New("数组解构键类型无效"))
+		}
+		elem, acl := kvLookup(ctx, value, keyVal.AsString())
+		if acl != nil {
+			return acl
+		}
+		if elem == nil {
+			elem = data.NewNullValue()
+		}
+
+		switch target := pair.Value.(type) {
+		case data.Variable:
+			if ctl := target.SetValue(ctx, elem); ctl != nil {
+				return ctl
+			}
+		case interface {
+			SetValue(data.Context, data.Value) data.Control
+		}:
+			if ctl := target.SetValue(ctx, elem); ctl != nil {
+				return ctl
+			}
+		default:
+			return data.NewErrorThrow(n.from, errors.New("数组解构左侧目标不可赋值"))
+		}
+	}
+	return nil
+}
+
+func kvLookup(ctx data.Context, value data.Value, key string) (data.Value, data.Control) {
+	switch v := value.(type) {
+	case *data.ObjectValue:
+		if v.HasProperty(key) {
+			elem, ctl := v.GetProperty(key)
+			return elem, ctl
+		}
+	case *data.ArrayValue:
+		for i, z := range v.List {
+			if z == nil {
+				continue
+			}
+			name := z.Name
+			if name == "" {
+				name = strconv.Itoa(i)
+			}
+			if name == key {
+				return z.Value, nil
+			}
+		}
+	case *data.ClassValue:
+		if method, exists := v.GetMethod("offsetGet"); exists {
+			fnCtx := v.CreateContext(method.GetVariables())
+			if vars := method.GetVariables(); len(vars) > 0 {
+				_ = fnCtx.SetVariableValue(vars[0], data.NewStringValue(key))
+			}
+			ret, ctl := method.Call(fnCtx)
+			if ctl != nil {
+				return nil, ctl
+			}
+			if rv, ok := ret.(data.Value); ok {
+				return rv, nil
+			}
+			return data.NewNullValue(), nil
+		}
+		if v.ObjectValue != nil && v.ObjectValue.HasProperty(key) {
+			return v.ObjectValue.GetProperty(key)
+		}
+	}
+	return data.NewNullValue(), nil
 }
 
 func NewKv(token *TokenFrom, v []KvPair) data.GetValue {

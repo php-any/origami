@@ -1,7 +1,6 @@
 package reflection
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/php-any/origami/data"
@@ -9,7 +8,7 @@ import (
 )
 
 // ReflectionClassGetMethodMethod 实现 ReflectionClass::getMethod
-// 根据方法名获取被反射类的指定方法
+// 根据方法名获取被反射类的指定方法（含父类公开/受保护方法，对齐 PHP）。
 type ReflectionClassGetMethodMethod struct{}
 
 // GetName 返回方法名 "getMethod"
@@ -37,40 +36,62 @@ func (m *ReflectionClassGetMethodMethod) GetVariables() []data.Variable {
 	}
 }
 
-// GetReturnType 返回返回类型，返回混合类型（当前实现返回字符串）
+// GetReturnType 返回返回类型
 func (m *ReflectionClassGetMethodMethod) GetReturnType() data.Types {
-	return data.Mixed{}
+	return data.NewBaseType("ReflectionMethod")
 }
 
-// Call 执行 getMethod 方法
-// 根据方法名查找并返回对应的方法
-// 如果方法不存在，抛出异常
+// Call 执行 getMethod 方法。
+// 方法不存在时抛出 ReflectionException（供 catch (ReflectionException) 捕获）。
 func (m *ReflectionClassGetMethodMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 获取方法名参数
 	methodNameValue, _ := ctx.GetIndexValue(0)
 	if methodNameValue == nil {
-		return nil, data.NewErrorThrow(nil, errors.New("ReflectionClass::getMethod() expects parameter 1 to be string"))
+		return nil, createReflectionException("ReflectionClass::getMethod(): Argument #1 ($name) must be of type string, null given", ctx, nil)
 	}
 
 	methodName := methodNameValue.AsString()
 	className, classStmt := getReflectionClassInfo(ctx)
 	if classStmt == nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("Method %s does not exist", methodName))
+		return nil, createReflectionException(fmt.Sprintf("Method %s does not exist", methodName), ctx, nil)
 	}
 
-	// 查找方法
-	_, exists := classStmt.GetMethod(methodName)
-	if !exists {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("Method %s does not exist", methodName))
+	declaredClass := className
+	current := classStmt
+	for current != nil {
+		if _, exists := current.GetMethod(methodName); exists {
+			declaredClass = current.GetName()
+			methodClass := &ReflectionMethodClass{}
+			methodValue := data.NewClassValue(methodClass, ctx.CreateBaseContext())
+			methodValue.ObjectValue.SetProperty("_className", data.NewStringValue(declaredClass))
+			methodValue.ObjectValue.SetProperty("_methodName", data.NewStringValue(methodName))
+			// 保留原始被反射类名，便于声明类与反射目标区分（PHP getDeclaringClass 语义）
+			methodValue.ObjectValue.SetProperty("_reflectedClassName", data.NewStringValue(className))
+			return methodValue, nil
+		}
+		if staticMethods, ok := current.(data.GetStaticMethod); ok {
+			if _, exists := staticMethods.GetStaticMethod(methodName); exists {
+				declaredClass = current.GetName()
+				methodClass := &ReflectionMethodClass{}
+				methodValue := data.NewClassValue(methodClass, ctx.CreateBaseContext())
+				methodValue.ObjectValue.SetProperty("_className", data.NewStringValue(declaredClass))
+				methodValue.ObjectValue.SetProperty("_methodName", data.NewStringValue(methodName))
+				methodValue.ObjectValue.SetProperty("_reflectedClassName", data.NewStringValue(className))
+				return methodValue, nil
+			}
+		}
+		extend := current.GetExtend()
+		if extend == nil || *extend == "" {
+			break
+		}
+		parent, acl := ctx.GetVM().GetOrLoadClass(*extend)
+		if acl != nil {
+			return nil, acl
+		}
+		if parent == nil {
+			break
+		}
+		current = parent
 	}
 
-	// 创建 ReflectionMethod 实例
-	methodClass := &ReflectionMethodClass{}
-	methodValue := data.NewClassValue(methodClass, ctx.CreateBaseContext())
-
-	// 存储方法信息到实例属性中
-	methodValue.ObjectValue.SetProperty("_className", data.NewStringValue(className))
-	methodValue.ObjectValue.SetProperty("_methodName", data.NewStringValue(methodName))
-
-	return methodValue, nil
+	return nil, createReflectionException(fmt.Sprintf("Method %s does not exist", methodName), ctx, nil)
 }

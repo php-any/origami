@@ -48,6 +48,10 @@ func (c *ReflectionFunctionClass) GetMethod(name string) (data.Method, bool) {
 		return &ReflectionFunctionGetClosureScopeClassMethod{}, true
 	case "getStaticVariables":
 		return &ReflectionFunctionGetStaticVariablesMethod{}, true
+	case "getFileName", "getFilename":
+		return &ReflectionFunctionGetFileNameMethod{}, true
+	case "getStartLine":
+		return &ReflectionFunctionGetStartLineMethod{}, true
 	}
 	return nil, false
 }
@@ -61,6 +65,8 @@ func (c *ReflectionFunctionClass) GetMethods() []data.Method {
 		&ReflectionFunctionIsAnonymousMethod{},
 		&ReflectionFunctionGetClosureScopeClassMethod{},
 		&ReflectionFunctionGetStaticVariablesMethod{},
+		&ReflectionFunctionGetFileNameMethod{},
+		&ReflectionFunctionGetStartLineMethod{},
 	}
 }
 
@@ -313,4 +319,54 @@ func (m *ReflectionFunctionGetStaticVariablesMethod) Call(ctx data.Context) (dat
 		list = append(list, data.NewNamedZVal(name, value))
 	}
 	return &data.ArrayValue{List: list}, nil
+}
+
+// ---- getFileName / getStartLine ----
+
+type ReflectionFunctionGetFileNameMethod struct{}
+
+func (m *ReflectionFunctionGetFileNameMethod) GetName() string            { return "getFileName" }
+func (m *ReflectionFunctionGetFileNameMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *ReflectionFunctionGetFileNameMethod) GetIsStatic() bool          { return false }
+func (m *ReflectionFunctionGetFileNameMethod) GetReturnType() data.Types  { return data.Mixed{} }
+func (m *ReflectionFunctionGetFileNameMethod) GetParams() []data.GetValue { return nil }
+func (m *ReflectionFunctionGetFileNameMethod) GetVariables() []data.Variable {
+	return nil
+}
+
+func (m *ReflectionFunctionGetFileNameMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	objCtx, ok := ctx.(*data.ClassMethodContext)
+	if !ok || objCtx.ObjectValue == nil {
+		return data.NewBoolValue(false), nil
+	}
+	function, ok := objCtx.ObjectValue.GetProperties()["_function"].(*data.FuncValue)
+	if !ok || function == nil || function.Value == nil {
+		return data.NewBoolValue(false), nil
+	}
+	return sourceFileFrom(function.Value), nil
+}
+
+type ReflectionFunctionGetStartLineMethod struct{}
+
+func (m *ReflectionFunctionGetStartLineMethod) GetName() string { return "getStartLine" }
+func (m *ReflectionFunctionGetStartLineMethod) GetModifier() data.Modifier {
+	return data.ModifierPublic
+}
+func (m *ReflectionFunctionGetStartLineMethod) GetIsStatic() bool          { return false }
+func (m *ReflectionFunctionGetStartLineMethod) GetReturnType() data.Types  { return data.Mixed{} }
+func (m *ReflectionFunctionGetStartLineMethod) GetParams() []data.GetValue { return nil }
+func (m *ReflectionFunctionGetStartLineMethod) GetVariables() []data.Variable {
+	return nil
+}
+
+func (m *ReflectionFunctionGetStartLineMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	objCtx, ok := ctx.(*data.ClassMethodContext)
+	if !ok || objCtx.ObjectValue == nil {
+		return data.NewBoolValue(false), nil
+	}
+	function, ok := objCtx.ObjectValue.GetProperties()["_function"].(*data.FuncValue)
+	if !ok || function == nil || function.Value == nil {
+		return data.NewBoolValue(false), nil
+	}
+	return sourceStartLineFrom(function.Value), nil
 }
