@@ -33,6 +33,18 @@ func (b *BinarySpaceship) GetValue(ctx data.Context) (data.GetValue, data.Contro
 		return nil, c
 	}
 
+	// DateTime/Carbon 对象按时间戳比较
+	if lts, ok := getDateTimeTimestamp(ctx, leftVal); ok {
+		if rts, ok2 := getDateTimeTimestamp(ctx, rightVal); ok2 {
+			if lts < rts {
+				return data.NewIntValue(-1), nil
+			} else if lts > rts {
+				return data.NewIntValue(1), nil
+			}
+			return data.NewIntValue(0), nil
+		}
+	}
+
 	// 调试：直接检查值的类型
 	if leftInt, ok := leftVal.(*data.IntValue); ok {
 		if rightInt, ok := rightVal.(*data.IntValue); ok {

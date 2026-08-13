@@ -34,6 +34,13 @@ func (b *BinaryNe) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewBoolValue(false), nil
 	}
 
+	// DateTime/Carbon 对象按时间戳比较
+	if lts, ok := getDateTimeTimestamp(ctx, lv); ok {
+		if rts, ok2 := getDateTimeTimestamp(ctx, rv); ok2 {
+			return data.NewBoolValue(lts != rts), nil
+		}
+	}
+
 	// 类型转换比较
 	switch l := lv.(type) {
 	case *data.IntValue:

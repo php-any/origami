@@ -626,7 +626,24 @@ func (o *objectMethodCallable) GetVariables() []data.Variable {
 
 func (o *objectMethodCallable) Call(callCtx data.Context) (data.GetValue, data.Control) {
 	proxy := &CallObjectMethod{Object: o.obj, Method: o.method}
-	// call_user_func / CallAutoLoad 把实参放在 callCtx 索引上，需转成 Args
+	// 实参可能以两种方式到达：
+	// 1. 直接闭包调用 $fn(...$args) 时，objectMethodCallable 声明的是可变参数
+	//    args（index 0），invokeFuncStmt 会把全部实参收进 index 0 的一个 ArrayValue。
+	// 2. call_user_func / CallAutoLoad 把实参展开放在 callCtx 连续索引上。
+	// 这里统一展开：若 index 0 是数组且 index 1 为空，则视为可变参数容器并解包；
+	// 否则按连续索引逐个读取。
+	if v0, ok := callCtx.GetIndexValue(0); ok && v0 != nil {
+		if arr, isArr := v0.(*data.ArrayValue); isArr {
+			if _, hasMore := callCtx.GetIndexValue(1); !hasMore {
+				for _, zv := range arr.List {
+					if zv != nil && zv.Value != nil {
+						proxy.Args = append(proxy.Args, zv.Value)
+					}
+				}
+				return o.invokeMethod(callCtx, proxy)
+			}
+		}
+	}
 	for i := 0; ; i++ {
 		v, ok := callCtx.GetIndexValue(i)
 		if !ok || v == nil {
@@ -634,6 +651,11 @@ func (o *objectMethodCallable) Call(callCtx data.Context) (data.GetValue, data.C
 		}
 		proxy.Args = append(proxy.Args, v)
 	}
+	return o.invokeMethod(callCtx, proxy)
+}
+
+// invokeMethod 用已收集好的实参调用目标方法（或 __call）。
+func (o *objectMethodCallable) invokeMethod(callCtx data.Context, proxy *CallObjectMethod) (data.GetValue, data.Control) {
 	if method, has := o.obj.GetMethod(o.method); has {
 		fnCtx, acl := proxy.callMethodParams(o.obj, callCtx, method)
 		if acl != nil {

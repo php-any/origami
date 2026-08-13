@@ -12,11 +12,12 @@ protected function compileAuth($guard = null) {
     return "<?php if(auth()->guard{$guard}->check()): ?>";
 }`
 	got := convertAltPHPSyntax("vendor/fake.php", in)
-	want := `): ?>`
-	if !strings.Contains(got, want) {
-		t.Fatalf("expected alt syntax ): ?> in return string, got:\n%s", got)
+	// 字符串字面量 "<?php if(auth()->guard{$guard}->check()): ?>" 中的冒号形式必须保留，
+	// 不能被 convertControlKeywords 误转换成花括号。
+	if strings.Contains(got, "guard{$guard}->check()): ?>") &&
+		!strings.Contains(got, "guard{$guard}->check()) { ?>") {
+		// 字符串内的 if(...): 保留，转换正确
+		return
 	}
-	if strings.Contains(got, ") {") && strings.Contains(got, "return \"<?php if") {
-		t.Fatalf("convertControlKeywords corrupted double-quoted return string:\n%s", got)
-	}
+	t.Fatalf("convertControlKeywords corrupted double-quoted return string:\n%s", got)
 }
