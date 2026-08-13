@@ -1,0 +1,50 @@
+package std
+
+import (
+	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/std/channel"
+	"github.com/php-any/origami/std/cli"
+	"github.com/php-any/origami/std/container"
+	"github.com/php-any/origami/std/database"
+	"github.com/php-any/origami/std/exception"
+	"github.com/php-any/origami/std/log"
+	"github.com/php-any/origami/std/loop"
+	"github.com/php-any/origami/std/protowire"
+	"github.com/php-any/origami/std/reflect"
+	"github.com/php-any/origami/std/signal"
+	"github.com/php-any/origami/std/system/os"
+	"github.com/php-any/origami/std/validation"
+)
+
+func Load(vm data.VM) {
+	for _, fun := range []data.FuncStmt{
+		NewDumpFunction(),
+		NewDebugFunction(),
+		NewIntFunction(),
+		NewStringFunction(),
+		NewBoolFunction(),
+		NewFloatFunction(),
+		NewObjectFunction(),
+		NewSpawnFunction(),
+	} {
+		vm.AddFunc(fun)
+	}
+
+	vm.AddClass(log.NewLogClass())
+	// 注册 Throwable / Stringable / JsonSerializable 接口与 Exception 类
+	vm.AddInterface(exception.NewThrowableInterface())
+	vm.AddInterface(exception.NewStringableInterface())
+	vm.AddInterface(exception.NewJsonSerializableInterface())
+	vm.AddClass(exception.NewExceptionClass())
+	vm.AddClass(exception.NewReflectionExceptionClass())
+	vm.AddClass(os.NewOSClass())
+	reflect.Load(vm)
+	channel.Load(vm)
+	signal.Load(vm)
+	loop.Load(vm)
+	database.Load(vm)
+	container.Load(vm)
+	protowire.Load(vm)
+	cli.Load(vm)
+	validation.Load(vm)
+}

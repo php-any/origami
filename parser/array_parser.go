@@ -1,0 +1,179 @@
+package parser
+
+import (
+	"errors"
+
+	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/token"
+)
+
+// ArrayParser 解析 array(...) 数组字面量
+type ArrayParser struct {
+	*Parser
+}
+
+func NewArrayParser(parser *Parser) StatementParser {
+	return &ArrayParser{parser}
+}
+
+func (ep *ArrayParser) Parse() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	// 跳过 array
+	ep.next()
+
+	if ep.checkPositionIs(0, token.VARIABLE) {
+		// array $data
+		name := ep.current().Literal()
+		ep.next()
+		val := ep.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+		return node.NewVariableWithFirst(tracker.EndBefore(), val), nil
+	}
+
+	// 期待 (
+	if acl := ep.nextAndCheck(token.LPAREN); acl != nil {
+		return nil, acl
+	}
+
+	// 空数组：array()
+	if ep.current().Type() == token.RPAREN {
+		ep.next()
+		from := tracker.EndBefore()
+		return node.NewArray(from, []data.GetValue{}), nil
+	}
+
+	// 解析第一个元素
+	expr, acl := ep.parseStatement()
+	if acl != nil {
+		return nil, acl
+	}
+
+	switch ep.current().Type() {
+	case token.RPAREN:
+		ep.next()
+		from := tracker.EndBefore()
+		return node.NewArray(from, []data.GetValue{expr}), nil
+	case token.COMMA:
+		list := []data.GetValue{expr}
+		var keys []node.KvPair
+		for ep.current().Type() == token.COMMA {
+			ep.next()
+			if ep.checkPositionIs(0, token.RPAREN) {
+				continue
+			}
+			elem, acl := ep.parseStatement()
+			if acl != nil {
+				return nil, acl
+			}
+			if ep.current().Type() == token.ARRAY_KEY_VALUE {
+				ep.next()
+				val, acl := ep.parseStatement()
+				if acl != nil {
+					return nil, acl
+				}
+				keys = append(keys, node.KvPair{Key: elem, Value: val})
+				for ep.current().Type() == token.COMMA {
+					ep.next()
+					if ep.checkPositionIs(0, token.RPAREN) {
+						break
+					}
+					key, acl := ep.parseStatement()
+					if acl != nil {
+						return nil, acl
+					}
+					if ep.current().Type() != token.ARRAY_KEY_VALUE {
+						return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("array() 语法错误"))
+					}
+					ep.next()
+					val, acl := ep.parseStatement()
+					if acl != nil {
+						return nil, acl
+					}
+					keys = append(keys, node.KvPair{Key: key, Value: val})
+				}
+				break
+			}
+			list = append(list, elem)
+		}
+		if ep.current().Type() == token.RPAREN {
+			ep.next()
+		}
+		from := tracker.EndBefore()
+		if len(keys) > 0 {
+			return node.NewArrayWithKeys(from, list, keys), nil
+		}
+		return node.NewArray(from, list), nil
+	case token.ARRAY_KEY_VALUE: // => 关联数组
+		v := []node.KvPair{}
+		ep.next() // =>
+		firstVal, acl := ep.parseStatement()
+		if acl != nil {
+			return nil, acl
+		}
+		v = append(v, node.KvPair{Key: expr, Value: firstVal})
+		ep.nextAndCheckStip(token.COMMA)
+
+		for ep.current().Type() != token.RPAREN {
+			if ep.current().Type() == token.ELLIPSIS {
+				ep.next()
+				spreadExpr, acl := ep.parseStatement()
+				if acl != nil {
+					return nil, acl
+				}
+				if spreadExpr == nil {
+					return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("展开运算符后需要一个表达式"))
+				}
+				v = append(v, node.KvPair{Key: nil, Value: node.NewArraySpread(spreadExpr)})
+				ep.nextAndCheckStip(token.COMMA)
+				continue
+			}
+			key, acl := ep.parseStatement()
+			if acl != nil {
+				return nil, acl
+			}
+			if ep.current().Type() != token.ARRAY_KEY_VALUE {
+				return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("array() 关联元素缺少 =>"))
+			}
+			ep.next()
+			val, acl := ep.parseStatement()
+			if acl != nil {
+				return nil, acl
+			}
+			v = append(v, node.KvPair{Key: key, Value: val})
+			ep.nextAndCheckStip(token.COMMA)
+		}
+		ep.next()
+		from := tracker.EndBefore()
+		return node.NewKv(from, v), nil
+	case token.COLON: // JSON 风格键值
+		oldIdentTryString := ep.identTryString
+		ep.identTryString = true
+
+		v := []node.KvPair{}
+		ep.next() // :
+		firstVal, acl := ep.parseStatement()
+		if acl != nil {
+			return nil, acl
+		}
+		v = append(v, node.KvPair{Key: expr, Value: firstVal})
+		for ep.current().Type() != token.RPAREN {
+			key, acl := ep.parseStatement()
+			if acl != nil {
+				return nil, acl
+			}
+			ep.next()
+			val, acl := ep.parseStatement()
+			if acl != nil {
+				return nil, acl
+			}
+			v = append(v, node.KvPair{Key: key, Value: val})
+		}
+
+		ep.identTryString = oldIdentTryString
+		ep.next()
+		from := tracker.EndBefore()
+		return node.NewKv(from, v), nil
+	default:
+		return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("array() 语法错误"))
+	}
+}

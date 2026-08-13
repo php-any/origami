@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebSocket 聊天室</title>
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <style>
+    .chat-layout { display: grid; gap: 16px; }
+    .chat-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+    .chat-toolbar input {
+      flex: 1;
+      min-width: 180px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.25);
+      color: var(--text);
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #64748b;
+      display: inline-block;
+    }
+    .status-dot.online { background: #22c55e; box-shadow: 0 0 12px rgba(34,197,94,.6); }
+    .status-dot.offline { background: #ef4444; }
+    .chat-log {
+      min-height: 320px;
+      max-height: 480px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .chat-item {
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(255,255,255,.06);
+    }
+    .chat-item.system { color: #93c5fd; font-size: 14px; }
+    .chat-item .meta { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+    .chat-compose {
+      display: flex;
+      gap: 12px;
+    }
+    .chat-compose input {
+      flex: 1;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.25);
+      color: var(--text);
+    }
+    .chat-compose input:disabled { opacity: .5; }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/index">首页</a>
+    <a href="/about">关于</a>
+    <a href="/products">产品</a>
+    <a href="/contact">联系</a>
+    <a href="/chat">聊天室</a>
+  </nav>
+  <div class="container chat-layout">
+    <h1>WebSocket 聊天室</h1>
+    <p>演示 <code>Net\Websocket\upgrade</code> 与 Spring 注解路由集成。端点：<code>/ws/chat</code></p>
+
+    <div class="card chat-toolbar">
+      <span class="status-dot offline" id="ws-status-dot"></span>
+      <span id="ws-status-text">未连接</span>
+      <input type="text" id="nickname" placeholder="昵称" value="访客">
+      <button class="btn" type="button" id="ws-connect">连接</button>
+      <button class="btn" type="button" id="ws-disconnect" disabled>断开</button>
+      <span id="online-count">在线 0 人</span>
+    </div>
+
+    <div class="card chat-log" id="chat-log"></div>
+
+    <div class="card chat-compose">
+      <input type="text" id="chat-input" placeholder="输入消息，回车发送" disabled>
+      <button class="btn" type="button" id="chat-send" disabled>发送</button>
+    </div>
+  </div>
+  <script src="/assets/js/app.js"></script>
+  <script src="/assets/js/chat.js"></script>
+</body>
+</html>

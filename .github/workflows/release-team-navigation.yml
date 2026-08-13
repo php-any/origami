@@ -1,0 +1,244 @@
+name: Release Team Navigation Example
+
+on:
+  push:
+    tags:
+      - "team-navigation-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64]
+        exclude:
+          # Windows ARM64 support is limited
+          - goos: windows
+            goarch: arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.23.6"
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Build team-navigation binary
+        working-directory: examples/team-navigation
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          # 确保使用本地 origami 模块
+          go mod edit -replace github.com/php-any/origami=../../
+          go mod download
+          go mod tidy
+          if [ "$GOOS" = "windows" ]; then
+            go build -o team-navigation.exe ./main.go
+          else
+            go build -o team-navigation ./main.go
+          fi
+
+      - name: Create package directory
+        working-directory: examples/team-navigation
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          mkdir -p team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}
+          
+          # 复制二进制文件
+          if [ "$GOOS" = "windows" ]; then
+            cp team-navigation.exe team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/
+          else
+            cp team-navigation team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/
+          fi
+          
+          # 复制所有脚本文件
+          mkdir -p team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/src
+          cp -r src/* team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/src/
+          
+          # 复制数据库初始化脚本
+          mkdir -p team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/database
+          cp -r database/*.zy team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/database/ 2>/dev/null || true
+          
+          # 复制 HTTP 配置脚本
+          cp http.zy team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/ 2>/dev/null || true
+          
+          # 复制页面文件
+          mkdir -p team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/pages
+          cp -r pages/* team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/pages/ 2>/dev/null || true
+          
+          # 复制 go.mod 和 go.sum（可选，用于参考）
+          cp go.mod team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/ 2>/dev/null || true
+          cp go.sum team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/ 2>/dev/null || true
+          
+          # 创建运行脚本
+          if [ "$GOOS" = "windows" ]; then
+            echo '@echo off' > team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/run.bat
+            echo 'team-navigation.exe' >> team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/run.bat
+          else
+            echo '#!/bin/bash' > team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/run.sh
+            echo './team-navigation' >> team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/run.sh
+            chmod +x team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/run.sh
+          fi
+          
+          # 创建 README 文件
+          cat > team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/README.md << 'EOF'
+          # Team Navigation Example - ${{ matrix.goos }}-${{ matrix.goarch }}
+
+          ## 文件说明
+          - `team-navigation` / `team-navigation.exe`: 主程序二进制文件
+          - `run.sh` / `run.bat`: 运行脚本
+          - `http.zy`: HTTP 服务器配置脚本
+          - `src/`: 源代码目录（包含控制器、模型、视图）
+          - `database/`: 数据库初始化脚本
+          - `pages/`: 静态页面资源（HTML、CSS、JS）
+
+          ## 使用方法
+
+          EOF
+          
+          if [ "$GOOS" = "windows" ]; then
+            cat >> team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/README.md << 'EOF'
+          ```cmd
+          run.bat
+          ```
+          
+          服务器将在 http://127.0.0.1:8080 启动
+          EOF
+          else
+            cat >> team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/README.md << 'EOF'
+          ```bash
+          ./run.sh
+          ```
+          
+          服务器将在 http://127.0.0.1:8080 启动
+          EOF
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: examples/team-navigation/team-navigation-${{ matrix.goos }}-${{ matrix.goarch }}/
+          if-no-files-found: warn
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/team-navigation-v')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Team Navigation Example ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          body: |
+            ## Team Navigation Example ${{ github.ref_name }}
+
+            ### 下载说明
+            每个平台都包含完整的二进制文件和所有脚本文件，解压后即可使用：
+
+            #### 平台包
+            - `team-navigation-linux-amd64.tar.gz`: Linux x64 版本
+            - `team-navigation-linux-arm64.tar.gz`: Linux ARM64 版本
+            - `team-navigation-darwin-amd64.tar.gz`: macOS Intel 版本
+            - `team-navigation-darwin-arm64.tar.gz`: macOS Apple Silicon 版本
+            - `team-navigation-windows-amd64.zip`: Windows x64 版本
+
+            ### 使用方法
+            ```bash
+            # Linux/macOS
+            tar -xzf team-navigation-linux-amd64.tar.gz
+            cd team-navigation-linux-amd64
+            ./run.sh
+
+            # Windows
+            # 解压 team-navigation-windows-amd64.zip
+            # 双击 run.bat 或在命令行运行: run.bat
+            ```
+
+            服务器将在 `http://127.0.0.1:8080` 启动
+
+            ### 包内容
+            每个平台包都包含：
+            - `team-navigation` / `team-navigation.exe`: 主程序二进制文件
+            - `run.sh` / `run.bat`: 运行脚本
+            - `http.zy`: HTTP 服务器配置脚本
+            - `src/`: 源代码目录（控制器、模型、视图）
+            - `database/`: 数据库初始化脚本
+            - `pages/`: 静态页面资源（HTML、CSS、JS）
+            - `README.md`: 使用说明
+
+            ### 项目说明
+            这是一个基于 Origami-lang 的团队内部导航页系统，用于快速访问常用工具链接和项目不同环境的地址。
+
+            - 🛠️ **常用工具导航**：快速访问 GitLab、Jira、Jenkins、Grafana 等常用工具
+            - 🌍 **项目环境管理**：集中管理项目在不同环境的访问地址
+            - 🔍 **快速搜索**：支持搜索工具和项目环境
+            - 📱 **响应式设计**：适配不同屏幕尺寸
+
+      - name: Upload Release Assets
+        run: |
+          # 列出当前目录的所有文件
+          echo "当前目录文件列表："
+          ls -la
+          
+          # 查找所有平台目录
+          echo "查找平台目录："
+          find . -type d -name "team-navigation-*"
+          
+          # 为每个平台创建压缩包并上传
+          for dir in team-navigation-*; do
+            if [ -d "$dir" ]; then
+              echo "处理目录: $dir"
+              
+              # 根据目录名判断平台类型
+              if [[ "$dir" == *"windows"* ]]; then
+                # Windows 使用 zip
+                echo "创建 Windows 压缩包: $dir.zip"
+                cd "$dir"
+                zip -r "../$dir.zip" .
+                cd ..
+                
+                if [ -f "$dir.zip" ]; then
+                  echo "上传: $dir.zip"
+                  gh release upload ${{ github.ref_name }} "$dir.zip" --clobber
+                fi
+              else
+                # Linux/macOS 使用 tar.gz
+                echo "创建 Unix 压缩包: $dir.tar.gz"
+                tar -czf "$dir.tar.gz" "$dir/"
+                
+                if [ -f "$dir.tar.gz" ]; then
+                  echo "上传: $dir.tar.gz"
+                  gh release upload ${{ github.ref_name }} "$dir.tar.gz" --clobber
+                fi
+              fi
+            fi
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

@@ -1,0 +1,332 @@
+package data
+
+import (
+	"context"
+	"fmt"
+)
+
+func NewClassValue(class ClassStmt, ctx Context) *ClassValue {
+	// 开始初始化属性
+	return &ClassValue{
+		ObjectValue: NewObjectValue(),
+		Class:       class,
+		Context:     ctx,
+	}
+}
+
+type AsClass interface {
+	AsObject
+}
+
+type ClassValue struct {
+	Context
+	*ObjectValue
+	Class ClassStmt
+}
+
+func (c *ClassValue) GetName() string {
+	return c.Class.GetName()
+}
+
+func (c *ClassValue) GetValue(ctx Context) (GetValue, Control) {
+	return c, nil
+}
+
+func (c *ClassValue) AsString() string {
+	result := ""
+	c.property.Range(func(key string, value Value) bool {
+		if v, ok := value.(GetName); ok {
+			result += fmt.Sprintf("\t%s: %s\n", key, v.GetName())
+		} else {
+			result += fmt.Sprintf("\t%s: %s\n", key, value.AsString())
+		}
+		return true
+	})
+
+	if len(result) > 2 {
+		result = result[:len(result)-1] // 移除最后一个换行符
+	}
+
+	// 构建输出字符串
+	return fmt.Sprintf("%s {\n"+
+		"%s\n"+
+		"}",
+		c.Class.GetName(), result,
+	)
+}
+
+func (c *ClassValue) GetPropertyStmt(name string) (Property, bool) {
+	if v, ok := c.Class.GetProperty(name); ok {
+		return v, true
+	}
+
+	vm := c.GetVM()
+	// 执行父级
+	last := c.Class
+	for last.GetExtend() != nil {
+		ext := last.GetExtend()
+		next, acl := vm.GetOrLoadClass(*ext)
+		if acl != nil || next == nil {
+			return nil, false
+		}
+
+		property, ok := next.GetProperty(name)
+		if ok {
+			return property, true
+		}
+		last = next
+	}
+
+	return nil, false
+}
+
+func (c *ClassValue) GetProperty(name string) (Value, Control) {
+	// 实例属性优先从 ObjectValue 读取（含声明属性被写入后的值）
+	if c.ObjectValue != nil && c.ObjectValue.HasProperty(name) {
+		return c.ObjectValue.GetProperty(name)
+	}
+
+	stmt, ok := c.GetPropertyStmt(name)
+	if ok {
+		// 必须用 ClassValue 自身作 Context，ClassProperty 通过 GetName 从 ObjectValue 取/初始化
+		gv, acl := stmt.GetValue(c)
+		if acl != nil {
+			return nil, acl
+		}
+		if gv != nil {
+			if val, ok := gv.(Value); ok {
+				return val, nil
+			}
+		}
+	}
+
+	return NewNullValue(), nil
+}
+
+func (c *ClassValue) GetPropertyZVal(name string) (*ZVal, Control) {
+	v, ok := c.property.GetZVal(name)
+	if !ok {
+		c.SetProperty(name, NewNullValue())
+		v, _ = c.property.GetZVal(name)
+	}
+	return v, nil
+}
+
+func (c *ClassValue) GetMethod(name string) (Method, bool) {
+	if fn, ok := c.Class.GetMethod(name); ok && fn != nil {
+		return fn, true
+	}
+
+	vm := c.GetVM()
+	// 执行父级
+	last := c.Class
+	for last.GetExtend() != nil {
+		ext := last.GetExtend()
+		next, acl := vm.GetOrLoadClass(*ext)
+		if acl != nil || next == nil {
+			return nil, false
+		}
+
+		fn, ok := next.GetMethod(name)
+		if ok && fn != nil {
+			return fn, true
+		}
+		last = next
+	}
+
+	// PHP 允许在实例上调用静态方法：$obj->staticMethod()
+	if gsm, ok := c.Class.(GetStaticMethod); ok {
+		if m, ok := gsm.GetStaticMethod(name); ok {
+			return m, true
+		}
+	}
+	// 也在父类中查找静态方法
+	last2 := c.Class
+	for last2.GetExtend() != nil {
+		ext := last2.GetExtend()
+		next, acl := vm.GetOrLoadClass(*ext)
+		if acl != nil || next == nil {
+			break
+		}
+		if gsm, ok := next.(GetStaticMethod); ok {
+			if m, ok := gsm.GetStaticMethod(name); ok {
+				return m, true
+			}
+		}
+		last2 = next
+	}
+
+	return nil, false
+}
+
+func (c *ClassValue) GetProperties() map[string]Value {
+	result := make(map[string]Value)
+
+	// 首先获取实例属性（从 ObjectValue 继承）
+	instanceProps := c.ObjectValue.GetProperties()
+	for name, value := range instanceProps {
+		result[name] = value
+	}
+
+	// 然后获取类定义的属性
+	classProps := c.Class.GetPropertyList()
+	for _, prop := range classProps {
+		// 如果实例中没有这个属性，则使用类定义的默认值
+		if _, exists := result[prop.GetName()]; !exists {
+			defaultValue := prop.GetDefaultValue()
+			if defaultValue != nil {
+				value, _ := defaultValue.GetValue(c.Context)
+				if value != nil {
+					if val, ok := value.(Value); ok {
+						result[prop.GetName()] = val
+					}
+				}
+			} else {
+				// 如果没有默认值，使用 null
+				result[prop.GetName()] = NewNullValue()
+			}
+		}
+	}
+
+	// 处理继承的属性
+	vm := c.GetVM()
+	last := c.Class
+	for last.GetExtend() != nil {
+		ext := last.GetExtend()
+		next, ok := vm.GetClass(*ext)
+		if !ok {
+			break
+		}
+
+		parentProps := next.GetPropertyList()
+		for _, prop := range parentProps {
+			// 只添加非私有属性，且实例中没有的属性
+			if prop.GetModifier() != ModifierPrivate {
+				if _, exists := result[prop.GetName()]; !exists {
+					defaultValue := prop.GetDefaultValue()
+					if defaultValue != nil {
+						value, _ := defaultValue.GetValue(c.Context)
+						if value != nil {
+							if val, ok := value.(Value); ok {
+								result[prop.GetName()] = val
+							}
+						}
+					} else {
+						result[prop.GetName()] = NewNullValue()
+						c.SetProperty(prop.GetName(), result[prop.GetName()]) // 需要引用起来
+					}
+				}
+			}
+		}
+		last = next
+	}
+
+	return result
+}
+
+// RangeProperties 按插入顺序遍历所有属性
+// 使用此方法可保证遍历顺序与插入顺序一致，避免 Go map 遍历顺序随机的问题
+func (c *ClassValue) RangeProperties(fn func(key string, value Value) bool) {
+	c.ObjectValue.RangeProperties(fn)
+}
+
+func (c *ClassValue) CreateContext(vars []Variable) Context {
+	ctx := c.Context.CreateContext(vars)
+	return &ClassMethodContext{
+		ClassValue: &ClassValue{
+			ObjectValue: c.ObjectValue,
+			Class:       c.Class,
+			Context:     ctx,
+		},
+		StaticClass: nil, // 默认没有后期静态绑定类，由调用者设置
+	}
+}
+
+func (c *ClassValue) SetVariableValue(variable Variable, value Value) Control {
+	return c.SetProperty(variable.GetName(), value)
+}
+
+func (c *ClassValue) SetProperty(name string, value Value) Control {
+	if set, ok := c.Class.(SetProperty); ok {
+		return set.SetProperty(name, value)
+	} else {
+		switch arr := value.(type) {
+		case *ArrayValue:
+			value = CloneArrayValue(arr)
+		case *ObjectValue:
+			value = CloneObjectValue(arr)
+		}
+		c.property.Set(name, value)
+	}
+	return nil
+}
+
+func (c *ClassValue) GetVariableValue(variable Variable) (Value, Control) {
+	return c.ObjectValue.GetVariableValue(variable)
+}
+
+func (c *ClassValue) GoContext() context.Context {
+	return context.Background()
+}
+
+func (c *ClassValue) SetVM(vm VM) {
+	c.Context.SetVM(vm)
+}
+
+type ClassMethodContext struct {
+	*ClassValue
+	StaticClass ClassStmt // 运行时（后期）类结构，用于 static:: 后期静态绑定
+	SelfClass   ClassStmt // 代码定义所在的类，用于 self:: 和 parent:: 解析（处理 trait 合并场景）
+}
+
+func (c *ClassMethodContext) SetVariableValue(variable Variable, value Value) Control {
+	return c.Context.SetVariableValue(variable, value)
+}
+
+func (c *ClassMethodContext) GetVariableValue(variable Variable) (Value, Control) {
+	if _, ok := variable.(Property); ok {
+		return c.ObjectValue.GetVariableValue(variable)
+	}
+	return c.Context.GetVariableValue(variable)
+}
+
+func (c *ClassMethodContext) GetIndexValue(index int) (Value, bool) {
+	return c.Context.GetIndexValue(index)
+}
+
+func (c *ClassMethodContext) SetIndexZVal(index int, v *ZVal) {
+	c.Context.SetIndexZVal(index, v)
+}
+
+func (c *ClassMethodContext) GetIndexZVal(index int) *ZVal {
+	return c.Context.GetIndexZVal(index)
+}
+
+func (c *ClassMethodContext) BindStaticLocals(store *StaticLocals) {
+	if b, ok := c.Context.(StaticLocalsBinder); ok {
+		b.BindStaticLocals(store)
+	}
+}
+
+func (c *ClassMethodContext) StaticLocalsStore() *StaticLocals {
+	if b, ok := c.Context.(StaticLocalsBinder); ok {
+		return b.StaticLocalsStore()
+	}
+	return nil
+}
+
+func (c *ClassMethodContext) GoContext() context.Context {
+	return context.Background()
+}
+
+func (c *ClassValue) Marshal(serializer Serializer) ([]byte, error) {
+	return serializer.MarshalClass(c)
+}
+
+func (c *ClassValue) Unmarshal(data []byte, serializer Serializer) error {
+	return serializer.UnmarshalClass(data, c)
+}
+
+func (c *ClassValue) ToGoValue(serializer Serializer) (any, error) {
+	return serializer.MarshalClass(c)
+}

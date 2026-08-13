@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Origami Multi-Agent Studio</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div>
+        <h1>Multi-Agent Studio</h1>
+        <p class="subtitle">基于 Origami + OpenAI 的多 Agent 协作开发台</p>
+      </div>
+      <div class="status">
+        <span id="dev-badge" class="badge">DEV</span>
+        <span id="model-label" class="muted">加载中...</span>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel controls">
+        <h2>运行配置</h2>
+        <label class="field">
+          <span>工作流</span>
+          <select id="workflow"></select>
+        </label>
+        <label class="field">
+          <span>输入</span>
+          <textarea id="input" rows="5" placeholder="输入主题、辩题或目标..."></textarea>
+        </label>
+        <button id="run-btn" class="primary">运行工作流</button>
+        <p id="hint" class="hint"></p>
+      </section>
+
+      <section class="panel output">
+        <div class="output-header">
+          <h2>执行结果</h2>
+          <span id="run-status" class="muted"></span>
+        </div>
+        <div id="steps" class="steps"></div>
+        <article id="final" class="final hidden">
+          <h3>最终输出</h3>
+          <pre></pre>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/assets/js/app.js"></script>
+</body>
+</html>

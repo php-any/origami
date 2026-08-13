@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<body>
+<section class="hero">
+    <h1>欢迎使用 Laravel 风格示例</h1>
+    <p>目录结构、Service Provider、Middleware、Model 与 Artisan CLI 均遵循 Laravel 约定，底层由 Origami 声明式路由与 IoC 驱动。</p>
+</section>
+
+<section>
+    <h2>最新文章</h2>
+    <div class="post-grid">
+        <article class="card" for="$post in $posts">
+            <h3><a href="/posts/{$post->id}">{$post->title}</a></h3>
+            <p class="excerpt">{$post->body}</p>
+        </article>
+    </div>
+    <p class="mt"><a href="/posts" class="btn">查看全部文章 &rarr;</a></p>
+</section>
+</body>
+</html>

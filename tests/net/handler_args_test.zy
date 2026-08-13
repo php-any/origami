@@ -1,0 +1,36 @@
+<?php
+
+use Net\Annotation\Controller;
+use Net\Annotation\Route;
+use Net\Annotation\GetMapping;
+use Net\Annotation\PostMapping;
+use Net\Http\Request;
+use Net\Http\Response;
+use Validation\Annotation\Size;
+use Validation\Annotation\Pattern;
+
+class HandlerArgsLoginRequest {
+    #[Size(min: 2, max: 100)]
+    #[Pattern('/^[a-zA-Z0-9_-]+$/')]
+    public string $username;
+    #[Size(min: 6, max: 100)]
+    public string $password;
+}
+
+#[Controller]
+#[Route(prefix: "/api")]
+class HandlerArgsController {
+    #[PostMapping(path: "/auth/login")]
+    public function login(HandlerArgsLoginRequest $request, Response $response): void {}
+
+    #[PostMapping(path: "/auth/logout")]
+    public function logout(Response $response): void {}
+
+    #[GetMapping(path: "/auth/profile")]
+    public function profile(Request $request, Response $response): void {}
+
+    #[GetMapping(path: "/product/{id}")]
+    public function getProduct(int $id, Response $response): void {}
+}
+
+echo "handler args annotation test ok\n";

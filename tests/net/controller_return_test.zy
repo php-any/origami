@@ -1,0 +1,20 @@
+<?php
+
+use Net\Annotation\Controller;
+use Net\Annotation\Route;
+use Net\Annotation\GetMapping;
+
+#[Controller]
+#[Route(prefix: "/")]
+class ControllerReturnDemo {
+    #[GetMapping(path: "/hello")]
+    public function hello(string $name): array {
+        return [
+            "code" => 200,
+            "message" => "success",
+            "data" => ["hello" => $name],
+        ];
+    }
+}
+
+echo "controller return annotation test ok\n";

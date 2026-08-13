@@ -1,0 +1,79 @@
+package data
+
+type ArrayValueForEach struct {
+	source []*ZVal
+}
+
+// Call 实现数组的 forEach 方法
+// 对数组中的每个元素执行一次提供的回调函数
+func (a *ArrayValueForEach) Call(ctx Context) (GetValue, Control) {
+	// 获取回调函数参数
+	callback, ok := ctx.GetIndexValue(0)
+	if !ok {
+		return NewNullValue(), nil
+	}
+
+	// 将 source 转换为 []Value 用于 NewArrayValue
+	tempArray := &ArrayValue{List: a.source}
+	sourceValues := tempArray.ToValueList()
+
+	// 同时支持 *FuncValue 与 CallableValue
+	switch callable := callback.(type) {
+	case *FuncValue:
+		vars := callable.Value.GetVariables()
+		fnCtx := ctx.CreateContext(vars)
+		for i, zval := range a.source {
+			element := zval.Value
+			args := []Value{element, NewIntValue(i), NewArrayValue(sourceValues)}
+			for ai := 0; ai < len(vars) && ai < len(args); ai++ {
+				fnCtx.SetVariableValue(NewVariable("", ai, nil), args[ai])
+			}
+			_, ctl := callable.Value.Call(fnCtx)
+			if ctl != nil {
+				return nil, ctl
+			}
+		}
+		return NewNullValue(), nil
+	case CallableValue:
+		// 遍历数组元素
+		for i, zval := range a.source {
+			element := zval.Value
+			// 调用回调函数，传递元素、索引和数组
+			_, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(sourceValues))
+			if ctl != nil {
+				return nil, ctl
+			}
+		}
+		return NewNullValue(), nil
+	}
+
+	return NewNullValue(), nil
+}
+
+func (a *ArrayValueForEach) GetName() string {
+	return "forEach"
+}
+
+func (a *ArrayValueForEach) GetModifier() Modifier {
+	return ModifierPublic
+}
+
+func (a *ArrayValueForEach) GetIsStatic() bool {
+	return false
+}
+
+func (a *ArrayValueForEach) GetParams() []GetValue {
+	return []GetValue{
+		NewParameter("callback", 0),
+	}
+}
+
+func (a *ArrayValueForEach) GetVariables() []Variable {
+	return []Variable{
+		NewVariable("callback", 0, nil),
+	}
+}
+
+func (a *ArrayValueForEach) GetReturnType() Types {
+	return nil
+}

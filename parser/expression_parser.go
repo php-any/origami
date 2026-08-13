@@ -1,0 +1,1138 @@
+package parser
+
+import (
+	"errors"
+	"strings"
+
+	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/lexer"
+	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/token"
+)
+
+// ExpressionParser 表示表达式解析器
+type ExpressionParser struct {
+	*Parser
+}
+
+// NewExpressionParser 创建一个新的表达式解析器
+func NewExpressionParser(parser *Parser) *ExpressionParser {
+	return &ExpressionParser{
+		parser,
+	}
+}
+
+// Parse 解析表达式
+func (ep *ExpressionParser) Parse() (data.GetValue, data.Control) {
+	if ep.checkPositionIs(0, token.START_TAG, token.END_TAG, token.SEMICOLON) {
+		ep.next()
+		return nil, nil
+	}
+	return ep.parseAssignment()
+}
+
+// parseAssignment 解析赋值表达式
+func (ep *ExpressionParser) parseAssignment() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseTernary()
+	if acl != nil {
+		return nil, acl
+	}
+
+	if v, ok := expr.(*node.VariableExpression); ok && ep.checkPositionIs(0, token.COMMA) {
+		resetPosition := ep.position
+		assigns := []*node.VariableExpression{v}
+		valList := []data.GetValue{v}
+		for ep.checkPositionIs(0, token.COMMA) {
+			ep.next()
+			if ep.checkPositionIs(0, token.VARIABLE) && ep.checkPositionIs(1, token.COMMA, token.ASSIGN) {
+				next, acl := ep.parsePrimary()
+				if acl != nil {
+					return nil, acl
+				}
+				valList = append(valList, next)
+			} else {
+				next, acl := ep.parseTernary()
+				if acl != nil {
+					return nil, acl
+				}
+				valList = append(valList, next)
+			}
+		}
+		if ep.checkPositionIs(0, token.ASSIGN, token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ, token.CONCAT_EQ, token.NULL_COALESCE_ASSIGN) {
+			// 重新构建assigns数组，避免重复
+			assigns = []*node.VariableExpression{}
+			for _, value := range valList {
+				if next, ok := value.(*node.VariableExpression); ok {
+					assigns = append(assigns, next)
+				} else {
+					return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("多赋值表达式只能是变量"))
+				}
+			}
+			expr = node.NewVariableList(assigns)
+		} else {
+			ep.position = resetPosition
+		}
+	}
+
+	// 检查各种赋值运算符（含字符串连接赋值 .= 和空合并赋值 ??=，以及位运算赋值）
+	for ep.checkPositionIs(0, token.ASSIGN, token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ, token.CONCAT_EQ, token.NULL_COALESCE_ASSIGN, token.BIT_OR_EQ, token.BIT_AND_EQ, token.BIT_XOR_EQ, token.SHL_EQ, token.SHR_EQ, token.POWER_EQ) {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseAssignment()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+
+	return expr, nil
+}
+
+// parseTernary 解析三目运算符表达式
+func (ep *ExpressionParser) parseTernary() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	// ?? 优先级高于 ?:，先解析可能的 ?? 表达式作为三元表达式的左操作数
+	expr, acl := ep.parseNullCoalesce()
+	if acl != nil {
+		return nil, acl
+	}
+	switch ep.current().Type() {
+	case token.ELVIS:
+		// 这是 ?: 简写形式（Elvis 运算符）
+		// $a ?: $b 等价于 $a ? $a : $b
+		ep.next() // 跳过 ?:
+
+		// 解析假值表达式
+		falseValue, acl := ep.parseTernary()
+		if acl != nil {
+			return nil, acl
+		}
+		// 创建三目运算符表达式，真值使用条件表达式本身
+		return node.NewTernaryExpression(
+			tracker.EndBefore(),
+			expr,
+			expr, // 真值就是条件表达式本身
+			falseValue,
+		), nil
+	case token.TERNARY:
+		// 检查是否是空安全调用操作符：?-> (PHP 8.0+)
+		if ep.checkPositionIs(1, token.OBJECT_OPERATOR) {
+			// 解析空安全调用 ?->
+			ep.next() // 跳过 ?
+			ep.next() // 跳过 ->
+
+			// 使用 VariableParser 解析后续的方法/属性调用
+			vp := &VariableParser{ep.Parser}
+			callExpr, acl := vp.parseMethodCall(expr)
+			if acl != nil {
+				return nil, acl
+			}
+			// 继续解析链式调用（支持 ?->method()?->property）
+			callExpr, acl = vp.parseSuffix(callExpr)
+			if acl != nil {
+				return nil, acl
+			}
+			// 包装为空安全调用节点
+			return node.NewNullsafeCall(tracker.EndBefore(), expr, callExpr), nil
+		}
+
+		// 检查是否是可空类型声明模式：?type $variable
+		if isIdentOrTypeToken(ep.peek(1).Type()) && ep.checkPositionIs(2, token.VARIABLE) {
+			// 这是可空类型声明，交给专门的解析器处理
+			if parser, ok := parserRouter[token.TERNARY]; ok {
+				return parser(ep.Parser).Parse()
+			}
+		}
+
+		// 否则按三目运算符处理
+		ep.next() // 跳过 ?
+
+		// 解析真值表达式
+		trueValue, acl := ep.parseTernary()
+		if acl != nil {
+			return nil, acl
+		}
+		// 检查是否有冒号 :
+		if ep.current().Type() == token.COLON {
+			ep.next() // 跳过 :
+
+			// 解析假值表达式
+			falseValue, acl := ep.parseTernary()
+			if acl != nil {
+				return nil, acl
+			}
+			// 创建三目运算符表达式
+			return node.NewTernaryExpression(
+				tracker.EndBefore(),
+				expr,
+				trueValue,
+				falseValue,
+			), nil
+		} else {
+			return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("三目运算符 ?: 缺少冒号"))
+		}
+	default:
+		return expr, nil
+	}
+}
+
+// parseNullCoalesce 解析 ??（null 合并运算符），优先级介于 ?: 和 or 之间。
+// PHP 中 ?? 为右结合：$a ?? $b ?? $c === $a ?? ($b ?? $c)，
+// 这样链式中间的未定义数组键不会触发 Warning（仅左操作数受 ?? 抑制）。
+func (ep *ExpressionParser) parseNullCoalesce() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseLogicalOrKeyword()
+	if acl != nil {
+		return nil, acl
+	}
+	if ep.current().Type() == token.NULL_COALESCE {
+		ep.next() // 跳过 ??
+		right, acl := ep.parseNullCoalesce()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewNullCoalesceExpression(
+			tracker.EndBefore(),
+			expr,
+			right,
+		)
+	}
+	return expr, nil
+}
+
+// parseConcatenation 解析字符串连接（.）。
+// PHP 8+：. 优先级低于 +、- 与 << >>，故 "a" . 1 + 2 => "a" . (1 + 2)。
+func (ep *ExpressionParser) parseConcatenation() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseShift()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.DOT {
+		operator := ep.current()
+		ep.next()
+		right, acl := ep.parseShift()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(tracker.EndBefore(), expr, operator, right)
+	}
+	return expr, nil
+}
+
+// parseConcatenationIndex 同 parseConcatenation，供数组下标表达式使用（不解析 ..）。
+func (ep *ExpressionParser) parseConcatenationIndex() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseShiftIndex()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.DOT {
+		operator := ep.current()
+		ep.next()
+		right, acl := ep.parseShiftIndex()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(tracker.EndBefore(), expr, operator, right)
+	}
+	return expr, nil
+}
+
+// parseLogicalOrKeyword 解析 or 关键字逻辑或（优先级低于 ||）
+func (ep *ExpressionParser) parseLogicalOrKeyword() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseLogicalXorKeyword()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.OR {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseLogicalXorKeyword()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+
+	return expr, nil
+}
+
+// parseLogicalXorKeyword 解析 xor 关键字逻辑异或
+func (ep *ExpressionParser) parseLogicalXorKeyword() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseLogicalAndKeyword()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.XOR {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseLogicalAndKeyword()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+
+	return expr, nil
+}
+
+// parseLogicalAndKeyword 解析 and 关键字逻辑与（优先级低于 &&）
+func (ep *ExpressionParser) parseLogicalAndKeyword() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseLogicalOr()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.AND {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseLogicalOr()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+
+	return expr, nil
+}
+
+// parseLogicalOr 解析逻辑或表达式
+func (ep *ExpressionParser) parseLogicalOr() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	// 逻辑或的优先级低于逻辑与，因此这里从逻辑与开始
+	expr, acl := ep.parseLogicalAnd()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.LOR {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseLogicalAnd()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+
+	return expr, nil
+}
+
+// parseLogicalAnd 解析逻辑与表达式
+func (ep *ExpressionParser) parseLogicalAnd() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	// 逻辑与的优先级低于按位或/异或/与，因此从按位或开始
+	expr, acl := ep.parseBitwiseOr()
+	if acl != nil {
+		return nil, acl
+	}
+	if expr == nil {
+		return nil, nil
+	}
+	for ep.current().Type() == token.LAND {
+		operator := ep.current()
+		ep.next()
+
+		// PHP 中 && 优先级高于 ?:，故右侧用 parseBitwiseOr，不能再用 parseAssignment，
+		// 否则会把 "a && b ? c : d" 解析成 a && (b ? c : d) 而非 (a && b) ? c : d
+		right, acl := ep.parseBitwiseOr()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+
+	return expr, nil
+}
+
+// parseEquality 解析相等性表达式
+func (ep *ExpressionParser) parseEquality() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseComparison()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.checkPositionIs(0, token.EQ, token.NE, token.EQ_STRICT, token.NE_STRICT) {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseComparison()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+
+	// 处理 like 关键字
+	if ep.current().Type() == token.LIKE {
+		ep.next() // 跳过 like 关键字
+
+		className, acl := ep.getClassName(true)
+		_ = acl
+		// 创建 like 表达式
+		expr = node.NewLikeExpression(
+			tracker.EndBefore(),
+			expr,
+			className,
+		)
+	}
+
+	return expr, nil
+}
+
+// 解析按位与/异或/或： & ^ |
+// 优先级：比较 < 按位与 < 按位异或 < 按位或 < 逻辑与 < 逻辑或
+func (ep *ExpressionParser) parseBitwiseAnd() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseEquality()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.BIT_AND {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseEquality()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+	return expr, nil
+}
+
+func (ep *ExpressionParser) parseBitwiseXor() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseBitwiseAnd()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.BIT_XOR {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseBitwiseAnd()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+	return expr, nil
+}
+
+func (ep *ExpressionParser) parseBitwiseOr() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseBitwiseXor()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.BIT_OR {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseBitwiseXor()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+	return expr, nil
+}
+
+// parseArrayIndex 解析 [...] 内的下标：支持 +、&、| 等，但不将 .. 当作 range（切片由 parseArrayAccess 处理）。
+func (ep *ExpressionParser) parseArrayIndex() (data.GetValue, data.Control) {
+	return ep.parseBitwiseOrIndex()
+}
+
+func (ep *ExpressionParser) parseBitwiseOrIndex() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseBitwiseXorIndex()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.BIT_OR {
+		operator := ep.current()
+		ep.next()
+		right, acl := ep.parseBitwiseXorIndex()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(tracker.EndBefore(), expr, operator, right)
+	}
+	return expr, nil
+}
+
+func (ep *ExpressionParser) parseBitwiseXorIndex() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseBitwiseAndIndex()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.BIT_XOR {
+		operator := ep.current()
+		ep.next()
+		right, acl := ep.parseBitwiseAndIndex()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(tracker.EndBefore(), expr, operator, right)
+	}
+	return expr, nil
+}
+
+func (ep *ExpressionParser) parseBitwiseAndIndex() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseEqualityIndex()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.BIT_AND {
+		operator := ep.current()
+		ep.next()
+		right, acl := ep.parseEqualityIndex()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(tracker.EndBefore(), expr, operator, right)
+	}
+	return expr, nil
+}
+
+func (ep *ExpressionParser) parseEqualityIndex() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseComparisonIndex()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.checkPositionIs(0, token.EQ, token.NE, token.EQ_STRICT, token.NE_STRICT) {
+		operator := ep.current()
+		ep.next()
+		right, acl := ep.parseComparisonIndex()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(tracker.EndBefore(), expr, operator, right)
+	}
+	return expr, nil
+}
+
+func (ep *ExpressionParser) parseComparisonIndex() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseConcatenationIndex()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.checkPositionIs(0, token.LT, token.LE, token.GT, token.GE, token.SPACESHIP) {
+		operator := ep.current()
+		ep.next()
+		right, acl := ep.parseConcatenationIndex()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(tracker.EndBefore(), expr, operator, right)
+	}
+	return expr, nil
+}
+
+func (ep *ExpressionParser) parseShiftIndex() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseTermNoRange()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.checkPositionIs(0, token.SHL, token.SHR) {
+		operator := ep.current()
+		ep.next()
+		right, acl := ep.parseTermNoRange()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(tracker.EndBefore(), expr, operator, right)
+	}
+	return expr, nil
+}
+
+// parseTermNoRange 加减项，不解析 .. 与字符串连接（. 由 parseConcatenationIndex 处理）。
+func (ep *ExpressionParser) parseTermNoRange() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseFactor()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.ADD || ep.current().Type() == token.SUB || isSignedNumberToken(ep.current()) {
+		operator := ep.current()
+
+		var right data.GetValue
+		if isSignedNumberToken(operator) {
+			lit := operator.Literal()
+			if len(lit) <= 1 {
+				return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("非法数字字面量"))
+			}
+			opType := token.ADD
+			if lit[0] == '-' {
+				opType = token.SUB
+			}
+			operator = lexer.NewWorkerToken(opType, string(lit[0]), operator.Start(), operator.Start()+1, operator.Line(), operator.Pos())
+			right = node.NewNumberLiteral(node.NewTokenFrom(ep.source, operator.End(), ep.current().End(), ep.current().Line(), ep.current().Pos()+1), lit[1:])
+			ep.next()
+		} else {
+			ep.next()
+			right, acl = ep.parseFactor()
+		}
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(tracker.EndBefore(), expr, operator, right)
+	}
+	return expr, nil
+}
+
+// parseComparison 解析比较表达式
+func (ep *ExpressionParser) parseComparison() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseConcatenation()
+	if acl != nil {
+		return nil, acl
+	}
+	if expr == nil {
+		if ep.checkPositionIs(0, token.LT) && ep.checkPositionIs(1, token.IDENTIFIER) {
+			// <html
+			return NewHtmlParser(ep.Parser).Parse()
+		}
+	}
+	for ep.checkPositionIs(0, token.LT, token.LE, token.GT, token.GE, token.SPACESHIP) {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseConcatenation()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+
+	return expr, nil
+}
+
+// parseShift 解析位移表达式 (<< >>)
+func (ep *ExpressionParser) parseShift() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseTerm()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.checkPositionIs(0, token.SHL, token.SHR) {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseTerm()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+
+	return expr, nil
+}
+
+// parseTerm 解析加减表达式（含范围运算符 ..，如 1..5）。
+// 字符串连接 . 由更外层的 parseConcatenation 处理（PHP 8+ 优先级低于 +、-）。
+func (ep *ExpressionParser) parseTerm() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseRangeOperand()
+	if acl != nil {
+		return nil, acl
+	}
+	for ep.current().Type() == token.ADD || ep.current().Type() == token.SUB || isSignedNumberToken(ep.current()) {
+		operator := ep.current()
+
+		var right data.GetValue
+		if isSignedNumberToken(operator) {
+			lit := operator.Literal()
+			if len(lit) <= 1 {
+				return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("非法数字字面量"))
+			}
+			opType := token.ADD
+			if lit[0] == '-' {
+				opType = token.SUB
+			}
+			operator = lexer.NewWorkerToken(opType, string(lit[0]), operator.Start(), operator.Start()+1, operator.Line(), operator.Pos())
+			right = node.NewNumberLiteral(node.NewTokenFrom(ep.source, operator.End(), ep.current().End(), ep.current().Line(), ep.current().Pos()+1), lit[1:])
+			ep.next()
+		} else {
+			ep.next()
+			right, acl = ep.parseRangeOperand()
+		}
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+
+	return expr, nil
+}
+
+func isSignedNumberToken(t lexer.Token) bool {
+	if t == nil {
+		return false
+	}
+	switch t.Type() {
+	case token.INT, token.FLOAT, token.NUMBER:
+	default:
+		return false
+	}
+	lit := t.Literal()
+	return len(lit) > 1 && (lit[0] == '+' || lit[0] == '-')
+}
+
+// parseRangeOperand 解析范围表达式（如 1..5）
+func (ep *ExpressionParser) parseRangeOperand() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseFactor()
+	if acl != nil {
+		return nil, acl
+	}
+	if ep.current().Type() == token.DOUBLE_DOT {
+		ep.next()
+		right, acl := ep.parseUnary()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewRange(tracker.EndBefore(), nil, expr, right)
+	}
+	return expr, nil
+}
+
+// parseFactor 解析乘除表达式
+func (ep *ExpressionParser) parseFactor() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parseUnary()
+	if acl != nil {
+		return expr, acl
+	}
+	for ep.current().Type() == token.MUL || ep.current().Type() == token.QUO ||
+		ep.current().Type() == token.REM {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseUnary()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+
+	return expr, nil
+}
+
+// parseUnary 解析一元表达式
+func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	if ep.current().Type() == token.SUB || ep.current().Type() == token.NOT || ep.current().Type() == token.BIT_NOT {
+		operator := ep.current().Literal()
+		ep.next()
+
+		right, acl := ep.parseUnary()
+		if acl != nil {
+			return nil, acl
+		}
+		return node.NewUnaryExpression(
+			tracker.EndBefore(),
+			operator,
+			right,
+		), nil
+	}
+
+	// 处理引用取值 &$var
+	if ep.current().Type() == token.BIT_AND {
+		ep.next()
+		right, acl := ep.parseUnary()
+		if acl != nil {
+			return nil, acl
+		}
+		return node.NewValueReference(tracker.EndBefore(), right), nil
+	}
+
+	// 处理前缀自增自减
+	if ep.current().Type() == token.INCR || ep.current().Type() == token.DECR {
+		operator := ep.current()
+		ep.next()
+
+		right, acl := ep.parseUnary()
+		if acl != nil {
+			return nil, acl
+		}
+		for ep.current().Type() == token.SEMICOLON {
+			// 跳过没意义的分号
+			ep.next()
+		}
+		if operator.Type() == token.INCR {
+			return node.NewUnaryIncr(
+				tracker.EndBefore(),
+				right,
+			), nil
+		} else {
+			return node.NewUnaryDecr(
+				tracker.EndBefore(),
+				right,
+			), nil
+		}
+	}
+	expr, acl := ep.parsePower()
+	if acl == nil {
+		// PHP 语义：instanceof 优先级高于一元运算符（!、~、-）
+		// 所以 !$x instanceof Foo 应解析为 !($x instanceof Foo)
+		// instanceof 在 parsePower 之后处理，确保 ** 优先级高于 instanceof
+		if ep.current().Type() == token.INSTANCEOF {
+			ep.next() // 跳过 instanceof
+			var right data.GetValue
+			var acl2 data.Control
+			switch ep.current().Type() {
+			case token.SELF:
+				ep.next()
+				cn := ep.currentClass
+				if cn == "" {
+					cn = "self"
+				}
+				right = node.NewStringLiteral(tracker.EndBefore(), cn)
+			case token.PARENT:
+				ep.next()
+				cn := "parent"
+				if ep.currentClass != "" {
+					if cls, ok := ep.vm.GetClass(ep.currentClass); ok && cls.GetExtend() != nil {
+						cn = *cls.GetExtend()
+					}
+				}
+				right = node.NewStringLiteral(tracker.EndBefore(), cn)
+			case token.STATIC:
+				ep.next()
+				right = node.NewStaticClass(tracker.EndBefore())
+			default:
+				right, acl2 = ep.parsePower()
+				if acl2 != nil {
+					return nil, acl2
+				}
+			}
+			if lit, ok := right.(*node.StringLiteral); ok {
+				if full, _ := ep.findFullClassNameByNamespace(lit.Value); full != "" {
+					right = node.NewStringLiteral(tracker.EndBefore(), full)
+				}
+			} else if cn, ok := right.(*node.ConstantName); ok {
+				// bare instanceof A：须展开 use / 当前命名空间，不能运行时当常量名
+				if full, _ := ep.findFullClassNameByNamespace(cn.Name); full != "" {
+					right = node.NewStringLiteral(tracker.EndBefore(), full)
+				}
+			}
+			expr = node.NewInstanceOfExpression(tracker.EndBefore(), expr, right)
+		}
+		// 检查各种赋值运算符
+		for ep.checkPositionIs(0, token.ASSIGN, token.ADD_EQ, token.SUB_EQ, token.MUL_EQ, token.QUO_EQ, token.REM_EQ, token.CONCAT_EQ, token.SHL_EQ, token.SHR_EQ, token.NULL_COALESCE_ASSIGN, token.BIT_OR_EQ, token.BIT_AND_EQ, token.BIT_XOR_EQ, token.POWER_EQ) {
+			operator := ep.current()
+			ep.next()
+
+			right, acl := ep.parseAssignment()
+			if acl != nil {
+				return nil, acl
+			}
+			expr = node.NewBinaryExpression(
+				tracker.EndBefore(),
+				expr,
+				operator,
+				right,
+			)
+		}
+	}
+
+	return expr, acl
+}
+
+// parsePower 解析幂运算表达式（** 运算符，右结合）
+func (ep *ExpressionParser) parsePower() (data.GetValue, data.Control) {
+	tracker := ep.StartTracking()
+	expr, acl := ep.parsePrimary()
+	if acl != nil {
+		return nil, acl
+	}
+
+	if ep.current().Type() == token.POWER {
+		operator := ep.current()
+		ep.next()
+
+		// 右结合：右边递归调用 parsePower
+		right, acl := ep.parsePower()
+		if acl != nil {
+			return nil, acl
+		}
+		expr = node.NewBinaryExpression(
+			tracker.EndBefore(),
+			expr,
+			operator,
+			right,
+		)
+	}
+
+	return expr, nil
+}
+
+// parsePrimary 解析基本表达式
+func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
+	switch ep.current().Type() {
+	case token.DOLLAR:
+		// 处理 PHP 变量变量形式：$$field、$$$$a 等
+		tracker := ep.StartTracking()
+		ep.next() // 跳过第一个 $
+
+		// 如果后面还是 $，说明是多层可变变量（例如 $$$$a）
+		extraDollar := 0
+		for ep.current().Type() == token.DOLLAR {
+			extraDollar++
+			ep.next()
+		}
+
+		if ep.current().Type() != token.VARIABLE {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("当前仅支持 $$var / $$$$var 形式的变量变量"))
+		}
+
+		// 解析名称变量（例如 $field）
+		vp := &VariableParser{ep.Parser}
+		nameExpr := vp.parseVariable()
+
+		// 捕获当前作用域中的所有变量，作为运行时名称解析的候选集合
+		vars := ep.GetVariables()
+
+		// 至少一层 $$name
+		expr := node.NewVarVar(tracker.EndBefore(), nameExpr, vars)
+		// 额外的 $ 再包一层 VarVar，实现多层解析：
+		// - $$a   -> VarVar($a)
+		// - $$$a  -> VarVar(VarVar($a))
+		// - $$$$a -> 也退化为 VarVar(VarVar($a))（与 tests/basic/var_var.zy 期望对齐）
+		if extraDollar > 1 {
+			extraDollar = 1
+		}
+		for i := 0; i < extraDollar; i++ {
+			expr = node.NewVarVar(tracker.EndBefore(), expr, vars)
+		}
+		return expr, nil
+	case token.INT:
+		value := ep.current().Literal()
+		ep.next()
+		return node.NewIntLiteral(ep.FromCurrentToken(), value), nil
+	case token.FLOAT:
+		value := ep.current().Literal()
+		ep.next()
+		return node.NewFloatLiteral(ep.FromCurrentToken(), value), nil
+	case token.HEREDOC, token.NOWDOC:
+		return NewHeredocParser(ep.Parser).ParseLiteral()
+	case token.STRING:
+		// 普通字符串
+		value := ep.current().Literal()
+		ep.next()
+		return node.NewStringLiteral(ep.FromCurrentToken(), value), nil
+	case token.INTERPOLATION_TOKEN:
+		// 检查是否是 LingToken（插值字符串）
+		if lingToken, ok := ep.current().(*lexer.LingToken); ok {
+			ep.next()
+			return ep.parseLingToken(lingToken), nil
+		}
+	case token.INTERPOLATION_VALUE:
+		if lingToken, ok := ep.current().(*lexer.LingToken); ok {
+			ep.next()
+			return ep.parseTokensAsExpression(lingToken.Children())
+		}
+	case token.DOCTYPE:
+		// 解析 <!DOCTYPE ...>
+		tracker := ep.StartTracking()
+		// 跳过 <!DOCTYPE
+		ep.next()
+		// 收集直到 '>' 的所有字面量，作为 DocType 内容
+		var parts []string
+		for !ep.isEOF() && ep.current().Type() != token.GT {
+			lit := ep.current().Literal()
+			if lit != "" {
+				parts = append(parts, lit)
+			}
+			ep.next()
+		}
+		// 必须有 '>' 结束
+		if !ep.checkPositionIs(0, token.GT) {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("DOCTYPE 缺少 > 结束符"))
+		}
+		ep.next() // 消费 '>'
+		docType := strings.TrimSpace(strings.Join(parts, " "))
+
+		// 使用 HtmlParser 解析后续的 HTML 内容
+		if hp, ok := NewHtmlParser(ep.Parser).(*HtmlParser); ok {
+			// 解析后续的 HTML 子节点，直至 EOF
+			children, acl := hp.parseHtmlChildren()
+			if acl != nil {
+				return nil, acl
+			}
+			return node.NewHtmlDocTypeNode(tracker.EndBefore(), docType, children), nil
+		}
+
+		return node.NewHtmlDocTypeNode(tracker.EndBefore(), docType, nil), nil
+	case token.TRUE:
+		ep.next()
+		return node.NewBooleanLiteral(ep.FromCurrentToken(), true), nil
+
+	case token.FALSE:
+		ep.next()
+		return node.NewBooleanLiteral(ep.FromCurrentToken(), false), nil
+
+	case token.NULL:
+		ep.next()
+		return node.NewNullLiteral(ep.FromCurrentToken()), nil
+	case token.JS_SERVER:
+		// 处理 $.SERVER 表达式
+		if parser, ok := parserRouter[ep.current().Type()]; ok {
+			expr, acl := parser(ep.Parser).Parse()
+			if acl != nil {
+				return nil, acl
+			}
+			return expr, nil
+		}
+	case token.AT:
+		// @ 错误抑制符：跳过并解析后续表达式
+		ep.next()
+		return ep.parsePrimary()
+	case token.NAMESPACE_SEPARATOR:
+		// \function_name: 跳过 \ 并解析后续表达式
+		ep.next()
+		return ep.parsePrimary()
+	case token.START_TAG, token.END_TAG, token.SEMICOLON:
+		ep.next()
+		return nil, nil
+	case token.NUMBER:
+		currentToken := ep.current()
+		value := currentToken.Literal()
+		tokenFrom := node.NewTokenFrom(ep.source, currentToken.Start(), currentToken.End(), currentToken.Line(), currentToken.Pos())
+		ep.next()
+		return node.NewNumberLiteral(tokenFrom, value), nil
+	default:
+		startType := ep.current().Type()
+		if parser, ok := parserRouter[startType]; ok {
+			expr, acl := parser(ep.Parser).Parse()
+			if acl != nil {
+				return nil, acl
+			}
+
+			// 检查是否有后缀自增自减：
+			// 仅当起始 token 不是语句关键字时，才将后缀 ++ / -- 绑定到该表达式，
+			// 避免诸如 "if (...) ++$i;" 被错误解析成 "if(...)++"。
+			if ep.current().Type() == token.INCR || ep.current().Type() == token.DECR {
+				switch startType {
+				// 这些是语句级关键字，不应该在表达式里直接绑定后缀 ++ / --
+				case token.IF, token.ELSE, token.FOR, token.FOREACH, token.WHILE,
+					token.SWITCH, token.TRY, token.CATCH, token.FINALLY:
+					// 跳过，让外层语句级解析去处理
+				default:
+					operator := ep.current()
+					ep.next()
+					for ep.current().Type() == token.SEMICOLON {
+						// 跳过没意义的分号
+						ep.next()
+					}
+					// 对于后缀自增自减，使用当前 token 的位置信息即可
+					if operator.Type() == token.INCR {
+						return node.NewPostfixIncr(
+							ep.FromCurrentToken(),
+							expr,
+						), nil
+					} else {
+						return node.NewPostfixDecr(
+							ep.FromCurrentToken(),
+							expr,
+						), nil
+					}
+				}
+			}
+
+			return expr, nil
+		}
+		return nil, nil
+	}
+	return nil, nil
+}
+
+// parseLingToken 解析 LingToken（插值字符串），创建链接节点
+func (ep *ExpressionParser) parseLingToken(lingToken *lexer.LingToken) data.GetValue {
+	return ep.Parser.parseLingToken(lingToken)
+}

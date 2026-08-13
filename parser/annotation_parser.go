@@ -1,0 +1,206 @@
+package parser
+
+import (
+	"errors"
+
+	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/token"
+)
+
+// AnnotationParser 表示注解解析器
+type AnnotationParser struct {
+	*Parser
+}
+
+// NewAnnotationParser 创建一个新的注解解析器
+func NewAnnotationParser(parser *Parser) StatementParser {
+	return &AnnotationParser{
+		Parser: parser,
+	}
+}
+
+// Parse 解析注解
+func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
+	var annotations []*node.Annotation
+	tracker := p.StartTracking()
+	for p.checkPositionIs(0, token.AT, token.HASH) {
+		tracker := p.StartTracking()
+
+		// 检查是 @ 还是 #[
+		if p.checkPositionIs(0, token.HASH) {
+			// 处理 #[...] 格式的属性注解 (PHP 8.0+)
+			p.next() // 跳过 #
+			if p.current().Type() != token.LBRACKET {
+				return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("属性注解格式错误，期望 #[...]"))
+			}
+			p.next() // 跳过 [
+
+			// 解析注解名称
+			if p.current().Type() != token.IDENTIFIER && p.current().Type() != token.NAMESPACE_SEPARATOR {
+				return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("属性注解缺少名称"))
+			}
+
+			annotationName, acl := p.getClassName(true)
+			if acl != nil {
+				return nil, acl
+			}
+			// 解析注解参数
+			arguments := make([]data.GetValue, 0)
+			if p.current().Type() == token.LPAREN {
+				vp := VariableParser{Parser: p.Parser}
+				arguments, acl = vp.parseFunctionCall()
+				if acl != nil {
+					return nil, acl
+				}
+			}
+
+			// 跳过 ]
+			if p.current().Type() != token.RBRACKET {
+				return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("属性注解缺少右方括号 ']'"))
+			}
+			p.next()
+
+			// 创建注解节点
+			annotation := node.NewAnnotation(
+				tracker.EndBefore(),
+				annotationName,
+				arguments,
+			)
+
+			annotations = append(annotations, annotation)
+			continue
+		}
+
+		// 处理 @ 格式的注解
+		// 跳过 @ 符号
+		p.next()
+
+		isKnownFunctionCall := false
+		if p.checkPositionIs(0, token.IDENTIFIER) && p.checkPositionIs(1, token.LPAREN) {
+			_, isKnownFunctionCall = p.vm.GetFunc(p.current().Literal())
+		}
+		// PHP @ 错误抑制：@self::、@static::、@parent::、@$var、@Name:: 等为表达式，非注解
+		if p.checkPositionIs(0, token.SELF, token.PARENT, token.STATIC, token.VARIABLE, token.THIS) ||
+			isKnownFunctionCall || !p.checkPositionIs(1, token.LPAREN) {
+			expr, acl := NewExpressionParser(p.Parser).Parse()
+			if acl != nil {
+				return nil, acl
+			}
+			return node.NewErrorSuppress(tracker.EndBefore(), expr), nil
+		}
+		if p.current().Type() == token.IDENTIFIER && p.checkPositionIs(1, token.NAMESPACE_SEPARATOR) {
+			expr, acl := NewExpressionParser(p.Parser).Parse()
+			if acl != nil {
+				return nil, acl
+			}
+			return node.NewErrorSuppress(tracker.EndBefore(), expr), nil
+		}
+
+		// 解析注解名称
+		t := p.current()
+		if t.Type() != token.IDENTIFIER {
+			return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("注解缺少名称"))
+		}
+
+		annotationName, acl := p.getClassName(true)
+		if acl != nil {
+			return nil, acl
+		}
+		// 解析注解参数
+		arguments := make([]data.GetValue, 0)
+		if p.current().Type() == token.LPAREN {
+			vp := VariableParser{Parser: p.Parser}
+			arguments, acl = vp.parseFunctionCall()
+			if acl != nil {
+				return nil, acl
+			}
+		}
+		for p.checkPositionIs(0, token.SEMICOLON) {
+			p.next()
+		}
+		// 创建注解节点
+		annotation := node.NewAnnotation(
+			tracker.EndBefore(),
+			annotationName,
+			arguments,
+		)
+
+		annotations = append(annotations, annotation)
+	}
+
+	next, acl := p.parseStatement()
+	if acl != nil {
+		return nil, acl
+	}
+	annotationTarget := next
+	if crs, ok := next.(*node.ClassRegisterStmt); ok && crs.Class != nil {
+		annotationTarget = crs.Class
+	}
+	for _, an := range annotations {
+		an.Target = annotationTarget
+	}
+
+	// 注解的构造处理是需要延后执行的
+	if len(annotations) != 0 {
+		callAnn := make([]*node.CallAnn, 0)
+
+		for _, an := range annotations {
+			// 优先处理「函数形式」的标记：
+			// @foo(a, b) 等价于直接调用 foo(a, b)
+			// 这时它不再是“注解”，而只是一个普通函数调用，不需要传入 next 作为 target
+			if fn, ok := p.vm.GetFunc(an.Name); ok && fn != nil {
+				// 仅使用注解本身的参数
+				args := make([]data.GetValue, 0, len(an.Arguments))
+				args = append(args, an.Arguments...)
+
+				next = node.NewCallExpression(tracker.EndBefore(), fn.GetName(), args, fn)
+				// 函数形式的 @xxx 不再走类注解分支
+				continue
+			}
+
+			stmt, acl := p.vm.GetOrLoadClass(an.Name)
+			if acl != nil {
+				if data.CompileMode {
+					continue // 编译模式下跳过不存在的注解类
+				}
+				if acl, ok := acl.(data.AddStack); ok {
+					acl.AddStackWithInfo(p.newFrom(), "annotation", an.Name)
+				}
+				return nil, acl
+			}
+			object, acl := stmt.GetValue(p.vm.CreateContext(nil))
+			if acl != nil {
+				return nil, acl
+			}
+			if o, ok := object.(*data.ClassValue); ok {
+				var vars []data.Variable
+				if construct := o.Class.GetConstruct(); construct != nil {
+					vars = construct.GetVariables()
+				}
+				obj, acl := an.GetValue(p.vm.CreateContext(vars))
+				if acl != nil {
+					if ann, ok := acl.(*node.CallAnn); !ok {
+						return nil, acl
+					} else {
+						callAnn = append(callAnn, ann)
+					}
+				}
+				if c, ok := next.(node.AddAnnotations); ok {
+					if o, ok := obj.(*data.ClassValue); ok {
+						c.AddAnnotations(o)
+					}
+				}
+			}
+		}
+
+		for i := len(callAnn) - 1; i >= 0; i-- {
+			acl := callAnn[i].InitAnnotation()
+			if acl != nil {
+				return nil, acl
+			}
+		}
+	}
+
+	return next, nil
+}

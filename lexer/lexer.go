@@ -1,0 +1,349 @@
+package lexer
+
+import (
+	"bufio"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+
+	"github.com/php-any/origami/token"
+)
+
+// Position 表示一个位置
+type Position struct {
+	Line   int // 行号
+	Column int // 列号
+	Offset int // 字节偏移量
+}
+
+// Token 表示一个词法单元的接口
+type Token interface {
+	// Type 返回 token 的类型
+	Type() token.TokenType
+	// Literal 返回 token 的字面值
+	Literal() string
+	// Start 返回 token 的起始位置
+	Start() int
+	// End 返回 token 的结束位置
+	End() int
+	// Line 返回 token 所在的行号
+	Line() int
+	// Pos 返回 token 在单独一行中的位置
+	Pos() int
+}
+
+// Node 表示 DAG 中的一个节点
+type Node struct {
+	children map[rune]*Node
+	token    *token.TokenDefinition
+}
+
+// Lexer 表示词法分析器
+type Lexer struct {
+	input      []rune        // 输入内容
+	reader     *bufio.Reader // 输入源
+	pos        *Position     // 当前位置
+	ch         rune          // 当前字符
+	width      int           // 当前字符的宽度
+	hasNext    bool
+	readOffset int   // 当前读取到 input 的下标
+	root       *Node // DAG 根节点
+}
+
+// NewLexer 创建一个新的词法分析器
+func NewLexer() *Lexer {
+	lexer := &Lexer{
+		root: &Node{
+			children: make(map[rune]*Node),
+		},
+	}
+
+	// 构建 DAG
+	for _, def := range token.TokenDefinitions {
+		lexer.addTokenDefinition(def)
+	}
+
+	return lexer
+}
+
+// addTokenDefinition 添加一个 token 定义到 DAG 中
+func (l *Lexer) addTokenDefinition(def token.TokenDefinition) {
+	current := l.root
+	for _, char := range def.Literal {
+		if _, exists := current.children[char]; !exists {
+			current.children[char] = &Node{
+				children: make(map[rune]*Node),
+			}
+		}
+		current = current.children[char]
+	}
+	current.token = &def
+}
+
+// isWhitespace 检查字符是否是空白字符（除了换行符）
+func isWhitespace(ch byte) bool {
+	return ch == ' ' || ch == '\t' || ch == '\r'
+}
+
+// Tokenize 将输入字符串转换为 token 列表
+func (l *Lexer) Tokenize(input string) []Token {
+	// 检查并跳过 Shebang 行（如 #!/usr/bin/env php）
+	if len(input) >= 2 && input[0] == '#' && input[1] == '!' {
+		// 找到第一行的结束位置（换行符）
+		newlinePos := strings.Index(input, "\n")
+		if newlinePos != -1 {
+			// 跳过整个 Shebang 行，包括换行符
+			input = input[newlinePos+1:]
+			return l.TokenizeTemplate(input)
+		} else {
+			// 如果没有找到换行符，说明整个文件只有一行 Shebang
+			return []Token{}
+		}
+	}
+
+	// 是否是 <!DOCTYPE 开头, 如果是就使用 HTML lexer 保留所有符号
+	if len(input) >= 9 && input[:9] == "<!DOCTYPE" {
+		htmlLexer := NewHtmlLexer()
+		return htmlLexer.Tokenize(input)
+	}
+	var tokens []Token
+	pos := 0
+	lastWasNewline := false
+	line := 0    // 从0开始
+	linePos := 0 // 从0开始
+
+	for pos < len(input) {
+		// 跳过空白字符，但保留换行符
+		if isWhitespace(input[pos]) {
+			pos++
+			linePos++
+			continue
+		}
+		// 跳过全角空格
+		if pos+2 <= len(input) && input[pos] == 0xe3 && input[pos+1] == 0x80 && input[pos+2] == 0x80 {
+			pos += 3
+			linePos += 3
+			continue
+		}
+		if input[pos] == '\n' {
+			if !lastWasNewline {
+				tokens = append(tokens, NewWorkerToken(
+					token.NEWLINE,
+					"\n",
+					pos,
+					pos+1,
+					line,
+					linePos,
+				))
+				lastWasNewline = true
+			}
+			line++
+			linePos = 0 // 从0开始
+			pos++
+			continue
+		}
+		lastWasNewline = false
+
+		// 处理特殊token
+		if result, ok := HandleSpecialToken(input, pos, line, linePos); ok {
+			tokens = append(tokens, NewWorkerToken(
+				result.Token.Type,
+				result.Token.Literal,
+				pos,
+				result.NewPos,
+				line,
+				linePos,
+			))
+			// 使用返回的新位置信息更新状态
+			pos = result.NewPos
+			line = result.NewLine
+			linePos = result.NewLinePos
+			continue
+		}
+
+		// 尝试匹配最长的token
+		if tokDef, length, ok := l.matchLongestToken(input, pos); ok {
+			tokens = append(tokens, NewWorkerToken(
+				tokDef.Type,
+				tokDef.Literal,
+				pos,
+				pos+length,
+				line,
+				linePos,
+			))
+			pos += length
+			linePos += length
+			continue
+		}
+
+		// 获取当前位置的 rune
+		r, size := utf8.DecodeRuneInString(input[pos:])
+		if r == utf8.RuneError {
+			// 处理无效的 UTF-8 序列
+			tokens = append(tokens, NewWorkerToken(
+				token.UNKNOWN,
+				string(input[pos]),
+				pos,
+				pos+1,
+				line,
+				linePos,
+			))
+			pos++
+			linePos++
+			continue
+		}
+
+		// 检查是否是标识符
+		if unicode.IsLetter(r) || r == '_' || r >= 0x4e00 {
+			start := pos
+			startLinePos := linePos
+			pos += size // 移动到下一个字符
+			linePos += size
+
+			for pos < len(input) {
+				r, size := utf8.DecodeRuneInString(input[pos:])
+				if r == utf8.RuneError {
+					break
+				}
+
+				// 检查是否是分割符
+				if IsDelimiter(r) {
+					break
+				}
+
+				// 检查是否是有效的标识符字符
+				if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' && r != '\\' && r < 0x4e00 {
+					break
+				}
+
+				pos += size
+				linePos += size
+			}
+
+			tokens = append(tokens, NewWorkerToken(
+				token.IDENTIFIER,
+				input[start:pos],
+				start,
+				pos,
+				line,
+				startLinePos,
+			))
+			continue
+		}
+
+		// 如果无法匹配任何token，将当前字符作为未知token
+		tokens = append(tokens, NewWorkerToken(
+			token.UNKNOWN,
+			string(r),
+			pos,
+			pos+size,
+			line,
+			linePos,
+		))
+		pos += size
+		linePos += size
+	}
+
+	return NewPreprocessor(tokens).Process()
+}
+
+// matchLongestToken 尝试匹配最长的 token
+func (l *Lexer) matchLongestToken(input string, pos int) (*token.TokenDefinition, int, bool) {
+	// 获取当前位置的rune
+	r, _ := utf8.DecodeRuneInString(input[pos:])
+	if r == utf8.RuneError {
+		return nil, 0, false
+	}
+
+	// 如果不是字母、下划线或中文字符开头，尝试匹配其他token
+	if (!unicode.IsLetter(r) && r != '_' && r < 0x4e00) || IsDelimiter(r) {
+		// 使用 DAG 进行高效匹配
+		return l.matchTokenWithDAG(input, pos)
+	}
+
+	// 如果是标识符开头，使用 DAG 匹配关键字
+	return l.matchKeywordWithDAG(input, pos)
+}
+
+// matchTokenWithDAG 使用 DAG 匹配 token
+func (l *Lexer) matchTokenWithDAG(input string, pos int) (*token.TokenDefinition, int, bool) {
+	current := l.root
+	var longestMatch *token.TokenDefinition
+	longestLength := 0
+	currentPos := pos
+
+	// 遍历输入字符串，在 DAG 中查找匹配
+	for currentPos < len(input) {
+		r, size := utf8.DecodeRuneInString(input[currentPos:])
+		if r == utf8.RuneError {
+			break
+		}
+
+		// 检查当前节点是否有子节点
+		if child, exists := current.children[r]; exists {
+			current = child
+			currentPos += size
+
+			// 如果当前节点有 token 定义，记录为可能的匹配
+			if current.token != nil {
+				longestMatch = current.token
+				longestLength = currentPos - pos
+			}
+		} else {
+			// 没有更多匹配，退出循环
+			break
+		}
+	}
+
+	if longestMatch != nil {
+		return longestMatch, longestLength, true
+	}
+	return nil, 0, false
+}
+
+// matchKeywordWithDAG 使用 DAG 匹配关键字
+func (l *Lexer) matchKeywordWithDAG(input string, pos int) (*token.TokenDefinition, int, bool) {
+	current := l.root
+	var longestMatch *token.TokenDefinition
+	longestLength := 0
+	currentPos := pos
+
+	// 遍历输入字符串，在 DAG 中查找匹配
+	for currentPos < len(input) {
+		r, size := utf8.DecodeRuneInString(input[currentPos:])
+		if r == utf8.RuneError {
+			break
+		}
+
+		// 检查当前节点是否有子节点
+		if child, exists := current.children[r]; exists {
+			current = child
+			currentPos += size
+
+			// 如果当前节点有 token 定义，且是关键字类型，记录为可能的匹配
+			if current.token != nil &&
+				((current.token.Type >= token.KEYWORD_START && current.token.Type <= token.KEYWORD_END) ||
+					(current.token.Type >= token.VALUE_START && current.token.Type <= token.VALUE_END)) {
+				longestMatch = current.token
+				longestLength = currentPos - pos
+			}
+		} else {
+			// 没有更多匹配，退出循环
+			break
+		}
+	}
+
+	// 检查匹配的关键字后面是否还有更多标识符字符
+	if longestMatch != nil {
+		// 检查关键字后面是否还有更多字符
+		if pos+longestLength < len(input) {
+			nextRune, _ := utf8.DecodeRuneInString(input[pos+longestLength:])
+			// 如果后面还有标识符字符，不匹配关键字
+			if unicode.IsLetter(nextRune) || unicode.IsDigit(nextRune) || nextRune == '_' || nextRune >= 0x4e00 {
+				return nil, 0, false
+			}
+		}
+		return longestMatch, longestLength, true
+	}
+	return nil, 0, false
+}

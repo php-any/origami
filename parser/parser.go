@@ -1,0 +1,893 @@
+package parser
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/utils"
+
+	"github.com/php-any/origami/lexer"
+	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/token"
+)
+
+// Parser 表示解析器
+type Parser struct {
+	vm               data.VM
+	source           *string
+	lexer            *lexer.Lexer      // 词法分析器
+	tokens           []lexer.Token     // 词法单元列表
+	position         int               // 当前处理位置
+	errors           []data.Control    // 错误列表
+	scopeManager     *ScopeManager     // 作用域管理器
+	expressionParser *ExpressionParser // 表达式解析器
+
+	identTryString  bool
+	currentClass    string
+	currentFunction string
+
+	namespace        *node.Namespace
+	uses             map[string]string // 类引用
+	ClassPathManager ClassPathManager  // 类路径管理器
+
+	// definingAbstractClass 为 true 时正在解析 abstract class
+	definingAbstractClass bool
+
+	// conditionalDeclDepth > 0 表示处于 if/循环/函数等语句块内。
+	// PHP：仅顶层无条件 class/interface/enum/trait 在编译期注册；条件声明延后到执行期。
+	conditionalDeclDepth int
+}
+
+// NewParser 创建一个新的解析器
+func NewParser() *Parser {
+	p := &Parser{
+		lexer:            lexer.NewLexer(),
+		tokens:           make([]lexer.Token, 0),
+		position:         0,
+		errors:           make([]data.Control, 0),
+		scopeManager:     NewScopeManager(),
+		uses:             make(map[string]string),
+		ClassPathManager: NewDefaultClassPathManager(),
+	}
+
+	p.expressionParser = NewExpressionParser(p)
+	return p
+}
+
+// reset 重置解析器状态
+func (p *Parser) reset() {
+	p.tokens = make([]lexer.Token, 0)
+	p.position = 0
+	p.errors = make([]data.Control, 0)
+	p.uses = make(map[string]string)
+	p.namespace = nil
+	p.scopeManager = NewScopeManager()
+}
+
+func (p *Parser) Clone() *Parser {
+	// 创建新的解析器实例
+	cloned := &Parser{
+		vm:               p.vm,             // VM 是共享的，不需要克隆
+		source:           nil,              // 字符串指针，共享即可
+		lexer:            lexer.NewLexer(), // 创建新的词法分析器
+		tokens:           make([]lexer.Token, 0),
+		position:         0,
+		errors:           make([]data.Control, 0),
+		scopeManager:     NewScopeManager(),  // 创建新的作用域管理器
+		expressionParser: p.expressionParser, // 稍后设置
+		identTryString:   p.identTryString,
+		namespace:        nil,
+		uses:             make(map[string]string),
+		ClassPathManager: p.ClassPathManager, // 类路径管理器是共享的
+	}
+	cloned.expressionParser = NewExpressionParser(cloned)
+	return cloned
+}
+
+func (p *Parser) SetVM(vm data.VM) {
+	p.vm = vm
+}
+
+// ParseFile 解析文件
+func (p *Parser) ParseFile(filename string) (*node.Program, data.Control) {
+	// 读取文件内容
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, utils.NewThrow(err)
+	}
+
+	// 重置解析器状态
+	p.reset()
+
+	p.source = &filename
+	// 进行分词
+	ext := len(filename)
+	if ext > 4 && filename[ext-4:] == ".php" {
+		phpContent := string(content)
+		// 与 PHP 行为一致：解析前去掉 shebang，避免将 #!/usr/bin/env php 当作文本输出
+		if len(phpContent) >= 2 && phpContent[0] == '#' && phpContent[1] == '!' {
+			if nl := strings.Index(phpContent, "\n"); nl != -1 {
+				phpContent = phpContent[nl+1:]
+			} else {
+				phpContent = ""
+			}
+		}
+		// 转换 PHP 替代语法（if: endif; 等）为标准花括号语法
+		phpContent = convertAltPHPSyntax(filename, phpContent)
+		p.tokens = p.lexer.TokenizeTemplate(phpContent)
+	} else {
+		p.tokens = p.lexer.Tokenize(string(content))
+	}
+
+	// 解析程序
+	program, acl := p.parseProgram(make([]data.GetValue, 0))
+	if acl != nil {
+		return nil, acl
+	}
+
+	return program, nil
+}
+
+// parseProgram 解析程序
+func (p *Parser) parseProgram(statements []data.GetValue) (*node.Program, data.Control) {
+	last := 0
+	// 解析所有语句
+	for !p.isEOF() {
+		stmt, acl := p.parseStatement()
+		if acl != nil {
+			return nil, acl
+		}
+		if stmt != nil {
+			if n, ok := stmt.(*node.Namespace); ok {
+				p.namespace = n
+				statements = append(statements, stmt)
+			} else if _, ok := stmt.(*node.ClassRegisterStmt); ok {
+				if p.namespace != nil {
+					p.namespace.Statements = append(p.namespace.Statements, stmt)
+				} else {
+					statements = append(statements, stmt)
+				}
+			} else if _, ok := stmt.(*node.ClassStatement); ok {
+				// 兼容旧 AST：类定义应通过 ClassRegisterStmt 注册
+				continue
+			} else if _, ok := stmt.(*node.AbstractClassStatement); ok {
+				continue
+			} else if _, ok := stmt.(*node.ClassGeneric); ok {
+				continue
+			} else if _, ok := stmt.(*node.InterfaceStatement); ok {
+				continue
+			} else {
+				if n, ok := stmt.(*node.UseStatement); ok {
+					p.uses[n.Alias] = n.Namespace
+				}
+
+				if p.namespace != nil {
+					p.namespace.Statements = append(p.namespace.Statements, stmt)
+				} else {
+					statements = append(statements, stmt)
+				}
+			}
+		} else if p.position != last {
+			last = p.position
+		} else {
+			return nil, data.NewErrorThrow(p.newFrom(), errors.New("无法识别语句: "+p.current().Literal()))
+		}
+	}
+
+	return node.NewProgram(nil, statements), nil
+}
+
+// current 返回当前词法单元
+func (p *Parser) current() lexer.Token {
+	if p.position >= len(p.tokens) {
+		return lexer.NewWorkerToken(token.EOF, "", 0, 0, 0, 0)
+	}
+	return p.tokens[p.position]
+}
+
+// peek 向前查看指定位置的token
+func (p *Parser) peek(offset int) lexer.Token {
+	pos := p.position + offset
+	if pos >= len(p.tokens) {
+		return lexer.NewWorkerToken(token.EOF, "", 0, 0, 0, 0)
+	}
+	return p.tokens[pos]
+}
+
+// 检查后续单词的可能类型
+func (p *Parser) checkPositionIs(position int, checks ...token.TokenType) bool {
+	if len(checks) == 1 && checks[0] == token.EOF {
+		if p.position+position >= len(p.tokens) {
+			return true
+		}
+		for _, check := range checks {
+			if p.tokens[p.position+position].Type() == check {
+				return true
+			}
+		}
+	} else {
+		if p.position+position >= len(p.tokens) {
+			return false
+		}
+	}
+
+	for _, check := range checks {
+		if p.tokens[p.position+position].Type() == check {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *Parser) currentIsTypeOrEOF(check token.TokenType) bool {
+	if p.position >= len(p.tokens) {
+		return true
+	}
+	return p.tokens[p.position].Type() == check
+}
+
+// 打印剩余的
+func (p *Parser) printRemaining() {
+	for !p.isEOF() {
+		fmt.Println(p.current().Literal())
+		p.next()
+	}
+}
+
+func (p *Parser) GetVariables() []data.Variable {
+	return p.scopeManager.CurrentScope().GetVariables()
+}
+
+// GetNamespace 获取当前解析文件的命名空间名称
+func (p *Parser) GetNamespace() string {
+	if p.namespace != nil {
+		return p.namespace.GetName()
+	}
+	return ""
+}
+
+// next 移动到下一个词法单元
+func (p *Parser) next() {
+	p.position++
+}
+
+func (p *Parser) nextAndCheck(t token.TokenType) data.Control {
+	if p.current().Type() != t {
+		err := fmt.Errorf("检查符号不一致, 需要(%v:%v), 当前(%v:%v)", t, token.GetLiteralByType(t), p.current().Type(), p.current().Literal())
+		return data.NewErrorThrow(p.newFrom(), err)
+	}
+	p.position++
+	return nil
+}
+
+func (p *Parser) nextAndCheckStip(t token.TokenType) {
+	if p.current().Type() == t {
+		p.position++
+	}
+}
+
+// isEOF 检查是否到达文件末尾
+func (p *Parser) isEOF() bool {
+	return p.position >= len(p.tokens)
+}
+
+// 结束当前文件解析
+func (p *Parser) stopNext() {
+	p.position = len(p.tokens)
+}
+
+func (p *Parser) ShowControl(acl data.Control) {
+	// exit/die 是正常终止控制流，不是解析/运行时错误；由宿主按退出码结束进程。
+	if exit, ok := acl.(data.ExitControl); ok && exit.IsExit() {
+		return
+	}
+
+	err := acl.AsString()
+
+	// 优先检查是否是 ThrowValue；先打印错误，再打印调用栈
+	if throwValue, ok := acl.(*data.ThrowValue); ok {
+		from := throwValue.Error.From
+		if from == nil {
+			from = node.NewTokenFrom(p.source, p.current().Start(), p.current().End(), p.current().Line(), p.current().Pos())
+		}
+		p.errors = append(p.errors, data.NewErrorThrow(from, errors.New(err)))
+
+		if throwValue.PHPUncaughtError {
+			p.printPHPUncaughtError(throwValue.Error.Error(), from, throwValue.StackFrames)
+			return
+		}
+		if throwValue.PHPCompileFatal {
+			p.printPHPCompileFatal(throwValue.Error.Error(), from)
+			return
+		}
+
+		// 先打印运行时错误信息
+		p.printRuntimeError(err, from)
+
+		if len(throwValue.StackFrames) > 0 {
+			_, _ = fmt.Fprintln(os.Stderr, "Stack trace:")
+			for i, frame := range throwValue.StackFrames {
+				var stackSl, stackSp int
+				var source string
+				if frame.From == nil {
+					stackSl, stackSp = 0, 0
+				} else {
+					stackSl, stackSp = frame.From.GetStartPosition()
+					source = frame.From.GetSource()
+				}
+				// 使用 path:line:col 形式提升可点击性
+				if frame.ClassName == "" {
+					_, _ = fmt.Fprintf(os.Stderr, "#%d %s:%d:%d in %s()\n", i, source, stackSl+1, stackSp+1, frame.MethodName)
+				} else {
+					_, _ = fmt.Fprintf(os.Stderr, "#%d %s:%d:%d in %s::%s()\n", i, source, stackSl+1, stackSp+1, frame.ClassName, frame.MethodName)
+				}
+			}
+			// 末行也输出可点击位置
+			sl, sp := from.GetStartPosition()
+			_, _ = fmt.Fprintf(os.Stderr, "  thrown at %s:%d:%d\n", from.GetSource(), sl+1, sp+1)
+		}
+	} else if acl, ok := acl.(node.GetFrom); ok {
+		from := acl.GetFrom()
+		p.errors = append(p.errors, data.NewErrorThrow(from, errors.New(err)))
+		// 先打印详细的解析错误信息
+		p.printDetailedError(err, from)
+	} else {
+		from := node.NewTokenFrom(p.source, p.current().Start(), p.current().End(), p.current().Line(), p.current().Pos())
+		p.errors = append(p.errors, data.NewErrorThrow(from, errors.New(err)))
+		// 打印详细的错误信息
+		p.printDetailedError(err, from)
+	}
+}
+
+func (p *Parser) GetStart() int {
+	return p.current().Start()
+}
+
+// Deprecated: 使用 NewFromBuilder() 或其他新方法替代
+func (p *Parser) NewTokenFrom(start int) *node.TokenFrom {
+	return node.NewTokenFrom(p.source, start, p.current().End(), p.current().Line(), p.current().Pos())
+}
+
+// StartPosition 开始位置跟踪，返回当前位置
+func (p *Parser) StartPosition() int {
+	return p.position
+}
+
+// EndPosition 结束位置跟踪，返回当前位置
+func (p *Parser) EndPosition() int {
+	return p.position
+}
+
+// FromPositionRange 从位置范围创建From信息
+func (p *Parser) FromPositionRange(startPos, endPos int) *node.TokenFrom {
+	if startPos >= len(p.tokens) || endPos >= len(p.tokens) {
+		return p.FromCurrentToken()
+	}
+
+	startToken := p.tokens[startPos]
+	endToken := p.tokens[endPos]
+
+	// 创建 TokenFrom 并设置结束位置
+	tf := node.NewTokenFrom(p.source, startToken.Start(), endToken.End(), startToken.Line(), startToken.Pos())
+
+	// 总是设置结束位置，确保位置信息完整
+	// 即使 startPos == endPos，我们也需要正确的结束位置信息
+	tf.SetEndPosition(endToken.Line(), endToken.Pos())
+
+	return tf
+}
+
+// isTokensAdjacent 检查两个 token 是否相邻（没有空白字符或其他分隔符）
+func (p *Parser) isTokensAdjacent(token1, token2 lexer.Token) bool {
+	// 如果第一个 token 的结束位置等于第二个 token 的开始位置，说明它们是相邻的
+	return token1.End() == token2.Start()
+}
+
+func (p *Parser) checkClassName(name string) {
+
+}
+
+// 获取类的完整路径。
+//   - 对于未带命名空间分隔符的简单类名，先尝试 use 别名，再按当前 namespace 解析
+//   - 对于包含命名空间分隔符但不以 "\" 开头的限定名（如 Configuration\ApplicationBuilder），
+//     需要按 PHP 规则将其视为「当前命名空间下的相对类名」：
+//     namespace Illuminate\Foundation;
+//     new Configuration\ApplicationBuilder;
+//     等价于：
+//     new \Illuminate\Foundation\Configuration\ApplicationBuilder;
+func (p *Parser) getClassName(try bool) (string, data.Control) {
+	className := p.current().Literal()
+	p.next()
+
+	if !try {
+		return className, nil
+	}
+
+	full, _ := p.findFullClassNameByNamespace(className)
+	return full, nil
+}
+
+// parseStatement 解析语句
+func (p *Parser) parseStatement() (data.GetValue, data.Control) {
+	switch p.current().Type() {
+	case token.HTML_TAG: // 新增：处理 HTML 标签
+		stmt := node.NewInlineHTMLNode(p.FromCurrentToken(), p.current().Literal())
+		p.next()
+		return stmt, nil
+	default:
+		return p.expressionParser.Parse()
+	}
+}
+
+// 只会获取单个值, 不会有表达式, 并且必须有值, 没有就是错误
+func (p *Parser) parseValue() (data.GetValue, bool) {
+	tracker := p.StartTracking()
+	switch p.current().Type() {
+	case token.INT:
+		value := p.current().Literal()
+		p.next()
+		return node.NewIntLiteral(tracker.EndBefore(), value), true
+	case token.FLOAT:
+		value := p.current().Literal()
+		p.next()
+		return node.NewFloatLiteral(tracker.EndBefore(), value), true
+	case token.HEREDOC, token.NOWDOC:
+		stmt, acl := NewHeredocParser(p).ParseLiteral()
+		return stmt, acl == nil
+	case token.STRING:
+		// 检查是否是 LingToken（插值字符串）
+		if lingToken, ok := p.current().(*lexer.LingToken); ok {
+			p.next()
+			return p.parseLingToken(lingToken), true
+		}
+		// 普通字符串
+		value := p.current().Literal()
+		p.next()
+		return node.NewStringLiteral(tracker.EndBefore(), value), true
+	case token.TRUE:
+		p.next()
+		return node.NewBooleanLiteral(tracker.EndBefore(), true), true
+	case token.FALSE:
+		p.next()
+		return node.NewBooleanLiteral(tracker.EndBefore(), false), true
+	case token.NULL:
+		p.next()
+		return node.NewNullLiteral(tracker.EndBefore()), true
+	case token.THIS:
+		stmt, acl := NewThisParser(p).Parse()
+		_ = acl
+		return stmt, true
+	case token.VARIABLE:
+		vp := &VariableParser{p}
+		return vp.parseVariable(), true
+	case token.IDENTIFIER:
+		vp := &VariableParser{p}
+		return vp.parseVariable(), true
+	default:
+		return nil, false
+	}
+}
+
+// parseBlock 解析语句块
+func (p *Parser) parseBlock() ([]data.GetValue, data.Control) {
+	p.conditionalDeclDepth++
+	defer func() { p.conditionalDeclDepth-- }()
+
+	statements := make([]data.GetValue, 0)
+
+	// 检查是否是语句块开始
+	if p.current().Type() != token.LBRACE {
+		// 如果不是语句块，则解析单个语句
+		stmt, acl := p.parseStatement()
+		if acl != nil {
+			return nil, acl
+		}
+		if stmt != nil {
+			statements = append(statements, stmt)
+		}
+		// 单行语句后的分号必须吃掉，否则 if (...) stmt; else 会把 else 留给外层解析失败
+		for p.checkPositionIs(0, token.SEMICOLON) {
+			p.next()
+		}
+		return statements, nil
+	}
+
+	// 跳过左花括号
+	p.next()
+
+	for p.checkPositionIs(0, token.SEMICOLON) {
+		p.next()
+	}
+
+	// 解析语句块中的所有语句
+	for !p.isEOF() && p.current().Type() != token.RBRACE {
+		stmt, acl := p.parseStatement()
+		if acl != nil {
+			return nil, acl
+		}
+		for p.checkPositionIs(0, token.SEMICOLON) {
+			p.next()
+		}
+		if stmt != nil {
+			statements = append(statements, stmt)
+		} else {
+			return statements, data.NewErrorThrow(p.newFrom(), errors.New("语法块无法识别"))
+		}
+	}
+
+	// 跳过右花括号
+	p.nextAndCheck(token.RBRACE)
+
+	return statements, nil
+}
+
+func (p *Parser) AddScanNamespace(namespace string, path string) {
+	// 使用类路径管理器添加命名空间
+	p.ClassPathManager.AddNamespace(namespace, path)
+}
+
+// 默认 try = true; 只获取全量名称
+func (p *Parser) findFullClassNameByNamespace(name string) (string, bool) {
+	if full, ok := p.uses[name]; ok {
+		return full, true
+	}
+
+	if strings.Contains(name, "\\") {
+		// 当存在 use A\D as P;
+		// - P 映射到完整命名空间 A\D
+		// - 对于 P\ClassName 这种形式，需要展开为 A\D\ClassName
+		parts := strings.Split(name, "\\")
+		if len(parts) > 1 {
+			alias := parts[0]
+			if ns, ok := p.uses[alias]; ok {
+				// 用 use 映射的完整前缀替换别名，再拼接后续部分
+				full := ns
+				if len(parts) > 1 {
+					full = full + "\\" + strings.Join(parts[1:], "\\")
+				}
+				return full, true
+			}
+		}
+
+		// 含有 "\" 但没有命中任何 use 别名时：
+		// - 若以 "\" 开头，视为全局完全限定名，去掉前导 "\" 直接返回
+		// - 否则按 PHP 规则，将其视为当前 namespace 下的相对类名：
+		//     namespace A\B;
+		//     new C\D(); => A\B\C\D
+		if strings.HasPrefix(name, "\\") {
+			trimmed := strings.TrimPrefix(name, "\\")
+			// 尝试根据类路径管理器确认文件是否存在；存在则使用去掉 "\" 的形式
+			if _, ok := p.ClassPathManager.FindClassFile(trimmed); ok {
+				return trimmed, true
+			}
+			return trimmed, true
+		}
+
+		if p.namespace != nil {
+			tryName := p.namespace.GetName() + "\\" + name
+			// 先查已加载类/接口
+			if stmt, ok := p.vm.GetClass(tryName); ok {
+				return stmt.GetName(), true
+			}
+			if stmt, ok := p.vm.GetInterface(tryName); ok {
+				return stmt.GetName(), true
+			}
+			// 再查物理文件
+			if _, ok := p.ClassPathManager.FindClassFile(tryName); ok {
+				return tryName, true
+			}
+			// 文件未找到，但仍返回命名空间前缀的名称，让 Composer autoloader 处理
+			return tryName, false
+		}
+
+		// 如果当前命名空间下没有匹配，尝试将 name 视为全局 FQCN
+		if _, ok := p.ClassPathManager.FindClassFile(name); ok {
+			return name, true
+		}
+
+		// 找不到匹配时，返回原始名字，让后续 VM 在运行期再尝试 autoload 或报错
+		return name, false
+	}
+
+	if p.namespace != nil {
+		tryName := p.namespace.GetName() + "\\" + name
+		// 本包
+		if stmt, ok := p.vm.GetClass(tryName); ok {
+			return stmt.GetName(), true
+		}
+		if stmt, ok := p.vm.GetInterface(tryName); ok {
+			return stmt.GetName(), true
+		}
+		// 能找到文件就当时有类了
+		if _, ok := p.ClassPathManager.FindClassFile(tryName); ok {
+			return tryName, true
+		}
+		// 文件未找到，但仍返回命名空间前缀的名称，让 Composer autoloader 处理
+		// 当前命名空间未找到，尝试全局类（兼容 PHP 函数/常量 fallback 行为）
+		if stmt, ok := p.vm.GetClass(name); ok {
+			return stmt.GetName(), true
+		}
+		if stmt, ok := p.vm.GetInterface(name); ok {
+			return stmt.GetName(), true
+		}
+		if _, ok := p.ClassPathManager.FindClassFile(name); ok {
+			return name, true
+		}
+		// 文件未找到，返回命名空间前缀名称供运行期 autoload，但 ok=false 避免与函数后置调用 div{} 混淆
+		return tryName, false
+	} else {
+		// 尝试全局
+		if stmt, ok := p.vm.GetClass(name); ok {
+			return stmt.GetName(), true
+		}
+		if stmt, ok := p.vm.GetInterface(name); ok {
+			return stmt.GetName(), true
+		}
+		// 能找到文件就当时有类了
+		if _, ok := p.ClassPathManager.FindClassFile(name); ok {
+			return name, true
+		}
+		// 返回原始名称，让 VM 后续通过 Composer autoloader 加载
+		return name, false
+	}
+}
+
+func (p *Parser) findFullFunNameByNamespace(name string) (string, bool) {
+	if full, ok := p.uses[name]; ok {
+		return full, true
+	}
+	// 去除前导 \（全局函数引用）
+	searchName := name
+	if strings.HasPrefix(name, "\\") {
+		searchName = name[1:]
+	}
+	tryName := searchName
+	if p.namespace != nil && !strings.Contains(searchName, "\\") {
+		tryName = p.namespace.GetName() + "\\" + searchName
+	}
+	if stmt, ok := p.vm.GetFunc(tryName); ok {
+		return stmt.GetName(), true
+	}
+	if stmt, ok := p.vm.GetFunc(searchName); ok {
+		return stmt.GetName(), true
+	}
+
+	return "", false
+}
+
+func (p *Parser) newFrom() data.From {
+	return p.FromCurrentToken()
+}
+
+// SetClassPathManager 设置类路径管理器
+func (p *Parser) SetClassPathManager(manager ClassPathManager) {
+	p.ClassPathManager = manager
+}
+
+// GetClassPathManager 获取类路径管理器
+func (p *Parser) GetClassPathManager() ClassPathManager {
+	return p.ClassPathManager
+}
+
+// ParseExpressionFromString 从字符串解析表达式
+func (p *Parser) ParseExpressionFromString(exprStr string) (data.GetValue, data.Control) {
+	return p.ParseExpressionFromStringWithPosition(exprStr, 0, 0, 0)
+}
+
+// ParseExpressionFromStringWithPosition 从字符串解析表达式，并调整位置信息
+func (p *Parser) ParseExpressionFromStringWithPosition(exprStr string, startOffset, startLine, startColumn int) (data.GetValue, data.Control) {
+	// 保存当前状态
+	originalTokens := p.tokens
+	originalPosition := p.position
+
+	// 重置解析器状态
+	p.tokens = make([]lexer.Token, 0)
+	p.position = 0
+
+	// 对表达式字符串进行分词
+	p.tokens = p.lexer.Tokenize(exprStr)
+
+	// 调整 token 位置信息
+	if startOffset != 0 || startLine != 0 || startColumn != 0 {
+		p.tokens = adjustTokenPositions(p.tokens, startOffset, startLine, startColumn)
+	}
+
+	// 使用表达式解析器解析
+	exprParser := NewExpressionParser(p)
+	result, ctl := exprParser.Parse()
+
+	// 恢复原始状态
+	p.tokens = originalTokens
+	p.position = originalPosition
+
+	return result, ctl
+}
+
+// ParseString 从字符串解析程序
+func (p *Parser) ParseString(content string, filePath string) (*node.Program, data.Control) {
+	// 保存当前状态
+	originalTokens := p.tokens
+	originalPosition := p.position
+	originalSource := p.source
+
+	// 重置解析器状态
+	p.reset()
+
+	// 设置源文件路径，确保符号位置信息正确
+	p.source = &filePath
+
+	// 进行分词
+	p.tokens = p.lexer.Tokenize(content)
+
+	// 解析程序
+	program, acl := p.parseProgram(make([]data.GetValue, 0))
+	if acl != nil {
+		return nil, acl
+	}
+
+	// 恢复原始状态
+	p.tokens = originalTokens
+	p.position = originalPosition
+	p.source = originalSource
+
+	return program, nil
+}
+
+// 尝试识别类型
+func (p *Parser) tryFindTypes() (data.Types, bool) {
+	if data.ISBaseType(p.current().Literal()) {
+		t := p.current().Literal()
+		p.next()
+		return data.NewBaseType(t), true
+	}
+
+	name, acl := p.getClassName(true)
+	if acl != nil {
+		return nil, false
+	}
+	return data.NewBaseType(name), true
+}
+
+// parseLingToken 解析 LingToken（插值字符串），创建链接节点
+func (p *Parser) parseLingToken(lingToken *lexer.LingToken) data.GetValue {
+	// 从 lingToken 创建 TokenFrom
+	tokenFrom := node.NewTokenFrom(p.source, lingToken.Start(), lingToken.End(), lingToken.Line(), lingToken.Pos())
+
+	children := lingToken.Children()
+	if len(children) == 0 {
+		// 空字符串
+		return node.NewStringLiteral(tokenFrom, "")
+	}
+
+	// 解析所有子 token，使用 INTERPOLATION_LINK 分隔字符串和表达式部分
+	var parts []data.GetValue
+	for _, child := range children {
+		switch child.Type() {
+		case token.STRING:
+			strFrom := node.NewTokenFrom(p.source, child.Start(), child.End(), child.Line(), child.Pos())
+			parts = append(parts, node.NewStringLiteral(strFrom, child.Literal()))
+		case token.INTERPOLATION_VALUE:
+			// 表达式部分，解析为表达式
+			if lingToken, ok := child.(*lexer.LingToken); ok {
+				part, acl := p.parseTokensAsExpression(lingToken.Children())
+				if acl != nil {
+					return nil
+				}
+				parts = append(parts, part)
+			}
+		default:
+			return nil
+		}
+	}
+
+	// 如果没有部分，返回空字符串
+	if len(parts) == 0 {
+		return node.NewStringLiteral(tokenFrom, "")
+	}
+
+	// 如果只有一个部分，直接返回
+	if len(parts) == 1 {
+		return parts[0]
+	}
+
+	// 使用 BinaryLink 从左到右连接所有部分（插值是明确的链接逻辑）
+	result := parts[0]
+	for i := 1; i < len(parts); i++ {
+		result = node.NewBinaryLink(tokenFrom, result, parts[i])
+	}
+
+	return result
+}
+
+// adjustTokenPositions 调整 tokens 的位置信息，使其指向原始文件中的位置
+// startOffset: 起始字节偏移量
+// startLine: 起始行号
+// startColumn: 起始列号
+func adjustTokenPositions(tokens []lexer.Token, startOffset, startLine, startColumn int) []lexer.Token {
+	if len(tokens) == 0 {
+		return tokens
+	}
+
+	adjusted := make([]lexer.Token, 0, len(tokens))
+	for _, tok := range tokens {
+		adjustedToken := adjustSingleTokenPosition(tok, startOffset, startLine, startColumn)
+		adjusted = append(adjusted, adjustedToken)
+	}
+
+	return adjusted
+}
+
+// adjustSingleTokenPosition 调整单个 token 的位置信息
+func adjustSingleTokenPosition(tok lexer.Token, startOffset, startLine, startColumn int) lexer.Token {
+	// 计算调整后的位置信息
+	relativeLine := tok.Line()
+	relativeColumn := tok.Pos()
+
+	absoluteStart := tok.Start() + startOffset
+	absoluteEnd := tok.End() + startOffset
+
+	var absoluteLine, absoluteColumn int
+	if relativeLine == 0 {
+		// 第一行，列号需要加上起始列号
+		absoluteLine = startLine
+		absoluteColumn = relativeColumn + startColumn
+	} else {
+		// 跨行，行号需要加上起始行号，列号保持不变
+		absoluteLine = relativeLine + startLine
+		absoluteColumn = relativeColumn
+	}
+
+	// 使用类型 switch 处理不同类型的 token
+	switch v := tok.(type) {
+	case *lexer.WorkerToken:
+		// WorkerToken，创建新的 WorkerToken 并调整位置
+		return lexer.NewWorkerToken(
+			v.Type(),
+			v.Literal(),
+			absoluteStart,
+			absoluteEnd,
+			absoluteLine,
+			absoluteColumn,
+		)
+	case *lexer.LingToken:
+		// LingToken，递归调整子 tokens 的位置
+		adjustedChildren := adjustTokenPositions(v.Children(), startOffset, startLine, startColumn)
+		// 创建新的 LingToken 并调整位置
+		return lexer.NewLingToken(
+			v.Type(),
+			v.Literal(),
+			absoluteStart,
+			absoluteEnd,
+			absoluteLine,
+			absoluteColumn,
+			adjustedChildren,
+		)
+	default:
+		// 无法识别的 token 类型，报错
+		panic(fmt.Sprintf("无法识别的 token 类型: %T", tok))
+	}
+}
+
+// parseTokensAsExpression 解析 token 列表为表达式
+// 用于插值场景，直接解析表达式而不是程序
+func (p *Parser) parseTokensAsExpression(tokens []lexer.Token) (data.GetValue, data.Control) {
+	if len(tokens) == 0 {
+		return nil, nil
+	}
+
+	np := p.Clone()
+
+	np.scopeManager = p.scopeManager
+	np.uses = p.uses
+	np.source = p.source
+
+	// 设置新的 tokens
+	np.tokens = tokens
+	np.position = 0
+
+	// 直接使用表达式解析器解析表达式
+	return np.parseProgram(make([]data.GetValue, 0))
+}

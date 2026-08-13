@@ -1,0 +1,200 @@
+package node
+
+import (
+	"errors"
+
+	"github.com/php-any/origami/data"
+)
+
+// VariableExpression 表示变量表达式
+type VariableExpression struct {
+	*Node `pp:"-"`
+	Name  string // 变量名
+	Index int    // 变量在作用域中的索引
+	Type  data.Types
+}
+
+// NewVariableWithFirst 解释器创建变量前, 需要先识别定义时的信息 p.scopeManager.LookupVariable(name)
+func NewVariableWithFirst(from data.From, first data.Variable) data.Variable {
+	if _, ok := first.(*VariableReference); ok {
+		return NewVariableReference(from, first.GetName(), first.GetIndex(), first.GetType())
+	}
+	return &VariableExpression{
+		Node:  NewNode(from),
+		Name:  first.GetName(),
+		Index: first.GetIndex(),
+		Type:  first.GetType(),
+	}
+}
+func NewVariable(from data.From, name string, index int, ty data.Types) *VariableExpression {
+	if len(name) > 0 && name[0:1] == "$" {
+		name = name[1:]
+	}
+	return &VariableExpression{
+		Node:  NewNode(from),
+		Name:  name,
+		Index: index,
+		Type:  ty,
+	}
+}
+
+// GetValue 获取变量表达式的值
+func (v *VariableExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return ctx.GetVariableValue(v)
+}
+
+func (v *VariableExpression) GetIndex() int {
+	return v.Index
+}
+func (v *VariableExpression) GetName() string {
+	return v.Name
+}
+func (v *VariableExpression) GetType() data.Types {
+	return v.Type
+}
+
+func (v *VariableExpression) SetValue(ctx data.Context, value data.Value) data.Control {
+	// PHP 兼容：变量可以被赋予任何类型的值
+	return ctx.SetVariableValue(v, value)
+}
+
+// VariableList 支持多变量解包赋值
+
+type VariableList struct {
+	Vars []*VariableExpression
+}
+
+func NewVariableList(vars []*VariableExpression) *VariableList {
+	return &VariableList{Vars: vars}
+}
+
+func (vl *VariableList) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	// 返回所有变量的值组成的数组
+	var values []data.Value
+	for _, v := range vl.Vars {
+		val, ctl := v.GetValue(ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if vv, ok := val.(data.Value); ok {
+			values = append(values, vv)
+		} else {
+			values = append(values, data.NewNullValue())
+		}
+	}
+	return data.NewArrayValue(values), nil
+}
+
+func (vl *VariableList) GetIndex() int {
+	if len(vl.Vars) > 0 {
+		return vl.Vars[0].GetIndex()
+	}
+	return 0
+}
+
+func (vl *VariableList) GetName() string {
+	// 用逗号拼接所有变量名
+	names := ""
+	for i, v := range vl.Vars {
+		if i > 0 {
+			names += ","
+		}
+		names += v.GetName()
+	}
+	return names
+}
+
+func (vl *VariableList) GetType() data.Types {
+	// 多变量类型一般不做类型约束，返回 nil
+	return nil
+}
+
+func (vl *VariableList) SetValue(ctx data.Context, value data.Value) data.Control {
+	// 处理 ArrayValue
+	if arr, ok := value.(*data.ArrayValue); ok {
+		for i, v := range vl.Vars {
+			var val data.Value = data.NewNullValue()
+			if i < len(arr.List) {
+				val = arr.List[i].Value
+			}
+			if ctl := v.SetValue(ctx, val); ctl != nil {
+				return ctl
+			}
+		}
+		return nil
+	}
+	// 处理实现了 ArrayAccess 的对象（如 Collection）
+	if cv, ok := value.(*data.ClassValue); ok {
+		if method, exists := cv.GetMethod("offsetGet"); exists {
+			for i, v := range vl.Vars {
+				fnCtx := cv.CreateContext(method.GetVariables())
+				if len(method.GetVariables()) > 0 {
+					fnCtx.SetVariableValue(method.GetVariables()[0], data.NewIntValue(i))
+				}
+				ret, ctl := method.Call(fnCtx)
+				if ctl != nil {
+					return ctl
+				}
+				var val data.Value = data.NewNullValue()
+				if rv, ok := ret.(data.Value); ok {
+					val = rv
+				}
+				if ctl := v.SetValue(ctx, val); ctl != nil {
+					return ctl
+				}
+			}
+			return nil
+		}
+	}
+	// 单值赋给第一个变量
+	if len(vl.Vars) > 0 {
+		return vl.Vars[0].SetValue(ctx, value)
+	}
+	return nil
+}
+
+type VariableReference struct {
+	*Node `pp:"-"`
+	Name  string // 变量名
+	Index int    // 变量在作用域中的索引
+	Type  data.Types
+}
+
+// NewVariableReference 创建一个新的变量引用
+func NewVariableReference(from data.From, name string, index int, ty data.Types) *VariableReference {
+	if name[0:1] == "$" {
+		name = name[1:]
+	}
+	return &VariableReference{
+		Node:  NewNode(from),
+		Name:  name,
+		Index: index,
+		Type:  ty,
+	}
+}
+
+// GetValue 获取变量表达式的值
+func (v *VariableReference) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	value, _ := ctx.GetIndexValue(v.Index)
+	return value, nil
+}
+
+func (v *VariableReference) GetIndex() int {
+	return v.Index
+}
+func (v *VariableReference) GetName() string {
+	return v.Name
+}
+func (v *VariableReference) GetType() data.Types {
+	return v.Type
+}
+
+func (v *VariableReference) SetValue(ctx data.Context, value data.Value) data.Control {
+	if v.Type != nil {
+		if !v.Type.Is(value) {
+			return data.NewErrorThrow(v.from, errors.New("变量类型和赋值类型不一致, 变量类型("+v.Type.String()+"), 赋值("+value.AsString()+")"))
+		}
+	}
+
+	return ctx.SetVariableValue(v, value)
+}

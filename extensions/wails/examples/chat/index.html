@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Origami Chat · Wails v3</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="app">
+    <!-- 侧边栏：频道 + 在线用户 + 昵称 -->
+    <aside class="sidebar">
+      <div class="brand">💬 Origami Chat</div>
+
+      <div class="section-title">频道</div>
+      <ul class="channels" id="channels"></ul>
+
+      <div class="section-title">在线成员 · <span id="userCount">0</span></div>
+      <ul class="users" id="users"></ul>
+
+      <div class="me">
+        <label>我的昵称</label>
+        <input id="nick" type="text" maxlength="16" placeholder="输入昵称…" autocomplete="off">
+      </div>
+    </aside>
+
+    <!-- 主聊天区 -->
+    <main class="chat">
+      <header class="chat-header">
+        <span class="hash">#</span>
+        <span id="curChannelName">综合</span>
+        <span class="topic" id="curTopic"></span>
+      </header>
+
+      <div class="messages" id="messages"></div>
+
+      <form class="composer" id="composer" autocomplete="off">
+        <input id="input" type="text" placeholder="输入消息，回车发送…  试试 /help" autocomplete="off">
+        <button type="submit">发送</button>
+      </form>
+    </main>
+  </div>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

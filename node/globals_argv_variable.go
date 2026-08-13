@@ -1,0 +1,111 @@
+package node
+
+import (
+	"errors"
+	"os"
+	"strconv"
+	"strings"
+
+	"github.com/php-any/origami/data"
+)
+
+// $argv
+
+type ArgvVariable struct {
+	*Node `pp:"-"`
+}
+
+// CLI 进程级缓存：$argv 对应的值（通常为 os.Args[1:]；也可被赋为 null）
+var argvValue data.Value
+var argvInitialized bool
+
+func NewArgvVariable(from data.From) data.Variable {
+	return &ArgvVariable{
+		Node: NewNode(from),
+	}
+}
+
+func (v *ArgvVariable) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	// CLI 语义：$argv = os.Args[1:]（脚本路径 + 额外参数）
+	if !argvInitialized {
+		if len(os.Args) <= 1 {
+			argvValue = data.NewArrayValue([]data.Value{})
+		} else {
+			arr := make([]data.Value, 0, len(os.Args)-1)
+			for _, s := range os.Args[1:] {
+				arr = append(arr, data.NewStringValue(s))
+			}
+			argvValue = data.NewArrayValue(arr)
+		}
+		argvInitialized = true
+	}
+	return argvValue, nil
+}
+
+func (v *ArgvVariable) GetIndex() int       { return 0 }
+func (v *ArgvVariable) GetName() string     { return "$argv" }
+func (v *ArgvVariable) GetType() data.Types { return nil }
+func (v *ArgvVariable) SetValue(ctx data.Context, value data.Value) data.Control {
+	// PHP 允许 $argv = null（如 laravel/pao: $argv = $_SERVER['argv'] ?? null）
+	if value == nil {
+		argvValue = data.NewNullValue()
+		argvInitialized = true
+		return nil
+	}
+	if _, isNull := value.(*data.NullValue); isNull {
+		argvValue = data.NewNullValue()
+		argvInitialized = true
+		return nil
+	}
+	// 允许脚本对 $argv 重新赋值；为了避免与其它数组共享底层结构，这里对数组做一次 Clone。
+	if arr, ok := value.(*data.ArrayValue); ok {
+		argvValue = data.CloneArrayValue(arr)
+		argvInitialized = true
+		return nil
+	}
+	return data.NewErrorThrow(v.from, errors.New("$argv expects array value"))
+}
+
+// $argc = len($argv)
+
+type ArgcVariable struct {
+	*Node `pp:"-"`
+}
+
+var argcValue *data.IntValue
+
+func NewArgcVariable(from data.From) data.Variable {
+	return &ArgcVariable{
+		Node: NewNode(from),
+	}
+}
+
+func (v *ArgcVariable) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if argcValue == nil {
+		// 通过 argvValue 计算，保证与 $argv 一致
+		argv, _ := (&ArgvVariable{Node: v.Node}).GetValue(ctx)
+		if arr, ok := argv.(*data.ArrayValue); ok {
+			argcValue = data.NewIntValue(len(arr.List)).(*data.IntValue)
+		} else {
+			argcValue = data.NewIntValue(0).(*data.IntValue)
+		}
+	}
+	return argcValue, nil
+}
+
+func (v *ArgcVariable) GetIndex() int       { return 0 }
+func (v *ArgcVariable) GetName() string     { return "$argc" }
+func (v *ArgcVariable) GetType() data.Types { return nil }
+func (v *ArgcVariable) SetValue(ctx data.Context, value data.Value) data.Control {
+	if iv, ok := value.(*data.IntValue); ok {
+		argcValue = iv
+		return nil
+	}
+	if value != nil {
+		if i, err := strconv.Atoi(strings.TrimSpace(value.AsString())); err == nil {
+			argcValue = data.NewIntValue(i).(*data.IntValue)
+			return nil
+		}
+	}
+	return data.NewErrorThrow(v.from, errors.New("$argc expects int value"))
+}

@@ -1,0 +1,58 @@
+package parser
+
+import (
+	"fmt"
+	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/token"
+)
+
+// ConstParser 表示const语句解析器
+type ConstParser struct {
+	*Parser
+}
+
+// NewConstParser 创建一个新的const语句解析器
+func NewConstParser(parser *Parser) StatementParser {
+	return &ConstParser{
+		parser,
+	}
+}
+
+// Parse 解析const语句
+func (p *ConstParser) Parse() (data.GetValue, data.Control) {
+	tracker := p.StartTracking()
+	// 跳过const关键字
+	p.next()
+
+	// 解析常量名
+	if p.current().Type() != token.IDENTIFIER {
+		return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("const 需要变量符号"))
+	}
+	name := p.current().Literal()
+	p.next()
+
+	t := data.Const{}
+
+	// 解析初始化表达式（常量必须初始化）
+	if !p.checkPositionIs(0, token.ASSIGN) {
+		// 下个单词不是 = 符号， 可能是 const string a = 1
+		if !p.checkPositionIs(1, token.ASSIGN) {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("常量必须初始化"))
+		}
+		t.MyType = data.NewBaseType(name)
+		name = p.current().Literal()
+		p.next()
+	}
+	p.next() // 跳过等号
+
+	initializer, acl := p.parseStatement()
+	// 创建变量跟踪
+	val := p.scopeManager.CurrentScope().AddVariable(name, t, tracker.EndBefore())
+
+	return node.NewConstStatement(
+		tracker.EndBefore(),
+		node.NewVariableWithFirst(tracker.EndBefore(), val),
+		initializer,
+	), acl
+}

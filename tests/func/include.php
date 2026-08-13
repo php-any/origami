@@ -1,0 +1,13 @@
+<?php
+// 无命名空间函数引入测试
+if (!function_exists("foo")) {
+    include(__DIR__. "/included/included.php")
+}
+
+$ret = foo()
+
+if ($ret == "foo") {
+    Log::info("无命名空间函数引入成功")
+} else {
+    Log::fatal("无命名空间函数引入失败")
+}

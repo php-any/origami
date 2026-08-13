@@ -1,0 +1,163 @@
+package parser
+
+import (
+	"errors"
+
+	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/token"
+)
+
+// ForeachParser 表示foreach语句解析器
+type ForeachParser struct {
+	*Parser
+}
+
+// NewForeachParser 创建一个新的foreach语句解析器
+func NewForeachParser(parser *Parser) StatementParser {
+	return &ForeachParser{
+		parser,
+	}
+}
+
+// Parse 解析foreach语句
+func (p *ForeachParser) Parse() (data.GetValue, data.Control) {
+	tracker := p.StartTracking()
+	// 跳过foreach关键字
+	p.next()
+
+	// 解析左括号
+	if p.current().Type() != token.LPAREN {
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 缺少左括号"))
+	}
+	p.next()
+
+	// 解析数组表达式
+	exprParser := NewExpressionParser(p.Parser)
+	array, acl := exprParser.Parse()
+	if acl != nil {
+		return nil, acl
+	}
+	if array == nil {
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要数组表达式"))
+	}
+
+	// 解析 as 关键字
+	if p.current().Type() != token.AS {
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要 'as' 关键字"))
+	}
+	p.next()
+
+	// 解析键和值变量
+	var key data.Variable
+	var value data.Variable
+	valueByRef := false
+
+	// 检查是否有键变量 (key => value)
+	var ok bool
+	keyTemp, acl := p.parseStatement()
+	if acl != nil {
+		return nil, acl
+	}
+	if key, ok = keyTemp.(data.Variable); !ok {
+		if ident, ok := keyTemp.(*node.StringLiteral); ok {
+			name := ident.Value
+			val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+			key = node.NewVariableWithFirst(tracker.EndBefore(), val)
+		} else if vr, ok := keyTemp.(*node.ValueReference); ok {
+			// foreach ($arr as &$v) 场景：
+			// 解析出来的是 ValueReference，真正的变量在 vr.Value 里
+			if v, ok := vr.Value.(data.Variable); ok {
+				key = v
+				valueByRef = true
+			} else {
+				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
+			}
+		} else if vr, ok := keyTemp.(*node.Array); ok {
+			fl, acl := parseForeachListVars(p, vr, tracker)
+			if acl != nil {
+				return nil, acl
+			}
+			key = &node.ForeachValueTarget{V: fl}
+		} else {
+			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
+		}
+	}
+
+	if p.current().Type() == token.ARRAY_KEY_VALUE {
+		p.next() // 跳过 =>
+		keyTemp, acl := p.parseStatement()
+		if acl != nil {
+			return nil, acl
+		}
+		valueByRef = false // 引用只作用于值变量
+		if value, ok = keyTemp.(data.Variable); !ok {
+			if ident, ok := keyTemp.(*node.StringLiteral); ok {
+				name := ident.Value
+				val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+				value = node.NewVariableWithFirst(tracker.EndBefore(), val)
+			} else if vr, ok := keyTemp.(*node.ValueReference); ok {
+				// foreach ($arr as $k => &$v) 场景，同样从 ValueReference 中取出变量
+				if v, ok := vr.Value.(data.Variable); ok {
+					value = v
+					valueByRef = true
+				} else {
+					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
+				}
+			} else if vr, ok := keyTemp.(*node.Array); ok {
+				fl, acl := parseForeachListVars(p, vr, tracker)
+				if acl != nil {
+					return nil, acl
+				}
+				value = &node.ForeachValueTarget{V: fl}
+			} else {
+				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 中需要变量"))
+			}
+		}
+	} else {
+		value = key
+		key = nil
+	}
+
+	// 解析右括号
+	if p.current().Type() != token.RPAREN {
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 缺少右括号"))
+	}
+	p.next()
+
+	// 解析循环体
+	body, acl := p.parseBlock()
+	if acl != nil {
+		return nil, acl
+	}
+	from := tracker.EndBefore()
+	return node.NewForeachStatementByRef(
+		from,
+		array,
+		key,
+		value,
+		body,
+		valueByRef,
+	), nil
+}
+
+// parseForeachListVars 解析 foreach ($a as [$x, , $z]) 中的列表解构；null 表示跳过该槽位
+func parseForeachListVars(p *ForeachParser, arr *node.Array, tracker *PositionTracker) ([]data.Variable, data.Control) {
+	fl := make([]data.Variable, len(arr.V))
+	for i, getValue := range arr.V {
+		if v, ok := getValue.(data.Variable); ok {
+			fl[i] = v
+			continue
+		}
+		if _, ok := getValue.(*node.NullLiteral); ok {
+			fl[i] = nil
+			continue
+		}
+		if _, ok := getValue.(*data.NullValue); ok {
+			fl[i] = nil
+			continue
+		}
+		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("foreach 列表解构中需要变量或空占位"))
+	}
+	return fl, nil
+}

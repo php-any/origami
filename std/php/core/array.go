@@ -1,0 +1,67 @@
+package core
+
+import (
+	"errors"
+
+	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
+)
+
+type ArrayFunction struct{}
+
+func NewArrayFunction() data.FuncStmt { return &ArrayFunction{} }
+
+func (f *ArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	a1, has := ctx.GetIndexValue(0)
+	if !has {
+		return nil, utils.NewThrow(errors.New("缺少参数, index: 0"))
+	}
+
+	switch v := a1.(type) {
+	case *data.ArrayValue:
+		return v, nil
+	case *data.ObjectValue:
+		// PHP: (array)  => convert object properties to array elements
+		result := &data.ArrayValue{List: make([]*data.ZVal, 0)}
+		v.RangeProperties(func(key string, val data.Value) bool {
+			zv := data.NewZVal(val)
+			zv.Name = key
+			result.List = append(result.List, zv)
+			return true
+		})
+		return result, nil
+	case *data.ClassValue:
+		// PHP: (array)  => convert object properties to array elements
+		result := &data.ArrayValue{List: make([]*data.ZVal, 0)}
+		v.RangeProperties(func(key string, val data.Value) bool {
+			zv := data.NewZVal(val)
+			zv.Name = key
+			result.List = append(result.List, zv)
+			return true
+		})
+		return result, nil
+	case *data.NullValue:
+		// PHP: (array) null => []（空数组，不是 [null]）
+		return data.NewArrayValue([]data.Value{}), nil
+	case *data.StringValue, *data.IntValue, *data.FloatValue, *data.BoolValue:
+		// PHP: (array) 标量 => array(0 => 标量)
+		return data.NewArrayValue([]data.Value{a1}), nil
+	default:
+		return data.NewArrayValue([]data.Value{a1}), nil
+	}
+}
+
+func (f *ArrayFunction) GetName() string { return "array" }
+
+func (f *ArrayFunction) GetParams() []data.GetValue {
+	return []data.GetValue{
+		node.NewParameter(nil, "data", 0, nil, nil),
+	}
+}
+
+func (f *ArrayFunction) GetVariables() []data.Variable {
+	return []data.Variable{
+		node.NewVariable(nil, "data", 0, data.Mixed{}),
+	}
+}
