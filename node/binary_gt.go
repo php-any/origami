@@ -29,6 +29,13 @@ func (b *BinaryGt) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, rCtl
 	}
 
+	// DateTime/Carbon 对象按时间戳比较
+	if lts, ok := getDateTimeTimestamp(ctx, lv); ok {
+		if rts, ok2 := getDateTimeTimestamp(ctx, rv); ok2 {
+			return data.NewBoolValue(lts > rts), nil
+		}
+	}
+
 	switch l := lv.(type) {
 	case *data.IntValue:
 		if ri, ok := rv.(data.AsInt); ok {
