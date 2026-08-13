@@ -2,7 +2,7 @@
 .idea
 vendor
 .DS_Store
-origami
+/origami
 node_modules
 *.vsix
 zy

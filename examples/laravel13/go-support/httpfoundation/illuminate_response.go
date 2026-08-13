@@ -272,12 +272,14 @@ func implementsOrExtends(cv *data.ClassValue, name string) bool {
 	if cv.Class.GetName() == name {
 		return true
 	}
+	vm := cv.GetVM()
+	// 检查类直接实现的接口及其继承链
 	for _, iface := range cv.Class.GetImplements() {
-		if iface == name {
+		if interfaceMatches(vm, iface, name) {
 			return true
 		}
 	}
-	vm := cv.GetVM()
+	// 向上遍历父类链
 	last := cv.Class
 	for last != nil && last.GetExtend() != nil {
 		ext := last.GetExtend()
@@ -289,11 +291,40 @@ func implementsOrExtends(cv *data.ClassValue, name string) bool {
 			return true
 		}
 		for _, iface := range next.GetImplements() {
-			if iface == name {
+			if interfaceMatches(vm, iface, name) {
 				return true
 			}
 		}
 		last = next
+	}
+	return false
+}
+
+// interfaceMatches 检查接口名或接口继承链中是否包含目标接口
+func interfaceMatches(vm data.VM, ifaceName string, target string) bool {
+	if ifaceName == target {
+		return true
+	}
+	if vm == nil {
+		return false
+	}
+	iface, ok := vm.GetInterface(ifaceName)
+	if !ok || iface == nil {
+		// 尝试加载接口（可能尚未注册到 VM）
+		loaded, acl := vm.GetOrLoadInterface(ifaceName)
+		if acl != nil || loaded == nil {
+			return false
+		}
+		iface = loaded
+	}
+	// 检查该接口继承的父接口
+	for _, parent := range iface.GetExtends() {
+		if parent == target {
+			return true
+		}
+		if interfaceMatches(vm, parent, target) {
+			return true
+		}
 	}
 	return false
 }
@@ -382,6 +413,14 @@ func phpValueToGo(v data.Value) any {
 				out = append(out, phpValueToGo(z.Value))
 			}
 		}
+		return out
+	case *data.ObjectValue:
+		// 将 ObjectValue（关联数组）转换为 Go map
+		out := map[string]any{}
+		t.RangeProperties(func(key string, value data.Value) bool {
+			out[key] = phpValueToGo(value)
+			return true
+		})
 		return out
 	case *data.ClassValue:
 		return t.AsString()
