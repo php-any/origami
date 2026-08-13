@@ -1,0 +1,16 @@
+{
+    "name": "origami/illuminate-db-example",
+    "description": "Standalone Illuminate Database (Eloquent ORM) example running on Origami",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "^8.1",
+        "illuminate/database": "^10.0"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": false
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

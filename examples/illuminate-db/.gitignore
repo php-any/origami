@@ -1,0 +1,15 @@
+# Composer
+/vendor/
+
+# Go build
+/illuminate-db
+*.exe
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Misc
+.DS_Store
+*.log
