@@ -95,6 +95,46 @@ func TestConvertAltPHPSyntax(t *testing.T) {
 			input:    "<?php switch($a): ?><?php case 1: ?>x<?php endswitch; ?>",
 			expected: "<?php switch ($a) { ?><?php case 1: ?>x<?php } ?>",
 		},
+		// ---- Blade 编译产物（混合风格）场景 ----
+		// Laravel Blade 编译器会把 @if/@elseif 编译成带冒号的开始标记，
+		// 但把 @else/@endif 编译成花括号（<?php } else { ?> / <?php } ?>），
+		// 因此产物中只有开始标记（if(...):）而没有 endif; 结束标记。
+		// 快速检查必须能识别这种"只有开始标记"的情况，否则 if(...): 不会转换。
+		{
+			name:     "blade mixed only if colon no endif",
+			input:    "<?php if($x): ?><p>A</p><?php } ?>",
+			expected: "<?php if ($x) { ?><p>A</p><?php } ?>",
+		},
+		{
+			name:     "blade mixed if elseif else no end markers",
+			input:    "<?php if($a): ?>a<?php elseif($b): ?>b<?php } else { ?>c<?php } ?>",
+			expected: "<?php if ($a) { ?>a<?php } elseif ($b) { ?>b<?php } else { ?>c<?php } ?>",
+		},
+		{
+			name:     "blade mixed nested if with brace blocks",
+			input:    "<?php if(Route::has('login')): ?><?php if (auth()->guard()->check()) { ?>D<?php } else { ?>L<?php } ?><?php } ?>",
+			expected: "<?php if (Route::has('login')) { ?><?php if (auth()->guard()->check()) { ?>D<?php } else { ?>L<?php } ?><?php } ?>",
+		},
+		{
+			name:     "blade mixed with nested parens in condition",
+			input:    "<?php if(file_exists(public_path('a')) || file_exists(public_path('b'))): ?>v<?php } ?>",
+			expected: "<?php if (file_exists(public_path('a')) || file_exists(public_path('b'))) { ?>v<?php } ?>",
+		},
+		{
+			name:     "blade foreach colon only",
+			input:    "<?php foreach($items as $i): ?><li>X</li><?php } ?>",
+			expected: "<?php foreach ($items as $i) { ?><li>X</li><?php } ?>",
+		},
+		{
+			name:     "regular brace block no change",
+			input:    "<?php if ($x) { echo 'a'; } else { echo 'b'; } ?>",
+			expected: "<?php if ($x) { echo 'a'; } else { echo 'b'; } ?>",
+		},
+		{
+			name:     "ternary operator not misdetected",
+			input:    "<?php $x = $a ? $b : $c; echo $x; ?>",
+			expected: "<?php $x = $a ? $b : $c; echo $x; ?>",
+		},
 	}
 
 	for _, tt := range tests {
