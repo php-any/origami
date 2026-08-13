@@ -1,0 +1,6 @@
+<?php
+namespace tests\obj;
+
+interface Animal {
+    public function cry();
+}

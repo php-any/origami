@@ -1,0 +1,394 @@
+package data
+
+import (
+	"context"
+	"errors"
+)
+
+type Context interface {
+	SetNamespace(name string) Context
+	GetNamespace() string
+
+	GetVariableValue(variable Variable) (Value, Control)
+	GetIndexValue(index int) (Value, bool)
+	GetIndexZVal(index int) *ZVal
+	SetIndexZVal(index int, v *ZVal)
+	SetVariableValue(variable Variable, value Value) Control
+
+	CreateContext(vars []Variable) Context
+
+	CreateBaseContext() Context
+
+	GetVM() VM
+
+	GoContext() context.Context
+
+	SetVM(vm VM)
+
+	// 记录/获取本次调用传入的参数列表（用于 func_get_args 等函数）
+	SetCallArgs(args []GetValue)
+	GetCallArgs() []GetValue
+
+	// SetVariableByName 通过变量名设置变量值，用于 extract 等动态赋值场景
+	SetVariableByName(name string, value Value)
+	// GetVariableByName 通过变量名读取变量值（含 extract 动态注入的槽）
+	GetVariableByName(name string) (Value, bool)
+	// HasVariableByName 检查调用者上下文中是否已存在指定名称的变量，用于 EXTR_SKIP 等 flags
+	HasVariableByName(name string) bool
+	// GetDefinedVariables 返回当前作用域中已定义的变量，用于 get_defined_vars。
+	GetDefinedVariables() map[string]Value
+}
+
+// StaticLocalsBinder 支持函数/方法内 static 局部变量
+type StaticLocalsBinder interface {
+	BindStaticLocals(store *StaticLocals)
+	StaticLocalsStore() *StaticLocals
+}
+
+type VM interface {
+	AddClass(c ClassStmt) Control
+	GetClass(pkg string) (ClassStmt, bool)
+
+	// GetOrLoadClass vm 也需要实现部分 parser 功能； 但是 parser 不要有 vm 功能
+	GetOrLoadClass(pkg string) (ClassStmt, Control)
+	// LoadPkg 加载类或者接口, 不存在时也不会报错
+	LoadPkg(pkg string) (GetValue, Control)
+
+	AddInterface(i InterfaceStmt) Control
+	GetInterface(pkg string) (InterfaceStmt, bool)
+	GetOrLoadInterface(pkg string) (InterfaceStmt, Control)
+	AddFunc(f FuncStmt) Control
+	GetFunc(pkg string) (FuncStmt, bool)
+	RegisterFunction(name string, fn interface{}) Control
+	RegisterReflectClass(name string, instance interface{}) Control
+	CreateContext(vars []Variable) Context
+	SetThrowControl(func(acl Control))
+	ThrowControl(acl Control)
+	LoadAndRun(file string) (GetValue, Control)
+	// LoadInCallerContext 解析并执行文件，把调用者上下文中的同名变量注入到被引入文件作用域
+	//（对齐 PHP require/include 共享当前符号表，供 extract + require 视图引擎使用）
+	LoadInCallerContext(parent Context, file string) (GetValue, Control)
+	// CompileLoad 仅解析文件并注册类/函数/接口，不执行代码（编译模式专用）
+	CompileLoad(file string) Control
+	// RegisterCompiledFile 注册预编译的文件 AST
+	RegisterCompiledFile(file string, fn func() (GetValue, []Variable))
+	// RunCompiledFile 执行已通过 RegisterCompiledFile 注册的预编译文件；
+	// 仅供 run_php_file() 内建函数调用，普通 LoadAndRun 不走此路径
+	RunCompiledFile(file string) (GetValue, Control)
+	ParseFile(file string, data Value) (Value, Control)
+
+	// SetPhpFileCache 标记 PHP 文件已被引入/加载
+	SetPhpFileCache(file string)
+	// GetPhpFileCache 判断 PHP 文件是否已被引入/加载
+	GetPhpFileCache(file string) bool
+
+	// AddNamespace 添加命名空间路径映射（用于 composer autoload 等场景）
+	AddNamespace(namespace string, path string)
+
+	// 调用深度追踪（用于检测无限递归）
+	EnterCall() (depth int)
+	LeaveCall()
+
+	// 常量管理
+	SetConstant(name string, value Value) Control
+	GetConstant(name string) (Value, bool)
+
+	// 全局变量管理
+	EnsureGlobalZVal(name string) *ZVal
+
+	// shutdown 回调（register_shutdown_function、Application::exit 等）
+	AddShutdownCallback(cb Value)
+	RunShutdownCallbacks()
+}
+
+type ClassStmt interface {
+	GetValue(ctx Context) (GetValue, Control)
+	GetFrom() From
+	GetName() string
+
+	GetExtend() *string                       // 父类名
+	GetImplements() []string                  // 实现的接口列表
+	GetProperty(name string) (Property, bool) // 属性列表
+	GetPropertyList() []Property              // 属性列表, 需要固定顺序返回
+	GetMethod(name string) (Method, bool)     // 方法列表
+	GetMethods() []Method                     // 方法列表
+
+	GetConstruct() Method
+}
+
+type SetVM interface {
+	SetVM(vm VM)
+}
+
+type Modifier int
+
+const (
+	ModifierPublic    Modifier = iota // 公有
+	ModifierPrivate                   // 私有
+	ModifierProtected                 // 保护
+)
+
+func NewModifier(v string) Modifier {
+	switch v {
+	case "private":
+		return ModifierPrivate
+	case "protected":
+		return ModifierProtected
+	default:
+		return ModifierPublic
+	}
+}
+
+type GetPropertyStmt interface {
+	Context
+	GetPropertyZVal
+	GetPropertyStmt(name string) (Property, bool)
+}
+
+type Property interface {
+	GetValue(ctx Context) (GetValue, Control)
+	GetName() string           // 属性名
+	GetModifier() Modifier     // 访问修饰符
+	GetIsStatic() bool         // 是否是静态属性
+	GetDefaultValue() GetValue // 默认值
+	GetType() Types
+	SetType(Types)
+	GetZVal(ctx GetPropertyZVal) (*ZVal, Control)
+}
+
+type Method interface {
+	Call(ctx Context) (GetValue, Control)
+	GetName() string          // 方法名
+	GetModifier() Modifier    // 访问修饰符
+	GetIsStatic() bool        // 是否是静态方法
+	GetParams() []GetValue    // 参数列表, 用于接收参数; 实现这个接口的参数结构体 node.Parameter 接收单个值, node.Parameters 只有任意多个值
+	GetVariables() []Variable // 变量列表, 用于创建符号表
+	GetReturnType() Types     // 返回类型-逐步修改其他实现
+}
+
+type FuncStmt interface {
+	Call(ctx Context) (GetValue, Control)
+	GetName() string
+	// GetParams 获取参数列表
+	GetParams() []GetValue // 参数列表
+	// GetVariables 获取变量列表, 用于创建符号表
+	GetVariables() []Variable // 变量列表
+}
+
+type Function struct {
+	FuncStmt
+}
+
+func (f Function) GetVariables() []Variable {
+	return nil
+}
+
+func (f Function) GetParams() []GetValue {
+	var got []GetValue
+	for _, value := range f.GetVariables() {
+		got = append(got, value)
+	}
+
+	return got
+}
+
+type Variable interface {
+	GetValue
+
+	GetIndex() int
+	GetName() string
+	GetType() Types
+
+	SetValue(ctx Context, value Value) Control
+}
+
+func NewVariable(name string, index int, ty Types) Variable {
+	return &VariableTODO{name: name, index: index, ty: ty}
+}
+
+type VariableTODO struct {
+	name  string
+	index int
+	ty    Types
+}
+
+func (v VariableTODO) GetValue(_ Context) (GetValue, Control) {
+	return nil, nil
+}
+
+func (v VariableTODO) GetIndex() int {
+	return v.index
+}
+
+func (v VariableTODO) GetName() string {
+	return v.name
+}
+
+func (v VariableTODO) GetType() Types {
+	return v.ty
+}
+
+func (v VariableTODO) SetValue(ctx Context, value Value) Control {
+	if v.ty == nil {
+		return ctx.SetVariableValue(v, value)
+	}
+	// null 可以传递给任何类型的参数（PHP 兼容）
+	if _, isNull := value.(*NullValue); isNull {
+		return ctx.SetVariableValue(v, value)
+	}
+	if v.ty.Is(value) {
+		return ctx.SetVariableValue(v, value)
+	}
+	return NewErrorThrow(nil, errors.New("变量类型和赋值类型不一致, 变量类型("+v.ty.String()+"), 赋值("+value.AsString()+")"))
+}
+
+type Parameter interface {
+	GetIndex() int
+	GetType() Types
+	SetValue(ctx Context, value Value) Control
+	GetName() string
+	GetValue(ctx Context) (GetValue, Control)
+	GetDefaultValue() GetValue
+}
+
+type Parameters interface {
+	GetIndex() int
+	GetType() Types
+	SetValue(ctx Context, value Value) Control
+	GetName() string
+	GetValue(ctx Context) (GetValue, Control)
+	GetDefaultValue() GetValue
+	GetVariables() []Variable
+}
+
+type GetStaticProperty interface {
+	GetStaticProperty(name string) (Value, bool)
+}
+
+type GetStaticMethod interface {
+	GetStaticMethod(name string) (Method, bool)
+}
+
+// NewParameter 单个参数接收
+func NewParameter(name string, index int) Parameter {
+	return &ParameterTODO{Name: name, Index: index}
+}
+
+func NewParameterDefault(name string, index int, defaultValue GetValue, ty Types) Parameter {
+	return &ParameterTODO{Name: name, Index: index, DefaultValue: defaultValue, Type: ty}
+}
+
+// NewParameters 支持多个参数接收
+func NewParameters(name string, index int) Parameter {
+	return &ParametersTODO{Name: name, Index: index}
+}
+
+// ParameterTODO data 内部参数结构, 用于解决依赖循环
+type ParameterTODO struct {
+	Name         string // 变量名
+	Index        int    // 变量在作用域中的索引
+	Type         Types
+	DefaultValue GetValue // 默认值
+}
+
+func (p *ParameterTODO) GetName() string {
+	return p.Name
+}
+
+func (p *ParameterTODO) GetValue(ctx Context) (GetValue, Control) {
+	val, acl := ctx.GetVariableValue(p)
+	if acl != nil {
+		return nil, acl
+	}
+
+	if _, ok := val.(AsNull); ok {
+		if p.DefaultValue != nil {
+			val, acl := p.DefaultValue.GetValue(ctx)
+			if acl != nil {
+				return nil, acl
+			}
+
+			p.SetValue(ctx, val.(Value))
+		}
+	}
+
+	return val, nil
+}
+
+func (p *ParameterTODO) GetDefaultValue() GetValue {
+	return p.DefaultValue
+}
+
+func (p *ParameterTODO) GetIndex() int {
+	return p.Index
+}
+
+func (p *ParameterTODO) GetType() Types {
+	return p.Type
+}
+
+func (p *ParameterTODO) SetValue(ctx Context, value Value) Control {
+	if p.Type == nil {
+		return ctx.SetVariableValue(p, value)
+	}
+	// null 可以传递给任何类型的参数（PHP 兼容）
+	if _, isNull := value.(*NullValue); isNull {
+		return ctx.SetVariableValue(p, value)
+	}
+	if p.Type.Is(value) {
+		return ctx.SetVariableValue(p, value)
+	}
+	return NewErrorThrow(nil, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
+}
+
+type ParametersTODO struct {
+	Name         string // 变量名
+	Index        int    // 变量在作用域中的索引
+	Type         Types
+	DefaultValue GetValue // 默认值
+}
+
+func (p *ParametersTODO) GetName() string {
+	return p.Name
+}
+
+func (p *ParametersTODO) GetValue(ctx Context) (GetValue, Control) {
+	v, acl := ctx.GetVariableValue(p)
+	if acl != nil {
+		return nil, acl
+	}
+
+	if _, ok := v.(*ArrayValue); !ok {
+		nv := NewArrayValue([]Value{v})
+		ctx.SetVariableValue(p, nv)
+		return nv, nil
+	}
+
+	return v, nil
+}
+
+func (p *ParametersTODO) GetDefaultValue() GetValue {
+	return p.DefaultValue
+}
+
+func (p *ParametersTODO) GetIndex() int {
+	return p.Index
+}
+
+func (p *ParametersTODO) GetType() Types {
+	return p.Type
+}
+
+func (p *ParametersTODO) SetValue(ctx Context, value Value) Control {
+	if p.Type == nil {
+		return ctx.SetVariableValue(p, value)
+	}
+	if p.Type.Is(value) {
+		return ctx.SetVariableValue(p, value)
+	}
+	return NewErrorThrow(nil, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
+}
+
+func (p *ParametersTODO) GetVariables() []Variable {
+	return nil
+}

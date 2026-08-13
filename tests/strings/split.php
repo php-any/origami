@@ -1,0 +1,83 @@
+<?php
+
+echo "=== 字符串 split() 方法测试 ===\n";
+
+string $text = "Hello World";
+
+// 测试按空格分割
+array $result1 = $text->split(" ");
+if($result1[0] == "Hello" && $result1[1] == "World") {
+    Log::info("按空格分割测试通过");
+} else {
+    Log::fatal("按空格分割测试失败");
+}
+
+// 测试按字符分割
+array $result2 = $text->split("o");
+if($result2[0] == "Hell" && $result2[1] == " W" && $result2[2] == "rld") {
+    Log::info("按字符分割测试通过");
+} else {
+    Log::fatal("按字符分割测试失败");
+}
+
+// 测试默认分割（按字符）
+array $result3 = $text->split();
+if($result3[0] == "Hello" && $result3[1] == "World") {
+    Log::info("默认分割测试通过");
+} else {
+    Log::fatal("默认分割测试失败", $result3);
+}
+
+// 测试空字符串分割
+string $empty = "";
+array $result4 = $empty->split();
+if($result4->length == 0) {
+    Log::info("空字符串分割测试通过");
+} else {
+    Log::fatal("空字符串分割测试失败");
+}
+
+// 测试按空字符串分割
+array $result5 = $text->split("");
+if($result5[0] == "H" && $result5[1] == "e" && $result5[2] == "l") {
+    Log::info("按空字符串分割测试通过");
+} else {
+    Log::fatal("按空字符串分割测试失败");
+}
+
+// 测试不存在的分隔符
+array $result6 = $text->split("xyz");
+if($result6[0] == "Hello World") {
+    Log::info("不存在的分隔符分割测试通过");
+} else {
+    Log::fatal("不存在的分隔符分割测试失败");
+}
+
+// 测试中文字符串分割
+string $chinese = "你好世界";
+array $result7 = $chinese->split("好");
+if($result7[0] == "你" && $result7[1] == "世界") {
+    Log::info("中文字符串分割测试通过");
+} else {
+    Log::fatal("中文字符串分割测试失败");
+}
+
+// 测试特殊字符分割
+string $special = "Hello\nWorld\tTest";
+array $result8 = $special->split("\n");
+if($result8[0] == "Hello" && $result8[1] == "World\tTest") {
+    Log::info("特殊字符分割测试通过");
+} else {
+    Log::fatal("特殊字符分割测试失败");
+}
+
+// 测试重复分隔符
+string $repeated = "a,,b,,c";
+array $result9 = $repeated->split(",,");
+if($result9[0] == "a" && $result9[1] == "b" && $result9[2] == "c") {
+    Log::info("重复分隔符分割测试通过");
+} else {
+    Log::fatal("重复分隔符分割测试失败");
+}
+
+echo "=== split() 测试完成 ===\n"; 

@@ -1,0 +1,268 @@
+package node
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/php-any/origami/data"
+)
+
+type BinaryAdd struct {
+	*Node `pp:"-"`
+	Left  data.GetValue
+	Right data.GetValue
+}
+
+func NewBinaryAdd(from data.From, left, right data.GetValue) *BinaryAdd {
+	return &BinaryAdd{
+		Node:  NewNode(from),
+		Left:  left,
+		Right: right,
+	}
+}
+
+// hasRangeProperties 检查值是否有 RangeProperties 方法（ObjectValue 或 ClassValue）
+type hasRangeProperties interface {
+	RangeProperties(func(key string, value data.Value) bool)
+}
+
+// arraySlotKey 返回 PHP 数组槽位对应的键名（空 Name 的密集整数键用下标）。
+func arraySlotKey(z *data.ZVal, index int) string {
+	if z != nil && z.Name != "" {
+		return z.Name
+	}
+	return data.IntArrayKeyName(index)
+}
+
+// objectToNamedArray 将对象/类属性转为带键名的 ArrayValue（用于 array + 语义）。
+func objectToNamedArray(obj hasRangeProperties) *data.ArrayValue {
+	list := make([]*data.ZVal, 0)
+	obj.RangeProperties(func(key string, value data.Value) bool {
+		list = append(list, data.NewNamedZVal(key, value))
+		return true
+	})
+	return &data.ArrayValue{List: list}
+}
+
+// valueAsArrayForUnion 将 Array/Object/Class 统一为可按键并集的 ArrayValue。
+func valueAsArrayForUnion(v data.Value) (*data.ArrayValue, bool) {
+	switch x := v.(type) {
+	case *data.ArrayValue:
+		return x, true
+	case *data.ObjectValue:
+		return objectToNamedArray(x), true
+	case *data.ClassValue:
+		return objectToNamedArray(x), true
+	default:
+		return nil, false
+	}
+}
+
+// mergeArrayUnion 实现 PHP 的 array + array：左侧键优先，仅追加右侧不存在的键。
+func mergeArrayUnion(left, right *data.ArrayValue) *data.ArrayValue {
+	result := make([]*data.ZVal, 0, len(left.List)+len(right.List))
+	seen := make(map[string]struct{}, len(left.List)+len(right.List))
+
+	appendSlot := func(key string, value data.Value) {
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		if _, isInt := data.ParseIntArrayKeyName(key); isInt {
+			if n, err := strconv.Atoi(key); err == nil && n == len(result) {
+				result = append(result, data.NewZVal(value))
+				return
+			}
+		}
+		result = append(result, data.NewNamedZVal(key, value))
+	}
+
+	for i, z := range left.List {
+		if z == nil {
+			continue
+		}
+		appendSlot(arraySlotKey(z, i), z.Value)
+	}
+	for i, z := range right.List {
+		if z == nil {
+			continue
+		}
+		appendSlot(arraySlotKey(z, i), z.Value)
+	}
+	return &data.ArrayValue{List: result}
+}
+
+func addOperandIsFloat(v data.GetValue) bool {
+	val, ok := v.(data.Value)
+	if !ok {
+		return false
+	}
+	_, ok = val.(*data.FloatValue)
+	return ok
+}
+
+func addOperandAsFloat64(v data.GetValue) (float64, bool) {
+	val, ok := v.(data.Value)
+	if !ok {
+		return 0, false
+	}
+	if f, ok := val.(data.AsFloat); ok {
+		fl, err := f.AsFloat()
+		return fl, err == nil
+	}
+	return 0, false
+}
+
+// phpNumericAdd 对齐 PHP `+`：两侧按数值相加；两侧都能精确解析为 int 时结果为 int，否则为 float。
+func phpNumericAdd(from data.From, left, right data.GetValue) (data.GetValue, data.Control) {
+	li, leftIntOK := coercePHPInt(left)
+	ri, rightIntOK := coercePHPInt(right)
+	if leftIntOK && rightIntOK {
+		return data.NewIntValue(li + ri), nil
+	}
+	lf, ok := addOperandAsFloat64(left)
+	if !ok {
+		return nil, data.NewErrorThrow(from, fmt.Errorf("无法将左操作数转为数值: %T", left))
+	}
+	rf, ok := addOperandAsFloat64(right)
+	if !ok {
+		return nil, data.NewErrorThrow(from, fmt.Errorf("无法将右操作数转为数值: %T", right))
+	}
+	return data.NewFloatValue(lf + rf), nil
+}
+
+func coercePHPInt(v data.GetValue) (int, bool) {
+	switch t := v.(type) {
+	case *data.IntValue:
+		return t.Value, true
+	case *data.BoolValue:
+		if t.Value {
+			return 1, true
+		}
+		return 0, true
+	case *data.NullValue:
+		return 0, true
+	case *data.StringValue:
+		n, err := strconv.ParseInt(t.Value, 10, 64)
+		if err != nil {
+			return 0, false
+		}
+		return int(n), true
+	case data.AsInt:
+		n, err := t.AsInt()
+		return n, err == nil
+	default:
+		return 0, false
+	}
+}
+
+func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	lv, lCtl := b.Left.GetValue(ctx)
+	if lCtl != nil {
+		return nil, lCtl
+	}
+
+	rv, rCtl := b.Right.GetValue(ctx)
+	if rCtl != nil {
+		return nil, rCtl
+	}
+
+	// PHP：任一侧为 float 时，+ 结果为 float
+	if addOperandIsFloat(lv) || addOperandIsFloat(rv) {
+		if lf, ok := addOperandAsFloat64(lv); ok {
+			if rf, ok := addOperandAsFloat64(rv); ok {
+				return data.NewFloatValue(lf + rf), nil
+			}
+		}
+	}
+
+	switch l := lv.(type) {
+	case *data.StringValue:
+		// PHP 的 + 永远是数值加法；字符串拼接用 .
+		return phpNumericAdd(b.from, lv, rv)
+	case *data.IntValue:
+		switch r := rv.(type) {
+		case *data.StringValue:
+			return phpNumericAdd(b.from, lv, r)
+		case data.AsInt:
+			li, err := l.AsInt()
+			if err != nil {
+				return nil, data.NewErrorThrow(b.from, err)
+			}
+			ri, err := r.AsInt()
+			if err != nil {
+				return nil, data.NewErrorThrow(b.from, err)
+			}
+
+			return data.NewIntValue(li + ri), nil
+		case data.AsFloat:
+			li, err := l.AsInt()
+			if err != nil {
+				return nil, data.NewErrorThrow(b.from, err)
+			}
+			rf, err := r.AsFloat()
+			if err != nil {
+				return nil, data.NewErrorThrow(b.from, err)
+			}
+			return data.NewFloatValue(float64(li) + rf), nil
+		}
+	case *data.FloatValue:
+		switch r := rv.(type) {
+		case data.AsInt:
+			lf, err := l.AsFloat()
+			if err != nil {
+				return nil, data.NewErrorThrow(b.from, err)
+			}
+			ri, err := r.AsInt()
+			if err != nil {
+				return nil, data.NewErrorThrow(b.from, err)
+			}
+
+			return data.NewFloatValue(lf + float64(ri)), nil
+		case *data.StringValue:
+			return phpNumericAdd(b.from, lv, r)
+		case data.AsFloat:
+			lf, err := l.AsFloat()
+			if err != nil {
+				return nil, data.NewErrorThrow(b.from, err)
+			}
+			rf, err := r.AsFloat()
+			if err != nil {
+				return nil, data.NewErrorThrow(b.from, err)
+			}
+			return data.NewFloatValue(lf + rf), nil
+		}
+
+	case *data.BoolValue:
+		// PHP：bool 转 0/1 后做数值加法
+		return phpNumericAdd(b.from, lv, rv)
+
+	case *data.NullValue:
+		// PHP：null 视为 0 参与数值加法
+		return phpNumericAdd(b.from, lv, rv)
+
+	case *data.ArrayValue:
+		// PHP 数组 + ：按键并集；关联字面量 ['a'=>…] 在 Origami 里可能是 ObjectValue。
+		if ra, ok := valueAsArrayForUnion(rv.(data.Value)); ok {
+			return mergeArrayUnion(l, ra), nil
+		}
+		// 右边非数组/对象：作为下一个元素追加
+		result := l.ToValueList()
+		result = append(result, rv.(data.Value))
+		return data.NewArrayValue(result), nil
+	case *data.ObjectValue:
+		if ra, ok := valueAsArrayForUnion(rv.(data.Value)); ok {
+			return mergeArrayUnion(objectToNamedArray(l), ra), nil
+		}
+		return nil, data.NewErrorThrow(b.from, fmt.Errorf("对象不能与非对象/数组类型相加: %T", rv))
+	case *data.ClassValue:
+		if ra, ok := valueAsArrayForUnion(rv.(data.Value)); ok {
+			return mergeArrayUnion(objectToNamedArray(l), ra), nil
+		}
+		return nil, data.NewErrorThrow(b.from, fmt.Errorf("对象不能与非对象/数组类型相加: %T", rv))
+	case *data.AnyValue:
+		return phpNumericAdd(b.from, lv, rv)
+	}
+
+	return nil, data.NewErrorThrow(b.from, fmt.Errorf("TODO 有未支持的类型加法 %v", lv))
+}

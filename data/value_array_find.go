@@ -1,0 +1,89 @@
+package data
+
+type ArrayValueFind struct {
+	source []*ZVal
+}
+
+// Call 实现数组的 find 方法
+// 返回数组中第一个满足回调函数条件的元素，如果没有找到则返回 null
+func (a *ArrayValueFind) Call(ctx Context) (GetValue, Control) {
+	// 获取回调函数参数
+	callback, ok := ctx.GetIndexValue(0)
+	if !ok {
+		return NewNullValue(), nil
+	}
+
+	// 将 source 转换为 []Value 用于 NewArrayValue
+	tempArray := &ArrayValue{List: a.source}
+	sourceValues := tempArray.ToValueList()
+
+	switch callable := callback.(type) {
+	case *FuncValue:
+		vars := callable.Value.GetVariables()
+		fnCtx := ctx.CreateContext(vars)
+		for i, zval := range a.source {
+			element := zval.Value
+			args := []Value{element, NewIntValue(i), NewArrayValue(sourceValues)}
+			for ai := 0; ai < len(vars) && ai < len(args); ai++ {
+				fnCtx.SetVariableValue(NewVariable("", ai, nil), args[ai])
+			}
+			testResult, ctl := callable.Value.Call(fnCtx)
+			if ctl != nil {
+				return nil, ctl
+			}
+			tr := testResult.(Value)
+			if boolResult, ok := tr.(AsBool); ok {
+				if isTrue, err := boolResult.AsBool(); err == nil && isTrue {
+					return element, nil
+				}
+			}
+		}
+		return NewNullValue(), nil
+	case CallableValue:
+		// 遍历数组元素并查找第一个满足条件的元素
+		for i, zval := range a.source {
+			element := zval.Value
+			// 调用回调函数，传递元素、索引和数组
+			testResult, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(sourceValues))
+			if ctl != nil {
+				return nil, ctl
+			}
+			if boolResult, ok := testResult.(AsBool); ok {
+				if isTrue, err := boolResult.AsBool(); err == nil && isTrue {
+					return element, nil
+				}
+			}
+		}
+		return NewNullValue(), nil
+	}
+
+	return NewNullValue(), nil
+}
+
+func (a *ArrayValueFind) GetName() string {
+	return "find"
+}
+
+func (a *ArrayValueFind) GetModifier() Modifier {
+	return ModifierPublic
+}
+
+func (a *ArrayValueFind) GetIsStatic() bool {
+	return false
+}
+
+func (a *ArrayValueFind) GetParams() []GetValue {
+	return []GetValue{
+		NewParameter("callback", 0),
+	}
+}
+
+func (a *ArrayValueFind) GetVariables() []Variable {
+	return []Variable{
+		NewVariable("callback", 0, nil),
+	}
+}
+
+func (a *ArrayValueFind) GetReturnType() Types {
+	return nil
+}

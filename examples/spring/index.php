@@ -1,0 +1,36 @@
+<?php
+
+use Net\Http\Server;
+use Spring\Middleware\CorsMiddleware;
+use Spring\SpringApplication;
+
+require __DIR__ . '/vendor/autoload.php';
+
+$host = '0.0.0.0';
+$port = 8080;
+
+$server = new Server($host, port: $port);
+
+// API 统一 JSON 信封：{ code, message, data, timestamp }
+// 如需自定义结构，可注册 onFormat 闭包，例如：
+// $server->onFormat(fn (int $code, string $message, mixed $data) => [
+//     'errno' => $code, 'msg' => $message, 'result' => $data,
+// ]);
+
+// CORS 中间件
+$server->middleware(new CorsMiddleware());
+
+// 静态资源：CSS / JS
+$server->static("/assets/", __DIR__ . "/pages/assets");
+
+// 加载引导类（#[Application] 声明扫描范围；扫描完成后自动调用 SpringApplication::boot()）
+$routes = $server->boot(SpringApplication::class);
+ 
+Log::info("HTTP 服务监听: http://" . $host . ":" . $port);
+Log::info("已注册路由 (" . count($routes) . " 条):");
+foreach ($routes as $route) {
+    $method = str_pad($route['method'], 7);
+    Log::info("  " . $method . " " . $route['path']);
+}
+
+$server->run();

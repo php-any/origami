@@ -1,0 +1,566 @@
+package node
+
+import (
+	"errors"
+	"sync"
+
+	"github.com/php-any/origami/data"
+)
+
+// FunctionStatement 表示函数定义语句
+type FunctionStatement struct {
+	data.FuncStmt
+	*Node            `pp:"-"`
+	Name             string          // 函数名
+	Params           []data.GetValue // 参数列表
+	Body             []data.GetValue // 函数体
+	vars             []data.Variable // 符号表
+	Ret              data.Types      // 返回值类型
+	IsGenerator      bool            // 是否是生成器函数（含 yield）
+	ReturnsReference bool            // 是否按引用返回（function &name()）
+	defineCtx        data.Context    // 闭包定义时的上下文（用于保留 self:: 语义）
+	staticLocals     *data.StaticLocals
+	staticOnce       sync.Once
+}
+
+// NewFunctionStatement 创建一个新的函数定义语句
+func NewFunctionStatement(from data.From, name string, params []data.GetValue, body []data.GetValue, vars []data.Variable, ret data.Types, returnsReference bool) *FunctionStatement {
+	return &FunctionStatement{
+		Node:             NewNode(from),
+		Name:             name,
+		Params:           params,
+		Body:             body,
+		vars:             vars,
+		Ret:              ret,
+		IsGenerator:      containsYield(body),
+		ReturnsReference: returnsReference,
+	}
+}
+
+// SetDefineCtx 设置闭包定义时的上下文
+func (f *FunctionStatement) SetDefineCtx(ctx data.Context) {
+	f.defineCtx = ctx
+}
+
+// containsYield 递归检测函数体是否含有 yield 语句
+func containsYield(body []data.GetValue) bool {
+	for _, stmt := range body {
+		if isYieldNode(stmt) {
+			return true
+		}
+	}
+	return false
+}
+
+// isYieldNode 检查节点是否是 yield 语句（只检查直接节点，不深入嵌套函数/闭包）
+func isYieldNode(node data.GetValue) bool {
+	if node == nil {
+		return false
+	}
+	switch n := node.(type) {
+	case *YieldStatement, *YieldFromStatement:
+		return true
+	case *ForeachStatement:
+		return containsYield(n.Body)
+	case *ForStatement:
+		return containsYield(n.Body)
+	case *WhileStatement:
+		return containsYield(n.Body)
+	case *DoWhileStatement:
+		return containsYield(n.Body)
+	case *IfStatement:
+		if containsYield(n.ThenBranch) {
+			return true
+		}
+		for _, elif := range n.ElseIf {
+			if containsYield(elif.ThenBranch) {
+				return true
+			}
+		}
+		if containsYield(n.ElseBranch) {
+			return true
+		}
+	}
+	return false
+}
+
+// GetName 返回函数名
+func (f *FunctionStatement) GetName() string {
+	return f.Name
+}
+
+// GetBody 返回函数体
+func (f *FunctionStatement) GetBody() []data.GetValue {
+	return f.Body
+}
+
+// GetValue 获取函数定义语句的值
+func (f *FunctionStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if acl := ctx.GetVM().AddFunc(f); acl != nil {
+		return nil, acl
+	}
+	return nil, nil
+}
+
+func (f *FunctionStatement) GetParams() []data.GetValue {
+	return f.Params
+}
+
+func (f *FunctionStatement) GetVariables() []data.Variable {
+	return f.vars
+}
+
+// GetReturnType 返回函数返回类型
+func (f *FunctionStatement) GetReturnType() data.Types {
+	return f.Ret
+}
+
+func (f *FunctionStatement) funcStaticLocals() *data.StaticLocals {
+	f.staticOnce.Do(func() {
+		f.staticLocals = data.NewStaticLocals()
+	})
+	return f.staticLocals
+}
+
+func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control) {
+	if b, ok := ctx.(data.StaticLocalsBinder); ok {
+		b.BindStaticLocals(f.funcStaticLocals())
+	}
+
+	// PHP 语义：如果函数是 generator（含 yield），调用时立即返回 Generator 对象，不执行函数体
+	if f.IsGenerator {
+		generator := NewFuncYieldStackState(ctx, f, f.Body, 0, nil, nil)
+		generatorClass := NewGeneratorClass(generator)
+		return generatorClass.GetValue(ctx)
+	}
+
+	// 闭包场景：如果定义时的上下文是类方法上下文，保留其 Class 信息以确保 self:: 正确解析
+	execCtx := ctx
+	if f.defineCtx != nil {
+		if defineClassCtx, ok := f.defineCtx.(*data.ClassMethodContext); ok {
+			// 创建新的 ClassMethodContext，保留定义时的类，但使用调用方的上下文链
+			execCtx = defineClassCtx.ClassValue.CreateContext(f.vars)
+			// 定义上下文只提供类作用域；运行时 VM 必须来自本次调用。
+			execCtx.SetVM(ctx.GetVM())
+			// 将调用方 ctx 中已经绑定好的参数 ZVal 复制到新的执行上下文中
+			for i := range f.vars {
+				zv := ctx.GetIndexZVal(i)
+				if zv != nil {
+					execCtx.SetIndexZVal(i, zv)
+				}
+			}
+			if b, ok := execCtx.(data.StaticLocalsBinder); ok {
+				b.BindStaticLocals(f.funcStaticLocals())
+			}
+		}
+	}
+
+	if vm := ctx.GetVM(); vm != nil {
+		if tracker, ok := vm.(data.CallStackTracker); ok {
+			frame := data.CallFrame{Function: f.Name}
+			if from := f.GetFrom(); from != nil {
+				frame.File = from.GetSource()
+				line, _ := from.GetStartPosition()
+				frame.Line = line + 1
+			}
+			tracker.PushCallFrame(frame)
+			defer tracker.PopCallFrame()
+		}
+	}
+
+	var v data.GetValue
+	var ctl data.Control
+	for bodyIndex := 0; bodyIndex < len(f.Body); bodyIndex++ {
+		statement := f.Body[bodyIndex]
+		v, ctl = statement.GetValue(execCtx)
+		if ctl != nil {
+			switch rv := ctl.(type) {
+			case data.ExitControl:
+				return nil, ctl
+			case data.ReturnControl:
+				ret := rv.ReturnValue()
+				if f.ReturnsReference {
+					if rs, ok := statement.(*ReturnStatement); ok && rs.Value != nil {
+						if variable, ok := rs.Value.(data.Variable); ok {
+							ret = data.NewReferenceValue(variable, execCtx)
+						}
+					}
+				}
+				if f.Ret != nil {
+					if f.Ret.Is(ret) {
+						return ret, nil
+					} else {
+						return nil, data.NewErrorThrow(f.from, errors.New("函数返回值类型错误"))
+					}
+				}
+				return ret, nil
+			case data.GotoControl:
+				offset, acl := resolveGotoBodyIndex(f.from, f.Body, rv)
+				if acl != nil {
+					return nil, acl
+				}
+				bodyIndex = offset - 1
+				continue
+			case LabelControl:
+				continue
+			case data.YieldControl:
+				// 把当前函数的执行状态保存下来; 表示"我不仅有这次 yield 的 key/value，还自带一整套如何构造生成器堆栈状态的逻辑
+				generator := rv.CreateStackState(execCtx, f, f.Body, bodyIndex)
+				// 将生成器包装成类值，支持 $data->valid() 等调用
+				generatorClass := NewGeneratorClass(generator)
+				return generatorClass.GetValue(execCtx)
+			case data.YieldValueControl:
+				// 把当前函数的执行状态保存下来; 表示"这里刚发生了一次 yield，我只告诉你当前的 key/value 和上下文"，但不知道如何把"后续执行状态"组织成生成器。
+				generator := NewFuncYieldStackState(execCtx, f, f.Body, bodyIndex+1, rv.GetYieldKey(), rv.GetYieldValue())
+				// 将生成器包装成类值，支持 $data->valid() 等调用
+				generatorClass := NewGeneratorClass(generator)
+				return generatorClass.GetValue(execCtx)
+			case data.AddStack:
+				if tv, ok := rv.(*data.ThrowValue); ok && tv.PHPUncaughtError {
+					return nil, ctl
+				}
+				if from, ok := statement.(GetFrom); ok {
+					rv.AddStackWithInfo(from.GetFrom(), "function body", TryGetCallClassName(statement))
+				}
+				rv.AddStackWithInfo(f.from, "function", f.Name)
+			}
+			return nil, ctl
+		}
+	}
+
+	f.persistStaticLocals(execCtx)
+	if v == nil {
+		return data.NewNullValue(), nil
+	}
+	return v, nil
+}
+
+func (f *FunctionStatement) persistStaticLocals(ctx data.Context) {
+	store := f.funcStaticLocals()
+	if store == nil {
+		return
+	}
+	for _, v := range f.vars {
+		idx := v.GetIndex()
+		if zv := ctx.GetIndexZVal(idx); zv != nil {
+			store.Update(idx, zv.Value)
+		}
+	}
+}
+
+// Parameter 表示函数参数
+type Parameter struct {
+	*Node        `pp:"-"`
+	Name         string // 变量名
+	Index        int    // 变量在作用域中的索引
+	Type         data.Types
+	DefaultValue data.GetValue // 默认值
+	Annotations  []*data.ClassValue
+}
+
+func (p *Parameter) AddAnnotations(a *data.ClassValue) {
+	if p.Annotations == nil {
+		p.Annotations = []*data.ClassValue{}
+	}
+	p.Annotations = append(p.Annotations, a)
+}
+
+func (p *Parameter) GetDefaultValue() data.GetValue {
+	return p.DefaultValue
+}
+
+func (p *Parameter) GetIndex() int {
+	return p.Index
+}
+
+func (p *Parameter) GetType() data.Types {
+	return p.Type
+}
+
+func (p *Parameter) SetValue(ctx data.Context, value data.Value) data.Control {
+	if p.Type == nil {
+		return ctx.SetVariableValue(p, value)
+	}
+	// null 可以传递给任何类型的参数（PHP 兼容）
+	if _, isNull := value.(*data.NullValue); isNull {
+		return ctx.SetVariableValue(p, value)
+	}
+	if p.Type.Is(value) {
+		return ctx.SetVariableValue(p, value)
+	}
+	return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+TryGetCallClassName(value)+")"))
+}
+
+// NewParameter 创建一个新的参数
+func NewParameter(from data.From, name string, index int, defaultValue data.GetValue, ty data.Types) data.GetValue {
+	return &Parameter{
+		Node:         NewNode(from),
+		Name:         name,
+		Index:        index,
+		Type:         ty,
+		DefaultValue: defaultValue,
+	}
+}
+
+// GetName 返回参数名
+func (p *Parameter) GetName() string {
+	return p.Name
+}
+
+// PromotedParameter 表示属性提升的参数（构造函数参数属性提升）
+type PromotedParameter struct {
+	*Parameter
+	PropertyName string // 对应的属性名（与参数名相同）
+}
+
+// NewPromotedParameter 创建一个新的属性提升参数
+func NewPromotedParameter(from data.From, name string, index int, defaultValue data.GetValue, ty data.Types) data.GetValue {
+	return &PromotedParameter{
+		Parameter: &Parameter{
+			Node:         NewNode(from),
+			Name:         name,
+			Index:        index,
+			Type:         ty,
+			DefaultValue: defaultValue,
+		},
+		PropertyName: name,
+	}
+}
+
+func (p *PromotedParameter) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return p.Parameter.GetValue(ctx)
+}
+
+func (p *Parameter) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	val, acl := ctx.GetVariableValue(p)
+	if acl != nil {
+		return nil, acl
+	}
+
+	if _, ok := val.(data.AsNull); ok {
+		if p.DefaultValue != nil {
+			var val data.GetValue
+			val, acl = p.DefaultValue.GetValue(ctx)
+			if acl != nil {
+				return nil, acl
+			}
+
+			acl = p.SetValue(ctx, val.(data.Value))
+		}
+	}
+
+	return val, acl
+}
+
+// NewParameters 接收多个参数值
+func NewParameters(from data.From, name string, index int, defaultValue data.GetValue, ty data.Types) data.GetValue {
+	return &Parameters{
+		Parameter: &Parameter{
+			Node:         NewNode(from),
+			Name:         name,
+			Index:        index,
+			Type:         ty,
+			DefaultValue: defaultValue,
+		},
+	}
+}
+
+// NewParametersNoName 接收任意数量参数（用于 __callStatic 等场景）
+func NewParametersNoName(index int) data.GetValue {
+	return &Parameters{
+		Parameter: &Parameter{
+			Node:  NewNode(nil),
+			Name:  "args",
+			Index: index,
+			Type:  nil,
+		},
+	}
+}
+
+// Parameters 多值参数
+type Parameters struct {
+	*Parameter
+}
+
+func (p *Parameters) SetValue(ctx data.Context, value data.Value) data.Control {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p *Parameters) GetDefaultValue() data.GetValue {
+	return p.DefaultValue
+}
+
+func (p *Parameters) GetName() string {
+	return p.Name
+}
+
+func (p *Parameters) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	v, acl := ctx.GetVariableValue(p)
+	if acl != nil {
+		return nil, acl
+	}
+
+	if _, ok := v.(*data.ArrayValue); !ok {
+		nv := data.NewArrayValue([]data.Value{v})
+		ctx.SetVariableValue(p, nv)
+		return nv, nil
+	}
+
+	return v, nil
+}
+
+func (p *Parameters) GetVariables() []data.Variable {
+	return nil
+}
+
+type ParameterReference struct {
+	*Parameter
+}
+
+func NewParameterReference(from data.From, name string, index int, defaultValue data.GetValue, ty data.Types) data.Parameter {
+	return &ParameterReference{
+		Parameter: &Parameter{
+			Node:         NewNode(from),
+			Name:         name,
+			Index:        index,
+			Type:         ty,
+			DefaultValue: defaultValue,
+		},
+	}
+}
+
+func (p *ParameterReference) SetValue(ctx data.Context, value data.Value) data.Control {
+	if p.Type != nil {
+		if !p.Type.Is(value) {
+			return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
+		}
+	}
+	if v, ok := value.(*data.ZValValue); ok {
+		ctx.SetIndexZVal(p.Index, v.ZVal)
+	} else {
+		return ctx.SetVariableValue(p, value)
+	}
+
+	return nil
+}
+
+// NewParametersReference 接收多个参数值
+func NewParametersReference(from data.From, name string, index int, defaultValue data.GetValue, ty data.Types) data.GetValue {
+	return &ParametersReference{
+		Parameter: &Parameter{
+			Node:         NewNode(from),
+			Name:         name,
+			Index:        index,
+			Type:         ty,
+			DefaultValue: defaultValue,
+		},
+	}
+}
+
+// ParametersReference 多值参数
+type ParametersReference struct {
+	*Parameter
+}
+
+func (p *ParametersReference) GetDefaultValue() data.GetValue {
+	return p.DefaultValue
+}
+
+func (p *ParametersReference) GetName() string {
+	return p.Name
+}
+
+func (p *ParametersReference) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	v, acl := ctx.GetVariableValue(p)
+	if acl != nil {
+		return nil, acl
+	}
+
+	if _, ok := v.(*data.ArrayValue); !ok {
+		nv := data.NewArrayValue([]data.Value{v})
+		ctx.SetVariableValue(p, nv)
+		return nv, nil
+	}
+
+	return v, nil
+}
+
+func (p *ParametersReference) SetValue(ctx data.Context, value data.Value) data.Control {
+	if p.Type == nil {
+		return ctx.SetVariableValue(p, value)
+	}
+	if p.Type.Is(value) {
+		return ctx.SetVariableValue(p, value)
+	}
+	return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
+}
+
+// CallerContextParameter 特殊参数类型：用于标记函数需要在调用者的 Context 中执行。
+// 主要用于实现类似 func_get_args 这类需要直接访问上级调用入参的函数。
+type CallerContextParameter struct {
+	*Node `pp:"-"`
+}
+
+// NewCallerContextParameter 创建一个新的 CallerContextParameter。
+// from 仅用于错误栈信息，可以为 nil。
+func NewCallerContextParameter(from data.From) data.GetValue {
+	return &CallerContextParameter{
+		Node: NewNode(from),
+	}
+}
+
+// GetValue 对函数调用参数绑定过程不产生实际值，这里直接返回自身即可。
+func (p *CallerContextParameter) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return p, nil
+}
+
+type CallFunctionLater struct {
+	Ctx  data.Context
+	Name string
+	Fun  data.FuncStmt
+}
+
+func (c *CallFunctionLater) resolveFun() data.FuncStmt {
+	if c.Fun == nil {
+		c.Fun, _ = c.Ctx.GetVM().GetFunc(c.Name)
+	}
+	return c.Fun
+}
+
+func (c *CallFunctionLater) Call(ctx data.Context) (data.GetValue, data.Control) {
+	return c.resolveFun().Call(ctx)
+}
+
+func (c *CallFunctionLater) GetName() string {
+	return c.resolveFun().GetName()
+}
+
+func (c *CallFunctionLater) GetParams() []data.GetValue {
+	return c.resolveFun().GetParams()
+}
+
+func (c *CallFunctionLater) GetVariables() []data.Variable {
+	return c.resolveFun().GetVariables()
+}
+
+// ParameterRawAST 表示需要接收原始 AST 结构的参数
+type ParameterRawAST struct {
+	*Parameter
+}
+
+// NewParameterRawAST 创建一个新的 ParameterRawAST
+func NewParameterRawAST(from data.From, name string, index int, ty data.Types) data.GetValue {
+	return &ParameterRawAST{
+		Parameter: &Parameter{
+			Node:  NewNode(from),
+			Name:  name,
+			Index: index,
+			Type:  ty,
+		},
+	}
+}
+
+func (p *ParameterRawAST) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return p.Parameter.GetValue(ctx)
+}

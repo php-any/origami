@@ -1,0 +1,198 @@
+package parser
+
+import (
+	"fmt"
+
+	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/token"
+)
+
+// ForParser 表示for语句解析器
+type ForParser struct {
+	*Parser
+}
+
+// NewForParser 创建一个新的for语句解析器
+func NewForParser(parser *Parser) StatementParser {
+	return &ForParser{
+		parser,
+	}
+}
+
+// Parse 解析for语句
+func (p *ForParser) Parse() (data.GetValue, data.Control) {
+	tracker := p.StartTracking()
+	// 跳过for关键字
+	p.next()
+	// for $v in $arr {}
+	if p.checkPositionIs(1, token.IN) || p.checkPositionIs(2, token.IN) || p.checkPositionIs(3, token.IN) || p.checkPositionIs(4, token.IN) {
+		// 解析成 foreach 执行
+		// 解析键和值变量
+		var key data.Variable
+		var value data.Variable
+		// 解析初始化表达式
+		hasLparen := false
+		if p.current().Type() == token.LPAREN {
+			p.nextAndCheck(token.LPAREN)
+			hasLparen = true
+		}
+		exprParser := NewMainStatementParser(p.Parser)
+
+		var ok bool
+		initializer, acl := exprParser.Parse()
+		if acl != nil {
+			return initializer, acl
+		}
+		if key, ok = initializer.(data.Variable); !ok {
+			// 声明为变量
+			if ident, ok := initializer.(*node.StringLiteral); ok {
+				name := ident.Value
+				val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+				key = node.NewVariableWithFirst(tracker.EndBefore(), val)
+			} else {
+				return nil, data.NewErrorThrow(tracker.EndBefore(), nil)
+			}
+		}
+		if p.current().Type() == token.COMMA {
+			p.next()
+			expr, acl := exprParser.Parse()
+			if acl != nil {
+				return expr, acl
+			}
+			if value, ok = expr.(data.Variable); !ok {
+				// 声明为变量
+				if ident, ok := expr.(*node.StringLiteral); ok {
+					name := ident.Value
+					varInfo := p.scopeManager.LookupVariable(name)
+					if varInfo != nil {
+						// 解析后续操作（函数调用、数组访问等）
+						vp := &VariableParser{p.Parser}
+						return vp.parseSuffix(varInfo)
+					} else {
+						val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+						value = node.NewVariableWithFirst(tracker.EndBefore(), val)
+					}
+				} else {
+					return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("for in 无法解析变量 value"))
+				}
+			}
+		} else {
+			// for $v in $arr：单变量表示元素值，不是键
+			value = key
+			key = nil
+		}
+
+		p.nextAndCheck(token.IN)
+
+		array, acl := exprParser.Parse()
+		if acl != nil {
+			return nil, acl
+		}
+		if hasLparen {
+			p.nextAndCheck(token.RPAREN)
+		}
+
+		// 解析循环体
+		body, acl := p.parseBlock()
+		if acl != nil {
+			return nil, acl
+		}
+
+		return node.NewForeachStatement(
+			tracker.EndBefore(),
+			array,
+			key,
+			value,
+			body,
+		), acl
+	} else {
+		// 解析初始化表达式
+		hasLparen := false
+		if p.current().Type() == token.LPAREN {
+			p.nextAndCheck(token.LPAREN)
+			hasLparen = true
+		}
+		exprParser := NewMainStatementParser(p.Parser)
+		var initializers []data.GetValue
+		if p.checkPositionIs(0, token.SEMICOLON) {
+			p.nextAndCheckStip(token.SEMICOLON) // 跳过分号
+		} else if !p.checkPositionIs(0, token.LBRACE) {
+			// 解析第一个初始化表达式
+			var acl data.Control
+			initializer, acl := exprParser.Parse()
+			if acl != nil {
+				return nil, acl
+			}
+			initializers = append(initializers, initializer)
+
+			// 解析逗号分隔的多个初始化表达式
+			for p.current().Type() == token.COMMA {
+				p.next() // 跳过逗号
+				init, acl := exprParser.Parse()
+				if acl != nil {
+					return nil, acl
+				}
+				initializers = append(initializers, init)
+			}
+
+			p.nextAndCheckStip(token.SEMICOLON) // 跳过分号
+		}
+
+		// 解析条件表达式
+		var condition data.GetValue
+		if p.checkPositionIs(0, token.SEMICOLON) {
+			p.nextAndCheckStip(token.SEMICOLON) // 跳过分号
+		} else if !p.checkPositionIs(0, token.LBRACE) {
+			var acl data.Control
+			condition, acl = exprParser.Parse()
+			if acl != nil {
+				return nil, acl
+			}
+			p.nextAndCheckStip(token.SEMICOLON) // 跳过分号
+		}
+
+		// 解析递增表达式
+		var increments []data.GetValue
+		if p.checkPositionIs(0, token.SEMICOLON) {
+			p.nextAndCheckStip(token.SEMICOLON) // 跳过分号
+		} else if !p.checkPositionIs(0, token.LBRACE, token.RPAREN) {
+			// 解析第一个增量表达式
+			var acl data.Control
+			increment, acl := exprParser.Parse()
+			if acl != nil {
+				return nil, acl
+			}
+			increments = append(increments, increment)
+
+			// 解析逗号分隔的多个增量表达式
+			for p.current().Type() == token.COMMA {
+				p.next() // 跳过逗号
+				inc, acl := exprParser.Parse()
+				if acl != nil {
+					return nil, acl
+				}
+				increments = append(increments, inc)
+			}
+
+			p.nextAndCheckStip(token.SEMICOLON) // 跳过分号
+		}
+
+		if hasLparen {
+			p.nextAndCheck(token.RPAREN)
+		}
+
+		// 解析循环体
+		body, acl := p.parseBlock()
+		if acl != nil {
+			return nil, acl
+		}
+		return node.NewForStatement(
+			tracker.EndBefore(),
+			initializers,
+			condition,
+			increments,
+			body,
+		), acl
+	}
+}

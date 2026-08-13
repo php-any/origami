@@ -1,0 +1,11 @@
+{
+    "name": "origami/agents-example",
+    "description": "Origami 多 Agent 框架示例（框架代码 lib/ 与业务代码 src/ 分离）",
+    "autoload": {
+        "psr-4": {
+            "Agent\\": "lib/",
+            "App\\": "src/",
+            "Console\\": "cli/"
+        }
+    }
+}

@@ -1,0 +1,23 @@
+---
+description: examples/laravel13 的项目目标与实现原则（主线）
+globs: examples/laravel13/**
+alwaysApply: false
+---
+
+# examples/laravel13 目标
+
+本目录是 **官方 Laravel 13 骨架**（`laravel/laravel` ^13 + `laravel/framework` ^13），在 Origami 上逐步实现与 Laravel 生态的完整兼容。
+
+**不是**「Laravel 风格」仿写；也**不要**回到 `examples/laravel` 那种大段 bootstrap 假实现路线。
+
+## 原则
+
+1. 保持官方入口：`artisan`、`public/index.php`、`bootstrap/app.php`。
+2. 缺口优先修 Origami 核心（`std/`、`node/`、`data/`、`runtime/`）。
+3. `go-support/` 可做示例扩展、覆盖标准库、或实现 Laravel Request 等适配；禁止在 PHP 侧堆匿名 singleton 冒充框架。
+4. 每层能力用 `tests/origami/` 冒烟验收。
+5. 详细说明见 `examples/laravel13/ORIGAMI.md`。
+
+## 旧目录
+
+`examples/laravel` 已偏离主线，仅作对照；新工作不要继续往那里加桥接补丁。

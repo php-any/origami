@@ -1,0 +1,1 @@
+<?php echo "V:"; var_export(isset($name)?$name:"UNDEF");

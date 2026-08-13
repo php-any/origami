@@ -1,0 +1,55 @@
+{
+  "description": "Example configuration for Origami LSP Server",
+  "server": {
+    "protocol": "stdio",
+    "address": "localhost",
+    "port": 8080,
+    "logging": {
+      "level": 3,
+      "file": "",
+      "enabled": true
+    }
+  },
+  "language": {
+    "name": "origami",
+    "extensions": [".ori", ".origami"],
+    "features": {
+      "completion": true,
+      "hover": true,
+      "definition": true,
+      "documentSymbol": true,
+      "diagnostics": true
+    }
+  },
+  "completion": {
+    "keywords": [
+      "function", "var", "if", "else", "for", "while", "do",
+      "return", "break", "continue", "try", "catch", "throw",
+      "class", "new", "this", "true", "false", "null"
+    ],
+    "builtins": [
+      "echo", "print", "console.log", "typeof", "instanceof",
+      "parseInt", "parseFloat", "isNaN", "isFinite"
+    ],
+    "snippets": {
+      "function": "function ${1:name}(${2:params}) {\n\t${3:// body}\n}",
+      "if": "if (${1:condition}) {\n\t${2:// body}\n}",
+      "for": "for (var ${1:i} = 0; ${1:i} < ${2:length}; ${1:i}++) {\n\t${3:// body}\n}",
+      "class": "class ${1:ClassName} {\n\t${2:// methods}\n}"
+    }
+  },
+  "diagnostics": {
+    "enabled": true,
+    "severity": {
+      "syntaxError": "error",
+      "undefinedVariable": "warning",
+      "unusedVariable": "hint"
+    }
+  },
+  "formatting": {
+    "indentSize": 4,
+    "insertSpaces": true,
+    "trimTrailingWhitespace": true,
+    "insertFinalNewline": true
+  }
+}

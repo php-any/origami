@@ -1,0 +1,33 @@
+<?php
+namespace tests\obj;
+
+// 测试类方法优先级高于 trait 方法
+trait Loggable {
+    public function log($message) {
+        return "Trait Log: " . $message;
+    }
+}
+
+class User4 {
+    use Loggable;
+    
+    private $name;
+    
+    public function __construct($name) {
+        $this->name = $name;
+    }
+    
+    // 类中定义同名方法，应该覆盖 trait 的方法
+    public function log($message) {
+        return "Class Log: " . $message;
+    }
+}
+
+$user = new User4("Charlie");
+$result = $user->log("test");
+if($result == "Class Log: test") {
+    Log::info("类方法优先级高于 trait 方法");
+} else {
+    Log::fatal("类方法优先级测试失败: " . $result);
+}
+

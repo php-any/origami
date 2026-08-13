@@ -1,0 +1,651 @@
+package php
+
+import (
+	"fmt"
+	"runtime"
+	"time"
+
+	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
+	ortruntime "github.com/php-any/origami/runtime"
+	"github.com/php-any/origami/std/exception"
+	"github.com/php-any/origami/std/php/array"
+	"github.com/php-any/origami/std/php/attribute"
+	"github.com/php-any/origami/std/php/core"
+	"github.com/php-any/origami/std/php/file"
+	"github.com/php-any/origami/std/php/iconv"
+	"github.com/php-any/origami/std/php/intl"
+	"github.com/php-any/origami/std/php/math"
+	"github.com/php-any/origami/std/php/pdo"
+	"github.com/php-any/origami/std/php/preg"
+	"github.com/php-any/origami/std/php/proc"
+	"github.com/php-any/origami/std/php/reflection"
+	"github.com/php-any/origami/std/php/spl"
+	"github.com/php-any/origami/std/php/stream"
+)
+
+func Load(vm data.VM) {
+	core.InitIniDefaults()
+	core.InitPhptInputFromEnv()
+	node.CheckExecutionTimeLimit = func(file string, line int) {
+		core.CheckExecutionTimeLimit(file, line)
+	}
+	node.MarkHeaderOutputStarted = core.MarkHeaderOutputStarted
+	ortruntime.RunHeaderCallbacksFn = core.RunHeaderCallbacks
+
+	for _, fun := range []data.FuncStmt{
+		NewErrorReportingFunction(),
+		NewSetErrorHandlerFunction(),
+		NewRestoreErrorHandlerFunction(),
+		NewRegisterShutdownFunctionFunction(),
+		NewTimeFunction(),
+		NewStrftimeFunction(),
+		NewDateDefaultTimezoneGetFunction(),
+		NewDateDefaultTimezoneSetFunction(),
+		NewTimezoneNameFromAbbrFunction(),
+		NewTimezoneNameGetFunction(),
+		NewTimezoneOpenFunction(),
+		NewSleepFunction(),
+		NewIsDirFunction(),
+		NewIsFileFunction(),
+		NewScandirFunction(),
+		NewGlobFunction(),
+		NewFileGetContentsFunction(),
+		NewFilePutContentsFunction(),
+		NewMicrotimeFunction(),
+		NewMemoryGetPeakUsageFunction(),
+		NewDebugBacktraceFunction(),
+		NewGettimeofdayFunction(),
+		NewNumberFormatFunction(),
+		NewFunctionExistsFunction(),
+		NewClassExistsFunction(),
+		NewInterfaceExistsFunction(),
+		NewPropertyExistsFunction(),
+		NewMethodExistsFunction(),
+		NewClassAliasFunction(),
+		NewIsAFunction(),
+		NewIsSubclassOfFunction(),
+		NewVersionCompareFunction(),
+		NewGetClassFunction(),
+		NewGetParentClassFunction(),
+		NewGettypeFunction(),
+		NewGetDebugTypeFunction(),
+		NewJsonEncodeFunction(),
+		NewJsonDecodeFunction(),
+		NewJsonLastErrorFunction(),
+		NewJsonLastErrorMsgFunction(),
+		NewSerializeFunction(),
+		NewUnserializeFunction(),
+		NewEmptyFunction(),
+		NewAssertFunction(),
+		NewEvalFunction(),
+		NewRunPhpFileFunction(),
+		NewStrlenFunction(),
+		NewStrvalFunction(),
+		NewIntvalFunction(),
+		NewHashFunction(),
+		NewHashHmacFunction(),
+		NewHashInitFunction(),
+		NewHashUpdateFunction(),
+		NewHashUpdateStreamFunction(),
+		NewHashFinalFunction(),
+		NewHashFileFunction(),
+		NewFinfoOpenFunction(),
+		NewFinfoFileFunction(),
+		NewFinfoBufferFunction(),
+		NewFinfoCloseFunction(),
+		NewStrposFunction(),
+		NewSubstrFunction(),
+		NewSubstrCountFunction(),
+		NewTrimFunction(),
+		NewLtrimFunction(),
+		NewRtrimFunction(),
+		NewUcfirstFunction(),
+		NewLcfirstFunction(),
+		NewUcwordsFunction(),
+		NewStrSplitFunction(),
+		NewExplodeFunction(),
+		NewStrGetcsvFunction(),
+		NewImplodeFunction(),
+		NewJoinFunction(),
+		NewPackFunction(),
+		NewUnpackFunction(),
+		NewCountFunction(),
+		NewInArrayFunction(),
+		array.NewArrayKeyExistsFunction(),
+		array.NewArrayRandFunction(),
+		array.NewArrayKeysFunction(),
+		array.NewArrayKeyFirstFunction(),
+		array.NewArrayFirstFunction(),
+		array.NewArrayLastFunction(),
+		array.NewArrayFindFunction(),
+		array.NewArrayFindKeyFunction(),
+		array.NewArrayAnyFunction(),
+		array.NewArrayAllFunction(),
+		array.NewArraySearchFunction(),
+		array.NewArrayFillFunction(),
+		array.NewArrayFillKeysFunction(),
+		array.NewRangeFunction(),
+		array.NewArrayColumnFunction(),
+		array.NewArrayChunkFunction(),
+		array.NewArrayCountValuesFunction(),
+		array.NewArraySumFunction(),
+		array.NewArrayProductFunction(),
+		array.NewArrayKeyLastFunction(),
+		array.NewArrayChangeKeyCaseFunction(),
+		array.NewArrayWalkRecursiveFunction(),
+		array.NewArrayUdiffFunction(),
+		array.NewArrayUintersectFunction(),
+		array.NewArrayMultisortFunction(),
+		array.NewArrayIsListFunction(),
+		NewMd5Function(),
+		NewMd5FileFunction(),
+		NewBase64EncodeFunction(),
+		NewBase64DecodeFunction(),
+		NewBin2hexFunction(),
+		NewHex2binFunction(),
+		NewDechexFunction(),
+		NewHexdecFunction(),
+		NewOctdecFunction(),
+		NewDecoctFunction(),
+		NewDecbinFunction(),
+		NewEscapeshellargFunction(),
+		NewUrlencodeFunction(),
+		NewUrldecodeFunction(),
+		NewRawurlencodeFunction(),
+		NewRawurldecodeFunction(),
+		NewHttpBuildQueryFunction(),
+		array.NewArrayMergeFunction(),
+		array.NewArrayCombineFunction(),
+		array.NewArrayReplaceRecursiveFunction(),
+		array.NewArrayReplaceFunction(),
+		array.NewArrayMergeRecursiveFunction(),
+		array.NewArrayPushFunction(),
+		array.NewArrayPopFunction(),
+		array.NewArrayValuesFunction(),
+		array.NewArrayUniqueFunction(),
+		array.NewArrayIntersectFunction(),
+		array.NewArrayReverseFunction(),
+		array.NewSortFunction(),
+		array.NewRsortFunction(),
+		array.NewAsortFunction(),
+		array.NewArsortFunction(),
+		array.NewUsortFunction(),
+		array.NewKsortFunction(),
+		array.NewKrsortFunction(),
+		array.NewArrayDiffUkeyFunction(),
+		array.NewArrayIntersectKeyFunction(),
+		array.NewArrayDiffKeyFunction(),
+		array.NewArrayFlipFunction(),
+		math.NewMinFunction(),
+		array.NewArrayMapFunction(),
+		array.NewArrayReduceFunction(),
+		NewStrReplaceFunction(),
+		NewSubstrReplaceFunction(),
+		NewStrStrFunction(),
+		NewStrChrFunction(),
+		NewStrIStrFunction(),
+		NewStrIreplaceFunction(),
+		NewStrtolowerFunction(),
+		NewStrcmpFunction(),
+		NewStrcasecmpFunction(),
+		NewStrncasecmpFunction(),
+		NewStrtoupperFunction(),
+		NewOrdFunction(),
+		NewChrFunction(),
+		NewStrPadFunction(),
+		NewStrRepeatFunction(),
+		core.NewPhpVersionFunction(),
+		NewStrcspnFunction(),
+		NewStrspnFunction(),
+		NewStrpbrkFunction(),
+		NewStrtokFunction(),
+		NewStripslashesFunction(),
+		NewStripsCslashesFunction(),
+		NewHttpResponseCodeFunction(),
+		NewHeaderFunction(),
+		NewSetCookieFunction(),
+		NewHashEqualsFunction(),
+		NewHeadersSentFunction(),
+		NewMbConvertCaseFunction(),
+		NewMbConvertEncodingFunction(),
+		NewMbDetectEncodingFunction(),
+		NewErrorGetLastFunction(),
+		NewErrorClearLastFunction(),
+		NewMbListEncodingsFunction(),
+		NewMbStrtoupperFunction(),
+		NewMbStrtolowerFunction(),
+		NewMbStrlenFunction(),
+		NewMbStrposFunction(),
+		NewMbSubstrFunction(),
+		NewMbStrimwidthFunction(),
+		NewCtypeSpaceFunction(),
+		NewCtypeDigitFunction(),
+		NewCtypeAlphaFunction(),
+		NewCtypeAlnumFunction(),
+		NewCtypeLowerFunction(),
+		NewCtypeUpperFunction(),
+		NewCtypePrintFunction(),
+		NewCtypePunctFunction(),
+		NewCtypeXdigitFunction(),
+		NewCtypeGraphFunction(),
+		NewCeilFunction(),
+		NewFloorFunction(),
+		NewRoundFunction(),
+		NewAbsFunction(),
+		NewPowFunction(),
+		NewRandomBytesFunction(),
+		NewRandomIntFunction(),
+		NewStrtotimeFunction(),
+		NewGmdateFunction(),
+		NewLevenshteinFunction(),
+		NewCountCharsFunction(),
+		NewIntdivFunction(),
+		NewStrrevFunction(),
+		NewGethostnameFunction(),
+		NewMaxFunction(),
+		NewNormalizerIsNormalizedFunction(),
+		NewNormalizerNormalizeFunction(),
+		core.NewCallUserFuncFunction(),
+		core.NewArrayFunction(),
+		core.NewDirnameFunction(),
+		core.NewBasenameFunction(),
+		core.NewRealpathFunction(),
+		core.NewStrtrFunction(),
+		core.NewStrStartsWithFunction(),
+		core.NewStrEndsWithFunction(),
+		core.NewStrContainsFunction(),
+		core.NewArrayFilterFunction(),
+		core.NewHtmlspecialcharsFunction(),
+		core.NewHtmlEntityDecodeFunction(),
+		core.NewStripTagsFunction(),
+		core.NewSetlocaleFunction(),
+		NewTokenGetAllFunction(),
+
+		core.NewSetExceptionHandlerFunction(),
+		core.NewRestoreExceptionHandlerFunction(),
+
+		NewStrrposFunction(),
+		NewStrriposFunction(),
+		NewStriposFunction(),
+		NewPregMatchFunction(),
+		core.NewIsCallableFunction(),
+		NewIsStringFunction(),
+		NewIsCountableFunction(),
+		NewIsIntFunction(),
+		NewIsScalarFunction(),
+		NewIsArrayFunction(),
+		NewIsBoolFunction(),
+		NewIsFloatFunction(),
+		NewIsNullFunction(),
+		NewIsNumericFunction(),
+		NewIsObjectFunction(),
+		NewIsIterableFunction(),
+		array.NewArrayShiftFunction(),
+		array.NewArrayUnshiftFunction(),
+		array.NewArraySliceFunction(),
+		array.NewArrayDiffFunction(),
+		array.NewArraySpliceFunction(),
+		array.NewArrayPadFunction(),
+		array.NewArrayWalkFunction(),
+		NewIteratorToArrayFunction(),
+		array.NewEndFunction(),
+		array.NewResetFunction(),
+		array.NewNextFunction(),
+		array.NewPrevFunction(),
+		array.NewCurrentFunction(),
+		array.NewKeyFunction(),
+		NewSprintfFunction(),
+		NewVsprintfFunction(),
+		NewVarDumpFunction(),
+		NewChmodFunction(),
+		NewClassImplementsFunction(),
+		NewClassParentsFunction(),
+		NewClassUsesFunction(),
+		NewClearstatcacheFunction(),
+		NewFilterVarFunction(),
+		NewFuncNumArgsFunction(),
+		NewGetCfgVarFunction(),
+		NewParseUrlFunction(),
+		NewParseStrFunction(),
+		NewInetPtonFunction(),
+		NewInetNtopFunction(),
+		NewTempnamFunction(),
+		NewUmaskFunction(),
+		NewVarExportFunction(),
+		core.NewStreamResolveIncludePathFunction(),
+		core.NewDefinedFunction(),
+		core.NewConstantFunction(),
+		core.NewDefineFunction(),
+		core.NewTriggerErrorFunction(),
+		core.NewHeadersSentFunction(),
+		core.NewExtensionLoadedFunction(),
+		core.NewExitFunction(),
+		core.NewDieFunction(),
+		core.NewUnlinkFunction(),
+		core.NewRmdirFunction(),
+		core.NewMkdirFunction(),
+		core.NewCopyFunction(),
+		core.NewRenameFunction(),
+		core.NewPutenvFunction(),
+		core.NewGetenvFunction(),
+		core.NewIniSetFunction(),
+		core.NewIniGetFunction(),
+		core.NewSetTimeLimitFunction(),
+		core.NewHeaderRegisterCallbackFunction(),
+		core.NewSapiWindowsVt100SupportFunction(),
+		core.NewObStartFunction(),
+		core.NewObGetCleanFunction(),
+		core.NewObGetContentsFunction(),
+		core.NewObEndCleanFunction(),
+		core.NewObGetLevelFunction(),
+		core.NewCliSetProcessTitleFunction(),
+		core.NewChdirFunction(),
+		core.NewGetcwdFunction(),
+		file.NewFileExistsFunction(),
+		file.NewIsReadableFunction(),
+		file.NewIsWritableFunction(),
+		file.NewFilesizeFunction(),
+		file.NewFilemtimeFunction(),
+		NewIsResourceFunction(),
+		NewGetResourceTypeFunction(),
+		proc.NewProcOpenFunction(),
+		proc.NewProcCloseFunction(),
+		proc.NewProcGetStatusFunction(),
+		proc.NewProcTerminateFunction(),
+		proc.NewShellExecFunction(),
+		stream.NewFopenFunction(),
+		stream.NewFlockFunction(),
+		NewStreamSetChunkSizeFunction(),
+		NewFileInodeFunction(),
+		stream.NewFcloseFunction(),
+		stream.NewFreadFunction(),
+		stream.NewFeofFunction(),
+		stream.NewFseekFunction(),
+		stream.NewFwriteFunction(),
+		stream.NewFflushFunction(),
+		stream.NewStreamGetContentsFunction(),
+		stream.NewStreamIsattyFunction(),
+		stream.NewStreamSetBlockingFunction(),
+		stream.NewStreamSelectFunction(),
+		stream.NewStreamContextCreateFunction(),
+		NewJoinPathsFunction(),
+		NewPathinfoFunction(),
+		NewExtractFunction(),
+		NewGetDefinedVarsFunction(),
+	} {
+		vm.AddFunc(fun)
+	}
+
+	// 初始化 pathinfo 常量
+	InitPathinfoConstants(vm)
+	InitGlobConstants(vm)
+	InitFinfoConstants(vm)
+	InitJsonConstants(vm)
+	vm.SetConstant("SEEK_SET", data.NewIntValue(0))
+	vm.SetConstant("SEEK_CUR", data.NewIntValue(1))
+	vm.SetConstant("SEEK_END", data.NewIntValue(2))
+	vm.SetConstant("LOCK_SH", data.NewIntValue(stream.LockSH))
+	vm.SetConstant("LOCK_EX", data.NewIntValue(stream.LockEX))
+	vm.SetConstant("LOCK_UN", data.NewIntValue(stream.LockUN))
+	vm.SetConstant("LOCK_NB", data.NewIntValue(stream.LockNB))
+
+	// 注册核心类
+	vm.AddClass(&core.ClosureClass{})
+	vm.AddClass(&core.BackedEnumClass{})
+	vm.AddClass(&core.StdClass{})
+	vm.AddClass(&core.NormalizerClass{})
+	vm.AddClass(&core.WeakMapClass{})
+	vm.AddClass(&core.FiberClass{})
+	vm.AddClass(&core.RandomizerClass{})
+	vm.AddClass(NewFinfoClass())
+
+	// 注册 DOM 类
+	vm.AddClass(core.NewDOMNodeClass())
+	vm.AddClass(core.NewDOMDocumentClass())
+	vm.AddClass(core.NewDOMElementClass())
+	vm.AddClass(core.NewDOMTextClass())
+	vm.AddClass(core.NewDOMCommentClass())
+	vm.AddClass(core.NewDOMNodeListClass())
+	vm.AddClass(&reflection.ReflectionClassClass{})
+	vm.AddClass(&reflection.ReflectionObjectClass{})
+	vm.AddClass(&reflection.ReflectionMethodClass{})
+	vm.AddClass(&reflection.ReflectionParameterClass{})
+	vm.AddClass(&reflection.ReflectionPropertyClass{})
+	vm.AddClass(&reflection.ReflectionAttributeClass{})
+	vm.AddClass(&reflection.ReflectionTypeClass{})
+	vm.AddClass(&reflection.ReflectionNamedTypeClass{})
+	vm.AddClass(&reflection.ReflectionFunctionClass{})
+
+	// 加载 SPL 扩展
+	spl.Load(vm)
+
+	// 注册 DateTime 类
+	vm.AddClass(NewDateTimeClass())
+	vm.AddClass(NewDateTimeImmutableClass())
+	vm.AddClass(NewDateIntervalClass())
+	vm.AddClass(NewDatePeriodClass())
+
+	// 注册 PHP 内置接口
+	vm.AddInterface(NewArrayAccessInterface())
+	vm.AddInterface(NewCountableInterface())
+	vm.AddInterface(NewSerializableInterface())
+	vm.AddInterface(NewSessionHandlerInterface())
+	vm.AddInterface(exception.NewThrowableInterface())
+
+	// 注册异常类
+	vm.AddClass(exception.NewExceptionClass())
+	vm.AddClass(exception.NewErrorClass())
+	vm.AddClass(exception.NewValueErrorClass())
+	vm.AddClass(exception.NewTypeErrorClass())
+	vm.AddClass(exception.NewArgumentCountErrorClass())
+	vm.AddClass(exception.NewUnhandledMatchErrorClass())
+	vm.AddClass(exception.NewArithmeticErrorClass())
+	vm.AddClass(exception.NewDivisionByZeroErrorClass())
+	vm.AddClass(exception.NewLogicExceptionClass())
+	vm.AddClass(exception.NewInvalidArgumentExceptionClass())
+	vm.AddClass(exception.NewRuntimeExceptionClass())
+	vm.AddClass(exception.NewBadMethodCallExceptionClass())
+	vm.AddClass(exception.NewErrorExceptionClass())
+	vm.AddClass(exception.NewUnexpectedValueExceptionClass())
+	vm.AddClass(exception.NewUnderflowExceptionClass())
+	vm.AddClass(exception.NewOverflowExceptionClass())
+	vm.AddClass(exception.NewOutOfBoundsExceptionClass())
+	vm.AddClass(exception.NewOutOfRangeExceptionClass())
+	vm.AddClass(exception.NewBadFunctionCallExceptionClass())
+	vm.AddClass(exception.NewDomainExceptionClass())
+
+	initPhpDefaultDefines(vm)
+
+	// 注册 PHP token 常量
+	InitTokenConstants(vm)
+
+	// 加载 PDO 扩展
+	pdo.Load(vm)
+
+	// 加载 preg 包（注册函数和常量）
+	preg.Load(vm)
+
+	// 加载 iconv 系列函数
+	iconv.Load(vm)
+
+	// 加载 intl 扩展（grapheme_strlen、grapheme_substr 等）
+	intl.Load(vm)
+
+	// mb_convert_case 常量
+	vm.SetConstant("MB_CASE_UPPER", data.NewIntValue(MB_CASE_UPPER))
+	vm.SetConstant("MB_CASE_LOWER", data.NewIntValue(MB_CASE_LOWER))
+	vm.SetConstant("MB_CASE_TITLE", data.NewIntValue(MB_CASE_TITLE))
+	vm.SetConstant("MB_CASE_FOLD", data.NewIntValue(MB_CASE_FOLD))
+	vm.SetConstant("MB_CASE_UPPER_SIMPLE", data.NewIntValue(MB_CASE_UPPER_SIMPLE))
+	vm.SetConstant("MB_CASE_LOWER_SIMPLE", data.NewIntValue(MB_CASE_LOWER_SIMPLE))
+	vm.SetConstant("MB_CASE_TITLE_SIMPLE", data.NewIntValue(MB_CASE_TITLE_SIMPLE))
+	vm.SetConstant("MB_CASE_FOLD_SIMPLE", data.NewIntValue(MB_CASE_FOLD_SIMPLE))
+
+	// 加载 PHP 原生注解类
+	attribute.Load(vm)
+}
+
+func initPhpDefaultDefines(vm data.VM) {
+	// 目录和路径相关常量
+	vm.SetConstant("DIRECTORY_SEPARATOR", data.NewStringValue("/"))
+	vm.SetConstant("PATH_SEPARATOR", data.NewStringValue(":"))
+	vm.SetConstant("DEBUG_BACKTRACE_PROVIDE_OBJECT", data.NewIntValue(1))
+	vm.SetConstant("DEBUG_BACKTRACE_IGNORE_ARGS", data.NewIntValue(2))
+
+	// 数组相关常量
+	vm.SetConstant("ARRAY_FILTER_USE_KEY", data.NewIntValue(1))
+	vm.SetConstant("ARRAY_FILTER_USE_BOTH", data.NewIntValue(2))
+	vm.SetConstant("COUNT_NORMAL", data.NewIntValue(0))
+	vm.SetConstant("COUNT_RECURSIVE", data.NewIntValue(1))
+	vm.SetConstant("SORT_REGULAR", data.NewIntValue(0))
+	vm.SetConstant("SORT_NUMERIC", data.NewIntValue(1))
+	vm.SetConstant("SORT_STRING", data.NewIntValue(2))
+	vm.SetConstant("SORT_LOCALE_STRING", data.NewIntValue(3))
+	vm.SetConstant("SORT_NATURAL", data.NewIntValue(5))
+	vm.SetConstant("SORT_FLAG_CASE", data.NewIntValue(6-5)) // 组合时常用 SORT_NATURAL | SORT_FLAG_CASE
+	vm.SetConstant("SORT_ASC", data.NewIntValue(4))
+	vm.SetConstant("SORT_DESC", data.NewIntValue(3))
+	vm.SetConstant("CASE_LOWER", data.NewIntValue(0))
+	vm.SetConstant("CASE_UPPER", data.NewIntValue(1))
+
+	// str_pad
+	vm.SetConstant("STR_PAD_LEFT", data.NewIntValue(0))
+	vm.SetConstant("STR_PAD_RIGHT", data.NewIntValue(1))
+	vm.SetConstant("STR_PAD_BOTH", data.NewIntValue(2))
+
+	// 错误级别常量
+	vm.SetConstant("E_ERROR", data.NewIntValue(1))
+	vm.SetConstant("E_WARNING", data.NewIntValue(2))
+	vm.SetConstant("E_PARSE", data.NewIntValue(4))
+	vm.SetConstant("E_NOTICE", data.NewIntValue(8))
+	vm.SetConstant("E_CORE_ERROR", data.NewIntValue(16))
+	vm.SetConstant("E_CORE_WARNING", data.NewIntValue(32))
+	vm.SetConstant("E_COMPILE_ERROR", data.NewIntValue(64))
+	vm.SetConstant("E_COMPILE_WARNING", data.NewIntValue(128))
+	vm.SetConstant("E_USER_ERROR", data.NewIntValue(256))
+	vm.SetConstant("E_USER_WARNING", data.NewIntValue(512))
+	vm.SetConstant("E_USER_NOTICE", data.NewIntValue(1024))
+	vm.SetConstant("E_STRICT", data.NewIntValue(2048))
+	vm.SetConstant("E_RECOVERABLE_ERROR", data.NewIntValue(4096))
+	vm.SetConstant("E_DEPRECATED", data.NewIntValue(8192))
+	vm.SetConstant("E_USER_DEPRECATED", data.NewIntValue(16384))
+	vm.SetConstant("E_ALL", data.NewIntValue(32767))
+
+	// PHP 版本和系统信息常量（对齐 Laravel 13 + Symfony 8.x：按 PHP 8.4 语义推进）
+	vm.SetConstant("PHP_VERSION", data.NewStringValue("8.4.1"))
+	vm.SetConstant("PHP_MAJOR_VERSION", data.NewIntValue(8))
+	vm.SetConstant("PHP_MINOR_VERSION", data.NewIntValue(4))
+	vm.SetConstant("PHP_RELEASE_VERSION", data.NewIntValue(1))
+	vm.SetConstant("PHP_VERSION_ID", data.NewIntValue(80401))
+	vm.SetConstant("PHP_EXTRA_VERSION", data.NewStringValue(""))
+	phpOS, phpOSFamily := detectOS()
+	vm.SetConstant("PHP_OS", data.NewStringValue(phpOS))
+	vm.SetConstant("PHP_OS_FAMILY", data.NewStringValue(phpOSFamily))
+	vm.SetConstant("PHP_SAPI", data.NewStringValue("cli"))
+	vm.SetConstant("PHP_EOL", data.NewStringValue("\n"))
+	loadPasswordFunctions(vm)
+	t := time.Now()
+	vm.SetConstant("PHP_BUILD_DATE", data.NewStringValue(fmt.Sprintf("%s %2d %d %02d:%02d:%02d",
+		t.Format("Jan"), t.Day(), t.Year(), t.Hour(), t.Minute(), t.Second())))
+
+	// 整数相关常量
+	vm.SetConstant("PHP_INT_MAX", data.NewIntValue(9223372036854775807))
+	vm.SetConstant("PHP_INT_MIN", data.NewIntValue(-9223372036854775808))
+	vm.SetConstant("PHP_INT_SIZE", data.NewIntValue(8))
+
+	// 路径最大长度（对齐 PHP PATH_MAX；FileViewFinder 等会用 strlen < PHP_MAXPATHLEN-1）
+	vm.SetConstant("PHP_MAXPATHLEN", data.NewIntValue(4096))
+
+	// 浮点数相关常量
+	vm.SetConstant("PHP_FLOAT_MAX", data.NewFloatValue(1.7976931348623157e+308))
+	vm.SetConstant("PHP_FLOAT_MIN", data.NewFloatValue(2.2250738585072014e-308))
+	vm.SetConstant("PHP_FLOAT_DIG", data.NewIntValue(15))
+	vm.SetConstant("PHP_FLOAT_EPSILON", data.NewFloatValue(2.220446049250313e-16))
+
+	// 数学常量
+	vm.SetConstant("M_PI", data.NewFloatValue(3.14159265358979323846))
+	vm.SetConstant("M_E", data.NewFloatValue(2.7182818284590452354))
+	vm.SetConstant("M_LOG2E", data.NewFloatValue(1.4426950408889634074))
+	vm.SetConstant("M_LOG10E", data.NewFloatValue(0.43429448190325182765))
+	vm.SetConstant("M_LN2", data.NewFloatValue(0.69314718055994530942))
+	vm.SetConstant("M_LN10", data.NewFloatValue(2.30258509299404568402))
+	vm.SetConstant("M_PI_2", data.NewFloatValue(1.57079632679489661923))
+	vm.SetConstant("M_PI_4", data.NewFloatValue(0.78539816339744830962))
+	vm.SetConstant("M_1_PI", data.NewFloatValue(0.31830988618379067154))
+	vm.SetConstant("M_2_PI", data.NewFloatValue(0.63661977236758134308))
+	vm.SetConstant("M_SQRTPI", data.NewFloatValue(1.77245385090551602729))
+	vm.SetConstant("M_2_SQRTPI", data.NewFloatValue(1.12837916709551257390))
+	vm.SetConstant("M_SQRT2", data.NewFloatValue(1.41421356237309504880))
+	vm.SetConstant("M_SQRT3", data.NewFloatValue(1.73205080756887729353))
+	vm.SetConstant("M_SQRT1_2", data.NewFloatValue(0.70710678118654752440))
+	vm.SetConstant("M_LNPI", data.NewFloatValue(1.14472988584940017414))
+	vm.SetConstant("M_EULER", data.NewFloatValue(0.57721566490153286061))
+
+	// 布尔値常量
+	vm.SetConstant("TRUE", data.NewBoolValue(true))
+	vm.SetConstant("FALSE", data.NewBoolValue(false))
+	vm.SetConstant("NULL", data.NewNullValue())
+
+	// extract 相关常量（PHP extract flags）
+	vm.SetConstant("EXTR_OVERWRITE", data.NewIntValue(0))        // 默认：覆盖已有变量
+	vm.SetConstant("EXTR_SKIP", data.NewIntValue(1))             // 跳过已有变量（不覆盖）
+	vm.SetConstant("EXTR_PREFIX_SAME", data.NewIntValue(2))      // 同名时加前缀
+	vm.SetConstant("EXTR_PREFIX_ALL", data.NewIntValue(3))       // 所有变量都加前缀
+	vm.SetConstant("EXTR_PREFIX_INVALID", data.NewIntValue(4))   // 非法标识符时加前缀
+	vm.SetConstant("EXTR_IF_EXISTS", data.NewIntValue(6))        // 仅导入已存在的变量
+	vm.SetConstant("EXTR_PREFIX_IF_EXISTS", data.NewIntValue(7)) // 已存在时加前缀导入
+	vm.SetConstant("EXTR_REFS", data.NewIntValue(256))           // 以引用方式导入
+
+	// parse_url constants
+	vm.SetConstant("PHP_URL_FRAGMENT", data.NewIntValue(7))
+	vm.SetConstant("PHP_URL_HOST", data.NewIntValue(1))
+	vm.SetConstant("PHP_URL_PASS", data.NewIntValue(4))
+	vm.SetConstant("PHP_URL_PATH", data.NewIntValue(5))
+	vm.SetConstant("PHP_URL_PORT", data.NewIntValue(2))
+	vm.SetConstant("PHP_URL_QUERY", data.NewIntValue(6))
+	vm.SetConstant("PHP_URL_SCHEME", data.NewIntValue(0))
+	vm.SetConstant("PHP_URL_USER", data.NewIntValue(3))
+
+	// setlocale constants
+	vm.SetConstant("LC_ALL", data.NewIntValue(0))
+	vm.SetConstant("LC_COLLATE", data.NewIntValue(1))
+	vm.SetConstant("LC_CTYPE", data.NewIntValue(2))
+	vm.SetConstant("LC_MONETARY", data.NewIntValue(3))
+	vm.SetConstant("LC_NUMERIC", data.NewIntValue(4))
+	vm.SetConstant("LC_TIME", data.NewIntValue(5))
+	vm.SetConstant("LC_MESSAGES", data.NewIntValue(6))
+
+	// File constants
+	// Filter constants
+	vm.SetConstant("FILE_APPEND", data.NewIntValue(8))
+	vm.SetConstant("FILE_USE_INCLUDE_PATH", data.NewIntValue(1))
+	vm.SetConstant("FILTER_CALLBACK", data.NewIntValue(1024))
+	vm.SetConstant("FILTER_NULL_ON_FAILURE", data.NewIntValue(134217728))
+	vm.SetConstant("FILTER_REQUIRE_ARRAY", data.NewIntValue(8))
+	vm.SetConstant("FILTER_VALIDATE_BOOLEAN", data.NewIntValue(258))
+	vm.SetConstant("FILTER_VALIDATE_INT", data.NewIntValue(257))
+}
+
+func detectOS() (phpOS, phpOSFamily string) {
+	switch runtime.GOOS {
+	case "darwin":
+		return "Darwin", "Darwin"
+	case "windows":
+		return "WINNT", "Windows"
+	case "linux":
+		return "Linux", "Linux"
+	case "freebsd":
+		return "FreeBSD", "BSD"
+	case "openbsd":
+		return "OpenBSD", "BSD"
+	case "netbsd":
+		return "NetBSD", "BSD"
+	case "dragonfly":
+		return "DragonFly", "BSD"
+	case "solaris":
+		return "SunOS", "Solaris"
+	default:
+		return runtime.GOOS, runtime.GOOS
+	}
+}

@@ -1,0 +1,45 @@
+<?php
+
+namespace App;
+
+use Database\DB;
+use Database\Sql\open;
+
+// 打开数据库连接
+$db = open("mysql", "root:root@/temp");
+
+// 测试连接
+$db->ping();
+
+// 注册到连接管理器
+Database\registerDefaultConnection($db);
+
+// 注册命名连接
+Database\registerConnection("slave", $db);
+Database\registerConnection("master", $db);
+
+// 定义用户模型
+class User {
+    public int $id;
+    public string $name;
+    public string $email;
+}
+
+// 使用默认连接查询
+$user = DB<User>();
+$user->where("id = ?", 1)->first();
+
+// 使用指定连接查询
+$userFromSlave = DB<User>("slave");
+$userFromSlave->where("id = ?", 1)->first();
+
+// 获取连接信息
+$defaultConn = Database\getDefaultConnection();
+$slaveConn = Database\getConnection("slave");
+
+// 列出所有连接
+$connections = Database\listConnections();
+echo "可用连接: " . $connections;
+
+// 移除连接
+Database\removeConnection("slave");

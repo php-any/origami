@@ -1,0 +1,246 @@
+package node
+
+import (
+	"fmt"
+
+	"github.com/php-any/origami/data"
+)
+
+// 注解类型常量
+const (
+	TypeFeature    = "TypeFeature"    // 特性注解
+	TypeMacro      = "TypeMacro"      // 宏注解
+	TypeRepeatable = "TypeRepeatable" // 可重复使用的注解（对应 Attribute::IS_REPEATABLE）
+
+	// Attribute 目标类型标记（用于 gen-std 生成 TARGET_* 伪代码）
+	TypeTargetClass     = "TypeTargetClass"
+	TypeTargetMethod    = "TypeTargetMethod"
+	TypeTargetProperty  = "TypeTargetProperty"
+	TypeTargetFunction  = "TypeTargetFunction"
+	TypeTargetParameter = "TypeTargetParameter"
+
+	TargetName = "target"
+)
+
+// AnnotationTargetParameter 注解构造函数中的 target 参数，接收被注解的 AST 节点。
+type AnnotationTargetParameter struct {
+	*Parameter
+}
+
+// NewAnnotationTargetParameter 创建注解 target 参数：默认 null，类型为 AstNode。
+func NewAnnotationTargetParameter(from data.From, index int) data.GetValue {
+	return &AnnotationTargetParameter{
+		Parameter: &Parameter{
+			Node:         NewNode(from),
+			Name:         TargetName,
+			Index:        index,
+			Type:         data.AST{},
+			DefaultValue: data.NewNullValue(),
+		},
+	}
+}
+
+func (p *AnnotationTargetParameter) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return p.Parameter.GetValue(ctx)
+}
+
+// NewAnnotationTargetVariable 创建与 target 参数配套的变量声明。
+func NewAnnotationTargetVariable(from data.From, index int) data.Variable {
+	return NewVariable(from, TargetName, index, data.AST{})
+}
+
+func asAnnotationTargetParam(param data.GetValue) data.Variable {
+	switch p := param.(type) {
+	case *AnnotationTargetParameter:
+		return p.Parameter
+	case *Parameter:
+		if p.Name == TargetName {
+			return p
+		}
+	}
+	return nil
+}
+
+// Annotation 表示注解节点
+type Annotation struct {
+	*Node
+	Name      string          // 注解名称
+	Arguments []data.GetValue // 注解参数
+	Target    data.GetValue
+	class     data.ClassStmt `pp:"-"` // 首次解析后缓存
+}
+
+// NewAnnotation 创建一个新的注解节点
+func NewAnnotation(from data.From, name string, arguments []data.GetValue) *Annotation {
+	return &Annotation{
+		Node:      NewNode(from),
+		Name:      name,
+		Arguments: arguments,
+	}
+}
+
+// GetName 返回注解名称
+func (a *Annotation) GetName() string {
+	return a.Name
+}
+
+// GetArguments 返回注解参数
+func (a *Annotation) GetArguments() []data.GetValue {
+	return a.Arguments
+}
+
+func (a *Annotation) resolveClass(ctx data.Context) (data.ClassStmt, data.Control) {
+	if a.class != nil {
+		return a.class, nil
+	}
+	stmt, acl := ctx.GetVM().GetOrLoadClass(a.Name)
+	if acl != nil {
+		return nil, acl
+	}
+	a.class = stmt
+	return stmt, nil
+}
+
+// GetValue 获取注解节点的值
+func (a *Annotation) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	stmt, acl := a.resolveClass(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+
+	object, acl := stmt.GetValue(ctx.CreateBaseContext())
+	if acl != nil {
+		return nil, acl
+	}
+
+	if object, ok := object.(*data.ClassValue); ok {
+		if method := object.Class.GetConstruct(); method != nil {
+			varies := method.GetVariables()
+			params := method.GetParams()
+			fnCtx := object.CreateContext(varies)
+			// 入参的值设置到上下文中
+			for index, arg := range a.Arguments {
+				switch argTV := arg.(type) {
+				case *NamedArgument:
+					tempV, acl := argTV.GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+					vari, err := findVariable(varies, argTV.Name)
+					if err != nil {
+						return nil, data.NewErrorThrow(a.from, err)
+					}
+					fnCtx.SetVariableValue(vari, tempV.(data.Value))
+				default:
+					tempV, acl := argTV.GetValue(ctx)
+					if acl != nil {
+						return nil, acl
+					}
+
+					if index >= len(varies) {
+						return nil, data.NewErrorThrow(a.from, fmt.Errorf("注解(%v)构造函数参数数量超出限制: %d", a.Name, index))
+					}
+
+					fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
+				}
+			}
+
+			// 处理未传递的参数，设置默认值
+			for index := len(a.Arguments); index < len(params); index++ {
+				if index >= len(varies) {
+					break
+				}
+				param := params[index]
+				if targetParam := asAnnotationTargetParam(param); targetParam != nil {
+					// 将被注解的 AST 目标按需注入构造函数
+					// 注意：a.Target 类型是 data.GetValue，直接塞进 any 会二次装箱导致
+					// anyT.Value.(*ClassStatement) 失败，需先解开具体类型。
+					fnCtx.SetVariableValue(targetParam, data.NewAnyValue(unwrapAnnotationTarget(a.Target)))
+					continue
+				}
+				if argObj, ok := param.(*Parameter); ok {
+					if argObj.DefaultValue == nil {
+						return nil, data.NewErrorThrow(a.from, fmt.Errorf("调用 %s 构造函数时参数 %s 缺少值和默认值", a.Name, argObj.Name))
+					}
+					// 调用 GetValue 来触发默认值的设置
+					_, acl := argObj.GetValue(fnCtx)
+					if acl != nil {
+						return nil, acl
+					}
+				}
+			}
+
+			// 将构造函数参数属性的值赋值给对象属性（PHP 8 构造函数参数属性提升）
+			for index, param := range params {
+				// 检查是否是属性提升的参数
+				if promotedParam, ok := param.(*PromotedParameter); ok {
+					// 从函数上下文获取参数值
+					if index < len(varies) {
+						paramValue, acl := fnCtx.GetVariableValue(varies[index])
+						if acl != nil {
+							// 如果获取失败，尝试使用默认值
+							if promotedParam.DefaultValue != nil {
+								paramValueGet, acl := promotedParam.DefaultValue.GetValue(fnCtx)
+								if acl != nil {
+									return nil, acl
+								}
+								if paramValueGet != nil {
+									paramValue = paramValueGet.(data.Value)
+								}
+							} else {
+								// 没有默认值，跳过
+								continue
+							}
+						}
+						// 将参数值赋值给对象属性
+						if paramValue != nil {
+							object.SetProperty(promotedParam.PropertyName, paramValue)
+						}
+					}
+				}
+			}
+
+			// 构造函数执行成功后，返回注解实例本身
+			return object, &CallAnn{method: method, ctx: fnCtx}
+		}
+	}
+
+	return object, acl
+}
+
+// unwrapAnnotationTarget 解开 data.GetValue 接口，避免 NewAnyValue 二次装箱
+func unwrapAnnotationTarget(target data.GetValue) any {
+	if target == nil {
+		return nil
+	}
+	switch t := target.(type) {
+	case *ClassStatement:
+		return t
+	case *ClassRegisterStmt:
+		return t.Class
+	case *AbstractClassStatement:
+		return t.ClassStatement
+	case *ClassGeneric:
+		return t.ClassStatement
+	default:
+		return target
+	}
+}
+
+type CallAnn struct {
+	method data.Method
+	ctx    data.Context
+}
+
+func (c *CallAnn) AsString() string {
+	return "TODO"
+}
+
+func (c *CallAnn) GetValue(fnCtx data.Context) (data.GetValue, data.Control) {
+	return nil, nil
+}
+
+func (c *CallAnn) InitAnnotation() data.Control {
+	_, acl := c.method.Call(c.ctx)
+	return acl
+}

@@ -1,0 +1,66 @@
+<?php
+
+echo "=== preg_match_all() 函数测试 ===\n";
+
+$subject = "one two three two one";
+
+// 基本多次匹配 + 分组
+$matches = [];
+$count = preg_match_all('/(t\w+)/', $subject, $matches);
+if (
+    $count == 3 &&
+    $matches[0][0] == "two" &&
+    $matches[0][1] == "three" &&
+    $matches[0][2] == "two" &&
+    $matches[1][0] == "two" &&
+    $matches[1][1] == "three" &&
+    $matches[1][2] == "two"
+) {
+    Log::info("多次匹配与分组测试通过");
+} else {
+    Log::fatal("多次匹配与分组测试失败, count={$count}, matches=" . json_encode($matches));
+}
+
+// 未匹配测试（与 PHP 一致：$matches[0] 为 []，count($matches) 为 1）
+$matches = [];
+$count = preg_match_all('/php/', $subject, $matches);
+if (
+    $count == 0 &&
+    is_array($matches) &&
+    count($matches) == 1 &&
+    is_array($matches[0]) &&
+    count($matches[0]) == 0
+) {
+    Log::info("未匹配测试通过");
+} else {
+    Log::fatal("未匹配测试失败, count={$count}, matches=" . json_encode($matches));
+}
+
+// 未匹配但含捕获分组：仍应初始化 $matches[1] 为空数组
+$matches = [];
+$count = preg_match_all('/\{(.*?)\}/', 'no-braces', $matches);
+if (
+    $count == 0 &&
+    is_array($matches) &&
+    count($matches) == 2 &&
+    is_array($matches[0]) &&
+    count($matches[0]) == 0 &&
+    is_array($matches[1]) &&
+    count($matches[1]) == 0
+) {
+    Log::info("未匹配捕获分组测试通过");
+} else {
+    Log::fatal("未匹配捕获分组测试失败, count={$count}, matches=" . json_encode($matches));
+}
+
+// 修饰符测试：不区分大小写
+$matches = [];
+$count = preg_match_all('/ONE/i', $subject, $matches);
+if ($count == 2 && $matches[0][0] == "one" && $matches[0][1] == "one") {
+    Log::info("不区分大小写测试通过");
+} else {
+    Log::fatal("不区分大小写测试失败, count={$count}, matches=" . json_encode($matches));
+}
+
+echo "=== preg_match_all() 测试完成 ===\n";
+

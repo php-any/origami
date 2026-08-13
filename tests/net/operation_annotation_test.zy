@@ -1,0 +1,27 @@
+<?php
+
+use Net\Annotation\Controller;
+use Net\Annotation\Route;
+use Net\Annotation\GetMapping;
+use Net\Annotation\Operation;
+
+#[Controller]
+#[Route(prefix: "/api")]
+class OperationDemoController {
+    #[Operation(
+        summary: "列出商品",
+        description: "返回所有商品",
+        tags: ["products"],
+        operationId: "listProducts",
+        deprecated: false,
+        hidden: false
+    )]
+    #[GetMapping(path: "/products")]
+    public function listProducts(): void {}
+
+    #[Operation(summary: "单个标签", tags: "products")]
+    #[GetMapping(path: "/product/{id}")]
+    public function getProduct(): void {}
+}
+
+echo "Operation annotation test ok\n";
