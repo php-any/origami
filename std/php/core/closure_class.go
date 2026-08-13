@@ -43,6 +43,8 @@ func (c *ClosureClass) GetStaticMethod(name string) (data.Method, bool) {
 	switch name {
 	case "bind":
 		return c.bind, true
+	case "fromCallable", "fromcallable":
+		return &ClosureFromCallableMethod{}, true
 	}
 	return nil, false
 }
@@ -102,3 +104,80 @@ func (m *ClosureBindMethod) GetVariables() []data.Variable {
 }
 
 func (m *ClosureBindMethod) GetReturnType() data.Types { return nil }
+
+// ClosureFromCallableMethod 实现 Closure::fromCallable()。
+// 将各类可调用形式（函数名、[对象/类, 方法] 数组、已有闭包等）包装为 Closure。
+type ClosureFromCallableMethod struct{}
+
+func (m *ClosureFromCallableMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	callable, has := ctx.GetIndexValue(0)
+	if !has {
+		return nil, utils.NewThrow(errors.New("fromCallable() expects parameter 1 to be callable"))
+	}
+	switch cv := callable.(type) {
+	case *data.FuncValue:
+		return cv, nil
+	case *data.BoundFuncValue:
+		return cv, nil
+	case *data.ArrayValue:
+		list := cv.ToValueList()
+		if len(list) < 2 {
+			return nil, utils.NewThrow(errors.New("fromCallable(): array callback must have exactly 2 members"))
+		}
+		methodName := list[1].AsString()
+		// 对象实例方法
+		if obj, ok := list[0].(*data.ClassValue); ok {
+			return data.NewFuncValue(node.NewObjectMethodCallable(obj, methodName)), nil
+		}
+		if tv, ok := list[0].(*data.ThisValue); ok && tv.ClassValue != nil {
+			return data.NewFuncValue(node.NewObjectMethodCallable(tv.ClassValue, methodName)), nil
+		}
+		// 静态/类名方法
+		className := list[0].AsString()
+		stmt, acl := ctx.GetVM().GetOrLoadClass(className)
+		if acl != nil {
+			return nil, acl
+		}
+		method, ok := stmt.GetMethod(methodName)
+		if !ok {
+			if sm, ok2 := stmt.(data.GetStaticMethod); ok2 {
+				method, ok = sm.GetStaticMethod(methodName)
+			}
+		}
+		if !ok {
+			return nil, utils.NewThrow(errors.New("fromCallable(): 未找到方法 " + className + "::" + methodName))
+		}
+		fn, acl := node.NewStaticMethodFuncValue(stmt, method).GetValue(ctx)
+		if acl != nil {
+			return nil, acl
+		}
+		return fn, nil
+	default:
+		// 字符串函数名
+		if str, ok := callable.(data.AsString); ok {
+			name := str.AsString()
+			fn, ok := ctx.GetVM().GetFunc(name)
+			if !ok {
+				return nil, utils.NewThrow(errors.New("fromCallable(): function " + name + " does not exist"))
+			}
+			return data.NewFuncValue(fn), nil
+		}
+		return nil, utils.NewThrow(errors.New("fromCallable(): 不可调用类型"))
+	}
+}
+
+func (m *ClosureFromCallableMethod) GetName() string { return "fromCallable" }
+
+func (m *ClosureFromCallableMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+
+func (m *ClosureFromCallableMethod) GetIsStatic() bool { return true }
+
+func (m *ClosureFromCallableMethod) GetParams() []data.GetValue {
+	return []data.GetValue{node.NewParameter(nil, "callable", 0, nil, nil)}
+}
+
+func (m *ClosureFromCallableMethod) GetVariables() []data.Variable {
+	return []data.Variable{node.NewVariable(nil, "callable", 0, data.Mixed{})}
+}
+
+func (m *ClosureFromCallableMethod) GetReturnType() data.Types { return nil }

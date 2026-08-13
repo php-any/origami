@@ -19,8 +19,96 @@ var (
 
 	// 控制语句冒号形式（替代语法开始标记），如 if(...): / elseif(...): / foreach(...):
 	// 用于检测 Laravel Blade 编译产物中可能只含开始标记而没有 endif; 结束标记的情况。
-	reControlColon = regexp.MustCompile(`\b(?:if|elseif|foreach|while|for|switch)\s*\([^;{}]*\)\s*:`)
 )
+
+// hasControlColon 判断代码中是否存在替代语法的"开始标记"（如 if(...): / foreach(...):）。
+// 使用平衡括号匹配，避免把三元表达式中的冒号（if ($a ? $b : $c)）误判为替代语法冒号。
+func hasControlColon(code string) bool {
+	keywords := []string{"if", "elseif", "foreach", "while", "for", "switch"}
+	for pos := 0; pos < len(code); {
+		bestStart := -1
+		for _, kw := range keywords {
+			idx := strings.Index(strings.ToLower(code[pos:]), kw)
+			if idx == -1 {
+				continue
+			}
+			candidateStart := pos + idx
+			// 确保是单词边界
+			if candidateStart > 0 && isIdentChar(code[candidateStart-1]) {
+				continue
+			}
+			if candidateStart+len(kw) < len(code) && isIdentChar(code[candidateStart+len(kw)]) {
+				continue
+			}
+			if bestStart == -1 || candidateStart < bestStart {
+				bestStart = candidateStart
+			}
+		}
+		if bestStart == -1 {
+			break
+		}
+		// 从 bestStart 起查找控制关键字
+		found := false
+		for _, kw := range keywords {
+			klen := len(kw)
+			if bestStart+klen > len(code) {
+				continue
+			}
+			if !strings.EqualFold(code[bestStart:bestStart+klen], kw) {
+				continue
+			}
+			if bestStart > 0 && isIdentChar(code[bestStart-1]) {
+				continue
+			}
+			if bestStart+klen < len(code) && isIdentChar(code[bestStart+klen]) {
+				continue
+			}
+			// 函数/方法名中的关键字（如 forEach）不是控制语句，跳过
+			if isFunctionNameDecl(code, bestStart) {
+				continue
+			}
+			// 查找 ( 并跳过空白
+			j := bestStart + klen
+			for j < len(code) && (code[j] == ' ' || code[j] == '\t' || code[j] == '\n') {
+				j++
+			}
+			if j >= len(code) || code[j] != '(' {
+				continue
+			}
+			// 平衡括号匹配
+			depth := 0
+			k := j
+			for k < len(code) {
+				if code[k] == '(' {
+					depth++
+				} else if code[k] == ')' {
+					depth--
+					if depth == 0 {
+						break
+					}
+				}
+				k++
+			}
+			if depth != 0 {
+				continue
+			}
+			// 检查 ) 后是否有 :
+			l := k + 1
+			for l < len(code) && (code[l] == ' ' || code[l] == '\t' || code[l] == '\n') {
+				l++
+			}
+			if l < len(code) && code[l] == ':' {
+				found = true
+			}
+			break
+		}
+		if found {
+			return true
+		}
+		pos = bestStart + 1
+	}
+	return false
+}
 
 // convertAltPHPSyntax 将 PHP 替代语法（if: endif; 等）转换为标准花括号语法。
 // 仅在包含替代语法的文件中进行转换，安全跳过字符串和注释。
@@ -38,7 +126,7 @@ func convertAltPHPSyntax(filename, content string) string {
 		!strings.Contains(content, "else:") &&
 		!strings.Contains(content, " @end") &&
 		!strings.Contains(content, "\t@end") &&
-		!reControlColon.MatchString(content) {
+		!hasControlColon(content) {
 		return content
 	}
 
@@ -205,6 +293,32 @@ func isIdentChar(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'
 }
 
+// isFunctionNameDecl 判断 code[start] 处的关键字是否是一个函数/方法名定义
+// （前面紧跟 function 关键字），例如 forEach(callable $cb): void。
+// 这种场景中的关键字不是控制语句，不应被当作替代语法处理。
+func isFunctionNameDecl(code string, start int) bool {
+	// 向前跳过空白，检查是否以 function 关键字结尾
+	i := start
+	for i > 0 && (code[i-1] == ' ' || code[i-1] == '\t' || code[i-1] == '\n') {
+		i--
+	}
+	if i < 8 {
+		return false
+	}
+	// 向前跳过空白后检查前面是否为 "function"
+	j := i
+	for j > 0 && (code[j-1] == ' ' || code[j-1] == '\t' || code[j-1] == '\n') {
+		j--
+	}
+	if j >= 8 && strings.EqualFold(code[j-8:j], "function") {
+		// 确认 function 前面是词边界
+		if j-8 == 0 || !isIdentChar(code[j-9]) {
+			return true
+		}
+	}
+	return false
+}
+
 // convertControlKeywords 将 if(...):、foreach(...): 等转换为花括号语法。
 // 使用平衡括号匹配正确处理嵌套括号。为避免误伤字符串/注释中的
 // 伪控制语句（如 "<?php if(...): ?>"），先扫描并屏蔽字符串/注释内容，
@@ -237,8 +351,12 @@ func convertControlKeywords(code string) string {
 				}
 				i++
 			}
-			// 记录整个字符串字面量（含引号）为一个屏蔽区域
-			masked = append(masked, maskedRegion{strStart, i, code[strStart:i], true})
+			// 记录整个字符串字面量（含引号）为一个屏蔽区域。
+			// 注意：空字符串（如 '' ）屏蔽后不含哨兵字节，若仍记录会
+			// 导致还原阶段 mi 计数与 masked 错位，故必须跳过。
+			if i-strStart > 2 {
+				masked = append(masked, maskedRegion{strStart, i, code[strStart:i], true})
+			}
 
 		case i+1 < len(code) && code[i] == '/' && code[i+1] == '/':
 			comStart := i
@@ -358,6 +476,11 @@ func convertControlKeywordsInCode(result string) string {
 					continue
 				}
 				if candidateStart+len(kw) < len(result) && isIdentChar(result[candidateStart+len(kw)]) {
+					searchFrom = candidateStart + len(kw)
+					continue
+				}
+				// 函数/方法名中的关键字（如 forEach）不是控制语句，跳过
+				if isFunctionNameDecl(result, candidateStart) {
 					searchFrom = candidateStart + len(kw)
 					continue
 				}
