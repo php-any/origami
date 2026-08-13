@@ -74,9 +74,9 @@ DB_DATABASE=/path/to/database.sqlite ./illuminate-db examples/01_basic_connectio
 | `01_basic_connection.php` | 演示 Capsule 连接初始化、建表、基础增删查改、聚合查询 |
 | `02_query_builder_crud.php` | 完整演示查询构建器的 CRUD：插入、批量插入、条件查询、排序、分页、聚合、自增自减 |
 | `03_schema_builder.php` | 演示 Schema Builder：创建表、字段类型、外键、索引、修改表结构、删除表 |
-| `04_eloquent_orm.php` | 演示 Eloquent ORM：模型定义、`query()` 查询、`find()`、条件查询、更新、删除、属性操作 |
+| `04_eloquent_orm.php` | 演示 Eloquent ORM：`$model->save()` 插入、`User::where()` 静态调用、`find()`、条件查询、更新/删除影响行数、属性操作 |
 | `05_raw_sql.php` | 演示原生 SQL：`select()`、`insert()`、`update()`、`delete()`、联表查询、PDO 预处理 |
-| `06_transactions.php` | 演示事务：`beginTransaction()` / `commit()` / `rollBack()`、闭包事务、失败回滚 |
+| `06_transactions.php` | 演示事务：`beginTransaction()` / `commit()` / `rollBack()`、闭包事务、失败回滚、Capsule 静态事务调用 |
 
 ## 使用说明
 
@@ -122,23 +122,42 @@ class User extends Model
     protected $fillable = ['name', 'email'];
 }
 
-// 查询（推荐使用 query() 方法）
+// 查询（支持静态调用）
 $users = User::query()->get();
-$user = User::query()->find(1);
-$filtered = User::query()->where('name', 'Alice')->first();
+$user = User::find(1);
+$filtered = User::where('name', 'Alice')->first();
+$sorted = User::orderBy('age', 'desc')->get();
+
+// 插入（支持 $model->save()）
+$user = new User();
+$user->name  = 'Alice';
+$user->email = 'alice@example.com';
+$user->save();
+
+// 更新 / 删除（返回实际影响行数）
+$affected = User::where('id', $user->id)->update(['name' => 'Alice Updated']);
+$deleted  = User::where('id', $user->id)->delete();
+
+// 事务（支持 Capsule 静态调用）
+Capsule::beginTransaction();
+Capsule::table('users')->where('id', $user->id)->delete();
+Capsule::rollback(); // 回滚
+Capsule::commit();   // 提交
 ```
 
-## 已知限制（Origami 运行时兼容性）
+## Origami 运行时兼容性说明
 
-当前 Origami 运行时对以下 PHP 特性支持仍在完善中：
+当前示例依赖 Origami 运行时对以下 PHP 特性的支持（已实现）：
 
-1. **Eloquent 模型 `save()` 方法**：`$model->save()` 在插入新记录时可能因数组参数在魔术方法 `__call` 中的传递问题而失败。建议通过查询构建器进行插入操作。
+1. **Eloquent 模型 `save()` 方法**：支持 `$model->save()` 通过模型属性插入新记录（关联数组键在 `__call` 魔术方法参数传递中得以保留）。
 
-2. **`Model::where()` 静态调用**：`User::where()->get()` 可能无法正确传递查询条件。建议使用 `User::query()->where()->get()`。
+2. **`Model::where()` 静态调用**：支持 `User::where()->get()` 等静态调用（`__callStatic` 的实参展开与 `func_get_args()` 计数正确）。
 
-3. **更新/删除影响行数**：`update()` 和 `delete()` 返回的影响行数为 `-1`，但操作本身会正常执行。
+3. **更新/删除影响行数**：`update()` 和 `delete()` 返回实际影响行数（PDO `rowCount()` 正确上报）。
 
-4. **`Capsule::rollback()`**：通过 Capsule 静态调用 `rollback()` 可能失败。建议使用 `Capsule::connection()->rollBack()` 或 `Capsule::connection()->beginTransaction()`。
+4. **`Capsule::rollback()`**：支持通过 Capsule 静态调用事务控制方法（方法名大小写不敏感匹配）。
+
+> 若运行示例时出现兼容性问题，请确保使用包含上述修复的 Origami 运行时版本。
 
 ## 相关链接
 

@@ -428,6 +428,8 @@ func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method da
 		return nil, data.NewErrorThrow(pe.from, errors.New("无法找到变量: "+variadicNamed[0].name))
 	}
 
+	// 记录展开后的位置实参值，供 func_get_args/func_num_args 使用（含 ...$arr 展开）
+	fnCtx.SetFlatCallArgs(positional)
 	return fnCtx, nil
 }
 

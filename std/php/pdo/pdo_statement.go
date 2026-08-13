@@ -25,6 +25,8 @@ type pdoStmtState struct {
 	rowPos   int
 	// bound 按 PDO 1-based 位置参数存储（bindValue / bindParam）
 	bound map[int]interface{}
+	// affectedRows 记录最近一次非查询语句执行影响的行数（供 rowCount() 返回）
+	affectedRows int64
 }
 
 // -------------------------------------------------------------------
@@ -206,6 +208,11 @@ func (m *stmtExecuteMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	if id, err := result.LastInsertId(); err == nil {
 		state.lastInsertID = id
 	}
+	if n, err := result.RowsAffected(); err == nil {
+		m.state.affectedRows = n
+	} else {
+		m.state.affectedRows = -1
+	}
 	m.state.buffered = nil
 	m.state.cols = nil
 	m.state.rowPos = 0
@@ -363,8 +370,8 @@ func (m *stmtRowCountMethod) GetReturnType() data.Types     { return nil }
 func (m *stmtRowCountMethod) GetParams() []data.GetValue    { return nil }
 func (m *stmtRowCountMethod) GetVariables() []data.Variable { return nil }
 func (m *stmtRowCountMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// SELECT 语句无法直接获取 rowCount，返回 -1 (与 PHP 行为一致)
-	return data.NewIntValue(-1), nil
+	// 对非查询语句返回实际影响行数；查询语句无法获取，返回 -1 (与 PHP 行为一致)
+	return data.NewIntValue(int(m.state.affectedRows)), nil
 }
 
 // -------------------------------------------------------------------

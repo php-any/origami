@@ -21,6 +21,9 @@ type Context struct {
 	// 记录本次函数/方法调用时的实参表达式列表（用于 func_get_args 等）
 	callArgs []data.GetValue
 
+	// 记录本次函数/方法调用展开后的扁平实参值列表（处理 ...$arr 展开）
+	flatCallArgs []data.Value
+
 	// 当前调用绑定的 static 局部变量存储（由 ClassMethod/FunctionStatement.Call 设置）
 	staticLocals *data.StaticLocals
 }
@@ -169,6 +172,16 @@ func (c *Context) SetCallArgs(args []data.GetValue) {
 // GetCallArgs 获取本次调用时传入的参数表达式列表
 func (c *Context) GetCallArgs() []data.GetValue {
 	return c.callArgs
+}
+
+// SetFlatCallArgs 记录本次调用展开后的扁平实参值列表（处理 ...$arr 展开）
+func (c *Context) SetFlatCallArgs(values []data.Value) {
+	c.flatCallArgs = values
+}
+
+// GetFlatCallArgs 获取本次调用展开后的扁平实参值列表
+func (c *Context) GetFlatCallArgs() []data.Value {
+	return c.flatCallArgs
 }
 
 func makeSliceVariable(i int) []*data.ZVal {

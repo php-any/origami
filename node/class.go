@@ -2,6 +2,7 @@ package node
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/php-any/origami/data"
@@ -164,6 +165,15 @@ func (c *ClassStatement) GetProperty(name string) (data.Property, bool) {
 func (c *ClassStatement) GetMethod(name string) (data.Method, bool) {
 	if f, ok := c.Methods[name]; ok && f != nil {
 		return f, true
+	}
+	// PHP 方法名不区分大小写：精确匹配失败后，回退到大小写不敏感查找。
+	if name != "" {
+		lower := strings.ToLower(name)
+		for key, f := range c.Methods {
+			if strings.ToLower(key) == lower && f != nil {
+				return f, true
+			}
+		}
 	}
 	if name == token.ConstructName && c.Construct != nil {
 		return c.Construct, true

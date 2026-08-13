@@ -4,9 +4,11 @@
  *
  * 演示使用 Eloquent ORM 定义模型、执行查询、更新与删除操作。
  *
- * ⚠️ 注意：由于 Origami 运行时对 __callStatic 魔术方法中数组参数传递的
- * 支持仍在完善中，建议通过 `Model::query()` 获取查询构建器后再进行
- * 链式操作，避免使用 `User::where()` 这类直接静态调用的方式。
+ * 覆盖的能力：
+ * - `$model->save()` 插入新记录
+ * - `User::where()` 静态调用查询构建器
+ * - `update()` / `delete()` 返回实际影响行数
+ * - `User::query()` 链式查询、聚合、find()
  *
  * 运行方式: ./illuminate-db examples/04_eloquent_orm.php
  */
@@ -56,83 +58,96 @@ Capsule::schema()->create('posts', function ($table) {
     $table->foreign('user_id')->references('id')->on('users');
 });
 
-echo "=== 插入数据（通过查询构建器）===\n";
-// 由于 Eloquent save() 方法在 Origami 运行时存在兼容性问题，
-// 这里使用查询构建器插入数据，随后用 Eloquent 进行读取。
-$aliceId = Capsule::table('users')->insertGetId([
-    'name'  => 'Alice',
-    'email' => 'alice@example.com',
-    'age'   => 25,
-]);
-$bobId = Capsule::table('users')->insertGetId([
-    'name'  => 'Bob',
-    'email' => 'bob@example.com',
-    'age'   => 30,
-]);
+echo "=== 插入数据（通过 Eloquent save()）===\n";
+// 使用 Eloquent 模型实例 + save() 插入记录（Origami 已支持关联数组键传递）。
+$alice = new User();
+$alice->name  = 'Alice';
+$alice->email = 'alice@example.com';
+$alice->age   = 25;
+$alice->save();
+$aliceId = $alice->id;
 
-Capsule::table('posts')->insert([
+$bob = new User();
+$bob->name  = 'Bob';
+$bob->email = 'bob@example.com';
+$bob->age   = 30;
+$bob->save();
+$bobId = $bob->id;
+
+// 通过 fill() + save() 插入
+$post = new Post();
+$post->fill([
     'user_id' => $aliceId,
     'title'   => 'Origami 介绍',
     'content' => 'Origami 是融合 PHP 与 Go 的混合脚本语言。',
 ]);
-Capsule::table('posts')->insert([
+$post->save();
+
+$post2 = new Post();
+$post2->fill([
     'user_id' => $aliceId,
     'title'   => 'Illuminate Database 独立使用',
     'content' => '不依赖 Laravel 框架，独立使用 Eloquent ORM。',
 ]);
-Capsule::table('posts')->insert([
+$post2->save();
+
+$post3 = new Post();
+$post3->fill([
     'user_id' => $bobId,
     'title'   => '查询构建器技巧',
     'content' => '高效使用查询构建器的技巧总结。',
 ]);
-echo "✓ 数据插入完成\n";
+$post3->save();
+
+echo "✓ 数据插入完成（Alice id={$aliceId}, Bob id={$bobId}）\n";
 
 echo "\n=== Eloquent 查询 (Read) ===\n";
-// 查询所有用户（推荐通过 query() 获取构建器）
+// 查询所有用户
 $users = User::query()->get();
 echo "所有用户 (" . count($users) . " 条):\n";
 foreach ($users as $u) {
     echo "  [{$u->id}] {$u->name} <{$u->email}> (年龄 {$u->age})\n";
 }
 
-// 条件查询：匹配特定名称
-$alice = User::query()->where('name', 'Alice')->first();
-echo "\n条件查询 Alice: " . ($alice ? $alice->email : '未找到') . "\n";
+// 静态调用 where() 进行条件查询（Origami 已支持 __callStatic 参数传递）
+$alice = User::where('name', 'Alice')->first();
+echo "\nUser::where('name','Alice')->first(): " . ($alice ? $alice->email : '未找到') . "\n";
 
 // 按主键查找
-$found = User::query()->find(2);
-echo "find(2): " . ($found ? $found->name : '未找到') . "\n";
+$found = User::where('id', $aliceId)->first();
+echo "User::where('id', {$aliceId})->first(): " . ($found ? $found->name : '未找到') . "\n";
 
 // 排序
-$sorted = User::query()->orderBy('age', 'desc')->get();
-echo "\n按年龄降序:\n";
+$sorted = User::orderBy('age', 'desc')->get();
+echo "\nUser::orderBy('age','desc')->get():\n";
 foreach ($sorted as $u) {
     echo "  {$u->name} ({$u->age} 岁)\n";
 }
 
 // 聚合统计
-$count   = User::query()->count();
-$avgAge  = User::query()->avg('age');
-echo "\n用户数: {$count}, 平均年龄: " . number_format($avgAge, 1) . "\n";
+$count   = User::where('age', '>', 20)->count();
+$avgAge  = User::avg('age');
+echo "\nUser::where('age','>',20)->count(): {$count}, User::avg('age'): " . number_format($avgAge, 1) . "\n";
 
 echo "\n=== Eloquent 更新 (Update) ===\n";
-// 通过 Eloquent 查询构建器更新
-User::query()->where('id', $aliceId)->update(['age' => 26]);
+// 通过静态调用更新，并返回实际影响行数
+$affected = User::where('id', $aliceId)->update(['age' => 26]);
+echo "User::where('id',{$aliceId})->update(['age'=>26]) 影响行数: {$affected}\n";
 
-$updatedAlice = User::query()->find($aliceId);
+$updatedAlice = User::find($aliceId);
 echo "Alice 更新后: {$updatedAlice->name}, 年龄 {$updatedAlice->age}\n";
 
-// 通过查询构建器更新模型数据
-User::query()->where('id', $aliceId)->update(['name' => 'Alice Wonderland']);
-echo "Alice 改名后: " . User::query()->find($aliceId)->name . "\n";
+$affected2 = User::where('id', $aliceId)->update(['name' => 'Alice Wonderland']);
+echo "改名影响行数: {$affected2}, 新名字: " . User::find($aliceId)->name . "\n";
 
 echo "\n=== Eloquent 删除 (Delete) ===\n";
-// 删除 Bob 及其文章
-Post::query()->where('user_id', $bobId)->delete();
-User::query()->where('id', $bobId)->delete();
+// 删除 Bob 及其文章，并返回实际影响行数
+$delPosts = Post::where('user_id', $bobId)->delete();
+$delUsers = User::where('id', $bobId)->delete();
+echo "删除文章影响行数: {$delPosts}, 删除用户影响行数: {$delUsers}\n";
 
-$remainingUsers = User::query()->count();
-$remainingPosts = Post::query()->count();
+$remainingUsers = User::count();
+$remainingPosts = Post::count();
 echo "删除后用户数: {$remainingUsers}, 文章数: {$remainingPosts}\n";
 
 echo "\n=== 模型属性操作 ===\n";

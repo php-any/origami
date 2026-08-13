@@ -16,9 +16,9 @@ func NewFuncNumArgs(from data.From) data.GetValue {
 }
 
 func (f *FuncNumArgs) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	args := ctx.GetCallArgs()
-	if args == nil {
-		return data.NewIntValue(0), nil
+	values, acl := expandCallArgsValues(ctx)
+	if acl != nil {
+		return nil, acl
 	}
-	return data.NewIntValue(len(args)), nil
+	return data.NewIntValue(len(values)), nil
 }
