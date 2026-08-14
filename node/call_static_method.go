@@ -321,6 +321,8 @@ func (s *staticMethodFunc) Call(callCtx data.Context) (data.GetValue, data.Contr
 		if s.callClass != nil {
 			cmc.StaticClass = s.callClass
 		}
+		// SelfClass 记录方法代码定义所在的类（trait/父类宿主），供 self::/parent:: 词法绑定
+		cmc.SelfClass = s.class
 	}
 	if s.method.GetName() == "__callStatic" {
 		// __callStatic($method, $args): 将原始参数包装为 [$methodName, [$originalArgs...]]

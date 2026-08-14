@@ -865,12 +865,17 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 			ep.next() // 跳过 instanceof
 			var right data.GetValue
 			var acl2 data.Control
+			// resolved 标记 instanceof self/parent/static 是否已在解析期展开为完全限定名。
+			// 这类名字已含当前命名空间，不应再按命名空间重写，否则会被错误前缀成 Ns\Ns\Class。
+			resolved := false
 			switch ep.current().Type() {
 			case token.SELF:
 				ep.next()
 				cn := ep.currentClass
 				if cn == "" {
 					cn = "self"
+				} else {
+					resolved = true
 				}
 				right = node.NewStringLiteral(tracker.EndBefore(), cn)
 			case token.PARENT:
@@ -879,23 +884,25 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 				if ep.currentClass != "" {
 					if cls, ok := ep.vm.GetClass(ep.currentClass); ok && cls.GetExtend() != nil {
 						cn = *cls.GetExtend()
+						resolved = true
 					}
 				}
 				right = node.NewStringLiteral(tracker.EndBefore(), cn)
 			case token.STATIC:
 				ep.next()
 				right = node.NewStaticClass(tracker.EndBefore())
+				resolved = true
 			default:
 				right, acl2 = ep.parsePower()
 				if acl2 != nil {
 					return nil, acl2
 				}
 			}
-			if lit, ok := right.(*node.StringLiteral); ok {
+			if lit, ok := right.(*node.StringLiteral); ok && !resolved {
 				if full, _ := ep.findFullClassNameByNamespace(lit.Value); full != "" {
 					right = node.NewStringLiteral(tracker.EndBefore(), full)
 				}
-			} else if cn, ok := right.(*node.ConstantName); ok {
+			} else if cn, ok := right.(*node.ConstantName); ok && !resolved {
 				// bare instanceof A：须展开 use / 当前命名空间，不能运行时当常量名
 				if full, _ := ep.findFullClassNameByNamespace(cn.Name); full != "" {
 					right = node.NewStringLiteral(tracker.EndBefore(), full)

@@ -67,6 +67,7 @@ func Load(vm data.VM) {
 		NewIsSubclassOfFunction(),
 		NewVersionCompareFunction(),
 		NewGetClassFunction(),
+		NewGetClassMethodsFunction(),
 		NewGetParentClassFunction(),
 		NewGettypeFunction(),
 		NewGetDebugTypeFunction(),

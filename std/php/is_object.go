@@ -24,6 +24,10 @@ func (f *IsObjectFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	if _, ok := value.(*data.ClassValue); ok {
 		return data.NewBoolValue(true), nil
 	}
+	// $this 也是对象：PHP 中 is_object($this) 为 true。
+	if _, ok := value.(*data.ThisValue); ok {
+		return data.NewBoolValue(true), nil
+	}
 	if _, ok := value.(*data.FuncValue); ok {
 		return data.NewBoolValue(true), nil
 	}
