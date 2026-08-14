@@ -20,8 +20,8 @@ import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/examples/laravel13/go-support/httpfoundation"
 	"github.com/php-any/origami/examples/laravel13/go-support/httpkernel"
-	"github.com/php-any/origami/examples/laravel13/go-support/requestvm"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/std/php/fpm"
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/runtime"
 )
@@ -217,7 +217,7 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	recorder := httptest.NewRecorder()
-	reqVM := requestvm.New(k.base, func(s string) { _, _ = io.WriteString(recorder, s) })
+	reqVM := fpm.New(k.base, func(s string) { _, _ = io.WriteString(recorder, s) })
 	reqVM.BindHTTP(r, recorder)
 
 	requestCtx := reqVM.CreateContext(nil)
