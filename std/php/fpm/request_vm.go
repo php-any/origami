@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/runtime"
 )
@@ -33,6 +34,9 @@ type RequestVM struct {
 	sessionArray       *data.ObjectValue
 	callDepth          int
 	callStack          []data.CallFrame
+
+	// implicitFlush 对应 ob_implicit_flush 状态。
+	implicitFlush bool
 }
 
 // New 创建请求级 VM。output 为本请求 HTTP body 写入目标；nil 时使用 data.DefaultOutputWriter。
@@ -96,6 +100,50 @@ func (v *RequestVM) OutputBufferContents() (string, bool) {
 
 func (v *RequestVM) OutputBufferLevel() int {
 	return v.ob.level()
+}
+
+// FlushOutputBuffer 弹出并返回栈顶缓冲内容，并把内容写出到上一层（或最终输出）。
+func (v *RequestVM) FlushOutputBuffer() (string, bool) {
+	if v.ob.level() == 0 {
+		return "", false
+	}
+	content := v.ob.flush()
+	// 写出到上一层缓冲或最终输出。
+	v.WriteOutput(content)
+	return content, true
+}
+
+// CleanCurrentBuffer 清空栈顶缓冲内容但不结束缓冲。
+func (v *RequestVM) CleanCurrentBuffer() bool {
+	return v.ob.cleanCurrent()
+}
+
+// OutputBufferLength 返回栈顶缓冲的字节长度（无缓冲返回 false）。
+func (v *RequestVM) OutputBufferLength() (int, bool) {
+	if v.ob.level() == 0 {
+		return 0, false
+	}
+	return v.ob.length(), true
+}
+
+// OutputBufferStatus 返回缓冲层状态列表；full=true 返回全部层，否则仅最顶层。
+func (v *RequestVM) OutputBufferStatus(full bool) []data.OutputBufferStatusInfo {
+	return v.ob.status(full)
+}
+
+// ListOutputHandlers 返回所有激活缓冲的处理器名。
+func (v *RequestVM) ListOutputHandlers() []string {
+	return v.ob.handlers()
+}
+
+// SetImplicitFlush 设置/清除隐式刷新标志。
+func (v *RequestVM) SetImplicitFlush(on bool) {
+	v.implicitFlush = on
+}
+
+// IsImplicitFlush 返回当前隐式刷新标志。
+func (v *RequestVM) IsImplicitFlush() bool {
+	return v.implicitFlush
 }
 
 func (v *RequestVM) AddClass(c data.ClassStmt) data.Control {
@@ -423,3 +471,11 @@ func (v *RequestVM) SnapshotCallStack() []data.CallFrame {
 	copy(out, v.callStack)
 	return out
 }
+
+var (
+	_ data.VM                         = (*RequestVM)(nil)
+	_ data.OutputSink                 = (*RequestVM)(nil)
+	_ data.OutputBufferHost           = (*RequestVM)(nil)
+	_ data.CallStackTracker           = (*RequestVM)(nil)
+	_ node.SuperglobalArrayProvider  = (*RequestVM)(nil)
+)

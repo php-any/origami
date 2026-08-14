@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/parser"
@@ -43,6 +44,11 @@ type TempVM struct {
 
 	globalsArray *data.ObjectValue
 	sessionArray *data.ObjectValue
+
+	// hasOutputBuffer 原子标记是否存在活动缓冲层，用于 WriteOutput 无缓冲时的零锁快速路径。
+	hasOutputBuffer atomic.Bool
+	// implicitFlush 对应 ob_implicit_flush 状态（由 mu 保护）。
+	implicitFlush bool
 }
 
 func (vm *TempVM) AddClass(c data.ClassStmt) data.Control {
