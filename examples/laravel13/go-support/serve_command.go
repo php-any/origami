@@ -3,10 +3,8 @@ package gosupport
 import (
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"os/signal"
 	"path"
@@ -20,7 +18,6 @@ import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/examples/laravel13/go-support/httpfoundation"
 	"github.com/php-any/origami/examples/laravel13/go-support/httpkernel"
-	"github.com/php-any/origami/examples/laravel13/go-support/requestvm"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/runtime"
@@ -216,17 +213,13 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	recorder := httptest.NewRecorder()
-	reqVM := requestvm.New(k.base, func(s string) { _, _ = io.WriteString(recorder, s) })
-	reqVM.BindHTTP(r, recorder)
-
-	requestCtx := reqVM.CreateContext(nil)
+	requestCtx := k.base.CreateContext(nil)
 	request := httpfoundation.NewIlluminateRequestValue(requestCtx, r)
 	var response data.GetValue
 	response, control := httpkernel.Handle(requestCtx, k.kernel, request)
 	if control == nil {
 		var sent *data.ClassValue
-		sent, control = httpfoundation.SendResponse(response)
+		sent, control = httpfoundation.SendResponseTo(w, response)
 		if control == nil {
 			control = httpkernel.Terminate(requestCtx, k.kernel, request, sent)
 		}
@@ -237,17 +230,8 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if control != nil {
 		k.parser.ShowControl(control)
-		http.Error(recorder, "Laravel request failed", http.StatusInternalServerError)
-	} else if thrown := reqVM.TakeThrow(); thrown != nil {
-		if exit, ok := thrown.(data.ExitControl); ok && exit.IsExit() {
-			thrown = nil
-		}
-		if thrown != nil {
-			k.parser.ShowControl(thrown)
-			http.Error(recorder, "Laravel request failed", http.StatusInternalServerError)
-		}
+		http.Error(w, "Laravel request failed", http.StatusInternalServerError)
 	}
-	k.flushRecorder(w, recorder)
 }
 
 // servePublicFile 模拟 Laravel resources/server.php：若 public{$uri} 存在则直出。
@@ -275,16 +259,6 @@ func (k *laravelHTTPKernel) servePublicFile(w http.ResponseWriter, r *http.Reque
 	}
 	http.ServeFile(w, r, full)
 	return true
-}
-
-func (k *laravelHTTPKernel) flushRecorder(w http.ResponseWriter, recorder *httptest.ResponseRecorder) {
-	for name, values := range recorder.Header() {
-		for _, value := range values {
-			w.Header().Add(name, value)
-		}
-	}
-	w.WriteHeader(recorder.Code)
-	_, _ = w.Write(recorder.Body.Bytes())
 }
 
 func runLaravelHTTPServer(host string, port int, base *runtime.VM, app *data.ClassValue) error {
