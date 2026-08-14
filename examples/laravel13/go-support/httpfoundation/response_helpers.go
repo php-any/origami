@@ -15,7 +15,7 @@ import (
 // 默认走 node.HTTPResponseWriter；测试或嵌入方可覆盖。
 var SendHeaderFunc = defaultSendHeader
 
-// SendHeaderContext 优先从当前 VM（如 LaravelRequestVM）取 ResponseWriter。
+// SendHeaderContext 优先从当前 VM（如 fpm.RequestVM）取 ResponseWriter。
 func SendHeaderContext(ctx data.Context, header string, replace bool, responseCode int) {
 	if w := responseWriterFromContext(ctx); w != nil {
 		writeHeaderLine(w, header, replace, responseCode)

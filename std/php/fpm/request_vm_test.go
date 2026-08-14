@@ -2,6 +2,7 @@ package fpm
 
 import (
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/php-any/origami/data"
@@ -54,6 +55,104 @@ func TestRequestIsolation(t *testing.T) {
 	if got := b.SnapshotCallStack(); len(got) != 1 || got[0].Function != "b" {
 		t.Fatalf("call stack B: %#v", got)
 	}
+}
+
+func TestRequestVMFullOutputBufferMethods(t *testing.T) {
+	p := parser.NewParser()
+	base := runtime.NewVM(p).(*runtime.VM)
+	var out strings.Builder
+	vm := New(base, func(s string) { _, _ = out.WriteString(s) })
+
+	// 无缓冲时 OutputBufferContents / Level / Length 均为空
+	if s, ok := vm.OutputBufferContents(); ok || s != "" {
+		t.Fatalf("no buffer expected: s=%q ok=%v", s, ok)
+	}
+	if l := vm.OutputBufferLevel(); l != 0 {
+		t.Fatalf("level=%d, want 0", l)
+	}
+	if n, ok := vm.OutputBufferLength(); ok || n != 0 {
+		t.Fatalf("length: n=%d ok=%v", n, ok)
+	}
+	if n, ok := vm.FlushOutputBuffer(); ok || n != "" {
+		t.Fatalf("flush empty: n=%q ok=%v", n, ok)
+	}
+	if vm.CleanCurrentBuffer() {
+		t.Fatal("clean empty should be false")
+	}
+
+	// 开启一层缓冲
+	vm.StartOutputBuffer()
+	vm.WriteOutput("hello")
+	if s, ok := vm.OutputBufferContents(); !ok || s != "hello" {
+		t.Fatalf("contents: s=%q ok=%v", s, ok)
+	}
+	if l := vm.OutputBufferLevel(); l != 1 {
+		t.Fatalf("level=%d, want 1", l)
+	}
+	if n, ok := vm.OutputBufferLength(); !ok || n != 5 {
+		t.Fatalf("length: n=%d ok=%v", n, ok)
+	}
+
+	// CleanCurrentBuffer 清空但不结束缓冲
+	if !vm.CleanCurrentBuffer() {
+		t.Fatal("clean current should succeed")
+	}
+	if s, ok := vm.OutputBufferContents(); !ok || s != "" {
+		t.Fatalf("after clean: s=%q ok=%v", s, ok)
+	}
+	if l := vm.OutputBufferLevel(); l != 1 {
+		t.Fatalf("after clean level=%d, want 1", l)
+	}
+
+	// status / handlers
+	st := vm.OutputBufferStatus(false)
+	if len(st) != 1 || st[0].Level != 1 || st[0].Name != "default output handler" {
+		t.Fatalf("status: %#v", st)
+	}
+	hd := vm.ListOutputHandlers()
+	if len(hd) != 1 || hd[0] != "default output handler" {
+		t.Fatalf("handlers: %#v", hd)
+	}
+
+	// 嵌套缓冲 + status(full=true)
+	vm.StartOutputBuffer()
+	vm.WriteOutput("world")
+	if l := vm.OutputBufferLevel(); l != 2 {
+		t.Fatalf("nested level=%d, want 2", l)
+	}
+	stFull := vm.OutputBufferStatus(true)
+	if len(stFull) != 2 {
+		t.Fatalf("full status len=%d, want 2", len(stFull))
+	}
+
+	// FlushOutputBuffer 弹出并写出到上一层
+	if s, ok := vm.FlushOutputBuffer(); !ok || s != "world" {
+		t.Fatalf("flush: s=%q ok=%v", s, ok)
+	}
+	if l := vm.OutputBufferLevel(); l != 1 {
+		t.Fatalf("after flush level=%d, want 1", l)
+	}
+
+	// CleanOutputBuffer 弹出并返回内容（level 1 此时含 flush 写出的 world）
+	if s, ok := vm.CleanOutputBuffer(); !ok || s != "world" {
+		t.Fatalf("clean: s=%q ok=%v", s, ok)
+	}
+	if l := vm.OutputBufferLevel(); l != 0 {
+		t.Fatalf("after clean-all level=%d, want 0", l)
+	}
+
+	// implicitFlush
+	vm.SetImplicitFlush(true)
+	if !vm.IsImplicitFlush() {
+		t.Fatal("implicit flush should be true")
+	}
+	vm.SetImplicitFlush(false)
+	if vm.IsImplicitFlush() {
+		t.Fatal("implicit flush should be false")
+	}
+
+	// 接口断言
+	var _ data.OutputBufferHost = vm
 }
 
 func TestGlobalsArrayViaContext(t *testing.T) {
