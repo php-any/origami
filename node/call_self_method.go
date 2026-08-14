@@ -25,7 +25,12 @@ func (pe *CallSelfMethod) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	// 检查是否在类上下文中（类方法或类级初始化器）
 	var currentClass data.ClassStmt
 	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
-		currentClass = classCtx.Class
+		// self:: 是词法绑定：应解析到代码定义所在的类（trait/父类宿主），而非运行时调用类
+		if classCtx.SelfClass != nil {
+			currentClass = classCtx.SelfClass
+		} else {
+			currentClass = classCtx.Class
+		}
 	} else if classVal, ok := ctx.(*data.ClassValue); ok {
 		currentClass = classVal.Class
 	} else {
@@ -66,5 +71,11 @@ func (pe *CallSelfMethod) GetValue(ctx data.Context) (data.GetValue, data.Contro
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("当前类 %s 没有静态方法 %s", currentClass.GetName(), pe.Method))
 	}
 
-	return data.NewFuncValue(method), nil
+	// 返回带类信息的静态方法包装器：确保调用时上下文携带 SelfClass/StaticClass，
+	// 使方法体内的 self::/parent:: 能按词法（代码定义所在类）正确解析，而不是运行时调用类。
+	return data.NewFuncValue(&staticMethodFunc{
+		class:     currentClass,
+		callClass: currentClass,
+		method:    method,
+	}), nil
 }
