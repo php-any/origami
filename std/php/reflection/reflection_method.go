@@ -66,6 +66,8 @@ func (c *ReflectionMethodClass) GetMethod(name string) (data.Method, bool) {
 		return &ReflectionMethodInvokeMethod{}, true
 	case "hasReturnType":
 		return &ReflectionMethodHasReturnTypeMethod{}, true
+	case "getReturnType":
+		return &ReflectionMethodGetReturnTypeMethod{}, true
 	case "getAttributes":
 		return &ReflectionMethodGetAttributesMethod{}, true
 	}
@@ -88,6 +90,7 @@ func (c *ReflectionMethodClass) GetMethods() []data.Method {
 		&ReflectionMethodSetAccessibleMethod{},
 		&ReflectionMethodInvokeMethod{},
 		&ReflectionMethodHasReturnTypeMethod{},
+		&ReflectionMethodGetReturnTypeMethod{},
 		&ReflectionMethodGetAttributesMethod{},
 	}
 }
