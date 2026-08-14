@@ -8,10 +8,10 @@ import (
 	"testing"
 
 	gosupport "github.com/php-any/origami/examples/laravel13/go-support"
-	"github.com/php-any/origami/examples/laravel13/go-support/requestvm"
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/runtime"
 	"github.com/php-any/origami/std"
+	"github.com/php-any/origami/std/php/fpm"
 	httplib "github.com/php-any/origami/std/net/http"
 	"github.com/php-any/origami/std/php"
 	"github.com/php-any/origami/std/system"
@@ -42,7 +42,7 @@ func TestServeAutoloadAndBootstrap(t *testing.T) {
 	gosupport.Load(base)
 
 	rec := httptest.NewRecorder()
-	reqVM := requestvm.New(base, func(s string) { _, _ = io.WriteString(rec, s) })
+	reqVM := fpm.New(base, func(s string) { _, _ = io.WriteString(rec, s) })
 	r := httptest.NewRequest("GET", "http://127.0.0.1/", nil)
 	reqVM.BindHTTP(r, rec)
 
