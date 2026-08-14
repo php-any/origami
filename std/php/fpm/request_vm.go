@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/runtime"
 )
@@ -472,8 +473,9 @@ func (v *RequestVM) SnapshotCallStack() []data.CallFrame {
 }
 
 var (
-	_ data.VM               = (*RequestVM)(nil)
-	_ data.OutputSink       = (*RequestVM)(nil)
-	_ data.OutputBufferHost = (*RequestVM)(nil)
-	_ data.CallStackTracker = (*RequestVM)(nil)
+	_ data.VM                         = (*RequestVM)(nil)
+	_ data.OutputSink                 = (*RequestVM)(nil)
+	_ data.OutputBufferHost           = (*RequestVM)(nil)
+	_ data.CallStackTracker           = (*RequestVM)(nil)
+	_ node.SuperglobalArrayProvider  = (*RequestVM)(nil)
 )
