@@ -71,6 +71,27 @@ func TestSharedClassTable(t *testing.T) {
 	}
 }
 
+func TestRequestVMIsolatesGlobalsAndSession(t *testing.T) {
+	p := parser.NewParser()
+	base := runtime.NewVM(p).(*runtime.VM)
+	a := New(base, data.DefaultOutputWriter)
+	b := New(base, data.DefaultOutputWriter)
+
+	a.EnsureGlobalsArray().SetProperty("__me_cache", data.NewStringValue("userA"))
+	if b.EnsureGlobalsArray().HasProperty("__me_cache") {
+		t.Fatal("$GLOBALS leaked between requests A/B")
+	}
+	b.EnsureGlobalsArray().SetProperty("__me_cache", data.NewStringValue("userB"))
+	if got, _ := a.EnsureGlobalsArray().GetProperty("__me_cache"); got.AsString() != "userA" {
+		t.Fatalf("$GLOBALS should be request-isolated, got %q", got.AsString())
+	}
+
+	a.EnsureSessionArray().SetProperty("uid", data.NewIntValue(1))
+	if b.EnsureSessionArray().HasProperty("uid") {
+		t.Fatal("$_SESSION leaked between requests A/B")
+	}
+}
+
 func TestRequestVMOnlyIsolatesHTTPAndOutputState(t *testing.T) {
 	p := parser.NewParser()
 	base := runtime.NewVM(p).(*runtime.VM)

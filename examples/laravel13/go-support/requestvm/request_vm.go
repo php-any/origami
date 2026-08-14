@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/runtime"
 )
 
@@ -20,6 +21,9 @@ type LaravelRequestVM struct {
 	request   *http.Request
 	response  http.ResponseWriter
 	lastThrow data.Control
+
+	globalsArray *data.ObjectValue
+	sessionArray *data.ObjectValue
 
 	callDepth int
 	callStack []data.CallFrame
@@ -277,6 +281,26 @@ func (v *LaravelRequestVM) GetConstant(name string) (data.Value, bool) {
 func (v *LaravelRequestVM) EnsureGlobalZVal(name string) *data.ZVal {
 	return v.base.EnsureGlobalZVal(name)
 }
+
+// EnsureGlobalsArray 返回本请求的 $GLOBALS 数组（不跨请求共享）。
+func (v *LaravelRequestVM) EnsureGlobalsArray() *data.ObjectValue {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.globalsArray == nil {
+		v.globalsArray = data.NewObjectValue()
+	}
+	return v.globalsArray
+}
+
+// EnsureSessionArray 返回本请求的 $_SESSION 数组（不跨请求共享）。
+func (v *LaravelRequestVM) EnsureSessionArray() *data.ObjectValue {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.sessionArray == nil {
+		v.sessionArray = data.NewObjectValue()
+	}
+	return v.sessionArray
+}
 func (v *LaravelRequestVM) SetExceptionHandler(handler data.Value) data.Value {
 	return v.base.SetExceptionHandler(handler)
 }
@@ -341,4 +365,5 @@ var (
 	_ data.OutputSink       = (*LaravelRequestVM)(nil)
 	_ data.OutputBufferHost = (*LaravelRequestVM)(nil)
 	_ data.CallStackTracker = (*LaravelRequestVM)(nil)
+	_ node.SuperglobalArrayProvider = (*LaravelRequestVM)(nil)
 )
