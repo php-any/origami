@@ -10,6 +10,18 @@ import (
 // ValidateConcreteClassAbstractMethods 检查非抽象类是否仍含未实现的抽象/接口方法（与 PHP zend 一致）
 func ValidateConcreteClassAbstractMethods(vm data.VM, class data.ClassStmt) data.Control {
 	selfAbstract := abstractMethodsDeclaredOnClass(class)
+	// 若某个 abstract 方法已在类自身或继承链上的父类中提供了具体实现，
+	// 则不视为“未实现的抽象方法”（与 PHP 一致，例如 trait 声明 abstract
+	// 方法而父类已实现时不应 fatal）。
+	if len(selfAbstract) > 0 {
+		kept := selfAbstract[:0]
+		for _, name := range selfAbstract {
+			if !classImplementsConcreteMethod(vm, class, name) {
+				kept = append(kept, name)
+			}
+		}
+		selfAbstract = kept
+	}
 	if len(selfAbstract) > 0 {
 		msg := formatDeclaresAbstractMethodFatal(class.GetName(), selfAbstract)
 		return data.NewCompileFatal(class.GetFrom(), msg)
