@@ -123,10 +123,12 @@ app/
     └── OrderItem.php
 ```
 
-### 已知限制
+### 运行时修复记录
 
-- **Eloquent 关系触发 doctrine/inflector**：`Pattern $pattern` 类型提示在 Origami 中解析为 `Generator`，导致部分 Eloquent 关系（如 `belongsToMany`）无法工作。建议使用 `DB::table()` 直接查询或预先定义 `$table` 属性。
-- **访问器返回类型**：PHP 8 属性返回类型声明在某些场景下与 Origami 类型系统不兼容，建议省略返回类型声明。
+针对 Livewire 管理后台运行中发现的兼容性问题，已修复以下 Origami 运行时缺陷：
+
+- **Generator spread 展开**：修复 `...$generator` 无法在函数调用、构造调用、数组字面量等场景中正确展开的问题。现在 `new Patterns(...Uninflected::getSingular())` 可以正确遍历生成器并展开为参数。
+- **PHP 8 返回类型**：支持 `: array` / `: bool` / `: string` / `: self` / `: static` / `: ?type` / `: type1|type2` 等返回类型声明。
 
 ## 与旧 examples/laravel 的关系
 

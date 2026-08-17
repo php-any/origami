@@ -75,21 +75,11 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 					if spreadVal == nil {
 						continue
 					}
-					switch v := spreadVal.(type) {
-					case *data.ArrayValue:
-						for _, z := range v.List {
-							flat = append(flat, z.Value)
-						}
-					case *data.ObjectValue:
-						v.RangeProperties(func(_ string, val data.Value) bool {
-							flat = append(flat, val)
-							return true
-						})
-					default:
-						if val, ok := spreadVal.(data.Value); ok {
-							flat = append(flat, val)
-						}
+					vals, spreadCtl := spreadToValues(ctx, spreadVal)
+					if spreadCtl != nil {
+						return nil, spreadCtl
 					}
+					flat = append(flat, vals...)
 				} else {
 					v, acl := arg.GetValue(ctx)
 					if acl != nil {

@@ -190,15 +190,12 @@ func (pe *CallObjectMethod) invokeMagicCall(object data.Context, ctx data.Contex
 				}
 				return nil, acl
 			}
-			if arr, ok := spreadVal.(*data.ArrayValue); ok {
-				for _, z := range arr.List {
-					argsList = append(argsList, magicCallArgValue(z.Value))
-				}
-			} else if objVal, ok := spreadVal.(*data.ObjectValue); ok {
-				objVal.RangeProperties(func(key string, value data.Value) bool {
-					argsList = append(argsList, magicCallArgValue(value))
-					return true
-				})
+			vals, spreadCtl := spreadToValues(ctx, spreadVal)
+			if spreadCtl != nil {
+				return nil, spreadCtl
+			}
+			for _, val := range vals {
+				argsList = append(argsList, magicCallArgValue(val))
 			}
 			continue
 		}
@@ -363,6 +360,16 @@ func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method da
 				})
 				if spreadErr != nil {
 					return nil, data.NewErrorThrow(pe.from, spreadErr)
+				}
+			} else {
+				// Generator 等：遍历展开为位置实参
+				vals, spreadCtl := spreadToValues(ctx, spreadVal)
+				if spreadCtl != nil {
+					return nil, spreadCtl
+				}
+				positional = append(positional, vals...)
+				for range vals {
+					positionalRaw = append(positionalRaw, nil)
 				}
 			}
 		default:

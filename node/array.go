@@ -40,22 +40,31 @@ func (n *Array) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 				return nil, acl
 			}
 			arrayValue, ok := spreadValue.(*data.ArrayValue)
-			if !ok {
-				return nil, data.NewErrorThrow(n.from, data.NewError(n.from, "展开运算符只能用于数组", nil))
-			}
-			for _, z := range arrayValue.List {
-				if z == nil {
-					continue
-				}
-				if z.Name != "" {
-					setArrayLiteralEntry(av, data.NewStringValue(z.Name), z.Value)
-					if ik, err := strconv.Atoi(z.Name); err == nil && strconv.Itoa(ik) == z.Name && ik >= nextIndex {
-						nextIndex = ik + 1
+			if ok {
+				for _, z := range arrayValue.List {
+					if z == nil {
+						continue
 					}
-				} else {
-					setArrayLiteralEntry(av, data.NewIntValue(nextIndex), z.Value)
-					nextIndex++
+					if z.Name != "" {
+						setArrayLiteralEntry(av, data.NewStringValue(z.Name), z.Value)
+						if ik, err := strconv.Atoi(z.Name); err == nil && strconv.Itoa(ik) == z.Name && ik >= nextIndex {
+							nextIndex = ik + 1
+						}
+					} else {
+						setArrayLiteralEntry(av, data.NewIntValue(nextIndex), z.Value)
+						nextIndex++
+					}
 				}
+				continue
+			}
+			// 支持 Generator 展开到数组字面量
+			vals, spreadCtl := spreadToValues(ctx, spreadValue)
+			if spreadCtl != nil {
+				return nil, spreadCtl
+			}
+			for _, val := range vals {
+				setArrayLiteralEntry(av, data.NewIntValue(nextIndex), val)
+				nextIndex++
 			}
 			continue
 		}
