@@ -160,6 +160,31 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		cmdObj.Stderr = stderrWriter
 	}
 
+	// 处理 cwd 参数（索引 3）：PHP 允许指定子进程工作目录
+	if cwdValue, _ := ctx.GetIndexValue(3); cwdValue != nil {
+		if _, isNull := cwdValue.(*data.NullValue); !isNull {
+			cmdObj.Dir = cwdValue.AsString()
+		}
+	}
+
+	// 处理 env_vars 参数（索引 4）：PHP 允许指定子进程环境变量（map）
+	if envValue, _ := ctx.GetIndexValue(4); envValue != nil {
+		if _, isNull := envValue.(*data.NullValue); !isNull {
+			if envArr, ok := envValue.(*data.ArrayValue); ok {
+				var env []string
+				for _, item := range envArr.List {
+					if item.Value == nil {
+						continue
+					}
+					env = append(env, item.Name+"="+item.Value.AsString())
+				}
+				if len(env) > 0 {
+					cmdObj.Env = append(os.Environ(), env...)
+				}
+			}
+		}
+	}
+
 	// 启动进程
 	err = cmdObj.Start()
 	if err != nil {
@@ -221,8 +246,7 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		}
 		procInfo.SetRunning(false)
 		procInfo.SetExitCode(exitCode)
-		// 不在这里关闭管道，让 stream_get_contents 可以读取数据
-		// 管道会在 proc_close 或流关闭时关闭
+		procInfo.markDone()
 	}()
 
 	return procResource, nil
