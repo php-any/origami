@@ -68,13 +68,15 @@ func (f *ArrayMergeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 			}
 
 		case *data.ObjectValue:
-			for key, val := range v.GetProperties() {
+			// 按插入顺序遍历，避免 Go map 遍历顺序随机导致 array_merge 结果顺序不稳定
+			v.RangeProperties(func(key string, val data.Value) bool {
 				if isStringArrayKey(key) {
 					setString(key, val)
 				} else {
 					appendInt(val)
 				}
-			}
+				return true
+			})
 
 		default:
 			// 非数组参数：PHP 会 warning；这里按值附加为下一个 int 键

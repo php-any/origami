@@ -32,6 +32,9 @@ type ClassStatement struct {
 	// AnnotationsApplied 标记类注解是否已在执行期应用过，避免普通 require 重复执行时重复注册 @Route/@Command
 	AnnotationsApplied bool
 
+	// Traits 保存类直接使用的 trait 名（含命名空间全限定名），供 class_uses() 返回。
+	Traits []string
+
 	// DeferredTraits 保存解析期未能加载（依赖运行期 require/autoload 的 trait）的 trait 名。
 	// 这类 trait 无法在解析期合并，需在运行期（ClassRegisterStmt）加载后合并进类。
 	DeferredTraits       []string
