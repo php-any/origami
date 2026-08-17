@@ -1,4 +1,9 @@
 <?php
+if (!is_file(__DIR__ . '/../../examples/laravel/vendor/autoload.php')) {
+    Log::info("skip: 缺少 vendor 依赖，跳过测试");
+    return;
+}
+
 
 require_once __DIR__ . '/../../examples/laravel/vendor/autoload.php';
 

@@ -13,6 +13,7 @@ type ProcessInfo struct {
 	Running  bool
 	ExitCode int
 	mutex    sync.RWMutex
+	done     chan struct{} // 进程结束后关闭，用于 proc_close 阻塞等待
 }
 
 // NewProcessInfo 创建进程信息
@@ -23,6 +24,22 @@ func NewProcessInfo(cmd *exec.Cmd, command string) *ProcessInfo {
 		Pid:      cmd.Process.Pid,
 		Running:  true,
 		ExitCode: -1,
+		done:     make(chan struct{}),
+	}
+}
+
+// WaitDone 阻塞等待进程结束（proc_close 使用）
+func (p *ProcessInfo) WaitDone() {
+	<-p.done
+}
+
+// markDone 标记进程已结束，并关闭 done channel
+func (p *ProcessInfo) markDone() {
+	select {
+	case <-p.done:
+		// 已关闭，忽略
+	default:
+		close(p.done)
 	}
 }
 
