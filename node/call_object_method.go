@@ -433,11 +433,24 @@ func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method da
 	return fnCtx, nil
 }
 
+// classHasMethod 判断类是否声明了实例方法或静态方法（含 trait 合并进类的成员）。
+func classHasMethod(class data.ClassStmt, methodName string) bool {
+	if m, ok := class.GetMethod(methodName); ok && m != nil {
+		return true
+	}
+	if gsm, ok := class.(data.GetStaticMethod); ok {
+		if m, ok := gsm.GetStaticMethod(methodName); ok && m != nil {
+			return true
+		}
+	}
+	return false
+}
+
 func findDeclaringClassForMethod(vm data.VM, class data.ClassStmt, methodName string) data.ClassStmt {
 	if class == nil {
 		return nil
 	}
-	if m, ok := class.GetMethod(methodName); ok && m != nil {
+	if classHasMethod(class, methodName) {
 		return class
 	}
 	last := class
@@ -450,7 +463,7 @@ func findDeclaringClassForMethod(vm data.VM, class data.ClassStmt, methodName st
 		if acl != nil || parent == nil {
 			break
 		}
-		if m, ok := parent.GetMethod(methodName); ok && m != nil {
+		if classHasMethod(parent, methodName) {
 			return parent
 		}
 		last = parent

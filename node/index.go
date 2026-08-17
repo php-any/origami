@@ -627,7 +627,32 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 			newArr = data.NewArrayValue(nil).(*data.ArrayValue)
 			newArr.List = append(newArr.List, data.NewNamedZVal("", value))
 		} else {
-			newArr = data.NewArrayValue([]data.Value{value}).(*data.ArrayValue)
+			// $null[$key] = value：自动 vivify 为数组，并保留键名/键序。
+			// 不能简单地 NewArrayValue([]Value{value})，那会丢失字符串键（'date' 被当成 0 号整键）。
+			newArr = data.NewArrayValue(nil).(*data.ArrayValue)
+			if sv, ok := indexVal.(*data.StringValue); ok {
+				key := sv.AsString()
+				if n, ok := data.ParseIntArrayKeyName(key); ok {
+					newArr.SetIntKey(n, value)
+				} else {
+					newArr.List = append(newArr.List, &data.ZVal{Name: key, Value: value})
+				}
+			} else if iv, ok := indexVal.(data.AsString); ok {
+				key := iv.AsString()
+				if n, ok := data.ParseIntArrayKeyName(key); ok {
+					newArr.SetIntKey(n, value)
+				} else {
+					newArr.List = append(newArr.List, &data.ZVal{Name: key, Value: value})
+				}
+			} else if iv, ok := indexVal.(data.AsInt); ok {
+				if i, err := iv.AsInt(); err == nil {
+					newArr.SetIntKey(i, value)
+				} else {
+					newArr.List = append(newArr.List, data.NewZVal(value))
+				}
+			} else {
+				newArr.List = append(newArr.List, data.NewZVal(value))
+			}
 		}
 		_, acl = NewBinaryAssign(ie.GetFrom(), ie.Array, newArr).GetValue(ctx)
 		return acl
