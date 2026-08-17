@@ -5,6 +5,11 @@ namespace tests\php;
 /**
  * 复现 Symfony OutputStyle::success / ProgressBar 在 Origami 下的格式化异常。
  */
+if (!is_file(dirname(__DIR__, 2) . '/examples/laravel/vendor/autoload.php')) {
+    Log::info("skip: 缺少 vendor 依赖，跳过测试");
+    return;
+}
+
 
 require dirname(__DIR__, 2) . '/examples/laravel/vendor/autoload.php';
 

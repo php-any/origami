@@ -11,6 +11,11 @@ $b = array_values([]);
 if (!($b === [])) {
     Log::fatal('array_values([]) === [] 应为 true');
 }
+if (!is_file(dirname(__DIR__, 2) . '/examples/laravel13/vendor/autoload.php')) {
+    Log::info("skip: 缺少 vendor 依赖，跳过测试");
+    return;
+}
+
 
 require dirname(__DIR__, 2) . '/examples/laravel13/vendor/autoload.php';
 use Illuminate\Support\LazyCollection;
