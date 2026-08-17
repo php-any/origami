@@ -34,7 +34,9 @@ func (f *ProcCloseFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 		return data.NewIntValue(-1), nil
 	}
 
-	// 获取退出码
+	// 获取退出码前先阻塞等待进程结束（与 PHP proc_close 语义一致）
+	// 若进程仍在运行，等待后台 Wait goroutine 完成并更新退出码
+	procInfo.WaitDone()
 	exitCode := procInfo.GetExitCode()
 
 	// 如果进程还在运行，终止它

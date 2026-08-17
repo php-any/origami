@@ -35,7 +35,8 @@ func (f *FileGetContentsFunction) Call(ctx data.Context) (data.GetValue, data.Co
 	}
 
 	if filePath == "" {
-		return nil, utils.NewThrowf("FileGetContentsFunction called with no file path")
+		// PHP 行为：file_get_contents 空路径返回 false 并触发 warning，而非抛出异常
+		return data.NewBoolValue(false), nil
 	}
 
 	if filePath == "php://input" || strings.HasPrefix(filePath, "php://input") {

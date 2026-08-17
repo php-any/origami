@@ -35,17 +35,16 @@ if($parentStatic == "tests\\obj\\ParentClass") {
     Log::fatal("父类 static::class 错误: " . $parentStatic);
 }
 
-// 注意：当前实现中，self::class 返回调用时的类名，而不是定义方法的类名
-// 这是 PHP 语义的简化实现
-if($childSelf == "tests\\obj\\ChildClass") {
-    Log::info("子类 self::class 正确（当前实现返回调用时的类名）");
+// self::class 是词法绑定，返回定义方法的类（ParentClass），即使由子类实例调用
+if($childSelf == "tests\\obj\\ParentClass") {
+    Log::info("子类 self::class 正确（返回定义方法的类 ParentClass）");
 } else {
     Log::fatal("子类 self::class 错误: " . $childSelf);
 }
 
+// static::class 使用后期静态绑定，返回实际调用时的类（ChildClass）
 if($childStatic == "tests\\obj\\ChildClass") {
-    Log::info("子类 static::class 正确（返回实际调用时的类名）");
+    Log::info("子类 static::class 正确（返回实际调用时的类 ChildClass）");
 } else {
     Log::fatal("子类 static::class 错误: " . $childStatic);
 }
-

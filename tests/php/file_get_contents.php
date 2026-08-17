@@ -39,29 +39,28 @@ try {
     Log::fatal("读取测试文件测试失败，错误: " . $e->getMessage());
 }
 
-// 测试读取不存在的文件（应该抛出异常）
-try {
-    $content = file_get_contents("non_existent_file_12345.txt");
-    Log::fatal("读取不存在的文件应该抛出异常");
-} catch (Exception $e) {
-    Log::info("读取不存在的文件抛出异常测试通过");
+// 测试读取不存在的文件：PHP 行为是返回 false 并触发 warning，而非抛出异常
+$content = @file_get_contents("non_existent_file_12345.txt");
+if($content === false) {
+    Log::info("读取不存在的文件返回 false（PHP 行为）测试通过");
+} else {
+    Log::fatal("读取不存在的文件应返回 false，实际: " . gettype($content));
 }
 
-// 测试空字符串路径（应该抛出异常）
-try {
-    $content = file_get_contents("");
-    Log::fatal("空字符串路径应该抛出异常");
-} catch (Exception $e) {
-    Log::info("空字符串路径抛出异常测试通过");
+// 测试空字符串路径（返回 false）
+$content = @file_get_contents("");
+if($content === false) {
+    Log::info("空字符串路径返回 false 测试通过");
+} else {
+    Log::fatal("空字符串路径应返回 false，实际: " . gettype($content));
 }
 
-// 测试读取目录（应该抛出异常）
-try {
-    $content = file_get_contents("tests");
-    Log::fatal("读取目录应该抛出异常");
-} catch (Exception $e) {
-    Log::info("读取目录抛出异常测试通过");
+// 测试读取目录（返回 false）
+$content = @file_get_contents("tests");
+if($content === false) {
+    Log::info("读取目录返回 false 测试通过");
+} else {
+    Log::fatal("读取目录应返回 false，实际: " . gettype($content));
 }
 
 echo "=== file_get_contents() 测试完成 ===\n";
-

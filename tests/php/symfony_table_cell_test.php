@@ -5,6 +5,11 @@ namespace tests\php;
 /**
  * 复现 Symfony Console Table：纯字符串单元格却报 object（fillNextRows / is_scalar）。
  */
+if (!is_file(dirname(__DIR__, 2) . '/examples/laravel/vendor/autoload.php')) {
+    Log::info("skip: 缺少 vendor 依赖，跳过测试");
+    return;
+}
+
 
 require dirname(__DIR__, 2) . '/examples/laravel/vendor/autoload.php';
 
