@@ -92,12 +92,7 @@ func (f *CallUserFuncFunction) resolveCallback(ctx data.Context, cb data.GetValu
 		}
 		var method data.Method
 		var ok bool
-		method, ok = stmt.GetMethod(methodName)
-		if !ok {
-			if sm, ok2 := stmt.(data.GetStaticMethod); ok2 {
-				method, ok = sm.GetStaticMethod(methodName)
-			}
-		}
+		method, ok = resolveMethodInHierarchy(ctx, stmt, methodName)
 		if !ok {
 			return nil, utils.NewThrow(errors.New("call_user_func 未找到方法: " + className + "::" + methodName))
 		}
@@ -179,6 +174,80 @@ func callUserFuncCallSite(ctx data.Context) (file string, line int) {
 	}
 	return "", 0
 }
+
+// resolveMethodInHierarchy 在类及其父类继承链上查找方法（实例方法或静态方法），
+// 对齐 PHP 的方法可见性：子类未定义时沿 extends 链向上查找。
+func resolveMethodInHierarchy(ctx data.Context, stmt data.ClassStmt, methodName string) (data.Method, bool) {
+	current := stmt
+	for current != nil {
+		if m, ok := current.GetMethod(methodName); ok && m != nil {
+			return m, true
+		}
+		if gsm, ok := current.(data.GetStaticMethod); ok {
+			if m, ok := gsm.GetStaticMethod(methodName); ok && m != nil {
+				return m, true
+			}
+		}
+		if current.GetExtend() == nil {
+			break
+		}
+		parentName := current.GetExtend()
+		if parentName == nil || *parentName == "" {
+			break
+		}
+		parent, acl := ctx.GetVM().GetOrLoadClass(*parentName)
+		if acl != nil || parent == nil {
+			break
+		}
+		current = parent
+	}
+	return nil, false
+}
+
+// ForwardStaticCallFunction 实现 forward_static_call。
+// 与 call_user_func 类似，但调用静态方法时使用调用点所在的"后期静态绑定类"作为调用上下文，
+// 使被调用的静态方法内 static:: 能正确解析到该类。
+type ForwardStaticCallFunction struct {
+	CallUserFuncFunction
+}
+
+func NewForwardStaticCallFunction() data.FuncStmt { return &ForwardStaticCallFunction{} }
+
+func (f *ForwardStaticCallFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cb, has := ctx.GetIndexValue(0)
+	if !has {
+		return nil, utils.NewThrow(errors.New("forward_static_call 缺少回调参数"))
+	}
+
+	// 收集实参（与 call_user_func 相同，展开可变参数数组）
+	var argZvals []*data.ZVal
+	if av, ok := ctx.GetIndexValue(1); ok {
+		if arr, isArr := av.(*data.ArrayValue); isArr {
+			argZvals = append(argZvals, arr.List...)
+		} else {
+			argZvals = append(argZvals, ctx.GetIndexZVal(1))
+		}
+	}
+
+	// 解析回调并调用，静态方法以当前类的静态上下文调用（保留后期静态绑定）
+	fn, acl := f.resolveCallback(ctx, cb)
+	if acl != nil {
+		return nil, acl
+	}
+	if fn == nil {
+		return data.NewBoolValue(false), nil
+	}
+	callCtx := ctx.CreateContext(make([]data.Variable, len(argZvals)))
+	for i, zv := range argZvals {
+		callCtx.SetIndexZVal(i, zv)
+	}
+	if bfv, ok := cb.(*data.BoundFuncValue); ok {
+		return bfv.Call(callCtx)
+	}
+	return fn.Call(callCtx)
+}
+
+func (f *ForwardStaticCallFunction) GetName() string { return "forward_static_call" }
 
 func (f *CallUserFuncFunction) GetName() string { return "call_user_func" }
 

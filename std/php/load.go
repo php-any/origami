@@ -248,6 +248,7 @@ func Load(vm data.VM) {
 		NewNormalizerIsNormalizedFunction(),
 		NewNormalizerNormalizeFunction(),
 		core.NewCallUserFuncFunction(),
+		core.NewForwardStaticCallFunction(),
 		core.NewArrayFunction(),
 		core.NewDirnameFunction(),
 		core.NewBasenameFunction(),

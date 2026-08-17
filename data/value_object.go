@@ -19,6 +19,53 @@ func NewObjectValue() *ObjectValue {
 // - 仅复制属性存储结构本身（PropertyStore），不深拷贝每个元素的 Value
 // - 这样结构性修改（新增/覆盖某个 key）不会影响原对象
 // - 元素内部若是对象/数组，仍按其自身语义共享
+// DeepCloneObjectValue 深度克隆一个 ObjectValue（在 Origami 中常用于表示关联数组）。
+// 与 PHP 数组按值拷贝语义对齐：
+//   - 嵌套的数组/关联数组按值拷贝（递归深拷贝）
+//   - 嵌套的对象（*ClassValue）保持引用共享
+// 用于 PHP clone 对象时对数组/关联数组类型属性做拷贝。
+func DeepCloneObjectValue(src *ObjectValue) *ObjectValue {
+	if src == nil {
+		return nil
+	}
+	return deepCloneObjectValue(src, 0)
+}
+
+func deepCloneObjectValue(src *ObjectValue, depth int) *ObjectValue {
+	if src == nil {
+		return nil
+	}
+	const maxDepth = 64
+	clone := &ObjectValue{
+		Value:                 src.Value,
+		Context:               src.Context,
+		property:              NewOrderedMap(),
+		IndirectOverloadClass: src.IndirectOverloadClass,
+	}
+	src.property.Range(func(key string, value Value) bool {
+		clone.property.Set(key, deepCloneValue(value, depth))
+		return true
+	})
+	return clone
+}
+
+// deepCloneValue 深度拷贝一个值，用于 PHP clone 时对数组/关联数组属性按值拷贝。
+// 对象（*ClassValue）与标量保持引用共享；数组与关联数组（ObjectValue）递归拷贝。
+func deepCloneValue(v Value, depth int) Value {
+	if depth >= 64 {
+		return v
+	}
+	switch val := v.(type) {
+	case *ArrayValue:
+		return deepCloneArrayValue(val, depth+1)
+	case *ObjectValue:
+		return deepCloneObjectValue(val, depth+1)
+	default:
+		// 对象（ClassValue）及标量保持引用共享
+		return v
+	}
+}
+
 func CloneObjectValue(src *ObjectValue) *ObjectValue {
 	if src == nil {
 		return nil

@@ -21,7 +21,7 @@ type pdoStmtState struct {
 	cols      []string // 列名缓存
 	// 缓冲结果：借出的 *sql.Conn 在 Rows 未 Close 时不可复用；
 	// 若不缓冲，同 PDO 上后续语句会阻塞。对齐 PHP 默认 buffered query。
-	buffered []map[string]string
+	buffered []map[string]any
 	rowPos   int
 	// bound 按 PDO 1-based 位置参数存储（bindValue / bindParam）
 	bound map[int]interface{}
@@ -63,7 +63,7 @@ func newPDOStatementFromSQL(pState *pdoState, sqlStr string) *PDOStatementClass 
 }
 
 // bufferSQLRows 读完并关闭 *sql.Rows，释放连接上的游标占用。
-func bufferSQLRows(rows *sql.Rows) ([]string, []map[string]string) {
+func bufferSQLRows(rows *sql.Rows) ([]string, []map[string]any) {
 	if rows == nil {
 		return nil, nil
 	}
@@ -72,7 +72,7 @@ func bufferSQLRows(rows *sql.Rows) ([]string, []map[string]string) {
 	if err != nil {
 		return nil, nil
 	}
-	var buffered []map[string]string
+	var buffered []map[string]any
 	for rows.Next() {
 		row, acl := scanRowToMap(rows, cols)
 		if acl != nil {
@@ -346,12 +346,12 @@ func (m *stmtFetchColumnMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 	m.state.rowPos++
 	cols := m.state.cols
 	if colIdx >= 0 && colIdx < len(cols) {
-		return data.NewStringValue(row[cols[colIdx]]), nil
+		return fetchColumnValue(row[cols[colIdx]]), nil
 	}
 	// 无列名缓存时按 map 迭代顺序不稳定；优先用数字键兼容
 	if len(cols) == 0 && colIdx == 0 {
 		for _, v := range row {
-			return data.NewStringValue(v), nil
+			return fetchColumnValue(v), nil
 		}
 	}
 	return data.NewBoolValue(false), nil
@@ -539,6 +539,9 @@ func phpValueToDriver(v data.Value) interface{} {
 	if v == nil {
 		return nil
 	}
+	if _, isNull := v.(*data.NullValue); isNull {
+		return nil
+	}
 	switch t := v.(type) {
 	case *data.NullValue:
 		return nil
@@ -580,7 +583,7 @@ func (m *stmtGetColumnMetaMethod) Call(ctx data.Context) (data.GetValue, data.Co
 // 行扫描辅助
 // -------------------------------------------------------------------
 
-func scanRowToMap(rows *sql.Rows, cols []string) (map[string]string, data.Control) {
+func scanRowToMap(rows *sql.Rows, cols []string) (map[string]any, data.Control) {
 	vals := make([]interface{}, len(cols))
 	ptrs := make([]interface{}, len(cols))
 	for i := range vals {
@@ -589,17 +592,18 @@ func scanRowToMap(rows *sql.Rows, cols []string) (map[string]string, data.Contro
 	if err := rows.Scan(ptrs...); err != nil {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("PDO scan error: %v", err))
 	}
-	row := make(map[string]string, len(cols))
+	row := make(map[string]any, len(cols))
 	for i, col := range cols {
-		row[col] = driverValueString(vals[i])
+		row[col] = driverValue(vals[i])
 	}
 	return row, nil
 }
 
-func driverValueString(value any) string {
+// driverValue 将数据库驱动值转为 PHP 值，保留 NULL 语义（返回 nil 表示 SQL NULL）。
+func driverValue(value any) any {
 	switch v := value.(type) {
 	case nil:
-		return ""
+		return nil // SQL NULL
 	case []byte:
 		return string(v)
 	case string:
@@ -609,34 +613,65 @@ func driverValueString(value any) string {
 	}
 }
 
-func buildFetchResult(row map[string]string, cols []string, mode int) data.GetValue {
+func driverValueString(value any) string {
+	if value == nil {
+		return ""
+	}
+	if s, ok := value.(string); ok {
+		return s
+	}
+	return fmt.Sprint(value)
+}
+
+// fetchColumnValue 将缓冲行的驱动值转为 PHP 值（NULL 保留为 NullValue）。
+func fetchColumnValue(v any) data.Value {
+	if v == nil {
+		return data.NewNullValue()
+	}
+	if s, ok := v.(string); ok {
+		return data.NewStringValue(s)
+	}
+	return data.NewStringValue(fmt.Sprint(v))
+}
+
+func buildFetchResult(row map[string]any, cols []string, mode int) data.GetValue {
+	valFromDriver := func(v any) data.Value {
+		if v == nil {
+			return data.NewNullValue()
+		}
+		if s, ok := v.(string); ok {
+			return data.NewStringValue(s)
+		}
+		return data.NewStringValue(fmt.Sprint(v))
+	}
+
 	switch mode {
 	case PDO_FETCH_ASSOC:
 		obj := data.NewObjectValue()
 		for k, v := range row {
-			obj.SetProperty(k, data.NewStringValue(v))
+			obj.SetProperty(k, valFromDriver(v))
 		}
 		return obj
 
 	case PDO_FETCH_NUM:
 		vals := make([]data.Value, len(cols))
 		for i, col := range cols {
-			vals[i] = data.NewStringValue(row[col])
+			vals[i] = valFromDriver(row[col])
 		}
 		return data.NewArrayValue(vals)
 
 	case PDO_FETCH_OBJ:
 		obj := data.NewObjectValue()
 		for k, v := range row {
-			obj.SetProperty(k, data.NewStringValue(v))
+			obj.SetProperty(k, valFromDriver(v))
 		}
 		return obj
 
 	default: // PDO_FETCH_BOTH
 		obj := data.NewObjectValue()
 		for i, col := range cols {
-			obj.SetProperty(col, data.NewStringValue(row[col]))
-			obj.SetProperty(fmt.Sprintf("%d", i), data.NewStringValue(row[col]))
+			obj.SetProperty(col, valFromDriver(row[col]))
+			obj.SetProperty(fmt.Sprintf("%d", i), valFromDriver(row[col]))
 		}
 		return obj
 	}

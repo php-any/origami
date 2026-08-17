@@ -73,14 +73,15 @@ func (f *ArrayUniqueFunction) processObject(objectVal *data.ObjectValue, flags i
 	seen := make(map[string]bool)
 	result := data.NewObjectValue()
 
-	properties := objectVal.GetProperties()
-	for key, val := range properties {
+	// 按插入顺序遍历，避免 Go map 顺序随机
+	objectVal.RangeProperties(func(key string, val data.Value) bool {
 		valueKey := f.getValueKey(val, flags)
 		if !seen[valueKey] {
 			seen[valueKey] = true
 			result.SetProperty(key, val)
 		}
-	}
+		return true
+	})
 
 	return result
 }
