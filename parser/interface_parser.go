@@ -141,11 +141,17 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 			}
 		}
 
+		// 解析 static 关键字（可以在访问修饰符之前或之后）
+		isStatic := false
+		if p.current().Type() == token.STATIC {
+			isStatic = true
+			p.next()
+		}
+
 		// 解析访问修饰符（接口成员默认 public）
 		modifier := p.parseModifier()
 
-		// 解析static关键字
-		isStatic := false
+		// 解析 static 关键字（也可以在访问修饰符之后，如 public static function）
 		if p.current().Type() == token.STATIC {
 			isStatic = true
 			p.next()
