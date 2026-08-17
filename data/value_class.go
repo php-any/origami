@@ -113,8 +113,16 @@ func (c *ClassValue) GetPropertyZVal(name string) (*ZVal, Control) {
 }
 
 func (c *ClassValue) GetMethod(name string) (Method, bool) {
+	// 记录从类自身命中的抽象方法作为兜底：若抽象方法已被父类具体实现覆盖，
+	// 则应解析到父类的具体实现（与 PHP 一致，例如 trait 声明 abstract 方法
+	// 而父类提供了实现的情形）。
+	var fallback Method
 	if fn, ok := c.Class.GetMethod(name); ok && fn != nil {
-		return fn, true
+		if _, isAbstract := fn.(AbstractMethodMarker); isAbstract {
+			fallback = fn
+		} else {
+			return fn, true
+		}
 	}
 
 	vm := c.GetVM()
@@ -124,14 +132,26 @@ func (c *ClassValue) GetMethod(name string) (Method, bool) {
 		ext := last.GetExtend()
 		next, acl := vm.GetOrLoadClass(*ext)
 		if acl != nil || next == nil {
-			return nil, false
+			break
 		}
 
 		fn, ok := next.GetMethod(name)
 		if ok && fn != nil {
+			if _, isAbstract := fn.(AbstractMethodMarker); isAbstract {
+				if fallback == nil {
+					fallback = fn
+				}
+				last = next
+				continue
+			}
 			return fn, true
 		}
 		last = next
+	}
+	// 若父类链上仅存在抽象方法（未被具体实现覆盖），返回该抽象方法，
+	// 由调用方在真正调用时抛出“抽象方法不能调用”的错误。
+	if fallback != nil {
+		return fallback, true
 	}
 
 	// PHP 允许在实例上调用静态方法：$obj->staticMethod()

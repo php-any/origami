@@ -18,6 +18,11 @@ func NewAbstractMethod(method *ClassMethod) *AbstractMethod {
 	}
 }
 
+// IsAbstractMethod 实现 data.AbstractMethodMarker，标记该方法为抽象方法
+func (m *AbstractMethod) IsAbstractMethod() bool {
+	return true
+}
+
 // Call 调用抽象方法
 // 抽象方法不能被直接调用
 func (m *AbstractMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
