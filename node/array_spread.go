@@ -36,6 +36,20 @@ func (a *ArraySpread) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			return true
 		})
 		return &data.ArrayValue{List: list}, nil
+	case *data.ClassValue:
+		// Generator 展开：遍历生成器的所有 yield 值
+		if v.Class != nil && isGeneratorClassName(v.Class.GetName()) {
+			vals, spreadCtl := iterateGenerator(ctx, v)
+			if spreadCtl != nil {
+				return nil, spreadCtl
+			}
+			list := make([]*data.ZVal, 0, len(vals))
+			for _, val := range vals {
+				list = append(list, data.NewZVal(val))
+			}
+			return &data.ArrayValue{List: list}, nil
+		}
+		return nil, data.NewErrorThrow(nil, data.NewError(nil, "展开运算符只能用于数组", nil))
 	default:
 		return nil, data.NewErrorThrow(nil, data.NewError(nil, "展开运算符只能用于数组", nil))
 	}

@@ -386,16 +386,11 @@ func flattenCallArgsForBinding(ctx data.Context, args []data.GetValue) ([]data.V
 			if acl != nil {
 				return nil, nil, acl
 			}
-			if arr, ok := spreadVal.(*data.ArrayValue); ok {
-				for _, z := range arr.List {
-					flat = append(flat, z.Value)
-				}
-			} else if objVal, ok := spreadVal.(*data.ObjectValue); ok {
-				objVal.RangeProperties(func(_ string, value data.Value) bool {
-					flat = append(flat, value)
-					return true
-				})
+			vals, spreadCtl := spreadToValues(ctx, spreadVal)
+			if spreadCtl != nil {
+				return nil, nil, spreadCtl
 			}
+			flat = append(flat, vals...)
 		default:
 			v, acl := arg.GetValue(ctx)
 			if acl != nil {
@@ -505,16 +500,11 @@ func (pe *CallMethod) doCallWithArgs(ctx data.Context, object data.GetMethod, me
 			if acl != nil {
 				return nil, acl
 			}
-			if arr, ok := spreadVal.(*data.ArrayValue); ok {
-				for _, z := range arr.List {
-					flatArgs = append(flatArgs, z.Value)
-				}
-			} else if objVal, ok := spreadVal.(*data.ObjectValue); ok {
-				objVal.RangeProperties(func(key string, value data.Value) bool {
-					flatArgs = append(flatArgs, value)
-					return true
-				})
+			vals, spreadCtl := spreadToValues(ctx, spreadVal)
+			if spreadCtl != nil {
+				return nil, spreadCtl
 			}
+			flatArgs = append(flatArgs, vals...)
 			continue
 		}
 		v, acl := arg.GetValue(ctx)
@@ -552,16 +542,11 @@ func (pe *CallMethod) invokeMagicInvoke(ctx data.Context, object data.Context, i
 			if acl != nil {
 				return nil, acl
 			}
-			if arr, ok := spreadVal.(*data.ArrayValue); ok {
-				for _, z := range arr.List {
-					flatArgs = append(flatArgs, z.Value)
-				}
-			} else if objVal, ok := spreadVal.(*data.ObjectValue); ok {
-				objVal.RangeProperties(func(key string, value data.Value) bool {
-					flatArgs = append(flatArgs, value)
-					return true
-				})
+			vals, spreadCtl := spreadToValues(ctx, spreadVal)
+			if spreadCtl != nil {
+				return nil, spreadCtl
 			}
+			flatArgs = append(flatArgs, vals...)
 			continue
 		}
 		v, acl := arg.GetValue(ctx)
