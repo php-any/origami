@@ -32,24 +32,14 @@ func (f *JsonEncodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		return data.NewStringValue("null"), nil
 	}
 
-	// 若是实现了 JsonSerializable 的对象，则优先调用 jsonSerialize() 的返回值进行编码
+	// 递归解析值：对实现了 JsonSerializable 的对象（含数组/对象内嵌的）优先调用 jsonSerialize()
 	value := raw
 	if v, ok := raw.(data.Value); ok {
-		jsonSerializable := data.Class{Name: "JsonSerializable"}
-		if jsonSerializable.Is(v) {
-			if obj, ok := raw.(*data.ClassValue); ok {
-				if method, has := obj.GetMethod("jsonSerialize"); has {
-					// 在对象上下文中调用 jsonSerialize()
-					res, acl := method.Call(obj.CreateContext(method.GetVariables()))
-					if acl != nil {
-						return nil, acl
-					}
-					if res != nil {
-						value = res
-					}
-				}
-			}
+		resolved, ctl := resolveJSONValue(ctx, v)
+		if ctl != nil {
+			return nil, ctl
 		}
+		value = resolved
 	}
 
 	// 创建 JSON 序列化器
@@ -110,4 +100,47 @@ func (f *JsonEncodeFunction) GetVariables() []data.Variable {
 		node.NewVariable(nil, "flags", 1, nil),
 		node.NewVariable(nil, "depth", 2, nil),
 	}
+}
+
+// resolveJSONValue 递归解析值：对实现了 JsonSerializable 的对象（含数组内嵌、顶层对象）调用其
+// jsonSerialize() 方法，使序列化行为与 PHP 原生 json_encode 一致。
+func resolveJSONValue(ctx data.Context, value data.Value) (data.Value, data.Control) {
+	switch v := value.(type) {
+	case *data.ArrayValue:
+		for i, z := range v.List {
+			if z == nil {
+				continue
+			}
+			nv, ctl := resolveJSONValue(ctx, z.Value)
+			if ctl != nil {
+				return nil, ctl
+			}
+			v.List[i] = data.NewNamedZVal(z.Name, nv)
+		}
+	case *data.ObjectValue:
+		for k, pv := range v.GetProperties() {
+			nv, ctl := resolveJSONValue(ctx, pv)
+			if ctl != nil {
+				return nil, ctl
+			}
+			v.SetProperty(k, nv)
+		}
+	case *data.ClassValue:
+		jsonSerializable := data.Class{Name: "JsonSerializable"}
+		if jsonSerializable.Is(v) {
+			if method, has := v.GetMethod("jsonSerialize"); has {
+				// 在对象上下文中调用 jsonSerialize()
+				res, acl := method.Call(v.CreateContext(method.GetVariables()))
+				if acl != nil {
+					return nil, acl
+				}
+				if res != nil {
+					if rv, ok := res.(data.Value); ok {
+						return resolveJSONValue(ctx, rv)
+					}
+				}
+			}
+		}
+	}
+	return value, nil
 }

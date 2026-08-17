@@ -391,19 +391,14 @@ func populateRequestFromHTTP(cv *data.ClassValue, r *http.Request) {
 	for _, cookie := range r.Cookies() {
 		cookies[cookie.Name] = data.NewStringValue(cookie.Value)
 	}
-	server := map[string]data.Value{
-		"REQUEST_METHOD":  data.NewStringValue(r.Method),
-		"REQUEST_URI":     data.NewStringValue(r.URL.RequestURI()),
-		"REMOTE_ADDR":     data.NewStringValue(r.RemoteAddr),
-		"SERVER_PROTOCOL": data.NewStringValue(r.Proto),
-	}
+	server := serverFromRequest(r)
 	_ = cv.SetProperty("query", NewInputBagValue(cv, query))
 	_ = cv.SetProperty("request", NewInputBagValue(cv, form))
 	_ = cv.SetProperty("attributes", NewParameterBagValue(cv, nil))
 	_ = cv.SetProperty("cookies", NewInputBagValue(cv, cookies))
 	_ = cv.SetProperty("files", NewFileBagValue(cv, nil))
 	_ = cv.SetProperty("server", NewServerBagValue(cv, server))
-	_ = cv.SetProperty("headers", NewHeaderBagValue(cv, r.Header))
+	_ = cv.SetProperty("headers", NewHeaderBagValue(cv, headersFromRequest(r)))
 }
 
 func stringsToValue(values []string) data.Value {

@@ -3,6 +3,9 @@ package main
 import (
 	"os"
 
+	_ "github.com/go-sql-driver/mysql"
+	_ "modernc.org/sqlite"
+
 	"github.com/php-any/origami/data"
 	gosupport "github.com/php-any/origami/examples/laravel13/go-support"
 	"github.com/php-any/origami/parser"

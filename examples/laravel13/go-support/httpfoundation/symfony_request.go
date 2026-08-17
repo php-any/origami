@@ -1054,10 +1054,13 @@ func requestPort(ctx data.Context) int {
 			return parsed
 		}
 	}
-	_, port, err := net.SplitHostPort(requestHTTPHost(ctx))
-	if err == nil {
-		parsed, _ := strconv.Atoi(port)
-		return parsed
+	// 从 Host 头解析端口；不调用 requestHTTPHost，避免与之互相递归
+	if host := requestHeader(ctx, "Host"); host != "" {
+		if _, port, err := net.SplitHostPort(host); err == nil {
+			if parsed, err := strconv.Atoi(port); err == nil {
+				return parsed
+			}
+		}
 	}
 	if requestSecure(ctx) {
 		return 443
@@ -1081,6 +1084,9 @@ func requestHTTPHost(ctx data.Context) string {
 		return host
 	}
 	host := requestServer(ctx, "SERVER_NAME")
+	if host == "" {
+		return ""
+	}
 	port := requestPort(ctx)
 	if port != 80 && port != 443 {
 		return net.JoinHostPort(host, strconv.Itoa(port))

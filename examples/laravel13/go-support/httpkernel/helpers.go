@@ -224,6 +224,77 @@ func syncProperties(cv *data.ClassValue, s *kernelState) {
 	_ = cv.SetProperty("middlewarePriority", stringsToArrayValue(s.middlewarePriority))
 }
 
+// syncTelescopeRecording 在每次请求开始时同步 Telescope 的记录状态。
+// 常驻模式下 Telescope::start() 只在首次 bootstrap 执行一次，$shouldRecord 不会按请求重置，
+// 导致后续 /telescope/* 请求也被记录。这里模拟 Octane 的 RequestReceived 语义：
+// 当前请求命中 telescope/ignore 路径则停止记录，否则开始记录。
+func syncTelescopeRecording(ctx data.Context, s *kernelState, request data.Value) {
+	if s == nil || s.app == nil || request == nil {
+		return
+	}
+	config, ctl := callObjectMethodInContext(ctx, s.app, "make",
+		data.NewStringValue("Illuminate\\Contracts\\Config\\Repository"))
+	if ctl != nil || config == nil {
+		return
+	}
+	configObj := asValue(config)
+	if configObj == nil {
+		return
+	}
+	cfgString := func(key, def string) string {
+		ret, ctl := callObjectMethodInContext(ctx, configObj, "get",
+			data.NewStringValue(key), data.NewStringValue(def))
+		if ctl != nil || ret == nil {
+			return def
+		}
+		return valueAsString(asValue(ret))
+	}
+	cfgList := func(key string) []string {
+		ret, ctl := callObjectMethodInContext(ctx, configObj, "get",
+			data.NewStringValue(key), stringsToArrayValue(nil))
+		if ctl != nil || ret == nil {
+			return nil
+		}
+		return stringListFromValue(asValue(ret))
+	}
+	requestIs := func(patterns []string) bool {
+		ret, ctl := callObjectMethodInContext(ctx, request, "is", stringsToArrayValue(patterns))
+		if ctl != nil || ret == nil {
+			return false
+		}
+		return isTruthy(asValue(ret))
+	}
+
+	// 对齐 Telescope::requestIsToApprovedUri 的判断逻辑
+	var approved bool
+	onlyList := cfgList("telescope.only_paths")
+	patternsList := []string{"telescope-api*", "vendor/telescope*", "horizon*", "vendor/horizon*"}
+	if len(onlyList) > 0 {
+		approved = requestIs(onlyList)
+	} else {
+		if path := cfgString("telescope.path", "telescope"); path != "" {
+			patternsList = append(patternsList, path+"*")
+		}
+		patternsList = append(patternsList, cfgList("telescope.ignore_paths")...)
+		approved = !requestIs(patternsList)
+	}
+
+	telescope, ctl := callObjectMethodInContext(ctx, s.app, "make",
+		data.NewStringValue("Laravel\\Telescope\\Telescope"))
+	if ctl != nil || telescope == nil {
+		return
+	}
+	telescopeObj := asValue(telescope)
+	if telescopeObj == nil {
+		return
+	}
+	if approved {
+		_, _ = callObjectMethodInContext(ctx, telescopeObj, "startRecording", data.NewBoolValue(false))
+	} else {
+		_, _ = callObjectMethodInContext(ctx, telescopeObj, "stopRecording")
+	}
+}
+
 // callObjectMethod 在 ClassValue 上调用实例方法；失败时原样返回 control。
 func callObjectMethod(obj data.Value, name string, args ...data.Value) (data.GetValue, data.Control) {
 	return callObjectMethodInContext(nil, obj, name, args...)
