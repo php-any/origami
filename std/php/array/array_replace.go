@@ -37,12 +37,14 @@ func replaceRecursive(base, other data.Value) data.Value {
 	otherObj, oOk := other.(*data.ObjectValue)
 	if bOk && oOk {
 		out := data.NewObjectValue()
-		for k, v := range baseObj.GetProperties() {
+		baseObj.RangeProperties(func(k string, v data.Value) bool {
 			out.SetProperty(k, v)
-		}
-		for k, v := range otherObj.GetProperties() {
+			return true
+		})
+		otherObj.RangeProperties(func(k string, v data.Value) bool {
 			out.SetProperty(k, v)
-		}
+			return true
+		})
 		return out
 	}
 
@@ -70,9 +72,11 @@ func shallowCopy(v data.Value) data.Value {
 	switch val := v.(type) {
 	case *data.ObjectValue:
 		out := data.NewObjectValue()
-		for k, prop := range val.GetProperties() {
+		// 按插入顺序遍历，避免 Go map 顺序随机
+		val.RangeProperties(func(k string, prop data.Value) bool {
 			out.SetProperty(k, prop)
-		}
+			return true
+		})
 		return out
 	case *data.ArrayValue:
 		vals := val.ToValueList()

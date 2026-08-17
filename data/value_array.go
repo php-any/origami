@@ -16,15 +16,62 @@ func NewArrayValue(v []Value) Value {
 }
 
 // CloneArrayValue 创建一个新的 ArrayValue。
-// 为了性能，这里仅复制 []*ZVal 切片本身（浅拷贝），不重新分配每个 ZVal：
+// 复制 []*ZVal 切片本身，并对每个非引用元素重新分配 ZVal（对齐 PHP 数组 copy-on-write 语义）：
 // - 结构不共享：两个数组的 List 是不同的 slice，结构性修改（如 array_shift/append）互不影响
-// - 元素仍按 ZVal 语义工作：写入单个元素时会替换对应 ZVal，不会影响其他数组
+// - 元素不共享：写入/替换单个元素时不会影响其他数组（因为各自持有独立的 ZVal）
+// - 通过 &$arr[i] 绑定的引用槽位（RefSlotCount > 0）仍共享同一 ZVal，保持引用语义
 func CloneArrayValue(src *ArrayValue) *ArrayValue {
 	if src == nil {
 		return nil
 	}
 	list := make([]*ZVal, len(src.List))
-	copy(list, src.List)
+	for i, z := range src.List {
+		if z == nil {
+			continue
+		}
+		if z.RefSlotCount > 0 {
+			// 引用槽位共享，保证引用赋值（&$arr[i]）语义
+			list[i] = z
+		} else {
+			// 复制 ZVal 时保留 Name（关联数组键）
+			list[i] = NewNamedZVal(z.Name, z.Value)
+		}
+	}
+	return &ArrayValue{
+		List:                  list,
+		IndirectOverloadClass: src.IndirectOverloadClass,
+	}
+}
+
+// DeepCloneArrayValue 深度克隆一个 ArrayValue，用于 PHP clone 对象时对数组类型属性做拷贝。
+// 与 PHP 语义对齐：
+//   - 数组（含嵌套数组）按值拷贝，结构上与原数组互不影响
+//   - 数组内的对象（*ClassValue / *ObjectValue）仍按引用共享
+// 参数 depth 用于防御极端深度的嵌套数组（避免栈溢出）。
+func DeepCloneArrayValue(src *ArrayValue) *ArrayValue {
+	if src == nil {
+		return nil
+	}
+	return deepCloneArrayValue(src, 0)
+}
+
+func deepCloneArrayValue(src *ArrayValue, depth int) *ArrayValue {
+	if src == nil {
+		return nil
+	}
+	const maxDepth = 64
+	list := make([]*ZVal, len(src.List))
+	for i, z := range src.List {
+		if z == nil {
+			continue
+		}
+		if depth < maxDepth {
+			// 嵌套数组/关联数组按值拷贝；对象与标量保持引用共享（与 PHP clone 语义一致）
+			list[i] = NewNamedZVal(z.Name, deepCloneValue(z.Value, depth+1))
+		} else {
+			list[i] = NewNamedZVal(z.Name, z.Value)
+		}
+	}
 	return &ArrayValue{
 		List:                  list,
 		IndirectOverloadClass: src.IndirectOverloadClass,

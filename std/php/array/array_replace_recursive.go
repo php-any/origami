@@ -45,28 +45,31 @@ func recursiveReplace(base, replacement data.Value) data.Value {
 
 	if baseIsObj && replIsObj {
 		result := data.NewObjectValue()
-		for key, val := range baseObj.GetProperties() {
+		// 按插入顺序遍历，避免 Go map 顺序随机
+		baseObj.RangeProperties(func(key string, val data.Value) bool {
 			result.SetProperty(key, val)
-		}
-		for key, val := range replObj.GetProperties() {
+			return true
+		})
+		replObj.RangeProperties(func(key string, val data.Value) bool {
 			baseVal, _ := baseObj.GetProperty(key)
 			_, isNull := baseVal.(*data.NullValue)
 			if !isNull {
 				if _, isArr := baseVal.(*data.ArrayValue); isArr {
 					if _, isArr2 := val.(*data.ArrayValue); isArr2 {
 						result.SetProperty(key, recursiveReplace(baseVal, val))
-						continue
+						return true
 					}
 				}
 				if _, isObj := baseVal.(*data.ObjectValue); isObj {
 					if _, isObj2 := val.(*data.ObjectValue); isObj2 {
 						result.SetProperty(key, recursiveReplace(baseVal, val))
-						continue
+						return true
 					}
 				}
 			}
 			result.SetProperty(key, val)
-		}
+			return true
+		})
 		return result
 	}
 
@@ -94,9 +97,11 @@ func deepCopy(v data.Value) data.Value {
 	switch val := v.(type) {
 	case *data.ObjectValue:
 		result := data.NewObjectValue()
-		for key, prop := range val.GetProperties() {
+		// 按插入顺序遍历，避免 Go map 顺序随机
+		val.RangeProperties(func(key string, prop data.Value) bool {
 			result.SetProperty(key, deepCopy(prop))
-		}
+			return true
+		})
 		return result
 	case *data.ArrayValue:
 		vals := val.ToValueList()

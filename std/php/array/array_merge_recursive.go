@@ -56,10 +56,12 @@ func arrayEntries(v data.Value) ([]arrayEntry, bool) {
 		}
 		return entries, true
 	case *data.ObjectValue:
-		entries := make([]arrayEntry, 0, len(val.GetProperties()))
-		for key, prop := range val.GetProperties() {
+		entries := make([]arrayEntry, 0)
+		// 按插入顺序遍历，避免 Go map 顺序随机导致结果不稳定
+		val.RangeProperties(func(key string, prop data.Value) bool {
 			entries = append(entries, arrayEntry{key: key, name: key, value: prop})
-		}
+			return true
+		})
 		return entries, true
 	default:
 		return nil, false
@@ -155,9 +157,11 @@ func deepCopyVal(v data.Value) data.Value {
 	switch val := v.(type) {
 	case *data.ObjectValue:
 		out := data.NewObjectValue()
-		for k, prop := range val.GetProperties() {
+		// 按插入顺序遍历，避免 Go map 顺序随机
+		val.RangeProperties(func(k string, prop data.Value) bool {
 			out.SetProperty(k, deepCopyVal(prop))
-		}
+			return true
+		})
 		return out
 	case *data.ArrayValue:
 		list := make([]*data.ZVal, len(val.List))

@@ -54,10 +54,11 @@ func (f *ArrayIntersectFunction) Call(ctx data.Context) (data.GetValue, data.Con
 				set[z.Value.AsString()] = struct{}{}
 			}
 		case *data.ObjectValue:
-			props := av.GetProperties()
-			for _, val := range props {
+			// 按插入顺序遍历，避免 Go map 顺序随机
+			av.RangeProperties(func(_ string, val data.Value) bool {
 				set[val.AsString()] = struct{}{}
-			}
+				return true
+			})
 		default:
 			// 非数组参数忽略（PHP 会发 warning，这里简化）
 		}
