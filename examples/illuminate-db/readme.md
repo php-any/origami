@@ -28,7 +28,11 @@ examples/illuminate-db/
 │   ├── 03_schema_builder.php      # Schema Builder 表结构
 │   ├── 04_eloquent_orm.php        # Eloquent ORM
 │   ├── 05_raw_sql.php             # 原生 SQL
-│   └── 06_transactions.php        # 数据库事务
+│   ├── 06_transactions.php        # 数据库事务
+│   ├── 07_eloquent_relationships.php # Eloquent 模型关联
+│   ├── 08_eloquent_advanced.php   # Eloquent 高级特性
+│   ├── 09_query_builder_advanced.php # 查询构建器高级用法
+│   └── 10_multiple_connections.php  # 多数据库连接
 └── readme.md              # 本文档
 ```
 
@@ -57,6 +61,10 @@ go build -mod=mod -o illuminate-db .
 ./illuminate-db examples/04_eloquent_orm.php
 ./illuminate-db examples/05_raw_sql.php
 ./illuminate-db examples/06_transactions.php
+./illuminate-db examples/07_eloquent_relationships.php
+./illuminate-db examples/08_eloquent_advanced.php
+./illuminate-db examples/09_query_builder_advanced.php
+./illuminate-db examples/10_multiple_connections.php
 ```
 
 ### 4. 使用文件型数据库（可选）
@@ -77,6 +85,10 @@ DB_DATABASE=/path/to/database.sqlite ./illuminate-db examples/01_basic_connectio
 | `04_eloquent_orm.php` | 演示 Eloquent ORM：`$model->save()` 插入、`User::where()` 静态调用、`find()`、条件查询、更新/删除影响行数、属性操作 |
 | `05_raw_sql.php` | 演示原生 SQL：`select()`、`insert()`、`update()`、`delete()`、联表查询、PDO 预处理 |
 | `06_transactions.php` | 演示事务：`beginTransaction()` / `commit()` / `rollBack()`、闭包事务、失败回滚、Capsule 静态事务调用 |
+| `07_eloquent_relationships.php` | 演示 Eloquent 模型关联：`hasMany` / `belongsTo` / `hasOne`、关联属性与方法访问、`with()` 预加载、`withCount()`、`has()` / `doesntHave()`、关联创建与删除 |
+| `08_eloquent_advanced.php` | 演示 Eloquent 高级特性：`Model::create()`、`firstOrCreate()` / `updateOrCreate()`、访问器/修改器、`$appends`、局部作用域、软删除（SoftDeletes）、模型事件与时间戳 |
+| `09_query_builder_advanced.php` | 演示查询构建器高级用法：`join()` / `leftJoin()`、`whereIn()` / `whereBetween()` / `whereNull()`、`pluck()` / `value()`、分组聚合 + `havingRaw()`、自增自减、`updateOrInsert()`、`chunkById()`、`toSql()` |
+| `10_multiple_connections.php` | 演示多数据库连接：`addConnection()` 多连接、`connection()` 切换、Schema 跨连接操作、`setDefaultConnection()` / `getDefaultConnection()`、断开与重连 |
 
 ## 使用说明
 
@@ -158,6 +170,17 @@ Capsule::commit();   // 提交
 4. **`Capsule::rollback()`**：支持通过 Capsule 静态调用事务控制方法（方法名大小写不敏感匹配）。
 
 > 若运行示例时出现兼容性问题，请确保使用包含上述修复的 Origami 运行时版本。
+
+### 新增示例（07-10）覆盖的额外特性
+
+示例 `07`-`10` 进一步覆盖 Illuminate Database 的常用高级特性：
+
+- **模型关联**：`hasMany` / `belongsTo` / `hasOne` 关系定义与访问、`with()` 预加载、`withCount()`、`has()` / `doesntHave()`、关联创建。
+- **Eloquent 高级特性**：`create()` / `firstOrCreate()` / `updateOrCreate()`、访问器/修改器、局部作用域、软删除（SoftDeletes）。
+- **查询构建器高级用法**：`join` / `leftJoin`、`whereIn` / `whereBetween` / `whereNull`、`pluck` / `value`、分组聚合 + `havingRaw`、`chunkById` 分块处理、`toSql()`。
+- **多数据库连接**：多连接注册、连接切换、跨连接 Schema 与查询、默认连接动态切换、断开与重连。
+
+> 若这些示例因运行时特性暂未实现而报错，可结合 `run_all.sh` 定位问题，并在 Origami 运行时中补充对应的 PHP 特性支持。
 
 ## 相关链接
 
