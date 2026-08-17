@@ -104,7 +104,7 @@ echo "whereNull（无订单的用户）: " . count($nullTest) . " 人\n";
 
 echo "\n=== pluck / value ===\n";
 $names = Capsule::table('users')->pluck('name');
-echo "pluck('name') 提取所有用户名: " . implode(', ', $names) . "\n";
+echo "pluck('name') 提取所有用户名: " . $names->implode(', ') . "\n";
 
 $cityValue = Capsule::table('users')->where('name', 'Alice')->value('city');
 echo "value('city') 取 Alice 所在城市: {$cityValue}\n";
@@ -182,8 +182,8 @@ $sql = Capsule::table('users')
 echo "生成的 SQL: {$sql}\n";
 
 echo "\n=== 结果转为数组 ===\n";
-$arrayResult = Capsule::table('users')->where('name', 'Alice')->first()->toArray();
-echo "first()->toArray(): ";
+$arrayResult = (array) Capsule::table('users')->where('name', 'Alice')->first();
+echo "first() 转数组: ";
 var_export($arrayResult);
 echo "\n";
 

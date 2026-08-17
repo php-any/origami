@@ -7,6 +7,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/token"
+	"github.com/php-any/origami/utils"
 )
 
 // ClassStatement 表示类定义语句
@@ -30,6 +31,13 @@ type ClassStatement struct {
 
 	// AnnotationsApplied 标记类注解是否已在执行期应用过，避免普通 require 重复执行时重复注册 @Route/@Command
 	AnnotationsApplied bool
+
+	// DeferredTraits 保存解析期未能加载（依赖运行期 require/autoload 的 trait）的 trait 名。
+	// 这类 trait 无法在解析期合并，需在运行期（ClassRegisterStmt）加载后合并进类。
+	DeferredTraits       []string
+	DeferredTraitAliases []data.TraitAlias
+	// DeferredTraitsMerged 标记运行期是否已合并过延迟 trait，避免重复合并。
+	DeferredTraitsMerged bool
 }
 
 // GetValue 获取类定义语句的值
@@ -93,6 +101,98 @@ func (c *ClassStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	return object, nil
+}
+
+// MergeDeferredTraits 在运行期合并解析期未能加载的 trait（依赖 require/autoload）。
+// 幂等：已合并过则不重复。别名在全部 trait 合并后应用。
+func (c *ClassStatement) MergeDeferredTraits(vm data.VM) data.Control {
+	if len(c.DeferredTraits) == 0 || c.DeferredTraitsMerged {
+		return nil
+	}
+	var stillDeferred []string
+	for _, traitName := range c.DeferredTraits {
+		trait, acl := vm.GetOrLoadClass(traitName)
+		if acl != nil {
+			stillDeferred = append(stillDeferred, traitName)
+			continue
+		}
+		if trait == nil {
+			return utils.NewThrowf("trait %s 不存在", traitName)
+		}
+		if acl := mergeTraitStmt(vm, c, trait); acl != nil {
+			return acl
+		}
+	}
+	if len(stillDeferred) > 0 {
+		c.DeferredTraits = stillDeferred
+		return nil
+	}
+	c.DeferredTraits = nil
+	c.DeferredTraitsMerged = true
+	// 应用别名（需等 trait 合并完成）
+	for _, alias := range c.DeferredTraitAliases {
+		if method, ok := c.Methods[alias.Method]; ok {
+			if _, exists := c.Methods[alias.Alias]; !exists {
+				c.Methods[alias.Alias] = method
+			}
+		}
+		if method, ok := c.StaticMethods[alias.Method]; ok {
+			if _, exists := c.StaticMethods[alias.Alias]; !exists {
+				c.StaticMethods[alias.Alias] = method
+			}
+		}
+	}
+	c.DeferredTraitAliases = nil
+	return nil
+}
+
+// mergeTraitStmt 将一个已加载的 trait 合并进类（实例/静态方法、属性、静态属性）。
+func mergeTraitStmt(vm data.VM, class *ClassStatement, trait data.ClassStmt) data.Control {
+	traitMethods := trait.GetMethods()
+	for _, method := range traitMethods {
+		methodName := method.GetName()
+		if _, exists := class.Methods[methodName]; !exists {
+			class.Methods[methodName] = method
+		}
+	}
+	if cs, ok := trait.(*ClassStatement); ok {
+		for methodName, method := range cs.StaticMethods {
+			if _, exists := class.StaticMethods[methodName]; !exists {
+				class.StaticMethods[methodName] = method
+			}
+		}
+	}
+	traitProperties := trait.GetPropertyList()
+	for _, property := range traitProperties {
+		propertyName := property.GetName()
+		if _, exists := class.Properties[propertyName]; !exists {
+			if property.GetIsStatic() {
+				defaultValue := property.GetDefaultValue()
+				if defaultValue != nil {
+					classVal := data.NewClassValue(class, vm.CreateContext([]data.Variable{}))
+					v, acl := defaultValue.GetValue(classVal)
+					if acl != nil {
+						return acl
+					}
+					class.StaticProperty.Store(propertyName, v)
+				} else {
+					class.StaticProperty.Store(propertyName, data.NewNullValue())
+				}
+			} else {
+				class.Properties[propertyName] = property
+				class.PropertiesIndex = append(class.PropertiesIndex, propertyName)
+			}
+		}
+	}
+	if cs, ok := trait.(*ClassStatement); ok {
+		cs.StaticProperty.Range(func(key, value any) bool {
+			if _, exists := class.StaticProperty.Load(key); !exists {
+				class.StaticProperty.Store(key, value.(data.Value))
+			}
+			return true
+		})
+	}
+	return nil
 }
 
 func (c *ClassStatement) GetConstruct() data.Method {

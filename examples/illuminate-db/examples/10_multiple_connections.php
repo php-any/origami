@@ -44,7 +44,7 @@ $capsule->setAsGlobal();
 $capsule->bootEloquent();
 
 echo "=== 连接概览 ===\n";
-echo "默认连接: " . Capsule::getDefaultConnection() . "\n";
+echo "默认连接: " . Capsule::connection()->getName() . "\n";
 echo "当前连接 PDO: " . get_class(Capsule::connection()->getPdo()) . "\n";
 
 echo "\n=== 在不同连接上创建表 ===\n";
@@ -95,16 +95,17 @@ foreach ($reportLogs as $l) { echo $l->message . " "; }
 echo ")\n";
 
 echo "\n=== 动态切换默认连接 ===\n";
-// 临时切换到 primary 连接
-$previous = Capsule::getDefaultConnection();
-Capsule::setDefaultConnection('primary');
-echo "切换后默认连接: " . Capsule::getDefaultConnection() . "\n";
+// 通过 DatabaseManager 访问默认连接的读取与设置（Capsule 静态代理不直接暴露）
+$dbManager = $capsule->getDatabaseManager();
+$previous = $dbManager->getDefaultConnection();
+$dbManager->setDefaultConnection('primary');
+echo "切换后默认连接: " . $dbManager->getDefaultConnection() . "\n";
 $users = Capsule::table('users')->get();
 echo "不指定连接查询（此时走 primary）: " . count($users) . " 条\n";
 
 // 恢复默认连接
-Capsule::setDefaultConnection($previous);
-echo "恢复默认连接: " . Capsule::getDefaultConnection() . "\n";
+$dbManager->setDefaultConnection($previous);
+echo "恢复默认连接: " . $dbManager->getDefaultConnection() . "\n";
 
 echo "\n=== 使用 raw 在指定连接执行 SQL ===\n";
 $reportRows = Capsule::connection('report')->select('SELECT * FROM logs WHERE message = ?', ['report-log-1']);
@@ -123,7 +124,12 @@ $pdoDisconnected = Capsule::connection('report');
 // 断开连接
 Capsule::connection('report')->disconnect();
 echo "已断开 report 连接\n";
-// 重新连接（懒加载）
+// 重新连接（懒加载）；注意：内存 SQLite 断开后数据会清空，需重建表
+Capsule::schema('report')->create('logs', function ($table) {
+    $table->increments('id');
+    $table->string('message');
+});
+Capsule::connection('report')->table('logs')->insert(['message' => 'reconnect-log']);
 $again = Capsule::connection('report')->select('SELECT * FROM logs');
 echo "重新连接后查询 logs: " . count($again) . " 条\n";
 

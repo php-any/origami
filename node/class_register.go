@@ -43,6 +43,13 @@ func (s *ClassRegisterStmt) GetValue(ctx data.Context) (data.GetValue, data.Cont
 		classStmt = existing
 	}
 
+	// 合并运行期才可加载的 trait（依赖 require/autoload，解析期无法合并）
+	if registered := classStmtFromAny(classStmt); registered != nil {
+		if acl := registered.MergeDeferredTraits(vm); acl != nil {
+			return nil, acl
+		}
+	}
+
 	// 注解只应用一次（InitAnnotation 有全局副作用：路由/命令注册）
 	if registered := classStmtFromAny(classStmt); registered != nil && registered.AnnotationsApplied {
 		return data.NewNullValue(), nil

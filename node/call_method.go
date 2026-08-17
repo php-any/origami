@@ -175,6 +175,8 @@ func (pe *CallMethod) handleStaticMethodWithLateBinding(ctx data.Context, sm *st
 	// 设置后期静态绑定类
 	if cmc, ok := fnCtx.(*data.ClassMethodContext); ok {
 		cmc.StaticClass = sm.callClass
+		// SelfClass 记录方法代码定义所在的类（trait/父类），供 self::/parent:: 词法绑定解析
+		cmc.SelfClass = findDeclaringClassForMethod(ctx.GetVM(), sm.callClass, fn.GetName())
 	}
 
 	params := fn.GetParams()

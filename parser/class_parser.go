@@ -1293,75 +1293,105 @@ func (p *ClassParser) mergeTraitsIntoMaps(traitNames []string, aliases []data.Tr
 // mergeTraits 合并 trait 的方法和属性到类中
 func (p *ClassParser) mergeTraits(class *node.ClassStatement, traitNames []string, aliases []data.TraitAlias) data.Control {
 	vm := p.vm
+	var deferred []string
 
 	for _, traitName := range traitNames {
 		// 从 VM 加载 trait（trait 和 class 一样存储在 classMap 中）
 		trait, acl := vm.GetOrLoadClass(traitName)
 		if acl != nil {
-			return acl
+			// 解析期尚未加载的 trait（依赖运行期 require/autoload），延迟到运行期合并。
+			// 不在此处直接报错，避免顶层类在 require 之前解析时误判 trait 不存在。
+			deferred = append(deferred, traitName)
+			continue
 		}
 
 		if trait == nil {
-			return data.NewErrorThrow(class.GetFrom(), fmt.Errorf("trait %s 不存在", traitName))
+			deferred = append(deferred, traitName)
+			continue
 		}
 
-		// 合并 trait 的实例方法
-		traitMethods := trait.GetMethods()
-		for _, method := range traitMethods {
-			methodName := method.GetName()
-			// 如果类中已经有同名方法，跳过（类的方法优先级更高）
-			if _, exists := class.Methods[methodName]; !exists {
-				class.Methods[methodName] = method
-			}
-		}
-		// 合并 trait 的静态方法（只存放在 ClassStatement.StaticMethods 中）
-		if cs, ok := trait.(*node.ClassStatement); ok {
-			for methodName, method := range cs.StaticMethods {
-				if _, exists := class.StaticMethods[methodName]; !exists {
-					class.StaticMethods[methodName] = method
-				}
-			}
-		}
-
-		// 合并 trait 的属性
-		traitProperties := trait.GetPropertyList()
-		for _, property := range traitProperties {
-			propertyName := property.GetName()
-			// 如果类中已经有同名属性，跳过（类的属性优先级更高）
-			if _, exists := class.Properties[propertyName]; !exists {
-				// 检查是否是静态属性
-				if property.GetIsStatic() {
-					// 静态属性需要设置默认值
-					defaultValue := property.GetDefaultValue()
-					if defaultValue != nil {
-						classVal := data.NewClassValue(class, vm.CreateContext([]data.Variable{}))
-						v, acl := defaultValue.GetValue(classVal)
-						if acl != nil {
-							return acl
-						}
-						class.StaticProperty.Store(propertyName, v)
-					} else {
-						class.StaticProperty.Store(propertyName, data.NewNullValue())
-					}
-				} else {
-					// 添加到属性列表
-					class.Properties[propertyName] = property
-					class.PropertiesIndex = append(class.PropertiesIndex, propertyName)
-				}
-			}
-		}
-		// 合并 trait 的静态属性（trait 解析时只存入 StaticProperty，不在 GetPropertyList 中）
-		if cs, ok := trait.(*node.ClassStatement); ok {
-			cs.StaticProperty.Range(func(key, value any) bool {
-				if _, exists := class.StaticProperty.Load(key); !exists {
-					class.StaticProperty.Store(key, value.(data.Value))
-				}
-				return true
-			})
+		if acl := mergeTraitIntoClass(vm, class, trait); acl != nil {
+			return acl
 		}
 	}
 
-	// 应用 trait 方法别名
+	if len(deferred) > 0 {
+		// 存在运行期才能加载的 trait：延迟合并。同时把别名一并延迟，
+		// 因为别名可能引用 trait 的方法，需等 trait 合并后再应用。
+		class.DeferredTraits = append(class.DeferredTraits, deferred...)
+		class.DeferredTraitAliases = append(class.DeferredTraitAliases, aliases...)
+		return nil
+	}
+
+	// 全部 trait 在解析期已合并，应用别名
+	if acl := applyTraitAliases(class, aliases); acl != nil {
+		return acl
+	}
+
+	return nil
+}
+
+// mergeTraitIntoClass 将一个已加载的 trait 合并进类（实例/静态方法、属性、静态属性）。
+func mergeTraitIntoClass(vm data.VM, class *node.ClassStatement, trait data.ClassStmt) data.Control {
+	// 合并 trait 的实例方法
+	traitMethods := trait.GetMethods()
+	for _, method := range traitMethods {
+		methodName := method.GetName()
+		// 如果类中已经有同名方法，跳过（类的方法优先级更高）
+		if _, exists := class.Methods[methodName]; !exists {
+			class.Methods[methodName] = method
+		}
+	}
+	// 合并 trait 的静态方法（只存放在 ClassStatement.StaticMethods 中）
+	if cs, ok := trait.(*node.ClassStatement); ok {
+		for methodName, method := range cs.StaticMethods {
+			if _, exists := class.StaticMethods[methodName]; !exists {
+				class.StaticMethods[methodName] = method
+			}
+		}
+	}
+
+	// 合并 trait 的属性
+	traitProperties := trait.GetPropertyList()
+	for _, property := range traitProperties {
+		propertyName := property.GetName()
+		// 如果类中已经有同名属性，跳过（类的属性优先级更高）
+		if _, exists := class.Properties[propertyName]; !exists {
+			// 检查是否是静态属性
+			if property.GetIsStatic() {
+				// 静态属性需要设置默认值
+				defaultValue := property.GetDefaultValue()
+				if defaultValue != nil {
+					classVal := data.NewClassValue(class, vm.CreateContext([]data.Variable{}))
+					v, acl := defaultValue.GetValue(classVal)
+					if acl != nil {
+						return acl
+					}
+					class.StaticProperty.Store(propertyName, v)
+				} else {
+					class.StaticProperty.Store(propertyName, data.NewNullValue())
+				}
+			} else {
+				// 添加到属性列表
+				class.Properties[propertyName] = property
+				class.PropertiesIndex = append(class.PropertiesIndex, propertyName)
+			}
+		}
+	}
+	// 合并 trait 的静态属性（trait 解析时只存入 StaticProperty，不在 GetPropertyList 中）
+	if cs, ok := trait.(*node.ClassStatement); ok {
+		cs.StaticProperty.Range(func(key, value any) bool {
+			if _, exists := class.StaticProperty.Load(key); !exists {
+				class.StaticProperty.Store(key, value.(data.Value))
+			}
+			return true
+		})
+	}
+	return nil
+}
+
+// applyTraitAliases 应用 trait 方法别名。
+func applyTraitAliases(class *node.ClassStatement, aliases []data.TraitAlias) data.Control {
 	for _, alias := range aliases {
 		if method, ok := class.Methods[alias.Method]; ok {
 			if _, exists := class.Methods[alias.Alias]; !exists {
@@ -1374,6 +1404,5 @@ func (p *ClassParser) mergeTraits(class *node.ClassStatement, traitNames []strin
 			}
 		}
 	}
-
 	return nil
 }
