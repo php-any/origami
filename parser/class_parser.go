@@ -1295,6 +1295,9 @@ func (p *ClassParser) mergeTraits(class *node.ClassStatement, traitNames []strin
 	vm := p.vm
 	var deferred []string
 
+	// 记录类直接使用的 trait 名（含命名空间），供 class_uses() 返回
+	class.Traits = append(class.Traits, traitNames...)
+
 	for _, traitName := range traitNames {
 		// 从 VM 加载 trait（trait 和 class 一样存储在 classMap 中）
 		trait, acl := vm.GetOrLoadClass(traitName)

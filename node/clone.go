@@ -53,9 +53,18 @@ func (n *CloneExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	// 创建新实例，保持同一个类与上下文
 	cloned := data.NewClassValue(obj.Class, obj.Context)
 
-	// 复制实例属性（浅拷贝属性值，符合 PHP 克隆语义）
+	// 复制实例属性。
+	// 数组/关联数组类型属性按值深度拷贝（含嵌套数组），与 PHP 克隆语义一致；
+	// 对象类型属性（含数组内对象）保持引用共享。
 	obj.RangeProperties(func(key string, v data.Value) bool {
-		cloned.SetProperty(key, v)
+		switch val := v.(type) {
+		case *data.ArrayValue:
+			cloned.SetProperty(key, data.DeepCloneArrayValue(val))
+		case *data.ObjectValue:
+			cloned.SetProperty(key, data.DeepCloneObjectValue(val))
+		default:
+			cloned.SetProperty(key, v)
+		}
 		return true
 	})
 

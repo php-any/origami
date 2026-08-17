@@ -36,8 +36,17 @@ func (fn *ClassUsesFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		return data.NewArrayValue([]data.Value{}), nil
 	}
 
-	// For now return empty array (class_uses returns traits used by the class)
-	return data.NewArrayValue([]data.Value{}), nil
+	// 返回类直接使用的 trait 名，键与值均为 trait 全限定名（对齐 PHP class_uses()）
+	classStmt, ok := cls.(*node.ClassStatement)
+	if !ok {
+		return data.NewArrayValue([]data.Value{}), nil
+	}
+
+	list := make([]*data.ZVal, 0, len(classStmt.Traits))
+	for _, traitName := range classStmt.Traits {
+		list = append(list, data.NewNamedZVal(traitName, data.NewStringValue(traitName)))
+	}
+	return &data.ArrayValue{List: list}, nil
 }
 
 func (fn *ClassUsesFunction) GetName() string { return "class_uses" }
