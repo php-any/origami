@@ -81,6 +81,8 @@ func (c *ReflectionClassClass) GetMethod(name string) (data.Method, bool) {
 		return &ReflectionClassImplementsInterfaceMethod{}, true
 	case "getFileName", "getFilename":
 		return &ReflectionClassGetFileNameMethod{}, true
+	case "getTraits":
+		return &ReflectionClassGetTraitsMethod{}, true
 	}
 	return nil, false
 }
@@ -108,6 +110,7 @@ func (c *ReflectionClassClass) GetMethods() []data.Method {
 		&ReflectionClassGetAttributesMethod{},
 		&ReflectionClassImplementsInterfaceMethod{},
 		&ReflectionClassGetFileNameMethod{},
+		&ReflectionClassGetTraitsMethod{},
 	}
 }
 

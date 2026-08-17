@@ -243,16 +243,51 @@ func kernelHandle(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, ctl
 	}
 
+	// 2.5) 每次请求重置 Telescope 记录状态：telescope/ignore 路径不记录自身请求
+	syncTelescopeRecording(ctx, s, request)
+
 	// 3) 对齐 Foundation\Http\Kernel::handle：路由分发失败时 report + render，
 	// 而不是把 NotFoundHttpException 等冒泡成 Fatal。
 	response, ctl := dispatchToRouter(ctx, s, request)
-	if ctl == nil {
-		if response == nil {
-			return data.NewNullValue(), nil
+	if ctl != nil {
+		if response, ctl = renderException(ctx, s, request, ctl); ctl != nil {
+			return nil, ctl
 		}
-		return response, nil
 	}
-	return renderException(ctx, s, request, ctl)
+	if response == nil {
+		return data.NewNullValue(), nil
+	}
+
+	// 4) 对齐 Foundation\Http\Kernel::handle：请求处理完成后派发 RequestHandled 事件，
+	// 供 Telescope RequestWatcher 等监听器记录请求。
+	dispatchRequestHandled(ctx, s, request, asValue(response))
+
+	return response, nil
+}
+
+// dispatchRequestHandled 派发 Illuminate\Foundation\Http\Events\RequestHandled 事件，
+// 对齐 Laravel Kernel::handle 在请求处理完成后的尾部行为。
+func dispatchRequestHandled(ctx data.Context, s *kernelState, request, response data.Value) {
+	if s == nil || s.app == nil || request == nil || response == nil {
+		return
+	}
+	// $app->make(RequestHandled::class, ['request' => $request, 'response' => $response])
+	params := &data.ArrayValue{List: []*data.ZVal{
+		data.NewNamedZVal("request", request),
+		data.NewNamedZVal("response", response),
+	}}
+	event, ctl := callObjectMethodInContext(ctx, s.app, "make",
+		data.NewStringValue("Illuminate\\Foundation\\Http\\Events\\RequestHandled"), params)
+	if ctl != nil || event == nil {
+		return
+	}
+	// $app['events']->dispatch($event)
+	dispatcher, ctl := callObjectMethodInContext(ctx, s.app, "make",
+		data.NewStringValue("Illuminate\\Contracts\\Events\\Dispatcher"))
+	if ctl != nil || dispatcher == nil {
+		return
+	}
+	_, _ = callObjectMethodInContext(ctx, asValue(dispatcher), "dispatch", asValue(event))
 }
 
 // dispatchToRouter 完成路由匹配与响应准备（不含全局中间件 Pipeline）。
