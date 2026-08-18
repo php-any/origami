@@ -28,20 +28,26 @@ func hasControlColon(code string) bool {
 	for pos := 0; pos < len(code); {
 		bestStart := -1
 		for _, kw := range keywords {
-			idx := strings.Index(strings.ToLower(code[pos:]), kw)
-			if idx == -1 {
-				continue
-			}
-			candidateStart := pos + idx
-			// 确保是单词边界
-			if candidateStart > 0 && isIdentChar(code[candidateStart-1]) {
-				continue
-			}
-			if candidateStart+len(kw) < len(code) && isIdentChar(code[candidateStart+len(kw)]) {
-				continue
-			}
-			if bestStart == -1 || candidateStart < bestStart {
-				bestStart = candidateStart
+			searchFrom := pos
+			for {
+				idx := strings.Index(strings.ToLower(code[searchFrom:]), kw)
+				if idx == -1 {
+					break
+				}
+				candidateStart := searchFrom + idx
+				// 确保是单词边界；不满足则继续搜索同一关键字的后续出现
+				if candidateStart > 0 && isIdentChar(code[candidateStart-1]) {
+					searchFrom = candidateStart + len(kw)
+					continue
+				}
+				if candidateStart+len(kw) < len(code) && isIdentChar(code[candidateStart+len(kw)]) {
+					searchFrom = candidateStart + len(kw)
+					continue
+				}
+				if bestStart == -1 || candidateStart < bestStart {
+					bestStart = candidateStart
+				}
+				break
 			}
 		}
 		if bestStart == -1 {
@@ -108,6 +114,16 @@ func hasControlColon(code string) bool {
 		pos = bestStart + 1
 	}
 	return false
+}
+
+// ConvertAltPHPSyntaxForTest 暴露 convertAltPHPSyntax 供外部诊断使用。
+func ConvertAltPHPSyntaxForTest(filename, content string) string {
+	return convertAltPHPSyntax(filename, content)
+}
+
+// HasControlColonForTest 暴露 hasControlColon 供外部诊断使用。
+func HasControlColonForTest(code string) bool {
+	return hasControlColon(code)
 }
 
 // convertAltPHPSyntax 将 PHP 替代语法（if: endif; 等）转换为标准花括号语法。

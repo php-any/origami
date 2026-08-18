@@ -49,13 +49,25 @@ func (pe *CallStaticKeywordProperty) findPropertyDefiningClass(vm data.VM, start
 func hasStaticPropertySlot(class data.ClassStmt, name string) bool {
 	switch c := class.(type) {
 	case *ClassStatement:
-		_, has := c.StaticProperty.Load(name)
+		if _, has := c.StaticProperty.Load(name); has {
+			return true
+		}
+		// 惰性求值后，声明存在但尚未初始化的静态属性也算有槽位：
+		// PHP 中静态属性槽位由声明定义（无论是否已初始化），
+		// 子类 static::$x 赋值必须落到声明它的类（如 Container::$instance）。
+		_, has := c.StaticProperties[name]
 		return has
 	case *AbstractClassStatement:
-		_, has := c.StaticProperty.Load(name)
+		if _, has := c.StaticProperty.Load(name); has {
+			return true
+		}
+		_, has := c.StaticProperties[name]
 		return has
 	case *ClassGeneric:
-		_, has := c.StaticProperty.Load(name)
+		if _, has := c.StaticProperty.Load(name); has {
+			return true
+		}
+		_, has := c.StaticProperties[name]
 		return has
 	default:
 		if gsp, ok := class.(data.GetStaticProperty); ok {

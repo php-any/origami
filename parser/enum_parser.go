@@ -232,24 +232,21 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 		return nil, acl
 	}
 
-	// 求值 enum 内 public const，写入 StaticProperty（对齐 class 常量初始化）
-	classVal := data.NewClassValue(classStmt, p.vm.CreateContext([]data.Variable{}))
+	// enum 内 public const 延迟到首次访问时求值（对齐原生 PHP 惰性常量语义，
+	// 允许前向引用）。case 静态属性仍在下方立即求值（需要实例化枚举对象）。
+	staticProps := make(map[string]data.Property)
+	var staticIdx []string
 	for _, prop := range properties {
 		cp, ok := prop.(*node.ClassProperty)
 		if !ok || !cp.GetIsStatic() {
 			continue
 		}
-		def := cp.GetDefaultValue()
-		if def == nil {
-			classStmt.StaticProperty.Store(cp.GetName(), data.NewNullValue())
-			continue
-		}
-		v, acl := def.GetValue(classVal)
-		if acl != nil {
-			return nil, acl
-		}
-		classStmt.StaticProperty.Store(cp.GetName(), v)
+		staticProps[cp.GetName()] = cp
+		staticIdx = append(staticIdx, cp.GetName())
 	}
+	classStmt.StaticProperties = staticProps
+	classStmt.StaticPropertiesIndex = staticIdx
+	classStmt.SetStaticPropertyContext(data.NewClassValue(classStmt, p.vm.CreateContext([]data.Variable{})))
 
 	// 为每个 case 注入一个静态属性：public static $CASE = new EnumName(<value>);
 	// 此时类已注册到 VM，可以安全地构造枚举实例

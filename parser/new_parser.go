@@ -592,19 +592,14 @@ func (p *NewStructParser) parseAnonymousClass(tracker *PositionTracker) (data.Ge
 		properties,
 		methods,
 	)
-	for s, property := range staticProperties {
-		defaultValue := property.GetDefaultValue()
-		if defaultValue != nil {
-			baseCtx := p.vm.CreateContext([]data.Variable{})
-			v, acl := defaultValue.GetValue(baseCtx)
-			if acl != nil {
-				return nil, acl
-			}
-			c.StaticProperty.Store(s, v)
-		} else {
-			c.StaticProperty.Store(s, data.NewNullValue())
-		}
+	// 静态属性/常量延迟到首次访问时求值（对齐原生 PHP 惰性常量语义）
+	c.StaticProperties = staticProperties
+	var staticIdx []string
+	for s := range staticProperties {
+		staticIdx = append(staticIdx, s)
 	}
+	c.StaticPropertiesIndex = staticIdx
+	c.SetStaticPropertyContext(data.NewClassValue(c, p.vm.CreateContext([]data.Variable{})))
 	c.StaticMethods = staticMethods
 
 	// 处理父类构造函数

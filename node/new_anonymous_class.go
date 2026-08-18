@@ -51,6 +51,7 @@ func (n *NewAnonymousClassExpression) GetValue(ctx data.Context) (data.GetValue,
 	// 如果有构造函数，调用构造函数
 	if object, ok := object.(*data.ClassValue); ok {
 		if method := object.Class.GetConstruct(); method != nil {
+			params := method.GetParams()
 			varies := method.GetVariables()
 			fnCtx := object.CreateContext(varies)
 			// 入参的值设置到上下文中
@@ -77,6 +78,53 @@ func (n *NewAnonymousClassExpression) GetValue(ctx data.Context) (data.GetValue,
 					}
 
 					fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
+				}
+			}
+
+			// 处理未传递的参数，设置默认值
+			for index := len(n.Arguments); index < len(params); index++ {
+				if index >= len(varies) {
+					break
+				}
+				if argObj, ok := params[index].(*Parameter); ok {
+					if argObj.DefaultValue == nil {
+						continue
+					}
+					// 调用 GetValue 来触发默认值的设置
+					_, acl := argObj.GetValue(fnCtx)
+					if acl != nil {
+						return nil, acl
+					}
+				}
+			}
+
+			// 将构造函数参数属性的值赋值给对象属性（PHP 8 构造函数参数属性提升）
+			for index, param := range params {
+				// 检查是否是属性提升的参数
+				if promotedParam, ok := param.(*PromotedParameter); ok {
+					// 从函数上下文获取参数值
+					if index < len(varies) {
+						paramValue, acl := fnCtx.GetVariableValue(varies[index])
+						if acl != nil {
+							// 如果获取失败，尝试使用默认值
+							if promotedParam.DefaultValue != nil {
+								paramValueGet, acl := promotedParam.DefaultValue.GetValue(fnCtx)
+								if acl != nil {
+									return nil, acl
+								}
+								if paramValueGet != nil {
+									paramValue = paramValueGet.(data.Value)
+								}
+							} else {
+								// 没有默认值，跳过
+								continue
+							}
+						}
+						// 将参数值赋值给对象属性
+						if paramValue != nil {
+							object.SetProperty(promotedParam.PropertyName, paramValue.(data.Value))
+						}
+					}
 				}
 			}
 

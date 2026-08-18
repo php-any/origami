@@ -2,6 +2,8 @@ package reflection
 
 import (
 	"fmt"
+	"os"
+	"runtime/debug"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -93,6 +95,26 @@ func (m *ReflectionClassConstructMethod) Call(ctx data.Context) (data.GetValue, 
 		typeName := fmt.Sprintf("%T", classValue)
 		// 临时方案：直接抛出致命错误
 		return nil, createReflectionException(fmt.Sprintf("ReflectionClass::__construct(): Argument #1 ($class) must be of type object|string, %s given", typeName), ctx, m.GetFrom())
+	}
+
+	// 临时诊断：空类名时打印 Go 调用栈
+	if className == "" {
+		diag := fmt.Sprintf("DIAG: ReflectionClass empty class, arg type=%T", classValue)
+		if cmc, ok := ctx.(*data.ClassMethodContext); ok {
+			if cmc.ObjectValue != nil {
+				if n, ok2 := cmc.ObjectValue.Value.(data.GetName); ok2 {
+					diag += fmt.Sprintf(" this=%s", n.GetName())
+				}
+			}
+			if cmc.StaticClass != nil {
+				diag += fmt.Sprintf(" static=%s", cmc.StaticClass.GetName())
+			}
+			if cmc.SelfClass != nil {
+				diag += fmt.Sprintf(" self=%s", cmc.SelfClass.GetName())
+			}
+		}
+		fmt.Fprintln(os.Stderr, diag)
+		debug.PrintStack()
 	}
 
 	// 加载类；失败须抛 ReflectionException，供调用方按 PHP 语义捕获。

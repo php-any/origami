@@ -72,3 +72,30 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
         return redirect('/login');
     })->name('logout');
 });
+
+// TEMP DIAG
+Route::get('/diag', function () {
+    $shared = app('view')->getShared();
+    $groups = app('router')->getMiddlewareGroups();
+    $web = isset($groups['web']) ? implode(',', $groups['web']) : 'NO WEB GROUP';
+    $errors = array_key_exists('errors', $shared) ? gettype($shared['errors']) : 'NOT SET';
+    $pipeline = class_exists('Illuminate\\View\\Middleware\\ShareErrorsFromSession') ? 'class-exists' : 'no-class';
+    return "web=[$web]\nerrors=$errors\nsharePipeline=$pipeline";
+});
+
+// TEMP DIAG2
+Route::get('/diag2', function () {
+    $route = app('router')->getCurrentRoute() ?? request()->route();
+    $mw = $route ? implode(',', $route->gatherMiddleware()) : 'NO ROUTE';
+    $routeMw = $route ? implode(',', $route->middleware() ?? []) : 'NONE';
+    return "routeMw=[$routeMw]\ngatherMw=[$mw]";
+});
+
+// TEMP DIAG3
+Route::get('/diag3', function () {
+    $hasSession = method_exists(request(), 'session') ? (request()->session() ? 'session-obj' : 'session-null') : 'no-session-method';
+    $sessErrors = session('errors') === null ? 'null' : 'has-value';
+    $mc = app('router')->getMiddlewareGroups();
+    $prevent = isset($mc['web']) ? implode(',', $mc['web']) : 'NONE';
+    return "session=$hasSession\nsessErrors=$sessErrors\nweb=$prevent";
+});

@@ -71,7 +71,7 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 			if acl != nil {
 				return nil, acl
 			}
-			acl = p.mergeTraitsIntoMaps(traitNames, aliases, &properties, methods, staticProperties, staticMethods)
+			acl = p.mergeTraitsIntoMaps(traitNames, aliases, &properties, methods, staticProperties, &staticPropertiesIndex, staticMethods)
 			if acl != nil {
 				return nil, acl
 			}
@@ -177,21 +177,11 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 		properties,
 		methods,
 	)
-	// 用 ClassValue 作为上下文，使 self::/parent::/static:: 在常量初始化器中可用
-	traitVal := data.NewClassValue(trait, p.vm.CreateContext([]data.Variable{}))
-	for _, s := range staticPropertiesIndex {
-		property := staticProperties[s]
-		defaultValue := property.GetDefaultValue()
-		if defaultValue != nil {
-			v, acl := defaultValue.GetValue(traitVal)
-			if acl != nil {
-				return nil, acl
-			}
-			trait.StaticProperty.Store(s, v)
-		} else {
-			trait.StaticProperty.Store(s, data.NewNullValue())
-		}
-	}
+	// 静态属性/常量延迟到首次访问时求值（对齐原生 PHP 惰性常量语义，
+	// 允许 const A = [self::B]; const B = 1; 这类前向引用）
+	trait.StaticProperties = staticProperties
+	trait.StaticPropertiesIndex = staticPropertiesIndex
+	trait.SetStaticPropertyContext(data.NewClassValue(trait, p.vm.CreateContext([]data.Variable{})))
 	trait.StaticMethods = staticMethods
 
 	// trait 不支持构造函数

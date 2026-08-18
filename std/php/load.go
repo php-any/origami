@@ -141,6 +141,8 @@ func Load(vm data.VM) {
 		array.NewArrayIsListFunction(),
 		NewMd5Function(),
 		NewMd5FileFunction(),
+		NewSha1Function(),
+		NewCrc32Function(),
 		NewBase64EncodeFunction(),
 		NewBase64DecodeFunction(),
 		NewBin2hexFunction(),
@@ -263,6 +265,9 @@ func Load(vm data.VM) {
 		core.NewStripTagsFunction(),
 		core.NewSetlocaleFunction(),
 		NewTokenGetAllFunction(),
+		NewGcEnabledFunction(),
+		NewGcEnableFunction(),
+		NewGcDisableFunction(),
 
 		core.NewSetExceptionHandlerFunction(),
 		core.NewRestoreExceptionHandlerFunction(),
@@ -485,6 +490,7 @@ func Load(vm data.VM) {
 	vm.AddClass(&reflection.ReflectionMethodClass{})
 	vm.AddClass(&reflection.ReflectionParameterClass{})
 	vm.AddClass(&reflection.ReflectionPropertyClass{})
+	vm.AddClass(&reflection.ReflectionReferenceClass{})
 	vm.AddClass(&reflection.ReflectionAttributeClass{})
 	vm.AddClass(&reflection.ReflectionTypeClass{})
 	vm.AddClass(&reflection.ReflectionNamedTypeClass{})
