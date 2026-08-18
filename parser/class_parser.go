@@ -287,21 +287,13 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 		methods,
 	)
 	c.IsAbstract = p.definingAbstractClass
-	// 用 ClassValue 作为上下文，使 self::/parent::/static:: 在常量初始化器中可用
-	classVal := data.NewClassValue(c, p.vm.CreateContext([]data.Variable{}))
-	for _, s := range staticPropertiesIndex {
-		property := staticProperties[s]
-		defaultValue := property.GetDefaultValue()
-		if defaultValue != nil {
-			v, acl := defaultValue.GetValue(classVal)
-			if acl != nil {
-				return nil, acl
-			}
-			c.StaticProperty.Store(s, v)
-		} else {
-			c.StaticProperty.Store(s, data.NewNullValue())
-		}
-	}
+	// 静态属性/常量改为惰性求值：只在首次访问时求值并缓存。
+	// 原生 PHP 的类常量初始化是惰性的，允许前向引用（如 const A = [self::B]; const B = 1;），
+	// 若在解析期按声明顺序立即求值，前向引用会因目标常量尚未注册而失败。
+	// 这里用 ClassValue 作为缓存上下文，使 self::/parent::/static:: 在常量初始化器中可用。
+	c.StaticProperties = staticProperties
+	c.StaticPropertiesIndex = staticPropertiesIndex
+	c.SetStaticPropertyContext(data.NewClassValue(c, p.vm.CreateContext([]data.Variable{})))
 	c.StaticMethods = staticMethods
 
 	// 合并 trait 的方法和属性
@@ -1228,7 +1220,7 @@ func (p *ClassParser) parseTraitAliasBlock() []data.TraitAlias {
 }
 
 // mergeTraitsIntoMaps 将 trait 的方法和属性合并到 trait 解析过程中的 maps 中（用于 trait 内的 use 语句）
-func (p *ClassParser) mergeTraitsIntoMaps(traitNames []string, aliases []data.TraitAlias, properties *[]data.Property, methods map[string]data.Method, staticProperties map[string]data.Property, staticMethods map[string]data.Method) data.Control {
+func (p *ClassParser) mergeTraitsIntoMaps(traitNames []string, aliases []data.TraitAlias, properties *[]data.Property, methods map[string]data.Method, staticProperties map[string]data.Property, staticPropertiesIndex *[]string, staticMethods map[string]data.Method) data.Control {
 	vm := p.vm
 
 	for _, traitName := range traitNames {
@@ -1271,8 +1263,20 @@ func (p *ClassParser) mergeTraitsIntoMaps(traitNames []string, aliases []data.Tr
 			}
 			if property.GetIsStatic() {
 				staticProperties[propertyName] = property
+				*staticPropertiesIndex = append(*staticPropertiesIndex, propertyName)
 			} else {
 				*properties = append(*properties, property)
+			}
+		}
+		// 合并 trait 的惰性静态属性声明（GetPropertyList 只含实例属性，
+		// 惰性化后静态属性只存于 StaticProperties 声明 map，需单独复制）
+		if cs, ok := trait.(*node.ClassStatement); ok {
+			for name, prop := range cs.StaticProperties {
+				if _, exists := staticProperties[name]; exists {
+					continue
+				}
+				staticProperties[name] = prop
+				*staticPropertiesIndex = append(*staticPropertiesIndex, name)
 			}
 		}
 	}
@@ -1389,12 +1393,25 @@ func mergeTraitIntoClass(vm data.VM, class *node.ClassStatement, trait data.Clas
 	}
 	// 合并 trait 的静态属性（trait 解析时只存入 StaticProperty，不在 GetPropertyList 中）
 	if cs, ok := trait.(*node.ClassStatement); ok {
+		// 已求值槽位（trait 静态属性曾通过惰性求值初始化过）
 		cs.StaticProperty.Range(func(key, value any) bool {
 			if _, exists := class.StaticProperty.Load(key); !exists {
 				class.StaticProperty.Store(key, value.(data.Value))
 			}
 			return true
 		})
+		// 惰性声明：trait 静态属性惰性化后可能尚未求值（StaticProperty 为空），
+		// 需把声明复制到类，使 static::$proxies 等访问能按惰性求值在类上下文初始化。
+		for name, prop := range cs.StaticProperties {
+			if _, exists := class.StaticProperties[name]; exists {
+				continue
+			}
+			if _, has := class.StaticProperty.Load(name); has {
+				continue
+			}
+			class.StaticProperties[name] = prop
+			class.StaticPropertiesIndex = append(class.StaticPropertiesIndex, name)
+		}
 	}
 	return nil
 }

@@ -290,17 +290,11 @@ func dispatchRequestHandled(ctx data.Context, s *kernelState, request, response 
 	_, _ = callObjectMethodInContext(ctx, asValue(dispatcher), "dispatch", asValue(event))
 }
 
-// dispatchToRouter 完成路由匹配与响应准备（不含全局中间件 Pipeline）。
+// dispatchToRouter 对齐 Foundation\Http\Kernel::dispatchToRouter：
+// 将请求交给 Router::dispatch，由其在 Pipeline 中执行路由级中间件
+// （web 组的 StartSession / ShareErrorsFromSession 等），再运行路由。
 func dispatchToRouter(ctx data.Context, s *kernelState, request data.Value) (data.GetValue, data.Control) {
-	route, ctl := callObjectMethodInContext(ctx, s.router, "findRoute", request)
-	if ctl != nil {
-		return nil, ctl
-	}
-	result, ctl := callObjectMethodInContext(ctx, asValue(route), "run")
-	if ctl != nil {
-		return nil, ctl
-	}
-	return callObjectMethodInContext(ctx, s.router, "prepareResponse", request, asValue(result))
+	return callObjectMethodInContext(ctx, s.router, "dispatch", request)
 }
 
 const fqnExceptionHandler = "Illuminate\\Contracts\\Debug\\ExceptionHandler"

@@ -102,6 +102,26 @@ func NewObjectProperty(token *TokenFrom, object data.GetValue, property string) 
 	}
 }
 
+// invokeMagicIsset 调用 __isset(string $name)，用于 isset/?? 判断魔术属性是否存在
+func (pe *CallObjectProperty) invokeMagicIsset(object data.Context, magic data.Method, name string) (bool, data.Control) {
+	varies := magic.GetVariables()
+	if len(varies) < 1 {
+		return false, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("__isset 需要至少 1 个参数 (name)"))
+	}
+	fnCtx := object.CreateContext(varies)
+	fnCtx.SetVariableValue(varies[0], data.NewStringValue(name))
+	rv, acl := magic.Call(fnCtx)
+	if acl != nil {
+		return false, acl
+	}
+	if bv, ok := rv.(data.AsBool); ok {
+		if b, err := bv.AsBool(); err == nil {
+			return b, nil
+		}
+	}
+	return false, nil
+}
+
 // invokeMagicGet 调用 __get(string $name)，用于读取不存在或不可见属性时的魔法分发
 func (pe *CallObjectProperty) invokeMagicGet(object data.Context, magic data.Method, name string) (data.GetValue, data.Control) {
 	varies := magic.GetVariables()

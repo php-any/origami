@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"hash"
+	"hash/crc32"
 	"sync/atomic"
 
 	"github.com/php-any/origami/data"
@@ -110,6 +111,40 @@ func (f *HashFunction) GetVariables() []data.Variable {
 }
 func (f *HashFunction) GetReturnType() data.Types { return data.NewBaseType("string") }
 
+// Crc32Function 实现 PHP 内置函数 crc32
+//	crc32(string $string): int
+type Crc32Function struct{}
+
+func NewCrc32Function() data.FuncStmt {
+	return &Crc32Function{}
+}
+
+func (f *Crc32Function) Call(ctx data.Context) (data.GetValue, data.Control) {
+	stringValue, _ := ctx.GetIndexValue(0)
+	if stringValue == nil {
+		return data.NewIntValue(0), nil
+	}
+	str := stringValue.AsString()
+	sum := crc32.ChecksumIEEE([]byte(str))
+	// PHP 在 64 位平台 crc32 返回 0..4294967295 的无符号结果
+	return data.NewIntValue(int(sum)), nil
+}
+
+func (f *Crc32Function) GetName() string            { return "crc32" }
+func (f *Crc32Function) GetModifier() data.Modifier { return data.ModifierPublic }
+func (f *Crc32Function) GetIsStatic() bool          { return false }
+func (f *Crc32Function) GetParams() []data.GetValue {
+	return []data.GetValue{
+		node.NewParameter(nil, "string", 0, nil, nil),
+	}
+}
+func (f *Crc32Function) GetVariables() []data.Variable {
+	return []data.Variable{
+		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	}
+}
+func (f *Crc32Function) GetReturnType() data.Types { return data.NewBaseType("int") }
+
 // HashHmacFunction 实现 hash_hmac。
 type HashHmacFunction struct{}
 
@@ -132,6 +167,60 @@ func (f *HashHmacFunction) GetVariables() []data.Variable {
 		node.NewVariable(nil, "data", 1, data.NewBaseType("string")),
 		node.NewVariable(nil, "key", 2, data.NewBaseType("string")),
 		node.NewVariable(nil, "binary", 3, data.NewBaseType("bool")),
+	}
+}
+
+// Sha1Function 实现 PHP 内置函数 sha1
+//	sha1(string $string, bool $raw_output = false): string
+type Sha1Function struct{}
+
+func NewSha1Function() data.FuncStmt {
+	return &Sha1Function{}
+}
+
+func (f *Sha1Function) Call(ctx data.Context) (data.GetValue, data.Control) {
+	stringValue, _ := ctx.GetIndexValue(0)
+	rawOutputValue, _ := ctx.GetIndexValue(1)
+
+	if stringValue == nil {
+		return data.NewStringValue(""), nil
+	}
+
+	str := stringValue.AsString()
+
+	sum := sha1.Sum([]byte(str))
+
+	rawOutput := false
+	if rawOutputValue != nil {
+		if _, ok := rawOutputValue.(*data.NullValue); !ok {
+			if rawBool, ok := rawOutputValue.(data.AsBool); ok {
+				if r, err := rawBool.AsBool(); err == nil {
+					rawOutput = r
+				}
+			}
+		}
+	}
+
+	if rawOutput {
+		return data.NewStringValue(string(sum[:])), nil
+	}
+
+	return data.NewStringValue(hex.EncodeToString(sum[:])), nil
+}
+
+func (f *Sha1Function) GetName() string            { return "sha1" }
+func (f *Sha1Function) GetModifier() data.Modifier { return data.ModifierPublic }
+func (f *Sha1Function) GetIsStatic() bool          { return false }
+func (f *Sha1Function) GetParams() []data.GetValue {
+	return []data.GetValue{
+		node.NewParameter(nil, "string", 0, nil, nil),
+		node.NewParameter(nil, "raw_output", 1, node.NewNullLiteral(nil), nil),
+	}
+}
+func (f *Sha1Function) GetVariables() []data.Variable {
+	return []data.Variable{
+		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+		node.NewVariable(nil, "raw_output", 1, data.NewBaseType("bool")),
 	}
 }
 

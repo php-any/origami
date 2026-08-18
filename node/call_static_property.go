@@ -51,6 +51,10 @@ func (pe *CallStaticProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 		if acl != nil {
 			return nil, acl
 		}
+		// ThisValue 内嵌 ClassValue，解包后按 ClassValue 处理
+		if tv, ok := next.(*data.ThisValue); ok {
+			next = tv.ClassValue
+		}
 		switch expr := next.(type) {
 		case *data.ClassValue:
 			if c, ok := expr.Class.(data.GetStaticProperty); ok {
@@ -123,6 +127,10 @@ func (pe *CallStaticProperty) SetProperty(ctx data.Context, name string, value d
 		c, acl := pe.Stmt.GetValue(ctx)
 		if acl != nil {
 			return acl
+		}
+		// ThisValue 内嵌 ClassValue，解包后按 ClassValue 处理
+		if tv, ok := c.(*data.ThisValue); ok {
+			c = tv.ClassValue
 		}
 		switch c := c.(type) {
 		case data.SetProperty:

@@ -17,8 +17,8 @@ func (l *Lexer) TokenizeTemplate(input string) []Token {
 	lastWasNewline := false
 
 	for pos < len(input) {
-		// 1. 查找 <?php
-		idx := strings.Index(input[pos:], "<?php")
+		// 1. 查找 PHP 开始标签: <?php 或 <?=
+		idx := strings.Index(input[pos:], "<?")
 
 		if idx == -1 {
 			// 剩余全部是 HTML
@@ -29,7 +29,35 @@ func (l *Lexer) TokenizeTemplate(input string) []Token {
 			break
 		}
 
-		// 2. 处理 <?php 之前的内容 (HTML)
+		// 判断开始标签类型（<?php 或 <?=；其它 <?xxx 视为普通文本）
+		abs := pos + idx
+		phpTagLen := 0
+		tag := ""
+		if abs+5 <= len(input) && input[abs:abs+5] == "<?php" {
+			phpTagLen = 5
+			tag = "<?php"
+		} else if abs+3 <= len(input) && input[abs:abs+3] == "<?=" {
+			phpTagLen = 3
+			tag = "<?="
+		}
+
+		if phpTagLen == 0 {
+			// 不是 PHP 开始标签（如 <?xml ...），作为 HTML 文本保留，避免死循环
+			content := input[pos : abs+2]
+			tokens = append(tokens, NewWorkerToken(token.HTML_TAG, content, pos, abs+2, line, linePos))
+			for _, r := range content {
+				if r == '\n' {
+					line++
+					linePos = 0
+				} else {
+					linePos++
+				}
+			}
+			pos = abs + 2
+			continue
+		}
+
+		// 2. 处理开始标签之前的内容 (HTML)
 		if idx > 0 {
 			content := input[pos : pos+idx]
 			tokens = append(tokens, NewWorkerToken(token.HTML_TAG, content, pos, pos+idx, line, linePos))
@@ -46,10 +74,10 @@ func (l *Lexer) TokenizeTemplate(input string) []Token {
 			pos += idx
 		}
 
-		// 3. 添加 START_TAG (<?php)
-		// tokens = append(tokens, NewWorkerToken(token.START_TAG, "<?php", pos, pos+5, line, linePos))
-		pos += 5
-		linePos += 5
+		// 3. 添加 START_TAG (<?php / <?=)
+		tokens = append(tokens, NewWorkerToken(token.START_TAG, tag, pos, pos+phpTagLen, line, linePos))
+		pos += phpTagLen
+		linePos += phpTagLen
 
 		// 4. Script 模式：复用原有的分词逻辑，直到遇到 ?>
 		for pos < len(input) {

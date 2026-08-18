@@ -417,6 +417,22 @@ func (p *Parser) parseStatement() (data.GetValue, data.Control) {
 		stmt := node.NewInlineHTMLNode(p.FromCurrentToken(), p.current().Literal())
 		p.next()
 		return stmt, nil
+	case token.START_TAG:
+		if p.current().Literal() == "<?=" {
+			// 短回显标签：<?= expr ?> 等价于 <?php echo expr ?>
+			p.next()
+			tracker := p.StartTracking()
+			expr, acl := p.expressionParser.Parse()
+			if acl != nil {
+				return nil, acl
+			}
+			if expr == nil {
+				return nil, nil
+			}
+			return node.NewEchoStatement(tracker.EndBefore(), []data.GetValue{expr}), nil
+		}
+		p.next()
+		return nil, nil
 	default:
 		return p.expressionParser.Parse()
 	}

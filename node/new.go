@@ -2,6 +2,8 @@ package node
 
 import (
 	"fmt"
+	"os"
+	"runtime/debug"
 	"sync"
 
 	"github.com/php-any/origami/data"
@@ -73,6 +75,16 @@ func createInstanceFromClassStmt(
 	arguments []data.GetValue,
 	ctx data.Context,
 ) (data.GetValue, data.Control) {
+	// 临时诊断：new ReflectionClass 实参求值为空字符串时打印 PHP 位置与栈
+	if stmt.GetName() == "ReflectionClass" && len(arguments) > 0 {
+		if v, acl := arguments[0].GetValue(ctx); acl == nil {
+			if sv, ok := v.(*data.StringValue); ok && sv.Value == "" {
+				start, end := from.GetPosition()
+				fmt.Fprintf(os.Stderr, "DIAG: new ReflectionClass(empty arg) file=%q pos=%v-%v argExpr=%T\n", from.GetSource(), start, end, arguments[0])
+				debug.PrintStack()
+			}
+		}
+	}
 	if IsAbstractClassStmt(stmt) {
 		msg := fmt.Sprintf("Uncaught Error: Cannot instantiate abstract class %s", stmt.GetName())
 		return nil, data.NewPHPUncaughtError(from, msg)

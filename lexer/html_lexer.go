@@ -251,6 +251,17 @@ func (h *HtmlLexer) processProcessingInstruction() (Token, bool) {
 			startLinePos,
 		), true
 	}
+	// <?= 短回显标签：等价于 <?php echo ...
+	if len(content) >= 3 && content[:3] == "<?=" {
+		return NewWorkerToken(
+			token.START_TAG,
+			content,
+			start,
+			h.pos,
+			startLine,
+			startLinePos,
+		), true
+	}
 
 	return NewWorkerToken(
 		token.STRING,

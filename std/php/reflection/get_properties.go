@@ -40,10 +40,10 @@ func (m *ReflectionClassGetPropertiesMethod) GetReturnType() data.Types {
 }
 
 // Call 执行 getProperties 方法
-// 返回被反射的类的所有属性列表（当前实现返回属性名数组）
+// 返回被反射的类的所有属性列表（ReflectionProperty 对象数组）
 // TODO: 实现完整的过滤器逻辑，当前忽略 filter 参数
 func (m *ReflectionClassGetPropertiesMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	_, classStmt := getReflectionClassInfo(ctx)
+	className, classStmt := getReflectionClassInfo(ctx)
 	if classStmt == nil {
 		return data.NewArrayValue([]data.Value{}), nil
 	}
@@ -53,8 +53,8 @@ func (m *ReflectionClassGetPropertiesMethod) Call(ctx data.Context) (data.GetVal
 	result := make([]data.Value, 0, len(properties))
 
 	for _, prop := range properties {
-		// 创建 ReflectionProperty 对象（简化实现，返回属性名）
-		result = append(result, data.NewStringValue(prop.GetName()))
+		// 返回 ReflectionProperty 对象（真实 PHP 中 getProperties() 返回 ReflectionProperty 数组）
+		result = append(result, newReflectionProperty(ctx, className, prop.GetName()))
 	}
 
 	return data.NewArrayValue(result), nil

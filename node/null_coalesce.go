@@ -31,6 +31,17 @@ func (n *NullCoalesceExpression) GetValue(ctx data.Context) (data.GetValue, data
 		}
 	}
 
+	// PHP：$obj->prop ?? $b 使用 isset 语义（__isset 或属性存在性检查），
+	// 属性不存在时不调用 __get，因此不会触发 Undefined array key Warning
+	if cop, ok := n.Left.(*CallObjectProperty); ok {
+		if exists, handled := coalesceObjectPropertyExists(ctx, cop); handled {
+			if !exists {
+				return n.Right.GetValue(ctx)
+			}
+			// 属性存在但值为 null：仍需走 GetValue（会正确返回 null 或 __get 值）
+		}
+	}
+
 	// 计算左操作数的值
 	leftValue, ctl := n.Left.GetValue(ctx)
 	if ctl != nil {
@@ -60,4 +71,62 @@ func (n *NullCoalesceExpression) GetValue(ctx data.Context) (data.GetValue, data
 // AsString 返回空合并运算符表达式的字符串表示
 func (n *NullCoalesceExpression) AsString() string {
 	return "null_coalesce_expression"
+}
+
+// coalesceObjectPropertyExists 判断 $obj->prop ?? $default 中左操作数是否“已设置”
+// （isset 语义：不调用 __get，因此不触发 Undefined array key Warning）
+func coalesceObjectPropertyExists(ctx data.Context, pe *CallObjectProperty) (exists bool, handled bool) {
+	o, ctl := pe.Object.GetValue(ctx)
+	if ctl != nil {
+		return false, true
+	}
+	switch o.(type) {
+	case *data.ThisValue, *data.ClassValue:
+		var objectVal *data.ObjectValue
+		var getStmt interface {
+			GetPropertyStmt(string) (data.Property, bool)
+			GetMethod(string) (data.Method, bool)
+		}
+		switch obj := o.(type) {
+		case *data.ThisValue:
+			objectVal = obj.ObjectValue
+			getStmt = obj
+		case *data.ClassValue:
+			objectVal = obj.ObjectValue
+			getStmt = obj
+		}
+		if objectVal == nil {
+			return false, true
+		}
+		// 1. 声明的属性（含父类）
+		if prop, ok := getStmt.GetPropertyStmt(pe.Property); ok {
+			if prop.GetIsStatic() {
+				return true, true
+			}
+			if val, ctl := objectVal.GetProperty(pe.Property); ctl == nil && val != nil {
+				if _, isNull := val.(*data.NullValue); !isNull {
+					return true, true
+				}
+			}
+			return false, true
+		}
+		// 2. 实例动态属性
+		if objectVal.HasProperty(pe.Property) {
+			if val, _ := objectVal.GetProperty(pe.Property); val != nil {
+				if _, isNull := val.(*data.NullValue); !isNull {
+					return true, true
+				}
+			}
+			return false, true
+		}
+		// 3. __isset 魔术方法
+		if magic, has := getStmt.GetMethod("__isset"); has {
+			isSet, acl := pe.invokeMagicIsset(o.(data.Context), magic, pe.Property)
+			if acl == nil {
+				return isSet, true
+			}
+		}
+		return false, true
+	}
+	return false, false
 }

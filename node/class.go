@@ -41,6 +41,16 @@ type ClassStatement struct {
 	DeferredTraitAliases []data.TraitAlias
 	// DeferredTraitsMerged 标记运行期是否已合并过延迟 trait，避免重复合并。
 	DeferredTraitsMerged bool
+
+	// StaticProperties 保存静态属性/常量声明（解析期收集，值延迟到首次访问时求值）。
+	// 原生 PHP 的类常量是惰性求值的，允许前向引用（如 const A = [self::B]; const B = 1;），
+	// 因此不能在解析期按声明顺序立即求值。
+	// 注意：求值不加锁（sync.Mutex 不可重入，前向引用求值会递归调用 GetStaticProperty，
+	// 加锁会死锁）。PHP 常量表达式无副作用，并发下重复求值结果一致，幂等无害。
+	StaticProperties      map[string]data.Property
+	StaticPropertiesIndex []string
+
+	staticPropertyCtx data.Context // 惰性求值上下文（解析期缓存的 ClassValue）
 }
 
 // GetValue 获取类定义语句的值
@@ -188,12 +198,25 @@ func mergeTraitStmt(vm data.VM, class *ClassStatement, trait data.ClassStmt) dat
 		}
 	}
 	if cs, ok := trait.(*ClassStatement); ok {
+		// 已求值槽位（trait 静态属性曾通过惰性求值初始化过）
 		cs.StaticProperty.Range(func(key, value any) bool {
 			if _, exists := class.StaticProperty.Load(key); !exists {
 				class.StaticProperty.Store(key, value.(data.Value))
 			}
 			return true
 		})
+		// 惰性声明：trait 静态属性惰性化后可能尚未求值（StaticProperty 为空），
+		// 需把声明复制到类，使 static::$x 访问能按惰性求值在类上下文初始化。
+		for name, prop := range cs.StaticProperties {
+			if _, exists := class.StaticProperties[name]; exists {
+				continue
+			}
+			if _, has := class.StaticProperty.Load(name); has {
+				continue
+			}
+			class.StaticProperties[name] = prop
+			class.StaticPropertiesIndex = append(class.StaticPropertiesIndex, name)
+		}
 	}
 	return nil
 }
@@ -312,7 +335,45 @@ func (c *ClassStatement) GetStaticProperty(name string) (data.Value, bool) {
 	if f, ok := c.StaticProperty.Load(name); ok {
 		return f.(data.Value), true
 	}
+	// 惰性初始化：声明列表中存在但尚未求值的静态属性/常量。
+	// 前向引用（const A = [self::B]; const B = 1;）在求值 A 时会递归调用
+	// GetStaticProperty("B")，因此这里不能加锁（sync.Mutex 不可重入会死锁）。
+	// PHP 常量表达式无副作用，重复求值结果一致。
+	if prop, ok := c.StaticProperties[name]; ok {
+		v, acl := c.initStaticProperty(prop)
+		if acl == nil && v != nil {
+			return v, true
+		}
+	}
 	return nil, false
+}
+
+// SetStaticPropertyContext 设置惰性求值上下文（解析期缓存 ClassValue，使 self::/parent::/static:: 可用）。
+func (c *ClassStatement) SetStaticPropertyContext(ctx data.Context) {
+	c.staticPropertyCtx = ctx
+}
+
+// initStaticProperty 求值静态属性/常量的默认值并缓存到 StaticProperty。
+func (c *ClassStatement) initStaticProperty(prop data.Property) (data.Value, data.Control) {
+	def := prop.GetDefaultValue()
+	if def == nil {
+		c.StaticProperty.Store(prop.GetName(), data.NewNullValue())
+		return data.NewNullValue(), nil
+	}
+	ctx := c.staticPropertyCtx
+	if ctx == nil {
+		return nil, nil
+	}
+	v, acl := def.GetValue(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	val, ok := v.(data.Value)
+	if !ok || val == nil {
+		val = data.NewNullValue()
+	}
+	c.StaticProperty.Store(prop.GetName(), val)
+	return val, nil
 }
 
 func (c *ClassStatement) GetStaticMethod(name string) (data.Method, bool) {

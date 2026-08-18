@@ -254,7 +254,10 @@ func (vp *VariableParser) parseFunctionCall() ([]data.GetValue, data.Control) {
 				vp.next()
 				from := tracker.EndBefore()
 
-				value, acl := vp.expressionParser.Parse()
+				// 解析参数值：必须用 parseTernary（不消费逗号），
+				// 因为 Parse()/parseStatement 会把 ", class: $class" 误当成多变量赋值/续表达式解析，
+				// 导致关键字参数（如 class: $x）被当成类声明而报"class 后缺少类名"
+				value, acl := vp.expressionParser.parseTernary()
 				if acl != nil {
 					return nil, acl
 				}
