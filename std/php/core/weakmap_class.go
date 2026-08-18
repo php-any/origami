@@ -1,18 +1,28 @@
 package core
 
 import (
+	"errors"
+	"fmt"
+	"sync"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 // WeakMapClass 表示 PHP 8.0+ 的 WeakMap 类
 // WeakMap 允许创建对象的弱引用映射，不会阻止对象被垃圾回收
+// 在 Origami 中，使用同步 map 实现对象键映射
 type WeakMapClass struct {
 	node.Node
+	mu    sync.RWMutex
+	store map[string]data.Value // 使用对象 ID 作为键
 }
 
 func NewWeakMapClass() *WeakMapClass {
-	return &WeakMapClass{}
+	return &WeakMapClass{
+		store: make(map[string]data.Value),
+	}
 }
 
 func (w *WeakMapClass) GetName() string {
@@ -60,7 +70,28 @@ func (w *WeakMapClass) GetPropertyList() []data.Property {
 }
 
 func (w *WeakMapClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewClassValue(w, ctx.CreateBaseContext()), nil
+	return data.NewProxyValue(NewWeakMapClass(), ctx.CreateBaseContext()), nil
+}
+
+func (w *WeakMapClass) GetSource() any { return w }
+
+func objectKey(v data.Value) string {
+	switch t := v.(type) {
+	case *data.ClassValue:
+		if t.ObjectValue != nil {
+			return fmt.Sprintf("obj:%p", t.ObjectValue)
+		}
+		return "class:" + t.Class.GetName()
+	case *data.ThisValue:
+		if t.ClassValue != nil && t.ClassValue.ObjectValue != nil {
+			return fmt.Sprintf("obj:%p", t.ClassValue.ObjectValue)
+		}
+		return "class:" + t.ClassValue.Class.GetName()
+	case *data.StringValue:
+		return "str:" + t.Value
+	default:
+		return "val:" + v.AsString()
+	}
 }
 
 // WeakMapOffsetExistsMethod 实现 offsetExists 方法
@@ -79,7 +110,9 @@ func (m *WeakMapOffsetExistsMethod) GetIsStatic() bool {
 }
 
 func (m *WeakMapOffsetExistsMethod) GetVariables() []data.Variable {
-	return nil
+	return []data.Variable{
+		node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
+	}
 }
 
 func (m *WeakMapOffsetExistsMethod) GetReturnType() data.Types {
@@ -93,9 +126,25 @@ func (m *WeakMapOffsetExistsMethod) GetParams() []data.GetValue {
 }
 
 func (m *WeakMapOffsetExistsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 简单实现，返回 false
-	// 实际需要使用真正的弱引用实现
-	return data.NewBoolValue(false), nil
+	objVal, has := ctx.GetIndexValue(0)
+	if !has {
+		return data.NewBoolValue(false), nil
+	}
+
+	classCtx, ok := ctx.(*data.ClassMethodContext)
+	if !ok || classCtx.ClassValue == nil {
+		return data.NewBoolValue(false), nil
+	}
+
+	wm, ok := classCtx.ClassValue.Class.(*WeakMapClass)
+	if !ok {
+		return data.NewBoolValue(false), nil
+	}
+
+	wm.mu.RLock()
+	defer wm.mu.RUnlock()
+	_, exists := wm.store[objectKey(objVal)]
+	return data.NewBoolValue(exists), nil
 }
 
 // WeakMapOffsetGetMethod 实现 offsetGet 方法
@@ -114,7 +163,9 @@ func (m *WeakMapOffsetGetMethod) GetIsStatic() bool {
 }
 
 func (m *WeakMapOffsetGetMethod) GetVariables() []data.Variable {
-	return nil
+	return []data.Variable{
+		node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
+	}
 }
 
 func (m *WeakMapOffsetGetMethod) GetReturnType() data.Types {
@@ -128,9 +179,29 @@ func (m *WeakMapOffsetGetMethod) GetParams() []data.GetValue {
 }
 
 func (m *WeakMapOffsetGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 抛出异常，因为对象不存在
-	panic("InvalidArgumentException: Object not found in WeakMap")
-	return nil, nil
+	objVal, has := ctx.GetIndexValue(0)
+	if !has {
+		return nil, utils.NewThrow(errors.New("InvalidArgumentException: Object not found in WeakMap"))
+	}
+
+	classCtx, ok := ctx.(*data.ClassMethodContext)
+	if !ok || classCtx.ClassValue == nil {
+		return nil, utils.NewThrow(errors.New("InvalidArgumentException: Object not found in WeakMap"))
+	}
+
+	wm, ok := classCtx.ClassValue.Class.(*WeakMapClass)
+	if !ok {
+		return nil, utils.NewThrow(errors.New("InvalidArgumentException: Object not found in WeakMap"))
+	}
+
+	wm.mu.RLock()
+	val, exists := wm.store[objectKey(objVal)]
+	wm.mu.RUnlock()
+
+	if !exists {
+		return nil, utils.NewThrow(errors.New("InvalidArgumentException: Object not found in WeakMap"))
+	}
+	return val, nil
 }
 
 // WeakMapOffsetSetMethod 实现 offsetSet 方法
@@ -167,7 +238,25 @@ func (m *WeakMapOffsetSetMethod) GetParams() []data.GetValue {
 }
 
 func (m *WeakMapOffsetSetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 简单实现，不存储任何内容
+	objVal, has1 := ctx.GetIndexValue(0)
+	val, has2 := ctx.GetIndexValue(1)
+	if !has1 || !has2 {
+		return nil, nil
+	}
+
+	classCtx, ok := ctx.(*data.ClassMethodContext)
+	if !ok || classCtx.ClassValue == nil {
+		return nil, nil
+	}
+
+	wm, ok := classCtx.ClassValue.Class.(*WeakMapClass)
+	if !ok {
+		return nil, nil
+	}
+
+	wm.mu.Lock()
+	wm.store[objectKey(objVal)] = val
+	wm.mu.Unlock()
 	return nil, nil
 }
 
@@ -187,7 +276,9 @@ func (m *WeakMapOffsetUnsetMethod) GetIsStatic() bool {
 }
 
 func (m *WeakMapOffsetUnsetMethod) GetVariables() []data.Variable {
-	return nil
+	return []data.Variable{
+		node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
+	}
 }
 
 func (m *WeakMapOffsetUnsetMethod) GetReturnType() data.Types {
@@ -201,7 +292,24 @@ func (m *WeakMapOffsetUnsetMethod) GetParams() []data.GetValue {
 }
 
 func (m *WeakMapOffsetUnsetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 简单实现，不做任何操作
+	objVal, has := ctx.GetIndexValue(0)
+	if !has {
+		return nil, nil
+	}
+
+	classCtx, ok := ctx.(*data.ClassMethodContext)
+	if !ok || classCtx.ClassValue == nil {
+		return nil, nil
+	}
+
+	wm, ok := classCtx.ClassValue.Class.(*WeakMapClass)
+	if !ok {
+		return nil, nil
+	}
+
+	wm.mu.Lock()
+	delete(wm.store, objectKey(objVal))
+	wm.mu.Unlock()
 	return nil, nil
 }
 
@@ -233,6 +341,18 @@ func (m *WeakMapCountMethod) GetParams() []data.GetValue {
 }
 
 func (m *WeakMapCountMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 返回 0，因为没有存储任何内容
-	return data.NewIntValue(0), nil
+	classCtx, ok := ctx.(*data.ClassMethodContext)
+	if !ok || classCtx.ClassValue == nil {
+		return data.NewIntValue(0), nil
+	}
+
+	wm, ok := classCtx.ClassValue.Class.(*WeakMapClass)
+	if !ok {
+		return data.NewIntValue(0), nil
+	}
+
+	wm.mu.RLock()
+	count := len(wm.store)
+	wm.mu.RUnlock()
+	return data.NewIntValue(count), nil
 }

@@ -37,21 +37,13 @@ func collectCallArgValues(ctx data.Context, positional []data.GetValue, fnCtx da
 			if acl != nil {
 				continue
 			}
-			if arr, ok := spreadVal.(*data.ArrayValue); ok {
-				for _, z := range arr.List {
-					values = append(values, z.Value)
-					idx++
-				}
+			vals, spreadCtl := spreadToValues(ctx, spreadVal)
+			if spreadCtl != nil {
 				continue
 			}
-			if objVal, ok := spreadVal.(*data.ObjectValue); ok {
-				objVal.RangeProperties(func(_ string, value data.Value) bool {
-					values = append(values, value)
-					idx++
-					return true
-				})
-				continue
-			}
+			values = append(values, vals...)
+			idx += len(vals)
+			continue
 		}
 		v, ok := fnCtx.GetIndexValue(idx)
 		if ok && v != nil {
@@ -85,19 +77,13 @@ func expandCallArgsValues(ctx data.Context) ([]data.Value, data.Control) {
 			if acl != nil {
 				return nil, acl
 			}
-			switch sv := spreadVal.(type) {
-			case *data.ArrayValue:
-				for _, z := range sv.List {
-					values = append(values, z.Value)
-					idx++
-				}
-				continue
-			case *data.ObjectValue:
-				sv.RangeProperties(func(_ string, value data.Value) bool {
-					values = append(values, value)
-					idx++
-					return true
-				})
+			vals, spreadCtl := spreadToValues(ctx, spreadVal)
+			if spreadCtl != nil {
+				return nil, spreadCtl
+			}
+			if len(vals) > 0 {
+				values = append(values, vals...)
+				idx += len(vals)
 				continue
 			}
 			v, ok := ctx.GetIndexValue(idx)
