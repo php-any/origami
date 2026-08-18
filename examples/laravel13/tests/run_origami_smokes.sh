@@ -9,6 +9,9 @@ tests=(
   tests/origami/http_request_smoke.php
   tests/origami/http_response_smoke.php
   tests/origami/http_kernel_smoke.php
+  tests/origami/livewire_bootstrap_smoke.php
+  tests/origami/test_admin_basic.php
+  tests/origami/test_livewire_components.php
 )
 
 failed=0

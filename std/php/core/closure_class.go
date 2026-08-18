@@ -62,18 +62,47 @@ func (m *ClosureBindMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 		return nil, utils.NewThrow(errors.New("缺少参数: closure"))
 	}
 
-	_, ok = ctx.GetIndexValue(1)
+	newThisVal, ok := ctx.GetIndexValue(1)
 	if !ok {
 		return nil, utils.NewThrow(errors.New("缺少参数: newThis"))
 	}
 
 	newScope, _ := ctx.GetIndexValue(2)
 
+	// 解析绑定的 $this 对象
+	var boundThis *data.ClassValue
+	switch tv := newThisVal.(type) {
+	case *data.ClassValue:
+		boundThis = tv
+	case *data.ThisValue:
+		boundThis = tv.ClassValue
+	case *data.StringValue:
+		// 静态调用 Closure::bind(..., 'ClassName', ...)
+		// $this 为 null（静态绑定），仅改变作用域
+	}
+
 	// 仅接受可调用类型
 	switch fv := closureVal.(type) {
 	case *data.FuncValue:
+		scopeClass := ""
 		if scopeStr, ok := newScope.(*data.StringValue); ok && scopeStr.Value != "" {
-			return data.NewBoundFuncValue(fv.Value, scopeStr.Value, nil), nil
+			scopeClass = scopeStr.Value
+		}
+		// 即使 scopeClass 为空，也保留 $this 绑定
+		if boundThis != nil || scopeClass != "" {
+			return data.NewBoundFuncValue(fv.Value, scopeClass, boundThis), nil
+		}
+		return closureVal, nil
+	case *data.BoundFuncValue:
+		scopeClass := fv.ScopeClass
+		if scopeStr, ok := newScope.(*data.StringValue); ok && scopeStr.Value != "" {
+			scopeClass = scopeStr.Value
+		}
+		if boundThis == nil {
+			boundThis = fv.BoundObject
+		}
+		if boundThis != nil || scopeClass != "" {
+			return data.NewBoundFuncValue(fv.Value, scopeClass, boundThis), nil
 		}
 		return closureVal, nil
 	default:

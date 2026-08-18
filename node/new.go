@@ -58,30 +58,8 @@ func flattenSpreadArguments(ctx data.Context, arguments []data.GetValue) ([]data
 		if spreadVal == nil {
 			continue
 		}
-		switch v := spreadVal.(type) {
-		case *data.ArrayValue:
-			for _, z := range v.List {
-				if z == nil {
-					continue
-				}
-				// 关联字符串键展开为命名实参（new self(...$args) / LogRecord::with）
-				if z.Name != "" {
-					if _, isInt := data.ParseIntArrayKeyName(z.Name); !isInt {
-						flat = append(flat, NewNamedArgument(nil, z.Name, z.Value))
-						continue
-					}
-				}
-				flat = append(flat, z.Value)
-			}
-		case *data.ObjectValue:
-			v.RangeProperties(func(key string, val data.Value) bool {
-				flat = append(flat, NewNamedArgument(nil, key, val))
-				return true
-			})
-		default:
-			if val, ok := spreadVal.(data.Value); ok {
-				flat = append(flat, val)
-			}
+		if vals, ok := spreadToValuesForNew(ctx, spreadVal); ok {
+			flat = append(flat, vals...)
 		}
 	}
 	return flat, nil
@@ -251,6 +229,22 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 						return true
 					})
 					fnCtx.SetVariableValue(param, ares)
+				case *data.ClassValue:
+					// Generator 展开：遍历所有 yield 值
+					if isGeneratorClassName(v.Class.GetName()) {
+						vals, spreadCtl := spreadToValues(ctx, tempV)
+						if spreadCtl != nil {
+							return spreadCtl
+						}
+						for _, val := range vals {
+							ares.List = append(ares.List, data.NewZVal(val))
+						}
+						fnCtx.SetVariableValue(param, ares)
+					} else {
+						// 普通对象退化为单值参数
+						ares.List = append(ares.List, data.NewZVal(tempV.(data.Value)))
+						fnCtx.SetVariableValue(param, ares)
+					}
 				default:
 					// 其他类型退化为普通单值参数
 					if value, ok := tempV.(data.Value); ok {

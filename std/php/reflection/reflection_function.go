@@ -48,6 +48,10 @@ func (c *ReflectionFunctionClass) GetMethod(name string) (data.Method, bool) {
 		return &ReflectionFunctionGetClosureScopeClassMethod{}, true
 	case "getStaticVariables":
 		return &ReflectionFunctionGetStaticVariablesMethod{}, true
+	case "getClosureUsedVariables":
+		return &ReflectionFunctionGetClosureUsedVariablesMethod{}, true
+	case "getClosureCalledClass":
+		return &ReflectionFunctionGetClosureCalledClassMethod{}, true
 	case "getFileName", "getFilename":
 		return &ReflectionFunctionGetFileNameMethod{}, true
 	case "getStartLine":
@@ -65,6 +69,8 @@ func (c *ReflectionFunctionClass) GetMethods() []data.Method {
 		&ReflectionFunctionIsAnonymousMethod{},
 		&ReflectionFunctionGetClosureScopeClassMethod{},
 		&ReflectionFunctionGetStaticVariablesMethod{},
+		&ReflectionFunctionGetClosureUsedVariablesMethod{},
+		&ReflectionFunctionGetClosureCalledClassMethod{},
 		&ReflectionFunctionGetFileNameMethod{},
 		&ReflectionFunctionGetStartLineMethod{},
 	}
@@ -319,6 +325,84 @@ func (m *ReflectionFunctionGetStaticVariablesMethod) Call(ctx data.Context) (dat
 		list = append(list, data.NewNamedZVal(name, value))
 	}
 	return &data.ArrayValue{List: list}, nil
+}
+
+// ---- getClosureUsedVariables ----
+
+type ReflectionFunctionGetClosureUsedVariablesMethod struct{}
+
+func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetName() string {
+	return "getClosureUsedVariables"
+}
+func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetModifier() data.Modifier {
+	return data.ModifierPublic
+}
+func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetIsStatic() bool         { return false }
+func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetReturnType() data.Types { return data.Arrays{} }
+func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetParams() []data.GetValue {
+	return []data.GetValue{}
+}
+func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetVariables() []data.Variable {
+	return []data.Variable{}
+}
+func (m *ReflectionFunctionGetClosureUsedVariablesMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	objCtx, ok := ctx.(*data.ClassMethodContext)
+	if !ok || objCtx.ObjectValue == nil {
+		return data.NewArrayValue([]data.Value{}), nil
+	}
+	function, ok := objCtx.ObjectValue.GetProperties()["_function"].(*data.FuncValue)
+	if !ok || function == nil {
+		return data.NewArrayValue([]data.Value{}), nil
+	}
+	// getClosureUsedVariables 返回闭包 use 捕获的变量，与 getStaticVariables 语义相同
+	getter, ok := function.Value.(interface {
+		GetStaticVariables() map[string]data.Value
+	})
+	if !ok {
+		return data.NewArrayValue([]data.Value{}), nil
+	}
+	values := getter.GetStaticVariables()
+	list := make([]*data.ZVal, 0, len(values))
+	for name, value := range values {
+		list = append(list, data.NewNamedZVal(name, value))
+	}
+	return &data.ArrayValue{List: list}, nil
+}
+
+// ---- getClosureCalledClass ----
+
+type ReflectionFunctionGetClosureCalledClassMethod struct{}
+
+func (m *ReflectionFunctionGetClosureCalledClassMethod) GetName() string {
+	return "getClosureCalledClass"
+}
+func (m *ReflectionFunctionGetClosureCalledClassMethod) GetModifier() data.Modifier {
+	return data.ModifierPublic
+}
+func (m *ReflectionFunctionGetClosureCalledClassMethod) GetIsStatic() bool         { return false }
+func (m *ReflectionFunctionGetClosureCalledClassMethod) GetReturnType() data.Types { return nil }
+func (m *ReflectionFunctionGetClosureCalledClassMethod) GetParams() []data.GetValue {
+	return []data.GetValue{}
+}
+func (m *ReflectionFunctionGetClosureCalledClassMethod) GetVariables() []data.Variable {
+	return []data.Variable{}
+}
+func (m *ReflectionFunctionGetClosureCalledClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	// PHP 的 getClosureCalledClass() 返回闭包定义时所在类。
+	// 在 Origami 中，闭包定义在类方法中时可以通过上下文获取调用类。
+	objCtx, ok := ctx.(*data.ClassMethodContext)
+	if !ok || objCtx.ObjectValue == nil {
+		return data.NewNullValue(), nil
+	}
+	function, ok := objCtx.ObjectValue.GetProperties()["_function"].(*data.FuncValue)
+	if !ok || function == nil {
+		return data.NewNullValue(), nil
+	}
+	// 尝试获取闭包定义时的作用域类
+	if bc := data.FindBoundContext(ctx); bc != nil && bc.ScopeClass != "" {
+		return data.NewStringValue(bc.ScopeClass), nil
+	}
+	return data.NewNullValue(), nil
 }
 
 // ---- getFileName / getStartLine ----
