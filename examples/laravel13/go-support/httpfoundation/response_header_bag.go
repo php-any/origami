@@ -776,12 +776,138 @@ func responseHeaderBagGetCookies(ctx data.Context) (data.GetValue, data.Control)
 		return &data.ArrayValue{List: outer}, nil
 	}
 	cookies := flatCookies(src)
-	vals := make([]data.Value, len(cookies))
-	for i, c := range cookies {
-		vals[i] = data.NewStringValue(c.String())
+	vals := make([]data.Value, 0, len(cookies))
+	for _, c := range cookies {
+		if obj := createCookiePHPObject(ctx, c); obj != nil {
+			vals = append(vals, obj)
+		} else {
+			vals = append(vals, data.NewStringValue(c.String()))
+		}
 	}
 	return data.NewArrayValue(vals), nil
 }
+
+// createCookiePHPObject 尝试通过 PHP 的 Symfony Cookie 类创建 Cookie 对象。
+// 返回 nil 表示无法创建（此时调用方可退化为字符串形式）。
+func createCookiePHPObject(ctx data.Context, c *BagCookie) data.Value {
+	if c == nil || c.Name == "" {
+		return nil
+	}
+	vm := ctx.GetVM()
+	stmt, control := vm.GetOrLoadClass("Symfony\\Component\\HttpFoundation\\Cookie")
+	if control != nil || stmt == nil {
+		return nil
+	}
+	gsm, ok := stmt.(data.GetStaticMethod)
+	if !ok {
+		return nil
+	}
+	method, ok := gsm.GetStaticMethod("create")
+	if !ok || method == nil {
+		return nil
+	}
+	// 创建 Cookie 类的 ClassValue，使 self:: 能正确解析
+	classValue := data.NewClassValue(stmt, ctx)
+	fnCtx := classValue.CreateContext(method.GetVariables())
+	// 绑定类和 static
+	if cmc, ok := fnCtx.(*data.ClassMethodContext); ok {
+		cmc.StaticClass = stmt
+		cmc.SelfClass = stmt
+	}
+
+	params := method.GetParams()
+	vars := method.GetVariables()
+
+	// 按参数索引设置值
+	values := make([]data.Value, len(vars))
+	// 设置 name
+	if len(vars) > 0 {
+		values[0] = data.NewStringValue(c.Name)
+	}
+	// 设置 value
+	if len(vars) > 1 {
+		val := ""
+		if c.Value != nil {
+			val = *c.Value
+		}
+		values[1] = data.NewStringValue(val)
+	}
+	// 设置 expire
+	if len(vars) > 2 {
+		values[2] = data.NewIntValue(int(c.Expire))
+	}
+	// 设置 path
+	if len(vars) > 3 {
+		p := c.Path
+		if p == "" {
+			p = "/"
+		}
+		values[3] = data.NewStringValue(p)
+	}
+	// 设置 domain
+	if len(vars) > 4 {
+		if c.Domain != nil && *c.Domain != "" {
+			values[4] = data.NewStringValue(*c.Domain)
+		} else {
+			values[4] = data.NewNullValue()
+		}
+	}
+	// 设置 secure
+	if len(vars) > 5 {
+		values[5] = data.NewBoolValue(c.Secure)
+	}
+	// 设置 httpOnly
+	if len(vars) > 6 {
+		values[6] = data.NewBoolValue(c.HTTPOnly)
+	}
+	// 设置 raw
+	if len(vars) > 7 {
+		values[7] = data.NewBoolValue(c.Raw)
+	}
+	// 设置 sameSite
+	if len(vars) > 8 {
+		if c.SameSite != nil && *c.SameSite != "" {
+			values[8] = data.NewStringValue(*c.SameSite)
+		} else {
+			values[8] = data.NewNullValue()
+		}
+	}
+	// 设置 partitioned
+	if len(vars) > 9 {
+		values[9] = data.NewBoolValue(c.Partitioned)
+	}
+
+	// 通过 ZVal 正确设置参数
+	for i := 0; i < len(vars) && i < len(values); i++ {
+		if values[i] != nil {
+			zv := data.NewNamedZVal(vars[i].GetName(), values[i])
+			fnCtx.SetIndexZVal(i, zv)
+		}
+	}
+
+	// 对缺少的参数使用默认值
+	for i := len(values); i < len(params); i++ {
+		if i < len(vars) {
+			if _, acl := params[i].GetValue(fnCtx); acl != nil {
+				return nil
+			}
+		}
+	}
+
+	// 记录实参
+	fnCtx.SetCallArgs(nil)
+	fnCtx.SetFlatCallArgs(values)
+
+	ret, ctl := method.Call(fnCtx)
+	if ctl != nil {
+		return nil
+	}
+	if v, ok := ret.(data.Value); ok {
+		return v
+	}
+	return nil
+}
+
 
 func responseHeaderBagClearCookie(ctx data.Context) (data.GetValue, data.Control) {
 	src := responseHeaderData(ctx)

@@ -529,6 +529,10 @@ func (p *Parser) parseBlock() ([]data.GetValue, data.Control) {
 		}
 		if stmt != nil {
 			statements = append(statements, stmt)
+		} else if p.current().Type() == token.START_TAG || p.current().Type() == token.HTML_TAG || p.current().Type() == token.EOF || p.current().Type() == token.RBRACE {
+			// nil 语句是 START_TAG 被消费后的正常返回（如 <?php 标签起始），
+			// 或已达到文件末尾 / 块结束。跳过继续解析。
+			continue
 		} else {
 			return statements, data.NewErrorThrow(p.newFrom(), errors.New("语法块无法识别"))
 		}

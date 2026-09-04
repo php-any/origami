@@ -73,6 +73,15 @@ func (f *MbStrlenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		return data.NewIntValue(0), nil
 	}
 	s := v.AsString()
+	
+	// 检查 encoding 参数
+	if encVal, ok := ctx.GetIndexValue(1); ok && encVal != nil {
+		enc := encVal.AsString()
+		if enc == "8bit" || enc == "binary" {
+			return data.NewIntValue(len([]byte(s))), nil
+		}
+	}
+	
 	return data.NewIntValue(utf8.RuneCountInString(s)), nil
 }
 
@@ -364,3 +373,83 @@ func (f *MbStrimwidthFunction) GetVariables() []data.Variable {
 		node.NewVariable(nil, "encoding", 4, data.NewNullableType(data.NewBaseType("string"))),
 	}
 }
+
+// MbStrcutFunction 实现 mb_strcut 函数（按字节切割）
+type MbStrcutFunction struct{}
+
+func NewMbStrcutFunction() data.FuncStmt { return &MbStrcutFunction{} }
+
+func (f *MbStrcutFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	strVal, _ := ctx.GetIndexValue(0)
+	startVal, _ := ctx.GetIndexValue(1)
+	lengthVal, _ := ctx.GetIndexValue(2)
+	if strVal == nil || startVal == nil {
+		return data.NewStringValue(""), nil
+	}
+
+	s := strVal.AsString()
+	bytes := []byte(s)
+	byteLen := len(bytes)
+
+	start := 0
+	if asInt, ok := startVal.(data.AsInt); ok {
+		if v, err := asInt.AsInt(); err == nil {
+			start = v
+		}
+	}
+
+	length := byteLen
+	if lengthVal != nil {
+		// null 表示不指定长度（默认切到字符串末尾）
+		if _, isNull := lengthVal.(*data.NullValue); !isNull {
+			if asInt, ok := lengthVal.(data.AsInt); ok {
+				if v, err := asInt.AsInt(); err == nil {
+					length = v
+				}
+			}
+		}
+	}
+
+	// 处理负 start
+	if start < 0 {
+		start = byteLen + start
+		if start < 0 {
+			start = 0
+		}
+	}
+	if start > byteLen {
+		return data.NewStringValue(""), nil
+	}
+
+	// 处理负 length
+	if length < 0 {
+		length = byteLen + length - start
+	}
+	if length <= 0 {
+		return data.NewStringValue(""), nil
+	}
+	if start+length > byteLen {
+		length = byteLen - start
+	}
+
+	return data.NewStringValue(string(bytes[start : start+length])), nil
+}
+
+func (f *MbStrcutFunction) GetName() string { return "mb_strcut" }
+func (f *MbStrcutFunction) GetParams() []data.GetValue {
+	return []data.GetValue{
+		node.NewParameter(nil, "string", 0, nil, nil),
+		node.NewParameter(nil, "start", 1, nil, nil),
+		node.NewParameter(nil, "length", 2, node.NewNullLiteral(nil), nil),
+		node.NewParameter(nil, "encoding", 3, node.NewNullLiteral(nil), nil),
+	}
+}
+func (f *MbStrcutFunction) GetVariables() []data.Variable {
+	return []data.Variable{
+		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+		node.NewVariable(nil, "start", 1, data.NewBaseType("int")),
+		node.NewVariable(nil, "length", 2, data.NewNullableType(data.NewBaseType("int"))),
+		node.NewVariable(nil, "encoding", 3, data.NewNullableType(data.NewBaseType("string"))),
+	}
+}
+
