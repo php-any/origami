@@ -802,8 +802,15 @@ func requestCreate(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, data.NewErrorThrow(nil, err)
 	}
 	request.Host = parsed.Host
-	if method == "POST" || method == "PUT" || method == "DELETE" || method == "QUERY" {
-		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	contentType := ""
+	if value, ok := server["CONTENT_TYPE"]; ok {
+		contentType = value.AsString()
+	}
+	if contentType == "" && (method == "POST" || method == "PUT" || method == "DELETE" || method == "QUERY") {
+		contentType = "application/x-www-form-urlencoded"
+	}
+	if contentType != "" {
+		request.Header.Set("Content-Type", contentType)
 	}
 	for key, value := range server {
 		if strings.HasPrefix(key, "HTTP_") {
@@ -999,7 +1006,11 @@ func requestCookie(ctx data.Context, key string) string {
 
 func requestHeader(ctx data.Context, key string) string {
 	values := GetHeaderBagAll(requestBagProperty(ctx, "headers"))
-	items := values[strings.ToLower(key)]
+	nk := normalizeHeaderKey(key)
+	items := values[nk]
+	if len(items) == 0 {
+		items = values[strings.ToLower(key)]
+	}
 	if len(items) == 0 {
 		items = values[key]
 	}

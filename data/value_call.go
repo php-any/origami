@@ -1,7 +1,5 @@
 package data
 
-import "fmt"
-
 func NewFuncValue(v FuncStmt) *FuncValue {
 	return &FuncValue{
 		Value: v,
@@ -21,7 +19,13 @@ func (c *FuncValue) Call(ctx Context) (GetValue, Control) {
 }
 
 func (c *FuncValue) AsString() string {
-	return fmt.Sprintf("%v", c.Value)
+	if c == nil || c.Value == nil {
+		return ""
+	}
+	if gn, ok := c.Value.(GetName); ok {
+		return gn.GetName()
+	}
+	return "Closure"
 }
 
 func (c *FuncValue) AsBool() (bool, error) {
@@ -33,6 +37,8 @@ func (c *FuncValue) GetMethod(name string) (Method, bool) {
 	switch name {
 	case "bindto", "bindTo":
 		return &funcBindToMethod{closure: c}, true
+	case "call":
+		return &funcCallMethod{closure: c}, true
 	}
 	return nil, false
 }
@@ -102,6 +108,75 @@ func scopeClassFromBindArg(v Value) string {
 		}
 	}
 	return ""
+}
+
+// funcCallMethod 实现 Closure::call($newThis, ...$args)
+type funcCallMethod struct {
+	closure *FuncValue
+}
+
+func (m *funcCallMethod) GetName() string       { return "call" }
+func (m *funcCallMethod) GetModifier() Modifier { return ModifierPublic }
+func (m *funcCallMethod) GetIsStatic() bool     { return false }
+func (m *funcCallMethod) GetReturnType() Types  { return nil }
+func (m *funcCallMethod) GetParams() []GetValue {
+	return []GetValue{
+		NewParameter("newThis", 0),
+		NewParameters("args", 1),
+	}
+}
+func (m *funcCallMethod) GetVariables() []Variable {
+	return []Variable{
+		NewVariable("newThis", 0, nil),
+		NewVariable("args", 1, nil),
+	}
+}
+func (m *funcCallMethod) Call(ctx Context) (GetValue, Control) {
+	newThis, _ := ctx.GetIndexValue(0)
+	boundThis := classValueFromBindObject(newThis)
+	scopeClass := ""
+	if boundThis != nil {
+		scopeClass = boundThis.Class.GetName()
+	}
+
+	args := closureCallArgs(ctx)
+	vars := make([]Variable, len(args))
+	for i := range args {
+		vars[i] = NewVariable("", i, nil)
+	}
+	callCtx := ctx.CreateContext(vars)
+	for i, arg := range args {
+		callCtx.SetIndexZVal(i, NewZVal(arg))
+	}
+
+	return NewBoundFuncValue(m.closure.Value, scopeClass, boundThis).Call(callCtx)
+}
+
+func closureCallArgs(ctx Context) []Value {
+	if flat := ctx.GetFlatCallArgs(); len(flat) > 1 {
+		return flat[1:]
+	}
+	if argsVal, ok := ctx.GetIndexValue(1); ok && argsVal != nil {
+		if arr, isArr := argsVal.(*ArrayValue); isArr {
+			out := make([]Value, 0, len(arr.List))
+			for _, zv := range arr.List {
+				if zv != nil {
+					out = append(out, zv.Value)
+				}
+			}
+			return out
+		}
+		return []Value{argsVal}
+	}
+	var out []Value
+	for i := 1; ; i++ {
+		v, ok := ctx.GetIndexValue(i)
+		if !ok {
+			break
+		}
+		out = append(out, v)
+	}
+	return out
 }
 
 // BoundFuncValue 表示通过 Closure::bind()/bindTo() 绑定了 $this 或作用域的闭包。

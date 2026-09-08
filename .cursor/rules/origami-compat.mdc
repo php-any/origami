@@ -1,0 +1,6 @@
+---
+description: 完整约定见仓库根目录 AGENTS.md（项目目标 + 禁止改 PHP 跳过错误）
+alwaysApply: true
+---
+
+完整约定以仓库根目录 **AGENTS.md** 为准：Origami 要对齐 PHP，主线是官方 Laravel 13；vendor/应用报错修解释器，禁止改 PHP 跳过错误；禁止在 `Call()` 热路径插追踪。

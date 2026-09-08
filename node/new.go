@@ -95,7 +95,7 @@ func createInstanceFromClassStmt(
 	}
 
 	if object, ok := object.(*data.ClassValue); ok {
-		if method := object.Class.GetConstruct(); method != nil {
+		if method, ok := object.GetMethod("__construct"); ok && method != nil {
 			varies := method.GetVariables()
 			params := method.GetParams()
 			fnCtx := object.CreateContext(varies)
@@ -330,7 +330,7 @@ func createInstanceAndCallConstructorWithStmt(
 	}
 
 	if object, ok := object.(*data.ClassValue); ok {
-		if method := object.Class.GetConstruct(); method != nil {
+		if method, ok := object.GetMethod("__construct"); ok && method != nil {
 			varies := method.GetVariables()
 			params := method.GetParams()
 			fnCtx := object.CreateContext(varies)
@@ -555,31 +555,14 @@ func NewNewVariableExpression(from *TokenFrom, classNameExpr data.GetValue, argu
 
 // GetValue 实现 Value 接口
 func (n *NewVariableExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 获取类名表达式的值
 	classNameValue, acl := n.ClassNameExpr.GetValue(ctx)
 	if acl != nil {
 		return nil, acl
 	}
 
-	// 将类名值转换为字符串
-	var className string
-	switch v := classNameValue.(type) {
-	case *data.StringValue:
-		className = v.Value
-	case data.Value:
-		// 尝试转换为字符串
-		if strValue, ok := v.(*data.StringValue); ok {
-			className = strValue.Value
-		} else {
-			// 尝试调用 AsString 方法
-			className = v.AsString()
-		}
-	default:
-		return nil, data.NewErrorThrow(n.from, fmt.Errorf("new表达式中的类名变量必须是字符串类型，当前类型: %T", v))
-	}
-
-	if className == "" {
-		return nil, data.NewErrorThrow(n.from, fmt.Errorf("new表达式中的类名变量不能为空"))
+	className, acl := resolveDynamicClassName(n.from, classNameValue)
+	if acl != nil {
+		return nil, acl
 	}
 
 	return createInstanceAndCallConstructor(n.from, className, n.Arguments, ctx)
@@ -672,17 +655,24 @@ func NewNewExpressionDynamic(from *TokenFrom, classExpr data.GetValue, arguments
 }
 
 func (n *NewExpressionDynamic) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 求值类名表达式
 	classVal, acl := n.ClassExpr.GetValue(ctx)
 	if acl != nil {
 		return nil, acl
 	}
-	className := ""
-	if s, ok := classVal.(data.AsString); ok {
-		className = s.AsString()
-	}
-	if className == "" {
-		return nil, data.NewErrorThrow(n.from, fmt.Errorf("new 表达式类名求值结果为空"))
+	className, acl := resolveDynamicClassName(n.from, classVal)
+	if acl != nil {
+		return nil, acl
 	}
 	return createInstanceAndCallConstructor(n.from, className, n.Arguments, ctx)
+}
+
+// resolveDynamicClassName 解析 new $expr 的类名。
+// PHP：字符串是类名；对象则按 get_class($obj) 再 new 一个同类型实例（手册 Example #6）。
+// 禁止用 ClassValue.AsString() 的对象 dump 当类名，否则会去加载
+// 「App\Foo {\n\tprop: ...\n}」这种不存在的类。
+func resolveDynamicClassName(from data.From, classNameValue data.GetValue) (string, data.Control) {
+	if name, ok := classNameFromValue(classNameValue); ok && name != "" {
+		return name, nil
+	}
+	return "", data.NewErrorThrow(from, fmt.Errorf("new表达式中的类名必须是字符串或对象，当前类型: %T", classNameValue))
 }

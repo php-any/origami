@@ -2,6 +2,7 @@ package php
 
 import (
 	"fmt"
+	gomath "math"
 	"runtime"
 	"time"
 
@@ -59,6 +60,7 @@ func Load(vm data.VM) {
 		NewNumberFormatFunction(),
 		NewFunctionExistsFunction(),
 		NewClassExistsFunction(),
+		NewEnumExistsFunction(),
 		NewInterfaceExistsFunction(),
 		NewPropertyExistsFunction(),
 		NewMethodExistsFunction(),
@@ -293,6 +295,9 @@ func Load(vm data.VM) {
 		NewIsArrayFunction(),
 		NewIsBoolFunction(),
 		NewIsFloatFunction(),
+		NewIsNanFunction(),
+		NewIsInfiniteFunction(),
+		NewIsFiniteFunction(),
 		NewIsNullFunction(),
 		NewIsNumericFunction(),
 		NewIsObjectFunction(),
@@ -326,6 +331,8 @@ func Load(vm data.VM) {
 		NewParseStrFunction(),
 		NewInetPtonFunction(),
 		NewInetNtopFunction(),
+		NewIp2LongFunction(),
+		NewLong2IpFunction(),
 		NewTempnamFunction(),
 		NewUmaskFunction(),
 		NewVarExportFunction(),
@@ -650,6 +657,8 @@ func initPhpDefaultDefines(vm data.VM) {
 	vm.SetConstant("PHP_FLOAT_MIN", data.NewFloatValue(2.2250738585072014e-308))
 	vm.SetConstant("PHP_FLOAT_DIG", data.NewIntValue(15))
 	vm.SetConstant("PHP_FLOAT_EPSILON", data.NewFloatValue(2.220446049250313e-16))
+	vm.SetConstant("NAN", data.NewFloatValue(gomath.NaN()))
+	vm.SetConstant("INF", data.NewFloatValue(gomath.Inf(1)))
 
 	// 数学常量
 	vm.SetConstant("M_PI", data.NewFloatValue(3.14159265358979323846))
@@ -703,6 +712,28 @@ func initPhpDefaultDefines(vm data.VM) {
 	vm.SetConstant("LC_NUMERIC", data.NewIntValue(4))
 	vm.SetConstant("LC_TIME", data.NewIntValue(5))
 	vm.SetConstant("LC_MESSAGES", data.NewIntValue(6))
+
+	// libxml / DOM node type constants（Termwind、Blade 编译 HTML 会用到）
+	vm.SetConstant("XML_ELEMENT_NODE", data.NewIntValue(1))
+	vm.SetConstant("XML_ATTRIBUTE_NODE", data.NewIntValue(2))
+	vm.SetConstant("XML_TEXT_NODE", data.NewIntValue(3))
+	vm.SetConstant("XML_CDATA_SECTION_NODE", data.NewIntValue(4))
+	vm.SetConstant("XML_ENTITY_REF_NODE", data.NewIntValue(5))
+	vm.SetConstant("XML_ENTITY_NODE", data.NewIntValue(6))
+	vm.SetConstant("XML_PI_NODE", data.NewIntValue(7))
+	vm.SetConstant("XML_COMMENT_NODE", data.NewIntValue(8))
+	vm.SetConstant("XML_DOCUMENT_NODE", data.NewIntValue(9))
+	vm.SetConstant("XML_DOCUMENT_TYPE_NODE", data.NewIntValue(10))
+	vm.SetConstant("XML_DOCUMENT_FRAG_NODE", data.NewIntValue(11))
+	vm.SetConstant("XML_NOTATION_NODE", data.NewIntValue(12))
+	vm.SetConstant("XML_HTML_DOCUMENT_NODE", data.NewIntValue(13))
+	vm.SetConstant("LIBXML_NOERROR", data.NewIntValue(32))
+	vm.SetConstant("LIBXML_NOWARNING", data.NewIntValue(64))
+	vm.SetConstant("LIBXML_NOBLANKS", data.NewIntValue(256))
+	vm.SetConstant("LIBXML_NSCLEAN", data.NewIntValue(8192))
+	vm.SetConstant("LIBXML_COMPACT", data.NewIntValue(65536))
+	vm.SetConstant("LIBXML_HTML_NOIMPLIED", data.NewIntValue(8192))
+	vm.SetConstant("LIBXML_HTML_NODEFDTD", data.NewIntValue(4))
 
 	// File constants
 	// Filter constants

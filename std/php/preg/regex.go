@@ -347,6 +347,7 @@ type Capture struct {
 	Text         string
 	Participated bool
 	Name         string
+	Offset       int // 相对原始 subject 的字节偏移；未参与时为 -1（PREG_OFFSET_CAPTURE）
 }
 
 // FindCaptures 在 subject[offset:] 上执行匹配，返回全部分组（含未参与分组）。
@@ -361,9 +362,9 @@ func FindCaptures(m Matcher, subject string, offset int, anchored bool) []Captur
 
 	switch matcher := m.(type) {
 	case *goMatcher:
-		return findGoCaptures(matcher.re, search, anchored)
+		return findGoCaptures(matcher.re, search, anchored, offset)
 	case *r2Matcher:
-		return findR2Captures(matcher.re, search, anchored)
+		return findR2Captures(matcher.re, search, anchored, offset)
 	default:
 		loc := FindSubmatchAt(m, subject, offset, anchored)
 		if loc == nil {
@@ -372,9 +373,10 @@ func FindCaptures(m Matcher, subject string, offset int, anchored bool) []Captur
 		caps := make([]Capture, 0, len(loc)/2)
 		for i := 0; i < len(loc); i += 2 {
 			start, end := loc[i], loc[i+1]
-			cap := Capture{Participated: start >= 0}
+			cap := Capture{Participated: start >= 0, Offset: -1}
 			if cap.Participated {
 				cap.Text = subject[start:end]
+				cap.Offset = start
 			}
 			caps = append(caps, cap)
 		}
@@ -382,7 +384,7 @@ func FindCaptures(m Matcher, subject string, offset int, anchored bool) []Captur
 	}
 }
 
-func findGoCaptures(re *regexp.Regexp, search string, anchored bool) []Capture {
+func findGoCaptures(re *regexp.Regexp, search string, anchored bool, baseOffset int) []Capture {
 	loc := re.FindStringSubmatchIndex(search)
 	if loc == nil {
 		return nil
@@ -394,9 +396,15 @@ func findGoCaptures(re *regexp.Regexp, search string, anchored bool) []Capture {
 	names := re.SubexpNames()
 	caps := make([]Capture, 0, len(submatch))
 	for i, text := range submatch {
+		participated := i*2+1 < len(loc) && loc[i*2] >= 0
+		off := -1
+		if participated {
+			off = loc[i*2] + baseOffset
+		}
 		cap := Capture{
 			Text:         text,
-			Participated: i < len(loc) && loc[i*2] >= 0,
+			Participated: participated,
+			Offset:       off,
 		}
 		if i < len(names) {
 			cap.Name = names[i]
@@ -406,7 +414,7 @@ func findGoCaptures(re *regexp.Regexp, search string, anchored bool) []Capture {
 	return caps
 }
 
-func findR2Captures(re *regexp2.Regexp, search string, anchored bool) []Capture {
+func findR2Captures(re *regexp2.Regexp, search string, anchored bool, baseOffset int) []Capture {
 	match, err := re.FindStringMatch(search)
 	if err != nil || match == nil {
 		return nil
@@ -419,10 +427,15 @@ func findR2Captures(re *regexp2.Regexp, search string, anchored bool) []Capture 
 	for _, g := range groups {
 		// regexp2 未参与的可选组：Index=0、Length=0 且无 Captures
 		participated := !(g.Length == 0 && g.Index == 0 && len(g.Captures) == 0)
+		off := -1
+		if participated {
+			off = g.Index + baseOffset
+		}
 		cap := Capture{
 			Text:         g.String(),
 			Participated: participated,
 			Name:         g.Name,
+			Offset:       off,
 		}
 		caps = append(caps, cap)
 	}
@@ -435,6 +448,7 @@ func findR2Captures(re *regexp2.Regexp, search string, anchored bool) []Capture 
 // 命名捕获与 PHP 一致：先写入命名键，再写入同值的数值键（Illuminate 路由绑定依赖 array_slice 后仍能看到命名键）。
 func BuildMatchArray(captures []Capture, flags int) data.Value {
 	unmatchedAsNull := flags&512 != 0 // PREG_UNMATCHED_AS_NULL
+	offsetCapture := flags&256 != 0   // PREG_OFFSET_CAPTURE
 
 	if !unmatchedAsNull {
 		last := -1
@@ -467,6 +481,13 @@ func BuildMatchArray(captures []Capture, flags int) data.Value {
 			val = data.NewNullValue()
 		default:
 			val = data.NewStringValue(cap.Text)
+		}
+		if offsetCapture {
+			off := -1
+			if cap.Participated {
+				off = cap.Offset
+			}
+			val = data.NewArrayValue([]data.Value{val, data.NewIntValue(off)})
 		}
 
 		if cap.Name != "" {

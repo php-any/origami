@@ -37,17 +37,32 @@ func (sp *SelfParser) Parse() (data.GetValue, data.Control) {
 		}
 
 		isVariable := sp.current().Type() == token.VARIABLE
-		memberName := sp.current().Literal()
+		memberLiteral := sp.current().Literal()
 		sp.next()
 		tokenFrom := tracker.EndBefore()
 
-		// 如果是 VARIABLE，去掉 $ 前缀
+		memberName := memberLiteral
 		if isVariable && len(memberName) > 0 && memberName[0] == '$' {
 			memberName = memberName[1:]
 		}
 
 		if sp.checkPositionIs(0, token.LPAREN) {
 			vp := &VariableParser{sp.Parser}
+			// self::$method()：方法名来自变量值，不是字面量 "method"
+			if isVariable {
+				varInfo := sp.scopeManager.LookupVariable(memberLiteral)
+				if varInfo == nil {
+					val := sp.scopeManager.CurrentScope().AddVariable(memberLiteral, nil, tokenFrom)
+					varInfo = val
+				}
+				nameExpr := node.NewVariableWithFirst(tokenFrom, varInfo)
+				var classRef data.GetValue = node.NewSelfClass(tokenFrom)
+				if sp.currentClass != "" {
+					classRef = node.NewStringLiteral(tokenFrom, sp.currentClass)
+				}
+				expr := node.NewCallStaticDynamicMethod(tokenFrom, classRef, nameExpr)
+				return vp.parseSuffix(expr)
+			}
 			// 如果已知当前类名（解析时），直接使用 CallStaticMethodLater
 			// 这样在闭包等非 ClassMethodContext 中也能正确工作
 			if sp.currentClass != "" {

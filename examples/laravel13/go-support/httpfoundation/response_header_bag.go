@@ -2,6 +2,8 @@ package httpfoundation
 
 import (
 	"fmt"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/php-any/origami/data"
@@ -386,14 +388,22 @@ func setBagCookie(src *ResponseHeaderBagData, cookie *BagCookie) {
 }
 
 func cookieFromString(raw string) *BagCookie {
-	parts := headerUtilsSplit(raw, ";=")
-	if len(parts) == 0 || len(parts[0]) == 0 {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
 		return &BagCookie{Name: raw, Path: "/"}
 	}
-	name := parts[0][0]
+	// 先按 ';' 拆分属性；name=value 只在第一段、且只切第一个 '='，
+	// 避免 Laravel 加密 cookie 的 base64 padding '=' 被吞掉。
+	segments := strings.Split(raw, ";")
+	first := strings.TrimSpace(segments[0])
+	name := first
 	var value *string
-	if len(parts[0]) > 1 {
-		v := parts[0][1]
+	if i := strings.IndexByte(first, '='); i >= 0 {
+		name = first[:i]
+		v := first[i+1:]
+		if dec, err := url.QueryUnescape(v); err == nil {
+			v = dec
+		}
 		value = &v
 	}
 	c := &BagCookie{
@@ -402,28 +412,41 @@ func cookieFromString(raw string) *BagCookie {
 		Path:     "/",
 		HTTPOnly: false,
 	}
-	assoc := headerUtilsCombine(parts[1:])
-	if p, ok := assoc["path"].(string); ok {
-		c.Path = p
-	}
-	if d, ok := assoc["domain"].(string); ok {
-		c.Domain = &d
-	}
-	if _, ok := assoc["secure"]; ok {
-		c.Secure = true
-	}
-	if _, ok := assoc["httponly"]; ok {
-		c.HTTPOnly = true
-	}
-	if s, ok := assoc["samesite"].(string); ok {
-		c.SameSite = &s
-	}
-	if _, ok := assoc["partitioned"]; ok {
-		c.Partitioned = true
-	}
-	if e, ok := assoc["expires"].(string); ok {
-		if t, err := time.Parse(time.RFC1123, e); err == nil {
-			c.Expire = t.Unix()
+	for _, seg := range segments[1:] {
+		seg = strings.TrimSpace(seg)
+		if seg == "" {
+			continue
+		}
+		key := seg
+		val := ""
+		if i := strings.IndexByte(seg, '='); i >= 0 {
+			key = strings.TrimSpace(seg[:i])
+			val = strings.TrimSpace(seg[i+1:])
+			if dec, err := url.QueryUnescape(val); err == nil {
+				val = dec
+			}
+		}
+		switch strings.ToLower(key) {
+		case "path":
+			c.Path = val
+		case "domain":
+			if val != "" {
+				c.Domain = &val
+			}
+		case "secure":
+			c.Secure = true
+		case "httponly":
+			c.HTTPOnly = true
+		case "samesite":
+			if val != "" {
+				c.SameSite = &val
+			}
+		case "partitioned":
+			c.Partitioned = true
+		case "expires":
+			if t, err := time.Parse(time.RFC1123, val); err == nil {
+				c.Expire = t.Unix()
+			}
 		}
 	}
 	return c
@@ -451,11 +474,13 @@ func cookieFromValue(v data.Value) *BagCookie {
 			}
 		}
 		c := &BagCookie{Name: name, Path: "/"}
+		gotValue := false
 		if m, ok := cv.GetMethod("getValue"); ok && m != nil {
 			if ret, ctl := m.Call(cv.CreateContext(m.GetVariables())); ctl == nil && ret != nil {
 				if val, ok := ret.(data.Value); ok && !isNull(val) {
 					s := val.AsString()
 					c.Value = &s
+					gotValue = true
 				}
 			}
 		}
@@ -473,6 +498,39 @@ func cookieFromValue(v data.Value) *BagCookie {
 					c.Domain = &s
 				}
 			}
+		}
+		if m, ok := cv.GetMethod("isSecure"); ok && m != nil {
+			if ret, ctl := m.Call(cv.CreateContext(m.GetVariables())); ctl == nil && ret != nil {
+				if b, ok := ret.(data.AsBool); ok {
+					if v, err := b.AsBool(); err == nil {
+						c.Secure = v
+					}
+				}
+			}
+		}
+		if m, ok := cv.GetMethod("isHttpOnly"); ok && m != nil {
+			if ret, ctl := m.Call(cv.CreateContext(m.GetVariables())); ctl == nil && ret != nil {
+				if b, ok := ret.(data.AsBool); ok {
+					if v, err := b.AsBool(); err == nil {
+						c.HTTPOnly = v
+					}
+				}
+			}
+		}
+		if m, ok := cv.GetMethod("getSameSite"); ok && m != nil {
+			if ret, ctl := m.Call(cv.CreateContext(m.GetVariables())); ctl == nil && ret != nil {
+				if val, ok := ret.(data.Value); ok && !isNull(val) {
+					s := val.AsString()
+					if s != "" {
+						c.SameSite = &s
+					}
+				}
+			}
+		}
+		// 不要用 __toString 回解析：Set-Cookie 串里的 value 经 rawurlencode，
+		// 且 base64 尾部 '=' 会被 headerUtilsSplit 当成分隔符吃掉，导致 session cookie 无法解密。
+		if c.Name != "" && gotValue {
+			return c
 		}
 		if m, ok := cv.GetMethod("__toString"); ok && m != nil {
 			if ret, ctl := m.Call(cv.CreateContext(m.GetVariables())); ctl == nil && ret != nil {

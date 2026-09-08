@@ -32,6 +32,12 @@ func (c *ClassValue) GetValue(ctx Context) (GetValue, Control) {
 	return c, nil
 }
 
+// AsBool：任意对象实例（含空 stdClass）在 PHP 中均为 true。
+// 不可落入嵌入的 ObjectValue.AsBool（关联数组语义）。
+func (c *ClassValue) AsBool() (bool, error) {
+	return c != nil, nil
+}
+
 func (c *ClassValue) AsString() string {
 	result := ""
 	c.property.Range(func(key string, value Value) bool {

@@ -1,0 +1,9 @@
+1788880239.823 get_ok
+1788880239.872 post_start cl=485
+1788880240.053 evt_hydrate
+1788880240.059 evt_call_login
+1788880241.586 evt_dehydrate
+1788880241.640 evt_response
+1788880241.804 status=200
+1788880241.806 redirect='http://localhost/admin'
+1788880241.807 done

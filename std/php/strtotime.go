@@ -149,6 +149,10 @@ func parseModifier(s string, base time.Time) (time.Time, error) {
 	switch {
 	case unit == "second" || unit == "seconds" || unit == "sec" || unit == "secs":
 		return base.Add(time.Duration(num) * time.Second), nil
+	case unit == "microsecond" || unit == "microseconds" || unit == "us" || unit == "µs":
+		return base.Add(time.Duration(num) * time.Microsecond), nil
+	case unit == "millisecond" || unit == "milliseconds" || unit == "ms":
+		return base.Add(time.Duration(num) * time.Millisecond), nil
 	case unit == "minute" || unit == "minutes" || unit == "min" || unit == "mins":
 		return base.Add(time.Duration(num) * time.Minute), nil
 	case unit == "hour" || unit == "hours":

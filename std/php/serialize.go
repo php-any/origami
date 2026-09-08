@@ -4,11 +4,34 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unsafe"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	jsonser "github.com/php-any/origami/std/serializer/json"
 )
+
+// phpSerState 记录 PHP serialize 的值序号，循环引用输出 r:N;（与 PHP 一致）。
+type phpSerState struct {
+	seen map[uintptr]int
+	n    int
+}
+
+func newPhpSerState() *phpSerState {
+	return &phpSerState{seen: make(map[uintptr]int)}
+}
+
+func (st *phpSerState) nextScalar() {
+	st.n++
+}
+
+func (st *phpSerState) refOrMark(ptr uintptr) (idx int, seen bool) {
+	if idx, ok := st.seen[ptr]; ok {
+		return idx, true
+	}
+	st.n++
+	st.seen[ptr] = st.n
+	return st.n, false
+}
 
 // NewSerializeFunction 创建 serialize 函数
 // 当前为最小实现，对标上面的 unserialize 子集，仅支持：
@@ -44,20 +67,30 @@ func makeSerializedString(content string) string {
 // - 数组：按 PHP 的 a:len:{key;value;...} 语法编码（数值下标使用 i:n;，关联键使用 s:len:"key";）
 // - 对象：ClassValue 按 PHP 的 O:...:...:{...} 格式序列化公共属性
 // 其它复杂类型返回 false，交由上层处理。
-func phpSerializeValue(v data.Value, serializer *jsonser.JsonSerializer) (string, bool) {
+func phpSerializeValue(v data.Value, st *phpSerState) (string, bool) {
+	if st == nil {
+		st = newPhpSerState()
+	}
 	switch val := v.(type) {
 	case *data.NullValue:
+		st.nextScalar()
 		return "N;", true
 	case *data.BoolValue:
+		st.nextScalar()
 		if val.Value {
 			return "b:1;", true
 		}
 		return "b:0;", true
 	case *data.IntValue:
+		st.nextScalar()
 		return fmt.Sprintf("i:%d;", val.Value), true
 	case *data.StringValue:
+		st.nextScalar()
 		return makeSerializedString(val.Value), true
 	case *data.ArrayValue:
+		if idx, seen := st.refOrMark(uintptr(unsafe.Pointer(val))); seen {
+			return fmt.Sprintf("r:%d;", idx), true
+		}
 		// 数值下标数组：a:<len>:{i:0;v0;i:1;v1;...}
 		values := val.ToValueList()
 		var sb strings.Builder
@@ -70,7 +103,7 @@ func phpSerializeValue(v data.Value, serializer *jsonser.JsonSerializer) (string
 			sb.WriteString(strconv.Itoa(idx))
 			sb.WriteString(";")
 			// value
-			valStr, ok := phpSerializeValue(elem, serializer)
+			valStr, ok := phpSerializeValue(elem, st)
 			if !ok {
 				return "", false
 			}
@@ -79,6 +112,9 @@ func phpSerializeValue(v data.Value, serializer *jsonser.JsonSerializer) (string
 		sb.WriteString("}")
 		return sb.String(), true
 	case *data.ObjectValue:
+		if idx, seen := st.refOrMark(uintptr(unsafe.Pointer(val))); seen {
+			return fmt.Sprintf("r:%d;", idx), true
+		}
 		// 关联数组语义：使用字符串键序列化为 PHP 数组
 		type kv struct {
 			key string
@@ -100,7 +136,7 @@ func phpSerializeValue(v data.Value, serializer *jsonser.JsonSerializer) (string
 		for _, p := range props {
 			// key 始终作为字符串键处理
 			sb.WriteString(makeSerializedString(p.key))
-			valStr, ok := phpSerializeValue(p.val, serializer)
+			valStr, ok := phpSerializeValue(p.val, st)
 			if !ok {
 				return "", false
 			}
@@ -108,7 +144,16 @@ func phpSerializeValue(v data.Value, serializer *jsonser.JsonSerializer) (string
 		}
 		sb.WriteString("}")
 		return sb.String(), true
+	case *data.ThisValue:
+		if val.ClassValue != nil {
+			return phpSerializeValue(val.ClassValue, st)
+		}
+		st.nextScalar()
+		return "N;", true
 	case *data.ClassValue:
+		if idx, seen := st.refOrMark(uintptr(unsafe.Pointer(val))); seen {
+			return fmt.Sprintf("r:%d;", idx), true
+		}
 		// 对应 PHP 中的对象序列化：O:<len>:"ClassName":<propCount>:{...}
 		className := val.Class.GetName()
 		classNameLen := len([]byte(className))
@@ -166,7 +211,7 @@ func phpSerializeValue(v data.Value, serializer *jsonser.JsonSerializer) (string
 			sb.WriteString(p.key)
 			sb.WriteString("\";")
 
-			valStr, ok := phpSerializeValue(p.val, serializer)
+			valStr, ok := phpSerializeValue(p.val, st)
 			if !ok {
 				return "", false
 			}
@@ -195,9 +240,7 @@ func (f *SerializeFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 		return data.NewBoolValue(false), nil
 	}
 
-	serializer := jsonser.NewJsonSerializer()
-
-	s, ok := phpSerializeValue(v, serializer)
+	s, ok := phpSerializeValue(v, newPhpSerState())
 	if !ok {
 		return data.NewBoolValue(false), nil
 	}

@@ -237,6 +237,11 @@ func kernelHandle(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, ctl
 	}
 
+	// 1.5) 常驻 Application 对齐 Octane：每请求重置 Livewire 前端资源标记。
+	// 否则 hasRenderedScripts 会跨请求残留，登录页第二次起不再输出 livewire.js，
+	// 表单退化成浏览器默认 GET。
+	flushLivewireState(ctx, s)
+
 	// 2) 绑定 request 到容器
 	_, ctl = callObjectMethodInContext(ctx, s.app, "instance", data.NewStringValue("request"), request)
 	if ctl != nil {
@@ -263,6 +268,29 @@ func kernelHandle(ctx data.Context) (data.GetValue, data.Control) {
 	dispatchRequestHandled(ctx, s, request, asValue(response))
 
 	return response, nil
+}
+
+func flushLivewireState(ctx data.Context, s *kernelState) {
+	if s == nil || s.app == nil {
+		return
+	}
+	bound, ctl := callObjectMethodInContext(ctx, s.app, "bound", data.NewStringValue("livewire"))
+	if ctl != nil || bound == nil {
+		return
+	}
+	if b, ok := bound.(data.AsBool); ok {
+		okv, err := b.AsBool()
+		if err != nil || !okv {
+			return
+		}
+	}
+	lw, ctl := callObjectMethodInContext(ctx, s.app, "make", data.NewStringValue("livewire"))
+	if ctl != nil || lw == nil {
+		return
+	}
+	if obj := asValue(lw); obj != nil {
+		_, _ = callObjectMethodInContext(ctx, obj, "flushState")
+	}
 }
 
 // dispatchRequestHandled 派发 Illuminate\Foundation\Http\Events\RequestHandled 事件，

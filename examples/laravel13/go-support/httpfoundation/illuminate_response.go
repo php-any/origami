@@ -215,13 +215,20 @@ func illuminateResponseSetContent(ctx data.Context) (data.GetValue, data.Control
 		return responseSelf(ctx), nil
 	}
 
-	if rendered, ok := tryRender(ctx, content); ok {
+	rendered, ok, ctl := tryRender(ctx, content)
+	if ctl != nil {
+		return nil, ctl
+	}
+	if ok {
 		responseSetProp(cv, "content", data.NewStringValue(rendered))
 		return responseSelf(ctx), nil
 	}
 
 	if _, isNull := content.(*data.NullValue); isNull {
 		responseSetProp(cv, "content", data.NewStringValue(""))
+	} else if _, isObj := content.(*data.ClassValue); isObj {
+		return nil, throwNamed("InvalidArgumentException",
+			"The Response content must be a string or object implementing __toString(), object given.")
 	} else {
 		responseSetProp(cv, "content", data.NewStringValue(content.AsString()))
 	}
@@ -240,6 +247,10 @@ func shouldBeJSON(content data.Value) bool {
 	}
 	cv, ok := content.(*data.ClassValue)
 	if !ok {
+		return false
+	}
+	if implementsOrExtends(cv, "Illuminate\\Contracts\\Support\\Renderable") ||
+		implementsOrExtends(cv, "Illuminate\\Contracts\\Support\\Htmlable") {
 		return false
 	}
 	name := cv.Class.GetName()
@@ -429,22 +440,65 @@ func phpValueToGo(v data.Value) any {
 	}
 }
 
-func tryRender(ctx data.Context, content data.Value) (string, bool) {
+func tryRender(ctx data.Context, content data.Value) (string, bool, data.Control) {
 	cv, ok := content.(*data.ClassValue)
 	if !ok {
-		return "", false
+		return "", false, nil
 	}
-	if !implementsOrExtends(cv, "Illuminate\\Contracts\\Support\\Renderable") {
-		// 也尝试直接有 render 方法
-		if _, has := cv.GetMethod("render"); !has {
-			return "", false
+
+	callStringMethod := func(name string) (string, bool, data.Control) {
+		if _, has := cv.GetMethod(name); !has {
+			return "", false, nil
 		}
+		ret, ctl := callObjMethod(cv, name)
+		if ctl != nil {
+			return "", false, ctl
+		}
+		s, ok := stringifyRenderedValue(ret)
+		return s, ok, nil
 	}
-	ret, ctl := callObjMethod(cv, "render")
-	if ctl != nil || ret == nil {
+
+	if implementsOrExtends(cv, "Illuminate\\Contracts\\Support\\Renderable") {
+		if s, ok, ctl := callStringMethod("render"); ctl != nil || ok {
+			return s, ok, ctl
+		}
+	} else if s, ok, ctl := callStringMethod("render"); ctl != nil || ok {
+		return s, ok, ctl
+	}
+
+	if implementsOrExtends(cv, "Illuminate\\Contracts\\Support\\Htmlable") {
+		if s, ok, ctl := callStringMethod("toHtml"); ctl != nil || ok {
+			return s, ok, ctl
+		}
+	} else if s, ok, ctl := callStringMethod("toHtml"); ctl != nil || ok {
+		return s, ok, ctl
+	}
+
+	if s, ok, ctl := callStringMethod("__toString"); ctl != nil || ok {
+		return s, ok, ctl
+	}
+
+	return "", false, nil
+}
+
+// stringifyRenderedValue 把 render()/toHtml() 的返回值转成响应正文。
+// ClassValue 不能走 AsString()：那是对象调试 dump，不是 HTML。
+func stringifyRenderedValue(ret data.GetValue) (string, bool) {
+	if ret == nil {
 		return "", false
 	}
-	return ret.(data.Value).AsString(), true
+	switch t := ret.(type) {
+	case *data.StringValue:
+		return t.Value, true
+	case *data.NullValue:
+		return "", true
+	case *data.ClassValue:
+		return "", false
+	case data.Value:
+		return t.AsString(), true
+	default:
+		return "", false
+	}
 }
 
 func illuminateResponseShouldBeJson(ctx data.Context) (data.GetValue, data.Control) {

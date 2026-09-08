@@ -212,6 +212,9 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if k.servePublicFile(w, r) {
 		return
 	}
+	if k.serveLivewireDist(w, r) {
+		return
+	}
 
 	requestCtx := k.base.CreateContext(nil)
 	request := httpfoundation.NewIlluminateRequestValue(requestCtx, r)
@@ -229,7 +232,9 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		control = nil
 	}
 	if control != nil {
-		k.parser.ShowControl(control)
+		if k.parser != nil {
+			k.parser.ShowControl(control)
+		}
 		http.Error(w, "Laravel request failed", http.StatusInternalServerError)
 	}
 }
@@ -261,7 +266,45 @@ func (k *laravelHTTPKernel) servePublicFile(w http.ResponseWriter, r *http.Reque
 	return true
 }
 
+// serveLivewireDist 把 /livewire-{hash}/livewire(.min).js 映射到 vendor 发行文件。
+// Livewire 4 默认走 hashed 路由 + BinaryFileResponse；直出 dist 可避免 file response 路径 500。
+func (k *laravelHTTPKernel) serveLivewireDist(w http.ResponseWriter, r *http.Request) bool {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return false
+	}
+	uri := path.Clean("/" + r.URL.Path)
+	dir, base := path.Dir(uri), path.Base(uri)
+	if !strings.HasPrefix(path.Base(dir), "livewire-") {
+		return false
+	}
+	switch base {
+	case "livewire.js", "livewire.min.js", "livewire.js.map", "livewire.min.js.map",
+		"livewire.csp.js", "livewire.csp.min.js", "livewire.csp.min.js.map",
+		"livewire.esm.js", "livewire.csp.esm.js":
+	default:
+		return false
+	}
+	root, err := os.Getwd()
+	if err != nil {
+		return false
+	}
+	full := filepath.Join(root, "vendor", "livewire", "livewire", "dist", base)
+	info, err := os.Stat(full)
+	if err != nil || info.IsDir() {
+		return false
+	}
+	http.ServeFile(w, r, full)
+	return true
+}
+
 func runLaravelHTTPServer(host string, port int, base *runtime.VM, app *data.ClassValue) error {
+	// 默认 VM 遇到 throw 会 os.Exit(1)。常驻 serve 下单请求失败不能把整个进程打死。
+	base.SetThrowControl(func(acl data.Control) {
+		if p := base.GetParser(); p != nil {
+			p.ShowControl(acl)
+		}
+	})
+
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	fmt.Printf("   INFO  Server running on [http://%s].\n\n", addr)
 	fmt.Println("  Press Ctrl+C to stop the server")

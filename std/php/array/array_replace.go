@@ -25,14 +25,15 @@ func (fn *ArrayReplaceFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 		return data.NewArrayValue([]data.Value{}), nil
 	}
 
-	result := shallowCopy(arrays[0])
+	result := shallowCopyPreserveKeys(arrays[0])
 	for _, arr := range arrays[1:] {
-		result = replaceRecursive(result, arr)
+		result = replaceByKeys(result, arr)
 	}
 	return result, nil
 }
 
-func replaceRecursive(base, other data.Value) data.Value {
+// replaceByKeys 按键替换（对齐 PHP array_replace），保留字符串键与稀疏整数键。
+func replaceByKeys(base, other data.Value) data.Value {
 	baseObj, bOk := base.(*data.ObjectValue)
 	otherObj, oOk := other.(*data.ObjectValue)
 	if bOk && oOk {
@@ -50,39 +51,43 @@ func replaceRecursive(base, other data.Value) data.Value {
 
 	baseArr, bOk := base.(*data.ArrayValue)
 	otherArr, oOk := other.(*data.ArrayValue)
-	if bOk && oOk {
-		bVals := baseArr.ToValueList()
-		oVals := otherArr.ToValueList()
-		result := make([]data.Value, len(bVals))
-		copy(result, bVals)
-		for i, v := range oVals {
-			if i < len(result) {
-				result[i] = v
-			} else {
-				result = append(result, v)
-			}
-		}
-		return data.NewArrayValue(result)
+	if !bOk || !oOk {
+		return other
 	}
 
-	return other
+	out := data.CloneArrayValue(baseArr)
+	for i, z := range otherArr.List {
+		if z == nil {
+			continue
+		}
+		key := z.Name
+		if key == "" {
+			key = data.IntArrayKeyName(i)
+		}
+		setArrayNamedValue(out, key, z.Value)
+	}
+	return out
 }
 
-func shallowCopy(v data.Value) data.Value {
+func setArrayNamedValue(arr *data.ArrayValue, key string, value data.Value) {
+	if existing, ok := arr.LookupZValByStringKey(key); ok && existing != nil {
+		existing.Value = value
+		return
+	}
+	arr.List = append(arr.List, data.NewNamedZVal(key, value))
+}
+
+func shallowCopyPreserveKeys(v data.Value) data.Value {
 	switch val := v.(type) {
 	case *data.ObjectValue:
 		out := data.NewObjectValue()
-		// 按插入顺序遍历，避免 Go map 顺序随机
 		val.RangeProperties(func(k string, prop data.Value) bool {
 			out.SetProperty(k, prop)
 			return true
 		})
 		return out
 	case *data.ArrayValue:
-		vals := val.ToValueList()
-		result := make([]data.Value, len(vals))
-		copy(result, vals)
-		return data.NewArrayValue(result)
+		return data.CloneArrayValue(val)
 	}
 	return v
 }

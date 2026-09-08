@@ -42,6 +42,14 @@ func unwrapValue(v data.GetValue) data.GetValue {
 		}
 	}
 
+	if zv, ok := v.(*data.ZValValue); ok {
+		if zv != nil && zv.ZVal != nil && zv.ZVal.Value != nil {
+			if val, ok := zv.ZVal.Value.(data.GetValue); ok {
+				return unwrapValue(val)
+			}
+		}
+	}
+
 	// 处理 ReferenceValue - 获取引用的实际值
 	if ref, ok := v.(*data.ReferenceValue); ok {
 		actualVal, _ := ref.Val.GetValue(ref.Ctx)

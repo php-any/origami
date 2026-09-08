@@ -14,8 +14,10 @@ var (
 	reEndfor     = regexp.MustCompile(`\bendfor\s*;`)
 	reEndswitch  = regexp.MustCompile(`\bendswitch\s*;`)
 	reElseColon  = regexp.MustCompile(`\belse\s*:`)
-	// Blade @end 指令（HTML 中未编译的）
-	reBladeEnd = regexp.MustCompile(`@end\w+`)
+	// Blade 编译后可能残留的 @endauth / @endguest 等（对应已编译的 if/endif）。
+	// 不能匹配 @endslot / @endcomponent / @endsection：那些必须留给 Blade 编译器。
+	// 否则会破坏 Livewire 页面组件 nowdoc 里的布局模板。
+	reBladeEnd = regexp.MustCompile(`@(?:endauth|endguest|endcan|endcannot|endenvironment|endenv|endproduction|endsession)\b`)
 
 	// 控制语句冒号形式（替代语法开始标记），如 if(...): / elseif(...): / foreach(...):
 	// 用于检测 Laravel Blade 编译产物中可能只含开始标记而没有 endif; 结束标记的情况。
@@ -173,19 +175,67 @@ func convertAltPHPSyntax(filename, content string) string {
 		result.WriteString("<?php")
 		pos += 5
 
-		// 找到关闭的 ?>
-		phpEnd := strings.Index(content[pos:], "?>")
+		// 找到关闭的 ?>（必须忽略字符串/注释中的 ?>，否则会把
+		// $s = '<?php endif; ?>' 拦腰切断，Livewire/Blade 编译器源码会被改坏）
+		phpEnd := indexOfPhpClose(content, pos)
 		if phpEnd == -1 {
 			result.WriteString(convertPHPBlock(content[pos:]))
 			break
 		}
 
-		result.WriteString(convertPHPBlock(content[pos : pos+phpEnd]))
+		result.WriteString(convertPHPBlock(content[pos:phpEnd]))
 		result.WriteString("?>")
-		pos += phpEnd + 2
+		pos = phpEnd + 2
 	}
 
 	return result.String()
+}
+
+// indexOfPhpClose 从 pos 起查找不在字符串/注释内的 ?> 。
+func indexOfPhpClose(content string, pos int) int {
+	i := pos
+	for i < len(content) {
+		if i+1 < len(content) && content[i] == '?' && content[i+1] == '>' {
+			return i
+		}
+		switch {
+		case content[i] == '\'' || content[i] == '"':
+			quote := content[i]
+			i++
+			for i < len(content) {
+				if content[i] == '\\' && i+1 < len(content) {
+					i += 2
+					continue
+				}
+				if content[i] == quote {
+					i++
+					break
+				}
+				i++
+			}
+		case i+1 < len(content) && content[i] == '/' && content[i+1] == '/':
+			i += 2
+			for i < len(content) && content[i] != '\n' {
+				i++
+			}
+		case i+1 < len(content) && content[i] == '/' && content[i+1] == '*':
+			i += 2
+			for i+1 < len(content) && !(content[i] == '*' && content[i+1] == '/') {
+				i++
+			}
+			if i+1 < len(content) {
+				i += 2
+			}
+		case content[i] == '#' && (i == pos || isLineStart(content[i-1])):
+			i++
+			for i < len(content) && content[i] != '\n' {
+				i++
+			}
+		default:
+			i++
+		}
+	}
+	return -1
 }
 
 // convertPHPBlock 转换单个 PHP 代码块中的替代语法。

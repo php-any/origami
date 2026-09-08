@@ -80,9 +80,9 @@ func hasStaticPropertySlot(class data.ClassStmt, name string) bool {
 
 // GetValue 获取 static::$prop 访问的值
 func (pe *CallStaticKeywordProperty) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 与 self:: 一样，必须在类上下文中使用
+	// 与 self:: 一样，必须在类上下文中使用（含 BoundContext 包裹）
 	var lateStaticClass data.ClassStmt
-	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
+	if classCtx := findClassMethodContext(ctx); classCtx != nil {
 		lateStaticClass = classCtx.Class
 		if classCtx.StaticClass != nil {
 			lateStaticClass = classCtx.StaticClass
@@ -112,9 +112,9 @@ func (pe *CallStaticKeywordProperty) GetValue(ctx data.Context) (data.GetValue, 
 
 // SetProperty 设置 static::$prop 的值
 func (pe *CallStaticKeywordProperty) SetProperty(ctx data.Context, name string, value data.Value) data.Control {
-	// 与 self:: 一样，必须在类上下文中使用
+	// 与 self:: 一样，必须在类上下文中使用（含 BoundContext 包裹）
 	var lateStaticClass data.ClassStmt
-	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
+	if classCtx := findClassMethodContext(ctx); classCtx != nil {
 		lateStaticClass = classCtx.Class
 		if classCtx.StaticClass != nil {
 			lateStaticClass = classCtx.StaticClass

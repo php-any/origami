@@ -177,8 +177,8 @@ assert(strpos($v, "<br />") !== false, "nl2br 应插入 <br />");
 Log::info("[PASS] nl2br 测试通过");
 
 // substr_compare
-$v = substr_compare("abcdef", "cde", 2);
-assert($v == 0, "substr_compare('abcdef', 'cde', 2) 应为 0");
+$v = substr_compare("abcdef", "cde", 2, 3);
+assert($v == 0, "substr_compare('abcdef', 'cde', 2, 3) 应为 0");
 Log::info("[PASS] substr_compare 测试通过");
 
 // htmlentities

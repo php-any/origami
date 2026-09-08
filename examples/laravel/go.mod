@@ -1,11 +1,11 @@
 module github.com/php-any/origami/examples/laravel
 
-go 1.25.0
+go 1.27.1
 
 require (
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/php-any/origami v0.0.0-00010101000000-000000000000
-	golang.org/x/crypto v0.41.0
+	golang.org/x/crypto v0.45.0
 	modernc.org/sqlite v1.50.1
 )
 

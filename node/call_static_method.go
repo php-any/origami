@@ -151,6 +151,22 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 					has = true
 				}
 			}
+		case *data.ClassValue:
+			// $instance::staticMethod()：后期静态绑定必须用实例的类，不能沿用调用方 ClassMethodContext。
+			// Livewire：$synth::getKey() 在 HandleSynths 内调用时 static::class 应为 Synth 子类。
+			callClass = expr.Class
+			if gsm, ok := expr.Class.(data.GetStaticMethod); ok {
+				method, has = gsm.GetStaticMethod(pe.Method)
+			}
+			if !has {
+				method, has = expr.GetMethod(pe.Method)
+			}
+			if has {
+				classStmt = findDeclaringClassForMethod(ctx.GetVM(), expr.Class, pe.Method)
+				if classStmt == nil {
+					classStmt = expr.Class
+				}
+			}
 		case data.GetStaticMethod:
 			// 先在当前类上查找静态方法
 			method, has = expr.GetStaticMethod(pe.Method)

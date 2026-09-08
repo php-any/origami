@@ -2,7 +2,6 @@ package php
 
 import (
 	"os"
-	"syscall"
 	"time"
 
 	"github.com/php-any/origami/data"
@@ -128,8 +127,8 @@ func (f *FileownerFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	if err != nil {
 		return data.NewBoolValue(false), nil
 	}
-	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
-		return data.NewIntValue(int(stat.Uid)), nil
+	if uid, ok := fileOwnerID(info); ok {
+		return data.NewIntValue(uid), nil
 	}
 	return data.NewBoolValue(false), nil
 }
@@ -157,8 +156,8 @@ func (f *FilegroupFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	if err != nil {
 		return data.NewBoolValue(false), nil
 	}
-	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
-		return data.NewIntValue(int(stat.Gid)), nil
+	if gid, ok := fileGroupID(info); ok {
+		return data.NewIntValue(gid), nil
 	}
 	return data.NewBoolValue(false), nil
 }

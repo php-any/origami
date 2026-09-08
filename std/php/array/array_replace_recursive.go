@@ -27,42 +27,30 @@ func (f *ArrayReplaceRecursiveFunction) Call(ctx data.Context) (data.GetValue, d
 		return data.NewArrayValue([]data.Value{}), nil
 	}
 
-	// 第一个数组是基础数组
-	base := paramsList[0]
-	replacements := paramsList[1:]
-
-	result := deepCopy(base)
-	for _, replacement := range replacements {
-		result = recursiveReplace(result, replacement)
+	result := deepCopyPreserveKeys(paramsList[0])
+	for _, replacement := range paramsList[1:] {
+		result = recursiveReplaceByKeys(result, replacement)
 	}
 
 	return result, nil
 }
 
-func recursiveReplace(base, replacement data.Value) data.Value {
+func recursiveReplaceByKeys(base, replacement data.Value) data.Value {
 	baseObj, baseIsObj := base.(*data.ObjectValue)
 	replObj, replIsObj := replacement.(*data.ObjectValue)
 
 	if baseIsObj && replIsObj {
 		result := data.NewObjectValue()
-		// 按插入顺序遍历，避免 Go map 顺序随机
 		baseObj.RangeProperties(func(key string, val data.Value) bool {
 			result.SetProperty(key, val)
 			return true
 		})
 		replObj.RangeProperties(func(key string, val data.Value) bool {
 			baseVal, _ := baseObj.GetProperty(key)
-			_, isNull := baseVal.(*data.NullValue)
-			if !isNull {
-				if _, isArr := baseVal.(*data.ArrayValue); isArr {
-					if _, isArr2 := val.(*data.ArrayValue); isArr2 {
-						result.SetProperty(key, recursiveReplace(baseVal, val))
-						return true
-					}
-				}
-				if _, isObj := baseVal.(*data.ObjectValue); isObj {
-					if _, isObj2 := val.(*data.ObjectValue); isObj2 {
-						result.SetProperty(key, recursiveReplace(baseVal, val))
+			if baseVal != nil {
+				if _, isNull := baseVal.(*data.NullValue); !isNull {
+					if bothArraysOrObjects(baseVal, val) {
+						result.SetProperty(key, recursiveReplaceByKeys(baseVal, val))
 						return true
 					}
 				}
@@ -76,40 +64,55 @@ func recursiveReplace(base, replacement data.Value) data.Value {
 	baseArr, baseIsArr := base.(*data.ArrayValue)
 	replArr, replIsArr := replacement.(*data.ArrayValue)
 	if baseIsArr && replIsArr {
-		baseVals := baseArr.ToValueList()
-		replVals := replArr.ToValueList()
-		result := make([]data.Value, len(baseVals))
-		copy(result, baseVals)
-		for i, val := range replVals {
-			if i < len(result) {
-				result[i] = recursiveReplace(result[i], val)
-			} else {
-				result = append(result, val)
+		out := data.CloneArrayValue(baseArr)
+		for i, z := range replArr.List {
+			if z == nil {
+				continue
 			}
+			key := z.Name
+			if key == "" {
+				key = data.IntArrayKeyName(i)
+			}
+			if existing, ok := out.LookupZValByStringKey(key); ok && existing != nil && bothArraysOrObjects(existing.Value, z.Value) {
+				existing.Value = recursiveReplaceByKeys(existing.Value, z.Value)
+				continue
+			}
+			setArrayNamedValue(out, key, z.Value)
 		}
-		return data.NewArrayValue(result)
+		return out
 	}
 
 	return replacement
 }
 
-func deepCopy(v data.Value) data.Value {
+func bothArraysOrObjects(a, b data.Value) bool {
+	_, aArr := a.(*data.ArrayValue)
+	_, bArr := b.(*data.ArrayValue)
+	if aArr && bArr {
+		return true
+	}
+	_, aObj := a.(*data.ObjectValue)
+	_, bObj := b.(*data.ObjectValue)
+	return aObj && bObj
+}
+
+func deepCopyPreserveKeys(v data.Value) data.Value {
 	switch val := v.(type) {
 	case *data.ObjectValue:
 		result := data.NewObjectValue()
-		// 按插入顺序遍历，避免 Go map 顺序随机
 		val.RangeProperties(func(key string, prop data.Value) bool {
-			result.SetProperty(key, deepCopy(prop))
+			result.SetProperty(key, deepCopyPreserveKeys(prop))
 			return true
 		})
 		return result
 	case *data.ArrayValue:
-		vals := val.ToValueList()
-		result := make([]data.Value, len(vals))
-		for i, item := range vals {
-			result[i] = deepCopy(item)
+		cloned := data.CloneArrayValue(val)
+		for _, z := range cloned.List {
+			if z != nil {
+				z.Value = deepCopyPreserveKeys(z.Value)
+			}
 		}
-		return data.NewArrayValue(result)
+		return cloned
 	default:
 		return v
 	}

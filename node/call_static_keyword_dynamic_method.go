@@ -22,10 +22,13 @@ func NewDynamicCallStaticKeywordMethod(from data.From, nameExpr data.GetValue) *
 }
 
 func (pe *CallStaticKeywordDynamicMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 与 static::method 一样，必须在类上下文中使用
+	// 与 static::method 一样，必须在类上下文中使用（含 BoundContext 包裹）
 	var currentClass data.ClassStmt
-	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
+	if classCtx := findClassMethodContext(ctx); classCtx != nil {
 		currentClass = classCtx.Class
+		if classCtx.StaticClass != nil {
+			currentClass = classCtx.StaticClass
+		}
 	} else if classVal, ok := ctx.(*data.ClassValue); ok {
 		currentClass = classVal.Class
 	} else {

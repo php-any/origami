@@ -6,7 +6,7 @@ import (
 	"github.com/php-any/origami/data"
 )
 
-// unescapeDoubleQuoted 按 PHP 双引号规则解析转义：\n \r \t \" \' \$ \\ \e \0-\377(八进制) \xHH(十六进制)
+// unescapeDoubleQuoted 按 PHP 双引号规则解析转义：\n \r \t \" \' \$ \\ \e \0-\377(八进制) \xHH(十六进制) \u{XXXX}(Unicode)
 func unescapeDoubleQuoted(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
@@ -78,8 +78,46 @@ func unescapeDoubleQuoted(s string) string {
 				}
 				k++
 			}
+			if k == 0 {
+				// 无效 \x：保留反斜杠，让后续字符原样输出
+				b.WriteByte('\\')
+				continue
+			}
 			b.WriteByte(byte(hex & 0xFF))
 			i = start + k - 1
+		case 'u', 'U':
+			// PHP 7+：\u{XXXX} Unicode 码点（Livewire Finder::ZAP = "\u{26A1}"）
+			if i+2 < len(s) && s[i+2] == '{' {
+				start := i + 3
+				end := start
+				for end < len(s) && s[end] != '}' {
+					end++
+				}
+				if end < len(s) && end > start {
+					code := 0
+					ok := true
+					for p := start; p < end; p++ {
+						c := s[p]
+						if c >= '0' && c <= '9' {
+							code = code*16 + int(c-'0')
+						} else if c >= 'a' && c <= 'f' {
+							code = code*16 + int(c-'a'+10)
+						} else if c >= 'A' && c <= 'F' {
+							code = code*16 + int(c-'A'+10)
+						} else {
+							ok = false
+							break
+						}
+					}
+					if ok && code >= 0 && code <= 0x10FFFF {
+						b.WriteRune(rune(code))
+						i = end // 主循环 i++ 后指向 '}' 之后
+						continue
+					}
+				}
+			}
+			// 无效 \u：保留反斜杠
+			b.WriteByte('\\')
 		default:
 			b.WriteByte('\\')
 		}

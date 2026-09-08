@@ -68,17 +68,25 @@ func (sp *StaticParser) Parse() (data.GetValue, data.Control) {
 		// static::xxx / static::$xxx
 		if sp.current().Type() != token.LPAREN {
 			isVariable := sp.current().Type() == token.VARIABLE
-			memberName := sp.current().Literal()
+			memberLiteral := sp.current().Literal()
 			sp.next()
 
-			// 如果是 VARIABLE，去掉 $ 前缀
+			memberName := memberLiteral
 			if isVariable && len(memberName) > 0 && memberName[0] == '$' {
 				memberName = memberName[1:]
 			}
 
 			if sp.checkPositionIs(0, token.LPAREN) {
-				// 静态方法调用：static::method()
 				vp := &VariableParser{sp.Parser}
+				if isVariable {
+					varInfo := sp.scopeManager.LookupVariable(memberLiteral)
+					if varInfo == nil {
+						varInfo = sp.scopeManager.CurrentScope().AddVariable(memberLiteral, nil, tokenFrom)
+					}
+					nameExpr := node.NewVariableWithFirst(tokenFrom, varInfo)
+					dyn := node.NewDynamicCallStaticKeywordMethod(tokenFrom, nameExpr)
+					return vp.parseSuffix(dyn)
+				}
 				expr := node.NewCallStaticKeywordMethod(tokenFrom, memberName)
 				return vp.parseSuffix(expr)
 			} else {
@@ -267,9 +275,12 @@ func (sp *StaticParser) parseStaticArrowFunction(tracker *PositionTracker) (data
 		}
 	}
 
+	from := tracker.EndBefore()
+	body = wrapArrowFunctionBody(from, body)
+
 	// 静态箭头函数创建为 Lambda 表达式（无绑定 $this）
 	fn := node.NewLambdaExpression(
-		tracker.EndBefore(),
+		from,
 		params,
 		body,
 		vars,

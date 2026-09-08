@@ -360,7 +360,17 @@ func (ep *LparenParser) parseParenthesizedExpression(tracking *PositionTracker) 
 			vp := &VariableParser{ep.Parser}
 			return vp.parseSuffix(expr)
 		}
-		return nil, data.NewErrorThrow(tracking.EndBefore(), fmt.Errorf("缺少右括号 ')'"))
+		got := ep.current().Literal()
+		if len(got) > 40 {
+			got = got[:40] + "..."
+		}
+		from := tracking.EndBefore()
+		where := ""
+		if from != nil {
+			line, col := from.GetStartPosition()
+			where = fmt.Sprintf(" at %s:%d:%d", from.GetSource(), line+1, col)
+		}
+		return nil, data.NewErrorThrow(from, fmt.Errorf("缺少右括号 ')' (got %q)%s", got, where))
 	}
 	ep.next() // 跳过右括号
 

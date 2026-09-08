@@ -36,7 +36,8 @@ func (s *IntValue) AsFloat() (float64, error) {
 }
 
 func (s *IntValue) AsBool() (bool, error) {
-	return s.Value > 0, nil
+	// PHP：任意非零整数（含负数）均为 true
+	return s.Value != 0, nil
 }
 
 func (s *IntValue) Marshal(serializer Serializer) ([]byte, error) {

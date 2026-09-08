@@ -44,7 +44,8 @@ func (s *FloatValue) AsFloat32() (float32, error) {
 }
 
 func (s *FloatValue) AsBool() (bool, error) {
-	return s.Value > 0, nil
+	// PHP：任意非零浮点（含负数）均为 true；仅 0.0 为 false
+	return s.Value != 0, nil
 }
 
 func (s *FloatValue) Marshal(serializer Serializer) ([]byte, error) {

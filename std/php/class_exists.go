@@ -63,3 +63,75 @@ func (f *ClassExistsFunction) GetVariables() []data.Variable {
 		node.NewVariable(nil, "autoload", 1, data.Bool{}),
 	}
 }
+
+// EnumExistsFunction 实现 enum_exists(string $enum, bool $autoload = true): bool
+type EnumExistsFunction struct{}
+
+func NewEnumExistsFunction() data.FuncStmt { return &EnumExistsFunction{} }
+
+func (f *EnumExistsFunction) GetName() string { return "enum_exists" }
+
+func (f *EnumExistsFunction) GetParams() []data.GetValue {
+	return []data.GetValue{
+		node.NewParameter(nil, "enum", 0, nil, data.String{}),
+		node.NewParameter(nil, "autoload", 1, data.NewBoolValue(true), data.Bool{}),
+	}
+}
+
+func (f *EnumExistsFunction) GetVariables() []data.Variable {
+	return []data.Variable{
+		node.NewVariable(nil, "enum", 0, data.String{}),
+		node.NewVariable(nil, "autoload", 1, data.Bool{}),
+	}
+}
+
+func (f *EnumExistsFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	name, _ := utils.ConvertFromIndex[string](ctx, 0)
+	autoload, _ := utils.ConvertFromIndex[bool](ctx, 1)
+	if name == "" {
+		return data.NewBoolValue(false), nil
+	}
+	vm := ctx.GetVM()
+	stmt, exist := vm.GetClass(name)
+	if !exist && autoload {
+		loaded, acl := vm.GetOrLoadClass(name)
+		if acl != nil || loaded == nil {
+			return data.NewBoolValue(false), nil
+		}
+		stmt = loaded
+		exist = true
+	}
+	if !exist || stmt == nil {
+		return data.NewBoolValue(false), nil
+	}
+	return data.NewBoolValue(classStmtIsEnum(vm, stmt)), nil
+}
+
+func classStmtIsEnum(vm data.VM, class data.ClassStmt) bool {
+	for class != nil {
+		for _, implemented := range class.GetImplements() {
+			base := implemented
+			if i := len(implemented) - 1; i >= 0 {
+				for i >= 0 && implemented[i] != '\\' {
+					i--
+				}
+				if i >= 0 {
+					base = implemented[i+1:]
+				}
+			}
+			if base == "UnitEnum" || base == "BackedEnum" {
+				return true
+			}
+		}
+		parent := class.GetExtend()
+		if parent == nil {
+			break
+		}
+		next, acl := vm.GetOrLoadClass(*parent)
+		if acl != nil || next == nil {
+			break
+		}
+		class = next
+	}
+	return false
+}

@@ -6,7 +6,7 @@
 
 ### 必需条件
 
-- **Go 1.18+** - 用于编译折言语言
+- **Go 1.27.1+** - 用于编译折言语言
 - **Git** - 用于克隆代码仓库
 - **操作系统**: Linux, macOS, Windows
 
@@ -24,8 +24,8 @@
 
 ```bash
 # 下载并安装 Go
-wget https://golang.org/dl/go1.21.0.linux-amd64.tar.gz
-sudo tar -C /usr/local -xzf go1.21.0.linux-amd64.tar.gz
+wget https://golang.org/dl/go1.27.1.linux-amd64.tar.gz
+sudo tar -C /usr/local -xzf go1.27.1.linux-amd64.tar.gz
 
 # 添加到 PATH
 echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
@@ -53,7 +53,7 @@ go version
 应该显示类似输出：
 
 ```
-go version go1.21.0 linux/amd64
+go version go1.27.1 linux/amd64
 ```
 
 ### 3. 克隆折言仓库

@@ -2,7 +2,6 @@ package php
 
 import (
 	"os"
-	"syscall"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -25,8 +24,8 @@ func (f *FileInodeFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	if err != nil {
 		return data.NewBoolValue(false), nil
 	}
-	if st, ok := fi.Sys().(*syscall.Stat_t); ok {
-		return data.NewIntValue(int(st.Ino)), nil
+	if ino, ok := fileInodeNumber(fi); ok {
+		return data.NewIntValue(ino), nil
 	}
 	// 非 Unix：用 ModTime 纳秒作弱替代，仅满足「有 inode 号」调用方
 	return data.NewIntValue(int(fi.ModTime().UnixNano())), nil
