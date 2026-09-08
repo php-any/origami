@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **语言偏好：所有对话使用中文回答。**
 
+代理必须遵守的项目目标与「禁止改 PHP 跳过错误」见仓库根目录 **[AGENTS.md](AGENTS.md)**。
+
 ## Build & Run
 
 ```bash
