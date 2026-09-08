@@ -12,9 +12,13 @@ import (
 func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Control) {
 	tracking := parser.StartTracking()
 
-	// 检查 readonly 关键字和访问修饰符（允许 private readonly 或 readonly private 顺序）
+	// PHP 8 构造器提升参数允许「注解」与「可见性/readonly」任意交错：
+	//   public $guard
+	//   #[\SensitiveParameter] public $credentials
+	//   public #[Attr] string $name
 	var paramModifier string
 	var isReadonly bool
+	var paramAnnotations []*node.Annotation
 	for {
 		if parser.checkPositionIs(0, token.READONLY) {
 			isReadonly = true
@@ -33,20 +37,18 @@ func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Co
 			parser.next()
 			continue
 		}
+		if parser.checkPositionIs(0, token.HASH, token.AT) {
+			cp := &ClassParser{Parser: parser, FunctionParserCommon: NewFunctionParserCommon(parser)}
+			ann, acl := cp.parseAnnotation()
+			if acl != nil {
+				return nil, nil, acl
+			}
+			if ann != nil {
+				paramAnnotations = append(paramAnnotations, ann)
+			}
+			continue
+		}
 		break
-	}
-
-	// 检查是否有属性注解（如 #[\SensitiveParameter]）
-	var paramAnnotations []*node.Annotation
-	for parser.checkPositionIs(0, token.HASH) {
-		cp := &ClassParser{Parser: parser, FunctionParserCommon: NewFunctionParserCommon(parser)}
-		ann, acl := cp.parseAnnotation()
-		if acl != nil {
-			return nil, nil, acl
-		}
-		if ann != nil {
-			paramAnnotations = append(paramAnnotations, ann)
-		}
 	}
 
 	varType := ""

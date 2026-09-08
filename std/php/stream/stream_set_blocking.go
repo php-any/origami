@@ -1,8 +1,6 @@
 package stream
 
 import (
-	"syscall"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/std/php/core"
@@ -54,7 +52,7 @@ func (f *StreamSetBlockingFunction) Call(ctx data.Context) (data.GetValue, data.
 		return data.NewBoolValue(false), nil
 	}
 
-	if err := syscall.SetNonblock(int(fd), !blocking); err != nil {
+	if err := setStreamNonblock(fd, !blocking); err != nil {
 		return data.NewBoolValue(false), nil
 	}
 	return data.NewBoolValue(true), nil

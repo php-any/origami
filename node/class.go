@@ -612,11 +612,10 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 
-	var v data.GetValue
 	var ctl data.Control
 	for bodyIndex := 0; bodyIndex < len(m.Body); bodyIndex++ {
 		statement := m.Body[bodyIndex]
-		v, ctl = statement.GetValue(ctx)
+		_, ctl = statement.GetValue(ctx)
 		if ctl != nil {
 			switch rv := ctl.(type) {
 			case data.ExitControl:
@@ -686,10 +685,8 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 
-	if v == nil {
-		return data.NewNullValue(), nil
-	}
-	return v, nil
+	// PHP：方法没有 return 时返回 null（Livewire ViewContext::extractFromEnvironment 依赖此语义）。
+	return data.NewNullValue(), nil
 }
 
 // 检查 source 是否实现了(继承了) target 类或接口

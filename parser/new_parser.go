@@ -50,32 +50,54 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 		return p.parseAnonymousClass(tracker)
 	}
 
-	// 检查是否是变量类名 new $variable()
-	var classNameExpr data.GetValue
+	// 检查是否是变量类名 new $variable() / new $arr['key']($a, $b)
 	if p.checkPositionIs(0, token.VARIABLE) {
-		// 解析变量表达式作为类名
 		vp := &VariableParser{p.Parser}
-		classNameExpr = vp.parseVariable()
+		var classNameExpr data.GetValue = vp.parseVariable()
+		var acl data.Control
 
-		// 解析参数列表
+		// 下标和 ->prop 属于类名表达式；其后的 (...) 才是构造参数。
+		// 不能走 parseSuffix：否则 new $meta['class']($a, $b) 会把 ($a, $b) 当成分组括号。
+		for {
+			if p.current().Type() == token.LBRACKET {
+				classNameExpr, acl = vp.parseArrayAccess(classNameExpr)
+				if acl != nil {
+					return nil, acl
+				}
+				continue
+			}
+			if p.current().Type() != token.OBJECT_OPERATOR {
+				break
+			}
+			p.next() // 跳过 ->
+			if !(p.checkPositionIs(0, token.IDENTIFIER, token.VARIABLE) ||
+				(p.current().Type() > token.KEYWORD_START && p.current().Type() < token.VALUE_START)) {
+				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("new $var-> 后面需要属性名"))
+			}
+			if p.current().Type() == token.VARIABLE {
+				nameExpr := vp.parseVariable()
+				classNameExpr = node.NewCallObjectDynamicProperty(tracker.EndBefore(), classNameExpr, nameExpr)
+				continue
+			}
+			prop := p.current().Literal()
+			p.next()
+			classNameExpr = node.NewObjectProperty(tracker.EndBefore(), classNameExpr, prop)
+		}
 		var args []data.GetValue
 		if p.checkPositionIs(0, token.LPAREN) {
-			var acl data.Control
 			args, acl = vp.parseFunctionCall()
 			if acl != nil {
 				return nil, acl
 			}
 		}
 
-		// 创建使用变量类名的 new 表达式
-		n := node.NewNewVariableExpression(
+		n := node.NewNewExpressionDynamic(
 			tracker.EndBefore(),
 			classNameExpr,
 			args,
 		)
 
 		if p.checkPositionIs(0, token.OBJECT_OPERATOR) {
-			// 解析链式调用
 			return vp.parseSuffix(n)
 		}
 

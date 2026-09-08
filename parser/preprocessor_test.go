@@ -36,6 +36,11 @@ func TestConvertAltPHPSyntax(t *testing.T) {
 			expected: "<?php return '<?php endif; ?>'; ?>",
 		},
 		{
+			name:     "livewire compiler tags inside strings",
+			input:    "<?php\n$open = '<?php if(\\Livewire\\Foo::bar()): ?>';\n$close = '<?php endif; ?>';\n",
+			expected: "<?php\n$open = '<?php if(\\Livewire\\Foo::bar()): ?>';\n$close = '<?php endif; ?>';\n",
+		},
+		{
 			name:     "else colon in string skipped",
 			input:    "<?php $x = 'else:'; echo $x; ?>",
 			expected: "<?php $x = 'else:'; echo $x; ?>",
@@ -149,6 +154,11 @@ func TestConvertAltPHPSyntax(t *testing.T) {
 			name:     "empty string not corrupt restore",
 			input:    "<?php $a = ''; if ($x): echo 'y'; endif; ?>",
 			expected: "<?php $a = ''; if ($x) { echo 'y'; } ?>",
+		},
+		{
+			name:     "livewire nowdoc keeps endslot and endcomponent",
+			input:    "<?php\nreturn Blade::render(<<<'HTML'\n                    <?php $layout->viewContext->mergeIntoNewEnvironment($__env); ?>\n\n                    @component($layout->view, $layout->params)\n                        @slot($layout->slotOrSection)\n                            {!! $content !!}\n                        @endslot\n                    @endcomponent\nHTML);\n",
+			expected: "<?php\nreturn Blade::render(<<<'HTML'\n                    <?php $layout->viewContext->mergeIntoNewEnvironment($__env); ?>\n\n                    @component($layout->view, $layout->params)\n                        @slot($layout->slotOrSection)\n                            {!! $content !!}\n                        @endslot\n                    @endcomponent\nHTML);\n",
 		},
 	}
 

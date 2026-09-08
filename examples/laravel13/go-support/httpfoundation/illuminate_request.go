@@ -382,6 +382,7 @@ func populateRequestFromHTTP(cv *data.ClassValue, r *http.Request) {
 	for key, values := range r.URL.Query() {
 		query[key] = stringsToValue(values)
 	}
+	_ = r.ParseForm()
 	_ = r.ParseMultipartForm(32 << 20)
 	form := map[string]data.Value{}
 	for key, values := range r.PostForm {
@@ -1339,11 +1340,14 @@ func requestContent(cv *data.ClassValue) string {
 	if value, _ := cv.GetProperty("content"); value != nil && !isNull(value) {
 		return value.AsString()
 	}
-	if r, ok := requestHTTPSource(cv); ok && r.Body != nil {
-		// Symfony's source helper is expected to cache content. Avoid consuming an
-		// uncached Go body here because doing so would alter subsequent readers.
-		if getter, ok := any(r.Body).(interface{ String() string }); ok {
-			return getter.String()
+	// Symfony Request::create 缓存 body 在 source.content
+	if class, ok := cv.Class.(*SymfonyRequestClass); ok && class.source != nil && class.source.content != "" {
+		return class.source.content
+	}
+	// Illuminate Request：与 getContent() 一致，从 http.Request Body 读取（可重复读）
+	if r, ok := requestHTTPSource(cv); ok && r != nil {
+		if content := bodyFromRequest(r); content != "" {
+			return content
 		}
 	}
 	return ""

@@ -123,7 +123,7 @@ func (vm *TempVM) LoadInCallerContext(parent data.Context, file string) (data.Ge
 	}
 
 	vars := p.GetVariables()
-	ctx := vm.CreateContext(vars)
+	ctx := inheritCallerScope(parent, vm.CreateContext(vars))
 
 	for _, variable := range vars {
 		name := variable.GetName()

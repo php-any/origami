@@ -85,7 +85,7 @@ func (fp *FnParser) Parse() (data.GetValue, data.Control) {
 	if acl != nil {
 		return nil, acl
 	}
-	body := []data.GetValue{bodyExpr}
+	body := wrapArrowFunctionBody(tracker.EndBefore(), []data.GetValue{bodyExpr})
 
 	vars := fp.scopeManager.CurrentScope().GetVariables()
 	// 弹出函数作用域
@@ -130,4 +130,15 @@ func isParameterName(params []data.GetValue, name string) bool {
 		}
 	}
 	return false
+}
+
+// wrapArrowFunctionBody 将 fn() => expr 包成 return，对齐 PHP 箭头函数的隐式返回。
+func wrapArrowFunctionBody(from *node.TokenFrom, body []data.GetValue) []data.GetValue {
+	if len(body) != 1 {
+		return body
+	}
+	if _, ok := body[0].(*node.ReturnStatement); ok {
+		return body
+	}
+	return []data.GetValue{node.NewReturnStatement(from, body[0])}
 }

@@ -405,10 +405,15 @@ func symfonyResponseConstruct(ctx data.Context) (data.GetValue, data.Control) {
 
 	if content == nil || func() bool { _, ok := content.(*data.NullValue); return ok }() {
 		responseSetProp(cv, "content", data.NewStringValue(""))
-	} else if rendered, ok := tryRender(ctx, content); ok {
+	} else if rendered, ok, ctl := tryRender(ctx, content); ctl != nil {
+		return nil, ctl
+	} else if ok {
 		// Laravel 的 View 等 Renderable 对象必须先执行 render()，
 		// 不能使用 ClassValue.AsString() 的对象调试文本。
 		responseSetProp(cv, "content", data.NewStringValue(rendered))
+	} else if _, isObj := content.(*data.ClassValue); isObj {
+		return nil, throwNamed("InvalidArgumentException",
+			"The Response content must be a string or object implementing __toString(), object given.")
 	} else {
 		responseSetProp(cv, "content", data.NewStringValue(content.AsString()))
 	}
@@ -610,8 +615,13 @@ func symfonyResponseSetContent(ctx data.Context) (data.GetValue, data.Control) {
 		responseSetProp(cv, "content", data.NewStringValue(""))
 	} else if _, ok := content.(*data.NullValue); ok {
 		responseSetProp(cv, "content", data.NewStringValue(""))
-	} else if rendered, ok := tryRender(ctx, content); ok {
+	} else if rendered, ok, ctl := tryRender(ctx, content); ctl != nil {
+		return nil, ctl
+	} else if ok {
 		responseSetProp(cv, "content", data.NewStringValue(rendered))
+	} else if _, isObj := content.(*data.ClassValue); isObj {
+		return nil, throwNamed("InvalidArgumentException",
+			"The Response content must be a string or object implementing __toString(), object given.")
 	} else {
 		responseSetProp(cv, "content", data.NewStringValue(content.AsString()))
 	}
@@ -767,17 +777,48 @@ func parseDateArg(v data.Value) (time.Time, bool) {
 	if _, ok := v.(*data.NullValue); ok {
 		return time.Time{}, false
 	}
-	if iv, ok := v.(data.AsInt); ok {
-		if n, err := iv.AsInt(); err == nil {
-			return time.Unix(int64(n), 0).UTC(), true
+	if iv, ok := v.(*data.IntValue); ok {
+		return time.Unix(int64(iv.Value), 0).UTC(), true
+	}
+	if cv, ok := v.(*data.ClassValue); ok {
+		if t, ok := timestampFromClass(cv); ok {
+			return t, true
+		}
+	}
+	if tv, ok := v.(*data.ThisValue); ok && tv != nil && tv.ClassValue != nil {
+		if t, ok := timestampFromClass(tv.ClassValue); ok {
+			return t, true
 		}
 	}
 	s := v.AsString()
 	if t, ok := respParseHTTPDate(s); ok {
 		return t, true
 	}
-	if n, err := strconv.ParseInt(strings.TrimSpace(s), 10, 64); err == nil {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return time.Time{}, false
+	}
+	for _, c := range s {
+		if c != '-' && (c < '0' || c > '9') {
+			return time.Time{}, false
+		}
+	}
+	if n, err := strconv.ParseInt(s, 10, 64); err == nil {
 		return time.Unix(n, 0).UTC(), true
+	}
+	return time.Time{}, false
+}
+
+func timestampFromClass(cv *data.ClassValue) (time.Time, bool) {
+	if cv == nil {
+		return time.Time{}, false
+	}
+	ts, ctl := cv.GetProperty("timestamp")
+	if ctl != nil || ts == nil {
+		return time.Time{}, false
+	}
+	if iv, ok := ts.(*data.IntValue); ok {
+		return time.Unix(int64(iv.Value), 0).UTC(), true
 	}
 	return time.Time{}, false
 }

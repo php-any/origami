@@ -33,27 +33,54 @@ func (m *ReflectionClassGetConstructorMethod) GetReturnType() data.Types {
 }
 
 // Call 执行 getConstructor 方法
-// 返回被反射类的构造函数
-// 如果类没有构造函数，返回 null
+// 返回被反射类的构造函数（含从父类继承的构造函数，对齐 PHP ReflectionClass::getConstructor）。
+// 如果类与祖先都没有构造函数，返回 null
 func (m *ReflectionClassGetConstructorMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	className, classStmt := getReflectionClassInfo(ctx)
 	if classStmt == nil {
 		return data.NewNullValue(), nil
 	}
 
-	// 获取构造函数
-	constructor := classStmt.GetConstruct()
+	constructor, declaringName, acl := findInheritedConstructor(ctx, classStmt, className)
+	if acl != nil {
+		return nil, acl
+	}
 	if constructor == nil {
 		return data.NewNullValue(), nil
 	}
 
-	// 创建 ReflectionMethod 实例
 	methodClass := &ReflectionMethodClass{}
 	methodValue := data.NewClassValue(methodClass, ctx.CreateBaseContext())
 
-	// 存储方法信息到实例属性中
-	methodValue.ObjectValue.SetProperty("_className", data.NewStringValue(className))
+	methodValue.ObjectValue.SetProperty("_className", data.NewStringValue(declaringName))
 	methodValue.ObjectValue.SetProperty("_methodName", data.NewStringValue(constructor.GetName()))
 
 	return methodValue, nil
+}
+
+// findInheritedConstructor 沿继承链查找 __construct（PHP：子类未声明则使用父类构造函数）。
+func findInheritedConstructor(ctx data.Context, classStmt data.ClassStmt, className string) (data.Method, string, data.Control) {
+	if ctor := classStmt.GetConstruct(); ctor != nil {
+		return ctor, className, nil
+	}
+	vm := ctx.GetVM()
+	if vm == nil {
+		return nil, "", nil
+	}
+	last := classStmt
+	for last.GetExtend() != nil {
+		ext := last.GetExtend()
+		next, acl := vm.GetOrLoadClass(*ext)
+		if acl != nil {
+			return nil, "", acl
+		}
+		if next == nil {
+			break
+		}
+		if ctor := next.GetConstruct(); ctor != nil {
+			return ctor, next.GetName(), nil
+		}
+		last = next
+	}
+	return nil, "", nil
 }

@@ -191,9 +191,11 @@ func (v *VariableReference) GetType() data.Types {
 
 func (v *VariableReference) SetValue(ctx data.Context, value data.Value) data.Control {
 	if v.Type != nil {
-		if !v.Type.Is(value) {
+		prepared, ok := data.PrepareTypedValue(v.Type, value)
+		if !ok {
 			return data.NewErrorThrow(v.from, errors.New("变量类型和赋值类型不一致, 变量类型("+v.Type.String()+"), 赋值("+value.AsString()+")"))
 		}
+		value = prepared
 	}
 
 	return ctx.SetVariableValue(v, value)

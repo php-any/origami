@@ -484,11 +484,14 @@ func (f *SubstrCompareFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 		return data.NewIntValue(-1), nil
 	}
 
-	length := len(haystack) - offset
+	// PHP：省略 length 时取 needle 与剩余 haystack 的较大值；显式 length 则双方都只比这么多字符。
+	length := len(needle)
+	if rest := len(haystack) - offset; rest > length {
+		length = rest
+	}
 	if lengthV != nil {
 		if _, isNull := lengthV.(*data.NullValue); isNull {
-			// 未指定 length 时，使用 needle 的长度
-			length = len(needle)
+			// 保持默认：max(needle, remaining)
 		} else if iv, ok := lengthV.(*data.IntValue); ok {
 			length = iv.Value
 		}
@@ -496,14 +499,19 @@ func (f *SubstrCompareFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 	if length < 0 {
 		length = len(haystack) + length - offset
 	}
-	if length > len(haystack)-offset {
-		length = len(haystack) - offset
-	}
 	if length < 0 {
 		length = 0
 	}
 
-	substr := haystack[offset : offset+length]
+	hayRest := haystack[offset:]
+	hayCmp := hayRest
+	if length < len(hayCmp) {
+		hayCmp = hayCmp[:length]
+	}
+	needleCmp := needle
+	if length < len(needleCmp) {
+		needleCmp = needleCmp[:length]
+	}
 
 	caseInsensitive := false
 	if caseInsensitiveV != nil {
@@ -513,9 +521,9 @@ func (f *SubstrCompareFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 	}
 
 	if caseInsensitive {
-		return data.NewIntValue(strings.Compare(strings.ToLower(substr), strings.ToLower(needle))), nil
+		return data.NewIntValue(strings.Compare(strings.ToLower(hayCmp), strings.ToLower(needleCmp))), nil
 	}
-	return data.NewIntValue(strings.Compare(substr, needle)), nil
+	return data.NewIntValue(strings.Compare(hayCmp, needleCmp)), nil
 }
 
 func (f *SubstrCompareFunction) GetName() string { return "substr_compare" }

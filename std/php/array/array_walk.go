@@ -17,52 +17,61 @@ func (fn *ArrayWalkFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		return data.NewBoolValue(false), nil
 	}
 
-	// 获取数组参数的 ZVal 引用以支持按引用修改
 	arrZVal := ctx.GetIndexZVal(0)
 	if arrZVal == nil {
 		return data.NewBoolValue(false), nil
 	}
 
-	// 获取用户数据（可选第3个参数）
 	userdata, _ := ctx.GetIndexValue(2)
 
-	var list []*data.ZVal
-	switch arr := arrZVal.Value.(type) {
-	case *data.ArrayValue:
-		list = arr.List
-	case *data.ObjectValue:
-		// ObjectValue 转成 ArrayValue 以便修改
-		return data.NewBoolValue(true), nil
-	default:
-		return data.NewBoolValue(false), nil
+	if ctl := walkFlat(ctx, cbVal, userdata, arrZVal.Value); ctl != nil {
+		return nil, ctl
 	}
+	return data.NewBoolValue(true), nil
+}
 
-	switch cb := cbVal.(type) {
-	case *data.FuncValue:
-		vars := cb.Value.GetVariables()
-		for i := range list {
-			fnCtx := ctx.CreateContext(vars)
-			if len(vars) > 0 {
-				fnCtx.SetVariableValue(data.NewVariable("", 0, nil), list[i].Value)
+func walkFlat(ctx data.Context, cbVal, userdata, val data.Value) data.Control {
+	switch arr := val.(type) {
+	case *data.ArrayValue:
+		for i, z := range arr.List {
+			if z == nil {
+				continue
 			}
-			if len(vars) > 1 {
-				// 第二个参数是 key（索引）
-				fnCtx.SetVariableValue(data.NewVariable("", 1, nil), data.NewIntValue(i))
+			key := data.NewIntValue(i)
+			if z.Name != "" {
+				if n, ok := data.ParseIntArrayKeyName(z.Name); ok {
+					key = data.NewIntValue(n)
+				} else {
+					key = data.NewStringValue(z.Name)
+				}
 			}
-			if len(vars) > 2 && userdata != nil {
-				fnCtx.SetVariableValue(data.NewVariable("", 2, nil), userdata)
-			}
-			ret, ctl := cb.Value.Call(fnCtx)
-			if ctl != nil {
-				return nil, ctl
-			}
-			if v, ok := ret.(data.Value); ok {
-				list[i].Value = v
+			if ctl := invokeWalkCallback(ctx, cbVal, z, key, userdata); ctl != nil {
+				return ctl
 			}
 		}
+		return nil
+	case *data.ObjectValue:
+		keys := make([]string, 0)
+		arr.RangeProperties(func(key string, _ data.Value) bool {
+			keys = append(keys, key)
+			return true
+		})
+		for _, key := range keys {
+			zv, ctl := arr.GetZVal(key)
+			if ctl != nil {
+				return ctl
+			}
+			if zv == nil {
+				continue
+			}
+			if ctl := invokeWalkCallback(ctx, cbVal, zv, data.NewStringValue(key), userdata); ctl != nil {
+				return ctl
+			}
+		}
+		return nil
+	default:
+		return nil
 	}
-
-	return data.NewBoolValue(true), nil
 }
 
 func (fn *ArrayWalkFunction) GetName() string {

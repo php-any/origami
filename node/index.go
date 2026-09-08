@@ -657,6 +657,7 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 		_, acl = NewBinaryAssign(ie.GetFrom(), ie.Array, newArr).GetValue(ctx)
 		return acl
 	case *data.ArrayValue:
+		arr = cowSeparateNestedArray(ie.Array, arr).(*data.ArrayValue)
 		// 数组索引赋值
 		if ie.Append {
 			arr.List = append(arr.List, data.NewZVal(value))
@@ -765,22 +766,43 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 		return data.NewErrorThrow(ie.GetFrom(), errors.New("ThisValue 索引必须是字符串"))
 
 	case data.SetProperty:
+		var objWrite data.Value
+		if ov, ok := arr.(*data.ObjectValue); ok {
+			ov = cowSeparateNestedArray(ie.Array, ov).(*data.ObjectValue)
+			arr = ov
+			objWrite = ov
+		}
 		// 对象属性赋值
 		if ie.Append {
-			return appendToSetProperty(arr, value)
+			if acl := appendToSetProperty(arr, value); acl != nil {
+				return acl
+			}
+			if objWrite != nil {
+				writeBackArrayProperty(ctx, ie.Array, objWrite)
+			}
+			return nil
 		}
 		if _, isNull := indexVal.(*data.NullValue); isNull {
 			emitNullOffsetDeprecation(ie.GetFrom())
 			arr.SetProperty("", value)
+			if objWrite != nil {
+				writeBackArrayProperty(ctx, ie.Array, objWrite)
+			}
 			return nil
 		}
 		if iv, ok := indexVal.(data.AsString); ok {
 			arr.SetProperty(iv.AsString(), value)
+			if objWrite != nil {
+				writeBackArrayProperty(ctx, ie.Array, objWrite)
+			}
 			return nil
 		} else if iv, ok := indexVal.(data.AsInt); ok {
 			// 整数索引转换为字符串
 			if i, err := iv.AsInt(); err == nil {
 				arr.SetProperty(fmt.Sprintf("%d", i), value)
+				if objWrite != nil {
+					writeBackArrayProperty(ctx, ie.Array, objWrite)
+				}
 				return nil
 			}
 		}
@@ -1301,6 +1323,7 @@ func arrayIntKeyValue(arr *data.ArrayValue, i int) (data.GetValue, bool) {
 }
 
 func indexSetValueOnContainer(ctx data.Context, ie *IndexExpression, container data.GetValue, indexVal data.GetValue, value data.Value) data.Control {
+	container = cowSeparateNestedArray(ie.Array, container)
 	switch arr := container.(type) {
 	case *data.ArrayValue:
 		if ie.Append {
@@ -1341,15 +1364,27 @@ func indexSetValueOnContainer(ctx data.Context, ie *IndexExpression, container d
 		}
 	case data.SetProperty:
 		if ie.Append {
-			return appendToSetProperty(arr, value)
+			if acl := appendToSetProperty(arr, value); acl != nil {
+				return acl
+			}
+			if ov, ok := arr.(*data.ObjectValue); ok {
+				writeBackArrayProperty(ctx, ie.Array, ov)
+			}
+			return nil
 		}
 		if iv, ok := indexVal.(data.AsString); ok {
 			arr.SetProperty(iv.AsString(), value)
+			if ov, ok := arr.(*data.ObjectValue); ok {
+				writeBackArrayProperty(ctx, ie.Array, ov)
+			}
 			return nil
 		}
 		if iv, ok := indexVal.(data.AsInt); ok {
 			if i, err := iv.AsInt(); err == nil {
 				arr.SetProperty(fmt.Sprintf("%d", i), value)
+				if ov, ok := arr.(*data.ObjectValue); ok {
+					writeBackArrayProperty(ctx, ie.Array, ov)
+				}
 				return nil
 			}
 		}

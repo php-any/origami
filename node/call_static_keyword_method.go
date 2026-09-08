@@ -59,9 +59,9 @@ func NewCallStaticKeywordMethod(from data.From, method string) *CallStaticKeywor
 
 // GetValue 获取 static::method() 调用的值
 func (pe *CallStaticKeywordMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 与 self:: 一样，必须在类上下文中使用
+	// 与 self:: 一样，必须在类上下文中使用（含 BoundContext 包裹的 ClassMethodContext）
 	var currentClass data.ClassStmt
-	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
+	if classCtx := findClassMethodContext(ctx); classCtx != nil {
 		currentClass = classCtx.Class
 		if classCtx.StaticClass != nil {
 			currentClass = classCtx.StaticClass

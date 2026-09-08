@@ -23,6 +23,7 @@ func NewObjectValue() *ObjectValue {
 // 与 PHP 数组按值拷贝语义对齐：
 //   - 嵌套的数组/关联数组按值拷贝（递归深拷贝）
 //   - 嵌套的对象（*ClassValue）保持引用共享
+//
 // 用于 PHP clone 对象时对数组/关联数组类型属性做拷贝。
 func DeepCloneObjectValue(src *ObjectValue) *ObjectValue {
 	if src == nil {
@@ -123,7 +124,12 @@ func (o *ObjectValue) AsString() string {
 }
 
 func (o *ObjectValue) AsBool() (bool, error) {
-	return true, nil
+	// ObjectValue 在 Origami 中表示关联数组；空数组在 PHP 中为 falsy。
+	// 真正的对象实例是 *ClassValue，不走此路径。
+	if o == nil || o.property == nil {
+		return false, nil
+	}
+	return o.property.Len() > 0, nil
 }
 
 func (o *ObjectValue) GetProperty(name string) (Value, Control) {

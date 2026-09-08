@@ -1,6 +1,6 @@
 module github.com/php-any/origami-fyne
 
-go 1.25.0
+go 1.27.1
 
 require (
 	fyne.io/fyne/v2 v2.5.5

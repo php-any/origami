@@ -679,7 +679,7 @@ func (vm *VM) LoadInCallerContext(parent data.Context, file string) (data.GetVal
 		return nil, acl
 	}
 
-	ctx := vm.CreateContext(vars)
+	ctx := inheritCallerScope(parent, vm.CreateContext(vars))
 
 	for _, variable := range vars {
 		name := variable.GetName()
@@ -699,6 +699,34 @@ func (vm *VM) LoadInCallerContext(parent data.Context, file string) (data.GetVal
 
 	result, ctrl := program.GetValue(ctx)
 	return result, ctrl
+}
+
+// inheritCallerScope 让 include/require 的独立文件作用域仍能看到调用方的 $this。
+// PHP：方法内 include 可使用 $this；Closure::bind($fn, $obj)() 内 include 同样绑定 $this。
+// Livewire ExtendedCompilerEngine 正是靠 Closure::bind(..., $component) + include 渲染模板。
+func inheritCallerScope(parent, ctx data.Context) data.Context {
+	if parent == nil || ctx == nil {
+		return ctx
+	}
+	if bc := data.FindBoundContext(parent); bc != nil {
+		ctx = &data.BoundContext{
+			Context:    ctx,
+			ScopeClass: bc.ScopeClass,
+			BoundThis:  bc.BoundThis,
+		}
+	}
+	if classCtx, ok := parent.(*data.ClassMethodContext); ok && classCtx.ClassValue != nil {
+		ctx = &data.ClassMethodContext{
+			ClassValue: &data.ClassValue{
+				ObjectValue: classCtx.ObjectValue,
+				Class:       classCtx.Class,
+				Context:     ctx,
+			},
+			StaticClass: classCtx.StaticClass,
+			SelfClass:   classCtx.SelfClass,
+		}
+	}
+	return ctx
 }
 
 // bindIncludedVarToGlobal 将被引入文件的变量槽与 $GLOBALS 对齐。

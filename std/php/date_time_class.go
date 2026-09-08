@@ -3,6 +3,7 @@ package php
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -86,15 +87,63 @@ func (c *DateTimeClass) GetMethods() []data.Method {
 	}
 }
 
+// timeFromTimestampValue 把 DateTime 内部 timestamp 属性转成 UTC 时间。
+func timeFromTimestampValue(t data.Value) (time.Time, bool) {
+	if t == nil {
+		return time.Time{}, false
+	}
+	switch v := t.(type) {
+	case *data.IntValue:
+		return time.Unix(int64(v.Value), 0).UTC(), true
+	case *data.FloatValue:
+		sec, frac := math.Modf(v.Value)
+		return time.Unix(int64(sec), int64(frac*1e9)).UTC(), true
+	}
+	if ai, ok := t.(data.AsInt); ok {
+		n, err := ai.AsInt()
+		if err == nil {
+			return time.Unix(int64(n), 0).UTC(), true
+		}
+	}
+	return time.Time{}, false
+}
+
+// dateTimeFromValue 从 DateTime / DateTimeImmutable / Carbon 对象取出时间。
+func dateTimeFromValue(v data.Value) (time.Time, bool) {
+	cv, ok := toClassValue(v)
+	if !ok || cv == nil {
+		return time.Time{}, false
+	}
+	if ts, ctl := cv.GetProperty("timestamp"); ctl == nil && ts != nil {
+		if t, ok := timeFromTimestampValue(ts); ok {
+			return t, true
+		}
+	}
+	if m, ok := cv.GetMethod("getTimestamp"); ok {
+		callCtx := cv.CreateContext(m.GetVariables())
+		result, ctl := m.Call(callCtx)
+		if ctl == nil && result != nil {
+			if val, ok := result.(data.Value); ok {
+				if t, ok := timeFromTimestampValue(val); ok {
+					return t, true
+				}
+			}
+		}
+	}
+	return time.Time{}, false
+}
+
 // 从 context 获取 ClassValue 并提取时间戳
 func getDateTime(ctx data.Context) (time.Time, data.Control) {
 	if cmc, ok := ctx.(*data.ClassMethodContext); ok {
 		t, ctl := cmc.ObjectValue.GetProperty("timestamp")
 		if ctl == nil && t != nil {
-			ts, ok := t.(*data.IntValue)
-			if ok {
-				return time.Unix(int64(ts.Value), 0).UTC(), nil
+			if ts, ok := timeFromTimestampValue(t); ok {
+				return ts, nil
 			}
+		}
+		if dt, ok := dateTimeFromValue(cmc.ClassValue); ok {
+			return dt, nil
 		}
 	}
 	return time.Unix(0, 0).UTC(), nil
@@ -138,6 +187,25 @@ func dateIntervalIntProp(interval *data.ClassValue, name string) int {
 	return 0
 }
 
+// dateIntervalFloatProp 读取 DateInterval::$f（秒的小数部分）。
+func dateIntervalFloatProp(interval *data.ClassValue, name string) float64 {
+	v, ctl := interval.GetProperty(name)
+	if ctl != nil || v == nil {
+		return 0
+	}
+	if fv, ok := v.(*data.FloatValue); ok {
+		return fv.Value
+	}
+	if ff, ok := v.(data.AsFloat); ok {
+		n, err := ff.AsFloat()
+		if err != nil {
+			return 0
+		}
+		return n
+	}
+	return float64(dateIntervalIntProp(interval, name))
+}
+
 // applyDateInterval 把 DateInterval 分量应用到时间 t 上。negate=true 表示减法。
 func applyDateInterval(t time.Time, interval *data.ClassValue, negate bool) time.Time {
 	y := dateIntervalIntProp(interval, "y")
@@ -155,8 +223,58 @@ func applyDateInterval(t time.Time, interval *data.ClassValue, negate bool) time
 		sign = -sign
 	}
 	t = t.AddDate(sign*y, sign*m, sign*d)
-	t = t.Add(time.Duration(sign)*(time.Duration(h)*time.Hour + time.Duration(i)*time.Minute + time.Duration(s)*time.Second))
+	t = t.Add(time.Duration(sign) * (time.Duration(h)*time.Hour + time.Duration(i)*time.Minute + time.Duration(s)*time.Second))
+	if f := dateIntervalFloatProp(interval, "f"); f != 0 {
+		t = t.Add(time.Duration(float64(sign) * f * float64(time.Second)))
+	}
 	return t
+}
+
+// calendarDateDiff 对齐 PHP DateTime::diff 的日历进位（y/m/d/h/i/s/f/invert/days）。
+func calendarDateDiff(from, to time.Time, absolute bool) (y, m, d, h, i, s int, f float64, invert int, days int) {
+	if to.Before(from) {
+		if !absolute {
+			invert = 1
+		}
+		from, to = to, from
+	}
+	if dur := to.Sub(from); dur > 0 {
+		days = int(dur / (24 * time.Hour))
+	}
+	y = to.Year() - from.Year()
+	m = int(to.Month()) - int(from.Month())
+	d = to.Day() - from.Day()
+	h = to.Hour() - from.Hour()
+	i = to.Minute() - from.Minute()
+	s = to.Second() - from.Second()
+	nsec := to.Nanosecond() - from.Nanosecond()
+	if nsec < 0 {
+		s--
+		nsec += 1e9
+	}
+	f = float64(nsec) / 1e9
+	if s < 0 {
+		i--
+		s += 60
+	}
+	if i < 0 {
+		h--
+		i += 60
+	}
+	if h < 0 {
+		d--
+		h += 24
+	}
+	if d < 0 {
+		prev := time.Date(to.Year(), to.Month(), 0, 0, 0, 0, 0, to.Location())
+		d += prev.Day()
+		m--
+	}
+	if m < 0 {
+		y--
+		m += 12
+	}
+	return
 }
 
 // ---- __construct ----
@@ -511,9 +629,29 @@ func (m *DateTimeSubMethod) GetVariables() []data.Variable {
 type DateTimeDiffMethod struct{}
 
 func (m *DateTimeDiffMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 返回一个 DateInterval 存根
-	return data.NewObjectValue(), nil
+	from, ctl := getDateTime(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	targetV, _ := ctx.GetIndexValue(0)
+	to, ok := dateTimeFromValue(targetV)
+	if !ok {
+		return nil, utils.NewThrow(fmt.Errorf("DateTime::diff(): Argument #1 ($targetObject) must be of type DateTimeInterface"))
+	}
+	absolute := false
+	if absV, ok := ctx.GetIndexValue(1); ok && absV != nil {
+		if b, ok := absV.(data.AsBool); ok {
+			if bv, err := b.AsBool(); err == nil {
+				absolute = bv
+			}
+		}
+	}
+	y, mo, d, h, i, s, f, invert, _ := calendarDateDiff(from, to, absolute)
+	// days 保持 false：CarbonInterval::instance 在 PHP 8.2+ 会对 days!==false 走 serialize 复制，
+	// Origami 尚不能正确 unserialize DateInterval，会把登录页打成 500。
+	return newDateIntervalValue(ctx, y, mo, d, h, i, s, f, invert, false)
 }
+
 func (m *DateTimeDiffMethod) GetName() string            { return "diff" }
 func (m *DateTimeDiffMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DateTimeDiffMethod) GetIsStatic() bool          { return false }
@@ -569,17 +707,19 @@ func (m *DateTimeCreateFromFormatMethod) Call(ctx data.Context) (data.GetValue, 
 	}
 	format := formatV.AsString()
 	datetimeStr := datetimeV.AsString()
-	t, err := time.Parse(format, datetimeStr)
+	t, err := parsePHPCreateFromFormat(format, datetimeStr)
 	if err != nil {
-		// 尝试用 gmdate 的格式解析
-		t, err = convertDateFormat(format, datetimeStr)
-		if err != nil {
-			return data.NewBoolValue(false), nil
+		return data.NewBoolValue(false), nil
+	}
+	stmt := data.ClassStmt(NewDateTimeClass())
+	if cmc, ok := ctx.(*data.ClassMethodContext); ok {
+		if cmc.StaticClass != nil {
+			stmt = cmc.StaticClass
+		} else if cmc.Class != nil {
+			stmt = cmc.Class
 		}
 	}
-	// 创建 DateTime 对象并设置时间戳
-	dtClass := NewDateTimeClass()
-	cv := data.NewClassValue(dtClass, ctx.CreateBaseContext())
+	cv := data.NewClassValue(stmt, ctx.CreateBaseContext())
 	cv.ObjectValue.SetProperty("timestamp", data.NewIntValue(int(t.Unix())))
 	return cv, nil
 }
@@ -622,8 +762,13 @@ func (m *DateTimeToStringMethod) GetVariables() []data.Variable { return []data.
 type DateTimeGetLastErrorsMethod struct{}
 
 func (m *DateTimeGetLastErrorsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 返回空数组，此解释器不跟踪日期解析错误
-	return data.NewArrayValue([]data.Value{}), nil
+	// PHP：array{warning_count, warnings, error_count, errors}；Carbon 会读 $lastErrors['errors']。
+	return &data.ArrayValue{List: []*data.ZVal{
+		data.NewNamedZVal("warning_count", data.NewIntValue(0)),
+		data.NewNamedZVal("warnings", data.NewArrayValue(nil)),
+		data.NewNamedZVal("error_count", data.NewIntValue(0)),
+		data.NewNamedZVal("errors", data.NewArrayValue(nil)),
+	}}, nil
 }
 func (m *DateTimeGetLastErrorsMethod) GetName() string            { return "getLastErrors" }
 func (m *DateTimeGetLastErrorsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
@@ -635,6 +780,35 @@ func (m *DateTimeGetLastErrorsMethod) GetParams() []data.GetValue    { return []
 func (m *DateTimeGetLastErrorsMethod) GetVariables() []data.Variable { return []data.Variable{} }
 
 // convertDateFormat 简单的时间格式转换
+func parsePHPCreateFromFormat(format, str string) (time.Time, error) {
+	if t, err := time.Parse(format, str); err == nil {
+		return t, nil
+	}
+	if format == "U" || format == "U.u" {
+		parts := strings.SplitN(str, ".", 2)
+		sec, err := strconv.ParseInt(parts[0], 10, 64)
+		if err != nil {
+			return time.Time{}, err
+		}
+		nsec := int64(0)
+		if len(parts) == 2 && parts[1] != "" {
+			frac := parts[1]
+			for len(frac) < 6 {
+				frac += "0"
+			}
+			if len(frac) > 6 {
+				frac = frac[:6]
+			}
+			us, err := strconv.ParseInt(frac, 10, 64)
+			if err == nil {
+				nsec = us * 1000
+			}
+		}
+		return time.Unix(sec, nsec).UTC(), nil
+	}
+	return convertDateFormat(format, str)
+}
+
 func convertDateFormat(format, str string) (time.Time, error) {
 	goFormat := ""
 	for i := 0; i < len(format); i++ {
@@ -652,8 +826,19 @@ func convertDateFormat(format, str string) (time.Time, error) {
 			goFormat += "04"
 		case 's':
 			goFormat += "05"
+		case 'u':
+			goFormat += "000000"
+		case 'v':
+			goFormat += "000"
+		case 'P':
+			goFormat += "Z07:00"
 		case '!':
 			// 重置字段
+		case '\\':
+			if i+1 < len(format) {
+				i++
+				goFormat += string(format[i])
+			}
 		default:
 			goFormat += string(c)
 		}

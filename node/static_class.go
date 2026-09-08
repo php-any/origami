@@ -22,9 +22,9 @@ func NewStaticClass(from data.From) *StaticClass {
 
 // GetValue 获取 static::class 的值（当前类的类名，或实际调用时的类名）
 func (s *StaticClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 检查是否在类上下文中（类方法或类级初始化器）
+	// 检查是否在类上下文中（类方法或类级初始化器；含 BoundContext 包裹）
 	var currentClass data.ClassStmt
-	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
+	if classCtx := findClassMethodContext(ctx); classCtx != nil {
 		if classCtx.StaticClass != nil {
 			currentClass = classCtx.StaticClass
 		} else {

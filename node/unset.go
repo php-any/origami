@@ -71,6 +71,7 @@ func (u *UnsetStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 			if _, isNull := indexValue.(*data.NullValue); isNull {
 				indexValue = data.NewStringValue("")
 			}
+			arrayValue = cowSeparateNestedArray(indexExpr.Array, arrayValue)
 			switch arr := arrayValue.(type) {
 			case *data.ArrayValue:
 				if iv, ok := indexValue.(data.Value); ok {
@@ -85,6 +86,7 @@ func (u *UnsetStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 						arr.UnsetProperty(fmt.Sprintf("%d", i))
 					}
 				}
+				writeBackArrayProperty(ctx, indexExpr.Array, arr)
 			case *data.ClassValue:
 				if iv, ok := indexValue.(data.Value); ok && CheckArrayAccess(ctx, arr.Class) {
 					if ctl := CallArrayAccessOffsetUnset(ctx, arr, iv); ctl != nil {
@@ -110,7 +112,7 @@ func (u *UnsetStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 	return data.NewNullValue(), nil
 }
 
-func writeBackArrayProperty(ctx data.Context, arrayExpr data.GetValue, arr *data.ArrayValue) {
+func writeBackArrayProperty(ctx data.Context, arrayExpr data.GetValue, arr data.Value) {
 	switch a := arrayExpr.(type) {
 	case *CallObjectProperty:
 		obj, acl := a.Object.GetValue(ctx)
@@ -133,5 +135,22 @@ func writeBackArrayProperty(ctx data.Context, arrayExpr data.GetValue, arr *data
 			return
 		}
 		_ = indexSetValueOnContainer(ctx, a, parentVal, indexVal, arr)
+	}
+}
+
+// cowSeparateNestedArray 在 $a[$k][$sub] 这类嵌套写入前分离内层数组。
+// 赋值/传参只浅拷贝外层，内层仍共享；不分离的话 unset($snapshot['memo']['children'])
+// 会改到调用方（Livewire Checksum::generate）。只在嵌套索引上克隆，不碰 Call 热路径。
+func cowSeparateNestedArray(arrayExpr data.GetValue, container data.GetValue) data.GetValue {
+	if _, ok := arrayExpr.(*IndexExpression); !ok {
+		return container
+	}
+	switch v := container.(type) {
+	case *data.ArrayValue:
+		return data.CloneArrayValue(v)
+	case *data.ObjectValue:
+		return data.CloneObjectValue(v)
+	default:
+		return container
 	}
 }

@@ -562,6 +562,10 @@ func findClassMethodContext(ctx data.Context) *data.ClassMethodContext {
 		switch v := c.(type) {
 		case *data.ClassMethodContext:
 			return v
+		case *data.BoundContext:
+			// Closure::bind 会包一层 BoundContext，其内仍可能是 ClassMethodContext
+			c = v.Context
+			continue
 		case *data.ClassValue:
 			if v.Context != nil {
 				c = v.Context

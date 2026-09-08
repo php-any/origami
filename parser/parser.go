@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/php-any/origami/data"
@@ -103,24 +104,7 @@ func (p *Parser) ParseFile(filename string) (*node.Program, data.Control) {
 	p.reset()
 
 	p.source = &filename
-	// 进行分词
-	ext := len(filename)
-	if ext > 4 && filename[ext-4:] == ".php" {
-		phpContent := string(content)
-		// 与 PHP 行为一致：解析前去掉 shebang，避免将 #!/usr/bin/env php 当作文本输出
-		if len(phpContent) >= 2 && phpContent[0] == '#' && phpContent[1] == '!' {
-			if nl := strings.Index(phpContent, "\n"); nl != -1 {
-				phpContent = phpContent[nl+1:]
-			} else {
-				phpContent = ""
-			}
-		}
-		// 转换 PHP 替代语法（if: endif; 等）为标准花括号语法
-		phpContent = convertAltPHPSyntax(filename, phpContent)
-		p.tokens = p.lexer.TokenizeTemplate(phpContent)
-	} else {
-		p.tokens = p.lexer.Tokenize(string(content))
-	}
+	p.tokens = tokenizeFileContent(p.lexer, filename, content)
 
 	// 解析程序
 	program, acl := p.parseProgram(make([]data.GetValue, 0))
@@ -129,6 +113,31 @@ func (p *Parser) ParseFile(filename string) (*node.Program, data.Control) {
 	}
 
 	return program, nil
+}
+
+// tokenizeFileContent 按扩展名选择分词方式。
+// PHP include 对任意文件都从 HTML 模式开始，直到遇到 <?php / <?=；
+// 无 PHP 标签的资源（如 Symfony 异常页的 .base64/.css/.svg）必须原样输出，
+// 不能按纯 PHP 解析。Origami 的 .zy / .html 模板仍走 Tokenize。
+func tokenizeFileContent(lx *lexer.Lexer, filename string, content []byte) []lexer.Token {
+	phpContent := string(content)
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".php":
+		if len(phpContent) >= 2 && phpContent[0] == '#' && phpContent[1] == '!' {
+			if nl := strings.Index(phpContent, "\n"); nl != -1 {
+				phpContent = phpContent[nl+1:]
+			} else {
+				phpContent = ""
+			}
+		}
+		phpContent = convertAltPHPSyntax(filename, phpContent)
+		return lx.TokenizeTemplate(phpContent)
+	case ".zy", ".html", ".htm":
+		return lx.Tokenize(phpContent)
+	default:
+		return lx.TokenizeTemplate(phpContent)
+	}
 }
 
 // parseProgram 解析程序
@@ -520,22 +529,31 @@ func (p *Parser) parseBlock() ([]data.GetValue, data.Control) {
 
 	// 解析语句块中的所有语句
 	for !p.isEOF() && p.current().Type() != token.RBRACE {
+		startPos := p.position
 		stmt, acl := p.parseStatement()
 		if acl != nil {
 			return nil, acl
 		}
-		for p.checkPositionIs(0, token.SEMICOLON) {
+		for p.checkPositionIs(0, token.SEMICOLON, token.NEWLINE, token.END_TAG) {
 			p.next()
 		}
 		if stmt != nil {
 			statements = append(statements, stmt)
-		} else if p.current().Type() == token.START_TAG || p.current().Type() == token.HTML_TAG || p.current().Type() == token.EOF || p.current().Type() == token.RBRACE {
-			// nil 语句是 START_TAG 被消费后的正常返回（如 <?php 标签起始），
-			// 或已达到文件末尾 / 块结束。跳过继续解析。
 			continue
-		} else {
-			return statements, data.NewErrorThrow(p.newFrom(), errors.New("语法块无法识别"))
 		}
+		// START_TAG（<?php）被消费后 current 是下一条语句（echo/if/赋值等）。
+		// Blade 编译产物会在 { } 内插入 <?php echo ... ?>，必须继续解析而不是报错。
+		if p.position != startPos {
+			continue
+		}
+		switch p.current().Type() {
+		case token.START_TAG, token.END_TAG, token.NEWLINE, token.SEMICOLON:
+			p.next()
+			continue
+		case token.HTML_TAG, token.EOF:
+			continue
+		}
+		return statements, data.NewErrorThrow(p.newFrom(), fmt.Errorf("语法块无法识别: token=%v %q", p.current().Type(), p.current().Literal()))
 	}
 
 	// 跳过右花括号
@@ -668,11 +686,13 @@ func (p *Parser) findFullFunNameByNamespace(name string) (string, bool) {
 	if p.namespace != nil && !strings.Contains(searchName, "\\") {
 		tryName = p.namespace.GetName() + "\\" + searchName
 	}
-	if stmt, ok := p.vm.GetFunc(tryName); ok {
-		return stmt.GetName(), true
-	}
-	if stmt, ok := p.vm.GetFunc(searchName); ok {
-		return stmt.GetName(), true
+	if p.vm != nil {
+		if stmt, ok := p.vm.GetFunc(tryName); ok {
+			return stmt.GetName(), true
+		}
+		if stmt, ok := p.vm.GetFunc(searchName); ok {
+			return stmt.GetName(), true
+		}
 	}
 
 	return "", false

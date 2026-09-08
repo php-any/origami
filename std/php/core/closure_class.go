@@ -52,8 +52,8 @@ func (c *ClosureClass) GetStaticMethod(name string) (data.Method, bool) {
 // GetConstruct 无构造函数
 func (c *ClosureClass) GetConstruct() data.Method { return nil }
 
-// ClosureBindMethod 实现 Closure::bind
-// 当前简化实现：返回原始闭包，不改变绑定对象/作用域
+// ClosureBindMethod 实现 Closure::bind($closure, $newThis, $newScope = "static")
+// $newThis / $newScope 均可为对象（取其类名作为作用域），对齐 PHP 签名 object|string|null。
 type ClosureBindMethod struct{}
 
 func (m *ClosureBindMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -81,13 +81,26 @@ func (m *ClosureBindMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 		// $this 为 null（静态绑定），仅改变作用域
 	}
 
+	scopeClassFrom := func(v data.Value) string {
+		switch s := v.(type) {
+		case *data.StringValue:
+			return s.Value
+		case *data.ClassValue:
+			if s.Class != nil {
+				return s.Class.GetName()
+			}
+		case *data.ThisValue:
+			if s.Class != nil {
+				return s.Class.GetName()
+			}
+		}
+		return ""
+	}
+
 	// 仅接受可调用类型
 	switch fv := closureVal.(type) {
 	case *data.FuncValue:
-		scopeClass := ""
-		if scopeStr, ok := newScope.(*data.StringValue); ok && scopeStr.Value != "" {
-			scopeClass = scopeStr.Value
-		}
+		scopeClass := scopeClassFrom(newScope)
 		// 即使 scopeClass 为空，也保留 $this 绑定
 		if boundThis != nil || scopeClass != "" {
 			return data.NewBoundFuncValue(fv.Value, scopeClass, boundThis), nil
@@ -95,8 +108,8 @@ func (m *ClosureBindMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 		return closureVal, nil
 	case *data.BoundFuncValue:
 		scopeClass := fv.ScopeClass
-		if scopeStr, ok := newScope.(*data.StringValue); ok && scopeStr.Value != "" {
-			scopeClass = scopeStr.Value
+		if s := scopeClassFrom(newScope); s != "" {
+			scopeClass = s
 		}
 		if boundThis == nil {
 			boundThis = fv.BoundObject

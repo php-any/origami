@@ -2,6 +2,7 @@ package array
 
 import (
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 )
 
 type kvEntry struct {
@@ -97,6 +98,71 @@ func isNestedArrayValue(v data.Value) bool {
 	default:
 		return false
 	}
+}
+
+// invokeWalkCallback 调用 array_walk / array_walk_recursive 的用户回调。
+// PHP 语义：回调返回值被忽略；仅当第一个形参是引用（&$value）时才写回数组元素。
+func invokeWalkCallback(ctx data.Context, cb data.Value, item *data.ZVal, key, userdata data.Value) data.Control {
+	if cb == nil || item == nil {
+		return nil
+	}
+	switch c := cb.(type) {
+	case *data.FuncValue:
+		return bindWalkCallback(ctx, c.Value, item, key, userdata)
+	case *data.BoundFuncValue:
+		return bindWalkCallback(ctx, c.Value, item, key, userdata)
+	default:
+		funcName := cb.AsString()
+		if fnStmt, exists := ctx.GetVM().GetFunc(funcName); exists {
+			return bindWalkCallback(ctx, fnStmt, item, key, userdata)
+		}
+	}
+	return nil
+}
+
+func bindWalkCallback(ctx data.Context, fn data.FuncStmt, item *data.ZVal, key, userdata data.Value) data.Control {
+	if fn == nil {
+		return nil
+	}
+	fnCtx := ctx.CreateContext(fn.GetVariables())
+	for i, raw := range fn.GetParams() {
+		p, ok := raw.(data.Parameter)
+		if !ok {
+			continue
+		}
+		switch i {
+		case 0:
+			if _, isRef := raw.(*node.ParameterReference); isRef {
+				if ctl := p.SetValue(fnCtx, data.NewZValValue(item)); ctl != nil {
+					return ctl
+				}
+				continue
+			}
+			arg := item.Value
+			if arg == nil {
+				arg = data.NewNullValue()
+			}
+			if ctl := p.SetValue(fnCtx, arg); ctl != nil {
+				return ctl
+			}
+		case 1:
+			if key == nil {
+				key = data.NewNullValue()
+			}
+			if ctl := p.SetValue(fnCtx, key); ctl != nil {
+				return ctl
+			}
+		case 2:
+			if userdata == nil {
+				userdata = data.NewNullValue()
+			}
+			if ctl := p.SetValue(fnCtx, userdata); ctl != nil {
+				return ctl
+			}
+		}
+	}
+	_, ctl := fn.Call(fnCtx)
+	return ctl
 }
 
 func invokeCallback(ctx data.Context, cb data.Value, args []data.Value) (data.Value, data.Control) {

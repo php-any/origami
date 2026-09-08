@@ -149,6 +149,10 @@ func serverFromRequest(request *http.Request) map[string]data.Value {
 		}
 		server[key] = data.NewStringValue(strings.Join(values, ", "))
 	}
+	// Go 可能不把 Content-Length 放进 Header；Livewire 用 header('Content-Length') 做体积校验。
+	if _, ok := server["CONTENT_LENGTH"]; !ok && request.ContentLength >= 0 {
+		server["CONTENT_LENGTH"] = data.NewStringValue(strconv.FormatInt(request.ContentLength, 10))
+	}
 	return server
 }
 

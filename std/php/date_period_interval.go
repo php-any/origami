@@ -1,11 +1,15 @@
 package php
 
 import (
+	"fmt"
+	"math"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 // DatePeriodClass 最小存根，满足 CarbonPeriod 对原生 DatePeriod 的继承需求。
@@ -93,8 +97,8 @@ type DateIntervalClass struct {
 
 func NewDateIntervalClass() *DateIntervalClass { return &DateIntervalClass{} }
 
-func (c *DateIntervalClass) GetName() string    { return "DateInterval" }
-func (c *DateIntervalClass) GetExtend() *string { return nil }
+func (c *DateIntervalClass) GetName() string         { return "DateInterval" }
+func (c *DateIntervalClass) GetExtend() *string      { return nil }
 func (c *DateIntervalClass) GetImplements() []string { return nil }
 
 // dateIntervalPropertyNames 原生 DateInterval 的公开属性。
@@ -125,16 +129,28 @@ func (c *DateIntervalClass) GetPropertyList() []data.Property {
 	}
 	return props
 }
-func (c *DateIntervalClass) GetConstruct() data.Method                     { return &DateIntervalConstructMethod{} }
+func (c *DateIntervalClass) GetConstruct() data.Method { return &DateIntervalConstructMethod{} }
 func (c *DateIntervalClass) GetStaticMethod(name string) (data.Method, bool) {
+	if name == "createFromDateString" {
+		return &DateIntervalCreateFromDateStringMethod{}, true
+	}
 	return nil, false
 }
 func (c *DateIntervalClass) GetMethods() []data.Method {
-	return []data.Method{&DateIntervalConstructMethod{}}
+	return []data.Method{
+		&DateIntervalConstructMethod{},
+		&DateIntervalFormatMethod{},
+		&DateIntervalCreateFromDateStringMethod{},
+	}
 }
 func (c *DateIntervalClass) GetMethod(name string) (data.Method, bool) {
-	if name == "__construct" {
+	switch name {
+	case "__construct":
 		return &DateIntervalConstructMethod{}, true
+	case "format":
+		return &DateIntervalFormatMethod{}, true
+	case "createFromDateString":
+		return &DateIntervalCreateFromDateStringMethod{}, true
 	}
 	return nil, false
 }
@@ -188,27 +204,15 @@ func (m *DateIntervalConstructMethod) Call(ctx data.Context) (data.GetValue, dat
 	}
 	year, month, week, day, hour, minute, second, parsed := parseISO8601Duration(spec)
 	if !parsed {
-		// 无效规格：PHP 抛异常，这里按空间隔处理（保持 DateInterval 最小存根语义）
+		// 无效规格：PHP 抛 DateMalformedIntervalStringException。
+		// 这里保持空间隔，避免 CarbonInterval 构造回退路径在 Origami 上把整页打成 500。
 		return nil, nil
 	}
 	// 周折算为天（PHP：W → 天）。
 	day += week * 7
-	cmc.ObjectValue.SetProperty("y", data.NewIntValue(year))
-	cmc.ObjectValue.SetProperty("m", data.NewIntValue(month))
-	cmc.ObjectValue.SetProperty("d", data.NewIntValue(day))
-	cmc.ObjectValue.SetProperty("h", data.NewIntValue(hour))
-	cmc.ObjectValue.SetProperty("i", data.NewIntValue(minute))
-	if second != 0 {
-		// 秒含小数时写入 f
-		whole := int(second)
-		frac := second - float64(whole)
-		cmc.ObjectValue.SetProperty("s", data.NewIntValue(whole))
-		if frac != 0 {
-			cmc.ObjectValue.SetProperty("f", data.NewFloatValue(frac))
-		}
-	} else {
-		cmc.ObjectValue.SetProperty("s", data.NewIntValue(0))
-	}
+	whole := int(second)
+	frac := second - float64(whole)
+	applyDateIntervalProps(cmc.ClassValue, year, month, day, hour, minute, whole, frac, 0, false)
 	return nil, nil
 }
 func (m *DateIntervalConstructMethod) GetName() string            { return "__construct" }
@@ -220,4 +224,241 @@ func (m *DateIntervalConstructMethod) GetParams() []data.GetValue {
 }
 func (m *DateIntervalConstructMethod) GetVariables() []data.Variable {
 	return []data.Variable{node.NewVariable(nil, "duration", 0, data.String{})}
+}
+
+func applyDateIntervalProps(cv *data.ClassValue, y, m, d, h, i, s int, f float64, invert int, days any) {
+	if cv == nil {
+		return
+	}
+	cv.SetProperty("y", data.NewIntValue(y))
+	cv.SetProperty("m", data.NewIntValue(m))
+	cv.SetProperty("d", data.NewIntValue(d))
+	cv.SetProperty("h", data.NewIntValue(h))
+	cv.SetProperty("i", data.NewIntValue(i))
+	cv.SetProperty("s", data.NewIntValue(s))
+	cv.SetProperty("f", data.NewFloatValue(f))
+	cv.SetProperty("invert", data.NewIntValue(invert))
+	switch t := days.(type) {
+	case int:
+		cv.SetProperty("days", data.NewIntValue(t))
+	case bool:
+		cv.SetProperty("days", data.NewBoolValue(t))
+	default:
+		cv.SetProperty("days", data.NewBoolValue(false))
+	}
+}
+
+// newDateIntervalValue 构造原生 DateInterval 实例（DateTime::diff / createFromDateString）。
+func newDateIntervalValue(ctx data.Context, y, m, d, h, i, s int, f float64, invert int, days any) (data.GetValue, data.Control) {
+	var stmt data.ClassStmt = NewDateIntervalClass()
+	if ctx != nil && ctx.GetVM() != nil {
+		loaded, acl := ctx.GetVM().GetOrLoadClass("DateInterval")
+		if acl != nil {
+			return nil, acl
+		}
+		if loaded != nil {
+			stmt = loaded
+		}
+	}
+	base := ctx
+	if ctx != nil {
+		base = ctx.CreateBaseContext()
+	}
+	cv := data.NewClassValue(stmt, base)
+	applyDateIntervalProps(cv, y, m, d, h, i, s, f, invert, days)
+	return cv, nil
+}
+
+type DateIntervalFormatMethod struct{}
+
+func (m *DateIntervalFormatMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cmc, ok := ctx.(*data.ClassMethodContext)
+	if !ok {
+		return data.NewStringValue(""), nil
+	}
+	fmtV, _ := ctx.GetIndexValue(0)
+	spec := ""
+	if fmtV != nil {
+		spec = fmtV.AsString()
+	}
+	return data.NewStringValue(formatDateInterval(cmc.ClassValue, spec)), nil
+}
+func (m *DateIntervalFormatMethod) GetName() string            { return "format" }
+func (m *DateIntervalFormatMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *DateIntervalFormatMethod) GetIsStatic() bool          { return false }
+func (m *DateIntervalFormatMethod) GetReturnType() data.Types  { return data.NewBaseType("string") }
+func (m *DateIntervalFormatMethod) GetParams() []data.GetValue {
+	return []data.GetValue{node.NewParameter(nil, "format", 0, nil, data.String{})}
+}
+func (m *DateIntervalFormatMethod) GetVariables() []data.Variable {
+	return []data.Variable{node.NewVariable(nil, "format", 0, data.String{})}
+}
+
+func formatDateInterval(cv *data.ClassValue, spec string) string {
+	if cv == nil {
+		return ""
+	}
+	y := dateIntervalIntProp(cv, "y")
+	mo := dateIntervalIntProp(cv, "m")
+	d := dateIntervalIntProp(cv, "d")
+	h := dateIntervalIntProp(cv, "h")
+	i := dateIntervalIntProp(cv, "i")
+	s := dateIntervalIntProp(cv, "s")
+	f := dateIntervalFloatProp(cv, "f")
+	invert := dateIntervalIntProp(cv, "invert")
+	us := int(math.Round(f * 1e6))
+	if us < 0 {
+		us = -us
+	}
+	sign, signR := "+", ""
+	if invert != 0 {
+		sign, signR = "-", "-"
+	}
+	var b strings.Builder
+	for idx := 0; idx < len(spec); idx++ {
+		if spec[idx] == '%' && idx+1 < len(spec) {
+			idx++
+			switch spec[idx] {
+			case '%':
+				b.WriteByte('%')
+			case 'Y':
+				b.WriteString(fmt.Sprintf("%02d", y))
+			case 'y':
+				b.WriteString(strconv.Itoa(y))
+			case 'M':
+				b.WriteString(fmt.Sprintf("%02d", mo))
+			case 'm':
+				b.WriteString(strconv.Itoa(mo))
+			case 'D':
+				b.WriteString(fmt.Sprintf("%02d", d))
+			case 'd':
+				b.WriteString(strconv.Itoa(d))
+			case 'H':
+				b.WriteString(fmt.Sprintf("%02d", h))
+			case 'h':
+				b.WriteString(strconv.Itoa(h))
+			case 'I':
+				b.WriteString(fmt.Sprintf("%02d", i))
+			case 'i':
+				b.WriteString(strconv.Itoa(i))
+			case 'S':
+				b.WriteString(fmt.Sprintf("%02d", s))
+			case 's':
+				b.WriteString(strconv.Itoa(s))
+			case 'F':
+				b.WriteString(fmt.Sprintf("%06d", us))
+			case 'f':
+				b.WriteString(strconv.Itoa(us))
+			case 'R':
+				b.WriteString(sign)
+			case 'r':
+				b.WriteString(signR)
+			case 'a':
+				daysV, _ := cv.GetProperty("days")
+				if daysV == nil {
+					b.WriteString("(unknown)")
+					break
+				}
+				if bv, ok := daysV.(*data.BoolValue); ok && !bv.Value {
+					b.WriteString("(unknown)")
+					break
+				}
+				b.WriteString(strconv.Itoa(dateIntervalIntProp(cv, "days")))
+			default:
+				b.WriteByte(spec[idx])
+			}
+			continue
+		}
+		b.WriteByte(spec[idx])
+	}
+	return b.String()
+}
+
+type DateIntervalCreateFromDateStringMethod struct{}
+
+func (m *DateIntervalCreateFromDateStringMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	datetimeV, _ := ctx.GetIndexValue(0)
+	if datetimeV == nil {
+		return nil, utils.NewThrow(fmt.Errorf("DateInterval::createFromDateString(): Argument #1 ($datetime) must be of type string"))
+	}
+	raw := datetimeV.AsString()
+	y, mo, d, h, i, s, f, invert, ok := parseDateStringInterval(raw)
+	if !ok {
+		return nil, utils.NewThrow(fmt.Errorf("DateInterval::createFromDateString(): Unknown or bad format (%s)", raw))
+	}
+	return newDateIntervalValue(ctx, y, mo, d, h, i, s, f, invert, false)
+}
+func (m *DateIntervalCreateFromDateStringMethod) GetName() string { return "createFromDateString" }
+func (m *DateIntervalCreateFromDateStringMethod) GetModifier() data.Modifier {
+	return data.ModifierPublic
+}
+func (m *DateIntervalCreateFromDateStringMethod) GetIsStatic() bool         { return true }
+func (m *DateIntervalCreateFromDateStringMethod) GetReturnType() data.Types { return nil }
+func (m *DateIntervalCreateFromDateStringMethod) GetParams() []data.GetValue {
+	return []data.GetValue{node.NewParameter(nil, "datetime", 0, nil, data.String{})}
+}
+func (m *DateIntervalCreateFromDateStringMethod) GetVariables() []data.Variable {
+	return []data.Variable{node.NewVariable(nil, "datetime", 0, data.String{})}
+}
+
+// dateStringIntervalRE 解析 PHP DateInterval::createFromDateString 的相对时长片段。
+var dateStringIntervalRE = regexp.MustCompile(`(?i)([+-]?\d+(?:\.\d+)?)\s*(microseconds?|milliseconds?|seconds?|minutes?|hours?|days?|weeks?|months?|years?|secs?|mins?|hrs?|ms|us|µs)`)
+
+func parseDateStringInterval(s string) (y, m, d, h, i, sec int, f float64, invert int, ok bool) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, 0, 0, 0, 0, 0, 0, 0, true
+	}
+	s = strings.ReplaceAll(s, ",", " ")
+	lower := strings.ToLower(s)
+	lower = strings.ReplaceAll(lower, " and ", " ")
+	ago := false
+	if strings.HasSuffix(lower, " ago") {
+		ago = true
+		lower = strings.TrimSpace(lower[:len(lower)-4])
+	}
+	matches := dateStringIntervalRE.FindAllStringSubmatch(lower, -1)
+	if len(matches) == 0 {
+		return 0, 0, 0, 0, 0, 0, 0, 0, false
+	}
+	ok = true
+	for _, match := range matches {
+		n, err := strconv.ParseFloat(match[1], 64)
+		if err != nil {
+			continue
+		}
+		unit := strings.ToLower(match[2])
+		switch {
+		case strings.HasPrefix(unit, "year"):
+			y += int(n)
+		case strings.HasPrefix(unit, "month"):
+			m += int(n)
+		case strings.HasPrefix(unit, "week"):
+			d += int(n) * 7
+		case strings.HasPrefix(unit, "day"):
+			d += int(n)
+		case strings.HasPrefix(unit, "hour") || unit == "hrs" || unit == "hr":
+			h += int(n)
+		case strings.HasPrefix(unit, "min"):
+			i += int(n)
+		case unit == "ms" || strings.HasPrefix(unit, "millisecond"):
+			f += n / 1e3
+		case unit == "us" || unit == "µs" || strings.HasPrefix(unit, "micro"):
+			f += n / 1e6
+		case strings.HasPrefix(unit, "sec"):
+			sec += int(n)
+			frac := n - float64(int(n))
+			if frac != 0 {
+				f += frac
+			}
+		}
+	}
+	if extra := int(f); extra != 0 {
+		sec += extra
+		f -= float64(extra)
+	}
+	if ago {
+		invert = 1
+	}
+	return
 }

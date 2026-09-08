@@ -1,6 +1,6 @@
 module github.com/php-any/origami/examples/illuminate-db
 
-go 1.25.0
+go 1.27.1
 
 require (
 	github.com/go-sql-driver/mysql v1.9.3

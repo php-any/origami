@@ -2,7 +2,6 @@ package stream
 
 import (
 	"os"
-	"syscall"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -58,43 +57,18 @@ func (f *FlockFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 
-	how, ok := phpFlockHow(op)
-	if !ok {
+	blocked, err := applyFlock(file, op)
+	if err != nil {
 		return data.NewBoolValue(false), nil
 	}
-
-	err := syscall.Flock(int(file.Fd()), how)
-	if err != nil {
-		if op&LockNB != 0 && (err == syscall.EWOULDBLOCK || err == syscall.EAGAIN) {
-			_ = ctx.SetVariableValue(node.NewVariable(nil, "would_block", 2, nil), data.NewIntValue(1))
-			return data.NewBoolValue(false), nil
-		}
+	if blocked {
+		_ = ctx.SetVariableValue(node.NewVariable(nil, "would_block", 2, nil), data.NewIntValue(1))
 		return data.NewBoolValue(false), nil
 	}
 	if op&LockNB != 0 {
 		_ = ctx.SetVariableValue(node.NewVariable(nil, "would_block", 2, nil), data.NewIntValue(0))
 	}
 	return data.NewBoolValue(true), nil
-}
-
-func phpFlockHow(op int) (int, bool) {
-	nb := op&LockNB != 0
-	base := op &^ LockNB
-	var how int
-	switch base {
-	case LockSH:
-		how = syscall.LOCK_SH
-	case LockEX:
-		how = syscall.LOCK_EX
-	case LockUN:
-		how = syscall.LOCK_UN
-	default:
-		return 0, false
-	}
-	if nb {
-		how |= syscall.LOCK_NB
-	}
-	return how, true
 }
 
 func fileFromStreamValue(streamValue data.Value) *os.File {

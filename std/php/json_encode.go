@@ -2,6 +2,7 @@ package php
 
 import (
 	jsonpkg "encoding/json"
+	"unsafe"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -35,9 +36,13 @@ func (f *JsonEncodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	// 递归解析值：对实现了 JsonSerializable 的对象（含数组/对象内嵌的）优先调用 jsonSerialize()
 	value := raw
 	if v, ok := raw.(data.Value); ok {
-		resolved, ctl := resolveJSONValue(ctx, v)
+		resolved, jerr, ctl := resolveJSONValue(ctx, v, map[uintptr]bool{}, 0)
 		if ctl != nil {
 			return nil, ctl
+		}
+		if jerr != JSON_ERROR_NONE {
+			setJsonLastError(jerr, "")
+			return data.NewBoolValue(false), nil
 		}
 		value = resolved
 	}
@@ -104,43 +109,72 @@ func (f *JsonEncodeFunction) GetVariables() []data.Variable {
 
 // resolveJSONValue 递归解析值：对实现了 JsonSerializable 的对象（含数组内嵌、顶层对象）调用其
 // jsonSerialize() 方法，使序列化行为与 PHP 原生 json_encode 一致。
-func resolveJSONValue(ctx data.Context, value data.Value) (data.Value, data.Control) {
+func resolveJSONValue(ctx data.Context, value data.Value, visiting map[uintptr]bool, depth int) (data.Value, int, data.Control) {
+	if depth > 512 {
+		return nil, JSON_ERROR_DEPTH, nil
+	}
+	if tv, ok := value.(*data.ThisValue); ok && tv != nil && tv.ClassValue != nil {
+		value = tv.ClassValue
+	}
 	switch v := value.(type) {
 	case *data.ArrayValue:
+		ptr := uintptr(unsafe.Pointer(v))
+		if visiting[ptr] {
+			return nil, JSON_ERROR_RECURSION, nil
+		}
+		visiting[ptr] = true
+		defer delete(visiting, ptr)
 		for i, z := range v.List {
 			if z == nil {
 				continue
 			}
-			nv, ctl := resolveJSONValue(ctx, z.Value)
+			nv, jerr, ctl := resolveJSONValue(ctx, z.Value, visiting, depth+1)
 			if ctl != nil {
-				return nil, ctl
+				return nil, JSON_ERROR_NONE, ctl
+			}
+			if jerr != JSON_ERROR_NONE {
+				return nil, jerr, nil
 			}
 			v.List[i] = data.NewNamedZVal(z.Name, nv)
 		}
 	case *data.ObjectValue:
+		ptr := uintptr(unsafe.Pointer(v))
+		if visiting[ptr] {
+			return nil, JSON_ERROR_RECURSION, nil
+		}
+		visiting[ptr] = true
+		defer delete(visiting, ptr)
 		for k, pv := range v.GetProperties() {
-			nv, ctl := resolveJSONValue(ctx, pv)
+			nv, jerr, ctl := resolveJSONValue(ctx, pv, visiting, depth+1)
 			if ctl != nil {
-				return nil, ctl
+				return nil, JSON_ERROR_NONE, ctl
+			}
+			if jerr != JSON_ERROR_NONE {
+				return nil, jerr, nil
 			}
 			v.SetProperty(k, nv)
 		}
 	case *data.ClassValue:
+		ptr := uintptr(unsafe.Pointer(v))
+		if visiting[ptr] {
+			return nil, JSON_ERROR_RECURSION, nil
+		}
+		visiting[ptr] = true
+		defer delete(visiting, ptr)
 		jsonSerializable := data.Class{Name: "JsonSerializable"}
 		if jsonSerializable.Is(v) {
 			if method, has := v.GetMethod("jsonSerialize"); has {
-				// 在对象上下文中调用 jsonSerialize()
 				res, acl := method.Call(v.CreateContext(method.GetVariables()))
 				if acl != nil {
-					return nil, acl
+					return nil, JSON_ERROR_NONE, acl
 				}
 				if res != nil {
 					if rv, ok := res.(data.Value); ok {
-						return resolveJSONValue(ctx, rv)
+						return resolveJSONValue(ctx, rv, visiting, depth+1)
 					}
 				}
 			}
 		}
 	}
-	return value, nil
+	return value, JSON_ERROR_NONE, nil
 }

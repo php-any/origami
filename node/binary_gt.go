@@ -29,45 +29,8 @@ func (b *BinaryGt) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, rCtl
 	}
 
-	// DateTime/Carbon 对象按时间戳比较
-	if lts, ok := getDateTimeTimestamp(ctx, lv); ok {
-		if rts, ok2 := getDateTimeTimestamp(ctx, rv); ok2 {
-			return data.NewBoolValue(lts > rts), nil
-		}
+	if cmp, ok := phpCompareValues(ctx, lv, rv); ok {
+		return data.NewBoolValue(cmp > 0), nil
 	}
-
-	switch l := lv.(type) {
-	case *data.IntValue:
-		if ri, ok := rv.(data.AsInt); ok {
-			li, err := l.AsInt()
-			if err != nil {
-				return nil, data.NewErrorThrow(b.from, err)
-			}
-			riVal, err := ri.AsInt()
-			if err != nil {
-				return nil, data.NewErrorThrow(b.from, err)
-			}
-			return data.NewBoolValue(li > riVal), nil
-		}
-	case *data.FloatValue:
-		if rf, ok := rv.(data.AsFloat); ok {
-			lf, err := l.AsFloat()
-			if err != nil {
-				return nil, data.NewErrorThrow(b.from, err)
-			}
-			rfVal, err := rf.AsFloat()
-			if err != nil {
-				return nil, data.NewErrorThrow(b.from, err)
-			}
-			return data.NewBoolValue(lf > rfVal), nil
-		}
-	case *data.StringValue:
-		if rs, ok := rv.(data.AsString); ok {
-			ls := l.AsString()
-			rsVal := rs.AsString()
-			return data.NewBoolValue(ls > rsVal), nil
-		}
-	}
-
 	return data.NewBoolValue(false), nil
 }

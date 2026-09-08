@@ -2,6 +2,7 @@ package php
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -102,11 +103,80 @@ func (f *JsonDecodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 }
 
 func goJsonDecode(js string) (data.Value, error) {
-	var result interface{}
-	if err := json.Unmarshal([]byte(js), &result); err != nil {
+	dec := json.NewDecoder(strings.NewReader(js))
+	dec.UseNumber()
+	return decodeJSONToken(dec)
+}
+
+// decodeJSONToken 按 JSON 出现顺序解析，保留对象键序（Livewire checksum 依赖 json_encode 键序稳定）。
+func decodeJSONToken(dec *json.Decoder) (data.Value, error) {
+	tok, err := dec.Token()
+	if err != nil {
 		return nil, err
 	}
-	return convertGoValue(result), nil
+	switch t := tok.(type) {
+	case json.Delim:
+		switch t {
+		case '{':
+			list := make([]*data.ZVal, 0)
+			for dec.More() {
+				keyTok, err := dec.Token()
+				if err != nil {
+					return nil, err
+				}
+				key, ok := keyTok.(string)
+				if !ok {
+					return nil, fmt.Errorf("json: expected object key string")
+				}
+				val, err := decodeJSONToken(dec)
+				if err != nil {
+					return nil, err
+				}
+				list = append(list, data.NewNamedZVal(key, val))
+			}
+			if _, err := dec.Token(); err != nil { // consume '}'
+				return nil, err
+			}
+			return &data.ArrayValue{List: list}, nil
+		case '[':
+			items := make([]data.Value, 0)
+			for dec.More() {
+				val, err := decodeJSONToken(dec)
+				if err != nil {
+					return nil, err
+				}
+				items = append(items, val)
+			}
+			if _, err := dec.Token(); err != nil { // consume ']'
+				return nil, err
+			}
+			return data.NewArrayValue(items), nil
+		default:
+			return nil, fmt.Errorf("json: unexpected delimiter %v", t)
+		}
+	case nil:
+		return data.NewNullValue(), nil
+	case bool:
+		return data.NewBoolValue(t), nil
+	case string:
+		return data.NewStringValue(t), nil
+	case json.Number:
+		if i, err := t.Int64(); err == nil {
+			return data.NewIntValue(int(i)), nil
+		}
+		f, err := t.Float64()
+		if err != nil {
+			return data.NewStringValue(t.String()), nil
+		}
+		return data.NewFloatValue(f), nil
+	case float64:
+		if t == float64(int64(t)) {
+			return data.NewIntValue(int(t)), nil
+		}
+		return data.NewFloatValue(t), nil
+	default:
+		return data.NewStringValue(fmt.Sprint(t)), nil
+	}
 }
 
 func convertGoValue(v interface{}) data.Value {
@@ -147,13 +217,14 @@ func (f *JsonDecodeFunction) GetName() string {
 func (f *JsonDecodeFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "json", 0, nil, data.String{}),
-		node.NewParameter(nil, "assoc", 1, data.NewNullValue(), nil),
+		// PHP 8 正式参数名为 $associative（Livewire 等用 named arg associative: true）
+		node.NewParameter(nil, "associative", 1, data.NewNullValue(), nil),
 	}
 }
 
 func (f *JsonDecodeFunction) GetVariables() []data.Variable {
 	return []data.Variable{
 		node.NewVariable(nil, "json", 0, nil),
-		node.NewVariable(nil, "assoc", 1, nil),
+		node.NewVariable(nil, "associative", 1, nil),
 	}
 }

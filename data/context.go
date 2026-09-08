@@ -240,10 +240,11 @@ func (v VariableTODO) SetValue(ctx Context, value Value) Control {
 	if _, isNull := value.(*NullValue); isNull {
 		return ctx.SetVariableValue(v, value)
 	}
-	if v.ty.Is(value) {
-		return ctx.SetVariableValue(v, value)
+	prepared, ok := PrepareTypedValue(v.ty, value)
+	if !ok {
+		return NewErrorThrow(nil, errors.New("变量类型和赋值类型不一致, 变量类型("+v.ty.String()+"), 赋值("+value.AsString()+")"))
 	}
-	return NewErrorThrow(nil, errors.New("变量类型和赋值类型不一致, 变量类型("+v.ty.String()+"), 赋值("+value.AsString()+")"))
+	return ctx.SetVariableValue(v, prepared)
 }
 
 type Parameter interface {
@@ -339,10 +340,11 @@ func (p *ParameterTODO) SetValue(ctx Context, value Value) Control {
 	if _, isNull := value.(*NullValue); isNull {
 		return ctx.SetVariableValue(p, value)
 	}
-	if p.Type.Is(value) {
-		return ctx.SetVariableValue(p, value)
+	prepared, ok := PrepareTypedValue(p.Type, value)
+	if !ok {
+		return NewErrorThrow(nil, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
 	}
-	return NewErrorThrow(nil, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
+	return ctx.SetVariableValue(p, prepared)
 }
 
 type ParametersTODO struct {
@@ -387,10 +389,11 @@ func (p *ParametersTODO) SetValue(ctx Context, value Value) Control {
 	if p.Type == nil {
 		return ctx.SetVariableValue(p, value)
 	}
-	if p.Type.Is(value) {
-		return ctx.SetVariableValue(p, value)
+	prepared, ok := PrepareTypedValue(p.Type, value)
+	if !ok {
+		return NewErrorThrow(nil, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
 	}
-	return NewErrorThrow(nil, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
+	return ctx.SetVariableValue(p, prepared)
 }
 
 func (p *ParametersTODO) GetVariables() []Variable {

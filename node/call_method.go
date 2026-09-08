@@ -211,7 +211,10 @@ func (pe *CallMethod) handleStaticMethodWithLateBinding(ctx data.Context, sm *st
 		case *ParameterReference:
 			rawArg := nthPositionalExpr(pe.Args, pos)
 			if rawArg == nil {
-				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能是必传参数, fn: %s", fn.GetName()))
+				if acl := bindByRefDefault(fnCtx, p); acl != nil {
+					return nil, acl
+				}
+				continue
 			}
 			pos++
 			if acl := bindByRefParam(fnCtx, ctx, p, rawArg); acl != nil {
@@ -329,7 +332,10 @@ func (pe *CallMethod) invokeFuncStmt(ctx data.Context, fn data.FuncStmt, invoke 
 		case *ParameterReference:
 			rawArg := nthPositionalExpr(pe.Args, pos)
 			if rawArg == nil {
-				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("引用参数只能是必传参数, fn: %s", pe.Method))
+				if acl := bindByRefDefault(fnCtx, argObj); acl != nil {
+					return nil, acl
+				}
+				continue
 			}
 			pos++
 			if acl := bindByRefParam(fnCtx, ctx, argObj, rawArg); acl != nil {
@@ -477,6 +483,29 @@ func bindByRefParam(fnCtx, callCtx data.Context, param *ParameterReference, rawA
 		}
 		return fnCtx.SetVariableValue(param, val.(data.Value))
 	}
+}
+
+// bindByRefDefault 对齐 PHP：function (&$x = null) 可在无实参时调用，使用默认值的局部引用槽。
+func bindByRefDefault(fnCtx data.Context, param *ParameterReference) data.Control {
+	if param == nil || param.DefaultValue == nil {
+		name := ""
+		if param != nil {
+			name = param.GetName()
+		}
+		return data.NewErrorThrow(nil, fmt.Errorf("引用参数只能是必传参数, fn param: %s", name))
+	}
+	defVal, acl := param.DefaultValue.GetValue(fnCtx)
+	if acl != nil {
+		return acl
+	}
+	var v data.Value = data.NewNullValue()
+	if defVal != nil {
+		if dv, ok := defVal.(data.Value); ok {
+			v = dv
+		}
+	}
+	fnCtx.SetIndexZVal(param.Index, data.NewZVal(v))
+	return nil
 }
 
 // doCallWithArgs PHP 数组可调用 [$obj, 'method'](...$args) 的支持

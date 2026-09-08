@@ -59,15 +59,11 @@ func (f *PropertyExistsFunction) Call(ctx data.Context) (data.GetValue, data.Con
 		return data.NewBoolValue(false), nil
 	}
 
-	// 检查当前类的属性列表
-	properties := classStmt.GetPropertyList()
-	for _, prop := range properties {
-		if prop.GetName() == propertyName {
-			return data.NewBoolValue(true), nil
-		}
+	if classHasProperty(classStmt, propertyName) {
+		return data.NewBoolValue(true), nil
 	}
 
-	// 检查继承的属性
+	// 检查继承的属性（含静态属性）
 	last := classStmt
 	for last.GetExtend() != nil {
 		ext := last.GetExtend()
@@ -75,17 +71,37 @@ func (f *PropertyExistsFunction) Call(ctx data.Context) (data.GetValue, data.Con
 		if !ok {
 			break
 		}
-		parentProperties := parentClass.GetPropertyList()
-		for _, prop := range parentProperties {
-			if prop.GetName() == propertyName {
-				// 找到属性，返回 true（不考虑访问修饰符，property_exists 会检查所有可见性）
-				return data.NewBoolValue(true), nil
-			}
+		if classHasProperty(parentClass, propertyName) {
+			return data.NewBoolValue(true), nil
 		}
 		last = parentClass
 	}
 
 	return data.NewBoolValue(false), nil
+}
+
+// classHasProperty 判断类是否声明了实例或静态属性。
+// PHP property_exists 对 public static $key 返回 true，且只看声明、不要求已求值。
+func classHasProperty(classStmt data.ClassStmt, propertyName string) bool {
+	for _, prop := range classStmt.GetPropertyList() {
+		if prop.GetName() == propertyName {
+			return true
+		}
+	}
+	if cs, ok := classStmt.(*node.ClassStatement); ok {
+		if _, ok := cs.StaticProperties[propertyName]; ok {
+			return true
+		}
+		if _, ok := cs.StaticProperty.Load(propertyName); ok {
+			return true
+		}
+	}
+	if gsp, ok := classStmt.(data.GetStaticProperty); ok {
+		if _, ok := gsp.GetStaticProperty(propertyName); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (f *PropertyExistsFunction) GetName() string {

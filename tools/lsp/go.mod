@@ -1,6 +1,6 @@
 module github.com/php-any/origami/tools/lsp
 
-go 1.25.0
+go 1.27.1
 
 require (
 	github.com/php-any/origami v0.0.0-20250807021948-61648a4c5484

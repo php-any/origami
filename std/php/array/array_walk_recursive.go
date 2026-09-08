@@ -7,6 +7,7 @@ import (
 
 // ArrayWalkRecursiveFunction 实现 array_walk_recursive
 // array_walk_recursive(array|object &$array, callable $callback, mixed $arg = null): bool
+// PHP：回调返回值忽略；只有 callback(&$value, ...) 才会改写数组元素。
 type ArrayWalkRecursiveFunction struct{}
 
 func NewArrayWalkRecursiveFunction() data.FuncStmt {
@@ -22,14 +23,13 @@ func (fn *ArrayWalkRecursiveFunction) Call(ctx data.Context) (data.GetValue, dat
 		return data.NewBoolValue(false), nil
 	}
 
-	_, ctl := walkRecursive(ctx, cbVal, userdata, arrZVal.Value)
-	if ctl != nil {
+	if ctl := walkRecursive(ctx, cbVal, userdata, arrZVal.Value); ctl != nil {
 		return nil, ctl
 	}
 	return data.NewBoolValue(true), nil
 }
 
-func walkRecursive(ctx data.Context, cbVal, userdata, val data.Value) (data.Value, data.Control) {
+func walkRecursive(ctx data.Context, cbVal, userdata, val data.Value) data.Control {
 	switch v := val.(type) {
 	case *data.ArrayValue:
 		for _, z := range v.List {
@@ -37,9 +37,8 @@ func walkRecursive(ctx data.Context, cbVal, userdata, val data.Value) (data.Valu
 				continue
 			}
 			if isNestedArrayValue(z.Value) {
-				_, ctl := walkRecursive(ctx, cbVal, userdata, z.Value)
-				if ctl != nil {
-					return nil, ctl
+				if ctl := walkRecursive(ctx, cbVal, userdata, z.Value); ctl != nil {
+					return ctl
 				}
 				continue
 			}
@@ -51,17 +50,11 @@ func walkRecursive(ctx data.Context, cbVal, userdata, val data.Value) (data.Valu
 					key = data.NewStringValue(z.Name)
 				}
 			}
-			args := []data.Value{z.Value, key}
-			if userdata != nil {
-				args = append(args, userdata)
+			if ctl := invokeWalkCallback(ctx, cbVal, z, key, userdata); ctl != nil {
+				return ctl
 			}
-			ret, ctl := invokeCallback(ctx, cbVal, args)
-			if ctl != nil {
-				return nil, ctl
-			}
-			z.Value = ret
 		}
-		return v, nil
+		return nil
 	case *data.ObjectValue:
 		keys := make([]string, 0)
 		v.RangeProperties(func(key string, _ data.Value) bool {
@@ -69,30 +62,26 @@ func walkRecursive(ctx data.Context, cbVal, userdata, val data.Value) (data.Valu
 			return true
 		})
 		for _, key := range keys {
-			propVal, ctl := v.GetProperty(key)
+			zv, ctl := v.GetZVal(key)
 			if ctl != nil {
-				return nil, ctl
+				return ctl
 			}
-			if isNestedArrayValue(propVal) {
-				_, ctl := walkRecursive(ctx, cbVal, userdata, propVal)
-				if ctl != nil {
-					return nil, ctl
+			if zv == nil {
+				continue
+			}
+			if isNestedArrayValue(zv.Value) {
+				if ctl := walkRecursive(ctx, cbVal, userdata, zv.Value); ctl != nil {
+					return ctl
 				}
 				continue
 			}
-			args := []data.Value{propVal, data.NewStringValue(key)}
-			if userdata != nil {
-				args = append(args, userdata)
+			if ctl := invokeWalkCallback(ctx, cbVal, zv, data.NewStringValue(key), userdata); ctl != nil {
+				return ctl
 			}
-			ret, ctl := invokeCallback(ctx, cbVal, args)
-			if ctl != nil {
-				return nil, ctl
-			}
-			v.SetProperty(key, ret)
 		}
-		return v, nil
+		return nil
 	default:
-		return val, nil
+		return nil
 	}
 }
 

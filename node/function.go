@@ -168,11 +168,10 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 		}
 	}
 
-	var v data.GetValue
 	var ctl data.Control
 	for bodyIndex := 0; bodyIndex < len(f.Body); bodyIndex++ {
 		statement := f.Body[bodyIndex]
-		v, ctl = statement.GetValue(execCtx)
+		_, ctl = statement.GetValue(execCtx)
 		if ctl != nil {
 			switch rv := ctl.(type) {
 			case data.ExitControl:
@@ -229,10 +228,9 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 	}
 
 	f.persistStaticLocals(execCtx)
-	if v == nil {
-		return data.NewNullValue(), nil
-	}
-	return v, nil
+	// PHP：没有 return 时函数返回 null，而不是最后一条语句的值。
+	// Laravel View::render($callback) 用 is_null($response) 决定是否采用渲染出的 HTML。
+	return data.NewNullValue(), nil
 }
 
 func (f *FunctionStatement) persistStaticLocals(ctx data.Context) {
@@ -285,10 +283,11 @@ func (p *Parameter) SetValue(ctx data.Context, value data.Value) data.Control {
 	if _, isNull := value.(*data.NullValue); isNull {
 		return ctx.SetVariableValue(p, value)
 	}
-	if p.Type.Is(value) {
-		return ctx.SetVariableValue(p, value)
+	prepared, ok := data.PrepareTypedValue(p.Type, value)
+	if !ok {
+		return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+TryGetCallClassName(value)+")"))
 	}
-	return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+TryGetCallClassName(value)+")"))
+	return ctx.SetVariableValue(p, prepared)
 }
 
 // NewParameter 创建一个新的参数
@@ -432,8 +431,12 @@ func NewParameterReference(from data.From, name string, index int, defaultValue 
 
 func (p *ParameterReference) SetValue(ctx data.Context, value data.Value) data.Control {
 	if p.Type != nil {
-		if !p.Type.Is(value) {
-			return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
+		if _, isNull := value.(*data.NullValue); !isNull {
+			prepared, ok := data.PrepareTypedValue(p.Type, value)
+			if !ok {
+				return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
+			}
+			value = prepared
 		}
 	}
 	if v, ok := value.(*data.ZValValue); ok {
@@ -490,10 +493,11 @@ func (p *ParametersReference) SetValue(ctx data.Context, value data.Value) data.
 	if p.Type == nil {
 		return ctx.SetVariableValue(p, value)
 	}
-	if p.Type.Is(value) {
-		return ctx.SetVariableValue(p, value)
+	prepared, ok := data.PrepareTypedValue(p.Type, value)
+	if !ok {
+		return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
 	}
-	return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
+	return ctx.SetVariableValue(p, prepared)
 }
 
 // CallerContextParameter 特殊参数类型：用于标记函数需要在调用者的 Context 中执行。

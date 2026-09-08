@@ -6,16 +6,36 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"unsafe"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
 
 // JsonSerializer 实现 data.Serializer 接口
-type JsonSerializer struct{}
+type JsonSerializer struct {
+	visiting map[uintptr]bool
+}
 
 func NewJsonSerializer() *JsonSerializer {
 	return &JsonSerializer{}
+}
+
+func (j *JsonSerializer) markVisiting(ptr uintptr) bool {
+	if j.visiting == nil {
+		j.visiting = make(map[uintptr]bool)
+	}
+	if j.visiting[ptr] {
+		return false // already visiting → cycle
+	}
+	j.visiting[ptr] = true
+	return true
+}
+
+func (j *JsonSerializer) unmarkVisiting(ptr uintptr) {
+	if j.visiting != nil {
+		delete(j.visiting, ptr)
+	}
 }
 
 // Int
@@ -59,6 +79,15 @@ func (j *JsonSerializer) UnmarshalNull(data []byte, v *data.NullValue) error {
 
 // Array
 func (j *JsonSerializer) MarshalArray(v *data.ArrayValue) ([]byte, error) {
+	if v == nil {
+		return []byte("null"), nil
+	}
+	ptr := uintptr(unsafe.Pointer(v))
+	if !j.markVisiting(ptr) {
+		return []byte("null"), nil
+	}
+	defer j.unmarkVisiting(ptr)
+
 	// PHP: 含字符串键的数组 json_encode 为对象；纯列表为数组
 	asObject := false
 	for _, z := range v.List {
@@ -170,8 +199,30 @@ func (j *JsonSerializer) UnmarshalArray(msg []byte, v *data.ArrayValue) error {
 	return nil
 }
 
-// Object
+// Object（Origami 用 ObjectValue 表示 PHP 关联数组）
 func (j *JsonSerializer) MarshalObject(v *data.ObjectValue) ([]byte, error) {
+	if v == nil {
+		return []byte("null"), nil
+	}
+	ptr := uintptr(unsafe.Pointer(v))
+	if !j.markVisiting(ptr) {
+		return []byte("null"), nil
+	}
+	defer j.unmarkVisiting(ptr)
+
+	// PHP：空数组无论曾否关联，json_encode 均为 []（不是 {}）。
+	// Livewire checksum 依赖此语义；空 errors memo 若编成 {} 会导致 hydrate 校验失败。
+	empty := true
+	if v != nil {
+		v.RangeProperties(func(string, data.Value) bool {
+			empty = false
+			return false
+		})
+	}
+	if empty {
+		return []byte("[]"), nil
+	}
+
 	// 使用 RangeProperties 保证顺序一致
 	var buf bytes.Buffer
 	buf.WriteByte('{')
@@ -282,7 +333,17 @@ func (j *JsonSerializer) UnmarshalAny(data []byte, v *data.AnyValue) error {
 
 // Class
 func (j *JsonSerializer) MarshalClass(v *data.ClassValue) ([]byte, error) {
-	// 使用 RangeProperties 保证顺序一致
+	if v == nil {
+		return []byte("null"), nil
+	}
+	ptr := uintptr(unsafe.Pointer(v))
+	if !j.markVisiting(ptr) {
+		return []byte("null"), nil // 循环引用：对齐 PHP 对无法序列化环的降级
+	}
+	defer j.unmarkVisiting(ptr)
+
+	// PHP json_encode 对象：只输出公共属性（含动态公共属性）。
+	// 把 protected/private（如 Redirector::$generator）编进去会把整个容器图拖进来。
 	var buf bytes.Buffer
 	buf.WriteByte('{')
 	first := true
@@ -291,6 +352,11 @@ func (j *JsonSerializer) MarshalClass(v *data.ClassValue) ([]byte, error) {
 	v.RangeProperties(func(k string, val data.Value) bool {
 		if marshalErr != nil {
 			return false
+		}
+		if prop, ok := v.GetPropertyStmt(k); ok && prop != nil {
+			if prop.GetModifier() != data.ModifierPublic {
+				return true
+			}
 		}
 
 		if !first {
