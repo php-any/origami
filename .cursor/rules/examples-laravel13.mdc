@@ -14,9 +14,10 @@ alwaysApply: false
 
 1. 保持官方入口：`artisan`、`public/index.php`、`bootstrap/app.php`。
 2. 缺口优先修 Origami 核心（`std/`、`node/`、`data/`、`runtime/`）。
-3. `go-support/` 可做示例扩展、覆盖标准库、或实现 Laravel Request 等适配；禁止在 PHP 侧堆匿名 singleton 冒充框架。
-4. 每层能力用 `tests/origami/` 冒烟验收。
-5. 详细说明见 `examples/laravel13/ORIGAMI.md`。
+3. **禁止改 PHP 跳过错误**：不要改 `vendor/`、Livewire/Laravel/Symfony、或 `app/` 业务来消 Warning/绕过 Fatal。那是运行时语义问题。
+4. `go-support/` 可做示例扩展、覆盖标准库、或实现 Laravel Request 等适配；禁止在 PHP 侧堆匿名 singleton 冒充框架。
+5. 每层能力用 `tests/origami/` 冒烟验收；核心语义补 `tests/php/`。
+6. 详细说明见 `examples/laravel13/ORIGAMI.md`。
 
 ## 旧目录
 

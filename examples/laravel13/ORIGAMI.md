@@ -7,7 +7,7 @@
 ## 原则
 
 1. **起点是原生 Laravel**：`artisan`、`public/index.php`、`bootstrap/app.php`、`vendor/laravel/framework` 保持官方形态；不先堆假 Facade / 假 Kernel。
-2. **缺口回推运行时**：通用 PHP / Symfony / Illuminate 语义差异优先修 Origami 核心；`go-support/` 只做示例级扩展或覆盖（含 Laravel Request 等适配），并可在必要时覆盖标准库实现。
+2. **缺口回推运行时**：通用 PHP / Symfony / Illuminate 语义差异优先修 Origami 核心；`go-support/` 只做示例级扩展或覆盖（含 Laravel Request 等适配），并可在必要时覆盖标准库实现。**禁止**改 `vendor/` 或应用 PHP 来消 Warning / 绕过 Fatal。
 3. **增量验收**：每打通一层就加 `tests/origami/` 冒烟；禁止「类能加载就算完成」。
 4. **禁止膨胀补丁**：不要在 `bootstrap/` 里用越写越大的匿名 `singleton` 假装能跑。
 

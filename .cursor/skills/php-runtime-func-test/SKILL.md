@@ -122,8 +122,9 @@ go run ./zy.go tests/php/set_exception_handler_test.php
 ## 测试脚本与问题定位（避免“测试文件总是错”）
 
 1. **不要默认怪测试文件**：当用户说“测试错了”或“输出不对”时，先认定是**运行时/解析器**的问题，除非能明确证明是测试用例写错（例如断言与 PHP 官方文档不符）。
-2. **用真实代码定位**：若问题来自真实项目（如 Symfony、vendor 下的代码），以**用户给出的具体文件与行号**为准（例如 `vendor/symfony/console/Descriptor/TextDescriptor.php:233`），在该行写的是“应该输出 `$content` 却输出了 `true`”时，优先考虑：
+2. **不要改 PHP 跳过错误**：Laravel/Livewire/Symfony/`app/`/`vendor/` 上的 Warning 或异常，用来定位应对齐的 PHP 语义，然后修 Origami 核心并补 `tests/php/`。禁止改 vendor/业务 PHP、加 `@`、或删调用把错误藏掉。
+3. **用真实代码定位**：若问题来自真实项目（如 Symfony、vendor 下的代码），以**用户给出的具体文件与行号**为准（例如 `vendor/symfony/console/Descriptor/TextDescriptor.php:233`），在该行写的是“应该输出 `$content` 却输出了 `true`”时，优先考虑：
    - **运算符优先级**：如 `a && b ? c : d` 在 PHP 中为 `(a && b) ? c : d`；若解析成 `a && (b ? c : d)` 会得到错误结果。应在 `parser/expression_parser.go` 中保证 `&&`/`||` 的右侧不吞掉其后的 `? :`（例如 `parseLogicalAnd` 的右侧用 `parseBitwiseOr` 而非 `parseAssignment`）。
    - **其它解析/求值顺序**：对照 PHP 官方运算符优先级表检查解析层级。
-3. **测试脚本的用途**：`tests/php/` 下的脚本用于**回归/最小复现**。若 bug 已在真实文件中定位，可先在该真实文件上验证修复，再在 `tests/php/` 里补一个最小用例（例如只包含有问题的表达式）防止回退。 
+4. **测试脚本的用途**：`tests/php/` 下的脚本用于**回归/最小复现**。若 bug 已在真实文件中定位，可先在该真实文件上验证修复，再在 `tests/php/` 里补一个最小用例（例如只包含有问题的表达式）防止回退。 
 
