@@ -1,0 +1,8 @@
+﻿.\examples\laravel13\laravel13.exe : ZY Fatal error: open d:\gitcode.com\origami\artisan: The system cannot find the fi
+le specified. in D:/gitcode.com/origami/parser/parser.go:100:1
+所在位置 C:\Users\User\AppData\Local\Temp\ps-script-6c55ad8f-3c59-43d7-a7a3-f2bc5446dcfa.ps1:122 字符: 78
++ ... el13.exe) { .\examples\laravel13\laravel13.exe examples/laravel13/tes ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (ZY Fatal error:...parser.go:100:1:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

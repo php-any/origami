@@ -1,0 +1,21 @@
+﻿.\laravel13.exe : 
+所在位置 C:\Users\User\AppData\Local\Temp\ps-script-5939d2ac-3870-4357-9e29-644da975b23d.ps1:122 字符: 471
++ ... lyContinue; .\laravel13.exe run tests/origami/login_render_probe.php  ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Warning: Undefined array key "layoutConfig" in d:\gitcode.com\origami\examples\laravel13\vendor\laravel\framework\src\i
+lluminate\view\view.php on line 425
+
+Warning: Undefined array key "attributes" in d:\gitcode.com\origami\examples\laravel13\vendor\laravel\framework\src\ill
+uminate\view\compilers\componenttagcompiler.php on line 154
+
+Warning: Undefined array key "attribute" in d:\gitcode.com\origami\examples\laravel13\vendor\laravel\framework\src\illu
+minate\view\compilers\componenttagcompiler.php on line 626
+
+In d300ce7e12c7ab29f0779cb22d3af0c93a795983ba22bdab695bb41de02b462a.php line 13:
+                                                      
+  对象(Illuminate\Filesystem\Filesystem)不存在属性(content)  
+                                                      
+

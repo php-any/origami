@@ -1,0 +1,2 @@
+
+Warning: Undefined array key "capture" in d:\gitcode.com\origami\examples\laravel13\tests\origami\capture_compare_probe.php on line 9

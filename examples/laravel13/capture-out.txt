@@ -1,0 +1,20 @@
+name="$content"
+arguments="$logo, $isDarkMode = false"
+out="\r\n                <?php $content = (function ($args) {\r\n                    return function ($logo, $isDarkMode = false) use ($args) {\r\n                        extract($args, EXTR_SKIP);\r\n                        ob_start(); ?>\r\n            "
+HAS_CONTENT
+---COMPILED---
+
+            <?php  = (function ($args) {
+                return function () use ($args) {
+                    extract($args, EXTR_SKIP);
+                    ob_start(); ?>
+        
+    <div><?php echo e($logo); ?></div>
+
+            <?php return new \Illuminate\Support\HtmlString(ob_get_clean()); };
+                })(get_defined_vars()); ?>
+        
+<?php echo e($content('x')); ?>
+---
+COMPILED_BAD
+EMPTY_ASSIGN

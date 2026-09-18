@@ -1,0 +1,14 @@
+[diag] CallMethod first-class FuncValue args=1
+[diag] CallMethod first-class FuncValue args=1
+[diag] CallMethod first-class FuncValue args=1
+[diag] CallMethod first-class FuncValue args=1
+[diag] lambda returns FuncValue name=""
+[diag] lambda returns FuncValue name=""
+[diag] lambda returns FuncValue name=""
+[diag] lambda returns FuncValue name=""
+[diag] lambda returns FuncValue name=""
+[diag] CallMethod ToClosure->FuncValue args=0
+[diag] withVisibilityCache ret-type-fail-path ret=ret=FuncValue( typ=*node.LambdaExpression) retNil=true from=&{0x15a3c87e7310 7238 7613 260 27 275 4}
+[diag] toEmbeddedHtml ret-type-fail-path ret=ret=FuncValue( typ=*node.LambdaExpression) retNil=false from=&{0x15a3cda01400 5534 5663 163 20 166 4}
+[diag] lambda returns FuncValue name=""
+[diag] lambda returns FuncValue name=""

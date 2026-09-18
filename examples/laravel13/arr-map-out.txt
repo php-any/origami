@@ -1,0 +1,7 @@
+array_values type=array json=["App\\A","App\\B"]
+Arr::map type=object countable=n json={"0":"App\\A","1":"App\\B"}
+is_array=y
+collection class=Illuminate\Support\Collection
+all type=object is_array=y json={"0":"App\\A","1":"App\\B"}
+items type=object is_array=y json={"0":"App\\A","1":"App\\B"}
+DONE

@@ -1,0 +1,4 @@
+﻿dummy_type=string val='<div>ok</div>'
+stats_len=11659
+DONE
+

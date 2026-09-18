@@ -1,0 +1,9 @@
+#!/usr/bin/env php
+   INFO  Server running on [http://127.0.0.1:8000].
+
+  Press Ctrl+C to stop the server
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186

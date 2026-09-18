@@ -1,0 +1,10 @@
+﻿start
+autoload
+app
+kernel
+
+In exception_exception_method.go line 43:
+                                   
+  Invalid URI: Host is malformed.  
+                                   
+

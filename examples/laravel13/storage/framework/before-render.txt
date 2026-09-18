@@ -1,0 +1,2 @@
+before target=Filament\Auth\Pages\Login
+before target=Filament\Livewire\Notifications

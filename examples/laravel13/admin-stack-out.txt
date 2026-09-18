@@ -1,0 +1,16 @@
+handling
+
+In exception_exception_method.go line 43:
+                                                                         
+  Method Filament\Auth\Pages\Login::getBroadcastChannel does not exist.  
+                                                                         
+
+status=200
+len=14377
+has_err=no
+---stack---
+BEFORE target=Filament\Auth\Pages\Login current=NULL view=filament-panels::pages.simple
+ON target=Filament\Auth\Pages\Login current=Filament\Auth\Pages\Login view=filament-panels::pages.simple
+BEFORE target=Filament\Livewire\Notifications current=Filament\Auth\Pages\Login view=filament-notifications::notifications
+ON target=Filament\Livewire\Notifications current=Filament\Auth\Pages\Login view=filament-notifications::notifications
+DONE

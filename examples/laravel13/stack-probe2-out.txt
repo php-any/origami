@@ -1,0 +1,9 @@
+mount_notifications...
+notif_len=1020
+has_err=no
+this_in_html=no
+---stack---
+BEFORE target=Filament\Notifications\Livewire\Notifications current=NULL isLW=no
+ON target=Filament\Notifications\Livewire\Notifications current=Filament\Notifications\Livewire\Notifications isLW=yes
+AFTER target=Filament\Notifications\Livewire\Notifications current=Filament\Notifications\Livewire\Notifications
+DONE

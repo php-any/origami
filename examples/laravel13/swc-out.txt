@@ -1,0 +1,6 @@
+
+In schema.php line 164:
+                                                            
+  方法(toEmbeddedHtml)返回值类型错误; 期望 string, 实际 *data.FuncValue  
+                                                            
+

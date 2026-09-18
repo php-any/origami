@@ -1,0 +1,7 @@
+﻿boot
+d:\gitcode.com\origami\examples\laravel13\tests\origami\hasmacro_class_probe.php:8:
+bool(true)
+cab ok
+handling
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186

@@ -1,0 +1,13 @@
+﻿handling
+
+In color.php line 484:
+                         
+  无法调用函数(sscanf), 未找到函数  
+                         
+
+
+In exception_exception_method.go line 43:
+                                                                         
+  Method Filament\Auth\Pages\Login::getBroadcastChannel does not exist.  
+                                                                         
+

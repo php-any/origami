@@ -1,0 +1,2 @@
+target=Filament\Auth\Pages\Login n=3 keys=0,1,2
+target=Filament\Livewire\Notifications n=2 keys=0,1

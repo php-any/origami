@@ -1,0 +1,13 @@
+started level=1
+slot level=2
+endSlot level=1
+slots_type=array
+slots=array (
+  0 => array (
+  'trigger' => 'Illuminate\View\ComponentSlot',
+),
+)
+trigger=Illuminate\View\ComponentSlot html=<button>OpenMe</button>
+html_len=228
+has_open=no
+DONE

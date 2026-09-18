@@ -1,0 +1,2 @@
+ensureCLIArgv:
+tests/php/argv_bare_new_test.php

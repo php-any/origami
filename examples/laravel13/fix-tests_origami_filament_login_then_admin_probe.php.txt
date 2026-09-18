@@ -1,0 +1,17 @@
+﻿post_status=200
+redirect='admin'
+guard_after_post=yes
+session_has=dump
+session_keys=_token,_previous,_flash,login_admin_59ba36addc2b2f9401580f014c7f58ea4e30989d
+
+In 5921f87fba61222d64f541e8b5aa1c237d49570434be77cf8f0230d7dc29f416.php line 80:
+                                     
+  当前值("null")不支持调用函数, 你调用的函数(class)  
+                                     
+
+admin_status=200
+admin_loc=
+admin_len=36687
+admin_markers=yes
+DONE
+

@@ -1,0 +1,5 @@
+class=Filament\Auth\Http\Responses\LoginResponse
+impl_filament=yes
+impl_illuminate=yes
+implements=0
+DONE

@@ -1,0 +1,27 @@
+﻿handling
+.\laravel13.exe : 
+所在位置 C:\Users\User\AppData\Local\Temp\ps-script-1bfdf4d6-97b4-4f23-bd5b-959c4467e1d3.ps1:123 字符: 190
++ ... lyContinue; .\laravel13.exe run tests/origami/admin_http_probe2.php 2 ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Warning: Undefined array key "layoutConfig" in d:\gitcode.com\origami\examples\laravel13\vendor\laravel\framework\src\i
+lluminate\view\view.php on line 425
+
+Warning: Undefined array key "attributes" in d:\gitcode.com\origami\examples\laravel13\vendor\laravel\framework\src\ill
+uminate\view\compilers\componenttagcompiler.php on line 154
+
+Warning: Undefined array key "attribute" in d:\gitcode.com\origami\examples\laravel13\vendor\laravel\framework\src\illu
+minate\view\compilers\componenttagcompiler.php on line 626
+
+In n/a line 1:
+                                                                             
+  类 LivewireFeaturesSupportCompiledWireKeysSupportCompiledWireKeys 不存在或无法加载  
+                                                                             
+
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186

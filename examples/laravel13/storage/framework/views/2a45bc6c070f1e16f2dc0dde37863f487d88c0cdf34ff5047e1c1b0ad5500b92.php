@@ -1,0 +1,1 @@
+<div></div><?php /**PATH D:\gitcode.com\origami\examples\laravel13\storage\framework\views/93636fa047400919d3a6fa2c57a114596546d97c9681645ed857fb014fb8fb18.blade.php ENDPATH**/ ?>

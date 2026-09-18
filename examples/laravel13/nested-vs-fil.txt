@@ -1,0 +1,4 @@
+nested_out="<?php $content = X $logo, $isDarkMode = false Y"
+NESTED_OK
+fil_out="\n            <?php  = (function ($args) {\n                return function () use ($args) {\n                    extract($args, EXTR_SKIP);\n                    ob_start(); ?>\n        "
+FIL_BAD

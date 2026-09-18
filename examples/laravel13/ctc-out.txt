@@ -1,0 +1,10 @@
+##BEGIN-COMPONENT-CLASS##@component('Illuminate\View\AnonymousComponent', 'filament-panels::page.simple', ['view' => 'filament-panels::components.page.simple','data' => ['0' => false]])
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['0' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(false)]); ?>
+    {{ $this->content }}
+ @endComponentClass##END-COMPONENT-CLASS##
+---
+BAD_ZERO
+HAS_FALSE

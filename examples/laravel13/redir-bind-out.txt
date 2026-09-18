@@ -1,0 +1,10 @@
+before=Illuminate\Routing\Redirector
+has_instance=bound
+factory_called
+after_bind_class=Livewire\Features\SupportRedirects\Redirector
+factory_called
+same_as_before=no
+after_instance=Illuminate\Routing\Redirector
+factory2_called
+after_rebind=Livewire\Features\SupportRedirects\Redirector
+DONE

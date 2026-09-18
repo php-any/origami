@@ -1,0 +1,8 @@
+[["after_short","","string"],["after_bag"," :attributes=\"\"","string"],["after_class"," :attributes=\"\"","string"],["after_style"," :attributes=\"\"","string"],["after_bind"," bind:= :attributes=\"\"","string"],{"n":2,"matches":[{"0":"bind:","attribute":"bind:","1":"bind:"},{"0":":attributes=\"\"","attribute":":attributes","1":":attributes","2":"=\"\"","value":"\"\"","3":"\"\"","4":"\"\""}],"n_type":"int"},{"result":{"0":"true",":attributes":"''"},"bound":[true]}]
+RESULT={"0":"true",":attributes":"''"}
+
+In componenttagcompiler.php line 754:
+                                            
+  当前值("null")不支持调用函数, 你调用的函数(compileEchos)  
+                                            
+
