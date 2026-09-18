@@ -60,21 +60,14 @@ func (m *ReflectionClassGetMethodMethod) Call(ctx data.Context) (data.GetValue, 
 	for current != nil {
 		if _, exists := current.GetMethod(methodName); exists {
 			declaredClass = current.GetName()
-			methodClass := &ReflectionMethodClass{}
-			methodValue := data.NewClassValue(methodClass, ctx.CreateBaseContext())
-			methodValue.ObjectValue.SetProperty("_className", data.NewStringValue(declaredClass))
-			methodValue.ObjectValue.SetProperty("_methodName", data.NewStringValue(methodName))
-			// 保留原始被反射类名，便于声明类与反射目标区分（PHP getDeclaringClass 语义）
+			methodValue := newReflectionMethod(ctx, declaredClass, methodName)
 			methodValue.ObjectValue.SetProperty("_reflectedClassName", data.NewStringValue(className))
 			return methodValue, nil
 		}
 		if staticMethods, ok := current.(data.GetStaticMethod); ok {
 			if _, exists := staticMethods.GetStaticMethod(methodName); exists {
 				declaredClass = current.GetName()
-				methodClass := &ReflectionMethodClass{}
-				methodValue := data.NewClassValue(methodClass, ctx.CreateBaseContext())
-				methodValue.ObjectValue.SetProperty("_className", data.NewStringValue(declaredClass))
-				methodValue.ObjectValue.SetProperty("_methodName", data.NewStringValue(methodName))
+				methodValue := newReflectionMethod(ctx, declaredClass, methodName)
 				methodValue.ObjectValue.SetProperty("_reflectedClassName", data.NewStringValue(className))
 				return methodValue, nil
 			}

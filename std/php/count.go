@@ -6,10 +6,22 @@ import (
 )
 
 func NewCountFunction() data.FuncStmt {
-	return &CountFunction{}
+	return &CountFunction{
+		params: []data.GetValue{
+			node.NewParameter(nil, "value", 0, nil, nil),
+			node.NewParameter(nil, "mode", 1, node.NewNullLiteral(nil), nil),
+		},
+		vars: []data.Variable{
+			node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
+			node.NewVariable(nil, "mode", 1, data.NewBaseType("int")),
+		},
+	}
 }
 
-type CountFunction struct{}
+type CountFunction struct {
+	params []data.GetValue
+	vars   []data.Variable
+}
 
 func (f *CountFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	value, _ := ctx.GetIndexValue(0)
@@ -103,15 +115,9 @@ func (f *CountFunction) GetName() string {
 }
 
 func (f *CountFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-		node.NewParameter(nil, "mode", 1, node.NewNullLiteral(nil), nil),
-	}
+	return f.params
 }
 
 func (f *CountFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
-		node.NewVariable(nil, "mode", 1, data.NewBaseType("int")),
-	}
+	return f.vars
 }

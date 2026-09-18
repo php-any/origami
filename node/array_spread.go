@@ -1,6 +1,10 @@
 package node
 
-import "github.com/php-any/origami/data"
+import (
+	"fmt"
+
+	"github.com/php-any/origami/data"
+)
 
 // ArraySpread 表示数组展开运算符 ...$array
 type ArraySpread struct {
@@ -27,6 +31,8 @@ func (a *ArraySpread) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	switch v := exprValue.(type) {
+	case *data.NullValue:
+		return nil, data.NewErrorThrow(nil, data.NewError(nil, "展开运算符不能用于 null（期望 array|Traversable）", nil))
 	case *data.ArrayValue:
 		return v, nil
 	case *data.ObjectValue:
@@ -36,21 +42,36 @@ func (a *ArraySpread) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			return true
 		})
 		return &data.ArrayValue{List: list}, nil
-	case *data.ClassValue:
-		// Generator 展开：遍历生成器的所有 yield 值
-		if v.Class != nil && isGeneratorClassName(v.Class.GetName()) {
-			vals, spreadCtl := iterateGenerator(ctx, v)
-			if spreadCtl != nil {
-				return nil, spreadCtl
-			}
-			list := make([]*data.ZVal, 0, len(vals))
-			for _, val := range vals {
-				list = append(list, data.NewZVal(val))
-			}
-			return &data.ArrayValue{List: list}, nil
+	case *data.ThisValue:
+		if v.ClassValue == nil {
+			return nil, data.NewErrorThrow(nil, data.NewError(nil, "展开运算符只能用于数组或 Traversable，收到: $this", nil))
 		}
-		return nil, data.NewErrorThrow(nil, data.NewError(nil, "展开运算符只能用于数组", nil))
+		return a.spreadClassValue(ctx, v.ClassValue)
+	case *data.ClassValue:
+		return a.spreadClassValue(ctx, v)
 	default:
-		return nil, data.NewErrorThrow(nil, data.NewError(nil, "展开运算符只能用于数组", nil))
+		kind := fmt.Sprintf("%T", exprValue)
+		return nil, data.NewErrorThrow(nil, data.NewError(nil, "展开运算符只能用于数组或 Traversable，收到: "+kind, nil))
 	}
+}
+
+func (a *ArraySpread) spreadClassValue(ctx data.Context, v *data.ClassValue) (data.GetValue, data.Control) {
+	vals, spreadCtl := iterateClassForSpread(ctx, v)
+	if spreadCtl != nil {
+		return nil, spreadCtl
+	}
+	if vals != nil {
+		list := make([]*data.ZVal, 0, len(vals))
+		for _, val := range vals {
+			list = append(list, data.NewZVal(val))
+		}
+		return &data.ArrayValue{List: list}, nil
+	}
+	kind := "ClassValue"
+	if v != nil && v.Class != nil {
+		if n := v.Class.GetName(); n != "" {
+			kind = n
+		}
+	}
+	return nil, data.NewErrorThrow(nil, data.NewError(nil, "展开运算符只能用于数组或 Traversable，收到: "+kind, nil))
 }

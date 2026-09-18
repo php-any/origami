@@ -38,7 +38,10 @@ func (pe *CallParentProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 	}
 
 	parentClassName := *currClass.GetExtend()
-	vm := ctx.GetVM()
+	vm := callVM(ctx)
+	if vm == nil {
+		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("parent:: 调用时 VM 不可用"))
+	}
 	parentClass, acl := vm.GetOrLoadClass(parentClassName)
 	if acl != nil {
 		return nil, acl

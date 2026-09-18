@@ -115,6 +115,9 @@ func (m *InterfaceMethod) GetReturnType() data.Types {
 
 // GetStaticProperty 获取接口的静态属性
 func (i *InterfaceStatement) GetStaticProperty(name string) (data.Value, bool) {
+	if v, ok := data.LoadRequestStatic(i.GetName(), name); ok {
+		return v, true
+	}
 	if f, ok := i.StaticProperty.Load(name); ok {
 		return f.(data.Value), true
 	}

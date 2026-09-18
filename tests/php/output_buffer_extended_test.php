@@ -88,8 +88,11 @@ $status = ob_get_status();
 if (!isset($status['level']) || $status['level'] !== 1) {
     Log::fatal('ob_get_status level 错误');
 }
-if (!isset($status['buffer_size']) || $status['buffer_size'] !== 11) {
-    Log::fatal('ob_get_status buffer_size 错误, got=' . $status['buffer_size']);
+if (!isset($status['buffer_used']) || $status['buffer_used'] !== 11) {
+    Log::fatal('ob_get_status buffer_used 错误, got=' . (isset($status['buffer_used']) ? $status['buffer_used'] : 'missing'));
+}
+if (!isset($status['buffer_size']) || $status['buffer_size'] < 11) {
+    Log::fatal('ob_get_status buffer_size 应 >= 已用字节, got=' . (isset($status['buffer_size']) ? $status['buffer_size'] : 'missing'));
 }
 ob_start();
 echo 'x';

@@ -80,16 +80,11 @@ func hasStaticPropertySlot(class data.ClassStmt, name string) bool {
 
 // GetValue 获取 static::$prop 访问的值
 func (pe *CallStaticKeywordProperty) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 与 self:: 一样，必须在类上下文中使用（含 BoundContext 包裹）
-	var lateStaticClass data.ClassStmt
-	if classCtx := findClassMethodContext(ctx); classCtx != nil {
-		lateStaticClass = classCtx.Class
-		if classCtx.StaticClass != nil {
-			lateStaticClass = classCtx.StaticClass
-		}
-	} else if classVal, ok := ctx.(*data.ClassValue); ok {
-		lateStaticClass = classVal.Class
-	} else {
+	lateStaticClass, acl, ok := resolveLateStaticClass(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	if !ok {
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("static:: 只能在类方法中使用"))
 	}
 
@@ -112,16 +107,11 @@ func (pe *CallStaticKeywordProperty) GetValue(ctx data.Context) (data.GetValue, 
 
 // SetProperty 设置 static::$prop 的值
 func (pe *CallStaticKeywordProperty) SetProperty(ctx data.Context, name string, value data.Value) data.Control {
-	// 与 self:: 一样，必须在类上下文中使用（含 BoundContext 包裹）
-	var lateStaticClass data.ClassStmt
-	if classCtx := findClassMethodContext(ctx); classCtx != nil {
-		lateStaticClass = classCtx.Class
-		if classCtx.StaticClass != nil {
-			lateStaticClass = classCtx.StaticClass
-		}
-	} else if classVal, ok := ctx.(*data.ClassValue); ok {
-		lateStaticClass = classVal.Class
-	} else {
+	lateStaticClass, acl, ok := resolveLateStaticClass(ctx)
+	if acl != nil {
+		return acl
+	}
+	if !ok {
 		return data.NewErrorThrow(pe.GetFrom(), errors.New("static:: 只能在类方法中使用"))
 	}
 
@@ -134,18 +124,11 @@ func (pe *CallStaticKeywordProperty) SetProperty(ctx data.Context, name string, 
 	}
 
 	// 在定义该属性的类中设置静态属性
-	switch c := definingClass.(type) {
-	case *ClassStatement:
-		c.StaticProperty.Store(name, value)
+	if storeClassStatic(definingClass, name, value) {
 		return nil
-	case *AbstractClassStatement:
-		c.StaticProperty.Store(name, value)
-		return nil
-	case *ClassGeneric:
-		c.StaticProperty.Store(name, value)
-		return nil
-	case data.SetProperty:
-		return c.SetProperty(name, value)
+	}
+	if sp, ok := definingClass.(data.SetProperty); ok {
+		return sp.SetProperty(name, value)
 	}
 
 	cname := ""

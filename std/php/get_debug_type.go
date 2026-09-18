@@ -36,6 +36,14 @@ func (f *GetDebugTypeFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	case *data.ClassValue:
 		// 对于对象，返回具体的类名
 		tp = val.Class.GetName()
+	case *data.ThrowValue:
+		if val.Object != nil && val.Object.Class != nil {
+			tp = val.Object.Class.GetName()
+		} else if val.Name != "" {
+			tp = val.Name
+		} else {
+			tp = "Exception"
+		}
 	case *data.FloatValue:
 		tp = "float"
 	case *data.IntValue:

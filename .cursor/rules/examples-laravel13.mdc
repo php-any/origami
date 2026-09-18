@@ -18,6 +18,7 @@ alwaysApply: false
 4. `go-support/` 可做示例扩展、覆盖标准库、或实现 Laravel Request 等适配；禁止在 PHP 侧堆匿名 singleton 冒充框架。
 5. 每层能力用 `tests/origami/` 冒烟验收；核心语义补 `tests/php/`。
 6. 详细说明见 `examples/laravel13/ORIGAMI.md`。
+7. **启动用 `go run`**：在本目录执行 `go run -mod=mod . serve --port=18086`（或 `go run -mod=mod . list`）。不要先编 `laravel13.exe`。HTTP 验收带 `curl --max-time`。
 
 ## 旧目录
 

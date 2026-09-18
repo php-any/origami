@@ -21,9 +21,31 @@ Origami 是用 Go 实现的 **PHP 语义解释器**（词法 → 解析 → AST/
 - vendor 文件与行号只用来 **定位应对齐的 PHP 语义**；在核心修好后，补 `tests/php/` 最小回归，并用 `go run ./zy.go tests/php/<name>_test.php` 跑通。
 - `examples/laravel13/go-support/` 只做 HTTP/进程适配；禁止用匿名 singleton 冒充框架能力。
 
+## 启动与验收
+
+优先 `go run`，不要先编 `laravel13.exe` / `origami.exe` 再跑。
+
+```bash
+# Laravel 13（在 examples/laravel13 目录）
+go run -mod=mod . serve --port=18086
+
+# 核心回归
+go run ./zy.go tests/php/<name>_test.php
+```
+
+HTTP 验收必须带超时（如 `curl --max-time 35`），禁止无限等待。仅发布、交叉编译或要排除编译时间的基准才用 `go build`。
+
 ## 性能
 
-不要在 `Call()`、每个方法/函数、`json_encode` 等热路径上插追踪。诊断用进程外采样或临时日志，用完必须拆掉。
+这是语言运行时：热路径（赋值、调用、属性读、`Call()`）上多一次断言、加锁、多层 Context 或堆分配，都会在 Laravel 请求里被放大。语义修复不得绑到更快的快路径上；改动必须证明净收益，负优化要撤。
+
+不要在 `Call()`、每个方法/函数、`json_encode` 等热路径上插追踪。诊断用 `-tags origamidebug` 编入的 `perfmon`（请求计时 / autoload·解析计数 / pprof），不要往生产构建埋点。
+
+```bash
+cd examples/laravel13
+go run -mod=mod -tags origamidebug . serve --port=18086
+# 可选：$env:ORIGAMI_CPUPROFILE="cpu.out"; $env:ORIGAMI_PPROF_ADDR="127.0.0.1:6060"
+```
 
 ## 架构速查
 

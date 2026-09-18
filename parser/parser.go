@@ -30,6 +30,11 @@ type Parser struct {
 	currentClass    string
 	currentFunction string
 
+	// currentStaticHolder 当前函数/方法/闭包解析期内的 static 局部变量存储。
+	// 仅当函数体出现 static $x 时才分配；嵌套函数通过 enterStaticScope 压栈隔离。
+	currentStaticHolder *node.StaticLocalsHolder
+	staticHolderStack   []*node.StaticLocalsHolder
+
 	namespace        *node.Namespace
 	uses             map[string]string // 类引用
 	ClassPathManager ClassPathManager  // 类路径管理器
@@ -66,6 +71,8 @@ func (p *Parser) reset() {
 	p.uses = make(map[string]string)
 	p.namespace = nil
 	p.scopeManager = NewScopeManager()
+	p.currentStaticHolder = nil
+	p.staticHolderStack = p.staticHolderStack[:0]
 }
 
 func (p *Parser) Clone() *Parser {
@@ -90,6 +97,31 @@ func (p *Parser) Clone() *Parser {
 
 func (p *Parser) SetVM(vm data.VM) {
 	p.vm = vm
+}
+
+// enterStaticScope 进入函数/方法/闭包解析，隔离外层的 static holder。
+func (p *Parser) enterStaticScope() {
+	p.staticHolderStack = append(p.staticHolderStack, p.currentStaticHolder)
+	p.currentStaticHolder = nil
+}
+
+// leaveStaticScope 与 enterStaticScope 成对，供 defer，避免为每个函数解析分配闭包。
+func (p *Parser) leaveStaticScope() {
+	n := len(p.staticHolderStack)
+	if n == 0 {
+		p.currentStaticHolder = nil
+		return
+	}
+	p.currentStaticHolder = p.staticHolderStack[n-1]
+	p.staticHolderStack = p.staticHolderStack[:n-1]
+}
+
+// ensureStaticHolder 返回当前函数的 static holder（首次 static 声明时创建）。
+func (p *Parser) ensureStaticHolder() *node.StaticLocalsHolder {
+	if p.currentStaticHolder == nil {
+		p.currentStaticHolder = &node.StaticLocalsHolder{}
+	}
+	return p.currentStaticHolder
 }
 
 // ParseFile 解析文件

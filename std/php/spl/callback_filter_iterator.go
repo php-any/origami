@@ -70,8 +70,12 @@ func splInvokeCallable(ctx data.Context, callback data.GetValue, args []data.Val
 	fn := core.NewCallUserFuncFunction()
 	callCtx := ctx.CreateContext(fn.GetVariables())
 	callCtx.SetIndexZVal(0, data.NewZVal(splAsValue(callback)))
-	for i, arg := range args {
-		callCtx.SetIndexZVal(i+1, data.NewZVal(arg))
+	switch len(args) {
+	case 0:
+	case 1:
+		callCtx.SetIndexZVal(1, data.NewZVal(args[0]))
+	default:
+		callCtx.SetIndexZVal(1, data.NewZVal(data.NewArrayValue(args)))
 	}
 	return fn.Call(callCtx)
 }

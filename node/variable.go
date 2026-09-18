@@ -2,6 +2,7 @@ package node
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/php-any/origami/data"
 )
@@ -40,7 +41,7 @@ func NewVariable(from data.From, name string, index int, ty data.Types) *Variabl
 
 // GetValue 获取变量表达式的值
 func (v *VariableExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	return ctx.GetVariableValue(v)
+	return ctx.GetIndexZVal(v.Index).Value, nil
 }
 
 func (v *VariableExpression) GetIndex() int {
@@ -54,7 +55,10 @@ func (v *VariableExpression) GetType() data.Types {
 }
 
 func (v *VariableExpression) SetValue(ctx data.Context, value data.Value) data.Control {
-	// PHP 兼容：变量可以被赋予任何类型的值
+	if v.Type == nil && data.IsScalarAssignFast(value) {
+		data.AssignScalarToZVal(ctx.GetIndexZVal(v.Index), value)
+		return nil
+	}
 	return ctx.SetVariableValue(v, value)
 }
 
@@ -112,10 +116,46 @@ func (vl *VariableList) GetType() data.Types {
 func (vl *VariableList) SetValue(ctx data.Context, value data.Value) data.Control {
 	// 处理 ArrayValue
 	if arr, ok := value.(*data.ArrayValue); ok {
+		valueList := arr.ToValueList()
 		for i, v := range vl.Vars {
 			var val data.Value = data.NewNullValue()
-			if i < len(arr.List) {
-				val = arr.List[i].Value
+			if i < len(valueList) {
+				val = valueList[i]
+			}
+			if ctl := v.SetValue(ctx, val); ctl != nil {
+				return ctl
+			}
+		}
+		return nil
+	}
+	// ObjectValue：关联数组形态（Collection::toArray() 的 "0","1" 键）
+	if obj, ok := value.(*data.ObjectValue); ok {
+		n := len(vl.Vars)
+		vals := make([]data.Value, 0, n)
+		for i := 0; i < n; i++ {
+			key := fmt.Sprintf("%d", i)
+			if !obj.HasProperty(key) {
+				break
+			}
+			v, _ := obj.GetProperty(key)
+			if v == nil {
+				v = data.NewNullValue()
+			}
+			vals = append(vals, v)
+		}
+		if len(vals) == 0 {
+			obj.RangeProperties(func(_ string, val data.Value) bool {
+				if len(vals) >= n {
+					return false
+				}
+				vals = append(vals, val)
+				return true
+			})
+		}
+		for i, v := range vl.Vars {
+			var val data.Value = data.NewNullValue()
+			if i < len(vals) {
+				val = vals[i]
 			}
 			if ctl := v.SetValue(ctx, val); ctl != nil {
 				return ctl

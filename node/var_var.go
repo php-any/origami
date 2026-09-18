@@ -59,6 +59,13 @@ func (v *VarVar) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 
+	// 快照可能早于同名变量在文件中的首次出现（Blade @props 的 $$__key
+	// 常在 isset($trigger)/$trigger 使用之前）。回退按名查找，否则
+	// `$$__key = $$__key ?? null` 会读到 null 并擦掉 extract/include 注入的槽位。
+	if got, ok := ctx.GetVariableByName(name); ok && got != nil {
+		return got, nil
+	}
+
 	// 与 PHP 行为对齐：未找到变量时返回 null
 	return data.NewNullValue(), nil
 }

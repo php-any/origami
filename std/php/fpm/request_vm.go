@@ -17,7 +17,7 @@ import (
 type RequestVM struct {
 	base   *runtime.VM
 	output data.OutputWriter
-	ob     obStack
+	out    *runtime.OutputState
 
 	request   *http.Request
 	response  http.ResponseWriter
@@ -32,11 +32,7 @@ type RequestVM struct {
 	globalVars         map[string]*data.ZVal
 	globalsArray       *data.ObjectValue
 	sessionArray       *data.ObjectValue
-	callDepth          int
-	callStack          []data.CallFrame
-
-	// implicitFlush 对应 ob_implicit_flush 状态。
-	implicitFlush bool
+	call               runtime.CallState
 }
 
 // New 创建请求级 VM。output 为本请求 HTTP body 写入目标；nil 时使用 data.DefaultOutputWriter。
@@ -44,9 +40,12 @@ func New(base *runtime.VM, output data.OutputWriter) *RequestVM {
 	if output == nil {
 		output = data.DefaultOutputWriter
 	}
+	st := runtime.NewOutputState()
+	st.SetSink(output)
 	return &RequestVM{
 		base:               base,
 		output:             output,
+		out:                st,
 		classes:            make(map[string]data.ClassStmt),
 		interfaces:         make(map[string]data.InterfaceStmt),
 		funcs:              make(map[string]data.FuncStmt),
@@ -61,6 +60,9 @@ func New(base *runtime.VM, output data.OutputWriter) *RequestVM {
 func (v *RequestVM) BindHTTP(req *http.Request, resp http.ResponseWriter) {
 	v.request = req
 	v.response = resp
+	if f, ok := resp.(http.Flusher); ok {
+		v.out.SetSAPIFlush(func() { f.Flush() })
+	}
 }
 
 // HTTPRequest 返回当前绑定的 HTTP 请求。
@@ -74,76 +76,67 @@ func (v *RequestVM) HTTPResponseWriter() http.ResponseWriter {
 }
 
 func (v *RequestVM) WriteOutput(s string) {
-	if v.ob.write(s) {
-		return
-	}
-	v.output(s)
+	v.out.WriteTo(s, v.output)
 }
 
 func (v *RequestVM) StartOutputBuffer() {
-	v.ob.push()
+	v.out.StartDefault()
+}
+
+func (v *RequestVM) StartOutputBufferSpec(spec data.OutputBufferStartSpec) bool {
+	return v.out.StartSpec(spec)
 }
 
 func (v *RequestVM) CleanOutputBuffer() (string, bool) {
-	if v.ob.level() == 0 {
-		return "", false
-	}
-	return v.ob.pop(), true
+	return v.out.Clean()
 }
 
 func (v *RequestVM) OutputBufferContents() (string, bool) {
-	if v.ob.level() == 0 {
-		return "", false
-	}
-	return v.ob.contents(), true
+	return v.out.Contents()
 }
 
 func (v *RequestVM) OutputBufferLevel() int {
-	return v.ob.level()
+	return v.out.Level()
 }
 
-// FlushOutputBuffer 弹出并返回栈顶缓冲内容，并把内容写出到上一层（或最终输出）。
 func (v *RequestVM) FlushOutputBuffer() (string, bool) {
-	if v.ob.level() == 0 {
-		return "", false
-	}
-	content := v.ob.flush()
-	// 写出到上一层缓冲或最终输出。
-	v.WriteOutput(content)
-	return content, true
+	return v.out.FlushEnd(v.output)
 }
 
-// CleanCurrentBuffer 清空栈顶缓冲内容但不结束缓冲。
+func (v *RequestVM) FlushCurrentBuffer() (string, bool) {
+	return v.out.FlushCurrent(v.output)
+}
+
 func (v *RequestVM) CleanCurrentBuffer() bool {
-	return v.ob.cleanCurrent()
+	return v.out.CleanCurrent()
 }
 
-// OutputBufferLength 返回栈顶缓冲的字节长度（无缓冲返回 false）。
 func (v *RequestVM) OutputBufferLength() (int, bool) {
-	if v.ob.level() == 0 {
-		return 0, false
-	}
-	return v.ob.length(), true
+	return v.out.Length()
 }
 
-// OutputBufferStatus 返回缓冲层状态列表；full=true 返回全部层，否则仅最顶层。
 func (v *RequestVM) OutputBufferStatus(full bool) []data.OutputBufferStatusInfo {
-	return v.ob.status(full)
+	return v.out.Status(full)
 }
 
-// ListOutputHandlers 返回所有激活缓冲的处理器名。
 func (v *RequestVM) ListOutputHandlers() []string {
-	return v.ob.handlers()
+	return v.out.Handlers()
 }
 
-// SetImplicitFlush 设置/清除隐式刷新标志。
 func (v *RequestVM) SetImplicitFlush(on bool) {
-	v.implicitFlush = on
+	v.out.SetImplicitFlush(on)
 }
 
-// IsImplicitFlush 返回当前隐式刷新标志。
 func (v *RequestVM) IsImplicitFlush() bool {
-	return v.implicitFlush
+	return v.out.IsImplicitFlush()
+}
+
+func (v *RequestVM) TakeOutputControl() data.Control {
+	return v.out.TakeControl()
+}
+
+func (v *RequestVM) FlushSAPI() {
+	v.out.FlushSAPI()
 }
 
 func (v *RequestVM) AddClass(c data.ClassStmt) data.Control {
@@ -233,6 +226,8 @@ func (v *RequestVM) CreateContext(vars []data.Variable) data.Context {
 	if rctx, ok := ctx.(interface{ SetVM(data.VM) }); ok {
 		rctx.SetVM(v)
 	}
+	runtime.BindContextCallState(ctx, &v.call)
+	runtime.BindContextOutput(ctx, v.out)
 	return ctx
 }
 
@@ -301,18 +296,32 @@ func (v *RequestVM) LoadInCallerContext(parent data.Context, file string) (data.
 		return nil, acl
 	}
 	ctx := v.CreateContext(vars)
+	// 与 runtime.VM.LoadInCallerContext 对齐：注入父作用域全部已定义变量
+	declared := make(map[string]struct{}, len(vars))
 	for _, variable := range vars {
 		name := variable.GetName()
 		if name == "" {
 			continue
 		}
-		if val, ok := parent.GetVariableByName(name); ok && val != nil {
-			if ctl := variable.SetValue(ctx, val); ctl != nil {
-				return nil, ctl
+		declared[name] = struct{}{}
+		if parent.HasVariableByName(name) {
+			if val, ok := parent.GetVariableByName(name); ok && val != nil {
+				if ctl := variable.SetValue(ctx, val); ctl != nil {
+					return nil, ctl
+				}
+				continue
 			}
-			continue
 		}
 		ctx.SetIndexZVal(variable.GetIndex(), v.EnsureGlobalZVal(name))
+	}
+	for name, val := range parent.GetDefinedVariables() {
+		if name == "" || val == nil {
+			continue
+		}
+		if _, ok := declared[name]; ok {
+			continue
+		}
+		ctx.SetVariableByName(name, val)
 	}
 	return program.GetValue(ctx)
 }
@@ -374,14 +383,11 @@ func (v *RequestVM) AddNamespace(namespace string, path string) {
 }
 
 func (v *RequestVM) EnterCall() int {
-	v.callDepth++
-	return v.callDepth
+	return v.call.Enter()
 }
 
 func (v *RequestVM) LeaveCall() {
-	if v.callDepth > 0 {
-		v.callDepth--
-	}
+	v.call.Leave()
 }
 
 func (v *RequestVM) SetConstant(name string, value data.Value) data.Control {
@@ -454,28 +460,21 @@ func (v *RequestVM) RunShutdownCallbacks() {
 }
 
 func (v *RequestVM) PushCallFrame(frame data.CallFrame) {
-	v.callStack = append(v.callStack, frame)
+	v.call.Push(frame)
 }
 
 func (v *RequestVM) PopCallFrame() {
-	if n := len(v.callStack); n > 0 {
-		v.callStack = v.callStack[:n-1]
-	}
+	v.call.Pop()
 }
 
 func (v *RequestVM) SnapshotCallStack() []data.CallFrame {
-	if len(v.callStack) == 0 {
-		return nil
-	}
-	out := make([]data.CallFrame, len(v.callStack))
-	copy(out, v.callStack)
-	return out
+	return v.call.Snapshot()
 }
 
 var (
-	_ data.VM                         = (*RequestVM)(nil)
-	_ data.OutputSink                 = (*RequestVM)(nil)
-	_ data.OutputBufferHost           = (*RequestVM)(nil)
-	_ data.CallStackTracker           = (*RequestVM)(nil)
-	_ node.SuperglobalArrayProvider  = (*RequestVM)(nil)
+	_ data.VM                       = (*RequestVM)(nil)
+	_ data.OutputSink               = (*RequestVM)(nil)
+	_ data.OutputBufferHost         = (*RequestVM)(nil)
+	_ data.CallStackTracker         = (*RequestVM)(nil)
+	_ node.SuperglobalArrayProvider = (*RequestVM)(nil)
 )

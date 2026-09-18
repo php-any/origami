@@ -19,8 +19,8 @@ func (c *ReflectionFunctionClass) GetValue(ctx data.Context) (data.GetValue, dat
 // GetName 返回类名 "ReflectionFunction"
 func (c *ReflectionFunctionClass) GetName() string { return "ReflectionFunction" }
 
-// GetExtend 返回父类名，ReflectionFunction 没有父类
-func (c *ReflectionFunctionClass) GetExtend() *string { return nil }
+// GetExtend 对齐 PHP：ReflectionFunction extends ReflectionFunctionAbstract
+func (c *ReflectionFunctionClass) GetExtend() *string { return reflectionFunctionAbstractParent() }
 
 // GetImplements 返回实现的接口列表
 func (c *ReflectionFunctionClass) GetImplements() []string { return nil }
@@ -56,6 +56,8 @@ func (c *ReflectionFunctionClass) GetMethod(name string) (data.Method, bool) {
 		return &ReflectionFunctionGetFileNameMethod{}, true
 	case "getStartLine":
 		return &ReflectionFunctionGetStartLineMethod{}, true
+	case "getEndLine":
+		return &ReflectionFunctionGetEndLineMethod{}, true
 	}
 	return nil, false
 }
@@ -73,6 +75,7 @@ func (c *ReflectionFunctionClass) GetMethods() []data.Method {
 		&ReflectionFunctionGetClosureCalledClassMethod{},
 		&ReflectionFunctionGetFileNameMethod{},
 		&ReflectionFunctionGetStartLineMethod{},
+		&ReflectionFunctionGetEndLineMethod{},
 	}
 }
 
@@ -453,4 +456,29 @@ func (m *ReflectionFunctionGetStartLineMethod) Call(ctx data.Context) (data.GetV
 		return data.NewBoolValue(false), nil
 	}
 	return sourceStartLineFrom(function.Value), nil
+}
+
+type ReflectionFunctionGetEndLineMethod struct{}
+
+func (m *ReflectionFunctionGetEndLineMethod) GetName() string { return "getEndLine" }
+func (m *ReflectionFunctionGetEndLineMethod) GetModifier() data.Modifier {
+	return data.ModifierPublic
+}
+func (m *ReflectionFunctionGetEndLineMethod) GetIsStatic() bool          { return false }
+func (m *ReflectionFunctionGetEndLineMethod) GetReturnType() data.Types  { return data.Mixed{} }
+func (m *ReflectionFunctionGetEndLineMethod) GetParams() []data.GetValue { return nil }
+func (m *ReflectionFunctionGetEndLineMethod) GetVariables() []data.Variable {
+	return nil
+}
+
+func (m *ReflectionFunctionGetEndLineMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	objCtx, ok := ctx.(*data.ClassMethodContext)
+	if !ok || objCtx.ObjectValue == nil {
+		return data.NewBoolValue(false), nil
+	}
+	function, ok := objCtx.ObjectValue.GetProperties()["_function"].(*data.FuncValue)
+	if !ok || function == nil || function.Value == nil {
+		return data.NewBoolValue(false), nil
+	}
+	return sourceEndLineFrom(function.Value), nil
 }

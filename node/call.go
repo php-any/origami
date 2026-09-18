@@ -40,7 +40,32 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	varies := fn.GetVariables()
 	params := fn.GetParams()
 	arguments := pe.Args
+	if usesCallerContextParams(params) {
+		return callOnCallerContext(ctx, arguments, fn.Call)
+	}
 	fnCtx := ctx.CreateContext(varies)
+	allocated := fnCtx
+
+	if canFastPositionalBind(params, arguments) {
+		if acl := bindPositionalParameters(fnCtx, ctx, params, arguments, varies); acl != nil {
+			if _, ok := acl.(ToClosure); ok {
+				finishPooledCall(fn, allocated, ctx, nil, nil)
+				return nil, acl
+			}
+			if addStack, ok := acl.(data.AddStack); ok {
+				addStack.AddStackWithInfo(pe.from, "", pe.FunName)
+			}
+			if _, ok := acl.(data.ThrowControl); ok {
+				finishPooledCall(fn, allocated, ctx, nil, nil)
+				return nil, acl
+			}
+			ctx.GetVM().ThrowControl(acl)
+			finishPooledCall(fn, allocated, ctx, nil, nil)
+			return nil, acl
+		}
+		ret, ctl := fn.Call(fnCtx)
+		return finishPooledCall(fn, allocated, ctx, ret, ctl)
+	}
 
 	// 简单函数 + 展开参数的快速通道：所有形参都是普通 Parameter，且存在 SpreadArgument
 	simpleParams := true
@@ -99,7 +124,8 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 				}
 				fnCtx.SetCallArgs(pe.Args)
 				fnCtx.SetFlatCallArgs(flat)
-				return fn.Call(fnCtx)
+				ret, ctl := fn.Call(fnCtx)
+				return finishPooledCall(fn, allocated, ctx, ret, ctl)
 			}
 		}
 	}
@@ -176,6 +202,10 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 		}
 	}
 	if acl != nil {
+		// first-class callable 占位不应走 ThrowControl/错误打印
+		if _, ok := acl.(ToClosure); ok {
+			return nil, acl
+		}
 		if addStack, ok := acl.(data.AddStack); ok {
 			addStack.AddStackWithInfo(pe.from, "", pe.FunName)
 		}
@@ -190,7 +220,8 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	fnCtx.SetCallArgs(pe.Args)
 	fnCtx.SetFlatCallArgs(collectCallArgValues(ctx, positional, fnCtx))
 
-	return fn.Call(fnCtx)
+	ret, ctl := fn.Call(fnCtx)
+	return finishPooledCall(fn, allocated, ctx, ret, ctl)
 }
 
 func NewCallTodo(call *CallExpression, namespace string) *CallLater {

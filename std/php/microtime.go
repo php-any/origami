@@ -19,25 +19,24 @@ type MicrotimeFunction struct {
 func (f *MicrotimeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	now := time.Now()
 
-	// 默认返回字符串格式
+	// PHP microtime(false): sprintf("%.8F %ld", usec/1e6, sec)  → "0.12345600 1699999999"
+	// 旧实现写成 "%d %d"（微秒整数 秒），CombGenerator 的 substr($time[0], 2, 5)
+	// 会拿到空串，同一秒内时间戳部分完全相同。
 	getAsFloat := false
 	temp, ok := ctx.GetIndexValue(0)
 	if ok {
-		getAsFloat, _ = temp.(data.AsBool).AsBool()
+		if ab, ok := temp.(data.AsBool); ok {
+			getAsFloat, _ = ab.AsBool()
+		}
 	}
 	if getAsFloat {
-		// 返回浮点数格式（微秒精度）
-		now := time.Now()
-		// 秒部分 + 微秒部分（转换为秒）
 		microseconds := float64(now.Unix()) + float64(now.Nanosecond())/1e9
 		return data.NewFloatValue(microseconds), nil
-	} else {
-		// 返回字符串格式 "微秒 秒"
-		seconds := now.Unix()
-		microseconds := now.Nanosecond() / 1000
-		result := fmt.Sprintf("%d %d", microseconds, seconds)
-		return data.NewStringValue(result), nil
 	}
+	sec := now.Unix()
+	frac := float64(now.Nanosecond()) / 1e9
+	result := fmt.Sprintf("%.8f %d", frac, sec)
+	return data.NewStringValue(result), nil
 }
 
 func (f *MicrotimeFunction) GetName() string {

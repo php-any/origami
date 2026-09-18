@@ -7,8 +7,8 @@ import (
 )
 
 // spreadToValues 将 spread 展开值统一转换为平铺的值列表。
-// 支持 ArrayValue、ObjectValue 和 Generator（生成器），
-// 与 PHP 语义一致：...$generator 会遍历生成器所有 yield 值。
+// 支持 ArrayValue、ObjectValue、Generator，以及 Iterator / IteratorAggregate
+// （PHP：...$traversable 可展开；Filament Widget 配置常展开 Collection/属性数组）。
 func spreadToValues(ctx data.Context, spreadVal data.GetValue) ([]data.Value, data.Control) {
 	switch v := spreadVal.(type) {
 	case *data.ArrayValue:
@@ -29,16 +29,91 @@ func spreadToValues(ctx data.Context, spreadVal data.GetValue) ([]data.Value, da
 		return result, nil
 
 	case *data.ClassValue:
-		// Generator 展开：遍历生成器的所有 yield 值
-		if v.Class != nil && isGeneratorClassName(v.Class.GetName()) {
-			return iterateGenerator(ctx, v)
-		}
+		return iterateClassForSpread(ctx, v)
 	}
 
 	if val, ok := spreadVal.(data.Value); ok {
 		return []data.Value{val}, nil
 	}
 	return nil, nil
+}
+
+// iterateClassForSpread 展开 Generator / Iterator / IteratorAggregate。
+// 不可遍历时返回 (nil, nil)，由调用方决定是否报错。
+func iterateClassForSpread(ctx data.Context, v *data.ClassValue) ([]data.Value, data.Control) {
+	if v == nil || v.Class == nil {
+		return nil, nil
+	}
+	if isGeneratorClassName(v.Class.GetName()) {
+		return iterateGenerator(ctx, v)
+	}
+
+	isIterator, ctl := checkClassIs(ctx, v.Class, "Iterator")
+	if ctl != nil {
+		return nil, ctl
+	}
+	if isIterator {
+		return iterateIteratorMethods(ctx, v)
+	}
+
+	isAggregate, ctl := checkClassIs(ctx, v.Class, "IteratorAggregate")
+	if ctl != nil {
+		return nil, ctl
+	}
+	if isAggregate {
+		inner, ictl := callValueMethod(v, "getIterator")
+		if ictl != nil {
+			return nil, ictl
+		}
+		switch it := inner.(type) {
+		case *data.ClassValue:
+			return iterateClassForSpread(ctx, it)
+		case *data.ThisValue:
+			if it.ClassValue != nil {
+				return iterateClassForSpread(ctx, it.ClassValue)
+			}
+		case *data.ArrayValue:
+			return spreadToValues(ctx, it)
+		}
+	}
+
+	// Traversable 标记接口：部分类只声明 implements Traversable
+	isTrav, ctl := checkClassIs(ctx, v.Class, "Traversable")
+	if ctl != nil {
+		return nil, ctl
+	}
+	if isTrav {
+		// 无 getIterator/Iterator 方法时无法展开
+		return nil, nil
+	}
+	return nil, nil
+}
+
+func iterateIteratorMethods(ctx data.Context, obj *data.ClassValue) ([]data.Value, data.Control) {
+	result := make([]data.Value, 0)
+	if ctl := callVoidMethod(obj, "rewind"); ctl != nil {
+		return nil, ctl
+	}
+	for {
+		valid, ctl := callBoolMethod(obj, "valid")
+		if ctl != nil {
+			return nil, ctl
+		}
+		if !valid {
+			break
+		}
+		val, ctl := callValueMethod(obj, "current")
+		if ctl != nil {
+			return nil, ctl
+		}
+		if val != nil {
+			result = append(result, val)
+		}
+		if ctl := callVoidMethod(obj, "next"); ctl != nil {
+			return nil, ctl
+		}
+	}
+	return result, nil
 }
 
 // spreadToValuesForNew 将 spread 展开值转换为平铺的值列表，用于 new 构造场景。
@@ -71,18 +146,15 @@ func spreadToValuesForNew(ctx data.Context, spreadVal data.GetValue) ([]data.Get
 		return result, true
 
 	case *data.ClassValue:
-		// Generator 展开：遍历生成器的所有 yield 值
-		if v.Class != nil && isGeneratorClassName(v.Class.GetName()) {
-			vals, ctl := iterateGenerator(ctx, v)
-			if ctl != nil {
-				return nil, false
-			}
-			result := make([]data.GetValue, 0, len(vals))
-			for _, val := range vals {
-				result = append(result, val)
-			}
-			return result, true
+		vals, ctl := iterateClassForSpread(ctx, v)
+		if ctl != nil || vals == nil {
+			return nil, false
 		}
+		result := make([]data.GetValue, 0, len(vals))
+		for _, val := range vals {
+			result = append(result, val)
+		}
+		return result, true
 	}
 
 	if val, ok := spreadVal.(data.Value); ok {

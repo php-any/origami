@@ -44,3 +44,14 @@ func sourceStartLineFrom(v any) data.Value {
 	}
 	return data.NewBoolValue(false)
 }
+
+func sourceEndLineFrom(v any) data.Value {
+	if gf, ok := v.(interface{ GetFrom() data.From }); ok {
+		if from := gf.GetFrom(); from != nil {
+			line, _ := from.GetEndPosition()
+			// TokenFrom / lexer 行号为 0-based，PHP getEndLine 为 1-based
+			return data.NewIntValue(line + 1)
+		}
+	}
+	return data.NewBoolValue(false)
+}

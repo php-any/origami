@@ -2,12 +2,18 @@ package runtime
 
 import (
 	"context"
-	"errors"
+	"sync"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/parser"
 )
+
+var contextPool = sync.Pool{
+	New: func() any {
+		return &Context{}
+	},
+}
 
 // Context 表示运行时上下文
 type Context struct {
@@ -24,8 +30,17 @@ type Context struct {
 	// 记录本次函数/方法调用展开后的扁平实参值列表（处理 ...$arr 展开）
 	flatCallArgs []data.Value
 
-	// 当前调用绑定的 static 局部变量存储（由 ClassMethod/FunctionStatement.Call 设置）
+	// 当前调用绑定的 static 局部变量存储（由 StaticVarStatement 惰性绑定）
 	staticLocals *data.StaticLocals
+
+	// retSlot 是本帧复用的 return 载体。ReturnControl 只在本帧内向上冒泡，
+	// 被 Call 拆值后即失效，因此每帧一个实例就够。
+	retSlot data.ReturnValue
+
+	call    *CallState
+	out     *OutputState
+	pooled  bool
+	escaped bool
 }
 
 // BindStaticLocals 绑定函数级 static 局部变量存储
@@ -36,6 +51,12 @@ func (c *Context) BindStaticLocals(store *data.StaticLocals) {
 // StaticLocalsStore 返回绑定的 static 存储
 func (c *Context) StaticLocalsStore() *data.StaticLocals {
 	return c.staticLocals
+}
+
+// ReturnSlot 复用本帧的 ReturnValue，不每次 return 都分配。
+func (c *Context) ReturnSlot(v data.Value) data.ReturnControl {
+	c.retSlot.V = v
+	return &c.retSlot
 }
 
 // NewContext 创建一个新的运行时上下文
@@ -58,10 +79,6 @@ func (c *Context) GetNamespace() string {
 
 // GetVariableValue 获取变量值
 func (c *Context) GetVariableValue(variable data.Variable) (data.Value, data.Control) {
-	// 实现获取变量值的逻辑
-	if variable.GetIndex() >= len(c.variables) {
-		return nil, data.NewErrorThrow(nil, errors.New("Variable does not exist"))
-	}
 	return c.variables[variable.GetIndex()].Value, nil
 }
 
@@ -73,16 +90,10 @@ func (c *Context) GetIndexValue(index int) (data.Value, bool) {
 }
 
 func (c *Context) SetIndexZVal(index int, v *data.ZVal) {
-	if index < 0 || index >= len(c.variables) {
-		return
-	}
 	c.variables[index] = v
 }
 
 func (c *Context) GetIndexZVal(index int) *data.ZVal {
-	if index < 0 || index >= len(c.variables) {
-		return nil
-	}
 	return c.variables[index]
 }
 
@@ -109,46 +120,301 @@ func (c *Context) SetVariableValue(variable data.Variable, value data.Value) dat
 			}
 		}
 	case *data.ArrayValue:
-		c.variables[variable.GetIndex()].Value = data.CloneArrayValue(v)
+		zv := c.variables[variable.GetIndex()]
+		zv.Value = data.CloneArrayValue(v)
+		zv.Defined = true
 	case *data.ObjectValue:
 		// PHP 中 array 是按值赋值 + copy-on-write。
 		// 在 Origami 里，关联数组可能由 ObjectValue 表示，这里也做一次结构级克隆，
 		// 避免 `$b = $this->a; $b['k']=...` 反向修改到 `$this->a`（Symfony InputDefinition::$arguments 等场景）。
-		c.variables[variable.GetIndex()].Value = data.CloneObjectValue(v)
+		zv := c.variables[variable.GetIndex()]
+		zv.Value = data.CloneObjectValue(v)
+		zv.Defined = true
 	default:
 		idx := variable.GetIndex()
-		if len(c.variables) <= idx {
-			return data.NewErrorThrow(variable.(node.GetFrom).GetFrom(), errors.New("index out of range"))
-		}
 		c.variables[idx].Value = value
+		c.variables[idx].Defined = true
 	}
 
-	c.syncStaticLocal(variable.GetIndex())
 	return nil
-}
-
-func (c *Context) syncStaticLocal(index int) {
-	if c.staticLocals == nil {
-		return
-	}
-	if zv := c.GetIndexZVal(index); zv != nil {
-		c.staticLocals.Update(index, zv.Value)
-	}
 }
 
 // CreateContext 创建函数上下文
 func (c *Context) CreateContext(vars []data.Variable) data.Context {
-	return &Context{
-		vm:        c.vm,
-		variables: makeSliceVariableWithNames(vars),
+	nc := contextPool.Get().(*Context)
+	nc.vm = c.vm
+	nc.namespace = ""
+	nc.callArgs = nil
+	nc.flatCallArgs = nil
+	nc.staticLocals = nil
+	nc.retSlot.V = nil
+	nc.pooled = true
+	nc.escaped = false
+	nc.call = c.call
+	nc.out = c.inheritOut()
+	nc.resetVariables(vars)
+	return nc
+}
+
+func (c *Context) resetVariables(vars []data.Variable) {
+	n := len(vars)
+	if n == 0 {
+		c.variables = c.variables[:0]
+		return
 	}
+	// 只复用 slice 头，每个槽仍是全新 ZVal。禁止原地改旧 ZVal：
+	// 引用返回、闭包、数组元素可能仍持有上一帧的指针。
+	if cap(c.variables) < n {
+		c.variables = make([]*data.ZVal, n)
+	} else {
+		c.variables = c.variables[:n]
+	}
+	// 一次连续分配 n 个 ZVal，再把指针填进槽位（分配次数从 n 降到 1）。
+	block := make([]data.ZVal, n)
+	nullV := data.NewNullValue()
+	for i := 0; i < n; i++ {
+		z := &block[i]
+		z.Name = vars[i].GetName()
+		z.Value = nullV
+		c.variables[i] = z
+	}
+}
+
+func (c *Context) MarkEscaped() {
+	if c != nil {
+		c.escaped = true
+	}
+}
+
+func (c *Context) IsEscaped() bool {
+	return c != nil && c.escaped
+}
+
+func (c *Context) ReleasePooled() {
+	if c == nil || !c.pooled || c.escaped {
+		return
+	}
+	c.pooled = false
+	c.vm = nil
+	c.call = nil
+	c.out = nil
+	c.callArgs = nil
+	c.flatCallArgs = nil
+	c.staticLocals = nil
+	c.retSlot.V = nil
+	c.namespace = ""
+	for i := range c.variables {
+		c.variables[i] = nil
+	}
+	c.variables = c.variables[:0]
+	contextPool.Put(c)
+}
+
+func (c *Context) resolveCallState() *CallState {
+	if c == nil {
+		return nil
+	}
+	if c.call != nil {
+		return c.call
+	}
+	switch vm := c.vm.(type) {
+	case *VM:
+		st := vm.localCall()
+		c.call = st
+		return st
+	case *TempVM:
+		c.call = &vm.call
+		return c.call
+	default:
+		return currentRequestCallState()
+	}
+}
+
+func (c *Context) EnterCall() int {
+	return c.resolveCallState().Enter()
+}
+
+func (c *Context) LeaveCall() {
+	st := c.resolveCallState()
+	st.Leave()
+	releaseAutoCallState(st)
+}
+
+func (c *Context) PushCallFrame(frame data.CallFrame) {
+	c.resolveCallState().Push(frame)
+}
+
+func (c *Context) PopCallFrame() {
+	c.resolveCallState().Pop()
+}
+
+func (c *Context) SnapshotCallStack() []data.CallFrame {
+	return c.resolveCallState().Snapshot()
 }
 
 func (c *Context) CreateBaseContext() data.Context {
 	return &Context{
-		vm:        c.vm,
-		variables: nil,
+		vm:   c.vm,
+		call: c.call,
+		out:  c.inheritOut(),
 	}
+}
+
+func (c *Context) inheritOut() *OutputState {
+	if c != nil && c.out != nil && c.out.local {
+		return c.out
+	}
+	if st := currentRequestOutput(); st != nil {
+		return st
+	}
+	if c != nil {
+		return c.out
+	}
+	return nil
+}
+
+func (c *Context) resolveOut() *OutputState {
+	// 请求帧已绑 local 缓冲则不再查 goid。启动期帧钉的是 vm.out，
+	// 在请求 goroutine 上 echo 时改走 TLS，但不写回共享 boot Context。
+	if c != nil && c.out != nil && c.out.local {
+		return c.out
+	}
+	if st := currentRequestOutput(); st != nil {
+		return st
+	}
+	if c != nil && c.out != nil {
+		return c.out
+	}
+	if c == nil || c.vm == nil {
+		return nil
+	}
+	switch vm := c.vm.(type) {
+	case *VM:
+		return vm.out
+	case *TempVM:
+		return vm.out
+	}
+	return nil
+}
+
+// WriteOutput 实现 data.OutputSink：echo 走 Context 上缓存的缓冲栈，避免每次解析 goid。
+func (c *Context) WriteOutput(s string) {
+	st := c.resolveOut()
+	if st == nil {
+		if c != nil && c.vm != nil {
+			if sink, ok := c.vm.(data.OutputSink); ok {
+				sink.WriteOutput(s)
+				return
+			}
+		}
+		data.WriteOutput(s)
+		return
+	}
+	st.write(s, data.WriteOutput)
+}
+
+func (c *Context) StartOutputBuffer() {
+	if st := c.resolveOut(); st != nil {
+		st.start()
+	}
+}
+
+func (c *Context) StartOutputBufferSpec(spec data.OutputBufferStartSpec) bool {
+	if st := c.resolveOut(); st != nil {
+		return st.startSpec(spec)
+	}
+	return false
+}
+
+func (c *Context) CleanOutputBuffer() (string, bool) {
+	if st := c.resolveOut(); st != nil {
+		return st.clean()
+	}
+	return "", false
+}
+
+func (c *Context) FlushOutputBuffer() (string, bool) {
+	st := c.resolveOut()
+	if st == nil {
+		return "", false
+	}
+	return st.flushWithFallback(data.WriteOutput)
+}
+
+func (c *Context) FlushCurrentBuffer() (string, bool) {
+	st := c.resolveOut()
+	if st == nil {
+		return "", false
+	}
+	return st.flushCurrent(data.PHPOutputHandlerFlush, data.WriteOutput)
+}
+
+func (c *Context) CleanCurrentBuffer() bool {
+	if st := c.resolveOut(); st != nil {
+		return st.cleanCurrent()
+	}
+	return false
+}
+
+func (c *Context) TakeOutputControl() data.Control {
+	if st := c.resolveOut(); st != nil {
+		return st.takeControl()
+	}
+	return nil
+}
+
+func (c *Context) FlushSAPI() {
+	if st := c.resolveOut(); st != nil {
+		st.flushSAPI()
+	}
+}
+
+func (c *Context) OutputBufferLength() (int, bool) {
+	if st := c.resolveOut(); st != nil {
+		return st.length()
+	}
+	return 0, false
+}
+
+func (c *Context) OutputBufferStatus(full bool) []data.OutputBufferStatusInfo {
+	if st := c.resolveOut(); st != nil {
+		return st.status(full)
+	}
+	return nil
+}
+
+func (c *Context) ListOutputHandlers() []string {
+	if st := c.resolveOut(); st != nil {
+		return st.handlers()
+	}
+	return nil
+}
+
+func (c *Context) SetImplicitFlush(on bool) {
+	if st := c.resolveOut(); st != nil {
+		st.setImplicitFlush(on)
+	}
+}
+
+func (c *Context) IsImplicitFlush() bool {
+	if st := c.resolveOut(); st != nil {
+		return st.isImplicitFlush()
+	}
+	return false
+}
+
+func (c *Context) OutputBufferContents() (string, bool) {
+	if st := c.resolveOut(); st != nil {
+		return st.contents()
+	}
+	return "", false
+}
+
+func (c *Context) OutputBufferLevel() int {
+	if st := c.resolveOut(); st != nil {
+		return st.level()
+	}
+	return 0
 }
 
 func (c *Context) GetVM() data.VM {
@@ -161,6 +427,9 @@ func (c *Context) GoContext() context.Context {
 
 // SetVM 替换当前 Context 所绑定的 VM
 func (c *Context) SetVM(vm data.VM) {
+	if vm == nil {
+		return
+	}
 	c.vm = vm
 }
 
@@ -185,23 +454,34 @@ func (c *Context) GetFlatCallArgs() []data.Value {
 }
 
 func makeSliceVariable(i int) []*data.ZVal {
+	if i <= 0 {
+		return nil
+	}
 	l := make([]*data.ZVal, i)
-	for i := range l {
-		l[i] = data.NewZVal(data.NewNullValue())
+	block := make([]data.ZVal, i)
+	nullV := data.NewNullValue()
+	for j := range l {
+		block[j].Value = nullV
+		l[j] = &block[j]
 	}
 	return l
 }
 
 // makeSliceVariableWithNames 创建带变量名的 ZVal 切片
 func makeSliceVariableWithNames(vars []data.Variable) []*data.ZVal {
-	l := make([]*data.ZVal, len(vars))
-	for i, v := range l {
-		_ = v
-		name := ""
-		if i < len(vars) && vars[i] != nil {
-			name = vars[i].GetName()
+	n := len(vars)
+	if n == 0 {
+		return nil
+	}
+	l := make([]*data.ZVal, n)
+	block := make([]data.ZVal, n)
+	nullV := data.NewNullValue()
+	for i := range l {
+		if vars[i] != nil {
+			block[i].Name = vars[i].GetName()
 		}
-		l[i] = data.NewNamedZVal(name, data.NewNullValue())
+		block[i].Value = nullV
+		l[i] = &block[i]
 	}
 	return l
 }
@@ -219,6 +499,7 @@ func (c *Context) SetVariableByName(name string, value data.Value) {
 			default:
 				zv.Value = value
 			}
+			zv.Defined = true
 			return
 		}
 	}
@@ -242,21 +523,22 @@ func (c *Context) GetVariableByName(name string) (data.Value, bool) {
 	return nil, false
 }
 
-// HasVariableByName 检查调用者上下文中是否已存在指定名称的变量
+// HasVariableByName 检查调用者上下文中是否已存在指定名称的变量。
+// 仅「已赋值」的槽算存在；符号表预留但未赋值的槽不算（对齐 PHP EXTR_SKIP）。
 func (c *Context) HasVariableByName(name string) bool {
 	for _, zv := range c.variables {
-		if zv != nil && zv.Name == name {
+		if zv != nil && zv.Name == name && zv.Defined {
 			return true
 		}
 	}
 	return false
 }
 
-// GetDefinedVariables 返回当前作用域符号表的快照。
+// GetDefinedVariables 返回当前作用域已赋值变量的快照（对齐 get_defined_vars）。
 func (c *Context) GetDefinedVariables() map[string]data.Value {
 	result := make(map[string]data.Value)
 	for _, zv := range c.variables {
-		if zv != nil && zv.Name != "" {
+		if zv != nil && zv.Name != "" && zv.Defined {
 			result[zv.Name] = zv.Value
 		}
 	}

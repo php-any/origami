@@ -216,8 +216,18 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 	}
 }
 
-// parseRemainingKvEntries 解析关联数组中剩余的 key => value 或 ...$spread 项，直到 ]
+// parseRemainingKvEntries 解析关联/混合数组中剩余项，直到 ]。
+// PHP 允许 ['a', 'k' => 1, 'b'] 这种 list 与 kv 混用；无 => 的项自动分配下一个整数键。
 func (ep *LbracketParser) parseRemainingKvEntries(v []node.KvPair) ([]node.KvPair, data.Control) {
+	nextIndex := 0
+	for _, pair := range v {
+		if iv, ok := pair.Key.(*data.IntValue); ok {
+			if int(iv.Value)+1 > nextIndex {
+				nextIndex = int(iv.Value) + 1
+			}
+		}
+	}
+
 	for ep.current().Type() != token.RBRACKET {
 		if ep.current().Type() == token.ELLIPSIS {
 			ep.next()
@@ -232,19 +242,22 @@ func (ep *LbracketParser) parseRemainingKvEntries(v []node.KvPair) ([]node.KvPai
 			ep.nextAndCheckStip(token.COMMA)
 			continue
 		}
-		key, acl := ep.parseStatement()
+		keyOrVal, acl := ep.parseStatement()
 		if acl != nil {
 			return nil, acl
 		}
-		if ep.current().Type() != token.ARRAY_KEY_VALUE {
-			return nil, data.NewErrorThrow(ep.FromCurrentToken(), errors.New("关联数组元素缺少 =>"))
+		if ep.current().Type() == token.ARRAY_KEY_VALUE {
+			ep.next() // =>
+			val, acl := ep.parseStatement()
+			if acl != nil {
+				return nil, acl
+			}
+			v = append(v, node.KvPair{Key: keyOrVal, Value: val})
+		} else {
+			// 无 =>：按 PHP 混用数组规则分配下一个整数键
+			v = append(v, node.KvPair{Key: data.NewIntValue(nextIndex), Value: keyOrVal})
+			nextIndex++
 		}
-		ep.next() // =>
-		val, acl := ep.parseStatement()
-		if acl != nil {
-			return nil, acl
-		}
-		v = append(v, node.KvPair{Key: key, Value: val})
 		ep.nextAndCheckStip(token.COMMA)
 	}
 	return v, nil

@@ -1,7 +1,7 @@
 package data
 
 func NewNullValue() Value {
-	return &NullValue{}
+	return internNull
 }
 
 type AsNull interface {

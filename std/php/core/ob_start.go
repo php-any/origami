@@ -5,14 +5,131 @@ import (
 	"github.com/php-any/origami/node"
 )
 
+// 对齐 PHP 8.4 ob_*：ob_start($callback, $chunk_size, $flags)、handler 改写、
+// CLEANABLE/FLUSHABLE/REMOVABLE、ob_flush 原位冒泡。回调在独立 Context 中调用，
+// 不捕获 ob_start 的帧（避免 pooled Context 悬挂）。chunk_size 热路径不加追踪。
+
 func outputBufferHost(ctx data.Context) (data.OutputBufferHost, bool) {
 	if ctx == nil {
 		return nil, false
+	}
+	if host, ok := ctx.(data.OutputBufferHost); ok {
+		return host, true
 	}
 	host, ok := ctx.GetVM().(data.OutputBufferHost)
 	return host, ok
 }
 
+func finishOb(host data.OutputBufferHost, ret data.GetValue) (data.GetValue, data.Control) {
+	if host != nil {
+		if ctl := host.TakeOutputControl(); ctl != nil {
+			return nil, ctl
+		}
+	}
+	return ret, nil
+}
+
+func isNullish(v data.GetValue) bool {
+	if v == nil {
+		return true
+	}
+	_, ok := v.(*data.NullValue)
+	return ok
+}
+
+func asIntArg(v data.GetValue, def int) int {
+	if v == nil {
+		return def
+	}
+	if asInt, ok := v.(data.AsInt); ok {
+		if n, err := asInt.AsInt(); err == nil {
+			return n
+		}
+	}
+	return def
+}
+
+func outputHandlerName(cb data.Value) string {
+	switch c := cb.(type) {
+	case *data.StringValue:
+		if s := c.AsString(); s != "" {
+			return s
+		}
+	case *data.FuncValue:
+		if c.Value != nil {
+			if n := c.Value.GetName(); n != "" {
+				return n
+			}
+		}
+		return "{closure}"
+	case *data.BoundFuncValue:
+		if c.Value != nil {
+			if n := c.Value.GetName(); n != "" {
+				return n
+			}
+		}
+		return "{closure}"
+	}
+	return "user output handler"
+}
+
+func outputHandlerArgc(cb data.Value) int {
+	var fn data.FuncStmt
+	switch c := cb.(type) {
+	case *data.FuncValue:
+		fn = c.Value
+	case *data.BoundFuncValue:
+		fn = c.Value
+	default:
+		return 2
+	}
+	if fn == nil {
+		return 2
+	}
+	n := len(fn.GetParams())
+	if n <= 0 {
+		return 1
+	}
+	return n
+}
+
+func wrapOutputHandler(vm data.VM, cb data.Value) data.OutputBufferHandler {
+	return func(buffer string, phase int) (string, bool, data.Control) {
+		return invokeOutputHandler(vm, cb, buffer, phase)
+	}
+}
+
+func invokeOutputHandler(vm data.VM, cb data.Value, buffer string, phase int) (string, bool, data.Control) {
+	if vm == nil || cb == nil {
+		return buffer, true, nil
+	}
+	cu := NewCallUserFuncFunction()
+	ctx := vm.CreateContext(cu.GetVariables())
+	args := []data.Value{data.NewStringValue(buffer)}
+	if outputHandlerArgc(cb) != 1 {
+		args = append(args, data.NewIntValue(phase))
+	}
+	ctx.SetIndexZVal(0, data.NewZVal(cb))
+	ctx.SetIndexZVal(1, data.NewZVal(data.NewArrayValue(args)))
+	ret, ctl := cu.Call(ctx)
+	if ctl != nil {
+		return buffer, false, ctl
+	}
+	if ret == nil {
+		return "", true, nil
+	}
+	if bv, ok := ret.(*data.BoolValue); ok {
+		if b, err := bv.AsBool(); err == nil && !b {
+			return buffer, true, nil
+		}
+	}
+	if val, ok := ret.(data.Value); ok {
+		return val.AsString(), true, nil
+	}
+	return buffer, true, nil
+}
+
+// ob_start(?callable $callback = null, int $chunk_size = 0, int $flags = PHP_OUTPUT_HANDLER_STDFLAGS): bool
 type ObStartFunction struct{}
 
 func NewObStartFunction() data.FuncStmt { return &ObStartFunction{} }
@@ -21,15 +138,44 @@ func (f *ObStartFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if !ok {
 		return data.NewBoolValue(false), nil
 	}
-	host.StartOutputBuffer()
-	return data.NewBoolValue(true), nil
+	spec := data.OutputBufferStartSpec{
+		Flags: data.PHPOutputHandlerStdFlags,
+		Name:  "default output handler",
+		Type:  data.PHPOutputHandlerInternal,
+	}
+	if v, has := ctx.GetIndexValue(0); has && !isNullish(v) {
+		if cb, ok := v.(data.Value); ok {
+			spec.Handler = wrapOutputHandler(ctx.GetVM(), cb)
+			spec.Name = outputHandlerName(cb)
+			spec.Type = data.PHPOutputHandlerUser
+		}
+	}
+	if v, has := ctx.GetIndexValue(1); has {
+		spec.ChunkSize = asIntArg(v, 0)
+	}
+	if v, has := ctx.GetIndexValue(2); has && !isNullish(v) {
+		spec.Flags = asIntArg(v, data.PHPOutputHandlerStdFlags)
+	}
+	return data.NewBoolValue(host.StartOutputBufferSpec(spec)), nil
 }
-func (f *ObStartFunction) GetName() string               { return "ob_start" }
-func (f *ObStartFunction) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (f *ObStartFunction) GetIsStatic() bool             { return false }
-func (f *ObStartFunction) GetParams() []data.GetValue    { return nil }
-func (f *ObStartFunction) GetVariables() []data.Variable { return nil }
-func (f *ObStartFunction) GetReturnType() data.Types     { return data.Bool{} }
+func (f *ObStartFunction) GetName() string            { return "ob_start" }
+func (f *ObStartFunction) GetModifier() data.Modifier { return data.ModifierPublic }
+func (f *ObStartFunction) GetIsStatic() bool          { return false }
+func (f *ObStartFunction) GetParams() []data.GetValue {
+	return []data.GetValue{
+		node.NewParameter(nil, "callback", 0, data.NewNullValue(), data.Mixed{}),
+		node.NewParameter(nil, "chunk_size", 1, data.NewIntValue(0), data.Int{}),
+		node.NewParameter(nil, "flags", 2, data.NewIntValue(data.PHPOutputHandlerStdFlags), data.Int{}),
+	}
+}
+func (f *ObStartFunction) GetVariables() []data.Variable {
+	return []data.Variable{
+		node.NewVariable(nil, "callback", 0, data.Mixed{}),
+		node.NewVariable(nil, "chunk_size", 1, data.Int{}),
+		node.NewVariable(nil, "flags", 2, data.Int{}),
+	}
+}
+func (f *ObStartFunction) GetReturnType() data.Types { return data.Bool{} }
 
 type ObGetCleanFunction struct{}
 
@@ -41,9 +187,9 @@ func (f *ObGetCleanFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	}
 	content, active := host.CleanOutputBuffer()
 	if !active {
-		return data.NewBoolValue(false), nil
+		return finishOb(host, data.NewBoolValue(false))
 	}
-	return data.NewStringValue(content), nil
+	return finishOb(host, data.NewStringValue(content))
 }
 func (f *ObGetCleanFunction) GetName() string               { return "ob_get_clean" }
 func (f *ObGetCleanFunction) GetModifier() data.Modifier    { return data.ModifierPublic }
@@ -82,7 +228,7 @@ func (f *ObEndCleanFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		return data.NewBoolValue(false), nil
 	}
 	_, active := host.CleanOutputBuffer()
-	return data.NewBoolValue(active), nil
+	return finishOb(host, data.NewBoolValue(active))
 }
 func (f *ObEndCleanFunction) GetName() string               { return "ob_end_clean" }
 func (f *ObEndCleanFunction) GetModifier() data.Modifier    { return data.ModifierPublic }
@@ -108,7 +254,6 @@ func (f *ObGetLevelFunction) GetParams() []data.GetValue    { return nil }
 func (f *ObGetLevelFunction) GetVariables() []data.Variable { return nil }
 func (f *ObGetLevelFunction) GetReturnType() data.Types     { return data.Int{} }
 
-// ob_clean — 清空当前（栈顶）输出缓冲内容，但不结束缓冲。
 type ObCleanFunction struct{}
 
 func NewObCleanFunction() data.FuncStmt { return &ObCleanFunction{} }
@@ -117,8 +262,7 @@ func (f *ObCleanFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if !ok {
 		return data.NewBoolValue(false), nil
 	}
-	// PHP 8：成功清理（存在活动缓冲）返回 true，否则 false。
-	return data.NewBoolValue(host.CleanCurrentBuffer()), nil
+	return finishOb(host, data.NewBoolValue(host.CleanCurrentBuffer()))
 }
 func (f *ObCleanFunction) GetName() string               { return "ob_clean" }
 func (f *ObCleanFunction) GetModifier() data.Modifier    { return data.ModifierPublic }
@@ -127,7 +271,6 @@ func (f *ObCleanFunction) GetParams() []data.GetValue    { return nil }
 func (f *ObCleanFunction) GetVariables() []data.Variable { return nil }
 func (f *ObCleanFunction) GetReturnType() data.Types     { return data.Bool{} }
 
-// ob_end_flush — 输出并结束当前输出缓冲。
 type ObEndFlushFunction struct{}
 
 func NewObEndFlushFunction() data.FuncStmt { return &ObEndFlushFunction{} }
@@ -137,7 +280,7 @@ func (f *ObEndFlushFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		return data.NewBoolValue(false), nil
 	}
 	_, active := host.FlushOutputBuffer()
-	return data.NewBoolValue(active), nil
+	return finishOb(host, data.NewBoolValue(active))
 }
 func (f *ObEndFlushFunction) GetName() string               { return "ob_end_flush" }
 func (f *ObEndFlushFunction) GetModifier() data.Modifier    { return data.ModifierPublic }
@@ -146,7 +289,6 @@ func (f *ObEndFlushFunction) GetParams() []data.GetValue    { return nil }
 func (f *ObEndFlushFunction) GetVariables() []data.Variable { return nil }
 func (f *ObEndFlushFunction) GetReturnType() data.Types     { return data.Bool{} }
 
-// ob_flush — 输出当前缓冲内容到上一层（或最终输出），但不结束缓冲。
 type ObFlushFunction struct{}
 
 func NewObFlushFunction() data.FuncStmt { return &ObFlushFunction{} }
@@ -155,13 +297,8 @@ func (f *ObFlushFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if !ok {
 		return data.NewBoolValue(false), nil
 	}
-	// ob_flush 语义：把当前缓冲内容输出到上一层，但保留当前缓冲层（清空后继续可写）。
-	// 通过“弹出并写出到上层，再压入空缓冲”保持层级不变。
-	if _, active := host.FlushOutputBuffer(); active {
-		host.StartOutputBuffer()
-		return data.NewBoolValue(true), nil
-	}
-	return data.NewBoolValue(false), nil
+	_, active := host.FlushCurrentBuffer()
+	return finishOb(host, data.NewBoolValue(active))
 }
 func (f *ObFlushFunction) GetName() string               { return "ob_flush" }
 func (f *ObFlushFunction) GetModifier() data.Modifier    { return data.ModifierPublic }
@@ -170,7 +307,6 @@ func (f *ObFlushFunction) GetParams() []data.GetValue    { return nil }
 func (f *ObFlushFunction) GetVariables() []data.Variable { return nil }
 func (f *ObFlushFunction) GetReturnType() data.Types     { return data.Bool{} }
 
-// ob_get_flush — 获取当前缓冲内容并结束缓冲，同时把内容输出到上一层。
 type ObGetFlushFunction struct{}
 
 func NewObGetFlushFunction() data.FuncStmt { return &ObGetFlushFunction{} }
@@ -181,9 +317,9 @@ func (f *ObGetFlushFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	}
 	content, active := host.FlushOutputBuffer()
 	if !active {
-		return data.NewBoolValue(false), nil
+		return finishOb(host, data.NewBoolValue(false))
 	}
-	return data.NewStringValue(content), nil
+	return finishOb(host, data.NewStringValue(content))
 }
 func (f *ObGetFlushFunction) GetName() string               { return "ob_get_flush" }
 func (f *ObGetFlushFunction) GetModifier() data.Modifier    { return data.ModifierPublic }
@@ -192,7 +328,6 @@ func (f *ObGetFlushFunction) GetParams() []data.GetValue    { return nil }
 func (f *ObGetFlushFunction) GetVariables() []data.Variable { return nil }
 func (f *ObGetFlushFunction) GetReturnType() data.Types     { return data.Mixed{} }
 
-// ob_get_length — 获取当前缓冲内容的字节长度。
 type ObGetLengthFunction struct{}
 
 func NewObGetLengthFunction() data.FuncStmt { return &ObGetLengthFunction{} }
@@ -214,7 +349,6 @@ func (f *ObGetLengthFunction) GetParams() []data.GetValue    { return nil }
 func (f *ObGetLengthFunction) GetVariables() []data.Variable { return nil }
 func (f *ObGetLengthFunction) GetReturnType() data.Types     { return data.Mixed{} }
 
-// ob_get_status — 返回输出缓冲状态数组。
 type ObGetStatusFunction struct{}
 
 func NewObGetStatusFunction() data.FuncStmt { return &ObGetStatusFunction{} }
@@ -236,22 +370,11 @@ func (f *ObGetStatusFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 		return data.NewArrayValue([]data.Value{}), nil
 	}
 	if !full {
-		// 仅最顶层：返回单个关联数组。
 		return statusToArray(status[0]), nil
 	}
-	// 全部层：返回按层级为键的数组。
 	list := make([]data.Value, len(status))
 	for i, st := range status {
-		list[i] = &data.ArrayValue{
-			List: []*data.ZVal{
-				data.NewNamedZVal("level", data.NewIntValue(st.Level)),
-				data.NewNamedZVal("type", data.NewIntValue(st.Type)),
-				data.NewNamedZVal("flags", data.NewIntValue(st.Flags)),
-				data.NewNamedZVal("chunk_size", data.NewIntValue(st.ChunkSize)),
-				data.NewNamedZVal("buffer_size", data.NewIntValue(st.BufferSize)),
-				data.NewNamedZVal("name", data.NewStringValue(st.Name)),
-			},
-		}
+		list[i] = statusToArray(st)
 	}
 	return data.NewArrayValue(list), nil
 }
@@ -270,7 +393,6 @@ func (f *ObGetStatusFunction) GetVariables() []data.Variable {
 }
 func (f *ObGetStatusFunction) GetReturnType() data.Types { return data.Arrays{} }
 
-// statusToArray 将单个缓冲层状态转换为 PHP 关联数组。
 func statusToArray(st data.OutputBufferStatusInfo) data.Value {
 	return &data.ArrayValue{
 		List: []*data.ZVal{
@@ -279,12 +401,12 @@ func statusToArray(st data.OutputBufferStatusInfo) data.Value {
 			data.NewNamedZVal("flags", data.NewIntValue(st.Flags)),
 			data.NewNamedZVal("chunk_size", data.NewIntValue(st.ChunkSize)),
 			data.NewNamedZVal("buffer_size", data.NewIntValue(st.BufferSize)),
+			data.NewNamedZVal("buffer_used", data.NewIntValue(st.BufferUsed)),
 			data.NewNamedZVal("name", data.NewStringValue(st.Name)),
 		},
 	}
 }
 
-// ob_list_handlers — 返回所有激活输出处理器的名称列表。
 type ObListHandlersFunction struct{}
 
 func NewObListHandlersFunction() data.FuncStmt { return &ObListHandlersFunction{} }
@@ -307,7 +429,6 @@ func (f *ObListHandlersFunction) GetParams() []data.GetValue    { return nil }
 func (f *ObListHandlersFunction) GetVariables() []data.Variable { return nil }
 func (f *ObListHandlersFunction) GetReturnType() data.Types     { return data.Arrays{} }
 
-// ob_implicit_flush — 打开/关闭隐式刷新。
 type ObImplicitFlushFunction struct{}
 
 func NewObImplicitFlushFunction() data.FuncStmt { return &ObImplicitFlushFunction{} }
@@ -341,3 +462,20 @@ func (f *ObImplicitFlushFunction) GetVariables() []data.Variable {
 	}
 }
 func (f *ObImplicitFlushFunction) GetReturnType() data.Types { return data.NewBaseType("null") }
+
+// FlushFunction 对齐 PHP flush(): 刷新 SAPI，不弹出 ob 栈。
+type FlushFunction struct{}
+
+func NewFlushFunction() data.FuncStmt { return &FlushFunction{} }
+func (f *FlushFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	if host, ok := outputBufferHost(ctx); ok {
+		host.FlushSAPI()
+	}
+	return data.NewBoolValue(true), nil
+}
+func (f *FlushFunction) GetName() string               { return "flush" }
+func (f *FlushFunction) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (f *FlushFunction) GetIsStatic() bool             { return false }
+func (f *FlushFunction) GetParams() []data.GetValue    { return nil }
+func (f *FlushFunction) GetVariables() []data.Variable { return nil }
+func (f *FlushFunction) GetReturnType() data.Types     { return data.Bool{} }

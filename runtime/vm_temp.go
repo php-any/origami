@@ -2,9 +2,7 @@ package runtime
 
 import (
 	"fmt"
-	"strings"
 	"sync"
-	"sync/atomic"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/parser"
@@ -26,6 +24,7 @@ func NewTempVM(vm data.VM) data.VM {
 		addedClasses:    make(map[string]data.ClassStmt),
 		addedInterfaces: make(map[string]data.InterfaceStmt),
 		addedFuncs:      make(map[string]data.FuncStmt),
+		out:             newOutputState(),
 	}
 }
 
@@ -39,16 +38,13 @@ type TempVM struct {
 	addedClasses    map[string]data.ClassStmt
 	addedInterfaces map[string]data.InterfaceStmt
 	addedFuncs      map[string]data.FuncStmt
-	outputBuffers   []*strings.Builder
+	out             *outputState
 	throwHandler    func(data.Control)
 
 	globalsArray *data.ObjectValue
 	sessionArray *data.ObjectValue
 
-	// hasOutputBuffer 原子标记是否存在活动缓冲层，用于 WriteOutput 无缓冲时的零锁快速路径。
-	hasOutputBuffer atomic.Bool
-	// implicitFlush 对应 ob_implicit_flush 状态（由 mu 保护）。
-	implicitFlush bool
+	call CallState
 }
 
 func (vm *TempVM) AddClass(c data.ClassStmt) data.Control {
@@ -84,6 +80,12 @@ func (vm *TempVM) CreateContext(vars []data.Variable) data.Context {
 	if rctx, ok := ctx.(*Context); ok {
 		rctx.SetVM(vm)
 	}
+	if st := currentRequestCallState(); st != nil {
+		BindContextCallState(ctx, st)
+	} else {
+		BindContextCallState(ctx, &vm.call)
+	}
+	BindContextOutput(ctx, vm.activeOut())
 	return ctx
 }
 
@@ -124,20 +126,9 @@ func (vm *TempVM) LoadInCallerContext(parent data.Context, file string) (data.Ge
 
 	vars := p.GetVariables()
 	ctx := inheritCallerScope(parent, vm.CreateContext(vars))
-
-	for _, variable := range vars {
-		name := variable.GetName()
-		if name == "" {
-			continue
-		}
-		if val, ok := parent.GetVariableByName(name); ok && val != nil {
-			if ctl := variable.SetValue(ctx, val); ctl != nil {
-				return nil, ctl
-			}
-			continue
-		}
+	injectCallerVariables(parent, ctx, vars, func(name string, variable data.Variable) {
 		vm.Base.bindIncludedVarToGlobal(name, variable.GetIndex(), ctx)
-	}
+	})
 
 	result, ctrl := program.GetValue(ctx)
 	return result, ctrl
@@ -152,15 +143,30 @@ func (vm *TempVM) ParseFile(file string, data data.Value) (data.Value, data.Cont
 	return vm.Base.ParseFile(file, data)
 }
 
+func lookupTempClass(added map[string]data.ClassStmt, pkg string) (data.ClassStmt, bool) {
+	if c, ok := added[pkg]; ok {
+		return c, true
+	}
+	if len(pkg) > 0 && pkg[0] == '\\' {
+		if c, ok := added[pkg[1:]]; ok {
+			return c, true
+		}
+	}
+	want := phpIdentKey(pkg)
+	for k, c := range added {
+		if phpIdentKey(k) == want {
+			return c, true
+		}
+	}
+	return nil, false
+}
+
 func (vm *TempVM) GetClass(pkg string) (data.ClassStmt, bool) {
 	ret, ok := vm.Base.GetClass(pkg)
 	if ok {
 		return ret, ok
 	}
-	if c, ok := vm.addedClasses[pkg]; ok {
-		return c, true
-	}
-	return nil, false
+	return lookupTempClass(vm.addedClasses, pkg)
 }
 
 func (vm *TempVM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
@@ -169,15 +175,17 @@ func (vm *TempVM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
 		return c, nil
 	}
 	// 优先从本请求新增的类中查找
-	if c, ok := vm.addedClasses[pkg]; ok {
+	if c, ok := lookupTempClass(vm.addedClasses, pkg); ok {
 		return c, nil
-	} else {
-		acl := vm.parser.GetClassPathManager().LoadClass(pkg, vm.parser)
-		if acl != nil {
-			return nil, acl
-		}
 	}
-	if c, ok := vm.addedClasses[pkg]; ok {
+	if vm.parser == nil {
+		return vm.Base.GetOrLoadClass(pkg)
+	}
+	acl := vm.parser.GetClassPathManager().LoadClass(pkg, vm.parser)
+	if acl != nil {
+		return nil, acl
+	}
+	if c, ok := lookupTempClass(vm.addedClasses, pkg); ok {
 		return c, nil
 	}
 	// 编译模式下类可能注册到 baseVM（CompileLoad 不经过 TempVM）
@@ -203,6 +211,9 @@ func (vm *TempVM) LoadPkg(pkg string) (data.GetValue, data.Control) {
 	}
 	if c != nil {
 		return c, nil
+	}
+	if vm.parser == nil {
+		return nil, nil
 	}
 	_, ok := vm.parser.GetClassPathManager().FindClassFile(pkg)
 	if !ok {
@@ -372,23 +383,23 @@ func (vm *TempVM) RunShutdownCallbacks() {
 }
 
 func (vm *TempVM) EnterCall() int {
-	return vm.Base.EnterCall()
+	return vm.call.Enter()
 }
 
 func (vm *TempVM) LeaveCall() {
-	vm.Base.LeaveCall()
+	vm.call.Leave()
 }
 
 func (vm *TempVM) PushCallFrame(frame data.CallFrame) {
-	vm.Base.PushCallFrame(frame)
+	vm.call.Push(frame)
 }
 
 func (vm *TempVM) PopCallFrame() {
-	vm.Base.PopCallFrame()
+	vm.call.Pop()
 }
 
 func (vm *TempVM) SnapshotCallStack() []data.CallFrame {
-	return vm.Base.SnapshotCallStack()
+	return vm.call.Snapshot()
 }
 
 // RegisterCompiledFile 注册预编译的文件 AST（委托给 Base VM）

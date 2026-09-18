@@ -190,21 +190,40 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 		case *CallStaticKeywordProperty:
 			return v, l.SetProperty(ctx, l.Property, v)
 		case *Array:
-			if rv, ok := rv.(*data.ArrayValue); ok {
-				valueList := rv.ToValueList()
-				for i, value := range valueList {
-					if i < len(l.V) {
-						set := l.V[i]
-						if set, ok := set.(data.Variable); ok {
-							set.SetValue(ctx, value)
-						}
+			// [$a, $b] = $arr：支持 ArrayValue 与 ObjectValue（关联数组，如 Collection::toArray()）
+			var valueList []data.Value
+			switch src := rv.(type) {
+			case *data.ArrayValue:
+				valueList = src.ToValueList()
+			case *data.ObjectValue:
+				// Collection::toArray() 等常以 ObjectValue 持有 "0","1"… 键
+				n := len(l.V)
+				valueList = make([]data.Value, 0, n)
+				for i := 0; i < n; i++ {
+					key := fmt.Sprintf("%d", i)
+					if !src.HasProperty(key) {
+						break
 					}
+					v, _ := src.GetProperty(key)
+					if v == nil {
+						v = data.NewNullValue()
+					}
+					valueList = append(valueList, v)
 				}
-			} else if cv, ok := v.(*data.ClassValue); ok {
+				if len(valueList) == 0 {
+					src.RangeProperties(func(_ string, val data.Value) bool {
+						if len(valueList) >= n {
+							return false
+						}
+						valueList = append(valueList, val)
+						return true
+					})
+				}
+			case *data.ClassValue:
 				// 支持实现了 ArrayAccess 的对象解构（如 Collection）
-				if method, exists := cv.GetMethod("offsetGet"); exists {
+				if method, exists := src.GetMethod("offsetGet"); exists {
 					for i, set := range l.V {
-						fnCtx := cv.CreateContext(method.GetVariables())
+						fnCtx := src.CreateContext(method.GetVariables())
 						if len(method.GetVariables()) > 0 {
 							fnCtx.SetVariableValue(method.GetVariables()[0], data.NewIntValue(i))
 						}
@@ -221,6 +240,18 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 								return nil, ctl
 							}
 						}
+					}
+					return data.NewBoolValue(true), nil
+				}
+			}
+			for i, value := range valueList {
+				if i < len(l.V) {
+					set := l.V[i]
+					if set, ok := set.(data.Variable); ok {
+						if value == nil {
+							value = data.NewNullValue()
+						}
+						set.SetValue(ctx, value)
 					}
 				}
 			}

@@ -30,16 +30,33 @@ func (f *IsCallableFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		return data.NewBoolValue(true), nil
 	}
 
-	if _, ok := value.(data.GetName); ok {
-		return data.NewBoolValue(true), nil
-	}
-
-	// 2. String (function name)
 	if _, ok := value.(*data.FuncValue); ok {
 		return data.NewBoolValue(true), nil
 	}
 
-	// 3. Array [obj|class, method]
+	// 字符串函数名
+	if sv, ok := value.(*data.StringValue); ok {
+		name := sv.AsString()
+		if _, found := ctx.GetVM().GetFunc(name); found {
+			return data.NewBoolValue(true), nil
+		}
+		return data.NewBoolValue(false), nil
+	}
+
+	// 实现 __invoke 的对象
+	if obj, ok := value.(*data.ClassValue); ok {
+		if _, found := obj.GetMethod("__invoke"); found {
+			return data.NewBoolValue(true), nil
+		}
+		if obj.Class != nil {
+			if _, found := obj.Class.GetMethod("__invoke"); found {
+				return data.NewBoolValue(true), nil
+			}
+		}
+		return data.NewBoolValue(false), nil
+	}
+
+	// 2. Array [obj|class, method]
 	if arr, ok := value.(*data.ArrayValue); ok {
 		valueList := arr.ToValueList()
 		if len(valueList) == 2 {

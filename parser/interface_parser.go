@@ -362,9 +362,14 @@ func (p *InterfaceParser) parseInterfaceMethod(modifier string) (data.Method, da
 			}
 			unionTypes = append(unionTypes, firstType)
 
-			// 后续的 |Type 原子
-			for p.current().Type() == token.BIT_OR {
-				p.next() // 跳过 |
+			var typeCombinator token.TokenType
+			hasCombinator := false
+			if p.current().Type() == token.BIT_OR || p.current().Type() == token.BIT_AND {
+				typeCombinator = p.current().Type()
+				hasCombinator = true
+			}
+			for hasCombinator && p.current().Type() == typeCombinator {
+				p.next()
 				nextType, acl := parseOneTypeAtom()
 				if acl != nil {
 					return nil, acl
@@ -372,10 +377,11 @@ func (p *InterfaceParser) parseInterfaceMethod(modifier string) (data.Method, da
 				unionTypes = append(unionTypes, nextType)
 			}
 
-			// 将本次解析出的类型（可能是单一，也可能是联合）加入返回类型列表
 			var thisType data.Types
 			if len(unionTypes) == 1 {
 				thisType = unionTypes[0]
+			} else if typeCombinator == token.BIT_AND {
+				thisType = data.NewIntersectionType(unionTypes)
 			} else {
 				thisType = data.NewUnionType(unionTypes)
 			}

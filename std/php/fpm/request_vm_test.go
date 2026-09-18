@@ -2,7 +2,9 @@ package fpm
 
 import (
 	"net/http/httptest"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/php-any/origami/data"
@@ -179,5 +181,79 @@ func TestGlobalsArrayViaContext(t *testing.T) {
 	gotA, _ := objA.GetProperty("__me_cache")
 	if gotA.AsString() != "Alice" {
 		t.Fatalf("request A identity corrupted: %q", gotA.AsString())
+	}
+}
+
+func TestRequestVMCallStacksConcurrent(t *testing.T) {
+	p := parser.NewParser()
+	base := runtime.NewVM(p).(*runtime.VM)
+	const n = 16
+	var wg sync.WaitGroup
+	errs := make(chan string, n)
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		i := i
+		go func() {
+			defer wg.Done()
+			vm := New(base, data.DefaultOutputWriter)
+			name := "req-" + strconv.Itoa(i)
+			vm.PushCallFrame(data.CallFrame{Function: name})
+			if d := vm.EnterCall(); d != 1 {
+				errs <- "depth"
+				vm.LeaveCall()
+				return
+			}
+			got := vm.SnapshotCallStack()
+			if len(got) != 1 || got[0].Function != name {
+				errs <- "stack " + name
+			}
+			vm.LeaveCall()
+			vm.PopCallFrame()
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for e := range errs {
+		t.Fatal(e)
+	}
+}
+
+func TestRequestVMContextOutputUsesSink(t *testing.T) {
+	p := parser.NewParser()
+	base := runtime.NewVM(p).(*runtime.VM)
+	var outA, outB strings.Builder
+	a := New(base, func(s string) { _, _ = outA.WriteString(s) })
+	b := New(base, func(s string) { _, _ = outB.WriteString(s) })
+
+	ctxA := a.CreateContext(nil)
+	ctxB := b.CreateContext(nil)
+	sinkA, ok := ctxA.(data.OutputSink)
+	if !ok {
+		t.Fatal("context should implement OutputSink")
+	}
+	sinkB := ctxB.(data.OutputSink)
+	hostA := ctxA.(data.OutputBufferHost)
+	hostB := ctxB.(data.OutputBufferHost)
+
+	sinkA.WriteOutput("echo-a")
+	sinkB.WriteOutput("echo-b")
+	if outA.String() != "echo-a" || outB.String() != "echo-b" {
+		t.Fatalf("unbuffered echo leaked: A=%q B=%q", outA.String(), outB.String())
+	}
+
+	hostA.StartOutputBuffer()
+	sinkA.WriteOutput("buf-a")
+	hostB.StartOutputBuffer()
+	sinkB.WriteOutput("buf-b")
+	gotA, okA := hostA.CleanOutputBuffer()
+	gotB, okB := hostB.CleanOutputBuffer()
+	if !okA || gotA != "buf-a" {
+		t.Fatalf("request A buffer = %q ok=%v", gotA, okA)
+	}
+	if !okB || gotB != "buf-b" {
+		t.Fatalf("request B buffer = %q ok=%v", gotB, okB)
+	}
+	if outA.String() != "echo-a" || outB.String() != "echo-b" {
+		t.Fatalf("buffered content leaked to sink: A=%q B=%q", outA.String(), outB.String())
 	}
 }

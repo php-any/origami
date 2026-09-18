@@ -33,7 +33,9 @@ func (f *ExitFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		} else {
 			s := statusVal.AsString()
 			if s != "" {
-				data.EmitOutput(ctx, s)
+				if c := data.EmitOutput(ctx, s); c != nil {
+					return nil, c
+				}
 			}
 		}
 	}

@@ -3,10 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
-#[Fillable(['name', 'sku', 'description', 'price', 'stock', 'status'])]
+#[Fillable(['name', 'sku', 'description', 'image', 'price', 'stock', 'status', 'category_id'])]
 class Product extends \Illuminate\Database\Eloquent\Model
 {
+    use LogsActivity;
+
     protected $table = 'products';
 
     protected function casts(): array
@@ -18,17 +22,24 @@ class Product extends \Illuminate\Database\Eloquent\Model
         ];
     }
 
-    /**
-     * The order items for the product.
-     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
+    }
+
     public function orderItems()
     {
         return $this->hasMany(OrderItem::class);
     }
 
-    /**
-     * Scope for active products.
-     */
     public function scopeActive($query)
     {
         return $query->where('status', 'active');

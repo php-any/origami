@@ -26,7 +26,9 @@ func (f *DebugBacktraceFunction) Call(ctx data.Context) (data.GetValue, data.Con
 	}
 
 	var frames []data.CallFrame
-	if vm := ctx.GetVM(); vm != nil {
+	if rec, ok := ctx.(data.CallRecorder); ok {
+		frames = rec.SnapshotCallStack()
+	} else if vm := ctx.GetVM(); vm != nil {
 		if tracker, ok := vm.(data.CallStackTracker); ok {
 			frames = tracker.SnapshotCallStack()
 		}

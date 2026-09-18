@@ -21,7 +21,12 @@ type ClassStatement struct {
 	Properties      map[string]data.Property // 属性列表
 	Methods         map[string]data.Method   // 方法列表
 	StaticMethods   map[string]data.Method   // 静态方法列表
-	Annotations     []*data.ClassValue       // 类注解列表
+	methodsLower    map[string]data.Method   // 方法名小写索引（PHP 方法名不区分大小写）
+	staticLower     map[string]data.Method
+	indexedMethodN  int
+	methodIdxMu     sync.RWMutex
+	lookupCache     *data.MethodLookupCache
+	Annotations     []*data.ClassValue // 类注解列表
 
 	// 构造函数
 	Construct data.Method
@@ -63,6 +68,9 @@ func (c *ClassStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 	object := data.NewClassValue(c, ctx)
 
 	for _, property := range c.Properties {
+		if property.GetIsStatic() {
+			continue
+		}
 		def := property.GetDefaultValue()
 		if def == nil {
 			continue
@@ -142,21 +150,60 @@ func (c *ClassStatement) MergeDeferredTraits(vm data.VM) data.Control {
 	}
 	c.DeferredTraits = nil
 	c.DeferredTraitsMerged = true
-	// 应用别名（需等 trait 合并完成）
+	// 应用别名：必须从 trait 取原方法，避免类覆盖同名方法后别名指错（如 __call as macroCall）
 	for _, alias := range c.DeferredTraitAliases {
-		if method, ok := c.Methods[alias.Method]; ok {
+		if method, ok := findDeferredTraitMethod(vm, c.Traits, alias, false); ok {
 			if _, exists := c.Methods[alias.Alias]; !exists {
 				c.Methods[alias.Alias] = method
 			}
 		}
-		if method, ok := c.StaticMethods[alias.Method]; ok {
+		if method, ok := findDeferredTraitMethod(vm, c.Traits, alias, true); ok {
 			if _, exists := c.StaticMethods[alias.Alias]; !exists {
 				c.StaticMethods[alias.Alias] = method
 			}
 		}
 	}
 	c.DeferredTraitAliases = nil
+	c.invalidateMethodLookups()
 	return nil
+}
+
+func findDeferredTraitMethod(vm data.VM, traitNames []string, alias data.TraitAlias, static bool) (data.Method, bool) {
+	candidates := traitNames
+	if alias.Trait != "" {
+		candidates = []string{alias.Trait}
+		for _, name := range traitNames {
+			if name == alias.Trait || strings.HasSuffix(name, "\\"+alias.Trait) {
+				candidates = []string{name}
+				break
+			}
+		}
+	}
+	for _, traitName := range candidates {
+		trait, acl := vm.GetOrLoadClass(traitName)
+		if acl != nil || trait == nil {
+			continue
+		}
+		if static {
+			if cs, ok := trait.(*ClassStatement); ok {
+				if method, ok := cs.StaticMethods[alias.Method]; ok {
+					return method, true
+				}
+			}
+			if gsm, ok := trait.(data.GetStaticMethod); ok {
+				if method, ok := gsm.GetStaticMethod(alias.Method); ok {
+					return method, true
+				}
+			}
+			continue
+		}
+		for _, method := range trait.GetMethods() {
+			if method.GetName() == alias.Method {
+				return method, true
+			}
+		}
+	}
+	return nil, false
 }
 
 // mergeTraitStmt 将一个已加载的 trait 合并进类（实例/静态方法、属性、静态属性）。
@@ -218,6 +265,7 @@ func mergeTraitStmt(vm data.VM, class *ClassStatement, trait data.ClassStmt) dat
 			class.StaticPropertiesIndex = append(class.StaticPropertiesIndex, name)
 		}
 	}
+	class.invalidateMethodLookups()
 	return nil
 }
 
@@ -242,11 +290,12 @@ func NewClassStatement(from data.From, name string, extends string, implements [
 		PropertiesIndex: propertiesIndex,
 		Properties:      propertiesMap,
 		Methods:         methods,
+		lookupCache:     data.NewMethodLookupCache(),
 	}
 	if extends == "" {
 		class.Extends = nil
 	}
-	if construct, ok := class.GetMethod(token.ConstructName); ok {
+	if construct, ok := methods[token.ConstructName]; ok && construct != nil {
 		class.Construct = construct
 	}
 	return class
@@ -288,17 +337,91 @@ func (c *ClassStatement) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }
 
+func (c *ClassStatement) MethodLookupCache() *data.MethodLookupCache {
+	if c.lookupCache == nil {
+		c.lookupCache = data.NewMethodLookupCache()
+	}
+	return c.lookupCache
+}
+
+func (c *ClassStatement) invalidateMethodLookups() {
+	c.methodIdxMu.Lock()
+	c.methodsLower = nil
+	c.staticLower = nil
+	c.indexedMethodN = -1
+	c.methodIdxMu.Unlock()
+	if c.lookupCache != nil {
+		c.lookupCache.Invalidate()
+	}
+}
+
+func (c *ClassStatement) rebuildMethodIndexLocked() {
+	n := len(c.Methods) + len(c.StaticMethods)
+	if c.methodsLower != nil && c.indexedMethodN == n {
+		return
+	}
+	c.methodsLower = make(map[string]data.Method, len(c.Methods)+1)
+	for key, f := range c.Methods {
+		if f != nil {
+			c.methodsLower[strings.ToLower(key)] = f
+		}
+	}
+	if c.Construct != nil {
+		lk := strings.ToLower(token.ConstructName)
+		if _, ok := c.methodsLower[lk]; !ok {
+			c.methodsLower[lk] = c.Construct
+		}
+	}
+	c.staticLower = make(map[string]data.Method, len(c.StaticMethods))
+	for key, f := range c.StaticMethods {
+		if f != nil {
+			c.staticLower[strings.ToLower(key)] = f
+		}
+	}
+	c.indexedMethodN = n
+}
+
+func (c *ClassStatement) lookupMethodLower(name string) (data.Method, bool) {
+	n := len(c.Methods) + len(c.StaticMethods)
+	c.methodIdxMu.RLock()
+	if c.methodsLower != nil && c.indexedMethodN == n {
+		f, ok := c.methodsLower[strings.ToLower(name)]
+		c.methodIdxMu.RUnlock()
+		return f, ok && f != nil
+	}
+	c.methodIdxMu.RUnlock()
+
+	c.methodIdxMu.Lock()
+	c.rebuildMethodIndexLocked()
+	f, ok := c.methodsLower[strings.ToLower(name)]
+	c.methodIdxMu.Unlock()
+	return f, ok && f != nil
+}
+
+func (c *ClassStatement) lookupStaticLower(name string) (data.Method, bool) {
+	n := len(c.Methods) + len(c.StaticMethods)
+	c.methodIdxMu.RLock()
+	if c.staticLower != nil && c.indexedMethodN == n {
+		f, ok := c.staticLower[strings.ToLower(name)]
+		c.methodIdxMu.RUnlock()
+		return f, ok && f != nil
+	}
+	c.methodIdxMu.RUnlock()
+
+	c.methodIdxMu.Lock()
+	c.rebuildMethodIndexLocked()
+	f, ok := c.staticLower[strings.ToLower(name)]
+	c.methodIdxMu.Unlock()
+	return f, ok && f != nil
+}
+
 func (c *ClassStatement) GetMethod(name string) (data.Method, bool) {
 	if f, ok := c.Methods[name]; ok && f != nil {
 		return f, true
 	}
-	// PHP 方法名不区分大小写：精确匹配失败后，回退到大小写不敏感查找。
 	if name != "" {
-		lower := strings.ToLower(name)
-		for key, f := range c.Methods {
-			if strings.ToLower(key) == lower && f != nil {
-				return f, true
-			}
+		if f, ok := c.lookupMethodLower(name); ok {
+			return f, true
 		}
 	}
 	if name == token.ConstructName && c.Construct != nil {
@@ -332,6 +455,9 @@ func (c *ClassStatement) GetMethods() []data.Method {
 }
 
 func (c *ClassStatement) GetStaticProperty(name string) (data.Value, bool) {
+	if v, ok := data.LoadRequestStatic(c.GetName(), name); ok {
+		return v, true
+	}
 	if f, ok := c.StaticProperty.Load(name); ok {
 		return f.(data.Value), true
 	}
@@ -377,10 +503,13 @@ func (c *ClassStatement) initStaticProperty(prop data.Property) (data.Value, dat
 }
 
 func (c *ClassStatement) GetStaticMethod(name string) (data.Method, bool) {
-	if f, ok := c.StaticMethods[name]; ok {
+	if f, ok := c.StaticMethods[name]; ok && f != nil {
 		return f, true
 	}
-	return nil, false
+	if name == "" {
+		return nil, false
+	}
+	return c.lookupStaticLower(name)
 }
 
 type ClassProperty struct {
@@ -497,18 +626,16 @@ func (p *ClassProperty) AddAnnotations(a *data.ClassValue) {
 }
 
 type ClassMethod struct {
-	*Node        `pp:"-"`
-	Name         string          // 方法名
-	Modifier     data.Modifier   // 访问修饰符
-	IsStatic     bool            // 是否是静态方法
-	Params       []data.GetValue // 参数列表
-	Body         []data.GetValue // 方法体
-	vars         []data.Variable
-	Annotations  []*data.ClassValue // 方法注解列表
-	Ret          data.Types         // 返回类型
-	IsGenerator  bool               // 是否是生成器方法（含 yield）
-	staticLocals *data.StaticLocals // 方法内 static 局部变量
-	staticOnce   sync.Once
+	*Node       `pp:"-"`
+	Name        string          // 方法名
+	Modifier    data.Modifier   // 访问修饰符
+	IsStatic    bool            // 是否是静态方法
+	Params      []data.GetValue // 参数列表
+	Body        []data.GetValue // 方法体
+	vars        []data.Variable
+	Annotations []*data.ClassValue // 方法注解列表
+	Ret         data.Types         // 返回类型
+	IsGenerator bool               // 是否是生成器方法（含 yield）
 }
 
 func (m *ClassMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
@@ -566,51 +693,43 @@ func (m *ClassMethod) GetReturnType() data.Types {
 	return m.Ret
 }
 
-func (m *ClassMethod) methodStaticLocals() *data.StaticLocals {
-	m.staticOnce.Do(func() {
-		m.staticLocals = data.NewStaticLocals()
-	})
-	return m.staticLocals
-}
-
 func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if b, ok := ctx.(data.StaticLocalsBinder); ok {
-		b.BindStaticLocals(m.methodStaticLocals())
-	}
+	// 不再无条件 BindStaticLocals。static 局部变量由 StaticVarStatement 惰性绑定。
 
 	// PHP 语义：如果方法是 generator（含 yield），调用时立即返回 Generator 对象，不执行方法体
 	if m.IsGenerator {
+		markContextEscaped(ctx)
 		generator := NewFuncYieldStackState(ctx, m, m.Body, 0, nil, nil)
 		generatorClass := NewGeneratorClass(generator)
 		return generatorClass.GetValue(ctx)
 	}
 
-	// 调用深度限制，防止无限递归导致栈溢出
-	if vm := ctx.GetVM(); vm != nil {
-		if depth := vm.EnterCall(); depth > 500 {
-			vm.LeaveCall()
-			return nil, data.NewErrorThrow(m.GetFrom(), fmt.Errorf("方法 %s 调用深度超过限制(%d)", m.Name, depth))
-		}
-		defer vm.LeaveCall()
-		if tracker, ok := vm.(data.CallStackTracker); ok {
-			frame := data.CallFrame{Function: m.Name}
-			if m.IsStatic {
-				frame.Type = "::"
-			} else {
-				frame.Type = "->"
-			}
-			if cmc, ok := ctx.(*data.ClassMethodContext); ok && cmc.Class != nil {
-				frame.Class = cmc.Class.GetName()
-			}
-			if from := m.GetFrom(); from != nil {
-				frame.File = from.GetSource()
-				line, _ := from.GetStartPosition()
-				frame.Line = line + 1
-			}
-			tracker.PushCallFrame(frame)
-			defer tracker.PopCallFrame()
-		}
+	// 调用深度限制，防止无限递归导致栈溢出。
+	// Filament/Livewire + debug DOMDocument 校验的合法嵌套可超过 500。
+	frame := data.CallFrame{Function: m.Name}
+	if m.IsStatic {
+		frame.Type = "::"
+	} else {
+		frame.Type = "->"
 	}
+	if cmc, ok := ctx.(*data.ClassMethodContext); ok {
+		frame.Class = cmc.Class.GetName()
+	}
+	if from := m.GetFrom(); from != nil {
+		frame.File = from.GetSource()
+		line, _ := from.GetStartPosition()
+		frame.Line = line + 1
+	}
+	leave, depth := phpCallEnter(ctx, frame)
+	if depth > 2500 {
+		leave()
+		className := ""
+		if cmc, ok := ctx.(*data.ClassMethodContext); ok {
+			className = cmc.Class.GetName() + "::"
+		}
+		return nil, data.NewErrorThrow(m.GetFrom(), fmt.Errorf("方法 %s%s 调用深度超过限制(%d)", className, m.Name, depth))
+	}
+	defer leave()
 
 	var ctl data.Control
 	for bodyIndex := 0; bodyIndex < len(m.Body); bodyIndex++ {
@@ -685,6 +804,7 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 
+	persistStaticLocals(ctx, m.vars)
 	// PHP：方法没有 return 时返回 null（Livewire ViewContext::extractFromEnvironment 依赖此语义）。
 	return data.NewNullValue(), nil
 }

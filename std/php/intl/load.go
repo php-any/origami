@@ -10,4 +10,5 @@ func Load(vm data.VM) {
 	} {
 		vm.AddFunc(fun)
 	}
+	vm.AddClass(NewNumberFormatterClass())
 }

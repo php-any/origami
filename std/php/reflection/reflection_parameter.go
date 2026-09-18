@@ -4,6 +4,7 @@ package reflection
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/token"
 )
 
 // ReflectionParameterClass 提供 PHP ReflectionParameter 类定义
@@ -55,6 +56,8 @@ func (c *ReflectionParameterClass) GetMethod(name string) (data.Method, bool) {
 		return &ReflectionParameterGetTypeMethod{}, true
 	case "hasType":
 		return &ReflectionParameterHasTypeMethod{}, true
+	case "allowsNull":
+		return &ReflectionParameterAllowsNullMethod{}, true
 	case "getDeclaringClass":
 		return &ReflectionParameterGetDeclaringClassMethod{}, true
 	case "isVariadic":
@@ -76,6 +79,7 @@ func (c *ReflectionParameterClass) GetMethods() []data.Method {
 		&ReflectionParameterGetDefaultValueMethod{},
 		&ReflectionParameterGetTypeMethod{},
 		&ReflectionParameterHasTypeMethod{},
+		&ReflectionParameterAllowsNullMethod{},
 		&ReflectionParameterGetDeclaringClassMethod{},
 		&ReflectionParameterIsVariadicMethod{},
 		&ReflectionParameterGetAttributesMethod{},
@@ -138,6 +142,156 @@ func newReflectionParameterFromVirtual(ctx data.Context, className string, metho
 	return paramValue
 }
 
+func phpValueAsString(v data.Value) string {
+	if v == nil {
+		return ""
+	}
+	if _, ok := v.(*data.NullValue); ok {
+		return ""
+	}
+	if sv, ok := v.(*data.StringValue); ok {
+		return sv.AsString()
+	}
+	if s, ok := v.(interface{ AsString() string }); ok {
+		return s.AsString()
+	}
+	return ""
+}
+
+func reflectionParameterStoredName(ctx data.Context) string {
+	objCtx, ok := ctx.(*data.ClassMethodContext)
+	if !ok || objCtx.ObjectValue == nil {
+		return ""
+	}
+	props := objCtx.ObjectValue.GetProperties()
+	if name := phpValueAsString(props["_paramName"]); name != "" {
+		return name
+	}
+	return phpValueAsString(props["name"])
+}
+
+func virtualParamFromProps(props map[string]data.Value, paramIndex int) *virtualParam {
+	name := phpValueAsString(props["_paramName"])
+	if name == "" {
+		name = phpValueAsString(props["name"])
+	}
+	isVar := false
+	if vv, ok := props["_isVariadic"]; ok {
+		if bv, ok := vv.(*data.BoolValue); ok {
+			isVar = bv.Value
+		}
+	}
+	hasDef := false
+	if dv, ok := props["_hasDefault"]; ok {
+		if bv, ok := dv.(*data.BoolValue); ok {
+			hasDef = bv.Value
+		}
+	}
+	return &virtualParam{
+		name:       name,
+		index:      paramIndex,
+		typeStr:    phpValueAsString(props["_paramType"]),
+		variadic:   isVar,
+		hasDefault: hasDef,
+	}
+}
+
+func methodParamAt(method data.Method, paramIndex int) data.GetValue {
+	if method == nil {
+		return nil
+	}
+	params := method.GetParams()
+	if paramIndex >= 0 && paramIndex < len(params) {
+		return params[paramIndex]
+	}
+	return nil
+}
+
+func classMethodParamAt(stmt data.ClassStmt, methodName string, paramIndex int) data.GetValue {
+	if stmt == nil {
+		return nil
+	}
+	if method, exists := stmt.GetMethod(methodName); exists {
+		if p := methodParamAt(method, paramIndex); p != nil {
+			return p
+		}
+	}
+	if staticMethods, ok := stmt.(data.GetStaticMethod); ok {
+		if method, exists := staticMethods.GetStaticMethod(methodName); exists {
+			if p := methodParamAt(method, paramIndex); p != nil {
+				return p
+			}
+		}
+	}
+	if methodName == token.ConstructName {
+		if p := methodParamAt(stmt.GetConstruct(), paramIndex); p != nil {
+			return p
+		}
+	}
+	return nil
+}
+
+func lookupClassMethodParam(vm data.VM, className, methodName string, paramIndex int) (string, string, int, data.GetValue) {
+	if vm == nil || className == "" || methodName == "" {
+		return className, methodName, paramIndex, nil
+	}
+
+	if iface, acl := vm.GetOrLoadInterface(className); acl == nil && iface != nil {
+		if method, exists := iface.GetMethod(methodName); exists {
+			if p := methodParamAt(method, paramIndex); p != nil {
+				return className, methodName, paramIndex, p
+			}
+		}
+		for _, ext := range iface.GetExtends() {
+			parent, pacl := vm.GetOrLoadInterface(ext)
+			if pacl != nil || parent == nil {
+				continue
+			}
+			if method, exists := parent.GetMethod(methodName); exists {
+				if p := methodParamAt(method, paramIndex); p != nil {
+					return ext, methodName, paramIndex, p
+				}
+			}
+		}
+	}
+
+	loadClass := func(name string) data.ClassStmt {
+		v, acl := vm.LoadPkg(name)
+		if acl == nil {
+			if stmt, ok := v.(data.ClassStmt); ok && stmt != nil {
+				return stmt
+			}
+		}
+		stmt, acl := vm.GetOrLoadClass(name)
+		if acl != nil {
+			return nil
+		}
+		return stmt
+	}
+
+	stmt := loadClass(className)
+	if stmt == nil {
+		return className, methodName, paramIndex, nil
+	}
+	if p := classMethodParamAt(stmt, methodName, paramIndex); p != nil {
+		return className, methodName, paramIndex, p
+	}
+
+	last := stmt
+	for last.GetExtend() != nil {
+		ext := last.GetExtend()
+		parent := loadClass(*ext)
+		if parent == nil {
+			break
+		}
+		if p := classMethodParamAt(parent, methodName, paramIndex); p != nil {
+			return *ext, methodName, paramIndex, p
+		}
+		last = parent
+	}
+	return className, methodName, paramIndex, nil
+}
+
 // getReflectionParameterInfo 从上下文中获取 ReflectionParameter 的参数信息
 // 当 _isVirtual=true 时，从预存属性构造 virtualParam 返回
 func getReflectionParameterInfo(ctx data.Context) (string, string, int, data.GetValue) {
@@ -151,27 +305,18 @@ func getReflectionParameterInfo(ctx data.Context) (string, string, int, data.Get
 
 	props := objCtx.ObjectValue.GetProperties()
 
-	classNameVal, _ := props["_className"]
-	methodNameVal, _ := props["_methodName"]
 	paramIndexVal, hasParamIndex := props["_paramIndex"]
-
 	if !hasParamIndex {
 		return "", "", -1, nil
 	}
 
-	var className, methodName string
-	var paramIndex int
-	if sv, ok := classNameVal.(*data.StringValue); ok {
-		className = sv.AsString()
-	}
-	if sv, ok := methodNameVal.(*data.StringValue); ok {
-		methodName = sv.AsString()
-	}
+	className := phpValueAsString(props["_className"])
+	methodName := phpValueAsString(props["_methodName"])
+	paramIndex := 0
 	if iv, ok := paramIndexVal.(*data.IntValue); ok {
 		paramIndex, _ = iv.AsInt()
 	}
 
-	// Closure / virtual 路径：className 为空或 _isVirtual=true，从预存属性构造 virtualParam
 	isVirtual := false
 	if vv, ok := props["_isVirtual"]; ok {
 		if bv, ok := vv.(*data.BoolValue); ok {
@@ -179,76 +324,19 @@ func getReflectionParameterInfo(ctx data.Context) (string, string, int, data.Get
 		}
 	}
 	if className == "" || isVirtual {
-		name := ""
-		if nv, ok := props["_paramName"]; ok {
-			if sv, ok := nv.(*data.StringValue); ok {
-				name = sv.AsString()
-			}
-		}
-		isVar := false
-		if vv, ok := props["_isVariadic"]; ok {
-			if bv, ok := vv.(*data.BoolValue); ok {
-				isVar = bv.Value
-			}
-		}
-		typeStr := ""
-		if tv, ok := props["_paramType"]; ok {
-			if sv, ok := tv.(*data.StringValue); ok {
-				typeStr = sv.AsString()
-			}
-		}
-		hasDef := false
-		if dv, ok := props["_hasDefault"]; ok {
-			if bv, ok := dv.(*data.BoolValue); ok {
-				hasDef = bv.Value
-			}
-		}
-		vp := &virtualParam{name: name, index: paramIndex, typeStr: typeStr, variadic: isVar, hasDefault: hasDef}
-		return className, methodName, paramIndex, vp
+		return className, methodName, paramIndex, virtualParamFromProps(props, paramIndex)
 	}
 
-	// 常规路径：通过类名/接口名+方法名+索引查找参数
 	if className != "" && methodName != "" {
-		vm := ctx.GetVM()
-
-		if iface, acl := vm.GetOrLoadInterface(className); acl == nil && iface != nil {
-			if method, exists := iface.GetMethod(methodName); exists {
-				params := method.GetParams()
-				if paramIndex >= 0 && paramIndex < len(params) {
-					return className, methodName, paramIndex, params[paramIndex]
-				}
-			}
-			for _, ext := range iface.GetExtends() {
-				parent, pacl := vm.GetOrLoadInterface(ext)
-				if pacl != nil || parent == nil {
-					continue
-				}
-				if method, exists := parent.GetMethod(methodName); exists {
-					params := method.GetParams()
-					if paramIndex >= 0 && paramIndex < len(params) {
-						return ext, methodName, paramIndex, params[paramIndex]
-					}
-				}
-			}
-		}
-
-		v, acl := vm.LoadPkg(className)
-		if acl != nil {
-			return "", "", -1, nil
-		}
-		if v != nil {
-			if stmt, ok := v.(data.ClassStmt); ok {
-				if method, exists := stmt.GetMethod(methodName); exists {
-					params := method.GetParams()
-					if paramIndex >= 0 && paramIndex < len(params) {
-						return className, methodName, paramIndex, params[paramIndex]
-					}
-				}
-			}
+		foundClass, foundMethod, foundIndex, param := lookupClassMethodParam(ctx.GetVM(), className, methodName, paramIndex)
+		if param != nil {
+			return foundClass, foundMethod, foundIndex, param
 		}
 	}
 
-	return "", "", -1, nil
+	// LoadPkg/GetMethod 对构造函数可能找不到参数（参数只挂在 GetConstruct 上，
+	// 或请求级 TempVM 查找失败）。退回 getParameters 时写入的 _paramName。
+	return className, methodName, paramIndex, virtualParamFromProps(props, paramIndex)
 }
 
 // virtualParam 是轻量级虚拟参数，用于 Closure 的 ReflectionParameter
@@ -270,6 +358,12 @@ func (p *virtualParam) GetType() data.Types {
 }
 func (p *virtualParam) IsVariadic() bool { return p.variadic }
 func (p *virtualParam) HasDefault() bool { return p.hasDefault }
+func (p *virtualParam) GetDefaultValue() data.GetValue {
+	if !p.hasDefault {
+		return nil
+	}
+	return data.NewNullValue()
+}
 func (p *virtualParam) AsString() string { return p.name }
 func (p *virtualParam) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewStringValue(p.name), nil

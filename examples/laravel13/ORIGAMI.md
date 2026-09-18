@@ -7,9 +7,51 @@
 ## 原则
 
 1. **起点是原生 Laravel**：`artisan`、`public/index.php`、`bootstrap/app.php`、`vendor/laravel/framework` 保持官方形态；不先堆假 Facade / 假 Kernel。
-2. **缺口回推运行时**：通用 PHP / Symfony / Illuminate 语义差异优先修 Origami 核心；`go-support/` 只做示例级扩展或覆盖（含 Laravel Request 等适配），并可在必要时覆盖标准库实现。**禁止**改 `vendor/` 或应用 PHP 来消 Warning / 绕过 Fatal。
+2. **缺口回推运行时**：通用 PHP / Symfony / Illuminate 语义差异优先修 Origami 核心；`go-support/` 只做示例级适配（`App\Http\Kernel`、`ServeCommand`）。**禁止**改 `vendor/` 或应用 PHP 来消 Warning / 绕过 Fatal。
 3. **增量验收**：每打通一层就加 `tests/origami/` 冒烟；禁止「类能加载就算完成」。
 4. **禁止膨胀补丁**：不要在 `bootstrap/` 里用越写越大的匿名 `singleton` 假装能跑。
+
+## Vendor 标准库加速
+
+加速**只覆盖 vendor FQCN**，由 `std/vendoraccel.Load` 在 [`main.go`](main.go) 的 `buildVM()` 中加载；**不进入**默认 `zy.go` / `php.Load`。
+
+### Symfony：一包一子模块
+
+目录名对齐 Packagist / `vendor/symfony/<pkg>`，每个子模块自带 `ComposerName` + `TargetVersion`（钉死 `composer.lock`）：
+
+```
+std/symfony/http-foundation/   # TargetVersion=v8.1.1
+std/symfony/console/
+std/symfony/finder/
+std/symfony/string/             # Go package: sfstring
+std/symfony/routing/
+std/symfony/http-kernel/
+std/symfony/event-dispatcher/
+std/symfony/process/
+std/symfony/var-dumper/
+std/symfony/uid/
+std/symfony/clock/
+std/symfony/polyfill-*          # 标记 bootstrap.php 已加载，跳过解析
+```
+
+约束：FQCN 不越包；跨包依赖走官方 Composer require 图；升级 Symfony 时只改对应子模块。
+
+当前**已注册**原生类：`http-foundation`（含 Cookie / JsonResponse / RedirectResponse / File / UploadedFile / RequestStack / StreamedResponse / BinaryFileResponse）、`finder`（Finder + SplFileInfo）、`string`（AbstractString / AbstractUnicodeString / UnicodeString / ByteString / CodePointString；`u()`/`b()`/`s()` 仍走 vendor `functions.php`）、`uid`（Uuid / Ulid，不注册 UuidV*）、`clock`（仅 NativeClock，Clock 门面仍走 vendor）、`routing`（Route / RouteCollection / RequestContext / UrlMatcher / UrlGenerator / CompiledUrlMatcherDumper）、Illuminate Support/Http。其余子模块已建好 `version.go` + 实现草稿，但 `Load` 暂为空——避免不完整类挡住 vendor PHP。补齐语义后再 `AddClass`。
+
+### Illuminate
+
+- `std/illuminate/http`：Request / Response（依赖 http-foundation）
+- `std/illuminate/support`：Arr / Collection / Str / `collect` 等 helpers（仅 laravel13 VM）
+
+### go-support
+
+只保留应用/进程适配：`App\Http\Kernel`、`ServeCommand`。HttpFoundation 已迁入 `std/symfony/http-foundation`。
+
+### 预热
+
+`serve` 启动前调用 `vendoraccel.WarmupVendorClassmap`：只扫 `vendor/composer/autoload_classmap.php` 中路径在 `vendor/` 下、且尚未 native 的类。artisan 默认关闭；设 `ORIGAMI_LARAVEL_PRELOAD=1` 可打开。
+
+冒烟：`go run -mod=mod . run tests/origami/vendoraccel_smoke.php`
 
 ## 当前阶段
 
@@ -21,7 +63,7 @@
 | 3 | `artisan`（如 `about` / `list` / `inspire`） | 完成（均可走官方入口正常退出并输出） |
 | 4 | Go HTTP Kernel + 原生 Request / Response | 完成（不再经 `public/index.php`） |
 | 5 | 路由 / 视图 / Eloquent / 生态包（Telescope 等） | 部分完成 |
-| 6 | **Livewire 管理后台**（RBAC/订单/用户/管理员） | **新增** |
+| 6 | **Filament v5 管理后台**（RBAC/订单/用户/管理员/分类/媒体/日志/设置） | **新增** |
 
 已回推 Origami 核心的能力（支撑本目录，节选）：条件 `class`、`readonly class`、`new static::$prop(...)`、PHP 8.4 `array_find`/`array_any`/`array_all`、`debug_backtrace`、函数/对象方法一等可调用、`Closure::bindTo`（含 `$this`）、`$var::{expr}()`、对象方法命名参数、闭包调用 `...$args` 展开、静态方法引用参数（`Arr::set`）、`array_reduce` 兼容关联数组（修复 Dotenv）、`Random\Randomizer`、进程流函数、`asort`/`arsort`、`getcwd`、`method_exists` 未知类返回 false、PDO/`Pdo\Mysql` 等。
 
@@ -40,45 +82,52 @@ cd examples/laravel13
 # 依赖（宿主机 PHP 仅用于 composer；运行时是 Origami）
 composer install --ignore-platform-reqs --no-scripts
 
-go build -mod=mod -o laravel13 .
-
-# 跑冒烟脚本
-./laravel13 run tests/origami/autoload_smoke.php
-
-# 直接走官方 artisan（能跑通多少取决于当前 Origami 兼容度）
-./laravel13 list
-./laravel13 about
+# 优先 go run，不要先编 laravel13.exe
+go run -mod=mod . run tests/origami/autoload_smoke.php
+go run -mod=mod . list
+go run -mod=mod . about
+go run -mod=mod . serve --port=18086
 ```
 
-## Livewire 管理后台
+## Filament v5 管理后台
 
-本目录已集成 **Livewire v4** 作为前端框架示例，并提供了一个完整的管理后台：
+本目录使用 **[Filament v5](https://filamentphp.com/docs/5.x)** Panel（基于 Livewire v4）作为生产级管理后台示例，替代原自研 Livewire Admin 组件。
 
 ### 功能模块
 
 | 模块 | 功能 |
 |------|------|
-| **管理员系统** | 管理员 CRUD、启用/禁用、角色分配 |
-| **用户系统** | 普通用户 CRUD |
-| **RBAC 权限** | 角色管理、权限管理、角色-权限关联 |
-| **订单系统** | 订单列表、详情、状态流转（待付款→已付款→已发货→已完成） |
-| **产品系统** | 产品 CRUD、上下架、库存管理 |
-| **仪表盘** | 统计概览（用户数/订单数/产品数/营收）、最近订单 |
-| **个人中心** | 资料修改、密码修改 |
+| **管理员系统** | CRUD、启用/禁用、角色分配、Policy 鉴权 |
+| **用户系统** | 前台用户 CRUD |
+| **RBAC 权限** | 角色/权限管理、按权限点 Policy 控制 Resource |
+| **分类系统** | 商品分类树、排序、启用 |
+| **产品系统** | CRUD、分类、图片、SKU、库存、批量上下架 |
+| **订单系统** | 列表/详情、合法状态流转（待付款→已付款→已发货→已完成/取消） |
+| **媒体库** | 上传、预览、MIME 筛选、删除物理文件 |
+| **操作日志** | Spatie Activity Log 只读查看 |
+| **系统设置** | 站点名、维护模式、订单号前缀 |
+| **通知** | 数据库通知（低库存、新订单等） |
+| **仪表盘** | 统计 Widget + 最近订单 |
 
 ### 路由
 
 | 路由 | 说明 |
 |------|------|
-| `/login` | 管理员登录 |
+| `/admin/login` | Filament 管理员登录 |
 | `/admin` | 仪表盘 |
-| `/admin/admins` | 管理员管理 |
-| `/admin/users` | 用户管理 |
-| `/admin/roles` | 角色管理 |
-| `/admin/permissions` | 权限管理 |
-| `/admin/products` | 产品管理 |
-| `/admin/orders` | 订单管理 |
-| `/admin/profile` | 个人中心 |
+| `/admin/admins` | 管理员 |
+| `/admin/users` | 用户 |
+| `/admin/roles` | 角色 |
+| `/admin/permissions` | 权限 |
+| `/admin/categories` | 分类 |
+| `/admin/products` | 产品 |
+| `/admin/orders` | 订单 |
+| `/admin/media` | 媒体库 |
+| `/admin/activities` | 操作日志 |
+| `/admin/settings` | 系统设置 |
+| `/admin/profile` | 个人资料 |
+
+`/login` 会重定向到 `/admin/login`。
 
 ### 默认账号
 
@@ -88,47 +137,35 @@ go build -mod=mod -o laravel13 .
 ### 初始化
 
 ```bash
-# 迁移数据库
-./laravel13 migrate --force
+composer install --ignore-platform-reqs --no-scripts
+composer require filament/filament:"~5.0" spatie/laravel-activitylog --ignore-platform-reqs
 
-# 填充数据
-./laravel13 db:seed --force
+go run -mod=mod . migrate --force
+go run -mod=mod . db:seed --force
+go run -mod=mod . run tests/origami/filament_admin_smoke.php
+go run -mod=mod . serve --port=18086
 ```
 
 ### 目录结构
 
 ```
 app/
-├── Http/
-│   ├── Controllers/Controller.php
-│   └── Middleware/AdminAuthenticated.php
-├── Livewire/
-│   └── Admin/
-│       ├── Login.php
-│       ├── Dashboard.php
-│       ├── Profile.php
-│       ├── Admins/{Index,Form}.php
-│       ├── Users/{Index,Form}.php
-│       ├── Roles/{Index,Form}.php
-│       ├── Permissions/{Index,Form}.php
-│       ├── Products/{Index,Form}.php
-│       └── Orders/{Index,Detail}.php
-└── Models/
-    ├── Admin.php
-    ├── User.php
-    ├── Role.php
-    ├── Permission.php
-    ├── Product.php
-    ├── Order.php
-    └── OrderItem.php
+├── Filament/
+│   ├── Pages/          # Dashboard, ManageSettings
+│   ├── Resources/      # Admin/User/Role/... Resources
+│   └── Widgets/        # StatsOverview, LatestOrders
+├── Models/
+│   ├── Admin.php       # FilamentUser + RBAC
+│   ├── Category.php, Media.php, Setting.php
+│   └── ...
+├── Policies/           # 按 permission 点鉴权
+└── Providers/Filament/AdminPanelProvider.php
 ```
 
-### 运行时修复记录
+### 依赖
 
-针对 Livewire 管理后台运行中发现的兼容性问题，已修复以下 Origami 运行时缺陷：
-
-- **Generator spread 展开**：修复 `...$generator` 无法在函数调用、构造调用、数组字面量等场景中正确展开的问题。现在 `new Patterns(...Uninflected::getSingular())` 可以正确遍历生成器并展开为参数。
-- **PHP 8 返回类型**：支持 `: array` / `: bool` / `: string` / `: self` / `: static` / `: ?type` / `: type1|type2` 等返回类型声明。
+- `filament/filament ^5.0`（Laravel 13 + Livewire 4）
+- `spatie/laravel-activitylog`（操作审计）
 
 ## 与旧 examples/laravel 的关系
 

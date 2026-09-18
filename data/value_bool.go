@@ -5,9 +5,10 @@ import (
 )
 
 func NewBoolValue(v bool) Value {
-	return &BoolValue{
-		Value: v,
+	if v {
+		return internBoolTrue
 	}
+	return internBoolFalse
 }
 
 type AsBool interface {

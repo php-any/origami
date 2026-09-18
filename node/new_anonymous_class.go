@@ -42,7 +42,16 @@ func (n *NewAnonymousClassExpression) GetValue(ctx data.Context) (data.GetValue,
 		}
 	}
 
-	// 匿名类不需要注册到 VM，直接实例化
+	// PHP：匿名类在首次 new class 后可通过 get_class/class_exists/new $name 使用（Livewire __mountParamsContainer）
+	if vm := ctx.GetVM(); vm != nil {
+		if acl := vm.AddClass(classStmt); acl != nil {
+			// 同一定义重复 new：AddClass 可能报已存在；忽略并继续实例化
+			if _, ok := vm.GetClass(classStmt.GetName()); !ok {
+				return nil, acl
+			}
+		}
+	}
+
 	object, acl := classStmt.GetValue(ctx.CreateBaseContext())
 	if acl != nil {
 		return nil, acl

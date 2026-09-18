@@ -7,9 +7,11 @@ import (
 // LambdaExpression 表示Lambda表达式（匿名函数）
 type LambdaExpression struct {
 	*FunctionStatement
-	parent   map[int]int
-	ctx      data.Context
-	captured map[int]data.Value // use ($x) 按值快照（创建闭包时），非 use (&$x)
+	parent       map[int]int
+	ctx          data.Context
+	captured     map[int]data.Value // use ($x) 按值快照（创建闭包时），非 use (&$x)
+	capturedRefs map[int]*data.ZVal // use (&$x) 在创建时绑定的共享 ZVal（对齐 PHP 引用捕获）
+	IsStatic     bool               // static function/fn：不绑定定义处的 $this（对齐 PHP）
 }
 
 // NewLambdaExpression 创建一个新的Lambda表达式
@@ -39,7 +41,12 @@ func (f *LambdaExpression) GetStaticVariables() map[string]data.Value {
 			continue
 		}
 		var value data.Value
-		if f.captured != nil {
+		if f.capturedRefs != nil {
+			if zv, ok := f.capturedRefs[childIndex]; ok && zv != nil {
+				value = zv.Value
+			}
+		}
+		if value == nil && f.captured != nil {
 			if v, ok := f.captured[childIndex]; ok {
 				value = v
 			}
@@ -58,15 +65,29 @@ func (f *LambdaExpression) GetStaticVariables() map[string]data.Value {
 }
 
 func (f *LambdaExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// PHP：use ($var) 在闭包创建时按值捕获；use (&$var) 在调用时共享 ZVal。
-	// 必须在 GetValue 时快照，否则 foreach 里创建的多个闭包会全部看到循环变量终值
-	//（Livewire ComponentHookRegistry 因此只注册到最后一个 Feature）。
+	// PHP：use ($var) 在闭包创建时按值捕获；use (&$var) 绑定父作用域的同一 ZVal。
+	// 必须在 GetValue 时固定引用槽：父函数返回后 Context 可能被还回 pool 并复用，
+	// 调用时再 GetIndexZVal 会读到别的帧（Laravel FilesystemServiceProvider::serveFiles
+	// 的 booted 回调里 $served[$uri] = $disk 因此失败）。
+	// 闭包持有定义处 ctx（$this / self::），该帧禁止回收。
+	markContextEscaped(ctx)
 	captured := make(map[int]data.Value, len(f.parent))
+	capturedRefs := make(map[int]*data.ZVal, len(f.parent))
 	for cID, pID := range f.parent {
 		if cID < 0 || cID >= len(f.vars) {
 			continue
 		}
 		if _, isRef := f.vars[cID].(*VariableReference); isRef {
+			name := ""
+			if f.vars[cID] != nil {
+				name = f.vars[cID].GetName()
+			}
+			zv := ctx.GetIndexZVal(pID)
+			if zv == nil {
+				zv = data.NewNamedZValSlot(name)
+				ctx.SetIndexZVal(pID, zv)
+			}
+			capturedRefs[cID] = zv
 			continue
 		}
 		v, ok := ctx.GetIndexValue(pID)
@@ -85,9 +106,11 @@ func (f *LambdaExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			Name:        f.Name,
 			Ret:         f.Ret,
 		},
-		ctx:      ctx,
-		parent:   f.parent,
-		captured: captured,
+		ctx:          ctx,
+		parent:       f.parent,
+		captured:     captured,
+		capturedRefs: capturedRefs,
+		IsStatic:     f.IsStatic,
 	}), nil
 }
 
@@ -112,50 +135,58 @@ func snapshotUseValue(v data.Value) data.Value {
 }
 
 func (f *LambdaExpression) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 为 lambda 创建独立的执行上下文，避免直接复用调用方 ctx 而污染上层环境。
-	var execCtx data.Context
-	if defineClassCtx, ok := f.ctx.(*data.ClassMethodContext); ok {
-		// 在类方法中定义的 lambda：使用定义时对象创建新的 ClassMethodContext 作为执行上下文，
-		// 以保证 this / static:: 语义正确。
-		execCtx = defineClassCtx.ClassValue.CreateContext(f.vars)
-		if cmc, ok := execCtx.(*data.ClassMethodContext); ok {
-			cmc.StaticClass = defineClassCtx.StaticClass
-			cmc.SelfClass = defineClassCtx.SelfClass
+	inner := ctx
+	if bc, ok := ctx.(*data.BoundContext); ok {
+		inner = bc.Context
+	}
+	execCtx := inner
+	if defineClassCtx, ok := f.ctx.(*data.ClassMethodContext); ok && !f.IsStatic {
+		execCtx = data.WrapMethodFrame(inner, defineClassCtx.ClassValue, defineClassCtx.SelfClass, defineClassCtx.StaticClass)
+	} else if f.IsStatic {
+		if defineClassCtx, ok := f.ctx.(*data.ClassMethodContext); ok {
+			cmc := data.NewStaticMethodContext(inner, defineClassCtx.Class, defineClassCtx.StaticClass)
+			if defineClassCtx.SelfClass != nil {
+				cmc.SelfClass = defineClassCtx.SelfClass
+			}
 			if cmc.StaticClass == nil {
 				cmc.StaticClass = defineClassCtx.Class
 			}
 			if cmc.SelfClass == nil {
 				cmc.SelfClass = defineClassCtx.Class
 			}
+			execCtx = cmc
 		}
-		// VM 属于本次调用而不是闭包定义作用域。常驻对象中的闭包可能跨请求复用，
-		// 但输出、HTTP 和调用栈必须落到当前调用方 VM。
-		execCtx.SetVM(ctx.GetVM())
-	} else {
-		// 普通场景：基于当前 ctx 再创建一层函数上下文，隔离变量写入。
-		execCtx = ctx.CreateContext(f.vars)
 	}
-	// 仅当本次调用本身由 BoundFuncValue 注入 BoundContext 时保留绑定。
-	// 不可沿父上下文链向上找：HTTP 请求里 Request macro 等会在祖先留下 BoundContext，
-	// 误套到无关闭包上会导致 static::/self:: 类型断言失败（Livewire Utils 回调）。
+	// BoundContext 处理：
+	// - ExplicitBind（Closure::bind/bindTo）：始终应用，可覆盖定义时的 $this。
+	// - 调用方 CreateContext 继承的 BoundContext：仅当闭包定义时没有 $this 时才套上
+	//   （否则会把 Livewire 视图里的 Login 污染到 ExtendBlade 的 EventBus 监听器）。
 	if bc, ok := ctx.(*data.BoundContext); ok {
-		execCtx = &data.BoundContext{Context: execCtx, ScopeClass: bc.ScopeClass, BoundThis: bc.BoundThis}
-	}
-	// 将调用方 ctx 中已经绑定好的参数 ZVal 复制到新的执行上下文中
-	for i := range f.vars {
-		zv := ctx.GetIndexZVal(i)
-		if zv != nil {
-			execCtx.SetIndexZVal(i, zv)
+		_, hasDefThis := f.ctx.(*data.ClassMethodContext)
+		if bc.ExplicitBind || !hasDefThis || f.IsStatic {
+			execCtx = &data.BoundContext{
+				Context:      execCtx,
+				ScopeClass:   bc.ScopeClass,
+				BoundThis:    bc.BoundThis,
+				ExplicitBind: bc.ExplicitBind,
+			}
 		}
 	}
 
 	// 处理 use 捕获的外部变量
 	for cID, pID := range f.parent {
-		// use (&$var)：调用时共享父作用域 ZVal
+		// use (&$var)：使用创建时绑定的共享 ZVal（不要在调用时再从父 ctx 取，父帧可能已回收/复用）
 		if _, isRef := f.vars[cID].(*VariableReference); isRef {
-			parentZVal := f.ctx.GetIndexZVal(pID)
-			if parentZVal != nil {
-				execCtx.SetIndexZVal(f.vars[cID].GetIndex(), parentZVal)
+			if f.capturedRefs != nil {
+				if zv, ok := f.capturedRefs[cID]; ok && zv != nil {
+					execCtx.SetIndexZVal(f.vars[cID].GetIndex(), zv)
+					continue
+				}
+			}
+			if f.ctx != nil {
+				if parentZVal := f.ctx.GetIndexZVal(pID); parentZVal != nil {
+					execCtx.SetIndexZVal(f.vars[cID].GetIndex(), parentZVal)
+				}
 			}
 			continue
 		}
@@ -175,6 +206,8 @@ func (f *LambdaExpression) Call(ctx data.Context) (data.GetValue, data.Control) 
 
 	// PHP：含 yield 的闭包调用时立即返回 Generator（Symfony TableRows 依赖）
 	if f.IsGenerator {
+		markContextEscaped(ctx)
+		markContextEscaped(execCtx)
 		generator := NewFuncYieldStackState(execCtx, f, f.Body, 0, nil, nil)
 		generatorClass := NewGeneratorClass(generator)
 		return generatorClass.GetValue(execCtx)
@@ -220,6 +253,7 @@ func (f *LambdaExpression) Call(ctx data.Context) (data.GetValue, data.Control) 
 		}
 	}
 
+	persistStaticLocals(execCtx, f.vars)
 	// PHP：普通闭包没有 return 时返回 null。箭头函数 fn() => expr 由解析器包成 return。
 	return data.NewNullValue(), nil
 }

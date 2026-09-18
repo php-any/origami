@@ -25,18 +25,8 @@ func (s *staticMethodFuncWithLateBinding) GetValue(ctx data.Context) (data.GetVa
 }
 
 func (s *staticMethodFuncWithLateBinding) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 创建类方法上下文，绑定调用时的类（用于 static:: 后期静态绑定）
-	classValue := data.NewClassValue(s.callClass, ctx)
-	fnCtx := classValue.CreateContext(s.method.GetVariables())
-	// 设置后期静态绑定类
-	if cmc, ok := fnCtx.(*data.ClassMethodContext); ok {
-		cmc.StaticClass = s.callClass
-	}
-	// 复制参数
-	for i := 0; i < len(s.method.GetVariables()); i++ {
-		fnCtx.SetIndexZVal(i, ctx.GetIndexZVal(i))
-	}
-	return s.method.Call(fnCtx)
+	cmc := data.NewStaticMethodContext(ctx, s.callClass, s.callClass)
+	return s.method.Call(cmc)
 }
 
 func (s *staticMethodFuncWithLateBinding) AsString() string {
@@ -59,16 +49,11 @@ func NewCallStaticKeywordMethod(from data.From, method string) *CallStaticKeywor
 
 // GetValue 获取 static::method() 调用的值
 func (pe *CallStaticKeywordMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 与 self:: 一样，必须在类上下文中使用（含 BoundContext 包裹的 ClassMethodContext）
-	var currentClass data.ClassStmt
-	if classCtx := findClassMethodContext(ctx); classCtx != nil {
-		currentClass = classCtx.Class
-		if classCtx.StaticClass != nil {
-			currentClass = classCtx.StaticClass
-		}
-	} else if classVal, ok := ctx.(*data.ClassValue); ok {
-		currentClass = classVal.Class
-	} else {
+	currentClass, acl, ok := resolveLateStaticClass(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	if !ok {
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("static:: 只能在类方法中使用"))
 	}
 
@@ -106,6 +91,29 @@ func (pe *CallStaticKeywordMethod) GetValue(ctx data.Context) (data.GetValue, da
 				}
 				extend = ext.GetExtend()
 			}
+		}
+
+		// 回退到 __callStatic（含继承链），支持 Eloquent Builder::macro 等
+		checkClass := currentClass
+		for checkClass != nil {
+			if getter, ok := checkClass.(data.GetStaticMethod); ok {
+				if magic, hasMagic := getter.GetStaticMethod("__callStatic"); hasMagic {
+					return data.NewFuncValue(&callStaticFunc{
+						class:          currentClass,
+						method:         magic,
+						originalMethod: pe.Method,
+					}), nil
+				}
+			}
+			if checkClass.GetExtend() == nil {
+				break
+			}
+			vm := ctx.GetVM()
+			parent, acl := vm.GetOrLoadClass(*checkClass.GetExtend())
+			if acl != nil || parent == nil {
+				break
+			}
+			checkClass = parent
 		}
 
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("当前类 %s 没有静态方法 %s", currentClass.GetName(), pe.Method))

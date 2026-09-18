@@ -12,7 +12,8 @@ import (
 // RecursiveDirectoryIterator 内部状态属性名（存储在 ClassValue.ObjectValue.property）
 // 类似 FilterIterator 模式，保证 PHP 子类继承时状态隔离
 const (
-	rdiPathKey  = "__rdi_path__"  // string: 根目录路径
+	rdiPathKey  = "__rdi_path__"  // string: 当前列出的目录
+	rdiRootKey  = "__rdi_root__"  // string: 顶层根路径（getSubPath* 相对此路径）
 	rdiFilesKey = "__rdi_files__" // *rdiFilesValue: 文件列表
 	rdiPosKey   = "__rdi_pos__"   // int: 当前位置
 	rdiFlagsKey = "__rdi_flags__" // int: flags
@@ -92,6 +93,7 @@ func (r *RecursiveDirectoryIteratorClass) GetValue(ctx data.Context) (data.GetVa
 	cv := data.NewClassValue(r, ctx.CreateBaseContext())
 	// 初始化实例属性
 	cv.SetProperty(rdiPathKey, data.NewStringValue(""))
+	cv.SetProperty(rdiRootKey, data.NewStringValue(""))
 	cv.SetProperty(rdiFilesKey, &rdiFilesValue{})
 	cv.SetProperty(rdiPosKey, data.NewIntValue(0))
 	cv.SetProperty(rdiFlagsKey, data.NewIntValue(4096)) // SKIP_DOTS
@@ -129,6 +131,11 @@ func (r *RecursiveDirectoryIteratorClass) GetMethod(name string) (data.Method, b
 	case "getSubPath":
 		return &RDIGetSubPath{}, true
 	case "getSubPathname":
+		return &RDIGetSubPathname{}, true
+	case "getRelativePath":
+		// Symfony Finder SplFileInfo 别名
+		return &RDIGetSubPath{}, true
+	case "getRelativePathname":
 		return &RDIGetSubPathname{}, true
 	case "isDir":
 		return &RDIIsDir{}, true
@@ -196,6 +203,19 @@ func rdiGetPath(cv *data.ClassValue) string {
 
 func rdiSetPath(cv *data.ClassValue, path string) {
 	cv.ObjectValue.SetProperty(rdiPathKey, data.NewStringValue(path))
+}
+
+func rdiGetRoot(cv *data.ClassValue) string {
+	v, _ := cv.ObjectValue.GetProperty(rdiRootKey)
+	if sv, ok := v.(*data.StringValue); ok && sv.Value != "" {
+		return sv.Value
+	}
+	// 兼容未设置 root 的旧实例：退回 path
+	return rdiGetPath(cv)
+}
+
+func rdiSetRoot(cv *data.ClassValue, root string) {
+	cv.ObjectValue.SetProperty(rdiRootKey, data.NewStringValue(root))
 }
 
 func rdiGetFiles(cv *data.ClassValue) []string {
@@ -332,6 +352,7 @@ func (m *RDIConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	rdiSetPath(cv, path)
+	rdiSetRoot(cv, path)
 	rdiSetFlags(cv, flags)
 
 	if err := rdiLoadFiles(cv, path, flags); err != nil {
@@ -515,18 +536,57 @@ func (m *RDIGetChildren) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	currentPath := rdiCurrentFile(cv)
 	flags := rdiGetFlags(cv)
+	// 顶层根路径：子迭代器的 getSubPath* 仍相对此路径（对齐 PHP / Symfony Finder）
+	root := rdiGetRoot(cv)
 
-	childClass := NewRecursiveDirectoryIteratorClass()
-	childCV := data.NewClassValue(childClass, ctx.CreateBaseContext())
-	// 初始化属性
-	childCV.SetProperty(rdiPathKey, data.NewStringValue(currentPath))
-	childCV.SetProperty(rdiFilesKey, &rdiFilesValue{})
-	childCV.SetProperty(rdiPosKey, data.NewIntValue(0))
-	childCV.SetProperty(rdiFlagsKey, data.NewIntValue(flags))
+	// PHP：getChildren() 返回与 $this 相同类的新实例（保留 Symfony Finder 等子类）
+	childClass := cv.Class
+	if childClass == nil {
+		childClass = NewRecursiveDirectoryIteratorClass()
+	}
 
-	if currentPath != "" {
+	var childCV *data.ClassValue
+	if gv, ok := childClass.(interface {
+		GetValue(data.Context) (data.GetValue, data.Control)
+	}); ok {
+		v, ctl := gv.GetValue(ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if c, ok := v.(*data.ClassValue); ok {
+			childCV = c
+		}
+	}
+	if childCV == nil {
+		childCV = data.NewClassValue(childClass, ctx.CreateBaseContext())
+		childCV.SetProperty(rdiPathKey, data.NewStringValue(""))
+		childCV.SetProperty(rdiRootKey, data.NewStringValue(""))
+		childCV.SetProperty(rdiFilesKey, &rdiFilesValue{})
+		childCV.SetProperty(rdiPosKey, data.NewIntValue(0))
+		childCV.SetProperty(rdiFlagsKey, data.NewIntValue(flags))
+	}
+
+	construct := childClass.GetConstruct()
+	if construct == nil {
+		if cm, ok := childClass.GetMethod("__construct"); ok {
+			construct = cm
+		}
+	}
+	if construct != nil {
+		fnCtx := childCV.CreateContext(construct.GetVariables())
+		fnCtx.SetIndexZVal(0, data.NewZVal(data.NewStringValue(currentPath)))
+		fnCtx.SetIndexZVal(1, data.NewZVal(data.NewIntValue(flags)))
+		if _, ctl := construct.Call(fnCtx); ctl != nil {
+			return nil, ctl
+		}
+	} else if currentPath != "" {
+		rdiSetPath(childCV, currentPath)
+		rdiSetFlags(childCV, flags)
 		rdiLoadFiles(childCV, currentPath, flags)
 	}
+
+	// 构造函数会把 root 设成子目录；写回顶层根，供 getSubPath / Symfony::current 使用
+	rdiSetRoot(childCV, root)
 
 	return childCV, nil
 }
@@ -638,7 +698,7 @@ func (m *RDIGetSubPath) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if currentPath == "" {
 		return data.NewStringValue(""), nil
 	}
-	rootPath := rdiGetPath(cv)
+	rootPath := rdiGetRoot(cv)
 	rel := phpPathRel(rootPath, currentPath)
 	if rel == "" {
 		return data.NewStringValue(""), nil
@@ -669,7 +729,7 @@ func (m *RDIGetSubPathname) Call(ctx data.Context) (data.GetValue, data.Control)
 	if currentPath == "" {
 		return data.NewStringValue(""), nil
 	}
-	rootPath := rdiGetPath(cv)
+	rootPath := rdiGetRoot(cv)
 	rel := phpPathRel(rootPath, currentPath)
 	return data.NewStringValue(rel), nil
 }

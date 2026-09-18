@@ -6,10 +6,20 @@ import (
 )
 
 func NewStrlenFunction() data.FuncStmt {
-	return &StrlenFunction{}
+	return &StrlenFunction{
+		params: []data.GetValue{
+			node.NewParameter(nil, "string", 0, nil, nil),
+		},
+		vars: []data.Variable{
+			node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+		},
+	}
 }
 
-type StrlenFunction struct{}
+type StrlenFunction struct {
+	params []data.GetValue
+	vars   []data.Variable
+}
 
 func (f *StrlenFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	v, _ := ctx.GetIndexValue(0)
@@ -38,13 +48,9 @@ func (f *StrlenFunction) GetName() string {
 }
 
 func (f *StrlenFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-	}
+	return f.params
 }
 
 func (f *StrlenFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-	}
+	return f.vars
 }

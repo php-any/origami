@@ -24,6 +24,9 @@ type TryStatement struct {
 func (t *TryStatement) GetValue(ctx data.Context) (v data.GetValue, c data.Control) {
 	defer func() {
 		if r := recover(); r != nil {
+			if data.IsRequestCanceled(r) {
+				panic(r)
+			}
 			stack := string(debug.Stack())
 			v, c = t.tryValue(ctx, data.NewErrorThrow(t.from, fmt.Errorf("go作用域异常退出的 panic(%v)\nstack: %s", r, stack)))
 		}
@@ -88,7 +91,9 @@ func (t *TryStatement) tryValue(ctx data.Context, c data.Control) (data.GetValue
 		for _, catchBlock := range t.CatchBlocks {
 			if catchTypeMatches(catchBlock.ExceptionType, cv) {
 				if catchBlock.Variable != nil {
-					ctx.SetVariableValue(catchBlock.Variable, c)
+					if acl := ctx.SetVariableValue(catchBlock.Variable, cv.PHPValue()); acl != nil {
+						return nil, acl
+					}
 				}
 
 				for _, catchStmt := range catchBlock.Body {

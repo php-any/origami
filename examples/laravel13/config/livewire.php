@@ -35,11 +35,9 @@ return [
     | components.
     */
 
-    'layout' => 'layouts.admin',
+    'layout' => 'components.layouts.app',
 
-    // Livewire 3 实际读取 component_layout；包默认是 layouts::app。
-    // 与上面 layout 对齐，否则全页组件会去找不存在的 layouts::app。
-    'component_layout' => 'layouts.admin',
+    'component_layout' => 'components.layouts.app',
 
     /*
     |--------------------------------------------------------------------------

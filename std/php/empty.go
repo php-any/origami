@@ -6,10 +6,20 @@ import (
 )
 
 func NewEmptyFunction() data.FuncStmt {
-	return &EmptyFunction{}
+	return &EmptyFunction{
+		params: []data.GetValue{
+			node.NewParameterRawAST(nil, "var", 0, data.Mixed{}),
+		},
+		vars: []data.Variable{
+			node.NewVariable(nil, "var", 0, data.Mixed{}),
+		},
+	}
 }
 
-type EmptyFunction struct{}
+type EmptyFunction struct {
+	params []data.GetValue
+	vars   []data.Variable
+}
 
 func (f *EmptyFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取参数值（ASTWrapper）
@@ -133,13 +143,9 @@ func (f *EmptyFunction) GetName() string {
 }
 
 func (f *EmptyFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterRawAST(nil, "var", 0, data.Mixed{}),
-	}
+	return f.params
 }
 
 func (f *EmptyFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "var", 0, data.Mixed{}),
-	}
+	return f.vars
 }

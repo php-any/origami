@@ -6,10 +6,20 @@ import (
 )
 
 // IsStringFunction 实现 is_string 函数
-type IsStringFunction struct{}
+type IsStringFunction struct {
+	params []data.GetValue
+	vars   []data.Variable
+}
 
 func NewIsStringFunction() data.FuncStmt {
-	return &IsStringFunction{}
+	return &IsStringFunction{
+		params: []data.GetValue{
+			node.NewParameter(nil, "value", 0, nil, nil),
+		},
+		vars: []data.Variable{
+			node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
+		},
+	}
 }
 
 func (f *IsStringFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -29,13 +39,9 @@ func (f *IsStringFunction) GetName() string {
 }
 
 func (f *IsStringFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return f.params
 }
 
 func (f *IsStringFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
-	}
+	return f.vars
 }

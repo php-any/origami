@@ -95,7 +95,7 @@ func CloneArrayValueForCallArgs(src *ArrayValue) *ArrayValue {
 			list[i] = NewNamedZVal(z.Name, z.Value)
 		}
 	}
-	return &ArrayValue{List: list}
+	return &ArrayValue{List: list, rc: 1}
 }
 
 type ArrayValue struct {
@@ -103,6 +103,11 @@ type ArrayValue struct {
 	iterator int // 迭代器当前位置索引
 	// IndirectOverloadClass 非空表示该数组来自 ArrayAccess::offsetGet 的副本，对其元素的间接修改无效
 	IndirectOverloadClass string
+	rc                    int // 指向该容器的 zval 数（copy-on-write）
+	keyIndex              map[string]int
+	idxLen                int
+	packed                bool // 全部槽位 Name==""，整数键即 List 下标
+	maxIntKey             int  // 当前最大整数键；无整数键时为 -1
 }
 
 func (a *ArrayValue) Current(ctx Context) (Value, Control) {
@@ -260,11 +265,82 @@ func ParseIntArrayKeyName(name string) (int, bool) {
 	return n, true
 }
 
+func (a *ArrayValue) invalidateIndex() {
+	a.keyIndex = nil
+	a.idxLen = -1
+	a.packed = false
+	a.maxIntKey = -1
+}
+
+func (a *ArrayValue) ensureIndex() {
+	if a.idxLen == len(a.List) && (a.packed || a.keyIndex != nil) {
+		return
+	}
+	a.rebuildIndex()
+}
+
+func (a *ArrayValue) rebuildIndex() {
+	n := len(a.List)
+	a.idxLen = n
+	packed := true
+	idx := make(map[string]int, n)
+	hasNamed := false
+	max := -1
+	for i, z := range a.List {
+		if z == nil {
+			continue
+		}
+		if z.Name != "" {
+			packed = false
+			hasNamed = true
+			idx[z.Name] = i
+			if k, ok := ParseIntArrayKeyName(z.Name); ok && k > max {
+				max = k
+			}
+			continue
+		}
+		if i > max {
+			max = i
+		}
+	}
+	a.packed = packed
+	a.maxIntKey = max
+	if hasNamed {
+		a.keyIndex = idx
+	} else {
+		a.keyIndex = nil
+	}
+}
+
+// NextAppendIntKey 对齐 PHP $a[]：最大整数键 + 1；没有整数键时为 0。
+func (a *ArrayValue) NextAppendIntKey() int {
+	a.ensureIndex()
+	if a.maxIntKey < 0 {
+		return 0
+	}
+	return a.maxIntKey + 1
+}
+
+func (a *ArrayValue) AppendValue(value Value) {
+	a.SetIntKey(a.NextAppendIntKey(), value)
+}
+
+func (a *ArrayValue) AppendSlot(value Value) *ZVal {
+	i := a.NextAppendIntKey()
+	a.SetIntKey(i, value)
+	z, _ := a.FindSlotByIntKey(i)
+	return z
+}
+
 // LookupZValByStringKey 按字符串键查找槽位；纯数字字符串键会回退整数键查找（如 "0" → 列表下标 0）
 func (a *ArrayValue) LookupZValByStringKey(key string) (*ZVal, bool) {
-	for _, zval := range a.List {
-		if zval != nil && zval.Name == key {
-			return zval, true
+	a.ensureIndex()
+	if a.keyIndex != nil {
+		if i, ok := a.keyIndex[key]; ok && i >= 0 && i < len(a.List) {
+			z := a.List[i]
+			if z != nil && z.Name == key {
+				return z, true
+			}
 		}
 	}
 	if i, ok := ParseIntArrayKeyName(key); ok {
@@ -277,10 +353,22 @@ func (a *ArrayValue) LookupZValByStringKey(key string) (*ZVal, bool) {
 
 // FindSlotByIntKey 按 PHP 整数键查找槽位（含稀疏键 Name=="6" 等）
 func (a *ArrayValue) FindSlotByIntKey(i int) (*ZVal, int) {
+	a.ensureIndex()
+	if a.packed {
+		if i >= 0 && i < len(a.List) {
+			if z := a.List[i]; z != nil && z.Name == "" {
+				return z, i
+			}
+		}
+		return nil, -1
+	}
 	keyStr := IntArrayKeyName(i)
-	for j, z := range a.List {
-		if z != nil && z.Name == keyStr {
-			return z, j
+	if a.keyIndex != nil {
+		if j, ok := a.keyIndex[keyStr]; ok && j >= 0 && j < len(a.List) {
+			z := a.List[j]
+			if z != nil && z.Name == keyStr {
+				return z, j
+			}
 		}
 	}
 	if i >= 0 && i < len(a.List) {
@@ -300,6 +388,7 @@ func (a *ArrayValue) SetIntKey(i int, value Value) {
 	if i < 0 {
 		return
 	}
+	a.invalidateIndex()
 	if i == len(a.List) {
 		a.List = append(a.List, NewZVal(value))
 		return
@@ -322,10 +411,12 @@ func (a *ArrayValue) normalizeDenseIntKeys() {
 			z.Name = IntArrayKeyName(j)
 		}
 	}
+	a.invalidateIndex()
 }
 
 // UnsetKey 删除整数或字符串键（不存在则无操作）
 func (a *ArrayValue) UnsetKey(index Value) {
+	a.invalidateIndex()
 	// 先按字符串键处理：StringValue 同时实现 AsInt，非数字字符串不能在 AsInt 失败后直接 return
 	if sv, ok := index.(AsString); ok {
 		key := sv.AsString()

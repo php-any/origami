@@ -1,0 +1,1 @@
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop();

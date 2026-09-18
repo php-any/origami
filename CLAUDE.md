@@ -4,15 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **语言偏好：所有对话使用中文回答。**
 
-代理必须遵守的项目目标与「禁止改 PHP 跳过错误」见仓库根目录 **[AGENTS.md](AGENTS.md)**。
+代理必须遵守的项目目标与「禁止改 PHP 跳过错误」见仓库根目录 **[AGENTS.md](AGENTS.md)**。运行时改动必须考虑热路径成本（赋值/调用/属性读），禁止给无 `static` 的快路径加固定税。
 
 ## Build & Run
 
+优先 `go run`，不要先编 exe 再执行：
+
 ```bash
-go build -o origami .         # Build the interpreter
-./origami <script.php>        # Run a script (.php 或 .zy 后缀)
-./origami tests/run_tests.php # Run all test suites
+go run ./zy.go <script.php>              # 跑脚本（.php 或 .zy）
+go run ./zy.go tests/run_tests.php       # 全量 PHP 回归
+cd examples/laravel13 && go run -mod=mod . serve --port=18086
 ```
+
+仅发布 / 交叉编译 / 正式基准才 `go build`。
 
 The LSP server is a separate module:
 

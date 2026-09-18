@@ -140,14 +140,8 @@ func (m *funcCallMethod) Call(ctx Context) (GetValue, Control) {
 	}
 
 	args := closureCallArgs(ctx)
-	vars := make([]Variable, len(args))
-	for i := range args {
-		vars[i] = NewVariable("", i, nil)
-	}
-	callCtx := ctx.CreateContext(vars)
-	for i, arg := range args {
-		callCtx.SetIndexZVal(i, NewZVal(arg))
-	}
+	callCtx := ctx.CreateContext(m.closure.Value.GetVariables())
+	BindDeclaredArgs(callCtx, m.closure.Value, args)
 
 	return NewBoundFuncValue(m.closure.Value, scopeClass, boundThis).Call(callCtx)
 }
@@ -196,9 +190,10 @@ func NewBoundFuncValue(v FuncStmt, scopeClass string, boundThis *ClassValue) *Bo
 
 func (b *BoundFuncValue) Call(ctx Context) (GetValue, Control) {
 	return b.Value.Call(&BoundContext{
-		Context:    ctx,
-		ScopeClass: b.ScopeClass,
-		BoundThis:  b.BoundObject,
+		Context:      ctx,
+		ScopeClass:   b.ScopeClass,
+		BoundThis:    b.BoundObject,
+		ExplicitBind: true, // Closure::bind/bindTo：允许覆盖闭包定义时的 $this
 	})
 }
 
@@ -207,22 +202,72 @@ type BoundContext struct {
 	Context
 	ScopeClass string
 	BoundThis  *ClassValue
+	// ExplicitBind 为 true 表示本次由 BoundFuncValue（Closure::bind/bindTo）注入。
+	// 调用方 Context 链上因 CreateContext 继承来的 BoundContext 为 false：
+	// 不得盖掉「方法内定义的闭包」已绑定的 $this（Livewire EventBus 监听器 / ExtendBlade）。
+	ExplicitBind bool
+}
+
+func (bc *BoundContext) GetVM() VM {
+	return bc.Context.GetVM()
 }
 
 func (bc *BoundContext) CreateContext(vars []Variable) Context {
 	return &BoundContext{
-		Context:    bc.Context.CreateContext(vars),
-		ScopeClass: bc.ScopeClass,
-		BoundThis:  bc.BoundThis,
+		Context:      bc.Context.CreateContext(vars),
+		ScopeClass:   bc.ScopeClass,
+		BoundThis:    bc.BoundThis,
+		ExplicitBind: false,
 	}
 }
 
 func (bc *BoundContext) CreateBaseContext() Context {
 	return &BoundContext{
-		Context:    bc.Context.CreateBaseContext(),
-		ScopeClass: bc.ScopeClass,
-		BoundThis:  bc.BoundThis,
+		Context:      bc.Context.CreateBaseContext(),
+		ScopeClass:   bc.ScopeClass,
+		BoundThis:    bc.BoundThis,
+		ExplicitBind: false,
 	}
+}
+
+func (bc *BoundContext) ReturnSlot(v Value) ReturnControl {
+	return bc.Context.ReturnSlot(v)
+}
+
+func (bc *BoundContext) EnterCall() int {
+	return bc.Context.(CallRecorder).EnterCall()
+}
+
+func (bc *BoundContext) LeaveCall() {
+	bc.Context.(CallRecorder).LeaveCall()
+}
+
+func (bc *BoundContext) PushCallFrame(frame CallFrame) {
+	bc.Context.(CallRecorder).PushCallFrame(frame)
+}
+
+func (bc *BoundContext) PopCallFrame() {
+	bc.Context.(CallRecorder).PopCallFrame()
+}
+
+func (bc *BoundContext) SnapshotCallStack() []CallFrame {
+	return bc.Context.(CallRecorder).SnapshotCallStack()
+}
+
+func (bc *BoundContext) WriteOutput(s string) {
+	if bc != nil && bc.Context != nil {
+		if sink, ok := bc.Context.(OutputSink); ok {
+			sink.WriteOutput(s)
+			return
+		}
+		if vm := bc.GetVM(); vm != nil {
+			if sink, ok := vm.(OutputSink); ok {
+				sink.WriteOutput(s)
+				return
+			}
+		}
+	}
+	WriteOutput(s)
 }
 
 // FindBoundContext 沿上下文链查找 Closure::bind/bindTo 注入的 BoundContext。

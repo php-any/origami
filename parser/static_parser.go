@@ -128,6 +128,9 @@ func (sp *StaticParser) parseStaticFunction(tracker *PositionTracker) (data.GetV
 	// 复用 FunctionParser 处理参数/返回类型/函数体
 	fp := &FunctionParser{sp.Parser}
 
+	sp.enterStaticScope()
+	defer sp.leaveStaticScope()
+
 	// 创建新的函数作用域
 	sp.scopeManager.NewScope(false)
 
@@ -208,6 +211,7 @@ func (sp *StaticParser) parseStaticFunction(tracker *PositionTracker) (data.GetV
 		vars,
 		parent,
 	)
+	fn.IsStatic = true
 
 	// 设置返回类型（如果指定了）
 	if ret != nil {
@@ -229,6 +233,9 @@ func (sp *StaticParser) parseStaticArrowFunction(tracker *PositionTracker) (data
 
 	// 复用 FunctionParser 处理参数/返回类型
 	fp := &FunctionParser{sp.Parser}
+
+	sp.enterStaticScope()
+	defer sp.leaveStaticScope()
 
 	// 创建新的函数作用域（箭头函数是 lambda，自动捕获外部变量）
 	sp.scopeManager.NewScope(true)
@@ -286,6 +293,7 @@ func (sp *StaticParser) parseStaticArrowFunction(tracker *PositionTracker) (data
 		vars,
 		parent,
 	)
+	fn.IsStatic = true
 
 	// 设置返回类型（如果指定了）
 	if ret != nil {
@@ -363,5 +371,6 @@ func (sp *StaticParser) parseOneStaticVariable(tracker *PositionTracker) (data.G
 		tracker.EndBefore(),
 		vari,
 		initializer,
+		sp.ensureStaticHolder(),
 	), nil
 }

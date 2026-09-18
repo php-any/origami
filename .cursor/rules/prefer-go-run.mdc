@@ -1,0 +1,26 @@
+---
+description: 运行与验收优先 go run，禁止先编 laravel13.exe / origami.exe
+alwaysApply: true
+---
+
+# 优先 go run
+
+调试、修复、启动 `examples/laravel13`、跑 `tests/php/` 时一律 `go run`，不要先 `go build` 出 `laravel13.exe` / `origami.exe` 再执行。
+
+```bash
+# Laravel 13 服务（工作目录 examples/laravel13）
+go run -mod=mod . serve --port=18086
+
+# 解释器脚本 / 回归
+go run ./zy.go tests/php/<name>_test.php
+```
+
+HTTP 验收必须带超时（如 `curl --max-time 35`），禁止无限等 API。
+
+性能诊断另加 `-tags origamidebug`（生产构建不含监控代码）：
+
+```bash
+go run -mod=mod -tags origamidebug . serve --port=18086
+```
+
+仅发布、交叉编译、正式基准（要排除编译时间）才用 `go build`。

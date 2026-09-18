@@ -1,0 +1,16 @@
+---
+description: 解释器改动必须考虑热路径成本，禁止给无 static 的赋值/调用加固定税
+alwaysApply: true
+---
+
+# 运行时改动必须考虑性能
+
+Origami 是语言运行时。Laravel 一次请求会执行十万级次 `GetValue` / 赋值 / 调用。任何加在这些路径上的接口断言、加锁、多包一层 Context、堆分配，都会变成页面变慢。
+
+- 改 `node/`、`data/`、`runtime/`、`std/php/` 时，先问：这会在**每次赋值、每次调用、每次属性读**上执行吗？会则必须证明净收益。
+- 语义修复不要绑到更快的快路径上。例如 `static` 写回应走共享 `ZVal` 或仅在 `staticLocals != nil` 时同步，禁止给 `$a = $b + 1` 这类 `VarFastAssign` 加 `StaticLocalsBinder` 断言。
+- 静态调用不要在已有符号表外再套一层带 `$this` 的 `ClassMethodContext`；`self::`/`static::` 用一层 `NewStaticMethodContext` 包住执行帧即可。
+- 实例方法里调用普通函数/回调：必须用当前帧 `CreateContext` 长出子符号表，禁止再 `GetVM()` / `PreferVM` / `Unwrap` 绕一圈。闭包 `Call` 不要再 `CreateContext` + 拷贝 ZVal，只包方法身份。
+- 编译期槽位、父帧带下来的 VM/`call`/`out` 都是顶层合同：热路径禁止对它们做 `== nil`、越界探测或回退到 `vm.CreateContext`。
+- 禁止在 `Call()`、赋值、`json_encode` 等热路径插追踪。度量用 `-tags origamidebug` 的 `perfmon`。
+- 验收是页面/脚本变快或至少不更慢，不是施工单做完。负优化必须撤掉。

@@ -6,10 +6,20 @@ import (
 )
 
 // IsArrayFunction 实现 is_array 函数
-type IsArrayFunction struct{}
+type IsArrayFunction struct {
+	params []data.GetValue
+	vars   []data.Variable
+}
 
 func NewIsArrayFunction() data.FuncStmt {
-	return &IsArrayFunction{}
+	return &IsArrayFunction{
+		params: []data.GetValue{
+			node.NewParameter(nil, "value", 0, nil, nil),
+		},
+		vars: []data.Variable{
+			node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
+		},
+	}
 }
 
 func (f *IsArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -34,13 +44,9 @@ func (f *IsArrayFunction) GetName() string {
 }
 
 func (f *IsArrayFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return f.params
 }
 
 func (f *IsArrayFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
-	}
+	return f.vars
 }

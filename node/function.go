@@ -2,7 +2,6 @@ package node
 
 import (
 	"errors"
-	"sync"
 
 	"github.com/php-any/origami/data"
 )
@@ -17,10 +16,8 @@ type FunctionStatement struct {
 	vars             []data.Variable // 符号表
 	Ret              data.Types      // 返回值类型
 	IsGenerator      bool            // 是否是生成器函数（含 yield）
-	ReturnsReference bool            // 是否按引用返回（function &name()）
-	defineCtx        data.Context    // 闭包定义时的上下文（用于保留 self:: 语义）
-	staticLocals     *data.StaticLocals
-	staticOnce       sync.Once
+	ReturnsReference bool         // 是否按引用返回（function &name()）
+	defineCtx        data.Context // 闭包定义时的上下文（用于保留 self:: 语义）
 }
 
 // NewFunctionStatement 创建一个新的函数定义语句
@@ -115,20 +112,13 @@ func (f *FunctionStatement) GetReturnType() data.Types {
 	return f.Ret
 }
 
-func (f *FunctionStatement) funcStaticLocals() *data.StaticLocals {
-	f.staticOnce.Do(func() {
-		f.staticLocals = data.NewStaticLocals()
-	})
-	return f.staticLocals
-}
-
 func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if b, ok := ctx.(data.StaticLocalsBinder); ok {
-		b.BindStaticLocals(f.funcStaticLocals())
-	}
+	// 不再无条件 BindStaticLocals。static 局部变量由 StaticVarStatement 惰性绑定，
+	// 没有 static 声明的函数帧 staticLocals 保持 nil，赋值路径不加锁。
 
 	// PHP 语义：如果函数是 generator（含 yield），调用时立即返回 Generator 对象，不执行函数体
 	if f.IsGenerator {
+		markContextEscaped(ctx)
 		generator := NewFuncYieldStackState(ctx, f, f.Body, 0, nil, nil)
 		generatorClass := NewGeneratorClass(generator)
 		return generatorClass.GetValue(ctx)
@@ -138,35 +128,18 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 	execCtx := ctx
 	if f.defineCtx != nil {
 		if defineClassCtx, ok := f.defineCtx.(*data.ClassMethodContext); ok {
-			// 创建新的 ClassMethodContext，保留定义时的类，但使用调用方的上下文链
-			execCtx = defineClassCtx.ClassValue.CreateContext(f.vars)
-			// 定义上下文只提供类作用域；运行时 VM 必须来自本次调用。
-			execCtx.SetVM(ctx.GetVM())
-			// 将调用方 ctx 中已经绑定好的参数 ZVal 复制到新的执行上下文中
-			for i := range f.vars {
-				zv := ctx.GetIndexZVal(i)
-				if zv != nil {
-					execCtx.SetIndexZVal(i, zv)
-				}
-			}
-			if b, ok := execCtx.(data.StaticLocalsBinder); ok {
-				b.BindStaticLocals(f.funcStaticLocals())
-			}
+			execCtx = data.WrapMethodFrame(ctx, defineClassCtx.ClassValue, defineClassCtx.SelfClass, defineClassCtx.StaticClass)
 		}
 	}
 
-	if vm := ctx.GetVM(); vm != nil {
-		if tracker, ok := vm.(data.CallStackTracker); ok {
-			frame := data.CallFrame{Function: f.Name}
-			if from := f.GetFrom(); from != nil {
-				frame.File = from.GetSource()
-				line, _ := from.GetStartPosition()
-				frame.Line = line + 1
-			}
-			tracker.PushCallFrame(frame)
-			defer tracker.PopCallFrame()
-		}
+	frame := data.CallFrame{Function: f.Name}
+	if from := f.GetFrom(); from != nil {
+		frame.File = from.GetSource()
+		line, _ := from.GetStartPosition()
+		frame.Line = line + 1
 	}
+	leave, _ := phpCallEnter(ctx, frame)
+	defer leave()
 
 	var ctl data.Control
 	for bodyIndex := 0; bodyIndex < len(f.Body); bodyIndex++ {
@@ -233,17 +206,21 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 	return data.NewNullValue(), nil
 }
 
-func (f *FunctionStatement) persistStaticLocals(ctx data.Context) {
-	store := f.funcStaticLocals()
+func persistStaticLocals(ctx data.Context, vars []data.Variable) {
+	store := staticLocalsFromCtx(ctx)
 	if store == nil {
 		return
 	}
-	for _, v := range f.vars {
+	for _, v := range vars {
 		idx := v.GetIndex()
 		if zv := ctx.GetIndexZVal(idx); zv != nil {
 			store.Update(idx, zv.Value)
 		}
 	}
+}
+
+func (f *FunctionStatement) persistStaticLocals(ctx data.Context) {
+	persistStaticLocals(ctx, f.vars)
 }
 
 // Parameter 表示函数参数
@@ -567,4 +544,9 @@ func NewParameterRawAST(from data.From, name string, index int, ty data.Types) d
 
 func (p *ParameterRawAST) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return p.Parameter.GetValue(ctx)
+}
+
+// BindUnevaluated 把未求值的实参 AST 写入槽，供 isset/empty 抑制未定义变量错误。
+func (p *ParameterRawAST) BindUnevaluated(fnCtx, caller data.Context, arg data.GetValue) data.Control {
+	return fnCtx.SetVariableValue(p.Parameter, data.NewASTValue(arg, caller))
 }

@@ -189,10 +189,7 @@ func (m *ReflectionPropertyGetDeclaringClassMethod) GetVariables() []data.Variab
 func (m *ReflectionPropertyGetDeclaringClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cmc, ok := ctx.(*data.ClassMethodContext); ok && cmc.ObjectValue != nil {
 		if className, ctl := cmc.ObjectValue.GetProperty("_className"); ctl == nil && className != nil {
-			reflectionClass := &ReflectionClassClass{}
-			value := data.NewClassValue(reflectionClass, ctx.CreateBaseContext())
-			value.ObjectValue.SetProperty("_className", data.NewStringValue(className.AsString()))
-			return value, nil
+			return newReflectionClassValue(ctx, className.AsString()), nil
 		}
 	}
 	return data.NewNullValue(), nil

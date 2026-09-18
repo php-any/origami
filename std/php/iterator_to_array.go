@@ -2,10 +2,10 @@ package php
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	"github.com/php-any/origami/utils"
 )
 
 // NewIteratorToArrayFunction 创建 iterator_to_array 函数
@@ -19,56 +19,53 @@ func NewIteratorToArrayFunction() data.FuncStmt {
 type IteratorToArrayFunction struct{}
 
 func (f *IteratorToArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 读取第一个参数 $iterator
-	iterVal, _ := utils.ConvertFromIndex[data.Value](ctx, 0)
+	// 直接取参数，避免 ConvertFromIndex 在 ClassValue 实现 GetSource 时失败
+	iterVal, _ := ctx.GetIndexValue(0)
+	iterVal = unwrapThisValue(iterVal)
 
-	// 读取第二个参数 $use_keys (默认 true)
-	useKeys, _ := utils.ConvertFromIndex[bool](ctx, 1)
-
-	// 检查是否实现了 IteratorAggregate 接口
-	if classVal, ok := iterVal.(*data.ClassValue); ok {
-		if checkInterface(ctx, "IteratorAggregate", classVal.Class) {
-			// 调用 getIterator() 方法获取迭代器
-			method, exists := classVal.GetMethod("getIterator")
-			if !exists {
-				return nil, data.NewErrorThrowByName(nil, fmt.Errorf("IteratorAggregate 必须实现 getIterator 方法"), "RuntimeException")
+	useKeys := true
+	if uk, ok := ctx.GetIndexValue(1); ok && uk != nil {
+		if as, ok := uk.(data.AsBool); ok {
+			if b, err := as.AsBool(); err == nil {
+				useKeys = b
 			}
+		}
+	}
 
-			// 创建调用上下文
+	// 优先：有 getIterator() 就先展开（IteratorAggregate）
+	if classVal, ok := iterVal.(*data.ClassValue); ok {
+		if method, exists := findInstanceMethod(classVal, "getIterator"); exists {
 			fnCtx := classVal.CreateContext(method.GetVariables())
 			result, ctl := method.Call(fnCtx)
 			if ctl != nil {
 				return nil, ctl
 			}
-
-			// 更新 iterVal 为 getIterator() 的返回值
 			if v, ok := result.(data.Value); ok {
-				iterVal = v
+				iterVal = unwrapThisValue(v)
 			} else {
 				return nil, data.NewErrorThrowByName(nil, fmt.Errorf("getIterator 必须返回一个值"), "RuntimeException")
 			}
+		} else if checkInterface(ctx, "IteratorAggregate", classVal.Class) {
+			return nil, data.NewErrorThrowByName(nil, fmt.Errorf("IteratorAggregate 必须实现 getIterator 方法"), "RuntimeException")
 		}
 	}
 
-	// 检查是否实现了 Iterator 接口（包括 Generator 类）
 	if classVal, ok := iterVal.(*data.ClassValue); ok {
-		if classVal.Class.GetName() == "Generator" || checkInterface(ctx, "Iterator", classVal.Class) {
-			// 从 Iterator 对象中提取数据
+		className := classVal.Class.GetName()
+		if className == "Generator" || strings.HasSuffix(className, "\\Generator") ||
+			checkInterface(ctx, "Iterator", classVal.Class) || findInstanceMethodExists(classVal, "valid") {
 			return extractIteratorData(ctx, classVal, useKeys)
 		}
 	}
 
-	// 如果已经是数组，直接返回
 	if arrVal, ok := iterVal.(*data.ArrayValue); ok {
 		return arrVal, nil
 	}
 
-	// 如果是 ObjectValue（关联数组），也返回
 	if objVal, ok := iterVal.(*data.ObjectValue); ok {
 		if useKeys {
 			return objVal, nil
 		}
-		// 不使用键名，只返回值
 		values := make([]data.Value, 0)
 		objVal.RangeProperties(func(key string, value data.Value) bool {
 			values = append(values, value)
@@ -77,12 +74,56 @@ func (f *IteratorToArrayFunction) Call(ctx data.Context) (data.GetValue, data.Co
 		return data.NewArrayValue(values), nil
 	}
 
-	return nil, data.NewErrorThrowByName(nil, fmt.Errorf("参数必须是可迭代的对象或数组"), "TypeError")
+	got := "nil"
+	if iterVal != nil {
+		got = fmt.Sprintf("%T", iterVal)
+	}
+	return nil, data.NewErrorThrowByName(nil, fmt.Errorf("参数必须是可迭代的对象或数组 (got %s)", got), "TypeError")
+}
+
+// unwrapThisValue 解开 fluent return 的 ThisValue，得到真实 ClassValue。
+func unwrapThisValue(v data.Value) data.Value {
+	if v == nil {
+		return nil
+	}
+	if tv, ok := v.(*data.ThisValue); ok && tv != nil && tv.ClassValue != nil {
+		return tv.ClassValue
+	}
+	return v
+}
+
+func findInstanceMethod(classVal *data.ClassValue, name string) (data.Method, bool) {
+	if classVal == nil || classVal.Class == nil {
+		return nil, false
+	}
+	if method, exists := classVal.GetMethod(name); exists {
+		return method, true
+	}
+	current := classVal.Class
+	for current != nil {
+		if method, exists := current.GetMethod(name); exists {
+			return method, true
+		}
+		ext := current.GetExtend()
+		if ext == nil || *ext == "" {
+			break
+		}
+		parent, ok := classVal.GetVM().GetClass(*ext)
+		if !ok || parent == nil {
+			break
+		}
+		current = parent
+	}
+	return nil, false
+}
+
+func findInstanceMethodExists(classVal *data.ClassValue, name string) bool {
+	_, ok := findInstanceMethod(classVal, name)
+	return ok
 }
 
 // extractIteratorData 从 Iterator 对象中提取数据
 func extractIteratorData(ctx data.Context, classVal *data.ClassValue, useKeys bool) (data.GetValue, data.Control) {
-	// 调用 rewind() 方法
 	if method, exists := classVal.GetMethod("rewind"); exists {
 		fnCtx := classVal.CreateContext(method.GetVariables())
 		_, ctl := method.Call(fnCtx)
@@ -95,9 +136,7 @@ func extractIteratorData(ctx data.Context, classVal *data.ClassValue, useKeys bo
 	keyPositions := make(map[string]int)
 	index := 0
 
-	// 循环遍历迭代器
 	for {
-		// 调用 valid() 检查当前位置是否有效
 		validMethod, validExists := classVal.GetMethod("valid")
 		if !validExists {
 			return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Iterator 必须实现 valid 方法"), "RuntimeException")
@@ -120,7 +159,6 @@ func extractIteratorData(ctx data.Context, classVal *data.ClassValue, useKeys bo
 			break
 		}
 
-		// 调用 key() 获取当前键
 		keyMethod, keyExists := classVal.GetMethod("key")
 		if !keyExists {
 			return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Iterator 必须实现 key 方法"), "RuntimeException")
@@ -149,7 +187,6 @@ func extractIteratorData(ctx data.Context, classVal *data.ClassValue, useKeys bo
 			key = fmt.Sprintf("%d", index)
 		}
 
-		// 调用 current() 获取当前值
 		currentMethod, currentExists := classVal.GetMethod("current")
 		if !currentExists {
 			return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Iterator 必须实现 current 方法"), "RuntimeException")
@@ -178,7 +215,6 @@ func extractIteratorData(ctx data.Context, classVal *data.ClassValue, useKeys bo
 			result = append(result, zv)
 		}
 
-		// 调用 next() 移动到下一个位置
 		nextMethod, nextExists := classVal.GetMethod("next")
 		if !nextExists {
 			return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Iterator 必须实现 next 方法"), "RuntimeException")
@@ -193,24 +229,38 @@ func extractIteratorData(ctx data.Context, classVal *data.ClassValue, useKeys bo
 		index++
 	}
 
-	// 构建结果数组
-	// PHP 语义：iterator_to_array 总是返回 array 类型
-	// 即使 use_keys=true，也返回关联数组（ArrayValue），而不是 ObjectValue
 	return &data.ArrayValue{List: result}, nil
 }
 
 // checkInterface 检查类是否实现了指定接口
 func checkInterface(ctx data.Context, interfaceName string, classStmt data.ClassStmt) bool {
-	// 检查直接实现的接口
+	normalize := func(name string) string {
+		for len(name) > 0 && name[0] == '\\' {
+			name = name[1:]
+		}
+		return name
+	}
+	want := normalize(interfaceName)
+
+	matches := func(impl string) bool {
+		n := normalize(impl)
+		if n == want {
+			return true
+		}
+		if i := strings.LastIndex(n, "\\"); i >= 0 && n[i+1:] == want {
+			return true
+		}
+		return false
+	}
+
 	if implements := classStmt.GetImplements(); implements != nil {
 		for _, impl := range implements {
-			if impl == interfaceName {
+			if matches(impl) {
 				return true
 			}
 		}
 	}
 
-	// 检查继承链
 	vm := ctx.GetVM()
 	last := classStmt
 	for last.GetExtend() != nil {
@@ -220,10 +270,9 @@ func checkInterface(ctx data.Context, interfaceName string, classStmt data.Class
 			break
 		}
 
-		// 检查父类实现的接口
 		if implements := next.GetImplements(); implements != nil {
 			for _, impl := range implements {
-				if impl == interfaceName {
+				if matches(impl) {
 					return true
 				}
 			}

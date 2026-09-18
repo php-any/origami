@@ -9,10 +9,22 @@ import (
 )
 
 func NewArrayKeyExistsFunction() data.FuncStmt {
-	return &ArrayKeyExistsFunction{}
+	return &ArrayKeyExistsFunction{
+		params: []data.GetValue{
+			node.NewParameter(nil, "key", 0, nil, nil),
+			node.NewParameter(nil, "array", 1, nil, nil),
+		},
+		vars: []data.Variable{
+			node.NewVariable(nil, "key", 0, data.NewBaseType("string|int")),
+			node.NewVariable(nil, "array", 1, data.NewBaseType("array")),
+		},
+	}
 }
 
-type ArrayKeyExistsFunction struct{}
+type ArrayKeyExistsFunction struct {
+	params []data.GetValue
+	vars   []data.Variable
+}
 
 func (f *ArrayKeyExistsFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	keyValue, _ := ctx.GetIndexValue(0)
@@ -59,15 +71,9 @@ func (f *ArrayKeyExistsFunction) GetName() string {
 }
 
 func (f *ArrayKeyExistsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "key", 0, nil, nil),
-		node.NewParameter(nil, "array", 1, nil, nil),
-	}
+	return f.params
 }
 
 func (f *ArrayKeyExistsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "key", 0, data.NewBaseType("string|int")),
-		node.NewVariable(nil, "array", 1, data.NewBaseType("array")),
-	}
+	return f.vars
 }

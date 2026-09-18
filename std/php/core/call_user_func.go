@@ -54,11 +54,14 @@ func (f *CallUserFuncFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	if fn == nil {
 		return data.NewBoolValue(false), nil
 	}
-	// 创建调用上下文，传入实参（index 0 为 callback）
-	callCtx := ctx.CreateContext(make([]data.Variable, len(argZvals)))
+	args := make([]data.Value, len(argZvals))
 	for i, zv := range argZvals {
-		callCtx.SetIndexZVal(i, zv)
+		if zv != nil {
+			args[i] = zv.Value
+		}
 	}
+	callCtx := ctx.CreateContext(fn.Value.GetVariables())
+	data.BindDeclaredArgs(callCtx, fn.Value, args)
 	// BoundFuncValue 需要保留以确保 BoundContext 被创建
 	if bfv, ok := cb.(*data.BoundFuncValue); ok {
 		return bfv.Call(callCtx)
@@ -72,6 +75,13 @@ func (f *CallUserFuncFunction) resolveCallback(ctx data.Context, cb data.GetValu
 		return c, nil
 	case *data.BoundFuncValue:
 		return &c.FuncValue, nil
+	case *data.StringValue:
+		// PHP：call_user_func('trim', ...) 等字符串函数名
+		fnStmt, exists := ctx.GetVM().GetFunc(c.AsString())
+		if !exists {
+			return nil, utils.NewThrow(fmt.Errorf("call_user_func(): Argument #1 ($callback) must be a valid callback, function \"%s\" not found or invalid", c.AsString()))
+		}
+		return data.NewFuncValue(fnStmt), nil
 	case *data.ArrayValue:
 		valueList := c.ToValueList()
 		if len(valueList) < 2 {
@@ -237,10 +247,14 @@ func (f *ForwardStaticCallFunction) Call(ctx data.Context) (data.GetValue, data.
 	if fn == nil {
 		return data.NewBoolValue(false), nil
 	}
-	callCtx := ctx.CreateContext(make([]data.Variable, len(argZvals)))
+	args := make([]data.Value, len(argZvals))
 	for i, zv := range argZvals {
-		callCtx.SetIndexZVal(i, zv)
+		if zv != nil {
+			args[i] = zv.Value
+		}
 	}
+	callCtx := ctx.CreateContext(fn.Value.GetVariables())
+	data.BindDeclaredArgs(callCtx, fn.Value, args)
 	if bfv, ok := cb.(*data.BoundFuncValue); ok {
 		return bfv.Call(callCtx)
 	}

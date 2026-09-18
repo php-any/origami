@@ -152,9 +152,7 @@ func (m *ReflectionMethodConstructMethod) Call(ctx data.Context) (data.GetValue,
 
 	// 将方法信息存储到当前对象的属性中
 	if objCtx, ok := ctx.(*data.ClassMethodContext); ok {
-		// 存储类名和方法名到 ObjectValue 的实例属性中
-		objCtx.ObjectValue.SetProperty("_className", data.NewStringValue(className))
-		objCtx.ObjectValue.SetProperty("_methodName", data.NewStringValue(methodName))
+		setReflectionMethodIdentity(objCtx.ClassValue, className, methodName)
 	}
 
 	return nil, nil

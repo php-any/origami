@@ -34,7 +34,6 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 
 	switch class := o.(type) {
 	case *data.ThisValue:
-		// PHP 8.1 first-class callable: $this->method(...)
 		if isFirstClassCallableArgs(pe.Args) {
 			return pe.firstClassObjectCallable(class.ClassValue)
 		}
@@ -46,10 +45,11 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 			}
 
 			if cmc, ok := fnCtx.(*data.ClassMethodContext); ok {
-				cmc.SelfClass = findDeclaringClassForMethod(ctx.GetVM(), class.Class, pe.Method)
+				cmc.SelfClass = findDeclaringClassForMethod(class.GetVM(), class.Class, pe.Method)
 			}
 			fnCtx.SetCallArgs(pe.Args)
 			ret, acl := method.Call(fnCtx)
+			tryReleaseCallContext(method, fnCtx)
 			return pe.wrapMethodCallResult(class.ClassValue, ret, acl)
 		}
 		// 方法未找到时尝试魔法方法 __call(string $name, array $arguments)
@@ -58,7 +58,6 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 		}
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("this 对象不存在对应函数: "+pe.Method))
 	case *data.ClassValue:
-		// PHP 8.1 first-class callable: $obj->method(...)
 		if isFirstClassCallableArgs(pe.Args) {
 			return pe.firstClassObjectCallable(class)
 		}
@@ -80,10 +79,11 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 			}
 
 			if cmc, ok := fnCtx.(*data.ClassMethodContext); ok {
-				cmc.SelfClass = findDeclaringClassForMethod(ctx.GetVM(), class.Class, pe.Method)
+				cmc.SelfClass = findDeclaringClassForMethod(class.GetVM(), class.Class, pe.Method)
 			}
 			fnCtx.SetCallArgs(pe.Args)
 			ret, acl := method.Call(fnCtx)
+			tryReleaseCallContext(method, fnCtx)
 			return pe.wrapMethodCallResult(class, ret, acl)
 		}
 		// 方法未找到时尝试魔法方法 __call(string $name, array $arguments)
@@ -103,7 +103,9 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 				return nil, acl
 			}
 			fnCtx.SetCallArgs(pe.Args)
-			return method.Call(fnCtx)
+			ret, acl := method.Call(fnCtx)
+			tryReleaseCallContext(method, fnCtx)
+			return ret, acl
 		}
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("当前值(%#v)不支持调用函数, 你调用的函数(%s)", TryGetCallClassName(o), pe.Method))
 	default:
@@ -128,7 +130,9 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 				}
 
 				fnCtx.SetCallArgs(pe.Args)
-				return method.Call(fnCtx)
+				ret, acl := method.Call(fnCtx)
+				tryReleaseCallContext(method, fnCtx)
+				return ret, acl
 			}
 			// 方法未找到时尝试魔法方法 __call，$this 为当前对象
 			if magic, hasCall := class.GetMethod("__call"); hasCall {
@@ -214,7 +218,6 @@ func (pe *CallObjectMethod) invokeMagicCall(object data.Context, ctx data.Contex
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("__call 需要至少 2 个参数 (name, arguments)"))
 	}
 	fnCtx := object.CreateContext(varies)
-	fnCtx.SetVM(ctx.GetVM())
 	fnCtx.SetVariableValue(varies[0], data.NewStringValue(methodName))
 	fnCtx.SetVariableValue(varies[1], data.NewArrayValue(argsList))
 	return magic.Call(fnCtx)
@@ -223,8 +226,13 @@ func (pe *CallObjectMethod) invokeMagicCall(object data.Context, ctx data.Contex
 func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method data.Method) (data.Context, data.Control) {
 	varies := method.GetVariables()
 	fnCtx := object.CreateContext(varies)
-	fnCtx.SetVM(ctx.GetVM())
 	params := method.GetParams()
+	if canFastPositionalBind(params, pe.Args) {
+		if acl := bindPositionalParameters(fnCtx, ctx, params, pe.Args, varies); acl != nil {
+			return nil, acl
+		}
+		return fnCtx, nil
+	}
 	bound := make([]bool, len(params))
 
 	variadicIdx := -1
@@ -460,6 +468,9 @@ func findDeclaringClassForMethod(vm data.VM, class data.ClassStmt, methodName st
 	if classHasMethod(class, methodName) {
 		return class
 	}
+	if vm == nil {
+		return class
+	}
 	last := class
 	for last.GetExtend() != nil {
 		parentName := last.GetExtend()
@@ -579,6 +590,36 @@ func findClassMethodContext(ctx data.Context) *data.ClassMethodContext {
 	return nil
 }
 
+// resolveLateStaticClass 解析 static:: 的后期静态绑定目标类。
+// 优先 ClassMethodContext / ClassValue；否则用 Closure::bind 的 ScopeClass 或 BoundThis 的类。
+func resolveLateStaticClass(ctx data.Context) (data.ClassStmt, data.Control, bool) {
+	if classCtx := findClassMethodContext(ctx); classCtx != nil {
+		if classCtx.StaticClass != nil {
+			return classCtx.StaticClass, nil, true
+		}
+		return classCtx.Class, nil, true
+	}
+	if classVal, ok := ctx.(*data.ClassValue); ok && classVal.Class != nil {
+		return classVal.Class, nil, true
+	}
+	if bc := data.FindBoundContext(ctx); bc != nil {
+		vm := ctx.GetVM()
+		if bc.ScopeClass != "" {
+			cls, acl := vm.GetOrLoadClass(bc.ScopeClass)
+			if acl != nil {
+				return nil, acl, false
+			}
+			if cls != nil {
+				return cls, nil, true
+			}
+		}
+		if bc.BoundThis != nil && bc.BoundThis.Class != nil {
+			return bc.BoundThis.Class, nil, true
+		}
+	}
+	return nil, nil, false
+}
+
 // findMagicCallOnClass 沿继承链查找实例 __call
 func findMagicCallOnClass(class data.ClassStmt, vm data.VM) (data.Method, bool) {
 	for class != nil {
@@ -597,10 +638,16 @@ func findMagicCallOnClass(class data.ClassStmt, vm data.VM) (data.Method, bool) 
 	return nil, false
 }
 
-// tryNewInstanceMagicCallViaStaticFunc 在实例方法内 Class::missing() 时转调当前作用域的 __call($this)
-func tryNewInstanceMagicCallViaStaticFunc(ctx data.Context, methodName string) (data.FuncStmt, bool) {
+// tryNewInstanceMagicCallViaStaticFunc 仅当静态目标就是当前 $this 的类（或父类）时，
+// 才把未定义的 Class::foo() 转成 $this->__call('foo')。
+// Arr::missing() 在 Collection 方法里不得落到 Collection::__call，
+// 否则会报 Method Collection::mapWithKeys does not exist。
+func tryNewInstanceMagicCallViaStaticFunc(ctx data.Context, methodName string, staticClass data.ClassStmt) (data.FuncStmt, bool) {
 	cmc := findClassMethodContext(ctx)
-	if cmc == nil {
+	if cmc == nil || cmc.Class == nil {
+		return nil, false
+	}
+	if staticClass != nil && !classIsSelfOrAncestor(cmc.Class, staticClass, ctx.GetVM()) {
 		return nil, false
 	}
 	magic, ok := findMagicCallOnClass(cmc.Class, ctx.GetVM())
@@ -612,6 +659,29 @@ func tryNewInstanceMagicCallViaStaticFunc(ctx data.Context, methodName string) (
 		magic:          magic,
 		originalMethod: methodName,
 	}, true
+}
+
+func classIsSelfOrAncestor(self, target data.ClassStmt, vm data.VM) bool {
+	if self == nil || target == nil {
+		return false
+	}
+	want := target.GetName()
+	if self.GetName() == want {
+		return true
+	}
+	last := self
+	for last.GetExtend() != nil {
+		ext := last.GetExtend()
+		parent, acl := vm.GetOrLoadClass(*ext)
+		if acl != nil || parent == nil {
+			break
+		}
+		if parent.GetName() == want {
+			return true
+		}
+		last = parent
+	}
+	return false
 }
 
 // instanceMagicCallViaStaticFunc 将 A::foo() 形式的未定义静态调用转为 $this->__call('foo', $args)
@@ -648,33 +718,41 @@ func (o *objectMethodCallable) GetVariables() []data.Variable {
 	return []data.Variable{data.NewVariable("args", 0, nil)}
 }
 
-func (o *objectMethodCallable) Call(callCtx data.Context) (data.GetValue, data.Control) {
-	proxy := &CallObjectMethod{Object: o.obj, Method: o.method}
-	// 实参可能以两种方式到达：
-	// 1. 直接闭包调用 $fn(...$args) 时，objectMethodCallable 声明的是可变参数
-	//    args（index 0），invokeFuncStmt 会把全部实参收进 index 0 的一个 ArrayValue。
-	// 2. call_user_func / CallAutoLoad 把实参展开放在 callCtx 连续索引上。
-	// 这里统一展开：若 index 0 是数组且 index 1 为空，则视为可变参数容器并解包；
-	// 否则按连续索引逐个读取。
+func collectCtxCallArgs(callCtx data.Context) []data.Value {
+	if flat := callCtx.GetFlatCallArgs(); len(flat) > 0 {
+		return flat
+	}
 	if v0, ok := callCtx.GetIndexValue(0); ok && v0 != nil {
 		if arr, isArr := v0.(*data.ArrayValue); isArr {
 			if _, hasMore := callCtx.GetIndexValue(1); !hasMore {
+				out := make([]data.Value, 0, len(arr.List))
 				for _, zv := range arr.List {
 					if zv != nil && zv.Value != nil {
-						proxy.Args = append(proxy.Args, zv.Value)
+						out = append(out, zv.Value)
 					}
 				}
-				return o.invokeMethod(callCtx, proxy)
+				return out
 			}
 		}
 	}
+	var out []data.Value
 	for i := 0; ; i++ {
 		v, ok := callCtx.GetIndexValue(i)
 		if !ok || v == nil {
 			break
 		}
-		proxy.Args = append(proxy.Args, v)
+		out = append(out, v)
 	}
+	return out
+}
+
+func (o *objectMethodCallable) Call(callCtx data.Context) (data.GetValue, data.Control) {
+	raw := collectCtxCallArgs(callCtx)
+	args := make([]data.GetValue, len(raw))
+	for i, v := range raw {
+		args[i] = v
+	}
+	proxy := &CallObjectMethod{Object: o.obj, Method: o.method, Args: args}
 	return o.invokeMethod(callCtx, proxy)
 }
 
@@ -695,46 +773,38 @@ func (o *objectMethodCallable) invokeMethod(callCtx data.Context, proxy *CallObj
 
 // invokeMagicCallFromCallCtx 从调用上下文收集实参并调用 __call
 func (pe *CallObjectMethod) invokeMagicCallFromCallCtx(object data.Context, callCtx data.Context, magic data.Method, methodName string) (data.GetValue, data.Control) {
-	var argsList []data.Value
-	for i := 0; ; i++ {
-		v, ok := callCtx.GetIndexValue(i)
-		if !ok || v == nil {
-			break
-		}
-		argsList = append(argsList, magicCallArgValue(v))
+	raw := collectCtxCallArgs(callCtx)
+	argsList := make([]data.Value, len(raw))
+	for i, v := range raw {
+		argsList[i] = magicCallArgValue(v)
 	}
 	varies := magic.GetVariables()
 	if len(varies) < 2 {
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("__call 需要至少 2 个参数"))
 	}
 	fnCtx := object.CreateContext(varies)
-	fnCtx.SetVM(callCtx.GetVM())
 	fnCtx.SetVariableValue(varies[0], data.NewStringValue(methodName))
 	fnCtx.SetVariableValue(varies[1], data.NewArrayValue(argsList))
 	return magic.Call(fnCtx)
 }
 
 func (s *instanceMagicCallViaStaticFunc) Call(callCtx data.Context) (data.GetValue, data.Control) {
-	callerArgs := make([]data.Value, 0)
-	for i := 0; ; i++ {
-		v, ok := callCtx.GetIndexValue(i)
-		if !ok || v == nil {
-			break
-		}
+	raw := collectCtxCallArgs(callCtx)
+	callerArgs := make([]data.Value, 0, len(raw))
+	for _, v := range raw {
 		if arr, isArr := v.(*data.ArrayValue); isArr {
 			for _, z := range arr.List {
 				callerArgs = append(callerArgs, magicCallArgValue(z.Value))
 			}
-		} else {
-			callerArgs = append(callerArgs, v)
+			continue
 		}
+		callerArgs = append(callerArgs, v)
 	}
 	varies := s.magic.GetVariables()
 	if len(varies) < 2 {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("__call 需要至少 2 个参数"))
 	}
 	fnCtx := s.objectCtx.CreateContext(varies)
-	fnCtx.SetVM(callCtx.GetVM())
 	fnCtx.SetVariableValue(varies[0], data.NewStringValue(s.originalMethod))
 	fnCtx.SetVariableValue(varies[1], data.NewArrayValue(callerArgs))
 	return s.magic.Call(fnCtx)

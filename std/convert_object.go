@@ -7,13 +7,8 @@ import (
 	"github.com/php-any/origami/node"
 )
 
-// ObjectFunction 实现 PHP 风格的 (object) 类型转换。
-// 主要为了支持 Laravel helpers 中的 (object) $arguments 用法：
-// - 如果传入的是数组（包括关联数组），则将其转换为类似 stdClass 的对象：
-//   - 数组的键将作为对象属性名（数值键会被转换为字符串）
-//
-// - 如果传入的是已是对象（ObjectValue / ClassValue），则直接返回
-// - 其它标量值会被包装到一个带有 "scalar" 属性的对象中（与 PHP 行为类似）
+// ObjectFunction 实现 PHP 的 (object) 类型转换。
+// PHP：(object)$array 得到 stdClass 实例（属性为数组键）；Blade $loop = (object)$last 依赖此语义。
 type ObjectFunction struct{}
 
 func NewObjectFunction() data.FuncStmt { return &ObjectFunction{} }
@@ -21,38 +16,90 @@ func NewObjectFunction() data.FuncStmt { return &ObjectFunction{} }
 func (f *ObjectFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	v, _ := ctx.GetIndexValue(0)
 	if v == nil {
-		return data.NewObjectValue(), nil
+		return newStdClassInstance(ctx), nil
 	}
 
 	switch val := v.(type) {
-	case *data.ObjectValue:
-		// 已是对象，直接返回
-		return val, nil
 	case *data.ClassValue:
-		// 类实例，按对象语义返回
+		// 已是对象实例，原样返回（与 PHP 一致）
 		return val, nil
+	case *data.ThisValue:
+		return val.ClassValue, nil
+	case *data.ObjectValue:
+		// Origami 内部关联数组容器：转为真正的 stdClass
+		return objectValueToStdClass(ctx, val), nil
 	case *data.ArrayValue:
-		// 数组 -> 对象：数值键与字符串键都转换为属性名（数值键转为字符串）
-		obj := data.NewObjectValue()
-		for i, z := range val.List {
+		return arrayToStdClass(ctx, val), nil
+	default:
+		// 标量：包装为带 scalar 属性的 stdClass（对齐 PHP）
+		obj := newStdClassInstance(ctx)
+		if cv, ok := obj.(*data.ClassValue); ok {
+			cv.SetProperty("scalar", v)
+		}
+		return obj, nil
+	}
+}
+
+func newStdClassInstance(ctx data.Context) data.GetValue {
+	vm := ctx.GetVM()
+	if vm == nil {
+		return data.NewObjectValue()
+	}
+	cls, ok := vm.GetClass("stdClass")
+	if !ok {
+		return data.NewObjectValue()
+	}
+	return data.NewClassValue(cls, ctx.CreateBaseContext())
+}
+
+func arrayToStdClass(ctx data.Context, arr *data.ArrayValue) data.GetValue {
+	obj := newStdClassInstance(ctx)
+	cv, ok := obj.(*data.ClassValue)
+	if !ok {
+		// 回退：无 stdClass 时用 ObjectValue
+		ov := data.NewObjectValue()
+		for i, z := range arr.List {
 			key := fmt.Sprintf("%d", i)
 			if z != nil && z.Name != "" {
 				key = z.Name
 			}
-
 			if z == nil || z.Value == nil {
-				obj.SetProperty(key, data.NewNullValue())
+				ov.SetProperty(key, data.NewNullValue())
 			} else {
-				obj.SetProperty(key, z.Value)
+				ov.SetProperty(key, z.Value)
 			}
 		}
-		return obj, nil
-	default:
-		// 其它标量/值：包装为带有 scalar 属性的对象
-		obj := data.NewObjectValue()
-		obj.SetProperty("scalar", v)
-		return obj, nil
+		return ov
 	}
+	for i, z := range arr.List {
+		key := fmt.Sprintf("%d", i)
+		if z != nil && z.Name != "" {
+			key = z.Name
+		}
+		if z == nil || z.Value == nil {
+			cv.SetProperty(key, data.NewNullValue())
+		} else {
+			cv.SetProperty(key, z.Value)
+		}
+	}
+	return cv
+}
+
+func objectValueToStdClass(ctx data.Context, ov *data.ObjectValue) data.GetValue {
+	obj := newStdClassInstance(ctx)
+	cv, ok := obj.(*data.ClassValue)
+	if !ok {
+		return ov
+	}
+	ov.RangeProperties(func(key string, val data.Value) bool {
+		if val == nil {
+			cv.SetProperty(key, data.NewNullValue())
+		} else {
+			cv.SetProperty(key, val)
+		}
+		return true
+	})
+	return cv
 }
 
 func (f *ObjectFunction) GetName() string { return "object" }

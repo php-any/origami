@@ -61,7 +61,7 @@ func (c *DeprecatedClass) GetConstruct() data.Method {
 }
 
 // DeprecatedConstructMethod Deprecated 构造函数
-// Deprecated::__construct(?string $reason = null, ?string $replacement = null)
+// Deprecated::__construct(?string $message = null, ?string $since = null, ?string $replacement = null, string $reason = Deprecated::REASON_USAGE)
 type DeprecatedConstructMethod struct{}
 
 func (m *DeprecatedConstructMethod) GetName() string {
@@ -78,15 +78,19 @@ func (m *DeprecatedConstructMethod) GetIsStatic() bool {
 
 func (m *DeprecatedConstructMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameter(nil, "reason", 0, data.NewNullValue(), nil),
-		node.NewParameter(nil, "replacement", 1, data.NewNullValue(), nil),
+		node.NewParameter(nil, "message", 0, data.NewNullValue(), nil),
+		node.NewParameter(nil, "since", 1, data.NewNullValue(), nil),
+		node.NewParameter(nil, "replacement", 2, data.NewNullValue(), nil),
+		node.NewParameter(nil, "reason", 3, data.NewStringValue("usage"), nil),
 	}
 }
 
 func (m *DeprecatedConstructMethod) GetVariables() []data.Variable {
 	return []data.Variable{
-		node.NewVariable(nil, "reason", 0, nil),
-		node.NewVariable(nil, "replacement", 1, nil),
+		node.NewVariable(nil, "message", 0, nil),
+		node.NewVariable(nil, "since", 1, nil),
+		node.NewVariable(nil, "replacement", 2, nil),
+		node.NewVariable(nil, "reason", 3, nil),
 	}
 }
 

@@ -2,7 +2,6 @@ package node
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/php-any/origami/data"
@@ -31,12 +30,6 @@ func (cc *ClassConstant) GetValue(ctx data.Context) (data.GetValue, data.Control
 
 	if name, ok := classNameFromValue(exprValue); ok {
 		return resolveClassNameString(ctx, name), nil
-	}
-
-	// 临时诊断：::class 无法解析出类名
-	if cc.From != nil && strings.Contains(cc.From.GetSource(), "var-dumper") {
-		start, end := cc.From.GetPosition()
-		fmt.Fprintf(os.Stderr, "DIAG: ::class unresolvable expr=%T val=%v file=%q pos=%v-%v\n", exprValue, exprValue, cc.From.GetSource(), start, end)
 	}
 
 	if varExpr, ok := exprValue.(*VariableExpression); ok {

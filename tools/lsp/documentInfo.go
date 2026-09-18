@@ -297,6 +297,26 @@ func (ctx *LspContext) GetCallArgs() []data.GetValue {
 	return nil
 }
 
+func (ctx *LspContext) SetFlatCallArgs(values []data.Value) {
+	if ctx.dataCtx != nil {
+		ctx.dataCtx.SetFlatCallArgs(values)
+	}
+}
+
+func (ctx *LspContext) GetFlatCallArgs() []data.Value {
+	if ctx.dataCtx != nil {
+		return ctx.dataCtx.GetFlatCallArgs()
+	}
+	return nil
+}
+
+func (ctx *LspContext) ReturnSlot(v data.Value) data.ReturnControl {
+	if ctx.dataCtx != nil {
+		return ctx.dataCtx.ReturnSlot(v)
+	}
+	return data.NewReturnControl(v)
+}
+
 // SetVariableByName LSP 下不需要真实展开符号表，提供空实现以满足接口
 func (ctx *LspContext) SetVariableByName(name string, value data.Value) {
 	if ctx.dataCtx != nil {

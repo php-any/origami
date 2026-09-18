@@ -32,6 +32,10 @@ func (f *IsAFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	vm := ctx.GetVM()
 
+	if tv, ok := objectOrClass.(*data.ThrowValue); ok && tv.Object != nil {
+		objectOrClass = tv.Object
+	}
+
 	// 如果是对象实例
 	if classValue, ok := objectOrClass.(*data.ClassValue); ok {
 		targetName, ok := resolveTypeNameForIsA(vm, className)

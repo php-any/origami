@@ -61,41 +61,36 @@ type VarFastAssign struct {
 
 func (f *VarFastAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	dstZv := ctx.GetIndexZVal(f.DstIdx)
-	if dstZv != nil {
-		switch f.op {
-		case vfaOpCopy:
-			// $dst = $src 或 $dst = IntLiteral（LhsIdx == -1 表示字面量，见 LhsLit）
-			if f.LhsIdx >= 0 {
-				if srcZv := ctx.GetIndexZVal(f.LhsIdx); srcZv != nil {
-					if iv, ok := srcZv.Value.(*data.IntValue); ok {
-						data.AssignIntToZVal(dstZv, iv.Value)
-						if dv, ok := dstZv.Value.(*data.IntValue); ok {
-							return dv, nil
-						}
-					}
-				}
-			} else if f.LhsIdx == -1 {
-				data.AssignIntToZVal(dstZv, f.LhsLit)
+	switch f.op {
+	case vfaOpCopy:
+		if f.LhsIdx >= 0 {
+			if iv, ok := ctx.GetIndexZVal(f.LhsIdx).Value.(*data.IntValue); ok {
+				data.AssignIntToZVal(dstZv, iv.Value)
 				if dv, ok := dstZv.Value.(*data.IntValue); ok {
 					return dv, nil
 				}
 			}
-		case vfaOpMul:
-			if li, okL := readIdx(ctx, f.LhsIdx, f.LhsLit); okL {
-				if ri, okR := readIdx(ctx, f.RhsIdx, f.RhsLit); okR {
-					data.AssignIntToZVal(dstZv, li*ri)
-					if iv, ok := dstZv.Value.(*data.IntValue); ok {
-						return iv, nil
-					}
+		} else if f.LhsIdx == -1 {
+			data.AssignIntToZVal(dstZv, f.LhsLit)
+			if dv, ok := dstZv.Value.(*data.IntValue); ok {
+				return dv, nil
+			}
+		}
+	case vfaOpMul:
+		if li, okL := readIdx(ctx, f.LhsIdx, f.LhsLit); okL {
+			if ri, okR := readIdx(ctx, f.RhsIdx, f.RhsLit); okR {
+				data.AssignIntToZVal(dstZv, li*ri)
+				if iv, ok := dstZv.Value.(*data.IntValue); ok {
+					return iv, nil
 				}
 			}
-		case vfaOpAdd:
-			if li, okL := readIdx(ctx, f.LhsIdx, f.LhsLit); okL {
-				if ri, okR := readIdx(ctx, f.RhsIdx, f.RhsLit); okR {
-					data.AssignIntToZVal(dstZv, li+ri)
-					if iv, ok := dstZv.Value.(*data.IntValue); ok {
-						return iv, nil
-					}
+		}
+	case vfaOpAdd:
+		if li, okL := readIdx(ctx, f.LhsIdx, f.LhsLit); okL {
+			if ri, okR := readIdx(ctx, f.RhsIdx, f.RhsLit); okR {
+				data.AssignIntToZVal(dstZv, li+ri)
+				if iv, ok := dstZv.Value.(*data.IntValue); ok {
+					return iv, nil
 				}
 			}
 		}
@@ -107,7 +102,8 @@ func (f *VarFastAssign) GetValue(ctx data.Context) (data.GetValue, data.Control)
 		return nil, ctl
 	}
 	if v, ok := rv.(data.Value); ok {
-		if zv := ctx.GetIndexZVal(f.DstIdx); zv != nil && data.IsScalarAssignFast(v) {
+		if data.IsScalarAssignFast(v) {
+			zv := ctx.GetIndexZVal(f.DstIdx)
 			data.AssignScalarToZVal(zv, v)
 			return zv.Value, nil
 		}
@@ -127,10 +123,8 @@ func (f *VarFastAssign) GetValue(ctx data.Context) (data.GetValue, data.Control)
 //	idx == -2：复杂节点，告知调用方走降级路径
 func readIdx(ctx data.Context, idx, lit int) (int, bool) {
 	if idx >= 0 {
-		if zv := ctx.GetIndexZVal(idx); zv != nil {
-			if iv, ok := zv.Value.(*data.IntValue); ok {
-				return iv.Value, true
-			}
+		if iv, ok := ctx.GetIndexZVal(idx).Value.(*data.IntValue); ok {
+			return iv.Value, true
 		}
 		return 0, false
 	}
@@ -157,13 +151,11 @@ type VarPostIncr struct {
 }
 
 func (f *VarPostIncr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	if zv := ctx.GetIndexZVal(f.VarIdx); zv != nil {
-		if iv, ok := zv.Value.(*data.IntValue); ok {
-			old := iv                                      // 旧指针直接作为返回值（原始值），无额外分配
-			zv.Value = &data.IntValue{Value: iv.Value + 1} // 仅一次分配
-			syncStaticLocalFromCtx(ctx, f.VarIdx)
-			return old, nil
-		}
+	zv := ctx.GetIndexZVal(f.VarIdx)
+	if iv, ok := zv.Value.(*data.IntValue); ok {
+		old := iv
+		zv.Value = &data.IntValue{Value: iv.Value + 1}
+		return old, nil
 	}
 	return f.Fallback.GetValue(ctx)
 }
@@ -177,29 +169,13 @@ type VarPostDecr struct {
 }
 
 func (f *VarPostDecr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	if zv := ctx.GetIndexZVal(f.VarIdx); zv != nil {
-		if iv, ok := zv.Value.(*data.IntValue); ok {
-			old := iv
-			zv.Value = &data.IntValue{Value: iv.Value - 1}
-			syncStaticLocalFromCtx(ctx, f.VarIdx)
-			return old, nil
-		}
+	zv := ctx.GetIndexZVal(f.VarIdx)
+	if iv, ok := zv.Value.(*data.IntValue); ok {
+		old := iv
+		zv.Value = &data.IntValue{Value: iv.Value - 1}
+		return old, nil
 	}
 	return f.Fallback.GetValue(ctx)
-}
-
-func syncStaticLocalFromCtx(ctx data.Context, index int) {
-	binder, ok := ctx.(data.StaticLocalsBinder)
-	if !ok {
-		return
-	}
-	store := binder.StaticLocalsStore()
-	if store == nil {
-		return
-	}
-	if zv := ctx.GetIndexZVal(index); zv != nil {
-		store.Update(index, zv.Value)
-	}
 }
 
 // ------------------------------------------------------------------
@@ -219,12 +195,10 @@ type VarStmtIncr struct {
 }
 
 func (f *VarStmtIncr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	if zv := ctx.GetIndexZVal(f.VarIdx); zv != nil {
-		if iv, ok := zv.Value.(*data.IntValue); ok {
-			iv.Value++ // 原地改写，0 次分配
-			syncStaticLocalFromCtx(ctx, f.VarIdx)
-			return iv, nil
-		}
+	zv := ctx.GetIndexZVal(f.VarIdx)
+	if iv, ok := zv.Value.(*data.IntValue); ok {
+		iv.Value++
+		return iv, nil
 	}
 	return f.Fallback.GetValue(ctx)
 }
@@ -253,10 +227,8 @@ type VarIntLe struct {
 
 // testBool 直接返回 bool，不分配 BoolValue。
 func (f *VarIntLe) testBool(ctx data.Context) (bool, data.Control) {
-	if zv := ctx.GetIndexZVal(f.VarIdx); zv != nil {
-		if iv, ok := zv.Value.(*data.IntValue); ok {
-			return iv.Value <= f.Lit, nil
-		}
+	if iv, ok := ctx.GetIndexZVal(f.VarIdx).Value.(*data.IntValue); ok {
+		return iv.Value <= f.Lit, nil
 	}
 	// 降级：调用原始节点再解包
 	v, ctl := f.Le.GetValue(ctx)

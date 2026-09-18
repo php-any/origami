@@ -49,11 +49,7 @@ func (m *ReflectionClassGetConstructorMethod) Call(ctx data.Context) (data.GetVa
 		return data.NewNullValue(), nil
 	}
 
-	methodClass := &ReflectionMethodClass{}
-	methodValue := data.NewClassValue(methodClass, ctx.CreateBaseContext())
-
-	methodValue.ObjectValue.SetProperty("_className", data.NewStringValue(declaringName))
-	methodValue.ObjectValue.SetProperty("_methodName", data.NewStringValue(constructor.GetName()))
+	methodValue := newReflectionMethod(ctx, declaringName, constructor.GetName())
 
 	return methodValue, nil
 }

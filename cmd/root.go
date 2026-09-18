@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/php-any/origami/perfmon"
 	"github.com/spf13/cobra"
 )
 
@@ -23,8 +24,11 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+	stop := perfmon.Start()
+	defer stop()
 	localizeCompletionCmd()
 	if err := rootCmd.Execute(); err != nil {
+		stop()
 		os.Exit(1)
 	}
 }
@@ -48,7 +52,12 @@ func RunScriptFile(scriptPath string) error {
 		return rootCmd.Help()
 	}
 
+	stop := perfmon.Start()
+	defer stop()
+
 	vm, p := getRuntimeVM()
+	span := perfmon.BeginRequest("cli", scriptPath)
+	defer span.End("ok")
 	_, err := vm.LoadAndRun(scriptPath)
 	if err != nil {
 		if exit, ok := err.(interface {
@@ -57,6 +66,8 @@ func RunScriptFile(scriptPath string) error {
 		}); ok && exit.IsExit() {
 			vm.RunShutdownCallbacks()
 			if code := exit.GetCode(); code != 0 {
+				span.End("exit")
+				stop() // os.Exit 不跑 defer
 				os.Exit(code)
 			}
 			return nil

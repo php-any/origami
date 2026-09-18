@@ -130,8 +130,31 @@ func isStrictEqual(value1, value2 data.GetValue) bool {
 			return sameClassInstance(v1.ClassValue, v2)
 		}
 		return false
+	case *data.FuncValue:
+		// 闭包 === ：同一实例；禁止与 null 经 AsString("") 误判相等（Livewire EventBus finish）
+		if v2, ok := value2.(*data.FuncValue); ok {
+			return sameFuncValue(v1, v2)
+		}
+		if v2, ok := value2.(*data.BoundFuncValue); ok {
+			return sameFuncValue(v1, &v2.FuncValue)
+		}
+		return false
+	case *data.BoundFuncValue:
+		if v2, ok := value2.(*data.BoundFuncValue); ok {
+			return sameFuncValue(&v1.FuncValue, &v2.FuncValue) && v1.BoundObject == v2.BoundObject
+		}
+		if v2, ok := value2.(*data.FuncValue); ok {
+			return sameFuncValue(&v1.FuncValue, v2)
+		}
+		return false
 	default:
-		// 对于其他类型，尝试字符串比较
+		// 保留历史：部分值经 AsString 比较；但 null 绝不能与非 null 因 "" 相等
+		if _, ok := value2.(*data.NullValue); ok {
+			return false
+		}
+		if _, ok := value1.(*data.NullValue); ok {
+			return false
+		}
 		if strValue1, ok := value1.(data.AsString); ok {
 			if strValue2, ok := value2.(data.AsString); ok {
 				return strValue1.AsString() == strValue2.AsString()
@@ -139,6 +162,17 @@ func isStrictEqual(value1, value2 data.GetValue) bool {
 		}
 		return false
 	}
+}
+
+// sameFuncValue 判断两个 FuncValue 是否为同一闭包实例。
+func sameFuncValue(a, b *data.FuncValue) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	if a == b {
+		return true
+	}
+	return a.Value != nil && a.Value == b.Value
 }
 
 // sameClassInstance 判断两个 ClassValue 是否指向同一 PHP 对象实例。

@@ -35,6 +35,8 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 	if !fp.checkPositionIs(0, token.IDENTIFIER) {
 		if fp.checkPositionIs(0, token.LPAREN) {
 			// 直接解析闭包值: function() {}
+			fp.enterStaticScope()
+			defer fp.leaveStaticScope()
 			// 创建新的函数作用域
 			fp.scopeManager.NewScope(false)
 
@@ -127,6 +129,9 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 	fp.currentFunction = name
 
 	fp.next()
+
+	fp.enterStaticScope()
+	defer fp.leaveStaticScope()
 
 	// 创建新的函数作用域
 	fp.scopeManager.NewScope(false)
@@ -266,6 +271,8 @@ func (fp FunctionParser) parserReturnType() (data.Types, data.Control) {
 					token.NULL,
 					token.FALSE,
 					token.STATIC,
+					token.SELF,
+					token.PARENT,
 				) {
 					return nil, data.NewErrorThrow(fp.newFrom(), errors.New("无法识别返回类型的定义符号"))
 				}
@@ -273,6 +280,15 @@ func (fp FunctionParser) parserReturnType() (data.Types, data.Control) {
 				if fp.current().Type() == token.STATIC {
 					fp.next()
 					return data.NewBaseType("static"), nil
+				}
+				// 处理 self / parent（闭包/函数返回类型）
+				if fp.current().Type() == token.SELF {
+					fp.next()
+					return data.NewBaseType("self"), nil
+				}
+				if fp.current().Type() == token.PARENT {
+					fp.next()
+					return data.NewBaseType("parent"), nil
 				}
 
 				name := fp.current().Literal()
@@ -299,9 +315,15 @@ func (fp FunctionParser) parserReturnType() (data.Types, data.Control) {
 			}
 			unionTypes = append(unionTypes, firstType)
 
-			// 后续的 |Type 原子
-			for fp.current().Type() == token.BIT_OR {
-				fp.next() // 跳过 |
+			// 后续 |Type（联合）或 &Type（交集）；二者不可混用（无括号 DNF）
+			var typeCombinator token.TokenType
+			hasCombinator := false
+			if fp.current().Type() == token.BIT_OR || fp.current().Type() == token.BIT_AND {
+				typeCombinator = fp.current().Type()
+				hasCombinator = true
+			}
+			for hasCombinator && fp.current().Type() == typeCombinator {
+				fp.next() // 跳过 | 或 &
 				nextType, acl := parseOneTypeAtom()
 				if acl != nil {
 					return nil, acl
@@ -309,12 +331,13 @@ func (fp FunctionParser) parserReturnType() (data.Types, data.Control) {
 				unionTypes = append(unionTypes, nextType)
 			}
 
-			// 将本次解析出的类型（可能是单一，也可能是联合）加入返回类型列表
+			// 将本次解析出的类型（单一 / 联合 / 交集）加入返回类型列表
 			var thisType data.Types
 			if len(unionTypes) == 1 {
 				thisType = unionTypes[0]
+			} else if typeCombinator == token.BIT_AND {
+				thisType = data.NewIntersectionType(unionTypes)
 			} else {
-				// 联合类型：array|string|false 之类
 				thisType = data.NewUnionType(unionTypes)
 			}
 			if isNullable {

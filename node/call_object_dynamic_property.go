@@ -23,6 +23,47 @@ func NewCallObjectDynamicProperty(from data.From, object data.GetValue, nameExpr
 	}
 }
 
+// GetZVal 返回动态属性的共享 ZVal，供 by-ref 参数（如 data_set($obj->{$key}, ...)）写回。
+func (pe *CallObjectDynamicProperty) GetZVal(ctx data.Context) (*data.ZVal, data.Control) {
+	temp, acl := pe.Object.GetValue(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	raw, acl := pe.NameExpr.GetValue(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	name := raw.(data.Value).AsString()
+
+	ensureZVal := func(ov *data.ObjectValue) (*data.ZVal, data.Control) {
+		zv, _ := ov.GetZVal(name)
+		if zv != nil {
+			return zv, nil
+		}
+		ov.SetProperty(name, data.NewNullValue())
+		zv, _ = ov.GetZVal(name)
+		if zv == nil {
+			zv = data.NewZVal(data.NewNullValue())
+		}
+		return zv, nil
+	}
+
+	switch object := temp.(type) {
+	case *data.ThisValue:
+		if prop, ok := object.GetPropertyStmt(name); ok {
+			return prop.GetZVal(object)
+		}
+		return ensureZVal(object.ObjectValue)
+	case *data.ClassValue:
+		if prop, ok := object.GetPropertyStmt(name); ok {
+			return prop.GetZVal(object)
+		}
+		return ensureZVal(object.ObjectValue)
+	default:
+		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("值不是对象, 不能引用动态属性(%s)", name))
+	}
+}
+
 func (pe *CallObjectDynamicProperty) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	// 求值对象表达式
 	o, ctl := pe.Object.GetValue(ctx)

@@ -11,8 +11,28 @@ func ValueToDisplayString(ctx data.Context, v data.GetValue) (string, data.Contr
 	if v == nil {
 		return "", nil
 	}
-	// 类实例或 $this：尝试调用 __toString()
-	if obj, ok := v.(data.GetMethod); ok {
+	// $this：解包为 ClassValue 再走 __toString
+	if tv, ok := v.(*data.ThisValue); ok && tv.ClassValue != nil {
+		v = tv.ClassValue
+	}
+	// 类实例：尝试调用 __toString()
+	if cv, ok := v.(*data.ClassValue); ok {
+		if toString, has := cv.GetMethod("__toString"); has {
+			result, acl := toString.Call(cv.CreateContext(toString.GetVariables()))
+			if acl != nil {
+				return "", acl
+			}
+			if result != nil {
+				if val, ok := result.(data.Value); ok {
+					if _, isObj := val.(*data.ClassValue); isObj {
+						return "", nil
+					}
+					return val.AsString(), nil
+				}
+			}
+			return "", nil
+		}
+	} else if obj, ok := v.(data.GetMethod); ok {
 		if toString, has := obj.GetMethod("__toString"); has {
 			if objCtx, ok := v.(data.Context); ok {
 				result, acl := toString.Call(objCtx.CreateContext(toString.GetVariables()))

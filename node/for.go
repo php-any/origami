@@ -17,6 +17,7 @@ func (u *ForStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 	var c data.Control
 
 	for {
+		checkTimeLimit(u.GetFrom())
 		// 判断条件
 		if u.Condition != nil {
 			// 快速路径：实现了 BoolTest 的节点（如 VarIntLe）直接返回 bool，

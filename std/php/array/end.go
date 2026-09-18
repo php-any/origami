@@ -89,12 +89,15 @@ func (f *EndFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 使用类型 switch 处理不同类型
 	switch val := arrayValue.(type) {
 	case *data.ArrayValue:
-		// 处理数组
+		// 处理数组。PHP：空数组 end() 返回 false。
 		if len(val.List) == 0 {
+			return data.NewBoolValue(false), nil
+		}
+		last := val.List[len(val.List)-1]
+		if last == nil || last.Value == nil {
 			return data.NewNullValue(), nil
 		}
-		// 返回最后一个元素
-		return val.List[len(val.List)-1].Value, nil
+		return last.Value, nil
 
 	case *data.ObjectValue:
 		// 处理对象（关联数组）
@@ -109,7 +112,7 @@ func (f *EndFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		})
 
 		if !hasValue {
-			return data.NewNullValue(), nil
+			return data.NewBoolValue(false), nil
 		}
 		return lastValue, nil
 

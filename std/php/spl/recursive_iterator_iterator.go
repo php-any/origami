@@ -16,6 +16,7 @@ const (
 	riiCurKeyKey = "__rii_curkey__" // current key
 	riiModeKey   = "__rii_mode__"   // int
 	riiStackKey  = "__rii_stack__"  // *riiStackValue（伪装成 data.Value）
+	riiMaxDepth  = "__rii_maxdepth__" // int, -1 = unlimited
 )
 
 // riiStackEntry 栈帧
@@ -78,6 +79,7 @@ func (r *RecursiveIteratorIteratorClass) GetValue(ctx data.Context) (data.GetVal
 	cv := data.NewClassValue(r, ctx.CreateBaseContext())
 	// 初始化实例属性
 	cv.SetProperty(riiValidKey, data.NewBoolValue(false))
+	cv.SetProperty(riiMaxDepth, data.NewIntValue(-1))
 	cv.SetProperty(riiCurValKey, data.NewNullValue())
 	cv.SetProperty(riiCurKeyKey, data.NewNullValue())
 	cv.SetProperty(riiModeKey, data.NewIntValue(0))
@@ -105,6 +107,10 @@ func (r *RecursiveIteratorIteratorClass) GetMethod(name string) (data.Method, bo
 		return &RIIGetDepth{}, true
 	case "getSubIterator":
 		return &RIIGetSubIterator{}, true
+	case "setMaxDepth":
+		return &RIISetMaxDepth{}, true
+	case "getMaxDepth":
+		return &RIIGetMaxDepth{}, true
 	}
 	return nil, false
 }
@@ -120,6 +126,8 @@ func (r *RecursiveIteratorIteratorClass) GetMethods() []data.Method {
 		&RIIGetInnerIterator{},
 		&RIIGetDepth{},
 		&RIIGetSubIterator{},
+		&RIISetMaxDepth{},
+		&RIIGetMaxDepth{},
 	}
 }
 
@@ -616,4 +624,54 @@ func (m *RIIGetSubIterator) Call(ctx data.Context) (data.GetValue, data.Control)
 		return stack.frames[depth-1].iter, nil
 	}
 	return data.NewNullValue(), nil
+}
+
+// ---- setMaxDepth / getMaxDepth ----
+
+type RIISetMaxDepth struct{}
+
+func (m *RIISetMaxDepth) GetName() string            { return "setMaxDepth" }
+func (m *RIISetMaxDepth) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *RIISetMaxDepth) GetIsStatic() bool          { return false }
+func (m *RIISetMaxDepth) GetVariables() []data.Variable {
+	return []data.Variable{node.NewVariable(nil, "max_depth", 0, nil)}
+}
+func (m *RIISetMaxDepth) GetReturnType() data.Types { return nil }
+func (m *RIISetMaxDepth) GetParams() []data.GetValue {
+	return []data.GetValue{node.NewParameter(nil, "max_depth", 0, data.NewIntValue(-1), nil)}
+}
+func (m *RIISetMaxDepth) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := riiGetCV(ctx)
+	if cv == nil {
+		return nil, data.NewErrorThrow(nil, errors.New("RecursiveIteratorIterator: 无法获取实例"))
+	}
+	maxDepth := -1
+	if v, ok := ctx.GetIndexValue(0); ok && v != nil {
+		if as, ok := v.(data.AsInt); ok {
+			if i, err := as.AsInt(); err == nil {
+				maxDepth = i
+			}
+		}
+	}
+	cv.SetProperty(riiMaxDepth, data.NewIntValue(maxDepth))
+	return data.NewNullValue(), nil
+}
+
+type RIIGetMaxDepth struct{}
+
+func (m *RIIGetMaxDepth) GetName() string               { return "getMaxDepth" }
+func (m *RIIGetMaxDepth) GetModifier() data.Modifier    { return data.ModifierPublic }
+func (m *RIIGetMaxDepth) GetIsStatic() bool             { return false }
+func (m *RIIGetMaxDepth) GetVariables() []data.Variable { return nil }
+func (m *RIIGetMaxDepth) GetReturnType() data.Types     { return nil }
+func (m *RIIGetMaxDepth) GetParams() []data.GetValue    { return []data.GetValue{} }
+func (m *RIIGetMaxDepth) Call(ctx data.Context) (data.GetValue, data.Control) {
+	cv := riiGetCV(ctx)
+	if cv == nil {
+		return data.NewIntValue(-1), nil
+	}
+	if v, ok := cv.GetProperties()[riiMaxDepth]; ok && v != nil {
+		return v, nil
+	}
+	return data.NewIntValue(-1), nil
 }

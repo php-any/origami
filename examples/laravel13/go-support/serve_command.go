@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,14 +17,23 @@ import (
 	"time"
 
 	"github.com/php-any/origami/data"
-	"github.com/php-any/origami/examples/laravel13/go-support/httpfoundation"
 	"github.com/php-any/origami/examples/laravel13/go-support/httpkernel"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/parser"
+	"github.com/php-any/origami/perfmon"
 	"github.com/php-any/origami/runtime"
+	illuminatehttp "github.com/php-any/origami/std/illuminate/http"
+	phpcore "github.com/php-any/origami/std/php/core"
+	httpfoundation "github.com/php-any/origami/std/symfony/http-foundation"
+	"github.com/php-any/origami/std/vendoraccel"
 )
 
-const serveCommandClassName = "Illuminate\\Foundation\\Console\\ServeCommand"
+const (
+	serveCommandClassName = "Illuminate\\Foundation\\Console\\ServeCommand"
+	// PHP 网页 SAPI：max_execution_time 默认 30 秒；到期中断请求并关闭连接。
+	serveMaxExecutionTime = 30 * time.Second
+	serveIdleTimeout      = 60 * time.Second
+)
 
 // ServeCommandClass 在 Laravel 加载官方 ServeCommand.php 前注册同名 Go 类，
 // 保留 Artisan 命令生命周期，同时用 Go net/http 替代 php -S。
@@ -171,12 +181,60 @@ func (m *serveGetOptionsMethod) GetVariables() []data.Variable { return nil }
 func (m *serveGetOptionsMethod) GetReturnType() data.Types     { return data.NewBaseType("array") }
 
 type laravelHTTPKernel struct {
-	base      *runtime.VM
-	parser    *parser.Parser
-	app       *data.ClassValue
-	kernel    *data.ClassValue
-	initError data.Control
-	initOnce  sync.Once
+	base       *runtime.VM
+	parser     *parser.Parser
+	app        *data.ClassValue
+	kernel     *data.ClassValue
+	initError  data.Control
+	initOnce   sync.Once
+	connTimers sync.Map // net.Conn -> *time.Timer，到期关闭连接
+}
+
+func newLaravelHTTPKernel(base *runtime.VM, app *data.ClassValue) *laravelHTTPKernel {
+	return &laravelHTTPKernel{
+		base: base,
+		app:  app,
+	}
+}
+
+func (k *laravelHTTPKernel) trackConn(c net.Conn, s http.ConnState) {
+	switch s {
+	case http.StateActive:
+		k.armConnTimeout(c)
+	case http.StateIdle, http.StateClosed, http.StateHijacked:
+		k.disarmConnTimeout(c)
+	}
+}
+
+func (k *laravelHTTPKernel) armConnTimeout(c net.Conn) {
+	k.disarmConnTimeout(c)
+	t := time.AfterFunc(serveMaxExecutionTime, func() {
+		_ = c.Close()
+	})
+	k.connTimers.Store(c, t)
+}
+
+func (k *laravelHTTPKernel) disarmConnTimeout(c net.Conn) {
+	if v, ok := k.connTimers.LoadAndDelete(c); ok {
+		if t, ok := v.(*time.Timer); ok {
+			t.Stop()
+		}
+	}
+}
+
+// beginPHPWebTimeLimit 按 PHP 网页 SAPI 给当前请求套上 max_execution_time=30。
+// 截止时间写在当前 goroutine 的 CallState 上，禁止改进程级槽。
+func beginPHPWebTimeLimit() func() {
+	sec := phpcore.DefaultHTTPMaxExecutionTime
+	phpcore.SetExecutionDeadline(sec)
+	return func() {
+		phpcore.SetExecutionDeadline(0)
+	}
+}
+
+func closeTimedOutRequest(w http.ResponseWriter) {
+	w.Header().Set("Connection", "close")
+	http.Error(w, "Fatal error: Maximum execution time of 30 seconds exceeded", http.StatusInternalServerError)
 }
 
 func (k *laravelHTTPKernel) ensureBase() data.Control {
@@ -215,16 +273,71 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if k.serveLivewireDist(w, r) {
 		return
 	}
+	if k.serveMissingStaticAsset(w, r) {
+		return
+	}
 
-	requestCtx := k.base.CreateContext(nil)
-	request := httpfoundation.NewIlluminateRequestValue(requestCtx, r)
+	if r.Context().Err() != nil {
+		return
+	}
+
+	// 每个请求并行 Handle：输出/调用栈/Container::$instance 按 goroutine 隔离，
+	// Application/Router 用 clone 沙箱，互不排队。
+	handleCtx, handleCancel := context.WithTimeout(context.Background(), serveMaxExecutionTime)
+	defer handleCancel()
+
+	outcome := "ok"
+	span := perfmon.BeginRequest(r.Method, r.URL.Path)
+	defer func() { span.End(outcome) }()
+
+	// 对齐 Octane Worker：每请求独立 ob_start，残留 echo 并入 HTTP body，不写进程 stdout。
+	defer runtime.BeginRequestOutput()()
+	runtime.StartRequestOutputBuffer()
+	runtime.MuteRequestStdout()
+	defer runtime.BeginRequestDeadline(handleCtx)()
+	defer beginPHPWebTimeLimit()()
+
+	defer func() {
+		rec := recover()
+		if rec == nil {
+			return
+		}
+		if data.IsRequestCanceled(rec) {
+			outcome = "timeout"
+			if r.Context().Err() != nil {
+				return
+			}
+			closeTimedOutRequest(w)
+			return
+		}
+		outcome = "panic"
+		fmt.Fprintf(os.Stderr, "origami ServeHTTP panic: %v\n%s\n", rec, debug.Stack())
+		if r.Context().Err() != nil {
+			return
+		}
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}()
+
+	requestCtx := runtime.NewTempVM(k.base).CreateContext(nil)
+	kernel := httpkernel.Sandbox(requestCtx, k.kernel)
+	defer httpkernel.ResetViewEngines(requestCtx, k.kernel)
+	request := illuminatehttp.NewIlluminateRequestValue(requestCtx, r)
 	var response data.GetValue
-	response, control := httpkernel.Handle(requestCtx, k.kernel, request)
+	response, control := httpkernel.Handle(requestCtx, kernel, request)
+	leftover := runtime.TakeRequestOutput()
+	sentOK := false
 	if control == nil {
 		var sent *data.ClassValue
-		sent, control = httpfoundation.SendResponseTo(w, response)
+		sent, control = httpfoundation.SendResponseTo(w, response, leftover)
 		if control == nil {
-			control = httpkernel.Terminate(requestCtx, k.kernel, request, sent)
+			sentOK = true
+			if term := httpkernel.Terminate(requestCtx, kernel, request, sent); term != nil {
+				if k.parser != nil {
+					k.parser.ShowControl(term)
+				}
+				// 响应已写出：terminate（Telescope 等）失败不能再 WriteHeader。
+				return
+			}
 		}
 	}
 	// PHP exit/die 在请求生命周期内是正常结束，不当作错误。
@@ -232,10 +345,18 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		control = nil
 	}
 	if control != nil {
+		if outcome == "ok" {
+			outcome = "error"
+		}
+		if httpfoundation.IsClientAbortControl(control) {
+			return
+		}
 		if k.parser != nil {
 			k.parser.ShowControl(control)
 		}
-		http.Error(w, "Laravel request failed", http.StatusInternalServerError)
+		if !sentOK {
+			http.Error(w, "Laravel request failed", http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -263,6 +384,22 @@ func (k *laravelHTTPKernel) servePublicFile(w http.ResponseWriter, r *http.Reque
 		return false
 	}
 	http.ServeFile(w, r, full)
+	return true
+}
+
+// serveMissingStaticAsset 对 public 下不存在的静态扩展名直接 404。
+// 浏览器会狂刷 /favicon.ico；若走完整 Kernel，串行锁会把后续 /admin 等请求堵住。
+func (k *laravelHTTPKernel) serveMissingStaticAsset(w http.ResponseWriter, r *http.Request) bool {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return false
+	}
+	uri := path.Clean("/" + r.URL.Path)
+	switch strings.ToLower(path.Base(uri)) {
+	case "favicon.ico", "robots.txt", "apple-touch-icon.png", "apple-touch-icon-precomposed.png":
+	default:
+		return false
+	}
+	http.NotFound(w, r)
 	return true
 }
 
@@ -306,21 +443,38 @@ func runLaravelHTTPServer(host string, port int, base *runtime.VM, app *data.Cla
 	})
 
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
+	ln, err := listenTCP(addr)
+	if err != nil {
+		if isAddrInUse(err) {
+			return fmt.Errorf("serve: 端口 %s 已被占用，拒绝启动", addr)
+		}
+		return fmt.Errorf("serve: 无法监听 %s: %w", addr, err)
+	}
+
 	fmt.Printf("   INFO  Server running on [http://%s].\n\n", addr)
 	fmt.Println("  Press Ctrl+C to stop the server")
 
+	// 预热不阻塞监听：完整 classmap 要数分钟，且会误加载依赖 PHPUnit 的 Testing 类。
+	if vendoraccel.ShouldWarmup() {
+		go func() {
+			if root, err := os.Getwd(); err == nil {
+				vendoraccel.WarmupVendorClassmap(base, root)
+			}
+		}()
+	}
+
+	k := newLaravelHTTPKernel(base, app)
 	server := &http.Server{
-		Addr: addr,
-		Handler: &laravelHTTPKernel{
-			base: base,
-			app:  app,
-		},
+		Addr:              addr,
+		Handler:           k,
+		ConnState:         k.trackConn,
 		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       serveIdleTimeout,
 	}
 
 	serverErr := make(chan error, 1)
 	go func() {
-		serverErr <- server.ListenAndServe()
+		serverErr <- server.Serve(ln)
 	}()
 
 	stop := make(chan os.Signal, 1)

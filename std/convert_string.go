@@ -28,28 +28,13 @@ func (f *StringFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return val, nil
 	case *data.ArrayValue:
 		return data.NewStringValue("Array"), nil
-	case *data.ClassValue:
-		if method, ok := val.GetMethod("__toString"); ok && method != nil {
-			fnCtx := val.CreateContext(method.GetVariables())
-			fnCtx.SetCallArgs([]data.GetValue{})
-			ret, ctl := method.Call(fnCtx)
-			if ctl != nil {
-				return nil, ctl
-			}
-			if sv, ok := ret.(data.Value); ok {
-				return data.NewStringValue(sv.AsString()), nil
-			}
-			if gv, ok := ret.(data.GetValue); ok {
-				v2, ctl2 := gv.GetValue(fnCtx)
-				if ctl2 != nil {
-					return nil, ctl2
-				}
-				if sv, ok := v2.(data.Value); ok {
-					return data.NewStringValue(sv.AsString()), nil
-				}
-			}
+	case *data.ThisValue:
+		if val.ClassValue != nil {
+			return stringFromClassValue(val.ClassValue)
 		}
-		return data.NewStringValue("Object"), nil
+		return data.NewStringValue(""), nil
+	case *data.ClassValue:
+		return stringFromClassValue(val)
 	case *data.ObjectValue:
 		return data.NewStringValue("Object"), nil
 	}
@@ -58,6 +43,37 @@ func (f *StringFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewStringValue(s.AsString()), nil
 	}
 	return data.NewStringValue(v.AsString()), nil
+}
+
+func stringFromClassValue(val *data.ClassValue) (data.GetValue, data.Control) {
+	if method, ok := val.GetMethod("__toString"); ok && method != nil {
+		fnCtx := val.CreateContext(method.GetVariables())
+		fnCtx.SetCallArgs([]data.GetValue{})
+		ret, ctl := method.Call(fnCtx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if sv, ok := ret.(data.Value); ok {
+			// 避免 __toString 误返回 $this 时再走 AsString 得到 Object(...)
+			if _, isObj := sv.(*data.ClassValue); isObj {
+				return data.NewStringValue(""), nil
+			}
+			if _, isThis := sv.(*data.ThisValue); isThis {
+				return data.NewStringValue(""), nil
+			}
+			return data.NewStringValue(sv.AsString()), nil
+		}
+		if gv, ok := ret.(data.GetValue); ok {
+			v2, ctl2 := gv.GetValue(fnCtx)
+			if ctl2 != nil {
+				return nil, ctl2
+			}
+			if sv, ok := v2.(data.Value); ok {
+				return data.NewStringValue(sv.AsString()), nil
+			}
+		}
+	}
+	return data.NewStringValue("Object"), nil
 }
 
 func (f *StringFunction) GetName() string { return "string" }

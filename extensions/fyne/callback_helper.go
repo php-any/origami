@@ -36,9 +36,7 @@ func callPHPCallbackWith(callback data.FuncStmt, ctx data.Context, values ...dat
 		}
 	}()
 	fnCtx := ctx.CreateContext(callback.GetVariables())
-	for i, v := range values {
-		fnCtx.SetIndexZVal(i, data.NewZVal(v))
-	}
+	data.BindDeclaredArgs(fnCtx, callback, values)
 	_, ctl := callback.Call(fnCtx)
 	if ctl != nil {
 		fmt.Fprintf(os.Stderr, "[fyne] PHP callback error: %s\n", ctl.AsString())

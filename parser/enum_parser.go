@@ -65,12 +65,42 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 	// 当前解析器接受类型标注，但不再依赖其具体值做行为分支（避免 string-only 硬编码）
 	if p.current().Type() == token.COLON {
 		p.next()
-		if p.current().Type() != token.IDENTIFIER {
+		if p.current().Type() != token.IDENTIFIER && p.current().Type() != token.STRING && p.current().Type() != token.INT {
 			return nil, data.NewErrorThrow(p.newFrom(), errors.New("enum 底层类型缺失或非法"))
 		}
-		// 忽略具体类型名称，只做语法校验
+		// 忽略具体类型名称，只做语法校验（string / int 关键字或标识符）
 		_ = p.current().Literal()
 		p.next()
+	}
+
+	// 可选 implements：enum Heroicon: string implements ScalableIcon
+	var implements []string
+	if p.current().Type() == token.IMPLEMENTS {
+		p.next()
+		for {
+			if p.current().Type() != token.IDENTIFIER && p.current().Type() != token.NAMESPACE_SEPARATOR {
+				return nil, data.NewErrorThrow(p.newFrom(), errors.New("enum implements 后缺少接口名"))
+			}
+			ifaceName := p.current().Literal()
+			p.next()
+			for p.current().Type() == token.NAMESPACE_SEPARATOR {
+				p.next()
+				if p.current().Type() != token.IDENTIFIER {
+					return nil, data.NewErrorThrow(p.newFrom(), errors.New("enum implements 接口名非法"))
+				}
+				ifaceName += "\\" + p.current().Literal()
+				p.next()
+			}
+			if full, ok := p.findFullClassNameByNamespace(ifaceName); ok {
+				implements = append(implements, full)
+			} else {
+				implements = append(implements, ifaceName)
+			}
+			if p.current().Type() != token.COMMA {
+				break
+			}
+			p.next()
+		}
 	}
 
 	// 解析枚举体
@@ -86,7 +116,9 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 	var cases []enumCase
 	methods := map[string]data.Method{}
 	staticMethods := map[string]data.Method{}
-	properties := []data.Property{}
+	// enum public const 只进入 StaticProperties，不能放入实例 Properties：
+	// GetValue 实例化时会求值 Properties 默认值，早于 case 静态属性注入。
+	var staticConstProps []data.Property
 
 	for !p.currentIsTypeOrEOF(token.RBRACE) {
 		if p.current().Type() == token.SEMICOLON {
@@ -181,7 +213,7 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 
 			if defaultValue != nil {
 				prop := node.NewProperty(p.newFrom(), constName, modifier, true, defaultValue)
-				properties = append(properties, prop)
+				staticConstProps = append(staticConstProps, prop)
 			}
 		} else if p.current().Type() == token.FUNC {
 			// 解析方法
@@ -214,8 +246,8 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 		tracker.EndBefore(),
 		enumName,
 		extends,
-		nil,
-		properties,
+		implements,
+		nil, // enum 无实例属性；const 见 staticConstProps
 		methods,
 	)
 	classStmt.StaticMethods = staticMethods
@@ -236,7 +268,7 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 	// 允许前向引用）。case 静态属性仍在下方立即求值（需要实例化枚举对象）。
 	staticProps := make(map[string]data.Property)
 	var staticIdx []string
-	for _, prop := range properties {
+	for _, prop := range staticConstProps {
 		cp, ok := prop.(*node.ClassProperty)
 		if !ok || !cp.GetIsStatic() {
 			continue

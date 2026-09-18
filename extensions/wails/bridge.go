@@ -32,7 +32,7 @@ func invokeCallback(cb data.Value, args ...data.Value) data.Value {
 	if !ok {
 		return nil
 	}
-	callCtx := wailsRootCtx.CreateContext(make([]data.Variable, len(args)))
+	callCtx := wailsRootCtx.CreateContext(data.AnonVariables(len(args)))
 	for i, a := range args {
 		if a == nil {
 			a = data.NewNullValue()

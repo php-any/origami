@@ -134,8 +134,9 @@ func unescapeSingleQuoted(s string) string {
 
 // StringLiteral 表示字符串字面量
 type StringLiteral struct {
-	*Node `pp:"-"`
-	Value string
+	*Node  `pp:"-"`
+	Value  string
+	intern data.Value
 }
 
 // NewStringLiteral 创建一个新的字符串字面量（仅处理引号字符串；heredoc/nowdoc 见 NewHeredocLiteral / NewNowdocLiteral）
@@ -173,7 +174,10 @@ func NewNowdocLiteral(token *TokenFrom, body string) data.GetValue {
 
 // GetValue 获取字符串字面量的值
 func (s *StringLiteral) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewStringValue(s.Value), nil
+	if s.intern == nil {
+		s.intern = data.NewStringValue(s.Value)
+	}
+	return s.intern, nil
 }
 
 // NewStringLiteralByAst 不能转义的字符串

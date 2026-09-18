@@ -292,6 +292,9 @@ func (ep *LparenParser) parseLambdaExpression(tracking *PositionTracker) (data.G
 		ep.Parser,
 	}
 
+	ep.enterStaticScope()
+	defer ep.leaveStaticScope()
+
 	// 创建新的函数作用域
 	fp.scopeManager.NewScope(true)
 

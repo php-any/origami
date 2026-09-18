@@ -31,6 +31,10 @@ func Load(vm data.VM) {
 	node.CheckExecutionTimeLimit = func(file string, line int) {
 		core.CheckExecutionTimeLimit(file, line)
 	}
+	core.ExtraDeadlineExceeded = ortruntime.RequestDeadlineExceeded
+	core.ExtraDeadlineAbort = func() { panic(data.ErrRequestCanceled) }
+	core.ExtraSetExecutionDeadline = ortruntime.SetRequestPHPDeadline
+	core.InHTTPRequest = ortruntime.InHTTPRequest
 	node.MarkHeaderOutputStarted = core.MarkHeaderOutputStarted
 	ortruntime.RunHeaderCallbacksFn = core.RunHeaderCallbacks
 
@@ -52,6 +56,7 @@ func Load(vm data.VM) {
 		NewScandirFunction(),
 		NewGlobFunction(),
 		NewFileGetContentsFunction(),
+		NewFileFunction(),
 		NewFilePutContentsFunction(),
 		NewMicrotimeFunction(),
 		NewMemoryGetPeakUsageFunction(),
@@ -86,6 +91,7 @@ func Load(vm data.VM) {
 		NewStrlenFunction(),
 		NewStrvalFunction(),
 		NewIntvalFunction(),
+		NewBoolvalFunction(),
 		NewHashFunction(),
 		NewHashHmacFunction(),
 		NewHashInitFunction(),
@@ -138,6 +144,7 @@ func Load(vm data.VM) {
 		array.NewArrayChangeKeyCaseFunction(),
 		array.NewArrayWalkRecursiveFunction(),
 		array.NewArrayUdiffFunction(),
+		array.NewArrayUdiffAssocFunction(),
 		array.NewArrayUintersectFunction(),
 		array.NewArrayMultisortFunction(),
 		array.NewArrayIsListFunction(),
@@ -176,6 +183,7 @@ func Load(vm data.VM) {
 		array.NewAsortFunction(),
 		array.NewArsortFunction(),
 		array.NewUsortFunction(),
+		array.NewUasortFunction(),
 		array.NewKsortFunction(),
 		array.NewKrsortFunction(),
 		array.NewArrayDiffUkeyFunction(),
@@ -279,6 +287,7 @@ func Load(vm data.VM) {
 		NewSrandFunction(),
 		NewRandFunction(),
 		NewMtGetrandmaxFunction(),
+		NewUniqidFunction(),
 
 		core.NewSetExceptionHandlerFunction(),
 		core.NewRestoreExceptionHandlerFunction(),
@@ -317,6 +326,7 @@ func Load(vm data.VM) {
 		array.NewCurrentFunction(),
 		array.NewKeyFunction(),
 		NewSprintfFunction(),
+		NewSscanfFunction(),
 		NewVsprintfFunction(),
 		NewVarDumpFunction(),
 		NewChmodFunction(),
@@ -370,6 +380,7 @@ func Load(vm data.VM) {
 		core.NewObGetStatusFunction(),
 		core.NewObListHandlersFunction(),
 		core.NewObImplicitFlushFunction(),
+		core.NewFlushFunction(),
 		core.NewCliSetProcessTitleFunction(),
 		core.NewChdirFunction(),
 		core.NewGetcwdFunction(),
@@ -484,6 +495,20 @@ func Load(vm data.VM) {
 	vm.SetConstant("LOCK_UN", data.NewIntValue(stream.LockUN))
 	vm.SetConstant("LOCK_NB", data.NewIntValue(stream.LockNB))
 
+	vm.SetConstant("PHP_OUTPUT_HANDLER_WRITE", data.NewIntValue(data.PHPOutputHandlerWrite))
+	vm.SetConstant("PHP_OUTPUT_HANDLER_START", data.NewIntValue(data.PHPOutputHandlerStart))
+	vm.SetConstant("PHP_OUTPUT_HANDLER_CLEAN", data.NewIntValue(data.PHPOutputHandlerClean))
+	vm.SetConstant("PHP_OUTPUT_HANDLER_FLUSH", data.NewIntValue(data.PHPOutputHandlerFlush))
+	vm.SetConstant("PHP_OUTPUT_HANDLER_FINAL", data.NewIntValue(data.PHPOutputHandlerFinal))
+	vm.SetConstant("PHP_OUTPUT_HANDLER_CONT", data.NewIntValue(data.PHPOutputHandlerCont))
+	vm.SetConstant("PHP_OUTPUT_HANDLER_END", data.NewIntValue(data.PHPOutputHandlerEnd))
+	vm.SetConstant("PHP_OUTPUT_HANDLER_CLEANABLE", data.NewIntValue(data.PHPOutputHandlerCleanable))
+	vm.SetConstant("PHP_OUTPUT_HANDLER_FLUSHABLE", data.NewIntValue(data.PHPOutputHandlerFlushable))
+	vm.SetConstant("PHP_OUTPUT_HANDLER_REMOVABLE", data.NewIntValue(data.PHPOutputHandlerRemovable))
+	vm.SetConstant("PHP_OUTPUT_HANDLER_STDFLAGS", data.NewIntValue(data.PHPOutputHandlerStdFlags))
+	vm.SetConstant("PHP_OUTPUT_HANDLER_INTERNAL", data.NewIntValue(data.PHPOutputHandlerInternal))
+	vm.SetConstant("PHP_OUTPUT_HANDLER_USER", data.NewIntValue(data.PHPOutputHandlerUser))
+
 	// 注册核心类
 	vm.AddClass(&core.ClosureClass{})
 	vm.AddClass(&core.BackedEnumClass{})
@@ -510,6 +535,7 @@ func Load(vm data.VM) {
 	vm.AddClass(&reflection.ReflectionAttributeClass{})
 	vm.AddClass(&reflection.ReflectionTypeClass{})
 	vm.AddClass(&reflection.ReflectionNamedTypeClass{})
+	vm.AddClass(&reflection.ReflectionFunctionAbstractClass{})
 	vm.AddClass(&reflection.ReflectionFunctionClass{})
 
 	// 加载 SPL 扩展
@@ -739,11 +765,16 @@ func initPhpDefaultDefines(vm data.VM) {
 	// Filter constants
 	vm.SetConstant("FILE_APPEND", data.NewIntValue(8))
 	vm.SetConstant("FILE_USE_INCLUDE_PATH", data.NewIntValue(1))
+	vm.SetConstant("FILE_IGNORE_NEW_LINES", data.NewIntValue(2))
+	vm.SetConstant("FILE_SKIP_EMPTY_LINES", data.NewIntValue(4))
 	vm.SetConstant("FILTER_CALLBACK", data.NewIntValue(1024))
 	vm.SetConstant("FILTER_NULL_ON_FAILURE", data.NewIntValue(134217728))
 	vm.SetConstant("FILTER_REQUIRE_ARRAY", data.NewIntValue(8))
 	vm.SetConstant("FILTER_VALIDATE_BOOLEAN", data.NewIntValue(258))
 	vm.SetConstant("FILTER_VALIDATE_INT", data.NewIntValue(257))
+	vm.SetConstant("FILTER_VALIDATE_URL", data.NewIntValue(273))
+	vm.SetConstant("FILTER_VALIDATE_EMAIL", data.NewIntValue(274))
+	vm.SetConstant("FILTER_DEFAULT", data.NewIntValue(516))
 }
 
 func detectOS() (phpOS, phpOSFamily string) {

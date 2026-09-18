@@ -87,6 +87,14 @@ func (c *ReflectionClassClass) GetMethod(name string) (data.Method, bool) {
 		return &ReflectionClassIsInternalMethod{}, true
 	case "getStartLine":
 		return &ReflectionClassGetStartLineMethod{}, true
+	case "getEndLine":
+		return &ReflectionClassGetEndLineMethod{}, true
+	case "isAbstract":
+		return &ReflectionClassIsAbstractMethod{}, true
+	case "isInterface":
+		return &ReflectionClassIsInterfaceMethod{}, true
+	case "isTrait":
+		return &ReflectionClassIsTraitMethod{}, true
 	}
 	return nil, false
 }
@@ -117,6 +125,10 @@ func (c *ReflectionClassClass) GetMethods() []data.Method {
 		&ReflectionClassGetTraitsMethod{},
 		&ReflectionClassIsInternalMethod{},
 		&ReflectionClassGetStartLineMethod{},
+		&ReflectionClassGetEndLineMethod{},
+		&ReflectionClassIsAbstractMethod{},
+		&ReflectionClassIsInterfaceMethod{},
+		&ReflectionClassIsTraitMethod{},
 	}
 }
 

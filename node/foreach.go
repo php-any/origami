@@ -248,6 +248,7 @@ func (u *ForeachStatement) foreachIterator(ctx data.Context, array data.Iterator
 	}
 
 	for {
+		checkTimeLimit(u.GetFrom())
 		// valid
 		validV, ctl := array.Valid(ctx)
 		if ctl != nil {
@@ -395,22 +396,15 @@ func (u *ForeachStatement) foreachClassValue(ctx data.Context, array *data.Class
 		return nil, ctl
 	}
 	if isAggregate {
-		// 调用 getIterator() 获取真正的迭代器
+		// 调用 getIterator() 获取真正的迭代器。
+		// Go 加速的 Collection::getIterator 直接返回 items 数组，与 ...$agg 展开一致。
 		inner, ctl := callValueMethod(array, "getIterator")
 		if ctl != nil {
 			return nil, ctl
 		}
-		// 根据返回值类型分发处理
-		switch iter := inner.(type) {
-		case *data.ThisValue:
-			return u.foreachClassValue(ctx, iter.ClassValue)
-		case *data.ClassValue:
-			return u.foreachClassValue(ctx, iter)
-		case data.Iterator:
-			return u.foreachIterator(ctx, iter)
-		}
-		// getIterator 返回值不可迭代
-		return nil, data.NewErrorThrow(u.from, fmt.Errorf("getIterator() 必须返回一个可迭代的对象"))
+		nested := *u
+		nested.Array = inner
+		return nested.GetValue(ctx)
 	}
 
 	// 非 Iterator/IteratorAggregate 类实例则按对象属性遍历。

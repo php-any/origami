@@ -39,7 +39,9 @@ func (f *PrintRFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 直接输出
-	data.EmitOutput(ctx, str)
+	if c := data.EmitOutput(ctx, str); c != nil {
+		return nil, c
+	}
 	return data.NewBoolValue(true), nil
 }
 
@@ -161,7 +163,9 @@ func (f *PrintfFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if result == "" {
 		return data.NewIntValue(0), nil
 	}
-	data.EmitOutput(ctx, result)
+	if c := data.EmitOutput(ctx, result); c != nil {
+		return nil, c
+	}
 	return data.NewIntValue(len([]rune(result))), nil
 }
 
@@ -205,7 +209,9 @@ func (f *VprintfFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if result == "" {
 		return data.NewIntValue(0), nil
 	}
-	data.EmitOutput(ctx, result)
+	if c := data.EmitOutput(ctx, result); c != nil {
+		return nil, c
+	}
 	return data.NewIntValue(len([]rune(result))), nil
 }
 

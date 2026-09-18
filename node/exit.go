@@ -35,7 +35,9 @@ func (s *ExitStatement) GetValue(ctx data.Context) (data.GetValue, data.Control)
 					str = val.AsString()
 				}
 				if str != "" {
-					data.EmitOutput(ctx, str)
+					if c := data.EmitOutput(ctx, str); c != nil {
+						return nil, c
+					}
 				}
 			}
 		}
