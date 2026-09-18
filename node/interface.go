@@ -119,7 +119,7 @@ func (i *InterfaceStatement) GetStaticProperty(name string) (data.Value, bool) {
 		return v, true
 	}
 	if f, ok := i.StaticProperty.Load(name); ok {
-		return f.(data.Value), true
+		return data.CowRequestStatic(i.GetName(), name, f.(data.Value)), true
 	}
 	return nil, false
 }

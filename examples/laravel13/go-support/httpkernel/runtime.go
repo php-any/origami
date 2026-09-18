@@ -76,6 +76,7 @@ func Sandbox(ctx data.Context, kernel *data.ClassValue) *data.ClassValue {
 	}
 	syncProperties(cv, st)
 	bindSandboxContainer(ctx, st.app, st.router)
+	cloneRequestServices(ctx, st.app)
 	return cv
 }
 
@@ -99,6 +100,43 @@ func bindSandboxContainer(ctx data.Context, app, router data.Value) {
 	facade := data.NewClassValue(stmt, ctx)
 	_, _ = callObjectMethodInContext(ctx, facade, "clearResolvedInstances")
 	_, _ = callObjectMethodInContext(ctx, facade, "setFacadeApplication", app)
+}
+
+// cloneRequestServices 把每请求会往里 append 的共享单例换成 clone。
+// PHP clone：数组属性按值拷贝。否则 Dispatcher::$listeners / View composers
+// 跨请求膨胀，异常页 VarDumper 能把进程拖到十几秒甚至 OOM。
+func cloneRequestServices(ctx data.Context, app data.Value) {
+	if app == nil {
+		return
+	}
+	cloneAndBind(ctx, app, "events",
+		"Illuminate\\Events\\Dispatcher",
+		"Illuminate\\Contracts\\Events\\Dispatcher",
+	)
+	cloneAndBind(ctx, app, "view",
+		"Illuminate\\View\\Factory",
+		"Illuminate\\Contracts\\View\\Factory",
+	)
+	cloneAndBind(ctx, app, "url",
+		"Illuminate\\Routing\\UrlGenerator",
+		"Illuminate\\Contracts\\Routing\\UrlGenerator",
+	)
+}
+
+func cloneAndBind(ctx data.Context, app data.Value, abstract string, aliases ...string) {
+	raw, ctl := callObjectMethodInContext(ctx, app, "make", data.NewStringValue(abstract))
+	if ctl != nil {
+		return
+	}
+	cv, ok := asValue(raw).(*data.ClassValue)
+	if !ok || cv == nil {
+		return
+	}
+	cloned := cv.CloneSandbox(ctx)
+	_, _ = callObjectMethodInContext(ctx, app, "instance", data.NewStringValue(abstract), cloned)
+	for _, alias := range aliases {
+		_, _ = callObjectMethodInContext(ctx, app, "instance", data.NewStringValue(alias), cloned)
+	}
 }
 
 // Terminate 执行 Laravel 请求结束生命周期。

@@ -28,6 +28,7 @@ func NewVM(parser *parser.Parser) data.VM {
 	vm := &VM{
 		parser:       parser,
 		loadingFiles: make(map[string]chan struct{}),
+		loadingOwner: make(map[string]uint64),
 		out:          newOutputState(),
 		acl: func(acl data.Control) {
 			parser.ShowControl(acl)
@@ -62,6 +63,7 @@ type VM struct {
 
 	// loadingFiles 并发加载同一文件时，后续请求等待首个加载完成
 	loadingFiles map[string]chan struct{}
+	loadingOwner map[string]uint64 // 正在加载该文件的 goroutine id，用于同请求重入
 
 	acl func(acl data.Control)
 
@@ -150,31 +152,43 @@ func (vm *VM) ClearIncludeOnceCache() {
 }
 
 // beginPhpFileLoad 开始加载文件：
-// - alreadyLoaded：已在缓存中
+// - alreadyLoaded：已在缓存中，或当前 goroutine 正在加载（重入，不得自等）
 // - wait：其他 goroutine 正在加载，等待其完成后再重试
-// - finish：当前 goroutine 负责加载，完成后必须调用（无论成败）
+// - finish：当前 goroutine 负责加载，必须 defer 调用（panic/超时也不能漏）
 func (vm *VM) beginPhpFileLoad(file string) (alreadyLoaded bool, wait <-chan struct{}, finish func()) {
 	if _, ok := vm.phpFileCache.Load(file); ok {
 		return true, nil, nil
 	}
+	gid := goid()
 	vm.mu.Lock()
 	if _, ok := vm.phpFileCache.Load(file); ok {
 		vm.mu.Unlock()
 		return true, nil, nil
 	}
 	if ch, ok := vm.loadingFiles[file]; ok {
+		if vm.loadingOwner[file] == gid {
+			vm.mu.Unlock()
+			return true, nil, nil
+		}
 		vm.mu.Unlock()
 		return false, ch, nil
 	}
 	ch := make(chan struct{})
 	vm.loadingFiles[file] = ch
-	vm.mu.Unlock()
-	return false, nil, func() {
-		vm.mu.Lock()
-		delete(vm.loadingFiles, file)
-		close(ch)
-		vm.mu.Unlock()
+	if vm.loadingOwner == nil {
+		vm.loadingOwner = make(map[string]uint64)
 	}
+	vm.loadingOwner[file] = gid
+	vm.mu.Unlock()
+	return false, nil, sync.OnceFunc(func() {
+		vm.mu.Lock()
+		if cur, ok := vm.loadingFiles[file]; ok && cur == ch {
+			delete(vm.loadingFiles, file)
+			delete(vm.loadingOwner, file)
+			close(ch)
+		}
+		vm.mu.Unlock()
+	})
 }
 
 // WaitPhpFileLoad 若 file 正在被其他请求加载则阻塞等待；返回 true 表示加载结束后文件已在缓存中。
@@ -183,14 +197,19 @@ func (vm *VM) WaitPhpFileLoad(file string) bool {
 	if file == "" {
 		return false
 	}
+	gid := goid()
 	for {
 		if _, ok := vm.phpFileCache.Load(file); ok {
 			return true
 		}
 		vm.mu.Lock()
 		ch, loading := vm.loadingFiles[file]
+		owner := vm.loadingOwner[file]
 		vm.mu.Unlock()
 		if !loading {
+			return false
+		}
+		if owner == gid {
 			return false
 		}
 		<-ch
@@ -202,7 +221,11 @@ func (vm *VM) ClearPhpFileCache() {
 	syncMapClear(&vm.phpFileCache)
 	vm.ClearParsedFileCache()
 	vm.mu.Lock()
+	for _, ch := range vm.loadingFiles {
+		close(ch)
+	}
 	vm.loadingFiles = make(map[string]chan struct{})
+	vm.loadingOwner = make(map[string]uint64)
 	vm.mu.Unlock()
 }
 
@@ -644,9 +667,9 @@ func (vm *VM) RunCompiledFile(file string) (data.GetValue, data.Control) {
 			continue
 		}
 
+		defer finish()
 		fn, ok := syncMapLoad[func() (data.GetValue, []data.Variable)](&vm.compiledFiles, file)
 		if !ok {
-			finish()
 			return nil, utils.NewThrowf("run_php_file: 未找到预编译文件 %s", file)
 		}
 		program, vars := fn()
@@ -656,7 +679,6 @@ func (vm *VM) RunCompiledFile(file string) (data.GetValue, data.Control) {
 		if ctrl == nil {
 			vm.SetPhpFileCache(file)
 		}
-		finish()
 		return result, ctrl
 	}
 }
@@ -673,11 +695,11 @@ func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 			continue
 		}
 
+		defer finish()
 		data.ResetUserOutput()
 		t0 := perfmon.Now()
 		program, vars, acl := vm.ParseFileCached(file)
 		if acl != nil {
-			finish()
 			return nil, acl
 		}
 
@@ -689,7 +711,6 @@ func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 		if ctrl == nil {
 			vm.SetPhpFileCache(file)
 		}
-		finish()
 		return result, ctrl
 	}
 }
@@ -805,11 +826,11 @@ func (vm *VM) CompileLoad(file string) data.Control {
 			continue
 		}
 
+		defer finish()
 		_, _, acl := vm.ParseFileCached(file)
 		if acl == nil {
 			vm.SetPhpFileCache(file)
 		}
-		finish()
 		return acl
 	}
 }

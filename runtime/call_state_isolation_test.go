@@ -134,7 +134,7 @@ func TestContextPoolDoesNotMutateEscapedZVal(t *testing.T) {
 	next.ReleasePooled()
 }
 
-func TestTempVMAndSharedVMCallStacksDoNotMix(t *testing.T) {
+func TestTempVMUsesRequestCallStateDuringHTTP(t *testing.T) {
 	base := NewVM(parser.NewParser()).(*VM)
 	tmp := NewTempVM(base).(*TempVM)
 
@@ -143,13 +143,9 @@ func TestTempVMAndSharedVMCallStacksDoNotMix(t *testing.T) {
 
 	base.PushCallFrame(data.CallFrame{Function: "shared"})
 	defer base.PopCallFrame()
-	tmp.PushCallFrame(data.CallFrame{Function: "temp"})
-	defer tmp.PopCallFrame()
 
-	if got := tmp.SnapshotCallStack(); len(got) != 1 || got[0].Function != "temp" {
-		t.Fatalf("TempVM stack: %#v", got)
-	}
-	if got := base.SnapshotCallStack(); len(got) != 1 || got[0].Function != "shared" {
-		t.Fatalf("shared VM stack: %#v", got)
+	got := tmp.SnapshotCallStack()
+	if len(got) != 1 || got[0].Function != "shared" {
+		t.Fatalf("HTTP 请求内 TempVM 必须共用请求 CallState，否则超时检查落空: %#v", got)
 	}
 }

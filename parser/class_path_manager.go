@@ -376,14 +376,17 @@ func (m *DefaultClassPathManager) LoadClass(className string, parser *Parser) da
 		return data.TryErrorThrow(parser.newFrom(), fmt.Errorf("类 %s 不存在或无法加载", className))
 	}
 
-	// 文件已加载过时，若类/接口已注册则直接返回，避免重复解析
+	// 类/接口已注册则直接返回。文件仍在执行时也可以重入（A.php 加载 B、B 再引用 A），
+	// 绝不能 WaitPhpFileLoad 等到自己把通道关上——那会卡到请求 30s 超时。
+	if _, ok := parser.vm.GetClass(className); ok {
+		return nil
+	}
+	if _, ok := parser.vm.GetInterface(className); ok {
+		return nil
+	}
+
 	if parser.vm.GetPhpFileCache(filePath) {
-		if _, ok := parser.vm.GetClass(className); ok {
-			return nil
-		}
-		if _, ok := parser.vm.GetInterface(className); ok {
-			return nil
-		}
+		// 文件已执行完但没有这个符号，落到下面 LoadAndRun 会立刻返回，再报未找到。
 	} else if waiter, ok := parser.vm.(interface {
 		WaitPhpFileLoad(file string) bool
 	}); ok {
