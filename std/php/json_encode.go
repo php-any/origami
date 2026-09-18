@@ -9,6 +9,7 @@ import (
 	"github.com/php-any/origami/std/serializer/json"
 )
 
+// json_encode 对齐 PHP：只读遍历，不改写入参。JsonSerializable 的返回值写到拷贝上。
 func NewJsonEncodeFunction() data.FuncStmt {
 	return &JsonEncodeFunction{}
 }
@@ -124,7 +125,10 @@ func resolveJSONValue(ctx data.Context, value data.Value, visiting map[uintptr]b
 		}
 		visiting[ptr] = true
 		defer delete(visiting, ptr)
-		for i, z := range v.List {
+		// 必须拷贝后再写解析结果。就地替换会把 Livewire/视图共享数组改成 JSON 树，
+		// 下次再 encode 字符串套字符串，直到 OOM / 十几秒卡死。
+		cloned := data.CloneArrayValue(v)
+		for i, z := range cloned.List {
 			if z == nil {
 				continue
 			}
@@ -135,8 +139,9 @@ func resolveJSONValue(ctx data.Context, value data.Value, visiting map[uintptr]b
 			if jerr != JSON_ERROR_NONE {
 				return nil, jerr, nil
 			}
-			v.List[i] = data.NewNamedZVal(z.Name, nv)
+			cloned.List[i] = data.NewNamedZVal(z.Name, nv)
 		}
+		return cloned, JSON_ERROR_NONE, nil
 	case *data.ObjectValue:
 		ptr := uintptr(unsafe.Pointer(v))
 		if visiting[ptr] {
@@ -144,16 +149,25 @@ func resolveJSONValue(ctx data.Context, value data.Value, visiting map[uintptr]b
 		}
 		visiting[ptr] = true
 		defer delete(visiting, ptr)
-		for k, pv := range v.GetProperties() {
-			nv, jerr, ctl := resolveJSONValue(ctx, pv, visiting, depth+1)
-			if ctl != nil {
-				return nil, JSON_ERROR_NONE, ctl
+		cloned := data.NewObjectValue()
+		var jerr int
+		var ctl data.Control
+		v.RangeProperties(func(k string, pv data.Value) bool {
+			var nv data.Value
+			nv, jerr, ctl = resolveJSONValue(ctx, pv, visiting, depth+1)
+			if ctl != nil || jerr != JSON_ERROR_NONE {
+				return false
 			}
-			if jerr != JSON_ERROR_NONE {
-				return nil, jerr, nil
-			}
-			v.SetProperty(k, nv)
+			cloned.SetProperty(k, nv)
+			return true
+		})
+		if ctl != nil {
+			return nil, JSON_ERROR_NONE, ctl
 		}
+		if jerr != JSON_ERROR_NONE {
+			return nil, jerr, nil
+		}
+		return cloned, JSON_ERROR_NONE, nil
 	case *data.ClassValue:
 		ptr := uintptr(unsafe.Pointer(v))
 		if visiting[ptr] {

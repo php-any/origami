@@ -394,6 +394,10 @@ func (k *laravelHTTPKernel) serveMissingStaticAsset(w http.ResponseWriter, r *ht
 		return false
 	}
 	uri := path.Clean("/" + r.URL.Path)
+	if strings.HasPrefix(strings.ToLower(uri), "/.well-known/") {
+		http.NotFound(w, r)
+		return true
+	}
 	switch strings.ToLower(path.Base(uri)) {
 	case "favicon.ico", "robots.txt", "apple-touch-icon.png", "apple-touch-icon-precomposed.png":
 	default:

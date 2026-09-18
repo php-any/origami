@@ -78,3 +78,28 @@ func StoreRequestStatic(class, name string, v Value) bool {
 	slot.m.Store(next)
 	return true
 }
+
+// CowRequestStatic 请求 overlay 下第一次读到可变静态数组时拷贝进 overlay。
+// 否则 static::$arr[] = 会改进程级数组，而 static::$arr = [] 只写 overlay，
+// 下一请求又看到泄漏的全局栈（Livewire ExtendBlade::$livewireComponents）。
+func CowRequestStatic(class, name string, v Value) Value {
+	if v == nil || requestStaticActive.Load() == 0 || RequestGoid == nil {
+		return v
+	}
+	if _, ok := LoadRequestStatic(class, name); ok {
+		return v
+	}
+	var cloned Value
+	switch val := v.(type) {
+	case *ArrayValue:
+		cloned = CloneArrayValue(val)
+	case *ObjectValue:
+		cloned = CloneObjectValue(val)
+	default:
+		return v
+	}
+	if StoreRequestStatic(class, name, cloned) {
+		return cloned
+	}
+	return v
+}

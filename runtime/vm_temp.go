@@ -102,7 +102,6 @@ func (vm *TempVM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	if vm.Base.GetPhpFileCache(file) {
 		return nil, nil
 	}
-	vm.Base.SetPhpFileCache(file)
 
 	p := vm.PrepareParse(vm.Base.parser)
 
@@ -110,7 +109,11 @@ func (vm *TempVM) LoadAndRun(file string) (data.GetValue, data.Control) {
 	if acl != nil {
 		return nil, acl
 	}
-	return program.GetValue(vm.CreateContext(p.GetVariables()))
+	result, ctrl := program.GetValue(vm.CreateContext(p.GetVariables()))
+	if ctrl == nil {
+		vm.Base.SetPhpFileCache(file)
+	}
+	return result, ctrl
 }
 
 // LoadInCallerContext 在 TempVM 上解析并执行，保证请求级类/函数注册不泄漏到 Base。
@@ -382,24 +385,33 @@ func (vm *TempVM) RunShutdownCallbacks() {
 	vm.Base.RunShutdownCallbacks()
 }
 
+func (vm *TempVM) requestCall() *CallState {
+	if st := currentRequestCallState(); st != nil {
+		return st
+	}
+	return &vm.call
+}
+
 func (vm *TempVM) EnterCall() int {
-	return vm.call.Enter()
+	return vm.requestCall().Enter()
 }
 
 func (vm *TempVM) LeaveCall() {
-	vm.call.Leave()
+	st := vm.requestCall()
+	st.Leave()
+	releaseAutoCallState(st)
 }
 
 func (vm *TempVM) PushCallFrame(frame data.CallFrame) {
-	vm.call.Push(frame)
+	vm.requestCall().Push(frame)
 }
 
 func (vm *TempVM) PopCallFrame() {
-	vm.call.Pop()
+	vm.requestCall().Pop()
 }
 
 func (vm *TempVM) SnapshotCallStack() []data.CallFrame {
-	return vm.call.Snapshot()
+	return vm.requestCall().Snapshot()
 }
 
 // RegisterCompiledFile 注册预编译的文件 AST（委托给 Base VM）

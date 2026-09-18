@@ -2,6 +2,7 @@ package httpkernel
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/php-any/origami/data"
@@ -241,6 +242,7 @@ func kernelHandle(ctx data.Context) (data.GetValue, data.Control) {
 	// 否则 hasRenderedScripts 会跨请求残留，登录页第二次起不再输出 livewire.js，
 	// 表单退化成浏览器默认 GET。
 	flushLivewireState(ctx, s)
+	flushOnceHelper(ctx, s)
 
 	// 2) 绑定 request 到容器
 	_, ctl = callObjectMethodInContext(ctx, s.app, "instance", data.NewStringValue("request"), request)
@@ -293,6 +295,34 @@ func flushLivewireState(ctx data.Context, s *kernelState) {
 	}
 }
 
+// flushOnceHelper 对齐 Octane FlushOnce：Illuminate\Support\Once 用 WeakMap 挂在单例上，
+// 不 flush 则 Filament/异常页 frames() 等 once() 结果跨请求串态。
+func flushOnceHelper(ctx data.Context, s *kernelState) {
+	if ctx == nil {
+		return
+	}
+	vm := ctx.GetVM()
+	if vm == nil {
+		return
+	}
+	stmt, ctl := vm.GetOrLoadClass("Illuminate\\Support\\Once")
+	if ctl != nil || stmt == nil {
+		return
+	}
+	once := data.NewClassValue(stmt, ctx)
+	_, _ = callObjectMethodInContext(ctx, once, "flush")
+	if s == nil || s.app == nil {
+		return
+	}
+	vite, ctl := callObjectMethodInContext(ctx, s.app, "make", data.NewStringValue("Illuminate\\Foundation\\Vite"))
+	if ctl != nil {
+		return
+	}
+	if obj := asValue(vite); obj != nil {
+		_, _ = callObjectMethodInContext(ctx, obj, "flush")
+	}
+}
+
 // dispatchRequestHandled 派发 Illuminate\Foundation\Http\Events\RequestHandled 事件，
 // 对齐 Laravel Kernel::handle 在请求处理完成后的尾部行为。
 func dispatchRequestHandled(ctx data.Context, s *kernelState, request, response data.Value) {
@@ -329,10 +359,13 @@ const fqnExceptionHandler = "Illuminate\\Contracts\\Debug\\ExceptionHandler"
 
 // renderException 对齐 Foundation\Http\Kernel::reportException / renderException。
 func renderException(ctx data.Context, s *kernelState, request data.Value, thrown data.Control) (data.GetValue, data.Control) {
+	logHandleException(thrown)
 	exception, ok := exceptionFromControl(thrown)
 	if !ok || s.app == nil {
 		return nil, thrown
 	}
+
+	logHandleException(thrown)
 
 	handlerRet, ctl := callObjectMethodInContext(ctx, s.app, "make", data.NewStringValue(fqnExceptionHandler))
 	if ctl != nil {
@@ -362,6 +395,17 @@ func exceptionFromControl(ctl data.Control) (data.Value, bool) {
 		return tv.Object, true
 	}
 	return nil, false
+}
+
+func logHandleException(thrown data.Control) {
+	if thrown == nil {
+		return
+	}
+	msg := thrown.AsString()
+	if len(msg) > 400 {
+		msg = msg[:400]
+	}
+	fmt.Fprintf(os.Stderr, "origami Handle exception: %s\n", msg)
 }
 
 // fallbackExceptionResponse 在 Exception Handler 不可用时，尽量按 HttpException 状态码返回。

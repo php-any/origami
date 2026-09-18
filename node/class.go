@@ -459,7 +459,7 @@ func (c *ClassStatement) GetStaticProperty(name string) (data.Value, bool) {
 		return v, true
 	}
 	if f, ok := c.StaticProperty.Load(name); ok {
-		return f.(data.Value), true
+		return data.CowRequestStatic(c.GetName(), name, f.(data.Value)), true
 	}
 	// 惰性初始化：声明列表中存在但尚未求值的静态属性/常量。
 	// 前向引用（const A = [self::B]; const B = 1;）在求值 A 时会递归调用
@@ -468,7 +468,7 @@ func (c *ClassStatement) GetStaticProperty(name string) (data.Value, bool) {
 	if prop, ok := c.StaticProperties[name]; ok {
 		v, acl := c.initStaticProperty(prop)
 		if acl == nil && v != nil {
-			return v, true
+			return data.CowRequestStatic(c.GetName(), name, v), true
 		}
 	}
 	return nil, false
