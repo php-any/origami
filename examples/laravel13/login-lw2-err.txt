@@ -1,0 +1,2 @@
+
+Warning: Undefined array key "layoutConfig" in d:\gitcode.com\origami\examples\laravel13\vendor\laravel\framework\src\illuminate\view\view.php on line 425

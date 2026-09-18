@@ -1,0 +1,6 @@
+has_capture=yes
+direct_call="\n            <?php  = (function ($args) {\n                return function () use ($args) {\n                    extract($args, EXTR_SKIP);\n                    ob_start(); ?>\n        "
+DIRECT_BAD
+compiled="\n            <?php  = (function ($args) {\n                return function () use ($args) {\n                    extract($args, EXTR_SKIP);\n                    ob_start(); ?>\n        \n    <div><?php echo e($logo); ?></div>\n\n            <?php return new \\Illuminate\\Support\\HtmlString(ob_get_clean()); };\n                })(get_defined_vars()); ?>\n        "
+COMPILE_BAD
+raw_has=no

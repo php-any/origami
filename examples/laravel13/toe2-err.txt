@@ -1,0 +1,2 @@
+[diag] withVisibilityCache ret-type-fail-path ret=ret=FuncValue( typ=*node.LambdaExpression) retNil=true from=&{0x2304611fdc80 7238 7613 260 27 275 4}
+[diag] toEmbeddedHtml ret-type-fail-path ret=ret=FuncValue( typ=*node.LambdaExpression) retNil=false from=&{0x23045de06830 5534 5663 163 20 166 4}

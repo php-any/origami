@@ -1,0 +1,21 @@
+﻿handling
+.\laravel13.exe : 
+所在位置 C:\Users\User\AppData\Local\Temp\ps-script-5230fe9f-8287-4267-9903-e9b2da7fd48f.ps1:143 字符: 70
++ ... probe2.php; .\laravel13.exe run tests/origami/admin_http_probe2.php 2 ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Warning: Undefined array key "layoutConfig" in d:\gitcode.com\origami\examples\laravel13\vendor\laravel\framework\src\i
+lluminate\view\view.php on line 425
+
+In hash.go line 84:
+                                   
+  无法转换类型 *data.NullValue 到 string  
+                                   
+
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186

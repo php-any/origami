@@ -1,0 +1,9 @@
+﻿boot ok
+request ok
+hasMacro: d:\gitcode.com\origami\examples\laravel13\tests\origami\admin_catch_probe.php:11:
+bool(true)
+d:\gitcode.com\origami\examples\laravel13\tests\origami\admin_catch_probe.php:13:
+bool(false)
+http kernel ok
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186
+Deprecated: Using null as an array offset is deprecated, use an empty string instead in d:\gitcode.com\origami\examples\laravel13\vendor\symfony\var-dumper\caster\caster.php on line 186

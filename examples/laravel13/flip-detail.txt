@@ -1,0 +1,12 @@
+params_type=object
+params_json={"0":"view","1":"data"}
+is_array=yes
+count=2
+p[0]="view" type=string
+p[1]="data" type=string
+flip_type=array
+flip_json=[]
+flip_count=0
+data_keys=["view","data"]
+intersect_json=[]
+intersect_count=0

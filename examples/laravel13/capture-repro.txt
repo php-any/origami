@@ -1,0 +1,4 @@
+repro="\r\n                <?php $content = (function ($args) {\r\n                    return function ($logo, $isDarkMode = false) use ($args) {\r\n                        extract($args, EXTR_SKIP);\r\n                        ob_start(); ?>\r\n            "
+REPRO_OK
+fil_file=d:\gitcode.com\origami\examples\laravel13\vendor\ryangjchandler\blade-capture-directive\src\bladecapturedirectiveserviceprovider.php:18
+FIL_BAD

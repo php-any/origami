@@ -1,0 +1,3 @@
+﻿Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys
+openLoop ok
+closeLoop ok

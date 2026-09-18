@@ -1,0 +1,6 @@
+
+In capture_compare_probe.php line 11:
+               
+  不存在对应函数:$fn  
+               
+

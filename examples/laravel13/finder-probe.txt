@@ -1,0 +1,6 @@
+﻿iterator class: Generator
+is Iterator: yes
+is Traversable: yes
+has valid: yes
+direct iterator count: 56
+finder count: 56

@@ -1,0 +1,4 @@
+widget=App\Filament\Widgets\StatsOverviewWidget
+getStats EX: 对象属性访问表达式对象属性访问函数非公开
+schema=Filament\Schemas\Schema
+render_type=string len=0

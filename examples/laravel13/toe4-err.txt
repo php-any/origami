@@ -1,0 +1,23 @@
+[diag] CallMethod first-class FuncValue args=1
+[diag] CallMethod first-class FuncValue args=1
+[diag] CallMethod first-class FuncValue args=1
+[diag] CallMethod first-class FuncValue args=1
+[diag] lambda returns FuncValue name=""
+[diag] lambda returns FuncValue name=""
+[diag] lambda returns FuncValue name=""
+[diag] lambda returns FuncValue name=""
+[diag] lambda returns FuncValue name=""
+[diag] ClassMethod extractPublicMethods got ToClosure from stmt typ=*node.ForeachStatement
+[diag] ClassMethod extractPublicMethods got ToClosure from stmt typ=*node.ReturnStatement
+[diag] ClassMethod renderView got ToClosure from stmt typ=*node.BinaryAssign
+[diag] ClassMethod render got ToClosure from stmt typ=*node.ReturnStatement
+[diag] ClassMethod toHtml got ToClosure from stmt typ=*node.IfStatement
+[diag] Echo got ToClosure from expr typ=*node.CallObjectMethod
+[diag] ClassMethod toSchemaHtml got ToClosure from stmt typ=*node.IfStatement
+[diag] Echo got ToClosure from expr typ=*node.CallObjectMethod
+[diag] ClassMethod renderEmbeddedHtml got ToClosure from stmt typ=*node.ForeachStatement
+[diag] CallMethod ToClosure->FuncValue args=0
+[diag] withVisibilityCache ret-type-fail-path ret=ret=FuncValue( typ=*node.LambdaExpression) retNil=true from=&{0x3e32a62d8840 7238 7613 260 27 275 4}
+[diag] toEmbeddedHtml ret-type-fail-path ret=ret=FuncValue( typ=*node.LambdaExpression) retNil=false from=&{0x3e32a66cb6f0 5534 5663 163 20 166 4}
+[diag] lambda returns FuncValue name=""
+[diag] lambda returns FuncValue name=""

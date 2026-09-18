@@ -1,0 +1,10 @@
+
+In viewwatcher.php line 167:
+                                                   
+  当前值("null")不支持调用函数, 你调用的函数(implementsInterface)  
+                                                   
+
+status=200
+has_err=no
+len=9236
+DONE

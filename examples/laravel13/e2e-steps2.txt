@@ -1,0 +1,21 @@
+schema
+schema_type=array count=2
+mount_stats
+stats_len=11659
+mount_orders
+orders_len=41917
+mount_dashboard
+dash_len=3392
+dash_has=yes
+http_admin
+
+In collection.php line 77:
+                                                                  
+  方法 Illuminate\Database\Eloquent\Collection::all 调用深度超过限制(2501)  
+                                                                  
+
+status=200
+len=25615
+markers=yes
+head= Origami Admin [x-cloak=''], [x-cloak='x-cloak'], [x-cloak='1'] { display: none !important; } [x-cloak='inline-flex'] { display: inline-flex !important; } @media (max-width: 1023px) { [x-cloak='-lg'] 
+DONE

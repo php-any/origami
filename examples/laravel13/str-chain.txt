@@ -1,0 +1,16 @@
+contains=yes
+of_class=Illuminate\Support\Stringable
+of_str=$content, $logo, $isDarkMode = false
+trim_str=$content, $logo, $isDarkMode = false
+explode_class=Illuminate\Support\Collection
+explode_all=["$content"," $logo, $isDarkMode = false"]
+explode_count=2
+map_class=Illuminate\Support\Collection
+map_all={"0":"$content","1":"$logo, $isDarkMode = false"}
+map_count=2
+toArray={"0":"$content","1":"$logo, $isDarkMode = false"} gettype=object is_array=yes
+count=2
+a[0]="$content"
+a[1]="$logo, $isDarkMode = false"
+destruct name=null args=null
+literal destruct="$content","$logo, $isDarkMode = false"

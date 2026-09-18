@@ -1,0 +1,7 @@
+auth_ok
+getWidgets EX: Method App\Filament\Pages\Dashboard::getWidgets does not exist.
+mount_stats
+stats_len=1002
+mount_dashboard
+dash_len=699
+DONE

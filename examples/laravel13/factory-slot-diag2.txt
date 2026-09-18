@@ -1,0 +1,1 @@
+stack_count_before_pop=1

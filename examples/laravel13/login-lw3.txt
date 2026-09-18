@@ -1,0 +1,6 @@
+view class=Illuminate\View\View
+len=0
+head=
+has_div=no
+has_wire=no
+DONE

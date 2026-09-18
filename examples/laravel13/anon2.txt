@@ -1,0 +1,6 @@
+exists=yes
+class=Illuminate\View\AnonymousComponent
+view_prop="filament-panels::components.page.simple"
+data_prop=[]
+render="filament-panels::components.page.simple"
+resolveView="filament-panels::components.page.simple"

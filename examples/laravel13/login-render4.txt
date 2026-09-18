@@ -1,0 +1,15 @@
+﻿.\laravel13.exe : 
+所在位置 C:\Users\User\AppData\Local\Temp\ps-script-0ecfc6c5-9da8-43d1-a50d-ae619883a2c4.ps1:144 字符: 71
++ ... _probe.php; .\laravel13.exe run tests/origami/login_render_probe.php  ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Warning: Undefined array key "layoutConfig" in d:\gitcode.com\origami\examples\laravel13\vendor\laravel\framework\src\i
+lluminate\view\view.php on line 425
+
+In n/a line 1:
+                                                                             
+  类 LivewireFeaturesSupportCompiledWireKeysSupportCompiledWireKeys 不存在或无法加载  
+                                                                             
+

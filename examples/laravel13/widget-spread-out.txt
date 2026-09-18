@@ -1,0 +1,10 @@
+step1 support collection spread
+support_ok count=2
+step2 eloquent collection spread
+eloquent_ok count=0
+step3 eloquent all()
+all_ok type=array
+step4 widget default properties
+props_type=array
+props_spread_ok count=1
+DONE

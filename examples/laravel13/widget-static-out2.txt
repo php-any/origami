@@ -1,0 +1,5 @@
+widget=App\Filament\Widgets\StatsOverviewWidget
+props={"lazy":true} type=array
+merged=[true]
+null_data EX: 展开运算符只能用于数组或 Traversable，收到: *data.NullValue
+DONE

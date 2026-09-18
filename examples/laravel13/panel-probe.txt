@@ -1,0 +1,10 @@
+﻿
+In hascomponents.php line 527:
+                                                             
+  类(RecursiveDirectoryIterator)不存在对应函数(getRelativePathname)  
+                                                             
+
+AdminPanelProvider loaded: yes
+panel error: 当前值("null")不支持调用函数, 你调用的函数(getId)
+admin-ish routes: 1
+GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS login
