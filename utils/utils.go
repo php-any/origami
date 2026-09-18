@@ -72,6 +72,10 @@ func convertValue[S any](v data.Value) (S, error) {
 	case *data.ArrayValue:
 		return convertFromArrayValue[S](val)
 
+	case *data.NullValue:
+		// PHP 标量参数：null 按类型强制转换（string→""、int→0、bool→false）
+		return convertFromNullValue[S]()
+
 	default:
 		// 尝试直接类型断言
 		if converted, ok := any(v).(S); ok {
@@ -79,6 +83,41 @@ func convertValue[S any](v data.Value) (S, error) {
 		}
 		return result, fmt.Errorf("不支持的值类型: %T", v)
 	}
+}
+
+func convertFromNullValue[S any]() (S, error) {
+	var result S
+	switch any(result).(type) {
+	case string:
+		return any("").(S), nil
+	case bool:
+		return any(false).(S), nil
+	case int:
+		return any(0).(S), nil
+	case int8:
+		return any(int8(0)).(S), nil
+	case int16:
+		return any(int16(0)).(S), nil
+	case int32:
+		return any(int32(0)).(S), nil
+	case int64:
+		return any(int64(0)).(S), nil
+	case uint:
+		return any(uint(0)).(S), nil
+	case uint8:
+		return any(uint8(0)).(S), nil
+	case uint16:
+		return any(uint16(0)).(S), nil
+	case uint32:
+		return any(uint32(0)).(S), nil
+	case uint64:
+		return any(uint64(0)).(S), nil
+	case float32:
+		return any(float32(0)).(S), nil
+	case float64:
+		return any(float64(0)).(S), nil
+	}
+	return result, fmt.Errorf("无法转换类型 *data.NullValue 到 %T", result)
 }
 
 // convertFromIntValue 从 IntValue 转换

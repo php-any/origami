@@ -11,6 +11,7 @@ import (
 // ReflectionMethod 用于获取方法的信息，包括方法名、参数、修饰符等
 type ReflectionMethodClass struct {
 	node.Node
+	StaticProperty map[string]data.Value
 }
 
 // GetValue 创建 ReflectionMethod 的实例
@@ -21,8 +22,8 @@ func (c *ReflectionMethodClass) GetValue(ctx data.Context) (data.GetValue, data.
 // GetName 返回类名 "ReflectionMethod"
 func (c *ReflectionMethodClass) GetName() string { return "ReflectionMethod" }
 
-// GetExtend 返回父类名，ReflectionMethod 没有父类
-func (c *ReflectionMethodClass) GetExtend() *string { return nil }
+// GetExtend 对齐 PHP：ReflectionMethod extends ReflectionFunctionAbstract
+func (c *ReflectionMethodClass) GetExtend() *string { return reflectionFunctionAbstractParent() }
 
 // GetImplements 返回实现的接口列表，ReflectionMethod 不实现任何接口
 func (c *ReflectionMethodClass) GetImplements() []string { return nil }
@@ -35,6 +36,27 @@ func (c *ReflectionMethodClass) GetProperty(name string) (data.Property, bool) {
 // GetPropertyList 获取属性列表，ReflectionMethod 没有属性
 func (c *ReflectionMethodClass) GetPropertyList() []data.Property {
 	return nil
+}
+
+// GetStaticProperty 返回 ReflectionMethod 修饰符常量（PHP ReflectionMethod::IS_*）
+func (c *ReflectionMethodClass) GetStaticProperty(name string) (data.Value, bool) {
+	if c.StaticProperty == nil {
+		c.StaticProperty = reflectionMethodConstants()
+	}
+	v, ok := c.StaticProperty[name]
+	return v, ok
+}
+
+func reflectionMethodConstants() map[string]data.Value {
+	return map[string]data.Value{
+		"IS_STATIC":     data.NewIntValue(16),
+		"IS_PUBLIC":     data.NewIntValue(1),
+		"IS_PROTECTED":  data.NewIntValue(2),
+		"IS_PRIVATE":    data.NewIntValue(4),
+		"IS_ABSTRACT":   data.NewIntValue(64),
+		"IS_FINAL":      data.NewIntValue(32),
+		"IS_DEPRECATED": data.NewIntValue(262144),
+	}
 }
 
 // GetMethod 根据方法名获取方法
@@ -112,9 +134,19 @@ type ReflectionMethodValue struct {
 func newReflectionMethod(ctx data.Context, className, methodName string) *data.ClassValue {
 	methodClass := &ReflectionMethodClass{}
 	methodValue := data.NewClassValue(methodClass, ctx.CreateBaseContext())
+	setReflectionMethodIdentity(methodValue, className, methodName)
+	return methodValue
+}
+
+func setReflectionMethodIdentity(methodValue *data.ClassValue, className, methodName string) {
+	if methodValue == nil || methodValue.ObjectValue == nil {
+		return
+	}
 	methodValue.ObjectValue.SetProperty("_className", data.NewStringValue(className))
 	methodValue.ObjectValue.SetProperty("_methodName", data.NewStringValue(methodName))
-	return methodValue
+	// PHP ReflectionMethod 公开属性：name / class
+	methodValue.ObjectValue.SetProperty("name", data.NewStringValue(methodName))
+	methodValue.ObjectValue.SetProperty("class", data.NewStringValue(className))
 }
 
 // getReflectionMethodInfo 从上下文中获取 ReflectionMethod 的方法信息

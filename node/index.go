@@ -489,9 +489,12 @@ func (ie *IndexExpression) GetOrCreateZVal(ctx data.Context) (*data.ZVal, data.C
 	switch v := temp.(type) {
 	case *data.ArrayValue:
 		if ie.Append {
-			v.List = append(v.List, data.NewZVal(data.NewNullValue()))
+			zv := v.AppendSlot(data.NewNullValue())
 			writeBackArrayProperty(ctx, ie.Array, v)
-			return v.List[len(v.List)-1], nil
+			if zv == nil {
+				zv = data.NewZVal(data.NewNullValue())
+			}
+			return zv, nil
 		}
 		if _, isNull := index.(*data.NullValue); isNull {
 			emitNullOffsetDeprecation(ie.GetFrom())
@@ -538,6 +541,28 @@ func (ie *IndexExpression) GetOrCreateZVal(ctx data.Context) (*data.ZVal, data.C
 	return ie.GetZVal(ctx)
 }
 
+func unwrapIndexAssignTarget(v data.GetValue) data.GetValue {
+	for i := 0; i < 8 && v != nil; i++ {
+		switch t := v.(type) {
+		case *data.ZValValue:
+			if t.ZVal != nil && t.ZVal.Value != nil {
+				v = t.ZVal.Value
+				continue
+			}
+		case *data.ReferenceValue:
+			if t.Val != nil && t.Ctx != nil {
+				inner, _ := t.Val.GetValue(t.Ctx)
+				if inner != nil {
+					v = inner
+					continue
+				}
+			}
+		}
+		break
+	}
+	return v
+}
+
 func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Control {
 	indexVal, acl := ie.Index.GetValue(ctx)
 	if acl != nil {
@@ -563,6 +588,10 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 	}
 	if arrayVal == nil {
 		arrayVal, arrayAcl = ie.Array.GetValue(ctx)
+	}
+	arrayVal = unwrapIndexAssignTarget(arrayVal)
+	if arrayVal == nil {
+		arrayVal = data.NewNullValue()
 	}
 	if arrayAcl != nil {
 		// 在赋值语境下，未定义索引（UndefinedIndexExpression）应视为 null，
@@ -660,7 +689,7 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 		arr = cowSeparateNestedArray(ie.Array, arr).(*data.ArrayValue)
 		// 数组索引赋值
 		if ie.Append {
-			arr.List = append(arr.List, data.NewZVal(value))
+			arr.AppendValue(value)
 			writeBackArrayProperty(ctx, ie.Array, arr)
 			return nil
 		}
@@ -827,7 +856,7 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 		return sub.SetValue(arr.Ctx, value)
 
 	default:
-		return data.NewErrorThrow(ie.GetFrom(), errors.New("无法设置索引表达式的值"))
+		return data.NewErrorThrow(ie.GetFrom(), fmt.Errorf("无法设置索引表达式的值: %T", arrayVal))
 	}
 }
 
@@ -1000,7 +1029,7 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			if i < 0 || i >= len(v.Value) {
 				return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("字符串索引超出范围"))
 			}
-			return data.NewStringValue(string(v.Value[i])), nil
+			return data.NewByteStringValue(v.Value[i]), nil
 		} else {
 			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("字符串无法处理非int值"))
 		}
@@ -1126,7 +1155,7 @@ func setIndexOnContainer(ctx data.Context, container data.GetValue, indexExpr da
 	switch arr := container.(type) {
 	case *data.ArrayValue:
 		if appendIndex {
-			arr.List = append(arr.List, data.NewZVal(value))
+			arr.AppendValue(value)
 			return nil
 		}
 		if _, isNull := indexVal.(*data.NullValue); isNull {
@@ -1327,7 +1356,7 @@ func indexSetValueOnContainer(ctx data.Context, ie *IndexExpression, container d
 	switch arr := container.(type) {
 	case *data.ArrayValue:
 		if ie.Append {
-			arr.List = append(arr.List, data.NewZVal(value))
+			arr.AppendValue(value)
 			writeBackArrayProperty(ctx, ie.Array, arr)
 			return nil
 		}

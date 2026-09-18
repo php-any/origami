@@ -100,13 +100,16 @@ func (m *ReflectionMethodInvokeMethod) Call(ctx data.Context) (data.GetValue, da
 	if hasTarget && targetValue != nil {
 		if objCtx, ok := targetValue.(data.Context); ok {
 			fnCtx = objCtx.CreateContext(varies)
+			data.PreferVM(fnCtx, ctx, objCtx)
 		} else {
 			fnCtx = ctx.CreateContext(varies)
+			data.PreferVM(fnCtx, ctx)
 		}
 	} else {
 		// Static method call: create class context so self:: resolves correctly
 		classVal := data.NewClassValue(stmt, ctx.CreateBaseContext())
 		fnCtx = classVal.CreateContext(varies)
+		data.PreferVM(fnCtx, ctx, classVal)
 	}
 
 	callArgs := ctx.GetCallArgs()

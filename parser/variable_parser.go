@@ -97,9 +97,13 @@ func (vp *VariableParser) parseVariable() data.Variable {
 	// 查找变量索引
 	varInfo := vp.scopeManager.LookupVariable(name)
 	if varInfo == nil {
-		// 如果变量不存在，在当前作用域中创建它
-		val := vp.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
-		varInfo = node.NewVariableWithFirst(tracker.EndBefore(), val)
+		// 箭头/lambda：从外层作用域捕获自由变量（含嵌套箭头捕获方法参数）
+		if captured := vp.scopeManager.CaptureFromEnclosing(name, tracker.EndBefore()); captured != nil {
+			varInfo = captured
+		} else {
+			// 如果变量不存在，在当前作用域中创建它
+			varInfo = vp.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
+		}
 	}
 
 	// 创建变量表达式

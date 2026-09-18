@@ -1,6 +1,8 @@
 package core
 
 import (
+	"strings"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -48,7 +50,23 @@ func (c *BackedEnumClass) GetName() string { return "BackedEnum" }
 func (c *BackedEnumClass) GetExtend() *string        { return nil }
 func (c *BackedEnumClass) GetImplements() []string   { return nil }
 func (c *BackedEnumClass) GetConstruct() data.Method { c.ensureInit(); return c.ctor }
-func (c *BackedEnumClass) GetMethods() []data.Method { c.ensureInit(); return []data.Method{c.ctor} }
+func (c *BackedEnumClass) GetMethods() []data.Method {
+	c.ensureInit()
+	return []data.Method{c.ctor, backedEnumTryFromMethod, backedEnumFromMethod, backedEnumCasesMethod}
+}
+
+// GetStaticMethod 提供 PHP BackedEnum::tryFrom / from 与 UnitEnum::cases。
+func (c *BackedEnumClass) GetStaticMethod(name string) (data.Method, bool) {
+	switch strings.ToLower(name) {
+	case "tryfrom":
+		return backedEnumTryFromMethod, true
+	case "from":
+		return backedEnumFromMethod, true
+	case "cases":
+		return backedEnumCasesMethod, true
+	}
+	return nil, false
+}
 func (c *BackedEnumClass) GetPropertyList() []data.Property {
 	c.ensureInit()
 	return []data.Property{c.valueProp}

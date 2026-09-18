@@ -282,14 +282,8 @@ func (f *ArrayFilterFunction) callCallback(ctx data.Context, fn *data.FuncValue,
 	// - 对于普通函数，slots 数量与形参一致
 	// - 对于 LambdaExpression，slots 覆盖所有 f.vars（参数 + use 捕获变量），
 	//   这样在 Lambda.Call 中通过 ctx.GetIndexZVal(i) 拷贝参数时不会越界。
-	vars := fn.Value.GetVariables()
-	callCtx := ctx.CreateContext(vars)
-	for i := range args {
-		if i >= len(vars) {
-			break
-		}
-		callCtx.SetIndexZVal(i, data.NewZVal(args[i]))
-	}
+	callCtx := ctx.CreateContext(fn.Value.GetVariables())
+	data.BindDeclaredArgs(callCtx, fn.Value, args)
 	ret, ctl := fn.Call(callCtx)
 	if ctl != nil {
 		return nil, ctl

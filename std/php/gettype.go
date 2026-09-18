@@ -44,7 +44,8 @@ func (f *GettypeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	case *data.IntValue:
 		tp = "int"
 	case *data.ObjectValue:
-		tp = "object"
+		// Origami 用 ObjectValue 表示关联数组；PHP gettype 仍为 "array"
+		tp = "array"
 	case *data.StringValue:
 		tp = "string"
 	case *data.NullValue:

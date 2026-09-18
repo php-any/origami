@@ -17,6 +17,8 @@ var iniDefaults = map[string]string{
 	"serialize_precision":      "-1",
 	"memory_limit":             "128M",
 	"max_memory_limit":         "-1",
+	// PHP CLI 默认 0（不限）；HTTP SAPI 默认 30，由 serve 在每个请求里覆盖。
+	"max_execution_time":       "0",
 	"post_max_size":            "8M",
 	"upload_max_filesize":      "2M",
 	"max_file_uploads":         "20",

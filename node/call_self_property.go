@@ -133,15 +133,11 @@ func (pe *CallSelfProperty) SetProperty(ctx data.Context, name string, value dat
 		return data.NewErrorThrow(pe.GetFrom(), errors.New("self:: 只能在类方法中使用"))
 	}
 
-	switch c := currentClass.(type) {
-	case *ClassStatement:
-		c.StaticProperty.Store(name, value)
+	if storeClassStatic(currentClass, name, value) {
 		return nil
-	case *ClassGeneric:
-		c.StaticProperty.Store(name, value)
-		return nil
-	case data.SetProperty:
-		return c.SetProperty(name, value)
+	}
+	if sp, ok := currentClass.(data.SetProperty); ok {
+		return sp.SetProperty(name, value)
 	}
 	cname := currentClass.GetName()
 	return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("类(%s)没有静态属性(%s)", cname, pe.Property))

@@ -143,6 +143,10 @@ func loadClassOrInterfaceForInstanceof(ctx data.Context, class string) (data.Get
 }
 
 func instanceof(ctx data.Context, class string, objectValue data.GetValue) (data.GetValue, data.Control) {
+	if tv, ok := objectValue.(*data.ThrowValue); ok && tv.Object != nil {
+		objectValue = tv.Object
+	}
+
 	// 检查对象值是否为类实例
 	if classValue, ok := objectValue.(*data.ClassValue); ok {
 		c, acl := loadClassOrInterfaceForInstanceof(ctx, class)

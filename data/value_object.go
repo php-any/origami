@@ -95,6 +95,7 @@ type ObjectValue struct {
 	iterator int // 迭代器当前位置索引
 	// IndirectOverloadClass 非空表示该对象来自 ArrayAccess::offsetGet 的副本
 	IndirectOverloadClass string
+	rc                    int // 指向该容器的 zval 数（copy-on-write）
 }
 
 func (o *ObjectValue) GoContext() context.Context {
@@ -160,15 +161,11 @@ func (o *ObjectValue) UnsetProperty(name string) {
 }
 
 func (o *ObjectValue) SetProperty(name string, value Value) Control {
-	// 为了更贴近 PHP 数组的 copy-on-write 语义，当属性值是数组时存储一个克隆，
-	// 避免多个属性/变量共享同一个 ArrayValue 实例，被 array_shift/array_pop 等原地修改时互相影响。
-	switch arr := value.(type) {
-	case *ArrayValue:
-		value = CloneArrayValue(arr)
-	case *ObjectValue:
-		value = CloneObjectValue(arr)
+	if zv, ok := o.property.GetZVal(name); ok && zv != nil {
+		CowAssign(zv, value)
+		return nil
 	}
-	o.property.Set(name, value)
+	o.property.Set(name, CowAddRef(value))
 	return nil
 }
 

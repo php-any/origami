@@ -25,9 +25,26 @@ func (i *IssetStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	for _, argExpr := range i.Args {
+		// PHP：isset($this) 在无对象上下文（如 static 闭包）中为 false，不抛错。
+		if _, ok := argExpr.(*This); ok {
+			if !issetThisAvailable(ctx) {
+				return data.NewBoolValue(false), nil
+			}
+			continue
+		}
 		if ie, ok := argExpr.(*IndexExpression); ok {
 			if isSet, handled := issetIndexExpression(ctx, ie); handled {
 				if !isSet {
+					return data.NewBoolValue(false), nil
+				}
+				continue
+			}
+		}
+		// PHP：isset($obj->prop) 调用 __isset（若有），绝不调用 __get。
+		// 否则会像 View::__get 那样触发 Undefined array key Warning。
+		if cop, ok := argExpr.(*CallObjectProperty); ok {
+			if exists, handled := coalesceObjectPropertyExists(ctx, cop); handled {
+				if !exists {
 					return data.NewBoolValue(false), nil
 				}
 				continue
@@ -55,6 +72,32 @@ func (i *IssetStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	return data.NewBoolValue(true), nil
+}
+
+// issetThisAvailable 判断当前上下文是否有可用的 $this。
+func issetThisAvailable(ctx data.Context) bool {
+	if classCtx, ok := ctx.(*data.ClassMethodContext); ok && classCtx.ObjectValue != nil {
+		return true
+	}
+	if bc, ok := ctx.(*data.BoundContext); ok && bc.BoundThis != nil {
+		return true
+	}
+	for c := ctx; c != nil; {
+		switch v := c.(type) {
+		case *data.BoundContext:
+			if v.BoundThis != nil {
+				return true
+			}
+			c = v.Context
+		case *data.ClassMethodContext:
+			return v.ObjectValue != nil
+		case *data.ClassValue:
+			c = v.Context
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // isSetViaOffsetExists 对实现了 ArrayAccess 的对象使用 offsetExists 检查
@@ -178,7 +221,7 @@ func issetOnContainer(container data.GetValue, index data.GetValue) (isSet bool,
 		case *data.StringValue:
 			for _, z := range arr.List {
 				if z != nil && z.Name == iv.Value {
-					return z.Value != nil, true
+					return issetNonNullValue(z.Value), true
 				}
 			}
 			return false, true
@@ -188,8 +231,20 @@ func issetOnContainer(container data.GetValue, index data.GetValue) (isSet bool,
 				return false, true
 			}
 			z, _ := arr.FindSlotByIntKey(i)
-			return z != nil && z.Value != nil, true
+			if z == nil {
+				return false, true
+			}
+			return issetNonNullValue(z.Value), true
 		}
+		if key, ok := indexKeyString(index); ok {
+			for _, z := range arr.List {
+				if z != nil && z.Name == key {
+					return issetNonNullValue(z.Value), true
+				}
+			}
+			return false, true
+		}
+		return false, true
 	case *data.ObjectValue:
 		key, ok := indexKeyString(index)
 		if !ok {
@@ -217,6 +272,14 @@ func issetOnContainer(container data.GetValue, index data.GetValue) (isSet bool,
 		return val != nil && !isNull, true
 	}
 	return false, false
+}
+
+func issetNonNullValue(v data.Value) bool {
+	if v == nil {
+		return false
+	}
+	_, isNull := v.(*data.NullValue)
+	return !isNull
 }
 
 func readIndexNoWarn(container data.GetValue, index data.GetValue) (data.GetValue, bool) {
@@ -367,15 +430,15 @@ func indexKeyExistsOnContainer(container data.GetValue, index data.GetValue) boo
 		}
 		return false
 	case *data.ArrayValue:
-		switch iv := index.(type) {
-		case *data.StringValue:
-			for _, z := range arr.List {
-				if z != nil && z.Name == iv.Value {
-					return true
-				}
+		if key, ok := indexKeyString(index); ok {
+			if _, found := arr.LookupZValByStringKey(key); found {
+				return true
 			}
+		}
+		if _, isStr := index.(*data.StringValue); isStr {
 			return false
-		case data.AsInt:
+		}
+		if iv, ok := index.(data.AsInt); ok {
 			i, err := iv.AsInt()
 			if err != nil {
 				return false
@@ -383,13 +446,13 @@ func indexKeyExistsOnContainer(container data.GetValue, index data.GetValue) boo
 			z, _ := arr.FindSlotByIntKey(i)
 			return z != nil
 		}
+		return false
 	case *data.ObjectValue:
 		key, ok := indexKeyString(index)
 		if !ok {
 			return false
 		}
-		_, acl := arr.GetProperty(key)
-		return acl == nil
+		return arr.HasProperty(key)
 	case data.GetProperty:
 		if _, ok := arr.(*data.StringValue); ok {
 			return false
@@ -397,6 +460,9 @@ func indexKeyExistsOnContainer(container data.GetValue, index data.GetValue) boo
 		key, ok := indexKeyString(index)
 		if !ok {
 			return false
+		}
+		if hp, ok := arr.(interface{ HasProperty(string) bool }); ok {
+			return hp.HasProperty(key)
 		}
 		_, acl := arr.GetProperty(key)
 		return acl == nil

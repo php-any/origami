@@ -37,16 +37,18 @@ func TestVMFullOutputBufferMethods(t *testing.T) {
 		t.Fatalf("after clean level = %d, want 1", n)
 	}
 
-	// ob_flush 等价：弹出写出到上层，再压入空缓冲（层级保持不变）。
+	// ob_flush：原位清空栈顶并把内容冒泡到上一层，层级与 handler 保持不变。
 	vm.WriteOutput("data")
 	vm.StartOutputBuffer() // level 2
 	vm.WriteOutput("inner")
-	if _, ok := vm.FlushOutputBuffer(); !ok {
-		t.Fatalf("FlushOutputBuffer returned not ok")
+	if _, ok := vm.FlushCurrentBuffer(); !ok {
+		t.Fatalf("FlushCurrentBuffer returned not ok")
 	}
-	vm.StartOutputBuffer() // 还原 level 2
 	if n := vm.OutputBufferLevel(); n != 2 {
-		t.Fatalf("after flush level = %d, want 2", n)
+		t.Fatalf("after flush-current level = %d, want 2", n)
+	}
+	if c, _ := vm.OutputBufferContents(); c != "" {
+		t.Fatalf("after flush-current top should be empty, got %q", c)
 	}
 
 	// ob_get_status
@@ -84,7 +86,7 @@ func TestVMFullOutputBufferMethods(t *testing.T) {
 	if n := vm.OutputBufferLevel(); n != 0 {
 		t.Fatalf("final level = %d, want 0", n)
 	}
-	if vm.hasOutputBuffer.Load() {
+	if vm.out.has.Load() {
 		t.Fatalf("hasOutputBuffer flag should be false after all popped")
 	}
 }
@@ -92,17 +94,17 @@ func TestVMFullOutputBufferMethods(t *testing.T) {
 // TestVMFastPathNoBuffer 验证无缓冲时 WriteOutput 走零锁快速路径且标记正确。
 func TestVMFastPathNoBuffer(t *testing.T) {
 	vm := NewVM(parser.NewParser()).(*VM)
-	if vm.hasOutputBuffer.Load() {
+	if vm.out.has.Load() {
 		t.Fatalf("initial hasOutputBuffer should be false")
 	}
 	// 直接输出（无缓冲）不应 panic。
 	vm.WriteOutput("no-buffer")
 	vm.StartOutputBuffer()
-	if !vm.hasOutputBuffer.Load() {
+	if !vm.out.has.Load() {
 		t.Fatalf("hasOutputBuffer should be true after start")
 	}
 	vm.CleanOutputBuffer()
-	if vm.hasOutputBuffer.Load() {
+	if vm.out.has.Load() {
 		t.Fatalf("hasOutputBuffer should be false after clean")
 	}
 }

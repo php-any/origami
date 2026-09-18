@@ -4,36 +4,47 @@ import (
 	"github.com/php-any/origami/data"
 )
 
+func setReflectionClassIdentity(classValue *data.ClassValue, className string) {
+	if classValue == nil || classValue.ObjectValue == nil {
+		return
+	}
+	s := data.NewStringValue(className)
+	classValue.ObjectValue.SetProperty("_className", s)
+	// PHP ReflectionClass 公开属性 $name
+	classValue.ObjectValue.SetProperty("name", s)
+}
+
+func newReflectionClassValue(ctx data.Context, className string) *data.ClassValue {
+	classValue := data.NewClassValue(&ReflectionClassClass{}, ctx.CreateBaseContext())
+	setReflectionClassIdentity(classValue, className)
+	return classValue
+}
+
 // getReflectionClassInfo 从上下文中获取 ReflectionClass 的类信息
-// 该函数从 ReflectionClass 实例的 _className 属性中获取被反射的类名，
+// 该函数从 ReflectionClass 实例的 _className / name 属性中获取被反射的类名，
 // 然后从 VM 中加载对应的类语句
-//
-// 参数:
-//   - ctx: 运行时上下文
-//
-// 返回:
-//   - string: 类名，如果获取失败则返回空字符串
-//   - data.ClassStmt: 类语句对象，如果获取失败则返回 nil
 func getReflectionClassInfo(ctx data.Context) (string, data.ClassStmt) {
-	if objCtx, ok := ctx.(*data.ClassMethodContext); ok {
-		// 从 ObjectValue 的 property 中获取类名（实例属性）
-		// 使用 ObjectValue.GetProperty 来获取实例属性，而不是 ClassValue.GetProperty
-		classNameVal, _ := objCtx.ObjectValue.GetProperty("_className")
-		if strVal, ok := classNameVal.(*data.StringValue); ok {
-			className := strVal.AsString()
-			vm := ctx.GetVM()
-			// 使用 LoadPkg 加载类或接口；仅当返回值实现 ClassStmt 时才作为类语句返回。
-			v, acl := vm.LoadPkg(className)
-			if acl != nil {
-				return "", nil
-			}
-			if v != nil {
-				if stmt, ok := v.(data.ClassStmt); ok {
-					return className, stmt
-				}
-			}
-			return className, nil
+	objCtx, ok := ctx.(*data.ClassMethodContext)
+	if !ok || objCtx.ObjectValue == nil {
+		return "", nil
+	}
+	props := objCtx.ObjectValue.GetProperties()
+	className := phpValueAsString(props["_className"])
+	if className == "" {
+		className = phpValueAsString(props["name"])
+	}
+	if className == "" {
+		return "", nil
+	}
+	vm := ctx.GetVM()
+	v, acl := vm.LoadPkg(className)
+	if acl != nil {
+		return "", nil
+	}
+	if v != nil {
+		if stmt, ok := v.(data.ClassStmt); ok {
+			return className, stmt
 		}
 	}
-	return "", nil
+	return className, nil
 }

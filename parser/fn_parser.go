@@ -58,6 +58,9 @@ func (fp *FnParser) Parse() (data.GetValue, data.Control) {
 	// 复用 FunctionParser 处理参数/返回类型
 	fpHelper := &FunctionParser{fp.Parser}
 
+	fp.enterStaticScope()
+	defer fp.leaveStaticScope()
+
 	// 创建新的函数作用域（箭头函数是 lambda，自动捕获外部变量）
 	fp.scopeManager.NewScope(true)
 

@@ -43,12 +43,5 @@ func (m *ReflectionMethodGetDeclaringClassMethod) Call(ctx data.Context) (data.G
 		return data.NewNullValue(), nil
 	}
 
-	// 创建 ReflectionClass 实例
-	classClass := &ReflectionClassClass{}
-	classValue := data.NewClassValue(classClass, ctx.CreateBaseContext())
-
-	// 存储类名到实例属性中
-	classValue.ObjectValue.SetProperty("_className", data.NewStringValue(declaringClassName))
-
-	return classValue, nil
+	return newReflectionClassValue(ctx, declaringClassName), nil
 }

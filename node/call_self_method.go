@@ -47,9 +47,9 @@ func (pe *CallSelfMethod) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	method, has := getter.GetStaticMethod(pe.Method)
 	if !has {
 		// 沿继承链向上查找（trait 中 self:: 应能访问使用类继承链上的方法）
-		vm := ctx.GetVM()
+		vm := callVM(ctx)
 		extend := currentClass.GetExtend()
-		for extend != nil {
+		for vm != nil && extend != nil {
 			parent, acl := vm.GetOrLoadClass(*extend)
 			if acl != nil || parent == nil {
 				break
@@ -65,8 +65,33 @@ func (pe *CallSelfMethod) GetValue(ctx data.Context) (data.GetValue, data.Contro
 		}
 	}
 	if !has {
-		if fn, ok := tryNewInstanceMagicCallViaStaticFunc(ctx, pe.Method); ok {
+		if fn, ok := tryNewInstanceMagicCallViaStaticFunc(ctx, pe.Method, currentClass); ok {
 			return data.NewFuncValue(fn), nil
+		}
+		// 回退到 __callStatic（含继承链）
+		checkClass := currentClass
+		for checkClass != nil {
+			if getter, ok := checkClass.(data.GetStaticMethod); ok {
+				if magic, hasMagic := getter.GetStaticMethod("__callStatic"); hasMagic {
+					return data.NewFuncValue(&callStaticFunc{
+						class:          currentClass,
+						method:         magic,
+						originalMethod: pe.Method,
+					}), nil
+				}
+			}
+			if checkClass.GetExtend() == nil {
+				break
+			}
+			vm := callVM(ctx)
+			if vm == nil {
+				break
+			}
+			parent, acl := vm.GetOrLoadClass(*checkClass.GetExtend())
+			if acl != nil || parent == nil {
+				break
+			}
+			checkClass = parent
 		}
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("当前类 %s 没有静态方法 %s", currentClass.GetName(), pe.Method))
 	}

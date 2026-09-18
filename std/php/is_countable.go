@@ -20,6 +20,10 @@ func (f *IsCountableFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	if _, ok := value.(*data.ArrayValue); ok {
 		return data.NewBoolValue(true), nil
 	}
+	// 关联数组在 Origami 中为 ObjectValue，PHP 中仍是 countable array
+	if _, ok := value.(*data.ObjectValue); ok {
+		return data.NewBoolValue(true), nil
+	}
 
 	if classVal, ok := value.(*data.ClassValue); ok {
 		if _, has := classVal.GetMethod("count"); has {

@@ -109,6 +109,35 @@ func NewUnionType(types []Types) Types {
 	return UnionType{Types: types}
 }
 
+// IntersectionType 表示交集类型（type1&type2&...），值须同时满足所有成员类型
+type IntersectionType struct {
+	Types []Types
+}
+
+func (i IntersectionType) Is(value Value) bool {
+	for _, t := range i.Types {
+		if !t.Is(value) {
+			return false
+		}
+	}
+	return len(i.Types) > 0
+}
+
+func (i IntersectionType) String() string {
+	result := ""
+	for idx, t := range i.Types {
+		if idx > 0 {
+			result += "&"
+		}
+		result += t.String()
+	}
+	return result
+}
+
+func NewIntersectionType(types []Types) Types {
+	return IntersectionType{Types: types}
+}
+
 func ISBaseType(ty string) bool {
 	switch ty {
 	case "":
@@ -172,12 +201,19 @@ func NewBaseType(ty string) Types {
 		return ClosureType{}
 	default:
 		if len(ty) > 1 {
-			if strings.Index(ty, "|") > 1 {
+			if strings.Contains(ty, "|") {
 				arr := make([]Types, 0)
-				for _, t := range strings.SplitN(ty, "|", -1) {
+				for _, t := range strings.Split(ty, "|") {
 					arr = append(arr, NewBaseType(t))
 				}
 				return NewUnionType(arr)
+			}
+			if strings.Contains(ty, "&") {
+				arr := make([]Types, 0)
+				for _, t := range strings.Split(ty, "&") {
+					arr = append(arr, NewBaseType(t))
+				}
+				return NewIntersectionType(arr)
 			}
 			if ty[0] == '?' {
 				return NewNullableType(NewBaseType(ty[1:]))

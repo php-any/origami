@@ -8,10 +8,22 @@ import (
 )
 
 func NewImplodeFunction() data.FuncStmt {
-	return &ImplodeFunction{}
+	return &ImplodeFunction{
+		params: []data.GetValue{
+			node.NewParameter(nil, "separator", 0, nil, nil),
+			node.NewParameter(nil, "array", 1, nil, nil),
+		},
+		vars: []data.Variable{
+			node.NewVariable(nil, "separator", 0, data.NewBaseType("string")),
+			node.NewVariable(nil, "array", 1, data.NewBaseType("array")),
+		},
+	}
 }
 
-type ImplodeFunction struct{}
+type ImplodeFunction struct {
+	params []data.GetValue
+	vars   []data.Variable
+}
 
 func (f *ImplodeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	separatorValue, _ := ctx.GetIndexValue(0)
@@ -81,15 +93,9 @@ func (f *ImplodeFunction) GetName() string {
 }
 
 func (f *ImplodeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "separator", 0, nil, nil),
-		node.NewParameter(nil, "array", 1, nil, nil),
-	}
+	return f.params
 }
 
 func (f *ImplodeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "separator", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "array", 1, data.NewBaseType("array")),
-	}
+	return f.vars
 }

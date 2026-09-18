@@ -9,6 +9,12 @@ func NewStringValue(s string) Value {
 	return &StringValue{Value: s}
 }
 
+// NewByteStringValue 把单个字节做成 PHP 字节串（长度 1）。
+// 禁止 string(byte)：Go 会把 >=0x80 的字节当成 rune 再编成 UTF-8（变成 2 字节）。
+func NewByteStringValue(b byte) Value {
+	return &StringValue{Value: string([]byte{b})}
+}
+
 type AsString interface {
 	AsString() string
 }

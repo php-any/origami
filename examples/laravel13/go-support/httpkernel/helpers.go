@@ -315,17 +315,14 @@ func callObjectMethodInContext(ctx data.Context, obj data.Value, name string, ar
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("httpkernel: 期望对象以调用 %s", name))
 	}
 	if ctx != nil {
-		cv = &data.ClassValue{
-			Context:     ctx.CreateBaseContext(),
-			ObjectValue: cv.ObjectValue,
-			Class:       cv.Class,
-		}
+		cv = cv.CloneWithContext(ctx.CreateBaseContext())
 	}
 	method, exists := cv.GetMethod(name)
 	if !exists || method == nil {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("httpkernel: 方法 %s 不存在", name))
 	}
 	fnCtx := cv.CreateContext(method.GetVariables())
+	data.PreferVM(fnCtx, ctx, cv)
 	vars := method.GetVariables()
 	for i, arg := range args {
 		if i >= len(vars) {
@@ -339,6 +336,36 @@ func callObjectMethodInContext(ctx data.Context, obj data.Value, name string, ar
 		}
 	}
 	return method.Call(fnCtx)
+}
+
+func cloneStringMap(m map[string]string) map[string]string {
+	if m == nil {
+		return nil
+	}
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
+}
+
+func cloneGroupsMap(m map[string][]string) map[string][]string {
+	if m == nil {
+		return nil
+	}
+	out := make(map[string][]string, len(m))
+	for k, v := range m {
+		out[k] = append([]string(nil), v...)
+	}
+	return out
+}
+
+func cloneIfClass(v data.Value, ctx data.Context) data.Value {
+	cv, ok := v.(*data.ClassValue)
+	if !ok || cv == nil {
+		return v
+	}
+	return cv.CloneSandbox(ctx)
 }
 
 func containsString(list []string, item string) bool {

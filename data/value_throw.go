@@ -104,7 +104,20 @@ func (t *ThrowValue) GetMethod(name string) (Method, bool) {
 	case "getTrace":
 		return &ThrowValueGetTraceMethod{source: t}, true
 	}
+	// PHP 层还能调用子类方法（AuthenticationException::redirectTo 等）。
+	if t.Object != nil {
+		return t.Object.GetMethod(name)
+	}
 	return nil, false
+}
+
+// PHPValue 返回 PHP 可见的异常对象。throw new Foo 后 catch ($e) 的 $e
+// 必须是 Foo 实例；ThrowValue 只是解释器控制流，不能当成 catch 绑定值。
+func (t *ThrowValue) PHPValue() Value {
+	if t != nil && t.Object != nil {
+		return t.Object
+	}
+	return t
 }
 
 func (t *ThrowValue) GetMethods() []Method {
@@ -148,7 +161,11 @@ func NewErrorThrowFromClassValue(from From, object *ClassValue) Control {
 				break
 			}
 			if classStmt.GetExtend() != nil {
-				classStmt, _ = object.GetVM().GetOrLoadClass(*classStmt.GetExtend())
+				if vm := object.GetVM(); vm != nil {
+					classStmt, _ = vm.GetOrLoadClass(*classStmt.GetExtend())
+				} else {
+					classStmt = nil
+				}
 			} else {
 				classStmt = nil
 			}
@@ -157,6 +174,8 @@ func NewErrorThrowFromClassValue(from From, object *ClassValue) Control {
 			err = "运行时无法处理未继承 Exception 的异常类"
 		}
 	}
+
+	stampExceptionLocation(object, from)
 
 	t := &ThrowValue{
 		Object: object,
@@ -170,6 +189,17 @@ func NewErrorThrowFromClassValue(from From, object *ClassValue) Control {
 		source: t,
 	}
 	return t
+}
+
+func stampExceptionLocation(object *ClassValue, from From) {
+	if object == nil || from == nil {
+		return
+	}
+	if src := from.GetSource(); src != "" {
+		_ = object.SetProperty("file", NewStringValue(src))
+	}
+	sl, _ := from.GetStartPosition()
+	_ = object.SetProperty("line", NewIntValue(sl+1))
 }
 
 func NewErrorThrow(from From, err error) Control {

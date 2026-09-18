@@ -33,7 +33,16 @@ func (sp *MainStatementParser) Parse() (data.GetValue, data.Control) {
 		parser = NewClassParser(sp.Parser)
 	case token.FUNC:
 		parser = NewFunctionParser(sp.Parser)
-	case token.START_TAG, token.END_TAG, token.SEMICOLON:
+	case token.START_TAG:
+		// <?= expr ?> 必须走 parseStatement 生成 EchoStatement。
+		// 若像普通 <?php 一样 next() 丢弃，类/函数体内 Filament Grid::toEmbeddedHtml
+		// 等 `ob_start(); ?>…<?= $x ?>…<?php` 混写会丢掉全部短回显（空壳 HTML）。
+		if sp.current().Literal() == "<?=" {
+			return sp.parseStatement()
+		}
+		sp.next()
+		return nil, nil
+	case token.END_TAG, token.SEMICOLON:
 		sp.next()
 		return nil, nil
 	default:

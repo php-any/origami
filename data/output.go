@@ -41,49 +41,106 @@ type OutputSink interface {
 	WriteOutput(s string)
 }
 
+// PHP output handler 操作标志（传给回调第二参数 $phase），对齐 php-src main/php_output.h。
+const (
+	PHPOutputHandlerWrite = 0x00
+	PHPOutputHandlerStart = 0x01
+	PHPOutputHandlerClean = 0x02
+	PHPOutputHandlerFlush = 0x04
+	PHPOutputHandlerFinal = 0x08
+	PHPOutputHandlerCont  = PHPOutputHandlerWrite
+	PHPOutputHandlerEnd   = PHPOutputHandlerFinal
+)
+
+// PHP output handler 能力标志（ob_start 第三参数 $flags）。
+const (
+	PHPOutputHandlerCleanable = 0x0010
+	PHPOutputHandlerFlushable = 0x0020
+	PHPOutputHandlerRemovable = 0x0040
+	PHPOutputHandlerStdFlags  = 0x0070
+)
+
+// PHP output handler 类型（ob_get_status()['type']）。
+const (
+	PHPOutputHandlerInternal = 0
+	PHPOutputHandlerUser     = 1
+)
+
+// OutputBufferHandler 是一层输出缓冲的用户回调。
+// phase 为 PHP_OUTPUT_HANDLER_* 位掩码；ok=false 表示该次 ob_* 失败。
+// 回调返回 PHP false 时应由包装器改写为 rewritten=原始缓冲、ok=true，以便原样放行。
+type OutputBufferHandler func(buffer string, phase int) (rewritten string, ok bool, ctl Control)
+
+// OutputBufferStartSpec 描述 ob_start($callback, $chunk_size, $flags)。
+type OutputBufferStartSpec struct {
+	Handler   OutputBufferHandler
+	ChunkSize int
+	Flags     int
+	Name      string
+	Type      int
+}
+
 // OutputBufferStatusInfo 描述一个输出缓冲层的基本状态（对应 PHP ob_get_status 的元素）。
 type OutputBufferStatusInfo struct {
-	Level      int    // 层级（1 起）
-	Type       int    // 缓冲类型，PHP 中 PHPTAL/内部缓冲类型，这里统一为 1（PHP_OUTPUT_HANDLER_INTERNAL）
+	Level      int    // 层级（1 起，对齐 ob_get_level）
+	Type       int    // PHP_OUTPUT_HANDLER_INTERNAL / USER
 	Flags      int    // 处理标志
 	ChunkSize  int    // 块大小（未指定为 0）
-	BufferSize int    // 当前缓冲字节数
+	BufferSize int    // 已分配缓冲容量（字节）
+	BufferUsed int    // 当前已用字节
 	Name       string // 处理器名称
 }
 
-// OutputBufferHost 为 VM 提供请求级 PHP 输出缓冲能力。
+// OutputBufferHost 为 VM / Context 提供请求级 PHP 输出缓冲能力。
 type OutputBufferHost interface {
 	StartOutputBuffer()
+	StartOutputBufferSpec(spec OutputBufferStartSpec) bool
 	CleanOutputBuffer() (string, bool)
 	OutputBufferContents() (string, bool)
 	OutputBufferLevel() int
 
-	// 以下为完整 ob_* 系列支持所需的能力。
-	// FlushOutputBuffer 弹出并返回栈顶缓冲内容，并把内容写出到上一层（或最终输出），对应 ob_end_flush / ob_get_flush。
+	// FlushOutputBuffer 弹出栈顶并把（经 handler 改写后的）内容写出到上一层或最终输出。
 	FlushOutputBuffer() (string, bool)
-	// CleanCurrentBuffer 清空栈顶缓冲内容但不结束缓冲，对应 ob_clean。
+	// FlushCurrentBuffer 把栈顶内容写出到上一层但保留该层（ob_flush）。
+	FlushCurrentBuffer() (string, bool)
+	// CleanCurrentBuffer 清空栈顶内容但不结束缓冲（ob_clean）。
 	CleanCurrentBuffer() bool
-	// OutputBufferLength 返回栈顶缓冲的字节长度（无缓冲返回 false），对应 ob_get_length。
+	// OutputBufferLength 返回栈顶缓冲的已用字节长度（无缓冲返回 false）。
 	OutputBufferLength() (int, bool)
-	// OutputBufferStatus 返回缓冲层状态列表；full=true 返回全部层，否则仅最顶层，对应 ob_get_status。
+	// OutputBufferStatus 返回缓冲层状态列表；full=true 返回全部层，否则仅最顶层。
 	OutputBufferStatus(full bool) []OutputBufferStatusInfo
-	// ListOutputHandlers 返回所有激活缓冲的处理器名，对应 ob_list_handlers。
+	// ListOutputHandlers 返回所有激活缓冲的处理器名。
 	ListOutputHandlers() []string
-	// SetImplicitFlush 设置/清除隐式刷新标志，对应 ob_implicit_flush。
 	SetImplicitFlush(on bool)
-	// IsImplicitFlush 返回当前隐式刷新标志。
 	IsImplicitFlush() bool
+	// TakeOutputControl 取出 handler 回调产生的 throw/return 控制流（无则 nil）。
+	TakeOutputControl() Control
+	// FlushSAPI 对齐 PHP flush()：刷新底层 SAPI/HTTP，不弹出 ob 栈。
+	FlushSAPI()
 }
 
-// EmitOutput 优先写到当前 VM 的 OutputSink，否则走语言默认 WriteOutput。
-func EmitOutput(ctx Context, s string) {
+// EmitOutput 优先写到当前 Context（请求级缓冲指针），再回退 VM OutputSink。
+func EmitOutput(ctx Context, s string) Control {
 	if ctx != nil {
-		if sink, ok := ctx.GetVM().(OutputSink); ok {
+		if sink, ok := ctx.(OutputSink); ok {
 			sink.WriteOutput(s)
-			return
+			if host, ok := ctx.(OutputBufferHost); ok {
+				return host.TakeOutputControl()
+			}
+			return nil
+		}
+		if vm := ctx.GetVM(); vm != nil {
+			if sink, ok := vm.(OutputSink); ok {
+				sink.WriteOutput(s)
+				if host, ok := vm.(OutputBufferHost); ok {
+					return host.TakeOutputControl()
+				}
+				return nil
+			}
 		}
 	}
 	WriteOutput(s)
+	return nil
 }
 
 // CompileMode 编译模式标记。

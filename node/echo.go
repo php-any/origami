@@ -33,7 +33,9 @@ func (e *EchoStatement) GetValue(ctx data.Context) (data.GetValue, data.Control)
 		if c != nil {
 			return nil, c
 		}
-		data.EmitOutput(ctx, s)
+		if c := data.EmitOutput(ctx, s); c != nil {
+			return nil, c
+		}
 	}
 
 	return nil, nil

@@ -91,20 +91,47 @@ func (n *Array) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func setArrayLiteralEntry(av *data.ArrayValue, key, val data.Value) {
-	if iv, ok := key.(data.AsInt); ok {
-		i, _ := iv.AsInt()
-		for len(av.List) <= i {
-			av.List = append(av.List, data.NewZVal(data.NewNullValue()))
+	// PHP：纯数字字符串键当作 int；非数字字符串必须走字符串键。
+	// 旧逻辑对实现了 AsInt 的 StringValue 一律走 int 分支，且忽略 AsInt 错误，
+	// 导致 "lazy" 等键被写成 List[0] 且 Name 为空（[...$assoc] 丢键）。
+	if sv, ok := key.(*data.StringValue); ok {
+		if n, isIntKey := data.ParseIntArrayKeyName(sv.Value); isIntKey {
+			setArrayLiteralIntKey(av, n, val)
+			return
 		}
-		av.List[i] = data.NewZVal(val)
+		setArrayLiteralStringKey(av, sv.Value, val)
 		return
 	}
-	keyStr := key.AsString()
+	if iv, ok := key.(*data.IntValue); ok {
+		setArrayLiteralIntKey(av, iv.Value, val)
+		return
+	}
+	if ai, ok := key.(data.AsInt); ok {
+		if i, err := ai.AsInt(); err == nil {
+			setArrayLiteralIntKey(av, i, val)
+			return
+		}
+	}
+	setArrayLiteralStringKey(av, key.AsString(), val)
+}
+
+func setArrayLiteralIntKey(av *data.ArrayValue, i int, val data.Value) {
+	if i < 0 {
+		setArrayLiteralStringKey(av, data.IntArrayKeyName(i), val)
+		return
+	}
+	for len(av.List) <= i {
+		av.List = append(av.List, data.NewZVal(data.NewNullValue()))
+	}
+	av.List[i] = data.NewZVal(val)
+}
+
+func setArrayLiteralStringKey(av *data.ArrayValue, keyStr string, val data.Value) {
 	for _, z := range av.List {
 		if z != nil && z.Name == keyStr {
 			z.Value = val
 			return
 		}
 	}
-	av.List = append(av.List, &data.ZVal{Name: keyStr, Value: val})
+	av.List = append(av.List, data.NewNamedZVal(keyStr, val))
 }

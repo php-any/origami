@@ -6,11 +6,11 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/parser"
+	"github.com/php-any/origami/perfmon"
 	"github.com/php-any/origami/utils"
 )
 
@@ -28,6 +28,7 @@ func NewVM(parser *parser.Parser) data.VM {
 	vm := &VM{
 		parser:       parser,
 		loadingFiles: make(map[string]chan struct{}),
+		out:          newOutputState(),
 		acl: func(acl data.Control) {
 			parser.ShowControl(acl)
 			os.Exit(1)
@@ -48,7 +49,9 @@ type VM struct {
 	mu sync.Mutex
 
 	classMap           sync.Map // string -> data.ClassStmt
+	classLower         sync.Map // lowercase FQCN -> data.ClassStmt（PHP 类名大小写不敏感，避免 miss 时 Range 全表）
 	interfaceMap       sync.Map // string -> data.InterfaceStmt
+	interfaceLower     sync.Map // lowercase FQCN -> data.InterfaceStmt
 	funcMap            sync.Map // string -> data.FuncStmt
 	constantMap        sync.Map // string -> data.Value
 	globalVars         sync.Map // string -> *data.ZVal
@@ -74,16 +77,10 @@ type VM struct {
 	shutdownCallbacks []data.Value
 	shutdownRunOnce   sync.Once
 
-	// 调用深度追踪（用于检测无限递归）
-	callDepth int
-
-	// PHP 调用栈（debug_backtrace）
-	callStack     []data.CallFrame
-	outputBuffers []*strings.Builder
-	// hasOutputBuffer 原子标记是否存在活动缓冲层，用于 WriteOutput 无缓冲时的零锁快速路径。
-	hasOutputBuffer atomic.Bool
-	// implicitFlush 对应 ob_implicit_flush 状态（由 mu 保护）。
-	implicitFlush bool
+	// 调用深度/栈在请求 VM 或 goroutine-local CallState 上，不放本结构以免多请求串栈。
+	// out 为 CLI/默认输出缓冲栈（独立锁，不与 mu 争用）。
+	// 多请求共享本 VM 时由 BeginRequestOutput 安装 goroutine-local 栈覆盖。
+	out *outputState
 
 	// $GLOBALS / $_SESSION 的 VM 级数组（避免包级单例跨请求串态）
 	globalsArray *data.ObjectValue
@@ -93,43 +90,25 @@ type VM struct {
 }
 
 func (vm *VM) EnterCall() int {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	vm.callDepth++
-	return vm.callDepth
+	return vm.localCall().Enter()
 }
 
 func (vm *VM) LeaveCall() {
-	vm.mu.Lock()
-	if vm.callDepth > 0 {
-		vm.callDepth--
-	}
-	vm.mu.Unlock()
+	st := vm.localCall()
+	st.Leave()
+	releaseAutoCallState(st)
 }
 
 func (vm *VM) PushCallFrame(frame data.CallFrame) {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	vm.callStack = append(vm.callStack, frame)
+	vm.localCall().Push(frame)
 }
 
 func (vm *VM) PopCallFrame() {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	if n := len(vm.callStack); n > 0 {
-		vm.callStack = vm.callStack[:n-1]
-	}
+	vm.localCall().Pop()
 }
 
 func (vm *VM) SnapshotCallStack() []data.CallFrame {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	if len(vm.callStack) == 0 {
-		return nil
-	}
-	out := make([]data.CallFrame, len(vm.callStack))
-	copy(out, vm.callStack)
-	return out
+	return vm.localCall().Snapshot()
 }
 
 func (vm *VM) SetPhpFileCache(file string) {
@@ -359,64 +338,97 @@ func (vm *VM) GetErrorHandler() data.Value {
 	return nil
 }
 
+func phpIdentKey(name string) string {
+	for len(name) > 0 && name[0] == '\\' {
+		name = name[1:]
+	}
+	return strings.ToLower(name)
+}
+
+func sameDeclFile(a, b interface{ GetFrom() data.From }) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	af, bf := a.GetFrom(), b.GetFrom()
+	return af != nil && bf != nil && utils.SamePhpFile(af.GetSource(), bf.GetSource())
+}
+
 func (vm *VM) AddClass(c data.ClassStmt) data.Control {
 	name := c.GetName()
+	key := phpIdentKey(name)
 	if has, ok := syncMapLoad[data.ClassStmt](&vm.classMap, name); ok {
-		cFrom := c.GetFrom()
-		hasFrom := has.GetFrom()
-		if cFrom != nil && hasFrom != nil && utils.SamePhpFile(cFrom.GetSource(), hasFrom.GetSource()) {
+		if sameDeclFile(c, has) {
 			return nil // 同文件重复引入，跳过
 		}
-		return data.NewErrorThrow(cFrom, fmt.Errorf("已存在同名的 class: %s", name))
+		return data.NewErrorThrow(c.GetFrom(), fmt.Errorf("已存在同名的 class: %s", name))
 	}
-	if has, ok := syncMapLoad[data.InterfaceStmt](&vm.interfaceMap, name); ok {
-		cFrom := c.GetFrom()
-		hasFrom := has.GetFrom()
-		if cFrom != nil && hasFrom != nil && utils.SamePhpFile(cFrom.GetSource(), hasFrom.GetSource()) {
+	if has, ok := syncMapLoad[data.ClassStmt](&vm.classLower, key); ok {
+		if sameDeclFile(c, has) {
 			return nil
 		}
-		return data.NewErrorThrow(cFrom, fmt.Errorf("已存在同名的类或接口: %s", name))
+		return data.NewErrorThrow(c.GetFrom(), fmt.Errorf("已存在同名的 class: %s", name))
+	}
+	if has, ok := syncMapLoad[data.InterfaceStmt](&vm.interfaceMap, name); ok {
+		if sameDeclFile(c, has) {
+			return nil
+		}
+		return data.NewErrorThrow(c.GetFrom(), fmt.Errorf("已存在同名的类或接口: %s", name))
+	}
+	if has, ok := syncMapLoad[data.InterfaceStmt](&vm.interfaceLower, key); ok {
+		if sameDeclFile(c, has) {
+			return nil
+		}
+		return data.NewErrorThrow(c.GetFrom(), fmt.Errorf("已存在同名的类或接口: %s", name))
 	}
 	syncMapStore(&vm.classMap, name, c)
+	syncMapStore(&vm.classLower, key, c)
 	return nil
 }
 
 func (vm *VM) AddInterface(i data.InterfaceStmt) data.Control {
 	name := i.GetName()
+	key := phpIdentKey(name)
 	if has, ok := syncMapLoad[data.ClassStmt](&vm.classMap, name); ok {
-		iFrom := i.GetFrom()
-		hasFrom := has.GetFrom()
-		if iFrom != nil && hasFrom != nil && utils.SamePhpFile(iFrom.GetSource(), hasFrom.GetSource()) {
+		if sameDeclFile(i, has) {
 			return nil // 同文件不需要报错
 		}
-		return data.NewErrorThrow(iFrom, fmt.Errorf("已存在同名的 interface: %s", name))
+		return data.NewErrorThrow(i.GetFrom(), fmt.Errorf("已存在同名的 interface: %s", name))
+	}
+	if has, ok := syncMapLoad[data.ClassStmt](&vm.classLower, key); ok {
+		if sameDeclFile(i, has) {
+			return nil
+		}
+		return data.NewErrorThrow(i.GetFrom(), fmt.Errorf("已存在同名的 interface: %s", name))
 	}
 	if has, ok := syncMapLoad[data.InterfaceStmt](&vm.interfaceMap, name); ok {
-		iFrom := i.GetFrom()
-		hasFrom := has.GetFrom()
-		if iFrom != nil && hasFrom != nil && utils.SamePhpFile(iFrom.GetSource(), hasFrom.GetSource()) {
+		if sameDeclFile(i, has) {
 			return nil // 同文件不需要报错
 		}
-		return data.NewErrorThrow(iFrom, fmt.Errorf("已存在同名的类或接口: %s", name))
+		return data.NewErrorThrow(i.GetFrom(), fmt.Errorf("已存在同名的类或接口: %s", name))
+	}
+	if has, ok := syncMapLoad[data.InterfaceStmt](&vm.interfaceLower, key); ok {
+		if sameDeclFile(i, has) {
+			return nil
+		}
+		return data.NewErrorThrow(i.GetFrom(), fmt.Errorf("已存在同名的类或接口: %s", name))
 	}
 	syncMapStore(&vm.interfaceMap, name, i)
+	syncMapStore(&vm.interfaceLower, key, i)
 	return nil
 }
 
 func (vm *VM) findClassCaseInsensitive(name string) (data.ClassStmt, bool) {
+	for len(name) > 0 && name[0] == '\\' {
+		name = name[1:]
+	}
+	if name == "" {
+		return nil, false
+	}
 	if v, ok := syncMapLoad[data.ClassStmt](&vm.classMap, name); ok {
 		return v, true
 	}
-	var found data.ClassStmt
-	vm.classMap.Range(func(key, value any) bool {
-		if strings.EqualFold(key.(string), name) {
-			found = value.(data.ClassStmt)
-			return false
-		}
-		return true
-	})
-	if found != nil {
-		return found, true
+	if v, ok := syncMapLoad[data.ClassStmt](&vm.classLower, strings.ToLower(name)); ok {
+		return v, true
 	}
 	return nil, false
 }
@@ -426,6 +438,9 @@ func (vm *VM) GetClass(pkg string) (data.ClassStmt, bool) {
 }
 
 func (vm *VM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
+	if RequestDeadlineExceeded() {
+		panic(data.ErrRequestCanceled)
+	}
 	if len(pkg) == 0 {
 		return nil, nil
 	}
@@ -437,7 +452,9 @@ func (vm *VM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
 		return v, nil
 	}
 
+	t0 := perfmon.Now()
 	acl := vm.parser.GetClassPathManager().LoadClass(pkg, vm.parser)
+	perfmon.NoteClassLoad(pkg, perfmon.Since(t0))
 	if acl != nil {
 		return nil, acl
 	}
@@ -455,7 +472,16 @@ func (vm *VM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
 }
 
 func (vm *VM) lookupInterface(pkg string) (data.InterfaceStmt, bool) {
-	return syncMapLoad[data.InterfaceStmt](&vm.interfaceMap, pkg)
+	for len(pkg) > 0 && pkg[0] == '\\' {
+		pkg = pkg[1:]
+	}
+	if pkg == "" {
+		return nil, false
+	}
+	if v, ok := syncMapLoad[data.InterfaceStmt](&vm.interfaceMap, pkg); ok {
+		return v, true
+	}
+	return syncMapLoad[data.InterfaceStmt](&vm.interfaceLower, strings.ToLower(pkg))
 }
 
 func (vm *VM) LoadPkg(pkg string) (data.GetValue, data.Control) {
@@ -573,7 +599,10 @@ func (vm *VM) AllClasses() []data.ClassStmt {
 }
 
 func (vm *VM) CreateContext(vars []data.Variable) data.Context {
-	return vm.ctx.CreateContext(vars)
+	ctx := vm.ctx.CreateContext(vars)
+	BindContextCallState(ctx, vm.localCall())
+	BindContextOutput(ctx, vm.activeOut())
+	return ctx
 }
 
 // EvalCode 执行 eval() 传入的 PHP 代码（在当前上下文中）
@@ -645,18 +674,17 @@ func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 		}
 
 		data.ResetUserOutput()
-		p := vm.parser.Clone()
-
-		program, acl := p.ParseFile(file)
+		t0 := perfmon.Now()
+		program, vars, acl := vm.ParseFileCached(file)
 		if acl != nil {
 			finish()
 			return nil, acl
 		}
 
-		vars := p.GetVariables()
 		ctx := vm.CreateContext(vars)
 		vm.RegisterGlobalContext(vars, ctx)
 		result, ctrl := program.GetValue(ctx)
+		perfmon.NoteFileRun(file, perfmon.Since(t0))
 
 		if ctrl == nil {
 			vm.SetPhpFileCache(file)
@@ -671,39 +699,65 @@ func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 //
 // 对调用者中不存在的变量，与 $GLOBALS 对齐：顶层 include（如 tests/run_tests.php）
 // 里的赋值可被函数内 global 关键字看到。
+//
+// PHP：include 与调用者共享全部局部变量。仅注入「被引入文件符号表里出现过的名字」不够——
+// Blade @capture 里 get_defined_vars() 需要拿到 extract 进来、但只在内层闭包引用的 $attributes。
 func (vm *VM) LoadInCallerContext(parent data.Context, file string) (data.GetValue, data.Control) {
 	file = normalizePhpFilePath(file)
 
+	t0 := perfmon.Now()
 	program, vars, acl := vm.ParseFileCached(file)
 	if acl != nil {
 		return nil, acl
 	}
 
 	ctx := inheritCallerScope(parent, vm.CreateContext(vars))
+	injectCallerVariables(parent, ctx, vars, func(name string, variable data.Variable) {
+		vm.bindIncludedVarToGlobal(name, variable.GetIndex(), ctx)
+	})
 
+	result, ctrl := program.GetValue(ctx)
+	perfmon.NoteInclude(file, perfmon.Since(t0))
+	return result, ctrl
+}
+
+// injectCallerVariables 把调用者已赋值变量注入被引入文件作用域。
+func injectCallerVariables(parent, ctx data.Context, vars []data.Variable, onMissing func(name string, variable data.Variable)) {
+	declared := make(map[string]struct{}, len(vars))
 	for _, variable := range vars {
 		name := variable.GetName()
 		if name == "" {
 			continue
 		}
-		if val, ok := parent.GetVariableByName(name); ok && val != nil {
-			// 调用者已有（extract / 闭包 use）：优先注入，不覆盖为全局槽
-			if ctl := variable.SetValue(ctx, val); ctl != nil {
-				return nil, ctl
+		declared[name] = struct{}{}
+		if parent.HasVariableByName(name) {
+			if val, ok := parent.GetVariableByName(name); ok && val != nil {
+				if ctl := variable.SetValue(ctx, val); ctl != nil {
+					// SetValue 失败时仍继续尽量注入其余变量
+					_ = ctl
+				}
+				continue
 			}
+		}
+		if onMissing != nil {
+			onMissing(name, variable)
+		}
+	}
+	for name, val := range parent.GetDefinedVariables() {
+		if name == "" || val == nil {
 			continue
 		}
-		// 顶层 include：共享/注册全局 ZVal，供 global 关键字使用
-		vm.bindIncludedVarToGlobal(name, variable.GetIndex(), ctx)
+		if _, ok := declared[name]; ok {
+			continue
+		}
+		ctx.SetVariableByName(name, val)
 	}
-
-	result, ctrl := program.GetValue(ctx)
-	return result, ctrl
 }
 
 // inheritCallerScope 让 include/require 的独立文件作用域仍能看到调用方的 $this。
 // PHP：方法内 include 可使用 $this；Closure::bind($fn, $obj)() 内 include 同样绑定 $this。
 // Livewire ExtendedCompilerEngine 正是靠 Closure::bind(..., $component) + include 渲染模板。
+// static 闭包（ClassMethodContext.ObjectValue == nil）不向 include 注入 $this，但仍保留 self::。
 func inheritCallerScope(parent, ctx data.Context) data.Context {
 	if parent == nil || ctx == nil {
 		return ctx
@@ -717,11 +771,7 @@ func inheritCallerScope(parent, ctx data.Context) data.Context {
 	}
 	if classCtx, ok := parent.(*data.ClassMethodContext); ok && classCtx.ClassValue != nil {
 		ctx = &data.ClassMethodContext{
-			ClassValue: &data.ClassValue{
-				ObjectValue: classCtx.ObjectValue,
-				Class:       classCtx.Class,
-				Context:     ctx,
-			},
+			ClassValue:  classCtx.ClassValue.CloneWithContext(ctx),
 			StaticClass: classCtx.StaticClass,
 			SelfClass:   classCtx.SelfClass,
 		}
@@ -755,8 +805,7 @@ func (vm *VM) CompileLoad(file string) data.Control {
 			continue
 		}
 
-		p := vm.parser.Clone()
-		_, acl := p.ParseFile(file)
+		_, _, acl := vm.ParseFileCached(file)
 		if acl == nil {
 			vm.SetPhpFileCache(file)
 		}

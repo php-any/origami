@@ -38,18 +38,25 @@ func (i Class) Is(value Value) bool {
 	case *ThrowValue:
 		// ThrowValue 在 PHP 层面也是可抛出的，应能被 catch 捕获。
 		// 有 Object 时直接复用 ClassValue 的类型检查逻辑；
-		// 无 Object 时（Go 内部错误）也视为可抛出的异常。
+		// 无 Object 时（Go 内部 NewErrorThrowByName）按 Name 对齐 Error/Exception 继承链。
 		if c.Object != nil {
 			return isClassValueInstanceOf(i.Name, c.Object.Class, c.Object.GetVM())
 		}
-		// Go 内部错误：允许被 catch (Throwable / Exception / Error) 捕获
-		baseName := i.Name
+		catchBase := i.Name
 		if idx := strings.LastIndex(i.Name, "\\"); idx >= 0 {
-			baseName = i.Name[idx+1:]
+			catchBase = i.Name[idx+1:]
 		}
-		if baseName == "Throwable" || baseName == "Exception" || baseName == "Error" {
+		if catchBase == "Throwable" || catchBase == "Exception" || catchBase == "Error" {
 			return true
 		}
+		throwBase := c.Name
+		if throwBase == "" {
+			throwBase = "Exception"
+		}
+		if idx := strings.LastIndex(throwBase, "\\"); idx >= 0 {
+			throwBase = throwBase[idx+1:]
+		}
+		return throwBase == catchBase || phpInternalThrowExtends(throwBase, catchBase)
 	}
 
 	return false
@@ -89,13 +96,21 @@ func isIterableClassStmt(class ClassStmt, vm VM) bool {
 	return false
 }
 
+func normalizeTypeClassName(name string) string {
+	return strings.TrimPrefix(name, "\\")
+}
+
 // isClassValueInstanceOf 检查一个 ClassStmt 是否实现了目标类型（类名或接口名）
 func isClassValueInstanceOf(target string, class ClassStmt, vm VM) bool {
-	if target == class.GetName() {
+	target = normalizeTypeClassName(target)
+	if class == nil {
+		return false
+	}
+	if target == normalizeTypeClassName(class.GetName()) {
 		return true
 	}
 	for _, s := range class.GetImplements() {
-		if target == s {
+		if target == normalizeTypeClassName(s) {
 			return true
 		} else if interfaceExtends(vm, s, target) {
 			return true
@@ -109,20 +124,50 @@ func (i Class) String() string {
 }
 
 func extendISClass(check string, extend *string, vm VM) bool {
+	check = normalizeTypeClassName(check)
 	for extend != nil {
-		c, ok := vm.GetClass(*extend)
+		parent := normalizeTypeClassName(*extend)
+		if check == parent {
+			return true
+		}
+		if vm == nil {
+			return builtinExceptionExtends(parent, check)
+		}
+		c, ok := vm.GetClass(parent)
+		if !ok {
+			c, ok = vm.GetClass(*extend)
+		}
 		extend = nil
 		if ok {
-			if check == c.GetName() {
+			if check == normalizeTypeClassName(c.GetName()) {
 				return true
 			}
 			for _, s := range c.GetImplements() {
-				if check == s || interfaceExtends(vm, s, check) {
+				if check == normalizeTypeClassName(s) || interfaceExtends(vm, s, check) {
 					return true
 				}
 			}
 			extend = c.GetExtend()
+			if extend == nil && builtinExceptionExtends(parent, check) {
+				return true
+			}
+		} else if builtinExceptionExtends(parent, check) {
+			return true
 		}
+	}
+	return false
+}
+
+func builtinExceptionExtends(parent, target string) bool {
+	parent = normalizeTypeClassName(parent)
+	target = normalizeTypeClassName(target)
+	switch parent {
+	case "PDOException", "RuntimeException":
+		return target == "RuntimeException" || target == "Exception" || target == "Throwable"
+	case "Exception":
+		return target == "Throwable"
+	case "Error", "ValueError", "TypeError":
+		return target == "Error" || target == "Throwable"
 	}
 	return false
 }
@@ -179,5 +224,49 @@ func interfaceExtends(vm VM, ifaceName, target string) bool {
 		queue = append(queue, parent.GetExtends()...)
 	}
 
+	return false
+}
+
+// phpInternalThrowExtends 判断 Go 侧按名字抛出的异常是否属于 catch 类型（无 Object 时）。
+func phpInternalThrowExtends(throwName, catchName string) bool {
+	parent := map[string]string{
+		"Error":                 "Throwable",
+		"ValueError":            "Error",
+		"TypeError":             "Error",
+		"ArgumentCountError":    "TypeError",
+		"ArithmeticError":       "Error",
+		"DivisionByZeroError":   "ArithmeticError",
+		"UnhandledMatchError":   "Error",
+		"ParseError":            "Error",
+		"CompileError":          "Error",
+		"Exception":             "Throwable",
+		"ErrorException":        "Exception",
+		"RuntimeException":      "Exception",
+		"LogicException":        "Exception",
+		"InvalidArgumentException": "LogicException",
+		"UnexpectedValueException": "RuntimeException",
+		"BadMethodCallException": "LogicException",
+		"DomainException":       "LogicException",
+		"OverflowException":     "RuntimeException",
+		"RangeException":        "RuntimeException",
+		"UnderflowException":    "RuntimeException",
+		"LengthException":       "LogicException",
+		"OutOfBoundsException":  "RuntimeException",
+		"OutOfRangeException":   "LogicException",
+		"PDOException":          "RuntimeException",
+		"ReflectionException":   "Exception",
+		"JsonException":         "Exception",
+	}
+	cur := throwName
+	for i := 0; i < 8 && cur != ""; i++ {
+		if cur == catchName {
+			return true
+		}
+		next, ok := parent[cur]
+		if !ok {
+			return false
+		}
+		cur = next
+	}
 	return false
 }

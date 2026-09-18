@@ -8,10 +8,24 @@ import (
 )
 
 func NewExplodeFunction() data.FuncStmt {
-	return &ExplodeFunction{}
+	return &ExplodeFunction{
+		params: []data.GetValue{
+			node.NewParameter(nil, "separator", 0, nil, nil),
+			node.NewParameter(nil, "string", 1, nil, nil),
+			node.NewParameter(nil, "limit", 2, node.NewNullLiteral(nil), nil),
+		},
+		vars: []data.Variable{
+			node.NewVariable(nil, "separator", 0, data.NewBaseType("string")),
+			node.NewVariable(nil, "string", 1, data.NewBaseType("string")),
+			node.NewVariable(nil, "limit", 2, data.NewBaseType("int")),
+		},
+	}
 }
 
-type ExplodeFunction struct{}
+type ExplodeFunction struct {
+	params []data.GetValue
+	vars   []data.Variable
+}
 
 func (f *ExplodeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	separatorValue, _ := ctx.GetIndexValue(0)
@@ -79,17 +93,9 @@ func (f *ExplodeFunction) GetName() string {
 }
 
 func (f *ExplodeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "separator", 0, nil, nil),
-		node.NewParameter(nil, "string", 1, nil, nil),
-		node.NewParameter(nil, "limit", 2, node.NewNullLiteral(nil), nil),
-	}
+	return f.params
 }
 
 func (f *ExplodeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "separator", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "string", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "limit", 2, data.NewBaseType("int")),
-	}
+	return f.vars
 }

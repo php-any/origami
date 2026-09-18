@@ -27,7 +27,7 @@ func (f *ArrayPushFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 				// Parameters 返回的是 ArrayValue，包含所有参数
 				paramsList := paramsArray.ToValueList()
 				for _, val := range paramsList {
-					v.List = append(v.List, data.NewZVal(val))
+					v.AppendValue(val)
 				}
 			}
 		}

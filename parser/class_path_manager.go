@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 	"sync"
 
@@ -27,10 +28,16 @@ type NamespaceNode struct {
 	children  map[string]*NamespaceNode
 }
 
+type classFileCacheEntry struct {
+	path string
+	ok   bool
+}
+
 // DefaultClassPathManager 默认的类路径管理器实现
 type DefaultClassPathManager struct {
-	mu   sync.RWMutex   // 互斥锁，保护并发访问
-	root *NamespaceNode // 有向无环图的根节点
+	mu        sync.RWMutex // 互斥锁，保护并发访问
+	root      *NamespaceNode
+	fileCache sync.Map // lowercase FQCN -> classFileCacheEntry
 }
 
 // NewDefaultClassPathManager 创建默认的类路径管理器
@@ -76,6 +83,7 @@ func (m *DefaultClassPathManager) AddNamespace(namespace string, path string) {
 
 	// 将命名空间添加到DAG中
 	m.addNamespaceToDAG(namespace, absPath)
+	m.clearFileCacheLocked()
 }
 
 // addNamespaceToDAG 将命名空间添加到有向无环图中
@@ -144,32 +152,60 @@ func (m *DefaultClassPathManager) splitNamespace(namespace string) []string {
 	return parts
 }
 
+func (m *DefaultClassPathManager) clearFileCacheLocked() {
+	m.fileCache.Range(func(k, _ any) bool {
+		m.fileCache.Delete(k)
+		return true
+	})
+}
+
+func classFileCacheKey(className string) string {
+	for len(className) > 0 && className[0] == '\\' {
+		className = className[1:]
+	}
+	return strings.ToLower(className)
+}
+
+func skipCaseInsensitiveFSScan() bool {
+	// Windows 上 Stat 已不区分大小写；再 ReadDir 全目录会在 Laravel autoload miss 时极慢。
+	return goruntime.GOOS == "windows"
+}
+
 // FindClassFile 查找类文件路径
 func (m *DefaultClassPathManager) FindClassFile(className string) (string, bool) {
+	key := classFileCacheKey(className)
+	if v, ok := m.fileCache.Load(key); ok {
+		e := v.(classFileCacheEntry)
+		return e.path, e.ok
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if v, ok := m.fileCache.Load(key); ok {
+		e := v.(classFileCacheEntry)
+		return e.path, e.ok
+	}
 
-	// 分割类名以获取命名空间和类名
+	path, found := m.findClassFileLocked(className)
+	m.fileCache.Store(key, classFileCacheEntry{path: path, ok: found})
+	return path, found
+}
+
+func (m *DefaultClassPathManager) findClassFileLocked(className string) (string, bool) {
 	namespace, simpleClassName := m.splitClassName(className)
 
-	// 在DAG中查找对应的命名空间节点
 	node := m.findNamespaceNode(namespace)
 	if node == nil {
 		return "", false
 	}
 
-	// 在所有路径中搜索类文件
 	for _, path := range node.paths {
-		// 方法1：直接在路径下查找类文件
 		filePath, found := m.searchInPath(path, simpleClassName)
 		if found {
 			return filePath, true
 		}
 
-		// 方法2：在子目录中查找类文件
-		// 如果类名包含子目录结构，尝试在子目录中查找
 		if strings.Contains(className, "\\") {
-			// 将类名中的反斜杠转换为路径分隔符
 			relativePath := filepath.FromSlash(className)
 			filePath, found := m.searchInPath(path, relativePath)
 			if found {
@@ -177,7 +213,6 @@ func (m *DefaultClassPathManager) FindClassFile(className string) (string, bool)
 			}
 		}
 	}
-	// TODO 忽略大小写方式搜索查找
 
 	return "", false
 }
@@ -198,7 +233,10 @@ func (m *DefaultClassPathManager) searchInPath(basePath, className string) (stri
 		}
 	}
 
-	// 如果精确匹配失败，尝试大小写不敏感的匹配（用于跨平台兼容）
+	if skipCaseInsensitiveFSScan() {
+		return "", false
+	}
+
 	for _, fileName := range possibleFiles {
 		if foundPath := m.findFileCaseInsensitive(basePath, fileName); foundPath != "" {
 			return foundPath, true
@@ -244,10 +282,8 @@ func (m *DefaultClassPathManager) findNamespaceNode(namespace string) *Namespace
 			// 检查当前节点的路径配置，看是否可以动态创建子目录
 			found := false
 			for _, path := range current.paths {
-				// 构建可能的目录路径
 				dirPath := filepath.Join(path, part)
 				if info, err := os.Stat(dirPath); err == nil && info.IsDir() {
-					// 目录存在，创建一个新的节点
 					child := &NamespaceNode{
 						namespace: part,
 						paths:     []string{dirPath},
@@ -258,17 +294,18 @@ func (m *DefaultClassPathManager) findNamespaceNode(namespace string) *Namespace
 					found = true
 					continue
 				}
-				// 如果精确匹配失败，尝试大小写不敏感的匹配（用于跨平台兼容）
-				if foundDir := m.findDirectoryCaseInsensitive(path, part); foundDir != "" {
-					child := &NamespaceNode{
-						namespace: part,
-						paths:     []string{foundDir},
-						children:  make(map[string]*NamespaceNode),
+				if !skipCaseInsensitiveFSScan() {
+					if foundDir := m.findDirectoryCaseInsensitive(path, part); foundDir != "" {
+						child := &NamespaceNode{
+							namespace: part,
+							paths:     []string{foundDir},
+							children:  make(map[string]*NamespaceNode),
+						}
+						current.children[part] = child
+						current = child
+						found = true
+						continue
 					}
-					current.children[part] = child
-					current = child
-					found = true
-					continue
 				}
 			}
 			if !found {

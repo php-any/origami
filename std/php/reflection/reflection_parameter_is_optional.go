@@ -41,6 +41,10 @@ func (m *ReflectionParameterIsOptionalMethod) Call(ctx data.Context) (data.GetVa
 		return data.NewBoolValue(false), nil
 	}
 
+	if vp, ok := param.(*virtualParam); ok {
+		return data.NewBoolValue(vp.HasDefault()), nil
+	}
+
 	// 检查参数是否有默认值
 	if paramInterface, ok := param.(data.Parameter); ok {
 		defaultValue := paramInterface.GetDefaultValue()

@@ -2,6 +2,7 @@ package std
 
 import (
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/std/captcha"
 	"github.com/php-any/origami/std/channel"
 	"github.com/php-any/origami/std/cli"
 	"github.com/php-any/origami/std/container"
@@ -47,4 +48,5 @@ func Load(vm data.VM) {
 	protowire.Load(vm)
 	cli.Load(vm)
 	validation.Load(vm)
+	captcha.Load(vm)
 }

@@ -2,8 +2,6 @@ package node
 
 import (
 	"fmt"
-	"os"
-	"runtime/debug"
 	"sync"
 
 	"github.com/php-any/origami/data"
@@ -75,16 +73,6 @@ func createInstanceFromClassStmt(
 	arguments []data.GetValue,
 	ctx data.Context,
 ) (data.GetValue, data.Control) {
-	// 临时诊断：new ReflectionClass 实参求值为空字符串时打印 PHP 位置与栈
-	if stmt.GetName() == "ReflectionClass" && len(arguments) > 0 {
-		if v, acl := arguments[0].GetValue(ctx); acl == nil {
-			if sv, ok := v.(*data.StringValue); ok && sv.Value == "" {
-				start, end := from.GetPosition()
-				fmt.Fprintf(os.Stderr, "DIAG: new ReflectionClass(empty arg) file=%q pos=%v-%v argExpr=%T\n", from.GetSource(), start, end, arguments[0])
-				debug.PrintStack()
-			}
-		}
-	}
 	if IsAbstractClassStmt(stmt) {
 		msg := fmt.Sprintf("Uncaught Error: Cannot instantiate abstract class %s", stmt.GetName())
 		return nil, data.NewPHPUncaughtError(from, msg)
@@ -164,6 +152,12 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 	case *ParameterReference:
 		switch val := arguments[index].(type) {
 		case *CallObjectProperty:
+			zv, acl := val.GetZVal(ctx)
+			if acl != nil {
+				return acl
+			}
+			fnCtx.SetIndexZVal(param.Index, zv)
+		case *CallObjectDynamicProperty:
 			zv, acl := val.GetZVal(ctx)
 			if acl != nil {
 				return acl
@@ -583,11 +577,18 @@ func NewNewSelfExpression(from *TokenFrom, arguments []data.GetValue) *NewSelfEx
 }
 
 // GetValue 实现 Value 接口
+// PHP：new self 与 self::class 相同，是词法绑定——实例化「定义该方法的类」，
+// 不是 late static binding。Illuminate\Support\Collection::toBase 里的
+// `return new self($this)` 在 Eloquent\Collection 上调用时必须仍创建 Support\Collection，
+// 否则 Eloquent::pluck → toBase → Eloquent → pluck 会无限递归。
 func (n *NewSelfExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 检查是否在类上下文中（类方法或类级初始化器）
 	var currentClass data.ClassStmt
 	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
-		currentClass = classCtx.Class
+		if classCtx.SelfClass != nil {
+			currentClass = classCtx.SelfClass
+		} else {
+			currentClass = classCtx.Class
+		}
 	} else if classVal, ok := ctx.(*data.ClassValue); ok {
 		currentClass = classVal.Class
 	} else {

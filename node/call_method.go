@@ -33,11 +33,6 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	switch fv := call.(type) {
 	case *data.FuncValue:
 		ret, acl := pe.handleFuncValue(ctx, call)
-		if acl != nil {
-			if _, ok := acl.(ToClosure); ok {
-				return data.NewFuncValue(fv.Value), nil
-			}
-		}
 		return ret, acl
 	case *data.BoundFuncValue:
 		return pe.handleBoundFuncValue(ctx, fv)
@@ -169,15 +164,9 @@ func (pe *CallMethod) handleStaticMethodWithLateBinding(ctx data.Context, sm *st
 	fn := sm.method
 	varies := fn.GetVariables()
 
-	// 创建类方法上下文，绑定调用时的类（用于 static:: 后期静态绑定）
-	classValue := data.NewClassValue(sm.callClass, ctx)
-	fnCtx := classValue.CreateContext(varies)
-	// 设置后期静态绑定类
-	if cmc, ok := fnCtx.(*data.ClassMethodContext); ok {
-		cmc.StaticClass = sm.callClass
-		// SelfClass 记录方法代码定义所在的类（trait/父类），供 self::/parent:: 词法绑定解析
-		cmc.SelfClass = findDeclaringClassForMethod(ctx.GetVM(), sm.callClass, fn.GetName())
-	}
+	inner := ctx.CreateContext(varies)
+	fnCtx := data.NewStaticMethodContext(inner, sm.callClass, sm.callClass)
+	fnCtx.SelfClass = findDeclaringClassForMethod(ctx.GetVM(), sm.callClass, fn.GetName())
 
 	params := fn.GetParams()
 	flatArgs, namedArgs, acl := flattenCallArgsForBinding(ctx, pe.Args)
@@ -185,10 +174,17 @@ func (pe *CallMethod) handleStaticMethodWithLateBinding(ctx data.Context, sm *st
 		return nil, acl
 	}
 
+	variadicIdx := findVariadicParamIndex(params)
+	var variadicNamed []namedArgValue
+
 	bound := make([]bool, len(params))
 	for _, named := range namedArgs {
 		variable, err := findVariable(varies, named.Name)
 		if err != nil {
+			if variadicIdx >= 0 {
+				variadicNamed = append(variadicNamed, named)
+				continue
+			}
 			return nil, data.NewErrorThrow(pe.from, err)
 		}
 		for i, v := range varies {
@@ -232,8 +228,9 @@ func (pe *CallMethod) handleStaticMethodWithLateBinding(ctx data.Context, sm *st
 				return nil, acl
 			}
 		case *Parameters:
-			fnCtx.SetVariableValue(p, data.NewArrayValue(flatArgs[pos:]))
+			fnCtx.SetVariableValue(p, buildVariadicArray(flatArgs[pos:], variadicNamed))
 			pos = len(flatArgs)
+			variadicNamed = nil
 		case data.Parameter:
 			if pos < len(flatArgs) {
 				if acl := p.SetValue(fnCtx, flatArgs[pos]); acl != nil {
@@ -248,10 +245,16 @@ func (pe *CallMethod) handleStaticMethodWithLateBinding(ctx data.Context, sm *st
 		}
 	}
 
+	if len(variadicNamed) > 0 {
+		return nil, data.NewErrorThrow(pe.from, fmt.Errorf("无法找到变量: %s", variadicNamed[0].Name))
+	}
+
 	fnCtx.SetCallArgs(pe.Args)
 	fnCtx.SetFlatCallArgs(flatArgs)
 
-	return fn.Call(fnCtx)
+	ret, ctl := fn.Call(fnCtx)
+	tryReleaseCallContext(fn, fnCtx)
+	return ret, ctl
 }
 
 // handleFuncValue 处理 FuncValue 类型的调用
@@ -276,9 +279,21 @@ func (pe *CallMethod) handleBoundFuncValue(ctx data.Context, bfv *data.BoundFunc
 }
 
 func (pe *CallMethod) invokeFuncStmt(ctx data.Context, fn data.FuncStmt, invoke func(data.Context) (data.GetValue, data.Control)) (data.GetValue, data.Control) {
+	params := fn.GetParams()
+	if usesCallerContextParams(params) {
+		return callOnCallerContext(ctx, pe.Args, invoke)
+	}
 	varies := fn.GetVariables()
 	fnCtx := ctx.CreateContext(varies)
-	params := fn.GetParams()
+	allocated := fnCtx
+
+	if canFastPositionalBind(params, pe.Args) {
+		if acl := bindPositionalParameters(fnCtx, ctx, params, pe.Args, varies); acl != nil {
+			return finishPooledCall(fn, allocated, ctx, nil, acl)
+		}
+		ret, ctl := invoke(fnCtx)
+		return finishPooledCall(fn, allocated, ctx, ret, ctl)
+	}
 
 	// 先展开 ...$arr，再按位置/命名绑定（Laravel Event：$listener(...array_values($payload))）
 	flatArgs, namedArgs, acl := flattenCallArgsForBinding(ctx, pe.Args)
@@ -286,10 +301,18 @@ func (pe *CallMethod) invokeFuncStmt(ctx data.Context, fn data.FuncStmt, invoke 
 		return nil, acl
 	}
 
+	variadicIdx := findVariadicParamIndex(params)
+	var variadicNamed []namedArgValue
+
 	bound := make([]bool, len(params))
 	for _, na := range namedArgs {
 		vari, err := findVariable(varies, na.Name)
 		if err != nil {
+			// PHP 8：未匹配形参名的命名实参进入 ...$variadic（Laravel Facade::__callStatic）
+			if variadicIdx >= 0 {
+				variadicNamed = append(variadicNamed, na)
+				continue
+			}
 			return nil, data.NewErrorThrow(pe.from, err)
 		}
 		idx := -1
@@ -327,8 +350,9 @@ func (pe *CallMethod) invokeFuncStmt(ctx data.Context, fn data.FuncStmt, invoke 
 			}
 		case *Parameters:
 			remaining := flatArgs[pos:]
-			fnCtx.SetVariableValue(argObj, data.NewArrayValue(remaining))
+			fnCtx.SetVariableValue(argObj, buildVariadicArray(remaining, variadicNamed))
 			pos = len(flatArgs)
+			variadicNamed = nil
 		case *ParameterReference:
 			rawArg := nthPositionalExpr(pe.Args, pos)
 			if rawArg == nil {
@@ -356,16 +380,41 @@ func (pe *CallMethod) invokeFuncStmt(ctx data.Context, fn data.FuncStmt, invoke 
 		}
 	}
 
+	if len(variadicNamed) > 0 {
+		return nil, data.NewErrorThrow(pe.from, fmt.Errorf("无法找到变量: %s", variadicNamed[0].Name))
+	}
+
 	// 将本次调用的参数表达式列表记录到方法上下文中
 	fnCtx.SetCallArgs(pe.Args)
 	fnCtx.SetFlatCallArgs(flatArgs)
 
-	return invoke(fnCtx)
+	ret, ctl := invoke(fnCtx)
+	return finishPooledCall(fn, allocated, ctx, ret, ctl)
 }
 
 type namedArgValue struct {
 	Name  string
 	Value data.Value
+}
+
+func findVariadicParamIndex(params []data.GetValue) int {
+	for i, p := range params {
+		if _, ok := p.(*Parameters); ok {
+			return i
+		}
+	}
+	return -1
+}
+
+func buildVariadicArray(flat []data.Value, named []namedArgValue) *data.ArrayValue {
+	list := make([]*data.ZVal, 0, len(flat)+len(named))
+	for _, v := range flat {
+		list = append(list, data.NewZVal(v))
+	}
+	for _, np := range named {
+		list = append(list, data.NewNamedZVal(np.Name, np.Value))
+	}
+	return &data.ArrayValue{List: list}
 }
 
 // flattenCallArgsForBinding 将调用实参展开为位置实参列表 + 命名实参
@@ -392,11 +441,31 @@ func flattenCallArgsForBinding(ctx data.Context, args []data.GetValue) ([]data.V
 			if acl != nil {
 				return nil, nil, acl
 			}
-			vals, spreadCtl := spreadToValues(ctx, spreadVal)
-			if spreadCtl != nil {
-				return nil, nil, spreadCtl
+			if arr, ok := spreadVal.(*data.ArrayValue); ok {
+				for _, z := range arr.List {
+					if z == nil {
+						continue
+					}
+					if z.Name != "" {
+						if _, isInt := data.ParseIntArrayKeyName(z.Name); !isInt {
+							named = append(named, namedArgValue{Name: z.Name, Value: z.Value})
+							continue
+						}
+					}
+					flat = append(flat, z.Value)
+				}
+			} else if objVal, ok := spreadVal.(*data.ObjectValue); ok {
+				objVal.RangeProperties(func(key string, value data.Value) bool {
+					named = append(named, namedArgValue{Name: key, Value: value})
+					return true
+				})
+			} else {
+				vals, spreadCtl := spreadToValues(ctx, spreadVal)
+				if spreadCtl != nil {
+					return nil, nil, spreadCtl
+				}
+				flat = append(flat, vals...)
 			}
-			flat = append(flat, vals...)
 		default:
 			v, acl := arg.GetValue(ctx)
 			if acl != nil {
@@ -437,6 +506,13 @@ func bindByRefParam(fnCtx, callCtx data.Context, param *ParameterReference, rawA
 	case *NamedArgument:
 		return bindByRefParam(fnCtx, callCtx, param, v.Value)
 	case *CallObjectProperty:
+		zv, acl := v.GetZVal(callCtx)
+		if acl != nil {
+			return acl
+		}
+		fnCtx.SetIndexZVal(param.Index, zv)
+		return nil
+	case *CallObjectDynamicProperty:
 		zv, acl := v.GetZVal(callCtx)
 		if acl != nil {
 			return acl
@@ -519,7 +595,6 @@ func (pe *CallMethod) doCallWithArgs(ctx data.Context, object data.GetMethod, me
 	} else {
 		fnCtx = ctx.CreateContext(varies)
 	}
-	fnCtx.SetVM(ctx.GetVM())
 
 	// 先展开所有参数中的 ...$arr (SpreadArgument)，构建展平后的实参列表
 	var flatArgs []data.Value
@@ -561,7 +636,6 @@ func (pe *CallMethod) doCallWithArgs(ctx data.Context, object data.GetMethod, me
 func (pe *CallMethod) invokeMagicInvoke(ctx data.Context, object data.Context, invoke data.Method) (data.GetValue, data.Control) {
 	varies := invoke.GetVariables()
 	fnCtx := object.CreateContext(varies)
-	fnCtx.SetVM(ctx.GetVM())
 	params := invoke.GetParams()
 
 	var flatArgs []data.Value

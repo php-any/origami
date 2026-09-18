@@ -41,6 +41,26 @@ type Context interface {
 	HasVariableByName(name string) bool
 	// GetDefinedVariables 返回当前作用域中已定义的变量，用于 get_defined_vars。
 	GetDefinedVariables() map[string]Value
+
+	// ReturnSlot 返回本帧复用的 return 载体，避免每次 return 堆分配 Control。
+	ReturnSlot(v Value) ReturnControl
+}
+
+// PreferVM 把第一个非空 VM 写到 dst。禁止用 nil 覆盖已有 VM
+// （Livewire BoundContext / 方法帧若 SetVM(nil)，随后 $this->prop 沿父类链会空指针）。
+func PreferVM(dst Context, srcs ...Context) {
+	if dst == nil {
+		return
+	}
+	for _, src := range srcs {
+		if src == nil {
+			continue
+		}
+		if vm := src.GetVM(); vm != nil {
+			dst.SetVM(vm)
+			return
+		}
+	}
 }
 
 // StaticLocalsBinder 支持函数/方法内 static 局部变量
@@ -208,6 +228,37 @@ type Variable interface {
 
 func NewVariable(name string, index int, ty Types) Variable {
 	return &VariableTODO{name: name, index: index, ty: ty}
+}
+
+func AnonVariables(n int) []Variable {
+	vars := make([]Variable, n)
+	for i := 0; i < n; i++ {
+		vars[i] = NewVariable("", i, nil)
+	}
+	return vars
+}
+
+// BindDeclaredArgs 把实参写入目标函数已声明的形参槽。
+// 帧必须先按 fn.GetVariables() 建好（含 use/局部）；多余实参只进 FlatCallArgs，
+// 不得扩槽、不得覆盖 use（PHP：未声明的额外参数不进入符号表）。
+func BindDeclaredArgs(callCtx Context, fn FuncStmt, args []Value) {
+	n := len(fn.GetParams())
+	if nv := len(fn.GetVariables()); n > nv {
+		n = nv
+	}
+	if na := len(args); n > na {
+		n = na
+	}
+	for i := 0; i < n; i++ {
+		a := args[i]
+		if a == nil {
+			a = NewNullValue()
+		}
+		callCtx.SetIndexZVal(i, NewZVal(a))
+	}
+	if len(args) > 0 {
+		callCtx.SetFlatCallArgs(args)
+	}
 }
 
 type VariableTODO struct {

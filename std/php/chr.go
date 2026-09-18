@@ -34,7 +34,7 @@ func (f *ChrFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if code < 0 || code > 255 {
 		code = code & 0xFF
 	}
-	return data.NewStringValue(string(byte(code))), nil
+	return data.NewByteStringValue(byte(code)), nil
 }
 
 func (f *ChrFunction) GetName() string {

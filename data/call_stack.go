@@ -15,3 +15,16 @@ type CallStackTracker interface {
 	PopCallFrame()
 	SnapshotCallStack() []CallFrame
 }
+
+// CallRecorder 请求内调用深度 + 栈。优先由 Context 实现，避免共享主 VM 串请求。
+type CallRecorder interface {
+	EnterCall() int
+	LeaveCall()
+	CallStackTracker
+}
+
+// ContextEscaper 标记调用帧被生成器等长期持有，禁止归还 Context 池。
+type ContextEscaper interface {
+	MarkEscaped()
+	IsEscaped() bool
+}

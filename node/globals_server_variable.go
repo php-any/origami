@@ -43,20 +43,27 @@ func (v *ServerVariable) GetValue(ctx data.Context) (data.GetValue, data.Control
 	if serverValue == nil {
 		serverValue = data.NewObjectValue()
 		serverValue.SetProperty("SERVER_SOFTWARE", data.NewStringValue("Origami"))
-		registerArgcArgv := os.Getenv("ORIGAMI_PHPT_REGISTER_ARGC_ARGV")
-		if registerArgcArgv != "0" {
-			arr := make([]data.Value, 0)
-			if len(os.Args) > 1 {
-				arr = make([]data.Value, 0, len(os.Args)-1)
-				for _, s := range os.Args[1:] {
-					arr = append(arr, data.NewStringValue(s))
-				}
-			}
-			serverValue.SetProperty("argv", data.NewArrayValue(arr))
-			serverValue.SetProperty("argc", data.NewIntValue(len(arr)))
+	}
+	ensureCLIArgv(serverValue)
+	return serverValue, nil
+}
+
+func ensureCLIArgv(server *data.ObjectValue) {
+	if server == nil || os.Getenv("ORIGAMI_PHPT_REGISTER_ARGC_ARGV") == "0" {
+		return
+	}
+	if server.HasProperty("argv") {
+		return
+	}
+	arr := make([]data.Value, 0)
+	if len(os.Args) > 1 {
+		arr = make([]data.Value, 0, len(os.Args)-1)
+		for _, s := range os.Args[1:] {
+			arr = append(arr, data.NewStringValue(s))
 		}
 	}
-	return serverValue, nil
+	server.SetProperty("argv", data.NewArrayValue(arr))
+	server.SetProperty("argc", data.NewIntValue(len(arr)))
 }
 
 func (v *ServerVariable) GetIndex() int       { return 0 }

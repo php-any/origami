@@ -44,4 +44,7 @@ func ResetSuperglobals() {
 	filesValue = nil
 	envValue = nil
 	globalsValue = nil
+	argvValue = nil
+	argvInitialized = false
+	argcValue = nil
 }

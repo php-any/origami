@@ -51,9 +51,7 @@ func (m *ReflectionClassGetTraitsMethod) Call(ctx data.Context) (data.GetValue, 
 		if idx := strings.LastIndex(traitName, "\\"); idx >= 0 {
 			shortName = traitName[idx+1:]
 		}
-		traitClass := &ReflectionClassClass{}
-		traitValue := data.NewClassValue(traitClass, ctx.CreateBaseContext())
-		traitValue.ObjectValue.SetProperty("_className", data.NewStringValue(traitName))
+		traitValue := newReflectionClassValue(ctx, traitName)
 		list = append(list, data.NewNamedZVal(shortName, traitValue))
 	}
 	return &data.ArrayValue{List: list}, nil

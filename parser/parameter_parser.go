@@ -83,7 +83,7 @@ func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Co
 			isReference = true
 		}
 
-		// (string|int|null $data) 联合类型参数，兼容引用 & 和可变参数 ...
+		// (string|int|null $data) 联合类型，或 (A & B $data) 交集类型；兼容引用 & 和可变参数 ...
 		if !isVar && isIdentOrTypeToken(parser.current().Type()) &&
 			parser.checkPositionIs(1, token.IDENTIFIER, token.VARIABLE, token.BIT_OR, token.ELLIPSIS, token.BIT_AND) {
 
@@ -91,10 +91,16 @@ func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Co
 			varType = parserType(parser, parser.current().Literal())
 			parser.next()
 
-			// 处理后续的 |Type
+			// 处理后续的 |Type（联合）
 			for parser.checkPositionIs(0, token.BIT_OR) {
 				parser.next() // 跳过 |
 				varType = varType + "|" + parserType(parser, parser.current().Literal())
+				parser.next()
+			}
+			// 处理后续的 &Type（交集）；&$var 是引用，不是交集
+			for parser.checkPositionIs(0, token.BIT_AND) && isIdentOrTypeToken(parser.peek(1).Type()) {
+				parser.next() // 跳过 &
+				varType = varType + "&" + parserType(parser, parser.current().Literal())
 				parser.next()
 			}
 
@@ -259,9 +265,19 @@ func parseConstructorParameterType(p *Parser) data.Types {
 		if firstType != nil {
 			unionTypes = append(unionTypes, firstType)
 
-			// 处理后续的 |Type
-			for p.current().Type() == token.BIT_OR {
-				p.next() // 跳过 |
+			// 处理后续的 |Type（联合）或 &Type（交集）
+			var typeCombinator token.TokenType
+			hasCombinator := false
+			if p.current().Type() == token.BIT_OR {
+				typeCombinator = token.BIT_OR
+				hasCombinator = true
+			} else if p.current().Type() == token.BIT_AND && (isIdentOrTypeToken(p.peek(1).Type()) || p.peek(1).Type() == token.NULL || p.peek(1).Type() == token.FALSE) {
+				// 参数位置：&$var 是引用，只有 &Type 才是交集
+				typeCombinator = token.BIT_AND
+				hasCombinator = true
+			}
+			for hasCombinator && p.current().Type() == typeCombinator {
+				p.next()
 				var nextType data.Types
 				if p.checkPositionIs(0, token.NULL, token.FALSE) {
 					nextType = data.NewBaseType(p.current().Literal())
@@ -276,9 +292,10 @@ func parseConstructorParameterType(p *Parser) data.Types {
 				}
 			}
 
-			// 创建类型
 			if len(unionTypes) == 1 {
 				return unionTypes[0]
+			} else if typeCombinator == token.BIT_AND {
+				return data.NewIntersectionType(unionTypes)
 			} else {
 				return data.NewUnionType(unionTypes)
 			}

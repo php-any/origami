@@ -4,16 +4,16 @@ import "github.com/php-any/origami/data"
 
 func (u *ReturnStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	if u.Value == nil {
-		return nil, data.NewReturnControl(data.NewNullValue())
+		return nil, ctx.ReturnSlot(data.NewNullValue())
 	}
 	v, ctl := u.Value.GetValue(ctx)
 	if ctl != nil {
 		return nil, ctl
 	}
 	if v == nil {
-		return nil, data.NewReturnControl(data.NewNullValue())
+		return nil, ctx.ReturnSlot(data.NewNullValue())
 	}
-	return nil, data.NewReturnControl(v.(data.Value))
+	return nil, ctx.ReturnSlot(v.(data.Value))
 }
 
 // ReturnStatement 表示return语句
@@ -58,5 +58,5 @@ func (u *ReturnsStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			result = append(result, data.NewNullValue())
 		}
 	}
-	return nil, data.NewReturnControl(data.NewArrayValue(result))
+	return nil, ctx.ReturnSlot(data.NewArrayValue(result))
 }

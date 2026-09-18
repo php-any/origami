@@ -50,6 +50,11 @@ func coerceToType(ty Types, value Value) (Value, bool) {
 			}
 		}
 		return nil, false
+	case IntersectionType:
+		if t.Is(value) {
+			return value, true
+		}
+		return nil, false
 	case Int:
 		return coerceToIntValue(value)
 	case Float:

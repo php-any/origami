@@ -31,40 +31,42 @@ func (pe *CallParentMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	var object *data.ClassValue
 	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
 		object = classCtx.ClassValue
-		// SelfClass 优先：由外层 parent:: 调用设置，表示代码定义所在类
 		if classCtx.SelfClass != nil {
 			class = classCtx.SelfClass
-		} else if pe.CurrentClass != "" {
-			if cls, has := ctx.GetVM().GetClass(pe.CurrentClass); has && cls.GetExtend() != nil {
-				class = cls
-			} else {
-				class = classCtx.Class
-			}
 		} else {
 			class = classCtx.Class
 		}
 	} else if classVal, ok := ctx.(*data.ClassValue); ok {
 		object = classVal
-		if pe.CurrentClass != "" {
-			if cls, has := ctx.GetVM().GetClass(pe.CurrentClass); has && cls.GetExtend() != nil {
-				class = cls
-			} else {
-				class = classVal.Class
-			}
-		} else {
-			class = classVal.Class
-		}
+		class = classVal.Class
 	} else {
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("parent:: 只能在类方法中使用"))
 	}
 
+	vm := callVM(ctx)
+	if vm == nil && object != nil {
+		vm = object.GetVM()
+	}
+	// SelfClass 未设时，按词法类名解析（trait 合并场景）
+	if classCtx, ok := ctx.(*data.ClassMethodContext); ok && classCtx.SelfClass == nil && pe.CurrentClass != "" && vm != nil {
+		if cls, has := vm.GetClass(pe.CurrentClass); has && cls.GetExtend() != nil {
+			class = cls
+		}
+	} else if _, ok := ctx.(*data.ClassValue); ok && pe.CurrentClass != "" && vm != nil {
+		if cls, has := vm.GetClass(pe.CurrentClass); has && cls.GetExtend() != nil {
+			class = cls
+		}
+	}
+
 	// 获取父类
-	if class.GetExtend() == nil {
+	if class == nil || class.GetExtend() == nil {
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("当前类没有父类"))
 	}
 
 	parentClassName := *class.GetExtend()
-	vm := ctx.GetVM()
+	if vm == nil {
+		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("parent:: 调用时 VM 不可用"))
+	}
 	parentClass, acl := vm.GetOrLoadClass(parentClassName)
 	if acl != nil {
 		return nil, acl

@@ -46,6 +46,13 @@ func (m *ReflectionParameterGetDefaultValueMethod) Call(ctx data.Context) (data.
 		return nil, data.NewErrorThrow(nil, errors.New("Parameter does not have a default value"))
 	}
 
+	if vp, ok := param.(*virtualParam); ok {
+		if !vp.HasDefault() {
+			return nil, data.NewErrorThrow(nil, errors.New("Parameter does not have a default value"))
+		}
+		return data.NewNullValue(), nil
+	}
+
 	var defaultValue data.GetValue
 
 	// 获取参数的默认值

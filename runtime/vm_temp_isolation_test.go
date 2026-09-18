@@ -30,7 +30,10 @@ func TestTempVMOnlyIsolatesOutputState(t *testing.T) {
 
 	first.PushCallFrame(data.CallFrame{Function: "first"})
 	defer first.PopCallFrame()
-	if got := second.SnapshotCallStack(); len(got) != 1 || got[0].Function != "first" {
-		t.Fatalf("call stack should be delegated to base VM: %#v", got)
+	if got := second.SnapshotCallStack(); len(got) != 0 {
+		t.Fatalf("call stack should be isolated per TempVM: %#v", got)
+	}
+	if got := first.SnapshotCallStack(); len(got) != 1 || got[0].Function != "first" {
+		t.Fatalf("first TempVM call stack = %#v", got)
 	}
 }

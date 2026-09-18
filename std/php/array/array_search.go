@@ -7,6 +7,10 @@ import (
 
 // ArraySearchFunction 实现 array_search 函数
 // array_search(mixed $needle, array $haystack, bool $strict = false): int|string|false
+//
+// PHP：strict=true 时用 ===（对象/闭包比身份，标量等比类型与值）；
+// strict=false 时用 == 松散比较。不可对闭包一律 AsString()=="Closure"，
+// 否则 Livewire EventBus::off() 会误删第一个监听器（ExtendBlade）。
 type ArraySearchFunction struct{}
 
 func NewArraySearchFunction() data.FuncStmt {
@@ -31,17 +35,23 @@ func (f *ArraySearchFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	if strictValue != nil {
 		if b, ok := strictValue.(*data.BoolValue); ok {
 			strict = b.Value
+		} else if b, ok := strictValue.(data.AsBool); ok {
+			if bv, err := b.AsBool(); err == nil {
+				strict = bv
+			}
 		}
 	}
 
-	needleStr := needleValue.AsString()
 	for i, z := range arr.List {
 		v := z.Value
+		if v == nil {
+			continue
+		}
 		match := false
 		if strict {
-			match = (v.AsString() == needleStr)
+			match = valuesIdentical(needleValue, v)
 		} else {
-			match = (v.AsString() == needleStr)
+			match = valuesLooseEqual(needleValue, v)
 		}
 		if match {
 			if z.Name != "" {
@@ -52,6 +62,59 @@ func (f *ArraySearchFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	}
 
 	return data.NewBoolValue(false), nil
+}
+
+func valuesIdentical(a, b data.Value) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	switch av := a.(type) {
+	case *data.FuncValue:
+		bv, ok := b.(*data.FuncValue)
+		return ok && av == bv
+	case *data.BoundFuncValue:
+		bv, ok := b.(*data.BoundFuncValue)
+		return ok && av == bv
+	case *data.ClassValue:
+		bv, ok := b.(*data.ClassValue)
+		return ok && av == bv
+	case *data.ArrayValue:
+		bv, ok := b.(*data.ArrayValue)
+		return ok && av == bv
+	case *data.StringValue:
+		bv, ok := b.(*data.StringValue)
+		return ok && av.Value == bv.Value
+	case *data.IntValue:
+		bv, ok := b.(*data.IntValue)
+		return ok && av.Value == bv.Value
+	case *data.FloatValue:
+		bv, ok := b.(*data.FloatValue)
+		return ok && av.Value == bv.Value
+	case *data.BoolValue:
+		bv, ok := b.(*data.BoolValue)
+		return ok && av.Value == bv.Value
+	case *data.NullValue:
+		_, ok := b.(*data.NullValue)
+		return ok
+	default:
+		return a == b
+	}
+}
+
+func valuesLooseEqual(a, b data.Value) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	// 对象/闭包：松散 == 在 PHP 中对对象也是身份比较
+	switch a.(type) {
+	case *data.FuncValue, *data.BoundFuncValue, *data.ClassValue, *data.ArrayValue:
+		return valuesIdentical(a, b)
+	}
+	switch b.(type) {
+	case *data.FuncValue, *data.BoundFuncValue, *data.ClassValue, *data.ArrayValue:
+		return valuesIdentical(a, b)
+	}
+	return data.Compare(a, b) == 0
 }
 
 func (f *ArraySearchFunction) GetName() string {

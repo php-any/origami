@@ -6,10 +6,24 @@ import (
 )
 
 func NewInArrayFunction() data.FuncStmt {
-	return &InArrayFunction{}
+	return &InArrayFunction{
+		params: []data.GetValue{
+			node.NewParameter(nil, "needle", 0, nil, nil),
+			node.NewParameter(nil, "haystack", 1, nil, nil),
+			node.NewParameter(nil, "strict", 2, node.NewNullLiteral(nil), nil),
+		},
+		vars: []data.Variable{
+			node.NewVariable(nil, "needle", 0, data.NewBaseType("mixed")),
+			node.NewVariable(nil, "haystack", 1, data.NewBaseType("array")),
+			node.NewVariable(nil, "strict", 2, data.NewBaseType("bool")),
+		},
+	}
 }
 
-type InArrayFunction struct{}
+type InArrayFunction struct {
+	params []data.GetValue
+	vars   []data.Variable
+}
 
 func (f *InArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	needleValue, _ := ctx.GetIndexValue(0)
@@ -30,7 +44,7 @@ func (f *InArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 			return true
 		})
 	} else if classVal, ok := haystackValue.(*data.ClassValue); ok {
-		classVal.ObjectValue.RangeProperties(func(key string, v data.Value) bool {
+		classVal.RangeProperties(func(key string, v data.Value) bool {
 			valueList = append(valueList, v)
 			return true
 		})
@@ -75,19 +89,11 @@ func (f *InArrayFunction) GetName() string {
 }
 
 func (f *InArrayFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "needle", 0, nil, nil),
-		node.NewParameter(nil, "haystack", 1, nil, nil),
-		node.NewParameter(nil, "strict", 2, node.NewNullLiteral(nil), nil),
-	}
+	return f.params
 }
 
 func (f *InArrayFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "needle", 0, data.NewBaseType("mixed")),
-		node.NewVariable(nil, "haystack", 1, data.NewBaseType("array")),
-		node.NewVariable(nil, "strict", 2, data.NewBaseType("bool")),
-	}
+	return f.vars
 }
 
 // valueEqualStrict 实现 PHP === 语义

@@ -1,0 +1,985 @@
+package support
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
+)
+
+const enumerableName = "Illuminate\\Support\\Enumerable"
+
+type EnumerableInterface struct{ node.Node }
+
+func NewEnumerableInterface() data.InterfaceStmt {
+	return &EnumerableInterface{}
+}
+
+func (i *EnumerableInterface) GetName() string                     { return enumerableName }
+func (i *EnumerableInterface) GetExtends() []string                { return nil }
+func (i *EnumerableInterface) GetMethod(string) (data.Method, bool) { return nil, false }
+func (i *EnumerableInterface) GetMethods() []data.Method            { return nil }
+func (i *EnumerableInterface) GetFrom() data.From                   { return nil }
+func (i *EnumerableInterface) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return nil, nil
+}
+
+const collectionName = "Illuminate\\Support\\Collection"
+
+type CollectionClass struct {
+	node.Node
+	methods map[string]data.Method
+}
+
+func NewCollectionClass() data.ClassStmt {
+	c := &CollectionClass{methods: map[string]data.Method{}}
+	c.register()
+	return c
+}
+
+func (c *CollectionClass) GetName() string { return collectionName }
+func (c *CollectionClass) GetExtend() *string {
+	return nil
+}
+func (c *CollectionClass) GetImplements() []string {
+	return []string{
+		enumerableName,
+		"ArrayAccess",
+		"Countable",
+		"IteratorAggregate",
+		"JsonSerializable",
+		"Illuminate\\Contracts\\Support\\Arrayable",
+		"Illuminate\\Contracts\\Support\\Jsonable",
+	}
+}
+func (c *CollectionClass) GetProperty(name string) (data.Property, bool) {
+	if name == "items" {
+		return node.NewProperty(nil, "items", "protected", false, data.NewArrayValue(nil)), true
+	}
+	return nil, false
+}
+func (c *CollectionClass) GetPropertyList() []data.Property {
+	return []data.Property{
+		node.NewProperty(nil, "items", "protected", false, data.NewArrayValue(nil)),
+	}
+}
+func (c *CollectionClass) GetConstruct() data.Method {
+	return c.methods["__construct"]
+}
+func (c *CollectionClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
+}
+func (c *CollectionClass) GetMethod(name string) (data.Method, bool) {
+	m, ok := c.methods[strings.ToLower(name)]
+	return m, ok
+}
+func (c *CollectionClass) GetMethods() []data.Method {
+	out := make([]data.Method, 0, len(c.methods))
+	for _, m := range c.methods {
+		out = append(out, m)
+	}
+	return out
+}
+func (c *CollectionClass) GetStaticMethod(name string) (data.Method, bool) {
+	switch strings.ToLower(name) {
+	case "make", "times", "range", "wrap", "unwrap", "empty":
+		return c.GetMethod(name)
+	}
+	return c.GetMethod(name)
+}
+
+func (c *CollectionClass) register() {
+	inst := func(name string, params []string, fn func(data.Context) (data.GetValue, data.Control)) {
+		c.methods[strings.ToLower(name)] = newInstanceMethod(name, params, fn, false)
+	}
+	stat := func(name string, params []string, fn func(data.Context) (data.GetValue, data.Control)) {
+		c.methods[strings.ToLower(name)] = newInstanceMethod(name, params, fn, true)
+	}
+	inst("__construct", []string{"items"}, collectionConstruct)
+	stat("make", []string{"items"}, collectionMake)
+	stat("empty", nil, collectionEmpty)
+	stat("wrap", []string{"value"}, collectionWrap)
+	inst("all", nil, collectionAll)
+	inst("toArray", nil, collectionToArray)
+	inst("toJson", []string{"options"}, collectionToJson)
+	inst("jsonSerialize", nil, collectionJsonSerialize)
+	inst("map", []string{"callback"}, collectionMap)
+	inst("filter", []string{"callback"}, collectionFilter)
+	inst("partition", []string{"key", "operator", "value"}, collectionPartition)
+	inst("values", nil, collectionValues)
+	inst("keys", nil, collectionKeys)
+	inst("pluck", []string{"value", "key"}, collectionPluck)
+	inst("get", []string{"key", "default"}, collectionGet)
+	inst("put", []string{"key", "value"}, collectionPut)
+	inst("push", []string{"values"}, collectionPush)
+	inst("pop", []string{"count"}, collectionPop)
+	inst("first", []string{"callback", "default"}, collectionFirst)
+	inst("last", []string{"callback", "default"}, collectionLast)
+	inst("count", nil, collectionCount)
+	inst("isEmpty", nil, collectionIsEmpty)
+	inst("isNotEmpty", nil, collectionIsNotEmpty)
+	inst("each", []string{"callback"}, collectionEach)
+	inst("contains", []string{"key", "operator", "value"}, collectionContains)
+	inst("where", []string{"key", "operator", "value"}, collectionWhere)
+	inst("unique", []string{"key", "strict"}, collectionUnique)
+	inst("merge", []string{"items"}, collectionMerge)
+	inst("diff", []string{"items"}, collectionDiff)
+	inst("diffKeys", []string{"items"}, collectionDiffKeys)
+	inst("except", []string{"keys"}, collectionExcept)
+	inst("only", []string{"keys"}, collectionOnly)
+	inst("concat", []string{"source"}, collectionConcat)
+	inst("flatten", []string{"depth"}, collectionFlatten)
+	inst("sort", []string{"callback"}, collectionSort)
+	inst("sortBy", []string{"callback", "options", "descending"}, collectionSortBy)
+	inst("groupBy", []string{"groupBy", "preserveKeys"}, collectionGroupBy)
+	inst("keyBy", []string{"keyBy"}, collectionKeyBy)
+	inst("implode", []string{"value", "glue"}, collectionImplode)
+	inst("join", []string{"glue", "finalGlue"}, collectionJoin)
+	inst("getIterator", nil, collectionGetIterator)
+	inst("offsetExists", []string{"key"}, collectionOffsetExists)
+	inst("offsetGet", []string{"key"}, collectionOffsetGet)
+	inst("offsetSet", []string{"key", "value"}, collectionOffsetSet)
+	inst("offsetUnset", []string{"key"}, collectionOffsetUnset)
+	inst("getArrayableItems", []string{"items"}, collectionGetArrayableItems)
+	inst("toBase", nil, collectionToBase)
+	inst("__get", []string{"key"}, collectionMagicGet)
+}
+
+func newInstanceMethod(name string, params []string, fn func(data.Context) (data.GetValue, data.Control), static bool) data.Method {
+	ps := make([]data.GetValue, len(params))
+	vs := make([]data.Variable, len(params))
+	for i, p := range params {
+		ps[i] = node.NewParameter(nil, p, i, nil, nil)
+		vs[i] = node.NewVariable(nil, p, i, nil)
+	}
+	return &collMethod{name: name, params: ps, vars: vs, fn: fn, static: static}
+}
+
+type collMethod struct {
+	name   string
+	params []data.GetValue
+	vars   []data.Variable
+	fn     func(data.Context) (data.GetValue, data.Control)
+	static bool
+}
+
+func (m *collMethod) Call(ctx data.Context) (data.GetValue, data.Control) { return m.fn(ctx) }
+func (m *collMethod) GetName() string                                     { return m.name }
+func (m *collMethod) GetModifier() data.Modifier                           { return data.ModifierPublic }
+func (m *collMethod) GetIsStatic() bool                                   { return m.static }
+func (m *collMethod) GetParams() []data.GetValue                          { return m.params }
+func (m *collMethod) GetVariables() []data.Variable                       { return m.vars }
+func (m *collMethod) GetReturnType() data.Types                           { return nil }
+
+func collectionReceiver(ctx data.Context) (*data.ClassValue, data.Control) {
+	if classCtx, ok := ctx.(*data.ClassMethodContext); ok && classCtx.ClassValue != nil {
+		return classCtx.ClassValue, nil
+	}
+	return nil, data.NewErrorThrow(nil, fmt.Errorf("Collection method missing $this"))
+}
+
+func collectionItems(cv *data.ClassValue) *data.ArrayValue {
+	v, _ := cv.GetProperty("items")
+	if av, ok := v.(*data.ArrayValue); ok && av != nil {
+		return av
+	}
+	empty := data.NewArrayValue(nil).(*data.ArrayValue)
+	_ = cv.SetProperty("items", empty)
+	return empty
+}
+
+func newCollectionInstance(ctx data.Context, items data.Value) (*data.ClassValue, data.Control) {
+	vm := ctx.GetVM()
+	stmt, ctl := vm.GetOrLoadClass(collectionName)
+	if ctl != nil {
+		return nil, ctl
+	}
+	// 仅当 $this 本身是 Collection 子类时才 new static（Eloquent Collection）。
+	// collect() 在任意类方法里调用时，ClassMethodContext 是调用方（如 Spatie Package），
+	// 绝不能把 Package 当成 Collection 来 new。
+	if classCtx, ok := ctx.(*data.ClassMethodContext); ok && classCtx.ClassValue != nil {
+		if (data.Class{Name: collectionName}).Is(classCtx.ClassValue) {
+			stmt = classCtx.ClassValue.Class
+		}
+	}
+	cv := data.NewClassValue(stmt, ctx.CreateBaseContext())
+	arr := getArrayableItems(ctx, items)
+	_ = cv.SetProperty("items", arr)
+	return cv, nil
+}
+
+func getArrayableItems(ctx data.Context, items data.Value) *data.ArrayValue {
+	if items == nil || isNull(items) {
+		return data.NewArrayValue(nil).(*data.ArrayValue)
+	}
+	if av, ok := items.(*data.ArrayValue); ok {
+		return data.CloneArrayValue(av)
+	}
+	if cv, ok := items.(*data.ClassValue); ok && cv != nil {
+		if m, ok := cv.GetMethod("toArray"); ok && m != nil {
+			ret, ctl := m.Call(cv.CreateContext(m.GetVariables()))
+			if ctl == nil {
+				if vv, ok := ret.(data.Value); ok {
+					if av, ok := vv.(*data.ArrayValue); ok {
+						return data.CloneArrayValue(av)
+					}
+				}
+			}
+		}
+		if m, ok := cv.GetMethod("all"); ok && m != nil {
+			ret, ctl := m.Call(cv.CreateContext(m.GetVariables()))
+			if ctl == nil {
+				if vv, ok := ret.(data.Value); ok {
+					if av, ok := vv.(*data.ArrayValue); ok {
+						return data.CloneArrayValue(av)
+					}
+				}
+			}
+		}
+	}
+	out := data.NewArrayValue(nil).(*data.ArrayValue)
+	for _, e := range toEntries(items) {
+		setEntry(out, e.keyStr, e.value)
+	}
+	if len(out.List) == 0 {
+		out.List = append(out.List, data.NewZVal(items))
+	}
+	return out
+}
+
+func collectionConstruct(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	items, _ := ctx.GetIndexValue(0)
+	_ = cv.SetProperty("items", getArrayableItems(ctx, items))
+	return data.NewNullValue(), nil
+}
+
+func collectionMake(ctx data.Context) (data.GetValue, data.Control) {
+	items, _ := ctx.GetIndexValue(0)
+	return newCollectionInstance(ctx, items)
+}
+
+func collectionEmpty(ctx data.Context) (data.GetValue, data.Control) {
+	return newCollectionInstance(ctx, data.NewArrayValue(nil))
+}
+
+func collectionWrap(ctx data.Context) (data.GetValue, data.Control) {
+	v, _ := ctx.GetIndexValue(0)
+	if cv, ok := v.(*data.ClassValue); ok && cv != nil {
+		name := cv.Class.GetName()
+		if name == collectionName || strings.HasSuffix(name, "\\Collection") {
+			return cv, nil
+		}
+	}
+	wrapped, _ := arrWrap(withArgs(ctx, v))
+	return newCollectionInstance(ctx, wrapped.(data.Value))
+}
+
+func withArgs(ctx data.Context, args ...data.Value) data.Context {
+	vars := make([]data.Variable, len(args))
+	for i := range args {
+		vars[i] = node.NewVariable(nil, "arg"+strconv.Itoa(i), i, nil)
+	}
+	c := ctx.CreateContext(vars)
+	for i, a := range args {
+		if a == nil {
+			a = data.NewNullValue()
+		}
+		_ = c.SetVariableValue(vars[i], a)
+	}
+	return c
+}
+
+func collectionAll(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	return collectionItems(cv), nil
+}
+
+func collectionToArray(ctx data.Context) (data.GetValue, data.Control) {
+	return collectionAll(ctx)
+}
+
+func collectionToJson(ctx data.Context) (data.GetValue, data.Control) {
+	arr, ctl := collectionAll(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	enc := ctx.GetVM()
+	_ = enc
+	// reuse json via std path: simple marshal through Arr-like walk
+	s, ok := jsonEncodeSimple(arr.(data.Value))
+	if !ok {
+		return data.NewStringValue("[]"), nil
+	}
+	return data.NewStringValue(s), nil
+}
+
+func collectionJsonSerialize(ctx data.Context) (data.GetValue, data.Control) {
+	return collectionAll(ctx)
+}
+
+func collectionMap(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	cb, _ := ctx.GetIndexValue(0)
+	mapped, ctl := arrMap(withArgs(ctx, collectionItems(cv), cb))
+	if ctl != nil {
+		return nil, ctl
+	}
+	return newCollectionInstance(ctx, mapped.(data.Value))
+}
+
+func collectionFilter(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	cb, _ := ctx.GetIndexValue(0)
+	var filtered data.GetValue
+	if cb == nil || isNull(cb) {
+		out := data.NewArrayValue(nil).(*data.ArrayValue)
+		for _, e := range toEntries(collectionItems(cv)) {
+			if truthy(e.value) {
+				setEntry(out, e.keyStr, e.value)
+			}
+		}
+		filtered = out
+	} else {
+		var err data.Control
+		filtered, err = arrWhere(withArgs(ctx, collectionItems(cv), cb))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return newCollectionInstance(ctx, filtered.(data.Value))
+}
+
+func collectionPartition(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	cb, _ := ctx.GetIndexValue(0)
+	passed := data.NewArrayValue(nil).(*data.ArrayValue)
+	failed := data.NewArrayValue(nil).(*data.ArrayValue)
+	for _, e := range toEntries(collectionItems(cv)) {
+		ok := false
+		if cb != nil && !isNull(cb) {
+			ok, ctl = callBool(ctx, cb, e.value, e.key)
+			if ctl != nil {
+				return nil, ctl
+			}
+		}
+		if ok {
+			setEntry(passed, e.keyStr, e.value)
+		} else {
+			setEntry(failed, e.keyStr, e.value)
+		}
+	}
+	left, ctl := newCollectionInstance(ctx, passed)
+	if ctl != nil {
+		return nil, ctl
+	}
+	right, ctl := newCollectionInstance(ctx, failed)
+	if ctl != nil {
+		return nil, ctl
+	}
+	both := data.NewArrayValue([]data.Value{left, right}).(*data.ArrayValue)
+	return newCollectionInstance(ctx, both)
+}
+
+func collectionValues(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	out := data.NewArrayValue(nil).(*data.ArrayValue)
+	for _, e := range toEntries(collectionItems(cv)) {
+		out.List = append(out.List, data.NewZVal(e.value))
+	}
+	return newCollectionInstance(ctx, out)
+}
+
+func collectionKeys(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	out := data.NewArrayValue(nil).(*data.ArrayValue)
+	for _, e := range toEntries(collectionItems(cv)) {
+		out.List = append(out.List, data.NewZVal(e.key))
+	}
+	return newCollectionInstance(ctx, out)
+}
+
+func collectionPluck(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	valueKey, _ := ctx.GetIndexValue(0)
+	keyKey, _ := ctx.GetIndexValue(1)
+	plucked, err := arrPluck(withArgs(ctx, collectionItems(cv), valueKey, keyKey))
+	if err != nil {
+		return nil, err
+	}
+	return newCollectionInstance(ctx, plucked.(data.Value))
+}
+
+func collectionGet(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	key, _ := ctx.GetIndexValue(0)
+	def, _ := ctx.GetIndexValue(1)
+	return arrGet(withArgs(ctx, collectionItems(cv), key, def))
+}
+
+func collectionPut(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	key, _ := ctx.GetIndexValue(0)
+	val, _ := ctx.GetIndexValue(1)
+	items := collectionItems(cv)
+	setEntry(items, keyToString(key), val)
+	_ = cv.SetProperty("items", items)
+	return cv, nil
+}
+
+func collectionPush(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	items := collectionItems(cv)
+	// variadic: first arg may be array of values
+	if v, ok := ctx.GetIndexValue(0); ok && v != nil {
+		if av, ok := v.(*data.ArrayValue); ok {
+			for _, e := range toEntries(av) {
+				items.List = append(items.List, data.NewZVal(e.value))
+			}
+		} else {
+			items.List = append(items.List, data.NewZVal(v))
+		}
+	}
+	_ = cv.SetProperty("items", items)
+	return cv, nil
+}
+
+func collectionPop(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	items := collectionItems(cv)
+	if len(items.List) == 0 {
+		return data.NewNullValue(), nil
+	}
+	last := items.List[len(items.List)-1]
+	items.List = items.List[:len(items.List)-1]
+	_ = cv.SetProperty("items", items)
+	if last == nil {
+		return data.NewNullValue(), nil
+	}
+	return last.Value, nil
+}
+
+func collectionFirst(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	cb, _ := ctx.GetIndexValue(0)
+	def, _ := ctx.GetIndexValue(1)
+	return arrFirst(withArgs(ctx, collectionItems(cv), cb, def))
+}
+
+func collectionLast(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	cb, _ := ctx.GetIndexValue(0)
+	def, _ := ctx.GetIndexValue(1)
+	return arrLast(withArgs(ctx, collectionItems(cv), cb, def))
+}
+
+func collectionCount(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	return data.NewIntValue(len(toEntries(collectionItems(cv)))), nil
+}
+
+func collectionIsEmpty(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	return data.NewBoolValue(len(toEntries(collectionItems(cv))) == 0), nil
+}
+
+func collectionIsNotEmpty(ctx data.Context) (data.GetValue, data.Control) {
+	v, ctl := collectionIsEmpty(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	b, _ := v.(data.AsBool).AsBool()
+	return data.NewBoolValue(!b), nil
+}
+
+func collectionEach(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	cb, _ := ctx.GetIndexValue(0)
+	for _, e := range toEntries(collectionItems(cv)) {
+		ret, err := callValue(ctx, cb, e.value, e.key)
+		if err != nil {
+			return nil, err
+		}
+		if ret != nil {
+			if b, ok := ret.(data.AsBool); ok {
+				if okv, _ := b.AsBool(); !okv {
+					break
+				}
+			}
+		}
+	}
+	return cv, nil
+}
+
+func collectionContains(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	key, _ := ctx.GetIndexValue(0)
+	for _, e := range toEntries(collectionItems(cv)) {
+		if e.value.AsString() == keyToString(key) {
+			return data.NewBoolValue(true), nil
+		}
+	}
+	return data.NewBoolValue(false), nil
+}
+
+func collectionWhere(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	key, _ := ctx.GetIndexValue(0)
+	op, _ := ctx.GetIndexValue(1)
+	val, _ := ctx.GetIndexValue(2)
+	out := data.NewArrayValue(nil).(*data.ArrayValue)
+	for _, e := range toEntries(collectionItems(cv)) {
+		itemVal, ok := dataGetPath(e.value, keyToString(key))
+		if !ok {
+			continue
+		}
+		match := false
+		if val == nil || isNull(val) {
+			// where($key, $value)
+			match = itemVal.AsString() == keyToString(op)
+		} else {
+			match = compareOp(itemVal, keyToString(op), val)
+		}
+		if match {
+			setEntry(out, e.keyStr, e.value)
+		}
+	}
+	return newCollectionInstance(ctx, out)
+}
+
+func compareOp(left data.Value, op string, right data.Value) bool {
+	ls, rs := left.AsString(), right.AsString()
+	switch op {
+	case "=", "==":
+		return ls == rs
+	case "!=", "<>":
+		return ls != rs
+	case ">":
+		return ls > rs
+	case "<":
+		return ls < rs
+	case ">=":
+		return ls >= rs
+	case "<=":
+		return ls <= rs
+	default:
+		return ls == rs
+	}
+}
+
+func collectionUnique(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	seen := map[string]bool{}
+	out := data.NewArrayValue(nil).(*data.ArrayValue)
+	for _, e := range toEntries(collectionItems(cv)) {
+		k := e.value.AsString()
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		setEntry(out, e.keyStr, e.value)
+	}
+	return newCollectionInstance(ctx, out)
+}
+
+func collectionDiff(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	other, _ := ctx.GetIndexValue(0)
+	seen := map[string]struct{}{}
+	for _, e := range toEntries(getArrayableItems(ctx, other)) {
+		seen[e.value.AsString()] = struct{}{}
+	}
+	out := data.NewArrayValue(nil).(*data.ArrayValue)
+	for _, e := range toEntries(collectionItems(cv)) {
+		if _, ok := seen[e.value.AsString()]; ok {
+			continue
+		}
+		setEntry(out, e.keyStr, e.value)
+	}
+	return newCollectionInstance(ctx, out)
+}
+
+func collectionDiffKeys(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	other, _ := ctx.GetIndexValue(0)
+	exclude := map[string]struct{}{}
+	for _, e := range toEntries(getArrayableItems(ctx, other)) {
+		exclude[e.keyStr] = struct{}{}
+	}
+	out := data.NewArrayValue(nil).(*data.ArrayValue)
+	for _, e := range toEntries(collectionItems(cv)) {
+		if _, ok := exclude[e.keyStr]; ok {
+			continue
+		}
+		setEntry(out, e.keyStr, e.value)
+	}
+	return newCollectionInstance(ctx, out)
+}
+
+func collectionExcept(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	keys, _ := ctx.GetIndexValue(0)
+	exclude := map[string]struct{}{}
+	for _, k := range keysToStrings(keys) {
+		exclude[k] = struct{}{}
+	}
+	out := data.NewArrayValue(nil).(*data.ArrayValue)
+	for _, e := range toEntries(collectionItems(cv)) {
+		if _, ok := exclude[e.keyStr]; ok {
+			continue
+		}
+		setEntry(out, e.keyStr, e.value)
+	}
+	return newCollectionInstance(ctx, out)
+}
+
+func collectionOnly(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	keys, _ := ctx.GetIndexValue(0)
+	keep := map[string]struct{}{}
+	for _, k := range keysToStrings(keys) {
+		keep[k] = struct{}{}
+	}
+	out := data.NewArrayValue(nil).(*data.ArrayValue)
+	for _, e := range toEntries(collectionItems(cv)) {
+		if _, ok := keep[e.keyStr]; !ok {
+			continue
+		}
+		setEntry(out, e.keyStr, e.value)
+	}
+	return newCollectionInstance(ctx, out)
+}
+
+func collectionMerge(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	other, _ := ctx.GetIndexValue(0)
+	out := data.CloneArrayValue(collectionItems(cv))
+	for _, e := range toEntries(getArrayableItems(ctx, other)) {
+		setEntry(out, e.keyStr, e.value)
+	}
+	return newCollectionInstance(ctx, out)
+}
+
+func collectionConcat(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	other, _ := ctx.GetIndexValue(0)
+	out := data.CloneArrayValue(collectionItems(cv))
+	for _, e := range toEntries(getArrayableItems(ctx, other)) {
+		out.List = append(out.List, data.NewZVal(e.value))
+	}
+	return newCollectionInstance(ctx, out)
+}
+
+func collectionFlatten(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	depth := data.NewIntValue(1)
+	if d, ok := ctx.GetIndexValue(0); ok && d != nil {
+		depth = d
+	}
+	flat, err := arrFlatten(withArgs(ctx, collectionItems(cv), depth))
+	if err != nil {
+		return nil, err
+	}
+	return newCollectionInstance(ctx, flat.(data.Value))
+}
+
+func collectionSort(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	sorted, err := arrSort(withArgs(ctx, collectionItems(cv)))
+	if err != nil {
+		return nil, err
+	}
+	return newCollectionInstance(ctx, sorted.(data.Value))
+}
+
+func collectionSortBy(ctx data.Context) (data.GetValue, data.Control) {
+	return collectionSort(ctx)
+}
+
+func collectionGroupBy(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	groupBy, _ := ctx.GetIndexValue(0)
+	groups := data.NewArrayValue(nil).(*data.ArrayValue)
+	for _, e := range toEntries(collectionItems(cv)) {
+		gk := ""
+		if v, ok := dataGetPath(e.value, keyToString(groupBy)); ok {
+			gk = keyToString(v)
+		}
+		g, ok := dataGetPath(groups, gk)
+		var garr *data.ArrayValue
+		if ok {
+			garr, _ = g.(*data.ArrayValue)
+		}
+		if garr == nil {
+			garr = data.NewArrayValue(nil).(*data.ArrayValue)
+			setEntry(groups, gk, garr)
+		}
+		garr.List = append(garr.List, data.NewZVal(e.value))
+	}
+	// wrap each group as Collection
+	out := data.NewArrayValue(nil).(*data.ArrayValue)
+	for _, e := range toEntries(groups) {
+		inst, err := newCollectionInstance(ctx, e.value)
+		if err != nil {
+			return nil, err
+		}
+		setEntry(out, e.keyStr, inst)
+	}
+	return newCollectionInstance(ctx, out)
+}
+
+func collectionKeyBy(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	keyBy, _ := ctx.GetIndexValue(0)
+	keyed, err := arrKeyBy(withArgs(ctx, collectionItems(cv), keyBy))
+	if err != nil {
+		return nil, err
+	}
+	return newCollectionInstance(ctx, keyed.(data.Value))
+}
+
+func collectionImplode(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	value, _ := ctx.GetIndexValue(0)
+	glue, _ := ctx.GetIndexValue(1)
+	items := collectionItems(cv)
+	if glue == nil || isNull(glue) {
+		return arrJoin(withArgs(ctx, items, value, nil))
+	}
+	plucked, err := arrPluck(withArgs(ctx, items, value, nil))
+	if err != nil {
+		return nil, err
+	}
+	return arrJoin(withArgs(ctx, plucked.(data.Value), glue, nil))
+}
+
+func collectionJoin(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	glue, _ := ctx.GetIndexValue(0)
+	finalGlue, _ := ctx.GetIndexValue(1)
+	return arrJoin(withArgs(ctx, collectionItems(cv), glue, finalGlue))
+}
+
+func collectionGetIterator(ctx data.Context) (data.GetValue, data.Control) {
+	return collectionAll(ctx)
+}
+
+func collectionOffsetExists(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	key, _ := ctx.GetIndexValue(0)
+	_, ok := arrayGet(collectionItems(cv), keyToString(key))
+	return data.NewBoolValue(ok), nil
+}
+
+func collectionOffsetGet(ctx data.Context) (data.GetValue, data.Control) {
+	return collectionGet(ctx)
+}
+
+func collectionOffsetSet(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	key, _ := ctx.GetIndexValue(0)
+	val, _ := ctx.GetIndexValue(1)
+	items := collectionItems(cv)
+	if key == nil || isNull(key) {
+		items.List = append(items.List, data.NewZVal(val))
+	} else {
+		setEntry(items, keyToString(key), val)
+	}
+	_ = cv.SetProperty("items", items)
+	return data.NewNullValue(), nil
+}
+
+func collectionOffsetUnset(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	key, _ := ctx.GetIndexValue(0)
+	items := collectionItems(cv)
+	items.UnsetKey(key)
+	_ = cv.SetProperty("items", items)
+	return data.NewNullValue(), nil
+}
+
+func collectionGetArrayableItems(ctx data.Context) (data.GetValue, data.Control) {
+	items, _ := ctx.GetIndexValue(0)
+	return getArrayableItems(ctx, items), nil
+}
+
+func collectionToBase(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	// 强制构造 Support\Collection，不用运行时子类
+	vm := ctx.GetVM()
+	stmt, err := vm.GetOrLoadClass(collectionName)
+	if err != nil {
+		return nil, err
+	}
+	base := data.NewClassValue(stmt, ctx.CreateBaseContext())
+	_ = base.SetProperty("items", data.CloneArrayValue(collectionItems(cv)))
+	return base, nil
+}
+
+func collectionMagicGet(ctx data.Context) (data.GetValue, data.Control) {
+	// HigherOrderCollectionProxy 简化：未实现时返回 null
+	return data.NewNullValue(), nil
+}
+
+func jsonEncodeSimple(v data.Value) (string, bool) {
+	switch t := v.(type) {
+	case *data.NullValue:
+		return "null", true
+	case *data.BoolValue:
+		if t.Value {
+			return "true", true
+		}
+		return "false", true
+	case *data.IntValue:
+		return strconv.Itoa(t.Value), true
+	case *data.StringValue:
+		b, err := jsonMarshalString(t.Value)
+		return string(b), err == nil
+	case *data.ArrayValue:
+		if isListArray(t) {
+			parts := make([]string, 0, len(t.List))
+			for _, z := range t.List {
+				if z == nil {
+					parts = append(parts, "null")
+					continue
+				}
+				s, ok := jsonEncodeSimple(z.Value)
+				if !ok {
+					return "", false
+				}
+				parts = append(parts, s)
+			}
+			return "[" + strings.Join(parts, ",") + "]", true
+		}
+		parts := make([]string, 0)
+		for _, e := range toEntries(t) {
+			ks, err := jsonMarshalString(e.keyStr)
+			if err != nil {
+				return "", false
+			}
+			vs, ok := jsonEncodeSimple(e.value)
+			if !ok {
+				return "", false
+			}
+			parts = append(parts, string(ks)+":"+vs)
+		}
+		return "{" + strings.Join(parts, ",") + "}", true
+	default:
+		b, err := jsonMarshalString(v.AsString())
+		return string(b), err == nil
+	}
+}
+
+func jsonMarshalString(s string) ([]byte, error) {
+	return []byte(`"` + strings.ReplaceAll(strings.ReplaceAll(s, `\`, `\\`), `"`, `\"`) + `"`), nil
+}

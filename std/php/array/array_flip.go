@@ -14,29 +14,59 @@ func (f *ArrayFlipFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	if v == nil {
 		return data.NewArrayValue([]data.Value{}), nil
 	}
-	arr, ok := v.(*data.ArrayValue)
-	if !ok {
+
+	pairs := make([][2]data.Value, 0)
+	switch arr := v.(type) {
+	case *data.ArrayValue:
+		for idx, zv := range arr.List {
+			if zv == nil || zv.Value == nil {
+				continue
+			}
+			var oldKey data.Value
+			if zv.Name != "" {
+				if i, ok := data.ParseIntArrayKeyName(zv.Name); ok {
+					oldKey = data.NewIntValue(i)
+				} else {
+					oldKey = data.NewStringValue(zv.Name)
+				}
+			} else {
+				oldKey = data.NewIntValue(idx)
+			}
+			pairs = append(pairs, [2]data.Value{zv.Value, oldKey})
+		}
+	case *data.ObjectValue:
+		// 关联数组在 Origami 中可能是 ObjectValue（如 Collection::all()）
+		arr.RangeProperties(func(key string, val data.Value) bool {
+			if val == nil {
+				return true
+			}
+			var oldKey data.Value
+			if i, ok := data.ParseIntArrayKeyName(key); ok {
+				oldKey = data.NewIntValue(i)
+			} else {
+				oldKey = data.NewStringValue(key)
+			}
+			pairs = append(pairs, [2]data.Value{val, oldKey})
+			return true
+		})
+	default:
 		return data.NewArrayValue([]data.Value{}), nil
 	}
-	flipped := make(map[string]int)
-	for _, zv := range arr.List {
-		key := ""
-		if sv, ok := zv.Value.(data.AsString); ok {
-			key = sv.AsString()
-		} else if iv, ok := zv.Value.(data.AsInt); ok {
-			if val, err := iv.AsInt(); err == nil {
-				key = data.NewIntValue(val).AsString()
-			}
+
+	result := data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
+	for _, p := range pairs {
+		newKey := ""
+		switch k := p[0].(type) {
+		case data.AsString:
+			newKey = k.AsString()
+		default:
+			continue
 		}
-		if key != "" {
-			flipped[key] = len(flipped)
+		if newKey == "" {
+			// PHP：空字符串可作为键
 		}
-	}
-	result := data.NewArrayValue([]data.Value{})
-	for k := range flipped {
-		zv := data.NewZVal(data.NewIntValue(flipped[k]))
-		zv.Name = k
-		result.(*data.ArrayValue).List = append(result.(*data.ArrayValue).List, zv)
+		zv := data.NewNamedZVal(newKey, p[1])
+		result.List = append(result.List, zv)
 	}
 	return result, nil
 }

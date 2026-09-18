@@ -1,6 +1,10 @@
 package node
 
-import "github.com/php-any/origami/data"
+import (
+	"sync"
+
+	"github.com/php-any/origami/data"
+)
 
 func (u *VarStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	// use语句本身不返回值
@@ -23,19 +27,39 @@ func NewVarStatement(token *TokenFrom, name string, initializer data.GetValue) *
 	}
 }
 
+// StaticLocalsHolder 函数/方法级 static 局部变量存储。解析期每个含 static 的函数共用一份，
+// 运行时只在真正执行到 static 语句时才分配内部 map。
+type StaticLocalsHolder struct {
+	once  sync.Once
+	store *data.StaticLocals
+}
+
+// Store 返回（必要时创建）该函数的 static 存储。
+func (h *StaticLocalsHolder) Store() *data.StaticLocals {
+	if h == nil {
+		return nil
+	}
+	h.once.Do(func() {
+		h.store = data.NewStaticLocals()
+	})
+	return h.store
+}
+
 // StaticVarStatement 表示静态局部变量声明语句
 type StaticVarStatement struct {
 	*Node       `pp:"-"`
 	Var         data.Variable
 	Initializer data.GetValue
+	owner       *StaticLocalsHolder
 }
 
 // NewStaticVarStatement 创建一个新的静态局部变量声明语句
-func NewStaticVarStatement(token *TokenFrom, variable data.Variable, initializer data.GetValue) *StaticVarStatement {
+func NewStaticVarStatement(token *TokenFrom, variable data.Variable, initializer data.GetValue, owner *StaticLocalsHolder) *StaticVarStatement {
 	return &StaticVarStatement{
 		Node:        NewNode(token),
 		Var:         variable,
 		Initializer: initializer,
+		owner:       owner,
 	}
 }
 
@@ -53,27 +77,29 @@ func staticLocalsFromCtx(ctx data.Context) *data.StaticLocals {
 }
 
 func (s *StaticVarStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if b, ok := ctx.(data.StaticLocalsBinder); ok {
+		if b.StaticLocalsStore() == nil {
+			b.BindStaticLocals(s.owner.Store())
+		}
+	}
 	store := staticLocalsFromCtx(ctx)
 	idx := s.Var.GetIndex()
 	if store != nil {
-		if _, ok := store.Get(idx); !ok {
-			val := data.NewNullValue()
-			if s.Initializer != nil {
-				init, ctl := s.Initializer.GetValue(ctx)
-				if ctl != nil {
-					return nil, ctl
-				}
-				if v, ok := init.(data.Value); ok {
-					val = v
-				}
-			}
-			store.Init(idx, val)
+		if slot := store.Slot(idx); slot != nil {
+			ctx.SetIndexZVal(idx, slot)
+			return nil, nil
 		}
-		if v, ok := store.Get(idx); ok {
-			if ctl := s.Var.SetValue(ctx, v); ctl != nil {
+		val := data.NewNullValue()
+		if s.Initializer != nil {
+			init, ctl := s.Initializer.GetValue(ctx)
+			if ctl != nil {
 				return nil, ctl
 			}
+			if v, ok := init.(data.Value); ok {
+				val = v
+			}
 		}
+		ctx.SetIndexZVal(idx, store.EnsureSlot(idx, val))
 		return nil, nil
 	}
 	if s.Initializer != nil {

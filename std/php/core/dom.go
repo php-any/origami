@@ -536,7 +536,6 @@ func (p *htmlParser) parseElement() *htmlNode {
 		if p.peek() == '<' {
 			if p.pos+1 < len(p.src) && p.src[p.pos+1] == '/' {
 				// Find the matching closing tag
-				savePos := p.pos
 				p.advance() // <
 				p.advance() // /
 				closeTag := ""
@@ -547,16 +546,11 @@ func (p *htmlParser) parseElement() *htmlNode {
 				if p.pos < len(p.src) {
 					p.pos++ // skip '>'
 				}
-				closeTag = strings.ToLower(closeTag)
+				closeTag = strings.TrimSpace(strings.ToLower(closeTag))
 				if closeTag == tagName {
 					break
 				}
-				// Not matching - treat as text
-				p.pos = savePos
-				text := p.parseText()
-				if text != "" {
-					node.children = append(node.children, &htmlNode{text: text, isText: true})
-				}
+				// 非匹配的闭合标签：已消费掉，忽略继续（禁止回退到 '<'，否则 parseText 空转死循环）
 				continue
 			}
 			if p.pos+1 < len(p.src) && p.src[p.pos+1] == '!' {
@@ -566,11 +560,17 @@ func (p *htmlParser) parseElement() *htmlNode {
 			child := p.parseElement()
 			if child != nil {
 				node.children = append(node.children, child)
+			} else if p.pos < len(p.src) && p.peek() == '<' {
+				// parseElement 失败且仍停在 '<'：跳过一个字符避免死循环
+				p.advance()
 			}
 		} else {
 			text := p.parseText()
 			if text != "" {
 				node.children = append(node.children, &htmlNode{text: text, isText: true})
+			} else if p.pos < len(p.src) {
+				// 无法前进时跳过，防止空转
+				p.advance()
 			}
 		}
 	}

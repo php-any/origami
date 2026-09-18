@@ -85,16 +85,25 @@ func convertPossessiveQuantifiers(pattern string) string {
 	return result.String()
 }
 
-// convertRecursivePatterns 将 PCRE 递归子模式替换为非递归等价物。
-// 处理: (?R), (?-N), (?+N), (?&name), (?P>name)
+// convertRecursivePatterns 将 PCRE 递归/子程序调用替换为非递归等价物。
+// 处理: (?R), (?N), (?-N), (?+N), (?&name), (?P>name)
 // 替换为 [^()]* 以支持常见嵌套括号场景（不完美但实用）。
+// 注意：必须匹配 (?2) 这类绝对编号；仅处理 (?-1)/(?+1) 不够（Blade @class 用 (?2)）。
 func convertRecursivePatterns(pattern string) string {
 	result := strings.ReplaceAll(pattern, "(?R)", "[^()]*")
-	result = regexp.MustCompile(`\(\?-\d+\)`).ReplaceAllString(result, "[^()]*")
-	result = regexp.MustCompile(`\(\?\+\d+\)`).ReplaceAllString(result, "[^()]*")
+	// (?-N) / (?+N) 相对引用
+	result = regexp.MustCompile(`\(\?[+-]\d+\)`).ReplaceAllString(result, "[^()]*")
+	// (?N) 绝对编号子程序调用（N>=1）；避免误伤 (?:...) (?=...) (?!...) (?<=) (?<! ) (?P...) 等
+	result = regexp.MustCompile(`\(\?[1-9]\d*\)`).ReplaceAllString(result, "[^()]*")
 	result = regexp.MustCompile(`\(\?&\w+\)`).ReplaceAllString(result, "[^()]*")
 	result = regexp.MustCompile(`\(\?P>\w+\)`).ReplaceAllString(result, "[^()]*")
 	return result
+}
+
+// convertAtomicGroups 将 PCRE 原子组 (?>...) 降为非捕获组 (?:...)，
+// Go regexp 不支持原子组；Blade @class/@style 等依赖此转换才能编译。
+func convertAtomicGroups(pattern string) string {
+	return strings.ReplaceAll(pattern, "(?>", "(?:")
 }
 
 // parsePhpPattern 解析 PHP 风格的正则表达式，返回 (goPattern, regexp2Pattern, regexp2Flags)。
@@ -142,10 +151,14 @@ func parsePhpPattern(pattern string) (goPattern string, r2Pattern string, r2Flag
 	// 处理占有量词
 	regexBody = convertPossessiveQuantifiers(regexBody)
 
-	// 处理 PCRE 递归子模式 (?R) (?-1) (?+1) (?&name) 等，
+	// 处理 PCRE 递归/子程序调用 (?R) (?2) (?-1) (?+1) (?&name) 等，
 	// Go 的 regexp/regexp2 不支持递归匹配，
 	// 替换为匹配非括号字符 [^()]* 以支持常见嵌套括号场景。
 	regexBody = convertRecursivePatterns(regexBody)
+
+	// 原子组 (?>...) → (?:...)，否则 Blade @class 等模式无法编译，
+	// preg_replace_callback 会返回 false，进而把空属性串污染成 "false"。
+	regexBody = convertAtomicGroups(regexBody)
 
 	// 移除 PCRE 动词如 (*UTF8) (*UCP) 等，regexp2 不需要这些
 	pcreVerbs := []string{"(*UTF8)", "(*UCP)", "(*UTF)"}
@@ -235,6 +248,37 @@ func matcherGroupCount(m Matcher) int {
 	default:
 		return 1
 	}
+}
+
+// matcherSubexpNames 返回捕获组名（下标 0 为完整匹配，通常为空串）。
+func matcherSubexpNames(m Matcher) []string {
+	switch m := m.(type) {
+	case *goMatcher:
+		return m.re.SubexpNames()
+	case *r2Matcher:
+		return m.re.GetGroupNames()
+	default:
+		return nil
+	}
+}
+
+// capturesFromLoc 由 Find*SubmatchIndex 结果构造 Capture 列表（含命名组）。
+func capturesFromLoc(subject string, loc []int, names []string, baseOffset int) []Capture {
+	n := len(loc) / 2
+	caps := make([]Capture, 0, n)
+	for i := 0; i < n; i++ {
+		start, end := loc[i*2], loc[i*2+1]
+		cap := Capture{Participated: start >= 0 && end >= 0, Offset: -1}
+		if cap.Participated && start <= len(subject) && end <= len(subject) {
+			cap.Text = subject[start:end]
+			cap.Offset = start + baseOffset
+		}
+		if i < len(names) {
+			cap.Name = names[i]
+		}
+		caps = append(caps, cap)
+	}
+	return caps
 }
 
 func (m *goMatcher) MatchString(s string) bool { return m.re.MatchString(s) }
@@ -522,12 +566,14 @@ func ExpandPhpReplacement(repl string, groups []string) string {
 				i = next - 1
 				continue
 			}
-			// \\ → 一个反斜杠；其它 \x → 字面 x（与 PHP 常见行为接近）
+			// \\ → 一个反斜杠；其它 \x → 保留 `\x`（PHP preg_replace 对非数字、非 `\` 的转义保留反斜杠，
+			// Livewire SupportCompiledWireKeys 依赖 `\Livewire\Features\...` 写入编译视图）
 			if n == '\\' {
 				b.WriteByte('\\')
 				i++
 				continue
 			}
+			b.WriteByte('\\')
 			b.WriteByte(n)
 			i++
 		case '$':
@@ -699,8 +745,9 @@ func CompileAny(pattern string) (Matcher, error) {
 }
 
 // stripExtendedWhitespace 近似实现 PHP /x 修饰符的行为：
-// - 在字符类 [] 外，移除未转义的空白字符（空格、制表符等）
-// 这里不处理 # 注释，因为当前项目中使用 /x 的模式主要依赖空白，而非行内注释。
+// - 在字符类 [] 外，移除未转义的空白字符（空格、制表符、换行等）
+// - 在字符类 [] 外，`#` 起到行尾注释作用（直到换行）；Blade ComponentTagCompiler
+//   的 parseAttributeBag 等模式依赖此语义，否则换行被删后 `#...` 会粘连并误匹配。
 func stripExtendedWhitespace(pattern string) string {
 	var b strings.Builder
 	inCharClass := false
@@ -730,6 +777,14 @@ func stripExtendedWhitespace(pattern string) string {
 		if ch == ']' && inCharClass {
 			inCharClass = false
 			b.WriteByte(ch)
+			continue
+		}
+
+		// /x：字符类外的 # 开启直到换行的注释
+		if !inCharClass && ch == '#' {
+			for i+1 < len(pattern) && pattern[i+1] != '\n' && pattern[i+1] != '\r' {
+				i++
+			}
 			continue
 		}
 

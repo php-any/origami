@@ -6,10 +6,20 @@ import (
 )
 
 func NewIssetFunction() data.FuncStmt {
-	return &IssetFunction{}
+	return &IssetFunction{
+		params: []data.GetValue{
+			node.NewParameterRawAST(nil, "var", 0, data.Mixed{}),
+		},
+		vars: []data.Variable{
+			node.NewVariable(nil, "var", 0, data.Mixed{}),
+		},
+	}
 }
 
-type IssetFunction struct{}
+type IssetFunction struct {
+	params []data.GetValue
+	vars   []data.Variable
+}
 
 func (f *IssetFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取参数
@@ -63,13 +73,9 @@ func (f *IssetFunction) GetName() string {
 }
 
 func (f *IssetFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterRawAST(nil, "var", 0, data.Mixed{}),
-	}
+	return f.params
 }
 
 func (f *IssetFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "var", 0, data.Mixed{}),
-	}
+	return f.vars
 }

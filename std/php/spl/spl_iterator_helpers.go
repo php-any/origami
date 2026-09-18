@@ -19,18 +19,16 @@ func splGetClassValue(ctx data.Context) *data.ClassValue {
 // splCallUserCallback ?? call_user_func ??????
 func splCallUserCallback(ctx data.Context, cb data.GetValue, args ...data.Value) (data.GetValue, data.Control) {
 	fn := core.NewCallUserFuncFunction()
-	vars := make([]data.Variable, len(args)+1)
-	vars[0] = data.NewVariable("callback", 0, nil)
-	for i, arg := range args {
-		vars[i+1] = data.NewVariable("", i+1, nil)
-		_ = arg
-	}
-	callCtx := ctx.CreateContext(vars)
+	callCtx := ctx.CreateContext(fn.GetVariables())
 	if v, ok := cb.(data.Value); ok {
 		callCtx.SetIndexZVal(0, data.NewZVal(v))
 	}
-	for i, arg := range args {
-		callCtx.SetIndexZVal(i+1, data.NewZVal(arg))
+	switch len(args) {
+	case 0:
+	case 1:
+		callCtx.SetIndexZVal(1, data.NewZVal(args[0]))
+	default:
+		callCtx.SetIndexZVal(1, data.NewZVal(data.NewArrayValue(args)))
 	}
 	return fn.Call(callCtx)
 }

@@ -75,8 +75,9 @@ func (f *PregMatchAllFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 
 	// loc: [start0,end0, start1,end1, ...]，第 0 组是完整匹配，后续是各捕获分组
 	if patternOrder {
-		// PREG_PATTERN_ORDER：$matches[group][matchIndex]
+		// PREG_PATTERN_ORDER：$matches[group][matchIndex]，并附加命名键 $matches['name']
 		groupCount := len(allLocs[0]) / 2
+		names := matcherSubexpNames(re)
 		groups := make([]data.Value, groupCount)
 
 		for g := 0; g < groupCount; g++ {
@@ -88,7 +89,6 @@ func (f *PregMatchAllFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 				// 未匹配的分组
 				if start == -1 || end == -1 {
 					if offsetCapture {
-						// 未参与匹配的分组：['', -1]（与 PHP PREG_OFFSET_CAPTURE 一致）
 						pair := []data.Value{
 							data.NewStringValue(""),
 							data.NewIntValue(-1),
@@ -114,43 +114,36 @@ func (f *PregMatchAllFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 			groups[g] = data.NewArrayValue(groupMatches)
 		}
 
-		matchesArr := data.NewArrayValue(groups)
+		// 命名捕获：$matches['name'] 与对应数值组同内容（PHP 行为）
+		list := make([]*data.ZVal, 0, groupCount*2)
+		hasNamed := false
+		for _, name := range names {
+			if name != "" {
+				hasNamed = true
+				break
+			}
+		}
+		for g := 0; g < groupCount; g++ {
+			if g < len(names) && names[g] != "" {
+				list = append(list, data.NewNamedZVal(names[g], groups[g]))
+			}
+			if hasNamed {
+				list = append(list, data.NewNamedZVal(data.IntArrayKeyName(g), groups[g]))
+			} else {
+				list = append(list, data.NewZVal(groups[g]))
+			}
+		}
+		matchesArr := &data.ArrayValue{List: list}
 		if z := ctx.GetIndexZVal(2); z != nil {
 			z.Value = matchesArr
 		}
 	} else {
-		// PREG_SET_ORDER：$matches[matchIndex][group]
+		// PREG_SET_ORDER：$matches[matchIndex][group]（含命名捕获键）
+		names := matcherSubexpNames(re)
 		var rows []data.Value
 		for _, loc := range allLocs {
-			groupCount := len(loc) / 2
-			var row []data.Value
-			for g := 0; g < groupCount; g++ {
-				start := loc[g*2]
-				end := loc[g*2+1]
-				if start == -1 || end == -1 {
-					if offsetCapture {
-						pair := []data.Value{
-							data.NewStringValue(""),
-							data.NewIntValue(-1),
-						}
-						row = append(row, data.NewArrayValue(pair))
-					} else {
-						row = append(row, data.NewStringValue(""))
-					}
-					continue
-				}
-				text := data.NewStringValue(subject[start:end])
-				if offsetCapture {
-					pair := []data.Value{
-						text,
-						data.NewIntValue(start),
-					}
-					row = append(row, data.NewArrayValue(pair))
-				} else {
-					row = append(row, text)
-				}
-			}
-			rows = append(rows, data.NewArrayValue(row))
+			caps := capturesFromLoc(subject, loc, names, 0)
+			rows = append(rows, BuildMatchArray(caps, flags))
 		}
 		matchesArr := data.NewArrayValue(rows)
 		if z := ctx.GetIndexZVal(2); z != nil {

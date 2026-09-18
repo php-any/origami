@@ -12,9 +12,7 @@ func IsScalarAssignFast(v Value) bool {
 
 // AssignIntToZVal 将整数按值写入变量槽（始终使用独立 *IntValue，避免与数组快照等共享指针）。
 func AssignIntToZVal(zv *ZVal, n int) {
-	if zv == nil {
-		return
-	}
+	zv.Defined = true
 	if iv, ok := zv.Value.(*IntValue); ok {
 		if iv.Value == n {
 			return
@@ -25,9 +23,7 @@ func AssignIntToZVal(zv *ZVal, n int) {
 
 // AssignFloatToZVal 将浮点按值写入变量槽。
 func AssignFloatToZVal(zv *ZVal, f float64) {
-	if zv == nil {
-		return
-	}
+	zv.Defined = true
 	if fv, ok := zv.Value.(*FloatValue); ok {
 		if fv.Value == f {
 			return
@@ -38,9 +34,7 @@ func AssignFloatToZVal(zv *ZVal, f float64) {
 
 // AssignScalarToZVal 按 PHP 标量语义赋值（整数/浮点按值复制）。
 func AssignScalarToZVal(zv *ZVal, value Value) {
-	if zv == nil {
-		return
-	}
+	zv.Defined = true
 	switch v := value.(type) {
 	case *IntValue:
 		AssignIntToZVal(zv, v.Value)
@@ -49,7 +43,7 @@ func AssignScalarToZVal(zv *ZVal, value Value) {
 	case *BoolValue:
 		zv.Value = NewBoolValue(v.Value)
 	case *NullValue:
-		zv.Value = NewNullValue()
+		zv.Value = internNull
 	default:
 		zv.Value = value
 	}

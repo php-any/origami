@@ -2,40 +2,43 @@ package php
 
 import (
 	"crypto/rand"
+	"fmt"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
 
-// RandomBytesFunction 实现 random_bytes 函数
+// RandomBytesFunction 实现 random_bytes(int $length): string
+// 长度须走 AsInt：PHP 里 `$length - 6` 在 Origami 可能是 float，只认 *IntValue 会得到空串，
+// Ramsey CombGenerator 就会在同一秒内生成相同 UUID（Telescope UNIQUE 失败）。
 type RandomBytesFunction struct{}
 
 func NewRandomBytesFunction() data.FuncStmt { return &RandomBytesFunction{} }
 
 func (f *RandomBytesFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	lengthValue, _ := ctx.GetIndexValue(0)
-	if lengthValue == nil {
-		return data.NewStringValue(""), nil
-	}
-
-	var length int
-	if iv, ok := lengthValue.(*data.IntValue); ok {
-		length = iv.Value
-	} else {
-		return data.NewStringValue(""), nil
-	}
-
-	if length <= 0 {
-		return data.NewStringValue(""), nil
+	length, ok := asRandomBytesLength(lengthValue)
+	if !ok || length < 1 {
+		return nil, data.NewErrorThrow(nil, fmt.Errorf("random_bytes(): Argument #1 ($length) must be greater than 0"))
 	}
 
 	bytes := make([]byte, length)
-	_, err := rand.Read(bytes)
-	if err != nil {
-		return data.NewStringValue(""), nil
+	if _, err := rand.Read(bytes); err != nil {
+		return nil, data.NewErrorThrow(nil, err)
 	}
 
 	return data.NewStringValue(string(bytes)), nil
+}
+
+func asRandomBytesLength(v data.Value) (int, bool) {
+	if v == nil {
+		return 0, false
+	}
+	if ai, ok := v.(data.AsInt); ok {
+		n, err := ai.AsInt()
+		return n, err == nil
+	}
+	return 0, false
 }
 
 func (f *RandomBytesFunction) GetName() string { return "random_bytes" }

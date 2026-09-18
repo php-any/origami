@@ -426,12 +426,24 @@ func (m *pdoConnectMethod) GetVariables() []data.Variable {
 	return (&pdoConstructMethod{}).GetVariables()
 }
 func (m *pdoConnectMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if _, ctl := (&pdoConstructMethod{}).Call(ctx); ctl != nil {
-		return nil, ctl
+	stmt, ok := ctx.GetVM().GetClass("PDO")
+	if !ok {
+		stmt = &PDOClass{}
 	}
-	cv := pdoGetClassValue(ctx)
-	if cv == nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("PDO::connect() missing class context"))
+	obj, acl := stmt.GetValue(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	cv := obj.(*data.ClassValue)
+	vars := m.GetVariables()
+	fnCtx := cv.CreateContext(vars)
+	for i := 0; i < len(vars); i++ {
+		if v, ok := ctx.GetIndexValue(i); ok {
+			fnCtx.SetIndexZVal(i, data.NewZVal(v))
+		}
+	}
+	if _, ctl := (&pdoConstructMethod{}).Call(fnCtx); ctl != nil {
+		return nil, ctl
 	}
 	return cv, nil
 }
@@ -572,7 +584,7 @@ func (m *pdoQueryMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		state.lastError = err.Error()
 		state.mu.Unlock()
 		if state.getErrMode() == PDO_ERRMODE_EXCEPTION {
-			return nil, pdoException(err.Error(), ctx)
+			return nil, pdoException(pdoSQLError(err, sqlVal, query), ctx)
 		}
 		return data.NewBoolValue(false), nil
 	}
@@ -615,7 +627,7 @@ func (m *pdoExecMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		state.lastError = err.Error()
 		state.mu.Unlock()
 		if state.getErrMode() == PDO_ERRMODE_EXCEPTION {
-			return nil, pdoException(err.Error(), ctx)
+			return nil, pdoException(pdoSQLError(err, sqlVal, sqlVal.AsString()), ctx)
 		}
 		return data.NewBoolValue(false), nil
 	}
@@ -1064,4 +1076,15 @@ func pdoException(msg string, ctx data.Context) data.Control {
 	exClass.m.SetMessage(msg)
 	cv := data.NewClassValue(exClass, ctx)
 	return data.NewErrorThrowFromClassValue(nil, cv)
+}
+
+func pdoSQLError(err error, sqlVal data.Value, query string) string {
+	t := "nil"
+	if sqlVal != nil {
+		t = fmt.Sprintf("%T", sqlVal)
+	}
+	if len(query) > 240 {
+		query = query[:240] + "..."
+	}
+	return fmt.Sprintf("%s (sqlType=%s sql=%q)", err.Error(), t, query)
 }

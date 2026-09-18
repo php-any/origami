@@ -188,7 +188,7 @@ func (m *stmtExecuteMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 		if err != nil {
 			state.lastError = err.Error()
 			if state.getErrMode() == PDO_ERRMODE_EXCEPTION {
-				return nil, pdoException(err.Error(), ctx)
+				return nil, pdoException(pdoSQLError(err, nil, m.state.sqlStr), ctx)
 			}
 			return data.NewBoolValue(false), nil
 		}
@@ -201,7 +201,7 @@ func (m *stmtExecuteMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	if err != nil {
 		state.lastError = err.Error()
 		if state.getErrMode() == PDO_ERRMODE_EXCEPTION {
-			return nil, pdoException(err.Error(), ctx)
+			return nil, pdoException(pdoSQLError(err, nil, m.state.sqlStr), ctx)
 		}
 		return data.NewBoolValue(false), nil
 	}

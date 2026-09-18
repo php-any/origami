@@ -7,6 +7,8 @@ import (
 
 // ArrayMapFunction 实现 PHP 内置函数 array_map
 // array_map(callable $callback, array $array, array ...$arrays): array
+//
+// PHP 语义：仅传入一个数组时保留键；多个数组时结果为顺序整数键。
 type ArrayMapFunction struct{}
 
 func NewArrayMapFunction() data.FuncStmt {
@@ -39,18 +41,34 @@ func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 
 	// 收集所有数组参数（支持 ArrayValue 和 ObjectValue）
 	paramsVal, _ := ctx.GetIndexValue(1)
-	var arrayLists [][]data.Value
+	var rawArrays []data.Value
 	if paramsVal != nil {
 		if paramsArr, ok := paramsVal.(*data.ArrayValue); ok {
 			for _, z := range paramsArr.List {
-				if z.Value == nil {
+				if z == nil || z.Value == nil {
 					continue
 				}
-				vals := toValueList(z.Value)
-				if vals != nil {
-					arrayLists = append(arrayLists, vals)
-				}
+				rawArrays = append(rawArrays, z.Value)
 			}
+		}
+	}
+
+	if len(rawArrays) == 0 {
+		return data.NewArrayValue([]data.Value{}), nil
+	}
+
+	// 单数组且为关联数组（ObjectValue）：保留键名（ComponentAttributeBag::merge 依赖此行为）
+	if len(rawArrays) == 1 {
+		if ov, ok := rawArrays[0].(*data.ObjectValue); ok {
+			return f.mapObjectPreserveKeys(ctx, cbVal, ov)
+		}
+	}
+
+	arrayLists := make([][]data.Value, 0, len(rawArrays))
+	for _, raw := range rawArrays {
+		vals := toValueList(raw)
+		if vals != nil {
+			arrayLists = append(arrayLists, vals)
 		}
 	}
 
@@ -79,92 +97,105 @@ func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 			}
 		}
 
-		switch cb := cbVal.(type) {
-		case *data.FuncValue:
-			vars := cb.Value.GetVariables()
-			fnCtx := ctx.CreateContext(vars)
-			for ai := 0; ai < len(vars) && ai < len(args); ai++ {
-				fnCtx.SetVariableValue(data.NewVariable("", ai, nil), args[ai])
-			}
-			ret, ctl := cb.Value.Call(fnCtx)
-			if ctl != nil {
-				return nil, ctl
-			}
-			if v, ok := ret.(data.Value); ok {
-				results = append(results, v)
-			} else {
-				results = append(results, data.NewNullValue())
-			}
-		case *data.ArrayValue:
-			// PHP 数组可调用: [$obj, 'method']
-			if len(cb.List) == 2 {
-				objVal := cb.List[0].Value
-				methodVal := cb.List[1].Value
-				if obj, ok := objVal.(data.GetMethod); ok {
-					methodName := methodVal.AsString()
-					if method, has := obj.GetMethod(methodName); has {
-						varies := method.GetVariables()
-						fnCtx := ctx.CreateContext(varies)
-						for ai := 0; ai < len(varies) && ai < len(args); ai++ {
-							fnCtx.SetVariableValue(varies[ai], args[ai])
-						}
-						ret, ctl := method.Call(fnCtx)
-						if ctl != nil {
-							return nil, ctl
-						}
-						if v, ok := ret.(data.Value); ok {
-							results = append(results, v)
-						} else {
-							results = append(results, data.NewNullValue())
-						}
-						continue
-					}
-				}
-			}
-			results = append(results, data.NewNullValue())
-		case data.CallableValue:
-			var arg0, arg1, arg2 data.Value = data.NewNullValue(), data.NewNullValue(), data.NewNullValue()
-			if len(args) > 0 {
-				arg0 = args[0]
-			}
-			if len(args) > 1 {
-				arg1 = args[1]
-			}
-			if len(args) > 2 {
-				arg2 = args[2]
-			}
-			ret, ctl := cb.Call(arg0, arg1, arg2)
-			if ctl != nil {
-				return nil, ctl
-			}
-			results = append(results, ret)
-		default:
-			// 尝试作为字符串函数名
-			funcName := cbVal.AsString()
-			fnStmt, exists := ctx.GetVM().GetFunc(funcName)
-			if exists {
-				fnValue := data.NewFuncValue(fnStmt)
-				vars := fnValue.Value.GetVariables()
-				fnCtx := ctx.CreateContext(vars)
-				for ai := 0; ai < len(vars) && ai < len(args); ai++ {
-					fnCtx.SetVariableValue(data.NewVariable("", ai, nil), args[ai])
-				}
-				ret, ctl := fnValue.Value.Call(fnCtx)
-				if ctl != nil {
-					return nil, ctl
-				}
-				if v, ok := ret.(data.Value); ok {
-					results = append(results, v)
-				} else {
-					results = append(results, data.NewNullValue())
-				}
-			} else {
-				results = append(results, data.NewNullValue())
-			}
+		mapped, ctl := f.invokeCallback(ctx, cbVal, args)
+		if ctl != nil {
+			return nil, ctl
 		}
+		results = append(results, mapped)
 	}
 
 	return data.NewArrayValue(results), nil
+}
+
+func (f *ArrayMapFunction) mapObjectPreserveKeys(ctx data.Context, cbVal data.Value, ov *data.ObjectValue) (data.GetValue, data.Control) {
+	out := data.NewObjectValue()
+	var failed data.Control
+	ov.RangeProperties(func(key string, value data.Value) bool {
+		mapped, ctl := f.invokeCallback(ctx, cbVal, []data.Value{value})
+		if ctl != nil {
+			failed = ctl
+			return false
+		}
+		out.SetProperty(key, mapped)
+		return true
+	})
+	if failed != nil {
+		return nil, failed
+	}
+	return out, nil
+}
+
+func (f *ArrayMapFunction) invokeCallback(ctx data.Context, cbVal data.Value, args []data.Value) (data.Value, data.Control) {
+	switch cb := cbVal.(type) {
+	case *data.BoundFuncValue:
+		return f.callFuncStmt(ctx, cb.Value, args)
+	case *data.FuncValue:
+		return f.callFuncStmt(ctx, cb.Value, args)
+	case *data.ArrayValue:
+		// PHP 数组可调用: [$obj, 'method']
+		if len(cb.List) == 2 {
+			objVal := cb.List[0].Value
+			methodVal := cb.List[1].Value
+			if obj, ok := objVal.(data.GetMethod); ok {
+				methodName := methodVal.AsString()
+				if method, has := obj.GetMethod(methodName); has {
+					varies := method.GetVariables()
+					fnCtx := ctx.CreateContext(varies)
+					for ai := 0; ai < len(varies) && ai < len(args); ai++ {
+						fnCtx.SetVariableValue(varies[ai], args[ai])
+					}
+					ret, ctl := method.Call(fnCtx)
+					if ctl != nil {
+						return nil, ctl
+					}
+					if v, ok := ret.(data.Value); ok {
+						return v, nil
+					}
+					return data.NewNullValue(), nil
+				}
+			}
+		}
+		return data.NewNullValue(), nil
+	case data.CallableValue:
+		var arg0, arg1, arg2 data.Value = data.NewNullValue(), data.NewNullValue(), data.NewNullValue()
+		if len(args) > 0 {
+			arg0 = args[0]
+		}
+		if len(args) > 1 {
+			arg1 = args[1]
+		}
+		if len(args) > 2 {
+			arg2 = args[2]
+		}
+		ret, ctl := cb.Call(arg0, arg1, arg2)
+		if ctl != nil {
+			return nil, ctl
+		}
+		return ret, nil
+	default:
+		funcName := cbVal.AsString()
+		fnStmt, exists := ctx.GetVM().GetFunc(funcName)
+		if !exists {
+			return data.NewNullValue(), nil
+		}
+		return f.callFuncStmt(ctx, fnStmt, args)
+	}
+}
+
+func (f *ArrayMapFunction) callFuncStmt(ctx data.Context, fn data.FuncStmt, args []data.Value) (data.Value, data.Control) {
+	vars := fn.GetVariables()
+	fnCtx := ctx.CreateContext(vars)
+	for ai := 0; ai < len(vars) && ai < len(args); ai++ {
+		fnCtx.SetVariableValue(data.NewVariable("", ai, nil), args[ai])
+	}
+	ret, ctl := fn.Call(fnCtx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	if v, ok := ret.(data.Value); ok {
+		return v, nil
+	}
+	return data.NewNullValue(), nil
 }
 
 func (f *ArrayMapFunction) GetName() string {

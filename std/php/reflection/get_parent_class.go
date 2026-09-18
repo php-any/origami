@@ -46,13 +46,5 @@ func (m *ReflectionClassGetParentClassMethod) Call(ctx data.Context) (data.GetVa
 	}
 
 	parentClassName := *classStmt.GetExtend()
-
-	// 创建 ReflectionClass 实例用于父类
-	classClass := &ReflectionClassClass{}
-	classValue := data.NewClassValue(classClass, ctx.CreateBaseContext())
-
-	// 存储父类名到实例属性中
-	classValue.ObjectValue.SetProperty("_className", data.NewStringValue(parentClassName))
-
-	return classValue, nil
+	return newReflectionClassValue(ctx, parentClassName), nil
 }

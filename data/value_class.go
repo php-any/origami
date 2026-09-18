@@ -2,15 +2,20 @@ package data
 
 import (
 	"context"
+	"errors"
 	"fmt"
 )
 
 func NewClassValue(class ClassStmt, ctx Context) *ClassValue {
-	// 开始初始化属性
+	var vm VM
+	if ctx != nil {
+		vm = ctx.GetVM()
+	}
 	return &ClassValue{
 		ObjectValue: NewObjectValue(),
 		Class:       class,
 		Context:     ctx,
+		vm:          vm,
 	}
 }
 
@@ -22,6 +27,9 @@ type ClassValue struct {
 	Context
 	*ObjectValue
 	Class ClassStmt
+	// vm 钉在实例上：方法帧的 pooled Context 回收后 Context.GetVM() 会变 nil，
+	// parent:: / 父类属性查找仍需 VM。SetVM(nil) 不得清掉该字段。
+	vm VM
 }
 
 func (c *ClassValue) GetName() string {
@@ -39,29 +47,18 @@ func (c *ClassValue) AsBool() (bool, error) {
 }
 
 func (c *ClassValue) AsString() string {
-	result := ""
-	c.property.Range(func(key string, value Value) bool {
-		if v, ok := value.(GetName); ok {
-			result += fmt.Sprintf("\t%s: %s\n", key, v.GetName())
-		} else {
-			result += fmt.Sprintf("\t%s: %s\n", key, value.AsString())
-		}
-		return true
-	})
-
-	if len(result) > 2 {
-		result = result[:len(result)-1] // 移除最后一个换行符
+	// PHP：对象转字符串应走 __toString；无则抛错。此处仅作调试/回退表示，
+	// 禁止递归展开属性（Schema 等对象图有环，会导致栈溢出）。
+	if c == nil || c.Class == nil {
+		return ""
 	}
-
-	// 构建输出字符串
-	return fmt.Sprintf("%s {\n"+
-		"%s\n"+
-		"}",
-		c.Class.GetName(), result,
-	)
+	return fmt.Sprintf("Object(%s)", c.Class.GetName())
 }
 
 func (c *ClassValue) GetPropertyStmt(name string) (Property, bool) {
+	if c == nil || c.Class == nil {
+		return nil, false
+	}
 	if v, ok := c.Class.GetProperty(name); ok {
 		return v, true
 	}
@@ -69,8 +66,11 @@ func (c *ClassValue) GetPropertyStmt(name string) (Property, bool) {
 	vm := c.GetVM()
 	// 执行父级
 	last := c.Class
-	for last.GetExtend() != nil {
+	for vm != nil && last != nil && last.GetExtend() != nil {
 		ext := last.GetExtend()
+		if ext == nil || *ext == "" {
+			break
+		}
 		next, acl := vm.GetOrLoadClass(*ext)
 		if acl != nil || next == nil {
 			return nil, false
@@ -110,6 +110,9 @@ func (c *ClassValue) GetProperty(name string) (Value, Control) {
 }
 
 func (c *ClassValue) GetPropertyZVal(name string) (*ZVal, Control) {
+	if c == nil || c.ObjectValue == nil {
+		return nil, NewErrorThrow(nil, errors.New("Using $this when not in object context"))
+	}
 	v, ok := c.property.GetZVal(name)
 	if !ok {
 		c.SetProperty(name, NewNullValue())
@@ -119,6 +122,25 @@ func (c *ClassValue) GetPropertyZVal(name string) (*ZVal, Control) {
 }
 
 func (c *ClassValue) GetMethod(name string) (Method, bool) {
+	key := MethodLookupKey(name)
+	if holder, ok := c.Class.(MethodLookupCacher); ok {
+		if cache := holder.MethodLookupCache(); cache != nil {
+			if m, found, hit, gen := cache.Lookup(key); hit {
+				return m, found
+			} else {
+				m, found := c.lookupMethodUncached(name)
+				cache.Store(key, m, found, gen)
+				return m, found
+			}
+		}
+	}
+	return c.lookupMethodUncached(name)
+}
+
+func (c *ClassValue) lookupMethodUncached(name string) (Method, bool) {
+	if c == nil || c.Class == nil {
+		return nil, false
+	}
 	// 记录从类自身命中的抽象方法作为兜底：若抽象方法已被父类具体实现覆盖，
 	// 则应解析到父类的具体实现（与 PHP 一致，例如 trait 声明 abstract 方法
 	// 而父类提供了实现的情形）。
@@ -134,7 +156,7 @@ func (c *ClassValue) GetMethod(name string) (Method, bool) {
 	vm := c.GetVM()
 	// 执行父级
 	last := c.Class
-	for last.GetExtend() != nil {
+	for vm != nil && last != nil && last.GetExtend() != nil {
 		ext := last.GetExtend()
 		next, acl := vm.GetOrLoadClass(*ext)
 		if acl != nil || next == nil {
@@ -168,7 +190,7 @@ func (c *ClassValue) GetMethod(name string) (Method, bool) {
 	}
 	// 也在父类中查找静态方法
 	last2 := c.Class
-	for last2.GetExtend() != nil {
+	for vm != nil && last2 != nil && last2.GetExtend() != nil {
 		ext := last2.GetExtend()
 		next, acl := vm.GetOrLoadClass(*ext)
 		if acl != nil || next == nil {
@@ -189,9 +211,11 @@ func (c *ClassValue) GetProperties() map[string]Value {
 	result := make(map[string]Value)
 
 	// 首先获取实例属性（从 ObjectValue 继承）
-	instanceProps := c.ObjectValue.GetProperties()
-	for name, value := range instanceProps {
-		result[name] = value
+	if c.ObjectValue != nil {
+		instanceProps := c.ObjectValue.GetProperties()
+		for name, value := range instanceProps {
+			result[name] = value
+		}
 	}
 
 	// 然后获取类定义的属性
@@ -253,19 +277,77 @@ func (c *ClassValue) GetProperties() map[string]Value {
 // RangeProperties 按插入顺序遍历所有属性
 // 使用此方法可保证遍历顺序与插入顺序一致，避免 Go map 遍历顺序随机的问题
 func (c *ClassValue) RangeProperties(fn func(key string, value Value) bool) {
+	if c == nil || c.ObjectValue == nil {
+		return
+	}
 	c.ObjectValue.RangeProperties(fn)
 }
 
 func (c *ClassValue) CreateContext(vars []Variable) Context {
-	ctx := c.Context.CreateContext(vars)
+	// 符号表从对象已有的执行上下文长出来（剥掉 BoundContext），不绕回 VM.CreateContext。
+	inner := unwrapBoundContext(c.Context).CreateContext(vars)
+	inner.SetVM(c.vm)
 	return &ClassMethodContext{
-		ClassValue: &ClassValue{
-			ObjectValue: c.ObjectValue,
-			Class:       c.Class,
-			Context:     ctx,
-		},
-		StaticClass: nil, // 默认没有后期静态绑定类，由调用者设置
+		ClassValue:  c.CloneWithContext(inner),
+		StaticClass: nil,
 	}
+}
+
+func (c *ClassValue) CloneWithContext(ctx Context) *ClassValue {
+	return &ClassValue{
+		ObjectValue: c.ObjectValue,
+		Class:       c.Class,
+		Context:     ctx,
+		vm:          c.vm,
+	}
+}
+
+// CloneSandbox 按 PHP clone 语义复制实例：数组属性按值拷贝，对象属性仍共享。
+// 供 HTTP 每请求隔离 Application/Router 的 instances / currentRequest，不改共享单例服务。
+func (c *ClassValue) CloneSandbox(ctx Context) *ClassValue {
+	if c == nil {
+		return nil
+	}
+	vm := c.vm
+	if ctx != nil {
+		if v := ctx.GetVM(); v != nil {
+			vm = v
+		}
+	}
+	obj := c.ObjectValue
+	if obj != nil {
+		obj = DeepCloneObjectValue(obj)
+		obj.Context = ctx
+	} else {
+		obj = NewObjectValue()
+	}
+	return &ClassValue{
+		ObjectValue: obj,
+		Class:       c.Class,
+		Context:     ctx,
+		vm:          vm,
+	}
+}
+
+func (c *ClassValue) withVM(vm VM) *ClassValue {
+	if c == nil {
+		return nil
+	}
+	if vm != nil {
+		c.vm = vm
+	}
+	return c
+}
+
+func unwrapBoundContext(ctx Context) Context {
+	for ctx != nil {
+		if bc, ok := ctx.(*BoundContext); ok {
+			ctx = bc.Context
+			continue
+		}
+		return ctx
+	}
+	return ctx
 }
 
 func (c *ClassValue) SetVariableValue(variable Variable, value Value) Control {
@@ -273,30 +355,65 @@ func (c *ClassValue) SetVariableValue(variable Variable, value Value) Control {
 }
 
 func (c *ClassValue) SetProperty(name string, value Value) Control {
+	if c == nil || c.ObjectValue == nil {
+		return NewErrorThrow(nil, errors.New("Using $this when not in object context"))
+	}
 	if set, ok := c.Class.(SetProperty); ok {
 		return set.SetProperty(name, value)
-	} else {
-		switch arr := value.(type) {
-		case *ArrayValue:
-			value = CloneArrayValue(arr)
-		case *ObjectValue:
-			value = CloneObjectValue(arr)
-		}
-		c.property.Set(name, value)
 	}
+	if zv, ok := c.property.GetZVal(name); ok && zv != nil {
+		CowAssign(zv, value)
+		return nil
+	}
+	c.property.Set(name, CowAddRef(value))
 	return nil
 }
 
 func (c *ClassValue) GetVariableValue(variable Variable) (Value, Control) {
+	if c == nil || c.ObjectValue == nil {
+		return nil, NewErrorThrow(nil, errors.New("Using $this when not in object context"))
+	}
 	return c.ObjectValue.GetVariableValue(variable)
+}
+
+func (c *ClassValue) ReturnSlot(v Value) ReturnControl {
+	if c != nil && c.Context != nil {
+		return c.Context.ReturnSlot(v)
+	}
+	return NewReturnControl(v)
 }
 
 func (c *ClassValue) GoContext() context.Context {
 	return context.Background()
 }
 
+func (c *ClassValue) GetVM() VM {
+	return c.vm
+}
+
 func (c *ClassValue) SetVM(vm VM) {
+	if vm == nil {
+		return
+	}
+	c.vm = vm
 	c.Context.SetVM(vm)
+}
+
+// WriteOutput 把 echo 转到内层 Context 上的请求缓冲，避免落到共享 VM 再解析 goid。
+func (c *ClassValue) WriteOutput(s string) {
+	if c != nil && c.Context != nil {
+		if sink, ok := c.Context.(OutputSink); ok {
+			sink.WriteOutput(s)
+			return
+		}
+		if vm := c.GetVM(); vm != nil {
+			if sink, ok := vm.(OutputSink); ok {
+				sink.WriteOutput(s)
+				return
+			}
+		}
+	}
+	WriteOutput(s)
 }
 
 type ClassMethodContext struct {
@@ -305,12 +422,65 @@ type ClassMethodContext struct {
 	SelfClass   ClassStmt // 代码定义所在的类，用于 self:: 和 parent:: 解析（处理 trait 合并场景）
 }
 
+// WrapMethodFrame 在已有符号表外包一层方法身份，不新建符号表。
+func WrapMethodFrame(inner Context, identity *ClassValue, self, static ClassStmt) *ClassMethodContext {
+	if self == nil {
+		self = identity.Class
+	}
+	if static == nil {
+		static = identity.Class
+	}
+	inner.SetVM(identity.vm)
+	return &ClassMethodContext{
+		ClassValue:  identity.CloneWithContext(inner),
+		SelfClass:   self,
+		StaticClass: static,
+	}
+}
+
+// NewStaticMethodContext 为静态方法包装已有帧。调用方传入的 inner 已是符号表。
+func NewStaticMethodContext(inner Context, self ClassStmt, static ClassStmt) *ClassMethodContext {
+	if static == nil {
+		static = self
+	}
+	vm := inner.GetVM()
+	inner.SetVM(vm)
+	return &ClassMethodContext{
+		ClassValue: &ClassValue{
+			Class:   self,
+			Context: inner,
+			vm:      vm,
+		},
+		SelfClass:   self,
+		StaticClass: static,
+	}
+}
+
+func (c *ClassMethodContext) ReturnSlot(v Value) ReturnControl {
+	return c.Context.ReturnSlot(v)
+}
+
+func (c *ClassMethodContext) CreateContext(vars []Variable) Context {
+	nc := c.Context.CreateContext(vars)
+	nc.SetVM(c.vm)
+	return nc
+}
+
+func (c *ClassMethodContext) CreateBaseContext() Context {
+	nc := c.Context.CreateBaseContext()
+	nc.SetVM(c.vm)
+	return nc
+}
+
 func (c *ClassMethodContext) SetVariableValue(variable Variable, value Value) Control {
 	return c.Context.SetVariableValue(variable, value)
 }
 
 func (c *ClassMethodContext) GetVariableValue(variable Variable) (Value, Control) {
 	if _, ok := variable.(Property); ok {
+		if c.ObjectValue == nil {
+			return nil, NewErrorThrow(nil, errors.New("Using $this when not in object context"))
+		}
 		return c.ObjectValue.GetVariableValue(variable)
 	}
 	return c.Context.GetVariableValue(variable)
@@ -343,6 +513,45 @@ func (c *ClassMethodContext) StaticLocalsStore() *StaticLocals {
 
 func (c *ClassMethodContext) GoContext() context.Context {
 	return context.Background()
+}
+
+func (c *ClassMethodContext) ReleasePooled() {
+	if r, ok := c.Context.(interface{ ReleasePooled() }); ok {
+		r.ReleasePooled()
+	}
+}
+
+func (c *ClassMethodContext) MarkEscaped() {
+	if e, ok := c.Context.(ContextEscaper); ok {
+		e.MarkEscaped()
+	}
+}
+
+func (c *ClassMethodContext) IsEscaped() bool {
+	if e, ok := c.Context.(ContextEscaper); ok {
+		return e.IsEscaped()
+	}
+	return false
+}
+
+func (c *ClassMethodContext) EnterCall() int {
+	return c.Context.(CallRecorder).EnterCall()
+}
+
+func (c *ClassMethodContext) LeaveCall() {
+	c.Context.(CallRecorder).LeaveCall()
+}
+
+func (c *ClassMethodContext) PushCallFrame(frame CallFrame) {
+	c.Context.(CallRecorder).PushCallFrame(frame)
+}
+
+func (c *ClassMethodContext) PopCallFrame() {
+	c.Context.(CallRecorder).PopCallFrame()
+}
+
+func (c *ClassMethodContext) SnapshotCallStack() []CallFrame {
+	return c.Context.(CallRecorder).SnapshotCallStack()
 }
 
 func (c *ClassValue) Marshal(serializer Serializer) ([]byte, error) {

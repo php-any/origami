@@ -36,17 +36,22 @@ func (m *ReflectionParameterGetNameMethod) GetReturnType() data.Types {
 // Call 执行 getName 方法
 // 返回被反射参数的名称
 func (m *ReflectionParameterGetNameMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	// PHP ReflectionParameter 在创建时就固定了名字。Laravel 容器
+	// getContextualConcrete('$'.$parameter->getName()) 依赖此值；
+	// 不能只靠再次 GetMethod 查找——构造函数参数在 GetConstruct() 上。
+	if stored := reflectionParameterStoredName(ctx); stored != "" {
+		return data.NewStringValue(stored), nil
+	}
+
 	_, _, _, param := getReflectionParameterInfo(ctx)
 	if param == nil {
 		return data.NewStringValue(""), nil
 	}
 
 	var paramName string
-	// 优先处理 virtualParam（Closure 参数）
 	if vp, ok := param.(*virtualParam); ok {
 		return data.NewStringValue(vp.GetName()), nil
 	}
-	// 尝试多种类型断言来获取参数名
 	if paramVar, ok := param.(data.Variable); ok {
 		paramName = paramVar.GetName()
 	} else if paramInterface, ok := param.(data.Parameter); ok {

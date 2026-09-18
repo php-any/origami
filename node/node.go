@@ -46,7 +46,7 @@ func (p *Program) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	var v data.GetValue
 	var c data.Control
 	for offset, statement := range p.Statements {
-		checkTimeLimit(fromForStatement(p, statement))
+		checkTimeLimit(p.GetFrom())
 		v, c = statement.GetValue(ctx)
 		if c != nil {
 			switch acl := c.(type) {

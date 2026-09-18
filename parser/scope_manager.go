@@ -112,7 +112,7 @@ func (s *DefaultScope) AddVariable(name string, ty data.Types, from data.From) d
 	return s.variables[name]
 }
 
-// LookupVariable 查找变量
+// LookupVariable 查找变量（仅当前作用域）
 func (m *ScopeManager) LookupVariable(name string) data.Variable {
 	scope := m.current
 	if scope != nil {
@@ -121,6 +121,64 @@ func (m *ScopeManager) LookupVariable(name string) data.Variable {
 		}
 	}
 	return nil
+}
+
+// InLambdaScope 当前是否处于箭头/lambda 作用域（含嵌套）
+func (m *ScopeManager) InLambdaScope() bool {
+	for s := m.current; s != nil; s = s.GetParent() {
+		if s.IsLambda() {
+			return true
+		}
+	}
+	return false
+}
+
+// CaptureFromEnclosing 在箭头/lambda 中解析自由变量：
+// 从祖先作用域找到同名变量后，注入到当前作用域以及中间各层 lambda，
+// 以便 parent 映射能逐层捕获（Filament 嵌套 fn 捕获方法参数 $data）。
+func (m *ScopeManager) CaptureFromEnclosing(name string, from data.From) data.Variable {
+	if name != "" && name[0] == '$' {
+		name = name[1:]
+	}
+	if m.current == nil || !m.InLambdaScope() {
+		return nil
+	}
+	if v, ok := m.current.GetVariable(name); ok {
+		return v
+	}
+
+	// 收集从 current 的 parent 到找到变量的作用域链
+	type frame struct {
+		scope Scope
+		v     data.Variable
+	}
+	var found data.Variable
+	var between []Scope // current 的祖先，直到（不含）定义处
+	for s := m.current.GetParent(); s != nil; s = s.GetParent() {
+		if v, ok := s.GetVariable(name); ok {
+			found = v
+			break
+		}
+		between = append(between, s)
+	}
+	if found == nil {
+		return nil
+	}
+
+	ty := found.GetType()
+	// 先注入中间层（靠近定义处的先注入，便于外层箭头 parent 映射）
+	for i := len(between) - 1; i >= 0; i-- {
+		s := between[i]
+		if !s.IsLambda() {
+			continue
+		}
+		if _, ok := s.GetVariable(name); ok {
+			continue
+		}
+		s.AddVariable(name, ty, from)
+	}
+	// 再注入当前 lambda
+	return m.current.AddVariable(name, ty, from)
 }
 
 // LookupParentVariable 查找变量, 在父级域中查找

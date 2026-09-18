@@ -72,6 +72,7 @@ func (f *PregReplaceCallbackFunction) Call(ctx data.Context) (data.GetValue, dat
 
 			var sb strings.Builder
 			pos := 0
+			names := matcherSubexpNames(re)
 			for mi := 0; mi < maxMatches; mi++ {
 				loc := allMatches[mi]
 				if len(loc) < 2 {
@@ -80,28 +81,15 @@ func (f *PregReplaceCallbackFunction) Call(ctx data.Context) (data.GetValue, dat
 				start := loc[0]
 				end := loc[1]
 
-				matchValues := make([]data.Value, 0, len(loc)/2)
-				lastPart := -1
-				for g := 0; g < len(loc); g += 2 {
-					if loc[g] >= 0 && loc[g+1] >= 0 && loc[g] < len(replaced) && loc[g+1] <= len(replaced) {
-						lastPart = g / 2
-					}
-				}
-				for g := 0; g <= lastPart; g++ {
-					gi := g * 2
-					if loc[gi] >= 0 && loc[gi+1] >= 0 && loc[gi] < len(replaced) && loc[gi+1] <= len(replaced) {
-						matchValues = append(matchValues, data.NewStringValue(replaced[loc[gi]:loc[gi+1]]))
-					} else {
-						matchValues = append(matchValues, data.NewStringValue(""))
-					}
-				}
+				caps := capturesFromLoc(replaced, loc, names, 0)
+				matchesArr := BuildMatchArray(caps, 0)
 
 				sb.WriteString(replaced[pos:start])
 
-				ret, ctl := f.callWithSubmatches(ctx, fn, matchValues)
+				ret, ctl := f.callWithSubmatches(ctx, fn, matchesArr)
 				if ctl != nil {
 					ctx.GetVM().ThrowControl(ctl)
-					return matchValues[0], nil
+					return matchesArr, nil
 				}
 				localCount++
 				if ret == nil || ret.AsString() == "" {
@@ -177,15 +165,11 @@ func (f *PregReplaceCallbackFunction) resolveCallback(ctx data.Context, cb data.
 	}
 }
 
-// callWithSubmatches 使用子匹配数组调用回调
-func (f *PregReplaceCallbackFunction) callWithSubmatches(ctx data.Context, fn *data.FuncValue, matchValues []data.Value) (data.Value, data.Control) {
-	args := []data.Value{
-		data.NewArrayValue(matchValues),
-	}
-	callCtx := ctx.CreateContext(make([]data.Variable, len(args)))
-	for i := range args {
-		callCtx.SetIndexZVal(i, data.NewZVal(args[i]))
-	}
+// callWithSubmatches 使用子匹配数组调用回调（含命名捕获键）
+func (f *PregReplaceCallbackFunction) callWithSubmatches(ctx data.Context, fn *data.FuncValue, matches data.Value) (data.Value, data.Control) {
+	args := []data.Value{matches}
+	callCtx := ctx.CreateContext(fn.Value.GetVariables())
+	data.BindDeclaredArgs(callCtx, fn.Value, args)
 	ret, ctl := fn.Call(callCtx)
 	if ctl != nil {
 		return nil, ctl

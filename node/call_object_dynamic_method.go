@@ -52,6 +52,21 @@ func (pe *CallObjectDynamicMethod) GetValue(ctx data.Context) (data.GetValue, da
 		Args:   pe.Args,
 	}
 
+	// PHP 8.1: $obj->$method(...) 一等可调用（Filament ComponentManager::extractPublicMethods）
+	if isFirstClassCallableArgs(pe.Args) {
+		switch class := o.(type) {
+		case *data.ThisValue:
+			return proxy.firstClassObjectCallable(class.ClassValue)
+		case *data.ClassValue:
+			return proxy.firstClassObjectCallable(class)
+		default:
+			if tv, ok := o.(*data.ThisValue); ok && tv.ClassValue != nil {
+				return proxy.firstClassObjectCallable(tv.ClassValue)
+			}
+			return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("无法创建一等可调用: %s", methodName))
+		}
+	}
+
 	switch class := o.(type) {
 	case *data.ThisValue:
 		method, has := class.GetMethod(methodName)

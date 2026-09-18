@@ -114,13 +114,10 @@ func (pe *CallStaticProperty) findStaticPropertyInParents(ctx data.Context, clas
 }
 
 func (pe *CallStaticProperty) SetProperty(ctx data.Context, name string, value data.Value) data.Control {
+	if cs, ok := pe.Stmt.(data.ClassStmt); ok && storeClassStatic(cs, name, value) {
+		return nil
+	}
 	switch c := pe.Stmt.(type) {
-	case *ClassStatement:
-		c.StaticProperty.Store(name, value)
-		return nil
-	case *ClassGeneric:
-		c.StaticProperty.Store(name, value)
-		return nil
 	case data.SetProperty:
 		return c.SetProperty(name, value)
 	default:

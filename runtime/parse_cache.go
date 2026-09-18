@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/perfmon"
 )
 
 type parsedPHPFile struct {
@@ -17,11 +18,14 @@ func (vm *VM) ParseFileCached(file string) (data.GetValue, []data.Variable, data
 		return nil, nil, nil
 	}
 	if cached, ok := syncMapLoad[*parsedPHPFile](&vm.parsedFiles, file); ok {
+		perfmon.NoteParse(file, true, 0)
 		return cached.program, cached.vars, nil
 	}
 
+	t0 := perfmon.Now()
 	p := vm.parser.Clone()
 	program, acl := p.ParseFile(file)
+	perfmon.NoteParse(file, false, perfmon.Since(t0))
 	if acl != nil {
 		return nil, nil, acl
 	}

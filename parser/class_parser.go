@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/lexer"
@@ -579,7 +580,11 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 				if acl != nil {
 					return nil, acl
 				}
-				obj, acl := an.GetValue(p.vm.CreateContext(object.(*data.ClassValue).Class.GetConstruct().GetVariables()))
+				cv, ok := object.(*data.ClassValue)
+				if !ok || cv.Class.GetConstruct() == nil {
+					continue
+				}
+				obj, acl := an.GetValue(p.vm.CreateContext(cv.Class.GetConstruct().GetVariables()))
 				if acl != nil {
 					if ann, ok := acl.(*node.CallAnn); !ok {
 						return nil, acl
@@ -744,7 +749,11 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 			if acl != nil {
 				return nil, acl
 			}
-			obj, acl := an.GetValue(p.vm.CreateContext(object.(*data.ClassValue).Class.GetConstruct().GetVariables()))
+			cv, ok := object.(*data.ClassValue)
+			if !ok || cv.Class.GetConstruct() == nil {
+				continue
+			}
+			obj, acl := an.GetValue(p.vm.CreateContext(cv.Class.GetConstruct().GetVariables()))
 			if acl != nil {
 				if ann, ok := acl.(*node.CallAnn); !ok {
 					return nil, acl
@@ -800,6 +809,8 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 		p.next()
 	}
 	tracker := p.StartTracking()
+	p.enterStaticScope()
+	defer p.leaveStaticScope()
 	p.scopeManager.NewScope(false)
 	// 解析方法名
 	// PHP 允许使用大部分关键字作为方法名（例如 unset、clone 等），
@@ -960,9 +971,15 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 			}
 			unionTypes = append(unionTypes, firstType)
 
-			// 后续的 |Type 原子
-			for p.current().Type() == token.BIT_OR {
-				p.next() // 跳过 |
+			// 后续 |Type（联合）或 &Type（交集）
+			var typeCombinator token.TokenType
+			hasCombinator := false
+			if p.current().Type() == token.BIT_OR || p.current().Type() == token.BIT_AND {
+				typeCombinator = p.current().Type()
+				hasCombinator = true
+			}
+			for hasCombinator && p.current().Type() == typeCombinator {
+				p.next()
 				nextType, acl := parseOneTypeAtom()
 				if acl != nil {
 					return nil, nil, acl
@@ -970,12 +987,12 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 				unionTypes = append(unionTypes, nextType)
 			}
 
-			// 将本次解析出的类型（可能是单一，也可能是联合）加入返回类型列表
 			var thisType data.Types
 			if len(unionTypes) == 1 {
 				thisType = unionTypes[0]
+			} else if typeCombinator == token.BIT_AND {
+				thisType = data.NewIntersectionType(unionTypes)
 			} else {
-				// 联合类型：string|int|false 之类
 				thisType = data.NewUnionType(unionTypes)
 			}
 			if isNullable {
@@ -1171,12 +1188,14 @@ func (p *ClassParser) parseTraitAliasBlock() []data.TraitAlias {
 		// 解析方法名（可能带 TraitName:: 前缀）
 		if p.current().Type() == token.IDENTIFIER {
 			methodName := p.current().Literal()
+			traitName := ""
 			p.next()
 
 			// 处理 TraitName::method 形式
 			if p.current().Type() == token.SCOPE_RESOLUTION {
 				p.next() // 跳过 ::
 				if p.current().Type() == token.IDENTIFIER {
+					traitName = methodName
 					methodName = p.current().Literal()
 					p.next()
 				}
@@ -1196,6 +1215,7 @@ func (p *ClassParser) parseTraitAliasBlock() []data.TraitAlias {
 					aliasName := p.current().Literal()
 					p.next()
 					aliases = append(aliases, data.TraitAlias{
+						Trait:  traitName,
 						Method: methodName,
 						Alias:  aliasName,
 					})
@@ -1281,14 +1301,16 @@ func (p *ClassParser) mergeTraitsIntoMaps(traitNames []string, aliases []data.Tr
 		}
 	}
 
-	// 应用 trait 方法别名
+	// 应用 trait 方法别名（必须从 trait 取原方法，不能从 class.Methods：
+	// 类若已覆盖同名方法，class.Methods[method] 会是类方法，别名会错误指向覆盖实现，
+	// 例如 View 的 `use Macroable { __call as macroCall; }` 会把 macroCall 指到 View::__call 导致递归。）
 	for _, alias := range aliases {
-		if method, ok := methods[alias.Method]; ok {
+		if method, ok := findTraitMethodForAlias(vm, traitNames, alias, false); ok {
 			if _, exists := methods[alias.Alias]; !exists {
 				methods[alias.Alias] = method
 			}
 		}
-		if method, ok := staticMethods[alias.Method]; ok {
+		if method, ok := findTraitMethodForAlias(vm, traitNames, alias, true); ok {
 			if _, exists := staticMethods[alias.Alias]; !exists {
 				staticMethods[alias.Alias] = method
 			}
@@ -1296,6 +1318,46 @@ func (p *ClassParser) mergeTraitsIntoMaps(traitNames []string, aliases []data.Tr
 	}
 
 	return nil
+}
+
+// findTraitMethodForAlias 从 use 列表中的 trait 查找被别名的原方法（实例或静态）。
+func findTraitMethodForAlias(vm data.VM, traitNames []string, alias data.TraitAlias, static bool) (data.Method, bool) {
+	candidates := traitNames
+	if alias.Trait != "" {
+		candidates = []string{alias.Trait}
+		// 也尝试在 traitNames 中按短名/后缀匹配
+		for _, name := range traitNames {
+			if name == alias.Trait || strings.HasSuffix(name, "\\"+alias.Trait) {
+				candidates = []string{name}
+				break
+			}
+		}
+	}
+	for _, traitName := range candidates {
+		trait, acl := vm.GetOrLoadClass(traitName)
+		if acl != nil || trait == nil {
+			continue
+		}
+		if static {
+			if cs, ok := trait.(*node.ClassStatement); ok {
+				if method, ok := cs.StaticMethods[alias.Method]; ok {
+					return method, true
+				}
+			}
+			if gsm, ok := trait.(data.GetStaticMethod); ok {
+				if method, ok := gsm.GetStaticMethod(alias.Method); ok {
+					return method, true
+				}
+			}
+			continue
+		}
+		for _, method := range trait.GetMethods() {
+			if method.GetName() == alias.Method {
+				return method, true
+			}
+		}
+	}
+	return nil, false
 }
 
 // 注意: 此函数在 mergeTraits 之前定义，与 mergeTraits 不同，它不负责写回 class.StaticProperty
@@ -1337,7 +1399,7 @@ func (p *ClassParser) mergeTraits(class *node.ClassStatement, traitNames []strin
 	}
 
 	// 全部 trait 在解析期已合并，应用别名
-	if acl := applyTraitAliases(class, aliases); acl != nil {
+	if acl := applyTraitAliases(vm, class, aliases); acl != nil {
 		return acl
 	}
 
@@ -1417,14 +1479,19 @@ func mergeTraitIntoClass(vm data.VM, class *node.ClassStatement, trait data.Clas
 }
 
 // applyTraitAliases 应用 trait 方法别名。
-func applyTraitAliases(class *node.ClassStatement, aliases []data.TraitAlias) data.Control {
+// 别名必须绑定到 trait 中的原方法，而非 class 上可能已被覆盖的同名方法。
+func applyTraitAliases(vm data.VM, class *node.ClassStatement, aliases []data.TraitAlias) data.Control {
+	if len(aliases) == 0 || vm == nil {
+		return nil
+	}
+	traitNames := class.Traits
 	for _, alias := range aliases {
-		if method, ok := class.Methods[alias.Method]; ok {
+		if method, ok := findTraitMethodForAlias(vm, traitNames, alias, false); ok {
 			if _, exists := class.Methods[alias.Alias]; !exists {
 				class.Methods[alias.Alias] = method
 			}
 		}
-		if method, ok := class.StaticMethods[alias.Method]; ok {
+		if method, ok := findTraitMethodForAlias(vm, traitNames, alias, true); ok {
 			if _, exists := class.StaticMethods[alias.Alias]; !exists {
 				class.StaticMethods[alias.Alias] = method
 			}

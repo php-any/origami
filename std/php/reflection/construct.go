@@ -2,8 +2,6 @@ package reflection
 
 import (
 	"fmt"
-	"os"
-	"runtime/debug"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -97,26 +95,6 @@ func (m *ReflectionClassConstructMethod) Call(ctx data.Context) (data.GetValue, 
 		return nil, createReflectionException(fmt.Sprintf("ReflectionClass::__construct(): Argument #1 ($class) must be of type object|string, %s given", typeName), ctx, m.GetFrom())
 	}
 
-	// 临时诊断：空类名时打印 Go 调用栈
-	if className == "" {
-		diag := fmt.Sprintf("DIAG: ReflectionClass empty class, arg type=%T", classValue)
-		if cmc, ok := ctx.(*data.ClassMethodContext); ok {
-			if cmc.ObjectValue != nil {
-				if n, ok2 := cmc.ObjectValue.Value.(data.GetName); ok2 {
-					diag += fmt.Sprintf(" this=%s", n.GetName())
-				}
-			}
-			if cmc.StaticClass != nil {
-				diag += fmt.Sprintf(" static=%s", cmc.StaticClass.GetName())
-			}
-			if cmc.SelfClass != nil {
-				diag += fmt.Sprintf(" self=%s", cmc.SelfClass.GetName())
-			}
-		}
-		fmt.Fprintln(os.Stderr, diag)
-		debug.PrintStack()
-	}
-
 	// 加载类；失败须抛 ReflectionException，供调用方按 PHP 语义捕获。
 	vm := ctx.GetVM()
 	stmt, acl := vm.LoadPkg(className)
@@ -135,7 +113,7 @@ func (m *ReflectionClassConstructMethod) Call(ctx data.Context) (data.GetValue, 
 	// 将类信息存储到当前对象的属性中
 	if objCtx, ok := ctx.(*data.ClassMethodContext); ok {
 		// 存储类名到 ObjectValue 的实例属性中
-		objCtx.ObjectValue.SetProperty("_className", data.NewStringValue(className))
+		setReflectionClassIdentity(objCtx.ClassValue, className)
 	}
 
 	return nil, nil
