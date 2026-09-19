@@ -17,19 +17,15 @@ func (f *ArrayValuesFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	// 获取第一个参数：数组
 	arrayValue, _ := ctx.GetIndexValue(0)
 	if arrayValue == nil {
-		return data.NewArrayValue([]data.Value{}), nil
+		return nil, throwMustBeArray("array_values", nil)
 	}
 
-	// 处理数组
 	if arrayVal, ok := arrayValue.(*data.ArrayValue); ok {
-		// 对于 ArrayValue，直接返回所有值（已经是数字索引）
 		return data.NewArrayValue(arrayVal.ToValueList()), nil
 	}
 
-	// 处理对象（关联数组）
 	if objectVal, ok := arrayValue.(*data.ObjectValue); ok {
 		values := make([]data.Value, 0)
-		// 必须按插入顺序收集，与 array_keys / foreach 一致（不可用 map range）
 		objectVal.RangeProperties(func(_ string, val data.Value) bool {
 			values = append(values, val)
 			return true
@@ -37,8 +33,7 @@ func (f *ArrayValuesFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 		return data.NewArrayValue(values), nil
 	}
 
-	// 不是数组类型，返回空数组
-	return data.NewArrayValue([]data.Value{}), nil
+	return nil, throwMustBeArray("array_values", arrayValue)
 }
 
 func (f *ArrayValuesFunction) GetName() string {

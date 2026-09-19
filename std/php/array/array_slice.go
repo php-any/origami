@@ -17,7 +17,7 @@ func (f *ArraySliceFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	// 获取第一个参数：数组
 	arrayValue, _ := ctx.GetIndexValue(0)
 	if arrayValue == nil {
-		return data.NewArrayValue([]data.Value{}), nil
+		return nil, throwMustBeArray("array_slice", nil)
 	}
 
 	// 获取第二个参数：偏移量（必需）
@@ -194,8 +194,7 @@ func (f *ArraySliceFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		return result, nil
 	}
 
-	// 不是数组类型，返回空数组
-	return data.NewArrayValue([]data.Value{}), nil
+	return nil, throwMustBeArray("array_slice", arrayValue)
 }
 
 func (f *ArraySliceFunction) GetName() string {

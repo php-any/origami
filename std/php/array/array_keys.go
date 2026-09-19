@@ -17,7 +17,7 @@ func (f *ArrayKeysFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	// 获取第一个参数：数组
 	arrayValue, _ := ctx.GetIndexValue(0)
 	if arrayValue == nil {
-		return data.NewArrayValue([]data.Value{}), nil
+		return nil, throwMustBeArray("array_keys", nil)
 	}
 
 	switch v := arrayValue.(type) {
@@ -52,8 +52,7 @@ func (f *ArrayKeysFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 		return data.NewArrayValue(keys), nil
 
 	default:
-		// 不是数组类型，返回空数组
-		return data.NewArrayValue([]data.Value{}), nil
+		return nil, throwMustBeArray("array_keys", arrayValue)
 	}
 }
 

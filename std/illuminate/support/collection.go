@@ -7,6 +7,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/std/php"
 )
 
 const enumerableName = "Illuminate\\Support\\Enumerable"
@@ -205,48 +206,34 @@ func newCollectionInstance(ctx data.Context, items data.Value) (*data.ClassValue
 		}
 	}
 	cv := data.NewClassValue(stmt, ctx.CreateBaseContext())
-	arr := getArrayableItems(ctx, items)
+	arr, ctl := getArrayableItems(ctx, items)
+	if ctl != nil {
+		return nil, ctl
+	}
 	_ = cv.SetProperty("items", arr)
 	return cv, nil
 }
 
-func getArrayableItems(ctx data.Context, items data.Value) *data.ArrayValue {
-	if items == nil || isNull(items) {
-		return data.NewArrayValue(nil).(*data.ArrayValue)
+func getArrayableItems(ctx data.Context, items data.Value) (*data.ArrayValue, data.Control) {
+	got, ctl := arrFromValue(ctx, items, 0)
+	if ctl != nil {
+		return nil, ctl
 	}
-	if av, ok := items.(*data.ArrayValue); ok {
-		return data.CloneArrayValue(av)
+	if got == nil || isNull(got) {
+		return data.NewArrayValue(nil).(*data.ArrayValue), nil
 	}
-	if cv, ok := items.(*data.ClassValue); ok && cv != nil {
-		if m, ok := cv.GetMethod("toArray"); ok && m != nil {
-			ret, ctl := m.Call(cv.CreateContext(m.GetVariables()))
-			if ctl == nil {
-				if vv, ok := ret.(data.Value); ok {
-					if av, ok := vv.(*data.ArrayValue); ok {
-						return data.CloneArrayValue(av)
-					}
-				}
-			}
-		}
-		if m, ok := cv.GetMethod("all"); ok && m != nil {
-			ret, ctl := m.Call(cv.CreateContext(m.GetVariables()))
-			if ctl == nil {
-				if vv, ok := ret.(data.Value); ok {
-					if av, ok := vv.(*data.ArrayValue); ok {
-						return data.CloneArrayValue(av)
-					}
-				}
-			}
-		}
+	if av, ok := got.(*data.ArrayValue); ok {
+		return data.CloneArrayValue(av), nil
 	}
-	out := data.NewArrayValue(nil).(*data.ArrayValue)
-	for _, e := range toEntries(items) {
-		setEntry(out, e.keyStr, e.value)
+	if ov, ok := got.(*data.ObjectValue); ok && ov != nil {
+		out := data.NewArrayValue(nil).(*data.ArrayValue)
+		ov.RangeProperties(func(key string, val data.Value) bool {
+			setEntry(out, key, val)
+			return true
+		})
+		return out, nil
 	}
-	if len(out.List) == 0 {
-		out.List = append(out.List, data.NewZVal(items))
-	}
-	return out
+	return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Items cannot be represented by a scalar value."), "InvalidArgumentException")
 }
 
 func collectionConstruct(ctx data.Context) (data.GetValue, data.Control) {
@@ -255,7 +242,11 @@ func collectionConstruct(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, ctl
 	}
 	items, _ := ctx.GetIndexValue(0)
-	_ = cv.SetProperty("items", getArrayableItems(ctx, items))
+	arr, ctl := getArrayableItems(ctx, items)
+	if ctl != nil {
+		return nil, ctl
+	}
+	_ = cv.SetProperty("items", arr)
 	return data.NewNullValue(), nil
 }
 
@@ -312,14 +303,14 @@ func collectionToJson(ctx data.Context) (data.GetValue, data.Control) {
 	if ctl != nil {
 		return nil, ctl
 	}
-	enc := ctx.GetVM()
-	_ = enc
-	// reuse json via std path: simple marshal through Arr-like walk
-	s, ok := jsonEncodeSimple(arr.(data.Value))
-	if !ok {
-		return data.NewStringValue("[]"), nil
+	encoded, ok, jctl := php.JsonEncode(ctx, arr.(data.Value))
+	if jctl != nil {
+		return nil, jctl
 	}
-	return data.NewStringValue(s), nil
+	if !ok {
+		return data.NewBoolValue(false), nil
+	}
+	return data.NewStringValue(encoded), nil
 }
 
 func collectionJsonSerialize(ctx data.Context) (data.GetValue, data.Control) {
@@ -651,7 +642,11 @@ func collectionDiff(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	other, _ := ctx.GetIndexValue(0)
 	seen := map[string]struct{}{}
-	for _, e := range toEntries(getArrayableItems(ctx, other)) {
+	otherItems, ctl := getArrayableItems(ctx, other)
+	if ctl != nil {
+		return nil, ctl
+	}
+	for _, e := range toEntries(otherItems) {
 		seen[e.value.AsString()] = struct{}{}
 	}
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
@@ -671,7 +666,11 @@ func collectionDiffKeys(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	other, _ := ctx.GetIndexValue(0)
 	exclude := map[string]struct{}{}
-	for _, e := range toEntries(getArrayableItems(ctx, other)) {
+	otherItems, ctl := getArrayableItems(ctx, other)
+	if ctl != nil {
+		return nil, ctl
+	}
+	for _, e := range toEntries(otherItems) {
 		exclude[e.keyStr] = struct{}{}
 	}
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
@@ -731,7 +730,11 @@ func collectionMerge(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	other, _ := ctx.GetIndexValue(0)
 	out := data.CloneArrayValue(collectionItems(cv))
-	for _, e := range toEntries(getArrayableItems(ctx, other)) {
+	otherItems, ctl := getArrayableItems(ctx, other)
+	if ctl != nil {
+		return nil, ctl
+	}
+	for _, e := range toEntries(otherItems) {
 		setEntry(out, e.keyStr, e.value)
 	}
 	return newCollectionInstance(ctx, out)
@@ -744,7 +747,11 @@ func collectionConcat(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	other, _ := ctx.GetIndexValue(0)
 	out := data.CloneArrayValue(collectionItems(cv))
-	for _, e := range toEntries(getArrayableItems(ctx, other)) {
+	otherItems, ctl := getArrayableItems(ctx, other)
+	if ctl != nil {
+		return nil, ctl
+	}
+	for _, e := range toEntries(otherItems) {
 		out.List = append(out.List, data.NewZVal(e.value))
 	}
 	return newCollectionInstance(ctx, out)
@@ -907,7 +914,11 @@ func collectionOffsetUnset(ctx data.Context) (data.GetValue, data.Control) {
 
 func collectionGetArrayableItems(ctx data.Context) (data.GetValue, data.Control) {
 	items, _ := ctx.GetIndexValue(0)
-	return getArrayableItems(ctx, items), nil
+	arr, ctl := getArrayableItems(ctx, items)
+	if ctl != nil {
+		return nil, ctl
+	}
+	return arr, nil
 }
 
 func collectionToBase(ctx data.Context) (data.GetValue, data.Control) {

@@ -41,7 +41,9 @@ func NewResponseHeaderBagClassFrom(source *ResponseHeaderBagData) data.ClassStmt
 			protectedArrayProp("headerNames"),
 		},
 	}
-	c.methods, c.methodList = responseHeaderBagMethods()
+	cm, cl := responseHeaderBagMethods()
+	pm, pl := headerBagMethods()
+	c.methods, c.methodList = inheritClassMethods(cm, cl, pm, pl)
 	return c
 }
 
