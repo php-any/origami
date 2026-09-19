@@ -10,6 +10,7 @@ import (
 
 type ReflectionPropertyClass struct {
 	node.Node
+	StaticProperty map[string]data.Value
 }
 
 func (c *ReflectionPropertyClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
@@ -20,6 +21,30 @@ func (c *ReflectionPropertyClass) GetExtend() *string                           
 func (c *ReflectionPropertyClass) GetImplements() []string                       { return nil }
 func (c *ReflectionPropertyClass) GetProperty(name string) (data.Property, bool) { return nil, false }
 func (c *ReflectionPropertyClass) GetPropertyList() []data.Property              { return nil }
+
+// GetStaticProperty 对齐 PHP ReflectionProperty::IS_* 类常量（:: 访问走静态属性查找）
+func (c *ReflectionPropertyClass) GetStaticProperty(name string) (data.Value, bool) {
+	if c.StaticProperty == nil {
+		c.StaticProperty = reflectionPropertyConstants()
+	}
+	v, ok := c.StaticProperty[name]
+	return v, ok
+}
+
+func reflectionPropertyConstants() map[string]data.Value {
+	return map[string]data.Value{
+		"IS_PUBLIC":        data.NewIntValue(1),
+		"IS_PROTECTED":     data.NewIntValue(2),
+		"IS_PRIVATE":       data.NewIntValue(4),
+		"IS_FINAL":         data.NewIntValue(32),
+		"IS_ABSTRACT":      data.NewIntValue(64),
+		"IS_STATIC":        data.NewIntValue(16),
+		"IS_READONLY":      data.NewIntValue(128),
+		"IS_PROTECTED_SET": data.NewIntValue(2048),
+		"IS_PRIVATE_SET":   data.NewIntValue(4096),
+		"IS_VIRTUAL":       data.NewIntValue(16384),
+	}
+}
 func (c *ReflectionPropertyClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
 	case token.ConstructName:
@@ -436,19 +461,23 @@ func (m *ReflectionPropertyIsDefaultMethod) GetVariables() []data.Variable {
 	return nil
 }
 func (m *ReflectionPropertyIsDefaultMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	prop := reflectionPropertyInfo(ctx)
-	if prop == nil {
-		return data.NewBoolValue(false), nil
+	// PHP：isDefault 表示属性在类里声明（非运行期动态属性），与是否有默认值无关。
+	// Livewire getPublicPropertiesDefinedOnSubclass 会过滤 !isDefault()。
+	if reflectionPropertyName(ctx) != "" {
+		return data.NewBoolValue(true), nil
 	}
-	return data.NewBoolValue(prop.GetDefaultValue() != nil), nil
+	prop := reflectionPropertyInfo(ctx)
+	return data.NewBoolValue(prop != nil), nil
 }
 
 type ReflectionPropertyIsInitializedMethod struct{}
 
-func (m *ReflectionPropertyIsInitializedMethod) GetName() string            { return "isInitialized" }
-func (m *ReflectionPropertyIsInitializedMethod) GetModifier() data.Modifier { return data.ModifierPublic }
-func (m *ReflectionPropertyIsInitializedMethod) GetIsStatic() bool          { return false }
-func (m *ReflectionPropertyIsInitializedMethod) GetReturnType() data.Types  { return data.Bool{} }
+func (m *ReflectionPropertyIsInitializedMethod) GetName() string { return "isInitialized" }
+func (m *ReflectionPropertyIsInitializedMethod) GetModifier() data.Modifier {
+	return data.ModifierPublic
+}
+func (m *ReflectionPropertyIsInitializedMethod) GetIsStatic() bool         { return false }
+func (m *ReflectionPropertyIsInitializedMethod) GetReturnType() data.Types { return data.Bool{} }
 func (m *ReflectionPropertyIsInitializedMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
 		node.NewParameter(nil, "object", 0, node.NewNullLiteral(nil), nil),
@@ -459,26 +488,45 @@ func (m *ReflectionPropertyIsInitializedMethod) GetVariables() []data.Variable {
 		node.NewVariable(nil, "object", 0, data.Mixed{}),
 	}
 }
+func unwrapReflectionValue(v data.Value) data.Value {
+	for i := 0; i < 4 && v != nil; i++ {
+		zv, ok := v.(*data.ZValValue)
+		if !ok || zv.ZVal == nil {
+			return v
+		}
+		v = zv.ZVal.Value
+	}
+	return v
+}
+
+func classValueFromReflectionObject(objVal data.Value) *data.ClassValue {
+	switch o := unwrapReflectionValue(objVal).(type) {
+	case *data.ThisValue:
+		return o.ClassValue
+	case *data.ClassValue:
+		return o
+	default:
+		return nil
+	}
+}
+
 func (m *ReflectionPropertyIsInitializedMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	propName := reflectionPropertyName(ctx)
 	objVal, _ := ctx.GetIndexValue(0)
-	if propName == "" || objVal == nil {
+	cv := classValueFromReflectionObject(objVal)
+	if propName == "" || cv == nil {
 		return data.NewBoolValue(false), nil
 	}
-	switch o := objVal.(type) {
-	case *data.ClassValue:
-		if o.ObjectValue != nil {
-			if v, _ := o.ObjectValue.GetProperty(propName); v != nil {
-				return data.NewBoolValue(true), nil
-			}
-		}
-		if z, ctl := o.GetPropertyZVal(propName); ctl == nil && z != nil && z.Value != nil {
-			return data.NewBoolValue(true), nil
-		}
-	case data.GetProperty:
-		if v, ctl := o.GetProperty(propName); ctl == nil && v != nil {
-			return data.NewBoolValue(true), nil
-		}
+	if cv.ObjectValue != nil && cv.ObjectValue.HasProperty(propName) {
+		return data.NewBoolValue(true), nil
+	}
+	stmt, ok := cv.GetPropertyStmt(propName)
+	if !ok {
+		return data.NewBoolValue(false), nil
+	}
+	// PHP：无类型属性视为已初始化（默认 null）；有类型无默认值则在赋值前为未初始化。
+	if stmt.GetType() == nil || stmt.GetDefaultValue() != nil {
+		return data.NewBoolValue(true), nil
 	}
 	return data.NewBoolValue(false), nil
 }

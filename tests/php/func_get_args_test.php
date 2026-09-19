@@ -43,4 +43,21 @@ if ($s[0] !== 10 || $s[1] !== 20) {
     Log::fatal('...\\func_get_args() 失败: ' . json_encode($s));
 }
 
+function FuncGetArgs_extra($a)
+{
+    return func_get_args();
+}
+$e = FuncGetArgs_extra(1, 2, 3);
+if (!isset($e[0], $e[1], $e[2]) || $e[0] !== 1 || $e[1] !== 2 || $e[2] !== 3) {
+    Log::fatal('func_get_args 多余实参失败: ' . json_encode($e));
+}
+
+function FuncGetArgs_none()
+{
+    return func_num_args();
+}
+if (FuncGetArgs_none() !== 0) {
+    Log::fatal('func_num_args() 无参应返回 0');
+}
+
 Log::info('func_get_args 反斜杠调用测试通过');

@@ -45,7 +45,21 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		// 递归处理，现在应该是 FuncValue 了
 		return pe.handleFuncValue(ctx, funcValue)
 	case *staticMethodFuncWithLateBinding:
-		// 后期静态绑定静态方法包装器
+		// PHP 8.1：static::method(...) 是一等可调用，必须捕获当前 late-static 类并返回 Closure，
+		// 不得立刻执行。Filament Resource::configureTable 的
+		// recordTitle(static::getRecordTitle(...)) 依赖此语义。
+		if isFirstClassCallableArgs(pe.Args) {
+			declaring := findDeclaringClassForMethod(ctx.GetVM(), fv.callClass, fv.method.GetName())
+			if declaring == nil {
+				declaring = fv.callClass
+			}
+			return data.NewFuncValue(&staticMethodFunc{
+				class:          declaring,
+				callClass:      fv.callClass,
+				method:         fv.method,
+				originalMethod: fv.method.GetName(),
+			}), nil
+		}
 		return pe.handleStaticMethodWithLateBinding(ctx, fv)
 	default:
 		// 检查是否是 first-class callable: 单个 SpreadArgument(nil)

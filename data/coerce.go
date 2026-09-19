@@ -59,9 +59,57 @@ func coerceToType(ty Types, value Value) (Value, bool) {
 		return coerceToIntValue(value)
 	case Float:
 		return coerceToFloatValue(value)
+	case String:
+		return coerceToStringValue(value)
 	default:
 		return nil, false
 	}
+}
+
+// PHP 弱类型：string 参数接受 int/float/bool，以及实现 __toString 的对象。
+func coerceToStringValue(value Value) (Value, bool) {
+	switch v := value.(type) {
+	case *StringValue:
+		return v, true
+	case *IntValue:
+		return NewStringValue(strconv.Itoa(v.Value)), true
+	case *FloatValue:
+		return NewStringValue(strconv.FormatFloat(v.Value, 'G', -1, 64)), true
+	case *BoolValue:
+		if v.Value {
+			return NewStringValue("1"), true
+		}
+		return NewStringValue(""), true
+	case *ThisValue:
+		return objectToStringValue(v.ClassValue)
+	case *ClassValue:
+		return objectToStringValue(v)
+	default:
+		return nil, false
+	}
+}
+
+func objectToStringValue(obj *ClassValue) (Value, bool) {
+	if obj == nil {
+		return nil, false
+	}
+	toStr, ok := obj.GetMethod("__toString")
+	if !ok || toStr == nil {
+		return nil, false
+	}
+	fnCtx := obj.CreateContext(toStr.GetVariables())
+	fnCtx.SetCallArgs([]GetValue{})
+	val, ctl := toStr.Call(fnCtx)
+	if ctl != nil || val == nil {
+		return nil, false
+	}
+	if s, ok := val.(*StringValue); ok {
+		return s, true
+	}
+	if v, ok := val.(Value); ok {
+		return NewStringValue(v.AsString()), true
+	}
+	return nil, false
 }
 
 func coerceToIntValue(value Value) (Value, bool) {

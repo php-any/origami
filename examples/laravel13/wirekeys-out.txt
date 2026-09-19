@@ -1,3 +1,0 @@
-﻿exists: yes
-name: Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys
-call: Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys

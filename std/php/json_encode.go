@@ -149,7 +149,7 @@ func resolveJSONValue(ctx data.Context, value data.Value, visiting map[uintptr]b
 			if jerr != JSON_ERROR_NONE {
 				return nil, jerr, nil
 			}
-			cloned.List[i] = data.NewNamedZVal(z.Name, nv)
+			cloned.List[i] = data.CopyZValKeepName(z, nv)
 		}
 		return cloned, JSON_ERROR_NONE, nil
 	case *data.ObjectValue:

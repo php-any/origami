@@ -562,18 +562,12 @@ func (p *NewStructParser) parseAnonymousClass(tracker *PositionTracker) (data.Ge
 				if trait == nil {
 					return nil, data.NewErrorThrow(p.newFrom(), fmt.Errorf("trait %s 不存在", traitName))
 				}
-				// 合并 trait 的方法
-				traitMethods := trait.GetMethods()
-				for _, method := range traitMethods {
-					methodName := method.GetName()
-					// 如果类中已经有同名方法，跳过（类的方法优先级更高）
-					if _, exists := methods[methodName]; !exists {
-						if method.GetIsStatic() {
-							if _, exists := staticMethods[methodName]; !exists {
-								staticMethods[methodName] = method
-							}
-						} else {
-							methods[methodName] = method
+				// 合并 trait 的方法（含别名键）
+				node.CopyTraitInstanceMethods(methods, trait)
+				if cs, ok := trait.(*node.ClassStatement); ok {
+					for methodName, method := range cs.StaticMethods {
+						if _, exists := staticMethods[methodName]; !exists {
+							staticMethods[methodName] = method
 						}
 					}
 				}

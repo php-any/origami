@@ -1,3 +1,0 @@
-ensureCLIArgv:
-run
-tests/origami/dump_argv_input.php

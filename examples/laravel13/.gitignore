@@ -23,6 +23,13 @@
 /vendor
 /laravel13
 /laravel13.exe
+# 探针 / curl / pprof：写到 storage/origami-debug，不要堆在项目根
+/*.txt
+/*.html
+/*.ps1
+/cpu-*.pprof
+/storage/origami-debug/*
+!/storage/origami-debug/.gitignore
 _ide_helper.php
 Homestead.json
 Homestead.yaml

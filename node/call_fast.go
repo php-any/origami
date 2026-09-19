@@ -29,9 +29,25 @@ func canFastPositionalBind(params []data.GetValue, args []data.GetValue) bool {
 }
 
 func bindPositionalParameters(fnCtx, ctx data.Context, params []data.GetValue, args []data.GetValue, varies []data.Variable) data.Control {
-	flat := make([]data.Value, 0, len(args))
+	nArgs := len(args)
+	nParams := len(params)
+	if nArgs == 0 {
+		for i := 0; i < nParams; i++ {
+			if _, acl := params[i].GetValue(fnCtx); acl != nil {
+				return acl
+			}
+		}
+		return nil
+	}
+
+	// 实参不超过形参时，func_get_args 可从槽位 + GetCallArgs 还原，不必每次 make 扁平切片。
+	needFlat := nArgs > nParams
+	var flat []data.Value
+	if needFlat {
+		flat = make([]data.Value, 0, nArgs)
+	}
 	for i, arg := range args {
-		if i < len(params) {
+		if i < nParams {
 			if raw, ok := params[i].(*ParameterRawAST); ok {
 				if acl := raw.BindUnevaluated(fnCtx, ctx, arg); acl != nil {
 					return acl
@@ -47,20 +63,24 @@ func bindPositionalParameters(fnCtx, ctx data.Context, params []data.GetValue, a
 		if val == nil {
 			val = data.NewNullValue()
 		}
-		flat = append(flat, val)
-		if i < len(params) {
+		if needFlat {
+			flat = append(flat, val)
+		}
+		if i < nParams {
 			if acl := params[i].(*Parameter).SetValue(fnCtx, val); acl != nil {
 				return acl
 			}
 		}
 	}
-	for i := len(args); i < len(params); i++ {
+	for i := nArgs; i < nParams; i++ {
 		if _, acl := params[i].GetValue(fnCtx); acl != nil {
 			return acl
 		}
 	}
 	fnCtx.SetCallArgs(args)
-	fnCtx.SetFlatCallArgs(flat)
+	if needFlat {
+		fnCtx.SetFlatCallArgs(flat)
+	}
 	return nil
 }
 
@@ -133,12 +153,15 @@ func markContextEscaped(ctx data.Context) {
 	}
 }
 
-func phpCallEnter(ctx data.Context, frame data.CallFrame) (leave func(), depth int) {
+func phpCallEnter(ctx data.Context, frame data.CallFrame) int {
 	rec := ctx.(data.CallRecorder)
 	d := rec.EnterCall()
 	rec.PushCallFrame(frame)
-	return func() {
-		rec.PopCallFrame()
-		rec.LeaveCall()
-	}, d
+	return d
+}
+
+func phpCallLeave(ctx data.Context) {
+	rec := ctx.(data.CallRecorder)
+	rec.PopCallFrame()
+	rec.LeaveCall()
 }

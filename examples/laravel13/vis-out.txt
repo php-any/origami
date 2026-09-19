@@ -1,6 +1,0 @@
-type=string
-is_string=y
-is_callable=n
-value='hello-html'
-schema_ok
-DONE

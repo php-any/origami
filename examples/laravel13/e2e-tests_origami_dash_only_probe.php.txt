@@ -1,3 +1,0 @@
-﻿dash_ok len=3389
-DONE
-

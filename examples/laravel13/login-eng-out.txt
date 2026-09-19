@@ -1,9 +1,0 @@
-login=Filament\Auth\Pages\Login
-has_content_method=no
-content_type=class Filament\Schemas\Schema
-view_path=D:\gitcode.com\origami\examples\laravel13\vendor\filament\filament\resources\views/pages/simple.blade.php
-is_lw=yes
-engine=Livewire\Mechanisms\ExtendBlade\ExtendedCompilerEngine
-engine_len=0
-engine_head=
-DONE

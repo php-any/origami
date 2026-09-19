@@ -1,7 +1,0 @@
-array_values type=array json=["App\\A","App\\B"]
-Arr::map type=array countable=y json=["App\\A","App\\B"]
-is_array=y
-collection class=Illuminate\Support\Collection
-all type=array is_array=y json=["App\\A","App\\B"]
-items type=array is_array=y json=["App\\A","App\\B"]
-DONE

@@ -1,2 +1,0 @@
-render target=Filament\Auth\Pages\Login currentBeforeFinish=Filament\Auth\Pages\Login view=filament-panels::pages.simple
-render target=Filament\Livewire\Notifications currentBeforeFinish=Filament\Auth\Pages\Login view=filament-notifications::notifications

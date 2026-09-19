@@ -43,9 +43,12 @@ func handleComment(input string, start int) (SpecialToken, int, bool) {
 
 	next := rune(input[start+1])
 	if next == '/' {
-		// 单行注释
+		// 单行注释：到换行，或 PHP 关闭标签 ?>（先到者为准）
 		pos := start + 2
 		for pos < len(input) {
+			if pos+1 < len(input) && input[pos] == '?' && input[pos+1] == '>' {
+				break
+			}
 			r, size := utf8.DecodeRuneInString(input[pos:])
 			if r == '\n' || r == '\r' {
 				break
@@ -373,10 +376,14 @@ func handleCommentWithLineInfo(input string, start int, currentLine, currentLine
 
 	next := rune(input[start+1])
 	if next == '/' {
-		// 单行注释
+		// 单行注释：到换行，或 PHP 关闭标签 ?>（先到者为准）。
+		// ?> 本身不吃进注释，留给 TokenizeTemplate 切回 HTML。
 		pos := start + 2
 		newlineCount := 0
 		for pos < len(input) {
+			if pos+1 < len(input) && input[pos] == '?' && input[pos+1] == '>' {
+				break
+			}
 			r, size := utf8.DecodeRuneInString(input[pos:])
 			if r == '\n' || r == '\r' {
 				newlineCount++

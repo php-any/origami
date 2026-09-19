@@ -65,14 +65,126 @@ func arrSet(ctx data.Context) (data.GetValue, data.Control) {
 	arr, _ := ctx.GetIndexValue(0)
 	key, _ := ctx.GetIndexValue(1)
 	val, _ := ctx.GetIndexValue(2)
-	root := asMutableArray(arr)
+	overwrite := true
+	if ov, ok := ctx.GetIndexValue(3); ok && ov != nil && !isNull(ov) {
+		if b, as := ov.(data.AsBool); as {
+			if bv, err := b.AsBool(); err == nil {
+				overwrite = bv
+			}
+		}
+	}
 	if key == nil || isNull(key) {
 		_ = ctx.SetVariableValue(nodeVar("array", 0), val)
 		return val, nil
 	}
-	dataSetPath(root, keyToString(key), val)
-	_ = ctx.SetVariableValue(nodeVar("array", 0), root)
-	return root, nil
+	if val == nil {
+		val = data.NewNullValue()
+	}
+	out, ctl := dataSetValue(arr, keyToString(key), val, overwrite)
+	if ctl != nil {
+		return nil, ctl
+	}
+	_ = ctx.SetVariableValue(nodeVar("array", 0), out)
+	return out, nil
+}
+
+// dataSetValue 对齐 Illuminate data_set：对象写属性，数组写键，禁止把对象拷成新数组。
+func dataSetValue(target data.Value, path string, value data.Value, overwrite bool) (data.Value, data.Control) {
+	if path == "" {
+		return value, nil
+	}
+	return dataSetSegments(target, strings.Split(path, "."), value, overwrite)
+}
+
+func asSettableObject(v data.Value) *data.ClassValue {
+	switch t := v.(type) {
+	case *data.ThisValue:
+		if t != nil {
+			return t.ClassValue
+		}
+	case *data.ClassValue:
+		return t
+	}
+	return nil
+}
+
+func objectHasProp(cv *data.ClassValue, name string) bool {
+	if cv == nil {
+		return false
+	}
+	v, ctl := cv.GetProperty(name)
+	return ctl == nil && v != nil && !isNull(v)
+}
+
+func dataSetSegments(target data.Value, segments []string, value data.Value, overwrite bool) (data.Value, data.Control) {
+	if len(segments) == 0 {
+		return value, nil
+	}
+	seg := segments[0]
+	rest := segments[1:]
+	orig := target
+
+	if cv := asSettableObject(target); cv != nil {
+		if len(rest) == 0 {
+			if overwrite || !objectHasProp(cv, seg) {
+				if ctl := cv.SetProperty(seg, value); ctl != nil {
+					return nil, ctl
+				}
+			}
+			return orig, nil
+		}
+		inner, ok := dataGetPath(cv, seg)
+		if !ok || inner == nil || isNull(inner) {
+			inner = data.NewArrayValue(nil)
+			if ctl := cv.SetProperty(seg, inner); ctl != nil {
+				return nil, ctl
+			}
+		}
+		_, ctl := dataSetSegments(inner, rest, value, overwrite)
+		return orig, ctl
+	}
+
+	if ov, ok := target.(*data.ObjectValue); ok && ov != nil {
+		if len(rest) == 0 {
+			if overwrite {
+				_ = ov.SetProperty(seg, value)
+			}
+			return ov, nil
+		}
+		inner, ctl := ov.GetProperty(seg)
+		if ctl != nil || inner == nil || isNull(inner) {
+			inner = data.NewArrayValue(nil)
+			_ = ov.SetProperty(seg, inner)
+		}
+		_, sctl := dataSetSegments(inner, rest, value, overwrite)
+		return ov, sctl
+	}
+
+	av, isArr := target.(*data.ArrayValue)
+	if !isArr {
+		av = asMutableArray(target)
+		orig = av
+	}
+	if len(rest) == 0 {
+		if overwrite {
+			setEntry(av, seg, value)
+		} else if _, exists := dataGetPath(av, seg); !exists {
+			setEntry(av, seg, value)
+		}
+		return orig, nil
+	}
+	inner, ok := dataGetPath(av, seg)
+	if cv := asSettableObject(inner); ok && cv != nil {
+		_, ctl := dataSetSegments(cv, rest, value, overwrite)
+		return orig, ctl
+	}
+	next, okArr := inner.(*data.ArrayValue)
+	if !ok || inner == nil || isNull(inner) || !okArr {
+		next = data.NewArrayValue(nil).(*data.ArrayValue)
+		setEntry(av, seg, next)
+	}
+	_, ctl := dataSetSegments(next, rest, value, overwrite)
+	return orig, ctl
 }
 
 func arrAdd(ctx data.Context) (data.GetValue, data.Control) {
@@ -1026,6 +1138,21 @@ func dataGetPath(target data.Value, path string) (data.Value, bool) {
 			v, ctl := t.GetProperty(seg)
 			if ctl == nil && v != nil && !isNull(v) {
 				cur, found = v, true
+				break
+			}
+			// Laravel data_get($model, 'name') 走 isset/__get，不是声明属性。
+			if method, ok := t.GetMethod("__get"); ok && method != nil {
+				vars := method.GetVariables()
+				fnCtx := t.CreateContext(vars)
+				if len(vars) >= 1 {
+					_ = fnCtx.SetVariableValue(vars[0], data.NewStringValue(seg))
+				}
+				ret, mctl := method.Call(fnCtx)
+				if mctl == nil && ret != nil {
+					if val, ok := ret.(data.Value); ok {
+						cur, found = val, true
+					}
+				}
 			}
 		}
 		if !found {
@@ -1108,6 +1235,9 @@ func isListArray(v data.Value) bool {
 	for i, z := range av.List {
 		if z == nil {
 			continue
+		}
+		if z.EmptyStrKey {
+			return false
 		}
 		if z.Name == "" {
 			continue

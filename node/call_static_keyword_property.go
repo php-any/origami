@@ -49,24 +49,15 @@ func (pe *CallStaticKeywordProperty) findPropertyDefiningClass(vm data.VM, start
 func hasStaticPropertySlot(class data.ClassStmt, name string) bool {
 	switch c := class.(type) {
 	case *ClassStatement:
-		if _, has := c.StaticProperty.Load(name); has {
-			return true
-		}
-		// 惰性求值后，声明存在但尚未初始化的静态属性也算有槽位：
-		// PHP 中静态属性槽位由声明定义（无论是否已初始化），
-		// 子类 static::$x 赋值必须落到声明它的类（如 Container::$instance）。
+		// 只看声明，不看运行时 StaticProperty.Load：子类若曾被误写入父类静态值，
+		// Load 会让 Application 被当成 $instance 的定义类，HTTP overlay 写成
+		// Application.instance，而 app()/csrf_token 走 Container::getInstance() 读不到。
 		_, has := c.StaticProperties[name]
 		return has
 	case *AbstractClassStatement:
-		if _, has := c.StaticProperty.Load(name); has {
-			return true
-		}
 		_, has := c.StaticProperties[name]
 		return has
 	case *ClassGeneric:
-		if _, has := c.StaticProperty.Load(name); has {
-			return true
-		}
 		_, has := c.StaticProperties[name]
 		return has
 	default:

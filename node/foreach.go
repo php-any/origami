@@ -97,17 +97,7 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			}
 			// 如果有键变量，设置键变量
 			if u.Key != nil {
-				var keyValue data.Value
-				if zval.Name != "" {
-					if n, ok := data.ParseIntArrayKeyName(zval.Name); ok {
-						keyValue = data.NewIntValue(n)
-					} else {
-						keyValue = data.NewStringValue(zval.Name)
-					}
-				} else {
-					keyValue = data.NewIntValue(i)
-				}
-				ctx.SetVariableValue(u.Key, keyValue)
+				ctx.SetVariableValue(u.Key, zval.PHPArrayKey(i))
 			}
 
 			// 执行循环体

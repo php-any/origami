@@ -1,2 +1,0 @@
-after target=Filament\Auth\Pages\Login current=Filament\Auth\Pages\Login
-after target=Filament\Livewire\Notifications current=Filament\Auth\Pages\Login

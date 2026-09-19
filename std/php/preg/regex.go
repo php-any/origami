@@ -302,6 +302,29 @@ func (m *goMatcher) ReplaceAllStringFunc(src string, repl func(string) string) s
 
 type r2Matcher struct{ re *regexp2.Regexp }
 
+// regexp2 的 Group.Index / Length 按 rune 计数；Go 字符串切片与 PHP preg
+// 的 offset 都是字节。中文/emoji 之后若把 rune 下标当字节用，捕获会错位
+// （Blade @php 变成 <?phphp / ?>hp）。
+func runeIndexToByte(s string, runeIndex int) int {
+	if runeIndex <= 0 {
+		return 0
+	}
+	n := 0
+	for i := range s {
+		if n == runeIndex {
+			return i
+		}
+		n++
+	}
+	return len(s)
+}
+
+func r2GroupByteSpan(s string, g regexp2.Group) (start, end int) {
+	start = runeIndexToByte(s, g.Index)
+	end = runeIndexToByte(s, g.Index+g.Length)
+	return start, end
+}
+
 func (m *r2Matcher) MatchString(s string) bool {
 	ok, _ := m.re.MatchString(s)
 	return ok
@@ -318,7 +341,8 @@ func (m *r2Matcher) FindStringSubmatchIndex(s string) []int {
 		if g.Length == 0 && g.Index == 0 && len(g.Captures) == 0 {
 			loc = append(loc, -1, -1)
 		} else {
-			loc = append(loc, g.Index, g.Index+g.Length)
+			start, end := r2GroupByteSpan(s, g)
+			loc = append(loc, start, end)
 		}
 	}
 	return loc
@@ -332,7 +356,8 @@ func (m *r2Matcher) FindAllStringIndex(s string, n int) [][]int {
 			break
 		}
 		g := match.Groups()[0]
-		result = append(result, []int{g.Index, g.Index + g.Length})
+		start, end := r2GroupByteSpan(s, g)
+		result = append(result, []int{start, end})
 		match, err = m.re.FindNextMatch(match)
 	}
 	return result
@@ -351,7 +376,8 @@ func (m *r2Matcher) FindAllStringSubmatchIndex(s string, n int) [][]int {
 			if len(g.Captures) == 0 {
 				loc = append(loc, -1, -1)
 			} else {
-				loc = append(loc, g.Index, g.Index+g.Length)
+				start, end := r2GroupByteSpan(s, g)
+				loc = append(loc, start, end)
 			}
 		}
 		result = append(result, loc)
@@ -375,11 +401,10 @@ func (m *r2Matcher) ReplaceAllStringFunc(src string, repl func(string) string) s
 	match, err := m.re.FindStringMatch(src)
 	for err == nil && match != nil {
 		g0 := match.Groups()[0]
-		// 追加匹配之前的部分
-		sb.WriteString(src[pos:g0.Index])
-		// 追加回调返回的替换字符串
+		start, end := r2GroupByteSpan(src, g0)
+		sb.WriteString(src[pos:start])
 		sb.WriteString(repl(g0.String()))
-		pos = g0.Index + g0.Length
+		pos = end
 		match, err = m.re.FindNextMatch(match)
 	}
 	sb.WriteString(src[pos:])
@@ -473,7 +498,7 @@ func findR2Captures(re *regexp2.Regexp, search string, anchored bool, baseOffset
 		participated := !(g.Length == 0 && g.Index == 0 && len(g.Captures) == 0)
 		off := -1
 		if participated {
-			off = g.Index + baseOffset
+			off = runeIndexToByte(search, g.Index) + baseOffset
 		}
 		cap := Capture{
 			Text:         g.String(),
@@ -745,9 +770,9 @@ func CompileAny(pattern string) (Matcher, error) {
 }
 
 // stripExtendedWhitespace 近似实现 PHP /x 修饰符的行为：
-// - 在字符类 [] 外，移除未转义的空白字符（空格、制表符、换行等）
-// - 在字符类 [] 外，`#` 起到行尾注释作用（直到换行）；Blade ComponentTagCompiler
-//   的 parseAttributeBag 等模式依赖此语义，否则换行被删后 `#...` 会粘连并误匹配。
+//   - 在字符类 [] 外，移除未转义的空白字符（空格、制表符、换行等）
+//   - 在字符类 [] 外，`#` 起到行尾注释作用（直到换行）；Blade ComponentTagCompiler
+//     的 parseAttributeBag 等模式依赖此语义，否则换行被删后 `#...` 会粘连并误匹配。
 func stripExtendedWhitespace(pattern string) string {
 	var b strings.Builder
 	inCharClass := false

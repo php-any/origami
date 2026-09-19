@@ -764,14 +764,40 @@ func injectCallerVariables(parent, ctx data.Context, vars []data.Variable, onMis
 			onMissing(name, variable)
 		}
 	}
-	for name, val := range parent.GetDefinedVariables() {
+	rangeDefinedVariables(parent, func(name string, val data.Value) {
 		if name == "" || val == nil {
-			continue
+			return
 		}
 		if _, ok := declared[name]; ok {
-			continue
+			return
 		}
 		ctx.SetVariableByName(name, val)
+	})
+}
+
+// rangeDefinedVariables 遍历当前作用域已赋值变量。能剥到 *Context 时不分配 map。
+func rangeDefinedVariables(ctx data.Context, fn func(name string, val data.Value)) {
+	for ctx != nil {
+		switch t := ctx.(type) {
+		case *Context:
+			for _, zv := range t.variables {
+				if zv != nil && zv.Name != "" && zv.Defined {
+					fn(zv.Name, zv.Value)
+				}
+			}
+			return
+		case *data.BoundContext:
+			ctx = t.Context
+		case *data.ClassMethodContext:
+			ctx = t.Context
+		case *data.ClassValue:
+			ctx = t.Context
+		default:
+			for name, val := range ctx.GetDefinedVariables() {
+				fn(name, val)
+			}
+			return
+		}
 	}
 }
 

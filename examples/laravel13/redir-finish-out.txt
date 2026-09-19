@@ -1,9 +1,0 @@
-mounted
-redirect_after_boot=Livewire\Features\SupportRedirects\Redirector
-is_lw=yes
-ret_class=Filament\Auth\Http\Responses\LoginResponse
-ret_responsable=yes
-after_finish_type=null
-store='admin'
-redirect_now=Livewire\Features\SupportRedirects\Redirector
-DONE

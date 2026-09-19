@@ -32,7 +32,10 @@ func (f *PregMatchAllFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	}
 
 	pattern := patternValue.AsString()
-	subject := subjectValue.AsString()
+	subject, acl := node.ValueToDisplayString(ctx, subjectValue)
+	if acl != nil {
+		return nil, acl
+	}
 
 	re, err := CompileAny(pattern)
 	if err != nil {

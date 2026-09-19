@@ -1,8 +1,0 @@
-admin_count=2
-admin_id=1 hash_ok=yes
-canAccess=yes
-panel=admin
-form_state={"email":"admin@example.com","password":"password","remember":false}
-auth_result=Filament\Auth\Http\Responses\LoginResponse
-guard_check=yes
-DONE

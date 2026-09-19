@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/perfmon"
 	"github.com/spf13/cobra"
 )
@@ -73,6 +74,10 @@ func RunScriptFile(scriptPath string) error {
 			return nil
 		}
 		p.ShowControl(err)
+		if _, ok := err.(data.ThrowControl); ok {
+			vm.RunShutdownCallbacks()
+			os.Exit(1)
+		}
 	}
 	vm.RunShutdownCallbacks()
 	return nil

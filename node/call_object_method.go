@@ -183,35 +183,9 @@ func magicCallArgValue(val data.Value) data.Value {
 
 // invokeMagicCall 调用 __call(string $name, array $arguments)，用于未定义方法时的魔法分发
 func (pe *CallObjectMethod) invokeMagicCall(object data.Context, ctx data.Context, magic data.Method, methodName string, args []data.GetValue) (data.GetValue, data.Control) {
-	var argsList []data.Value
-	for _, arg := range args {
-		// 展开 ...$arr (SpreadArgument)
-		if spread, ok := arg.(*SpreadArgument); ok {
-			spreadVal, acl := spread.GetValue(ctx)
-			if acl != nil {
-				if _, isToClosure := acl.(ToClosure); isToClosure {
-					continue
-				}
-				return nil, acl
-			}
-			vals, spreadCtl := spreadToValues(ctx, spreadVal)
-			if spreadCtl != nil {
-				return nil, spreadCtl
-			}
-			for _, val := range vals {
-				argsList = append(argsList, magicCallArgValue(val))
-			}
-			continue
-		}
-		v, acl := arg.GetValue(ctx)
-		if acl != nil {
-			return nil, acl
-		}
-		if val, ok := v.(data.Value); ok {
-			argsList = append(argsList, magicCallArgValue(val))
-		} else {
-			argsList = append(argsList, data.NewNullValue())
-		}
+	argsArr, acl := magicCallArgumentsArray(ctx, args)
+	if acl != nil {
+		return nil, acl
 	}
 	varies := magic.GetVariables()
 	if len(varies) < 2 {
@@ -219,8 +193,78 @@ func (pe *CallObjectMethod) invokeMagicCall(object data.Context, ctx data.Contex
 	}
 	fnCtx := object.CreateContext(varies)
 	fnCtx.SetVariableValue(varies[0], data.NewStringValue(methodName))
-	fnCtx.SetVariableValue(varies[1], data.NewArrayValue(argsList))
+	fnCtx.SetVariableValue(varies[1], argsArr)
+	fnCtx.SetCallArgs(args)
+	flat := make([]data.Value, 0, len(argsArr.List))
+	for _, z := range argsArr.List {
+		if z != nil {
+			flat = append(flat, z.Value)
+		}
+	}
+	fnCtx.SetFlatCallArgs(flat)
 	return magic.Call(fnCtx)
+}
+
+// magicCallArgumentsArray 对齐 PHP 8：foo(50, pageName: 'x') 进入 __call 的 $arguments
+// 为 [0=>50, 'pageName'=>'x']，Relation/forwardCallTo 再 ...$parameters 才能按名绑定。
+func magicCallArgumentsArray(ctx data.Context, args []data.GetValue) (*data.ArrayValue, data.Control) {
+	list := make([]*data.ZVal, 0, len(args))
+	for _, arg := range args {
+		switch a := arg.(type) {
+		case *NamedArgument:
+			v, acl := a.GetValue(ctx)
+			if acl != nil {
+				return nil, acl
+			}
+			val, _ := v.(data.Value)
+			if val == nil {
+				val = data.NewNullValue()
+			}
+			list = append(list, data.NewNamedZVal(a.Name, magicCallArgValue(val)))
+		case *SpreadArgument:
+			spreadVal, acl := a.GetValue(ctx)
+			if acl != nil {
+				if _, isToClosure := acl.(ToClosure); isToClosure {
+					continue
+				}
+				return nil, acl
+			}
+			if arr, ok := spreadVal.(*data.ArrayValue); ok {
+				for _, z := range arr.List {
+					if z == nil {
+						continue
+					}
+					val := magicCallArgValue(z.Value)
+					if z.Name != "" {
+						if _, isInt := data.ParseIntArrayKeyName(z.Name); !isInt {
+							list = append(list, data.NewNamedZVal(z.Name, val))
+							continue
+						}
+					}
+					list = append(list, data.NewZVal(val))
+				}
+				continue
+			}
+			vals, spreadCtl := spreadToValues(ctx, spreadVal)
+			if spreadCtl != nil {
+				return nil, spreadCtl
+			}
+			for _, val := range vals {
+				list = append(list, data.NewZVal(magicCallArgValue(val)))
+			}
+		default:
+			v, acl := arg.GetValue(ctx)
+			if acl != nil {
+				return nil, acl
+			}
+			val, _ := v.(data.Value)
+			if val == nil {
+				val = data.NewNullValue()
+			}
+			list = append(list, data.NewZVal(magicCallArgValue(val)))
+		}
+	}
+	return &data.ArrayValue{List: list}, nil
 }
 
 func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method data.Method) (data.Context, data.Control) {
@@ -443,7 +487,11 @@ func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method da
 		return nil, data.NewErrorThrow(pe.from, errors.New("无法找到变量: "+variadicNamed[0].name))
 	}
 
-	// 记录展开后的位置实参值，供 func_get_args/func_num_args 使用（含 ...$arr 展开）
+	// 记录展开后的位置实参值，供 func_get_args/func_num_args 使用（含 ...$arr 展开）。
+	// 必须非 nil：否则 func_get_args 会回放调用方 ...$var AST，在被调帧越界 panic。
+	if positional == nil {
+		positional = []data.Value{}
+	}
 	fnCtx.SetFlatCallArgs(positional)
 	return fnCtx, nil
 }

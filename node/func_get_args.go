@@ -72,25 +72,12 @@ func expandCallArgsValues(ctx data.Context) ([]data.Value, data.Control) {
 	values := make([]data.Value, 0, len(args))
 	idx := 0
 	for _, arg := range args {
-		if spread, ok := arg.(*SpreadArgument); ok && spread.Expr != nil {
-			spreadVal, acl := spread.GetValue(ctx)
-			if acl != nil {
-				return nil, acl
-			}
-			vals, spreadCtl := spreadToValues(ctx, spreadVal)
-			if spreadCtl != nil {
-				return nil, spreadCtl
-			}
-			if len(vals) > 0 {
-				values = append(values, vals...)
-				idx += len(vals)
-				continue
-			}
+		if _, ok := arg.(*SpreadArgument); ok {
+			// ...$var 的表达式槽位属于调用方。在被调帧 GetValue 会按调用方 Index
+			// 读被调符号表，Go 切片越界。展开结果只能来自 FlatCallArgs。
 			v, ok := ctx.GetIndexValue(idx)
 			if ok && v != nil {
 				values = append(values, v)
-			} else {
-				values = append(values, data.NewNullValue())
 			}
 			idx++
 			continue

@@ -27,6 +27,12 @@ func (p *FunctionParserCommon) ParseFunctionBody() ([]data.GetValue, data.Contro
 		p.next()
 		last := p.position
 		for !p.currentIsTypeOrEOF(token.RBRACE) {
+			for p.checkPositionIs(0, token.SEMICOLON, token.NEWLINE, token.END_TAG) {
+				p.next()
+			}
+			if p.currentIsTypeOrEOF(token.RBRACE) {
+				break
+			}
 			stmt, acl := stmtParser.Parse()
 			if acl != nil {
 				return nil, acl

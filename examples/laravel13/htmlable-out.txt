@@ -1,7 +1,0 @@
-class=Filament\Schemas\Schema
-htmlable=yes
-parents=[]
-implements=[]
-toHtml_len=979
-toHtml_head= <div > < x-data="filamentSchemaComponent({ path: '', containerPath: '', $wire, })" > <div class="fi-sc-component" > <form > </form> </div> </> < > </> </div> 
-DONE

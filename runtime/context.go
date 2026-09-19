@@ -323,6 +323,11 @@ func (c *Context) StartOutputBufferSpec(spec data.OutputBufferStartSpec) bool {
 	if st := c.resolveOut(); st != nil {
 		return st.startSpec(spec)
 	}
+	if c != nil && c.vm != nil {
+		if host, ok := c.vm.(data.OutputBufferHost); ok {
+			return host.StartOutputBufferSpec(spec)
+		}
+	}
 	return false
 }
 
