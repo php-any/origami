@@ -1,6 +1,8 @@
 package array
 
 import (
+	"fmt"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -356,4 +358,35 @@ func paramsToValueList(paramsVal data.Value) []data.Value {
 		return nil
 	}
 	return paramsArr.ToValueList()
+}
+
+func phpValueTypeName(v data.Value) string {
+	if v == nil {
+		return "null"
+	}
+	switch t := v.(type) {
+	case *data.NullValue:
+		return "null"
+	case *data.ArrayValue, *data.ObjectValue:
+		return "array"
+	case *data.StringValue:
+		return "string"
+	case *data.IntValue:
+		return "int"
+	case *data.FloatValue:
+		return "float"
+	case *data.BoolValue:
+		return "bool"
+	case *data.ClassValue:
+		if t.Class != nil {
+			return t.Class.GetName()
+		}
+		return "object"
+	default:
+		return "mixed"
+	}
+}
+
+func throwMustBeArray(fn string, v data.Value) data.Control {
+	return data.NewErrorThrowByName(nil, fmt.Errorf("%s(): Argument #1 ($array) must be of type array, %s given", fn, phpValueTypeName(v)), "TypeError")
 }

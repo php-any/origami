@@ -190,62 +190,247 @@ func arrWrap(ctx data.Context) (data.GetValue, data.Control) {
 
 func arrFrom(ctx data.Context) (data.GetValue, data.Control) {
 	v, _ := ctx.GetIndexValue(0)
+	return arrFromValue(ctx, v, 0)
+}
+
+func throwArrFromScalar() data.Control {
+	return data.NewErrorThrowByName(nil, fmt.Errorf("Items cannot be represented by a scalar value."), "InvalidArgumentException")
+}
+
+func classIs(cv *data.ClassValue, name string) bool {
+	if cv == nil {
+		return false
+	}
+	return (data.Class{Name: name}).Is(cv)
+}
+
+func callVMFunc(ctx data.Context, name string, args ...data.Value) (data.Value, data.Control) {
+	if ctx == nil || ctx.GetVM() == nil {
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Call to undefined function %s()", name), "Error")
+	}
+	fn, ok := ctx.GetVM().GetFunc(name)
+	if !ok || fn == nil {
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Call to undefined function %s()", name), "Error")
+	}
+	callCtx := ctx.CreateContext(fn.GetVariables())
+	data.BindDeclaredArgs(callCtx, fn, args)
+	ret, ctl := fn.Call(callCtx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	if v, ok := ret.(data.Value); ok {
+		return unwrapValue(v), nil
+	}
+	return nil, nil
+}
+
+// arrFromValue 对齐 Illuminate\Support\Arr::from 的 match，不是 Arr::wrap。
+// 标量抛 InvalidArgumentException，禁止包成 [v]。
+func arrFromValue(ctx data.Context, v data.Value, depth int) (data.Value, data.Control) {
+	if depth > 32 {
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Illuminate\\Support\\Arr::from(): maximum nesting level of 32 reached, aborting!"), "Error")
+	}
+	v = unwrapValue(v)
 	if v == nil || isNull(v) {
 		return data.NewArrayValue(nil), nil
 	}
-	if av, ok := v.(*data.ArrayValue); ok {
-		return av, nil
+	if _, ok := v.(*data.ArrayValue); ok {
+		return v, nil
 	}
 	if ov, ok := v.(*data.ObjectValue); ok && ov != nil {
+		return ov, nil
+	}
+	if tv, ok := v.(*data.ThisValue); ok && tv != nil && tv.ClassValue != nil {
+		v = tv.ClassValue
+	}
+	cv, isObj := v.(*data.ClassValue)
+	if !isObj || cv == nil {
+		return nil, throwArrFromScalar()
+	}
+
+	switch {
+	case classIs(cv, "Illuminate\\Support\\Enumerable"):
+		arr, ok, ctl := callClassNoArg(cv, "all")
+		if ctl != nil {
+			return nil, ctl
+		}
+		if !ok {
+			return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Call to undefined method %s::all()", cv.Class.GetName()), "Error")
+		}
+		if arr == cv {
+			return nil, throwArrFromScalar()
+		}
+		return arrFromValue(ctx, arr, depth+1)
+	case classIs(cv, "Illuminate\\Contracts\\Support\\Arrayable"):
+		arr, ok, ctl := callClassNoArg(cv, "toArray")
+		if ctl != nil {
+			return nil, ctl
+		}
+		if !ok {
+			return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Call to undefined method %s::toArray()", cv.Class.GetName()), "Error")
+		}
+		if arr == cv {
+			return nil, throwArrFromScalar()
+		}
+		return arrFromValue(ctx, arr, depth+1)
+	case classIs(cv, "WeakMap"):
+		ret, ctl := callVMFunc(ctx, "iterator_to_array", cv, data.NewBoolValue(false))
+		if ctl != nil {
+			return nil, ctl
+		}
+		return arrFromValue(ctx, ret, depth+1)
+	case classIs(cv, "Traversable") || classIs(cv, "Iterator") || classIs(cv, "IteratorAggregate"):
+		ret, ctl := callVMFunc(ctx, "iterator_to_array", cv)
+		if ctl != nil {
+			return nil, ctl
+		}
+		return arrFromValue(ctx, ret, depth+1)
+	case classIs(cv, "Illuminate\\Contracts\\Support\\Jsonable"):
+		js, ok, ctl := callClassNoArg(cv, "toJson")
+		if ctl != nil {
+			return nil, ctl
+		}
+		if !ok {
+			return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Call to undefined method %s::toJson()", cv.Class.GetName()), "Error")
+		}
+		decoded, ctl := callVMFunc(ctx, "json_decode", js, data.NewBoolValue(true))
+		if ctl != nil {
+			return nil, ctl
+		}
+		return arrFromValue(ctx, decoded, depth+1)
+	case classIs(cv, "JsonSerializable"):
+		arr, ok, ctl := callClassNoArg(cv, "jsonSerialize")
+		if ctl != nil {
+			return nil, ctl
+		}
+		if !ok {
+			return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Call to undefined method %s::jsonSerialize()", cv.Class.GetName()), "Error")
+		}
+		if arr == cv {
+			return nil, throwArrFromScalar()
+		}
+		return arrFromValue(ctx, arr, depth+1)
+	default:
 		out := data.NewArrayValue(nil).(*data.ArrayValue)
-		ov.RangeProperties(func(key string, val data.Value) bool {
+		if cv.ObjectValue != nil {
+			cv.ObjectValue.RangeProperties(func(key string, val data.Value) bool {
+				setEntry(out, key, val)
+				return true
+			})
+		}
+		return out, nil
+	}
+}
+
+func unwrapValue(v data.Value) data.Value {
+	for n := 0; n < 4 && v != nil; n++ {
+		switch t := v.(type) {
+		case *data.ZValValue:
+			if t.ZVal == nil {
+				return v
+			}
+			v = t.ZVal.Value
+		case *data.ThisValue:
+			if t.ClassValue == nil {
+				return v
+			}
+			v = t.ClassValue
+		default:
+			return v
+		}
+	}
+	return v
+}
+
+func callClassNoArg(cv *data.ClassValue, name string) (data.Value, bool, data.Control) {
+	if cv == nil {
+		return nil, false, nil
+	}
+	m, ok := cv.GetMethod(name)
+	if !ok || m == nil {
+		return nil, false, nil
+	}
+	ret, ctl := m.Call(cv.CreateContext(m.GetVariables()))
+	if ctl != nil {
+		if rv, ok := ctl.(data.ReturnControl); ok {
+			return unwrapValue(rv.ReturnValue()), true, nil
+		}
+		return nil, true, ctl
+	}
+	if ret == nil {
+		return nil, true, nil
+	}
+	if v, ok := ret.(data.Value); ok {
+		return unwrapValue(v), true, nil
+	}
+	return nil, true, nil
+}
+
+func foreachableArray(ctx data.Context, v data.Value) (data.Value, data.Control) {
+	v = unwrapValue(v)
+	if v == nil || isNull(v) {
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("foreach() argument must be of type array|object, null given"), "TypeError")
+	}
+	switch v.(type) {
+	case *data.ArrayValue, *data.ObjectValue:
+		return v, nil
+	}
+	cv, ok := v.(*data.ClassValue)
+	if !ok || cv == nil {
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("foreach() argument must be of type array|object, %s given", foreachValueType(v)), "TypeError")
+	}
+	if classIs(cv, "Illuminate\\Support\\Enumerable") {
+		arr, ok, ctl := callClassNoArg(cv, "all")
+		if ctl != nil {
+			return nil, ctl
+		}
+		if !ok {
+			return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Call to undefined method %s::all()", cv.Class.GetName()), "Error")
+		}
+		return foreachableArray(ctx, arr)
+	}
+	if classIs(cv, "Traversable") || classIs(cv, "Iterator") || classIs(cv, "IteratorAggregate") {
+		return callVMFunc(ctx, "iterator_to_array", cv)
+	}
+	if _, has := cv.GetMethod("valid"); has {
+		return callVMFunc(ctx, "iterator_to_array", cv)
+	}
+	if _, has := cv.GetMethod("getIterator"); has {
+		return callVMFunc(ctx, "iterator_to_array", cv)
+	}
+	out := data.NewArrayValue(nil).(*data.ArrayValue)
+	if cv.ObjectValue != nil {
+		cv.ObjectValue.RangeProperties(func(key string, val data.Value) bool {
 			setEntry(out, key, val)
 			return true
 		})
-		return out, nil
 	}
-	if cv, ok := v.(*data.ClassValue); ok && cv != nil {
-		for _, name := range []string{"toArray", "all"} {
-			m, ok := cv.GetMethod(name)
-			if !ok || m == nil {
-				continue
-			}
-			fnCtx := cv.CreateContext(m.GetVariables())
-			ret, ctl := m.Call(fnCtx)
-			if ctl != nil {
-				return nil, ctl
-			}
-			if av, ok := ret.(*data.ArrayValue); ok {
-				return av, nil
-			}
-			if val, ok := ret.(data.Value); ok && val != cv {
-				return arrFrom(withArgs(ctx, val))
-			}
-		}
+	return out, nil
+}
+
+func foreachValueType(v data.Value) string {
+	switch v.(type) {
+	case *data.StringValue:
+		return "string"
+	case *data.IntValue:
+		return "int"
+	case *data.FloatValue:
+		return "float"
+	case *data.BoolValue:
+		return "bool"
+	default:
+		return "unknown"
 	}
-	return data.NewArrayValue([]data.Value{v}), nil
 }
 
 func arrPartition(ctx data.Context) (data.GetValue, data.Control) {
 	arr, _ := ctx.GetIndexValue(0)
 	cb, _ := ctx.GetIndexValue(1)
-	if cv, ok := arr.(*data.ClassValue); ok && cv != nil {
-		for _, name := range []string{"all", "getArrayCopy", "toArray"} {
-			m, ok := cv.GetMethod(name)
-			if !ok || m == nil {
-				continue
-			}
-			fnCtx := cv.CreateContext(m.GetVariables())
-			ret, ctl := m.Call(fnCtx)
-			if ctl != nil {
-				return nil, ctl
-			}
-			if val, ok := ret.(data.Value); ok {
-				arr = val
-				break
-			}
-		}
+	unwrapped, ctl := foreachableArray(ctx, arr)
+	if ctl != nil {
+		return nil, ctl
 	}
+	arr = unwrapped
 	passed := data.NewArrayValue(nil).(*data.ArrayValue)
 	failed := data.NewArrayValue(nil).(*data.ArrayValue)
 	for _, e := range toEntries(arr) {
@@ -275,7 +460,10 @@ func arrCollapse(ctx data.Context) (data.GetValue, data.Control) {
 	arr, _ := ctx.GetIndexValue(0)
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
 	for _, e := range toEntries(arr) {
-		nested, ok := collapseLayer(ctx, e.value)
+		nested, ok, ctl := collapseLayer(ctx, e.value)
+		if ctl != nil {
+			return nil, ctl
+		}
 		if !ok {
 			continue
 		}
@@ -286,32 +474,28 @@ func arrCollapse(ctx data.Context) (data.GetValue, data.Control) {
 	return out, nil
 }
 
-func collapseLayer(ctx data.Context, v data.Value) ([]kv, bool) {
+func collapseLayer(ctx data.Context, v data.Value) ([]kv, bool, data.Control) {
 	if v == nil || isNull(v) {
-		return nil, false
+		return nil, false, nil
 	}
 	if cv, ok := v.(*data.ClassValue); ok && cv != nil && cv.Class != nil {
 		if (data.Class{Name: "Illuminate\\Support\\Collection"}).Is(cv) {
-			m, ok := cv.GetMethod("all")
-			if !ok || m == nil {
-				return nil, false
-			}
-			ret, ctl := m.Call(cv.CreateContext(m.GetVariables()))
+			arr, ok, ctl := callClassNoArg(cv, "all")
 			if ctl != nil {
-				return nil, false
+				return nil, false, ctl
 			}
-			if val, ok := ret.(data.Value); ok {
-				return toEntries(val), true
+			if !ok {
+				return nil, false, data.NewErrorThrowByName(nil, fmt.Errorf("Call to undefined method %s::all()", cv.Class.GetName()), "Error")
 			}
-			return nil, false
+			return toEntries(arr), true, nil
 		}
-		return nil, false
+		return nil, false, nil
 	}
 	switch v.(type) {
 	case *data.ArrayValue, *data.ObjectValue:
-		return toEntries(v), true
+		return toEntries(v), true, nil
 	default:
-		return nil, false
+		return nil, false, nil
 	}
 }
 
@@ -333,7 +517,9 @@ func arrFlatten(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
-	flattenInto(out, arr, depth)
+	if ctl := flattenInto(out, arr, depth); ctl != nil {
+		return nil, ctl
+	}
 	return out, nil
 }
 
@@ -346,45 +532,50 @@ func isFlattenableArray(v data.Value) bool {
 	}
 }
 
-func flattenInto(out *data.ArrayValue, v data.Value, depth int) {
+func flattenInto(out *data.ArrayValue, v data.Value, depth int) data.Control {
 	if depth == 0 {
 		out.List = append(out.List, data.NewZVal(v))
-		return
+		return nil
 	}
 	if cv, ok := v.(*data.ClassValue); ok && cv != nil && cv.Class != nil {
 		if (data.Class{Name: "Illuminate\\Support\\Collection"}).Is(cv) {
-			if m, ok := cv.GetMethod("all"); ok && m != nil {
-				ret, ctl := m.Call(cv.CreateContext(m.GetVariables()))
-				if ctl == nil {
-					if val, ok := ret.(data.Value); ok {
-						flattenInto(out, val, depth)
-						return
-					}
-				}
+			arr, ok, ctl := callClassNoArg(cv, "all")
+			if ctl != nil {
+				return ctl
 			}
+			if !ok {
+				return data.NewErrorThrowByName(nil, fmt.Errorf("Call to undefined method %s::all()", cv.Class.GetName()), "Error")
+			}
+			return flattenInto(out, arr, depth)
 		}
 	}
 	if !isFlattenableArray(v) {
 		out.List = append(out.List, data.NewZVal(v))
-		return
+		return nil
 	}
 	for _, e := range toEntries(v) {
-		if isFlattenableArray(e.value) {
+		if isFlattenableArray(e.value) || isCollectionValue(e.value) {
 			next := depth - 1
 			if depth < 0 {
 				next = -1
 			}
-			if depth == 1 {
+			if depth == 1 && isFlattenableArray(e.value) {
 				for _, ne := range toEntries(e.value) {
 					out.List = append(out.List, data.NewZVal(ne.value))
 				}
-			} else {
-				flattenInto(out, e.value, next)
+			} else if ctl := flattenInto(out, e.value, next); ctl != nil {
+				return ctl
 			}
 		} else {
 			out.List = append(out.List, data.NewZVal(e.value))
 		}
 	}
+	return nil
+}
+
+func isCollectionValue(v data.Value) bool {
+	cv, ok := v.(*data.ClassValue)
+	return ok && cv != nil && (data.Class{Name: "Illuminate\\Support\\Collection"}).Is(cv)
 }
 
 func arrDot(ctx data.Context) (data.GetValue, data.Control) {
@@ -727,6 +918,7 @@ func toEntries(v data.Value) []kv {
 	if v == nil {
 		return nil
 	}
+	v = unwrapValue(v)
 	switch arr := v.(type) {
 	case *data.ArrayValue:
 		entries := make([]kv, 0, len(arr.List))

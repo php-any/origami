@@ -422,6 +422,32 @@ func newBagInstance(ctx data.Context, stmt data.ClassStmt) *data.ClassValue {
 	return data.NewProxyValue(stmt, base.CreateBaseContext())
 }
 
+// inheritClassMethods 把父类方法并入子类表。Go 原生 ClassStmt.GetMethod 不走 VM 父链，
+// ServerBag/InputBag/FileBag 必须在构造时挂上 ParameterBag 的 get/has/all 等。
+func inheritClassMethods(childMap map[string]data.Method, childList []data.Method, parentMap map[string]data.Method, parentList []data.Method) (map[string]data.Method, []data.Method) {
+	if childMap == nil {
+		childMap = make(map[string]data.Method, len(parentMap))
+	}
+	for name, m := range parentMap {
+		if _, ok := childMap[name]; !ok {
+			childMap[name] = m
+		}
+	}
+	seen := make(map[string]struct{}, len(childList)+len(parentList))
+	out := make([]data.Method, 0, len(childList)+len(parentList))
+	for _, m := range childList {
+		out = append(out, m)
+		seen[m.GetName()] = struct{}{}
+	}
+	for _, m := range parentList {
+		if _, ok := seen[m.GetName()]; ok {
+			continue
+		}
+		out = append(out, m)
+	}
+	return childMap, out
+}
+
 // GetParamBagMap 读取 ParameterBag 系实例的全部参数。
 func GetParamBagMap(cv *data.ClassValue) map[string]data.Value {
 	if p := ParamBagFrom(cv); p != nil {

@@ -1,10 +1,9 @@
 package httpfoundation
 
 import (
-	"encoding/json"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/std/php"
 )
 
 const fqnJsonResponse = "Symfony\\Component\\HttpFoundation\\JsonResponse"
@@ -109,85 +108,15 @@ func jsonResponseSetData(ctx data.Context) (data.GetValue, data.Control) {
 
 func jsonResponseSetDataWith(cv *data.ClassValue, dataVal data.Value) (data.GetValue, data.Control) {
 	_ = cv.SetProperty("data", dataVal)
-	encoded, ok := encodeJSONValue(dataVal)
+	encoded, ok, ctl := php.JsonEncode(cv, dataVal)
+	if ctl != nil {
+		return nil, ctl
+	}
 	if !ok {
 		encoded = "null"
 	}
 	_ = cv.SetProperty("content", data.NewStringValue(encoded))
 	return cv, nil
-}
-
-func encodeJSONValue(v data.Value) (string, bool) {
-	goVal := phpToGoJSON(v)
-	b, err := json.Marshal(goVal)
-	if err != nil {
-		return "", false
-	}
-	return string(b), true
-}
-
-func phpToGoJSON(v data.Value) any {
-	if v == nil {
-		return nil
-	}
-	switch t := v.(type) {
-	case *data.NullValue:
-		return nil
-	case *data.BoolValue:
-		return t.Value
-	case *data.IntValue:
-		return t.Value
-	case *data.FloatValue:
-		return t.Value
-	case *data.StringValue:
-		return t.Value
-	case *data.ObjectValue:
-		// Origami 关联数组是 ObjectValue
-		out := map[string]any{}
-		t.RangeProperties(func(key string, value data.Value) bool {
-			out[key] = phpToGoJSON(value)
-			return true
-		})
-		return out
-	case *data.ArrayValue:
-		isList := true
-		for i, z := range t.List {
-			if z == nil {
-				continue
-			}
-			if z.Name != "" {
-				if n, ok := data.ParseIntArrayKeyName(z.Name); !ok || n != i {
-					isList = false
-					break
-				}
-			}
-		}
-		if isList {
-			out := make([]any, 0, len(t.List))
-			for _, z := range t.List {
-				if z == nil {
-					out = append(out, nil)
-				} else {
-					out = append(out, phpToGoJSON(z.Value))
-				}
-			}
-			return out
-		}
-		out := map[string]any{}
-		for i, z := range t.List {
-			if z == nil {
-				continue
-			}
-			k := z.Name
-			if k == "" {
-				k = data.IntArrayKeyName(i)
-			}
-			out[k] = phpToGoJSON(z.Value)
-		}
-		return out
-	default:
-		return v.AsString()
-	}
 }
 
 // RedirectResponseClass 实现 Symfony RedirectResponse。

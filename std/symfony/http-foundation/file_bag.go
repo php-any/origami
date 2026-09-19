@@ -28,7 +28,9 @@ func NewFileBagClassFrom(source *ParamBagData) data.ClassStmt {
 		source:     source,
 		properties: []data.Property{protectedArrayProp("parameters")},
 	}
-	c.methods, c.methodList = fileBagMethods()
+	cm, cl := fileBagMethods()
+	pm, pl := parameterBagMethods()
+	c.methods, c.methodList = inheritClassMethods(cm, cl, pm, pl)
 	return c
 }
 

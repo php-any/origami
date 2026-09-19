@@ -20,7 +20,7 @@ func (f *ArrayUniqueFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	// 获取第一个参数：数组
 	arrayValue, _ := ctx.GetIndexValue(0)
 	if arrayValue == nil {
-		return data.NewArrayValue([]data.Value{}), nil
+		return nil, throwMustBeArray("array_unique", nil)
 	}
 
 	// 获取第二个参数：flags（可选，默认为 SORT_STRING = 2）
@@ -46,8 +46,7 @@ func (f *ArrayUniqueFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 		return f.processObject(objectVal, flags), nil
 	}
 
-	// 不是数组类型，返回空数组
-	return data.NewArrayValue([]data.Value{}), nil
+	return nil, throwMustBeArray("array_unique", arrayValue)
 }
 
 // processArray 处理 ArrayValue

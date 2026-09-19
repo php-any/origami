@@ -1,10 +1,15 @@
 package data
 
 func NewProxyValue(class ClassStmt, ctx Context) *ProxyValue {
+	var vm VM
+	if ctx != nil {
+		vm = ctx.GetVM()
+	}
 	return &ProxyValue{
 		ObjectValue: NewObjectValue(),
 		Class:       class,
 		Context:     ctx,
+		vm:          vm,
 	}
 }
 

@@ -19,43 +19,54 @@ type JsonEncodeFunction struct {
 }
 
 func (f *JsonEncodeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 获取参数
 	params := f.GetParams()
 	if len(params) == 0 {
 		clearJsonLastError()
 		return data.NewStringValue("null"), nil
 	}
 
-	// 获取第一个参数（要编码的值）
-	valueParam := params[0]
-	raw, _ := valueParam.GetValue(ctx)
+	raw, _ := params[0].GetValue(ctx)
 	if raw == nil {
 		clearJsonLastError()
 		return data.NewStringValue("null"), nil
 	}
-
-	// 递归解析值：对实现了 JsonSerializable 的对象（含数组/对象内嵌的）优先调用 jsonSerialize()
-	value := raw
-	if v, ok := raw.(data.Value); ok {
-		resolved, jerr, ctl := resolveJSONValue(ctx, v, map[uintptr]bool{}, 0)
-		if ctl != nil {
-			return nil, ctl
-		}
-		if jerr != JSON_ERROR_NONE {
-			setJsonLastError(jerr, "")
-			return data.NewBoolValue(false), nil
-		}
-		value = resolved
+	v, ok := raw.(data.Value)
+	if !ok {
+		clearJsonLastError()
+		return data.NewStringValue("null"), nil
 	}
 
-	// 创建 JSON 序列化器
-	serializer := json.NewJsonSerializer()
+	encoded, ok, ctl := JsonEncode(ctx, v)
+	if ctl != nil {
+		return nil, ctl
+	}
+	if !ok {
+		return data.NewBoolValue(false), nil
+	}
+	return data.NewStringValue(encoded), nil
+}
 
-	// 根据值的类型进行序列化
+// JsonEncode 对齐 PHP json_encode：嵌套对象走 JsonSerializable / 公共属性，不把 ClassValue 编成 Object(FQCN) 字符串。
+func JsonEncode(ctx data.Context, value data.Value) (string, bool, data.Control) {
+	if value == nil {
+		clearJsonLastError()
+		return "null", true, nil
+	}
+
+	resolved, jerr, ctl := resolveJSONValue(ctx, value, map[uintptr]bool{}, 0)
+	if ctl != nil {
+		return "", false, ctl
+	}
+	if jerr != JSON_ERROR_NONE {
+		setJsonLastError(jerr, "")
+		return "", false, nil
+	}
+
+	serializer := json.NewJsonSerializer()
 	var result []byte
 	var err error
 
-	switch v := value.(type) {
+	switch v := resolved.(type) {
 	case *data.IntValue:
 		result, err = serializer.MarshalInt(v)
 	case *data.StringValue:
@@ -75,17 +86,16 @@ func (f *JsonEncodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	case data.ValueSerializer:
 		result, err = v.Marshal(serializer)
 	default:
-		// 对于其他类型，转换为字符串
-		result, err = jsonpkg.Marshal(value.(data.Value).AsString())
+		result, err = jsonpkg.Marshal(resolved.AsString())
 	}
 
 	if err != nil {
 		setJsonLastError(JSON_ERROR_UNSUPPORTED_TYPE, "")
-		return data.NewBoolValue(false), nil
+		return "", false, nil
 	}
 
 	clearJsonLastError()
-	return data.NewStringValue(string(result)), nil
+	return string(result), true, nil
 }
 
 func (f *JsonEncodeFunction) GetName() string {

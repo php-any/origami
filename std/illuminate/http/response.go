@@ -1,11 +1,11 @@
 package http
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/std/php"
 	httpfoundation "github.com/php-any/origami/std/symfony/http-foundation"
 )
 
@@ -356,87 +356,18 @@ func morphToJSON(ctx data.Context, content data.Value) (string, bool) {
 			if ctl != nil || ret == nil {
 				return "", false
 			}
-			return jsonEncodeValue(ret.(data.Value))
+			return jsonEncodeValue(ctx, ret.(data.Value))
 		}
 	}
-	return jsonEncodeValue(content)
+	return jsonEncodeValue(ctx, content)
 }
 
-func jsonEncodeValue(v data.Value) (string, bool) {
-	goVal := phpValueToGo(v)
-	b, err := json.Marshal(goVal)
-	if err != nil {
+func jsonEncodeValue(ctx data.Context, v data.Value) (string, bool) {
+	encoded, ok, ctl := php.JsonEncode(ctx, v)
+	if ctl != nil || !ok {
 		return "", false
 	}
-	return string(b), true
-}
-
-func phpValueToGo(v data.Value) any {
-	if v == nil {
-		return nil
-	}
-	switch t := v.(type) {
-	case *data.NullValue:
-		return nil
-	case *data.BoolValue:
-		b, _ := t.AsBool()
-		return b
-	case *data.IntValue:
-		n, _ := t.AsInt()
-		return n
-	case *data.FloatValue:
-		f, _ := t.AsFloat()
-		return f
-	case *data.StringValue:
-		return t.Value
-	case *data.ArrayValue:
-		// 尝试关联数组
-		isAssoc := false
-		for i, z := range t.List {
-			if z == nil {
-				continue
-			}
-			if z.Name != "" && z.Name != data.IntArrayKeyName(i) {
-				isAssoc = true
-				break
-			}
-		}
-		if isAssoc {
-			out := map[string]any{}
-			for i, z := range t.List {
-				if z == nil {
-					continue
-				}
-				key := z.Name
-				if key == "" {
-					key = fmt.Sprintf("%d", i)
-				}
-				out[key] = phpValueToGo(z.Value)
-			}
-			return out
-		}
-		out := make([]any, 0, len(t.List))
-		for _, z := range t.List {
-			if z == nil {
-				out = append(out, nil)
-			} else {
-				out = append(out, phpValueToGo(z.Value))
-			}
-		}
-		return out
-	case *data.ObjectValue:
-		// 将 ObjectValue（关联数组）转换为 Go map
-		out := map[string]any{}
-		t.RangeProperties(func(key string, value data.Value) bool {
-			out[key] = phpValueToGo(value)
-			return true
-		})
-		return out
-	case *data.ClassValue:
-		return t.AsString()
-	default:
-		return v.AsString()
-	}
+	return encoded, true
 }
 
 func tryRender(ctx data.Context, content data.Value) (string, bool, data.Control) {
