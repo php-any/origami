@@ -1,2 +1,0 @@
-﻿boot_ok
-auth_ok

@@ -48,13 +48,34 @@ func (m *ReflectionClassGetPropertiesMethod) Call(ctx data.Context) (data.GetVal
 		return data.NewArrayValue([]data.Value{}), nil
 	}
 
-	// 获取所有属性
-	properties := classStmt.GetPropertyList()
-	result := make([]data.Value, 0, len(properties))
-
-	for _, prop := range properties {
-		// 返回 ReflectionProperty 对象（真实 PHP 中 getProperties() 返回 ReflectionProperty 数组）
-		result = append(result, newReflectionProperty(ctx, className, prop.GetName()))
+	// PHP：无 filter 时包含继承链上的声明属性（Livewire 靠此拿到父类 public Collection $notifications）。
+	seen := make(map[string]bool)
+	result := make([]data.Value, 0)
+	currentName := className
+	current := classStmt
+	vm := ctx.GetVM()
+	for current != nil {
+		for _, prop := range current.GetPropertyList() {
+			if prop == nil {
+				continue
+			}
+			name := prop.GetName()
+			if seen[name] {
+				continue
+			}
+			seen[name] = true
+			result = append(result, newReflectionProperty(ctx, currentName, name))
+		}
+		extend := current.GetExtend()
+		if extend == nil || *extend == "" || vm == nil {
+			break
+		}
+		parent, acl := vm.GetOrLoadClass(*extend)
+		if acl != nil || parent == nil {
+			break
+		}
+		currentName = parent.GetName()
+		current = parent
 	}
 
 	return data.NewArrayValue(result), nil

@@ -94,13 +94,6 @@ func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool,
 		}
 	}
 
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		if required {
-			return nil, utils.NewThrowf("require 文件失败: %s, 错误: %v", filePath, err)
-		}
-		return data.NewBoolValue(false), nil
-	}
-
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
 		if required {

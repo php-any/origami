@@ -299,13 +299,13 @@ unset($__defined_vars, $__key, $__value); ?>
 <?php endif; ?>
     <?php elseif($this->isTableLoaded() && filled($this->defaultTableAction)): ?>
         <div
-            wire:init="mountAction(<?php echo \Illuminate\Support\Js::from($this->defaultTableAction)->toHtml() ?> , <?php if(filled($this->defaultTableActionArguments)): ?> <?php echo \Illuminate\Support\Js::from($this->defaultTableActionArguments)->toHtml() ?> <?php else: ?>{} <?php endif; ?>, <?php echo \Illuminate\Support\Js::from($this->getDefaultTableActionUrlContext())->toHtml() ?>)"
+            wire:init="mountAction(<?php echo \Illuminate\Support\Js::from($this->defaultTableAction)->toHtml() ?> , <?php if(filled($this->defaultTableActionArguments)): ?> <?php echo \Illuminate\Support\Js::from($this->defaultTableActionArguments)->toHtml() ?> <?php else: ?> {} <?php endif; ?> , <?php echo \Illuminate\Support\Js::from($this->getDefaultTableActionUrlContext())->toHtml() ?>)"
         ></div>
     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(filled($this->defaultAction)): ?>
         <div
-            wire:init="mountAction(<?php echo \Illuminate\Support\Js::from($this->defaultAction)->toHtml() ?> , <?php if(filled($this->defaultActionArguments)): ?> <?php echo \Illuminate\Support\Js::from($this->defaultActionArguments)->toHtml() ?> <?php else: ?>{} <?php endif; ?>, <?php echo \Illuminate\Support\Js::from($this->getDefaultActionUrlContext())->toHtml() ?>)"
+            wire:init="mountAction(<?php echo \Illuminate\Support\Js::from($this->defaultAction)->toHtml() ?> , <?php if(filled($this->defaultActionArguments)): ?> <?php echo \Illuminate\Support\Js::from($this->defaultActionArguments)->toHtml() ?> <?php else: ?> {} <?php endif; ?> , <?php echo \Illuminate\Support\Js::from($this->getDefaultActionUrlContext())->toHtml() ?>)"
         ></div>
     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 

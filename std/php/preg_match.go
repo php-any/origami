@@ -24,7 +24,12 @@ func (f *PregMatchFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	}
 
 	pattern := patternValue.AsString()
-	subject := subjectValue.AsString()
+	// PHP：string $subject 会对带 __toString 的对象（如 HtmlString）走魔法方法。
+	// ClassValue.AsString 只返回 Object(ClassName)，Livewire insertAttributesIntoHtmlRoot 会误报 missing root tag。
+	subject, acl := node.ValueToDisplayString(ctx, subjectValue)
+	if acl != nil {
+		return nil, acl
+	}
 	offset := 0
 	if offsetValue != nil {
 		if asInt, ok := offsetValue.(data.AsInt); ok {

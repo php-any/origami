@@ -1,5 +1,0 @@
-compiled=D:\gitcode.com\origami\examples\laravel13\storage\framework\views/d300ce7e12c7ab29f0779cb22d3af0c93a795983ba22bdab695bb41de02b462a.php
-exists=no
-len=0
-head=
-DONE

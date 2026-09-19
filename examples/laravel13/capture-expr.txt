@@ -1,2 +1,0 @@
-SEEN=["$content, $logo, $isDarkMode = false","name=$content","args=$logo, $isDarkMode = false"]
-COMPILED="\r\n                <?php $content = (function ($args) {\r\n                    return function ($logo, $isDarkMode = false) use ($args) {\r\n                        extract($args, EXTR_SKIP);\r\n                        ob_start(); ?>\r\n            \n    <div><?php echo e($logo); ?></div>\n\n            <?php return new \\Illuminate\\Support\\HtmlString(ob_get_clean()); };\n                })(get_defined_vars()); ?>\n        "

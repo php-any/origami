@@ -26,15 +26,7 @@ func (f *ArrayKeysFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 		length := len(v.List)
 		keys := make([]data.Value, 0, length)
 		for i := 0; i < length; i++ {
-			if v.List[i] != nil && v.List[i].Name != "" {
-				if n, ok := data.ParseIntArrayKeyName(v.List[i].Name); ok {
-					keys = append(keys, data.NewIntValue(n))
-				} else {
-					keys = append(keys, data.NewStringValue(v.List[i].Name))
-				}
-			} else {
-				keys = append(keys, data.NewIntValue(i))
-			}
+			keys = append(keys, v.List[i].PHPArrayKey(i))
 		}
 		return data.NewArrayValue(keys), nil
 

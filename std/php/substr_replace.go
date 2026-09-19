@@ -22,8 +22,14 @@ func (f *SubstrReplaceFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 		return data.NewStringValue(""), nil
 	}
 
-	s := str.AsString()
-	r := repl.AsString()
+	s, acl := node.ValueToDisplayString(ctx, str)
+	if acl != nil {
+		return nil, acl
+	}
+	r, acl := node.ValueToDisplayString(ctx, repl)
+	if acl != nil {
+		return nil, acl
+	}
 
 	asInt, ok := offsetVal.(data.AsInt)
 	if !ok {

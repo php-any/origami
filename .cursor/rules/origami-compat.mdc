@@ -3,4 +3,4 @@ description: 完整约定见仓库根目录 AGENTS.md（项目目标 + 禁止改
 alwaysApply: true
 ---
 
-完整约定以仓库根目录 **AGENTS.md** 为准：Origami 是 PHP 语义运行时，主线是官方 Laravel 13；vendor/应用报错修解释器，禁止改 PHP 跳过错误。热路径（赋值/调用/属性读/`Call()`）上的额外断言、加锁、多层 Context 视为负优化。禁止在 `Call()` 热路径插追踪。运行与验收优先 `go run`（`go run ./zy.go …`、`examples/laravel13` 下 `go run -mod=mod . serve`），不要先编 `laravel13.exe`。性能诊断用 `go run -mod=mod -tags origamidebug`（`perfmon` 仅此时编入）。
+完整约定以仓库根目录 **AGENTS.md** 为准：Origami 是 PHP 语义运行时，主线是官方 Laravel 13；vendor/应用报错修解释器，禁止改 PHP 跳过错误。热路径（赋值/调用/属性读/`Call()`）上的额外断言、加锁、多层 Context 视为负优化。禁止在 `Call()` 热路径插追踪。运行与验收优先 `go run`（`go run ./zy.go …`、`examples/laravel13` 下 `go run -mod=mod . serve`），不要先编 `laravel13.exe`。性能诊断用 `go run -mod=mod -tags origamidebug`（`perfmon` 仅此时编入）。curl/pprof/探针输出写到 `examples/laravel13/storage/origami-debug/`，不要堆在 laravel13 项目根。

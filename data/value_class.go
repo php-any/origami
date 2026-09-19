@@ -114,10 +114,22 @@ func (c *ClassValue) GetPropertyZVal(name string) (*ZVal, Control) {
 		return nil, NewErrorThrow(nil, errors.New("Using $this when not in object context"))
 	}
 	v, ok := c.property.GetZVal(name)
-	if !ok {
-		c.SetProperty(name, NewNullValue())
-		v, _ = c.property.GetZVal(name)
+	if ok && v != nil {
+		return v, nil
 	}
+	// 声明属性带默认值时先物化（protected $componentStack = []），
+	// 禁止先写成 null：array_pop($this->stack) 是引用读取，会把默认数组冲掉。
+	if stmt, found := c.GetPropertyStmt(name); found {
+		if _, acl := stmt.GetValue(c); acl != nil {
+			return nil, acl
+		}
+		v, ok = c.property.GetZVal(name)
+		if ok && v != nil {
+			return v, nil
+		}
+	}
+	c.SetProperty(name, NewNullValue())
+	v, _ = c.property.GetZVal(name)
 	return v, nil
 }
 

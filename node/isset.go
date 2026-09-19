@@ -219,10 +219,8 @@ func issetOnContainer(container data.GetValue, index data.GetValue) (isSet bool,
 	case *data.ArrayValue:
 		switch iv := index.(type) {
 		case *data.StringValue:
-			for _, z := range arr.List {
-				if z != nil && z.Name == iv.Value {
-					return issetNonNullValue(z.Value), true
-				}
+			if z, ok := arr.LookupZValByStringKey(iv.Value); ok {
+				return issetNonNullValue(z.Value), true
 			}
 			return false, true
 		case data.AsInt:
@@ -237,10 +235,8 @@ func issetOnContainer(container data.GetValue, index data.GetValue) (isSet bool,
 			return issetNonNullValue(z.Value), true
 		}
 		if key, ok := indexKeyString(index); ok {
-			for _, z := range arr.List {
-				if z != nil && z.Name == key {
-					return issetNonNullValue(z.Value), true
-				}
+			if z, ok := arr.LookupZValByStringKey(key); ok {
+				return issetNonNullValue(z.Value), true
 			}
 			return false, true
 		}
@@ -287,13 +283,11 @@ func readIndexNoWarn(container data.GetValue, index data.GetValue) (data.GetValu
 	case *data.ArrayValue:
 		switch iv := index.(type) {
 		case *data.StringValue:
-			for _, z := range arr.List {
-				if z != nil && z.Name == iv.Value {
-					if z.Value == nil {
-						return data.NewNullValue(), true
-					}
-					return z.Value, true
+			if z, ok := arr.LookupZValByStringKey(iv.Value); ok {
+				if z.Value == nil {
+					return data.NewNullValue(), true
 				}
+				return z.Value, true
 			}
 			return nil, false
 		case data.AsInt:

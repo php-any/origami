@@ -7,7 +7,8 @@ import (
 	"github.com/php-any/origami/token"
 )
 
-// PDOExceptionClass 表示 PHP 的 PDOException 类（extends RuntimeException）
+// PDOExceptionClass 表示 PHP 的 PDOException 类（extends RuntimeException）。
+// getTraceAsString 必须返回 string：Symfony FlattenException 会赋给 typed string 属性。
 type PDOExceptionClass struct {
 	node.Node
 	m exception.ExceptionMethods
@@ -44,14 +45,33 @@ func (c *PDOExceptionClass) GetMethod(name string) (data.Method, bool) {
 		return c.m.ErrorMethod, true
 	case "getMessage":
 		return c.m.GetMessageMethod, true
-	case "getTraceAsString":
+	case "getCode":
+		return c.m.GetCodeMethod, true
+	case "getPrevious":
+		return c.m.GetPreviousMethod, true
+	case "getTrace":
 		return c.m.GetTraceMethod, true
+	case "getFile":
+		return c.m.GetFileMethod, true
+	case "getLine":
+		return c.m.GetLineMethod, true
+	case "getTraceAsString":
+		return c.m.GetTraceAsString, true
 	}
 	return nil, false
 }
 
 func (c *PDOExceptionClass) GetMethods() []data.Method {
-	return []data.Method{c.m.ErrorMethod, c.m.GetMessageMethod, c.m.GetTraceMethod}
+	return []data.Method{
+		c.m.ErrorMethod,
+		c.m.GetMessageMethod,
+		c.m.GetCodeMethod,
+		c.m.GetPreviousMethod,
+		c.m.GetTraceMethod,
+		c.m.GetFileMethod,
+		c.m.GetLineMethod,
+		c.m.GetTraceAsString,
+	}
 }
 
 func (c *PDOExceptionClass) GetConstruct() data.Method { return c.m.ConstructMethod }

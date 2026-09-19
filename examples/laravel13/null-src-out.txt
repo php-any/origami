@@ -1,6 +1,0 @@
-page=App\Filament\Pages\Dashboard
-widgets=["App\\Filament\\Widgets\\StatsOverviewWidget","App\\Filament\\Widgets\\LatestOrdersWidget"]
-schema_count=object
-view_len=143
-null_data_len=143
-DONE

@@ -10,14 +10,43 @@ import (
 // 不捕获 ob_start 的帧（避免 pooled Context 悬挂）。chunk_size 热路径不加追踪。
 
 func outputBufferHost(ctx data.Context) (data.OutputBufferHost, bool) {
+	ctx = unwrapOutputBufferCtx(ctx)
 	if ctx == nil {
 		return nil, false
 	}
 	if host, ok := ctx.(data.OutputBufferHost); ok {
 		return host, true
 	}
-	host, ok := ctx.GetVM().(data.OutputBufferHost)
-	return host, ok
+	if vm := ctx.GetVM(); vm != nil {
+		host, ok := vm.(data.OutputBufferHost)
+		return host, ok
+	}
+	return nil, false
+}
+
+// BoundContext / ClassMethodContext / ClassValue 不是 OutputBufferHost。
+// ob_start 必须落到内层请求缓冲，不能因包装层直接 VM 回退而和 echo 不在同一栈。
+// 否则 Factory::startComponent 的 if (ob_start()) 失败不入栈，renderComponent 弹出外层，View []。
+func unwrapOutputBufferCtx(ctx data.Context) data.Context {
+	for i := 0; i < 8 && ctx != nil; i++ {
+		if _, ok := ctx.(data.OutputBufferHost); ok {
+			return ctx
+		}
+		switch t := ctx.(type) {
+		case *data.BoundContext:
+			ctx = t.Context
+		case *data.ClassMethodContext:
+			if t.ClassValue == nil {
+				return ctx
+			}
+			ctx = t.ClassValue.Context
+		case *data.ClassValue:
+			ctx = t.Context
+		default:
+			return ctx
+		}
+	}
+	return ctx
 }
 
 func finishOb(host data.OutputBufferHost, ret data.GetValue) (data.GetValue, data.Control) {

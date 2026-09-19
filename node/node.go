@@ -60,17 +60,16 @@ func (p *Program) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			case data.GotoControl:
 				return p.runGoto(ctx, acl)
 			default:
-				if tv, ok := c.(*data.ThrowValue); ok && tv.PHPUncaughtError {
-					ctx.GetVM().ThrowControl(c)
-					return v, nil
-				}
-				if acl, ok := acl.(data.AddStack); ok {
+				// include/require 的文件也是 Program。抛错必须回到调用方（PhpEngine
+				// catch (Throwable)），不能在这里 ThrowControl 后当成成功返回。
+				// 否则 Blade startComponent 之后一炸会跳过 renderComponent，栈泄漏，
+				// Livewire 只能看到无根标签的残缺 HTML。
+				if add, ok := c.(data.AddStack); ok {
 					if statement, ok := statement.(GetFrom); ok {
-						acl.AddStackWithInfo(statement.GetFrom(), "program", "")
+						add.AddStackWithInfo(statement.GetFrom(), "program", "")
 					}
 				}
-				ctx.GetVM().ThrowControl(c)
-				return v, nil
+				return v, c
 			}
 		}
 	}
@@ -107,8 +106,7 @@ func (p *Program) runLabel(ctx data.Context, label LabelControl) (data.GetValue,
 				}
 				return p.runGoto(ctx, acl)
 			default:
-				ctx.GetVM().ThrowControl(c)
-				return v, nil
+				return v, c
 			}
 		}
 	}

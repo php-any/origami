@@ -185,7 +185,7 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 			zv := data.NewZVal(v.(data.Value))
 			fnCtx.SetIndexZVal(param.Index, zv)
 		case *IndexExpression:
-			zv, acl := val.GetZVal(ctx)
+			zv, acl := val.GetOrCreateZVal(ctx)
 			if acl != nil {
 				return acl
 			}

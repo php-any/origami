@@ -44,3 +44,27 @@ echo bump();
 		t.Fatal("expected same cached program instance")
 	}
 }
+
+func TestTempVMLoadInCallerContextUsesParseCache(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "view.php")
+	if err := os.WriteFile(file, []byte(`<?php echo "ok";`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	p := parser.NewParser()
+	base := NewVM(p).(*VM)
+	base.SetThrowControl(func(data.Control) {})
+	temp := NewTempVM(base).(*TempVM)
+	parent := temp.CreateContext(nil)
+
+	if _, acl := temp.LoadInCallerContext(parent, file); acl != nil {
+		t.Fatalf("first include: %v", acl)
+	}
+	if err := os.Remove(file); err != nil {
+		t.Fatal(err)
+	}
+	if _, acl := temp.LoadInCallerContext(parent, file); acl != nil {
+		t.Fatalf("cached include should not touch disk: %v", acl)
+	}
+}

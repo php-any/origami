@@ -233,6 +233,7 @@ func Load(vm data.VM) {
 		NewMbSubstrFunction(),
 		NewMbStrimwidthFunction(),
 		NewMbStrcutFunction(),
+		NewMbEncodeNumericentityFunction(),
 		NewCtypeSpaceFunction(),
 		NewCtypeDigitFunction(),
 		NewCtypeAlphaFunction(),

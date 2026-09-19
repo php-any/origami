@@ -35,6 +35,8 @@ go run ./zy.go tests/php/<name>_test.php
 
 HTTP 验收必须带超时（如 `curl --max-time 35`），禁止无限等待。仅发布、交叉编译或要排除编译时间的基准才用 `go build`。
 
+调试落盘（curl 响应、stdout/stderr 重定向、pprof、临时 HTML）写到 `examples/laravel13/storage/origami-debug/`，禁止写到 `examples/laravel13/` 项目根。
+
 ## 性能
 
 这是语言运行时：热路径（赋值、调用、属性读、`Call()`）上多一次断言、加锁、多层 Context 或堆分配，都会在 Laravel 请求里被放大。语义修复不得绑到更快的快路径上；改动必须证明净收益，负优化要撤。

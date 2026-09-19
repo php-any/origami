@@ -1,2 +1,0 @@
-this=ExtendBladeThisSpy target=Filament\Auth\Pages\Login current=Filament\Auth\Pages\Login
-this=ExtendBladeThisSpy target=Filament\Livewire\Notifications current=Filament\Auth\Pages\Login

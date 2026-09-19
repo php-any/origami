@@ -206,15 +206,35 @@ func findDeferredTraitMethod(vm data.VM, traitNames []string, alias data.TraitAl
 	return nil, false
 }
 
-// mergeTraitStmt 将一个已加载的 trait 合并进类（实例/静态方法、属性、静态属性）。
-func mergeTraitStmt(vm data.VM, class *ClassStatement, trait data.ClassStmt) data.Control {
-	traitMethods := trait.GetMethods()
-	for _, method := range traitMethods {
-		methodName := method.GetName()
-		if _, exists := class.Methods[methodName]; !exists {
-			class.Methods[methodName] = method
+// CopyTraitInstanceMethods 把 trait 的实例方法并入 dst。
+// 必须按 Methods 的 map 键复制：trait 内 `use T { foo as bar }` 会让同一方法占两个键，
+// 若只按 method.GetName() 合并，别名键会丢（Filament Notification::getBaseIconColor）。
+func CopyTraitInstanceMethods(dst map[string]data.Method, trait data.ClassStmt) {
+	if dst == nil || trait == nil {
+		return
+	}
+	if cs, ok := trait.(*ClassStatement); ok {
+		for name, method := range cs.Methods {
+			if _, exists := dst[name]; !exists {
+				dst[name] = method
+			}
+		}
+		return
+	}
+	for _, method := range trait.GetMethods() {
+		if method == nil {
+			continue
+		}
+		name := method.GetName()
+		if _, exists := dst[name]; !exists {
+			dst[name] = method
 		}
 	}
+}
+
+// mergeTraitStmt 将一个已加载的 trait 合并进类（实例/静态方法、属性、静态属性）。
+func mergeTraitStmt(vm data.VM, class *ClassStatement, trait data.ClassStmt) data.Control {
+	CopyTraitInstanceMethods(class.Methods, trait)
 	if cs, ok := trait.(*ClassStatement); ok {
 		for methodName, method := range cs.StaticMethods {
 			if _, exists := class.StaticMethods[methodName]; !exists {
@@ -720,16 +740,16 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		line, _ := from.GetStartPosition()
 		frame.Line = line + 1
 	}
-	leave, depth := phpCallEnter(ctx, frame)
+	depth := phpCallEnter(ctx, frame)
 	if depth > 2500 {
-		leave()
+		phpCallLeave(ctx)
 		className := ""
 		if cmc, ok := ctx.(*data.ClassMethodContext); ok {
 			className = cmc.Class.GetName() + "::"
 		}
 		return nil, data.NewErrorThrow(m.GetFrom(), fmt.Errorf("方法 %s%s 调用深度超过限制(%d)", className, m.Name, depth))
 	}
-	defer leave()
+	defer phpCallLeave(ctx)
 
 	var ctl data.Control
 	for bodyIndex := 0; bodyIndex < len(m.Body); bodyIndex++ {

@@ -11,7 +11,7 @@ func registerHelpers(vm data.VM) {
 		newHelperFunc("collect", []string{"value"}, helperCollect),
 		newHelperFunc("data_get", []string{"target", "key", "default"}, helperDataGet),
 		newHelperFunc("data_set", []string{"target", "key", "value", "overwrite"}, helperDataSet),
-		newHelperFunc("value", []string{"value"}, helperValue),
+		newHelperFunc("value", []string{"value", "args"}, helperValue),
 		newHelperFunc("with", []string{"value", "callback"}, helperWith),
 		newHelperFunc("filled", []string{"value"}, helperFilled),
 		newHelperFunc("blank", []string{"value"}, helperBlank),
@@ -62,8 +62,28 @@ func helperDataSet(ctx data.Context) (data.GetValue, data.Control) {
 
 func helperValue(ctx data.Context) (data.GetValue, data.Control) {
 	v, _ := ctx.GetIndexValue(0)
-	if fv, ok := v.(*data.FuncValue); ok && fv != nil {
-		return fv.Value.Call(ctx.CreateContext(fv.Value.GetVariables()))
+	arg, hasArg := ctx.GetIndexValue(1)
+	switch cb := v.(type) {
+	case *data.FuncValue:
+		if cb == nil || cb.Value == nil {
+			return v, nil
+		}
+		if hasArg && arg != nil && !isNull(arg) {
+			if av, ok := arg.(data.Value); ok {
+				return callValue(ctx, cb, av)
+			}
+		}
+		return cb.Value.Call(ctx.CreateContext(cb.Value.GetVariables()))
+	case *data.BoundFuncValue:
+		if cb == nil {
+			return v, nil
+		}
+		if hasArg && arg != nil && !isNull(arg) {
+			if av, ok := arg.(data.Value); ok {
+				return callValue(ctx, cb, av)
+			}
+		}
+		return cb.Call(ctx)
 	}
 	return v, nil
 }
@@ -107,18 +127,38 @@ func helperBlank(ctx data.Context) (data.GetValue, data.Control) {
 
 func helperClassBasename(ctx data.Context) (data.GetValue, data.Control) {
 	v, _ := ctx.GetIndexValue(0)
-	s := ""
-	if v != nil {
-		if cv, ok := v.(*data.ClassValue); ok && cv.Class != nil {
-			s = cv.Class.GetName()
-		} else {
-			s = v.AsString()
-		}
-	}
+	s := classBasenameSource(v)
 	if i := lastSlash(s); i >= 0 {
 		s = s[i+1:]
 	}
 	return data.NewStringValue(s), nil
+}
+
+// classBasenameSource 对齐 Laravel helpers.php 的 class_basename：
+// is_object($class) ? get_class($class) : $class，再 basename。
+// $this 是 *ThisValue，不能走 AsString()（会得到 Object(Foo\Bar)，basename 变成 "Bar)"）。
+func classBasenameSource(v data.Value) string {
+	if v == nil {
+		return ""
+	}
+	if name := objectClassName(v); name != "" {
+		return name
+	}
+	return v.AsString()
+}
+
+func objectClassName(v data.Value) string {
+	switch t := v.(type) {
+	case *data.ThisValue:
+		if t != nil && t.Class != nil {
+			return t.Class.GetName()
+		}
+	case *data.ClassValue:
+		if t != nil && t.Class != nil {
+			return t.Class.GetName()
+		}
+	}
+	return ""
 }
 
 func stringsTrim(s string) string {

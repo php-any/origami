@@ -34,7 +34,7 @@ func CloneArrayValue(src *ArrayValue) *ArrayValue {
 			list[i] = z
 		} else {
 			// 复制 ZVal 时保留 Name（关联数组键）
-			list[i] = NewNamedZVal(z.Name, z.Value)
+			list[i] = CopyZValKeepName(z, z.Value)
 		}
 	}
 	return &ArrayValue{
@@ -47,6 +47,7 @@ func CloneArrayValue(src *ArrayValue) *ArrayValue {
 // 与 PHP 语义对齐：
 //   - 数组（含嵌套数组）按值拷贝，结构上与原数组互不影响
 //   - 数组内的对象（*ClassValue / *ObjectValue）仍按引用共享
+//
 // 参数 depth 用于防御极端深度的嵌套数组（避免栈溢出）。
 func DeepCloneArrayValue(src *ArrayValue) *ArrayValue {
 	if src == nil {
@@ -67,9 +68,9 @@ func deepCloneArrayValue(src *ArrayValue, depth int) *ArrayValue {
 		}
 		if depth < maxDepth {
 			// 嵌套数组/关联数组按值拷贝；对象与标量保持引用共享（与 PHP clone 语义一致）
-			list[i] = NewNamedZVal(z.Name, deepCloneValue(z.Value, depth+1))
+			list[i] = CopyZValKeepName(z, deepCloneValue(z.Value, depth+1))
 		} else {
-			list[i] = NewNamedZVal(z.Name, z.Value)
+			list[i] = CopyZValKeepName(z, z.Value)
 		}
 	}
 	return &ArrayValue{
@@ -92,7 +93,7 @@ func CloneArrayValueForCallArgs(src *ArrayValue) *ArrayValue {
 			list[i] = z
 		} else {
 			// 复制 ZVal 时保留 Name（关联数组键），避免在 __call/__callStatic 参数传递中丢失键
-			list[i] = NewNamedZVal(z.Name, z.Value)
+			list[i] = CopyZValKeepName(z, z.Value)
 		}
 	}
 	return &ArrayValue{List: list, rc: 1}
@@ -119,13 +120,7 @@ func (a *ArrayValue) Current(ctx Context) (Value, Control) {
 
 func (a *ArrayValue) Key(ctx Context) (Value, Control) {
 	if a.iterator >= 0 && a.iterator < len(a.List) {
-		z := a.List[a.iterator]
-		if z != nil && z.Name != "" {
-			if n, ok := ParseIntArrayKeyName(z.Name); ok {
-				return NewIntValue(n), nil
-			}
-			return NewStringValue(z.Name), nil
-		}
+		return a.List[a.iterator].PHPArrayKey(a.iterator), nil
 	}
 	return NewIntValue(a.iterator), nil
 }
@@ -290,6 +285,12 @@ func (a *ArrayValue) rebuildIndex() {
 		if z == nil {
 			continue
 		}
+		if z.EmptyStrKey {
+			packed = false
+			hasNamed = true
+			idx[""] = i
+			continue
+		}
 		if z.Name != "" {
 			packed = false
 			hasNamed = true
@@ -338,7 +339,7 @@ func (a *ArrayValue) LookupZValByStringKey(key string) (*ZVal, bool) {
 	if a.keyIndex != nil {
 		if i, ok := a.keyIndex[key]; ok && i >= 0 && i < len(a.List) {
 			z := a.List[i]
-			if z != nil && z.Name == key {
+			if z != nil && (z.Name == key || (key == "" && z.EmptyStrKey)) {
 				return z, true
 			}
 		}
@@ -351,12 +352,30 @@ func (a *ArrayValue) LookupZValByStringKey(key string) (*ZVal, bool) {
 	return nil, false
 }
 
+// SetStringKey 写入 PHP 字符串键（含 ”）；纯数字字符串走整数键。
+func (a *ArrayValue) SetStringKey(key string, value Value) {
+	if n, ok := ParseIntArrayKeyName(key); ok {
+		a.SetIntKey(n, value)
+		return
+	}
+	if z, ok := a.LookupZValByStringKey(key); ok {
+		z.Value = value
+		return
+	}
+	a.invalidateIndex()
+	if key == "" {
+		a.List = append(a.List, NewEmptyStringKeyZVal(value))
+		return
+	}
+	a.List = append(a.List, NewNamedZVal(key, value))
+}
+
 // FindSlotByIntKey 按 PHP 整数键查找槽位（含稀疏键 Name=="6" 等）
 func (a *ArrayValue) FindSlotByIntKey(i int) (*ZVal, int) {
 	a.ensureIndex()
 	if a.packed {
 		if i >= 0 && i < len(a.List) {
-			if z := a.List[i]; z != nil && z.Name == "" {
+			if z := a.List[i]; z.IsPackedIntSlot() {
 				return z, i
 			}
 		}
@@ -372,7 +391,7 @@ func (a *ArrayValue) FindSlotByIntKey(i int) (*ZVal, int) {
 		}
 	}
 	if i >= 0 && i < len(a.List) {
-		if z := a.List[i]; z != nil && z.Name == "" {
+		if z := a.List[i]; z.IsPackedIntSlot() {
 			return z, i
 		}
 	}
@@ -381,6 +400,7 @@ func (a *ArrayValue) FindSlotByIntKey(i int) (*ZVal, int) {
 
 // SetIntKey 设置整数键（不将稀疏数组转为 ObjectValue）
 func (a *ArrayValue) SetIntKey(i int, value Value) {
+	a.ensureIndex()
 	if z, _ := a.FindSlotByIntKey(i); z != nil {
 		z.Value = value
 		return
@@ -388,26 +408,20 @@ func (a *ArrayValue) SetIntKey(i int, value Value) {
 	if i < 0 {
 		return
 	}
+	packed, n := a.packed, len(a.List)
 	a.invalidateIndex()
-	if i == len(a.List) {
+	// 未找到整数键 i 时只能追加。禁止用 List[i] 覆盖：该槽可能是 PHP 空字符串键 ''。
+	if packed && i == n {
 		a.List = append(a.List, NewZVal(value))
 		return
 	}
-	if i > len(a.List) {
-		a.List = append(a.List, NewNamedZVal(IntArrayKeyName(i), value))
-		return
-	}
-	if slot := a.List[i]; slot != nil && slot.RefSlotCount > 0 {
-		slot.Value = value
-	} else {
-		a.List[i] = NewZVal(value)
-	}
+	a.List = append(a.List, NewNamedZVal(IntArrayKeyName(i), value))
 }
 
 // normalizeDenseIntKeys 将 Name=="" 的连续槽位转为显式整数字符串键，避免 unset 中间元素时误压缩后续键
 func (a *ArrayValue) normalizeDenseIntKeys() {
 	for j, z := range a.List {
-		if z != nil && z.Name == "" {
+		if z != nil && z.IsPackedIntSlot() {
 			z.Name = IntArrayKeyName(j)
 		}
 	}
@@ -422,7 +436,17 @@ func (a *ArrayValue) UnsetKey(index Value) {
 		key := sv.AsString()
 		if _, isIntKey := ParseIntArrayKeyName(key); !isIntKey {
 			for j, z := range a.List {
-				if z != nil && z.Name == key {
+				if z == nil {
+					continue
+				}
+				if key == "" {
+					if z.EmptyStrKey {
+						a.List = append(a.List[:j], a.List[j+1:]...)
+						return
+					}
+					continue
+				}
+				if z.Name == key && !z.EmptyStrKey {
 					a.List = append(a.List[:j], a.List[j+1:]...)
 					return
 				}

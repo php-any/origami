@@ -1,9 +1,0 @@
-boot_ok
-validator_created
-validate_ok
-attempt_start
-attempt=true
-user=admin@example.com active=true
-redirect_start
-redirect=http://127.0.0.1:8000/admin
-done

@@ -1,5 +1,0 @@
-﻿start
-autoload
-app
-kernel
-boot ok

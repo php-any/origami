@@ -1,4 +1,17 @@
-@__raw_block_2__@
+<?php
+    use Filament\Notifications\View\NotificationsIconAlias;
+    use Filament\Support\Enums\Alignment;
+    use Filament\Support\Icons\Heroicon;
+    use Filament\Support\View\ComponentAttributeBag as FilamentComponentAttributeBag;
+    use Filament\Support\View\Components\BadgeComponent;
+    use Illuminate\Contracts\Pagination\Paginator;
+
+    $notifications = $this->getNotifications();
+    $unreadNotificationsCount = $this->getUnreadNotificationsCount();
+    $hasNotifications = $notifications->count();
+    $isPaginated = $notifications instanceof Paginator && $notifications->hasPages();
+    $pollingInterval = $this->getPollingInterval();
+?>
 
 <div class="fi-no-database">
     

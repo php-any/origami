@@ -85,7 +85,14 @@ func bindSandboxContainer(ctx data.Context, app, router data.Value) {
 		return
 	}
 	_, _ = callObjectMethodInContext(ctx, app, "setInstance", app)
+	// Octane Worker：请求沙箱必须成为 Container::getInstance()。
+	// PHP setInstance 若因类型提示/static:: 未写入 overlay，csrf_token() 会落到
+	// 进程级 Application（session 未 start），登录页 meta/data-csrf 变成空串。
+	if inst := asValue(app); inst != nil {
+		storeSandboxContainerInstance(ctx, inst)
+	}
 	if router != nil {
+		_, _ = callObjectMethodInContext(ctx, router, "setContainer", app)
 		_, _ = callObjectMethodInContext(ctx, app, "instance", data.NewStringValue("router"), router)
 		_, _ = callObjectMethodInContext(ctx, app, "instance", data.NewStringValue("Illuminate\\Routing\\Router"), router)
 	}
@@ -100,6 +107,26 @@ func bindSandboxContainer(ctx data.Context, app, router data.Value) {
 	facade := data.NewClassValue(stmt, ctx)
 	_, _ = callObjectMethodInContext(ctx, facade, "clearResolvedInstances")
 	_, _ = callObjectMethodInContext(ctx, facade, "setFacadeApplication", app)
+}
+
+func storeSandboxContainerInstance(ctx data.Context, inst data.Value) {
+	names := []string{
+		"Illuminate\\Container\\Container",
+		"Illuminate\\Foundation\\Application",
+	}
+	var vm data.VM
+	if ctx != nil {
+		vm = ctx.GetVM()
+	}
+	for _, n := range names {
+		actual := n
+		if vm != nil {
+			if stmt, ctl := vm.GetOrLoadClass(n); ctl == nil && stmt != nil {
+				actual = stmt.GetName()
+			}
+		}
+		data.StoreRequestStatic(actual, "instance", inst)
+	}
 }
 
 // cloneRequestServices 把每请求会往里 append 的共享单例换成 clone。
@@ -133,6 +160,17 @@ func cloneAndBind(ctx data.Context, app data.Value, abstract string, aliases ...
 		return
 	}
 	cloned := cv.CloneSandbox(ctx)
+	_, _ = callObjectMethodInContext(ctx, cloned, "setContainer", app)
+	if abstract == "view" {
+		// PHP clone 不会改 shared['__env']=$this。Blade 编译视图用 $__env，
+		// View::render 用 View::$factory。两者必须是同一实例，否则嵌套 table
+		// 在旧 Factory 上 flushStateIfDoneRendering 会清掉 page 的 componentStack（View []）。
+		_, _ = callObjectMethodInContext(ctx, cloned, "share", data.NewStringValue("__env"), cloned)
+		// 源 Factory 可能正被别的请求渲染（renderCount/componentStack 非空）。
+		// PHP clone 会把这些状态拷过来；不 flush 就会 flushStateIfDoneRendering 清错栈，
+		// Livewire 得到注释/空 HTML → RootTagMissing，异常页再被 HtmlDumper 拖死。
+		_, _ = callObjectMethodInContext(ctx, cloned, "flushState")
+	}
 	_, _ = callObjectMethodInContext(ctx, app, "instance", data.NewStringValue(abstract), cloned)
 	for _, alias := range aliases {
 		_, _ = callObjectMethodInContext(ctx, app, "instance", data.NewStringValue(alias), cloned)

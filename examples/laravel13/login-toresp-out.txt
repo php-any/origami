@@ -1,6 +1,0 @@
-mount_len=2905
-auth=Filament\Auth\Http\Responses\LoginResponse
-is_responsable=yes
-toResponse_class=Illuminate\Http\RedirectResponse
-target=admin
-DONE

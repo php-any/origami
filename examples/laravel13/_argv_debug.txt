@@ -1,3 +1,0 @@
-D:\gitcode.com\origami\examples\laravel13\laravel13.exe
-artisan
-inspire

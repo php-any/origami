@@ -1,4 +1,0 @@
-redirect_effect=NULL
-effect_keys=returns,html,partials
-log=[{"class":"Filament\\Auth\\Pages\\Login","store_redirect":null,"effects_before":["partials","listeners"],"redirect_app":"Illuminate\\Routing\\Redirector","is_lw_req":false},{"class":"Filament\\Livewire\\Notifications","store_redirect":null,"effects_before":["partials","listeners"],"redirect_app":"Illuminate\\Routing\\Redirector","is_lw_req":false},{"event":"call_before","method":"authenticate","redirect_app":"Livewire\\Features\\SupportRedirects\\Redirector"},{"class":"Filament\\Auth\\Pages\\Login","store_redirect":null,"effects_before":["returns","html","partials"],"redirect_app":"Illuminate\\Routing\\Redirector","is_lw_req":true}]
-DONE

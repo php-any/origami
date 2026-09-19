@@ -52,15 +52,25 @@ func (f *ArrayMergeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		stringKeyIndex[key] = len(result)
 		result = append(result, data.NewNamedZVal(key, v))
 	}
+	setEmptyString := func(v data.Value) {
+		if idx, ok := stringKeyIndex[""]; ok {
+			result[idx] = data.NewEmptyStringKeyZVal(v)
+			return
+		}
+		stringKeyIndex[""] = len(result)
+		result = append(result, data.NewEmptyStringKeyZVal(v))
+	}
 
 	for _, paramValue := range paramsArray.ToValueList() {
 		switch v := paramValue.(type) {
 		case *data.ArrayValue:
 			for _, zval := range v.List {
-				if zval == nil {
+				if zval == nil || zval.Value == nil {
 					continue
 				}
-				if isStringArrayKey(zval.Name) {
+				if zval.EmptyStrKey {
+					setEmptyString(zval.Value)
+				} else if isStringArrayKey(zval.Name) {
 					setString(zval.Name, zval.Value)
 				} else {
 					appendInt(zval.Value)

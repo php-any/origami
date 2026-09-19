@@ -19,6 +19,7 @@ alwaysApply: false
 5. 每层能力用 `tests/origami/` 冒烟验收；核心语义补 `tests/php/`。
 6. 详细说明见 `examples/laravel13/ORIGAMI.md`。
 7. **启动用 `go run`**：在本目录执行 `go run -mod=mod . serve --port=18086`（或 `go run -mod=mod . list`）。不要先编 `laravel13.exe`。HTTP 验收带 `curl --max-time`。
+8. **调试落盘**：curl 响应、命令 stdout/stderr、pprof、临时 HTML/JSON 一律写到 `storage/origami-debug/`（已 gitignore）。禁止写到本目录根、`tests/origami/` 或 `storage/framework/`。
 
 ## 旧目录
 

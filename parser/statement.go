@@ -42,7 +42,7 @@ func (sp *MainStatementParser) Parse() (data.GetValue, data.Control) {
 		}
 		sp.next()
 		return nil, nil
-	case token.END_TAG, token.SEMICOLON:
+	case token.END_TAG, token.SEMICOLON, token.NEWLINE:
 		sp.next()
 		return nil, nil
 	default:

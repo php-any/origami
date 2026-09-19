@@ -16,8 +16,8 @@ type FunctionStatement struct {
 	vars             []data.Variable // 符号表
 	Ret              data.Types      // 返回值类型
 	IsGenerator      bool            // 是否是生成器函数（含 yield）
-	ReturnsReference bool         // 是否按引用返回（function &name()）
-	defineCtx        data.Context // 闭包定义时的上下文（用于保留 self:: 语义）
+	ReturnsReference bool            // 是否按引用返回（function &name()）
+	defineCtx        data.Context    // 闭包定义时的上下文（用于保留 self:: 语义）
 }
 
 // NewFunctionStatement 创建一个新的函数定义语句
@@ -138,8 +138,8 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 		line, _ := from.GetStartPosition()
 		frame.Line = line + 1
 	}
-	leave, _ := phpCallEnter(ctx, frame)
-	defer leave()
+	phpCallEnter(ctx, frame)
+	defer phpCallLeave(ctx)
 
 	var ctl data.Control
 	for bodyIndex := 0; bodyIndex < len(f.Body); bodyIndex++ {

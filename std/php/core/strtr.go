@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -74,9 +73,11 @@ func (f *StrtrFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	case *data.ArrayValue:
 		pairs = make(map[string]string)
-		valueList := v.ToValueList()
-		for i, val := range valueList {
-			pairs[fmt.Sprintf("%d", i)] = val.AsString()
+		for i, z := range v.List {
+			if z == nil || z.Value == nil {
+				continue
+			}
+			pairs[z.PHPArrayKey(i).AsString()] = z.Value.AsString()
 		}
 	}
 

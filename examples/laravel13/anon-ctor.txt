@@ -1,8 +1,0 @@
-ctor=__construct
-params=["view","data"]
-cache_before=null
-extract_params={"0":"view","1":"data"}
-diff=[] empty_diff=yes
-intersect=[]
-direct_new_view=null
-resolve_view=null

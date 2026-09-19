@@ -6,6 +6,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/parser"
+	"github.com/php-any/origami/perfmon"
 )
 
 // NewTempVM 根据给定 VM 创建/返回一个临时 VM 实例
@@ -121,19 +122,19 @@ func (vm *TempVM) LoadAndRun(file string) (data.GetValue, data.Control) {
 func (vm *TempVM) LoadInCallerContext(parent data.Context, file string) (data.GetValue, data.Control) {
 	file = normalizePhpFilePath(file)
 
-	p := vm.PrepareParse(vm.Base.parser)
-	program, acl := p.ParseFile(file)
+	t0 := perfmon.Now()
+	program, vars, acl := vm.Base.ParseFileCached(file)
 	if acl != nil {
 		return nil, acl
 	}
 
-	vars := p.GetVariables()
 	ctx := inheritCallerScope(parent, vm.CreateContext(vars))
 	injectCallerVariables(parent, ctx, vars, func(name string, variable data.Variable) {
 		vm.Base.bindIncludedVarToGlobal(name, variable.GetIndex(), ctx)
 	})
 
 	result, ctrl := program.GetValue(ctx)
+	perfmon.NoteInclude(file, perfmon.Since(t0))
 	return result, ctrl
 }
 

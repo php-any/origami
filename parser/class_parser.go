@@ -1252,13 +1252,8 @@ func (p *ClassParser) mergeTraitsIntoMaps(traitNames []string, aliases []data.Tr
 			return data.NewErrorThrow(p.newFrom(), fmt.Errorf("trait %s 不存在", traitName))
 		}
 
-		// 合并 trait 的实例方法
-		for _, method := range trait.GetMethods() {
-			methodName := method.GetName()
-			if _, exists := methods[methodName]; !exists {
-				methods[methodName] = method
-			}
-		}
+		// 合并 trait 的实例方法（含 use { method as alias } 的别名键）
+		node.CopyTraitInstanceMethods(methods, trait)
 		// 合并 trait 的静态方法（静态方法只存放在 ClassStatement.StaticMethods 中）
 		if cs, ok := trait.(*node.ClassStatement); ok {
 			for methodName, method := range cs.StaticMethods {
@@ -1408,15 +1403,8 @@ func (p *ClassParser) mergeTraits(class *node.ClassStatement, traitNames []strin
 
 // mergeTraitIntoClass 将一个已加载的 trait 合并进类（实例/静态方法、属性、静态属性）。
 func mergeTraitIntoClass(vm data.VM, class *node.ClassStatement, trait data.ClassStmt) data.Control {
-	// 合并 trait 的实例方法
-	traitMethods := trait.GetMethods()
-	for _, method := range traitMethods {
-		methodName := method.GetName()
-		// 如果类中已经有同名方法，跳过（类的方法优先级更高）
-		if _, exists := class.Methods[methodName]; !exists {
-			class.Methods[methodName] = method
-		}
-	}
+	// 合并 trait 的实例方法（含别名键；类已有同名方法则跳过）
+	node.CopyTraitInstanceMethods(class.Methods, trait)
 	// 合并 trait 的静态方法（只存放在 ClassStatement.StaticMethods 中）
 	if cs, ok := trait.(*node.ClassStatement); ok {
 		for methodName, method := range cs.StaticMethods {

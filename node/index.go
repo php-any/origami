@@ -407,56 +407,61 @@ func (ie *IndexExpression) GetZVal(ctx data.Context) (*data.ZVal, data.Control) 
 
 	switch v := temp.(type) {
 	case *data.ArrayValue:
-		i := 0
 		switch iv := index.(type) {
+		case *data.NullValue:
+			emitNullOffsetDeprecation(ie.GetFrom())
+			if zval, ok := v.LookupZValByStringKey(""); ok {
+				return zval, nil
+			}
+			emitUndefinedArrayKeyWarning(ie.GetFrom(), "", false)
+			return data.NewZVal(data.NewNullValue()), nil
 		case *data.IntValue:
-			var err error
-			i, err = iv.AsInt()
+			i, err := iv.AsInt()
 			if err != nil {
 				return nil, data.NewErrorThrow(ie.GetFrom(), err)
 			}
-			if i >= len(v.List) {
-				return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("数组索引超出范围"), "UndefinedIndexExpression")
+			if z, _ := v.FindSlotByIntKey(i); z != nil {
+				return z, nil
 			}
+			emitUndefinedArrayKeyWarning(ie.GetFrom(), fmt.Sprintf("%d", i), true)
+			return data.NewZVal(data.NewNullValue()), nil
 		case *data.StringValue:
-			if len(v.List) == 0 {
-				return data.NewZVal(data.NewNullValue()), nil
-			}
 			key := iv.AsString()
 			if zval, ok := v.LookupZValByStringKey(key); ok {
 				return zval, nil
 			}
+			emitUndefinedArrayKeyWarning(ie.GetFrom(), key, false)
 			return data.NewZVal(data.NewNullValue()), nil
-		case data.AsString:
-			if len(v.List) == 0 {
-				return data.NewZVal(data.NewNullValue()), nil
-			}
-			key := iv.AsString()
-			if zval, ok := v.LookupZValByStringKey(key); ok {
-				return zval, nil
-			}
-			return data.NewZVal(data.NewNullValue()), nil
-		case data.AsInt:
-			var err error
-			i, err = iv.AsInt()
-			if err != nil {
-				return nil, data.NewErrorThrow(ie.GetFrom(), err)
-			}
-			if i >= len(v.List) {
-				return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("数组索引超出范围"), "UndefinedIndexExpression")
-			}
 		case *data.BoolValue:
+			i := 0
 			if iv.Value {
 				i = 1
 			}
-			if i >= len(v.List) {
-				return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("数组索引超出范围"), "UndefinedIndexExpression")
+			if z, _ := v.FindSlotByIntKey(i); z != nil {
+				return z, nil
 			}
+			emitUndefinedArrayKeyWarning(ie.GetFrom(), fmt.Sprintf("%d", i), true)
+			return data.NewZVal(data.NewNullValue()), nil
+		case data.AsInt:
+			i, err := iv.AsInt()
+			if err != nil {
+				return nil, data.NewErrorThrow(ie.GetFrom(), err)
+			}
+			if z, _ := v.FindSlotByIntKey(i); z != nil {
+				return z, nil
+			}
+			emitUndefinedArrayKeyWarning(ie.GetFrom(), fmt.Sprintf("%d", i), true)
+			return data.NewZVal(data.NewNullValue()), nil
+		case data.AsString:
+			key := iv.AsString()
+			if zval, ok := v.LookupZValByStringKey(key); ok {
+				return zval, nil
+			}
+			emitUndefinedArrayKeyWarning(ie.GetFrom(), key, false)
+			return data.NewZVal(data.NewNullValue()), nil
 		default:
 			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("无法处理索引的类型值"))
 		}
-
-		return v.List[i], nil
 	case *data.ObjectValue:
 		switch iv := index.(type) {
 		case data.AsString:
@@ -654,25 +659,15 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 		} else if _, isNull := indexVal.(*data.NullValue); isNull {
 			emitNullOffsetDeprecation(ie.GetFrom())
 			newArr = data.NewArrayValue(nil).(*data.ArrayValue)
-			newArr.List = append(newArr.List, data.NewNamedZVal("", value))
+			newArr.SetStringKey("", value)
 		} else {
 			// $null[$key] = value：自动 vivify 为数组，并保留键名/键序。
 			// 不能简单地 NewArrayValue([]Value{value})，那会丢失字符串键（'date' 被当成 0 号整键）。
 			newArr = data.NewArrayValue(nil).(*data.ArrayValue)
 			if sv, ok := indexVal.(*data.StringValue); ok {
-				key := sv.AsString()
-				if n, ok := data.ParseIntArrayKeyName(key); ok {
-					newArr.SetIntKey(n, value)
-				} else {
-					newArr.List = append(newArr.List, &data.ZVal{Name: key, Value: value})
-				}
+				newArr.SetStringKey(sv.AsString(), value)
 			} else if iv, ok := indexVal.(data.AsString); ok {
-				key := iv.AsString()
-				if n, ok := data.ParseIntArrayKeyName(key); ok {
-					newArr.SetIntKey(n, value)
-				} else {
-					newArr.List = append(newArr.List, &data.ZVal{Name: key, Value: value})
-				}
+				newArr.SetStringKey(iv.AsString(), value)
 			} else if iv, ok := indexVal.(data.AsInt); ok {
 				if i, err := iv.AsInt(); err == nil {
 					newArr.SetIntKey(i, value)
@@ -695,28 +690,14 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 		}
 		if _, isNull := indexVal.(*data.NullValue); isNull {
 			emitNullOffsetDeprecation(ie.GetFrom())
-			if z, ok := arr.LookupZValByStringKey(""); ok {
-				z.Value = value
-			} else {
-				arr.List = append(arr.List, data.NewNamedZVal("", value))
-			}
+			arr.SetStringKey("", value)
 			writeBackArrayProperty(ctx, ie.Array, arr)
 			return nil
 		}
 		i := 0
 		// 必须先处理字符串键：StringValue 同时实现 AsInt，非数字字符串不应走 int 分支抛错
 		if sv, ok := indexVal.(*data.StringValue); ok {
-			key := sv.AsString()
-			if n, ok := data.ParseIntArrayKeyName(key); ok {
-				arr.SetIntKey(n, value)
-				writeBackArrayProperty(ctx, ie.Array, arr)
-				return nil
-			}
-			if z, ok := arr.LookupZValByStringKey(key); ok {
-				z.Value = value
-			} else {
-				arr.List = append(arr.List, &data.ZVal{Name: key, Value: value})
-			}
+			arr.SetStringKey(sv.AsString(), value)
 			writeBackArrayProperty(ctx, ie.Array, arr)
 			return nil
 		}
@@ -727,18 +708,7 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 				return data.NewErrorThrow(ie.GetFrom(), err)
 			}
 		} else if iv, ok := indexVal.(data.AsString); ok {
-			// 字符串键：查找匹配 Name 的项并更新，找不到则追加
-			key := iv.AsString()
-			if n, ok := data.ParseIntArrayKeyName(key); ok {
-				arr.SetIntKey(n, value)
-				writeBackArrayProperty(ctx, ie.Array, arr)
-				return nil
-			}
-			if z, ok := arr.LookupZValByStringKey(key); ok {
-				z.Value = value
-			} else {
-				arr.List = append(arr.List, &data.ZVal{Name: key, Value: value})
-			}
+			arr.SetStringKey(iv.AsString(), value)
 			writeBackArrayProperty(ctx, ie.Array, arr)
 			return nil
 		} else {
@@ -890,12 +860,13 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		switch iv := index.(type) {
 		case *data.NullValue:
 			emitNullOffsetDeprecation(ie.GetFrom())
-			// null is treated as empty string
-			for _, zval := range v.List {
-				if zval != nil && zval.Name == "" {
-					return zval.Value, nil
+			if zval, ok := v.LookupZValByStringKey(""); ok {
+				if zval.Value == nil {
+					return data.NewNullValue(), nil
 				}
+				return zval.Value, nil
 			}
+			emitUndefinedArrayKeyWarning(ie.GetFrom(), "", false)
 			return data.NewNullValue(), nil
 		case *data.IntValue:
 			var err error
@@ -1160,14 +1131,11 @@ func setIndexOnContainer(ctx data.Context, container data.GetValue, indexExpr da
 		}
 		if _, isNull := indexVal.(*data.NullValue); isNull {
 			emitNullOffsetDeprecation(from)
+			arr.SetStringKey("", value)
+			return nil
 		}
 		if iv, ok := indexVal.(data.AsString); ok {
-			key := iv.AsString()
-			if zval, ok := arr.LookupZValByStringKey(key); ok {
-				zval.Value = value
-				return nil
-			}
-			arr.List = append(arr.List, &data.ZVal{Name: key, Value: value})
+			arr.SetStringKey(iv.AsString(), value)
 			return nil
 		}
 		if iv, ok := indexVal.(data.AsInt); ok {
@@ -1362,15 +1330,12 @@ func indexSetValueOnContainer(ctx data.Context, ie *IndexExpression, container d
 		}
 		if _, isNull := indexVal.(*data.NullValue); isNull {
 			emitNullOffsetDeprecation(ie.GetFrom())
+			arr.SetStringKey("", value)
+			writeBackArrayProperty(ctx, ie.Array, arr)
+			return nil
 		}
 		if iv, ok := indexVal.(data.AsString); ok {
-			key := iv.AsString()
-			if zval, ok := arr.LookupZValByStringKey(key); ok {
-				zval.Value = value
-				writeBackArrayProperty(ctx, ie.Array, arr)
-				return nil
-			}
-			arr.List = append(arr.List, &data.ZVal{Name: key, Value: value})
+			arr.SetStringKey(iv.AsString(), value)
 			writeBackArrayProperty(ctx, ie.Array, arr)
 			return nil
 		}

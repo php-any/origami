@@ -1,7 +1,0 @@
-﻿#!/usr/bin/env php
-
-In builder.php line 2325:
-                                        
-  (ReflectionMethod)没有静态属性(IS_PUBLIC)。  
-                                        
-
