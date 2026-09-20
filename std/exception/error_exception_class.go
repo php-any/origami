@@ -10,25 +10,33 @@ func NewErrorExceptionClass() *ErrorExceptionClass {
 	source := &Exception{}
 
 	return &ErrorExceptionClass{
-		exception:        &ExceptionExceptionMethod{source},
+		construct:        &ErrorExceptionConstructMethod{source},
 		error:            &ExceptionErrorMethod{source},
 		getMessage:       &ExceptionGetMessageMethod{source},
+		getCode:          &ExceptionGetCodeMethod{source},
+		getPrevious:      &ExceptionGetPreviousMethod{source},
+		getSeverity:      &ExceptionGetSeverityMethod{source},
 		getTrace:         &ExceptionGetTraceMethod{source},
 		getFile:          &ExceptionGetFileMethod{source},
 		getLine:          &ExceptionGetLineMethod{source},
 		getTraceAsString: &ExceptionGetTraceAsStringMethod{source},
+		propSeverity:     node.NewProperty(nil, "severity", "protected", false, data.NewIntValue(1)),
 	}
 }
 
 type ErrorExceptionClass struct {
 	node.Node
-	exception        data.Method
+	construct        data.Method
 	error            data.Method
 	getMessage       *ExceptionGetMessageMethod
+	getCode          *ExceptionGetCodeMethod
+	getPrevious      *ExceptionGetPreviousMethod
+	getSeverity      *ExceptionGetSeverityMethod
 	getTrace         *ExceptionGetTraceMethod
 	getFile          *ExceptionGetFileMethod
 	getLine          *ExceptionGetLineMethod
 	getTraceAsString *ExceptionGetTraceAsStringMethod
+	propSeverity     data.Property
 }
 
 func (s *ErrorExceptionClass) AsString() string {
@@ -61,22 +69,31 @@ func (s *ErrorExceptionClass) GetImplements() []string {
 	return []string{"Throwable"}
 }
 
-func (s *ErrorExceptionClass) GetProperty(_ string) (data.Property, bool) {
+func (s *ErrorExceptionClass) GetProperty(name string) (data.Property, bool) {
+	if name == "severity" {
+		return s.propSeverity, true
+	}
 	return nil, false
 }
 
 func (s *ErrorExceptionClass) GetPropertyList() []data.Property {
-	return []data.Property{}
+	return []data.Property{s.propSeverity}
 }
 
 func (s *ErrorExceptionClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
 	case token.ConstructName:
-		return s.exception, true
+		return s.construct, true
 	case "error":
 		return s.error, true
 	case "getMessage":
 		return s.getMessage, true
+	case "getCode":
+		return s.getCode, true
+	case "getPrevious":
+		return s.getPrevious, true
+	case "getSeverity":
+		return s.getSeverity, true
 	case "getTrace":
 		return s.getTrace, true
 	case "getFile":
@@ -93,6 +110,9 @@ func (s *ErrorExceptionClass) GetMethods() []data.Method {
 	return []data.Method{
 		s.error,
 		s.getMessage,
+		s.getCode,
+		s.getPrevious,
+		s.getSeverity,
 		s.getTrace,
 		s.getFile,
 		s.getLine,
@@ -101,5 +121,5 @@ func (s *ErrorExceptionClass) GetMethods() []data.Method {
 }
 
 func (s *ErrorExceptionClass) GetConstruct() data.Method {
-	return s.exception
+	return s.construct
 }

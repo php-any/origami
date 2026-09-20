@@ -27,6 +27,66 @@ func createReflectionException(message string, ctx data.Context, from data.From)
 	return data.NewErrorThrowFromClassValue(from, classValue)
 }
 
+// reflectionConstructArg 读取 Reflection*::__construct 实参。
+// 优先 FlatCallArgs（调用方求值快照）：并发请求下池化槽位可能变成 *IntValue。
+func reflectionConstructArg(ctx data.Context, i int) data.Value {
+	if ctx == nil {
+		return nil
+	}
+	if flat := ctx.GetFlatCallArgs(); i >= 0 && i < len(flat) && flat[i] != nil {
+		v := unwrapReflectionValue(flat[i])
+		if i == 0 {
+			if _, ok := classNameFromObjectOrString(v); ok {
+				return v
+			}
+		} else if _, isNull := v.(*data.NullValue); !isNull {
+			return v
+		}
+	}
+	v, ok := ctx.GetIndexValue(i)
+	if !ok {
+		return nil
+	}
+	return v
+}
+
+// classNameFromObjectOrString 对齐 PHP ReflectionClass/ReflectionMethod 第一个参数：
+// object|string。GetIndexValue 可能包一层 ZValValue，必须先解开，否则 $this / 实例
+// 会落到 “expects parameter 1 to be string or object”，Filament schema 懒加载失败。
+func classNameFromObjectOrString(v data.Value) (string, bool) {
+	v = unwrapReflectionValue(v)
+	if v == nil {
+		return "", false
+	}
+	if av, ok := v.(*data.AnyValue); ok && av != nil {
+		if inner, ok := av.Value.(data.Value); ok {
+			v = unwrapReflectionValue(inner)
+		}
+	}
+	switch t := v.(type) {
+	case *data.ThisValue:
+		if t != nil && t.ClassValue != nil && t.Class != nil {
+			return t.Class.GetName(), true
+		}
+	case *data.ClassValue:
+		if t != nil && t.Class != nil {
+			return t.Class.GetName(), true
+		}
+	case *data.ClassMethodContext:
+		if t != nil && t.ClassValue != nil && t.Class != nil {
+			return t.Class.GetName(), true
+		}
+	case *data.StringValue:
+		return t.AsString(), true
+	}
+	if named, ok := v.(data.GetName); ok {
+		if n := named.GetName(); n != "" {
+			return n, true
+		}
+	}
+	return "", false
+}
+
 // TODO: 修复 try-catch 异常传播问题
 // 目前的问题是：当 catch 块抛出新的异常时，这个新异常没有被正确传播
 // 导致 try-catch 块后面的代码继续执行
@@ -70,29 +130,24 @@ func (m *ReflectionClassConstructMethod) GetReturnType() data.Types { return nil
 // 从参数中获取类名或对象，加载对应的类，并将类名存储到实例的 _className 属性中
 func (m *ReflectionClassConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取第一个参数：类名或对象
-	classValue, _ := ctx.GetIndexValue(0)
+	classValue := reflectionConstructArg(ctx, 0)
 	if classValue == nil {
 		return nil, createReflectionException("Argument #1 ($class) must be of type object|string, null given", ctx, m.GetFrom())
 	}
 
 	var className string
-
-	switch classVal := classValue.(type) {
-	case data.GetName:
-		// 参数是对象，获取其类名
-		className = classVal.GetName()
-	case *data.StringValue:
-		className = classVal.AsString()
-	case *data.BoolValue:
-		return nil, createReflectionException(fmt.Sprintf("Argument #1 ($class) must be of type object|string, bool given (value: %v)", classVal.Value), ctx, m.GetFrom())
-	case *data.NullValue:
-		return nil, createReflectionException("Argument #1 ($class) must not be null", ctx, m.GetFrom())
-	default:
-		// 对于非字符串和非对象的类型，抛出 ReflectionException
-		// TODO: 修复 try-catch 异常传播后，改回使用 createReflectionException
-		typeName := fmt.Sprintf("%T", classValue)
-		// 临时方案：直接抛出致命错误
-		return nil, createReflectionException(fmt.Sprintf("ReflectionClass::__construct(): Argument #1 ($class) must be of type object|string, %s given", typeName), ctx, m.GetFrom())
+	if name, ok := classNameFromObjectOrString(classValue); ok && name != "" {
+		className = name
+	} else {
+		switch classVal := unwrapReflectionValue(classValue).(type) {
+		case *data.BoolValue:
+			return nil, createReflectionException(fmt.Sprintf("Argument #1 ($class) must be of type object|string, bool given (value: %v)", classVal.Value), ctx, m.GetFrom())
+		case *data.NullValue:
+			return nil, createReflectionException("Argument #1 ($class) must not be null", ctx, m.GetFrom())
+		default:
+			typeName := fmt.Sprintf("%T", unwrapReflectionValue(classValue))
+			return nil, createReflectionException(fmt.Sprintf("ReflectionClass::__construct(): Argument #1 ($class) must be of type object|string, %s given", typeName), ctx, m.GetFrom())
+		}
 	}
 
 	// 加载类；失败须抛 ReflectionException，供调用方按 PHP 语义捕获。

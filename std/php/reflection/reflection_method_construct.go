@@ -27,8 +27,8 @@ func (m *ReflectionMethodConstructMethod) GetIsStatic() bool { return false }
 //   - method: 方法名（字符串），类型为 String
 func (m *ReflectionMethodConstructMethod) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameter(nil, "class", 0, nil, data.Mixed{}),
-		node.NewParameter(nil, "method", 1, nil, data.String{}),
+		node.NewParameter(nil, "class", 0, nil, nil),
+		node.NewParameter(nil, "method", 1, nil, nil),
 	}
 }
 
@@ -47,25 +47,21 @@ func (m *ReflectionMethodConstructMethod) GetReturnType() data.Types { return ni
 // 从参数中获取类名和方法名，加载对应的方法，并将信息存储到实例的属性中
 func (m *ReflectionMethodConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取第一个参数：类名或对象
-	classValue, _ := ctx.GetIndexValue(0)
+	classValue := reflectionConstructArg(ctx, 0)
 	if classValue == nil {
 		return nil, data.NewErrorThrow(nil, errors.New("ReflectionMethod::__construct() expects parameter 1 to be string or object"))
 	}
 
 	var className string
-
-	// 检查参数类型
-	if classVal, ok := classValue.(data.GetName); ok {
-		// 参数是对象，获取其类名
-		className = classVal.GetName()
-	} else if classVal, ok := classValue.(*data.StringValue); ok {
-		className = classVal.AsString()
+	if name, ok := classNameFromObjectOrString(classValue); ok && name != "" {
+		className = name
 	} else {
-		return nil, data.NewErrorThrow(nil, errors.New("ReflectionClass::__construct() expects parameter 1 to be string or object"))
+		got := unwrapReflectionValue(classValue)
+		return nil, data.NewErrorThrow(nil, fmt.Errorf("ReflectionMethod::__construct() expects parameter 1 to be string or object, %T given", got))
 	}
 
 	// 获取第二个参数：方法名
-	methodNameValue, _ := ctx.GetIndexValue(1)
+	methodNameValue := reflectionConstructArg(ctx, 1)
 	if methodNameValue == nil {
 		return nil, data.NewErrorThrow(nil, errors.New("ReflectionMethod::__construct() expects parameter 2 to be string"))
 	}

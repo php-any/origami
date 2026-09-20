@@ -55,10 +55,7 @@ func arrGet(ctx data.Context) (data.GetValue, data.Control) {
 	if v, ok := dataGetPath(arr, keyToString(key)); ok {
 		return v, nil
 	}
-	if def == nil {
-		return data.NewNullValue(), nil
-	}
-	return def, nil
+	return laravelValue(ctx, def)
 }
 
 func arrSet(ctx data.Context) (data.GetValue, data.Control) {
@@ -255,10 +252,7 @@ func arrFirst(ctx data.Context) (data.GetValue, data.Control) {
 			return e.value, nil
 		}
 	}
-	if def == nil {
-		return data.NewNullValue(), nil
-	}
-	return def, nil
+	return laravelValue(ctx, def)
 }
 
 func arrLast(ctx data.Context) (data.GetValue, data.Control) {
@@ -279,10 +273,7 @@ func arrLast(ctx data.Context) (data.GetValue, data.Control) {
 			return e.value, nil
 		}
 	}
-	if def == nil {
-		return data.NewNullValue(), nil
-	}
-	return def, nil
+	return laravelValue(ctx, def)
 }
 
 func arrWrap(ctx data.Context) (data.GetValue, data.Control) {
@@ -392,7 +383,7 @@ func arrFromValue(ctx data.Context, v data.Value, depth int) (data.Value, data.C
 		}
 		return arrFromValue(ctx, ret, depth+1)
 	case classIs(cv, "Traversable") || classIs(cv, "Iterator") || classIs(cv, "IteratorAggregate"):
-		ret, ctl := callVMFunc(ctx, "iterator_to_array", cv)
+		ret, ctl := callVMFunc(ctx, "iterator_to_array", cv, data.NewBoolValue(true))
 		if ctl != nil {
 			return nil, ctl
 		}
@@ -502,13 +493,13 @@ func foreachableArray(ctx data.Context, v data.Value) (data.Value, data.Control)
 		return foreachableArray(ctx, arr)
 	}
 	if classIs(cv, "Traversable") || classIs(cv, "Iterator") || classIs(cv, "IteratorAggregate") {
-		return callVMFunc(ctx, "iterator_to_array", cv)
+		return callVMFunc(ctx, "iterator_to_array", cv, data.NewBoolValue(true))
 	}
 	if _, has := cv.GetMethod("valid"); has {
-		return callVMFunc(ctx, "iterator_to_array", cv)
+		return callVMFunc(ctx, "iterator_to_array", cv, data.NewBoolValue(true))
 	}
 	if _, has := cv.GetMethod("getIterator"); has {
-		return callVMFunc(ctx, "iterator_to_array", cv)
+		return callVMFunc(ctx, "iterator_to_array", cv, data.NewBoolValue(true))
 	}
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
 	if cv.ObjectValue != nil {
@@ -851,10 +842,7 @@ func arrPull(ctx data.Context) (data.GetValue, data.Control) {
 	if ok {
 		return v, nil
 	}
-	if def == nil {
-		return data.NewNullValue(), nil
-	}
-	return def, nil
+	return laravelValue(ctx, def)
 }
 
 func arrQuery(ctx data.Context) (data.GetValue, data.Control) {

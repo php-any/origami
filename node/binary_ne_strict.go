@@ -33,6 +33,12 @@ func (b *BinaryNeStrict) GetValue(ctx data.Context) (data.GetValue, data.Control
 	if c != nil {
 		return nil, c
 	}
+	if leftValue == nil {
+		leftValue = data.NewNullValue()
+	}
+	if rightValue == nil {
+		rightValue = data.NewNullValue()
+	}
 
 	// 严格不等比较：类型和值都必须不相等
 	result := !isStrictEqual(leftValue, rightValue)

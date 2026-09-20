@@ -1,6 +1,7 @@
 package php
 
 import (
+	"bytes"
 	jsonpkg "encoding/json"
 	"unsafe"
 
@@ -36,7 +37,8 @@ func (f *JsonEncodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		return data.NewStringValue("null"), nil
 	}
 
-	encoded, ok, ctl := JsonEncode(ctx, v)
+	flags := jsonEncodeFlags(ctx)
+	encoded, ok, ctl := jsonEncode(ctx, v, flags)
 	if ctl != nil {
 		return nil, ctl
 	}
@@ -46,8 +48,31 @@ func (f *JsonEncodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	return data.NewStringValue(encoded), nil
 }
 
+func jsonEncodeFlags(ctx data.Context) int {
+	if ctx == nil {
+		return 0
+	}
+	fv, ok := ctx.GetIndexValue(1)
+	if !ok || fv == nil {
+		return 0
+	}
+	iv, ok := fv.(data.AsInt)
+	if !ok {
+		return 0
+	}
+	n, err := iv.AsInt()
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
 // JsonEncode 对齐 PHP json_encode：嵌套对象走 JsonSerializable / 公共属性，不把 ClassValue 编成 Object(FQCN) 字符串。
 func JsonEncode(ctx data.Context, value data.Value) (string, bool, data.Control) {
+	return jsonEncode(ctx, value, 0)
+}
+
+func jsonEncode(ctx data.Context, value data.Value, flags int) (string, bool, data.Control) {
 	if value == nil {
 		clearJsonLastError()
 		return "null", true, nil
@@ -94,8 +119,76 @@ func JsonEncode(ctx data.Context, value data.Value) (string, bool, data.Control)
 		return "", false, nil
 	}
 
+	result = applyJsonEncodeFlags(result, flags)
 	clearJsonLastError()
 	return string(result), true, nil
+}
+
+// applyJsonEncodeFlags 对齐 PHP JSON_HEX_*：只改 JSON 字符串内容，结构分隔用的 " 保持原样。
+// Laravel Js::from 二次 json_encode 依赖 HEX_QUOT 把内容里的 " 变成 \u0022，否则
+// JSON.parse('{"table":true}') 写进 HTML 双引号属性会截断，Livewire 报 mountAction 缺右括号。
+func applyJsonEncodeFlags(in []byte, flags int) []byte {
+	const (
+		hexTag  = 1 // JSON_HEX_TAG
+		hexAmp  = 2 // JSON_HEX_AMP
+		hexApos = 4 // JSON_HEX_APOS
+		hexQuot = 8 // JSON_HEX_QUOT
+	)
+	if flags&(hexTag|hexAmp|hexApos|hexQuot) == 0 {
+		return in
+	}
+	var out bytes.Buffer
+	out.Grow(len(in) + 24)
+	inString := false
+	for i := 0; i < len(in); i++ {
+		c := in[i]
+		if !inString {
+			if c == '"' {
+				inString = true
+			}
+			out.WriteByte(c)
+			continue
+		}
+		if c == '\\' {
+			if i+1 < len(in) {
+				n := in[i+1]
+				if n == '"' && flags&hexQuot != 0 {
+					out.WriteString(`\u0022`)
+					i++
+					continue
+				}
+				out.WriteByte('\\')
+				out.WriteByte(n)
+				i++
+				continue
+			}
+			out.WriteByte(c)
+			continue
+		}
+		if c == '"' {
+			inString = false
+			out.WriteByte(c)
+			continue
+		}
+		if flags&hexApos != 0 && c == '\'' {
+			out.WriteString(`\u0027`)
+			continue
+		}
+		if flags&hexAmp != 0 && c == '&' {
+			out.WriteString(`\u0026`)
+			continue
+		}
+		if flags&hexTag != 0 && c == '<' {
+			out.WriteString(`\u003C`)
+			continue
+		}
+		if flags&hexTag != 0 && c == '>' {
+			out.WriteString(`\u003E`)
+			continue
+		}
+		out.WriteByte(c)
+	}
+	return out.Bytes()
 }
 
 func (f *JsonEncodeFunction) GetName() string {

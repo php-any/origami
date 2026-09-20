@@ -148,6 +148,7 @@ func cloneRequestServices(ctx data.Context, app data.Value) {
 		"Illuminate\\Routing\\UrlGenerator",
 		"Illuminate\\Contracts\\Routing\\UrlGenerator",
 	)
+	isolateViewEngines(ctx, app)
 }
 
 func cloneAndBind(ctx data.Context, app data.Value, abstract string, aliases ...string) {
@@ -175,6 +176,34 @@ func cloneAndBind(ctx data.Context, app data.Value, abstract string, aliases ...
 	for _, alias := range aliases {
 		_, _ = callObjectMethodInContext(ctx, app, "instance", data.NewStringValue(alias), cloned)
 	}
+}
+
+// isolateViewEngines 每请求克隆 EngineResolver 并丢掉已解析的 blade/php 引擎。
+// 并发 livewire/update 若共用 CompilerEngine::$lastCompiled / 输出缓冲，
+// 会得到空 HTML → Livewire RootTagMissing（仪表盘 widget 一直 Loading）。
+func isolateViewEngines(ctx data.Context, app data.Value) {
+	raw, ctl := callObjectMethodInContext(ctx, app, "make", data.NewStringValue("view.engine.resolver"))
+	if ctl != nil {
+		return
+	}
+	cv, ok := asValue(raw).(*data.ClassValue)
+	if !ok || cv == nil {
+		return
+	}
+	cloned := cv.CloneSandbox(ctx)
+	_, _ = callObjectMethodInContext(ctx, cloned, "forget", data.NewStringValue("blade"))
+	_, _ = callObjectMethodInContext(ctx, cloned, "forget", data.NewStringValue("php"))
+	_, _ = callObjectMethodInContext(ctx, app, "instance", data.NewStringValue("view.engine.resolver"), cloned)
+
+	viewRaw, vctl := callObjectMethodInContext(ctx, app, "make", data.NewStringValue("view"))
+	if vctl != nil {
+		return
+	}
+	view, ok := asValue(viewRaw).(*data.ClassValue)
+	if !ok || view == nil {
+		return
+	}
+	_ = view.SetProperty("engines", cloned)
 }
 
 // Terminate 执行 Laravel 请求结束生命周期。

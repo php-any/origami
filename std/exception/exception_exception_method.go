@@ -40,14 +40,22 @@ func (h *ExceptionExceptionMethod) Call(ctx data.Context) (data.GetValue, data.C
 		}
 	}
 
-	h.source.Exception(message)
+	// skip=2：跳过 captureGoTrace 与本 Call，对齐原先 captureTrace 的 Callers(3)。
+	file, line, frames := captureGoTrace(2)
+	if h.source != nil {
+		h.source.msg = message
+		h.source.file = file
+		h.source.line = line
+		h.source.trace = frames
+	}
 
 	// 同步到 PHP 可见的受保护属性（子类可 $this->message = ...）
 	setInstanceProperty(ctx, "message", data.NewStringValue(message))
 	setInstanceProperty(ctx, "code", data.NewIntValue(code))
 	setInstanceProperty(ctx, "previous", previous)
-	setInstanceProperty(ctx, "file", data.NewStringValue(h.source.GetFile()))
-	setInstanceProperty(ctx, "line", data.NewIntValue(h.source.GetLine()))
+	setInstanceProperty(ctx, "file", data.NewStringValue(file))
+	setInstanceProperty(ctx, "line", data.NewIntValue(line))
+	setInstanceProperty(ctx, "trace", data.NewArrayValue(traceFramesToValues(frames)))
 
 	return nil, nil
 }

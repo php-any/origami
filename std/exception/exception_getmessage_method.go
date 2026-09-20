@@ -13,7 +13,10 @@ func (h *ExceptionGetMessageMethod) Call(ctx data.Context) (data.GetValue, data.
 	if msg, ok := instancePropertyString(ctx, "message"); ok {
 		return data.NewStringValue(msg), nil
 	}
-	return data.NewStringValue(h.source.GetMessage()), nil
+	if h.source != nil {
+		return data.NewStringValue(h.source.GetMessage()), nil
+	}
+	return data.NewStringValue(""), nil
 }
 
 func (h *ExceptionGetMessageMethod) GetName() string {

@@ -12,7 +12,10 @@ func (h *ExceptionGetLineMethod) Call(ctx data.Context) (data.GetValue, data.Con
 	if line, ok := instancePropertyInt(ctx, "line"); ok && line > 0 {
 		return data.NewIntValue(line), nil
 	}
-	return data.NewIntValue(h.source.GetLine()), nil
+	if h.source != nil {
+		return data.NewIntValue(h.source.GetLine()), nil
+	}
+	return data.NewIntValue(0), nil
 }
 
 func (h *ExceptionGetLineMethod) GetName() string            { return "getLine" }

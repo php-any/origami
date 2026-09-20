@@ -79,6 +79,16 @@ func (c *Context) GetNamespace() string {
 
 // GetVariableValue 获取变量值
 func (c *Context) GetVariableValue(variable data.Variable) (data.Value, data.Control) {
+	if pl, ok := variable.(data.PropertyLvalue); ok {
+		gv, ctl := pl.GetValue(c)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if val, ok := gv.(data.Value); ok {
+			return val, nil
+		}
+		return data.NewNullValue(), nil
+	}
 	return c.variables[variable.GetIndex()].Value, nil
 }
 
@@ -99,8 +109,26 @@ func (c *Context) GetIndexZVal(index int) *data.ZVal {
 
 // SetVariableValue 设置变量值
 func (c *Context) SetVariableValue(variable data.Variable, value data.Value) data.Control {
+	if pl, ok := variable.(data.PropertyLvalue); ok {
+		return pl.SetValue(c, value)
+	}
 	switch v := value.(type) {
 	case *data.ReferenceValue:
+		if pl, ok := v.Val.(data.PropertyLvalue); ok {
+			if gzv, ok := pl.(interface {
+				GetZVal(data.Context) (*data.ZVal, data.Control)
+			}); ok {
+				zv, ctl := gzv.GetZVal(v.Ctx)
+				if ctl != nil {
+					return ctl
+				}
+				if zv == nil {
+					zv = data.NewZVal(data.NewNullValue())
+				}
+				c.variables[variable.GetIndex()] = zv
+				return nil
+			}
+		}
 		c.variables[variable.GetIndex()] = v.Ctx.GetIndexZVal(v.Val.GetIndex())
 	case *data.ArraySlotRef:
 		// &$array[] 语法：局部变量与数组元素共享 ZVal
