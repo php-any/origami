@@ -157,6 +157,9 @@ func (u *ForeachStatement) bindForeachValue(ctx data.Context, element data.Value
 	if slot == nil {
 		return u.Value.SetValue(ctx, element)
 	}
+	if _, ok := u.Value.(data.PropertyLvalue); ok {
+		return u.Value.SetValue(ctx, element)
+	}
 	slot.AddRefSlot()
 	ctx.SetIndexZVal(u.Value.GetIndex(), slot)
 	return nil

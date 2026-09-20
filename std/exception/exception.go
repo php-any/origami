@@ -20,28 +20,41 @@ type Exception struct {
 }
 
 func (e *Exception) Exception(msg string) {
+	if e == nil {
+		return
+	}
+	file, line, frames := captureGoTrace(3)
 	e.msg = msg
-	e.captureTrace()
+	e.file = file
+	e.line = line
+	e.trace = frames
 }
 
-func (e *Exception) captureTrace() {
+// captureGoTrace 采集 Go 调用栈。必须先在局部切片上积累再返回，禁止对共享
+// Exception.trace 边 nil 边 append：HTTP 并发下 Livewire throw_unless(new Exception)
+// 会同时走进构造函数，竞态会 panic（invalid memory address）。
+func captureGoTrace(skip int) (file string, line int, frames []traceFrame) {
+	if skip < 1 {
+		skip = 1
+	}
 	const depth = 32
 	pcs := make([]uintptr, depth)
-	n := runtime.Callers(3, pcs)
-	frames := runtime.CallersFrames(pcs[:n])
-
-	e.trace = nil
+	n := runtime.Callers(skip, pcs)
+	if n <= 0 {
+		return "", 0, nil
+	}
+	it := runtime.CallersFrames(pcs[:n])
 	for {
-		frame, more := frames.Next()
+		frame, more := it.Next()
 		if frame.File == "" && !more {
 			break
 		}
 		if frame.File != "" {
-			if e.file == "" {
-				e.file = frame.File
-				e.line = frame.Line
+			if file == "" {
+				file = frame.File
+				line = frame.Line
 			}
-			e.trace = append(e.trace, traceFrame{
+			frames = append(frames, traceFrame{
 				file:     frame.File,
 				line:     frame.Line,
 				function: frame.Function,
@@ -51,6 +64,21 @@ func (e *Exception) captureTrace() {
 			break
 		}
 	}
+	return file, line, frames
+}
+
+func traceFramesToValues(frames []traceFrame) []data.Value {
+	out := make([]data.Value, 0, len(frames))
+	for _, frame := range frames {
+		obj := data.NewObjectValue()
+		obj.SetProperty("file", data.NewStringValue(frame.file))
+		obj.SetProperty("line", data.NewIntValue(frame.line))
+		if frame.function != "" {
+			obj.SetProperty("function", data.NewStringValue(frame.function))
+		}
+		out = append(out, obj)
+	}
+	return out
 }
 
 func (e *Exception) Error() string {
@@ -74,17 +102,10 @@ func (e *Exception) GetTraceAsString() string {
 }
 
 func (e *Exception) GetTraceValues() []data.Value {
-	frames := make([]data.Value, 0, len(e.trace))
-	for _, frame := range e.trace {
-		obj := data.NewObjectValue()
-		obj.SetProperty("file", data.NewStringValue(frame.file))
-		obj.SetProperty("line", data.NewIntValue(frame.line))
-		if frame.function != "" {
-			obj.SetProperty("function", data.NewStringValue(frame.function))
-		}
-		frames = append(frames, obj)
+	if e == nil {
+		return nil
 	}
-	return frames
+	return traceFramesToValues(e.trace)
 }
 
 // ExceptionMethods 封装一个 Exception 实例及其关联方法，方便其他包复用。
@@ -102,7 +123,7 @@ type ExceptionMethods struct {
 
 // SetMessage 设置内部 Exception 的消息，供外部包创建异常时使用。
 func (m *ExceptionMethods) SetMessage(msg string) {
-	if construct, ok := m.ConstructMethod.(*ExceptionExceptionMethod); ok {
+	if construct, ok := m.ConstructMethod.(*ExceptionExceptionMethod); ok && construct != nil && construct.source != nil {
 		construct.source.msg = msg
 	}
 }

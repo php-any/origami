@@ -9,7 +9,10 @@ type ExceptionErrorMethod struct {
 }
 
 func (h *ExceptionErrorMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewStringValue(h.source.Error()), nil
+	if h.source != nil {
+		return data.NewStringValue(h.source.Error()), nil
+	}
+	return data.NewStringValue(""), nil
 }
 
 func (h *ExceptionErrorMethod) GetName() string {

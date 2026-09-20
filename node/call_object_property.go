@@ -15,8 +15,10 @@ type CallObjectProperty struct {
 }
 
 func (pe *CallObjectProperty) GetIndex() int {
-	panic("不支持获取调用类属性过程获取属性索引")
+	return -1
 }
+
+func (pe *CallObjectProperty) IsPropertyLvalue() {}
 
 func (pe *CallObjectProperty) GetZVal(ctx data.Context) (*data.ZVal, data.Control) {
 	temp, acl := pe.Object.GetValue(ctx)

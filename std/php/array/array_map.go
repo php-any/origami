@@ -57,10 +57,15 @@ func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		return data.NewArrayValue([]data.Value{}), nil
 	}
 
-	// 单数组且为关联数组（ObjectValue）：保留键名（ComponentAttributeBag::merge 依赖此行为）
+	// PHP：只传入一个数组时保留全部键（含字符串键与稀疏整数键）。
+	// ComponentAttributeBag::merge 对 assoc 默认数组做 array_map 后 array_merge；
+	// 若重编号成 0/1/2，HTML 会变成 class="" 0="fi-icon-btn …"。
 	if len(rawArrays) == 1 {
-		if ov, ok := rawArrays[0].(*data.ObjectValue); ok {
-			return f.mapObjectPreserveKeys(ctx, cbVal, ov)
+		switch src := rawArrays[0].(type) {
+		case *data.ObjectValue:
+			return f.mapObjectPreserveKeys(ctx, cbVal, src)
+		case *data.ArrayValue:
+			return f.mapArrayPreserveKeys(ctx, cbVal, src)
 		}
 	}
 
@@ -105,6 +110,29 @@ func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	}
 
 	return data.NewArrayValue(results), nil
+}
+
+func (f *ArrayMapFunction) mapArrayPreserveKeys(ctx data.Context, cbVal data.Value, av *data.ArrayValue) (data.GetValue, data.Control) {
+	if av == nil {
+		return data.NewArrayValue(nil), nil
+	}
+	out := make([]*data.ZVal, 0, len(av.List))
+	for _, z := range av.List {
+		if z == nil {
+			out = append(out, nil)
+			continue
+		}
+		arg := z.Value
+		if arg == nil {
+			arg = data.NewNullValue()
+		}
+		mapped, ctl := f.invokeCallback(ctx, cbVal, []data.Value{arg})
+		if ctl != nil {
+			return nil, ctl
+		}
+		out = append(out, data.CopyZValKeepName(z, mapped))
+	}
+	return &data.ArrayValue{List: out}, nil
 }
 
 func (f *ArrayMapFunction) mapObjectPreserveKeys(ctx data.Context, cbVal data.Value, ov *data.ObjectValue) (data.GetValue, data.Control) {

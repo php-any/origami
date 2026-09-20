@@ -485,6 +485,9 @@ func (c *ClassMethodContext) CreateBaseContext() Context {
 }
 
 func (c *ClassMethodContext) SetVariableValue(variable Variable, value Value) Control {
+	if pl, ok := variable.(PropertyLvalue); ok {
+		return pl.SetValue(c, value)
+	}
 	return c.Context.SetVariableValue(variable, value)
 }
 
@@ -494,6 +497,16 @@ func (c *ClassMethodContext) GetVariableValue(variable Variable) (Value, Control
 			return nil, NewErrorThrow(nil, errors.New("Using $this when not in object context"))
 		}
 		return c.ObjectValue.GetVariableValue(variable)
+	}
+	if pl, ok := variable.(PropertyLvalue); ok {
+		gv, ctl := pl.GetValue(c)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if val, ok := gv.(Value); ok {
+			return val, nil
+		}
+		return NewNullValue(), nil
 	}
 	return c.Context.GetVariableValue(variable)
 }

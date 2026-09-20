@@ -99,18 +99,17 @@ func createInstanceFromClassStmt(
 					arg := arguments[index]
 					switch argTV := arg.(type) {
 					case *NamedArgument:
-						param, err := findParams(params, argTV.Name)
+						found, err := findParams(params, argTV.Name)
 						if err != nil {
 							return nil, data.NewErrorThrow(from, err)
 						}
-						acl = paramSetValue(fnCtx, ctx, object, param, argTV, varies, index, arguments)
+						acl = paramSetValue(fnCtx, ctx, object, found, argTV, varies, index, arguments)
 					default:
 						acl = paramSetValue(fnCtx, ctx, object, param, argTV, varies, index, arguments)
 					}
 				} else {
 					switch param := param.(type) {
 					case *PromotedParameter:
-						// 触发初始化默认值
 						_, acl = param.GetValue(object)
 					case *CallerContextParameter:
 						fnCtx = ctx
@@ -125,8 +124,12 @@ func createInstanceFromClassStmt(
 			if acl != nil {
 				return nil, acl
 			}
-			// 将本次调用的参数表达式列表记录到函数上下文中
 			fnCtx.SetCallArgs(arguments)
+			if isReflectionConstructClass(stmt) {
+				if flat, a2 := snapshotConstructorArgValues(ctx, params, arguments); a2 == nil && len(flat) > 0 {
+					fnCtx.SetFlatCallArgs(flat)
+				}
+			}
 			_, acl = method.Call(fnCtx)
 			if acl != nil {
 				return nil, acl
@@ -135,6 +138,96 @@ func createInstanceFromClassStmt(
 	}
 
 	return object, acl
+}
+
+func constructorParamIndex(param data.GetValue, fallback int) int {
+	if v, ok := param.(data.Variable); ok {
+		return v.GetIndex()
+	}
+	return fallback
+}
+
+func isReflectionConstructClass(stmt data.ClassStmt) bool {
+	if stmt == nil {
+		return false
+	}
+	switch stmt.GetName() {
+	case "ReflectionMethod", "ReflectionClass", "\\ReflectionMethod", "\\ReflectionClass":
+		return true
+	default:
+		return false
+	}
+}
+
+func evalConstructorArg(ctx data.Context, arg data.GetValue) (data.Value, data.Control) {
+	if arg == nil {
+		return data.NewNullValue(), nil
+	}
+	gv, acl := arg.GetValue(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	if v, ok := gv.(data.Value); ok && v != nil {
+		return v, nil
+	}
+	return data.NewNullValue(), nil
+}
+
+// snapshotConstructorArgValues 在调用方上下文按形参下标求值构造实参。
+func snapshotConstructorArgValues(ctx data.Context, params, arguments []data.GetValue) ([]data.Value, data.Control) {
+	n := len(params)
+	if len(arguments) > n {
+		n = len(arguments)
+	}
+	if n == 0 {
+		return nil, nil
+	}
+	flat := make([]data.Value, n)
+	filled := make([]bool, n)
+
+	for _, arg := range arguments {
+		na, ok := arg.(*NamedArgument)
+		if !ok {
+			continue
+		}
+		found, err := findParams(params, na.Name)
+		if err != nil {
+			continue
+		}
+		idx := constructorParamIndex(found, -1)
+		if idx < 0 || idx >= len(flat) {
+			continue
+		}
+		val, acl := evalConstructorArg(ctx, na.Value)
+		if acl != nil {
+			return nil, acl
+		}
+		flat[idx] = val
+		filled[idx] = true
+	}
+
+	pos := 0
+	for _, arg := range arguments {
+		if _, ok := arg.(*NamedArgument); ok {
+			continue
+		}
+		for pos < len(filled) && filled[pos] {
+			pos++
+		}
+		val, acl := evalConstructorArg(ctx, arg)
+		if acl != nil {
+			return nil, acl
+		}
+		if pos >= len(flat) {
+			flat = append(flat, val)
+			filled = append(filled, true)
+		} else {
+			flat[pos] = val
+			filled[pos] = true
+		}
+		pos++
+	}
+	return flat, nil
 }
 
 func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, varies []data.Variable, index int, arguments []data.GetValue) data.Control {
@@ -150,7 +243,11 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 	}
 	switch param := param.(type) {
 	case *ParameterReference:
-		switch val := arguments[index].(type) {
+		raw := argTV
+		if na, ok := raw.(*NamedArgument); ok {
+			raw = na.Value
+		}
+		switch val := raw.(type) {
 		case *CallObjectProperty:
 			zv, acl := val.GetZVal(ctx)
 			if acl != nil {
@@ -195,7 +292,11 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 			zv := ctx.GetIndexZVal(val.GetIndex())
 			fnCtx.SetIndexZVal(param.Index, zv)
 		default:
-			return data.NewErrorThrow(param.GetFrom(), fmt.Errorf("引用参数只能传入变量"))
+			className := ""
+			if cv, ok := object.(*data.ClassValue); ok && cv != nil && cv.Class != nil {
+				className = cv.Class.GetName()
+			}
+			return data.NewErrorThrow(param.GetFrom(), fmt.Errorf("引用参数只能传入变量: new %s::__construct($%s) arg=%T", className, param.GetName(), raw))
 		}
 		return nil
 	case *Parameters: // 可变参数
@@ -408,6 +509,12 @@ func createInstanceAndCallConstructorWithStmt(
 				}
 			}
 
+			fnCtx.SetCallArgs(arguments)
+			if isReflectionConstructClass(stmt) {
+				if ctorFlat, a2 := snapshotConstructorArgValues(ctx, params, arguments); a2 == nil && len(ctorFlat) > 0 {
+					fnCtx.SetFlatCallArgs(ctorFlat)
+				}
+			}
 			_, acl = method.Call(fnCtx)
 			if acl != nil {
 				return nil, acl

@@ -12,7 +12,10 @@ func (h *ExceptionGetFileMethod) Call(ctx data.Context) (data.GetValue, data.Con
 	if file, ok := instancePropertyString(ctx, "file"); ok && file != "" {
 		return data.NewStringValue(file), nil
 	}
-	return data.NewStringValue(h.source.GetFile()), nil
+	if h.source != nil {
+		return data.NewStringValue(h.source.GetFile()), nil
+	}
+	return data.NewStringValue(""), nil
 }
 
 func (h *ExceptionGetFileMethod) GetName() string            { return "getFile" }

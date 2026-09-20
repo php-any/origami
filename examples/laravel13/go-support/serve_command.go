@@ -322,7 +322,7 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	tSandbox := perfmon.Now()
 	kernel := httpkernel.Sandbox(requestCtx, k.kernel)
 	perfmon.NoteFileRun("sandbox", perfmon.Since(tSandbox))
-	defer httpkernel.ResetViewEngines(requestCtx, k.kernel)
+	defer httpkernel.ResetViewEngines(requestCtx, kernel)
 	request := illuminatehttp.NewIlluminateRequestValue(requestCtx, r)
 	var response data.GetValue
 	tHandle := perfmon.Now()

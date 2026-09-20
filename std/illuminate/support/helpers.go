@@ -11,8 +11,8 @@ func registerHelpers(vm data.VM) {
 		newHelperFunc("collect", []string{"value"}, helperCollect),
 		newHelperFunc("data_get", []string{"target", "key", "default"}, helperDataGet),
 		newHelperFunc("data_set", []string{"target", "key", "value", "overwrite"}, helperDataSet),
-		newHelperFunc("value", []string{"value", "args"}, helperValue),
-		newHelperFunc("with", []string{"value", "callback"}, helperWith),
+		newValueHelper(),
+		newWithHelper(),
 		newHelperFunc("filled", []string{"value"}, helperFilled),
 		newHelperFunc("blank", []string{"value"}, helperBlank),
 		newHelperFunc("class_basename", []string{"class"}, helperClassBasename),
@@ -47,6 +47,38 @@ func (f *helperFunc) GetName() string                                     { retu
 func (f *helperFunc) GetParams() []data.GetValue                          { return f.params }
 func (f *helperFunc) GetVariables() []data.Variable                       { return f.vars }
 
+// newWithHelper 对齐 Laravel with($value, $callback = null)。
+func newWithHelper() data.FuncStmt {
+	return &helperFunc{
+		name: "with",
+		params: []data.GetValue{
+			node.NewParameter(nil, "value", 0, nil, nil),
+			node.NewParameter(nil, "callback", 1, data.NewNullValue(), nil),
+		},
+		vars: []data.Variable{
+			node.NewVariable(nil, "value", 0, nil),
+			node.NewVariable(nil, "callback", 1, nil),
+		},
+		fn: helperWith,
+	}
+}
+
+// newValueHelper 对齐 Laravel value($value, ...$args)。
+func newValueHelper() data.FuncStmt {
+	return &helperFunc{
+		name: "value",
+		params: []data.GetValue{
+			node.NewParameter(nil, "value", 0, nil, nil),
+			node.NewParameters(nil, "args", 1, nil, nil),
+		},
+		vars: []data.Variable{
+			node.NewVariable(nil, "value", 0, nil),
+			node.NewVariable(nil, "args", 1, nil),
+		},
+		fn: helperValue,
+	}
+}
+
 func helperCollect(ctx data.Context) (data.GetValue, data.Control) {
 	v, _ := ctx.GetIndexValue(0)
 	return newCollectionInstance(ctx, v)
@@ -62,42 +94,46 @@ func helperDataSet(ctx data.Context) (data.GetValue, data.Control) {
 
 func helperValue(ctx data.Context) (data.GetValue, data.Control) {
 	v, _ := ctx.GetIndexValue(0)
-	arg, hasArg := ctx.GetIndexValue(1)
-	switch cb := v.(type) {
-	case *data.FuncValue:
-		if cb == nil || cb.Value == nil {
-			return v, nil
-		}
-		if hasArg && arg != nil && !isNull(arg) {
-			if av, ok := arg.(data.Value); ok {
-				return callValue(ctx, cb, av)
-			}
-		}
-		return cb.Value.Call(ctx.CreateContext(cb.Value.GetVariables()))
-	case *data.BoundFuncValue:
-		if cb == nil {
-			return v, nil
-		}
-		if hasArg && arg != nil && !isNull(arg) {
-			if av, ok := arg.(data.Value); ok {
-				return callValue(ctx, cb, av)
-			}
-		}
-		return cb.Call(ctx)
-	}
-	return v, nil
+	return laravelValue(ctx, v, variadicValues(ctx, 1)...)
 }
 
+// helperWith 对齐 Laravel with($value, $callback = null)：
+// 无回调返回 $value；有回调必须返回 $callback($value)，不能丢掉回调结果。
+// Handler::shouldntReport 依赖 with(Limit::none(), fn => false) 得到 false。
 func helperWith(ctx data.Context) (data.GetValue, data.Control) {
 	v, _ := ctx.GetIndexValue(0)
-	cb, _ := ctx.GetIndexValue(1)
-	if cb != nil && !isNull(cb) {
-		_, ctl := callValue(ctx, cb, v)
-		if ctl != nil {
-			return nil, ctl
-		}
+	if v == nil {
+		v = data.NewNullValue()
 	}
-	return v, nil
+	cb, _ := ctx.GetIndexValue(1)
+	if cb == nil || isNull(cb) {
+		return v, nil
+	}
+	return callValue(ctx, cb, v)
+}
+
+// laravelValue 对齐 Laravel value($value, ...$args)：仅 Closure 会被调用。
+func laravelValue(ctx data.Context, v data.Value, args ...data.Value) (data.GetValue, data.Control) {
+	if v == nil {
+		return data.NewNullValue(), nil
+	}
+	switch v.(type) {
+	case *data.FuncValue, *data.BoundFuncValue:
+		return callValue(ctx, v, args...)
+	default:
+		return v, nil
+	}
+}
+
+func variadicValues(ctx data.Context, index int) []data.Value {
+	v, ok := ctx.GetIndexValue(index)
+	if !ok || v == nil || isNull(v) {
+		return nil
+	}
+	if av, ok := v.(*data.ArrayValue); ok {
+		return av.ToValueList()
+	}
+	return []data.Value{v}
 }
 
 func helperFilled(ctx data.Context) (data.GetValue, data.Control) {

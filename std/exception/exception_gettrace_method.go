@@ -9,7 +9,13 @@ type ExceptionGetTraceMethod struct {
 }
 
 func (h *ExceptionGetTraceMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewArrayValue(h.source.GetTraceValues()), nil
+	if tr, ok := instancePropertyValue(ctx, "trace"); ok {
+		return tr, nil
+	}
+	if h.source != nil {
+		return data.NewArrayValue(h.source.GetTraceValues()), nil
+	}
+	return data.NewArrayValue(nil), nil
 }
 
 func (h *ExceptionGetTraceMethod) GetName() string            { return "getTrace" }

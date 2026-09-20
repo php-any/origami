@@ -23,11 +23,16 @@ func (f *IteratorToArrayFunction) Call(ctx data.Context) (data.GetValue, data.Co
 	iterVal, _ := ctx.GetIndexValue(0)
 	iterVal = unwrapThisValue(iterVal)
 
+	// PHP：use_keys 默认 true。内部 callVMFunc 只传迭代器时，第 2 槽常是 NullValue；
+	// NullValue.AsBool()==false 会把键丢掉，Collection::partition(ArrayIterator)
+	// 就会把 class 变成 0= HTML 属性。
 	useKeys := true
 	if uk, ok := ctx.GetIndexValue(1); ok && uk != nil {
-		if as, ok := uk.(data.AsBool); ok {
-			if b, err := as.AsBool(); err == nil {
-				useKeys = b
+		if _, isNull := uk.(*data.NullValue); !isNull {
+			if as, ok := uk.(data.AsBool); ok {
+				if b, err := as.AsBool(); err == nil {
+					useKeys = b
+				}
 			}
 		}
 	}

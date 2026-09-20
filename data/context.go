@@ -226,6 +226,14 @@ type Variable interface {
 	SetValue(ctx Context, value Value) Control
 }
 
+// PropertyLvalue 是没有符号表槽的左值（$obj->prop / $this->prop）。
+// SetVariableValue 必须调用 SetValue 并把当前 Context 传下去，以便 $this 仍能解析。
+type PropertyLvalue interface {
+	IsPropertyLvalue()
+	SetValue(ctx Context, value Value) Control
+	GetValue
+}
+
 func NewVariable(name string, index int, ty Types) Variable {
 	return &VariableTODO{name: name, index: index, ty: ty}
 }

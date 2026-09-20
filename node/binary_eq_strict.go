@@ -33,49 +33,123 @@ func (b *BinaryEqStrict) GetValue(ctx data.Context) (data.GetValue, data.Control
 	if c != nil {
 		return nil, c
 	}
+	if leftValue == nil {
+		leftValue = data.NewNullValue()
+	}
+	if rightValue == nil {
+		rightValue = data.NewNullValue()
+	}
 
 	// 严格相等比较：类型和值都必须相等
 	result := isStrictEqual(leftValue, rightValue)
 	return data.NewBoolValue(result), nil
 }
 
+func isPHPNull(v data.GetValue) bool {
+	if v == nil {
+		return true
+	}
+	_, ok := v.(*data.NullValue)
+	return ok
+}
+
+func isTypedNilValue(v data.GetValue) bool {
+	if v == nil {
+		return true
+	}
+	switch t := v.(type) {
+	case *data.IntValue:
+		return t == nil
+	case *data.FloatValue:
+		return t == nil
+	case *data.BoolValue:
+		return t == nil
+	case *data.StringValue:
+		return t == nil
+	case *data.NullValue:
+		return t == nil
+	case *data.ArrayValue:
+		return t == nil
+	case *data.ObjectValue:
+		return t == nil
+	case *data.ClassValue:
+		return t == nil
+	case *data.ThisValue:
+		return t == nil
+	case *data.FuncValue:
+		return t == nil
+	case *data.BoundFuncValue:
+		return t == nil
+	default:
+		return false
+	}
+}
+
+func typedNilEquals(other data.GetValue) bool {
+	return isPHPNull(other) || isTypedNilValue(other)
+}
+
 // isStrictEqual 进行严格相等比较
 // 这是一个独立的工具函数，供 BinaryEqStrict 和 BinaryNeStrict 复用
 func isStrictEqual(value1, value2 data.GetValue) bool {
+	if value1 == nil {
+		return typedNilEquals(value2)
+	}
 	switch v1 := value1.(type) {
 	case *data.IntValue:
+		if v1 == nil {
+			return typedNilEquals(value2)
+		}
 		if v2, ok2 := value2.(*data.IntValue); ok2 {
-			return v1.Value == v2.Value
+			return v2 != nil && v1.Value == v2.Value
 		}
 		return false
 	case *data.FloatValue:
+		if v1 == nil {
+			return typedNilEquals(value2)
+		}
 		if v2, ok2 := value2.(*data.FloatValue); ok2 {
-			return v1.Value == v2.Value
+			return v2 != nil && v1.Value == v2.Value
 		}
 		return false
 	case *data.BoolValue:
+		if v1 == nil {
+			return typedNilEquals(value2)
+		}
 		if v2, ok2 := value2.(*data.BoolValue); ok2 {
-			return v1.Value == v2.Value
+			return v2 != nil && v1.Value == v2.Value
 		}
 		return false
 	case *data.StringValue:
+		if v1 == nil {
+			return typedNilEquals(value2)
+		}
 		if v2, ok2 := value2.(*data.StringValue); ok2 {
-			return v1.Value == v2.Value
+			return v2 != nil && v1.Value == v2.Value
 		}
 		return false
 	case *data.NullValue:
-		if _, ok2 := value2.(*data.NullValue); ok2 {
-			return true
-		}
-		return false
+		return isPHPNull(value2) || isTypedNilValue(value2)
 	case *data.ArrayValue:
+		if v1 == nil {
+			return typedNilEquals(value2)
+		}
 		if v2, ok2 := value2.(*data.ArrayValue); ok2 {
+			if v2 == nil {
+				return false
+			}
 			// 数组比较：长度和每个元素都相等
 			if len(v1.List) != len(v2.List) {
 				return false
 			}
 			for i, zval1 := range v1.List {
 				zval2 := v2.List[i]
+				if zval1 == nil || zval2 == nil {
+					if zval1 == nil && zval2 == nil {
+						continue
+					}
+					return false
+				}
 				// 递归比较数组元素
 				if !isStrictEqual(zval1.Value, zval2.Value) {
 					return false
@@ -85,14 +159,26 @@ func isStrictEqual(value1, value2 data.GetValue) bool {
 		}
 		// 空 ArrayValue 与空 ObjectValue（关联数组）在 PHP 中均为 []
 		if v2, ok2 := value2.(*data.ObjectValue); ok2 {
+			if v2 == nil {
+				return false
+			}
 			return len(v1.List) == 0 && len(v2.GetProperties()) == 0
 		}
 		return false
 	case *data.ObjectValue:
+		if v1 == nil {
+			return typedNilEquals(value2)
+		}
 		if v2, ok2 := value2.(*data.ArrayValue); ok2 {
+			if v2 == nil {
+				return false
+			}
 			return len(v1.GetProperties()) == 0 && len(v2.List) == 0
 		}
 		if v2, ok2 := value2.(*data.ObjectValue); ok2 {
+			if v2 == nil {
+				return false
+			}
 			// 对象比较：属性数量和每个属性都相等
 			props1 := v1.GetProperties()
 			props2 := v2.GetProperties()
@@ -113,6 +199,9 @@ func isStrictEqual(value1, value2 data.GetValue) bool {
 		}
 		return false
 	case *data.ClassValue:
+		if v1 == nil {
+			return typedNilEquals(value2)
+		}
 		// PHP === 对对象比较同一性（同一实例）。
 		// 方法调用会为 $this 再包一层 ClassValue，但共享同一 ObjectValue。
 		switch v2 := value2.(type) {
@@ -123,6 +212,9 @@ func isStrictEqual(value1, value2 data.GetValue) bool {
 		}
 		return false
 	case *data.ThisValue:
+		if v1 == nil {
+			return typedNilEquals(value2)
+		}
 		switch v2 := value2.(type) {
 		case *data.ThisValue:
 			return sameClassInstance(v1.ClassValue, v2.ClassValue)
@@ -131,6 +223,9 @@ func isStrictEqual(value1, value2 data.GetValue) bool {
 		}
 		return false
 	case *data.FuncValue:
+		if v1 == nil {
+			return typedNilEquals(value2)
+		}
 		// 闭包 === ：同一实例；禁止与 null 经 AsString("") 误判相等（Livewire EventBus finish）
 		if v2, ok := value2.(*data.FuncValue); ok {
 			return sameFuncValue(v1, v2)
@@ -140,6 +235,9 @@ func isStrictEqual(value1, value2 data.GetValue) bool {
 		}
 		return false
 	case *data.BoundFuncValue:
+		if v1 == nil {
+			return typedNilEquals(value2)
+		}
 		if v2, ok := value2.(*data.BoundFuncValue); ok {
 			return sameFuncValue(&v1.FuncValue, &v2.FuncValue) && v1.BoundObject == v2.BoundObject
 		}
