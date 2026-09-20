@@ -258,6 +258,13 @@ func (c *Context) resolveCallState() *CallState {
 	}
 }
 
+func (c *Context) CallDepth() int {
+	if st := c.resolveCallState(); st != nil {
+		return st.Depth
+	}
+	return 0
+}
+
 func (c *Context) EnterCall() int {
 	return c.resolveCallState().Enter()
 }

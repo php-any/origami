@@ -41,14 +41,19 @@ func (m *ReflectionTypeIsBuiltinMethod) Call(ctx data.Context) (data.GetValue, d
 		return data.NewBoolValue(false), nil
 	}
 
-	// 检查是否为内置类型
-	isBuiltin := data.ISBaseType(typeName)
-
-	// 如果是可空类型（以 ? 开头），检查基础类型是否为内置类型
 	if len(typeName) > 0 && typeName[0] == '?' {
-		baseTypeName := typeName[1:]
-		isBuiltin = data.ISBaseType(baseTypeName)
+		typeName = typeName[1:]
 	}
+	return data.NewBoolValue(phpNamedTypeIsBuiltin(typeName)), nil
+}
 
-	return data.NewBoolValue(isBuiltin), nil
+func phpNamedTypeIsBuiltin(typeName string) bool {
+	if data.ISBaseType(typeName) {
+		return true
+	}
+	switch typeName {
+	case "null", "true", "false", "iterable", "never":
+		return true
+	}
+	return false
 }

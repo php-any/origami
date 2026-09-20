@@ -51,7 +51,7 @@ func (m *ReflectionParameterGetTypeMethod) Call(ctx data.Context) (data.GetValue
 		if t == nil {
 			return data.NewNullValue(), nil
 		}
-		return newReflectionNamedType(ctx, t), nil
+		return newPhpReflectionType(ctx, t), nil
 	}
 
 	// 尝试多种类型断言来获取参数类型
@@ -70,7 +70,5 @@ func (m *ReflectionParameterGetTypeMethod) Call(ctx data.Context) (data.GetValue
 		return data.NewNullValue(), nil
 	}
 
-	// 创建并返回 ReflectionNamedType 对象
-	// 在 PHP 中，getType() 返回的是 ReflectionNamedType（对于命名类型）
-	return newReflectionNamedType(ctx, paramType), nil
+	return newPhpReflectionType(ctx, paramType), nil
 }

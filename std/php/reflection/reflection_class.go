@@ -95,6 +95,16 @@ func (c *ReflectionClassClass) GetMethod(name string) (data.Method, bool) {
 		return &ReflectionClassIsInterfaceMethod{}, true
 	case "isTrait":
 		return &ReflectionClassIsTraitMethod{}, true
+	case "isUninitializedLazyObject":
+		return &ReflectionClassIsUninitializedLazyObjectMethod{}, true
+	case "newLazyProxy":
+		return &ReflectionClassNewLazyProxyMethod{}, true
+	case "newLazyGhost":
+		return &ReflectionClassNewLazyGhostMethod{}, true
+	case "initializeLazyObject":
+		return &ReflectionClassInitializeLazyObjectMethod{}, true
+	case "markLazyObjectAsInitialized":
+		return &ReflectionClassMarkLazyObjectAsInitializedMethod{}, true
 	}
 	return nil, false
 }
@@ -129,6 +139,11 @@ func (c *ReflectionClassClass) GetMethods() []data.Method {
 		&ReflectionClassIsAbstractMethod{},
 		&ReflectionClassIsInterfaceMethod{},
 		&ReflectionClassIsTraitMethod{},
+		&ReflectionClassIsUninitializedLazyObjectMethod{},
+		&ReflectionClassNewLazyProxyMethod{},
+		&ReflectionClassNewLazyGhostMethod{},
+		&ReflectionClassInitializeLazyObjectMethod{},
+		&ReflectionClassMarkLazyObjectAsInitializedMethod{},
 	}
 }
 

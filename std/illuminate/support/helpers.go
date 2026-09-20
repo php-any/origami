@@ -148,9 +148,15 @@ func helperFilled(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func helperBlank(ctx data.Context) (data.GetValue, data.Control) {
-	v, _ := ctx.GetIndexValue(0)
+	v := unwrapValue(ctxIndexValue(ctx, 0))
 	if v == nil || isNull(v) {
 		return data.NewBoolValue(true), nil
+	}
+	// Laravel blank()：is_numeric / is_bool 一律非 blank，filled(0) 为 true。
+	// 不能走 PHP empty/truthy，否则仪表盘 Stat 的 0 会被当成占位符藏掉。
+	switch v.(type) {
+	case *data.IntValue, *data.FloatValue, *data.BoolValue:
+		return data.NewBoolValue(false), nil
 	}
 	if s, ok := v.(*data.StringValue); ok {
 		return data.NewBoolValue(stringsTrim(s.Value) == ""), nil
@@ -159,6 +165,14 @@ func helperBlank(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewBoolValue(len(toEntries(av)) == 0), nil
 	}
 	return data.NewBoolValue(!truthy(v)), nil
+}
+
+func ctxIndexValue(ctx data.Context, i int) data.Value {
+	if ctx == nil {
+		return nil
+	}
+	v, _ := ctx.GetIndexValue(i)
+	return v
 }
 
 func helperClassBasename(ctx data.Context) (data.GetValue, data.Control) {
