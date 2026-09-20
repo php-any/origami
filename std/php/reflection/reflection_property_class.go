@@ -580,5 +580,5 @@ func (m *ReflectionPropertyGetTypeMethod) Call(ctx data.Context) (data.GetValue,
 	if prop == nil || prop.GetType() == nil {
 		return data.NewNullValue(), nil
 	}
-	return newReflectionNamedType(ctx, prop.GetType()), nil
+	return newPhpReflectionType(ctx, prop.GetType()), nil
 }

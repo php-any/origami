@@ -312,7 +312,10 @@ func (v *RequestVM) LoadInCallerContext(parent data.Context, file string) (data.
 				continue
 			}
 		}
-		ctx.SetIndexZVal(variable.GetIndex(), v.EnsureGlobalZVal(name))
+		// 闭包内 getRequire：新局部，不要挂到请求级 $GLOBALS（否则子视图 $column 写穿父视图）
+		if runtime.IncludeBindsToProcessGlobals(parent) {
+			ctx.SetIndexZVal(variable.GetIndex(), v.EnsureGlobalZVal(name))
+		}
 	}
 	for name, val := range parent.GetDefinedVariables() {
 		if name == "" || val == nil {

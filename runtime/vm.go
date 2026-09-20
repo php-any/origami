@@ -733,13 +733,48 @@ func (vm *VM) LoadInCallerContext(parent data.Context, file string) (data.GetVal
 	}
 
 	ctx := inheritCallerScope(parent, vm.CreateContext(vars))
-	injectCallerVariables(parent, ctx, vars, func(name string, variable data.Variable) {
+	injectCallerVariables(parent, ctx, vars, includeGlobalBinder(parent, func(name string, variable data.Variable) {
 		vm.bindIncludedVarToGlobal(name, variable.GetIndex(), ctx)
-	})
+	}))
 
 	result, ctrl := program.GetValue(ctx)
 	perfmon.NoteInclude(file, perfmon.Since(t0))
 	return result, ctrl
+}
+
+// IncludeBindsToProcessGlobals 顶层 include 的新局部应对齐 $GLOBALS；
+// 函数/闭包内 require（Laravel getRequire 每次新闭包）不得复用进程级槽，
+// 否则子视图 foreach ($arr as $column) 会写穿父视图的 $column。
+func IncludeBindsToProcessGlobals(parent data.Context) bool {
+	return callDepthOf(parent) == 0
+}
+
+func callDepthOf(ctx data.Context) int {
+	for ctx != nil {
+		switch t := ctx.(type) {
+		case *Context:
+			return t.CallDepth()
+		case *data.BoundContext:
+			ctx = t.Context
+		case *data.ClassMethodContext:
+			ctx = t.Context
+		case *data.ClassValue:
+			ctx = t.Context
+		default:
+			if d, ok := ctx.(interface{ CallDepth() int }); ok {
+				return d.CallDepth()
+			}
+			return 0
+		}
+	}
+	return 0
+}
+
+func includeGlobalBinder(parent data.Context, bind func(name string, variable data.Variable)) func(name string, variable data.Variable) {
+	if bind == nil || !IncludeBindsToProcessGlobals(parent) {
+		return nil
+	}
+	return bind
 }
 
 // injectCallerVariables 把调用者已赋值变量注入被引入文件作用域。

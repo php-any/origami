@@ -129,9 +129,9 @@ func (vm *TempVM) LoadInCallerContext(parent data.Context, file string) (data.Ge
 	}
 
 	ctx := inheritCallerScope(parent, vm.CreateContext(vars))
-	injectCallerVariables(parent, ctx, vars, func(name string, variable data.Variable) {
+	injectCallerVariables(parent, ctx, vars, includeGlobalBinder(parent, func(name string, variable data.Variable) {
 		vm.Base.bindIncludedVarToGlobal(name, variable.GetIndex(), ctx)
-	})
+	}))
 
 	result, ctrl := program.GetValue(ctx)
 	perfmon.NoteInclude(file, perfmon.Since(t0))

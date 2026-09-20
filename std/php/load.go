@@ -91,6 +91,8 @@ func Load(vm data.VM) {
 		NewStrlenFunction(),
 		NewStrvalFunction(),
 		NewIntvalFunction(),
+		NewFloatvalFunction(),
+		NewDoublevalFunction(),
 		NewBoolvalFunction(),
 		NewHashFunction(),
 		NewHashHmacFunction(),
@@ -536,6 +538,8 @@ func Load(vm data.VM) {
 	vm.AddClass(&reflection.ReflectionAttributeClass{})
 	vm.AddClass(&reflection.ReflectionTypeClass{})
 	vm.AddClass(&reflection.ReflectionNamedTypeClass{})
+	vm.AddClass(&reflection.ReflectionUnionTypeClass{})
+	vm.AddClass(&reflection.ReflectionIntersectionTypeClass{})
 	vm.AddClass(&reflection.ReflectionFunctionAbstractClass{})
 	vm.AddClass(&reflection.ReflectionFunctionClass{})
 

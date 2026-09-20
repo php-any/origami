@@ -213,6 +213,18 @@ func (f *LambdaExpression) Call(ctx data.Context) (data.GetValue, data.Control) 
 		return generatorClass.GetValue(execCtx)
 	}
 
+	frame := data.CallFrame{Function: f.Name}
+	if frame.Function == "" {
+		frame.Function = "{closure}"
+	}
+	if from := f.GetFrom(); from != nil {
+		frame.File = from.GetSource()
+		line, _ := from.GetStartPosition()
+		frame.Line = line + 1
+	}
+	phpCallEnter(ctx, frame)
+	defer phpCallLeave(ctx)
+
 	var ctl data.Control
 	for bodyIndex := 0; bodyIndex < len(f.Body); bodyIndex++ {
 		statement := f.Body[bodyIndex]

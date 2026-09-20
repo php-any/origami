@@ -45,5 +45,5 @@ func (m *ReflectionMethodGetReturnTypeMethod) Call(ctx data.Context) (data.GetVa
 		return data.NewNullValue(), nil
 	}
 
-	return newReflectionNamedType(ctx, retType), nil
+	return newPhpReflectionType(ctx, retType), nil
 }
