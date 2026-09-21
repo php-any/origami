@@ -145,6 +145,7 @@ func (m *serveHandleMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	if !ok {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("serve: Laravel Application 未绑定到命令"))
 	}
+	BootLog("ServeCommand.handle (artisan console boot finished)")
 	if err := runLaravelHTTPServer(host, port, base, app); err != nil {
 		return nil, data.NewErrorThrow(nil, err)
 	}
@@ -325,9 +326,12 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer httpkernel.ResetViewEngines(requestCtx, kernel)
 	request := illuminatehttp.NewIlluminateRequestValue(requestCtx, r)
 	var response data.GetValue
-	tHandle := perfmon.Now()
+	tHandle := time.Now()
 	response, control := httpkernel.Handle(requestCtx, kernel, request)
-	perfmon.NoteFileRun("handle", perfmon.Since(tHandle))
+	perfmon.NoteFileRun("handle", time.Since(tHandle))
+	if firstHTTPLogged.CompareAndSwap(false, true) {
+		BootLog("first-request Handle " + time.Since(tHandle).Truncate(time.Millisecond).String() + " path=" + r.URL.Path)
+	}
 	leftover := runtime.TakeRequestOutput()
 	sentOK := false
 	if control == nil {
@@ -459,8 +463,27 @@ func runLaravelHTTPServer(host string, port int, base *runtime.VM, app *data.Cla
 		return fmt.Errorf("serve: 无法监听 %s: %w", addr, err)
 	}
 
+	k := newLaravelHTTPKernel(base, app)
+	seed, err := http.NewRequest(http.MethodGet, "http://"+addr+"/", nil)
+	if err != nil {
+		_ = ln.Close()
+		return fmt.Errorf("serve: 无法构造启动 Request: %w", err)
+	}
+	seed.Host = addr
+	if ctl := httpkernel.BindRequest(app, illuminatehttp.NewIlluminateRequestValue(app, seed)); ctl != nil {
+		_ = ln.Close()
+		return fmt.Errorf("serve: 绑定启动 Request 失败: %s", ctl.AsString())
+	}
+	tBoot := time.Now()
+	if ctl := k.ensureBase(); ctl != nil {
+		_ = ln.Close()
+		return fmt.Errorf("serve: HTTP Kernel bootstrap 失败: %s", ctl.AsString())
+	}
+	BootLog("HTTP Kernel resolve+bootstrap " + time.Since(tBoot).Truncate(time.Millisecond).String())
+
 	fmt.Printf("   INFO  Server running on [http://%s].\n\n", addr)
 	fmt.Println("  Press Ctrl+C to stop the server")
+	BootLog("listen+print (HTTP accept loop starting)")
 
 	// 预热不阻塞监听：完整 classmap 要数分钟，且会误加载依赖 PHPUnit 的 Testing 类。
 	if vendoraccel.ShouldWarmup() {
@@ -471,7 +494,6 @@ func runLaravelHTTPServer(host string, port int, base *runtime.VM, app *data.Cla
 		}()
 	}
 
-	k := newLaravelHTTPKernel(base, app)
 	server := &http.Server{
 		Addr:              addr,
 		Handler:           k,

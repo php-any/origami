@@ -140,6 +140,13 @@ type ClassStmt interface {
 	GetConstruct() Method
 }
 
+// VendorClassSink 让 std 里的 Go 加速类先占名，vendor 官方 PHP 类随后挂上。
+// 未加速的方法、Macroable、静态属性仍走 PHP，避免半成品挡住整个生态。
+type VendorClassSink interface {
+	AttachVendorClass(ClassStmt)
+	VendorClass() ClassStmt
+}
+
 type SetVM interface {
 	SetVM(vm VM)
 }

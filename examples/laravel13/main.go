@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "modernc.org/sqlite"
@@ -32,7 +34,27 @@ func main() {
 		runScript(args[1])
 		return
 	}
+	if len(args) >= 1 && args[0] == "serve" {
+		runServe()
+		return
+	}
 	runArtisan(args)
+}
+
+func runServe() {
+	node.ResetSuperglobals()
+	t0 := time.Now()
+	gosupport.BootLog("process entered main (HTTP serve)")
+	vm, p := buildVM()
+	gosupport.BootLog("buildVM+std+vendoraccel done (" + time.Since(t0).Truncate(time.Millisecond).String() + ")")
+	if err := gosupport.RunHTTPServe(vm); err != nil {
+		fmt.Fprintf(os.Stderr, "serve: %v\n", err)
+		p.ShowControl(data.NewErrorThrow(nil, err))
+		vm.RunShutdownCallbacks()
+		stopPerf()
+		os.Exit(1)
+	}
+	vm.RunShutdownCallbacks()
 }
 
 func runScript(path string) {
@@ -65,9 +87,11 @@ func runArtisan(args []string) {
 	os.Args = append([]string{os.Args[0], "artisan"}, args...)
 	node.ResetSuperglobals()
 
+	t0 := time.Now()
+	gosupport.BootLog("process entered main")
 	vm, p := buildVM()
+	gosupport.BootLog("buildVM+std+vendoraccel done (" + time.Since(t0).Truncate(time.Millisecond).String() + ")")
 
-	// 可选：artisan 进程也做 vendor 预热（默认关，避免拖慢 list/about）
 	if vendoraccel.ShouldWarmup() {
 		if root, err := os.Getwd(); err == nil {
 			vendoraccel.WarmupVendorClassmap(vm, root)

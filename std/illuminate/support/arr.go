@@ -18,6 +18,7 @@ type ArrClass struct {
 func NewArrClass() data.ClassStmt {
 	c := &ArrClass{methods: map[string]data.Method{}}
 	c.register()
+	registerMacroable(c.methods, arrClassName)
 	return c
 }
 

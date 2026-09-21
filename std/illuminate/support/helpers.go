@@ -1,6 +1,8 @@
 package support
 
 import (
+	"html"
+
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -16,6 +18,7 @@ func registerHelpers(vm data.VM) {
 		newHelperFunc("filled", []string{"value"}, helperFilled),
 		newHelperFunc("blank", []string{"value"}, helperBlank),
 		newHelperFunc("class_basename", []string{"class"}, helperClassBasename),
+		newEHelper(),
 	} {
 		vm.AddFunc(fn)
 	}
@@ -77,6 +80,149 @@ func newValueHelper() data.FuncStmt {
 		},
 		fn: helperValue,
 	}
+}
+
+// newEHelper 对齐 Laravel e()：Blade `echo e(...)` 不再解释 helpers.php。
+func newEHelper() data.FuncStmt {
+	return &helperFunc{
+		name: "e",
+		params: []data.GetValue{
+			node.NewParameter(nil, "value", 0, nil, nil),
+			node.NewParameter(nil, "doubleEncode", 1, data.NewBoolValue(true), nil),
+		},
+		vars: []data.Variable{
+			node.NewVariable(nil, "value", 0, nil),
+			node.NewVariable(nil, "doubleEncode", 1, nil),
+		},
+		fn: helperE,
+	}
+}
+
+func helperE(ctx data.Context) (data.GetValue, data.Control) {
+	v := unwrapValue(ctxIndexValue(ctx, 0))
+	if v == nil {
+		return data.NewStringValue(""), nil
+	}
+	if _, isNull := v.(*data.NullValue); isNull {
+		return data.NewStringValue(""), nil
+	}
+
+	if cv, ok := v.(*data.ClassValue); ok {
+		if classIsA(cv, "Illuminate\\Contracts\\Support\\DeferringDisplayableValue") {
+			ret, ctl := callClassMethod(cv, "resolveDisplayableValue")
+			if ctl != nil {
+				return nil, ctl
+			}
+			if rv, ok := ret.(data.Value); ok {
+				v = unwrapValue(rv)
+				cv, _ = v.(*data.ClassValue)
+			} else {
+				v = data.NewNullValue()
+				cv = nil
+			}
+		}
+		if cv != nil {
+			if classIsA(cv, "Illuminate\\Contracts\\Support\\Htmlable") {
+				ret, ctl := callClassMethod(cv, "toHtml")
+				if ctl != nil {
+					return nil, ctl
+				}
+				if ret == nil {
+					return data.NewStringValue(""), nil
+				}
+				if rv, ok := ret.(data.Value); ok {
+					if _, isNull := rv.(*data.NullValue); isNull {
+						return data.NewStringValue(""), nil
+					}
+					return data.NewStringValue(rv.AsString()), nil
+				}
+				return data.NewStringValue(""), nil
+			}
+			if classIsA(cv, "BackedEnum") {
+				pv, ctl := cv.GetProperty("value")
+				if ctl != nil {
+					return nil, ctl
+				}
+				v = unwrapValue(pv)
+			}
+		}
+	}
+
+	s := ""
+	if val, ok := v.(data.Value); ok {
+		if _, isNull := val.(*data.NullValue); isNull {
+			return data.NewStringValue(""), nil
+		}
+		if sv, ok := val.(*data.StringValue); ok {
+			s = sv.Value
+		} else {
+			s = val.AsString()
+		}
+	}
+	if sv, ok := v.(*data.StringValue); ok && !stringsContainsHTMLSpecial(s) {
+		return sv, nil
+	}
+	if !stringsContainsHTMLSpecial(s) {
+		return data.NewStringValue(s), nil
+	}
+	return data.NewStringValue(html.EscapeString(s)), nil
+}
+
+func stringsContainsHTMLSpecial(s string) bool {
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '&', '<', '>', '"', '\'':
+			return true
+		}
+	}
+	return false
+}
+
+func callClassMethod(cv *data.ClassValue, name string) (data.GetValue, data.Control) {
+	if cv == nil {
+		return nil, nil
+	}
+	m, ok := cv.GetMethod(name)
+	if !ok {
+		return nil, nil
+	}
+	return m.Call(cv.CreateContext(m.GetVariables()))
+}
+
+func classIsA(cv *data.ClassValue, name string) bool {
+	if cv == nil || cv.Class == nil {
+		return false
+	}
+	if cv.Class.GetName() == name {
+		return true
+	}
+	for _, iface := range cv.Class.GetImplements() {
+		if iface == name {
+			return true
+		}
+	}
+	vm := cv.GetVM()
+	if vm == nil {
+		return false
+	}
+	last := cv.Class
+	for last != nil && last.GetExtend() != nil {
+		ext := last.GetExtend()
+		next, ok := vm.GetClass(*ext)
+		if !ok || next == nil {
+			break
+		}
+		if next.GetName() == name {
+			return true
+		}
+		for _, iface := range next.GetImplements() {
+			if iface == name {
+				return true
+			}
+		}
+		last = next
+	}
+	return false
 }
 
 func helperCollect(ctx data.Context) (data.GetValue, data.Control) {

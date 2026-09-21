@@ -20,5 +20,10 @@ func storeClassStatic(class data.ClassStmt, name string, value data.Value) bool 
 		c.StaticProperty.Store(name, value)
 		return true
 	}
+	if sink, ok := class.(data.VendorClassSink); ok {
+		if inner := sink.VendorClass(); inner != nil && inner != class {
+			return storeClassStatic(inner, name, value)
+		}
+	}
 	return false
 }

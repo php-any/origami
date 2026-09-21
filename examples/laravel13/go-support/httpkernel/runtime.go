@@ -27,6 +27,16 @@ func Resolve(app *data.ClassValue) (*data.ClassValue, data.Control) {
 	return kernel, nil
 }
 
+// BindRequest 把 HTTP Request 实例挂到容器（对齐 Console 的 SetRequestForConsole）。
+// 必须在 RegisterProviders / BootProviders 之前调用，Filament 资源 URL 才有 scheme/host。
+func BindRequest(app *data.ClassValue, request data.Value) data.Control {
+	if app == nil || request == nil {
+		return data.NewErrorThrow(nil, fmt.Errorf("httpkernel: BindRequest 参数为空"))
+	}
+	_, control := callObjectMethod(app, "instance", data.NewStringValue("request"), request)
+	return control
+}
+
 // Bootstrap 在服务启动阶段完成一次 Laravel Kernel bootstrap。
 func Bootstrap(kernel *data.ClassValue) data.Control {
 	if kernel == nil {
