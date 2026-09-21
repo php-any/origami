@@ -11,6 +11,21 @@ func ValueToDisplayString(ctx data.Context, v data.GetValue) (string, data.Contr
 	if v == nil {
 		return "", nil
 	}
+	v = unwrapValue(v)
+	switch t := v.(type) {
+	case *data.StringValue:
+		return t.Value, nil
+	case *data.IntValue:
+		return concatOperandString(ctx, t)
+	case *data.FloatValue:
+		return t.AsString(), nil
+	case *data.BoolValue:
+		return concatOperandString(ctx, t)
+	case *data.NullValue:
+		return "", nil
+	case *StringLiteral:
+		return t.Value, nil
+	}
 	// $this：解包为 ClassValue 再走 __toString
 	if tv, ok := v.(*data.ThisValue); ok && tv.ClassValue != nil {
 		v = tv.ClassValue

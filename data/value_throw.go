@@ -220,7 +220,7 @@ func NewErrorThrow(from From, err error) Control {
 func NewCompileFatal(from From, message string) Control {
 	t := &ThrowValue{
 		Error:           NewError(from, message, nil),
-		Name:            "CompileFatal",
+		Name:            "Error",
 		PHPCompileFatal: true,
 	}
 	t.getMessage = &ThrowValueGetMessageMethod{source: t}

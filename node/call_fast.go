@@ -40,7 +40,6 @@ func bindPositionalParameters(fnCtx, ctx data.Context, params []data.GetValue, a
 		return nil
 	}
 
-	// 实参不超过形参时，func_get_args 可从槽位 + GetCallArgs 还原，不必每次 make 扁平切片。
 	needFlat := nArgs > nParams
 	var flat []data.Value
 	if needFlat {
@@ -55,19 +54,16 @@ func bindPositionalParameters(fnCtx, ctx data.Context, params []data.GetValue, a
 				continue
 			}
 		}
-		v, acl := arg.GetValue(ctx)
+		val, acl := evalCallArg(ctx, arg)
 		if acl != nil {
 			return acl
-		}
-		val, _ := v.(data.Value)
-		if val == nil {
-			val = data.NewNullValue()
 		}
 		if needFlat {
 			flat = append(flat, val)
 		}
 		if i < nParams {
-			if acl := params[i].(*Parameter).SetValue(fnCtx, val); acl != nil {
+			p := params[i].(*Parameter)
+			if acl := bindPositionalValue(fnCtx, p, val); acl != nil {
 				return acl
 			}
 		}
@@ -82,6 +78,51 @@ func bindPositionalParameters(fnCtx, ctx data.Context, params []data.GetValue, a
 		fnCtx.SetFlatCallArgs(flat)
 	}
 	return nil
+}
+
+func evalCallArg(ctx data.Context, arg data.GetValue) (data.Value, data.Control) {
+	switch a := arg.(type) {
+	case *VariableExpression:
+		zv := ctx.GetIndexZVal(a.Index)
+		if zv == nil || zv.Value == nil {
+			return data.NewNullValue(), nil
+		}
+		return zv.Value, nil
+	case *IntLiteral:
+		return a.V, nil
+	case *FloatLiteral:
+		return a.V, nil
+	case *StringLiteral:
+		if a.intern == nil {
+			a.intern = data.NewStringValue(a.Value)
+		}
+		return a.intern, nil
+	case *BooleanLiteral:
+		return data.NewBoolValue(a.Value), nil
+	case *NullLiteral:
+		return data.NewNullValue(), nil
+	default:
+		v, acl := arg.GetValue(ctx)
+		if acl != nil {
+			return nil, acl
+		}
+		val, _ := v.(data.Value)
+		if val == nil {
+			return data.NewNullValue(), nil
+		}
+		return val, nil
+	}
+}
+
+func bindPositionalValue(fnCtx data.Context, p *Parameter, val data.Value) data.Control {
+	if p.Type == nil {
+		if data.IsScalarAssignFast(val) {
+			data.AssignScalarToZVal(fnCtx.GetIndexZVal(p.Index), val)
+			return nil
+		}
+		return fnCtx.SetVariableValue(p, val)
+	}
+	return p.SetValue(fnCtx, val)
 }
 
 func tryReleaseCallContext(fn any, fnCtx data.Context) {

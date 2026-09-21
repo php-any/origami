@@ -49,6 +49,9 @@ type TempVM struct {
 }
 
 func (vm *TempVM) AddClass(c data.ClassStmt) data.Control {
+	if existing, ok := vm.Base.GetClass(c.GetName()); ok && attachVendorClass(existing, c) {
+		return nil
+	}
 	// 仅注册到临时 VM 的映射中（请求级生效）
 	vm.addedClasses[c.GetName()] = c
 	return nil

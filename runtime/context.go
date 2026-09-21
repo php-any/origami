@@ -15,6 +15,61 @@ var contextPool = sync.Pool{
 	},
 }
 
+// zval 槽块按档位回收。CreateContext 每次 make([]ZVal, n) 会在 Laravel 请求里放大成百万次分配。
+var zvalBlkPools [8]sync.Pool
+
+func zvalBlkClass(n int) int {
+	switch {
+	case n <= 8:
+		return 0
+	case n <= 16:
+		return 1
+	case n <= 32:
+		return 2
+	case n <= 64:
+		return 3
+	case n <= 128:
+		return 4
+	case n <= 256:
+		return 5
+	case n <= 512:
+		return 6
+	case n <= 1024:
+		return 7
+	default:
+		return -1
+	}
+}
+
+func zvalBlkCap(class int) int {
+	return 8 << class
+}
+
+func takeZValBlock(n int) []data.ZVal {
+	cl := zvalBlkClass(n)
+	if cl < 0 {
+		return make([]data.ZVal, n)
+	}
+	capn := zvalBlkCap(cl)
+	p := zvalBlkPools[cl].Get()
+	if p == nil {
+		return make([]data.ZVal, n, capn)
+	}
+	blk := p.([]data.ZVal)
+	return blk[:n]
+}
+
+func putZValBlock(blk []data.ZVal) {
+	if blk == nil {
+		return
+	}
+	cl := zvalBlkClass(cap(blk))
+	if cl < 0 || zvalBlkCap(cl) != cap(blk) {
+		return
+	}
+	zvalBlkPools[cl].Put(blk[:cap(blk)])
+}
+
 // Context 表示运行时上下文
 type Context struct {
 	vm data.VM
@@ -41,6 +96,7 @@ type Context struct {
 	out     *OutputState
 	pooled  bool
 	escaped bool
+	zvalBlk []data.ZVal
 }
 
 // BindStaticLocals 绑定函数级 static 局部变量存储
@@ -105,6 +161,32 @@ func (c *Context) SetIndexZVal(index int, v *data.ZVal) {
 
 func (c *Context) GetIndexZVal(index int) *data.ZVal {
 	return c.variables[index]
+}
+
+func (c *Context) definedZValByName(name string) *data.ZVal {
+	if c == nil || name == "" {
+		return nil
+	}
+	for _, zv := range c.variables {
+		if zv != nil && zv.Name == name && zv.Defined {
+			return zv
+		}
+	}
+	return nil
+}
+
+// shareZVal 让当前帧与调用者共用同一 ZVal（PHP include 语义），不按值拷贝数组。
+func (c *Context) shareZVal(zv *data.ZVal) {
+	if c == nil || zv == nil || zv.Name == "" {
+		return
+	}
+	for i, cur := range c.variables {
+		if cur != nil && cur.Name == zv.Name {
+			c.variables[i] = zv
+			return
+		}
+	}
+	c.variables = append(c.variables, zv)
 }
 
 // SetVariableValue 设置变量值
@@ -185,27 +267,38 @@ func (c *Context) CreateContext(vars []data.Variable) data.Context {
 }
 
 func (c *Context) resetVariables(vars []data.Variable) {
+	c.releaseZValBlock()
 	n := len(vars)
 	if n == 0 {
 		c.variables = c.variables[:0]
 		return
 	}
-	// 只复用 slice 头，每个槽仍是全新 ZVal。禁止原地改旧 ZVal：
-	// 引用返回、闭包、数组元素可能仍持有上一帧的指针。
+	// 槽位指向本帧专属 block。逃逸帧不还 block，避免闭包/引用仍握着旧 ZVal。
 	if cap(c.variables) < n {
 		c.variables = make([]*data.ZVal, n)
 	} else {
 		c.variables = c.variables[:n]
 	}
-	// 一次连续分配 n 个 ZVal，再把指针填进槽位（分配次数从 n 降到 1）。
-	block := make([]data.ZVal, n)
+	block := takeZValBlock(n)
+	c.zvalBlk = block
 	nullV := data.NewNullValue()
 	for i := 0; i < n; i++ {
 		z := &block[i]
 		z.Name = vars[i].GetName()
 		z.Value = nullV
+		z.Defined = false
+		z.RefSlotCount = 0
+		z.EmptyStrKey = false
 		c.variables[i] = z
 	}
+}
+
+func (c *Context) releaseZValBlock() {
+	if c == nil || c.zvalBlk == nil {
+		return
+	}
+	putZValBlock(c.zvalBlk)
+	c.zvalBlk = nil
 }
 
 func (c *Context) MarkEscaped() {
@@ -235,6 +328,7 @@ func (c *Context) ReleasePooled() {
 		c.variables[i] = nil
 	}
 	c.variables = c.variables[:0]
+	c.releaseZValBlock()
 	contextPool.Put(c)
 }
 

@@ -69,6 +69,11 @@ func (b *BinaryDot) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	if b == nil || b.Left == nil {
 		return data.NewNullValue(), nil
 	}
+	if sl, ok := b.Left.(*StringLiteral); ok {
+		if sr, ok := b.Right.(*StringLiteral); ok {
+			return data.NewStringValue(sl.Value + sr.Value), nil
+		}
+	}
 	lv, lCtl := b.Left.GetValue(ctx)
 	if lCtl != nil {
 		return nil, lCtl

@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"html"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -42,10 +43,18 @@ func (f *HtmlspecialcharsFunction) Call(ctx data.Context) (data.GetValue, data.C
 		return data.NewStringValue(html.EscapeString(str)), nil
 	}
 
-	str := strVal.AsString()
-	result := html.EscapeString(str)
+	if sv, ok := strVal.(*data.StringValue); ok {
+		if !strings.ContainsAny(sv.Value, `&<>"'`) {
+			return sv, nil
+		}
+		return data.NewStringValue(html.EscapeString(sv.Value)), nil
+	}
 
-	return data.NewStringValue(result), nil
+	str := strVal.AsString()
+	if !strings.ContainsAny(str, `&<>"'`) {
+		return data.NewStringValue(str), nil
+	}
+	return data.NewStringValue(html.EscapeString(str)), nil
 }
 
 func (f *HtmlspecialcharsFunction) GetName() string {

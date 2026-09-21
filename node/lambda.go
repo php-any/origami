@@ -69,32 +69,39 @@ func (f *LambdaExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	// 必须在 GetValue 时固定引用槽：父函数返回后 Context 可能被还回 pool 并复用，
 	// 调用时再 GetIndexZVal 会读到别的帧（Laravel FilesystemServiceProvider::serveFiles
 	// 的 booted 回调里 $served[$uri] = $disk 因此失败）。
-	// 闭包持有定义处 ctx（$this / self::），该帧禁止回收。
-	markContextEscaped(ctx)
-	captured := make(map[int]data.Value, len(f.parent))
-	capturedRefs := make(map[int]*data.ZVal, len(f.parent))
-	for cID, pID := range f.parent {
-		if cID < 0 || cID >= len(f.vars) {
-			continue
-		}
-		if _, isRef := f.vars[cID].(*VariableReference); isRef {
-			name := ""
-			if f.vars[cID] != nil {
-				name = f.vars[cID].GetName()
+	// 仅当闭包真正抓住定义帧（use / $this / self:: / yield）时才禁止回收。
+	// Blade 里大量无 use 的 fn() 若一律 MarkEscaped，父帧无法还 pool，GC 被放大。
+	if lambdaMustPinDefineCtx(ctx, f.parent, f.IsGenerator) {
+		markContextEscaped(ctx)
+	}
+	var captured map[int]data.Value
+	var capturedRefs map[int]*data.ZVal
+	if n := len(f.parent); n > 0 {
+		captured = make(map[int]data.Value, n)
+		capturedRefs = make(map[int]*data.ZVal, n)
+		for cID, pID := range f.parent {
+			if cID < 0 || cID >= len(f.vars) {
+				continue
 			}
-			zv := ctx.GetIndexZVal(pID)
-			if zv == nil {
-				zv = data.NewNamedZValSlot(name)
-				ctx.SetIndexZVal(pID, zv)
+			if _, isRef := f.vars[cID].(*VariableReference); isRef {
+				name := ""
+				if f.vars[cID] != nil {
+					name = f.vars[cID].GetName()
+				}
+				zv := ctx.GetIndexZVal(pID)
+				if zv == nil {
+					zv = data.NewNamedZValSlot(name)
+					ctx.SetIndexZVal(pID, zv)
+				}
+				capturedRefs[cID] = zv
+				continue
 			}
-			capturedRefs[cID] = zv
-			continue
+			v, ok := ctx.GetIndexValue(pID)
+			if !ok || v == nil {
+				continue
+			}
+			captured[cID] = snapshotUseValue(v)
 		}
-		v, ok := ctx.GetIndexValue(pID)
-		if !ok || v == nil {
-			continue
-		}
-		captured[cID] = snapshotUseValue(v)
 	}
 	return data.NewFuncValue(&LambdaExpression{
 		FunctionStatement: &FunctionStatement{
@@ -112,6 +119,23 @@ func (f *LambdaExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		capturedRefs: capturedRefs,
 		IsStatic:     f.IsStatic,
 	}), nil
+}
+
+func lambdaMustPinDefineCtx(ctx data.Context, parent map[int]int, generator bool) bool {
+	if generator || len(parent) > 0 {
+		return true
+	}
+	for ctx != nil {
+		switch t := ctx.(type) {
+		case *data.ClassMethodContext:
+			return true
+		case *data.BoundContext:
+			ctx = t.Context
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // snapshotUseValue 按值捕获：标量/数组拷贝；对象保留同一句柄（与 PHP 一致）。

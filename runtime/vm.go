@@ -368,6 +368,15 @@ func phpIdentKey(name string) string {
 	return strings.ToLower(name)
 }
 
+func attachVendorClass(existing, incoming data.ClassStmt) bool {
+	sink, ok := existing.(data.VendorClassSink)
+	if !ok || incoming == nil {
+		return false
+	}
+	sink.AttachVendorClass(incoming)
+	return true
+}
+
 func sameDeclFile(a, b interface{ GetFrom() data.From }) bool {
 	if a == nil || b == nil {
 		return false
@@ -380,12 +389,20 @@ func (vm *VM) AddClass(c data.ClassStmt) data.Control {
 	name := c.GetName()
 	key := phpIdentKey(name)
 	if has, ok := syncMapLoad[data.ClassStmt](&vm.classMap, name); ok {
+		if sink, ok := has.(data.VendorClassSink); ok {
+			sink.AttachVendorClass(c)
+			return nil
+		}
 		if sameDeclFile(c, has) {
 			return nil // 同文件重复引入，跳过
 		}
 		return data.NewErrorThrow(c.GetFrom(), fmt.Errorf("已存在同名的 class: %s", name))
 	}
 	if has, ok := syncMapLoad[data.ClassStmt](&vm.classLower, key); ok {
+		if sink, ok := has.(data.VendorClassSink); ok {
+			sink.AttachVendorClass(c)
+			return nil
+		}
 		if sameDeclFile(c, has) {
 			return nil
 		}
@@ -778,18 +795,34 @@ func includeGlobalBinder(parent data.Context, bind func(name string, variable da
 }
 
 // injectCallerVariables 把调用者已赋值变量注入被引入文件作用域。
+// PHP include 与调用者共享同一 zval；共享指针避免对数组/关联数组做按值深拷，
+// 也让被引入文件里的赋值写回调用者（函数内 include 改 $a，返回后 $a 可见）。
 func injectCallerVariables(parent, ctx data.Context, vars []data.Variable, onMissing func(name string, variable data.Variable)) {
-	declared := make(map[string]struct{}, len(vars))
+	pInner := unwrapRuntimeContext(parent)
+	var byName map[string]*data.ZVal
+	if pInner != nil {
+		vs := pInner.variables
+		byName = make(map[string]*data.ZVal, len(vs))
+		for _, zv := range vs {
+			if zv != nil && zv.Name != "" && zv.Defined {
+				byName[zv.Name] = zv
+			}
+		}
+	}
 	for _, variable := range vars {
 		name := variable.GetName()
 		if name == "" {
 			continue
 		}
-		declared[name] = struct{}{}
-		if parent.HasVariableByName(name) {
+		if byName != nil {
+			if pz, ok := byName[name]; ok {
+				ctx.SetIndexZVal(variable.GetIndex(), pz)
+				delete(byName, name)
+				continue
+			}
+		} else if parent.HasVariableByName(name) {
 			if val, ok := parent.GetVariableByName(name); ok && val != nil {
 				if ctl := variable.SetValue(ctx, val); ctl != nil {
-					// SetValue 失败时仍继续尽量注入其余变量
 					_ = ctl
 				}
 				continue
@@ -799,15 +832,44 @@ func injectCallerVariables(parent, ctx data.Context, vars []data.Variable, onMis
 			onMissing(name, variable)
 		}
 	}
+	cInner := unwrapRuntimeContext(ctx)
+	if byName != nil {
+		for _, zv := range byName {
+			if cInner != nil {
+				cInner.shareZVal(zv)
+			} else {
+				ctx.SetVariableByName(zv.Name, zv.Value)
+			}
+		}
+		return
+	}
 	rangeDefinedVariables(parent, func(name string, val data.Value) {
 		if name == "" || val == nil {
 			return
 		}
-		if _, ok := declared[name]; ok {
+		if cInner != nil && cInner.definedZValByName(name) != nil {
 			return
 		}
 		ctx.SetVariableByName(name, val)
 	})
+}
+
+func unwrapRuntimeContext(ctx data.Context) *Context {
+	for ctx != nil {
+		switch t := ctx.(type) {
+		case *Context:
+			return t
+		case *data.BoundContext:
+			ctx = t.Context
+		case *data.ClassMethodContext:
+			ctx = t.Context
+		case *data.ClassValue:
+			ctx = t.Context
+		default:
+			return nil
+		}
+	}
+	return nil
 }
 
 // rangeDefinedVariables 遍历当前作用域已赋值变量。能剥到 *Context 时不分配 map。
