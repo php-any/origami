@@ -22,7 +22,7 @@ import (
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/perfmon"
 	"github.com/php-any/origami/runtime"
-	illuminatehttp "github.com/php-any/origami/std/illuminate/http"
+	illuminatehttp "github.com/php-any/origami/std/laravel/framework/illuminate/http"
 	phpcore "github.com/php-any/origami/std/php/core"
 	httpfoundation "github.com/php-any/origami/std/symfony/http-foundation"
 	"github.com/php-any/origami/std/vendoraccel"

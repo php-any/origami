@@ -1,4 +1,4 @@
-package support
+package collections
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/std/php"
+	"github.com/php-any/origami/std/laravel/framework/internal/kit"
 )
 
 const enumerableName = "Illuminate\\Support\\Enumerable"
@@ -93,10 +94,10 @@ func (c *CollectionClass) GetStaticMethod(name string) (data.Method, bool) {
 
 func (c *CollectionClass) register() {
 	inst := func(name string, params []string, fn func(data.Context) (data.GetValue, data.Control)) {
-		c.methods[strings.ToLower(name)] = newInstanceMethod(name, params, fn, false)
+		c.methods[strings.ToLower(name)] = kit.InstanceMethod(name, params, fn)
 	}
 	stat := func(name string, params []string, fn func(data.Context) (data.GetValue, data.Control)) {
-		c.methods[strings.ToLower(name)] = newInstanceMethod(name, params, fn, true)
+		c.methods[strings.ToLower(name)] = kit.StaticMethod(name, params, -1, fn)
 	}
 	inst("__construct", []string{"items"}, collectionConstruct)
 	stat("make", []string{"items"}, collectionMake)
@@ -107,6 +108,8 @@ func (c *CollectionClass) register() {
 	inst("toJson", []string{"options"}, collectionToJson)
 	inst("jsonSerialize", nil, collectionJsonSerialize)
 	inst("map", []string{"callback"}, collectionMap)
+	inst("flatMap", []string{"callback"}, collectionFlatMap)
+	inst("mapWithKeys", []string{"callback"}, collectionMapWithKeys)
 	inst("filter", []string{"callback"}, collectionFilter)
 	inst("partition", []string{"key", "operator", "value"}, collectionPartition)
 	inst("values", nil, collectionValues)
@@ -146,40 +149,18 @@ func (c *CollectionClass) register() {
 	inst("getArrayableItems", []string{"items"}, collectionGetArrayableItems)
 	inst("toBase", nil, collectionToBase)
 	inst("__get", []string{"key"}, collectionMagicGet)
+	inst("__call", []string{"method", "parameters"}, collectionMissing)
+	kit.RegisterMacroable(c.methods, collectionName)
 }
 
-func newInstanceMethod(name string, params []string, fn func(data.Context) (data.GetValue, data.Control), static bool) data.Method {
-	ps := make([]data.GetValue, len(params))
-	vs := make([]data.Variable, len(params))
-	for i, p := range params {
-		ps[i] = node.NewParameter(nil, p, i, nil, nil)
-		vs[i] = node.NewVariable(nil, p, i, nil)
-	}
-	return &collMethod{name: name, params: ps, vars: vs, fn: fn, static: static}
-}
-
-type collMethod struct {
-	name   string
-	params []data.GetValue
-	vars   []data.Variable
-	fn     func(data.Context) (data.GetValue, data.Control)
-	static bool
-}
-
-func (m *collMethod) Call(ctx data.Context) (data.GetValue, data.Control) { return m.fn(ctx) }
-func (m *collMethod) GetName() string                                     { return m.name }
-func (m *collMethod) GetModifier() data.Modifier                           { return data.ModifierPublic }
-func (m *collMethod) GetIsStatic() bool                                   { return m.static }
-func (m *collMethod) GetParams() []data.GetValue                          { return m.params }
-func (m *collMethod) GetVariables() []data.Variable                       { return m.vars }
-func (m *collMethod) GetReturnType() data.Types                           { return nil }
 
 func collectionReceiver(ctx data.Context) (*data.ClassValue, data.Control) {
-	if classCtx, ok := ctx.(*data.ClassMethodContext); ok && classCtx.ClassValue != nil {
-		return classCtx.ClassValue, nil
+	if cv := kit.Receiver(ctx); cv != nil {
+		return cv, nil
 	}
 	return nil, data.NewErrorThrow(nil, fmt.Errorf("Collection method missing $this"))
 }
+
 
 func collectionItems(cv *data.ClassValue) *data.ArrayValue {
 	v, _ := cv.GetProperty("items")
@@ -197,9 +178,9 @@ func newCollectionInstance(ctx data.Context, items data.Value) (*data.ClassValue
 	if ctl != nil {
 		return nil, ctl
 	}
-	// 仅当 $this 本身是 Collection 子类时才 new static（Eloquent Collection）。
-	// collect() 在任意类方法里调用时，ClassMethodContext 是调用方（如 Spatie Package），
-	// 绝不能把 Package 当成 Collection 来 new。
+	// ?? $this ??? Collection ???? new static?Eloquent Collection??
+	// collect() ???????????ClassMethodContext ?????? Spatie Package??
+	// ???? Package ?? Collection ? new?
 	if classCtx, ok := ctx.(*data.ClassMethodContext); ok && classCtx.ClassValue != nil {
 		if (data.Class{Name: collectionName}).Is(classCtx.ClassValue) {
 			stmt = classCtx.ClassValue.Class
@@ -324,6 +305,36 @@ func collectionMap(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	cb, _ := ctx.GetIndexValue(0)
 	mapped, ctl := arrMap(withArgs(ctx, collectionItems(cv), cb))
+	if ctl != nil {
+		return nil, ctl
+	}
+	return newCollectionInstance(ctx, mapped.(data.Value))
+}
+
+func collectionFlatMap(ctx data.Context) (data.GetValue, data.Control) {
+	mapped, ctl := collectionMap(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	mcv, ok := mapped.(*data.ClassValue)
+	if !ok {
+		return mapped, nil
+	}
+	items := collectionItems(mcv)
+	collapsed, ctl := arrCollapse(withArgs(ctx, items))
+	if ctl != nil {
+		return nil, ctl
+	}
+	return newCollectionInstance(ctx, collapsed.(data.Value))
+}
+
+func collectionMapWithKeys(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	cb, _ := ctx.GetIndexValue(0)
+	mapped, ctl := arrMapWithKeys(withArgs(ctx, collectionItems(cv), cb))
 	if ctl != nil {
 		return nil, ctl
 	}
@@ -926,7 +937,7 @@ func collectionToBase(ctx data.Context) (data.GetValue, data.Control) {
 	if ctl != nil {
 		return nil, ctl
 	}
-	// 强制构造 Support\Collection，不用运行时子类
+	// ???? Support\Collection????????
 	vm := ctx.GetVM()
 	stmt, err := vm.GetOrLoadClass(collectionName)
 	if err != nil {
@@ -938,7 +949,7 @@ func collectionToBase(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func collectionMagicGet(ctx data.Context) (data.GetValue, data.Control) {
-	// HigherOrderCollectionProxy 简化：未实现时返回 null
+	// HigherOrderCollectionProxy ????????? null
 	return data.NewNullValue(), nil
 }
 

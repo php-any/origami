@@ -1,4 +1,4 @@
-package support
+package collections
 
 import (
 	"fmt"

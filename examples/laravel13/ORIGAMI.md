@@ -38,11 +38,30 @@ std/symfony/polyfill-*          # 标记 bootstrap.php 已加载，跳过解析
 
 当前**已注册**原生类：`http-foundation`（含 Cookie / JsonResponse / RedirectResponse / File / UploadedFile / RequestStack / StreamedResponse / BinaryFileResponse）、`finder`（Finder + SplFileInfo）、`string`（AbstractString / AbstractUnicodeString / UnicodeString / ByteString / CodePointString；`u()`/`b()`/`s()` 仍走 vendor `functions.php`）、`uid`（Uuid / Ulid，不注册 UuidV*）、`clock`（仅 NativeClock，Clock 门面仍走 vendor）、`routing`（Route / RouteCollection / RequestContext / UrlMatcher / UrlGenerator / CompiledUrlMatcherDumper）、Illuminate Support/Http。其余子模块已建好 `version.go` + 实现草稿，但 `Load` 暂为空——避免不完整类挡住 vendor PHP。补齐语义后再 `AddClass`。
 
-### Illuminate
+### Laravel / Illuminate
 
-- `std/illuminate/http`：Request / Response（依赖 http-foundation）
-- `std/illuminate/support`：Arr / Collection / Str / `collect` 等 helpers（仅 laravel13 VM）
+目录镜像 `vendor/laravel`：
 
+```
+std/laravel/
+  load.go
+  framework/                         # laravel/framework
+    illuminate/
+      collections/                   # Arr 默认开；Collection 需 ORIGAMI_STD_COLLECTION=1
+      support/                       # helpers(value/with/filled/…)；Str 实现保留未占名
+      http/                          # Request / Response
+      config/                        # Repository（默认开）
+      view/ events/ container/ routing/ foundation/
+                                     # 默认关或桩；用 ORIGAMI_STD_*=1 启用
+```
+
+环境开关（方法面未齐时避免挡住 vendor PHP）：
+
+- `ORIGAMI_STD_COLLECTION=1`
+- `ORIGAMI_STD_EVENTS=1`
+- `ORIGAMI_STD_VIEW=1`
+- `ORIGAMI_STD_CONTAINER=1`
+- `ORIGAMI_STD_ROUTING=1`
 ### go-support
 
 只保留应用/进程适配：`App\Http\Kernel`、`ServeCommand`。HttpFoundation 已迁入 `std/symfony/http-foundation`。

@@ -7,7 +7,7 @@ namespace tests\origami;
  */
 
 if (!function_exists('with')) {
-    \Log::fatal('with() 应由 std/illuminate helper 预注册');
+    \Log::fatal('with() 应由 std/laravel helper 预注册');
 }
 
 $kept = with('keep-me');
