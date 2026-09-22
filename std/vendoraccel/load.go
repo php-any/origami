@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/php-any/origami/data"
-	"github.com/php-any/origami/std/illuminate"
+	"github.com/php-any/origami/std/laravel"
 	"github.com/php-any/origami/std/symfony/clock"
 	"github.com/php-any/origami/std/symfony/console"
 	eventdispatcher "github.com/php-any/origami/std/symfony/event-dispatcher"
@@ -56,8 +56,8 @@ func Load(vm data.VM) {
 	polyfillphp85.Load(vm)
 	polyfillphp86.Load(vm)
 
-	// Illuminate vendor
-	illuminate.Load(vm)
+	// laravel/framework（Illuminate 组件）+ 后续 laravel/* 包
+	laravel.Load(vm)
 
 	// 若能定位 vendor，立即标记 polyfill files（serve 预热会再做一遍）
 	if wd, err := os.Getwd(); err == nil {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/std/laravel/framework/internal/kit"
 )
 
 const strClassName = "Illuminate\\Support\\Str"
@@ -49,7 +50,7 @@ func (c *StrClass) GetStaticMethod(name string) (data.Method, bool) {
 
 func (c *StrClass) register() {
 	add := func(name string, params []string, fn func(data.Context) (data.GetValue, data.Control)) {
-		c.methods[strings.ToLower(name)] = newStaticMethod(name, params, -1, fn, false)
+		c.methods[strings.ToLower(name)] = kit.StaticMethod(name, params, -1, fn)
 	}
 	add("camel", []string{"value"}, strCamel)
 	add("snake", []string{"value", "delimiter"}, strSnake)
@@ -71,6 +72,10 @@ func (c *StrClass) register() {
 	add("length", []string{"value"}, strLength)
 	add("slug", []string{"title", "separator", "language", "dictionary"}, strSlug)
 	add("of", []string{"string"}, strOf)
+	add("after", []string{"subject", "search"}, strAfter)
+	add("before", []string{"subject", "search"}, strBefore)
+	add("kebab", []string{"value"}, strKebab)
+	kit.RegisterMacroable(c.methods, strClassName)
 }
 
 func strArg(ctx data.Context, i int) string {
@@ -113,7 +118,7 @@ func studly(s string) string {
 func strSnake(ctx data.Context) (data.GetValue, data.Control) {
 	s := strArg(ctx, 0)
 	delim := "_"
-	if d, ok := ctx.GetIndexValue(1); ok && d != nil && !isNull(d) {
+	if d, ok := ctx.GetIndexValue(1); ok && d != nil && !kit.IsNull(d) {
 		delim = d.AsString()
 	}
 	var b strings.Builder
@@ -175,8 +180,8 @@ func strNeedles(v data.Value) []string {
 	}
 	if av, ok := v.(*data.ArrayValue); ok {
 		out := make([]string, 0)
-		for _, e := range toEntries(av) {
-			out = append(out, e.value.AsString())
+		for _, e := range kit.Entries(av) {
+			out = append(out, e.Value.AsString())
 		}
 		return out
 	}
@@ -267,7 +272,7 @@ func strLimit(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 	end := "..."
-	if v, ok := ctx.GetIndexValue(2); ok && v != nil && !isNull(v) {
+	if v, ok := ctx.GetIndexValue(2); ok && v != nil && !kit.IsNull(v) {
 		end = v.AsString()
 	}
 	runes := []rune(value)
@@ -304,7 +309,7 @@ func strSubstr(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewStringValue(""), nil
 	}
 	length := len(s) - start
-	if v, ok := ctx.GetIndexValue(2); ok && v != nil && !isNull(v) {
+	if v, ok := ctx.GetIndexValue(2); ok && v != nil && !kit.IsNull(v) {
 		if iv, ok := v.(data.AsInt); ok {
 			if n, err := iv.AsInt(); err == nil {
 				length = n
@@ -351,4 +356,49 @@ func strSlug(ctx data.Context) (data.GetValue, data.Control) {
 func strOf(ctx data.Context) (data.GetValue, data.Control) {
 	// Stringable 可后做；先返回原始字符串
 	return data.NewStringValue(strArg(ctx, 0)), nil
+}
+
+func strAfter(ctx data.Context) (data.GetValue, data.Control) {
+	subject := strArg(ctx, 0)
+	search := strArg(ctx, 1)
+	if search == "" {
+		return data.NewStringValue(subject), nil
+	}
+	i := strings.Index(subject, search)
+	if i < 0 {
+		return data.NewStringValue(subject), nil
+	}
+	return data.NewStringValue(subject[i+len(search):]), nil
+}
+
+func strBefore(ctx data.Context) (data.GetValue, data.Control) {
+	subject := strArg(ctx, 0)
+	search := strArg(ctx, 1)
+	if search == "" {
+		return data.NewStringValue(subject), nil
+	}
+	i := strings.Index(subject, search)
+	if i < 0 {
+		return data.NewStringValue(subject), nil
+	}
+	return data.NewStringValue(subject[:i]), nil
+}
+
+func strKebab(ctx data.Context) (data.GetValue, data.Control) {
+	s := strArg(ctx, 0)
+	var b strings.Builder
+	runes := []rune(s)
+	for i, r := range runes {
+		if unicode.IsUpper(r) {
+			if i > 0 {
+				b.WriteByte('-')
+			}
+			b.WriteRune(unicode.ToLower(r))
+		} else if r == '_' || r == ' ' {
+			b.WriteByte('-')
+		} else {
+			b.WriteRune(r)
+		}
+	}
+	return data.NewStringValue(strings.ToLower(b.String())), nil
 }

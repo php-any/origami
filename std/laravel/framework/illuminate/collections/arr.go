@@ -1,10 +1,11 @@
-package support
+package collections
 
 import (
 	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/std/laravel/framework/internal/kit"
 )
 
 const arrClassName = "Illuminate\\Support\\Arr"
@@ -47,10 +48,10 @@ func (c *ArrClass) GetStaticMethod(name string) (data.Method, bool) {
 
 func (c *ArrClass) register() {
 	add := func(name string, params []string, optionalFrom int, fn func(data.Context) (data.GetValue, data.Control)) {
-		c.methods[strings.ToLower(name)] = newStaticMethod(name, params, optionalFrom, fn, false)
+		c.methods[strings.ToLower(name)] = kit.StaticMethod(name, params, optionalFrom, fn)
 	}
 	addRef := func(name string, params []string, optionalFrom int, fn func(data.Context) (data.GetValue, data.Control)) {
-		c.methods[strings.ToLower(name)] = newStaticMethod(name, params, optionalFrom, fn, true)
+		c.methods[strings.ToLower(name)] = kit.StaticMethodRef(name, params, optionalFrom, fn)
 	}
 	add("accessible", []string{"value"}, -1, arrAccessible)
 	add("exists", []string{"array", "key"}, -1, arrExists)
@@ -90,36 +91,3 @@ func (c *ArrClass) register() {
 	add("keyBy", []string{"array", "keyBy"}, -1, arrKeyBy)
 	add("divide", []string{"array"}, -1, arrDivide)
 }
-
-func newStaticMethod(name string, params []string, optionalFrom int, fn func(data.Context) (data.GetValue, data.Control), firstByRef bool) data.Method {
-	ps := make([]data.GetValue, len(params))
-	vs := make([]data.Variable, len(params))
-	for i, p := range params {
-		var def data.GetValue
-		if optionalFrom >= 0 && i >= optionalFrom {
-			def = data.NewNullValue()
-		}
-		if i == 0 && firstByRef {
-			ps[i] = node.NewParameterReference(nil, p, i, def, nil)
-		} else {
-			ps[i] = node.NewParameter(nil, p, i, def, nil)
-		}
-		vs[i] = node.NewVariable(nil, p, i, nil)
-	}
-	return &arrMethod{name: name, params: ps, vars: vs, fn: fn}
-}
-
-type arrMethod struct {
-	name   string
-	params []data.GetValue
-	vars   []data.Variable
-	fn     func(data.Context) (data.GetValue, data.Control)
-}
-
-func (m *arrMethod) Call(ctx data.Context) (data.GetValue, data.Control) { return m.fn(ctx) }
-func (m *arrMethod) GetName() string                                     { return m.name }
-func (m *arrMethod) GetModifier() data.Modifier                           { return data.ModifierPublic }
-func (m *arrMethod) GetIsStatic() bool                                   { return true }
-func (m *arrMethod) GetParams() []data.GetValue                          { return m.params }
-func (m *arrMethod) GetVariables() []data.Variable                       { return m.vars }
-func (m *arrMethod) GetReturnType() data.Types                           { return nil }

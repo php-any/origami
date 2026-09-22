@@ -6,7 +6,7 @@ import (
 	"github.com/php-any/origami/data"
 )
 
-// 导出给 std/illuminate/http 等跨包子模块使用的薄包装（本包内部仍用小写实现）。
+// 导出给 std/laravel/framework/illuminate/http 等跨包子模块使用的薄包装（本包内部仍用小写实现）。
 
 func PubMethod(name string, params []data.GetValue, vars []data.Variable, ret data.Types, fn func(ctx data.Context) (data.GetValue, data.Control)) data.Method {
 	return pubMethod(name, params, vars, ret, fn)

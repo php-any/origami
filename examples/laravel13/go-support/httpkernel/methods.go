@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/std/laravel/framework/illuminate/foundation"
 )
 
 func kernelMethods() (map[string]data.Method, []data.Method) {
@@ -244,10 +245,16 @@ func kernelHandle(ctx data.Context) (data.GetValue, data.Control) {
 	flushLivewireState(ctx, s)
 	flushOnceHelper(ctx, s)
 
-	// 2) 绑定 request 到容器
-	_, ctl = callObjectMethodInContext(ctx, s.app, "instance", data.NewStringValue("request"), request)
-	if ctl != nil {
-		return nil, ctl
+	// 2) 绑定 request 到容器（框架语义在 std/laravel/foundation）
+	if appCV, ok := s.app.(*data.ClassValue); ok {
+		if ctl := foundation.BindRequest(appCV, request); ctl != nil {
+			return nil, ctl
+		}
+	} else {
+		_, ctl = callObjectMethodInContext(ctx, s.app, "instance", data.NewStringValue("request"), request)
+		if ctl != nil {
+			return nil, ctl
+		}
 	}
 
 	// 2.5) 每次请求重置 Telescope 记录状态：telescope/ignore 路径不记录自身请求

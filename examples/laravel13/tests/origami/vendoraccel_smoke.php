@@ -7,7 +7,7 @@ namespace tests\origami;
  */
 
 if (!class_exists(\Illuminate\Support\Arr::class, false)) {
-    \Log::fatal('Illuminate\\Support\\Arr 应已由 std/illuminate 预注册');
+    \Log::fatal('Illuminate\\Support\\Arr 应已由 std/laravel 预注册');
 }
 if (!class_exists(\Symfony\Component\HttpFoundation\Request::class, false)) {
     \Log::fatal('Symfony Request 应已由 std/symfony/http-foundation 预注册');
@@ -49,7 +49,7 @@ if (!class_exists(\Symfony\Component\Clock\NativeClock::class, false)) {
     \Log::fatal('Symfony NativeClock 应已由 std/symfony/clock 预注册');
 }
 if (!class_exists(\Illuminate\Http\Response::class, false)) {
-    \Log::fatal('Illuminate Response 应已由 std/illuminate/http 预注册');
+    \Log::fatal('Illuminate Response 应已由 std/laravel/framework/illuminate/http 预注册');
 }
 if (!function_exists('collect')) {
     \Log::fatal('collect() 应已由 laravel13 vendoraccel 注册');
