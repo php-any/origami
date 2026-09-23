@@ -2,13 +2,14 @@ package collections
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	"github.com/php-any/origami/std/php"
 	"github.com/php-any/origami/std/laravel/framework/internal/kit"
+	"github.com/php-any/origami/std/php"
 )
 
 const enumerableName = "Illuminate\\Support\\Enumerable"
@@ -136,7 +137,7 @@ func (c *CollectionClass) register() {
 	inst("concat", []string{"source"}, collectionConcat)
 	inst("flatten", []string{"depth"}, collectionFlatten)
 	inst("sort", []string{"callback"}, collectionSort)
-	inst("sortBy", []string{"callback", "options", "descending"}, collectionSortBy)
+	c.methods["sortby"] = kit.InstanceMethodOpt("sortBy", []string{"callback", "options", "descending"}, 1, collectionSortBy)
 	inst("groupBy", []string{"groupBy", "preserveKeys"}, collectionGroupBy)
 	inst("keyBy", []string{"keyBy"}, collectionKeyBy)
 	inst("implode", []string{"value", "glue"}, collectionImplode)
@@ -149,8 +150,10 @@ func (c *CollectionClass) register() {
 	inst("getArrayableItems", []string{"items"}, collectionGetArrayableItems)
 	inst("toBase", nil, collectionToBase)
 	inst("__get", []string{"key"}, collectionMagicGet)
+	registerCollectionMore(c)
 	inst("__call", []string{"method", "parameters"}, collectionMissing)
 	kit.RegisterMacroable(c.methods, collectionName)
+	kit.RegisterConditionable(c.methods, collectionWhenProxy)
 }
 
 
@@ -571,13 +574,7 @@ func collectionContains(ctx data.Context) (data.GetValue, data.Control) {
 	if ctl != nil {
 		return nil, ctl
 	}
-	key, _ := ctx.GetIndexValue(0)
-	for _, e := range toEntries(collectionItems(cv)) {
-		if e.value.AsString() == keyToString(key) {
-			return data.NewBoolValue(true), nil
-		}
-	}
-	return data.NewBoolValue(false), nil
+	return collectionContainsItems(ctx, cv, false)
 }
 
 func collectionWhere(ctx data.Context) (data.GetValue, data.Control) {
@@ -797,7 +794,110 @@ func collectionSort(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func collectionSortBy(ctx data.Context) (data.GetValue, data.Control) {
-	return collectionSort(ctx)
+	return collectionSortByDir(ctx, false)
+}
+
+func collectionSortByDir(ctx data.Context, forceDesc bool) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	callback := kit.Arg(ctx, 0)
+	descending := forceDesc
+	if !forceDesc {
+		if d := kit.Arg(ctx, 2); d != nil && !kit.IsNull(d) {
+			if b, ok := d.(data.AsBool); ok {
+				descending, _ = b.AsBool()
+			} else {
+				descending = kit.Truthy(d)
+			}
+		}
+	}
+	type scored struct {
+		key   data.Value
+		entry kv
+		idx   int
+	}
+	entries := toEntries(collectionItems(cv))
+	scoredList := make([]scored, 0, len(entries))
+	for i, e := range entries {
+		var sortKey data.Value = e.value
+		if callback != nil && !kit.IsNull(callback) && isCallableValue(callback) {
+			ret, ctl := kit.Call(ctx, callback, e.value, data.NewStringValue(e.keyStr))
+			if ctl != nil {
+				return nil, ctl
+			}
+			if ret != nil {
+				if v, ok := ret.(data.Value); ok {
+					sortKey = v
+				}
+			}
+		} else if callback != nil && !kit.IsNull(callback) {
+			if got, ok := dataGetPath(e.value, callback.AsString()); ok {
+				sortKey = got
+			}
+		}
+		scoredList = append(scoredList, scored{key: sortKey, entry: e, idx: i})
+	}
+	sort.SliceStable(scoredList, func(i, j int) bool {
+		cmp := compareSortKeys(scoredList[i].key, scoredList[j].key)
+		if descending {
+			return cmp > 0
+		}
+		return cmp < 0
+	})
+	out := data.NewArrayValue(nil).(*data.ArrayValue)
+	for _, s := range scoredList {
+		setEntry(out, s.entry.keyStr, s.entry.value)
+	}
+	return newCollectionInstance(ctx, out)
+}
+
+func compareSortKeys(a, b data.Value) int {
+	a = kit.Unwrap(a)
+	b = kit.Unwrap(b)
+	if a == nil && b == nil {
+		return 0
+	}
+	if a == nil {
+		return -1
+	}
+	if b == nil {
+		return 1
+	}
+	if ai, ok := a.(*data.IntValue); ok {
+		if bi, ok := b.(*data.IntValue); ok {
+			switch {
+			case ai.Value < bi.Value:
+				return -1
+			case ai.Value > bi.Value:
+				return 1
+			default:
+				return 0
+			}
+		}
+	}
+	if af, ok := a.(*data.FloatValue); ok {
+		if bf, ok := b.(*data.FloatValue); ok {
+			switch {
+			case af.Value < bf.Value:
+				return -1
+			case af.Value > bf.Value:
+				return 1
+			default:
+				return 0
+			}
+		}
+	}
+	as, bs := a.AsString(), b.AsString()
+	switch {
+	case as < bs:
+		return -1
+	case as > bs:
+		return 1
+	default:
+		return 0
+	}
 }
 
 func collectionGroupBy(ctx data.Context) (data.GetValue, data.Control) {
@@ -949,7 +1049,17 @@ func collectionToBase(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func collectionMagicGet(ctx data.Context) (data.GetValue, data.Control) {
-	// HigherOrderCollectionProxy ????????? null
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	key := ""
+	if v := kit.Arg(ctx, 0); v != nil {
+		key = v.AsString()
+	}
+	if _, ok := collectionProxies[strings.ToLower(key)]; ok {
+		return newHigherOrderProxy(ctx, cv, key)
+	}
 	return data.NewNullValue(), nil
 }
 

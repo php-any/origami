@@ -341,6 +341,49 @@ func (c *ClassValue) CloneSandbox(ctx Context) *ClassValue {
 	}
 }
 
+// CloneSandboxKeys 浅拷贝对象属性表，仅对 deepKeys 中的数组/关联数组做深拷贝。
+// Application 启动后 bindings/aliases 等只读；每请求只需隔离 instances 等可变槽，
+// 全量 DeepClone 会在暖路径上白白拷贝数千绑定，把 /hello 压到几十 QPS。
+func (c *ClassValue) CloneSandboxKeys(ctx Context, deepKeys []string) *ClassValue {
+	if c == nil {
+		return nil
+	}
+	vm := c.vm
+	if ctx != nil {
+		if v := ctx.GetVM(); v != nil {
+			vm = v
+		}
+	}
+	obj := c.ObjectValue
+	if obj == nil {
+		return &ClassValue{ObjectValue: NewObjectValue(), Class: c.Class, Context: ctx, vm: vm}
+	}
+	deep := make(map[string]struct{}, len(deepKeys))
+	for _, k := range deepKeys {
+		deep[k] = struct{}{}
+	}
+	clone := &ObjectValue{
+		Value:                 obj.Value,
+		Context:               ctx,
+		property:              NewOrderedMap(),
+		IndirectOverloadClass: obj.IndirectOverloadClass,
+	}
+	obj.property.Range(func(key string, value Value) bool {
+		if _, ok := deep[key]; ok {
+			clone.property.Set(key, deepCloneValue(value, 0))
+		} else {
+			clone.property.Set(key, value)
+		}
+		return true
+	})
+	return &ClassValue{
+		ObjectValue: clone,
+		Class:       c.Class,
+		Context:     ctx,
+		vm:          vm,
+	}
+}
+
 func (c *ClassValue) withVM(vm VM) *ClassValue {
 	if c == nil {
 		return nil

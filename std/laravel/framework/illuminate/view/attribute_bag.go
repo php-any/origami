@@ -3,10 +3,12 @@ package view
 import (
 	"fmt"
 	"html"
+	"strconv"
 	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/std/laravel/framework/illuminate/conditionable"
 	"github.com/php-any/origami/std/laravel/framework/internal/kit"
 )
 
@@ -63,7 +65,9 @@ func (c *AttributeBagClass) register() {
 	c.methods["get"] = kit.InstanceMethodOpt("get", []string{"key", "default"}, 1, bagGet)
 	c.methods["has"] = kit.InstanceMethod("has", []string{"key"}, bagHas)
 	c.methods["missing"] = kit.InstanceMethod("missing", []string{"key"}, bagMissing)
-	c.methods["all"] = kit.InstanceMethod("all", nil, bagAll)
+	c.methods["all"] = kit.InstanceMethodOpt("all", []string{"keys"}, 0, bagAll)
+	c.methods["first"] = kit.InstanceMethodOpt("first", []string{"default"}, 0, bagFirst)
+	c.methods["filter"] = kit.InstanceMethod("filter", []string{"callback"}, bagFilter)
 	c.methods["getattributes"] = kit.InstanceMethod("getAttributes", nil, bagAll)
 	c.methods["setattributes"] = kit.InstanceMethod("setAttributes", []string{"attributes"}, bagSetAttributes)
 	c.methods["merge"] = kit.InstanceMethodOpt("merge", []string{"attributeDefaults", "escape"}, 0, bagMerge)
@@ -75,16 +79,24 @@ func (c *AttributeBagClass) register() {
 	c.methods["onlyprops"] = kit.InstanceMethod("onlyProps", []string{"props"}, bagOnlyProps)
 	c.methods["wherestartswith"] = kit.InstanceMethod("whereStartsWith", []string{"needles"}, bagWhereStartsWith)
 	c.methods["wheredoesntstartswith"] = kit.InstanceMethod("whereDoesntStartWith", []string{"needles"}, bagWhereDoesntStartWith)
+	c.methods["thatstartswith"] = kit.InstanceMethod("thatStartWith", []string{"needles"}, bagWhereStartsWith)
+	c.methods["prepends"] = kit.InstanceMethod("prepends", []string{"value"}, bagPrepends)
+	c.methods["isempty"] = kit.InstanceMethod("isEmpty", nil, bagIsEmpty)
+	c.methods["isnotempty"] = kit.InstanceMethod("isNotEmpty", nil, bagIsNotEmpty)
+	c.methods["jsonserialize"] = kit.InstanceMethod("jsonSerialize", nil, bagAll)
 	c.methods["__tostring"] = kit.InstanceMethod("__toString", nil, bagToHtml)
 	c.methods["tohtml"] = kit.InstanceMethod("toHtml", nil, bagToHtml)
 	c.methods["toarray"] = kit.InstanceMethod("toArray", nil, bagAll)
+	c.methods["__invoke"] = kit.InstanceMethodOpt("__invoke", []string{"attributeDefaults"}, 0, bagInvoke)
 	c.methods["getiterator"] = kit.InstanceMethod("getIterator", nil, bagGetIterator)
 	c.methods["offsetexists"] = kit.InstanceMethod("offsetExists", []string{"offset"}, bagHas)
 	c.methods["offsetget"] = kit.InstanceMethod("offsetGet", []string{"offset"}, bagOffsetGet)
 	c.methods["offsetset"] = kit.InstanceMethod("offsetSet", []string{"offset", "value"}, bagOffsetSet)
 	c.methods["offsetunset"] = kit.InstanceMethod("offsetUnset", []string{"offset"}, bagOffsetUnset)
 	c.methods["shouldescapeattributevalue"] = kit.InstanceMethod("shouldEscapeAttributeValue", []string{"key", "value"}, bagShouldEscape)
+	c.methods["extractpropnames"] = kit.StaticMethod("extractPropNames", []string{"keys"}, -1, bagExtractPropNames)
 	kit.RegisterMacroable(c.methods, attributeBagClassName)
+	kit.RegisterConditionable(c.methods, bagWhenProxy)
 }
 
 func bagRecv(ctx data.Context) (*data.ClassValue, data.Control) {
@@ -181,7 +193,191 @@ func bagAll(ctx data.Context) (data.GetValue, data.Control) {
 	if ctl != nil {
 		return nil, ctl
 	}
-	return bagAttrs(cv), nil
+	keys := kit.Arg(ctx, 0)
+	if keys == nil || kit.IsNull(keys) {
+		return bagAttrs(cv), nil
+	}
+	ret, ctl := bagOnly(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	if bag, ok := kit.Unwrap(ret.(data.Value)).(*data.ClassValue); ok {
+		return bagAttrs(bag), nil
+	}
+	return ret, nil
+}
+
+func bagFirst(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := bagRecv(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	attrs := bagAttrs(cv)
+	for _, e := range kit.Entries(attrs) {
+		return e.Value, nil
+	}
+	def := kit.Arg(ctx, 0)
+	if def == nil {
+		return data.NewNullValue(), nil
+	}
+	return def, nil
+}
+
+func bagFilter(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := bagRecv(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	cb := kit.Arg(ctx, 0)
+	out := data.NewArrayValue(nil).(*data.ArrayValue)
+	for _, e := range kit.Entries(bagAttrs(cv)) {
+		ret, ctl := kit.Call(ctx, cb, e.Value, data.NewStringValue(e.KeyStr))
+		if ctl != nil {
+			return nil, ctl
+		}
+		keep := false
+		if ret != nil {
+			if v, ok := ret.(data.Value); ok {
+				keep = kit.Truthy(v)
+			}
+		}
+		if keep {
+			zv := data.NewZVal(e.Value)
+			zv.Name = e.KeyStr
+			out.List = append(out.List, zv)
+		}
+	}
+	return newBag(ctx, out), nil
+}
+
+func bagPrepends(ctx data.Context) (data.GetValue, data.Control) {
+	vm := ctx.GetVM()
+	cls, _ := vm.GetClass(appendableClassName)
+	cv := data.NewClassValue(cls, ctx.CreateBaseContext())
+	_ = cv.SetProperty("value", kit.Arg(ctx, 0))
+	return cv, nil
+}
+
+func bagIsEmpty(ctx data.Context) (data.GetValue, data.Control) {
+	htmlRet, ctl := bagToHtml(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	s := strings.TrimSpace(htmlRet.(data.Value).AsString())
+	return data.NewBoolValue(s == ""), nil
+}
+
+func bagIsNotEmpty(ctx data.Context) (data.GetValue, data.Control) {
+	v, ctl := bagIsEmpty(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	b, _ := v.(data.AsBool).AsBool()
+	return data.NewBoolValue(!b), nil
+}
+
+func bagInvoke(ctx data.Context) (data.GetValue, data.Control) {
+	merged, ctl := bagMerge(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	htmlStr := ""
+	if bag, ok := kit.Unwrap(merged.(data.Value)).(*data.ClassValue); ok {
+		nctx := bag.CreateContext(nil)
+		// toHtml via string cast path
+		_ = nctx
+		attrs := bagAttrs(bag)
+		var b strings.Builder
+		for _, e := range kit.Entries(attrs) {
+			if e.Value == nil || kit.IsNull(e.Value) {
+				continue
+			}
+			if bv, ok := e.Value.(*data.BoolValue); ok {
+				okv, _ := bv.AsBool()
+				if !okv {
+					continue
+				}
+				if b.Len() > 0 {
+					b.WriteByte(' ')
+				}
+				b.WriteString(e.KeyStr)
+				continue
+			}
+			if b.Len() > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteString(e.KeyStr)
+			b.WriteString(`="`)
+			b.WriteString(html.EscapeString(e.Value.AsString()))
+			b.WriteByte('"')
+		}
+		htmlStr = b.String()
+	} else if merged != nil {
+		htmlStr = merged.(data.Value).AsString()
+	}
+	vm := ctx.GetVM()
+	cls, ok := vm.GetClass("Illuminate\\Support\\HtmlString")
+	if !ok {
+		return data.NewStringValue(htmlStr), nil
+	}
+	cv := data.NewClassValue(cls, ctx.CreateBaseContext())
+	_ = cv.SetProperty("html", data.NewStringValue(htmlStr))
+	return cv, nil
+}
+
+func bagExtractPropNames(ctx data.Context) (data.GetValue, data.Control) {
+	keys := kit.Arg(ctx, 0)
+	out := data.NewArrayValue(nil).(*data.ArrayValue)
+	for _, e := range kit.Entries(keys) {
+		name := e.KeyStr
+		// 对齐 PHP：is_numeric($key) ? $default : $key
+		if isNumericPropKey(e) {
+			v := kit.Unwrap(e.Value)
+			if v != nil {
+				name = v.AsString()
+			}
+		}
+		out.List = append(out.List, data.NewZVal(data.NewStringValue(name)))
+		out.List = append(out.List, data.NewZVal(data.NewStringValue(toKebab(name))))
+	}
+	return out, nil
+}
+
+func isNumericPropKey(e kit.KV) bool {
+	if e.Key == nil && e.KeyStr == "" {
+		return true
+	}
+	if _, ok := e.Key.(*data.IntValue); ok {
+		return true
+	}
+	if e.KeyStr == "" {
+		return true
+	}
+	n, err := strconv.Atoi(e.KeyStr)
+	if err != nil {
+		return false
+	}
+	return strconv.Itoa(n) == e.KeyStr
+}
+
+func toKebab(name string) string {
+	kebab := strings.ReplaceAll(name, "_", "-")
+	var b strings.Builder
+	for i, r := range kebab {
+		if r >= 'A' && r <= 'Z' {
+			if i > 0 {
+				b.WriteByte('-')
+			}
+			b.WriteRune(r + 32)
+		} else {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func bagWhenProxy(ctx data.Context, target data.Value) (data.Value, data.Control) {
+	return conditionable.NewWhenProxy(ctx, target)
 }
 
 func bagSetAttributes(ctx data.Context) (data.GetValue, data.Control) {
@@ -364,20 +560,7 @@ func extractPropNames(props data.Value) map[string]bool {
 			name = e.Value.AsString()
 		}
 		m[name] = true
-		// kebab
-		kebab := strings.ReplaceAll(name, "_", "-")
-		var b strings.Builder
-		for i, r := range kebab {
-			if r >= 'A' && r <= 'Z' {
-				if i > 0 {
-					b.WriteByte('-')
-				}
-				b.WriteRune(r + 32)
-			} else {
-				b.WriteRune(r)
-			}
-		}
-		m[b.String()] = true
+		m[toKebab(name)] = true
 	}
 	return m
 }

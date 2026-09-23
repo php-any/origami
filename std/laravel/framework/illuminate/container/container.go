@@ -2,7 +2,6 @@ package container
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -554,10 +553,4 @@ func ctnIsShared(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewBoolValue(b.shared), nil
 	}
 	return data.NewBoolValue(false), nil
-}
-
-// Enabled 是否启用 Go Container（默认关，避免挡住完整 PHP Container）。
-func Enabled() bool {
-	v := os.Getenv("ORIGAMI_STD_CONTAINER")
-	return v == "1" || v == "true" || v == "yes"
 }

@@ -40,28 +40,53 @@ std/symfony/polyfill-*          # 标记 bootstrap.php 已加载，跳过解析
 
 ### Laravel / Illuminate
 
-目录镜像 `vendor/laravel`：
+目录一对一镜像 `vendor/laravel` 与 `laravel/framework` 的 `illuminate/*` replace 清单（共 37 个组件 + 平级包）。**禁止**再用 `ORIGAMI_STD_*` 环境变量门闩；类只有公开方法对齐后才 `AddClass`，未齐则 `Load` 为空、走 vendor PHP。
 
 ```
 std/laravel/
-  load.go
-  framework/                         # laravel/framework
+  load.go                            # framework + serializable-closure/sentinel/tinker/prompts/telescope
+  framework/
     illuminate/
-      collections/                   # Arr 默认开；Collection 需 ORIGAMI_STD_COLLECTION=1
-      support/                       # helpers(value/with/filled/…)；Str 实现保留未占名
-      http/                          # Request / Response
-      config/                        # Repository（默认开）
-      view/ events/ container/ routing/ foundation/
-                                     # 默认关或桩；用 ORIGAMI_STD_*=1 启用
+      collections/                   # Arr + Collection + HigherOrderCollectionProxy + helpers 常开
+      support/                       # helpers + Str/HtmlString/Stringable 常开（含 explode、substr 负 length）
+      http/                          # Request/Response + Json/Redirect/File/UploadedFile 常开
+      config/                        # Repository 常开
+      routing/                       # UrlGenerator 常开（含 setSessionResolver）
+      pipeline/                      # Pipeline 常开
+      view/                          # ComponentAttributeBag + AppendableAttributeValue 常开
+      conditionable/                 # HigherOrderWhenProxy 常开
+      hashing/                       # BcryptHasher 常开
+      events/                        # Dispatcher 常开（makeListener wrapper + getStaticVariables）
+      filesystem/                    # Filesystem 常开（getRequire extract $data；allFiles→SplFileInfo）
+      cookie/                        # CookieJar 常开（expire/queued/unqueue/setDefaultPathAndDomain）
+      encryption/                    # Encrypter 常开（getKey/generateKey/previousKeys/appearsEncrypted）
+      reflection/                    # Reflector 实现已补（getParameterClassName 等）；试开致 /admin/login 500，暂不占名
+      auth/ … /database/ …           # 一对一目录 + version.go；大包按类迁入
+  serializable-closure/ sentinel/ tinker/ prompts/ telescope/
 ```
 
-环境开关（方法面未齐时避免挡住 vendor PHP）：
+当前 **serve 常开**：Arr / Collection / HOP、collect/data_get/data_set、support helpers（含 `tap`）、Str/HtmlString/Stringable、Config\Repository、Http Request/Response/Json/Redirect/File/UploadedFile、UrlGenerator、Pipeline、ComponentAttributeBag、HigherOrderWhenProxy、BcryptHasher、Events\Dispatcher、Filesystem、CookieJar、Encrypter。
 
-- `ORIGAMI_STD_COLLECTION=1`
-- `ORIGAMI_STD_EVENTS=1`
-- `ORIGAMI_STD_VIEW=1`
-- `ORIGAMI_STD_CONTAINER=1`
-- `ORIGAMI_STD_ROUTING=1`
+验收：`/hello` 与 `/admin/login` 均 200（清视图缓存后重编 Blade 亦通过）。
+
+### 性能快照
+
+压测 `hey`，`GET /hello`（返回 `OK`）。
+
+| 条件 | QPS |
+|------|-----|
+| 用户基线（Telescope on 等） | ~45 |
+| `CloneSandboxKeys` + `TELESCOPE_ENABLED=false`，c=20 | **~267** |
+| 同上，c=50 | ~94（并发争用上升） |
+
+改动：`data.CloneSandboxKeys` + HTTP Sandbox 对 Application 只深拷贝 `instances`/`resolved` 等可变槽，避免每请求拷贝整个 `bindings`。
+
+**基准请关 Telescope**：`.env` 里 `TELESCOPE_ENABLED=true` 时每请求落库，会把 QPS 压回几十。临时：`$env:TELESCOPE_ENABLED="false"; go run -mod=mod . serve --port=8000`
+
+暖 `/hello`（Telescope off）约十几 ms；`/admin/login` 仍 200。
+
+空大包（database/queue/session/cache…）仍走 vendor PHP。
+
 ### go-support
 
 只保留应用/进程适配：`App\Http\Kernel`、`ServeCommand`。HttpFoundation 已迁入 `std/symfony/http-foundation`。
