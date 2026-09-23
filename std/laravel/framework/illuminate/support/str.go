@@ -3,6 +3,7 @@ package support
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"regexp"
 	"strings"
 	"unicode"
 
@@ -75,6 +76,8 @@ func (c *StrClass) register() {
 	add("after", []string{"subject", "search"}, strAfter)
 	add("before", []string{"subject", "search"}, strBefore)
 	add("kebab", []string{"value"}, strKebab)
+	c.methods["explode"] = kit.StaticMethod("explode", []string{"value", "delimiter", "limit"}, 2, strExplode)
+	c.registerMore()
 	kit.RegisterMacroable(c.methods, strClassName)
 }
 
@@ -87,32 +90,27 @@ func strArg(ctx data.Context, i int) string {
 }
 
 func strCamel(ctx data.Context) (data.GetValue, data.Control) {
-	s := studly(strArg(ctx, 0))
+	value := strArg(ctx, 0)
+	strCacheMu.RLock()
+	if out, ok := strCamelCache[value]; ok {
+		strCacheMu.RUnlock()
+		return data.NewStringValue(out), nil
+	}
+	strCacheMu.RUnlock()
+	s := studlyCached(value, false)
 	if s == "" {
 		return data.NewStringValue(""), nil
 	}
-	r := []rune(s)
-	r[0] = unicode.ToLower(r[0])
-	return data.NewStringValue(string(r)), nil
+	out := mbLcfirst(s)
+	strCacheMu.Lock()
+	strCamelCache[value] = out
+	strCacheMu.Unlock()
+	return data.NewStringValue(out), nil
 }
 
 func strStudly(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewStringValue(studly(strArg(ctx, 0))), nil
-}
-
-func studly(s string) string {
-	s = strings.ReplaceAll(s, "-", " ")
-	s = strings.ReplaceAll(s, "_", " ")
-	parts := strings.Fields(s)
-	for i, p := range parts {
-		if p == "" {
-			continue
-		}
-		r := []rune(p)
-		r[0] = unicode.ToUpper(r[0])
-		parts[i] = string(r)
-	}
-	return strings.Join(parts, "")
+	norm := strBoolArg(ctx, 1, false)
+	return data.NewStringValue(studlyCached(strArg(ctx, 0), norm)), nil
 }
 
 func strSnake(ctx data.Context) (data.GetValue, data.Control) {
@@ -121,21 +119,7 @@ func strSnake(ctx data.Context) (data.GetValue, data.Control) {
 	if d, ok := ctx.GetIndexValue(1); ok && d != nil && !kit.IsNull(d) {
 		delim = d.AsString()
 	}
-	var b strings.Builder
-	runes := []rune(s)
-	for i, r := range runes {
-		if unicode.IsUpper(r) {
-			if i > 0 {
-				b.WriteString(delim)
-			}
-			b.WriteRune(unicode.ToLower(r))
-		} else {
-			b.WriteRune(r)
-		}
-	}
-	out := strings.ReplaceAll(b.String(), " ", delim)
-	out = strings.ReplaceAll(out, "-", delim)
-	return data.NewStringValue(strings.ToLower(out)), nil
+	return data.NewStringValue(snakeCached(s, delim)), nil
 }
 
 func strFinish(ctx data.Context) (data.GetValue, data.Control) {
@@ -160,15 +144,24 @@ func strStart(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func strIs(ctx data.Context) (data.GetValue, data.Control) {
-	pattern := strArg(ctx, 0)
 	value := strArg(ctx, 1)
-	if pattern == value {
-		return data.NewBoolValue(true), nil
-	}
-	if strings.Contains(pattern, "*") {
-		parts := strings.Split(pattern, "*")
-		if len(parts) == 2 {
-			return data.NewBoolValue(strings.HasPrefix(value, parts[0]) && strings.HasSuffix(value, parts[1])), nil
+	ignoreCase := strBoolArg(ctx, 2, false)
+	for _, pattern := range strNeedles(kit.Arg(ctx, 0)) {
+		if pattern == "*" || pattern == value {
+			return data.NewBoolValue(true), nil
+		}
+		if ignoreCase && strings.EqualFold(pattern, value) {
+			return data.NewBoolValue(true), nil
+		}
+		quoted := regexp.QuoteMeta(pattern)
+		quoted = strings.ReplaceAll(quoted, `\*`, ".*")
+		flags := ""
+		if ignoreCase {
+			flags = "(?i)"
+		}
+		re, err := regexp.Compile(flags + "^" + quoted + "$")
+		if err == nil && re.MatchString(value) {
+			return data.NewBoolValue(true), nil
 		}
 	}
 	return data.NewBoolValue(false), nil
@@ -190,9 +183,17 @@ func strNeedles(v data.Value) []string {
 
 func strContains(ctx data.Context) (data.GetValue, data.Control) {
 	haystack := strArg(ctx, 0)
+	if haystack == "" {
+		return data.NewBoolValue(false), nil
+	}
 	needles, _ := ctx.GetIndexValue(1)
+	ignore := strBoolArg(ctx, 2, false)
 	for _, n := range strNeedles(needles) {
-		if n != "" && strings.Contains(haystack, n) {
+		h, nd := haystack, n
+		if ignore {
+			h, nd = strings.ToLower(h), strings.ToLower(nd)
+		}
+		if nd != "" && strings.Contains(h, nd) {
 			return data.NewBoolValue(true), nil
 		}
 	}
@@ -251,14 +252,16 @@ func strRandom(ctx data.Context) (data.GetValue, data.Control) {
 			}
 		}
 	}
-	const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	b := make([]byte, length)
-	rb := make([]byte, length)
-	_, _ = rand.Read(rb)
-	for i := 0; i < length; i++ {
-		b[i] = alphabet[int(rb[i])%len(alphabet)]
+	if strRandomFactory != nil {
+		ret, ctl := kit.Call(ctx, strRandomFactory, data.NewIntValue(length))
+		if ctl != nil {
+			return nil, ctl
+		}
+		if ret != nil {
+			return ret, nil
+		}
 	}
-	return data.NewStringValue(string(b)), nil
+	return data.NewStringValue(randomStringLaravel(length)), nil
 }
 
 func strLimit(ctx data.Context) (data.GetValue, data.Control) {
@@ -286,7 +289,10 @@ func strReplace(ctx data.Context) (data.GetValue, data.Control) {
 	search := strArg(ctx, 0)
 	replace := strArg(ctx, 1)
 	subject := strArg(ctx, 2)
-	return data.NewStringValue(strings.ReplaceAll(subject, search, replace)), nil
+	if strBoolArg(ctx, 3, true) {
+		return data.NewStringValue(strings.ReplaceAll(subject, search, replace)), nil
+	}
+	return data.NewStringValue(strReplaceFold(subject, search, replace)), nil
 }
 
 func strSubstr(ctx data.Context) (data.GetValue, data.Control) {
@@ -308,15 +314,20 @@ func strSubstr(ctx data.Context) (data.GetValue, data.Control) {
 	if start > len(s) {
 		return data.NewStringValue(""), nil
 	}
-	length := len(s) - start
+	// 默认取到末尾
+	end := len(s)
 	if v, ok := ctx.GetIndexValue(2); ok && v != nil && !kit.IsNull(v) {
 		if iv, ok := v.(data.AsInt); ok {
 			if n, err := iv.AsInt(); err == nil {
-				length = n
+				if n < 0 {
+					// 负 length：从末尾回退 |n| 个字符（对齐 PHP substr）
+					end = len(s) + n
+				} else {
+					end = start + n
+				}
 			}
 		}
 	}
-	end := start + length
 	if end > len(s) {
 		end = len(s)
 	}
@@ -331,11 +342,21 @@ func strLength(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func strSlug(ctx data.Context) (data.GetValue, data.Control) {
-	title := strings.ToLower(strings.TrimSpace(strArg(ctx, 0)))
+	title := strArg(ctx, 0)
+	lang := strArg(ctx, 2)
+	if lang != "" {
+		title = asciiFallback(title, lang)
+	}
+	title = strings.ToLower(strings.TrimSpace(title))
 	sep := "-"
 	if s := strArg(ctx, 1); s != "" {
 		sep = s
 	}
+	flip := "_"
+	if sep == "_" {
+		flip = "-"
+	}
+	title = strings.ReplaceAll(title, flip, sep)
 	var b strings.Builder
 	lastSep := false
 	for _, r := range title {
@@ -354,8 +375,7 @@ func strSlug(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func strOf(ctx data.Context) (data.GetValue, data.Control) {
-	// Stringable 可后做；先返回原始字符串
-	return data.NewStringValue(strArg(ctx, 0)), nil
+	return newStringableValue(ctx, strArg(ctx, 0))
 }
 
 func strAfter(ctx data.Context) (data.GetValue, data.Control) {
@@ -385,20 +405,52 @@ func strBefore(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func strKebab(ctx data.Context) (data.GetValue, data.Control) {
-	s := strArg(ctx, 0)
-	var b strings.Builder
-	runes := []rune(s)
-	for i, r := range runes {
-		if unicode.IsUpper(r) {
-			if i > 0 {
-				b.WriteByte('-')
+	return data.NewStringValue(snakeCached(strArg(ctx, 0), "-")), nil
+}
+
+func strExplode(ctx data.Context) (data.GetValue, data.Control) {
+	value := strArg(ctx, 0)
+	delimiter := strArg(ctx, 1)
+	limit := int(^uint(0) >> 1) // PHP_INT_MAX-ish
+	if v := kit.Arg(ctx, 2); v != nil && !kit.IsNull(v) {
+		if iv, ok := v.(*data.IntValue); ok {
+			limit = iv.Value
+		} else if b, ok := v.(data.AsInt); ok {
+			if n, err := b.AsInt(); err == nil {
+				limit = n
 			}
-			b.WriteRune(unicode.ToLower(r))
-		} else if r == '_' || r == ' ' {
-			b.WriteByte('-')
-		} else {
-			b.WriteRune(r)
 		}
 	}
-	return data.NewStringValue(strings.ToLower(b.String())), nil
+	parts := explodeLimited(value, delimiter, limit)
+	out := data.NewArrayValue(nil).(*data.ArrayValue)
+	for i, p := range parts {
+		out.SetIntKey(i, data.NewStringValue(p))
+	}
+	return out, nil
+}
+
+func explodeLimited(value, delimiter string, limit int) []string {
+	if delimiter == "" {
+		return []string{value}
+	}
+	if limit == 0 {
+		return []string{}
+	}
+	if limit < 0 {
+		// PHP negative limit: return all but last |limit| elements
+		all := strings.Split(value, delimiter)
+		n := len(all) + limit
+		if n < 0 {
+			n = 0
+		}
+		if n > len(all) {
+			n = len(all)
+		}
+		return all[:n]
+	}
+	if limit == 1 {
+		return []string{value}
+	}
+	parts := strings.SplitN(value, delimiter, limit)
+	return parts
 }

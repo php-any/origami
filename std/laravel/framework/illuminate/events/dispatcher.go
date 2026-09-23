@@ -13,16 +13,22 @@ import (
 
 const dispatcherClassName = "Illuminate\\Events\\Dispatcher"
 
+type pushedEvent struct {
+	event   string
+	payload data.Value
+}
+
 type dispatcherState struct {
-	mu              sync.Mutex
-	listeners       map[string][]data.Value
-	wildcards       map[string][]data.Value
-	wildcardsCache  map[string][]data.Value
-	queueResolver   data.Value
-	txResolver      data.Value
-	deferring       bool
-	deferred        []deferredEvent
-	eventsToDefer   map[string]struct{} // nil = all
+	mu             sync.Mutex
+	listeners      map[string][]data.Value
+	wildcards      map[string][]data.Value
+	wildcardsCache map[string][]data.Value
+	pushed         map[string][]pushedEvent
+	queueResolver  data.Value
+	txResolver     data.Value
+	deferring      bool
+	deferred       []deferredEvent
+	eventsToDefer  map[string]struct{} // nil = all
 }
 
 type deferredEvent struct {
@@ -42,6 +48,7 @@ func stateOf(cv *data.ClassValue) *dispatcherState {
 			listeners:      map[string][]data.Value{},
 			wildcards:      map[string][]data.Value{},
 			wildcardsCache: map[string][]data.Value{},
+			pushed:         map[string][]pushedEvent{},
 		}
 	}
 	if v, ctl := cv.GetProperty("__origami_dispatcher_id"); ctl == nil && v != nil {
@@ -56,6 +63,7 @@ func stateOf(cv *data.ClassValue) *dispatcherState {
 		listeners:      map[string][]data.Value{},
 		wildcards:      map[string][]data.Value{},
 		wildcardsCache: map[string][]data.Value{},
+		pushed:         map[string][]pushedEvent{},
 	}
 	dispatcherStates.Store(id, s)
 	_ = cv.SetProperty("__origami_dispatcher_id", data.NewIntValue(int(id)))
@@ -228,11 +236,13 @@ func dispListen(ctx data.Context) (data.GetValue, data.Control) {
 		if name == "" {
 			continue
 		}
-		if strings.Contains(name, "*") {
-			st.wildcards[name] = append(st.wildcards[name], listener)
+		wildcard := strings.Contains(name, "*")
+		wrapped := makeListenerWrapper(cv, listener, wildcard)
+		if wildcard {
+			st.wildcards[name] = append(st.wildcards[name], wrapped)
 			st.wildcardsCache = map[string][]data.Value{}
 		} else {
-			st.listeners[name] = append(st.listeners[name], listener)
+			st.listeners[name] = append(st.listeners[name], wrapped)
 		}
 	}
 	return data.NewNullValue(), nil
@@ -301,15 +311,11 @@ func dispPush(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, ctl
 	}
 	st := stateOf(cv)
-	marker := data.NewArrayValue(nil).(*data.ArrayValue)
-	ze := data.NewZVal(data.NewStringValue(event))
-	ze.Name = "__pushed_event"
-	zp := data.NewZVal(payload)
-	zp.Name = "__pushed_payload"
-	marker.List = []*data.ZVal{ze, zp}
 	st.mu.Lock()
-	key := event + "_pushed"
-	st.listeners[key] = append(st.listeners[key], marker)
+	if st.pushed == nil {
+		st.pushed = map[string][]pushedEvent{}
+	}
+	st.pushed[event] = append(st.pushed[event], pushedEvent{event: event, payload: payload})
 	st.mu.Unlock()
 	return data.NewNullValue(), nil
 }
@@ -322,29 +328,11 @@ func dispFlush(ctx data.Context) (data.GetValue, data.Control) {
 	event := eventNameOf(kit.Arg(ctx, 0))
 	st := stateOf(cv)
 	st.mu.Lock()
-	key := event + "_pushed"
-	list := append([]data.Value(nil), st.listeners[key]...)
+	list := append([]pushedEvent(nil), st.pushed[event]...)
+	delete(st.pushed, event)
 	st.mu.Unlock()
-	for _, lis := range list {
-		if av, ok := kit.Unwrap(lis).(*data.ArrayValue); ok {
-			var ev string
-			var payload data.Value = data.NewArrayValue(nil)
-			for _, e := range kit.Entries(av) {
-				switch e.KeyStr {
-				case "__pushed_event":
-					ev = e.Value.AsString()
-				case "__pushed_payload":
-					payload = e.Value
-				}
-			}
-			if ev != "" {
-				if _, ctl := dispatchNamed(ctx, cv, ev, payload, false); ctl != nil {
-					return nil, ctl
-				}
-				continue
-			}
-		}
-		if _, ctl := invokeListener(ctx, cv, lis, event, data.NewArrayValue(nil), false); ctl != nil {
+	for _, item := range list {
+		if _, ctl := dispatchNamed(ctx, cv, item.event, item.payload, false); ctl != nil {
 			return nil, ctl
 		}
 	}
@@ -376,10 +364,10 @@ func dispSubscribe(ctx data.Context) (data.GetValue, data.Control) {
 					st := stateOf(cv)
 					st.mu.Lock()
 					for _, lisE := range kit.Entries(e.Value) {
-						st.listeners[event] = append(st.listeners[event], lisE.Value)
+						st.listeners[event] = append(st.listeners[event], makeListenerWrapper(cv, lisE.Value, false))
 					}
 					if _, isArr := e.Value.(*data.ArrayValue); !isArr {
-						st.listeners[event] = append(st.listeners[event], e.Value)
+						st.listeners[event] = append(st.listeners[event], makeListenerWrapper(cv, e.Value, false))
 					}
 					st.mu.Unlock()
 				}
@@ -404,7 +392,8 @@ func dispUntil(ctx data.Context) (data.GetValue, data.Control) {
 	if ctl != nil {
 		return nil, ctl
 	}
-	return dispatchNamed(ctx, cv, eventNameOf(kit.Arg(ctx, 0)), kit.Arg(ctx, 1), true)
+	name, payload := parseEventAndPayload(kit.Arg(ctx, 0), kit.Arg(ctx, 1))
+	return dispatchNamed(ctx, cv, name, payload, true)
 }
 
 func dispDispatch(ctx data.Context) (data.GetValue, data.Control) {
@@ -420,14 +409,28 @@ func dispDispatch(ctx data.Context) (data.GetValue, data.Control) {
 			halt, _ = b.AsBool()
 		}
 	}
-	name := eventNameOf(event)
-	// object event: payload becomes [event]
-	if _, isStr := kit.Unwrap(event).(*data.StringValue); !isStr && event != nil && !kit.IsNull(event) {
-		if payload == nil || kit.IsNull(payload) {
-			payload = data.NewArrayValue([]data.Value{event})
-		}
-	}
+	name, payload := parseEventAndPayload(event, payload)
 	return dispatchNamed(ctx, cv, name, payload, halt)
+}
+
+// parseEventAndPayload 对齐 Dispatcher::parseEventAndPayload。
+func parseEventAndPayload(event, payload data.Value) (string, data.Value) {
+	event = kit.Unwrap(event)
+	if cv, ok := event.(*data.ClassValue); ok && cv != nil && cv.Class != nil {
+		return cv.Class.GetName(), data.NewArrayValue([]data.Value{event})
+	}
+	return eventNameOf(event), ensureArrayPayload(payload)
+}
+
+func ensureArrayPayload(payload data.Value) data.Value {
+	payload = kit.Unwrap(payload)
+	if payload == nil || kit.IsNull(payload) {
+		return data.NewArrayValue(nil)
+	}
+	if _, ok := payload.(*data.ArrayValue); ok {
+		return payload
+	}
+	return data.NewArrayValue([]data.Value{payload})
 }
 
 func dispatchNamed(ctx data.Context, cv *data.ClassValue, name string, payload data.Value, halt bool) (data.GetValue, data.Control) {
@@ -445,20 +448,38 @@ func dispatchNamed(ctx data.Context, cv *data.ClassValue, name string, payload d
 			return data.NewArrayValue(nil), nil
 		}
 	}
-	listeners := collectListeners(st, name)
+	exact, wild := collectListenersSplit(st, name)
 	st.mu.Unlock()
 
 	responses := data.NewArrayValue(nil).(*data.ArrayValue)
-	for _, lis := range listeners {
-		ret, ctl := invokeListener(ctx, cv, lis, name, payload, halt)
+	run := func(lis data.Value) (data.GetValue, data.Control, bool) {
+		// 对齐 invokeListeners：始终 $listener($event, $payload)
+		ret, ctl := invokeWrappedListener(ctx, lis, name, payload)
 		if ctl != nil {
-			return nil, ctl
+			return nil, ctl, false
 		}
 		val := asValue(ret)
 		if halt && val != nil && !kit.IsNull(val) {
-			return val, nil
+			return val, nil, true
 		}
-		responses.List = append(responses.List, data.NewZVal(val))
+		if !halt {
+			responses.List = append(responses.List, data.NewZVal(val))
+		}
+		return nil, nil, false
+	}
+	for _, lis := range exact {
+		if ret, ctl, done := run(lis); ctl != nil {
+			return nil, ctl
+		} else if done {
+			return ret, nil
+		}
+	}
+	for _, lis := range wild {
+		if ret, ctl, done := run(lis); ctl != nil {
+			return nil, ctl
+		} else if done {
+			return ret, nil
+		}
 	}
 	if halt {
 		return data.NewNullValue(), nil
@@ -467,55 +488,42 @@ func dispatchNamed(ctx data.Context, cv *data.ClassValue, name string, payload d
 }
 
 func collectListeners(st *dispatcherState, name string) []data.Value {
-	out := append([]data.Value(nil), st.listeners[name]...)
+	exact, wild := collectListenersSplit(st, name)
+	return append(exact, wild...)
+}
+
+func collectListenersSplit(st *dispatcherState, name string) (exact, wild []data.Value) {
+	exact = append([]data.Value(nil), st.listeners[name]...)
 	if cached, ok := st.wildcardsCache[name]; ok {
-		return append(out, cached...)
+		return exact, append([]data.Value(nil), cached...)
 	}
-	var wild []data.Value
 	for pat, list := range st.wildcards {
 		if strIs(pat, name) {
 			wild = append(wild, list...)
 		}
 	}
 	st.wildcardsCache[name] = wild
-	return append(out, wild...)
+	return exact, wild
 }
 
-func invokeListener(ctx data.Context, cv *data.ClassValue, listener data.Value, event string, payload data.Value, halt bool) (data.GetValue, data.Control) {
+func invokeWrappedListener(ctx data.Context, listener data.Value, event string, payload data.Value) (data.GetValue, data.Control) {
 	listener = kit.Unwrap(listener)
-	args := payloadArgs(payload, event)
-
+	payload = ensureArrayPayload(payload)
+	args := []data.Value{data.NewStringValue(event), payload}
 	switch t := listener.(type) {
 	case *data.FuncValue, *data.BoundFuncValue:
 		return kit.Call(ctx, t, args...)
-	case *data.StringValue:
-		return invokeStringListener(ctx, cv, t.AsString(), args)
-	case *data.ArrayValue:
-		// [Class, method] or [object, method]
-		entries := kit.Entries(t)
-		if len(entries) >= 2 {
-			target := entries[0].Value
-			method := entries[1].Value.AsString()
-			if scv, ok := kit.Unwrap(target).(*data.ClassValue); ok {
-				if m, ok := scv.GetMethod(method); ok && m != nil {
-					nctx := scv.CreateContext(m.GetVariables())
-					data.BindDeclaredArgs(nctx, m, args)
-					return m.Call(nctx)
-				}
-			}
-			// class-string
-			if s, ok := kit.Unwrap(target).(*data.StringValue); ok {
-				return invokeClassMethod(ctx, cv, s.AsString(), method, args)
-			}
-		}
+	default:
+		// 兼容未包装的旧 listener（subscribe 等路径遗漏时）
+		return invokeRawListener(ctx, nil, listener, listenerArgs(event, payload, false))
 	}
-	return data.NewNullValue(), nil
 }
 
-func payloadArgs(payload data.Value, event string) []data.Value {
-	payload = kit.Unwrap(payload)
-	if payload == nil || kit.IsNull(payload) {
-		return []data.Value{data.NewStringValue(event)}
+// listenerArgs 对齐 makeListener：通配符传 ($event, $payload)，否则 ...$payload。
+func listenerArgs(event string, payload data.Value, wildcard bool) []data.Value {
+	payload = ensureArrayPayload(payload)
+	if wildcard {
+		return []data.Value{data.NewStringValue(event), payload}
 	}
 	if av, ok := payload.(*data.ArrayValue); ok {
 		return av.ToValueList()

@@ -55,8 +55,8 @@ func Sandbox(ctx data.Context, kernel *data.ClassValue) *data.ClassValue {
 		return kernel.CloneSandbox(ctx)
 	}
 	st := &kernelState{
-		app:                cloneIfClass(src.app, ctx),
-		router:             cloneIfClass(src.router, ctx),
+		app:                cloneApplication(src.app, ctx),
+		router:             cloneRouter(src.router, ctx),
 		bootstrappers:      append([]string(nil), src.bootstrappers...),
 		middleware:         append([]string(nil), src.middleware...),
 		middlewareGroups:   cloneGroupsMap(src.middlewareGroups),
@@ -78,6 +78,40 @@ func Sandbox(ctx data.Context, kernel *data.ClassValue) *data.ClassValue {
 	bindSandboxContainer(ctx, st.app, st.router)
 	cloneRequestServices(ctx, st.app)
 	return cv
+}
+
+// appSandboxDeepKeys：Container/Application 启动后只读槽共享，仅隔离会按请求改写的表。
+var appSandboxDeepKeys = []string{
+	"instances",
+	"resolved",
+	"scopedInstances",
+	"buildStack",
+	"with",
+	"checkedForAttributeBindings",
+	"checkedForSingletonOrScopedAttributes",
+}
+
+// routerSandboxDeepKeys：Router 上随请求变化的少量状态；RouteCollection 启动后只读，共享。
+var routerSandboxDeepKeys = []string{
+	"current",
+	"currentRequest",
+}
+
+func cloneApplication(v data.Value, ctx data.Context) data.Value {
+	cv, ok := v.(*data.ClassValue)
+	if !ok || cv == nil {
+		return v
+	}
+	return cv.CloneSandboxKeys(ctx, appSandboxDeepKeys)
+}
+
+func cloneRouter(v data.Value, ctx data.Context) data.Value {
+	cv, ok := v.(*data.ClassValue)
+	if !ok || cv == nil {
+		return v
+	}
+	// Router 体量小于 Application，但全量深拷贝仍贵；按键隔离即可。
+	return cv.CloneSandboxKeys(ctx, routerSandboxDeepKeys)
 }
 
 func bindSandboxContainer(ctx data.Context, app, router data.Value) {

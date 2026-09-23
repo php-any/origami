@@ -3,7 +3,6 @@ package routing
 import (
 	"fmt"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/php-any/origami/data"
@@ -13,8 +12,7 @@ import (
 
 const urlGeneratorClassName = "Illuminate\\Routing\\UrlGenerator"
 
-// UrlGeneratorClass 最小实现：to / asset / full / current / secure。
-// 默认关闭（ORIGAMI_STD_ROUTING=1 启用），避免挡住完整 Router。
+// UrlGeneratorClass 对齐 Illuminate\Routing\UrlGenerator 热路径 API。
 type UrlGeneratorClass struct {
 	node.Node
 	methods map[string]data.Method
@@ -33,7 +31,7 @@ func (c *UrlGeneratorClass) GetImplements() []string {
 }
 func (c *UrlGeneratorClass) GetProperty(name string) (data.Property, bool) {
 	switch name {
-	case "request", "routes", "assetRoot", "rootNamespace", "sessionResolver", "formatHostUsing", "formatPathUsing", "forcedRoot", "forceScheme", "cachedRoot", "cachedScheme":
+	case "request", "routes", "assetRoot", "rootNamespace", "sessionResolver", "formatHostUsing", "formatPathUsing", "forcedRoot", "forceScheme", "cachedRoot", "cachedScheme", "defaultParameters", "routeGenerator", "missingNamedRouteResolver", "keyResolver":
 		return node.NewProperty(nil, name, "protected", false, data.NewNullValue()), true
 	}
 	return nil, false
@@ -71,6 +69,7 @@ func (c *UrlGeneratorClass) register() {
 	c.methods["forcescheme"] = kit.InstanceMethod("forceScheme", []string{"scheme"}, urlForceScheme)
 	c.methods["forceroot"] = kit.InstanceMethod("forceRootUrl", []string{"root"}, urlForceRoot)
 	c.methods["setrequest"] = kit.InstanceMethod("setRequest", []string{"request"}, urlSetRequest)
+	c.registerRouteMethods()
 }
 
 func urlRecv(ctx data.Context) (*data.ClassValue, data.Control) {
@@ -90,7 +89,7 @@ func urlConstruct(ctx data.Context) (data.GetValue, data.Control) {
 	if ar := kit.Arg(ctx, 2); ar != nil {
 		_ = cv.SetProperty("assetRoot", ar)
 	}
-	return cv, nil
+	return data.NewNullValue(), nil
 }
 
 func requestRoot(cv *data.ClassValue) string {
@@ -126,16 +125,7 @@ func urlTo(ctx data.Context) (data.GetValue, data.Control) {
 	if ctl != nil {
 		return nil, ctl
 	}
-	path := kit.Arg(ctx, 0).AsString()
-	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
-		return data.NewStringValue(path), nil
-	}
-	root := requestRoot(cv)
-	path = strings.TrimLeft(path, "/")
-	if root == "" {
-		return data.NewStringValue("/" + path), nil
-	}
-	return data.NewStringValue(root + "/" + path), nil
+	return urlToPath(cv, kit.Arg(ctx, 0).AsString(), kit.Arg(ctx, 1), kit.Arg(ctx, 2))
 }
 
 func urlAsset(ctx data.Context) (data.GetValue, data.Control) {
@@ -203,7 +193,13 @@ func urlForceScheme(ctx data.Context) (data.GetValue, data.Control) {
 	if ctl != nil {
 		return nil, ctl
 	}
-	_ = cv.SetProperty("forceScheme", kit.Arg(ctx, 0))
+	scheme := kit.Arg(ctx, 0).AsString()
+	if scheme != "" {
+		_ = cv.SetProperty("forceScheme", data.NewStringValue(scheme+"://"))
+	} else {
+		_ = cv.SetProperty("forceScheme", data.NewNullValue())
+	}
+	_ = cv.SetProperty("cachedScheme", data.NewNullValue())
 	return data.NewNullValue(), nil
 }
 
@@ -223,9 +219,4 @@ func urlSetRequest(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	_ = cv.SetProperty("request", kit.Arg(ctx, 0))
 	return data.NewNullValue(), nil
-}
-
-func routingEnabled() bool {
-	v := os.Getenv("ORIGAMI_STD_ROUTING")
-	return v == "1" || v == "true" || v == "yes"
 }

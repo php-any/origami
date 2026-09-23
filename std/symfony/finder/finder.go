@@ -504,6 +504,11 @@ func newSplFileInfo(ctx data.Context, pathname, relPath, relPathname string) *da
 	return cv
 }
 
+// NewSplFileInfoInstance 供 illuminate/filesystem 等构造 Finder SplFileInfo。
+func NewSplFileInfoInstance(ctx data.Context, pathname, relPath, relPathname string) *data.ClassValue {
+	return newSplFileInfo(ctx, pathname, relPath, relPathname)
+}
+
 func splProp(cv *data.ClassValue, name string) string {
 	v, _ := cv.GetProperty(name)
 	if v == nil {

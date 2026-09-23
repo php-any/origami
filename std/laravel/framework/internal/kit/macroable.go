@@ -74,6 +74,11 @@ func macroCall(ctx data.Context, className string, static bool) (data.GetValue, 
 	return Call(ctx, macro, args...)
 }
 
+// CallMacro 公开宏调用（供 Stringable 等先代理再回退宏）。
+func CallMacro(ctx data.Context, className string, static bool) (data.GetValue, data.Control) {
+	return macroCall(ctx, className, static)
+}
+
 func (s *MacroStore) Set(class, name string, v data.Value) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
