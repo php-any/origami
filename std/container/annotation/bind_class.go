@@ -38,17 +38,21 @@ type BindConstructMethod struct{}
 func (m *BindConstructMethod) GetName() string            { return "__construct" }
 func (m *BindConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *BindConstructMethod) GetIsStatic() bool          { return false }
-func (m *BindConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "abstract", 0, data.NewNullValue(), data.NewBaseType("string")),
-		node.NewAnnotationTargetParameter(nil, 1),
-	}
+var bindConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "abstract", 0, data.NewNullValue(), data.NewBaseType("string")),
+	node.NewAnnotationTargetParameter(nil, 1),
 }
+
+func (m *BindConstructMethod) GetParams() []data.GetValue {
+	return bindConstructMethodGetParams
+}
+var bindConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "abstract", 0, nil),
+	node.NewAnnotationTargetVariable(nil, 1),
+}
+
 func (m *BindConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "abstract", 0, nil),
-		node.NewAnnotationTargetVariable(nil, 1),
-	}
+	return bindConstructMethodGetVariables
 }
 func (m *BindConstructMethod) GetReturnType() data.Types { return nil }
 func (m *BindConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {

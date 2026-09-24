@@ -17,16 +17,20 @@ func (m *DirectoryIteratorConstructMethod) GetModifier() data.Modifier { return 
 
 func (m *DirectoryIteratorConstructMethod) GetIsStatic() bool { return false }
 
+var directoryIteratorConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "directory", 0, nil, data.String{}),
+}
+
 func (m *DirectoryIteratorConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "directory", 0, nil, data.String{}),
-	}
+	return directoryIteratorConstructMethodGetParams
+}
+
+var directoryIteratorConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "directory", 0, data.String{}),
 }
 
 func (m *DirectoryIteratorConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "directory", 0, data.String{}),
-	}
+	return directoryIteratorConstructMethodGetVariables
 }
 
 func (m *DirectoryIteratorConstructMethod) GetReturnType() data.Types { return nil }

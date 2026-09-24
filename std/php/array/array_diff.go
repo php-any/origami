@@ -76,14 +76,18 @@ func (fn *ArrayDiffFunction) GetName() string {
 	return "array_diff"
 }
 
+var arrayDiffFunctionGetParams = []data.GetValue{
+	node.NewParameters(nil, "arrays", 0, nil, nil),
+}
+
 func (fn *ArrayDiffFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameters(nil, "arrays", 0, nil, nil),
-	}
+	return arrayDiffFunctionGetParams
+}
+
+var arrayDiffFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "arrays", 0, data.NewBaseType("array")),
 }
 
 func (fn *ArrayDiffFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "arrays", 0, data.NewBaseType("array")),
-	}
+	return arrayDiffFunctionGetVariables
 }

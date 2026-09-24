@@ -17,6 +17,10 @@ func (h *RequestParseFormMethod) Call(ctx data.Context) (data.GetValue, data.Con
 func (h *RequestParseFormMethod) GetName() string               { return "parseForm" }
 func (h *RequestParseFormMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
 func (h *RequestParseFormMethod) GetIsStatic() bool             { return false }
-func (h *RequestParseFormMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
-func (h *RequestParseFormMethod) GetVariables() []data.Variable { return []data.Variable{} }
+var requestParseFormMethodGetParams = []data.GetValue{}
+
+func (h *RequestParseFormMethod) GetParams() []data.GetValue    { return requestParseFormMethodGetParams }
+var requestParseFormMethodGetVariables = []data.Variable{}
+
+func (h *RequestParseFormMethod) GetVariables() []data.Variable { return requestParseFormMethodGetVariables }
 func (h *RequestParseFormMethod) GetReturnType() data.Types     { return data.NewBaseType("mixed") }

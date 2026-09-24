@@ -29,14 +29,18 @@ func (f *SplObjectHashFunction) GetName() string {
 	return "spl_object_hash"
 }
 
+var splObjectHashFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
+}
+
 func (f *SplObjectHashFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
-	}
+	return splObjectHashFunctionGetParams
+}
+
+var splObjectHashFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
 }
 
 func (f *SplObjectHashFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
-	}
+	return splObjectHashFunctionGetVariables
 }

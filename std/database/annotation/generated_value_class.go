@@ -90,16 +90,20 @@ func (m *GeneratedValueConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var generatedValueConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "strategy", 0, data.NewStringValue("AUTO"), data.NewBaseType("string")),
+}
+
 func (m *GeneratedValueConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "strategy", 0, data.NewStringValue("AUTO"), data.NewBaseType("string")),
-	}
+	return generatedValueConstructMethodGetParams
+}
+
+var generatedValueConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "strategy", 0, nil),
 }
 
 func (m *GeneratedValueConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "strategy", 0, nil),
-	}
+	return generatedValueConstructMethodGetVariables
 }
 
 func (m *GeneratedValueConstructMethod) GetReturnType() data.Types {

@@ -22,16 +22,20 @@ func (f *SapiWindowsVt100SupportFunction) GetName() string {
 	return "sapi_windows_vt100_support"
 }
 
+var sapiWindowsVt100SupportFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "stream", 0, nil, nil),
+	node.NewParameter(nil, "enable", 1, nil, data.Bool{}),
+}
+
 func (f *SapiWindowsVt100SupportFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "stream", 0, nil, nil),
-		node.NewParameter(nil, "enable", 1, nil, data.Bool{}),
-	}
+	return sapiWindowsVt100SupportFunctionGetParams
+}
+
+var sapiWindowsVt100SupportFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "stream", 0, data.NewBaseType("resource")),
+	node.NewVariable(nil, "enable", 1, data.Bool{}),
 }
 
 func (f *SapiWindowsVt100SupportFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "stream", 0, data.NewBaseType("resource")),
-		node.NewVariable(nil, "enable", 1, data.Bool{}),
-	}
+	return sapiWindowsVt100SupportFunctionGetVariables
 }

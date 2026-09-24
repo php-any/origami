@@ -251,14 +251,18 @@ func (f *SerializeFunction) GetName() string {
 	return "serialize"
 }
 
+var serializeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+}
+
 func (f *SerializeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return serializeFunctionGetParams
+}
+
+var serializeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, nil),
 }
 
 func (f *SerializeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, nil),
-	}
+	return serializeFunctionGetVariables
 }

@@ -22,12 +22,16 @@ func (h *RowsErrMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *RowsErrMethod) GetName() string            { return "err" }
 func (h *RowsErrMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RowsErrMethod) GetIsStatic() bool          { return true }
+var rowsErrMethodGetParams = []data.GetValue{}
+
 func (h *RowsErrMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return rowsErrMethodGetParams
 }
 
+var rowsErrMethodGetVariables = []data.Variable{}
+
 func (h *RowsErrMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return rowsErrMethodGetVariables
 }
 
 func (h *RowsErrMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

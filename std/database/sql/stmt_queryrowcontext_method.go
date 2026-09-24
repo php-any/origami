@@ -52,18 +52,22 @@ func (h *StmtQueryRowContextMethod) Call(ctx data.Context) (data.GetValue, data.
 func (h *StmtQueryRowContextMethod) GetName() string            { return "queryRowContext" }
 func (h *StmtQueryRowContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *StmtQueryRowContextMethod) GetIsStatic() bool          { return true }
+var stmtQueryRowContextMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "ctx", 0, nil, nil),
+	node.NewParameters(nil, "args", 1, nil, nil),
+}
+
 func (h *StmtQueryRowContextMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "ctx", 0, nil, nil),
-		node.NewParameters(nil, "args", 1, nil, nil),
-	}
+	return stmtQueryRowContextMethodGetParams
+}
+
+var stmtQueryRowContextMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "ctx", 0, nil),
+	node.NewVariable(nil, "args", 1, nil),
 }
 
 func (h *StmtQueryRowContextMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "ctx", 0, nil),
-		node.NewVariable(nil, "args", 1, nil),
-	}
+	return stmtQueryRowContextMethodGetVariables
 }
 
 func (h *StmtQueryRowContextMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

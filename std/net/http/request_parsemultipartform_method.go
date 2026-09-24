@@ -25,15 +25,19 @@ func (h *RequestParseMultipartFormMethod) Call(ctx data.Context) (data.GetValue,
 func (h *RequestParseMultipartFormMethod) GetName() string            { return "parseMultipartForm" }
 func (h *RequestParseMultipartFormMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestParseMultipartFormMethod) GetIsStatic() bool          { return false }
-func (h *RequestParseMultipartFormMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-	}
+var requestParseMultipartFormMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
 }
+
+func (h *RequestParseMultipartFormMethod) GetParams() []data.GetValue {
+	return requestParseMultipartFormMethodGetParams
+}
+var requestParseMultipartFormMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
+}
+
 func (h *RequestParseMultipartFormMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-	}
+	return requestParseMultipartFormMethodGetVariables
 }
 func (h *RequestParseMultipartFormMethod) GetReturnType() data.Types {
 	return data.NewBaseType("mixed")

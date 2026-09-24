@@ -44,16 +44,20 @@ func (f *CliSetProcessTitleFunction) GetName() string {
 	return "cli_set_process_title"
 }
 
+var cliSetProcessTitleFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "title", 0, nil, nil),
+}
+
 func (f *CliSetProcessTitleFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "title", 0, nil, nil),
-	}
+	return cliSetProcessTitleFunctionGetParams
+}
+
+var cliSetProcessTitleFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "title", 0, data.String{}),
 }
 
 func (f *CliSetProcessTitleFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "title", 0, data.String{}),
-	}
+	return cliSetProcessTitleFunctionGetVariables
 }
 
 // setProcessTitle 设置进程标题

@@ -27,16 +27,20 @@ func (h *ServerServeHTTPMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 func (h *ServerServeHTTPMethod) GetName() string            { return "serveHTTP" }
 func (h *ServerServeHTTPMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ServerServeHTTPMethod) GetIsStatic() bool          { return false }
-func (h *ServerServeHTTPMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-		node.NewParameter(nil, "param1", 1, nil, nil),
-	}
+var serverServeHTTPMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
+	node.NewParameter(nil, "param1", 1, nil, nil),
 }
+
+func (h *ServerServeHTTPMethod) GetParams() []data.GetValue {
+	return serverServeHTTPMethodGetParams
+}
+var serverServeHTTPMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
+	node.NewVariable(nil, "param1", 1, nil),
+}
+
 func (h *ServerServeHTTPMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-		node.NewVariable(nil, "param1", 1, nil),
-	}
+	return serverServeHTTPMethodGetVariables
 }
 func (h *ServerServeHTTPMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

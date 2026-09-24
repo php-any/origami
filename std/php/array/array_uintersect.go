@@ -62,10 +62,14 @@ func (f *ArrayUintersectFunction) Call(ctx data.Context) (data.GetValue, data.Co
 
 func (f *ArrayUintersectFunction) GetName() string { return "array_uintersect" }
 
+var arrayUintersectFunctionGetParams = []data.GetValue{node.NewParameters(nil, "arrays", 0, nil, nil)}
+
 func (f *ArrayUintersectFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameters(nil, "arrays", 0, nil, nil)}
+	return arrayUintersectFunctionGetParams
 }
 
+var arrayUintersectFunctionGetVariables = []data.Variable{node.NewVariable(nil, "arrays", 0, data.NewBaseType("array"))}
+
 func (f *ArrayUintersectFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "arrays", 0, data.NewBaseType("array"))}
+	return arrayUintersectFunctionGetVariables
 }

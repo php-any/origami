@@ -52,18 +52,22 @@ func (h *ConnBeginTxMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 func (h *ConnBeginTxMethod) GetName() string            { return "beginTx" }
 func (h *ConnBeginTxMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ConnBeginTxMethod) GetIsStatic() bool          { return true }
+var connBeginTxMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "ctx", 0, nil, nil),
+	node.NewParameter(nil, "opts", 1, nil, nil),
+}
+
 func (h *ConnBeginTxMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "ctx", 0, nil, nil),
-		node.NewParameter(nil, "opts", 1, nil, nil),
-	}
+	return connBeginTxMethodGetParams
+}
+
+var connBeginTxMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "ctx", 0, nil),
+	node.NewVariable(nil, "opts", 1, nil),
 }
 
 func (h *ConnBeginTxMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "ctx", 0, nil),
-		node.NewVariable(nil, "opts", 1, nil),
-	}
+	return connBeginTxMethodGetVariables
 }
 
 func (h *ConnBeginTxMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

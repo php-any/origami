@@ -68,17 +68,21 @@ func (d *DbToEntityMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 func (d *DbToEntityMethod) GetName() string            { return "toEntity" }
 func (d *DbToEntityMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (d *DbToEntityMethod) GetIsStatic() bool          { return true }
-func (d *DbToEntityMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("className", 0),
-		data.NewParameter("rows", 1),
-	}
+var dbToEntityMethodGetParams = []data.GetValue{
+	data.NewParameter("className", 0),
+	data.NewParameter("rows", 1),
 }
+
+func (d *DbToEntityMethod) GetParams() []data.GetValue {
+	return dbToEntityMethodGetParams
+}
+var dbToEntityMethodGetVariables = []data.Variable{
+	data.NewVariable("className", 0, data.NewBaseType("string")),
+	data.NewVariable("rows", 1, data.NewBaseType("array")),
+}
+
 func (d *DbToEntityMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("className", 0, data.NewBaseType("string")),
-		data.NewVariable("rows", 1, data.NewBaseType("array")),
-	}
+	return dbToEntityMethodGetVariables
 }
 func (d *DbToEntityMethod) GetReturnType() data.Types {
 	return data.NewBaseType("array")

@@ -82,24 +82,28 @@ func (f *LevenshteinFunction) GetName() string {
 	return "levenshtein"
 }
 
+var levenshteinFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string1", 0, nil, nil),
+	node.NewParameter(nil, "string2", 1, nil, nil),
+	node.NewParameter(nil, "insertion_cost", 2, node.NewIntLiteral(nil, "1"), data.NewBaseType("int")),
+	node.NewParameter(nil, "replacement_cost", 3, node.NewIntLiteral(nil, "1"), data.NewBaseType("int")),
+	node.NewParameter(nil, "deletion_cost", 4, node.NewIntLiteral(nil, "1"), data.NewBaseType("int")),
+}
+
 func (f *LevenshteinFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string1", 0, nil, nil),
-		node.NewParameter(nil, "string2", 1, nil, nil),
-		node.NewParameter(nil, "insertion_cost", 2, node.NewIntLiteral(nil, "1"), data.NewBaseType("int")),
-		node.NewParameter(nil, "replacement_cost", 3, node.NewIntLiteral(nil, "1"), data.NewBaseType("int")),
-		node.NewParameter(nil, "deletion_cost", 4, node.NewIntLiteral(nil, "1"), data.NewBaseType("int")),
-	}
+	return levenshteinFunctionGetParams
+}
+
+var levenshteinFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string1", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "string2", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "insertion_cost", 2, data.NewBaseType("int")),
+	node.NewVariable(nil, "replacement_cost", 3, data.NewBaseType("int")),
+	node.NewVariable(nil, "deletion_cost", 4, data.NewBaseType("int")),
 }
 
 func (f *LevenshteinFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string1", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "string2", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "insertion_cost", 2, data.NewBaseType("int")),
-		node.NewVariable(nil, "replacement_cost", 3, data.NewBaseType("int")),
-		node.NewVariable(nil, "deletion_cost", 4, data.NewBaseType("int")),
-	}
+	return levenshteinFunctionGetVariables
 }
 
 // levenshteinDistance 计算带权 Levenshtein 距离

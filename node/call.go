@@ -236,31 +236,45 @@ type CallLater struct {
 	*CallExpression
 	namespace string
 	resolveMu sync.Mutex
+	resolved  resolvedFlag // 命中时跳过 resolveMu，见 resolvedFlag
 }
 
 func (pe *CallLater) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	pe.resolveMu.Lock()
-	if pe.Fun == nil {
-		fn, ok := ctx.GetVM().GetFunc(pe.FunName)
-		if !ok {
-			fn, ok = ctx.GetVM().GetFunc(pe.namespace + "\\" + pe.FunName)
-			if !ok {
-				namespace := ""
-				if pe.namespace != "" {
-					namespace = pe.namespace + "\\"
-				}
+	if !pe.resolved.Done() {
+		if acl := pe.resolveFun(ctx); acl != nil {
+			return nil, acl
+		}
+	}
+	return pe.CallExpression.GetValue(ctx)
+}
 
-				fn, ok = ctx.GetVM().GetFunc(namespace + pe.FunName)
-				if !ok {
-					pe.resolveMu.Unlock()
-					return nil, data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("无法调用函数(%s), 未找到函数", pe.FunName)))
-				}
+// resolveFun 把 FunName 解析成具体函数并缓存；同一调用点一生只解析一次。
+func (pe *CallLater) resolveFun(ctx data.Context) data.Control {
+	pe.resolveMu.Lock()
+	defer pe.resolveMu.Unlock()
+	if pe.Fun != nil {
+		pe.resolved.MarkDone()
+		return nil
+	}
+
+	fn, ok := ctx.GetVM().GetFunc(pe.FunName)
+	if !ok {
+		fn, ok = ctx.GetVM().GetFunc(pe.namespace + "\\" + pe.FunName)
+		if !ok {
+			namespace := ""
+			if pe.namespace != "" {
+				namespace = pe.namespace + "\\"
+			}
+
+			fn, ok = ctx.GetVM().GetFunc(namespace + pe.FunName)
+			if !ok {
+				return data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("无法调用函数(%s), 未找到函数", pe.FunName)))
 			}
 		}
-
-		pe.FunName = fn.GetName()
-		pe.Fun = fn
 	}
-	pe.resolveMu.Unlock()
-	return pe.CallExpression.GetValue(ctx)
+
+	pe.FunName = fn.GetName()
+	pe.Fun = fn
+	pe.resolved.MarkDone()
+	return nil
 }

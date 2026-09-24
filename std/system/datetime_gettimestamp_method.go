@@ -24,12 +24,16 @@ func (h *DateTimeGetTimestampMethod) GetIsStatic() bool {
 	return false
 }
 
+var dateTimeGetTimestampMethodGetParams = []data.GetValue{}
+
 func (h *DateTimeGetTimestampMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return dateTimeGetTimestampMethodGetParams
 }
 
+var dateTimeGetTimestampMethodGetVariables = []data.Variable{}
+
 func (h *DateTimeGetTimestampMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return dateTimeGetTimestampMethodGetVariables
 }
 
 func (h *DateTimeGetTimestampMethod) GetReturnType() data.Types {

@@ -21,6 +21,10 @@ func (h *RequestUrlMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 func (h *RequestUrlMethod) GetName() string               { return "url" }
 func (h *RequestUrlMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
 func (h *RequestUrlMethod) GetIsStatic() bool             { return false }
-func (h *RequestUrlMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
-func (h *RequestUrlMethod) GetVariables() []data.Variable { return []data.Variable{} }
+var requestUrlMethodGetParams = []data.GetValue{}
+
+func (h *RequestUrlMethod) GetParams() []data.GetValue    { return requestUrlMethodGetParams }
+var requestUrlMethodGetVariables = []data.Variable{}
+
+func (h *RequestUrlMethod) GetVariables() []data.Variable { return requestUrlMethodGetVariables }
 func (h *RequestUrlMethod) GetReturnType() data.Types     { return data.NewBaseType("string") }

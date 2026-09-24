@@ -20,20 +20,24 @@ func (m *ReflectionAttributeConstructMethod) GetModifier() data.Modifier { retur
 // GetIsStatic 返回是否为静态方法，构造函数不是静态方法
 func (m *ReflectionAttributeConstructMethod) GetIsStatic() bool { return false }
 
+var reflectionAttributeConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "name", 0, nil, data.String{}),
+}
+
 // GetParams 返回参数列表
 // 参数:
 //   - name: 属性名称（字符串），类型为 String
 func (m *ReflectionAttributeConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "name", 0, nil, data.String{}),
-	}
+	return reflectionAttributeConstructMethodGetParams
+}
+
+var reflectionAttributeConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "name", 0, data.String{}),
 }
 
 // GetVariables 返回变量列表
 func (m *ReflectionAttributeConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "name", 0, data.String{}),
-	}
+	return reflectionAttributeConstructMethodGetVariables
 }
 
 // GetReturnType 返回返回类型，构造函数无返回值

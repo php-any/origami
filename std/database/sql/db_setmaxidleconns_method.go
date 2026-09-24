@@ -32,16 +32,20 @@ func (h *DBSetMaxIdleConnsMethod) Call(ctx data.Context) (data.GetValue, data.Co
 func (h *DBSetMaxIdleConnsMethod) GetName() string            { return "setMaxIdleConns" }
 func (h *DBSetMaxIdleConnsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBSetMaxIdleConnsMethod) GetIsStatic() bool          { return true }
+var dBSetMaxIdleConnsMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "n", 0, nil, nil),
+}
+
 func (h *DBSetMaxIdleConnsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "n", 0, nil, nil),
-	}
+	return dBSetMaxIdleConnsMethodGetParams
+}
+
+var dBSetMaxIdleConnsMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "n", 0, nil),
 }
 
 func (h *DBSetMaxIdleConnsMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "n", 0, nil),
-	}
+	return dBSetMaxIdleConnsMethodGetVariables
 }
 
 func (h *DBSetMaxIdleConnsMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

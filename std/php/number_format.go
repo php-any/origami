@@ -93,22 +93,26 @@ func (f *NumberFormatFunction) GetName() string {
 	return "number_format"
 }
 
+var numberFormatFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "number", 0, nil, nil),
+	node.NewParameter(nil, "decimals", 1, nil, nil),
+	//node.NewParameter(nil, "decimal_separator", 2, nil, nil),
+	//node.NewParameter(nil, "thousands_separator", 3, nil, nil),
+}
+
 func (f *NumberFormatFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "number", 0, nil, nil),
-		node.NewParameter(nil, "decimals", 1, nil, nil),
-		//node.NewParameter(nil, "decimal_separator", 2, nil, nil),
-		//node.NewParameter(nil, "thousands_separator", 3, nil, nil),
-	}
+	return numberFormatFunctionGetParams
+}
+
+var numberFormatFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "number", 0, nil),
+	node.NewVariable(nil, "decimals", 1, nil),
+	//node.NewVariable(nil, "decimal_separator", 2, nil),
+	//node.NewVariable(nil, "thousands_separator", 3, nil),
 }
 
 func (f *NumberFormatFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "number", 0, nil),
-		node.NewVariable(nil, "decimals", 1, nil),
-		//node.NewVariable(nil, "decimal_separator", 2, nil),
-		//node.NewVariable(nil, "thousands_separator", 3, nil),
-	}
+	return numberFormatFunctionGetVariables
 }
 
 // formatNumber 格式化数字

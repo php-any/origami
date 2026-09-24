@@ -40,14 +40,18 @@ func (f *UcfirstFunction) GetName() string {
 	return "ucfirst"
 }
 
+var ucfirstFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+}
+
 func (f *UcfirstFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-	}
+	return ucfirstFunctionGetParams
+}
+
+var ucfirstFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 }
 
 func (f *UcfirstFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-	}
+	return ucfirstFunctionGetVariables
 }

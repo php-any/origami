@@ -51,14 +51,18 @@ func (f *InterfaceExistsFunction) GetName() string {
 	return "interface_exists"
 }
 
+var interfaceExistsFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "interface", 0, nil, data.String{}),
+}
+
 func (f *InterfaceExistsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "interface", 0, nil, data.String{}),
-	}
+	return interfaceExistsFunctionGetParams
+}
+
+var interfaceExistsFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "interface", 0, data.String{}),
 }
 
 func (f *InterfaceExistsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "interface", 0, data.String{}),
-	}
+	return interfaceExistsFunctionGetVariables
 }

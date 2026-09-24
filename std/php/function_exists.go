@@ -26,14 +26,18 @@ func (f *FunctionExistsFunction) GetName() string {
 	return "function_exists"
 }
 
+var functionExistsFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "function_name", 0, nil, data.String{}),
+}
+
 func (f *FunctionExistsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "function_name", 0, nil, data.String{}),
-	}
+	return functionExistsFunctionGetParams
+}
+
+var functionExistsFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "function_name", 0, data.String{}),
 }
 
 func (f *FunctionExistsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "function_name", 0, data.String{}),
-	}
+	return functionExistsFunctionGetVariables
 }

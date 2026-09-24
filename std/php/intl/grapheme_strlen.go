@@ -36,14 +36,18 @@ func (f *GraphemeStrlenFunction) GetName() string {
 	return "grapheme_strlen"
 }
 
+var graphemeStrlenFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+}
+
 func (f *GraphemeStrlenFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-	}
+	return graphemeStrlenFunctionGetParams
+}
+
+var graphemeStrlenFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 }
 
 func (f *GraphemeStrlenFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-	}
+	return graphemeStrlenFunctionGetVariables
 }

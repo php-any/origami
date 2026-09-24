@@ -47,14 +47,18 @@ func (f *RmdirFunction) GetName() string {
 	return "rmdir"
 }
 
+var rmdirFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "directory", 0, nil, nil),
+}
+
 func (f *RmdirFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "directory", 0, nil, nil),
-	}
+	return rmdirFunctionGetParams
+}
+
+var rmdirFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "directory", 0, data.NewBaseType("string")),
 }
 
 func (f *RmdirFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "directory", 0, data.NewBaseType("string")),
-	}
+	return rmdirFunctionGetVariables
 }

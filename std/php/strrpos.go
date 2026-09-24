@@ -101,20 +101,24 @@ func (f *StrrposFunction) GetName() string {
 	return "strrpos"
 }
 
+var strrposFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "haystack", 0, nil, nil),
+	node.NewParameter(nil, "needle", 1, nil, nil),
+	node.NewParameter(nil, "offset", 2, node.NewIntLiteral(nil, "0"), nil),
+}
+
 func (f *StrrposFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "haystack", 0, nil, nil),
-		node.NewParameter(nil, "needle", 1, nil, nil),
-		node.NewParameter(nil, "offset", 2, node.NewIntLiteral(nil, "0"), nil),
-	}
+	return strrposFunctionGetParams
+}
+
+var strrposFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "offset", 2, data.NewBaseType("int")),
 }
 
 func (f *StrrposFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "offset", 2, data.NewBaseType("int")),
-	}
+	return strrposFunctionGetVariables
 }
 
 // StrriposFunction 实现 strripos 函数 (case-insensitive)
@@ -177,18 +181,22 @@ func (f *StrriposFunction) GetName() string {
 	return "strripos"
 }
 
+var strriposFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "haystack", 0, nil, nil),
+	node.NewParameter(nil, "needle", 1, nil, nil),
+	node.NewParameter(nil, "offset", 2, node.NewIntLiteral(nil, "0"), nil),
+}
+
 func (f *StrriposFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "haystack", 0, nil, nil),
-		node.NewParameter(nil, "needle", 1, nil, nil),
-		node.NewParameter(nil, "offset", 2, node.NewIntLiteral(nil, "0"), nil),
-	}
+	return strriposFunctionGetParams
+}
+
+var strriposFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "offset", 2, data.NewBaseType("int")),
 }
 
 func (f *StrriposFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "offset", 2, data.NewBaseType("int")),
-	}
+	return strriposFunctionGetVariables
 }

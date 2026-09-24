@@ -205,18 +205,22 @@ func rangeFloatValues(start, end, step float64) []data.Value {
 
 func (f *RangeFunction) GetName() string { return "range" }
 
+var rangeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "start", 0, nil, nil),
+	node.NewParameter(nil, "end", 1, nil, nil),
+	node.NewParameter(nil, "step", 2, node.NewIntLiteral(nil, "1"), nil),
+}
+
 func (f *RangeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "start", 0, nil, nil),
-		node.NewParameter(nil, "end", 1, nil, nil),
-		node.NewParameter(nil, "step", 2, node.NewIntLiteral(nil, "1"), nil),
-	}
+	return rangeFunctionGetParams
+}
+
+var rangeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "start", 0, data.NewBaseType("mixed")),
+	node.NewVariable(nil, "end", 1, data.NewBaseType("mixed")),
+	node.NewVariable(nil, "step", 2, data.NewBaseType("mixed")),
 }
 
 func (f *RangeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "start", 0, data.NewBaseType("mixed")),
-		node.NewVariable(nil, "end", 1, data.NewBaseType("mixed")),
-		node.NewVariable(nil, "step", 2, data.NewBaseType("mixed")),
-	}
+	return rangeFunctionGetVariables
 }

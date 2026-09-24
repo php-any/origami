@@ -103,18 +103,22 @@ func (f *FwriteFunction) GetName() string {
 	return "fwrite"
 }
 
+var fwriteFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "stream", 0, nil, nil),
+	node.NewParameter(nil, "data", 1, nil, nil),
+	node.NewParameter(nil, "length", 2, nil, nil),
+}
+
 func (f *FwriteFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "stream", 0, nil, nil),
-		node.NewParameter(nil, "data", 1, nil, nil),
-		node.NewParameter(nil, "length", 2, nil, nil),
-	}
+	return fwriteFunctionGetParams
+}
+
+var fwriteFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "stream", 0, data.NewBaseType("resource")),
+	node.NewVariable(nil, "data", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "length", 2, data.NewBaseType("int")),
 }
 
 func (f *FwriteFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "stream", 0, data.NewBaseType("resource")),
-		node.NewVariable(nil, "data", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "length", 2, data.NewBaseType("int")),
-	}
+	return fwriteFunctionGetVariables
 }

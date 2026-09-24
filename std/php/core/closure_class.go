@@ -129,20 +129,24 @@ func (m *ClosureBindMethod) GetModifier() data.Modifier { return data.ModifierPu
 
 func (m *ClosureBindMethod) GetIsStatic() bool { return true }
 
+var closureBindMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "closure", 0, nil, nil),
+	node.NewParameter(nil, "newThis", 1, nil, nil),  // 占位，当前未使用
+	node.NewParameter(nil, "newScope", 2, nil, nil), // 占位，当前未使用
+}
+
 func (m *ClosureBindMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "closure", 0, nil, nil),
-		node.NewParameter(nil, "newThis", 1, nil, nil),  // 占位，当前未使用
-		node.NewParameter(nil, "newScope", 2, nil, nil), // 占位，当前未使用
-	}
+	return closureBindMethodGetParams
+}
+
+var closureBindMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "closure", 0, data.Mixed{}),
+	node.NewVariable(nil, "newThis", 1, data.Mixed{}),
+	node.NewVariable(nil, "newScope", 2, data.Mixed{}),
 }
 
 func (m *ClosureBindMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "closure", 0, data.Mixed{}),
-		node.NewVariable(nil, "newThis", 1, data.Mixed{}),
-		node.NewVariable(nil, "newScope", 2, data.Mixed{}),
-	}
+	return closureBindMethodGetVariables
 }
 
 func (m *ClosureBindMethod) GetReturnType() data.Types { return nil }
@@ -214,12 +218,16 @@ func (m *ClosureFromCallableMethod) GetModifier() data.Modifier { return data.Mo
 
 func (m *ClosureFromCallableMethod) GetIsStatic() bool { return true }
 
+var closureFromCallableMethodGetParams = []data.GetValue{node.NewParameter(nil, "callable", 0, nil, nil)}
+
 func (m *ClosureFromCallableMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "callable", 0, nil, nil)}
+	return closureFromCallableMethodGetParams
 }
 
+var closureFromCallableMethodGetVariables = []data.Variable{node.NewVariable(nil, "callable", 0, data.Mixed{})}
+
 func (m *ClosureFromCallableMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "callable", 0, data.Mixed{})}
+	return closureFromCallableMethodGetVariables
 }
 
 func (m *ClosureFromCallableMethod) GetReturnType() data.Types { return nil }

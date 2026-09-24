@@ -43,16 +43,20 @@ func (d *DbOffsetMethod) GetIsStatic() bool {
 	return false
 }
 
+var dbOffsetMethodGetParams = []data.GetValue{
+	data.NewParameter("offset", 0),
+}
+
 func (d *DbOffsetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("offset", 0),
-	}
+	return dbOffsetMethodGetParams
+}
+
+var dbOffsetMethodGetVariables = []data.Variable{
+	data.NewVariable("offset", 0, data.NewBaseType("int")),
 }
 
 func (d *DbOffsetMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("offset", 0, data.NewBaseType("int")),
-	}
+	return dbOffsetMethodGetVariables
 }
 
 func (d *DbOffsetMethod) GetReturnType() data.Types {

@@ -42,16 +42,20 @@ func (f *SplObjectIdFunction) GetName() string {
 	return "spl_object_id"
 }
 
+var splObjectIdFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
+}
+
 func (f *SplObjectIdFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
-	}
+	return splObjectIdFunctionGetParams
+}
+
+var splObjectIdFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
 }
 
 func (f *SplObjectIdFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
-	}
+	return splObjectIdFunctionGetVariables
 }
 
 func (f *SplObjectIdFunction) GetReturnType() data.Types {

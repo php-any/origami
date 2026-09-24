@@ -23,14 +23,18 @@ func (m *ReflectionClassNewInstanceWithoutConstructorMethod) GetModifier() data.
 // GetIsStatic 返回是否为静态方法，非静态方法
 func (m *ReflectionClassNewInstanceWithoutConstructorMethod) GetIsStatic() bool { return false }
 
+var reflectionClassNewInstanceWithoutConstructorMethodGetParams = []data.GetValue{}
+
 // GetParams 返回参数列表，该方法无参数
 func (m *ReflectionClassNewInstanceWithoutConstructorMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return reflectionClassNewInstanceWithoutConstructorMethodGetParams
 }
+
+var reflectionClassNewInstanceWithoutConstructorMethodGetVariables = []data.Variable{}
 
 // GetVariables 返回变量列表，该方法无变量
 func (m *ReflectionClassNewInstanceWithoutConstructorMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return reflectionClassNewInstanceWithoutConstructorMethodGetVariables
 }
 
 // GetReturnType 返回返回类型，返回对象类型

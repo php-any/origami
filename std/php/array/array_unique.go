@@ -137,16 +137,20 @@ func (f *ArrayUniqueFunction) GetName() string {
 	return "array_unique"
 }
 
+var arrayUniqueFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, nil),
+	node.NewParameter(nil, "flags", 1, data.NewIntValue(2), nil),
+}
+
 func (f *ArrayUniqueFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, nil),
-		node.NewParameter(nil, "flags", 1, data.NewIntValue(2), nil),
-	}
+	return arrayUniqueFunctionGetParams
+}
+
+var arrayUniqueFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
+	node.NewVariable(nil, "flags", 1, data.NewBaseType("int")),
 }
 
 func (f *ArrayUniqueFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-		node.NewVariable(nil, "flags", 1, data.NewBaseType("int")),
-	}
+	return arrayUniqueFunctionGetVariables
 }

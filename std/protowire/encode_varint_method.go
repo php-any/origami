@@ -37,16 +37,20 @@ func (m *EncodeVarintMethod) GetIsStatic() bool {
 	return true
 }
 
+var encodeVarintMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+}
+
 func (m *EncodeVarintMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return encodeVarintMethodGetParams
+}
+
+var encodeVarintMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, nil),
 }
 
 func (m *EncodeVarintMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, nil),
-	}
+	return encodeVarintMethodGetVariables
 }
 
 func (m *EncodeVarintMethod) GetReturnType() data.Types {

@@ -44,7 +44,7 @@ func (c *UrlGeneratorClass) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
 func (c *UrlGeneratorClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *UrlGeneratorClass) GetMethods() []data.Method {

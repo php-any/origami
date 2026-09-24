@@ -93,19 +93,23 @@ func (m *FieldConstructMethod) GetName() string            { return "__construct
 func (m *FieldConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *FieldConstructMethod) GetIsStatic() bool          { return false }
 func (m *FieldConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *FieldConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "number", 0, data.NewNullValue(), data.NewBaseType("int")),
-		node.NewParameter(nil, "type", 1, data.NewNullValue(), data.NewBaseType("int")),
-		node.NewParameter(nil, "encoding", 2, data.NewStringValue(""), data.NewBaseType("string")),
-	}
+var fieldConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "number", 0, data.NewNullValue(), data.NewBaseType("int")),
+	node.NewParameter(nil, "type", 1, data.NewNullValue(), data.NewBaseType("int")),
+	node.NewParameter(nil, "encoding", 2, data.NewStringValue(""), data.NewBaseType("string")),
 }
+
+func (m *FieldConstructMethod) GetParams() []data.GetValue {
+	return fieldConstructMethodGetParams
+}
+var fieldConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "number", 0, nil),
+	node.NewVariable(nil, "type", 1, nil),
+	node.NewVariable(nil, "encoding", 2, nil),
+}
+
 func (m *FieldConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "number", 0, nil),
-		node.NewVariable(nil, "type", 1, nil),
-		node.NewVariable(nil, "encoding", 2, nil),
-	}
+	return fieldConstructMethodGetVariables
 }
 
 func (m *FieldConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {

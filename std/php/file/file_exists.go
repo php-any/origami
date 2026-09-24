@@ -51,14 +51,18 @@ func (f *FileExistsFunction) GetName() string {
 	return "file_exists"
 }
 
+var fileExistsFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "filename", 0, nil, nil),
+}
+
 func (f *FileExistsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "filename", 0, nil, nil),
-	}
+	return fileExistsFunctionGetParams
+}
+
+var fileExistsFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
 }
 
 func (f *FileExistsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
-	}
+	return fileExistsFunctionGetVariables
 }

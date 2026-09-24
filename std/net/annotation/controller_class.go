@@ -93,18 +93,22 @@ func (m *ControllerConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var controllerConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
+	node.NewAnnotationTargetParameter(nil, 1),
+}
+
 func (m *ControllerConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
-		node.NewAnnotationTargetParameter(nil, 1),
-	}
+	return controllerConstructMethodGetParams
+}
+
+var controllerConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "name", 0, nil),
+	node.NewAnnotationTargetVariable(nil, 1),
 }
 
 func (m *ControllerConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "name", 0, nil),
-		node.NewAnnotationTargetVariable(nil, 1),
-	}
+	return controllerConstructMethodGetVariables
 }
 
 func (m *ControllerConstructMethod) GetReturnType() data.Types {
@@ -272,12 +276,16 @@ func (m *ControllerProcessMethod) GetIsStatic() bool {
 	return false
 }
 
+var controllerProcessMethodGetParams = []data.GetValue{}
+
 func (m *ControllerProcessMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return controllerProcessMethodGetParams
 }
 
+var controllerProcessMethodGetVariables = []data.Variable{}
+
 func (m *ControllerProcessMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return controllerProcessMethodGetVariables
 }
 
 func (m *ControllerProcessMethod) GetReturnType() data.Types {
@@ -306,12 +314,16 @@ func (m *ControllerRegisterMethod) GetIsStatic() bool {
 	return false
 }
 
+var controllerRegisterMethodGetParams = []data.GetValue{}
+
 func (m *ControllerRegisterMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return controllerRegisterMethodGetParams
 }
 
+var controllerRegisterMethodGetVariables = []data.Variable{}
+
 func (m *ControllerRegisterMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return controllerRegisterMethodGetVariables
 }
 
 func (m *ControllerRegisterMethod) GetReturnType() data.Types {

@@ -61,20 +61,24 @@ func (h *DBExecContextMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 func (h *DBExecContextMethod) GetName() string            { return "execContext" }
 func (h *DBExecContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBExecContextMethod) GetIsStatic() bool          { return true }
+var dBExecContextMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "ctx", 0, nil, nil),
+	node.NewParameter(nil, "query", 1, nil, nil),
+	node.NewParameters(nil, "args", 2, nil, nil),
+}
+
 func (h *DBExecContextMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "ctx", 0, nil, nil),
-		node.NewParameter(nil, "query", 1, nil, nil),
-		node.NewParameters(nil, "args", 2, nil, nil),
-	}
+	return dBExecContextMethodGetParams
+}
+
+var dBExecContextMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "ctx", 0, nil),
+	node.NewVariable(nil, "query", 1, nil),
+	node.NewVariable(nil, "args", 2, nil),
 }
 
 func (h *DBExecContextMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "ctx", 0, nil),
-		node.NewVariable(nil, "query", 1, nil),
-		node.NewVariable(nil, "args", 2, nil),
-	}
+	return dBExecContextMethodGetVariables
 }
 
 func (h *DBExecContextMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

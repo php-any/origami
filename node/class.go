@@ -450,6 +450,42 @@ func (c *ClassStatement) GetMethod(name string) (data.Method, bool) {
 	return nil, false
 }
 
+// ForEachMethod 按 GetMethods 的顺序遍历方法，但不构造切片。
+// 抽象方法校验在每次 new、每次请求自动加载类文件时都会跑一遍，
+// GetMethods 的切片分配（占全部分配约 3%）纯属白费。
+func (c *ClassStatement) ForEachMethod(fn func(data.Method) bool) {
+	for _, f := range c.Methods {
+		if !fn(f) {
+			return
+		}
+	}
+	for _, f := range c.StaticMethods {
+		if !fn(f) {
+			return
+		}
+	}
+	if c.Construct != nil {
+		hasConstruct := false
+		for _, m := range c.Methods {
+			if m.GetName() == token.ConstructName {
+				hasConstruct = true
+				break
+			}
+		}
+		if !hasConstruct {
+			for _, m := range c.StaticMethods {
+				if m.GetName() == token.ConstructName {
+					hasConstruct = true
+					break
+				}
+			}
+		}
+		if !hasConstruct {
+			fn(c.Construct)
+		}
+	}
+}
+
 func (c *ClassStatement) GetMethods() []data.Method {
 	methods := make([]data.Method, 0, len(c.Methods)+len(c.StaticMethods)+1)
 	for _, f := range c.Methods {

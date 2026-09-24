@@ -33,16 +33,20 @@ func (h *OSPathMethod) GetIsStatic() bool {
 	return true
 }
 
+var oSPathMethodGetParams = []data.GetValue{
+	node.NewParameters(nil, "paths", 0, nil, nil),
+}
+
 func (h *OSPathMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameters(nil, "paths", 0, nil, nil),
-	}
+	return oSPathMethodGetParams
+}
+
+var oSPathMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "paths", 0, nil),
 }
 
 func (h *OSPathMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "paths", 0, nil),
-	}
+	return oSPathMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型

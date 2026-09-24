@@ -98,20 +98,24 @@ func (f *SubstrCountFunction) GetName() string {
 	return "substr_count"
 }
 
+var substrCountFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "haystack", 0, nil, nil),
+	node.NewParameter(nil, "needle", 1, nil, nil),
+	node.NewParameter(nil, "offset", 2, node.NewIntLiteral(nil, "0"), nil),
+	node.NewParameter(nil, "length", 3, node.NewNullLiteral(nil), nil),
+}
+
 func (f *SubstrCountFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "haystack", 0, nil, nil),
-		node.NewParameter(nil, "needle", 1, nil, nil),
-		node.NewParameter(nil, "offset", 2, node.NewIntLiteral(nil, "0"), nil),
-		node.NewParameter(nil, "length", 3, node.NewNullLiteral(nil), nil),
-	}
+	return substrCountFunctionGetParams
+}
+
+var substrCountFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "offset", 2, data.NewBaseType("int")),
+	node.NewVariable(nil, "length", 3, data.NewBaseType("int|null")),
 }
 
 func (f *SubstrCountFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "offset", 2, data.NewBaseType("int")),
-		node.NewVariable(nil, "length", 3, data.NewBaseType("int|null")),
-	}
+	return substrCountFunctionGetVariables
 }

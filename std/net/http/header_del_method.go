@@ -25,14 +25,18 @@ func (h *HeaderDelMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *HeaderDelMethod) GetName() string            { return "del" }
 func (h *HeaderDelMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *HeaderDelMethod) GetIsStatic() bool          { return false }
-func (h *HeaderDelMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-	}
+var headerDelMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
 }
+
+func (h *HeaderDelMethod) GetParams() []data.GetValue {
+	return headerDelMethodGetParams
+}
+var headerDelMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
+}
+
 func (h *HeaderDelMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-	}
+	return headerDelMethodGetVariables
 }
 func (h *HeaderDelMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

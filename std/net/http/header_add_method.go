@@ -29,16 +29,20 @@ func (h *HeaderAddMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *HeaderAddMethod) GetName() string            { return "add" }
 func (h *HeaderAddMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *HeaderAddMethod) GetIsStatic() bool          { return false }
-func (h *HeaderAddMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-		node.NewParameter(nil, "param1", 1, nil, nil),
-	}
+var headerAddMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
+	node.NewParameter(nil, "param1", 1, nil, nil),
 }
+
+func (h *HeaderAddMethod) GetParams() []data.GetValue {
+	return headerAddMethodGetParams
+}
+var headerAddMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
+	node.NewVariable(nil, "param1", 1, nil),
+}
+
 func (h *HeaderAddMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-		node.NewVariable(nil, "param1", 1, nil),
-	}
+	return headerAddMethodGetVariables
 }
 func (h *HeaderAddMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

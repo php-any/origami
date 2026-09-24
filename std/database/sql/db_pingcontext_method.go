@@ -44,16 +44,20 @@ func (h *DBPingContextMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 func (h *DBPingContextMethod) GetName() string            { return "pingContext" }
 func (h *DBPingContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBPingContextMethod) GetIsStatic() bool          { return true }
+var dBPingContextMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "ctx", 0, nil, nil),
+}
+
 func (h *DBPingContextMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "ctx", 0, nil, nil),
-	}
+	return dBPingContextMethodGetParams
+}
+
+var dBPingContextMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "ctx", 0, nil),
 }
 
 func (h *DBPingContextMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "ctx", 0, nil),
-	}
+	return dBPingContextMethodGetVariables
 }
 
 func (h *DBPingContextMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

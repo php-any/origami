@@ -43,16 +43,20 @@ func (f *IniSetFunction) GetName() string {
 	return "ini_set"
 }
 
+var iniSetFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "option", 0, nil, data.String{}),
+	node.NewParameter(nil, "value", 1, nil, nil),
+}
+
 func (f *IniSetFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "option", 0, nil, data.String{}),
-		node.NewParameter(nil, "value", 1, nil, nil),
-	}
+	return iniSetFunctionGetParams
+}
+
+var iniSetFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "option", 0, data.String{}),
+	node.NewVariable(nil, "value", 1, data.NewBaseType("mixed")),
 }
 
 func (f *IniSetFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "option", 0, data.String{}),
-		node.NewVariable(nil, "value", 1, data.NewBaseType("mixed")),
-	}
+	return iniSetFunctionGetVariables
 }

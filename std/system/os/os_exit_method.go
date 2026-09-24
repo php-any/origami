@@ -35,16 +35,20 @@ func (h *OSExitMethod) GetIsStatic() bool {
 	return false
 }
 
+var oSExitMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
+}
+
 func (h *OSExitMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-	}
+	return oSExitMethodGetParams
+}
+
+var oSExitMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
 }
 
 func (h *OSExitMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-	}
+	return oSExitMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型

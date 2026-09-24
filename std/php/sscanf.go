@@ -116,16 +116,20 @@ func phpSscanfFormatToGo(format string) string {
 	return b.String()
 }
 
+var sscanfFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "format", 1, nil, nil),
+}
+
 func (f *SscanfFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "format", 1, nil, nil),
-	}
+	return sscanfFunctionGetParams
+}
+
+var sscanfFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "format", 1, data.NewBaseType("string")),
 }
 
 func (f *SscanfFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "format", 1, data.NewBaseType("string")),
-	}
+	return sscanfFunctionGetVariables
 }

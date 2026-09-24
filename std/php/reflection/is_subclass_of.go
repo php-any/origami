@@ -18,20 +18,24 @@ func (m *ReflectionClassIsSubclassOfMethod) GetModifier() data.Modifier { return
 // GetIsStatic 返回是否为静态方法，非静态方法
 func (m *ReflectionClassIsSubclassOfMethod) GetIsStatic() bool { return false }
 
+var reflectionClassIsSubclassOfMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "class", 0, nil, data.Mixed{}),
+}
+
 // GetParams 返回参数列表
 // 参数:
 //   - class: 父类名（字符串）或类对象，类型为 Mixed
 func (m *ReflectionClassIsSubclassOfMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "class", 0, nil, data.Mixed{}),
-	}
+	return reflectionClassIsSubclassOfMethodGetParams
+}
+
+var reflectionClassIsSubclassOfMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "class", 0, data.Mixed{}),
 }
 
 // GetVariables 返回变量列表
 func (m *ReflectionClassIsSubclassOfMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "class", 0, data.Mixed{}),
-	}
+	return reflectionClassIsSubclassOfMethodGetVariables
 }
 
 // GetReturnType 返回返回类型，返回布尔类型

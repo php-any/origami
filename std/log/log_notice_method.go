@@ -40,18 +40,22 @@ func (h *LogNoticeMethod) GetIsStatic() bool {
 	return true
 }
 
+var logNoticeMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "msg", 0, nil, nil),
+	node.NewParameters(nil, "args", 1, nil, nil),
+}
+
 func (h *LogNoticeMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "msg", 0, nil, nil),
-		node.NewParameters(nil, "args", 1, nil, nil),
-	}
+	return logNoticeMethodGetParams
+}
+
+var logNoticeMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "msg", 0, nil),
+	node.NewVariable(nil, "args", 1, nil),
 }
 
 func (h *LogNoticeMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "msg", 0, nil),
-		node.NewVariable(nil, "args", 1, nil),
-	}
+	return logNoticeMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型

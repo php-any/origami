@@ -2,7 +2,6 @@ package kit
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/php-any/origami/data"
 )
@@ -114,7 +113,7 @@ func CallInstanceMethod(ctx data.Context, recv *data.ClassValue, method string, 
 	if recv == nil {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("CallInstanceMethod: nil receiver"))
 	}
-	m, ok := recv.GetMethod(strings.ToLower(method))
+	m, ok := recv.GetMethod(data.MethodLookupKey(method))
 	if !ok {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("Method %s::%s does not exist.", recv.Class.GetName(), method))
 	}

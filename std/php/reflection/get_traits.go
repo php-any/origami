@@ -20,14 +20,18 @@ func (m *ReflectionClassGetTraitsMethod) GetModifier() data.Modifier { return da
 // GetIsStatic 返回是否为静态方法，非静态方法
 func (m *ReflectionClassGetTraitsMethod) GetIsStatic() bool { return false }
 
+var reflectionClassGetTraitsMethodGetParams = []data.GetValue{}
+
 // GetParams 返回参数列表
 func (m *ReflectionClassGetTraitsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return reflectionClassGetTraitsMethodGetParams
 }
+
+var reflectionClassGetTraitsMethodGetVariables = []data.Variable{}
 
 // GetVariables 返回变量列表
 func (m *ReflectionClassGetTraitsMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return reflectionClassGetTraitsMethodGetVariables
 }
 
 // GetReturnType 返回返回类型，返回数组类型

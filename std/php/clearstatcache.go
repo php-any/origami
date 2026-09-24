@@ -20,16 +20,20 @@ func (f *ClearstatcacheFunction) GetName() string {
 	return "clearstatcache"
 }
 
+var clearstatcacheFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "clear_realpath_cache", 0, data.NewBoolValue(false), nil),
+	node.NewParameter(nil, "filename", 1, data.NewStringValue(""), nil),
+}
+
 func (f *ClearstatcacheFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "clear_realpath_cache", 0, data.NewBoolValue(false), nil),
-		node.NewParameter(nil, "filename", 1, data.NewStringValue(""), nil),
-	}
+	return clearstatcacheFunctionGetParams
+}
+
+var clearstatcacheFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "clear_realpath_cache", 0, data.NewBaseType("bool")),
+	node.NewVariable(nil, "filename", 1, data.NewBaseType("string")),
 }
 
 func (f *ClearstatcacheFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "clear_realpath_cache", 0, data.NewBaseType("bool")),
-		node.NewVariable(nil, "filename", 1, data.NewBaseType("string")),
-	}
+	return clearstatcacheFunctionGetVariables
 }

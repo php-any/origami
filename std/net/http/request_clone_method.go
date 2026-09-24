@@ -18,11 +18,15 @@ func (h *RequestCloneMethod) Call(ctx data.Context) (data.GetValue, data.Control
 func (h *RequestCloneMethod) GetName() string            { return "clone" }
 func (h *RequestCloneMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestCloneMethod) GetIsStatic() bool          { return false }
+var requestCloneMethodGetParams = []data.GetValue{}
+
 func (h *RequestCloneMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return requestCloneMethodGetParams
 }
+var requestCloneMethodGetVariables = []data.Variable{}
+
 func (h *RequestCloneMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return requestCloneMethodGetVariables
 }
 func (h *RequestCloneMethod) GetReturnType() data.Types {
 	return data.Class{Name: "Net\\Http\\Request"}

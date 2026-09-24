@@ -25,20 +25,24 @@ func NewFlockFunction() data.FuncStmt {
 
 func (f *FlockFunction) GetName() string { return "flock" }
 
+var flockFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "stream", 0, nil, nil),
+	node.NewParameter(nil, "operation", 1, nil, data.NewBaseType("int")),
+	node.NewParameterReference(nil, "would_block", 2, node.NewNullLiteral(nil), nil),
+}
+
 func (f *FlockFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "stream", 0, nil, nil),
-		node.NewParameter(nil, "operation", 1, nil, data.NewBaseType("int")),
-		node.NewParameterReference(nil, "would_block", 2, node.NewNullLiteral(nil), nil),
-	}
+	return flockFunctionGetParams
+}
+
+var flockFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "stream", 0, nil),
+	node.NewVariable(nil, "operation", 1, data.NewBaseType("int")),
+	node.NewVariable(nil, "would_block", 2, nil),
 }
 
 func (f *FlockFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "stream", 0, nil),
-		node.NewVariable(nil, "operation", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "would_block", 2, nil),
-	}
+	return flockFunctionGetVariables
 }
 
 func (f *FlockFunction) Call(ctx data.Context) (data.GetValue, data.Control) {

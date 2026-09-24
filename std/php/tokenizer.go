@@ -227,15 +227,19 @@ func (f *TokenGetAllFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 func (f *TokenGetAllFunction) GetName() string            { return "token_get_all" }
 func (f *TokenGetAllFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *TokenGetAllFunction) GetIsStatic() bool          { return false }
-func (f *TokenGetAllFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "source", 0, nil, data.String{}),
-	}
+var tokenGetAllFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "source", 0, nil, data.String{}),
 }
+
+func (f *TokenGetAllFunction) GetParams() []data.GetValue {
+	return tokenGetAllFunctionGetParams
+}
+var tokenGetAllFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "source", 0, nil),
+}
+
 func (f *TokenGetAllFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "source", 0, nil),
-	}
+	return tokenGetAllFunctionGetVariables
 }
 func (f *TokenGetAllFunction) GetReturnType() data.Types { return data.NewBaseType("array") }
 

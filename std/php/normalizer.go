@@ -47,18 +47,22 @@ func (f *NormalizerIsNormalizedFunction) GetName() string {
 	return "normalizer_is_normalized"
 }
 
+var normalizerIsNormalizedFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "form", 1, node.NewIntLiteral(nil, "4"), nil), // 默认 FORM_C
+}
+
 func (f *NormalizerIsNormalizedFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "form", 1, node.NewIntLiteral(nil, "4"), nil), // 默认 FORM_C
-	}
+	return normalizerIsNormalizedFunctionGetParams
+}
+
+var normalizerIsNormalizedFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewNullableType(data.NewBaseType("string"))),
+	node.NewVariable(nil, "form", 1, data.NewBaseType("int")),
 }
 
 func (f *NormalizerIsNormalizedFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewNullableType(data.NewBaseType("string"))),
-		node.NewVariable(nil, "form", 1, data.NewBaseType("int")),
-	}
+	return normalizerIsNormalizedFunctionGetVariables
 }
 
 // NormalizerNormalizeFunction 对应 normalizer_normalize()
@@ -100,16 +104,20 @@ func (f *NormalizerNormalizeFunction) GetName() string {
 	return "normalizer_normalize"
 }
 
+var normalizerNormalizeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "form", 1, node.NewIntLiteral(nil, "4"), nil), // 默认 FORM_C
+}
+
 func (f *NormalizerNormalizeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "form", 1, node.NewIntLiteral(nil, "4"), nil), // 默认 FORM_C
-	}
+	return normalizerNormalizeFunctionGetParams
+}
+
+var normalizerNormalizeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewNullableType(data.NewBaseType("string"))),
+	node.NewVariable(nil, "form", 1, data.NewBaseType("int")),
 }
 
 func (f *NormalizerNormalizeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewNullableType(data.NewBaseType("string"))),
-		node.NewVariable(nil, "form", 1, data.NewBaseType("int")),
-	}
+	return normalizerNormalizeFunctionGetVariables
 }

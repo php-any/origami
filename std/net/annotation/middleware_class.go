@@ -119,18 +119,22 @@ func (m *MiddlewareConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var middlewareConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "className", 0, nil, nil),
+	node.NewAnnotationTargetParameter(nil, 1),
+}
+
 func (m *MiddlewareConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "className", 0, nil, nil),
-		node.NewAnnotationTargetParameter(nil, 1),
-	}
+	return middlewareConstructMethodGetParams
+}
+
+var middlewareConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "className", 0, nil),
+	node.NewAnnotationTargetVariable(nil, 1),
 }
 
 func (m *MiddlewareConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "className", 0, nil),
-		node.NewAnnotationTargetVariable(nil, 1),
-	}
+	return middlewareConstructMethodGetVariables
 }
 
 func (m *MiddlewareConstructMethod) GetReturnType() data.Types {

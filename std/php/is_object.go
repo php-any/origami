@@ -41,14 +41,18 @@ func (f *IsObjectFunction) GetName() string {
 	return "is_object"
 }
 
+var isObjectFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+}
+
 func (f *IsObjectFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return isObjectFunctionGetParams
+}
+
+var isObjectFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
 }
 
 func (f *IsObjectFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
-	}
+	return isObjectFunctionGetVariables
 }

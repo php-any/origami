@@ -52,18 +52,22 @@ func (h *DBBeginTxMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *DBBeginTxMethod) GetName() string            { return "beginTx" }
 func (h *DBBeginTxMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBBeginTxMethod) GetIsStatic() bool          { return true }
+var dBBeginTxMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "ctx", 0, nil, nil),
+	node.NewParameter(nil, "opts", 1, nil, nil),
+}
+
 func (h *DBBeginTxMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "ctx", 0, nil, nil),
-		node.NewParameter(nil, "opts", 1, nil, nil),
-	}
+	return dBBeginTxMethodGetParams
+}
+
+var dBBeginTxMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "ctx", 0, nil),
+	node.NewVariable(nil, "opts", 1, nil),
 }
 
 func (h *DBBeginTxMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "ctx", 0, nil),
-		node.NewVariable(nil, "opts", 1, nil),
-	}
+	return dBBeginTxMethodGetVariables
 }
 
 func (h *DBBeginTxMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

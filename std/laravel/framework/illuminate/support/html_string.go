@@ -1,7 +1,6 @@
 package support
 
 import (
-	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -41,7 +40,7 @@ func (c *HtmlStringClass) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
 func (c *HtmlStringClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *HtmlStringClass) GetMethods() []data.Method {

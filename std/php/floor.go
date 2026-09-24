@@ -25,9 +25,13 @@ func (f *FloorFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *FloorFunction) GetName() string { return "floor" }
+var floorFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
+
 func (f *FloorFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
+	return floorFunctionGetParams
 }
+var floorFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
+
 func (f *FloorFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "num", 0, nil)}
+	return floorFunctionGetVariables
 }

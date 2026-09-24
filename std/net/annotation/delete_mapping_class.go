@@ -93,18 +93,22 @@ func (m *DeleteMappingConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var deleteMappingConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "path", 0, data.NewStringValue("/"), data.NewBaseType("string")),
+	node.NewAnnotationTargetParameter(nil, 1),
+}
+
 func (m *DeleteMappingConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "path", 0, data.NewStringValue("/"), data.NewBaseType("string")),
-		node.NewAnnotationTargetParameter(nil, 1),
-	}
+	return deleteMappingConstructMethodGetParams
+}
+
+var deleteMappingConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "path", 0, nil),
+	node.NewAnnotationTargetVariable(nil, 1),
 }
 
 func (m *DeleteMappingConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "path", 0, nil),
-		node.NewAnnotationTargetVariable(nil, 1),
-	}
+	return deleteMappingConstructMethodGetVariables
 }
 
 func (m *DeleteMappingConstructMethod) GetReturnType() data.Types {

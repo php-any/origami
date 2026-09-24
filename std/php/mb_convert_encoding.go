@@ -40,17 +40,21 @@ func mbConvertEncodingValue(v data.Value) data.Value {
 }
 
 func (f *MbConvertEncodingFunction) GetName() string { return "mb_convert_encoding" }
-func (f *MbConvertEncodingFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "to_encoding", 1, node.NewStringLiteralByAst(nil, "UTF-8"), nil),
-		node.NewParameter(nil, "from_encoding", 2, node.NewNullLiteral(nil), nil),
-	}
+var mbConvertEncodingFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "to_encoding", 1, node.NewStringLiteralByAst(nil, "UTF-8"), nil),
+	node.NewParameter(nil, "from_encoding", 2, node.NewNullLiteral(nil), nil),
 }
+
+func (f *MbConvertEncodingFunction) GetParams() []data.GetValue {
+	return mbConvertEncodingFunctionGetParams
+}
+var mbConvertEncodingFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, nil),
+	node.NewVariable(nil, "to_encoding", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "from_encoding", 2, data.NewNullableType(data.NewBaseType("string"))),
+}
+
 func (f *MbConvertEncodingFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, nil),
-		node.NewVariable(nil, "to_encoding", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "from_encoding", 2, data.NewNullableType(data.NewBaseType("string"))),
-	}
+	return mbConvertEncodingFunctionGetVariables
 }

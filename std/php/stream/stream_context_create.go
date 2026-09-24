@@ -43,16 +43,20 @@ func (f *StreamContextCreateFunction) GetName() string {
 	return "stream_context_create"
 }
 
+var streamContextCreateFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "options", 0, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "params", 1, node.NewNullLiteral(nil), nil),
+}
+
 func (f *StreamContextCreateFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "options", 0, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "params", 1, node.NewNullLiteral(nil), nil),
-	}
+	return streamContextCreateFunctionGetParams
+}
+
+var streamContextCreateFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "options", 0, data.NewNullableType(data.NewBaseType("array"))),
+	node.NewVariable(nil, "params", 1, data.NewNullableType(data.NewBaseType("array"))),
 }
 
 func (f *StreamContextCreateFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "options", 0, data.NewNullableType(data.NewBaseType("array"))),
-		node.NewVariable(nil, "params", 1, data.NewNullableType(data.NewBaseType("array"))),
-	}
+	return streamContextCreateFunctionGetVariables
 }

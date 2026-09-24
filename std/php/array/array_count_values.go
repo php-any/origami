@@ -41,10 +41,14 @@ func (f *ArrayCountValuesFunction) Call(ctx data.Context) (data.GetValue, data.C
 
 func (f *ArrayCountValuesFunction) GetName() string { return "array_count_values" }
 
+var arrayCountValuesFunctionGetParams = []data.GetValue{node.NewParameter(nil, "array", 0, nil, nil)}
+
 func (f *ArrayCountValuesFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "array", 0, nil, nil)}
+	return arrayCountValuesFunctionGetParams
 }
 
+var arrayCountValuesFunctionGetVariables = []data.Variable{node.NewVariable(nil, "array", 0, data.NewBaseType("array"))}
+
 func (f *ArrayCountValuesFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "array", 0, data.NewBaseType("array"))}
+	return arrayCountValuesFunctionGetVariables
 }

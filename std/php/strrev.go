@@ -24,14 +24,18 @@ func (f *StrrevFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 func (f *StrrevFunction) GetName() string { return "strrev" }
 
+var strrevFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, data.String{}),
+}
+
 func (f *StrrevFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, data.String{}),
-	}
+	return strrevFunctionGetParams
+}
+
+var strrevFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.String{}),
 }
 
 func (f *StrrevFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.String{}),
-	}
+	return strrevFunctionGetVariables
 }

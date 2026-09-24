@@ -18,20 +18,24 @@ func (m *ReflectionClassGetMethodsMethod) GetModifier() data.Modifier { return d
 // GetIsStatic 返回是否为静态方法，非静态方法
 func (m *ReflectionClassGetMethodsMethod) GetIsStatic() bool { return false }
 
+var reflectionClassGetMethodsMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "filter", 0, node.NewNullLiteral(nil), data.NewBaseType("?int")),
+}
+
 // GetParams 返回参数列表
 // 参数:
 //   - filter: 可选的过滤器标志（?int），用于过滤方法的可见性，默认为 null
 func (m *ReflectionClassGetMethodsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "filter", 0, node.NewNullLiteral(nil), data.NewBaseType("?int")),
-	}
+	return reflectionClassGetMethodsMethodGetParams
+}
+
+var reflectionClassGetMethodsMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "filter", 0, data.NewBaseType("?int")),
 }
 
 // GetVariables 返回变量列表
 func (m *ReflectionClassGetMethodsMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "filter", 0, data.NewBaseType("?int")),
-	}
+	return reflectionClassGetMethodsMethodGetVariables
 }
 
 // GetReturnType 返回返回类型，返回数组类型

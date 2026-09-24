@@ -76,12 +76,16 @@ func (m *AllowDynamicPropertiesConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var allowDynamicPropertiesConstructMethodGetParams = []data.GetValue{}
+
 func (m *AllowDynamicPropertiesConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return allowDynamicPropertiesConstructMethodGetParams
 }
 
+var allowDynamicPropertiesConstructMethodGetVariables = []data.Variable{}
+
 func (m *AllowDynamicPropertiesConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return allowDynamicPropertiesConstructMethodGetVariables
 }
 
 func (m *AllowDynamicPropertiesConstructMethod) GetReturnType() data.Types {

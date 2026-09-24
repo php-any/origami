@@ -37,14 +37,18 @@ func (f *UrldecodeFunction) GetName() string {
 	return "urldecode"
 }
 
+var urldecodeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+}
+
 func (f *UrldecodeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-	}
+	return urldecodeFunctionGetParams
+}
+
+var urldecodeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 }
 
 func (f *UrldecodeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-	}
+	return urldecodeFunctionGetVariables
 }

@@ -114,17 +114,21 @@ func (m *DOMDocumentLoadHTMLMethod) GetName() string            { return "loadHT
 func (m *DOMDocumentLoadHTMLMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DOMDocumentLoadHTMLMethod) GetIsStatic() bool          { return false }
 func (m *DOMDocumentLoadHTMLMethod) GetReturnType() data.Types  { return data.NewBaseType("bool") }
-func (m *DOMDocumentLoadHTMLMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "source", 0, nil, nil),
-		node.NewParameter(nil, "options", 1, node.NewIntLiteral(nil, "0"), nil),
-	}
+var dOMDocumentLoadHTMLMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "source", 0, nil, nil),
+	node.NewParameter(nil, "options", 1, node.NewIntLiteral(nil, "0"), nil),
 }
+
+func (m *DOMDocumentLoadHTMLMethod) GetParams() []data.GetValue {
+	return dOMDocumentLoadHTMLMethodGetParams
+}
+var dOMDocumentLoadHTMLMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "source", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "options", 1, data.NewBaseType("int")),
+}
+
 func (m *DOMDocumentLoadHTMLMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "source", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "options", 1, data.NewBaseType("int")),
-	}
+	return dOMDocumentLoadHTMLMethodGetVariables
 }
 
 // ---------- DOMDocument::getElementsByTagName ----------
@@ -156,15 +160,19 @@ func (m *DOMDocumentGetElementsByTagNameMethod) GetModifier() data.Modifier {
 }
 func (m *DOMDocumentGetElementsByTagNameMethod) GetIsStatic() bool         { return false }
 func (m *DOMDocumentGetElementsByTagNameMethod) GetReturnType() data.Types { return nil }
-func (m *DOMDocumentGetElementsByTagNameMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "name", 0, nil, nil),
-	}
+var dOMDocumentGetElementsByTagNameMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "name", 0, nil, nil),
 }
+
+func (m *DOMDocumentGetElementsByTagNameMethod) GetParams() []data.GetValue {
+	return dOMDocumentGetElementsByTagNameMethodGetParams
+}
+var dOMDocumentGetElementsByTagNameMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "name", 0, data.NewBaseType("string")),
+}
+
 func (m *DOMDocumentGetElementsByTagNameMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "name", 0, data.NewBaseType("string")),
-	}
+	return dOMDocumentGetElementsByTagNameMethodGetVariables
 }
 
 // ---------- DOMDocument::saveXML ----------
@@ -191,15 +199,19 @@ func (m *DOMDocumentSaveXMLMethod) GetName() string            { return "saveXML
 func (m *DOMDocumentSaveXMLMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DOMDocumentSaveXMLMethod) GetIsStatic() bool          { return false }
 func (m *DOMDocumentSaveXMLMethod) GetReturnType() data.Types  { return data.NewBaseType("string") }
-func (m *DOMDocumentSaveXMLMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "node", 0, node.NewNullLiteral(nil), nil),
-	}
+var dOMDocumentSaveXMLMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "node", 0, node.NewNullLiteral(nil), nil),
 }
+
+func (m *DOMDocumentSaveXMLMethod) GetParams() []data.GetValue {
+	return dOMDocumentSaveXMLMethodGetParams
+}
+var dOMDocumentSaveXMLMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "node", 0, data.NewNullableType(nil)),
+}
+
 func (m *DOMDocumentSaveXMLMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "node", 0, data.NewNullableType(nil)),
-	}
+	return dOMDocumentSaveXMLMethodGetVariables
 }
 
 // ---------- DOMNodeList ----------
@@ -267,11 +279,15 @@ func (m *DOMNodeListItemMethod) GetName() string            { return "item" }
 func (m *DOMNodeListItemMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DOMNodeListItemMethod) GetIsStatic() bool          { return false }
 func (m *DOMNodeListItemMethod) GetReturnType() data.Types  { return nil }
+var dOMNodeListItemMethodGetParams = []data.GetValue{node.NewParameter(nil, "index", 0, nil, nil)}
+
 func (m *DOMNodeListItemMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "index", 0, nil, nil)}
+	return dOMNodeListItemMethodGetParams
 }
+var dOMNodeListItemMethodGetVariables = []data.Variable{node.NewVariable(nil, "index", 0, data.NewBaseType("int"))}
+
 func (m *DOMNodeListItemMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "index", 0, data.NewBaseType("int"))}
+	return dOMNodeListItemMethodGetVariables
 }
 
 type DOMNodeListCountMethod struct{}
@@ -341,11 +357,15 @@ func (m *DOMElementGetAttributeMethod) GetName() string            { return "get
 func (m *DOMElementGetAttributeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DOMElementGetAttributeMethod) GetIsStatic() bool          { return false }
 func (m *DOMElementGetAttributeMethod) GetReturnType() data.Types  { return data.NewBaseType("string") }
+var dOMElementGetAttributeMethodGetParams = []data.GetValue{node.NewParameter(nil, "name", 0, nil, nil)}
+
 func (m *DOMElementGetAttributeMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "name", 0, nil, nil)}
+	return dOMElementGetAttributeMethodGetParams
 }
+var dOMElementGetAttributeMethodGetVariables = []data.Variable{node.NewVariable(nil, "name", 0, data.NewBaseType("string"))}
+
 func (m *DOMElementGetAttributeMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "name", 0, data.NewBaseType("string"))}
+	return dOMElementGetAttributeMethodGetVariables
 }
 
 // ---------- DOMText ----------

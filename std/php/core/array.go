@@ -54,14 +54,18 @@ func (f *ArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 func (f *ArrayFunction) GetName() string { return "array" }
 
+var arrayFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "data", 0, nil, nil),
+}
+
 func (f *ArrayFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "data", 0, nil, nil),
-	}
+	return arrayFunctionGetParams
+}
+
+var arrayFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "data", 0, data.Mixed{}),
 }
 
 func (f *ArrayFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "data", 0, data.Mixed{}),
-	}
+	return arrayFunctionGetVariables
 }

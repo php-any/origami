@@ -38,16 +38,20 @@ func (c *ChannelConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var channelConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "capacity", 0, nil, data.NewBaseType("int")),
+}
+
 func (c *ChannelConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "capacity", 0, nil, data.NewBaseType("int")),
-	}
+	return channelConstructMethodGetParams
+}
+
+var channelConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "capacity", 0, nil),
 }
 
 func (c *ChannelConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "capacity", 0, nil),
-	}
+	return channelConstructMethodGetVariables
 }
 
 func (c *ChannelConstructMethod) GetReturnType() data.Types {
@@ -87,16 +91,20 @@ func (c *ChannelSendMethod) GetIsStatic() bool {
 	return false
 }
 
+var channelSendMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+}
+
 func (c *ChannelSendMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return channelSendMethodGetParams
+}
+
+var channelSendMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, nil),
 }
 
 func (c *ChannelSendMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, nil),
-	}
+	return channelSendMethodGetVariables
 }
 
 func (c *ChannelSendMethod) GetReturnType() data.Types {
@@ -134,12 +142,16 @@ func (c *ChannelReceiveMethod) GetIsStatic() bool {
 	return false
 }
 
+var channelReceiveMethodGetParams = []data.GetValue{}
+
 func (c *ChannelReceiveMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return channelReceiveMethodGetParams
 }
 
+var channelReceiveMethodGetVariables = []data.Variable{}
+
 func (c *ChannelReceiveMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return channelReceiveMethodGetVariables
 }
 
 func (c *ChannelReceiveMethod) GetReturnType() data.Types {
@@ -172,12 +184,16 @@ func (c *ChannelCloseMethod) GetIsStatic() bool {
 	return false
 }
 
+var channelCloseMethodGetParams = []data.GetValue{}
+
 func (c *ChannelCloseMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return channelCloseMethodGetParams
 }
 
+var channelCloseMethodGetVariables = []data.Variable{}
+
 func (c *ChannelCloseMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return channelCloseMethodGetVariables
 }
 
 func (c *ChannelCloseMethod) GetReturnType() data.Types {
@@ -210,12 +226,16 @@ func (c *ChannelIsClosedMethod) GetIsStatic() bool {
 	return false
 }
 
+var channelIsClosedMethodGetParams = []data.GetValue{}
+
 func (c *ChannelIsClosedMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return channelIsClosedMethodGetParams
 }
 
+var channelIsClosedMethodGetVariables = []data.Variable{}
+
 func (c *ChannelIsClosedMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return channelIsClosedMethodGetVariables
 }
 
 func (c *ChannelIsClosedMethod) GetReturnType() data.Types {
@@ -248,12 +268,16 @@ func (c *ChannelLenMethod) GetIsStatic() bool {
 	return false
 }
 
+var channelLenMethodGetParams = []data.GetValue{}
+
 func (c *ChannelLenMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return channelLenMethodGetParams
 }
 
+var channelLenMethodGetVariables = []data.Variable{}
+
 func (c *ChannelLenMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return channelLenMethodGetVariables
 }
 
 func (c *ChannelLenMethod) GetReturnType() data.Types {
@@ -286,12 +310,16 @@ func (c *ChannelCapMethod) GetIsStatic() bool {
 	return false
 }
 
+var channelCapMethodGetParams = []data.GetValue{}
+
 func (c *ChannelCapMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return channelCapMethodGetParams
 }
 
+var channelCapMethodGetVariables = []data.Variable{}
+
 func (c *ChannelCapMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return channelCapMethodGetVariables
 }
 
 func (c *ChannelCapMethod) GetReturnType() data.Types {

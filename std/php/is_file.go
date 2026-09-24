@@ -46,14 +46,18 @@ func (f *IsFileFunction) GetName() string {
 	return "is_file"
 }
 
+var isFileFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "path", 0, nil, nil),
+}
+
 func (f *IsFileFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "path", 0, nil, nil),
-	}
+	return isFileFunctionGetParams
+}
+
+var isFileFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "path", 0, data.NewBaseType("string")),
 }
 
 func (f *IsFileFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "path", 0, data.NewBaseType("string")),
-	}
+	return isFileFunctionGetVariables
 }

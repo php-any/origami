@@ -66,18 +66,22 @@ func (f *GraphemeSubstrFunction) GetName() string {
 	return "grapheme_substr"
 }
 
+var graphemeSubstrFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "offset", 1, nil, nil),
+	node.NewParameter(nil, "length", 2, nil, nil),
+}
+
 func (f *GraphemeSubstrFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "offset", 1, nil, nil),
-		node.NewParameter(nil, "length", 2, nil, nil),
-	}
+	return graphemeSubstrFunctionGetParams
+}
+
+var graphemeSubstrFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "offset", 1, data.NewBaseType("int")),
+	node.NewVariable(nil, "length", 2, data.NewBaseType("int")),
 }
 
 func (f *GraphemeSubstrFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "offset", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "length", 2, data.NewBaseType("int")),
-	}
+	return graphemeSubstrFunctionGetVariables
 }

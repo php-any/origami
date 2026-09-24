@@ -353,18 +353,22 @@ func (f *ArrayFilterFunction) GetName() string {
 	return "array_filter"
 }
 
+var arrayFilterFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, data.NewBaseType("array")),
+	node.NewParameter(nil, "callback", 1, node.NewNullLiteral(nil), data.NewNullableType(data.NewBaseType("callable"))),
+	node.NewParameter(nil, "mode", 2, node.NewIntLiteral(nil, "0"), data.NewBaseType("int")),
+}
+
 func (f *ArrayFilterFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, data.NewBaseType("array")),
-		node.NewParameter(nil, "callback", 1, node.NewNullLiteral(nil), data.NewNullableType(data.NewBaseType("callable"))),
-		node.NewParameter(nil, "mode", 2, node.NewIntLiteral(nil, "0"), data.NewBaseType("int")),
-	}
+	return arrayFilterFunctionGetParams
+}
+
+var arrayFilterFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
+	node.NewVariable(nil, "callback", 1, data.NewBaseType("callable")),
+	node.NewVariable(nil, "mode", 2, data.NewBaseType("int")),
 }
 
 func (f *ArrayFilterFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-		node.NewVariable(nil, "callback", 1, data.NewBaseType("callable")),
-		node.NewVariable(nil, "mode", 2, data.NewBaseType("int")),
-	}
+	return arrayFilterFunctionGetVariables
 }

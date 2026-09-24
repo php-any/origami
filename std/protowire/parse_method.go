@@ -91,20 +91,24 @@ func (m *ParseMethod) GetIsStatic() bool {
 	return true
 }
 
+var parseMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "data", 0, nil, data.String{}),
+	node.NewParameter(nil, "classNameOrOptions", 1, data.NewNullValue(), nil),
+	node.NewParameter(nil, "options", 2, data.NewArrayValue(nil), data.NewBaseType("array")),
+}
+
 func (m *ParseMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "data", 0, nil, data.String{}),
-		node.NewParameter(nil, "classNameOrOptions", 1, data.NewNullValue(), nil),
-		node.NewParameter(nil, "options", 2, data.NewArrayValue(nil), data.NewBaseType("array")),
-	}
+	return parseMethodGetParams
+}
+
+var parseMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "data", 0, data.String{}),
+	node.NewVariable(nil, "classNameOrOptions", 1, nil),
+	node.NewVariable(nil, "options", 2, data.NewBaseType("array")),
 }
 
 func (m *ParseMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "data", 0, data.String{}),
-		node.NewVariable(nil, "classNameOrOptions", 1, nil),
-		node.NewVariable(nil, "options", 2, data.NewBaseType("array")),
-	}
+	return parseMethodGetVariables
 }
 
 func (m *ParseMethod) GetReturnType() data.Types {

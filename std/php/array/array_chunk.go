@@ -58,18 +58,22 @@ func (f *ArrayChunkFunction) Call(ctx data.Context) (data.GetValue, data.Control
 
 func (f *ArrayChunkFunction) GetName() string { return "array_chunk" }
 
+var arrayChunkFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, nil),
+	node.NewParameter(nil, "length", 1, nil, nil),
+	node.NewParameter(nil, "preserve_keys", 2, data.NewBoolValue(false), nil),
+}
+
 func (f *ArrayChunkFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, nil),
-		node.NewParameter(nil, "length", 1, nil, nil),
-		node.NewParameter(nil, "preserve_keys", 2, data.NewBoolValue(false), nil),
-	}
+	return arrayChunkFunctionGetParams
+}
+
+var arrayChunkFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
+	node.NewVariable(nil, "length", 1, data.NewBaseType("int")),
+	node.NewVariable(nil, "preserve_keys", 2, data.NewBaseType("bool")),
 }
 
 func (f *ArrayChunkFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-		node.NewVariable(nil, "length", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "preserve_keys", 2, data.NewBaseType("bool")),
-	}
+	return arrayChunkFunctionGetVariables
 }

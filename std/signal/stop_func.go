@@ -29,14 +29,18 @@ func (f *StopFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *StopFunction) GetName() string            { return "Signal\\stop" }
 func (f *StopFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *StopFunction) GetIsStatic() bool          { return true }
-func (f *StopFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "channel", 0, nil, nil),
-	}
+var stopFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "channel", 0, nil, nil),
 }
+
+func (f *StopFunction) GetParams() []data.GetValue {
+	return stopFunctionGetParams
+}
+var stopFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "channel", 0, nil),
+}
+
 func (f *StopFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "channel", 0, nil),
-	}
+	return stopFunctionGetVariables
 }
 func (f *StopFunction) GetReturnType() data.Types { return data.NewBaseType("void") }

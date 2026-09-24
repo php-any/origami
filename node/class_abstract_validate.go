@@ -38,13 +38,30 @@ func ValidateConcreteClassAbstractMethods(vm data.VM, class data.ClassStmt) data
 	return data.NewCompileFatal(class.GetFrom(), msg)
 }
 
+// forEachClassMethod 与 class.GetMethods() 顺序一致地遍历方法；类实现了零分配枚举时
+// 就不再构造方法切片（校验是每次 new / 每次加载类都要跑的路径）。
+func forEachClassMethod(class data.ClassStmt, fn func(data.Method) bool) {
+	if e, ok := class.(interface {
+		ForEachMethod(func(data.Method) bool)
+	}); ok {
+		e.ForEachMethod(fn)
+		return
+	}
+	for _, method := range class.GetMethods() {
+		if !fn(method) {
+			return
+		}
+	}
+}
+
 func abstractMethodsDeclaredOnClass(class data.ClassStmt) []string {
 	var names []string
-	for _, method := range class.GetMethods() {
+	forEachClassMethod(class, func(method data.Method) bool {
 		if _, ok := method.(*AbstractMethod); ok {
 			names = append(names, method.GetName())
 		}
-	}
+		return true
+	})
 	if cs, ok := class.(*ClassStatement); ok {
 		for _, method := range cs.StaticMethods {
 			if _, ok := method.(*AbstractMethod); ok {
@@ -94,9 +111,14 @@ func formatAbstractMethodsFatal(className string, missing []string) string {
 }
 
 func collectUnimplementedAbstractMethods(vm data.VM, class data.ClassStmt) ([]string, data.Control) {
-	seen := make(map[string]struct{})
+	// seen 延迟分配：绝大多数类没有任何未实现方法，add 一次都不会被调用，
+	// 而这段代码在每次 new / 每次加载类时都会执行。
+	var seen map[string]struct{}
 	var missing []string
 	add := func(entry string) {
+		if seen == nil {
+			seen = make(map[string]struct{}, 4)
+		}
 		if _, ok := seen[entry]; ok {
 			return
 		}
@@ -133,13 +155,14 @@ func collectUnimplementedAbstractMethods(vm data.VM, class data.ClassStmt) ([]st
 
 func unimplementedFromParentClass(vm data.VM, class, parent data.ClassStmt) ([]string, data.Control) {
 	var missing []string
-	for _, method := range parent.GetMethods() {
+	forEachClassMethod(parent, func(method data.Method) bool {
 		if _, ok := method.(*AbstractMethod); ok {
 			if !classImplementsConcreteMethod(vm, class, method.GetName()) {
 				missing = append(missing, parent.GetName()+"::"+method.GetName())
 			}
 		}
-	}
+		return true
+	})
 	for _, ifaceName := range parent.GetImplements() {
 		entries, acl := unimplementedInterfaceMethods(vm, class, ifaceName)
 		if acl != nil {

@@ -160,18 +160,22 @@ func (f *IsAFunction) GetName() string {
 	return "is_a"
 }
 
+var isAFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "object_or_class", 0, nil, data.Mixed{}),
+	node.NewParameter(nil, "class_name", 1, nil, data.String{}),
+	node.NewParameter(nil, "allow_string", 2, data.NewBoolValue(false), data.Bool{}),
+}
+
 func (f *IsAFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object_or_class", 0, nil, data.Mixed{}),
-		node.NewParameter(nil, "class_name", 1, nil, data.String{}),
-		node.NewParameter(nil, "allow_string", 2, data.NewBoolValue(false), data.Bool{}),
-	}
+	return isAFunctionGetParams
+}
+
+var isAFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "object_or_class", 0, data.Mixed{}),
+	node.NewVariable(nil, "class_name", 1, data.String{}),
+	node.NewVariable(nil, "allow_string", 2, data.Bool{}),
 }
 
 func (f *IsAFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object_or_class", 0, data.Mixed{}),
-		node.NewVariable(nil, "class_name", 1, data.String{}),
-		node.NewVariable(nil, "allow_string", 2, data.Bool{}),
-	}
+	return isAFunctionGetVariables
 }

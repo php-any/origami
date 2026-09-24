@@ -93,16 +93,20 @@ func (m *ReflectionFunctionConstructMethod) GetModifier() data.Modifier { return
 func (m *ReflectionFunctionConstructMethod) GetIsStatic() bool          { return false }
 func (m *ReflectionFunctionConstructMethod) GetReturnType() data.Types  { return nil }
 
+var reflectionFunctionConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "function", 0, nil, data.Mixed{}),
+}
+
 func (m *ReflectionFunctionConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "function", 0, nil, data.Mixed{}),
-	}
+	return reflectionFunctionConstructMethodGetParams
+}
+
+var reflectionFunctionConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "function", 0, data.Mixed{}),
 }
 
 func (m *ReflectionFunctionConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "function", 0, data.Mixed{}),
-	}
+	return reflectionFunctionConstructMethodGetVariables
 }
 
 // Call 执行构造函数：接受 Closure 或函数名字符串，存储到实例属性
@@ -160,11 +164,15 @@ func (m *ReflectionFunctionGetParametersMethod) GetModifier() data.Modifier {
 }
 func (m *ReflectionFunctionGetParametersMethod) GetIsStatic() bool         { return false }
 func (m *ReflectionFunctionGetParametersMethod) GetReturnType() data.Types { return data.Arrays{} }
+var reflectionFunctionGetParametersMethodGetParams = []data.GetValue{}
+
 func (m *ReflectionFunctionGetParametersMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return reflectionFunctionGetParametersMethodGetParams
 }
+var reflectionFunctionGetParametersMethodGetVariables = []data.Variable{}
+
 func (m *ReflectionFunctionGetParametersMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return reflectionFunctionGetParametersMethodGetVariables
 }
 
 func (m *ReflectionFunctionGetParametersMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -230,11 +238,15 @@ func (m *ReflectionFunctionGetNumberOfParametersMethod) GetModifier() data.Modif
 }
 func (m *ReflectionFunctionGetNumberOfParametersMethod) GetIsStatic() bool         { return false }
 func (m *ReflectionFunctionGetNumberOfParametersMethod) GetReturnType() data.Types { return data.Int{} }
+var reflectionFunctionGetNumberOfParametersMethodGetParams = []data.GetValue{}
+
 func (m *ReflectionFunctionGetNumberOfParametersMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return reflectionFunctionGetNumberOfParametersMethodGetParams
 }
+var reflectionFunctionGetNumberOfParametersMethodGetVariables = []data.Variable{}
+
 func (m *ReflectionFunctionGetNumberOfParametersMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return reflectionFunctionGetNumberOfParametersMethodGetVariables
 }
 
 func (m *ReflectionFunctionGetNumberOfParametersMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -257,9 +269,13 @@ func (m *ReflectionFunctionIsAnonymousMethod) GetName() string            { retu
 func (m *ReflectionFunctionIsAnonymousMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ReflectionFunctionIsAnonymousMethod) GetIsStatic() bool          { return false }
 func (m *ReflectionFunctionIsAnonymousMethod) GetReturnType() data.Types  { return data.Bool{} }
-func (m *ReflectionFunctionIsAnonymousMethod) GetParams() []data.GetValue { return []data.GetValue{} }
+var reflectionFunctionIsAnonymousMethodGetParams = []data.GetValue{}
+
+func (m *ReflectionFunctionIsAnonymousMethod) GetParams() []data.GetValue { return reflectionFunctionIsAnonymousMethodGetParams }
+var reflectionFunctionIsAnonymousMethodGetVariables = []data.Variable{}
+
 func (m *ReflectionFunctionIsAnonymousMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return reflectionFunctionIsAnonymousMethodGetVariables
 }
 func (m *ReflectionFunctionIsAnonymousMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewBoolValue(false), nil
@@ -277,11 +293,15 @@ func (m *ReflectionFunctionGetClosureScopeClassMethod) GetModifier() data.Modifi
 }
 func (m *ReflectionFunctionGetClosureScopeClassMethod) GetIsStatic() bool         { return false }
 func (m *ReflectionFunctionGetClosureScopeClassMethod) GetReturnType() data.Types { return nil }
+var reflectionFunctionGetClosureScopeClassMethodGetParams = []data.GetValue{}
+
 func (m *ReflectionFunctionGetClosureScopeClassMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return reflectionFunctionGetClosureScopeClassMethodGetParams
 }
+var reflectionFunctionGetClosureScopeClassMethodGetVariables = []data.Variable{}
+
 func (m *ReflectionFunctionGetClosureScopeClassMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return reflectionFunctionGetClosureScopeClassMethodGetVariables
 }
 func (m *ReflectionFunctionGetClosureScopeClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewNullValue(), nil
@@ -301,11 +321,15 @@ func (m *ReflectionFunctionGetStaticVariablesMethod) GetIsStatic() bool { return
 func (m *ReflectionFunctionGetStaticVariablesMethod) GetReturnType() data.Types {
 	return data.Arrays{}
 }
+var reflectionFunctionGetStaticVariablesMethodGetParams = []data.GetValue{}
+
 func (m *ReflectionFunctionGetStaticVariablesMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return reflectionFunctionGetStaticVariablesMethodGetParams
 }
+var reflectionFunctionGetStaticVariablesMethodGetVariables = []data.Variable{}
+
 func (m *ReflectionFunctionGetStaticVariablesMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return reflectionFunctionGetStaticVariablesMethodGetVariables
 }
 func (m *ReflectionFunctionGetStaticVariablesMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	objCtx, ok := ctx.(*data.ClassMethodContext)
@@ -342,11 +366,15 @@ func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetModifier() data.Mod
 }
 func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetIsStatic() bool         { return false }
 func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetReturnType() data.Types { return data.Arrays{} }
+var reflectionFunctionGetClosureUsedVariablesMethodGetParams = []data.GetValue{}
+
 func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return reflectionFunctionGetClosureUsedVariablesMethodGetParams
 }
+var reflectionFunctionGetClosureUsedVariablesMethodGetVariables = []data.Variable{}
+
 func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return reflectionFunctionGetClosureUsedVariablesMethodGetVariables
 }
 func (m *ReflectionFunctionGetClosureUsedVariablesMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	objCtx, ok := ctx.(*data.ClassMethodContext)
@@ -384,11 +412,15 @@ func (m *ReflectionFunctionGetClosureCalledClassMethod) GetModifier() data.Modif
 }
 func (m *ReflectionFunctionGetClosureCalledClassMethod) GetIsStatic() bool         { return false }
 func (m *ReflectionFunctionGetClosureCalledClassMethod) GetReturnType() data.Types { return nil }
+var reflectionFunctionGetClosureCalledClassMethodGetParams = []data.GetValue{}
+
 func (m *ReflectionFunctionGetClosureCalledClassMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return reflectionFunctionGetClosureCalledClassMethodGetParams
 }
+var reflectionFunctionGetClosureCalledClassMethodGetVariables = []data.Variable{}
+
 func (m *ReflectionFunctionGetClosureCalledClassMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return reflectionFunctionGetClosureCalledClassMethodGetVariables
 }
 func (m *ReflectionFunctionGetClosureCalledClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// PHP 的 getClosureCalledClass() 返回闭包定义时所在类。

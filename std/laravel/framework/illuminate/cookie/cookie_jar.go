@@ -2,9 +2,6 @@ package cookie
 
 import (
 	"fmt"
-	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/php-any/origami/data"
@@ -23,27 +20,18 @@ type jarState struct {
 	queued   map[string]map[string]*data.ClassValue // name -> path -> cookie
 }
 
-var (
-	jarStates sync.Map
-	jarNextID atomic.Int64
-)
+// jarStateProp：Go 侧状态挂在对象隐蔽属性上，由 GC 随对象回收（见 kit.CachedState）。
+const jarStateProp = "__origami_jar_state"
+
+func newJarState() *jarState {
+	return &jarState{path: "/", sameSite: "lax", queued: map[string]map[string]*data.ClassValue{}}
+}
 
 func jarOf(cv *data.ClassValue) *jarState {
 	if cv == nil {
-		return &jarState{path: "/", sameSite: "lax", queued: map[string]map[string]*data.ClassValue{}}
+		return newJarState()
 	}
-	if v, ctl := cv.GetProperty("__origami_jar_id"); ctl == nil && v != nil {
-		if iv, ok := kit.Unwrap(v).(*data.IntValue); ok && iv.Value > 0 {
-			if s, ok := jarStates.Load(int64(iv.Value)); ok {
-				return s.(*jarState)
-			}
-		}
-	}
-	id := jarNextID.Add(1)
-	s := &jarState{path: "/", sameSite: "lax", queued: map[string]map[string]*data.ClassValue{}}
-	jarStates.Store(id, s)
-	_ = cv.SetProperty("__origami_jar_id", data.NewIntValue(int(id)))
-	return s
+	return kit.CachedState(cv, jarStateProp, newJarState)
 }
 
 type CookieJarClass struct {
@@ -86,7 +74,7 @@ func (c *CookieJarClass) GetValue(ctx data.Context) (data.GetValue, data.Control
 	return cv, nil
 }
 func (c *CookieJarClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *CookieJarClass) GetMethods() []data.Method {

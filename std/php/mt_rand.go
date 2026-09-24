@@ -31,11 +31,15 @@ func (f *MtSrandFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *MtSrandFunction) GetName() string { return "mt_srand" }
+var mtSrandFunctionGetParams = []data.GetValue{node.NewParameter(nil, "seed", 0, nil, nil)}
+
 func (f *MtSrandFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "seed", 0, nil, nil)}
+	return mtSrandFunctionGetParams
 }
+var mtSrandFunctionGetVariables = []data.Variable{node.NewVariable(nil, "seed", 0, data.NewBaseType("int"))}
+
 func (f *MtSrandFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "seed", 0, data.NewBaseType("int"))}
+	return mtSrandFunctionGetVariables
 }
 
 // MtRandFunction 实现 mt_rand 函数
@@ -84,17 +88,21 @@ func (f *MtRandFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *MtRandFunction) GetName() string { return "mt_rand" }
-func (f *MtRandFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "min", 0, nil, nil),
-		node.NewParameter(nil, "max", 1, nil, nil),
-	}
+var mtRandFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "min", 0, nil, nil),
+	node.NewParameter(nil, "max", 1, nil, nil),
 }
+
+func (f *MtRandFunction) GetParams() []data.GetValue {
+	return mtRandFunctionGetParams
+}
+var mtRandFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "min", 0, data.NewNullableType(data.NewBaseType("int"))),
+	node.NewVariable(nil, "max", 1, data.NewNullableType(data.NewBaseType("int"))),
+}
+
 func (f *MtRandFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "min", 0, data.NewNullableType(data.NewBaseType("int"))),
-		node.NewVariable(nil, "max", 1, data.NewNullableType(data.NewBaseType("int"))),
-	}
+	return mtRandFunctionGetVariables
 }
 
 // RandFunction 实现 rand 函数（PHP 的 rand 与 mt_rand 行为兼容）
@@ -140,17 +148,21 @@ func (f *RandFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *RandFunction) GetName() string { return "rand" }
-func (f *RandFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "min", 0, nil, nil),
-		node.NewParameter(nil, "max", 1, nil, nil),
-	}
+var randFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "min", 0, nil, nil),
+	node.NewParameter(nil, "max", 1, nil, nil),
 }
+
+func (f *RandFunction) GetParams() []data.GetValue {
+	return randFunctionGetParams
+}
+var randFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "min", 0, data.NewNullableType(data.NewBaseType("int"))),
+	node.NewVariable(nil, "max", 1, data.NewNullableType(data.NewBaseType("int"))),
+}
+
 func (f *RandFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "min", 0, data.NewNullableType(data.NewBaseType("int"))),
-		node.NewVariable(nil, "max", 1, data.NewNullableType(data.NewBaseType("int"))),
-	}
+	return randFunctionGetVariables
 }
 
 // SrandFunction 实现 srand 函数
@@ -172,11 +184,15 @@ func (f *SrandFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *SrandFunction) GetName() string { return "srand" }
+var srandFunctionGetParams = []data.GetValue{node.NewParameter(nil, "seed", 0, nil, nil)}
+
 func (f *SrandFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "seed", 0, nil, nil)}
+	return srandFunctionGetParams
 }
+var srandFunctionGetVariables = []data.Variable{node.NewVariable(nil, "seed", 0, data.NewBaseType("int"))}
+
 func (f *SrandFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "seed", 0, data.NewBaseType("int"))}
+	return srandFunctionGetVariables
 }
 
 // MtGetrandmaxFunction 实现 mt_getrandmax 函数
@@ -189,9 +205,13 @@ func (f *MtGetrandmaxFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 }
 
 func (f *MtGetrandmaxFunction) GetName() string { return "mt_getrandmax" }
+var mtGetrandmaxFunctionGetParams = []data.GetValue{}
+
 func (f *MtGetrandmaxFunction) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return mtGetrandmaxFunctionGetParams
 }
+var mtGetrandmaxFunctionGetVariables = []data.Variable{}
+
 func (f *MtGetrandmaxFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return mtGetrandmaxFunctionGetVariables
 }

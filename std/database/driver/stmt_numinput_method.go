@@ -18,12 +18,16 @@ func (h *StmtNumInputMethod) Call(ctx data.Context) (data.GetValue, data.Control
 func (h *StmtNumInputMethod) GetName() string            { return "numInput" }
 func (h *StmtNumInputMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *StmtNumInputMethod) GetIsStatic() bool          { return true }
+var stmtNumInputMethodGetParams = []data.GetValue{}
+
 func (h *StmtNumInputMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return stmtNumInputMethodGetParams
 }
 
+var stmtNumInputMethodGetVariables = []data.Variable{}
+
 func (h *StmtNumInputMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return stmtNumInputMethodGetVariables
 }
 
 func (h *StmtNumInputMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

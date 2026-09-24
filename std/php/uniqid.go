@@ -49,16 +49,20 @@ func (f *UniqidFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 func (f *UniqidFunction) GetName() string { return "uniqid" }
 
+var uniqidFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "prefix", 0, data.NewStringValue(""), nil),
+	node.NewParameter(nil, "more_entropy", 1, data.NewBoolValue(false), nil),
+}
+
 func (f *UniqidFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "prefix", 0, data.NewStringValue(""), nil),
-		node.NewParameter(nil, "more_entropy", 1, data.NewBoolValue(false), nil),
-	}
+	return uniqidFunctionGetParams
+}
+
+var uniqidFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "prefix", 0, nil),
+	node.NewVariable(nil, "more_entropy", 1, nil),
 }
 
 func (f *UniqidFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "prefix", 0, nil),
-		node.NewVariable(nil, "more_entropy", 1, nil),
-	}
+	return uniqidFunctionGetVariables
 }

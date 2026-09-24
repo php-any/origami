@@ -129,20 +129,24 @@ func (f *StrReplaceFunction) GetName() string {
 	return "str_replace"
 }
 
+var strReplaceFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "search", 0, nil, nil),
+	node.NewParameter(nil, "replace", 1, nil, nil),
+	node.NewParameter(nil, "subject", 2, nil, nil),
+	node.NewParameter(nil, "count", 3, node.NewNullLiteral(nil), nil),
+}
+
 func (f *StrReplaceFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "search", 0, nil, nil),
-		node.NewParameter(nil, "replace", 1, nil, nil),
-		node.NewParameter(nil, "subject", 2, nil, nil),
-		node.NewParameter(nil, "count", 3, node.NewNullLiteral(nil), nil),
-	}
+	return strReplaceFunctionGetParams
+}
+
+var strReplaceFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "search", 0, data.NewBaseType("mixed")),
+	node.NewVariable(nil, "replace", 1, data.NewBaseType("mixed")),
+	node.NewVariable(nil, "subject", 2, data.NewBaseType("mixed")),
+	node.NewVariable(nil, "count", 3, data.NewBaseType("int")),
 }
 
 func (f *StrReplaceFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "search", 0, data.NewBaseType("mixed")),
-		node.NewVariable(nil, "replace", 1, data.NewBaseType("mixed")),
-		node.NewVariable(nil, "subject", 2, data.NewBaseType("mixed")),
-		node.NewVariable(nil, "count", 3, data.NewBaseType("int")),
-	}
+	return strReplaceFunctionGetVariables
 }

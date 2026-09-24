@@ -37,16 +37,20 @@ func (m *EncodeFixed64Method) GetIsStatic() bool {
 	return true
 }
 
+var encodeFixed64MethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+}
+
 func (m *EncodeFixed64Method) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return encodeFixed64MethodGetParams
+}
+
+var encodeFixed64MethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, nil),
 }
 
 func (m *EncodeFixed64Method) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, nil),
-	}
+	return encodeFixed64MethodGetVariables
 }
 
 func (m *EncodeFixed64Method) GetReturnType() data.Types {

@@ -14,13 +14,15 @@ var (
 )
 
 type requestStaticMap struct {
-	m atomic.Value // map[string]Value
+	// m 用 sync.Map 而不是「整表拷贝 + atomic.Value 换指针」：
+	// 每次静态属性写入都 copy 整张表是 O(现有条目数)，Telescope/容器这类
+	// 每请求写几十次静态属性的路径上会放大成大量临时 map，也是 GC 压力的主要来源之一。
+	// sync.Map 的读路径无锁、写路径不拷贝，条目随请求结束整体丢弃，不会无限增长。
+	m sync.Map // string -> Value
 }
 
 func newRequestStaticMap() *requestStaticMap {
-	s := &requestStaticMap{}
-	s.m.Store(map[string]Value{})
-	return s
+	return &requestStaticMap{}
 }
 
 func BeginRequestStaticOverlay() {
@@ -52,9 +54,12 @@ func LoadRequestStatic(class, name string) (Value, bool) {
 	if !ok {
 		return nil, false
 	}
-	mp, _ := raw.(*requestStaticMap).m.Load().(map[string]Value)
-	v, ok := mp[requestStaticKey(class, name)]
-	return v, ok
+	mp := &raw.(*requestStaticMap).m
+	if v, ok := mp.Load(requestStaticKey(class, name)); ok {
+		val, _ := v.(Value)
+		return val, true
+	}
+	return nil, false
 }
 
 // StoreRequestStatic 把静态属性写到当前请求 overlay，避免改进程级 StaticProperty。
@@ -68,14 +73,7 @@ func StoreRequestStatic(class, name string, v Value) bool {
 		return false
 	}
 	slot := raw.(*requestStaticMap)
-	key := requestStaticKey(class, name)
-	old, _ := slot.m.Load().(map[string]Value)
-	next := make(map[string]Value, len(old)+1)
-	for k, val := range old {
-		next[k] = val
-	}
-	next[key] = v
-	slot.m.Store(next)
+	slot.m.Store(requestStaticKey(class, name), v)
 	return true
 }
 

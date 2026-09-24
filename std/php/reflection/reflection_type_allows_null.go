@@ -17,14 +17,18 @@ func (m *ReflectionTypeAllowsNullMethod) GetModifier() data.Modifier { return da
 // GetIsStatic 返回是否为静态方法，非静态方法
 func (m *ReflectionTypeAllowsNullMethod) GetIsStatic() bool { return false }
 
+var reflectionTypeAllowsNullMethodGetParams = []data.GetValue{}
+
 // GetParams 返回参数列表，该方法无参数
 func (m *ReflectionTypeAllowsNullMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return reflectionTypeAllowsNullMethodGetParams
 }
+
+var reflectionTypeAllowsNullMethodGetVariables = []data.Variable{}
 
 // GetVariables 返回变量列表，该方法无变量
 func (m *ReflectionTypeAllowsNullMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return reflectionTypeAllowsNullMethodGetVariables
 }
 
 // GetReturnType 返回返回类型，返回布尔类型

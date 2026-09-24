@@ -386,19 +386,23 @@ func (m *SFOConstructMethod) GetName() string            { return "__construct" 
 func (m *SFOConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SFOConstructMethod) GetIsStatic() bool          { return false }
 func (m *SFOConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *SFOConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "filename", 0, nil, data.NewBaseType("string")),
-		node.NewParameter(nil, "mode", 1, data.NewStringValue("r"), data.NewBaseType("string")),
-		node.NewParameter(nil, "flags", 2, data.NewIntValue(0), data.NewBaseType("int")),
-	}
+var sFOConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "filename", 0, nil, data.NewBaseType("string")),
+	node.NewParameter(nil, "mode", 1, data.NewStringValue("r"), data.NewBaseType("string")),
+	node.NewParameter(nil, "flags", 2, data.NewIntValue(0), data.NewBaseType("int")),
 }
+
+func (m *SFOConstructMethod) GetParams() []data.GetValue {
+	return sFOConstructMethodGetParams
+}
+var sFOConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "mode", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "flags", 2, data.NewBaseType("int")),
+}
+
 func (m *SFOConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "mode", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "flags", 2, data.NewBaseType("int")),
-	}
+	return sFOConstructMethodGetVariables
 }
 func (m *SFOConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := sfiGetCV(ctx)
@@ -454,19 +458,23 @@ func (m *SFOFgetcsvMethod) GetName() string            { return "fgetcsv" }
 func (m *SFOFgetcsvMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SFOFgetcsvMethod) GetIsStatic() bool          { return false }
 func (m *SFOFgetcsvMethod) GetReturnType() data.Types  { return nil }
-func (m *SFOFgetcsvMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "separator", 0, data.NewStringValue(","), data.NewBaseType("string")),
-		node.NewParameter(nil, "enclosure", 1, data.NewStringValue("\""), data.NewBaseType("string")),
-		node.NewParameter(nil, "escape", 2, data.NewStringValue("\\"), data.NewBaseType("string")),
-	}
+var sFOFgetcsvMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "separator", 0, data.NewStringValue(","), data.NewBaseType("string")),
+	node.NewParameter(nil, "enclosure", 1, data.NewStringValue("\""), data.NewBaseType("string")),
+	node.NewParameter(nil, "escape", 2, data.NewStringValue("\\"), data.NewBaseType("string")),
 }
+
+func (m *SFOFgetcsvMethod) GetParams() []data.GetValue {
+	return sFOFgetcsvMethodGetParams
+}
+var sFOFgetcsvMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "separator", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "enclosure", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "escape", 2, data.NewBaseType("string")),
+}
+
 func (m *SFOFgetcsvMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "separator", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "enclosure", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "escape", 2, data.NewBaseType("string")),
-	}
+	return sFOFgetcsvMethodGetVariables
 }
 func (m *SFOFgetcsvMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := sfiGetCV(ctx)
@@ -510,17 +518,21 @@ func (m *SFOFwriteMethod) GetName() string            { return "fwrite" }
 func (m *SFOFwriteMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SFOFwriteMethod) GetIsStatic() bool          { return false }
 func (m *SFOFwriteMethod) GetReturnType() data.Types  { return data.Int{} }
-func (m *SFOFwriteMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "data", 0, nil, data.NewBaseType("string")),
-		node.NewParameter(nil, "length", 1, data.NewNullValue(), nil),
-	}
+var sFOFwriteMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "data", 0, nil, data.NewBaseType("string")),
+	node.NewParameter(nil, "length", 1, data.NewNullValue(), nil),
 }
+
+func (m *SFOFwriteMethod) GetParams() []data.GetValue {
+	return sFOFwriteMethodGetParams
+}
+var sFOFwriteMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "data", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "length", 1, nil),
+}
+
 func (m *SFOFwriteMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "data", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "length", 1, nil),
-	}
+	return sFOFwriteMethodGetVariables
 }
 func (m *SFOFwriteMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := sfiGetCV(ctx)
@@ -560,21 +572,25 @@ func (m *SFOFputcsvMethod) GetName() string            { return "fputcsv" }
 func (m *SFOFputcsvMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SFOFputcsvMethod) GetIsStatic() bool          { return false }
 func (m *SFOFputcsvMethod) GetReturnType() data.Types  { return data.Int{} }
-func (m *SFOFputcsvMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "fields", 0, nil, nil),
-		node.NewParameter(nil, "separator", 1, data.NewStringValue(","), data.NewBaseType("string")),
-		node.NewParameter(nil, "enclosure", 2, data.NewStringValue("\""), data.NewBaseType("string")),
-		node.NewParameter(nil, "escape", 3, data.NewStringValue("\\"), data.NewBaseType("string")),
-	}
+var sFOFputcsvMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "fields", 0, nil, nil),
+	node.NewParameter(nil, "separator", 1, data.NewStringValue(","), data.NewBaseType("string")),
+	node.NewParameter(nil, "enclosure", 2, data.NewStringValue("\""), data.NewBaseType("string")),
+	node.NewParameter(nil, "escape", 3, data.NewStringValue("\\"), data.NewBaseType("string")),
 }
+
+func (m *SFOFputcsvMethod) GetParams() []data.GetValue {
+	return sFOFputcsvMethodGetParams
+}
+var sFOFputcsvMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "fields", 0, nil),
+	node.NewVariable(nil, "separator", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "enclosure", 2, data.NewBaseType("string")),
+	node.NewVariable(nil, "escape", 3, data.NewBaseType("string")),
+}
+
 func (m *SFOFputcsvMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "fields", 0, nil),
-		node.NewVariable(nil, "separator", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "enclosure", 2, data.NewBaseType("string")),
-		node.NewVariable(nil, "escape", 3, data.NewBaseType("string")),
-	}
+	return sFOFputcsvMethodGetVariables
 }
 func (m *SFOFputcsvMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := sfiGetCV(ctx)
@@ -737,13 +753,17 @@ func (m *SFOSeekMethod) GetName() string            { return "seek" }
 func (m *SFOSeekMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SFOSeekMethod) GetIsStatic() bool          { return false }
 func (m *SFOSeekMethod) GetReturnType() data.Types  { return nil }
-func (m *SFOSeekMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "offset", 0, data.NewIntValue(0), data.Int{}),
-	}
+var sFOSeekMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "offset", 0, data.NewIntValue(0), data.Int{}),
 }
+
+func (m *SFOSeekMethod) GetParams() []data.GetValue {
+	return sFOSeekMethodGetParams
+}
+var sFOSeekMethodGetVariables = []data.Variable{node.NewVariable(nil, "offset", 0, data.Int{})}
+
 func (m *SFOSeekMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "offset", 0, data.Int{})}
+	return sFOSeekMethodGetVariables
 }
 func (m *SFOSeekMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := sfiGetCV(ctx)

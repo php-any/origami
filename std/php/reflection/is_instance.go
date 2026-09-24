@@ -18,20 +18,24 @@ func (m *ReflectionClassIsInstanceMethod) GetModifier() data.Modifier { return d
 // GetIsStatic 返回是否为静态方法，非静态方法
 func (m *ReflectionClassIsInstanceMethod) GetIsStatic() bool { return false }
 
+var reflectionClassIsInstanceMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
+}
+
 // GetParams 返回参数列表
 // 参数:
 //   - object: 要检查的对象实例
 func (m *ReflectionClassIsInstanceMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
-	}
+	return reflectionClassIsInstanceMethodGetParams
+}
+
+var reflectionClassIsInstanceMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
 }
 
 // GetVariables 返回变量列表
 func (m *ReflectionClassIsInstanceMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
-	}
+	return reflectionClassIsInstanceMethodGetVariables
 }
 
 // GetReturnType 返回返回类型，返回布尔类型

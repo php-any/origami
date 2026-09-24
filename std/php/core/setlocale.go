@@ -53,16 +53,20 @@ func (f *SetlocaleFunction) GetName() string {
 	return "setlocale"
 }
 
+var setlocaleFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "category", 0, nil, data.Int{}),
+	node.NewParameter(nil, "locale", 1, nil, data.Mixed{}),
+}
+
 func (f *SetlocaleFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "category", 0, nil, data.Int{}),
-		node.NewParameter(nil, "locale", 1, nil, data.Mixed{}),
-	}
+	return setlocaleFunctionGetParams
+}
+
+var setlocaleFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "category", 0, data.Int{}),
+	node.NewVariable(nil, "locale", 1, data.Mixed{}),
 }
 
 func (f *SetlocaleFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "category", 0, data.Int{}),
-		node.NewVariable(nil, "locale", 1, data.Mixed{}),
-	}
+	return setlocaleFunctionGetVariables
 }

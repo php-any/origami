@@ -88,18 +88,22 @@ func (f *SubstrFunction) GetName() string {
 	return "substr"
 }
 
+var substrFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "start", 1, nil, nil),
+	node.NewParameter(nil, "length", 2, node.NewNullLiteral(nil), nil),
+}
+
 func (f *SubstrFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "start", 1, nil, nil),
-		node.NewParameter(nil, "length", 2, node.NewNullLiteral(nil), nil),
-	}
+	return substrFunctionGetParams
+}
+
+var substrFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "start", 1, data.NewBaseType("int")),
+	node.NewVariable(nil, "length", 2, data.NewBaseType("int")),
 }
 
 func (f *SubstrFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "start", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "length", 2, data.NewBaseType("int")),
-	}
+	return substrFunctionGetVariables
 }

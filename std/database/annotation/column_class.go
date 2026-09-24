@@ -101,20 +101,24 @@ func (m *ColumnConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var columnConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
+	node.NewParameter(nil, "nullable", 1, data.NewBoolValue(true), data.NewBaseType("bool")),
+	node.NewParameter(nil, "length", 2, data.NewIntValue(255), data.NewBaseType("int")),
+}
+
 func (m *ColumnConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
-		node.NewParameter(nil, "nullable", 1, data.NewBoolValue(true), data.NewBaseType("bool")),
-		node.NewParameter(nil, "length", 2, data.NewIntValue(255), data.NewBaseType("int")),
-	}
+	return columnConstructMethodGetParams
+}
+
+var columnConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "name", 0, nil),
+	node.NewVariable(nil, "nullable", 1, nil),
+	node.NewVariable(nil, "length", 2, nil),
 }
 
 func (m *ColumnConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "name", 0, nil),
-		node.NewVariable(nil, "nullable", 1, nil),
-		node.NewVariable(nil, "length", 2, nil),
-	}
+	return columnConstructMethodGetVariables
 }
 
 func (m *ColumnConstructMethod) GetReturnType() data.Types {

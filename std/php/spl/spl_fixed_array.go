@@ -141,13 +141,17 @@ func (m *SplFixedArrayConstructMethod) GetName() string            { return "__c
 func (m *SplFixedArrayConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplFixedArrayConstructMethod) GetIsStatic() bool          { return false }
 func (m *SplFixedArrayConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *SplFixedArrayConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "size", 0, data.NewIntValue(0), data.Int{}),
-	}
+var splFixedArrayConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "size", 0, data.NewIntValue(0), data.Int{}),
 }
+
+func (m *SplFixedArrayConstructMethod) GetParams() []data.GetValue {
+	return splFixedArrayConstructMethodGetParams
+}
+var splFixedArrayConstructMethodGetVariables = []data.Variable{node.NewVariable(nil, "size", 0, data.Int{})}
+
 func (m *SplFixedArrayConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "size", 0, data.Int{})}
+	return splFixedArrayConstructMethodGetVariables
 }
 func (m *SplFixedArrayConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := sfaGetCV(ctx)
@@ -302,11 +306,15 @@ func (m *SplFixedArrayOffsetExistsMethod) GetName() string            { return "
 func (m *SplFixedArrayOffsetExistsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplFixedArrayOffsetExistsMethod) GetIsStatic() bool          { return false }
 func (m *SplFixedArrayOffsetExistsMethod) GetReturnType() data.Types  { return data.Bool{} }
+var splFixedArrayOffsetExistsMethodGetParams = []data.GetValue{node.NewParameter(nil, "index", 0, nil, data.Mixed{})}
+
 func (m *SplFixedArrayOffsetExistsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "index", 0, nil, data.Mixed{})}
+	return splFixedArrayOffsetExistsMethodGetParams
 }
+var splFixedArrayOffsetExistsMethodGetVariables = []data.Variable{node.NewVariable(nil, "index", 0, data.Mixed{})}
+
 func (m *SplFixedArrayOffsetExistsMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "index", 0, data.Mixed{})}
+	return splFixedArrayOffsetExistsMethodGetVariables
 }
 func (m *SplFixedArrayOffsetExistsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := sfaGetCV(ctx)
@@ -327,11 +335,15 @@ func (m *SplFixedArrayOffsetGetMethod) GetName() string            { return "off
 func (m *SplFixedArrayOffsetGetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplFixedArrayOffsetGetMethod) GetIsStatic() bool          { return false }
 func (m *SplFixedArrayOffsetGetMethod) GetReturnType() data.Types  { return data.Mixed{} }
+var splFixedArrayOffsetGetMethodGetParams = []data.GetValue{node.NewParameter(nil, "index", 0, nil, data.Mixed{})}
+
 func (m *SplFixedArrayOffsetGetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "index", 0, nil, data.Mixed{})}
+	return splFixedArrayOffsetGetMethodGetParams
 }
+var splFixedArrayOffsetGetMethodGetVariables = []data.Variable{node.NewVariable(nil, "index", 0, data.Mixed{})}
+
 func (m *SplFixedArrayOffsetGetMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "index", 0, data.Mixed{})}
+	return splFixedArrayOffsetGetMethodGetVariables
 }
 func (m *SplFixedArrayOffsetGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := sfaGetCV(ctx)
@@ -352,17 +364,21 @@ func (m *SplFixedArrayOffsetSetMethod) GetName() string            { return "off
 func (m *SplFixedArrayOffsetSetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplFixedArrayOffsetSetMethod) GetIsStatic() bool          { return false }
 func (m *SplFixedArrayOffsetSetMethod) GetReturnType() data.Types  { return nil }
-func (m *SplFixedArrayOffsetSetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "index", 0, nil, data.Mixed{}),
-		node.NewParameter(nil, "newval", 1, nil, data.Mixed{}),
-	}
+var splFixedArrayOffsetSetMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "index", 0, nil, data.Mixed{}),
+	node.NewParameter(nil, "newval", 1, nil, data.Mixed{}),
 }
+
+func (m *SplFixedArrayOffsetSetMethod) GetParams() []data.GetValue {
+	return splFixedArrayOffsetSetMethodGetParams
+}
+var splFixedArrayOffsetSetMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "index", 0, data.Mixed{}),
+	node.NewVariable(nil, "newval", 1, data.Mixed{}),
+}
+
 func (m *SplFixedArrayOffsetSetMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "index", 0, data.Mixed{}),
-		node.NewVariable(nil, "newval", 1, data.Mixed{}),
-	}
+	return splFixedArrayOffsetSetMethodGetVariables
 }
 func (m *SplFixedArrayOffsetSetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := sfaGetCV(ctx)
@@ -385,11 +401,15 @@ func (m *SplFixedArrayOffsetUnsetMethod) GetName() string            { return "o
 func (m *SplFixedArrayOffsetUnsetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplFixedArrayOffsetUnsetMethod) GetIsStatic() bool          { return false }
 func (m *SplFixedArrayOffsetUnsetMethod) GetReturnType() data.Types  { return nil }
+var splFixedArrayOffsetUnsetMethodGetParams = []data.GetValue{node.NewParameter(nil, "index", 0, nil, data.Mixed{})}
+
 func (m *SplFixedArrayOffsetUnsetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "index", 0, nil, data.Mixed{})}
+	return splFixedArrayOffsetUnsetMethodGetParams
 }
+var splFixedArrayOffsetUnsetMethodGetVariables = []data.Variable{node.NewVariable(nil, "index", 0, data.Mixed{})}
+
 func (m *SplFixedArrayOffsetUnsetMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "index", 0, data.Mixed{})}
+	return splFixedArrayOffsetUnsetMethodGetVariables
 }
 func (m *SplFixedArrayOffsetUnsetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := sfaGetCV(ctx)

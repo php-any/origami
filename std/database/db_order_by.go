@@ -41,16 +41,20 @@ func (d *DbOrderByMethod) GetIsStatic() bool {
 	return false
 }
 
+var dbOrderByMethodGetParams = []data.GetValue{
+	data.NewParameter("orderBy", 0),
+}
+
 func (d *DbOrderByMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("orderBy", 0),
-	}
+	return dbOrderByMethodGetParams
+}
+
+var dbOrderByMethodGetVariables = []data.Variable{
+	data.NewVariable("orderBy", 0, data.NewBaseType("string")),
 }
 
 func (d *DbOrderByMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("orderBy", 0, data.NewBaseType("string")),
-	}
+	return dbOrderByMethodGetVariables
 }
 
 func (d *DbOrderByMethod) GetReturnType() data.Types {

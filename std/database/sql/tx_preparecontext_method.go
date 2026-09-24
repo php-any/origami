@@ -51,18 +51,22 @@ func (h *TxPrepareContextMethod) Call(ctx data.Context) (data.GetValue, data.Con
 func (h *TxPrepareContextMethod) GetName() string            { return "prepareContext" }
 func (h *TxPrepareContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *TxPrepareContextMethod) GetIsStatic() bool          { return true }
+var txPrepareContextMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "ctx", 0, nil, nil),
+	node.NewParameter(nil, "query", 1, nil, nil),
+}
+
 func (h *TxPrepareContextMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "ctx", 0, nil, nil),
-		node.NewParameter(nil, "query", 1, nil, nil),
-	}
+	return txPrepareContextMethodGetParams
+}
+
+var txPrepareContextMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "ctx", 0, nil),
+	node.NewVariable(nil, "query", 1, nil),
 }
 
 func (h *TxPrepareContextMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "ctx", 0, nil),
-		node.NewVariable(nil, "query", 1, nil),
-	}
+	return txPrepareContextMethodGetVariables
 }
 
 func (h *TxPrepareContextMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

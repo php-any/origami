@@ -268,14 +268,18 @@ func (f *UnserializeFunction) GetName() string {
 	return "unserialize"
 }
 
+var unserializeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "data", 0, nil, data.String{}),
+}
+
 func (f *UnserializeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "data", 0, nil, data.String{}),
-	}
+	return unserializeFunctionGetParams
+}
+
+var unserializeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "data", 0, data.String{}),
 }
 
 func (f *UnserializeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "data", 0, data.String{}),
-	}
+	return unserializeFunctionGetVariables
 }

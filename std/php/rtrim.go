@@ -44,16 +44,20 @@ func (f *RtrimFunction) GetName() string {
 	return "rtrim"
 }
 
+var rtrimFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "charlist", 1, node.NewNullLiteral(nil), nil),
+}
+
 func (f *RtrimFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "charlist", 1, node.NewNullLiteral(nil), nil),
-	}
+	return rtrimFunctionGetParams
+}
+
+var rtrimFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "charlist", 1, data.NewBaseType("string")),
 }
 
 func (f *RtrimFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "charlist", 1, data.NewBaseType("string")),
-	}
+	return rtrimFunctionGetVariables
 }

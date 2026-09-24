@@ -25,14 +25,18 @@ func (h *RequestPathValueMethod) Call(ctx data.Context) (data.GetValue, data.Con
 func (h *RequestPathValueMethod) GetName() string            { return "pathValue" }
 func (h *RequestPathValueMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestPathValueMethod) GetIsStatic() bool          { return false }
-func (h *RequestPathValueMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-	}
+var requestPathValueMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
 }
+
+func (h *RequestPathValueMethod) GetParams() []data.GetValue {
+	return requestPathValueMethodGetParams
+}
+var requestPathValueMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
+}
+
 func (h *RequestPathValueMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-	}
+	return requestPathValueMethodGetVariables
 }
 func (h *RequestPathValueMethod) GetReturnType() data.Types { return data.NewBaseType("string") }

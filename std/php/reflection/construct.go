@@ -107,20 +107,24 @@ func (m *ReflectionClassConstructMethod) GetModifier() data.Modifier { return da
 // GetIsStatic 返回是否为静态方法，构造函数不是静态方法
 func (m *ReflectionClassConstructMethod) GetIsStatic() bool { return false }
 
+var reflectionClassConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "class", 0, nil, data.Mixed{}),
+}
+
 // GetParams 返回参数列表
 // 参数:
 //   - class: 类名（字符串）或对象实例，类型为 Mixed
 func (m *ReflectionClassConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "class", 0, nil, data.Mixed{}),
-	}
+	return reflectionClassConstructMethodGetParams
+}
+
+var reflectionClassConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "class", 0, data.Mixed{}),
 }
 
 // GetVariables 返回变量列表
 func (m *ReflectionClassConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "class", 0, data.Mixed{}),
-	}
+	return reflectionClassConstructMethodGetVariables
 }
 
 // GetReturnType 返回返回类型，构造函数无返回值

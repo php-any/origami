@@ -230,16 +230,20 @@ func (f *ArrayMapFunction) GetName() string {
 	return "array_map"
 }
 
+var arrayMapFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "callback", 0, nil, nil),
+	node.NewParameters(nil, "arrays", 1, nil, nil),
+}
+
 func (f *ArrayMapFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "callback", 0, nil, nil),
-		node.NewParameters(nil, "arrays", 1, nil, nil),
-	}
+	return arrayMapFunctionGetParams
+}
+
+var arrayMapFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "callback", 0, data.Mixed{}),
+	node.NewVariable(nil, "arrays", 1, data.Mixed{}),
 }
 
 func (f *ArrayMapFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "callback", 0, data.Mixed{}),
-		node.NewVariable(nil, "arrays", 1, data.Mixed{}),
-	}
+	return arrayMapFunctionGetVariables
 }

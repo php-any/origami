@@ -170,19 +170,23 @@ type NumberFormatterConstructMethod struct{}
 func (m *NumberFormatterConstructMethod) GetName() string            { return "__construct" }
 func (m *NumberFormatterConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *NumberFormatterConstructMethod) GetIsStatic() bool          { return false }
-func (m *NumberFormatterConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "locale", 0, nil, data.String{}),
-		node.NewParameter(nil, "style", 1, nil, data.Int{}),
-		node.NewParameter(nil, "pattern", 2, data.NewNullValue(), nil),
-	}
+var numberFormatterConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "locale", 0, nil, data.String{}),
+	node.NewParameter(nil, "style", 1, nil, data.Int{}),
+	node.NewParameter(nil, "pattern", 2, data.NewNullValue(), nil),
 }
+
+func (m *NumberFormatterConstructMethod) GetParams() []data.GetValue {
+	return numberFormatterConstructMethodGetParams
+}
+var numberFormatterConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "locale", 0, data.String{}),
+	node.NewVariable(nil, "style", 1, data.Int{}),
+	node.NewVariable(nil, "pattern", 2, nil),
+}
+
 func (m *NumberFormatterConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "locale", 0, data.String{}),
-		node.NewVariable(nil, "style", 1, data.Int{}),
-		node.NewVariable(nil, "pattern", 2, nil),
-	}
+	return numberFormatterConstructMethodGetVariables
 }
 func (m *NumberFormatterConstructMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
 
@@ -218,17 +222,21 @@ type NumberFormatterSetAttributeMethod struct{}
 func (m *NumberFormatterSetAttributeMethod) GetName() string            { return "setAttribute" }
 func (m *NumberFormatterSetAttributeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *NumberFormatterSetAttributeMethod) GetIsStatic() bool          { return false }
-func (m *NumberFormatterSetAttributeMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "attr", 0, nil, data.Int{}),
-		node.NewParameter(nil, "value", 1, nil, nil),
-	}
+var numberFormatterSetAttributeMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "attr", 0, nil, data.Int{}),
+	node.NewParameter(nil, "value", 1, nil, nil),
 }
+
+func (m *NumberFormatterSetAttributeMethod) GetParams() []data.GetValue {
+	return numberFormatterSetAttributeMethodGetParams
+}
+var numberFormatterSetAttributeMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "attr", 0, data.Int{}),
+	node.NewVariable(nil, "value", 1, nil),
+}
+
 func (m *NumberFormatterSetAttributeMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "attr", 0, data.Int{}),
-		node.NewVariable(nil, "value", 1, nil),
-	}
+	return numberFormatterSetAttributeMethodGetVariables
 }
 func (m *NumberFormatterSetAttributeMethod) GetReturnType() data.Types {
 	return data.NewBaseType("bool")
@@ -256,17 +264,21 @@ func (m *NumberFormatterSetTextAttributeMethod) GetModifier() data.Modifier {
 	return data.ModifierPublic
 }
 func (m *NumberFormatterSetTextAttributeMethod) GetIsStatic() bool { return false }
-func (m *NumberFormatterSetTextAttributeMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "attr", 0, nil, data.Int{}),
-		node.NewParameter(nil, "value", 1, nil, data.String{}),
-	}
+var numberFormatterSetTextAttributeMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "attr", 0, nil, data.Int{}),
+	node.NewParameter(nil, "value", 1, nil, data.String{}),
 }
+
+func (m *NumberFormatterSetTextAttributeMethod) GetParams() []data.GetValue {
+	return numberFormatterSetTextAttributeMethodGetParams
+}
+var numberFormatterSetTextAttributeMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "attr", 0, data.Int{}),
+	node.NewVariable(nil, "value", 1, data.String{}),
+}
+
 func (m *NumberFormatterSetTextAttributeMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "attr", 0, data.Int{}),
-		node.NewVariable(nil, "value", 1, data.String{}),
-	}
+	return numberFormatterSetTextAttributeMethodGetVariables
 }
 func (m *NumberFormatterSetTextAttributeMethod) GetReturnType() data.Types {
 	return data.NewBaseType("bool")
@@ -289,11 +301,15 @@ type NumberFormatterGetAttributeMethod struct{}
 func (m *NumberFormatterGetAttributeMethod) GetName() string            { return "getAttribute" }
 func (m *NumberFormatterGetAttributeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *NumberFormatterGetAttributeMethod) GetIsStatic() bool          { return false }
+var numberFormatterGetAttributeMethodGetParams = []data.GetValue{node.NewParameter(nil, "attr", 0, nil, data.Int{})}
+
 func (m *NumberFormatterGetAttributeMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "attr", 0, nil, data.Int{})}
+	return numberFormatterGetAttributeMethodGetParams
 }
+var numberFormatterGetAttributeMethodGetVariables = []data.Variable{node.NewVariable(nil, "attr", 0, data.Int{})}
+
 func (m *NumberFormatterGetAttributeMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "attr", 0, data.Int{})}
+	return numberFormatterGetAttributeMethodGetVariables
 }
 func (m *NumberFormatterGetAttributeMethod) GetReturnType() data.Types {
 	return data.NewBaseType("int|float")
@@ -316,17 +332,21 @@ type NumberFormatterFormatMethod struct{}
 func (m *NumberFormatterFormatMethod) GetName() string            { return "format" }
 func (m *NumberFormatterFormatMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *NumberFormatterFormatMethod) GetIsStatic() bool          { return false }
-func (m *NumberFormatterFormatMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "num", 0, nil, nil),
-		node.NewParameter(nil, "type", 1, data.NewIntValue(nfTypeDefault), data.Int{}),
-	}
+var numberFormatterFormatMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "num", 0, nil, nil),
+	node.NewParameter(nil, "type", 1, data.NewIntValue(nfTypeDefault), data.Int{}),
 }
+
+func (m *NumberFormatterFormatMethod) GetParams() []data.GetValue {
+	return numberFormatterFormatMethodGetParams
+}
+var numberFormatterFormatMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "num", 0, nil),
+	node.NewVariable(nil, "type", 1, data.Int{}),
+}
+
 func (m *NumberFormatterFormatMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "num", 0, nil),
-		node.NewVariable(nil, "type", 1, data.Int{}),
-	}
+	return numberFormatterFormatMethodGetVariables
 }
 func (m *NumberFormatterFormatMethod) GetReturnType() data.Types {
 	return data.NewBaseType("string|false")
@@ -357,17 +377,21 @@ func (m *NumberFormatterFormatCurrencyMethod) GetModifier() data.Modifier {
 	return data.ModifierPublic
 }
 func (m *NumberFormatterFormatCurrencyMethod) GetIsStatic() bool { return false }
-func (m *NumberFormatterFormatCurrencyMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "amount", 0, nil, nil),
-		node.NewParameter(nil, "currency", 1, nil, data.String{}),
-	}
+var numberFormatterFormatCurrencyMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "amount", 0, nil, nil),
+	node.NewParameter(nil, "currency", 1, nil, data.String{}),
 }
+
+func (m *NumberFormatterFormatCurrencyMethod) GetParams() []data.GetValue {
+	return numberFormatterFormatCurrencyMethodGetParams
+}
+var numberFormatterFormatCurrencyMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "amount", 0, nil),
+	node.NewVariable(nil, "currency", 1, data.String{}),
+}
+
 func (m *NumberFormatterFormatCurrencyMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "amount", 0, nil),
-		node.NewVariable(nil, "currency", 1, data.String{}),
-	}
+	return numberFormatterFormatCurrencyMethodGetVariables
 }
 func (m *NumberFormatterFormatCurrencyMethod) GetReturnType() data.Types {
 	return data.NewBaseType("string|false")

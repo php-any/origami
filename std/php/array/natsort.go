@@ -114,32 +114,40 @@ func (f *NatsortFunction) GetName() string {
 	return "natsort"
 }
 
+var natsortFunctionGetParams = []data.GetValue{
+	node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
+}
+
 func (f *NatsortFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
-	}
+	return natsortFunctionGetParams
+}
+
+var natsortFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Mixed{}),
 }
 
 func (f *NatsortFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Mixed{}),
-	}
+	return natsortFunctionGetVariables
 }
 
 func (f *NatcasesortFunction) GetName() string {
 	return "natcasesort"
 }
 
+var natcasesortFunctionGetParams = []data.GetValue{
+	node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
+}
+
 func (f *NatcasesortFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
-	}
+	return natcasesortFunctionGetParams
+}
+
+var natcasesortFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Mixed{}),
 }
 
 func (f *NatcasesortFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Mixed{}),
-	}
+	return natcasesortFunctionGetVariables
 }
 
 // ArrayIntersectUkeyFunction 实现 array_intersect_ukey 函数
@@ -290,14 +298,18 @@ func (f *ArrayIntersectUkeyFunction) GetName() string {
 	return "array_intersect_ukey"
 }
 
+var arrayIntersectUkeyFunctionGetParams = []data.GetValue{
+	node.NewParameters(nil, "arrays", 0, nil, data.Mixed{}),
+}
+
 func (f *ArrayIntersectUkeyFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameters(nil, "arrays", 0, nil, data.Mixed{}),
-	}
+	return arrayIntersectUkeyFunctionGetParams
+}
+
+var arrayIntersectUkeyFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "arrays", 0, data.Mixed{}),
 }
 
 func (f *ArrayIntersectUkeyFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "arrays", 0, data.Mixed{}),
-	}
+	return arrayIntersectUkeyFunctionGetVariables
 }

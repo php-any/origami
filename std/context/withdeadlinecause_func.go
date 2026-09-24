@@ -87,18 +87,22 @@ func (h *WithDeadlineCauseFunction) Call(ctx data.Context) (data.GetValue, data.
 func (h *WithDeadlineCauseFunction) GetName() string            { return "context\\withDeadlineCause" }
 func (h *WithDeadlineCauseFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *WithDeadlineCauseFunction) GetIsStatic() bool          { return true }
-func (h *WithDeadlineCauseFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "parent", 0, nil, nil),
-		node.NewParameter(nil, "d", 1, nil, nil),
-		node.NewParameter(nil, "cause", 2, nil, nil),
-	}
+var withDeadlineCauseFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "parent", 0, nil, nil),
+	node.NewParameter(nil, "d", 1, nil, nil),
+	node.NewParameter(nil, "cause", 2, nil, nil),
 }
+
+func (h *WithDeadlineCauseFunction) GetParams() []data.GetValue {
+	return withDeadlineCauseFunctionGetParams
+}
+var withDeadlineCauseFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "parent", 0, nil),
+	node.NewVariable(nil, "d", 1, nil),
+	node.NewVariable(nil, "cause", 2, nil),
+}
+
 func (h *WithDeadlineCauseFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "parent", 0, nil),
-		node.NewVariable(nil, "d", 1, nil),
-		node.NewVariable(nil, "cause", 2, nil),
-	}
+	return withDeadlineCauseFunctionGetVariables
 }
 func (h *WithDeadlineCauseFunction) GetReturnType() data.Types { return data.NewBaseType("void") }

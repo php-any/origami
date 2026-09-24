@@ -28,8 +28,8 @@ func NewFileBagClassFrom(source *ParamBagData) data.ClassStmt {
 		source:     source,
 		properties: []data.Property{protectedArrayProp("parameters")},
 	}
-	cm, cl := fileBagMethods()
-	pm, pl := parameterBagMethods()
+	cm, cl := fileBagMethodsCache()
+	pm, pl := parameterBagMethodsCache()
 	c.methods, c.methodList = inheritClassMethods(cm, cl, pm, pl)
 	return c
 }
@@ -68,6 +68,8 @@ func (c *FileBagClass) GetMethod(name string) (data.Method, bool) {
 	return m, ok
 }
 func (c *FileBagClass) GetMethods() []data.Method { return c.methodList }
+
+var fileBagMethodsCache = cachedMethods(fileBagMethods)
 
 func fileBagMethods() (map[string]data.Method, []data.Method) {
 	list := []data.Method{

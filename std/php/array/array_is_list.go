@@ -43,14 +43,18 @@ func (f *ArrayIsListFunction) GetName() string {
 	return "array_is_list"
 }
 
+var arrayIsListFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, nil),
+}
+
 func (f *ArrayIsListFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, nil),
-	}
+	return arrayIsListFunctionGetParams
+}
+
+var arrayIsListFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
 }
 
 func (f *ArrayIsListFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-	}
+	return arrayIsListFunctionGetVariables
 }

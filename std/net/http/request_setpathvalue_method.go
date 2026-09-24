@@ -29,16 +29,20 @@ func (h *RequestSetPathValueMethod) Call(ctx data.Context) (data.GetValue, data.
 func (h *RequestSetPathValueMethod) GetName() string            { return "setPathValue" }
 func (h *RequestSetPathValueMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestSetPathValueMethod) GetIsStatic() bool          { return false }
-func (h *RequestSetPathValueMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-		node.NewParameter(nil, "param1", 1, nil, nil),
-	}
+var requestSetPathValueMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
+	node.NewParameter(nil, "param1", 1, nil, nil),
 }
+
+func (h *RequestSetPathValueMethod) GetParams() []data.GetValue {
+	return requestSetPathValueMethodGetParams
+}
+var requestSetPathValueMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
+	node.NewVariable(nil, "param1", 1, nil),
+}
+
 func (h *RequestSetPathValueMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-		node.NewVariable(nil, "param1", 1, nil),
-	}
+	return requestSetPathValueMethodGetVariables
 }
 func (h *RequestSetPathValueMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

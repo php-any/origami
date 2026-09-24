@@ -25,12 +25,16 @@ func (m *ListConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var listConstructMethodGetParams = []data.GetValue{}
+
 func (m *ListConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return listConstructMethodGetParams
 }
 
+var listConstructMethodGetVariables = []data.Variable{}
+
 func (m *ListConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return listConstructMethodGetVariables
 }
 
 func (m *ListConstructMethod) GetReturnType() data.Types {
@@ -59,16 +63,20 @@ func (m *ListAddMethod) GetIsStatic() bool {
 	return false
 }
 
+var listAddMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "item", 0, nil, nil),
+}
+
 func (m *ListAddMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "item", 0, nil, nil),
-	}
+	return listAddMethodGetParams
+}
+
+var listAddMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "item", 0, nil),
 }
 
 func (m *ListAddMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "item", 0, nil),
-	}
+	return listAddMethodGetVariables
 }
 
 func (m *ListAddMethod) GetReturnType() data.Types {
@@ -114,16 +122,20 @@ func (m *ListGetMethod) GetIsStatic() bool {
 	return false
 }
 
+var listGetMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "index", 0, nil, data.NewBaseType("int")),
+}
+
 func (m *ListGetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "index", 0, nil, data.NewBaseType("int")),
-	}
+	return listGetMethodGetParams
+}
+
+var listGetMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "index", 0, data.NewBaseType("int")),
 }
 
 func (m *ListGetMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "index", 0, data.NewBaseType("int")),
-	}
+	return listGetMethodGetVariables
 }
 
 func (m *ListGetMethod) GetReturnType() data.Types {
@@ -173,18 +185,22 @@ func (m *ListSetMethod) GetIsStatic() bool {
 	return false
 }
 
+var listSetMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "index", 0, nil, data.NewBaseType("int")),
+	node.NewParameter(nil, "value", 1, nil, nil),
+}
+
 func (m *ListSetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "index", 0, nil, data.NewBaseType("int")),
-		node.NewParameter(nil, "value", 1, nil, nil),
-	}
+	return listSetMethodGetParams
+}
+
+var listSetMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "index", 0, data.NewBaseType("int")),
+	node.NewVariable(nil, "value", 1, nil),
 }
 
 func (m *ListSetMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "index", 0, data.NewBaseType("int")),
-		node.NewVariable(nil, "value", 1, nil),
-	}
+	return listSetMethodGetVariables
 }
 
 func (m *ListSetMethod) GetReturnType() data.Types {
@@ -244,12 +260,16 @@ func (m *ListSizeMethod) GetIsStatic() bool {
 	return false
 }
 
+var listSizeMethodGetParams = []data.GetValue{}
+
 func (m *ListSizeMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return listSizeMethodGetParams
 }
 
+var listSizeMethodGetVariables = []data.Variable{}
+
 func (m *ListSizeMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return listSizeMethodGetVariables
 }
 
 func (m *ListSizeMethod) GetReturnType() data.Types {
@@ -282,16 +302,20 @@ func (m *ListRemoveMethod) GetIsStatic() bool {
 	return false
 }
 
+var listRemoveMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "item", 0, nil, nil),
+}
+
 func (m *ListRemoveMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "item", 0, nil, nil),
-	}
+	return listRemoveMethodGetParams
+}
+
+var listRemoveMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "item", 0, nil),
 }
 
 func (m *ListRemoveMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "item", 0, nil),
-	}
+	return listRemoveMethodGetVariables
 }
 
 func (m *ListRemoveMethod) GetReturnType() data.Types {
@@ -330,16 +354,20 @@ func (m *ListRemoveAtMethod) GetIsStatic() bool {
 	return false
 }
 
+var listRemoveAtMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "index", 0, nil, data.NewBaseType("int")),
+}
+
 func (m *ListRemoveAtMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "index", 0, nil, data.NewBaseType("int")),
-	}
+	return listRemoveAtMethodGetParams
+}
+
+var listRemoveAtMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "index", 0, data.NewBaseType("int")),
 }
 
 func (m *ListRemoveAtMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "index", 0, data.NewBaseType("int")),
-	}
+	return listRemoveAtMethodGetVariables
 }
 
 func (m *ListRemoveAtMethod) GetReturnType() data.Types {
@@ -384,12 +412,16 @@ func (m *ListClearMethod) GetIsStatic() bool {
 	return false
 }
 
+var listClearMethodGetParams = []data.GetValue{}
+
 func (m *ListClearMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return listClearMethodGetParams
 }
 
+var listClearMethodGetVariables = []data.Variable{}
+
 func (m *ListClearMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return listClearMethodGetVariables
 }
 
 func (m *ListClearMethod) GetReturnType() data.Types {
@@ -422,16 +454,20 @@ func (m *ListContainsMethod) GetIsStatic() bool {
 	return false
 }
 
+var listContainsMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "item", 0, nil, nil),
+}
+
 func (m *ListContainsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "item", 0, nil, nil),
-	}
+	return listContainsMethodGetParams
+}
+
+var listContainsMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "item", 0, nil),
 }
 
 func (m *ListContainsMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "item", 0, nil),
-	}
+	return listContainsMethodGetVariables
 }
 
 func (m *ListContainsMethod) GetReturnType() data.Types {
@@ -470,16 +506,20 @@ func (m *ListIndexOfMethod) GetIsStatic() bool {
 	return false
 }
 
+var listIndexOfMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "item", 0, nil, nil),
+}
+
 func (m *ListIndexOfMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "item", 0, nil, nil),
-	}
+	return listIndexOfMethodGetParams
+}
+
+var listIndexOfMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "item", 0, nil),
 }
 
 func (m *ListIndexOfMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "item", 0, nil),
-	}
+	return listIndexOfMethodGetVariables
 }
 
 func (m *ListIndexOfMethod) GetReturnType() data.Types {
@@ -518,12 +558,16 @@ func (m *ListIsEmptyMethod) GetIsStatic() bool {
 	return false
 }
 
+var listIsEmptyMethodGetParams = []data.GetValue{}
+
 func (m *ListIsEmptyMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return listIsEmptyMethodGetParams
 }
 
+var listIsEmptyMethodGetVariables = []data.Variable{}
+
 func (m *ListIsEmptyMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return listIsEmptyMethodGetVariables
 }
 
 func (m *ListIsEmptyMethod) GetReturnType() data.Types {
@@ -556,12 +600,16 @@ func (m *ListToArrayMethod) GetIsStatic() bool {
 	return false
 }
 
+var listToArrayMethodGetParams = []data.GetValue{}
+
 func (m *ListToArrayMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return listToArrayMethodGetParams
 }
 
+var listToArrayMethodGetVariables = []data.Variable{}
+
 func (m *ListToArrayMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return listToArrayMethodGetVariables
 }
 
 func (m *ListToArrayMethod) GetReturnType() data.Types {
@@ -596,12 +644,16 @@ func (m *ListCurrentMethod) GetIsStatic() bool {
 	return false
 }
 
+var listCurrentMethodGetParams = []data.GetValue{}
+
 func (m *ListCurrentMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return listCurrentMethodGetParams
 }
 
+var listCurrentMethodGetVariables = []data.Variable{}
+
 func (m *ListCurrentMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return listCurrentMethodGetVariables
 }
 
 func (m *ListCurrentMethod) GetReturnType() data.Types {
@@ -633,12 +685,16 @@ func (m *ListKeyMethod) GetIsStatic() bool {
 	return false
 }
 
+var listKeyMethodGetParams = []data.GetValue{}
+
 func (m *ListKeyMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return listKeyMethodGetParams
 }
 
+var listKeyMethodGetVariables = []data.Variable{}
+
 func (m *ListKeyMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return listKeyMethodGetVariables
 }
 
 func (m *ListKeyMethod) GetReturnType() data.Types {
@@ -670,12 +726,16 @@ func (m *ListNextMethod) GetIsStatic() bool {
 	return false
 }
 
+var listNextMethodGetParams = []data.GetValue{}
+
 func (m *ListNextMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return listNextMethodGetParams
 }
 
+var listNextMethodGetVariables = []data.Variable{}
+
 func (m *ListNextMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return listNextMethodGetVariables
 }
 
 func (m *ListNextMethod) GetReturnType() data.Types {
@@ -708,12 +768,16 @@ func (m *ListRewindMethod) GetIsStatic() bool {
 	return false
 }
 
+var listRewindMethodGetParams = []data.GetValue{}
+
 func (m *ListRewindMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return listRewindMethodGetParams
 }
 
+var listRewindMethodGetVariables = []data.Variable{}
+
 func (m *ListRewindMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return listRewindMethodGetVariables
 }
 
 func (m *ListRewindMethod) GetReturnType() data.Types {
@@ -746,12 +810,16 @@ func (m *ListValidMethod) GetIsStatic() bool {
 	return false
 }
 
+var listValidMethodGetParams = []data.GetValue{}
+
 func (m *ListValidMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return listValidMethodGetParams
 }
 
+var listValidMethodGetVariables = []data.Variable{}
+
 func (m *ListValidMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return listValidMethodGetVariables
 }
 
 func (m *ListValidMethod) GetReturnType() data.Types {

@@ -1,6 +1,6 @@
 //go:build !windows
 
-package gosupport
+package serve
 
 import (
 	"net"

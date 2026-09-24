@@ -153,15 +153,19 @@ func (m *PIConstructMethod) GetName() string            { return "__construct" }
 func (m *PIConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *PIConstructMethod) GetIsStatic() bool          { return false }
 func (m *PIConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *PIConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("RecursiveIterator")),
-	}
+var pIConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("RecursiveIterator")),
 }
+
+func (m *PIConstructMethod) GetParams() []data.GetValue {
+	return pIConstructMethodGetParams
+}
+var pIConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "iterator", 0, data.NewBaseType("RecursiveIterator")),
+}
+
 func (m *PIConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "iterator", 0, data.NewBaseType("RecursiveIterator")),
-	}
+	return pIConstructMethodGetVariables
 }
 func (m *PIConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	it, _ := ctx.GetIndexValue(0)

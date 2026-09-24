@@ -80,12 +80,16 @@ func (d *DbGetMethod) GetIsStatic() bool {
 	return false
 }
 
+var dbGetMethodGetParams = []data.GetValue{}
+
 func (d *DbGetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return dbGetMethodGetParams
 }
 
+var dbGetMethodGetVariables = []data.Variable{}
+
 func (d *DbGetMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return dbGetMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型

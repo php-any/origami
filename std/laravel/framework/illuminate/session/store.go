@@ -2,7 +2,6 @@ package session
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -53,7 +52,7 @@ func (c *StoreClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return cv, nil
 }
 func (c *StoreClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *StoreClass) GetMethods() []data.Method {

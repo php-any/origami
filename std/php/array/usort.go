@@ -93,16 +93,20 @@ func (f *UsortFunction) GetName() string {
 	return "usort"
 }
 
+var usortFunctionGetParams = []data.GetValue{
+	node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
+	node.NewParameter(nil, "callback", 1, nil, data.Mixed{}),
+}
+
 func (f *UsortFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
-		node.NewParameter(nil, "callback", 1, nil, data.Mixed{}),
-	}
+	return usortFunctionGetParams
+}
+
+var usortFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Mixed{}),
+	node.NewVariable(nil, "callback", 1, data.Mixed{}),
 }
 
 func (f *UsortFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Mixed{}),
-		node.NewVariable(nil, "callback", 1, data.Mixed{}),
-	}
+	return usortFunctionGetVariables
 }

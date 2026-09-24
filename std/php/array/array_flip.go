@@ -73,10 +73,14 @@ func (f *ArrayFlipFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 
 func (f *ArrayFlipFunction) GetName() string { return "array_flip" }
 
+var arrayFlipFunctionGetParams = []data.GetValue{node.NewParameter(nil, "array", 0, nil, data.NewBaseType("array"))}
+
 func (f *ArrayFlipFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "array", 0, nil, data.NewBaseType("array"))}
+	return arrayFlipFunctionGetParams
 }
 
+var arrayFlipFunctionGetVariables = []data.Variable{node.NewVariable(nil, "array", 0, data.NewBaseType("array"))}
+
 func (f *ArrayFlipFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "array", 0, data.NewBaseType("array"))}
+	return arrayFlipFunctionGetVariables
 }

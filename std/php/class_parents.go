@@ -51,9 +51,13 @@ func (fn *ClassParentsFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 }
 
 func (fn *ClassParentsFunction) GetName() string { return "class_parents" }
+var classParentsFunctionGetParams = []data.GetValue{node.NewParameter(nil, "object_or_class", 0, nil, nil)}
+
 func (fn *ClassParentsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "object_or_class", 0, nil, nil)}
+	return classParentsFunctionGetParams
 }
+var classParentsFunctionGetVariables = []data.Variable{node.NewVariable(nil, "object_or_class", 0, data.Mixed{})}
+
 func (fn *ClassParentsFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "object_or_class", 0, data.Mixed{})}
+	return classParentsFunctionGetVariables
 }

@@ -51,7 +51,7 @@ func (c *TranslatorClass) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	return cv, nil
 }
 func (c *TranslatorClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *TranslatorClass) GetMethods() []data.Method {

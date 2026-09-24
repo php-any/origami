@@ -62,10 +62,14 @@ func (f *ArrayUdiffAssocFunction) Call(ctx data.Context) (data.GetValue, data.Co
 
 func (f *ArrayUdiffAssocFunction) GetName() string { return "array_udiff_assoc" }
 
+var arrayUdiffAssocFunctionGetParams = []data.GetValue{node.NewParameters(nil, "arrays", 0, nil, nil)}
+
 func (f *ArrayUdiffAssocFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameters(nil, "arrays", 0, nil, nil)}
+	return arrayUdiffAssocFunctionGetParams
 }
 
+var arrayUdiffAssocFunctionGetVariables = []data.Variable{node.NewVariable(nil, "arrays", 0, data.NewBaseType("array"))}
+
 func (f *ArrayUdiffAssocFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "arrays", 0, data.NewBaseType("array"))}
+	return arrayUdiffAssocFunctionGetVariables
 }

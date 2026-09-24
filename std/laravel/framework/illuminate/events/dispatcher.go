@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -37,37 +36,23 @@ type deferredEvent struct {
 	halt    bool
 }
 
-var (
-	dispatcherStates sync.Map // id int64 -> *dispatcherState
-	dispatcherNextID atomic.Int64
-)
+// dispatcherStateProp：Go 侧状态挂在对象隐蔽属性上，由 GC 随对象回收（见 kit.CachedState）。
+const dispatcherStateProp = "__origami_dispatcher_state"
 
-func stateOf(cv *data.ClassValue) *dispatcherState {
-	if cv == nil {
-		return &dispatcherState{
-			listeners:      map[string][]data.Value{},
-			wildcards:      map[string][]data.Value{},
-			wildcardsCache: map[string][]data.Value{},
-			pushed:         map[string][]pushedEvent{},
-		}
-	}
-	if v, ctl := cv.GetProperty("__origami_dispatcher_id"); ctl == nil && v != nil {
-		if iv, ok := kit.Unwrap(v).(*data.IntValue); ok && iv.Value > 0 {
-			if s, ok := dispatcherStates.Load(int64(iv.Value)); ok {
-				return s.(*dispatcherState)
-			}
-		}
-	}
-	id := dispatcherNextID.Add(1)
-	s := &dispatcherState{
+func newDispatcherState() *dispatcherState {
+	return &dispatcherState{
 		listeners:      map[string][]data.Value{},
 		wildcards:      map[string][]data.Value{},
 		wildcardsCache: map[string][]data.Value{},
 		pushed:         map[string][]pushedEvent{},
 	}
-	dispatcherStates.Store(id, s)
-	_ = cv.SetProperty("__origami_dispatcher_id", data.NewIntValue(int(id)))
-	return s
+}
+
+func stateOf(cv *data.ClassValue) *dispatcherState {
+	if cv == nil {
+		return newDispatcherState()
+	}
+	return kit.CachedState(cv, dispatcherStateProp, newDispatcherState)
 }
 
 // DispatcherClass 对齐 Illuminate\Events\Dispatcher 核心 API。
@@ -114,7 +99,7 @@ func (c *DispatcherClass) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
 func (c *DispatcherClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *DispatcherClass) GetMethods() []data.Method {

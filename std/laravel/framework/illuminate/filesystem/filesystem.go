@@ -39,7 +39,7 @@ func (c *FilesystemClass) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
 func (c *FilesystemClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *FilesystemClass) GetMethods() []data.Method {

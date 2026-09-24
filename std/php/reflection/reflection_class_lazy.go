@@ -22,15 +22,19 @@ func (m *ReflectionClassIsUninitializedLazyObjectMethod) GetIsStatic() bool { re
 func (m *ReflectionClassIsUninitializedLazyObjectMethod) GetReturnType() data.Types {
 	return data.Bool{}
 }
-func (m *ReflectionClassIsUninitializedLazyObjectMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
-	}
+var reflectionClassIsUninitializedLazyObjectMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
 }
+
+func (m *ReflectionClassIsUninitializedLazyObjectMethod) GetParams() []data.GetValue {
+	return reflectionClassIsUninitializedLazyObjectMethodGetParams
+}
+var reflectionClassIsUninitializedLazyObjectMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
+}
+
 func (m *ReflectionClassIsUninitializedLazyObjectMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
-	}
+	return reflectionClassIsUninitializedLazyObjectMethodGetVariables
 }
 func (m *ReflectionClassIsUninitializedLazyObjectMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewBoolValue(false), nil
@@ -46,17 +50,21 @@ func (m *ReflectionClassNewLazyProxyMethod) GetIsStatic() bool { return false }
 func (m *ReflectionClassNewLazyProxyMethod) GetReturnType() data.Types {
 	return data.NewBaseType("object")
 }
-func (m *ReflectionClassNewLazyProxyMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "factory", 0, nil, nil),
-		node.NewParameter(nil, "options", 1, node.NewIntLiteral(nil, "0"), data.NewBaseType("int")),
-	}
+var reflectionClassNewLazyProxyMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "factory", 0, nil, nil),
+	node.NewParameter(nil, "options", 1, node.NewIntLiteral(nil, "0"), data.NewBaseType("int")),
 }
+
+func (m *ReflectionClassNewLazyProxyMethod) GetParams() []data.GetValue {
+	return reflectionClassNewLazyProxyMethodGetParams
+}
+var reflectionClassNewLazyProxyMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "factory", 0, nil),
+	node.NewVariable(nil, "options", 1, data.NewBaseType("int")),
+}
+
 func (m *ReflectionClassNewLazyProxyMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "factory", 0, nil),
-		node.NewVariable(nil, "options", 1, data.NewBaseType("int")),
-	}
+	return reflectionClassNewLazyProxyMethodGetVariables
 }
 func (m *ReflectionClassNewLazyProxyMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	factory, _ := ctx.GetIndexValue(0)
@@ -73,17 +81,21 @@ func (m *ReflectionClassNewLazyGhostMethod) GetIsStatic() bool { return false }
 func (m *ReflectionClassNewLazyGhostMethod) GetReturnType() data.Types {
 	return data.NewBaseType("object")
 }
-func (m *ReflectionClassNewLazyGhostMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "initializer", 0, nil, nil),
-		node.NewParameter(nil, "options", 1, node.NewIntLiteral(nil, "0"), data.NewBaseType("int")),
-	}
+var reflectionClassNewLazyGhostMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "initializer", 0, nil, nil),
+	node.NewParameter(nil, "options", 1, node.NewIntLiteral(nil, "0"), data.NewBaseType("int")),
 }
+
+func (m *ReflectionClassNewLazyGhostMethod) GetParams() []data.GetValue {
+	return reflectionClassNewLazyGhostMethodGetParams
+}
+var reflectionClassNewLazyGhostMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "initializer", 0, nil),
+	node.NewVariable(nil, "options", 1, data.NewBaseType("int")),
+}
+
 func (m *ReflectionClassNewLazyGhostMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "initializer", 0, nil),
-		node.NewVariable(nil, "options", 1, data.NewBaseType("int")),
-	}
+	return reflectionClassNewLazyGhostMethodGetVariables
 }
 func (m *ReflectionClassNewLazyGhostMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	_, classStmt := getReflectionClassInfo(ctx)
@@ -113,15 +125,19 @@ func (m *ReflectionClassInitializeLazyObjectMethod) GetIsStatic() bool { return 
 func (m *ReflectionClassInitializeLazyObjectMethod) GetReturnType() data.Types {
 	return data.NewBaseType("object")
 }
-func (m *ReflectionClassInitializeLazyObjectMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
-	}
+var reflectionClassInitializeLazyObjectMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
 }
+
+func (m *ReflectionClassInitializeLazyObjectMethod) GetParams() []data.GetValue {
+	return reflectionClassInitializeLazyObjectMethodGetParams
+}
+var reflectionClassInitializeLazyObjectMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
+}
+
 func (m *ReflectionClassInitializeLazyObjectMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
-	}
+	return reflectionClassInitializeLazyObjectMethodGetVariables
 }
 func (m *ReflectionClassInitializeLazyObjectMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	obj, _ := ctx.GetIndexValue(0)
@@ -143,15 +159,19 @@ func (m *ReflectionClassMarkLazyObjectAsInitializedMethod) GetIsStatic() bool { 
 func (m *ReflectionClassMarkLazyObjectAsInitializedMethod) GetReturnType() data.Types {
 	return data.NewBaseType("object")
 }
-func (m *ReflectionClassMarkLazyObjectAsInitializedMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
-	}
+var reflectionClassMarkLazyObjectAsInitializedMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
 }
+
+func (m *ReflectionClassMarkLazyObjectAsInitializedMethod) GetParams() []data.GetValue {
+	return reflectionClassMarkLazyObjectAsInitializedMethodGetParams
+}
+var reflectionClassMarkLazyObjectAsInitializedMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
+}
+
 func (m *ReflectionClassMarkLazyObjectAsInitializedMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
-	}
+	return reflectionClassMarkLazyObjectAsInitializedMethodGetVariables
 }
 func (m *ReflectionClassMarkLazyObjectAsInitializedMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	obj, _ := ctx.GetIndexValue(0)

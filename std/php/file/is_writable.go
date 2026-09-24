@@ -83,14 +83,18 @@ func (f *IsWritableFunction) GetName() string {
 	return "is_writable"
 }
 
+var isWritableFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "filename", 0, nil, nil),
+}
+
 func (f *IsWritableFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "filename", 0, nil, nil),
-	}
+	return isWritableFunctionGetParams
+}
+
+var isWritableFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
 }
 
 func (f *IsWritableFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
-	}
+	return isWritableFunctionGetVariables
 }

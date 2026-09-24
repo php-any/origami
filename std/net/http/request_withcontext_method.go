@@ -18,11 +18,15 @@ func (h *RequestWithContextMethod) Call(ctx data.Context) (data.GetValue, data.C
 func (h *RequestWithContextMethod) GetName() string            { return "withContext" }
 func (h *RequestWithContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestWithContextMethod) GetIsStatic() bool          { return false }
+var requestWithContextMethodGetParams = []data.GetValue{}
+
 func (h *RequestWithContextMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return requestWithContextMethodGetParams
 }
+var requestWithContextMethodGetVariables = []data.Variable{}
+
 func (h *RequestWithContextMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return requestWithContextMethodGetVariables
 }
 func (h *RequestWithContextMethod) GetReturnType() data.Types {
 	return data.Class{Name: "Net\\Http\\Request"}

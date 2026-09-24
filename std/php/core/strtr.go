@@ -145,18 +145,22 @@ func (f *StrtrFunction) GetName() string {
 	return "strtr"
 }
 
+var strtrFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "from", 1, nil, nil),
+	node.NewParameter(nil, "to", 2, node.NewNullLiteral(nil), nil),
+}
+
 func (f *StrtrFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "from", 1, nil, nil),
-		node.NewParameter(nil, "to", 2, node.NewNullLiteral(nil), nil),
-	}
+	return strtrFunctionGetParams
+}
+
+var strtrFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "from", 1, data.NewBaseType("string|array")),
+	node.NewVariable(nil, "to", 2, data.NewBaseType("string")),
 }
 
 func (f *StrtrFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "from", 1, data.NewBaseType("string|array")),
-		node.NewVariable(nil, "to", 2, data.NewBaseType("string")),
-	}
+	return strtrFunctionGetVariables
 }

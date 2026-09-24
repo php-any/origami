@@ -56,11 +56,15 @@ func (m *SplQueueEnqueueMethod) GetName() string            { return "enqueue" }
 func (m *SplQueueEnqueueMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplQueueEnqueueMethod) GetIsStatic() bool          { return false }
 func (m *SplQueueEnqueueMethod) GetReturnType() data.Types  { return nil }
+var splQueueEnqueueMethodGetParams = []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
+
 func (m *SplQueueEnqueueMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
+	return splQueueEnqueueMethodGetParams
 }
+var splQueueEnqueueMethodGetVariables = []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
+
 func (m *SplQueueEnqueueMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
+	return splQueueEnqueueMethodGetVariables
 }
 func (m *SplQueueEnqueueMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := splListGetCV(ctx)

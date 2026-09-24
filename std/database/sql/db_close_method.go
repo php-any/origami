@@ -22,12 +22,16 @@ func (h *DBCloseMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *DBCloseMethod) GetName() string            { return "close" }
 func (h *DBCloseMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBCloseMethod) GetIsStatic() bool          { return true }
+var dBCloseMethodGetParams = []data.GetValue{}
+
 func (h *DBCloseMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return dBCloseMethodGetParams
 }
 
+var dBCloseMethodGetVariables = []data.Variable{}
+
 func (h *DBCloseMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return dBCloseMethodGetVariables
 }
 
 func (h *DBCloseMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

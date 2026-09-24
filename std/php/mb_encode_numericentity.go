@@ -113,20 +113,24 @@ func numericEntityFor(c int, convmap []int, hex bool) (string, bool) {
 
 func (f *MbEncodeNumericentityFunction) GetName() string { return "mb_encode_numericentity" }
 
+var mbEncodeNumericentityFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "map", 1, nil, data.NewBaseType("array")),
+	node.NewParameter(nil, "encoding", 2, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "hex", 3, data.NewBoolValue(false), nil),
+}
+
 func (f *MbEncodeNumericentityFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "map", 1, nil, data.NewBaseType("array")),
-		node.NewParameter(nil, "encoding", 2, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "hex", 3, data.NewBoolValue(false), nil),
-	}
+	return mbEncodeNumericentityFunctionGetParams
+}
+
+var mbEncodeNumericentityFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "map", 1, data.NewBaseType("array")),
+	node.NewVariable(nil, "encoding", 2, data.NewNullableType(data.NewBaseType("string"))),
+	node.NewVariable(nil, "hex", 3, data.NewBaseType("bool")),
 }
 
 func (f *MbEncodeNumericentityFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "map", 1, data.NewBaseType("array")),
-		node.NewVariable(nil, "encoding", 2, data.NewNullableType(data.NewBaseType("string"))),
-		node.NewVariable(nil, "hex", 3, data.NewBaseType("bool")),
-	}
+	return mbEncodeNumericentityFunctionGetVariables
 }

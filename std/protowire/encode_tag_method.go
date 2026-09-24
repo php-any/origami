@@ -42,18 +42,22 @@ func (m *EncodeTagMethod) GetIsStatic() bool {
 	return true
 }
 
+var encodeTagMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "number", 0, nil, nil),
+	node.NewParameter(nil, "wireType", 1, nil, nil),
+}
+
 func (m *EncodeTagMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "number", 0, nil, nil),
-		node.NewParameter(nil, "wireType", 1, nil, nil),
-	}
+	return encodeTagMethodGetParams
+}
+
+var encodeTagMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "number", 0, nil),
+	node.NewVariable(nil, "wireType", 1, nil),
 }
 
 func (m *EncodeTagMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "number", 0, nil),
-		node.NewVariable(nil, "wireType", 1, nil),
-	}
+	return encodeTagMethodGetVariables
 }
 
 func (m *EncodeTagMethod) GetReturnType() data.Types {

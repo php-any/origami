@@ -44,16 +44,20 @@ func (f *SetExceptionHandlerFunction) GetName() string {
 	return "set_exception_handler"
 }
 
+var setExceptionHandlerFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "callback", 0, nil, data.Mixed{}),
+}
+
 func (f *SetExceptionHandlerFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "callback", 0, nil, data.Mixed{}),
-	}
+	return setExceptionHandlerFunctionGetParams
+}
+
+var setExceptionHandlerFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "callback", 0, data.Mixed{}),
 }
 
 func (f *SetExceptionHandlerFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "callback", 0, data.Mixed{}),
-	}
+	return setExceptionHandlerFunctionGetVariables
 }
 
 // getCurrentExceptionHandler 辅助函数，从 VM 中获取当前异常处理回调

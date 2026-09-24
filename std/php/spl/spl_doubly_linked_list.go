@@ -241,11 +241,15 @@ func (m *SplDLLPushMethod) GetName() string            { return "push" }
 func (m *SplDLLPushMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplDLLPushMethod) GetIsStatic() bool          { return false }
 func (m *SplDLLPushMethod) GetReturnType() data.Types  { return data.Int{} }
+var splDLLPushMethodGetParams = []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
+
 func (m *SplDLLPushMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
+	return splDLLPushMethodGetParams
 }
+var splDLLPushMethodGetVariables = []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
+
 func (m *SplDLLPushMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
+	return splDLLPushMethodGetVariables
 }
 func (m *SplDLLPushMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := splListGetCV(ctx)
@@ -316,11 +320,15 @@ func (m *SplDLLUnshiftMethod) GetName() string            { return "unshift" }
 func (m *SplDLLUnshiftMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplDLLUnshiftMethod) GetIsStatic() bool          { return false }
 func (m *SplDLLUnshiftMethod) GetReturnType() data.Types  { return data.Int{} }
+var splDLLUnshiftMethodGetParams = []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
+
 func (m *SplDLLUnshiftMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
+	return splDLLUnshiftMethodGetParams
 }
+var splDLLUnshiftMethodGetVariables = []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
+
 func (m *SplDLLUnshiftMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
+	return splDLLUnshiftMethodGetVariables
 }
 func (m *SplDLLUnshiftMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := splListGetCV(ctx)
@@ -496,11 +504,15 @@ func (m *SplDLLOffsetExistsMethod) GetName() string            { return "offsetE
 func (m *SplDLLOffsetExistsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplDLLOffsetExistsMethod) GetIsStatic() bool          { return false }
 func (m *SplDLLOffsetExistsMethod) GetReturnType() data.Types  { return data.Bool{} }
+var splDLLOffsetExistsMethodGetParams = []data.GetValue{node.NewParameter(nil, "index", 0, nil, data.Mixed{})}
+
 func (m *SplDLLOffsetExistsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "index", 0, nil, data.Mixed{})}
+	return splDLLOffsetExistsMethodGetParams
 }
+var splDLLOffsetExistsMethodGetVariables = []data.Variable{node.NewVariable(nil, "index", 0, data.Mixed{})}
+
 func (m *SplDLLOffsetExistsMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "index", 0, data.Mixed{})}
+	return splDLLOffsetExistsMethodGetVariables
 }
 func (m *SplDLLOffsetExistsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := splListGetCV(ctx)
@@ -522,11 +534,15 @@ func (m *SplDLLOffsetGetMethod) GetName() string            { return "offsetGet"
 func (m *SplDLLOffsetGetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplDLLOffsetGetMethod) GetIsStatic() bool          { return false }
 func (m *SplDLLOffsetGetMethod) GetReturnType() data.Types  { return data.Mixed{} }
+var splDLLOffsetGetMethodGetParams = []data.GetValue{node.NewParameter(nil, "index", 0, nil, data.Mixed{})}
+
 func (m *SplDLLOffsetGetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "index", 0, nil, data.Mixed{})}
+	return splDLLOffsetGetMethodGetParams
 }
+var splDLLOffsetGetMethodGetVariables = []data.Variable{node.NewVariable(nil, "index", 0, data.Mixed{})}
+
 func (m *SplDLLOffsetGetMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "index", 0, data.Mixed{})}
+	return splDLLOffsetGetMethodGetVariables
 }
 func (m *SplDLLOffsetGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := splListGetCV(ctx)
@@ -551,17 +567,21 @@ func (m *SplDLLOffsetSetMethod) GetName() string            { return "offsetSet"
 func (m *SplDLLOffsetSetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplDLLOffsetSetMethod) GetIsStatic() bool          { return false }
 func (m *SplDLLOffsetSetMethod) GetReturnType() data.Types  { return nil }
-func (m *SplDLLOffsetSetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "index", 0, nil, data.Mixed{}),
-		node.NewParameter(nil, "newval", 1, nil, data.Mixed{}),
-	}
+var splDLLOffsetSetMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "index", 0, nil, data.Mixed{}),
+	node.NewParameter(nil, "newval", 1, nil, data.Mixed{}),
 }
+
+func (m *SplDLLOffsetSetMethod) GetParams() []data.GetValue {
+	return splDLLOffsetSetMethodGetParams
+}
+var splDLLOffsetSetMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "index", 0, data.Mixed{}),
+	node.NewVariable(nil, "newval", 1, data.Mixed{}),
+}
+
 func (m *SplDLLOffsetSetMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "index", 0, data.Mixed{}),
-		node.NewVariable(nil, "newval", 1, data.Mixed{}),
-	}
+	return splDLLOffsetSetMethodGetVariables
 }
 func (m *SplDLLOffsetSetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := splListGetCV(ctx)
@@ -589,11 +609,15 @@ func (m *SplDLLOffsetUnsetMethod) GetName() string            { return "offsetUn
 func (m *SplDLLOffsetUnsetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplDLLOffsetUnsetMethod) GetIsStatic() bool          { return false }
 func (m *SplDLLOffsetUnsetMethod) GetReturnType() data.Types  { return nil }
+var splDLLOffsetUnsetMethodGetParams = []data.GetValue{node.NewParameter(nil, "index", 0, nil, data.Mixed{})}
+
 func (m *SplDLLOffsetUnsetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "index", 0, nil, data.Mixed{})}
+	return splDLLOffsetUnsetMethodGetParams
 }
+var splDLLOffsetUnsetMethodGetVariables = []data.Variable{node.NewVariable(nil, "index", 0, data.Mixed{})}
+
 func (m *SplDLLOffsetUnsetMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "index", 0, data.Mixed{})}
+	return splDLLOffsetUnsetMethodGetVariables
 }
 func (m *SplDLLOffsetUnsetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := splListGetCV(ctx)
@@ -620,11 +644,15 @@ func (m *SplDLLSetIteratorModeMethod) GetName() string            { return "setI
 func (m *SplDLLSetIteratorModeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplDLLSetIteratorModeMethod) GetIsStatic() bool          { return false }
 func (m *SplDLLSetIteratorModeMethod) GetReturnType() data.Types  { return nil }
+var splDLLSetIteratorModeMethodGetParams = []data.GetValue{node.NewParameter(nil, "mode", 0, data.NewIntValue(0), data.Int{})}
+
 func (m *SplDLLSetIteratorModeMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "mode", 0, data.NewIntValue(0), data.Int{})}
+	return splDLLSetIteratorModeMethodGetParams
 }
+var splDLLSetIteratorModeMethodGetVariables = []data.Variable{node.NewVariable(nil, "mode", 0, data.Int{})}
+
 func (m *SplDLLSetIteratorModeMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "mode", 0, data.Int{})}
+	return splDLLSetIteratorModeMethodGetVariables
 }
 func (m *SplDLLSetIteratorModeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := splListGetCV(ctx)

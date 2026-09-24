@@ -128,17 +128,21 @@ func (m *ReflectionPropertyConstructMethod) GetName() string            { return
 func (m *ReflectionPropertyConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ReflectionPropertyConstructMethod) GetIsStatic() bool          { return false }
 func (m *ReflectionPropertyConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *ReflectionPropertyConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "class", 0, nil, nil),
-		node.NewParameter(nil, "property", 1, nil, nil),
-	}
+var reflectionPropertyConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "class", 0, nil, nil),
+	node.NewParameter(nil, "property", 1, nil, nil),
 }
+
+func (m *ReflectionPropertyConstructMethod) GetParams() []data.GetValue {
+	return reflectionPropertyConstructMethodGetParams
+}
+var reflectionPropertyConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "class", 0, data.Mixed{}),
+	node.NewVariable(nil, "property", 1, data.Mixed{}),
+}
+
 func (m *ReflectionPropertyConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "class", 0, data.Mixed{}),
-		node.NewVariable(nil, "property", 1, data.Mixed{}),
-	}
+	return reflectionPropertyConstructMethodGetVariables
 }
 func (m *ReflectionPropertyConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	classVal, _ := ctx.GetIndexValue(0)
@@ -170,15 +174,19 @@ func (m *ReflectionPropertySetAccessibleMethod) GetModifier() data.Modifier {
 }
 func (m *ReflectionPropertySetAccessibleMethod) GetIsStatic() bool         { return false }
 func (m *ReflectionPropertySetAccessibleMethod) GetReturnType() data.Types { return nil }
-func (m *ReflectionPropertySetAccessibleMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "accessible", 0, nil, nil),
-	}
+var reflectionPropertySetAccessibleMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "accessible", 0, nil, nil),
 }
+
+func (m *ReflectionPropertySetAccessibleMethod) GetParams() []data.GetValue {
+	return reflectionPropertySetAccessibleMethodGetParams
+}
+var reflectionPropertySetAccessibleMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "accessible", 0, data.Mixed{}),
+}
+
 func (m *ReflectionPropertySetAccessibleMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "accessible", 0, data.Mixed{}),
-	}
+	return reflectionPropertySetAccessibleMethodGetVariables
 }
 func (m *ReflectionPropertySetAccessibleMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return nil, nil
@@ -241,15 +249,19 @@ func (m *ReflectionPropertyGetValueMethod) GetName() string {
 func (m *ReflectionPropertyGetValueMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ReflectionPropertyGetValueMethod) GetIsStatic() bool          { return false }
 func (m *ReflectionPropertyGetValueMethod) GetReturnType() data.Types  { return nil }
-func (m *ReflectionPropertyGetValueMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object", 0, data.NewNullValue(), nil),
-	}
+var reflectionPropertyGetValueMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "object", 0, data.NewNullValue(), nil),
 }
+
+func (m *ReflectionPropertyGetValueMethod) GetParams() []data.GetValue {
+	return reflectionPropertyGetValueMethodGetParams
+}
+var reflectionPropertyGetValueMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "object", 0, data.Mixed{}),
+}
+
 func (m *ReflectionPropertyGetValueMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object", 0, data.Mixed{}),
-	}
+	return reflectionPropertyGetValueMethodGetVariables
 }
 func (m *ReflectionPropertyGetValueMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	propName := reflectionPropertyName(ctx)
@@ -288,17 +300,21 @@ func (m *ReflectionPropertySetValueMethod) GetName() string {
 func (m *ReflectionPropertySetValueMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ReflectionPropertySetValueMethod) GetIsStatic() bool          { return false }
 func (m *ReflectionPropertySetValueMethod) GetReturnType() data.Types  { return nil }
-func (m *ReflectionPropertySetValueMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object", 0, nil, nil),
-		node.NewParameter(nil, "value", 1, nil, nil),
-	}
+var reflectionPropertySetValueMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "object", 0, nil, nil),
+	node.NewParameter(nil, "value", 1, nil, nil),
 }
+
+func (m *ReflectionPropertySetValueMethod) GetParams() []data.GetValue {
+	return reflectionPropertySetValueMethodGetParams
+}
+var reflectionPropertySetValueMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "object", 0, data.Mixed{}),
+	node.NewVariable(nil, "value", 1, data.Mixed{}),
+}
+
 func (m *ReflectionPropertySetValueMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object", 0, data.Mixed{}),
-		node.NewVariable(nil, "value", 1, data.Mixed{}),
-	}
+	return reflectionPropertySetValueMethodGetVariables
 }
 func (m *ReflectionPropertySetValueMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	propName := reflectionPropertyName(ctx)
@@ -478,15 +494,19 @@ func (m *ReflectionPropertyIsInitializedMethod) GetModifier() data.Modifier {
 }
 func (m *ReflectionPropertyIsInitializedMethod) GetIsStatic() bool         { return false }
 func (m *ReflectionPropertyIsInitializedMethod) GetReturnType() data.Types { return data.Bool{} }
-func (m *ReflectionPropertyIsInitializedMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object", 0, node.NewNullLiteral(nil), nil),
-	}
+var reflectionPropertyIsInitializedMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "object", 0, node.NewNullLiteral(nil), nil),
 }
+
+func (m *ReflectionPropertyIsInitializedMethod) GetParams() []data.GetValue {
+	return reflectionPropertyIsInitializedMethodGetParams
+}
+var reflectionPropertyIsInitializedMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "object", 0, data.Mixed{}),
+}
+
 func (m *ReflectionPropertyIsInitializedMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object", 0, data.Mixed{}),
-	}
+	return reflectionPropertyIsInitializedMethodGetVariables
 }
 func unwrapReflectionValue(v data.Value) data.Value {
 	for i := 0; i < 4 && v != nil; i++ {

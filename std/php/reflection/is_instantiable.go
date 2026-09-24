@@ -18,14 +18,18 @@ func (m *ReflectionClassIsInstantiableMethod) GetModifier() data.Modifier { retu
 // GetIsStatic 返回是否为静态方法，非静态方法
 func (m *ReflectionClassIsInstantiableMethod) GetIsStatic() bool { return false }
 
+var reflectionClassIsInstantiableMethodGetParams = []data.GetValue{}
+
 // GetParams 返回参数列表，该方法无参数
 func (m *ReflectionClassIsInstantiableMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return reflectionClassIsInstantiableMethodGetParams
 }
+
+var reflectionClassIsInstantiableMethodGetVariables = []data.Variable{}
 
 // GetVariables 返回变量列表，该方法无变量
 func (m *ReflectionClassIsInstantiableMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return reflectionClassIsInstantiableMethodGetVariables
 }
 
 // GetReturnType 返回返回类型，返回布尔类型

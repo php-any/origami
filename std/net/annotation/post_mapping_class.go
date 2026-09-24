@@ -63,17 +63,21 @@ type PostMappingConstructMethod struct{ mapping *PostMapping }
 func (m *PostMappingConstructMethod) GetName() string            { return "__construct" }
 func (m *PostMappingConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *PostMappingConstructMethod) GetIsStatic() bool          { return false }
-func (m *PostMappingConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "path", 0, data.NewStringValue("/"), data.NewBaseType("string")),
-		node.NewAnnotationTargetParameter(nil, 1),
-	}
+var postMappingConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "path", 0, data.NewStringValue("/"), data.NewBaseType("string")),
+	node.NewAnnotationTargetParameter(nil, 1),
 }
+
+func (m *PostMappingConstructMethod) GetParams() []data.GetValue {
+	return postMappingConstructMethodGetParams
+}
+var postMappingConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "path", 0, nil),
+	node.NewAnnotationTargetVariable(nil, 1),
+}
+
 func (m *PostMappingConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "path", 0, nil),
-		node.NewAnnotationTargetVariable(nil, 1),
-	}
+	return postMappingConstructMethodGetVariables
 }
 func (m *PostMappingConstructMethod) GetReturnType() data.Types { return data.NewBaseType("string") }
 func (m *PostMappingConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {

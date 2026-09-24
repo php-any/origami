@@ -55,18 +55,22 @@ func (h *StmtExecContextMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 func (h *StmtExecContextMethod) GetName() string            { return "execContext" }
 func (h *StmtExecContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *StmtExecContextMethod) GetIsStatic() bool          { return true }
+var stmtExecContextMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "ctx", 0, nil, nil),
+	node.NewParameters(nil, "args", 1, nil, nil),
+}
+
 func (h *StmtExecContextMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "ctx", 0, nil, nil),
-		node.NewParameters(nil, "args", 1, nil, nil),
-	}
+	return stmtExecContextMethodGetParams
+}
+
+var stmtExecContextMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "ctx", 0, nil),
+	node.NewVariable(nil, "args", 1, nil),
 }
 
 func (h *StmtExecContextMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "ctx", 0, nil),
-		node.NewVariable(nil, "args", 1, nil),
-	}
+	return stmtExecContextMethodGetVariables
 }
 
 func (h *StmtExecContextMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

@@ -26,14 +26,18 @@ func (h *RequestWriteProxyMethod) Call(ctx data.Context) (data.GetValue, data.Co
 func (h *RequestWriteProxyMethod) GetName() string            { return "writeProxy" }
 func (h *RequestWriteProxyMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestWriteProxyMethod) GetIsStatic() bool          { return false }
-func (h *RequestWriteProxyMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-	}
+var requestWriteProxyMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
 }
+
+func (h *RequestWriteProxyMethod) GetParams() []data.GetValue {
+	return requestWriteProxyMethodGetParams
+}
+var requestWriteProxyMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
+}
+
 func (h *RequestWriteProxyMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-	}
+	return requestWriteProxyMethodGetVariables
 }
 func (h *RequestWriteProxyMethod) GetReturnType() data.Types { return data.NewBaseType("int") }

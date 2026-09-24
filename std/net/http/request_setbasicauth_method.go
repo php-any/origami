@@ -29,16 +29,20 @@ func (h *RequestSetBasicAuthMethod) Call(ctx data.Context) (data.GetValue, data.
 func (h *RequestSetBasicAuthMethod) GetName() string            { return "setBasicAuth" }
 func (h *RequestSetBasicAuthMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestSetBasicAuthMethod) GetIsStatic() bool          { return false }
-func (h *RequestSetBasicAuthMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-		node.NewParameter(nil, "param1", 1, nil, nil),
-	}
+var requestSetBasicAuthMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
+	node.NewParameter(nil, "param1", 1, nil, nil),
 }
+
+func (h *RequestSetBasicAuthMethod) GetParams() []data.GetValue {
+	return requestSetBasicAuthMethodGetParams
+}
+var requestSetBasicAuthMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
+	node.NewVariable(nil, "param1", 1, nil),
+}
+
 func (h *RequestSetBasicAuthMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-		node.NewVariable(nil, "param1", 1, nil),
-	}
+	return requestSetBasicAuthMethodGetVariables
 }
 func (h *RequestSetBasicAuthMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

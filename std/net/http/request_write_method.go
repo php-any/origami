@@ -26,14 +26,18 @@ func (h *RequestWriteMethod) Call(ctx data.Context) (data.GetValue, data.Control
 func (h *RequestWriteMethod) GetName() string            { return "write" }
 func (h *RequestWriteMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestWriteMethod) GetIsStatic() bool          { return false }
-func (h *RequestWriteMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-	}
+var requestWriteMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
 }
+
+func (h *RequestWriteMethod) GetParams() []data.GetValue {
+	return requestWriteMethodGetParams
+}
+var requestWriteMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
+}
+
 func (h *RequestWriteMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-	}
+	return requestWriteMethodGetVariables
 }
 func (h *RequestWriteMethod) GetReturnType() data.Types { return data.NewBaseType("int") }

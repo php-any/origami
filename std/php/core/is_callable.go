@@ -95,18 +95,22 @@ func (f *IsCallableFunction) GetName() string {
 	return "is_callable"
 }
 
+var isCallableFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+	node.NewParameter(nil, "syntax_only", 1, node.NewBooleanLiteral(nil, false), nil),
+	node.NewParameter(nil, "callable_name", 2, node.NewNullLiteral(nil), nil),
+}
+
 func (f *IsCallableFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-		node.NewParameter(nil, "syntax_only", 1, node.NewBooleanLiteral(nil, false), nil),
-		node.NewParameter(nil, "callable_name", 2, node.NewNullLiteral(nil), nil),
-	}
+	return isCallableFunctionGetParams
+}
+
+var isCallableFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
+	node.NewVariable(nil, "syntax_only", 1, data.NewBaseType("bool")),
+	node.NewVariable(nil, "callable_name", 2, data.NewBaseType("string")),
 }
 
 func (f *IsCallableFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
-		node.NewVariable(nil, "syntax_only", 1, data.NewBaseType("bool")),
-		node.NewVariable(nil, "callable_name", 2, data.NewBaseType("string")),
-	}
+	return isCallableFunctionGetVariables
 }

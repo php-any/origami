@@ -63,15 +63,19 @@ func (h *RequestFileMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 func (h *RequestFileMethod) GetName() string            { return "file" }
 func (h *RequestFileMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestFileMethod) GetIsStatic() bool          { return false }
-func (h *RequestFileMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "key", 0, nil, nil),
-	}
+var requestFileMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "key", 0, nil, nil),
 }
+
+func (h *RequestFileMethod) GetParams() []data.GetValue {
+	return requestFileMethodGetParams
+}
+var requestFileMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "key", 0, nil),
+}
+
 func (h *RequestFileMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "key", 0, nil),
-	}
+	return requestFileMethodGetVariables
 }
 func (h *RequestFileMethod) GetReturnType() data.Types {
 	return data.NewUnionType([]data.Types{

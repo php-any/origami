@@ -204,15 +204,19 @@ func (m *IteratorIteratorConstructMethod) GetName() string            { return "
 func (m *IteratorIteratorConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *IteratorIteratorConstructMethod) GetIsStatic() bool          { return false }
 func (m *IteratorIteratorConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *IteratorIteratorConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
-	}
+var iteratorIteratorConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
 }
+
+func (m *IteratorIteratorConstructMethod) GetParams() []data.GetValue {
+	return iteratorIteratorConstructMethodGetParams
+}
+var iteratorIteratorConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
+}
+
 func (m *IteratorIteratorConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
-	}
+	return iteratorIteratorConstructMethodGetVariables
 }
 func (m *IteratorIteratorConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	it, ok := ctx.GetIndexValue(0)

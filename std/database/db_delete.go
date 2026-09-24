@@ -72,12 +72,16 @@ func (d *DbDeleteMethod) GetIsStatic() bool {
 	return false
 }
 
+var dbDeleteMethodGetParams = []data.GetValue{}
+
 func (d *DbDeleteMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return dbDeleteMethodGetParams
 }
 
+var dbDeleteMethodGetVariables = []data.Variable{}
+
 func (d *DbDeleteMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return dbDeleteMethodGetVariables
 }
 
 func (d *DbDeleteMethod) GetReturnType() data.Types {

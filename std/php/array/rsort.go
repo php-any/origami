@@ -52,16 +52,20 @@ func (f *RsortFunction) GetName() string {
 	return "rsort"
 }
 
+var rsortFunctionGetParams = []data.GetValue{
+	node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
+	node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.Int{}),
+}
+
 func (f *RsortFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
-		node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.Int{}),
-	}
+	return rsortFunctionGetParams
+}
+
+var rsortFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Mixed{}),
+	node.NewVariable(nil, "flags", 1, data.Int{}),
 }
 
 func (f *RsortFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Mixed{}),
-		node.NewVariable(nil, "flags", 1, data.Int{}),
-	}
+	return rsortFunctionGetVariables
 }

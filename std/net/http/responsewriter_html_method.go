@@ -33,16 +33,20 @@ func (h *ResponseWriterHtmlMethod) Call(ctx data.Context) (data.GetValue, data.C
 func (h *ResponseWriterHtmlMethod) GetName() string            { return "html" }
 func (h *ResponseWriterHtmlMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResponseWriterHtmlMethod) GetIsStatic() bool          { return false }
-func (h *ResponseWriterHtmlMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "content", 0, nil, data.NewBaseType("string")),
-		node.NewParameter(nil, "statusCode", 1, data.NewIntValue(200), data.NewBaseType("int")),
-	}
+var responseWriterHtmlMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "content", 0, nil, data.NewBaseType("string")),
+	node.NewParameter(nil, "statusCode", 1, data.NewIntValue(200), data.NewBaseType("int")),
 }
+
+func (h *ResponseWriterHtmlMethod) GetParams() []data.GetValue {
+	return responseWriterHtmlMethodGetParams
+}
+var responseWriterHtmlMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "content", 0, nil),
+	node.NewVariable(nil, "statusCode", 1, nil),
+}
+
 func (h *ResponseWriterHtmlMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "content", 0, nil),
-		node.NewVariable(nil, "statusCode", 1, nil),
-	}
+	return responseWriterHtmlMethodGetVariables
 }
 func (h *ResponseWriterHtmlMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

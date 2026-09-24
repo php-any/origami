@@ -84,17 +84,21 @@ func (m *GlobIteratorConstructMethod) GetName() string            { return "__co
 func (m *GlobIteratorConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *GlobIteratorConstructMethod) GetIsStatic() bool          { return false }
 func (m *GlobIteratorConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *GlobIteratorConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "pattern", 0, nil, data.String{}),
-		node.NewParameter(nil, "flags", 1, data.NewIntValue(FSI_DEFAULT_FLAGS), data.Int{}),
-	}
+var globIteratorConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "pattern", 0, nil, data.String{}),
+	node.NewParameter(nil, "flags", 1, data.NewIntValue(FSI_DEFAULT_FLAGS), data.Int{}),
 }
+
+func (m *GlobIteratorConstructMethod) GetParams() []data.GetValue {
+	return globIteratorConstructMethodGetParams
+}
+var globIteratorConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "pattern", 0, data.String{}),
+	node.NewVariable(nil, "flags", 1, data.Int{}),
+}
+
 func (m *GlobIteratorConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "pattern", 0, data.String{}),
-		node.NewVariable(nil, "flags", 1, data.Int{}),
-	}
+	return globIteratorConstructMethodGetVariables
 }
 func (m *GlobIteratorConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	patternValue, _ := ctx.GetIndexValue(0)

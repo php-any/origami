@@ -46,16 +46,20 @@ func (f *StrtokFunction) GetName() string {
 	return "strtok"
 }
 
+var strtokFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "token", 1, nil, nil),
+}
+
 func (f *StrtokFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "token", 1, nil, nil),
-	}
+	return strtokFunctionGetParams
+}
+
+var strtokFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "token", 1, data.NewBaseType("string")),
 }
 
 func (f *StrtokFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "token", 1, data.NewBaseType("string")),
-	}
+	return strtokFunctionGetVariables
 }

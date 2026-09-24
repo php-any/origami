@@ -65,20 +65,24 @@ func (f *TimezoneNameFromAbbrFunction) GetName() string {
 	return "timezone_name_from_abbr"
 }
 
+var timezoneNameFromAbbrFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "abbr", 0, nil, nil),
+	node.NewParameter(nil, "utc_offset", 1, node.NewIntLiteral(nil, "-1"), nil),
+	node.NewParameter(nil, "is_dst", 2, node.NewIntLiteral(nil, "-1"), nil),
+}
+
 func (f *TimezoneNameFromAbbrFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "abbr", 0, nil, nil),
-		node.NewParameter(nil, "utc_offset", 1, node.NewIntLiteral(nil, "-1"), nil),
-		node.NewParameter(nil, "is_dst", 2, node.NewIntLiteral(nil, "-1"), nil),
-	}
+	return timezoneNameFromAbbrFunctionGetParams
+}
+
+var timezoneNameFromAbbrFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "abbr", 0, nil),
+	node.NewVariable(nil, "utc_offset", 1, nil),
+	node.NewVariable(nil, "is_dst", 2, nil),
 }
 
 func (f *TimezoneNameFromAbbrFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "abbr", 0, nil),
-		node.NewVariable(nil, "utc_offset", 1, nil),
-		node.NewVariable(nil, "is_dst", 2, nil),
-	}
+	return timezoneNameFromAbbrFunctionGetVariables
 }
 
 // timezoneNameFromAbbr 根据缩写、UTC 偏移（秒）和是否夏令时在预定义时区列表中查找并返回第一个匹配的 IANA 时区名。

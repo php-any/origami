@@ -44,16 +44,20 @@ func (f *ArrayFirstFunction) Call(ctx data.Context) (data.GetValue, data.Control
 
 func (f *ArrayFirstFunction) GetName() string { return "array_first" }
 
+var arrayFirstFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, data.Arrays{}),
+}
+
 func (f *ArrayFirstFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, data.Arrays{}),
-	}
+	return arrayFirstFunctionGetParams
+}
+
+var arrayFirstFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Arrays{}),
 }
 
 func (f *ArrayFirstFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Arrays{}),
-	}
+	return arrayFirstFunctionGetVariables
 }
 
 // ArrayLastFunction 实现 PHP 8.5 array_last(array $array): mixed
@@ -95,14 +99,18 @@ func (f *ArrayLastFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 
 func (f *ArrayLastFunction) GetName() string { return "array_last" }
 
+var arrayLastFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, data.Arrays{}),
+}
+
 func (f *ArrayLastFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, data.Arrays{}),
-	}
+	return arrayLastFunctionGetParams
+}
+
+var arrayLastFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Arrays{}),
 }
 
 func (f *ArrayLastFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Arrays{}),
-	}
+	return arrayLastFunctionGetVariables
 }

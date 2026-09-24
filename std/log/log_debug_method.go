@@ -40,18 +40,22 @@ func (h *LogDebugMethod) GetIsStatic() bool {
 	return true
 }
 
+var logDebugMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "msg", 0, nil, nil),
+	node.NewParameters(nil, "args", 1, nil, nil),
+}
+
 func (h *LogDebugMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "msg", 0, nil, nil),
-		node.NewParameters(nil, "args", 1, nil, nil),
-	}
+	return logDebugMethodGetParams
+}
+
+var logDebugMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "msg", 0, nil),
+	node.NewVariable(nil, "args", 1, nil),
 }
 
 func (h *LogDebugMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "msg", 0, nil),
-		node.NewVariable(nil, "args", 1, nil),
-	}
+	return logDebugMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型

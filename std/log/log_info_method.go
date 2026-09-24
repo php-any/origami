@@ -40,18 +40,22 @@ func (h *LogInfoMethod) GetIsStatic() bool {
 	return true
 }
 
+var logInfoMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "msg", 0, nil, nil),
+	node.NewParameters(nil, "args", 1, nil, nil),
+}
+
 func (h *LogInfoMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "msg", 0, nil, nil),
-		node.NewParameters(nil, "args", 1, nil, nil),
-	}
+	return logInfoMethodGetParams
+}
+
+var logInfoMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "msg", 0, nil),
+	node.NewVariable(nil, "args", 1, nil),
 }
 
 func (h *LogInfoMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "msg", 0, nil),
-		node.NewVariable(nil, "args", 1, nil),
-	}
+	return logInfoMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型

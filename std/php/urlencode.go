@@ -33,14 +33,18 @@ func (f *UrlencodeFunction) GetName() string {
 	return "urlencode"
 }
 
+var urlencodeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+}
+
 func (f *UrlencodeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-	}
+	return urlencodeFunctionGetParams
+}
+
+var urlencodeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 }
 
 func (f *UrlencodeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-	}
+	return urlencodeFunctionGetVariables
 }

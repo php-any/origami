@@ -61,20 +61,24 @@ func (h *TxExecContextMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 func (h *TxExecContextMethod) GetName() string            { return "execContext" }
 func (h *TxExecContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *TxExecContextMethod) GetIsStatic() bool          { return true }
+var txExecContextMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "ctx", 0, nil, nil),
+	node.NewParameter(nil, "query", 1, nil, nil),
+	node.NewParameters(nil, "args", 2, nil, nil),
+}
+
 func (h *TxExecContextMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "ctx", 0, nil, nil),
-		node.NewParameter(nil, "query", 1, nil, nil),
-		node.NewParameters(nil, "args", 2, nil, nil),
-	}
+	return txExecContextMethodGetParams
+}
+
+var txExecContextMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "ctx", 0, nil),
+	node.NewVariable(nil, "query", 1, nil),
+	node.NewVariable(nil, "args", 2, nil),
 }
 
 func (h *TxExecContextMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "ctx", 0, nil),
-		node.NewVariable(nil, "query", 1, nil),
-		node.NewVariable(nil, "args", 2, nil),
-	}
+	return txExecContextMethodGetVariables
 }
 
 func (h *TxExecContextMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

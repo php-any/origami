@@ -50,19 +50,23 @@ func (f *IconvStrrposFunction) GetName() string {
 	return "iconv_strrpos"
 }
 
+var iconvStrrposFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "haystack", 0, nil, nil),
+	node.NewParameter(nil, "needle", 1, nil, nil),
+	// 第三个参数在 Symfony polyfill 中作为 encoding 使用，此处不做特殊处理
+	node.NewParameter(nil, "encoding", 2, node.NewNullLiteral(nil), nil),
+}
+
 func (f *IconvStrrposFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "haystack", 0, nil, nil),
-		node.NewParameter(nil, "needle", 1, nil, nil),
-		// 第三个参数在 Symfony polyfill 中作为 encoding 使用，此处不做特殊处理
-		node.NewParameter(nil, "encoding", 2, node.NewNullLiteral(nil), nil),
-	}
+	return iconvStrrposFunctionGetParams
+}
+
+var iconvStrrposFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "encoding", 2, data.NewBaseType("string")),
 }
 
 func (f *IconvStrrposFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "encoding", 2, data.NewBaseType("string")),
-	}
+	return iconvStrrposFunctionGetVariables
 }

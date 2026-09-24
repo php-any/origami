@@ -21,12 +21,16 @@ func (f *GcEnabledFunction) GetName() string {
 	return "gc_enabled"
 }
 
+var gcEnabledFunctionGetParams = []data.GetValue{}
+
 func (f *GcEnabledFunction) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return gcEnabledFunctionGetParams
 }
 
+var gcEnabledFunctionGetVariables = []data.Variable{}
+
 func (f *GcEnabledFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return gcEnabledFunctionGetVariables
 }
 
 // GcEnableFunction 对应 PHP gc_enable()：Go runtime 无法禁用 GC，无实际作用。
@@ -46,12 +50,16 @@ func (f *GcEnableFunction) GetName() string {
 	return "gc_enable"
 }
 
+var gcEnableFunctionGetParams = []data.GetValue{}
+
 func (f *GcEnableFunction) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return gcEnableFunctionGetParams
 }
 
+var gcEnableFunctionGetVariables = []data.Variable{}
+
 func (f *GcEnableFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return gcEnableFunctionGetVariables
 }
 
 // GcDisableFunction 对应 PHP gc_disable()：Go runtime 无法禁用 GC，无实际作用。
@@ -71,10 +79,14 @@ func (f *GcDisableFunction) GetName() string {
 	return "gc_disable"
 }
 
+var gcDisableFunctionGetParams = []data.GetValue{}
+
 func (f *GcDisableFunction) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return gcDisableFunctionGetParams
 }
 
+var gcDisableFunctionGetVariables = []data.Variable{}
+
 func (f *GcDisableFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return gcDisableFunctionGetVariables
 }

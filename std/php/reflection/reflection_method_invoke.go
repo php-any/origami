@@ -15,12 +15,16 @@ func (m *ReflectionMethodInvokeMethod) GetModifier() data.Modifier { return data
 
 func (m *ReflectionMethodInvokeMethod) GetIsStatic() bool { return false }
 
+var reflectionMethodInvokeMethodGetParams = []data.GetValue{}
+
 func (m *ReflectionMethodInvokeMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return reflectionMethodInvokeMethodGetParams
 }
 
+var reflectionMethodInvokeMethodGetVariables = []data.Variable{}
+
 func (m *ReflectionMethodInvokeMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return reflectionMethodInvokeMethodGetVariables
 }
 
 func (m *ReflectionMethodInvokeMethod) GetReturnType() data.Types { return nil }

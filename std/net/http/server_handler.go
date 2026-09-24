@@ -44,17 +44,21 @@ func (h *ServerHandleMethod) Call(ctx data.Context) (data.GetValue, data.Control
 func (h *ServerHandleMethod) GetName() string            { return h.name }
 func (h *ServerHandleMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ServerHandleMethod) GetIsStatic() bool          { return false }
-func (h *ServerHandleMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "path", 0, nil, nil),
-		node.NewParameter(nil, "handle", 1, nil, nil),
-	}
+var serverHandleMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "path", 0, nil, nil),
+	node.NewParameter(nil, "handle", 1, nil, nil),
 }
+
+func (h *ServerHandleMethod) GetParams() []data.GetValue {
+	return serverHandleMethodGetParams
+}
+var serverHandleMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "path", 0, nil),
+	node.NewVariable(nil, "handle", 1, nil),
+}
+
 func (h *ServerHandleMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "path", 0, nil),
-		node.NewVariable(nil, "handle", 1, nil),
-	}
+	return serverHandleMethodGetVariables
 }
 func (h *ServerHandleMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
 
@@ -92,14 +96,18 @@ func (h *ServerAnyMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *ServerAnyMethod) GetName() string            { return "any" }
 func (h *ServerAnyMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ServerAnyMethod) GetIsStatic() bool          { return false }
-func (h *ServerAnyMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "handle", 0, nil, nil),
-	}
+var serverAnyMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "handle", 0, nil, nil),
 }
+
+func (h *ServerAnyMethod) GetParams() []data.GetValue {
+	return serverAnyMethodGetParams
+}
+var serverAnyMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "handle", 0, nil),
+}
+
 func (h *ServerAnyMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "handle", 0, nil),
-	}
+	return serverAnyMethodGetVariables
 }
 func (h *ServerAnyMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

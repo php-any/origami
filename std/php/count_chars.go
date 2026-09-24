@@ -55,16 +55,20 @@ func (f *CountCharsFunction) Call(ctx data.Context) (data.GetValue, data.Control
 
 func (f *CountCharsFunction) GetName() string { return "count_chars" }
 
+var countCharsFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, data.String{}),
+	node.NewParameter(nil, "mode", 1, data.NewIntValue(0), data.Int{}),
+}
+
 func (f *CountCharsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, data.String{}),
-		node.NewParameter(nil, "mode", 1, data.NewIntValue(0), data.Int{}),
-	}
+	return countCharsFunctionGetParams
+}
+
+var countCharsFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.String{}),
+	node.NewVariable(nil, "mode", 1, data.Int{}),
 }
 
 func (f *CountCharsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.String{}),
-		node.NewVariable(nil, "mode", 1, data.Int{}),
-	}
+	return countCharsFunctionGetVariables
 }

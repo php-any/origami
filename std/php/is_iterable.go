@@ -55,16 +55,20 @@ func (f *IsIterableFunction) GetName() string {
 	return "is_iterable"
 }
 
+var isIterableFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+}
+
 func (f *IsIterableFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return isIterableFunctionGetParams
+}
+
+var isIterableFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
 }
 
 func (f *IsIterableFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
-	}
+	return isIterableFunctionGetVariables
 }
 
 // isTraversableInterface 判断接口名是否为 Traversable 相关

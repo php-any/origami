@@ -61,20 +61,24 @@ func (h *DBQueryContextMethod) Call(ctx data.Context) (data.GetValue, data.Contr
 func (h *DBQueryContextMethod) GetName() string            { return "queryContext" }
 func (h *DBQueryContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBQueryContextMethod) GetIsStatic() bool          { return true }
+var dBQueryContextMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "ctx", 0, nil, nil),
+	node.NewParameter(nil, "query", 1, nil, nil),
+	node.NewParameters(nil, "args", 2, nil, nil),
+}
+
 func (h *DBQueryContextMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "ctx", 0, nil, nil),
-		node.NewParameter(nil, "query", 1, nil, nil),
-		node.NewParameters(nil, "args", 2, nil, nil),
-	}
+	return dBQueryContextMethodGetParams
+}
+
+var dBQueryContextMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "ctx", 0, nil),
+	node.NewVariable(nil, "query", 1, nil),
+	node.NewVariable(nil, "args", 2, nil),
 }
 
 func (h *DBQueryContextMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "ctx", 0, nil),
-		node.NewVariable(nil, "query", 1, nil),
-		node.NewVariable(nil, "args", 2, nil),
-	}
+	return dBQueryContextMethodGetVariables
 }
 
 func (h *DBQueryContextMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

@@ -78,18 +78,22 @@ func (fn *ArrayWalkFunction) GetName() string {
 	return "array_walk"
 }
 
+var arrayWalkFunctionGetParams = []data.GetValue{
+	node.NewParameterReference(nil, "array", 0, nil, data.NewBaseType("array")),
+	node.NewParameter(nil, "callback", 1, nil, nil),
+	node.NewParameter(nil, "arg", 2, nil, nil),
+}
+
 func (fn *ArrayWalkFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, nil, data.NewBaseType("array")),
-		node.NewParameter(nil, "callback", 1, nil, nil),
-		node.NewParameter(nil, "arg", 2, nil, nil),
-	}
+	return arrayWalkFunctionGetParams
+}
+
+var arrayWalkFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
+	node.NewVariable(nil, "callback", 1, data.Mixed{}),
+	node.NewVariable(nil, "arg", 2, data.Mixed{}),
 }
 
 func (fn *ArrayWalkFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-		node.NewVariable(nil, "callback", 1, data.Mixed{}),
-		node.NewVariable(nil, "arg", 2, data.Mixed{}),
-	}
+	return arrayWalkFunctionGetVariables
 }

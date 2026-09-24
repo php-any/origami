@@ -17,14 +17,18 @@ func (fn *GetCfgVarFunction) Call(ctx data.Context) (data.GetValue, data.Control
 
 func (fn *GetCfgVarFunction) GetName() string { return "get_cfg_var" }
 
+var getCfgVarFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "option", 0, nil, nil),
+}
+
 func (fn *GetCfgVarFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "option", 0, nil, nil),
-	}
+	return getCfgVarFunctionGetParams
+}
+
+var getCfgVarFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "option", 0, data.NewBaseType("string")),
 }
 
 func (fn *GetCfgVarFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "option", 0, data.NewBaseType("string")),
-	}
+	return getCfgVarFunctionGetVariables
 }

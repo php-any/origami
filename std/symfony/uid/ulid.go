@@ -28,7 +28,7 @@ func NewUlidClass() data.ClassStmt {
 
 	strT := data.NewBaseType("string")
 	add := func(name string, static bool, params []uidParam, fn func(data.Context) (data.GetValue, data.Control)) {
-		c.methods[strings.ToLower(name)] = &uidMethod{name: name, static: static, params: params, fn: fn}
+		c.methods[data.MethodLookupKey(name)] = &uidMethod{name: name, static: static, params: params, fn: fn}
 	}
 	add("__construct", false, []uidParam{{name: "ulid", def: data.NewNullValue(), ty: strT}}, ulidConstruct)
 	add("generate", true, []uidParam{{name: "time", def: data.NewNullValue()}}, ulidGenerate)
@@ -68,7 +68,7 @@ func (c *UlidClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
 func (c *UlidClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *UlidClass) GetMethods() []data.Method {
@@ -79,7 +79,7 @@ func (c *UlidClass) GetMethods() []data.Method {
 	return out
 }
 func (c *UlidClass) GetStaticMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	if !ok || m == nil || !m.GetIsStatic() {
 		return nil, false
 	}

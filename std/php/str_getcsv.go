@@ -83,20 +83,24 @@ func (f *StrGetcsvFunction) GetName() string {
 	return "str_getcsv"
 }
 
+var strGetcsvFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "separator", 1, node.NewStringLiteral(nil, ","), nil),
+	node.NewParameter(nil, "enclosure", 2, node.NewStringLiteral(nil, "\""), nil),
+	node.NewParameter(nil, "escape", 3, node.NewStringLiteral(nil, "\\"), nil),
+}
+
 func (f *StrGetcsvFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "separator", 1, node.NewStringLiteral(nil, ","), nil),
-		node.NewParameter(nil, "enclosure", 2, node.NewStringLiteral(nil, "\""), nil),
-		node.NewParameter(nil, "escape", 3, node.NewStringLiteral(nil, "\\"), nil),
-	}
+	return strGetcsvFunctionGetParams
+}
+
+var strGetcsvFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "separator", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "enclosure", 2, data.NewBaseType("string")),
+	node.NewVariable(nil, "escape", 3, data.NewBaseType("string")),
 }
 
 func (f *StrGetcsvFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "separator", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "enclosure", 2, data.NewBaseType("string")),
-		node.NewVariable(nil, "escape", 3, data.NewBaseType("string")),
-	}
+	return strGetcsvFunctionGetVariables
 }

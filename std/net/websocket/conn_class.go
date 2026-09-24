@@ -76,9 +76,13 @@ func (h *ConnReadTextMethod) Call(ctx data.Context) (data.GetValue, data.Control
 func (h *ConnReadTextMethod) GetName() string            { return "readText" }
 func (h *ConnReadTextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ConnReadTextMethod) GetIsStatic() bool          { return false }
-func (h *ConnReadTextMethod) GetParams() []data.GetValue { return []data.GetValue{} }
+var connReadTextMethodGetParams = []data.GetValue{}
+
+func (h *ConnReadTextMethod) GetParams() []data.GetValue { return connReadTextMethodGetParams }
+var connReadTextMethodGetVariables = []data.Variable{}
+
 func (h *ConnReadTextMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return connReadTextMethodGetVariables
 }
 func (h *ConnReadTextMethod) GetReturnType() data.Types { return data.NewBaseType("string") }
 
@@ -103,15 +107,19 @@ func (h *ConnWriteTextMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 func (h *ConnWriteTextMethod) GetName() string            { return "writeText" }
 func (h *ConnWriteTextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ConnWriteTextMethod) GetIsStatic() bool          { return false }
-func (h *ConnWriteTextMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "message", 0, nil, data.String{}),
-	}
+var connWriteTextMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "message", 0, nil, data.String{}),
 }
+
+func (h *ConnWriteTextMethod) GetParams() []data.GetValue {
+	return connWriteTextMethodGetParams
+}
+var connWriteTextMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "message", 0, nil),
+}
+
 func (h *ConnWriteTextMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "message", 0, nil),
-	}
+	return connWriteTextMethodGetVariables
 }
 func (h *ConnWriteTextMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
 
@@ -132,8 +140,12 @@ func (h *ConnCloseMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *ConnCloseMethod) GetName() string            { return "close" }
 func (h *ConnCloseMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ConnCloseMethod) GetIsStatic() bool          { return false }
-func (h *ConnCloseMethod) GetParams() []data.GetValue { return []data.GetValue{} }
+var connCloseMethodGetParams = []data.GetValue{}
+
+func (h *ConnCloseMethod) GetParams() []data.GetValue { return connCloseMethodGetParams }
+var connCloseMethodGetVariables = []data.Variable{}
+
 func (h *ConnCloseMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return connCloseMethodGetVariables
 }
 func (h *ConnCloseMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

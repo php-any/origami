@@ -47,16 +47,20 @@ func (f *StrRepeatFunction) GetName() string {
 	return "str_repeat"
 }
 
+var strRepeatFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "times", 1, nil, nil),
+}
+
 func (f *StrRepeatFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "times", 1, nil, nil),
-	}
+	return strRepeatFunctionGetParams
+}
+
+var strRepeatFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "times", 1, data.NewBaseType("int")),
 }
 
 func (f *StrRepeatFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "times", 1, data.NewBaseType("int")),
-	}
+	return strRepeatFunctionGetVariables
 }

@@ -61,16 +61,20 @@ func (f *Md5FileFunction) GetName() string {
 	return "md5_file"
 }
 
+var md5FileFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "filename", 0, nil, nil),
+	node.NewParameter(nil, "raw_output", 1, node.NewNullLiteral(nil), nil),
+}
+
 func (f *Md5FileFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "filename", 0, nil, nil),
-		node.NewParameter(nil, "raw_output", 1, node.NewNullLiteral(nil), nil),
-	}
+	return md5FileFunctionGetParams
+}
+
+var md5FileFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "raw_output", 1, data.NewBaseType("bool")),
 }
 
 func (f *Md5FileFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "raw_output", 1, data.NewBaseType("bool")),
-	}
+	return md5FileFunctionGetVariables
 }

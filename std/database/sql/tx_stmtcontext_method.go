@@ -49,18 +49,22 @@ func (h *TxStmtContextMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 func (h *TxStmtContextMethod) GetName() string            { return "stmtContext" }
 func (h *TxStmtContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *TxStmtContextMethod) GetIsStatic() bool          { return true }
+var txStmtContextMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "ctx", 0, nil, nil),
+	node.NewParameter(nil, "stmt", 1, nil, nil),
+}
+
 func (h *TxStmtContextMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "ctx", 0, nil, nil),
-		node.NewParameter(nil, "stmt", 1, nil, nil),
-	}
+	return txStmtContextMethodGetParams
+}
+
+var txStmtContextMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "ctx", 0, nil),
+	node.NewVariable(nil, "stmt", 1, nil),
 }
 
 func (h *TxStmtContextMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "ctx", 0, nil),
-		node.NewVariable(nil, "stmt", 1, nil),
-	}
+	return txStmtContextMethodGetVariables
 }
 
 func (h *TxStmtContextMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

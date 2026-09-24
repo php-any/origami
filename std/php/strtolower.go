@@ -33,14 +33,18 @@ func (f *StrtolowerFunction) GetName() string {
 	return "strtolower"
 }
 
+var strtolowerFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+}
+
 func (f *StrtolowerFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-	}
+	return strtolowerFunctionGetParams
+}
+
+var strtolowerFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 }
 
 func (f *StrtolowerFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-	}
+	return strtolowerFunctionGetVariables
 }

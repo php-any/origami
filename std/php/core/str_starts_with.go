@@ -72,16 +72,20 @@ func (f *StrStartsWithFunction) GetName() string {
 	return "str_starts_with"
 }
 
+var strStartsWithFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "haystack", 0, nil, data.String{}),
+	node.NewParameter(nil, "needle", 1, nil, data.String{}),
+}
+
 func (f *StrStartsWithFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "haystack", 0, nil, data.String{}),
-		node.NewParameter(nil, "needle", 1, nil, data.String{}),
-	}
+	return strStartsWithFunctionGetParams
+}
+
+var strStartsWithFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "haystack", 0, data.String{}),
+	node.NewVariable(nil, "needle", 1, data.String{}),
 }
 
 func (f *StrStartsWithFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "haystack", 0, data.String{}),
-		node.NewVariable(nil, "needle", 1, data.String{}),
-	}
+	return strStartsWithFunctionGetVariables
 }

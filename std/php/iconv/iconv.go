@@ -53,20 +53,24 @@ func (f *IconvFunction) GetName() string {
 	return "iconv"
 }
 
+var iconvFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "from_encoding", 0, nil, nil),
+	node.NewParameter(nil, "to_encoding", 1, nil, nil),
+	node.NewParameter(nil, "string", 2, nil, nil),
+}
+
 func (f *IconvFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "from_encoding", 0, nil, nil),
-		node.NewParameter(nil, "to_encoding", 1, nil, nil),
-		node.NewParameter(nil, "string", 2, nil, nil),
-	}
+	return iconvFunctionGetParams
+}
+
+var iconvFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "from_encoding", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "to_encoding", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "string", 2, data.NewBaseType("string")),
 }
 
 func (f *IconvFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "from_encoding", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "to_encoding", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "string", 2, data.NewBaseType("string")),
-	}
+	return iconvFunctionGetVariables
 }
 
 // normalizeEncodingName 规范化编码名称，去除大小写差异和 //TRANSLIT/IGNORE 等后缀

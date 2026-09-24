@@ -79,21 +79,25 @@ type ApplicationConstructMethod struct{ app *Application }
 func (m *ApplicationConstructMethod) GetName() string            { return "__construct" }
 func (m *ApplicationConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ApplicationConstructMethod) GetIsStatic() bool          { return false }
-func (m *ApplicationConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "name", 0, data.NewStringValue("App"), data.NewBaseType("string")),
-		node.NewParameter(nil, "port", 1, data.NewIntValue(8080), data.NewBaseType("int")),
-		node.NewParameter(nil, "scan", 2, data.NewNullValue(), nil),
-		node.NewAnnotationTargetParameter(nil, 3),
-	}
+var applicationConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "name", 0, data.NewStringValue("App"), data.NewBaseType("string")),
+	node.NewParameter(nil, "port", 1, data.NewIntValue(8080), data.NewBaseType("int")),
+	node.NewParameter(nil, "scan", 2, data.NewNullValue(), nil),
+	node.NewAnnotationTargetParameter(nil, 3),
 }
+
+func (m *ApplicationConstructMethod) GetParams() []data.GetValue {
+	return applicationConstructMethodGetParams
+}
+var applicationConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "name", 0, nil),
+	node.NewVariable(nil, "port", 1, nil),
+	node.NewVariable(nil, "scan", 2, nil),
+	node.NewAnnotationTargetVariable(nil, 3),
+}
+
 func (m *ApplicationConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "name", 0, nil),
-		node.NewVariable(nil, "port", 1, nil),
-		node.NewVariable(nil, "scan", 2, nil),
-		node.NewAnnotationTargetVariable(nil, 3),
-	}
+	return applicationConstructMethodGetVariables
 }
 func (m *ApplicationConstructMethod) GetReturnType() data.Types { return data.NewBaseType("string") }
 func (m *ApplicationConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {

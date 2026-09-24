@@ -30,16 +30,20 @@ func (h *TxStmtMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *TxStmtMethod) GetName() string            { return "stmt" }
 func (h *TxStmtMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *TxStmtMethod) GetIsStatic() bool          { return true }
+var txStmtMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "stmt", 0, nil, nil),
+}
+
 func (h *TxStmtMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "stmt", 0, nil, nil),
-	}
+	return txStmtMethodGetParams
+}
+
+var txStmtMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "stmt", 0, nil),
 }
 
 func (h *TxStmtMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "stmt", 0, nil),
-	}
+	return txStmtMethodGetVariables
 }
 
 func (h *TxStmtMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
-	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/std/laravel/framework/illuminate/conditionable"
@@ -13,7 +12,7 @@ import (
 
 func registerCollectionMore(c *CollectionClass) {
 	add := func(name string, params []string, fn func(data.Context) (data.GetValue, data.Control)) {
-		c.methods[strings.ToLower(name)] = kit.InstanceMethod(name, params, fn)
+		c.methods[data.MethodLookupKey(name)] = kit.InstanceMethod(name, params, fn)
 	}
 	add("add", []string{"key", "value"}, collectionAdd)
 	add("after", []string{"value", "key"}, collectionAfter)

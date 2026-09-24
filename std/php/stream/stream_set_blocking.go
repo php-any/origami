@@ -60,16 +60,20 @@ func (f *StreamSetBlockingFunction) Call(ctx data.Context) (data.GetValue, data.
 
 func (f *StreamSetBlockingFunction) GetName() string { return "stream_set_blocking" }
 
+var streamSetBlockingFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "stream", 0, nil, nil),
+	node.NewParameter(nil, "enable", 1, nil, data.Bool{}),
+}
+
 func (f *StreamSetBlockingFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "stream", 0, nil, nil),
-		node.NewParameter(nil, "enable", 1, nil, data.Bool{}),
-	}
+	return streamSetBlockingFunctionGetParams
+}
+
+var streamSetBlockingFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "stream", 0, nil),
+	node.NewVariable(nil, "enable", 1, data.Bool{}),
 }
 
 func (f *StreamSetBlockingFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "stream", 0, nil),
-		node.NewVariable(nil, "enable", 1, data.Bool{}),
-	}
+	return streamSetBlockingFunctionGetVariables
 }

@@ -41,13 +41,17 @@ func (f *GettimeofdayFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 }
 
 func (f *GettimeofdayFunction) GetName() string { return "gettimeofday" }
-func (f *GettimeofdayFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "as_float", 0, data.NewBoolValue(false), nil),
-	}
+var gettimeofdayFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "as_float", 0, data.NewBoolValue(false), nil),
 }
+
+func (f *GettimeofdayFunction) GetParams() []data.GetValue {
+	return gettimeofdayFunctionGetParams
+}
+var gettimeofdayFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "as_float", 0, nil),
+}
+
 func (f *GettimeofdayFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "as_float", 0, nil),
-	}
+	return gettimeofdayFunctionGetVariables
 }

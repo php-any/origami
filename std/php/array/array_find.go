@@ -34,18 +34,22 @@ func (f *ArrayFindKeyFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 
 func (f *ArrayFindKeyFunction) GetName() string { return "array_find_key" }
 
+var arrayFindKeyFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, data.Arrays{}),
+	node.NewParameter(nil, "callback", 1, nil, nil),
+}
+
 func (f *ArrayFindKeyFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, data.Arrays{}),
-		node.NewParameter(nil, "callback", 1, nil, nil),
-	}
+	return arrayFindKeyFunctionGetParams
+}
+
+var arrayFindKeyFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Arrays{}),
+	node.NewVariable(nil, "callback", 1, data.Mixed{}),
 }
 
 func (f *ArrayFindKeyFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Arrays{}),
-		node.NewVariable(nil, "callback", 1, data.Mixed{}),
-	}
+	return arrayFindKeyFunctionGetVariables
 }
 
 // ArrayFindFunction 实现 PHP 8.4 array_find(array $array, callable $callback): mixed
@@ -77,18 +81,22 @@ func (f *ArrayFindFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 
 func (f *ArrayFindFunction) GetName() string { return "array_find" }
 
+var arrayFindFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, data.Arrays{}),
+	node.NewParameter(nil, "callback", 1, nil, nil),
+}
+
 func (f *ArrayFindFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, data.Arrays{}),
-		node.NewParameter(nil, "callback", 1, nil, nil),
-	}
+	return arrayFindFunctionGetParams
+}
+
+var arrayFindFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Arrays{}),
+	node.NewVariable(nil, "callback", 1, data.Mixed{}),
 }
 
 func (f *ArrayFindFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Arrays{}),
-		node.NewVariable(nil, "callback", 1, data.Mixed{}),
-	}
+	return arrayFindFunctionGetVariables
 }
 
 // ArrayAnyFunction 实现 PHP 8.4 array_any(array $array, callable $callback): bool
@@ -115,17 +123,21 @@ func (f *ArrayAnyFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (f *ArrayAnyFunction) GetName() string { return "array_any" }
-func (f *ArrayAnyFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, data.Arrays{}),
-		node.NewParameter(nil, "callback", 1, nil, nil),
-	}
+var arrayAnyFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, data.Arrays{}),
+	node.NewParameter(nil, "callback", 1, nil, nil),
 }
+
+func (f *ArrayAnyFunction) GetParams() []data.GetValue {
+	return arrayAnyFunctionGetParams
+}
+var arrayAnyFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Arrays{}),
+	node.NewVariable(nil, "callback", 1, data.Mixed{}),
+}
+
 func (f *ArrayAnyFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Arrays{}),
-		node.NewVariable(nil, "callback", 1, data.Mixed{}),
-	}
+	return arrayAnyFunctionGetVariables
 }
 
 // ArrayAllFunction 实现 PHP 8.4 array_all(array $array, callable $callback): bool
@@ -152,17 +164,21 @@ func (f *ArrayAllFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (f *ArrayAllFunction) GetName() string { return "array_all" }
-func (f *ArrayAllFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, data.Arrays{}),
-		node.NewParameter(nil, "callback", 1, nil, nil),
-	}
+var arrayAllFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, data.Arrays{}),
+	node.NewParameter(nil, "callback", 1, nil, nil),
 }
+
+func (f *ArrayAllFunction) GetParams() []data.GetValue {
+	return arrayAllFunctionGetParams
+}
+var arrayAllFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Arrays{}),
+	node.NewVariable(nil, "callback", 1, data.Mixed{}),
+}
+
 func (f *ArrayAllFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Arrays{}),
-		node.NewVariable(nil, "callback", 1, data.Mixed{}),
-	}
+	return arrayAllFunctionGetVariables
 }
 
 func isCallbackTruthy(v data.Value) bool {

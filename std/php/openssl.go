@@ -35,11 +35,15 @@ func (f *OpenSSLCipherIVLengthFunction) Call(ctx data.Context) (data.GetValue, d
 }
 
 func (f *OpenSSLCipherIVLengthFunction) GetName() string { return "openssl_cipher_iv_length" }
+var openSSLCipherIVLengthFunctionGetParams = []data.GetValue{node.NewParameter(nil, "cipher_algo", 0, nil, nil)}
+
 func (f *OpenSSLCipherIVLengthFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "cipher_algo", 0, nil, nil)}
+	return openSSLCipherIVLengthFunctionGetParams
 }
+var openSSLCipherIVLengthFunctionGetVariables = []data.Variable{node.NewVariable(nil, "cipher_algo", 0, nil)}
+
 func (f *OpenSSLCipherIVLengthFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "cipher_algo", 0, nil)}
+	return openSSLCipherIVLengthFunctionGetVariables
 }
 
 // OpenSSLEncryptFunction 实现 openssl_encrypt
@@ -110,25 +114,29 @@ func (f *OpenSSLEncryptFunction) Call(ctx data.Context) (data.GetValue, data.Con
 }
 
 func (f *OpenSSLEncryptFunction) GetName() string { return "openssl_encrypt" }
-func (f *OpenSSLEncryptFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "data", 0, nil, nil),
-		node.NewParameter(nil, "cipher_algo", 1, nil, nil),
-		node.NewParameter(nil, "passphrase", 2, nil, nil),
-		node.NewParameter(nil, "options", 3, node.NewIntLiteral(nil, "0"), nil),
-		node.NewParameter(nil, "iv", 4, node.NewStringLiteral(nil, ""), nil),
-		node.NewParameter(nil, "tag", 5, nil, nil),
-	}
+var openSSLEncryptFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "data", 0, nil, nil),
+	node.NewParameter(nil, "cipher_algo", 1, nil, nil),
+	node.NewParameter(nil, "passphrase", 2, nil, nil),
+	node.NewParameter(nil, "options", 3, node.NewIntLiteral(nil, "0"), nil),
+	node.NewParameter(nil, "iv", 4, node.NewStringLiteral(nil, ""), nil),
+	node.NewParameter(nil, "tag", 5, nil, nil),
 }
+
+func (f *OpenSSLEncryptFunction) GetParams() []data.GetValue {
+	return openSSLEncryptFunctionGetParams
+}
+var openSSLEncryptFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "data", 0, nil),
+	node.NewVariable(nil, "cipher_algo", 1, nil),
+	node.NewVariable(nil, "passphrase", 2, nil),
+	node.NewVariable(nil, "options", 3, nil),
+	node.NewVariable(nil, "iv", 4, nil),
+	node.NewVariable(nil, "tag", 5, nil),
+}
+
 func (f *OpenSSLEncryptFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "data", 0, nil),
-		node.NewVariable(nil, "cipher_algo", 1, nil),
-		node.NewVariable(nil, "passphrase", 2, nil),
-		node.NewVariable(nil, "options", 3, nil),
-		node.NewVariable(nil, "iv", 4, nil),
-		node.NewVariable(nil, "tag", 5, nil),
-	}
+	return openSSLEncryptFunctionGetVariables
 }
 
 // OpenSSLDecryptFunction 实现 openssl_decrypt
@@ -233,25 +241,29 @@ func (f *OpenSSLDecryptFunction) Call(ctx data.Context) (data.GetValue, data.Con
 }
 
 func (f *OpenSSLDecryptFunction) GetName() string { return "openssl_decrypt" }
-func (f *OpenSSLDecryptFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "data", 0, nil, nil),
-		node.NewParameter(nil, "cipher_algo", 1, nil, nil),
-		node.NewParameter(nil, "passphrase", 2, nil, nil),
-		node.NewParameter(nil, "options", 3, node.NewIntLiteral(nil, "0"), nil),
-		node.NewParameter(nil, "iv", 4, node.NewStringLiteral(nil, ""), nil),
-		node.NewParameter(nil, "tag", 5, node.NewStringLiteral(nil, ""), nil),
-	}
+var openSSLDecryptFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "data", 0, nil, nil),
+	node.NewParameter(nil, "cipher_algo", 1, nil, nil),
+	node.NewParameter(nil, "passphrase", 2, nil, nil),
+	node.NewParameter(nil, "options", 3, node.NewIntLiteral(nil, "0"), nil),
+	node.NewParameter(nil, "iv", 4, node.NewStringLiteral(nil, ""), nil),
+	node.NewParameter(nil, "tag", 5, node.NewStringLiteral(nil, ""), nil),
 }
+
+func (f *OpenSSLDecryptFunction) GetParams() []data.GetValue {
+	return openSSLDecryptFunctionGetParams
+}
+var openSSLDecryptFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "data", 0, nil),
+	node.NewVariable(nil, "cipher_algo", 1, nil),
+	node.NewVariable(nil, "passphrase", 2, nil),
+	node.NewVariable(nil, "options", 3, nil),
+	node.NewVariable(nil, "iv", 4, nil),
+	node.NewVariable(nil, "tag", 5, nil),
+}
+
 func (f *OpenSSLDecryptFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "data", 0, nil),
-		node.NewVariable(nil, "cipher_algo", 1, nil),
-		node.NewVariable(nil, "passphrase", 2, nil),
-		node.NewVariable(nil, "options", 3, nil),
-		node.NewVariable(nil, "iv", 4, nil),
-		node.NewVariable(nil, "tag", 5, nil),
-	}
+	return openSSLDecryptFunctionGetVariables
 }
 
 func asIntVal(v data.Value) (int, error) {

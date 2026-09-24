@@ -176,15 +176,19 @@ func (m *MIConstructMethod) GetName() string            { return "__construct" }
 func (m *MIConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *MIConstructMethod) GetIsStatic() bool          { return false }
 func (m *MIConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *MIConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "flags", 0, data.NewIntValue(0), data.NewBaseType("int")),
-	}
+var mIConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "flags", 0, data.NewIntValue(0), data.NewBaseType("int")),
 }
+
+func (m *MIConstructMethod) GetParams() []data.GetValue {
+	return mIConstructMethodGetParams
+}
+var mIConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "flags", 0, data.NewBaseType("int")),
+}
+
 func (m *MIConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "flags", 0, data.NewBaseType("int")),
-	}
+	return mIConstructMethodGetVariables
 }
 func (m *MIConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	flags, _ := ctx.GetIndexValue(0)
@@ -203,17 +207,21 @@ func (m *MIAttachMethod) GetName() string            { return "attachIterator" }
 func (m *MIAttachMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *MIAttachMethod) GetIsStatic() bool          { return false }
 func (m *MIAttachMethod) GetReturnType() data.Types  { return nil }
-func (m *MIAttachMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
-		node.NewParameter(nil, "info", 1, data.NewNullValue(), data.Mixed{}),
-	}
+var mIAttachMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
+	node.NewParameter(nil, "info", 1, data.NewNullValue(), data.Mixed{}),
 }
+
+func (m *MIAttachMethod) GetParams() []data.GetValue {
+	return mIAttachMethodGetParams
+}
+var mIAttachMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
+	node.NewVariable(nil, "info", 1, data.Mixed{}),
+}
+
 func (m *MIAttachMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
-		node.NewVariable(nil, "info", 1, data.Mixed{}),
-	}
+	return mIAttachMethodGetVariables
 }
 func (m *MIAttachMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	it, _ := ctx.GetIndexValue(0)
@@ -241,15 +249,19 @@ func (m *MIDetachMethod) GetName() string            { return "detachIterator" }
 func (m *MIDetachMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *MIDetachMethod) GetIsStatic() bool          { return false }
 func (m *MIDetachMethod) GetReturnType() data.Types  { return nil }
-func (m *MIDetachMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
-	}
+var mIDetachMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
 }
+
+func (m *MIDetachMethod) GetParams() []data.GetValue {
+	return mIDetachMethodGetParams
+}
+var mIDetachMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
+}
+
 func (m *MIDetachMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
-	}
+	return mIDetachMethodGetVariables
 }
 func (m *MIDetachMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	it, _ := ctx.GetIndexValue(0)
@@ -405,15 +417,19 @@ func (m *MISetFlagsMethod) GetName() string            { return "setFlags" }
 func (m *MISetFlagsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *MISetFlagsMethod) GetIsStatic() bool          { return false }
 func (m *MISetFlagsMethod) GetReturnType() data.Types  { return nil }
-func (m *MISetFlagsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "flags", 0, nil, data.NewBaseType("int")),
-	}
+var mISetFlagsMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "flags", 0, nil, data.NewBaseType("int")),
 }
+
+func (m *MISetFlagsMethod) GetParams() []data.GetValue {
+	return mISetFlagsMethodGetParams
+}
+var mISetFlagsMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "flags", 0, data.NewBaseType("int")),
+}
+
 func (m *MISetFlagsMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "flags", 0, data.NewBaseType("int")),
-	}
+	return mISetFlagsMethodGetVariables
 }
 func (m *MISetFlagsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	flags, _ := ctx.GetIndexValue(0)

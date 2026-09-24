@@ -50,14 +50,18 @@ func (f *FloatFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 func (f *FloatFunction) GetName() string { return "float" }
 
+var floatFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+}
+
 func (f *FloatFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return floatFunctionGetParams
+}
+
+var floatFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
 }
 
 func (f *FloatFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
-	}
+	return floatFunctionGetVariables
 }

@@ -74,14 +74,18 @@ func (f *StreamResolveIncludePathFunction) GetName() string {
 	return "stream_resolve_include_path"
 }
 
+var streamResolveIncludePathFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "filename", 0, nil, nil),
+}
+
 func (f *StreamResolveIncludePathFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "filename", 0, nil, nil),
-	}
+	return streamResolveIncludePathFunctionGetParams
+}
+
+var streamResolveIncludePathFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
 }
 
 func (f *StreamResolveIncludePathFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
-	}
+	return streamResolveIncludePathFunctionGetVariables
 }

@@ -13,9 +13,13 @@ func (m *ReflectionParameterHasTypeMethod) GetModifier() data.Modifier { return 
 
 func (m *ReflectionParameterHasTypeMethod) GetIsStatic() bool { return false }
 
-func (m *ReflectionParameterHasTypeMethod) GetParams() []data.GetValue { return []data.GetValue{} }
+var reflectionParameterHasTypeMethodGetParams = []data.GetValue{}
 
-func (m *ReflectionParameterHasTypeMethod) GetVariables() []data.Variable { return []data.Variable{} }
+func (m *ReflectionParameterHasTypeMethod) GetParams() []data.GetValue { return reflectionParameterHasTypeMethodGetParams }
+
+var reflectionParameterHasTypeMethodGetVariables = []data.Variable{}
+
+func (m *ReflectionParameterHasTypeMethod) GetVariables() []data.Variable { return reflectionParameterHasTypeMethodGetVariables }
 
 func (m *ReflectionParameterHasTypeMethod) GetReturnType() data.Types { return data.Bool{} }
 

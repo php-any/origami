@@ -78,16 +78,20 @@ func (h *ServerStaticMethod) Call(ctx data.Context) (data.GetValue, data.Control
 func (h *ServerStaticMethod) GetName() string            { return "static" }
 func (h *ServerStaticMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ServerStaticMethod) GetIsStatic() bool          { return false }
-func (h *ServerStaticMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "prefix", 0, data.NewStringValue("/assets/"), data.NewBaseType("string")),
-		node.NewParameter(nil, "dir", 1, data.NewStringValue("."), data.NewBaseType("string")),
-	}
+var serverStaticMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "prefix", 0, data.NewStringValue("/assets/"), data.NewBaseType("string")),
+	node.NewParameter(nil, "dir", 1, data.NewStringValue("."), data.NewBaseType("string")),
 }
+
+func (h *ServerStaticMethod) GetParams() []data.GetValue {
+	return serverStaticMethodGetParams
+}
+var serverStaticMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "prefix", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "dir", 1, data.NewBaseType("string")),
+}
+
 func (h *ServerStaticMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "prefix", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "dir", 1, data.NewBaseType("string")),
-	}
+	return serverStaticMethodGetVariables
 }
 func (h *ServerStaticMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

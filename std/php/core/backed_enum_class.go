@@ -113,17 +113,21 @@ func (m *BackedEnumConstructMethod) GetName() string            { return "__cons
 func (m *BackedEnumConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *BackedEnumConstructMethod) GetIsStatic() bool          { return false }
 
+var backedEnumConstructMethodGetParams = []data.GetValue{
+	// 允许任意类型的枚举底层值
+	node.NewParameter(nil, "value", 0, nil, data.Mixed{}),
+}
+
 func (m *BackedEnumConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		// 允许任意类型的枚举底层值
-		node.NewParameter(nil, "value", 0, nil, data.Mixed{}),
-	}
+	return backedEnumConstructMethodGetParams
+}
+
+var backedEnumConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, data.Mixed{}),
 }
 
 func (m *BackedEnumConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.Mixed{}),
-	}
+	return backedEnumConstructMethodGetVariables
 }
 
 func (m *BackedEnumConstructMethod) GetReturnType() data.Types { return nil }

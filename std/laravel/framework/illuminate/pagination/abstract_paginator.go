@@ -57,7 +57,7 @@ func (c *AbstractPaginatorClass) GetValue(ctx data.Context) (data.GetValue, data
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
 func (c *AbstractPaginatorClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *AbstractPaginatorClass) GetMethods() []data.Method {

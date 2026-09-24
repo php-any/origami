@@ -89,18 +89,22 @@ func resolveStreamReader(v data.Value) (io.Reader, bool) {
 func (f *HashUpdateStreamFunction) GetName() string            { return "hash_update_stream" }
 func (f *HashUpdateStreamFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *HashUpdateStreamFunction) GetIsStatic() bool          { return false }
-func (f *HashUpdateStreamFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "context", 0, nil, nil),
-		node.NewParameter(nil, "stream", 1, nil, nil),
-		node.NewParameter(nil, "length", 2, node.NewNullLiteral(nil), nil),
-	}
+var hashUpdateStreamFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "context", 0, nil, nil),
+	node.NewParameter(nil, "stream", 1, nil, nil),
+	node.NewParameter(nil, "length", 2, node.NewNullLiteral(nil), nil),
 }
+
+func (f *HashUpdateStreamFunction) GetParams() []data.GetValue {
+	return hashUpdateStreamFunctionGetParams
+}
+var hashUpdateStreamFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "context", 0, nil),
+	node.NewVariable(nil, "stream", 1, nil),
+	node.NewVariable(nil, "length", 2, nil),
+}
+
 func (f *HashUpdateStreamFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "context", 0, nil),
-		node.NewVariable(nil, "stream", 1, nil),
-		node.NewVariable(nil, "length", 2, nil),
-	}
+	return hashUpdateStreamFunctionGetVariables
 }
 func (f *HashUpdateStreamFunction) GetReturnType() data.Types { return data.NewBaseType("int") }

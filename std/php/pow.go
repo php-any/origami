@@ -32,15 +32,19 @@ func (f *PowFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *PowFunction) GetName() string { return "pow" }
-func (f *PowFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "base", 0, nil, nil),
-		node.NewParameter(nil, "exp", 1, nil, nil),
-	}
+var powFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "base", 0, nil, nil),
+	node.NewParameter(nil, "exp", 1, nil, nil),
 }
+
+func (f *PowFunction) GetParams() []data.GetValue {
+	return powFunctionGetParams
+}
+var powFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "base", 0, nil),
+	node.NewVariable(nil, "exp", 1, nil),
+}
+
 func (f *PowFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "base", 0, nil),
-		node.NewVariable(nil, "exp", 1, nil),
-	}
+	return powFunctionGetVariables
 }

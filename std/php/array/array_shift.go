@@ -56,14 +56,18 @@ func (f *ArrayShiftFunction) GetName() string {
 	return "array_shift"
 }
 
+var arrayShiftFunctionGetParams = []data.GetValue{
+	node.NewParameterReference(nil, "array", 0, nil, data.NewBaseType("array")),
+}
+
 func (f *ArrayShiftFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, nil, data.NewBaseType("array")),
-	}
+	return arrayShiftFunctionGetParams
+}
+
+var arrayShiftFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
 }
 
 func (f *ArrayShiftFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-	}
+	return arrayShiftFunctionGetVariables
 }

@@ -1,7 +1,6 @@
 package collections
 
 import (
-	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -32,7 +31,7 @@ func (c *ArrClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
 func (c *ArrClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *ArrClass) GetMethods() []data.Method {
@@ -48,10 +47,10 @@ func (c *ArrClass) GetStaticMethod(name string) (data.Method, bool) {
 
 func (c *ArrClass) register() {
 	add := func(name string, params []string, optionalFrom int, fn func(data.Context) (data.GetValue, data.Control)) {
-		c.methods[strings.ToLower(name)] = kit.StaticMethod(name, params, optionalFrom, fn)
+		c.methods[data.MethodLookupKey(name)] = kit.StaticMethod(name, params, optionalFrom, fn)
 	}
 	addRef := func(name string, params []string, optionalFrom int, fn func(data.Context) (data.GetValue, data.Control)) {
-		c.methods[strings.ToLower(name)] = kit.StaticMethodRef(name, params, optionalFrom, fn)
+		c.methods[data.MethodLookupKey(name)] = kit.StaticMethodRef(name, params, optionalFrom, fn)
 	}
 	add("accessible", []string{"value"}, -1, arrAccessible)
 	add("exists", []string{"array", "key"}, -1, arrExists)

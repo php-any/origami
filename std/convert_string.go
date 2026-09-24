@@ -78,14 +78,18 @@ func stringFromClassValue(val *data.ClassValue) (data.GetValue, data.Control) {
 
 func (f *StringFunction) GetName() string { return "string" }
 
+var stringFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+}
+
 func (f *StringFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return stringFunctionGetParams
+}
+
+var stringFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
 }
 
 func (f *StringFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
-	}
+	return stringFunctionGetVariables
 }

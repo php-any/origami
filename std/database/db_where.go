@@ -52,18 +52,22 @@ func (d *DbWhereMethod) GetIsStatic() bool {
 	return false
 }
 
+var dbWhereMethodGetParams = []data.GetValue{
+	data.NewParameter("sql", 0),
+	node.NewParameters(nil, "args", 1, nil, nil),
+}
+
 func (d *DbWhereMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("sql", 0),
-		node.NewParameters(nil, "args", 1, nil, nil),
-	}
+	return dbWhereMethodGetParams
+}
+
+var dbWhereMethodGetVariables = []data.Variable{
+	data.NewVariable("sql", 0, data.NewBaseType("string")),
+	data.NewVariable("args", 1, data.NewBaseType("array")),
 }
 
 func (d *DbWhereMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("sql", 0, data.NewBaseType("string")),
-		data.NewVariable("args", 1, data.NewBaseType("array")),
-	}
+	return dbWhereMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型

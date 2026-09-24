@@ -69,14 +69,18 @@ func (f *GetenvFunction) GetName() string {
 	return "getenv"
 }
 
+var getenvFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "name", 0, nil, data.String{}),
+}
+
 func (f *GetenvFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "name", 0, nil, data.String{}),
-	}
+	return getenvFunctionGetParams
+}
+
+var getenvFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "name", 0, data.String{}),
 }
 
 func (f *GetenvFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "name", 0, data.String{}),
-	}
+	return getenvFunctionGetVariables
 }

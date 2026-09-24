@@ -59,14 +59,18 @@ func (f *TimezoneNameGetFunction) GetName() string {
 	return "timezone_name_get"
 }
 
+var timezoneNameGetFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "timezone", 0, nil, nil),
+}
+
 func (f *TimezoneNameGetFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "timezone", 0, nil, nil),
-	}
+	return timezoneNameGetFunctionGetParams
+}
+
+var timezoneNameGetFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "timezone", 0, nil),
 }
 
 func (f *TimezoneNameGetFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "timezone", 0, nil),
-	}
+	return timezoneNameGetFunctionGetVariables
 }

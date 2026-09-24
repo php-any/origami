@@ -78,14 +78,18 @@ func (f *MinFunction) GetName() string {
 	return "min"
 }
 
+var minFunctionGetParams = []data.GetValue{
+	node.NewParameters(nil, "values", 0, nil, data.Mixed{}),
+}
+
 func (f *MinFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameters(nil, "values", 0, nil, data.Mixed{}),
-	}
+	return minFunctionGetParams
+}
+
+var minFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "values", 0, data.Mixed{}),
 }
 
 func (f *MinFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "values", 0, data.Mixed{}),
-	}
+	return minFunctionGetVariables
 }

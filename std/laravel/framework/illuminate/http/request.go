@@ -87,7 +87,7 @@ func (c *IlluminateRequestClass) GetValue(ctx data.Context) (data.GetValue, data
 }
 
 func (c *IlluminateRequestClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 
@@ -127,13 +127,13 @@ func (c *IlluminateRequestClass) GetStaticMethod(name string) (data.Method, bool
 }
 
 func (c *IlluminateRequestClass) add(name string, params []string, call illuminateCall) {
-	c.methods[strings.ToLower(name)] = newIlluminateMethod(name, false, params, call)
+	c.methods[data.MethodLookupKey(name)] = newIlluminateMethod(name, false, params, call)
 }
 
 func (c *IlluminateRequestClass) addVariadic(name string, params []string, call illuminateCall) {
 	m := newIlluminateMethod(name, false, params, call)
 	m.variadic = true
-	c.methods[strings.ToLower(name)] = m
+	c.methods[data.MethodLookupKey(name)] = m
 }
 
 func (c *IlluminateRequestClass) addMethods() {

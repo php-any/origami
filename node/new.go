@@ -534,6 +534,7 @@ type NewExpression struct {
 	Arguments []data.GetValue
 	class     data.ClassStmt `pp:"-"` // 仅静态 FQCN：首次 GetOrLoadClass 后缓存
 	resolveMu sync.Mutex
+	resolved  resolvedFlag // 命中时跳过 resolveMu，见 resolvedFlag
 }
 
 // NewNewExpression 创建一个新的 new 表达式节点
@@ -546,6 +547,9 @@ func NewNewExpression(from *TokenFrom, className string, arguments []data.GetVal
 }
 
 func (n *NewExpression) resolveClass(ctx data.Context) (data.ClassStmt, data.Control) {
+	if n.resolved.Done() {
+		return n.class, nil
+	}
 	n.resolveMu.Lock()
 	defer n.resolveMu.Unlock()
 	if n.class != nil {
@@ -559,6 +563,10 @@ func (n *NewExpression) resolveClass(ctx data.Context) (data.ClassStmt, data.Con
 		return nil, acl
 	}
 	n.class = stmt
+	// 解析结果为空时不置位，保持原有「下次执行重新解析」的行为。
+	if stmt != nil {
+		n.resolved.MarkDone()
+	}
 	return stmt, nil
 }
 

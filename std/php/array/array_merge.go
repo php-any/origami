@@ -101,14 +101,18 @@ func (f *ArrayMergeFunction) GetName() string {
 	return "array_merge"
 }
 
+var arrayMergeFunctionGetParams = []data.GetValue{
+	node.NewParameters(nil, "arrays", 0, nil, nil),
+}
+
 func (f *ArrayMergeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameters(nil, "arrays", 0, nil, nil),
-	}
+	return arrayMergeFunctionGetParams
+}
+
+var arrayMergeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "arrays", 0, data.NewBaseType("array")),
 }
 
 func (f *ArrayMergeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "arrays", 0, data.NewBaseType("array")),
-	}
+	return arrayMergeFunctionGetVariables
 }

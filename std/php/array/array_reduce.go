@@ -62,18 +62,22 @@ func (f *ArrayReduceFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 
 func (f *ArrayReduceFunction) GetName() string { return "array_reduce" }
 
+var arrayReduceFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, nil),
+	node.NewParameter(nil, "callback", 1, nil, nil),
+	node.NewParameter(nil, "initial", 2, node.NewNullLiteral(nil), nil),
+}
+
 func (f *ArrayReduceFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, nil),
-		node.NewParameter(nil, "callback", 1, nil, nil),
-		node.NewParameter(nil, "initial", 2, node.NewNullLiteral(nil), nil),
-	}
+	return arrayReduceFunctionGetParams
+}
+
+var arrayReduceFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Mixed{}),
+	node.NewVariable(nil, "callback", 1, data.Mixed{}),
+	node.NewVariable(nil, "initial", 2, data.Mixed{}),
 }
 
 func (f *ArrayReduceFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Mixed{}),
-		node.NewVariable(nil, "callback", 1, data.Mixed{}),
-		node.NewVariable(nil, "initial", 2, data.Mixed{}),
-	}
+	return arrayReduceFunctionGetVariables
 }

@@ -51,18 +51,22 @@ func (h *DBPrepareContextMethod) Call(ctx data.Context) (data.GetValue, data.Con
 func (h *DBPrepareContextMethod) GetName() string            { return "prepareContext" }
 func (h *DBPrepareContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBPrepareContextMethod) GetIsStatic() bool          { return true }
+var dBPrepareContextMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "ctx", 0, nil, nil),
+	node.NewParameter(nil, "query", 1, nil, nil),
+}
+
 func (h *DBPrepareContextMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "ctx", 0, nil, nil),
-		node.NewParameter(nil, "query", 1, nil, nil),
-	}
+	return dBPrepareContextMethodGetParams
+}
+
+var dBPrepareContextMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "ctx", 0, nil),
+	node.NewVariable(nil, "query", 1, nil),
 }
 
 func (h *DBPrepareContextMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "ctx", 0, nil),
-		node.NewVariable(nil, "query", 1, nil),
-	}
+	return dBPrepareContextMethodGetVariables
 }
 
 func (h *DBPrepareContextMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

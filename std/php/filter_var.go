@@ -101,16 +101,20 @@ func (fn *FilterVarFunction) GetName() string {
 	return "filter_var"
 }
 
+var filterVarFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+	node.NewParameter(nil, "filter", 1, data.NewIntValue(516), nil),
+}
+
 func (fn *FilterVarFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-		node.NewParameter(nil, "filter", 1, data.NewIntValue(516), nil),
-	}
+	return filterVarFunctionGetParams
+}
+
+var filterVarFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, data.Mixed{}),
+	node.NewVariable(nil, "filter", 1, data.NewBaseType("int")),
 }
 
 func (fn *FilterVarFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.Mixed{}),
-		node.NewVariable(nil, "filter", 1, data.NewBaseType("int")),
-	}
+	return filterVarFunctionGetVariables
 }

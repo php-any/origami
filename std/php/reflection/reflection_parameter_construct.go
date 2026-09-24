@@ -20,23 +20,27 @@ func (m *ReflectionParameterConstructMethod) GetModifier() data.Modifier { retur
 // GetIsStatic 返回是否为静态方法，非静态方法
 func (m *ReflectionParameterConstructMethod) GetIsStatic() bool { return false }
 
+var reflectionParameterConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "function", 0, nil, data.NewBaseType("object")),
+	node.NewParameter(nil, "parameter", 1, nil, nil),
+}
+
 // GetParams 返回参数列表
 // 参数:
 //   - function: 函数或方法的反射对象（ReflectionFunction 或 ReflectionMethod）
 //   - parameter: 参数名或参数索引
 func (m *ReflectionParameterConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "function", 0, nil, data.NewBaseType("object")),
-		node.NewParameter(nil, "parameter", 1, nil, nil),
-	}
+	return reflectionParameterConstructMethodGetParams
+}
+
+var reflectionParameterConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "function", 0, nil),
+	node.NewVariable(nil, "parameter", 1, nil),
 }
 
 // GetVariables 返回变量列表
 func (m *ReflectionParameterConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "function", 0, nil),
-		node.NewVariable(nil, "parameter", 1, nil),
-	}
+	return reflectionParameterConstructMethodGetVariables
 }
 
 // GetReturnType 返回返回类型，构造函数无返回值

@@ -80,18 +80,22 @@ func (f *PregGrepFunction) GetName() string {
 	return "preg_grep"
 }
 
+var pregGrepFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "pattern", 0, nil, nil),
+	node.NewParameter(nil, "input", 1, nil, data.NewBaseType("array")),
+	node.NewParameter(nil, "flags", 2, node.NewIntLiteral(nil, "0"), data.NewBaseType("int")),
+}
+
 func (f *PregGrepFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "pattern", 0, nil, nil),
-		node.NewParameter(nil, "input", 1, nil, data.NewBaseType("array")),
-		node.NewParameter(nil, "flags", 2, node.NewIntLiteral(nil, "0"), data.NewBaseType("int")),
-	}
+	return pregGrepFunctionGetParams
+}
+
+var pregGrepFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "pattern", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "input", 1, data.NewBaseType("array")),
+	node.NewVariable(nil, "flags", 2, data.NewBaseType("int")),
 }
 
 func (f *PregGrepFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "pattern", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "input", 1, data.NewBaseType("array")),
-		node.NewVariable(nil, "flags", 2, data.NewBaseType("int")),
-	}
+	return pregGrepFunctionGetVariables
 }

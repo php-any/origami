@@ -90,18 +90,22 @@ func phpFileLineEmpty(line string, ignoreNL bool) bool {
 
 func (f *FileFunction) GetName() string { return "file" }
 
+var fileFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "filename", 0, nil, nil),
+	node.NewParameter(nil, "flags", 1, data.NewIntValue(0), nil),
+	node.NewParameter(nil, "context", 2, node.NewNullLiteral(nil), nil),
+}
+
 func (f *FileFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "filename", 0, nil, nil),
-		node.NewParameter(nil, "flags", 1, data.NewIntValue(0), nil),
-		node.NewParameter(nil, "context", 2, node.NewNullLiteral(nil), nil),
-	}
+	return fileFunctionGetParams
+}
+
+var fileFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "filename", 0, nil),
+	node.NewVariable(nil, "flags", 1, nil),
+	node.NewVariable(nil, "context", 2, nil),
 }
 
 func (f *FileFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "filename", 0, nil),
-		node.NewVariable(nil, "flags", 1, nil),
-		node.NewVariable(nil, "context", 2, nil),
-	}
+	return fileFunctionGetVariables
 }

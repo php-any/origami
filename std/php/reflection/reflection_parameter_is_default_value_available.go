@@ -22,14 +22,18 @@ func (m *ReflectionParameterIsDefaultValueAvailableMethod) GetModifier() data.Mo
 // GetIsStatic 返回是否为静态方法，非静态方法
 func (m *ReflectionParameterIsDefaultValueAvailableMethod) GetIsStatic() bool { return false }
 
+var reflectionParameterIsDefaultValueAvailableMethodGetParams = []data.GetValue{}
+
 // GetParams 返回参数列表，该方法无参数
 func (m *ReflectionParameterIsDefaultValueAvailableMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return reflectionParameterIsDefaultValueAvailableMethodGetParams
 }
+
+var reflectionParameterIsDefaultValueAvailableMethodGetVariables = []data.Variable{}
 
 // GetVariables 返回变量列表，该方法无变量
 func (m *ReflectionParameterIsDefaultValueAvailableMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return reflectionParameterIsDefaultValueAvailableMethodGetVariables
 }
 
 // GetReturnType 返回返回类型，返回布尔类型

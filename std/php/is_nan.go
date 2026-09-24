@@ -32,11 +32,15 @@ func (f *IsNanFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *IsNanFunction) GetName() string { return "is_nan" }
+var isNanFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
+
 func (f *IsNanFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
+	return isNanFunctionGetParams
 }
+var isNanFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, data.NewBaseType("float"))}
+
 func (f *IsNanFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "num", 0, data.NewBaseType("float"))}
+	return isNanFunctionGetVariables
 }
 
 // IsInfiniteFunction 实现 is_infinite
@@ -54,11 +58,15 @@ func (f *IsInfiniteFunction) Call(ctx data.Context) (data.GetValue, data.Control
 }
 
 func (f *IsInfiniteFunction) GetName() string { return "is_infinite" }
+var isInfiniteFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
+
 func (f *IsInfiniteFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
+	return isInfiniteFunctionGetParams
 }
+var isInfiniteFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, data.NewBaseType("float"))}
+
 func (f *IsInfiniteFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "num", 0, data.NewBaseType("float"))}
+	return isInfiniteFunctionGetVariables
 }
 
 // IsFiniteFunction 实现 is_finite
@@ -76,9 +84,13 @@ func (f *IsFiniteFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (f *IsFiniteFunction) GetName() string { return "is_finite" }
+var isFiniteFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
+
 func (f *IsFiniteFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
+	return isFiniteFunctionGetParams
 }
+var isFiniteFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, data.NewBaseType("float"))}
+
 func (f *IsFiniteFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "num", 0, data.NewBaseType("float"))}
+	return isFiniteFunctionGetVariables
 }

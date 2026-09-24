@@ -51,16 +51,20 @@ func (f *ArrayReverseFunction) GetName() string {
 	return "array_reverse"
 }
 
+var arrayReverseFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, nil),
+	node.NewParameter(nil, "preserve_keys", 1, nil, nil),
+}
+
 func (f *ArrayReverseFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, nil),
-		node.NewParameter(nil, "preserve_keys", 1, nil, nil),
-	}
+	return arrayReverseFunctionGetParams
+}
+
+var arrayReverseFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
+	node.NewVariable(nil, "preserve_keys", 1, data.NewBaseType("bool")),
 }
 
 func (f *ArrayReverseFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-		node.NewVariable(nil, "preserve_keys", 1, data.NewBaseType("bool")),
-	}
+	return arrayReverseFunctionGetVariables
 }

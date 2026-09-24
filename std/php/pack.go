@@ -74,18 +74,22 @@ func (f *PackFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 func (f *PackFunction) GetName() string { return "pack" }
 
+var packFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "format", 0, nil, nil),
+	node.NewParameters(nil, "values", 1, nil, nil),
+}
+
 func (f *PackFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "format", 0, nil, nil),
-		node.NewParameters(nil, "values", 1, nil, nil),
-	}
+	return packFunctionGetParams
+}
+
+var packFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "format", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "values", 1, data.NewBaseType("mixed")),
 }
 
 func (f *PackFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "format", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "values", 1, data.NewBaseType("mixed")),
-	}
+	return packFunctionGetVariables
 }
 
 // UnpackFunction 实现 PHP 内置函数 unpack（支持的格式子集：C / C* / n / n*）
@@ -150,18 +154,22 @@ func (f *UnpackFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 func (f *UnpackFunction) GetName() string { return "unpack" }
 
+var unpackFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "format", 0, nil, nil),
+	node.NewParameter(nil, "string", 1, nil, nil),
+	node.NewParameter(nil, "offset", 2, node.NewIntLiteral(nil, "0"), nil),
+}
+
 func (f *UnpackFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "format", 0, nil, nil),
-		node.NewParameter(nil, "string", 1, nil, nil),
-		node.NewParameter(nil, "offset", 2, node.NewIntLiteral(nil, "0"), nil),
-	}
+	return unpackFunctionGetParams
+}
+
+var unpackFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "format", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "string", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "offset", 2, data.NewBaseType("int")),
 }
 
 func (f *UnpackFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "format", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "string", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "offset", 2, data.NewBaseType("int")),
-	}
+	return unpackFunctionGetVariables
 }

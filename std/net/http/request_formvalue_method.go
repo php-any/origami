@@ -25,14 +25,18 @@ func (h *RequestFormValueMethod) Call(ctx data.Context) (data.GetValue, data.Con
 func (h *RequestFormValueMethod) GetName() string            { return "formValue" }
 func (h *RequestFormValueMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestFormValueMethod) GetIsStatic() bool          { return false }
-func (h *RequestFormValueMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-	}
+var requestFormValueMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
 }
+
+func (h *RequestFormValueMethod) GetParams() []data.GetValue {
+	return requestFormValueMethodGetParams
+}
+var requestFormValueMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
+}
+
 func (h *RequestFormValueMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-	}
+	return requestFormValueMethodGetVariables
 }
 func (h *RequestFormValueMethod) GetReturnType() data.Types { return data.NewBaseType("string") }

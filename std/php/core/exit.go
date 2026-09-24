@@ -46,14 +46,18 @@ func (f *ExitFunction) GetName() string {
 	return "exit"
 }
 
+var exitFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "status", 0, node.NewNullLiteral(nil), data.NewBaseType("mixed")),
+}
+
 func (f *ExitFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "status", 0, node.NewNullLiteral(nil), data.NewBaseType("mixed")),
-	}
+	return exitFunctionGetParams
+}
+
+var exitFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "status", 0, data.NewBaseType("mixed")),
 }
 
 func (f *ExitFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "status", 0, data.NewBaseType("mixed")),
-	}
+	return exitFunctionGetVariables
 }

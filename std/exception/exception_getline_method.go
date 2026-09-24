@@ -21,9 +21,13 @@ func (h *ExceptionGetLineMethod) Call(ctx data.Context) (data.GetValue, data.Con
 func (h *ExceptionGetLineMethod) GetName() string            { return "getLine" }
 func (h *ExceptionGetLineMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ExceptionGetLineMethod) GetIsStatic() bool          { return false }
-func (h *ExceptionGetLineMethod) GetParams() []data.GetValue { return []data.GetValue{} }
+var exceptionGetLineMethodGetParams = []data.GetValue{}
+
+func (h *ExceptionGetLineMethod) GetParams() []data.GetValue { return exceptionGetLineMethodGetParams }
+var exceptionGetLineMethodGetVariables = []data.Variable{}
+
 func (h *ExceptionGetLineMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return exceptionGetLineMethodGetVariables
 }
 func (h *ExceptionGetLineMethod) GetReturnType() data.Types {
 	return data.NewBaseType("int")

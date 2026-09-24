@@ -47,16 +47,20 @@ func (f *DirnameFunction) GetName() string {
 	return "dirname"
 }
 
+var dirnameFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "path", 0, nil, nil),
+	node.NewParameter(nil, "levels", 1, data.NewIntValue(1), data.NewBaseType("int")),
+}
+
 func (f *DirnameFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "path", 0, nil, nil),
-		node.NewParameter(nil, "levels", 1, data.NewIntValue(1), data.NewBaseType("int")),
-	}
+	return dirnameFunctionGetParams
+}
+
+var dirnameFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "path", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "levels", 1, data.NewBaseType("int")),
 }
 
 func (f *DirnameFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "path", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "levels", 1, data.NewBaseType("int")),
-	}
+	return dirnameFunctionGetVariables
 }

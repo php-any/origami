@@ -50,16 +50,20 @@ func (f *ArrayChangeKeyCaseFunction) Call(ctx data.Context) (data.GetValue, data
 
 func (f *ArrayChangeKeyCaseFunction) GetName() string { return "array_change_key_case" }
 
+var arrayChangeKeyCaseFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, nil),
+	node.NewParameter(nil, "case", 1, data.NewIntValue(caseLower), nil),
+}
+
 func (f *ArrayChangeKeyCaseFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, nil),
-		node.NewParameter(nil, "case", 1, data.NewIntValue(caseLower), nil),
-	}
+	return arrayChangeKeyCaseFunctionGetParams
+}
+
+var arrayChangeKeyCaseFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
+	node.NewVariable(nil, "case", 1, data.NewBaseType("int")),
 }
 
 func (f *ArrayChangeKeyCaseFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-		node.NewVariable(nil, "case", 1, data.NewBaseType("int")),
-	}
+	return arrayChangeKeyCaseFunctionGetVariables
 }

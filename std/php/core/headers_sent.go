@@ -27,16 +27,20 @@ func (f *HeadersSentFunction) GetName() string {
 	return "headers_sent"
 }
 
+var headersSentFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "file", 0, data.NewNullValue(), data.Mixed{}),
+	node.NewParameter(nil, "line", 1, data.NewIntValue(0), data.Mixed{}),
+}
+
 func (f *HeadersSentFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "file", 0, data.NewNullValue(), data.Mixed{}),
-		node.NewParameter(nil, "line", 1, data.NewIntValue(0), data.Mixed{}),
-	}
+	return headersSentFunctionGetParams
+}
+
+var headersSentFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "file", 0, data.Mixed{}),
+	node.NewVariable(nil, "line", 1, data.Mixed{}),
 }
 
 func (f *HeadersSentFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "file", 0, data.Mixed{}),
-		node.NewVariable(nil, "line", 1, data.Mixed{}),
-	}
+	return headersSentFunctionGetVariables
 }

@@ -53,17 +53,21 @@ func (f *FreadFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *FreadFunction) GetName() string { return "fread" }
-func (f *FreadFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "stream", 0, nil, nil),
-		node.NewParameter(nil, "length", 1, nil, data.Int{}),
-	}
+var freadFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "stream", 0, nil, nil),
+	node.NewParameter(nil, "length", 1, nil, data.Int{}),
 }
+
+func (f *FreadFunction) GetParams() []data.GetValue {
+	return freadFunctionGetParams
+}
+var freadFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "stream", 0, nil),
+	node.NewVariable(nil, "length", 1, data.Int{}),
+}
+
 func (f *FreadFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "stream", 0, nil),
-		node.NewVariable(nil, "length", 1, data.Int{}),
-	}
+	return freadFunctionGetVariables
 }
 
 type FeofFunction struct{}
@@ -90,9 +94,13 @@ func (f *FeofFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *FeofFunction) GetName() string { return "feof" }
+var feofFunctionGetParams = []data.GetValue{node.NewParameter(nil, "stream", 0, nil, nil)}
+
 func (f *FeofFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "stream", 0, nil, nil)}
+	return feofFunctionGetParams
 }
+var feofFunctionGetVariables = []data.Variable{node.NewVariable(nil, "stream", 0, nil)}
+
 func (f *FeofFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "stream", 0, nil)}
+	return feofFunctionGetVariables
 }

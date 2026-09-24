@@ -117,16 +117,20 @@ func (m *DateTimeZoneConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var dateTimeZoneConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "timezone", 0, nil, data.String{}),
+}
+
 func (m *DateTimeZoneConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "timezone", 0, nil, data.String{}),
-	}
+	return dateTimeZoneConstructMethodGetParams
+}
+
+var dateTimeZoneConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "timezone", 0, data.String{}),
 }
 
 func (m *DateTimeZoneConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "timezone", 0, data.String{}),
-	}
+	return dateTimeZoneConstructMethodGetVariables
 }
 
 func (m *DateTimeZoneConstructMethod) GetReturnType() data.Types {
@@ -157,12 +161,16 @@ func (m *DateTimeZoneGetNameMethod) GetIsStatic() bool {
 	return false
 }
 
+var dateTimeZoneGetNameMethodGetParams = []data.GetValue{}
+
 func (m *DateTimeZoneGetNameMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return dateTimeZoneGetNameMethodGetParams
 }
 
+var dateTimeZoneGetNameMethodGetVariables = []data.Variable{}
+
 func (m *DateTimeZoneGetNameMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return dateTimeZoneGetNameMethodGetVariables
 }
 
 func (m *DateTimeZoneGetNameMethod) GetReturnType() data.Types {

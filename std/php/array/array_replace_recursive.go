@@ -122,14 +122,18 @@ func (f *ArrayReplaceRecursiveFunction) GetName() string {
 	return "array_replace_recursive"
 }
 
+var arrayReplaceRecursiveFunctionGetParams = []data.GetValue{
+	node.NewParameters(nil, "arrays", 0, nil, nil),
+}
+
 func (f *ArrayReplaceRecursiveFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameters(nil, "arrays", 0, nil, nil),
-	}
+	return arrayReplaceRecursiveFunctionGetParams
+}
+
+var arrayReplaceRecursiveFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "arrays", 0, data.NewBaseType("array")),
 }
 
 func (f *ArrayReplaceRecursiveFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "arrays", 0, data.NewBaseType("array")),
-	}
+	return arrayReplaceRecursiveFunctionGetVariables
 }

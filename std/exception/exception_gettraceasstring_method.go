@@ -27,12 +27,16 @@ func (h *ExceptionGetTraceAsStringMethod) GetIsStatic() bool {
 	return false
 }
 
+var exceptionGetTraceAsStringMethodGetParams = []data.GetValue{}
+
 func (h *ExceptionGetTraceAsStringMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return exceptionGetTraceAsStringMethodGetParams
 }
 
+var exceptionGetTraceAsStringMethodGetVariables = []data.Variable{}
+
 func (h *ExceptionGetTraceAsStringMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return exceptionGetTraceAsStringMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型

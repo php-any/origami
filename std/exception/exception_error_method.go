@@ -27,12 +27,16 @@ func (h *ExceptionErrorMethod) GetIsStatic() bool {
 	return false
 }
 
+var exceptionErrorMethodGetParams = []data.GetValue{}
+
 func (h *ExceptionErrorMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return exceptionErrorMethodGetParams
 }
 
+var exceptionErrorMethodGetVariables = []data.Variable{}
+
 func (h *ExceptionErrorMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return exceptionErrorMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型

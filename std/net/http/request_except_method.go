@@ -72,14 +72,18 @@ func (h *RequestExceptMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 func (h *RequestExceptMethod) GetName() string            { return "except" }
 func (h *RequestExceptMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestExceptMethod) GetIsStatic() bool          { return false }
-func (h *RequestExceptMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "keys", 0, nil, nil),
-	}
+var requestExceptMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "keys", 0, nil, nil),
 }
+
+func (h *RequestExceptMethod) GetParams() []data.GetValue {
+	return requestExceptMethodGetParams
+}
+var requestExceptMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "keys", 0, nil),
+}
+
 func (h *RequestExceptMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "keys", 0, nil),
-	}
+	return requestExceptMethodGetVariables
 }
 func (h *RequestExceptMethod) GetReturnType() data.Types { return data.NewBaseType("array") }

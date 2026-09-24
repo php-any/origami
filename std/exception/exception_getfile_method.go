@@ -21,9 +21,13 @@ func (h *ExceptionGetFileMethod) Call(ctx data.Context) (data.GetValue, data.Con
 func (h *ExceptionGetFileMethod) GetName() string            { return "getFile" }
 func (h *ExceptionGetFileMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ExceptionGetFileMethod) GetIsStatic() bool          { return false }
-func (h *ExceptionGetFileMethod) GetParams() []data.GetValue { return []data.GetValue{} }
+var exceptionGetFileMethodGetParams = []data.GetValue{}
+
+func (h *ExceptionGetFileMethod) GetParams() []data.GetValue { return exceptionGetFileMethodGetParams }
+var exceptionGetFileMethodGetVariables = []data.Variable{}
+
 func (h *ExceptionGetFileMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return exceptionGetFileMethodGetVariables
 }
 func (h *ExceptionGetFileMethod) GetReturnType() data.Types {
 	return data.NewBaseType("string")

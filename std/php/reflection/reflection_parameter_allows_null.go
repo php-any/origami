@@ -17,10 +17,14 @@ func (m *ReflectionParameterAllowsNullMethod) GetModifier() data.Modifier { retu
 
 func (m *ReflectionParameterAllowsNullMethod) GetIsStatic() bool { return false }
 
-func (m *ReflectionParameterAllowsNullMethod) GetParams() []data.GetValue { return []data.GetValue{} }
+var reflectionParameterAllowsNullMethodGetParams = []data.GetValue{}
+
+func (m *ReflectionParameterAllowsNullMethod) GetParams() []data.GetValue { return reflectionParameterAllowsNullMethodGetParams }
+
+var reflectionParameterAllowsNullMethodGetVariables = []data.Variable{}
 
 func (m *ReflectionParameterAllowsNullMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return reflectionParameterAllowsNullMethodGetVariables
 }
 
 func (m *ReflectionParameterAllowsNullMethod) GetReturnType() data.Types { return data.Bool{} }

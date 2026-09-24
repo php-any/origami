@@ -1,4 +1,6 @@
-package gosupport
+// Package serve 用 Go net/http 顶替 Laravel 官方的 `php -S` 开发服务器，
+// 以常驻进程方式承载一个 Origami 解释执行的 Laravel 应用。
+package serve
 
 import (
 	"context"
@@ -17,15 +19,15 @@ import (
 	"time"
 
 	"github.com/php-any/origami/data"
-	"github.com/php-any/origami/examples/laravel13/go-support/httpkernel"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/perfmon"
 	"github.com/php-any/origami/runtime"
+	"github.com/php-any/origami/std/laravel/httpkernel"
 	illuminatehttp "github.com/php-any/origami/std/laravel/framework/illuminate/http"
 	phpcore "github.com/php-any/origami/std/php/core"
 	httpfoundation "github.com/php-any/origami/std/symfony/http-foundation"
-	"github.com/php-any/origami/std/vendoraccel"
+	"github.com/php-any/origami/std/vendoraccel/warmup"
 )
 
 const (
@@ -252,7 +254,11 @@ func (k *laravelHTTPKernel) ensureBase() data.Control {
 		}
 		if control = httpkernel.Bootstrap(k.kernel); control != nil {
 			k.initError = control
+			return
 		}
+		// 启动期把请求无关的重服务解析进全局 Application：
+		// 请求沙箱的 instances 副本因此直接命中，避免每请求重跑 resolve 链。
+		httpkernel.Warm(k.base.CreateContext(nil), k.kernel)
 	})
 	return k.initError
 }
@@ -463,10 +469,10 @@ func runLaravelHTTPServer(host string, port int, base *runtime.VM, app *data.Cla
 	fmt.Println("  Press Ctrl+C to stop the server")
 
 	// 预热不阻塞监听：完整 classmap 要数分钟，且会误加载依赖 PHPUnit 的 Testing 类。
-	if vendoraccel.ShouldWarmup() {
+	if warmup.ShouldWarmup() {
 		go func() {
 			if root, err := os.Getwd(); err == nil {
-				vendoraccel.WarmupVendorClassmap(base, root)
+				warmup.WarmupVendorClassmap(base, root)
 			}
 		}()
 	}

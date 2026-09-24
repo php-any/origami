@@ -93,18 +93,22 @@ func (m *PutMappingConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var putMappingConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "path", 0, data.NewStringValue("/"), data.NewBaseType("string")),
+	node.NewAnnotationTargetParameter(nil, 1),
+}
+
 func (m *PutMappingConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "path", 0, data.NewStringValue("/"), data.NewBaseType("string")),
-		node.NewAnnotationTargetParameter(nil, 1),
-	}
+	return putMappingConstructMethodGetParams
+}
+
+var putMappingConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "path", 0, nil),
+	node.NewAnnotationTargetVariable(nil, 1),
 }
 
 func (m *PutMappingConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "path", 0, nil),
-		node.NewAnnotationTargetVariable(nil, 1),
-	}
+	return putMappingConstructMethodGetVariables
 }
 
 func (m *PutMappingConstructMethod) GetReturnType() data.Types {

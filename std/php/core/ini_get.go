@@ -35,14 +35,18 @@ func (f *IniGetFunction) GetName() string {
 	return "ini_get"
 }
 
+var iniGetFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "option", 0, nil, data.String{}),
+}
+
 func (f *IniGetFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "option", 0, nil, data.String{}),
-	}
+	return iniGetFunctionGetParams
+}
+
+var iniGetFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "option", 0, data.String{}),
 }
 
 func (f *IniGetFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "option", 0, data.String{}),
-	}
+	return iniGetFunctionGetVariables
 }

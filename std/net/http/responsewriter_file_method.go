@@ -33,16 +33,20 @@ func (h *ResponseWriterFileMethod) Call(ctx data.Context) (data.GetValue, data.C
 func (h *ResponseWriterFileMethod) GetName() string            { return "file" }
 func (h *ResponseWriterFileMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResponseWriterFileMethod) GetIsStatic() bool          { return false }
-func (h *ResponseWriterFileMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "path", 0, nil, data.NewBaseType("string")),
-		node.NewParameter(nil, "downloadName", 1, nil, data.NewBaseType("string")),
-	}
+var responseWriterFileMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "path", 0, nil, data.NewBaseType("string")),
+	node.NewParameter(nil, "downloadName", 1, nil, data.NewBaseType("string")),
 }
+
+func (h *ResponseWriterFileMethod) GetParams() []data.GetValue {
+	return responseWriterFileMethodGetParams
+}
+var responseWriterFileMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "path", 0, nil),
+	node.NewVariable(nil, "downloadName", 1, nil),
+}
+
 func (h *ResponseWriterFileMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "path", 0, nil),
-		node.NewVariable(nil, "downloadName", 1, nil),
-	}
+	return responseWriterFileMethodGetVariables
 }
 func (h *ResponseWriterFileMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

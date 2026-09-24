@@ -97,16 +97,20 @@ func (m *TableConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var tableConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
+}
+
 func (m *TableConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
-	}
+	return tableConstructMethodGetParams
+}
+
+var tableConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "name", 0, nil),
 }
 
 func (m *TableConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "name", 0, nil),
-	}
+	return tableConstructMethodGetVariables
 }
 
 func (m *TableConstructMethod) GetReturnType() data.Types {

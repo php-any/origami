@@ -67,18 +67,22 @@ func (f *StriposFunction) GetName() string {
 	return "stripos"
 }
 
+var striposFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "haystack", 0, nil, nil),
+	node.NewParameter(nil, "needle", 1, nil, nil),
+	node.NewParameter(nil, "offset", 2, node.NewNullLiteral(nil), nil),
+}
+
 func (f *StriposFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "haystack", 0, nil, nil),
-		node.NewParameter(nil, "needle", 1, nil, nil),
-		node.NewParameter(nil, "offset", 2, node.NewNullLiteral(nil), nil),
-	}
+	return striposFunctionGetParams
+}
+
+var striposFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "offset", 2, data.NewBaseType("int")),
 }
 
 func (f *StriposFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "offset", 2, data.NewBaseType("int")),
-	}
+	return striposFunctionGetVariables
 }

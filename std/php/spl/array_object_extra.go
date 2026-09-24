@@ -213,11 +213,15 @@ func (m *ArrayObjectUasortMethod) GetName() string            { return "uasort" 
 func (m *ArrayObjectUasortMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectUasortMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectUasortMethod) GetReturnType() data.Types  { return data.Bool{} }
+var arrayObjectUasortMethodGetParams = []data.GetValue{node.NewParameter(nil, "callback", 0, nil, data.Mixed{})}
+
 func (m *ArrayObjectUasortMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "callback", 0, nil, data.Mixed{})}
+	return arrayObjectUasortMethodGetParams
 }
+var arrayObjectUasortMethodGetVariables = []data.Variable{node.NewVariable(nil, "callback", 0, data.Mixed{})}
+
 func (m *ArrayObjectUasortMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "callback", 0, data.Mixed{})}
+	return arrayObjectUasortMethodGetVariables
 }
 func (m *ArrayObjectUasortMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aoGetClassValue(ctx)
@@ -234,11 +238,15 @@ func (m *ArrayObjectUksortMethod) GetName() string            { return "uksort" 
 func (m *ArrayObjectUksortMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectUksortMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectUksortMethod) GetReturnType() data.Types  { return data.Bool{} }
+var arrayObjectUksortMethodGetParams = []data.GetValue{node.NewParameter(nil, "callback", 0, nil, data.Mixed{})}
+
 func (m *ArrayObjectUksortMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "callback", 0, nil, data.Mixed{})}
+	return arrayObjectUksortMethodGetParams
 }
+var arrayObjectUksortMethodGetVariables = []data.Variable{node.NewVariable(nil, "callback", 0, data.Mixed{})}
+
 func (m *ArrayObjectUksortMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "callback", 0, data.Mixed{})}
+	return arrayObjectUksortMethodGetVariables
 }
 func (m *ArrayObjectUksortMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aoGetClassValue(ctx)
@@ -271,11 +279,15 @@ func (m *ArrayObjectSetFlagsMethod) GetName() string            { return "setFla
 func (m *ArrayObjectSetFlagsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectSetFlagsMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectSetFlagsMethod) GetReturnType() data.Types  { return nil }
+var arrayObjectSetFlagsMethodGetParams = []data.GetValue{node.NewParameter(nil, "flags", 0, data.NewIntValue(0), data.Int{})}
+
 func (m *ArrayObjectSetFlagsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "flags", 0, data.NewIntValue(0), data.Int{})}
+	return arrayObjectSetFlagsMethodGetParams
 }
+var arrayObjectSetFlagsMethodGetVariables = []data.Variable{node.NewVariable(nil, "flags", 0, data.Int{})}
+
 func (m *ArrayObjectSetFlagsMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "flags", 0, data.Int{})}
+	return arrayObjectSetFlagsMethodGetVariables
 }
 func (m *ArrayObjectSetFlagsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aoGetClassValue(ctx)
@@ -311,11 +323,15 @@ func (m *ArrayObjectSetIteratorClassMethod) GetName() string            { return
 func (m *ArrayObjectSetIteratorClassMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectSetIteratorClassMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectSetIteratorClassMethod) GetReturnType() data.Types  { return nil }
+var arrayObjectSetIteratorClassMethodGetParams = []data.GetValue{node.NewParameter(nil, "iteratorClass", 0, data.NewStringValue("ArrayIterator"), data.String{})}
+
 func (m *ArrayObjectSetIteratorClassMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "iteratorClass", 0, data.NewStringValue("ArrayIterator"), data.String{})}
+	return arrayObjectSetIteratorClassMethodGetParams
 }
+var arrayObjectSetIteratorClassMethodGetVariables = []data.Variable{node.NewVariable(nil, "iteratorClass", 0, data.String{})}
+
 func (m *ArrayObjectSetIteratorClassMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "iteratorClass", 0, data.String{})}
+	return arrayObjectSetIteratorClassMethodGetVariables
 }
 func (m *ArrayObjectSetIteratorClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aoGetClassValue(ctx)
@@ -355,11 +371,15 @@ func (m *ArrayObjectUnserializeMethod) GetName() string            { return "__u
 func (m *ArrayObjectUnserializeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectUnserializeMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectUnserializeMethod) GetReturnType() data.Types  { return nil }
+var arrayObjectUnserializeMethodGetParams = []data.GetValue{node.NewParameter(nil, "data", 0, data.NewArrayValue(nil), data.Mixed{})}
+
 func (m *ArrayObjectUnserializeMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "data", 0, data.NewArrayValue(nil), data.Mixed{})}
+	return arrayObjectUnserializeMethodGetParams
 }
+var arrayObjectUnserializeMethodGetVariables = []data.Variable{node.NewVariable(nil, "data", 0, data.Mixed{})}
+
 func (m *ArrayObjectUnserializeMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "data", 0, data.Mixed{})}
+	return arrayObjectUnserializeMethodGetVariables
 }
 func (m *ArrayObjectUnserializeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aoGetClassValue(ctx)

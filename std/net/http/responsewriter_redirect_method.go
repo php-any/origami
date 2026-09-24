@@ -33,16 +33,20 @@ func (h *ResponseWriterRedirectMethod) Call(ctx data.Context) (data.GetValue, da
 func (h *ResponseWriterRedirectMethod) GetName() string            { return "redirect" }
 func (h *ResponseWriterRedirectMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResponseWriterRedirectMethod) GetIsStatic() bool          { return false }
-func (h *ResponseWriterRedirectMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "url", 0, nil, data.NewBaseType("string")),
-		node.NewParameter(nil, "statusCode", 1, data.NewIntValue(httpsrc.StatusFound), data.NewBaseType("int")),
-	}
+var responseWriterRedirectMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "url", 0, nil, data.NewBaseType("string")),
+	node.NewParameter(nil, "statusCode", 1, data.NewIntValue(httpsrc.StatusFound), data.NewBaseType("int")),
 }
+
+func (h *ResponseWriterRedirectMethod) GetParams() []data.GetValue {
+	return responseWriterRedirectMethodGetParams
+}
+var responseWriterRedirectMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "url", 0, nil),
+	node.NewVariable(nil, "statusCode", 1, nil),
+}
+
 func (h *ResponseWriterRedirectMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "url", 0, nil),
-		node.NewVariable(nil, "statusCode", 1, nil),
-	}
+	return responseWriterRedirectMethodGetVariables
 }
 func (h *ResponseWriterRedirectMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

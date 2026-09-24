@@ -43,16 +43,20 @@ func (f *StrpbrkFunction) GetName() string {
 	return "strpbrk"
 }
 
+var strpbrkFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "characters", 1, nil, nil),
+}
+
 func (f *StrpbrkFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "characters", 1, nil, nil),
-	}
+	return strpbrkFunctionGetParams
+}
+
+var strpbrkFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "characters", 1, data.NewBaseType("string")),
 }
 
 func (f *StrpbrkFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "characters", 1, data.NewBaseType("string")),
-	}
+	return strpbrkFunctionGetVariables
 }

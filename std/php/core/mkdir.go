@@ -66,18 +66,22 @@ func (f *MkdirFunction) GetName() string {
 	return "mkdir"
 }
 
+var mkdirFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "directory", 0, nil, nil),
+	node.NewParameter(nil, "permissions", 1, node.NewIntLiteral(nil, "0777"), nil),
+	node.NewParameter(nil, "recursive", 2, nil, nil),
+}
+
 func (f *MkdirFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "directory", 0, nil, nil),
-		node.NewParameter(nil, "permissions", 1, node.NewIntLiteral(nil, "0777"), nil),
-		node.NewParameter(nil, "recursive", 2, nil, nil),
-	}
+	return mkdirFunctionGetParams
+}
+
+var mkdirFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "directory", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "permissions", 1, data.NewBaseType("int")),
+	node.NewVariable(nil, "recursive", 2, data.NewBaseType("bool")),
 }
 
 func (f *MkdirFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "directory", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "permissions", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "recursive", 2, data.NewBaseType("bool")),
-	}
+	return mkdirFunctionGetVariables
 }

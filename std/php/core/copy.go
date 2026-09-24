@@ -63,16 +63,20 @@ func (f *CopyFunction) GetName() string {
 	return "copy"
 }
 
+var copyFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "source", 0, nil, nil),
+	node.NewParameter(nil, "dest", 1, nil, nil),
+}
+
 func (f *CopyFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "source", 0, nil, nil),
-		node.NewParameter(nil, "dest", 1, nil, nil),
-	}
+	return copyFunctionGetParams
+}
+
+var copyFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "source", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "dest", 1, data.NewBaseType("string")),
 }
 
 func (f *CopyFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "source", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "dest", 1, data.NewBaseType("string")),
-	}
+	return copyFunctionGetVariables
 }

@@ -59,8 +59,10 @@ func (f *DateDefaultTimezoneSetFunction) GetParams() []data.GetValue {
 	return nil
 }
 
+var dateDefaultTimezoneSetFunctionGetVariables = []data.Variable{
+	data.NewVariable("timezone", 0, data.NewBaseType("string")),
+}
+
 func (f *DateDefaultTimezoneSetFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("timezone", 0, data.NewBaseType("string")),
-	}
+	return dateDefaultTimezoneSetFunctionGetVariables
 }

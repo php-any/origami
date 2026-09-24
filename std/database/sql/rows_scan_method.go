@@ -35,16 +35,20 @@ func (h *RowsScanMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *RowsScanMethod) GetName() string            { return "scan" }
 func (h *RowsScanMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RowsScanMethod) GetIsStatic() bool          { return true }
+var rowsScanMethodGetParams = []data.GetValue{
+	node.NewParametersReference(nil, "dest", 0, nil, nil),
+}
+
 func (h *RowsScanMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParametersReference(nil, "dest", 0, nil, nil),
-	}
+	return rowsScanMethodGetParams
+}
+
+var rowsScanMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "dest", 0, nil),
 }
 
 func (h *RowsScanMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "dest", 0, nil),
-	}
+	return rowsScanMethodGetVariables
 }
 
 func (h *RowsScanMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

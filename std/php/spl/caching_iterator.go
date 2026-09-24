@@ -168,17 +168,21 @@ func (m *CIConstructMethod) GetName() string            { return "__construct" }
 func (m *CIConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *CIConstructMethod) GetIsStatic() bool          { return false }
 func (m *CIConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *CIConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
-		node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.NewBaseType("int")),
-	}
+var cIConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
+	node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.NewBaseType("int")),
 }
+
+func (m *CIConstructMethod) GetParams() []data.GetValue {
+	return cIConstructMethodGetParams
+}
+var cIConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
+	node.NewVariable(nil, "flags", 1, data.NewBaseType("int")),
+}
+
 func (m *CIConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
-		node.NewVariable(nil, "flags", 1, data.NewBaseType("int")),
-	}
+	return cIConstructMethodGetVariables
 }
 func (m *CIConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	it, _ := ctx.GetIndexValue(0)
@@ -315,15 +319,19 @@ func (m *CISetFlagsMethod) GetName() string            { return "setFlags" }
 func (m *CISetFlagsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *CISetFlagsMethod) GetIsStatic() bool          { return false }
 func (m *CISetFlagsMethod) GetReturnType() data.Types  { return nil }
-func (m *CISetFlagsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "flags", 0, nil, data.NewBaseType("int")),
-	}
+var cISetFlagsMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "flags", 0, nil, data.NewBaseType("int")),
 }
+
+func (m *CISetFlagsMethod) GetParams() []data.GetValue {
+	return cISetFlagsMethodGetParams
+}
+var cISetFlagsMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "flags", 0, data.NewBaseType("int")),
+}
+
 func (m *CISetFlagsMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "flags", 0, data.NewBaseType("int")),
-	}
+	return cISetFlagsMethodGetVariables
 }
 func (m *CISetFlagsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	flags, _ := ctx.GetIndexValue(0)
@@ -406,17 +414,21 @@ func (m *RCIConstructMethod) GetName() string            { return "__construct" 
 func (m *RCIConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *RCIConstructMethod) GetIsStatic() bool          { return false }
 func (m *RCIConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *RCIConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("RecursiveIterator")),
-		node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.NewBaseType("int")),
-	}
+var rCIConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("RecursiveIterator")),
+	node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.NewBaseType("int")),
 }
+
+func (m *RCIConstructMethod) GetParams() []data.GetValue {
+	return rCIConstructMethodGetParams
+}
+var rCIConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "iterator", 0, data.NewBaseType("RecursiveIterator")),
+	node.NewVariable(nil, "flags", 1, data.NewBaseType("int")),
+}
+
 func (m *RCIConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "iterator", 0, data.NewBaseType("RecursiveIterator")),
-		node.NewVariable(nil, "flags", 1, data.NewBaseType("int")),
-	}
+	return rCIConstructMethodGetVariables
 }
 func (m *RCIConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	it, _ := ctx.GetIndexValue(0)

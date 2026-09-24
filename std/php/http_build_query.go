@@ -173,20 +173,24 @@ func (f *HttpBuildQueryFunction) GetName() string {
 	return "http_build_query"
 }
 
+var httpBuildQueryFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "data", 0, nil, nil),
+	node.NewParameter(nil, "numeric_prefix", 1, node.NewStringLiteral(nil, ""), nil),
+	node.NewParameter(nil, "arg_separator", 2, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "encoding_type", 3, node.NewIntLiteral(nil, "1"), nil),
+}
+
 func (f *HttpBuildQueryFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "data", 0, nil, nil),
-		node.NewParameter(nil, "numeric_prefix", 1, node.NewStringLiteral(nil, ""), nil),
-		node.NewParameter(nil, "arg_separator", 2, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "encoding_type", 3, node.NewIntLiteral(nil, "1"), nil),
-	}
+	return httpBuildQueryFunctionGetParams
+}
+
+var httpBuildQueryFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "data", 0, data.NewBaseType("array")),
+	node.NewVariable(nil, "numeric_prefix", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "arg_separator", 2, data.NewNullableType(data.NewBaseType("string"))),
+	node.NewVariable(nil, "encoding_type", 3, data.NewBaseType("int")),
 }
 
 func (f *HttpBuildQueryFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "data", 0, data.NewBaseType("array")),
-		node.NewVariable(nil, "numeric_prefix", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "arg_separator", 2, data.NewNullableType(data.NewBaseType("string"))),
-		node.NewVariable(nil, "encoding_type", 3, data.NewBaseType("int")),
-	}
+	return httpBuildQueryFunctionGetVariables
 }

@@ -41,8 +41,8 @@ func NewResponseHeaderBagClassFrom(source *ResponseHeaderBagData) data.ClassStmt
 			protectedArrayProp("headerNames"),
 		},
 	}
-	cm, cl := responseHeaderBagMethods()
-	pm, pl := headerBagMethods()
+	cm, cl := responseHeaderBagMethodsCache()
+	pm, pl := headerBagMethodsCache()
 	c.methods, c.methodList = inheritClassMethods(cm, cl, pm, pl)
 	return c
 }
@@ -171,6 +171,8 @@ func initResponseDate(src *ResponseHeaderBagData) {
 	date := time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05") + " GMT"
 	responseHeaderSet(src, "Date", []*string{&date}, true)
 }
+
+var responseHeaderBagMethodsCache = cachedMethods(responseHeaderBagMethods)
 
 func responseHeaderBagMethods() (map[string]data.Method, []data.Method) {
 	list := []data.Method{

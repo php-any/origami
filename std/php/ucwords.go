@@ -57,16 +57,20 @@ func (f *UcwordsFunction) GetName() string {
 	return "ucwords"
 }
 
+var ucwordsFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "delimiters", 1, node.NewNullLiteral(nil), nil),
+}
+
 func (f *UcwordsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "delimiters", 1, node.NewNullLiteral(nil), nil),
-	}
+	return ucwordsFunctionGetParams
+}
+
+var ucwordsFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "delimiters", 1, data.NewBaseType("string")),
 }
 
 func (f *UcwordsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "delimiters", 1, data.NewBaseType("string")),
-	}
+	return ucwordsFunctionGetVariables
 }

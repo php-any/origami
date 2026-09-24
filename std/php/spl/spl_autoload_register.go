@@ -76,14 +76,18 @@ func (f *SplAutoloadRegisterFunction) Call(ctx data.Context) (data.GetValue, dat
 
 func (f *SplAutoloadRegisterFunction) GetName() string { return "spl_autoload_register" }
 
+var splAutoloadRegisterFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "callback", 0, nil, nil),
+}
+
 func (f *SplAutoloadRegisterFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "callback", 0, nil, nil),
-	}
+	return splAutoloadRegisterFunctionGetParams
+}
+
+var splAutoloadRegisterFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "callback", 0, data.Mixed{}),
 }
 
 func (f *SplAutoloadRegisterFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "callback", 0, data.Mixed{}),
-	}
+	return splAutoloadRegisterFunctionGetVariables
 }

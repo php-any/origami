@@ -106,26 +106,30 @@ func (h *ErrorExceptionConstructMethod) GetModifier() data.Modifier { return dat
 
 func (h *ErrorExceptionConstructMethod) GetIsStatic() bool { return false }
 
+var errorExceptionConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "message", 0, data.NewStringValue(""), nil),
+	node.NewParameter(nil, "code", 1, data.NewIntValue(0), nil),
+	node.NewParameter(nil, "severity", 2, data.NewIntValue(1), nil),
+	node.NewParameter(nil, "filename", 3, data.NewNullValue(), nil),
+	node.NewParameter(nil, "line", 4, data.NewNullValue(), nil),
+	node.NewParameter(nil, "previous", 5, data.NewNullValue(), nil),
+}
+
 func (h *ErrorExceptionConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "message", 0, data.NewStringValue(""), nil),
-		node.NewParameter(nil, "code", 1, data.NewIntValue(0), nil),
-		node.NewParameter(nil, "severity", 2, data.NewIntValue(1), nil),
-		node.NewParameter(nil, "filename", 3, data.NewNullValue(), nil),
-		node.NewParameter(nil, "line", 4, data.NewNullValue(), nil),
-		node.NewParameter(nil, "previous", 5, data.NewNullValue(), nil),
-	}
+	return errorExceptionConstructMethodGetParams
+}
+
+var errorExceptionConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "message", 0, nil),
+	node.NewVariable(nil, "code", 1, nil),
+	node.NewVariable(nil, "severity", 2, nil),
+	node.NewVariable(nil, "filename", 3, nil),
+	node.NewVariable(nil, "line", 4, nil),
+	node.NewVariable(nil, "previous", 5, nil),
 }
 
 func (h *ErrorExceptionConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "message", 0, nil),
-		node.NewVariable(nil, "code", 1, nil),
-		node.NewVariable(nil, "severity", 2, nil),
-		node.NewVariable(nil, "filename", 3, nil),
-		node.NewVariable(nil, "line", 4, nil),
-		node.NewVariable(nil, "previous", 5, nil),
-	}
+	return errorExceptionConstructMethodGetVariables
 }
 
 func (h *ErrorExceptionConstructMethod) GetReturnType() data.Types {

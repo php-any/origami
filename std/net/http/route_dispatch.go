@@ -38,11 +38,13 @@ func (f NextFunc) Call(ctx data.Context) (_ data.GetValue, acl data.Control) {
 }
 
 func (f NextFunc) GetName() string { return f.name }
+var nextFuncGetParams = []data.GetValue{
+	node.NewParameter(nil, "request", 0, nil, nil),
+	node.NewParameter(nil, "response", 1, nil, nil),
+}
+
 func (f NextFunc) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "request", 0, nil, nil),
-		node.NewParameter(nil, "response", 1, nil, nil),
-	}
+	return nextFuncGetParams
 }
 func (f NextFunc) GetVariables() []data.Variable {
 	return f.variable

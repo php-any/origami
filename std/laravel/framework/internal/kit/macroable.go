@@ -2,7 +2,6 @@ package kit
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/php-any/origami/data"
@@ -85,7 +84,7 @@ func (s *MacroStore) Set(class, name string, v data.Value) {
 	if s.macros[class] == nil {
 		s.macros[class] = map[string]data.Value{}
 	}
-	s.macros[class][strings.ToLower(name)] = v
+	s.macros[class][data.MethodLookupKey(name)] = v
 }
 
 func (s *MacroStore) Get(class, name string) (data.Value, bool) {
@@ -95,7 +94,7 @@ func (s *MacroStore) Get(class, name string) (data.Value, bool) {
 	if !ok {
 		return nil, false
 	}
-	v, ok := m[strings.ToLower(name)]
+	v, ok := m[data.MethodLookupKey(name)]
 	return v, ok
 }
 

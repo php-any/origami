@@ -15,8 +15,12 @@ type FilesystemIteratorCurrentMethod struct {
 func (m *FilesystemIteratorCurrentMethod) GetName() string               { return "current" }
 func (m *FilesystemIteratorCurrentMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
 func (m *FilesystemIteratorCurrentMethod) GetIsStatic() bool             { return false }
-func (m *FilesystemIteratorCurrentMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
-func (m *FilesystemIteratorCurrentMethod) GetVariables() []data.Variable { return []data.Variable{} }
+var filesystemIteratorCurrentMethodGetParams = []data.GetValue{}
+
+func (m *FilesystemIteratorCurrentMethod) GetParams() []data.GetValue    { return filesystemIteratorCurrentMethodGetParams }
+var filesystemIteratorCurrentMethodGetVariables = []data.Variable{}
+
+func (m *FilesystemIteratorCurrentMethod) GetVariables() []data.Variable { return filesystemIteratorCurrentMethodGetVariables }
 func (m *FilesystemIteratorCurrentMethod) GetReturnType() data.Types     { return data.Mixed{} }
 
 func (m *FilesystemIteratorCurrentMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -39,8 +43,12 @@ type FilesystemIteratorKeyMethod struct {
 func (m *FilesystemIteratorKeyMethod) GetName() string               { return "key" }
 func (m *FilesystemIteratorKeyMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
 func (m *FilesystemIteratorKeyMethod) GetIsStatic() bool             { return false }
-func (m *FilesystemIteratorKeyMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
-func (m *FilesystemIteratorKeyMethod) GetVariables() []data.Variable { return []data.Variable{} }
+var filesystemIteratorKeyMethodGetParams = []data.GetValue{}
+
+func (m *FilesystemIteratorKeyMethod) GetParams() []data.GetValue    { return filesystemIteratorKeyMethodGetParams }
+var filesystemIteratorKeyMethodGetVariables = []data.Variable{}
+
+func (m *FilesystemIteratorKeyMethod) GetVariables() []data.Variable { return filesystemIteratorKeyMethodGetVariables }
 func (m *FilesystemIteratorKeyMethod) GetReturnType() data.Types     { return data.Mixed{} }
 
 func (m *FilesystemIteratorKeyMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -55,8 +63,12 @@ type FilesystemIteratorNextMethod struct {
 func (m *FilesystemIteratorNextMethod) GetName() string               { return "next" }
 func (m *FilesystemIteratorNextMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
 func (m *FilesystemIteratorNextMethod) GetIsStatic() bool             { return false }
-func (m *FilesystemIteratorNextMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
-func (m *FilesystemIteratorNextMethod) GetVariables() []data.Variable { return []data.Variable{} }
+var filesystemIteratorNextMethodGetParams = []data.GetValue{}
+
+func (m *FilesystemIteratorNextMethod) GetParams() []data.GetValue    { return filesystemIteratorNextMethodGetParams }
+var filesystemIteratorNextMethodGetVariables = []data.Variable{}
+
+func (m *FilesystemIteratorNextMethod) GetVariables() []data.Variable { return filesystemIteratorNextMethodGetVariables }
 func (m *FilesystemIteratorNextMethod) GetReturnType() data.Types     { return nil }
 
 func (m *FilesystemIteratorNextMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -75,8 +87,12 @@ type FilesystemIteratorRewindMethod struct {
 func (m *FilesystemIteratorRewindMethod) GetName() string               { return "rewind" }
 func (m *FilesystemIteratorRewindMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
 func (m *FilesystemIteratorRewindMethod) GetIsStatic() bool             { return false }
-func (m *FilesystemIteratorRewindMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
-func (m *FilesystemIteratorRewindMethod) GetVariables() []data.Variable { return []data.Variable{} }
+var filesystemIteratorRewindMethodGetParams = []data.GetValue{}
+
+func (m *FilesystemIteratorRewindMethod) GetParams() []data.GetValue    { return filesystemIteratorRewindMethodGetParams }
+var filesystemIteratorRewindMethodGetVariables = []data.Variable{}
+
+func (m *FilesystemIteratorRewindMethod) GetVariables() []data.Variable { return filesystemIteratorRewindMethodGetVariables }
 func (m *FilesystemIteratorRewindMethod) GetReturnType() data.Types     { return nil }
 
 func (m *FilesystemIteratorRewindMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -95,8 +111,12 @@ type FilesystemIteratorValidMethod struct {
 func (m *FilesystemIteratorValidMethod) GetName() string               { return "valid" }
 func (m *FilesystemIteratorValidMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
 func (m *FilesystemIteratorValidMethod) GetIsStatic() bool             { return false }
-func (m *FilesystemIteratorValidMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
-func (m *FilesystemIteratorValidMethod) GetVariables() []data.Variable { return []data.Variable{} }
+var filesystemIteratorValidMethodGetParams = []data.GetValue{}
+
+func (m *FilesystemIteratorValidMethod) GetParams() []data.GetValue    { return filesystemIteratorValidMethodGetParams }
+var filesystemIteratorValidMethodGetVariables = []data.Variable{}
+
+func (m *FilesystemIteratorValidMethod) GetVariables() []data.Variable { return filesystemIteratorValidMethodGetVariables }
 func (m *FilesystemIteratorValidMethod) GetReturnType() data.Types     { return data.Bool{} }
 
 func (m *FilesystemIteratorValidMethod) Call(ctx data.Context) (data.GetValue, data.Control) {

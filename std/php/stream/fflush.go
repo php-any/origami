@@ -48,14 +48,18 @@ func (f *FflushFunction) GetName() string {
 	return "fflush"
 }
 
+var fflushFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "stream", 0, nil, nil),
+}
+
 func (f *FflushFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "stream", 0, nil, nil),
-	}
+	return fflushFunctionGetParams
+}
+
+var fflushFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "stream", 0, data.NewBaseType("resource")),
 }
 
 func (f *FflushFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "stream", 0, data.NewBaseType("resource")),
-	}
+	return fflushFunctionGetVariables
 }

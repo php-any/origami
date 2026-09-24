@@ -121,20 +121,24 @@ func (f *ArraySpliceFunction) GetName() string {
 	return "array_splice"
 }
 
+var arraySpliceFunctionGetParams = []data.GetValue{
+	node.NewParameterReference(nil, "array", 0, nil, data.NewBaseType("array")),
+	node.NewParameter(nil, "offset", 1, nil, data.NewBaseType("int")),
+	node.NewParameter(nil, "length", 2, node.NewNullLiteral(nil), data.NewBaseType("int")),
+	node.NewParameter(nil, "replacement", 3, node.NewNullLiteral(nil), data.NewBaseType("array")),
+}
+
 func (f *ArraySpliceFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, nil, data.NewBaseType("array")),
-		node.NewParameter(nil, "offset", 1, nil, data.NewBaseType("int")),
-		node.NewParameter(nil, "length", 2, node.NewNullLiteral(nil), data.NewBaseType("int")),
-		node.NewParameter(nil, "replacement", 3, node.NewNullLiteral(nil), data.NewBaseType("array")),
-	}
+	return arraySpliceFunctionGetParams
+}
+
+var arraySpliceFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
+	node.NewVariable(nil, "offset", 1, data.NewBaseType("int")),
+	node.NewVariable(nil, "length", 2, data.NewBaseType("int")),
+	node.NewVariable(nil, "replacement", 3, data.NewBaseType("array")),
 }
 
 func (f *ArraySpliceFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-		node.NewVariable(nil, "offset", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "length", 2, data.NewBaseType("int")),
-		node.NewVariable(nil, "replacement", 3, data.NewBaseType("array")),
-	}
+	return arraySpliceFunctionGetVariables
 }

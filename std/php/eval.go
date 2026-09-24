@@ -19,16 +19,20 @@ func (f *EvalFunction) GetName() string {
 	return "eval"
 }
 
+var evalFunctionGetParams = []data.GetValue{
+	node.NewParameterRawAST(nil, "code", 0, data.Mixed{}),
+}
+
 func (f *EvalFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterRawAST(nil, "code", 0, data.Mixed{}),
-	}
+	return evalFunctionGetParams
+}
+
+var evalFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "code", 0, data.Mixed{}),
 }
 
 func (f *EvalFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "code", 0, data.Mixed{}),
-	}
+	return evalFunctionGetVariables
 }
 
 func (f *EvalFunction) Call(ctx data.Context) (data.GetValue, data.Control) {

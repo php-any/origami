@@ -85,22 +85,26 @@ func streamSelectTimeout(ctx data.Context) time.Duration {
 
 func (f *StreamSelectFunction) GetName() string { return "stream_select" }
 
+var streamSelectFunctionGetParams = []data.GetValue{
+	node.NewParameterReference(nil, "read", 0, nil, data.Mixed{}),
+	node.NewParameterReference(nil, "write", 1, nil, data.Mixed{}),
+	node.NewParameterReference(nil, "except", 2, nil, data.Mixed{}),
+	node.NewParameter(nil, "seconds", 3, nil, nil),
+	node.NewParameter(nil, "microseconds", 4, node.NewNullLiteral(nil), nil),
+}
+
 func (f *StreamSelectFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterReference(nil, "read", 0, nil, data.Mixed{}),
-		node.NewParameterReference(nil, "write", 1, nil, data.Mixed{}),
-		node.NewParameterReference(nil, "except", 2, nil, data.Mixed{}),
-		node.NewParameter(nil, "seconds", 3, nil, nil),
-		node.NewParameter(nil, "microseconds", 4, node.NewNullLiteral(nil), nil),
-	}
+	return streamSelectFunctionGetParams
+}
+
+var streamSelectFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "read", 0, nil),
+	node.NewVariable(nil, "write", 1, nil),
+	node.NewVariable(nil, "except", 2, nil),
+	node.NewVariable(nil, "seconds", 3, nil),
+	node.NewVariable(nil, "microseconds", 4, nil),
 }
 
 func (f *StreamSelectFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "read", 0, nil),
-		node.NewVariable(nil, "write", 1, nil),
-		node.NewVariable(nil, "except", 2, nil),
-		node.NewVariable(nil, "seconds", 3, nil),
-		node.NewVariable(nil, "microseconds", 4, nil),
-	}
+	return streamSelectFunctionGetVariables
 }

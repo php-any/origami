@@ -122,17 +122,21 @@ func (m *FinfoConstructMethod) GetName() string            { return "__construct
 func (m *FinfoConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *FinfoConstructMethod) GetIsStatic() bool          { return false }
 func (m *FinfoConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *FinfoConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "flags", 0, data.NewIntValue(FILEINFO_NONE), nil),
-		node.NewParameter(nil, "magic_database", 1, node.NewNullLiteral(nil), nil),
-	}
+var finfoConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "flags", 0, data.NewIntValue(FILEINFO_NONE), nil),
+	node.NewParameter(nil, "magic_database", 1, node.NewNullLiteral(nil), nil),
 }
+
+func (m *FinfoConstructMethod) GetParams() []data.GetValue {
+	return finfoConstructMethodGetParams
+}
+var finfoConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "flags", 0, nil),
+	node.NewVariable(nil, "magic_database", 1, nil),
+}
+
 func (m *FinfoConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "flags", 0, nil),
-		node.NewVariable(nil, "magic_database", 1, nil),
-	}
+	return finfoConstructMethodGetVariables
 }
 
 type FinfoFileMethod struct{}
@@ -162,17 +166,21 @@ func (m *FinfoFileMethod) GetName() string            { return "file" }
 func (m *FinfoFileMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *FinfoFileMethod) GetIsStatic() bool          { return false }
 func (m *FinfoFileMethod) GetReturnType() data.Types  { return nil }
-func (m *FinfoFileMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "filename", 0, nil, nil),
-		node.NewParameter(nil, "flags", 1, node.NewNullLiteral(nil), nil),
-	}
+var finfoFileMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "filename", 0, nil, nil),
+	node.NewParameter(nil, "flags", 1, node.NewNullLiteral(nil), nil),
 }
+
+func (m *FinfoFileMethod) GetParams() []data.GetValue {
+	return finfoFileMethodGetParams
+}
+var finfoFileMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "filename", 0, nil),
+	node.NewVariable(nil, "flags", 1, nil),
+}
+
 func (m *FinfoFileMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "filename", 0, nil),
-		node.NewVariable(nil, "flags", 1, nil),
-	}
+	return finfoFileMethodGetVariables
 }
 
 type FinfoBufferMethod struct{}
@@ -199,17 +207,21 @@ func (m *FinfoBufferMethod) GetName() string            { return "buffer" }
 func (m *FinfoBufferMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *FinfoBufferMethod) GetIsStatic() bool          { return false }
 func (m *FinfoBufferMethod) GetReturnType() data.Types  { return nil }
-func (m *FinfoBufferMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "flags", 1, node.NewNullLiteral(nil), nil),
-	}
+var finfoBufferMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "flags", 1, node.NewNullLiteral(nil), nil),
 }
+
+func (m *FinfoBufferMethod) GetParams() []data.GetValue {
+	return finfoBufferMethodGetParams
+}
+var finfoBufferMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, nil),
+	node.NewVariable(nil, "flags", 1, nil),
+}
+
 func (m *FinfoBufferMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, nil),
-		node.NewVariable(nil, "flags", 1, nil),
-	}
+	return finfoBufferMethodGetVariables
 }
 
 func detectMimeFromBuffer(b []byte) string {
@@ -322,17 +334,21 @@ func (f *FinfoOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	return cv, nil
 }
 func (f *FinfoOpenFunction) GetName() string { return "finfo_open" }
-func (f *FinfoOpenFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "flags", 0, data.NewIntValue(FILEINFO_NONE), nil),
-		node.NewParameter(nil, "magic_database", 1, node.NewNullLiteral(nil), nil),
-	}
+var finfoOpenFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "flags", 0, data.NewIntValue(FILEINFO_NONE), nil),
+	node.NewParameter(nil, "magic_database", 1, node.NewNullLiteral(nil), nil),
 }
+
+func (f *FinfoOpenFunction) GetParams() []data.GetValue {
+	return finfoOpenFunctionGetParams
+}
+var finfoOpenFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "flags", 0, nil),
+	node.NewVariable(nil, "magic_database", 1, nil),
+}
+
 func (f *FinfoOpenFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "flags", 0, nil),
-		node.NewVariable(nil, "magic_database", 1, nil),
-	}
+	return finfoOpenFunctionGetVariables
 }
 
 type FinfoFileFunction struct{}
@@ -357,17 +373,21 @@ func (f *FinfoFileFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	return data.NewStringValue(formatMimeByFlags(mime, flags)), nil
 }
 func (f *FinfoFileFunction) GetName() string { return "finfo_file" }
-func (f *FinfoFileFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "finfo", 0, nil, nil),
-		node.NewParameter(nil, "filename", 1, nil, nil),
-	}
+var finfoFileFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "finfo", 0, nil, nil),
+	node.NewParameter(nil, "filename", 1, nil, nil),
 }
+
+func (f *FinfoFileFunction) GetParams() []data.GetValue {
+	return finfoFileFunctionGetParams
+}
+var finfoFileFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "finfo", 0, nil),
+	node.NewVariable(nil, "filename", 1, nil),
+}
+
 func (f *FinfoFileFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "finfo", 0, nil),
-		node.NewVariable(nil, "filename", 1, nil),
-	}
+	return finfoFileFunctionGetVariables
 }
 
 type FinfoBufferFunction struct{}
@@ -389,17 +409,21 @@ func (f *FinfoBufferFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	return data.NewStringValue(formatMimeByFlags(mime, flags)), nil
 }
 func (f *FinfoBufferFunction) GetName() string { return "finfo_buffer" }
-func (f *FinfoBufferFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "finfo", 0, nil, nil),
-		node.NewParameter(nil, "string", 1, nil, nil),
-	}
+var finfoBufferFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "finfo", 0, nil, nil),
+	node.NewParameter(nil, "string", 1, nil, nil),
 }
+
+func (f *FinfoBufferFunction) GetParams() []data.GetValue {
+	return finfoBufferFunctionGetParams
+}
+var finfoBufferFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "finfo", 0, nil),
+	node.NewVariable(nil, "filename", 1, nil),
+}
+
 func (f *FinfoBufferFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "finfo", 0, nil),
-		node.NewVariable(nil, "filename", 1, nil),
-	}
+	return finfoBufferFunctionGetVariables
 }
 
 type FinfoCloseFunction struct{}
@@ -410,9 +434,13 @@ func (f *FinfoCloseFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	return data.NewBoolValue(true), nil
 }
 func (f *FinfoCloseFunction) GetName() string { return "finfo_close" }
+var finfoCloseFunctionGetParams = []data.GetValue{node.NewParameter(nil, "finfo", 0, nil, nil)}
+
 func (f *FinfoCloseFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "finfo", 0, nil, nil)}
+	return finfoCloseFunctionGetParams
 }
+var finfoCloseFunctionGetVariables = []data.Variable{node.NewVariable(nil, "finfo", 0, nil)}
+
 func (f *FinfoCloseFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "finfo", 0, nil)}
+	return finfoCloseFunctionGetVariables
 }

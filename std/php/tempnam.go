@@ -47,16 +47,20 @@ func (fn *TempnamFunction) GetName() string {
 	return "tempnam"
 }
 
+var tempnamFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "directory", 0, nil, nil),
+	node.NewParameter(nil, "prefix", 1, nil, nil),
+}
+
 func (fn *TempnamFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "directory", 0, nil, nil),
-		node.NewParameter(nil, "prefix", 1, nil, nil),
-	}
+	return tempnamFunctionGetParams
+}
+
+var tempnamFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "directory", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "prefix", 1, data.NewBaseType("string")),
 }
 
 func (fn *TempnamFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "directory", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "prefix", 1, data.NewBaseType("string")),
-	}
+	return tempnamFunctionGetVariables
 }

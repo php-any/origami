@@ -58,20 +58,24 @@ func (h *ConnQueryRowContextMethod) Call(ctx data.Context) (data.GetValue, data.
 func (h *ConnQueryRowContextMethod) GetName() string            { return "queryRowContext" }
 func (h *ConnQueryRowContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ConnQueryRowContextMethod) GetIsStatic() bool          { return true }
+var connQueryRowContextMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "ctx", 0, nil, nil),
+	node.NewParameter(nil, "query", 1, nil, nil),
+	node.NewParameters(nil, "args", 2, nil, nil),
+}
+
 func (h *ConnQueryRowContextMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "ctx", 0, nil, nil),
-		node.NewParameter(nil, "query", 1, nil, nil),
-		node.NewParameters(nil, "args", 2, nil, nil),
-	}
+	return connQueryRowContextMethodGetParams
+}
+
+var connQueryRowContextMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "ctx", 0, nil),
+	node.NewVariable(nil, "query", 1, nil),
+	node.NewVariable(nil, "args", 2, nil),
 }
 
 func (h *ConnQueryRowContextMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "ctx", 0, nil),
-		node.NewVariable(nil, "query", 1, nil),
-		node.NewVariable(nil, "args", 2, nil),
-	}
+	return connQueryRowContextMethodGetVariables
 }
 
 func (h *ConnQueryRowContextMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

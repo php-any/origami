@@ -79,20 +79,24 @@ func (f *IconvSubstrFunction) GetName() string {
 	return "iconv_substr"
 }
 
+var iconvSubstrFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "str", 0, nil, nil),
+	node.NewParameter(nil, "offset", 1, nil, nil),
+	node.NewParameter(nil, "length", 2, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "encoding", 3, node.NewNullLiteral(nil), nil),
+}
+
 func (f *IconvSubstrFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "str", 0, nil, nil),
-		node.NewParameter(nil, "offset", 1, nil, nil),
-		node.NewParameter(nil, "length", 2, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "encoding", 3, node.NewNullLiteral(nil), nil),
-	}
+	return iconvSubstrFunctionGetParams
+}
+
+var iconvSubstrFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "str", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "offset", 1, data.NewBaseType("int")),
+	node.NewVariable(nil, "length", 2, data.NewBaseType("int")),
+	node.NewVariable(nil, "encoding", 3, data.NewBaseType("string")),
 }
 
 func (f *IconvSubstrFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "str", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "offset", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "length", 2, data.NewBaseType("int")),
-		node.NewVariable(nil, "encoding", 3, data.NewBaseType("string")),
-	}
+	return iconvSubstrFunctionGetVariables
 }

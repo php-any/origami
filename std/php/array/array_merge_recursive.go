@@ -221,9 +221,13 @@ func deepCopyVal(v data.Value) data.Value {
 }
 
 func (fn *ArrayMergeRecursiveFunction) GetName() string { return "array_merge_recursive" }
+var arrayMergeRecursiveFunctionGetParams = []data.GetValue{node.NewParameters(nil, "arrays", 0, nil, nil)}
+
 func (fn *ArrayMergeRecursiveFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameters(nil, "arrays", 0, nil, nil)}
+	return arrayMergeRecursiveFunctionGetParams
 }
+var arrayMergeRecursiveFunctionGetVariables = []data.Variable{node.NewVariable(nil, "arrays", 0, data.NewBaseType("array"))}
+
 func (fn *ArrayMergeRecursiveFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "arrays", 0, data.NewBaseType("array"))}
+	return arrayMergeRecursiveFunctionGetVariables
 }

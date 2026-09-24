@@ -93,16 +93,20 @@ func (f *VarExportFunction) GetName() string {
 	return "var_export"
 }
 
+var varExportFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+	node.NewParameter(nil, "return", 1, data.NewBoolValue(false), nil),
+}
+
 func (f *VarExportFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-		node.NewParameter(nil, "return", 1, data.NewBoolValue(false), nil),
-	}
+	return varExportFunctionGetParams
+}
+
+var varExportFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, data.Mixed{}),
+	node.NewVariable(nil, "return", 1, data.Mixed{}),
 }
 
 func (f *VarExportFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.Mixed{}),
-		node.NewVariable(nil, "return", 1, data.Mixed{}),
-	}
+	return varExportFunctionGetVariables
 }

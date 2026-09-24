@@ -32,16 +32,20 @@ func (h *ConnPrepareMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 func (h *ConnPrepareMethod) GetName() string            { return "prepare" }
 func (h *ConnPrepareMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ConnPrepareMethod) GetIsStatic() bool          { return true }
+var connPrepareMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
+}
+
 func (h *ConnPrepareMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-	}
+	return connPrepareMethodGetParams
+}
+
+var connPrepareMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
 }
 
 func (h *ConnPrepareMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-	}
+	return connPrepareMethodGetVariables
 }
 
 func (h *ConnPrepareMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

@@ -115,16 +115,20 @@ func (fn *ParseUrlFunction) GetName() string {
 	return "parse_url"
 }
 
+var parseUrlFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "url", 0, nil, nil),
+	node.NewParameter(nil, "component", 1, data.NewIntValue(-1), nil),
+}
+
 func (fn *ParseUrlFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "url", 0, nil, nil),
-		node.NewParameter(nil, "component", 1, data.NewIntValue(-1), nil),
-	}
+	return parseUrlFunctionGetParams
+}
+
+var parseUrlFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "url", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "component", 1, data.NewBaseType("int")),
 }
 
 func (fn *ParseUrlFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "url", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "component", 1, data.NewBaseType("int")),
-	}
+	return parseUrlFunctionGetVariables
 }

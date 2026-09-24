@@ -37,14 +37,18 @@ func (f *ConstantFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 
 func (f *ConstantFunction) GetName() string { return "constant" }
 
+var constantFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "name", 0, nil, data.String{}),
+}
+
 func (f *ConstantFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "name", 0, nil, data.String{}),
-	}
+	return constantFunctionGetParams
+}
+
+var constantFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "name", 0, data.String{}),
 }
 
 func (f *ConstantFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "name", 0, data.String{}),
-	}
+	return constantFunctionGetVariables
 }

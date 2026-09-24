@@ -80,18 +80,22 @@ func (f *SprintfFunction) GetName() string {
 	return "sprintf"
 }
 
+var sprintfFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "format", 0, nil, nil),
+	node.NewParameters(nil, "values", 1, nil, nil),
+}
+
 func (f *SprintfFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "format", 0, nil, nil),
-		node.NewParameters(nil, "values", 1, nil, nil),
-	}
+	return sprintfFunctionGetParams
+}
+
+var sprintfFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "format", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "values", 1, data.NewBaseType("mixed")),
 }
 
 func (f *SprintfFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "format", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "values", 1, data.NewBaseType("mixed")),
-	}
+	return sprintfFunctionGetVariables
 }
 
 // phpToGoFormat 将 PHP 的 %1$s / %2$-10s 风格占位符转换为 Go 的 %[1]s / %[2]-10s。

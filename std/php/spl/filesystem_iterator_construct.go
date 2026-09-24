@@ -17,18 +17,22 @@ func (m *FilesystemIteratorConstructMethod) GetName() string            { return
 func (m *FilesystemIteratorConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *FilesystemIteratorConstructMethod) GetIsStatic() bool          { return false }
 
+var filesystemIteratorConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "directory", 0, nil, data.String{}),
+	node.NewParameter(nil, "flags", 1, data.NewIntValue(FSI_DEFAULT_FLAGS), data.Int{}),
+}
+
 func (m *FilesystemIteratorConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "directory", 0, nil, data.String{}),
-		node.NewParameter(nil, "flags", 1, data.NewIntValue(FSI_DEFAULT_FLAGS), data.Int{}),
-	}
+	return filesystemIteratorConstructMethodGetParams
+}
+
+var filesystemIteratorConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "directory", 0, data.String{}),
+	node.NewVariable(nil, "flags", 1, data.Int{}),
 }
 
 func (m *FilesystemIteratorConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "directory", 0, data.String{}),
-		node.NewVariable(nil, "flags", 1, data.Int{}),
-	}
+	return filesystemIteratorConstructMethodGetVariables
 }
 
 func (m *FilesystemIteratorConstructMethod) GetReturnType() data.Types { return nil }

@@ -23,12 +23,16 @@ func (h *ConnBeginMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *ConnBeginMethod) GetName() string            { return "begin" }
 func (h *ConnBeginMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ConnBeginMethod) GetIsStatic() bool          { return true }
+var connBeginMethodGetParams = []data.GetValue{}
+
 func (h *ConnBeginMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return connBeginMethodGetParams
 }
 
+var connBeginMethodGetVariables = []data.Variable{}
+
 func (h *ConnBeginMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return connBeginMethodGetVariables
 }
 
 func (h *ConnBeginMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

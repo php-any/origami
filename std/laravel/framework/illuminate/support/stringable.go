@@ -42,7 +42,7 @@ func (c *StringableClass) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
 func (c *StringableClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *StringableClass) GetMethods() []data.Method {
@@ -58,7 +58,7 @@ func (c *StringableClass) GetStaticMethod(name string) (data.Method, bool) {
 
 func (c *StringableClass) register() {
 	inst := func(name string, params []string, fn func(data.Context) (data.GetValue, data.Control)) {
-		c.methods[strings.ToLower(name)] = kit.InstanceMethod(name, params, fn)
+		c.methods[data.MethodLookupKey(name)] = kit.InstanceMethod(name, params, fn)
 	}
 	inst("__construct", []string{"value"}, stringableConstruct)
 	inst("__tostring", nil, stringableToString)

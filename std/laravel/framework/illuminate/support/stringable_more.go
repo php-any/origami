@@ -21,7 +21,7 @@ func strClassForStringable() *StrClass {
 
 func (c *StringableClass) registerStringableMore() {
 	inst := func(name string, params []string, fn func(data.Context) (data.GetValue, data.Control)) {
-		c.methods[strings.ToLower(name)] = kit.InstanceMethod(name, params, fn)
+		c.methods[data.MethodLookupKey(name)] = kit.InstanceMethod(name, params, fn)
 	}
 	inst("append", nil, stringableAppend)
 	inst("prepend", nil, stringablePrepend)
@@ -124,7 +124,7 @@ func (c *StringableClass) registerStringableMore() {
 	}
 	for _, m := range valueFirst {
 		name := m.name
-		c.methods[strings.ToLower(name)] = kit.InstanceMethod(name, m.params, func(ctx data.Context) (data.GetValue, data.Control) {
+		c.methods[data.MethodLookupKey(name)] = kit.InstanceMethod(name, m.params, func(ctx data.Context) (data.GetValue, data.Control) {
 			return stringableInvokeStr(ctx, name, stringableCallArgs(ctx))
 		})
 	}

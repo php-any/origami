@@ -118,12 +118,16 @@ func (d *DbFirstMethod) GetIsStatic() bool {
 	return false
 }
 
+var dbFirstMethodGetParams = []data.GetValue{}
+
 func (d *DbFirstMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return dbFirstMethodGetParams
 }
 
+var dbFirstMethodGetVariables = []data.Variable{}
+
 func (d *DbFirstMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return dbFirstMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型

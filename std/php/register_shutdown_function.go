@@ -27,14 +27,18 @@ func (f *RegisterShutdownFunctionFunction) GetName() string {
 	return "register_shutdown_function"
 }
 
+var registerShutdownFunctionFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "callback", 0, nil, nil),
+}
+
 func (f *RegisterShutdownFunctionFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "callback", 0, nil, nil),
-	}
+	return registerShutdownFunctionFunctionGetParams
+}
+
+var registerShutdownFunctionFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "callback", 0, nil),
 }
 
 func (f *RegisterShutdownFunctionFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "callback", 0, nil),
-	}
+	return registerShutdownFunctionFunctionGetVariables
 }

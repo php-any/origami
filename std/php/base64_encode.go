@@ -33,14 +33,18 @@ func (f *Base64EncodeFunction) GetName() string {
 	return "base64_encode"
 }
 
+var base64EncodeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "data", 0, nil, nil),
+}
+
 func (f *Base64EncodeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "data", 0, nil, nil),
-	}
+	return base64EncodeFunctionGetParams
+}
+
+var base64EncodeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "data", 0, data.NewBaseType("string")),
 }
 
 func (f *Base64EncodeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "data", 0, data.NewBaseType("string")),
-	}
+	return base64EncodeFunctionGetVariables
 }

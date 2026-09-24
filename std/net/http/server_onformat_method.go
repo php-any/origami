@@ -34,14 +34,18 @@ func (h *ServerOnFormatMethod) Call(ctx data.Context) (data.GetValue, data.Contr
 func (h *ServerOnFormatMethod) GetName() string            { return "onFormat" }
 func (h *ServerOnFormatMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ServerOnFormatMethod) GetIsStatic() bool          { return false }
-func (h *ServerOnFormatMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "handler", 0, nil, nil),
-	}
+var serverOnFormatMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "handler", 0, nil, nil),
 }
+
+func (h *ServerOnFormatMethod) GetParams() []data.GetValue {
+	return serverOnFormatMethodGetParams
+}
+var serverOnFormatMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "handler", 0, nil),
+}
+
 func (h *ServerOnFormatMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "handler", 0, nil),
-	}
+	return serverOnFormatMethodGetVariables
 }
 func (h *ServerOnFormatMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

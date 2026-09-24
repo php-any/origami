@@ -41,16 +41,20 @@ func (d *DbJoinMethod) GetIsStatic() bool {
 	return false
 }
 
+var dbJoinMethodGetParams = []data.GetValue{
+	data.NewParameter("join", 0),
+}
+
 func (d *DbJoinMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("join", 0),
-	}
+	return dbJoinMethodGetParams
+}
+
+var dbJoinMethodGetVariables = []data.Variable{
+	data.NewVariable("join", 0, data.NewBaseType("string")),
 }
 
 func (d *DbJoinMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("join", 0, data.NewBaseType("string")),
-	}
+	return dbJoinMethodGetVariables
 }
 
 func (d *DbJoinMethod) GetReturnType() data.Types {

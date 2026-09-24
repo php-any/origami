@@ -32,16 +32,20 @@ func (h *DBPrepareMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *DBPrepareMethod) GetName() string            { return "prepare" }
 func (h *DBPrepareMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBPrepareMethod) GetIsStatic() bool          { return true }
+var dBPrepareMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "query", 0, nil, nil),
+}
+
 func (h *DBPrepareMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "query", 0, nil, nil),
-	}
+	return dBPrepareMethodGetParams
+}
+
+var dBPrepareMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "query", 0, nil),
 }
 
 func (h *DBPrepareMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "query", 0, nil),
-	}
+	return dBPrepareMethodGetVariables
 }
 
 func (h *DBPrepareMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

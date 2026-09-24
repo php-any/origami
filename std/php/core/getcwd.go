@@ -20,9 +20,13 @@ func (f *GetcwdFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *GetcwdFunction) GetName() string { return "getcwd" }
+var getcwdFunctionGetParams = []data.GetValue{}
+
 func (f *GetcwdFunction) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return getcwdFunctionGetParams
 }
+var getcwdFunctionGetVariables = []data.Variable{}
+
 func (f *GetcwdFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return getcwdFunctionGetVariables
 }

@@ -47,14 +47,18 @@ func (f *UnlinkFunction) GetName() string {
 	return "unlink"
 }
 
+var unlinkFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "filename", 0, nil, nil),
+}
+
 func (f *UnlinkFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "filename", 0, nil, nil),
-	}
+	return unlinkFunctionGetParams
+}
+
+var unlinkFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
 }
 
 func (f *UnlinkFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
-	}
+	return unlinkFunctionGetVariables
 }

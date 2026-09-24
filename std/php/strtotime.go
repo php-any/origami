@@ -195,15 +195,19 @@ func hasPrefix(s, prefix string) bool {
 }
 
 func (f *StrtotimeFunction) GetName() string { return "strtotime" }
-func (f *StrtotimeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "datetime", 0, nil, nil),
-		node.NewParameter(nil, "baseTimestamp", 1, node.NewNullLiteral(nil), nil),
-	}
+var strtotimeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "datetime", 0, nil, nil),
+	node.NewParameter(nil, "baseTimestamp", 1, node.NewNullLiteral(nil), nil),
 }
+
+func (f *StrtotimeFunction) GetParams() []data.GetValue {
+	return strtotimeFunctionGetParams
+}
+var strtotimeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "datetime", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "baseTimestamp", 1, data.NewNullableType(data.NewBaseType("int"))),
+}
+
 func (f *StrtotimeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "datetime", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "baseTimestamp", 1, data.NewNullableType(data.NewBaseType("int"))),
-	}
+	return strtotimeFunctionGetVariables
 }

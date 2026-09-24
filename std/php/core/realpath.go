@@ -65,14 +65,18 @@ func (f *RealpathFunction) GetName() string {
 	return "realpath"
 }
 
+var realpathFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "path", 0, nil, nil),
+}
+
 func (f *RealpathFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "path", 0, nil, nil),
-	}
+	return realpathFunctionGetParams
+}
+
+var realpathFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "path", 0, data.NewBaseType("string")),
 }
 
 func (f *RealpathFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "path", 0, data.NewBaseType("string")),
-	}
+	return realpathFunctionGetVariables
 }

@@ -28,16 +28,20 @@ func (h *ServerConstructMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 func (h *ServerConstructMethod) GetName() string            { return "__construct" }
 func (h *ServerConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ServerConstructMethod) GetIsStatic() bool          { return false }
-func (h *ServerConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "host", 0, data.NewStringValue("0.0.0.0"), data.String{}),
-		node.NewParameter(nil, "port", 1, data.NewIntValue(80), data.Int{}),
-	}
+var serverConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "host", 0, data.NewStringValue("0.0.0.0"), data.String{}),
+	node.NewParameter(nil, "port", 1, data.NewIntValue(80), data.Int{}),
 }
+
+func (h *ServerConstructMethod) GetParams() []data.GetValue {
+	return serverConstructMethodGetParams
+}
+var serverConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "host", 0, data.String{}),
+	node.NewVariable(nil, "port", 1, data.Int{}),
+}
+
 func (h *ServerConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "host", 0, data.String{}),
-		node.NewVariable(nil, "port", 1, data.Int{}),
-	}
+	return serverConstructMethodGetVariables
 }
 func (h *ServerConstructMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

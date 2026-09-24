@@ -38,17 +38,21 @@ type InjectConstructMethod struct{}
 func (m *InjectConstructMethod) GetName() string            { return "__construct" }
 func (m *InjectConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *InjectConstructMethod) GetIsStatic() bool          { return false }
-func (m *InjectConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "service", 0, data.NewStringValue(""), data.NewBaseType("string")),
-		node.NewAnnotationTargetParameter(nil, 1),
-	}
+var injectConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "service", 0, data.NewStringValue(""), data.NewBaseType("string")),
+	node.NewAnnotationTargetParameter(nil, 1),
 }
+
+func (m *InjectConstructMethod) GetParams() []data.GetValue {
+	return injectConstructMethodGetParams
+}
+var injectConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "service", 0, nil),
+	node.NewAnnotationTargetVariable(nil, 1),
+}
+
 func (m *InjectConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "service", 0, nil),
-		node.NewAnnotationTargetVariable(nil, 1),
-	}
+	return injectConstructMethodGetVariables
 }
 func (m *InjectConstructMethod) GetReturnType() data.Types { return nil }
 func (m *InjectConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {

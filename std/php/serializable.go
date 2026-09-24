@@ -36,12 +36,16 @@ func (m *SerializableSerializeMethod) GetName() string            { return "seri
 func (m *SerializableSerializeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SerializableSerializeMethod) GetIsStatic() bool          { return false }
 
+var serializableSerializeMethodGetParams = []data.GetValue{}
+
 func (m *SerializableSerializeMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return serializableSerializeMethodGetParams
 }
 
+var serializableSerializeMethodGetVariables = []data.Variable{}
+
 func (m *SerializableSerializeMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return serializableSerializeMethodGetVariables
 }
 
 func (m *SerializableSerializeMethod) GetReturnType() data.Types {
@@ -59,16 +63,20 @@ func (m *SerializableUnserializeMethod) GetName() string            { return "un
 func (m *SerializableUnserializeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SerializableUnserializeMethod) GetIsStatic() bool          { return false }
 
+var serializableUnserializeMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "data", 0, nil, nil),
+}
+
 func (m *SerializableUnserializeMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "data", 0, nil, nil),
-	}
+	return serializableUnserializeMethodGetParams
+}
+
+var serializableUnserializeMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "data", 0, data.NewBaseType("string")),
 }
 
 func (m *SerializableUnserializeMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "data", 0, data.NewBaseType("string")),
-	}
+	return serializableUnserializeMethodGetVariables
 }
 
 func (m *SerializableUnserializeMethod) GetReturnType() data.Types {

@@ -58,16 +58,20 @@ func (f *ArrayUnshiftFunction) GetName() string {
 	return "array_unshift"
 }
 
+var arrayUnshiftFunctionGetParams = []data.GetValue{
+	node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
+	node.NewParameters(nil, "values", 1, nil, nil), // Variadic
+}
+
 func (f *ArrayUnshiftFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
-		node.NewParameters(nil, "values", 1, nil, nil), // Variadic
-	}
+	return arrayUnshiftFunctionGetParams
+}
+
+var arrayUnshiftFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Mixed{}),
+	node.NewVariable(nil, "values", 1, data.Mixed{}),
 }
 
 func (f *ArrayUnshiftFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Mixed{}),
-		node.NewVariable(nil, "values", 1, data.Mixed{}),
-	}
+	return arrayUnshiftFunctionGetVariables
 }

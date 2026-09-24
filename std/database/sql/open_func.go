@@ -39,16 +39,20 @@ func (h *OpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *OpenFunction) GetName() string            { return "Database\\Sql\\open" }
 func (h *OpenFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *OpenFunction) GetIsStatic() bool          { return true }
-func (h *OpenFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "driverName", 0, nil, data.NewBaseType("string")),
-		node.NewParameter(nil, "dataSourceName", 1, nil, data.NewBaseType("string")),
-	}
+var openFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "driverName", 0, nil, data.NewBaseType("string")),
+	node.NewParameter(nil, "dataSourceName", 1, nil, data.NewBaseType("string")),
 }
+
+func (h *OpenFunction) GetParams() []data.GetValue {
+	return openFunctionGetParams
+}
+var openFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "driverName", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "dataSourceName", 1, data.NewBaseType("string")),
+}
+
 func (h *OpenFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "driverName", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "dataSourceName", 1, data.NewBaseType("string")),
-	}
+	return openFunctionGetVariables
 }
 func (h *OpenFunction) GetReturnType() data.Types { return data.Class{Name: "Database\\Sql\\DB"} }

@@ -50,16 +50,20 @@ func (m *SerializeMethod) GetIsStatic() bool {
 	return true
 }
 
+var serializeMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "instance", 0, nil, nil),
+}
+
 func (m *SerializeMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "instance", 0, nil, nil),
-	}
+	return serializeMethodGetParams
+}
+
+var serializeMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "instance", 0, nil),
 }
 
 func (m *SerializeMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "instance", 0, nil),
-	}
+	return serializeMethodGetVariables
 }
 
 func (m *SerializeMethod) GetReturnType() data.Types {

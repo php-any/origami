@@ -39,18 +39,22 @@ func (h *DBQueryRowMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 func (h *DBQueryRowMethod) GetName() string            { return "queryRow" }
 func (h *DBQueryRowMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBQueryRowMethod) GetIsStatic() bool          { return true }
+var dBQueryRowMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "query", 0, nil, nil),
+	node.NewParameters(nil, "args", 1, nil, nil),
+}
+
 func (h *DBQueryRowMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "query", 0, nil, nil),
-		node.NewParameters(nil, "args", 1, nil, nil),
-	}
+	return dBQueryRowMethodGetParams
+}
+
+var dBQueryRowMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "query", 0, nil),
+	node.NewVariable(nil, "args", 1, nil),
 }
 
 func (h *DBQueryRowMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "query", 0, nil),
-		node.NewVariable(nil, "args", 1, nil),
-	}
+	return dBQueryRowMethodGetVariables
 }
 
 func (h *DBQueryRowMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

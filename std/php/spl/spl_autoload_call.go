@@ -28,14 +28,18 @@ func (f *SplAutoloadCallFunction) Call(ctx data.Context) (data.GetValue, data.Co
 
 func (f *SplAutoloadCallFunction) GetName() string { return "spl_autoload_call" }
 
+var splAutoloadCallFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "class_name", 0, nil, data.NewBaseType("string")),
+}
+
 func (f *SplAutoloadCallFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "class_name", 0, nil, data.NewBaseType("string")),
-	}
+	return splAutoloadCallFunctionGetParams
+}
+
+var splAutoloadCallFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "class_name", 0, data.NewBaseType("string")),
 }
 
 func (f *SplAutoloadCallFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "class_name", 0, data.NewBaseType("string")),
-	}
+	return splAutoloadCallFunctionGetVariables
 }

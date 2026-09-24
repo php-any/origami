@@ -42,16 +42,20 @@ func (f *DefinedFunction) GetName() string {
 	return "defined"
 }
 
+var definedFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "constant_name", 0, nil, data.String{}),
+}
+
 func (f *DefinedFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "constant_name", 0, nil, data.String{}),
-	}
+	return definedFunctionGetParams
+}
+
+var definedFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "constant_name", 0, data.String{}),
 }
 
 func (f *DefinedFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "constant_name", 0, data.String{}),
-	}
+	return definedFunctionGetVariables
 }
 
 // lookupClassConstant 解析 "Class::NAME" / "Namespace\Class::NAME"

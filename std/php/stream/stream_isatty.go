@@ -83,14 +83,18 @@ func (f *StreamIsattyFunction) GetName() string {
 	return "stream_isatty"
 }
 
+var streamIsattyFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "stream", 0, nil, nil),
+}
+
 func (f *StreamIsattyFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "stream", 0, nil, nil),
-	}
+	return streamIsattyFunctionGetParams
+}
+
+var streamIsattyFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "stream", 0, data.NewBaseType("resource")),
 }
 
 func (f *StreamIsattyFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "stream", 0, data.NewBaseType("resource")),
-	}
+	return streamIsattyFunctionGetVariables
 }

@@ -424,15 +424,19 @@ func newBagInstance(ctx data.Context, stmt data.ClassStmt) *data.ClassValue {
 
 // inheritClassMethods 把父类方法并入子类表。Go 原生 ClassStmt.GetMethod 不走 VM 父链，
 // ServerBag/InputBag/FileBag 必须在构造时挂上 ParameterBag 的 get/has/all 等。
+// childMap 来自构建期缓存（见各 xxxMethodsCache），这里必须复制而不是就地写入，
+// 否则父类方法会污染共享缓存，并发实例化也会竞态。
 func inheritClassMethods(childMap map[string]data.Method, childList []data.Method, parentMap map[string]data.Method, parentList []data.Method) (map[string]data.Method, []data.Method) {
-	if childMap == nil {
-		childMap = make(map[string]data.Method, len(parentMap))
+	merged := make(map[string]data.Method, len(childMap)+len(parentMap))
+	for name, m := range childMap {
+		merged[name] = m
 	}
 	for name, m := range parentMap {
-		if _, ok := childMap[name]; !ok {
-			childMap[name] = m
+		if _, ok := merged[name]; !ok {
+			merged[name] = m
 		}
 	}
+	childMap = merged
 	seen := make(map[string]struct{}, len(childList)+len(parentList))
 	out := make([]data.Method, 0, len(childList)+len(parentList))
 	for _, m := range childList {

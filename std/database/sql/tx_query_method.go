@@ -42,18 +42,22 @@ func (h *TxQueryMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *TxQueryMethod) GetName() string            { return "query" }
 func (h *TxQueryMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *TxQueryMethod) GetIsStatic() bool          { return true }
+var txQueryMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "query", 0, nil, nil),
+	node.NewParameters(nil, "args", 1, nil, nil),
+}
+
 func (h *TxQueryMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "query", 0, nil, nil),
-		node.NewParameters(nil, "args", 1, nil, nil),
-	}
+	return txQueryMethodGetParams
+}
+
+var txQueryMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "query", 0, nil),
+	node.NewVariable(nil, "args", 1, nil),
 }
 
 func (h *TxQueryMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "query", 0, nil),
-		node.NewVariable(nil, "args", 1, nil),
-	}
+	return txQueryMethodGetVariables
 }
 
 func (h *TxQueryMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

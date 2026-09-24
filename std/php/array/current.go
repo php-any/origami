@@ -76,15 +76,19 @@ func (f *CurrentFunction) GetName() string {
 	return "current"
 }
 
+var currentFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, data.Mixed{}),
+}
+
 func (f *CurrentFunction) GetParams() []data.GetValue {
 	// PHP 8.0+：current() 按值接收，允许 current(array_slice(...)) 等临时值
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, data.Mixed{}),
-	}
+	return currentFunctionGetParams
+}
+
+var currentFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Mixed{}),
 }
 
 func (f *CurrentFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Mixed{}),
-	}
+	return currentFunctionGetVariables
 }

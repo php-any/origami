@@ -95,20 +95,24 @@ func (f *SubstrReplaceFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 func (f *SubstrReplaceFunction) GetName() string            { return "substr_replace" }
 func (f *SubstrReplaceFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *SubstrReplaceFunction) GetIsStatic() bool          { return false }
-func (f *SubstrReplaceFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, data.String{}),
-		node.NewParameter(nil, "replacement", 1, nil, data.String{}),
-		node.NewParameter(nil, "offset", 2, nil, data.Int{}),
-		node.NewParameter(nil, "length", 3, node.NewNullLiteral(nil), data.Int{}),
-	}
+var substrReplaceFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, data.String{}),
+	node.NewParameter(nil, "replacement", 1, nil, data.String{}),
+	node.NewParameter(nil, "offset", 2, nil, data.Int{}),
+	node.NewParameter(nil, "length", 3, node.NewNullLiteral(nil), data.Int{}),
 }
+
+func (f *SubstrReplaceFunction) GetParams() []data.GetValue {
+	return substrReplaceFunctionGetParams
+}
+var substrReplaceFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "replacement", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "offset", 2, data.NewBaseType("int")),
+	node.NewVariable(nil, "length", 3, data.NewBaseType("int")),
+}
+
 func (f *SubstrReplaceFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "replacement", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "offset", 2, data.NewBaseType("int")),
-		node.NewVariable(nil, "length", 3, data.NewBaseType("int")),
-	}
+	return substrReplaceFunctionGetVariables
 }
 func (f *SubstrReplaceFunction) GetReturnType() data.Types { return data.NewBaseType("string") }

@@ -93,18 +93,22 @@ func (m *GetMappingConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var getMappingConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "path", 0, data.NewStringValue("/"), data.NewBaseType("string")),
+	node.NewAnnotationTargetParameter(nil, 1),
+}
+
 func (m *GetMappingConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "path", 0, data.NewStringValue("/"), data.NewBaseType("string")),
-		node.NewAnnotationTargetParameter(nil, 1),
-	}
+	return getMappingConstructMethodGetParams
+}
+
+var getMappingConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "path", 0, nil),
+	node.NewAnnotationTargetVariable(nil, 1),
 }
 
 func (m *GetMappingConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "path", 0, nil),
-		node.NewAnnotationTargetVariable(nil, 1),
-	}
+	return getMappingConstructMethodGetVariables
 }
 
 func (m *GetMappingConstructMethod) GetReturnType() data.Types {

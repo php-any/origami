@@ -45,14 +45,18 @@ func (f *IsDirFunction) GetName() string {
 	return "is_dir"
 }
 
+var isDirFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "path", 0, nil, nil),
+}
+
 func (f *IsDirFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "path", 0, nil, nil),
-	}
+	return isDirFunctionGetParams
+}
+
+var isDirFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "path", 0, data.NewBaseType("string")),
 }
 
 func (f *IsDirFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "path", 0, data.NewBaseType("string")),
-	}
+	return isDirFunctionGetVariables
 }

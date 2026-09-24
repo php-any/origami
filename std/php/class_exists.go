@@ -50,18 +50,22 @@ func (f *ClassExistsFunction) GetName() string {
 	return "class_exists"
 }
 
+var classExistsFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "class", 0, nil, data.String{}),
+	node.NewParameter(nil, "autoload", 1, data.NewBoolValue(true), data.Bool{}),
+}
+
 func (f *ClassExistsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "class", 0, nil, data.String{}),
-		node.NewParameter(nil, "autoload", 1, data.NewBoolValue(true), data.Bool{}),
-	}
+	return classExistsFunctionGetParams
+}
+
+var classExistsFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "class", 0, data.String{}),
+	node.NewVariable(nil, "autoload", 1, data.Bool{}),
 }
 
 func (f *ClassExistsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "class", 0, data.String{}),
-		node.NewVariable(nil, "autoload", 1, data.Bool{}),
-	}
+	return classExistsFunctionGetVariables
 }
 
 // EnumExistsFunction 实现 enum_exists(string $enum, bool $autoload = true): bool
@@ -71,18 +75,22 @@ func NewEnumExistsFunction() data.FuncStmt { return &EnumExistsFunction{} }
 
 func (f *EnumExistsFunction) GetName() string { return "enum_exists" }
 
+var enumExistsFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "enum", 0, nil, data.String{}),
+	node.NewParameter(nil, "autoload", 1, data.NewBoolValue(true), data.Bool{}),
+}
+
 func (f *EnumExistsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "enum", 0, nil, data.String{}),
-		node.NewParameter(nil, "autoload", 1, data.NewBoolValue(true), data.Bool{}),
-	}
+	return enumExistsFunctionGetParams
+}
+
+var enumExistsFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "enum", 0, data.String{}),
+	node.NewVariable(nil, "autoload", 1, data.Bool{}),
 }
 
 func (f *EnumExistsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "enum", 0, data.String{}),
-		node.NewVariable(nil, "autoload", 1, data.Bool{}),
-	}
+	return enumExistsFunctionGetVariables
 }
 
 func (f *EnumExistsFunction) Call(ctx data.Context) (data.GetValue, data.Control) {

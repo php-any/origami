@@ -38,14 +38,18 @@ func (f *Hex2binFunction) GetName() string {
 	return "hex2bin"
 }
 
+var hex2binFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+}
+
 func (f *Hex2binFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-	}
+	return hex2binFunctionGetParams
+}
+
+var hex2binFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 }
 
 func (f *Hex2binFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-	}
+	return hex2binFunctionGetVariables
 }

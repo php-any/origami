@@ -52,14 +52,18 @@ func (f *ArrayKeysFunction) GetName() string {
 	return "array_keys"
 }
 
+var arrayKeysFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, nil),
+}
+
 func (f *ArrayKeysFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, nil),
-	}
+	return arrayKeysFunctionGetParams
+}
+
+var arrayKeysFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
 }
 
 func (f *ArrayKeysFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-	}
+	return arrayKeysFunctionGetVariables
 }

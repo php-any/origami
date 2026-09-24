@@ -97,17 +97,21 @@ func (f *HashFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *HashFunction) GetName() string            { return "hash" }
 func (f *HashFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *HashFunction) GetIsStatic() bool          { return false }
-func (f *HashFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "algo", 0, nil, nil),
-		node.NewParameter(nil, "data", 1, nil, nil),
-	}
+var hashFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "algo", 0, nil, nil),
+	node.NewParameter(nil, "data", 1, nil, nil),
 }
+
+func (f *HashFunction) GetParams() []data.GetValue {
+	return hashFunctionGetParams
+}
+var hashFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "algo", 0, nil),
+	node.NewVariable(nil, "data", 1, nil),
+}
+
 func (f *HashFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "algo", 0, nil),
-		node.NewVariable(nil, "data", 1, nil),
-	}
+	return hashFunctionGetVariables
 }
 func (f *HashFunction) GetReturnType() data.Types { return data.NewBaseType("string") }
 
@@ -133,15 +137,19 @@ func (f *Crc32Function) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *Crc32Function) GetName() string            { return "crc32" }
 func (f *Crc32Function) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *Crc32Function) GetIsStatic() bool          { return false }
-func (f *Crc32Function) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-	}
+var crc32FunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
 }
+
+func (f *Crc32Function) GetParams() []data.GetValue {
+	return crc32FunctionGetParams
+}
+var crc32FunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+}
+
 func (f *Crc32Function) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-	}
+	return crc32FunctionGetVariables
 }
 func (f *Crc32Function) GetReturnType() data.Types { return data.NewBaseType("int") }
 
@@ -152,22 +160,26 @@ func NewHashHmacFunction() data.FuncStmt { return &HashHmacFunction{} }
 
 func (f *HashHmacFunction) GetName() string { return "hash_hmac" }
 
+var hashHmacFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "algo", 0, nil, data.NewBaseType("string")),
+	node.NewParameter(nil, "data", 1, nil, data.NewBaseType("string")),
+	node.NewParameter(nil, "key", 2, nil, data.NewBaseType("string")),
+	node.NewParameter(nil, "binary", 3, node.NewBooleanLiteral(nil, false), data.NewBaseType("bool")),
+}
+
 func (f *HashHmacFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "algo", 0, nil, data.NewBaseType("string")),
-		node.NewParameter(nil, "data", 1, nil, data.NewBaseType("string")),
-		node.NewParameter(nil, "key", 2, nil, data.NewBaseType("string")),
-		node.NewParameter(nil, "binary", 3, node.NewBooleanLiteral(nil, false), data.NewBaseType("bool")),
-	}
+	return hashHmacFunctionGetParams
+}
+
+var hashHmacFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "algo", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "data", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "key", 2, data.NewBaseType("string")),
+	node.NewVariable(nil, "binary", 3, data.NewBaseType("bool")),
 }
 
 func (f *HashHmacFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "algo", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "data", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "key", 2, data.NewBaseType("string")),
-		node.NewVariable(nil, "binary", 3, data.NewBaseType("bool")),
-	}
+	return hashHmacFunctionGetVariables
 }
 
 // Sha1Function 实现 PHP 内置函数 sha1
@@ -211,17 +223,21 @@ func (f *Sha1Function) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *Sha1Function) GetName() string            { return "sha1" }
 func (f *Sha1Function) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *Sha1Function) GetIsStatic() bool          { return false }
-func (f *Sha1Function) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "raw_output", 1, node.NewNullLiteral(nil), nil),
-	}
+var sha1FunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "raw_output", 1, node.NewNullLiteral(nil), nil),
 }
+
+func (f *Sha1Function) GetParams() []data.GetValue {
+	return sha1FunctionGetParams
+}
+var sha1FunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "raw_output", 1, data.NewBaseType("bool")),
+}
+
 func (f *Sha1Function) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "raw_output", 1, data.NewBaseType("bool")),
-	}
+	return sha1FunctionGetVariables
 }
 
 func (f *HashHmacFunction) Call(ctx data.Context) (data.GetValue, data.Control) {

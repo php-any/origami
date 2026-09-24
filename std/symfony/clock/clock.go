@@ -48,7 +48,7 @@ func NewNativeClockClass() data.ClassStmt {
 
 	add := func(name string, params []clockParam, ret data.Types, fn func(data.Context) (data.GetValue, data.Control)) {
 		m := &clockMethod{name: name, params: params, ret: ret, fn: fn}
-		c.methods[strings.ToLower(name)] = m
+		c.methods[data.MethodLookupKey(name)] = m
 		c.methodList = append(c.methodList, m)
 	}
 	c.methods = map[string]data.Method{}
@@ -83,7 +83,7 @@ func (c *NativeClockClass) GetValue(ctx data.Context) (data.GetValue, data.Contr
 
 // GetMethod PHP 方法名不区分大小写。
 func (c *NativeClockClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *NativeClockClass) GetMethods() []data.Method { return c.methodList }

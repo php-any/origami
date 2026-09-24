@@ -81,12 +81,16 @@ func (m *IdConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var idConstructMethodGetParams = []data.GetValue{}
+
 func (m *IdConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return idConstructMethodGetParams
 }
 
+var idConstructMethodGetVariables = []data.Variable{}
+
 func (m *IdConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return idConstructMethodGetVariables
 }
 
 func (m *IdConstructMethod) GetReturnType() data.Types {

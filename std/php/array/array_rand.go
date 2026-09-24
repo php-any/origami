@@ -116,16 +116,20 @@ func (f *ArrayRandFunction) GetName() string {
 	return "array_rand"
 }
 
+var arrayRandFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, data.NewBaseType("array")),
+	node.NewParameter(nil, "num", 1, data.NewIntValue(1), data.Int{}),
+}
+
 func (f *ArrayRandFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, data.NewBaseType("array")),
-		node.NewParameter(nil, "num", 1, data.NewIntValue(1), data.Int{}),
-	}
+	return arrayRandFunctionGetParams
+}
+
+var arrayRandFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
+	node.NewVariable(nil, "num", 1, data.Int{}),
 }
 
 func (f *ArrayRandFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-		node.NewVariable(nil, "num", 1, data.Int{}),
-	}
+	return arrayRandFunctionGetVariables
 }

@@ -87,18 +87,22 @@ func (fn *ArrayPadFunction) GetName() string {
 	return "array_pad"
 }
 
+var arrayPadFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, nil),
+	node.NewParameter(nil, "length", 1, nil, nil),
+	node.NewParameter(nil, "value", 2, nil, nil),
+}
+
 func (fn *ArrayPadFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, nil),
-		node.NewParameter(nil, "length", 1, nil, nil),
-		node.NewParameter(nil, "value", 2, nil, nil),
-	}
+	return arrayPadFunctionGetParams
+}
+
+var arrayPadFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
+	node.NewVariable(nil, "length", 1, data.NewBaseType("int")),
+	node.NewVariable(nil, "value", 2, data.Mixed{}),
 }
 
 func (fn *ArrayPadFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-		node.NewVariable(nil, "length", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "value", 2, data.Mixed{}),
-	}
+	return arrayPadFunctionGetVariables
 }

@@ -63,16 +63,20 @@ func (f *StrContainsFunction) GetName() string {
 	return "str_contains"
 }
 
+var strContainsFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "haystack", 0, nil, data.String{}),
+	node.NewParameter(nil, "needle", 1, nil, data.String{}),
+}
+
 func (f *StrContainsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "haystack", 0, nil, data.String{}),
-		node.NewParameter(nil, "needle", 1, nil, data.String{}),
-	}
+	return strContainsFunctionGetParams
+}
+
+var strContainsFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "haystack", 0, data.String{}),
+	node.NewVariable(nil, "needle", 1, data.String{}),
 }
 
 func (f *StrContainsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "haystack", 0, data.String{}),
-		node.NewVariable(nil, "needle", 1, data.String{}),
-	}
+	return strContainsFunctionGetVariables
 }

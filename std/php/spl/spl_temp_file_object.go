@@ -58,19 +58,23 @@ func (m *STFOConstructMethod) GetName() string            { return "__construct"
 func (m *STFOConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *STFOConstructMethod) GetIsStatic() bool          { return false }
 func (m *STFOConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *STFOConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "tempFileName", 0, data.NewStringValue("php://temp"), data.NewBaseType("string")),
-		node.NewParameter(nil, "mode", 1, data.NewStringValue("w+b"), data.NewBaseType("string")),
-		node.NewParameter(nil, "flags", 2, data.NewIntValue(0), data.NewBaseType("int")),
-	}
+var sTFOConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "tempFileName", 0, data.NewStringValue("php://temp"), data.NewBaseType("string")),
+	node.NewParameter(nil, "mode", 1, data.NewStringValue("w+b"), data.NewBaseType("string")),
+	node.NewParameter(nil, "flags", 2, data.NewIntValue(0), data.NewBaseType("int")),
 }
+
+func (m *STFOConstructMethod) GetParams() []data.GetValue {
+	return sTFOConstructMethodGetParams
+}
+var sTFOConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "tempFileName", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "mode", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "flags", 2, data.NewBaseType("int")),
+}
+
 func (m *STFOConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "tempFileName", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "mode", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "flags", 2, data.NewBaseType("int")),
-	}
+	return sTFOConstructMethodGetVariables
 }
 func (m *STFOConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := sfiGetCV(ctx)

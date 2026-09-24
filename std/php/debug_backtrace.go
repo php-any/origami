@@ -64,15 +64,19 @@ func (f *DebugBacktraceFunction) Call(ctx data.Context) (data.GetValue, data.Con
 }
 
 func (f *DebugBacktraceFunction) GetName() string { return "debug_backtrace" }
-func (f *DebugBacktraceFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "options", 0, data.NewIntValue(debugBacktraceProvideObject), nil),
-		node.NewParameter(nil, "limit", 1, data.NewIntValue(0), nil),
-	}
+var debugBacktraceFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "options", 0, data.NewIntValue(debugBacktraceProvideObject), nil),
+	node.NewParameter(nil, "limit", 1, data.NewIntValue(0), nil),
 }
+
+func (f *DebugBacktraceFunction) GetParams() []data.GetValue {
+	return debugBacktraceFunctionGetParams
+}
+var debugBacktraceFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "options", 0, nil),
+	node.NewVariable(nil, "limit", 1, nil),
+}
+
 func (f *DebugBacktraceFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "options", 0, nil),
-		node.NewVariable(nil, "limit", 1, nil),
-	}
+	return debugBacktraceFunctionGetVariables
 }

@@ -29,12 +29,16 @@ func (h *OSHostnameMethod) GetIsStatic() bool {
 	return false
 }
 
+var oSHostnameMethodGetParams = []data.GetValue{}
+
 func (h *OSHostnameMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return oSHostnameMethodGetParams
 }
 
+var oSHostnameMethodGetVariables = []data.Variable{}
+
 func (h *OSHostnameMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return oSHostnameMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型

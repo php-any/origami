@@ -93,9 +93,13 @@ func shallowCopyPreserveKeys(v data.Value) data.Value {
 }
 
 func (fn *ArrayReplaceFunction) GetName() string { return "array_replace" }
+var arrayReplaceFunctionGetParams = []data.GetValue{node.NewParameters(nil, "arrays", 0, nil, nil)}
+
 func (fn *ArrayReplaceFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameters(nil, "arrays", 0, nil, nil)}
+	return arrayReplaceFunctionGetParams
 }
+var arrayReplaceFunctionGetVariables = []data.Variable{node.NewVariable(nil, "arrays", 0, data.NewBaseType("array"))}
+
 func (fn *ArrayReplaceFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "arrays", 0, data.NewBaseType("array"))}
+	return arrayReplaceFunctionGetVariables
 }
