@@ -51,18 +51,22 @@ func (f *ArrayColumnFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 
 func (f *ArrayColumnFunction) GetName() string { return "array_column" }
 
+var arrayColumnFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, nil),
+	node.NewParameter(nil, "column_key", 1, nil, nil),
+	node.NewParameter(nil, "index_key", 2, nil, nil),
+}
+
 func (f *ArrayColumnFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, nil),
-		node.NewParameter(nil, "column_key", 1, nil, nil),
-		node.NewParameter(nil, "index_key", 2, nil, nil),
-	}
+	return arrayColumnFunctionGetParams
+}
+
+var arrayColumnFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
+	node.NewVariable(nil, "column_key", 1, data.Mixed{}),
+	node.NewVariable(nil, "index_key", 2, data.Mixed{}),
 }
 
 func (f *ArrayColumnFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-		node.NewVariable(nil, "column_key", 1, data.Mixed{}),
-		node.NewVariable(nil, "index_key", 2, data.Mixed{}),
-	}
+	return arrayColumnFunctionGetVariables
 }

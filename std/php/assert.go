@@ -35,16 +35,20 @@ func (f *AssertFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 func (f *AssertFunction) GetName() string { return "assert" }
 
+var assertFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "assertion", 0, nil, nil),
+	node.NewParameter(nil, "description", 1, node.NewNullLiteral(nil), nil),
+}
+
 func (f *AssertFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "assertion", 0, nil, nil),
-		node.NewParameter(nil, "description", 1, node.NewNullLiteral(nil), nil),
-	}
+	return assertFunctionGetParams
+}
+
+var assertFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "assertion", 0, data.NewBaseType("mixed")),
+	node.NewVariable(nil, "description", 1, data.NewBaseType("mixed")),
 }
 
 func (f *AssertFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "assertion", 0, data.NewBaseType("mixed")),
-		node.NewVariable(nil, "description", 1, data.NewBaseType("mixed")),
-	}
+	return assertFunctionGetVariables
 }

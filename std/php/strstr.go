@@ -48,19 +48,23 @@ func (f *StrStrFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *StrStrFunction) GetName() string            { return f.name }
 func (f *StrStrFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *StrStrFunction) GetIsStatic() bool          { return false }
-func (f *StrStrFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "haystack", 0, nil, data.String{}),
-		node.NewParameter(nil, "needle", 1, nil, data.String{}),
-		node.NewParameter(nil, "before_needle", 2, data.NewBoolValue(false), data.Bool{}),
-	}
+var strStrFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "haystack", 0, nil, data.String{}),
+	node.NewParameter(nil, "needle", 1, nil, data.String{}),
+	node.NewParameter(nil, "before_needle", 2, data.NewBoolValue(false), data.Bool{}),
 }
+
+func (f *StrStrFunction) GetParams() []data.GetValue {
+	return strStrFunctionGetParams
+}
+var strStrFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "before_needle", 2, data.NewBaseType("bool")),
+}
+
 func (f *StrStrFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "before_needle", 2, data.NewBaseType("bool")),
-	}
+	return strStrFunctionGetVariables
 }
 func (f *StrStrFunction) GetReturnType() data.Types { return data.NewBaseType("string") }
 
@@ -103,18 +107,22 @@ func (f *StrIStrFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *StrIStrFunction) GetName() string            { return "stristr" }
 func (f *StrIStrFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *StrIStrFunction) GetIsStatic() bool          { return false }
-func (f *StrIStrFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "haystack", 0, nil, data.String{}),
-		node.NewParameter(nil, "needle", 1, nil, data.String{}),
-		node.NewParameter(nil, "before_needle", 2, data.NewBoolValue(false), data.Bool{}),
-	}
+var strIStrFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "haystack", 0, nil, data.String{}),
+	node.NewParameter(nil, "needle", 1, nil, data.String{}),
+	node.NewParameter(nil, "before_needle", 2, data.NewBoolValue(false), data.Bool{}),
 }
+
+func (f *StrIStrFunction) GetParams() []data.GetValue {
+	return strIStrFunctionGetParams
+}
+var strIStrFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "before_needle", 2, data.NewBaseType("bool")),
+}
+
 func (f *StrIStrFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "before_needle", 2, data.NewBaseType("bool")),
-	}
+	return strIStrFunctionGetVariables
 }
 func (f *StrIStrFunction) GetReturnType() data.Types { return data.NewBaseType("string") }

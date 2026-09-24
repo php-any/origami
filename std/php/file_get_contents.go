@@ -63,18 +63,22 @@ func (f *FileGetContentsFunction) Call(ctx data.Context) (data.GetValue, data.Co
 
 func (f *FileGetContentsFunction) GetName() string { return "file_get_contents" }
 
+var fileGetContentsFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "filename", 0, nil, nil),
+	node.NewParameter(nil, "use_include_path", 1, data.NewBoolValue(false), nil),
+	node.NewParameter(nil, "context", 2, node.NewNullLiteral(nil), nil),
+}
+
 func (f *FileGetContentsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "filename", 0, nil, nil),
-		node.NewParameter(nil, "use_include_path", 1, data.NewBoolValue(false), nil),
-		node.NewParameter(nil, "context", 2, node.NewNullLiteral(nil), nil),
-	}
+	return fileGetContentsFunctionGetParams
+}
+
+var fileGetContentsFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "use_include_path", 1, data.NewBaseType("bool")),
+	node.NewVariable(nil, "context", 2, data.NewNullableType(data.NewBaseType("resource"))),
 }
 
 func (f *FileGetContentsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "use_include_path", 1, data.NewBaseType("bool")),
-		node.NewVariable(nil, "context", 2, data.NewNullableType(data.NewBaseType("resource"))),
-	}
+	return fileGetContentsFunctionGetVariables
 }

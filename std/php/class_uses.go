@@ -50,9 +50,13 @@ func (fn *ClassUsesFunction) Call(ctx data.Context) (data.GetValue, data.Control
 }
 
 func (fn *ClassUsesFunction) GetName() string { return "class_uses" }
+var classUsesFunctionGetParams = []data.GetValue{node.NewParameter(nil, "object_or_class", 0, nil, nil)}
+
 func (fn *ClassUsesFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "object_or_class", 0, nil, nil)}
+	return classUsesFunctionGetParams
 }
+var classUsesFunctionGetVariables = []data.Variable{node.NewVariable(nil, "object_or_class", 0, data.Mixed{})}
+
 func (fn *ClassUsesFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "object_or_class", 0, data.Mixed{})}
+	return classUsesFunctionGetVariables
 }

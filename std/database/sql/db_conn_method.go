@@ -45,16 +45,20 @@ func (h *DBConnMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *DBConnMethod) GetName() string            { return "conn" }
 func (h *DBConnMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBConnMethod) GetIsStatic() bool          { return true }
+var dBConnMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "ctx", 0, nil, nil),
+}
+
 func (h *DBConnMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "ctx", 0, nil, nil),
-	}
+	return dBConnMethodGetParams
+}
+
+var dBConnMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "ctx", 0, nil),
 }
 
 func (h *DBConnMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "ctx", 0, nil),
-	}
+	return dBConnMethodGetVariables
 }
 
 func (h *DBConnMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

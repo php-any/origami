@@ -61,20 +61,24 @@ func (f *StrIreplaceFunction) GetName() string {
 	return "str_ireplace"
 }
 
+var strIreplaceFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "search", 0, nil, nil),
+	node.NewParameter(nil, "replace", 1, nil, nil),
+	node.NewParameter(nil, "subject", 2, nil, nil),
+	node.NewParameterReference(nil, "count", 3, nil, data.NewBaseType("int")),
+}
+
 func (f *StrIreplaceFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "search", 0, nil, nil),
-		node.NewParameter(nil, "replace", 1, nil, nil),
-		node.NewParameter(nil, "subject", 2, nil, nil),
-		node.NewParameterReference(nil, "count", 3, nil, data.NewBaseType("int")),
-	}
+	return strIreplaceFunctionGetParams
+}
+
+var strIreplaceFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "search", 0, nil),
+	node.NewVariable(nil, "replace", 1, nil),
+	node.NewVariable(nil, "subject", 2, nil),
+	node.NewVariable(nil, "count", 3, data.NewBaseType("int")),
 }
 
 func (f *StrIreplaceFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "search", 0, nil),
-		node.NewVariable(nil, "replace", 1, nil),
-		node.NewVariable(nil, "subject", 2, nil),
-		node.NewVariable(nil, "count", 3, data.NewBaseType("int")),
-	}
+	return strIreplaceFunctionGetVariables
 }

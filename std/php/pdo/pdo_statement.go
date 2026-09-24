@@ -136,11 +136,15 @@ func (m *stmtExecuteMethod) GetName() string            { return "execute" }
 func (m *stmtExecuteMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *stmtExecuteMethod) GetIsStatic() bool          { return false }
 func (m *stmtExecuteMethod) GetReturnType() data.Types  { return nil }
+var stmtExecuteMethodGetParams = []data.GetValue{node.NewParameter(nil, "params", 0, node.NewNullLiteral(nil), nil)}
+
 func (m *stmtExecuteMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "params", 0, node.NewNullLiteral(nil), nil)}
+	return stmtExecuteMethodGetParams
 }
+var stmtExecuteMethodGetVariables = []data.Variable{node.NewVariable(nil, "params", 0, data.NewBaseType("array"))}
+
 func (m *stmtExecuteMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "params", 0, data.NewBaseType("array"))}
+	return stmtExecuteMethodGetVariables
 }
 
 func (m *stmtExecuteMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -229,13 +233,17 @@ func (m *stmtFetchMethod) GetName() string            { return "fetch" }
 func (m *stmtFetchMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *stmtFetchMethod) GetIsStatic() bool          { return false }
 func (m *stmtFetchMethod) GetReturnType() data.Types  { return nil }
-func (m *stmtFetchMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "mode", 0, node.NewIntLiteral(nil, "0"), nil),
-	}
+var stmtFetchMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "mode", 0, node.NewIntLiteral(nil, "0"), nil),
 }
+
+func (m *stmtFetchMethod) GetParams() []data.GetValue {
+	return stmtFetchMethodGetParams
+}
+var stmtFetchMethodGetVariables = []data.Variable{node.NewVariable(nil, "mode", 0, data.NewBaseType("int"))}
+
 func (m *stmtFetchMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "mode", 0, data.NewBaseType("int"))}
+	return stmtFetchMethodGetVariables
 }
 
 func (m *stmtFetchMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -274,13 +282,17 @@ func (m *stmtFetchAllMethod) GetName() string            { return "fetchAll" }
 func (m *stmtFetchAllMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *stmtFetchAllMethod) GetIsStatic() bool          { return false }
 func (m *stmtFetchAllMethod) GetReturnType() data.Types  { return nil }
-func (m *stmtFetchAllMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "mode", 0, node.NewIntLiteral(nil, "0"), nil),
-	}
+var stmtFetchAllMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "mode", 0, node.NewIntLiteral(nil, "0"), nil),
 }
+
+func (m *stmtFetchAllMethod) GetParams() []data.GetValue {
+	return stmtFetchAllMethodGetParams
+}
+var stmtFetchAllMethodGetVariables = []data.Variable{node.NewVariable(nil, "mode", 0, data.NewBaseType("int"))}
+
 func (m *stmtFetchAllMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "mode", 0, data.NewBaseType("int"))}
+	return stmtFetchAllMethodGetVariables
 }
 
 func (m *stmtFetchAllMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -319,13 +331,17 @@ func (m *stmtFetchColumnMethod) GetName() string            { return "fetchColum
 func (m *stmtFetchColumnMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *stmtFetchColumnMethod) GetIsStatic() bool          { return false }
 func (m *stmtFetchColumnMethod) GetReturnType() data.Types  { return nil }
-func (m *stmtFetchColumnMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "column", 0, node.NewIntLiteral(nil, "0"), nil),
-	}
+var stmtFetchColumnMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "column", 0, node.NewIntLiteral(nil, "0"), nil),
 }
+
+func (m *stmtFetchColumnMethod) GetParams() []data.GetValue {
+	return stmtFetchColumnMethodGetParams
+}
+var stmtFetchColumnMethodGetVariables = []data.Variable{node.NewVariable(nil, "column", 0, data.NewBaseType("int"))}
+
 func (m *stmtFetchColumnMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "column", 0, data.NewBaseType("int"))}
+	return stmtFetchColumnMethodGetVariables
 }
 
 func (m *stmtFetchColumnMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -419,11 +435,15 @@ func (m *stmtSetFetchModeMethod) GetName() string            { return "setFetchM
 func (m *stmtSetFetchModeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *stmtSetFetchModeMethod) GetIsStatic() bool          { return false }
 func (m *stmtSetFetchModeMethod) GetReturnType() data.Types  { return nil }
+var stmtSetFetchModeMethodGetParams = []data.GetValue{node.NewParameter(nil, "mode", 0, nil, nil)}
+
 func (m *stmtSetFetchModeMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "mode", 0, nil, nil)}
+	return stmtSetFetchModeMethodGetParams
 }
+var stmtSetFetchModeMethodGetVariables = []data.Variable{node.NewVariable(nil, "mode", 0, data.NewBaseType("int"))}
+
 func (m *stmtSetFetchModeMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "mode", 0, data.NewBaseType("int"))}
+	return stmtSetFetchModeMethodGetVariables
 }
 func (m *stmtSetFetchModeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if modeVal, ok := ctx.GetIndexValue(0); ok && modeVal != nil {
@@ -488,19 +508,23 @@ func (m *stmtBindParamMethod) GetName() string            { return "bindParam" }
 func (m *stmtBindParamMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *stmtBindParamMethod) GetIsStatic() bool          { return false }
 func (m *stmtBindParamMethod) GetReturnType() data.Types  { return nil }
-func (m *stmtBindParamMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param", 0, nil, nil),
-		node.NewParameter(nil, "var", 1, nil, nil),
-		node.NewParameter(nil, "type", 2, node.NewIntLiteral(nil, "2"), nil),
-	}
+var stmtBindParamMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param", 0, nil, nil),
+	node.NewParameter(nil, "var", 1, nil, nil),
+	node.NewParameter(nil, "type", 2, node.NewIntLiteral(nil, "2"), nil),
 }
+
+func (m *stmtBindParamMethod) GetParams() []data.GetValue {
+	return stmtBindParamMethodGetParams
+}
+var stmtBindParamMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param", 0, data.NewBaseType("mixed")),
+	node.NewVariable(nil, "var", 1, data.NewBaseType("mixed")),
+	node.NewVariable(nil, "type", 2, data.NewBaseType("int")),
+}
+
 func (m *stmtBindParamMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param", 0, data.NewBaseType("mixed")),
-		node.NewVariable(nil, "var", 1, data.NewBaseType("mixed")),
-		node.NewVariable(nil, "type", 2, data.NewBaseType("int")),
-	}
+	return stmtBindParamMethodGetVariables
 }
 func (m *stmtBindParamMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	paramVal, ok := ctx.GetIndexValue(0)
@@ -569,11 +593,15 @@ func (m *stmtGetColumnMetaMethod) GetName() string            { return "getColum
 func (m *stmtGetColumnMetaMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *stmtGetColumnMetaMethod) GetIsStatic() bool          { return false }
 func (m *stmtGetColumnMetaMethod) GetReturnType() data.Types  { return nil }
+var stmtGetColumnMetaMethodGetParams = []data.GetValue{node.NewParameter(nil, "column", 0, nil, nil)}
+
 func (m *stmtGetColumnMetaMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "column", 0, nil, nil)}
+	return stmtGetColumnMetaMethodGetParams
 }
+var stmtGetColumnMetaMethodGetVariables = []data.Variable{node.NewVariable(nil, "column", 0, data.NewBaseType("int"))}
+
 func (m *stmtGetColumnMetaMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "column", 0, data.NewBaseType("int"))}
+	return stmtGetColumnMetaMethodGetVariables
 }
 func (m *stmtGetColumnMetaMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewBoolValue(false), nil

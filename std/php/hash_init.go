@@ -33,14 +33,18 @@ func (f *HashInitFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 func (f *HashInitFunction) GetName() string            { return "hash_init" }
 func (f *HashInitFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *HashInitFunction) GetIsStatic() bool          { return false }
-func (f *HashInitFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "algo", 0, nil, nil),
-	}
+var hashInitFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "algo", 0, nil, nil),
 }
+
+func (f *HashInitFunction) GetParams() []data.GetValue {
+	return hashInitFunctionGetParams
+}
+var hashInitFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "algo", 0, nil),
+}
+
 func (f *HashInitFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "algo", 0, nil),
-	}
+	return hashInitFunctionGetVariables
 }
 func (f *HashInitFunction) GetReturnType() data.Types { return data.NewBaseType("resource") }

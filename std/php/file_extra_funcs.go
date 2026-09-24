@@ -27,11 +27,15 @@ func (f *IsExecutableFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 }
 
 func (f *IsExecutableFunction) GetName() string { return "is_executable" }
+var isExecutableFunctionGetParams = []data.GetValue{node.NewParameter(nil, "filename", 0, nil, nil)}
+
 func (f *IsExecutableFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "filename", 0, nil, nil)}
+	return isExecutableFunctionGetParams
 }
+var isExecutableFunctionGetVariables = []data.Variable{node.NewVariable(nil, "filename", 0, nil)}
+
 func (f *IsExecutableFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "filename", 0, nil)}
+	return isExecutableFunctionGetVariables
 }
 
 // FilectimeFunction 实现 filectime 函数
@@ -53,11 +57,15 @@ func (f *FilectimeFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 }
 
 func (f *FilectimeFunction) GetName() string { return "filectime" }
+var filectimeFunctionGetParams = []data.GetValue{node.NewParameter(nil, "filename", 0, nil, nil)}
+
 func (f *FilectimeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "filename", 0, nil, nil)}
+	return filectimeFunctionGetParams
 }
+var filectimeFunctionGetVariables = []data.Variable{node.NewVariable(nil, "filename", 0, nil)}
+
 func (f *FilectimeFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "filename", 0, nil)}
+	return filectimeFunctionGetVariables
 }
 
 // FileatimeFunction 实现 fileatime 函数
@@ -79,11 +87,15 @@ func (f *FileatimeFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 }
 
 func (f *FileatimeFunction) GetName() string { return "fileatime" }
+var fileatimeFunctionGetParams = []data.GetValue{node.NewParameter(nil, "filename", 0, nil, nil)}
+
 func (f *FileatimeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "filename", 0, nil, nil)}
+	return fileatimeFunctionGetParams
 }
+var fileatimeFunctionGetVariables = []data.Variable{node.NewVariable(nil, "filename", 0, nil)}
+
 func (f *FileatimeFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "filename", 0, nil)}
+	return fileatimeFunctionGetVariables
 }
 
 // FilepermsFunction 实现 fileperms 函数
@@ -105,11 +117,15 @@ func (f *FilepermsFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 }
 
 func (f *FilepermsFunction) GetName() string { return "fileperms" }
+var filepermsFunctionGetParams = []data.GetValue{node.NewParameter(nil, "filename", 0, nil, nil)}
+
 func (f *FilepermsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "filename", 0, nil, nil)}
+	return filepermsFunctionGetParams
 }
+var filepermsFunctionGetVariables = []data.Variable{node.NewVariable(nil, "filename", 0, nil)}
+
 func (f *FilepermsFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "filename", 0, nil)}
+	return filepermsFunctionGetVariables
 }
 
 // FileownerFunction 实现 fileowner 函数
@@ -134,11 +150,15 @@ func (f *FileownerFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 }
 
 func (f *FileownerFunction) GetName() string { return "fileowner" }
+var fileownerFunctionGetParams = []data.GetValue{node.NewParameter(nil, "filename", 0, nil, nil)}
+
 func (f *FileownerFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "filename", 0, nil, nil)}
+	return fileownerFunctionGetParams
 }
+var fileownerFunctionGetVariables = []data.Variable{node.NewVariable(nil, "filename", 0, nil)}
+
 func (f *FileownerFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "filename", 0, nil)}
+	return fileownerFunctionGetVariables
 }
 
 // FilegroupFunction 实现 filegroup 函数
@@ -163,11 +183,15 @@ func (f *FilegroupFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 }
 
 func (f *FilegroupFunction) GetName() string { return "filegroup" }
+var filegroupFunctionGetParams = []data.GetValue{node.NewParameter(nil, "filename", 0, nil, nil)}
+
 func (f *FilegroupFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "filename", 0, nil, nil)}
+	return filegroupFunctionGetParams
 }
+var filegroupFunctionGetVariables = []data.Variable{node.NewVariable(nil, "filename", 0, nil)}
+
 func (f *FilegroupFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "filename", 0, nil)}
+	return filegroupFunctionGetVariables
 }
 
 // TouchFunction 实现 touch 函数
@@ -225,19 +249,23 @@ func (f *TouchFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *TouchFunction) GetName() string { return "touch" }
-func (f *TouchFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "filename", 0, nil, nil),
-		node.NewParameter(nil, "mtime", 1, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "atime", 2, node.NewNullLiteral(nil), nil),
-	}
+var touchFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "filename", 0, nil, nil),
+	node.NewParameter(nil, "mtime", 1, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "atime", 2, node.NewNullLiteral(nil), nil),
 }
+
+func (f *TouchFunction) GetParams() []data.GetValue {
+	return touchFunctionGetParams
+}
+var touchFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "filename", 0, nil),
+	node.NewVariable(nil, "mtime", 1, nil),
+	node.NewVariable(nil, "atime", 2, nil),
+}
+
 func (f *TouchFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "filename", 0, nil),
-		node.NewVariable(nil, "mtime", 1, nil),
-		node.NewVariable(nil, "atime", 2, nil),
-	}
+	return touchFunctionGetVariables
 }
 
 // SysGetTempDirFunction 实现 sys_get_temp_dir 函数
@@ -251,11 +279,15 @@ func (f *SysGetTempDirFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 }
 
 func (f *SysGetTempDirFunction) GetName() string { return "sys_get_temp_dir" }
+var sysGetTempDirFunctionGetParams = []data.GetValue{}
+
 func (f *SysGetTempDirFunction) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return sysGetTempDirFunctionGetParams
 }
+var sysGetTempDirFunctionGetVariables = []data.Variable{}
+
 func (f *SysGetTempDirFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return sysGetTempDirFunctionGetVariables
 }
 
 // UsleepFunction 实现 usleep 函数
@@ -276,9 +308,13 @@ func (f *UsleepFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *UsleepFunction) GetName() string { return "usleep" }
+var usleepFunctionGetParams = []data.GetValue{node.NewParameter(nil, "microseconds", 0, nil, data.NewBaseType("int"))}
+
 func (f *UsleepFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "microseconds", 0, nil, data.NewBaseType("int"))}
+	return usleepFunctionGetParams
 }
+var usleepFunctionGetVariables = []data.Variable{node.NewVariable(nil, "microseconds", 0, data.NewBaseType("int"))}
+
 func (f *UsleepFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "microseconds", 0, data.NewBaseType("int"))}
+	return usleepFunctionGetVariables
 }

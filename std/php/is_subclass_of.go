@@ -63,15 +63,19 @@ func (fn *IsSubclassOfFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 }
 
 func (fn *IsSubclassOfFunction) GetName() string { return "is_subclass_of" }
-func (fn *IsSubclassOfFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object_or_class", 0, nil, nil),
-		node.NewParameter(nil, "class", 1, nil, nil),
-	}
+var isSubclassOfFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "object_or_class", 0, nil, nil),
+	node.NewParameter(nil, "class", 1, nil, nil),
 }
+
+func (fn *IsSubclassOfFunction) GetParams() []data.GetValue {
+	return isSubclassOfFunctionGetParams
+}
+var isSubclassOfFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "object_or_class", 0, data.Mixed{}),
+	node.NewVariable(nil, "class", 1, data.Mixed{}),
+}
+
 func (fn *IsSubclassOfFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object_or_class", 0, data.Mixed{}),
-		node.NewVariable(nil, "class", 1, data.Mixed{}),
-	}
+	return isSubclassOfFunctionGetVariables
 }

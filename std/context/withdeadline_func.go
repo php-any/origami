@@ -65,16 +65,20 @@ func (h *WithDeadlineFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 func (h *WithDeadlineFunction) GetName() string            { return "context\\withDeadline" }
 func (h *WithDeadlineFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *WithDeadlineFunction) GetIsStatic() bool          { return true }
-func (h *WithDeadlineFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "parent", 0, nil, nil),
-		node.NewParameter(nil, "d", 1, nil, nil),
-	}
+var withDeadlineFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "parent", 0, nil, nil),
+	node.NewParameter(nil, "d", 1, nil, nil),
 }
+
+func (h *WithDeadlineFunction) GetParams() []data.GetValue {
+	return withDeadlineFunctionGetParams
+}
+var withDeadlineFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "parent", 0, nil),
+	node.NewVariable(nil, "d", 1, nil),
+}
+
 func (h *WithDeadlineFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "parent", 0, nil),
-		node.NewVariable(nil, "d", 1, nil),
-	}
+	return withDeadlineFunctionGetVariables
 }
 func (h *WithDeadlineFunction) GetReturnType() data.Types { return data.NewBaseType("void") }

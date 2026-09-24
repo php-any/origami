@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -42,13 +43,31 @@ func pubMethod(name string, params []data.GetValue, vars []data.Variable, ret da
 	}
 }
 
+// cachedMethods 把「构建一次的方法表」包成可重复调用的函数。
+//
+// 各 Bag/Response 类每次实例化都会取一遍方法表，而方法表里的 param()/variable()
+// 会为每个方法重建 node.Parameter/node.Variable —— 这是每个请求的大头分配。
+// 方法表构造完成后只读（唯一例外见 inheritClassMethods，它已改为不复用入参 map），
+// 因此构建一次后共享。sync.Once 保证并发安全。
+func cachedMethods(build func() (map[string]data.Method, []data.Method)) func() (map[string]data.Method, []data.Method) {
+	var once sync.Once
+	var methods map[string]data.Method
+	var list []data.Method
+	return func() (map[string]data.Method, []data.Method) {
+		once.Do(func() {
+			methods, list = build()
+		})
+		return methods, list
+	}
+}
+
 // indexMethods 同时以 GetName 与小写名为 key，保证 GetMethod 大小写不敏感。
 func indexMethods(list []data.Method) map[string]data.Method {
 	m := make(map[string]data.Method, len(list)*2)
 	for _, method := range list {
 		name := method.GetName()
 		m[name] = method
-		m[strings.ToLower(name)] = method
+		m[data.MethodLookupKey(name)] = method
 	}
 	return m
 }
@@ -57,7 +76,7 @@ func getIndexedMethod(methods map[string]data.Method, name string) (data.Method,
 	if m, ok := methods[name]; ok {
 		return m, true
 	}
-	m, ok := methods[strings.ToLower(name)]
+	m, ok := methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 

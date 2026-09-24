@@ -20,10 +20,14 @@ func (h *BackgroundFunction) Call(ctx data.Context) (data.GetValue, data.Control
 func (h *BackgroundFunction) GetName() string            { return "context\\background" }
 func (h *BackgroundFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *BackgroundFunction) GetIsStatic() bool          { return true }
+var backgroundFunctionGetParams = []data.GetValue{}
+
 func (h *BackgroundFunction) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return backgroundFunctionGetParams
 }
+var backgroundFunctionGetVariables = []data.Variable{}
+
 func (h *BackgroundFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return backgroundFunctionGetVariables
 }
 func (h *BackgroundFunction) GetReturnType() data.Types { return data.NewBaseType("void") }

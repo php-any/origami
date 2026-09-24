@@ -15,16 +15,20 @@ func NewInetPtonFunction() data.FuncStmt { return &InetPtonFunction{} }
 
 func (f *InetPtonFunction) GetName() string { return "inet_pton" }
 
+var inetPtonFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "ip_address", 0, nil, data.NewBaseType("string")),
+}
+
 func (f *InetPtonFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "ip_address", 0, nil, data.NewBaseType("string")),
-	}
+	return inetPtonFunctionGetParams
+}
+
+var inetPtonFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "ip_address", 0, data.NewBaseType("string")),
 }
 
 func (f *InetPtonFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "ip_address", 0, data.NewBaseType("string")),
-	}
+	return inetPtonFunctionGetVariables
 }
 
 func (f *InetPtonFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -54,16 +58,20 @@ func NewInetNtopFunction() data.FuncStmt { return &InetNtopFunction{} }
 
 func (f *InetNtopFunction) GetName() string { return "inet_ntop" }
 
+var inetNtopFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "in_addr", 0, nil, data.NewBaseType("string")),
+}
+
 func (f *InetNtopFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "in_addr", 0, nil, data.NewBaseType("string")),
-	}
+	return inetNtopFunctionGetParams
+}
+
+var inetNtopFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "in_addr", 0, data.NewBaseType("string")),
 }
 
 func (f *InetNtopFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "in_addr", 0, data.NewBaseType("string")),
-	}
+	return inetNtopFunctionGetVariables
 }
 
 func (f *InetNtopFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -93,16 +101,20 @@ func NewIp2LongFunction() data.FuncStmt { return &Ip2LongFunction{} }
 
 func (f *Ip2LongFunction) GetName() string { return "ip2long" }
 
+var ip2LongFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "ip_address", 0, nil, data.NewBaseType("string")),
+}
+
 func (f *Ip2LongFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "ip_address", 0, nil, data.NewBaseType("string")),
-	}
+	return ip2LongFunctionGetParams
+}
+
+var ip2LongFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "ip_address", 0, data.NewBaseType("string")),
 }
 
 func (f *Ip2LongFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "ip_address", 0, data.NewBaseType("string")),
-	}
+	return ip2LongFunctionGetVariables
 }
 
 func (f *Ip2LongFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -133,16 +145,20 @@ func NewLong2IpFunction() data.FuncStmt { return &Long2IpFunction{} }
 
 func (f *Long2IpFunction) GetName() string { return "long2ip" }
 
+var long2IpFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "ip", 0, nil, data.NewBaseType("int")),
+}
+
 func (f *Long2IpFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "ip", 0, nil, data.NewBaseType("int")),
-	}
+	return long2IpFunctionGetParams
+}
+
+var long2IpFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "ip", 0, data.NewBaseType("int")),
 }
 
 func (f *Long2IpFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "ip", 0, data.NewBaseType("int")),
-	}
+	return long2IpFunctionGetVariables
 }
 
 func (f *Long2IpFunction) Call(ctx data.Context) (data.GetValue, data.Control) {

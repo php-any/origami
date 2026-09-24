@@ -129,16 +129,20 @@ func (f NextHandler) GetName() string {
 	return "next"
 }
 
+var nextHandlerGetParams = []data.GetValue{
+	node.NewParameter(nil, "request", 0, nil, nil),
+	node.NewParameter(nil, "response", 1, nil, nil),
+}
+
 func (f NextHandler) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "request", 0, nil, nil),
-		node.NewParameter(nil, "response", 1, nil, nil),
-	}
+	return nextHandlerGetParams
+}
+
+var nextHandlerGetVariables = []data.Variable{
+	node.NewVariable(nil, "request", 0, nil),
+	node.NewVariable(nil, "response", 1, nil),
 }
 
 func (f NextHandler) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "request", 0, nil),
-		node.NewVariable(nil, "response", 1, nil),
-	}
+	return nextHandlerGetVariables
 }

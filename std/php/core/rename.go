@@ -57,16 +57,20 @@ func (f *RenameFunction) GetName() string {
 	return "rename"
 }
 
+var renameFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "oldname", 0, nil, nil),
+	node.NewParameter(nil, "newname", 1, nil, nil),
+}
+
 func (f *RenameFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "oldname", 0, nil, nil),
-		node.NewParameter(nil, "newname", 1, nil, nil),
-	}
+	return renameFunctionGetParams
+}
+
+var renameFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "oldname", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "newname", 1, data.NewBaseType("string")),
 }
 
 func (f *RenameFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "oldname", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "newname", 1, data.NewBaseType("string")),
-	}
+	return renameFunctionGetVariables
 }

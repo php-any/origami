@@ -19,16 +19,20 @@ func (m *ReflectionClassImplementsInterfaceMethod) GetModifier() data.Modifier {
 
 func (m *ReflectionClassImplementsInterfaceMethod) GetIsStatic() bool { return false }
 
+var reflectionClassImplementsInterfaceMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "interface", 0, nil, data.Mixed{}),
+}
+
 func (m *ReflectionClassImplementsInterfaceMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "interface", 0, nil, data.Mixed{}),
-	}
+	return reflectionClassImplementsInterfaceMethodGetParams
+}
+
+var reflectionClassImplementsInterfaceMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "interface", 0, data.Mixed{}),
 }
 
 func (m *ReflectionClassImplementsInterfaceMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "interface", 0, data.Mixed{}),
-	}
+	return reflectionClassImplementsInterfaceMethodGetVariables
 }
 
 func (m *ReflectionClassImplementsInterfaceMethod) GetReturnType() data.Types {

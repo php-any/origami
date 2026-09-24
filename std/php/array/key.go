@@ -75,14 +75,18 @@ func (f *KeyFunction) GetName() string {
 	return "key"
 }
 
+var keyFunctionGetParams = []data.GetValue{
+	node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
+}
+
 func (f *KeyFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
-	}
+	return keyFunctionGetParams
+}
+
+var keyFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Mixed{}),
 }
 
 func (f *KeyFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Mixed{}),
-	}
+	return keyFunctionGetVariables
 }

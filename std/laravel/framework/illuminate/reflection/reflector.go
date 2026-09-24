@@ -32,7 +32,7 @@ func (c *ReflectorClass) GetValue(ctx data.Context) (data.GetValue, data.Control
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
 func (c *ReflectorClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *ReflectorClass) GetMethods() []data.Method {
@@ -93,7 +93,7 @@ func reflectorIsCallable(ctx data.Context) (data.GetValue, data.Control) {
 			className = sv.AsString()
 		} else if cv, ok := kit.Unwrap(target).(*data.ClassValue); ok && cv != nil {
 			className = cv.Class.GetName()
-			if m, ok := cv.GetMethod(strings.ToLower(methodName)); ok && m != nil {
+			if m, ok := cv.GetMethod(data.MethodLookupKey(methodName)); ok && m != nil {
 				return data.NewBoolValue(true), nil
 			}
 			if _, ok := cv.GetMethod("__call"); ok {
@@ -106,7 +106,7 @@ func reflectorIsCallable(ctx data.Context) (data.GetValue, data.Control) {
 			if ctl != nil || stmt == nil {
 				return data.NewBoolValue(false), nil
 			}
-			if _, ok := stmt.GetMethod(strings.ToLower(methodName)); ok {
+			if _, ok := stmt.GetMethod(data.MethodLookupKey(methodName)); ok {
 				return data.NewBoolValue(true), nil
 			}
 			if _, ok := stmt.GetMethod("__callstatic"); ok {
@@ -152,7 +152,7 @@ func callParamMethod(ctx data.Context, param data.Value, method string, args ...
 		m, ok = cv.GetMethod(method)
 	}
 	if !ok {
-		m, ok = cv.GetMethod(strings.ToLower(method))
+		m, ok = cv.GetMethod(data.MethodLookupKey(method))
 	}
 	if !ok || m == nil {
 		return data.NewNullValue(), nil
@@ -178,7 +178,7 @@ func callObjMethod(ctx data.Context, cv *data.ClassValue, method string, args ..
 		m, ok = cv.GetMethod(method)
 	}
 	if !ok {
-		m, ok = cv.GetMethod(strings.ToLower(method))
+		m, ok = cv.GetMethod(data.MethodLookupKey(method))
 	}
 	if !ok || m == nil {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("Method %s::%s does not exist.", cv.Class.GetName(), method))

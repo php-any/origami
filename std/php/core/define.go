@@ -69,18 +69,22 @@ func (f *DefineFunction) GetName() string {
 	return "define"
 }
 
+var defineFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "constant_name", 0, nil, data.String{}),
+	node.NewParameter(nil, "value", 1, nil, data.Mixed{}),
+	node.NewParameter(nil, "case_insensitive", 2, node.NewBooleanLiteral(nil, false), data.Bool{}),
+}
+
 func (f *DefineFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "constant_name", 0, nil, data.String{}),
-		node.NewParameter(nil, "value", 1, nil, data.Mixed{}),
-		node.NewParameter(nil, "case_insensitive", 2, node.NewBooleanLiteral(nil, false), data.Bool{}),
-	}
+	return defineFunctionGetParams
+}
+
+var defineFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "constant_name", 0, data.String{}),
+	node.NewVariable(nil, "value", 1, data.Mixed{}),
+	node.NewVariable(nil, "case_insensitive", 2, data.Bool{}),
 }
 
 func (f *DefineFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "constant_name", 0, data.String{}),
-		node.NewVariable(nil, "value", 1, data.Mixed{}),
-		node.NewVariable(nil, "case_insensitive", 2, data.Bool{}),
-	}
+	return defineFunctionGetVariables
 }

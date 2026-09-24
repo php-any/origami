@@ -80,15 +80,19 @@ func (m *SignalChannelConstructMethod) Call(ctx data.Context) (data.GetValue, da
 func (m *SignalChannelConstructMethod) GetName() string            { return "__construct" }
 func (m *SignalChannelConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SignalChannelConstructMethod) GetIsStatic() bool          { return false }
-func (m *SignalChannelConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "buffer", 0, data.NewIntValue(1), data.NewBaseType("int")),
-	}
+var signalChannelConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "buffer", 0, data.NewIntValue(1), data.NewBaseType("int")),
 }
+
+func (m *SignalChannelConstructMethod) GetParams() []data.GetValue {
+	return signalChannelConstructMethodGetParams
+}
+var signalChannelConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "buffer", 0, data.NewBaseType("int")),
+}
+
 func (m *SignalChannelConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "buffer", 0, data.NewBaseType("int")),
-	}
+	return signalChannelConstructMethodGetVariables
 }
 func (m *SignalChannelConstructMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
 
@@ -110,11 +114,15 @@ func (m *SignalChannelReceiveMethod) Call(ctx data.Context) (data.GetValue, data
 func (m *SignalChannelReceiveMethod) GetName() string            { return "receive" }
 func (m *SignalChannelReceiveMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SignalChannelReceiveMethod) GetIsStatic() bool          { return false }
+var signalChannelReceiveMethodGetParams = []data.GetValue{}
+
 func (m *SignalChannelReceiveMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return signalChannelReceiveMethodGetParams
 }
+var signalChannelReceiveMethodGetVariables = []data.Variable{}
+
 func (m *SignalChannelReceiveMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return signalChannelReceiveMethodGetVariables
 }
 func (m *SignalChannelReceiveMethod) GetReturnType() data.Types { return data.NewBaseType("int") }
 
@@ -130,10 +138,14 @@ func (m *SignalChannelCloseMethod) Call(ctx data.Context) (data.GetValue, data.C
 func (m *SignalChannelCloseMethod) GetName() string            { return "close" }
 func (m *SignalChannelCloseMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SignalChannelCloseMethod) GetIsStatic() bool          { return false }
+var signalChannelCloseMethodGetParams = []data.GetValue{}
+
 func (m *SignalChannelCloseMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return signalChannelCloseMethodGetParams
 }
+var signalChannelCloseMethodGetVariables = []data.Variable{}
+
 func (m *SignalChannelCloseMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return signalChannelCloseMethodGetVariables
 }
 func (m *SignalChannelCloseMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

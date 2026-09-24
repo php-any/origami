@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -43,7 +42,7 @@ func (c *RepositoryClass) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
 func (c *RepositoryClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *RepositoryClass) GetMethods() []data.Method {

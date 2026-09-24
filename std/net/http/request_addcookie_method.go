@@ -25,14 +25,18 @@ func (h *RequestAddCookieMethod) Call(ctx data.Context) (data.GetValue, data.Con
 func (h *RequestAddCookieMethod) GetName() string            { return "addCookie" }
 func (h *RequestAddCookieMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestAddCookieMethod) GetIsStatic() bool          { return false }
-func (h *RequestAddCookieMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-	}
+var requestAddCookieMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
 }
+
+func (h *RequestAddCookieMethod) GetParams() []data.GetValue {
+	return requestAddCookieMethodGetParams
+}
+var requestAddCookieMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
+}
+
 func (h *RequestAddCookieMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-	}
+	return requestAddCookieMethodGetVariables
 }
 func (h *RequestAddCookieMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

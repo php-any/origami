@@ -53,7 +53,7 @@ func (c *LengthAwarePaginatorClass) GetValue(ctx data.Context) (data.GetValue, d
 	return cv, nil
 }
 func (c *LengthAwarePaginatorClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *LengthAwarePaginatorClass) GetMethods() []data.Method {

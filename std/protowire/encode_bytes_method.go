@@ -37,16 +37,20 @@ func (m *EncodeBytesMethod) GetIsStatic() bool {
 	return true
 }
 
+var encodeBytesMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+}
+
 func (m *EncodeBytesMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return encodeBytesMethodGetParams
+}
+
+var encodeBytesMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, nil),
 }
 
 func (m *EncodeBytesMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, nil),
-	}
+	return encodeBytesMethodGetVariables
 }
 
 func (m *EncodeBytesMethod) GetReturnType() data.Types {

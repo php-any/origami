@@ -17,15 +17,19 @@ func (m *ReflectionNamedTypeConstructMethod) GetModifier() data.Modifier { retur
 // GetIsStatic 返回是否为静态方法，非静态方法
 func (m *ReflectionNamedTypeConstructMethod) GetIsStatic() bool { return false }
 
+var reflectionNamedTypeConstructMethodGetParams = []data.GetValue{}
+
 // GetParams 返回参数列表
 // ReflectionNamedType 通常由 ReflectionParameter::getType() 创建，构造函数主要用于兼容性
 func (m *ReflectionNamedTypeConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return reflectionNamedTypeConstructMethodGetParams
 }
+
+var reflectionNamedTypeConstructMethodGetVariables = []data.Variable{}
 
 // GetVariables 返回变量列表
 func (m *ReflectionNamedTypeConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return reflectionNamedTypeConstructMethodGetVariables
 }
 
 // GetReturnType 返回返回类型，构造函数无返回值

@@ -38,14 +38,18 @@ func (f *MemoryGetPeakUsageFunction) GetName() string {
 	return "memory_get_peak_usage"
 }
 
+var memoryGetPeakUsageFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "real_usage", 0, data.NewBoolValue(false), nil),
+}
+
 func (f *MemoryGetPeakUsageFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "real_usage", 0, data.NewBoolValue(false), nil),
-	}
+	return memoryGetPeakUsageFunctionGetParams
+}
+
+var memoryGetPeakUsageFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "real_usage", 0, nil),
 }
 
 func (f *MemoryGetPeakUsageFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "real_usage", 0, nil),
-	}
+	return memoryGetPeakUsageFunctionGetVariables
 }

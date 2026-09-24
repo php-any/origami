@@ -265,14 +265,18 @@ func (f *VarDumpFunction) GetName() string {
 	return "var_dump"
 }
 
+var varDumpFunctionGetParams = []data.GetValue{
+	node.NewParameters(nil, "args", 0, nil, nil),
+}
+
 func (f *VarDumpFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameters(nil, "args", 0, nil, nil),
-	}
+	return varDumpFunctionGetParams
+}
+
+var varDumpFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "args", 0, nil),
 }
 
 func (f *VarDumpFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "args", 0, nil),
-	}
+	return varDumpFunctionGetVariables
 }

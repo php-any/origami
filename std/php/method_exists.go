@@ -104,16 +104,20 @@ func (f *MethodExistsFunction) GetName() string {
 	return "method_exists"
 }
 
+var methodExistsFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "object_or_class", 0, nil, nil),
+	node.NewParameter(nil, "method", 1, nil, nil),
+}
+
 func (f *MethodExistsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object_or_class", 0, nil, nil),
-		node.NewParameter(nil, "method", 1, nil, nil),
-	}
+	return methodExistsFunctionGetParams
+}
+
+var methodExistsFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "object_or_class", 0, data.NewBaseType("object|string")),
+	node.NewVariable(nil, "method", 1, data.NewBaseType("string")),
 }
 
 func (f *MethodExistsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object_or_class", 0, data.NewBaseType("object|string")),
-		node.NewVariable(nil, "method", 1, data.NewBaseType("string")),
-	}
+	return methodExistsFunctionGetVariables
 }

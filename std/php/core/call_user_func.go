@@ -265,16 +265,20 @@ func (f *ForwardStaticCallFunction) GetName() string { return "forward_static_ca
 
 func (f *CallUserFuncFunction) GetName() string { return "call_user_func" }
 
+var callUserFuncFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "callback", 0, nil, nil),
+	node.NewParameters(nil, "args", 1, nil, nil),
+}
+
 func (f *CallUserFuncFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "callback", 0, nil, nil),
-		node.NewParameters(nil, "args", 1, nil, nil),
-	}
+	return callUserFuncFunctionGetParams
+}
+
+var callUserFuncFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "callback", 0, data.Mixed{}),
+	node.NewVariable(nil, "args", 1, data.Mixed{}),
 }
 
 func (f *CallUserFuncFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "callback", 0, data.Mixed{}),
-		node.NewVariable(nil, "args", 1, data.Mixed{}),
-	}
+	return callUserFuncFunctionGetVariables
 }

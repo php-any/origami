@@ -76,19 +76,23 @@ type CommandConstructMethod struct{ cmd *Command }
 func (m *CommandConstructMethod) GetName() string            { return "__construct" }
 func (m *CommandConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *CommandConstructMethod) GetIsStatic() bool          { return false }
-func (m *CommandConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "name", 0, data.NewStringValue(""), data.NewBaseType("string")),
-		node.NewParameter(nil, "description", 1, data.NewStringValue(""), data.NewBaseType("string")),
-		node.NewAnnotationTargetParameter(nil, 2),
-	}
+var commandConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "name", 0, data.NewStringValue(""), data.NewBaseType("string")),
+	node.NewParameter(nil, "description", 1, data.NewStringValue(""), data.NewBaseType("string")),
+	node.NewAnnotationTargetParameter(nil, 2),
 }
+
+func (m *CommandConstructMethod) GetParams() []data.GetValue {
+	return commandConstructMethodGetParams
+}
+var commandConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "name", 0, nil),
+	node.NewVariable(nil, "description", 1, nil),
+	node.NewAnnotationTargetVariable(nil, 2),
+}
+
 func (m *CommandConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "name", 0, nil),
-		node.NewVariable(nil, "description", 1, nil),
-		node.NewAnnotationTargetVariable(nil, 2),
-	}
+	return commandConstructMethodGetVariables
 }
 func (m *CommandConstructMethod) GetReturnType() data.Types { return data.NewBaseType("string") }
 func (m *CommandConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {

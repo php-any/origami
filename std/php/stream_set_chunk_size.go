@@ -28,16 +28,20 @@ func (f *StreamSetChunkSizeFunction) Call(ctx data.Context) (data.GetValue, data
 
 func (f *StreamSetChunkSizeFunction) GetName() string { return "stream_set_chunk_size" }
 
+var streamSetChunkSizeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "stream", 0, nil, nil),
+	node.NewParameter(nil, "size", 1, nil, data.Int{}),
+}
+
 func (f *StreamSetChunkSizeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "stream", 0, nil, nil),
-		node.NewParameter(nil, "size", 1, nil, data.Int{}),
-	}
+	return streamSetChunkSizeFunctionGetParams
+}
+
+var streamSetChunkSizeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "stream", 0, nil),
+	node.NewVariable(nil, "size", 1, data.Int{}),
 }
 
 func (f *StreamSetChunkSizeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "stream", 0, nil),
-		node.NewVariable(nil, "size", 1, data.Int{}),
-	}
+	return streamSetChunkSizeFunctionGetVariables
 }

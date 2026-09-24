@@ -41,16 +41,20 @@ func (f *Base64DecodeFunction) GetName() string {
 	return "base64_decode"
 }
 
+var base64DecodeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "data", 0, nil, nil),
+	node.NewParameter(nil, "strict", 1, node.NewNullLiteral(nil), nil),
+}
+
 func (f *Base64DecodeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "data", 0, nil, nil),
-		node.NewParameter(nil, "strict", 1, node.NewNullLiteral(nil), nil),
-	}
+	return base64DecodeFunctionGetParams
+}
+
+var base64DecodeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "data", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "strict", 1, data.NewBaseType("bool")),
 }
 
 func (f *Base64DecodeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "data", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "strict", 1, data.NewBaseType("bool")),
-	}
+	return base64DecodeFunctionGetVariables
 }

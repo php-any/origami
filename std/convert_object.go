@@ -104,14 +104,18 @@ func objectValueToStdClass(ctx data.Context, ov *data.ObjectValue) data.GetValue
 
 func (f *ObjectFunction) GetName() string { return "object" }
 
+var objectFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+}
+
 func (f *ObjectFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return objectFunctionGetParams
+}
+
+var objectFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
 }
 
 func (f *ObjectFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
-	}
+	return objectFunctionGetVariables
 }

@@ -35,15 +35,19 @@ func (fn *StrspnFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (fn *StrspnFunction) GetName() string { return "strspn" }
-func (fn *StrspnFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "str", 0, nil, nil),
-		node.NewParameter(nil, "mask", 1, nil, nil),
-	}
+var strspnFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "str", 0, nil, nil),
+	node.NewParameter(nil, "mask", 1, nil, nil),
 }
+
+func (fn *StrspnFunction) GetParams() []data.GetValue {
+	return strspnFunctionGetParams
+}
+var strspnFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "str", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "mask", 1, data.NewBaseType("string")),
+}
+
 func (fn *StrspnFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "str", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "mask", 1, data.NewBaseType("string")),
-	}
+	return strspnFunctionGetVariables
 }

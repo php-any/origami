@@ -50,14 +50,18 @@ func (f *ShellExecFunction) GetName() string {
 	return "shell_exec"
 }
 
+var shellExecFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "command", 0, nil, nil),
+}
+
 func (f *ShellExecFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "command", 0, nil, nil),
-	}
+	return shellExecFunctionGetParams
+}
+
+var shellExecFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "command", 0, data.NewBaseType("string")),
 }
 
 func (f *ShellExecFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "command", 0, data.NewBaseType("string")),
-	}
+	return shellExecFunctionGetVariables
 }

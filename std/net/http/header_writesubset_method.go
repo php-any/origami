@@ -30,16 +30,20 @@ func (h *HeaderWriteSubsetMethod) Call(ctx data.Context) (data.GetValue, data.Co
 func (h *HeaderWriteSubsetMethod) GetName() string            { return "writeSubset" }
 func (h *HeaderWriteSubsetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *HeaderWriteSubsetMethod) GetIsStatic() bool          { return false }
-func (h *HeaderWriteSubsetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-		node.NewParameter(nil, "param1", 1, nil, nil),
-	}
+var headerWriteSubsetMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
+	node.NewParameter(nil, "param1", 1, nil, nil),
 }
+
+func (h *HeaderWriteSubsetMethod) GetParams() []data.GetValue {
+	return headerWriteSubsetMethodGetParams
+}
+var headerWriteSubsetMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
+	node.NewVariable(nil, "param1", 1, nil),
+}
+
 func (h *HeaderWriteSubsetMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-		node.NewVariable(nil, "param1", 1, nil),
-	}
+	return headerWriteSubsetMethodGetVariables
 }
 func (h *HeaderWriteSubsetMethod) GetReturnType() data.Types { return data.NewBaseType("int") }

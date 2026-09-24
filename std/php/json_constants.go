@@ -34,7 +34,7 @@ func InitJsonConstants(vm data.VM) {
 	vm.SetConstant("JSON_UNESCAPED_LINE_TERMINATORS", data.NewIntValue(2048))
 	vm.SetConstant("JSON_OBJECT_AS_ARRAY", data.NewIntValue(1))
 	vm.SetConstant("JSON_BIGINT_AS_STRING", data.NewIntValue(2))
-	vm.SetConstant("JSON_INVALID_UTF8_IGNORE", data.NewIntValue(1048576))
-	vm.SetConstant("JSON_INVALID_UTF8_SUBSTITUTE", data.NewIntValue(2097152))
+	vm.SetConstant("JSON_INVALID_UTF8_IGNORE", data.NewIntValue(JSON_INVALID_UTF8_IGNORE))
+	vm.SetConstant("JSON_INVALID_UTF8_SUBSTITUTE", data.NewIntValue(JSON_INVALID_UTF8_SUBSTITUTE))
 	vm.SetConstant("JSON_THROW_ON_ERROR", data.NewIntValue(4194304))
 }

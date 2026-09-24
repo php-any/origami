@@ -42,18 +42,22 @@ func (h *TxExecMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *TxExecMethod) GetName() string            { return "exec" }
 func (h *TxExecMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *TxExecMethod) GetIsStatic() bool          { return true }
+var txExecMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "query", 0, nil, nil),
+	node.NewParameters(nil, "args", 1, nil, nil),
+}
+
 func (h *TxExecMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "query", 0, nil, nil),
-		node.NewParameters(nil, "args", 1, nil, nil),
-	}
+	return txExecMethodGetParams
+}
+
+var txExecMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "query", 0, nil),
+	node.NewVariable(nil, "args", 1, nil),
 }
 
 func (h *TxExecMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "query", 0, nil),
-		node.NewVariable(nil, "args", 1, nil),
-	}
+	return txExecMethodGetVariables
 }
 
 func (h *TxExecMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

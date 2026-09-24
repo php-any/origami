@@ -158,15 +158,19 @@ func (m *AppIAppendMethod) GetName() string            { return "append" }
 func (m *AppIAppendMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *AppIAppendMethod) GetIsStatic() bool          { return false }
 func (m *AppIAppendMethod) GetReturnType() data.Types  { return nil }
-func (m *AppIAppendMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
-	}
+var appIAppendMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
 }
+
+func (m *AppIAppendMethod) GetParams() []data.GetValue {
+	return appIAppendMethodGetParams
+}
+var appIAppendMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
+}
+
 func (m *AppIAppendMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
-	}
+	return appIAppendMethodGetVariables
 }
 func (m *AppIAppendMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	it, _ := ctx.GetIndexValue(0)

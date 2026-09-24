@@ -55,14 +55,18 @@ func (f *GetParentClassFunction) GetName() string {
 	return "get_parent_class"
 }
 
+var getParentClassFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "object_or_class", 0, nil, nil),
+}
+
 func (f *GetParentClassFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object_or_class", 0, nil, nil),
-	}
+	return getParentClassFunctionGetParams
+}
+
+var getParentClassFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "object_or_class", 0, nil),
 }
 
 func (f *GetParentClassFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object_or_class", 0, nil),
-	}
+	return getParentClassFunctionGetVariables
 }

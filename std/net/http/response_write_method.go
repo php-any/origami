@@ -26,14 +26,18 @@ func (h *ResponseWriteMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 func (h *ResponseWriteMethod) GetName() string            { return "write" }
 func (h *ResponseWriteMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResponseWriteMethod) GetIsStatic() bool          { return false }
-func (h *ResponseWriteMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-	}
+var responseWriteMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
 }
+
+func (h *ResponseWriteMethod) GetParams() []data.GetValue {
+	return responseWriteMethodGetParams
+}
+var responseWriteMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
+}
+
 func (h *ResponseWriteMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-	}
+	return responseWriteMethodGetVariables
 }
 func (h *ResponseWriteMethod) GetReturnType() data.Types { return data.NewBaseType("int") }

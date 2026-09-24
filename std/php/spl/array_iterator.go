@@ -151,17 +151,21 @@ func (m *ArrayIteratorConstructMethod) GetName() string            { return "__c
 func (m *ArrayIteratorConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayIteratorConstructMethod) GetIsStatic() bool          { return false }
 func (m *ArrayIteratorConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *ArrayIteratorConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, data.NewArrayValue(nil), data.Mixed{}),
-		node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.Int{}),
-	}
+var arrayIteratorConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, data.NewArrayValue(nil), data.Mixed{}),
+	node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.Int{}),
 }
+
+func (m *ArrayIteratorConstructMethod) GetParams() []data.GetValue {
+	return arrayIteratorConstructMethodGetParams
+}
+var arrayIteratorConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Mixed{}),
+	node.NewVariable(nil, "flags", 1, data.Int{}),
+}
+
 func (m *ArrayIteratorConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Mixed{}),
-		node.NewVariable(nil, "flags", 1, data.Int{}),
-	}
+	return arrayIteratorConstructMethodGetVariables
 }
 func (m *ArrayIteratorConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aiGetCV(ctx)
@@ -268,11 +272,15 @@ func (m *ArrayIteratorSeekMethod) GetName() string            { return "seek" }
 func (m *ArrayIteratorSeekMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayIteratorSeekMethod) GetIsStatic() bool          { return false }
 func (m *ArrayIteratorSeekMethod) GetReturnType() data.Types  { return nil }
+var arrayIteratorSeekMethodGetParams = []data.GetValue{node.NewParameter(nil, "position", 0, nil, data.Int{})}
+
 func (m *ArrayIteratorSeekMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "position", 0, nil, data.Int{})}
+	return arrayIteratorSeekMethodGetParams
 }
+var arrayIteratorSeekMethodGetVariables = []data.Variable{node.NewVariable(nil, "position", 0, data.Int{})}
+
 func (m *ArrayIteratorSeekMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "position", 0, data.Int{})}
+	return arrayIteratorSeekMethodGetVariables
 }
 func (m *ArrayIteratorSeekMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aiGetCV(ctx)
@@ -314,11 +322,15 @@ func (m *ArrayIteratorSetFlagsMethod) GetName() string            { return "setF
 func (m *ArrayIteratorSetFlagsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayIteratorSetFlagsMethod) GetIsStatic() bool          { return false }
 func (m *ArrayIteratorSetFlagsMethod) GetReturnType() data.Types  { return nil }
+var arrayIteratorSetFlagsMethodGetParams = []data.GetValue{node.NewParameter(nil, "flags", 0, nil, data.Int{})}
+
 func (m *ArrayIteratorSetFlagsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "flags", 0, nil, data.Int{})}
+	return arrayIteratorSetFlagsMethodGetParams
 }
+var arrayIteratorSetFlagsMethodGetVariables = []data.Variable{node.NewVariable(nil, "flags", 0, data.Int{})}
+
 func (m *ArrayIteratorSetFlagsMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "flags", 0, data.Int{})}
+	return arrayIteratorSetFlagsMethodGetVariables
 }
 func (m *ArrayIteratorSetFlagsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aiGetCV(ctx)
@@ -338,11 +350,15 @@ func (m *ArrayIteratorOffsetExistsMethod) GetName() string            { return "
 func (m *ArrayIteratorOffsetExistsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayIteratorOffsetExistsMethod) GetIsStatic() bool          { return false }
 func (m *ArrayIteratorOffsetExistsMethod) GetReturnType() data.Types  { return data.Bool{} }
+var arrayIteratorOffsetExistsMethodGetParams = []data.GetValue{node.NewParameter(nil, "offset", 0, nil, data.Mixed{})}
+
 func (m *ArrayIteratorOffsetExistsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "offset", 0, nil, data.Mixed{})}
+	return arrayIteratorOffsetExistsMethodGetParams
 }
+var arrayIteratorOffsetExistsMethodGetVariables = []data.Variable{node.NewVariable(nil, "offset", 0, data.Mixed{})}
+
 func (m *ArrayIteratorOffsetExistsMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "offset", 0, data.Mixed{})}
+	return arrayIteratorOffsetExistsMethodGetVariables
 }
 func (m *ArrayIteratorOffsetExistsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aiGetCV(ctx)
@@ -359,11 +375,15 @@ func (m *ArrayIteratorOffsetGetMethod) GetName() string            { return "off
 func (m *ArrayIteratorOffsetGetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayIteratorOffsetGetMethod) GetIsStatic() bool          { return false }
 func (m *ArrayIteratorOffsetGetMethod) GetReturnType() data.Types  { return data.Mixed{} }
+var arrayIteratorOffsetGetMethodGetParams = []data.GetValue{node.NewParameter(nil, "offset", 0, nil, data.Mixed{})}
+
 func (m *ArrayIteratorOffsetGetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "offset", 0, nil, data.Mixed{})}
+	return arrayIteratorOffsetGetMethodGetParams
 }
+var arrayIteratorOffsetGetMethodGetVariables = []data.Variable{node.NewVariable(nil, "offset", 0, data.Mixed{})}
+
 func (m *ArrayIteratorOffsetGetMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "offset", 0, data.Mixed{})}
+	return arrayIteratorOffsetGetMethodGetVariables
 }
 func (m *ArrayIteratorOffsetGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aiGetCV(ctx)
@@ -384,17 +404,21 @@ func (m *ArrayIteratorOffsetSetMethod) GetName() string            { return "off
 func (m *ArrayIteratorOffsetSetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayIteratorOffsetSetMethod) GetIsStatic() bool          { return false }
 func (m *ArrayIteratorOffsetSetMethod) GetReturnType() data.Types  { return nil }
-func (m *ArrayIteratorOffsetSetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "offset", 0, nil, data.Mixed{}),
-		node.NewParameter(nil, "value", 1, nil, data.Mixed{}),
-	}
+var arrayIteratorOffsetSetMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "offset", 0, nil, data.Mixed{}),
+	node.NewParameter(nil, "value", 1, nil, data.Mixed{}),
 }
+
+func (m *ArrayIteratorOffsetSetMethod) GetParams() []data.GetValue {
+	return arrayIteratorOffsetSetMethodGetParams
+}
+var arrayIteratorOffsetSetMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "offset", 0, data.Mixed{}),
+	node.NewVariable(nil, "value", 1, data.Mixed{}),
+}
+
 func (m *ArrayIteratorOffsetSetMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "offset", 0, data.Mixed{}),
-		node.NewVariable(nil, "value", 1, data.Mixed{}),
-	}
+	return arrayIteratorOffsetSetMethodGetVariables
 }
 func (m *ArrayIteratorOffsetSetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aiGetCV(ctx)
@@ -413,11 +437,15 @@ func (m *ArrayIteratorOffsetUnsetMethod) GetName() string            { return "o
 func (m *ArrayIteratorOffsetUnsetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayIteratorOffsetUnsetMethod) GetIsStatic() bool          { return false }
 func (m *ArrayIteratorOffsetUnsetMethod) GetReturnType() data.Types  { return nil }
+var arrayIteratorOffsetUnsetMethodGetParams = []data.GetValue{node.NewParameter(nil, "offset", 0, nil, data.Mixed{})}
+
 func (m *ArrayIteratorOffsetUnsetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "offset", 0, nil, data.Mixed{})}
+	return arrayIteratorOffsetUnsetMethodGetParams
 }
+var arrayIteratorOffsetUnsetMethodGetVariables = []data.Variable{node.NewVariable(nil, "offset", 0, data.Mixed{})}
+
 func (m *ArrayIteratorOffsetUnsetMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "offset", 0, data.Mixed{})}
+	return arrayIteratorOffsetUnsetMethodGetVariables
 }
 func (m *ArrayIteratorOffsetUnsetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aiGetCV(ctx)
@@ -451,11 +479,15 @@ func (m *ArrayIteratorAppendMethod) GetName() string            { return "append
 func (m *ArrayIteratorAppendMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayIteratorAppendMethod) GetIsStatic() bool          { return false }
 func (m *ArrayIteratorAppendMethod) GetReturnType() data.Types  { return nil }
+var arrayIteratorAppendMethodGetParams = []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
+
 func (m *ArrayIteratorAppendMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
+	return arrayIteratorAppendMethodGetParams
 }
+var arrayIteratorAppendMethodGetVariables = []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
+
 func (m *ArrayIteratorAppendMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
+	return arrayIteratorAppendMethodGetVariables
 }
 func (m *ArrayIteratorAppendMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aiGetCV(ctx)

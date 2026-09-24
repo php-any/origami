@@ -33,16 +33,20 @@ func (h *DateTimeFormatMethod) GetIsStatic() bool {
 	return false
 }
 
+var dateTimeFormatMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "format", 0, nil, nil),
+}
+
 func (h *DateTimeFormatMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "format", 0, nil, nil),
-	}
+	return dateTimeFormatMethodGetParams
+}
+
+var dateTimeFormatMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "format", 0, nil),
 }
 
 func (h *DateTimeFormatMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "format", 0, nil),
-	}
+	return dateTimeFormatMethodGetVariables
 }
 
 func (h *DateTimeFormatMethod) GetReturnType() data.Types {

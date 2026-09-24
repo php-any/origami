@@ -80,6 +80,7 @@ func Load(vm data.VM) {
 		NewGetDebugTypeFunction(),
 		NewJsonEncodeFunction(),
 		NewJsonDecodeFunction(),
+		NewJsonValidateFunction(),
 		NewJsonLastErrorFunction(),
 		NewJsonLastErrorMsgFunction(),
 		NewSerializeFunction(),

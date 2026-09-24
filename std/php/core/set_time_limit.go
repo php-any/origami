@@ -25,14 +25,18 @@ func (f *SetTimeLimitFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 
 func (f *SetTimeLimitFunction) GetName() string { return "set_time_limit" }
 
+var setTimeLimitFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "seconds", 0, nil, data.Int{}),
+}
+
 func (f *SetTimeLimitFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "seconds", 0, nil, data.Int{}),
-	}
+	return setTimeLimitFunctionGetParams
+}
+
+var setTimeLimitFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "seconds", 0, data.Int{}),
 }
 
 func (f *SetTimeLimitFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "seconds", 0, data.Int{}),
-	}
+	return setTimeLimitFunctionGetVariables
 }

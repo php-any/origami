@@ -101,16 +101,20 @@ func (m *DateTimeSetTimezoneMethod) GetIsStatic() bool {
 	return false
 }
 
+var dateTimeSetTimezoneMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "timezone", 0, nil, nil),
+}
+
 func (m *DateTimeSetTimezoneMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "timezone", 0, nil, nil),
-	}
+	return dateTimeSetTimezoneMethodGetParams
+}
+
+var dateTimeSetTimezoneMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "timezone", 0, nil),
 }
 
 func (m *DateTimeSetTimezoneMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "timezone", 0, nil),
-	}
+	return dateTimeSetTimezoneMethodGetVariables
 }
 
 func (m *DateTimeSetTimezoneMethod) GetReturnType() data.Types {

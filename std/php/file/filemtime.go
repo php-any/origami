@@ -47,14 +47,18 @@ func (f *FilemtimeFunction) GetName() string {
 	return "filemtime"
 }
 
+var filemtimeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "filename", 0, nil, nil),
+}
+
 func (f *FilemtimeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "filename", 0, nil, nil),
-	}
+	return filemtimeFunctionGetParams
+}
+
+var filemtimeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
 }
 
 func (f *FilemtimeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
-	}
+	return filemtimeFunctionGetVariables
 }

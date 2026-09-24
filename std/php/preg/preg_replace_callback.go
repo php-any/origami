@@ -186,22 +186,26 @@ func (f *PregReplaceCallbackFunction) callWithSubmatches(ctx data.Context, fn *d
 func (f *PregReplaceCallbackFunction) GetName() string            { return "preg_replace_callback" }
 func (f *PregReplaceCallbackFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *PregReplaceCallbackFunction) GetIsStatic() bool          { return false }
-func (f *PregReplaceCallbackFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "pattern", 0, nil, nil),
-		node.NewParameter(nil, "callback", 1, nil, nil),
-		node.NewParameter(nil, "subject", 2, nil, nil),
-		node.NewParameter(nil, "limit", 3, node.NewIntLiteral(nil, "-1"), nil),
-		node.NewParameter(nil, "count", 4, node.NewNullLiteral(nil), nil),
-	}
+var pregReplaceCallbackFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "pattern", 0, nil, nil),
+	node.NewParameter(nil, "callback", 1, nil, nil),
+	node.NewParameter(nil, "subject", 2, nil, nil),
+	node.NewParameter(nil, "limit", 3, node.NewIntLiteral(nil, "-1"), nil),
+	node.NewParameter(nil, "count", 4, node.NewNullLiteral(nil), nil),
 }
+
+func (f *PregReplaceCallbackFunction) GetParams() []data.GetValue {
+	return pregReplaceCallbackFunctionGetParams
+}
+var pregReplaceCallbackFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "pattern", 0, data.NewBaseType("mixed")),
+	node.NewVariable(nil, "callback", 1, data.NewBaseType("callable")),
+	node.NewVariable(nil, "subject", 2, data.NewBaseType("mixed")),
+	node.NewVariable(nil, "limit", 3, data.NewBaseType("int")),
+	node.NewVariable(nil, "count", 4, data.NewBaseType("int")),
+}
+
 func (f *PregReplaceCallbackFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "pattern", 0, data.NewBaseType("mixed")),
-		node.NewVariable(nil, "callback", 1, data.NewBaseType("callable")),
-		node.NewVariable(nil, "subject", 2, data.NewBaseType("mixed")),
-		node.NewVariable(nil, "limit", 3, data.NewBaseType("int")),
-		node.NewVariable(nil, "count", 4, data.NewBaseType("int")),
-	}
+	return pregReplaceCallbackFunctionGetVariables
 }
 func (f *PregReplaceCallbackFunction) GetReturnType() data.Types { return data.NewBaseType("mixed") }

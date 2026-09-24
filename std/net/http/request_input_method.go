@@ -74,15 +74,19 @@ func (h *RequestInputMethod) Call(ctx data.Context) (data.GetValue, data.Control
 func (h *RequestInputMethod) GetName() string            { return "input" }
 func (h *RequestInputMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestInputMethod) GetIsStatic() bool          { return false }
-func (h *RequestInputMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "key", 0, nil, nil),
-	}
+var requestInputMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "key", 0, nil, nil),
 }
+
+func (h *RequestInputMethod) GetParams() []data.GetValue {
+	return requestInputMethodGetParams
+}
+var requestInputMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "key", 0, nil),
+}
+
 func (h *RequestInputMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "key", 0, nil),
-	}
+	return requestInputMethodGetVariables
 }
 func (h *RequestInputMethod) GetReturnType() data.Types {
 	return data.NewUnionType([]data.Types{

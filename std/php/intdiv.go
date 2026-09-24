@@ -35,16 +35,20 @@ func (f *IntdivFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 func (f *IntdivFunction) GetName() string { return "intdiv" }
 
+var intdivFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "num1", 0, nil, data.Int{}),
+	node.NewParameter(nil, "num2", 1, nil, data.Int{}),
+}
+
 func (f *IntdivFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "num1", 0, nil, data.Int{}),
-		node.NewParameter(nil, "num2", 1, nil, data.Int{}),
-	}
+	return intdivFunctionGetParams
+}
+
+var intdivFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "num1", 0, data.Int{}),
+	node.NewVariable(nil, "num2", 1, data.Int{}),
 }
 
 func (f *IntdivFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "num1", 0, data.Int{}),
-		node.NewVariable(nil, "num2", 1, data.Int{}),
-	}
+	return intdivFunctionGetVariables
 }

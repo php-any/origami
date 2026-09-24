@@ -39,16 +39,20 @@ func (f *TriggerErrorFunction) GetName() string {
 	return "trigger_error"
 }
 
+var triggerErrorFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "message", 0, nil, data.String{}),
+	node.NewParameter(nil, "error_type", 1, nil, data.Int{}),
+}
+
 func (f *TriggerErrorFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "message", 0, nil, data.String{}),
-		node.NewParameter(nil, "error_type", 1, nil, data.Int{}),
-	}
+	return triggerErrorFunctionGetParams
+}
+
+var triggerErrorFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "message", 0, data.String{}),
+	node.NewVariable(nil, "error_type", 1, data.Int{}),
 }
 
 func (f *TriggerErrorFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "message", 0, data.String{}),
-		node.NewVariable(nil, "error_type", 1, data.Int{}),
-	}
+	return triggerErrorFunctionGetVariables
 }

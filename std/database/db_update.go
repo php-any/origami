@@ -130,16 +130,20 @@ func (d *DbUpdateMethod) GetIsStatic() bool {
 	return false
 }
 
+var dbUpdateMethodGetParams = []data.GetValue{
+	data.NewParameter("data", 0),
+}
+
 func (d *DbUpdateMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("data", 0),
-	}
+	return dbUpdateMethodGetParams
+}
+
+var dbUpdateMethodGetVariables = []data.Variable{
+	data.NewVariable("data", 0, data.NewBaseType("object")),
 }
 
 func (d *DbUpdateMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("data", 0, data.NewBaseType("object")),
-	}
+	return dbUpdateMethodGetVariables
 }
 
 func (d *DbUpdateMethod) GetReturnType() data.Types {

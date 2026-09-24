@@ -95,7 +95,7 @@ func (c *CaptchaClass) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 	return data.NewClassValue(c, base), nil
 }
 func (c *CaptchaClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *CaptchaClass) GetMethods() []data.Method {

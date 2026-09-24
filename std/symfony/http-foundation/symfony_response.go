@@ -163,7 +163,7 @@ func NewSymfonyResponseClass() data.ClassStmt {
 			protectedProp("charset", data.NewNullValue()),
 		},
 	}
-	c.methods, c.methodList = symfonyResponseMethods()
+	c.methods, c.methodList = symfonyResponseMethodsCache()
 	return c
 }
 
@@ -206,6 +206,8 @@ func (c *SymfonyResponseClass) GetStaticProperty(name string) (data.Value, bool)
 	}
 	return nil, false
 }
+
+var symfonyResponseMethodsCache = cachedMethods(symfonyResponseMethods)
 
 func symfonyResponseMethods() (map[string]data.Method, []data.Method) {
 	list := []data.Method{

@@ -119,15 +119,19 @@ func (f *ArrayIntersectFunction) GetName() string {
 	return "array_intersect"
 }
 
+var arrayIntersectFunctionGetParams = []data.GetValue{
+	// 使用 ParametersTODO 收集所有数组参数
+	node.NewParameters(nil, "arrays", 0, nil, nil),
+}
+
 func (f *ArrayIntersectFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		// 使用 ParametersTODO 收集所有数组参数
-		node.NewParameters(nil, "arrays", 0, nil, nil),
-	}
+	return arrayIntersectFunctionGetParams
+}
+
+var arrayIntersectFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "arrays", 0, data.NewBaseType("array")),
 }
 
 func (f *ArrayIntersectFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "arrays", 0, data.NewBaseType("array")),
-	}
+	return arrayIntersectFunctionGetVariables
 }

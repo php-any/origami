@@ -66,19 +66,23 @@ func (f *HashFileFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 func (f *HashFileFunction) GetName() string            { return "hash_file" }
 func (f *HashFileFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *HashFileFunction) GetIsStatic() bool          { return false }
-func (f *HashFileFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "algo", 0, nil, nil),
-		node.NewParameter(nil, "filename", 1, nil, nil),
-		node.NewParameter(nil, "binary", 2, node.NewNullLiteral(nil), nil),
-	}
+var hashFileFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "algo", 0, nil, nil),
+	node.NewParameter(nil, "filename", 1, nil, nil),
+	node.NewParameter(nil, "binary", 2, node.NewNullLiteral(nil), nil),
 }
+
+func (f *HashFileFunction) GetParams() []data.GetValue {
+	return hashFileFunctionGetParams
+}
+var hashFileFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "algo", 0, nil),
+	node.NewVariable(nil, "filename", 1, nil),
+	node.NewVariable(nil, "binary", 2, nil),
+}
+
 func (f *HashFileFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "algo", 0, nil),
-		node.NewVariable(nil, "filename", 1, nil),
-		node.NewVariable(nil, "binary", 2, nil),
-	}
+	return hashFileFunctionGetVariables
 }
 func (f *HashFileFunction) GetReturnType() data.Types {
 	return data.NewUnionType([]data.Types{data.NewBaseType("string"), data.NewBaseType("bool")})

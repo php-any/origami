@@ -51,17 +51,21 @@ type ScopeMakeMethod struct{}
 func (m *ScopeMakeMethod) GetName() string            { return "make" }
 func (m *ScopeMakeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ScopeMakeMethod) GetIsStatic() bool          { return false }
-func (m *ScopeMakeMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("abstract", 0),
-		data.NewParameterDefault("parameters", 1, data.NewNullValue(), nil),
-	}
+var scopeMakeMethodGetParams = []data.GetValue{
+	data.NewParameter("abstract", 0),
+	data.NewParameterDefault("parameters", 1, data.NewNullValue(), nil),
 }
+
+func (m *ScopeMakeMethod) GetParams() []data.GetValue {
+	return scopeMakeMethodGetParams
+}
+var scopeMakeMethodGetVariables = []data.Variable{
+	data.NewVariable("abstract", 0, data.NewBaseType("string")),
+	data.NewVariable("parameters", 1, nil),
+}
+
 func (m *ScopeMakeMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("abstract", 0, data.NewBaseType("string")),
-		data.NewVariable("parameters", 1, nil),
-	}
+	return scopeMakeMethodGetVariables
 }
 func (m *ScopeMakeMethod) GetReturnType() data.Types { return data.NewBaseType("object") }
 func (m *ScopeMakeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {

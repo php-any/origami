@@ -33,18 +33,22 @@ func (f *SetErrorHandlerFunction) Call(ctx data.Context) (data.GetValue, data.Co
 
 func (f *SetErrorHandlerFunction) GetName() string { return "set_error_handler" }
 
+var setErrorHandlerFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "callback", 0, nil, nil),
+	node.NewParameter(nil, "error_types", 1, data.NewIntValue(32767), data.Int{}),
+}
+
 func (f *SetErrorHandlerFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "callback", 0, nil, nil),
-		node.NewParameter(nil, "error_types", 1, data.NewIntValue(32767), data.Int{}),
-	}
+	return setErrorHandlerFunctionGetParams
+}
+
+var setErrorHandlerFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "callback", 0, nil),
+	node.NewVariable(nil, "error_types", 1, data.Int{}),
 }
 
 func (f *SetErrorHandlerFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "callback", 0, nil),
-		node.NewVariable(nil, "error_types", 1, data.Int{}),
-	}
+	return setErrorHandlerFunctionGetVariables
 }
 
 // RestoreErrorHandlerFunction 实现 restore_error_handler(): bool

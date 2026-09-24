@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/dlclark/regexp2"
 	"github.com/php-any/origami/data"
@@ -210,9 +212,40 @@ func parsePhpPattern(pattern string) (goPattern string, r2Pattern string, r2Flag
 //	/abc/i  -> (?i)abc
 //	/abc/ms -> (?m)(?s)abc
 func Compile(pattern string) (*regexp.Regexp, error) {
+	if v, ok := goRegexpCache.Load(pattern); ok {
+		c := v.(*cachedGoRegexp)
+		return c.re, c.err
+	}
 	goPattern, _, _ := parsePhpPattern(pattern)
-	return regexp.Compile(goPattern)
+	re, err := regexp.Compile(goPattern)
+	if goRegexpCacheSize.Load() < regexpCacheLimit {
+		if _, loaded := goRegexpCache.LoadOrStore(pattern, &cachedGoRegexp{re: re, err: err}); !loaded {
+			goRegexpCacheSize.Add(1)
+		}
+	}
+	return re, err
 }
+
+// regexpCacheLimit 是模式缓存上限。模式来自框架代码（Blade 编译、路由匹配、
+// 校验规则等），正常总量几百个；设上限只为防御「把用户输入当模式」的极端用法。
+const regexpCacheLimit = 4096
+
+type cachedGoRegexp struct {
+	re  *regexp.Regexp
+	err error
+}
+
+type cachedMatcher struct {
+	m   Matcher
+	err error
+}
+
+var (
+	goRegexpCache     sync.Map // string -> *cachedGoRegexp
+	goRegexpCacheSize atomic.Int64
+	matcherCache      sync.Map // string -> *cachedMatcher
+	matcherCacheSize  atomic.Int64
+)
 
 // -----------------------------------------------------------------------
 // Matcher: 统一接口，兼容 Go regexp 和 regexp2（支持 lookahead/lookbehind）
@@ -753,6 +786,20 @@ func FindSubmatchAt(m Matcher, subject string, offset int, anchored bool) []int 
 // 优先尝试 Go 原生 regexp；若编译失败（如含 lookahead/lookbehind），
 // 则使用 regexp2（完整 PCRE 支持）。
 func CompileAny(pattern string) (Matcher, error) {
+	if v, ok := matcherCache.Load(pattern); ok {
+		c := v.(*cachedMatcher)
+		return c.m, c.err
+	}
+	m, err := compileAnyUncached(pattern)
+	if matcherCacheSize.Load() < regexpCacheLimit {
+		if _, loaded := matcherCache.LoadOrStore(pattern, &cachedMatcher{m: m, err: err}); !loaded {
+			matcherCacheSize.Add(1)
+		}
+	}
+	return m, err
+}
+
+func compileAnyUncached(pattern string) (Matcher, error) {
 	goPattern, r2Pattern, r2Flags := parsePhpPattern(pattern)
 
 	// 尝试 Go 标准 regexp

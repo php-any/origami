@@ -49,18 +49,22 @@ func (f *RegisterConnectionFunction) GetName() string {
 	return "Database\\registerConnection"
 }
 
+var registerConnectionFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "name", 0, nil, data.NewBaseType("string")),
+	node.NewParameter(nil, "db", 1, nil, data.NewBaseType("object")),
+}
+
 func (f *RegisterConnectionFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "name", 0, nil, data.NewBaseType("string")),
-		node.NewParameter(nil, "db", 1, nil, data.NewBaseType("object")),
-	}
+	return registerConnectionFunctionGetParams
+}
+
+var registerConnectionFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "name", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "db", 1, data.NewBaseType("object")),
 }
 
 func (f *RegisterConnectionFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "name", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "db", 1, data.NewBaseType("object")),
-	}
+	return registerConnectionFunctionGetVariables
 }
 
 // NewRegisterDefaultConnectionFunction 创建注册默认连接函数
@@ -92,16 +96,20 @@ func (f *RegisterDefaultConnectionFunction) GetName() string {
 	return "Database\\registerDefaultConnection"
 }
 
+var registerDefaultConnectionFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "db", 0, nil, data.NewBaseType("object")),
+}
+
 func (f *RegisterDefaultConnectionFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "db", 0, nil, data.NewBaseType("object")),
-	}
+	return registerDefaultConnectionFunctionGetParams
+}
+
+var registerDefaultConnectionFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "db", 0, data.NewBaseType("object")),
 }
 
 func (f *RegisterDefaultConnectionFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "db", 0, data.NewBaseType("object")),
-	}
+	return registerDefaultConnectionFunctionGetVariables
 }
 
 // NewGetConnectionFunction 创建获取连接函数
@@ -136,16 +144,20 @@ func (f *GetConnectionFunction) GetName() string {
 	return "Database\\getConnection"
 }
 
+var getConnectionFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "name", 0, nil, data.NewBaseType("string")),
+}
+
 func (f *GetConnectionFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "name", 0, nil, data.NewBaseType("string")),
-	}
+	return getConnectionFunctionGetParams
+}
+
+var getConnectionFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "name", 0, data.NewBaseType("string")),
 }
 
 func (f *GetConnectionFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "name", 0, data.NewBaseType("string")),
-	}
+	return getConnectionFunctionGetVariables
 }
 
 // NewGetDefaultConnectionFunction 创建获取默认连接函数
@@ -170,12 +182,16 @@ func (f *GetDefaultConnectionFunction) GetName() string {
 	return "Database\\getDefaultConnection"
 }
 
+var getDefaultConnectionFunctionGetParams = []data.GetValue{}
+
 func (f *GetDefaultConnectionFunction) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return getDefaultConnectionFunctionGetParams
 }
 
+var getDefaultConnectionFunctionGetVariables = []data.Variable{}
+
 func (f *GetDefaultConnectionFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return getDefaultConnectionFunctionGetVariables
 }
 
 // NewRemoveConnectionFunction 创建移除连接函数
@@ -205,16 +221,20 @@ func (f *RemoveConnectionFunction) GetName() string {
 	return "Database\\removeConnection"
 }
 
+var removeConnectionFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "name", 0, nil, data.NewBaseType("string")),
+}
+
 func (f *RemoveConnectionFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "name", 0, nil, data.NewBaseType("string")),
-	}
+	return removeConnectionFunctionGetParams
+}
+
+var removeConnectionFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "name", 0, data.NewBaseType("string")),
 }
 
 func (f *RemoveConnectionFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "name", 0, data.NewBaseType("string")),
-	}
+	return removeConnectionFunctionGetVariables
 }
 
 // NewListConnectionsFunction 创建列出连接函数
@@ -241,10 +261,14 @@ func (f *ListConnectionsFunction) GetName() string {
 	return "Database\\listConnections"
 }
 
+var listConnectionsFunctionGetParams = []data.GetValue{}
+
 func (f *ListConnectionsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return listConnectionsFunctionGetParams
 }
 
+var listConnectionsFunctionGetVariables = []data.Variable{}
+
 func (f *ListConnectionsFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return listConnectionsFunctionGetVariables
 }

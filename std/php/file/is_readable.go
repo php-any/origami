@@ -58,14 +58,18 @@ func (f *IsReadableFunction) GetName() string {
 	return "is_readable"
 }
 
+var isReadableFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "filename", 0, nil, nil),
+}
+
 func (f *IsReadableFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "filename", 0, nil, nil),
-	}
+	return isReadableFunctionGetParams
+}
+
+var isReadableFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
 }
 
 func (f *IsReadableFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
-	}
+	return isReadableFunctionGetVariables
 }

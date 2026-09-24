@@ -49,14 +49,18 @@ func (f *GetResourceTypeFunction) GetName() string {
 	return "get_resource_type"
 }
 
+var getResourceTypeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+}
+
 func (f *GetResourceTypeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return getResourceTypeFunctionGetParams
+}
+
+var getResourceTypeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
 }
 
 func (f *GetResourceTypeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
-	}
+	return getResourceTypeFunctionGetVariables
 }

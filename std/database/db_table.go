@@ -41,16 +41,20 @@ func (d *DbTableMethod) GetIsStatic() bool {
 	return false
 }
 
+var dbTableMethodGetParams = []data.GetValue{
+	data.NewParameter("tableName", 0),
+}
+
 func (d *DbTableMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("tableName", 0),
-	}
+	return dbTableMethodGetParams
+}
+
+var dbTableMethodGetVariables = []data.Variable{
+	data.NewVariable("tableName", 0, data.NewBaseType("string")),
 }
 
 func (d *DbTableMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("tableName", 0, data.NewBaseType("string")),
-	}
+	return dbTableMethodGetVariables
 }
 
 func (d *DbTableMethod) GetReturnType() data.Types {

@@ -70,11 +70,15 @@ func (m *ReflectionReferenceFromArrayElementMethod) GetModifier() data.Modifier 
 	return data.ModifierPublic
 }
 func (m *ReflectionReferenceFromArrayElementMethod) GetIsStatic() bool { return true }
+var reflectionReferenceFromArrayElementMethodGetParams = []data.GetValue{}
+
 func (m *ReflectionReferenceFromArrayElementMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return reflectionReferenceFromArrayElementMethodGetParams
 }
+var reflectionReferenceFromArrayElementMethodGetVariables = []data.Variable{}
+
 func (m *ReflectionReferenceFromArrayElementMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return reflectionReferenceFromArrayElementMethodGetVariables
 }
 func (m *ReflectionReferenceFromArrayElementMethod) GetReturnType() data.Types {
 	return data.NewBaseType("?ReflectionReference")
@@ -146,11 +150,15 @@ func (m *ReflectionReferenceGetIdMethod) GetModifier() data.Modifier {
 	return data.ModifierPublic
 }
 func (m *ReflectionReferenceGetIdMethod) GetIsStatic() bool { return false }
+var reflectionReferenceGetIdMethodGetParams = []data.GetValue{}
+
 func (m *ReflectionReferenceGetIdMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return reflectionReferenceGetIdMethodGetParams
 }
+var reflectionReferenceGetIdMethodGetVariables = []data.Variable{}
+
 func (m *ReflectionReferenceGetIdMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return reflectionReferenceGetIdMethodGetVariables
 }
 func (m *ReflectionReferenceGetIdMethod) GetReturnType() data.Types {
 	return data.NewBaseType("string")

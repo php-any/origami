@@ -95,18 +95,22 @@ func (m *RouteConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var routeConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "prefix", 0, data.NewStringValue("/"), data.NewBaseType("string")),
+	node.NewAnnotationTargetParameter(nil, 1),
+}
+
 func (m *RouteConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "prefix", 0, data.NewStringValue("/"), data.NewBaseType("string")),
-		node.NewAnnotationTargetParameter(nil, 1),
-	}
+	return routeConstructMethodGetParams
+}
+
+var routeConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "prefix", 0, nil),
+	node.NewAnnotationTargetVariable(nil, 1),
 }
 
 func (m *RouteConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "prefix", 0, nil),
-		node.NewAnnotationTargetVariable(nil, 1),
-	}
+	return routeConstructMethodGetVariables
 }
 
 func (m *RouteConstructMethod) GetReturnType() data.Types {
@@ -132,9 +136,13 @@ type RoutePrefixMethod struct{ route *Route }
 func (m *RoutePrefixMethod) GetName() string            { return "prefix" }
 func (m *RoutePrefixMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *RoutePrefixMethod) GetIsStatic() bool          { return false }
-func (m *RoutePrefixMethod) GetParams() []data.GetValue { return []data.GetValue{} }
+var routePrefixMethodGetParams = []data.GetValue{}
+
+func (m *RoutePrefixMethod) GetParams() []data.GetValue { return routePrefixMethodGetParams }
+var routePrefixMethodGetVariables = []data.Variable{}
+
 func (m *RoutePrefixMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return routePrefixMethodGetVariables
 }
 func (m *RoutePrefixMethod) GetReturnType() data.Types { return data.NewBaseType("string") }
 func (m *RoutePrefixMethod) Call(ctx data.Context) (data.GetValue, data.Control) {

@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 )
 
@@ -24,8 +25,11 @@ func CloneArrayValue(src *ArrayValue) *ArrayValue {
 	if src == nil {
 		return nil
 	}
-	list := make([]*ZVal, len(src.List))
-	for i, z := range src.List {
+	// 先把 List 头读进局部变量：并发下 make(len(src.List)) 与 range src.List
+	// 是两次独立读，可能读到不同长度的 slice，导致 list[i] 越界 panic。
+	srcList := src.List
+	list := make([]*ZVal, len(srcList))
+	for i, z := range srcList {
 		if z == nil {
 			continue
 		}
@@ -61,8 +65,9 @@ func deepCloneArrayValue(src *ArrayValue, depth int) *ArrayValue {
 		return nil
 	}
 	const maxDepth = 64
-	list := make([]*ZVal, len(src.List))
-	for i, z := range src.List {
+	srcList := src.List // 同上：只读一次 List 头
+	list := make([]*ZVal, len(srcList))
+	for i, z := range srcList {
 		if z == nil {
 			continue
 		}
@@ -84,8 +89,9 @@ func CloneArrayValueForCallArgs(src *ArrayValue) *ArrayValue {
 	if src == nil {
 		return nil
 	}
-	list := make([]*ZVal, len(src.List))
-	for i, z := range src.List {
+	srcList := src.List // 同上：只读一次 List 头
+	list := make([]*ZVal, len(srcList))
+	for i, z := range srcList {
 		if z == nil {
 			continue
 		}
@@ -246,18 +252,55 @@ func IntArrayKeyName(i int) string {
 }
 
 // ParseIntArrayKeyName 若 name 为纯整数字符串则返回该整数键，否则 ok=false
+//
+// 语义等价于「strconv.Atoi 成功 且 strconv.Itoa(n) == name」（即 name 必须是该整数的
+// 规范十进制写法：无前导 0、无 + 号、"-0" 不算），但不用 strconv：
+// 热路径上绝大多数键是**非数字**字符串（"id"、"name"、类名…），Atoi 会为每次失败
+// 分配一个 *NumError 并格式化错误串，成功路径上的 Itoa 还会再分配一个字符串。
+// 堆剖析里这条路径占全部分配的 12.8%，所以改成零分配的字节扫描，
+// 顺便也吃下 "id"、"name" 这类键第一个字节就返回的短路。
 func ParseIntArrayKeyName(name string) (int, bool) {
 	if name == "" {
 		return 0, false
 	}
-	n, err := strconv.Atoi(name)
-	if err != nil {
+	i := 0
+	neg := false
+	if name[0] == '-' {
+		neg = true
+		i = 1
+		if len(name) == 1 {
+			return 0, false
+		}
+	}
+	// 规范写法下前导位出现 0 只允许 name 恰好是 "0"："007" 的 Itoa 结果是 "7"
+	if name[i] == '0' && len(name)-i > 1 {
 		return 0, false
 	}
-	if strconv.Itoa(n) != name {
-		return 0, false
+	// 负数下界比正数上界多一（minInt 的绝对值），所以按 uint64 累积
+	limit := uint64(math.MaxInt)
+	if neg {
+		limit++
 	}
-	return n, true
+	var u uint64
+	for ; i < len(name); i++ {
+		c := name[i]
+		if c < '0' || c > '9' {
+			return 0, false
+		}
+		d := uint64(c - '0')
+		if u > (limit-d)/10 {
+			return 0, false // 溢出：对齐 strconv 的 ErrRange → ok=false
+		}
+		u = u*10 + d
+	}
+	if neg {
+		if u == 0 {
+			return 0, false // "-0"：Itoa(0) 得到 "0"，不是规范写法
+		}
+		// u 可能等于 MaxInt+1，int(u) 按补码回绕成 minInt，再取负仍是 minInt：正确值
+		return -int(u), true
+	}
+	return int(u), true
 }
 
 func (a *ArrayValue) invalidateIndex() {
@@ -278,8 +321,9 @@ func (a *ArrayValue) rebuildIndex() {
 	n := len(a.List)
 	a.idxLen = n
 	packed := true
-	idx := make(map[string]int, n)
-	hasNamed := false
+	// idx 延迟分配：纯 packed 数组（$a[] = / 列表字面量，热路径上最常见）没有任何
+	// 命名键，原先无条件 make(map, n) 出来的表当场就被丢弃 —— 占全部分配的 6.89%。
+	var idx map[string]int
 	max := -1
 	for i, z := range a.List {
 		if z == nil {
@@ -287,13 +331,17 @@ func (a *ArrayValue) rebuildIndex() {
 		}
 		if z.EmptyStrKey {
 			packed = false
-			hasNamed = true
+			if idx == nil {
+				idx = make(map[string]int, n)
+			}
 			idx[""] = i
 			continue
 		}
 		if z.Name != "" {
 			packed = false
-			hasNamed = true
+			if idx == nil {
+				idx = make(map[string]int, n)
+			}
 			idx[z.Name] = i
 			if k, ok := ParseIntArrayKeyName(z.Name); ok && k > max {
 				max = k
@@ -306,11 +354,8 @@ func (a *ArrayValue) rebuildIndex() {
 	}
 	a.packed = packed
 	a.maxIntKey = max
-	if hasNamed {
-		a.keyIndex = idx
-	} else {
-		a.keyIndex = nil
-	}
+	// 没有命名键时 idx 保持 nil，等价于原来的 a.keyIndex = nil
+	a.keyIndex = idx
 }
 
 // NextAppendIntKey 对齐 PHP $a[]：最大整数键 + 1；没有整数键时为 0。
@@ -362,12 +407,12 @@ func (a *ArrayValue) SetStringKey(key string, value Value) {
 		z.Value = value
 		return
 	}
-	a.invalidateIndex()
+	// 新增键一律追加到末尾，索引可增量维护（旧实现整表失效，下次读要重建整张索引）
 	if key == "" {
-		a.List = append(a.List, NewEmptyStringKeyZVal(value))
+		a.appendSlotIncremental(NewEmptyStringKeyZVal(value))
 		return
 	}
-	a.List = append(a.List, NewNamedZVal(key, value))
+	a.appendSlotIncremental(NewNamedZVal(key, value))
 }
 
 // FindSlotByIntKey 按 PHP 整数键查找槽位（含稀疏键 Name=="6" 等）
@@ -409,13 +454,46 @@ func (a *ArrayValue) SetIntKey(i int, value Value) {
 		return
 	}
 	packed, n := a.packed, len(a.List)
-	a.invalidateIndex()
 	// 未找到整数键 i 时只能追加。禁止用 List[i] 覆盖：该槽可能是 PHP 空字符串键 ''。
 	if packed && i == n {
-		a.List = append(a.List, NewZVal(value))
+		// 纯追加（$a[] = ... 循环里最常见）：索引仍然有效，推进计数即可。
+		// 旧实现在这里整表失效，于是下一次读要重建整张索引 —— O(n) 的重复劳动。
+		a.appendSlotIncremental(NewZVal(value))
 		return
 	}
-	a.List = append(a.List, NewNamedZVal(IntArrayKeyName(i), value))
+	a.appendSlotIncremental(NewNamedZVal(IntArrayKeyName(i), value))
+}
+
+// appendSlotIncremental 追加一个「纯追加」槽位并增量维护索引。
+// 前提：调用前索引是最新的（ensureIndex 已跑过），且本次只追加、不改动已有槽位。
+// 不满足前提时（索引已脏）退回整表失效，交给下次重建 —— 宁可慢，也不能留半张索引。
+func (a *ArrayValue) appendSlotIncremental(z *ZVal) {
+	n := len(a.List)
+	a.List = append(a.List, z)
+	if z.EmptyStrKey || z.Name != "" {
+		wasPacked := a.packed
+		a.packed = false
+		if a.keyIndex == nil {
+			if !wasPacked {
+				a.invalidateIndex()
+				return
+			}
+			// packed 数组的槽位按下标查、不进键表，跨到非 packed 时建新表即可
+			a.keyIndex = make(map[string]int, n+1)
+		}
+		if z.EmptyStrKey {
+			a.keyIndex[""] = n
+		} else {
+			a.keyIndex[z.Name] = n
+			if k, ok := ParseIntArrayKeyName(z.Name); ok && k > a.maxIntKey {
+				a.maxIntKey = k
+			}
+		}
+	} else if n > a.maxIntKey {
+		// packed 槽位：整数键即下标
+		a.maxIntKey = n
+	}
+	a.idxLen = n + 1
 }
 
 // normalizeDenseIntKeys 将 Name=="" 的连续槽位转为显式整数字符串键，避免 unset 中间元素时误压缩后续键
@@ -430,7 +508,8 @@ func (a *ArrayValue) normalizeDenseIntKeys() {
 
 // UnsetKey 删除整数或字符串键（不存在则无操作）
 func (a *ArrayValue) UnsetKey(index Value) {
-	a.invalidateIndex()
+	// 索引失效只发生在真正删掉槽位的分支（删除会移动后续下标）；键不存在时保持索引有效，
+	// 否则 unset 一个不存在的键会让下一次读白重建整张索引。
 	// 先按字符串键处理：StringValue 同时实现 AsInt，非数字字符串不能在 AsInt 失败后直接 return
 	if sv, ok := index.(AsString); ok {
 		key := sv.AsString()
@@ -442,12 +521,14 @@ func (a *ArrayValue) UnsetKey(index Value) {
 				if key == "" {
 					if z.EmptyStrKey {
 						a.List = append(a.List[:j], a.List[j+1:]...)
+						a.invalidateIndex()
 						return
 					}
 					continue
 				}
 				if z.Name == key && !z.EmptyStrKey {
 					a.List = append(a.List[:j], a.List[j+1:]...)
+					a.invalidateIndex()
 					return
 				}
 			}

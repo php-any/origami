@@ -58,14 +58,18 @@ func (f *ArrayPopFunction) GetName() string {
 	return "array_pop"
 }
 
+var arrayPopFunctionGetParams = []data.GetValue{
+	node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
+}
+
 func (f *ArrayPopFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
-	}
+	return arrayPopFunctionGetParams
+}
+
+var arrayPopFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Mixed{}),
 }
 
 func (f *ArrayPopFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Mixed{}),
-	}
+	return arrayPopFunctionGetVariables
 }

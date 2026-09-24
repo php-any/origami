@@ -177,17 +177,21 @@ func isValidIdentifier(name string) bool {
 	return true
 }
 
+var extractFunctionGetParams = []data.GetValue{
+	node.NewCallerContextParameter(nil),
+}
+
 func (f *ExtractFunction) GetParams() []data.GetValue {
 	// 使用 CallerContextParameter：调用时 fnCtx = ctx（调用者上下文），
 	// 使得 Call() 中可以直接通过 SetVariableByName 修改调用者的符号表。
-	return []data.GetValue{
-		node.NewCallerContextParameter(nil),
-	}
+	return extractFunctionGetParams
 }
+
+var extractFunctionGetVariables = []data.Variable{}
 
 func (f *ExtractFunction) GetVariables() []data.Variable {
 	// CallerContextParameter 模式下无需额外变量槽
-	return []data.Variable{}
+	return extractFunctionGetVariables
 }
 
 // 确保 fmt 包被引用（用于错误信息格式化）

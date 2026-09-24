@@ -31,10 +31,14 @@ func (h *ServerRunMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *ServerRunMethod) GetName() string            { return "run" }
 func (h *ServerRunMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ServerRunMethod) GetIsStatic() bool          { return false }
+var serverRunMethodGetParams = []data.GetValue{}
+
 func (h *ServerRunMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return serverRunMethodGetParams
 }
+var serverRunMethodGetVariables = []data.Variable{}
+
 func (h *ServerRunMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return serverRunMethodGetVariables
 }
 func (h *ServerRunMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

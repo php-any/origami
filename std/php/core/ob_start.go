@@ -190,19 +190,23 @@ func (f *ObStartFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *ObStartFunction) GetName() string            { return "ob_start" }
 func (f *ObStartFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *ObStartFunction) GetIsStatic() bool          { return false }
-func (f *ObStartFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "callback", 0, data.NewNullValue(), data.Mixed{}),
-		node.NewParameter(nil, "chunk_size", 1, data.NewIntValue(0), data.Int{}),
-		node.NewParameter(nil, "flags", 2, data.NewIntValue(data.PHPOutputHandlerStdFlags), data.Int{}),
-	}
+var obStartFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "callback", 0, data.NewNullValue(), data.Mixed{}),
+	node.NewParameter(nil, "chunk_size", 1, data.NewIntValue(0), data.Int{}),
+	node.NewParameter(nil, "flags", 2, data.NewIntValue(data.PHPOutputHandlerStdFlags), data.Int{}),
 }
+
+func (f *ObStartFunction) GetParams() []data.GetValue {
+	return obStartFunctionGetParams
+}
+var obStartFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "callback", 0, data.Mixed{}),
+	node.NewVariable(nil, "chunk_size", 1, data.Int{}),
+	node.NewVariable(nil, "flags", 2, data.Int{}),
+}
+
 func (f *ObStartFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "callback", 0, data.Mixed{}),
-		node.NewVariable(nil, "chunk_size", 1, data.Int{}),
-		node.NewVariable(nil, "flags", 2, data.Int{}),
-	}
+	return obStartFunctionGetVariables
 }
 func (f *ObStartFunction) GetReturnType() data.Types { return data.Bool{} }
 
@@ -410,15 +414,19 @@ func (f *ObGetStatusFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 func (f *ObGetStatusFunction) GetName() string            { return "ob_get_status" }
 func (f *ObGetStatusFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *ObGetStatusFunction) GetIsStatic() bool          { return false }
-func (f *ObGetStatusFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "full", 0, nil, nil),
-	}
+var obGetStatusFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "full", 0, nil, nil),
 }
+
+func (f *ObGetStatusFunction) GetParams() []data.GetValue {
+	return obGetStatusFunctionGetParams
+}
+var obGetStatusFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "full", 0, data.NewBaseType("bool")),
+}
+
 func (f *ObGetStatusFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "full", 0, data.NewBaseType("bool")),
-	}
+	return obGetStatusFunctionGetVariables
 }
 func (f *ObGetStatusFunction) GetReturnType() data.Types { return data.Arrays{} }
 
@@ -480,15 +488,19 @@ func (f *ObImplicitFlushFunction) Call(ctx data.Context) (data.GetValue, data.Co
 func (f *ObImplicitFlushFunction) GetName() string            { return "ob_implicit_flush" }
 func (f *ObImplicitFlushFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *ObImplicitFlushFunction) GetIsStatic() bool          { return false }
-func (f *ObImplicitFlushFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "enable", 0, nil, nil),
-	}
+var obImplicitFlushFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "enable", 0, nil, nil),
 }
+
+func (f *ObImplicitFlushFunction) GetParams() []data.GetValue {
+	return obImplicitFlushFunctionGetParams
+}
+var obImplicitFlushFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "enable", 0, data.NewBaseType("bool")),
+}
+
 func (f *ObImplicitFlushFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "enable", 0, data.NewBaseType("bool")),
-	}
+	return obImplicitFlushFunctionGetVariables
 }
 func (f *ObImplicitFlushFunction) GetReturnType() data.Types { return data.NewBaseType("null") }
 

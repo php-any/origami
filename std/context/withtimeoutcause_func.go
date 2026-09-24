@@ -79,18 +79,22 @@ func (h *WithTimeoutCauseFunction) Call(ctx data.Context) (data.GetValue, data.C
 func (h *WithTimeoutCauseFunction) GetName() string            { return "context\\withTimeoutCause" }
 func (h *WithTimeoutCauseFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *WithTimeoutCauseFunction) GetIsStatic() bool          { return true }
-func (h *WithTimeoutCauseFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "parent", 0, nil, nil),
-		node.NewParameter(nil, "timeout", 1, nil, nil),
-		node.NewParameter(nil, "cause", 2, nil, nil),
-	}
+var withTimeoutCauseFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "parent", 0, nil, nil),
+	node.NewParameter(nil, "timeout", 1, nil, nil),
+	node.NewParameter(nil, "cause", 2, nil, nil),
 }
+
+func (h *WithTimeoutCauseFunction) GetParams() []data.GetValue {
+	return withTimeoutCauseFunctionGetParams
+}
+var withTimeoutCauseFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "parent", 0, nil),
+	node.NewVariable(nil, "timeout", 1, nil),
+	node.NewVariable(nil, "cause", 2, nil),
+}
+
 func (h *WithTimeoutCauseFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "parent", 0, nil),
-		node.NewVariable(nil, "timeout", 1, nil),
-		node.NewVariable(nil, "cause", 2, nil),
-	}
+	return withTimeoutCauseFunctionGetVariables
 }
 func (h *WithTimeoutCauseFunction) GetReturnType() data.Types { return data.NewBaseType("void") }

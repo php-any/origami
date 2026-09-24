@@ -150,11 +150,15 @@ func (m *SplFileInfoConstructMethod) GetName() string            { return "__con
 func (m *SplFileInfoConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplFileInfoConstructMethod) GetIsStatic() bool          { return false }
 func (m *SplFileInfoConstructMethod) GetReturnType() data.Types  { return nil }
+var splFileInfoConstructMethodGetParams = []data.GetValue{node.NewParameter(nil, "filename", 0, nil, data.NewBaseType("string"))}
+
 func (m *SplFileInfoConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "filename", 0, nil, data.NewBaseType("string"))}
+	return splFileInfoConstructMethodGetParams
 }
+var splFileInfoConstructMethodGetVariables = []data.Variable{node.NewVariable(nil, "filename", 0, data.NewBaseType("string"))}
+
 func (m *SplFileInfoConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "filename", 0, data.NewBaseType("string"))}
+	return splFileInfoConstructMethodGetVariables
 }
 func (m *SplFileInfoConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := sfiGetCV(ctx)
@@ -196,11 +200,15 @@ func (m *SplFileInfoGetBasenameMethod) GetName() string            { return "get
 func (m *SplFileInfoGetBasenameMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplFileInfoGetBasenameMethod) GetIsStatic() bool          { return false }
 func (m *SplFileInfoGetBasenameMethod) GetReturnType() data.Types  { return data.String{} }
+var splFileInfoGetBasenameMethodGetParams = []data.GetValue{node.NewParameter(nil, "suffix", 0, data.NewStringValue(""), data.NewBaseType("string"))}
+
 func (m *SplFileInfoGetBasenameMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "suffix", 0, data.NewStringValue(""), data.NewBaseType("string"))}
+	return splFileInfoGetBasenameMethodGetParams
 }
+var splFileInfoGetBasenameMethodGetVariables = []data.Variable{node.NewVariable(nil, "suffix", 0, data.NewBaseType("string"))}
+
 func (m *SplFileInfoGetBasenameMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "suffix", 0, data.NewBaseType("string"))}
+	return splFileInfoGetBasenameMethodGetVariables
 }
 func (m *SplFileInfoGetBasenameMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := sfiGetCV(ctx)

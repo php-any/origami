@@ -54,15 +54,19 @@ func (m *NRIConstructMethod) GetName() string            { return "__construct" 
 func (m *NRIConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *NRIConstructMethod) GetIsStatic() bool          { return false }
 func (m *NRIConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *NRIConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
-	}
+var nRIConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
 }
+
+func (m *NRIConstructMethod) GetParams() []data.GetValue {
+	return nRIConstructMethodGetParams
+}
+var nRIConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
+}
+
 func (m *NRIConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
-	}
+	return nRIConstructMethodGetVariables
 }
 func (m *NRIConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	it, ok := ctx.GetIndexValue(0)

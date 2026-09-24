@@ -23,10 +23,14 @@ func (f *GetDefinedVarsFunction) Call(ctx data.Context) (data.GetValue, data.Con
 	return result, nil
 }
 
+var getDefinedVarsFunctionGetParams = []data.GetValue{node.NewCallerContextParameter(nil)}
+
 func (f *GetDefinedVarsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewCallerContextParameter(nil)}
+	return getDefinedVarsFunctionGetParams
 }
 
+var getDefinedVarsFunctionGetVariables = []data.Variable{}
+
 func (f *GetDefinedVarsFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return getDefinedVarsFunctionGetVariables
 }

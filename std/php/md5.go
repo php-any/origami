@@ -52,16 +52,20 @@ func (f *Md5Function) GetName() string {
 	return "md5"
 }
 
+var md5FunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "raw_output", 1, node.NewNullLiteral(nil), nil),
+}
+
 func (f *Md5Function) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "raw_output", 1, node.NewNullLiteral(nil), nil),
-	}
+	return md5FunctionGetParams
+}
+
+var md5FunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "raw_output", 1, data.NewBaseType("bool")),
 }
 
 func (f *Md5Function) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "raw_output", 1, data.NewBaseType("bool")),
-	}
+	return md5FunctionGetVariables
 }

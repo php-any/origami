@@ -36,16 +36,20 @@ func (h *StmtExecMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *StmtExecMethod) GetName() string            { return "exec" }
 func (h *StmtExecMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *StmtExecMethod) GetIsStatic() bool          { return true }
+var stmtExecMethodGetParams = []data.GetValue{
+	node.NewParameters(nil, "args", 0, nil, nil),
+}
+
 func (h *StmtExecMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameters(nil, "args", 0, nil, nil),
-	}
+	return stmtExecMethodGetParams
+}
+
+var stmtExecMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "args", 0, nil),
 }
 
 func (h *StmtExecMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "args", 0, nil),
-	}
+	return stmtExecMethodGetVariables
 }
 
 func (h *StmtExecMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

@@ -71,16 +71,20 @@ func (f *BasenameFunction) GetName() string {
 	return "basename"
 }
 
+var basenameFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "path", 0, nil, nil),
+	node.NewParameter(nil, "suffix", 1, data.NewStringValue(""), nil),
+}
+
 func (f *BasenameFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "path", 0, nil, nil),
-		node.NewParameter(nil, "suffix", 1, data.NewStringValue(""), nil),
-	}
+	return basenameFunctionGetParams
+}
+
+var basenameFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "path", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "suffix", 1, data.NewBaseType("string")),
 }
 
 func (f *BasenameFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "path", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "suffix", 1, data.NewBaseType("string")),
-	}
+	return basenameFunctionGetVariables
 }

@@ -133,14 +133,18 @@ func (f *ArrayDiffUkeyFunction) GetName() string {
 	return "array_diff_ukey"
 }
 
+var arrayDiffUkeyFunctionGetParams = []data.GetValue{
+	node.NewParameters(nil, "arrays", 0, nil, data.Mixed{}),
+}
+
 func (f *ArrayDiffUkeyFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameters(nil, "arrays", 0, nil, data.Mixed{}),
-	}
+	return arrayDiffUkeyFunctionGetParams
+}
+
+var arrayDiffUkeyFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "arrays", 0, data.Mixed{}),
 }
 
 func (f *ArrayDiffUkeyFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "arrays", 0, data.Mixed{}),
-	}
+	return arrayDiffUkeyFunctionGetVariables
 }

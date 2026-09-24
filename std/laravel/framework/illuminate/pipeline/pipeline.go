@@ -3,8 +3,6 @@ package pipeline
 import (
 	"fmt"
 	"strings"
-	"sync"
-	"sync/atomic"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -23,27 +21,16 @@ type pipeState struct {
 	withinTransaction data.Value
 }
 
-var (
-	pipeStates sync.Map
-	pipeNextID atomic.Int64
-)
+// pipeStateProp 是挂在 Pipeline 对象上的状态属性名。
+// 状态必须跟着对象走：Pipeline 每请求 new 一个（Router::runRouteWithinStack），
+// 而 state 里存着 container（请求级 Application 克隆）/ passable / pipes，
+// 用「全局表 + 自增 id」做键会每请求泄漏一条（见 kit.CachedState 注释）。
+const pipeStateProp = "__origami_pipeline_state"
 
 func stateOf(cv *data.ClassValue) *pipeState {
-	if cv == nil {
+	return kit.CachedState(cv, pipeStateProp, func() *pipeState {
 		return &pipeState{method: "handle", withinTransaction: data.NewBoolValue(false)}
-	}
-	if v, ctl := cv.GetProperty("__origami_pipeline_id"); ctl == nil && v != nil {
-		if iv, ok := kit.Unwrap(v).(*data.IntValue); ok && iv.Value > 0 {
-			if s, ok := pipeStates.Load(int64(iv.Value)); ok {
-				return s.(*pipeState)
-			}
-		}
-	}
-	id := pipeNextID.Add(1)
-	s := &pipeState{method: "handle", withinTransaction: data.NewBoolValue(false)}
-	pipeStates.Store(id, s)
-	_ = cv.SetProperty("__origami_pipeline_id", data.NewIntValue(int(id)))
-	return s
+	})
 }
 
 type PipelineClass struct {
@@ -64,14 +51,14 @@ func (c *PipelineClass) GetImplements() []string {
 }
 func (c *PipelineClass) GetProperty(name string) (data.Property, bool) {
 	switch name {
-	case "container", "passable", "pipes", "method", "finally", "withinTransaction", "__origami_pipeline_id":
+	case "container", "passable", "pipes", "method", "finally", "withinTransaction", pipeStateProp:
 		return node.NewProperty(nil, name, "protected", false, data.NewNullValue()), true
 	}
 	return nil, false
 }
 func (c *PipelineClass) GetPropertyList() []data.Property {
 	out := make([]data.Property, 0, 7)
-	for _, n := range []string{"container", "passable", "pipes", "method", "finally", "withinTransaction", "__origami_pipeline_id"} {
+	for _, n := range []string{"container", "passable", "pipes", "method", "finally", "withinTransaction", pipeStateProp} {
 		p, _ := c.GetProperty(n)
 		out = append(out, p)
 	}
@@ -82,7 +69,7 @@ func (c *PipelineClass) GetValue(ctx data.Context) (data.GetValue, data.Control)
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
 func (c *PipelineClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *PipelineClass) GetMethods() []data.Method {
@@ -216,8 +203,12 @@ func pipeThenReturn(ctx data.Context) (data.GetValue, data.Control) {
 type pipeIdentityFunc struct{}
 
 func (pipeIdentityFunc) GetName() string                 { return "pipeline_then_return" }
-func (pipeIdentityFunc) GetParams() []data.GetValue      { return []data.GetValue{node.NewParameter(nil, "passable", 0, nil, nil)} }
-func (pipeIdentityFunc) GetVariables() []data.Variable { return []data.Variable{node.NewVariable(nil, "passable", 0, nil)} }
+var pipeIdentityFuncGetParams = []data.GetValue{node.NewParameter(nil, "passable", 0, nil, nil)}
+
+func (pipeIdentityFunc) GetParams() []data.GetValue      { return pipeIdentityFuncGetParams }
+var pipeIdentityFuncGetVariables = []data.Variable{node.NewVariable(nil, "passable", 0, nil)}
+
+func (pipeIdentityFunc) GetVariables() []data.Variable { return pipeIdentityFuncGetVariables }
 func (pipeIdentityFunc) Call(ctx data.Context) (data.GetValue, data.Control) {
 	v, _ := ctx.GetIndexValue(0)
 	return v, nil
@@ -340,8 +331,12 @@ type pipeStackFunc struct {
 }
 
 func (p *pipeStackFunc) GetName() string                 { return "pipeline_stack" }
-func (p *pipeStackFunc) GetParams() []data.GetValue      { return []data.GetValue{node.NewParameter(nil, "passable", 0, nil, nil)} }
-func (p *pipeStackFunc) GetVariables() []data.Variable { return []data.Variable{node.NewVariable(nil, "passable", 0, nil)} }
+var pipeStackFuncGetParams = []data.GetValue{node.NewParameter(nil, "passable", 0, nil, nil)}
+
+func (p *pipeStackFunc) GetParams() []data.GetValue      { return pipeStackFuncGetParams }
+var pipeStackFuncGetVariables = []data.Variable{node.NewVariable(nil, "passable", 0, nil)}
+
+func (p *pipeStackFunc) GetVariables() []data.Variable { return pipeStackFuncGetVariables }
 func (p *pipeStackFunc) Call(ctx data.Context) (data.GetValue, data.Control) {
 	v, _ := ctx.GetIndexValue(0)
 	return p.fn(v)
@@ -357,7 +352,7 @@ func callPipeHandleArgs(ctx data.Context, st *pipeState, pipe data.Value, args .
 	if !ok {
 		return kit.Call(ctx, pipe, args...)
 	}
-	if _, ok := cv.GetMethod(strings.ToLower(st.method)); ok {
+	if _, ok := cv.GetMethod(data.MethodLookupKey(st.method)); ok {
 		return kit.CallInstanceMethod(ctx, cv, st.method, args...)
 	}
 	return kit.Call(ctx, pipe, args...)

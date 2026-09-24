@@ -46,14 +46,18 @@ func (f *HeaderRegisterCallbackFunction) Call(ctx data.Context) (data.GetValue, 
 
 func (f *HeaderRegisterCallbackFunction) GetName() string { return "header_register_callback" }
 
+var headerRegisterCallbackFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "callback", 0, nil, nil),
+}
+
 func (f *HeaderRegisterCallbackFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "callback", 0, nil, nil),
-	}
+	return headerRegisterCallbackFunctionGetParams
+}
+
+var headerRegisterCallbackFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "callback", 0, data.NewBaseType("callable")),
 }
 
 func (f *HeaderRegisterCallbackFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "callback", 0, data.NewBaseType("callable")),
-	}
+	return headerRegisterCallbackFunctionGetVariables
 }

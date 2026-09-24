@@ -97,18 +97,22 @@ func (m *InjectConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var injectConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "service", 0, data.NewStringValue(""), data.NewBaseType("string")),
+	node.NewAnnotationTargetParameter(nil, 1), // 被注解的节点
+}
+
 func (m *InjectConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "service", 0, data.NewStringValue(""), data.NewBaseType("string")),
-		node.NewAnnotationTargetParameter(nil, 1), // 被注解的节点
-	}
+	return injectConstructMethodGetParams
+}
+
+var injectConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "service", 0, nil),
+	node.NewAnnotationTargetVariable(nil, 1),
 }
 
 func (m *InjectConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "service", 0, nil),
-		node.NewAnnotationTargetVariable(nil, 1),
-	}
+	return injectConstructMethodGetVariables
 }
 
 func (m *InjectConstructMethod) GetReturnType() data.Types {
@@ -167,12 +171,16 @@ func (m *InjectProcessMethod) GetIsStatic() bool {
 	return false
 }
 
+var injectProcessMethodGetParams = []data.GetValue{}
+
 func (m *InjectProcessMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return injectProcessMethodGetParams
 }
 
+var injectProcessMethodGetVariables = []data.Variable{}
+
 func (m *InjectProcessMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return injectProcessMethodGetVariables
 }
 
 func (m *InjectProcessMethod) GetReturnType() data.Types {
@@ -201,12 +209,16 @@ func (m *InjectInjectMethod) GetIsStatic() bool {
 	return false
 }
 
+var injectInjectMethodGetParams = []data.GetValue{}
+
 func (m *InjectInjectMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return injectInjectMethodGetParams
 }
 
+var injectInjectMethodGetVariables = []data.Variable{}
+
 func (m *InjectInjectMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return injectInjectMethodGetVariables
 }
 
 func (m *InjectInjectMethod) GetReturnType() data.Types {

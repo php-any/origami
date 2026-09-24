@@ -22,16 +22,20 @@ func (g *GetClassInfoMethod) GetIsStatic() bool {
 	return false
 }
 
+var getClassInfoMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "className", 0, nil, data.NewBaseType("string")),
+}
+
 func (g *GetClassInfoMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "className", 0, nil, data.NewBaseType("string")),
-	}
+	return getClassInfoMethodGetParams
+}
+
+var getClassInfoMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "className", 0, nil),
 }
 
 func (g *GetClassInfoMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "className", 0, nil),
-	}
+	return getClassInfoMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型
@@ -106,18 +110,22 @@ func (g *GetMethodInfoMethod) GetIsStatic() bool {
 	return false
 }
 
+var getMethodInfoMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "className", 0, nil, nil),
+	node.NewParameter(nil, "methodName", 1, nil, nil),
+}
+
 func (g *GetMethodInfoMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "className", 0, nil, nil),
-		node.NewParameter(nil, "methodName", 1, nil, nil),
-	}
+	return getMethodInfoMethodGetParams
+}
+
+var getMethodInfoMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "className", 0, nil),
+	node.NewVariable(nil, "methodName", 1, nil),
 }
 
 func (g *GetMethodInfoMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "className", 0, nil),
-		node.NewVariable(nil, "methodName", 1, nil),
-	}
+	return getMethodInfoMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型
@@ -186,18 +194,22 @@ func (g *GetPropertyInfoMethod) GetIsStatic() bool {
 	return false
 }
 
+var getPropertyInfoMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "className", 0, nil, nil),
+	node.NewParameter(nil, "propertyName", 1, nil, nil),
+}
+
 func (g *GetPropertyInfoMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "className", 0, nil, nil),
-		node.NewParameter(nil, "propertyName", 1, nil, nil),
-	}
+	return getPropertyInfoMethodGetParams
+}
+
+var getPropertyInfoMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "className", 0, nil),
+	node.NewVariable(nil, "propertyName", 1, nil),
 }
 
 func (g *GetPropertyInfoMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "className", 0, nil),
-		node.NewVariable(nil, "propertyName", 1, nil),
-	}
+	return getPropertyInfoMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型
@@ -292,12 +304,16 @@ func (l *ListClassesMethod) GetIsStatic() bool {
 	return false
 }
 
+var listClassesMethodGetParams = []data.GetValue{}
+
 func (l *ListClassesMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return listClassesMethodGetParams
 }
 
+var listClassesMethodGetVariables = []data.Variable{}
+
 func (l *ListClassesMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return listClassesMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型
@@ -325,16 +341,20 @@ func (l *ListMethodsMethod) GetIsStatic() bool {
 	return false
 }
 
+var listMethodsMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "className", 0, nil, nil),
+}
+
 func (l *ListMethodsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "className", 0, nil, nil),
-	}
+	return listMethodsMethodGetParams
+}
+
+var listMethodsMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "className", 0, nil),
 }
 
 func (l *ListMethodsMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "className", 0, nil),
-	}
+	return listMethodsMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型
@@ -383,16 +403,20 @@ func (l *ListPropertiesMethod) GetIsStatic() bool {
 	return false
 }
 
+var listPropertiesMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "className", 0, nil, nil),
+}
+
 func (l *ListPropertiesMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "className", 0, nil, nil),
-	}
+	return listPropertiesMethodGetParams
+}
+
+var listPropertiesMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "className", 0, nil),
 }
 
 func (l *ListPropertiesMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "className", 0, nil),
-	}
+	return listPropertiesMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型
@@ -455,16 +479,20 @@ func (g *GetClassAnnotationsMethod) GetIsStatic() bool {
 	return false
 }
 
+var getClassAnnotationsMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "className", 0, nil, nil),
+}
+
 func (g *GetClassAnnotationsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "className", 0, nil, nil),
-	}
+	return getClassAnnotationsMethodGetParams
+}
+
+var getClassAnnotationsMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "className", 0, nil),
 }
 
 func (g *GetClassAnnotationsMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "className", 0, nil),
-	}
+	return getClassAnnotationsMethodGetVariables
 }
 
 func (g *GetClassAnnotationsMethod) GetReturnType() data.Types {
@@ -516,18 +544,22 @@ func (g *GetMethodAnnotationsMethod) GetIsStatic() bool {
 	return false
 }
 
+var getMethodAnnotationsMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "className", 0, nil, nil),
+	node.NewParameter(nil, "methodName", 1, nil, nil),
+}
+
 func (g *GetMethodAnnotationsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "className", 0, nil, nil),
-		node.NewParameter(nil, "methodName", 1, nil, nil),
-	}
+	return getMethodAnnotationsMethodGetParams
+}
+
+var getMethodAnnotationsMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "className", 0, nil),
+	node.NewVariable(nil, "methodName", 1, nil),
 }
 
 func (g *GetMethodAnnotationsMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "className", 0, nil),
-		node.NewVariable(nil, "methodName", 1, nil),
-	}
+	return getMethodAnnotationsMethodGetVariables
 }
 
 func (g *GetMethodAnnotationsMethod) GetReturnType() data.Types {
@@ -591,18 +623,22 @@ func (g *GetPropertyAnnotationsMethod) GetIsStatic() bool {
 	return false
 }
 
+var getPropertyAnnotationsMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "className", 0, nil, nil),
+	node.NewParameter(nil, "propertyName", 1, nil, nil),
+}
+
 func (g *GetPropertyAnnotationsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "className", 0, nil, nil),
-		node.NewParameter(nil, "propertyName", 1, nil, nil),
-	}
+	return getPropertyAnnotationsMethodGetParams
+}
+
+var getPropertyAnnotationsMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "className", 0, nil),
+	node.NewVariable(nil, "propertyName", 1, nil),
 }
 
 func (g *GetPropertyAnnotationsMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "className", 0, nil),
-		node.NewVariable(nil, "propertyName", 1, nil),
-	}
+	return getPropertyAnnotationsMethodGetVariables
 }
 
 func (g *GetPropertyAnnotationsMethod) GetReturnType() data.Types {
@@ -666,16 +702,20 @@ func (g *GetAllAnnotationsMethod) GetIsStatic() bool {
 	return false
 }
 
+var getAllAnnotationsMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "className", 0, nil, nil),
+}
+
 func (g *GetAllAnnotationsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "className", 0, nil, nil),
-	}
+	return getAllAnnotationsMethodGetParams
+}
+
+var getAllAnnotationsMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "className", 0, nil),
 }
 
 func (g *GetAllAnnotationsMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "className", 0, nil),
-	}
+	return getAllAnnotationsMethodGetVariables
 }
 
 func (g *GetAllAnnotationsMethod) GetReturnType() data.Types {
@@ -772,20 +812,24 @@ func (g *GetAnnotationDetailsMethod) GetIsStatic() bool {
 	return false
 }
 
+var getAnnotationDetailsMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "className", 0, nil, nil),
+	node.NewParameter(nil, "memberType", 1, nil, nil), // class, property, method
+	node.NewParameter(nil, "memberName", 2, nil, nil),
+}
+
 func (g *GetAnnotationDetailsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "className", 0, nil, nil),
-		node.NewParameter(nil, "memberType", 1, nil, nil), // class, property, method
-		node.NewParameter(nil, "memberName", 2, nil, nil),
-	}
+	return getAnnotationDetailsMethodGetParams
+}
+
+var getAnnotationDetailsMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "className", 0, nil),
+	node.NewVariable(nil, "memberType", 1, nil),
+	node.NewVariable(nil, "memberName", 2, nil),
 }
 
 func (g *GetAnnotationDetailsMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "className", 0, nil),
-		node.NewVariable(nil, "memberType", 1, nil),
-		node.NewVariable(nil, "memberName", 2, nil),
-	}
+	return getAnnotationDetailsMethodGetVariables
 }
 
 func (g *GetAnnotationDetailsMethod) GetReturnType() data.Types {

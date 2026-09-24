@@ -40,18 +40,22 @@ func (f *MbDetectEncodingFunction) Call(ctx data.Context) (data.GetValue, data.C
 
 func (f *MbDetectEncodingFunction) GetName() string { return "mb_detect_encoding" }
 
+var mbDetectEncodingFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, data.String{}),
+	node.NewParameter(nil, "encodings", 1, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "strict", 2, data.NewBoolValue(false), data.Bool{}),
+}
+
 func (f *MbDetectEncodingFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, data.String{}),
-		node.NewParameter(nil, "encodings", 1, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "strict", 2, data.NewBoolValue(false), data.Bool{}),
-	}
+	return mbDetectEncodingFunctionGetParams
+}
+
+var mbDetectEncodingFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.String{}),
+	node.NewVariable(nil, "encodings", 1, nil),
+	node.NewVariable(nil, "strict", 2, data.Bool{}),
 }
 
 func (f *MbDetectEncodingFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.String{}),
-		node.NewVariable(nil, "encodings", 1, nil),
-		node.NewVariable(nil, "strict", 2, data.Bool{}),
-	}
+	return mbDetectEncodingFunctionGetVariables
 }

@@ -43,14 +43,18 @@ func (f *MicrotimeFunction) GetName() string {
 	return "microtime"
 }
 
+var microtimeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "get_as_float", 0, data.NewBoolValue(false), nil),
+}
+
 func (f *MicrotimeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "get_as_float", 0, data.NewBoolValue(false), nil),
-	}
+	return microtimeFunctionGetParams
+}
+
+var microtimeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "get_as_float", 0, nil),
 }
 
 func (f *MicrotimeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "get_as_float", 0, nil),
-	}
+	return microtimeFunctionGetVariables
 }

@@ -80,7 +80,7 @@ func (c *CookieClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
 func (c *CookieClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *CookieClass) GetMethods() []data.Method {

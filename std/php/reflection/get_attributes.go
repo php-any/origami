@@ -15,18 +15,22 @@ func (m *ReflectionClassGetAttributesMethod) GetModifier() data.Modifier { retur
 
 func (m *ReflectionClassGetAttributesMethod) GetIsStatic() bool { return false }
 
+var reflectionClassGetAttributesMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "name", 0, data.NewNullValue(), data.Mixed{}),
+	node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.Mixed{}),
+}
+
 func (m *ReflectionClassGetAttributesMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "name", 0, data.NewNullValue(), data.Mixed{}),
-		node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.Mixed{}),
-	}
+	return reflectionClassGetAttributesMethodGetParams
+}
+
+var reflectionClassGetAttributesMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "name", 0, data.Mixed{}),
+	node.NewVariable(nil, "flags", 1, data.Mixed{}),
 }
 
 func (m *ReflectionClassGetAttributesMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "name", 0, data.Mixed{}),
-		node.NewVariable(nil, "flags", 1, data.Mixed{}),
-	}
+	return reflectionClassGetAttributesMethodGetVariables
 }
 
 func (m *ReflectionClassGetAttributesMethod) GetReturnType() data.Types {

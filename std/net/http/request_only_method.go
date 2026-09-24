@@ -70,14 +70,18 @@ func (h *RequestOnlyMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 func (h *RequestOnlyMethod) GetName() string            { return "only" }
 func (h *RequestOnlyMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestOnlyMethod) GetIsStatic() bool          { return false }
-func (h *RequestOnlyMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "keys", 0, nil, nil),
-	}
+var requestOnlyMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "keys", 0, nil, nil),
 }
+
+func (h *RequestOnlyMethod) GetParams() []data.GetValue {
+	return requestOnlyMethodGetParams
+}
+var requestOnlyMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "keys", 0, nil),
+}
+
 func (h *RequestOnlyMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "keys", 0, nil),
-	}
+	return requestOnlyMethodGetVariables
 }
 func (h *RequestOnlyMethod) GetReturnType() data.Types { return data.NewBaseType("array") }

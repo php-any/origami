@@ -20,14 +20,18 @@ func (fn *UmaskFunction) GetName() string {
 	return "umask"
 }
 
+var umaskFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "mask", 0, nil, nil),
+}
+
 func (fn *UmaskFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "mask", 0, nil, nil),
-	}
+	return umaskFunctionGetParams
+}
+
+var umaskFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "mask", 0, data.NewBaseType("int")),
 }
 
 func (fn *UmaskFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "mask", 0, data.NewBaseType("int")),
-	}
+	return umaskFunctionGetVariables
 }

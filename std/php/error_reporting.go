@@ -69,8 +69,10 @@ func (f *ErrorReportingFunction) GetParams() []data.GetValue {
 	return nil
 }
 
+var errorReportingFunctionGetVariables = []data.Variable{
+	data.NewVariable("level", 0, data.NewBaseType("int")),
+}
+
 func (f *ErrorReportingFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("level", 0, data.NewBaseType("int")),
-	}
+	return errorReportingFunctionGetVariables
 }

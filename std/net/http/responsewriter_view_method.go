@@ -100,18 +100,22 @@ func viewDataProps(objectValue data.GetValue) map[string]data.Value {
 func (h *ResponseWriterViewMethod) GetName() string            { return "view" }
 func (h *ResponseWriterViewMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResponseWriterViewMethod) GetIsStatic() bool          { return false }
-func (h *ResponseWriterViewMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "templatePath", 0, nil, nil),
-		node.NewParameter(nil, "data", 1, nil, data.Object{}),
-		node.NewParameter(nil, "layoutPath", 2, data.NewNullValue(), data.NewBaseType("string")),
-	}
+var responseWriterViewMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "templatePath", 0, nil, nil),
+	node.NewParameter(nil, "data", 1, nil, data.Object{}),
+	node.NewParameter(nil, "layoutPath", 2, data.NewNullValue(), data.NewBaseType("string")),
 }
+
+func (h *ResponseWriterViewMethod) GetParams() []data.GetValue {
+	return responseWriterViewMethodGetParams
+}
+var responseWriterViewMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "templatePath", 0, nil),
+	node.NewVariable(nil, "data", 1, nil),
+	node.NewVariable(nil, "layoutPath", 2, nil),
+}
+
 func (h *ResponseWriterViewMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "templatePath", 0, nil),
-		node.NewVariable(nil, "data", 1, nil),
-		node.NewVariable(nil, "layoutPath", 2, nil),
-	}
+	return responseWriterViewMethodGetVariables
 }
 func (h *ResponseWriterViewMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

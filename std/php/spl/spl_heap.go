@@ -211,17 +211,21 @@ func (m *SplHeapCompareMethod) GetName() string            { return "compare" }
 func (m *SplHeapCompareMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplHeapCompareMethod) GetIsStatic() bool          { return false }
 func (m *SplHeapCompareMethod) GetReturnType() data.Types  { return data.Int{} }
-func (m *SplHeapCompareMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value1", 0, nil, data.Mixed{}),
-		node.NewParameter(nil, "value2", 1, nil, data.Mixed{}),
-	}
+var splHeapCompareMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "value1", 0, nil, data.Mixed{}),
+	node.NewParameter(nil, "value2", 1, nil, data.Mixed{}),
 }
+
+func (m *SplHeapCompareMethod) GetParams() []data.GetValue {
+	return splHeapCompareMethodGetParams
+}
+var splHeapCompareMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "value1", 0, data.Mixed{}),
+	node.NewVariable(nil, "value2", 1, data.Mixed{}),
+}
+
 func (m *SplHeapCompareMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value1", 0, data.Mixed{}),
-		node.NewVariable(nil, "value2", 1, data.Mixed{}),
-	}
+	return splHeapCompareMethodGetVariables
 }
 func (m *SplHeapCompareMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	a, _ := ctx.GetIndexValue(0)
@@ -235,11 +239,15 @@ func (m *SplHeapInsertMethod) GetName() string            { return "insert" }
 func (m *SplHeapInsertMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplHeapInsertMethod) GetIsStatic() bool          { return false }
 func (m *SplHeapInsertMethod) GetReturnType() data.Types  { return nil }
+var splHeapInsertMethodGetParams = []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
+
 func (m *SplHeapInsertMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
+	return splHeapInsertMethodGetParams
 }
+var splHeapInsertMethodGetVariables = []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
+
 func (m *SplHeapInsertMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
+	return splHeapInsertMethodGetVariables
 }
 func (m *SplHeapInsertMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := splHeapGetCV(ctx)
@@ -453,17 +461,21 @@ func (m *SplMinHeapCompareMethod) GetName() string            { return "compare"
 func (m *SplMinHeapCompareMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplMinHeapCompareMethod) GetIsStatic() bool          { return false }
 func (m *SplMinHeapCompareMethod) GetReturnType() data.Types  { return data.Int{} }
-func (m *SplMinHeapCompareMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value1", 0, nil, data.Mixed{}),
-		node.NewParameter(nil, "value2", 1, nil, data.Mixed{}),
-	}
+var splMinHeapCompareMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "value1", 0, nil, data.Mixed{}),
+	node.NewParameter(nil, "value2", 1, nil, data.Mixed{}),
 }
+
+func (m *SplMinHeapCompareMethod) GetParams() []data.GetValue {
+	return splMinHeapCompareMethodGetParams
+}
+var splMinHeapCompareMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "value1", 0, data.Mixed{}),
+	node.NewVariable(nil, "value2", 1, data.Mixed{}),
+}
+
 func (m *SplMinHeapCompareMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value1", 0, data.Mixed{}),
-		node.NewVariable(nil, "value2", 1, data.Mixed{}),
-	}
+	return splMinHeapCompareMethodGetVariables
 }
 func (m *SplMinHeapCompareMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	a, _ := ctx.GetIndexValue(0)
@@ -516,17 +528,21 @@ func (m *SplMaxHeapCompareMethod) GetName() string            { return "compare"
 func (m *SplMaxHeapCompareMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplMaxHeapCompareMethod) GetIsStatic() bool          { return false }
 func (m *SplMaxHeapCompareMethod) GetReturnType() data.Types  { return data.Int{} }
-func (m *SplMaxHeapCompareMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value1", 0, nil, data.Mixed{}),
-		node.NewParameter(nil, "value2", 1, nil, data.Mixed{}),
-	}
+var splMaxHeapCompareMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "value1", 0, nil, data.Mixed{}),
+	node.NewParameter(nil, "value2", 1, nil, data.Mixed{}),
 }
+
+func (m *SplMaxHeapCompareMethod) GetParams() []data.GetValue {
+	return splMaxHeapCompareMethodGetParams
+}
+var splMaxHeapCompareMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "value1", 0, data.Mixed{}),
+	node.NewVariable(nil, "value2", 1, data.Mixed{}),
+}
+
 func (m *SplMaxHeapCompareMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value1", 0, data.Mixed{}),
-		node.NewVariable(nil, "value2", 1, data.Mixed{}),
-	}
+	return splMaxHeapCompareMethodGetVariables
 }
 func (m *SplMaxHeapCompareMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	a, _ := ctx.GetIndexValue(0)

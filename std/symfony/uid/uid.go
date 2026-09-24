@@ -99,7 +99,7 @@ func NewUuidClass() data.ClassStmt {
 	strT := data.NewBaseType("string")
 	boolT := data.NewBaseType("bool")
 	add := func(name string, static bool, params []uidParam, fn func(data.Context) (data.GetValue, data.Control)) {
-		c.methods[strings.ToLower(name)] = &uidMethod{name: name, static: static, params: params, fn: fn}
+		c.methods[data.MethodLookupKey(name)] = &uidMethod{name: name, static: static, params: params, fn: fn}
 	}
 	add("__construct", false, []uidParam{
 		{name: "uuid", ty: strT},
@@ -146,7 +146,7 @@ func (c *UuidClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
 func (c *UuidClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *UuidClass) GetMethods() []data.Method {
@@ -157,7 +157,7 @@ func (c *UuidClass) GetMethods() []data.Method {
 	return out
 }
 func (c *UuidClass) GetStaticMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	if !ok || m == nil || !m.GetIsStatic() {
 		return nil, false
 	}

@@ -52,14 +52,18 @@ func (f *ProcCloseFunction) GetName() string {
 	return "proc_close"
 }
 
+var procCloseFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "process", 0, nil, nil),
+}
+
 func (f *ProcCloseFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "process", 0, nil, nil),
-	}
+	return procCloseFunctionGetParams
+}
+
+var procCloseFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "process", 0, data.NewBaseType("resource")),
 }
 
 func (f *ProcCloseFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "process", 0, data.NewBaseType("resource")),
-	}
+	return procCloseFunctionGetVariables
 }

@@ -93,14 +93,18 @@ func (f *NextFunction) GetName() string {
 	return "next"
 }
 
+var nextFunctionGetParams = []data.GetValue{
+	node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
+}
+
 func (f *NextFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
-	}
+	return nextFunctionGetParams
+}
+
+var nextFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Mixed{}),
 }
 
 func (f *NextFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Mixed{}),
-	}
+	return nextFunctionGetVariables
 }

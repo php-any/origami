@@ -26,14 +26,18 @@ func (f *SleepFunction) GetName() string {
 	return "sleep"
 }
 
+var sleepFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "seconds", 0, nil, nil),
+}
+
 func (f *SleepFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "seconds", 0, nil, nil),
-	}
+	return sleepFunctionGetParams
+}
+
+var sleepFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "seconds", 0, data.Int{}),
 }
 
 func (f *SleepFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "seconds", 0, data.Int{}),
-	}
+	return sleepFunctionGetVariables
 }

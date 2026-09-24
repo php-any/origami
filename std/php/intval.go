@@ -18,18 +18,22 @@ func NewIntvalFunction() data.FuncStmt {
 
 func (f *IntvalFunction) GetName() string { return "intval" }
 
+var intvalFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+	node.NewParameter(nil, "base", 1, node.NewIntLiteral(nil, "10"), data.NewBaseType("int")),
+}
+
 func (f *IntvalFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-		node.NewParameter(nil, "base", 1, node.NewIntLiteral(nil, "10"), data.NewBaseType("int")),
-	}
+	return intvalFunctionGetParams
+}
+
+var intvalFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, nil),
+	node.NewVariable(nil, "base", 1, data.NewBaseType("int")),
 }
 
 func (f *IntvalFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, nil),
-		node.NewVariable(nil, "base", 1, data.NewBaseType("int")),
-	}
+	return intvalFunctionGetVariables
 }
 
 func (f *IntvalFunction) Call(ctx data.Context) (data.GetValue, data.Control) {

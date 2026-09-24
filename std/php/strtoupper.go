@@ -33,14 +33,18 @@ func (f *StrtoupperFunction) GetName() string {
 	return "strtoupper"
 }
 
+var strtoupperFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+}
+
 func (f *StrtoupperFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-	}
+	return strtoupperFunctionGetParams
+}
+
+var strtoupperFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 }
 
 func (f *StrtoupperFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-	}
+	return strtoupperFunctionGetVariables
 }

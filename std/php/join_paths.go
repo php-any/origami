@@ -21,20 +21,24 @@ func (f *JoinPathsFunction) GetName() string {
 	return "join_paths"
 }
 
+var joinPathsFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "basePath", 0, nil, data.Mixed{}),
+	node.NewParameters(nil, "paths", 1, nil, data.Mixed{}),
+}
+
 // GetParams 返回参数列表
 func (f *JoinPathsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "basePath", 0, nil, data.Mixed{}),
-		node.NewParameters(nil, "paths", 1, nil, data.Mixed{}),
-	}
+	return joinPathsFunctionGetParams
+}
+
+var joinPathsFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "basePath", 0, data.Mixed{}),
+	node.NewVariable(nil, "paths", 1, data.Mixed{}),
 }
 
 // GetVariables 返回变量列表
 func (f *JoinPathsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "basePath", 0, data.Mixed{}),
-		node.NewVariable(nil, "paths", 1, data.Mixed{}),
-	}
+	return joinPathsFunctionGetVariables
 }
 
 // Call 执行 join_paths 函数

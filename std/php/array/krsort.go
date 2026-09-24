@@ -81,16 +81,20 @@ func (f *KrsortFunction) GetName() string {
 	return "krsort"
 }
 
+var krsortFunctionGetParams = []data.GetValue{
+	node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
+	node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.Int{}),
+}
+
 func (f *KrsortFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
-		node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.Int{}),
-	}
+	return krsortFunctionGetParams
+}
+
+var krsortFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Mixed{}),
+	node.NewVariable(nil, "flags", 1, data.Int{}),
 }
 
 func (f *KrsortFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Mixed{}),
-		node.NewVariable(nil, "flags", 1, data.Int{}),
-	}
+	return krsortFunctionGetVariables
 }

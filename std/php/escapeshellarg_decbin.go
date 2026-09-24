@@ -31,11 +31,15 @@ func (f *EscapeshellargFunction) Call(ctx data.Context) (data.GetValue, data.Con
 }
 
 func (f *EscapeshellargFunction) GetName() string { return "escapeshellarg" }
+var escapeshellargFunctionGetParams = []data.GetValue{node.NewParameter(nil, "arg", 0, nil, nil)}
+
 func (f *EscapeshellargFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "arg", 0, nil, nil)}
+	return escapeshellargFunctionGetParams
 }
+var escapeshellargFunctionGetVariables = []data.Variable{node.NewVariable(nil, "arg", 0, data.NewBaseType("string"))}
+
 func (f *EscapeshellargFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "arg", 0, data.NewBaseType("string"))}
+	return escapeshellargFunctionGetVariables
 }
 
 // DecbinFunction 实现 PHP 内置函数 decbin
@@ -66,9 +70,13 @@ func (f *DecbinFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *DecbinFunction) GetName() string { return "decbin" }
+var decbinFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
+
 func (f *DecbinFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
+	return decbinFunctionGetParams
 }
+var decbinFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, data.NewBaseType("int"))}
+
 func (f *DecbinFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "num", 0, data.NewBaseType("int"))}
+	return decbinFunctionGetVariables
 }

@@ -315,17 +315,21 @@ func (m *RDIConstruct) GetName() string            { return "__construct" }
 func (m *RDIConstruct) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *RDIConstruct) GetIsStatic() bool          { return false }
 func (m *RDIConstruct) GetReturnType() data.Types  { return nil }
-func (m *RDIConstruct) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "path", 0, nil, data.NewBaseType("string")),
-		node.NewParameter(nil, "flags", 1, nil, data.NewBaseType("int")),
-	}
+var rDIConstructGetParams = []data.GetValue{
+	node.NewParameter(nil, "path", 0, nil, data.NewBaseType("string")),
+	node.NewParameter(nil, "flags", 1, nil, data.NewBaseType("int")),
 }
+
+func (m *RDIConstruct) GetParams() []data.GetValue {
+	return rDIConstructGetParams
+}
+var rDIConstructGetVariables = []data.Variable{
+	node.NewVariable(nil, "path", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "flags", 1, data.NewBaseType("int")),
+}
+
 func (m *RDIConstruct) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "path", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "flags", 1, data.NewBaseType("int")),
-	}
+	return rDIConstructGetVariables
 }
 func (m *RDIConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := rdiGetCV(ctx)
@@ -370,11 +374,15 @@ func (m *RDISeek) GetName() string            { return "seek" }
 func (m *RDISeek) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *RDISeek) GetIsStatic() bool          { return false }
 func (m *RDISeek) GetReturnType() data.Types  { return nil }
+var rDISeekGetParams = []data.GetValue{node.NewParameter(nil, "position", 0, data.NewIntValue(0), data.Int{})}
+
 func (m *RDISeek) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "position", 0, data.NewIntValue(0), data.Int{})}
+	return rDISeekGetParams
 }
+var rDISeekGetVariables = []data.Variable{node.NewVariable(nil, "position", 0, data.Int{})}
+
 func (m *RDISeek) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "position", 0, data.Int{})}
+	return rDISeekGetVariables
 }
 func (m *RDISeek) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := rdiGetCV(ctx)

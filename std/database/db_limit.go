@@ -43,16 +43,20 @@ func (d *DbLimitMethod) GetIsStatic() bool {
 	return false
 }
 
+var dbLimitMethodGetParams = []data.GetValue{
+	data.NewParameter("limit", 0),
+}
+
 func (d *DbLimitMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("limit", 0),
-	}
+	return dbLimitMethodGetParams
+}
+
+var dbLimitMethodGetVariables = []data.Variable{
+	data.NewVariable("limit", 0, data.NewBaseType("int")),
 }
 
 func (d *DbLimitMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("limit", 0, data.NewBaseType("int")),
-	}
+	return dbLimitMethodGetVariables
 }
 
 func (d *DbLimitMethod) GetReturnType() data.Types {

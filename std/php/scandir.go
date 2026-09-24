@@ -62,14 +62,18 @@ func (f *ScandirFunction) GetName() string {
 	return "scandir"
 }
 
+var scandirFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "directory", 0, nil, nil),
+}
+
 func (f *ScandirFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "directory", 0, nil, nil),
-	}
+	return scandirFunctionGetParams
+}
+
+var scandirFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "directory", 0, data.NewBaseType("string")),
 }
 
 func (f *ScandirFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "directory", 0, data.NewBaseType("string")),
-	}
+	return scandirFunctionGetVariables
 }

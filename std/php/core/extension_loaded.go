@@ -33,14 +33,18 @@ func (f *ExtensionLoadedFunction) GetName() string {
 	return "extension_loaded"
 }
 
+var extensionLoadedFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "extension", 0, nil, data.String{}),
+}
+
 func (f *ExtensionLoadedFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "extension", 0, nil, data.String{}),
-	}
+	return extensionLoadedFunctionGetParams
+}
+
+var extensionLoadedFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "extension", 0, data.String{}),
 }
 
 func (f *ExtensionLoadedFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "extension", 0, data.String{}),
-	}
+	return extensionLoadedFunctionGetVariables
 }

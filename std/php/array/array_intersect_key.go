@@ -91,16 +91,20 @@ func (f *ArrayIntersectKeyFunction) Call(ctx data.Context) (data.GetValue, data.
 
 func (f *ArrayIntersectKeyFunction) GetName() string { return "array_intersect_key" }
 
+var arrayIntersectKeyFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, nil),
+	node.NewParameters(nil, "arrays", 1, nil, nil),
+}
+
 func (f *ArrayIntersectKeyFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, nil),
-		node.NewParameters(nil, "arrays", 1, nil, nil),
-	}
+	return arrayIntersectKeyFunctionGetParams
+}
+
+var arrayIntersectKeyFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
+	node.NewVariable(nil, "arrays", 1, data.NewBaseType("array")),
 }
 
 func (f *ArrayIntersectKeyFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-		node.NewVariable(nil, "arrays", 1, data.NewBaseType("array")),
-	}
+	return arrayIntersectKeyFunctionGetVariables
 }

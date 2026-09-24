@@ -20,20 +20,24 @@ func (f *StrcmpFunction) GetName() string {
 	return "strcmp"
 }
 
+var strcmpFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "str1", 0, nil, data.Mixed{}),
+	node.NewParameter(nil, "str2", 1, nil, data.Mixed{}),
+}
+
 // GetParams 返回参数列表
 func (f *StrcmpFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "str1", 0, nil, data.Mixed{}),
-		node.NewParameter(nil, "str2", 1, nil, data.Mixed{}),
-	}
+	return strcmpFunctionGetParams
+}
+
+var strcmpFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "str1", 0, data.Mixed{}),
+	node.NewVariable(nil, "str2", 1, data.Mixed{}),
 }
 
 // GetVariables 返回变量列表
 func (f *StrcmpFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "str1", 0, data.Mixed{}),
-		node.NewVariable(nil, "str2", 1, data.Mixed{}),
-	}
+	return strcmpFunctionGetVariables
 }
 
 // Call 执行 strcmp 函数
@@ -86,20 +90,24 @@ func (f *StrcasecmpFunction) GetName() string {
 	return "strcasecmp"
 }
 
+var strcasecmpFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "str1", 0, nil, data.Mixed{}),
+	node.NewParameter(nil, "str2", 1, nil, data.Mixed{}),
+}
+
 // GetParams 返回参数列表
 func (f *StrcasecmpFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "str1", 0, nil, data.Mixed{}),
-		node.NewParameter(nil, "str2", 1, nil, data.Mixed{}),
-	}
+	return strcasecmpFunctionGetParams
+}
+
+var strcasecmpFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "str1", 0, data.Mixed{}),
+	node.NewVariable(nil, "str2", 1, data.Mixed{}),
 }
 
 // GetVariables 返回变量列表
 func (f *StrcasecmpFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "str1", 0, data.Mixed{}),
-		node.NewVariable(nil, "str2", 1, data.Mixed{}),
-	}
+	return strcasecmpFunctionGetVariables
 }
 
 // Call 执行 strcasecmp 函数
@@ -150,20 +158,24 @@ func (f *StrncasecmpFunction) GetName() string {
 	return "strncasecmp"
 }
 
+var strncasecmpFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "str1", 0, nil, data.Mixed{}),
+	node.NewParameter(nil, "str2", 1, nil, data.Mixed{}),
+	node.NewParameter(nil, "length", 2, nil, data.Int{}),
+}
+
 func (f *StrncasecmpFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "str1", 0, nil, data.Mixed{}),
-		node.NewParameter(nil, "str2", 1, nil, data.Mixed{}),
-		node.NewParameter(nil, "length", 2, nil, data.Int{}),
-	}
+	return strncasecmpFunctionGetParams
+}
+
+var strncasecmpFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "str1", 0, data.Mixed{}),
+	node.NewVariable(nil, "str2", 1, data.Mixed{}),
+	node.NewVariable(nil, "length", 2, data.Int{}),
 }
 
 func (f *StrncasecmpFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "str1", 0, data.Mixed{}),
-		node.NewVariable(nil, "str2", 1, data.Mixed{}),
-		node.NewVariable(nil, "length", 2, data.Int{}),
-	}
+	return strncasecmpFunctionGetVariables
 }
 
 func (f *StrncasecmpFunction) Call(ctx data.Context) (data.GetValue, data.Control) {

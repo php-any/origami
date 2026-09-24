@@ -73,15 +73,19 @@ func (f *AsortFunction) GetName() string {
 	}
 	return "asort"
 }
-func (f *AsortFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
-		node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.Int{}),
-	}
+var asortFunctionGetParams = []data.GetValue{
+	node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
+	node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.Int{}),
 }
+
+func (f *AsortFunction) GetParams() []data.GetValue {
+	return asortFunctionGetParams
+}
+var asortFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Mixed{}),
+	node.NewVariable(nil, "flags", 1, data.Int{}),
+}
+
 func (f *AsortFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Mixed{}),
-		node.NewVariable(nil, "flags", 1, data.Int{}),
-	}
+	return asortFunctionGetVariables
 }

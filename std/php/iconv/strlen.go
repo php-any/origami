@@ -32,17 +32,21 @@ func (f *IconvStrlenFunction) GetName() string {
 	return "iconv_strlen"
 }
 
+var iconvStrlenFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "str", 0, nil, nil),
+	// encoding 可选，这里不强制类型
+	node.NewParameter(nil, "encoding", 1, node.NewNullLiteral(nil), nil),
+}
+
 func (f *IconvStrlenFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "str", 0, nil, nil),
-		// encoding 可选，这里不强制类型
-		node.NewParameter(nil, "encoding", 1, node.NewNullLiteral(nil), nil),
-	}
+	return iconvStrlenFunctionGetParams
+}
+
+var iconvStrlenFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "str", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "encoding", 1, data.NewBaseType("string")),
 }
 
 func (f *IconvStrlenFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "str", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "encoding", 1, data.NewBaseType("string")),
-	}
+	return iconvStrlenFunctionGetVariables
 }

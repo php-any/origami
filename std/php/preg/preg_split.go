@@ -163,20 +163,24 @@ func (f *PregSplitFunction) GetName() string {
 	return "preg_split"
 }
 
+var pregSplitFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "pattern", 0, nil, nil),
+	node.NewParameter(nil, "subject", 1, nil, nil),
+	node.NewParameter(nil, "limit", 2, node.NewIntLiteral(nil, "-1"), nil),
+	node.NewParameter(nil, "flags", 3, node.NewIntLiteral(nil, "0"), nil),
+}
+
 func (f *PregSplitFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "pattern", 0, nil, nil),
-		node.NewParameter(nil, "subject", 1, nil, nil),
-		node.NewParameter(nil, "limit", 2, node.NewIntLiteral(nil, "-1"), nil),
-		node.NewParameter(nil, "flags", 3, node.NewIntLiteral(nil, "0"), nil),
-	}
+	return pregSplitFunctionGetParams
+}
+
+var pregSplitFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "pattern", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "subject", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "limit", 2, data.NewBaseType("int")),
+	node.NewVariable(nil, "flags", 3, data.NewBaseType("int")),
 }
 
 func (f *PregSplitFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "pattern", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "subject", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "limit", 2, data.NewBaseType("int")),
-		node.NewVariable(nil, "flags", 3, data.NewBaseType("int")),
-	}
+	return pregSplitFunctionGetVariables
 }

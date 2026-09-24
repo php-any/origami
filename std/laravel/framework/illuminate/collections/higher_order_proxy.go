@@ -2,7 +2,6 @@ package collections
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -54,7 +53,7 @@ func (c *HigherOrderProxyClass) GetValue(ctx data.Context) (data.GetValue, data.
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
 func (c *HigherOrderProxyClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *HigherOrderProxyClass) GetMethods() []data.Method {
@@ -176,17 +175,21 @@ type hopFuncStmt struct {
 
 func (h *hopFuncStmt) Call(ctx data.Context) (data.GetValue, data.Control) { return h.fn(ctx) }
 func (h *hopFuncStmt) GetName() string                                     { return "{closure}" }
-func (h *hopFuncStmt) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-		node.NewParameter(nil, "key", 1, data.NewNullValue(), nil),
-	}
+var hopFuncStmtGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+	node.NewParameter(nil, "key", 1, data.NewNullValue(), nil),
 }
+
+func (h *hopFuncStmt) GetParams() []data.GetValue {
+	return hopFuncStmtGetParams
+}
+var hopFuncStmtGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, nil),
+	node.NewVariable(nil, "key", 1, nil),
+}
+
 func (h *hopFuncStmt) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, nil),
-		node.NewVariable(nil, "key", 1, nil),
-	}
+	return hopFuncStmtGetVariables
 }
 func (h *hopFuncStmt) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *hopFuncStmt) GetIsStatic() bool          { return false }

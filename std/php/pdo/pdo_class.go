@@ -332,22 +332,26 @@ func (m *pdoConstructMethod) GetModifier() data.Modifier { return data.ModifierP
 func (m *pdoConstructMethod) GetIsStatic() bool          { return false }
 func (m *pdoConstructMethod) GetReturnType() data.Types  { return nil }
 
+var pdoConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "dsn", 0, nil, nil),
+	node.NewParameter(nil, "username", 1, node.NewStringLiteral(nil, ""), nil),
+	node.NewParameter(nil, "password", 2, node.NewStringLiteral(nil, ""), nil),
+	node.NewParameter(nil, "options", 3, node.NewNullLiteral(nil), nil),
+}
+
 func (m *pdoConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "dsn", 0, nil, nil),
-		node.NewParameter(nil, "username", 1, node.NewStringLiteral(nil, ""), nil),
-		node.NewParameter(nil, "password", 2, node.NewStringLiteral(nil, ""), nil),
-		node.NewParameter(nil, "options", 3, node.NewNullLiteral(nil), nil),
-	}
+	return pdoConstructMethodGetParams
+}
+
+var pdoConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "dsn", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "username", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "password", 2, data.NewBaseType("string")),
+	node.NewVariable(nil, "options", 3, data.NewBaseType("array")),
 }
 
 func (m *pdoConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "dsn", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "username", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "password", 2, data.NewBaseType("string")),
-		node.NewVariable(nil, "options", 3, data.NewBaseType("array")),
-	}
+	return pdoConstructMethodGetVariables
 }
 
 func (m *pdoConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -560,11 +564,15 @@ func (m *pdoQueryMethod) GetName() string            { return "query" }
 func (m *pdoQueryMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *pdoQueryMethod) GetIsStatic() bool          { return false }
 func (m *pdoQueryMethod) GetReturnType() data.Types  { return nil }
+var pdoQueryMethodGetParams = []data.GetValue{node.NewParameter(nil, "sql", 0, nil, nil)}
+
 func (m *pdoQueryMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "sql", 0, nil, nil)}
+	return pdoQueryMethodGetParams
 }
+var pdoQueryMethodGetVariables = []data.Variable{node.NewVariable(nil, "sql", 0, data.NewBaseType("string"))}
+
 func (m *pdoQueryMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "sql", 0, data.NewBaseType("string"))}
+	return pdoQueryMethodGetVariables
 }
 
 func (m *pdoQueryMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -604,11 +612,15 @@ func (m *pdoExecMethod) GetName() string            { return "exec" }
 func (m *pdoExecMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *pdoExecMethod) GetIsStatic() bool          { return false }
 func (m *pdoExecMethod) GetReturnType() data.Types  { return nil }
+var pdoExecMethodGetParams = []data.GetValue{node.NewParameter(nil, "sql", 0, nil, nil)}
+
 func (m *pdoExecMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "sql", 0, nil, nil)}
+	return pdoExecMethodGetParams
 }
+var pdoExecMethodGetVariables = []data.Variable{node.NewVariable(nil, "sql", 0, data.NewBaseType("string"))}
+
 func (m *pdoExecMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "sql", 0, data.NewBaseType("string"))}
+	return pdoExecMethodGetVariables
 }
 
 func (m *pdoExecMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -649,17 +661,21 @@ func (m *pdoPrepareMethod) GetName() string            { return "prepare" }
 func (m *pdoPrepareMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *pdoPrepareMethod) GetIsStatic() bool          { return false }
 func (m *pdoPrepareMethod) GetReturnType() data.Types  { return nil }
-func (m *pdoPrepareMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "sql", 0, nil, nil),
-		node.NewParameter(nil, "options", 1, node.NewNullLiteral(nil), nil),
-	}
+var pdoPrepareMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "sql", 0, nil, nil),
+	node.NewParameter(nil, "options", 1, node.NewNullLiteral(nil), nil),
 }
+
+func (m *pdoPrepareMethod) GetParams() []data.GetValue {
+	return pdoPrepareMethodGetParams
+}
+var pdoPrepareMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "sql", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "options", 1, data.NewBaseType("array")),
+}
+
 func (m *pdoPrepareMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "sql", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "options", 1, data.NewBaseType("array")),
-	}
+	return pdoPrepareMethodGetVariables
 }
 
 func (m *pdoPrepareMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -774,11 +790,15 @@ func (m *pdoLastInsertIdMethod) GetName() string            { return "lastInsert
 func (m *pdoLastInsertIdMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *pdoLastInsertIdMethod) GetIsStatic() bool          { return false }
 func (m *pdoLastInsertIdMethod) GetReturnType() data.Types  { return nil }
+var pdoLastInsertIdMethodGetParams = []data.GetValue{node.NewParameter(nil, "name", 0, node.NewNullLiteral(nil), nil)}
+
 func (m *pdoLastInsertIdMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "name", 0, node.NewNullLiteral(nil), nil)}
+	return pdoLastInsertIdMethodGetParams
 }
+var pdoLastInsertIdMethodGetVariables = []data.Variable{node.NewVariable(nil, "name", 0, data.NewBaseType("string"))}
+
 func (m *pdoLastInsertIdMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "name", 0, data.NewBaseType("string"))}
+	return pdoLastInsertIdMethodGetVariables
 }
 func (m *pdoLastInsertIdMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	state, acl := getPDOState(ctx)
@@ -799,17 +819,21 @@ func (m *pdoQuoteMethod) GetName() string            { return "quote" }
 func (m *pdoQuoteMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *pdoQuoteMethod) GetIsStatic() bool          { return false }
 func (m *pdoQuoteMethod) GetReturnType() data.Types  { return nil }
-func (m *pdoQuoteMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-		node.NewParameter(nil, "type", 1, node.NewIntLiteral(nil, "2"), nil),
-	}
+var pdoQuoteMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+	node.NewParameter(nil, "type", 1, node.NewIntLiteral(nil, "2"), nil),
 }
+
+func (m *pdoQuoteMethod) GetParams() []data.GetValue {
+	return pdoQuoteMethodGetParams
+}
+var pdoQuoteMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "type", 1, data.NewBaseType("int")),
+}
+
 func (m *pdoQuoteMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "type", 1, data.NewBaseType("int")),
-	}
+	return pdoQuoteMethodGetVariables
 }
 func (m *pdoQuoteMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	v, ok := ctx.GetIndexValue(0)
@@ -832,17 +856,21 @@ func (m *pdoSetAttributeMethod) GetName() string            { return "setAttribu
 func (m *pdoSetAttributeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *pdoSetAttributeMethod) GetIsStatic() bool          { return false }
 func (m *pdoSetAttributeMethod) GetReturnType() data.Types  { return nil }
-func (m *pdoSetAttributeMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "attr", 0, nil, nil),
-		node.NewParameter(nil, "value", 1, nil, nil),
-	}
+var pdoSetAttributeMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "attr", 0, nil, nil),
+	node.NewParameter(nil, "value", 1, nil, nil),
 }
+
+func (m *pdoSetAttributeMethod) GetParams() []data.GetValue {
+	return pdoSetAttributeMethodGetParams
+}
+var pdoSetAttributeMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "attr", 0, data.NewBaseType("int")),
+	node.NewVariable(nil, "value", 1, data.NewBaseType("mixed")),
+}
+
 func (m *pdoSetAttributeMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "attr", 0, data.NewBaseType("int")),
-		node.NewVariable(nil, "value", 1, data.NewBaseType("mixed")),
-	}
+	return pdoSetAttributeMethodGetVariables
 }
 func (m *pdoSetAttributeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	state, acl := getPDOState(ctx)
@@ -888,11 +916,15 @@ func (m *pdoGetAttributeMethod) GetName() string            { return "getAttribu
 func (m *pdoGetAttributeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *pdoGetAttributeMethod) GetIsStatic() bool          { return false }
 func (m *pdoGetAttributeMethod) GetReturnType() data.Types  { return nil }
+var pdoGetAttributeMethodGetParams = []data.GetValue{node.NewParameter(nil, "attr", 0, nil, nil)}
+
 func (m *pdoGetAttributeMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "attr", 0, nil, nil)}
+	return pdoGetAttributeMethodGetParams
 }
+var pdoGetAttributeMethodGetVariables = []data.Variable{node.NewVariable(nil, "attr", 0, data.NewBaseType("int"))}
+
 func (m *pdoGetAttributeMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "attr", 0, data.NewBaseType("int"))}
+	return pdoGetAttributeMethodGetVariables
 }
 func (m *pdoGetAttributeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	state, acl := getPDOState(ctx)

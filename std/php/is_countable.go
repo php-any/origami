@@ -38,14 +38,18 @@ func (f *IsCountableFunction) GetName() string {
 	return "is_countable"
 }
 
+var isCountableFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+}
+
 func (f *IsCountableFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return isCountableFunctionGetParams
+}
+
+var isCountableFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
 }
 
 func (f *IsCountableFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
-	}
+	return isCountableFunctionGetVariables
 }

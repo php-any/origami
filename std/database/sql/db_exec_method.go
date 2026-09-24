@@ -42,18 +42,22 @@ func (h *DBExecMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *DBExecMethod) GetName() string            { return "exec" }
 func (h *DBExecMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBExecMethod) GetIsStatic() bool          { return true }
+var dBExecMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "query", 0, nil, nil),
+	node.NewParameters(nil, "args", 1, nil, nil),
+}
+
 func (h *DBExecMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "query", 0, nil, nil),
-		node.NewParameters(nil, "args", 1, nil, nil),
-	}
+	return dBExecMethodGetParams
+}
+
+var dBExecMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "query", 0, nil),
+	node.NewVariable(nil, "args", 1, nil),
 }
 
 func (h *DBExecMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "query", 0, nil),
-		node.NewVariable(nil, "args", 1, nil),
-	}
+	return dBExecMethodGetVariables
 }
 
 func (h *DBExecMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

@@ -42,18 +42,22 @@ func (h *DBQueryMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *DBQueryMethod) GetName() string            { return "query" }
 func (h *DBQueryMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBQueryMethod) GetIsStatic() bool          { return true }
+var dBQueryMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "query", 0, nil, nil),
+	node.NewParameters(nil, "args", 1, nil, nil),
+}
+
 func (h *DBQueryMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "query", 0, nil, nil),
-		node.NewParameters(nil, "args", 1, nil, nil),
-	}
+	return dBQueryMethodGetParams
+}
+
+var dBQueryMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "query", 0, nil),
+	node.NewVariable(nil, "args", 1, nil),
 }
 
 func (h *DBQueryMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "query", 0, nil),
-		node.NewVariable(nil, "args", 1, nil),
-	}
+	return dBQueryMethodGetVariables
 }
 
 func (h *DBQueryMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

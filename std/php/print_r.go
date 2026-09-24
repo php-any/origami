@@ -121,17 +121,21 @@ func printRValue(v data.GetValue, indent int) string {
 }
 
 func (f *PrintRFunction) GetName() string { return "print_r" }
-func (f *PrintRFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-		node.NewParameter(nil, "return", 1, node.NewBooleanLiteral(nil, false), data.NewBaseType("bool")),
-	}
+var printRFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+	node.NewParameter(nil, "return", 1, node.NewBooleanLiteral(nil, false), data.NewBaseType("bool")),
 }
+
+func (f *PrintRFunction) GetParams() []data.GetValue {
+	return printRFunctionGetParams
+}
+var printRFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, nil),
+	node.NewVariable(nil, "return", 1, data.NewBaseType("bool")),
+}
+
 func (f *PrintRFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, nil),
-		node.NewVariable(nil, "return", 1, data.NewBaseType("bool")),
-	}
+	return printRFunctionGetVariables
 }
 
 // PrintfFunction 实现 printf 函数
@@ -170,17 +174,21 @@ func (f *PrintfFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *PrintfFunction) GetName() string { return "printf" }
-func (f *PrintfFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "format", 0, nil, nil),
-		node.NewParameters(nil, "values", 1, nil, nil),
-	}
+var printfFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "format", 0, nil, nil),
+	node.NewParameters(nil, "values", 1, nil, nil),
 }
+
+func (f *PrintfFunction) GetParams() []data.GetValue {
+	return printfFunctionGetParams
+}
+var printfFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "format", 0, nil),
+	node.NewVariable(nil, "values", 1, nil),
+}
+
 func (f *PrintfFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "format", 0, nil),
-		node.NewVariable(nil, "values", 1, nil),
-	}
+	return printfFunctionGetVariables
 }
 
 // VprintfFunction 实现 vprintf 函数
@@ -216,17 +224,21 @@ func (f *VprintfFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *VprintfFunction) GetName() string { return "vprintf" }
-func (f *VprintfFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "format", 0, nil, nil),
-		node.NewParameter(nil, "values", 1, nil, nil),
-	}
+var vprintfFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "format", 0, nil, nil),
+	node.NewParameter(nil, "values", 1, nil, nil),
 }
+
+func (f *VprintfFunction) GetParams() []data.GetValue {
+	return vprintfFunctionGetParams
+}
+var vprintfFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "format", 0, nil),
+	node.NewVariable(nil, "values", 1, nil),
+}
+
 func (f *VprintfFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "format", 0, nil),
-		node.NewVariable(nil, "values", 1, nil),
-	}
+	return vprintfFunctionGetVariables
 }
 
 // doPhpSprintf 复用 sprintf 的格式化逻辑

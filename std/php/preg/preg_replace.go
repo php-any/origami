@@ -126,24 +126,28 @@ func (f *PregReplaceFunction) GetName() string {
 	return "preg_replace"
 }
 
+var pregReplaceFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "pattern", 0, nil, nil),
+	node.NewParameter(nil, "replacement", 1, nil, nil),
+	node.NewParameter(nil, "subject", 2, nil, nil),
+	node.NewParameter(nil, "limit", 3, node.NewIntLiteral(nil, "-1"), nil),
+	node.NewParameter(nil, "count", 4, node.NewNullLiteral(nil), nil),
+}
+
 func (f *PregReplaceFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "pattern", 0, nil, nil),
-		node.NewParameter(nil, "replacement", 1, nil, nil),
-		node.NewParameter(nil, "subject", 2, nil, nil),
-		node.NewParameter(nil, "limit", 3, node.NewIntLiteral(nil, "-1"), nil),
-		node.NewParameter(nil, "count", 4, node.NewNullLiteral(nil), nil),
-	}
+	return pregReplaceFunctionGetParams
+}
+
+var pregReplaceFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "pattern", 0, data.NewBaseType("mixed")),
+	node.NewVariable(nil, "replacement", 1, data.NewBaseType("mixed")),
+	node.NewVariable(nil, "subject", 2, data.NewBaseType("mixed")),
+	node.NewVariable(nil, "limit", 3, data.NewBaseType("int")),
+	node.NewVariable(nil, "count", 4, data.NewBaseType("int")),
 }
 
 func (f *PregReplaceFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "pattern", 0, data.NewBaseType("mixed")),
-		node.NewVariable(nil, "replacement", 1, data.NewBaseType("mixed")),
-		node.NewVariable(nil, "subject", 2, data.NewBaseType("mixed")),
-		node.NewVariable(nil, "limit", 3, data.NewBaseType("int")),
-		node.NewVariable(nil, "count", 4, data.NewBaseType("int")),
-	}
+	return pregReplaceFunctionGetVariables
 }
 
 // toStringSlice 将 Value 归一化为字符串切片和“是否原本是数组”的标记。

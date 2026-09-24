@@ -37,6 +37,10 @@ func (h *RequestIpMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *RequestIpMethod) GetName() string               { return "ip" }
 func (h *RequestIpMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
 func (h *RequestIpMethod) GetIsStatic() bool             { return false }
-func (h *RequestIpMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
-func (h *RequestIpMethod) GetVariables() []data.Variable { return []data.Variable{} }
+var requestIpMethodGetParams = []data.GetValue{}
+
+func (h *RequestIpMethod) GetParams() []data.GetValue    { return requestIpMethodGetParams }
+var requestIpMethodGetVariables = []data.Variable{}
+
+func (h *RequestIpMethod) GetVariables() []data.Variable { return requestIpMethodGetVariables }
 func (h *RequestIpMethod) GetReturnType() data.Types     { return data.NewBaseType("string") }

@@ -1,8 +1,6 @@
 package support
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"regexp"
 	"strings"
 	"unicode"
@@ -234,13 +232,13 @@ func strTitle(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewStringValue(strings.Title(strings.ToLower(strArg(ctx, 0)))), nil
 }
 
+// strUUID 对齐官方 Str::uuid()：返回 Ramsey\Uuid\UuidInterface（v4），而不是裸字符串。
+// createUuidsUsing()/freezeUuids() 注册的自定义工厂仍然优先。
 func strUUID(ctx data.Context) (data.GetValue, data.Control) {
-	b := make([]byte, 16)
-	_, _ = rand.Read(b)
-	b[6] = (b[6] & 0x0f) | 0x40
-	b[8] = (b[8] & 0x3f) | 0x80
-	s := hex.EncodeToString(b)
-	return data.NewStringValue(s[0:8] + "-" + s[8:12] + "-" + s[12:16] + "-" + s[16:20] + "-" + s[20:]), nil
+	if v, ctl, ok := strUUIDFromFactory(ctx); ok {
+		return v, ctl
+	}
+	return newUuidValue(ctx, uuidFormatV4()), nil
 }
 
 func strRandom(ctx data.Context) (data.GetValue, data.Control) {

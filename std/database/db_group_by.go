@@ -41,16 +41,20 @@ func (d *DbGroupByMethod) GetIsStatic() bool {
 	return false
 }
 
+var dbGroupByMethodGetParams = []data.GetValue{
+	data.NewParameter("groupBy", 0),
+}
+
 func (d *DbGroupByMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("groupBy", 0),
-	}
+	return dbGroupByMethodGetParams
+}
+
+var dbGroupByMethodGetVariables = []data.Variable{
+	data.NewVariable("groupBy", 0, data.NewBaseType("string")),
 }
 
 func (d *DbGroupByMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("groupBy", 0, data.NewBaseType("string")),
-	}
+	return dbGroupByMethodGetVariables
 }
 
 func (d *DbGroupByMethod) GetReturnType() data.Types {

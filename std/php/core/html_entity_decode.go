@@ -26,18 +26,22 @@ func (f *HtmlEntityDecodeFunction) GetName() string {
 	return "html_entity_decode"
 }
 
+var htmlEntityDecodeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, data.String{}),
+	node.NewParameter(nil, "flags", 1, node.NewNullLiteral(nil), data.Mixed{}),
+	node.NewParameter(nil, "encoding", 2, node.NewStringLiteral(nil, "UTF-8"), data.String{}),
+}
+
 func (f *HtmlEntityDecodeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, data.String{}),
-		node.NewParameter(nil, "flags", 1, node.NewNullLiteral(nil), data.Mixed{}),
-		node.NewParameter(nil, "encoding", 2, node.NewStringLiteral(nil, "UTF-8"), data.String{}),
-	}
+	return htmlEntityDecodeFunctionGetParams
+}
+
+var htmlEntityDecodeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.String{}),
+	node.NewVariable(nil, "flags", 1, data.Mixed{}),
+	node.NewVariable(nil, "encoding", 2, data.String{}),
 }
 
 func (f *HtmlEntityDecodeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.String{}),
-		node.NewVariable(nil, "flags", 1, data.Mixed{}),
-		node.NewVariable(nil, "encoding", 2, data.String{}),
-	}
+	return htmlEntityDecodeFunctionGetVariables
 }

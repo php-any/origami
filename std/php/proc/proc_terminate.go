@@ -51,16 +51,20 @@ func (f *ProcTerminateFunction) GetName() string {
 	return "proc_terminate"
 }
 
+var procTerminateFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "process", 0, nil, nil),
+	node.NewParameter(nil, "signal", 1, node.NewIntLiteral(nil, "15"), nil), // 默认 SIGTERM
+}
+
 func (f *ProcTerminateFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "process", 0, nil, nil),
-		node.NewParameter(nil, "signal", 1, node.NewIntLiteral(nil, "15"), nil), // 默认 SIGTERM
-	}
+	return procTerminateFunctionGetParams
+}
+
+var procTerminateFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "process", 0, data.NewBaseType("resource")),
+	node.NewVariable(nil, "signal", 1, data.NewBaseType("int")),
 }
 
 func (f *ProcTerminateFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "process", 0, data.NewBaseType("resource")),
-		node.NewVariable(nil, "signal", 1, data.NewBaseType("int")),
-	}
+	return procTerminateFunctionGetVariables
 }

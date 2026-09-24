@@ -81,18 +81,22 @@ func (f *MbConvertCaseFunction) GetName() string {
 	return "mb_convert_case"
 }
 
+var mbConvertCaseFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "mode", 1, nil, nil),
+	node.NewParameter(nil, "encoding", 2, node.NewNullLiteral(nil), nil),
+}
+
 func (f *MbConvertCaseFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "mode", 1, nil, nil),
-		node.NewParameter(nil, "encoding", 2, node.NewNullLiteral(nil), nil),
-	}
+	return mbConvertCaseFunctionGetParams
+}
+
+var mbConvertCaseFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "mode", 1, data.NewBaseType("int")),
+	node.NewVariable(nil, "encoding", 2, data.NewNullableType(data.NewBaseType("string"))),
 }
 
 func (f *MbConvertCaseFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "mode", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "encoding", 2, data.NewNullableType(data.NewBaseType("string"))),
-	}
+	return mbConvertCaseFunctionGetVariables
 }

@@ -65,14 +65,18 @@ func (f *ProcGetStatusFunction) GetName() string {
 	return "proc_get_status"
 }
 
+var procGetStatusFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "process", 0, nil, nil),
+}
+
 func (f *ProcGetStatusFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "process", 0, nil, nil),
-	}
+	return procGetStatusFunctionGetParams
+}
+
+var procGetStatusFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "process", 0, data.NewBaseType("resource")),
 }
 
 func (f *ProcGetStatusFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "process", 0, data.NewBaseType("resource")),
-	}
+	return procGetStatusFunctionGetVariables
 }

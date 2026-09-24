@@ -48,7 +48,7 @@ func (c *PaginatorClass) GetValue(ctx data.Context) (data.GetValue, data.Control
 	return cv, nil
 }
 func (c *PaginatorClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *PaginatorClass) GetMethods() []data.Method {

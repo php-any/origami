@@ -31,16 +31,20 @@ func (d *DbConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var dbConstructMethodGetParams = []data.GetValue{
+	data.NewParameter("connectionName", 0), // 可选的连接名称参数
+}
+
 func (d *DbConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("connectionName", 0), // 可选的连接名称参数
-	}
+	return dbConstructMethodGetParams
+}
+
+var dbConstructMethodGetVariables = []data.Variable{
+	data.NewVariable("connectionName", 0, data.NewBaseType("string")),
 }
 
 func (d *DbConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("connectionName", 0, data.NewBaseType("string")),
-	}
+	return dbConstructMethodGetVariables
 }
 
 func (d *DbConstructMethod) GetReturnType() data.Types {

@@ -51,10 +51,14 @@ func (f *ArrayKeyLastFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 
 func (f *ArrayKeyLastFunction) GetName() string { return "array_key_last" }
 
+var arrayKeyLastFunctionGetParams = []data.GetValue{node.NewParameter(nil, "array", 0, nil, nil)}
+
 func (f *ArrayKeyLastFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "array", 0, nil, nil)}
+	return arrayKeyLastFunctionGetParams
 }
 
+var arrayKeyLastFunctionGetVariables = []data.Variable{node.NewVariable(nil, "array", 0, data.NewBaseType("array"))}
+
 func (f *ArrayKeyLastFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "array", 0, data.NewBaseType("array"))}
+	return arrayKeyLastFunctionGetVariables
 }

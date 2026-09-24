@@ -23,17 +23,21 @@ func (d *DbExecuteMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (d *DbExecuteMethod) GetName() string            { return "execute" }
 func (d *DbExecuteMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (d *DbExecuteMethod) GetIsStatic() bool          { return false }
-func (d *DbExecuteMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("sql", 0),
-		node.NewParameters(nil, "args", 1, nil, nil),
-	}
+var dbExecuteMethodGetParams = []data.GetValue{
+	data.NewParameter("sql", 0),
+	node.NewParameters(nil, "args", 1, nil, nil),
 }
+
+func (d *DbExecuteMethod) GetParams() []data.GetValue {
+	return dbExecuteMethodGetParams
+}
+var dbExecuteMethodGetVariables = []data.Variable{
+	data.NewVariable("sql", 0, data.NewBaseType("string")),
+	data.NewVariable("args", 1, data.NewBaseType("array")),
+}
+
 func (d *DbExecuteMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("sql", 0, data.NewBaseType("string")),
-		data.NewVariable("args", 1, data.NewBaseType("array")),
-	}
+	return dbExecuteMethodGetVariables
 }
 func (d *DbExecuteMethod) GetReturnType() data.Types {
 	return data.NewBaseType("object")

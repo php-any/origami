@@ -49,16 +49,20 @@ func (d *DbSelectMethod) GetIsStatic() bool {
 	return false
 }
 
+var dbSelectMethodGetParams = []data.GetValue{
+	data.NewParameter("fields", 0),
+}
+
 func (d *DbSelectMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("fields", 0),
-	}
+	return dbSelectMethodGetParams
+}
+
+var dbSelectMethodGetVariables = []data.Variable{
+	data.NewVariable("fields", 0, data.NewBaseType("string")),
 }
 
 func (d *DbSelectMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("fields", 0, data.NewBaseType("string")),
-	}
+	return dbSelectMethodGetVariables
 }
 
 func (d *DbSelectMethod) GetReturnType() data.Types {

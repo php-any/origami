@@ -46,14 +46,18 @@ func (h *WithCancelCauseFunction) Call(ctx data.Context) (data.GetValue, data.Co
 func (h *WithCancelCauseFunction) GetName() string            { return "context\\withCancelCause" }
 func (h *WithCancelCauseFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *WithCancelCauseFunction) GetIsStatic() bool          { return true }
-func (h *WithCancelCauseFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "parent", 0, nil, nil),
-	}
+var withCancelCauseFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "parent", 0, nil, nil),
 }
+
+func (h *WithCancelCauseFunction) GetParams() []data.GetValue {
+	return withCancelCauseFunctionGetParams
+}
+var withCancelCauseFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "parent", 0, nil),
+}
+
 func (h *WithCancelCauseFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "parent", 0, nil),
-	}
+	return withCancelCauseFunctionGetVariables
 }
 func (h *WithCancelCauseFunction) GetReturnType() data.Types { return data.NewBaseType("void") }

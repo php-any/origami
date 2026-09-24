@@ -18,16 +18,20 @@ func NewFloatvalFunction() data.FuncStmt {
 
 func (f *FloatvalFunction) GetName() string { return "floatval" }
 
+var floatvalFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+}
+
 func (f *FloatvalFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return floatvalFunctionGetParams
+}
+
+var floatvalFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, nil),
 }
 
 func (f *FloatvalFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, nil),
-	}
+	return floatvalFunctionGetVariables
 }
 
 func (f *FloatvalFunction) Call(ctx data.Context) (data.GetValue, data.Control) {

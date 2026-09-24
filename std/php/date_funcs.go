@@ -174,17 +174,21 @@ func twoDigit(n int) string {
 }
 
 func (f *DateFunction) GetName() string { return "date" }
-func (f *DateFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "format", 0, nil, nil),
-		node.NewParameter(nil, "timestamp", 1, node.NewNullLiteral(nil), nil),
-	}
+var dateFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "format", 0, nil, nil),
+	node.NewParameter(nil, "timestamp", 1, node.NewNullLiteral(nil), nil),
 }
+
+func (f *DateFunction) GetParams() []data.GetValue {
+	return dateFunctionGetParams
+}
+var dateFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "format", 0, nil),
+	node.NewVariable(nil, "timestamp", 1, nil),
+}
+
 func (f *DateFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "format", 0, nil),
-		node.NewVariable(nil, "timestamp", 1, nil),
-	}
+	return dateFunctionGetVariables
 }
 
 // MktimeFunction 实现 mktime 函数
@@ -236,25 +240,29 @@ func (f *MktimeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *MktimeFunction) GetName() string { return "mktime" }
-func (f *MktimeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "hour", 0, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "minute", 1, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "second", 2, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "month", 3, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "day", 4, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "year", 5, node.NewNullLiteral(nil), nil),
-	}
+var mktimeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "hour", 0, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "minute", 1, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "second", 2, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "month", 3, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "day", 4, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "year", 5, node.NewNullLiteral(nil), nil),
 }
+
+func (f *MktimeFunction) GetParams() []data.GetValue {
+	return mktimeFunctionGetParams
+}
+var mktimeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "hour", 0, nil),
+	node.NewVariable(nil, "minute", 1, nil),
+	node.NewVariable(nil, "second", 2, nil),
+	node.NewVariable(nil, "month", 3, nil),
+	node.NewVariable(nil, "day", 4, nil),
+	node.NewVariable(nil, "year", 5, nil),
+}
+
 func (f *MktimeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "hour", 0, nil),
-		node.NewVariable(nil, "minute", 1, nil),
-		node.NewVariable(nil, "second", 2, nil),
-		node.NewVariable(nil, "month", 3, nil),
-		node.NewVariable(nil, "day", 4, nil),
-		node.NewVariable(nil, "year", 5, nil),
-	}
+	return mktimeFunctionGetVariables
 }
 
 // GmmktimeFunction 实现 gmmktime 函数
@@ -306,25 +314,29 @@ func (f *GmmktimeFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (f *GmmktimeFunction) GetName() string { return "gmmktime" }
-func (f *GmmktimeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "hour", 0, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "minute", 1, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "second", 2, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "month", 3, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "day", 4, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "year", 5, node.NewNullLiteral(nil), nil),
-	}
+var gmmktimeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "hour", 0, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "minute", 1, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "second", 2, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "month", 3, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "day", 4, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "year", 5, node.NewNullLiteral(nil), nil),
 }
+
+func (f *GmmktimeFunction) GetParams() []data.GetValue {
+	return gmmktimeFunctionGetParams
+}
+var gmmktimeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "hour", 0, nil),
+	node.NewVariable(nil, "minute", 1, nil),
+	node.NewVariable(nil, "second", 2, nil),
+	node.NewVariable(nil, "month", 3, nil),
+	node.NewVariable(nil, "day", 4, nil),
+	node.NewVariable(nil, "year", 5, nil),
+}
+
 func (f *GmmktimeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "hour", 0, nil),
-		node.NewVariable(nil, "minute", 1, nil),
-		node.NewVariable(nil, "second", 2, nil),
-		node.NewVariable(nil, "month", 3, nil),
-		node.NewVariable(nil, "day", 4, nil),
-		node.NewVariable(nil, "year", 5, nil),
-	}
+	return gmmktimeFunctionGetVariables
 }
 
 // CheckdateFunction 实现 checkdate 函数
@@ -378,19 +390,23 @@ func (f *CheckdateFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 }
 
 func (f *CheckdateFunction) GetName() string { return "checkdate" }
-func (f *CheckdateFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "month", 0, nil, data.NewBaseType("int")),
-		node.NewParameter(nil, "day", 1, nil, data.NewBaseType("int")),
-		node.NewParameter(nil, "year", 2, nil, data.NewBaseType("int")),
-	}
+var checkdateFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "month", 0, nil, data.NewBaseType("int")),
+	node.NewParameter(nil, "day", 1, nil, data.NewBaseType("int")),
+	node.NewParameter(nil, "year", 2, nil, data.NewBaseType("int")),
 }
+
+func (f *CheckdateFunction) GetParams() []data.GetValue {
+	return checkdateFunctionGetParams
+}
+var checkdateFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "month", 0, data.NewBaseType("int")),
+	node.NewVariable(nil, "day", 1, data.NewBaseType("int")),
+	node.NewVariable(nil, "year", 2, data.NewBaseType("int")),
+}
+
 func (f *CheckdateFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "month", 0, data.NewBaseType("int")),
-		node.NewVariable(nil, "day", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "year", 2, data.NewBaseType("int")),
-	}
+	return checkdateFunctionGetVariables
 }
 
 // GetdateFunction 实现 getdate 函数
@@ -441,13 +457,17 @@ func (f *GetdateFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *GetdateFunction) GetName() string { return "getdate" }
-func (f *GetdateFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "timestamp", 0, node.NewNullLiteral(nil), nil),
-	}
+var getdateFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "timestamp", 0, node.NewNullLiteral(nil), nil),
 }
+
+func (f *GetdateFunction) GetParams() []data.GetValue {
+	return getdateFunctionGetParams
+}
+var getdateFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "timestamp", 0, nil),
+}
+
 func (f *GetdateFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "timestamp", 0, nil),
-	}
+	return getdateFunctionGetVariables
 }

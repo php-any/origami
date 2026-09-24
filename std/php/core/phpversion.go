@@ -20,10 +20,14 @@ func (f *PhpVersionFunction) Call(ctx data.Context) (data.GetValue, data.Control
 
 func (f *PhpVersionFunction) GetName() string { return "phpversion" }
 
+var phpVersionFunctionGetParams = []data.GetValue{}
+
 func (f *PhpVersionFunction) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return phpVersionFunctionGetParams
 }
 
+var phpVersionFunctionGetVariables = []data.Variable{}
+
 func (f *PhpVersionFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return phpVersionFunctionGetVariables
 }

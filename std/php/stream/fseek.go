@@ -46,17 +46,21 @@ func (f *FseekFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *FseekFunction) GetName() string { return "fseek" }
-func (f *FseekFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "stream", 0, nil, nil),
-		node.NewParameter(nil, "offset", 1, nil, data.Int{}),
-		node.NewParameter(nil, "whence", 2, node.NewIntLiteral(nil, "0"), data.Int{}),
-	}
+var fseekFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "stream", 0, nil, nil),
+	node.NewParameter(nil, "offset", 1, nil, data.Int{}),
+	node.NewParameter(nil, "whence", 2, node.NewIntLiteral(nil, "0"), data.Int{}),
 }
+
+func (f *FseekFunction) GetParams() []data.GetValue {
+	return fseekFunctionGetParams
+}
+var fseekFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "stream", 0, nil),
+	node.NewVariable(nil, "offset", 1, data.Int{}),
+	node.NewVariable(nil, "whence", 2, data.Int{}),
+}
+
 func (f *FseekFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "stream", 0, nil),
-		node.NewVariable(nil, "offset", 1, data.Int{}),
-		node.NewVariable(nil, "whence", 2, data.Int{}),
-	}
+	return fseekFunctionGetVariables
 }

@@ -16,18 +16,22 @@ func NewHashEqualsFunction() data.FuncStmt { return &HashEqualsFunction{} }
 
 func (f *HashEqualsFunction) GetName() string { return "hash_equals" }
 
+var hashEqualsFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "known_string", 0, nil, data.String{}),
+	node.NewParameter(nil, "user_string", 1, nil, data.String{}),
+}
+
 func (f *HashEqualsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "known_string", 0, nil, data.String{}),
-		node.NewParameter(nil, "user_string", 1, nil, data.String{}),
-	}
+	return hashEqualsFunctionGetParams
+}
+
+var hashEqualsFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "known_string", 0, data.String{}),
+	node.NewVariable(nil, "user_string", 1, data.String{}),
 }
 
 func (f *HashEqualsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "known_string", 0, data.String{}),
-		node.NewVariable(nil, "user_string", 1, data.String{}),
-	}
+	return hashEqualsFunctionGetVariables
 }
 
 func (f *HashEqualsFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -53,28 +57,32 @@ func NewSetCookieFunction() data.FuncStmt { return &SetCookieFunction{} }
 
 func (f *SetCookieFunction) GetName() string { return "setcookie" }
 
+var setCookieFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "name", 0, nil, data.String{}),
+	node.NewParameter(nil, "value", 1, node.NewStringLiteral(nil, ""), data.String{}),
+	node.NewParameter(nil, "expires_or_options", 2, node.NewIntLiteral(nil, "0"), data.Mixed{}),
+	node.NewParameter(nil, "path", 3, node.NewStringLiteral(nil, ""), data.String{}),
+	node.NewParameter(nil, "domain", 4, node.NewStringLiteral(nil, ""), data.String{}),
+	node.NewParameter(nil, "secure", 5, node.NewBooleanLiteral(nil, false), data.Bool{}),
+	node.NewParameter(nil, "httponly", 6, node.NewBooleanLiteral(nil, false), data.Bool{}),
+}
+
 func (f *SetCookieFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "name", 0, nil, data.String{}),
-		node.NewParameter(nil, "value", 1, node.NewStringLiteral(nil, ""), data.String{}),
-		node.NewParameter(nil, "expires_or_options", 2, node.NewIntLiteral(nil, "0"), data.Mixed{}),
-		node.NewParameter(nil, "path", 3, node.NewStringLiteral(nil, ""), data.String{}),
-		node.NewParameter(nil, "domain", 4, node.NewStringLiteral(nil, ""), data.String{}),
-		node.NewParameter(nil, "secure", 5, node.NewBooleanLiteral(nil, false), data.Bool{}),
-		node.NewParameter(nil, "httponly", 6, node.NewBooleanLiteral(nil, false), data.Bool{}),
-	}
+	return setCookieFunctionGetParams
+}
+
+var setCookieFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "name", 0, data.String{}),
+	node.NewVariable(nil, "value", 1, data.String{}),
+	node.NewVariable(nil, "expires_or_options", 2, data.Mixed{}),
+	node.NewVariable(nil, "path", 3, data.String{}),
+	node.NewVariable(nil, "domain", 4, data.String{}),
+	node.NewVariable(nil, "secure", 5, data.Bool{}),
+	node.NewVariable(nil, "httponly", 6, data.Bool{}),
 }
 
 func (f *SetCookieFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "name", 0, data.String{}),
-		node.NewVariable(nil, "value", 1, data.String{}),
-		node.NewVariable(nil, "expires_or_options", 2, data.Mixed{}),
-		node.NewVariable(nil, "path", 3, data.String{}),
-		node.NewVariable(nil, "domain", 4, data.String{}),
-		node.NewVariable(nil, "secure", 5, data.Bool{}),
-		node.NewVariable(nil, "httponly", 6, data.Bool{}),
-	}
+	return setCookieFunctionGetVariables
 }
 
 func (f *SetCookieFunction) Call(ctx data.Context) (data.GetValue, data.Control) {

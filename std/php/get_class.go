@@ -63,14 +63,18 @@ func (f *GetClassFunction) GetName() string {
 	return "get_class"
 }
 
+var getClassFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "object", 0, node.NewNullLiteral(nil), nil),
+}
+
 func (f *GetClassFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object", 0, node.NewNullLiteral(nil), nil),
-	}
+	return getClassFunctionGetParams
+}
+
+var getClassFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "object", 0, data.NewBaseType("object|null")),
 }
 
 func (f *GetClassFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object", 0, data.NewBaseType("object|null")),
-	}
+	return getClassFunctionGetVariables
 }

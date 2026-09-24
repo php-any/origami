@@ -195,20 +195,24 @@ func (f *JsonEncodeFunction) GetName() string {
 	return "json_encode"
 }
 
+var jsonEncodeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+	node.NewParameter(nil, "flags", 1, data.NewIntValue(0), nil),
+	node.NewParameter(nil, "depth", 2, data.NewIntValue(512), nil),
+}
+
 func (f *JsonEncodeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-		node.NewParameter(nil, "flags", 1, data.NewIntValue(0), nil),
-		node.NewParameter(nil, "depth", 2, data.NewIntValue(512), nil),
-	}
+	return jsonEncodeFunctionGetParams
+}
+
+var jsonEncodeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, nil),
+	node.NewVariable(nil, "flags", 1, nil),
+	node.NewVariable(nil, "depth", 2, nil),
 }
 
 func (f *JsonEncodeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, nil),
-		node.NewVariable(nil, "flags", 1, nil),
-		node.NewVariable(nil, "depth", 2, nil),
-	}
+	return jsonEncodeFunctionGetVariables
 }
 
 // resolveJSONValue 递归解析值：对实现了 JsonSerializable 的对象（含数组内嵌、顶层对象）调用其

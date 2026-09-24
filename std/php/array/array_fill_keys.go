@@ -50,16 +50,20 @@ func (f *ArrayFillKeysFunction) GetName() string {
 	return "array_fill_keys"
 }
 
+var arrayFillKeysFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "keys", 0, nil, nil),
+	node.NewParameter(nil, "value", 1, nil, nil),
+}
+
 func (f *ArrayFillKeysFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "keys", 0, nil, nil),
-		node.NewParameter(nil, "value", 1, nil, nil),
-	}
+	return arrayFillKeysFunctionGetParams
+}
+
+var arrayFillKeysFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "keys", 0, data.NewBaseType("array")),
+	node.NewVariable(nil, "value", 1, nil),
 }
 
 func (f *ArrayFillKeysFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "keys", 0, data.NewBaseType("array")),
-		node.NewVariable(nil, "value", 1, nil),
-	}
+	return arrayFillKeysFunctionGetVariables
 }

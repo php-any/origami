@@ -22,9 +22,13 @@ func (h *ExceptionGetCodeMethod) GetModifier() data.Modifier { return data.Modif
 
 func (h *ExceptionGetCodeMethod) GetIsStatic() bool { return false }
 
-func (h *ExceptionGetCodeMethod) GetParams() []data.GetValue { return []data.GetValue{} }
+var exceptionGetCodeMethodGetParams = []data.GetValue{}
 
-func (h *ExceptionGetCodeMethod) GetVariables() []data.Variable { return []data.Variable{} }
+func (h *ExceptionGetCodeMethod) GetParams() []data.GetValue { return exceptionGetCodeMethodGetParams }
+
+var exceptionGetCodeMethodGetVariables = []data.Variable{}
+
+func (h *ExceptionGetCodeMethod) GetVariables() []data.Variable { return exceptionGetCodeMethodGetVariables }
 
 func (h *ExceptionGetCodeMethod) GetReturnType() data.Types {
 	return data.NewBaseType("int")

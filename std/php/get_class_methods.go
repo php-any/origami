@@ -86,14 +86,18 @@ func (f *GetClassMethodsFunction) GetName() string {
 	return "get_class_methods"
 }
 
+var getClassMethodsFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "object_or_class", 0, nil, nil),
+}
+
 func (f *GetClassMethodsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object_or_class", 0, nil, nil),
-	}
+	return getClassMethodsFunctionGetParams
+}
+
+var getClassMethodsFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "object_or_class", 0, data.NewBaseType("object|string")),
 }
 
 func (f *GetClassMethodsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object_or_class", 0, data.NewBaseType("object|string")),
-	}
+	return getClassMethodsFunctionGetVariables
 }

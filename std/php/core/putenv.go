@@ -59,14 +59,18 @@ func (f *PutenvFunction) GetName() string {
 	return "putenv"
 }
 
+var putenvFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "assignment", 0, nil, data.String{}),
+}
+
 func (f *PutenvFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "assignment", 0, nil, data.String{}),
-	}
+	return putenvFunctionGetParams
+}
+
+var putenvFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "assignment", 0, data.String{}),
 }
 
 func (f *PutenvFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "assignment", 0, data.String{}),
-	}
+	return putenvFunctionGetVariables
 }

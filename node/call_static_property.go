@@ -149,6 +149,7 @@ type CallStaticPropertyLater struct {
 	namespace string              // 命名空间
 	access    *CallStaticProperty `pp:"-"` // 解析后缓存
 	resolveMu sync.Mutex
+	resolved  resolvedFlag // 命中时跳过 resolveMu，见 resolvedFlag
 }
 
 // NewCallStaticPropertyLater 创建延迟的静态属性访问
@@ -162,6 +163,9 @@ func NewCallStaticPropertyLater(from *TokenFrom, className, property, namespace 
 }
 
 func (pe *CallStaticPropertyLater) resolveAccess(ctx data.Context) (*CallStaticProperty, data.Control) {
+	if pe.resolved.Done() {
+		return pe.access, nil
+	}
 	pe.resolveMu.Lock()
 	defer pe.resolveMu.Unlock()
 	if pe.access != nil {
@@ -190,6 +194,7 @@ func (pe *CallStaticPropertyLater) resolveAccess(ctx data.Context) (*CallStaticP
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("无法获取TokenFrom信息"))
 	}
 	pe.access = NewCallStaticProperty(tokenFrom, target, pe.property)
+	pe.resolved.MarkDone()
 	return pe.access, nil
 }
 

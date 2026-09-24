@@ -44,16 +44,20 @@ func (h *ConnPingContextMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 func (h *ConnPingContextMethod) GetName() string            { return "pingContext" }
 func (h *ConnPingContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ConnPingContextMethod) GetIsStatic() bool          { return true }
+var connPingContextMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "ctx", 0, nil, nil),
+}
+
 func (h *ConnPingContextMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "ctx", 0, nil, nil),
-	}
+	return connPingContextMethodGetParams
+}
+
+var connPingContextMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "ctx", 0, nil),
 }
 
 func (h *ConnPingContextMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "ctx", 0, nil),
-	}
+	return connPingContextMethodGetVariables
 }
 
 func (h *ConnPingContextMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

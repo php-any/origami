@@ -89,14 +89,18 @@ func (f *ResetFunction) GetName() string {
 	return "reset"
 }
 
+var resetFunctionGetParams = []data.GetValue{
+	node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
+}
+
 func (f *ResetFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
-	}
+	return resetFunctionGetParams
+}
+
+var resetFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Mixed{}),
 }
 
 func (f *ResetFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Mixed{}),
-	}
+	return resetFunctionGetVariables
 }

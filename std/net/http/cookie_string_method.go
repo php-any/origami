@@ -17,6 +17,10 @@ func (h *CookieStringMethod) Call(ctx data.Context) (data.GetValue, data.Control
 func (h *CookieStringMethod) GetName() string               { return "string" }
 func (h *CookieStringMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
 func (h *CookieStringMethod) GetIsStatic() bool             { return false }
-func (h *CookieStringMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
-func (h *CookieStringMethod) GetVariables() []data.Variable { return []data.Variable{} }
+var cookieStringMethodGetParams = []data.GetValue{}
+
+func (h *CookieStringMethod) GetParams() []data.GetValue    { return cookieStringMethodGetParams }
+var cookieStringMethodGetVariables = []data.Variable{}
+
+func (h *CookieStringMethod) GetVariables() []data.Variable { return cookieStringMethodGetVariables }
 func (h *CookieStringMethod) GetReturnType() data.Types     { return data.NewBaseType("string") }

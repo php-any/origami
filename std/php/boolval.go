@@ -14,16 +14,20 @@ func NewBoolvalFunction() data.FuncStmt {
 
 func (f *BoolvalFunction) GetName() string { return "boolval" }
 
+var boolvalFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+}
+
 func (f *BoolvalFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return boolvalFunctionGetParams
+}
+
+var boolvalFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, nil),
 }
 
 func (f *BoolvalFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, nil),
-	}
+	return boolvalFunctionGetVariables
 }
 
 func (f *BoolvalFunction) Call(ctx data.Context) (data.GetValue, data.Control) {

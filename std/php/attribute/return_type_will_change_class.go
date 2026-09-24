@@ -76,12 +76,16 @@ func (m *ReturnTypeWillChangeConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var returnTypeWillChangeConstructMethodGetParams = []data.GetValue{}
+
 func (m *ReturnTypeWillChangeConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return returnTypeWillChangeConstructMethodGetParams
 }
 
+var returnTypeWillChangeConstructMethodGetVariables = []data.Variable{}
+
 func (m *ReturnTypeWillChangeConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return returnTypeWillChangeConstructMethodGetVariables
 }
 
 func (m *ReturnTypeWillChangeConstructMethod) GetReturnType() data.Types {

@@ -59,14 +59,18 @@ func isClosure(v data.FuncStmt) bool {
 
 func (f *SpawnFunction) GetName() string { return "spawn" }
 
+var spawnFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "closure", 0, nil, nil),
+}
+
 func (f *SpawnFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "closure", 0, nil, nil),
-	}
+	return spawnFunctionGetParams
+}
+
+var spawnFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "closure", 0, data.Mixed{}),
 }
 
 func (f *SpawnFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "closure", 0, data.Mixed{}),
-	}
+	return spawnFunctionGetVariables
 }

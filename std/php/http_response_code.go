@@ -19,9 +19,13 @@ func (f *HttpResponseCodeFunction) Call(ctx data.Context) (data.GetValue, data.C
 }
 
 func (f *HttpResponseCodeFunction) GetName() string { return "http_response_code" }
+var httpResponseCodeFunctionGetParams = []data.GetValue{node.NewParameter(nil, "response_code", 0, node.NewIntLiteral(nil, "200"), nil)}
+
 func (f *HttpResponseCodeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "response_code", 0, node.NewIntLiteral(nil, "200"), nil)}
+	return httpResponseCodeFunctionGetParams
 }
+var httpResponseCodeFunctionGetVariables = []data.Variable{node.NewVariable(nil, "response_code", 0, data.NewBaseType("int"))}
+
 func (f *HttpResponseCodeFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "response_code", 0, data.NewBaseType("int"))}
+	return httpResponseCodeFunctionGetVariables
 }

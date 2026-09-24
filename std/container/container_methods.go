@@ -22,17 +22,21 @@ func (containerStaticMethod) GetIsStatic() bool          { return true }
 type ContainerBindMethod struct{ containerMethod }
 
 func (m *ContainerBindMethod) GetName() string { return "bind" }
-func (m *ContainerBindMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("abstract", 0),
-		data.NewParameterDefault("concrete", 1, data.NewNullValue(), nil),
-	}
+var containerBindMethodGetParams = []data.GetValue{
+	data.NewParameter("abstract", 0),
+	data.NewParameterDefault("concrete", 1, data.NewNullValue(), nil),
 }
+
+func (m *ContainerBindMethod) GetParams() []data.GetValue {
+	return containerBindMethodGetParams
+}
+var containerBindMethodGetVariables = []data.Variable{
+	data.NewVariable("abstract", 0, data.NewBaseType("string")),
+	data.NewVariable("concrete", 1, nil),
+}
+
 func (m *ContainerBindMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("abstract", 0, data.NewBaseType("string")),
-		data.NewVariable("concrete", 1, nil),
-	}
+	return containerBindMethodGetVariables
 }
 func (m *ContainerBindMethod) GetReturnType() data.Types { return nil }
 func (m *ContainerBindMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -57,17 +61,21 @@ func (m *ContainerBindMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 type ContainerSingletonMethod struct{ containerMethod }
 
 func (m *ContainerSingletonMethod) GetName() string { return "singleton" }
-func (m *ContainerSingletonMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("abstract", 0),
-		data.NewParameterDefault("concrete", 1, data.NewNullValue(), nil),
-	}
+var containerSingletonMethodGetParams = []data.GetValue{
+	data.NewParameter("abstract", 0),
+	data.NewParameterDefault("concrete", 1, data.NewNullValue(), nil),
 }
+
+func (m *ContainerSingletonMethod) GetParams() []data.GetValue {
+	return containerSingletonMethodGetParams
+}
+var containerSingletonMethodGetVariables = []data.Variable{
+	data.NewVariable("abstract", 0, data.NewBaseType("string")),
+	data.NewVariable("concrete", 1, nil),
+}
+
 func (m *ContainerSingletonMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("abstract", 0, data.NewBaseType("string")),
-		data.NewVariable("concrete", 1, nil),
-	}
+	return containerSingletonMethodGetVariables
 }
 func (m *ContainerSingletonMethod) GetReturnType() data.Types { return nil }
 func (m *ContainerSingletonMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -92,17 +100,21 @@ func (m *ContainerSingletonMethod) Call(ctx data.Context) (data.GetValue, data.C
 type ContainerScopedMethod struct{ containerMethod }
 
 func (m *ContainerScopedMethod) GetName() string { return "scoped" }
-func (m *ContainerScopedMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("abstract", 0),
-		data.NewParameterDefault("concrete", 1, data.NewNullValue(), nil),
-	}
+var containerScopedMethodGetParams = []data.GetValue{
+	data.NewParameter("abstract", 0),
+	data.NewParameterDefault("concrete", 1, data.NewNullValue(), nil),
 }
+
+func (m *ContainerScopedMethod) GetParams() []data.GetValue {
+	return containerScopedMethodGetParams
+}
+var containerScopedMethodGetVariables = []data.Variable{
+	data.NewVariable("abstract", 0, data.NewBaseType("string")),
+	data.NewVariable("concrete", 1, nil),
+}
+
 func (m *ContainerScopedMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("abstract", 0, data.NewBaseType("string")),
-		data.NewVariable("concrete", 1, nil),
-	}
+	return containerScopedMethodGetVariables
 }
 func (m *ContainerScopedMethod) GetReturnType() data.Types { return nil }
 func (m *ContainerScopedMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -127,17 +139,21 @@ func (m *ContainerScopedMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 type ContainerInstanceMethod struct{ containerMethod }
 
 func (m *ContainerInstanceMethod) GetName() string { return "instance" }
-func (m *ContainerInstanceMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("abstract", 0),
-		data.NewParameter("instance", 1),
-	}
+var containerInstanceMethodGetParams = []data.GetValue{
+	data.NewParameter("abstract", 0),
+	data.NewParameter("instance", 1),
 }
+
+func (m *ContainerInstanceMethod) GetParams() []data.GetValue {
+	return containerInstanceMethodGetParams
+}
+var containerInstanceMethodGetVariables = []data.Variable{
+	data.NewVariable("abstract", 0, data.NewBaseType("string")),
+	data.NewVariable("instance", 1, data.NewBaseType("object")),
+}
+
 func (m *ContainerInstanceMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("abstract", 0, data.NewBaseType("string")),
-		data.NewVariable("instance", 1, data.NewBaseType("object")),
-	}
+	return containerInstanceMethodGetVariables
 }
 func (m *ContainerInstanceMethod) GetReturnType() data.Types { return nil }
 func (m *ContainerInstanceMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -162,17 +178,21 @@ func (m *ContainerInstanceMethod) Call(ctx data.Context) (data.GetValue, data.Co
 type ContainerMakeMethod struct{ containerMethod }
 
 func (m *ContainerMakeMethod) GetName() string { return "make" }
-func (m *ContainerMakeMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("abstract", 0),
-		data.NewParameterDefault("parameters", 1, data.NewNullValue(), nil),
-	}
+var containerMakeMethodGetParams = []data.GetValue{
+	data.NewParameter("abstract", 0),
+	data.NewParameterDefault("parameters", 1, data.NewNullValue(), nil),
 }
+
+func (m *ContainerMakeMethod) GetParams() []data.GetValue {
+	return containerMakeMethodGetParams
+}
+var containerMakeMethodGetVariables = []data.Variable{
+	data.NewVariable("abstract", 0, data.NewBaseType("string")),
+	data.NewVariable("parameters", 1, nil),
+}
+
 func (m *ContainerMakeMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("abstract", 0, data.NewBaseType("string")),
-		data.NewVariable("parameters", 1, nil),
-	}
+	return containerMakeMethodGetVariables
 }
 func (m *ContainerMakeMethod) GetReturnType() data.Types { return data.NewBaseType("object") }
 func (m *ContainerMakeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -200,11 +220,15 @@ func (m *ContainerMakeMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 type ContainerHasMethod struct{ containerMethod }
 
 func (m *ContainerHasMethod) GetName() string { return "has" }
+var containerHasMethodGetParams = []data.GetValue{data.NewParameter("abstract", 0)}
+
 func (m *ContainerHasMethod) GetParams() []data.GetValue {
-	return []data.GetValue{data.NewParameter("abstract", 0)}
+	return containerHasMethodGetParams
 }
+var containerHasMethodGetVariables = []data.Variable{data.NewVariable("abstract", 0, data.NewBaseType("string"))}
+
 func (m *ContainerHasMethod) GetVariables() []data.Variable {
-	return []data.Variable{data.NewVariable("abstract", 0, data.NewBaseType("string"))}
+	return containerHasMethodGetVariables
 }
 func (m *ContainerHasMethod) GetReturnType() data.Types { return data.NewBaseType("bool") }
 func (m *ContainerHasMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -224,11 +248,15 @@ func (m *ContainerHasMethod) Call(ctx data.Context) (data.GetValue, data.Control
 type ContainerIsSharedMethod struct{ containerMethod }
 
 func (m *ContainerIsSharedMethod) GetName() string { return "isShared" }
+var containerIsSharedMethodGetParams = []data.GetValue{data.NewParameter("abstract", 0)}
+
 func (m *ContainerIsSharedMethod) GetParams() []data.GetValue {
-	return []data.GetValue{data.NewParameter("abstract", 0)}
+	return containerIsSharedMethodGetParams
 }
+var containerIsSharedMethodGetVariables = []data.Variable{data.NewVariable("abstract", 0, data.NewBaseType("string"))}
+
 func (m *ContainerIsSharedMethod) GetVariables() []data.Variable {
-	return []data.Variable{data.NewVariable("abstract", 0, data.NewBaseType("string"))}
+	return containerIsSharedMethodGetVariables
 }
 func (m *ContainerIsSharedMethod) GetReturnType() data.Types { return data.NewBaseType("bool") }
 func (m *ContainerIsSharedMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -248,17 +276,21 @@ func (m *ContainerIsSharedMethod) Call(ctx data.Context) (data.GetValue, data.Co
 type ContainerAliasMethod struct{ containerMethod }
 
 func (m *ContainerAliasMethod) GetName() string { return "alias" }
-func (m *ContainerAliasMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("alias", 0),
-		data.NewParameter("abstract", 1),
-	}
+var containerAliasMethodGetParams = []data.GetValue{
+	data.NewParameter("alias", 0),
+	data.NewParameter("abstract", 1),
 }
+
+func (m *ContainerAliasMethod) GetParams() []data.GetValue {
+	return containerAliasMethodGetParams
+}
+var containerAliasMethodGetVariables = []data.Variable{
+	data.NewVariable("alias", 0, data.NewBaseType("string")),
+	data.NewVariable("abstract", 1, data.NewBaseType("string")),
+}
+
 func (m *ContainerAliasMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("alias", 0, data.NewBaseType("string")),
-		data.NewVariable("abstract", 1, data.NewBaseType("string")),
-	}
+	return containerAliasMethodGetVariables
 }
 func (m *ContainerAliasMethod) GetReturnType() data.Types { return nil }
 func (m *ContainerAliasMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -314,11 +346,15 @@ func (m *ContainerApplicationMethod) Call(ctx data.Context) (data.GetValue, data
 type ContainerRegisterProvidersMethod struct{ containerMethod }
 
 func (m *ContainerRegisterProvidersMethod) GetName() string { return "registerProviders" }
+var containerRegisterProvidersMethodGetParams = []data.GetValue{data.NewParameter("providers", 0)}
+
 func (m *ContainerRegisterProvidersMethod) GetParams() []data.GetValue {
-	return []data.GetValue{data.NewParameter("providers", 0)}
+	return containerRegisterProvidersMethodGetParams
 }
+var containerRegisterProvidersMethodGetVariables = []data.Variable{data.NewVariable("providers", 0, nil)}
+
 func (m *ContainerRegisterProvidersMethod) GetVariables() []data.Variable {
-	return []data.Variable{data.NewVariable("providers", 0, nil)}
+	return containerRegisterProvidersMethodGetVariables
 }
 func (m *ContainerRegisterProvidersMethod) GetReturnType() data.Types { return nil }
 func (m *ContainerRegisterProvidersMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -417,11 +453,15 @@ func (m *ContainerCreateScopeMethod) Call(ctx data.Context) (data.GetValue, data
 type ContainerScanMethod struct{ containerMethod }
 
 func (m *ContainerScanMethod) GetName() string { return "scan" }
+var containerScanMethodGetParams = []data.GetValue{data.NewParameter("directory", 0)}
+
 func (m *ContainerScanMethod) GetParams() []data.GetValue {
-	return []data.GetValue{data.NewParameter("directory", 0)}
+	return containerScanMethodGetParams
 }
+var containerScanMethodGetVariables = []data.Variable{data.NewVariable("directory", 0, data.NewBaseType("string"))}
+
 func (m *ContainerScanMethod) GetVariables() []data.Variable {
-	return []data.Variable{data.NewVariable("directory", 0, data.NewBaseType("string"))}
+	return containerScanMethodGetVariables
 }
 func (m *ContainerScanMethod) GetReturnType() data.Types { return nil }
 func (m *ContainerScanMethod) Call(ctx data.Context) (data.GetValue, data.Control) {

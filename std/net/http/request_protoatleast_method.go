@@ -29,16 +29,20 @@ func (h *RequestProtoAtLeastMethod) Call(ctx data.Context) (data.GetValue, data.
 func (h *RequestProtoAtLeastMethod) GetName() string            { return "protoAtLeast" }
 func (h *RequestProtoAtLeastMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestProtoAtLeastMethod) GetIsStatic() bool          { return false }
-func (h *RequestProtoAtLeastMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-		node.NewParameter(nil, "param1", 1, nil, nil),
-	}
+var requestProtoAtLeastMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
+	node.NewParameter(nil, "param1", 1, nil, nil),
 }
+
+func (h *RequestProtoAtLeastMethod) GetParams() []data.GetValue {
+	return requestProtoAtLeastMethodGetParams
+}
+var requestProtoAtLeastMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
+	node.NewVariable(nil, "param1", 1, nil),
+}
+
 func (h *RequestProtoAtLeastMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-		node.NewVariable(nil, "param1", 1, nil),
-	}
+	return requestProtoAtLeastMethodGetVariables
 }
 func (h *RequestProtoAtLeastMethod) GetReturnType() data.Types { return data.NewBaseType("bool") }

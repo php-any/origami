@@ -13,10 +13,14 @@ func (m *ReflectionMethodHasReturnTypeMethod) GetModifier() data.Modifier { retu
 
 func (m *ReflectionMethodHasReturnTypeMethod) GetIsStatic() bool { return false }
 
-func (m *ReflectionMethodHasReturnTypeMethod) GetParams() []data.GetValue { return []data.GetValue{} }
+var reflectionMethodHasReturnTypeMethodGetParams = []data.GetValue{}
+
+func (m *ReflectionMethodHasReturnTypeMethod) GetParams() []data.GetValue { return reflectionMethodHasReturnTypeMethodGetParams }
+
+var reflectionMethodHasReturnTypeMethodGetVariables = []data.Variable{}
 
 func (m *ReflectionMethodHasReturnTypeMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return reflectionMethodHasReturnTypeMethodGetVariables
 }
 
 func (m *ReflectionMethodHasReturnTypeMethod) GetReturnType() data.Types { return data.Bool{} }

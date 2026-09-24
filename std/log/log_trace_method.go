@@ -40,18 +40,22 @@ func (h *LogTraceMethod) GetIsStatic() bool {
 	return true
 }
 
+var logTraceMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "msg", 0, nil, nil),
+	node.NewParameters(nil, "args", 1, nil, nil),
+}
+
 func (h *LogTraceMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "msg", 0, nil, nil),
-		node.NewParameters(nil, "args", 1, nil, nil),
-	}
+	return logTraceMethodGetParams
+}
+
+var logTraceMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "msg", 0, nil),
+	node.NewVariable(nil, "args", 1, nil),
 }
 
 func (h *LogTraceMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "msg", 0, nil),
-		node.NewVariable(nil, "args", 1, nil),
-	}
+	return logTraceMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型

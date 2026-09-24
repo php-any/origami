@@ -92,23 +92,27 @@ func (m *RegexIteratorConstructMethod) GetName() string            { return "__c
 func (m *RegexIteratorConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *RegexIteratorConstructMethod) GetIsStatic() bool          { return false }
 func (m *RegexIteratorConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *RegexIteratorConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
-		node.NewParameter(nil, "regex", 1, nil, data.String{}),
-		node.NewParameter(nil, "mode", 2, data.NewIntValue(0), data.Int{}),
-		node.NewParameter(nil, "flags", 3, data.NewIntValue(0), data.Int{}),
-		node.NewParameter(nil, "pregFlags", 4, data.NewIntValue(0), data.Int{}),
-	}
+var regexIteratorConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
+	node.NewParameter(nil, "regex", 1, nil, data.String{}),
+	node.NewParameter(nil, "mode", 2, data.NewIntValue(0), data.Int{}),
+	node.NewParameter(nil, "flags", 3, data.NewIntValue(0), data.Int{}),
+	node.NewParameter(nil, "pregFlags", 4, data.NewIntValue(0), data.Int{}),
 }
+
+func (m *RegexIteratorConstructMethod) GetParams() []data.GetValue {
+	return regexIteratorConstructMethodGetParams
+}
+var regexIteratorConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
+	node.NewVariable(nil, "regex", 1, data.String{}),
+	node.NewVariable(nil, "mode", 2, data.Int{}),
+	node.NewVariable(nil, "flags", 3, data.Int{}),
+	node.NewVariable(nil, "pregFlags", 4, data.Int{}),
+}
+
 func (m *RegexIteratorConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
-		node.NewVariable(nil, "regex", 1, data.String{}),
-		node.NewVariable(nil, "mode", 2, data.Int{}),
-		node.NewVariable(nil, "flags", 3, data.Int{}),
-		node.NewVariable(nil, "pregFlags", 4, data.Int{}),
-	}
+	return regexIteratorConstructMethodGetVariables
 }
 func (m *RegexIteratorConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := filterGetClassValue(ctx)

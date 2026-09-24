@@ -126,16 +126,20 @@ func (d *DbInsertMethod) GetIsStatic() bool {
 	return false
 }
 
+var dbInsertMethodGetParams = []data.GetValue{
+	data.NewParameter("data", 0),
+}
+
 func (d *DbInsertMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("data", 0),
-	}
+	return dbInsertMethodGetParams
+}
+
+var dbInsertMethodGetVariables = []data.Variable{
+	data.NewVariable("data", 0, data.NewBaseType("object")),
 }
 
 func (d *DbInsertMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("data", 0, data.NewBaseType("object")),
-	}
+	return dbInsertMethodGetVariables
 }
 
 func (d *DbInsertMethod) GetReturnType() data.Types {

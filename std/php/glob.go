@@ -173,16 +173,20 @@ func (f *GlobFunction) GetName() string {
 	return "glob"
 }
 
+var globFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "pattern", 0, nil, nil),
+	node.NewParameter(nil, "flags", 1, data.NewIntValue(0), nil),
+}
+
 func (f *GlobFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "pattern", 0, nil, nil),
-		node.NewParameter(nil, "flags", 1, data.NewIntValue(0), nil),
-	}
+	return globFunctionGetParams
+}
+
+var globFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "pattern", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "flags", 1, data.NewBaseType("int")),
 }
 
 func (f *GlobFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "pattern", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "flags", 1, data.NewBaseType("int")),
-	}
+	return globFunctionGetVariables
 }

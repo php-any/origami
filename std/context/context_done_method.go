@@ -18,12 +18,16 @@ func (h *ContextDoneMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 func (h *ContextDoneMethod) GetName() string            { return "done" }
 func (h *ContextDoneMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ContextDoneMethod) GetIsStatic() bool          { return true }
+var contextDoneMethodGetParams = []data.GetValue{}
+
 func (h *ContextDoneMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return contextDoneMethodGetParams
 }
 
+var contextDoneMethodGetVariables = []data.Variable{}
+
 func (h *ContextDoneMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return contextDoneMethodGetVariables
 }
 
 func (h *ContextDoneMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

@@ -61,16 +61,20 @@ func (f *ArrayDiffKeyFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 
 func (f *ArrayDiffKeyFunction) GetName() string { return "array_diff_key" }
 
+var arrayDiffKeyFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, nil),
+	node.NewParameters(nil, "arrays", 1, nil, nil),
+}
+
 func (f *ArrayDiffKeyFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, nil),
-		node.NewParameters(nil, "arrays", 1, nil, nil),
-	}
+	return arrayDiffKeyFunctionGetParams
+}
+
+var arrayDiffKeyFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
+	node.NewVariable(nil, "arrays", 1, data.NewBaseType("array")),
 }
 
 func (f *ArrayDiffKeyFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-		node.NewVariable(nil, "arrays", 1, data.NewBaseType("array")),
-	}
+	return arrayDiffKeyFunctionGetVariables
 }

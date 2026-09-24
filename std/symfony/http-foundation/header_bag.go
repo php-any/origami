@@ -299,7 +299,7 @@ func NewHeaderBagClassFrom(source *HeaderBagData) data.ClassStmt {
 			protectedArrayProp("cacheControl"),
 		},
 	}
-	c.methods, c.methodList = headerBagMethods()
+	c.methods, c.methodList = headerBagMethodsCache()
 	return c
 }
 
@@ -336,6 +336,11 @@ func (c *HeaderBagClass) GetMethod(name string) (data.Method, bool) {
 	return m, ok
 }
 func (c *HeaderBagClass) GetMethods() []data.Method { return c.methodList }
+
+// headerBagMethodsCache 只构建一次：HeaderBag/ResponseHeaderBag 每次实例化都会取方法表，
+// 而方法表里的 param()/variable() 会为每个方法重建 node.Parameter/node.Variable，
+// 是每个请求的大头分配。方法表构造后不再修改，各处只读，可安全共享。
+var headerBagMethodsCache = cachedMethods(headerBagMethods)
 
 func headerBagMethods() (map[string]data.Method, []data.Method) {
 	list := []data.Method{

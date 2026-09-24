@@ -52,14 +52,18 @@ func (f *FilesizeFunction) GetName() string {
 	return "filesize"
 }
 
+var filesizeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "filename", 0, nil, nil),
+}
+
 func (f *FilesizeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "filename", 0, nil, nil),
-	}
+	return filesizeFunctionGetParams
+}
+
+var filesizeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
 }
 
 func (f *FilesizeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
-	}
+	return filesizeFunctionGetVariables
 }

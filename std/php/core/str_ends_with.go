@@ -63,16 +63,20 @@ func (f *StrEndsWithFunction) GetName() string {
 	return "str_ends_with"
 }
 
+var strEndsWithFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "haystack", 0, nil, data.String{}),
+	node.NewParameter(nil, "needle", 1, nil, data.String{}),
+}
+
 func (f *StrEndsWithFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "haystack", 0, nil, data.String{}),
-		node.NewParameter(nil, "needle", 1, nil, data.String{}),
-	}
+	return strEndsWithFunctionGetParams
+}
+
+var strEndsWithFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "haystack", 0, data.String{}),
+	node.NewVariable(nil, "needle", 1, data.String{}),
 }
 
 func (f *StrEndsWithFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "haystack", 0, data.String{}),
-		node.NewVariable(nil, "needle", 1, data.String{}),
-	}
+	return strEndsWithFunctionGetVariables
 }

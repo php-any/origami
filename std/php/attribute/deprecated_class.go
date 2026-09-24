@@ -76,22 +76,26 @@ func (m *DeprecatedConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var deprecatedConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "message", 0, data.NewNullValue(), nil),
+	node.NewParameter(nil, "since", 1, data.NewNullValue(), nil),
+	node.NewParameter(nil, "replacement", 2, data.NewNullValue(), nil),
+	node.NewParameter(nil, "reason", 3, data.NewStringValue("usage"), nil),
+}
+
 func (m *DeprecatedConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "message", 0, data.NewNullValue(), nil),
-		node.NewParameter(nil, "since", 1, data.NewNullValue(), nil),
-		node.NewParameter(nil, "replacement", 2, data.NewNullValue(), nil),
-		node.NewParameter(nil, "reason", 3, data.NewStringValue("usage"), nil),
-	}
+	return deprecatedConstructMethodGetParams
+}
+
+var deprecatedConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "message", 0, nil),
+	node.NewVariable(nil, "since", 1, nil),
+	node.NewVariable(nil, "replacement", 2, nil),
+	node.NewVariable(nil, "reason", 3, nil),
 }
 
 func (m *DeprecatedConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "message", 0, nil),
-		node.NewVariable(nil, "since", 1, nil),
-		node.NewVariable(nil, "replacement", 2, nil),
-		node.NewVariable(nil, "reason", 3, nil),
-	}
+	return deprecatedConstructMethodGetVariables
 }
 
 func (m *DeprecatedConstructMethod) GetReturnType() data.Types {

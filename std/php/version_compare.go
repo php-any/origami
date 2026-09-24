@@ -141,17 +141,21 @@ func phpVersionWeight(num int, special string) int {
 }
 
 func (f *VersionCompareFunction) GetName() string { return "version_compare" }
-func (f *VersionCompareFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "version1", 0, nil, data.String{}),
-		node.NewParameter(nil, "version2", 1, nil, data.String{}),
-		node.NewParameter(nil, "operator", 2, data.NewNullValue(), data.NewNullableType(data.String{})),
-	}
+var versionCompareFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "version1", 0, nil, data.String{}),
+	node.NewParameter(nil, "version2", 1, nil, data.String{}),
+	node.NewParameter(nil, "operator", 2, data.NewNullValue(), data.NewNullableType(data.String{})),
 }
+
+func (f *VersionCompareFunction) GetParams() []data.GetValue {
+	return versionCompareFunctionGetParams
+}
+var versionCompareFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "version1", 0, data.String{}),
+	node.NewVariable(nil, "version2", 1, data.String{}),
+	node.NewVariable(nil, "operator", 2, data.NewNullableType(data.String{})),
+}
+
 func (f *VersionCompareFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "version1", 0, data.String{}),
-		node.NewVariable(nil, "version2", 1, data.String{}),
-		node.NewVariable(nil, "operator", 2, data.NewNullableType(data.String{})),
-	}
+	return versionCompareFunctionGetVariables
 }

@@ -44,16 +44,20 @@ func (f *TrimFunction) GetName() string {
 	return "trim"
 }
 
+var trimFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "charlist", 1, node.NewNullLiteral(nil), nil),
+}
+
 func (f *TrimFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "charlist", 1, node.NewNullLiteral(nil), nil),
-	}
+	return trimFunctionGetParams
+}
+
+var trimFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "charlist", 1, data.NewBaseType("string")),
 }
 
 func (f *TrimFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "charlist", 1, data.NewBaseType("string")),
-	}
+	return trimFunctionGetVariables
 }

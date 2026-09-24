@@ -150,18 +150,22 @@ func (f *StreamGetContentsFunction) GetName() string {
 	return "stream_get_contents"
 }
 
+var streamGetContentsFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "stream", 0, nil, nil),
+	node.NewParameter(nil, "length", 1, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "offset", 2, node.NewIntLiteral(nil, "-1"), nil),
+}
+
 func (f *StreamGetContentsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "stream", 0, nil, nil),
-		node.NewParameter(nil, "length", 1, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "offset", 2, node.NewIntLiteral(nil, "-1"), nil),
-	}
+	return streamGetContentsFunctionGetParams
+}
+
+var streamGetContentsFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "stream", 0, data.NewBaseType("resource")),
+	node.NewVariable(nil, "length", 1, data.NewBaseType("int")),
+	node.NewVariable(nil, "offset", 2, data.NewBaseType("int")),
 }
 
 func (f *StreamGetContentsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "stream", 0, data.NewBaseType("resource")),
-		node.NewVariable(nil, "length", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "offset", 2, data.NewBaseType("int")),
-	}
+	return streamGetContentsFunctionGetVariables
 }

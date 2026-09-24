@@ -289,17 +289,21 @@ type RouterMapMethod struct {
 func (m *RouterMapMethod) GetName() string            { return strings.ToLower(m.name) }
 func (m *RouterMapMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *RouterMapMethod) GetIsStatic() bool          { return true }
-func (m *RouterMapMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "path", 0, nil, data.String{}),
-		node.NewParameter(nil, "action", 1, nil, data.Arrays{}),
-	}
+var routerMapMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "path", 0, nil, data.String{}),
+	node.NewParameter(nil, "action", 1, nil, data.Arrays{}),
 }
+
+func (m *RouterMapMethod) GetParams() []data.GetValue {
+	return routerMapMethodGetParams
+}
+var routerMapMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "path", 0, data.String{}),
+	node.NewVariable(nil, "action", 1, data.Arrays{}),
+}
+
 func (m *RouterMapMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "path", 0, data.String{}),
-		node.NewVariable(nil, "action", 1, data.Arrays{}),
-	}
+	return routerMapMethodGetVariables
 }
 func (m *RouterMapMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
 func (m *RouterMapMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -323,17 +327,21 @@ type RouterGroupMethod struct{}
 func (m *RouterGroupMethod) GetName() string            { return "group" }
 func (m *RouterGroupMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *RouterGroupMethod) GetIsStatic() bool          { return true }
-func (m *RouterGroupMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "attributes", 0, nil, data.Arrays{}),
-		node.NewParameter(nil, "callback", 1, nil, nil),
-	}
+var routerGroupMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "attributes", 0, nil, data.Arrays{}),
+	node.NewParameter(nil, "callback", 1, nil, nil),
 }
+
+func (m *RouterGroupMethod) GetParams() []data.GetValue {
+	return routerGroupMethodGetParams
+}
+var routerGroupMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "attributes", 0, data.Arrays{}),
+	node.NewVariable(nil, "callback", 1, nil),
+}
+
 func (m *RouterGroupMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "attributes", 0, data.Arrays{}),
-		node.NewVariable(nil, "callback", 1, nil),
-	}
+	return routerGroupMethodGetVariables
 }
 func (m *RouterGroupMethod) GetReturnType() data.Types { return data.NewBaseType("void") }
 func (m *RouterGroupMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -406,9 +414,13 @@ type RouterGetRoutesMethod struct{}
 func (m *RouterGetRoutesMethod) GetName() string            { return "getRoutes" }
 func (m *RouterGetRoutesMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *RouterGetRoutesMethod) GetIsStatic() bool          { return true }
-func (m *RouterGetRoutesMethod) GetParams() []data.GetValue { return []data.GetValue{} }
+var routerGetRoutesMethodGetParams = []data.GetValue{}
+
+func (m *RouterGetRoutesMethod) GetParams() []data.GetValue { return routerGetRoutesMethodGetParams }
+var routerGetRoutesMethodGetVariables = []data.Variable{}
+
 func (m *RouterGetRoutesMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return routerGetRoutesMethodGetVariables
 }
 func (m *RouterGetRoutesMethod) GetReturnType() data.Types { return data.NewBaseType("array") }
 func (m *RouterGetRoutesMethod) Call(ctx data.Context) (data.GetValue, data.Control) {

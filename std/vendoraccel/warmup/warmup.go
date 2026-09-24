@@ -1,4 +1,8 @@
-package vendoraccel
+// Package warmup 负责 vendor classmap / polyfill 预热。
+//
+// 单独成包是为了让 std/laravel 侧（serve 启动预热）能复用，而 std/vendoraccel
+// 又依赖 std/laravel —— 放在同一包会形成 import cycle。
+package warmup
 
 import (
 	"os"

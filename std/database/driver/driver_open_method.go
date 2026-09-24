@@ -32,16 +32,20 @@ func (h *DriverOpenMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 func (h *DriverOpenMethod) GetName() string            { return "open" }
 func (h *DriverOpenMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DriverOpenMethod) GetIsStatic() bool          { return true }
+var driverOpenMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
+}
+
 func (h *DriverOpenMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-	}
+	return driverOpenMethodGetParams
+}
+
+var driverOpenMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
 }
 
 func (h *DriverOpenMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-	}
+	return driverOpenMethodGetVariables
 }
 
 func (h *DriverOpenMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

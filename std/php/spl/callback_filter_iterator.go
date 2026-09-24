@@ -108,19 +108,23 @@ func (m *CallbackFilterIteratorConstructMethod) GetModifier() data.Modifier {
 }
 func (m *CallbackFilterIteratorConstructMethod) GetIsStatic() bool         { return false }
 func (m *CallbackFilterIteratorConstructMethod) GetReturnType() data.Types { return nil }
-func (m *CallbackFilterIteratorConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
-		node.NewParameter(nil, "callback", 1, nil, nil),
-		node.NewParameter(nil, "mode", 2, data.NewIntValue(0), data.Int{}),
-	}
+var callbackFilterIteratorConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
+	node.NewParameter(nil, "callback", 1, nil, nil),
+	node.NewParameter(nil, "mode", 2, data.NewIntValue(0), data.Int{}),
 }
+
+func (m *CallbackFilterIteratorConstructMethod) GetParams() []data.GetValue {
+	return callbackFilterIteratorConstructMethodGetParams
+}
+var callbackFilterIteratorConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
+	node.NewVariable(nil, "callback", 1, data.Mixed{}),
+	node.NewVariable(nil, "mode", 2, data.Int{}),
+}
+
 func (m *CallbackFilterIteratorConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
-		node.NewVariable(nil, "callback", 1, data.Mixed{}),
-		node.NewVariable(nil, "mode", 2, data.Int{}),
-	}
+	return callbackFilterIteratorConstructMethodGetVariables
 }
 func (m *CallbackFilterIteratorConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := filterGetClassValue(ctx)

@@ -263,6 +263,7 @@ type CallStaticMethodLater struct {
 	namespace string            // 命名空间
 	call      *CallStaticMethod `pp:"-"` // 解析后缓存
 	resolveMu sync.Mutex
+	resolved  resolvedFlag // 命中时跳过 resolveMu，见 resolvedFlag
 }
 
 // NewCallStaticMethodLater 创建延迟的静态方法调用
@@ -276,6 +277,9 @@ func NewCallStaticMethodLater(from *TokenFrom, className, method, namespace stri
 }
 
 func (pe *CallStaticMethodLater) resolveCall(ctx data.Context) (*CallStaticMethod, data.Control) {
+	if pe.resolved.Done() {
+		return pe.call, nil
+	}
 	pe.resolveMu.Lock()
 	defer pe.resolveMu.Unlock()
 	if pe.call != nil {
@@ -303,6 +307,7 @@ func (pe *CallStaticMethodLater) resolveCall(ctx data.Context) (*CallStaticMetho
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("无法获取TokenFrom信息"))
 	}
 	pe.call = NewCallStaticMethod(tokenFrom, stmt, pe.method)
+	pe.resolved.MarkDone()
 	return pe.call, nil
 }
 

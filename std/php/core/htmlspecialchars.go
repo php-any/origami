@@ -52,20 +52,24 @@ func (f *HtmlspecialcharsFunction) GetName() string {
 	return "htmlspecialchars"
 }
 
+var htmlspecialcharsFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "flags", 1, nil, nil),
+	node.NewParameter(nil, "encoding", 2, nil, nil),
+	node.NewParameter(nil, "double_encode", 3, nil, nil),
+}
+
 func (f *HtmlspecialcharsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "flags", 1, nil, nil),
-		node.NewParameter(nil, "encoding", 2, nil, nil),
-		node.NewParameter(nil, "double_encode", 3, nil, nil),
-	}
+	return htmlspecialcharsFunctionGetParams
+}
+
+var htmlspecialcharsFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, nil),
+	node.NewVariable(nil, "flags", 1, nil),
+	node.NewVariable(nil, "encoding", 2, nil),
+	node.NewVariable(nil, "double_encode", 3, nil),
 }
 
 func (f *HtmlspecialcharsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, nil),
-		node.NewVariable(nil, "flags", 1, nil),
-		node.NewVariable(nil, "encoding", 2, nil),
-		node.NewVariable(nil, "double_encode", 3, nil),
-	}
+	return htmlspecialcharsFunctionGetVariables
 }

@@ -120,19 +120,23 @@ func (m *LIConstructMethod) GetName() string            { return "__construct" }
 func (m *LIConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *LIConstructMethod) GetIsStatic() bool          { return false }
 func (m *LIConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *LIConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
-		node.NewParameter(nil, "offset", 1, data.NewIntValue(0), data.NewBaseType("int")),
-		node.NewParameter(nil, "count", 2, data.NewIntValue(-1), data.NewBaseType("int")),
-	}
+var lIConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
+	node.NewParameter(nil, "offset", 1, data.NewIntValue(0), data.NewBaseType("int")),
+	node.NewParameter(nil, "count", 2, data.NewIntValue(-1), data.NewBaseType("int")),
 }
+
+func (m *LIConstructMethod) GetParams() []data.GetValue {
+	return lIConstructMethodGetParams
+}
+var lIConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
+	node.NewVariable(nil, "offset", 1, data.NewBaseType("int")),
+	node.NewVariable(nil, "count", 2, data.NewBaseType("int")),
+}
+
 func (m *LIConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
-		node.NewVariable(nil, "offset", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "count", 2, data.NewBaseType("int")),
-	}
+	return lIConstructMethodGetVariables
 }
 func (m *LIConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	it, _ := ctx.GetIndexValue(0)
@@ -235,15 +239,19 @@ func (m *LISeekMethod) GetName() string            { return "seek" }
 func (m *LISeekMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *LISeekMethod) GetIsStatic() bool          { return false }
 func (m *LISeekMethod) GetReturnType() data.Types  { return nil }
-func (m *LISeekMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "position", 0, nil, data.NewBaseType("int")),
-	}
+var lISeekMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "position", 0, nil, data.NewBaseType("int")),
 }
+
+func (m *LISeekMethod) GetParams() []data.GetValue {
+	return lISeekMethodGetParams
+}
+var lISeekMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "position", 0, data.NewBaseType("int")),
+}
+
 func (m *LISeekMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "position", 0, data.NewBaseType("int")),
-	}
+	return lISeekMethodGetVariables
 }
 func (m *LISeekMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	posVal, _ := ctx.GetIndexValue(0)

@@ -37,9 +37,13 @@ func (f *AbsFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *AbsFunction) GetName() string { return "abs" }
+var absFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
+
 func (f *AbsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
+	return absFunctionGetParams
 }
+var absFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
+
 func (f *AbsFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "num", 0, nil)}
+	return absFunctionGetVariables
 }

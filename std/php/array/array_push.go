@@ -42,16 +42,20 @@ func (f *ArrayPushFunction) GetName() string {
 	return "array_push"
 }
 
+var arrayPushFunctionGetParams = []data.GetValue{
+	node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
+	node.NewParameters(nil, "values", 1, nil, nil),
+}
+
 func (f *ArrayPushFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
-		node.NewParameters(nil, "values", 1, nil, nil),
-	}
+	return arrayPushFunctionGetParams
+}
+
+var arrayPushFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Mixed{}),
+	node.NewVariable(nil, "values", 1, data.Mixed{}),
 }
 
 func (f *ArrayPushFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Mixed{}),
-		node.NewVariable(nil, "values", 1, data.Mixed{}),
-	}
+	return arrayPushFunctionGetVariables
 }

@@ -33,17 +33,21 @@ func (h *ResponseWriterHeaderMethod) Call(ctx data.Context) (data.GetValue, data
 func (h *ResponseWriterHeaderMethod) GetName() string            { return "header" }
 func (h *ResponseWriterHeaderMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResponseWriterHeaderMethod) GetIsStatic() bool          { return false }
-func (h *ResponseWriterHeaderMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "key", 0, nil, nil),
-		node.NewParameter(nil, "value", 1, nil, nil),
-	}
+var responseWriterHeaderMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "key", 0, nil, nil),
+	node.NewParameter(nil, "value", 1, nil, nil),
 }
+
+func (h *ResponseWriterHeaderMethod) GetParams() []data.GetValue {
+	return responseWriterHeaderMethodGetParams
+}
+var responseWriterHeaderMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "key", 0, nil),
+	node.NewVariable(nil, "value", 1, nil),
+}
+
 func (h *ResponseWriterHeaderMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "key", 0, nil),
-		node.NewVariable(nil, "value", 1, nil),
-	}
+	return responseWriterHeaderMethodGetVariables
 }
 func (h *ResponseWriterHeaderMethod) GetReturnType() data.Types {
 	return data.NewUnionType([]data.Types{

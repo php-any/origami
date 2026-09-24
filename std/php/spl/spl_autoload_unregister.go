@@ -59,14 +59,18 @@ func (f *SplAutoloadUnregisterFunction) Call(ctx data.Context) (data.GetValue, d
 
 func (f *SplAutoloadUnregisterFunction) GetName() string { return "spl_autoload_unregister" }
 
+var splAutoloadUnregisterFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "callback", 0, nil, nil),
+}
+
 func (f *SplAutoloadUnregisterFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "callback", 0, nil, nil),
-	}
+	return splAutoloadUnregisterFunctionGetParams
+}
+
+var splAutoloadUnregisterFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "callback", 0, data.Mixed{}),
 }
 
 func (f *SplAutoloadUnregisterFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "callback", 0, data.Mixed{}),
-	}
+	return splAutoloadUnregisterFunctionGetVariables
 }

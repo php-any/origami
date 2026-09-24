@@ -22,14 +22,18 @@ func (h *ResponseWriterWriteHeaderMethod) Call(ctx data.Context) (data.GetValue,
 func (h *ResponseWriterWriteHeaderMethod) GetName() string            { return "writeHeader" }
 func (h *ResponseWriterWriteHeaderMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResponseWriterWriteHeaderMethod) GetIsStatic() bool          { return false }
-func (h *ResponseWriterWriteHeaderMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-	}
+var responseWriterWriteHeaderMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
 }
+
+func (h *ResponseWriterWriteHeaderMethod) GetParams() []data.GetValue {
+	return responseWriterWriteHeaderMethodGetParams
+}
+var responseWriterWriteHeaderMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
+}
+
 func (h *ResponseWriterWriteHeaderMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-	}
+	return responseWriterWriteHeaderMethodGetVariables
 }
 func (h *ResponseWriterWriteHeaderMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

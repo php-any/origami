@@ -90,15 +90,19 @@ func (f *MaxFunction) GetName() string {
 	return "max"
 }
 
+var maxFunctionGetParams = []data.GetValue{
+	node.NewParameters(nil, "values", 0, nil, nil),
+}
+
 func (f *MaxFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameters(nil, "values", 0, nil, nil),
-	}
+	return maxFunctionGetParams
+}
+
+var maxFunctionGetVariables = []data.Variable{
+	// values 可以是任意类型或数组，这里用 mixed 约束
+	node.NewVariable(nil, "values", 0, data.NewBaseType("mixed")),
 }
 
 func (f *MaxFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		// values 可以是任意类型或数组，这里用 mixed 约束
-		node.NewVariable(nil, "values", 0, data.NewBaseType("mixed")),
-	}
+	return maxFunctionGetVariables
 }

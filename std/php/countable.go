@@ -37,12 +37,16 @@ func (m *CountableCountMethod) GetName() string            { return "count" }
 func (m *CountableCountMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *CountableCountMethod) GetIsStatic() bool          { return false }
 
+var countableCountMethodGetParams = []data.GetValue{}
+
 func (m *CountableCountMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return countableCountMethodGetParams
 }
 
+var countableCountMethodGetVariables = []data.Variable{}
+
 func (m *CountableCountMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return countableCountMethodGetVariables
 }
 
 func (m *CountableCountMethod) GetReturnType() data.Types {

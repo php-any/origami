@@ -76,7 +76,7 @@ func (c *strClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
 func (c *strClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *strClass) GetMethods() []data.Method {
@@ -138,7 +138,7 @@ func (c *strClass) GetStaticProperty(name string) (data.Value, bool) {
 }
 
 func (c *strClass) add(name string, static bool, params []data.GetValue, vars []data.Variable, fn func(data.Context) (data.GetValue, data.Control)) {
-	c.methods[strings.ToLower(name)] = &strMethod{name: name, static: static, params: params, vars: vars, fn: fn}
+	c.methods[data.MethodLookupKey(name)] = &strMethod{name: name, static: static, params: params, vars: vars, fn: fn}
 }
 
 type strMethod struct {

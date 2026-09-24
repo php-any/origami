@@ -35,16 +35,20 @@ func (h *RowsNextMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *RowsNextMethod) GetName() string            { return "next" }
 func (h *RowsNextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RowsNextMethod) GetIsStatic() bool          { return true }
+var rowsNextMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
+}
+
 func (h *RowsNextMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-	}
+	return rowsNextMethodGetParams
+}
+
+var rowsNextMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
 }
 
 func (h *RowsNextMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-	}
+	return rowsNextMethodGetVariables
 }
 
 func (h *RowsNextMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

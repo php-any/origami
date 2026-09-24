@@ -25,12 +25,16 @@ func (m *HashMapConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var hashMapConstructMethodGetParams = []data.GetValue{}
+
 func (m *HashMapConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return hashMapConstructMethodGetParams
 }
 
+var hashMapConstructMethodGetVariables = []data.Variable{}
+
 func (m *HashMapConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return hashMapConstructMethodGetVariables
 }
 
 func (m *HashMapConstructMethod) GetReturnType() data.Types {
@@ -59,18 +63,22 @@ func (m *HashMapPutMethod) GetIsStatic() bool {
 	return false
 }
 
+var hashMapPutMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "key", 0, nil, nil),
+	node.NewParameter(nil, "value", 1, nil, nil),
+}
+
 func (m *HashMapPutMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "key", 0, nil, nil),
-		node.NewParameter(nil, "value", 1, nil, nil),
-	}
+	return hashMapPutMethodGetParams
+}
+
+var hashMapPutMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "key", 0, nil),
+	node.NewVariable(nil, "value", 1, nil),
 }
 
 func (m *HashMapPutMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "key", 0, nil),
-		node.NewVariable(nil, "value", 1, nil),
-	}
+	return hashMapPutMethodGetVariables
 }
 
 func (m *HashMapPutMethod) GetReturnType() data.Types {
@@ -125,16 +133,20 @@ func (m *HashMapGetMethod) GetIsStatic() bool {
 	return false
 }
 
+var hashMapGetMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "key", 0, nil, nil),
+}
+
 func (m *HashMapGetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "key", 0, nil, nil),
-	}
+	return hashMapGetMethodGetParams
+}
+
+var hashMapGetMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "key", 0, nil),
 }
 
 func (m *HashMapGetMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "key", 0, nil),
-	}
+	return hashMapGetMethodGetVariables
 }
 
 func (m *HashMapGetMethod) GetReturnType() data.Types {
@@ -184,16 +196,20 @@ func (m *HashMapRemoveMethod) GetIsStatic() bool {
 	return false
 }
 
+var hashMapRemoveMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "key", 0, nil, nil),
+}
+
 func (m *HashMapRemoveMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "key", 0, nil, nil),
-	}
+	return hashMapRemoveMethodGetParams
+}
+
+var hashMapRemoveMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "key", 0, nil),
 }
 
 func (m *HashMapRemoveMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "key", 0, nil),
-	}
+	return hashMapRemoveMethodGetVariables
 }
 
 func (m *HashMapRemoveMethod) GetReturnType() data.Types {
@@ -239,16 +255,20 @@ func (m *HashMapContainsKeyMethod) GetIsStatic() bool {
 	return false
 }
 
+var hashMapContainsKeyMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "key", 0, nil, nil),
+}
+
 func (m *HashMapContainsKeyMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "key", 0, nil, nil),
-	}
+	return hashMapContainsKeyMethodGetParams
+}
+
+var hashMapContainsKeyMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "key", 0, nil),
 }
 
 func (m *HashMapContainsKeyMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "key", 0, nil),
-	}
+	return hashMapContainsKeyMethodGetVariables
 }
 
 func (m *HashMapContainsKeyMethod) GetReturnType() data.Types {
@@ -294,16 +314,20 @@ func (m *HashMapContainsValueMethod) GetIsStatic() bool {
 	return false
 }
 
+var hashMapContainsValueMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+}
+
 func (m *HashMapContainsValueMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return hashMapContainsValueMethodGetParams
+}
+
+var hashMapContainsValueMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, nil),
 }
 
 func (m *HashMapContainsValueMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, nil),
-	}
+	return hashMapContainsValueMethodGetVariables
 }
 
 func (m *HashMapContainsValueMethod) GetReturnType() data.Types {
@@ -349,12 +373,16 @@ func (m *HashMapSizeMethod) GetIsStatic() bool {
 	return false
 }
 
+var hashMapSizeMethodGetParams = []data.GetValue{}
+
 func (m *HashMapSizeMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return hashMapSizeMethodGetParams
 }
 
+var hashMapSizeMethodGetVariables = []data.Variable{}
+
 func (m *HashMapSizeMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return hashMapSizeMethodGetVariables
 }
 
 func (m *HashMapSizeMethod) GetReturnType() data.Types {
@@ -387,12 +415,16 @@ func (m *HashMapIsEmptyMethod) GetIsStatic() bool {
 	return false
 }
 
+var hashMapIsEmptyMethodGetParams = []data.GetValue{}
+
 func (m *HashMapIsEmptyMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return hashMapIsEmptyMethodGetParams
 }
 
+var hashMapIsEmptyMethodGetVariables = []data.Variable{}
+
 func (m *HashMapIsEmptyMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return hashMapIsEmptyMethodGetVariables
 }
 
 func (m *HashMapIsEmptyMethod) GetReturnType() data.Types {
@@ -425,12 +457,16 @@ func (m *HashMapClearMethod) GetIsStatic() bool {
 	return false
 }
 
+var hashMapClearMethodGetParams = []data.GetValue{}
+
 func (m *HashMapClearMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return hashMapClearMethodGetParams
 }
 
+var hashMapClearMethodGetVariables = []data.Variable{}
+
 func (m *HashMapClearMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return hashMapClearMethodGetVariables
 }
 
 func (m *HashMapClearMethod) GetReturnType() data.Types {
@@ -463,12 +499,16 @@ func (m *HashMapKeysMethod) GetIsStatic() bool {
 	return false
 }
 
+var hashMapKeysMethodGetParams = []data.GetValue{}
+
 func (m *HashMapKeysMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return hashMapKeysMethodGetParams
 }
 
+var hashMapKeysMethodGetVariables = []data.Variable{}
+
 func (m *HashMapKeysMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return hashMapKeysMethodGetVariables
 }
 
 func (m *HashMapKeysMethod) GetReturnType() data.Types {
@@ -506,12 +546,16 @@ func (m *HashMapValuesMethod) GetIsStatic() bool {
 	return false
 }
 
+var hashMapValuesMethodGetParams = []data.GetValue{}
+
 func (m *HashMapValuesMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return hashMapValuesMethodGetParams
 }
 
+var hashMapValuesMethodGetVariables = []data.Variable{}
+
 func (m *HashMapValuesMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return hashMapValuesMethodGetVariables
 }
 
 func (m *HashMapValuesMethod) GetReturnType() data.Types {
@@ -547,12 +591,16 @@ func (m *HashMapCurrentMethod) GetIsStatic() bool {
 	return false
 }
 
+var hashMapCurrentMethodGetParams = []data.GetValue{}
+
 func (m *HashMapCurrentMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return hashMapCurrentMethodGetParams
 }
 
+var hashMapCurrentMethodGetVariables = []data.Variable{}
+
 func (m *HashMapCurrentMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return hashMapCurrentMethodGetVariables
 }
 
 func (m *HashMapCurrentMethod) GetReturnType() data.Types {
@@ -584,12 +632,16 @@ func (m *HashMapKeyMethod) GetIsStatic() bool {
 	return false
 }
 
+var hashMapKeyMethodGetParams = []data.GetValue{}
+
 func (m *HashMapKeyMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return hashMapKeyMethodGetParams
 }
 
+var hashMapKeyMethodGetVariables = []data.Variable{}
+
 func (m *HashMapKeyMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return hashMapKeyMethodGetVariables
 }
 
 func (m *HashMapKeyMethod) GetReturnType() data.Types {
@@ -621,12 +673,16 @@ func (m *HashMapNextMethod) GetIsStatic() bool {
 	return false
 }
 
+var hashMapNextMethodGetParams = []data.GetValue{}
+
 func (m *HashMapNextMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return hashMapNextMethodGetParams
 }
 
+var hashMapNextMethodGetVariables = []data.Variable{}
+
 func (m *HashMapNextMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return hashMapNextMethodGetVariables
 }
 
 func (m *HashMapNextMethod) GetReturnType() data.Types {
@@ -659,12 +715,16 @@ func (m *HashMapRewindMethod) GetIsStatic() bool {
 	return false
 }
 
+var hashMapRewindMethodGetParams = []data.GetValue{}
+
 func (m *HashMapRewindMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return hashMapRewindMethodGetParams
 }
 
+var hashMapRewindMethodGetVariables = []data.Variable{}
+
 func (m *HashMapRewindMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return hashMapRewindMethodGetVariables
 }
 
 func (m *HashMapRewindMethod) GetReturnType() data.Types {
@@ -697,12 +757,16 @@ func (m *HashMapValidMethod) GetIsStatic() bool {
 	return false
 }
 
+var hashMapValidMethodGetParams = []data.GetValue{}
+
 func (m *HashMapValidMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return hashMapValidMethodGetParams
 }
 
+var hashMapValidMethodGetVariables = []data.Variable{}
+
 func (m *HashMapValidMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return hashMapValidMethodGetVariables
 }
 
 func (m *HashMapValidMethod) GetReturnType() data.Types {

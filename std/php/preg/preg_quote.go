@@ -53,16 +53,20 @@ func (f *PregQuoteFunction) GetName() string {
 	return "preg_quote"
 }
 
+var pregQuoteFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "str", 0, nil, nil),
+	node.NewParameter(nil, "delimiter", 1, node.NewNullLiteral(nil), nil),
+}
+
 func (f *PregQuoteFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "str", 0, nil, nil),
-		node.NewParameter(nil, "delimiter", 1, node.NewNullLiteral(nil), nil),
-	}
+	return pregQuoteFunctionGetParams
+}
+
+var pregQuoteFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "str", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "delimiter", 1, data.NewBaseType("string")),
 }
 
 func (f *PregQuoteFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "str", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "delimiter", 1, data.NewBaseType("string")),
-	}
+	return pregQuoteFunctionGetVariables
 }

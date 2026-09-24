@@ -16,16 +16,20 @@ func (f *RunPhpFileFunction) GetName() string {
 	return "run_php_file"
 }
 
+var runPhpFileFunctionGetParams = []data.GetValue{
+	node.NewParameterRawAST(nil, "file", 0, data.Mixed{}),
+}
+
 func (f *RunPhpFileFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterRawAST(nil, "file", 0, data.Mixed{}),
-	}
+	return runPhpFileFunctionGetParams
+}
+
+var runPhpFileFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "file", 0, data.Mixed{}),
 }
 
 func (f *RunPhpFileFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "file", 0, data.Mixed{}),
-	}
+	return runPhpFileFunctionGetVariables
 }
 
 func (f *RunPhpFileFunction) Call(ctx data.Context) (data.GetValue, data.Control) {

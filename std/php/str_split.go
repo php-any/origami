@@ -74,16 +74,20 @@ func (f *StrSplitFunction) GetName() string {
 	return "str_split"
 }
 
+var strSplitFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "length", 1, node.NewNullLiteral(nil), nil),
+}
+
 func (f *StrSplitFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "length", 1, node.NewNullLiteral(nil), nil),
-	}
+	return strSplitFunctionGetParams
+}
+
+var strSplitFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "length", 1, data.NewBaseType("int")),
 }
 
 func (f *StrSplitFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "length", 1, data.NewBaseType("int")),
-	}
+	return strSplitFunctionGetVariables
 }

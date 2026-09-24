@@ -33,14 +33,18 @@ func (f *FileInodeFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 
 func (f *FileInodeFunction) GetName() string { return "fileinode" }
 
+var fileInodeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "filename", 0, nil, data.String{}),
+}
+
 func (f *FileInodeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "filename", 0, nil, data.String{}),
-	}
+	return fileInodeFunctionGetParams
+}
+
+var fileInodeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "filename", 0, data.String{}),
 }
 
 func (f *FileInodeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "filename", 0, data.String{}),
-	}
+	return fileInodeFunctionGetVariables
 }

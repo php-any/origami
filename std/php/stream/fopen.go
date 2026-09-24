@@ -168,16 +168,20 @@ func (f *FopenFunction) GetName() string {
 	return "fopen"
 }
 
+var fopenFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "filename", 0, nil, nil),
+	node.NewParameter(nil, "mode", 1, node.NewStringLiteral(nil, "r"), nil),
+}
+
 func (f *FopenFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "filename", 0, nil, nil),
-		node.NewParameter(nil, "mode", 1, node.NewStringLiteral(nil, "r"), nil),
-	}
+	return fopenFunctionGetParams
+}
+
+var fopenFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "mode", 1, data.NewBaseType("string")),
 }
 
 func (f *FopenFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "mode", 1, data.NewBaseType("string")),
-	}
+	return fopenFunctionGetVariables
 }

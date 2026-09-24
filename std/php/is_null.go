@@ -28,14 +28,18 @@ func (f *IsNullFunction) GetName() string {
 	return "is_null"
 }
 
+var isNullFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+}
+
 func (f *IsNullFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return isNullFunctionGetParams
+}
+
+var isNullFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
 }
 
 func (f *IsNullFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
-	}
+	return isNullFunctionGetVariables
 }

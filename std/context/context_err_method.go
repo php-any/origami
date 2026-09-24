@@ -22,12 +22,16 @@ func (h *ContextErrMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 func (h *ContextErrMethod) GetName() string            { return "err" }
 func (h *ContextErrMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ContextErrMethod) GetIsStatic() bool          { return true }
+var contextErrMethodGetParams = []data.GetValue{}
+
 func (h *ContextErrMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return contextErrMethodGetParams
 }
 
+var contextErrMethodGetVariables = []data.Variable{}
+
 func (h *ContextErrMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return contextErrMethodGetVariables
 }
 
 func (h *ContextErrMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

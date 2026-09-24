@@ -54,14 +54,18 @@ func (f *FcloseFunction) GetName() string {
 	return "fclose"
 }
 
+var fcloseFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "stream", 0, nil, nil),
+}
+
 func (f *FcloseFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "stream", 0, nil, nil),
-	}
+	return fcloseFunctionGetParams
+}
+
+var fcloseFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "stream", 0, data.NewBaseType("resource")),
 }
 
 func (f *FcloseFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "stream", 0, data.NewBaseType("resource")),
-	}
+	return fcloseFunctionGetVariables
 }

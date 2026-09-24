@@ -32,15 +32,19 @@ func (f *StripslashesFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 }
 
 func (f *StripslashesFunction) GetName() string { return "stripslashes" }
-func (f *StripslashesFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-	}
+var stripslashesFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
 }
+
+func (f *StripslashesFunction) GetParams() []data.GetValue {
+	return stripslashesFunctionGetParams
+}
+var stripslashesFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+}
+
 func (f *StripslashesFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-	}
+	return stripslashesFunctionGetVariables
 }
 
 // StripsCslashesFunction 实现 stripcslashes 函数
@@ -120,13 +124,17 @@ func (f *StripsCslashesFunction) Call(ctx data.Context) (data.GetValue, data.Con
 }
 
 func (f *StripsCslashesFunction) GetName() string { return "stripcslashes" }
-func (f *StripsCslashesFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-	}
+var stripsCslashesFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
 }
+
+func (f *StripsCslashesFunction) GetParams() []data.GetValue {
+	return stripsCslashesFunctionGetParams
+}
+var stripsCslashesFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+}
+
 func (f *StripsCslashesFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-	}
+	return stripsCslashesFunctionGetVariables
 }

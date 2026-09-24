@@ -71,16 +71,20 @@ func (f *StrftimeFunction) GetName() string {
 	return "strftime"
 }
 
+var strftimeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "format", 0, nil, nil),
+	node.NewParameter(nil, "timestamp", 1, data.NewNullValue(), nil),
+}
+
 func (f *StrftimeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "format", 0, nil, nil),
-		node.NewParameter(nil, "timestamp", 1, data.NewNullValue(), nil),
-	}
+	return strftimeFunctionGetParams
+}
+
+var strftimeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "format", 0, nil),
+	node.NewVariable(nil, "timestamp", 1, nil),
 }
 
 func (f *StrftimeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "format", 0, nil),
-		node.NewVariable(nil, "timestamp", 1, nil),
-	}
+	return strftimeFunctionGetVariables
 }

@@ -54,18 +54,22 @@ func (h *UpgradeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *UpgradeFunction) GetName() string            { return "Net\\Websocket\\upgrade" }
 func (h *UpgradeFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *UpgradeFunction) GetIsStatic() bool          { return true }
-func (h *UpgradeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "request", 0, nil, data.Class{Name: "Net\\Http\\Request"}),
-		node.NewParameter(nil, "response", 1, nil, data.Class{Name: "Net\\Http\\Response"}),
-		node.NewParameter(nil, "checkOrigin", 2, data.NewBoolValue(false), data.NewBaseType("bool")),
-	}
+var upgradeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "request", 0, nil, data.Class{Name: "Net\\Http\\Request"}),
+	node.NewParameter(nil, "response", 1, nil, data.Class{Name: "Net\\Http\\Response"}),
+	node.NewParameter(nil, "checkOrigin", 2, data.NewBoolValue(false), data.NewBaseType("bool")),
 }
+
+func (h *UpgradeFunction) GetParams() []data.GetValue {
+	return upgradeFunctionGetParams
+}
+var upgradeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "request", 0, data.Class{Name: "Net\\Http\\Request"}),
+	node.NewVariable(nil, "response", 1, data.Class{Name: "Net\\Http\\Response"}),
+	node.NewVariable(nil, "checkOrigin", 2, data.NewBaseType("bool")),
+}
+
 func (h *UpgradeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "request", 0, data.Class{Name: "Net\\Http\\Request"}),
-		node.NewVariable(nil, "response", 1, data.Class{Name: "Net\\Http\\Response"}),
-		node.NewVariable(nil, "checkOrigin", 2, data.NewBaseType("bool")),
-	}
+	return upgradeFunctionGetVariables
 }
 func (h *UpgradeFunction) GetReturnType() data.Types { return data.Class{Name: "Net\\Websocket\\Conn"} }

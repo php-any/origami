@@ -53,21 +53,25 @@ func (m *DatePeriodConstructMethod) GetName() string            { return "__cons
 func (m *DatePeriodConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DatePeriodConstructMethod) GetIsStatic() bool          { return false }
 func (m *DatePeriodConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *DatePeriodConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "start", 0, nil, nil),
-		node.NewParameter(nil, "interval", 1, nil, nil),
-		node.NewParameter(nil, "end", 2, nil, nil),
-		node.NewParameter(nil, "options", 3, data.NewIntValue(0), nil),
-	}
+var datePeriodConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "start", 0, nil, nil),
+	node.NewParameter(nil, "interval", 1, nil, nil),
+	node.NewParameter(nil, "end", 2, nil, nil),
+	node.NewParameter(nil, "options", 3, data.NewIntValue(0), nil),
 }
+
+func (m *DatePeriodConstructMethod) GetParams() []data.GetValue {
+	return datePeriodConstructMethodGetParams
+}
+var datePeriodConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "start", 0, nil),
+	node.NewVariable(nil, "interval", 1, nil),
+	node.NewVariable(nil, "end", 2, nil),
+	node.NewVariable(nil, "options", 3, nil),
+}
+
 func (m *DatePeriodConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "start", 0, nil),
-		node.NewVariable(nil, "interval", 1, nil),
-		node.NewVariable(nil, "end", 2, nil),
-		node.NewVariable(nil, "options", 3, nil),
-	}
+	return datePeriodConstructMethodGetVariables
 }
 
 // DatePeriodGetIteratorMethod 提供 DatePeriod 的 getIterator()，
@@ -219,11 +223,15 @@ func (m *DateIntervalConstructMethod) GetName() string            { return "__co
 func (m *DateIntervalConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DateIntervalConstructMethod) GetIsStatic() bool          { return false }
 func (m *DateIntervalConstructMethod) GetReturnType() data.Types  { return nil }
+var dateIntervalConstructMethodGetParams = []data.GetValue{node.NewParameter(nil, "duration", 0, nil, data.String{})}
+
 func (m *DateIntervalConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "duration", 0, nil, data.String{})}
+	return dateIntervalConstructMethodGetParams
 }
+var dateIntervalConstructMethodGetVariables = []data.Variable{node.NewVariable(nil, "duration", 0, data.String{})}
+
 func (m *DateIntervalConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "duration", 0, data.String{})}
+	return dateIntervalConstructMethodGetVariables
 }
 
 func applyDateIntervalProps(cv *data.ClassValue, y, m, d, h, i, s int, f float64, invert int, days any) {
@@ -287,11 +295,15 @@ func (m *DateIntervalFormatMethod) GetName() string            { return "format"
 func (m *DateIntervalFormatMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DateIntervalFormatMethod) GetIsStatic() bool          { return false }
 func (m *DateIntervalFormatMethod) GetReturnType() data.Types  { return data.NewBaseType("string") }
+var dateIntervalFormatMethodGetParams = []data.GetValue{node.NewParameter(nil, "format", 0, nil, data.String{})}
+
 func (m *DateIntervalFormatMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "format", 0, nil, data.String{})}
+	return dateIntervalFormatMethodGetParams
 }
+var dateIntervalFormatMethodGetVariables = []data.Variable{node.NewVariable(nil, "format", 0, data.String{})}
+
 func (m *DateIntervalFormatMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "format", 0, data.String{})}
+	return dateIntervalFormatMethodGetVariables
 }
 
 func formatDateInterval(cv *data.ClassValue, spec string) string {
@@ -394,11 +406,15 @@ func (m *DateIntervalCreateFromDateStringMethod) GetModifier() data.Modifier {
 }
 func (m *DateIntervalCreateFromDateStringMethod) GetIsStatic() bool         { return true }
 func (m *DateIntervalCreateFromDateStringMethod) GetReturnType() data.Types { return nil }
+var dateIntervalCreateFromDateStringMethodGetParams = []data.GetValue{node.NewParameter(nil, "datetime", 0, nil, data.String{})}
+
 func (m *DateIntervalCreateFromDateStringMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "datetime", 0, nil, data.String{})}
+	return dateIntervalCreateFromDateStringMethodGetParams
 }
+var dateIntervalCreateFromDateStringMethodGetVariables = []data.Variable{node.NewVariable(nil, "datetime", 0, data.String{})}
+
 func (m *DateIntervalCreateFromDateStringMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "datetime", 0, data.String{})}
+	return dateIntervalCreateFromDateStringMethodGetVariables
 }
 
 // dateStringIntervalRE 解析 PHP DateInterval::createFromDateString 的相对时长片段。

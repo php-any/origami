@@ -193,10 +193,14 @@ func reorderArrayInPlace(arr *data.ArrayValue, order []int) {
 
 func (f *ArrayMultisortFunction) GetName() string { return "array_multisort" }
 
+var arrayMultisortFunctionGetParams = []data.GetValue{node.NewCallerContextParameter(nil)}
+
 func (f *ArrayMultisortFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewCallerContextParameter(nil)}
+	return arrayMultisortFunctionGetParams
 }
 
+var arrayMultisortFunctionGetVariables = []data.Variable{}
+
 func (f *ArrayMultisortFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return arrayMultisortFunctionGetVariables
 }

@@ -121,18 +121,22 @@ func (f *ArraySearchFunction) GetName() string {
 	return "array_search"
 }
 
+var arraySearchFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "needle", 0, nil, nil),
+	node.NewParameter(nil, "haystack", 1, nil, nil),
+	node.NewParameter(nil, "strict", 2, data.NewBoolValue(false), nil),
+}
+
 func (f *ArraySearchFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "needle", 0, nil, nil),
-		node.NewParameter(nil, "haystack", 1, nil, nil),
-		node.NewParameter(nil, "strict", 2, data.NewBoolValue(false), nil),
-	}
+	return arraySearchFunctionGetParams
+}
+
+var arraySearchFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "needle", 0, nil),
+	node.NewVariable(nil, "haystack", 1, data.NewBaseType("array")),
+	node.NewVariable(nil, "strict", 2, data.NewBaseType("bool")),
 }
 
 func (f *ArraySearchFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "needle", 0, nil),
-		node.NewVariable(nil, "haystack", 1, data.NewBaseType("array")),
-		node.NewVariable(nil, "strict", 2, data.NewBaseType("bool")),
-	}
+	return arraySearchFunctionGetVariables
 }

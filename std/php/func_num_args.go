@@ -20,10 +20,14 @@ func (fn *FuncNumArgsFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 
 func (fn *FuncNumArgsFunction) GetName() string { return "func_num_args" }
 
+var funcNumArgsFunctionGetParams = []data.GetValue{}
+
 func (fn *FuncNumArgsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return funcNumArgsFunctionGetParams
 }
 
+var funcNumArgsFunctionGetVariables = []data.Variable{}
+
 func (fn *FuncNumArgsFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return funcNumArgsFunctionGetVariables
 }

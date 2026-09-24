@@ -115,17 +115,21 @@ func (m *randomizerPickArrayKeysMethod) GetName() string            { return "pi
 func (m *randomizerPickArrayKeysMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *randomizerPickArrayKeysMethod) GetIsStatic() bool          { return false }
 func (m *randomizerPickArrayKeysMethod) GetReturnType() data.Types  { return nil }
-func (m *randomizerPickArrayKeysMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, data.Arrays{}),
-		node.NewParameter(nil, "num", 1, nil, data.Int{}),
-	}
+var randomizerPickArrayKeysMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, data.Arrays{}),
+	node.NewParameter(nil, "num", 1, nil, data.Int{}),
 }
+
+func (m *randomizerPickArrayKeysMethod) GetParams() []data.GetValue {
+	return randomizerPickArrayKeysMethodGetParams
+}
+var randomizerPickArrayKeysMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Arrays{}),
+	node.NewVariable(nil, "num", 1, data.Int{}),
+}
+
 func (m *randomizerPickArrayKeysMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Arrays{}),
-		node.NewVariable(nil, "num", 1, data.Int{}),
-	}
+	return randomizerPickArrayKeysMethodGetVariables
 }
 func (m *randomizerPickArrayKeysMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	value, ok := ctx.GetIndexValue(0)
@@ -167,11 +171,15 @@ func (m *randomizerShuffleArrayMethod) GetName() string            { return "shu
 func (m *randomizerShuffleArrayMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *randomizerShuffleArrayMethod) GetIsStatic() bool          { return false }
 func (m *randomizerShuffleArrayMethod) GetReturnType() data.Types  { return nil }
+var randomizerShuffleArrayMethodGetParams = []data.GetValue{node.NewParameter(nil, "array", 0, nil, data.Arrays{})}
+
 func (m *randomizerShuffleArrayMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "array", 0, nil, data.Arrays{})}
+	return randomizerShuffleArrayMethodGetParams
 }
+var randomizerShuffleArrayMethodGetVariables = []data.Variable{node.NewVariable(nil, "array", 0, data.Arrays{})}
+
 func (m *randomizerShuffleArrayMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "array", 0, data.Arrays{})}
+	return randomizerShuffleArrayMethodGetVariables
 }
 func (m *randomizerShuffleArrayMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	value, ok := ctx.GetIndexValue(0)
@@ -202,17 +210,21 @@ func (m *randomizerGetBytesFromStringMethod) GetName() string            { retur
 func (m *randomizerGetBytesFromStringMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *randomizerGetBytesFromStringMethod) GetIsStatic() bool          { return false }
 func (m *randomizerGetBytesFromStringMethod) GetReturnType() data.Types  { return data.String{} }
-func (m *randomizerGetBytesFromStringMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "source", 0, nil, data.String{}),
-		node.NewParameter(nil, "length", 1, nil, data.Int{}),
-	}
+var randomizerGetBytesFromStringMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "source", 0, nil, data.String{}),
+	node.NewParameter(nil, "length", 1, nil, data.Int{}),
 }
+
+func (m *randomizerGetBytesFromStringMethod) GetParams() []data.GetValue {
+	return randomizerGetBytesFromStringMethodGetParams
+}
+var randomizerGetBytesFromStringMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "source", 0, data.String{}),
+	node.NewVariable(nil, "length", 1, data.Int{}),
+}
+
 func (m *randomizerGetBytesFromStringMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "source", 0, data.String{}),
-		node.NewVariable(nil, "length", 1, data.Int{}),
-	}
+	return randomizerGetBytesFromStringMethodGetVariables
 }
 func (m *randomizerGetBytesFromStringMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	value, ok := ctx.GetIndexValue(0)

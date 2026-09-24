@@ -67,14 +67,18 @@ func (f *StrvalFunction) GetName() string {
 	return "strval"
 }
 
+var strvalFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, data.Mixed{}),
+}
+
 func (f *StrvalFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, data.Mixed{}),
-	}
+	return strvalFunctionGetParams
+}
+
+var strvalFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, data.Mixed{}),
 }
 
 func (f *StrvalFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.Mixed{}),
-	}
+	return strvalFunctionGetVariables
 }

@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
 
 	"github.com/php-any/origami/data"
@@ -1107,13 +1106,45 @@ func strWordWrap(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewStringValue(strings.Join(lines, br)), nil
 }
 
+// strUUID7 对齐官方 Str::uuid7()：返回 Ramsey\Uuid\UuidInterface（v7，时间前缀）。
 func strUUID7(ctx data.Context) (data.GetValue, data.Control) {
-	ms := uint64(time.Now().UnixMilli())
-	return data.NewStringValue(formatUUIDv7(ms)), nil
+	if v, ctl, ok := strUUIDFromFactory(ctx); ok {
+		return v, ctl
+	}
+	return newUuidValue(ctx, uuidFormatV7(uuidTimeMilli(ctx, 0))), nil
 }
 
+// strOrderedUUID 对齐官方 Str::orderedUuid()：返回 Ramsey\Uuid\UuidInterface。
+// 官方算法是 v4 + CombGenerator + TimestampFirstCombCodec（时间戳前置，字符串即可排序），
+// 见 uuidOrderedComb()。
 func strOrderedUUID(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewStringValue(formatUUIDv4()), nil
+	if v, ctl, ok := strUUIDFromFactory(ctx); ok {
+		return v, ctl
+	}
+	return newUuidValue(ctx, uuidOrderedComb()), nil
+}
+
+// strUUIDFromFactory 取 Str::createUuidsUsing() / Str::freezeUuids() 预设的工厂结果。
+// 自定义工厂优先级高于内置生成逻辑（官方语义）；工厂可能是闭包、函数名字符串，
+// 也可能是 freezeUuids 冻结下来的 UUID 实例本身。
+func strUUIDFromFactory(ctx data.Context) (data.GetValue, data.Control, bool) {
+	f := strUUIDFactory
+	if f == nil {
+		return nil, nil, false
+	}
+	switch f.(type) {
+	case *data.FuncValue, *data.BoundFuncValue, *data.StringValue:
+		ret, ctl := kit.Call(ctx, f)
+		if ctl != nil {
+			return nil, ctl, true
+		}
+		if ret == nil {
+			return data.NewNullValue(), nil, true
+		}
+		return ret, nil, true
+	default:
+		return f, nil, true
+	}
 }
 
 func strCreateUuidsUsing(ctx data.Context) (data.GetValue, data.Control) {
@@ -1126,20 +1157,64 @@ func strCreateUuidsUsing(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewNullValue(), nil
 }
 
+// strCreateUuidsUsingSequence 对齐官方语义：依次吐出 $sequence 里的 UUID，
+// 用尽后走 $whenMissing（默认实现是「临时清空工厂 -> 正常生成」）。
 func strCreateUuidsUsingSequence(ctx data.Context) (data.GetValue, data.Control) {
-	strCreateUuidsNormally(ctx)
+	var seq []data.Value
+	if av, ok := kit.Arg(ctx, 0).(*data.ArrayValue); ok {
+		for _, e := range kit.Entries(av) {
+			seq = append(seq, e.Value)
+		}
+	}
+	whenMissing := kit.Arg(ctx, 1)
+	next := 0
+	strUUIDFactory = data.NewFuncValue(kit.HelperFunc("", nil, func(c data.Context) (data.GetValue, data.Control) {
+		if next < len(seq) {
+			v := seq[next]
+			next++
+			return v, nil
+		}
+		if whenMissing != nil && !kit.IsNull(whenMissing) {
+			next++
+			return kit.Call(c, whenMissing)
+		}
+		// 官方默认 whenMissing：先摘掉工厂，按正常路径生成，再装回去
+		saved := strUUIDFactory
+		strUUIDFactory = nil
+		v, ctl := strUUID(c)
+		strUUIDFactory = saved
+		next++
+		return v, ctl
+	}))
 	return data.NewNullValue(), nil
 }
 
+// strFreezeUuids 对齐官方语义：先按 Str::uuid() 取一个 UUID，把它本身当作工厂，
+// 只挂回调时在 finally 里恢复；未给回调时保持冻结（调用方自行 createUuidsNormally）。
 func strFreezeUuids(ctx data.Context) (data.GetValue, data.Control) {
-	u := formatUUIDv4()
-	strUUIDFactory = data.NewStringValue(u)
+	var u data.Value
+	if v, ctl, ok := strUUIDFromFactory(ctx); ok {
+		if ctl != nil {
+			return nil, ctl
+		}
+		if mv, isVal := v.(data.Value); isVal {
+			u = mv
+		} else {
+			u = newUuidValue(ctx, uuidFormatV4())
+		}
+	} else {
+		u = newUuidValue(ctx, uuidFormatV4())
+	}
+	strUUIDFactory = u
 	cb := kit.Arg(ctx, 0)
 	if cb != nil && !kit.IsNull(cb) {
-		_, _ = kit.Call(ctx, cb, data.NewStringValue(u))
+		if _, ctl := kit.Call(ctx, cb, u); ctl != nil {
+			strUUIDFactory = nil
+			return nil, ctl
+		}
+		strUUIDFactory = nil
 	}
-	strUUIDFactory = nil
-	return data.NewStringValue(u), nil
+	return u, nil
 }
 
 func strCreateUuidsNormally(ctx data.Context) (data.GetValue, data.Control) {

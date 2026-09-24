@@ -30,16 +30,20 @@ func (f *StripTagsFunction) GetName() string {
 	return "strip_tags"
 }
 
+var stripTagsFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, data.String{}),
+}
+
 func (f *StripTagsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, data.String{}),
-	}
+	return stripTagsFunctionGetParams
+}
+
+var stripTagsFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.String{}),
 }
 
 func (f *StripTagsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.String{}),
-	}
+	return stripTagsFunctionGetVariables
 }
 
 func stripTags(s string) string {

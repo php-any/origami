@@ -62,20 +62,24 @@ func (f *IconvStrposFunction) GetName() string {
 	return "iconv_strpos"
 }
 
+var iconvStrposFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "haystack", 0, nil, nil),
+	node.NewParameter(nil, "needle", 1, nil, nil),
+	node.NewParameter(nil, "offset", 2, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "encoding", 3, node.NewNullLiteral(nil), nil),
+}
+
 func (f *IconvStrposFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "haystack", 0, nil, nil),
-		node.NewParameter(nil, "needle", 1, nil, nil),
-		node.NewParameter(nil, "offset", 2, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "encoding", 3, node.NewNullLiteral(nil), nil),
-	}
+	return iconvStrposFunctionGetParams
+}
+
+var iconvStrposFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "offset", 2, data.NewBaseType("int")),
+	node.NewVariable(nil, "encoding", 3, data.NewBaseType("string")),
 }
 
 func (f *IconvStrposFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "offset", 2, data.NewBaseType("int")),
-		node.NewVariable(nil, "encoding", 3, data.NewBaseType("string")),
-	}
+	return iconvStrposFunctionGetVariables
 }

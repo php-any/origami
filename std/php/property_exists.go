@@ -108,16 +108,20 @@ func (f *PropertyExistsFunction) GetName() string {
 	return "property_exists"
 }
 
+var propertyExistsFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "object_or_class", 0, nil, nil),
+	node.NewParameter(nil, "property", 1, nil, nil),
+}
+
 func (f *PropertyExistsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object_or_class", 0, nil, nil),
-		node.NewParameter(nil, "property", 1, nil, nil),
-	}
+	return propertyExistsFunctionGetParams
+}
+
+var propertyExistsFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "object_or_class", 0, data.NewBaseType("object|string")),
+	node.NewVariable(nil, "property", 1, data.NewBaseType("string")),
 }
 
 func (f *PropertyExistsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object_or_class", 0, data.NewBaseType("object|string")),
-		node.NewVariable(nil, "property", 1, data.NewBaseType("string")),
-	}
+	return propertyExistsFunctionGetVariables
 }

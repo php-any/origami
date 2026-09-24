@@ -96,14 +96,18 @@ func (f *GetDebugTypeFunction) GetName() string {
 	return "get_debug_type"
 }
 
+var getDebugTypeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, data.Mixed{}),
+}
+
 func (f *GetDebugTypeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, data.Mixed{}),
-	}
+	return getDebugTypeFunctionGetParams
+}
+
+var getDebugTypeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, data.Mixed{}),
 }
 
 func (f *GetDebugTypeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.Mixed{}),
-	}
+	return getDebugTypeFunctionGetVariables
 }

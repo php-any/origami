@@ -29,14 +29,18 @@ func (h *ServerBootMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 func (h *ServerBootMethod) GetName() string            { return "boot" }
 func (h *ServerBootMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ServerBootMethod) GetIsStatic() bool          { return false }
-func (h *ServerBootMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "application", 0, nil, data.NewBaseType("string")),
-	}
+var serverBootMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "application", 0, nil, data.NewBaseType("string")),
 }
+
+func (h *ServerBootMethod) GetParams() []data.GetValue {
+	return serverBootMethodGetParams
+}
+var serverBootMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "application", 0, data.NewBaseType("string")),
+}
+
 func (h *ServerBootMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "application", 0, data.NewBaseType("string")),
-	}
+	return serverBootMethodGetVariables
 }
 func (h *ServerBootMethod) GetReturnType() data.Types { return data.NewBaseType("array") }

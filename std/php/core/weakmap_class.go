@@ -109,20 +109,24 @@ func (m *WeakMapOffsetExistsMethod) GetIsStatic() bool {
 	return false
 }
 
+var weakMapOffsetExistsMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
+}
+
 func (m *WeakMapOffsetExistsMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
-	}
+	return weakMapOffsetExistsMethodGetVariables
 }
 
 func (m *WeakMapOffsetExistsMethod) GetReturnType() data.Types {
 	return data.NewBaseType("bool")
 }
 
+var weakMapOffsetExistsMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
+}
+
 func (m *WeakMapOffsetExistsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
-	}
+	return weakMapOffsetExistsMethodGetParams
 }
 
 func (m *WeakMapOffsetExistsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -162,20 +166,24 @@ func (m *WeakMapOffsetGetMethod) GetIsStatic() bool {
 	return false
 }
 
+var weakMapOffsetGetMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
+}
+
 func (m *WeakMapOffsetGetMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
-	}
+	return weakMapOffsetGetMethodGetVariables
 }
 
 func (m *WeakMapOffsetGetMethod) GetReturnType() data.Types {
 	return data.NewBaseType("mixed")
 }
 
+var weakMapOffsetGetMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
+}
+
 func (m *WeakMapOffsetGetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
-	}
+	return weakMapOffsetGetMethodGetParams
 }
 
 func (m *WeakMapOffsetGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -219,22 +227,26 @@ func (m *WeakMapOffsetSetMethod) GetIsStatic() bool {
 	return false
 }
 
+var weakMapOffsetSetMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
+	node.NewVariable(nil, "value", 1, data.NewBaseType("mixed")),
+}
+
 func (m *WeakMapOffsetSetMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
-		node.NewVariable(nil, "value", 1, data.NewBaseType("mixed")),
-	}
+	return weakMapOffsetSetMethodGetVariables
 }
 
 func (m *WeakMapOffsetSetMethod) GetReturnType() data.Types {
 	return data.NewBaseType("void")
 }
 
+var weakMapOffsetSetMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
+	node.NewParameter(nil, "value", 1, nil, data.NewBaseType("mixed")),
+}
+
 func (m *WeakMapOffsetSetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
-		node.NewParameter(nil, "value", 1, nil, data.NewBaseType("mixed")),
-	}
+	return weakMapOffsetSetMethodGetParams
 }
 
 func (m *WeakMapOffsetSetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -275,20 +287,24 @@ func (m *WeakMapOffsetUnsetMethod) GetIsStatic() bool {
 	return false
 }
 
+var weakMapOffsetUnsetMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
+}
+
 func (m *WeakMapOffsetUnsetMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
-	}
+	return weakMapOffsetUnsetMethodGetVariables
 }
 
 func (m *WeakMapOffsetUnsetMethod) GetReturnType() data.Types {
 	return data.NewBaseType("void")
 }
 
+var weakMapOffsetUnsetMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
+}
+
 func (m *WeakMapOffsetUnsetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
-	}
+	return weakMapOffsetUnsetMethodGetParams
 }
 
 func (m *WeakMapOffsetUnsetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -336,8 +352,10 @@ func (m *WeakMapCountMethod) GetReturnType() data.Types {
 	return data.NewBaseType("int")
 }
 
+var weakMapCountMethodGetParams = []data.GetValue{}
+
 func (m *WeakMapCountMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return weakMapCountMethodGetParams
 }
 
 func (m *WeakMapCountMethod) Call(ctx data.Context) (data.GetValue, data.Control) {

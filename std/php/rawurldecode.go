@@ -42,14 +42,18 @@ func (f *RawurldecodeFunction) GetName() string {
 	return "rawurldecode"
 }
 
+var rawurldecodeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+}
+
 func (f *RawurldecodeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-	}
+	return rawurldecodeFunctionGetParams
+}
+
+var rawurldecodeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 }
 
 func (f *RawurldecodeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-	}
+	return rawurldecodeFunctionGetVariables
 }

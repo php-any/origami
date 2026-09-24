@@ -262,15 +262,19 @@ func (m *FilterIteratorConstructMethod) GetName() string            { return "__
 func (m *FilterIteratorConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *FilterIteratorConstructMethod) GetIsStatic() bool          { return false }
 func (m *FilterIteratorConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *FilterIteratorConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
-	}
+var filterIteratorConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
 }
+
+func (m *FilterIteratorConstructMethod) GetParams() []data.GetValue {
+	return filterIteratorConstructMethodGetParams
+}
+var filterIteratorConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
+}
+
 func (m *FilterIteratorConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
-	}
+	return filterIteratorConstructMethodGetVariables
 }
 func (m *FilterIteratorConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	it, ok := ctx.GetIndexValue(0)

@@ -75,21 +75,25 @@ type CliApplicationConstructMethod struct{ app *CliApplication }
 func (m *CliApplicationConstructMethod) GetName() string            { return "__construct" }
 func (m *CliApplicationConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *CliApplicationConstructMethod) GetIsStatic() bool          { return false }
-func (m *CliApplicationConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "name", 0, data.NewStringValue("CLI"), data.NewBaseType("string")),
-		node.NewParameter(nil, "version", 1, data.NewStringValue("1.0.0"), data.NewBaseType("string")),
-		node.NewParameter(nil, "scan", 2, data.NewNullValue(), nil),
-		node.NewAnnotationTargetParameter(nil, 3),
-	}
+var cliApplicationConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "name", 0, data.NewStringValue("CLI"), data.NewBaseType("string")),
+	node.NewParameter(nil, "version", 1, data.NewStringValue("1.0.0"), data.NewBaseType("string")),
+	node.NewParameter(nil, "scan", 2, data.NewNullValue(), nil),
+	node.NewAnnotationTargetParameter(nil, 3),
 }
+
+func (m *CliApplicationConstructMethod) GetParams() []data.GetValue {
+	return cliApplicationConstructMethodGetParams
+}
+var cliApplicationConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "name", 0, nil),
+	node.NewVariable(nil, "version", 1, nil),
+	node.NewVariable(nil, "scan", 2, nil),
+	node.NewAnnotationTargetVariable(nil, 3),
+}
+
 func (m *CliApplicationConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "name", 0, nil),
-		node.NewVariable(nil, "version", 1, nil),
-		node.NewVariable(nil, "scan", 2, nil),
-		node.NewAnnotationTargetVariable(nil, 3),
-	}
+	return cliApplicationConstructMethodGetVariables
 }
 func (m *CliApplicationConstructMethod) GetReturnType() data.Types { return data.NewBaseType("string") }
 func (m *CliApplicationConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {

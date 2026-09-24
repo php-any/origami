@@ -186,17 +186,21 @@ func (m *SplObjectStorageAttachMethod) GetName() string            { return "att
 func (m *SplObjectStorageAttachMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplObjectStorageAttachMethod) GetIsStatic() bool          { return false }
 func (m *SplObjectStorageAttachMethod) GetReturnType() data.Types  { return nil }
-func (m *SplObjectStorageAttachMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
-		node.NewParameter(nil, "info", 1, data.NewNullValue(), data.Mixed{}),
-	}
+var splObjectStorageAttachMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
+	node.NewParameter(nil, "info", 1, data.NewNullValue(), data.Mixed{}),
 }
+
+func (m *SplObjectStorageAttachMethod) GetParams() []data.GetValue {
+	return splObjectStorageAttachMethodGetParams
+}
+var splObjectStorageAttachMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
+	node.NewVariable(nil, "info", 1, data.Mixed{}),
+}
+
 func (m *SplObjectStorageAttachMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
-		node.NewVariable(nil, "info", 1, data.Mixed{}),
-	}
+	return splObjectStorageAttachMethodGetVariables
 }
 func (m *SplObjectStorageAttachMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := sosGetCV(ctx)
@@ -228,11 +232,15 @@ func (m *SplObjectStorageDetachMethod) GetName() string            { return "det
 func (m *SplObjectStorageDetachMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplObjectStorageDetachMethod) GetIsStatic() bool          { return false }
 func (m *SplObjectStorageDetachMethod) GetReturnType() data.Types  { return nil }
+var splObjectStorageDetachMethodGetParams = []data.GetValue{node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object"))}
+
 func (m *SplObjectStorageDetachMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object"))}
+	return splObjectStorageDetachMethodGetParams
 }
+var splObjectStorageDetachMethodGetVariables = []data.Variable{node.NewVariable(nil, "object", 0, data.NewBaseType("object"))}
+
 func (m *SplObjectStorageDetachMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "object", 0, data.NewBaseType("object"))}
+	return splObjectStorageDetachMethodGetVariables
 }
 func (m *SplObjectStorageDetachMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := sosGetCV(ctx)
@@ -262,11 +270,15 @@ func (m *SplObjectStorageContainsMethod) GetName() string            { return "c
 func (m *SplObjectStorageContainsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplObjectStorageContainsMethod) GetIsStatic() bool          { return false }
 func (m *SplObjectStorageContainsMethod) GetReturnType() data.Types  { return data.Bool{} }
+var splObjectStorageContainsMethodGetParams = []data.GetValue{node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object"))}
+
 func (m *SplObjectStorageContainsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object"))}
+	return splObjectStorageContainsMethodGetParams
 }
+var splObjectStorageContainsMethodGetVariables = []data.Variable{node.NewVariable(nil, "object", 0, data.NewBaseType("object"))}
+
 func (m *SplObjectStorageContainsMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "object", 0, data.NewBaseType("object"))}
+	return splObjectStorageContainsMethodGetVariables
 }
 func (m *SplObjectStorageContainsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := sosGetCV(ctx)
@@ -300,11 +312,15 @@ func (m *SplObjectStorageGetHashMethod) GetName() string            { return "ge
 func (m *SplObjectStorageGetHashMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplObjectStorageGetHashMethod) GetIsStatic() bool          { return false }
 func (m *SplObjectStorageGetHashMethod) GetReturnType() data.Types  { return data.String{} }
+var splObjectStorageGetHashMethodGetParams = []data.GetValue{node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object"))}
+
 func (m *SplObjectStorageGetHashMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object"))}
+	return splObjectStorageGetHashMethodGetParams
 }
+var splObjectStorageGetHashMethodGetVariables = []data.Variable{node.NewVariable(nil, "object", 0, data.NewBaseType("object"))}
+
 func (m *SplObjectStorageGetHashMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "object", 0, data.NewBaseType("object"))}
+	return splObjectStorageGetHashMethodGetVariables
 }
 func (m *SplObjectStorageGetHashMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	obj, _ := ctx.GetIndexValue(0)
@@ -406,11 +422,15 @@ func (m *SplObjectStorageOffsetExistsMethod) GetName() string            { retur
 func (m *SplObjectStorageOffsetExistsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplObjectStorageOffsetExistsMethod) GetIsStatic() bool          { return false }
 func (m *SplObjectStorageOffsetExistsMethod) GetReturnType() data.Types  { return data.Bool{} }
+var splObjectStorageOffsetExistsMethodGetParams = []data.GetValue{node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object"))}
+
 func (m *SplObjectStorageOffsetExistsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object"))}
+	return splObjectStorageOffsetExistsMethodGetParams
 }
+var splObjectStorageOffsetExistsMethodGetVariables = []data.Variable{node.NewVariable(nil, "object", 0, data.NewBaseType("object"))}
+
 func (m *SplObjectStorageOffsetExistsMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "object", 0, data.NewBaseType("object"))}
+	return splObjectStorageOffsetExistsMethodGetVariables
 }
 func (m *SplObjectStorageOffsetExistsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return (&SplObjectStorageContainsMethod{}).Call(ctx)
@@ -422,11 +442,15 @@ func (m *SplObjectStorageOffsetGetMethod) GetName() string            { return "
 func (m *SplObjectStorageOffsetGetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplObjectStorageOffsetGetMethod) GetIsStatic() bool          { return false }
 func (m *SplObjectStorageOffsetGetMethod) GetReturnType() data.Types  { return data.Mixed{} }
+var splObjectStorageOffsetGetMethodGetParams = []data.GetValue{node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object"))}
+
 func (m *SplObjectStorageOffsetGetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object"))}
+	return splObjectStorageOffsetGetMethodGetParams
 }
+var splObjectStorageOffsetGetMethodGetVariables = []data.Variable{node.NewVariable(nil, "object", 0, data.NewBaseType("object"))}
+
 func (m *SplObjectStorageOffsetGetMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "object", 0, data.NewBaseType("object"))}
+	return splObjectStorageOffsetGetMethodGetVariables
 }
 func (m *SplObjectStorageOffsetGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := sosGetCV(ctx)
@@ -447,17 +471,21 @@ func (m *SplObjectStorageOffsetSetMethod) GetName() string            { return "
 func (m *SplObjectStorageOffsetSetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplObjectStorageOffsetSetMethod) GetIsStatic() bool          { return false }
 func (m *SplObjectStorageOffsetSetMethod) GetReturnType() data.Types  { return nil }
-func (m *SplObjectStorageOffsetSetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
-		node.NewParameter(nil, "info", 1, data.NewNullValue(), data.Mixed{}),
-	}
+var splObjectStorageOffsetSetMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
+	node.NewParameter(nil, "info", 1, data.NewNullValue(), data.Mixed{}),
 }
+
+func (m *SplObjectStorageOffsetSetMethod) GetParams() []data.GetValue {
+	return splObjectStorageOffsetSetMethodGetParams
+}
+var splObjectStorageOffsetSetMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
+	node.NewVariable(nil, "info", 1, data.Mixed{}),
+}
+
 func (m *SplObjectStorageOffsetSetMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "object", 0, data.NewBaseType("object")),
-		node.NewVariable(nil, "info", 1, data.Mixed{}),
-	}
+	return splObjectStorageOffsetSetMethodGetVariables
 }
 func (m *SplObjectStorageOffsetSetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return (&SplObjectStorageAttachMethod{}).Call(ctx)
@@ -469,11 +497,15 @@ func (m *SplObjectStorageOffsetUnsetMethod) GetName() string            { return
 func (m *SplObjectStorageOffsetUnsetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplObjectStorageOffsetUnsetMethod) GetIsStatic() bool          { return false }
 func (m *SplObjectStorageOffsetUnsetMethod) GetReturnType() data.Types  { return nil }
+var splObjectStorageOffsetUnsetMethodGetParams = []data.GetValue{node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object"))}
+
 func (m *SplObjectStorageOffsetUnsetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object"))}
+	return splObjectStorageOffsetUnsetMethodGetParams
 }
+var splObjectStorageOffsetUnsetMethodGetVariables = []data.Variable{node.NewVariable(nil, "object", 0, data.NewBaseType("object"))}
+
 func (m *SplObjectStorageOffsetUnsetMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "object", 0, data.NewBaseType("object"))}
+	return splObjectStorageOffsetUnsetMethodGetVariables
 }
 func (m *SplObjectStorageOffsetUnsetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return (&SplObjectStorageDetachMethod{}).Call(ctx)

@@ -32,10 +32,14 @@ func (f *ArraySumFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 
 func (f *ArraySumFunction) GetName() string { return "array_sum" }
 
+var arraySumFunctionGetParams = []data.GetValue{node.NewParameter(nil, "array", 0, nil, nil)}
+
 func (f *ArraySumFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "array", 0, nil, nil)}
+	return arraySumFunctionGetParams
 }
 
+var arraySumFunctionGetVariables = []data.Variable{node.NewVariable(nil, "array", 0, data.NewBaseType("array"))}
+
 func (f *ArraySumFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "array", 0, data.NewBaseType("array"))}
+	return arraySumFunctionGetVariables
 }

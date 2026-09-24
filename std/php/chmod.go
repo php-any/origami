@@ -43,16 +43,20 @@ func (fn *ChmodFunction) GetName() string {
 	return "chmod"
 }
 
+var chmodFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "filename", 0, nil, nil),
+	node.NewParameter(nil, "permissions", 1, nil, nil),
+}
+
 func (fn *ChmodFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "filename", 0, nil, nil),
-		node.NewParameter(nil, "permissions", 1, nil, nil),
-	}
+	return chmodFunctionGetParams
+}
+
+var chmodFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "permissions", 1, data.NewBaseType("int")),
 }
 
 func (fn *ChmodFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "permissions", 1, data.NewBaseType("int")),
-	}
+	return chmodFunctionGetVariables
 }

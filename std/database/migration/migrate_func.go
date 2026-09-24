@@ -27,18 +27,22 @@ func (f *MigrateFunction) GetName() string {
 	return "Database\\migrate"
 }
 
+var migrateFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "connection", 0, data.NewNullValue(), data.NewBaseType("object")),
+	node.NewParameter(nil, "modelDir", 1, nil, data.NewBaseType("string")),
+}
+
 func (f *MigrateFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "connection", 0, data.NewNullValue(), data.NewBaseType("object")),
-		node.NewParameter(nil, "modelDir", 1, nil, data.NewBaseType("string")),
-	}
+	return migrateFunctionGetParams
+}
+
+var migrateFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "connection", 0, data.NewBaseType("object")),
+	node.NewVariable(nil, "modelDir", 1, data.NewBaseType("string")),
 }
 
 func (f *MigrateFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "connection", 0, data.NewBaseType("object")),
-		node.NewVariable(nil, "modelDir", 1, data.NewBaseType("string")),
-	}
+	return migrateFunctionGetVariables
 }
 
 func (f *MigrateFunction) GetReturnType() data.Types {

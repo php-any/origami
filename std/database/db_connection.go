@@ -35,15 +35,19 @@ func (d *DbConnectionMethod) Call(ctx data.Context) (data.GetValue, data.Control
 func (d *DbConnectionMethod) GetName() string            { return "connection" }
 func (d *DbConnectionMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (d *DbConnectionMethod) GetIsStatic() bool          { return false }
-func (d *DbConnectionMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("connectionName", 0),
-	}
+var dbConnectionMethodGetParams = []data.GetValue{
+	data.NewParameter("connectionName", 0),
 }
+
+func (d *DbConnectionMethod) GetParams() []data.GetValue {
+	return dbConnectionMethodGetParams
+}
+var dbConnectionMethodGetVariables = []data.Variable{
+	data.NewVariable("connectionName", 0, data.NewBaseType("string")),
+}
+
 func (d *DbConnectionMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("connectionName", 0, data.NewBaseType("string")),
-	}
+	return dbConnectionMethodGetVariables
 }
 func (d *DbConnectionMethod) GetReturnType() data.Types {
 	return data.Generic{}
@@ -69,15 +73,19 @@ func (d *DbStaticConnectionMethod) Call(ctx data.Context) (data.GetValue, data.C
 func (d *DbStaticConnectionMethod) GetName() string            { return "connection" }
 func (d *DbStaticConnectionMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (d *DbStaticConnectionMethod) GetIsStatic() bool          { return true }
-func (d *DbStaticConnectionMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		data.NewParameter("connectionName", 0),
-	}
+var dbStaticConnectionMethodGetParams = []data.GetValue{
+	data.NewParameter("connectionName", 0),
 }
+
+func (d *DbStaticConnectionMethod) GetParams() []data.GetValue {
+	return dbStaticConnectionMethodGetParams
+}
+var dbStaticConnectionMethodGetVariables = []data.Variable{
+	data.NewVariable("connectionName", 0, data.NewBaseType("string")),
+}
+
 func (d *DbStaticConnectionMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		data.NewVariable("connectionName", 0, data.NewBaseType("string")),
-	}
+	return dbStaticConnectionMethodGetVariables
 }
 func (d *DbStaticConnectionMethod) GetReturnType() data.Types {
 	return data.NewBaseType("Database\\DB")

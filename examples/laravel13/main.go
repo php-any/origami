@@ -7,7 +7,6 @@ import (
 	_ "modernc.org/sqlite"
 
 	"github.com/php-any/origami/data"
-	gosupport "github.com/php-any/origami/examples/laravel13/go-support"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/perfmon"
@@ -19,6 +18,7 @@ import (
 	"github.com/php-any/origami/std/php"
 	"github.com/php-any/origami/std/system"
 	"github.com/php-any/origami/std/vendoraccel"
+	"github.com/php-any/origami/std/vendoraccel/warmup"
 )
 
 var stopPerf = func() {}
@@ -51,8 +51,9 @@ func buildVM() (*runtime.VM, *parser.Parser) {
 	websocket.Load(vm)
 	netannotation.Load(vm)
 	system.Load(vm)
+	// vendoraccel.Load 内部会调 std/laravel.Load，后者带上
+	// App\Http\Kernel（std/laravel/httpkernel）与 ServeCommand（std/laravel/serve）。
 	vendoraccel.Load(vm)
-	gosupport.Load(vm)
 
 	return vm, p
 }
@@ -68,9 +69,9 @@ func runArtisan(args []string) {
 	vm, p := buildVM()
 
 	// 可选：artisan 进程也做 vendor 预热（默认关，避免拖慢 list/about）
-	if vendoraccel.ShouldWarmup() {
+	if warmup.ShouldWarmup() {
 		if root, err := os.Getwd(); err == nil {
-			vendoraccel.WarmupVendorClassmap(vm, root)
+			warmup.WarmupVendorClassmap(vm, root)
 		}
 	}
 

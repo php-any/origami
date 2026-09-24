@@ -42,11 +42,15 @@ func (f *RestoreExceptionHandlerFunction) GetName() string {
 	return "restore_exception_handler"
 }
 
+var restoreExceptionHandlerFunctionGetParams = []data.GetValue{}
+
 func (f *RestoreExceptionHandlerFunction) GetParams() []data.GetValue {
 	// 无参数
-	return []data.GetValue{}
+	return restoreExceptionHandlerFunctionGetParams
 }
 
+var restoreExceptionHandlerFunctionGetVariables = []data.Variable{}
+
 func (f *RestoreExceptionHandlerFunction) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return restoreExceptionHandlerFunctionGetVariables
 }

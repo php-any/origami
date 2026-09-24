@@ -25,7 +25,7 @@ func NewParameterBagClassFrom(source *ParamBagData) data.ClassStmt {
 			protectedArrayProp("parameters"),
 		},
 	}
-	c.methods, c.methodList = parameterBagMethods()
+	c.methods, c.methodList = parameterBagMethodsCache()
 	return c
 }
 
@@ -60,6 +60,8 @@ func (c *ParameterBagClass) GetMethod(name string) (data.Method, bool) {
 	return m, ok
 }
 func (c *ParameterBagClass) GetMethods() []data.Method { return c.methodList }
+
+var parameterBagMethodsCache = cachedMethods(parameterBagMethods)
 
 func parameterBagMethods() (map[string]data.Method, []data.Method) {
 	list := []data.Method{

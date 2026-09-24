@@ -115,16 +115,20 @@ func (f *ArrayCombineFunction) GetName() string {
 	return "array_combine"
 }
 
+var arrayCombineFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "keys", 0, nil, nil),
+	node.NewParameter(nil, "values", 1, nil, nil),
+}
+
 func (f *ArrayCombineFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "keys", 0, nil, nil),
-		node.NewParameter(nil, "values", 1, nil, nil),
-	}
+	return arrayCombineFunctionGetParams
+}
+
+var arrayCombineFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "keys", 0, data.Mixed{}),
+	node.NewVariable(nil, "values", 1, data.Mixed{}),
 }
 
 func (f *ArrayCombineFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "keys", 0, data.Mixed{}),
-		node.NewVariable(nil, "values", 1, data.Mixed{}),
-	}
+	return arrayCombineFunctionGetVariables
 }

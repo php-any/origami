@@ -41,14 +41,18 @@ func (f *IsNumericFunction) GetName() string {
 	return "is_numeric"
 }
 
+var isNumericFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+}
+
 func (f *IsNumericFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return isNumericFunctionGetParams
+}
+
+var isNumericFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
 }
 
 func (f *IsNumericFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
-	}
+	return isNumericFunctionGetVariables
 }

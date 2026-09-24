@@ -54,9 +54,13 @@ type CommandRegistryGetCommandsMethod struct{}
 func (m *CommandRegistryGetCommandsMethod) GetName() string            { return "getCommands" }
 func (m *CommandRegistryGetCommandsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *CommandRegistryGetCommandsMethod) GetIsStatic() bool          { return true }
-func (m *CommandRegistryGetCommandsMethod) GetParams() []data.GetValue { return []data.GetValue{} }
+var commandRegistryGetCommandsMethodGetParams = []data.GetValue{}
+
+func (m *CommandRegistryGetCommandsMethod) GetParams() []data.GetValue { return commandRegistryGetCommandsMethodGetParams }
+var commandRegistryGetCommandsMethodGetVariables = []data.Variable{}
+
 func (m *CommandRegistryGetCommandsMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return commandRegistryGetCommandsMethodGetVariables
 }
 func (m *CommandRegistryGetCommandsMethod) GetReturnType() data.Types {
 	return data.NewBaseType("array")
@@ -84,9 +88,13 @@ type CommandRegistryGetAppNameMethod struct{}
 func (m *CommandRegistryGetAppNameMethod) GetName() string            { return "getAppName" }
 func (m *CommandRegistryGetAppNameMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *CommandRegistryGetAppNameMethod) GetIsStatic() bool          { return true }
-func (m *CommandRegistryGetAppNameMethod) GetParams() []data.GetValue { return []data.GetValue{} }
+var commandRegistryGetAppNameMethodGetParams = []data.GetValue{}
+
+func (m *CommandRegistryGetAppNameMethod) GetParams() []data.GetValue { return commandRegistryGetAppNameMethodGetParams }
+var commandRegistryGetAppNameMethodGetVariables = []data.Variable{}
+
 func (m *CommandRegistryGetAppNameMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return commandRegistryGetAppNameMethodGetVariables
 }
 func (m *CommandRegistryGetAppNameMethod) GetReturnType() data.Types {
 	return data.NewBaseType("string")
@@ -103,9 +111,13 @@ type CommandRegistryGetAppVersionMethod struct{}
 func (m *CommandRegistryGetAppVersionMethod) GetName() string            { return "getAppVersion" }
 func (m *CommandRegistryGetAppVersionMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *CommandRegistryGetAppVersionMethod) GetIsStatic() bool          { return true }
-func (m *CommandRegistryGetAppVersionMethod) GetParams() []data.GetValue { return []data.GetValue{} }
+var commandRegistryGetAppVersionMethodGetParams = []data.GetValue{}
+
+func (m *CommandRegistryGetAppVersionMethod) GetParams() []data.GetValue { return commandRegistryGetAppVersionMethodGetParams }
+var commandRegistryGetAppVersionMethodGetVariables = []data.Variable{}
+
 func (m *CommandRegistryGetAppVersionMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return commandRegistryGetAppVersionMethodGetVariables
 }
 func (m *CommandRegistryGetAppVersionMethod) GetReturnType() data.Types {
 	return data.NewBaseType("string")
@@ -122,9 +134,13 @@ type CommandRegistryGetLongVersionMethod struct{}
 func (m *CommandRegistryGetLongVersionMethod) GetName() string            { return "getLongVersion" }
 func (m *CommandRegistryGetLongVersionMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *CommandRegistryGetLongVersionMethod) GetIsStatic() bool          { return true }
-func (m *CommandRegistryGetLongVersionMethod) GetParams() []data.GetValue { return []data.GetValue{} }
+var commandRegistryGetLongVersionMethodGetParams = []data.GetValue{}
+
+func (m *CommandRegistryGetLongVersionMethod) GetParams() []data.GetValue { return commandRegistryGetLongVersionMethodGetParams }
+var commandRegistryGetLongVersionMethodGetVariables = []data.Variable{}
+
 func (m *CommandRegistryGetLongVersionMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return commandRegistryGetLongVersionMethodGetVariables
 }
 func (m *CommandRegistryGetLongVersionMethod) GetReturnType() data.Types {
 	return data.NewBaseType("string")

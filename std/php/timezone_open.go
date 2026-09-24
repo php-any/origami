@@ -60,14 +60,18 @@ func (f *TimezoneOpenFunction) GetName() string {
 	return "timezone_open"
 }
 
+var timezoneOpenFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "timezone", 0, nil, data.String{}),
+}
+
 func (f *TimezoneOpenFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "timezone", 0, nil, data.String{}),
-	}
+	return timezoneOpenFunctionGetParams
+}
+
+var timezoneOpenFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "timezone", 0, data.String{}),
 }
 
 func (f *TimezoneOpenFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "timezone", 0, data.String{}),
-	}
+	return timezoneOpenFunctionGetVariables
 }

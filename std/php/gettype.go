@@ -60,14 +60,18 @@ func (f *GettypeFunction) GetName() string {
 	return "gettype"
 }
 
+var gettypeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, data.Mixed{}),
+}
+
 func (f *GettypeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, data.Mixed{}),
-	}
+	return gettypeFunctionGetParams
+}
+
+var gettypeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, data.Mixed{}),
 }
 
 func (f *GettypeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.Mixed{}),
-	}
+	return gettypeFunctionGetVariables
 }

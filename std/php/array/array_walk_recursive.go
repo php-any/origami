@@ -87,18 +87,22 @@ func walkRecursive(ctx data.Context, cbVal, userdata, val data.Value) data.Contr
 
 func (fn *ArrayWalkRecursiveFunction) GetName() string { return "array_walk_recursive" }
 
+var arrayWalkRecursiveFunctionGetParams = []data.GetValue{
+	node.NewParameterReference(nil, "array", 0, nil, data.NewBaseType("array")),
+	node.NewParameter(nil, "callback", 1, nil, nil),
+	node.NewParameter(nil, "arg", 2, nil, nil),
+}
+
 func (fn *ArrayWalkRecursiveFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameterReference(nil, "array", 0, nil, data.NewBaseType("array")),
-		node.NewParameter(nil, "callback", 1, nil, nil),
-		node.NewParameter(nil, "arg", 2, nil, nil),
-	}
+	return arrayWalkRecursiveFunctionGetParams
+}
+
+var arrayWalkRecursiveFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
+	node.NewVariable(nil, "callback", 1, data.Mixed{}),
+	node.NewVariable(nil, "arg", 2, data.Mixed{}),
 }
 
 func (fn *ArrayWalkRecursiveFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-		node.NewVariable(nil, "callback", 1, data.Mixed{}),
-		node.NewVariable(nil, "arg", 2, data.Mixed{}),
-	}
+	return arrayWalkRecursiveFunctionGetVariables
 }

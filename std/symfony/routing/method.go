@@ -37,7 +37,7 @@ func newRtClass(name string, extend *string, impl []string, props []data.Propert
 }
 
 func (c *rtClass) add(m data.Method) *rtClass {
-	c.methods[strings.ToLower(m.GetName())] = m
+	c.methods[data.MethodLookupKey(m.GetName())] = m
 	c.methodList = append(c.methodList, m)
 	return c
 }
@@ -69,7 +69,7 @@ func (c *rtClass) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }
 func (c *rtClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *rtClass) GetStaticMethod(name string) (data.Method, bool) {

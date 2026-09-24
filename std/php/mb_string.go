@@ -22,17 +22,21 @@ func (f *MbStrtoupperFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 }
 
 func (f *MbStrtoupperFunction) GetName() string { return "mb_strtoupper" }
-func (f *MbStrtoupperFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "encoding", 1, node.NewNullLiteral(nil), nil),
-	}
+var mbStrtoupperFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "encoding", 1, node.NewNullLiteral(nil), nil),
 }
+
+func (f *MbStrtoupperFunction) GetParams() []data.GetValue {
+	return mbStrtoupperFunctionGetParams
+}
+var mbStrtoupperFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "encoding", 1, data.NewNullableType(data.NewBaseType("string"))),
+}
+
 func (f *MbStrtoupperFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "encoding", 1, data.NewNullableType(data.NewBaseType("string"))),
-	}
+	return mbStrtoupperFunctionGetVariables
 }
 
 // MbStrtolowerFunction 实现 mb_strtolower 函数
@@ -49,17 +53,21 @@ func (f *MbStrtolowerFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 }
 
 func (f *MbStrtolowerFunction) GetName() string { return "mb_strtolower" }
-func (f *MbStrtolowerFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "encoding", 1, node.NewNullLiteral(nil), nil),
-	}
+var mbStrtolowerFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "encoding", 1, node.NewNullLiteral(nil), nil),
 }
+
+func (f *MbStrtolowerFunction) GetParams() []data.GetValue {
+	return mbStrtolowerFunctionGetParams
+}
+var mbStrtolowerFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "encoding", 1, data.NewNullableType(data.NewBaseType("string"))),
+}
+
 func (f *MbStrtolowerFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "encoding", 1, data.NewNullableType(data.NewBaseType("string"))),
-	}
+	return mbStrtolowerFunctionGetVariables
 }
 
 // MbStrlenFunction 实现 mb_strlen 函数
@@ -86,17 +94,21 @@ func (f *MbStrlenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (f *MbStrlenFunction) GetName() string { return "mb_strlen" }
-func (f *MbStrlenFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "encoding", 1, node.NewNullLiteral(nil), nil),
-	}
+var mbStrlenFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "encoding", 1, node.NewNullLiteral(nil), nil),
 }
+
+func (f *MbStrlenFunction) GetParams() []data.GetValue {
+	return mbStrlenFunctionGetParams
+}
+var mbStrlenFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "encoding", 1, data.NewNullableType(data.NewBaseType("string"))),
+}
+
 func (f *MbStrlenFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "encoding", 1, data.NewNullableType(data.NewBaseType("string"))),
-	}
+	return mbStrlenFunctionGetVariables
 }
 
 // MbStrposFunction 实现 mb_strpos 函数
@@ -171,21 +183,25 @@ func (f *MbStrposFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (f *MbStrposFunction) GetName() string { return "mb_strpos" }
-func (f *MbStrposFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "haystack", 0, nil, nil),
-		node.NewParameter(nil, "needle", 1, nil, nil),
-		node.NewParameter(nil, "offset", 2, data.NewIntValue(0), nil),
-		node.NewParameter(nil, "encoding", 3, node.NewNullLiteral(nil), nil),
-	}
+var mbStrposFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "haystack", 0, nil, nil),
+	node.NewParameter(nil, "needle", 1, nil, nil),
+	node.NewParameter(nil, "offset", 2, data.NewIntValue(0), nil),
+	node.NewParameter(nil, "encoding", 3, node.NewNullLiteral(nil), nil),
 }
+
+func (f *MbStrposFunction) GetParams() []data.GetValue {
+	return mbStrposFunctionGetParams
+}
+var mbStrposFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "offset", 2, data.NewBaseType("int")),
+	node.NewVariable(nil, "encoding", 3, data.NewNullableType(data.NewBaseType("string"))),
+}
+
 func (f *MbStrposFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "offset", 2, data.NewBaseType("int")),
-		node.NewVariable(nil, "encoding", 3, data.NewNullableType(data.NewBaseType("string"))),
-	}
+	return mbStrposFunctionGetVariables
 }
 
 // MbSubstrFunction 实现 mb_substr 函数
@@ -270,21 +286,25 @@ func (f *MbSubstrFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (f *MbSubstrFunction) GetName() string { return "mb_substr" }
-func (f *MbSubstrFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "start", 1, nil, nil),
-		node.NewParameter(nil, "length", 2, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "encoding", 3, node.NewNullLiteral(nil), nil),
-	}
+var mbSubstrFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "start", 1, nil, nil),
+	node.NewParameter(nil, "length", 2, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "encoding", 3, node.NewNullLiteral(nil), nil),
 }
+
+func (f *MbSubstrFunction) GetParams() []data.GetValue {
+	return mbSubstrFunctionGetParams
+}
+var mbSubstrFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "start", 1, data.NewBaseType("int")),
+	node.NewVariable(nil, "length", 2, data.NewNullableType(data.NewBaseType("int"))),
+	node.NewVariable(nil, "encoding", 3, data.NewNullableType(data.NewBaseType("string"))),
+}
+
 func (f *MbSubstrFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "start", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "length", 2, data.NewNullableType(data.NewBaseType("int"))),
-		node.NewVariable(nil, "encoding", 3, data.NewNullableType(data.NewBaseType("string"))),
-	}
+	return mbSubstrFunctionGetVariables
 }
 
 // MbStrimwidthFunction 实现 mb_strimwidth 函数
@@ -355,23 +375,27 @@ func (f *MbStrimwidthFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 }
 
 func (f *MbStrimwidthFunction) GetName() string { return "mb_strimwidth" }
-func (f *MbStrimwidthFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "start", 1, nil, nil),
-		node.NewParameter(nil, "width", 2, nil, nil),
-		node.NewParameter(nil, "trim_marker", 3, data.NewStringValue(""), nil),
-		node.NewParameter(nil, "encoding", 4, node.NewNullLiteral(nil), nil),
-	}
+var mbStrimwidthFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "start", 1, nil, nil),
+	node.NewParameter(nil, "width", 2, nil, nil),
+	node.NewParameter(nil, "trim_marker", 3, data.NewStringValue(""), nil),
+	node.NewParameter(nil, "encoding", 4, node.NewNullLiteral(nil), nil),
 }
+
+func (f *MbStrimwidthFunction) GetParams() []data.GetValue {
+	return mbStrimwidthFunctionGetParams
+}
+var mbStrimwidthFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "start", 1, data.NewBaseType("int")),
+	node.NewVariable(nil, "width", 2, data.NewBaseType("int")),
+	node.NewVariable(nil, "trim_marker", 3, data.NewBaseType("string")),
+	node.NewVariable(nil, "encoding", 4, data.NewNullableType(data.NewBaseType("string"))),
+}
+
 func (f *MbStrimwidthFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "start", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "width", 2, data.NewBaseType("int")),
-		node.NewVariable(nil, "trim_marker", 3, data.NewBaseType("string")),
-		node.NewVariable(nil, "encoding", 4, data.NewNullableType(data.NewBaseType("string"))),
-	}
+	return mbStrimwidthFunctionGetVariables
 }
 
 // MbStrcutFunction 实现 mb_strcut 函数（按字节切割）
@@ -436,20 +460,24 @@ func (f *MbStrcutFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (f *MbStrcutFunction) GetName() string { return "mb_strcut" }
-func (f *MbStrcutFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-		node.NewParameter(nil, "start", 1, nil, nil),
-		node.NewParameter(nil, "length", 2, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "encoding", 3, node.NewNullLiteral(nil), nil),
-	}
+var mbStrcutFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+	node.NewParameter(nil, "start", 1, nil, nil),
+	node.NewParameter(nil, "length", 2, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "encoding", 3, node.NewNullLiteral(nil), nil),
 }
+
+func (f *MbStrcutFunction) GetParams() []data.GetValue {
+	return mbStrcutFunctionGetParams
+}
+var mbStrcutFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "start", 1, data.NewBaseType("int")),
+	node.NewVariable(nil, "length", 2, data.NewNullableType(data.NewBaseType("int"))),
+	node.NewVariable(nil, "encoding", 3, data.NewNullableType(data.NewBaseType("string"))),
+}
+
 func (f *MbStrcutFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "start", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "length", 2, data.NewNullableType(data.NewBaseType("int"))),
-		node.NewVariable(nil, "encoding", 3, data.NewNullableType(data.NewBaseType("string"))),
-	}
+	return mbStrcutFunctionGetVariables
 }
 

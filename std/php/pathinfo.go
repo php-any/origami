@@ -20,20 +20,24 @@ func (f *PathinfoFunction) GetName() string {
 	return "pathinfo"
 }
 
+var pathinfoFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "path", 0, nil, data.Mixed{}),
+	node.NewParameter(nil, "options", 1, nil, data.Mixed{}),
+}
+
 // GetParams 返回参数列表
 func (f *PathinfoFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "path", 0, nil, data.Mixed{}),
-		node.NewParameter(nil, "options", 1, nil, data.Mixed{}),
-	}
+	return pathinfoFunctionGetParams
+}
+
+var pathinfoFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "path", 0, data.Mixed{}),
+	node.NewVariable(nil, "options", 1, data.Mixed{}),
 }
 
 // GetVariables 返回变量列表
 func (f *PathinfoFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "path", 0, data.Mixed{}),
-		node.NewVariable(nil, "options", 1, data.Mixed{}),
-	}
+	return pathinfoFunctionGetVariables
 }
 
 // Call 执行 pathinfo 函数

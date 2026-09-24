@@ -263,24 +263,28 @@ func (f *ProcOpenFunction) GetName() string {
 	return "proc_open"
 }
 
+var procOpenFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "command", 0, nil, nil),
+	node.NewParameter(nil, "descriptorspec", 1, node.NewNullLiteral(nil), nil),
+	node.NewParameterReference(nil, "pipes", 2, nil, data.Mixed{}),
+	node.NewParameter(nil, "cwd", 3, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "env_vars", 4, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "options", 5, node.NewNullLiteral(nil), nil),
+}
+
 func (f *ProcOpenFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "command", 0, nil, nil),
-		node.NewParameter(nil, "descriptorspec", 1, node.NewNullLiteral(nil), nil),
-		node.NewParameterReference(nil, "pipes", 2, nil, data.Mixed{}),
-		node.NewParameter(nil, "cwd", 3, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "env_vars", 4, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "options", 5, node.NewNullLiteral(nil), nil),
-	}
+	return procOpenFunctionGetParams
+}
+
+var procOpenFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "command", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "descriptorspec", 1, data.NewBaseType("array")),
+	node.NewVariable(nil, "pipes", 2, data.NewBaseType("array")),
+	node.NewVariable(nil, "cwd", 3, data.NewBaseType("string")),
+	node.NewVariable(nil, "env_vars", 4, data.NewBaseType("array")),
+	node.NewVariable(nil, "options", 5, data.NewBaseType("array")),
 }
 
 func (f *ProcOpenFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "command", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "descriptorspec", 1, data.NewBaseType("array")),
-		node.NewVariable(nil, "pipes", 2, data.NewBaseType("array")),
-		node.NewVariable(nil, "cwd", 3, data.NewBaseType("string")),
-		node.NewVariable(nil, "env_vars", 4, data.NewBaseType("array")),
-		node.NewVariable(nil, "options", 5, data.NewBaseType("array")),
-	}
+	return procOpenFunctionGetVariables
 }

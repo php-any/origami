@@ -22,14 +22,18 @@ func (f *ResetFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *ResetFunction) GetName() string            { return "Signal\\reset" }
 func (f *ResetFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *ResetFunction) GetIsStatic() bool          { return true }
-func (f *ResetFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameters(nil, "signals", 0, nil, data.NewBaseType("int")),
-	}
+var resetFunctionGetParams = []data.GetValue{
+	node.NewParameters(nil, "signals", 0, nil, data.NewBaseType("int")),
 }
+
+func (f *ResetFunction) GetParams() []data.GetValue {
+	return resetFunctionGetParams
+}
+var resetFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "signals", 0, data.NewBaseType("int")),
+}
+
 func (f *ResetFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "signals", 0, data.NewBaseType("int")),
-	}
+	return resetFunctionGetVariables
 }
 func (f *ResetFunction) GetReturnType() data.Types { return data.NewBaseType("void") }

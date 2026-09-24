@@ -33,16 +33,20 @@ func (h *StmtQueryRowMethod) Call(ctx data.Context) (data.GetValue, data.Control
 func (h *StmtQueryRowMethod) GetName() string            { return "queryRow" }
 func (h *StmtQueryRowMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *StmtQueryRowMethod) GetIsStatic() bool          { return true }
+var stmtQueryRowMethodGetParams = []data.GetValue{
+	node.NewParameters(nil, "args", 0, nil, nil),
+}
+
 func (h *StmtQueryRowMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameters(nil, "args", 0, nil, nil),
-	}
+	return stmtQueryRowMethodGetParams
+}
+
+var stmtQueryRowMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "args", 0, nil),
 }
 
 func (h *StmtQueryRowMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "args", 0, nil),
-	}
+	return stmtQueryRowMethodGetVariables
 }
 
 func (h *StmtQueryRowMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

@@ -38,14 +38,18 @@ func (f *RawurlencodeFunction) GetName() string {
 	return "rawurlencode"
 }
 
+var rawurlencodeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+}
+
 func (f *RawurlencodeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-	}
+	return rawurlencodeFunctionGetParams
+}
+
+var rawurlencodeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 }
 
 func (f *RawurlencodeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-	}
+	return rawurlencodeFunctionGetVariables
 }

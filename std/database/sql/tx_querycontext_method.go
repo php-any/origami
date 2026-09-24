@@ -61,20 +61,24 @@ func (h *TxQueryContextMethod) Call(ctx data.Context) (data.GetValue, data.Contr
 func (h *TxQueryContextMethod) GetName() string            { return "queryContext" }
 func (h *TxQueryContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *TxQueryContextMethod) GetIsStatic() bool          { return true }
+var txQueryContextMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "ctx", 0, nil, nil),
+	node.NewParameter(nil, "query", 1, nil, nil),
+	node.NewParameters(nil, "args", 2, nil, nil),
+}
+
 func (h *TxQueryContextMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "ctx", 0, nil, nil),
-		node.NewParameter(nil, "query", 1, nil, nil),
-		node.NewParameters(nil, "args", 2, nil, nil),
-	}
+	return txQueryContextMethodGetParams
+}
+
+var txQueryContextMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "ctx", 0, nil),
+	node.NewVariable(nil, "query", 1, nil),
+	node.NewVariable(nil, "args", 2, nil),
 }
 
 func (h *TxQueryContextMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "ctx", 0, nil),
-		node.NewVariable(nil, "query", 1, nil),
-		node.NewVariable(nil, "args", 2, nil),
-	}
+	return txQueryContextMethodGetVariables
 }
 
 func (h *TxQueryContextMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

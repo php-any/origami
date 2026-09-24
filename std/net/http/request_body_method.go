@@ -72,6 +72,10 @@ func convertToDataValue(v interface{}) data.Value {
 func (h *RequestBodyMethod) GetName() string               { return "body" }
 func (h *RequestBodyMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
 func (h *RequestBodyMethod) GetIsStatic() bool             { return false }
-func (h *RequestBodyMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
-func (h *RequestBodyMethod) GetVariables() []data.Variable { return []data.Variable{} }
+var requestBodyMethodGetParams = []data.GetValue{}
+
+func (h *RequestBodyMethod) GetParams() []data.GetValue    { return requestBodyMethodGetParams }
+var requestBodyMethodGetVariables = []data.Variable{}
+
+func (h *RequestBodyMethod) GetVariables() []data.Variable { return requestBodyMethodGetVariables }
 func (h *RequestBodyMethod) GetReturnType() data.Types     { return data.NewBaseType("string") }

@@ -38,14 +38,18 @@ func (f *BoolFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 func (f *BoolFunction) GetName() string { return "bool" }
 
+var boolFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "value", 0, nil, nil),
+}
+
 func (f *BoolFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "value", 0, nil, nil),
-	}
+	return boolFunctionGetParams
+}
+
+var boolFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
 }
 
 func (f *BoolFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "value", 0, data.NewBaseType("mixed")),
-	}
+	return boolFunctionGetVariables
 }

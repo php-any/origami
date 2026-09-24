@@ -35,10 +35,14 @@ func (f *ArrayProductFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 
 func (f *ArrayProductFunction) GetName() string { return "array_product" }
 
+var arrayProductFunctionGetParams = []data.GetValue{node.NewParameter(nil, "array", 0, nil, nil)}
+
 func (f *ArrayProductFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "array", 0, nil, nil)}
+	return arrayProductFunctionGetParams
 }
 
+var arrayProductFunctionGetVariables = []data.Variable{node.NewVariable(nil, "array", 0, data.NewBaseType("array"))}
+
 func (f *ArrayProductFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "array", 0, data.NewBaseType("array"))}
+	return arrayProductFunctionGetVariables
 }

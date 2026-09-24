@@ -30,14 +30,18 @@ func (f *Bin2hexFunction) GetName() string {
 	return "bin2hex"
 }
 
+var bin2hexFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+}
+
 func (f *Bin2hexFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-	}
+	return bin2hexFunctionGetParams
+}
+
+var bin2hexFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 }
 
 func (f *Bin2hexFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-	}
+	return bin2hexFunctionGetVariables
 }

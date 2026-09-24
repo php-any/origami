@@ -293,16 +293,20 @@ func (f *IteratorToArrayFunction) GetName() string {
 	return "iterator_to_array"
 }
 
+var iteratorToArrayFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "iterator", 0, nil, data.Mixed{}),
+	node.NewParameter(nil, "use_keys", 1, data.NewBoolValue(true), data.Bool{}),
+}
+
 func (f *IteratorToArrayFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "iterator", 0, nil, data.Mixed{}),
-		node.NewParameter(nil, "use_keys", 1, data.NewBoolValue(true), data.Bool{}),
-	}
+	return iteratorToArrayFunctionGetParams
+}
+
+var iteratorToArrayFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "iterator", 0, data.Mixed{}),
+	node.NewVariable(nil, "use_keys", 1, data.Bool{}),
 }
 
 func (f *IteratorToArrayFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "iterator", 0, data.Mixed{}),
-		node.NewVariable(nil, "use_keys", 1, data.Bool{}),
-	}
+	return iteratorToArrayFunctionGetVariables
 }

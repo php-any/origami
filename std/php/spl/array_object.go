@@ -268,19 +268,23 @@ func (m *ArrayObjectConstructMethod) GetName() string            { return "__con
 func (m *ArrayObjectConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectConstructMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectConstructMethod) GetReturnType() data.Types  { return nil }
-func (m *ArrayObjectConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, data.NewArrayValue(nil), data.Mixed{}),
-		node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.Int{}),
-		node.NewParameter(nil, "iteratorClass", 2, data.NewStringValue("ArrayIterator"), data.String{}),
-	}
+var arrayObjectConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, data.NewArrayValue(nil), data.Mixed{}),
+	node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.Int{}),
+	node.NewParameter(nil, "iteratorClass", 2, data.NewStringValue("ArrayIterator"), data.String{}),
 }
+
+func (m *ArrayObjectConstructMethod) GetParams() []data.GetValue {
+	return arrayObjectConstructMethodGetParams
+}
+var arrayObjectConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.Mixed{}),
+	node.NewVariable(nil, "flags", 1, data.Int{}),
+	node.NewVariable(nil, "iteratorClass", 2, data.String{}),
+}
+
 func (m *ArrayObjectConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.Mixed{}),
-		node.NewVariable(nil, "flags", 1, data.Int{}),
-		node.NewVariable(nil, "iteratorClass", 2, data.String{}),
-	}
+	return arrayObjectConstructMethodGetVariables
 }
 func (m *ArrayObjectConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aoGetClassValue(ctx)
@@ -304,11 +308,15 @@ func (m *ArrayObjectAppendMethod) GetName() string            { return "append" 
 func (m *ArrayObjectAppendMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectAppendMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectAppendMethod) GetReturnType() data.Types  { return nil }
+var arrayObjectAppendMethodGetParams = []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
+
 func (m *ArrayObjectAppendMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
+	return arrayObjectAppendMethodGetParams
 }
+var arrayObjectAppendMethodGetVariables = []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
+
 func (m *ArrayObjectAppendMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
+	return arrayObjectAppendMethodGetVariables
 }
 func (m *ArrayObjectAppendMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aoGetClassValue(ctx)
@@ -344,11 +352,15 @@ func (m *ArrayObjectExchangeArrayMethod) GetName() string            { return "e
 func (m *ArrayObjectExchangeArrayMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectExchangeArrayMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectExchangeArrayMethod) GetReturnType() data.Types  { return data.Mixed{} }
+var arrayObjectExchangeArrayMethodGetParams = []data.GetValue{node.NewParameter(nil, "array", 0, data.NewArrayValue(nil), data.Mixed{})}
+
 func (m *ArrayObjectExchangeArrayMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "array", 0, data.NewArrayValue(nil), data.Mixed{})}
+	return arrayObjectExchangeArrayMethodGetParams
 }
+var arrayObjectExchangeArrayMethodGetVariables = []data.Variable{node.NewVariable(nil, "array", 0, data.Mixed{})}
+
 func (m *ArrayObjectExchangeArrayMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "array", 0, data.Mixed{})}
+	return arrayObjectExchangeArrayMethodGetVariables
 }
 func (m *ArrayObjectExchangeArrayMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aoGetClassValue(ctx)
@@ -400,11 +412,15 @@ func (m *ArrayObjectOffsetExistsMethod) GetName() string            { return "of
 func (m *ArrayObjectOffsetExistsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectOffsetExistsMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectOffsetExistsMethod) GetReturnType() data.Types  { return data.Bool{} }
+var arrayObjectOffsetExistsMethodGetParams = []data.GetValue{node.NewParameter(nil, "offset", 0, nil, data.Mixed{})}
+
 func (m *ArrayObjectOffsetExistsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "offset", 0, nil, data.Mixed{})}
+	return arrayObjectOffsetExistsMethodGetParams
 }
+var arrayObjectOffsetExistsMethodGetVariables = []data.Variable{node.NewVariable(nil, "offset", 0, data.Mixed{})}
+
 func (m *ArrayObjectOffsetExistsMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "offset", 0, data.Mixed{})}
+	return arrayObjectOffsetExistsMethodGetVariables
 }
 func (m *ArrayObjectOffsetExistsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aoGetClassValue(ctx)
@@ -421,11 +437,15 @@ func (m *ArrayObjectOffsetGetMethod) GetName() string            { return "offse
 func (m *ArrayObjectOffsetGetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectOffsetGetMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectOffsetGetMethod) GetReturnType() data.Types  { return data.Mixed{} }
+var arrayObjectOffsetGetMethodGetParams = []data.GetValue{node.NewParameter(nil, "offset", 0, nil, data.Mixed{})}
+
 func (m *ArrayObjectOffsetGetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "offset", 0, nil, data.Mixed{})}
+	return arrayObjectOffsetGetMethodGetParams
 }
+var arrayObjectOffsetGetMethodGetVariables = []data.Variable{node.NewVariable(nil, "offset", 0, data.Mixed{})}
+
 func (m *ArrayObjectOffsetGetMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "offset", 0, data.Mixed{})}
+	return arrayObjectOffsetGetMethodGetVariables
 }
 func (m *ArrayObjectOffsetGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aoGetClassValue(ctx)
@@ -446,17 +466,21 @@ func (m *ArrayObjectOffsetSetMethod) GetName() string            { return "offse
 func (m *ArrayObjectOffsetSetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectOffsetSetMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectOffsetSetMethod) GetReturnType() data.Types  { return nil }
-func (m *ArrayObjectOffsetSetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "offset", 0, nil, data.Mixed{}),
-		node.NewParameter(nil, "value", 1, nil, data.Mixed{}),
-	}
+var arrayObjectOffsetSetMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "offset", 0, nil, data.Mixed{}),
+	node.NewParameter(nil, "value", 1, nil, data.Mixed{}),
 }
+
+func (m *ArrayObjectOffsetSetMethod) GetParams() []data.GetValue {
+	return arrayObjectOffsetSetMethodGetParams
+}
+var arrayObjectOffsetSetMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "offset", 0, data.Mixed{}),
+	node.NewVariable(nil, "value", 1, data.Mixed{}),
+}
+
 func (m *ArrayObjectOffsetSetMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "offset", 0, data.Mixed{}),
-		node.NewVariable(nil, "value", 1, data.Mixed{}),
-	}
+	return arrayObjectOffsetSetMethodGetVariables
 }
 func (m *ArrayObjectOffsetSetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aoGetClassValue(ctx)
@@ -475,11 +499,15 @@ func (m *ArrayObjectOffsetUnsetMethod) GetName() string            { return "off
 func (m *ArrayObjectOffsetUnsetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectOffsetUnsetMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectOffsetUnsetMethod) GetReturnType() data.Types  { return nil }
+var arrayObjectOffsetUnsetMethodGetParams = []data.GetValue{node.NewParameter(nil, "offset", 0, nil, data.Mixed{})}
+
 func (m *ArrayObjectOffsetUnsetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "offset", 0, nil, data.Mixed{})}
+	return arrayObjectOffsetUnsetMethodGetParams
 }
+var arrayObjectOffsetUnsetMethodGetVariables = []data.Variable{node.NewVariable(nil, "offset", 0, data.Mixed{})}
+
 func (m *ArrayObjectOffsetUnsetMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "offset", 0, data.Mixed{})}
+	return arrayObjectOffsetUnsetMethodGetVariables
 }
 func (m *ArrayObjectOffsetUnsetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := aoGetClassValue(ctx)

@@ -90,18 +90,22 @@ func (h *WithValueFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 func (h *WithValueFunction) GetName() string            { return "context\\withValue" }
 func (h *WithValueFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *WithValueFunction) GetIsStatic() bool          { return true }
-func (h *WithValueFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "parent", 0, nil, nil),
-		node.NewParameter(nil, "key", 1, nil, nil),
-		node.NewParameter(nil, "val", 2, nil, nil),
-	}
+var withValueFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "parent", 0, nil, nil),
+	node.NewParameter(nil, "key", 1, nil, nil),
+	node.NewParameter(nil, "val", 2, nil, nil),
 }
+
+func (h *WithValueFunction) GetParams() []data.GetValue {
+	return withValueFunctionGetParams
+}
+var withValueFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "parent", 0, nil),
+	node.NewVariable(nil, "key", 1, nil),
+	node.NewVariable(nil, "val", 2, nil),
+}
+
 func (h *WithValueFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "parent", 0, nil),
-		node.NewVariable(nil, "key", 1, nil),
-		node.NewVariable(nil, "val", 2, nil),
-	}
+	return withValueFunctionGetVariables
 }
 func (h *WithValueFunction) GetReturnType() data.Types { return data.NewBaseType("void") }

@@ -62,18 +62,22 @@ func (f *ArrayFillFunction) GetName() string {
 	return "array_fill"
 }
 
+var arrayFillFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "start_index", 0, nil, nil),
+	node.NewParameter(nil, "count", 1, nil, nil),
+	node.NewParameter(nil, "value", 2, nil, nil),
+}
+
 func (f *ArrayFillFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "start_index", 0, nil, nil),
-		node.NewParameter(nil, "count", 1, nil, nil),
-		node.NewParameter(nil, "value", 2, nil, nil),
-	}
+	return arrayFillFunctionGetParams
+}
+
+var arrayFillFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "start_index", 0, data.NewBaseType("int")),
+	node.NewVariable(nil, "count", 1, data.NewBaseType("int")),
+	node.NewVariable(nil, "value", 2, data.Mixed{}),
 }
 
 func (f *ArrayFillFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "start_index", 0, data.NewBaseType("int")),
-		node.NewVariable(nil, "count", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "value", 2, data.Mixed{}),
-	}
+	return arrayFillFunctionGetVariables
 }

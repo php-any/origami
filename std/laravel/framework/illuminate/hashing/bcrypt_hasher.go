@@ -50,7 +50,7 @@ func (c *BcryptHasherClass) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	return cv, nil
 }
 func (c *BcryptHasherClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *BcryptHasherClass) GetMethods() []data.Method {

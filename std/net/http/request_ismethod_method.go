@@ -31,14 +31,18 @@ func (h *RequestIsMethodMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 func (h *RequestIsMethodMethod) GetName() string            { return "isMethod" }
 func (h *RequestIsMethodMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestIsMethodMethod) GetIsStatic() bool          { return false }
-func (h *RequestIsMethodMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "method", 0, nil, nil),
-	}
+var requestIsMethodMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "method", 0, nil, nil),
 }
+
+func (h *RequestIsMethodMethod) GetParams() []data.GetValue {
+	return requestIsMethodMethodGetParams
+}
+var requestIsMethodMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "method", 0, nil),
+}
+
 func (h *RequestIsMethodMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "method", 0, nil),
-	}
+	return requestIsMethodMethodGetVariables
 }
 func (h *RequestIsMethodMethod) GetReturnType() data.Types { return data.NewBaseType("bool") }

@@ -18,12 +18,16 @@ func (h *ContextDeadlineMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 func (h *ContextDeadlineMethod) GetName() string            { return "deadline" }
 func (h *ContextDeadlineMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ContextDeadlineMethod) GetIsStatic() bool          { return true }
+var contextDeadlineMethodGetParams = []data.GetValue{}
+
 func (h *ContextDeadlineMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return contextDeadlineMethodGetParams
 }
 
+var contextDeadlineMethodGetVariables = []data.Variable{}
+
 func (h *ContextDeadlineMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return contextDeadlineMethodGetVariables
 }
 
 func (h *ContextDeadlineMethod) GetReturnType() data.Types { return data.NewBaseType("void") }

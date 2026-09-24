@@ -25,14 +25,18 @@ func (h *HeaderGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *HeaderGetMethod) GetName() string            { return "get" }
 func (h *HeaderGetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *HeaderGetMethod) GetIsStatic() bool          { return false }
-func (h *HeaderGetMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-	}
+var headerGetMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
 }
+
+func (h *HeaderGetMethod) GetParams() []data.GetValue {
+	return headerGetMethodGetParams
+}
+var headerGetMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
+}
+
 func (h *HeaderGetMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-	}
+	return headerGetMethodGetVariables
 }
 func (h *HeaderGetMethod) GetReturnType() data.Types { return data.NewBaseType("string") }

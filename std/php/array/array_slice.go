@@ -201,20 +201,24 @@ func (f *ArraySliceFunction) GetName() string {
 	return "array_slice"
 }
 
+var arraySliceFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, nil),
+	node.NewParameter(nil, "offset", 1, nil, nil),
+	node.NewParameter(nil, "length", 2, node.NewNullLiteral(nil), nil),
+	node.NewParameter(nil, "preserve_keys", 3, node.NewIntLiteral(nil, "0"), nil),
+}
+
 func (f *ArraySliceFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, nil),
-		node.NewParameter(nil, "offset", 1, nil, nil),
-		node.NewParameter(nil, "length", 2, node.NewNullLiteral(nil), nil),
-		node.NewParameter(nil, "preserve_keys", 3, node.NewIntLiteral(nil, "0"), nil),
-	}
+	return arraySliceFunctionGetParams
+}
+
+var arraySliceFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
+	node.NewVariable(nil, "offset", 1, data.NewBaseType("int")),
+	node.NewVariable(nil, "length", 2, data.NewBaseType("int|null")),
+	node.NewVariable(nil, "preserve_keys", 3, data.NewBaseType("bool")),
 }
 
 func (f *ArraySliceFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-		node.NewVariable(nil, "offset", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "length", 2, data.NewBaseType("int|null")),
-		node.NewVariable(nil, "preserve_keys", 3, data.NewBaseType("bool")),
-	}
+	return arraySliceFunctionGetVariables
 }

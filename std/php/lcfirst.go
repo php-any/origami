@@ -40,14 +40,18 @@ func (f *LcfirstFunction) GetName() string {
 	return "lcfirst"
 }
 
+var lcfirstFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, nil, nil),
+}
+
 func (f *LcfirstFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, nil, nil),
-	}
+	return lcfirstFunctionGetParams
+}
+
+var lcfirstFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 }
 
 func (f *LcfirstFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-	}
+	return lcfirstFunctionGetVariables
 }

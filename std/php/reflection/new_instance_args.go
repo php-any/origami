@@ -23,20 +23,24 @@ func (m *ReflectionClassNewInstanceArgsMethod) GetModifier() data.Modifier {
 // GetIsStatic 返回是否为静态方法，非静态方法
 func (m *ReflectionClassNewInstanceArgsMethod) GetIsStatic() bool { return false }
 
+var reflectionClassNewInstanceArgsMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "args", 0, nil, data.Arrays{}),
+}
+
 // GetParams 返回参数列表
 // 参数:
 //   - args: 构造函数参数数组，类型为 array
 func (m *ReflectionClassNewInstanceArgsMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "args", 0, nil, data.Arrays{}),
-	}
+	return reflectionClassNewInstanceArgsMethodGetParams
+}
+
+var reflectionClassNewInstanceArgsMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "args", 0, data.Arrays{}),
 }
 
 // GetVariables 返回变量列表
 func (m *ReflectionClassNewInstanceArgsMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "args", 0, data.Arrays{}),
-	}
+	return reflectionClassNewInstanceArgsMethodGetVariables
 }
 
 // GetReturnType 返回返回类型，返回对象类型

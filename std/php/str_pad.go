@@ -105,20 +105,24 @@ func (f *StrPadFunction) GetName() string {
 	return "str_pad"
 }
 
+var strPadFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "string", 0, node.NewStringLiteral(nil, ""), nil),
+	node.NewParameter(nil, "length", 1, node.NewIntLiteral(nil, "0"), nil),
+	node.NewParameter(nil, "pad_string", 2, node.NewStringLiteral(nil, " "), nil),
+	node.NewParameter(nil, "pad_type", 3, node.NewIntLiteral(nil, "1"), nil),
+}
+
 func (f *StrPadFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "string", 0, node.NewStringLiteral(nil, ""), nil),
-		node.NewParameter(nil, "length", 1, node.NewIntLiteral(nil, "0"), nil),
-		node.NewParameter(nil, "pad_string", 2, node.NewStringLiteral(nil, " "), nil),
-		node.NewParameter(nil, "pad_type", 3, node.NewIntLiteral(nil, "1"), nil),
-	}
+	return strPadFunctionGetParams
+}
+
+var strPadFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "length", 1, data.NewBaseType("int")),
+	node.NewVariable(nil, "pad_string", 2, data.NewBaseType("string")),
+	node.NewVariable(nil, "pad_type", 3, data.NewBaseType("int")),
 }
 
 func (f *StrPadFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "length", 1, data.NewBaseType("int")),
-		node.NewVariable(nil, "pad_string", 2, data.NewBaseType("string")),
-		node.NewVariable(nil, "pad_type", 3, data.NewBaseType("int")),
-	}
+	return strPadFunctionGetVariables
 }

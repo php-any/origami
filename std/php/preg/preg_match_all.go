@@ -162,23 +162,27 @@ func (f *PregMatchAllFunction) GetName() string {
 	return "preg_match_all"
 }
 
+var pregMatchAllFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "pattern", 0, nil, nil),
+	node.NewParameter(nil, "subject", 1, nil, nil),
+	// 第三个参数为 &array $matches，按 PHP 语义需要按引用传递
+	node.NewParameterReference(nil, "matches", 2, nil, data.NewBaseType("array")),
+	node.NewParameter(nil, "flags", 3, node.NewIntLiteral(nil, "0"), nil),
+	node.NewParameter(nil, "offset", 4, node.NewIntLiteral(nil, "0"), nil),
+}
+
 func (f *PregMatchAllFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "pattern", 0, nil, nil),
-		node.NewParameter(nil, "subject", 1, nil, nil),
-		// 第三个参数为 &array $matches，按 PHP 语义需要按引用传递
-		node.NewParameterReference(nil, "matches", 2, nil, data.NewBaseType("array")),
-		node.NewParameter(nil, "flags", 3, node.NewIntLiteral(nil, "0"), nil),
-		node.NewParameter(nil, "offset", 4, node.NewIntLiteral(nil, "0"), nil),
-	}
+	return pregMatchAllFunctionGetParams
+}
+
+var pregMatchAllFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "pattern", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "subject", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "matches", 2, data.NewBaseType("array")),
+	node.NewVariable(nil, "flags", 3, data.NewBaseType("int")),
+	node.NewVariable(nil, "offset", 4, data.NewBaseType("int")),
 }
 
 func (f *PregMatchAllFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "pattern", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "subject", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "matches", 2, data.NewBaseType("array")),
-		node.NewVariable(nil, "flags", 3, data.NewBaseType("int")),
-		node.NewVariable(nil, "offset", 4, data.NewBaseType("int")),
-	}
+	return pregMatchAllFunctionGetVariables
 }

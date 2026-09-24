@@ -138,11 +138,15 @@ func (m *BackedEnumTryFromMethod) Call(ctx data.Context) (data.GetValue, data.Co
 func (m *BackedEnumTryFromMethod) GetName() string            { return "tryFrom" }
 func (m *BackedEnumTryFromMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *BackedEnumTryFromMethod) GetIsStatic() bool          { return true }
+var backedEnumTryFromMethodGetParams = []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
+
 func (m *BackedEnumTryFromMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
+	return backedEnumTryFromMethodGetParams
 }
+var backedEnumTryFromMethodGetVariables = []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
+
 func (m *BackedEnumTryFromMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
+	return backedEnumTryFromMethodGetVariables
 }
 func (m *BackedEnumTryFromMethod) GetReturnType() data.Types { return nil }
 
@@ -165,11 +169,15 @@ func (m *BackedEnumFromMethod) Call(ctx data.Context) (data.GetValue, data.Contr
 func (m *BackedEnumFromMethod) GetName() string            { return "from" }
 func (m *BackedEnumFromMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *BackedEnumFromMethod) GetIsStatic() bool          { return true }
+var backedEnumFromMethodGetParams = []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
+
 func (m *BackedEnumFromMethod) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
+	return backedEnumFromMethodGetParams
 }
+var backedEnumFromMethodGetVariables = []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
+
 func (m *BackedEnumFromMethod) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
+	return backedEnumFromMethodGetVariables
 }
 func (m *BackedEnumFromMethod) GetReturnType() data.Types { return nil }
 

@@ -75,7 +75,7 @@ func (c *CollectionClass) GetValue(ctx data.Context) (data.GetValue, data.Contro
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
 func (c *CollectionClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *CollectionClass) GetMethods() []data.Method {
@@ -95,10 +95,10 @@ func (c *CollectionClass) GetStaticMethod(name string) (data.Method, bool) {
 
 func (c *CollectionClass) register() {
 	inst := func(name string, params []string, fn func(data.Context) (data.GetValue, data.Control)) {
-		c.methods[strings.ToLower(name)] = kit.InstanceMethod(name, params, fn)
+		c.methods[data.MethodLookupKey(name)] = kit.InstanceMethod(name, params, fn)
 	}
 	stat := func(name string, params []string, fn func(data.Context) (data.GetValue, data.Control)) {
-		c.methods[strings.ToLower(name)] = kit.StaticMethod(name, params, -1, fn)
+		c.methods[data.MethodLookupKey(name)] = kit.StaticMethod(name, params, -1, fn)
 	}
 	inst("__construct", []string{"items"}, collectionConstruct)
 	stat("make", []string{"items"}, collectionMake)
@@ -1057,7 +1057,7 @@ func collectionMagicGet(ctx data.Context) (data.GetValue, data.Control) {
 	if v := kit.Arg(ctx, 0); v != nil {
 		key = v.AsString()
 	}
-	if _, ok := collectionProxies[strings.ToLower(key)]; ok {
+	if _, ok := collectionProxies[data.MethodLookupKey(key)]; ok {
 		return newHigherOrderProxy(ctx, cv, key)
 	}
 	return data.NewNullValue(), nil

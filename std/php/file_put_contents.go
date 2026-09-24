@@ -81,20 +81,24 @@ func appendFile(path string, content []byte) (int, error) {
 
 func (f *FilePutContentsFunction) GetName() string { return "file_put_contents" }
 
+var filePutContentsFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "filename", 0, nil, nil),
+	node.NewParameter(nil, "data", 1, nil, nil),
+	node.NewParameter(nil, "flags", 2, data.NewIntValue(0), nil),
+	node.NewParameter(nil, "context", 3, nil, nil),
+}
+
 func (f *FilePutContentsFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "filename", 0, nil, nil),
-		node.NewParameter(nil, "data", 1, nil, nil),
-		node.NewParameter(nil, "flags", 2, data.NewIntValue(0), nil),
-		node.NewParameter(nil, "context", 3, nil, nil),
-	}
+	return filePutContentsFunctionGetParams
+}
+
+var filePutContentsFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
+	node.NewVariable(nil, "data", 1, data.NewBaseType("string")),
+	node.NewVariable(nil, "flags", 2, data.NewBaseType("int")),
+	node.NewVariable(nil, "context", 3, nil),
 }
 
 func (f *FilePutContentsFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
-		node.NewVariable(nil, "data", 1, data.NewBaseType("string")),
-		node.NewVariable(nil, "flags", 2, data.NewBaseType("int")),
-		node.NewVariable(nil, "context", 3, nil),
-	}
+	return filePutContentsFunctionGetVariables
 }

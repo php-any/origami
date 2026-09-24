@@ -70,20 +70,24 @@ func (f *ClassAliasFunction) GetName() string {
 	return "class_alias"
 }
 
+var classAliasFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "original", 0, nil, data.String{}),
+	node.NewParameter(nil, "alias", 1, nil, data.String{}),
+	node.NewParameter(nil, "autoload", 2, data.NewBoolValue(true), data.NewBaseType("bool")),
+}
+
 func (f *ClassAliasFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "original", 0, nil, data.String{}),
-		node.NewParameter(nil, "alias", 1, nil, data.String{}),
-		node.NewParameter(nil, "autoload", 2, data.NewBoolValue(true), data.NewBaseType("bool")),
-	}
+	return classAliasFunctionGetParams
+}
+
+var classAliasFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "original", 0, data.String{}),
+	node.NewVariable(nil, "alias", 1, data.String{}),
+	node.NewVariable(nil, "autoload", 2, data.NewBaseType("bool")),
 }
 
 func (f *ClassAliasFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "original", 0, data.String{}),
-		node.NewVariable(nil, "alias", 1, data.String{}),
-		node.NewVariable(nil, "autoload", 2, data.NewBaseType("bool")),
-	}
+	return classAliasFunctionGetVariables
 }
 
 // classAliasStmt 只改变 VM 中的查找名称，其余行为委托给原类。

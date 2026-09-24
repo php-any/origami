@@ -26,14 +26,18 @@ func (h *HeaderWriteMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 func (h *HeaderWriteMethod) GetName() string            { return "write" }
 func (h *HeaderWriteMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *HeaderWriteMethod) GetIsStatic() bool          { return false }
-func (h *HeaderWriteMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "param0", 0, nil, nil),
-	}
+var headerWriteMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "param0", 0, nil, nil),
 }
+
+func (h *HeaderWriteMethod) GetParams() []data.GetValue {
+	return headerWriteMethodGetParams
+}
+var headerWriteMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "param0", 0, nil),
+}
+
 func (h *HeaderWriteMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "param0", 0, nil),
-	}
+	return headerWriteMethodGetVariables
 }
 func (h *HeaderWriteMethod) GetReturnType() data.Types { return data.NewBaseType("int") }

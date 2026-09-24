@@ -22,20 +22,24 @@ func NewPasswordHashFunction() data.FuncStmt { return &PasswordHashFunction{} }
 
 func (f *PasswordHashFunction) GetName() string { return "password_hash" }
 
+var passwordHashFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "password", 0, nil, data.String{}),
+	node.NewParameter(nil, "algo", 1, nil, data.Mixed{}),
+	node.NewParameter(nil, "options", 2, node.NewNullLiteral(nil), data.Mixed{}),
+}
+
 func (f *PasswordHashFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "password", 0, nil, data.String{}),
-		node.NewParameter(nil, "algo", 1, nil, data.Mixed{}),
-		node.NewParameter(nil, "options", 2, node.NewNullLiteral(nil), data.Mixed{}),
-	}
+	return passwordHashFunctionGetParams
+}
+
+var passwordHashFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "password", 0, data.String{}),
+	node.NewVariable(nil, "algo", 1, data.Mixed{}),
+	node.NewVariable(nil, "options", 2, data.Mixed{}),
 }
 
 func (f *PasswordHashFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "password", 0, data.String{}),
-		node.NewVariable(nil, "algo", 1, data.Mixed{}),
-		node.NewVariable(nil, "options", 2, data.Mixed{}),
-	}
+	return passwordHashFunctionGetVariables
 }
 
 func (f *PasswordHashFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -79,18 +83,22 @@ func NewPasswordVerifyFunction() data.FuncStmt { return &PasswordVerifyFunction{
 
 func (f *PasswordVerifyFunction) GetName() string { return "password_verify" }
 
+var passwordVerifyFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "password", 0, nil, data.String{}),
+	node.NewParameter(nil, "hash", 1, nil, data.String{}),
+}
+
 func (f *PasswordVerifyFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "password", 0, nil, data.String{}),
-		node.NewParameter(nil, "hash", 1, nil, data.String{}),
-	}
+	return passwordVerifyFunctionGetParams
+}
+
+var passwordVerifyFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "password", 0, data.String{}),
+	node.NewVariable(nil, "hash", 1, data.String{}),
 }
 
 func (f *PasswordVerifyFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "password", 0, data.String{}),
-		node.NewVariable(nil, "hash", 1, data.String{}),
-	}
+	return passwordVerifyFunctionGetVariables
 }
 
 func (f *PasswordVerifyFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -136,12 +144,16 @@ func NewPasswordGetInfoFunction() data.FuncStmt { return &PasswordGetInfoFunctio
 
 func (f *PasswordGetInfoFunction) GetName() string { return "password_get_info" }
 
+var passwordGetInfoFunctionGetParams = []data.GetValue{node.NewParameter(nil, "hash", 0, nil, data.String{})}
+
 func (f *PasswordGetInfoFunction) GetParams() []data.GetValue {
-	return []data.GetValue{node.NewParameter(nil, "hash", 0, nil, data.String{})}
+	return passwordGetInfoFunctionGetParams
 }
 
+var passwordGetInfoFunctionGetVariables = []data.Variable{node.NewVariable(nil, "hash", 0, data.String{})}
+
 func (f *PasswordGetInfoFunction) GetVariables() []data.Variable {
-	return []data.Variable{node.NewVariable(nil, "hash", 0, data.String{})}
+	return passwordGetInfoFunctionGetVariables
 }
 
 func (f *PasswordGetInfoFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -177,20 +189,24 @@ func NewPasswordNeedsRehashFunction() data.FuncStmt { return &PasswordNeedsRehas
 
 func (f *PasswordNeedsRehashFunction) GetName() string { return "password_needs_rehash" }
 
+var passwordNeedsRehashFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "hash", 0, nil, data.String{}),
+	node.NewParameter(nil, "algo", 1, nil, data.Mixed{}),
+	node.NewParameter(nil, "options", 2, node.NewNullLiteral(nil), data.Mixed{}),
+}
+
 func (f *PasswordNeedsRehashFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "hash", 0, nil, data.String{}),
-		node.NewParameter(nil, "algo", 1, nil, data.Mixed{}),
-		node.NewParameter(nil, "options", 2, node.NewNullLiteral(nil), data.Mixed{}),
-	}
+	return passwordNeedsRehashFunctionGetParams
+}
+
+var passwordNeedsRehashFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "hash", 0, data.String{}),
+	node.NewVariable(nil, "algo", 1, data.Mixed{}),
+	node.NewVariable(nil, "options", 2, data.Mixed{}),
 }
 
 func (f *PasswordNeedsRehashFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "hash", 0, data.String{}),
-		node.NewVariable(nil, "algo", 1, data.Mixed{}),
-		node.NewVariable(nil, "options", 2, data.Mixed{}),
-	}
+	return passwordNeedsRehashFunctionGetVariables
 }
 
 func (f *PasswordNeedsRehashFunction) Call(ctx data.Context) (data.GetValue, data.Control) {

@@ -214,17 +214,21 @@ func (f *JsonDecodeFunction) GetName() string {
 	return "json_decode"
 }
 
+var jsonDecodeFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "json", 0, nil, data.String{}),
+	// PHP 8 正式参数名为 $associative（Livewire 等用 named arg associative: true）
+	node.NewParameter(nil, "associative", 1, data.NewNullValue(), nil),
+}
+
 func (f *JsonDecodeFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "json", 0, nil, data.String{}),
-		// PHP 8 正式参数名为 $associative（Livewire 等用 named arg associative: true）
-		node.NewParameter(nil, "associative", 1, data.NewNullValue(), nil),
-	}
+	return jsonDecodeFunctionGetParams
+}
+
+var jsonDecodeFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "json", 0, nil),
+	node.NewVariable(nil, "associative", 1, nil),
 }
 
 func (f *JsonDecodeFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "json", 0, nil),
-		node.NewVariable(nil, "associative", 1, nil),
-	}
+	return jsonDecodeFunctionGetVariables
 }

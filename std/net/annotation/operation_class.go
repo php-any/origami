@@ -125,28 +125,32 @@ func (m *OperationConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var operationConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "summary", 0, data.NewStringValue(""), data.NewBaseType("string")),
+	node.NewParameter(nil, "description", 1, data.NewStringValue(""), data.NewBaseType("string")),
+	node.NewParameter(nil, "tags", 2, data.NewNullValue(), nil),
+	node.NewParameter(nil, "operationId", 3, data.NewStringValue(""), data.NewBaseType("string")),
+	node.NewParameter(nil, "deprecated", 4, data.NewBoolValue(false), data.NewBaseType("bool")),
+	node.NewParameter(nil, "hidden", 5, data.NewBoolValue(false), data.NewBaseType("bool")),
+	node.NewAnnotationTargetParameter(nil, 6),
+}
+
 func (m *OperationConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "summary", 0, data.NewStringValue(""), data.NewBaseType("string")),
-		node.NewParameter(nil, "description", 1, data.NewStringValue(""), data.NewBaseType("string")),
-		node.NewParameter(nil, "tags", 2, data.NewNullValue(), nil),
-		node.NewParameter(nil, "operationId", 3, data.NewStringValue(""), data.NewBaseType("string")),
-		node.NewParameter(nil, "deprecated", 4, data.NewBoolValue(false), data.NewBaseType("bool")),
-		node.NewParameter(nil, "hidden", 5, data.NewBoolValue(false), data.NewBaseType("bool")),
-		node.NewAnnotationTargetParameter(nil, 6),
-	}
+	return operationConstructMethodGetParams
+}
+
+var operationConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "summary", 0, nil),
+	node.NewVariable(nil, "description", 1, nil),
+	node.NewVariable(nil, "tags", 2, nil),
+	node.NewVariable(nil, "operationId", 3, nil),
+	node.NewVariable(nil, "deprecated", 4, nil),
+	node.NewVariable(nil, "hidden", 5, nil),
+	node.NewAnnotationTargetVariable(nil, 6),
 }
 
 func (m *OperationConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "summary", 0, nil),
-		node.NewVariable(nil, "description", 1, nil),
-		node.NewVariable(nil, "tags", 2, nil),
-		node.NewVariable(nil, "operationId", 3, nil),
-		node.NewVariable(nil, "deprecated", 4, nil),
-		node.NewVariable(nil, "hidden", 5, nil),
-		node.NewAnnotationTargetVariable(nil, 6),
-	}
+	return operationConstructMethodGetVariables
 }
 
 func (m *OperationConstructMethod) GetReturnType() data.Types {

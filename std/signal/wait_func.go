@@ -42,14 +42,18 @@ func (f *WaitFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *WaitFunction) GetName() string            { return "Signal\\wait" }
 func (f *WaitFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *WaitFunction) GetIsStatic() bool          { return true }
-func (f *WaitFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "signals", 0, nil, data.NewBaseType("array")),
-	}
+var waitFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "signals", 0, nil, data.NewBaseType("array")),
 }
+
+func (f *WaitFunction) GetParams() []data.GetValue {
+	return waitFunctionGetParams
+}
+var waitFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "signals", 0, data.NewBaseType("array")),
+}
+
 func (f *WaitFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "signals", 0, data.NewBaseType("array")),
-	}
+	return waitFunctionGetVariables
 }
 func (f *WaitFunction) GetReturnType() data.Types { return data.NewBaseType("int") }

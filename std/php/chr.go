@@ -41,14 +41,18 @@ func (f *ChrFunction) GetName() string {
 	return "chr"
 }
 
+var chrFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "codepoint", 0, nil, nil),
+}
+
 func (f *ChrFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "codepoint", 0, nil, nil),
-	}
+	return chrFunctionGetParams
+}
+
+var chrFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "codepoint", 0, data.NewBaseType("int")),
 }
 
 func (f *ChrFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "codepoint", 0, data.NewBaseType("int")),
-	}
+	return chrFunctionGetVariables
 }

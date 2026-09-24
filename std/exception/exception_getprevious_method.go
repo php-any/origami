@@ -22,9 +22,13 @@ func (h *ExceptionGetPreviousMethod) GetModifier() data.Modifier { return data.M
 
 func (h *ExceptionGetPreviousMethod) GetIsStatic() bool { return false }
 
-func (h *ExceptionGetPreviousMethod) GetParams() []data.GetValue { return []data.GetValue{} }
+var exceptionGetPreviousMethodGetParams = []data.GetValue{}
 
-func (h *ExceptionGetPreviousMethod) GetVariables() []data.Variable { return []data.Variable{} }
+func (h *ExceptionGetPreviousMethod) GetParams() []data.GetValue { return exceptionGetPreviousMethodGetParams }
+
+var exceptionGetPreviousMethodGetVariables = []data.Variable{}
+
+func (h *ExceptionGetPreviousMethod) GetVariables() []data.Variable { return exceptionGetPreviousMethodGetVariables }
 
 func (h *ExceptionGetPreviousMethod) GetReturnType() data.Types {
 	return data.NewNullableType(data.NewBaseType("Throwable"))

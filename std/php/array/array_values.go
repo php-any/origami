@@ -40,14 +40,18 @@ func (f *ArrayValuesFunction) GetName() string {
 	return "array_values"
 }
 
+var arrayValuesFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, nil),
+}
+
 func (f *ArrayValuesFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "array", 0, nil, nil),
-	}
+	return arrayValuesFunctionGetParams
+}
+
+var arrayValuesFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
 }
 
 func (f *ArrayValuesFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "array", 0, data.NewBaseType("array")),
-	}
+	return arrayValuesFunctionGetVariables
 }

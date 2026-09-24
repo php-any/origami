@@ -18,8 +18,12 @@ func (h *HeaderCloneMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 func (h *HeaderCloneMethod) GetName() string               { return "clone" }
 func (h *HeaderCloneMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
 func (h *HeaderCloneMethod) GetIsStatic() bool             { return false }
-func (h *HeaderCloneMethod) GetParams() []data.GetValue    { return []data.GetValue{} }
-func (h *HeaderCloneMethod) GetVariables() []data.Variable { return []data.Variable{} }
+var headerCloneMethodGetParams = []data.GetValue{}
+
+func (h *HeaderCloneMethod) GetParams() []data.GetValue    { return headerCloneMethodGetParams }
+var headerCloneMethodGetVariables = []data.Variable{}
+
+func (h *HeaderCloneMethod) GetVariables() []data.Variable { return headerCloneMethodGetVariables }
 func (h *HeaderCloneMethod) GetReturnType() data.Types {
 	return data.Class{Name: "Net\\Http\\Header"}
 }

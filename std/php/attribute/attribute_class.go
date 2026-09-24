@@ -98,16 +98,20 @@ func (m *AttributeConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var attributeConstructMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "flags", 0, node.NewIntLiteral(nil, "1"), data.NewBaseType("int")), // TARGET_ALL = 1
+}
+
 func (m *AttributeConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "flags", 0, node.NewIntLiteral(nil, "1"), data.NewBaseType("int")), // TARGET_ALL = 1
-	}
+	return attributeConstructMethodGetParams
+}
+
+var attributeConstructMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "flags", 0, data.NewBaseType("int")),
 }
 
 func (m *AttributeConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "flags", 0, data.NewBaseType("int")),
-	}
+	return attributeConstructMethodGetVariables
 }
 
 func (m *AttributeConstructMethod) GetReturnType() data.Types {

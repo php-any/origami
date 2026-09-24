@@ -41,19 +41,23 @@ func (h *ResponseWriterErrorMethod) Call(ctx data.Context) (data.GetValue, data.
 func (h *ResponseWriterErrorMethod) GetName() string            { return "error" }
 func (h *ResponseWriterErrorMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResponseWriterErrorMethod) GetIsStatic() bool          { return false }
-func (h *ResponseWriterErrorMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "message", 0, data.NewStringValue("error"), data.NewBaseType("string")),
-		node.NewParameter(nil, "code", 1, data.NewIntValue(httpsrc.StatusInternalServerError), data.NewBaseType("int")),
-		node.NewParameter(nil, "data", 2, data.NewNullValue(), nil),
-	}
+var responseWriterErrorMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "message", 0, data.NewStringValue("error"), data.NewBaseType("string")),
+	node.NewParameter(nil, "code", 1, data.NewIntValue(httpsrc.StatusInternalServerError), data.NewBaseType("int")),
+	node.NewParameter(nil, "data", 2, data.NewNullValue(), nil),
 }
+
+func (h *ResponseWriterErrorMethod) GetParams() []data.GetValue {
+	return responseWriterErrorMethodGetParams
+}
+var responseWriterErrorMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "message", 0, nil),
+	node.NewVariable(nil, "code", 1, nil),
+	node.NewVariable(nil, "data", 2, nil),
+}
+
 func (h *ResponseWriterErrorMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "message", 0, nil),
-		node.NewVariable(nil, "code", 1, nil),
-		node.NewVariable(nil, "data", 2, nil),
-	}
+	return responseWriterErrorMethodGetVariables
 }
 func (h *ResponseWriterErrorMethod) GetReturnType() data.Types {
 	return data.Class{Name: "Net\\Http\\Response"}

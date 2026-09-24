@@ -76,12 +76,16 @@ func (m *SensitiveParameterConstructMethod) GetIsStatic() bool {
 	return false
 }
 
+var sensitiveParameterConstructMethodGetParams = []data.GetValue{}
+
 func (m *SensitiveParameterConstructMethod) GetParams() []data.GetValue {
-	return []data.GetValue{}
+	return sensitiveParameterConstructMethodGetParams
 }
 
+var sensitiveParameterConstructMethodGetVariables = []data.Variable{}
+
 func (m *SensitiveParameterConstructMethod) GetVariables() []data.Variable {
-	return []data.Variable{}
+	return sensitiveParameterConstructMethodGetVariables
 }
 
 func (m *SensitiveParameterConstructMethod) GetReturnType() data.Types {

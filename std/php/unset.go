@@ -124,15 +124,19 @@ func (f *UnsetFunction) GetName() string {
 	return "unset"
 }
 
+var unsetFunctionGetParams = []data.GetValue{
+	node.NewCallerContextParameter(nil),
+}
+
 func (f *UnsetFunction) GetParams() []data.GetValue {
 	// unset 可以接受可变数量的参数
 	// 使用 CallerContextParameter 来在调用者上下文中执行，以便获取实际参数
-	return []data.GetValue{
-		node.NewCallerContextParameter(nil),
-	}
+	return unsetFunctionGetParams
 }
+
+var unsetFunctionGetVariables = []data.Variable{}
 
 func (f *UnsetFunction) GetVariables() []data.Variable {
 	// unset 的参数是动态的，这里返回空数组
-	return []data.Variable{}
+	return unsetFunctionGetVariables
 }

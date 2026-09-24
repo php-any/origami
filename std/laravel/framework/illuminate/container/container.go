@@ -27,28 +27,22 @@ type binding struct {
 	shared   bool
 }
 
-var (
-	ctnStates sync.Map
-	ctnNextID atomic.Int64
-	globalCtn atomic.Value // *data.ClassValue
-)
+// ctnStateProp：Go 侧状态挂在对象隐蔽属性上，由 GC 随对象回收（见 kit.CachedState）。
+// 早前用「全局表 + __origami_ctn_id」的写法：每 new 一个 Container 就多一条永不释放的
+// 记录，state 里还攥着 requests/instances 整棵对象图。
+const ctnStateProp = "__origami_ctn_state"
+
+var globalCtn atomic.Value // *data.ClassValue
+
+func newCtnState() *ctnState {
+	return &ctnState{bindings: map[string]binding{}, instances: map[string]data.Value{}, aliases: map[string]string{}, resolved: map[string]bool{}}
+}
 
 func ctnOf(cv *data.ClassValue) *ctnState {
 	if cv == nil {
-		return &ctnState{bindings: map[string]binding{}, instances: map[string]data.Value{}, aliases: map[string]string{}, resolved: map[string]bool{}}
+		return newCtnState()
 	}
-	if v, ctl := cv.GetProperty("__origami_ctn_id"); ctl == nil && v != nil {
-		if iv, ok := kit.Unwrap(v).(*data.IntValue); ok && iv.Value > 0 {
-			if s, ok := ctnStates.Load(int64(iv.Value)); ok {
-				return s.(*ctnState)
-			}
-		}
-	}
-	id := ctnNextID.Add(1)
-	s := &ctnState{bindings: map[string]binding{}, instances: map[string]data.Value{}, aliases: map[string]string{}, resolved: map[string]bool{}}
-	ctnStates.Store(id, s)
-	_ = cv.SetProperty("__origami_ctn_id", data.NewIntValue(int(id)))
-	return s
+	return kit.CachedState(cv, ctnStateProp, newCtnState)
 }
 
 // ContainerClass 核心 IoC：bind / singleton / instance / make / bound（默认不开，见 Load）。
@@ -90,7 +84,7 @@ func (c *ContainerClass) GetValue(ctx data.Context) (data.GetValue, data.Control
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
 func (c *ContainerClass) GetMethod(name string) (data.Method, bool) {
-	m, ok := c.methods[strings.ToLower(name)]
+	m, ok := c.methods[data.MethodLookupKey(name)]
 	return m, ok
 }
 func (c *ContainerClass) GetMethods() []data.Method {

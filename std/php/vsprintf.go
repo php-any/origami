@@ -79,16 +79,20 @@ func (f *VsprintfFunction) GetName() string {
 	return "vsprintf"
 }
 
+var vsprintfFunctionGetParams = []data.GetValue{
+	node.NewParameter(nil, "format", 0, nil, data.String{}),
+	node.NewParameter(nil, "values", 1, nil, data.Arrays{}),
+}
+
 func (f *VsprintfFunction) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "format", 0, nil, data.String{}),
-		node.NewParameter(nil, "values", 1, nil, data.Arrays{}),
-	}
+	return vsprintfFunctionGetParams
+}
+
+var vsprintfFunctionGetVariables = []data.Variable{
+	node.NewVariable(nil, "format", 0, data.String{}),
+	node.NewVariable(nil, "values", 1, data.Arrays{}),
 }
 
 func (f *VsprintfFunction) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "format", 0, data.String{}),
-		node.NewVariable(nil, "values", 1, data.Arrays{}),
-	}
+	return vsprintfFunctionGetVariables
 }

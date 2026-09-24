@@ -72,20 +72,24 @@ func (h *ExceptionExceptionMethod) GetIsStatic() bool {
 	return false
 }
 
+var exceptionExceptionMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "msg", 0, data.NewStringValue(""), nil),
+	node.NewParameter(nil, "code", 1, data.NewIntValue(0), nil),
+	node.NewParameter(nil, "previous", 2, data.NewNullValue(), nil),
+}
+
 func (h *ExceptionExceptionMethod) GetParams() []data.GetValue {
-	return []data.GetValue{
-		node.NewParameter(nil, "msg", 0, data.NewStringValue(""), nil),
-		node.NewParameter(nil, "code", 1, data.NewIntValue(0), nil),
-		node.NewParameter(nil, "previous", 2, data.NewNullValue(), nil),
-	}
+	return exceptionExceptionMethodGetParams
+}
+
+var exceptionExceptionMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "msg", 0, nil),
+	node.NewVariable(nil, "code", 1, nil),
+	node.NewVariable(nil, "previous", 2, nil),
 }
 
 func (h *ExceptionExceptionMethod) GetVariables() []data.Variable {
-	return []data.Variable{
-		node.NewVariable(nil, "msg", 0, nil),
-		node.NewVariable(nil, "code", 1, nil),
-		node.NewVariable(nil, "previous", 2, nil),
-	}
+	return exceptionExceptionMethodGetVariables
 }
 
 // GetReturnType 返回方法返回类型
