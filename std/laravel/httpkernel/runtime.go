@@ -36,8 +36,8 @@ func Bootstrap(kernel *data.ClassValue) data.Control {
 	return control
 }
 
-// warmAbstracts 是「请求无关」的重服务。请求沙箱按 appSandboxDeepKeys 深拷贝 instances，
-// 这些服务只要在全局 Application 里已经解析过，沙箱的副本就是本地命中；
+// warmAbstracts 是「请求无关」的重服务。这些服务只要在全局 Application 上已经解析过，
+// 就会留在全局 instances 表里，请求级 Application 首次查到即共享同一个实例；
 // 否则每个请求的第一次 $app[$abstract] 都要在解释器里重跑一遍完整 resolve 链。
 // 实测（examples/laravel13，/origami-health）：不预热时 Container::instance() 的
 // rebound('request') 回调里 $app['auth'] 每请求重解析，占单请求 CPU 的 50% 上下。
@@ -84,6 +84,12 @@ func Warm(ctx data.Context, kernel *data.ClassValue) {
 		}
 		_, _ = callObjectMethodInContext(ctx, st.app, "make", data.NewStringValue(abstract))
 	}
+	// Telescope 的开关、匹配 pattern、实例同样都是启动期常量。在全局 Application 上解析一次，
+	// 请求期就只剩一次 $request->is()；放在这里（而非首个请求里）也避免并发首请求在
+	// once.Do 上排队，以及把 Telescope 实例建进某个请求沙箱。
+	if st.tel != nil {
+		st.tel.once.Do(func() { st.tel.resolve(ctx, st.app) })
+	}
 }
 
 func isTrueValue(v data.GetValue) bool {
@@ -118,6 +124,8 @@ func Sandbox(ctx data.Context, kernel *data.ClassValue) *data.ClassValue {
 		middlewareAliases:  cloneStringMap(src.middlewareAliases),
 		middlewarePriority: append([]string(nil), src.middlewarePriority...),
 		bootstrapped:       src.bootstrapped,
+		// Telescope 判定是启动期常量：沙箱共享常驻 state 的那一份，不每请求重算。
+		tel: src.tel,
 	}
 	cloneRoutesForRequest(ctx, st.router)
 	kc := newKernelClass(st)
@@ -136,13 +144,17 @@ func Sandbox(ctx data.Context, kernel *data.ClassValue) *data.ClassValue {
 	return cv
 }
 
-// appSandboxDeepKeys：Container/Application 启动后只读槽共享，仅隔离会按请求改写的表。
+// routerSandboxDeepKeys：Router 上随请求变化的少量状态；RouteCollection 启动后只读，共享。
+var routerSandboxDeepKeys = []string{
+	"current",
+	"currentRequest",
+}
+
+// cloneApplication 造请求级 Application：它是全局 Application 的一个空壳，
+// 未命中的属性读会回落到全局（见 data.CloneRequestScoped / data.chainStore）。
 //
-// 哪些必须隔离：只要请求期可能调用 Container 的写方法，对应的表就得是请求私有的，
-// 否则并发请求会同时写同一个数组（实测 fatal error: concurrent map writes），
-// 并把 bindings/aliases 改坏（表现为
-// "Target [Illuminate\Contracts\Routing\Registrar] is not instantiable"）。
-// 请求期会写到的表来自这些 API：
+// 这里曾经是 CloneSandboxKeys(ctx, appSandboxDeepKeys)——每请求把 22 张容器表全量深拷贝。
+// 那份键表本身是对的（这些表请求期确实可能被 Container 的写方法改到）：
 //   bind()/instance()/alias()      -> bindings / aliases / abstractAliases
 //   rebinding()/refresh()          -> reboundCallbacks
 //   resolving()/afterResolving()   -> *ResolvingCallbacks（延迟注册的 provider 每请求都会走）
@@ -150,43 +162,16 @@ func Sandbox(ctx data.Context, kernel *data.ClassValue) *data.ClassValue {
 //   extend()                       -> extenders
 //   registerDeferredProvider()     -> loadedProviders / deferredServices
 //   build()                        -> with / buildStack / instances / resolved
-var appSandboxDeepKeys = []string{
-	"instances",
-	"resolved",
-	"scopedInstances",
-	"buildStack",
-	"with",
-	"bindings",
-	"aliases",
-	"abstractAliases",
-	"reboundCallbacks",
-	"methodBindings",
-	"tags",
-	"extenders",
-	"resolvingCallbacks",
-	"afterResolvingCallbacks",
-	"globalResolvingCallbacks",
-	"globalAfterResolvingCallbacks",
-	"beforeResolvingCallbacks",
-	"loadedProviders",
-	"deferredServices",
-	"serviceAliases",
-	"checkedForAttributeBindings",
-	"checkedForSingletonOrScopedAttributes",
-}
-
-// routerSandboxDeepKeys：Router 上随请求变化的少量状态；RouteCollection 启动后只读，共享。
-var routerSandboxDeepKeys = []string{
-	"current",
-	"currentRequest",
-}
-
+// 问题在于「每请求拷 22 张表」是一笔固定税：暖请求真正写到的通常只有 instances 一两个键，
+// bindings/aliases 这种几百项的表连内层数组都要递归拷一遍，纯属白做。
+// 现在改成按需：链式属性表只在该键第一次被访问时把全局的值升级到请求级，
+// 「拷多少」由「请求真的碰过多少」决定，而不是由「表有多大」决定。
 func cloneApplication(v data.Value, ctx data.Context) data.Value {
 	cv, ok := v.(*data.ClassValue)
 	if !ok || cv == nil {
 		return v
 	}
-	return cv.CloneSandboxKeys(ctx, appSandboxDeepKeys)
+	return cv.CloneRequestScoped(ctx)
 }
 
 func cloneRouter(v data.Value, ctx data.Context) data.Value {
@@ -294,26 +279,54 @@ func cloneRequestServices(ctx data.Context, app data.Value) {
 	// SessionGuard，clone 时对象按引用共享 —— 所有请求就会共用同一个 guard（user/session 全串）。
 	// 删掉让它按请求 app 重建，与 php-fpm 每请求全新容器一致。
 	dropInstances(app, "auth.driver", "Illuminate\\Contracts\\Auth\\Guard")
-	// 先把克隆体写进 instances 表，再逐个 instance() 安装。
-	// instance() 会触发 Container::rebound()，而 Laravel 自己的回调会顺着 $app['auth']
-	// 去读服务（AuthServiceProvider 的 rebinding('events') -> $app['auth']->guard()）。
-	// instances 表是从全局 app 浅拷贝来的（对象按引用共享），安装顺序里 events 在 auth 前，
-	// 若边装边触发回调，回调那一刻 $app['auth'] 还是全局单例，
-	// guard() 就会把 $guards 写进共享 AuthManager（实测每请求 1 次跨 goroutine 写）。
+	// 安装：直接把克隆体写进请求 app 的 instances 表，不再逐个走 PHP 的
+	// Container::instance()（每请求 6 个 abstract + 10 个别名 = 16 次 PHP 调用，
+	// 外加匹配到的 rebound 回调一次）。
+	//
+	// 等价性依据 —— 本应用注册的 rebound 回调只有三处：
+	//   routes  RoutingServiceProvider::registerUrlGenerator 的 extend('url') 闭包里
+	//   request AuthServiceProvider::registerRequestRebindHandler
+	//   events  AuthServiceProvider::registerEventRebindHandler
+	// pending 里只有 events 会命中，而它第一句就是
+	// `! $app->resolved('auth') || $app['auth']->hasResolvedGuards() === false` 时 return；
+	// appendPending 里的 forgetGuards() 保证后者为 false（且请求刚开头 auth 尚未 resolved）
+	// —— 回调恒为空转。
+	//
+	// instance() 余下的别名簿记（removeAbstractAlias / unset($this->aliases[$abstract])）
+	// 对这批 abstract 同样是 no-op：core alias 的方向是 aliases[契约] = 'events'，
+	// 而这里写的是 instances[abstract] 与 instances[契约]，getAlias 两条路径都指回克隆体。
+	// 顺序仍是「先全部 prime，再装别人」：isolateViewEngines 里的 view 直写要能看见克隆体。
 	for _, p := range pending {
 		primeInstances(app, p)
-	}
-	for _, p := range pending {
-		bindService(ctx, app, p)
 	}
 	isolateViewEngines(ctx, app)
 }
 
 // primeInstances 把克隆体先塞进请求 app 的 instances 表，不触发任何容器回调。
 // 后续 instance() 安装时，rebound 回调看到的就都是请求级实例了。
+//
+// GetProperty 返回的是「请求级」的那张表：请求级 Application 的属性表是链式的，
+// 容器值第一次被读到就会从全局升级（分离一层）到请求级，所以这里的原地写只落在本请求，
+// 不会改到全局 app 的 instances。改动本函数时不要绕过 GetProperty 直接拿全局的表。
 func primeInstances(app data.Value, p clonePending) {
+	if p.cloned == nil {
+		return
+	}
+	setRequestInstance(app, p.abstract, p.cloned)
+	for _, alias := range p.aliases {
+		setRequestInstance(app, alias, p.cloned)
+	}
+}
+
+// setRequestInstance 直写请求级 instances 表，等价于 Container::instance() 里的
+// `$this->instances[$abstract] = $instance` 那一句：不走 PHP 调用、不触发 rebound。
+// 调用方必须已经确认该 abstract 没有生效的 rebound 回调（见 cloneRequestServices）。
+//
+// 同 primeInstances：GetProperty 返回的是请求级那张表，写入只落在本请求，
+// 不会改到全局 app 的 instances。改动本函数时不要绕过 GetProperty 直接拿全局的表。
+func setRequestInstance(app data.Value, abstract string, val data.Value) {
 	cv, ok := app.(*data.ClassValue)
-	if !ok || cv == nil || p.cloned == nil {
+	if !ok || cv == nil || val == nil {
 		return
 	}
 	raw, ctl := cv.GetProperty("instances")
@@ -324,15 +337,14 @@ func primeInstances(app data.Value, p clonePending) {
 	if !ok || arr == nil {
 		return
 	}
-	arr.SetStringKey(p.abstract, p.cloned)
-	for _, alias := range p.aliases {
-		arr.SetStringKey(alias, p.cloned)
-	}
+	arr.SetStringKey(abstract, val)
 }
 
 // dropInstances 从请求 app 的 instances 表里删掉继承自全局 app 的条目。
 // 用于「请求态」单例（如 auth.driver，其值是一个 guard 对象）：这类服务在 php-fpm
 // 下每请求都重新解析，跟着全局 app 一起继承过来等于跨请求共享对象。
+//
+// 同 primeInstances：GetProperty 给的是请求级那张表，删只删本请求这一份。
 func dropInstances(app data.Value, abstracts ...string) {
 	cv, ok := app.(*data.ClassValue)
 	if !ok || cv == nil {
@@ -348,13 +360,6 @@ func dropInstances(app data.Value, abstracts ...string) {
 	}
 	for _, abstract := range abstracts {
 		arr.UnsetKey(data.NewStringValue(abstract))
-	}
-}
-
-func cloneAndBind(ctx data.Context, app data.Value, abstract string, aliases ...string) {
-	list := appendPending(ctx, app, nil, abstract, aliases...)
-	for _, p := range list {
-		bindService(ctx, app, p)
 	}
 }
 
@@ -400,17 +405,6 @@ func appendPending(ctx data.Context, app data.Value, list []clonePending, abstra
 	return append(list, clonePending{abstract: abstract, aliases: aliases, cloned: cloned})
 }
 
-// bindService 把克隆体 instance() 进请求 app。
-// instance() 会触发 Container::rebound()，Laravel 注册的回调（例如
-// AuthServiceProvider 里的 rebinding('events')）会读 $app['auth']->guard()，
-// 所以必须等所有服务都克隆完再统一安装，否则回调拿到的是全局单例。
-func bindService(ctx data.Context, app data.Value, p clonePending) {
-	_, _ = callObjectMethodInContext(ctx, app, "instance", data.NewStringValue(p.abstract), p.cloned)
-	for _, alias := range p.aliases {
-		_, _ = callObjectMethodInContext(ctx, app, "instance", data.NewStringValue(alias), p.cloned)
-	}
-}
-
 // rebindContainer 把克隆体上的「容器/应用」引用改指到请求级 app。
 // 各家 setter 名不一致，而且有几个压根没有 setter（Events\Dispatcher 的 $container、
 // Manager 系的 $container 只有 Manager 子类才有 setContainer）：
@@ -453,7 +447,8 @@ func isolateViewEngines(ctx data.Context, app data.Value) {
 	cloned := cv.CloneSandbox(ctx)
 	_, _ = callObjectMethodInContext(ctx, cloned, "forget", data.NewStringValue("blade"))
 	_, _ = callObjectMethodInContext(ctx, cloned, "forget", data.NewStringValue("php"))
-	_, _ = callObjectMethodInContext(ctx, app, "instance", data.NewStringValue("view.engine.resolver"), cloned)
+	// 同 cloneRequestServices：view.engine.resolver 没有注册过 rebound 回调，直写 instances 即可。
+	setRequestInstance(app, "view.engine.resolver", cloned)
 
 	viewRaw, vctl := callObjectMethodInContext(ctx, app, "make", data.NewStringValue("view"))
 	if vctl != nil {

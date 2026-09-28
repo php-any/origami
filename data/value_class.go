@@ -384,6 +384,39 @@ func (c *ClassValue) CloneSandboxKeys(ctx Context, deepKeys []string) *ClassValu
 	}
 }
 
+// CloneRequestScoped 造一个「请求级对象」：属性表为空，读未命中时回落到 c（全局单例）。
+// 与 CloneSandboxKeys / CloneSandbox 的「请求开始就全量拷贝」不同，这里一个属性都不预先拷：
+// 首次访问到某个键时才把它升级到本地（升级规则见 chainStore）。
+// 服务实例（*ClassValue）与标量仍按引用共享；数组/关联数组在首次访问时递归深拷贝
+// （不能只分离一层：Container 的多值 map 用 $this->xxx[$k][] = $v 追加，
+// 只分离一层会把内容 push 进全局容器的内层数组，跨请求累积。详见 promoteContainer）。
+func (c *ClassValue) CloneRequestScoped(ctx Context) *ClassValue {
+	if c == nil {
+		return nil
+	}
+	vm := c.vm
+	if ctx != nil {
+		if v := ctx.GetVM(); v != nil {
+			vm = v
+		}
+	}
+	obj := NewObjectValue()
+	if c.ObjectValue != nil {
+		obj.Value = c.ObjectValue.Value
+		obj.IndirectOverloadClass = c.ObjectValue.IndirectOverloadClass
+		if c.ObjectValue.property != nil {
+			obj.property = NewChainPropertyStore(c.ObjectValue.property)
+		}
+	}
+	obj.Context = ctx
+	return &ClassValue{
+		ObjectValue: obj,
+		Class:       c.Class,
+		Context:     ctx,
+		vm:          vm,
+	}
+}
+
 func (c *ClassValue) withVM(vm VM) *ClassValue {
 	if c == nil {
 		return nil

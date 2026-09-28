@@ -3,6 +3,7 @@ package httpkernel
 import (
 	"fmt"
 	"strconv"
+	"sync"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -224,21 +225,53 @@ func syncProperties(cv *data.ClassValue, s *kernelState) {
 	_ = cv.SetProperty("middlewarePriority", stringsToArrayValue(s.middlewarePriority))
 }
 
-// syncTelescopeRecording 在每次请求开始时同步 Telescope 的记录状态。
-// 常驻模式下 Telescope::start() 只在首次 bootstrap 执行一次，$shouldRecord 不会按请求重置，
-// 导致后续 /telescope/* 请求也被记录。这里模拟 Octane 的 RequestReceived 语义：
-// 当前请求命中 telescope/ignore 路径则停止记录，否则开始记录。
-func syncTelescopeRecording(ctx data.Context, s *kernelState, request data.Value) {
-	if s == nil || s.app == nil || request == nil {
+const (
+	fqnConfigRepository = "Illuminate\\Contracts\\Config\\Repository"
+	fqnTelescope        = "Laravel\\Telescope\\Telescope"
+)
+
+// telescopeCache 缓存「请求无关」的 Telescope 判定结果，由常驻 kernelState 持有、
+// 请求沙箱共享同一个指针（见 Sandbox）。字段在 once.Do 完成后只读，并发请求无锁可读。
+//
+// config('telescope.enabled') 自 bootstrap 起不再变化，匹配用的 patterns 也完全由 config
+// 决定，Telescope 是否真被 boot 同样只在启动期确定一次。原实现每请求都重算：
+// 2 次 $app->make() + 3 次 $config->get() + 1 次多 pattern 的 $request->is()，
+// 实测占单请求 CPU 的 24%（examples/laravel13 /hello，p50=7ms）。
+//
+// disabled 为真时 Telescope 根本没有 watcher 注册（见下），整个同步退化成一次 bool 判断。
+type telescopeCache struct {
+	once     sync.Once
+	disabled bool
+	obj      data.Value
+	patterns []string // 默认模式：命中即「不该记录」
+	only     []string // telescope.only_paths 非空时改用它判定「该记录」
+}
+
+func (t *telescopeCache) resolve(ctx data.Context, app data.Value) {
+	if app == nil {
+		t.disabled = true
 		return
 	}
-	config, ctl := callObjectMethodInContext(ctx, s.app, "make",
-		data.NewStringValue("Illuminate\\Contracts\\Config\\Repository"))
+	config, ctl := callObjectMethodInContext(ctx, app, "make", data.NewStringValue(fqnConfigRepository))
 	if ctl != nil || config == nil {
+		t.disabled = true
 		return
 	}
 	configObj := asValue(config)
 	if configObj == nil {
+		t.disabled = true
+		return
+	}
+	// 与 TelescopeServiceProvider::boot 的 `if (! config('telescope.enabled'))` 同义：
+	// 取不到时按假处理（provider 读到 null 同样是假）。
+	enabled, ctl := callObjectMethodInContext(ctx, configObj, "get",
+		data.NewStringValue("telescope.enabled"), data.NewBoolValue(false))
+	if ctl != nil || !isTruthy(asValue(enabled)) {
+		// TelescopeServiceProvider::boot 在此直接 return：Telescope::start() 从未执行、
+		// listenForStorageOpportunities() 从未调用，没有任何 watcher 注册，
+		// 对 startRecording/stopRecording 的调用没有任何可观察效果。
+		// 反过来跳过它还更接近 php-fpm 语义——那里 $shouldRecord 会一直保持初值 false。
+		t.disabled = true
 		return
 	}
 	cfgString := func(key, def string) string {
@@ -257,42 +290,67 @@ func syncTelescopeRecording(ctx data.Context, s *kernelState, request data.Value
 		}
 		return stringListFromValue(asValue(ret))
 	}
-	requestIs := func(patterns []string) bool {
-		ret, ctl := callObjectMethodInContext(ctx, request, "is", stringsToArrayValue(patterns))
-		if ctl != nil || ret == nil {
-			return false
-		}
-		return isTruthy(asValue(ret))
-	}
 
 	// 对齐 Telescope::requestIsToApprovedUri 的判断逻辑
-	var approved bool
-	onlyList := cfgList("telescope.only_paths")
-	patternsList := []string{"telescope-api*", "vendor/telescope*", "horizon*", "vendor/horizon*"}
-	if len(onlyList) > 0 {
-		approved = requestIs(onlyList)
+	if onlyList := cfgList("telescope.only_paths"); len(onlyList) > 0 {
+		t.only = onlyList
 	} else {
+		patterns := []string{"telescope-api*", "vendor/telescope*", "horizon*", "vendor/horizon*"}
 		if path := cfgString("telescope.path", "telescope"); path != "" {
-			patternsList = append(patternsList, path+"*")
+			patterns = append(patterns, path+"*")
 		}
-		patternsList = append(patternsList, cfgList("telescope.ignore_paths")...)
-		approved = !requestIs(patternsList)
+		t.patterns = append(patterns, cfgList("telescope.ignore_paths")...)
 	}
 
-	telescope, ctl := callObjectMethodInContext(ctx, s.app, "make",
-		data.NewStringValue("Laravel\\Telescope\\Telescope"))
+	telescope, ctl := callObjectMethodInContext(ctx, app, "make", data.NewStringValue(fqnTelescope))
 	if ctl != nil || telescope == nil {
+		t.disabled = true
 		return
 	}
-	telescopeObj := asValue(telescope)
-	if telescopeObj == nil {
+	obj := asValue(telescope)
+	if obj == nil {
+		t.disabled = true
 		return
+	}
+	t.obj = obj
+}
+
+// syncTelescopeRecording 在每次请求开始时同步 Telescope 的记录状态。
+// 常驻模式下 Telescope::start() 只在首次 bootstrap 执行一次，$shouldRecord 不会按请求重置，
+// 导致后续 /telescope/* 请求也被记录。这里模拟 Octane 的 RequestReceived 语义：
+// 当前请求命中 telescope/ignore 路径则停止记录，否则开始记录。
+//
+// 除「本次请求命中哪些 pattern」外，其余判定都是启动期常量，一律走 telescopeCache。
+func syncTelescopeRecording(ctx data.Context, s *kernelState, request data.Value) {
+	if s == nil || s.app == nil || request == nil || s.tel == nil {
+		return
+	}
+	t := s.tel
+	t.once.Do(func() { t.resolve(ctx, s.app) })
+	if t.disabled {
+		return
+	}
+
+	approved := false
+	if len(t.only) > 0 {
+		approved = requestMatches(ctx, request, t.only)
+	} else {
+		approved = !requestMatches(ctx, request, t.patterns)
 	}
 	if approved {
-		_, _ = callObjectMethodInContext(ctx, telescopeObj, "startRecording", data.NewBoolValue(false))
+		_, _ = callObjectMethodInContext(ctx, t.obj, "startRecording", data.NewBoolValue(false))
 	} else {
-		_, _ = callObjectMethodInContext(ctx, telescopeObj, "stopRecording")
+		_, _ = callObjectMethodInContext(ctx, t.obj, "stopRecording")
 	}
+}
+
+// requestMatches 即 $request->is($patterns)。
+func requestMatches(ctx data.Context, request data.Value, patterns []string) bool {
+	ret, ctl := callObjectMethodInContext(ctx, request, "is", stringsToArrayValue(patterns))
+	if ctl != nil || ret == nil {
+		return false
+	}
+	return isTruthy(asValue(ret))
 }
 
 // callObjectMethod 在 ClassValue 上调用实例方法；失败时原样返回 control。

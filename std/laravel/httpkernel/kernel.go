@@ -47,6 +47,9 @@ type kernelState struct {
 	middlewareAliases  map[string]string
 	middlewarePriority []string
 	bootstrapped       bool
+	// tel 由常驻 state 持有、请求沙箱共享指针（见 Sandbox）：
+	// Telescope 的开关与匹配 pattern 都是启动期常量，没理由每请求重算一遍。
+	tel *telescopeCache
 }
 
 func newKernelState() *kernelState {
@@ -56,6 +59,7 @@ func newKernelState() *kernelState {
 		middlewareGroups:   make(map[string][]string),
 		middlewareAliases:  make(map[string]string),
 		middlewarePriority: append([]string(nil), defaultMiddlewarePriority...),
+		tel:                &telescopeCache{},
 	}
 }
 

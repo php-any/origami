@@ -100,6 +100,9 @@ func (c *CollectionClass) register() {
 	stat := func(name string, params []string, fn func(data.Context) (data.GetValue, data.Control)) {
 		c.methods[data.MethodLookupKey(name)] = kit.StaticMethod(name, params, -1, fn)
 	}
+	va := func(name string, params []string, fn func(data.Context) (data.GetValue, data.Control)) {
+		c.methods[data.MethodLookupKey(name)] = kit.InstanceMethodVariadic(name, params, fn)
+	}
 	inst("__construct", []string{"items"}, collectionConstruct)
 	stat("make", []string{"items"}, collectionMake)
 	stat("empty", nil, collectionEmpty)
@@ -118,7 +121,7 @@ func (c *CollectionClass) register() {
 	inst("pluck", []string{"value", "key"}, collectionPluck)
 	inst("get", []string{"key", "default"}, collectionGet)
 	inst("put", []string{"key", "value"}, collectionPut)
-	inst("push", []string{"values"}, collectionPush)
+	va("push", []string{"values"}, collectionPush)
 	inst("pop", []string{"count"}, collectionPop)
 	inst("first", []string{"callback", "default"}, collectionFirst)
 	inst("last", []string{"callback", "default"}, collectionLast)
@@ -448,7 +451,20 @@ func collectionGet(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	key, _ := ctx.GetIndexValue(0)
 	def, _ := ctx.GetIndexValue(1)
-	return arrGet(withArgs(ctx, collectionItems(cv), key, def))
+	items := collectionItems(cv)
+	ks := keyToString(key)
+	// Collection::get 是纯键访问（对齐 offsetExists），不能直接走 dataGetPath：
+	// 空路径在 data_get 里是「原样返回整体」，会让 get('', collect()) 把 items
+	// 本身（ArrayValue）当命中值返回，破坏声明的 Collection 返回类型。
+	if z, ok := items.LookupZValByStringKey(ks); ok && z != nil {
+		return z.Value, nil
+	}
+	if ks != "" {
+		if v, ok := dataGetPath(items, ks); ok {
+			return v, nil
+		}
+	}
+	return laravelValue(ctx, def)
 }
 
 func collectionPut(ctx data.Context) (data.GetValue, data.Control) {

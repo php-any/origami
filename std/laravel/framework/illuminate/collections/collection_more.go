@@ -37,6 +37,7 @@ func registerCollectionMore(c *CollectionClass) {
 	add("duplicates", []string{"callback", "strict"}, collectionDuplicates)
 	add("duplicatesStrict", []string{"callback"}, collectionDuplicatesStrict)
 	add("firstOrFail", []string{"callback"}, collectionFirstOrFail)
+	add("firstWhere", []string{"key", "operator", "value"}, collectionFirstWhere)
 	add("flip", nil, collectionFlip)
 	add("forget", []string{"keys"}, collectionForget)
 	add("getOrPut", []string{"key", "value"}, collectionGetOrPut)
@@ -710,6 +711,67 @@ func collectionFirstOrFail(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Item not found."), "Illuminate\\Support\\ItemNotFoundException")
 	}
 	return v, nil
+}
+
+// collectionFirstWhere 对齐 EnumeratesValues::firstWhere：
+//
+//	firstWhere($key, $operator = null, $value = null) ≡ first(operatorForWhere(...))
+//
+// 单参形式取第一个 data_get($item, $key) 为真值的元素；双参形式把第二个参数当等值比较；
+// 三参形式才把中间参数当运算符（与 PHP 的 func_num_args() 分支一致）。
+func collectionFirstWhere(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	key, _ := ctx.GetIndexValue(0)
+	op, _ := ctx.GetIndexValue(1)
+	val, _ := ctx.GetIndexValue(2)
+	if key == nil {
+		return data.NewNullValue(), nil
+	}
+	keyStr := keyToString(key)
+
+	// 实参个数：优先用调用期记录的扁平实参；拿不到时按「后位是否为 null」退化判断。
+	argc := len(ctx.GetFlatCallArgs())
+	if argc == 0 {
+		switch {
+		case op == nil || isNull(op):
+			argc = 1
+		case val == nil || isNull(val):
+			argc = 2
+		default:
+			argc = 3
+		}
+	}
+
+	if argc <= 1 {
+		// firstWhere($key)：取第一个该字段为真值的元素。
+		for _, e := range toEntries(collectionItems(cv)) {
+			got, ok := dataGetPath(e.value, keyStr)
+			if ok && truthy(got) {
+				return e.value, nil
+			}
+		}
+		return data.NewNullValue(), nil
+	}
+
+	operator := "="
+	if argc == 2 {
+		val = op
+	} else {
+		operator = keyToString(op)
+	}
+	for _, e := range toEntries(collectionItems(cv)) {
+		got, ok := dataGetPath(e.value, keyStr)
+		if !ok {
+			continue
+		}
+		if compareOp(got, operator, val) {
+			return e.value, nil
+		}
+	}
+	return data.NewNullValue(), nil
 }
 
 func collectionFlip(ctx data.Context) (data.GetValue, data.Control) {

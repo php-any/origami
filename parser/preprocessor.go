@@ -23,6 +23,45 @@ var (
 	// 用于检测 Laravel Blade 编译产物中可能只含开始标记而没有 endif; 结束标记的情况。
 )
 
+// indexFoldASCII 在 s[from:] 中按 ASCII 大小写不敏感查找 kw，返回相对 s[from:] 的下标，找不到返回 -1。
+//
+// 原先这里写的是 strings.Index(strings.ToLower(s[from:]), kw)，每轮内层循环都把「剩余的整份源码」
+// 小写化一次并分配一份新字符串，于是在关键字密集的大文件上是 O(n²) 的分配与拷贝。
+// examples/laravel13 冷启动解析 49 个文件实测因此分配了 9GB、耗时 146ms（占全部解析时间的 96%）。
+// 关键字都是 ASCII，这里改成逐字节折叠比较：零分配，语义对 ASCII 源码与原实现完全一致。
+func indexFoldASCII(s string, from int, kw string) int {
+	if kw == "" || from < 0 || from > len(s) {
+		return -1
+	}
+	last := len(s) - len(kw)
+	for i := from; i <= last; i++ {
+		if !asciiFoldEq(s[i], kw[0]) {
+			continue
+		}
+		j := 1
+		for ; j < len(kw); j++ {
+			if !asciiFoldEq(s[i+j], kw[j]) {
+				break
+			}
+		}
+		if j == len(kw) {
+			return i - from
+		}
+	}
+	return -1
+}
+
+// asciiFoldEq 判断两个字节在 ASCII 意义上是否大小写等价。
+func asciiFoldEq(a, b byte) bool {
+	if a == b {
+		return true
+	}
+	if a >= 'A' && a <= 'Z' {
+		a += 'a' - 'A'
+	}
+	return a == b
+}
+
 // hasControlColon 判断代码中是否存在替代语法的"开始标记"（如 if(...): / foreach(...):）。
 // 使用平衡括号匹配，避免把三元表达式中的冒号（if ($a ? $b : $c)）误判为替代语法冒号。
 func hasControlColon(code string) bool {
@@ -32,7 +71,7 @@ func hasControlColon(code string) bool {
 		for _, kw := range keywords {
 			searchFrom := pos
 			for {
-				idx := strings.Index(strings.ToLower(code[searchFrom:]), kw)
+				idx := indexFoldASCII(code, searchFrom, kw)
 				if idx == -1 {
 					break
 				}
@@ -530,7 +569,7 @@ func convertControlKeywordsInCode(result string) string {
 		for _, kw := range keywords {
 			searchFrom := pos
 			for {
-				idx := strings.Index(strings.ToLower(result[searchFrom:]), kw)
+				idx := indexFoldASCII(result, searchFrom, kw)
 				if idx == -1 {
 					break
 				}

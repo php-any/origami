@@ -9,7 +9,7 @@ namespace tests\php;
 
 class AttrLiteral_Sanitize
 {
-    public static function sanitize($v)
+    public static function sanitize($v, $doubleEncode = true)
     {
         return $v;
     }

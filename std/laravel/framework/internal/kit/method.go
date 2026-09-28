@@ -25,6 +25,28 @@ func StaticMethodRef(name string, params []string, optionalFrom int, fn func(dat
 	return buildMethod(name, params, optionalFrom, fn, true, true)
 }
 
+// InstanceMethodVariadic 注册变参实例方法：最后一个形参吸收全部实参（对应 PHP 的 `...$values`）。
+// 调用方传 0 个实参时该形参得到空数组，而不是「缺少值和默认值」错误。
+// 变参形参是 *node.Parameters，canFastPositionalBind 会拒绝它 → 走慢路径绑定，
+// 因此不给无变参的快路径加固定税。
+func InstanceMethodVariadic(name string, params []string, fn func(data.Context) (data.GetValue, data.Control)) data.Method {
+	return buildMethodVariadic(name, params, fn)
+}
+
+func buildMethodVariadic(name string, params []string, fn func(data.Context) (data.GetValue, data.Control)) data.Method {
+	ps := make([]data.GetValue, len(params))
+	vs := make([]data.Variable, len(params))
+	for i, p := range params {
+		if i == len(params)-1 {
+			ps[i] = node.NewParameters(nil, p, i, nil, nil)
+		} else {
+			ps[i] = node.NewParameter(nil, p, i, nil, nil)
+		}
+		vs[i] = node.NewVariable(nil, p, i, nil)
+	}
+	return &method{name: name, params: ps, vars: vs, fn: fn}
+}
+
 func buildMethod(name string, params []string, optionalFrom int, fn func(data.Context) (data.GetValue, data.Control), static, firstByRef bool) data.Method {
 	ps := make([]data.GetValue, len(params))
 	vs := make([]data.Variable, len(params))

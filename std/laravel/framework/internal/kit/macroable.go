@@ -65,10 +65,28 @@ func macroCall(ctx data.Context, className string, static bool) (data.GetValue, 
 	if av, ok := paramsV.(*data.ArrayValue); ok && av != nil {
 		args = av.ToValueList()
 	}
-	if !static {
-		if recv := Receiver(ctx); recv != nil {
-			args = append([]data.Value{recv}, args...)
+	// 对齐 Macroable::__call / __callStatic：
+	//
+	//	$macro = $macro->bindTo($this, static::class);   // 静态时 bindTo(null, static::class)
+	//	return $macro(...$parameters);
+	//
+	// 闭包宏的 $this 必须绑到接收者，不能当作第一个位置实参塞进去。
+	switch m := macro.(type) {
+	case *data.FuncValue:
+		if static {
+			return Call(ctx, data.NewBoundFuncValue(m.Value, className, nil), args...)
 		}
+		if recv := Receiver(ctx); recv != nil {
+			return Call(ctx, data.NewBoundFuncValue(m.Value, className, recv), args...)
+		}
+		return Call(ctx, data.NewBoundFuncValue(m.Value, className, nil), args...)
+	case *data.BoundFuncValue:
+		if !static {
+			if recv := Receiver(ctx); recv != nil {
+				return Call(ctx, data.NewBoundFuncValue(m.Value, className, recv), args...)
+			}
+		}
+		return Call(ctx, macro, args...)
 	}
 	return Call(ctx, macro, args...)
 }
