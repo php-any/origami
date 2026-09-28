@@ -466,6 +466,14 @@ func bagClass(ctx data.Context) (data.GetValue, data.Control) {
 	return newBag(ctx, out), nil
 }
 
+// classListString 对齐 Arr::toCssClasses：
+//
+//	foreach ($classList as $class => $constraint) {
+//	    if (is_numeric($class))      { $classes[] = $constraint; }
+//	    elseif ($constraint)         { $classes[] = $class; }
+//	}
+//
+// 数字键取值（列表写法 ['a','b']），字符串键为真时取键（条件写法 ['a' => true]）。
 func classListString(v data.Value) string {
 	v = kit.Unwrap(v)
 	if v == nil {
@@ -476,39 +484,92 @@ func classListString(v data.Value) string {
 	}
 	parts := []string{}
 	for _, e := range kit.Entries(v) {
-		if b, ok := e.Value.(data.AsBool); ok {
-			if okv, err := b.AsBool(); err == nil && okv {
-				parts = append(parts, e.KeyStr)
+		if numericEntryKey(e) {
+			if s := e.Value.AsString(); s != "" {
+				parts = append(parts, s)
 			}
 			continue
 		}
 		if kit.Truthy(e.Value) {
-			if e.KeyStr != "" {
-				parts = append(parts, e.KeyStr)
-			} else {
-				parts = append(parts, e.Value.AsString())
-			}
+			parts = append(parts, e.KeyStr)
 		}
 	}
 	return strings.Join(parts, " ")
 }
 
+// numericEntryKey 对齐 PHP 的 is_numeric($class)：列表下标（ArrayValue 的整数键）与
+// 数字属性名（混合键数组会以 ObjectValue 承载，键一律是 StringValue）都算数字键。
+// 数字键取「值」当类名，字符串键在约束为真时取「键」当类名。
+func numericEntryKey(e kit.KV) bool {
+	if _, isInt := e.Key.(*data.IntValue); isInt {
+		return true
+	}
+	_, ok := data.ParseIntArrayKeyName(e.KeyStr)
+	return ok
+}
+
+// styleListString 对齐 Arr::toCssStyles：数字键取值、字符串键为真时取键，每段以 ';' 收尾。
+func styleListString(v data.Value) string {
+	v = kit.Unwrap(v)
+	if v == nil {
+		return ""
+	}
+	if s, ok := v.(*data.StringValue); ok {
+		return s.AsString()
+	}
+	parts := []string{}
+	for _, e := range kit.Entries(v) {
+		var raw string
+		if numericEntryKey(e) {
+			raw = e.Value.AsString()
+		} else if kit.Truthy(e.Value) {
+			raw = e.KeyStr
+		}
+		if raw == "" {
+			continue
+		}
+		if !strings.HasSuffix(raw, ";") {
+			raw += ";"
+		}
+		parts = append(parts, raw)
+	}
+	return strings.Join(parts, " ")
+}
+
 func bagStyle(ctx data.Context) (data.GetValue, data.Control) {
-	// 简化：同 class，写入 style 属性
 	cv, ctl := bagRecv(ctx)
 	if ctl != nil {
 		return nil, ctl
 	}
-	style := kit.Arg(ctx, 0).AsString()
+	added := styleListString(kit.Arg(ctx, 0))
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
+	existing := ""
 	for _, e := range kit.Entries(bagAttrs(cv)) {
+		if e.KeyStr == "style" {
+			existing = e.Value.AsString()
+			continue
+		}
 		zv := data.NewZVal(e.Value)
 		zv.Name = e.KeyStr
 		out.List = append(out.List, zv)
 	}
-	zv := data.NewZVal(data.NewStringValue(style))
-	zv.Name = "style"
-	out.List = append(out.List, zv)
+	// 对齐 ComponentAttributeBag::merge：各段以 ';' 收尾后空格拼接；两边都空则不写 style。
+	parts := make([]string, 0, 2)
+	for _, s := range []string{existing, added} {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		if !strings.HasSuffix(s, ";") {
+			s += ";"
+		}
+		parts = append(parts, s)
+	}
+	if len(parts) > 0 {
+		zv := data.NewZVal(data.NewStringValue(strings.Join(parts, " ")))
+		zv.Name = "style"
+		out.List = append(out.List, zv)
+	}
 	return newBag(ctx, out), nil
 }
 

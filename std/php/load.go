@@ -478,6 +478,7 @@ func Load(vm data.VM) {
 		NewFilegroupFunction(),
 		NewTouchFunction(),
 		NewSysGetTempDirFunction(),
+		NewGetMyPidFunction(),
 		NewUsleepFunction(),
 		array.NewNatsortFunction(),
 		array.NewNatcasesortFunction(),

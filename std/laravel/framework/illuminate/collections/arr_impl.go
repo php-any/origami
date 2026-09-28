@@ -1028,13 +1028,17 @@ func toEntries(v data.Value) []kv {
 			}
 			keyStr := z.Name
 			var key data.Value
-			if keyStr != "" {
+			switch {
+			case z.EmptyStrKey:
+				// PHP 的 '' 键：Name 为空但是具名键，不能当成 packed 下标。
+				key = data.NewStringValue("")
+			case keyStr != "":
 				if n, ok := data.ParseIntArrayKeyName(keyStr); ok {
 					key = data.NewIntValue(n)
 				} else {
 					key = data.NewStringValue(keyStr)
 				}
-			} else {
+			default:
 				key = data.NewIntValue(i)
 				keyStr = data.IntArrayKeyName(i)
 			}
@@ -1210,6 +1214,12 @@ func setEntry(arr *data.ArrayValue, key string, val data.Value) {
 	}
 	if z, ok := arr.LookupZValByStringKey(key); ok && z != nil {
 		z.Value = val
+		return
+	}
+	// PHP 的空字符串键 ''：Name 为空且 EmptyStrKey=true，与 packed 整数槽区分。
+	// 直接 NewNamedZVal("") 会退化成「追加一个匿名元素」，groupBy('') 因此丢键。
+	if key == "" {
+		arr.List = append(arr.List, data.NewEmptyStringKeyZVal(val))
 		return
 	}
 	arr.List = append(arr.List, data.NewNamedZVal(key, val))

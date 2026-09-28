@@ -290,6 +290,30 @@ func (f *SysGetTempDirFunction) GetVariables() []data.Variable {
 	return sysGetTempDirFunctionGetVariables
 }
 
+// GetMyPidFunction 实现 getmypid 函数
+// getmypid(): int|false
+// 常驻服务里一个进程跑多个请求，返回值是**进程** id（与 php-fpm 语义一致），
+// 不能拿来当请求 id 用；用例（Blade 临时目录名）只需要它稳定且各进程不同。
+type GetMyPidFunction struct{}
+
+func NewGetMyPidFunction() data.FuncStmt { return &GetMyPidFunction{} }
+
+func (f *GetMyPidFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	return data.NewIntValue(os.Getpid()), nil
+}
+
+func (f *GetMyPidFunction) GetName() string { return "getmypid" }
+var getMyPidFunctionGetParams = []data.GetValue{}
+
+func (f *GetMyPidFunction) GetParams() []data.GetValue {
+	return getMyPidFunctionGetParams
+}
+var getMyPidFunctionGetVariables = []data.Variable{}
+
+func (f *GetMyPidFunction) GetVariables() []data.Variable {
+	return getMyPidFunctionGetVariables
+}
+
 // UsleepFunction 实现 usleep 函数
 // usleep(int $microseconds): void
 type UsleepFunction struct{}

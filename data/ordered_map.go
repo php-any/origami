@@ -14,20 +14,29 @@ type PropertyStore interface {
 	GetByIndex(index int) (string, Value, bool)
 }
 
-// OrderedMap 是一个有序的键值对存储结构，保持插入顺序
+// OrderedMap 是一个有序的键值对存储结构，保持插入顺序。
+//
+// 键与 data 平行存在 keys []string 里，不再用 map[int]string 存「下标 -> 键」：
+// 那张 map 和 data 是一一对应的，热路径上每次 Set 都要多写一张哈希表、
+// 每次 Range/GetByIndex 都要多查一次哈希，而按下标取键本该是 O(1) 的切片下标。
+// 改成平行切片后，Set 少一次哈希写、Range/GetByIndex 各少一次哈希查，
+// Delete 重建的是切片而不是又一张 map。
+//
+// indexMap（键 -> 下标）保留：它是按键查找的唯一路径，不能省。
+// 不变量：len(keys) == len(data)，两者下标一一对应。
 type OrderedMap struct {
 	mu       sync.RWMutex
 	data     []*ZVal
-	indexMap map[string]int // 快速查找索引
-	nameMap  map[int]string // 快速查找索引
+	keys     []string // 与 data 同下标：第 i 个槽的键（PHP 空字符串键就是 ""）
+	indexMap map[string]int
 }
 
 // NewOrderedMap 创建新的有序映射
 func NewOrderedMap() PropertyStore {
 	return &OrderedMap{
 		data:     make([]*ZVal, 0),
+		keys:     make([]string, 0),
 		indexMap: make(map[string]int),
-		nameMap:  make(map[int]string),
 	}
 }
 
@@ -50,16 +59,16 @@ func (om *OrderedMap) Set(key string, value Value) {
 
 	if idx, exists := om.indexMap[key]; exists {
 		// 更新已存在的键值对
-		if idx >= 0 && idx < len(om.data) {
+		if idx >= 0 && idx < len(om.data) && om.data[idx] != nil {
 			om.data[idx].Value = value
 		}
-	} else {
-		// 添加新的键值对
-		index := len(om.data)
-		om.data = append(om.data, NewZVal(value))
-		om.indexMap[key] = index
-		om.nameMap[index] = key
+		return
 	}
+	// 添加新的键值对
+	index := len(om.data)
+	om.data = append(om.data, NewZVal(value))
+	om.keys = append(om.keys, key)
+	om.indexMap[key] = index
 }
 
 // Delete 删除键（不存在则无操作）
@@ -70,20 +79,20 @@ func (om *OrderedMap) Delete(key string) {
 		return
 	}
 	newData := make([]*ZVal, 0, len(om.data))
-	newIndex := make(map[string]int)
-	newName := make(map[int]string)
+	newKeys := make([]string, 0, len(om.data))
+	newIndex := make(map[string]int, len(om.indexMap))
 	for i, z := range om.data {
-		k, ok := om.nameMap[i]
-		if !ok || k == key {
+		if i >= len(om.keys) || om.keys[i] == key {
 			continue
 		}
+		k := om.keys[i]
 		newIndex[k] = len(newData)
-		newName[len(newData)] = k
 		newData = append(newData, z)
+		newKeys = append(newKeys, k)
 	}
 	om.data = newData
+	om.keys = newKeys
 	om.indexMap = newIndex
-	om.nameMap = newName
 }
 
 // Get 获取值
@@ -111,13 +120,14 @@ func (om *OrderedMap) Range(fn func(key string, value Value) bool) {
 	om.mu.RLock()
 	items := make([]kv, 0, len(om.data))
 	for i, zval := range om.data {
-		if key, exists := om.nameMap[i]; exists {
-			var val Value
-			if zval != nil {
-				val = zval.Value
-			}
-			items = append(items, kv{key: key, val: val})
+		if i >= len(om.keys) {
+			break
 		}
+		var val Value
+		if zval != nil {
+			val = zval.Value
+		}
+		items = append(items, kv{key: om.keys[i], val: val})
 	}
 	om.mu.RUnlock()
 
@@ -139,10 +149,8 @@ func (om *OrderedMap) Len() int {
 func (om *OrderedMap) GetByIndex(index int) (string, Value, bool) {
 	om.mu.RLock()
 	defer om.mu.RUnlock()
-	if index >= 0 && index < len(om.data) {
-		if key, exists := om.nameMap[index]; exists {
-			return key, om.data[index].Value, true
-		}
+	if index >= 0 && index < len(om.data) && index < len(om.keys) {
+		return om.keys[index], om.data[index].Value, true
 	}
 	return "", nil, false
 }

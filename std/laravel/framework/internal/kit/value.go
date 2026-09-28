@@ -71,13 +71,17 @@ func Entries(v data.Value) []KV {
 			}
 			keyStr := z.Name
 			var key data.Value
-			if keyStr != "" {
+			switch {
+			case z.EmptyStrKey:
+				// PHP 的 '' 键：Name 为空但是具名键，不能当成 packed 下标。
+				key = data.NewStringValue("")
+			case keyStr != "":
 				if n, ok := data.ParseIntArrayKeyName(keyStr); ok {
 					key = data.NewIntValue(n)
 				} else {
 					key = data.NewStringValue(keyStr)
 				}
-			} else {
+			default:
 				key = data.NewIntValue(i)
 				keyStr = data.IntArrayKeyName(i)
 			}
