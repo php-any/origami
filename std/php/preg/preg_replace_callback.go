@@ -88,8 +88,11 @@ func (f *PregReplaceCallbackFunction) Call(ctx data.Context) (data.GetValue, dat
 
 				ret, ctl := f.callWithSubmatches(ctx, fn, matchesArr)
 				if ctl != nil {
-					ctx.GetVM().ThrowControl(ctl)
-					return matchesArr, nil
+					// 必须把控制流原样向上传播：ThrowControl 是纯控制流值，
+					// 只有返回给调用方，PHP 层的 try/catch 才接得住。
+					// 走 vm.ThrowControl 会把异常直接丢给进程级处理器，绕过 try/catch
+					// （Blade 组件编译期间抛错即由此变成无法捕获的 fatal）。
+					return nil, ctl
 				}
 				localCount++
 				if ret == nil || ret.AsString() == "" {

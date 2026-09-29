@@ -8,25 +8,27 @@ import (
 func NewLogClass() data.ClassStmt {
 	source := NewLog()
 	return &LogClass{
-		debug:  &LogDebugMethod{source},
-		error:  &LogErrorMethod{source},
-		fatal:  &LogFatalMethod{source},
-		info:   &LogInfoMethod{source},
-		notice: &LogNoticeMethod{source},
-		trace:  &LogTraceMethod{source},
-		warn:   &LogWarnMethod{source},
+		debug:      &LogDebugMethod{source},
+		error:      &LogErrorMethod{source},
+		fatal:      &LogFatalMethod{source},
+		fatalCount: &LogFatalCountMethod{source},
+		info:       &LogInfoMethod{source},
+		notice:     &LogNoticeMethod{source},
+		trace:      &LogTraceMethod{source},
+		warn:       &LogWarnMethod{source},
 	}
 }
 
 type LogClass struct {
 	node.Node
-	debug  data.Method
-	error  data.Method
-	fatal  data.Method
-	info   data.Method
-	notice data.Method
-	trace  data.Method
-	warn   data.Method
+	debug      data.Method
+	error      data.Method
+	fatal      data.Method
+	fatalCount data.Method
+	info       data.Method
+	notice     data.Method
+	trace      data.Method
+	warn       data.Method
 }
 
 func (s *LogClass) GetValue(_ data.Context) (data.GetValue, data.Control) {
@@ -63,6 +65,8 @@ func (s *LogClass) GetMethod(name string) (data.Method, bool) {
 		return s.error, true
 	case "fatal":
 		return s.fatal, true
+	case "fatalCount":
+		return s.fatalCount, true
 	case "info":
 		return s.info, true
 	case "notice":
@@ -83,6 +87,8 @@ func (s *LogClass) GetStaticMethod(name string) (data.Method, bool) {
 		return s.error, true
 	case "fatal":
 		return s.fatal, true
+	case "fatalCount":
+		return s.fatalCount, true
 	case "info":
 		return s.info, true
 	case "notice":
@@ -100,6 +106,7 @@ func (s *LogClass) GetMethods() []data.Method {
 		s.debug,
 		s.error,
 		s.fatal,
+		s.fatalCount,
 		s.info,
 		s.notice,
 		s.trace,
