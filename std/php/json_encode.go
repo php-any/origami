@@ -72,6 +72,12 @@ func JsonEncode(ctx data.Context, value data.Value) (string, bool, data.Control)
 	return jsonEncode(ctx, value, 0)
 }
 
+// JsonEncodeFlags 供内部调用方（如 Collection::toPrettyJson）指定 flags，
+// 语义与 PHP json_encode($value, $flags) 一致。
+func JsonEncodeFlags(ctx data.Context, value data.Value, flags int) (string, bool, data.Control) {
+	return jsonEncode(ctx, value, flags)
+}
+
 func jsonEncode(ctx data.Context, value data.Value, flags int) (string, bool, data.Control) {
 	if value == nil {
 		clearJsonLastError()
@@ -120,8 +126,70 @@ func jsonEncode(ctx data.Context, value data.Value, flags int) (string, bool, da
 	}
 
 	result = applyJsonEncodeFlags(result, flags)
+	if flags&jsonPrettyPrint != 0 {
+		result = prettyPrintJSON(result)
+	}
 	clearJsonLastError()
 	return string(result), true, nil
+}
+
+// JSON_PRETTY_PRINT（见 json_constants.go）。
+const jsonPrettyPrint = 128
+
+// prettyPrintJSON 对齐 PHP 的 JSON_PRETTY_PRINT：4 空格缩进、`:` 后加空格，
+// 空数组/空对象仍是 `[]`/`{}`（PHP 不换行）。
+// 在紧凑结果上重新排版，不改动字符串内容，因此与 JSON_HEX_* 可叠加。
+func prettyPrintJSON(in []byte) []byte {
+	const indentUnit = "    "
+	out := make([]byte, 0, len(in)+len(in)/4)
+	depth := 0
+	indent := func() {
+		out = append(out, '\n')
+		for i := 0; i < depth; i++ {
+			out = append(out, indentUnit...)
+		}
+	}
+	inString := false
+	for i := 0; i < len(in); i++ {
+		c := in[i]
+		if inString {
+			out = append(out, c)
+			switch {
+			case c == '\\' && i+1 < len(in):
+				out = append(out, in[i+1])
+				i++
+			case c == '"':
+				inString = false
+			}
+			continue
+		}
+		switch c {
+		case '"':
+			inString = true
+			out = append(out, c)
+		case '{', '[':
+			if i+1 < len(in) && (in[i+1] == '}' || in[i+1] == ']') {
+				out = append(out, c, in[i+1])
+				i++
+				continue
+			}
+			depth++
+			out = append(out, c)
+			indent()
+		case '}', ']':
+			depth--
+			indent()
+			out = append(out, c)
+		case ',':
+			out = append(out, c)
+			indent()
+		case ':':
+			out = append(out, ':', ' ')
+		default:
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // applyJsonEncodeFlags 对齐 PHP JSON_HEX_*：只改 JSON 字符串内容，结构分隔用的 " 保持原样。

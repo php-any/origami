@@ -2,6 +2,7 @@ package collections
 
 import (
 	"fmt"
+	"sync/atomic"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -10,14 +11,39 @@ import (
 
 const higherOrderProxyName = "Illuminate\\Support\\HigherOrderCollectionProxy"
 
-var collectionProxies = map[string]struct{}{
-	"average": {}, "avg": {}, "contains": {}, "doesntcontain": {},
-	"each": {}, "every": {}, "filter": {}, "first": {}, "flatmap": {},
-	"groupby": {}, "hasmany": {}, "hassole": {}, "keyby": {}, "last": {},
-	"map": {}, "max": {}, "min": {}, "partition": {}, "percentage": {},
-	"reject": {}, "skipuntil": {}, "skipwhile": {}, "some": {},
-	"sortby": {}, "sortbydesc": {}, "sum": {}, "takeuntil": {}, "takewhile": {},
-	"unique": {}, "unless": {}, "until": {}, "when": {},
+// collectionProxies 是 EnumeratesValues::$proxies 的对应物：只读快照 + 原子替换。
+//
+// 读路径（$collection->method 走 __get）只做一次 atomic.Load，不加锁、不构成固定税；
+// 写路径只来自 Collection::proxy($method)，通常发生在启动期，复制整张 map 后 Store，
+// 因此不会出现并发读写同一张 map 的崩溃。
+var collectionProxies atomic.Pointer[map[string]struct{}]
+
+func init() {
+	collectionProxies.Store(&map[string]struct{}{
+		"average": {}, "avg": {}, "contains": {}, "doesntcontain": {},
+		"each": {}, "every": {}, "filter": {}, "first": {}, "flatmap": {},
+		"groupby": {}, "hasmany": {}, "hassole": {}, "keyby": {}, "last": {},
+		"map": {}, "max": {}, "min": {}, "partition": {}, "percentage": {},
+		"reject": {}, "skipuntil": {}, "skipwhile": {}, "some": {},
+		"sortby": {}, "sortbydesc": {}, "sum": {}, "takeuntil": {}, "takewhile": {},
+		"unique": {}, "unless": {}, "until": {}, "when": {},
+	})
+}
+
+// collectionProxyNames 返回当前代理名快照（键统一为 MethodLookupKey 小写形式）。
+func collectionProxyNames() map[string]struct{} {
+	return *collectionProxies.Load()
+}
+
+// addCollectionProxy 对齐 EnumeratesValues::proxy()：static::$proxies[] = $method。
+func addCollectionProxy(name string) {
+	old := collectionProxyNames()
+	next := make(map[string]struct{}, len(old)+1)
+	for k := range old {
+		next[k] = struct{}{}
+	}
+	next[data.MethodLookupKey(name)] = struct{}{}
+	collectionProxies.Store(&next)
 }
 
 type HigherOrderProxyClass struct {
@@ -94,14 +120,17 @@ func hopGet(ctx data.Context) (data.GetValue, data.Control) {
 		key = v.AsString()
 	}
 	return hopApply(ctx, cv, func(itemCtx data.Context) (data.GetValue, data.Control) {
-		item := kit.Arg(itemCtx, 0)
-		if av, ok := kit.Unwrap(item).(*data.ArrayValue); ok {
-			if got, ok := dataGetPath(av, key); ok {
+		item := kit.Unwrap(kit.Arg(itemCtx, 0))
+		// 对齐 HigherOrderCollectionProxy::__get：is_array($value) ? data_get($value, $key) : $value->{$key}
+		// 关联数组字面量在 origami 里可能是 ArrayValue 也可能是 ObjectValue，两种都要走。
+		switch item.(type) {
+		case *data.ArrayValue, *data.ObjectValue:
+			if got, ok := dataGetPath(item, key); ok {
 				return got, nil
 			}
 			return data.NewNullValue(), nil
 		}
-		if icv, ok := kit.Unwrap(item).(*data.ClassValue); ok {
+		if icv, ok := item.(*data.ClassValue); ok {
 			v, ctl := icv.GetProperty(key)
 			if ctl != nil {
 				return nil, ctl

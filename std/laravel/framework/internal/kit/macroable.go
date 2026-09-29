@@ -32,6 +32,9 @@ func RegisterMacroable(methods map[string]data.Method, className string) {
 		globalMacros.Flush(className)
 		return data.NewNullValue(), nil
 	})
+	methods["mixin"] = StaticMethod("mixin", []string{"mixin", "replace"}, -1, func(ctx data.Context) (data.GetValue, data.Control) {
+		return macroMixin(ctx, className)
+	})
 	methods["__callstatic"] = StaticMethod("__callStatic", []string{"method", "parameters"}, -1, func(ctx data.Context) (data.GetValue, data.Control) {
 		return macroCall(ctx, className, true)
 	})
@@ -50,16 +53,97 @@ func macroRegister(ctx data.Context, className string) (data.GetValue, data.Cont
 	return data.NewNullValue(), nil
 }
 
+// macroMixin 对齐 Macroable::mixin()：把 $mixin 的 public/protected 方法逐个 invoke，
+// 返回的闭包注册成本类的宏。返回 void（vendor 同样没有 return）。
+func macroMixin(ctx data.Context, className string) (data.GetValue, data.Control) {
+	replace := true
+	if v := Arg(ctx, 1); v != nil && !IsNull(v) {
+		replace = Truthy(v)
+	}
+	ctl, _ := InvokeMixinMethods(ctx, Arg(ctx, 0), replace,
+		func(name string) bool { return globalMacros.Has(className, name) },
+		func(name string, macro data.Value) { globalMacros.Set(className, name, macro) },
+	)
+	if ctl != nil {
+		return nil, ctl
+	}
+	return data.NewNullValue(), nil
+}
+
+// InvokeMixinMethods 反射遍历 mixin 对象的 public/protected 方法并逐个 invoke，
+// 把返回的闭包交给 set；replace 为 false 时 has(name) 命中的方法跳过。
+//
+// 对应 (new ReflectionClass($mixin))->getMethods(IS_PUBLIC | IS_PROTECTED) 的语义：
+// 含继承链上的方法，不含 private；静态方法也在内（ReflectionMethod::invoke 对静态方法同样有效）。
+// 非对象的 $mixin 返回错误，交由调用方决定抛什么异常。
+func InvokeMixinMethods(
+	ctx data.Context,
+	mixin data.Value,
+	replace bool,
+	has func(string) bool,
+	set func(string, data.Value),
+) (data.Control, error) {
+	cv, ok := Unwrap(mixin).(*data.ClassValue)
+	if !ok || cv == nil || cv.Class == nil {
+		return nil, fmt.Errorf("mixin is not an object")
+	}
+	vm := cv.GetVM()
+	// seen 去重：子类覆盖父类同名方法时，getMethods() 只应产出子类那一份。
+	seen := make(map[string]struct{})
+	// 上溯深度做保护，避免继承链自引用时死循环。
+	for stmt, depth := cv.Class, 0; stmt != nil && depth < 32; depth++ {
+		for _, m := range stmt.GetMethods() {
+			if m == nil {
+				continue
+			}
+			name := m.GetName()
+			key := data.MethodLookupKey(name)
+			if _, dup := seen[key]; dup {
+				continue
+			}
+			seen[key] = struct{}{}
+			if m.GetModifier() == data.ModifierPrivate {
+				continue
+			}
+			if !replace && has(name) {
+				continue
+			}
+			// 不能经 withArgs 造上下文：CreateContext 返回的 ClassMethodContext
+			// 才带 $this，mixin 方法体里可能读 $this 或其它属性。
+			nctx := cv.CreateContext(m.GetVariables())
+			data.BindDeclaredArgs(nctx, m, nil)
+			ret, ctl := m.Call(nctx)
+			if ctl != nil {
+				return ctl, nil
+			}
+			if v, ok := ret.(data.Value); ok && v != nil {
+				set(name, v)
+			}
+		}
+		extend := stmt.GetExtend()
+		if extend == nil || vm == nil {
+			break
+		}
+		parent, ctl := vm.GetOrLoadClass(*extend)
+		if ctl != nil {
+			return ctl, nil
+		}
+		stmt = parent
+	}
+	return nil, nil
+}
+
 func macroCall(ctx data.Context, className string, static bool) (data.GetValue, data.Control) {
 	nameV := Arg(ctx, 0)
 	paramsV := Arg(ctx, 1)
 	if nameV == nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("Method %s:: does not exist.", className))
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Method %s:: does not exist.", className), "BadMethodCallException")
 	}
 	name := nameV.AsString()
 	macro, ok := globalMacros.Get(className, name)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("Method %s::%s does not exist.", className, name))
+		// 对齐 Macroable::__call/__callStatic：抛 BadMethodCallException，不是泛型 Exception。
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Method %s::%s does not exist.", className, name), "BadMethodCallException")
 	}
 	args := []data.Value{}
 	if av, ok := paramsV.(*data.ArrayValue); ok && av != nil {

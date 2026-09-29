@@ -875,8 +875,9 @@ func arrShuffle(ctx data.Context) (data.GetValue, data.Control) {
 
 func arrSort(ctx data.Context) (data.GetValue, data.Control) {
 	entries := toEntries(mustIndex(ctx, 0))
+	// PHP 的 asort/uasort 默认用 SORT_REGULAR：数字与数字字符串按数值比较。
 	sort.SliceStable(entries, func(i, j int) bool {
-		return entries[i].value.AsString() < entries[j].value.AsString()
+		return compareSortKeys(entries[i].value, entries[j].value) < 0
 	})
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
 	for _, e := range entries {
@@ -888,7 +889,7 @@ func arrSort(ctx data.Context) (data.GetValue, data.Control) {
 func arrSortDesc(ctx data.Context) (data.GetValue, data.Control) {
 	entries := toEntries(mustIndex(ctx, 0))
 	sort.SliceStable(entries, func(i, j int) bool {
-		return entries[i].value.AsString() > entries[j].value.AsString()
+		return compareSortKeys(entries[i].value, entries[j].value) > 0
 	})
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
 	for _, e := range entries {

@@ -103,8 +103,14 @@ func (c *CollectionClass) register() {
 	inst := func(name string, params []string, fn func(data.Context) (data.GetValue, data.Control)) {
 		c.methods[data.MethodLookupKey(name)] = kit.InstanceMethod(name, params, fn)
 	}
+	instOpt := func(name string, params []string, optionalFrom int, fn func(data.Context) (data.GetValue, data.Control)) {
+		c.methods[data.MethodLookupKey(name)] = kit.InstanceMethodOpt(name, params, optionalFrom, fn)
+	}
 	stat := func(name string, params []string, fn func(data.Context) (data.GetValue, data.Control)) {
 		c.methods[data.MethodLookupKey(name)] = kit.StaticMethod(name, params, -1, fn)
+	}
+	statOpt := func(name string, params []string, optionalFrom int, fn func(data.Context) (data.GetValue, data.Control)) {
+		c.methods[data.MethodLookupKey(name)] = kit.StaticMethod(name, params, optionalFrom, fn)
 	}
 	va := func(name string, params []string, fn func(data.Context) (data.GetValue, data.Control)) {
 		c.methods[data.MethodLookupKey(name)] = kit.InstanceMethodVariadic(name, params, fn)
@@ -113,6 +119,9 @@ func (c *CollectionClass) register() {
 	stat("make", []string{"items"}, collectionMake)
 	stat("empty", nil, collectionEmpty)
 	stat("wrap", []string{"value"}, collectionWrap)
+	statOpt("range", []string{"from", "to", "step"}, 2, collectionRange)
+	statOpt("times", []string{"number", "callback"}, 1, collectionTimes)
+	stat("unwrap", []string{"value"}, collectionUnwrap)
 	inst("all", nil, collectionAll)
 	inst("toArray", nil, collectionToArray)
 	inst("toJson", []string{"options"}, collectionToJson)
@@ -158,8 +167,13 @@ func (c *CollectionClass) register() {
 	inst("offsetUnset", []string{"key"}, collectionOffsetUnset)
 	inst("getArrayableItems", []string{"items"}, collectionGetArrayableItems)
 	inst("toBase", nil, collectionToBase)
+	// EnumeratesValues::collect() 与 toBase() 函数体完全一致（都是 new Collection($this->all())）。
+	inst("collect", nil, collectionToBase)
+	instOpt("getCachingIterator", []string{"flags"}, 0, collectionGetCachingIterator)
+	stat("proxy", []string{"method"}, collectionProxy)
 	inst("__get", []string{"key"}, collectionMagicGet)
 	registerCollectionMore(c)
+	registerCollectionExt(c)
 	inst("__call", []string{"method", "parameters"}, collectionMissing)
 	kit.RegisterMacroable(c.methods, collectionName)
 	kit.RegisterConditionable(c.methods, collectionWhenProxy)
@@ -250,6 +264,86 @@ func collectionEmpty(ctx data.Context) (data.GetValue, data.Control) {
 	return newCollectionInstance(ctx, data.NewArrayValue(nil))
 }
 
+// collectionRange 对齐 Collection::range($from, $to, $step = 1)。
+// 与 PHP 的 range() 一致：$from > $to 时自动降序，$step 先取绝对值。
+func collectionRange(ctx data.Context) (data.GetValue, data.Control) {
+	from, ctl := intFromValue(kit.Arg(ctx, 0))
+	if ctl != nil {
+		return nil, ctl
+	}
+	to, ctl := intFromValue(kit.Arg(ctx, 1))
+	if ctl != nil {
+		return nil, ctl
+	}
+	step := 1
+	if v := kit.Arg(ctx, 2); !kit.IsNull(v) {
+		step, ctl = intFromValue(v)
+		if ctl != nil {
+			return nil, ctl
+		}
+	}
+	if step <= 0 {
+		step = 1
+	}
+	var items []data.Value
+	if from <= to {
+		items = make([]data.Value, 0, (to-from)/step+1)
+		for i := from; i <= to; i += step {
+			items = append(items, data.NewIntValue(i))
+		}
+	} else {
+		items = make([]data.Value, 0, (from-to)/step+1)
+		for i := from; i >= to; i -= step {
+			items = append(items, data.NewIntValue(i))
+		}
+	}
+	return newCollectionInstance(ctx, data.NewArrayValue(items))
+}
+
+// collectionTimes 对齐 EnumeratesValues::times($number, $callback = null)：
+// $number < 1 返回空集合；无回调时返回 range(1, $number)，否则 map 回调（键从 0 重排）。
+func collectionTimes(ctx data.Context) (data.GetValue, data.Control) {
+	number, ctl := intFromValue(kit.Arg(ctx, 0))
+	if ctl != nil {
+		return nil, ctl
+	}
+	cb := kit.Arg(ctx, 1)
+	if number < 1 {
+		return newCollectionInstance(ctx, data.NewArrayValue(nil))
+	}
+	items := make([]data.Value, 0, number)
+	for i := 1; i <= number; i++ {
+		items = append(items, data.NewIntValue(i))
+	}
+	arr := data.NewArrayValue(items)
+	// unless($callback == null)：无回调时短路，不进入 map。
+	if kit.IsNull(cb) {
+		return newCollectionInstance(ctx, arr)
+	}
+	mapped, ctl := arrMap(withArgs(ctx, arr, cb))
+	if ctl != nil {
+		return nil, ctl
+	}
+	return newCollectionInstance(ctx, mapped.(data.Value))
+}
+
+// collectionUnwrap 对齐 EnumeratesValues::unwrap($value)：
+// Enumerable 取 all()，其余原样返回（含 null / 标量 / 数组）。
+func collectionUnwrap(ctx data.Context) (data.GetValue, data.Control) {
+	v := unwrapValue(kit.Arg(ctx, 0))
+	if cv, ok := v.(*data.ClassValue); ok && cv != nil && classIs(cv, enumerableName) {
+		arr, ok, ctl := callClassNoArg(cv, "all")
+		if ctl != nil {
+			return nil, ctl
+		}
+		if !ok {
+			return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Call to undefined method %s::all()", cv.Class.GetName()), "Error")
+		}
+		return arr, nil
+	}
+	return v, nil
+}
+
 func collectionWrap(ctx data.Context) (data.GetValue, data.Control) {
 	v, _ := ctx.GetIndexValue(0)
 	if cv, ok := v.(*data.ClassValue); ok && cv != nil {
@@ -300,11 +394,30 @@ func collectionToArray(ctx data.Context) (data.GetValue, data.Control) {
 
 // collectionToJson 对齐 EnumeratesValues::toJson()：json_encode($this->jsonSerialize(), $options)
 func collectionToJson(ctx data.Context) (data.GetValue, data.Control) {
+	return collectionEncodeJson(ctx, 0)
+}
+
+// JSON_PRETTY_PRINT（见 std/php/json_constants.go）。
+const collectionPrettyPrintFlag = 128
+
+// collectionToPrettyJson 对齐 EnumeratesValues::toPrettyJson($options)。
+func collectionToPrettyJson(ctx data.Context) (data.GetValue, data.Control) {
+	return collectionEncodeJson(ctx, collectionPrettyPrintFlag)
+}
+
+func collectionEncodeJson(ctx data.Context, baseFlags int) (data.GetValue, data.Control) {
 	arr, ctl := collectionJsonSerialize(ctx)
 	if ctl != nil {
 		return nil, ctl
 	}
-	encoded, ok, jctl := php.JsonEncode(ctx, arr.(data.Value))
+	if v := kit.Arg(ctx, 0); v != nil && !isNull(v) {
+		if iv, ok := v.(data.AsInt); ok {
+			if n, err := iv.AsInt(); err == nil {
+				baseFlags |= n
+			}
+		}
+	}
+	encoded, ok, jctl := php.JsonEncodeFlags(ctx, arr.(data.Value), baseFlags)
 	if jctl != nil {
 		return nil, jctl
 	}
@@ -703,12 +816,8 @@ func collectionEach(ctx data.Context) (data.GetValue, data.Control) {
 		if err != nil {
 			return nil, err
 		}
-		if ret != nil {
-			if b, ok := ret.(data.AsBool); ok {
-				if okv, _ := b.AsBool(); !okv {
-					break
-				}
-			}
+		if isFalse(ret) {
+			break
 		}
 	}
 	return cv, nil
@@ -730,43 +839,57 @@ func collectionWhere(ctx data.Context) (data.GetValue, data.Control) {
 	key, _ := ctx.GetIndexValue(0)
 	op, _ := ctx.GetIndexValue(1)
 	val, _ := ctx.GetIndexValue(2)
-	out := data.NewArrayValue(nil).(*data.ArrayValue)
-	for _, e := range toEntries(collectionItems(cv)) {
-		itemVal, ok := dataGetPath(e.value, keyToString(key))
-		if !ok {
-			continue
-		}
-		match := false
-		if val == nil || isNull(val) {
-			// where($key, $value)
-			match = itemVal.AsString() == keyToString(op)
-		} else {
-			match = compareOp(itemVal, keyToString(op), val)
-		}
-		if match {
-			setEntry(out, e.keyStr, e.value)
-		}
-	}
+	operator, target := whereOperands(len(ctx.GetCallArgs()), op, val)
+	out := whereCore(collectionItems(cv), keyToString(key), operator, target)
 	return newCollectionInstance(ctx, out)
 }
 
-func compareOp(left data.Value, op string, right data.Value) bool {
-	ls, rs := left.AsString(), right.AsString()
-	switch op {
-	case "=", "==":
-		return ls == rs
-	case "!=", "<>":
-		return ls != rs
-	case ">":
-		return ls > rs
-	case "<":
-		return ls < rs
-	case ">=":
-		return ls >= rs
-	case "<=":
-		return ls <= rs
+// whereOperands 对齐 EnumeratesValues::operatorForWhere 的形式判定：
+// where($k) → $k == true；where($k, $v) → $k == $v；where($k, $op, $v) → $k $op $v。
+// 未传的形参在帧里是 null，所以多出来的第三参必须靠实参个数（func_num_args 语义）区分。
+func whereOperands(argc int, op, val data.Value) (string, data.Value) {
+	switch {
+	case argc == 3:
+		return keyToString(op), val
+	case isNull(op) && isNull(val):
+		return "=", data.NewBoolValue(true)
+	case isNull(val):
+		return "=", op
 	default:
-		return ls == rs
+		return keyToString(op), val
+	}
+}
+
+// compareOp 对齐 PHP 的比较运算符（含 === / !== 的严格语义）。
+func compareOp(left data.Value, op string, right data.Value) bool {
+	switch op {
+	case "===":
+		return phpStrictEquals(left, right)
+	case "!==":
+		return !phpStrictEquals(left, right)
+	case "=", "==":
+		return phpLooseEquals(left, right)
+	case "!=", "<>":
+		return !phpLooseEquals(left, right)
+	case "<=>":
+		cmp, ok := phpCompareValues(left, right)
+		return ok && cmp != 0
+	}
+	cmp, ok := phpCompareValues(left, right)
+	if !ok {
+		return false
+	}
+	switch op {
+	case ">":
+		return cmp > 0
+	case "<":
+		return cmp < 0
+	case ">=":
+		return cmp >= 0
+	case "<=":
+		return cmp <= 0
+	default:
+		return phpLooseEquals(left, right)
 	}
 }
 
@@ -775,17 +898,16 @@ func collectionUnique(ctx data.Context) (data.GetValue, data.Control) {
 	if ctl != nil {
 		return nil, ctl
 	}
-	seen := map[string]bool{}
-	out := data.NewArrayValue(nil).(*data.ArrayValue)
-	for _, e := range toEntries(collectionItems(cv)) {
-		k := e.value.AsString()
-		if seen[k] {
-			continue
-		}
-		seen[k] = true
-		setEntry(out, e.keyStr, e.value)
+	key, _ := ctx.GetIndexValue(0)
+	strict := false
+	if v, _ := ctx.GetIndexValue(1); v != nil && !isNull(v) {
+		strict = phpToBool(v)
 	}
-	return newCollectionInstance(ctx, out)
+	path := ""
+	if key != nil && !isNull(key) {
+		path = keyToString(key)
+	}
+	return newCollectionInstance(ctx, uniqueCore(collectionItems(cv), path, strict))
 }
 
 func collectionDiff(ctx data.Context) (data.GetValue, data.Control) {
@@ -998,51 +1120,26 @@ func collectionSortByDir(ctx data.Context, forceDesc bool) (data.GetValue, data.
 	return newCollectionInstance(ctx, out)
 }
 
+// compareSortKeys 对齐 PHP 的默认排序比较：数字/数字字符串按数值，其余按字符串；
+// null 排在前面（与 PHP 的 NULL 处理一致）。
 func compareSortKeys(a, b data.Value) int {
 	a = kit.Unwrap(a)
 	b = kit.Unwrap(b)
-	if a == nil && b == nil {
-		return 0
+	aNil, bNil := a == nil || isNull(a), b == nil || isNull(b)
+	if aNil || bNil {
+		return cmpFloat(boolToFloat(!aNil), boolToFloat(!bNil))
 	}
-	if a == nil {
-		return -1
+	if cmp, ok := phpCompareValues(a, b); ok {
+		return cmp
 	}
-	if b == nil {
+	return strings.Compare(a.AsString(), b.AsString())
+}
+
+func boolToFloat(b bool) float64 {
+	if b {
 		return 1
 	}
-	if ai, ok := a.(*data.IntValue); ok {
-		if bi, ok := b.(*data.IntValue); ok {
-			switch {
-			case ai.Value < bi.Value:
-				return -1
-			case ai.Value > bi.Value:
-				return 1
-			default:
-				return 0
-			}
-		}
-	}
-	if af, ok := a.(*data.FloatValue); ok {
-		if bf, ok := b.(*data.FloatValue); ok {
-			switch {
-			case af.Value < bf.Value:
-				return -1
-			case af.Value > bf.Value:
-				return 1
-			default:
-				return 0
-			}
-		}
-	}
-	as, bs := a.AsString(), b.AsString()
-	switch {
-	case as < bs:
-		return -1
-	case as > bs:
-		return 1
-	default:
-		return 0
-	}
+	return 0
 }
 
 func collectionGroupBy(ctx data.Context) (data.GetValue, data.Control) {
@@ -1174,26 +1271,64 @@ func collectionGetIterator(ctx data.Context) (data.GetValue, data.Control) {
 	if ctl != nil {
 		return nil, ctl
 	}
-	vm := ctx.GetVM()
-	cls, ok := vm.GetClass("ArrayIterator")
+	return collectionIterator(ctx, cv)
+}
+
+// collectionIterator 抽成纯函数：getIterator() / getCachingIterator() 都要用它。
+func collectionIterator(ctx data.Context, cv *data.ClassValue) (*data.ClassValue, data.Control) {
+	return newNativeInstance(ctx, ctx.GetVM(), "ArrayIterator", []data.Value{collectionItems(cv)})
+}
+
+// newNativeInstance 按类名到 VM 取（或自动加载）一个原生类，构造出实例。
+// 模式沿用本文件既有写法：CreateContext + BindDeclaredArgs + Call，$this 才成立。
+func newNativeInstance(ctx data.Context, vm data.VM, className string, args []data.Value) (*data.ClassValue, data.Control) {
+	cls, ok := vm.GetClass(className)
 	if !ok {
-		cls, ctl = vm.GetOrLoadClass("ArrayIterator")
+		var ctl data.Control
+		cls, ctl = vm.GetOrLoadClass(className)
 		if ctl != nil {
 			return nil, ctl
 		}
 	}
 	if cls == nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("Class ArrayIterator not found"))
+		return nil, data.NewErrorThrow(nil, fmt.Errorf("Class %s not found", className))
 	}
-	it := data.NewClassValue(cls, ctx.CreateBaseContext())
+	cv := data.NewClassValue(cls, ctx.CreateBaseContext())
 	if ctor := cls.GetConstruct(); ctor != nil {
-		nctx := it.CreateContext(ctor.GetVariables())
-		data.BindDeclaredArgs(nctx, ctor, []data.Value{collectionItems(cv)})
+		nctx := cv.CreateContext(ctor.GetVariables())
+		data.BindDeclaredArgs(nctx, ctor, args)
 		if _, ctl := ctor.Call(nctx); ctl != nil {
 			return nil, ctl
 		}
 	}
-	return it, nil
+	return cv, nil
+}
+
+// collectionGetCachingIterator 对齐 EnumeratesValues::getCachingIterator($flags = CachingIterator::CALL_TOSTRING)。
+func collectionGetCachingIterator(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	// CachingIterator::CALL_TOSTRING
+	const callToString = 1
+	flags := data.Value(data.NewIntValue(callToString))
+	if v := kit.Arg(ctx, 0); v != nil && !kit.IsNull(v) {
+		flags = v
+	}
+	inner, ctl := collectionIterator(ctx, cv)
+	if ctl != nil {
+		return nil, ctl
+	}
+	return newNativeInstance(ctx, ctx.GetVM(), "CachingIterator", []data.Value{inner, flags})
+}
+
+// collectionProxy 对齐 EnumeratesValues::proxy($method)：static::$proxies[] = $method。
+func collectionProxy(ctx data.Context) (data.GetValue, data.Control) {
+	if v := kit.Arg(ctx, 0); v != nil {
+		addCollectionProxy(v.AsString())
+	}
+	return data.NewNullValue(), nil
 }
 
 func collectionOffsetExists(ctx data.Context) (data.GetValue, data.Control) {
@@ -1273,10 +1408,12 @@ func collectionMagicGet(ctx data.Context) (data.GetValue, data.Control) {
 	if v := kit.Arg(ctx, 0); v != nil {
 		key = v.AsString()
 	}
-	if _, ok := collectionProxies[data.MethodLookupKey(key)]; ok {
+	if _, ok := collectionProxyNames()[data.MethodLookupKey(key)]; ok {
 		return newHigherOrderProxy(ctx, cv, key)
 	}
-	return data.NewNullValue(), nil
+	// 对齐 EnumeratesValues::__get：非代理属性直接抛，不能静默返回 null。
+	return nil, data.NewErrorThrow(nil, fmt.Errorf(
+		"Property [%s] does not exist on this collection instance.", key))
 }
 
 func jsonEncodeSimple(v data.Value) (string, bool) {

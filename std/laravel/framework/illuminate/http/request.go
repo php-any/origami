@@ -16,6 +16,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/std/laravel/framework/internal/kit"
 	httpfoundation "github.com/php-any/origami/std/symfony/http-foundation"
 )
 
@@ -467,7 +468,32 @@ func illuminateMacro(_ *illuminateRequestMethod, ctx data.Context) (data.GetValu
 	return data.NewNullValue(), nil
 }
 
-func illuminateMixin(_ *illuminateRequestMethod, _ data.Context) (data.GetValue, data.Control) {
+// illuminateMixin 对齐 Macroable::mixin：请求类的宏存在自己的表里（不是 kit.globalMacros），
+// 所以这里复用 kit.InvokeMixinMethods 的遍历/过滤/invoke，只换 has/set 的落点。
+func illuminateMixin(_ *illuminateRequestMethod, ctx data.Context) (data.GetValue, data.Control) {
+	replace := true
+	if v := argValue(ctx, 1, nil); v != nil {
+		replace = kit.Truthy(v)
+	}
+	ctl, err := kit.InvokeMixinMethods(ctx, argValue(ctx, 0, nil), replace,
+		func(name string) bool {
+			illuminateRequestMacros.RLock()
+			_, ok := illuminateRequestMacros.values[data.MethodLookupKey(name)]
+			illuminateRequestMacros.RUnlock()
+			return ok
+		},
+		func(name string, macro data.Value) {
+			illuminateRequestMacros.Lock()
+			illuminateRequestMacros.values[data.MethodLookupKey(name)] = macro
+			illuminateRequestMacros.Unlock()
+		},
+	)
+	if ctl != nil {
+		return nil, ctl
+	}
+	if err != nil {
+		return nil, requestError("%s", err.Error())
+	}
 	return data.NewNullValue(), nil
 }
 
@@ -500,7 +526,8 @@ func callIlluminateMacro(ctx data.Context, receiver *data.ClassValue) (data.GetV
 	macro := illuminateRequestMacros.values[name]
 	illuminateRequestMacros.RUnlock()
 	if macro == nil {
-		return nil, requestError("Method %s::%s does not exist.", illuminateRequestClassName, name)
+		// 对齐 Macroable::__call/__callStatic：抛 BadMethodCallException。
+		return nil, requestBadMethodCall("Method %s::%s does not exist.", illuminateRequestClassName, name)
 	}
 	args := make([]data.Value, 0)
 	if array, ok := argValue(ctx, 1, data.NewArrayValue(nil)).(*data.ArrayValue); ok {
@@ -1763,6 +1790,11 @@ func valueFloat(value data.Value) float64 {
 
 func requestError(format string, args ...any) data.Control {
 	return data.NewErrorThrow(nil, fmt.Errorf(format, args...))
+}
+
+// requestBadMethodCall 动态方法不存在时的异常，对齐 Macroable::__call/__callStatic。
+func requestBadMethodCall(format string, args ...any) data.Control {
+	return data.NewErrorThrowByName(nil, fmt.Errorf(format, args...), "BadMethodCallException")
 }
 
 var _ data.ClassStmt = (*IlluminateRequestClass)(nil)

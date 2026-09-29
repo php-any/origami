@@ -12,5 +12,6 @@ func collectionMissing(ctx data.Context) (data.GetValue, data.Control) {
 	if v := kit.Arg(ctx, 0); v != nil {
 		name = v.AsString()
 	}
-	return nil, data.NewErrorThrow(nil, fmt.Errorf("Method Illuminate\\Support\\Collection::%s does not exist.", name))
+	// 对齐 Macroable::__call：抛 BadMethodCallException（LogicException 的子类）。
+	return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Method Illuminate\\Support\\Collection::%s does not exist.", name), "BadMethodCallException")
 }

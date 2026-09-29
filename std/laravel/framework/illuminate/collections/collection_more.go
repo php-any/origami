@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/std/laravel/framework/illuminate/conditionable"
@@ -36,6 +38,7 @@ func registerCollectionMore(c *CollectionClass) {
 	add("dot", nil, collectionDot)
 	add("duplicates", []string{"callback", "strict"}, collectionDuplicates)
 	add("duplicatesStrict", []string{"callback"}, collectionDuplicatesStrict)
+	add("ensure", []string{"type"}, collectionEnsure)
 	add("firstOrFail", []string{"callback"}, collectionFirstOrFail)
 	add("firstWhere", []string{"key", "operator", "value"}, collectionFirstWhere)
 	add("flip", nil, collectionFlip)
@@ -147,8 +150,9 @@ func collectionContainsItems(ctx data.Context, cv *data.ClassValue, strict bool)
 	}
 	for _, e := range toEntries(items) {
 		itemVal, ok := dataGetPath(e.value, keyToString(key))
-		if !ok {
-			continue
+		if !ok || itemVal == nil {
+			// PHP 的 data_get 取不到时给 null。
+			itemVal = data.NewNullValue()
 		}
 		if strict {
 			if valueStrictEqual(itemVal, val) {
@@ -170,44 +174,20 @@ func isCallable(v data.Value) bool {
 	}
 }
 
+// valueLooseEqual 对齐 PHP 的 ==（见 php_compare.go）。
 func valueLooseEqual(a, b data.Value) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
-	a, b = unwrapValue(a), unwrapValue(b)
-	if isNull(a) && isNull(b) {
-		return true
-	}
-	return a.AsString() == b.AsString()
+	return phpLooseEquals(a, b)
 }
 
+// valueStrictEqual 对齐 PHP 的 ===（见 php_compare.go）。
 func valueStrictEqual(a, b data.Value) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
-	a, b = unwrapValue(a), unwrapValue(b)
-	if fmt.Sprintf("%T", a) != fmt.Sprintf("%T", b) {
-		return false
-	}
-	switch ta := a.(type) {
-	case *data.IntValue:
-		tb, ok := b.(*data.IntValue)
-		return ok && ta.Value == tb.Value
-	case *data.FloatValue:
-		tb, ok := b.(*data.FloatValue)
-		return ok && ta.Value == tb.Value
-	case *data.StringValue:
-		tb, ok := b.(*data.StringValue)
-		return ok && ta.Value == tb.Value
-	case *data.BoolValue:
-		tb, ok := b.(*data.BoolValue)
-		return ok && ta.Value == tb.Value
-	case *data.NullValue:
-		_, ok := b.(*data.NullValue)
-		return ok
-	default:
-		return a == b
-	}
+	return phpStrictEquals(a, b)
 }
 
 func collectionAdd(ctx data.Context) (data.GetValue, data.Control) {
@@ -316,31 +296,31 @@ func collectionChunkWhile(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, ctl
 	}
 	cb, _ := ctx.GetIndexValue(0)
-	entries := toEntries(collectionItems(cv))
 	chunks := data.NewArrayValue(nil).(*data.ArrayValue)
-	var cur *data.ArrayValue
-	for _, e := range entries {
-		if cur == nil {
-			cur = data.NewArrayValue(nil).(*data.ArrayValue)
+	cur := data.NewArrayValue(nil).(*data.ArrayValue)
+	for i, e := range toEntries(collectionItems(cv)) {
+		// 官方实现（LazyCollection::chunkWhile）：首个元素直接进当前块，不回调；
+		// 之后每次先问回调，返回 false 才切块。块的键沿用原键。
+		if i > 0 {
+			curInst, ctl := newCollectionInstance(ctx, cur)
+			if ctl != nil {
+				return nil, ctl
+			}
+			cont, ctl := callBool(ctx, cb, e.value, e.key, curInst)
+			if ctl != nil {
+				return nil, ctl
+			}
+			if !cont {
+				chunks.List = append(chunks.List, data.NewZVal(curInst))
+				cur = data.NewArrayValue(nil).(*data.ArrayValue)
+			}
 		}
 		setEntry(cur, e.keyStr, e.value)
-		ok, ctl := callBool(ctx, cb, e.value, e.key)
+	}
+	if len(cur.List) > 0 {
+		inst, ctl := newCollectionInstance(ctx, cur)
 		if ctl != nil {
 			return nil, ctl
-		}
-		if !ok {
-			inst, err := newCollectionInstance(ctx, cur)
-			if err != nil {
-				return nil, err
-			}
-			chunks.List = append(chunks.List, data.NewZVal(inst))
-			cur = nil
-		}
-	}
-	if cur != nil && len(cur.List) > 0 {
-		inst, err := newCollectionInstance(ctx, cur)
-		if err != nil {
-			return nil, err
 		}
 		chunks.List = append(chunks.List, data.NewZVal(inst))
 	}
@@ -482,9 +462,10 @@ func collectionCountBy(ctx data.Context) (data.GetValue, data.Control) {
 				}
 			}
 		}
+		// 注意：data.NewIntValue 对小整数返回 interned 单例，绝不能原地 iv.Value++（会污染整个程序里的该常量）。
 		if z, ok := counts.LookupZValByStringKey(k); ok && z != nil {
 			if iv, ok := z.Value.(*data.IntValue); ok {
-				iv.Value++
+				setEntry(counts, k, data.NewIntValue(iv.Value+1))
 			} else {
 				setEntry(counts, k, data.NewIntValue(1))
 			}
@@ -965,20 +946,9 @@ func collectionMapToDictionary(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, ctl
 	}
 	cb, _ := ctx.GetIndexValue(0)
-	out := data.NewArrayValue(nil).(*data.ArrayValue)
-	for _, e := range toEntries(collectionItems(cv)) {
-		ret, ctl := callValue(ctx, cb, e.value, e.key)
-		if ctl != nil {
-			return nil, ctl
-		}
-		if ret == nil {
-			continue
-		}
-		if pair, ok := ret.(*data.ArrayValue); ok && len(pair.List) >= 2 {
-			k := pair.List[0].Value
-			v := pair.List[1].Value
-			setEntry(out, keyToString(k), v)
-		}
+	out, ctl := buildDictionary(ctx, collectionItems(cv), cb)
+	if ctl != nil {
+		return nil, ctl
 	}
 	return newCollectionInstance(ctx, out)
 }
@@ -987,35 +957,119 @@ func collectionMedian(ctx data.Context) (data.GetValue, data.Control) {
 	return collectionNumericAggregate(ctx, "median")
 }
 
+// collectionMode 对齐 EnumeratesValues::mode：
+// pluck($key) 后 countBy，取计数最大的那些键（键按 PHP 数组键规则：数字字符串变整数，首次出现顺序）。
 func collectionMode(ctx data.Context) (data.GetValue, data.Control) {
 	cv, ctl := collectionReceiver(ctx)
 	if ctl != nil {
 		return nil, ctl
 	}
-	key, _ := ctx.GetIndexValue(0) // optional column key
-	counts := map[string]int{}
+	key := kit.Arg(ctx, 0)
+	type bucket struct {
+		count int
+		value data.Value
+	}
+	var order []string
+	index := map[string]int{}
+	buckets := make([]bucket, 0)
 	for _, e := range toEntries(collectionItems(cv)) {
 		v := e.value
 		if key != nil && !isNull(key) {
-			if got, ok := dataGetPath(e.value, keyToString(key)); ok {
-				v = got
+			got, ok := dataGetPath(e.value, keyToString(key))
+			if !ok || got == nil {
+				got = data.NewNullValue()
 			}
+			v = got
 		}
-		counts[v.AsString()]++
+		k := keyToString(v)
+		if i, ok := index[k]; ok {
+			buckets[i].count++
+			continue
+		}
+		index[k] = len(buckets)
+		order = append(order, k)
+		buckets = append(buckets, bucket{count: 1, value: arrayKeyValue(k)})
 	}
-	max := 0
-	for _, c := range counts {
-		if c > max {
-			max = c
+	highest := 0
+	for _, b := range buckets {
+		if b.count > highest {
+			highest = b.count
 		}
 	}
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
-	for s, c := range counts {
-		if c == max {
-			out.List = append(out.List, data.NewZVal(data.NewStringValue(s)))
+	for i, k := range order {
+		if buckets[i].count == highest {
+			out.List = append(out.List, data.NewZVal(buckets[i].value))
+			_ = k
 		}
 	}
-	return out, nil
+	return newCollectionInstance(ctx, out)
+}
+
+// arrayKeyValue 还原 PHP 数组键：整数字符串键是整数。
+func arrayKeyValue(k string) data.Value {
+	if n, ok := data.ParseIntArrayKeyName(k); ok {
+		return data.NewIntValue(n)
+	}
+	return data.NewStringValue(k)
+}
+
+// aggregateValues 按 EnumeratesValues::valueRetriever 取出参与聚合的值：
+// 可调用则回调，字符串则 data_get（取不到给 null，与 PHP 一致）。
+func aggregateValues(ctx data.Context, items *data.ArrayValue, retriever data.Value) ([]data.Value, data.Control) {
+	entries := toEntries(items)
+	values := make([]data.Value, 0, len(entries))
+	if retriever == nil || isNull(retriever) {
+		for _, e := range entries {
+			values = append(values, e.value)
+		}
+		return values, nil
+	}
+	if isCallableValue(retriever) {
+		for _, e := range entries {
+			ret, ctl := callValue(ctx, retriever, e.value, e.key)
+			if ctl != nil {
+				return nil, ctl
+			}
+			values = append(values, asValue(ret))
+		}
+		return values, nil
+	}
+	path := keyToString(retriever)
+	for _, e := range entries {
+		got, ok := dataGetPath(e.value, path)
+		if !ok || got == nil {
+			got = data.NewNullValue()
+		}
+		values = append(values, got)
+	}
+	return values, nil
+}
+
+// accumNumeric 对齐 PHP 的数值运算操作数：null→0、bool→0/1、数字字符串按数值。
+// ok=false 表示 PHP 会抛 TypeError（非数字字符串、数组、对象）。
+func accumNumeric(v data.Value) (f float64, isFloat, ok bool) {
+	switch t := unwrapValue(v).(type) {
+	case nil, *data.NullValue:
+		return 0, false, true
+	case *data.BoolValue:
+		if t.Value {
+			return 1, false, true
+		}
+		return 0, false, true
+	case *data.IntValue:
+		return float64(t.Value), false, true
+	case *data.FloatValue:
+		return t.Value, true, true
+	case *data.StringValue:
+		n, numeric := phpNumericString(t.Value)
+		if !numeric {
+			return 0, false, false
+		}
+		return n, strings.ContainsAny(t.Value, ".eE"), true
+	default:
+		return 0, false, false
+	}
 }
 
 func collectionNumericAggregate(ctx data.Context, kind string) (data.GetValue, data.Control) {
@@ -1023,33 +1077,133 @@ func collectionNumericAggregate(ctx data.Context, kind string) (data.GetValue, d
 	if ctl != nil {
 		return nil, ctl
 	}
-	key, _ := ctx.GetIndexValue(0)
-	nums := make([]float64, 0)
-	for _, e := range toEntries(collectionItems(cv)) {
-		v := e.value
-		if key != nil && !isNull(key) {
-			if got, ok := dataGetPath(e.value, keyToString(key)); ok {
-				v = got
+	values, ctl := aggregateValues(ctx, collectionItems(cv), kit.Arg(ctx, 0))
+	if ctl != nil {
+		return nil, ctl
+	}
+	switch kind {
+	case "sum", "avg", "average":
+		return aggregateSumAvg(ctx, values, kind == "sum")
+	case "max", "min":
+		return aggregateExtreme(values, kind == "max"), nil
+	case "median":
+		return aggregateMedian(ctx, values)
+	}
+	return data.NewNullValue(), nil
+}
+
+// aggregateSumAvg 对齐 EnumeratesValues::sum / avg。
+func aggregateSumAvg(ctx data.Context, values []data.Value, wantSum bool) (data.GetValue, data.Control) {
+	selected := values
+	if !wantSum {
+		// avg 会先丢掉 null 与空串
+		selected = make([]data.Value, 0, len(values))
+		for _, v := range values {
+			if isNull(v) || isEmptyString(v) {
+				continue
 			}
+			selected = append(selected, v)
 		}
-		if iv, ok := v.(*data.IntValue); ok {
-			nums = append(nums, float64(iv.Value))
-		} else if fv, ok := v.(*data.FloatValue); ok {
-			nums = append(nums, fv.Value)
+		if len(selected) == 0 {
+			return data.NewNullValue(), nil
 		}
+	}
+	total := 0.0
+	isFloat := false
+	for _, v := range selected {
+		f, fl, ok := accumNumeric(v)
+		if !ok {
+			// PHP 8：非数值参与算术运算抛 TypeError，类型按当前累加器给出。
+			accum := "int"
+			if isFloat {
+				accum = "float"
+			}
+			return nil, data.NewErrorThrowByName(nil, fmt.Errorf(
+				"Unsupported operand types: %s + %s", accum, phpTypeName(v)), "TypeError")
+		}
+		total += f
+		isFloat = isFloat || fl
+	}
+	if wantSum {
+		if isFloat {
+			return data.NewFloatValue(total), nil
+		}
+		return data.NewIntValue(int(total)), nil
+	}
+	count := float64(len(selected))
+	if !isFloat && int(total)%len(selected) == 0 {
+		return data.NewIntValue(int(total) / len(selected)), nil
+	}
+	return data.NewFloatValue(total / count), nil
+}
+
+// aggregateExtreme 对齐 EnumeratesValues::max/min：先丢 null，再用 PHP 比较规则。
+func aggregateExtreme(values []data.Value, wantMax bool) data.Value {
+	var best data.Value
+	for _, v := range values {
+		if isNull(v) {
+			continue
+		}
+		if best == nil {
+			best = v
+			continue
+		}
+		cmp, ok := phpCompareValues(v, best)
+		if !ok {
+			continue
+		}
+		if (wantMax && cmp > 0) || (!wantMax && cmp < 0) {
+			best = v
+		}
+	}
+	if best == nil {
+		return data.NewNullValue()
+	}
+	return best
+}
+
+func aggregateMedian(ctx data.Context, values []data.Value) (data.GetValue, data.Control) {
+	nums := make([]float64, 0, len(values))
+	for _, v := range values {
+		f, _, ok := accumNumeric(v)
+		if !ok {
+			continue
+		}
+		nums = append(nums, f)
 	}
 	if len(nums) == 0 {
 		return data.NewNullValue(), nil
 	}
 	sort.Float64s(nums)
-	if kind == "median" {
-		mid := len(nums) / 2
-		if len(nums)%2 == 0 {
-			return data.NewFloatValue((nums[mid-1] + nums[mid]) / 2), nil
-		}
-		return data.NewFloatValue(nums[mid]), nil
+	mid := (len(nums) - 1) / 2
+	if len(nums)%2 == 0 {
+		return data.NewFloatValue((nums[mid] + nums[mid+1]) / 2), nil
 	}
-	return data.NewNullValue(), nil
+	return data.NewFloatValue(nums[mid]), nil
+}
+
+func isEmptyString(v data.Value) bool {
+	s, ok := unwrapValue(v).(*data.StringValue)
+	return ok && s.Value == ""
+}
+
+func phpTypeName(v data.Value) string {
+	switch unwrapValue(v).(type) {
+	case *data.StringValue:
+		return "string"
+	case *data.ArrayValue:
+		return "array"
+	case *data.ObjectValue, *data.ClassValue:
+		return "object"
+	case *data.BoolValue:
+		return "bool"
+	case *data.IntValue:
+		return "int"
+	case *data.FloatValue:
+		return "float"
+	default:
+		return "null"
+	}
 }
 
 func collectionMergeRecursive(ctx data.Context) (data.GetValue, data.Control) {
@@ -1126,13 +1280,11 @@ func collectionNth(ctx data.Context) (data.GetValue, data.Control) {
 	if step < 1 {
 		step = 1
 	}
+	// PHP: $position % $step === $offset 时 $new[] = $item —— 键被重新索引。
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
 	for i, e := range toEntries(collectionItems(cv)) {
-		if i < offset {
-			continue
-		}
-		if (i-offset)%step == 0 {
-			setEntry(out, e.keyStr, e.value)
+		if offset >= 0 && i%step == offset {
+			out.List = append(out.List, data.NewZVal(e.value))
 		}
 	}
 	return newCollectionInstance(ctx, out)
@@ -1882,6 +2034,70 @@ func collectionWhereInstanceOf(ctx data.Context) (data.GetValue, data.Control) {
 	return newCollectionInstance(ctx, out)
 }
 
+// collectionEnsure 对齐 EnumeratesValues::ensure($type)：
+// 逐个校验元素类型，命中即通过，否则抛 UnexpectedValueException；返回 $this。
+func collectionEnsure(ctx data.Context) (data.GetValue, data.Control) {
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	// vendor 是 [$type] 而不是 func_get_args()。
+	typeArg := kit.Arg(ctx, 0)
+	var allowed []string
+	if av, ok := kit.Unwrap(typeArg).(*data.ArrayValue); ok {
+		for _, e := range toEntries(av) {
+			allowed = append(allowed, e.value.AsString())
+		}
+	} else if typeArg != nil {
+		allowed = []string{typeArg.AsString()}
+	}
+	for _, e := range toEntries(collectionItems(cv)) {
+		itemType := "null"
+		if e.value != nil {
+			var ctl data.Control
+			itemType, ctl = debugTypeName(ctx, e.value)
+			if ctl != nil {
+				return nil, ctl
+			}
+		}
+		matched := false
+		for _, t := range allowed {
+			// 对齐 vendor：$itemType === $allowedType || $item instanceof $allowedType
+			if itemType == t || valueInstanceOf(e.value, t) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return nil, data.NewErrorThrowByName(nil, fmt.Errorf(
+				"Collection should only include [%s] items, but '%s' found at position %d.",
+				strings.Join(allowed, ", "), itemType, keyPosition(e.keyStr)), "UnexpectedValueException")
+		}
+	}
+	return cv, nil
+}
+
+// getDebugTypeNameValue 复用 VM 里注册的 get_debug_type，避免与 std/php/get_debug_type.go 漂移。
+// 注意本包的 phpTypeName 对对象只返回 "object"，不是 get_debug_type 的语义。
+var getDebugTypeNameValue = data.NewStringValue("get_debug_type")
+
+func debugTypeName(ctx data.Context, v data.Value) (string, data.Control) {
+	ret, ctl := kit.Call(ctx, getDebugTypeNameValue, v)
+	if ctl != nil {
+		return "", ctl
+	}
+	return asValue(ret).AsString(), nil
+}
+
+// keyPosition 取键的整数值，对齐 sprintf('%d', $index)（非数字键为 0）。
+func keyPosition(key string) int {
+	n, err := strconv.Atoi(key)
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
 func collectionWhereNull(ctx data.Context) (data.GetValue, data.Control) {
 	return collectionWhereNullness(ctx, true)
 }
@@ -1931,32 +2147,18 @@ func collectionWhereInOut(ctx data.Context, negate bool) (data.GetValue, data.Co
 		return nil, ctl
 	}
 	key := ""
-	if v := kit.Arg(ctx, 0); v != nil {
+	if v := kit.Arg(ctx, 0); v != nil && !kit.IsNull(v) {
 		key = v.AsString()
 	}
 	values, ctl := getArrayableItems(ctx, kit.Arg(ctx, 1))
 	if ctl != nil {
 		return nil, ctl
 	}
-	allowed := map[string]struct{}{}
-	for _, e := range toEntries(values) {
-		allowed[e.value.AsString()] = struct{}{}
+	strict := false
+	if v := kit.Arg(ctx, 2); v != nil && !kit.IsNull(v) {
+		strict = kit.Truthy(v)
 	}
-	out := data.NewArrayValue(nil).(*data.ArrayValue)
-	for _, e := range toEntries(collectionItems(cv)) {
-		val := e.value
-		if key != "" {
-			if got, ok := dataGetPath(e.value, key); ok {
-				val = got
-			} else {
-				continue
-			}
-		}
-		_, in := allowed[val.AsString()]
-		if in != negate {
-			setEntry(out, e.keyStr, e.value)
-		}
-	}
+	out := whereInCore(collectionItems(cv), key, values, strict, negate)
 	return newCollectionInstance(ctx, out)
 }
 
