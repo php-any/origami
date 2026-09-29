@@ -55,19 +55,27 @@ func (s *chainStore) isShadowed(key string) bool {
 // promoteContainer 把 parent 的容器值拷成请求私有的副本后存进本地。
 // 非容器值原样返回（第二返回值为 false 表示不需要升级）。
 //
-// 必须用 deepCloneValue（递归），不能只 CloneArrayValue 分离一层：
-// Laravel 容器里大量状态是「多值 map」，请求期用嵌套写追加——
+// 只分离**顶层一层**（CloneArrayValue / CloneObjectValue），嵌套数组的分离交给写路径：
+// node.cowSeparateNestedArray 在 $this->map[$k][$j] = $v 这类嵌套写入前会克隆内层数组，
+// 再由 writeBackArrayProperty 把克隆写回父容器。容器里被嵌套写的只有
 //   Container::alias()          -> $this->abstractAliases[$abstract][] = $alias
 //   Container::tag()            -> $this->tags[$tag][] = $abstract
 //   Container::resolving()      -> $this->resolvingCallbacks[$abstract][] = $cb
 //   Container::rebinding()      -> $this->reboundCallbacks[$abstract][] = $cb
-// 只分离一层的话，内层数组仍与全局 app 共享，这些 push 会落进全局容器，
-// 跨请求累积增长。deepCloneValue 对对象（服务实例）仍按引用共享，
-// 与「每请求全量深拷贝 appSandboxDeepKeys」的旧语义完全一致。
+// 四处，形态都是 $this->map[$k][] = $v，走的正是那条逐层分离路径。
+//
+// 旧实现每次都 deepCloneValue（递归整棵子树）：分配画像里
+// promoteContainer -> deepCloneValue 占每请求分配量的 28%（≈214KB/请求），
+// 而其中绝大多数内层数组这一层根本不会被写。分离一层 +
+// 写路径按需逐层分离，得到的隔离语义相同，代价从「表有多大」变成「真正写了哪条路径」。
+//
+// 对象（服务实例）按引用共享，与 PHP 对象语义、与旧 deepCloneValue 的行为一致。
 func promoteContainer(v Value) (Value, bool) {
-	switch v.(type) {
-	case *ArrayValue, *ObjectValue:
-		return deepCloneValue(v, 0), true
+	switch t := v.(type) {
+	case *ArrayValue:
+		return CloneArrayValue(t), true
+	case *ObjectValue:
+		return CloneObjectValue(t), true
 	default:
 		return v, false
 	}

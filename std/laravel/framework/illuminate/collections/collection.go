@@ -20,8 +20,8 @@ func NewEnumerableInterface() data.InterfaceStmt {
 	return &EnumerableInterface{}
 }
 
-func (i *EnumerableInterface) GetName() string                     { return enumerableName }
-func (i *EnumerableInterface) GetExtends() []string                { return nil }
+func (i *EnumerableInterface) GetName() string                      { return enumerableName }
+func (i *EnumerableInterface) GetExtends() []string                 { return nil }
 func (i *EnumerableInterface) GetMethod(string) (data.Method, bool) { return nil, false }
 func (i *EnumerableInterface) GetMethods() []data.Method            { return nil }
 func (i *EnumerableInterface) GetFrom() data.From                   { return nil }
@@ -30,6 +30,12 @@ func (i *EnumerableInterface) GetValue(ctx data.Context) (data.GetValue, data.Co
 }
 
 const collectionName = "Illuminate\\Support\\Collection"
+
+const (
+	arrayableName        = "Illuminate\\Contracts\\Support\\Arrayable"
+	jsonableName         = "Illuminate\\Contracts\\Support\\Jsonable"
+	jsonSerializableName = "JsonSerializable"
+)
 
 type CollectionClass struct {
 	node.Node
@@ -159,14 +165,12 @@ func (c *CollectionClass) register() {
 	kit.RegisterConditionable(c.methods, collectionWhenProxy)
 }
 
-
 func collectionReceiver(ctx data.Context) (*data.ClassValue, data.Control) {
 	if cv := kit.Receiver(ctx); cv != nil {
 		return cv, nil
 	}
 	return nil, data.NewErrorThrow(nil, fmt.Errorf("Collection method missing $this"))
 }
-
 
 func collectionItems(cv *data.ClassValue) *data.ArrayValue {
 	v, _ := cv.GetProperty("items")
@@ -281,12 +285,22 @@ func collectionAll(ctx data.Context) (data.GetValue, data.Control) {
 	return collectionItems(cv), nil
 }
 
+// collectionToArray 对齐 EnumeratesValues::toArray()：
+// $this->map(fn ($v) => $v instanceof Arrayable ? $v->toArray() : $v)->all()
+// 键保持原样，值里的 Arrayable 元素必须被展开——不能直接返回 items，
+// 否则 Filament\Notifications\Collection::toLivewire() 之类的调用会拿到裸对象，
+// Livewire 反水合时找不到对应 synth（Property type not supported in Livewire）。
 func collectionToArray(ctx data.Context) (data.GetValue, data.Control) {
-	return collectionAll(ctx)
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	return itemsToArray(ctx, collectionItems(cv))
 }
 
+// collectionToJson 对齐 EnumeratesValues::toJson()：json_encode($this->jsonSerialize(), $options)
 func collectionToJson(ctx data.Context) (data.GetValue, data.Control) {
-	arr, ctl := collectionAll(ctx)
+	arr, ctl := collectionJsonSerialize(ctx)
 	if ctl != nil {
 		return nil, ctl
 	}
@@ -300,8 +314,123 @@ func collectionToJson(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewStringValue(encoded), nil
 }
 
+// collectionJsonSerialize 对齐 EnumeratesValues::jsonSerialize() 的 match 顺序：
+// JsonSerializable > Jsonable > Arrayable > 原样。
 func collectionJsonSerialize(ctx data.Context) (data.GetValue, data.Control) {
-	return collectionAll(ctx)
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	items := collectionItems(cv)
+	if !hasClassItem(items, "") {
+		return items, nil
+	}
+	out := make([]*data.ZVal, len(items.List))
+	for i, z := range items.List {
+		if z == nil {
+			continue
+		}
+		v := z.Value
+		if c, ok := unwrapValue(v).(*data.ClassValue); ok && c != nil {
+			converted, ok2, ctl := callJsonSerialize(ctx, c)
+			if ctl != nil {
+				return nil, ctl
+			}
+			if ok2 {
+				v = converted
+			}
+		}
+		out[i] = data.CopyZValKeepName(z, v)
+	}
+	return &data.ArrayValue{List: out, IndirectOverloadClass: items.IndirectOverloadClass}, nil
+}
+
+// callJsonSerialize 按 jsonSerialize() 的 match 顺序把一个对象转成可 JSON 化的值。
+// ok 为 false 表示该对象不匹配任何分支，调用方应保留原值。
+func callJsonSerialize(ctx data.Context, c *data.ClassValue) (data.Value, bool, data.Control) {
+	switch {
+	case classIs(c, jsonSerializableName):
+		v, _, ctl := callClassNoArg(c, "jsonSerialize")
+		if ctl != nil {
+			return nil, false, ctl
+		}
+		if v == nil {
+			v = data.NewNullValue()
+		}
+		return v, true, nil
+	case classIs(c, jsonableName):
+		js, _, ctl := callClassNoArg(c, "toJson")
+		if ctl != nil {
+			return nil, false, ctl
+		}
+		if js == nil {
+			js = data.NewNullValue()
+		}
+		decoded, ctl := callVMFunc(ctx, "json_decode", js, data.NewBoolValue(true))
+		if ctl != nil {
+			return nil, false, ctl
+		}
+		return decoded, true, nil
+	case classIs(c, arrayableName):
+		v, _, ctl := callClassNoArg(c, "toArray")
+		if ctl != nil {
+			return nil, false, ctl
+		}
+		if v == nil {
+			v = data.NewNullValue()
+		}
+		return v, true, nil
+	}
+	return nil, false, nil
+}
+
+// itemsToArray 是 toArray() 的核心：保持键，把 Arrayable 元素换成 $v->toArray() 的结果。
+// 没有任何对象元素时直接返回原数组，标量集合不付额外分配。
+func itemsToArray(ctx data.Context, items *data.ArrayValue) (data.Value, data.Control) {
+	if items == nil || !hasClassItem(items, arrayableName) {
+		return items, nil
+	}
+	src := items.List
+	out := make([]*data.ZVal, len(src))
+	for i, z := range src {
+		if z == nil {
+			continue
+		}
+		v := z.Value
+		if c, ok := unwrapValue(v).(*data.ClassValue); ok && c != nil && classIs(c, arrayableName) {
+			conv, _, ctl := callClassNoArg(c, "toArray")
+			if ctl != nil {
+				return nil, ctl
+			}
+			if conv == nil {
+				conv = data.NewNullValue()
+			}
+			v = conv
+		}
+		out[i] = data.CopyZValKeepName(z, v)
+	}
+	return &data.ArrayValue{List: out, IndirectOverloadClass: items.IndirectOverloadClass}, nil
+}
+
+// hasClassItem 快速判断 items 里是否存在对象元素（filter 非空时还要求它实现该接口）。
+// 标量集合在这里只付一次类型断言的代价，不会分配新数组。
+func hasClassItem(items *data.ArrayValue, filter string) bool {
+	if items == nil {
+		return false
+	}
+	for _, z := range items.List {
+		if z == nil {
+			continue
+		}
+		c, ok := unwrapValue(z.Value).(*data.ClassValue)
+		if !ok || c == nil {
+			continue
+		}
+		if filter == "" || classIs(c, filter) {
+			return true
+		}
+	}
+	return false
 }
 
 func collectionMap(ctx data.Context) (data.GetValue, data.Control) {

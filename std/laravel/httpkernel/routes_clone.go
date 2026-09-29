@@ -12,15 +12,6 @@ const (
 	fqnRoute           = "Illuminate\\Routing\\Route"
 )
 
-// routeSandboxDeepKeys：Route 上请求期会被就地写的数组。
-// setParameter() 走 $this->parameters[$name] = $value（就地写数组），
-// bind() 走 $this->parameters = <新数组>（整体赋值）；两者都要求
-// parameters 是请求私有的，否则并发请求会写同一张数组。
-var routeSandboxDeepKeys = []string{
-	"parameters",
-	"originalParameters",
-}
-
 // cloneRoutesForRequest 给请求路由器换一份请求私有的路由表。
 //
 // 为什么必须复制：Illuminate\Routing\Router::findRoute（Router.php:779）每请求都会把
@@ -154,6 +145,18 @@ func (c *routeCloner) rewrite(v data.Value, depth int) data.Value {
 }
 
 // route 返回 Route 的请求私有副本；同一个 Route 只复制一次。
+//
+// 用 CloneRequestScoped（**链式属性表**）而不是 CloneSandboxKeys：请求期真正会被写到的
+// 键只有三个 —— container（Router::findRoute 里 $route->setContainer($this->container)）、
+// parameters 与 originalParameters（bind() 整体赋值 / setParameter() 就地写元素）。
+// 其余键（uri、methods、action、defaults、wheres、router、$compiled…）都是启动期常量，
+// 读不到时回落到全局那份 Route 即可（$compiled 也因此与预热结果共享，见 warmRouteCompiles）。
+//
+// 旧写法 CloneSandboxKeys(ctx, {"parameters","originalParameters"}) 是「请求开始就把整张
+// 属性表浅拷一份、再把两个键深拷」——13 条路由每请求一次，pprof 里
+// routeCloner.rewrite + OrderedMap.Range/Set 合计约 1%~5% 的 CPU 都在这。
+// 链式表把这份固定税换成「按需升级」：首次写到某个键时才把它按值升级（数组递归深拷贝，
+// 见 chainStore / promoteContainer），语义与原来的 deepKeys 列表等价。
 func (c *routeCloner) route(cv *data.ClassValue) data.Value {
 	if cv.ObjectValue == nil {
 		return cv
@@ -161,7 +164,7 @@ func (c *routeCloner) route(cv *data.ClassValue) data.Value {
 	if got, ok := c.memo[cv.ObjectValue]; ok {
 		return got
 	}
-	clone := cv.CloneSandboxKeys(c.ctx, routeSandboxDeepKeys)
+	clone := cv.CloneRequestScoped(c.ctx)
 	if clone == nil {
 		return cv
 	}
@@ -213,3 +216,94 @@ func (c *routeCloner) loadClass(name string) (data.ClassStmt, data.Control) {
 
 // routeClassCache：类名 -> 是否 Route 子类。进程级只读缓存，请求间稳定。
 var routeClassCache sync.Map
+
+// warmRouteCompiles 启动期把每条路由编译一次。
+//
+// Route::compileRoute（Route.php:373）把结果缓存在 **Route 对象自身** 的 $compiled 上：
+//
+//	if (! $this->compiled) { $this->compiled = $this->toSymfonyRoute()->compile(); }
+//
+// 它只由 uri / wheres / domain / methods 决定，全是启动期常量；但请求期用的是
+// cloneRoutesForRequest 复制出来的 Route 副本（属性按引用拷一份，$compiled 初值为 null），
+// 副本上编译完也只写进副本 —— 全局那份永远是 null，于是**每个候选路由每请求都要重跑**
+// RouteCompiler（拼正则、preg_replace、preg_match_all）。
+// 实测 /hello：compileRoute 14 次/请求、toSymfonyRoute 13、getOptionalParameterNames 13、
+// Route::getDomain 14、Route::uri 26。
+//
+// 先在全局 Route 上编译一次，请求复制时 $compiled 会按引用带给每个副本
+// （CompiledRoute 编译后只读，跨请求共享安全），副本上的 compileRoute 直接命中缓存短路。
+func warmRouteCompiles(ctx data.Context, router data.Value) {
+	if ctx == nil || router == nil {
+		return
+	}
+	rv, ok := router.(*data.ClassValue)
+	if !ok || rv == nil {
+		return
+	}
+	raw, ctl := rv.GetProperty("routes")
+	if ctl != nil || raw == nil {
+		return
+	}
+	col, ok := raw.(*data.ClassValue)
+	if !ok || col == nil {
+		return
+	}
+	list, ctl := callObjectMethodInContext(ctx, col, "getRoutes")
+	if ctl != nil || list == nil {
+		return
+	}
+	arr, ok := list.(*data.ArrayValue)
+	if !ok || arr == nil {
+		return
+	}
+	for _, z := range arr.List {
+		if z == nil || z.Value == nil {
+			continue
+		}
+		// 只编译 Route 本体，别的实现类（或未加载的类）交给请求期原路径。
+		if !isRouteValue(ctx, z.Value) {
+			continue
+		}
+		_, _ = callObjectMethodInContext(ctx, z.Value, "compileRoute")
+	}
+}
+
+// isRouteValue 判断数组槽里的值是不是 Route 子类实例（含 ThisValue 包装）。
+func isRouteValue(ctx data.Context, v data.Value) bool {
+	var cv *data.ClassValue
+	switch t := v.(type) {
+	case *data.ThisValue:
+		cv = t.ClassValue
+	case *data.ClassValue:
+		cv = t
+	}
+	if cv == nil || cv.Class == nil {
+		return false
+	}
+	name := cv.Class.GetName()
+	if hit, ok := routeClassCache.Load(name); ok {
+		return hit.(bool)
+	}
+	vm := ctx.GetVM()
+	if vm == nil {
+		return false
+	}
+	hit := false
+	for cur := cv.Class; cur != nil; {
+		if cur.GetName() == fqnRoute {
+			hit = true
+			break
+		}
+		ext := cur.GetExtend()
+		if ext == nil || *ext == "" {
+			break
+		}
+		next, ctl := vm.GetOrLoadClass(*ext)
+		if ctl != nil || next == nil {
+			break
+		}
+		cur = next
+	}
+	routeClassCache.Store(name, hit)
+	return hit
+}

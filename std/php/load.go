@@ -531,6 +531,17 @@ func Load(vm data.VM) {
 	vm.AddClass(core.NewDOMTextClass())
 	vm.AddClass(core.NewDOMCommentClass())
 	vm.AddClass(core.NewDOMNodeListClass())
+
+	// 注册 PHP 8.4 现代 DOM 类（命名空间 Dom，如 Dom\HTMLDocument）
+	vm.AddClass(core.NewDomNodeClass())
+	vm.AddClass(core.NewDomElementClass())
+	vm.AddClass(core.NewDomTextClass())
+	vm.AddClass(core.NewDomProcessingInstructionClass())
+	vm.AddClass(core.NewDomAttrClass())
+	vm.AddClass(core.NewDomNamedNodeMapClass())
+	vm.AddClass(core.NewDomDocumentClass())
+	vm.AddClass(core.NewDomHTMLDocumentClass())
+
 	vm.AddClass(&reflection.ReflectionClassClass{})
 	vm.AddClass(&reflection.ReflectionObjectClass{})
 	vm.AddClass(&reflection.ReflectionMethodClass{})

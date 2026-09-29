@@ -8,7 +8,7 @@ import (
 // Load：Request/Response + Json/Redirect/File/UploadedFile 常开。
 func Load(vm data.VM) {
 	httpfoundation.Load(vm)
-	vm.AddClass(NewIlluminateRequestClass())
+	vm.AddClass(illuminateRequestClassStmt())
 	vm.AddClass(NewIlluminateResponseClass())
 	vm.AddClass(NewIlluminateJsonResponseClass())
 	// RedirectResponse 不打 Go 桩，由 vendor 的 PHP 原文件解析：

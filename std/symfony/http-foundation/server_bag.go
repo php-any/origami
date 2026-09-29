@@ -26,9 +26,7 @@ func NewServerBagClassFrom(source *ParamBagData) data.ClassStmt {
 		source:     source,
 		properties: []data.Property{protectedArrayProp("parameters")},
 	}
-	cm, cl := serverBagMethodsCache()
-	pm, pl := parameterBagMethodsCache()
-	c.methods, c.methodList = inheritClassMethods(cm, cl, pm, pl)
+	c.methods, c.methodList = serverBagInheritedMethods()
 	return c
 }
 
@@ -68,6 +66,9 @@ func (c *ServerBagClass) GetMethod(name string) (data.Method, bool) {
 func (c *ServerBagClass) GetMethods() []data.Method { return c.methodList }
 
 var serverBagMethodsCache = cachedMethods(serverBagMethods)
+
+// serverBagInheritedMethods 是 serverBag 与父类合并后的一次性方法表。
+var serverBagInheritedMethods = cachedInheritedMethods(serverBagMethodsCache, parameterBagMethodsCache)
 
 func serverBagMethods() (map[string]data.Method, []data.Method) {
 	list := []data.Method{

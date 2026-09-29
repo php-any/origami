@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -34,6 +35,7 @@ func NewFinderClass() data.ClassStmt {
 	c.methods["depth"] = &finderMethod{name: "depth", params: []string{"levels"}, fn: finderDepth}
 	c.methods["ignoredotfiles"] = &finderMethod{name: "ignoreDotFiles", params: []string{"ignoreDotFiles"}, fn: finderIgnoreDotFiles}
 	c.methods["sortbyname"] = &finderMethod{name: "sortByName", params: []string{"useNaturalSort"}, fn: finderSortByName}
+	c.methods["date"] = &finderMethod{name: "date", params: []string{"dates"}, fn: finderDate}
 	c.methods["getiterator"] = &finderMethod{name: "getIterator", fn: finderGetIterator}
 	c.methods["count"] = &finderMethod{name: "count", fn: finderCount}
 	return c
@@ -54,6 +56,7 @@ func (c *FinderClass) GetPropertyList() []data.Property {
 		node.NewProperty(nil, "maxDepth", "private", false, data.NewIntValue(-1)),
 		node.NewProperty(nil, "ignoreDotFiles", "private", false, data.NewBoolValue(true)),
 		node.NewProperty(nil, "sortByName", "private", false, data.NewBoolValue(false)),
+		node.NewProperty(nil, "dates", "private", false, data.NewArrayValue(nil)),
 	}
 }
 func (c *FinderClass) GetConstruct() data.Method { return c.methods["__construct"] }
@@ -232,6 +235,208 @@ func finderSortByName(ctx data.Context) (data.GetValue, data.Control) {
 	return cv, nil
 }
 
+func finderDate(ctx data.Context) (data.GetValue, data.Control) {
+	cv := finderSelf(ctx)
+	dates, _ := ctx.GetIndexValue(0)
+	appendStringProp(cv, "dates", dates)
+	return cv, nil
+}
+
+// dateSpec 是 Finder::date() 的一条时间条件（按文件 mtime 比较）。
+type dateSpec struct {
+	op    string // <  <=  >  >=  ==
+	ts    int64
+	never bool // 表达式解析不了：永远不匹配
+}
+
+func (d dateSpec) match(mtime int64) bool {
+	if d.never {
+		return false
+	}
+	switch d.op {
+	case "<":
+		return mtime < d.ts
+	case "<=":
+		return mtime <= d.ts
+	case ">":
+		return mtime > d.ts
+	case ">=":
+		return mtime >= d.ts
+	default:
+		return mtime == d.ts
+	}
+}
+
+// finderDateSpecs 解析 Finder::date() 的参数（单个字符串或字符串数组）。
+//
+// 解析不了的条件记为 never —— 方向必须保守：date() 的语义是「留下满足条件的文件」，
+// gc 之类的调用方拿结果去 **删除**；若把解析失败的当成「满足」，会删掉不该删的文件
+// （FileSessionHandler::gc 会删光活跃会话）。返回空切片才是「不过滤」。
+func finderDateSpecs(exprs []string) []dateSpec {
+	if len(exprs) == 0 {
+		return nil
+	}
+	out := make([]dateSpec, 0, len(exprs))
+	for _, e := range exprs {
+		op, ts, ok := parseDateExpr(e)
+		if !ok {
+			out = append(out, dateSpec{never: true})
+			continue
+		}
+		out = append(out, dateSpec{op: op, ts: ts})
+	}
+	return out
+}
+
+// parseDateExpr 解析 Symfony DateComparator 里最常用的几种写法：
+//
+//	'<= now - 120 seconds'   '>= now'      '> 1700000000'
+//	'< 1 day ago'            '> 2024-01-02 15:04:05'    '<= today'
+//
+// 语法：[op] <base> [<+|-> N unit]，op ∈ < <= > >= == =，
+// base ∈ now/today/yesterday/tomorrow/Unix 时间戳/日期串，
+// unit ∈ second(s)/minute(s)/hour(s)/day(s)/week(s)/month(s)/year(s)。
+func parseDateExpr(expr string) (string, int64, bool) {
+	s := strings.ToLower(strings.TrimSpace(expr))
+	if s == "" {
+		return "", 0, false
+	}
+	op := "=="
+	for _, p := range []string{"<=", ">=", "==", "!=", "<", ">", "="} {
+		if strings.HasPrefix(s, p) {
+			if p == "!=" {
+				// 少见写法，判为不可解析（不参与过滤）
+				return "", 0, false
+			}
+			op = "=="
+			if p != "==" && p != "=" {
+				op = p
+			}
+			s = strings.TrimSpace(s[len(p):])
+			break
+		}
+	}
+	fields := strings.Fields(s)
+	if len(fields) == 0 {
+		return "", 0, false
+	}
+	base := time.Now()
+	used := 0
+	if t, n, ok := parseDateBase(fields); ok {
+		base, used = t, n
+	}
+	shifted, ok := applyDateShift(base, fields[used:])
+	if !ok {
+		return "", 0, false
+	}
+	return op, shifted.Unix(), true
+}
+
+var dateLayouts = []string{
+	"2006-01-02 15:04:05",
+	"2006-01-02T15:04:05",
+	"2006-01-02 15:04",
+	time.RFC3339,
+	"2006-01-02",
+	"2006/01/02",
+	"2006/01/02 15:04:05",
+	"02-01-2006",
+	"02.01.2006",
+	"Jan 2 2006",
+	"Jan 2 15:04:05 2006",
+	"January 2 2006",
+}
+
+// parseDateBase 解析基准时间，返回 (时间, 消耗的 token 数, 是否成功)。
+// 消耗数用于把剩下的 token 交给 applyDateShift（'2024-01-02 15:04:05 - 1 day'）。
+func parseDateBase(fields []string) (time.Time, int, bool) {
+	now := time.Now()
+	switch fields[0] {
+	case "now":
+		return now, 1, true
+	case "today":
+		y, m, d := now.Date()
+		return time.Date(y, m, d, 0, 0, 0, 0, now.Location()), 1, true
+	case "yesterday":
+		y, m, d := now.AddDate(0, 0, -1).Date()
+		return time.Date(y, m, d, 0, 0, 0, 0, now.Location()), 1, true
+	case "tomorrow":
+		y, m, d := now.AddDate(0, 0, 1).Date()
+		return time.Date(y, m, d, 0, 0, 0, 0, now.Location()), 1, true
+	}
+	// Unix 时间戳：要求足够长的纯数字，避免把 '1 day ago' 的 1 当时间戳。
+	if n := len(fields[0]); n >= 9 && n <= 11 {
+		if ts, err := strconv.ParseInt(fields[0], 10, 64); err == nil {
+			return time.Unix(ts, 0), 1, true
+		}
+	}
+	// 日期串可能带空格，从长到短试。
+	for n := min(len(fields), 3); n >= 1; n-- {
+		joined := strings.Join(fields[:n], " ")
+		for _, layout := range dateLayouts {
+			if t, err := time.ParseInLocation(layout, joined, now.Location()); err == nil {
+				return t, n, true
+			}
+		}
+	}
+	return time.Time{}, 0, false
+}
+
+// applyDateShift 把 '<+|-> N unit' / 'N unit ago' / 'N unit since' 应用到基准时间。
+// 空 token 表示没有偏移。月/年用 AddDate（日历语义，与 PHP strtotime 一致），
+// 其余用固定时长。
+func applyDateShift(base time.Time, fields []string) (time.Time, bool) {
+	if len(fields) == 0 {
+		return base, true
+	}
+	neg := false
+	switch last := fields[len(fields)-1]; last {
+	case "ago", "before":
+		neg = true
+		fields = fields[:len(fields)-1]
+	case "since", "after", "from":
+		fields = fields[:len(fields)-1]
+	}
+	// 符号可能是独立 token（'now - 7200 seconds'），并回数字里。
+	if len(fields) >= 2 && (fields[0] == "+" || fields[0] == "-") {
+		fields = append([]string{fields[0] + fields[1]}, fields[2:]...)
+	}
+	if len(fields) != 2 {
+		return time.Time{}, false
+	}
+	num := fields[0]
+	if strings.HasPrefix(num, "+") {
+		num = num[1:]
+	} else if strings.HasPrefix(num, "-") {
+		neg = !neg
+		num = num[1:]
+	}
+	n, err := strconv.ParseInt(num, 10, 64)
+	if err != nil || n < 0 {
+		return time.Time{}, false
+	}
+	if neg {
+		n = -n
+	}
+	switch strings.TrimSuffix(fields[1], "s") {
+	case "second":
+		return base.Add(time.Duration(n) * time.Second), true
+	case "minute":
+		return base.Add(time.Duration(n) * time.Minute), true
+	case "hour":
+		return base.Add(time.Duration(n) * time.Hour), true
+	case "day":
+		return base.AddDate(0, 0, int(n)), true
+	case "week":
+		return base.AddDate(0, 0, int(n)*7), true
+	case "month":
+		return base.AddDate(0, int(n), 0), true
+	case "year":
+		return base.AddDate(int(n), 0, 0), true
+	}
+	return time.Time{}, false
+}
+
 func stringListProp(cv *data.ClassValue, prop string) []string {
 	v, _ := cv.GetProperty(prop)
 	out := []string{}
@@ -314,6 +519,8 @@ func finderCollect(cv *data.ClassValue) []foundFile {
 		excludeSet[filepath.Clean(e)] = struct{}{}
 	}
 
+	dateSpecs := finderDateSpecs(stringListProp(cv, "dates"))
+
 	var out []foundFile
 	for _, root := range dirs {
 		root = filepath.Clean(root)
@@ -351,6 +558,15 @@ func finderCollect(cv *data.ClassValue) []foundFile {
 			}
 			if ignoreDot && strings.HasPrefix(info.Name(), ".") {
 				return nil
+			}
+			// date()：按 mtime 过滤（FileSessionHandler::gc 用它挑出过期会话文件）。
+			if len(dateSpecs) > 0 {
+				mtime := info.ModTime().Unix()
+				for _, d := range dateSpecs {
+					if !d.match(mtime) {
+						return nil
+					}
+				}
 			}
 			if mode == "files" && info.IsDir() {
 				return nil

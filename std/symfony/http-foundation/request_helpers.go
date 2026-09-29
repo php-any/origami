@@ -44,7 +44,7 @@ func cloneHTTPRequest(request *http.Request) *http.Request {
 		u := *request.URL
 		out.URL = &u
 	}
-	if request.Body != nil {
+	if request.Body != nil && request.Body != http.NoBody {
 		body, _ := io.ReadAll(request.Body)
 		request.Body = io.NopCloser(bytes.NewReader(body))
 		out.Body = io.NopCloser(bytes.NewReader(body))
@@ -181,7 +181,7 @@ func cookiesFromRequest(request *http.Request) map[string]data.Value {
 }
 
 func bodyFromRequest(request *http.Request) string {
-	if request == nil || request.Body == nil {
+	if request == nil || request.Body == nil || request.Body == http.NoBody {
 		return ""
 	}
 	body, _ := io.ReadAll(request.Body)
