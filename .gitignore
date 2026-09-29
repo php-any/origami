@@ -20,4 +20,5 @@ php-src
 /examples/spring/spring.db
 /extensions/fyne/examples/music-app/build/
 /examples/vendor-备份/
-/examples/laravel13/storage/framework/views/
+/examples/laravel13/storage/framework/views/*
+!/examples/laravel13/storage/framework/views/.gitignore

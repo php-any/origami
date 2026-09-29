@@ -52,7 +52,7 @@ func buildVM() (*runtime.VM, *parser.Parser) {
 	netannotation.Load(vm)
 	system.Load(vm)
 	// vendoraccel.Load 内部会调 std/laravel.Load，后者带上
-	// App\Http\Kernel（std/laravel/httpkernel）与 ServeCommand（std/laravel/serve）。
+	// Illuminate\Foundation\Http\Kernel（std/laravel/httpkernel）与 ServeCommand（std/laravel/serve）。
 	vendoraccel.Load(vm)
 
 	return vm, p

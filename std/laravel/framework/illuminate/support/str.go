@@ -284,13 +284,45 @@ func strLimit(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func strReplace(ctx data.Context) (data.GetValue, data.Control) {
-	search := strArg(ctx, 0)
-	replace := strArg(ctx, 1)
-	subject := strArg(ctx, 2)
-	if strBoolArg(ctx, 3, true) {
-		return data.NewStringValue(strings.ReplaceAll(subject, search, replace)), nil
+	searchValue := kit.Unwrap(kit.Arg(ctx, 0))
+	replaceValue := kit.Unwrap(kit.Arg(ctx, 1))
+	subjectValue := kit.Unwrap(kit.Arg(ctx, 2))
+	searches := strNeedles(searchValue)
+	replacements := strNeedles(replaceValue)
+	caseSensitive := strBoolArg(ctx, 3, true)
+
+	replaceSubject := func(subject string) string {
+		for i, search := range searches {
+			replacement := ""
+			if _, ok := replaceValue.(*data.ArrayValue); ok {
+				if i < len(replacements) {
+					replacement = replacements[i]
+				}
+			} else if replaceValue != nil {
+				replacement = replaceValue.AsString()
+			}
+			if caseSensitive {
+				subject = strings.ReplaceAll(subject, search, replacement)
+			} else {
+				subject = strReplaceFold(subject, search, replacement)
+			}
+		}
+		return subject
 	}
-	return data.NewStringValue(strReplaceFold(subject, search, replace)), nil
+
+	if subjects, ok := subjectValue.(*data.ArrayValue); ok {
+		out := data.NewArrayValue(nil).(*data.ArrayValue)
+		for _, entry := range kit.Entries(subjects) {
+			z := data.NewZVal(data.NewStringValue(replaceSubject(entry.Value.AsString())))
+			z.Name = entry.KeyStr
+			out.List = append(out.List, z)
+		}
+		return out, nil
+	}
+	if subjectValue == nil {
+		return data.NewStringValue(""), nil
+	}
+	return data.NewStringValue(replaceSubject(subjectValue.AsString())), nil
 }
 
 func strSubstr(ctx data.Context) (data.GetValue, data.Control) {

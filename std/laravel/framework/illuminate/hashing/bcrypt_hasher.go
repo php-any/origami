@@ -24,9 +24,12 @@ func NewBcryptHasherClass() data.ClassStmt {
 	return c
 }
 
-func (c *BcryptHasherClass) GetName() string                          { return bcryptHasherClassName }
-func (c *BcryptHasherClass) GetExtend() *string                       { s := "Illuminate\\Hashing\\AbstractHasher"; return &s }
-func (c *BcryptHasherClass) GetImplements() []string                  { return nil }
+func (c *BcryptHasherClass) GetName() string { return bcryptHasherClassName }
+func (c *BcryptHasherClass) GetExtend() *string {
+	s := "Illuminate\\Hashing\\AbstractHasher"
+	return &s
+}
+func (c *BcryptHasherClass) GetImplements() []string { return nil }
 func (c *BcryptHasherClass) GetProperty(name string) (data.Property, bool) {
 	switch name {
 	case "rounds", "verifyAlgorithm", "limit":
@@ -60,7 +63,9 @@ func (c *BcryptHasherClass) GetMethods() []data.Method {
 	}
 	return out
 }
-func (c *BcryptHasherClass) GetStaticMethod(name string) (data.Method, bool) { return c.GetMethod(name) }
+func (c *BcryptHasherClass) GetStaticMethod(name string) (data.Method, bool) {
+	return c.GetMethod(name)
+}
 
 func (c *BcryptHasherClass) register() {
 	c.methods["__construct"] = kit.InstanceMethodOpt("__construct", []string{"options"}, 0, bcryptConstruct)
@@ -203,6 +208,7 @@ func bcryptInfo(ctx data.Context) (data.GetValue, data.Control) {
 		hash = v.AsString()
 	}
 	arr := data.NewArrayValue(nil).(*data.ArrayValue)
+	arr.SetStringKey("algo", data.NewStringValue("2y"))
 	arr.SetStringKey("algoName", data.NewStringValue("bcrypt"))
 	opts := data.NewArrayValue(nil).(*data.ArrayValue)
 	opts.SetStringKey("cost", data.NewIntValue(bcryptCostFromHash(hash)))

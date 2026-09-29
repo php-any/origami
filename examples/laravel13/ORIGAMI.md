@@ -7,7 +7,7 @@
 ## 原则
 
 1. **起点是原生 Laravel**：`artisan`、`public/index.php`、`bootstrap/app.php`、`vendor/laravel/framework` 保持官方形态；不先堆假 Facade / 假 Kernel。
-2. **缺口回推运行时**：通用 PHP / Symfony / Illuminate 语义差异优先修 Origami 核心；`go-support/` 只做示例级适配（`App\Http\Kernel`、`ServeCommand`）。**禁止**改 `vendor/` 或应用 PHP 来消 Warning / 绕过 Fatal。
+2. **缺口回推运行时**：通用 PHP / Symfony / Illuminate 语义差异优先修 Origami 核心；Go 运行时在 Composer autoload 前覆盖 `Illuminate\Foundation\Http\Kernel`，示例侧只保留 `ServeCommand` 进程适配。**禁止**改 `vendor/` 或应用 PHP 来消 Warning / 绕过 Fatal。
 3. **增量验收**：每打通一层就加 `tests/origami/` 冒烟；禁止「类能加载就算完成」。
 4. **禁止膨胀补丁**：不要在 `bootstrap/` 里用越写越大的匿名 `singleton` 假装能跑。
 
@@ -89,7 +89,7 @@ std/laravel/
 
 ### go-support
 
-只保留应用/进程适配：`App\Http\Kernel`、`ServeCommand`。HttpFoundation 已迁入 `std/symfony/http-foundation`。
+只保留进程适配 `ServeCommand`。HTTP Kernel 由 `std/laravel/httpkernel` 在 vendor autoload 前以官方 FQN 注册，HttpFoundation 已迁入 `std/symfony/http-foundation`。
 
 ### 预热
 

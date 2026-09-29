@@ -6,7 +6,7 @@ import (
 	"github.com/php-any/origami/data"
 )
 
-// Resolve 从 Laravel 容器解析 Go 实现的 App\Http\Kernel。
+// Resolve 从 Laravel 容器解析 Go 实现的 Illuminate\Foundation\Http\Kernel。
 // 该路径会正常触发 ApplicationBuilder 注册的 afterResolving 回调。
 func Resolve(app *data.ClassValue) (*data.ClassValue, data.Control) {
 	if app == nil {
@@ -22,7 +22,7 @@ func Resolve(app *data.ClassValue) (*data.ClassValue, data.Control) {
 	}
 	kernel, ok := value.(*data.ClassValue)
 	if !ok {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("httpkernel: 容器未返回 App\\Http\\Kernel"))
+		return nil, data.NewErrorThrow(nil, fmt.Errorf("httpkernel: 容器未返回 Illuminate\\Foundation\\Http\\Kernel"))
 	}
 	return kernel, nil
 }
@@ -159,13 +159,15 @@ var routerSandboxDeepKeys = []string{
 //
 // 这里曾经是 CloneSandboxKeys(ctx, appSandboxDeepKeys)——每请求把 22 张容器表全量深拷贝。
 // 那份键表本身是对的（这些表请求期确实可能被 Container 的写方法改到）：
-//   bind()/instance()/alias()      -> bindings / aliases / abstractAliases
-//   rebinding()/refresh()          -> reboundCallbacks
-//   resolving()/afterResolving()   -> *ResolvingCallbacks（延迟注册的 provider 每请求都会走）
-//   tag()                          -> tags
-//   extend()                       -> extenders
-//   registerDeferredProvider()     -> loadedProviders / deferredServices
-//   build()                        -> with / buildStack / instances / resolved
+//
+//	bind()/instance()/alias()      -> bindings / aliases / abstractAliases
+//	rebinding()/refresh()          -> reboundCallbacks
+//	resolving()/afterResolving()   -> *ResolvingCallbacks（延迟注册的 provider 每请求都会走）
+//	tag()                          -> tags
+//	extend()                       -> extenders
+//	registerDeferredProvider()     -> loadedProviders / deferredServices
+//	build()                        -> with / buildStack / instances / resolved
+//
 // 问题在于「每请求拷 22 张表」是一笔固定税：暖请求真正写到的通常只有 instances 一两个键，
 // bindings/aliases 这种几百项的表连内层数组都要递归拷一遍，纯属白做。
 // 现在改成按需：链式属性表只在该键第一次被访问时把全局的值升级到请求级，
@@ -281,7 +283,7 @@ func cloneRequestServices(ctx data.Context, app data.Value) {
 	// （AuthServiceProvider::register 里的 rebinding('events')）会去读 $app['auth']->guard()。
 	// 边克隆边安装时，回调跑在 auth 还是全局单例的那一刻，
 	// 于是把 guard 写进了共享 AuthManager 的 $guards（实测每请求 1 次跨 goroutine 写）。
-	pending := make([]clonePending, 0, 6)
+	pending := make([]clonePending, 0, 7)
 	pending = appendPending(ctx, app, pending, "events",
 		"Illuminate\\Events\\Dispatcher",
 		"Illuminate\\Contracts\\Events\\Dispatcher",
@@ -289,6 +291,13 @@ func cloneRequestServices(ctx data.Context, app data.Value) {
 	pending = appendPending(ctx, app, pending, "view",
 		"Illuminate\\View\\Factory",
 		"Illuminate\\Contracts\\View\\Factory",
+	)
+	// BladeCompiler 持有 rawBlocks / footer / componentHashStack 等编译过程状态。
+	// 只隔离 CompilerEngine 不够：并发请求仍会共享 compiler，一个请求 restoreRawContent()
+	// 清空 rawBlocks 后，另一个请求的 @php 块便残留为 @__raw_block_N__@，其中的 use 导入
+	// 丢失后表现为 Width 等短类名无法加载。每请求克隆与 php-fpm 的生命周期一致。
+	pending = appendPending(ctx, app, pending, "blade.compiler",
+		"Illuminate\\View\\Compilers\\BladeCompiler",
 	)
 	pending = appendPending(ctx, app, pending, "url",
 		"Illuminate\\Routing\\UrlGenerator",
@@ -383,9 +392,11 @@ func setRequestInstance(app data.Value, abstract string, val data.Value) {
 // 请求级表链式回落到它；而 Container::resolve 对已存在的实例就是一句
 // `if (isset($this->instances[$abstract])) return $this->instances[$abstract];`。
 // 之前那句 make() 多出来的只有三件事，对本函数用到的这批名字都是空转：
-//   getAlias($abstract)              —— aliases 的键是别名（类名），不是抽象名
-//   fireBeforeResolvingCallbacks()   —— 只有 resolving() 为这些名字注册过回调才有意义
-//   instance 未命中时的 build 链      —— 命中就不会走到，真未命中时本函数已回落 make()
+//
+//	getAlias($abstract)              —— aliases 的键是别名（类名），不是抽象名
+//	fireBeforeResolvingCallbacks()   —— 只有 resolving() 为这些名字注册过回调才有意义
+//	instance 未命中时的 build 链      —— 命中就不会走到，真未命中时本函数已回落 make()
+//
 // 所以只要 instances 里命中，直读与 make() 返回同一个对象。
 //
 // 注意 GetProperty 返回的是请求级那张表（链式属性第一次读会从全局升级成本地副本），
@@ -501,8 +512,10 @@ func resetSessionDrivers(cv *data.ClassValue) {
 
 // rebindSetters 是「容器引用 setter → 它写的属性」的对照表。
 // 这些方法体在 vendor 里都只有一句赋值，可以直接写属性：
-//   Support\Manager::setContainer            -> $this->container = $container
-//   AuthManager/CacheManager::setApplication -> $this->app = $app
+//
+//	Support\Manager::setContainer            -> $this->container = $container
+//	AuthManager/CacheManager::setApplication -> $this->app = $app
+//
 // （本函数只在这两个类的实例上被调用，见 cloneRequestServices 的 pending 名单。）
 var rebindSetters = []struct {
 	method   string
@@ -584,4 +597,3 @@ func Terminate(ctx data.Context, kernel *data.ClassValue, request, response data
 // 请求结束整份副本就丢了，引擎不可能把脏缓冲带到下一请求。
 // 曾经的 ResetViewEngines 作用在请求 app 上（make 命中的正是这份私有副本），
 // 每请求白打 3 次 PHP 调用（make + forget×2）后把副本再 forget 一遍，已删除。
-

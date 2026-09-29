@@ -1050,23 +1050,56 @@ func collectionGroupBy(ctx data.Context) (data.GetValue, data.Control) {
 	if ctl != nil {
 		return nil, ctl
 	}
-	groupBy, _ := ctx.GetIndexValue(0)
+	groupBy := kit.Arg(ctx, 0)
+	preserveKeys := false
+	if preserve := kit.Arg(ctx, 1); preserve != nil && !kit.IsNull(preserve) {
+		preserveKeys = kit.Truthy(preserve)
+	}
 	groups := data.NewArrayValue(nil).(*data.ArrayValue)
 	for _, e := range toEntries(collectionItems(cv)) {
-		gk := ""
-		if v, ok := dataGetPath(e.value, keyToString(groupBy)); ok {
-			gk = keyToString(v)
+		var groupKeys []data.Value
+		if groupBy != nil && !kit.IsNull(groupBy) && isCallableValue(groupBy) {
+			ret, callCtl := kit.Call(ctx, groupBy, e.value, e.key)
+			if callCtl != nil {
+				return nil, callCtl
+			}
+			if value, ok := ret.(data.Value); ok && value != nil {
+				value = kit.Unwrap(value)
+				if keys, ok := value.(*data.ArrayValue); ok {
+					for _, key := range toEntries(keys) {
+						groupKeys = append(groupKeys, key.value)
+					}
+				} else {
+					groupKeys = append(groupKeys, value)
+				}
+			}
+		} else if groupBy != nil && !kit.IsNull(groupBy) {
+			if value, ok := dataGetPath(e.value, keyToString(groupBy)); ok {
+				groupKeys = append(groupKeys, value)
+			}
 		}
-		g, ok := dataGetPath(groups, gk)
-		var garr *data.ArrayValue
-		if ok {
-			garr, _ = g.(*data.ArrayValue)
+		if len(groupKeys) == 0 {
+			groupKeys = append(groupKeys, data.NewNullValue())
 		}
-		if garr == nil {
-			garr = data.NewArrayValue(nil).(*data.ArrayValue)
-			setEntry(groups, gk, garr)
+		for _, groupKey := range groupKeys {
+			gk := collectionGroupKey(groupKey)
+			var garr *data.ArrayValue
+			// 分组结果的键是 PHP 数组字面键，不是 data_get() 路径。
+			// 尤其空字符串键表示“无父导航项”；把它当空路径会错误地
+			// 返回 groups 自身，随后把元素追加到分组数组的外层。
+			if slot, ok := groups.LookupZValByStringKey(gk); ok && slot != nil {
+				garr, _ = slot.Value.(*data.ArrayValue)
+			}
+			if garr == nil {
+				garr = data.NewArrayValue(nil).(*data.ArrayValue)
+				setEntry(groups, gk, garr)
+			}
+			if preserveKeys {
+				setEntry(garr, e.keyStr, e.value)
+			} else {
+				garr.List = append(garr.List, data.NewZVal(e.value))
+			}
 		}
-		garr.List = append(garr.List, data.NewZVal(e.value))
 	}
 	// wrap each group as Collection
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
@@ -1078,6 +1111,21 @@ func collectionGroupBy(ctx data.Context) (data.GetValue, data.Control) {
 		setEntry(out, e.keyStr, inst)
 	}
 	return newCollectionInstance(ctx, out)
+}
+
+func collectionGroupKey(value data.Value) string {
+	value = kit.Unwrap(value)
+	switch key := value.(type) {
+	case nil, *data.NullValue:
+		return ""
+	case *data.BoolValue:
+		if key.Value {
+			return "1"
+		}
+		return "0"
+	default:
+		return keyToString(value)
+	}
 }
 
 func collectionKeyBy(ctx data.Context) (data.GetValue, data.Control) {
@@ -1122,7 +1170,30 @@ func collectionJoin(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func collectionGetIterator(ctx data.Context) (data.GetValue, data.Control) {
-	return collectionAll(ctx)
+	cv, ctl := collectionReceiver(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	vm := ctx.GetVM()
+	cls, ok := vm.GetClass("ArrayIterator")
+	if !ok {
+		cls, ctl = vm.GetOrLoadClass("ArrayIterator")
+		if ctl != nil {
+			return nil, ctl
+		}
+	}
+	if cls == nil {
+		return nil, data.NewErrorThrow(nil, fmt.Errorf("Class ArrayIterator not found"))
+	}
+	it := data.NewClassValue(cls, ctx.CreateBaseContext())
+	if ctor := cls.GetConstruct(); ctor != nil {
+		nctx := it.CreateContext(ctor.GetVariables())
+		data.BindDeclaredArgs(nctx, ctor, []data.Value{collectionItems(cv)})
+		if _, ctl := ctor.Call(nctx); ctl != nil {
+			return nil, ctl
+		}
+	}
+	return it, nil
 }
 
 func collectionOffsetExists(ctx data.Context) (data.GetValue, data.Control) {

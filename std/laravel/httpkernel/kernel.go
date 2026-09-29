@@ -1,5 +1,4 @@
-// Package httpkernel 提供 App\Http\Kernel 的 Go 实现，
-// 用于替代 Laravel 13 默认绑定的 Illuminate\Foundation\Http\Kernel。
+// Package httpkernel 提供 Illuminate\Foundation\Http\Kernel 的 Go 实现。
 package httpkernel
 
 import (
@@ -8,7 +7,7 @@ import (
 )
 
 const (
-	fqnKernel         = "App\\Http\\Kernel"
+	fqnKernel         = "Illuminate\\Foundation\\Http\\Kernel"
 	fqnKernelContract = "Illuminate\\Contracts\\Http\\Kernel"
 )
 
@@ -63,7 +62,7 @@ func newKernelState() *kernelState {
 	}
 }
 
-// KernelClass 实现 data.ClassStmt：App\Http\Kernel。
+// KernelClass 实现 data.ClassStmt：Illuminate\Foundation\Http\Kernel。
 type KernelClass struct {
 	node.Node
 	state      *kernelState

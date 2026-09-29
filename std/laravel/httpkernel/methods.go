@@ -274,7 +274,9 @@ func kernelHandle(ctx data.Context) (data.GetValue, data.Control) {
 
 	// 4) 对齐 Foundation\Http\Kernel::handle：请求处理完成后派发 RequestHandled 事件，
 	// 供 Telescope RequestWatcher 等监听器记录请求。
-	dispatchRequestHandled(ctx, s, request, asValue(response))
+	if ctl := dispatchRequestHandled(ctx, s, request, asValue(response)); ctl != nil {
+		return nil, ctl
+	}
 
 	return response, nil
 }
@@ -334,9 +336,9 @@ const fqnRequestHandled = "Illuminate\\Foundation\\Http\\Events\\RequestHandled"
 
 // dispatchRequestHandled 派发 Illuminate\Foundation\Http\Events\RequestHandled 事件，
 // 对齐 Laravel Kernel::handle 在请求处理完成后的尾部行为。
-func dispatchRequestHandled(ctx data.Context, s *kernelState, request, response data.Value) {
+func dispatchRequestHandled(ctx data.Context, s *kernelState, request, response data.Value) data.Control {
 	if s == nil || s.app == nil || request == nil || response == nil {
-		return
+		return nil
 	}
 	// 无监听器快路径：整段（make 事件 + make dispatcher + dispatch）等价于
 	// 「构造一个没人接的事件对象再丢掉」，没有监听器时直接不构造。
@@ -350,10 +352,10 @@ func dispatchRequestHandled(ctx data.Context, s *kernelState, request, response 
 	//
 	// 监听器表读的是**请求级** dispatcher（cloneRequestServices 克隆出来的那个，其 listeners
 	// 未命中时回落到全局）：本请求中途才 listen 的事件也能看见，不依赖启动期快照。
-	// 这套部署里该事件唯一的监听器来自 Telescope RequestWatcher，未启用时恒为空。
+	// Livewire 的资源自动注入和 Telescope RequestWatcher 都依赖这个事件。
 	dispatcher := requestInstance(ctx, s.app, "events")
-	if !hasEventListeners(dispatcher, fqnRequestHandled) {
-		return
+	if !hasEventListeners(ctx, dispatcher, fqnRequestHandled) {
+		return nil
 	}
 	// $app->make(RequestHandled::class, ['request' => $request, 'response' => $response])
 	params := &data.ArrayValue{List: []*data.ZVal{
@@ -363,41 +365,24 @@ func dispatchRequestHandled(ctx data.Context, s *kernelState, request, response 
 	event, ctl := callObjectMethodInContext(ctx, s.app, "make",
 		data.NewStringValue("Illuminate\\Foundation\\Http\\Events\\RequestHandled"), params)
 	if ctl != nil || event == nil {
-		return
+		return ctl
 	}
 	// $app['events']->dispatch($event)
-	_, _ = callObjectMethodInContext(ctx, dispatcher, "dispatch", asValue(event))
+	_, ctl = callObjectMethodInContext(ctx, dispatcher, "dispatch", asValue(event))
+	return ctl
 }
 
-// hasEventListeners 判断事件派发器上是否注册了某个事件名的监听器，
-// 对齐 Illuminate\Events\Dispatcher::hasListeners（Events/Dispatcher.php:169）：
-//
-//	isset($this->listeners[$eventName]) || isset($this->wildcards[$eventName])
-//		|| $this->hasWildcardListeners($eventName)
-//
-// 拿不准（不是 ClassValue / 属性读取报错）一律返回 true，走完整路径。
-// 传入的 dispatcher 是请求级克隆时，listeners 未命中会链式回落到全局那份。
-func hasEventListeners(dispatcher data.Value, name string) bool {
-	cv, ok := dispatcher.(*data.ClassValue)
-	if !ok || cv == nil {
+// hasEventListeners 通过 Dispatcher 的公开 API 判断事件是否有监听器。
+// 不能直接读取 PHP 的 $listeners 属性：Origami 预加载的 Go Dispatcher 为避免热路径
+// 上反复转换 PHP 数组，把监听器保存在 dispatcherState 中，声明属性只是兼容反射的空壳。
+// 直接读属性会把 Livewire 注册的 RequestHandled 监听器误判为空，导致其前端资源未注入。
+// 调用失败时保守返回 true，确保只损失快路径而不改变事件语义。
+func hasEventListeners(ctx data.Context, dispatcher data.Value, name string) bool {
+	ret, ctl := callObjectMethodInContext(ctx, dispatcher, "hasListeners", data.NewStringValue(name))
+	if ctl != nil || ret == nil {
 		return true
 	}
-	raw, ctl := cv.GetProperty("listeners")
-	if ctl != nil {
-		return true
-	}
-	if arr, ok := raw.(*data.ArrayValue); ok && arr != nil {
-		if z, ok := arr.LookupZValByStringKey(name); ok && z != nil && z.Value != nil {
-			return true
-		}
-	}
-	// 通配符监听器（'foo.*' / '*'）让任意事件名都可能命中，非空就保守按「有」处理。
-	if wc, ctl := cv.GetProperty("wildcards"); ctl == nil && wc != nil {
-		if arr, ok := wc.(*data.ArrayValue); ok && arr != nil && len(arr.List) > 0 {
-			return true
-		}
-	}
-	return false
+	return isTruthy(asValue(ret))
 }
 
 // dispatchToRouter 对齐 Foundation\Http\Kernel::dispatchToRouter：

@@ -5,8 +5,8 @@ import (
 	"github.com/php-any/origami/std/laravel/framework"
 	"github.com/php-any/origami/std/laravel/httpkernel"
 	"github.com/php-any/origami/std/laravel/prompts"
-	serializableclosure "github.com/php-any/origami/std/laravel/serializable-closure"
 	"github.com/php-any/origami/std/laravel/sentinel"
+	serializableclosure "github.com/php-any/origami/std/laravel/serializable-closure"
 	"github.com/php-any/origami/std/laravel/serve"
 	"github.com/php-any/origami/std/laravel/telescope"
 	"github.com/php-any/origami/std/laravel/tinker"
@@ -16,7 +16,7 @@ import (
 //
 // 两层内容：
 //   - framework/* 与 serializable-closure 等：vendor 各 Composer 包的原生加速层；
-//   - httpkernel / serve：Origami 用 Go 顶替的应用侧 HTTP 桥与开发服务器，
+//   - httpkernel / serve：Origami 用 Go 顶替的 Laravel HTTP Kernel 与开发服务器，
 //     不再由示例工程自带。
 func Load(vm data.VM) {
 	framework.Load(vm)
