@@ -32,4 +32,11 @@ if (!password_needs_rehash($hash, PASSWORD_BCRYPT, ['cost' => 12])) {
     Log::fatal('不同 cost 应 needs_rehash');
 }
 
+if (class_exists(\Illuminate\Hashing\BcryptHasher::class, false)) {
+    $hasherInfo = (new \Illuminate\Hashing\BcryptHasher())->info($hash);
+    if (($hasherInfo['algo'] ?? null) !== '2y') {
+        Log::fatal('BcryptHasher::info algo 失败: '.var_export($hasherInfo, true));
+    }
+}
+
 Log::info('password_* 测试通过');

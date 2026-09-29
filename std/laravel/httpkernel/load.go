@@ -2,12 +2,11 @@ package httpkernel
 
 import "github.com/php-any/origami/data"
 
-// Load 注册应用侧 HTTP 桥：App\Http\Kernel。
+// Load 在 Composer autoload 执行前注册 Go 版 Illuminate\Foundation\Http\Kernel。
 //
 // vendor（Symfony / Illuminate）原生类由 std/vendoraccel + std/laravel/framework 注册；
-// 本包只补 Laravel 官方骨架里由应用自己声明、但 Origami 用 Go 顶替的那一层。
-// 类名沿用 Laravel 约定（bootstrap/app.php 会把 Contracts\Http\Kernel 绑到它），
-// 因此不需要改动应用的 PHP 代码。
+// ApplicationBuilder::withKernels() 会将 Contracts\Http\Kernel 绑到这个官方 FQN，
+// 因此 bootstrap/app.php 保持 Laravel 13 官方内容，无需应用侧重新绑定。
 func Load(vm data.VM) {
 	vm.AddClass(NewClass())
 }

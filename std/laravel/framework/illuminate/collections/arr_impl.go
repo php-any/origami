@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 )
 
 func arrAccessible(ctx data.Context) (data.GetValue, data.Control) {
@@ -965,7 +966,11 @@ func arrJoin(ctx data.Context) (data.GetValue, data.Control) {
 	entries := toEntries(arr)
 	strs := make([]string, len(entries))
 	for i, e := range entries {
-		strs[i] = e.value.AsString()
+		s, ctl := node.ValueToDisplayString(ctx, e.value)
+		if ctl != nil {
+			return nil, ctl
+		}
+		strs[i] = s
 	}
 	if len(strs) == 0 {
 		return data.NewStringValue(""), nil

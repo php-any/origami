@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -13,8 +12,6 @@ import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/std/laravel/framework/internal/kit"
 )
-
-var strSnakeUpperRe = regexp.MustCompile(`(.)([A-Z])`)
 
 var (
 	strSnakeCache  = map[string]map[string]string{}
@@ -186,10 +183,19 @@ func snakeCached(value, delim string) string {
 
 	out := value
 	if !isASCIILower(value) {
-		out = strings.ReplaceAll(out, " ", "")
-		out = strSnakeUpperRe.ReplaceAllString(out, "${1}"+delim+"${2}")
-		out = strings.ToLower(out)
-		out = strings.ReplaceAll(out, "-", delim)
+		// Laravel: preg_replace('/\s+/u', '', ucwords($value))，再在每个
+		// ASCII 大写字母前插入分隔符。空格必须让 ctype_lower() 返回 false；
+		// 否则 Eloquent withCount 的 "permissions count " 不会生成
+		// permissions_count 别名。
+		out = upperWordsWithoutWhitespace(out)
+		var b strings.Builder
+		for i, r := range []rune(out) {
+			if i > 0 && r >= 'A' && r <= 'Z' {
+				b.WriteString(delim)
+			}
+			b.WriteRune(r)
+		}
+		out = strings.ToLower(b.String())
 	}
 
 	strCacheMu.Lock()
@@ -202,15 +208,32 @@ func snakeCached(value, delim string) string {
 }
 
 func isASCIILower(s string) bool {
+	if s == "" {
+		return false
+	}
 	for _, r := range s {
-		if r > unicode.MaxASCII {
-			return false
-		}
-		if unicode.IsLetter(r) && !unicode.IsLower(r) {
+		if r < 'a' || r > 'z' {
 			return false
 		}
 	}
 	return true
+}
+
+func upperWordsWithoutWhitespace(s string) string {
+	var b strings.Builder
+	upperNext := true
+	for _, r := range s {
+		if unicode.IsSpace(r) {
+			upperNext = true
+			continue
+		}
+		if upperNext {
+			r = unicode.ToUpper(r)
+			upperNext = false
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 func randomStringLaravel(length int) string {
@@ -256,9 +279,9 @@ func formatUUIDv7(ms uint64) string {
 const crockford = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
 var (
-	ulidGenMu     sync.Mutex
-	ulidLastMs    uint64
-	ulidLastRand  [10]byte
+	ulidGenMu    sync.Mutex
+	ulidLastMs   uint64
+	ulidLastRand [10]byte
 )
 
 func generateULIDString(ms uint64) string {

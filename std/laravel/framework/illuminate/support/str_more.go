@@ -13,6 +13,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/std/laravel/framework/internal/kit"
+	"github.com/php-any/origami/std/php/preg"
 )
 
 var strUUIDRe = regexp.MustCompile(`^[\da-fA-F]{8}-[\da-fA-F]{4}-[\da-fA-F]{4}-[\da-fA-F]{4}-[\da-fA-F]{12}$`)
@@ -513,7 +514,7 @@ func strMatch(ctx data.Context) (data.GetValue, data.Control) {
 func strIsMatch(ctx data.Context) (data.GetValue, data.Control) {
 	value := strArg(ctx, 1)
 	for _, p := range strNeedles(kit.Arg(ctx, 0)) {
-		re, err := regexp.Compile(p)
+		re, err := preg.CompileAny(p)
 		if err == nil && re.MatchString(value) {
 			return data.NewBoolValue(true), nil
 		}
@@ -647,13 +648,19 @@ func strPlural(ctx data.Context) (data.GetValue, data.Control) {
 func strPluralStudly(ctx data.Context) (data.GetValue, data.Control) {
 	value := strArg(ctx, 0)
 	count := strIntArg(ctx, 1, 2)
-	parts := regexp.MustCompile(`(.)`).Split(value, -1)
-	if len(parts) == 0 {
+	runes := []rune(value)
+	if len(runes) == 0 {
 		return data.NewStringValue(value), nil
 	}
-	last := parts[len(parts)-1]
-	parts[len(parts)-1] = englishPluralFallback(last, count)
-	return data.NewStringValue(strings.Join(parts, "")), nil
+	lastWordStart := 0
+	for i := 1; i < len(runes); i++ {
+		if unicode.IsUpper(runes[i]) {
+			lastWordStart = i
+		}
+	}
+	prefix := string(runes[:lastWordStart])
+	lastWord := string(runes[lastWordStart:])
+	return data.NewStringValue(prefix + englishPluralFallback(lastWord, count)), nil
 }
 
 func strPluralPascal(ctx data.Context) (data.GetValue, data.Control) {
@@ -811,7 +818,7 @@ func strReplaceMatches(ctx data.Context) (data.GetValue, data.Control) {
 	pattern := strArg(ctx, 0)
 	replace := kit.Arg(ctx, 1)
 	subject := strArg(ctx, 2)
-	re, err := regexp.Compile(pattern)
+	re, err := preg.CompileAny(pattern)
 	if err != nil {
 		return data.NewStringValue(subject), nil
 	}

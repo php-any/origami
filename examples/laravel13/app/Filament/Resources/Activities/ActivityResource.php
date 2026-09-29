@@ -69,7 +69,7 @@ class ActivityResource extends Resource
                             ->label('变更内容')
                             ->formatStateUsing(fn ($state): string => is_string($state)
                                 ? $state
-                                : json_encode($state, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) ?: '—')
+                                : (json_encode($state, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) ?: '—'))
                             ->columnSpanFull(),
                         TextEntry::make('created_at')
                             ->label('时间')

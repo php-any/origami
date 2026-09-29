@@ -2,7 +2,6 @@ package view
 
 import (
 	"fmt"
-	"html"
 	"strconv"
 	"strings"
 
@@ -283,35 +282,7 @@ func bagInvoke(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	htmlStr := ""
 	if bag, ok := kit.Unwrap(merged.(data.Value)).(*data.ClassValue); ok {
-		nctx := bag.CreateContext(nil)
-		// toHtml via string cast path
-		_ = nctx
-		attrs := bagAttrs(bag)
-		var b strings.Builder
-		for _, e := range kit.Entries(attrs) {
-			if e.Value == nil || kit.IsNull(e.Value) {
-				continue
-			}
-			if bv, ok := e.Value.(*data.BoolValue); ok {
-				okv, _ := bv.AsBool()
-				if !okv {
-					continue
-				}
-				if b.Len() > 0 {
-					b.WriteByte(' ')
-				}
-				b.WriteString(e.KeyStr)
-				continue
-			}
-			if b.Len() > 0 {
-				b.WriteByte(' ')
-			}
-			b.WriteString(e.KeyStr)
-			b.WriteString(`="`)
-			b.WriteString(html.EscapeString(e.Value.AsString()))
-			b.WriteByte('"')
-		}
-		htmlStr = b.String()
+		htmlStr = renderBagAttributes(bagAttrs(bag))
 	} else if merged != nil {
 		htmlStr = merged.(data.Value).AsString()
 	}
@@ -649,31 +620,40 @@ func bagToHtml(ctx data.Context) (data.GetValue, data.Control) {
 	if ctl != nil {
 		return nil, ctl
 	}
+	return data.NewStringValue(renderBagAttributes(bagAttrs(cv))), nil
+}
+
+// renderBagAttributes 对齐 Laravel 13 ComponentAttributeBag::__toString()。
+// 绑定属性在 ComponentTagCompiler::sanitizeComponentAttribute() 中已经转义；
+// 此处再次 html.EscapeString 会把 &#039; 变成 &amp;#039;，导致 Alpine
+// 在 DOM 中读到字面实体并将表达式解析为非法 JavaScript。
+func renderBagAttributes(attrs *data.ArrayValue) string {
 	var b strings.Builder
-	for _, e := range kit.Entries(bagAttrs(cv)) {
+	for _, e := range kit.Entries(attrs) {
 		if e.Value == nil || kit.IsNull(e.Value) {
 			continue
 		}
+		value := e.Value.AsString()
 		if bv, ok := e.Value.(*data.BoolValue); ok {
 			okv, _ := bv.AsBool()
 			if !okv {
 				continue
 			}
-			if b.Len() > 0 {
-				b.WriteByte(' ')
+			if e.KeyStr == "x-data" || strings.HasPrefix(e.KeyStr, "wire:") {
+				value = ""
+			} else {
+				value = e.KeyStr
 			}
-			b.WriteString(e.KeyStr)
-			continue
 		}
 		if b.Len() > 0 {
 			b.WriteByte(' ')
 		}
 		b.WriteString(e.KeyStr)
 		b.WriteString(`="`)
-		b.WriteString(html.EscapeString(e.Value.AsString()))
+		b.WriteString(strings.ReplaceAll(strings.TrimSpace(value), `"`, `\"`))
 		b.WriteByte('"')
 	}
-	return data.NewStringValue(b.String()), nil
+	return b.String()
 }
 
 func bagGetIterator(ctx data.Context) (data.GetValue, data.Control) {

@@ -27,6 +27,30 @@ if ($e->decryptString($enc) !== 'hello') {
     exit(1);
 }
 
+try {
+    $e->decryptString('invalid-payload');
+    echo "FAIL invalid payload did not throw\n";
+    exit(1);
+} catch (\Illuminate\Contracts\Encryption\DecryptException $exception) {
+    if ($exception->getMessage() !== 'The payload is invalid.') {
+        echo "FAIL invalid payload message\n";
+        exit(1);
+    }
+}
+
+$otherKey = \Illuminate\Encryption\Encrypter::generateKey('aes-256-cbc');
+$otherEncrypter = new \Illuminate\Encryption\Encrypter($otherKey, 'aes-256-cbc');
+try {
+    $otherEncrypter->decryptString($enc);
+    echo "FAIL stale key payload did not throw\n";
+    exit(1);
+} catch (\Illuminate\Contracts\Encryption\DecryptException $exception) {
+    if ($exception->getMessage() !== 'The MAC is invalid.') {
+        echo "FAIL stale key payload message\n";
+        exit(1);
+    }
+}
+
 $prev = \Illuminate\Encryption\Encrypter::generateKey('aes-256-cbc');
 $e->previousKeys([$prev]);
 $all = $e->getAllKeys();

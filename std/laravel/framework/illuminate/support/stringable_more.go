@@ -34,12 +34,16 @@ func (c *StringableClass) registerStringableMore() {
 	inst("isempty", nil, stringableIsEmpty)
 	inst("isnotempty", nil, stringableIsNotEmpty)
 	inst("basename", []string{"suffix"}, stringableBasename)
+	inst("classbasename", nil, stringableClassBasename)
+	c.methods["whencontains"] = kit.InstanceMethodOpt("whenContains", []string{"needles", "callback", "default"}, 2, stringableWhenContains)
 	inst("offsetexists", []string{"offset"}, stringableOffsetExists)
 	inst("offsetget", []string{"offset"}, stringableOffsetGet)
 	inst("offsetset", []string{"offset", "value"}, stringableOffsetSet)
 	inst("offsetunset", []string{"offset"}, stringableOffsetUnset)
 	inst("__get", []string{"key"}, stringableGet)
 	inst("tohtmlstring", nil, stringableToHtmlString)
+	// Laravel Stringable::test() 是 isMatch() 的别名，不是 Str::test()（后者不存在）。
+	inst("test", []string{"pattern"}, stringableTest)
 	c.methods["explode"] = kit.InstanceMethodOpt("explode", []string{"delimiter", "limit"}, 1, stringableExplode)
 
 	kit.RegisterConditionable(c.methods, conditionable.NewWhenProxy)
@@ -115,7 +119,6 @@ func (c *StringableClass) registerStringableMore() {
 		{"match", []string{"pattern"}},
 		{"matchall", []string{"pattern"}},
 		{"ismatch", []string{"pattern"}},
-		{"test", []string{"pattern"}},
 		{"position", []string{"needle", "offset", "encoding"}},
 		{"substrcount", []string{"needle", "offset", "length"}},
 		{"substrreplace", []string{"replace", "offset", "length"}},
@@ -128,6 +131,10 @@ func (c *StringableClass) registerStringableMore() {
 			return stringableInvokeStr(ctx, name, stringableCallArgs(ctx))
 		})
 	}
+}
+
+func stringableTest(ctx data.Context) (data.GetValue, data.Control) {
+	return strIsMatch(withStrArgs(ctx, kit.Arg(ctx, 0), data.NewStringValue(stringableValue(ctx))))
 }
 
 func stringableCallArgs(ctx data.Context) []data.Value {
@@ -347,6 +354,30 @@ func stringableBasename(ctx data.Context) (data.GetValue, data.Control) {
 		v = v[:len(v)-len(suffix)]
 	}
 	return stringableWrap(ctx, filepath.Base(v))
+}
+
+func stringableClassBasename(ctx data.Context) (data.GetValue, data.Control) {
+	s := classBasenameSource(data.NewStringValue(stringableValue(ctx)))
+	if i := lastSlash(s); i >= 0 {
+		s = s[i+1:]
+	}
+	return stringableWrap(ctx, s)
+}
+
+func stringableWhenContains(ctx data.Context) (data.GetValue, data.Control) {
+	recv := kit.Receiver(ctx)
+	if recv == nil {
+		return nil, data.NewErrorThrow(nil, fmt.Errorf("Stringable::whenContains missing $this"))
+	}
+	value := stringableValue(ctx)
+	matched := false
+	for _, needle := range strNeedles(kit.Arg(ctx, 0)) {
+		if needle != "" && strings.Contains(value, needle) {
+			matched = true
+			break
+		}
+	}
+	return kit.CallInstanceMethod(ctx, recv, "when", data.NewBoolValue(matched), kit.Arg(ctx, 1), kit.Arg(ctx, 2))
 }
 
 func stringableOffsetExists(ctx data.Context) (data.GetValue, data.Control) {

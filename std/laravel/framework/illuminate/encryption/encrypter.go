@@ -16,7 +16,11 @@ import (
 	"github.com/php-any/origami/std/laravel/framework/internal/kit"
 )
 
-const encrypterClassName = "Illuminate\\Encryption\\Encrypter"
+const (
+	encrypterClassName        = "Illuminate\\Encryption\\Encrypter"
+	encryptExceptionClassName = "Illuminate\\Contracts\\Encryption\\EncryptException"
+	decryptExceptionClassName = "Illuminate\\Contracts\\Encryption\\DecryptException"
+)
 
 var supportedCiphers = map[string]int{
 	"aes-128-cbc": 16,
@@ -34,9 +38,9 @@ func NewEncrypterClass() data.ClassStmt {
 	return c
 }
 
-func (c *EncrypterClass) GetName() string                          { return encrypterClassName }
-func (c *EncrypterClass) GetExtend() *string                       { return nil }
-func (c *EncrypterClass) GetImplements() []string                  {
+func (c *EncrypterClass) GetName() string    { return encrypterClassName }
+func (c *EncrypterClass) GetExtend() *string { return nil }
+func (c *EncrypterClass) GetImplements() []string {
 	return []string{"Illuminate\\Contracts\\Encryption\\Encrypter", "Illuminate\\Contracts\\Encryption\\StringEncrypter"}
 }
 func (c *EncrypterClass) GetProperty(name string) (data.Property, bool) {
@@ -329,11 +333,11 @@ func encEncryptPayload(ctx data.Context, serialize bool) (data.GetValue, data.Co
 	}
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("Could not encrypt the data."))
+		return nil, encryptionError("Could not encrypt the data.")
 	}
 	iv := make([]byte, aes.BlockSize)
 	if _, err := rand.Read(iv); err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("Could not encrypt the data."))
+		return nil, encryptionError("Could not encrypt the data.")
 	}
 	mode := cipher.NewCBCEncrypter(block, iv)
 	padded := pkcs7Pad([]byte(plain), aes.BlockSize)
@@ -375,36 +379,43 @@ func encDecryptPayload(ctx data.Context, unserialize bool) (data.GetValue, data.
 	if ctl != nil {
 		return nil, ctl
 	}
-	payloadStr := kit.Arg(ctx, 0).AsString()
+	payloadValue := kit.Unwrap(kit.Arg(ctx, 0))
+	if _, ok := payloadValue.(*data.StringValue); !ok {
+		return nil, decryptionError("The payload is invalid.")
+	}
+	payloadStr := payloadValue.AsString()
 	raw, err := base64.StdEncoding.DecodeString(payloadStr)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("The payload is invalid."))
+		return nil, decryptionError("The payload is invalid.")
 	}
 	var payload map[string]string
 	if err := json.Unmarshal(raw, &payload); err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("The payload is invalid."))
+		return nil, decryptionError("The payload is invalid.")
 	}
 	if payload["iv"] == "" || payload["value"] == "" || payload["mac"] == "" {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("The payload is invalid."))
+		return nil, decryptionError("The payload is invalid.")
 	}
 	if !hmac.Equal([]byte(encMac(payload["iv"], payload["value"], key)), []byte(payload["mac"])) {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("The MAC is invalid."))
+		return nil, decryptionError("The MAC is invalid.")
 	}
-	iv, _ := base64.StdEncoding.DecodeString(payload["iv"])
-	ct, _ := base64.StdEncoding.DecodeString(payload["value"])
+	iv, err := base64.StdEncoding.DecodeString(payload["iv"])
+	if err != nil || len(iv) != aes.BlockSize {
+		return nil, decryptionError("The payload is invalid.")
+	}
+	ct, err := base64.StdEncoding.DecodeString(payload["value"])
+	if err != nil || len(ct) == 0 || len(ct)%aes.BlockSize != 0 {
+		return nil, decryptionError("Could not decrypt the data.")
+	}
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("Could not decrypt the data."))
+		return nil, decryptionError("Could not decrypt the data.")
 	}
 	mode := cipher.NewCBCDecrypter(block, iv)
-	if len(ct)%aes.BlockSize != 0 {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("Could not decrypt the data."))
-	}
 	plain := make([]byte, len(ct))
 	mode.CryptBlocks(plain, ct)
 	plain, err = pkcs7Unpad(plain, aes.BlockSize)
 	if err != nil {
-		return nil, data.NewErrorThrow(nil, fmt.Errorf("Could not decrypt the data."))
+		return nil, decryptionError("Could not decrypt the data.")
 	}
 	_ = cipherName
 	if unserialize {
@@ -415,6 +426,14 @@ func encDecryptPayload(ctx data.Context, unserialize bool) (data.GetValue, data.
 		}
 	}
 	return data.NewStringValue(string(plain)), nil
+}
+
+func encryptionError(message string) data.Control {
+	return data.NewErrorThrowByName(nil, fmt.Errorf("%s", message), encryptExceptionClassName)
+}
+
+func decryptionError(message string) data.Control {
+	return data.NewErrorThrowByName(nil, fmt.Errorf("%s", message), decryptExceptionClassName)
 }
 
 func encMac(iv, value, key string) string {
