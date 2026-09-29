@@ -25,12 +25,9 @@ func NewInputBagClassFrom(source *ParamBagData) data.ClassStmt {
 		source:     source,
 		properties: []data.Property{protectedArrayProp("parameters")},
 	}
-	cm, cl := inputBagMethodsCache()
-	pm, pl := parameterBagMethodsCache()
-	c.methods, c.methodList = inheritClassMethods(cm, cl, pm, pl)
+	c.methods, c.methodList = inputBagInheritedMethods()
 	return c
 }
-
 func (c *InputBagClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	src := c.source
 	if src == nil {
@@ -67,6 +64,9 @@ func (c *InputBagClass) GetMethod(name string) (data.Method, bool) {
 func (c *InputBagClass) GetMethods() []data.Method { return c.methodList }
 
 var inputBagMethodsCache = cachedMethods(inputBagMethods)
+
+// inputBagInheritedMethods 是 InputBag + ParameterBag 合并后的一次性方法表。
+var inputBagInheritedMethods = cachedInheritedMethods(inputBagMethodsCache, parameterBagMethodsCache)
 
 func inputBagMethods() (map[string]data.Method, []data.Method) {
 	list := []data.Method{

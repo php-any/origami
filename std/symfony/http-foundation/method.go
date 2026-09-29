@@ -61,6 +61,26 @@ func cachedMethods(build func() (map[string]data.Method, []data.Method)) func() 
 	}
 }
 
+// cachedInheritedMethods 记忆化「子类表 + 父类表」的合并结果。
+//
+// inheritClassMethods 的两份输入都是 cachedMethods 产出的一次性只读表，合并结果同样只读，
+// 且没有任何代码在构造后写 c.methods（见各 Bag 的构造），因此每个类只需合并一次。
+// 原实现是每次实例化（即每个请求）为 InputBag/FileBag/ServerBag/ResponseHeaderBag
+// 各建一份 merged map 与 slice —— 4 张表合计约 24KB/请求，纯属重复劳动。
+func cachedInheritedMethods(child, parent func() (map[string]data.Method, []data.Method)) func() (map[string]data.Method, []data.Method) {
+	var once sync.Once
+	var methods map[string]data.Method
+	var list []data.Method
+	return func() (map[string]data.Method, []data.Method) {
+		once.Do(func() {
+			cm, cl := child()
+			pm, pl := parent()
+			methods, list = inheritClassMethods(cm, cl, pm, pl)
+		})
+		return methods, list
+	}
+}
+
 // indexMethods 同时以 GetName 与小写名为 key，保证 GetMethod 大小写不敏感。
 func indexMethods(list []data.Method) map[string]data.Method {
 	m := make(map[string]data.Method, len(list)*2)

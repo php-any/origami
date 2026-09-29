@@ -41,9 +41,7 @@ func NewResponseHeaderBagClassFrom(source *ResponseHeaderBagData) data.ClassStmt
 			protectedArrayProp("headerNames"),
 		},
 	}
-	cm, cl := responseHeaderBagMethodsCache()
-	pm, pl := headerBagMethodsCache()
-	c.methods, c.methodList = inheritClassMethods(cm, cl, pm, pl)
+	c.methods, c.methodList = responseHeaderBagInheritedMethods()
 	return c
 }
 
@@ -173,6 +171,9 @@ func initResponseDate(src *ResponseHeaderBagData) {
 }
 
 var responseHeaderBagMethodsCache = cachedMethods(responseHeaderBagMethods)
+
+// responseHeaderBagInheritedMethods 是 responseHeaderBag 与父类合并后的一次性方法表。
+var responseHeaderBagInheritedMethods = cachedInheritedMethods(responseHeaderBagMethodsCache, headerBagMethodsCache)
 
 func responseHeaderBagMethods() (map[string]data.Method, []data.Method) {
 	list := []data.Method{

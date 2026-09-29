@@ -2,6 +2,7 @@ package node
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/php-any/origami/data"
 )
@@ -35,6 +36,13 @@ func (n *IntLiteral) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 
 // NewNumberLiteral 解析复杂数字面量（十六进制、二进制、八进制、科学计数法）
 func NewNumberLiteral(token *TokenFrom, str string) data.GetValue {
+	// PHP 7.4 数字分隔符：20_000 / 0xFF_FF / 1_0.5 都是合法字面量，
+	// 下划线只作视觉分隔，必须先去掉再判断进制/类型，
+	// 否则 Atoi("20_000") 失败会退化成 float。
+	if strings.IndexByte(str, '_') >= 0 {
+		str = strings.ReplaceAll(str, "_", "")
+	}
+
 	// 检查是否是科学计数法（包含 e 或 E）
 	for i := 0; i < len(str); i++ {
 		if str[i] == 'e' || str[i] == 'E' {

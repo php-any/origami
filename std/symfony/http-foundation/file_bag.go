@@ -28,9 +28,7 @@ func NewFileBagClassFrom(source *ParamBagData) data.ClassStmt {
 		source:     source,
 		properties: []data.Property{protectedArrayProp("parameters")},
 	}
-	cm, cl := fileBagMethodsCache()
-	pm, pl := parameterBagMethodsCache()
-	c.methods, c.methodList = inheritClassMethods(cm, cl, pm, pl)
+	c.methods, c.methodList = fileBagInheritedMethods()
 	return c
 }
 
@@ -70,6 +68,9 @@ func (c *FileBagClass) GetMethod(name string) (data.Method, bool) {
 func (c *FileBagClass) GetMethods() []data.Method { return c.methodList }
 
 var fileBagMethodsCache = cachedMethods(fileBagMethods)
+
+// fileBagInheritedMethods 是 fileBag 与父类合并后的一次性方法表。
+var fileBagInheritedMethods = cachedInheritedMethods(fileBagMethodsCache, parameterBagMethodsCache)
 
 func fileBagMethods() (map[string]data.Method, []data.Method) {
 	list := []data.Method{

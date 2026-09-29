@@ -62,10 +62,23 @@ func NewIlluminateRequestClass() data.ClassStmt {
 // NewIlluminateRequestValue ç´æ¥ä» Go HTTP è¯·æ±æé  Laravel Requestã
 // Go HTTP åæ ¸ä½¿ç¨æ­¤å¥å£ï¼æ éåæ§è¡ public/index.php æç»è¿ PHP capture æ¡¥æ¥ã
 func NewIlluminateRequestValue(ctx data.Context, request *nethttp.Request) *data.ClassValue {
-	stmt := NewIlluminateRequestClass()
-	value := data.NewClassValue(stmt, ctx.CreateBaseContext())
+	value := data.NewClassValue(illuminateRequestClassStmt(), ctx.CreateBaseContext())
 	initializeIlluminateRequest(value, request)
 	return value
+}
+
+// illuminateRequestClassStmt 返回一份共享的 Illuminate\Http\Request 类。
+// 类本身（131 个方法与方法表）是只读的全局结构，请求差异全在 ClassValue /
+// illuminateRequestState 里；因此每个请求只新建实例，不再重建方法表——
+// 原实现每请求重建一次 newIlluminateMethod 与方法表，实测约 27KB/请求。
+var (
+	illuminateRequestClassOnce sync.Once
+	illuminateRequestClass     data.ClassStmt
+)
+
+func illuminateRequestClassStmt() data.ClassStmt {
+	illuminateRequestClassOnce.Do(func() { illuminateRequestClass = NewIlluminateRequestClass() })
+	return illuminateRequestClass
 }
 
 func (c *IlluminateRequestClass) GetName() string { return illuminateRequestClassName }
@@ -555,8 +568,7 @@ func createIlluminateFromValue(ctx data.Context, from data.Value, target *data.C
 		return nil, requestError("source request is not an object")
 	}
 	if target == nil {
-		stmt := NewIlluminateRequestClass()
-		target = data.NewClassValue(stmt, ctx.CreateBaseContext())
+		target = data.NewClassValue(illuminateRequestClassStmt(), ctx.CreateBaseContext())
 	}
 	var source *nethttp.Request
 	if request, ok := requestHTTPSource(sourceCV); ok {
@@ -1021,7 +1033,7 @@ func illuminateConcernDispatch(method *illuminateRequestMethod, ctx data.Context
 }
 
 func duplicateIlluminateRequest(cv *data.ClassValue, ctx data.Context) (data.GetValue, data.Control) {
-	target := data.NewClassValue(NewIlluminateRequestClass(), cv.Context.CreateBaseContext())
+	target := data.NewClassValue(illuminateRequestClassStmt(), cv.Context.CreateBaseContext())
 	initializeIlluminateRequest(target, requestState(cv).source)
 	for name, value := range cv.GetProperties() {
 		_ = target.SetProperty(name, value)

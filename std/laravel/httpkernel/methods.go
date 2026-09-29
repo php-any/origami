@@ -330,10 +330,29 @@ func flushOnceHelper(ctx data.Context, s *kernelState) {
 	}
 }
 
+const fqnRequestHandled = "Illuminate\\Foundation\\Http\\Events\\RequestHandled"
+
 // dispatchRequestHandled 派发 Illuminate\Foundation\Http\Events\RequestHandled 事件，
 // 对齐 Laravel Kernel::handle 在请求处理完成后的尾部行为。
 func dispatchRequestHandled(ctx data.Context, s *kernelState, request, response data.Value) {
 	if s == nil || s.app == nil || request == nil || response == nil {
+		return
+	}
+	// 无监听器快路径：整段（make 事件 + make dispatcher + dispatch）等价于
+	// 「构造一个没人接的事件对象再丢掉」，没有监听器时直接不构造。
+	//
+	// 语义依据 Events\Dispatcher::dispatch（Dispatcher.php:171）：
+	//   [$event, $payload] = $this->parseEventAndPayload(...);   // 事件对象已是实参，这里只是取名
+	//   if ($this->shouldBroadcast($payload)) { ... }            // 要求 $payload[0] instanceof ShouldBroadcast
+	//   foreach ($this->getListeners($event) as $listener) { ... }  // 空 ⇒ $responses 空
+	// RequestHandled（Foundation/Http/Events/RequestHandled.php）是普通类，不实现 ShouldBroadcast，
+	// 所以监听器为空时 dispatch 恒返回空数组、无任何副作用。
+	//
+	// 监听器表读的是**请求级** dispatcher（cloneRequestServices 克隆出来的那个，其 listeners
+	// 未命中时回落到全局）：本请求中途才 listen 的事件也能看见，不依赖启动期快照。
+	// 这套部署里该事件唯一的监听器来自 Telescope RequestWatcher，未启用时恒为空。
+	dispatcher := requestInstance(ctx, s.app, "events")
+	if !hasEventListeners(dispatcher, fqnRequestHandled) {
 		return
 	}
 	// $app->make(RequestHandled::class, ['request' => $request, 'response' => $response])
@@ -347,12 +366,38 @@ func dispatchRequestHandled(ctx data.Context, s *kernelState, request, response 
 		return
 	}
 	// $app['events']->dispatch($event)
-	dispatcher, ctl := callObjectMethodInContext(ctx, s.app, "make",
-		data.NewStringValue("Illuminate\\Contracts\\Events\\Dispatcher"))
-	if ctl != nil || dispatcher == nil {
-		return
+	_, _ = callObjectMethodInContext(ctx, dispatcher, "dispatch", asValue(event))
+}
+
+// hasEventListeners 判断事件派发器上是否注册了某个事件名的监听器，
+// 对齐 Illuminate\Events\Dispatcher::hasListeners（Events/Dispatcher.php:169）：
+//
+//	isset($this->listeners[$eventName]) || isset($this->wildcards[$eventName])
+//		|| $this->hasWildcardListeners($eventName)
+//
+// 拿不准（不是 ClassValue / 属性读取报错）一律返回 true，走完整路径。
+// 传入的 dispatcher 是请求级克隆时，listeners 未命中会链式回落到全局那份。
+func hasEventListeners(dispatcher data.Value, name string) bool {
+	cv, ok := dispatcher.(*data.ClassValue)
+	if !ok || cv == nil {
+		return true
 	}
-	_, _ = callObjectMethodInContext(ctx, asValue(dispatcher), "dispatch", asValue(event))
+	raw, ctl := cv.GetProperty("listeners")
+	if ctl != nil {
+		return true
+	}
+	if arr, ok := raw.(*data.ArrayValue); ok && arr != nil {
+		if z, ok := arr.LookupZValByStringKey(name); ok && z != nil && z.Value != nil {
+			return true
+		}
+	}
+	// 通配符监听器（'foo.*' / '*'）让任意事件名都可能命中，非空就保守按「有」处理。
+	if wc, ctl := cv.GetProperty("wildcards"); ctl == nil && wc != nil {
+		if arr, ok := wc.(*data.ArrayValue); ok && arr != nil && len(arr.List) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // dispatchToRouter 对齐 Foundation\Http\Kernel::dispatchToRouter：
