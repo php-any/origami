@@ -1,8 +1,10 @@
 package log
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/php-any/origami/data"
@@ -64,11 +66,26 @@ func (l *Log) formatMessage(level, levelColor, msg string, args data.ArrayValue)
 		timestamp, msg, argsStr, ColorReset)
 }
 
-// Fatal 致命错误级别日志 - 会终止程序
-func (l *Log) Fatal(msg string, args data.ArrayValue) {
+// fatalCount 累计 Log::fatal 触发次数，供测试套件统计失败用例。
+// 常驻服务下可能有并发请求走到这里，故用原子计数（写路径不在热路径上）。
+var fatalCount atomic.Int64
+
+// FatalCount 返回进程内 Log::fatal 的累计触发次数。
+func FatalCount() int64 {
+	return fatalCount.Load()
+}
+
+// Fatal 致命错误级别日志。
+//
+// 语义对齐 PHPUnit 的断言失败：写完日志后抛出 Error 中止当前脚本，
+// 而不是 os.Exit(1)。os.Exit 会绕过宿主的一切处理——测试套件 try/catch
+// 接不住（首个失败用例即终止整套回归）、常驻服务里一次请求失败会杀掉整个进程。
+// 顶层脚本未捕获时由 CLI 打印异常并返回退出码 1，行为与之前一致。
+func (l *Log) Fatal(msg string, args data.ArrayValue) data.Control {
 	formatted := l.formatMessage("FATAL", ColorBold+ColorRed, msg, args)
 	fmt.Fprint(l.output, formatted)
-	os.Exit(1)
+	fatalCount.Add(1)
+	return data.NewErrorThrowByName(nil, errors.New(msg), "Error")
 }
 
 // Error 错误级别日志

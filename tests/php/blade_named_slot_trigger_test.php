@@ -45,7 +45,13 @@ $resolver->register('blade', function () use ($compiler, $files) {
 $finder = new FileViewFinder($files, [$base . '/views']);
 $events = new Dispatcher(new Container());
 $factory = new Factory($resolver, $finder, $events);
-Container::getInstance()->instance('view', $factory);
+$container = Container::getInstance();
+$container->instance('view', $factory);
+// ComponentTagCompiler::componentClass() 解析的是契约名而非 'view'，
+// 必须像 Application::registerCoreContainerAliases() 那样登记别名，
+// 否则 make(Factory::class) 会走到 build() 对接口抛 not instantiable。
+$container->alias('view', Factory::class);
+$container->alias('view', \Illuminate\Contracts\View\Factory::class);
 $compiler->component('panel', 'panel');
 
 try {

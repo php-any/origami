@@ -23,8 +23,7 @@ func (h *LogFatalMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, utils.NewThrow(errors.New("缺少参数, index: 1"))
 	}
 
-	h.source.Fatal(a0.(*data.StringValue).AsString(), *a1.(*data.ArrayValue))
-	return nil, nil
+	return nil, h.source.Fatal(a0.(*data.StringValue).AsString(), *a1.(*data.ArrayValue))
 }
 
 func (h *LogFatalMethod) GetName() string {
