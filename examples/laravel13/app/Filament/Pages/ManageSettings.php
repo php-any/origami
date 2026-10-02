@@ -11,6 +11,7 @@ use Filament\Pages\Page;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Form;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Text;
 use Filament\Schemas\Schema;
 
 /**
@@ -64,10 +65,12 @@ class ManageSettings extends Page
                         ->schema([
                             TextInput::make('site_name')
                                 ->label('站点名称')
+                                ->helperText('用于标识当前站点的名称。')
                                 ->required()
                                 ->maxLength(255),
                             Toggle::make('maintenance_mode')
-                                ->label('维护模式'),
+                                ->label('维护模式')
+                                ->helperText('按需设置站点的维护状态。'),
                         ]),
                     Section::make('订单设置')
                         ->description('管理订单编号规则')
@@ -75,16 +78,19 @@ class ManageSettings extends Page
                         ->schema([
                             TextInput::make('order_prefix')
                                 ->label('订单号前缀')
+                                ->helperText('建议使用简短、易识别的字母前缀。')
                                 ->required()
                                 ->maxLength(20),
                         ]),
                 ])
-                    ->columns(['default' => 1, 'lg' => 2])
+                    ->columns(1)
                     ->livewireSubmitHandler('save')
                     ->footer([
+                        Text::make('更改将在保存后生效。')->extraAttributes(['class' => 'origami-save-note']),
                         Actions::make([
                             Action::make('save')
                                 ->label('保存设置')
+                                ->icon('heroicon-o-check')
                                 ->submit('save')
                                 ->keyBindings(['mod+s']),
                         ]),
