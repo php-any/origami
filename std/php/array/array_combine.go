@@ -91,24 +91,11 @@ func setCombineEntry(av *data.ArrayValue, key, val data.Value) {
 }
 
 func setCombineIntKey(av *data.ArrayValue, i int, val data.Value) {
-	if i < 0 {
-		setCombineStringKey(av, data.IntArrayKeyName(i), val)
-		return
-	}
-	for len(av.List) <= i {
-		av.List = append(av.List, data.NewZVal(data.NewNullValue()))
-	}
-	av.List[i] = data.NewZVal(val)
+	av.SetIntKey(i, val)
 }
 
 func setCombineStringKey(av *data.ArrayValue, keyStr string, val data.Value) {
-	for _, z := range av.List {
-		if z != nil && z.Name == keyStr {
-			z.Value = val
-			return
-		}
-	}
-	av.List = append(av.List, data.NewNamedZVal(keyStr, val))
+	av.SetStringKey(keyStr, val)
 }
 
 func (f *ArrayCombineFunction) GetName() string {

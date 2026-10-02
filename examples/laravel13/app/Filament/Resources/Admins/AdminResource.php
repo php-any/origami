@@ -15,6 +15,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Section;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Table;
@@ -25,7 +26,7 @@ class AdminResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-shield-check';
 
-    protected static string|\UnitEnum|null $navigationGroup = '系统管理';
+    protected static string|\UnitEnum|null $navigationGroup = '团队与权限';
 
     protected static ?string $navigationLabel = '管理员';
 
@@ -40,32 +41,45 @@ class AdminResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(['default' => 1, 'lg' => 3])
             ->components([
-                TextInput::make('name')
-                    ->label('姓名')
-                    ->required()
-                    ->maxLength(255),
-                TextInput::make('email')
-                    ->label('邮箱')
-                    ->email()
-                    ->required()
-                    ->unique(ignoreRecord: true)
-                    ->maxLength(255),
-                TextInput::make('password')
-                    ->label('密码')
-                    ->password()
-                    ->revealable()
-                    ->dehydrated(fn (?string $state): bool => filled($state))
-                    ->required(fn (string $operation): bool => $operation === 'create')
-                    ->maxLength(255),
-                Toggle::make('is_active')
-                    ->label('启用')
-                    ->default(true),
-                CheckboxList::make('roles')
-                    ->label('角色')
-                    ->relationship('roles', 'display_name')
+                Section::make('账号信息')
+                    ->description('管理员身份、登录方式与账号状态')
+                    ->icon('heroicon-o-identification')
                     ->columns(2)
-                    ->columnSpanFull(),
+                    ->columnSpan(['default' => 1, 'lg' => 2])
+                    ->schema([
+                        TextInput::make('name')
+                            ->label('姓名')
+                            ->required()
+                            ->maxLength(255),
+                        TextInput::make('email')
+                            ->label('邮箱')
+                            ->email()
+                            ->required()
+                            ->unique(ignoreRecord: true)
+                            ->maxLength(255),
+                        TextInput::make('password')
+                            ->label('密码')
+                            ->password()
+                            ->revealable()
+                            ->dehydrated(fn (?string $state): bool => filled($state))
+                            ->required(fn (string $operation): bool => $operation === 'create')
+                            ->maxLength(255),
+                        Toggle::make('is_active')
+                            ->label('启用')
+                            ->default(true),
+                    ]),
+                Section::make('角色权限')
+                    ->description('通过角色分配业务管理权限')
+                    ->icon('heroicon-o-shield-check')
+                    ->schema([
+                        CheckboxList::make('roles')
+                            ->label('角色')
+                            ->relationship('roles', 'display_name')
+                            ->columns(2)
+                            ->columnSpanFull(),
+                    ]),
             ]);
     }
 

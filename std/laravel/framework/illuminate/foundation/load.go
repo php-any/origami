@@ -10,7 +10,9 @@ func BindRequest(app *data.ClassValue, request data.Value) data.Control {
 	for _, abstract := range []string{"Illuminate\\Http\\Request", "request"} {
 		if m, ok := app.GetMethod("instance"); ok && m != nil {
 			nctx := app.CreateContext(m.GetVariables())
-			data.BindDeclaredArgs(nctx, m, []data.Value{data.NewStringValue(abstract), request})
+			if ctl := data.BindDeclaredArgs(nctx, m, []data.Value{data.NewStringValue(abstract), request}); ctl != nil {
+				return ctl
+			}
 			if _, ctl := m.Call(nctx); ctl != nil {
 				return ctl
 			}

@@ -654,6 +654,7 @@ func setTypes(v data.Variable, t data.Types) {
 
 // typeKey 为 data.Types 生成稳定且语义化的指纹，用于判重
 func typeKey(t data.Types) string {
+	t = data.LegacyType(t)
 	if t == nil {
 		return ""
 	}
@@ -750,6 +751,7 @@ func createLocationFromClass(class data.ClassStmt) *defines.Location {
 
 // getClassNameFromType 从类型信息中获取类名
 func getClassNameFromType(typ data.Types) string {
+	typ = data.LegacyType(typ)
 	switch t := typ.(type) {
 	case *data.LspTypes:
 		// LspTypes 包含多个类型，尝试从中找到第一个类类型

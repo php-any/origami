@@ -34,6 +34,7 @@ func (h *ServerOnErrorMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 func (h *ServerOnErrorMethod) GetName() string            { return "onError" }
 func (h *ServerOnErrorMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ServerOnErrorMethod) GetIsStatic() bool          { return false }
+
 var serverOnErrorMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "handler", 0, nil, nil),
 }
@@ -41,6 +42,7 @@ var serverOnErrorMethodGetParams = []data.GetValue{
 func (h *ServerOnErrorMethod) GetParams() []data.GetValue {
 	return serverOnErrorMethodGetParams
 }
+
 var serverOnErrorMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "handler", 0, nil),
 }

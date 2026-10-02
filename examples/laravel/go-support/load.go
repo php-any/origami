@@ -91,7 +91,8 @@ func optionsCost(options data.Value, defaultCost int) int {
 	if !ok || arr == nil {
 		return defaultCost
 	}
-	for _, z := range arr.List {
+	for arraySlots2, arrayPosition2 := arr.View(), 0; arrayPosition2 < arraySlots2.Len(); arrayPosition2++ {
+		z := arraySlots2.At(arrayPosition2)
 		if z != nil && z.Name == "cost" && z.Value != nil {
 			return valueAsInt(z.Value, defaultCost)
 		}
@@ -194,17 +195,15 @@ func (f *PasswordGetInfoFunction) Call(ctx data.Context) (data.GetValue, data.Co
 			cost, _ = strconv.Atoi(parts[2])
 		}
 	}
-	return &data.ArrayValue{
-		List: []*data.ZVal{
+	return data.NewArrayValueFromSlots([]*data.ZVal{
 			data.NewNamedZVal("algo", data.NewIntValue(algo)),
 			data.NewNamedZVal("algoName", data.NewStringValue(algoName)),
-			data.NewNamedZVal("options", &data.ArrayValue{
-				List: []*data.ZVal{
-					data.NewNamedZVal("cost", data.NewIntValue(cost)),
-				},
+			data.NewNamedZVal("options", data.NewArrayValueFromSlots([]*data.ZVal{
+				data.NewNamedZVal("cost", data.NewIntValue(cost)),
 			}),
-		},
-	}, nil
+			),
+		}),
+		nil
 }
 func (f *PasswordGetInfoFunction) GetName() string            { return "password_get_info" }
 func (f *PasswordGetInfoFunction) GetModifier() data.Modifier { return data.ModifierPublic }

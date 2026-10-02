@@ -36,6 +36,7 @@ func (m *SessionHandlerOpenMethod) Call(data.Context) (data.GetValue, data.Contr
 func (m *SessionHandlerOpenMethod) GetName() string            { return "open" }
 func (m *SessionHandlerOpenMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SessionHandlerOpenMethod) GetIsStatic() bool          { return false }
+
 var sessionHandlerOpenMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "save_path", 0, nil, nil),
 	node.NewParameter(nil, "session_name", 1, nil, nil),
@@ -44,6 +45,7 @@ var sessionHandlerOpenMethodGetParams = []data.GetValue{
 func (m *SessionHandlerOpenMethod) GetParams() []data.GetValue {
 	return sessionHandlerOpenMethodGetParams
 }
+
 var sessionHandlerOpenMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "save_path", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "session_name", 1, data.NewBaseType("string")),
@@ -59,16 +61,22 @@ type SessionHandlerCloseMethod struct{}
 func (m *SessionHandlerCloseMethod) Call(data.Context) (data.GetValue, data.Control) {
 	return data.NewBoolValue(true), nil
 }
-func (m *SessionHandlerCloseMethod) GetName() string               { return "close" }
-func (m *SessionHandlerCloseMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *SessionHandlerCloseMethod) GetIsStatic() bool             { return false }
+func (m *SessionHandlerCloseMethod) GetName() string            { return "close" }
+func (m *SessionHandlerCloseMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *SessionHandlerCloseMethod) GetIsStatic() bool          { return false }
+
 var sessionHandlerCloseMethodGetParams = []data.GetValue{}
 
-func (m *SessionHandlerCloseMethod) GetParams() []data.GetValue    { return sessionHandlerCloseMethodGetParams }
+func (m *SessionHandlerCloseMethod) GetParams() []data.GetValue {
+	return sessionHandlerCloseMethodGetParams
+}
+
 var sessionHandlerCloseMethodGetVariables = []data.Variable{}
 
-func (m *SessionHandlerCloseMethod) GetVariables() []data.Variable { return sessionHandlerCloseMethodGetVariables }
-func (m *SessionHandlerCloseMethod) GetReturnType() data.Types     { return data.NewBaseType("bool") }
+func (m *SessionHandlerCloseMethod) GetVariables() []data.Variable {
+	return sessionHandlerCloseMethodGetVariables
+}
+func (m *SessionHandlerCloseMethod) GetReturnType() data.Types { return data.NewBaseType("bool") }
 
 type SessionHandlerReadMethod struct{}
 
@@ -78,11 +86,13 @@ func (m *SessionHandlerReadMethod) Call(data.Context) (data.GetValue, data.Contr
 func (m *SessionHandlerReadMethod) GetName() string            { return "read" }
 func (m *SessionHandlerReadMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SessionHandlerReadMethod) GetIsStatic() bool          { return false }
+
 var sessionHandlerReadMethodGetParams = []data.GetValue{node.NewParameter(nil, "id", 0, nil, nil)}
 
 func (m *SessionHandlerReadMethod) GetParams() []data.GetValue {
 	return sessionHandlerReadMethodGetParams
 }
+
 var sessionHandlerReadMethodGetVariables = []data.Variable{node.NewVariable(nil, "id", 0, data.NewBaseType("string"))}
 
 func (m *SessionHandlerReadMethod) GetVariables() []data.Variable {
@@ -98,6 +108,7 @@ func (m *SessionHandlerWriteMethod) Call(data.Context) (data.GetValue, data.Cont
 func (m *SessionHandlerWriteMethod) GetName() string            { return "write" }
 func (m *SessionHandlerWriteMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SessionHandlerWriteMethod) GetIsStatic() bool          { return false }
+
 var sessionHandlerWriteMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "id", 0, nil, nil),
 	node.NewParameter(nil, "data", 1, nil, nil),
@@ -106,6 +117,7 @@ var sessionHandlerWriteMethodGetParams = []data.GetValue{
 func (m *SessionHandlerWriteMethod) GetParams() []data.GetValue {
 	return sessionHandlerWriteMethodGetParams
 }
+
 var sessionHandlerWriteMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "id", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "data", 1, data.NewBaseType("string")),
@@ -124,11 +136,13 @@ func (m *SessionHandlerDestroyMethod) Call(data.Context) (data.GetValue, data.Co
 func (m *SessionHandlerDestroyMethod) GetName() string            { return "destroy" }
 func (m *SessionHandlerDestroyMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SessionHandlerDestroyMethod) GetIsStatic() bool          { return false }
+
 var sessionHandlerDestroyMethodGetParams = []data.GetValue{node.NewParameter(nil, "id", 0, nil, nil)}
 
 func (m *SessionHandlerDestroyMethod) GetParams() []data.GetValue {
 	return sessionHandlerDestroyMethodGetParams
 }
+
 var sessionHandlerDestroyMethodGetVariables = []data.Variable{node.NewVariable(nil, "id", 0, data.NewBaseType("string"))}
 
 func (m *SessionHandlerDestroyMethod) GetVariables() []data.Variable {
@@ -144,11 +158,13 @@ func (m *SessionHandlerGcMethod) Call(data.Context) (data.GetValue, data.Control
 func (m *SessionHandlerGcMethod) GetName() string            { return "gc" }
 func (m *SessionHandlerGcMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SessionHandlerGcMethod) GetIsStatic() bool          { return false }
+
 var sessionHandlerGcMethodGetParams = []data.GetValue{node.NewParameter(nil, "max_lifetime", 0, nil, nil)}
 
 func (m *SessionHandlerGcMethod) GetParams() []data.GetValue {
 	return sessionHandlerGcMethodGetParams
 }
+
 var sessionHandlerGcMethodGetVariables = []data.Variable{node.NewVariable(nil, "max_lifetime", 0, data.NewBaseType("int"))}
 
 func (m *SessionHandlerGcMethod) GetVariables() []data.Variable {

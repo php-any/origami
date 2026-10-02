@@ -38,21 +38,21 @@ func (f *DebugBacktraceFunction) Call(ctx data.Context) (data.GetValue, data.Con
 	out := make([]data.Value, 0, len(frames))
 	for i := len(frames) - 1; i >= 0; i-- {
 		fr := frames[i]
-		obj := data.NewObjectValue()
+		obj := data.NewArrayValue(nil).(*data.ArrayValue)
 		if fr.File != "" {
-			obj.SetProperty("file", data.NewStringValue(fr.File))
+			obj.SetStringKey("file", data.NewStringValue(fr.File))
 		}
 		if fr.Line > 0 {
-			obj.SetProperty("line", data.NewIntValue(fr.Line))
+			obj.SetStringKey("line", data.NewIntValue(fr.Line))
 		}
 		if fr.Function != "" {
-			obj.SetProperty("function", data.NewStringValue(fr.Function))
+			obj.SetStringKey("function", data.NewStringValue(fr.Function))
 		}
 		if fr.Class != "" {
-			obj.SetProperty("class", data.NewStringValue(fr.Class))
+			obj.SetStringKey("class", data.NewStringValue(fr.Class))
 		}
 		if fr.Type != "" {
-			obj.SetProperty("type", data.NewStringValue(fr.Type))
+			obj.SetStringKey("type", data.NewStringValue(fr.Type))
 		}
 		out = append(out, obj)
 		if limit > 0 && len(out) >= limit {
@@ -64,6 +64,7 @@ func (f *DebugBacktraceFunction) Call(ctx data.Context) (data.GetValue, data.Con
 }
 
 func (f *DebugBacktraceFunction) GetName() string { return "debug_backtrace" }
+
 var debugBacktraceFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "options", 0, data.NewIntValue(debugBacktraceProvideObject), nil),
 	node.NewParameter(nil, "limit", 1, data.NewIntValue(0), nil),
@@ -72,6 +73,7 @@ var debugBacktraceFunctionGetParams = []data.GetValue{
 func (f *DebugBacktraceFunction) GetParams() []data.GetValue {
 	return debugBacktraceFunctionGetParams
 }
+
 var debugBacktraceFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "options", 0, nil),
 	node.NewVariable(nil, "limit", 1, nil),

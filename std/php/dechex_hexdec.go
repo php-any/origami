@@ -40,11 +40,13 @@ func (f *DechexFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *DechexFunction) GetName() string { return "dechex" }
+
 var dechexFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *DechexFunction) GetParams() []data.GetValue {
 	return dechexFunctionGetParams
 }
+
 var dechexFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, data.NewBaseType("int"))}
 
 func (f *DechexFunction) GetVariables() []data.Variable {
@@ -89,11 +91,13 @@ func (f *HexdecFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *HexdecFunction) GetName() string { return "hexdec" }
+
 var hexdecFunctionGetParams = []data.GetValue{node.NewParameter(nil, "hex_string", 0, nil, nil)}
 
 func (f *HexdecFunction) GetParams() []data.GetValue {
 	return hexdecFunctionGetParams
 }
+
 var hexdecFunctionGetVariables = []data.Variable{node.NewVariable(nil, "hex_string", 0, data.NewBaseType("string"))}
 
 func (f *HexdecFunction) GetVariables() []data.Variable {
@@ -133,11 +137,13 @@ func (f *OctdecFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *OctdecFunction) GetName() string { return "octdec" }
+
 var octdecFunctionGetParams = []data.GetValue{node.NewParameter(nil, "octal_string", 0, nil, nil)}
 
 func (f *OctdecFunction) GetParams() []data.GetValue {
 	return octdecFunctionGetParams
 }
+
 var octdecFunctionGetVariables = []data.Variable{node.NewVariable(nil, "octal_string", 0, data.NewBaseType("string"))}
 
 func (f *OctdecFunction) GetVariables() []data.Variable {
@@ -172,11 +178,13 @@ func (f *DecoctFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *DecoctFunction) GetName() string { return "decoct" }
+
 var decoctFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *DecoctFunction) GetParams() []data.GetValue {
 	return decoctFunctionGetParams
 }
+
 var decoctFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, data.NewBaseType("int"))}
 
 func (f *DecoctFunction) GetVariables() []data.Variable {

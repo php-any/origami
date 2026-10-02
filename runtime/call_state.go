@@ -11,12 +11,15 @@ import (
 // CallState 是单 goroutine / 单请求的 PHP 调用深度与 debug_backtrace 栈。
 // 不内置锁：PHP-FPM 语义是请求内单线程；跨请求靠各自一份 CallState 隔离。
 type CallState struct {
-	Depth           int
-	Stack           []data.CallFrame
-	auto            bool // 按 goid 惰性创建，深度归零后可从 map 删除
-	deadline        context.Context
-	phpDeadlineNano int64
-	phpLimitSec     int64
+	Depth             int
+	Stack             []data.CallFrame
+	auto              bool // 按 goid 惰性创建，深度归零后可从 map 删除
+	deadline          context.Context
+	phpDeadlineNano   int64
+	phpLimitSec       int64
+	shutdown          shutdownQueue
+	exceptionHandlers *ExceptionHandlerState
+	errorHandlers     *errorHandlerState
 }
 
 func (st *CallState) Enter() int {
@@ -167,4 +170,14 @@ func RequestDeadlineExceeded() bool {
 // InHTTPRequest 当前 goroutine 是否处于 HTTP 请求中（有请求输出槽即可）。
 func InHTTPRequest() bool {
 	return currentRequestCallState() != nil
+}
+
+// RequestContext is used by blocking native extensions, outside VM hot paths.
+// Resolve it at the operation boundary so shared startup services cannot retain
+// a completed request's cancellation context.
+func RequestContext() context.Context {
+	if st := currentRequestCallState(); st != nil && st.deadline != nil {
+		return st.deadline
+	}
+	return context.Background()
 }

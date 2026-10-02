@@ -40,7 +40,7 @@ func (s *BadMethodCallExceptionClass) GetName() string {
 }
 
 func (s *BadMethodCallExceptionClass) GetExtend() *string {
-	extend := "LogicException"
+	extend := "BadFunctionCallException"
 	return &extend
 }
 

@@ -1,8 +1,6 @@
 package array
 
 import (
-	"fmt"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -24,7 +22,8 @@ func (f *ArrayDiffKeyFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	exclude := make(map[string]bool)
 	if restVal, ok := ctx.GetIndexValue(1); ok && restVal != nil {
 		if restArr, ok := restVal.(*data.ArrayValue); ok {
-			for _, zv := range restArr.List {
+			for arraySlots83, arrayPosition83 := restArr.View(), 0; arrayPosition83 < arraySlots83.Len(); arrayPosition83++ {
+				zv := arraySlots83.At(arrayPosition83)
 				for k := range extractKeys(zv.Value) {
 					exclude[k] = true
 				}
@@ -35,13 +34,11 @@ func (f *ArrayDiffKeyFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	switch first := firstVal.(type) {
 	case *data.ArrayValue:
 		result := data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
-		for idx, zv := range first.List {
-			key := zv.Name
-			if key == "" {
-				key = fmt.Sprintf("%d", idx)
-			}
-			if !exclude[key] {
-				result.List = append(result.List, &data.ZVal{Name: zv.Name, Value: zv.Value})
+		for arraySlots84, idx := first.View(), 0; idx < arraySlots84.Len(); idx++ {
+			zv := arraySlots84.At(idx)
+			key := zv.PHPArrayKey(idx)
+			if !exclude[key.AsString()] {
+				result.SetKey(key, zv.Value)
 			}
 		}
 		return result, nil

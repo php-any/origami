@@ -118,7 +118,7 @@ func toAssocArray(v data.Value) *data.ArrayValue {
 	for _, e := range kit.Entries(v) {
 		zv := data.NewZVal(normalizeConfigValue(e.Value))
 		zv.Name = e.KeyStr
-		out.List = append(out.List, zv)
+		out.AppendEntries(zv)
 	}
 	return out
 }
@@ -140,13 +140,13 @@ func normalizeConfigValue(v data.Value) data.Value {
 
 func deepArrayCopy(src *data.ArrayValue) *data.ArrayValue {
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
-	for _, z := range src.List {
+	for _, z := range src.Range() {
 		if z == nil {
 			continue
 		}
 		nz := data.NewZVal(normalizeConfigValue(z.Value))
 		nz.Name = z.Name
-		out.List = append(out.List, nz)
+		out.AppendEntries(nz)
 	}
 	return out
 }
@@ -244,7 +244,7 @@ func repoGetManyKeys(ctx data.Context, cv *data.ClassValue, keys *data.ArrayValu
 		}
 		zv := data.NewZVal(v)
 		zv.Name = keyStr
-		out.List = append(out.List, zv)
+		out.AppendEntries(zv)
 	}
 	return out, nil
 }
@@ -313,7 +313,9 @@ func repoCollection(ctx data.Context) (data.GetValue, data.Control) {
 	cv := data.NewClassValue(cls, ctx.CreateBaseContext())
 	if ctor := cls.GetConstruct(); ctor != nil {
 		nctx := cv.CreateContext(ctor.GetVariables())
-		data.BindDeclaredArgs(nctx, ctor, []data.Value{asValue(arr)})
+		if ctl := data.BindDeclaredArgs(nctx, ctor, []data.Value{asValue(arr)}); ctl != nil {
+			return nil, ctl
+		}
 		if _, ctl := ctor.Call(nctx); ctl != nil {
 			return nil, ctl
 		}
@@ -355,8 +357,8 @@ func repoPrepend(ctx data.Context) (data.GetValue, data.Control) {
 	value := kit.Arg(ctx, 1)
 	cur, _ := collections.PathGet(repoItems(cv), key.AsString())
 	arr := asArrayValue(cur)
-	newArr := data.NewArrayValue(nil).(*data.ArrayValue)
-	newArr.List = append([]*data.ZVal{data.NewZVal(value)}, arr.List...)
+	newArr := data.CloneArrayValue(arr)
+	newArr.PrependDense(value)
 	collections.PathSet(repoItems(cv), key.AsString(), newArr)
 	return data.NewNullValue(), nil
 }
@@ -370,8 +372,8 @@ func repoPush(ctx data.Context) (data.GetValue, data.Control) {
 	value := kit.Arg(ctx, 1)
 	cur, _ := collections.PathGet(repoItems(cv), key.AsString())
 	arr := asArrayValue(cur)
-	newArr := data.NewArrayValue(nil).(*data.ArrayValue)
-	newArr.List = append(append([]*data.ZVal{}, arr.List...), data.NewZVal(value))
+	newArr := data.CloneArrayValue(arr)
+	newArr.AppendValue(value)
 	collections.PathSet(repoItems(cv), key.AsString(), newArr)
 	return data.NewNullValue(), nil
 }

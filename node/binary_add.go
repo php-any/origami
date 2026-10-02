@@ -28,10 +28,7 @@ type hasRangeProperties interface {
 
 // arraySlotKey 返回 PHP 数组槽位对应的键名（空 Name 的密集整数键用下标）。
 func arraySlotKey(z *data.ZVal, index int) string {
-	if z != nil && z.Name != "" {
-		return z.Name
-	}
-	return data.IntArrayKeyName(index)
+	return z.PHPArrayKey(index).AsString()
 }
 
 // objectToNamedArray 将对象/类属性转为带键名的 ArrayValue（用于 array + 语义）。
@@ -41,7 +38,7 @@ func objectToNamedArray(obj hasRangeProperties) *data.ArrayValue {
 		list = append(list, data.NewNamedZVal(key, value))
 		return true
 	})
-	return &data.ArrayValue{List: list}
+	return data.NewArrayValueFromSlots(list)
 }
 
 // valueAsArrayForUnion 将 Array/Object/Class 统一为可按键并集的 ArrayValue。
@@ -60,14 +57,18 @@ func valueAsArrayForUnion(v data.Value) (*data.ArrayValue, bool) {
 
 // mergeArrayUnion 实现 PHP 的 array + array：左侧键优先，仅追加右侧不存在的键。
 func mergeArrayUnion(left, right *data.ArrayValue) *data.ArrayValue {
-	result := make([]*data.ZVal, 0, len(left.List)+len(right.List))
-	seen := make(map[string]struct{}, len(left.List)+len(right.List))
+	result := make([]*data.ZVal, 0, left.Len()+right.Len())
+	seen := make(map[string]struct{}, left.Len()+right.Len())
 
 	appendSlot := func(key string, value data.Value) {
 		if _, ok := seen[key]; ok {
 			return
 		}
 		seen[key] = struct{}{}
+		if key == "" {
+			result = append(result, data.NewEmptyStringKeyZVal(value))
+			return
+		}
 		if _, isInt := data.ParseIntArrayKeyName(key); isInt {
 			if n, err := strconv.Atoi(key); err == nil && n == len(result) {
 				result = append(result, data.NewZVal(value))
@@ -76,20 +77,21 @@ func mergeArrayUnion(left, right *data.ArrayValue) *data.ArrayValue {
 		}
 		result = append(result, data.NewNamedZVal(key, value))
 	}
-
-	for i, z := range left.List {
+	for arraySlots13, i := left.View(), 0; i < arraySlots13.Len(); i++ {
+		z := arraySlots13.At(i)
 		if z == nil {
 			continue
 		}
 		appendSlot(arraySlotKey(z, i), z.Value)
 	}
-	for i, z := range right.List {
+	for arraySlots14, i := right.View(), 0; i < arraySlots14.Len(); i++ {
+		z := arraySlots14.At(i)
 		if z == nil {
 			continue
 		}
 		appendSlot(arraySlotKey(z, i), z.Value)
 	}
-	return &data.ArrayValue{List: result}
+	return data.NewArrayValueFromSlots(result)
 }
 
 func addOperandIsFloat(v data.GetValue) bool {

@@ -49,6 +49,7 @@ func (h *RequestAttributeMethod) Call(ctx data.Context) (data.GetValue, data.Con
 func (h *RequestAttributeMethod) GetName() string            { return "attribute" }
 func (h *RequestAttributeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestAttributeMethod) GetIsStatic() bool          { return false }
+
 var requestAttributeMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "key", 0, nil, data.NewBaseType("string")),
 	node.NewParameter(nil, "value", 1, nil, nil),
@@ -57,6 +58,7 @@ var requestAttributeMethodGetParams = []data.GetValue{
 func (h *RequestAttributeMethod) GetParams() []data.GetValue {
 	return requestAttributeMethodGetParams
 }
+
 var requestAttributeMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "key", 0, nil),
 	node.NewVariable(nil, "value", 1, nil),

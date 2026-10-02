@@ -1,7 +1,7 @@
 package data
 
 type ArrayValueReduce struct {
-	source []*ZVal
+	source *ArrayValue
 }
 
 // Call 实现数组的 reduce 方法
@@ -14,7 +14,7 @@ func (a *ArrayValueReduce) Call(ctx Context) (GetValue, Control) {
 	}
 
 	// 将 source 转换为 []Value 用于 NewArrayValue
-	tempArray := &ArrayValue{List: a.source}
+	tempArray := a.source
 	sourceValues := tempArray.ToValueList()
 
 	// 同时支持 *FuncValue 与 CallableValue
@@ -27,7 +27,7 @@ func (a *ArrayValueReduce) Call(ctx Context) (GetValue, Control) {
 		var accumulator Value
 		if initialValue, ok := ctx.GetIndexValue(1); ok {
 			accumulator = initialValue
-			for i, zval := range a.source {
+			for i, zval := range a.source.Range() {
 				element := zval.Value
 				args := []Value{accumulator, element, NewIntValue(i), NewArrayValue(sourceValues)}
 				for ai := 0; ai < len(vars) && ai < len(args); ai++ {
@@ -41,12 +41,12 @@ func (a *ArrayValueReduce) Call(ctx Context) (GetValue, Control) {
 			}
 			return accumulator, nil
 		} else {
-			if len(a.source) == 0 {
+			if a.source.Len() == 0 {
 				return NewNullValue(), nil
 			}
-			accumulator = a.source[0].Value
-			for i := 1; i < len(a.source); i++ {
-				element := a.source[i].Value
+			accumulator = a.source.At(0).Value
+			for i := 1; i < a.source.Len(); i++ {
+				element := a.source.At(i).Value
 				args := []Value{accumulator, element, NewIntValue(i), NewArrayValue(sourceValues)}
 				for ai := 0; ai < len(vars) && ai < len(args); ai++ {
 					fnCtx.SetVariableValue(NewVariable("", ai, nil), args[ai])
@@ -67,13 +67,13 @@ func (a *ArrayValueReduce) Call(ctx Context) (GetValue, Control) {
 			accumulator = initialValue
 		} else {
 			// 如果没有提供初始值，使用第一个元素作为初始值
-			if len(a.source) == 0 {
+			if a.source.Len() == 0 {
 				return NewNullValue(), nil
 			}
-			accumulator = a.source[0].Value
+			accumulator = a.source.At(0).Value
 			// 从第二个元素开始遍历
-			for i := 1; i < len(a.source); i++ {
-				element := a.source[i].Value
+			for i := 1; i < a.source.Len(); i++ {
+				element := a.source.At(i).Value
 				// 调用回调函数，传递累积值、当前元素、索引和数组
 				reduceResult, ctl := callable.Call(accumulator, element, NewIntValue(i), NewArrayValue(sourceValues))
 				if ctl != nil {
@@ -85,7 +85,7 @@ func (a *ArrayValueReduce) Call(ctx Context) (GetValue, Control) {
 		}
 
 		// 从第一个元素开始遍历
-		for i, zval := range a.source {
+		for i, zval := range a.source.Range() {
 			element := zval.Value
 			// 调用回调函数，传递累积值、当前元素、索引和数组
 			reduceResult, ctl := callable.Call(accumulator, element, NewIntValue(i), NewArrayValue(sourceValues))

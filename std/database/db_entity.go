@@ -37,8 +37,9 @@ func (d *DbToEntityMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 	scanner := NewDatabaseScanner()
 
 	if arr, ok := dataVal.(*data.ArrayValue); ok {
-		instances := make([]data.Value, 0, len(arr.List))
-		for _, z := range arr.List {
+		instances := make([]data.Value, 0, arr.Len())
+		for arraySlots36, arrayPosition36 := arr.View(), 0; arrayPosition36 < arraySlots36.Len(); arrayPosition36++ {
+			z := arraySlots36.At(arrayPosition36)
 			row, ok := z.Value.(*data.ObjectValue)
 			if !ok {
 				if cv, ok := z.Value.(*data.ClassValue); ok {
@@ -68,6 +69,7 @@ func (d *DbToEntityMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 func (d *DbToEntityMethod) GetName() string            { return "toEntity" }
 func (d *DbToEntityMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (d *DbToEntityMethod) GetIsStatic() bool          { return true }
+
 var dbToEntityMethodGetParams = []data.GetValue{
 	data.NewParameter("className", 0),
 	data.NewParameter("rows", 1),
@@ -76,6 +78,7 @@ var dbToEntityMethodGetParams = []data.GetValue{
 func (d *DbToEntityMethod) GetParams() []data.GetValue {
 	return dbToEntityMethodGetParams
 }
+
 var dbToEntityMethodGetVariables = []data.Variable{
 	data.NewVariable("className", 0, data.NewBaseType("string")),
 	data.NewVariable("rows", 1, data.NewBaseType("array")),

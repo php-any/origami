@@ -17,11 +17,12 @@ type FunctionStatement struct {
 	Ret              data.Types      // 返回值类型
 	IsGenerator      bool            // 是否是生成器函数（含 yield）
 	ReturnsReference bool            // 是否按引用返回（function &name()）
-	defineCtx        data.Context    // 闭包定义时的上下文（用于保留 self:: 语义）
+	StrictTypes      bool
+	defineCtx        data.Context // 闭包定义时的上下文（用于保留 self:: 语义）
 }
 
 // NewFunctionStatement 创建一个新的函数定义语句
-func NewFunctionStatement(from data.From, name string, params []data.GetValue, body []data.GetValue, vars []data.Variable, ret data.Types, returnsReference bool) *FunctionStatement {
+func NewFunctionStatement(from data.From, name string, params []data.GetValue, body []data.GetValue, vars []data.Variable, ret data.Types, returnsReference bool, strict ...bool) *FunctionStatement {
 	return &FunctionStatement{
 		Node:             NewNode(from),
 		Name:             name,
@@ -31,6 +32,7 @@ func NewFunctionStatement(from data.From, name string, params []data.GetValue, b
 		Ret:              ret,
 		IsGenerator:      containsYield(body),
 		ReturnsReference: returnsReference,
+		StrictTypes:      len(strict) != 0 && strict[0],
 	}
 }
 
@@ -113,6 +115,7 @@ func (f *FunctionStatement) GetReturnType() data.Types {
 }
 
 func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control) {
+	ctx.SetStrictTypes(f.StrictTypes)
 	// 不再无条件 BindStaticLocals。static 局部变量由 StaticVarStatement 惰性绑定，
 	// 没有 static 声明的函数帧 staticLocals 保持 nil，赋值路径不加锁。
 
@@ -151,6 +154,9 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 				return nil, ctl
 			case data.ReturnControl:
 				ret := rv.ReturnValue()
+				if f.Ret == data.TypeVoid {
+					return data.NewNullValue(), nil
+				}
 				if f.ReturnsReference {
 					if rs, ok := statement.(*ReturnStatement); ok && rs.Value != nil {
 						if variable, ok := rs.Value.(data.Variable); ok {
@@ -159,10 +165,12 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 					}
 				}
 				if f.Ret != nil {
-					if f.Ret.Is(ret) {
-						return ret, nil
+					if prepared, ok, conversion := data.PrepareTypedValueInContext(f.Ret, ret, ctx); conversion != nil {
+						return nil, data.ReturnTypeError(f.from, errors.New("函数返回值类型错误"), conversion)
+					} else if ok {
+						return prepared, nil
 					} else {
-						return nil, data.NewErrorThrow(f.from, errors.New("函数返回值类型错误"))
+						return nil, data.NewTypeError(f.from, errors.New("函数返回值类型错误"))
 					}
 				}
 				return ret, nil
@@ -201,6 +209,9 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 	}
 
 	f.persistStaticLocals(execCtx)
+	if !data.AllowsImplicitReturn(f.Ret) {
+		return nil, data.NewTypeError(f.from, errors.New("declared function must return a value"))
+	}
 	// PHP：没有 return 时函数返回 null，而不是最后一条语句的值。
 	// Laravel View::render($callback) 用 is_null($response) 决定是否采用渲染出的 HTML。
 	return data.NewNullValue(), nil
@@ -256,13 +267,13 @@ func (p *Parameter) SetValue(ctx data.Context, value data.Value) data.Control {
 	if p.Type == nil {
 		return ctx.SetVariableValue(p, value)
 	}
-	// null 可以传递给任何类型的参数（PHP 兼容）
-	if _, isNull := value.(*data.NullValue); isNull {
-		return ctx.SetVariableValue(p, value)
+	prepared, ok, conversion := data.PrepareTypedValueInContext(p.Type, value, ctx)
+
+	if conversion != nil {
+		return conversion
 	}
-	prepared, ok := data.PrepareTypedValue(p.Type, value)
 	if !ok {
-		return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+TryGetCallClassName(value)+")"))
+		return data.NewTypeError(p.from, errors.New("参数 $"+p.Name+" 类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+TryGetCallClassName(value)+")"))
 	}
 	return ctx.SetVariableValue(p, prepared)
 }
@@ -308,24 +319,24 @@ func (p *PromotedParameter) GetValue(ctx data.Context) (data.GetValue, data.Cont
 }
 
 func (p *Parameter) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	val, acl := ctx.GetVariableValue(p)
-	if acl != nil {
-		return nil, acl
-	}
+	return readParameterDefault(ctx, p)
+}
 
-	if _, ok := val.(data.AsNull); ok {
-		if p.DefaultValue != nil {
-			var val data.GetValue
-			val, acl = p.DefaultValue.GetValue(ctx)
-			if acl != nil {
-				return nil, acl
-			}
-
-			acl = p.SetValue(ctx, val.(data.Value))
+func readParameterDefault(ctx data.Context, parameter data.Parameter) (data.GetValue, data.Control) {
+	if slot := ctx.GetIndexZVal(parameter.GetIndex()); !slot.Defined && parameter.GetDefaultValue() != nil {
+		value, ctl := parameter.GetDefaultValue().GetValue(ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if ctl := parameter.SetValue(ctx, value.(data.Value)); ctl != nil {
+			return nil, ctl
 		}
 	}
-
-	return val, acl
+	value, ctl := ctx.GetIndexValue(parameter.GetIndex())
+	if !ctl {
+		return data.NewNullValue(), nil
+	}
+	return value, nil
 }
 
 // NewParameters 接收多个参数值
@@ -359,8 +370,24 @@ type Parameters struct {
 }
 
 func (p *Parameters) SetValue(ctx data.Context, value data.Value) data.Control {
-	//TODO implement me
-	panic("implement me")
+	array, ok := value.(*data.ArrayValue)
+	if !ok {
+		return data.NewTypeError(p.from, errors.New("variadic binding requires an array"))
+	}
+	if p.Type != nil {
+		for slots, i := array.View(), 0; i < slots.Len(); i++ {
+			slot := slots.At(i)
+			prepared, accepted, conversion := data.PrepareTypedValueInContext(p.Type, slot.Value, ctx)
+			if conversion != nil {
+				return conversion
+			}
+			if !accepted {
+				return data.NewTypeError(p.from, errors.New("invalid variadic argument type"))
+			}
+			slot.Value = prepared
+		}
+	}
+	return ctx.SetVariableValue(p, array)
 }
 
 func (p *Parameters) GetDefaultValue() data.GetValue {
@@ -392,6 +419,15 @@ func (p *Parameters) GetVariables() []data.Variable {
 
 type ParameterReference struct {
 	*Parameter
+	OutputOnly bool // Native output references accept arbitrary old slot contents.
+}
+
+// NewOutputParameterReference retains the native declared output type while
+// allowing an arbitrary input slot, as PHP's send-by-reference output arguments do.
+func NewOutputParameterReference(from data.From, name string, index int, defaultValue data.GetValue, ty data.Types) data.Parameter {
+	parameter := NewParameterReference(from, name, index, defaultValue, ty).(*ParameterReference)
+	parameter.OutputOnly = true
+	return parameter
 }
 
 func NewParameterReference(from data.From, name string, index int, defaultValue data.GetValue, ty data.Types) data.Parameter {
@@ -406,15 +442,21 @@ func NewParameterReference(from data.From, name string, index int, defaultValue 
 	}
 }
 
+func (p *ParameterReference) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return readParameterDefault(ctx, p)
+}
+
 func (p *ParameterReference) SetValue(ctx data.Context, value data.Value) data.Control {
-	if p.Type != nil {
-		if _, isNull := value.(*data.NullValue); !isNull {
-			prepared, ok := data.PrepareTypedValue(p.Type, value)
-			if !ok {
-				return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
-			}
-			value = prepared
+	if p.Type != nil && !p.OutputOnly {
+		prepared, ok, conversion := data.PrepareTypedValueInContext(p.Type, value, ctx)
+
+		if conversion != nil {
+			return conversion
 		}
+		if !ok {
+			return data.NewTypeError(p.from, errors.New("参数 $"+p.Name+" 类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
+		}
+		value = prepared
 	}
 	if v, ok := value.(*data.ZValValue); ok {
 		ctx.SetIndexZVal(p.Index, v.ZVal)
@@ -470,9 +512,13 @@ func (p *ParametersReference) SetValue(ctx data.Context, value data.Value) data.
 	if p.Type == nil {
 		return ctx.SetVariableValue(p, value)
 	}
-	prepared, ok := data.PrepareTypedValue(p.Type, value)
+	prepared, ok, conversion := data.PrepareTypedValueInContext(p.Type, value, ctx)
+
+	if conversion != nil {
+		return conversion
+	}
 	if !ok {
-		return data.NewErrorThrow(p.from, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
+		return data.NewTypeError(p.from, errors.New("参数 $"+p.Name+" 类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
 	}
 	return ctx.SetVariableValue(p, prepared)
 }

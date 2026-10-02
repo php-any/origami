@@ -174,6 +174,7 @@ func twoDigit(n int) string {
 }
 
 func (f *DateFunction) GetName() string { return "date" }
+
 var dateFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "format", 0, nil, nil),
 	node.NewParameter(nil, "timestamp", 1, node.NewNullLiteral(nil), nil),
@@ -182,6 +183,7 @@ var dateFunctionGetParams = []data.GetValue{
 func (f *DateFunction) GetParams() []data.GetValue {
 	return dateFunctionGetParams
 }
+
 var dateFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "format", 0, nil),
 	node.NewVariable(nil, "timestamp", 1, nil),
@@ -240,6 +242,7 @@ func (f *MktimeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *MktimeFunction) GetName() string { return "mktime" }
+
 var mktimeFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "hour", 0, node.NewNullLiteral(nil), nil),
 	node.NewParameter(nil, "minute", 1, node.NewNullLiteral(nil), nil),
@@ -252,6 +255,7 @@ var mktimeFunctionGetParams = []data.GetValue{
 func (f *MktimeFunction) GetParams() []data.GetValue {
 	return mktimeFunctionGetParams
 }
+
 var mktimeFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "hour", 0, nil),
 	node.NewVariable(nil, "minute", 1, nil),
@@ -314,6 +318,7 @@ func (f *GmmktimeFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (f *GmmktimeFunction) GetName() string { return "gmmktime" }
+
 var gmmktimeFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "hour", 0, node.NewNullLiteral(nil), nil),
 	node.NewParameter(nil, "minute", 1, node.NewNullLiteral(nil), nil),
@@ -326,6 +331,7 @@ var gmmktimeFunctionGetParams = []data.GetValue{
 func (f *GmmktimeFunction) GetParams() []data.GetValue {
 	return gmmktimeFunctionGetParams
 }
+
 var gmmktimeFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "hour", 0, nil),
 	node.NewVariable(nil, "minute", 1, nil),
@@ -390,6 +396,7 @@ func (f *CheckdateFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 }
 
 func (f *CheckdateFunction) GetName() string { return "checkdate" }
+
 var checkdateFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "month", 0, nil, data.NewBaseType("int")),
 	node.NewParameter(nil, "day", 1, nil, data.NewBaseType("int")),
@@ -399,6 +406,7 @@ var checkdateFunctionGetParams = []data.GetValue{
 func (f *CheckdateFunction) GetParams() []data.GetValue {
 	return checkdateFunctionGetParams
 }
+
 var checkdateFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "month", 0, data.NewBaseType("int")),
 	node.NewVariable(nil, "day", 1, data.NewBaseType("int")),
@@ -439,7 +447,7 @@ func (f *GetdateFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// PHP 的 getdate 返回带字符串键的关联数组
-	arr := &data.ArrayValue{List: []*data.ZVal{
+	arr := data.NewArrayValueFromSlots([]*data.ZVal{
 		data.NewNamedZVal("seconds", data.NewIntValue(t.Second())),
 		data.NewNamedZVal("minutes", data.NewIntValue(t.Minute())),
 		data.NewNamedZVal("hours", data.NewIntValue(t.Hour())),
@@ -451,12 +459,13 @@ func (f *GetdateFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		data.NewNamedZVal("weekday", data.NewStringValue(t.Weekday().String())),
 		data.NewNamedZVal("month", data.NewStringValue(t.Month().String())),
 		data.NewNamedZVal(data.IntArrayKeyName(0), data.NewIntValue(int(t.Unix()))),
-	}}
+	})
 
 	return arr, nil
 }
 
 func (f *GetdateFunction) GetName() string { return "getdate" }
+
 var getdateFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "timestamp", 0, node.NewNullLiteral(nil), nil),
 }
@@ -464,6 +473,7 @@ var getdateFunctionGetParams = []data.GetValue{
 func (f *GetdateFunction) GetParams() []data.GetValue {
 	return getdateFunctionGetParams
 }
+
 var getdateFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "timestamp", 0, nil),
 }

@@ -20,7 +20,7 @@ func NewNatsortFunction() data.FuncStmt {
 }
 
 func (f *NatsortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	arrayValue, _ := ctx.GetIndexValue(0)
+	arrayValue := data.CowSeparateIndex(ctx, 0)
 	if arrayValue == nil {
 		return data.NewBoolValue(false), nil
 	}
@@ -30,13 +30,15 @@ func (f *NatsortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewBoolValue(false), nil
 	}
 
-	if len(arrayRef.List) == 0 {
+	if arrayRef.Len() == 0 {
 		return data.NewBoolValue(true), nil
 	}
 
 	// 使用自然排序，保留键值对应关系
-	sort.SliceStable(arrayRef.List, func(i, j int) bool {
-		return naturalCompare(arrayRef.List[i].Value.AsString(), arrayRef.List[j].Value.AsString(), false)
+	arrayRef.EditPreservingKeys(func(slots []*data.ZVal) {
+		sort.SliceStable(slots, func(i, j int) bool {
+			return naturalCompare(slots[i].Value.AsString(), slots[j].Value.AsString(), false)
+		})
 	})
 
 	return data.NewBoolValue(true), nil
@@ -52,7 +54,7 @@ func NewNatcasesortFunction() data.FuncStmt {
 }
 
 func (f *NatcasesortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	arrayValue, _ := ctx.GetIndexValue(0)
+	arrayValue := data.CowSeparateIndex(ctx, 0)
 	if arrayValue == nil {
 		return data.NewBoolValue(false), nil
 	}
@@ -62,12 +64,14 @@ func (f *NatcasesortFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 		return data.NewBoolValue(false), nil
 	}
 
-	if len(arrayRef.List) == 0 {
+	if arrayRef.Len() == 0 {
 		return data.NewBoolValue(true), nil
 	}
 
-	sort.SliceStable(arrayRef.List, func(i, j int) bool {
-		return naturalCompare(arrayRef.List[i].Value.AsString(), arrayRef.List[j].Value.AsString(), true)
+	arrayRef.EditPreservingKeys(func(slots []*data.ZVal) {
+		sort.SliceStable(slots, func(i, j int) bool {
+			return naturalCompare(slots[i].Value.AsString(), slots[j].Value.AsString(), true)
+		})
 	})
 
 	return data.NewBoolValue(true), nil
@@ -170,7 +174,8 @@ func (f *ArrayIntersectUkeyFunction) Call(ctx data.Context) (data.GetValue, data
 	}
 
 	if paramsArray, ok := paramsVal.(*data.ArrayValue); ok {
-		for _, item := range paramsArray.List {
+		for arraySlots109, arrayPosition109 := paramsArray.View(), 0; arrayPosition109 < arraySlots109.Len(); arrayPosition109++ {
+			item := arraySlots109.At(arrayPosition109)
 			if arr, isArr := item.Value.(*data.ArrayValue); isArr {
 				arrays = append(arrays, arr)
 			} else if obj, isObj := item.Value.(*data.ObjectValue); isObj {
@@ -205,17 +210,23 @@ func (f *ArrayIntersectUkeyFunction) Call(ctx data.Context) (data.GetValue, data
 
 	first := arrays[0]
 	resultList := make([]*data.ZVal, 0)
+	for arraySlots110,
 
-	// 检查第一个数组的每个键
-	for _, item := range first.List {
+		// 检查第一个数组的每个键
+		arrayPosition110 := first.View(), 0; arrayPosition110 < arraySlots110.Len(); arrayPosition110++ {
+		item := arraySlots110.At(arrayPosition110)
 		key := item.Name
 		foundInAll := true
 
 		for _, arr := range arrays[1:] {
 			keyExists := false
-			for _, otherItem := range arr.List {
+			for arraySlots111, arrayPosition111 := arr.View(), 0; arrayPosition111 < arraySlots111.Len();
+
+			// 使用回调函数比较键
+			arrayPosition111++ {
+				otherItem := arraySlots111.At(arrayPosition111)
 				otherKey := otherItem.Name
-				// 使用回调函数比较键
+
 				callResult, acl := callCompareFunc(ctx, compareFunc, key, otherKey)
 				if acl != nil {
 					return nil, acl
@@ -236,7 +247,7 @@ func (f *ArrayIntersectUkeyFunction) Call(ctx data.Context) (data.GetValue, data
 		}
 	}
 
-	return &data.ArrayValue{List: resultList}, nil
+	return data.NewArrayValueFromSlots(resultList), nil
 }
 
 // objectToArray 将 ObjectValue 转换为 ArrayValue（保留字符串键）
@@ -246,7 +257,7 @@ func objectToArray(obj *data.ObjectValue) *data.ArrayValue {
 		list = append(list, data.NewNamedZVal(key, value))
 		return true
 	})
-	return &data.ArrayValue{List: list}
+	return data.NewArrayValueFromSlots(list)
 }
 
 // callCompareFunc 调用比较回调函数

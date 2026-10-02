@@ -3,14 +3,14 @@ package data
 import "errors"
 
 type ArrayValueMap struct {
-	source []*ZVal
+	source *ArrayValue
 }
 
 // Call 实现数组的 map 方法
 // 创建一个新数组，其结果是该数组中的每个元素调用一次提供的回调函数后的返回值
 func (a *ArrayValueMap) Call(ctx Context) (GetValue, Control) {
 	// 将 source 转换为 []Value 用于 NewArrayValue
-	tempArray := &ArrayValue{List: a.source}
+	tempArray := a.source
 	sourceValues := tempArray.ToValueList()
 
 	// 获取回调函数参数
@@ -20,14 +20,14 @@ func (a *ArrayValueMap) Call(ctx Context) (GetValue, Control) {
 	}
 
 	// 创建结果数组
-	result := make([]Value, len(a.source))
+	result := make([]Value, a.source.Len())
 
 	switch callable := callback.(type) {
 	case *FuncValue:
 		// 使用函数定义的变量创建调用上下文，并按顺序写入参数：element, index, array
 		vars := callable.Value.GetVariables()
 		fnCtx := ctx.CreateContext(vars)
-		for i, zval := range a.source {
+		for i, zval := range a.source.Range() {
 			element := zval.Value
 			args := []Value{element, NewIntValue(i), NewArrayValue(sourceValues)}
 			for ai := 0; ai < len(vars) && ai < len(args); ai++ {
@@ -44,7 +44,7 @@ func (a *ArrayValueMap) Call(ctx Context) (GetValue, Control) {
 
 	case CallableValue:
 		// 遍历数组元素并应用回调函数
-		for i, zval := range a.source {
+		for i, zval := range a.source.Range() {
 			element := zval.Value
 			// 调用回调函数，传递元素、索引和数组
 			mappedValue, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(sourceValues))

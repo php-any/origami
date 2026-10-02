@@ -233,11 +233,11 @@ func insertRelative(ctx data.Context, cv *data.ClassValue, val, searchKey data.V
 	for _, e := range entries {
 		if !inserted && e.keyStr == sk {
 			if before {
-				out.List = append(out.List, data.NewZVal(val))
-				out.List = append(out.List, data.NewZVal(e.value))
+				out.AppendValue(val)
+				out.AppendValue(e.value)
 			} else {
-				out.List = append(out.List, data.NewZVal(e.value))
-				out.List = append(out.List, data.NewZVal(val))
+				out.AppendValue(e.value)
+				out.AppendValue(val)
 			}
 			inserted = true
 			continue
@@ -245,7 +245,7 @@ func insertRelative(ctx data.Context, cv *data.ClassValue, val, searchKey data.V
 		setEntry(out, e.keyStr, e.value)
 	}
 	if !inserted {
-		out.List = append(out.List, data.NewZVal(val))
+		out.AppendValue(val)
 	}
 	return newCollectionInstance(ctx, out)
 }
@@ -275,7 +275,7 @@ func collectionChunk(ctx data.Context) (data.GetValue, data.Control) {
 			if err != nil {
 				return nil, err
 			}
-			chunks.List = append(chunks.List, data.NewZVal(inst))
+			chunks.AppendValue(inst)
 			cur = data.NewArrayValue(nil).(*data.ArrayValue)
 			n = 0
 		}
@@ -285,7 +285,7 @@ func collectionChunk(ctx data.Context) (data.GetValue, data.Control) {
 		if err != nil {
 			return nil, err
 		}
-		chunks.List = append(chunks.List, data.NewZVal(inst))
+		chunks.AppendValue(inst)
 	}
 	return newCollectionInstance(ctx, chunks)
 }
@@ -311,18 +311,18 @@ func collectionChunkWhile(ctx data.Context) (data.GetValue, data.Control) {
 				return nil, ctl
 			}
 			if !cont {
-				chunks.List = append(chunks.List, data.NewZVal(curInst))
+				chunks.AppendValue(curInst)
 				cur = data.NewArrayValue(nil).(*data.ArrayValue)
 			}
 		}
 		setEntry(cur, e.keyStr, e.value)
 	}
-	if len(cur.List) > 0 {
+	if cur.Len() > 0 {
 		inst, ctl := newCollectionInstance(ctx, cur)
 		if ctl != nil {
 			return nil, ctl
 		}
-		chunks.List = append(chunks.List, data.NewZVal(inst))
+		chunks.AppendValue(inst)
 	}
 	return newCollectionInstance(ctx, chunks)
 }
@@ -510,9 +510,9 @@ func crossJoinInto(out *data.ArrayValue, lists [][]data.Value, depth int, prefix
 	if depth >= len(lists) {
 		row := data.NewArrayValue(nil).(*data.ArrayValue)
 		for _, v := range prefix {
-			row.List = append(row.List, data.NewZVal(v))
+			row.AppendValue(v)
 		}
-		out.List = append(out.List, data.NewZVal(row))
+		out.AppendValue(row)
 		return
 	}
 	for _, v := range lists[depth] {
@@ -855,7 +855,7 @@ func collectionIntersect(ctx data.Context) (data.GetValue, data.Control) {
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
 	for _, e := range toEntries(otherItems) {
 		if _, ok := seen[e.value.AsString()]; ok {
-			out.List = append(out.List, data.NewZVal(e.value))
+			out.AppendValue(e.value)
 		}
 	}
 	return newCollectionInstance(ctx, out)
@@ -900,7 +900,7 @@ func collectionIntersectUsing(ctx data.Context) (data.GetValue, data.Control) {
 				return nil, ctl
 			}
 			if iv, ok := cmp.(*data.IntValue); ok && iv.Value == 0 {
-				out.List = append(out.List, data.NewZVal(e.value))
+				out.AppendValue(e.value)
 				break
 			}
 		}
@@ -999,7 +999,7 @@ func collectionMode(ctx data.Context) (data.GetValue, data.Control) {
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
 	for i, k := range order {
 		if buckets[i].count == highest {
-			out.List = append(out.List, data.NewZVal(buckets[i].value))
+			out.AppendValue(buckets[i].value)
 			_ = k
 		}
 	}
@@ -1284,7 +1284,7 @@ func collectionNth(ctx data.Context) (data.GetValue, data.Control) {
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
 	for i, e := range toEntries(collectionItems(cv)) {
 		if offset >= 0 && i%step == offset {
-			out.List = append(out.List, data.NewZVal(e.value))
+			out.AppendValue(e.value)
 		}
 	}
 	return newCollectionInstance(ctx, out)
@@ -1306,8 +1306,8 @@ func collectionPad(ctx data.Context) (data.GetValue, data.Control) {
 	for _, e := range entries {
 		setEntry(out, e.keyStr, e.value)
 	}
-	for len(out.List) < size {
-		out.List = append(out.List, data.NewZVal(val))
+	for out.Len() < size {
+		out.AppendValue(val)
 	}
 	return newCollectionInstance(ctx, out)
 }
@@ -1449,7 +1449,7 @@ func collectionSelect(ctx data.Context) (data.GetValue, data.Control) {
 				setEntry(row, k, v)
 			}
 		}
-		out.List = append(out.List, data.NewZVal(row))
+		out.AppendValue(row)
 	}
 	return newCollectionInstance(ctx, out)
 }
@@ -1460,11 +1460,11 @@ func collectionShift(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, ctl
 	}
 	items := collectionItems(cv)
-	if len(items.List) == 0 {
+	if items.Len() == 0 {
 		return data.NewNullValue(), nil
 	}
-	first := items.List[0]
-	items.List = items.List[1:]
+	first := items.At(0)
+	items.RemovePositions(0, 1)
 	_ = cv.SetProperty("items", items)
 	if first == nil {
 		return data.NewNullValue(), nil
@@ -1646,7 +1646,7 @@ func collectionSliding(ctx data.Context) (data.GetValue, data.Control) {
 		if err != nil {
 			return nil, err
 		}
-		chunks.List = append(chunks.List, data.NewZVal(inst))
+		chunks.AppendValue(inst)
 	}
 	return newCollectionInstance(ctx, chunks)
 }
@@ -1807,7 +1807,7 @@ func collectionSplice(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	removed := data.NewArrayValue(nil).(*data.ArrayValue)
 	for i := offset; i < end && i < len(entries); i++ {
-		removed.List = append(removed.List, data.NewZVal(entries[i].value))
+		removed.AppendValue(entries[i].value)
 	}
 	newEntries := append([]kv{}, entries[:offset]...)
 	if replacement != nil && !isNull(replacement) {
@@ -1822,7 +1822,7 @@ func collectionSplice(ctx data.Context) (data.GetValue, data.Control) {
 	newEntries = append(newEntries, entries[end:]...)
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
 	for _, e := range newEntries {
-		out.List = append(out.List, data.NewZVal(e.value))
+		out.AppendValue(e.value)
 	}
 	_ = cv.SetProperty("items", out)
 	removedInst, ctl := newCollectionInstance(ctx, removed)
@@ -1873,7 +1873,7 @@ func splitCollection(ctx data.Context, inGroups bool) (data.GetValue, data.Contr
 			if err != nil {
 				return nil, err
 			}
-			chunks.List = append(chunks.List, data.NewZVal(inst))
+			chunks.AppendValue(inst)
 		}
 	} else {
 		for i := 0; i < n; i++ {
@@ -1886,7 +1886,7 @@ func splitCollection(ctx data.Context, inGroups bool) (data.GetValue, data.Contr
 			if err != nil {
 				return nil, err
 			}
-			chunks.List = append(chunks.List, data.NewZVal(inst))
+			chunks.AppendValue(inst)
 		}
 	}
 	return newCollectionInstance(ctx, chunks)
@@ -1945,7 +1945,7 @@ func collectionUnshift(ctx data.Context) (data.GetValue, data.Control) {
 		if !ok || v == nil || isNull(v) {
 			break
 		}
-		items.List = append([]*data.ZVal{data.NewZVal(v)}, items.List...)
+		items.PrependDense(v)
 	}
 	_ = cv.SetProperty("items", items)
 	return cv, nil
@@ -1980,12 +1980,12 @@ func collectionZip(ctx data.Context) (data.GetValue, data.Control) {
 		for _, l := range lists {
 			entries := toEntries(l)
 			if i < len(entries) {
-				row.List = append(row.List, data.NewZVal(entries[i].value))
+				row.AppendValue(entries[i].value)
 			} else {
-				row.List = append(row.List, data.NewZVal(data.NewNullValue()))
+				row.AppendValue(data.NewNullValue())
 			}
 		}
-		out.List = append(out.List, data.NewZVal(row))
+		out.AppendValue(row)
 	}
 	return newCollectionInstance(ctx, out)
 }

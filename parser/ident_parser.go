@@ -103,12 +103,12 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 		val := p.scopeManager.CurrentScope().AddVariable(name, nil, tracker.EndBefore())
 		return node.NewVariableWithFirst(tracker.EndBefore(), val), nil
 	}
-	if p.checkPositionIs(0, token.VARIABLE) || p.checkPositionIs(1, token.ASSIGN) {
+	if p.checkPositionIs(0, token.VARIABLE) || (p.checkPositionIs(0, token.IDENTIFIER) && p.checkPositionIs(1, token.ASSIGN)) {
 		// int $num 或者 int i = 0
 		ty := name
 		name = p.current().Literal()
 		p.next()
-		val := p.scopeManager.CurrentScope().AddVariable(name, data.NewBaseType(ty), tracker.EndBefore())
+		val := p.scopeManager.CurrentScope().AddVariable(name, data.NewDeclaredType(ty), tracker.EndBefore())
 		return node.NewVariableWithFirst(tracker.EndBefore(), val), nil
 	}
 
@@ -129,7 +129,7 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 			p.next()
 			ty := p.current().Literal()
 			p.next()
-			val := p.scopeManager.CurrentScope().AddVariable(name, data.NewBaseType(ty), tracker.EndBefore())
+			val := p.scopeManager.CurrentScope().AddVariable(name, data.NewDeclaredType(ty), tracker.EndBefore())
 			expr := node.NewVariableWithFirst(tracker.EndBefore(), val)
 			// 解析后续操作（函数调用、数组访问等）
 			vp := &VariableParser{p.Parser}

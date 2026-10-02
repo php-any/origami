@@ -124,12 +124,11 @@ func spqFormatExtract(entry spqEntry, flags int) data.Value {
 	case SpqExtrPriority:
 		return entry.priority
 	case SpqExtrBoth:
-		return &data.ArrayValue{
-			List: []*data.ZVal{
-				data.NewNamedZVal("data", entry.value),
-				data.NewNamedZVal("priority", entry.priority),
-			},
-		}
+		return data.NewArrayValueFromSlots([]*data.ZVal{
+			data.NewNamedZVal("data", entry.value),
+			data.NewNamedZVal("priority", entry.priority),
+		})
+
 	default:
 		return entry.value
 	}
@@ -226,6 +225,7 @@ func (m *SplPriorityQueueInsertMethod) GetName() string            { return "ins
 func (m *SplPriorityQueueInsertMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplPriorityQueueInsertMethod) GetIsStatic() bool          { return false }
 func (m *SplPriorityQueueInsertMethod) GetReturnType() data.Types  { return nil }
+
 var splPriorityQueueInsertMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "value", 0, nil, data.Mixed{}),
 	node.NewParameter(nil, "priority", 1, data.NewIntValue(0), data.Mixed{}),
@@ -234,6 +234,7 @@ var splPriorityQueueInsertMethodGetParams = []data.GetValue{
 func (m *SplPriorityQueueInsertMethod) GetParams() []data.GetValue {
 	return splPriorityQueueInsertMethodGetParams
 }
+
 var splPriorityQueueInsertMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "value", 0, data.Mixed{}),
 	node.NewVariable(nil, "priority", 1, data.Mixed{}),
@@ -342,11 +343,13 @@ func (m *SplPriorityQueueSetExtractFlagsMethod) GetModifier() data.Modifier {
 }
 func (m *SplPriorityQueueSetExtractFlagsMethod) GetIsStatic() bool         { return false }
 func (m *SplPriorityQueueSetExtractFlagsMethod) GetReturnType() data.Types { return nil }
+
 var splPriorityQueueSetExtractFlagsMethodGetParams = []data.GetValue{node.NewParameter(nil, "flags", 0, data.NewIntValue(SpqExtrData), data.Int{})}
 
 func (m *SplPriorityQueueSetExtractFlagsMethod) GetParams() []data.GetValue {
 	return splPriorityQueueSetExtractFlagsMethodGetParams
 }
+
 var splPriorityQueueSetExtractFlagsMethodGetVariables = []data.Variable{node.NewVariable(nil, "flags", 0, data.Int{})}
 
 func (m *SplPriorityQueueSetExtractFlagsMethod) GetVariables() []data.Variable {

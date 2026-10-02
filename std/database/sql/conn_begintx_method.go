@@ -52,6 +52,7 @@ func (h *ConnBeginTxMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 func (h *ConnBeginTxMethod) GetName() string            { return "beginTx" }
 func (h *ConnBeginTxMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ConnBeginTxMethod) GetIsStatic() bool          { return true }
+
 var connBeginTxMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "ctx", 0, nil, nil),
 	node.NewParameter(nil, "opts", 1, nil, nil),

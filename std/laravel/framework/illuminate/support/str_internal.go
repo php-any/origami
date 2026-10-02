@@ -462,7 +462,7 @@ func arrayAppend(av *data.ArrayValue, v data.Value) {
 	if av == nil {
 		return
 	}
-	av.List = append(av.List, data.NewZVal(v))
+	av.AppendValue(v)
 }
 
 func strFlushCaches() {

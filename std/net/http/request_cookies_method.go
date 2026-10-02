@@ -14,13 +14,17 @@ func (h *RequestCookiesMethod) Call(ctx data.Context) (data.GetValue, data.Contr
 	return data.NewAnyValue(ret0), nil
 }
 
-func (h *RequestCookiesMethod) GetName() string               { return "cookies" }
-func (h *RequestCookiesMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *RequestCookiesMethod) GetIsStatic() bool             { return false }
+func (h *RequestCookiesMethod) GetName() string            { return "cookies" }
+func (h *RequestCookiesMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *RequestCookiesMethod) GetIsStatic() bool          { return false }
+
 var requestCookiesMethodGetParams = []data.GetValue{}
 
-func (h *RequestCookiesMethod) GetParams() []data.GetValue    { return requestCookiesMethodGetParams }
+func (h *RequestCookiesMethod) GetParams() []data.GetValue { return requestCookiesMethodGetParams }
+
 var requestCookiesMethodGetVariables = []data.Variable{}
 
-func (h *RequestCookiesMethod) GetVariables() []data.Variable { return requestCookiesMethodGetVariables }
-func (h *RequestCookiesMethod) GetReturnType() data.Types     { return data.NewBaseType("array") }
+func (h *RequestCookiesMethod) GetVariables() []data.Variable {
+	return requestCookiesMethodGetVariables
+}
+func (h *RequestCookiesMethod) GetReturnType() data.Types { return data.NewBaseType("array") }

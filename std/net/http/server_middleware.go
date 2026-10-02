@@ -104,6 +104,7 @@ func (f ServerMiddlewareNext) Call(ctx data.Context) (_ data.GetValue, acl data.
 }
 
 func (f ServerMiddlewareNext) GetName() string { return "next" }
+
 var serverMiddlewareNextGetParams = []data.GetValue{
 	node.NewParameter(nil, "request", 0, nil, nil),
 	node.NewParameter(nil, "response", 1, nil, nil),
@@ -128,6 +129,7 @@ func (f ServerMiddlewareNext) GetVariables() []data.Variable {
 func (h *ServerMiddlewareMethod) GetName() string            { return "middleware" }
 func (h *ServerMiddlewareMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ServerMiddlewareMethod) GetIsStatic() bool          { return false }
+
 var serverMiddlewareMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "mid", 0, nil, nil),
 	node.NewParameter(nil, "priority", 1, data.NewIntValue(0), data.NewBaseType("int")),
@@ -136,6 +138,7 @@ var serverMiddlewareMethodGetParams = []data.GetValue{
 func (h *ServerMiddlewareMethod) GetParams() []data.GetValue {
 	return serverMiddlewareMethodGetParams
 }
+
 var serverMiddlewareMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "mid", 0, nil),
 	node.NewVariable(nil, "priority", 1, nil),

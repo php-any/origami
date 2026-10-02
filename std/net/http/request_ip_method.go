@@ -34,12 +34,14 @@ func (h *RequestIpMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewStringValue(h.source.RemoteAddr), nil
 }
 
-func (h *RequestIpMethod) GetName() string               { return "ip" }
-func (h *RequestIpMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *RequestIpMethod) GetIsStatic() bool             { return false }
+func (h *RequestIpMethod) GetName() string            { return "ip" }
+func (h *RequestIpMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *RequestIpMethod) GetIsStatic() bool          { return false }
+
 var requestIpMethodGetParams = []data.GetValue{}
 
-func (h *RequestIpMethod) GetParams() []data.GetValue    { return requestIpMethodGetParams }
+func (h *RequestIpMethod) GetParams() []data.GetValue { return requestIpMethodGetParams }
+
 var requestIpMethodGetVariables = []data.Variable{}
 
 func (h *RequestIpMethod) GetVariables() []data.Variable { return requestIpMethodGetVariables }

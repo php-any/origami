@@ -29,6 +29,8 @@ func canFastPositionalBind(params []data.GetValue, args []data.GetValue) bool {
 }
 
 func bindPositionalParameters(fnCtx, ctx data.Context, params []data.GetValue, args []data.GetValue, varies []data.Variable) data.Control {
+	// The frame already inherits caller mode; object binders set it before
+	// entering this path. Do not repeat virtual context calls for every call.
 	nArgs := len(args)
 	nParams := len(params)
 	if nArgs == 0 {

@@ -96,18 +96,15 @@ func (c *routeCloner) rewrite(v data.Value, depth int) data.Value {
 		if t == nil {
 			return v
 		}
-		src := t.List
-		list := make([]*data.ZVal, len(src))
-		for i, z := range src {
+		src := t.View()
+		list := make([]*data.ZVal, src.Len())
+		for i, z := range src.Range() {
 			if z == nil {
 				continue
 			}
 			list[i] = data.CopyZValKeepName(z, c.rewrite(z.Value, depth+1))
 		}
-		return &data.ArrayValue{
-			List:                  list,
-			IndirectOverloadClass: t.IndirectOverloadClass,
-		}
+		return data.NewArrayValueFromSlotsWithProvenance(list, t.IndirectOverloadClass)
 	case *data.ObjectValue:
 		if t == nil {
 			return v
@@ -256,7 +253,8 @@ func warmRouteCompiles(ctx data.Context, router data.Value) {
 	if !ok || arr == nil {
 		return
 	}
-	for _, z := range arr.List {
+	for arraySlots77, arrayPosition77 := arr.View(), 0; arrayPosition77 < arraySlots77.Len(); arrayPosition77++ {
+		z := arraySlots77.At(arrayPosition77)
 		if z == nil || z.Value == nil {
 			continue
 		}

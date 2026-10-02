@@ -3,10 +3,10 @@ package php
 import (
 	"crypto/md5"
 	"fmt"
-	"os"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 // Md5FileFunction 实现 PHP 内置函数 md5_file
@@ -33,7 +33,7 @@ func (f *Md5FileFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewBoolValue(false), nil
 	}
 
-	content, err := os.ReadFile(filename)
+	content, err := utils.ReadFileContext(ctx.GoContext(), filename)
 	if err != nil {
 		return data.NewBoolValue(false), nil
 	}

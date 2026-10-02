@@ -46,6 +46,7 @@ func (f *FseekFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *FseekFunction) GetName() string { return "fseek" }
+
 var fseekFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "stream", 0, nil, nil),
 	node.NewParameter(nil, "offset", 1, nil, data.Int{}),
@@ -55,6 +56,7 @@ var fseekFunctionGetParams = []data.GetValue{
 func (f *FseekFunction) GetParams() []data.GetValue {
 	return fseekFunctionGetParams
 }
+
 var fseekFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "stream", 0, nil),
 	node.NewVariable(nil, "offset", 1, data.Int{}),

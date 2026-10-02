@@ -31,11 +31,13 @@ func (f *SqrtFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *SqrtFunction) GetName() string { return "sqrt" }
+
 var sqrtFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *SqrtFunction) GetParams() []data.GetValue {
 	return sqrtFunctionGetParams
 }
+
 var sqrtFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *SqrtFunction) GetVariables() []data.Variable {
@@ -63,11 +65,13 @@ func (f *CbrtFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *CbrtFunction) GetName() string { return "cbrt" }
+
 var cbrtFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *CbrtFunction) GetParams() []data.GetValue {
 	return cbrtFunctionGetParams
 }
+
 var cbrtFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *CbrtFunction) GetVariables() []data.Variable {
@@ -95,11 +99,13 @@ func (f *ExpFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *ExpFunction) GetName() string { return "exp" }
+
 var expFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *ExpFunction) GetParams() []data.GetValue {
 	return expFunctionGetParams
 }
+
 var expFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *ExpFunction) GetVariables() []data.Variable {
@@ -138,6 +144,7 @@ func (f *LogFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *LogFunction) GetName() string { return "log" }
+
 var logFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "num", 0, nil, nil),
 	node.NewParameter(nil, "base", 1, node.NewIntLiteral(nil, "0"), nil),
@@ -146,6 +153,7 @@ var logFunctionGetParams = []data.GetValue{
 func (f *LogFunction) GetParams() []data.GetValue {
 	return logFunctionGetParams
 }
+
 var logFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "num", 0, nil),
 	node.NewVariable(nil, "base", 1, data.NewBaseType("float")),
@@ -176,11 +184,13 @@ func (f *Log10Function) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *Log10Function) GetName() string { return "log10" }
+
 var log10FunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *Log10Function) GetParams() []data.GetValue {
 	return log10FunctionGetParams
 }
+
 var log10FunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *Log10Function) GetVariables() []data.Variable {
@@ -208,11 +218,13 @@ func (f *Log1pFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *Log1pFunction) GetName() string { return "log1p" }
+
 var log1pFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *Log1pFunction) GetParams() []data.GetValue {
 	return log1pFunctionGetParams
 }
+
 var log1pFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *Log1pFunction) GetVariables() []data.Variable {
@@ -240,11 +252,13 @@ func (f *Expm1Function) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *Expm1Function) GetName() string { return "expm1" }
+
 var expm1FunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *Expm1Function) GetParams() []data.GetValue {
 	return expm1FunctionGetParams
 }
+
 var expm1FunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *Expm1Function) GetVariables() []data.Variable {
@@ -261,11 +275,13 @@ func (f *PiFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *PiFunction) GetName() string { return "pi" }
+
 var piFunctionGetParams = []data.GetValue{}
 
 func (f *PiFunction) GetParams() []data.GetValue {
 	return piFunctionGetParams
 }
+
 var piFunctionGetVariables = []data.Variable{}
 
 func (f *PiFunction) GetVariables() []data.Variable {
@@ -295,11 +311,13 @@ func (f *SinFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *SinFunction) GetName() string { return "sin" }
+
 var sinFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *SinFunction) GetParams() []data.GetValue {
 	return sinFunctionGetParams
 }
+
 var sinFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *SinFunction) GetVariables() []data.Variable {
@@ -327,11 +345,13 @@ func (f *CosFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *CosFunction) GetName() string { return "cos" }
+
 var cosFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *CosFunction) GetParams() []data.GetValue {
 	return cosFunctionGetParams
 }
+
 var cosFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *CosFunction) GetVariables() []data.Variable {
@@ -359,11 +379,13 @@ func (f *TanFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *TanFunction) GetName() string { return "tan" }
+
 var tanFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *TanFunction) GetParams() []data.GetValue {
 	return tanFunctionGetParams
 }
+
 var tanFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *TanFunction) GetVariables() []data.Variable {
@@ -391,11 +413,13 @@ func (f *AcosFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *AcosFunction) GetName() string { return "acos" }
+
 var acosFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *AcosFunction) GetParams() []data.GetValue {
 	return acosFunctionGetParams
 }
+
 var acosFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *AcosFunction) GetVariables() []data.Variable {
@@ -423,11 +447,13 @@ func (f *AsinFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *AsinFunction) GetName() string { return "asin" }
+
 var asinFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *AsinFunction) GetParams() []data.GetValue {
 	return asinFunctionGetParams
 }
+
 var asinFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *AsinFunction) GetVariables() []data.Variable {
@@ -455,11 +481,13 @@ func (f *AtanFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *AtanFunction) GetName() string { return "atan" }
+
 var atanFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *AtanFunction) GetParams() []data.GetValue {
 	return atanFunctionGetParams
 }
+
 var atanFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *AtanFunction) GetVariables() []data.Variable {
@@ -489,6 +517,7 @@ func (f *Atan2Function) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *Atan2Function) GetName() string { return "atan2" }
+
 var atan2FunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "y", 0, nil, nil),
 	node.NewParameter(nil, "x", 1, nil, nil),
@@ -497,6 +526,7 @@ var atan2FunctionGetParams = []data.GetValue{
 func (f *Atan2Function) GetParams() []data.GetValue {
 	return atan2FunctionGetParams
 }
+
 var atan2FunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "y", 0, nil),
 	node.NewVariable(nil, "x", 1, nil),
@@ -529,11 +559,13 @@ func (f *CoshFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *CoshFunction) GetName() string { return "cosh" }
+
 var coshFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *CoshFunction) GetParams() []data.GetValue {
 	return coshFunctionGetParams
 }
+
 var coshFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *CoshFunction) GetVariables() []data.Variable {
@@ -561,11 +593,13 @@ func (f *SinhFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *SinhFunction) GetName() string { return "sinh" }
+
 var sinhFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *SinhFunction) GetParams() []data.GetValue {
 	return sinhFunctionGetParams
 }
+
 var sinhFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *SinhFunction) GetVariables() []data.Variable {
@@ -593,11 +627,13 @@ func (f *TanhFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *TanhFunction) GetName() string { return "tanh" }
+
 var tanhFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *TanhFunction) GetParams() []data.GetValue {
 	return tanhFunctionGetParams
 }
+
 var tanhFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *TanhFunction) GetVariables() []data.Variable {
@@ -625,11 +661,13 @@ func (f *AcoshFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *AcoshFunction) GetName() string { return "acosh" }
+
 var acoshFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *AcoshFunction) GetParams() []data.GetValue {
 	return acoshFunctionGetParams
 }
+
 var acoshFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *AcoshFunction) GetVariables() []data.Variable {
@@ -657,11 +695,13 @@ func (f *AsinhFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *AsinhFunction) GetName() string { return "asinh" }
+
 var asinhFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *AsinhFunction) GetParams() []data.GetValue {
 	return asinhFunctionGetParams
 }
+
 var asinhFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *AsinhFunction) GetVariables() []data.Variable {
@@ -689,11 +729,13 @@ func (f *AtanhFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *AtanhFunction) GetName() string { return "atanh" }
+
 var atanhFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *AtanhFunction) GetParams() []data.GetValue {
 	return atanhFunctionGetParams
 }
+
 var atanhFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *AtanhFunction) GetVariables() []data.Variable {
@@ -723,6 +765,7 @@ func (f *HypotFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *HypotFunction) GetName() string { return "hypot" }
+
 var hypotFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "x", 0, nil, nil),
 	node.NewParameter(nil, "y", 1, nil, nil),
@@ -731,6 +774,7 @@ var hypotFunctionGetParams = []data.GetValue{
 func (f *HypotFunction) GetParams() []data.GetValue {
 	return hypotFunctionGetParams
 }
+
 var hypotFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "x", 0, nil),
 	node.NewVariable(nil, "y", 1, nil),
@@ -766,6 +810,7 @@ func (f *FmodFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *FmodFunction) GetName() string { return "fmod" }
+
 var fmodFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "x", 0, nil, nil),
 	node.NewParameter(nil, "y", 1, nil, nil),
@@ -774,6 +819,7 @@ var fmodFunctionGetParams = []data.GetValue{
 func (f *FmodFunction) GetParams() []data.GetValue {
 	return fmodFunctionGetParams
 }
+
 var fmodFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "x", 0, nil),
 	node.NewVariable(nil, "y", 1, nil),
@@ -806,11 +852,13 @@ func (f *Deg2radFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *Deg2radFunction) GetName() string { return "deg2rad" }
+
 var deg2radFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *Deg2radFunction) GetParams() []data.GetValue {
 	return deg2radFunctionGetParams
 }
+
 var deg2radFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *Deg2radFunction) GetVariables() []data.Variable {
@@ -838,11 +886,13 @@ func (f *Rad2degFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *Rad2degFunction) GetName() string { return "rad2deg" }
+
 var rad2degFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *Rad2degFunction) GetParams() []data.GetValue {
 	return rad2degFunctionGetParams
 }
+
 var rad2degFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *Rad2degFunction) GetVariables() []data.Variable {
@@ -898,6 +948,7 @@ func (f *BaseConvertFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 }
 
 func (f *BaseConvertFunction) GetName() string { return "base_convert" }
+
 var baseConvertFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "num", 0, nil, nil),
 	node.NewParameter(nil, "from_base", 1, nil, data.NewBaseType("int")),
@@ -907,6 +958,7 @@ var baseConvertFunctionGetParams = []data.GetValue{
 func (f *BaseConvertFunction) GetParams() []data.GetValue {
 	return baseConvertFunctionGetParams
 }
+
 var baseConvertFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "num", 0, nil),
 	node.NewVariable(nil, "from_base", 1, data.NewBaseType("int")),
@@ -940,11 +992,13 @@ func (f *BindecFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *BindecFunction) GetName() string { return "bindec" }
+
 var bindecFunctionGetParams = []data.GetValue{node.NewParameter(nil, "binary_string", 0, nil, nil)}
 
 func (f *BindecFunction) GetParams() []data.GetValue {
 	return bindecFunctionGetParams
 }
+
 var bindecFunctionGetVariables = []data.Variable{node.NewVariable(nil, "binary_string", 0, nil)}
 
 func (f *BindecFunction) GetVariables() []data.Variable {

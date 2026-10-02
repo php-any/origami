@@ -51,6 +51,7 @@ func (h *ConnPrepareContextMethod) Call(ctx data.Context) (data.GetValue, data.C
 func (h *ConnPrepareContextMethod) GetName() string            { return "prepareContext" }
 func (h *ConnPrepareContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ConnPrepareContextMethod) GetIsStatic() bool          { return true }
+
 var connPrepareContextMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "ctx", 0, nil, nil),
 	node.NewParameter(nil, "query", 1, nil, nil),

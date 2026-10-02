@@ -43,12 +43,14 @@ func (h *RequestAllMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 	return result, nil
 }
 
-func (h *RequestAllMethod) GetName() string               { return "all" }
-func (h *RequestAllMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *RequestAllMethod) GetIsStatic() bool             { return false }
+func (h *RequestAllMethod) GetName() string            { return "all" }
+func (h *RequestAllMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *RequestAllMethod) GetIsStatic() bool          { return false }
+
 var requestAllMethodGetParams = []data.GetValue{}
 
-func (h *RequestAllMethod) GetParams() []data.GetValue    { return requestAllMethodGetParams }
+func (h *RequestAllMethod) GetParams() []data.GetValue { return requestAllMethodGetParams }
+
 var requestAllMethodGetVariables = []data.Variable{}
 
 func (h *RequestAllMethod) GetVariables() []data.Variable { return requestAllMethodGetVariables }

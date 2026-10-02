@@ -60,7 +60,7 @@ func newAliasClass() *rtClass {
 		return cv, nil
 	}))
 	c.add(meth("isDeprecated", nil, func(ctx data.Context) (data.GetValue, data.Control) {
-		return data.NewBoolValue(len(propArray(rtSelf(ctx), "deprecation").List) > 0), nil
+		return data.NewBoolValue(propArray(rtSelf(ctx), "deprecation").Len() > 0), nil
 	}))
 	c.add(meth("getDeprecation", []string{"name"}, func(ctx data.Context) (data.GetValue, data.Control) {
 		dep := propArray(rtSelf(ctx), "deprecation")
@@ -111,8 +111,8 @@ func newRouteCollectionClass() *rtClass {
 	c.add(meth("setMethods", []string{"methods"}, collectionSetMethods))
 	c.add(meth("getResources", nil, func(ctx data.Context) (data.GetValue, data.Control) {
 		src := propArray(rtSelf(ctx), "resources")
-		vals := make([]data.Value, 0, len(src.List))
-		for _, z := range src.List {
+		vals := make([]data.Value, 0, src.Len())
+		for _, z := range src.Range() {
 			if z != nil && z.Value != nil {
 				vals = append(vals, z.Value)
 			}
@@ -152,7 +152,7 @@ func newRouteCollectionClass() *rtClass {
 		return v, nil
 	}))
 	c.add(meth("count", nil, func(ctx data.Context) (data.GetValue, data.Control) {
-		return data.NewIntValue(len(propArray(rtSelf(ctx), "routes").List)), nil
+		return data.NewIntValue(propArray(rtSelf(ctx), "routes").Len()), nil
 	}))
 	c.add(meth("getIterator", nil, func(ctx data.Context) (data.GetValue, data.Control) {
 		all, ctl := collectionAll(ctx)
@@ -189,7 +189,7 @@ func collectionAll(ctx data.Context) (data.GetValue, data.Control) {
 	cv := rtSelf(ctx)
 	routes := cloneArray(propArray(cv, "routes"))
 	pri := propArray(cv, "priorities")
-	if len(pri.List) == 0 {
+	if pri.Len() == 0 {
 		return routes, nil
 	}
 	type item struct {
@@ -198,8 +198,9 @@ func collectionAll(ctx data.Context) (data.GetValue, data.Control) {
 		pri  int
 		ord  int
 	}
-	items := make([]item, 0, len(routes.List))
-	for i, z := range routes.List {
+	items := make([]item, 0, routes.Len())
+	for arraySlots169, i := routes.View(), 0; i < arraySlots169.Len(); i++ {
+		z := arraySlots169.At(i)
 		if z == nil {
 			continue
 		}
@@ -217,9 +218,9 @@ func collectionAll(ctx data.Context) (data.GetValue, data.Control) {
 		}
 		return items[i].ord < items[j].ord
 	})
-	out := &data.ArrayValue{List: make([]*data.ZVal, 0, len(items))}
+	out := data.NewArrayValueFromSlots(make([]*data.ZVal, 0, len(items)))
 	for _, it := range items {
-		out.List = append(out.List, data.NewNamedZVal(it.name, it.val))
+		out.SetStringKey(it.name, it.val)
 	}
 	return out, nil
 }
@@ -279,7 +280,8 @@ func collectionRemove(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	if len(removed) > 0 {
 		keep := &data.ArrayValue{}
-		for _, z := range aliases.List {
+		for arraySlots170, arrayPosition170 := aliases.View(), 0; arrayPosition170 < arraySlots170.Len(); arrayPosition170++ {
+			z := arraySlots170.At(arrayPosition170)
 			if z == nil {
 				continue
 			}
@@ -289,7 +291,7 @@ func collectionRemove(ctx data.Context) (data.GetValue, data.Control) {
 					continue
 				}
 			}
-			keep.List = append(keep.List, z)
+			keep.AppendEntries(z)
 		}
 		aliases = keep
 	}
@@ -315,7 +317,8 @@ func collectionAddCollection(ctx data.Context) (data.GetValue, data.Control) {
 	priorities := cloneArray(propArray(cv, "priorities"))
 	otherPri := propArray(other, "priorities")
 	if allArr != nil {
-		for i, z := range allArr.List {
+		for arraySlots171, i := allArr.View(), 0; i < arraySlots171.Len(); i++ {
+			z := arraySlots171.At(i)
 			if z == nil {
 				continue
 			}
@@ -330,7 +333,8 @@ func collectionAddCollection(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 	otherAliases := propArray(other, "aliases")
-	for i, z := range otherAliases.List {
+	for arraySlots172, i := otherAliases.View(), 0; i < arraySlots172.Len(); i++ {
+		z := arraySlots172.At(i)
 		if z == nil {
 			continue
 		}
@@ -348,7 +352,8 @@ func collectionAddCollection(ctx data.Context) (data.GetValue, data.Control) {
 
 func eachRoute(cv *data.ClassValue, fn func(*data.ClassValue) data.Control) data.Control {
 	routes := propArray(cv, "routes")
-	for _, z := range routes.List {
+	for arraySlots173, arrayPosition173 := routes.View(), 0; arrayPosition173 < arraySlots173.Len(); arrayPosition173++ {
+		z := arraySlots173.At(arrayPosition173)
 		if z == nil {
 			continue
 		}
@@ -387,7 +392,8 @@ func collectionAddNamePrefix(ctx data.Context) (data.GetValue, data.Control) {
 	aliases := propArray(cv, "aliases")
 	prefixed := &data.ArrayValue{}
 	prefixedPri := &data.ArrayValue{}
-	for _, z := range routes.List {
+	for arraySlots174, arrayPosition174 := routes.View(), 0; arrayPosition174 < arraySlots174.Len(); arrayPosition174++ {
+		z := arraySlots174.At(arrayPosition174)
 		if z == nil {
 			continue
 		}
@@ -397,13 +403,14 @@ func collectionAddNamePrefix(ctx data.Context) (data.GetValue, data.Control) {
 				routeSetDefault(r, "_canonical_route", data.NewStringValue(prefix+canon.AsString()))
 			}
 		}
-		prefixed.List = append(prefixed.List, data.NewNamedZVal(newName, z.Value))
+		prefixed.SetStringKey(newName, z.Value)
 		if pv, ok := assocGet(priorities, z.Name); ok {
 			assocSet(prefixedPri, newName, pv)
 		}
 	}
 	prefixedAliases := &data.ArrayValue{}
-	for _, z := range aliases.List {
+	for arraySlots175, arrayPosition175 := aliases.View(), 0; arrayPosition175 < arraySlots175.Len(); arrayPosition175++ {
+		z := arraySlots175.At(arrayPosition175)
 		if z == nil {
 			continue
 		}
@@ -423,7 +430,7 @@ func collectionAddNamePrefix(ctx data.Context) (data.GetValue, data.Control) {
 		if ctl != nil {
 			return nil, ctl
 		}
-		prefixedAliases.List = append(prefixedAliases.List, data.NewNamedZVal(prefix+z.Name, neu))
+		prefixedAliases.SetStringKey(prefix+z.Name, neu)
 	}
 	setProp(cv, "routes", prefixed)
 	setProp(cv, "priorities", prefixedPri)
@@ -454,7 +461,7 @@ func collectionSetCondition(ctx data.Context) (data.GetValue, data.Control) {
 
 func collectionAddDefaults(ctx data.Context) (data.GetValue, data.Control) {
 	defs := argArray(ctx, 0)
-	if len(defs.List) == 0 {
+	if defs.Len() == 0 {
 		return data.NewNullValue(), nil
 	}
 	return data.NewNullValue(), eachRoute(rtSelf(ctx), func(r *data.ClassValue) data.Control {
@@ -465,7 +472,7 @@ func collectionAddDefaults(ctx data.Context) (data.GetValue, data.Control) {
 
 func collectionAddRequirements(ctx data.Context) (data.GetValue, data.Control) {
 	reqs := argArray(ctx, 0)
-	if len(reqs.List) == 0 {
+	if reqs.Len() == 0 {
 		return data.NewNullValue(), nil
 	}
 	return data.NewNullValue(), eachRoute(rtSelf(ctx), func(r *data.ClassValue) data.Control {
@@ -475,7 +482,7 @@ func collectionAddRequirements(ctx data.Context) (data.GetValue, data.Control) {
 
 func collectionAddOptions(ctx data.Context) (data.GetValue, data.Control) {
 	opts := argArray(ctx, 0)
-	if len(opts.List) == 0 {
+	if opts.Len() == 0 {
 		return data.NewNullValue(), nil
 	}
 	return data.NewNullValue(), eachRoute(rtSelf(ctx), func(r *data.ClassValue) data.Control {

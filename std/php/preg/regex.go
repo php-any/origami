@@ -150,6 +150,8 @@ func parsePhpPattern(pattern string) (goPattern string, r2Pattern string, r2Flag
 	modifiers := pattern[endIndex+1:]
 	regexBody := pattern[1:endIndex]
 
+	regexBody = translateWhitespaceClasses(regexBody, strings.Contains(modifiers, "u") || strings.Contains(regexBody, "(*UTF"))
+
 	// 处理占有量词
 	regexBody = convertPossessiveQuantifiers(regexBody)
 
@@ -560,11 +562,11 @@ func BuildMatchArray(captures []Capture, flags int) data.Value {
 			}
 		}
 		if last < 0 {
-			return &data.ArrayValue{List: []*data.ZVal{}}
+			return data.NewArrayValueFromSlots([]*data.ZVal{})
 		}
 		captures = captures[:last+1]
 	} else if len(captures) == 0 {
-		return &data.ArrayValue{List: []*data.ZVal{}}
+		return data.NewArrayValueFromSlots([]*data.ZVal{})
 	}
 
 	hasNamed := false
@@ -602,7 +604,7 @@ func BuildMatchArray(captures []Capture, flags int) data.Value {
 			list = append(list, data.NewZVal(val))
 		}
 	}
-	return &data.ArrayValue{List: list}
+	return data.NewArrayValueFromSlots(list)
 }
 
 // ExpandPhpReplacement 将 PHP preg_replace 替换串中的反引用展开为最终文本。

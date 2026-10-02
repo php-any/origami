@@ -51,6 +51,7 @@ func (f *RandomIntFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 }
 
 func (f *RandomIntFunction) GetName() string { return "random_int" }
+
 var randomIntFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "min", 0, nil, nil),
 	node.NewParameter(nil, "max", 1, nil, nil),
@@ -59,6 +60,7 @@ var randomIntFunctionGetParams = []data.GetValue{
 func (f *RandomIntFunction) GetParams() []data.GetValue {
 	return randomIntFunctionGetParams
 }
+
 var randomIntFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "min", 0, data.NewBaseType("int")),
 	node.NewVariable(nil, "max", 1, data.NewBaseType("int")),

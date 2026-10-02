@@ -12,6 +12,23 @@ func newPhpReflectionType(ctx data.Context, typeInfo data.Types) data.Value {
 	if typeInfo == nil {
 		return data.NewNullValue()
 	}
+	if ref, ok := typeInfo.(data.TypeRef); ok {
+		if _, nullable := data.NullableDeclaredBase(ref); nullable {
+			return newReflectionNamedType(ctx, ref)
+		}
+		if ref.Kind() == data.TypeKindUnion || ref.Kind() == data.TypeKindIntersection {
+			view := ref.Members()
+			members := make([]data.Types, view.Len())
+			for i := 0; i < view.Len(); i++ {
+				members[i] = view.At(i)
+			}
+			if ref.Kind() == data.TypeKindUnion {
+				return newCompoundReflectionType(ctx, &ReflectionUnionTypeClass{}, members, ref.String())
+			}
+			return newCompoundReflectionType(ctx, &ReflectionIntersectionTypeClass{}, members, ref.String())
+		}
+		return newReflectionNamedType(ctx, ref)
+	}
 	if u, ok := asUnionType(typeInfo); ok && len(u.Types) > 0 {
 		return newReflectionUnionType(ctx, u)
 	}
@@ -57,6 +74,9 @@ func compoundAllowsNull(members []data.Types) bool {
 func typeAllowsNullMember(t data.Types) bool {
 	if t == nil {
 		return false
+	}
+	if _, ok := t.(data.TypeRef); ok {
+		return data.TypeAllowsNull(t)
 	}
 	switch x := t.(type) {
 	case data.NullableType:

@@ -25,6 +25,7 @@ func (h *RequestFormValueMethod) Call(ctx data.Context) (data.GetValue, data.Con
 func (h *RequestFormValueMethod) GetName() string            { return "formValue" }
 func (h *RequestFormValueMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestFormValueMethod) GetIsStatic() bool          { return false }
+
 var requestFormValueMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "param0", 0, nil, nil),
 }
@@ -32,6 +33,7 @@ var requestFormValueMethodGetParams = []data.GetValue{
 func (h *RequestFormValueMethod) GetParams() []data.GetValue {
 	return requestFormValueMethodGetParams
 }
+
 var requestFormValueMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "param0", 0, nil),
 }

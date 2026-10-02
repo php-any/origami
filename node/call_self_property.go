@@ -25,7 +25,10 @@ func (pe *CallSelfProperty) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	// 检查是否在类上下文中（类方法或类级初始化器）
 	var currentClass data.ClassStmt
 	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
-		currentClass = classCtx.Class
+		currentClass = classCtx.SelfClass
+		if currentClass == nil {
+			currentClass = classCtx.Class
+		}
 	} else if classVal, ok := ctx.(*data.ClassValue); ok {
 		currentClass = classVal.Class
 	} else {
@@ -36,7 +39,7 @@ func (pe *CallSelfProperty) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	getter, ok := currentClass.(data.GetStaticProperty)
 	if ok {
 		// 获取当前类的静态属性
-		property, has := getter.GetStaticProperty(pe.Property)
+		property, has := staticPropertyValue(ctx, getter, pe.Property)
 		if has {
 			return property, nil
 		}
@@ -54,7 +57,7 @@ func (pe *CallSelfProperty) GetValue(ctx data.Context) (data.GetValue, data.Cont
 
 		// 检查父类是否实现了 GetStaticProperty 接口
 		if parentGetter, ok := parentClass.(data.GetStaticProperty); ok {
-			property, has := parentGetter.GetStaticProperty(pe.Property)
+			property, has := staticPropertyValue(ctx, parentGetter, pe.Property)
 			if has {
 				return property, nil
 			}
@@ -126,7 +129,10 @@ func (pe *CallSelfProperty) SetProperty(ctx data.Context, name string, value dat
 	// 检查是否在类上下文中（类方法或类级初始化器）
 	var currentClass data.ClassStmt
 	if classCtx, ok := ctx.(*data.ClassMethodContext); ok {
-		currentClass = classCtx.Class
+		currentClass = classCtx.SelfClass
+		if currentClass == nil {
+			currentClass = classCtx.Class
+		}
 	} else if classVal, ok := ctx.(*data.ClassValue); ok {
 		currentClass = classVal.Class
 	} else {

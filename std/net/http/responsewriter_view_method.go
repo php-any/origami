@@ -74,7 +74,7 @@ func viewDataWithContent(objectValue data.GetValue, content data.Value) data.Get
 	for name, value := range props {
 		items = append(items, data.NewNamedZVal(name, value))
 	}
-	return &data.ArrayValue{List: items}
+	return data.NewArrayValueFromSlots(items)
 }
 
 func viewDataProps(objectValue data.GetValue) map[string]data.Value {
@@ -85,7 +85,8 @@ func viewDataProps(objectValue data.GetValue) map[string]data.Value {
 		return v.GetProperties()
 	case *data.ArrayValue:
 		props := make(map[string]data.Value)
-		for _, z := range v.List {
+		for arraySlots79, arrayPosition79 := v.View(), 0; arrayPosition79 < arraySlots79.Len(); arrayPosition79++ {
+			z := arraySlots79.At(arrayPosition79)
 			if z == nil || z.Name == "" {
 				continue
 			}
@@ -100,6 +101,7 @@ func viewDataProps(objectValue data.GetValue) map[string]data.Value {
 func (h *ResponseWriterViewMethod) GetName() string            { return "view" }
 func (h *ResponseWriterViewMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResponseWriterViewMethod) GetIsStatic() bool          { return false }
+
 var responseWriterViewMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "templatePath", 0, nil, nil),
 	node.NewParameter(nil, "data", 1, nil, data.Object{}),
@@ -109,6 +111,7 @@ var responseWriterViewMethodGetParams = []data.GetValue{
 func (h *ResponseWriterViewMethod) GetParams() []data.GetValue {
 	return responseWriterViewMethodGetParams
 }
+
 var responseWriterViewMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "templatePath", 0, nil),
 	node.NewVariable(nil, "data", 1, nil),

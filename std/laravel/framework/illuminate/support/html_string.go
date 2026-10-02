@@ -1,7 +1,6 @@
 package support
 
 import (
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/std/laravel/framework/internal/kit"
@@ -20,9 +19,9 @@ func NewHtmlStringClass() data.ClassStmt {
 	return c
 }
 
-func (c *HtmlStringClass) GetName() string                          { return htmlStringClassName }
-func (c *HtmlStringClass) GetExtend() *string                       { return nil }
-func (c *HtmlStringClass) GetImplements() []string                  {
+func (c *HtmlStringClass) GetName() string    { return htmlStringClassName }
+func (c *HtmlStringClass) GetExtend() *string { return nil }
+func (c *HtmlStringClass) GetImplements() []string {
 	return []string{"Illuminate\\Contracts\\Support\\Htmlable", "Stringable"}
 }
 func (c *HtmlStringClass) GetProperty(name string) (data.Property, bool) {

@@ -71,7 +71,7 @@ func phpLooseEquals(a, b data.Value) bool {
 		case *data.StringValue:
 			return v.Value == ""
 		case *data.ArrayValue:
-			return len(v.List) == 0
+			return v.Len() == 0
 		default:
 			return false
 		}
@@ -121,11 +121,12 @@ func phpStrictEqualsDepth(a, b data.Value, depth int) bool {
 		return ok && av.Value == bv.Value
 	case *data.ArrayValue:
 		bv, ok := b.(*data.ArrayValue)
-		if !ok || len(av.List) != len(bv.List) {
+		if !ok || av.Len() != bv.Len() {
 			return false
 		}
-		for i, az := range av.List {
-			bz := bv.List[i]
+		for arraySlots46, i := av.View(), 0; i < arraySlots46.Len(); i++ {
+			az := arraySlots46.At(i)
+			bz := bv.At(i)
 			if az == nil || bz == nil {
 				if az != bz {
 					return false
@@ -196,7 +197,7 @@ func phpToBool(v data.Value) bool {
 	case *data.StringValue:
 		return t.Value != "" && t.Value != "0"
 	case *data.ArrayValue:
-		return len(t.List) > 0
+		return t.Len() > 0
 	case *data.ObjectValue:
 		return true
 	default:

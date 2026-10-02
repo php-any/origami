@@ -241,7 +241,8 @@ func reflectorGetParameterClassNames(ctx data.Context) (data.GetValue, data.Cont
 		}
 		if av, ok := typesRet.(*data.ArrayValue); ok {
 			i := 0
-			for _, e := range av.List {
+			for arraySlots60, arrayPosition60 := av.View(), 0; arrayPosition60 < arraySlots60.Len(); arrayPosition60++ {
+				e := arraySlots60.At(arrayPosition60)
 				if e == nil || e.Value == nil {
 					continue
 				}
@@ -347,7 +348,9 @@ func reflectorIsParameterSubclassOf(ctx data.Context) (data.GetValue, data.Contr
 	cons := rcStmt.GetConstruct()
 	if cons != nil {
 		cctx := rc.CreateContext(cons.GetVariables())
-		data.BindDeclaredArgs(cctx, cons, []data.Value{data.NewStringValue(paramClassName)})
+		if ctl := data.BindDeclaredArgs(cctx, cons, []data.Value{data.NewStringValue(paramClassName)}); ctl != nil {
+			return nil, ctl
+		}
 		if _, ctl := cons.Call(cctx); ctl != nil {
 			return data.NewBoolValue(false), nil
 		}
@@ -386,7 +389,9 @@ func reflectorIsParameterBackedEnum(ctx data.Context) (data.GetValue, data.Contr
 	}
 	if fn, ok := ctx.GetVM().GetFunc("enum_exists"); ok {
 		fctx := ctx.CreateContext(fn.GetVariables())
-		data.BindDeclaredArgs(fctx, fn, []data.Value{data.NewStringValue(enumClass)})
+		if ctl := data.BindDeclaredArgs(fctx, fn, []data.Value{data.NewStringValue(enumClass)}); ctl != nil {
+			return nil, ctl
+		}
 		ret, ctl := fn.Call(fctx)
 		if ctl != nil {
 			return data.NewBoolValue(false), nil
@@ -404,7 +409,9 @@ func reflectorIsParameterBackedEnum(ctx data.Context) (data.GetValue, data.Contr
 	re := data.NewClassValue(reStmt, ctx.CreateBaseContext())
 	if cons := reStmt.GetConstruct(); cons != nil {
 		cctx := re.CreateContext(cons.GetVariables())
-		data.BindDeclaredArgs(cctx, cons, []data.Value{data.NewStringValue(enumClass)})
+		if ctl := data.BindDeclaredArgs(cctx, cons, []data.Value{data.NewStringValue(enumClass)}); ctl != nil {
+			return nil, ctl
+		}
 		if _, ctl := cons.Call(cctx); ctl != nil {
 			return data.NewBoolValue(false), nil
 		}
@@ -468,7 +475,9 @@ func reflectorGetClassAttributes(ctx data.Context) (data.GetValue, data.Control)
 		if arg == nil {
 			arg = data.NewNullValue()
 		}
-		data.BindDeclaredArgs(cctx, cons, []data.Value{arg})
+		if ctl := data.BindDeclaredArgs(cctx, cons, []data.Value{arg}); ctl != nil {
+			return nil, ctl
+		}
 		if _, ctl := cons.Call(cctx); ctl != nil {
 			return nil, ctl
 		}
@@ -485,7 +494,8 @@ func reflectorGetClassAttributes(ctx data.Context) (data.GetValue, data.Control)
 	instances := data.NewArrayValue(nil).(*data.ArrayValue)
 	i := 0
 	if av, ok := attrsRet.(*data.ArrayValue); ok {
-		for _, e := range av.List {
+		for arraySlots61, arrayPosition61 := av.View(), 0; arrayPosition61 < arraySlots61.Len(); arrayPosition61++ {
+			e := arraySlots61.At(arrayPosition61)
 			if e == nil || e.Value == nil {
 				continue
 			}
@@ -508,7 +518,9 @@ func reflectorGetClassAttributes(ctx data.Context) (data.GetValue, data.Control)
 	coll := data.NewClassValue(collStmt, ctx.CreateBaseContext())
 	if cons := collStmt.GetConstruct(); cons != nil {
 		cctx := coll.CreateContext(cons.GetVariables())
-		data.BindDeclaredArgs(cctx, cons, []data.Value{instances})
+		if ctl := data.BindDeclaredArgs(cctx, cons, []data.Value{instances}); ctl != nil {
+			return nil, ctl
+		}
 		if _, ctl := cons.Call(cctx); ctl != nil {
 			return instances, nil
 		}
@@ -527,7 +539,9 @@ func reflectorGetClassAttributes(ctx data.Context) (data.GetValue, data.Control)
 	outerColl := data.NewClassValue(collStmt, ctx.CreateBaseContext())
 	if cons := collStmt.GetConstruct(); cons != nil {
 		cctx := outerColl.CreateContext(cons.GetVariables())
-		data.BindDeclaredArgs(cctx, cons, []data.Value{outer})
+		if ctl := data.BindDeclaredArgs(cctx, cons, []data.Value{outer}); ctl != nil {
+			return nil, ctl
+		}
 		if _, ctl := cons.Call(cctx); ctl != nil {
 			return coll, nil
 		}

@@ -141,7 +141,9 @@ func (m *funcCallMethod) Call(ctx Context) (GetValue, Control) {
 
 	args := closureCallArgs(ctx)
 	callCtx := ctx.CreateContext(m.closure.Value.GetVariables())
-	BindDeclaredArgs(callCtx, m.closure.Value, args)
+	if ctl := BindDeclaredArgs(callCtx, m.closure.Value, args); ctl != nil {
+		return nil, ctl
+	}
 
 	return NewBoundFuncValue(m.closure.Value, scopeClass, boundThis).Call(callCtx)
 }
@@ -152,8 +154,8 @@ func closureCallArgs(ctx Context) []Value {
 	}
 	if argsVal, ok := ctx.GetIndexValue(1); ok && argsVal != nil {
 		if arr, isArr := argsVal.(*ArrayValue); isArr {
-			out := make([]Value, 0, len(arr.List))
-			for _, zv := range arr.List {
+			out := make([]Value, 0, arr.Len())
+			for _, zv := range arr.Range() {
 				if zv != nil {
 					out = append(out, zv.Value)
 				}

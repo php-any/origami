@@ -75,6 +75,7 @@ type CliApplicationConstructMethod struct{ app *CliApplication }
 func (m *CliApplicationConstructMethod) GetName() string            { return "__construct" }
 func (m *CliApplicationConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *CliApplicationConstructMethod) GetIsStatic() bool          { return false }
+
 var cliApplicationConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "name", 0, data.NewStringValue("CLI"), data.NewBaseType("string")),
 	node.NewParameter(nil, "version", 1, data.NewStringValue("1.0.0"), data.NewBaseType("string")),
@@ -85,6 +86,7 @@ var cliApplicationConstructMethodGetParams = []data.GetValue{
 func (m *CliApplicationConstructMethod) GetParams() []data.GetValue {
 	return cliApplicationConstructMethodGetParams
 }
+
 var cliApplicationConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "name", 0, nil),
 	node.NewVariable(nil, "version", 1, nil),

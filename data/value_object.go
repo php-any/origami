@@ -39,8 +39,10 @@ func deepCloneObjectValue(src *ObjectValue, depth int) *ObjectValue {
 	const maxDepth = 64
 	clone := &ObjectValue{
 		Value:                 src.Value,
+		InstanceSource:        src.InstanceSource,
 		Context:               src.Context,
 		property:              NewOrderedMap(),
+		iterator:              src.iterator,
 		IndirectOverloadClass: src.IndirectOverloadClass,
 	}
 	src.property.Range(func(key string, value Value) bool {
@@ -74,8 +76,10 @@ func CloneObjectValue(src *ObjectValue) *ObjectValue {
 
 	clone := &ObjectValue{
 		Value:                 src.Value,
+		InstanceSource:        src.InstanceSource,
 		Context:               src.Context,
 		property:              NewOrderedMap(),
+		iterator:              src.iterator,
 		IndirectOverloadClass: src.IndirectOverloadClass,
 	}
 
@@ -91,8 +95,11 @@ func CloneObjectValue(src *ObjectValue) *ObjectValue {
 type ObjectValue struct {
 	Value
 	Context
-	property PropertyStore
-	iterator int // 迭代器当前位置索引
+	// Native instance state follows object identity, never method metadata or
+	// a borrowed method frame. ClassValue exposes this field by embedding.
+	InstanceSource any
+	property       PropertyStore
+	iterator       int // 迭代器当前位置索引
 	// IndirectOverloadClass 非空表示该对象来自 ArrayAccess::offsetGet 的副本
 	IndirectOverloadClass string
 	rc                    int // 指向该容器的 zval 数（copy-on-write）

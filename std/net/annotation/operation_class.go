@@ -193,7 +193,7 @@ func parseStringSlice(v data.GetValue) []string {
 	if !ok {
 		return nil
 	}
-	tags := make([]string, 0, len(arr.List))
+	tags := make([]string, 0, arr.Len())
 	for _, item := range arr.ToValueList() {
 		if s := item.AsString(); s != "" {
 			tags = append(tags, s)

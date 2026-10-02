@@ -46,15 +46,17 @@ func (fn *ClassUsesFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	for _, traitName := range classStmt.Traits {
 		list = append(list, data.NewNamedZVal(traitName, data.NewStringValue(traitName)))
 	}
-	return &data.ArrayValue{List: list}, nil
+	return data.NewArrayValueFromSlots(list), nil
 }
 
 func (fn *ClassUsesFunction) GetName() string { return "class_uses" }
+
 var classUsesFunctionGetParams = []data.GetValue{node.NewParameter(nil, "object_or_class", 0, nil, nil)}
 
 func (fn *ClassUsesFunction) GetParams() []data.GetValue {
 	return classUsesFunctionGetParams
 }
+
 var classUsesFunctionGetVariables = []data.Variable{node.NewVariable(nil, "object_or_class", 0, data.Mixed{})}
 
 func (fn *ClassUsesFunction) GetVariables() []data.Variable {

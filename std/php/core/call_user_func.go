@@ -40,7 +40,7 @@ func (f *CallUserFuncFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	var argZvals []*data.ZVal
 	if av, ok := ctx.GetIndexValue(1); ok {
 		if arr, isArr := av.(*data.ArrayValue); isArr {
-			argZvals = append(argZvals, arr.List...)
+			argZvals = arr.AppendSlotsTo(argZvals)
 		} else {
 			argZvals = append(argZvals, ctx.GetIndexZVal(1))
 		}
@@ -61,7 +61,9 @@ func (f *CallUserFuncFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 		}
 	}
 	callCtx := ctx.CreateContext(fn.Value.GetVariables())
-	data.BindDeclaredArgs(callCtx, fn.Value, args)
+	if ctl := data.BindDeclaredArgs(callCtx, fn.Value, args); ctl != nil {
+		return nil, ctl
+	}
 	// BoundFuncValue 需要保留以确保 BoundContext 被创建
 	if bfv, ok := cb.(*data.BoundFuncValue); ok {
 		return bfv.Call(callCtx)
@@ -233,7 +235,7 @@ func (f *ForwardStaticCallFunction) Call(ctx data.Context) (data.GetValue, data.
 	var argZvals []*data.ZVal
 	if av, ok := ctx.GetIndexValue(1); ok {
 		if arr, isArr := av.(*data.ArrayValue); isArr {
-			argZvals = append(argZvals, arr.List...)
+			argZvals = arr.AppendSlotsTo(argZvals)
 		} else {
 			argZvals = append(argZvals, ctx.GetIndexZVal(1))
 		}
@@ -254,7 +256,9 @@ func (f *ForwardStaticCallFunction) Call(ctx data.Context) (data.GetValue, data.
 		}
 	}
 	callCtx := ctx.CreateContext(fn.Value.GetVariables())
-	data.BindDeclaredArgs(callCtx, fn.Value, args)
+	if ctl := data.BindDeclaredArgs(callCtx, fn.Value, args); ctl != nil {
+		return nil, ctl
+	}
 	if bfv, ok := cb.(*data.BoundFuncValue); ok {
 		return bfv.Call(callCtx)
 	}

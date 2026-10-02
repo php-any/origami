@@ -110,7 +110,11 @@ func createInstanceFromClassStmt(
 				} else {
 					switch param := param.(type) {
 					case *PromotedParameter:
-						_, acl = param.GetValue(object)
+						prepared, defaultCtl := param.GetValue(fnCtx)
+						acl = defaultCtl
+						if acl == nil {
+							acl = object.SetVariableValue(param, prepared.(data.Value))
+						}
 					case *CallerContextParameter:
 						fnCtx = ctx
 					default:
@@ -231,6 +235,7 @@ func snapshotConstructorArgValues(ctx data.Context, params, arguments []data.Get
 }
 
 func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, varies []data.Variable, index int, arguments []data.GetValue) data.Control {
+	fnCtx.SetStrictTypes(ctx.StrictTypes())
 	// 处理 nil 实参（包括 nil 指针包装在接口中的情况）
 	if argTV == nil {
 		switch param := param.(type) {
@@ -298,6 +303,9 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 			}
 			return data.NewErrorThrow(param.GetFrom(), fmt.Errorf("引用参数只能传入变量: new %s::__construct($%s) arg=%T", className, param.GetName(), raw))
 		}
+		if param.Type != nil {
+			return param.SetValue(fnCtx, data.NewZValValue(fnCtx.GetIndexZVal(param.Index)))
+		}
 		return nil
 	case *Parameters: // 可变参数
 		args, acl := fnCtx.GetVariableValue(param)
@@ -310,7 +318,7 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 		for i := index; i < len(arguments); i++ {
 			arg := arguments[i]
 			if arg == nil {
-				ares.List = append(ares.List, data.NewZVal(data.NewNullValue()))
+				ares.AppendValue(data.NewNullValue())
 				fnCtx.SetVariableValue(param, ares)
 				continue
 			}
@@ -325,14 +333,15 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 				}
 				switch v := tempV.(type) {
 				case *data.ArrayValue:
-					for _, z := range v.List {
-						ares.List = append(ares.List, data.NewZVal(z.Value))
+					for arraySlots25, arrayPosition25 := v.View(), 0; arrayPosition25 < arraySlots25.Len(); arrayPosition25++ {
+						z := arraySlots25.At(arrayPosition25)
+						ares.AppendValue(z.Value)
 					}
 					fnCtx.SetVariableValue(param, ares)
 				case *data.ObjectValue:
 					// 关联数组展开：按属性遍历值（键在具体函数内部再决策如何使用）
 					v.RangeProperties(func(_ string, val data.Value) bool {
-						ares.List = append(ares.List, data.NewZVal(val))
+						ares.AppendValue(val)
 						return true
 					})
 					fnCtx.SetVariableValue(param, ares)
@@ -344,18 +353,18 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 							return spreadCtl
 						}
 						for _, val := range vals {
-							ares.List = append(ares.List, data.NewZVal(val))
+							ares.AppendValue(val)
 						}
 						fnCtx.SetVariableValue(param, ares)
 					} else {
 						// 普通对象退化为单值参数
-						ares.List = append(ares.List, data.NewZVal(tempV.(data.Value)))
+						ares.AppendValue(tempV.(data.Value))
 						fnCtx.SetVariableValue(param, ares)
 					}
 				default:
 					// 其他类型退化为普通单值参数
 					if value, ok := tempV.(data.Value); ok {
-						ares.List = append(ares.List, data.NewZVal(value))
+						ares.AppendValue(value)
 						fnCtx.SetVariableValue(param, ares)
 					}
 				}
@@ -367,11 +376,24 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 				return acl
 			}
 			if tempV == nil {
-				ares.List = append(ares.List, data.NewZVal(data.NewNullValue()))
+				ares.AppendValue(data.NewNullValue())
 				fnCtx.SetVariableValue(param, ares)
 			} else {
-				ares.List = append(ares.List, data.NewZVal(tempV.(data.Value)))
+				ares.AppendValue(tempV.(data.Value))
 				fnCtx.SetVariableValue(param, ares)
+			}
+		}
+		if param.Type != nil {
+			for slots, i := ares.View(), 0; i < slots.Len(); i++ {
+				slot := slots.At(i)
+				prepared, accepted, conversion := data.PrepareTypedValueInContext(param.Type, slot.Value, fnCtx)
+				if conversion != nil {
+					return conversion
+				}
+				if !accepted {
+					return data.NewTypeError(param.GetFrom(), fmt.Errorf("variadic parameter $%s must be %s", param.Name, param.Type.String()))
+				}
+				slot.Value = prepared
 			}
 		}
 		return acl
@@ -383,9 +405,10 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 		if index >= len(varies) {
 			return data.NewErrorThrow(nil, fmt.Errorf("对象构造函数参数数量超出限制"))
 		}
-		acl = fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
+		acl = param.Parameter.SetValue(fnCtx, tempV.(data.Value))
 		if acl == nil {
-			acl = param.SetValue(object, tempV.(data.Value))
+			prepared, _ := fnCtx.GetIndexValue(param.Index)
+			acl = object.SetVariableValue(param, prepared)
 		}
 		return acl
 	case *ParameterRawAST:

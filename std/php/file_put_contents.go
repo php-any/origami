@@ -1,8 +1,6 @@
 package php
 
 import (
-	"os"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/utils"
@@ -56,27 +54,11 @@ func (f *FilePutContentsFunction) Call(ctx data.Context) (data.GetValue, data.Co
 		}
 	}
 
-	var n int
-	var err error
-	if flags&fileAppend != 0 {
-		n, err = appendFile(filePath, []byte(content))
-	} else {
-		err = os.WriteFile(filePath, []byte(content), 0644)
-		n = len(content)
-	}
+	n, err := utils.WriteFileContext(ctx.GoContext(), filePath, []byte(content), flags&fileAppend != 0)
 	if err != nil {
 		return nil, utils.NewThrowf("FilePutContentsFunction called with file path '%s': %v", filePath, err)
 	}
 	return data.NewIntValue(n), nil
-}
-
-func appendFile(path string, content []byte) (int, error) {
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
-	return f.Write(content)
 }
 
 func (f *FilePutContentsFunction) GetName() string { return "file_put_contents" }

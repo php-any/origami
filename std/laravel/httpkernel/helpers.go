@@ -112,8 +112,9 @@ func stringListFromValue(v data.Value) []string {
 	}
 	switch arr := v.(type) {
 	case *data.ArrayValue:
-		out := make([]string, 0, len(arr.List))
-		for _, z := range arr.List {
+		out := make([]string, 0, arr.Len())
+		for arraySlots70, arrayPosition70 := arr.View(), 0; arrayPosition70 < arraySlots70.Len(); arrayPosition70++ {
+			z := arraySlots70.At(arrayPosition70)
 			if z == nil || z.Value == nil {
 				continue
 			}
@@ -145,7 +146,8 @@ func stringMapFromValue(v data.Value) map[string]string {
 	}
 	switch arr := v.(type) {
 	case *data.ArrayValue:
-		for i, z := range arr.List {
+		for arraySlots71, i := arr.View(), 0; i < arraySlots71.Len(); i++ {
+			z := arraySlots71.At(i)
 			if z == nil || z.Value == nil {
 				continue
 			}
@@ -173,7 +175,8 @@ func groupsFromValue(v data.Value) map[string][]string {
 	}
 	switch arr := v.(type) {
 	case *data.ArrayValue:
-		for i, z := range arr.List {
+		for arraySlots72, i := arr.View(), 0; i < arraySlots72.Len(); i++ {
+			z := arraySlots72.At(i)
 			if z == nil || z.Value == nil {
 				continue
 			}
@@ -197,7 +200,7 @@ func groupsToArrayValue(groups map[string][]string) *data.ArrayValue {
 	for k, items := range groups {
 		list = append(list, &data.ZVal{Name: k, Value: stringsToArrayValue(items)})
 	}
-	return &data.ArrayValue{List: list}
+	return data.NewArrayValueFromSlots(list)
 }
 
 func aliasesToArrayValue(aliases map[string]string) *data.ArrayValue {
@@ -205,7 +208,7 @@ func aliasesToArrayValue(aliases map[string]string) *data.ArrayValue {
 	for k, v := range aliases {
 		list = append(list, &data.ZVal{Name: k, Value: data.NewStringValue(v)})
 	}
-	return &data.ArrayValue{List: list}
+	return data.NewArrayValueFromSlots(list)
 }
 
 func syncProperties(cv *data.ClassValue, s *kernelState) {
@@ -372,28 +375,25 @@ func callObjectMethodInContext(ctx data.Context, obj data.Value, name string, ar
 	if !ok || cv == nil {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("httpkernel: 期望对象以调用 %s", name))
 	}
-	if ctx != nil {
-		cv = cv.CloneWithContext(ctx.CreateBaseContext())
-	}
 	method, exists := cv.GetMethod(name)
 	if !exists || method == nil {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("httpkernel: 方法 %s 不存在", name))
 	}
-	fnCtx := cv.CreateContext(method.GetVariables())
-	data.PreferVM(fnCtx, ctx, cv)
-	vars := method.GetVariables()
-	for i, arg := range args {
-		if i >= len(vars) {
-			break
-		}
-		if arg == nil {
-			arg = data.NewNullValue()
-		}
-		if acl := fnCtx.SetVariableValue(vars[i], arg); acl != nil {
-			return nil, acl
-		}
+	var fnCtx data.Context
+	if ctx == nil {
+		fnCtx = cv.CreateContext(method.GetVariables())
+	} else {
+		fnCtx = data.WrapMethodFrame(ctx.CreateContext(method.GetVariables()), cv, nil, nil)
 	}
-	return method.Call(fnCtx)
+	fnCtx.SetStrictTypes(false)
+	if ctl := data.BindDeclaredArgs(fnCtx, method, args); ctl != nil {
+		return nil, ctl
+	}
+	result, ctl := method.Call(fnCtx)
+	if failure, ok := ctl.(data.AddStack); ok {
+		failure.AddStackWithInfo(nil, "httpkernel", name)
+	}
+	return result, ctl
 }
 
 func cloneStringMap(m map[string]string) map[string]string {
@@ -449,8 +449,9 @@ func existingNames(v data.Value) []string {
 		return nil
 	}
 	if arr, ok := v.(*data.ArrayValue); ok {
-		out := make([]string, 0, len(arr.List))
-		for _, z := range arr.List {
+		out := make([]string, 0, arr.Len())
+		for arraySlots73, arrayPosition73 := arr.View(), 0; arrayPosition73 < arraySlots73.Len(); arrayPosition73++ {
+			z := arraySlots73.At(arrayPosition73)
 			if z != nil && z.Value != nil {
 				out = append(out, z.Value.AsString())
 			}

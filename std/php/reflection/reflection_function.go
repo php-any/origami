@@ -164,11 +164,13 @@ func (m *ReflectionFunctionGetParametersMethod) GetModifier() data.Modifier {
 }
 func (m *ReflectionFunctionGetParametersMethod) GetIsStatic() bool         { return false }
 func (m *ReflectionFunctionGetParametersMethod) GetReturnType() data.Types { return data.Arrays{} }
+
 var reflectionFunctionGetParametersMethodGetParams = []data.GetValue{}
 
 func (m *ReflectionFunctionGetParametersMethod) GetParams() []data.GetValue {
 	return reflectionFunctionGetParametersMethodGetParams
 }
+
 var reflectionFunctionGetParametersMethodGetVariables = []data.Variable{}
 
 func (m *ReflectionFunctionGetParametersMethod) GetVariables() []data.Variable {
@@ -238,11 +240,13 @@ func (m *ReflectionFunctionGetNumberOfParametersMethod) GetModifier() data.Modif
 }
 func (m *ReflectionFunctionGetNumberOfParametersMethod) GetIsStatic() bool         { return false }
 func (m *ReflectionFunctionGetNumberOfParametersMethod) GetReturnType() data.Types { return data.Int{} }
+
 var reflectionFunctionGetNumberOfParametersMethodGetParams = []data.GetValue{}
 
 func (m *ReflectionFunctionGetNumberOfParametersMethod) GetParams() []data.GetValue {
 	return reflectionFunctionGetNumberOfParametersMethodGetParams
 }
+
 var reflectionFunctionGetNumberOfParametersMethodGetVariables = []data.Variable{}
 
 func (m *ReflectionFunctionGetNumberOfParametersMethod) GetVariables() []data.Variable {
@@ -269,9 +273,13 @@ func (m *ReflectionFunctionIsAnonymousMethod) GetName() string            { retu
 func (m *ReflectionFunctionIsAnonymousMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ReflectionFunctionIsAnonymousMethod) GetIsStatic() bool          { return false }
 func (m *ReflectionFunctionIsAnonymousMethod) GetReturnType() data.Types  { return data.Bool{} }
+
 var reflectionFunctionIsAnonymousMethodGetParams = []data.GetValue{}
 
-func (m *ReflectionFunctionIsAnonymousMethod) GetParams() []data.GetValue { return reflectionFunctionIsAnonymousMethodGetParams }
+func (m *ReflectionFunctionIsAnonymousMethod) GetParams() []data.GetValue {
+	return reflectionFunctionIsAnonymousMethodGetParams
+}
+
 var reflectionFunctionIsAnonymousMethodGetVariables = []data.Variable{}
 
 func (m *ReflectionFunctionIsAnonymousMethod) GetVariables() []data.Variable {
@@ -293,11 +301,13 @@ func (m *ReflectionFunctionGetClosureScopeClassMethod) GetModifier() data.Modifi
 }
 func (m *ReflectionFunctionGetClosureScopeClassMethod) GetIsStatic() bool         { return false }
 func (m *ReflectionFunctionGetClosureScopeClassMethod) GetReturnType() data.Types { return nil }
+
 var reflectionFunctionGetClosureScopeClassMethodGetParams = []data.GetValue{}
 
 func (m *ReflectionFunctionGetClosureScopeClassMethod) GetParams() []data.GetValue {
 	return reflectionFunctionGetClosureScopeClassMethodGetParams
 }
+
 var reflectionFunctionGetClosureScopeClassMethodGetVariables = []data.Variable{}
 
 func (m *ReflectionFunctionGetClosureScopeClassMethod) GetVariables() []data.Variable {
@@ -321,11 +331,13 @@ func (m *ReflectionFunctionGetStaticVariablesMethod) GetIsStatic() bool { return
 func (m *ReflectionFunctionGetStaticVariablesMethod) GetReturnType() data.Types {
 	return data.Arrays{}
 }
+
 var reflectionFunctionGetStaticVariablesMethodGetParams = []data.GetValue{}
 
 func (m *ReflectionFunctionGetStaticVariablesMethod) GetParams() []data.GetValue {
 	return reflectionFunctionGetStaticVariablesMethodGetParams
 }
+
 var reflectionFunctionGetStaticVariablesMethodGetVariables = []data.Variable{}
 
 func (m *ReflectionFunctionGetStaticVariablesMethod) GetVariables() []data.Variable {
@@ -351,7 +363,7 @@ func (m *ReflectionFunctionGetStaticVariablesMethod) Call(ctx data.Context) (dat
 	for name, value := range values {
 		list = append(list, data.NewNamedZVal(name, value))
 	}
-	return &data.ArrayValue{List: list}, nil
+	return data.NewArrayValueFromSlots(list), nil
 }
 
 // ---- getClosureUsedVariables ----
@@ -364,13 +376,17 @@ func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetName() string {
 func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetModifier() data.Modifier {
 	return data.ModifierPublic
 }
-func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetIsStatic() bool         { return false }
-func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetReturnType() data.Types { return data.Arrays{} }
+func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetIsStatic() bool { return false }
+func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetReturnType() data.Types {
+	return data.Arrays{}
+}
+
 var reflectionFunctionGetClosureUsedVariablesMethodGetParams = []data.GetValue{}
 
 func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetParams() []data.GetValue {
 	return reflectionFunctionGetClosureUsedVariablesMethodGetParams
 }
+
 var reflectionFunctionGetClosureUsedVariablesMethodGetVariables = []data.Variable{}
 
 func (m *ReflectionFunctionGetClosureUsedVariablesMethod) GetVariables() []data.Variable {
@@ -397,7 +413,7 @@ func (m *ReflectionFunctionGetClosureUsedVariablesMethod) Call(ctx data.Context)
 	for name, value := range values {
 		list = append(list, data.NewNamedZVal(name, value))
 	}
-	return &data.ArrayValue{List: list}, nil
+	return data.NewArrayValueFromSlots(list), nil
 }
 
 // ---- getClosureCalledClass ----
@@ -412,11 +428,13 @@ func (m *ReflectionFunctionGetClosureCalledClassMethod) GetModifier() data.Modif
 }
 func (m *ReflectionFunctionGetClosureCalledClassMethod) GetIsStatic() bool         { return false }
 func (m *ReflectionFunctionGetClosureCalledClassMethod) GetReturnType() data.Types { return nil }
+
 var reflectionFunctionGetClosureCalledClassMethodGetParams = []data.GetValue{}
 
 func (m *ReflectionFunctionGetClosureCalledClassMethod) GetParams() []data.GetValue {
 	return reflectionFunctionGetClosureCalledClassMethodGetParams
 }
+
 var reflectionFunctionGetClosureCalledClassMethodGetVariables = []data.Variable{}
 
 func (m *ReflectionFunctionGetClosureCalledClassMethod) GetVariables() []data.Variable {

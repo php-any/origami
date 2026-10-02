@@ -241,6 +241,19 @@ func arrFirst(ctx data.Context) (data.GetValue, data.Control) {
 	arr, _ := ctx.GetIndexValue(0)
 	cb, _ := ctx.GetIndexValue(1)
 	def, _ := ctx.GetIndexValue(2)
+	if cb != nil && !isNull(cb) {
+		var ctl data.Control
+		arr, ctl = arrFromValue(ctx, arr, 0)
+		if ctl != nil {
+			return nil, ctl
+		}
+	} else if cv, ok := unwrapValue(arr).(*data.ClassValue); ok && classIs(cv, enumerableName) {
+		var ctl data.Control
+		arr, _, ctl = callClassNoArg(cv, "all")
+		if ctl != nil {
+			return nil, ctl
+		}
+	}
 	for _, e := range toEntries(arr) {
 		if cb == nil || isNull(cb) {
 			return e.value, nil
@@ -260,6 +273,11 @@ func arrLast(ctx data.Context) (data.GetValue, data.Control) {
 	arr, _ := ctx.GetIndexValue(0)
 	cb, _ := ctx.GetIndexValue(1)
 	def, _ := ctx.GetIndexValue(2)
+	var ctl data.Control
+	arr, ctl = arrFromValue(ctx, arr, 0)
+	if ctl != nil {
+		return nil, ctl
+	}
 	entries := toEntries(arr)
 	for i := len(entries) - 1; i >= 0; i-- {
 		e := entries[i]
@@ -317,7 +335,9 @@ func callVMFunc(ctx data.Context, name string, args ...data.Value) (data.Value, 
 		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Call to undefined function %s()", name), "Error")
 	}
 	callCtx := ctx.CreateContext(fn.GetVariables())
-	data.BindDeclaredArgs(callCtx, fn, args)
+	if ctl := data.BindDeclaredArgs(callCtx, fn, args); ctl != nil {
+		return nil, ctl
+	}
 	ret, ctl := fn.Call(callCtx)
 	if ctl != nil {
 		return nil, ctl
@@ -572,7 +592,11 @@ func arrCollapse(ctx data.Context) (data.GetValue, data.Control) {
 			continue
 		}
 		for _, ne := range nested {
-			out.List = append(out.List, data.NewZVal(ne.value))
+			if _, numeric := ne.key.(*data.IntValue); numeric {
+				out.AppendValue(ne.value)
+			} else {
+				setEntry(out, ne.keyStr, ne.value)
+			}
 		}
 	}
 	return out, nil
@@ -638,7 +662,7 @@ func isFlattenableArray(v data.Value) bool {
 
 func flattenInto(out *data.ArrayValue, v data.Value, depth int) data.Control {
 	if depth == 0 {
-		out.List = append(out.List, data.NewZVal(v))
+		out.AppendValue(v)
 		return nil
 	}
 	if cv, ok := v.(*data.ClassValue); ok && cv != nil && cv.Class != nil {
@@ -654,7 +678,7 @@ func flattenInto(out *data.ArrayValue, v data.Value, depth int) data.Control {
 		}
 	}
 	if !isFlattenableArray(v) {
-		out.List = append(out.List, data.NewZVal(v))
+		out.AppendValue(v)
 		return nil
 	}
 	for _, e := range toEntries(v) {
@@ -665,13 +689,13 @@ func flattenInto(out *data.ArrayValue, v data.Value, depth int) data.Control {
 			}
 			if depth == 1 && isFlattenableArray(e.value) {
 				for _, ne := range toEntries(e.value) {
-					out.List = append(out.List, data.NewZVal(ne.value))
+					out.AppendValue(ne.value)
 				}
 			} else if ctl := flattenInto(out, e.value, next); ctl != nil {
 				return ctl
 			}
 		} else {
-			out.List = append(out.List, data.NewZVal(e.value))
+			out.AppendValue(e.value)
 		}
 	}
 	return nil
@@ -736,7 +760,7 @@ func arrPluck(ctx data.Context) (data.GetValue, data.Control) {
 				continue
 			}
 		}
-		out.List = append(out.List, data.NewZVal(extracted))
+		out.AppendValue(extracted)
 	}
 	return out, nil
 }
@@ -824,9 +848,9 @@ func arrPrepend(ctx data.Context) (data.GetValue, data.Control) {
 		}
 		return out, nil
 	}
-	out.List = append(out.List, data.NewZVal(val))
+	out.AppendValue(val)
 	for _, e := range toEntries(arr) {
-		out.List = append(out.List, data.NewZVal(e.value))
+		out.AppendValue(e.value)
 	}
 	return out, nil
 }
@@ -868,7 +892,7 @@ func arrShuffle(ctx data.Context) (data.GetValue, data.Control) {
 	arr, _ := ctx.GetIndexValue(0)
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
 	for _, e := range toEntries(arr) {
-		out.List = append(out.List, data.NewZVal(e.value))
+		out.AppendValue(e.value)
 	}
 	return out, nil
 }
@@ -1006,8 +1030,8 @@ func arrDivide(ctx data.Context) (data.GetValue, data.Control) {
 	keys := data.NewArrayValue(nil).(*data.ArrayValue)
 	vals := data.NewArrayValue(nil).(*data.ArrayValue)
 	for _, e := range toEntries(arr) {
-		keys.List = append(keys.List, data.NewZVal(data.NewStringValue(e.keyStr)))
-		vals.List = append(vals.List, data.NewZVal(e.value))
+		keys.AppendValue(data.NewStringValue(e.keyStr))
+		vals.AppendValue(e.value)
 	}
 	return data.NewArrayValue([]data.Value{keys, vals}), nil
 }
@@ -1027,8 +1051,9 @@ func toEntries(v data.Value) []kv {
 	v = unwrapValue(v)
 	switch arr := v.(type) {
 	case *data.ArrayValue:
-		entries := make([]kv, 0, len(arr.List))
-		for i, z := range arr.List {
+		entries := make([]kv, 0, arr.Len())
+		for arraySlots37, i := arr.View(), 0; i < arraySlots37.Len(); i++ {
+			z := arraySlots37.At(i)
 			if z == nil {
 				continue
 			}
@@ -1225,10 +1250,10 @@ func setEntry(arr *data.ArrayValue, key string, val data.Value) {
 	// PHP 的空字符串键 ''：Name 为空且 EmptyStrKey=true，与 packed 整数槽区分。
 	// 直接 NewNamedZVal("") 会退化成「追加一个匿名元素」，groupBy('') 因此丢键。
 	if key == "" {
-		arr.List = append(arr.List, data.NewEmptyStringKeyZVal(val))
+		arr.AppendEntries(data.NewEmptyStringKeyZVal(val))
 		return
 	}
-	arr.List = append(arr.List, data.NewNamedZVal(key, val))
+	arr.SetStringKey(key, val)
 }
 
 func isListArray(v data.Value) bool {
@@ -1236,7 +1261,8 @@ func isListArray(v data.Value) bool {
 	if !ok || av == nil {
 		return false
 	}
-	for i, z := range av.List {
+	for arraySlots38, i := av.View(), 0; i < arraySlots38.Len(); i++ {
+		z := arraySlots38.At(i)
 		if z == nil {
 			continue
 		}
@@ -1317,7 +1343,12 @@ func callValue(ctx data.Context, cb data.Value, args ...data.Value) (data.GetVal
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("Illuminate\\Support\\Arr: callback is not callable"))
 	}
 	callCtx := ctx.CreateContext(fn.GetVariables())
-	data.BindDeclaredArgs(callCtx, fn, args)
+	// Arr/Collection PHP bodies are weak units; map additionally forwards to
+	// array_map. The callback's declaration mode still governs its own body.
+	callCtx.SetStrictTypes(false)
+	if ctl := data.BindDeclaredArgs(callCtx, fn, args); ctl != nil {
+		return nil, ctl
+	}
 	if bfv, ok := cb.(*data.BoundFuncValue); ok {
 		return bfv.Call(callCtx)
 	}

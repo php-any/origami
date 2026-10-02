@@ -85,7 +85,7 @@ func (v *ArgcVariable) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 		// 通过 argvValue 计算，保证与 $argv 一致
 		argv, _ := (&ArgvVariable{Node: v.Node}).GetValue(ctx)
 		if arr, ok := argv.(*data.ArrayValue); ok {
-			argcValue = data.NewIntValue(len(arr.List)).(*data.IntValue)
+			argcValue = data.NewIntValue(arr.Len()).(*data.IntValue)
 		} else {
 			argcValue = data.NewIntValue(0).(*data.IntValue)
 		}

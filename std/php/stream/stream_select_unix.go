@@ -4,6 +4,7 @@ package stream
 
 import (
 	"reflect"
+	"time"
 
 	"github.com/php-any/origami/data"
 	"golang.org/x/sys/unix"
@@ -50,17 +51,13 @@ func addStreamCollection(set *unix.FdSet, value data.Value, maxFD *int) {
 func filterStreamCollection(value data.Value, set *unix.FdSet) {
 	switch collection := value.(type) {
 	case *data.ArrayValue:
-		filtered := collection.List[:0]
-		for _, zv := range collection.List {
-			if zv == nil {
-				continue
+		collection.FilterSlots(func(_ int, slot *data.ZVal) bool {
+			if slot == nil {
+				return false
 			}
-			fd, ok := streamFileDescriptor(zv.Value)
-			if ok && fdIsSet(set, fd) {
-				filtered = append(filtered, zv)
-			}
-		}
-		collection.List = filtered
+			fd, ok := streamFileDescriptor(slot.Value)
+			return ok && fdIsSet(set, fd)
+		})
 	case *data.ObjectValue:
 		filtered := data.NewObjectValue()
 		collection.RangeProperties(func(key string, value data.Value) bool {
@@ -75,6 +72,10 @@ func filterStreamCollection(value data.Value, set *unix.FdSet) {
 }
 
 func (f *StreamSelectFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	request := ctx.GoContext()
+	if request.Err() != nil {
+		panic(data.ErrRequestCanceled)
+	}
 	read, _ := ctx.GetIndexValue(0)
 	write, _ := ctx.GetIndexValue(1)
 	except, _ := ctx.GetIndexValue(2)
@@ -88,14 +89,35 @@ func (f *StreamSelectFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 		return data.NewIntValue(0), nil
 	}
 
-	timeval := unix.NsecToTimeval(streamSelectTimeout(ctx).Nanoseconds())
-	ready, err := unix.Select(maxFD+1, &readSet, &writeSet, &exceptSet, &timeval)
-	if err != nil {
-		return data.NewBoolValue(false), nil
+	timeout := streamSelectTimeout(ctx)
+	end := time.Now().Add(timeout)
+	for {
+		wait := timeout
+		if wait < 0 {
+			wait = 0
+		}
+		if request.Done() != nil && wait > 50*time.Millisecond {
+			wait = 50 * time.Millisecond
+		}
+		timeval := unix.NsecToTimeval(wait.Nanoseconds())
+		r, w, e := readSet, writeSet, exceptSet
+		ready, err := unix.Select(maxFD+1, &r, &w, &e, &timeval)
+		if request.Err() != nil {
+			panic(data.ErrRequestCanceled)
+		}
+		if err != nil {
+			if err == unix.EINTR && time.Now().Before(end) {
+				timeout = time.Until(end)
+				continue
+			}
+			return data.NewBoolValue(false), nil
+		}
+		if ready > 0 || !time.Now().Before(end) {
+			filterStreamCollection(read, &r)
+			filterStreamCollection(write, &w)
+			filterStreamCollection(except, &e)
+			return data.NewIntValue(ready), nil
+		}
+		timeout = time.Until(end)
 	}
-
-	filterStreamCollection(read, &readSet)
-	filterStreamCollection(write, &writeSet)
-	filterStreamCollection(except, &exceptSet)
-	return data.NewIntValue(ready), nil
 }

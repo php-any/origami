@@ -77,6 +77,7 @@ func responseWriterFromContext(ctx data.Context) http.ResponseWriter {
 }
 
 func (f *HeaderFunction) GetName() string { return "header" }
+
 var headerFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "header", 0, nil, nil),
 	node.NewParameter(nil, "replace", 1, node.NewBooleanLiteral(nil, true), nil),
@@ -86,6 +87,7 @@ var headerFunctionGetParams = []data.GetValue{
 func (f *HeaderFunction) GetParams() []data.GetValue {
 	return headerFunctionGetParams
 }
+
 var headerFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "header", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "replace", 1, data.NewBaseType("bool")),

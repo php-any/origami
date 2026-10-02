@@ -25,9 +25,9 @@ func (c *IlluminateFileClass) GetExtend() *string {
 	parent := httpfoundation.FqnFile
 	return &parent
 }
-func (c *IlluminateFileClass) GetImplements() []string          { return nil }
+func (c *IlluminateFileClass) GetImplements() []string                  { return nil }
 func (c *IlluminateFileClass) GetProperty(string) (data.Property, bool) { return nil, false }
-func (c *IlluminateFileClass) GetPropertyList() []data.Property { return nil }
+func (c *IlluminateFileClass) GetPropertyList() []data.Property         { return nil }
 func (c *IlluminateFileClass) GetConstruct() data.Method {
 	parent := httpfoundation.NewFileClass()
 	return parent.GetConstruct()
@@ -56,7 +56,7 @@ func (c *IlluminateUploadedFileClass) GetExtend() *string {
 	parent := httpfoundation.FqnUploadedFile
 	return &parent
 }
-func (c *IlluminateUploadedFileClass) GetImplements() []string          { return nil }
+func (c *IlluminateUploadedFileClass) GetImplements() []string { return nil }
 func (c *IlluminateUploadedFileClass) GetProperty(string) (data.Property, bool) {
 	return nil, false
 }

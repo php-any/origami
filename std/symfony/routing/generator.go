@@ -192,13 +192,15 @@ func doGenerate(ctx data.Context, gen, route, compiled *data.ClassValue, paramet
 	context := asClassValue(prop(gen, "context"))
 	merged := cloneArray(defaults)
 	if context != nil {
-		for _, z := range propArray(context, "parameters").List {
+		for arraySlots176, arrayPosition176 := propArray(context, "parameters").View(), 0; arrayPosition176 < arraySlots176.Len(); arrayPosition176++ {
+			z := arraySlots176.At(arrayPosition176)
 			if z != nil && z.Name != "" {
 				assocSet(merged, z.Name, z.Value)
 			}
 		}
 	}
-	for i, z := range parameters.List {
+	for arraySlots177, i := parameters.View(), 0; i < arraySlots177.Len(); i++ {
+		z := arraySlots177.At(i)
 		if z == nil {
 			continue
 		}
@@ -230,23 +232,24 @@ func doGenerate(ctx data.Context, gen, route, compiled *data.ClassValue, paramet
 	} else if isNull(prop(gen, "strictRequirements")) {
 		strict = false
 	}
-	for _, z := range tokens.List {
+	for arraySlots178, arrayPosition178 := tokens.View(), 0; arrayPosition178 < arraySlots178.Len(); arrayPosition178++ {
+		z := arraySlots178.At(arrayPosition178)
 		if z == nil {
 			continue
 		}
 		tok, _ := z.Value.(*data.ArrayValue)
-		if tok == nil || len(tok.List) < 2 {
+		if tok == nil || tok.Len() < 2 {
 			continue
 		}
-		kind := tok.List[0].Value.AsString()
+		kind := tok.At(0).Value.AsString()
 		if kind == "variable" {
 			varName := ""
-			if len(tok.List) > 3 && tok.List[3] != nil {
-				varName = tok.List[3].Value.AsString()
+			if tok.Len() > 3 && tok.At(3) != nil {
+				varName = tok.At(3).Value.AsString()
 			}
 			important := false
-			if len(tok.List) > 5 && tok.List[5] != nil {
-				if bv, ok := tok.List[5].Value.(data.AsBool); ok {
+			if tok.Len() > 5 && tok.At(5) != nil {
+				if bv, ok := tok.At(5).Value.(data.AsBool); ok {
 					important, _ = bv.AsBool()
 				}
 			}
@@ -255,8 +258,8 @@ func doGenerate(ctx data.Context, gen, route, compiled *data.ClassValue, paramet
 			sameDefault := hasDef && val != nil && def != nil && val.AsString() == def.AsString()
 			if !optional || important || !hasDef || (val != nil && !isNull(val) && !sameDefault) {
 				req := ""
-				if len(tok.List) > 2 && tok.List[2] != nil {
-					req = tok.List[2].Value.AsString()
+				if tok.Len() > 2 && tok.At(2) != nil {
+					req = tok.At(2).Value.AsString()
 				}
 				given := ""
 				if val != nil {
@@ -264,8 +267,8 @@ func doGenerate(ctx data.Context, gen, route, compiled *data.ClassValue, paramet
 				}
 				if req != "" && !isNull(prop(gen, "strictRequirements")) {
 					pat := "#^(?:" + req + ")$#i"
-					if len(tok.List) > 4 && tok.List[4] != nil {
-						if bv, ok := tok.List[4].Value.(data.AsBool); ok {
+					if tok.Len() > 4 && tok.At(4) != nil {
+						if bv, ok := tok.At(4).Value.(data.AsBool); ok {
 							if u, _ := bv.AsBool(); u {
 								pat += "u"
 							}
@@ -278,12 +281,12 @@ func doGenerate(ctx data.Context, gen, route, compiled *data.ClassValue, paramet
 						return "", nil
 					}
 				}
-				sep := tok.List[1].Value.AsString()
+				sep := tok.At(1).Value.AsString()
 				url = sep + given + url
 				optional = false
 			}
 		} else {
-			url = tok.List[1].Value.AsString() + url
+			url = tok.At(1).Value.AsString() + url
 			optional = false
 		}
 	}
@@ -316,23 +319,24 @@ func doGenerate(ctx data.Context, gen, route, compiled *data.ClassValue, paramet
 		scheme = requiredSchemes[0]
 	}
 	hostTokens := propArray(compiled, "hostTokens")
-	if len(hostTokens.List) > 0 {
+	if hostTokens.Len() > 0 {
 		routeHost := ""
-		for _, z := range hostTokens.List {
+		for arraySlots179, arrayPosition179 := hostTokens.View(), 0; arrayPosition179 < arraySlots179.Len(); arrayPosition179++ {
+			z := arraySlots179.At(arrayPosition179)
 			tok, _ := z.Value.(*data.ArrayValue)
-			if tok == nil || len(tok.List) < 2 {
+			if tok == nil || tok.Len() < 2 {
 				continue
 			}
-			if tok.List[0].Value.AsString() == "variable" {
-				varName := tok.List[3].Value.AsString()
+			if tok.At(0).Value.AsString() == "variable" {
+				varName := tok.At(3).Value.AsString()
 				val, _ := assocGet(merged, varName)
 				s := ""
 				if val != nil {
 					s = val.AsString()
 				}
-				routeHost = tok.List[1].Value.AsString() + s + routeHost
+				routeHost = tok.At(1).Value.AsString() + s + routeHost
 			} else {
-				routeHost = tok.List[1].Value.AsString() + routeHost
+				routeHost = tok.At(1).Value.AsString() + routeHost
 			}
 		}
 		if routeHost != host {
@@ -379,7 +383,8 @@ func doGenerate(ctx data.Context, gen, route, compiled *data.ClassValue, paramet
 	for _, v := range variables {
 		varSet[v] = true
 	}
-	for _, z := range parameters.List {
+	for arraySlots180, arrayPosition180 := parameters.View(), 0; arrayPosition180 < arraySlots180.Len(); arrayPosition180++ {
+		z := arraySlots180.At(arrayPosition180)
 		if z == nil || z.Name == "" || varSet[z.Name] {
 			continue
 		}
@@ -388,7 +393,8 @@ func doGenerate(ctx data.Context, gen, route, compiled *data.ClassValue, paramet
 		}
 		assocSet(extra, z.Name, z.Value)
 	}
-	for _, z := range queryParameters.List {
+	for arraySlots181, arrayPosition181 := queryParameters.View(), 0; arrayPosition181 < arraySlots181.Len(); arrayPosition181++ {
+		z := arraySlots181.At(arrayPosition181)
 		if z != nil && z.Name != "" {
 			assocSet(extra, z.Name, z.Value)
 		}
@@ -403,7 +409,7 @@ func doGenerate(ctx data.Context, gen, route, compiled *data.ClassValue, paramet
 		}
 		assocUnset(extra, "_fragment")
 	}
-	if len(extra.List) > 0 {
+	if extra.Len() > 0 {
 		if q := httpBuildQueryRFC3986(extra); q != "" {
 			url += "?" + applyDecoded(q, decodedQueryChars)
 		}
@@ -422,14 +428,15 @@ func applyDecoded(s string, table map[string]string) string {
 }
 
 func httpBuildQueryRFC3986(arr *data.ArrayValue) string {
-	if arr == nil || len(arr.List) == 0 {
+	if arr == nil || arr.Len() == 0 {
 		return ""
 	}
 	var parts []string
 	var walk func(prefix string, v data.Value)
 	walk = func(prefix string, v data.Value) {
 		if av, ok := v.(*data.ArrayValue); ok {
-			for i, z := range av.List {
+			for arraySlots182, i := av.View(), 0; i < arraySlots182.Len(); i++ {
+				z := arraySlots182.At(i)
 				if z == nil {
 					continue
 				}
@@ -448,7 +455,8 @@ func httpBuildQueryRFC3986(arr *data.ArrayValue) string {
 		}
 		parts = append(parts, prefix+"="+phpRawURLEncode(val))
 	}
-	for i, z := range arr.List {
+	for arraySlots183, i := arr.View(), 0; i < arraySlots183.Len(); i++ {
+		z := arraySlots183.At(i)
 		if z == nil {
 			continue
 		}

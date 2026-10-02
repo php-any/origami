@@ -136,7 +136,7 @@ func (f *PregMatchAllFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 				list = append(list, data.NewZVal(groups[g]))
 			}
 		}
-		matchesArr := &data.ArrayValue{List: list}
+		matchesArr := data.NewArrayValueFromSlots(list)
 		if z := ctx.GetIndexZVal(2); z != nil {
 			z.Value = matchesArr
 		}
@@ -166,7 +166,7 @@ var pregMatchAllFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "pattern", 0, nil, nil),
 	node.NewParameter(nil, "subject", 1, nil, nil),
 	// 第三个参数为 &array $matches，按 PHP 语义需要按引用传递
-	node.NewParameterReference(nil, "matches", 2, nil, data.NewBaseType("array")),
+	node.NewOutputParameterReference(nil, "matches", 2, node.NewNullLiteral(nil), data.NewBaseType("array")),
 	node.NewParameter(nil, "flags", 3, node.NewIntLiteral(nil, "0"), nil),
 	node.NewParameter(nil, "offset", 4, node.NewIntLiteral(nil, "0"), nil),
 }

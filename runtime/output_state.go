@@ -66,6 +66,8 @@ type OutputState struct {
 	sapiFlush     func()
 	pending       atomic.Value // *ctlBox
 	local         bool         // BeginRequestOutput 安装：echo 走本栈，不再查 goid
+	call          *CallState   // local output and execution state share a request
+	headers       data.HeaderCallbackState
 }
 
 type outputState = OutputState
@@ -473,7 +475,7 @@ func (st *OutputState) flushSAPI() {
 	}
 }
 
-// 下列导出方法供 std/php/fpm.RequestVM 等跨包宿主委托，语义与内部方法一致。
+// 下列导出方法供输出宿主适配使用，语义与内部方法一致。
 
 func (st *OutputState) WriteTo(s string, fallback func(string)) { st.write(s, fallback) }
 func (st *OutputState) StartDefault()                           { st.start() }
@@ -523,6 +525,7 @@ func BeginRequestOutput() (restore func()) {
 	st.local = true
 	prevOut, _ := requestOutput.Swap(id, st)
 	callSt := &CallState{}
+	st.call = callSt
 	prevCall, _ := requestCall.Swap(id, callSt)
 	requestOutputActive.Add(1)
 	data.BeginRequestStaticOverlay()

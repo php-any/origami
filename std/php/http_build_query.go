@@ -87,7 +87,8 @@ func (f *HttpBuildQueryFunction) Call(ctx data.Context) (data.GetValue, data.Con
 func appendQueryPairs(prefix string, val data.Value, topLevel bool, cfg httpBuildQueryConfig, pairs *[]string) {
 	switch v := val.(type) {
 	case *data.ArrayValue:
-		for i, zval := range v.List {
+		for arraySlots120, i := v.View(), 0; i < arraySlots120.Len(); i++ {
+			zval := arraySlots120.At(i)
 			if zval == nil {
 				continue
 			}

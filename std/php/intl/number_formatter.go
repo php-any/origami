@@ -13,45 +13,45 @@ import (
 
 // PHP NumberFormatter 样式/属性常量（与 ext/intl 对齐的常用子集）
 const (
-	nfStylePatternDecimal   = 0
-	nfStyleDecimal          = 1
-	nfStyleCurrency         = 2
-	nfStylePercent          = 3
-	nfStyleScientific       = 4
-	nfStyleSpellout         = 5
-	nfStyleOrdinal          = 6
-	nfStyleDuration         = 7
-	nfStylePatternRuleBased = 8
+	nfStylePatternDecimal     = 0
+	nfStyleDecimal            = 1
+	nfStyleCurrency           = 2
+	nfStylePercent            = 3
+	nfStyleScientific         = 4
+	nfStyleSpellout           = 5
+	nfStyleOrdinal            = 6
+	nfStyleDuration           = 7
+	nfStylePatternRuleBased   = 8
 	nfStyleCurrencyAccounting = 12
-	nfStyleDefault          = 1
+	nfStyleDefault            = 1
 
-	nfAttrParseIntOnly         = 0
-	nfAttrGroupingUsed         = 1
-	nfAttrDecimalAlwaysShown   = 2
-	nfAttrMaxIntegerDigits     = 3
-	nfAttrMinIntegerDigits     = 4
-	nfAttrIntegerDigits        = 5
-	nfAttrMaxFractionDigits    = 6
-	nfAttrMinFractionDigits    = 7
-	nfAttrFractionDigits       = 8
-	nfAttrMultiplier           = 9
-	nfAttrGroupingSize         = 10
-	nfAttrRoundingMode         = 11
-	nfAttrRoundingIncrement    = 12
-	nfAttrFormatWidth          = 13
-	nfAttrPaddingPosition      = 14
+	nfAttrParseIntOnly          = 0
+	nfAttrGroupingUsed          = 1
+	nfAttrDecimalAlwaysShown    = 2
+	nfAttrMaxIntegerDigits      = 3
+	nfAttrMinIntegerDigits      = 4
+	nfAttrIntegerDigits         = 5
+	nfAttrMaxFractionDigits     = 6
+	nfAttrMinFractionDigits     = 7
+	nfAttrFractionDigits        = 8
+	nfAttrMultiplier            = 9
+	nfAttrGroupingSize          = 10
+	nfAttrRoundingMode          = 11
+	nfAttrRoundingIncrement     = 12
+	nfAttrFormatWidth           = 13
+	nfAttrPaddingPosition       = 14
 	nfAttrSecondaryGroupingSize = 15
 	nfAttrSignificantDigitsUsed = 16
-	nfAttrMinSignificantDigits = 17
-	nfAttrMaxSignificantDigits = 18
-	nfAttrLenientParse         = 19
+	nfAttrMinSignificantDigits  = 17
+	nfAttrMaxSignificantDigits  = 18
+	nfAttrLenientParse          = 19
 
 	nfTextAttrDefaultRuleset = 0
 
-	nfTypeDefault = 0
-	nfTypeInt32   = 1
-	nfTypeInt64   = 2
-	nfTypeDouble  = 3
+	nfTypeDefault  = 0
+	nfTypeInt32    = 1
+	nfTypeInt64    = 2
+	nfTypeDouble   = 3
 	nfTypeCurrency = 4
 )
 
@@ -84,26 +84,26 @@ func NewNumberFormatterClass() *NumberFormatterClass {
 			"DEFAULT_STYLE":       data.NewIntValue(nfStyleDefault),
 			"IGNORE":              data.NewIntValue(0),
 
-			"PARSE_INT_ONLY":           data.NewIntValue(nfAttrParseIntOnly),
-			"GROUPING_USED":            data.NewIntValue(nfAttrGroupingUsed),
-			"DECIMAL_ALWAYS_SHOWN":     data.NewIntValue(nfAttrDecimalAlwaysShown),
-			"MAX_INTEGER_DIGITS":       data.NewIntValue(nfAttrMaxIntegerDigits),
-			"MIN_INTEGER_DIGITS":       data.NewIntValue(nfAttrMinIntegerDigits),
-			"INTEGER_DIGITS":           data.NewIntValue(nfAttrIntegerDigits),
-			"MAX_FRACTION_DIGITS":      data.NewIntValue(nfAttrMaxFractionDigits),
-			"MIN_FRACTION_DIGITS":      data.NewIntValue(nfAttrMinFractionDigits),
-			"FRACTION_DIGITS":          data.NewIntValue(nfAttrFractionDigits),
-			"MULTIPLIER":               data.NewIntValue(nfAttrMultiplier),
-			"GROUPING_SIZE":            data.NewIntValue(nfAttrGroupingSize),
-			"ROUNDING_MODE":            data.NewIntValue(nfAttrRoundingMode),
-			"ROUNDING_INCREMENT":       data.NewIntValue(nfAttrRoundingIncrement),
-			"FORMAT_WIDTH":             data.NewIntValue(nfAttrFormatWidth),
-			"PADDING_POSITION":         data.NewIntValue(nfAttrPaddingPosition),
-			"SECONDARY_GROUPING_SIZE":  data.NewIntValue(nfAttrSecondaryGroupingSize),
-			"SIGNIFICANT_DIGITS_USED":  data.NewIntValue(nfAttrSignificantDigitsUsed),
-			"MIN_SIGNIFICANT_DIGITS":   data.NewIntValue(nfAttrMinSignificantDigits),
-			"MAX_SIGNIFICANT_DIGITS":   data.NewIntValue(nfAttrMaxSignificantDigits),
-			"LENIENT_PARSE":            data.NewIntValue(nfAttrLenientParse),
+			"PARSE_INT_ONLY":          data.NewIntValue(nfAttrParseIntOnly),
+			"GROUPING_USED":           data.NewIntValue(nfAttrGroupingUsed),
+			"DECIMAL_ALWAYS_SHOWN":    data.NewIntValue(nfAttrDecimalAlwaysShown),
+			"MAX_INTEGER_DIGITS":      data.NewIntValue(nfAttrMaxIntegerDigits),
+			"MIN_INTEGER_DIGITS":      data.NewIntValue(nfAttrMinIntegerDigits),
+			"INTEGER_DIGITS":          data.NewIntValue(nfAttrIntegerDigits),
+			"MAX_FRACTION_DIGITS":     data.NewIntValue(nfAttrMaxFractionDigits),
+			"MIN_FRACTION_DIGITS":     data.NewIntValue(nfAttrMinFractionDigits),
+			"FRACTION_DIGITS":         data.NewIntValue(nfAttrFractionDigits),
+			"MULTIPLIER":              data.NewIntValue(nfAttrMultiplier),
+			"GROUPING_SIZE":           data.NewIntValue(nfAttrGroupingSize),
+			"ROUNDING_MODE":           data.NewIntValue(nfAttrRoundingMode),
+			"ROUNDING_INCREMENT":      data.NewIntValue(nfAttrRoundingIncrement),
+			"FORMAT_WIDTH":            data.NewIntValue(nfAttrFormatWidth),
+			"PADDING_POSITION":        data.NewIntValue(nfAttrPaddingPosition),
+			"SECONDARY_GROUPING_SIZE": data.NewIntValue(nfAttrSecondaryGroupingSize),
+			"SIGNIFICANT_DIGITS_USED": data.NewIntValue(nfAttrSignificantDigitsUsed),
+			"MIN_SIGNIFICANT_DIGITS":  data.NewIntValue(nfAttrMinSignificantDigits),
+			"MAX_SIGNIFICANT_DIGITS":  data.NewIntValue(nfAttrMaxSignificantDigits),
+			"LENIENT_PARSE":           data.NewIntValue(nfAttrLenientParse),
 
 			"DEFAULT_RULESET": data.NewIntValue(nfTextAttrDefaultRuleset),
 
@@ -170,6 +170,7 @@ type NumberFormatterConstructMethod struct{}
 func (m *NumberFormatterConstructMethod) GetName() string            { return "__construct" }
 func (m *NumberFormatterConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *NumberFormatterConstructMethod) GetIsStatic() bool          { return false }
+
 var numberFormatterConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "locale", 0, nil, data.String{}),
 	node.NewParameter(nil, "style", 1, nil, data.Int{}),
@@ -179,6 +180,7 @@ var numberFormatterConstructMethodGetParams = []data.GetValue{
 func (m *NumberFormatterConstructMethod) GetParams() []data.GetValue {
 	return numberFormatterConstructMethodGetParams
 }
+
 var numberFormatterConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "locale", 0, data.String{}),
 	node.NewVariable(nil, "style", 1, data.Int{}),
@@ -222,6 +224,7 @@ type NumberFormatterSetAttributeMethod struct{}
 func (m *NumberFormatterSetAttributeMethod) GetName() string            { return "setAttribute" }
 func (m *NumberFormatterSetAttributeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *NumberFormatterSetAttributeMethod) GetIsStatic() bool          { return false }
+
 var numberFormatterSetAttributeMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "attr", 0, nil, data.Int{}),
 	node.NewParameter(nil, "value", 1, nil, nil),
@@ -230,6 +233,7 @@ var numberFormatterSetAttributeMethodGetParams = []data.GetValue{
 func (m *NumberFormatterSetAttributeMethod) GetParams() []data.GetValue {
 	return numberFormatterSetAttributeMethodGetParams
 }
+
 var numberFormatterSetAttributeMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "attr", 0, data.Int{}),
 	node.NewVariable(nil, "value", 1, nil),
@@ -264,6 +268,7 @@ func (m *NumberFormatterSetTextAttributeMethod) GetModifier() data.Modifier {
 	return data.ModifierPublic
 }
 func (m *NumberFormatterSetTextAttributeMethod) GetIsStatic() bool { return false }
+
 var numberFormatterSetTextAttributeMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "attr", 0, nil, data.Int{}),
 	node.NewParameter(nil, "value", 1, nil, data.String{}),
@@ -272,6 +277,7 @@ var numberFormatterSetTextAttributeMethodGetParams = []data.GetValue{
 func (m *NumberFormatterSetTextAttributeMethod) GetParams() []data.GetValue {
 	return numberFormatterSetTextAttributeMethodGetParams
 }
+
 var numberFormatterSetTextAttributeMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "attr", 0, data.Int{}),
 	node.NewVariable(nil, "value", 1, data.String{}),
@@ -301,11 +307,13 @@ type NumberFormatterGetAttributeMethod struct{}
 func (m *NumberFormatterGetAttributeMethod) GetName() string            { return "getAttribute" }
 func (m *NumberFormatterGetAttributeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *NumberFormatterGetAttributeMethod) GetIsStatic() bool          { return false }
+
 var numberFormatterGetAttributeMethodGetParams = []data.GetValue{node.NewParameter(nil, "attr", 0, nil, data.Int{})}
 
 func (m *NumberFormatterGetAttributeMethod) GetParams() []data.GetValue {
 	return numberFormatterGetAttributeMethodGetParams
 }
+
 var numberFormatterGetAttributeMethodGetVariables = []data.Variable{node.NewVariable(nil, "attr", 0, data.Int{})}
 
 func (m *NumberFormatterGetAttributeMethod) GetVariables() []data.Variable {
@@ -332,6 +340,7 @@ type NumberFormatterFormatMethod struct{}
 func (m *NumberFormatterFormatMethod) GetName() string            { return "format" }
 func (m *NumberFormatterFormatMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *NumberFormatterFormatMethod) GetIsStatic() bool          { return false }
+
 var numberFormatterFormatMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "num", 0, nil, nil),
 	node.NewParameter(nil, "type", 1, data.NewIntValue(nfTypeDefault), data.Int{}),
@@ -340,6 +349,7 @@ var numberFormatterFormatMethodGetParams = []data.GetValue{
 func (m *NumberFormatterFormatMethod) GetParams() []data.GetValue {
 	return numberFormatterFormatMethodGetParams
 }
+
 var numberFormatterFormatMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "num", 0, nil),
 	node.NewVariable(nil, "type", 1, data.Int{}),
@@ -377,6 +387,7 @@ func (m *NumberFormatterFormatCurrencyMethod) GetModifier() data.Modifier {
 	return data.ModifierPublic
 }
 func (m *NumberFormatterFormatCurrencyMethod) GetIsStatic() bool { return false }
+
 var numberFormatterFormatCurrencyMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "amount", 0, nil, nil),
 	node.NewParameter(nil, "currency", 1, nil, data.String{}),
@@ -385,6 +396,7 @@ var numberFormatterFormatCurrencyMethodGetParams = []data.GetValue{
 func (m *NumberFormatterFormatCurrencyMethod) GetParams() []data.GetValue {
 	return numberFormatterFormatCurrencyMethodGetParams
 }
+
 var numberFormatterFormatCurrencyMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "amount", 0, nil),
 	node.NewVariable(nil, "currency", 1, data.String{}),

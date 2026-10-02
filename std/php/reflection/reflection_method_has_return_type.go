@@ -15,7 +15,9 @@ func (m *ReflectionMethodHasReturnTypeMethod) GetIsStatic() bool { return false 
 
 var reflectionMethodHasReturnTypeMethodGetParams = []data.GetValue{}
 
-func (m *ReflectionMethodHasReturnTypeMethod) GetParams() []data.GetValue { return reflectionMethodHasReturnTypeMethodGetParams }
+func (m *ReflectionMethodHasReturnTypeMethod) GetParams() []data.GetValue {
+	return reflectionMethodHasReturnTypeMethodGetParams
+}
 
 var reflectionMethodHasReturnTypeMethodGetVariables = []data.Variable{}
 

@@ -35,7 +35,8 @@ func (f *ArrayFillKeysFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 
 	seen := make(map[string]bool)
 	list := make([]*data.ZVal, 0)
-	for _, z := range arr.List {
+	for arraySlots88, arrayPosition88 := arr.View(), 0; arrayPosition88 < arraySlots88.Len(); arrayPosition88++ {
+		z := arraySlots88.At(arrayPosition88)
 		k := z.Value.AsString()
 		if !seen[k] {
 			list = append(list, &data.ZVal{Name: k, Value: val})
@@ -43,7 +44,7 @@ func (f *ArrayFillKeysFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 		}
 	}
 
-	return &data.ArrayValue{List: list}, nil
+	return data.NewArrayValueFromSlots(list), nil
 }
 
 func (f *ArrayFillKeysFunction) GetName() string {

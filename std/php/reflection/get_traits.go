@@ -44,11 +44,11 @@ func (m *ReflectionClassGetTraitsMethod) Call(ctx data.Context) (data.GetValue, 
 	_, classStmt := getReflectionClassInfo(ctx)
 	list := make([]*data.ZVal, 0)
 	if classStmt == nil {
-		return &data.ArrayValue{List: list}, nil
+		return data.NewArrayValueFromSlots(list), nil
 	}
 	cs, ok := classStmt.(*node.ClassStatement)
 	if !ok {
-		return &data.ArrayValue{List: list}, nil
+		return data.NewArrayValueFromSlots(list), nil
 	}
 	for _, traitName := range cs.Traits {
 		shortName := traitName
@@ -58,5 +58,5 @@ func (m *ReflectionClassGetTraitsMethod) Call(ctx data.Context) (data.GetValue, 
 		traitValue := newReflectionClassValue(ctx, traitName)
 		list = append(list, data.NewNamedZVal(shortName, traitValue))
 	}
-	return &data.ArrayValue{List: list}, nil
+	return data.NewArrayValueFromSlots(list), nil
 }

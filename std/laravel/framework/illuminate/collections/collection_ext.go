@@ -122,11 +122,11 @@ func collectionWhereNotBetween(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func bounds(values *data.ArrayValue) (data.Value, data.Value) {
-	if values == nil || len(values.List) == 0 {
+	if values == nil || values.Len() == 0 {
 		// PHP 的 reset()/end() 在空数组上返回 false。
 		return data.NewBoolValue(false), data.NewBoolValue(false)
 	}
-	first, last := values.List[0], values.List[len(values.List)-1]
+	first, last := values.At(0), values.At(values.Len()-1)
 	var low, high data.Value = data.NewBoolValue(false), data.NewBoolValue(false)
 	if first != nil {
 		low = first.Value
@@ -286,7 +286,7 @@ func whereInCore(items *data.ArrayValue, path string, values *data.ArrayValue, s
 	if strict {
 		eq = phpStrictEquals
 	}
-	allowed := make([]data.Value, 0, len(values.List))
+	allowed := make([]data.Value, 0, values.Len())
 	for _, e := range toEntries(values) {
 		allowed = append(allowed, e.value)
 	}
@@ -416,8 +416,9 @@ func collectionReduceSpread(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, ctl
 	}
 	for _, e := range toEntries(collectionItems(cv)) {
-		args := make([]data.Value, 0, len(result.List)+2)
-		for _, item := range result.List {
+		args := make([]data.Value, 0, result.Len()+2)
+		for arraySlots42, arrayPosition42 := result.View(), 0; arrayPosition42 < arraySlots42.Len(); arrayPosition42++ {
+			item := arraySlots42.At(arrayPosition42)
 			if item != nil {
 				args = append(args, item.Value)
 			}
@@ -497,8 +498,9 @@ func isFalse(v data.GetValue) bool {
 func spreadArgs(value, key data.Value) ([]data.Value, data.Control) {
 	var args []data.Value
 	if arr, ok := unwrapValue(value).(*data.ArrayValue); ok && arr != nil {
-		args = make([]data.Value, 0, len(arr.List)+1)
-		for _, z := range arr.List {
+		args = make([]data.Value, 0, arr.Len()+1)
+		for arraySlots43, arrayPosition43 := arr.View(), 0; arrayPosition43 < arraySlots43.Len(); arrayPosition43++ {
+			z := arraySlots43.At(arrayPosition43)
 			if z != nil {
 				args = append(args, z.Value)
 			}
@@ -602,7 +604,7 @@ func buildDictionary(ctx data.Context, items *data.ArrayValue, cb data.Value) (*
 			continue
 		}
 		sub := dictionaryBucket(out, keyStr)
-		sub.List = append(sub.List, data.NewZVal(value))
+		sub.AppendValue(value)
 	}
 	return out, nil
 }
@@ -612,7 +614,8 @@ func buildDictionary(ctx data.Context, items *data.ArrayValue, cb data.Value) (*
 func dictionaryPair(v data.Value) (string, data.Value, bool) {
 	switch pair := unwrapValue(v).(type) {
 	case *data.ArrayValue:
-		for i, z := range pair.List {
+		for arraySlots44, i := pair.View(), 0; i < arraySlots44.Len(); i++ {
+			z := arraySlots44.At(i)
 			if z == nil {
 				continue
 			}
@@ -665,14 +668,17 @@ func collectionDump(ctx data.Context) (data.GetValue, data.Control) {
 		return cv, nil
 	}
 	items := collectionItems(cv)
-	args := make([]data.Value, 0, len(items.List))
-	for _, z := range items.List {
+	args := make([]data.Value, 0, items.Len())
+	for arraySlots45, arrayPosition45 := items.View(), 0; arrayPosition45 < arraySlots45.Len(); arrayPosition45++ {
+		z := arraySlots45.At(arrayPosition45)
 		if z != nil && z.Value != nil {
 			args = append(args, z.Value)
 		}
 	}
 	callCtx := ctx.CreateContext(dumpFn.GetVariables())
-	data.BindDeclaredArgs(callCtx, dumpFn, args)
+	if ctl := data.BindDeclaredArgs(callCtx, dumpFn, args); ctl != nil {
+		return nil, ctl
+	}
 	if _, ctl := dumpFn.Call(callCtx); ctl != nil {
 		return nil, ctl
 	}
@@ -777,7 +783,9 @@ func collectionFromJson(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 	nctx := ctx.CreateContext(fn.GetVariables())
-	data.BindDeclaredArgs(nctx, fn, args)
+	if ctl := data.BindDeclaredArgs(nctx, fn, args); ctl != nil {
+		return nil, ctl
+	}
 	decoded, ctl := fn.Call(nctx)
 	if ctl != nil {
 		return nil, ctl
@@ -808,7 +816,9 @@ func instantiate(ctx data.Context, class string, args []data.Value) (data.Value,
 		return cv, nil
 	}
 	nctx := cv.CreateContext(ctor.GetVariables())
-	data.BindDeclaredArgs(nctx, ctor, args)
+	if ctl := data.BindDeclaredArgs(nctx, ctor, args); ctl != nil {
+		return nil, ctl
+	}
 	if _, ctl := ctor.Call(nctx); ctl != nil {
 		return nil, ctl
 	}

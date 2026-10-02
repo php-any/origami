@@ -56,7 +56,7 @@ func (g *Generator) Generate(pf ParsedFile) (string, error) {
 	g.indent--
 	g.printf("}\n")
 	g.printf("\n")
-	g.printf("return node.NewProgram(from, stmts), vars\n")
+	g.printf("return node.NewProgram(from, stmts, %v), vars\n", pf.Program.StrictTypes)
 	g.indent--
 	g.printf("}\n")
 

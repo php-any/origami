@@ -20,6 +20,7 @@ func (h *DBDriverMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *DBDriverMethod) GetName() string            { return "driver" }
 func (h *DBDriverMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBDriverMethod) GetIsStatic() bool          { return true }
+
 var dBDriverMethodGetParams = []data.GetValue{}
 
 func (h *DBDriverMethod) GetParams() []data.GetValue {

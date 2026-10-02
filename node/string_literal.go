@@ -30,6 +30,12 @@ func unescapeDoubleQuoted(s string) string {
 		case 'r':
 			b.WriteByte('\r')
 			i++
+		case 'v':
+			b.WriteByte('\v')
+			i++
+		case 'f':
+			b.WriteByte('\f')
+			i++
 		case 't':
 			b.WriteByte('\t')
 			i++

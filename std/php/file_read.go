@@ -1,11 +1,11 @@
 package php
 
 import (
-	"os"
 	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 const (
@@ -39,7 +39,7 @@ func (f *FileFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 
-	raw, err := os.ReadFile(path)
+	raw, err := utils.ReadFileContext(ctx.GoContext(), path)
 	if err != nil {
 		return data.NewBoolValue(false), nil
 	}

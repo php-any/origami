@@ -20,8 +20,8 @@ $input = [
 
 $filtered = array_filter($input);
 
-// 期望只保留 1 和 'foo'；当前实现会对索引数组重新索引为 0,1
-$expectedKeys   = [0, 1];
+// PHP 保留原键，只保留原索引 1 和 3 对应的 truthy 值。
+$expectedKeys   = [1, 3];
 $expectedValues = [1, 'foo'];
 
 if (array_keys($filtered) !== $expectedKeys) {

@@ -10,7 +10,7 @@ import (
 
 // MacroStore 按类名存放宏（对齐 Laravel Macroable trait）。
 type MacroStore struct {
-	mu    sync.RWMutex
+	mu     sync.RWMutex
 	macros map[string]map[string]data.Value // class -> lower(name) -> callable
 }
 
@@ -111,7 +111,9 @@ func InvokeMixinMethods(
 			// 不能经 withArgs 造上下文：CreateContext 返回的 ClassMethodContext
 			// 才带 $this，mixin 方法体里可能读 $this 或其它属性。
 			nctx := cv.CreateContext(m.GetVariables())
-			data.BindDeclaredArgs(nctx, m, nil)
+			if ctl := data.BindDeclaredArgs(nctx, m, nil); ctl != nil {
+				return ctl, nil
+			}
 			ret, ctl := m.Call(nctx)
 			if ctl != nil {
 				return ctl, nil

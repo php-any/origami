@@ -44,6 +44,7 @@ func (h *ConnPingContextMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 func (h *ConnPingContextMethod) GetName() string            { return "pingContext" }
 func (h *ConnPingContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ConnPingContextMethod) GetIsStatic() bool          { return true }
+
 var connPingContextMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "ctx", 0, nil, nil),
 }

@@ -38,7 +38,7 @@ func (f *GettypeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 				break
 			}
 		}
-		tp = "class"
+		tp = "object"
 	case *data.FloatValue:
 		tp = "float"
 	case *data.IntValue:

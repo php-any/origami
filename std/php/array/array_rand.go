@@ -33,19 +33,16 @@ func (f *ArrayRandFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 
 	switch v := arrayValue.(type) {
 	case *data.ArrayValue:
-		length := len(v.List)
+		length := v.Len()
 		if length == 0 {
 			return data.NewNullValue(), nil
 		}
 
 		// 收集所有键
 		keys := make([]data.Value, 0, length)
-		for i, zval := range v.List {
-			if zval != nil && zval.Name != "" {
-				keys = append(keys, data.NewStringValue(zval.Name))
-			} else {
-				keys = append(keys, data.NewIntValue(i))
-			}
+		for arraySlots100, i := v.View(), 0; i < arraySlots100.Len(); i++ {
+			zval := arraySlots100.At(i)
+			keys = append(keys, zval.PHPArrayKey(i))
 		}
 
 		if numReq >= length {

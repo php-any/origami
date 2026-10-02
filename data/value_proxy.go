@@ -17,6 +17,9 @@ func NewProxyValue(class ClassStmt, ctx Context) *ProxyValue {
 type ProxyValue = ClassValue
 
 func (c *ProxyValue) GetSource() any {
+	if c.ObjectValue != nil && c.InstanceSource != nil {
+		return c.InstanceSource
+	}
 	if p, ok := c.Class.(GetSource); ok {
 		return p.GetSource()
 	}

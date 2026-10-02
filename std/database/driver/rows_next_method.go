@@ -35,6 +35,7 @@ func (h *RowsNextMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *RowsNextMethod) GetName() string            { return "next" }
 func (h *RowsNextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RowsNextMethod) GetIsStatic() bool          { return true }
+
 var rowsNextMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "param0", 0, nil, nil),
 }

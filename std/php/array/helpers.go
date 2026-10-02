@@ -19,23 +19,14 @@ func toKVEntries(v data.Value) []kvEntry {
 	}
 	switch arr := v.(type) {
 	case *data.ArrayValue:
-		entries := make([]kvEntry, 0, len(arr.List))
-		for i, z := range arr.List {
+		entries := make([]kvEntry, 0, arr.Len())
+		for arraySlots108, i := arr.View(), 0; i < arraySlots108.Len(); i++ {
+			z := arraySlots108.At(i)
 			if z == nil {
 				continue
 			}
-			keyStr := z.Name
-			var key data.Value
-			if keyStr != "" {
-				if n, ok := data.ParseIntArrayKeyName(keyStr); ok {
-					key = data.NewIntValue(n)
-				} else {
-					key = data.NewStringValue(keyStr)
-				}
-			} else {
-				key = data.NewIntValue(i)
-				keyStr = data.IntArrayKeyName(i)
-			}
+			key := z.PHPArrayKey(i)
+			keyStr := key.AsString()
 			entries = append(entries, kvEntry{key: key, keyStr: keyStr, value: z.Value})
 		}
 		return entries
@@ -69,17 +60,8 @@ func getElementValue(row data.Value, key data.Value) data.Value {
 				}
 			}
 		}
-		for _, z := range r.List {
-			if z != nil && z.Name == keyStr {
-				return z.Value
-			}
-		}
-		if iv, ok := key.(data.AsInt); ok {
-			if i, err := iv.AsInt(); err == nil && i >= 0 && i < len(r.List) {
-				if z := r.List[i]; z != nil {
-					return z.Value
-				}
-			}
+		if z, ok := r.LookupZValByStringKey(keyStr); ok {
+			return z.Value
 		}
 	case *data.ObjectValue:
 		if val, ctl := r.GetProperty(keyStr); ctl == nil && val != nil {
@@ -187,9 +169,9 @@ func invokeCallback(ctx data.Context, cb data.Value, args []data.Value) (data.Va
 		}
 		return data.NewNullValue(), nil
 	case *data.ArrayValue:
-		if len(c.List) == 2 {
-			objVal := c.List[0].Value
-			methodVal := c.List[1].Value
+		if c.Len() == 2 {
+			objVal := c.At(0).Value
+			methodVal := c.At(1).Value
 			if obj, ok := objVal.(data.GetMethod); ok {
 				methodName := methodVal.AsString()
 				if method, has := obj.GetMethod(methodName); has {
@@ -327,7 +309,7 @@ func buildResultFromEntries(entries []kvEntry, preserveKeys bool) data.Value {
 			}
 			list = append(list, data.NewNamedZVal(e.keyStr, e.value))
 		}
-		return &data.ArrayValue{List: list}
+		return data.NewArrayValueFromSlots(list)
 	}
 	vals := make([]data.Value, len(entries))
 	for i, e := range entries {

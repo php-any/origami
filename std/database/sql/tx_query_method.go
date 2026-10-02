@@ -42,6 +42,7 @@ func (h *TxQueryMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *TxQueryMethod) GetName() string            { return "query" }
 func (h *TxQueryMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *TxQueryMethod) GetIsStatic() bool          { return true }
+
 var txQueryMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "query", 0, nil, nil),
 	node.NewParameters(nil, "args", 1, nil, nil),

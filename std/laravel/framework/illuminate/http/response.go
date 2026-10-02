@@ -485,7 +485,8 @@ func illuminateResponseHeader(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	var vals []string
 	if arr, ok := values.(*data.ArrayValue); ok {
-		for _, z := range arr.List {
+		for arraySlots54, arrayPosition54 := arr.View(), 0; arrayPosition54 < arraySlots54.Len(); arrayPosition54++ {
+			z := arraySlots54.At(arrayPosition54)
 			if z != nil && z.Value != nil {
 				vals = append(vals, z.Value.AsString())
 			}
@@ -528,7 +529,8 @@ func illuminateResponseWithHeaders(ctx data.Context) (data.GetValue, data.Contro
 	for k, v := range m {
 		var vals []string
 		if arr, ok := v.(*data.ArrayValue); ok {
-			for _, z := range arr.List {
+			for arraySlots55, arrayPosition55 := arr.View(), 0; arrayPosition55 < arraySlots55.Len(); arrayPosition55++ {
+				z := arraySlots55.At(arrayPosition55)
 				if z != nil && z.Value != nil {
 					vals = append(vals, z.Value.AsString())
 				}
@@ -545,7 +547,8 @@ func illuminateResponseWithoutHeader(ctx data.Context) (data.GetValue, data.Cont
 	cv := httpfoundation.ResponseClassValue(ctx)
 	key, _ := ctx.GetIndexValue(0)
 	if arr, ok := key.(*data.ArrayValue); ok {
-		for _, z := range arr.List {
+		for arraySlots56, arrayPosition56 := arr.View(), 0; arrayPosition56 < arraySlots56.Len(); arrayPosition56++ {
+			z := arraySlots56.At(arrayPosition56)
 			if z != nil && z.Value != nil {
 				httpfoundation.RespHeaderRemove(httpfoundation.ResponseHeaders(cv), z.Value.AsString())
 			}
@@ -578,7 +581,8 @@ func illuminateResponseWithCookies(ctx data.Context) (data.GetValue, data.Contro
 		return httpfoundation.ResponseSelf(ctx), nil
 	}
 	headers := httpfoundation.ResponseHeaders(cv)
-	for _, z := range arr.List {
+	for arraySlots57, arrayPosition57 := arr.View(), 0; arrayPosition57 < arraySlots57.Len(); arrayPosition57++ {
+		z := arraySlots57.At(arrayPosition57)
 		if z == nil || z.Value == nil {
 			continue
 		}

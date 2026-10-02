@@ -44,11 +44,10 @@ func TestParseFileBindsAssociativeArray(t *testing.T) {
 	p := parser.NewParser()
 	vm := NewVM(p).(*VM)
 
-	arr := &data.ArrayValue{
-		List: []*data.ZVal{
-			data.NewNamedZVal("greeting", data.NewStringValue("from-array")),
-		},
-	}
+	arr := data.NewArrayValueFromSlots([]*data.ZVal{
+		data.NewNamedZVal("greeting", data.NewStringValue("from-array")),
+	})
+
 	rendered, acl := vm.ParseFile(htmlPath, arr)
 	if acl != nil {
 		t.Fatalf("ParseFile with associative array failed: %v", acl)
@@ -72,11 +71,10 @@ func TestParseFileInterpolatesHtmlAttributeValue(t *testing.T) {
 	p := parser.NewParser()
 	vm := NewVM(p).(*VM)
 
-	arr := &data.ArrayValue{
-		List: []*data.ZVal{
-			data.NewNamedZVal("id", data.NewIntValue(42)),
-		},
-	}
+	arr := data.NewArrayValueFromSlots([]*data.ZVal{
+		data.NewNamedZVal("id", data.NewIntValue(42)),
+	})
+
 	rendered, acl := vm.ParseFile(htmlPath, arr)
 	if acl != nil {
 		t.Fatalf("ParseFile with interpolated attribute failed: %v", acl)

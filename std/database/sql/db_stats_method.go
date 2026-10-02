@@ -18,6 +18,7 @@ func (h *DBStatsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *DBStatsMethod) GetName() string            { return "stats" }
 func (h *DBStatsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBStatsMethod) GetIsStatic() bool          { return true }
+
 var dBStatsMethodGetParams = []data.GetValue{}
 
 func (h *DBStatsMethod) GetParams() []data.GetValue {

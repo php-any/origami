@@ -47,6 +47,7 @@ func (f *HtmlentitiesFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 }
 
 func (f *HtmlentitiesFunction) GetName() string { return "htmlentities" }
+
 var htmlentitiesFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 	node.NewParameter(nil, "flags", 1, node.NewIntLiteral(nil, "3"), data.NewBaseType("int")),
@@ -57,6 +58,7 @@ var htmlentitiesFunctionGetParams = []data.GetValue{
 func (f *HtmlentitiesFunction) GetParams() []data.GetValue {
 	return htmlentitiesFunctionGetParams
 }
+
 var htmlentitiesFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, nil),
 	node.NewVariable(nil, "flags", 1, data.NewBaseType("int")),
@@ -111,6 +113,7 @@ func (f *HtmlspecialcharsDecodeFunction) Call(ctx data.Context) (data.GetValue, 
 }
 
 func (f *HtmlspecialcharsDecodeFunction) GetName() string { return "htmlspecialchars_decode" }
+
 var htmlspecialcharsDecodeFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 	node.NewParameter(nil, "flags", 1, node.NewIntLiteral(nil, "3"), data.NewBaseType("int")),
@@ -119,6 +122,7 @@ var htmlspecialcharsDecodeFunctionGetParams = []data.GetValue{
 func (f *HtmlspecialcharsDecodeFunction) GetParams() []data.GetValue {
 	return htmlspecialcharsDecodeFunctionGetParams
 }
+
 var htmlspecialcharsDecodeFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, nil),
 	node.NewVariable(nil, "flags", 1, data.NewBaseType("int")),
@@ -155,6 +159,7 @@ func (f *AddcslashesFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 }
 
 func (f *AddcslashesFunction) GetName() string { return "addcslashes" }
+
 var addcslashesFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 	node.NewParameter(nil, "characters", 1, nil, nil),
@@ -163,6 +168,7 @@ var addcslashesFunctionGetParams = []data.GetValue{
 func (f *AddcslashesFunction) GetParams() []data.GetValue {
 	return addcslashesFunctionGetParams
 }
+
 var addcslashesFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, nil),
 	node.NewVariable(nil, "characters", 1, nil),
@@ -241,6 +247,7 @@ func (f *MetaphoneFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 }
 
 func (f *MetaphoneFunction) GetName() string { return "metaphone" }
+
 var metaphoneFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 	node.NewParameter(nil, "max_phonemes", 1, node.NewIntLiteral(nil, "0"), data.NewBaseType("int")),
@@ -249,6 +256,7 @@ var metaphoneFunctionGetParams = []data.GetValue{
 func (f *MetaphoneFunction) GetParams() []data.GetValue {
 	return metaphoneFunctionGetParams
 }
+
 var metaphoneFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, nil),
 	node.NewVariable(nil, "max_phonemes", 1, data.NewBaseType("int")),
@@ -314,11 +322,13 @@ func (f *SoundexFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *SoundexFunction) GetName() string { return "soundex" }
+
 var soundexFunctionGetParams = []data.GetValue{node.NewParameter(nil, "string", 0, nil, nil)}
 
 func (f *SoundexFunction) GetParams() []data.GetValue {
 	return soundexFunctionGetParams
 }
+
 var soundexFunctionGetVariables = []data.Variable{node.NewVariable(nil, "string", 0, nil)}
 
 func (f *SoundexFunction) GetVariables() []data.Variable {
@@ -348,7 +358,7 @@ func (f *SimilarTextFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	// 计算百分比
 	total := len(s1) + len(s2)
 	if total > 0 {
-		percent := float64(similar * 200) / float64(total)
+		percent := float64(similar*200) / float64(total)
 		// 设置 percent 引用参数
 		if percentRef != nil {
 			if iv, ok := percentRef.(*data.FloatValue); ok {
@@ -388,6 +398,7 @@ func lcsLength(a, b string) int {
 }
 
 func (f *SimilarTextFunction) GetName() string { return "similar_text" }
+
 var similarTextFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string1", 0, nil, nil),
 	node.NewParameter(nil, "string2", 1, nil, nil),
@@ -397,6 +408,7 @@ var similarTextFunctionGetParams = []data.GetValue{
 func (f *SimilarTextFunction) GetParams() []data.GetValue {
 	return similarTextFunctionGetParams
 }
+
 var similarTextFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string1", 0, nil),
 	node.NewVariable(nil, "string2", 1, nil),

@@ -79,8 +79,9 @@ func randomizerArrayEntries(value data.Value) ([]randomizerArrayEntry, bool) {
 	var entries []randomizerArrayEntry
 	switch array := value.(type) {
 	case *data.ArrayValue:
-		entries = make([]randomizerArrayEntry, 0, len(array.List))
-		for index, zv := range array.List {
+		entries = make([]randomizerArrayEntry, 0, array.Len())
+		for arraySlots117, index := array.View(), 0; index < arraySlots117.Len(); index++ {
+			zv := arraySlots117.At(index)
 			if zv == nil {
 				continue
 			}
@@ -115,6 +116,7 @@ func (m *randomizerPickArrayKeysMethod) GetName() string            { return "pi
 func (m *randomizerPickArrayKeysMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *randomizerPickArrayKeysMethod) GetIsStatic() bool          { return false }
 func (m *randomizerPickArrayKeysMethod) GetReturnType() data.Types  { return nil }
+
 var randomizerPickArrayKeysMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "array", 0, nil, data.Arrays{}),
 	node.NewParameter(nil, "num", 1, nil, data.Int{}),
@@ -123,6 +125,7 @@ var randomizerPickArrayKeysMethodGetParams = []data.GetValue{
 func (m *randomizerPickArrayKeysMethod) GetParams() []data.GetValue {
 	return randomizerPickArrayKeysMethodGetParams
 }
+
 var randomizerPickArrayKeysMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "array", 0, data.Arrays{}),
 	node.NewVariable(nil, "num", 1, data.Int{}),
@@ -171,11 +174,13 @@ func (m *randomizerShuffleArrayMethod) GetName() string            { return "shu
 func (m *randomizerShuffleArrayMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *randomizerShuffleArrayMethod) GetIsStatic() bool          { return false }
 func (m *randomizerShuffleArrayMethod) GetReturnType() data.Types  { return nil }
+
 var randomizerShuffleArrayMethodGetParams = []data.GetValue{node.NewParameter(nil, "array", 0, nil, data.Arrays{})}
 
 func (m *randomizerShuffleArrayMethod) GetParams() []data.GetValue {
 	return randomizerShuffleArrayMethodGetParams
 }
+
 var randomizerShuffleArrayMethodGetVariables = []data.Variable{node.NewVariable(nil, "array", 0, data.Arrays{})}
 
 func (m *randomizerShuffleArrayMethod) GetVariables() []data.Variable {
@@ -210,6 +215,7 @@ func (m *randomizerGetBytesFromStringMethod) GetName() string            { retur
 func (m *randomizerGetBytesFromStringMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *randomizerGetBytesFromStringMethod) GetIsStatic() bool          { return false }
 func (m *randomizerGetBytesFromStringMethod) GetReturnType() data.Types  { return data.String{} }
+
 var randomizerGetBytesFromStringMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "source", 0, nil, data.String{}),
 	node.NewParameter(nil, "length", 1, nil, data.Int{}),
@@ -218,6 +224,7 @@ var randomizerGetBytesFromStringMethodGetParams = []data.GetValue{
 func (m *randomizerGetBytesFromStringMethod) GetParams() []data.GetValue {
 	return randomizerGetBytesFromStringMethodGetParams
 }
+
 var randomizerGetBytesFromStringMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "source", 0, data.String{}),
 	node.NewVariable(nil, "length", 1, data.Int{}),

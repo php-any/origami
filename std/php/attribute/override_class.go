@@ -48,9 +48,13 @@ type OverrideConstructMethod struct{}
 func (m *OverrideConstructMethod) GetName() string            { return token.ConstructName }
 func (m *OverrideConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *OverrideConstructMethod) GetIsStatic() bool          { return false }
+
 var overrideConstructMethodGetParams = []data.GetValue{}
 
-func (m *OverrideConstructMethod) GetParams() []data.GetValue { return overrideConstructMethodGetParams }
+func (m *OverrideConstructMethod) GetParams() []data.GetValue {
+	return overrideConstructMethodGetParams
+}
+
 var overrideConstructMethodGetVariables = []data.Variable{}
 
 func (m *OverrideConstructMethod) GetVariables() []data.Variable {

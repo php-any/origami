@@ -3,11 +3,11 @@ package process
 import (
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
-
 
 const processName = "Symfony\\Component\\Process\\Process"
 
@@ -48,7 +48,7 @@ func (c *ProcessClass) GetMethod(name string) (data.Method, bool) {
 	}
 	return nil, false
 }
-func (c *ProcessClass) GetMethods() []data.Method            { return []data.Method{c.GetConstruct()} }
+func (c *ProcessClass) GetMethods() []data.Method { return []data.Method{c.GetConstruct()} }
 func (c *ProcessClass) GetStaticMethod(name string) (data.Method, bool) {
 	return c.GetMethod(name)
 }
@@ -62,7 +62,7 @@ type procMethod struct {
 
 func (m *procMethod) Call(ctx data.Context) (data.GetValue, data.Control) { return m.fn(ctx) }
 func (m *procMethod) GetName() string                                     { return m.name }
-func (m *procMethod) GetModifier() data.Modifier                           { return data.ModifierPublic }
+func (m *procMethod) GetModifier() data.Modifier                          { return data.ModifierPublic }
 func (m *procMethod) GetIsStatic() bool                                   { return m.static }
 func (m *procMethod) GetReturnType() data.Types                           { return nil }
 func (m *procMethod) GetParams() []data.GetValue {
@@ -106,7 +106,8 @@ func processRun(ctx data.Context) (data.GetValue, data.Control) {
 	cmdV, _ := cv.GetProperty("commandline")
 	var args []string
 	if av, ok := cmdV.(*data.ArrayValue); ok {
-		for _, z := range av.List {
+		for arraySlots168, arrayPosition168 := av.View(), 0; arrayPosition168 < arraySlots168.Len(); arrayPosition168++ {
+			z := arraySlots168.At(arrayPosition168)
 			if z != nil {
 				args = append(args, z.Value.AsString())
 			}
@@ -118,8 +119,10 @@ func processRun(ctx data.Context) (data.GetValue, data.Control) {
 		_ = cv.SetProperty("exitcode", data.NewIntValue(1))
 		return data.NewIntValue(1), nil
 	}
-	cmd := exec.Command(args[0], args[1:]...)
+	cmd := exec.CommandContext(ctx.GoContext(), args[0], args[1:]...)
+	cmd.WaitDelay = 2 * time.Second
 	out, err := cmd.CombinedOutput()
+	data.CheckRequest(ctx.GoContext())
 	_ = cv.SetProperty("output", data.NewStringValue(string(out)))
 	code := 0
 	if err != nil {

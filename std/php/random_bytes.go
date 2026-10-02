@@ -42,11 +42,13 @@ func asRandomBytesLength(v data.Value) (int, bool) {
 }
 
 func (f *RandomBytesFunction) GetName() string { return "random_bytes" }
+
 var randomBytesFunctionGetParams = []data.GetValue{node.NewParameter(nil, "length", 0, nil, nil)}
 
 func (f *RandomBytesFunction) GetParams() []data.GetValue {
 	return randomBytesFunctionGetParams
 }
+
 var randomBytesFunctionGetVariables = []data.Variable{node.NewVariable(nil, "length", 0, data.NewBaseType("int"))}
 
 func (f *RandomBytesFunction) GetVariables() []data.Variable {

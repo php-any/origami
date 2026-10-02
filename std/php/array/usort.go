@@ -1,8 +1,6 @@
 package array
 
 import (
-	"sort"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -29,63 +27,17 @@ func (f *UsortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewBoolValue(false), nil
 	}
 
-	if len(arrayRef.List) <= 1 {
+	if arrayRef.Len() == 0 {
 		return data.NewBoolValue(true), nil
 	}
 
-	// 获取回调函数变量信息
-	var callbackVars []data.Variable
-	switch cb := callbackValue.(type) {
-	case *data.FuncValue:
-		callbackVars = cb.Value.GetVariables()
+	// PHP sorts a duplicate so callback captures see the unsorted argument.
+	sorted := data.CloneArrayValue(arrayRef)
+	control := userSort(ctx, sorted, callbackValue, false)
+	data.CowAssign(ctx.GetIndexZVal(0), sorted)
+	if control != nil {
+		return nil, control
 	}
-
-	sort.Slice(arrayRef.List, func(i, j int) bool {
-		// 调用回调函数
-		fnCtx := ctx.CreateContext(callbackVars)
-		if len(callbackVars) > 0 {
-			fnCtx.SetIndexZVal(0, data.NewZVal(arrayRef.List[i].Value))
-		}
-		if len(callbackVars) > 1 {
-			fnCtx.SetIndexZVal(1, data.NewZVal(arrayRef.List[j].Value))
-		}
-
-		switch cb := callbackValue.(type) {
-		case *data.FuncValue:
-			ret, ctl := cb.Call(fnCtx)
-			if ctl != nil {
-				if rv, ok := ctl.(data.ReturnControl); ok {
-					if v, ok := rv.ReturnValue().(data.Value); ok {
-						if iv, ok := v.(*data.IntValue); ok {
-							return iv.Value < 0
-						}
-						if fv, ok := v.(*data.FloatValue); ok {
-							return fv.Value < 0
-						}
-					}
-				}
-				return false
-			}
-			if ret != nil {
-				if v, ok := ret.(data.Value); ok {
-					if iv, ok := v.(*data.IntValue); ok {
-						return iv.Value < 0
-					}
-					if fv, ok := v.(*data.FloatValue); ok {
-						return fv.Value < 0
-					}
-				}
-			}
-		}
-		return false
-	})
-
-	// 重新索引（清空字符串键名，整数键从0开始）
-	for i, zval := range arrayRef.List {
-		zval.Name = ""
-		_ = i
-	}
-
 	return data.NewBoolValue(true), nil
 }
 

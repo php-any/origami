@@ -22,9 +22,9 @@ func NewStringableClass() data.ClassStmt {
 	return c
 }
 
-func (c *StringableClass) GetName() string                          { return stringableClassName }
-func (c *StringableClass) GetExtend() *string                       { return nil }
-func (c *StringableClass) GetImplements() []string                  {
+func (c *StringableClass) GetName() string    { return stringableClassName }
+func (c *StringableClass) GetExtend() *string { return nil }
+func (c *StringableClass) GetImplements() []string {
 	return []string{"JsonSerializable", "ArrayAccess", "Stringable"}
 }
 func (c *StringableClass) GetProperty(name string) (data.Property, bool) {
@@ -110,7 +110,11 @@ func stringableConstruct(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	s := ""
 	if v := kit.Arg(ctx, 0); v != nil && !kit.IsNull(v) {
-		s = v.AsString()
+		var ctl data.Control
+		s, ctl = node.ValueToDisplayString(ctx, v)
+		if ctl != nil {
+			return nil, ctl
+		}
 	}
 	_ = cv.SetProperty("value", data.NewStringValue(s))
 	return data.NewNullValue(), nil

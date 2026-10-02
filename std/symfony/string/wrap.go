@@ -41,8 +41,9 @@ func newStaticString(ctx data.Context, cls data.ClassStmt, s string) (*data.Clas
 }
 
 func wrapArray(ctx data.Context, cls data.ClassStmt, av *data.ArrayValue) (*data.ArrayValue, data.Control) {
-	list := make([]*data.ZVal, len(av.List))
-	for i, z := range av.List {
+	list := make([]*data.ZVal, av.Len())
+	for arraySlots210, i := av.View(), 0; i < arraySlots210.Len(); i++ {
+		z := arraySlots210.At(i)
 		name := ""
 		var val data.Value
 		if z != nil {
@@ -79,12 +80,13 @@ func wrapArray(ctx data.Context, cls data.ClassStmt, av *data.ArrayValue) (*data
 			list[i] = data.NewZVal(val)
 		}
 	}
-	return &data.ArrayValue{List: list}, nil
+	return data.NewArrayValueFromSlots(list), nil
 }
 
 func unwrapArray(av *data.ArrayValue) *data.ArrayValue {
-	list := make([]*data.ZVal, len(av.List))
-	for i, z := range av.List {
+	list := make([]*data.ZVal, av.Len())
+	for arraySlots211, i := av.View(), 0; i < arraySlots211.Len(); i++ {
+		z := arraySlots211.At(i)
 		name := ""
 		var val data.Value
 		if z != nil {
@@ -102,7 +104,7 @@ func unwrapArray(av *data.ArrayValue) *data.ArrayValue {
 			list[i] = data.NewZVal(val)
 		}
 	}
-	return &data.ArrayValue{List: list}
+	return data.NewArrayValueFromSlots(list)
 }
 
 func phpArray(v data.Value) *data.ArrayValue {
@@ -130,7 +132,7 @@ func asArrayValue(v data.Value) *data.ArrayValue {
 	case *data.ObjectValue:
 		out := &data.ArrayValue{}
 		t.RangeProperties(func(key string, value data.Value) bool {
-			out.List = append(out.List, data.NewNamedZVal(key, value))
+			out.SetStringKey(key, value)
 			return true
 		})
 		return out
@@ -163,8 +165,9 @@ func variadicInts(ctx data.Context, i int) []int {
 	v, ok := ctx.GetIndexValue(i)
 	if ok && v != nil {
 		if av, ok := v.(*data.ArrayValue); ok {
-			out := make([]int, 0, len(av.List))
-			for _, z := range av.List {
+			out := make([]int, 0, av.Len())
+			for arraySlots212, arrayPosition212 := av.View(), 0; arrayPosition212 < arraySlots212.Len(); arrayPosition212++ {
+				z := arraySlots212.At(arrayPosition212)
 				if z == nil || z.Value == nil {
 					continue
 				}

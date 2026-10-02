@@ -55,4 +55,4 @@ go run -mod=mod -tags origamidebug . serve --port=18086
 Source → lexer/ → parser/ → node/ (AST + 执行) → runtime/ (VM)
 ```
 
-内置函数在 `std/php/`，经 `std/php/load.go` 注册。请求级隔离用 `TempVM`。
+内置函数在 `std/php/`，经 `std/php/load.go` 注册。语言层只有 `VM` 和 `RequestVM`；请求级隔离统一由 `runtime.RequestVM` 实现，HTTP/FPM 宿主只做适配，不另建一套 VM。

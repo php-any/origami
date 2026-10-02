@@ -21,10 +21,10 @@ func (f *ArrayFirstFunction) Call(ctx data.Context) (data.GetValue, data.Control
 
 	switch v := val.(type) {
 	case *data.ArrayValue:
-		if len(v.List) == 0 {
+		if v.Len() == 0 {
 			return data.NewNullValue(), nil
 		}
-		return v.List[0].Value, nil
+		return v.At(0).Value, nil
 	case *data.ObjectValue:
 		var first data.Value
 		found := false
@@ -76,10 +76,10 @@ func (f *ArrayLastFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 
 	switch v := val.(type) {
 	case *data.ArrayValue:
-		if len(v.List) == 0 {
+		if v.Len() == 0 {
 			return data.NewNullValue(), nil
 		}
-		return v.List[len(v.List)-1].Value, nil
+		return v.At(v.Len() - 1).Value, nil
 	case *data.ObjectValue:
 		var last data.Value
 		found := false

@@ -36,12 +36,12 @@ func (a *ArraySpread) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	case *data.ArrayValue:
 		return v, nil
 	case *data.ObjectValue:
-		list := make([]*data.ZVal, 0)
+		array := data.NewArrayValue(nil).(*data.ArrayValue)
 		v.RangeProperties(func(key string, value data.Value) bool {
-			list = append(list, data.NewNamedZVal(key, value))
+			array.SetStringKey(key, value)
 			return true
 		})
-		return &data.ArrayValue{List: list}, nil
+		return array, nil
 	case *data.ThisValue:
 		if v.ClassValue == nil {
 			return nil, data.NewErrorThrow(nil, data.NewError(nil, "展开运算符只能用于数组或 Traversable，收到: $this", nil))
@@ -65,7 +65,7 @@ func (a *ArraySpread) spreadClassValue(ctx data.Context, v *data.ClassValue) (da
 		for _, val := range vals {
 			list = append(list, data.NewZVal(val))
 		}
-		return &data.ArrayValue{List: list}, nil
+		return data.NewArrayValueFromSlots(list), nil
 	}
 	kind := "ClassValue"
 	if v != nil && v.Class != nil {

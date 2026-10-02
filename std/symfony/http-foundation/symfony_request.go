@@ -905,8 +905,9 @@ func arrayStrings(value data.Value) []string {
 
 func valueStrings(value data.Value) []string {
 	if array, ok := value.(*data.ArrayValue); ok {
-		out := make([]string, 0, len(array.List))
-		for _, item := range array.List {
+		out := make([]string, 0, array.Len())
+		for arraySlots165, arrayPosition165 := array.View(), 0; arrayPosition165 < arraySlots165.Len(); arrayPosition165++ {
+			item := arraySlots165.At(arrayPosition165)
 			if item != nil && item.Value != nil {
 				out = append(out, item.Value.AsString())
 			}

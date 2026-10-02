@@ -214,7 +214,8 @@ func buildOpenFileDialogBuilder(v data.Value) *application.OpenFileDialogStruct 
 
 	if v, ctrl := cv.GetProperty("Filters"); ctrl == nil && v != nil {
 		if av, ok := v.(*data.ArrayValue); ok {
-			for _, z := range av.List {
+			for arraySlots6, arrayPosition6 := av.View(), 0; arrayPosition6 < arraySlots6.Len(); arrayPosition6++ {
+				z := arraySlots6.At(arrayPosition6)
 				if z != nil {
 					if fcv, ok := z.Value.(*data.ClassValue); ok {
 						d.AddFilter(
@@ -259,7 +260,8 @@ func buildSaveFileDialogBuilder(v data.Value) *application.SaveFileDialogStruct 
 
 	if v, ctrl := cv.GetProperty("Filters"); ctrl == nil && v != nil {
 		if av, ok := v.(*data.ArrayValue); ok {
-			for _, z := range av.List {
+			for arraySlots7, arrayPosition7 := av.View(), 0; arrayPosition7 < arraySlots7.Len(); arrayPosition7++ {
+				z := arraySlots7.At(arrayPosition7)
 				if z != nil {
 					if fcv, ok := z.Value.(*data.ClassValue); ok {
 						d.AddFilter(
@@ -303,8 +305,9 @@ func buildMessageDialog(v data.Value) *application.MessageDialog {
 	var defBtn, cancelBtn *application.Button
 	if v, ctrl := cv.GetProperty("Buttons"); ctrl == nil && v != nil {
 		if av, ok := v.(*data.ArrayValue); ok {
-			buttons := make([]*application.Button, 0, len(av.List))
-			for _, z := range av.List {
+			buttons := make([]*application.Button, 0, av.Len())
+			for arraySlots8, arrayPosition8 := av.View(), 0; arrayPosition8 < arraySlots8.Len(); arrayPosition8++ {
+				z := arraySlots8.At(arrayPosition8)
 				if z != nil {
 					label := toString(z.Value)
 					btn := d.AddButton(label)

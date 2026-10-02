@@ -1,4 +1,4 @@
-﻿package filesystem
+package filesystem
 
 import "github.com/php-any/origami/data"
 

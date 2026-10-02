@@ -63,6 +63,7 @@ type PostMappingConstructMethod struct{ mapping *PostMapping }
 func (m *PostMappingConstructMethod) GetName() string            { return "__construct" }
 func (m *PostMappingConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *PostMappingConstructMethod) GetIsStatic() bool          { return false }
+
 var postMappingConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "path", 0, data.NewStringValue("/"), data.NewBaseType("string")),
 	node.NewAnnotationTargetParameter(nil, 1),
@@ -71,6 +72,7 @@ var postMappingConstructMethodGetParams = []data.GetValue{
 func (m *PostMappingConstructMethod) GetParams() []data.GetValue {
 	return postMappingConstructMethodGetParams
 }
+
 var postMappingConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "path", 0, nil),
 	node.NewAnnotationTargetVariable(nil, 1),

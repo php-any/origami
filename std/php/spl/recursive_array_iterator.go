@@ -48,7 +48,7 @@ func (c *RecursiveArrayIteratorClass) GetConstruct() data.Method {
 }
 func (c *RecursiveArrayIteratorClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	cv := data.NewClassValue(c, ctx.CreateBaseContext())
-	cv.ObjectValue.SetProperty(aiStorageKey, &data.ArrayValue{List: []*data.ZVal{}})
+	cv.ObjectValue.SetProperty(aiStorageKey, data.NewArrayValueFromSlots([]*data.ZVal{}))
 	cv.ObjectValue.SetProperty(aiPosKey, data.NewIntValue(0))
 	cv.ObjectValue.SetProperty(aiFlagsKey, data.NewIntValue(0))
 	return cv, nil
@@ -82,13 +82,13 @@ func raiGetFlags(cv *data.ClassValue) int {
 func raiCurrentValue(cv *data.ClassValue) data.Value {
 	arr := aiGetStorage(cv)
 	pos := aiGetPos(cv)
-	if pos < 0 || pos >= len(arr.List) {
+	if pos < 0 || pos >= arr.Len() {
 		return data.NewNullValue()
 	}
-	if arr.List[pos] == nil {
+	if arr.At(pos) == nil {
 		return data.NewNullValue()
 	}
-	return arr.List[pos].Value
+	return arr.At(pos).Value
 }
 
 func raiValueHasChildren(val data.Value, flags int) bool {
@@ -98,7 +98,7 @@ func raiValueHasChildren(val data.Value, flags int) bool {
 	arraysOnly := flags&raiChildArraysOnly != 0
 	switch v := val.(type) {
 	case *data.ArrayValue:
-		return len(v.List) > 0
+		return v.Len() > 0
 	case *data.ObjectValue:
 		if arraysOnly {
 			return false
@@ -131,16 +131,16 @@ func raiValueToStorage(val data.Value) *data.ArrayValue {
 	case *data.ClassValue:
 		iterMethod, ok := v.Class.GetMethod("getIterator")
 		if !ok {
-			return &data.ArrayValue{List: []*data.ZVal{}}
+			return data.NewArrayValueFromSlots([]*data.ZVal{})
 		}
 		fnCtx := v.CreateContext(iterMethod.GetVariables())
 		ret, ctl := iterMethod.Call(fnCtx)
 		if ctl != nil {
-			return &data.ArrayValue{List: []*data.ZVal{}}
+			return data.NewArrayValueFromSlots([]*data.ZVal{})
 		}
 		if iterCV, ok := ret.(*data.ClassValue); ok {
 			if curMethod, ok := iterCV.Class.GetMethod("current"); ok {
-				out := &data.ArrayValue{List: []*data.ZVal{}}
+				out := data.NewArrayValueFromSlots([]*data.ZVal{})
 				rewindM, _ := iterCV.Class.GetMethod("rewind")
 				if rewindM != nil {
 					rctx := iterCV.CreateContext(rewindM.GetVariables())
@@ -156,7 +156,7 @@ func raiValueToStorage(val data.Value) *data.ArrayValue {
 					cctx := iterCV.CreateContext(curMethod.GetVariables())
 					curRet, _ := curMethod.Call(cctx)
 					if curVal, ok := curRet.(data.Value); ok {
-						out.List = append(out.List, data.NewZVal(curVal))
+						out.AppendValue(curVal)
 					}
 					nextM, _ := iterCV.Class.GetMethod("next")
 					nctx := iterCV.CreateContext(nextM.GetVariables())
@@ -166,7 +166,7 @@ func raiValueToStorage(val data.Value) *data.ArrayValue {
 			}
 		}
 	}
-	return &data.ArrayValue{List: []*data.ZVal{}}
+	return data.NewArrayValueFromSlots([]*data.ZVal{})
 }
 
 func raiNewInstance(ctx data.Context, storage *data.ArrayValue, flags data.Value) (data.GetValue, data.Control) {

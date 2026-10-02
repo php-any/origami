@@ -95,7 +95,8 @@ func modifierPrefixFromValue(v data.Value) string {
 	}
 	switch o := v.(type) {
 	case *data.ArrayValue:
-		for _, z := range o.List {
+		for arraySlots9, arrayPosition9 := o.View(), 0; arrayPosition9 < arraySlots9.Len(); arrayPosition9++ {
+			z := arraySlots9.At(arrayPosition9)
 			if z != nil {
 				collect(z.Value)
 			}
@@ -126,7 +127,8 @@ func arrayGet(av *data.ArrayValue, key string) (data.Value, bool) {
 	if av == nil {
 		return nil, false
 	}
-	for _, z := range av.List {
+	for arraySlots10, arrayPosition10 := av.View(), 0; arrayPosition10 < arraySlots10.Len(); arrayPosition10++ {
+		z := arraySlots10.At(arrayPosition10)
 		if z != nil && z.Name == key {
 			return z.Value, true
 		}

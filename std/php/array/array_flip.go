@@ -18,20 +18,12 @@ func (f *ArrayFlipFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	pairs := make([][2]data.Value, 0)
 	switch arr := v.(type) {
 	case *data.ArrayValue:
-		for idx, zv := range arr.List {
+		for arraySlots89, idx := arr.View(), 0; idx < arraySlots89.Len(); idx++ {
+			zv := arraySlots89.At(idx)
 			if zv == nil || zv.Value == nil {
 				continue
 			}
-			var oldKey data.Value
-			if zv.Name != "" {
-				if i, ok := data.ParseIntArrayKeyName(zv.Name); ok {
-					oldKey = data.NewIntValue(i)
-				} else {
-					oldKey = data.NewStringValue(zv.Name)
-				}
-			} else {
-				oldKey = data.NewIntValue(idx)
-			}
+			oldKey := zv.PHPArrayKey(idx)
 			pairs = append(pairs, [2]data.Value{zv.Value, oldKey})
 		}
 	case *data.ObjectValue:
@@ -55,18 +47,14 @@ func (f *ArrayFlipFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 
 	result := data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
 	for _, p := range pairs {
-		newKey := ""
 		switch k := p[0].(type) {
-		case data.AsString:
-			newKey = k.AsString()
+		case *data.IntValue:
+			result.SetIntKey(k.Value, p[1])
+		case *data.StringValue:
+			result.SetStringKey(k.Value, p[1])
 		default:
 			continue
 		}
-		if newKey == "" {
-			// PHP：空字符串可作为键
-		}
-		zv := data.NewNamedZVal(newKey, p[1])
-		result.List = append(result.List, zv)
 	}
 	return result, nil
 }

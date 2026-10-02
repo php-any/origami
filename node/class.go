@@ -511,6 +511,12 @@ func (c *ClassStatement) GetMethods() []data.Method {
 }
 
 func (c *ClassStatement) GetStaticProperty(name string) (data.Value, bool) {
+	return c.getStaticProperty(nil, nil, name)
+}
+
+// getStaticProperty uses the execution VM for lazy defaults. Cached declarations
+// can retain a parsing VM that cannot see classes loaded by the current request.
+func (c *ClassStatement) getStaticProperty(ctx data.Context, vm data.VM, name string) (data.Value, bool) {
 	if v, ok := data.LoadRequestStatic(c.GetName(), name); ok {
 		return v, true
 	}
@@ -522,7 +528,10 @@ func (c *ClassStatement) GetStaticProperty(name string) (data.Value, bool) {
 	// GetStaticProperty("B")，因此这里不能加锁（sync.Mutex 不可重入会死锁）。
 	// PHP 常量表达式无副作用，重复求值结果一致。
 	if prop, ok := c.StaticProperties[name]; ok {
-		v, acl := c.initStaticProperty(prop)
+		if ctx != nil {
+			vm = ctx.GetVM()
+		}
+		v, acl := c.initStaticProperty(prop, vm)
 		if acl == nil && v != nil {
 			return data.CowRequestStatic(c.GetName(), name, v), true
 		}
@@ -536,13 +545,18 @@ func (c *ClassStatement) SetStaticPropertyContext(ctx data.Context) {
 }
 
 // initStaticProperty 求值静态属性/常量的默认值并缓存到 StaticProperty。
-func (c *ClassStatement) initStaticProperty(prop data.Property) (data.Value, data.Control) {
+func (c *ClassStatement) initStaticProperty(prop data.Property, vm data.VM) (data.Value, data.Control) {
 	def := prop.GetDefaultValue()
 	if def == nil {
 		c.StaticProperty.Store(prop.GetName(), data.NewNullValue())
 		return data.NewNullValue(), nil
 	}
 	ctx := c.staticPropertyCtx
+	if vm != nil && (ctx == nil || ctx.GetVM() != vm) {
+		// Keep self:: bound to the declaring class without changing the shared
+		// parsing context. This allocation occurs only before a default is cached.
+		ctx = data.NewClassValue(c, vm.CreateContext(nil))
+	}
 	if ctx == nil {
 		return nil, nil
 	}
@@ -692,6 +706,7 @@ type ClassMethod struct {
 	Annotations []*data.ClassValue // 方法注解列表
 	Ret         data.Types         // 返回类型
 	IsGenerator bool               // 是否是生成器方法（含 yield）
+	StrictTypes bool
 }
 
 func (m *ClassMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
@@ -700,7 +715,7 @@ func (m *ClassMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 // NewMethod 创建一个新的方法
-func NewMethod(from data.From, name string, modifier string, isStatic bool, params []data.GetValue, body []data.GetValue, vars []data.Variable, ret data.Types) data.Method {
+func NewMethod(from data.From, name string, modifier string, isStatic bool, params []data.GetValue, body []data.GetValue, vars []data.Variable, ret data.Types, strict ...bool) data.Method {
 	return &ClassMethod{
 		Node:        NewNode(from),
 		Name:        name,
@@ -711,6 +726,7 @@ func NewMethod(from data.From, name string, modifier string, isStatic bool, para
 		vars:        vars,
 		Ret:         ret,
 		IsGenerator: containsYield(body),
+		StrictTypes: len(strict) != 0 && strict[0],
 	}
 }
 
@@ -750,6 +766,7 @@ func (m *ClassMethod) GetReturnType() data.Types {
 }
 
 func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	ctx.SetStrictTypes(m.StrictTypes)
 	// 不再无条件 BindStaticLocals。static 局部变量由 StaticVarStatement 惰性绑定。
 
 	// PHP 语义：如果方法是 generator（含 yield），调用时立即返回 Generator 对象，不执行方法体
@@ -797,33 +814,18 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 				return nil, ctl
 			case data.ReturnControl:
 				ret := rv.ReturnValue()
+				if m.Ret == data.TypeVoid {
+					return data.NewNullValue(), nil
+				}
 				if m.Ret == nil {
 					return ret, nil // 不判断类型
 				}
-				if m.Ret.Is(ret) {
-					return ret, nil
+				if prepared, ok, conversion := data.PrepareTypedValueInContext(m.Ret, ret, ctx); conversion != nil {
+					return nil, data.ReturnTypeError(m.GetFrom(), fmt.Errorf("方法(%s)返回值类型错误; 期望 %s, 实际 %T", m.Name, m.Ret.String(), ret), conversion)
+				} else if ok {
+					return prepared, nil
 				}
-				// 允许 null 返回（PHP 兼容：方法可能隐式返回 null）
-				if ret == nil {
-					return data.NewNullValue(), nil
-				}
-				if _, isNull := ret.(*data.NullValue); isNull {
-					return data.NewNullValue(), nil
-				}
-				// 声明返回 string 时，允许返回带 __toString 的对象并自动转为字符串（与 PHP 一致）
-				if m.Ret != nil && m.Ret.String() == "string" {
-					if obj, ok := ret.(*data.ClassValue); ok {
-						if toStr, ok := obj.GetMethod("__toString"); ok && toStr != nil {
-							fnCtx := obj.CreateContext(toStr.GetVariables())
-							fnCtx.SetCallArgs([]data.GetValue{})
-							val, ctl := toStr.Call(fnCtx)
-							if ctl == nil && val != nil {
-								return val, nil
-							}
-						}
-					}
-				}
-				return nil, data.NewErrorThrow(m.GetFrom(), fmt.Errorf("方法(%s)返回值类型错误; 期望 %s, 实际 %T", m.Name, m.Ret.String(), ret))
+				return nil, data.NewTypeError(m.GetFrom(), fmt.Errorf("方法(%s)返回值类型错误; 期望 %s, 实际 %T", m.Name, m.Ret.String(), ret))
 			case data.GotoControl:
 				offset, acl := resolveGotoBodyIndex(m.from, m.Body, rv)
 				if acl != nil {
@@ -861,91 +863,16 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	persistStaticLocals(ctx, m.vars)
+	if !data.AllowsImplicitReturn(m.Ret) {
+		return nil, data.NewTypeError(m.from, fmt.Errorf("method %s must return a value", m.Name))
+	}
 	// PHP：方法没有 return 时返回 null（Livewire ViewContext::extractFromEnvironment 依赖此语义）。
 	return data.NewNullValue(), nil
 }
 
-// 检查 source 是否实现了(继承了) target 类或接口
+// 名义类型比较只读取已加载的继承元数据，不执行 autoload。
 func checkClassIs(ctx data.Context, source data.ClassStmt, target string) (bool, data.Control) {
-	if source.GetName() == target {
-		return true, nil
-	} else {
-		if source.GetImplements() != nil {
-			for _, impl := range source.GetImplements() {
-				if impl == target {
-					return true, nil
-				}
-				// 检查接口继承
-				if vm := ctx.GetVM(); vm != nil {
-					if interfaceStmt, ok := vm.GetInterface(impl); ok {
-						if checkInterfaceIs(ctx, interfaceStmt, target) {
-							return true, nil
-						}
-					}
-				}
-			}
-		}
-
-		if source.GetExtend() != nil {
-			vm := ctx.GetVM()
-			// 执行父级
-			last := source
-			for last.GetExtend() != nil || last.GetImplements() != nil {
-				if last.GetImplements() != nil {
-					for _, impl := range last.GetImplements() {
-						if impl == target {
-							return true, nil
-						}
-						// 检查接口继承
-						if interfaceStmt, ok := vm.GetInterface(impl); ok {
-							if checkInterfaceIs(ctx, interfaceStmt, target) {
-								return true, nil
-							}
-						}
-					}
-				}
-				if last.GetExtend() != nil {
-					if *last.GetExtend() == target {
-						return true, nil
-					}
-					next, acl := vm.GetOrLoadClass(*(last.GetExtend()))
-					if acl != nil {
-						return false, acl
-					}
-					ok, acl := checkClassIs(ctx, next, target)
-					if acl != nil {
-						return false, acl
-					}
-					if ok {
-						return true, nil
-					} else {
-						last = next
-					}
-				}
-				return false, nil
-			}
-		}
-	}
-
-	return false, nil
-}
-
-// 检查接口是否继承了目标接口
-func checkInterfaceIs(ctx data.Context, source data.InterfaceStmt, target string) bool {
-	if source.GetName() == target {
-		return true
-	}
-
-	vm := ctx.GetVM()
-	for _, parentName := range source.GetExtends() {
-		if interfaceStmt, ok := vm.GetInterface(parentName); ok {
-			if checkInterfaceIs(ctx, interfaceStmt, target) {
-				return true
-			}
-		}
-	}
-
-	return false
+	return data.NominalIsA(source, target, ctx.GetVM()), nil
 }
 
 type AddAnnotations interface {

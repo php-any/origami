@@ -147,7 +147,9 @@ func emitCallLater(g *Generator, v data.GetValue) error {
 func emitLambdaExpression(g *Generator, v data.GetValue) error {
 	n := v.(*node.LambdaExpression)
 	fs := n.FunctionStatement
-	g.printf("node.NewLambdaExpression(from,\n")
+	g.printf("func() *node.LambdaExpression {\n")
+	g.indent++
+	g.printf("closure := node.NewLambdaExpression(from,\n")
 	g.indent++
 	if err := g.emitParamList(fs.Params); err != nil {
 		return err
@@ -166,15 +168,19 @@ func emitLambdaExpression(g *Generator, v data.GetValue) error {
 	g.genMethodVars(fs.GetVariables())
 	g.printf(",\n")
 	g.genParentMap(n.GetParentBindings())
-	g.printf(",\n")
+	g.printf(", %v,\n", fs.StrictTypes)
 	g.indent--
-	g.printf(")")
+	g.printf(")\nclosure.Ret = ")
+	g.genTypes(fs.Ret)
+	g.printf("\nclosure.ReturnsReference = %v\nclosure.IsStatic = %v\nreturn closure\n", fs.ReturnsReference, n.IsStatic)
+	g.indent--
+	g.printf("}()")
 	return nil
 }
 
 func emitClassStatement(g *Generator, v data.GetValue) error {
 	n := v.(*node.ClassStatement)
-	g.printf("func() data.GetValue {\n")
+	g.printf("func() *node.ClassStatement {\n")
 	g.indent++
 	if err := g.emitClassStatementInit(n); err != nil {
 		return err
@@ -270,7 +276,7 @@ func emitFunctionStatement(g *Generator, v data.GetValue) error {
 	g.genMethodVars(n.GetVariables())
 	g.printf(", ")
 	g.genTypes(n.Ret)
-	g.printf(", %v)", n.ReturnsReference)
+	g.printf(", %v, %v)", n.ReturnsReference, n.StrictTypes)
 	return nil
 }
 
@@ -878,7 +884,7 @@ func (g *Generator) emitClassMethodBody(cm *node.ClassMethod) error {
 	g.genMethodVars(cm.GetVariables())
 	g.printf(", ")
 	g.genTypes(cm.Ret)
-	g.printf(")")
+	g.printf(", %v)", cm.StrictTypes)
 	return nil
 }
 

@@ -10,6 +10,7 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Form;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 /**
@@ -57,17 +58,28 @@ class ManageSettings extends Page
         return $schema
             ->components([
                 Form::make([
-                    TextInput::make('site_name')
-                        ->label('站点名称')
-                        ->required()
-                        ->maxLength(255),
-                    Toggle::make('maintenance_mode')
-                        ->label('维护模式'),
-                    TextInput::make('order_prefix')
-                        ->label('订单号前缀')
-                        ->required()
-                        ->maxLength(20),
+                    Section::make('站点设置')
+                        ->description('管理站点名称与访问状态')
+                        ->icon('heroicon-o-building-storefront')
+                        ->schema([
+                            TextInput::make('site_name')
+                                ->label('站点名称')
+                                ->required()
+                                ->maxLength(255),
+                            Toggle::make('maintenance_mode')
+                                ->label('维护模式'),
+                        ]),
+                    Section::make('订单设置')
+                        ->description('管理订单编号规则')
+                        ->icon('heroicon-o-shopping-bag')
+                        ->schema([
+                            TextInput::make('order_prefix')
+                                ->label('订单号前缀')
+                                ->required()
+                                ->maxLength(20),
+                        ]),
                 ])
+                    ->columns(['default' => 1, 'lg' => 2])
                     ->livewireSubmitHandler('save')
                     ->footer([
                         Actions::make([

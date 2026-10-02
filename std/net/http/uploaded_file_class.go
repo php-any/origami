@@ -87,15 +87,21 @@ func (h *UploadedFileOriginalNameMethod) Call(ctx data.Context) (data.GetValue, 
 	return data.NewStringValue(h.header.Filename), nil
 }
 
-func (h *UploadedFileOriginalNameMethod) GetName() string               { return "originalName" }
-func (h *UploadedFileOriginalNameMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *UploadedFileOriginalNameMethod) GetIsStatic() bool             { return false }
+func (h *UploadedFileOriginalNameMethod) GetName() string            { return "originalName" }
+func (h *UploadedFileOriginalNameMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *UploadedFileOriginalNameMethod) GetIsStatic() bool          { return false }
+
 var uploadedFileOriginalNameMethodGetParams = []data.GetValue{}
 
-func (h *UploadedFileOriginalNameMethod) GetParams() []data.GetValue    { return uploadedFileOriginalNameMethodGetParams }
+func (h *UploadedFileOriginalNameMethod) GetParams() []data.GetValue {
+	return uploadedFileOriginalNameMethodGetParams
+}
+
 var uploadedFileOriginalNameMethodGetVariables = []data.Variable{}
 
-func (h *UploadedFileOriginalNameMethod) GetVariables() []data.Variable { return uploadedFileOriginalNameMethodGetVariables }
+func (h *UploadedFileOriginalNameMethod) GetVariables() []data.Variable {
+	return uploadedFileOriginalNameMethodGetVariables
+}
 func (h *UploadedFileOriginalNameMethod) GetReturnType() data.Types {
 	return data.NewBaseType("string")
 }
@@ -111,16 +117,20 @@ func (h *UploadedFileSizeMethod) Call(ctx data.Context) (data.GetValue, data.Con
 	return data.NewIntValue(int(h.header.Size)), nil
 }
 
-func (h *UploadedFileSizeMethod) GetName() string               { return "size" }
-func (h *UploadedFileSizeMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *UploadedFileSizeMethod) GetIsStatic() bool             { return false }
+func (h *UploadedFileSizeMethod) GetName() string            { return "size" }
+func (h *UploadedFileSizeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *UploadedFileSizeMethod) GetIsStatic() bool          { return false }
+
 var uploadedFileSizeMethodGetParams = []data.GetValue{}
 
-func (h *UploadedFileSizeMethod) GetParams() []data.GetValue    { return uploadedFileSizeMethodGetParams }
+func (h *UploadedFileSizeMethod) GetParams() []data.GetValue { return uploadedFileSizeMethodGetParams }
+
 var uploadedFileSizeMethodGetVariables = []data.Variable{}
 
-func (h *UploadedFileSizeMethod) GetVariables() []data.Variable { return uploadedFileSizeMethodGetVariables }
-func (h *UploadedFileSizeMethod) GetReturnType() data.Types     { return data.NewBaseType("int") }
+func (h *UploadedFileSizeMethod) GetVariables() []data.Variable {
+	return uploadedFileSizeMethodGetVariables
+}
+func (h *UploadedFileSizeMethod) GetReturnType() data.Types { return data.NewBaseType("int") }
 
 type UploadedFileMimeTypeMethod struct {
 	header *multipart.FileHeader
@@ -133,16 +143,22 @@ func (h *UploadedFileMimeTypeMethod) Call(ctx data.Context) (data.GetValue, data
 	return data.NewStringValue(h.header.Header.Get("Content-Type")), nil
 }
 
-func (h *UploadedFileMimeTypeMethod) GetName() string               { return "mimeType" }
-func (h *UploadedFileMimeTypeMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *UploadedFileMimeTypeMethod) GetIsStatic() bool             { return false }
+func (h *UploadedFileMimeTypeMethod) GetName() string            { return "mimeType" }
+func (h *UploadedFileMimeTypeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *UploadedFileMimeTypeMethod) GetIsStatic() bool          { return false }
+
 var uploadedFileMimeTypeMethodGetParams = []data.GetValue{}
 
-func (h *UploadedFileMimeTypeMethod) GetParams() []data.GetValue    { return uploadedFileMimeTypeMethodGetParams }
+func (h *UploadedFileMimeTypeMethod) GetParams() []data.GetValue {
+	return uploadedFileMimeTypeMethodGetParams
+}
+
 var uploadedFileMimeTypeMethodGetVariables = []data.Variable{}
 
-func (h *UploadedFileMimeTypeMethod) GetVariables() []data.Variable { return uploadedFileMimeTypeMethodGetVariables }
-func (h *UploadedFileMimeTypeMethod) GetReturnType() data.Types     { return data.NewBaseType("string") }
+func (h *UploadedFileMimeTypeMethod) GetVariables() []data.Variable {
+	return uploadedFileMimeTypeMethodGetVariables
+}
+func (h *UploadedFileMimeTypeMethod) GetReturnType() data.Types { return data.NewBaseType("string") }
 
 type UploadedFileExtensionMethod struct {
 	header *multipart.FileHeader
@@ -155,16 +171,22 @@ func (h *UploadedFileExtensionMethod) Call(ctx data.Context) (data.GetValue, dat
 	return data.NewStringValue(strings.TrimPrefix(filepath.Ext(h.header.Filename), ".")), nil
 }
 
-func (h *UploadedFileExtensionMethod) GetName() string               { return "extension" }
-func (h *UploadedFileExtensionMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *UploadedFileExtensionMethod) GetIsStatic() bool             { return false }
+func (h *UploadedFileExtensionMethod) GetName() string            { return "extension" }
+func (h *UploadedFileExtensionMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *UploadedFileExtensionMethod) GetIsStatic() bool          { return false }
+
 var uploadedFileExtensionMethodGetParams = []data.GetValue{}
 
-func (h *UploadedFileExtensionMethod) GetParams() []data.GetValue    { return uploadedFileExtensionMethodGetParams }
+func (h *UploadedFileExtensionMethod) GetParams() []data.GetValue {
+	return uploadedFileExtensionMethodGetParams
+}
+
 var uploadedFileExtensionMethodGetVariables = []data.Variable{}
 
-func (h *UploadedFileExtensionMethod) GetVariables() []data.Variable { return uploadedFileExtensionMethodGetVariables }
-func (h *UploadedFileExtensionMethod) GetReturnType() data.Types     { return data.NewBaseType("string") }
+func (h *UploadedFileExtensionMethod) GetVariables() []data.Variable {
+	return uploadedFileExtensionMethodGetVariables
+}
+func (h *UploadedFileExtensionMethod) GetReturnType() data.Types { return data.NewBaseType("string") }
 
 type UploadedFileIsValidMethod struct {
 	header *multipart.FileHeader
@@ -174,16 +196,22 @@ func (h *UploadedFileIsValidMethod) Call(ctx data.Context) (data.GetValue, data.
 	return data.NewBoolValue(h.header != nil && h.header.Size > 0 && h.header.Filename != ""), nil
 }
 
-func (h *UploadedFileIsValidMethod) GetName() string               { return "isValid" }
-func (h *UploadedFileIsValidMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *UploadedFileIsValidMethod) GetIsStatic() bool             { return false }
+func (h *UploadedFileIsValidMethod) GetName() string            { return "isValid" }
+func (h *UploadedFileIsValidMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *UploadedFileIsValidMethod) GetIsStatic() bool          { return false }
+
 var uploadedFileIsValidMethodGetParams = []data.GetValue{}
 
-func (h *UploadedFileIsValidMethod) GetParams() []data.GetValue    { return uploadedFileIsValidMethodGetParams }
+func (h *UploadedFileIsValidMethod) GetParams() []data.GetValue {
+	return uploadedFileIsValidMethodGetParams
+}
+
 var uploadedFileIsValidMethodGetVariables = []data.Variable{}
 
-func (h *UploadedFileIsValidMethod) GetVariables() []data.Variable { return uploadedFileIsValidMethodGetVariables }
-func (h *UploadedFileIsValidMethod) GetReturnType() data.Types     { return data.NewBaseType("bool") }
+func (h *UploadedFileIsValidMethod) GetVariables() []data.Variable {
+	return uploadedFileIsValidMethodGetVariables
+}
+func (h *UploadedFileIsValidMethod) GetReturnType() data.Types { return data.NewBaseType("bool") }
 
 type UploadedFileGetContentMethod struct {
 	header *multipart.FileHeader
@@ -200,9 +228,13 @@ func (h *UploadedFileGetContentMethod) Call(ctx data.Context) (data.GetValue, da
 func (h *UploadedFileGetContentMethod) GetName() string            { return "getContent" }
 func (h *UploadedFileGetContentMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *UploadedFileGetContentMethod) GetIsStatic() bool          { return false }
+
 var uploadedFileGetContentMethodGetParams = []data.GetValue{}
 
-func (h *UploadedFileGetContentMethod) GetParams() []data.GetValue { return uploadedFileGetContentMethodGetParams }
+func (h *UploadedFileGetContentMethod) GetParams() []data.GetValue {
+	return uploadedFileGetContentMethodGetParams
+}
+
 var uploadedFileGetContentMethodGetVariables = []data.Variable{}
 
 func (h *UploadedFileGetContentMethod) GetVariables() []data.Variable {
@@ -236,6 +268,7 @@ func (h *UploadedFileStoreMethod) Call(ctx data.Context) (data.GetValue, data.Co
 func (h *UploadedFileStoreMethod) GetName() string            { return "store" }
 func (h *UploadedFileStoreMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *UploadedFileStoreMethod) GetIsStatic() bool          { return false }
+
 var uploadedFileStoreMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "directory", 0, nil, nil),
 	node.NewParameter(nil, "name", 1, nil, nil),
@@ -244,6 +277,7 @@ var uploadedFileStoreMethodGetParams = []data.GetValue{
 func (h *UploadedFileStoreMethod) GetParams() []data.GetValue {
 	return uploadedFileStoreMethodGetParams
 }
+
 var uploadedFileStoreMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "directory", 0, nil),
 	node.NewVariable(nil, "name", 1, nil),

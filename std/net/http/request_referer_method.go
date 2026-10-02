@@ -14,13 +14,17 @@ func (h *RequestRefererMethod) Call(ctx data.Context) (data.GetValue, data.Contr
 	return data.NewAnyValue(ret0), nil
 }
 
-func (h *RequestRefererMethod) GetName() string               { return "referer" }
-func (h *RequestRefererMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *RequestRefererMethod) GetIsStatic() bool             { return false }
+func (h *RequestRefererMethod) GetName() string            { return "referer" }
+func (h *RequestRefererMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *RequestRefererMethod) GetIsStatic() bool          { return false }
+
 var requestRefererMethodGetParams = []data.GetValue{}
 
-func (h *RequestRefererMethod) GetParams() []data.GetValue    { return requestRefererMethodGetParams }
+func (h *RequestRefererMethod) GetParams() []data.GetValue { return requestRefererMethodGetParams }
+
 var requestRefererMethodGetVariables = []data.Variable{}
 
-func (h *RequestRefererMethod) GetVariables() []data.Variable { return requestRefererMethodGetVariables }
-func (h *RequestRefererMethod) GetReturnType() data.Types     { return data.NewBaseType("string") }
+func (h *RequestRefererMethod) GetVariables() []data.Variable {
+	return requestRefererMethodGetVariables
+}
+func (h *RequestRefererMethod) GetReturnType() data.Types { return data.NewBaseType("string") }

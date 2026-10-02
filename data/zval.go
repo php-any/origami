@@ -57,7 +57,7 @@ func NewNamedZValSlot(name string) *ZVal {
 	}
 }
 
-// NewEmptyStringKeyZVal 创建 PHP 空字符串键 '' 的数组槽。
+// NewEmptyStringKeyZVal 创建 PHP 空字符串键 ” 的数组槽。
 func NewEmptyStringKeyZVal(v Value) *ZVal {
 	return &ZVal{
 		Value:       v,
@@ -79,7 +79,7 @@ func CopyZValKeepName(z *ZVal, value Value) *ZVal {
 	}
 }
 
-// IsPackedIntSlot 是否为 packed 整数键（Name 空且不是 PHP ''）。
+// IsPackedIntSlot 是否为 packed 整数键（Name 空且不是 PHP ”）。
 func (z *ZVal) IsPackedIntSlot() bool {
 	return z != nil && z.Name == "" && !z.EmptyStrKey
 }
@@ -99,6 +99,31 @@ func (z *ZVal) PHPArrayKey(slot int) Value {
 		return NewStringValue(z.Name)
 	}
 	return NewIntValue(slot)
+}
+
+// SameArrayKey compares key identity without allocating temporary PHP values.
+func (z *ZVal) SameArrayKey(position int, other *ZVal, otherPosition int) bool {
+	if z == nil || other == nil {
+		return z == other && position == otherPosition
+	}
+	if z.EmptyStrKey != other.EmptyStrKey {
+		return false
+	}
+	if z.EmptyStrKey {
+		return true
+	}
+	if z.Name == other.Name {
+		return z.Name != "" || position == otherPosition
+	}
+	if z.Name == "" {
+		key, ok := ParseIntArrayKeyName(other.Name)
+		return ok && key == position
+	}
+	if other.Name == "" {
+		key, ok := ParseIntArrayKeyName(z.Name)
+		return ok && key == otherPosition
+	}
+	return false
 }
 
 type ZValGetter interface {

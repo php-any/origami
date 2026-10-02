@@ -80,7 +80,7 @@ func (f *PregMatchFunction) GetName() string {
 var pregMatchFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "pattern", 0, nil, nil),
 	node.NewParameter(nil, "subject", 1, nil, nil),
-	node.NewParameterReference(nil, "matches", 2, nil, data.NewBaseType("array")),
+	node.NewOutputParameterReference(nil, "matches", 2, node.NewNullLiteral(nil), data.NewBaseType("array")),
 	node.NewParameter(nil, "flags", 3, node.NewIntLiteral(nil, "0"), nil),
 	node.NewParameter(nil, "offset", 4, node.NewIntLiteral(nil, "0"), nil),
 }

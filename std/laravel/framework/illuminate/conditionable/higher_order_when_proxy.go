@@ -21,9 +21,9 @@ func NewWhenProxyClass() data.ClassStmt {
 	return c
 }
 
-func (c *WhenProxyClass) GetName() string                          { return whenProxyClassName }
-func (c *WhenProxyClass) GetExtend() *string                       { return nil }
-func (c *WhenProxyClass) GetImplements() []string                  { return nil }
+func (c *WhenProxyClass) GetName() string         { return whenProxyClassName }
+func (c *WhenProxyClass) GetExtend() *string      { return nil }
+func (c *WhenProxyClass) GetImplements() []string { return nil }
 func (c *WhenProxyClass) GetProperty(name string) (data.Property, bool) {
 	switch name {
 	case "target", "condition", "hasCondition", "negateConditionOnCapture":

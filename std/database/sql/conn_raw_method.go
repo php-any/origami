@@ -31,6 +31,7 @@ func (h *ConnRawMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *ConnRawMethod) GetName() string            { return "raw" }
 func (h *ConnRawMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ConnRawMethod) GetIsStatic() bool          { return true }
+
 var connRawMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "f", 0, nil, nil),
 }

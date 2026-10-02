@@ -220,6 +220,18 @@ func newCollectionInstance(ctx data.Context, items data.Value) (*data.ClassValue
 }
 
 func getArrayableItems(ctx data.Context, items data.Value) (*data.ArrayValue, data.Control) {
+	// EnumeratesValues wraps scalars and enum cases, whereas Arr::from rejects
+	// scalars. Vite passes a single entrypoint as a string to Collection.
+	items = unwrapValue(items)
+	switch value := items.(type) {
+	case *data.ArrayValue:
+		return data.CloneArrayValue(value), nil
+	case *data.StringValue, *data.IntValue, *data.FloatValue, *data.BoolValue:
+		return data.NewArrayValue([]data.Value{items}).(*data.ArrayValue), nil
+	}
+	if cv, ok := items.(*data.ClassValue); ok && (classIs(cv, "UnitEnum") || classIs(cv, "BackedEnum")) {
+		return data.NewArrayValue([]data.Value{items}).(*data.ArrayValue), nil
+	}
 	got, ctl := arrFromValue(ctx, items, 0)
 	if ctl != nil {
 		return nil, ctl
@@ -438,8 +450,9 @@ func collectionJsonSerialize(ctx data.Context) (data.GetValue, data.Control) {
 	if !hasClassItem(items, "") {
 		return items, nil
 	}
-	out := make([]*data.ZVal, len(items.List))
-	for i, z := range items.List {
+	out := make([]*data.ZVal, items.Len())
+	for arraySlots39, i := items.View(), 0; i < arraySlots39.Len(); i++ {
+		z := arraySlots39.At(i)
 		if z == nil {
 			continue
 		}
@@ -455,7 +468,7 @@ func collectionJsonSerialize(ctx data.Context) (data.GetValue, data.Control) {
 		}
 		out[i] = data.CopyZValKeepName(z, v)
 	}
-	return &data.ArrayValue{List: out, IndirectOverloadClass: items.IndirectOverloadClass}, nil
+	return data.NewArrayValueFromSlotsWithProvenance(out, items.IndirectOverloadClass), nil
 }
 
 // callJsonSerialize 按 jsonSerialize() 的 match 顺序把一个对象转成可 JSON 化的值。
@@ -503,9 +516,9 @@ func itemsToArray(ctx data.Context, items *data.ArrayValue) (data.Value, data.Co
 	if items == nil || !hasClassItem(items, arrayableName) {
 		return items, nil
 	}
-	src := items.List
-	out := make([]*data.ZVal, len(src))
-	for i, z := range src {
+	src := items.View()
+	out := make([]*data.ZVal, src.Len())
+	for i, z := range src.Range() {
 		if z == nil {
 			continue
 		}
@@ -522,7 +535,7 @@ func itemsToArray(ctx data.Context, items *data.ArrayValue) (data.Value, data.Co
 		}
 		out[i] = data.CopyZValKeepName(z, v)
 	}
-	return &data.ArrayValue{List: out, IndirectOverloadClass: items.IndirectOverloadClass}, nil
+	return data.NewArrayValueFromSlotsWithProvenance(out, items.IndirectOverloadClass), nil
 }
 
 // hasClassItem 快速判断 items 里是否存在对象元素（filter 非空时还要求它实现该接口）。
@@ -531,7 +544,8 @@ func hasClassItem(items *data.ArrayValue, filter string) bool {
 	if items == nil {
 		return false
 	}
-	for _, z := range items.List {
+	for arraySlots40, arrayPosition40 := items.View(), 0; arrayPosition40 < arraySlots40.Len(); arrayPosition40++ {
+		z := arraySlots40.At(arrayPosition40)
 		if z == nil {
 			continue
 		}
@@ -655,7 +669,7 @@ func collectionValues(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
 	for _, e := range toEntries(collectionItems(cv)) {
-		out.List = append(out.List, data.NewZVal(e.value))
+		out.AppendValue(e.value)
 	}
 	return newCollectionInstance(ctx, out)
 }
@@ -667,7 +681,7 @@ func collectionKeys(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
 	for _, e := range toEntries(collectionItems(cv)) {
-		out.List = append(out.List, data.NewZVal(e.key))
+		out.AppendValue(e.key)
 	}
 	return newCollectionInstance(ctx, out)
 }
@@ -732,10 +746,10 @@ func collectionPush(ctx data.Context) (data.GetValue, data.Control) {
 	if v, ok := ctx.GetIndexValue(0); ok && v != nil {
 		if av, ok := v.(*data.ArrayValue); ok {
 			for _, e := range toEntries(av) {
-				items.List = append(items.List, data.NewZVal(e.value))
+				items.AppendValue(e.value)
 			}
 		} else {
-			items.List = append(items.List, data.NewZVal(v))
+			items.AppendValue(v)
 		}
 	}
 	_ = cv.SetProperty("items", items)
@@ -748,11 +762,11 @@ func collectionPop(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, ctl
 	}
 	items := collectionItems(cv)
-	if len(items.List) == 0 {
+	if items.Len() == 0 {
 		return data.NewNullValue(), nil
 	}
-	last := items.List[len(items.List)-1]
-	items.List = items.List[:len(items.List)-1]
+	last := items.At(items.Len() - 1)
+	items.RemovePositions(items.Len()-1, items.Len())
 	_ = cv.SetProperty("items", items)
 	if last == nil {
 		return data.NewNullValue(), nil
@@ -1027,7 +1041,7 @@ func collectionConcat(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, ctl
 	}
 	for _, e := range toEntries(otherItems) {
-		out.List = append(out.List, data.NewZVal(e.value))
+		out.AppendValue(e.value)
 	}
 	return newCollectionInstance(ctx, out)
 }
@@ -1194,7 +1208,7 @@ func collectionGroupBy(ctx data.Context) (data.GetValue, data.Control) {
 			if preserveKeys {
 				setEntry(garr, e.keyStr, e.value)
 			} else {
-				garr.List = append(garr.List, data.NewZVal(e.value))
+				garr.AppendValue(e.value)
 			}
 		}
 	}
@@ -1296,7 +1310,9 @@ func newNativeInstance(ctx data.Context, vm data.VM, className string, args []da
 	cv := data.NewClassValue(cls, ctx.CreateBaseContext())
 	if ctor := cls.GetConstruct(); ctor != nil {
 		nctx := cv.CreateContext(ctor.GetVariables())
-		data.BindDeclaredArgs(nctx, ctor, args)
+		if ctl := data.BindDeclaredArgs(nctx, ctor, args); ctl != nil {
+			return nil, ctl
+		}
 		if _, ctl := ctor.Call(nctx); ctl != nil {
 			return nil, ctl
 		}
@@ -1354,7 +1370,7 @@ func collectionOffsetSet(ctx data.Context) (data.GetValue, data.Control) {
 	val, _ := ctx.GetIndexValue(1)
 	items := collectionItems(cv)
 	if key == nil || isNull(key) {
-		items.List = append(items.List, data.NewZVal(val))
+		items.AppendValue(val)
 	} else {
 		setEntry(items, keyToString(key), val)
 	}
@@ -1432,8 +1448,9 @@ func jsonEncodeSimple(v data.Value) (string, bool) {
 		return string(b), err == nil
 	case *data.ArrayValue:
 		if isListArray(t) {
-			parts := make([]string, 0, len(t.List))
-			for _, z := range t.List {
+			parts := make([]string, 0, t.Len())
+			for arraySlots41, arrayPosition41 := t.View(), 0; arrayPosition41 < arraySlots41.Len(); arrayPosition41++ {
+				z := arraySlots41.At(arrayPosition41)
 				if z == nil {
 					parts = append(parts, "null")
 					continue

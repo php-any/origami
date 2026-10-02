@@ -36,6 +36,7 @@ func (f *NotifyFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *NotifyFunction) GetName() string            { return "Signal\\notify" }
 func (f *NotifyFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *NotifyFunction) GetIsStatic() bool          { return true }
+
 var notifyFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "channel", 0, nil, nil),
 	node.NewParameters(nil, "signals", 1, nil, data.NewBaseType("int")),
@@ -44,6 +45,7 @@ var notifyFunctionGetParams = []data.GetValue{
 func (f *NotifyFunction) GetParams() []data.GetValue {
 	return notifyFunctionGetParams
 }
+
 var notifyFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "channel", 0, nil),
 	node.NewVariable(nil, "signals", 1, data.NewBaseType("int")),

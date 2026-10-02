@@ -1,0 +1,15 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
+@source '../../../../resources/views/vendor/filament-panels/**/*';
+
+/* Integration only: Tabler owns the shell and dashboard; Filament owns forms. */
+.tabler-ui .filament-content { min-width: 0; color: var(--tblr-body-color); }
+.tabler-ui .fi-simple-header .fi-logo { display: none; }
+.tabler-ui .fi-simple-page-content { gap: 1.5rem; }
+.tabler-ui .navbar-brand .icon { width: 2rem; height: 2rem; flex-shrink: 0; }
+
+/* Bootstrap's collapse is a display state; Tailwind's same-named utility
+   otherwise hides the navigation via visibility even on desktop. */
+.tabler-ui .navbar-collapse { visibility: visible; }

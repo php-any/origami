@@ -277,10 +277,10 @@ func newArrayGenerator(ctx data.Context, array *data.ArrayValue) data.Generator 
 }
 
 func (a *arrayGenerator) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	if a.index >= len(a.array.List) {
+	if a.index >= a.array.Len() {
 		return data.NewNullValue(), nil
 	}
-	return a.array.List[a.index].Value, nil
+	return a.array.At(a.index).Value, nil
 }
 
 func (a *arrayGenerator) AsString() string {
@@ -288,17 +288,17 @@ func (a *arrayGenerator) AsString() string {
 }
 
 func (a *arrayGenerator) Current(ctx data.Context) (data.Value, data.Control) {
-	if a.index >= len(a.array.List) {
+	if a.index >= a.array.Len() {
 		return data.NewNullValue(), nil
 	}
-	return a.array.List[a.index].Value, nil
+	return a.array.At(a.index).Value, nil
 }
 
 func (a *arrayGenerator) Key(ctx data.Context) (data.Value, data.Control) {
-	if a.index >= len(a.array.List) {
+	if a.index >= a.array.Len() {
 		return data.NewNullValue(), nil
 	}
-	return data.NewIntValue(a.index), nil
+	return a.array.At(a.index).PHPArrayKey(a.index), nil
 }
 
 func (a *arrayGenerator) Next(ctx data.Context) data.Control {
@@ -312,7 +312,7 @@ func (a *arrayGenerator) Rewind(ctx data.Context) (data.Value, data.Control) {
 }
 
 func (a *arrayGenerator) Valid(ctx data.Context) (data.Value, data.Control) {
-	return data.NewBoolValue(a.index < len(a.array.List)), nil
+	return data.NewBoolValue(a.index < a.array.Len()), nil
 }
 
 func (a *arrayGenerator) Send(ctx data.Context, value data.Value) data.Control {
@@ -322,7 +322,7 @@ func (a *arrayGenerator) Send(ctx data.Context, value data.Value) data.Control {
 
 func (a *arrayGenerator) Throw(ctx data.Context) data.Control {
 	// 对数组生成器，不支持 throw，直接结束
-	a.index = len(a.array.List)
+	a.index = a.array.Len()
 	return nil
 }
 

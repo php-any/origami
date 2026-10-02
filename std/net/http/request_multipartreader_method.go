@@ -14,13 +14,19 @@ func (h *RequestMultipartReaderMethod) Call(ctx data.Context) (data.GetValue, da
 	return data.NewArrayValue([]data.Value{data.NewAnyValue(ret0), data.NewAnyValue(ret1)}), nil
 }
 
-func (h *RequestMultipartReaderMethod) GetName() string               { return "multipartReader" }
-func (h *RequestMultipartReaderMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *RequestMultipartReaderMethod) GetIsStatic() bool             { return false }
+func (h *RequestMultipartReaderMethod) GetName() string            { return "multipartReader" }
+func (h *RequestMultipartReaderMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *RequestMultipartReaderMethod) GetIsStatic() bool          { return false }
+
 var requestMultipartReaderMethodGetParams = []data.GetValue{}
 
-func (h *RequestMultipartReaderMethod) GetParams() []data.GetValue    { return requestMultipartReaderMethodGetParams }
+func (h *RequestMultipartReaderMethod) GetParams() []data.GetValue {
+	return requestMultipartReaderMethodGetParams
+}
+
 var requestMultipartReaderMethodGetVariables = []data.Variable{}
 
-func (h *RequestMultipartReaderMethod) GetVariables() []data.Variable { return requestMultipartReaderMethodGetVariables }
-func (h *RequestMultipartReaderMethod) GetReturnType() data.Types     { return data.NewBaseType("array") }
+func (h *RequestMultipartReaderMethod) GetVariables() []data.Variable {
+	return requestMultipartReaderMethodGetVariables
+}
+func (h *RequestMultipartReaderMethod) GetReturnType() data.Types { return data.NewBaseType("array") }

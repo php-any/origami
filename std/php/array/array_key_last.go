@@ -21,17 +21,11 @@ func (f *ArrayKeyLastFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 
 	switch v := val.(type) {
 	case *data.ArrayValue:
-		if len(v.List) == 0 {
+		if v.Len() == 0 {
 			return data.NewNullValue(), nil
 		}
-		last := v.List[len(v.List)-1]
-		if last != nil && last.Name != "" {
-			if n, ok := data.ParseIntArrayKeyName(last.Name); ok {
-				return data.NewIntValue(n), nil
-			}
-			return data.NewStringValue(last.Name), nil
-		}
-		return data.NewIntValue(len(v.List) - 1), nil
+		position := v.Len() - 1
+		return v.At(position).PHPArrayKey(position), nil
 	case *data.ObjectValue:
 		var lastKey string
 		found := false

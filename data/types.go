@@ -56,11 +56,11 @@ type MultipleReturnType struct {
 func (m MultipleReturnType) Is(value Value) bool {
 	// 多返回值类型检查数组中的每个元素
 	if arr, ok := value.(*ArrayValue); ok {
-		if len(arr.List) != len(m.Types) {
+		if arr.Len() != len(m.Types) {
 			return false
 		}
 		for i, typ := range m.Types {
-			if !typ.Is(arr.List[i].Value) {
+			if !typ.Is(arr.At(i).Value) {
 				return false
 			}
 		}
@@ -139,6 +139,9 @@ func NewIntersectionType(types []Types) Types {
 }
 
 func ISBaseType(ty string) bool {
+	if _, ok := declaredBuiltinRef(ty); ok {
+		return true
+	}
 	switch ty {
 	case "":
 		return true
@@ -270,11 +273,11 @@ func (s StaticType) String() string {
 type ClosureType struct{}
 
 func (s ClosureType) Is(value Value) bool {
-	switch value.(type) {
-	case *FuncValue, *ArrayValue:
+	switch v := value.(type) {
+	case *FuncValue, *BoundFuncValue:
 		return true
-	case *StringValue:
-		return true
+	case *ClassValue:
+		return NominalIsA(v.Class, "Closure", v.GetVM())
 	}
 	return false
 }

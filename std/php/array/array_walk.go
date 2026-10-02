@@ -23,6 +23,7 @@ func (fn *ArrayWalkFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	userdata, _ := ctx.GetIndexValue(2)
+	data.CowSeparateZVal(arrZVal)
 
 	if ctl := walkFlat(ctx, cbVal, userdata, arrZVal.Value); ctl != nil {
 		return nil, ctl
@@ -33,18 +34,12 @@ func (fn *ArrayWalkFunction) Call(ctx data.Context) (data.GetValue, data.Control
 func walkFlat(ctx data.Context, cbVal, userdata, val data.Value) data.Control {
 	switch arr := val.(type) {
 	case *data.ArrayValue:
-		for i, z := range arr.List {
+		for arraySlots106, i := arr.View(), 0; i < arraySlots106.Len(); i++ {
+			z := arraySlots106.At(i)
 			if z == nil {
 				continue
 			}
-			key := data.NewIntValue(i)
-			if z.Name != "" {
-				if n, ok := data.ParseIntArrayKeyName(z.Name); ok {
-					key = data.NewIntValue(n)
-				} else {
-					key = data.NewStringValue(z.Name)
-				}
-			}
+			key := z.PHPArrayKey(i)
 			if ctl := invokeWalkCallback(ctx, cbVal, z, key, userdata); ctl != nil {
 				return ctl
 			}

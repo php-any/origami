@@ -30,6 +30,7 @@ func (h *TxStmtMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *TxStmtMethod) GetName() string            { return "stmt" }
 func (h *TxStmtMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *TxStmtMethod) GetIsStatic() bool          { return true }
+
 var txStmtMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "stmt", 0, nil, nil),
 }

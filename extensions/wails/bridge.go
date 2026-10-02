@@ -134,15 +134,17 @@ func arrayValueToGo(av *data.ArrayValue) any {
 		return nil
 	}
 	isAssoc := false
-	for _, z := range av.List {
+	for arraySlots3, arrayPosition3 := av.View(), 0; arrayPosition3 < arraySlots3.Len(); arrayPosition3++ {
+		z := arraySlots3.At(arrayPosition3)
 		if z != nil && z.Name != "" {
 			isAssoc = true
 			break
 		}
 	}
 	if isAssoc {
-		m := make(map[string]any, len(av.List))
-		for i, z := range av.List {
+		m := make(map[string]any, av.Len())
+		for arraySlots4, i := av.View(), 0; i < arraySlots4.Len(); i++ {
+			z := arraySlots4.At(i)
 			if z == nil {
 				continue
 			}
@@ -154,8 +156,9 @@ func arrayValueToGo(av *data.ArrayValue) any {
 		}
 		return m
 	}
-	list := make([]any, 0, len(av.List))
-	for _, z := range av.List {
+	list := make([]any, 0, av.Len())
+	for arraySlots5, arrayPosition5 := av.View(), 0; arrayPosition5 < arraySlots5.Len(); arrayPosition5++ {
+		z := arraySlots5.At(arrayPosition5)
 		if z == nil {
 			list = append(list, nil)
 			continue
@@ -195,7 +198,7 @@ func goToValue(v any) data.Value {
 	case map[string]any:
 		av := &data.ArrayValue{}
 		for k, item := range tv {
-			av.List = append(av.List, data.NewNamedZVal(k, goToValue(item)))
+			av.SetStringKey(k, goToValue(item))
 		}
 		return av
 	}

@@ -32,6 +32,7 @@ func (f *PowFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *PowFunction) GetName() string { return "pow" }
+
 var powFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "base", 0, nil, nil),
 	node.NewParameter(nil, "exp", 1, nil, nil),
@@ -40,6 +41,7 @@ var powFunctionGetParams = []data.GetValue{
 func (f *PowFunction) GetParams() []data.GetValue {
 	return powFunctionGetParams
 }
+
 var powFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "base", 0, nil),
 	node.NewVariable(nil, "exp", 1, nil),

@@ -230,8 +230,9 @@ func encGetAllKeys(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	if pv, _ := cv.GetProperty("previousKeys"); pv != nil {
 		if av, ok := kit.Unwrap(pv).(*data.ArrayValue); ok {
-			i := len(arr.List)
-			for _, e := range av.List {
+			i := arr.Len()
+			for arraySlots47, arrayPosition47 := av.View(), 0; arrayPosition47 < arraySlots47.Len(); arrayPosition47++ {
+				e := arraySlots47.At(arrayPosition47)
 				if e == nil {
 					continue
 				}
@@ -270,7 +271,8 @@ func encPreviousKeys(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	switch t := keysArg.(type) {
 	case *data.ArrayValue:
-		for _, e := range t.List {
+		for arraySlots48, arrayPosition48 := t.View(), 0; arrayPosition48 < arraySlots48.Len(); arrayPosition48++ {
+			e := arraySlots48.At(arrayPosition48)
 			if e == nil {
 				continue
 			}

@@ -17,6 +17,7 @@ func NewFwriteFunction() data.FuncStmt {
 }
 
 func (f *FwriteFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	data.CheckRequest(ctx.GoContext())
 	// 获取流资源
 	streamValue, _ := ctx.GetIndexValue(0)
 	if streamValue == nil {
@@ -92,6 +93,7 @@ func (f *FwriteFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	n, err := streamInfo.Write(bytes)
+	data.CheckRequest(ctx.GoContext())
 	if err != nil {
 		return data.NewIntValue(0), nil
 	}

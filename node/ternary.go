@@ -44,7 +44,7 @@ func (t *TernaryExpression) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	case *data.NullValue:
 		condition = false
 	case *data.ArrayValue:
-		condition = len(v.List) > 0
+		condition = v.Len() > 0
 	default:
 		// 对于其他类型，尝试转换为布尔值
 		if boolValue, ok := v.(data.AsBool); ok {

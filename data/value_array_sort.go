@@ -3,15 +3,14 @@ package data
 import "sort"
 
 type ArrayValueSort struct {
-	source *[]*ZVal
+	source *ArrayValue
 }
 
 // Call 实现数组的 sort 方法
 // 对数组元素进行排序，默认按字符串比较排序，并返回排序后的数组
 func (a *ArrayValueSort) Call(ctx Context) (GetValue, Control) {
 	// 创建数组的副本进行排序
-	sortedArray := make([]*ZVal, len(*a.source))
-	copy(sortedArray, *a.source)
+	sortedArray := a.source.AppendSlotsTo(make([]*ZVal, 0, a.source.Len()))
 
 	// 使用字符串比较进行排序
 	sort.Slice(sortedArray, func(i, j int) bool {
@@ -19,7 +18,7 @@ func (a *ArrayValueSort) Call(ctx Context) (GetValue, Control) {
 	})
 
 	// 更新原数组
-	*a.source = sortedArray
+	a.source.ReplaceAll(sortedArray)
 
 	// 返回排序后的数组
 	values := make([]Value, len(sortedArray))

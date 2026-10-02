@@ -132,7 +132,8 @@ func applyCookieOptions(c *httpsrc.Cookie, opt data.GetValue) {
 	if !ok {
 		return
 	}
-	for _, z := range arr.List {
+	for arraySlots78, arrayPosition78 := arr.View(), 0; arrayPosition78 < arraySlots78.Len(); arrayPosition78++ {
+		z := arraySlots78.At(arrayPosition78)
 		if z == nil {
 			continue
 		}

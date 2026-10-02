@@ -2,7 +2,6 @@ package node
 
 import (
 	"errors"
-	"strconv"
 
 	"github.com/php-any/origami/data"
 )
@@ -81,17 +80,8 @@ func kvLookup(ctx data.Context, value data.Value, key string) (data.Value, data.
 			return elem, ctl
 		}
 	case *data.ArrayValue:
-		for i, z := range v.List {
-			if z == nil {
-				continue
-			}
-			name := z.Name
-			if name == "" {
-				name = strconv.Itoa(i)
-			}
-			if name == key {
-				return z.Value, nil
-			}
+		if slot, ok := v.LookupZValByStringKey(key); ok {
+			return slot.Value, nil
 		}
 	case *data.ClassValue:
 		if method, exists := v.GetMethod("offsetGet"); exists {
@@ -124,12 +114,12 @@ func NewKv(token *TokenFrom, v []KvPair) data.GetValue {
 
 // GetValue 获取数字字面量的值
 func (n *Kv) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	obj := data.NewObjectValue()
+	array := data.NewArrayValueFromSlots(make([]*data.ZVal, 0, len(n.V)))
 
 	for _, pair := range n.V {
 		// Key == nil：...$array 展开，保留键名合并进结果
 		if pair.Key == nil {
-			if acl := mergeSpreadIntoObject(ctx, obj, pair.Value, n.from); acl != nil {
+			if acl := mergeSpreadIntoArray(ctx, array, pair.Value, n.from); acl != nil {
 				return nil, acl
 			}
 			continue
@@ -158,44 +148,38 @@ func (n *Kv) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		if !ok {
 			return nil, data.NewErrorThrow(n.from, errors.New("数组值类型无效"))
 		}
-		acl = obj.SetProperty(keyVal.AsString(), valVal)
-		if acl != nil {
-			return nil, acl
+		if !array.SetKey(keyVal, valVal) {
+			return nil, data.NewErrorThrow(n.from, errors.New("Illegal offset type"))
 		}
 	}
-	return obj, nil
+	return array, nil
 }
 
-func mergeSpreadIntoObject(ctx data.Context, obj *data.ObjectValue, spread data.GetValue, from data.From) data.Control {
+func mergeSpreadIntoArray(ctx data.Context, array *data.ArrayValue, spread data.GetValue, from data.From) data.Control {
 	spreadValue, acl := spread.GetValue(ctx)
 	if acl != nil {
 		return acl
 	}
 	switch sv := spreadValue.(type) {
 	case *data.ArrayValue:
-		for i, z := range sv.List {
+		for arraySlots24, i := sv.View(), 0; i < arraySlots24.Len(); i++ {
+			z := arraySlots24.At(i)
 			if z == nil {
 				continue
 			}
-			key := z.Name
-			if key == "" {
-				key = strconv.Itoa(i)
-			}
-			if acl := obj.SetProperty(key, z.Value); acl != nil {
-				return acl
+			if key, ok := z.PHPArrayKey(i).(*data.StringValue); ok {
+				array.SetStringKey(key.Value, z.Value)
+			} else if !array.AppendValue(z.Value) {
+				return data.NewErrorThrow(from, errors.New("Cannot add element to the array as the next element is already occupied"))
 			}
 		}
 		return nil
 	case *data.ObjectValue:
-		var mergeAcl data.Control
 		sv.RangeProperties(func(key string, value data.Value) bool {
-			if acl := obj.SetProperty(key, value); acl != nil {
-				mergeAcl = acl
-				return false
-			}
+			array.SetStringKey(key, value)
 			return true
 		})
-		return mergeAcl
+		return nil
 	default:
 		return data.NewErrorThrow(from, errors.New("展开运算符只能用于数组"))
 	}

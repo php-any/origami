@@ -67,7 +67,7 @@ func phpIntval(v data.Value, base int) int {
 	case *data.NullValue:
 		return 0
 	case *data.ArrayValue:
-		if len(t.List) == 0 {
+		if t.Len() == 0 {
 			return 0
 		}
 		return 1

@@ -1,7 +1,7 @@
 package data
 
 type ArrayValueSlice struct {
-	source []*ZVal
+	source *ArrayValue
 }
 
 // Call 实现数组的 slice 方法
@@ -9,7 +9,7 @@ type ArrayValueSlice struct {
 func (a *ArrayValueSlice) Call(ctx Context) (GetValue, Control) {
 	// 获取参数
 	start := 0
-	end := len(a.source)
+	end := a.source.Len()
 
 	// 获取 start 参数
 	if startArg, ok := ctx.GetIndexValue(0); ok {
@@ -31,18 +31,18 @@ func (a *ArrayValueSlice) Call(ctx Context) (GetValue, Control) {
 
 	// 处理负数索引
 	if start < 0 {
-		start = len(a.source) + start
+		start = a.source.Len() + start
 	}
 	if end < 0 {
-		end = len(a.source) + end
+		end = a.source.Len() + end
 	}
 
 	// 边界检查
 	if start < 0 {
 		start = 0
 	}
-	if end > len(a.source) {
-		end = len(a.source)
+	if end > a.source.Len() {
+		end = a.source.Len()
 	}
 	if start > end {
 		start = end
@@ -51,7 +51,7 @@ func (a *ArrayValueSlice) Call(ctx Context) (GetValue, Control) {
 	// 返回切片
 	slice := make([]Value, end-start)
 	for i := start; i < end; i++ {
-		slice[i-start] = a.source[i].Value
+		slice[i-start] = a.source.At(i).Value
 	}
 	return NewArrayValue(slice), nil
 }

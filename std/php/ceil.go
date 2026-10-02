@@ -25,11 +25,13 @@ func (f *CeilFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *CeilFunction) GetName() string { return "ceil" }
+
 var ceilFunctionGetParams = []data.GetValue{node.NewParameter(nil, "num", 0, nil, nil)}
 
 func (f *CeilFunction) GetParams() []data.GetValue {
 	return ceilFunctionGetParams
 }
+
 var ceilFunctionGetVariables = []data.Variable{node.NewVariable(nil, "num", 0, nil)}
 
 func (f *CeilFunction) GetVariables() []data.Variable {

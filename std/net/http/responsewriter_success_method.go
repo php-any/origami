@@ -41,6 +41,7 @@ func (h *ResponseWriterSuccessMethod) Call(ctx data.Context) (data.GetValue, dat
 func (h *ResponseWriterSuccessMethod) GetName() string            { return "success" }
 func (h *ResponseWriterSuccessMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResponseWriterSuccessMethod) GetIsStatic() bool          { return false }
+
 var responseWriterSuccessMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "data", 0, data.NewNullValue(), nil),
 	node.NewParameter(nil, "message", 1, data.NewStringValue("success"), data.NewBaseType("string")),
@@ -50,6 +51,7 @@ var responseWriterSuccessMethodGetParams = []data.GetValue{
 func (h *ResponseWriterSuccessMethod) GetParams() []data.GetValue {
 	return responseWriterSuccessMethodGetParams
 }
+
 var responseWriterSuccessMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "data", 0, nil),
 	node.NewVariable(nil, "message", 1, nil),

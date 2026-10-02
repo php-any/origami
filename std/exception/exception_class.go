@@ -139,6 +139,16 @@ func (s *ExceptionClass) GetConstruct() data.Method {
 	return s.exception
 }
 
+// Native exception state belongs to the object, never shared method metadata.
+func exceptionState(ctx data.Context, fallback *Exception) *Exception {
+	if object := instanceObjectValue(ctx); object != nil {
+		if state, ok := object.InstanceSource.(*Exception); ok {
+			return state
+		}
+	}
+	return fallback
+}
+
 // instanceObjectValue 从方法调用上下文取出当前异常实例的属性存储
 func instanceObjectValue(ctx data.Context) *data.ObjectValue {
 	switch c := ctx.(type) {

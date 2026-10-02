@@ -36,6 +36,7 @@ func (h *StmtQueryMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *StmtQueryMethod) GetName() string            { return "query" }
 func (h *StmtQueryMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *StmtQueryMethod) GetIsStatic() bool          { return true }
+
 var stmtQueryMethodGetParams = []data.GetValue{
 	node.NewParameters(nil, "args", 0, nil, nil),
 }

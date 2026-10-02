@@ -120,7 +120,9 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 
 			if hasSpread {
 				for i := 0; i < len(params) && i < len(flat) && i < len(varies); i++ {
-					fnCtx.SetVariableValue(varies[i], flat[i])
+					if ctl := params[i].(*Parameter).SetValue(fnCtx, flat[i]); ctl != nil {
+						return finishPooledCall(fn, allocated, ctx, nil, ctl)
+					}
 				}
 				fnCtx.SetCallArgs(pe.Args)
 				fnCtx.SetFlatCallArgs(flat)

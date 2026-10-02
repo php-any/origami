@@ -315,7 +315,7 @@ func strReplace(ctx data.Context) (data.GetValue, data.Control) {
 		for _, entry := range kit.Entries(subjects) {
 			z := data.NewZVal(data.NewStringValue(replaceSubject(entry.Value.AsString())))
 			z.Name = entry.KeyStr
-			out.List = append(out.List, z)
+			out.AppendEntries(z)
 		}
 		return out, nil
 	}
@@ -405,7 +405,11 @@ func strSlug(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func strOf(ctx data.Context) (data.GetValue, data.Control) {
-	return newStringableValue(ctx, strArg(ctx, 0))
+	s, ctl := node.ValueToDisplayString(ctx, kit.Arg(ctx, 0))
+	if ctl != nil {
+		return nil, ctl
+	}
+	return newStringableValue(ctx, s)
 }
 
 func strAfter(ctx data.Context) (data.GetValue, data.Control) {

@@ -176,6 +176,7 @@ func (m *MIConstructMethod) GetName() string            { return "__construct" }
 func (m *MIConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *MIConstructMethod) GetIsStatic() bool          { return false }
 func (m *MIConstructMethod) GetReturnType() data.Types  { return nil }
+
 var mIConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "flags", 0, data.NewIntValue(0), data.NewBaseType("int")),
 }
@@ -183,6 +184,7 @@ var mIConstructMethodGetParams = []data.GetValue{
 func (m *MIConstructMethod) GetParams() []data.GetValue {
 	return mIConstructMethodGetParams
 }
+
 var mIConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "flags", 0, data.NewBaseType("int")),
 }
@@ -207,6 +209,7 @@ func (m *MIAttachMethod) GetName() string            { return "attachIterator" }
 func (m *MIAttachMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *MIAttachMethod) GetIsStatic() bool          { return false }
 func (m *MIAttachMethod) GetReturnType() data.Types  { return nil }
+
 var mIAttachMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
 	node.NewParameter(nil, "info", 1, data.NewNullValue(), data.Mixed{}),
@@ -215,6 +218,7 @@ var mIAttachMethodGetParams = []data.GetValue{
 func (m *MIAttachMethod) GetParams() []data.GetValue {
 	return mIAttachMethodGetParams
 }
+
 var mIAttachMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
 	node.NewVariable(nil, "info", 1, data.Mixed{}),
@@ -249,6 +253,7 @@ func (m *MIDetachMethod) GetName() string            { return "detachIterator" }
 func (m *MIDetachMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *MIDetachMethod) GetIsStatic() bool          { return false }
 func (m *MIDetachMethod) GetReturnType() data.Types  { return nil }
+
 var mIDetachMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
 }
@@ -256,6 +261,7 @@ var mIDetachMethodGetParams = []data.GetValue{
 func (m *MIDetachMethod) GetParams() []data.GetValue {
 	return mIDetachMethodGetParams
 }
+
 var mIDetachMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
 }
@@ -417,6 +423,7 @@ func (m *MISetFlagsMethod) GetName() string            { return "setFlags" }
 func (m *MISetFlagsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *MISetFlagsMethod) GetIsStatic() bool          { return false }
 func (m *MISetFlagsMethod) GetReturnType() data.Types  { return nil }
+
 var mISetFlagsMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "flags", 0, nil, data.NewBaseType("int")),
 }
@@ -424,6 +431,7 @@ var mISetFlagsMethodGetParams = []data.GetValue{
 func (m *MISetFlagsMethod) GetParams() []data.GetValue {
 	return mISetFlagsMethodGetParams
 }
+
 var mISetFlagsMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "flags", 0, data.NewBaseType("int")),
 }

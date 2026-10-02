@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/runtime"
+	"github.com/php-any/origami/utils"
 )
 
 func classValueFromGetValue(v data.GetValue) *data.ClassValue {
@@ -38,7 +40,7 @@ func binaryFilePath(cv *data.ClassValue) string {
 	if cv == nil || cv.Class == nil {
 		return ""
 	}
-	if !strings.Contains(cv.Class.GetName(), "BinaryFileResponse") {
+	if !responseIsA(cv, fqnBinaryFileResponse) {
 		return ""
 	}
 	fileVal, ctl := callResponseMethod(cv, "getFile")
@@ -93,6 +95,11 @@ func SendResponse(response data.GetValue) (*data.ClassValue, data.Control) {
 // SendResponseTo 直接将 Response 的 Header 与 Body 写入指定 http.ResponseWriter。
 // leftover 对齐 Octane/Swoole：请求级 ob_start 残留的 echo，写在 getContent() 之前。
 func SendResponseTo(w http.ResponseWriter, response data.GetValue, leftover string) (*data.ClassValue, data.Control) {
+	return SendResponseForRequest(w, nil, response, leftover)
+}
+
+// SendResponseForRequest retains the real HTTP method for HEAD and file responses.
+func SendResponseForRequest(w http.ResponseWriter, request *http.Request, response data.GetValue, leftover string) (*data.ClassValue, data.Control) {
 	value := classValueFromGetValue(response)
 	if value == nil {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("httpfoundation: Kernel 返回值不是 Response"))
@@ -131,17 +138,80 @@ func SendResponseTo(w http.ResponseWriter, response data.GetValue, leftover stri
 		}
 	}
 
-	if filePath := binaryFilePath(value); filePath != "" {
-		if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
-			http.ServeFile(w, &http.Request{Method: http.MethodGet}, filePath)
-			return value, nil
-		}
-	}
-
 	// 设置 status code 并写入 content
 	statusCode := responseStatusCode(value)
 	if statusCode == 0 {
 		statusCode = http.StatusOK
+	}
+	if statusCode < 200 || statusCode == http.StatusNoContent || statusCode == http.StatusNotModified {
+		w.Header().Del("Content-Length")
+		w.Header().Del("Transfer-Encoding")
+		w.WriteHeader(statusCode)
+		return value, nil
+	}
+	if request != nil && request.Method == http.MethodHead {
+		w.WriteHeader(statusCode)
+		return value, nil
+	}
+	if filePath := binaryFilePath(value); filePath != "" {
+		fileContext := runtime.RequestContext()
+		if request != nil {
+			fileContext = request.Context()
+		}
+		file, closeFile, err := utils.OpenRequestFile(fileContext, filePath, os.O_RDONLY, 0)
+		if err != nil {
+			return nil, data.NewErrorThrow(nil, err)
+		}
+		defer closeFile()
+		defer data.CheckRequest(fileContext)
+		if cookiePropBool(value, "deleteFileAfterSend", false) {
+			defer os.Remove(filePath)
+		}
+		info, err := file.Stat()
+		if err != nil {
+			return nil, data.NewErrorThrow(nil, err)
+		}
+		if request == nil {
+			request = &http.Request{Method: http.MethodGet, Header: make(http.Header)}
+		}
+		// ServeContent consumes Range/If-Range and conditional request headers.
+		// A non-200 status belongs to Symfony and must not be replaced with 200.
+		if statusCode == http.StatusOK {
+			http.ServeContent(w, request, info.Name(), info.ModTime(), file)
+		} else {
+			w.WriteHeader(statusCode)
+			if statusCode >= 200 && statusCode < 300 {
+				if _, err := io.Copy(w, file); err != nil {
+					return value, data.NewErrorThrow(nil, err)
+				}
+			}
+		}
+		return value, nil
+	}
+	if responseIsA(value, fqnStreamedResponse) {
+		w.Header().Del("Content-Length")
+		w.WriteHeader(statusCode)
+		if _, err := io.WriteString(w, leftover); err != nil {
+			return value, data.NewErrorThrow(nil, err)
+		}
+		host, ok := value.GetVM().(data.OutputTargetHost)
+		if !ok {
+			return value, data.NewErrorThrow(nil, fmt.Errorf("httpfoundation: VM lacks a streaming output target"))
+		}
+		restore := host.BindOutputTarget(func(s string) data.Control {
+			_, err := io.WriteString(w, s)
+			if err != nil {
+				return data.NewErrorThrow(nil, err)
+			}
+			return nil
+		}, func() {
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
+		})
+		defer restore()
+		_, ctl := callResponseMethod(value, "sendContent")
+		return value, ctl
 	}
 	content := responseContent(value)
 	if content == "" {
@@ -171,6 +241,23 @@ func SendResponseTo(w http.ResponseWriter, response data.GetValue, leftover stri
 	}
 
 	return value, nil
+}
+
+func responseIsA(value *data.ClassValue, name string) bool {
+	if value == nil {
+		return false
+	}
+	for class := value.Class; class != nil; {
+		if strings.EqualFold(strings.TrimPrefix(class.GetName(), "\\"), name) {
+			return true
+		}
+		parent := class.GetExtend()
+		if parent == nil || value.GetVM() == nil {
+			return false
+		}
+		class, _ = value.GetVM().GetClass(*parent)
+	}
+	return false
 }
 
 func isClientAbortError(err error) bool {

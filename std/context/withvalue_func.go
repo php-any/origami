@@ -90,6 +90,7 @@ func (h *WithValueFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 func (h *WithValueFunction) GetName() string            { return "context\\withValue" }
 func (h *WithValueFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *WithValueFunction) GetIsStatic() bool          { return true }
+
 var withValueFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "parent", 0, nil, nil),
 	node.NewParameter(nil, "key", 1, nil, nil),
@@ -99,6 +100,7 @@ var withValueFunctionGetParams = []data.GetValue{
 func (h *WithValueFunction) GetParams() []data.GetValue {
 	return withValueFunctionGetParams
 }
+
 var withValueFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "parent", 0, nil),
 	node.NewVariable(nil, "key", 1, nil),

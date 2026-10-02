@@ -44,9 +44,6 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 				return nil, acl
 			}
 
-			if cmc, ok := fnCtx.(*data.ClassMethodContext); ok {
-				cmc.SelfClass = findDeclaringClassForMethod(class.GetVM(), class.Class, pe.Method)
-			}
 			fnCtx.SetCallArgs(pe.Args)
 			ret, acl := method.Call(fnCtx)
 			tryReleaseCallContext(method, fnCtx)
@@ -78,9 +75,6 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 				return nil, acl
 			}
 
-			if cmc, ok := fnCtx.(*data.ClassMethodContext); ok {
-				cmc.SelfClass = findDeclaringClassForMethod(class.GetVM(), class.Class, pe.Method)
-			}
 			fnCtx.SetCallArgs(pe.Args)
 			ret, acl := method.Call(fnCtx)
 			tryReleaseCallContext(method, fnCtx)
@@ -195,8 +189,9 @@ func (pe *CallObjectMethod) invokeMagicCall(object data.Context, ctx data.Contex
 	fnCtx.SetVariableValue(varies[0], data.NewStringValue(methodName))
 	fnCtx.SetVariableValue(varies[1], argsArr)
 	fnCtx.SetCallArgs(args)
-	flat := make([]data.Value, 0, len(argsArr.List))
-	for _, z := range argsArr.List {
+	flat := make([]data.Value, 0, argsArr.Len())
+	for arraySlots18, arrayPosition18 := argsArr.View(), 0; arrayPosition18 < arraySlots18.Len(); arrayPosition18++ {
+		z := arraySlots18.At(arrayPosition18)
 		if z != nil {
 			flat = append(flat, z.Value)
 		}
@@ -230,7 +225,8 @@ func magicCallArgumentsArray(ctx data.Context, args []data.GetValue) (*data.Arra
 				return nil, acl
 			}
 			if arr, ok := spreadVal.(*data.ArrayValue); ok {
-				for _, z := range arr.List {
+				for arraySlots19, arrayPosition19 := arr.View(), 0; arrayPosition19 < arraySlots19.Len(); arrayPosition19++ {
+					z := arraySlots19.At(arrayPosition19)
 					if z == nil {
 						continue
 					}
@@ -264,13 +260,25 @@ func magicCallArgumentsArray(ctx data.Context, args []data.GetValue) (*data.Arra
 			list = append(list, data.NewZVal(magicCallArgValue(val)))
 		}
 	}
-	return &data.ArrayValue{List: list}, nil
+	return data.NewArrayValueFromSlots(list), nil
 }
 
 func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method data.Method) (data.Context, data.Control) {
 	varies := method.GetVariables()
-	fnCtx := object.CreateContext(varies)
+	var fnCtx data.Context
+	switch receiver := object.(type) {
+	case *data.ClassValue:
+		fnCtx = data.WrapMethodFrame(ctx.CreateContext(varies), receiver, receiver.Class, receiver.Class)
+	case *data.ThisValue:
+		fnCtx = data.WrapMethodFrame(ctx.CreateContext(varies), receiver.ClassValue, receiver.Class, receiver.Class)
+	default:
+		fnCtx = object.CreateContext(varies)
+	}
 	params := method.GetParams()
+	if cmc, ok := fnCtx.(*data.ClassMethodContext); ok {
+		cmc.SelfClass = findDeclaringClassForMethod(cmc.GetVM(), cmc.Class, pe.Method)
+	}
+	fnCtx.SetStrictTypes(ctx.StrictTypes())
 	if canFastPositionalBind(params, pe.Args) {
 		if acl := bindPositionalParameters(fnCtx, ctx, params, pe.Args, varies); acl != nil {
 			return nil, acl
@@ -299,20 +307,23 @@ func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method da
 		var acl data.Control
 		switch p := params[index].(type) {
 		case *Parameter:
-			fnCtx.SetVariableValue(varies[index], val)
+			acl = p.SetValue(fnCtx, val)
 		case *ParameterReference:
 			if rawArg != nil {
 				acl = bindByRefParam(fnCtx, ctx, p, rawArg)
 			} else {
 				// 展开参数没有可共享的原始表达式，只能按值绑定。
-				fnCtx.SetVariableValue(varies[index], val)
+				acl = p.SetValue(fnCtx, val)
 			}
 		case *Parameters:
 			arr := data.NewArrayValue([]data.Value{val})
-			fnCtx.SetVariableValue(varies[index], arr)
+			acl = p.SetValue(fnCtx, arr)
 		case *PromotedParameter:
-			fnCtx.SetVariableValue(varies[index], val)
-			acl = p.SetValue(object, val)
+			acl = p.Parameter.SetValue(fnCtx, val)
+			if acl == nil {
+				prepared, _ := fnCtx.GetIndexValue(p.Index)
+				acl = object.SetVariableValue(p, prepared)
+			}
 		default:
 			fnCtx.SetVariableValue(varies[index], val)
 		}
@@ -368,7 +379,8 @@ func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method da
 				return nil, acl
 			}
 			if arr, ok := spreadVal.(*data.ArrayValue); ok {
-				for _, z := range arr.List {
+				for arraySlots20, arrayPosition20 := arr.View(), 0; arrayPosition20 < arraySlots20.Len(); arrayPosition20++ {
+					z := arraySlots20.At(arrayPosition20)
 					if z == nil {
 						continue
 					}
@@ -449,7 +461,9 @@ func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method da
 			for _, np := range variadicNamed {
 				list = append(list, data.NewNamedZVal(np.name, np.val))
 			}
-			fnCtx.SetVariableValue(pVar, &data.ArrayValue{List: list})
+			if ctl := pVar.SetValue(fnCtx, data.NewArrayValueFromSlots(list)); ctl != nil {
+				return nil, ctl
+			}
 			pos = len(positional)
 			bound[i] = true
 			variadicNamed = nil
@@ -463,9 +477,12 @@ func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method da
 			continue
 		}
 		if promotedParam, ok := param.(*PromotedParameter); ok {
-			_, acl := promotedParam.GetValue(object)
+			prepared, acl := promotedParam.GetValue(fnCtx)
 			if acl != nil {
 				return nil, acl
+			}
+			if ctl := object.SetVariableValue(promotedParam, prepared.(data.Value)); ctl != nil {
+				return nil, ctl
 			}
 		} else if argObj, ok := param.(*Parameter); ok {
 			if argObj.DefaultValue == nil {
@@ -773,8 +790,9 @@ func collectCtxCallArgs(callCtx data.Context) []data.Value {
 	if v0, ok := callCtx.GetIndexValue(0); ok && v0 != nil {
 		if arr, isArr := v0.(*data.ArrayValue); isArr {
 			if _, hasMore := callCtx.GetIndexValue(1); !hasMore {
-				out := make([]data.Value, 0, len(arr.List))
-				for _, zv := range arr.List {
+				out := make([]data.Value, 0, arr.Len())
+				for arraySlots21, arrayPosition21 := arr.View(), 0; arrayPosition21 < arraySlots21.Len(); arrayPosition21++ {
+					zv := arraySlots21.At(arrayPosition21)
 					if zv != nil && zv.Value != nil {
 						out = append(out, zv.Value)
 					}
@@ -841,7 +859,8 @@ func (s *instanceMagicCallViaStaticFunc) Call(callCtx data.Context) (data.GetVal
 	callerArgs := make([]data.Value, 0, len(raw))
 	for _, v := range raw {
 		if arr, isArr := v.(*data.ArrayValue); isArr {
-			for _, z := range arr.List {
+			for arraySlots22, arrayPosition22 := arr.View(), 0; arrayPosition22 < arraySlots22.Len(); arrayPosition22++ {
+				z := arraySlots22.At(arrayPosition22)
 				callerArgs = append(callerArgs, magicCallArgValue(z.Value))
 			}
 			continue

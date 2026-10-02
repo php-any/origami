@@ -119,7 +119,8 @@ func optionMap(v data.Value) map[string]data.Value {
 	out := map[string]data.Value{}
 	switch t := v.(type) {
 	case *data.ArrayValue:
-		for _, z := range t.List {
+		for arraySlots30, arrayPosition30 := t.View(), 0; arrayPosition30 < arraySlots30.Len(); arrayPosition30++ {
+			z := arraySlots30.At(arrayPosition30)
 			if z == nil || z.Value == nil || z.Name == "" {
 				continue
 			}

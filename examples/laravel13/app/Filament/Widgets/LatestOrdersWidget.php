@@ -17,9 +17,19 @@ class LatestOrdersWidget extends BaseWidget
 
     protected static ?string $heading = '最新订单';
 
+    public static function canView(): bool
+    {
+        return OrderResource::canViewAny();
+    }
+
     public function table(Table $table): Table
     {
         return $table
+            ->description('最近创建的 5 笔订单')
+            ->headerActions([Action::make('allOrders')->label('查看全部')->url(OrderResource::getUrl())->link()])
+            ->emptyStateHeading('暂无订单')
+            ->emptyStateDescription('客户创建订单后，订单信息会显示在这里。')
+            ->emptyStateIcon('heroicon-o-shopping-bag')
             ->query(
                 Order::query()
                     ->with('user')
@@ -28,14 +38,20 @@ class LatestOrdersWidget extends BaseWidget
             )
             ->columns([
                 TextColumn::make('order_no')
-                    ->label('订单号')
-                    ->searchable(),
+                    ->label('订单号'),
                 TextColumn::make('user.name')
                     ->label('用户')
                     ->placeholder('—'),
                 TextColumn::make('status_display')
                     ->label('状态')
-                    ->badge(),
+                    ->badge()
+                    ->color(fn (Order $record): string => match ($record->status) {
+                        'pending' => 'warning',
+                        'paid' => 'info',
+                        'shipped' => 'primary',
+                        'completed' => 'success',
+                        default => 'gray',
+                    }),
                 TextColumn::make('total_amount')
                     ->label('金额')
                     ->money('CNY'),

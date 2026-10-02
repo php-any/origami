@@ -2,16 +2,302 @@
 
 本文记录 `examples/laravel13` 当前常驻 HTTP 运行模型中已确认的语义缺口和高风险设计，作为后续对齐官方 Laravel 13 / PHP 请求生命周期的修复清单。
 
-本文只描述问题，不代表对应能力已经修复。判断标准是：官方 Laravel 应用不应为了适配 Origami 而修改 `vendor/`、业务代码或隐藏错误；通用差异应回推到 Origami 核心、标准库或 Laravel/Symfony 原生兼容层。
+下文保留审查时的问题描述；实际实施范围以本节执行记录为准，不能将设计建议视为已经实现。判断标准是：官方 Laravel 应用不应为了适配 Origami 而修改 `vendor/`、业务代码或隐藏错误；通用差异应回推到 Origami 核心、标准库或 Laravel/Symfony 原生兼容层。
+
+## 执行记录：2026-10-01，统一 VM / RequestVM 与异常边界
+
+语言实现统一为 **`runtime.VM` 和 `runtime.RequestVM`**。删除旧 TempVM 实现；`std/php/fpm.RequestVM` 只保留核心类型别名，`fpm.New` 只绑定宿主输出。Worker 是宿主进程的调度概念，不是一种语言 VM。下文历史阶段中的类型名称已更新到现有实现。
+
+VM 提供标准库、启动期声明、共享解析和编译程序缓存。RequestVM 持有请求新增的类/接口/函数、常量、全局变量、会话、include 状态、函数 static 局部变量、错误/异常处理器栈、调用栈、shutdown 和输出。普通及热 HTTP handler 与中间件共用一个 RequestVM；Laravel 与 FPM 入口复用这一实现。显式绑定输出的 RequestVM 在已有 HTTP 作用域中仍使用自己的输出、调用栈和处理器状态。
+
+本阶段修复：
+
+- 请求解析缓存只共享程序，不把解析时发现的请求声明发布到 VM；模板、compile-only 和预编译入口都在 RequestVM 中注册或执行。启动期已执行文件集合使用不可变的代际快照，后续请求 include 状态只写入请求映射。
+- include 的作用域依据当前执行栈判断，防止保留的旧 Context 把 Blade 函数局部变量登记为全局。
+- 请求创建时发现嵌套闭包和捕获数组中的 PHP 对象，将 ViewFinder、Filament 资源对象等保留句柄映射到请求对象。捕获图复制保留对象别名、循环、数组下一整数键，以及不同回调之间的引用别名；请求之间使用独立引用槽。原生实例状态继续使用明确的服务适配策略。
+- CLI 在未捕获异常边界执行 `set_exception_handler`；支持公开函数、实例/静态方法数组、类方法字符串、invokable 和绑定闭包。处理器保持原始 callable 返回身份，支持 set/restore 栈、null、typed/variadic 参数，并传播处理器自身异常和 exit；编译 fatal 不由此处理器吞掉。错误处理器也使用独立请求栈。
+
+验收：
+
+- 扩展 PHP 回归 **100/100** 通过，包含此前失败的两个 CLI 异常处理器用例和新增捕获图用例。这是选择性语义回归，不代表全仓 PHP 测试全部通过。四个新增捕获/异常处理器脚本在宿主 PHP 8.1.34 也通过。
+- `runtime`、`std/php/fpm`、`data`、`node` 的完整包 `go test -race` 通过；网络 HTTP 请求边界的相关 race 用例通过。
+- 官方 Laravel / Livewire 生命周期、serve 相关回归及 8 个并发登录请求的整组 race 检查通过，最终记录为 36.238 秒；客户端均有超时。
+- 通过官方 `go run -mod=mod . serve --port=18088` 验收，登录页和 Livewire 脚本均返回 200；4 个客户端共 8 次并发登录请求全部 200 / 31076 字节，均含 Livewire snapshot，约 94–125 ms。该数字不作为吞吐提升结论。测试服务已停止。
+- 全仓 `go test ./... -run '^$'` 编译通过。完整 `std/net/http` 测试仍存在 `TestHomeControllerHelloQueryReturn` 注解路径的 null/string 参数类型失败，未计为通过；本文前述其他全量测试限制仍保留。
+- 调用微基准的分配保持不变：普通/精确 int 函数为 48 B、1 次；弱 string 函数为 64 B、2 次；精确类型方法为 160 B、3 次；对象方法 Context 为 112 B、2 次。耗时有样本波动，本次未据此宣称整站吞吐提升。没有在 Call、方法调用或 JSON 热路径添加诊断追踪；对象图诊断在请求结束后进行，诊断代码已移除。
+
+日志位于 `storage/origami-debug/`：`request-vm-final-php-regression.log`、`request-vm-host-php.json`、`request-vm-final-core-complete.log`、`request-vm-final-scope-race.log`、`request-vm-final-laravel-verification.log`、`request-vm-final-repository-compile.log`、`request-vm-final-runtime-bench.log` 和 `request-vm-final-http.json`。
+
+**剩余边界**：统一不可变 ClassDescriptor Registry、完整原生对象图策略、启动期 include 返回值中可变对象的策略、全部 callable 可见性/magic 方法矩阵，以及原生替换类契约门槛仍未完成。统一两种 VM 不构成任意第三方 singleton 或所有 PHP-FPM 隔离语义的完整证明。
+
+## 执行记录：2026-10-01，HTTP 生命周期阶段
+
+本阶段落实请求执行、响应发送和结束清理，未完成本文全部架构重构。没有修改 vendor、应用业务或 Blade 模板。
+
+### 已实施
+
+- **P0-1 / P2-10**：通过官方 `Illuminate\Routing\Pipeline` 执行全局中间件，再进入 Router 的分组和路由 Pipeline；保留跳过中间件的容器配置，支持全局短路。
+- **P1-5**：派发 `Terminating` 事件，按路由中间件、全局中间件的顺序重新解析并调用 `terminate()`，最后执行 Application 终止回调。冒号参数只用于 handle，不传给 terminate。
+- **P0-4**：shutdown 队列归属于请求 CallState / RequestVM；常驻闭包通过基础 VM 注册时仍进入当前请求。正常结束、exit、PHP 异常、Go panic 和客户端取消均执行一次清理。支持回调参数、invokable 对象、shutdown 期间继续注册及重入防护。清理使用独立的 5 秒期限，并在输出和静态作用域释放前完成。
+- **P0-3**：发送器按继承关系识别 StreamedResponse / BinaryFileResponse，执行流式 callback / chunks，绑定请求输出和 flush，不预设流长度。chunks 支持数组、IteratorAggregate、Iterator 和 Generator。普通对象必须先按 PHP Iterator 方法分派，避免被 ObjectValue 的数组迭代器接口误接收。
+- **响应边界**：HEAD 和 204/304 抑制响应及 terminate/shutdown 的 body；文件发送使用真实请求处理 Range / 条件请求。响应提交后发生流异常时保留已发送状态和内容，继续执行 shutdown。
+- **P1-6（部分）**：执行期限继承 `r.Context()`；Context、PDO 的连接/查询/事务操作、HTTP 文件流和 sleep 感知请求取消。sleep 不再在断开后继续等待原时长。
+- **P1-7 / P1-8**：在监听并宣告 ready 前 resolve、bootstrap 和 warm Kernel；删除监听后的异步 vendor classmap 预热。可选的 classmap 预热仍由主入口在执行 artisan 前完成。
+- **P2-11 / P2-12 / P2-13**：正常异常交给 Laravel Handler report/render，fallback 只记录一次诊断；删除未实现的 `--tries` / `--no-reload` 选项声明；删除 Livewire hashed dist 的 Server 特判，由官方路由返回 BinaryFileResponse。
+
+### 请求隔离的实际边界
+
+宿主复用启动期 Laravel 应用和程序缓存，语言层统一为 **VM / RequestVM**；应用目前仍未按每个请求重新 bootstrap。
+
+- Application / Router / Kernel 使用请求实例，Container / Facade 静态状态进入请求 overlay。
+- 每请求执行官方 `forgetScopedInstances()`，启动期已解析的 scoped binding 也会重新创建。
+- Events Dispatcher 的 PHP 属性和 Go 原生 listener/cache/deferred 状态同时隔离；仅复制 PHP 对象不能隔离 AnyValue 指向的原生状态。
+- Livewire EventBus 的监听器在请求开始时绑定到当前机制对象，包括仅由闭包 `$this` 保留的实例。Vite 的渲染重置操作写入请求对象。
+- Kernel 共享类元数据，原生实例状态通过 `ClassValue.InstanceSource` 暴露，实际随其 ObjectValue 身份存储；方法帧不复制原生状态字段。
+- 方法帧只借用对象存储，返回 `$this` 或原生 fluent 对象句柄时保留稳定的实例 Context。回收的 pooled Context 不再成为后续方法调用的对象上下文。
+- 从常驻 Context 创建请求方法帧时，调用栈跟随当前输出作用域；header 回调状态也随该请求的 OutputState 隔离。
+
+**P0-2 仍未整体完成**：上述回归证明已覆盖服务和 Laravel scoped binding 的隔离，不能证明任意自定义 mutable singleton、第三方 Manager、捕获引用的监听器或原生扩展都具备 PHP-FPM 等价隔离。现有服务策略仍有专用逻辑，统一策略注册表及通用隔离证明留待后续阶段；不可把当前白名单或 Livewire 策略描述为通用解决方案。
+
+### 验收证据
+
+真实 HTTP 验收入口：`runtime_lifecycle_test.go`，PHP fixture：`tests/origami/runtime_lifecycle.php`。所有客户端带 35 秒超时，取消验收另有 5 秒同步期限。
+
+覆盖全局/分组/路由中间件顺序和短路、终止中间件、shutdown 输出及隔离、callback/chunks、HEAD、204、304、exit、PHP 异常、流中异常、Go panic、文件 Range/HEAD、客户端取消、预解析 scoped binding、Events 注册及 8 个并发请求。真实生命周期 `go test -race` 已通过；执行需可用的 C 编译器。
+
+```powershell
+cd examples/laravel13
+go test -mod=mod -run TestRuntimeHTTPLifecycle -count=1 -timeout 180s .
+# Windows race detector 需要 CGO_ENABLED=1 和已安装的 gcc/clang。
+go test -race -mod=mod -run TestRuntimeHTTPLifecycle -count=1 -timeout 180s .
+```
+
+新增最小 PHP 回归：
+
+```powershell
+go run ./zy.go tests/php/shutdown_callbacks_order_test.php
+go run ./zy.go tests/php/streamed_response_lifecycle_test.php
+go run ./zy.go tests/php/method_object_identity_test.php
+```
+
+上述回归和修改涉及的 Go 包均通过。另运行 45 个对象身份、闭包 this、Reflection、COW、输出缓冲相关 PHP 用例，44 个通过；`coalesce_closure_test.php` 含反引号形式的变量语法，修改前 HEAD 同样解析失败。全量 `go test ./...` 未通过：根模块整套脚本退出失败，parser 的 `TestAltConvertRealFile` 依赖不存在的 `/workspace/...` 文件，`TestReproClassNamedArg` 在未安装 VM 时 panic；均在修改前 HEAD 快照复现，不计为本阶段通过项。
+
+通过官方 `go run -mod=mod -tags origamidebug . serve --port=18087` 实测 `/admin/login` 和 `/livewire-6dd39ca7/livewire.js` 返回 200。四个并发客户端共 16 次登录页请求全部 200，单次约 94–117 ms；该数字包含调试构建成本，不作为吞吐基准或修复前后加速结论。测试服务结束后已停止。
+
+### 性能检查
+
+`runtime/object_identity_test.go` 提供对象方法 Context 和请求对象复制的基准。Windows amd64 / Go 1.27.1，同一机器对比修改前 `e630e8d` 快照与最终实现，三次测量：
+
+- 方法 Context：修改前约 53–58 ns/op，最终约 52–54 ns/op；均为 **112 B/op、2 allocs/op**。
+- 初版将原生状态字段复制到每个 ClassValue 帧，曾升至 128 B/op；该布局已撤回，状态改为随 ObjectValue 存储。
+- 40 个数组属性的样例中，请求 overlay 的建立约 0.16 μs、7 次分配，全量 clone 约 8 μs、188 次分配。此基准只比较创建成本，不包含首次属性访问，也不证明所有服务迁移均有净收益。
+
+CPU profile 和 pprof top、HTTP 响应、测试日志保存在 `storage/origami-debug/`。profile 含 bootstrap 和请求样本，不能当作纯请求热点排名。没有在生产 Call / 方法 / json_encode 热路径增加追踪。
+
+### 仍需实施的后续阶段
+
+1. **P0-2 完整策略体系**：统一 worker 请求策略、对象图和捕获引用的隔离、通用第三方 singleton/Manager/Facade 并发验收。
+2. **P1-6 剩余边界**：文件/流/SPL/直接子进程和加载等待的取消已继续实施，详见后续执行记录；仍需检查其他扩展、不可中断的 OS 调用、共享标准流及 shell 派生进程树。
+3. **P1-9 契约门槛**：现有 TargetVersion 仍锁定 Laravel `v13.23.0` / HttpFoundation `v8.1.1`，但完整方法签名、可见性、Reflection、序列化差异矩阵和未覆盖类禁止注册的门槛尚未建立；Livewire 本次验收版本为 `v4.4.0`。
+4. **数组体系**：全仓 `.List` 迁移、私有 FlatArrayStore 和结构 Span 已完成，详见后续记录；OverlayArrayStore、键与引用值的解耦、嵌套路径代理、请求级引用提升及完整引用矩阵仍待实施。
+5. **类型体系**：名义继承谓词、类别名身份、ASCII 大小写规则、弱标量存储、null 返回和 strict_types 已实施相应阶段；TypeArena / TypeRef、ValueKind 与集中声明检查已开始接入 Parser / Reflection / 代码生成，详见后续记录。声明字段仍使用 Types 适配，ClassDescriptor Registry、完整引用约束和旧 Types 删除仍待实施。
+6. **Go 基础设施**：结构 Span、解析 single-flight、解析缓存代际和加载等待取消已实施；arena Span、Set/IDMap/Result、ClassDescriptor 不可变 registry、按 SymbolID 的 autoload 状态机和完整类型基准矩阵仍待实施。
+
+这些项目没有被空壳接口或通过少量 HTTP 用例替代，本文整体执行仍未完成。
+
+## 执行记录：2026-10-01，数组访问 API 阶段
+
+本阶段完成数组迁移的优先入口和相应语义回归，仍未引入 ArrayStore / OverlayArrayStore。没有修改 vendor、应用业务或模板。
+
+- `data/array_access.go` 封装 `Len`、按插入位置读取的 `At`、`Range`、浅槽位 `Snapshot`、`AppendSlotsTo`、`EditSlots`、`ReplaceAll` 和 `SetKey`；复用现有的整数/字符串键查找、Append 和 Unset API。`At` 的位置不等于 PHP 整数键，Snapshot 不代替 PHP 值复制。
+- `node/index.go`、`node/value_reference.go`、`node/foreach.go`、`runtime/context.go` 和 Container/Events 指定路径已移除直接 `.List` 访问。可变数组方法经 ReplaceAll / PopSlot / ShiftSlot 更新索引；只读旧数组方法暂时保留 data 包内部的槽位视图。
+- `ArraySlotRef` 保存实际 ZVal，替代数组加物理下标的句柄。引用绑定复用 `GetOrCreateZVal`，正确处理 packed 整数键、规范数字字符串、空字符串键、null、稀疏键和省略下标的追加；嵌套绑定先分离值副本，再写回。对象数组的键表达式不再因延迟绑定求值两次。
+- 自动整数键状态独立于查找缓存，unset 后仍保留历史下一键，数组值复制及 __call 参数复制保留该状态。支持负整数键以及 PHP 8.3+ 的负数追加规则，PHP_INT_MAX 已占用时追加/array_push 抛出 Error，不覆盖原值。删除字符串键也保留其他整数键身份。
+- `array_pop` 仅在移除紧邻下一键的整数时回退计数；shift、unshift、splice、usort、multisort 的重排通过集中 API 重建整数键及缓存。批量编辑复用原切片或已有目标缓冲区，没有为了封装接口额外复制整张数组。
+- 修复 `$a[PHP_INT_MAX] = ...` 的解析错误：类型声明识别必须真的跟着变量标记或标识符，不能消费 `]`。null 作为数组键转换为 `''`，删除原先错误发出的 Deprecated 诊断；依据 [PHP 数组手册](https://www.php.net/manual/en/language.types.array.php)。pop 的下一键回退条件对照 [PHP 8.4 array.c](https://github.com/php/php-src/blob/PHP-8.4/ext/standard/array.c)。
+
+### 本阶段验证
+
+新增 PHP 最小回归：
+
+```powershell
+go run ./zy.go tests/php/array_reference_slot_keys_test.php
+go run ./zy.go tests/php/array_automatic_key_state_test.php
+go run ./zy.go tests/php/array_bulk_api_keys_test.php
+```
+
+三个用例均通过，并在修改前 `e630e8d` 源码快照分别复现 packed 引用、unset 后追加及单元素 usort 的失败。宿主 PHP 8.1.34 也通过三个用例；负数追加断言明确区分 PHP 8.3 前后的规则，不能把宿主 8.1 的结果视为完整的 PHP 8.4 差分验证。
+
+另有 28 个既有 PHP 用例通过，覆盖数组键/COW、引用参数和构造器、foreach、重排、ArrayAccess、Laravel Arr::set；合计 **31 个相关 PHP 回归通过**。Go 测试覆盖脱离数组后的引用身份、重排后的键缓存和常量索引 AST。data/node/runtime/数组扩展/Container/Events/Serve/HttpFoundation 相关包的 race 检查通过；parser 排除上节已在 HEAD 复现的两个环境基线失败后全部通过。未把这次选择性回归描述为全量 PHP 或全量仓库验收。
+
+官方 `go run -mod=mod . serve --port=18087` 验收 `/admin/login` 和 `/livewire-6dd39ca7/livewire.js` 返回 200；4 个并发客户端共 8 次登录页请求均为 200 / 30912 字节，约 96–121 ms。所有客户端设置 35 秒超时，服务日志没有 Warning / Fatal。Laravel HTTP 生命周期及 8 请求隔离的 `go test -race` 再次通过（9.710 s）。本次测试服务已停止，没有操作已有的 18086 服务。
+
+### 本阶段性能与剩余边界
+
+同一 Windows amd64 / Go 1.27.1，以 `-cpu=1 -count=3` 对比相同基准和修改前 HEAD 快照：
+
+- 128 键数组的现有键引用：修改前约 159–172 ns/op、16 B/op；当前约 35–45 ns/op、8 B/op，均 1 次分配。收益来自哈希索引替代线性扫描，以及直接保存 ZVal 的较小引用句柄。
+- packed 键查找约 2.3–2.7 ns/op，已有键替换约 2.6 ns/op，前后均 0 分配。
+- 128 次 packed 追加：修改前约 3.02–3.39 μs，当前约 2.95–3.05 μs；前后均 8408 B/op、137 次分配。没有把这些微基准视为整站吞吐提升。
+- Range 基准为 0 堆分配，但小数组的 closure iterator 有常数成本；foreach 仍保留已有的快照后切片循环，不强制所有热路径改用 closure iterator。
+
+基准、PHP 失败对照、HTTP 响应和 race 日志位于 `storage/origami-debug/`。
+
+**本节记录数组阶段 1 结束时的边界**：当时其他 node/std 路径仍有直接 `.List` 读写，data 旧只读方法也尚未迁移到 Store。这些访问与 FlatArrayStore 的后续实施见下节；Overlay、引用 ZVal 与键元数据的解耦、完整 foreach 引用/返回引用/捕获引用矩阵、ObjectValue 关联数组统一、子路径代理和请求级 ZVal 提升仍需独立实现与验收。
+
+## 执行记录：2026-10-01，FlatArrayStore 与 PHP 数组语义
+
+本阶段已将全部 Go 调用点迁移出公开 `ArrayValue.List`，包括 node/runtime/std、扩展和示例的原有调用点；不是向旧 Laravel 示例增加桥接。全仓搜索不再有 `.List` 访问，底层字段已删除。
+
+### 已实施
+
+- `FlatArrayStore` 私有嵌入 ArrayValue，持有顺序槽位、查找缓存、自动整数键状态与内部指针。平坦路径不增加 interface 分派、锁或额外存储对象分配。
+- `View()` 返回 `Span[*ZVal]`，供连续读取和位置遍历；保留 Snapshot 的明确复制语义。这里是切片结构视图，尚不是 TypeArena 的数值区间 Span，也不是不可变 PHP 值或跨请求写入同步机制。
+- 批量修改集中到 EditPreservingKeys / EditReindexing / RemovePositions / FilterSlots 等 API；修改期间 panic 也会失效索引。SPL heap/queue、Collection 和 RequestStack 不再通过复制整个切片后截断实现删除。
+- 关联数组字面量统一使用 ArrayValue / SetKey；稀疏整数、空字符串、规范数字字符串、null/bool 键不再依赖 ObjectValue 代替数组。数组展开重新编号整数键，保留字符串键；严格相等检查键的类型、身份及顺序。
+- 修复排序稳定性、sort/rsort 重排、asort/ksort/krsort 的键与自动追加状态，以及 SORT_FLAG_CASE。usort/uasort 在副本上执行比较器，再发布结果，比较器捕获的原数组不会观察到中间重排；异常会传播，usort 抛出异常后仍重新编号。实现对照 [PHP 8.4 array.c](https://github.com/php/php-src/blob/PHP-8.4/ext/standard/array.c)。
+- 修复 splice 负长度、返回键和 replacement 键处理；reverse、slice、diff/intersect、flip/search、array_is_list、首尾键、array_walk 的稀疏/空键及 COW 行为。
+- 修复 ARRAY_FILTER_USE_KEY=2、ARRAY_FILTER_USE_BOTH=1；array_filter 和 array_intersect 返回真正的数组并保留原键。纠正旧 `array_filter_basic_truthy_test.php` 错误的 `[0,1]` 预期为 PHP 的 `[1,3]`。
+- 数组 current/key/reset/end/next/prev 使用独立内部指针；无效位置返回 false/null，不能靠 next/prev 恢复。值复制保留指针，foreach 不移动该指针。
+
+### 验证与性能
+
+新增 `tests/php/array_store_mutations_test.php`、`array_store_pointer_test.php`，均通过 Origami 与宿主 PHP 8.1.34；修改前 HEAD 快照分别在稀疏首键类型和初始指针键类型处失败。宿主版本不构成完整 PHP 8.4 差分验收。
+
+扩大回归共 129 个数组/引用/foreach/排序/SPL 脚本，纠正上述错误测试后 126 个通过。三个未通过项明确保留：`array_pointer.php` 要求 fresh 数组 prev 返回倒数第二项、空数组 current/reset 返回 null，并把数组指针函数当作 Iterator 方法调用，预期与 PHP 不符；`proc_open_array_cmd_test.php` 使用 `/bin/echo` 和 stty，`spl_file_object_test.php` 的文件搜索在 Windows 失败，后两项在修改前 HEAD 同样失败。不能将这组选择性回归视为全量仓库通过。
+
+核心、PHP、Symfony、Laravel 和网络相关包的 Go 回归与 race 检查通过；根模块 `go test ./... -run '^$'` 编译通过。原全量测试的已知基线限制仍见 HTTP 阶段记录。
+
+Windows amd64 / Go 1.27.1，在其他回归结束后，以 `-cpu=1 -count=3` 测量并对照修改前 HEAD：
+
+- 已有数组键引用：HEAD 159–174 ns/op、16 B/op；当前 36–38 ns/op、8 B/op，均 1 次分配。
+- packed 查找：HEAD 2.35–2.39 ns/op，当前 2.54–2.58 ns/op；替换分别约 2.61–2.72 与 2.80–2.87 ns/op，均 0 分配。报告实际常数差异，不宣称所有操作都加速。
+- 128 次追加：HEAD 3.02–3.62 μs，当前 3.04–3.12 μs；均 8408 B/op、137 次分配。
+- Span 遍历 8 项约 3.45–3.48 ns，128 项约 59.9–60.2 ns，均 0 分配；对应直接切片遍历约 3.52–3.72 / 60.1–66.6 ns。closure Range 仍有常数成本，热路径使用 Span 循环。
+- `unsafe.Sizeof` 回归约束 ZVal 不超过 48 B、ArrayValue 不超过 88 B。以上为微基准，不能替代请求吞吐测量。
+
+**仍未完成 Overlay 和引用实体化**：共享引用槽位仍携带 Name/EmptyStrKey；重排引用数组的副本时，键元数据和引用值尚未完全解耦。部分旧内置仍返回 ObjectValue 关联数组；真实对象的指针/属性行为、完整回调与引用矩阵也未整体迁移。不得将 Flat 的 API 封装宣称为完整请求级数组代理。
+
+## 执行记录：2026-10-01，阻塞取消与并发解析
+
+### 已实施
+
+- 请求拥有的 io.Closer 通过 context.AfterFunc 关闭；回调只捕获真实资源和请求 context，不捕获 pooled VM Context。手动关闭会注销回调；原生 SPL 文件对象也接入同一机制。
+- StreamInfo 不再持元数据读锁等待 OS Read/Write；Close 可中断阻塞管道读。PHP fread/stream_get_contents/fwrite 和哈希流的取消会结束 PHP 执行，不返回空串后继续执行。
+- proc_open / shell_exec / Symfony Process 使用 CommandContext；proc_close 可取消等待。部分创建失败会关闭已经创建的管道；后台 Wait 回收直接子进程，完成后注销取消回调，done 只关闭一次。WaitDelay 约束继承输出管道的等待，尚不等同于杀死完整进程树。
+- proc_open 的 `$pipes` 返回 ArrayValue，保留整数描述符键。shell_exec 无输出返回 null；Windows 的 CRLF 和 Ctrl-Z 按文本管道处理，依据 [PHP shell_exec 手册](https://www.php.net/manual/en/function.shell-exec.php)。
+- sleep/usleep/Symfony Clock 的等待可取消，usleep 负数抛出 ValueError。Windows select 超时等待可取消；Unix select 用最多 50 ms 的等待片段感知取消并恢复每轮 fd 集合。
+- 本地读取/写入/追加、copy、hash_file、md5_file、finfo、Symfony/Finder 文件读取及 HTTP 文件发送绑定 owned handle 关闭。Background 读取保留 os.ReadFile 路径；HTTP file_get_contents 显式使用调用者的请求 context。
+- SPL 行读取检查取消；READ_AHEAD/跳过空行遇到读取错误会停止，不再持续追加空行。请求取消会关闭 SPL 句柄，并删除其创建的临时文件；用户原文件保留。
+- PHP 文件加载/编译等待检查请求取消。ParseFileCached 冷缓存采用 single-flight，共享同一解析结果；重入报错，leader panic 或取消会释放等待者并允许重试。热重载通过 atomic.Pointer 切换缓存代际，旧解析不能重新填入新缓存。
+
+### 验证与边界
+
+Go 测试覆盖阻塞管道读关闭、晚注册资源、PHP 读取消传播、HTTP 头部与 body 等待取消、直接子进程和输出管道回收、SPL 临时文件清理与错误退出，以及解析共享、等待者取消、panic/retry、重入和缓存代际。上述相关包的 race 检查通过；Unix stream 包仅做 Linux 交叉编译，未在 Linux 主机执行。
+
+新增 `tests/php/request_resource_basic_test.php` 对照正常文件/流/哈希/copy/进程及参数错误；Origami 与宿主 PHP 均通过，修改前 HEAD 在 shell 输出处失败。
+
+解析缓存命中：HEAD 25.4–27.6 ns/op，当前 25.8–30.3 ns/op，均 0 分配。32 KiB 文件读取：Background 约 63–72 μs、41433 B/op、5 次分配；可取消请求约 64 μs、41601 B/op、9 次分配。资源取消登记存在固定分配成本，不声称取消处理免费，也没有把检查插入所有 Call 热路径。
+
+最终官方 Laravel 生命周期 `go test -race` 通过（9.491 s）；`go run -mod=mod . serve --port=18087` 的登录页和 Livewire JS 均返回 200。4 个并发客户端共 8 次登录页请求全部 200 / 31076 字节，约 82–120 ms；全部设置 35 秒超时，日志没有 Warning/Notice/Fatal。测试服务已停止，已有 18086 服务未操作。日志、响应和微基准均在 `storage/origami-debug/`。
+
+**P1-6 和加载体系仍有边界**：未证明所有阻塞扩展已覆盖；OS open/stat 和不可中断磁盘调用、共享 stdin、shell 的完整派生进程树、Windows select 的真实管道 readiness 仍需实现与验收。解析 single-flight 不代替按 SymbolID 的 autoload 声明状态机，也不代替请求级 autoload 回调隔离或 ClassDescriptor registry。
+
+## 执行记录：2026-10-01，名义类型与异常继承
+
+### 已实施
+
+- `data.NominalIsA` / `InterfaceIsA` 为声明类型、`instanceof`、`is_a`、`is_subclass_of`、迭代及 ArrayAccess 提供共同的已加载元数据判断。支持深层接口、父类接口、循环检测与类别名身份；比较阶段不运行 autoload。
+- 动态 instanceof 字符串按完整类名解析，不追加调用点 namespace；对象 RHS 使用对象真实类名。非法 RHS 按 PHP 抛 `Error`。
+- `is_subclass_of` 补齐第三参数 `allow_string = true` 和接口关系。只有允许的来源字符串可触发 autoload；目标名不加载。加载器将未找到符号与回调异常分开，回调异常向 PHP 传播。
+- 内部 Error 不再被 Exception 捕获，不再把命名空间后缀当作内置类型。修正 ParseError → CompileError 和 BadMethodCallException → BadFunctionCallException；后者同步修正原生类元数据。
+- 统一 PHP 声明失败的 `TypeError` 生成，包括参数、变量、属性及函数/方法返回失败。Closure 类型拒绝普通 callable 字符串/数组；iterable 不再接受命名空间中恰好叫 Iterator/Generator 的类。
+- 类/接口注册和查找只折叠 ASCII 字母；请求接口支持大小写与前导分隔符，请求代理共享原类元数据并保留独立对象身份。移除 ArrayAccess 判断为调用 instanceof 构造临时对象的路径。
+
+### 验证与性能
+
+- 新增 `nominal_type_relations_test.php`、`nominal_identifier_case_test.php`，宿主 PHP 与 Origami 均通过；原 HEAD 在深层接口关系上失败。另有 20 个相关正常 PHP 回归通过；`throw_aborts_following_statements_test.php` 按设计在未捕获调用处退出 1，日志确认没有执行后续语句。
+- data、runtime、node、std/php、std/exception 的普通/race 验收通过；全仓 Go 包编译通过。官方 Laravel bootstrap 和真实并发生命周期 race 回归通过。
+- 官方 `go run -mod=mod . serve --port=18087`：登录页 200 / 31076 bytes，HTML 实际引用的 Livewire hashed JS 200 / 564841 bytes；4 并发共 8 次登录页请求全部 200。请求均有 35 秒超时，服务日志无 Warning / Notice / Fatal。
+- 同一 Class.Is 基准在原 HEAD 与当前实现各跑 3 次：直接类约 4.15–4.23 → 3.42–3.55 ns；直接父类约 8.51–8.61 → 7.62–7.67 ns。深层接口约 102–103 → 100–116 ns，未命中约 120–121 → 123–126 ns；两种遍历路径从 32 B / 2 allocs 降为 0 B / 0 allocs。直接路径无新增分配，不宣称所有路径均加速。
+
+日志保存在 `storage/origami-debug/nominal-*`。这一阶段仍使用 `ClassStmt` / `Types` 字符串元数据，尚不是 ClassDescriptor / TypeID；标量精确匹配与转换、null/void/never、strict_types、完整引用约束和原生类契约仍需后续迁移。
+
+## 执行记录：2026-10-01，标量存储与 strict_types
+
+### 已实施
+
+- `String` / `Bool` / `Float` 的 `Is()` 只做精确匹配；声明边界使用 `PrepareTypedValueInContext` 返回实际存储值与转换控制流。弱模式参数、属性、函数/方法/闭包返回值保存转换后的标量，union 优先保留精确类型，再按 PHP 的标量转换顺序处理。数字字符串检查拒绝尾随文本及 NaN/INF 文本。
+- 非 nullable 声明不再无条件接受 null；显式 null 与省略参数分开处理，只有未定义槽位才使用默认值。普通 `T $value = null` 参数保留隐式 nullable 元数据。声明返回类型的函数、方法和闭包没有执行 return 时抛 TypeError，包括 nullable 返回声明。
+- 严格模式属于编译单位：Program 在 include 期间保存/恢复标志，声明保存函数体和返回值的模式，参数采用调用点模式；严格模式仅允许 int 向 float 扩宽。合法性检查覆盖值必须为整数 0/1、声明位置和禁止 block mode；真实 PHP 标签与词法预处理的换行有独立回归。
+- direct/named/spread 参数、引用参数初次绑定、variadic、invokable、call_user_func 和新增 call_user_func_array 的已测试入口传播类型错误。array_map/array_filter/preg_replace_callback 使用内部弱参数模式；array_map 保留绑定闭包和对象方法上下文。统一原生绑定器执行默认值并返回失败，所有调用点处理该控制流，缺少必需参数抛 ArgumentCountError。
+- Stringable 转换的异常向参数/属性赋值传播；返回转换异常按 PHP 规则包装 TypeError 并保留 previous。依据 [PHP 类型声明手册](https://www.php.net/manual/en/language.types.declarations.php) 与 [PHP 8.4 zend_execute.c](https://github.com/php/php-src/blob/PHP-8.4/Zend/zend_execute.c)。
+- 输出引用参数单独标记，不把 matches/result/count 的旧值当作输入类型检查；补 str_ireplace 的 count 写回。PCRE 支持未引用的水平/垂直空白类及其补集、字符类内形式和 UTF 模式，集合对照 [PCRE2 pattern 文档](https://pcre.org/current/doc/html/pcre2pattern.html)。解构赋值返回实际 RHS 并清空缺失项，Carbon 的解构 while 能正确结束；DOMElement::getAttribute 缺失属性返回空串。
+- 生成器保留编译单位/声明的严格模式，以及闭包返回类型、static 与引用返回标记。回归实际编译运行生成的 Go 构造代码，覆盖函数、方法及强/弱闭包返回行为。
+
+### 验证与性能
+
+新增 PHP 回归：`typed_scalar_storage_test.php`、`typed_null_return_test.php`、`strict_types_unit_test.php`（含强/弱文件 fixture）、`typed_native_callback_test.php`、`native_output_reference_test.php`、`pcre_whitespace_classes_test.php`、`destructure_assignment_result_test.php`、`dom_attribute_return_test.php`。新增用例在 Origami 和宿主 PHP 8.1.34 做差分验证；宿主不是完整 PHP 8.4 验收。另运行类型、引用、闭包、回调、PCRE、DOM 相关脚本，78/78 通过，排除了前文已复现的 coalesce_closure 语法基线限制。
+
+核心和 PHP 标准库普通测试及 race 检查通过；生成代码执行回归通过；真实 Laravel HTTP 生命周期及 bootstrap 的 race 检查通过（17.734 s）。`go run -mod=mod . serve --port=18087` 下登录页返回 200 / 31076 B，页面实际引用的 Livewire JS 返回 200 / 564841 B；4 个并发客户端共 8 次请求全部 200，约 82–124 ms，每次设置 35 秒超时，测试服务已停止。
+
+同机 Windows amd64 / Go 1.27.1，`-cpu=1 -count=3` 对比修改前 e630e8d 源码快照与当前版本：
+
+- Context 仍为 152 B，TokenFrom 仍为 56 B。曾尝试把模式放到每个 TokenFrom，增加了结构大小，已撤回。
+- 无声明调用：HEAD 172–173 ns/op，当前 174–176 ns/op；精确 int 调用 HEAD 178–179 ns，当前 182–197 ns；对象方法 HEAD 312–320 ns，当前 315–345 ns。均没有增加分配次数。移除了绑定器重复读写严格模式的负优化；保留实际测得的常数成本，不宣称所有热路径净加速。
+- 弱 int→string 调用：HEAD 181–198 ns、48 B/1 alloc；当前 205–207 ns、64 B/2 alloc。HEAD 实际保留 int，语义错误；当前分配并保存真正的 StringValue。这两组结果不能作为同等正确性下的加速比较。
+
+日志、基准及响应保存在 `storage/origami-debug/scalar-*`。没有修改 vendor、业务或 Blade，没有增加生产调用追踪。
+
+### 仍需迁移
+
+仍使用旧 Types 适配，尚未完成 TypeArena / TypeRef、ClassDescriptor Registry、ValueKind 与集中 TypeChecker；无声明/mixed/void/never 和 self/static/parent 的完整上下文语义、typed reference 后续写入约束、所有 callable/by-reference/spread 的组合矩阵、原生类完整契约仍待实施。浮点格式与溢出数字文本、PCRE 原始字节与完整匹配索引语义也未由本阶段证明。以上完成项不能替代后续架构迁移。
+
+## 执行记录：2026-10-01，TypeArena 与 Livewire 类作用域
+
+本阶段接入紧凑声明类型，并修复真实 Laravel / Livewire 验收暴露的核心语义和 Worker 隔离问题。没有修改 vendor、应用业务或 Blade 模板。
+
+### 类型迁移的实际范围
+
+- `data.TypeRef` / `SymbolID` 为 32 位值，内置声明使用保留编号；名义类型和 union/intersection 进入 TypeArena。复合类型按规范成员去重、排序、驻留；构造时加锁并发布 append-only snapshot，检查只读 snapshot。已有节点和成员视图在并发解析发布后保持稳定，当前 typeNode 为 16 B。
+- Parser 的 PHP 声明入口使用 TypeRef，集中匹配和弱/严格转换位于 `data/type_checker.go`；ValueKind 由集中分类函数提供，没有在每个 Value 上新增虚方法。无声明、mixed、void、never 分开表示；void 隐式返回 null，mixed / never 跌出函数体抛 TypeError，非法 bare return / void 返回值在解析时失败。
+- self / parent 根据声明类解析，static 根据被调用类解析。参数初次绑定和返回检查覆盖继承方法、静态方法、闭包及原生回调的声明上下文。普通参数进入函数体后是普通局部变量，不再把参数类型错误地施加到后续局部重赋值。
+- Reflection 读取 TypeRef 的 kind / members，nullable named type 保留正确名称和 allowsNull；代码生成输出声明构造器，避免序列化只能在当前进程使用的 arena 编号。容器、JSON 默认值、HTTP 绑定、注解与 LSP 等旧入口使用冷路径适配。
+- typed reference 返回初次检查解引用后的值，转换写回原槽并保留引用身份。null 数组自动创建真实 ArrayValue，支持 typed array 属性的嵌套写入。debug_backtrace 和异常 getTrace 的帧使用 PHP 数组。
+- return 声明验证只遍历语法子节点，跳过已解析函数指针等运行时链接，并防止重复访问；真实 Laravel helper 的递归调用图不再令验证器栈溢出。
+
+**尚未完成字段布局迁移**：参数、属性和返回字段仍为 `Types` interface，内含 TypeRef；不能据此宣称每个声明字段已压缩到 4 B 或旧 Types 已删除。名义类型仍经现有继承谓词检查，没有 ClassID / AncestorSet Registry。callable / resource、DNF 与全部非法声明、typed reference 后续写入约束和所有引用返回组合仍需后续实施。
+
+### Livewire magicActions 根因与请求隔离
+
+用户报告的 `SupportReleaseTokens` 找不到 `magicActions`，实际发生在 `SupportMagicActions::provide()` 注册的闭包读取 `self::$magicActions` 时。静态方法中定义的非 static 闭包具有声明类作用域，但没有对象接收者。旧请求重绑定把这些作用域的 nil ObjectValue 当成同一个对象身份，令不同 Feature 的闭包被重绑到另一类。
+
+- `LambdaExpression.RequestScopeObjects` 和 `BindRequestScope` 只把真实对象身份用于重绑定；没有对象的静态方法作用域保持原声明类。补核心 Go 回归和 `closure_feature_scope_test.php`，覆盖多个 Feature、继承的 self 及随后触发的回调。
+- 真实生命周期 fixture 新增官方 `Livewire\trigger('call', ..., '$refresh', ...)`，执行 vendor EventBus 和 SupportMagicActions 监听器；覆盖连续请求及 8 个并发请求。
+- 对象方法帧保留调用方 RequestVM 和调用栈，PHP 对象身份不变；原生 Kernel 方法适配也从调用方 Context 建立方法帧。避免通过常驻对象的原始 Context 回到共享 VM / 启动期 CallState。
+- Container callbacks 按对象身份映射到最终的请求服务副本，保留别名、闭包接收者及捕获的 ClassValue / ThisValue。先完成服务原生状态隔离，再重绑 callbacks 和 Manager 保留的闭包，避免认证服务闭包指向被第二次克隆替换的副本。保留 Worker Application 引用的服务获得请求副本并重绑 app / container。
+- 配置 Repository 每请求复制，隔离登录处理中 config.set 的写入。Exception / ErrorException 构造状态归属 ObjectValue.InstanceSource，构造函数不再写共享方法元数据。函数内 static 局部变量归属 RequestVM；同一请求内重复调用共享槽，不同请求互不共享，CLI 仍保持跨调用状态。
+
+**P0-2 仍未整体完成**：该规则覆盖容器引用、已选择服务和对象捕获，不证明任意对象图、捕获引用、循环数组或未知 native singleton 完全隔离；统一 Worker 策略注册表仍待实施。
+
+### 本阶段验收与性能
+
+- `go test -race ./data ./node ./runtime ./std/exception` 通过；Parser 的声明、strict_types 和递归验证回归通过 race；编译器生成代码执行回归及涉及的 PHP 标准库包测试通过。全仓 `go test ./... -run '^$'` 编译通过；前文记录的整套测试基线限制仍在，未宣称全量测试通过。
+- 扩展 PHP 回归 **94/96** 通过，包括原有 85 个类型相关用例及新异常实例回归。`set_exception_handler_test.php` 与 `set_exception_handler_variadic_test.php` 在修改前 e630e8d 快照同样失败，CLI 入口绕过注册的异常处理器，仍是未修复缺口。新增/修订的 9 个用例在宿主 PHP 8.1.34 全部通过。
+- 真实 Laravel `TestLoginRequestIsolation` / `TestRuntimeHTTPLifecycle` / `TestServe*` 的最终 race 验收通过（39.147 s，零 race 报告），包括 8 个并发登录请求和官方 Livewire call 事件。所有 HTTP 客户端设置 35 秒超时。
+- 官方 `go run -mod=mod -tags origamidebug . serve --port=18087` 实测登录页 **200 / 31076 B**，页面实际引用的 Livewire JS **200 / 564841 B**；4 个客户端共 8 次并发登录请求均为 200，约 117–146 ms。调试构建结果不作为吞吐或修复前后加速结论，验收服务已停止。
+- 在其他测试和服务器停止后独立运行 `-cpu=1 -count=3`：最终 arena 标量匹配 2.25–2.35 ns，8 成员 union 9.55–10.12 ns，均 0 B / 0 alloc；实际无声明调用 168–172 ns、精确 int 184–193 ns，均 48 B / 1 alloc；方法 334–350 ns、160 B / 3 alloc。单一内置类型初版仍经 union 掩码转换，弱 int→string 为 217–235 ns；复用原转换函数并移除这一步后为 210–211 ns、64 B / 2 alloc，前一阶段为约 205–207 ns。对象方法 Context 的两组测量分别为 53–56 ns 和 76–81 ns，均 112 B / 2 alloc；其实现未随转换调整变化，时间有明显波动。上述结果证明没有增加帧分配，不能据此宣称所有热路径净加速。
+
+日志、HTTP 响应、race 定位和独立基准位于 `storage/origami-debug/type-arena-*`。没有在生产 Call / 方法 / json_encode 热路径增加追踪。
 
 ## 当前模型
 
-当前 `serve` 不是传统的 `php -S` 或 PHP-FPM 模型，而是：
+语言层只有 VM 与 RequestVM；当前 `serve` 宿主复用启动期应用，执行路径为：
 
 ```text
 Go net/http 常驻进程
   -> Origami 基础 VM 与常驻 Laravel Application
-  -> 每请求 TempVM + Kernel/Application/Router 沙箱
+  -> 每请求 RequestVM + Kernel/Application/Router 沙箱
   -> Laravel Router / Blade / Eloquent / Livewire / Filament
   -> Go http.ResponseWriter
 ```
@@ -33,7 +319,7 @@ Origami 控制 PHP 对象模型、方法分派、`instanceof`、Reflection 和�
 ```text
 RequestScoped ClassValue
   Class          -> 原始 ClassStmt（类型与方法元数据）
-  Context / VM   -> 当前请求 TempVM
+  Context / VM   -> 当前请求 RequestVM
   InstanceSource -> 当前请求的原生实例状态
   PropertyStore  -> 请求 Overlay
                       |
@@ -1079,16 +1365,16 @@ Go 1.27 对小于 80 字节的分配提供更快路径。可据此检查但不�
 
 位置：
 
-- `runtime/vm_temp.go` 的 `AddShutdownCallback` / `RunShutdownCallbacks`
+- `runtime/request_vm.go` 的 `AddShutdownCallback` / `RunShutdownCallbacks`
 - `std/laravel/serve/serve_command.go` 的 `ServeHTTP`
 
-CLI 的 `finish()` 会调用 `RunShutdownCallbacks()`，但 HTTP 请求链路在成功、异常、超时和客户端断开路径上都没有对请求级 TempVM 执行该阶段。
+CLI 的 `finish()` 会调用 `RunShutdownCallbacks()`，但 HTTP 请求链路在成功、异常、超时和客户端断开路径上都没有对请求级 RequestVM 执行该阶段。
 
 因此 `register_shutdown_function()` 可能不在 HTTP 请求结束时运行，清理、日志和追踪逻辑会丢失。
 
 期望：
 
-- 为每个请求持有明确的 TempVM 引用，并用 `defer` 保证 shutdown callbacks 恰好运行一次。
+- 为每个请求持有明确的 RequestVM 引用，并用 `defer` 保证 shutdown callbacks 恰好运行一次。
 - 定义正常返回、`exit` / `die`、PHP 异常、Go panic、超时和客户端断开的顺序。
 - 确保 shutdown 输出与最终 HTTP body/已发送响应之间的行为符合 PHP SAPI 语义。
 

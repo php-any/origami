@@ -32,6 +32,7 @@ func (h *TxPrepareMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *TxPrepareMethod) GetName() string            { return "prepare" }
 func (h *TxPrepareMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *TxPrepareMethod) GetIsStatic() bool          { return true }
+
 var txPrepareMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "query", 0, nil, nil),
 }

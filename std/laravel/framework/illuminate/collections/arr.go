@@ -1,7 +1,6 @@
 package collections
 
 import (
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/std/laravel/framework/internal/kit"
@@ -21,12 +20,12 @@ func NewArrClass() data.ClassStmt {
 	return c
 }
 
-func (c *ArrClass) GetName() string                               { return arrClassName }
-func (c *ArrClass) GetExtend() *string                            { return nil }
-func (c *ArrClass) GetImplements() []string                       { return nil }
-func (c *ArrClass) GetProperty(string) (data.Property, bool)      { return nil, false }
-func (c *ArrClass) GetPropertyList() []data.Property              { return nil }
-func (c *ArrClass) GetConstruct() data.Method                     { return nil }
+func (c *ArrClass) GetName() string                          { return arrClassName }
+func (c *ArrClass) GetExtend() *string                       { return nil }
+func (c *ArrClass) GetImplements() []string                  { return nil }
+func (c *ArrClass) GetProperty(string) (data.Property, bool) { return nil, false }
+func (c *ArrClass) GetPropertyList() []data.Property         { return nil }
+func (c *ArrClass) GetConstruct() data.Method                { return nil }
 func (c *ArrClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }

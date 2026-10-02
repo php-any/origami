@@ -64,8 +64,9 @@ func Entries(v data.Value) []KV {
 	v = Unwrap(v)
 	switch arr := v.(type) {
 	case *data.ArrayValue:
-		entries := make([]KV, 0, len(arr.List))
-		for i, z := range arr.List {
+		entries := make([]KV, 0, arr.Len())
+		for arraySlots69, i := arr.View(), 0; i < arraySlots69.Len(); i++ {
+			z := arraySlots69.At(i)
 			if z == nil {
 				continue
 			}
@@ -143,7 +144,9 @@ func Call(ctx data.Context, cb data.Value, args ...data.Value) (data.GetValue, d
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("callback is not callable"))
 	}
 	callCtx := ctx.CreateContext(fn.GetVariables())
-	data.BindDeclaredArgs(callCtx, fn, args)
+	if ctl := data.BindDeclaredArgs(callCtx, fn, args); ctl != nil {
+		return nil, ctl
+	}
 	if bfv, ok := cb.(*data.BoundFuncValue); ok {
 		return bfv.Call(callCtx)
 	}

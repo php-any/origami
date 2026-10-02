@@ -95,6 +95,7 @@ func (f *SubstrReplaceFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 func (f *SubstrReplaceFunction) GetName() string            { return "substr_replace" }
 func (f *SubstrReplaceFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *SubstrReplaceFunction) GetIsStatic() bool          { return false }
+
 var substrReplaceFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, data.String{}),
 	node.NewParameter(nil, "replacement", 1, nil, data.String{}),
@@ -105,6 +106,7 @@ var substrReplaceFunctionGetParams = []data.GetValue{
 func (f *SubstrReplaceFunction) GetParams() []data.GetValue {
 	return substrReplaceFunctionGetParams
 }
+
 var substrReplaceFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "replacement", 1, data.NewBaseType("string")),

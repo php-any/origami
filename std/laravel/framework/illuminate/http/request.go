@@ -266,7 +266,7 @@ func (m *illuminateRequestMethod) GetParams() []data.GetValue {
 	out := make([]data.GetValue, len(m.params))
 	for i, name := range m.params {
 		if m.variadic && i == len(m.params)-1 {
-			out[i] = data.NewParameters(name, i)
+			out[i] = node.NewParameters(nil, name, i, nil, nil)
 		} else {
 			out[i] = data.NewParameterDefault(name, i, data.NewNullValue(), nil)
 		}
@@ -531,7 +531,8 @@ func callIlluminateMacro(ctx data.Context, receiver *data.ClassValue) (data.GetV
 	}
 	args := make([]data.Value, 0)
 	if array, ok := argValue(ctx, 1, data.NewArrayValue(nil)).(*data.ArrayValue); ok {
-		for _, item := range array.List {
+		for arraySlots52, arrayPosition52 := array.View(), 0; arrayPosition52 < arraySlots52.Len(); arrayPosition52++ {
+			item := arraySlots52.At(arrayPosition52)
 			if item != nil && item.Value != nil {
 				args = append(args, item.Value)
 			}
@@ -1174,22 +1175,14 @@ func invokeCallable(callable data.Value, args []data.Value, ctx data.Context) (d
 }
 
 func invokeObject(object data.GetValue, methodName string, args []data.Value, ctx data.Context) (data.GetValue, data.Control) {
+	if receiver, ok := object.(*data.ThisValue); ok {
+		object = receiver.ClassValue
+	}
 	cv, ok := object.(*data.ClassValue)
 	if !ok {
 		return data.NewNullValue(), nil
 	}
-	method, ok := cv.GetMethod(methodName)
-	if !ok {
-		return data.NewNullValue(), nil
-	}
-	callCtx := cv.CreateContext(method.GetVariables())
-	variables := method.GetVariables()
-	for i, value := range args {
-		if i < len(variables) {
-			_ = callCtx.SetVariableValue(variables[i], value)
-		}
-	}
-	return method.Call(callCtx)
+	return kit.CallInstanceMethod(ctx, cv, methodName, args...)
 }
 
 func callbackOrThis(callback data.Value, args []data.Value, cv *data.ClassValue, ctx data.Context) (data.GetValue, data.Control) {
@@ -1530,7 +1523,8 @@ func getNested(values map[string]data.Value, dotted string) (data.Value, bool) {
 		switch container := current.(type) {
 		case *data.ArrayValue:
 			found := false
-			for index, item := range container.List {
+			for arraySlots53, index := container.View(), 0; index < arraySlots53.Len(); index++ {
+				item := arraySlots53.At(index)
 				if item == nil {
 					continue
 				}

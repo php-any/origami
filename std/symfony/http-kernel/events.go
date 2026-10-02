@@ -5,7 +5,6 @@ import (
 	"github.com/php-any/origami/node"
 )
 
-
 const kernelEventsName = "Symfony\\Component\\HttpKernel\\KernelEvents"
 const requestEventName = "Symfony\\Component\\HttpKernel\\Event\\RequestEvent"
 const exceptionEventName = "Symfony\\Component\\HttpKernel\\Event\\ExceptionEvent"
@@ -112,7 +111,7 @@ type hkMethod struct {
 
 func (m *hkMethod) Call(ctx data.Context) (data.GetValue, data.Control) { return m.fn(ctx) }
 func (m *hkMethod) GetName() string                                     { return m.name }
-func (m *hkMethod) GetModifier() data.Modifier                           { return data.ModifierPublic }
+func (m *hkMethod) GetModifier() data.Modifier                          { return data.ModifierPublic }
 func (m *hkMethod) GetIsStatic() bool                                   { return false }
 func (m *hkMethod) GetReturnType() data.Types                           { return nil }
 func (m *hkMethod) GetParams() []data.GetValue {

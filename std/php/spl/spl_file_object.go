@@ -3,6 +3,7 @@ package spl
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/csv"
 	"errors"
 	"io"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/std/php/core"
 	"github.com/php-any/origami/std/php/stream"
 	"github.com/php-any/origami/utils"
 )
@@ -28,6 +30,8 @@ const sfoStateKey = "__sfo_state__"
 // sfoStateValue 存储 SplFileObject 运行时状�?
 type sfoStateValue struct {
 	stream          *stream.StreamInfo
+	request         context.Context
+	temporaryPath   string
 	mode            string
 	flags           int
 	key             int
@@ -41,6 +45,15 @@ type sfoStateValue struct {
 	iterLinePending bool
 	fgetsAtStart    bool
 }
+
+func (s *sfoStateValue) Close() error {
+	err := s.stream.Close()
+	if s.temporaryPath != "" {
+		_ = os.Remove(s.temporaryPath)
+	}
+	return err
+}
+func (s *sfoStateValue) BindRequestCancel(stop func() bool) { s.stream.BindRequestCancel(stop) }
 
 func (s *sfoStateValue) GetValue(ctx data.Context) (data.GetValue, data.Control) { return s, nil }
 func (s *sfoStateValue) AsString() string                                        { return "sfoState" }
@@ -172,13 +185,19 @@ func sfoIsEmptyLine(s string, flags int) bool {
 }
 
 func sfoReadRawLine(st *sfoStateValue) (string, error) {
+	if st.request != nil {
+		data.CheckRequest(st.request)
+	}
 	if st.stream == nil || st.stream.IsClosed() {
 		return "", io.EOF
 	}
 	if st.reader == nil {
-		st.reader = bufio.NewReader(st.stream.File)
+		st.reader = bufio.NewReader(st.stream)
 	}
 	line, err := st.reader.ReadString('\n')
+	if st.request != nil {
+		data.CheckRequest(st.request)
+	}
 	if err == io.EOF && line == "" {
 		st.eof = true
 		return "", io.EOF
@@ -200,6 +219,9 @@ func sfoLoadAllLines(st *sfoStateValue) error {
 	}
 	for {
 		line, err := sfoReadRawLine(st)
+		if err != nil && err != io.EOF {
+			return err
+		}
 		if err == io.EOF && line == "" {
 			break
 		}
@@ -239,6 +261,11 @@ func sfoReadNext(st *sfoStateValue) {
 	}
 	for {
 		line, err := sfoReadRawLine(st)
+		if err != nil && err != io.EOF {
+			st.valid = false
+			st.current = ""
+			return
+		}
 		if err == io.EOF && line == "" {
 			st.valid = false
 			st.current = ""
@@ -316,7 +343,9 @@ func sfoSeek(st *sfoStateValue, offset int) error {
 	return nil
 }
 
-func sfoOpenFile(cv *data.ClassValue, filename, mode string, flags int) error {
+func sfoOpenFile(ctx data.Context, cv *data.ClassValue, filename, mode string, flags int, temporary bool) error {
+	data.CheckRequest(ctx.GoContext())
+	defer data.CheckRequest(ctx.GoContext())
 	if mode == "" {
 		mode = "r"
 	}
@@ -325,19 +354,28 @@ func sfoOpenFile(cv *data.ClassValue, filename, mode string, flags int) error {
 		return err
 	}
 	st := &sfoStateValue{
-		stream: si,
-		mode:   mode,
-		flags:  flags,
+		stream:  si,
+		request: ctx.GoContext(),
+		mode:    mode,
+		flags:   flags,
 	}
+	if temporary {
+		st.temporaryPath = filename
+	}
+	core.BindOwnedResource(ctx, st)
 	if flags&SFO_READ_AHEAD != 0 {
 		if err := sfoLoadAllLines(st); err != nil {
-			si.Close()
+			st.Close()
 			return err
 		}
 	}
 	sfiSetPathname(cv, filename)
 	sfoSetState(cv, st)
-	return sfoRewind(st)
+	if err := sfoRewind(st); err != nil {
+		st.Close()
+		return err
+	}
+	return nil
 }
 
 func sfoCtxInt(ctx data.Context, idx int, def int) int {
@@ -386,6 +424,7 @@ func (m *SFOConstructMethod) GetName() string            { return "__construct" 
 func (m *SFOConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SFOConstructMethod) GetIsStatic() bool          { return false }
 func (m *SFOConstructMethod) GetReturnType() data.Types  { return nil }
+
 var sFOConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "filename", 0, nil, data.NewBaseType("string")),
 	node.NewParameter(nil, "mode", 1, data.NewStringValue("r"), data.NewBaseType("string")),
@@ -395,6 +434,7 @@ var sFOConstructMethodGetParams = []data.GetValue{
 func (m *SFOConstructMethod) GetParams() []data.GetValue {
 	return sFOConstructMethodGetParams
 }
+
 var sFOConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "filename", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "mode", 1, data.NewBaseType("string")),
@@ -415,7 +455,7 @@ func (m *SFOConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	}
 	mode := sfoCtxString(ctx, 1, "r")
 	flags := sfoCtxInt(ctx, 2, 0)
-	if err := sfoOpenFile(cv, filename, mode, flags); err != nil {
+	if err := sfoOpenFile(ctx, cv, filename, mode, flags, false); err != nil {
 		return nil, utils.NewThrow(err)
 	}
 	return nil, nil
@@ -458,6 +498,7 @@ func (m *SFOFgetcsvMethod) GetName() string            { return "fgetcsv" }
 func (m *SFOFgetcsvMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SFOFgetcsvMethod) GetIsStatic() bool          { return false }
 func (m *SFOFgetcsvMethod) GetReturnType() data.Types  { return nil }
+
 var sFOFgetcsvMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "separator", 0, data.NewStringValue(","), data.NewBaseType("string")),
 	node.NewParameter(nil, "enclosure", 1, data.NewStringValue("\""), data.NewBaseType("string")),
@@ -467,6 +508,7 @@ var sFOFgetcsvMethodGetParams = []data.GetValue{
 func (m *SFOFgetcsvMethod) GetParams() []data.GetValue {
 	return sFOFgetcsvMethodGetParams
 }
+
 var sFOFgetcsvMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "separator", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "enclosure", 1, data.NewBaseType("string")),
@@ -518,6 +560,7 @@ func (m *SFOFwriteMethod) GetName() string            { return "fwrite" }
 func (m *SFOFwriteMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SFOFwriteMethod) GetIsStatic() bool          { return false }
 func (m *SFOFwriteMethod) GetReturnType() data.Types  { return data.Int{} }
+
 var sFOFwriteMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "data", 0, nil, data.NewBaseType("string")),
 	node.NewParameter(nil, "length", 1, data.NewNullValue(), nil),
@@ -526,6 +569,7 @@ var sFOFwriteMethodGetParams = []data.GetValue{
 func (m *SFOFwriteMethod) GetParams() []data.GetValue {
 	return sFOFwriteMethodGetParams
 }
+
 var sFOFwriteMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "data", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "length", 1, nil),
@@ -557,6 +601,7 @@ func (m *SFOFwriteMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 	n, err := st.stream.Write([]byte(dataStr[:length]))
+	data.CheckRequest(ctx.GoContext())
 	if err != nil {
 		return data.NewBoolValue(false), nil
 	}
@@ -572,6 +617,7 @@ func (m *SFOFputcsvMethod) GetName() string            { return "fputcsv" }
 func (m *SFOFputcsvMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SFOFputcsvMethod) GetIsStatic() bool          { return false }
 func (m *SFOFputcsvMethod) GetReturnType() data.Types  { return data.Int{} }
+
 var sFOFputcsvMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "fields", 0, nil, nil),
 	node.NewParameter(nil, "separator", 1, data.NewStringValue(","), data.NewBaseType("string")),
@@ -582,6 +628,7 @@ var sFOFputcsvMethodGetParams = []data.GetValue{
 func (m *SFOFputcsvMethod) GetParams() []data.GetValue {
 	return sFOFputcsvMethodGetParams
 }
+
 var sFOFputcsvMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "fields", 0, nil),
 	node.NewVariable(nil, "separator", 1, data.NewBaseType("string")),
@@ -611,8 +658,9 @@ func (m *SFOFputcsvMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 	var buf bytes.Buffer
 	w := csv.NewWriter(&buf)
 	w.Comma = rune(sep[0])
-	strFields := make([]string, len(arr.List))
-	for i, z := range arr.List {
+	strFields := make([]string, arr.Len())
+	for arraySlots137, i := arr.View(), 0; i < arraySlots137.Len(); i++ {
+		z := arraySlots137.At(i)
 		if z != nil {
 			strFields[i] = z.Value.AsString()
 		}
@@ -623,6 +671,7 @@ func (m *SFOFputcsvMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 	w.Flush()
 	out := buf.String()
 	n, err := st.stream.Write([]byte(out))
+	data.CheckRequest(ctx.GoContext())
 	if err != nil {
 		return data.NewBoolValue(false), nil
 	}
@@ -753,6 +802,7 @@ func (m *SFOSeekMethod) GetName() string            { return "seek" }
 func (m *SFOSeekMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SFOSeekMethod) GetIsStatic() bool          { return false }
 func (m *SFOSeekMethod) GetReturnType() data.Types  { return nil }
+
 var sFOSeekMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "offset", 0, data.NewIntValue(0), data.Int{}),
 }
@@ -760,6 +810,7 @@ var sFOSeekMethodGetParams = []data.GetValue{
 func (m *SFOSeekMethod) GetParams() []data.GetValue {
 	return sFOSeekMethodGetParams
 }
+
 var sFOSeekMethodGetVariables = []data.Variable{node.NewVariable(nil, "offset", 0, data.Int{})}
 
 func (m *SFOSeekMethod) GetVariables() []data.Variable {
@@ -823,12 +874,19 @@ func sfoResolveTempFilename(name string) (string, error) {
 }
 
 // sfoOpenFileForTemp �?SplTempFileObject 复用的打开逻辑
-func sfoOpenFileForTemp(cv *data.ClassValue, filename, mode string, flags int) error {
+func sfoOpenFileForTemp(ctx data.Context, cv *data.ClassValue, filename, mode string, flags int) error {
+	data.CheckRequest(ctx.GoContext())
 	resolved, err := sfoResolveTempFilename(filename)
 	if err != nil {
 		return err
 	}
-	return sfoOpenFile(cv, resolved, mode, flags)
+	name := strings.TrimSpace(filename)
+	temporary := name == "" || name == "php://temp" || name == "php://memory"
+	err = sfoOpenFile(ctx, cv, resolved, mode, flags, temporary)
+	if err != nil && temporary {
+		_ = os.Remove(resolved)
+	}
+	return err
 }
 
 // SFOConstantNames 返回 SplFileObject 常量名列表（�?load.go 注册�?

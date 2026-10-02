@@ -39,6 +39,7 @@ func (h *OpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *OpenFunction) GetName() string            { return "Database\\Sql\\open" }
 func (h *OpenFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *OpenFunction) GetIsStatic() bool          { return true }
+
 var openFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "driverName", 0, nil, data.NewBaseType("string")),
 	node.NewParameter(nil, "dataSourceName", 1, nil, data.NewBaseType("string")),
@@ -47,6 +48,7 @@ var openFunctionGetParams = []data.GetValue{
 func (h *OpenFunction) GetParams() []data.GetValue {
 	return openFunctionGetParams
 }
+
 var openFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "driverName", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "dataSourceName", 1, data.NewBaseType("string")),

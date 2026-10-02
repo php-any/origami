@@ -22,6 +22,7 @@ func (h *DBPingMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *DBPingMethod) GetName() string            { return "ping" }
 func (h *DBPingMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBPingMethod) GetIsStatic() bool          { return true }
+
 var dBPingMethodGetParams = []data.GetValue{}
 
 func (h *DBPingMethod) GetParams() []data.GetValue {

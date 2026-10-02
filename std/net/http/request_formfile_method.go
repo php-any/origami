@@ -25,6 +25,7 @@ func (h *RequestFormFileMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 func (h *RequestFormFileMethod) GetName() string            { return "formFile" }
 func (h *RequestFormFileMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestFormFileMethod) GetIsStatic() bool          { return false }
+
 var requestFormFileMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "param0", 0, nil, nil),
 }
@@ -32,6 +33,7 @@ var requestFormFileMethodGetParams = []data.GetValue{
 func (h *RequestFormFileMethod) GetParams() []data.GetValue {
 	return requestFormFileMethodGetParams
 }
+
 var requestFormFileMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "param0", 0, nil),
 }

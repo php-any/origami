@@ -93,6 +93,7 @@ func (m *FieldConstructMethod) GetName() string            { return "__construct
 func (m *FieldConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *FieldConstructMethod) GetIsStatic() bool          { return false }
 func (m *FieldConstructMethod) GetReturnType() data.Types  { return nil }
+
 var fieldConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "number", 0, data.NewNullValue(), data.NewBaseType("int")),
 	node.NewParameter(nil, "type", 1, data.NewNullValue(), data.NewBaseType("int")),
@@ -102,6 +103,7 @@ var fieldConstructMethodGetParams = []data.GetValue{
 func (m *FieldConstructMethod) GetParams() []data.GetValue {
 	return fieldConstructMethodGetParams
 }
+
 var fieldConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "number", 0, nil),
 	node.NewVariable(nil, "type", 1, nil),

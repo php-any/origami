@@ -96,11 +96,11 @@ func (f *ParseStrFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		key = strings.TrimSuffix(key, "[]")
 		list = append(list, data.NewNamedZVal(key, data.NewStringValue(vals[len(vals)-1])))
 	}
-	parsed := &data.ArrayValue{List: list}
+	parsed := data.NewArrayValueFromSlots(list)
 
 	resultVal, _ := ctx.GetIndexValue(1)
 	if dest, ok := resultVal.(*data.ArrayValue); ok {
-		dest.List = parsed.List
+		dest.ReplaceAll(parsed.Snapshot())
 	} else if dest, ok := resultVal.(*data.ObjectValue); ok {
 		keys := make([]string, 0)
 		dest.RangeProperties(func(k string, _ data.Value) bool {
@@ -110,7 +110,8 @@ func (f *ParseStrFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		for _, k := range keys {
 			dest.UnsetProperty(k)
 		}
-		for _, zv := range parsed.List {
+		for arraySlots1, arrayPosition1 := parsed.View(), 0; arrayPosition1 < arraySlots1.Len(); arrayPosition1++ {
+			zv := arraySlots1.At(arrayPosition1)
 			if zv != nil && zv.Name != "" {
 				dest.SetProperty(zv.Name, zv.Value)
 			}

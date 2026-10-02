@@ -10,12 +10,12 @@ import (
 // RecursiveIteratorIterator 内部状态属性名（存储在 ClassValue.ObjectValue.property）
 // 类似 FilterIterator 的模式，保证 PHP 子类继承时状态隔离
 const (
-	riiInnerKey  = "__rii_inner__"  // 根迭代器（*data.ClassValue 序列化为 Value）
-	riiValidKey  = "__rii_valid__"  // bool
-	riiCurValKey = "__rii_curval__" // current value
-	riiCurKeyKey = "__rii_curkey__" // current key
-	riiModeKey   = "__rii_mode__"   // int
-	riiStackKey  = "__rii_stack__"  // *riiStackValue（伪装成 data.Value）
+	riiInnerKey  = "__rii_inner__"    // 根迭代器（*data.ClassValue 序列化为 Value）
+	riiValidKey  = "__rii_valid__"    // bool
+	riiCurValKey = "__rii_curval__"   // current value
+	riiCurKeyKey = "__rii_curkey__"   // current key
+	riiModeKey   = "__rii_mode__"     // int
+	riiStackKey  = "__rii_stack__"    // *riiStackValue（伪装成 data.Value）
 	riiMaxDepth  = "__rii_maxdepth__" // int, -1 = unlimited
 )
 
@@ -325,6 +325,7 @@ func (m *RIIConstruct) GetName() string            { return "__construct" }
 func (m *RIIConstruct) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *RIIConstruct) GetIsStatic() bool          { return false }
 func (m *RIIConstruct) GetReturnType() data.Types  { return nil }
+
 var rIIConstructGetVariables = []data.Variable{
 	data.NewVariable("iterator", 0, data.NewBaseType("Traversable")),
 	data.NewVariable("mode", 1, data.NewBaseType("int")),
@@ -334,6 +335,7 @@ var rIIConstructGetVariables = []data.Variable{
 func (m *RIIConstruct) GetVariables() []data.Variable {
 	return rIIConstructGetVariables
 }
+
 var rIIConstructGetParams = []data.GetValue{
 	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Traversable")),
 	node.NewParameter(nil, "mode", 1, nil, data.NewBaseType("int")),
@@ -395,9 +397,10 @@ func (m *RIIRewind) GetModifier() data.Modifier    { return data.ModifierPublic 
 func (m *RIIRewind) GetIsStatic() bool             { return false }
 func (m *RIIRewind) GetVariables() []data.Variable { return nil }
 func (m *RIIRewind) GetReturnType() data.Types     { return nil }
+
 var rIIRewindGetParams = []data.GetValue{}
 
-func (m *RIIRewind) GetParams() []data.GetValue    { return rIIRewindGetParams }
+func (m *RIIRewind) GetParams() []data.GetValue { return rIIRewindGetParams }
 func (m *RIIRewind) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := riiGetCV(ctx)
 	if cv == nil {
@@ -431,9 +434,10 @@ func (m *RIINext) GetModifier() data.Modifier    { return data.ModifierPublic }
 func (m *RIINext) GetIsStatic() bool             { return false }
 func (m *RIINext) GetVariables() []data.Variable { return nil }
 func (m *RIINext) GetReturnType() data.Types     { return nil }
+
 var rIINextGetParams = []data.GetValue{}
 
-func (m *RIINext) GetParams() []data.GetValue    { return rIINextGetParams }
+func (m *RIINext) GetParams() []data.GetValue { return rIINextGetParams }
 func (m *RIINext) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := riiGetCV(ctx)
 	if cv == nil {
@@ -514,9 +518,10 @@ func (m *RIICurrent) GetModifier() data.Modifier    { return data.ModifierPublic
 func (m *RIICurrent) GetIsStatic() bool             { return false }
 func (m *RIICurrent) GetVariables() []data.Variable { return nil }
 func (m *RIICurrent) GetReturnType() data.Types     { return nil }
+
 var rIICurrentGetParams = []data.GetValue{}
 
-func (m *RIICurrent) GetParams() []data.GetValue    { return rIICurrentGetParams }
+func (m *RIICurrent) GetParams() []data.GetValue { return rIICurrentGetParams }
 func (m *RIICurrent) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := riiGetCV(ctx)
 	if cv == nil {
@@ -534,9 +539,10 @@ func (m *RIIKey) GetModifier() data.Modifier    { return data.ModifierPublic }
 func (m *RIIKey) GetIsStatic() bool             { return false }
 func (m *RIIKey) GetVariables() []data.Variable { return nil }
 func (m *RIIKey) GetReturnType() data.Types     { return nil }
+
 var rIIKeyGetParams = []data.GetValue{}
 
-func (m *RIIKey) GetParams() []data.GetValue    { return rIIKeyGetParams }
+func (m *RIIKey) GetParams() []data.GetValue { return rIIKeyGetParams }
 func (m *RIIKey) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := riiGetCV(ctx)
 	if cv == nil {
@@ -554,9 +560,10 @@ func (m *RIIValid) GetModifier() data.Modifier    { return data.ModifierPublic }
 func (m *RIIValid) GetIsStatic() bool             { return false }
 func (m *RIIValid) GetVariables() []data.Variable { return nil }
 func (m *RIIValid) GetReturnType() data.Types     { return nil }
+
 var rIIValidGetParams = []data.GetValue{}
 
-func (m *RIIValid) GetParams() []data.GetValue    { return rIIValidGetParams }
+func (m *RIIValid) GetParams() []data.GetValue { return rIIValidGetParams }
 func (m *RIIValid) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := riiGetCV(ctx)
 	if cv == nil {
@@ -574,9 +581,10 @@ func (m *RIIGetInnerIterator) GetModifier() data.Modifier    { return data.Modif
 func (m *RIIGetInnerIterator) GetIsStatic() bool             { return false }
 func (m *RIIGetInnerIterator) GetVariables() []data.Variable { return nil }
 func (m *RIIGetInnerIterator) GetReturnType() data.Types     { return nil }
+
 var rIIGetInnerIteratorGetParams = []data.GetValue{}
 
-func (m *RIIGetInnerIterator) GetParams() []data.GetValue    { return rIIGetInnerIteratorGetParams }
+func (m *RIIGetInnerIterator) GetParams() []data.GetValue { return rIIGetInnerIteratorGetParams }
 func (m *RIIGetInnerIterator) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := riiGetCV(ctx)
 	if cv == nil {
@@ -598,9 +606,10 @@ func (m *RIIGetDepth) GetModifier() data.Modifier    { return data.ModifierPubli
 func (m *RIIGetDepth) GetIsStatic() bool             { return false }
 func (m *RIIGetDepth) GetVariables() []data.Variable { return nil }
 func (m *RIIGetDepth) GetReturnType() data.Types     { return data.Int{} }
+
 var rIIGetDepthGetParams = []data.GetValue{}
 
-func (m *RIIGetDepth) GetParams() []data.GetValue    { return rIIGetDepthGetParams }
+func (m *RIIGetDepth) GetParams() []data.GetValue { return rIIGetDepthGetParams }
 func (m *RIIGetDepth) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := riiGetCV(ctx)
 	if cv == nil {
@@ -619,9 +628,10 @@ func (m *RIIGetSubIterator) GetModifier() data.Modifier    { return data.Modifie
 func (m *RIIGetSubIterator) GetIsStatic() bool             { return false }
 func (m *RIIGetSubIterator) GetVariables() []data.Variable { return nil }
 func (m *RIIGetSubIterator) GetReturnType() data.Types     { return nil }
+
 var rIIGetSubIteratorGetParams = []data.GetValue{}
 
-func (m *RIIGetSubIterator) GetParams() []data.GetValue    { return rIIGetSubIteratorGetParams }
+func (m *RIIGetSubIterator) GetParams() []data.GetValue { return rIIGetSubIteratorGetParams }
 func (m *RIIGetSubIterator) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := riiGetCV(ctx)
 	if cv == nil {
@@ -653,12 +663,14 @@ type RIISetMaxDepth struct{}
 func (m *RIISetMaxDepth) GetName() string            { return "setMaxDepth" }
 func (m *RIISetMaxDepth) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *RIISetMaxDepth) GetIsStatic() bool          { return false }
+
 var rIISetMaxDepthGetVariables = []data.Variable{node.NewVariable(nil, "max_depth", 0, nil)}
 
 func (m *RIISetMaxDepth) GetVariables() []data.Variable {
 	return rIISetMaxDepthGetVariables
 }
 func (m *RIISetMaxDepth) GetReturnType() data.Types { return nil }
+
 var rIISetMaxDepthGetParams = []data.GetValue{node.NewParameter(nil, "max_depth", 0, data.NewIntValue(-1), nil)}
 
 func (m *RIISetMaxDepth) GetParams() []data.GetValue {
@@ -688,9 +700,10 @@ func (m *RIIGetMaxDepth) GetModifier() data.Modifier    { return data.ModifierPu
 func (m *RIIGetMaxDepth) GetIsStatic() bool             { return false }
 func (m *RIIGetMaxDepth) GetVariables() []data.Variable { return nil }
 func (m *RIIGetMaxDepth) GetReturnType() data.Types     { return nil }
+
 var rIIGetMaxDepthGetParams = []data.GetValue{}
 
-func (m *RIIGetMaxDepth) GetParams() []data.GetValue    { return rIIGetMaxDepthGetParams }
+func (m *RIIGetMaxDepth) GetParams() []data.GetValue { return rIIGetMaxDepthGetParams }
 func (m *RIIGetMaxDepth) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cv := riiGetCV(ctx)
 	if cv == nil {

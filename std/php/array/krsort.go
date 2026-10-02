@@ -17,7 +17,7 @@ func NewKrsortFunction() data.FuncStmt {
 }
 
 func (f *KrsortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	arrayValue, _ := ctx.GetIndexValue(0)
+	arrayValue := data.CowSeparateIndex(ctx, 0)
 	flagsValue, _ := ctx.GetIndexValue(1)
 
 	if arrayValue == nil {
@@ -26,13 +26,11 @@ func (f *KrsortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	switch v := arrayValue.(type) {
 	case *data.ArrayValue:
-		if len(v.List) == 0 {
-			return data.NewBoolValue(true), nil
+		flags := 0
+		if flag, ok := flagsValue.(data.AsInt); ok {
+			flags, _ = flag.AsInt()
 		}
-		// Reverse the list
-		for i, j := 0, len(v.List)-1; i < j; i, j = i+1, j-1 {
-			v.List[i], v.List[j] = v.List[j], v.List[i]
-		}
+		sortArrayKeys(v, flags, true)
 		return data.NewBoolValue(true), nil
 
 	case *data.ObjectValue:

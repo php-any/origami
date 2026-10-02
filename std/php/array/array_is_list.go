@@ -25,13 +25,13 @@ func (f *ArrayIsListFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	}
 
 	// 空数组是 list
-	if len(arr.List) == 0 {
+	if arr.Len() == 0 {
 		return data.NewBoolValue(true), nil
 	}
-
-	// 检查是否有字符串键（非空 Name 表示字符串键）
-	for _, z := range arr.List {
-		if z.Name != "" {
+	for arraySlots94, position := arr.View(), 0; position < arraySlots94.Len(); position++ {
+		z := arraySlots94.At(position)
+		key, ok := z.PHPArrayKey(position).(*data.IntValue)
+		if !ok || key.Value != position {
 			return data.NewBoolValue(false), nil
 		}
 	}

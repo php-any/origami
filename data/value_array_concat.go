@@ -1,21 +1,20 @@
 package data
 
 type ArrayValueConcat struct {
-	source []*ZVal
+	source *ArrayValue
 }
 
 // Call 实现数组的 concat 方法
 // 合并两个或多个数组，返回一个新数组，包含所有数组的元素
 func (a *ArrayValueConcat) Call(ctx Context) (GetValue, Control) {
 	// 创建结果数组，先复制原数组
-	result := make([]*ZVal, len(a.source))
-	copy(result, a.source)
+	result := a.source.AppendSlotsTo(make([]*ZVal, 0, a.source.Len()))
 
 	// 获取所有参数并添加到结果数组
 	for _, argument := range a.GetParams() {
 		argv, _ := argument.GetValue(ctx)
 		if ar, ok := argv.(*ArrayValue); ok {
-			result = append(result, ar.List...)
+			result = ar.AppendSlotsTo(result)
 		} else {
 			result = append(result, NewZVal(argv.(Value)))
 		}

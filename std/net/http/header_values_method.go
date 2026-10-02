@@ -25,6 +25,7 @@ func (h *HeaderValuesMethod) Call(ctx data.Context) (data.GetValue, data.Control
 func (h *HeaderValuesMethod) GetName() string            { return "values" }
 func (h *HeaderValuesMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *HeaderValuesMethod) GetIsStatic() bool          { return false }
+
 var headerValuesMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "param0", 0, nil, nil),
 }
@@ -32,6 +33,7 @@ var headerValuesMethodGetParams = []data.GetValue{
 func (h *HeaderValuesMethod) GetParams() []data.GetValue {
 	return headerValuesMethodGetParams
 }
+
 var headerValuesMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "param0", 0, nil),
 }

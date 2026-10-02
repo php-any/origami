@@ -64,7 +64,7 @@ func (m *DomNodeHasChildNodesMethod) Call(ctx data.Context) (data.GetValue, data
 	if cmc, ok := ctx.(*data.ClassMethodContext); ok {
 		if children, _ := cmc.ObjectValue.GetProperty("childNodes"); children != nil {
 			if arr, ok := children.(*data.ArrayValue); ok {
-				return data.NewBoolValue(len(arr.List) > 0), nil
+				return data.NewBoolValue(arr.Len() > 0), nil
 			}
 		}
 	}
@@ -85,10 +85,10 @@ type DomElementClass struct {
 
 func NewDomElementClass() *DomElementClass { return &DomElementClass{} }
 
-func (c *DomElementClass) GetName() string            { return "Dom\\Element" }
-func (c *DomElementClass) GetExtend() *string         { s := "Dom\\Node"; return &s }
-func (c *DomElementClass) GetImplements() []string    { return nil }
-func (c *DomElementClass) GetConstruct() data.Method  { return nil }
+func (c *DomElementClass) GetName() string           { return "Dom\\Element" }
+func (c *DomElementClass) GetExtend() *string        { s := "Dom\\Node"; return &s }
+func (c *DomElementClass) GetImplements() []string   { return nil }
+func (c *DomElementClass) GetConstruct() data.Method { return nil }
 func (c *DomElementClass) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }
@@ -138,10 +138,10 @@ func NewDomProcessingInstructionClass() *DomProcessingInstructionClass {
 	return &DomProcessingInstructionClass{}
 }
 
-func (c *DomProcessingInstructionClass) GetName() string            { return "Dom\\ProcessingInstruction" }
-func (c *DomProcessingInstructionClass) GetExtend() *string         { s := "Dom\\Node"; return &s }
-func (c *DomProcessingInstructionClass) GetImplements() []string    { return nil }
-func (c *DomProcessingInstructionClass) GetConstruct() data.Method  { return nil }
+func (c *DomProcessingInstructionClass) GetName() string           { return "Dom\\ProcessingInstruction" }
+func (c *DomProcessingInstructionClass) GetExtend() *string        { s := "Dom\\Node"; return &s }
+func (c *DomProcessingInstructionClass) GetImplements() []string   { return nil }
+func (c *DomProcessingInstructionClass) GetConstruct() data.Method { return nil }
 func (c *DomProcessingInstructionClass) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }
@@ -165,10 +165,10 @@ type DomDocumentClass struct {
 
 func NewDomDocumentClass() *DomDocumentClass { return &DomDocumentClass{} }
 
-func (c *DomDocumentClass) GetName() string            { return "Dom\\Document" }
-func (c *DomDocumentClass) GetExtend() *string         { s := "Dom\\Node"; return &s }
-func (c *DomDocumentClass) GetImplements() []string    { return nil }
-func (c *DomDocumentClass) GetConstruct() data.Method  { return nil }
+func (c *DomDocumentClass) GetName() string           { return "Dom\\Document" }
+func (c *DomDocumentClass) GetExtend() *string        { s := "Dom\\Node"; return &s }
+func (c *DomDocumentClass) GetImplements() []string   { return nil }
+func (c *DomDocumentClass) GetConstruct() data.Method { return nil }
 func (c *DomDocumentClass) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }
@@ -195,10 +195,10 @@ type DomHTMLDocumentClass struct {
 
 func NewDomHTMLDocumentClass() *DomHTMLDocumentClass { return &DomHTMLDocumentClass{} }
 
-func (c *DomHTMLDocumentClass) GetName() string            { return "Dom\\HTMLDocument" }
-func (c *DomHTMLDocumentClass) GetExtend() *string         { s := "Dom\\Document"; return &s }
-func (c *DomHTMLDocumentClass) GetImplements() []string    { return nil }
-func (c *DomHTMLDocumentClass) GetConstruct() data.Method  { return nil }
+func (c *DomHTMLDocumentClass) GetName() string           { return "Dom\\HTMLDocument" }
+func (c *DomHTMLDocumentClass) GetExtend() *string        { s := "Dom\\Document"; return &s }
+func (c *DomHTMLDocumentClass) GetImplements() []string   { return nil }
+func (c *DomHTMLDocumentClass) GetConstruct() data.Method { return nil }
 func (c *DomHTMLDocumentClass) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }
@@ -231,7 +231,7 @@ func (m *DomHTMLDocumentCreateFromStringMethod) Call(ctx data.Context) (data.Get
 	}
 	return buildDomHTMLDocument(sourceVal.AsString(), ctx), nil
 }
-func (m *DomHTMLDocumentCreateFromStringMethod) GetName() string     { return "createFromString" }
+func (m *DomHTMLDocumentCreateFromStringMethod) GetName() string { return "createFromString" }
 func (m *DomHTMLDocumentCreateFromStringMethod) GetModifier() data.Modifier {
 	return data.ModifierPublic
 }
@@ -277,7 +277,8 @@ func (m *DomGetElementsByTagNameMethod) Call(ctx data.Context) (data.GetValue, d
 	var results []data.Value
 	if children, _ := cmc.ObjectValue.GetProperty("childNodes"); children != nil {
 		if arr, ok := children.(*data.ArrayValue); ok {
-			for _, zval := range arr.List {
+			for arraySlots116, arrayPosition116 := arr.View(), 0; arrayPosition116 < arraySlots116.Len(); arrayPosition116++ {
+				zval := arraySlots116.At(arrayPosition116)
 				if child, ok := zval.Value.(*data.ClassValue); ok {
 					collectElementsByTagName(child, tagName, &results)
 				}
@@ -337,10 +338,10 @@ type DomNamedNodeMapClass struct {
 
 func NewDomNamedNodeMapClass() *DomNamedNodeMapClass { return &DomNamedNodeMapClass{} }
 
-func (c *DomNamedNodeMapClass) GetName() string            { return "Dom\\NamedNodeMap" }
-func (c *DomNamedNodeMapClass) GetExtend() *string         { return nil }
-func (c *DomNamedNodeMapClass) GetImplements() []string    { return nil }
-func (c *DomNamedNodeMapClass) GetConstruct() data.Method  { return nil }
+func (c *DomNamedNodeMapClass) GetName() string           { return "Dom\\NamedNodeMap" }
+func (c *DomNamedNodeMapClass) GetExtend() *string        { return nil }
+func (c *DomNamedNodeMapClass) GetImplements() []string   { return nil }
+func (c *DomNamedNodeMapClass) GetConstruct() data.Method { return nil }
 func (c *DomNamedNodeMapClass) GetProperty(name string) (data.Property, bool) {
 	return nil, false
 }

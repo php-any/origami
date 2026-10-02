@@ -47,12 +47,11 @@ func getLastError() *lastErrorInfo {
 }
 
 func lastErrorToArray(info *lastErrorInfo) data.Value {
-	return &data.ArrayValue{
-		List: []*data.ZVal{
-			data.NewNamedZVal("type", data.NewIntValue(info.Type)),
-			data.NewNamedZVal("message", data.NewStringValue(info.Message)),
-			data.NewNamedZVal("file", data.NewStringValue(info.File)),
-			data.NewNamedZVal("line", data.NewIntValue(info.Line)),
-		},
-	}
+	return data.NewArrayValueFromSlots([]*data.ZVal{
+		data.NewNamedZVal("type", data.NewIntValue(info.Type)),
+		data.NewNamedZVal("message", data.NewStringValue(info.Message)),
+		data.NewNamedZVal("file", data.NewStringValue(info.File)),
+		data.NewNamedZVal("line", data.NewIntValue(info.Line)),
+	})
+
 }

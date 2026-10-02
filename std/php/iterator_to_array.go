@@ -234,7 +234,7 @@ func extractIteratorData(ctx data.Context, classVal *data.ClassValue, useKeys bo
 		index++
 	}
 
-	return &data.ArrayValue{List: result}, nil
+	return data.NewArrayValueFromSlots(result), nil
 }
 
 // checkInterface 检查类是否实现了指定接口

@@ -1,7 +1,7 @@
 package data
 
 type ArrayValuePush struct {
-	source *[]*ZVal
+	source *ArrayValue
 }
 
 // Call 实现数组的 push 方法
@@ -13,16 +13,16 @@ func (a *ArrayValuePush) Call(ctx Context) (GetValue, Control) {
 		// argument data.Parameters
 		argv, _ := argument.GetValue(ctx)
 		if ar, ok := argv.(*ArrayValue); ok {
-			for _, zval := range ar.List {
+			for _, zval := range ar.Range() {
 				args = append(args, zval)
 			}
 		}
 		// 将参数添加到数组末尾
-		*a.source = append(*a.source, args...)
+		a.source.ReplaceAll(append(a.source.slots(), args...))
 	}
 
 	// 返回新的数组长度
-	return NewIntValue(len(*a.source)), nil
+	return NewIntValue(a.source.Len()), nil
 }
 
 func (a *ArrayValuePush) GetName() string {

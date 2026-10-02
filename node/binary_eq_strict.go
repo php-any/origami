@@ -139,11 +139,12 @@ func isStrictEqual(value1, value2 data.GetValue) bool {
 				return false
 			}
 			// 数组比较：长度和每个元素都相等
-			if len(v1.List) != len(v2.List) {
+			if v1.Len() != v2.Len() {
 				return false
 			}
-			for i, zval1 := range v1.List {
-				zval2 := v2.List[i]
+			for arraySlots16, i := v1.View(), 0; i < arraySlots16.Len(); i++ {
+				zval1 := arraySlots16.At(i)
+				zval2 := v2.At(i)
 				if zval1 == nil || zval2 == nil {
 					if zval1 == nil && zval2 == nil {
 						continue
@@ -151,6 +152,9 @@ func isStrictEqual(value1, value2 data.GetValue) bool {
 					return false
 				}
 				// 递归比较数组元素
+				if !zval1.SameArrayKey(i, zval2, i) {
+					return false
+				}
 				if !isStrictEqual(zval1.Value, zval2.Value) {
 					return false
 				}
@@ -162,7 +166,7 @@ func isStrictEqual(value1, value2 data.GetValue) bool {
 			if v2 == nil {
 				return false
 			}
-			return len(v1.List) == 0 && len(v2.GetProperties()) == 0
+			return v1.Len() == 0 && len(v2.GetProperties()) == 0
 		}
 		return false
 	case *data.ObjectValue:
@@ -173,7 +177,7 @@ func isStrictEqual(value1, value2 data.GetValue) bool {
 			if v2 == nil {
 				return false
 			}
-			return len(v1.GetProperties()) == 0 && len(v2.List) == 0
+			return len(v1.GetProperties()) == 0 && v2.Len() == 0
 		}
 		if v2, ok2 := value2.(*data.ObjectValue); ok2 {
 			if v2 == nil {

@@ -34,8 +34,8 @@ func makeListenerWrapper(owner *data.ClassValue, listener data.Value, wildcard b
 	return data.NewFuncValue(w)
 }
 
-func (w *listenerWrapper) GetName() string              { return "Closure" }
-func (w *listenerWrapper) GetParams() []data.GetValue   { return w.params }
+func (w *listenerWrapper) GetName() string               { return "Closure" }
+func (w *listenerWrapper) GetParams() []data.GetValue    { return w.params }
 func (w *listenerWrapper) GetVariables() []data.Variable { return w.vars }
 
 func (w *listenerWrapper) GetStaticVariables() map[string]data.Value {
@@ -72,7 +72,9 @@ func invokeRawListener(ctx data.Context, cv *data.ClassValue, listener data.Valu
 			if scv, ok := kit.Unwrap(target).(*data.ClassValue); ok {
 				if m, ok := scv.GetMethod(method); ok && m != nil {
 					nctx := scv.CreateContext(m.GetVariables())
-					data.BindDeclaredArgs(nctx, m, args)
+					if ctl := data.BindDeclaredArgs(nctx, m, args); ctl != nil {
+						return nil, ctl
+					}
 					return m.Call(nctx)
 				}
 			}

@@ -18,12 +18,14 @@ func (h *RequestPathMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	return data.NewStringValue(h.source.URL.Path), nil
 }
 
-func (h *RequestPathMethod) GetName() string               { return "path" }
-func (h *RequestPathMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *RequestPathMethod) GetIsStatic() bool             { return false }
+func (h *RequestPathMethod) GetName() string            { return "path" }
+func (h *RequestPathMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *RequestPathMethod) GetIsStatic() bool          { return false }
+
 var requestPathMethodGetParams = []data.GetValue{}
 
-func (h *RequestPathMethod) GetParams() []data.GetValue    { return requestPathMethodGetParams }
+func (h *RequestPathMethod) GetParams() []data.GetValue { return requestPathMethodGetParams }
+
 var requestPathMethodGetVariables = []data.Variable{}
 
 func (h *RequestPathMethod) GetVariables() []data.Variable { return requestPathMethodGetVariables }

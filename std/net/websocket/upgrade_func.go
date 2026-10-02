@@ -54,6 +54,7 @@ func (h *UpgradeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *UpgradeFunction) GetName() string            { return "Net\\Websocket\\upgrade" }
 func (h *UpgradeFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *UpgradeFunction) GetIsStatic() bool          { return true }
+
 var upgradeFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "request", 0, nil, data.Class{Name: "Net\\Http\\Request"}),
 	node.NewParameter(nil, "response", 1, nil, data.Class{Name: "Net\\Http\\Response"}),
@@ -63,6 +64,7 @@ var upgradeFunctionGetParams = []data.GetValue{
 func (h *UpgradeFunction) GetParams() []data.GetValue {
 	return upgradeFunctionGetParams
 }
+
 var upgradeFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "request", 0, data.Class{Name: "Net\\Http\\Request"}),
 	node.NewVariable(nil, "response", 1, data.Class{Name: "Net\\Http\\Response"}),

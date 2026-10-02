@@ -1,6 +1,7 @@
 package finder
 
 import (
+	"github.com/php-any/origami/utils"
 	"os"
 	"path/filepath"
 	"sort"
@@ -87,7 +88,7 @@ type finderMethod struct {
 
 func (m *finderMethod) Call(ctx data.Context) (data.GetValue, data.Control) { return m.fn(ctx) }
 func (m *finderMethod) GetName() string                                     { return m.name }
-func (m *finderMethod) GetModifier() data.Modifier                           { return data.ModifierPublic }
+func (m *finderMethod) GetModifier() data.Modifier                          { return data.ModifierPublic }
 func (m *finderMethod) GetIsStatic() bool                                   { return m.static }
 func (m *finderMethod) GetReturnType() data.Types                           { return nil }
 func (m *finderMethod) GetParams() []data.GetValue {
@@ -130,10 +131,11 @@ func appendStringProp(cv *data.ClassValue, prop string, val data.Value) {
 		if p == "" {
 			return
 		}
-		arr.List = append(arr.List, data.NewZVal(data.NewStringValue(p)))
+		arr.AppendValue(data.NewStringValue(p))
 	}
 	if av, ok := val.(*data.ArrayValue); ok {
-		for _, z := range av.List {
+		for arraySlots155, arrayPosition155 := av.View(), 0; arrayPosition155 < arraySlots155.Len(); arrayPosition155++ {
+			z := arraySlots155.At(arrayPosition155)
 			if z != nil {
 				appendOne(z.Value.AsString())
 			}
@@ -441,7 +443,8 @@ func stringListProp(cv *data.ClassValue, prop string) []string {
 	v, _ := cv.GetProperty(prop)
 	out := []string{}
 	if av, ok := v.(*data.ArrayValue); ok {
-		for _, z := range av.List {
+		for arraySlots156, arrayPosition156 := av.View(), 0; arrayPosition156 < arraySlots156.Len(); arrayPosition156++ {
+			z := arraySlots156.At(arrayPosition156)
 			if z != nil {
 				out = append(out, z.Value.AsString())
 			}
@@ -764,7 +767,7 @@ func splIsDir(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewBoolValue(err == nil && info.IsDir()), nil
 }
 func splGetContents(ctx data.Context) (data.GetValue, data.Control) {
-	b, err := os.ReadFile(splProp(splSelf(ctx), "pathname"))
+	b, err := utils.ReadFileContext(ctx.GoContext(), splProp(splSelf(ctx), "pathname"))
 	if err != nil {
 		return nil, data.NewErrorThrow(nil, err)
 	}

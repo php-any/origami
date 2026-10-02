@@ -36,6 +36,7 @@ func (h *StmtExecMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *StmtExecMethod) GetName() string            { return "exec" }
 func (h *StmtExecMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *StmtExecMethod) GetIsStatic() bool          { return true }
+
 var stmtExecMethodGetParams = []data.GetValue{
 	node.NewParameters(nil, "args", 0, nil, nil),
 }

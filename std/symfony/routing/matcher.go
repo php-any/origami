@@ -67,7 +67,7 @@ func urlMatcherMatch(ctx data.Context) (data.GetValue, data.Control) {
 	if ctl != nil {
 		return nil, ctl
 	}
-	if ret != nil && len(ret.List) > 0 {
+	if ret != nil && ret.Len() > 0 {
 		return ret, nil
 	}
 	allow := toStringSlice(prop(cv, "allow"))
@@ -131,7 +131,7 @@ func urlMatcherMatchArgs(ctx data.Context, pathinfo string) (data.GetValue, data
 	if ctl != nil {
 		return nil, ctl
 	}
-	if ret != nil && len(ret.List) > 0 {
+	if ret != nil && ret.Len() > 0 {
 		return ret, nil
 	}
 	allow := toStringSlice(prop(cv, "allow"))
@@ -167,7 +167,7 @@ func matchCollection(ctx data.Context, matcher *data.ClassValue, pathinfo string
 		return nil, ctl
 	}
 	allArr := valueToArray(all)
-	if allArr == nil || len(allArr.List) == 0 {
+	if allArr == nil || allArr.Len() == 0 {
 		return phpList(), nil
 	}
 
@@ -177,8 +177,8 @@ func matchCollection(ctx data.Context, matcher *data.ClassValue, pathinfo string
 		host = propString(context, "host", "")
 		scheme = propString(context, "scheme", "http")
 	}
-
-	for i, z := range allArr.List {
+	for arraySlots184, i := allArr.View(), 0; i < arraySlots184.Len(); i++ {
+		z := arraySlots184.At(i)
 		if z == nil {
 			continue
 		}
@@ -226,7 +226,8 @@ func matchCollection(ctx data.Context, matcher *data.ClassValue, pathinfo string
 		if canonical != "" {
 			routeName = canonical
 		}
-		for _, z := range defaults.List {
+		for arraySlots185, arrayPosition185 := defaults.View(), 0; arrayPosition185 < arraySlots185.Len(); arrayPosition185++ {
+			z := arraySlots185.At(arrayPosition185)
 			if z == nil || z.Name == "" || z.Name == "_canonical_route" {
 				continue
 			}
@@ -253,7 +254,7 @@ func matchCollection(ctx data.Context, matcher *data.ClassValue, pathinfo string
 		if len(schemes) > 0 && !inStringSlice(schemes, scheme) {
 			cur := propArray(matcher, "allowSchemes")
 			for _, s := range schemes {
-				cur.List = append(cur.List, data.NewZVal(data.NewStringValue(s)))
+				cur.AppendValue(data.NewStringValue(s))
 			}
 			setProp(matcher, "allowSchemes", cur)
 			continue
@@ -262,7 +263,7 @@ func matchCollection(ctx data.Context, matcher *data.ClassValue, pathinfo string
 		if len(required) > 0 && !inStringSlice(required, method) {
 			cur := propArray(matcher, "allow")
 			for _, m := range required {
-				cur.List = append(cur.List, data.NewZVal(data.NewStringValue(m)))
+				cur.AppendValue(data.NewStringValue(m))
 			}
 			setProp(matcher, "allow", cur)
 			continue
@@ -324,10 +325,10 @@ func compiledMatcherConstruct(ctx data.Context) (data.GetValue, data.Control) {
 	compiled := argArray(ctx, 0)
 	setProp(cv, "context", arg(ctx, 1))
 	getIdx := func(i int) data.Value {
-		if compiled == nil || i >= len(compiled.List) || compiled.List[i] == nil {
+		if compiled == nil || i >= compiled.Len() || compiled.At(i) == nil {
 			return data.NewNullValue()
 		}
-		return compiled.List[i].Value
+		return compiled.At(i).Value
 	}
 	matchHost := false
 	if v := getIdx(0); v != nil {
@@ -378,7 +379,7 @@ func compiledMatcherMatchRequest(ctx data.Context) (data.GetValue, data.Control)
 	if ctl != nil {
 		return nil, ctl
 	}
-	if ret != nil && len(ret.List) > 0 {
+	if ret != nil && ret.Len() > 0 {
 		return ret, nil
 	}
 	allow := toStringSlice(prop(cv, "allow"))
@@ -398,7 +399,7 @@ func compiledMatcherMatch(ctx data.Context) (data.GetValue, data.Control) {
 	if ctl != nil {
 		return nil, ctl
 	}
-	if ret != nil && len(ret.List) > 0 {
+	if ret != nil && ret.Len() > 0 {
 		return ret, nil
 	}
 	allow := toStringSlice(prop(cv, "allow"))
@@ -438,35 +439,37 @@ func compiledDoMatch(ctx data.Context, matcher *data.ClassValue, pathinfo string
 	}
 	if bucket, ok := assocGet(staticRoutes, trimmed); ok {
 		list := valueToArray(bucket)
-		for _, z := range list.List {
+		for arraySlots186, arrayPosition186 := list.View(), 0; arrayPosition186 < arraySlots186.Len(); arrayPosition186++ {
+			z := arraySlots186.At(arrayPosition186)
 			if z == nil {
 				continue
 			}
 			row := valueToArray(z.Value)
-			if row == nil || len(row.List) < 5 {
+			if row == nil || row.Len() < 5 {
 				continue
 			}
-			ret := valueToArray(row.List[0].Value)
+			ret := valueToArray(row.At(0).Value)
 			requiredHost := ""
-			if row.List[1] != nil && row.List[1].Value != nil && !isNull(row.List[1].Value) {
-				requiredHost = row.List[1].Value.AsString()
+			if row.At(1) != nil && row.At(1).Value != nil && !isNull(row.At(1).Value) {
+				requiredHost = row.At(1).Value.AsString()
 			}
 			if requiredHost != "" && requiredHost != host {
 				if !strings.HasPrefix(requiredHost, "{") || !pregMatch(requiredHost, host) {
 					continue
 				}
 			}
-			requiredMethods := valueToArray(row.List[2].Value)
-			requiredSchemes := valueToArray(row.List[3].Value)
-			if requiredSchemes != nil && len(requiredSchemes.List) > 0 && !assocHas(requiredSchemes, scheme) {
+			requiredMethods := valueToArray(row.At(2).Value)
+			requiredSchemes := valueToArray(row.At(3).Value)
+			if requiredSchemes != nil && requiredSchemes.Len() > 0 && !assocHas(requiredSchemes, scheme) {
 				continue
 			}
-			if requiredMethods != nil && len(requiredMethods.List) > 0 &&
+			if requiredMethods != nil && requiredMethods.Len() > 0 &&
 				!assocHas(requiredMethods, canonical) && !assocHas(requiredMethods, method) {
-				for _, mz := range requiredMethods.List {
+				for arraySlots187, arrayPosition187 := requiredMethods.View(), 0; arrayPosition187 < arraySlots187.Len(); arrayPosition187++ {
+					mz := arraySlots187.At(arrayPosition187)
 					if mz != nil && mz.Name != "" {
 						cur := propArray(matcher, "allow")
-						cur.List = append(cur.List, data.NewZVal(data.NewStringValue(mz.Name)))
+						cur.AppendValue(data.NewStringValue(mz.Name))
 						setProp(matcher, "allow", cur)
 					}
 				}
@@ -478,7 +481,7 @@ func compiledDoMatch(ctx data.Context, matcher *data.ClassValue, pathinfo string
 
 	regexpList := valueToArray(prop(matcher, "regexpList"))
 	dynamicRoutes := valueToArray(prop(matcher, "dynamicRoutes"))
-	if regexpList == nil || len(regexpList.List) == 0 {
+	if regexpList == nil || regexpList.Len() == 0 {
 		return phpList(), nil
 	}
 	matchedPath := pathinfo
@@ -487,7 +490,8 @@ func compiledDoMatch(ctx data.Context, matcher *data.ClassValue, pathinfo string
 			matchedPath = host + "." + pathinfo
 		}
 	}
-	for i, z := range regexpList.List {
+	for arraySlots188, i := regexpList.View(), 0; i < arraySlots188.Len(); i++ {
+		z := arraySlots188.At(i)
 		if z == nil || z.Value == nil {
 			continue
 		}
@@ -503,8 +507,8 @@ func compiledDoMatch(ctx data.Context, matcher *data.ClassValue, pathinfo string
 		bucket, ok := assocGet(dynamicRoutes, mark)
 		if !ok {
 			if n, err := strconv.Atoi(mark); err == nil {
-				if dynamicRoutes != nil && n < len(dynamicRoutes.List) && dynamicRoutes.List[n] != nil {
-					bucket = dynamicRoutes.List[n].Value
+				if dynamicRoutes != nil && n < dynamicRoutes.Len() && dynamicRoutes.At(n) != nil {
+					bucket = dynamicRoutes.At(n).Value
 					ok = true
 				}
 			}
@@ -516,19 +520,21 @@ func compiledDoMatch(ctx data.Context, matcher *data.ClassValue, pathinfo string
 		if list == nil {
 			continue
 		}
-		for _, rz := range list.List {
+		for arraySlots189, arrayPosition189 := list.View(), 0; arrayPosition189 < arraySlots189.Len(); arrayPosition189++ {
+			rz := arraySlots189.At(arrayPosition189)
 			if rz == nil {
 				continue
 			}
 			row := valueToArray(rz.Value)
-			if row == nil || len(row.List) < 2 {
+			if row == nil || row.Len() < 2 {
 				continue
 			}
-			ret := valueToArray(row.List[0].Value)
-			vars := valueToArray(row.List[1].Value)
+			ret := valueToArray(row.At(0).Value)
+			vars := valueToArray(row.At(1).Value)
 			out := cloneArray(ret)
 			if vars != nil {
-				for vi, vz := range vars.List {
+				for arraySlots190, vi := vars.View(), 0; vi < arraySlots190.Len(); vi++ {
+					vz := arraySlots190.At(vi)
 					if vz == nil || vz.Value == nil {
 						continue
 					}
@@ -540,16 +546,16 @@ func compiledDoMatch(ctx data.Context, matcher *data.ClassValue, pathinfo string
 			}
 			requiredMethods := phpList()
 			requiredSchemes := phpList()
-			if len(row.List) > 2 && row.List[2] != nil {
-				requiredMethods = valueToArray(row.List[2].Value)
+			if row.Len() > 2 && row.At(2) != nil {
+				requiredMethods = valueToArray(row.At(2).Value)
 			}
-			if len(row.List) > 3 && row.List[3] != nil {
-				requiredSchemes = valueToArray(row.List[3].Value)
+			if row.Len() > 3 && row.At(3) != nil {
+				requiredSchemes = valueToArray(row.At(3).Value)
 			}
-			if requiredSchemes != nil && len(requiredSchemes.List) > 0 && !assocHas(requiredSchemes, scheme) {
+			if requiredSchemes != nil && requiredSchemes.Len() > 0 && !assocHas(requiredSchemes, scheme) {
 				continue
 			}
-			if requiredMethods != nil && len(requiredMethods.List) > 0 &&
+			if requiredMethods != nil && requiredMethods.Len() > 0 &&
 				!assocHas(requiredMethods, canonical) && !assocHas(requiredMethods, method) {
 				continue
 			}
@@ -620,7 +626,8 @@ func dumperGetCompiledRoutes(ctx data.Context) (data.GetValue, data.Control) {
 	matchHost := false
 	mark := 0
 	if allArr != nil {
-		for i, z := range allArr.List {
+		for arraySlots191, i := allArr.View(), 0; i < arraySlots191.Len(); i++ {
+			z := arraySlots191.At(i)
 			if z == nil {
 				continue
 			}
@@ -653,7 +660,8 @@ func dumperGetCompiledRoutes(ctx data.Context) (data.GetValue, data.Control) {
 			defaults := cloneArray(propArray(route, "defaults"))
 			assocUnset(defaults, "_canonical_route")
 			ret := phpAssoc("_route", data.NewStringValue(name))
-			for _, dz := range defaults.List {
+			for arraySlots192, arrayPosition192 := defaults.View(), 0; arrayPosition192 < arraySlots192.Len(); arrayPosition192++ {
+				dz := arraySlots192.At(arrayPosition192)
 				if dz != nil && dz.Name != "" {
 					assocSet(ret, dz.Name, dz.Value)
 				}
@@ -670,20 +678,20 @@ func dumperGetCompiledRoutes(ctx data.Context) (data.GetValue, data.Control) {
 			host := propString(route, "host", "")
 			var hostV data.Value = data.NewNullValue()
 			if host != "" {
-				if len(propArray(compiled, "hostVariables").List) > 0 {
+				if propArray(compiled, "hostVariables").Len() > 0 {
 					hostV = data.NewStringValue(propString(compiled, "hostRegex", ""))
 				} else {
 					hostV = data.NewStringValue(strings.ToLower(host))
 				}
 			}
-			if len(pathVars.List) == 0 {
+			if pathVars.Len() == 0 {
 				row := phpList(ret, hostV, methodsV, schemesV, data.NewBoolValue(hasTrailingSlash), data.NewBoolValue(false), data.NewNullValue())
 				bucket, _ := assocGet(staticRoutes, url)
 				bArr, _ := bucket.(*data.ArrayValue)
 				if bArr == nil {
 					bArr = phpList()
 				}
-				bArr.List = append(bArr.List, data.NewZVal(row))
+				bArr.AppendValue(row)
 				assocSet(staticRoutes, url, bArr)
 				continue
 			}

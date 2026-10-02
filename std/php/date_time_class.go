@@ -330,6 +330,7 @@ func (m *DateTimeConstructMethod) GetName() string            { return "__constr
 func (m *DateTimeConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DateTimeConstructMethod) GetIsStatic() bool          { return false }
 func (m *DateTimeConstructMethod) GetReturnType() data.Types  { return nil }
+
 var dateTimeConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "datetime", 0, node.NewStringLiteralByAst(nil, "now"), nil),
 	node.NewParameter(nil, "timezone", 1, node.NewNullLiteral(nil), nil),
@@ -338,6 +339,7 @@ var dateTimeConstructMethodGetParams = []data.GetValue{
 func (m *DateTimeConstructMethod) GetParams() []data.GetValue {
 	return dateTimeConstructMethodGetParams
 }
+
 var dateTimeConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "datetime", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "timezone", 1, data.NewNullableType(data.NewBaseType("DateTimeZone"))),
@@ -357,16 +359,22 @@ func (m *DateTimeGetTimestampMethod) Call(ctx data.Context) (data.GetValue, data
 	}
 	return data.NewIntValue(int(t.Unix())), nil
 }
-func (m *DateTimeGetTimestampMethod) GetName() string               { return "getTimestamp" }
-func (m *DateTimeGetTimestampMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *DateTimeGetTimestampMethod) GetIsStatic() bool             { return false }
-func (m *DateTimeGetTimestampMethod) GetReturnType() data.Types     { return data.NewBaseType("int") }
+func (m *DateTimeGetTimestampMethod) GetName() string            { return "getTimestamp" }
+func (m *DateTimeGetTimestampMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *DateTimeGetTimestampMethod) GetIsStatic() bool          { return false }
+func (m *DateTimeGetTimestampMethod) GetReturnType() data.Types  { return data.NewBaseType("int") }
+
 var dateTimeGetTimestampMethodGetParams = []data.GetValue{}
 
-func (m *DateTimeGetTimestampMethod) GetParams() []data.GetValue    { return dateTimeGetTimestampMethodGetParams }
+func (m *DateTimeGetTimestampMethod) GetParams() []data.GetValue {
+	return dateTimeGetTimestampMethodGetParams
+}
+
 var dateTimeGetTimestampMethodGetVariables = []data.Variable{}
 
-func (m *DateTimeGetTimestampMethod) GetVariables() []data.Variable { return dateTimeGetTimestampMethodGetVariables }
+func (m *DateTimeGetTimestampMethod) GetVariables() []data.Variable {
+	return dateTimeGetTimestampMethodGetVariables
+}
 
 // ---- setTimestamp ----
 type DateTimeSetTimestampMethod struct{}
@@ -395,11 +403,13 @@ func (m *DateTimeSetTimestampMethod) GetName() string            { return "setTi
 func (m *DateTimeSetTimestampMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DateTimeSetTimestampMethod) GetIsStatic() bool          { return false }
 func (m *DateTimeSetTimestampMethod) GetReturnType() data.Types  { return nil }
+
 var dateTimeSetTimestampMethodGetParams = []data.GetValue{node.NewParameter(nil, "timestamp", 0, nil, nil)}
 
 func (m *DateTimeSetTimestampMethod) GetParams() []data.GetValue {
 	return dateTimeSetTimestampMethodGetParams
 }
+
 var dateTimeSetTimestampMethodGetVariables = []data.Variable{node.NewVariable(nil, "timestamp", 0, data.NewBaseType("int"))}
 
 func (m *DateTimeSetTimestampMethod) GetVariables() []data.Variable {
@@ -429,6 +439,7 @@ func (m *DateTimeSetDateMethod) GetName() string            { return "setDate" }
 func (m *DateTimeSetDateMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DateTimeSetDateMethod) GetIsStatic() bool          { return false }
 func (m *DateTimeSetDateMethod) GetReturnType() data.Types  { return nil }
+
 var dateTimeSetDateMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "year", 0, nil, nil),
 	node.NewParameter(nil, "month", 1, nil, nil),
@@ -438,6 +449,7 @@ var dateTimeSetDateMethodGetParams = []data.GetValue{
 func (m *DateTimeSetDateMethod) GetParams() []data.GetValue {
 	return dateTimeSetDateMethodGetParams
 }
+
 var dateTimeSetDateMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "year", 0, data.NewBaseType("int")),
 	node.NewVariable(nil, "month", 1, data.NewBaseType("int")),
@@ -476,6 +488,7 @@ func (m *DateTimeSetTimeMethod) GetName() string            { return "setTime" }
 func (m *DateTimeSetTimeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DateTimeSetTimeMethod) GetIsStatic() bool          { return false }
 func (m *DateTimeSetTimeMethod) GetReturnType() data.Types  { return nil }
+
 var dateTimeSetTimeMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "hour", 0, nil, nil),
 	node.NewParameter(nil, "min", 1, nil, nil),
@@ -486,6 +499,7 @@ var dateTimeSetTimeMethodGetParams = []data.GetValue{
 func (m *DateTimeSetTimeMethod) GetParams() []data.GetValue {
 	return dateTimeSetTimeMethodGetParams
 }
+
 var dateTimeSetTimeMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "hour", 0, data.NewBaseType("int")),
 	node.NewVariable(nil, "min", 1, data.NewBaseType("int")),
@@ -527,6 +541,7 @@ func (m *DateTimeSetISODateMethod) GetName() string            { return "setISOD
 func (m *DateTimeSetISODateMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DateTimeSetISODateMethod) GetIsStatic() bool          { return false }
 func (m *DateTimeSetISODateMethod) GetReturnType() data.Types  { return nil }
+
 var dateTimeSetISODateMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "year", 0, nil, nil),
 	node.NewParameter(nil, "week", 1, nil, nil),
@@ -536,6 +551,7 @@ var dateTimeSetISODateMethodGetParams = []data.GetValue{
 func (m *DateTimeSetISODateMethod) GetParams() []data.GetValue {
 	return dateTimeSetISODateMethodGetParams
 }
+
 var dateTimeSetISODateMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "year", 0, data.NewBaseType("int")),
 	node.NewVariable(nil, "week", 1, data.NewBaseType("int")),
@@ -565,11 +581,13 @@ func (m *DateTimeFormatMethod) GetName() string            { return "format" }
 func (m *DateTimeFormatMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DateTimeFormatMethod) GetIsStatic() bool          { return false }
 func (m *DateTimeFormatMethod) GetReturnType() data.Types  { return data.NewBaseType("string") }
+
 var dateTimeFormatMethodGetParams = []data.GetValue{node.NewParameter(nil, "format", 0, nil, nil)}
 
 func (m *DateTimeFormatMethod) GetParams() []data.GetValue {
 	return dateTimeFormatMethodGetParams
 }
+
 var dateTimeFormatMethodGetVariables = []data.Variable{node.NewVariable(nil, "format", 0, data.NewBaseType("string"))}
 
 func (m *DateTimeFormatMethod) GetVariables() []data.Variable {
@@ -583,16 +601,22 @@ func (m *DateTimeGetTimezoneMethod) Call(ctx data.Context) (data.GetValue, data.
 	// 简化：始终返回 UTC
 	return data.NewStringValue("UTC"), nil
 }
-func (m *DateTimeGetTimezoneMethod) GetName() string               { return "getTimezone" }
-func (m *DateTimeGetTimezoneMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *DateTimeGetTimezoneMethod) GetIsStatic() bool             { return false }
-func (m *DateTimeGetTimezoneMethod) GetReturnType() data.Types     { return nil }
+func (m *DateTimeGetTimezoneMethod) GetName() string            { return "getTimezone" }
+func (m *DateTimeGetTimezoneMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *DateTimeGetTimezoneMethod) GetIsStatic() bool          { return false }
+func (m *DateTimeGetTimezoneMethod) GetReturnType() data.Types  { return nil }
+
 var dateTimeGetTimezoneMethodGetParams = []data.GetValue{}
 
-func (m *DateTimeGetTimezoneMethod) GetParams() []data.GetValue    { return dateTimeGetTimezoneMethodGetParams }
+func (m *DateTimeGetTimezoneMethod) GetParams() []data.GetValue {
+	return dateTimeGetTimezoneMethodGetParams
+}
+
 var dateTimeGetTimezoneMethodGetVariables = []data.Variable{}
 
-func (m *DateTimeGetTimezoneMethod) GetVariables() []data.Variable { return dateTimeGetTimezoneMethodGetVariables }
+func (m *DateTimeGetTimezoneMethod) GetVariables() []data.Variable {
+	return dateTimeGetTimezoneMethodGetVariables
+}
 
 type DateTimeSetTimezoneMethod struct{}
 
@@ -605,11 +629,13 @@ func (m *DateTimeSetTimezoneMethod) GetName() string            { return "setTim
 func (m *DateTimeSetTimezoneMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DateTimeSetTimezoneMethod) GetIsStatic() bool          { return false }
 func (m *DateTimeSetTimezoneMethod) GetReturnType() data.Types  { return nil }
+
 var dateTimeSetTimezoneMethodGetParams = []data.GetValue{node.NewParameter(nil, "timezone", 0, nil, nil)}
 
 func (m *DateTimeSetTimezoneMethod) GetParams() []data.GetValue {
 	return dateTimeSetTimezoneMethodGetParams
 }
+
 var dateTimeSetTimezoneMethodGetVariables = []data.Variable{node.NewVariable(nil, "timezone", 0, nil)}
 
 func (m *DateTimeSetTimezoneMethod) GetVariables() []data.Variable {
@@ -632,11 +658,13 @@ func (m *DateTimeAddMethod) GetName() string            { return "add" }
 func (m *DateTimeAddMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DateTimeAddMethod) GetIsStatic() bool          { return false }
 func (m *DateTimeAddMethod) GetReturnType() data.Types  { return nil }
+
 var dateTimeAddMethodGetParams = []data.GetValue{node.NewParameter(nil, "interval", 0, nil, nil)}
 
 func (m *DateTimeAddMethod) GetParams() []data.GetValue {
 	return dateTimeAddMethodGetParams
 }
+
 var dateTimeAddMethodGetVariables = []data.Variable{node.NewVariable(nil, "interval", 0, nil)}
 
 func (m *DateTimeAddMethod) GetVariables() []data.Variable {
@@ -659,11 +687,13 @@ func (m *DateTimeSubMethod) GetName() string            { return "sub" }
 func (m *DateTimeSubMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DateTimeSubMethod) GetIsStatic() bool          { return false }
 func (m *DateTimeSubMethod) GetReturnType() data.Types  { return nil }
+
 var dateTimeSubMethodGetParams = []data.GetValue{node.NewParameter(nil, "interval", 0, nil, nil)}
 
 func (m *DateTimeSubMethod) GetParams() []data.GetValue {
 	return dateTimeSubMethodGetParams
 }
+
 var dateTimeSubMethodGetVariables = []data.Variable{node.NewVariable(nil, "interval", 0, nil)}
 
 func (m *DateTimeSubMethod) GetVariables() []data.Variable {
@@ -700,6 +730,7 @@ func (m *DateTimeDiffMethod) GetName() string            { return "diff" }
 func (m *DateTimeDiffMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DateTimeDiffMethod) GetIsStatic() bool          { return false }
 func (m *DateTimeDiffMethod) GetReturnType() data.Types  { return nil }
+
 var dateTimeDiffMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "target", 0, nil, nil),
 	node.NewParameter(nil, "absolute", 1, node.NewBooleanLiteral(nil, false), nil),
@@ -708,6 +739,7 @@ var dateTimeDiffMethodGetParams = []data.GetValue{
 func (m *DateTimeDiffMethod) GetParams() []data.GetValue {
 	return dateTimeDiffMethodGetParams
 }
+
 var dateTimeDiffMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "target", 0, nil),
 	node.NewVariable(nil, "absolute", 1, data.NewBaseType("bool")),
@@ -738,11 +770,13 @@ func (m *DateTimeModifyMethod) GetName() string            { return "modify" }
 func (m *DateTimeModifyMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DateTimeModifyMethod) GetIsStatic() bool          { return false }
 func (m *DateTimeModifyMethod) GetReturnType() data.Types  { return nil }
+
 var dateTimeModifyMethodGetParams = []data.GetValue{node.NewParameter(nil, "modifier", 0, nil, nil)}
 
 func (m *DateTimeModifyMethod) GetParams() []data.GetValue {
 	return dateTimeModifyMethodGetParams
 }
+
 var dateTimeModifyMethodGetVariables = []data.Variable{node.NewVariable(nil, "modifier", 0, data.NewBaseType("string"))}
 
 func (m *DateTimeModifyMethod) GetVariables() []data.Variable {
@@ -779,6 +813,7 @@ func (m *DateTimeCreateFromFormatMethod) GetName() string            { return "c
 func (m *DateTimeCreateFromFormatMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DateTimeCreateFromFormatMethod) GetIsStatic() bool          { return true }
 func (m *DateTimeCreateFromFormatMethod) GetReturnType() data.Types  { return nil }
+
 var dateTimeCreateFromFormatMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "format", 0, nil, nil),
 	node.NewParameter(nil, "datetime", 1, nil, nil),
@@ -788,6 +823,7 @@ var dateTimeCreateFromFormatMethodGetParams = []data.GetValue{
 func (m *DateTimeCreateFromFormatMethod) GetParams() []data.GetValue {
 	return dateTimeCreateFromFormatMethodGetParams
 }
+
 var dateTimeCreateFromFormatMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "format", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "datetime", 1, data.NewBaseType("string")),
@@ -807,28 +843,32 @@ func (m *DateTimeToStringMethod) Call(ctx data.Context) (data.GetValue, data.Con
 	}
 	return data.NewStringValue(t.Format("2006-01-02 15:04:05")), nil
 }
-func (m *DateTimeToStringMethod) GetName() string               { return "__toString" }
-func (m *DateTimeToStringMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *DateTimeToStringMethod) GetIsStatic() bool             { return false }
-func (m *DateTimeToStringMethod) GetReturnType() data.Types     { return data.NewBaseType("string") }
+func (m *DateTimeToStringMethod) GetName() string            { return "__toString" }
+func (m *DateTimeToStringMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *DateTimeToStringMethod) GetIsStatic() bool          { return false }
+func (m *DateTimeToStringMethod) GetReturnType() data.Types  { return data.NewBaseType("string") }
+
 var dateTimeToStringMethodGetParams = []data.GetValue{}
 
-func (m *DateTimeToStringMethod) GetParams() []data.GetValue    { return dateTimeToStringMethodGetParams }
+func (m *DateTimeToStringMethod) GetParams() []data.GetValue { return dateTimeToStringMethodGetParams }
+
 var dateTimeToStringMethodGetVariables = []data.Variable{}
 
-func (m *DateTimeToStringMethod) GetVariables() []data.Variable { return dateTimeToStringMethodGetVariables }
+func (m *DateTimeToStringMethod) GetVariables() []data.Variable {
+	return dateTimeToStringMethodGetVariables
+}
 
 // ---- getLastErrors ----
 type DateTimeGetLastErrorsMethod struct{}
 
 func (m *DateTimeGetLastErrorsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// PHP：array{warning_count, warnings, error_count, errors}；Carbon 会读 $lastErrors['errors']。
-	return &data.ArrayValue{List: []*data.ZVal{
+	return data.NewArrayValueFromSlots([]*data.ZVal{
 		data.NewNamedZVal("warning_count", data.NewIntValue(0)),
 		data.NewNamedZVal("warnings", data.NewArrayValue(nil)),
 		data.NewNamedZVal("error_count", data.NewIntValue(0)),
 		data.NewNamedZVal("errors", data.NewArrayValue(nil)),
-	}}, nil
+	}), nil
 }
 func (m *DateTimeGetLastErrorsMethod) GetName() string            { return "getLastErrors" }
 func (m *DateTimeGetLastErrorsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
@@ -836,12 +876,18 @@ func (m *DateTimeGetLastErrorsMethod) GetIsStatic() bool          { return true 
 func (m *DateTimeGetLastErrorsMethod) GetReturnType() data.Types {
 	return data.NewNullableType(data.NewBaseType("array"))
 }
+
 var dateTimeGetLastErrorsMethodGetParams = []data.GetValue{}
 
-func (m *DateTimeGetLastErrorsMethod) GetParams() []data.GetValue    { return dateTimeGetLastErrorsMethodGetParams }
+func (m *DateTimeGetLastErrorsMethod) GetParams() []data.GetValue {
+	return dateTimeGetLastErrorsMethodGetParams
+}
+
 var dateTimeGetLastErrorsMethodGetVariables = []data.Variable{}
 
-func (m *DateTimeGetLastErrorsMethod) GetVariables() []data.Variable { return dateTimeGetLastErrorsMethodGetVariables }
+func (m *DateTimeGetLastErrorsMethod) GetVariables() []data.Variable {
+	return dateTimeGetLastErrorsMethodGetVariables
+}
 
 // convertDateFormat 简单的时间格式转换
 func parsePHPCreateFromFormat(format, str string) (time.Time, error) {

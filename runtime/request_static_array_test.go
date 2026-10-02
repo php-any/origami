@@ -50,7 +50,7 @@ func TestStaticArrayAppendDoesNotLeakAcrossHTTPRequests(t *testing.T) {
 		if !ok {
 			return -1
 		}
-		return len(arr.List)
+		return arr.Len()
 	}
 
 	restore := BeginRequestOutput()

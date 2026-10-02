@@ -56,11 +56,13 @@ func (m *SplQueueEnqueueMethod) GetName() string            { return "enqueue" }
 func (m *SplQueueEnqueueMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplQueueEnqueueMethod) GetIsStatic() bool          { return false }
 func (m *SplQueueEnqueueMethod) GetReturnType() data.Types  { return nil }
+
 var splQueueEnqueueMethodGetParams = []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
 
 func (m *SplQueueEnqueueMethod) GetParams() []data.GetValue {
 	return splQueueEnqueueMethodGetParams
 }
+
 var splQueueEnqueueMethodGetVariables = []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
 
 func (m *SplQueueEnqueueMethod) GetVariables() []data.Variable {
@@ -73,7 +75,7 @@ func (m *SplQueueEnqueueMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 	}
 	val, _ := ctx.GetIndexValue(0)
 	arr := splListGetStorage(cv)
-	arr.List = append(arr.List, data.NewZVal(val))
+	arr.AppendValue(val)
 	return nil, nil
 }
 
@@ -93,11 +95,11 @@ func (m *SplQueueDequeueMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 		return data.NewNullValue(), nil
 	}
 	arr := splListGetStorage(cv)
-	if len(arr.List) == 0 {
+	if arr.Len() == 0 {
 		return data.NewNullValue(), nil
 	}
-	first := arr.List[0].Value
-	arr.List = arr.List[1:]
+	first := arr.At(0).Value
+	arr.RemovePositions(0, 1)
 	pos := splListGetPos(cv)
 	if pos > 0 {
 		splListSetPos(cv, pos-1)

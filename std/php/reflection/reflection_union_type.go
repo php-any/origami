@@ -95,7 +95,7 @@ func newCompoundReflectionType(ctx data.Context, class data.ClassStmt, members [
 		if t == nil {
 			continue
 		}
-		named = append(named, newReflectionNamedType(ctx, t))
+		named = append(named, newPhpReflectionType(ctx, t))
 	}
 	typeValue.ObjectValue.SetProperty("_typeName", data.NewStringValue(typeName))
 	typeValue.ObjectValue.SetProperty("_allowsNull", data.NewBoolValue(compoundAllowsNull(members)))

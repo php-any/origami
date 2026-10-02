@@ -114,6 +114,7 @@ func (m *DOMDocumentLoadHTMLMethod) GetName() string            { return "loadHT
 func (m *DOMDocumentLoadHTMLMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DOMDocumentLoadHTMLMethod) GetIsStatic() bool          { return false }
 func (m *DOMDocumentLoadHTMLMethod) GetReturnType() data.Types  { return data.NewBaseType("bool") }
+
 var dOMDocumentLoadHTMLMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "source", 0, nil, nil),
 	node.NewParameter(nil, "options", 1, node.NewIntLiteral(nil, "0"), nil),
@@ -122,6 +123,7 @@ var dOMDocumentLoadHTMLMethodGetParams = []data.GetValue{
 func (m *DOMDocumentLoadHTMLMethod) GetParams() []data.GetValue {
 	return dOMDocumentLoadHTMLMethodGetParams
 }
+
 var dOMDocumentLoadHTMLMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "source", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "options", 1, data.NewBaseType("int")),
@@ -160,6 +162,7 @@ func (m *DOMDocumentGetElementsByTagNameMethod) GetModifier() data.Modifier {
 }
 func (m *DOMDocumentGetElementsByTagNameMethod) GetIsStatic() bool         { return false }
 func (m *DOMDocumentGetElementsByTagNameMethod) GetReturnType() data.Types { return nil }
+
 var dOMDocumentGetElementsByTagNameMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "name", 0, nil, nil),
 }
@@ -167,6 +170,7 @@ var dOMDocumentGetElementsByTagNameMethodGetParams = []data.GetValue{
 func (m *DOMDocumentGetElementsByTagNameMethod) GetParams() []data.GetValue {
 	return dOMDocumentGetElementsByTagNameMethodGetParams
 }
+
 var dOMDocumentGetElementsByTagNameMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "name", 0, data.NewBaseType("string")),
 }
@@ -199,6 +203,7 @@ func (m *DOMDocumentSaveXMLMethod) GetName() string            { return "saveXML
 func (m *DOMDocumentSaveXMLMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DOMDocumentSaveXMLMethod) GetIsStatic() bool          { return false }
 func (m *DOMDocumentSaveXMLMethod) GetReturnType() data.Types  { return data.NewBaseType("string") }
+
 var dOMDocumentSaveXMLMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "node", 0, node.NewNullLiteral(nil), nil),
 }
@@ -206,6 +211,7 @@ var dOMDocumentSaveXMLMethodGetParams = []data.GetValue{
 func (m *DOMDocumentSaveXMLMethod) GetParams() []data.GetValue {
 	return dOMDocumentSaveXMLMethodGetParams
 }
+
 var dOMDocumentSaveXMLMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "node", 0, data.NewNullableType(nil)),
 }
@@ -268,8 +274,8 @@ func (m *DOMNodeListItemMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 	if cmc, ok := ctx.(*data.ClassMethodContext); ok {
 		items, _ := cmc.ObjectValue.GetProperty("_items")
 		if arr, ok := items.(*data.ArrayValue); ok {
-			if idx >= 0 && idx < len(arr.List) {
-				return arr.List[idx].Value, nil
+			if idx >= 0 && idx < arr.Len() {
+				return arr.At(idx).Value, nil
 			}
 		}
 	}
@@ -279,11 +285,13 @@ func (m *DOMNodeListItemMethod) GetName() string            { return "item" }
 func (m *DOMNodeListItemMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DOMNodeListItemMethod) GetIsStatic() bool          { return false }
 func (m *DOMNodeListItemMethod) GetReturnType() data.Types  { return nil }
+
 var dOMNodeListItemMethodGetParams = []data.GetValue{node.NewParameter(nil, "index", 0, nil, nil)}
 
 func (m *DOMNodeListItemMethod) GetParams() []data.GetValue {
 	return dOMNodeListItemMethodGetParams
 }
+
 var dOMNodeListItemMethodGetVariables = []data.Variable{node.NewVariable(nil, "index", 0, data.NewBaseType("int"))}
 
 func (m *DOMNodeListItemMethod) GetVariables() []data.Variable {
@@ -347,7 +355,9 @@ func (m *DOMElementGetAttributeMethod) Call(ctx data.Context) (data.GetValue, da
 		if obj, ok := attrs.(*data.ObjectValue); ok {
 			val, _ := obj.GetProperty(attrName)
 			if val != nil {
-				return val, nil
+				if _, missing := val.(*data.NullValue); !missing {
+					return data.NewStringValue(val.AsString()), nil
+				}
 			}
 		}
 	}
@@ -357,11 +367,13 @@ func (m *DOMElementGetAttributeMethod) GetName() string            { return "get
 func (m *DOMElementGetAttributeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DOMElementGetAttributeMethod) GetIsStatic() bool          { return false }
 func (m *DOMElementGetAttributeMethod) GetReturnType() data.Types  { return data.NewBaseType("string") }
+
 var dOMElementGetAttributeMethodGetParams = []data.GetValue{node.NewParameter(nil, "name", 0, nil, nil)}
 
 func (m *DOMElementGetAttributeMethod) GetParams() []data.GetValue {
 	return dOMElementGetAttributeMethodGetParams
 }
+
 var dOMElementGetAttributeMethodGetVariables = []data.Variable{node.NewVariable(nil, "name", 0, data.NewBaseType("string"))}
 
 func (m *DOMElementGetAttributeMethod) GetVariables() []data.Variable {
@@ -769,7 +781,8 @@ func collectElementsByTagName(node *data.ClassValue, tagName string, results *[]
 
 	children, _ := node.GetProperty("childNodes")
 	if arr, ok := children.(*data.ArrayValue); ok {
-		for _, zval := range arr.List {
+		for arraySlots114, arrayPosition114 := arr.View(), 0; arrayPosition114 < arraySlots114.Len(); arrayPosition114++ {
+			zval := arraySlots114.At(arrayPosition114)
 			if child, ok := zval.Value.(*data.ClassValue); ok {
 				collectElementsByTagName(child, tagName, results)
 			}
@@ -813,9 +826,10 @@ func nodeToXML(val data.Value) string {
 	}
 
 	children, _ := cv.GetProperty("childNodes")
-	if arr, ok := children.(*data.ArrayValue); ok && len(arr.List) > 0 {
+	if arr, ok := children.(*data.ArrayValue); ok && arr.Len() > 0 {
 		xml += ">"
-		for _, zval := range arr.List {
+		for arraySlots115, arrayPosition115 := arr.View(), 0; arrayPosition115 < arraySlots115.Len(); arrayPosition115++ {
+			zval := arraySlots115.At(arrayPosition115)
 			xml += nodeToXML(zval.Value)
 		}
 		xml += "</" + name + ">"

@@ -32,6 +32,7 @@ func (h *DBSetMaxOpenConnsMethod) Call(ctx data.Context) (data.GetValue, data.Co
 func (h *DBSetMaxOpenConnsMethod) GetName() string            { return "setMaxOpenConns" }
 func (h *DBSetMaxOpenConnsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBSetMaxOpenConnsMethod) GetIsStatic() bool          { return true }
+
 var dBSetMaxOpenConnsMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "n", 0, nil, nil),
 }

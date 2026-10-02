@@ -175,14 +175,14 @@ func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Co
 	// 以便 ReflectionParameter::getType() 等功能可以拿到非空的类型。
 	if paramType == nil && varType != "" {
 		if len(varType) > 1 && varType[0] == '?' {
-			paramType = data.NewNullableType(data.NewBaseType(varType[1:]))
+			paramType = data.NewDeclaredNullableType(data.NewDeclaredType(varType[1:]))
 		} else {
-			paramType = data.NewBaseType(varType)
+			paramType = data.NewDeclaredType(varType)
 		}
 	}
 
 	// 添加参数到作用域
-	val := parser.scopeManager.CurrentScope().AddVariable(name, paramType, tracking.EndBefore())
+	val := parser.scopeManager.CurrentScope().AddVariable(name, nil, tracking.EndBefore())
 
 	// 解析默认值
 	var defaultValue data.GetValue
@@ -195,11 +195,18 @@ func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Co
 			return nil, nil, acl
 		}
 	}
+	// PHP retains implicit nullability for ordinary typed parameters defaulting to null.
+	if paramModifier == "" && paramType != nil {
+		if _, isNull := defaultValue.(*node.NullLiteral); isNull && !paramType.Is(data.NewNullValue()) {
+			paramType = data.NewDeclaredNullableType(paramType)
+
+		}
+	}
 	// 如果有访问修饰符，创建属性（属性提升）
 	if paramModifier != "" {
 		// 属性类型直接使用 paramType（已经支持联合类型）
 		propertyType := paramType
-		return node.NewPromotedParameter(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, val.GetType()), node.NewPropertyWithPromoted(
+		return node.NewPromotedParameter(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, paramType), node.NewPropertyWithPromoted(
 			tracking.EndBefore(),
 			name,
 			paramModifier,
@@ -213,13 +220,13 @@ func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Co
 
 	// 创建参数节点
 	if isParams {
-		return node.NewParameters(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, val.GetType()), nil, nil
+		return node.NewParameters(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, paramType), nil, nil
 	} else if isReference {
 		// 覆盖变量为引用
-		parser.scopeManager.CurrentScope().SetVariable(val.GetName(), node.NewVariableReference(tracking.EndBefore(), val.GetName(), val.GetIndex(), val.GetType()))
-		return node.NewParameterReference(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, val.GetType()), nil, nil
+		parser.scopeManager.CurrentScope().SetVariable(val.GetName(), node.NewVariableReference(tracking.EndBefore(), val.GetName(), val.GetIndex(), nil))
+		return node.NewParameterReference(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, paramType), nil, nil
 	} else {
-		param := node.NewParameter(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, val.GetType())
+		param := node.NewParameter(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, paramType)
 		if len(paramAnnotations) > 0 {
 			if annTarget, ok := param.(node.AddAnnotations); ok {
 				if acl := ApplyAnnotations(parser, annTarget, paramAnnotations); acl != nil {
@@ -256,7 +263,7 @@ func parseConstructorParameterType(p *Parser) data.Types {
 		// 解析第一个类型
 		var firstType data.Types
 		if p.checkPositionIs(0, token.NULL, token.FALSE) {
-			firstType = data.NewBaseType(p.current().Literal())
+			firstType = data.NewDeclaredType(p.current().Literal())
 			p.next()
 		} else {
 			firstType = parseType(p)
@@ -280,7 +287,7 @@ func parseConstructorParameterType(p *Parser) data.Types {
 				p.next()
 				var nextType data.Types
 				if p.checkPositionIs(0, token.NULL, token.FALSE) {
-					nextType = data.NewBaseType(p.current().Literal())
+					nextType = data.NewDeclaredType(p.current().Literal())
 					p.next()
 				} else if isIdentOrTypeToken(p.current().Type()) {
 					nextType = parseType(p)
@@ -295,9 +302,9 @@ func parseConstructorParameterType(p *Parser) data.Types {
 			if len(unionTypes) == 1 {
 				return unionTypes[0]
 			} else if typeCombinator == token.BIT_AND {
-				return data.NewIntersectionType(unionTypes)
+				return data.NewDeclaredIntersectionType(unionTypes)
 			} else {
-				return data.NewUnionType(unionTypes)
+				return data.NewDeclaredUnionType(unionTypes)
 			}
 		}
 	} else if p.checkPositionIs(0, token.TERNARY) && (isIdentOrTypeToken(p.peek(1).Type()) || p.peek(1).Type() == token.SELF || p.peek(1).Type() == token.PARENT) {
@@ -307,32 +314,32 @@ func parseConstructorParameterType(p *Parser) data.Types {
 			p.next()
 			var baseType data.Types
 			if p.currentClass != "" {
-				baseType = data.NewBaseType(p.currentClass)
+				baseType = data.NewDeclaredType(p.currentClass)
 			} else {
-				baseType = data.NewBaseType("self")
+				baseType = data.NewDeclaredType("self")
 			}
-			return data.NewNullableType(baseType)
+			return data.NewDeclaredNullableType(baseType)
 		}
 		if p.current().Type() == token.PARENT {
 			p.next()
 			var baseType data.Types
 			if p.currentClass != "" {
 				if cls, ok := p.vm.GetClass(p.currentClass); ok && cls.GetExtend() != nil {
-					baseType = data.NewBaseType(*cls.GetExtend())
+					baseType = data.NewDeclaredType(*cls.GetExtend())
 				} else {
-					baseType = data.NewBaseType("parent")
+					baseType = data.NewDeclaredType("parent")
 				}
 			} else {
-				baseType = data.NewBaseType("parent")
+				baseType = data.NewDeclaredType("parent")
 			}
-			return data.NewNullableType(baseType)
+			return data.NewDeclaredNullableType(baseType)
 		}
-		base := data.NewBaseType(p.current().Literal())
+		base := data.NewDeclaredType(p.current().Literal())
 		p.next()
-		return data.NewNullableType(base)
+		return data.NewDeclaredNullableType(base)
 	}
-	// 没有类型声明，使用 mixed
-	return data.NewBaseType("mixed")
+	// Absence of a declaration must not hide the type parsed before the name.
+	return nil
 }
 
 func parseType(p *Parser) data.Types {
@@ -353,10 +360,10 @@ func parseType(p *Parser) data.Types {
 		p.next()
 		if p.currentClass != "" {
 			// 使用当前类名作为类型
-			return data.NewBaseType(p.currentClass)
+			return data.NewDeclaredType(p.currentClass)
 		}
 		// 如果没有当前类名，返回 self 作为类型名（运行时解析）
-		return data.NewBaseType("self")
+		return data.NewDeclaredType("self")
 	}
 
 	// 处理 parent 关键字（构造器提升等：parent $parameterBag）
@@ -364,10 +371,10 @@ func parseType(p *Parser) data.Types {
 		p.next()
 		if p.currentClass != "" {
 			if cls, ok := p.vm.GetClass(p.currentClass); ok && cls.GetExtend() != nil {
-				return data.NewBaseType(*cls.GetExtend())
+				return data.NewDeclaredType(*cls.GetExtend())
 			}
 		}
-		return data.NewBaseType("parent")
+		return data.NewDeclaredType("parent")
 	}
 
 	p.next()
@@ -397,10 +404,10 @@ func parseType(p *Parser) data.Types {
 	if !data.ISBaseType(typeName) {
 		if full, ok := p.findFullClassNameByNamespace(typeName); ok {
 			typeName = full
-			return data.NewBaseType(typeName)
+			return data.NewDeclaredType(typeName)
 		}
 		return data.NewGenericType(typeName, subTypes)
 	} else {
-		return data.NewBaseType(typeName)
+		return data.NewDeclaredType(typeName)
 	}
 }

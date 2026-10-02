@@ -90,7 +90,8 @@ func (j *JsonSerializer) MarshalArray(v *data.ArrayValue) ([]byte, error) {
 
 	// PHP: 含字符串键的数组 json_encode 为对象；纯列表为数组
 	asObject := false
-	for _, z := range v.List {
+	for arraySlots150, arrayPosition150 := v.View(), 0; arrayPosition150 < arraySlots150.Len(); arrayPosition150++ {
+		z := arraySlots150.At(arrayPosition150)
 		if z != nil && z.Name != "" {
 			if _, err := strconv.Atoi(z.Name); err != nil {
 				asObject = true
@@ -106,7 +107,8 @@ func (j *JsonSerializer) MarshalArray(v *data.ArrayValue) ([]byte, error) {
 		var buf bytes.Buffer
 		buf.WriteByte('{')
 		first := true
-		for i, z := range v.List {
+		for arraySlots151, i := v.View(), 0; i < arraySlots151.Len(); i++ {
+			z := arraySlots151.At(i)
 			if z == nil {
 				continue
 			}
@@ -191,10 +193,10 @@ func (j *JsonSerializer) UnmarshalArray(msg []byte, v *data.ArrayValue) error {
 		}
 		values = append(values, val)
 	}
-	// 将 values 转换为 []*ZVal 并赋值给 v.List
-	v.List = make([]*data.ZVal, len(values))
+	// 将 values 转换为拥有的槽位，再替换数组存储。
+	v.ReplaceAll(make([]*data.ZVal, len(values)))
 	for i, val := range values {
-		v.List[i] = data.NewZVal(val)
+		v.ReplaceSlot(i, data.NewZVal(val))
 	}
 	return nil
 }
@@ -448,6 +450,7 @@ func (j *JsonSerializer) UnmarshalClass(msg []byte, v *data.ClassValue) error {
 
 // createDefaultValueForType 根据类型信息创建相应类型的默认值
 func (j *JsonSerializer) createDefaultValueForType(ty data.Types) data.Value {
+	ty = data.LegacyType(ty)
 	// 这里可以根据类型信息创建相应类型的默认值
 	// 由于目前类型系统还没有完全实现，我们暂时返回nil
 	// 在实际应用中，可以根据ty的类型创建相应的默认值

@@ -303,7 +303,8 @@ func resolveJSONValue(ctx data.Context, value data.Value, visiting map[uintptr]b
 		// 必须拷贝后再写解析结果。就地替换会把 Livewire/视图共享数组改成 JSON 树，
 		// 下次再 encode 字符串套字符串，直到 OOM / 十几秒卡死。
 		cloned := data.CloneArrayValue(v)
-		for i, z := range cloned.List {
+		for arraySlots122, i := cloned.View(), 0; i < arraySlots122.Len(); i++ {
+			z := arraySlots122.At(i)
 			if z == nil {
 				continue
 			}
@@ -314,7 +315,7 @@ func resolveJSONValue(ctx data.Context, value data.Value, visiting map[uintptr]b
 			if jerr != JSON_ERROR_NONE {
 				return nil, jerr, nil
 			}
-			cloned.List[i] = data.CopyZValKeepName(z, nv)
+			cloned.ReplaceSlot(i, data.CopyZValKeepName(z, nv))
 		}
 		return cloned, JSON_ERROR_NONE, nil
 	case *data.ObjectValue:

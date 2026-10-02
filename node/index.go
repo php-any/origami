@@ -28,21 +28,6 @@ func emitUndefinedArrayKeyWarning(from data.From, key string, intKey bool) {
 	}
 }
 
-// emitNullOffsetDeprecation prints a PHP 8.1 deprecation when null is used as an array offset.
-func emitNullOffsetDeprecation(from data.From) {
-	file := "Unknown"
-	line := 0
-	if from != nil {
-		if src := from.GetSource(); src != "" {
-			file = src
-		}
-		if sl, _ := from.GetStartPosition(); sl >= 0 {
-			line = sl + 1
-		}
-	}
-	fmt.Printf("Deprecated: Using null as an array offset is deprecated, use an empty string instead in %s on line %d\n", file, line)
-}
-
 // callArrayAccessOffsetExists 调用 ArrayAccess::offsetExists
 func callArrayAccessOffsetExists(ctx data.Context, classValue *data.ClassValue, index data.Value) (bool, data.Control) {
 	method, exists := classValue.GetMethod("offsetExists")
@@ -171,7 +156,7 @@ func isEmptyPHPValue(v data.GetValue) bool {
 		return !b.Value
 	}
 	if a, ok := v.(*data.ArrayValue); ok {
-		return len(a.List) == 0
+		return a.Len() == 0
 	}
 	return false
 }
@@ -360,12 +345,7 @@ func CheckArrayAccess(ctx data.Context, classStmt data.ClassStmt) bool {
 }
 
 func checkArrayAccess(ctx data.Context, classStmt data.ClassStmt) bool {
-	if asBool, ctl := instanceof(ctx, "ArrayAccess", &data.ClassValue{Class: classStmt}); ctl == nil {
-		if boolVal, ok := asBool.(*data.BoolValue); ok {
-			return boolVal.Value
-		}
-	}
-	return false
+	return data.NominalIsA(classStmt, "ArrayAccess", ctx.GetVM())
 }
 
 // IndexExpression 表示数组访问表达式
@@ -409,7 +389,6 @@ func (ie *IndexExpression) GetZVal(ctx data.Context) (*data.ZVal, data.Control) 
 	case *data.ArrayValue:
 		switch iv := index.(type) {
 		case *data.NullValue:
-			emitNullOffsetDeprecation(ie.GetFrom())
 			if zval, ok := v.LookupZValByStringKey(""); ok {
 				return zval, nil
 			}
@@ -482,66 +461,65 @@ func (ie *IndexExpression) GetZVal(ctx data.Context) (*data.ZVal, data.Control) 
 
 // GetOrCreateZVal 返回索引槽位 ZVal；键不存在时 vivify（用于 &$arr[$key] 引用绑定）。
 func (ie *IndexExpression) GetOrCreateZVal(ctx data.Context) (*data.ZVal, data.Control) {
-	temp, acl := ie.Array.GetValue(ctx)
-	if acl != nil {
-		return nil, acl
+	temp, ctl := ie.Array.GetValue(ctx)
+	if ctl != nil {
+		return nil, ctl
 	}
-	index, acl := ie.Index.GetValue(ctx)
-	if acl != nil {
-		return nil, acl
+	index, ctl := ie.Index.GetValue(ctx)
+	if ctl != nil {
+		return nil, ctl
 	}
 
 	switch v := temp.(type) {
 	case *data.ArrayValue:
+		v = cowSeparateNestedArray(ie.Array, v).(*data.ArrayValue)
+		var slot *data.ZVal
 		if ie.Append {
-			zv := v.AppendSlot(data.NewNullValue())
-			writeBackArrayProperty(ctx, ie.Array, v)
-			if zv == nil {
-				zv = data.NewZVal(data.NewNullValue())
+			slot = v.AppendSlot(data.NewNullValue())
+		} else if _, isNull := index.(*data.NullValue); isNull {
+			slot, _ = v.LookupZValByStringKey("")
+			if slot == nil {
+				v.SetStringKey("", data.NewNullValue())
+				slot, _ = v.LookupZValByStringKey("")
 			}
-			return zv, nil
-		}
-		if _, isNull := index.(*data.NullValue); isNull {
-			emitNullOffsetDeprecation(ie.GetFrom())
-		}
-		if sv, ok := index.(data.AsString); ok {
+		} else if sv, ok := index.(*data.StringValue); ok {
 			key := sv.AsString()
-			if zval, ok := v.LookupZValByStringKey(key); ok {
-				return zval, nil
+			slot, _ = v.LookupZValByStringKey(key)
+			if slot == nil {
+				v.SetStringKey(key, data.NewNullValue())
+				slot, _ = v.LookupZValByStringKey(key)
 			}
-			zv := data.NewNamedZVal(key, data.NewNullValue())
-			v.List = append(v.List, zv)
-			writeBackArrayProperty(ctx, ie.Array, v)
-			return zv, nil
-		}
-		if iv, ok := index.(data.AsInt); ok {
+		} else if iv, ok := index.(data.AsInt); ok {
 			i, err := iv.AsInt()
 			if err != nil {
 				return nil, data.NewErrorThrow(ie.GetFrom(), err)
 			}
-			if z, _ := v.FindSlotByIntKey(i); z != nil {
-				return z, nil
+			slot, _ = v.FindSlotByIntKey(i)
+			if slot == nil {
+				v.SetIntKey(i, data.NewNullValue())
+				slot, _ = v.FindSlotByIntKey(i)
 			}
-			zv := data.NewZVal(data.NewNullValue())
-			v.SetIntKey(i, zv.Value)
-			writeBackArrayProperty(ctx, ie.Array, v)
-			if z, _ := v.FindSlotByIntKey(i); z != nil {
-				return z, nil
-			}
-			return zv, nil
+		} else {
+			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("非法数组键类型"))
 		}
+		if slot == nil {
+			return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("Cannot add element to the array as the next element is already occupied"), "Error")
+		}
+		writeBackArrayProperty(ctx, ie.Array, v)
+		return slot, nil
 	case *data.ObjectValue:
+		v = cowSeparateNestedArray(ie.Array, v).(*data.ObjectValue)
 		key, ok := indexKeyString(index)
 		if !ok {
 			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("ObjectValue无法处理索引的类型值"))
 		}
-		if zv, acl := v.GetZVal(key); acl == nil && zv != nil {
-			return zv, nil
+		slot, ctl := v.GetZVal(key)
+		if ctl != nil || slot == nil {
+			v.SetProperty(key, data.NewNullValue())
+			slot, ctl = v.GetZVal(key)
 		}
-		v.SetProperty(key, data.NewNullValue())
-		if zv, acl := v.GetZVal(key); acl == nil && zv != nil {
-			return zv, nil
-		}
+		writeBackArrayProperty(ctx, ie.Array, v)
+		return slot, ctl
 	}
 	return ie.GetZVal(ctx)
 }
@@ -614,11 +592,11 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 		switch base := ie.Array.(type) {
 		case data.Variable:
 			// 场景：$namespace['commands'] = ... 或 $namespace['commands'][1] = ...
-			obj := data.NewObjectValue()
+			obj := data.NewArrayValue(nil).(*data.ArrayValue)
 			if ctl := base.SetValue(ctx, obj); ctl != nil {
 				return ctl
 			}
-			// 变量赋值时会对 ObjectValue 做 clone，这里需要重新从上下文读取，
+			// 变量赋值可能分离数组，这里需要重新从上下文读取，
 			// 确保后续写入操作作用在真实存储的容器上。
 			var errCtl data.Control
 			arrayVal, errCtl = ie.Array.GetValue(ctx)
@@ -657,7 +635,6 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 			// $null[] = value → 初始化为数组后追加（PHP 语义）
 			newArr = data.NewArrayValue([]data.Value{value}).(*data.ArrayValue)
 		} else if _, isNull := indexVal.(*data.NullValue); isNull {
-			emitNullOffsetDeprecation(ie.GetFrom())
 			newArr = data.NewArrayValue(nil).(*data.ArrayValue)
 			newArr.SetStringKey("", value)
 		} else {
@@ -672,10 +649,10 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 				if i, err := iv.AsInt(); err == nil {
 					newArr.SetIntKey(i, value)
 				} else {
-					newArr.List = append(newArr.List, data.NewZVal(value))
+					newArr.AppendValue(value)
 				}
 			} else {
-				newArr.List = append(newArr.List, data.NewZVal(value))
+				newArr.AppendValue(value)
 			}
 		}
 		_, acl = NewBinaryAssign(ie.GetFrom(), ie.Array, newArr).GetValue(ctx)
@@ -684,43 +661,21 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 		arr = cowSeparateNestedArray(ie.Array, arr).(*data.ArrayValue)
 		// 数组索引赋值
 		if ie.Append {
-			arr.AppendValue(value)
+			if !arr.AppendValue(value) {
+				return data.NewErrorThrowByName(ie.GetFrom(), errors.New("Cannot add element to the array as the next element is already occupied"), "Error")
+			}
 			writeBackArrayProperty(ctx, ie.Array, arr)
 			return nil
 		}
 		if _, isNull := indexVal.(*data.NullValue); isNull {
-			emitNullOffsetDeprecation(ie.GetFrom())
 			arr.SetStringKey("", value)
 			writeBackArrayProperty(ctx, ie.Array, arr)
 			return nil
 		}
-		i := 0
-		// 必须先处理字符串键：StringValue 同时实现 AsInt，非数字字符串不应走 int 分支抛错
-		if sv, ok := indexVal.(*data.StringValue); ok {
-			arr.SetStringKey(sv.AsString(), value)
-			writeBackArrayProperty(ctx, ie.Array, arr)
-			return nil
+		key, ok := indexVal.(data.Value)
+		if !ok || !arr.SetKey(key, value) {
+			return data.NewErrorThrowByName(ie.GetFrom(), errors.New("Illegal offset type"), "TypeError")
 		}
-		if iv, ok := indexVal.(data.AsInt); ok {
-			var err error
-			i, err = iv.AsInt()
-			if err != nil {
-				return data.NewErrorThrow(ie.GetFrom(), err)
-			}
-		} else if iv, ok := indexVal.(data.AsString); ok {
-			arr.SetStringKey(iv.AsString(), value)
-			writeBackArrayProperty(ctx, ie.Array, arr)
-			return nil
-		} else {
-			return data.NewErrorThrow(ie.GetFrom(), errors.New("数组索引不是整数类型"))
-		}
-
-		if i < 0 {
-			return data.NewErrorThrow(ie.GetFrom(), errors.New("数组索引不能为负数"))
-		}
-
-		// PHP 数组是稀疏的：arr[22]=val 不填充 0-21。超出长度时仅当推入末尾才扩容，否则转为 ObjectValue
-		arr.SetIntKey(i, value)
 		writeBackArrayProperty(ctx, ie.Array, arr)
 		return nil
 
@@ -782,7 +737,6 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 			return nil
 		}
 		if _, isNull := indexVal.(*data.NullValue); isNull {
-			emitNullOffsetDeprecation(ie.GetFrom())
 			arr.SetProperty("", value)
 			if objWrite != nil {
 				writeBackArrayProperty(ctx, ie.Array, objWrite)
@@ -859,7 +813,6 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		i := 0
 		switch iv := index.(type) {
 		case *data.NullValue:
-			emitNullOffsetDeprecation(ie.GetFrom())
 			if zval, ok := v.LookupZValByStringKey(""); ok {
 				if zval.Value == nil {
 					return data.NewNullValue(), nil
@@ -917,7 +870,6 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		// 支持整数索引（转换为字符串）和字符串索引
 		var key string
 		if _, isNull := index.(*data.NullValue); isNull {
-			emitNullOffsetDeprecation(ie.GetFrom())
 			key = ""
 		} else if iv, ok := index.(data.AsString); ok {
 			key = iv.AsString()
@@ -1130,7 +1082,6 @@ func setIndexOnContainer(ctx data.Context, container data.GetValue, indexExpr da
 			return nil
 		}
 		if _, isNull := indexVal.(*data.NullValue); isNull {
-			emitNullOffsetDeprecation(from)
 			arr.SetStringKey("", value)
 			return nil
 		}
@@ -1324,30 +1275,25 @@ func indexSetValueOnContainer(ctx data.Context, ie *IndexExpression, container d
 	switch arr := container.(type) {
 	case *data.ArrayValue:
 		if ie.Append {
-			arr.AppendValue(value)
+			if !arr.AppendValue(value) {
+				return data.NewErrorThrowByName(ie.GetFrom(), errors.New("Cannot add element to the array as the next element is already occupied"), "Error")
+			}
 			writeBackArrayProperty(ctx, ie.Array, arr)
 			return nil
 		}
 		if _, isNull := indexVal.(*data.NullValue); isNull {
-			emitNullOffsetDeprecation(ie.GetFrom())
 			arr.SetStringKey("", value)
 			writeBackArrayProperty(ctx, ie.Array, arr)
 			return nil
 		}
-		if iv, ok := indexVal.(data.AsString); ok {
-			arr.SetStringKey(iv.AsString(), value)
-			writeBackArrayProperty(ctx, ie.Array, arr)
-			return nil
+		// Recursive writeback must use the same PHP key conversion as a direct
+		// assignment: false is key 0, not its string conversion ("").
+		key, ok := indexVal.(data.Value)
+		if !ok || !arr.SetKey(key, value) {
+			return data.NewErrorThrowByName(ie.GetFrom(), errors.New("Illegal offset type"), "TypeError")
 		}
-		if iv, ok := indexVal.(data.AsInt); ok {
-			i, err := iv.AsInt()
-			if err != nil {
-				return data.NewErrorThrow(ie.GetFrom(), err)
-			}
-			arr.SetIntKey(i, value)
-			writeBackArrayProperty(ctx, ie.Array, arr)
-			return nil
-		}
+		writeBackArrayProperty(ctx, ie.Array, arr)
+		return nil
 	case *data.ClassValue:
 		if checkArrayAccess(ctx, arr.Class) {
 			return callArrayAccessOffsetSet(ctx, arr, indexVal, value)

@@ -23,6 +23,7 @@ func (h *ResultRowsAffectedMethod) Call(ctx data.Context) (data.GetValue, data.C
 func (h *ResultRowsAffectedMethod) GetName() string            { return "rowsAffected" }
 func (h *ResultRowsAffectedMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResultRowsAffectedMethod) GetIsStatic() bool          { return true }
+
 var resultRowsAffectedMethodGetParams = []data.GetValue{}
 
 func (h *ResultRowsAffectedMethod) GetParams() []data.GetValue {

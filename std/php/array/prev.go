@@ -14,7 +14,7 @@ func NewPrevFunction() data.FuncStmt {
 }
 
 func (f *PrevFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	arrayValue, _ := ctx.GetIndexValue(0)
+	arrayValue := data.CowSeparateIndex(ctx, 0)
 
 	if arrayValue == nil {
 		return data.NewNullValue(), nil
@@ -23,45 +23,9 @@ func (f *PrevFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 使用类型 switch 处理不同类型
 	switch val := arrayValue.(type) {
 	case *data.ArrayValue:
-		// 处理数组：对于 ArrayValue，prev() 移动到倒数第二个元素
-		// 在 PHP 中，如果没有调用过指针函数，prev() 会移动到倒数第二个元素
-		if len(val.List) < 2 {
-			return data.NewNullValue(), nil
-		}
-		// 返回倒数第二个元素（模拟指针向后移动）
-		return val.List[len(val.List)-2].Value, nil
-
+		return val.MovePointer(-1), nil
 	case *data.ObjectValue:
-		// 处理对象（关联数组）：移动到倒数第二个元素
-		var prevValue data.Value
-		var count int
-		var totalCount int
-
-		// 先计算总数
-		val.RangeProperties(func(key string, value data.Value) bool {
-			totalCount++
-			return true
-		})
-
-		if totalCount < 2 {
-			return data.NewNullValue(), nil
-		}
-
-		// 使用 RangeProperties 按插入顺序遍历，获取倒数第二个元素
-		val.RangeProperties(func(key string, value data.Value) bool {
-			count++
-			if count == totalCount-1 {
-				prevValue = value
-				return false // 找到倒数第二个元素后停止
-			}
-			return true
-		})
-
-		if prevValue == nil {
-			return data.NewNullValue(), nil
-		}
-		return prevValue, nil
-
+		return val.MovePointer(-1), nil
 	case *data.ClassValue:
 		// 处理 Iterator 对象
 		// 注意：标准 Iterator 接口没有 prev() 方法，所以对于 Iterator 对象，我们返回 null

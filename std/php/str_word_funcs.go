@@ -72,7 +72,7 @@ func (f *StrWordCountFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 				pos += len(w)
 			}
 		}
-		return &data.ArrayValue{List: list}, nil
+		return data.NewArrayValueFromSlots(list), nil
 	case 2: // 返回位置为键、单词为值的数组
 		list := make([]*data.ZVal, 0, len(words))
 		pos := 0
@@ -84,7 +84,7 @@ func (f *StrWordCountFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 				pos += len(w)
 			}
 		}
-		return &data.ArrayValue{List: list}, nil
+		return data.NewArrayValueFromSlots(list), nil
 	default:
 		return data.NewIntValue(len(words)), nil
 	}
@@ -113,6 +113,7 @@ func strconvItoa(n int) string {
 }
 
 func (f *StrWordCountFunction) GetName() string { return "str_word_count" }
+
 var strWordCountFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 	node.NewParameter(nil, "format", 1, node.NewIntLiteral(nil, "0"), data.NewBaseType("int")),
@@ -122,6 +123,7 @@ var strWordCountFunctionGetParams = []data.GetValue{
 func (f *StrWordCountFunction) GetParams() []data.GetValue {
 	return strWordCountFunctionGetParams
 }
+
 var strWordCountFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, nil),
 	node.NewVariable(nil, "format", 1, data.NewBaseType("int")),
@@ -230,6 +232,7 @@ func (f *WordwrapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (f *WordwrapFunction) GetName() string { return "wordwrap" }
+
 var wordwrapFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 	node.NewParameter(nil, "width", 1, node.NewIntLiteral(nil, "75"), data.NewBaseType("int")),
@@ -240,6 +243,7 @@ var wordwrapFunctionGetParams = []data.GetValue{
 func (f *WordwrapFunction) GetParams() []data.GetValue {
 	return wordwrapFunctionGetParams
 }
+
 var wordwrapFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, nil),
 	node.NewVariable(nil, "width", 1, data.NewBaseType("int")),
@@ -271,11 +275,13 @@ func (f *StrShuffleFunction) Call(ctx data.Context) (data.GetValue, data.Control
 }
 
 func (f *StrShuffleFunction) GetName() string { return "str_shuffle" }
+
 var strShuffleFunctionGetParams = []data.GetValue{node.NewParameter(nil, "string", 0, nil, nil)}
 
 func (f *StrShuffleFunction) GetParams() []data.GetValue {
 	return strShuffleFunctionGetParams
 }
+
 var strShuffleFunctionGetVariables = []data.Variable{node.NewVariable(nil, "string", 0, nil)}
 
 func (f *StrShuffleFunction) GetVariables() []data.Variable {
@@ -309,11 +315,13 @@ func (f *StrRot13Function) Call(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (f *StrRot13Function) GetName() string { return "str_rot13" }
+
 var strRot13FunctionGetParams = []data.GetValue{node.NewParameter(nil, "string", 0, nil, nil)}
 
 func (f *StrRot13Function) GetParams() []data.GetValue {
 	return strRot13FunctionGetParams
 }
+
 var strRot13FunctionGetVariables = []data.Variable{node.NewVariable(nil, "string", 0, nil)}
 
 func (f *StrRot13Function) GetVariables() []data.Variable {
@@ -348,11 +356,13 @@ func (f *AddslashesFunction) Call(ctx data.Context) (data.GetValue, data.Control
 }
 
 func (f *AddslashesFunction) GetName() string { return "addslashes" }
+
 var addslashesFunctionGetParams = []data.GetValue{node.NewParameter(nil, "string", 0, nil, nil)}
 
 func (f *AddslashesFunction) GetParams() []data.GetValue {
 	return addslashesFunctionGetParams
 }
+
 var addslashesFunctionGetVariables = []data.Variable{node.NewVariable(nil, "string", 0, nil)}
 
 func (f *AddslashesFunction) GetVariables() []data.Variable {
@@ -384,6 +394,7 @@ func (f *ChopFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *ChopFunction) GetName() string { return "chop" }
+
 var chopFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 	node.NewParameter(nil, "characters", 1, node.NewNullLiteral(nil), nil),
@@ -392,6 +403,7 @@ var chopFunctionGetParams = []data.GetValue{
 func (f *ChopFunction) GetParams() []data.GetValue {
 	return chopFunctionGetParams
 }
+
 var chopFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, nil),
 	node.NewVariable(nil, "characters", 1, nil),
@@ -425,11 +437,13 @@ func (f *QuotemetaFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 }
 
 func (f *QuotemetaFunction) GetName() string { return "quotemeta" }
+
 var quotemetaFunctionGetParams = []data.GetValue{node.NewParameter(nil, "string", 0, nil, nil)}
 
 func (f *QuotemetaFunction) GetParams() []data.GetValue {
 	return quotemetaFunctionGetParams
 }
+
 var quotemetaFunctionGetVariables = []data.Variable{node.NewVariable(nil, "string", 0, nil)}
 
 func (f *QuotemetaFunction) GetVariables() []data.Variable {
@@ -467,6 +481,7 @@ func (f *Nl2brFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *Nl2brFunction) GetName() string { return "nl2br" }
+
 var nl2brFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 	node.NewParameter(nil, "use_xhtml", 1, node.NewBooleanLiteral(nil, true), data.NewBaseType("bool")),
@@ -475,6 +490,7 @@ var nl2brFunctionGetParams = []data.GetValue{
 func (f *Nl2brFunction) GetParams() []data.GetValue {
 	return nl2brFunctionGetParams
 }
+
 var nl2brFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, nil),
 	node.NewVariable(nil, "use_xhtml", 1, data.NewBaseType("bool")),
@@ -559,6 +575,7 @@ func (f *SubstrCompareFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 }
 
 func (f *SubstrCompareFunction) GetName() string { return "substr_compare" }
+
 var substrCompareFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "haystack", 0, nil, nil),
 	node.NewParameter(nil, "needle", 1, nil, nil),
@@ -570,6 +587,7 @@ var substrCompareFunctionGetParams = []data.GetValue{
 func (f *SubstrCompareFunction) GetParams() []data.GetValue {
 	return substrCompareFunctionGetParams
 }
+
 var substrCompareFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "haystack", 0, nil),
 	node.NewVariable(nil, "needle", 1, nil),

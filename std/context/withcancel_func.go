@@ -46,6 +46,7 @@ func (h *WithCancelFunction) Call(ctx data.Context) (data.GetValue, data.Control
 func (h *WithCancelFunction) GetName() string            { return "context\\withCancel" }
 func (h *WithCancelFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *WithCancelFunction) GetIsStatic() bool          { return true }
+
 var withCancelFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "parent", 0, nil, nil),
 }
@@ -53,6 +54,7 @@ var withCancelFunctionGetParams = []data.GetValue{
 func (h *WithCancelFunction) GetParams() []data.GetValue {
 	return withCancelFunctionGetParams
 }
+
 var withCancelFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "parent", 0, nil),
 }

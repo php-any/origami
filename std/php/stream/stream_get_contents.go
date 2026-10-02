@@ -17,6 +17,8 @@ func NewStreamGetContentsFunction() data.FuncStmt {
 }
 
 func (f *StreamGetContentsFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	data.CheckRequest(ctx.GoContext())
+	defer data.CheckRequest(ctx.GoContext())
 	// 获取流资源
 	streamValue, _ := ctx.GetIndexValue(0)
 	if streamValue == nil {

@@ -202,10 +202,12 @@ func pipeThenReturn(ctx data.Context) (data.GetValue, data.Control) {
 
 type pipeIdentityFunc struct{}
 
-func (pipeIdentityFunc) GetName() string                 { return "pipeline_then_return" }
+func (pipeIdentityFunc) GetName() string { return "pipeline_then_return" }
+
 var pipeIdentityFuncGetParams = []data.GetValue{node.NewParameter(nil, "passable", 0, nil, nil)}
 
-func (pipeIdentityFunc) GetParams() []data.GetValue      { return pipeIdentityFuncGetParams }
+func (pipeIdentityFunc) GetParams() []data.GetValue { return pipeIdentityFuncGetParams }
+
 var pipeIdentityFuncGetVariables = []data.Variable{node.NewVariable(nil, "passable", 0, nil)}
 
 func (pipeIdentityFunc) GetVariables() []data.Variable { return pipeIdentityFuncGetVariables }
@@ -293,8 +295,8 @@ type pipeTxWrapper struct {
 	inner func() (data.GetValue, data.Control)
 }
 
-func (w *pipeTxWrapper) GetName() string                 { return "pipeline_tx" }
-func (w *pipeTxWrapper) GetParams() []data.GetValue      { return nil }
+func (w *pipeTxWrapper) GetName() string               { return "pipeline_tx" }
+func (w *pipeTxWrapper) GetParams() []data.GetValue    { return nil }
 func (w *pipeTxWrapper) GetVariables() []data.Variable { return nil }
 func (w *pipeTxWrapper) Call(data.Context) (data.GetValue, data.Control) {
 	return w.inner()
@@ -330,10 +332,12 @@ type pipeStackFunc struct {
 	fn func(data.Value) (data.GetValue, data.Control)
 }
 
-func (p *pipeStackFunc) GetName() string                 { return "pipeline_stack" }
+func (p *pipeStackFunc) GetName() string { return "pipeline_stack" }
+
 var pipeStackFuncGetParams = []data.GetValue{node.NewParameter(nil, "passable", 0, nil, nil)}
 
-func (p *pipeStackFunc) GetParams() []data.GetValue      { return pipeStackFuncGetParams }
+func (p *pipeStackFunc) GetParams() []data.GetValue { return pipeStackFuncGetParams }
+
 var pipeStackFuncGetVariables = []data.Variable{node.NewVariable(nil, "passable", 0, nil)}
 
 func (p *pipeStackFunc) GetVariables() []data.Variable { return pipeStackFuncGetVariables }

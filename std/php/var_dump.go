@@ -65,7 +65,8 @@ func varDumpCollectArgs(ctx data.Context) []data.Value {
 			continue
 		}
 		if arr, ok := val.(*data.ArrayValue); ok {
-			for _, z := range arr.List {
+			for arraySlots143, arrayPosition143 := arr.View(), 0; arrayPosition143 < arraySlots143.Len(); arrayPosition143++ {
+				z := arraySlots143.At(arrayPosition143)
 				if z != nil && z.Value != nil {
 					out = append(out, z.Value)
 				}
@@ -197,9 +198,10 @@ func varDumpValue(v data.Value, indent string, depth int) {
 	case *data.NullValue:
 		fmt.Printf("%sNULL\n", indent)
 	case *data.ArrayValue:
-		fmt.Printf("%sarray(%d) {\n", indent, len(arg.List))
+		fmt.Printf("%sarray(%d) {\n", indent, arg.Len())
 		inner := indent + "  "
-		for i, zval := range arg.List {
+		for arraySlots144, i := arg.View(), 0; i < arraySlots144.Len(); i++ {
+			zval := arraySlots144.At(i)
 			if zval == nil || zval.Value == nil {
 				varDumpArrayKeyLine(inner, i, zval)
 				fmt.Printf("%sNULL\n", inner)

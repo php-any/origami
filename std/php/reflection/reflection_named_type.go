@@ -74,6 +74,10 @@ func newReflectionNamedType(ctx data.Context, typeInfo data.Types) *data.ClassVa
 
 	if typeInfo != nil {
 		switch t := typeInfo.(type) {
+		case data.TypeRef:
+			allowsNull = data.TypeAllowsNull(t)
+			base, _ := data.NullableDeclaredBase(t)
+			typeName = base.String()
 		case data.NullableType:
 			// 对于 ?Foo，ReflectionNamedType::getName() 应返回 "Foo"，allowsNull() 返回 true
 			allowsNull = true

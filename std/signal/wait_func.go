@@ -42,6 +42,7 @@ func (f *WaitFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *WaitFunction) GetName() string            { return "Signal\\wait" }
 func (f *WaitFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *WaitFunction) GetIsStatic() bool          { return true }
+
 var waitFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "signals", 0, nil, data.NewBaseType("array")),
 }
@@ -49,6 +50,7 @@ var waitFunctionGetParams = []data.GetValue{
 func (f *WaitFunction) GetParams() []data.GetValue {
 	return waitFunctionGetParams
 }
+
 var waitFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "signals", 0, data.NewBaseType("array")),
 }

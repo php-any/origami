@@ -4,7 +4,7 @@ type Float struct {
 }
 
 func (i Float) Is(value Value) bool {
-	if _, ok := value.(AsFloat); ok {
+	if _, ok := value.(*FloatValue); ok {
 		return true
 	}
 	return false

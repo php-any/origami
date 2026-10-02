@@ -190,6 +190,7 @@ func (f *ObStartFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *ObStartFunction) GetName() string            { return "ob_start" }
 func (f *ObStartFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *ObStartFunction) GetIsStatic() bool          { return false }
+
 var obStartFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "callback", 0, data.NewNullValue(), data.Mixed{}),
 	node.NewParameter(nil, "chunk_size", 1, data.NewIntValue(0), data.Int{}),
@@ -199,6 +200,7 @@ var obStartFunctionGetParams = []data.GetValue{
 func (f *ObStartFunction) GetParams() []data.GetValue {
 	return obStartFunctionGetParams
 }
+
 var obStartFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "callback", 0, data.Mixed{}),
 	node.NewVariable(nil, "chunk_size", 1, data.Int{}),
@@ -414,6 +416,7 @@ func (f *ObGetStatusFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 func (f *ObGetStatusFunction) GetName() string            { return "ob_get_status" }
 func (f *ObGetStatusFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *ObGetStatusFunction) GetIsStatic() bool          { return false }
+
 var obGetStatusFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "full", 0, nil, nil),
 }
@@ -421,6 +424,7 @@ var obGetStatusFunctionGetParams = []data.GetValue{
 func (f *ObGetStatusFunction) GetParams() []data.GetValue {
 	return obGetStatusFunctionGetParams
 }
+
 var obGetStatusFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "full", 0, data.NewBaseType("bool")),
 }
@@ -431,17 +435,16 @@ func (f *ObGetStatusFunction) GetVariables() []data.Variable {
 func (f *ObGetStatusFunction) GetReturnType() data.Types { return data.Arrays{} }
 
 func statusToArray(st data.OutputBufferStatusInfo) data.Value {
-	return &data.ArrayValue{
-		List: []*data.ZVal{
-			data.NewNamedZVal("level", data.NewIntValue(st.Level)),
-			data.NewNamedZVal("type", data.NewIntValue(st.Type)),
-			data.NewNamedZVal("flags", data.NewIntValue(st.Flags)),
-			data.NewNamedZVal("chunk_size", data.NewIntValue(st.ChunkSize)),
-			data.NewNamedZVal("buffer_size", data.NewIntValue(st.BufferSize)),
-			data.NewNamedZVal("buffer_used", data.NewIntValue(st.BufferUsed)),
-			data.NewNamedZVal("name", data.NewStringValue(st.Name)),
-		},
-	}
+	return data.NewArrayValueFromSlots([]*data.ZVal{
+		data.NewNamedZVal("level", data.NewIntValue(st.Level)),
+		data.NewNamedZVal("type", data.NewIntValue(st.Type)),
+		data.NewNamedZVal("flags", data.NewIntValue(st.Flags)),
+		data.NewNamedZVal("chunk_size", data.NewIntValue(st.ChunkSize)),
+		data.NewNamedZVal("buffer_size", data.NewIntValue(st.BufferSize)),
+		data.NewNamedZVal("buffer_used", data.NewIntValue(st.BufferUsed)),
+		data.NewNamedZVal("name", data.NewStringValue(st.Name)),
+	})
+
 }
 
 type ObListHandlersFunction struct{}
@@ -488,6 +491,7 @@ func (f *ObImplicitFlushFunction) Call(ctx data.Context) (data.GetValue, data.Co
 func (f *ObImplicitFlushFunction) GetName() string            { return "ob_implicit_flush" }
 func (f *ObImplicitFlushFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *ObImplicitFlushFunction) GetIsStatic() bool          { return false }
+
 var obImplicitFlushFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "enable", 0, nil, nil),
 }
@@ -495,6 +499,7 @@ var obImplicitFlushFunctionGetParams = []data.GetValue{
 func (f *ObImplicitFlushFunction) GetParams() []data.GetValue {
 	return obImplicitFlushFunctionGetParams
 }
+
 var obImplicitFlushFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "enable", 0, data.NewBaseType("bool")),
 }

@@ -57,7 +57,7 @@ func (f *SplClassesFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	for i, name := range splRegisteredClasses {
 		list[i] = data.NewNamedZVal(name, data.NewStringValue(name))
 	}
-	return &data.ArrayValue{List: list}, nil
+	return data.NewArrayValueFromSlots(list), nil
 }
 
 func (f *SplClassesFunction) GetName() string { return "spl_classes" }

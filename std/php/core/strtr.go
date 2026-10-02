@@ -73,7 +73,8 @@ func (f *StrtrFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	case *data.ArrayValue:
 		pairs = make(map[string]string)
-		for i, z := range v.List {
+		for arraySlots118, i := v.View(), 0; i < arraySlots118.Len(); i++ {
+			z := arraySlots118.At(i)
 			if z == nil || z.Value == nil {
 				continue
 			}

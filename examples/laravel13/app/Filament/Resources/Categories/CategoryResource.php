@@ -15,6 +15,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Section;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Table;
@@ -41,41 +42,53 @@ class CategoryResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(['default' => 1, 'lg' => 3])
             ->components([
-                TextInput::make('name')
-                    ->label('名称')
-                    ->required()
-                    ->maxLength(255)
-                    ->live(onBlur: true)
-                    ->afterStateUpdated(function (string $operation, ?string $state, callable $set): void {
-                        if ($operation === 'create' && filled($state)) {
-                            $set('slug', Str::slug($state));
-                        }
-                    }),
-                TextInput::make('slug')
-                    ->label('别名')
-                    ->required()
-                    ->unique(ignoreRecord: true)
-                    ->maxLength(255),
-                Select::make('parent_id')
-                    ->label('上级分类')
-                    ->relationship(
-                        name: 'parent',
-                        titleAttribute: 'name',
-                        modifyQueryUsing: fn ($query, ?Category $record) => $query
-                            ->when($record, fn ($q) => $q->whereKeyNot($record->getKey())),
-                    )
-                    ->searchable()
-                    ->preload()
-                    ->nullable(),
-                TextInput::make('sort')
-                    ->label('排序')
-                    ->numeric()
-                    ->default(0)
-                    ->required(),
-                Toggle::make('is_active')
-                    ->label('启用')
-                    ->default(true),
+                Section::make('分类信息')
+                    ->description('维护分类名称与层级关系')
+                    ->icon('heroicon-o-folder')
+                    ->columnSpan(['default' => 1, 'lg' => 2])
+                    ->schema([
+                        TextInput::make('name')
+                            ->label('名称')
+                            ->required()
+                            ->maxLength(255)
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function (string $operation, ?string $state, callable $set): void {
+                                if ($operation === 'create' && filled($state)) {
+                                    $set('slug', Str::slug($state));
+                                }
+                            }),
+                        TextInput::make('slug')
+                            ->label('别名')
+                            ->required()
+                            ->unique(ignoreRecord: true)
+                            ->maxLength(255),
+                        Select::make('parent_id')
+                            ->label('上级分类')
+                            ->relationship(
+                                name: 'parent',
+                                titleAttribute: 'name',
+                                modifyQueryUsing: fn ($query, ?Category $record) => $query
+                                    ->when($record, fn ($q) => $q->whereKeyNot($record->getKey())),
+                            )
+                            ->searchable()
+                            ->preload()
+                            ->nullable(),
+                    ]),
+                Section::make('展示设置')
+                    ->description('设置分类排序与启用状态')
+                    ->icon('heroicon-o-adjustments-horizontal')
+                    ->schema([
+                        TextInput::make('sort')
+                            ->label('排序')
+                            ->numeric()
+                            ->default(0)
+                            ->required(),
+                        Toggle::make('is_active')
+                            ->label('启用')
+                            ->default(true),
+                    ]),
             ]);
     }
 

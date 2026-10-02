@@ -18,7 +18,7 @@ func (f *SplAutoloadFunctionsFunction) Call(ctx data.Context) (data.GetValue, da
 	for i, fn := range fns {
 		list[i] = data.NewZVal(fn)
 	}
-	return &data.ArrayValue{List: list}, nil
+	return data.NewArrayValueFromSlots(list), nil
 }
 
 func (f *SplAutoloadFunctionsFunction) GetName() string { return "spl_autoload_functions" }

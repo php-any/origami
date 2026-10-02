@@ -70,12 +70,13 @@ func printRValue(v data.GetValue, indent int) string {
 
 	switch av := val.(type) {
 	case *data.ArrayValue:
-		if len(av.List) == 0 {
+		if av.Len() == 0 {
 			return "Array\n(\n" + pad + ")\n"
 		}
 		var sb strings.Builder
 		sb.WriteString("Array\n(\n")
-		for _, item := range av.List {
+		for arraySlots127, arrayPosition127 := av.View(), 0; arrayPosition127 < arraySlots127.Len(); arrayPosition127++ {
+			item := arraySlots127.At(arrayPosition127)
 			sb.WriteString(pad + "    [" + item.Name + "] => ")
 			if subArr, ok := item.Value.(*data.ArrayValue); ok {
 				sb.WriteString("Array\n")
@@ -121,6 +122,7 @@ func printRValue(v data.GetValue, indent int) string {
 }
 
 func (f *PrintRFunction) GetName() string { return "print_r" }
+
 var printRFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "value", 0, nil, nil),
 	node.NewParameter(nil, "return", 1, node.NewBooleanLiteral(nil, false), data.NewBaseType("bool")),
@@ -129,6 +131,7 @@ var printRFunctionGetParams = []data.GetValue{
 func (f *PrintRFunction) GetParams() []data.GetValue {
 	return printRFunctionGetParams
 }
+
 var printRFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "value", 0, nil),
 	node.NewVariable(nil, "return", 1, data.NewBaseType("bool")),
@@ -174,6 +177,7 @@ func (f *PrintfFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *PrintfFunction) GetName() string { return "printf" }
+
 var printfFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "format", 0, nil, nil),
 	node.NewParameters(nil, "values", 1, nil, nil),
@@ -182,6 +186,7 @@ var printfFunctionGetParams = []data.GetValue{
 func (f *PrintfFunction) GetParams() []data.GetValue {
 	return printfFunctionGetParams
 }
+
 var printfFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "format", 0, nil),
 	node.NewVariable(nil, "values", 1, nil),
@@ -208,7 +213,8 @@ func (f *VprintfFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	var args []data.GetValue
 	if arr, ok := valuesV.(*data.ArrayValue); ok {
-		for _, item := range arr.List {
+		for arraySlots128, arrayPosition128 := arr.View(), 0; arrayPosition128 < arraySlots128.Len(); arrayPosition128++ {
+			item := arraySlots128.At(arrayPosition128)
 			args = append(args, item.Value)
 		}
 	}
@@ -224,6 +230,7 @@ func (f *VprintfFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *VprintfFunction) GetName() string { return "vprintf" }
+
 var vprintfFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "format", 0, nil, nil),
 	node.NewParameter(nil, "values", 1, nil, nil),
@@ -232,6 +239,7 @@ var vprintfFunctionGetParams = []data.GetValue{
 func (f *VprintfFunction) GetParams() []data.GetValue {
 	return vprintfFunctionGetParams
 }
+
 var vprintfFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "format", 0, nil),
 	node.NewVariable(nil, "values", 1, nil),

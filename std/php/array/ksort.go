@@ -17,7 +17,7 @@ func NewKsortFunction() data.FuncStmt {
 }
 
 func (f *KsortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	arrayValue, _ := ctx.GetIndexValue(0)
+	arrayValue := data.CowSeparateIndex(ctx, 0)
 	flagsValue, _ := ctx.GetIndexValue(1) // 可选 flags
 
 	if arrayValue == nil {
@@ -29,11 +29,11 @@ func (f *KsortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// - ObjectValue: 关联数组（string 键）
 	switch v := arrayValue.(type) {
 	case *data.ArrayValue:
-		// 空数组，直接返回
-		if len(v.List) == 0 {
-			return data.NewBoolValue(true), nil
+		flags := 0
+		if flag, ok := flagsValue.(data.AsInt); ok {
+			flags, _ = flag.AsInt()
 		}
-		// 对整数键 0..n-1 的数组按键排序等价于不变，这里直接返回 true
+		sortArrayKeys(v, flags, false)
 		return data.NewBoolValue(true), nil
 
 	case *data.ObjectValue:

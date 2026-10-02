@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/std/laravel/framework/illuminate/events"
 )
 
 // Resolve 从 Laravel 容器解析 Go 实现的 Illuminate\Foundation\Http\Kernel。
@@ -132,11 +133,11 @@ func Sandbox(ctx data.Context, kernel *data.ClassValue) *data.ClassValue {
 		tel: src.tel,
 	}
 	cloneRoutesForRequest(ctx, st.router)
-	kc := newKernelClass(st)
-	cv := data.NewProxyValue(kc, ctx)
+	cv := data.NewProxyValue(kernel.Class, ctx)
 	if kernel.ObjectValue != nil {
 		cv.ObjectValue = data.DeepCloneObjectValue(kernel.ObjectValue)
 	}
+	cv.InstanceSource = st
 	if ctx != nil {
 		if vm := ctx.GetVM(); vm != nil {
 			cv.SetVM(vm)
@@ -144,7 +145,23 @@ func Sandbox(ctx data.Context, kernel *data.ClassValue) *data.ClassValue {
 	}
 	syncProperties(cv, st)
 	bindSandboxContainer(ctx, st.app, st.router)
+	// Resolving the kernel during a request must return this sandbox. Otherwise
+	// ApplicationBuilder's afterResolving callback configures a second kernel and
+	// writes to its startup builder concurrently with other requests.
+	setRequestInstance(st.app, fqnKernel, cv)
+	setRequestInstance(st.app, fqnKernelContract, cv)
 	cloneRequestServices(ctx, st.app)
+	if worker, ok := src.app.(*data.ClassValue); ok {
+		if request, ok := st.app.(*data.ClassValue); ok {
+			objects := map[*data.ObjectValue]*data.ClassValue{kernel.ObjectValue: cv}
+			if original, ok := src.router.(*data.ClassValue); ok {
+				if scoped, ok := st.router.(*data.ClassValue); ok {
+					objects[original.ObjectValue] = scoped
+				}
+			}
+			scopeContainerCallbacks(ctx, worker, request, objects)
+		}
+	}
 	return cv
 }
 
@@ -279,11 +296,24 @@ func cloneRequestServices(ctx data.Context, app data.Value) {
 	if app == nil {
 		return
 	}
+	// Laravel scoped() bindings must be rebuilt for each worker request.
+	// The container instance table is already private to this sandbox.
+	if _, exists := methodExists(app, "forgetScopedInstances"); exists {
+		_, ctl := callObjectMethodInContext(ctx, app, "forgetScopedInstances")
+		if ctl != nil {
+			ctx.GetVM().ThrowControl(ctl)
+			return
+		}
+	}
 	// 顺序很关键：instance() 会触发 Container::rebound()，而 Laravel 自己的回调
 	// （AuthServiceProvider::register 里的 rebinding('events')）会去读 $app['auth']->guard()。
 	// 边克隆边安装时，回调跑在 auth 还是全局单例的那一刻，
 	// 于是把 guard 写进了共享 AuthManager 的 $guards（实测每请求 1 次跨 goroutine 写）。
 	pending := make([]clonePending, 0, 7)
+	pending = appendPending(ctx, app, pending, "config",
+		"Illuminate\\Config\\Repository",
+		"Illuminate\\Contracts\\Config\\Repository",
+	)
 	pending = appendPending(ctx, app, pending, "events",
 		"Illuminate\\Events\\Dispatcher",
 		"Illuminate\\Contracts\\Events\\Dispatcher",
@@ -343,6 +373,20 @@ func cloneRequestServices(ctx data.Context, app data.Value) {
 	// 顺序仍是「先全部 prime，再装别人」：isolateViewEngines 里的 view 直写要能看见克隆体。
 	for _, p := range pending {
 		primeInstances(app, p)
+	}
+	scopeLivewire(ctx, app)
+	// Vite::flush() resets render state; the warmed singleton must not receive
+	// concurrent writes even on requests which do not render assets.
+	if container, ok := app.(*data.ClassValue); ok {
+		if raw, ctl := container.GetProperty("instances"); ctl == nil {
+			if instances, ok := raw.(*data.ArrayValue); ok {
+				if slot, ok := instances.LookupZValByStringKey("Illuminate\\Foundation\\Vite"); ok {
+					if original, ok := slot.Value.(*data.ClassValue); ok {
+						slot.Value = original.CloneRequestScoped(ctx)
+					}
+				}
+			}
+		}
 	}
 	isolateViewEngines(ctx, app)
 }
@@ -455,7 +499,12 @@ func appendPending(ctx data.Context, app data.Value, list []clonePending, abstra
 	if !ok || cv == nil {
 		return list
 	}
-	cloned := cv.CloneSandbox(ctx)
+	var cloned *data.ClassValue
+	if abstract == "events" {
+		cloned = events.ScopeRequest(ctx, cv)
+	} else {
+		cloned = cv.CloneSandbox(ctx)
+	}
 	rebindContainer(ctx, cloned, app)
 	if abstract == "auth" {
 		// AuthManager::$guards 缓存的是 guard 实例（SessionGuard 持有 user / session store）。

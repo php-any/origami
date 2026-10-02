@@ -80,7 +80,7 @@ func NewEndFunction() data.FuncStmt {
 }
 
 func (f *EndFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	arrayValue, _ := ctx.GetIndexValue(0)
+	arrayValue := data.CowSeparateIndex(ctx, 0)
 
 	if arrayValue == nil {
 		return data.NewNullValue(), nil
@@ -89,33 +89,9 @@ func (f *EndFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 使用类型 switch 处理不同类型
 	switch val := arrayValue.(type) {
 	case *data.ArrayValue:
-		// 处理数组。PHP：空数组 end() 返回 false。
-		if len(val.List) == 0 {
-			return data.NewBoolValue(false), nil
-		}
-		last := val.List[len(val.List)-1]
-		if last == nil || last.Value == nil {
-			return data.NewNullValue(), nil
-		}
-		return last.Value, nil
-
+		return val.EndPointer(), nil
 	case *data.ObjectValue:
-		// 处理对象（关联数组）
-		var lastValue data.Value
-		var hasValue bool
-
-		// 使用 RangeProperties 按插入顺序遍历，获取最后一个元素
-		val.RangeProperties(func(key string, value data.Value) bool {
-			lastValue = value
-			hasValue = true
-			return true // 继续遍历到最后一个
-		})
-
-		if !hasValue {
-			return data.NewBoolValue(false), nil
-		}
-		return lastValue, nil
-
+		return val.EndPointer(), nil
 	case *data.ClassValue:
 		// 处理 Iterator 对象
 		// 检查是否实现了 Iterator 接口

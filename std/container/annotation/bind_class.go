@@ -38,6 +38,7 @@ type BindConstructMethod struct{}
 func (m *BindConstructMethod) GetName() string            { return "__construct" }
 func (m *BindConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *BindConstructMethod) GetIsStatic() bool          { return false }
+
 var bindConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "abstract", 0, data.NewNullValue(), data.NewBaseType("string")),
 	node.NewAnnotationTargetParameter(nil, 1),
@@ -46,6 +47,7 @@ var bindConstructMethodGetParams = []data.GetValue{
 func (m *BindConstructMethod) GetParams() []data.GetValue {
 	return bindConstructMethodGetParams
 }
+
 var bindConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "abstract", 0, nil),
 	node.NewAnnotationTargetVariable(nil, 1),

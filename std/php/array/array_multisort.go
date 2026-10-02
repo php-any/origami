@@ -73,7 +73,7 @@ func (f *ArrayMultisortFunction) Call(ctx data.Context) (data.GetValue, data.Con
 		return data.NewBoolValue(false), nil
 	}
 
-	n := len(specs[0].arr.List)
+	n := specs[0].arr.Len()
 	if n <= 1 {
 		return data.NewBoolValue(true), nil
 	}
@@ -86,11 +86,11 @@ func (f *ArrayMultisortFunction) Call(ctx data.Context) (data.GetValue, data.Con
 	sort.SliceStable(indices, func(a, b int) bool {
 		ia, ib := indices[a], indices[b]
 		for _, spec := range specs {
-			if ia >= len(spec.arr.List) || ib >= len(spec.arr.List) {
+			if ia >= spec.arr.Len() || ib >= spec.arr.Len() {
 				continue
 			}
-			va := spec.arr.List[ia].Value
-			vb := spec.arr.List[ib].Value
+			va := spec.arr.At(ia).Value
+			vb := spec.arr.At(ib).Value
 			if valuesEqual(va, vb) {
 				continue
 			}
@@ -179,16 +179,15 @@ func readSortFlags(v data.Value) (int, bool) {
 }
 
 func reorderArrayInPlace(arr *data.ArrayValue, order []int) {
-	old := arr.List
 	newList := make([]*data.ZVal, len(order))
 	for i, idx := range order {
-		if idx < len(old) {
-			newList[i] = old[idx]
+		if idx < arr.Len() {
+			newList[i] = arr.At(idx)
 		} else {
 			newList[i] = data.NewZVal(data.NewNullValue())
 		}
 	}
-	arr.List = newList
+	arr.ReindexIntKeys(newList)
 }
 
 func (f *ArrayMultisortFunction) GetName() string { return "array_multisort" }

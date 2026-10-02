@@ -41,8 +41,8 @@ func (f *ArraySearchFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 			}
 		}
 	}
-
-	for i, z := range arr.List {
+	for arraySlots104, i := arr.View(), 0; i < arraySlots104.Len(); i++ {
+		z := arraySlots104.At(i)
 		v := z.Value
 		if v == nil {
 			continue
@@ -54,10 +54,7 @@ func (f *ArraySearchFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 			match = valuesLooseEqual(needleValue, v)
 		}
 		if match {
-			if z.Name != "" {
-				return data.NewStringValue(z.Name), nil
-			}
-			return data.NewIntValue(i), nil
+			return z.PHPArrayKey(i), nil
 		}
 	}
 

@@ -23,6 +23,7 @@ func (h *ConnBeginMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *ConnBeginMethod) GetName() string            { return "begin" }
 func (h *ConnBeginMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ConnBeginMethod) GetIsStatic() bool          { return true }
+
 var connBeginMethodGetParams = []data.GetValue{}
 
 func (h *ConnBeginMethod) GetParams() []data.GetValue {

@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -27,12 +28,17 @@ func newMiddleware(v data.FuncStmt, ctx data.Context) (MiddlewareFunc, error) {
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requestVM, scoped, owner := languageRequest(ctx, w, r)
+			r = scoped
+			if owner {
+				defer requestVM.RunShutdownCallbacks()
+			}
 			rw, response := beginResponse(w, r)
 			defer rw.commitPending()
 			r, request := beginRequest(r)
 			defer detachRequestAttrs(r)
 
-			mctx := ctx.CreateContext(v.GetVariables())
+			mctx := requestVM.CreateContext(v.GetVariables())
 			nextHandler := data.NewFuncValue(NextHandler{next: next})
 
 			mctx.SetVariableValue(data.NewVariable("r", 0, nil), data.NewProxyValue(request, mctx))
@@ -41,7 +47,7 @@ func newMiddleware(v data.FuncStmt, ctx data.Context) (MiddlewareFunc, error) {
 
 			_, acl := v.Call(mctx)
 			if acl != nil {
-				ctx.GetVM().ThrowControl(acl)
+				finishLanguageControl(requestVM, acl, owner)
 			}
 		})
 	}, nil
@@ -53,46 +59,61 @@ type Handler struct {
 }
 
 func (f Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	requestVM, scoped, owner := languageRequest(f.Ctx, w, r)
+	r = scoped
+	if owner {
+		defer requestVM.RunShutdownCallbacks()
+	}
 	node.ResetSuperglobals()
 	rw, response := beginResponse(w, r)
 	defer rw.commitPending()
 	r, request := beginRequest(r)
 	defer detachRequestAttrs(r)
 
-	ctx := f.Ctx.CreateContext(f.Value.GetVariables())
+	ctx := requestVM.CreateContext(f.Value.GetVariables())
 
 	ctx.SetVariableValue(data.NewVariable("r", 0, nil), data.NewProxyValue(request, ctx))
 	ctx.SetVariableValue(data.NewVariable("w", 1, nil), data.NewProxyValue(response, ctx))
 
 	_, acl := f.Value.Call(ctx)
 	if acl != nil {
-		panic(acl)
+		finishLanguageControl(requestVM, acl, owner)
 	}
 }
 
-// HotHandler 专用于启用 HotReload 的场景：负责请求期清理
+// HotHandler uses the same language request VM as every HTTP handler.
 type HotHandler struct {
 	Value data.FuncStmt
 	Ctx   data.Context
 }
 
 func (f HotHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	node.ResetSuperglobals()
-	rw, response := beginResponse(w, r)
-	defer rw.commitPending()
-	r, request := beginRequest(r)
-	defer detachRequestAttrs(r)
+	Handler{Value: f.Value, Ctx: f.Ctx}.ServeHTTP(w, r)
+}
 
-	ctx := f.Ctx.CreateContext(f.Value.GetVariables())
-	ctx.SetVM(runtimesrc.NewTempVM(f.Ctx.GetVM()))
+type languageRequestKey struct{}
 
-	ctx.SetVariableValue(data.NewVariable("r", 0, nil), data.NewProxyValue(request, ctx))
-	ctx.SetVariableValue(data.NewVariable("w", 1, nil), data.NewProxyValue(response, ctx))
-
-	_, acl := f.Value.Call(ctx)
-	if acl != nil {
-		panic(acl)
+func languageRequest(ctx data.Context, response http.ResponseWriter, request *http.Request) (*runtimesrc.RequestVM, *http.Request, bool) {
+	if vm, ok := request.Context().Value(languageRequestKey{}).(*runtimesrc.RequestVM); ok {
+		return vm, request, false
 	}
+	vm := runtimesrc.NewRequestVM(ctx.GetVM()).(*runtimesrc.RequestVM)
+	vm.BindHTTP(request, response)
+	scoped := request.WithContext(context.WithValue(request.Context(), languageRequestKey{}, vm))
+	return vm, scoped, true
+}
+
+func finishLanguageControl(vm *runtimesrc.RequestVM, control data.Control, owner bool) {
+	if owner {
+		_, control = vm.HandleUnhandledException(control)
+		if control == nil {
+			return
+		}
+		if exit, ok := control.(data.ExitControl); ok && exit.IsExit() {
+			return
+		}
+	}
+	panic(control)
 }
 
 type NextHandler struct {

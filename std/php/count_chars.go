@@ -39,7 +39,7 @@ func (f *CountCharsFunction) Call(ctx data.Context) (data.GetValue, data.Control
 				list = append(list, data.NewNamedZVal(data.IntArrayKeyName(i), data.NewIntValue(count)))
 			}
 		}
-		return &data.ArrayValue{List: list}, nil
+		return data.NewArrayValueFromSlots(list), nil
 	case 3, 4:
 		output := make([]byte, 0, 256)
 		for i, count := range counts {

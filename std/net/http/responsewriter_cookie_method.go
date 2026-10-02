@@ -22,6 +22,7 @@ func (h *ResponseWriterCookieMethod) Call(ctx data.Context) (data.GetValue, data
 func (h *ResponseWriterCookieMethod) GetName() string            { return "cookie" }
 func (h *ResponseWriterCookieMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResponseWriterCookieMethod) GetIsStatic() bool          { return false }
+
 var responseWriterCookieMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "nameOrCookie", 0, nil, nil),
 	node.NewParameter(nil, "value", 1, nil, nil),
@@ -31,6 +32,7 @@ var responseWriterCookieMethodGetParams = []data.GetValue{
 func (h *ResponseWriterCookieMethod) GetParams() []data.GetValue {
 	return responseWriterCookieMethodGetParams
 }
+
 var responseWriterCookieMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "nameOrCookie", 0, nil),
 	node.NewVariable(nil, "value", 1, nil),

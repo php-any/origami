@@ -19,7 +19,9 @@ func (m *ReflectionParameterAllowsNullMethod) GetIsStatic() bool { return false 
 
 var reflectionParameterAllowsNullMethodGetParams = []data.GetValue{}
 
-func (m *ReflectionParameterAllowsNullMethod) GetParams() []data.GetValue { return reflectionParameterAllowsNullMethodGetParams }
+func (m *ReflectionParameterAllowsNullMethod) GetParams() []data.GetValue {
+	return reflectionParameterAllowsNullMethodGetParams
+}
 
 var reflectionParameterAllowsNullMethodGetVariables = []data.Variable{}
 
@@ -67,6 +69,9 @@ func paramTypeOf(param data.GetValue) data.Types {
 }
 
 func typesAllowsNull(t data.Types) bool {
+	if _, ok := t.(data.TypeRef); ok {
+		return data.TypeAllowsNull(t)
+	}
 	if t == nil {
 		return true
 	}

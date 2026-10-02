@@ -18,12 +18,14 @@ func (h *RequestMethodMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 	return data.NewStringValue(h.source.Method), nil
 }
 
-func (h *RequestMethodMethod) GetName() string               { return "method" }
-func (h *RequestMethodMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *RequestMethodMethod) GetIsStatic() bool             { return false }
+func (h *RequestMethodMethod) GetName() string            { return "method" }
+func (h *RequestMethodMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *RequestMethodMethod) GetIsStatic() bool          { return false }
+
 var requestMethodMethodGetParams = []data.GetValue{}
 
-func (h *RequestMethodMethod) GetParams() []data.GetValue    { return requestMethodMethodGetParams }
+func (h *RequestMethodMethod) GetParams() []data.GetValue { return requestMethodMethodGetParams }
+
 var requestMethodMethodGetVariables = []data.Variable{}
 
 func (h *RequestMethodMethod) GetVariables() []data.Variable { return requestMethodMethodGetVariables }

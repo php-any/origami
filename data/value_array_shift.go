@@ -1,21 +1,17 @@
 package data
 
 type ArrayValueShift struct {
-	source *[]*ZVal
+	source *ArrayValue
 }
 
 // Call 实现数组的 shift 方法
 // 移除并返回数组的第一个元素，如果数组为空则返回 null
 func (a *ArrayValueShift) Call(ctx Context) (GetValue, Control) {
-	if len(*a.source) == 0 {
+	slot := a.source.ShiftSlot()
+	if slot == nil {
 		return NewNullValue(), nil
 	}
-
-	// 获取并移除第一个元素
-	firstElement := (*a.source)[0]
-	*a.source = (*a.source)[1:]
-
-	return firstElement.Value, nil
+	return slot.Value, nil
 }
 
 func (a *ArrayValueShift) GetName() string {

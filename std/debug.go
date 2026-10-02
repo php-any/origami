@@ -23,6 +23,7 @@ func (f *DebugFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *DebugFunction) GetName() string {
 	return "gg"
 }
+
 var debugFunctionGetParams = []data.GetValue{
 	node.NewParameterRawAST(nil, "ast", 0, nil),
 }
@@ -30,6 +31,7 @@ var debugFunctionGetParams = []data.GetValue{
 func (f *DebugFunction) GetParams() []data.GetValue {
 	return debugFunctionGetParams
 }
+
 var debugFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "ast", 0, nil),
 }

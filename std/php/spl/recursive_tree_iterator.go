@@ -139,6 +139,7 @@ func (m *RTIConstructMethod) GetName() string            { return "__construct" 
 func (m *RTIConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *RTIConstructMethod) GetIsStatic() bool          { return false }
 func (m *RTIConstructMethod) GetReturnType() data.Types  { return nil }
+
 var rTIConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("RecursiveIterator")),
 	node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.NewBaseType("int")),
@@ -148,6 +149,7 @@ var rTIConstructMethodGetParams = []data.GetValue{
 func (m *RTIConstructMethod) GetParams() []data.GetValue {
 	return rTIConstructMethodGetParams
 }
+
 var rTIConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "iterator", 0, data.NewBaseType("RecursiveIterator")),
 	node.NewVariable(nil, "flags", 1, data.NewBaseType("int")),

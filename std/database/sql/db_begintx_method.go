@@ -52,6 +52,7 @@ func (h *DBBeginTxMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *DBBeginTxMethod) GetName() string            { return "beginTx" }
 func (h *DBBeginTxMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBBeginTxMethod) GetIsStatic() bool          { return true }
+
 var dBBeginTxMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "ctx", 0, nil, nil),
 	node.NewParameter(nil, "opts", 1, nil, nil),

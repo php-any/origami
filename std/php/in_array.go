@@ -68,6 +68,10 @@ func (f *InArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 
+	// Enum cases are singleton objects. Their diagnostic AsString() only names
+	// the enum type, so it cannot distinguish two cases of the same enum.
+	needleEnum := inArrayEnumObject(needleValue)
+
 	// 在数组中查找
 	for _, val := range valueList {
 		if strict {
@@ -75,6 +79,15 @@ func (f *InArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 				return data.NewBoolValue(true), nil
 			}
 		} else {
+			if needleEnum != nil {
+				if candidate := inArrayEnumObject(val); candidate != nil && needleEnum.ObjectValue == candidate.ObjectValue {
+					return data.NewBoolValue(true), nil
+				}
+				continue
+			}
+			if inArrayEnumObject(val) != nil {
+				continue
+			}
 			if needleValue.AsString() == val.AsString() {
 				return data.NewBoolValue(true), nil
 			}
@@ -82,6 +95,27 @@ func (f *InArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	return data.NewBoolValue(false), nil
+}
+
+// EnumParser represents unit and backed enums as subclasses of BackedEnum.
+func inArrayEnumObject(value data.Value) *data.ClassValue {
+	var object *data.ClassValue
+	switch v := value.(type) {
+	case *data.ClassValue:
+		object = v
+	case *data.ThisValue:
+		object = v.ClassValue
+	default:
+		return nil
+	}
+	if object == nil || object.Class == nil {
+		return nil
+	}
+	parent := object.Class.GetExtend()
+	if parent != nil && (*parent == "BackedEnum" || *parent == "\\BackedEnum" || *parent == "UnitEnum" || *parent == "\\UnitEnum") {
+		return object
+	}
+	return nil
 }
 
 func (f *InArrayFunction) GetName() string {

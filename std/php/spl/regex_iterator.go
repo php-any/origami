@@ -92,6 +92,7 @@ func (m *RegexIteratorConstructMethod) GetName() string            { return "__c
 func (m *RegexIteratorConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *RegexIteratorConstructMethod) GetIsStatic() bool          { return false }
 func (m *RegexIteratorConstructMethod) GetReturnType() data.Types  { return nil }
+
 var regexIteratorConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
 	node.NewParameter(nil, "regex", 1, nil, data.String{}),
@@ -103,6 +104,7 @@ var regexIteratorConstructMethodGetParams = []data.GetValue{
 func (m *RegexIteratorConstructMethod) GetParams() []data.GetValue {
 	return regexIteratorConstructMethodGetParams
 }
+
 var regexIteratorConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
 	node.NewVariable(nil, "regex", 1, data.String{}),

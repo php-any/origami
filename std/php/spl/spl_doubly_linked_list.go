@@ -21,7 +21,7 @@ func splListGetCV(ctx data.Context) *data.ClassValue {
 }
 
 func splListInitCV(cv *data.ClassValue) {
-	cv.SetProperty(splListStorageKey, &data.ArrayValue{List: []*data.ZVal{}})
+	cv.SetProperty(splListStorageKey, data.NewArrayValueFromSlots([]*data.ZVal{}))
 	cv.SetProperty(splListPosKey, data.NewIntValue(0))
 	cv.SetProperty(splListModeKey, data.NewIntValue(SplITModeFIFO))
 }
@@ -47,7 +47,7 @@ func splListGetStorage(cv *data.ClassValue) *data.ArrayValue {
 	if arr, ok := v.(*data.ArrayValue); ok {
 		return arr
 	}
-	arr := &data.ArrayValue{List: []*data.ZVal{}}
+	arr := data.NewArrayValueFromSlots([]*data.ZVal{})
 	cv.ObjectValue.SetProperty(splListStorageKey, arr)
 	return arr
 }
@@ -66,8 +66,8 @@ func splListSetPos(cv *data.ClassValue, pos int) {
 
 func splListRewind(cv *data.ClassValue) {
 	arr := splListGetStorage(cv)
-	if splListIsLIFO(cv) && len(arr.List) > 0 {
-		splListSetPos(cv, len(arr.List)-1)
+	if splListIsLIFO(cv) && arr.Len() > 0 {
+		splListSetPos(cv, arr.Len()-1)
 		return
 	}
 	splListSetPos(cv, 0)
@@ -76,16 +76,16 @@ func splListRewind(cv *data.ClassValue) {
 func splListValid(cv *data.ClassValue) bool {
 	arr := splListGetStorage(cv)
 	pos := splListGetPos(cv)
-	return pos >= 0 && pos < len(arr.List)
+	return pos >= 0 && pos < arr.Len()
 }
 
 func splListCurrent(cv *data.ClassValue) data.Value {
 	arr := splListGetStorage(cv)
 	pos := splListGetPos(cv)
-	if pos < 0 || pos >= len(arr.List) {
+	if pos < 0 || pos >= arr.Len() {
 		return data.NewNullValue()
 	}
-	return arr.List[pos].Value
+	return arr.At(pos).Value
 }
 
 func splListKey(cv *data.ClassValue) data.Value {
@@ -95,11 +95,11 @@ func splListKey(cv *data.ClassValue) data.Value {
 func splListNext(cv *data.ClassValue) {
 	arr := splListGetStorage(cv)
 	pos := splListGetPos(cv)
-	if splListIsDelete(cv) && pos >= 0 && pos < len(arr.List) {
+	if splListIsDelete(cv) && pos >= 0 && pos < arr.Len() {
 		splListRemoveAt(arr, pos)
 		if splListIsLIFO(cv) {
-			if pos >= len(arr.List) {
-				pos = len(arr.List) - 1
+			if pos >= arr.Len() {
+				pos = arr.Len() - 1
 			}
 			splListSetPos(cv, pos)
 			return
@@ -125,10 +125,10 @@ func splListOffsetIndex(offset data.Value) (int, bool) {
 }
 
 func splListRemoveAt(arr *data.ArrayValue, index int) {
-	if index < 0 || index >= len(arr.List) {
+	if index < 0 || index >= arr.Len() {
 		return
 	}
-	arr.List = append(arr.List[:index], arr.List[index+1:]...)
+	arr.RemovePositions(index, index+1)
 }
 
 // SplDoublyLinkedListClass 实现 PHP SPL �?SplDoublyLinkedList
@@ -241,11 +241,13 @@ func (m *SplDLLPushMethod) GetName() string            { return "push" }
 func (m *SplDLLPushMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplDLLPushMethod) GetIsStatic() bool          { return false }
 func (m *SplDLLPushMethod) GetReturnType() data.Types  { return data.Int{} }
+
 var splDLLPushMethodGetParams = []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
 
 func (m *SplDLLPushMethod) GetParams() []data.GetValue {
 	return splDLLPushMethodGetParams
 }
+
 var splDLLPushMethodGetVariables = []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
 
 func (m *SplDLLPushMethod) GetVariables() []data.Variable {
@@ -258,8 +260,8 @@ func (m *SplDLLPushMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 	}
 	val, _ := ctx.GetIndexValue(0)
 	arr := splListGetStorage(cv)
-	arr.List = append(arr.List, data.NewZVal(val))
-	return data.NewIntValue(len(arr.List)), nil
+	arr.AppendValue(val)
+	return data.NewIntValue(arr.Len()), nil
 }
 
 type SplDLLPopMethod struct{}
@@ -278,11 +280,11 @@ func (m *SplDLLPopMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewNullValue(), nil
 	}
 	arr := splListGetStorage(cv)
-	if len(arr.List) == 0 {
+	if arr.Len() == 0 {
 		return data.NewNullValue(), nil
 	}
-	last := arr.List[len(arr.List)-1].Value
-	arr.List = arr.List[:len(arr.List)-1]
+	last := arr.At(arr.Len() - 1).Value
+	arr.RemovePositions(arr.Len()-1, arr.Len())
 	return last, nil
 }
 
@@ -302,11 +304,11 @@ func (m *SplDLLShiftMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 		return data.NewNullValue(), nil
 	}
 	arr := splListGetStorage(cv)
-	if len(arr.List) == 0 {
+	if arr.Len() == 0 {
 		return data.NewNullValue(), nil
 	}
-	first := arr.List[0].Value
-	arr.List = arr.List[1:]
+	first := arr.At(0).Value
+	arr.RemovePositions(0, 1)
 	pos := splListGetPos(cv)
 	if pos > 0 {
 		splListSetPos(cv, pos-1)
@@ -320,11 +322,13 @@ func (m *SplDLLUnshiftMethod) GetName() string            { return "unshift" }
 func (m *SplDLLUnshiftMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplDLLUnshiftMethod) GetIsStatic() bool          { return false }
 func (m *SplDLLUnshiftMethod) GetReturnType() data.Types  { return data.Int{} }
+
 var splDLLUnshiftMethodGetParams = []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
 
 func (m *SplDLLUnshiftMethod) GetParams() []data.GetValue {
 	return splDLLUnshiftMethodGetParams
 }
+
 var splDLLUnshiftMethodGetVariables = []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
 
 func (m *SplDLLUnshiftMethod) GetVariables() []data.Variable {
@@ -337,9 +341,9 @@ func (m *SplDLLUnshiftMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 	}
 	val, _ := ctx.GetIndexValue(0)
 	arr := splListGetStorage(cv)
-	arr.List = append([]*data.ZVal{data.NewZVal(val)}, arr.List...)
+	arr.PrependDense(val)
 	splListSetPos(cv, splListGetPos(cv)+1)
-	return data.NewIntValue(len(arr.List)), nil
+	return data.NewIntValue(arr.Len()), nil
 }
 
 type SplDLLTopMethod struct{}
@@ -358,10 +362,10 @@ func (m *SplDLLTopMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewNullValue(), nil
 	}
 	arr := splListGetStorage(cv)
-	if len(arr.List) == 0 {
+	if arr.Len() == 0 {
 		return data.NewNullValue(), nil
 	}
-	return arr.List[len(arr.List)-1].Value, nil
+	return arr.At(arr.Len() - 1).Value, nil
 }
 
 type SplDLLBottomMethod struct{}
@@ -380,10 +384,10 @@ func (m *SplDLLBottomMethod) Call(ctx data.Context) (data.GetValue, data.Control
 		return data.NewNullValue(), nil
 	}
 	arr := splListGetStorage(cv)
-	if len(arr.List) == 0 {
+	if arr.Len() == 0 {
 		return data.NewNullValue(), nil
 	}
-	return arr.List[0].Value, nil
+	return arr.At(0).Value, nil
 }
 
 type SplDLLCountMethod struct{}
@@ -399,7 +403,7 @@ func (m *SplDLLCountMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	if cv == nil {
 		return data.NewIntValue(0), nil
 	}
-	return data.NewIntValue(len(splListGetStorage(cv).List)), nil
+	return data.NewIntValue(splListGetStorage(cv).Len()), nil
 }
 
 type SplDLLIsEmptyMethod struct{}
@@ -417,7 +421,7 @@ func (m *SplDLLIsEmptyMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 	if cv == nil {
 		return data.NewBoolValue(true), nil
 	}
-	return data.NewBoolValue(len(splListGetStorage(cv).List) == 0), nil
+	return data.NewBoolValue(splListGetStorage(cv).Len() == 0), nil
 }
 
 type SplDLLRewindMethod struct{}
@@ -504,11 +508,13 @@ func (m *SplDLLOffsetExistsMethod) GetName() string            { return "offsetE
 func (m *SplDLLOffsetExistsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplDLLOffsetExistsMethod) GetIsStatic() bool          { return false }
 func (m *SplDLLOffsetExistsMethod) GetReturnType() data.Types  { return data.Bool{} }
+
 var splDLLOffsetExistsMethodGetParams = []data.GetValue{node.NewParameter(nil, "index", 0, nil, data.Mixed{})}
 
 func (m *SplDLLOffsetExistsMethod) GetParams() []data.GetValue {
 	return splDLLOffsetExistsMethodGetParams
 }
+
 var splDLLOffsetExistsMethodGetVariables = []data.Variable{node.NewVariable(nil, "index", 0, data.Mixed{})}
 
 func (m *SplDLLOffsetExistsMethod) GetVariables() []data.Variable {
@@ -525,7 +531,7 @@ func (m *SplDLLOffsetExistsMethod) Call(ctx data.Context) (data.GetValue, data.C
 		return data.NewBoolValue(false), nil
 	}
 	arr := splListGetStorage(cv)
-	return data.NewBoolValue(i >= 0 && i < len(arr.List)), nil
+	return data.NewBoolValue(i >= 0 && i < arr.Len()), nil
 }
 
 type SplDLLOffsetGetMethod struct{}
@@ -534,11 +540,13 @@ func (m *SplDLLOffsetGetMethod) GetName() string            { return "offsetGet"
 func (m *SplDLLOffsetGetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplDLLOffsetGetMethod) GetIsStatic() bool          { return false }
 func (m *SplDLLOffsetGetMethod) GetReturnType() data.Types  { return data.Mixed{} }
+
 var splDLLOffsetGetMethodGetParams = []data.GetValue{node.NewParameter(nil, "index", 0, nil, data.Mixed{})}
 
 func (m *SplDLLOffsetGetMethod) GetParams() []data.GetValue {
 	return splDLLOffsetGetMethodGetParams
 }
+
 var splDLLOffsetGetMethodGetVariables = []data.Variable{node.NewVariable(nil, "index", 0, data.Mixed{})}
 
 func (m *SplDLLOffsetGetMethod) GetVariables() []data.Variable {
@@ -555,10 +563,10 @@ func (m *SplDLLOffsetGetMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 		return data.NewNullValue(), nil
 	}
 	arr := splListGetStorage(cv)
-	if i < 0 || i >= len(arr.List) {
+	if i < 0 || i >= arr.Len() {
 		return data.NewNullValue(), nil
 	}
-	return arr.List[i].Value, nil
+	return arr.At(i).Value, nil
 }
 
 type SplDLLOffsetSetMethod struct{}
@@ -567,6 +575,7 @@ func (m *SplDLLOffsetSetMethod) GetName() string            { return "offsetSet"
 func (m *SplDLLOffsetSetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplDLLOffsetSetMethod) GetIsStatic() bool          { return false }
 func (m *SplDLLOffsetSetMethod) GetReturnType() data.Types  { return nil }
+
 var splDLLOffsetSetMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "index", 0, nil, data.Mixed{}),
 	node.NewParameter(nil, "newval", 1, nil, data.Mixed{}),
@@ -575,6 +584,7 @@ var splDLLOffsetSetMethodGetParams = []data.GetValue{
 func (m *SplDLLOffsetSetMethod) GetParams() []data.GetValue {
 	return splDLLOffsetSetMethodGetParams
 }
+
 var splDLLOffsetSetMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "index", 0, data.Mixed{}),
 	node.NewVariable(nil, "newval", 1, data.Mixed{}),
@@ -592,14 +602,14 @@ func (m *SplDLLOffsetSetMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 	val, _ := ctx.GetIndexValue(1)
 	arr := splListGetStorage(cv)
 	if offset == nil {
-		arr.List = append(arr.List, data.NewZVal(val))
+		arr.AppendValue(val)
 		return nil, nil
 	}
 	i, ok := splListOffsetIndex(offset)
-	if !ok || i < 0 || i >= len(arr.List) {
+	if !ok || i < 0 || i >= arr.Len() {
 		return nil, nil
 	}
-	arr.List[i].Value = val
+	arr.At(i).Value = val
 	return nil, nil
 }
 
@@ -609,11 +619,13 @@ func (m *SplDLLOffsetUnsetMethod) GetName() string            { return "offsetUn
 func (m *SplDLLOffsetUnsetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplDLLOffsetUnsetMethod) GetIsStatic() bool          { return false }
 func (m *SplDLLOffsetUnsetMethod) GetReturnType() data.Types  { return nil }
+
 var splDLLOffsetUnsetMethodGetParams = []data.GetValue{node.NewParameter(nil, "index", 0, nil, data.Mixed{})}
 
 func (m *SplDLLOffsetUnsetMethod) GetParams() []data.GetValue {
 	return splDLLOffsetUnsetMethodGetParams
 }
+
 var splDLLOffsetUnsetMethodGetVariables = []data.Variable{node.NewVariable(nil, "index", 0, data.Mixed{})}
 
 func (m *SplDLLOffsetUnsetMethod) GetVariables() []data.Variable {
@@ -644,11 +656,13 @@ func (m *SplDLLSetIteratorModeMethod) GetName() string            { return "setI
 func (m *SplDLLSetIteratorModeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplDLLSetIteratorModeMethod) GetIsStatic() bool          { return false }
 func (m *SplDLLSetIteratorModeMethod) GetReturnType() data.Types  { return nil }
+
 var splDLLSetIteratorModeMethodGetParams = []data.GetValue{node.NewParameter(nil, "mode", 0, data.NewIntValue(0), data.Int{})}
 
 func (m *SplDLLSetIteratorModeMethod) GetParams() []data.GetValue {
 	return splDLLSetIteratorModeMethodGetParams
 }
+
 var splDLLSetIteratorModeMethodGetVariables = []data.Variable{node.NewVariable(nil, "mode", 0, data.Int{})}
 
 func (m *SplDLLSetIteratorModeMethod) GetVariables() []data.Variable {

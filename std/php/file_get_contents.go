@@ -1,7 +1,6 @@
 package php
 
 import (
-	"os"
 	"strings"
 
 	"github.com/php-any/origami/data"
@@ -46,14 +45,14 @@ func (f *FileGetContentsFunction) Call(ctx data.Context) (data.GetValue, data.Co
 	if strings.HasPrefix(filePath, "http://") || strings.HasPrefix(filePath, "https://") {
 		contextVal, _ := ctx.GetIndexValue(2)
 		streamCtx := stream.ContextFromResource(contextVal)
-		content, ok := stream.HTTPGetContents(filePath, streamCtx)
+		content, ok := stream.HTTPGetContentsContext(ctx.GoContext(), filePath, streamCtx)
 		if !ok {
 			return data.NewBoolValue(false), nil
 		}
 		return data.NewStringValue(content), nil
 	}
 
-	bytes, err := os.ReadFile(filePath)
+	bytes, err := utils.ReadFileContext(ctx.GoContext(), filePath)
 	if err != nil {
 		// PHP 行为：file_get_contents 在文件不存在/读取失败时返回 false（并触发 warning）
 		return data.NewBoolValue(false), nil

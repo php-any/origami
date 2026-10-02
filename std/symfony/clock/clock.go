@@ -426,11 +426,11 @@ func clockSleep(ctx data.Context) (data.GetValue, data.Control) {
 	// NativeClock::sleep：整数秒 sleep，小数部分 usleep；非正值不睡。(int) 向零截断。
 	s := int64(seconds)
 	if s > 0 {
-		time.Sleep(time.Duration(s) * time.Second)
+		data.WaitRequest(ctx.GoContext(), time.Duration(s)*time.Second)
 	}
 	us := seconds - float64(s)
 	if us > 0 {
-		time.Sleep(time.Duration(us*1e6) * time.Microsecond)
+		data.WaitRequest(ctx.GoContext(), time.Duration(us*1e6)*time.Microsecond)
 	}
 	return data.NewNullValue(), nil
 }

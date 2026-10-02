@@ -58,6 +58,7 @@ func (m *STFOConstructMethod) GetName() string            { return "__construct"
 func (m *STFOConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *STFOConstructMethod) GetIsStatic() bool          { return false }
 func (m *STFOConstructMethod) GetReturnType() data.Types  { return nil }
+
 var sTFOConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "tempFileName", 0, data.NewStringValue("php://temp"), data.NewBaseType("string")),
 	node.NewParameter(nil, "mode", 1, data.NewStringValue("w+b"), data.NewBaseType("string")),
@@ -67,6 +68,7 @@ var sTFOConstructMethodGetParams = []data.GetValue{
 func (m *STFOConstructMethod) GetParams() []data.GetValue {
 	return sTFOConstructMethodGetParams
 }
+
 var sTFOConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "tempFileName", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "mode", 1, data.NewBaseType("string")),
@@ -84,7 +86,7 @@ func (m *STFOConstructMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 	tempName := sfoCtxString(ctx, 0, "php://temp")
 	mode := sfoCtxString(ctx, 1, "w+b")
 	flags := sfoCtxInt(ctx, 2, 0)
-	if err := sfoOpenFileForTemp(cv, tempName, mode, flags); err != nil {
+	if err := sfoOpenFileForTemp(ctx, cv, tempName, mode, flags); err != nil {
 		return nil, utils.NewThrow(err)
 	}
 	return nil, nil

@@ -1,6 +1,7 @@
 package php
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/php-any/origami/data"
@@ -19,8 +20,11 @@ func (f *SleepFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, ctl
 	}
 	i, _ := v.(data.AsInt).AsInt()
-	time.Sleep(time.Duration(i) * time.Second)
-	return nil, nil
+	if i < 0 {
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("sleep(): Argument #1 ($seconds) must be greater than or equal to 0"), "ValueError")
+	}
+	data.WaitRequest(ctx.GoContext(), time.Duration(i)*time.Second)
+	return data.NewIntValue(0), nil
 }
 func (f *SleepFunction) GetName() string {
 	return "sleep"

@@ -55,6 +55,7 @@ func (h *StmtExecContextMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 func (h *StmtExecContextMethod) GetName() string            { return "execContext" }
 func (h *StmtExecContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *StmtExecContextMethod) GetIsStatic() bool          { return true }
+
 var stmtExecContextMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "ctx", 0, nil, nil),
 	node.NewParameters(nil, "args", 1, nil, nil),

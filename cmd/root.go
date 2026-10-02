@@ -61,6 +61,9 @@ func RunScriptFile(scriptPath string) error {
 	defer span.End("ok")
 	_, err := vm.LoadAndRun(scriptPath)
 	if err != nil {
+		_, err = vm.HandleUnhandledException(err)
+	}
+	if err != nil {
 		if exit, ok := err.(interface {
 			IsExit() bool
 			GetCode() int

@@ -12,8 +12,8 @@ func (h *ExceptionGetTraceMethod) Call(ctx data.Context) (data.GetValue, data.Co
 	if tr, ok := instancePropertyValue(ctx, "trace"); ok {
 		return tr, nil
 	}
-	if h.source != nil {
-		return data.NewArrayValue(h.source.GetTraceValues()), nil
+	if source := exceptionState(ctx, h.source); source != nil {
+		return data.NewArrayValue(source.GetTraceValues()), nil
 	}
 	return data.NewArrayValue(nil), nil
 }
@@ -21,9 +21,13 @@ func (h *ExceptionGetTraceMethod) Call(ctx data.Context) (data.GetValue, data.Co
 func (h *ExceptionGetTraceMethod) GetName() string            { return "getTrace" }
 func (h *ExceptionGetTraceMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ExceptionGetTraceMethod) GetIsStatic() bool          { return false }
+
 var exceptionGetTraceMethodGetParams = []data.GetValue{}
 
-func (h *ExceptionGetTraceMethod) GetParams() []data.GetValue { return exceptionGetTraceMethodGetParams }
+func (h *ExceptionGetTraceMethod) GetParams() []data.GetValue {
+	return exceptionGetTraceMethodGetParams
+}
+
 var exceptionGetTraceMethodGetVariables = []data.Variable{}
 
 func (h *ExceptionGetTraceMethod) GetVariables() []data.Variable {

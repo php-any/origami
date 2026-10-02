@@ -79,6 +79,7 @@ func (h *WithTimeoutCauseFunction) Call(ctx data.Context) (data.GetValue, data.C
 func (h *WithTimeoutCauseFunction) GetName() string            { return "context\\withTimeoutCause" }
 func (h *WithTimeoutCauseFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *WithTimeoutCauseFunction) GetIsStatic() bool          { return true }
+
 var withTimeoutCauseFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "parent", 0, nil, nil),
 	node.NewParameter(nil, "timeout", 1, nil, nil),
@@ -88,6 +89,7 @@ var withTimeoutCauseFunctionGetParams = []data.GetValue{
 func (h *WithTimeoutCauseFunction) GetParams() []data.GetValue {
 	return withTimeoutCauseFunctionGetParams
 }
+
 var withTimeoutCauseFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "parent", 0, nil),
 	node.NewVariable(nil, "timeout", 1, nil),

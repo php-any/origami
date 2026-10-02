@@ -42,6 +42,7 @@ func (h *DBQueryMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *DBQueryMethod) GetName() string            { return "query" }
 func (h *DBQueryMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBQueryMethod) GetIsStatic() bool          { return true }
+
 var dBQueryMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "query", 0, nil, nil),
 	node.NewParameters(nil, "args", 1, nil, nil),

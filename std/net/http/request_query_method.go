@@ -31,12 +31,14 @@ func (h *RequestQueryMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	return result, nil
 }
 
-func (h *RequestQueryMethod) GetName() string               { return "query" }
-func (h *RequestQueryMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *RequestQueryMethod) GetIsStatic() bool             { return false }
+func (h *RequestQueryMethod) GetName() string            { return "query" }
+func (h *RequestQueryMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *RequestQueryMethod) GetIsStatic() bool          { return false }
+
 var requestQueryMethodGetParams = []data.GetValue{}
 
-func (h *RequestQueryMethod) GetParams() []data.GetValue    { return requestQueryMethodGetParams }
+func (h *RequestQueryMethod) GetParams() []data.GetValue { return requestQueryMethodGetParams }
+
 var requestQueryMethodGetVariables = []data.Variable{}
 
 func (h *RequestQueryMethod) GetVariables() []data.Variable { return requestQueryMethodGetVariables }

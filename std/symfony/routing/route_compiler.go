@@ -75,7 +75,8 @@ func compileRouteValue(ctx data.Context, route *data.ClassValue) (data.GetValue,
 	if ctl != nil {
 		return nil, ctl
 	}
-	for _, z := range res.variables.List {
+	for arraySlots202, arrayPosition202 := res.variables.View(), 0; arrayPosition202 < arraySlots202.Len(); arrayPosition202++ {
+		z := arraySlots202.At(arrayPosition202)
 		if z != nil && z.Value != nil && z.Value.AsString() == "_fragment" {
 			return nil, throwNamed(ctx, "InvalidArgumentException",
 				fmt.Sprintf("Route pattern \"%s\" cannot contain \"_fragment\" as a path parameter.", path))
@@ -84,12 +85,14 @@ func compileRouteValue(ctx data.Context, route *data.ClassValue) (data.GetValue,
 
 	allVars := cloneArray(variables)
 	seen := map[string]bool{}
-	for _, z := range allVars.List {
+	for arraySlots203, arrayPosition203 := allVars.View(), 0; arrayPosition203 < arraySlots203.Len(); arrayPosition203++ {
+		z := arraySlots203.At(arrayPosition203)
 		if z != nil && z.Value != nil {
 			seen[z.Value.AsString()] = true
 		}
 	}
-	for _, z := range res.variables.List {
+	for arraySlots204, arrayPosition204 := res.variables.View(), 0; arrayPosition204 < arraySlots204.Len(); arrayPosition204++ {
+		z := arraySlots204.At(arrayPosition204)
 		if z == nil || z.Value == nil {
 			continue
 		}
@@ -98,7 +101,7 @@ func compileRouteValue(ctx data.Context, route *data.ClassValue) (data.GetValue,
 			continue
 		}
 		seen[name] = true
-		allVars.List = append(allVars.List, data.NewZVal(data.NewStringValue(name)))
+		allVars.AppendValue(data.NewStringValue(name))
 	}
 
 	return newCompiledRoute(ctx, res.staticPrefix, res.regex, res.tokens, res.variables, hostRegex, hostTokens, hostVariables, allVars)
@@ -428,7 +431,7 @@ func extractInlineDefaultsAndRequirements(route *data.ClassValue, pattern string
 		}
 		return "{" + bang + name + "}"
 	})
-	if changed && len(mappingArr.List) > 0 {
+	if changed && mappingArr.Len() > 0 {
 		routeSetDefault(route, "_route_mapping", mappingArr)
 	}
 	return out

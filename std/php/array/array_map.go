@@ -44,7 +44,8 @@ func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	var rawArrays []data.Value
 	if paramsVal != nil {
 		if paramsArr, ok := paramsVal.(*data.ArrayValue); ok {
-			for _, z := range paramsArr.List {
+			for arraySlots95, arrayPosition95 := paramsArr.View(), 0; arrayPosition95 < arraySlots95.Len(); arrayPosition95++ {
+				z := arraySlots95.At(arrayPosition95)
 				if z == nil || z.Value == nil {
 					continue
 				}
@@ -116,8 +117,9 @@ func (f *ArrayMapFunction) mapArrayPreserveKeys(ctx data.Context, cbVal data.Val
 	if av == nil {
 		return data.NewArrayValue(nil), nil
 	}
-	out := make([]*data.ZVal, 0, len(av.List))
-	for _, z := range av.List {
+	out := make([]*data.ZVal, 0, av.Len())
+	for arraySlots96, arrayPosition96 := av.View(), 0; arrayPosition96 < arraySlots96.Len(); arrayPosition96++ {
+		z := arraySlots96.At(arrayPosition96)
 		if z == nil {
 			out = append(out, nil)
 			continue
@@ -132,7 +134,7 @@ func (f *ArrayMapFunction) mapArrayPreserveKeys(ctx data.Context, cbVal data.Val
 		}
 		out = append(out, data.CopyZValKeepName(z, mapped))
 	}
-	return &data.ArrayValue{List: out}, nil
+	return data.NewArrayValueFromSlots(out), nil
 }
 
 func (f *ArrayMapFunction) mapObjectPreserveKeys(ctx data.Context, cbVal data.Value, ov *data.ObjectValue) (data.GetValue, data.Control) {
@@ -156,21 +158,25 @@ func (f *ArrayMapFunction) mapObjectPreserveKeys(ctx data.Context, cbVal data.Va
 func (f *ArrayMapFunction) invokeCallback(ctx data.Context, cbVal data.Value, args []data.Value) (data.Value, data.Control) {
 	switch cb := cbVal.(type) {
 	case *data.BoundFuncValue:
-		return f.callFuncStmt(ctx, cb.Value, args)
+		return f.callFuncStmt(ctx, cb.Value, args, cb)
 	case *data.FuncValue:
-		return f.callFuncStmt(ctx, cb.Value, args)
+		return f.callFuncStmt(ctx, cb.Value, args, nil)
 	case *data.ArrayValue:
 		// PHP 数组可调用: [$obj, 'method']
-		if len(cb.List) == 2 {
-			objVal := cb.List[0].Value
-			methodVal := cb.List[1].Value
+		if cb.Len() == 2 {
+			objVal := cb.At(0).Value
+			methodVal := cb.At(1).Value
 			if obj, ok := objVal.(data.GetMethod); ok {
 				methodName := methodVal.AsString()
 				if method, has := obj.GetMethod(methodName); has {
 					varies := method.GetVariables()
 					fnCtx := ctx.CreateContext(varies)
-					for ai := 0; ai < len(varies) && ai < len(args); ai++ {
-						fnCtx.SetVariableValue(varies[ai], args[ai])
+					if instance, ok := objVal.(*data.ClassValue); ok {
+						fnCtx = data.WrapMethodFrame(fnCtx, instance, instance.Class, instance.Class)
+					}
+					fnCtx.SetStrictTypes(false)
+					if ctl := data.BindDeclaredArgs(fnCtx, method, args); ctl != nil {
+						return nil, ctl
 					}
 					ret, ctl := method.Call(fnCtx)
 					if ctl != nil {
@@ -206,17 +212,24 @@ func (f *ArrayMapFunction) invokeCallback(ctx data.Context, cbVal data.Value, ar
 		if !exists {
 			return data.NewNullValue(), nil
 		}
-		return f.callFuncStmt(ctx, fnStmt, args)
+		return f.callFuncStmt(ctx, fnStmt, args, nil)
 	}
 }
 
-func (f *ArrayMapFunction) callFuncStmt(ctx data.Context, fn data.FuncStmt, args []data.Value) (data.Value, data.Control) {
+func (f *ArrayMapFunction) callFuncStmt(ctx data.Context, fn data.FuncStmt, args []data.Value, bound *data.BoundFuncValue) (data.Value, data.Control) {
 	vars := fn.GetVariables()
 	fnCtx := ctx.CreateContext(vars)
-	for ai := 0; ai < len(vars) && ai < len(args); ai++ {
-		fnCtx.SetVariableValue(data.NewVariable("", ai, nil), args[ai])
+	fnCtx.SetStrictTypes(false)
+	if ctl := data.BindDeclaredArgs(fnCtx, fn, args); ctl != nil {
+		return nil, ctl
 	}
-	ret, ctl := fn.Call(fnCtx)
+	var ret data.GetValue
+	var ctl data.Control
+	if bound != nil {
+		ret, ctl = bound.Call(fnCtx)
+	} else {
+		ret, ctl = fn.Call(fnCtx)
+	}
 	if ctl != nil {
 		return nil, ctl
 	}

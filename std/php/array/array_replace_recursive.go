@@ -65,7 +65,8 @@ func recursiveReplaceByKeys(base, replacement data.Value) data.Value {
 	replArr, replIsArr := replacement.(*data.ArrayValue)
 	if baseIsArr && replIsArr {
 		out := data.CloneArrayValue(baseArr)
-		for i, z := range replArr.List {
+		for arraySlots102, i := replArr.View(), 0; i < arraySlots102.Len(); i++ {
+			z := arraySlots102.At(i)
 			if z == nil {
 				continue
 			}
@@ -107,7 +108,8 @@ func deepCopyPreserveKeys(v data.Value) data.Value {
 		return result
 	case *data.ArrayValue:
 		cloned := data.CloneArrayValue(val)
-		for _, z := range cloned.List {
+		for arraySlots103, arrayPosition103 := cloned.View(), 0; arrayPosition103 < arraySlots103.Len(); arrayPosition103++ {
+			z := arraySlots103.At(arrayPosition103)
 			if z != nil {
 				z.Value = deepCopyPreserveKeys(z.Value)
 			}

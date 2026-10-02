@@ -97,6 +97,7 @@ func (f *HashFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *HashFunction) GetName() string            { return "hash" }
 func (f *HashFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *HashFunction) GetIsStatic() bool          { return false }
+
 var hashFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "algo", 0, nil, nil),
 	node.NewParameter(nil, "data", 1, nil, nil),
@@ -105,6 +106,7 @@ var hashFunctionGetParams = []data.GetValue{
 func (f *HashFunction) GetParams() []data.GetValue {
 	return hashFunctionGetParams
 }
+
 var hashFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "algo", 0, nil),
 	node.NewVariable(nil, "data", 1, nil),
@@ -137,6 +139,7 @@ func (f *Crc32Function) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *Crc32Function) GetName() string            { return "crc32" }
 func (f *Crc32Function) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *Crc32Function) GetIsStatic() bool          { return false }
+
 var crc32FunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 }
@@ -144,6 +147,7 @@ var crc32FunctionGetParams = []data.GetValue{
 func (f *Crc32Function) GetParams() []data.GetValue {
 	return crc32FunctionGetParams
 }
+
 var crc32FunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 }
@@ -223,6 +227,7 @@ func (f *Sha1Function) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *Sha1Function) GetName() string            { return "sha1" }
 func (f *Sha1Function) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *Sha1Function) GetIsStatic() bool          { return false }
+
 var sha1FunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 	node.NewParameter(nil, "raw_output", 1, node.NewNullLiteral(nil), nil),
@@ -231,6 +236,7 @@ var sha1FunctionGetParams = []data.GetValue{
 func (f *Sha1Function) GetParams() []data.GetValue {
 	return sha1FunctionGetParams
 }
+
 var sha1FunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "raw_output", 1, data.NewBaseType("bool")),

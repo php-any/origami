@@ -2,7 +2,9 @@ package proc
 
 import (
 	"bytes"
-	"os/exec"
+	"runtime"
+	"strings"
+	"time"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -33,17 +35,30 @@ func (f *ShellExecFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 		return data.NewNullValue(), nil
 	}
 
-	cmdObj := exec.Command("sh", "-c", cmd)
+	cmdObj := shellCommand(ctx.GoContext(), cmd)
+	cmdObj.WaitDelay = 2 * time.Second
 	var stdout bytes.Buffer
 	cmdObj.Stdout = &stdout
 
-	err := cmdObj.Run()
-	if err != nil {
-		// shell_exec 失败时返回 null
+	_ = cmdObj.Run()
+	if ctx.GoContext().Err() != nil {
+		panic(data.ErrRequestCanceled)
+	}
+	output := stdout.String()
+	if runtime.GOOS == "windows" {
+		// PHP opens shell_exec's Windows pipe in CRT text mode: CRLF is
+		// translated to LF and Ctrl-Z marks EOF. proc_open remains binary.
+		if end := strings.IndexByte(output, 0x1a); end >= 0 {
+			output = output[:end]
+		}
+		output = strings.ReplaceAll(output, "\r\n", "\n")
+	}
+	if len(output) == 0 {
+		// PHP returns null when the command produces no output.
 		return data.NewNullValue(), nil
 	}
 
-	return data.NewStringValue(stdout.String()), nil
+	return data.NewStringValue(output), nil
 }
 
 func (f *ShellExecFunction) GetName() string {

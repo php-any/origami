@@ -126,3 +126,5 @@ func (c *classAliasStmt) GetStaticProperty(name string) (data.Value, bool) {
 	}
 	return nil, false
 }
+
+func (c *classAliasStmt) OriginalClass() data.ClassStmt { return c.original }

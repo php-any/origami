@@ -115,6 +115,7 @@ func (fp *FnParser) Parse() (data.GetValue, data.Control) {
 		body,
 		vars,
 		parent,
+		fp.strictTypes,
 	)
 
 	// 设置返回类型（如果指定了）

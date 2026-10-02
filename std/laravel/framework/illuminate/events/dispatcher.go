@@ -334,7 +334,9 @@ func dispSubscribe(ctx data.Context) (data.GetValue, data.Control) {
 	if scv, ok := sub.(*data.ClassValue); ok {
 		if m, ok := scv.GetMethod("subscribe"); ok && m != nil {
 			nctx := scv.CreateContext(m.GetVariables())
-			data.BindDeclaredArgs(nctx, m, []data.Value{cv})
+			if ctl := data.BindDeclaredArgs(nctx, m, []data.Value{cv}); ctl != nil {
+				return nil, ctl
+			}
 			ret, ctl := m.Call(nctx)
 			if ctl != nil {
 				return nil, ctl
@@ -448,7 +450,7 @@ func dispatchNamed(ctx data.Context, cv *data.ClassValue, name string, payload d
 			return val, nil, true
 		}
 		if !halt {
-			responses.List = append(responses.List, data.NewZVal(val))
+			responses.AppendValue(val)
 		}
 		return nil, nil, false
 	}
@@ -530,7 +532,9 @@ func invokeClassMethod(ctx data.Context, cv *data.ClassValue, className, method 
 	if ccv, ok := kit.Unwrap(container).(*data.ClassValue); ok {
 		if m, ok := ccv.GetMethod("make"); ok && m != nil {
 			nctx := ccv.CreateContext(m.GetVariables())
-			data.BindDeclaredArgs(nctx, m, []data.Value{data.NewStringValue(className)})
+			if ctl := data.BindDeclaredArgs(nctx, m, []data.Value{data.NewStringValue(className)}); ctl != nil {
+				return nil, ctl
+			}
 			ret, ctl := m.Call(nctx)
 			if ctl != nil {
 				return nil, ctl
@@ -555,7 +559,9 @@ func invokeClassMethod(ctx data.Context, cv *data.ClassValue, className, method 
 		return data.NewNullValue(), nil
 	}
 	nctx := scv.CreateContext(m.GetVariables())
-	data.BindDeclaredArgs(nctx, m, args)
+	if ctl := data.BindDeclaredArgs(nctx, m, args); ctl != nil {
+		return nil, ctl
+	}
 	return m.Call(nctx)
 }
 
@@ -571,7 +577,7 @@ func dispGetListeners(ctx data.Context) (data.GetValue, data.Control) {
 	st.mu.Unlock()
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
 	for _, lis := range list {
-		out.List = append(out.List, data.NewZVal(lis))
+		out.AppendValue(lis)
 	}
 	return out, nil
 }
@@ -681,11 +687,9 @@ func dispGetRawListeners(ctx data.Context) (data.GetValue, data.Control) {
 	for name, list := range st.listeners {
 		arr := data.NewArrayValue(nil).(*data.ArrayValue)
 		for _, lis := range list {
-			arr.List = append(arr.List, data.NewZVal(lis))
+			arr.AppendValue(lis)
 		}
-		zv := data.NewZVal(arr)
-		zv.Name = name
-		out.List = append(out.List, zv)
+		out.SetStringKey(name, arr)
 	}
 	return out, nil
 }

@@ -38,10 +38,10 @@ class JsonRespNested_Box implements JsonSerializable {
 		t.Fatal("JsonRespNested_Box not registered")
 	}
 	box := data.NewClassValue(stmt, ctx)
-	payload := &data.ArrayValue{List: []*data.ZVal{
+	payload := data.NewArrayValueFromSlots([]*data.ZVal{
 		data.NewNamedZVal("entries", box),
 		data.NewNamedZVal("status", data.NewStringValue("enabled")),
-	}}
+	})
 	resp := data.NewClassValue(NewJsonResponseClass(), ctx)
 	if _, ctl := jsonResponseSetDataWith(resp, payload); ctl != nil {
 		t.Fatalf("setData: %v", ctl)

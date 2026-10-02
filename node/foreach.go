@@ -83,7 +83,7 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 
 		// PHP foreach 在循环体内 unset 当前数组元素时仍遍历开始时存在的全部条目；
 		// 对底层 List 做快照，避免 Go range 在原地修改 slice 时跳过元素（Arr::set 等）。
-		listSnapshot := append([]*data.ZVal(nil), array.List...)
+		listSnapshot := array.Snapshot()
 
 		// 遍历数组
 		for i, zval := range listSnapshot {
@@ -604,7 +604,8 @@ func (f *ForeachValueTarget) GetType() data.Types {
 func (f *ForeachValueTarget) SetValue(ctx data.Context, value data.Value) data.Control {
 	switch d := value.(type) {
 	case *data.ArrayValue:
-		for i, val := range d.List {
+		for arraySlots23, i := d.View(), 0; i < arraySlots23.Len(); i++ {
+			val := arraySlots23.At(i)
 			if i >= len(f.V) || f.V[i] == nil {
 				continue
 			}

@@ -51,6 +51,7 @@ type ScopeMakeMethod struct{}
 func (m *ScopeMakeMethod) GetName() string            { return "make" }
 func (m *ScopeMakeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ScopeMakeMethod) GetIsStatic() bool          { return false }
+
 var scopeMakeMethodGetParams = []data.GetValue{
 	data.NewParameter("abstract", 0),
 	data.NewParameterDefault("parameters", 1, data.NewNullValue(), nil),
@@ -59,6 +60,7 @@ var scopeMakeMethodGetParams = []data.GetValue{
 func (m *ScopeMakeMethod) GetParams() []data.GetValue {
 	return scopeMakeMethodGetParams
 }
+
 var scopeMakeMethodGetVariables = []data.Variable{
 	data.NewVariable("abstract", 0, data.NewBaseType("string")),
 	data.NewVariable("parameters", 1, nil),
@@ -83,7 +85,8 @@ func (m *ScopeMakeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	var params []data.GetValue
 	if v, ok := ctx.GetIndexValue(1); ok {
 		if arr, isArr := v.(*data.ArrayValue); isArr {
-			for _, item := range arr.List {
+			for arraySlots33, arrayPosition33 := arr.View(), 0; arrayPosition33 < arraySlots33.Len(); arrayPosition33++ {
+				item := arraySlots33.At(arrayPosition33)
 				params = append(params, item.Value)
 			}
 		}
