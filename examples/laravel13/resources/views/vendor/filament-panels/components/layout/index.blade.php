@@ -4,25 +4,22 @@
     $renderHookScopes = $livewire?->getRenderHookScopes();
 @endphp
 <x-filament-panels::layout.base :livewire="$livewire">
-    <div class="tabler-ui" data-bs-theme="light">
+    <div class="tabler-ui origami-admin" data-bs-theme="light">
     <div class="page min-vh-100">
         <a href="#fi-main-content" class="visually-hidden-focusable skip-link">跳转到主要内容</a>
-        <aside class="navbar navbar-vertical navbar-expand-lg bg-dark d-print-none" data-bs-theme="dark" aria-label="主导航">
+        <aside class="navbar navbar-vertical navbar-expand-lg origami-sidebar d-print-none" aria-label="主导航">
             <div class="container-fluid">
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu" aria-controls="sidebar-menu" aria-expanded="false" aria-label="展开导航">
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="navbar-brand">
                     <a href="{{ filament()->getHomeUrl() }}" class="d-flex align-items-center gap-2 text-reset" aria-label="Origami Admin 首页">
-                        <x-filament::icon icon="heroicon-o-square-3-stack-3d" class="icon" />
-                        <span class="nav-link-title">Origami Admin</span>
+                        <span class="origami-brand-mark"><x-filament::icon icon="heroicon-o-square-3-stack-3d" class="icon" /></span>
+                        <span class="nav-link-title origami-brand-copy"><strong>Origami</strong><small>管理工作空间</small></span>
                     </a>
-                    <button type="button" class="btn btn-action btn-sm d-none d-lg-inline-flex" data-bs-toggle="sidebar-folded" aria-pressed="false" aria-label="折叠侧栏">
-                        <x-filament::icon icon="heroicon-o-bars-3-bottom-left" class="icon" />
-                    </button>
                 </div>
                 <nav class="collapse navbar-collapse" id="sidebar-menu" aria-label="业务模块">
-                    <ul class="navbar-nav pt-lg-3">
+                    <ul class="navbar-nav">
                         @foreach (filament()->getNavigation() as $group)
                             @if ($group->getLabel())
                                 <li class="nav-section-title">{{ $group->getLabel() }}</li>
@@ -40,7 +37,7 @@
                     </ul>
                 </nav>
                 <div class="navbar-footer">
-                    <div class="px-3 py-3 small text-secondary nav-link-title">Origami · 管理控制台</div>
+                    <div class="origami-workspace-label nav-link-title"><x-filament::icon icon="heroicon-o-square-3-stack-3d" class="icon" /><span>Origami Admin</span></div>
                 </div>
             </div>
         </aside>
@@ -60,14 +57,6 @@
                 </div>
             </main>
             {{ \Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::CONTENT_AFTER, scopes: $renderHookScopes) }}
-            <footer class="footer footer-transparent d-print-none">
-                <div class="container-fluid">
-                    <div class="row text-center align-items-center flex-row-reverse">
-                        <div class="col-lg-auto ms-lg-auto"><span class="text-secondary">{{ now()->format('Y 年 m 月 d 日') }}</span></div>
-                        <div class="col-12 col-lg-auto mt-3 mt-lg-0"><span class="text-secondary">Origami Admin</span></div>
-                    </div>
-                </div>
-            </footer>
             {{ \Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::FOOTER, scopes: $renderHookScopes) }}
         </div>
     </div>
