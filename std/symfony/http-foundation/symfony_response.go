@@ -202,7 +202,7 @@ func (c *SymfonyResponseClass) GetStaticProperty(name string) (data.Value, bool)
 		for code, text := range responseStatusTexts {
 			list = append(list, &data.ZVal{Name: data.IntArrayKeyName(code), Value: data.NewStringValue(text)})
 		}
-		return &data.ArrayValue{List: list}, true
+		return data.NewArrayValueFromSlots(list), true
 	}
 	return nil, false
 }
@@ -1180,7 +1180,8 @@ func symfonyResponseSetVary(ctx data.Context) (data.GetValue, data.Control) {
 	replace := boolParam(ctx, 1, true)
 	var values []string
 	if arr, ok := headersVal.(*data.ArrayValue); ok {
-		for _, z := range arr.List {
+		for arraySlots166, arrayPosition166 := arr.View(), 0; arrayPosition166 < arraySlots166.Len(); arrayPosition166++ {
+			z := arraySlots166.At(arrayPosition166)
 			if z != nil && z.Value != nil {
 				values = append(values, z.Value.AsString())
 			}
@@ -1213,7 +1214,8 @@ func symfonyResponseIsNotModified(ctx data.Context) (data.GetValue, data.Control
 			matchEtag = matchEtag[2:]
 		}
 		if arr, ok := etagsVal.(*data.ArrayValue); ok {
-			for _, z := range arr.List {
+			for arraySlots167, arrayPosition167 := arr.View(), 0; arrayPosition167 < arraySlots167.Len(); arrayPosition167++ {
+				z := arraySlots167.At(arrayPosition167)
 				if z == nil || z.Value == nil {
 					continue
 				}

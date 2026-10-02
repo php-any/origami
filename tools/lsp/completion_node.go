@@ -208,6 +208,7 @@ func getTypeFromLeftNode(n data.GetValue, ctx *LspContext, provider *LSPSymbolPr
 
 // extractClassNamesFromTypeForCompletion 从类型对象中提取所有可能的类名（用于补全）
 func extractClassNamesFromTypeForCompletion(typ data.Types) []string {
+	typ = data.LegacyType(typ)
 	if typ == nil {
 		return nil
 	}

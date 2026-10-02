@@ -54,6 +54,7 @@ func (m *InfIConstructMethod) GetName() string            { return "__construct"
 func (m *InfIConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *InfIConstructMethod) GetIsStatic() bool          { return false }
 func (m *InfIConstructMethod) GetReturnType() data.Types  { return nil }
+
 var infIConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
 }
@@ -61,6 +62,7 @@ var infIConstructMethodGetParams = []data.GetValue{
 func (m *InfIConstructMethod) GetParams() []data.GetValue {
 	return infIConstructMethodGetParams
 }
+
 var infIConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
 }

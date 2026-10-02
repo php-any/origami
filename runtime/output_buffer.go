@@ -4,6 +4,29 @@ import (
 	"github.com/php-any/origami/data"
 )
 
+func (vm *VM) HeaderCallbackState() *data.HeaderCallbackState        { return &vm.activeOut().headers }
+func (vm *RequestVM) HeaderCallbackState() *data.HeaderCallbackState { return &vm.activeOut().headers }
+func (c *Context) HeaderCallbackState() *data.HeaderCallbackState    { return &c.resolveOut().headers }
+
+func (st *OutputState) bindTarget(write func(string) data.Control, flush func()) func() {
+	previousSink, previousFlush := st.sink, st.sapiFlush
+	st.sink = func(s string) {
+		if ctl := write(s); ctl != nil {
+			st.setControl(ctl)
+		}
+	}
+	st.sapiFlush = flush
+	return func() { st.sink, st.sapiFlush = previousSink, previousFlush }
+}
+
+func (vm *VM) BindOutputTarget(write func(string) data.Control, flush func()) func() {
+	return vm.activeOut().bindTarget(write, flush)
+}
+
+func (vm *RequestVM) BindOutputTarget(write func(string) data.Control, flush func()) func() {
+	return vm.activeOut().bindTarget(write, flush)
+}
+
 func (vm *VM) activeOut() *OutputState {
 	if st := currentRequestOutput(); st != nil {
 		return st
@@ -75,92 +98,95 @@ func (vm *VM) OutputBufferLevel() int {
 	return vm.activeOut().level()
 }
 
-func (vm *TempVM) activeOut() *OutputState {
+func (vm *RequestVM) activeOut() *OutputState {
+	if vm.out.local {
+		return vm.out
+	}
 	if st := currentRequestOutput(); st != nil {
 		return st
 	}
 	return vm.out
 }
 
-func (vm *TempVM) fallbackFor(st *OutputState) func(string) {
+func (vm *RequestVM) fallbackFor(st *OutputState) func(string) {
 	if st == vm.out {
 		return vm.Base.WriteOutput
 	}
 	return data.WriteOutput
 }
 
-func (vm *TempVM) WriteOutput(s string) {
+func (vm *RequestVM) WriteOutput(s string) {
 	st := vm.activeOut()
 	st.write(s, vm.fallbackFor(st))
 }
 
-func (vm *TempVM) StartOutputBuffer() {
+func (vm *RequestVM) StartOutputBuffer() {
 	vm.activeOut().start()
 }
 
-func (vm *TempVM) StartOutputBufferSpec(spec data.OutputBufferStartSpec) bool {
+func (vm *RequestVM) StartOutputBufferSpec(spec data.OutputBufferStartSpec) bool {
 	return vm.activeOut().startSpec(spec)
 }
 
-func (vm *TempVM) CleanOutputBuffer() (string, bool) {
+func (vm *RequestVM) CleanOutputBuffer() (string, bool) {
 	return vm.activeOut().clean()
 }
 
-func (vm *TempVM) FlushOutputBuffer() (string, bool) {
+func (vm *RequestVM) FlushOutputBuffer() (string, bool) {
 	st := vm.activeOut()
 	return st.flushWithFallback(vm.fallbackFor(st))
 }
 
-func (vm *TempVM) FlushCurrentBuffer() (string, bool) {
+func (vm *RequestVM) FlushCurrentBuffer() (string, bool) {
 	st := vm.activeOut()
 	return st.flushCurrent(data.PHPOutputHandlerFlush, vm.fallbackFor(st))
 }
 
-func (vm *TempVM) CleanCurrentBuffer() bool {
+func (vm *RequestVM) CleanCurrentBuffer() bool {
 	return vm.activeOut().cleanCurrent()
 }
 
-func (vm *TempVM) OutputBufferLength() (int, bool) {
+func (vm *RequestVM) OutputBufferLength() (int, bool) {
 	return vm.activeOut().length()
 }
 
-func (vm *TempVM) OutputBufferStatus(full bool) []data.OutputBufferStatusInfo {
+func (vm *RequestVM) OutputBufferStatus(full bool) []data.OutputBufferStatusInfo {
 	return vm.activeOut().status(full)
 }
 
-func (vm *TempVM) ListOutputHandlers() []string {
+func (vm *RequestVM) ListOutputHandlers() []string {
 	return vm.activeOut().handlers()
 }
 
-func (vm *TempVM) SetImplicitFlush(on bool) {
+func (vm *RequestVM) SetImplicitFlush(on bool) {
 	vm.activeOut().setImplicitFlush(on)
 }
 
-func (vm *TempVM) IsImplicitFlush() bool {
+func (vm *RequestVM) IsImplicitFlush() bool {
 	return vm.activeOut().isImplicitFlush()
 }
 
-func (vm *TempVM) TakeOutputControl() data.Control {
+func (vm *RequestVM) TakeOutputControl() data.Control {
 	return vm.activeOut().takeControl()
 }
 
-func (vm *TempVM) FlushSAPI() {
+func (vm *RequestVM) FlushSAPI() {
 	vm.activeOut().flushSAPI()
 }
 
-func (vm *TempVM) OutputBufferContents() (string, bool) {
+func (vm *RequestVM) OutputBufferContents() (string, bool) {
 	return vm.activeOut().contents()
 }
 
-func (vm *TempVM) OutputBufferLevel() int {
+func (vm *RequestVM) OutputBufferLevel() int {
 	return vm.activeOut().level()
 }
 
 var (
 	_ data.OutputSink       = (*VM)(nil)
 	_ data.OutputBufferHost = (*VM)(nil)
-	_ data.OutputSink       = (*TempVM)(nil)
-	_ data.OutputBufferHost = (*TempVM)(nil)
+	_ data.OutputSink       = (*RequestVM)(nil)
+	_ data.OutputBufferHost = (*RequestVM)(nil)
 	_ data.OutputSink       = (*Context)(nil)
 	_ data.OutputBufferHost = (*Context)(nil)
 )

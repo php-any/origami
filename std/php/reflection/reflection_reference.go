@@ -70,11 +70,13 @@ func (m *ReflectionReferenceFromArrayElementMethod) GetModifier() data.Modifier 
 	return data.ModifierPublic
 }
 func (m *ReflectionReferenceFromArrayElementMethod) GetIsStatic() bool { return true }
+
 var reflectionReferenceFromArrayElementMethodGetParams = []data.GetValue{}
 
 func (m *ReflectionReferenceFromArrayElementMethod) GetParams() []data.GetValue {
 	return reflectionReferenceFromArrayElementMethodGetParams
 }
+
 var reflectionReferenceFromArrayElementMethodGetVariables = []data.Variable{}
 
 func (m *ReflectionReferenceFromArrayElementMethod) GetVariables() []data.Variable {
@@ -109,9 +111,11 @@ func (m *ReflectionReferenceFromArrayElementMethod) Call(ctx data.Context) (data
 	default:
 		return data.NewNullValue(), nil
 	}
+	for arraySlots132,
 
-	// 按 Name 精确匹配（关联键）
-	for _, z := range arr.List {
+		// 按 Name 精确匹配（关联键）
+		arrayPosition132 := arr.View(), 0; arrayPosition132 < arraySlots132.Len(); arrayPosition132++ {
+		z := arraySlots132.At(arrayPosition132)
 		if z == nil {
 			continue
 		}
@@ -123,8 +127,8 @@ func (m *ReflectionReferenceFromArrayElementMethod) Call(ctx data.Context) (data
 		}
 	}
 	// 整数键兜底：顺序索引元素（Name 为空）
-	if intKey >= 0 && intKey < len(arr.List) {
-		z := arr.List[intKey]
+	if intKey >= 0 && intKey < arr.Len() {
+		z := arr.At(intKey)
 		if z != nil && z.Name == "" {
 			if z.RefSlotCount > 0 {
 				return newReflectionReferenceValue(ctx), nil
@@ -150,11 +154,13 @@ func (m *ReflectionReferenceGetIdMethod) GetModifier() data.Modifier {
 	return data.ModifierPublic
 }
 func (m *ReflectionReferenceGetIdMethod) GetIsStatic() bool { return false }
+
 var reflectionReferenceGetIdMethodGetParams = []data.GetValue{}
 
 func (m *ReflectionReferenceGetIdMethod) GetParams() []data.GetValue {
 	return reflectionReferenceGetIdMethodGetParams
 }
+
 var reflectionReferenceGetIdMethodGetVariables = []data.Variable{}
 
 func (m *ReflectionReferenceGetIdMethod) GetVariables() []data.Variable {

@@ -37,11 +37,15 @@ type Context struct {
 	// 被 Call 拆值后即失效，因此每帧一个实例就够。
 	retSlot data.ReturnValue
 
-	call    *CallState
-	out     *OutputState
-	pooled  bool
-	escaped bool
+	call        *CallState
+	out         *OutputState
+	pooled      bool
+	escaped     bool
+	strictTypes bool
 }
+
+func (c *Context) StrictTypes() bool          { return c.strictTypes }
+func (c *Context) SetStrictTypes(strict bool) { c.strictTypes = strict }
 
 // BindStaticLocals 绑定函数级 static 局部变量存储
 func (c *Context) BindStaticLocals(store *data.StaticLocals) {
@@ -132,8 +136,8 @@ func (c *Context) SetVariableValue(variable data.Variable, value data.Value) dat
 		c.variables[variable.GetIndex()] = v.Ctx.GetIndexZVal(v.Val.GetIndex())
 	case *data.ArraySlotRef:
 		// &$array[] 语法：局部变量与数组元素共享 ZVal
-		if v.Arr != nil && v.Idx >= 0 && v.Idx < len(v.Arr.List) {
-			slot := v.Arr.List[v.Idx]
+		if v.Slot != nil {
+			slot := v.Slot
 			slot.AddRefSlot()
 			c.variables[variable.GetIndex()] = slot
 		}
@@ -178,8 +182,12 @@ func (c *Context) CreateContext(vars []data.Variable) data.Context {
 	nc.retSlot.V = nil
 	nc.pooled = true
 	nc.escaped = false
+	nc.strictTypes = c.strictTypes
 	nc.call = c.call
 	nc.out = c.inheritOut()
+	if nc.out != nil && nc.out.local {
+		nc.call = nc.out.call
+	}
 	nc.resetVariables(vars)
 	return nc
 }
@@ -250,7 +258,7 @@ func (c *Context) resolveCallState() *CallState {
 		st := vm.localCall()
 		c.call = st
 		return st
-	case *TempVM:
+	case *RequestVM:
 		c.call = &vm.call
 		return c.call
 	default:
@@ -288,10 +296,16 @@ func (c *Context) SnapshotCallStack() []data.CallFrame {
 }
 
 func (c *Context) CreateBaseContext() data.Context {
+	out := c.inheritOut()
+	call := c.call
+	if out != nil && out.local {
+		call = out.call
+	}
 	return &Context{
-		vm:   c.vm,
-		call: c.call,
-		out:  c.inheritOut(),
+		vm:          c.vm,
+		call:        call,
+		out:         out,
+		strictTypes: c.strictTypes,
 	}
 }
 
@@ -326,7 +340,7 @@ func (c *Context) resolveOut() *OutputState {
 	switch vm := c.vm.(type) {
 	case *VM:
 		return vm.out
-	case *TempVM:
+	case *RequestVM:
 		return vm.out
 	}
 	return nil
@@ -462,7 +476,10 @@ func (c *Context) GetVM() data.VM {
 }
 
 func (c *Context) GoContext() context.Context {
-	return context.Background()
+	if c.call != nil && c.call.deadline != nil {
+		return c.call.deadline
+	}
+	return RequestContext()
 }
 
 // SetVM 替换当前 Context 所绑定的 VM

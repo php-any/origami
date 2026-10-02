@@ -19,16 +19,11 @@ func (f *ArrayPopFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	arrayValue := data.CowSeparateIndex(ctx, 0)
 
 	if arr, ok := arrayValue.(*data.ArrayValue); ok {
-		if len(arr.List) == 0 {
+		slot := arr.PopSlot()
+		if slot == nil || slot.Value == nil {
 			return data.NewNullValue(), nil
 		}
-		lastIndex := len(arr.List) - 1
-		lastElement := arr.List[lastIndex].Value
-		arr.List = arr.List[:lastIndex]
-		if lastElement == nil {
-			return data.NewNullValue(), nil
-		}
-		return lastElement, nil
+		return slot.Value, nil
 	}
 
 	if obj, ok := arrayValue.(*data.ObjectValue); ok {

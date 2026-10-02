@@ -142,8 +142,10 @@ func (f *ExtractFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 			return nil, acl
 		}
 	case *data.ArrayValue:
-		// 顺序数组：仅处理带有字符串键名（ZVal.Name != ""）的条目
-		for _, zv := range v.List {
+		for arraySlots119,
+			// 顺序数组：仅处理带有字符串键名（ZVal.Name != ""）的条目
+			arrayPosition119 := v.View(), 0; arrayPosition119 < arraySlots119.Len(); arrayPosition119++ {
+			zv := arraySlots119.At(arrayPosition119)
 			if zv == nil || zv.Name == "" {
 				continue
 			}

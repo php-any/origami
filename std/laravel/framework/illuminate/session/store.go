@@ -148,7 +148,8 @@ func sessPut(ctx data.Context) (data.GetValue, data.Control) {
 	value := kit.Arg(ctx, 1)
 	attrs := sessAttrs(cv)
 	if av, ok := kit.Unwrap(keyArg).(*data.ArrayValue); ok && av != nil {
-		for _, e := range av.List {
+		for arraySlots64, arrayPosition64 := av.View(), 0; arrayPosition64 < arraySlots64.Len(); arrayPosition64++ {
+			e := arraySlots64.At(arrayPosition64)
 			if e == nil {
 				continue
 			}
@@ -221,7 +222,7 @@ func sessFlash(ctx data.Context) (data.GetValue, data.Control) {
 		flashArr = data.NewArrayValue(nil).(*data.ArrayValue)
 		attrs.SetStringKey("_flash.new", flashArr)
 	}
-	flashArr.SetIntKey(len(flashArr.List), data.NewStringValue(key))
+	flashArr.SetIntKey(flashArr.Len(), data.NewStringValue(key))
 	return data.NewNullValue(), nil
 }
 
@@ -233,7 +234,8 @@ func sessForget(ctx data.Context) (data.GetValue, data.Control) {
 	keys := kit.Arg(ctx, 0)
 	attrs := sessAttrs(cv)
 	if av, ok := kit.Unwrap(keys).(*data.ArrayValue); ok && av != nil {
-		for _, e := range av.List {
+		for arraySlots65, arrayPosition65 := av.View(), 0; arrayPosition65 < arraySlots65.Len(); arrayPosition65++ {
+			e := arraySlots65.At(arrayPosition65)
 			if e == nil {
 				continue
 			}

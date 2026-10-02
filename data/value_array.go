@@ -12,22 +12,22 @@ func NewArrayValue(v []Value) Value {
 		list[i] = NewZVal(val)
 	}
 	return &ArrayValue{
-		List: list,
+		flatArrayStore: FlatArrayStore{entries: list},
 	}
 }
 
 // CloneArrayValue 创建一个新的 ArrayValue。
 // 复制 []*ZVal 切片本身，并对每个非引用元素重新分配 ZVal（对齐 PHP 数组 copy-on-write 语义）：
-// - 结构不共享：两个数组的 List 是不同的 slice，结构性修改（如 array_shift/append）互不影响
+// - 结构不共享：两个数组的槽位切片不同，结构性修改（如 array_shift/append）互不影响
 // - 元素不共享：写入/替换单个元素时不会影响其他数组（因为各自持有独立的 ZVal）
 // - 通过 &$arr[i] 绑定的引用槽位（RefSlotCount > 0）仍共享同一 ZVal，保持引用语义
 func CloneArrayValue(src *ArrayValue) *ArrayValue {
 	if src == nil {
 		return nil
 	}
-	// 先把 List 头读进局部变量：并发下 make(len(src.List)) 与 range src.List
-	// 是两次独立读，可能读到不同长度的 slice，导致 list[i] 越界 panic。
-	srcList := src.List
+	// Borrow one structural view. The source must be request-owned or immutable;
+	// a slice-header snapshot does not synchronize concurrent mutations.
+	srcList := src.slots()
 	list := make([]*ZVal, len(srcList))
 	for i, z := range srcList {
 		if z == nil {
@@ -42,7 +42,7 @@ func CloneArrayValue(src *ArrayValue) *ArrayValue {
 		}
 	}
 	return &ArrayValue{
-		List:                  list,
+		flatArrayStore:        FlatArrayStore{entries: list, appendKeyKnown: src.appendKeyKnown, intKeySeen: src.intKeySeen, nextIntKey: src.nextIntKey, iterator: src.iterator},
 		IndirectOverloadClass: src.IndirectOverloadClass,
 	}
 }
@@ -65,7 +65,7 @@ func deepCloneArrayValue(src *ArrayValue, depth int) *ArrayValue {
 		return nil
 	}
 	const maxDepth = 64
-	srcList := src.List // 同上：只读一次 List 头
+	srcList := src.slots() // 同上：只借用一次只读槽位视图
 	list := make([]*ZVal, len(srcList))
 	for i, z := range srcList {
 		if z == nil {
@@ -79,7 +79,7 @@ func deepCloneArrayValue(src *ArrayValue, depth int) *ArrayValue {
 		}
 	}
 	return &ArrayValue{
-		List:                  list,
+		flatArrayStore:        FlatArrayStore{entries: list, appendKeyKnown: src.appendKeyKnown, intKeySeen: src.intKeySeen, nextIntKey: src.nextIntKey, iterator: src.iterator},
 		IndirectOverloadClass: src.IndirectOverloadClass,
 	}
 }
@@ -89,7 +89,7 @@ func CloneArrayValueForCallArgs(src *ArrayValue) *ArrayValue {
 	if src == nil {
 		return nil
 	}
-	srcList := src.List // 同上：只读一次 List 头
+	srcList := src.slots() // 同上：只借用一次只读槽位视图
 	list := make([]*ZVal, len(srcList))
 	for i, z := range srcList {
 		if z == nil {
@@ -102,31 +102,26 @@ func CloneArrayValueForCallArgs(src *ArrayValue) *ArrayValue {
 			list[i] = CopyZValKeepName(z, z.Value)
 		}
 	}
-	return &ArrayValue{List: list, rc: 1}
+	return &ArrayValue{flatArrayStore: FlatArrayStore{entries: list, appendKeyKnown: src.appendKeyKnown, intKeySeen: src.intKeySeen, nextIntKey: src.nextIntKey, iterator: src.iterator}, rc: 1}
 }
 
 type ArrayValue struct {
-	List     []*ZVal
-	iterator int // 迭代器当前位置索引
-	// IndirectOverloadClass 非空表示该数组来自 ArrayAccess::offsetGet 的副本，对其元素的间接修改无效
+	flatArrayStore
+	// IndirectOverloadClass identifies an ArrayAccess::offsetGet value copy.
 	IndirectOverloadClass string
-	rc                    int // 指向该容器的 zval 数（copy-on-write）
-	keyIndex              map[string]int
-	idxLen                int
-	packed                bool // 全部槽位 Name==""，整数键即 List 下标
-	maxIntKey             int  // 当前最大整数键；无整数键时为 -1
+	rc                    int
 }
 
 func (a *ArrayValue) Current(ctx Context) (Value, Control) {
-	if a.iterator >= len(a.List) {
+	if a.iterator < 0 || a.iterator >= len(a.entries) {
 		return NewNullValue(), nil
 	}
-	return a.List[a.iterator].Value, nil
+	return a.entries[a.iterator].Value, nil
 }
 
 func (a *ArrayValue) Key(ctx Context) (Value, Control) {
-	if a.iterator >= 0 && a.iterator < len(a.List) {
-		return a.List[a.iterator].PHPArrayKey(a.iterator), nil
+	if a.iterator >= 0 && a.iterator < len(a.entries) {
+		return a.entries[a.iterator].PHPArrayKey(a.iterator), nil
 	}
 	return NewIntValue(a.iterator), nil
 }
@@ -142,7 +137,7 @@ func (a *ArrayValue) Rewind(ctx Context) (Value, Control) {
 }
 
 func (a *ArrayValue) Valid(ctx Context) (Value, Control) {
-	valid := a.iterator >= 0 && a.iterator < len(a.List)
+	valid := a.iterator >= 0 && a.iterator < len(a.entries)
 	return NewBoolValue(valid), nil
 }
 
@@ -152,7 +147,7 @@ func (a *ArrayValue) GetValue(ctx Context) (GetValue, Control) {
 
 func (a *ArrayValue) AsString() string {
 	str := "["
-	for _, zval := range a.List {
+	for _, zval := range a.entries {
 		str = str + zval.Value.AsString() + ", "
 	}
 	if len(str) > 2 {
@@ -164,55 +159,55 @@ func (a *ArrayValue) AsString() string {
 }
 
 func (a *ArrayValue) AsBool() (bool, error) {
-	return len(a.List) > 0, nil
+	return len(a.entries) > 0, nil
 }
 
 func (a *ArrayValue) GetMethod(name string) (Method, bool) {
 	switch name {
 	case "push":
-		return &ArrayValuePush{&a.List}, true
+		return &ArrayValuePush{a}, true
 	case "pop":
-		return &ArrayValuePop{&a.List}, true
+		return &ArrayValuePop{a}, true
 	case "shift":
-		return &ArrayValueShift{&a.List}, true
+		return &ArrayValueShift{a}, true
 	case "unshift":
-		return &ArrayValueUnshift{&a.List}, true
+		return &ArrayValueUnshift{a}, true
 	case "slice":
-		return &ArrayValueSlice{a.List}, true
+		return &ArrayValueSlice{a}, true
 	case "splice":
-		return &ArrayValueSplice{&a.List}, true
+		return &ArrayValueSplice{a}, true
 	case "join":
-		return &ArrayValueJoin{a.List}, true
+		return &ArrayValueJoin{a}, true
 	case "reverse":
-		return &ArrayValueReverse{a.List}, true
+		return &ArrayValueReverse{a}, true
 	case "sort":
-		return &ArrayValueSort{&a.List}, true
+		return &ArrayValueSort{a}, true
 	case "indexOf":
-		return &ArrayValueIndexOf{a.List}, true
+		return &ArrayValueIndexOf{a}, true
 	case "includes":
-		return &ArrayValueIncludes{a.List}, true
+		return &ArrayValueIncludes{a}, true
 	case "forEach":
-		return &ArrayValueForEach{a.List}, true
+		return &ArrayValueForEach{a}, true
 	case "map":
-		return &ArrayValueMap{a.List}, true
+		return &ArrayValueMap{a}, true
 	case "filter":
-		return &ArrayValueFilter{a.List}, true
+		return &ArrayValueFilter{a}, true
 	case "reduce":
-		return &ArrayValueReduce{a.List}, true
+		return &ArrayValueReduce{a}, true
 	case "concat":
-		return &ArrayValueConcat{a.List}, true
+		return &ArrayValueConcat{a}, true
 	case "every":
-		return &ArrayValueEvery{a.List}, true
+		return &ArrayValueEvery{a}, true
 	case "some":
-		return &ArrayValueSome{a.List}, true
+		return &ArrayValueSome{a}, true
 	case "find":
-		return &ArrayValueFind{a.List}, true
+		return &ArrayValueFind{a}, true
 	case "findIndex":
-		return &ArrayValueFindIndex{a.List}, true
+		return &ArrayValueFindIndex{a}, true
 	case "flat":
-		return &ArrayValueFlat{a.List}, true
+		return &ArrayValueFlat{a}, true
 	case "flatMap":
-		return &ArrayValueFlatMap{a.List}, true
+		return &ArrayValueFlatMap{a}, true
 	}
 
 	return nil, false
@@ -221,7 +216,7 @@ func (a *ArrayValue) GetMethod(name string) (Method, bool) {
 func (a *ArrayValue) GetProperty(name string) (Value, Control) {
 	switch name {
 	case "length":
-		return NewIntValue(len(a.List)), nil
+		return NewIntValue(len(a.entries)), nil
 	}
 	return nil, NewErrorThrow(nil, fmt.Errorf("ArrayValue.GetProperty called with name %s", name))
 }
@@ -239,8 +234,8 @@ func (a *ArrayValue) ToGoValue(serializer Serializer) (any, error) {
 }
 
 func (a *ArrayValue) ToValueList() []Value {
-	args := make([]Value, len(a.List))
-	for i, zval := range a.List {
+	args := make([]Value, len(a.entries))
+	for i, zval := range a.entries {
 		args[i] = zval.Value
 	}
 	return args
@@ -303,29 +298,29 @@ func ParseIntArrayKeyName(name string) (int, bool) {
 	return int(u), true
 }
 
-func (a *ArrayValue) invalidateIndex() {
+func (a *FlatArrayStore) invalidateIndex() {
 	a.keyIndex = nil
 	a.idxLen = -1
 	a.packed = false
-	a.maxIntKey = -1
 }
 
-func (a *ArrayValue) ensureIndex() {
-	if a.idxLen == len(a.List) && (a.packed || a.keyIndex != nil) {
+func (a *FlatArrayStore) ensureIndex() {
+	if a.idxLen == len(a.entries) && (a.packed || a.keyIndex != nil) {
 		return
 	}
 	a.rebuildIndex()
 }
 
-func (a *ArrayValue) rebuildIndex() {
-	n := len(a.List)
+func (a *FlatArrayStore) rebuildIndex() {
+	n := len(a.entries)
 	a.idxLen = n
 	packed := true
 	// idx 延迟分配：纯 packed 数组（$a[] = / 列表字面量，热路径上最常见）没有任何
 	// 命名键，原先无条件 make(map, n) 出来的表当场就被丢弃 —— 占全部分配的 6.89%。
 	var idx map[string]int
-	max := -1
-	for i, z := range a.List {
+	max := math.MinInt
+	hasInt := false
+	for i, z := range a.entries {
 		if z == nil {
 			continue
 		}
@@ -343,47 +338,75 @@ func (a *ArrayValue) rebuildIndex() {
 				idx = make(map[string]int, n)
 			}
 			idx[z.Name] = i
-			if k, ok := ParseIntArrayKeyName(z.Name); ok && k > max {
-				max = k
+			if k, ok := ParseIntArrayKeyName(z.Name); ok {
+				hasInt = true
+				if k > max {
+					max = k
+				}
 			}
 			continue
 		}
+		hasInt = true
 		if i > max {
 			max = i
 		}
 	}
 	a.packed = packed
-	a.maxIntKey = max
+	if !a.appendKeyKnown {
+		a.nextIntKey = 0
+		a.intKeySeen = false
+		a.appendKeyKnown = true
+	}
+	if hasInt {
+		a.advanceAppendKey(max)
+	}
 	// 没有命名键时 idx 保持 nil，等价于原来的 a.keyIndex = nil
 	a.keyIndex = idx
 }
 
-// NextAppendIntKey 对齐 PHP $a[]：最大整数键 + 1；没有整数键时为 0。
-func (a *ArrayValue) NextAppendIntKey() int {
-	a.ensureIndex()
-	if a.maxIntKey < 0 {
-		return 0
+// advanceAppendKey follows PHP 8.3+: the first integer key may be negative.
+func (a *FlatArrayStore) advanceAppendKey(key int) {
+	if !a.intKeySeen || key >= a.nextIntKey {
+		a.nextIntKey = key
+		if key < math.MaxInt {
+			a.nextIntKey++
+		}
 	}
-	return a.maxIntKey + 1
+	a.intKeySeen = true
 }
 
-func (a *ArrayValue) AppendValue(value Value) {
-	a.SetIntKey(a.NextAppendIntKey(), value)
+// NextAppendIntKey includes previously used integer keys, even after unset.
+func (a *FlatArrayStore) NextAppendIntKey() int {
+	a.ensureIndex()
+	return a.nextIntKey
 }
 
-func (a *ArrayValue) AppendSlot(value Value) *ZVal {
+func (a *FlatArrayStore) AppendValue(value Value) bool {
 	i := a.NextAppendIntKey()
+	if i == math.MaxInt {
+		if slot, _ := a.FindSlotByIntKey(i); slot != nil {
+			return false
+		}
+	}
 	a.SetIntKey(i, value)
+	return true
+}
+
+func (a *FlatArrayStore) AppendSlot(value Value) *ZVal {
+	i := a.NextAppendIntKey()
+	if !a.AppendValue(value) {
+		return nil
+	}
 	z, _ := a.FindSlotByIntKey(i)
 	return z
 }
 
 // LookupZValByStringKey 按字符串键查找槽位；纯数字字符串键会回退整数键查找（如 "0" → 列表下标 0）
-func (a *ArrayValue) LookupZValByStringKey(key string) (*ZVal, bool) {
+func (a *FlatArrayStore) LookupZValByStringKey(key string) (*ZVal, bool) {
 	a.ensureIndex()
 	if a.keyIndex != nil {
-		if i, ok := a.keyIndex[key]; ok && i >= 0 && i < len(a.List) {
-			z := a.List[i]
+		if i, ok := a.keyIndex[key]; ok && i >= 0 && i < len(a.entries) {
+			z := a.entries[i]
 			if z != nil && (z.Name == key || (key == "" && z.EmptyStrKey)) {
 				return z, true
 			}
@@ -398,7 +421,7 @@ func (a *ArrayValue) LookupZValByStringKey(key string) (*ZVal, bool) {
 }
 
 // SetStringKey 写入 PHP 字符串键（含 ”）；纯数字字符串走整数键。
-func (a *ArrayValue) SetStringKey(key string, value Value) {
+func (a *FlatArrayStore) SetStringKey(key string, value Value) {
 	if n, ok := ParseIntArrayKeyName(key); ok {
 		a.SetIntKey(n, value)
 		return
@@ -416,11 +439,11 @@ func (a *ArrayValue) SetStringKey(key string, value Value) {
 }
 
 // FindSlotByIntKey 按 PHP 整数键查找槽位（含稀疏键 Name=="6" 等）
-func (a *ArrayValue) FindSlotByIntKey(i int) (*ZVal, int) {
+func (a *FlatArrayStore) FindSlotByIntKey(i int) (*ZVal, int) {
 	a.ensureIndex()
 	if a.packed {
-		if i >= 0 && i < len(a.List) {
-			if z := a.List[i]; z.IsPackedIntSlot() {
+		if i >= 0 && i < len(a.entries) {
+			if z := a.entries[i]; z.IsPackedIntSlot() {
 				return z, i
 			}
 		}
@@ -428,15 +451,15 @@ func (a *ArrayValue) FindSlotByIntKey(i int) (*ZVal, int) {
 	}
 	keyStr := IntArrayKeyName(i)
 	if a.keyIndex != nil {
-		if j, ok := a.keyIndex[keyStr]; ok && j >= 0 && j < len(a.List) {
-			z := a.List[j]
+		if j, ok := a.keyIndex[keyStr]; ok && j >= 0 && j < len(a.entries) {
+			z := a.entries[j]
 			if z != nil && z.Name == keyStr {
 				return z, j
 			}
 		}
 	}
-	if i >= 0 && i < len(a.List) {
-		if z := a.List[i]; z.IsPackedIntSlot() {
+	if i >= 0 && i < len(a.entries) {
+		if z := a.entries[i]; z.IsPackedIntSlot() {
 			return z, i
 		}
 	}
@@ -444,16 +467,13 @@ func (a *ArrayValue) FindSlotByIntKey(i int) (*ZVal, int) {
 }
 
 // SetIntKey 设置整数键（不将稀疏数组转为 ObjectValue）
-func (a *ArrayValue) SetIntKey(i int, value Value) {
+func (a *FlatArrayStore) SetIntKey(i int, value Value) {
 	a.ensureIndex()
 	if z, _ := a.FindSlotByIntKey(i); z != nil {
 		z.Value = value
 		return
 	}
-	if i < 0 {
-		return
-	}
-	packed, n := a.packed, len(a.List)
+	packed, n := a.packed, len(a.entries)
 	// 未找到整数键 i 时只能追加。禁止用 List[i] 覆盖：该槽可能是 PHP 空字符串键 ''。
 	if packed && i == n {
 		// 纯追加（$a[] = ... 循环里最常见）：索引仍然有效，推进计数即可。
@@ -467,9 +487,12 @@ func (a *ArrayValue) SetIntKey(i int, value Value) {
 // appendSlotIncremental 追加一个「纯追加」槽位并增量维护索引。
 // 前提：调用前索引是最新的（ensureIndex 已跑过），且本次只追加、不改动已有槽位。
 // 不满足前提时（索引已脏）退回整表失效，交给下次重建 —— 宁可慢，也不能留半张索引。
-func (a *ArrayValue) appendSlotIncremental(z *ZVal) {
-	n := len(a.List)
-	a.List = append(a.List, z)
+func (a *FlatArrayStore) appendSlotIncremental(z *ZVal) {
+	n := len(a.entries)
+	if n == 0 {
+		a.iterator = 0
+	}
+	a.entries = append(a.entries, z)
 	if z.EmptyStrKey || z.Name != "" {
 		wasPacked := a.packed
 		a.packed = false
@@ -485,20 +508,19 @@ func (a *ArrayValue) appendSlotIncremental(z *ZVal) {
 			a.keyIndex[""] = n
 		} else {
 			a.keyIndex[z.Name] = n
-			if k, ok := ParseIntArrayKeyName(z.Name); ok && k > a.maxIntKey {
-				a.maxIntKey = k
+			if k, ok := ParseIntArrayKeyName(z.Name); ok {
+				a.advanceAppendKey(k)
 			}
 		}
-	} else if n > a.maxIntKey {
-		// packed 槽位：整数键即下标
-		a.maxIntKey = n
+	} else {
+		a.advanceAppendKey(n)
 	}
 	a.idxLen = n + 1
 }
 
 // normalizeDenseIntKeys 将 Name=="" 的连续槽位转为显式整数字符串键，避免 unset 中间元素时误压缩后续键
-func (a *ArrayValue) normalizeDenseIntKeys() {
-	for j, z := range a.List {
+func (a *FlatArrayStore) normalizeDenseIntKeys() {
+	for j, z := range a.entries {
 		if z != nil && z.IsPackedIntSlot() {
 			z.Name = IntArrayKeyName(j)
 		}
@@ -506,59 +528,37 @@ func (a *ArrayValue) normalizeDenseIntKeys() {
 	a.invalidateIndex()
 }
 
-// UnsetKey 删除整数或字符串键（不存在则无操作）
-func (a *ArrayValue) UnsetKey(index Value) {
-	// 索引失效只发生在真正删掉槽位的分支（删除会移动后续下标）；键不存在时保持索引有效，
-	// 否则 unset 一个不存在的键会让下一次读白重建整张索引。
-	// 先按字符串键处理：StringValue 同时实现 AsInt，非数字字符串不能在 AsInt 失败后直接 return
-	if sv, ok := index.(AsString); ok {
-		key := sv.AsString()
-		if _, isIntKey := ParseIntArrayKeyName(key); !isIntKey {
-			for j, z := range a.List {
-				if z == nil {
-					continue
-				}
-				if key == "" {
-					if z.EmptyStrKey {
-						a.List = append(a.List[:j], a.List[j+1:]...)
-						a.invalidateIndex()
-						return
-					}
-					continue
-				}
-				if z.Name == key && !z.EmptyStrKey {
-					a.List = append(a.List[:j], a.List[j+1:]...)
-					a.invalidateIndex()
-					return
-				}
-			}
-			return
-		}
-		// 纯数字字符串键：按整数键删除
-		if n, err := strconv.Atoi(key); err == nil {
-			a.normalizeDenseIntKeys()
-			keyStr := IntArrayKeyName(n)
-			for j, z := range a.List {
-				if z != nil && z.Name == keyStr {
-					a.List = append(a.List[:j], a.List[j+1:]...)
-					return
-				}
-			}
-			return
+// UnsetKey preserves PHP integer keys, insertion order, and automatic-key state.
+func (a *FlatArrayStore) UnsetKey(index Value) {
+	var slot *ZVal
+	switch key := index.(type) {
+	case *NullValue:
+		slot, _ = a.LookupZValByStringKey("")
+	case *StringValue:
+		slot, _ = a.LookupZValByStringKey(key.AsString())
+	case AsInt:
+		if i, err := key.AsInt(); err == nil {
+			slot, _ = a.FindSlotByIntKey(i)
 		}
 	}
-	if iv, ok := index.(AsInt); ok {
-		i, err := iv.AsInt()
-		if err != nil {
-			return
-		}
-		a.normalizeDenseIntKeys()
-		keyStr := IntArrayKeyName(i)
-		for j, z := range a.List {
-			if z != nil && z.Name == keyStr {
-				a.List = append(a.List[:j], a.List[j+1:]...)
-				return
+	if slot == nil {
+		return
+	}
+	// Compact only after a successful lookup. Explicit keys prevent other
+	// integer entries from changing identity when a string entry is removed.
+	for position, entry := range a.entries {
+		if entry == slot {
+			a.normalizeDenseIntKeys()
+			copy(a.entries[position:], a.entries[position+1:])
+			a.entries[len(a.entries)-1] = nil
+			a.entries = a.entries[:len(a.entries)-1]
+			if position < a.iterator {
+				a.iterator--
 			}
+			if a.iterator >= len(a.entries) {
+				a.iterator = -1
+			}
+			return
 		}
 	}
 }

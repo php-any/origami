@@ -64,7 +64,8 @@ func (f *ArrayMergeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	for _, paramValue := range paramsArray.ToValueList() {
 		switch v := paramValue.(type) {
 		case *data.ArrayValue:
-			for _, zval := range v.List {
+			for arraySlots97, arrayPosition97 := v.View(), 0; arrayPosition97 < arraySlots97.Len(); arrayPosition97++ {
+				zval := arraySlots97.At(arrayPosition97)
 				if zval == nil || zval.Value == nil {
 					continue
 				}
@@ -94,7 +95,7 @@ func (f *ArrayMergeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		}
 	}
 
-	return &data.ArrayValue{List: result}, nil
+	return data.NewArrayValueFromSlots(result), nil
 }
 
 func (f *ArrayMergeFunction) GetName() string {

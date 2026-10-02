@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -36,6 +37,7 @@ func NewVM(parser *parser.Parser) data.VM {
 		},
 	}
 	vm.ctx = NewContext(vm)
+	vm.parsedFiles.Store(&parsedFileCache{})
 	parser.SetVM(vm)
 
 	return vm
@@ -59,7 +61,8 @@ type VM struct {
 	phpFileCache       sync.Map // string -> struct{}
 	includeOnceResults sync.Map // string -> data.GetValue
 	compiledFiles      sync.Map // string -> func() (data.GetValue, []data.Variable)
-	parsedFiles        sync.Map // string -> *parsedPHPFile
+	parsedFiles        atomic.Pointer[parsedFileCache]
+	requestFiles       atomic.Pointer[requestFileSnapshot]
 
 	// loadingFiles 并发加载同一文件时，后续请求等待首个加载完成
 	loadingFiles map[string]chan struct{}
@@ -68,9 +71,7 @@ type VM struct {
 	acl func(acl data.Control)
 
 	// PHP 级 set_exception_handler 注册的回调
-	exceptionHandler data.Value
-	// 防止在异常处理回调中递归调用自身
-	inExceptionHandler bool
+	exceptionHandlers ExceptionHandlerState
 
 	// PHP 级 set_error_handler 栈（restore_error_handler 弹出）
 	errorHandlers []data.Value
@@ -118,7 +119,10 @@ func (vm *VM) SetPhpFileCache(file string) {
 	if file == "" {
 		return
 	}
+	vm.mu.Lock()
 	vm.phpFileCache.Store(file, struct{}{})
+	vm.requestFiles.Store(nil)
+	vm.mu.Unlock()
 }
 
 func (vm *VM) GetPhpFileCache(file string) bool {
@@ -143,12 +147,18 @@ func (vm *VM) SetIncludeOnceResult(file string, result data.GetValue) {
 	if file == "" {
 		return
 	}
+	vm.mu.Lock()
 	syncMapStore(&vm.includeOnceResults, file, result)
+	vm.requestFiles.Store(nil)
+	vm.mu.Unlock()
 }
 
 // ClearIncludeOnceCache 清空 include_once/require_once 返回值缓存，供热重载使用。
 func (vm *VM) ClearIncludeOnceCache() {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
 	syncMapClear(&vm.includeOnceResults)
+	vm.requestFiles.Store(nil)
 }
 
 // beginPhpFileLoad 开始加载文件：
@@ -212,7 +222,7 @@ func (vm *VM) WaitPhpFileLoad(file string) bool {
 		if owner == gid {
 			return false
 		}
-		<-ch
+		waitForRequestLoad(ch)
 	}
 }
 
@@ -221,6 +231,7 @@ func (vm *VM) ClearPhpFileCache() {
 	syncMapClear(&vm.phpFileCache)
 	vm.ClearParsedFileCache()
 	vm.mu.Lock()
+	vm.requestFiles.Store(nil)
 	for _, ch := range vm.loadingFiles {
 		close(ch)
 	}
@@ -248,124 +259,37 @@ func (vm *VM) SetThrowControl(fn func(acl data.Control)) {
 	vm.acl = fn
 }
 
-func (vm *VM) ThrowControl(acl data.Control) {
+func (vm *VM) ThrowControl(control data.Control) {
+	_, remaining := vm.HandleUnhandledException(control)
+	if remaining == nil {
+		return
+	}
 	vm.mu.Lock()
-	handler := vm.exceptionHandler
 	fallback := vm.acl
-	handleException := false
-	if _, ok := acl.(*data.ThrowValue); ok && handler != nil && !vm.inExceptionHandler {
-		vm.inExceptionHandler = true
-		handleException = true
-	}
 	vm.mu.Unlock()
-
-	if handleException {
-		defer func() {
-			vm.mu.Lock()
-			vm.inExceptionHandler = false
-			vm.mu.Unlock()
-		}()
-	}
-
-	// 优先尝试调用用户通过 set_exception_handler 注册的 PHP 回调
-	if tv, ok := acl.(*data.ThrowValue); ok && handleException {
-		// 只在真正有异常对象时尝试回调
-		if tv != nil && tv.Error != nil {
-			// 目前仅支持 Closure/匿名函数形式的回调（*data.FuncValue）
-			if fv, ok := handler.(*data.FuncValue); ok {
-				vars := fv.Value.GetVariables()
-				if len(vars) == 0 {
-					fallback(acl)
-					return
-				}
-				ctx := vm.CreateContext(vars)
-
-				// PHP: handler(Throwable $e)。优先传异常实例；无 Object 时退回 ThrowValue。
-				var ex data.Value = tv
-				if tv.Object != nil {
-					ex = tv.Object
-				}
-
-				// 可变参数 fn (...$arguments) 时，首参必须是 [ $e ]，否则 ...$arguments 无法展开。
-				arg := ex
-				params := fv.Value.GetParams()
-				if len(params) > 0 {
-					if _, variadic := params[0].(data.Parameters); variadic {
-						arg = data.NewArrayValue([]data.Value{ex})
-					}
-				}
-				_ = ctx.SetVariableValue(vars[0], arg)
-
-				if _, hAcl := fv.Call(ctx); hAcl != nil {
-					// 如果回调自身又产生未处理控制流，继续交给底层处理
-					fallback(hAcl)
-					return
-				}
-				// 回调执行完毕后直接返回，不再走默认处理
-				return
-			}
-		}
-	}
-
-	// 默认行为：交给底层 Go 级别处理（打印并退出 / LSP 诊断等）
-	fallback(acl)
-}
-
-// SetExceptionHandler 设置 PHP 级异常处理回调，返回旧的回调（如果有）
-func (vm *VM) SetExceptionHandler(handler data.Value) data.Value {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	old := vm.exceptionHandler
-	vm.exceptionHandler = handler
-	return old
-}
-
-// GetExceptionHandler 返回当前注册的 PHP 级异常处理回调
-func (vm *VM) GetExceptionHandler() data.Value {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	return vm.exceptionHandler
-}
-
-// SetErrorHandler 压入错误处理回调，返回旧的顶层回调（无则 nil）
-func (vm *VM) SetErrorHandler(handler data.Value) data.Value {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	var old data.Value
-	if n := len(vm.errorHandlers); n > 0 {
-		old = vm.errorHandlers[n-1]
-	}
-	vm.errorHandlers = append(vm.errorHandlers, handler)
-	return old
-}
-
-// RestoreErrorHandler 弹出当前错误处理回调；成功弹出返回 true
-func (vm *VM) RestoreErrorHandler() bool {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	n := len(vm.errorHandlers)
-	if n == 0 {
-		return false
-	}
-	vm.errorHandlers = vm.errorHandlers[:n-1]
-	return true
-}
-
-// GetErrorHandler 返回当前错误处理回调
-func (vm *VM) GetErrorHandler() data.Value {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	if n := len(vm.errorHandlers); n > 0 {
-		return vm.errorHandlers[n-1]
-	}
-	return nil
+	fallback(remaining)
 }
 
 func phpIdentKey(name string) string {
 	for len(name) > 0 && name[0] == '\\' {
 		name = name[1:]
 	}
-	return strings.ToLower(name)
+	for i := 0; i < len(name); i++ {
+		if name[i] >= 'A' && name[i] <= 'Z' {
+			var key strings.Builder
+			key.Grow(len(name))
+			key.WriteString(name[:i])
+			for j := i; j < len(name); j++ {
+				ch := name[j]
+				if ch >= 'A' && ch <= 'Z' {
+					ch += 'a' - 'A'
+				}
+				key.WriteByte(ch)
+			}
+			return key.String()
+		}
+	}
+	return name
 }
 
 func sameDeclFile(a, b interface{ GetFrom() data.From }) bool {
@@ -450,7 +374,7 @@ func (vm *VM) findClassCaseInsensitive(name string) (data.ClassStmt, bool) {
 	if v, ok := syncMapLoad[data.ClassStmt](&vm.classMap, name); ok {
 		return v, true
 	}
-	if v, ok := syncMapLoad[data.ClassStmt](&vm.classLower, strings.ToLower(name)); ok {
+	if v, ok := syncMapLoad[data.ClassStmt](&vm.classLower, phpIdentKey(name)); ok {
 		return v, true
 	}
 	return nil, false
@@ -504,7 +428,7 @@ func (vm *VM) lookupInterface(pkg string) (data.InterfaceStmt, bool) {
 	if v, ok := syncMapLoad[data.InterfaceStmt](&vm.interfaceMap, pkg); ok {
 		return v, true
 	}
-	return syncMapLoad[data.InterfaceStmt](&vm.interfaceLower, strings.ToLower(pkg))
+	return syncMapLoad[data.InterfaceStmt](&vm.interfaceLower, phpIdentKey(pkg))
 }
 
 func (vm *VM) LoadPkg(pkg string) (data.GetValue, data.Control) {
@@ -663,7 +587,7 @@ func (vm *VM) RunCompiledFile(file string) (data.GetValue, data.Control) {
 			return nil, nil
 		}
 		if wait != nil {
-			<-wait
+			waitForRequestLoad(wait)
 			continue
 		}
 
@@ -691,7 +615,7 @@ func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 			return nil, nil
 		}
 		if wait != nil {
-			<-wait
+			waitForRequestLoad(wait)
 			continue
 		}
 
@@ -746,6 +670,12 @@ func (vm *VM) LoadInCallerContext(parent data.Context, file string) (data.GetVal
 // 函数/闭包内 require（Laravel getRequire 每次新闭包）不得复用进程级槽，
 // 否则子视图 foreach ($arr as $column) 会写穿父视图的 $column。
 func IncludeBindsToProcessGlobals(parent data.Context) bool {
+	// Retained class/closure contexts can predate the active request. The
+	// request call state decides whether include runs at top level; using a
+	// stale context depth would turn Blade's local variables into globals.
+	if state := currentRequestCallState(); state != nil {
+		return state.Depth == 0
+	}
 	return callDepthOf(parent) == 0
 }
 
@@ -883,7 +813,7 @@ func (vm *VM) CompileLoad(file string) data.Control {
 			return nil
 		}
 		if wait != nil {
-			<-wait
+			waitForRequestLoad(wait)
 			continue
 		}
 
@@ -908,7 +838,8 @@ func bindTemplateVariables(ctx data.Context, varList []data.Variable, props map[
 
 func templatePropsFromArray(arr *data.ArrayValue) map[string]data.Value {
 	props := make(map[string]data.Value)
-	for _, z := range arr.List {
+	for arraySlots28, arrayPosition28 := arr.View(), 0; arrayPosition28 < arraySlots28.Len(); arrayPosition28++ {
+		z := arraySlots28.At(arrayPosition28)
 		if z == nil || z.Name == "" {
 			continue
 		}
@@ -927,6 +858,10 @@ func (vm *VM) ParseFile(file string, object data.Value) (data.Value, data.Contro
 	}
 
 	varList := p.GetVariables()
+	return runTemplateFile(vm, file, program, varList, object)
+}
+
+func runTemplateFile(vm data.VM, file string, program data.GetValue, varList []data.Variable, object data.Value) (data.Value, data.Control) {
 	ctx := vm.CreateContext(varList)
 	switch v := object.(type) {
 	case *data.ObjectValue:

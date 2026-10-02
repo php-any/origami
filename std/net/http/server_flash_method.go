@@ -59,6 +59,7 @@ func findMainFiles(dir string) ([]string, error) {
 func (h *ServerFlashMethod) GetName() string            { return "flash" }
 func (h *ServerFlashMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ServerFlashMethod) GetIsStatic() bool          { return false }
+
 var serverFlashMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "dir", 0, data.NewStringValue("./src"), data.String{}),
 }
@@ -66,6 +67,7 @@ var serverFlashMethodGetParams = []data.GetValue{
 func (h *ServerFlashMethod) GetParams() []data.GetValue {
 	return serverFlashMethodGetParams
 }
+
 var serverFlashMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "dir", 0, nil),
 }

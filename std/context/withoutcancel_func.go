@@ -46,6 +46,7 @@ func (h *WithoutCancelFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 func (h *WithoutCancelFunction) GetName() string            { return "context\\withoutCancel" }
 func (h *WithoutCancelFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *WithoutCancelFunction) GetIsStatic() bool          { return true }
+
 var withoutCancelFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "parent", 0, nil, nil),
 }
@@ -53,6 +54,7 @@ var withoutCancelFunctionGetParams = []data.GetValue{
 func (h *WithoutCancelFunction) GetParams() []data.GetValue {
 	return withoutCancelFunctionGetParams
 }
+
 var withoutCancelFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "parent", 0, nil),
 }

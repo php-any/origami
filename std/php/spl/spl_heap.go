@@ -21,7 +21,7 @@ func splHeapGetStorage(cv *data.ClassValue) *data.ArrayValue {
 	if arr, ok := v.(*data.ArrayValue); ok {
 		return arr
 	}
-	arr := &data.ArrayValue{List: []*data.ZVal{}}
+	arr := data.NewArrayValueFromSlots([]*data.ZVal{})
 	cv.ObjectValue.SetProperty(splHeapStorageKey, arr)
 	return arr
 }
@@ -39,7 +39,7 @@ func splHeapSetPos(cv *data.ClassValue, pos int) {
 }
 
 func splHeapInitCV(cv *data.ClassValue) {
-	cv.SetProperty(splHeapStorageKey, &data.ArrayValue{List: []*data.ZVal{}})
+	cv.SetProperty(splHeapStorageKey, data.NewArrayValueFromSlots([]*data.ZVal{}))
 	cv.SetProperty(splHeapPosKey, data.NewIntValue(0))
 }
 
@@ -76,58 +76,58 @@ func splHeapCompareForClass(cv *data.ClassValue, a, b data.Value) int {
 func splHeapBubbleUp(arr *data.ArrayValue, index int, cmp heapCompareFunc) {
 	for index > 0 {
 		parent := (index - 1) / 2
-		if cmp(arr.List[index].Value, arr.List[parent].Value) >= 0 {
+		if cmp(arr.At(index).Value, arr.At(parent).Value) >= 0 {
 			break
 		}
-		arr.List[index], arr.List[parent] = arr.List[parent], arr.List[index]
+		arr.SwapSlots(index, parent)
 		index = parent
 	}
 }
 
 func splHeapBubbleDown(arr *data.ArrayValue, index int, cmp heapCompareFunc) {
-	n := len(arr.List)
+	n := arr.Len()
 	for {
 		smallest := index
 		left := 2*index + 1
 		right := 2*index + 2
-		if left < n && cmp(arr.List[left].Value, arr.List[smallest].Value) < 0 {
+		if left < n && cmp(arr.At(left).Value, arr.At(smallest).Value) < 0 {
 			smallest = left
 		}
-		if right < n && cmp(arr.List[right].Value, arr.List[smallest].Value) < 0 {
+		if right < n && cmp(arr.At(right).Value, arr.At(smallest).Value) < 0 {
 			smallest = right
 		}
 		if smallest == index {
 			break
 		}
-		arr.List[index], arr.List[smallest] = arr.List[smallest], arr.List[index]
+		arr.SwapSlots(index, smallest)
 		index = smallest
 	}
 }
 
 func splHeapInsert(arr *data.ArrayValue, value data.Value, cmp heapCompareFunc) {
-	arr.List = append(arr.List, data.NewZVal(value))
-	splHeapBubbleUp(arr, len(arr.List)-1, cmp)
+	arr.AppendValue(value)
+	splHeapBubbleUp(arr, arr.Len()-1, cmp)
 }
 
 func splHeapExtractTop(arr *data.ArrayValue, cmp heapCompareFunc) data.Value {
-	if len(arr.List) == 0 {
+	if arr.Len() == 0 {
 		return data.NewNullValue()
 	}
-	top := arr.List[0].Value
-	last := len(arr.List) - 1
-	arr.List[0] = arr.List[last]
-	arr.List = arr.List[:last]
-	if len(arr.List) > 0 {
+	top := arr.At(0).Value
+	last := arr.Len() - 1
+	arr.ReplaceSlot(0, arr.At(last))
+	arr.RemovePositions(last, arr.Len())
+	if arr.Len() > 0 {
 		splHeapBubbleDown(arr, 0, cmp)
 	}
 	return top
 }
 
 func splHeapTop(arr *data.ArrayValue) data.Value {
-	if len(arr.List) == 0 {
+	if arr.Len() == 0 {
 		return data.NewNullValue()
 	}
-	return arr.List[0].Value
+	return arr.At(0).Value
 }
 
 func splHeapCompareFromCV(cv *data.ClassValue) heapCompareFunc {
@@ -211,6 +211,7 @@ func (m *SplHeapCompareMethod) GetName() string            { return "compare" }
 func (m *SplHeapCompareMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplHeapCompareMethod) GetIsStatic() bool          { return false }
 func (m *SplHeapCompareMethod) GetReturnType() data.Types  { return data.Int{} }
+
 var splHeapCompareMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "value1", 0, nil, data.Mixed{}),
 	node.NewParameter(nil, "value2", 1, nil, data.Mixed{}),
@@ -219,6 +220,7 @@ var splHeapCompareMethodGetParams = []data.GetValue{
 func (m *SplHeapCompareMethod) GetParams() []data.GetValue {
 	return splHeapCompareMethodGetParams
 }
+
 var splHeapCompareMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "value1", 0, data.Mixed{}),
 	node.NewVariable(nil, "value2", 1, data.Mixed{}),
@@ -239,11 +241,13 @@ func (m *SplHeapInsertMethod) GetName() string            { return "insert" }
 func (m *SplHeapInsertMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplHeapInsertMethod) GetIsStatic() bool          { return false }
 func (m *SplHeapInsertMethod) GetReturnType() data.Types  { return nil }
+
 var splHeapInsertMethodGetParams = []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
 
 func (m *SplHeapInsertMethod) GetParams() []data.GetValue {
 	return splHeapInsertMethodGetParams
 }
+
 var splHeapInsertMethodGetVariables = []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
 
 func (m *SplHeapInsertMethod) GetVariables() []data.Variable {
@@ -310,7 +314,7 @@ func (m *SplHeapCountMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	if cv == nil {
 		return data.NewIntValue(0), nil
 	}
-	return data.NewIntValue(len(splHeapGetStorage(cv).List)), nil
+	return data.NewIntValue(splHeapGetStorage(cv).Len()), nil
 }
 
 type SplHeapIsEmptyMethod struct{}
@@ -328,7 +332,7 @@ func (m *SplHeapIsEmptyMethod) Call(ctx data.Context) (data.GetValue, data.Contr
 	if cv == nil {
 		return data.NewBoolValue(true), nil
 	}
-	return data.NewBoolValue(len(splHeapGetStorage(cv).List) == 0), nil
+	return data.NewBoolValue(splHeapGetStorage(cv).Len() == 0), nil
 }
 
 type SplHeapRewindMethod struct{}
@@ -361,7 +365,7 @@ func (m *SplHeapValidMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	}
 	pos := splHeapGetPos(cv)
 	arr := splHeapGetStorage(cv)
-	return data.NewBoolValue(pos >= 0 && pos < len(arr.List)), nil
+	return data.NewBoolValue(pos >= 0 && pos < arr.Len()), nil
 }
 
 type SplHeapCurrentMethod struct{}
@@ -379,10 +383,10 @@ func (m *SplHeapCurrentMethod) Call(ctx data.Context) (data.GetValue, data.Contr
 	}
 	pos := splHeapGetPos(cv)
 	arr := splHeapGetStorage(cv)
-	if pos < 0 || pos >= len(arr.List) {
+	if pos < 0 || pos >= arr.Len() {
 		return data.NewNullValue(), nil
 	}
-	return arr.List[pos].Value, nil
+	return arr.At(pos).Value, nil
 }
 
 type SplHeapKeyMethod struct{}
@@ -461,6 +465,7 @@ func (m *SplMinHeapCompareMethod) GetName() string            { return "compare"
 func (m *SplMinHeapCompareMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplMinHeapCompareMethod) GetIsStatic() bool          { return false }
 func (m *SplMinHeapCompareMethod) GetReturnType() data.Types  { return data.Int{} }
+
 var splMinHeapCompareMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "value1", 0, nil, data.Mixed{}),
 	node.NewParameter(nil, "value2", 1, nil, data.Mixed{}),
@@ -469,6 +474,7 @@ var splMinHeapCompareMethodGetParams = []data.GetValue{
 func (m *SplMinHeapCompareMethod) GetParams() []data.GetValue {
 	return splMinHeapCompareMethodGetParams
 }
+
 var splMinHeapCompareMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "value1", 0, data.Mixed{}),
 	node.NewVariable(nil, "value2", 1, data.Mixed{}),
@@ -528,6 +534,7 @@ func (m *SplMaxHeapCompareMethod) GetName() string            { return "compare"
 func (m *SplMaxHeapCompareMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplMaxHeapCompareMethod) GetIsStatic() bool          { return false }
 func (m *SplMaxHeapCompareMethod) GetReturnType() data.Types  { return data.Int{} }
+
 var splMaxHeapCompareMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "value1", 0, nil, data.Mixed{}),
 	node.NewParameter(nil, "value2", 1, nil, data.Mixed{}),
@@ -536,6 +543,7 @@ var splMaxHeapCompareMethodGetParams = []data.GetValue{
 func (m *SplMaxHeapCompareMethod) GetParams() []data.GetValue {
 	return splMaxHeapCompareMethodGetParams
 }
+
 var splMaxHeapCompareMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "value1", 0, data.Mixed{}),
 	node.NewVariable(nil, "value2", 1, data.Mixed{}),

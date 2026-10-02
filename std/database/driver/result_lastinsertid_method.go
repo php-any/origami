@@ -23,6 +23,7 @@ func (h *ResultLastInsertIdMethod) Call(ctx data.Context) (data.GetValue, data.C
 func (h *ResultLastInsertIdMethod) GetName() string            { return "lastInsertId" }
 func (h *ResultLastInsertIdMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResultLastInsertIdMethod) GetIsStatic() bool          { return true }
+
 var resultLastInsertIdMethodGetParams = []data.GetValue{}
 
 func (h *ResultLastInsertIdMethod) GetParams() []data.GetValue {

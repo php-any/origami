@@ -39,6 +39,7 @@ func (d *DbStaticInsertMethod) Call(ctx data.Context) (data.GetValue, data.Contr
 func (d *DbStaticInsertMethod) GetName() string            { return "insert" }
 func (d *DbStaticInsertMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (d *DbStaticInsertMethod) GetIsStatic() bool          { return true }
+
 var dbStaticInsertMethodGetParams = []data.GetValue{
 	data.NewParameter("entity", 0),
 	data.NewParameterDefault("connectionName", 1, data.NewNullValue(), nil),
@@ -47,6 +48,7 @@ var dbStaticInsertMethodGetParams = []data.GetValue{
 func (d *DbStaticInsertMethod) GetParams() []data.GetValue {
 	return dbStaticInsertMethodGetParams
 }
+
 var dbStaticInsertMethodGetVariables = []data.Variable{
 	data.NewVariable("entity", 0, data.NewBaseType("object")),
 	data.NewVariable("connectionName", 1, data.NewBaseType("string")),
@@ -73,6 +75,7 @@ func (d *DbStaticQueryMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 func (d *DbStaticQueryMethod) GetName() string            { return "query" }
 func (d *DbStaticQueryMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (d *DbStaticQueryMethod) GetIsStatic() bool          { return true }
+
 var dbStaticQueryMethodGetParams = []data.GetValue{
 	data.NewParameter("sql", 0),
 	node.NewParameters(nil, "args", 1, nil, nil),
@@ -81,6 +84,7 @@ var dbStaticQueryMethodGetParams = []data.GetValue{
 func (d *DbStaticQueryMethod) GetParams() []data.GetValue {
 	return dbStaticQueryMethodGetParams
 }
+
 var dbStaticQueryMethodGetVariables = []data.Variable{
 	data.NewVariable("sql", 0, data.NewBaseType("string")),
 	data.NewVariable("args", 1, data.NewBaseType("array")),
@@ -107,6 +111,7 @@ func (d *DbStaticExecuteMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 func (d *DbStaticExecuteMethod) GetName() string            { return "execute" }
 func (d *DbStaticExecuteMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (d *DbStaticExecuteMethod) GetIsStatic() bool          { return true }
+
 var dbStaticExecuteMethodGetParams = []data.GetValue{
 	data.NewParameter("sql", 0),
 	node.NewParameters(nil, "args", 1, nil, nil),
@@ -115,6 +120,7 @@ var dbStaticExecuteMethodGetParams = []data.GetValue{
 func (d *DbStaticExecuteMethod) GetParams() []data.GetValue {
 	return dbStaticExecuteMethodGetParams
 }
+
 var dbStaticExecuteMethodGetVariables = []data.Variable{
 	data.NewVariable("sql", 0, data.NewBaseType("string")),
 	data.NewVariable("args", 1, data.NewBaseType("array")),

@@ -22,6 +22,7 @@ func (h *TxRollbackMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 func (h *TxRollbackMethod) GetName() string            { return "rollback" }
 func (h *TxRollbackMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *TxRollbackMethod) GetIsStatic() bool          { return true }
+
 var txRollbackMethodGetParams = []data.GetValue{}
 
 func (h *TxRollbackMethod) GetParams() []data.GetValue {

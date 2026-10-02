@@ -97,7 +97,7 @@ func isIdentOrTypeToken(t token.TokenType) bool {
 		t == token.BOOL ||
 		t == token.ARRAY ||
 		t == token.NULL || // 支持 null 作为类型声明的一部分
-		t == token.FALSE || // 支持 false 作为类型声明的一部分
+		t == token.FALSE || t == token.TRUE || // 支持 false 作为类型声明的一部分
 		t == token.INT ||
 		t == token.STRING ||
 		t == token.FLOAT ||

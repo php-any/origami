@@ -335,7 +335,7 @@ func (p *InterfaceParser) parseInterfaceMethod(modifier string) (data.Method, da
 				// 处理 static 关键字
 				if p.current().Type() == token.STATIC {
 					p.next()
-					return data.NewBaseType("static"), nil
+					return data.NewDeclaredType("static"), nil
 				}
 
 				name := p.current().Literal()
@@ -343,16 +343,16 @@ func (p *InterfaceParser) parseInterfaceMethod(modifier string) (data.Method, da
 
 				// 如果是基础类型，直接返回
 				if data.ISBaseType(name) {
-					return data.NewBaseType(name), nil
+					return data.NewDeclaredType(name), nil
 				}
 
 				// 尝试解析完整的类名（包括命名空间）
 				if full, ok := p.findFullClassNameByNamespace(name); ok {
-					return data.NewBaseType(full), nil
+					return data.NewDeclaredType(full), nil
 				}
 
 				// 如果无法解析，返回原始名称
-				return data.NewBaseType(name), nil
+				return data.NewDeclaredType(name), nil
 			}
 
 			// 第一个类型原子
@@ -381,13 +381,13 @@ func (p *InterfaceParser) parseInterfaceMethod(modifier string) (data.Method, da
 			if len(unionTypes) == 1 {
 				thisType = unionTypes[0]
 			} else if typeCombinator == token.BIT_AND {
-				thisType = data.NewIntersectionType(unionTypes)
+				thisType = data.NewDeclaredIntersectionType(unionTypes)
 			} else {
-				thisType = data.NewUnionType(unionTypes)
+				thisType = data.NewDeclaredUnionType(unionTypes)
 			}
 
 			if isNullable {
-				thisType = data.NewNullableType(thisType)
+				thisType = data.NewDeclaredNullableType(thisType)
 			}
 
 			returnTypes = append(returnTypes, thisType)

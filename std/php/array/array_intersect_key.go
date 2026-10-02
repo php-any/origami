@@ -1,8 +1,6 @@
 package array
 
 import (
-	"fmt"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -19,12 +17,9 @@ func extractKeys(v data.Value) map[string]bool {
 	keys := make(map[string]bool)
 	switch arr := v.(type) {
 	case *data.ArrayValue:
-		for idx, zv := range arr.List {
-			if zv.Name != "" {
-				keys[zv.Name] = true
-			} else {
-				keys[data.NewIntValue(idx).AsString()] = true
-			}
+		for arraySlots91, idx := arr.View(), 0; idx < arraySlots91.Len(); idx++ {
+			zv := arraySlots91.At(idx)
+			keys[zv.PHPArrayKey(idx).AsString()] = true
 		}
 	case *data.ObjectValue:
 		arr.RangeProperties(func(key string, _ data.Value) bool {
@@ -45,7 +40,8 @@ func (f *ArrayIntersectKeyFunction) Call(ctx data.Context) (data.GetValue, data.
 	var allKeys []map[string]bool
 	if restVal, ok := ctx.GetIndexValue(1); ok && restVal != nil {
 		if restArr, ok := restVal.(*data.ArrayValue); ok {
-			for _, zv := range restArr.List {
+			for arraySlots92, arrayPosition92 := restArr.View(), 0; arrayPosition92 < arraySlots92.Len(); arrayPosition92++ {
+				zv := arraySlots92.At(arrayPosition92)
 				allKeys = append(allKeys, extractKeys(zv.Value))
 			}
 		}
@@ -65,13 +61,11 @@ func (f *ArrayIntersectKeyFunction) Call(ctx data.Context) (data.GetValue, data.
 	switch first := firstVal.(type) {
 	case *data.ArrayValue:
 		result := data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
-		for idx, zv := range first.List {
-			key := zv.Name
-			if key == "" {
-				key = fmt.Sprintf("%d", idx)
-			}
-			if inAll(key) {
-				result.List = append(result.List, &data.ZVal{Name: zv.Name, Value: zv.Value})
+		for arraySlots93, idx := first.View(), 0; idx < arraySlots93.Len(); idx++ {
+			zv := arraySlots93.At(idx)
+			key := zv.PHPArrayKey(idx)
+			if inAll(key.AsString()) {
+				result.SetKey(key, zv.Value)
 			}
 		}
 		return result, nil

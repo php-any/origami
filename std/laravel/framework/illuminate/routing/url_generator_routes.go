@@ -209,8 +209,9 @@ func urlAction(ctx data.Context) (data.GetValue, data.Control) {
 
 func urlFormatAction(cv *data.ClassValue, action data.Value) string {
 	if arr, ok := kit.Unwrap(action).(*data.ArrayValue); ok {
-		parts := make([]string, 0, len(arr.List))
-		for _, z := range arr.List {
+		parts := make([]string, 0, arr.Len())
+		for arraySlots62, arrayPosition62 := arr.View(), 0; arrayPosition62 < arraySlots62.Len(); arrayPosition62++ {
+			z := arraySlots62.At(arrayPosition62)
 			if z != nil && z.Value != nil {
 				parts = append(parts, z.Value.AsString())
 			}
@@ -234,7 +235,7 @@ func urlPrevious(ctx data.Context) (data.GetValue, data.Control) {
 	if ctl != nil {
 		return nil, ctl
 	}
-	referrer := requestHeaderValue(cv, "referer")
+	referrer := requestHeaderValue(ctx, cv, "referer")
 	var urlStr string
 	if referrer != "" {
 		ret, ctl := urlToPath(cv, referrer, nil, nil)
@@ -480,7 +481,9 @@ func urlToPath(cv *data.ClassValue, path string, extra, secure data.Value) (data
 		}
 		return data.NewStringValue(rel), nil
 	}
-	full := strings.TrimRight(root, "/") + rel
+	// UrlGenerator::format trims separators from the formatted URL, including
+	// the root-only path used by previous() when no referrer is available.
+	full := strings.Trim(strings.TrimRight(root, "/")+rel, "/")
 	if qs != "" {
 		full += qs
 	}
@@ -578,8 +581,9 @@ func formatParameterSegments(cv *data.ClassValue, extra data.Value) []string {
 	formatted := urlFormatParametersOnCtx(nil, cv, extra)
 	if len(formatted) == 0 {
 		if arr, ok := kit.Unwrap(extra).(*data.ArrayValue); ok {
-			out := make([]string, 0, len(arr.List))
-			for _, z := range arr.List {
+			out := make([]string, 0, arr.Len())
+			for arraySlots63, arrayPosition63 := arr.View(), 0; arrayPosition63 < arraySlots63.Len(); arrayPosition63++ {
+				z := arraySlots63.At(arrayPosition63)
 				if z != nil && z.Value != nil {
 					out = append(out, url.QueryEscape(z.Value.AsString()))
 				}
@@ -659,7 +663,7 @@ func requestBasePath(ctx data.Context, cv *data.ClassValue) string {
 	return ret.(data.Value).AsString()
 }
 
-func requestHeaderValue(cv *data.ClassValue, key string) string {
+func requestHeaderValue(ctx data.Context, cv *data.ClassValue, key string) string {
 	req, _ := cv.GetProperty("request")
 	rcv, ok := kit.Unwrap(req).(*data.ClassValue)
 	if !ok {
@@ -670,7 +674,7 @@ func requestHeaderValue(cv *data.ClassValue, key string) string {
 	if !ok {
 		return ""
 	}
-	ret, ctl := kit.CallInstanceMethod(nil, hcv, "get", data.NewStringValue(key))
+	ret, ctl := kit.CallInstanceMethod(ctx, hcv, "get", data.NewStringValue(key))
 	if ctl != nil || ret == nil {
 		return ""
 	}

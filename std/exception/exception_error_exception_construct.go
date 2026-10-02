@@ -71,11 +71,8 @@ func (h *ErrorExceptionConstructMethod) Call(ctx data.Context) (data.GetValue, d
 		}
 	}
 
-	if h.source != nil {
-		h.source.msg = message
-		h.source.file = file
-		h.source.line = line
-		h.source.trace = frames
+	if object := instanceObjectValue(ctx); object != nil {
+		object.InstanceSource = &Exception{msg: message, file: file, line: line, trace: frames}
 	}
 
 	setInstanceProperty(ctx, "message", data.NewStringValue(message))

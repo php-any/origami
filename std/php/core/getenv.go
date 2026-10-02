@@ -62,7 +62,7 @@ func allEnvironmentVariables() *data.ArrayValue {
 		zv.Name = parts[0]
 		list = append(list, zv)
 	}
-	return &data.ArrayValue{List: list}
+	return data.NewArrayValueFromSlots(list)
 }
 
 func (f *GetenvFunction) GetName() string {

@@ -1,21 +1,17 @@
 package data
 
 type ArrayValuePop struct {
-	source *[]*ZVal
+	source *ArrayValue
 }
 
 // Call 实现数组的 pop 方法
 // 移除并返回数组的最后一个元素，如果数组为空则返回 null
 func (a *ArrayValuePop) Call(ctx Context) (GetValue, Control) {
-	if len(*a.source) == 0 {
+	slot := a.source.PopSlot()
+	if slot == nil {
 		return NewNullValue(), nil
 	}
-
-	// 获取并移除最后一个元素
-	lastElement := (*a.source)[len(*a.source)-1]
-	*a.source = (*a.source)[:len(*a.source)-1]
-
-	return lastElement.Value, nil
+	return slot.Value, nil
 }
 
 func (a *ArrayValuePop) GetName() string {

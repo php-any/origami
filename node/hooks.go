@@ -8,7 +8,7 @@ import (
 var CheckExecutionTimeLimit func(file string, line int)
 
 // MarkHeaderOutputStarted 由 std/php 在 Load 时注入。
-var MarkHeaderOutputStarted func()
+var MarkHeaderOutputStarted func(data.Context)
 
 func checkTimeLimit(from data.From) {
 	if CheckExecutionTimeLimit == nil {

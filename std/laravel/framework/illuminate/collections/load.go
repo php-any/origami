@@ -1,4 +1,4 @@
-﻿package collections
+package collections
 
 import "github.com/php-any/origami/data"
 

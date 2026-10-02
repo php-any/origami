@@ -18,6 +18,7 @@ func (h *ContextDeadlineMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 func (h *ContextDeadlineMethod) GetName() string            { return "deadline" }
 func (h *ContextDeadlineMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ContextDeadlineMethod) GetIsStatic() bool          { return true }
+
 var contextDeadlineMethodGetParams = []data.GetValue{}
 
 func (h *ContextDeadlineMethod) GetParams() []data.GetValue {

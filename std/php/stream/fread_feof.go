@@ -25,6 +25,7 @@ type FreadFunction struct{}
 func NewFreadFunction() data.FuncStmt { return &FreadFunction{} }
 
 func (f *FreadFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	data.CheckRequest(ctx.GoContext())
 	resource := streamResource(ctx)
 	reader, ok := resource.(io.Reader)
 	if !ok {
@@ -45,6 +46,7 @@ func (f *FreadFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	buffer := make([]byte, length)
 	n, readErr := reader.Read(buffer)
+	data.CheckRequest(ctx.GoContext())
 	if readErr != nil && readErr != io.EOF && !isBenignPipeReadError(readErr) && n == 0 {
 		// 非阻塞流暂无数据（EAGAIN/EWOULDBLOCK）与 PHP 一样返回空字符串。
 		return data.NewStringValue(""), nil
@@ -53,6 +55,7 @@ func (f *FreadFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *FreadFunction) GetName() string { return "fread" }
+
 var freadFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "stream", 0, nil, nil),
 	node.NewParameter(nil, "length", 1, nil, data.Int{}),
@@ -61,6 +64,7 @@ var freadFunctionGetParams = []data.GetValue{
 func (f *FreadFunction) GetParams() []data.GetValue {
 	return freadFunctionGetParams
 }
+
 var freadFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "stream", 0, nil),
 	node.NewVariable(nil, "length", 1, data.Int{}),
@@ -94,11 +98,13 @@ func (f *FeofFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *FeofFunction) GetName() string { return "feof" }
+
 var feofFunctionGetParams = []data.GetValue{node.NewParameter(nil, "stream", 0, nil, nil)}
 
 func (f *FeofFunction) GetParams() []data.GetValue {
 	return feofFunctionGetParams
 }
+
 var feofFunctionGetVariables = []data.Variable{node.NewVariable(nil, "stream", 0, nil)}
 
 func (f *FeofFunction) GetVariables() []data.Variable {

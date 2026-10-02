@@ -35,11 +35,13 @@ func (f *OpenSSLCipherIVLengthFunction) Call(ctx data.Context) (data.GetValue, d
 }
 
 func (f *OpenSSLCipherIVLengthFunction) GetName() string { return "openssl_cipher_iv_length" }
+
 var openSSLCipherIVLengthFunctionGetParams = []data.GetValue{node.NewParameter(nil, "cipher_algo", 0, nil, nil)}
 
 func (f *OpenSSLCipherIVLengthFunction) GetParams() []data.GetValue {
 	return openSSLCipherIVLengthFunctionGetParams
 }
+
 var openSSLCipherIVLengthFunctionGetVariables = []data.Variable{node.NewVariable(nil, "cipher_algo", 0, nil)}
 
 func (f *OpenSSLCipherIVLengthFunction) GetVariables() []data.Variable {
@@ -114,6 +116,7 @@ func (f *OpenSSLEncryptFunction) Call(ctx data.Context) (data.GetValue, data.Con
 }
 
 func (f *OpenSSLEncryptFunction) GetName() string { return "openssl_encrypt" }
+
 var openSSLEncryptFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "data", 0, nil, nil),
 	node.NewParameter(nil, "cipher_algo", 1, nil, nil),
@@ -126,6 +129,7 @@ var openSSLEncryptFunctionGetParams = []data.GetValue{
 func (f *OpenSSLEncryptFunction) GetParams() []data.GetValue {
 	return openSSLEncryptFunctionGetParams
 }
+
 var openSSLEncryptFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "data", 0, nil),
 	node.NewVariable(nil, "cipher_algo", 1, nil),
@@ -241,6 +245,7 @@ func (f *OpenSSLDecryptFunction) Call(ctx data.Context) (data.GetValue, data.Con
 }
 
 func (f *OpenSSLDecryptFunction) GetName() string { return "openssl_decrypt" }
+
 var openSSLDecryptFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "data", 0, nil, nil),
 	node.NewParameter(nil, "cipher_algo", 1, nil, nil),
@@ -253,6 +258,7 @@ var openSSLDecryptFunctionGetParams = []data.GetValue{
 func (f *OpenSSLDecryptFunction) GetParams() []data.GetValue {
 	return openSSLDecryptFunctionGetParams
 }
+
 var openSSLDecryptFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "data", 0, nil),
 	node.NewVariable(nil, "cipher_algo", 1, nil),

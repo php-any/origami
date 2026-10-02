@@ -335,7 +335,7 @@ func getReflectionParameterInfo(ctx data.Context) (string, string, int, data.Get
 	}
 
 	// LoadPkg/GetMethod 对构造函数可能找不到参数（参数只挂在 GetConstruct 上，
-	// 或请求级 TempVM 查找失败）。退回 getParameters 时写入的 _paramName。
+	// 或请求级 RequestVM 查找失败）。退回 getParameters 时写入的 _paramName。
 	return className, methodName, paramIndex, virtualParamFromProps(props, paramIndex)
 }
 

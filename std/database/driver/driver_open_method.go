@@ -32,6 +32,7 @@ func (h *DriverOpenMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 func (h *DriverOpenMethod) GetName() string            { return "open" }
 func (h *DriverOpenMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DriverOpenMethod) GetIsStatic() bool          { return true }
+
 var driverOpenMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "param0", 0, nil, nil),
 }

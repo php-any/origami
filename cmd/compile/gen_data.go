@@ -13,6 +13,24 @@ func (g *Generator) genTypes(ty data.Types) {
 		return
 	}
 	switch t := ty.(type) {
+	case data.TypeRef:
+		if t.Kind() == data.TypeKindUnion || t.Kind() == data.TypeKindIntersection {
+			constructor := "NewDeclaredUnionType"
+			if t.Kind() == data.TypeKindIntersection {
+				constructor = "NewDeclaredIntersectionType"
+			}
+			g.printf("data.%s([]data.Types{", constructor)
+			view := t.Members()
+			for i := 0; i < view.Len(); i++ {
+				if i > 0 {
+					g.printf(", ")
+				}
+				g.genTypes(view.At(i))
+			}
+			g.printf("})")
+		} else {
+			g.printf("data.NewDeclaredType(%q)", t.String())
+		}
 	case data.NullableType:
 		g.printf("data.NewNullableType(")
 		g.genTypes(t.BaseType)

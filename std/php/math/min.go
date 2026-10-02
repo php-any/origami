@@ -25,9 +25,12 @@ func (f *MinFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 		// 处理数组参数
 		if arr, isArr := v.(*data.ArrayValue); isArr {
-			for _, z := range arr.List {
+			for arraySlots123, arrayPosition123 := arr.View(), 0; arrayPosition123 <
 				// 必须先检查 AsFloat，因为 FloatValue 同时实现了 AsFloat 和 AsInt，
 				// 如果先检查 AsInt 会导致浮点数被截断为整数
+				arraySlots123.Len(); arrayPosition123++ {
+				z := arraySlots123.At(arrayPosition123)
+
 				if floatVal, ok := z.Value.(data.AsFloat); ok {
 					fv, _ := floatVal.AsFloat()
 					if fv < minVal || !hasValue {

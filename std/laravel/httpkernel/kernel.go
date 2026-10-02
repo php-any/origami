@@ -65,7 +65,6 @@ func newKernelState() *kernelState {
 // KernelClass 实现 data.ClassStmt：Illuminate\Foundation\Http\Kernel。
 type KernelClass struct {
 	node.Node
-	state      *kernelState
 	properties []data.Property
 	methods    map[string]data.Method
 	methodList []data.Method
@@ -73,12 +72,11 @@ type KernelClass struct {
 
 // NewClass 导出供 go-support.Load 注册。
 func NewClass() data.ClassStmt {
-	return newKernelClass(nil)
+	return newKernelClass()
 }
 
-func newKernelClass(state *kernelState) *KernelClass {
+func newKernelClass() *KernelClass {
 	c := &KernelClass{
-		state: state,
 		properties: []data.Property{
 			node.NewProperty(nil, "app", "protected", false, data.NewNullValue()),
 			node.NewProperty(nil, "router", "protected", false, data.NewNullValue()),
@@ -94,13 +92,14 @@ func newKernelClass(state *kernelState) *KernelClass {
 }
 
 func (c *KernelClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewProxyValue(newKernelClass(newKernelState()), ctx.CreateBaseContext()), nil
+	value := data.NewProxyValue(c, ctx.CreateBaseContext())
+	value.InstanceSource = newKernelState()
+	return value, nil
 }
 
 func (c *KernelClass) GetName() string         { return fqnKernel }
 func (c *KernelClass) GetExtend() *string      { return nil }
 func (c *KernelClass) GetImplements() []string { return []string{fqnKernelContract} }
-func (c *KernelClass) GetSource() any          { return c.state }
 func (c *KernelClass) GetConstruct() data.Method {
 	return c.methods["__construct"]
 }

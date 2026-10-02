@@ -61,6 +61,7 @@ func (h *ConnQueryContextMethod) Call(ctx data.Context) (data.GetValue, data.Con
 func (h *ConnQueryContextMethod) GetName() string            { return "queryContext" }
 func (h *ConnQueryContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ConnQueryContextMethod) GetIsStatic() bool          { return true }
+
 var connQueryContextMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "ctx", 0, nil, nil),
 	node.NewParameter(nil, "query", 1, nil, nil),

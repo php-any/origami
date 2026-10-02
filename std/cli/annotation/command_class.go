@@ -76,6 +76,7 @@ type CommandConstructMethod struct{ cmd *Command }
 func (m *CommandConstructMethod) GetName() string            { return "__construct" }
 func (m *CommandConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *CommandConstructMethod) GetIsStatic() bool          { return false }
+
 var commandConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "name", 0, data.NewStringValue(""), data.NewBaseType("string")),
 	node.NewParameter(nil, "description", 1, data.NewStringValue(""), data.NewBaseType("string")),
@@ -85,6 +86,7 @@ var commandConstructMethodGetParams = []data.GetValue{
 func (m *CommandConstructMethod) GetParams() []data.GetValue {
 	return commandConstructMethodGetParams
 }
+
 var commandConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "name", 0, nil),
 	node.NewVariable(nil, "description", 1, nil),

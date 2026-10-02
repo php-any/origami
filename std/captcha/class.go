@@ -680,10 +680,10 @@ func storePhrase(ctx data.Context, cv *data.ClassValue) data.Control {
 		expireAt = int(time.Now().Unix()) + ttl
 	}
 	arr := data.NewArrayValue(nil).(*data.ArrayValue)
-	arr.List = []*data.ZVal{
+	arr.ReplaceAll([]*data.ZVal{
 		data.NewNamedZVal("phrase", data.NewStringValue(propString(cv, "phrase", ""))),
 		data.NewNamedZVal("expire", data.NewIntValue(expireAt)),
-	}
+	})
 	return sess.SetProperty(key, arr)
 }
 
@@ -722,7 +722,8 @@ func readStored(v data.Value) (phrase string, expireAt int, ignoreCase bool) {
 	case *data.StringValue:
 		return t.AsString(), 0, true
 	case *data.ArrayValue:
-		for _, z := range t.List {
+		for arraySlots29, arrayPosition29 := t.View(), 0; arrayPosition29 < arraySlots29.Len(); arrayPosition29++ {
+			z := arraySlots29.At(arrayPosition29)
 			if z == nil || z.Value == nil {
 				continue
 			}

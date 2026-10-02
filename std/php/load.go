@@ -265,6 +265,7 @@ func Load(vm data.VM) {
 		NewNormalizerIsNormalizedFunction(),
 		NewNormalizerNormalizeFunction(),
 		core.NewCallUserFuncFunction(),
+		core.NewCallUserFuncArrayFunction(),
 		core.NewForwardStaticCallFunction(),
 		core.NewArrayFunction(),
 		core.NewDirnameFunction(),
@@ -633,8 +634,8 @@ func initPhpDefaultDefines(vm data.VM) {
 	vm.SetConstant("DEBUG_BACKTRACE_IGNORE_ARGS", data.NewIntValue(2))
 
 	// 数组相关常量
-	vm.SetConstant("ARRAY_FILTER_USE_KEY", data.NewIntValue(1))
-	vm.SetConstant("ARRAY_FILTER_USE_BOTH", data.NewIntValue(2))
+	vm.SetConstant("ARRAY_FILTER_USE_KEY", data.NewIntValue(2))
+	vm.SetConstant("ARRAY_FILTER_USE_BOTH", data.NewIntValue(1))
 	vm.SetConstant("COUNT_NORMAL", data.NewIntValue(0))
 	vm.SetConstant("COUNT_RECURSIVE", data.NewIntValue(1))
 	vm.SetConstant("SORT_REGULAR", data.NewIntValue(0))
@@ -642,7 +643,7 @@ func initPhpDefaultDefines(vm data.VM) {
 	vm.SetConstant("SORT_STRING", data.NewIntValue(2))
 	vm.SetConstant("SORT_LOCALE_STRING", data.NewIntValue(3))
 	vm.SetConstant("SORT_NATURAL", data.NewIntValue(5))
-	vm.SetConstant("SORT_FLAG_CASE", data.NewIntValue(6-5)) // 组合时常用 SORT_NATURAL | SORT_FLAG_CASE
+	vm.SetConstant("SORT_FLAG_CASE", data.NewIntValue(8))
 	vm.SetConstant("SORT_ASC", data.NewIntValue(4))
 	vm.SetConstant("SORT_DESC", data.NewIntValue(3))
 	vm.SetConstant("CASE_LOWER", data.NewIntValue(0))

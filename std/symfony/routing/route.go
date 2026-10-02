@@ -259,7 +259,8 @@ func routeSetMethods(cv *data.ClassValue, v data.Value) {
 func routeSetOptions(cv *data.ClassValue, extra *data.ArrayValue) {
 	opts := phpAssoc("compiler_class", data.NewStringValue(routeCompilerName))
 	if extra != nil {
-		for i, z := range extra.List {
+		for arraySlots198, i := extra.View(), 0; i < arraySlots198.Len(); i++ {
+			z := arraySlots198.At(i)
 			if z == nil || z.Value == nil {
 				continue
 			}
@@ -273,7 +274,8 @@ func routeSetOptions(cv *data.ClassValue, extra *data.ArrayValue) {
 func routeAddOptions(cv *data.ClassValue, extra *data.ArrayValue) {
 	opts := cloneArray(propArray(cv, "options"))
 	if extra != nil {
-		for i, z := range extra.List {
+		for arraySlots199, i := extra.View(), 0; i < arraySlots199.Len(); i++ {
+			z := arraySlots199.At(i)
 			if z == nil || z.Value == nil {
 				continue
 			}
@@ -300,7 +302,8 @@ func routeAddDefaults(cv *data.ClassValue, extra *data.ArrayValue) {
 	}
 	defs := cloneArray(propArray(cv, "defaults"))
 	localized := routeIsLocalized(cv)
-	for i, z := range extra.List {
+	for arraySlots200, i := extra.View(), 0; i < arraySlots200.Len(); i++ {
+		z := arraySlots200.At(i)
 		if z == nil {
 			continue
 		}
@@ -346,7 +349,8 @@ func routeAddRequirements(cv *data.ClassValue, extra *data.ArrayValue) data.Cont
 	}
 	reqs := cloneArray(propArray(cv, "requirements"))
 	localized := routeIsLocalized(cv)
-	for i, z := range extra.List {
+	for arraySlots201, i := extra.View(), 0; i < arraySlots201.Len(); i++ {
+		z := arraySlots201.At(i)
 		if z == nil || z.Value == nil {
 			continue
 		}

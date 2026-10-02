@@ -205,7 +205,8 @@ func encodePacked(buf []byte, p fieldPlan) ([]byte, error) {
 		return nil, fmt.Errorf("packed field requires array value, got %T", p.value)
 	}
 	var payload []byte
-	for _, z := range arr.List {
+	for arraySlots149, arrayPosition149 := arr.View(), 0; arrayPosition149 < arraySlots149.Len(); arrayPosition149++ {
+		z := arraySlots149.At(arrayPosition149)
 		if z == nil {
 			continue
 		}

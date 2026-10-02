@@ -40,6 +40,7 @@ func (h *ResponseWriterJsonMethod) Call(ctx data.Context) (data.GetValue, data.C
 func (h *ResponseWriterJsonMethod) GetName() string            { return "json" }
 func (h *ResponseWriterJsonMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResponseWriterJsonMethod) GetIsStatic() bool          { return false }
+
 var responseWriterJsonMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "data", 0, nil, data.NewUnionType([]data.Types{
 		data.NewBaseType("object"),
@@ -50,6 +51,7 @@ var responseWriterJsonMethodGetParams = []data.GetValue{
 func (h *ResponseWriterJsonMethod) GetParams() []data.GetValue {
 	return responseWriterJsonMethodGetParams
 }
+
 var responseWriterJsonMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "data", 0, data.NewUnionType([]data.Types{
 		data.NewBaseType("object"),

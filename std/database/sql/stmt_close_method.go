@@ -22,6 +22,7 @@ func (h *StmtCloseMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *StmtCloseMethod) GetName() string            { return "close" }
 func (h *StmtCloseMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *StmtCloseMethod) GetIsStatic() bool          { return true }
+
 var stmtCloseMethodGetParams = []data.GetValue{}
 
 func (h *StmtCloseMethod) GetParams() []data.GetValue {

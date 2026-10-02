@@ -172,7 +172,10 @@ func (f *PregReplaceCallbackFunction) resolveCallback(ctx data.Context, cb data.
 func (f *PregReplaceCallbackFunction) callWithSubmatches(ctx data.Context, fn *data.FuncValue, matches data.Value) (data.Value, data.Control) {
 	args := []data.Value{matches}
 	callCtx := ctx.CreateContext(fn.Value.GetVariables())
-	data.BindDeclaredArgs(callCtx, fn.Value, args)
+	callCtx.SetStrictTypes(false)
+	if ctl := data.BindDeclaredArgs(callCtx, fn.Value, args); ctl != nil {
+		return nil, ctl
+	}
 	ret, ctl := fn.Call(callCtx)
 	if ctl != nil {
 		return nil, ctl
@@ -189,6 +192,7 @@ func (f *PregReplaceCallbackFunction) callWithSubmatches(ctx data.Context, fn *d
 func (f *PregReplaceCallbackFunction) GetName() string            { return "preg_replace_callback" }
 func (f *PregReplaceCallbackFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *PregReplaceCallbackFunction) GetIsStatic() bool          { return false }
+
 var pregReplaceCallbackFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "pattern", 0, nil, nil),
 	node.NewParameter(nil, "callback", 1, nil, nil),
@@ -200,6 +204,7 @@ var pregReplaceCallbackFunctionGetParams = []data.GetValue{
 func (f *PregReplaceCallbackFunction) GetParams() []data.GetValue {
 	return pregReplaceCallbackFunctionGetParams
 }
+
 var pregReplaceCallbackFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "pattern", 0, data.NewBaseType("mixed")),
 	node.NewVariable(nil, "callback", 1, data.NewBaseType("callable")),

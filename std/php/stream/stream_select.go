@@ -42,7 +42,8 @@ func streamFileDescriptor(value data.Value) (int, bool) {
 func rangeStreamCollection(value data.Value, fn func(data.Value) bool) {
 	switch collection := value.(type) {
 	case *data.ArrayValue:
-		for _, zv := range collection.List {
+		for arraySlots141, arrayPosition141 := collection.View(), 0; arrayPosition141 < arraySlots141.Len(); arrayPosition141++ {
+			zv := arraySlots141.At(arrayPosition141)
 			if zv != nil && !fn(zv.Value) {
 				return
 			}

@@ -46,7 +46,7 @@ func (c *ArrayObjectClass) GetConstruct() data.Method {
 }
 func (c *ArrayObjectClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	cv := data.NewClassValue(c, ctx.CreateBaseContext())
-	cv.ObjectValue.SetProperty(aoStorageKey, &data.ArrayValue{List: []*data.ZVal{}})
+	cv.ObjectValue.SetProperty(aoStorageKey, data.NewArrayValueFromSlots([]*data.ZVal{}))
 	cv.ObjectValue.SetProperty(aoFlagsKey, data.NewIntValue(0))
 	cv.ObjectValue.SetProperty(aoIterClassKey, data.NewStringValue("ArrayIterator"))
 	return cv, nil
@@ -138,15 +138,15 @@ func aoGetStorage(cv *data.ClassValue) *data.ArrayValue {
 	if arr, ok := v.(*data.ArrayValue); ok {
 		return arr
 	}
-	arr := &data.ArrayValue{List: []*data.ZVal{}}
+	arr := data.NewArrayValueFromSlots([]*data.ZVal{})
 	cv.ObjectValue.SetProperty(aoStorageKey, arr)
 	return arr
 }
 
 func aoObjectToArrayValue(obj *data.ObjectValue) *data.ArrayValue {
-	arr := &data.ArrayValue{List: []*data.ZVal{}}
+	arr := data.NewArrayValueFromSlots([]*data.ZVal{})
 	obj.RangeProperties(func(key string, v data.Value) bool {
-		arr.List = append(arr.List, data.NewNamedZVal(key, v))
+		arr.SetStringKey(key, v)
 		return true
 	})
 	return arr
@@ -155,15 +155,15 @@ func aoObjectToArrayValue(obj *data.ObjectValue) *data.ArrayValue {
 func aoStorageFromInput(input data.Value) *data.ArrayValue {
 	switch v := input.(type) {
 	case *data.ArrayValue:
-		if len(v.List) > 0 {
+		if v.Len() > 0 {
 			return data.CloneArrayValue(v)
 		}
 		// �?ArrayValue 可能是关联数组经参数传递时的占位，忽略
-		return &data.ArrayValue{List: []*data.ZVal{}}
+		return data.NewArrayValueFromSlots([]*data.ZVal{})
 	case *data.ObjectValue:
 		return aoObjectToArrayValue(v)
 	}
-	return &data.ArrayValue{List: []*data.ZVal{}}
+	return data.NewArrayValueFromSlots([]*data.ZVal{})
 }
 
 func aoOffsetExists(arr *data.ArrayValue, offset data.Value) bool {
@@ -177,7 +177,8 @@ func aoOffsetExists(arr *data.ArrayValue, offset data.Value) bool {
 	}
 	if sv, ok := offset.(data.AsString); ok {
 		key := sv.AsString()
-		for _, z := range arr.List {
+		for arraySlots133, arrayPosition133 := arr.View(), 0; arrayPosition133 < arraySlots133.Len(); arrayPosition133++ {
+			z := arraySlots133.At(arrayPosition133)
 			if z != nil && z.Name == key {
 				return true
 			}
@@ -197,7 +198,8 @@ func aoOffsetGet(arr *data.ArrayValue, offset data.Value) data.Value {
 	}
 	if sv, ok := offset.(data.AsString); ok {
 		key := sv.AsString()
-		for _, z := range arr.List {
+		for arraySlots134, arrayPosition134 := arr.View(), 0; arrayPosition134 < arraySlots134.Len(); arrayPosition134++ {
+			z := arraySlots134.At(arrayPosition134)
 			if z != nil && z.Name == key {
 				return z.Value
 			}
@@ -208,7 +210,7 @@ func aoOffsetGet(arr *data.ArrayValue, offset data.Value) data.Value {
 
 func aoOffsetSet(arr *data.ArrayValue, offset, value data.Value) {
 	if offset == nil {
-		arr.List = append(arr.List, data.NewZVal(value))
+		arr.AppendValue(value)
 		return
 	}
 	if iv, ok := offset.(data.AsInt); ok {
@@ -220,13 +222,14 @@ func aoOffsetSet(arr *data.ArrayValue, offset, value data.Value) {
 	}
 	if sv, ok := offset.(data.AsString); ok {
 		key := sv.AsString()
-		for _, z := range arr.List {
+		for arraySlots135, arrayPosition135 := arr.View(), 0; arrayPosition135 < arraySlots135.Len(); arrayPosition135++ {
+			z := arraySlots135.At(arrayPosition135)
 			if z != nil && z.Name == key {
 				z.Value = value
 				return
 			}
 		}
-		arr.List = append(arr.List, data.NewNamedZVal(key, value))
+		arr.SetStringKey(key, value)
 	}
 }
 
@@ -268,6 +271,7 @@ func (m *ArrayObjectConstructMethod) GetName() string            { return "__con
 func (m *ArrayObjectConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectConstructMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectConstructMethod) GetReturnType() data.Types  { return nil }
+
 var arrayObjectConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "array", 0, data.NewArrayValue(nil), data.Mixed{}),
 	node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.Int{}),
@@ -277,6 +281,7 @@ var arrayObjectConstructMethodGetParams = []data.GetValue{
 func (m *ArrayObjectConstructMethod) GetParams() []data.GetValue {
 	return arrayObjectConstructMethodGetParams
 }
+
 var arrayObjectConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "array", 0, data.Mixed{}),
 	node.NewVariable(nil, "flags", 1, data.Int{}),
@@ -308,11 +313,13 @@ func (m *ArrayObjectAppendMethod) GetName() string            { return "append" 
 func (m *ArrayObjectAppendMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectAppendMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectAppendMethod) GetReturnType() data.Types  { return nil }
+
 var arrayObjectAppendMethodGetParams = []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.Mixed{})}
 
 func (m *ArrayObjectAppendMethod) GetParams() []data.GetValue {
 	return arrayObjectAppendMethodGetParams
 }
+
 var arrayObjectAppendMethodGetVariables = []data.Variable{node.NewVariable(nil, "value", 0, data.Mixed{})}
 
 func (m *ArrayObjectAppendMethod) GetVariables() []data.Variable {
@@ -325,7 +332,7 @@ func (m *ArrayObjectAppendMethod) Call(ctx data.Context) (data.GetValue, data.Co
 	}
 	val, _ := ctx.GetIndexValue(0)
 	arr := aoGetStorage(cv)
-	arr.List = append(arr.List, data.NewZVal(val))
+	arr.AppendValue(val)
 	return nil, nil
 }
 
@@ -343,7 +350,7 @@ func (m *ArrayObjectCountMethod) Call(ctx data.Context) (data.GetValue, data.Con
 		return data.NewIntValue(0), nil
 	}
 	arr := aoGetStorage(cv)
-	return data.NewIntValue(len(arr.List)), nil
+	return data.NewIntValue(arr.Len()), nil
 }
 
 type ArrayObjectExchangeArrayMethod struct{}
@@ -352,11 +359,13 @@ func (m *ArrayObjectExchangeArrayMethod) GetName() string            { return "e
 func (m *ArrayObjectExchangeArrayMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectExchangeArrayMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectExchangeArrayMethod) GetReturnType() data.Types  { return data.Mixed{} }
+
 var arrayObjectExchangeArrayMethodGetParams = []data.GetValue{node.NewParameter(nil, "array", 0, data.NewArrayValue(nil), data.Mixed{})}
 
 func (m *ArrayObjectExchangeArrayMethod) GetParams() []data.GetValue {
 	return arrayObjectExchangeArrayMethodGetParams
 }
+
 var arrayObjectExchangeArrayMethodGetVariables = []data.Variable{node.NewVariable(nil, "array", 0, data.Mixed{})}
 
 func (m *ArrayObjectExchangeArrayMethod) GetVariables() []data.Variable {
@@ -412,11 +421,13 @@ func (m *ArrayObjectOffsetExistsMethod) GetName() string            { return "of
 func (m *ArrayObjectOffsetExistsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectOffsetExistsMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectOffsetExistsMethod) GetReturnType() data.Types  { return data.Bool{} }
+
 var arrayObjectOffsetExistsMethodGetParams = []data.GetValue{node.NewParameter(nil, "offset", 0, nil, data.Mixed{})}
 
 func (m *ArrayObjectOffsetExistsMethod) GetParams() []data.GetValue {
 	return arrayObjectOffsetExistsMethodGetParams
 }
+
 var arrayObjectOffsetExistsMethodGetVariables = []data.Variable{node.NewVariable(nil, "offset", 0, data.Mixed{})}
 
 func (m *ArrayObjectOffsetExistsMethod) GetVariables() []data.Variable {
@@ -437,11 +448,13 @@ func (m *ArrayObjectOffsetGetMethod) GetName() string            { return "offse
 func (m *ArrayObjectOffsetGetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectOffsetGetMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectOffsetGetMethod) GetReturnType() data.Types  { return data.Mixed{} }
+
 var arrayObjectOffsetGetMethodGetParams = []data.GetValue{node.NewParameter(nil, "offset", 0, nil, data.Mixed{})}
 
 func (m *ArrayObjectOffsetGetMethod) GetParams() []data.GetValue {
 	return arrayObjectOffsetGetMethodGetParams
 }
+
 var arrayObjectOffsetGetMethodGetVariables = []data.Variable{node.NewVariable(nil, "offset", 0, data.Mixed{})}
 
 func (m *ArrayObjectOffsetGetMethod) GetVariables() []data.Variable {
@@ -466,6 +479,7 @@ func (m *ArrayObjectOffsetSetMethod) GetName() string            { return "offse
 func (m *ArrayObjectOffsetSetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectOffsetSetMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectOffsetSetMethod) GetReturnType() data.Types  { return nil }
+
 var arrayObjectOffsetSetMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "offset", 0, nil, data.Mixed{}),
 	node.NewParameter(nil, "value", 1, nil, data.Mixed{}),
@@ -474,6 +488,7 @@ var arrayObjectOffsetSetMethodGetParams = []data.GetValue{
 func (m *ArrayObjectOffsetSetMethod) GetParams() []data.GetValue {
 	return arrayObjectOffsetSetMethodGetParams
 }
+
 var arrayObjectOffsetSetMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "offset", 0, data.Mixed{}),
 	node.NewVariable(nil, "value", 1, data.Mixed{}),
@@ -499,11 +514,13 @@ func (m *ArrayObjectOffsetUnsetMethod) GetName() string            { return "off
 func (m *ArrayObjectOffsetUnsetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectOffsetUnsetMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectOffsetUnsetMethod) GetReturnType() data.Types  { return nil }
+
 var arrayObjectOffsetUnsetMethodGetParams = []data.GetValue{node.NewParameter(nil, "offset", 0, nil, data.Mixed{})}
 
 func (m *ArrayObjectOffsetUnsetMethod) GetParams() []data.GetValue {
 	return arrayObjectOffsetUnsetMethodGetParams
 }
+
 var arrayObjectOffsetUnsetMethodGetVariables = []data.Variable{node.NewVariable(nil, "offset", 0, data.Mixed{})}
 
 func (m *ArrayObjectOffsetUnsetMethod) GetVariables() []data.Variable {

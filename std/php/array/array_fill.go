@@ -55,7 +55,7 @@ func (f *ArrayFillFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 		}
 	}
 
-	return &data.ArrayValue{List: list}, nil
+	return data.NewArrayValueFromSlots(list), nil
 }
 
 func (f *ArrayFillFunction) GetName() string {

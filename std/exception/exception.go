@@ -70,11 +70,11 @@ func captureGoTrace(skip int) (file string, line int, frames []traceFrame) {
 func traceFramesToValues(frames []traceFrame) []data.Value {
 	out := make([]data.Value, 0, len(frames))
 	for _, frame := range frames {
-		obj := data.NewObjectValue()
-		obj.SetProperty("file", data.NewStringValue(frame.file))
-		obj.SetProperty("line", data.NewIntValue(frame.line))
+		obj := data.NewArrayValue(nil).(*data.ArrayValue)
+		obj.SetStringKey("file", data.NewStringValue(frame.file))
+		obj.SetStringKey("line", data.NewIntValue(frame.line))
 		if frame.function != "" {
-			obj.SetProperty("function", data.NewStringValue(frame.function))
+			obj.SetStringKey("function", data.NewStringValue(frame.function))
 		}
 		out = append(out, obj)
 	}

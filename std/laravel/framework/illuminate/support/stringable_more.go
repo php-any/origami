@@ -203,7 +203,9 @@ func stringableInvokeStr(ctx data.Context, method string, extra []data.Value) (d
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("Method %s::%s does not exist.", stringableClassName, method))
 	}
 	nctx := ctx.CreateContext(m.GetVariables())
-	data.BindDeclaredArgs(nctx, m, args)
+	if ctl := data.BindDeclaredArgs(nctx, m, args); ctl != nil {
+		return nil, ctl
+	}
 	ret, ctl := m.Call(nctx)
 	if ctl != nil {
 		return nil, ctl

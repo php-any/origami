@@ -42,6 +42,7 @@ func (h *DBExecMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *DBExecMethod) GetName() string            { return "exec" }
 func (h *DBExecMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBExecMethod) GetIsStatic() bool          { return true }
+
 var dBExecMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "query", 0, nil, nil),
 	node.NewParameters(nil, "args", 1, nil, nil),

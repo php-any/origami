@@ -95,11 +95,12 @@ func requestStackConstruct(ctx data.Context) (data.GetValue, data.Control) {
 func requestStackPushAll(cv *data.ClassValue, raw data.Value) data.Control {
 	switch t := raw.(type) {
 	case *data.ArrayValue:
-		for _, z := range t.List {
+		for arraySlots160, arrayPosition160 := t.View(), 0; arrayPosition160 < arraySlots160.Len(); arrayPosition160++ {
+			z := arraySlots160.At(arrayPosition160)
 			if z == nil || z.Value == nil || isNull(z.Value) {
 				continue
 			}
-			requestStackRequests(cv).List = append(requestStackRequests(cv).List, data.NewZVal(z.Value))
+			requestStackRequests(cv).AppendValue(z.Value)
 		}
 	default:
 		m, err := valueToAssocMap(raw)
@@ -110,7 +111,7 @@ func requestStackPushAll(cv *data.ClassValue, raw data.Value) data.Control {
 			if v == nil || isNull(v) {
 				continue
 			}
-			requestStackRequests(cv).List = append(requestStackRequests(cv).List, data.NewZVal(v))
+			requestStackRequests(cv).AppendValue(v)
 		}
 	}
 	return nil
@@ -121,18 +122,18 @@ func requestStackPush(ctx data.Context) (data.GetValue, data.Control) {
 	v, _ := ctx.GetIndexValue(0)
 	if v != nil && !isNull(v) {
 		arr := requestStackRequests(cv)
-		arr.List = append(arr.List, data.NewZVal(v))
+		arr.AppendValue(v)
 	}
 	return data.NewNullValue(), nil
 }
 
 func requestStackPop(ctx data.Context) (data.GetValue, data.Control) {
 	arr := requestStackRequests(bagClassValue(ctx))
-	if len(arr.List) == 0 {
+	if arr.Len() == 0 {
 		return data.NewNullValue(), nil
 	}
-	last := arr.List[len(arr.List)-1]
-	arr.List = arr.List[:len(arr.List)-1]
+	last := arr.At(arr.Len() - 1)
+	arr.RemovePositions(arr.Len()-1, arr.Len())
 	if last == nil || last.Value == nil {
 		return data.NewNullValue(), nil
 	}
@@ -141,10 +142,10 @@ func requestStackPop(ctx data.Context) (data.GetValue, data.Control) {
 
 func requestStackGetCurrent(ctx data.Context) (data.GetValue, data.Control) {
 	arr := requestStackRequests(bagClassValue(ctx))
-	if len(arr.List) == 0 {
+	if arr.Len() == 0 {
 		return data.NewNullValue(), nil
 	}
-	last := arr.List[len(arr.List)-1]
+	last := arr.At(arr.Len() - 1)
 	if last == nil || last.Value == nil {
 		return data.NewNullValue(), nil
 	}
@@ -153,10 +154,10 @@ func requestStackGetCurrent(ctx data.Context) (data.GetValue, data.Control) {
 
 func requestStackGetMain(ctx data.Context) (data.GetValue, data.Control) {
 	arr := requestStackRequests(bagClassValue(ctx))
-	if len(arr.List) == 0 {
+	if arr.Len() == 0 {
 		return data.NewNullValue(), nil
 	}
-	first := arr.List[0]
+	first := arr.At(0)
 	if first == nil || first.Value == nil {
 		return data.NewNullValue(), nil
 	}
@@ -165,11 +166,11 @@ func requestStackGetMain(ctx data.Context) (data.GetValue, data.Control) {
 
 func requestStackGetParent(ctx data.Context) (data.GetValue, data.Control) {
 	arr := requestStackRequests(bagClassValue(ctx))
-	pos := len(arr.List) - 2
+	pos := arr.Len() - 2
 	if pos < 0 {
 		return data.NewNullValue(), nil
 	}
-	item := arr.List[pos]
+	item := arr.At(pos)
 	if item == nil || item.Value == nil {
 		return data.NewNullValue(), nil
 	}

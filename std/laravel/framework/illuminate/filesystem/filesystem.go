@@ -34,7 +34,7 @@ func (c *FilesystemClass) GetImplements() []string {
 }
 func (c *FilesystemClass) GetProperty(string) (data.Property, bool) { return nil, false }
 func (c *FilesystemClass) GetPropertyList() []data.Property         { return nil }
-func (c *FilesystemClass) GetConstruct() data.Method                  { return nil }
+func (c *FilesystemClass) GetConstruct() data.Method                { return nil }
 func (c *FilesystemClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
 }
@@ -212,7 +212,8 @@ func fsDeletePaths(ctx data.Context) []string {
 	first := kit.Unwrap(kit.Arg(ctx, 0))
 	if av, ok := first.(*data.ArrayValue); ok && av != nil {
 		var paths []string
-		for _, e := range av.List {
+		for arraySlots49, arrayPosition49 := av.View(), 0; arrayPosition49 < arraySlots49.Len(); arrayPosition49++ {
+			e := arraySlots49.At(arrayPosition49)
 			if e == nil || e.Value == nil {
 				continue
 			}
@@ -434,7 +435,8 @@ func fsExtractSkip(ctx data.Context, arr data.Value) {
 			return true
 		})
 	case *data.ArrayValue:
-		for _, zv := range v.List {
+		for arraySlots50, arrayPosition50 := v.View(), 0; arrayPosition50 < arraySlots50.Len(); arrayPosition50++ {
+			zv := arraySlots50.At(arrayPosition50)
 			if zv == nil || zv.Name == "" {
 				continue
 			}
@@ -469,7 +471,9 @@ func fsJSON(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewNullValue(), nil
 	}
 	nctx := ctx.CreateContext(fn.GetVariables())
-	data.BindDeclaredArgs(nctx, fn, []data.Value{data.NewStringValue(s), data.NewBoolValue(true)})
+	if ctl := data.BindDeclaredArgs(nctx, fn, []data.Value{data.NewStringValue(s), data.NewBoolValue(true)}); ctl != nil {
+		return nil, ctl
+	}
 	return fn.Call(nctx)
 }
 

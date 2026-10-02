@@ -64,6 +64,7 @@ func isUploadedFileTypeFQN(typeFQN string) bool {
 }
 
 func typeFQNFromTypes(ty data.Types) (string, bool) {
+	ty = data.LegacyType(ty)
 	if ty == nil {
 		return "", false
 	}

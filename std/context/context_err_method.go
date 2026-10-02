@@ -22,6 +22,7 @@ func (h *ContextErrMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 func (h *ContextErrMethod) GetName() string            { return "err" }
 func (h *ContextErrMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ContextErrMethod) GetIsStatic() bool          { return true }
+
 var contextErrMethodGetParams = []data.GetValue{}
 
 func (h *ContextErrMethod) GetParams() []data.GetValue {

@@ -45,6 +45,8 @@ type Parser struct {
 	// conditionalDeclDepth > 0 表示处于 if/循环/函数等语句块内。
 	// PHP：仅顶层无条件 class/interface/enum/trait 在编译期注册；条件声明延后到执行期。
 	conditionalDeclDepth int
+	strictTypes          bool
+	declarationsOnly     bool
 }
 
 // NewParser 创建一个新的解析器
@@ -73,6 +75,8 @@ func (p *Parser) reset() {
 	p.scopeManager = NewScopeManager()
 	p.currentStaticHolder = nil
 	p.staticHolderStack = p.staticHolderStack[:0]
+	p.strictTypes = false
+	p.declarationsOnly = true
 }
 
 func (p *Parser) Clone() *Parser {
@@ -218,7 +222,11 @@ func (p *Parser) parseProgram(statements []data.GetValue) (*node.Program, data.C
 		}
 	}
 
-	return node.NewProgram(nil, statements), nil
+	program := node.NewProgram(nil, statements, p.strictTypes)
+	if ctl := validateReturnDeclarations(program); ctl != nil {
+		return nil, ctl
+	}
+	return program, nil
 }
 
 // current 返回当前词法单元
@@ -453,6 +461,21 @@ func (p *Parser) getClassName(try bool) (string, data.Control) {
 
 // parseStatement 解析语句
 func (p *Parser) parseStatement() (data.GetValue, data.Control) {
+	switch p.current().Type() {
+	case token.DECLARE, token.START_TAG, token.COMMENT, token.MULTILINE_COMMENT, token.WHITESPACE, token.NEWLINE:
+		if p.current().Type() == token.START_TAG && p.current().Literal() == "<?=" {
+			p.declarationsOnly = false
+		}
+	case token.SEMICOLON:
+		// The lexer preprocessor represents PHP newlines as semicolons.
+		// A real empty statement still disqualifies a later strict declaration.
+		if p.current().Literal() == ";" {
+			p.declarationsOnly = false
+		}
+	default:
+		p.declarationsOnly = false
+	}
+
 	switch p.current().Type() {
 	case token.HTML_TAG: // 新增：处理 HTML 标签
 		stmt := node.NewInlineHTMLNode(p.FromCurrentToken(), p.current().Literal())
@@ -813,14 +836,14 @@ func (p *Parser) tryFindTypes() (data.Types, bool) {
 	if data.ISBaseType(p.current().Literal()) {
 		t := p.current().Literal()
 		p.next()
-		return data.NewBaseType(t), true
+		return data.NewDeclaredType(t), true
 	}
 
 	name, acl := p.getClassName(true)
 	if acl != nil {
 		return nil, false
 	}
-	return data.NewBaseType(name), true
+	return data.NewDeclaredType(name), true
 }
 
 // parseLingToken 解析 LingToken（插值字符串），创建链接节点

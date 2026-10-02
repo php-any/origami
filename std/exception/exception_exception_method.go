@@ -42,11 +42,8 @@ func (h *ExceptionExceptionMethod) Call(ctx data.Context) (data.GetValue, data.C
 
 	// skip=2：跳过 captureGoTrace 与本 Call，对齐原先 captureTrace 的 Callers(3)。
 	file, line, frames := captureGoTrace(2)
-	if h.source != nil {
-		h.source.msg = message
-		h.source.file = file
-		h.source.line = line
-		h.source.trace = frames
+	if object := instanceObjectValue(ctx); object != nil {
+		object.InstanceSource = &Exception{msg: message, file: file, line: line, trace: frames}
 	}
 
 	// 同步到 PHP 可见的受保护属性（子类可 $this->message = ...）

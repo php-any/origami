@@ -65,7 +65,7 @@ func (c *CookieJarClass) GetPropertyList() []data.Property {
 	}
 	return out
 }
-func (c *CookieJarClass) GetConstruct() data.Method                { return nil }
+func (c *CookieJarClass) GetConstruct() data.Method { return nil }
 func (c *CookieJarClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	cv := data.NewClassValue(c, ctx.CreateBaseContext())
 	st := jarOf(cv)

@@ -151,6 +151,7 @@ func bindMultipartToClass(ctx data.Context, classValue *data.ClassValue, r *http
 }
 
 func coerceFlatInput(raw string, ty data.Types) (data.Value, error) {
+	ty = data.LegacyType(ty)
 	if ty == nil {
 		return data.NewStringValue(raw), nil
 	}
@@ -198,6 +199,7 @@ func coerceFlatInput(raw string, ty data.Types) (data.Value, error) {
 func (h *RequestBindMethod) GetName() string            { return "bind" }
 func (h *RequestBindMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestBindMethod) GetIsStatic() bool          { return false }
+
 var requestBindMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "className", 0, nil, nil),
 }
@@ -205,6 +207,7 @@ var requestBindMethodGetParams = []data.GetValue{
 func (h *RequestBindMethod) GetParams() []data.GetValue {
 	return requestBindMethodGetParams
 }
+
 var requestBindMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "className", 0, nil),
 }

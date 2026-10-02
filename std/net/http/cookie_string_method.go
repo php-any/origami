@@ -14,12 +14,14 @@ func (h *CookieStringMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	return data.NewAnyValue(ret0), nil
 }
 
-func (h *CookieStringMethod) GetName() string               { return "string" }
-func (h *CookieStringMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *CookieStringMethod) GetIsStatic() bool             { return false }
+func (h *CookieStringMethod) GetName() string            { return "string" }
+func (h *CookieStringMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *CookieStringMethod) GetIsStatic() bool          { return false }
+
 var cookieStringMethodGetParams = []data.GetValue{}
 
-func (h *CookieStringMethod) GetParams() []data.GetValue    { return cookieStringMethodGetParams }
+func (h *CookieStringMethod) GetParams() []data.GetValue { return cookieStringMethodGetParams }
+
 var cookieStringMethodGetVariables = []data.Variable{}
 
 func (h *CookieStringMethod) GetVariables() []data.Variable { return cookieStringMethodGetVariables }

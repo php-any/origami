@@ -45,6 +45,7 @@ func (h *RequestHeaderMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 func (h *RequestHeaderMethod) GetName() string            { return "header" }
 func (h *RequestHeaderMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestHeaderMethod) GetIsStatic() bool          { return false }
+
 var requestHeaderMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "key", 0, nil, nil),
 }
@@ -52,6 +53,7 @@ var requestHeaderMethodGetParams = []data.GetValue{
 func (h *RequestHeaderMethod) GetParams() []data.GetValue {
 	return requestHeaderMethodGetParams
 }
+
 var requestHeaderMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "key", 0, nil),
 }

@@ -59,7 +59,7 @@ func (g *Generator) emitStructLiteral(v data.GetValue) error {
 	needsNode := false
 	for i := 0; i < elem.NumField(); i++ {
 		f := elem.Field(i)
-		if f.Anonymous && f.Name == "Node" && f.Tag.Get("pp") == "-" {
+		if f.Anonymous && f.Name == "Node" {
 			needsNode = true
 		}
 		if !f.IsExported() && !(f.Anonymous && f.Name == "Node") {
@@ -167,6 +167,19 @@ func (g *Generator) emitSlice(rv reflect.Value) error {
 	}
 
 	elemType := rv.Type().Elem()
+	if elemType.Kind() == reflect.Ptr {
+		g.printf("[]%s{\n", elemType.String())
+		g.indent++
+		for i := 0; i < rv.Len(); i++ {
+			if err := g.emitReflectValue(rv.Index(i)); err != nil {
+				return err
+			}
+			g.printf(",\n")
+		}
+		g.indent--
+		g.printf("}")
+		return nil
+	}
 	pkg := ""
 	typeName := elemType.Name()
 	if elemType.PkgPath() != "" {

@@ -204,6 +204,7 @@ func (m *IteratorIteratorConstructMethod) GetName() string            { return "
 func (m *IteratorIteratorConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *IteratorIteratorConstructMethod) GetIsStatic() bool          { return false }
 func (m *IteratorIteratorConstructMethod) GetReturnType() data.Types  { return nil }
+
 var iteratorIteratorConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
 }
@@ -211,6 +212,7 @@ var iteratorIteratorConstructMethodGetParams = []data.GetValue{
 func (m *IteratorIteratorConstructMethod) GetParams() []data.GetValue {
 	return iteratorIteratorConstructMethodGetParams
 }
+
 var iteratorIteratorConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
 }

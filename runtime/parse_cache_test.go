@@ -45,7 +45,7 @@ echo bump();
 	}
 }
 
-func TestTempVMLoadInCallerContextUsesParseCache(t *testing.T) {
+func TestRequestVMLoadInCallerContextUsesParseCache(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "view.php")
 	if err := os.WriteFile(file, []byte(`<?php echo "ok";`), 0o644); err != nil {
@@ -55,7 +55,7 @@ func TestTempVMLoadInCallerContextUsesParseCache(t *testing.T) {
 	p := parser.NewParser()
 	base := NewVM(p).(*VM)
 	base.SetThrowControl(func(data.Control) {})
-	temp := NewTempVM(base).(*TempVM)
+	temp := NewRequestVM(base).(*RequestVM)
 	parent := temp.CreateContext(nil)
 
 	if _, acl := temp.LoadInCallerContext(parent, file); acl != nil {

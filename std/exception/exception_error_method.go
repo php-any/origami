@@ -9,8 +9,8 @@ type ExceptionErrorMethod struct {
 }
 
 func (h *ExceptionErrorMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if h.source != nil {
-		return data.NewStringValue(h.source.Error()), nil
+	if source := exceptionState(ctx, h.source); source != nil {
+		return data.NewStringValue(source.Error()), nil
 	}
 	return data.NewStringValue(""), nil
 }

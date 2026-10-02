@@ -8,11 +8,15 @@ use Illuminate\Support\HtmlString;
 
 class Login extends BaseLogin
 {
+    public function getHeading(): string | Htmlable
+    {
+        return '欢迎回来';
+    }
+
     public function getSubheading(): string | Htmlable | null
     {
         return new HtmlString(
-            '默认账号：<code>admin@example.com</code> / <code>password</code><br>'.
-            '普通管理员：<code>manager@example.com</code> / <code>password</code>'
+            '登录你的账号，开始今天的管理工作。'
         );
     }
 }

@@ -108,6 +108,7 @@ func (m *CallbackFilterIteratorConstructMethod) GetModifier() data.Modifier {
 }
 func (m *CallbackFilterIteratorConstructMethod) GetIsStatic() bool         { return false }
 func (m *CallbackFilterIteratorConstructMethod) GetReturnType() data.Types { return nil }
+
 var callbackFilterIteratorConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
 	node.NewParameter(nil, "callback", 1, nil, nil),
@@ -117,6 +118,7 @@ var callbackFilterIteratorConstructMethodGetParams = []data.GetValue{
 func (m *CallbackFilterIteratorConstructMethod) GetParams() []data.GetValue {
 	return callbackFilterIteratorConstructMethodGetParams
 }
+
 var callbackFilterIteratorConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
 	node.NewVariable(nil, "callback", 1, data.Mixed{}),
@@ -177,9 +179,9 @@ func (m *CallbackFilterIteratorAcceptMethod) Call(ctx data.Context) (data.GetVal
 	key := filterGetCurKey(cv)
 	var args []data.Value
 	switch flag {
-	case 1: // ARRAY_FILTER_USE_KEY
+	case 2: // ARRAY_FILTER_USE_KEY
 		args = []data.Value{key}
-	case 2: // ARRAY_FILTER_USE_BOTH
+	case 1: // ARRAY_FILTER_USE_BOTH
 		args = []data.Value{cur, key}
 	default:
 		args = []data.Value{cur}

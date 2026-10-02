@@ -107,7 +107,7 @@ func headersMapToArrayValue(headers map[string][]*string, order []string) *data.
 			list = append(list, &data.ZVal{Name: k, Value: headerValuesToArray(vs)})
 		}
 	}
-	return &data.ArrayValue{List: list}
+	return data.NewArrayValueFromSlots(list)
 }
 
 func parseCacheControl(header string) map[string]any {
@@ -479,8 +479,9 @@ func coerceHeaderValues(v data.Value) ([]*string, data.Control) {
 		}
 		// 保持数值顺序：优先 ArrayValue list
 		if arr, ok := v.(*data.ArrayValue); ok {
-			out := make([]*string, 0, len(arr.List))
-			for _, z := range arr.List {
+			out := make([]*string, 0, arr.Len())
+			for arraySlots158, arrayPosition158 := arr.View(), 0; arrayPosition158 < arraySlots158.Len(); arrayPosition158++ {
+				z := arraySlots158.At(arrayPosition158)
 				if z == nil || z.Value == nil || isNull(z.Value) {
 					out = append(out, nil)
 				} else {

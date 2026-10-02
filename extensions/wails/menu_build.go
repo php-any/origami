@@ -25,7 +25,8 @@ func appendMenuItems(menu *application.Menu, menuCV *data.ClassValue) {
 	if !ok {
 		return
 	}
-	for _, z := range av.List {
+	for arraySlots11, arrayPosition11 := av.View(), 0; arrayPosition11 < arraySlots11.Len(); arrayPosition11++ {
+		z := arraySlots11.At(arrayPosition11)
 		if z == nil {
 			continue
 		}

@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/runtime"
 	"github.com/php-any/origami/std/php/core"
 )
 
@@ -75,7 +77,8 @@ func ParseStreamContextOptions(v data.Value) map[string]map[string]string {
 	}
 	switch arr := v.(type) {
 	case *data.ArrayValue:
-		for i, zval := range arr.List {
+		for arraySlots138, i := arr.View(), 0; i < arraySlots138.Len(); i++ {
+			zval := arraySlots138.At(i)
 			if zval == nil {
 				continue
 			}
@@ -103,7 +106,8 @@ func ParseStreamContextParams(v data.Value) map[string]string {
 	}
 	switch arr := v.(type) {
 	case *data.ArrayValue:
-		for i, zval := range arr.List {
+		for arraySlots139, i := arr.View(), 0; i < arraySlots139.Len(); i++ {
+			zval := arraySlots139.At(i)
 			if zval == nil {
 				continue
 			}
@@ -122,7 +126,8 @@ func parseFlatOptions(v data.Value) map[string]string {
 	result := make(map[string]string)
 	switch arr := v.(type) {
 	case *data.ArrayValue:
-		for i, zval := range arr.List {
+		for arraySlots140, i := arr.View(), 0; i < arraySlots140.Len(); i++ {
+			zval := arraySlots140.At(i)
 			if zval == nil {
 				continue
 			}
@@ -192,6 +197,12 @@ func parseHeaderBlock(block string) http.Header {
 
 // HTTPGetContents 通过 http wrapper 读取远程 URL 内容。
 func HTTPGetContents(url string, sc *StreamContext) (string, bool) {
+	return HTTPGetContentsContext(runtime.RequestContext(), url, sc)
+}
+
+func HTTPGetContentsContext(request context.Context, url string, sc *StreamContext) (string, bool) {
+	data.CheckRequest(request)
+	defer data.CheckRequest(request)
 	opts := sc.WrapperOptions("http")
 
 	method := "GET"
@@ -207,7 +218,7 @@ func HTTPGetContents(url string, sc *StreamContext) (string, bool) {
 		}
 	}
 
-	req, err := http.NewRequest(method, url, body)
+	req, err := http.NewRequestWithContext(request, method, url, body)
 	if err != nil {
 		return "", false
 	}

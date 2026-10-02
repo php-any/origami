@@ -44,6 +44,7 @@ func (h *DBPingContextMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 func (h *DBPingContextMethod) GetName() string            { return "pingContext" }
 func (h *DBPingContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBPingContextMethod) GetIsStatic() bool          { return true }
+
 var dBPingContextMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "ctx", 0, nil, nil),
 }

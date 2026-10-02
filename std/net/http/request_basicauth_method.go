@@ -14,13 +14,17 @@ func (h *RequestBasicAuthMethod) Call(ctx data.Context) (data.GetValue, data.Con
 	return data.NewArrayValue([]data.Value{data.NewAnyValue(ret0), data.NewAnyValue(ret1), data.NewAnyValue(ret2)}), nil
 }
 
-func (h *RequestBasicAuthMethod) GetName() string               { return "basicAuth" }
-func (h *RequestBasicAuthMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *RequestBasicAuthMethod) GetIsStatic() bool             { return false }
+func (h *RequestBasicAuthMethod) GetName() string            { return "basicAuth" }
+func (h *RequestBasicAuthMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *RequestBasicAuthMethod) GetIsStatic() bool          { return false }
+
 var requestBasicAuthMethodGetParams = []data.GetValue{}
 
-func (h *RequestBasicAuthMethod) GetParams() []data.GetValue    { return requestBasicAuthMethodGetParams }
+func (h *RequestBasicAuthMethod) GetParams() []data.GetValue { return requestBasicAuthMethodGetParams }
+
 var requestBasicAuthMethodGetVariables = []data.Variable{}
 
-func (h *RequestBasicAuthMethod) GetVariables() []data.Variable { return requestBasicAuthMethodGetVariables }
-func (h *RequestBasicAuthMethod) GetReturnType() data.Types     { return data.NewBaseType("array") }
+func (h *RequestBasicAuthMethod) GetVariables() []data.Variable {
+	return requestBasicAuthMethodGetVariables
+}
+func (h *RequestBasicAuthMethod) GetReturnType() data.Types { return data.NewBaseType("array") }

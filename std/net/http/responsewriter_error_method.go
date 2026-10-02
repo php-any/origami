@@ -41,6 +41,7 @@ func (h *ResponseWriterErrorMethod) Call(ctx data.Context) (data.GetValue, data.
 func (h *ResponseWriterErrorMethod) GetName() string            { return "error" }
 func (h *ResponseWriterErrorMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResponseWriterErrorMethod) GetIsStatic() bool          { return false }
+
 var responseWriterErrorMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "message", 0, data.NewStringValue("error"), data.NewBaseType("string")),
 	node.NewParameter(nil, "code", 1, data.NewIntValue(httpsrc.StatusInternalServerError), data.NewBaseType("int")),
@@ -50,6 +51,7 @@ var responseWriterErrorMethodGetParams = []data.GetValue{
 func (h *ResponseWriterErrorMethod) GetParams() []data.GetValue {
 	return responseWriterErrorMethodGetParams
 }
+
 var responseWriterErrorMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "message", 0, nil),
 	node.NewVariable(nil, "code", 1, nil),

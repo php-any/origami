@@ -35,6 +35,7 @@ func (h *RowsScanMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *RowsScanMethod) GetName() string            { return "scan" }
 func (h *RowsScanMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RowsScanMethod) GetIsStatic() bool          { return true }
+
 var rowsScanMethodGetParams = []data.GetValue{
 	node.NewParametersReference(nil, "dest", 0, nil, nil),
 }

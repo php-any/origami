@@ -49,6 +49,7 @@ func (h *TxStmtContextMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 func (h *TxStmtContextMethod) GetName() string            { return "stmtContext" }
 func (h *TxStmtContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *TxStmtContextMethod) GetIsStatic() bool          { return true }
+
 var txStmtContextMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "ctx", 0, nil, nil),
 	node.NewParameter(nil, "stmt", 1, nil, nil),

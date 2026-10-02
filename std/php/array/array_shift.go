@@ -18,15 +18,11 @@ func (f *ArrayShiftFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	arrayValue := data.CowSeparateIndex(ctx, 0)
 
 	if arr, ok := arrayValue.(*data.ArrayValue); ok {
-		if len(arr.List) == 0 {
+		slot := arr.ShiftSlot()
+		if slot == nil || slot.Value == nil {
 			return data.NewNullValue(), nil
 		}
-		first := arr.List[0].Value
-		arr.List = arr.List[1:]
-		if first == nil {
-			return data.NewNullValue(), nil
-		}
-		return first, nil
+		return slot.Value, nil
 	}
 
 	if obj, ok := arrayValue.(*data.ObjectValue); ok {

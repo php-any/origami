@@ -1,20 +1,23 @@
 package data
 
 type ArrayValueReverse struct {
-	source []*ZVal
+	source *ArrayValue
 }
 
 // Call 实现数组的 reverse 方法
 // 反转数组中元素的顺序，并返回反转后的数组
 func (a *ArrayValueReverse) Call(ctx Context) (GetValue, Control) {
 	// 反转数组
-	for i, j := 0, len(a.source)-1; i < j; i, j = i+1, j-1 {
-		(a.source)[i], (a.source)[j] = (a.source)[j], (a.source)[i]
+	slots := a.source.slots()
+	for i, j := 0, len(slots)-1; i < j; i, j = i+1, j-1 {
+		slots[i], slots[j] = slots[j], slots[i]
 	}
 
+	a.source.ReplaceAll(slots)
+
 	// 返回反转后的数组
-	values := make([]Value, len(a.source))
-	for i, zval := range a.source {
+	values := make([]Value, len(slots))
+	for i, zval := range slots {
 		values[i] = zval.Value
 	}
 	return NewArrayValue(values), nil

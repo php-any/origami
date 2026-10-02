@@ -7,7 +7,7 @@ func LookupStaticProperty(vm data.VM, class data.ClassStmt, name string) (data.V
 	if class == nil {
 		return nil, false
 	}
-	if v, ok := staticPropertyOn(class, name); ok {
+	if v, ok := staticPropertyOn(vm, class, name); ok {
 		return v, true
 	}
 	for _, ifaceName := range class.GetImplements() {
@@ -25,7 +25,7 @@ func LookupStaticProperty(vm data.VM, class data.ClassStmt, name string) (data.V
 		if acl != nil || parent == nil {
 			break
 		}
-		if v, ok := staticPropertyOn(parent, name); ok {
+		if v, ok := staticPropertyOn(vm, parent, name); ok {
 			return v, true
 		}
 		for _, ifaceName := range parent.GetImplements() {
@@ -38,11 +38,32 @@ func LookupStaticProperty(vm data.VM, class data.ClassStmt, name string) (data.V
 	return nil, false
 }
 
-func staticPropertyOn(class data.ClassStmt, name string) (data.Value, bool) {
+func staticPropertyOn(vm data.VM, class data.ClassStmt, name string) (data.Value, bool) {
+	switch class := class.(type) {
+	case *ClassStatement:
+		return class.getStaticProperty(nil, vm, name)
+	case *AbstractClassStatement:
+		return class.getStaticProperty(nil, vm, name)
+	case *ClassGeneric:
+		return class.getStaticProperty(nil, vm, name)
+	}
 	if gsp, ok := class.(data.GetStaticProperty); ok {
 		return gsp.GetStaticProperty(name)
 	}
 	return nil, false
+}
+
+func staticPropertyValue(ctx data.Context, getter data.GetStaticProperty, name string) (data.Value, bool) {
+	switch class := getter.(type) {
+	case *ClassStatement:
+		return class.getStaticProperty(ctx, nil, name)
+	case *AbstractClassStatement:
+		return class.getStaticProperty(ctx, nil, name)
+	case *ClassGeneric:
+		return class.getStaticProperty(ctx, nil, name)
+	default:
+		return getter.GetStaticProperty(name)
+	}
 }
 
 func lookupStaticPropertyOnInterface(vm data.VM, ifaceName, name string) (data.Value, bool) {

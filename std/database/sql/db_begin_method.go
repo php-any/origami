@@ -23,6 +23,7 @@ func (h *DBBeginMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *DBBeginMethod) GetName() string            { return "begin" }
 func (h *DBBeginMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBBeginMethod) GetIsStatic() bool          { return true }
+
 var dBBeginMethodGetParams = []data.GetValue{}
 
 func (h *DBBeginMethod) GetParams() []data.GetValue {

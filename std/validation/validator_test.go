@@ -141,7 +141,7 @@ class SimpleDto {
 		t.Fatalf("validate call: %v", acl)
 	}
 	arr, ok := result.(*data.ArrayValue)
-	if !ok || len(arr.List) == 0 {
+	if !ok || arr.Len() == 0 {
 		t.Fatalf("expected violations array, got %#v", result)
 	}
 }

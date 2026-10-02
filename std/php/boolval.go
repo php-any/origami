@@ -55,7 +55,7 @@ func (f *BoolvalFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	case *data.StringValue:
 		return data.NewBoolValue(t.Value != "" && t.Value != "0"), nil
 	case *data.ArrayValue:
-		return data.NewBoolValue(len(t.List) > 0), nil
+		return data.NewBoolValue(t.Len() > 0), nil
 	default:
 		return data.NewBoolValue(true), nil
 	}

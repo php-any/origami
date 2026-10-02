@@ -68,7 +68,7 @@ func phpFloatval(v data.Value) float64 {
 	case *data.NullValue:
 		return 0
 	case *data.ArrayValue:
-		if len(t.List) == 0 {
+		if t.Len() == 0 {
 			return 0
 		}
 		return 1

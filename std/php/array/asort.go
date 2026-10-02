@@ -22,8 +22,10 @@ func sortPreservingKeys(value data.Value, flags int, descending bool) bool {
 
 	switch collection := value.(type) {
 	case *data.ArrayValue:
-		sort.SliceStable(collection.List, func(i, j int) bool {
-			return less(collection.List[i].Value, collection.List[j].Value)
+		collection.EditPreservingKeys(func(slots []*data.ZVal) {
+			sort.SliceStable(slots, func(i, j int) bool {
+				return less(slots[i].Value, slots[j].Value)
+			})
 		})
 		return true
 	case *data.ObjectValue:
@@ -54,7 +56,8 @@ func NewAsortFunction() data.FuncStmt  { return &AsortFunction{} }
 func NewArsortFunction() data.FuncStmt { return &AsortFunction{descending: true} }
 
 func (f *AsortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	value, ok := ctx.GetIndexValue(0)
+	value := data.CowSeparateIndex(ctx, 0)
+	ok := value != nil
 	if !ok {
 		return data.NewBoolValue(false), nil
 	}
@@ -73,6 +76,7 @@ func (f *AsortFunction) GetName() string {
 	}
 	return "asort"
 }
+
 var asortFunctionGetParams = []data.GetValue{
 	node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
 	node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.Int{}),
@@ -81,6 +85,7 @@ var asortFunctionGetParams = []data.GetValue{
 func (f *AsortFunction) GetParams() []data.GetValue {
 	return asortFunctionGetParams
 }
+
 var asortFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "array", 0, data.Mixed{}),
 	node.NewVariable(nil, "flags", 1, data.Int{}),

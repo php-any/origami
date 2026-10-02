@@ -22,6 +22,7 @@ func (h *RowErrMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *RowErrMethod) GetName() string            { return "err" }
 func (h *RowErrMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RowErrMethod) GetIsStatic() bool          { return true }
+
 var rowErrMethodGetParams = []data.GetValue{}
 
 func (h *RowErrMethod) GetParams() []data.GetValue {

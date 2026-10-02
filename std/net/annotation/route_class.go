@@ -136,9 +136,11 @@ type RoutePrefixMethod struct{ route *Route }
 func (m *RoutePrefixMethod) GetName() string            { return "prefix" }
 func (m *RoutePrefixMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *RoutePrefixMethod) GetIsStatic() bool          { return false }
+
 var routePrefixMethodGetParams = []data.GetValue{}
 
 func (m *RoutePrefixMethod) GetParams() []data.GetValue { return routePrefixMethodGetParams }
+
 var routePrefixMethodGetVariables = []data.Variable{}
 
 func (m *RoutePrefixMethod) GetVariables() []data.Variable {

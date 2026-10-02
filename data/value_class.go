@@ -30,6 +30,9 @@ type ClassValue struct {
 	// vm 钉在实例上：方法帧的 pooled Context 回收后 Context.GetVM() 会变 nil，
 	// parent:: / 父类属性查找仍需 VM。SetVM(nil) 不得清掉该字段。
 	vm VM
+	// Method frames borrow this object's storage, but must not escape as the
+	// object's execution context: their pooled contexts are reused after return.
+	sourceOwner *ClassValue
 }
 
 func (c *ClassValue) GetName() string {
@@ -297,7 +300,7 @@ func (c *ClassValue) RangeProperties(fn func(key string, value Value) bool) {
 
 func (c *ClassValue) CreateContext(vars []Variable) Context {
 	// 符号表从对象已有的执行上下文长出来（剥掉 BoundContext），不绕回 VM.CreateContext。
-	inner := unwrapBoundContext(c.Context).CreateContext(vars)
+	inner := unwrapBoundContext(c.InstanceIdentity().Context).CreateContext(vars)
 	inner.SetVM(c.vm)
 	return &ClassMethodContext{
 		ClassValue:  c.CloneWithContext(inner),
@@ -311,7 +314,15 @@ func (c *ClassValue) CloneWithContext(ctx Context) *ClassValue {
 		Class:       c.Class,
 		Context:     ctx,
 		vm:          c.vm,
+		sourceOwner: c.InstanceIdentity(),
 	}
+}
+
+func (c *ClassValue) InstanceIdentity() *ClassValue {
+	if c.sourceOwner != nil {
+		return c.sourceOwner
+	}
+	return c
 }
 
 // CloneSandbox 按 PHP clone 语义复制实例：数组属性按值拷贝，对象属性仍共享。
@@ -364,6 +375,7 @@ func (c *ClassValue) CloneSandboxKeys(ctx Context, deepKeys []string) *ClassValu
 	}
 	clone := &ObjectValue{
 		Value:                 obj.Value,
+		InstanceSource:        obj.InstanceSource,
 		Context:               ctx,
 		property:              NewOrderedMap(),
 		IndirectOverloadClass: obj.IndirectOverloadClass,
@@ -403,6 +415,7 @@ func (c *ClassValue) CloneRequestScoped(ctx Context) *ClassValue {
 	obj := NewObjectValue()
 	if c.ObjectValue != nil {
 		obj.Value = c.ObjectValue.Value
+		obj.InstanceSource = c.InstanceSource
 		obj.IndirectOverloadClass = c.ObjectValue.IndirectOverloadClass
 		if c.ObjectValue.property != nil {
 			obj.property = NewChainPropertyStore(c.ObjectValue.property)
@@ -472,6 +485,9 @@ func (c *ClassValue) ReturnSlot(v Value) ReturnControl {
 }
 
 func (c *ClassValue) GoContext() context.Context {
+	if c != nil && c.Context != nil {
+		return c.Context.GoContext()
+	}
 	return context.Background()
 }
 
@@ -518,9 +534,15 @@ func WrapMethodFrame(inner Context, identity *ClassValue, self, static ClassStmt
 	if static == nil {
 		static = identity.Class
 	}
-	inner.SetVM(identity.vm)
+	// The frame belongs to the caller's request, even when the object or
+	// captured closure was created by the persistent worker.
+	vm := inner.GetVM()
+	if vm == nil {
+		vm = identity.vm
+		inner.SetVM(vm)
+	}
 	return &ClassMethodContext{
-		ClassValue:  identity.CloneWithContext(inner),
+		ClassValue:  identity.CloneWithContext(inner).withVM(vm),
 		SelfClass:   self,
 		StaticClass: static,
 	}
@@ -613,6 +635,9 @@ func (c *ClassMethodContext) StaticLocalsStore() *StaticLocals {
 }
 
 func (c *ClassMethodContext) GoContext() context.Context {
+	if c != nil && c.Context != nil {
+		return c.Context.GoContext()
+	}
 	return context.Background()
 }
 

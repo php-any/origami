@@ -246,7 +246,7 @@ func objectToArray(obj *data.ObjectValue) *data.ArrayValue {
 		return out
 	}
 	obj.RangeProperties(func(key string, value data.Value) bool {
-		out.List = append(out.List, data.NewNamedZVal(key, value))
+		out.SetStringKey(key, value)
 		return true
 	})
 	return out
@@ -256,10 +256,10 @@ func unwrapAssoc(arr *data.ArrayValue) *data.ArrayValue {
 	if arr == nil {
 		return data.NewArrayValue(nil).(*data.ArrayValue)
 	}
-	if len(arr.List) != 1 || arr.List[0] == nil {
+	if arr.Len() != 1 || arr.At(0) == nil {
 		return arr
 	}
-	z := arr.List[0]
+	z := arr.At(0)
 	if z.Name != "" && z.Name != "0" {
 		return arr
 	}
@@ -279,7 +279,8 @@ func arrayLooksAssoc(arr *data.ArrayValue) bool {
 	if arr == nil {
 		return false
 	}
-	for i, z := range arr.List {
+	for arraySlots193, i := arr.View(), 0; i < arraySlots193.Len(); i++ {
+		z := arraySlots193.At(i)
 		if z == nil {
 			continue
 		}
@@ -297,8 +298,9 @@ func toStringSlice(v data.Value) []string {
 	switch v.(type) {
 	case *data.ArrayValue, *data.ObjectValue:
 		av := valueToArray(v)
-		out := make([]string, 0, len(av.List))
-		for _, z := range av.List {
+		out := make([]string, 0, av.Len())
+		for arraySlots194, arrayPosition194 := av.View(), 0; arrayPosition194 < arraySlots194.Len(); arrayPosition194++ {
+			z := arraySlots194.At(arrayPosition194)
 			if z != nil && z.Value != nil && !isNull(z.Value) {
 				out = append(out, z.Value.AsString())
 			}
@@ -384,7 +386,7 @@ func phpAssoc(pairs ...any) *data.ArrayValue {
 		}
 		list = append(list, data.NewNamedZVal(key, val))
 	}
-	return &data.ArrayValue{List: list}
+	return data.NewArrayValueFromSlots(list)
 }
 
 func cloneArray(src *data.ArrayValue) *data.ArrayValue {
@@ -402,7 +404,8 @@ func assocGet(arr *data.ArrayValue, key string) (data.Value, bool) {
 	if arr == nil {
 		return nil, false
 	}
-	for _, z := range arr.List {
+	for arraySlots195, arrayPosition195 := arr.View(), 0; arrayPosition195 < arraySlots195.Len(); arrayPosition195++ {
+		z := arraySlots195.At(arrayPosition195)
 		if z != nil && z.Name == key {
 			return z.Value, true
 		}
@@ -422,13 +425,14 @@ func assocSet(arr *data.ArrayValue, key string, val data.Value) *data.ArrayValue
 	if val == nil {
 		val = data.NewNullValue()
 	}
-	for _, z := range arr.List {
+	for arraySlots196, arrayPosition196 := arr.View(), 0; arrayPosition196 < arraySlots196.Len(); arrayPosition196++ {
+		z := arraySlots196.At(arrayPosition196)
 		if z != nil && z.Name == key {
 			z.Value = val
 			return arr
 		}
 	}
-	arr.List = append(arr.List, data.NewNamedZVal(key, val))
+	arr.SetStringKey(key, val)
 	return arr
 }
 
@@ -436,14 +440,15 @@ func assocUnset(arr *data.ArrayValue, key string) *data.ArrayValue {
 	if arr == nil {
 		return &data.ArrayValue{}
 	}
-	out := make([]*data.ZVal, 0, len(arr.List))
-	for _, z := range arr.List {
+	out := make([]*data.ZVal, 0, arr.Len())
+	for arraySlots197, arrayPosition197 := arr.View(), 0; arrayPosition197 < arraySlots197.Len(); arrayPosition197++ {
+		z := arraySlots197.At(arrayPosition197)
 		if z != nil && z.Name == key {
 			continue
 		}
 		out = append(out, z)
 	}
-	arr.List = out
+	arr.ReplaceAll(out)
 	return arr
 }
 
@@ -470,7 +475,7 @@ func flipStrings(ss []string) *data.ArrayValue {
 	for i, s := range ss {
 		list = append(list, data.NewNamedZVal(s, data.NewIntValue(i)))
 	}
-	return &data.ArrayValue{List: list}
+	return data.NewArrayValueFromSlots(list)
 }
 
 func bindArgs(fnCtx data.Context, vars []data.Variable, args []data.Value) data.Control {

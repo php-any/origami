@@ -31,7 +31,8 @@ func (f *ArrayDiffUkeyFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 		})
 	case *data.ArrayValue:
 		baseKeys = make(map[string]bool)
-		for i, z := range v.List {
+		for arraySlots85, i := v.View(), 0; i < arraySlots85.Len(); i++ {
+			z := arraySlots85.At(i)
 			_ = i
 			baseKeys[z.Value.AsString()] = true
 		}
@@ -60,7 +61,8 @@ func (f *ArrayDiffUkeyFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 				return true
 			})
 		case *data.ArrayValue:
-			for _, z := range v.List {
+			for arraySlots86, arrayPosition86 := v.View(), 0; arrayPosition86 < arraySlots86.Len(); arrayPosition86++ {
+				z := arraySlots86.At(arrayPosition86)
 				allOtherKeys[z.Value.AsString()] = true
 			}
 		}
@@ -85,8 +87,10 @@ func (f *ArrayDiffUkeyFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 			return true
 		})
 	case *data.ArrayValue:
-		// For indexed arrays, convert to ObjectValue result
-		for _, z := range v.List {
+		for arraySlots87,
+			// For indexed arrays, convert to ObjectValue result
+			arrayPosition87 := v.View(), 0; arrayPosition87 < arraySlots87.Len(); arrayPosition87++ {
+			z := arraySlots87.At(arrayPosition87)
 			key := z.Value.AsString()
 			found := false
 			for otherKey := range allOtherKeys {

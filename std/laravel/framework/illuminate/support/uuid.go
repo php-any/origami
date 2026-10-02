@@ -99,8 +99,8 @@ func newRamseyUuidClass() data.ClassStmt {
 	return c
 }
 
-func (c *ramseyUuidClass) GetName() string            { return ramseyUuidName }
-func (c *ramseyUuidClass) GetExtend() *string         { return nil }
+func (c *ramseyUuidClass) GetName() string    { return ramseyUuidName }
+func (c *ramseyUuidClass) GetExtend() *string { return nil }
 func (c *ramseyUuidClass) GetImplements() []string {
 	return []string{ramseyRfc4122UuidIface, ramseyUuidInterfaceName, "JsonSerializable", "Stringable"}
 }
@@ -183,8 +183,8 @@ func newRamseyFieldsClass() data.ClassStmt {
 	return c
 }
 
-func (c *ramseyFieldsClass) GetName() string        { return ramseyFieldsName }
-func (c *ramseyFieldsClass) GetExtend() *string     { return nil }
+func (c *ramseyFieldsClass) GetName() string    { return ramseyFieldsName }
+func (c *ramseyFieldsClass) GetExtend() *string { return nil }
 func (c *ramseyFieldsClass) GetImplements() []string {
 	return []string{ramseyRfc4122FieldsIface, ramseyFieldsIfaceName, "JsonSerializable"}
 }
@@ -625,7 +625,7 @@ func uuidGetFieldsHex(ctx data.Context) (data.GetValue, data.Control) {
 	b := uuidBytes(uuidValue(ctx))
 	arr := &data.ArrayValue{}
 	put := func(k, v string) {
-		arr.List = append(arr.List, data.NewNamedZVal(k, data.NewStringValue(v)))
+		arr.SetStringKey(k, data.NewStringValue(v))
 	}
 	put("time_low", hex.EncodeToString(b[0:4]))
 	put("time_mid", hex.EncodeToString(b[4:6]))

@@ -51,6 +51,7 @@ func (h *DBPrepareContextMethod) Call(ctx data.Context) (data.GetValue, data.Con
 func (h *DBPrepareContextMethod) GetName() string            { return "prepareContext" }
 func (h *DBPrepareContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBPrepareContextMethod) GetIsStatic() bool          { return true }
+
 var dBPrepareContextMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "ctx", 0, nil, nil),
 	node.NewParameter(nil, "query", 1, nil, nil),

@@ -169,7 +169,7 @@ func (p *ParamBagData) toArrayValue() *data.ArrayValue {
 	for _, pair := range pairs {
 		list = append(list, &data.ZVal{Name: pair.key, Value: pair.val})
 	}
-	return &data.ArrayValue{List: list}
+	return data.NewArrayValueFromSlots(list)
 }
 
 // HeaderBagData 是 HeaderBag / ResponseHeaderBag 的底层存储。
@@ -540,9 +540,10 @@ func valueToOrderedAssoc(v data.Value) ([]string, map[string]data.Value, error) 
 	}
 	switch arr := v.(type) {
 	case *data.ArrayValue:
-		keys := make([]string, 0, len(arr.List))
-		out := make(map[string]data.Value, len(arr.List))
-		for i, z := range arr.List {
+		keys := make([]string, 0, arr.Len())
+		out := make(map[string]data.Value, arr.Len())
+		for arraySlots157, i := arr.View(), 0; i < arraySlots157.Len(); i++ {
+			z := arraySlots157.At(i)
 			if z == nil {
 				continue
 			}
@@ -577,7 +578,7 @@ func assocMapToArrayValue(m map[string]data.Value) *data.ArrayValue {
 	for k, v := range m {
 		list = append(list, &data.ZVal{Name: k, Value: v})
 	}
-	return &data.ArrayValue{List: list}
+	return data.NewArrayValueFromSlots(list)
 }
 
 func orderedAssocToArrayValue(keys []string, values map[string]data.Value) *data.ArrayValue {
@@ -585,7 +586,7 @@ func orderedAssocToArrayValue(keys []string, values map[string]data.Value) *data
 	for _, k := range keys {
 		list = append(list, &data.ZVal{Name: k, Value: values[k]})
 	}
-	return &data.ArrayValue{List: list}
+	return data.NewArrayValueFromSlots(list)
 }
 
 func isArrayValue(v data.Value) bool {

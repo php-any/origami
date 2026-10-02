@@ -14,6 +14,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	origamiruntime "github.com/php-any/origami/runtime"
 	"github.com/php-any/origami/token"
 )
 
@@ -48,7 +49,7 @@ func (s *pdoState) getErrMode() int {
 }
 
 func (s *pdoState) ctx() context.Context {
-	return context.Background()
+	return origamiruntime.RequestContext()
 }
 
 func (s *pdoState) ensureOpen() error {
@@ -394,7 +395,7 @@ func (m *pdoConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control
 		return nil, pdoException(err2.Error(), ctx)
 	}
 	// 从共享池借出一条连接；本 PDO 生命周期内所有 SQL 都走这条连接。
-	conn, connErr := db.Conn(context.Background())
+	conn, connErr := db.Conn(ctx.GoContext())
 	if connErr != nil {
 		return nil, pdoException(connErr.Error(), ctx)
 	}
@@ -466,7 +467,7 @@ func queryServerVersionConn(conn *sql.Conn, driver string) string {
 	}
 
 	var version string
-	if err := conn.QueryRowContext(context.Background(), query).Scan(&version); err != nil {
+	if err := conn.QueryRowContext(origamiruntime.RequestContext(), query).Scan(&version); err != nil {
 		return ""
 	}
 	return version
@@ -564,11 +565,13 @@ func (m *pdoQueryMethod) GetName() string            { return "query" }
 func (m *pdoQueryMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *pdoQueryMethod) GetIsStatic() bool          { return false }
 func (m *pdoQueryMethod) GetReturnType() data.Types  { return nil }
+
 var pdoQueryMethodGetParams = []data.GetValue{node.NewParameter(nil, "sql", 0, nil, nil)}
 
 func (m *pdoQueryMethod) GetParams() []data.GetValue {
 	return pdoQueryMethodGetParams
 }
+
 var pdoQueryMethodGetVariables = []data.Variable{node.NewVariable(nil, "sql", 0, data.NewBaseType("string"))}
 
 func (m *pdoQueryMethod) GetVariables() []data.Variable {
@@ -612,11 +615,13 @@ func (m *pdoExecMethod) GetName() string            { return "exec" }
 func (m *pdoExecMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *pdoExecMethod) GetIsStatic() bool          { return false }
 func (m *pdoExecMethod) GetReturnType() data.Types  { return nil }
+
 var pdoExecMethodGetParams = []data.GetValue{node.NewParameter(nil, "sql", 0, nil, nil)}
 
 func (m *pdoExecMethod) GetParams() []data.GetValue {
 	return pdoExecMethodGetParams
 }
+
 var pdoExecMethodGetVariables = []data.Variable{node.NewVariable(nil, "sql", 0, data.NewBaseType("string"))}
 
 func (m *pdoExecMethod) GetVariables() []data.Variable {
@@ -661,6 +666,7 @@ func (m *pdoPrepareMethod) GetName() string            { return "prepare" }
 func (m *pdoPrepareMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *pdoPrepareMethod) GetIsStatic() bool          { return false }
 func (m *pdoPrepareMethod) GetReturnType() data.Types  { return nil }
+
 var pdoPrepareMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "sql", 0, nil, nil),
 	node.NewParameter(nil, "options", 1, node.NewNullLiteral(nil), nil),
@@ -669,6 +675,7 @@ var pdoPrepareMethodGetParams = []data.GetValue{
 func (m *pdoPrepareMethod) GetParams() []data.GetValue {
 	return pdoPrepareMethodGetParams
 }
+
 var pdoPrepareMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "sql", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "options", 1, data.NewBaseType("array")),
@@ -790,11 +797,13 @@ func (m *pdoLastInsertIdMethod) GetName() string            { return "lastInsert
 func (m *pdoLastInsertIdMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *pdoLastInsertIdMethod) GetIsStatic() bool          { return false }
 func (m *pdoLastInsertIdMethod) GetReturnType() data.Types  { return nil }
+
 var pdoLastInsertIdMethodGetParams = []data.GetValue{node.NewParameter(nil, "name", 0, node.NewNullLiteral(nil), nil)}
 
 func (m *pdoLastInsertIdMethod) GetParams() []data.GetValue {
 	return pdoLastInsertIdMethodGetParams
 }
+
 var pdoLastInsertIdMethodGetVariables = []data.Variable{node.NewVariable(nil, "name", 0, data.NewBaseType("string"))}
 
 func (m *pdoLastInsertIdMethod) GetVariables() []data.Variable {
@@ -819,6 +828,7 @@ func (m *pdoQuoteMethod) GetName() string            { return "quote" }
 func (m *pdoQuoteMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *pdoQuoteMethod) GetIsStatic() bool          { return false }
 func (m *pdoQuoteMethod) GetReturnType() data.Types  { return nil }
+
 var pdoQuoteMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "value", 0, nil, nil),
 	node.NewParameter(nil, "type", 1, node.NewIntLiteral(nil, "2"), nil),
@@ -827,6 +837,7 @@ var pdoQuoteMethodGetParams = []data.GetValue{
 func (m *pdoQuoteMethod) GetParams() []data.GetValue {
 	return pdoQuoteMethodGetParams
 }
+
 var pdoQuoteMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "value", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "type", 1, data.NewBaseType("int")),
@@ -856,6 +867,7 @@ func (m *pdoSetAttributeMethod) GetName() string            { return "setAttribu
 func (m *pdoSetAttributeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *pdoSetAttributeMethod) GetIsStatic() bool          { return false }
 func (m *pdoSetAttributeMethod) GetReturnType() data.Types  { return nil }
+
 var pdoSetAttributeMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "attr", 0, nil, nil),
 	node.NewParameter(nil, "value", 1, nil, nil),
@@ -864,6 +876,7 @@ var pdoSetAttributeMethodGetParams = []data.GetValue{
 func (m *pdoSetAttributeMethod) GetParams() []data.GetValue {
 	return pdoSetAttributeMethodGetParams
 }
+
 var pdoSetAttributeMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "attr", 0, data.NewBaseType("int")),
 	node.NewVariable(nil, "value", 1, data.NewBaseType("mixed")),
@@ -916,11 +929,13 @@ func (m *pdoGetAttributeMethod) GetName() string            { return "getAttribu
 func (m *pdoGetAttributeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *pdoGetAttributeMethod) GetIsStatic() bool          { return false }
 func (m *pdoGetAttributeMethod) GetReturnType() data.Types  { return nil }
+
 var pdoGetAttributeMethodGetParams = []data.GetValue{node.NewParameter(nil, "attr", 0, nil, nil)}
 
 func (m *pdoGetAttributeMethod) GetParams() []data.GetValue {
 	return pdoGetAttributeMethodGetParams
 }
+
 var pdoGetAttributeMethodGetVariables = []data.Variable{node.NewVariable(nil, "attr", 0, data.NewBaseType("int"))}
 
 func (m *pdoGetAttributeMethod) GetVariables() []data.Variable {

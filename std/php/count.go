@@ -56,7 +56,7 @@ func (f *CountFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 
 		// 普通模式：只计算顶层元素
-		return data.NewIntValue(len(arrayVal.List)), nil
+		return data.NewIntValue(arrayVal.Len()), nil
 	}
 
 	// 处理对象
@@ -100,7 +100,7 @@ func (f *CountFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 // countRecursive 递归计算数组元素数量
 func (f *CountFunction) countRecursive(arrayVal *data.ArrayValue) int {
-	count := len(arrayVal.List)
+	count := arrayVal.Len()
 	valueList := arrayVal.ToValueList()
 	for _, val := range valueList {
 		if nestedArray, ok := val.(*data.ArrayValue); ok {

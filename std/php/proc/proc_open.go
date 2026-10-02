@@ -1,11 +1,13 @@
 package proc
 
 import (
+	"context"
 	"io"
 	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
+	"time"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -22,6 +24,10 @@ func NewProcOpenFunction() data.FuncStmt {
 }
 
 func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	request := ctx.GoContext()
+	if request.Err() != nil {
+		panic(data.ErrRequestCanceled)
+	}
 	// 获取命令参数：string 或 list（PHP proc_open(['bin', 'arg'], ...)）
 	cmdValue, _ := ctx.GetIndexValue(0)
 	if cmdValue == nil {
@@ -43,7 +49,7 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		if name == "" {
 			return data.NewBoolValue(false), nil
 		}
-		cmdObj = exec.Command(name, args...)
+		cmdObj = exec.CommandContext(request, name, args...)
 	default:
 		var cmd string
 		if s, ok := cmdValue.(data.AsString); ok {
@@ -54,8 +60,9 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		if cmd == "" {
 			return data.NewBoolValue(false), nil
 		}
-		cmdObj = shellCommand(cmd)
+		cmdObj = shellCommand(request, cmd)
 	}
+	cmdObj.WaitDelay = 2 * time.Second
 
 	// 获取描述符数组（可选）
 	// PHP 格式: [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']]
@@ -68,7 +75,7 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 				if err != nil {
 					return true
 				}
-				if arr, ok := value.(*data.ArrayValue); ok && len(arr.List) >= 2 {
+				if arr, ok := value.(*data.ArrayValue); ok && arr.Len() >= 2 {
 					valueList := arr.ToValueList()
 					descType := valueList[0].AsString()
 					descMode := valueList[1].AsString()
@@ -79,8 +86,9 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 				return true
 			})
 		} else if arr, ok := descriptorspecValue.(*data.ArrayValue); ok {
-			// 保留 PHP 数组键（1/2），不能用 ToValueList 的 0..n-1 下标
-			for i, zval := range arr.List {
+			for arraySlots129, // 保留 PHP 数组键（1/2），不能用 ToValueList 的 0..n-1 下标
+				i := arr.View(), 0; i < arraySlots129.Len(); i++ {
+				zval := arraySlots129.At(i)
 				if zval == nil || zval.Value == nil {
 					continue
 				}
@@ -91,7 +99,7 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 					}
 				}
 				arrVal, ok := zval.Value.(*data.ArrayValue)
-				if !ok || len(arrVal.List) < 2 {
+				if !ok || arrVal.Len() < 2 {
 					continue
 				}
 				arrValList := arrVal.ToValueList()
@@ -112,13 +120,30 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		return data.NewBoolValue(false), nil
 	}
 	// PHP：proc_open 会重建 $pipes；勿复用上次已 fclose 的流资源对象
-	pipes := data.NewObjectValue()
+	pipes := data.NewArrayValue(nil).(*data.ArrayValue)
 	pipesZVal.Value = pipes
 
 	// 处理描述符
 	var stdoutPipe, stderrPipe io.ReadCloser
 	var stdoutWriter, stderrWriter *os.File
 	var err error
+	started := false
+	defer func() {
+		if stdoutWriter != nil {
+			_ = stdoutWriter.Close()
+		}
+		if stderrWriter != nil {
+			_ = stderrWriter.Close()
+		}
+		if !started {
+			if stdoutPipe != nil {
+				_ = stdoutPipe.Close()
+			}
+			if stderrPipe != nil {
+				_ = stderrPipe.Close()
+			}
+		}
+	}()
 
 	// 根据描述符配置创建管道
 	if len(descriptorspec) > 0 {
@@ -172,7 +197,8 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		if _, isNull := envValue.(*data.NullValue); !isNull {
 			if envArr, ok := envValue.(*data.ArrayValue); ok {
 				var env []string
-				for _, item := range envArr.List {
+				for arraySlots130, arrayPosition130 := envArr.View(), 0; arrayPosition130 < arraySlots130.Len(); arrayPosition130++ {
+					item := arraySlots130.At(arrayPosition130)
 					if item.Value == nil {
 						continue
 					}
@@ -188,8 +214,12 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	// 启动进程
 	err = cmdObj.Start()
 	if err != nil {
+		if request.Err() != nil {
+			panic(data.ErrRequestCanceled)
+		}
 		return data.NewBoolValue(false), nil
 	}
+	started = true
 	if stdoutWriter != nil {
 		_ = stdoutWriter.Close()
 	}
@@ -216,7 +246,7 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		stdoutFd := realPID*10 + 1 // 生成一个唯一的文件描述符
 		stdoutResourceClass := core.NewResourceClass("stream", stdoutStreamInfo, stdoutFd)
 		stdoutResource := core.NewResourceValue(stdoutResourceClass, ctx)
-		pipes.SetProperty("1", stdoutResource)
+		pipes.SetIntKey(1, stdoutResource)
 	}
 
 	// stderr (2) - 读取管道
@@ -225,7 +255,7 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		stderrFd := realPID*10 + 2 // 生成一个唯一的文件描述符
 		stderrResourceClass := core.NewResourceClass("stream", stderrStreamInfo, stderrFd)
 		stderrResource := core.NewResourceValue(stderrResourceClass, ctx)
-		pipes.SetProperty("2", stderrResource)
+		pipes.SetIntKey(2, stderrResource)
 	}
 
 	// 更新引用参数的 ZVal.Value（显式重新赋值，确保引用参数被正确更新）
@@ -252,11 +282,11 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	return procResource, nil
 }
 
-func shellCommand(cmd string) *exec.Cmd {
+func shellCommand(ctx context.Context, cmd string) *exec.Cmd {
 	if runtime.GOOS == "windows" {
-		return exec.Command("cmd", "/C", cmd)
+		return exec.CommandContext(ctx, "cmd", "/C", cmd)
 	}
-	return exec.Command("sh", "-c", cmd)
+	return exec.CommandContext(ctx, "sh", "-c", cmd)
 }
 
 func (f *ProcOpenFunction) GetName() string {

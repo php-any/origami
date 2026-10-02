@@ -2,6 +2,12 @@ package data
 
 import "sync"
 
+// StaticLocalScope supplies request-owned storage for a shared declaration.
+// Ordinary VMs retain the declaration's process-local CLI storage.
+type StaticLocalScope interface {
+	ScopeStaticLocals(identity any) *StaticLocals
+}
+
 // StaticLocals 函数/方法内 static 局部变量存储（跨调用、递归共享同一 ZVal）。
 type StaticLocals struct {
 	mu    sync.Mutex

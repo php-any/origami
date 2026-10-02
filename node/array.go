@@ -1,10 +1,6 @@
 package node
 
-import (
-	"strconv"
-
-	"github.com/php-any/origami/data"
-)
+import "github.com/php-any/origami/data"
 
 type Array struct {
 	*Node `pp:"-"`
@@ -30,7 +26,6 @@ func NewArrayWithKeys(token *TokenFrom, list []data.GetValue, keys []KvPair) dat
 // GetValue 获取数字字面量的值
 func (n *Array) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	av := data.NewArrayValue(nil).(*data.ArrayValue)
-	nextIndex := 0
 
 	for _, statement := range n.V {
 		// 检查是否是展开运算符
@@ -41,18 +36,15 @@ func (n *Array) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			}
 			arrayValue, ok := spreadValue.(*data.ArrayValue)
 			if ok {
-				for _, z := range arrayValue.List {
+				for arraySlots12, arrayPosition12 := arrayValue.View(), 0; arrayPosition12 < arraySlots12.Len(); arrayPosition12++ {
+					z := arraySlots12.At(arrayPosition12)
 					if z == nil {
 						continue
 					}
-					if z.Name != "" {
-						setArrayLiteralEntry(av, data.NewStringValue(z.Name), z.Value)
-						if ik, err := strconv.Atoi(z.Name); err == nil && strconv.Itoa(ik) == z.Name && ik >= nextIndex {
-							nextIndex = ik + 1
-						}
-					} else {
-						setArrayLiteralEntry(av, data.NewIntValue(nextIndex), z.Value)
-						nextIndex++
+					if key, ok := z.PHPArrayKey(arrayPosition12).(*data.StringValue); ok {
+						av.SetStringKey(key.Value, z.Value)
+					} else if !av.AppendValue(z.Value) {
+						return nil, arrayLiteralAppendError(n.GetFrom())
 					}
 				}
 				continue
@@ -63,8 +55,9 @@ func (n *Array) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 				return nil, spreadCtl
 			}
 			for _, val := range vals {
-				setArrayLiteralEntry(av, data.NewIntValue(nextIndex), val)
-				nextIndex++
+				if !av.AppendValue(val) {
+					return nil, arrayLiteralAppendError(n.GetFrom())
+				}
 			}
 			continue
 		}
@@ -73,8 +66,9 @@ func (n *Array) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		if acl != nil {
 			return nil, acl
 		}
-		setArrayLiteralEntry(av, data.NewIntValue(nextIndex), v.(data.Value))
-		nextIndex++
+		if !av.AppendValue(v.(data.Value)) {
+			return nil, arrayLiteralAppendError(n.GetFrom())
+		}
 	}
 	for _, pair := range n.Keys {
 		kv, acl := pair.Key.GetValue(ctx)
@@ -85,53 +79,13 @@ func (n *Array) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		if acl != nil {
 			return nil, acl
 		}
-		setArrayLiteralEntry(av, kv.(data.Value), vv.(data.Value))
+		if !av.SetKey(kv.(data.Value), vv.(data.Value)) {
+			return nil, data.NewErrorThrowByName(n.GetFrom(), data.NewError(n.GetFrom(), "Illegal offset type", nil), "TypeError")
+		}
 	}
 	return av, nil
 }
 
-func setArrayLiteralEntry(av *data.ArrayValue, key, val data.Value) {
-	// PHP：纯数字字符串键当作 int；非数字字符串必须走字符串键。
-	// 旧逻辑对实现了 AsInt 的 StringValue 一律走 int 分支，且忽略 AsInt 错误，
-	// 导致 "lazy" 等键被写成 List[0] 且 Name 为空（[...$assoc] 丢键）。
-	if sv, ok := key.(*data.StringValue); ok {
-		if n, isIntKey := data.ParseIntArrayKeyName(sv.Value); isIntKey {
-			setArrayLiteralIntKey(av, n, val)
-			return
-		}
-		setArrayLiteralStringKey(av, sv.Value, val)
-		return
-	}
-	if iv, ok := key.(*data.IntValue); ok {
-		setArrayLiteralIntKey(av, iv.Value, val)
-		return
-	}
-	if ai, ok := key.(data.AsInt); ok {
-		if i, err := ai.AsInt(); err == nil {
-			setArrayLiteralIntKey(av, i, val)
-			return
-		}
-	}
-	setArrayLiteralStringKey(av, key.AsString(), val)
-}
-
-func setArrayLiteralIntKey(av *data.ArrayValue, i int, val data.Value) {
-	if i < 0 {
-		setArrayLiteralStringKey(av, data.IntArrayKeyName(i), val)
-		return
-	}
-	for len(av.List) <= i {
-		av.List = append(av.List, data.NewZVal(data.NewNullValue()))
-	}
-	av.List[i] = data.NewZVal(val)
-}
-
-func setArrayLiteralStringKey(av *data.ArrayValue, keyStr string, val data.Value) {
-	for _, z := range av.List {
-		if z != nil && z.Name == keyStr {
-			z.Value = val
-			return
-		}
-	}
-	av.List = append(av.List, data.NewNamedZVal(keyStr, val))
+func arrayLiteralAppendError(from data.From) data.Control {
+	return data.NewErrorThrow(from, data.NewError(nil, "Cannot add element to the array as the next element is already occupied", nil))
 }

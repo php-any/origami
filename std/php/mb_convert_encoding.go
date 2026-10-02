@@ -22,8 +22,9 @@ func (f *MbConvertEncodingFunction) Call(ctx data.Context) (data.GetValue, data.
 func mbConvertEncodingValue(v data.Value) data.Value {
 	switch t := v.(type) {
 	case *data.ArrayValue:
-		list := make([]*data.ZVal, len(t.List))
-		for i, z := range t.List {
+		list := make([]*data.ZVal, t.Len())
+		for arraySlots124, i := t.View(), 0; i < arraySlots124.Len(); i++ {
+			z := arraySlots124.At(i)
 			if z == nil {
 				list[i] = data.NewZVal(data.NewNullValue())
 				continue
@@ -32,7 +33,7 @@ func mbConvertEncodingValue(v data.Value) data.Value {
 			nz.Name = z.Name
 			list[i] = nz
 		}
-		return &data.ArrayValue{List: list}
+		return data.NewArrayValueFromSlots(list)
 	default:
 		// 简化：假定已是目标编码（常见 UTF-8）
 		return data.NewStringValue(v.AsString())
@@ -40,6 +41,7 @@ func mbConvertEncodingValue(v data.Value) data.Value {
 }
 
 func (f *MbConvertEncodingFunction) GetName() string { return "mb_convert_encoding" }
+
 var mbConvertEncodingFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 	node.NewParameter(nil, "to_encoding", 1, node.NewStringLiteralByAst(nil, "UTF-8"), nil),
@@ -49,6 +51,7 @@ var mbConvertEncodingFunctionGetParams = []data.GetValue{
 func (f *MbConvertEncodingFunction) GetParams() []data.GetValue {
 	return mbConvertEncodingFunctionGetParams
 }
+
 var mbConvertEncodingFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, nil),
 	node.NewVariable(nil, "to_encoding", 1, data.NewBaseType("string")),

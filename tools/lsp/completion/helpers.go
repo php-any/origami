@@ -7,6 +7,7 @@ import (
 
 // extractClassNamesFromType 从类型对象中提取所有可能的类名
 func extractClassNamesFromType(typ data.Types) []string {
+	typ = data.LegacyType(typ)
 	if typ == nil {
 		return nil
 	}

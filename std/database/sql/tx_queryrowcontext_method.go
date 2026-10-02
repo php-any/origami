@@ -58,6 +58,7 @@ func (h *TxQueryRowContextMethod) Call(ctx data.Context) (data.GetValue, data.Co
 func (h *TxQueryRowContextMethod) GetName() string            { return "queryRowContext" }
 func (h *TxQueryRowContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *TxQueryRowContextMethod) GetIsStatic() bool          { return true }
+
 var txQueryRowContextMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "ctx", 0, nil, nil),
 	node.NewParameter(nil, "query", 1, nil, nil),

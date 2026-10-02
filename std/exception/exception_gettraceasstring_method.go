@@ -9,8 +9,8 @@ type ExceptionGetTraceAsStringMethod struct {
 }
 
 func (h *ExceptionGetTraceAsStringMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if h.source != nil {
-		return data.NewStringValue(h.source.GetTraceAsString()), nil
+	if source := exceptionState(ctx, h.source); source != nil {
+		return data.NewStringValue(source.GetTraceAsString()), nil
 	}
 	return data.NewStringValue("Stack trace:\n  at Exception.constructor()\n  at main()"), nil
 }

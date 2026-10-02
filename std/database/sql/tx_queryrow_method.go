@@ -39,6 +39,7 @@ func (h *TxQueryRowMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 func (h *TxQueryRowMethod) GetName() string            { return "queryRow" }
 func (h *TxQueryRowMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *TxQueryRowMethod) GetIsStatic() bool          { return true }
+
 var txQueryRowMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "query", 0, nil, nil),
 	node.NewParameters(nil, "args", 1, nil, nil),

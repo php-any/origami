@@ -44,7 +44,7 @@ func (p *NullableParser) Parse() (data.GetValue, data.Control) {
 	p.next()
 
 	// 创建可空类型
-	nullableType := data.NewNullableType(data.NewBaseType(typeName))
+	nullableType := data.NewDeclaredNullableType(data.NewDeclaredType(typeName))
 
 	from := tracker.EndBefore()
 	// 在作用域中添加变量

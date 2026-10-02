@@ -40,7 +40,7 @@ func (p *ConstParser) Parse() (data.GetValue, data.Control) {
 		if !p.checkPositionIs(1, token.ASSIGN) {
 			return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("常量必须初始化"))
 		}
-		t.MyType = data.NewBaseType(name)
+		t.MyType = data.NewDeclaredType(name)
 		name = p.current().Literal()
 		p.next()
 	}

@@ -118,13 +118,13 @@ func CallInstanceMethod(ctx data.Context, recv *data.ClassValue, method string, 
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("Method %s::%s does not exist.", recv.Class.GetName(), method))
 	}
 	vars := m.GetVariables()
-	inner := recv.CreateContext(vars)
+	inner := ctx.CreateContext(vars)
 	fnCtx := data.WrapMethodFrame(inner, recv, recv.Class, recv.Class)
-	for i, v := range vars {
-		if i < len(args) && args[i] != nil {
-			_ = fnCtx.SetVariableValue(v, args[i])
-		}
+	if ctx != nil {
+		fnCtx.SetStrictTypes(ctx.StrictTypes())
 	}
-	fnCtx.SetFlatCallArgs(args)
+	if ctl := data.BindDeclaredArgs(fnCtx, m, args); ctl != nil {
+		return nil, ctl
+	}
 	return m.Call(fnCtx)
 }

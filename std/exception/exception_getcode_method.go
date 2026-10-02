@@ -28,7 +28,9 @@ func (h *ExceptionGetCodeMethod) GetParams() []data.GetValue { return exceptionG
 
 var exceptionGetCodeMethodGetVariables = []data.Variable{}
 
-func (h *ExceptionGetCodeMethod) GetVariables() []data.Variable { return exceptionGetCodeMethodGetVariables }
+func (h *ExceptionGetCodeMethod) GetVariables() []data.Variable {
+	return exceptionGetCodeMethodGetVariables
+}
 
 func (h *ExceptionGetCodeMethod) GetReturnType() data.Types {
 	return data.NewBaseType("int")

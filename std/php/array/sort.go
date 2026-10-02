@@ -2,6 +2,8 @@ package array
 
 import (
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -17,7 +19,7 @@ func NewSortFunction() data.FuncStmt {
 }
 
 func (f *SortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	arrayValue, _ := ctx.GetIndexValue(0)
+	arrayValue := data.CowSeparateIndex(ctx, 0)
 	flagsValue, _ := ctx.GetIndexValue(1) // 可选的 flags 参数
 
 	if arrayValue == nil {
@@ -31,7 +33,7 @@ func (f *SortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 如果数组为空，返回 true
-	if len(arrayRef.List) == 0 {
+	if arrayRef.Len() == 0 {
 		return data.NewBoolValue(true), nil
 	}
 
@@ -45,8 +47,10 @@ func (f *SortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	// 对数组进行排序
 	// PHP 的 sort() 函数会重新索引数组的键
-	sort.Slice(arrayRef.List, func(i, j int) bool {
-		return compareValues(arrayRef.List[i].Value, arrayRef.List[j].Value, flags)
+	arrayRef.EditReindexing(func(slots []*data.ZVal) {
+		sort.SliceStable(slots, func(i, j int) bool {
+			return compareValues(slots[i].Value, slots[j].Value, flags)
+		})
 	})
 
 	return data.NewBoolValue(true), nil
@@ -62,15 +66,16 @@ func compareValues(a, b data.Value, flags int) bool {
 	// SORT_NATURAL: 自然排序
 	// SORT_FLAG_CASE: 可以与 SORT_STRING 或 SORT_NATURAL 组合使用，不区分大小写
 
-	switch flags {
+	switch flags &^ 8 {
 	case 1: // SORT_NUMERIC
 		return compareNumeric(a, b)
 	case 2: // SORT_STRING
+		if flags&8 != 0 {
+			return strings.ToLower(a.AsString()) < strings.ToLower(b.AsString())
+		}
 		return compareString(a, b)
 	case 5: // SORT_NATURAL
-		return compareNatural(a, b)
-	case 6: // SORT_NATURAL | SORT_FLAG_CASE
-		return compareNaturalCaseInsensitive(a, b)
+		return naturalCompare(a.AsString(), b.AsString(), flags&8 != 0)
 	case 3: // SORT_LOCALE_STRING (简化实现，使用字符串比较)
 		return compareString(a, b)
 	default: // SORT_REGULAR (0) 或其他
@@ -148,8 +153,10 @@ func getNumericValue(v data.Value) float64 {
 		val, _ := floatVal.AsFloat()
 		return val
 	}
-	// 简化实现：如果字符串可以转换为数值，返回该值；否则返回 0
-	// 这里可以使用 strconv.ParseFloat，但为了简化，返回 0
+	if text, ok := v.(*data.StringValue); ok {
+		value, _ := strconv.ParseFloat(strings.TrimSpace(text.Value), 64)
+		return value
+	}
 	return 0
 }
 

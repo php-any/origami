@@ -13,8 +13,8 @@ func (h *ExceptionGetMessageMethod) Call(ctx data.Context) (data.GetValue, data.
 	if msg, ok := instancePropertyString(ctx, "message"); ok {
 		return data.NewStringValue(msg), nil
 	}
-	if h.source != nil {
-		return data.NewStringValue(h.source.GetMessage()), nil
+	if source := exceptionState(ctx, h.source); source != nil {
+		return data.NewStringValue(source.GetMessage()), nil
 	}
 	return data.NewStringValue(""), nil
 }

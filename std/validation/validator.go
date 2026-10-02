@@ -213,7 +213,7 @@ func isBlank(value data.Value) bool {
 		return sv.AsString() == ""
 	}
 	if av, ok := value.(*data.ArrayValue); ok {
-		return len(av.List) == 0
+		return av.Len() == 0
 	}
 	if pv, ok := value.(*data.ProxyValue); ok && pv.Class != nil {
 		if pv.Class.GetName() == "Net\\Http\\UploadedFile" {
@@ -255,7 +255,7 @@ func valueSize(value data.Value) int {
 		return 0
 	}
 	if av, ok := value.(*data.ArrayValue); ok {
-		return len(av.List)
+		return av.Len()
 	}
 	return utf8.RuneCountInString(valueAsString(value))
 }

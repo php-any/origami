@@ -59,8 +59,9 @@ func varExportValue(v data.Value) string {
 	case *data.StringValue:
 		return fmt.Sprintf("'%s'", strings.ReplaceAll(val.Value, "'", "\\'"))
 	case *data.ArrayValue:
-		items := make([]string, 0, len(val.List))
-		for i, z := range val.List {
+		items := make([]string, 0, val.Len())
+		for arraySlots145, i := val.View(), 0; i < arraySlots145.Len(); i++ {
+			z := arraySlots145.At(i)
 			if z == nil {
 				continue
 			}

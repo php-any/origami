@@ -59,8 +59,10 @@ func (m *ReflectionClassNewInstanceMethod) Call(ctx data.Context) (data.GetValue
 	args := make([]data.Value, 0)
 	if argValue, ok := ctx.GetIndexValue(0); ok {
 		if arr, ok := argValue.(*data.ArrayValue); ok {
-			// 可变参数：遍历数组元素
-			for _, item := range arr.List {
+			for arraySlots131,
+				// 可变参数：遍历数组元素
+				arrayPosition131 := arr.View(), 0; arrayPosition131 < arraySlots131.Len(); arrayPosition131++ {
+				item := arraySlots131.At(arrayPosition131)
 				args = append(args, item.Value)
 			}
 		} else {

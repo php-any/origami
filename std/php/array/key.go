@@ -23,32 +23,9 @@ func (f *KeyFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 使用类型 switch 处理不同类型
 	switch val := arrayValue.(type) {
 	case *data.ArrayValue:
-		// 处理数组：对于 ArrayValue，当前键是第一个索引（0）
-		if len(val.List) == 0 {
-			return data.NewNullValue(), nil
-		}
-		// 返回第一个索引（0）
-		return data.NewIntValue(0), nil
-
+		return val.PointerKey(), nil
 	case *data.ObjectValue:
-		// 处理对象（关联数组）：返回第一个键
-		var firstKey string
-		var hasValue bool
-
-		// 使用 RangeProperties 按插入顺序遍历，获取第一个键
-		val.RangeProperties(func(key string, value data.Value) bool {
-			if !hasValue {
-				firstKey = key
-				hasValue = true
-			}
-			return false // 只获取第一个键
-		})
-
-		if !hasValue {
-			return data.NewNullValue(), nil
-		}
-		return data.NewStringValue(firstKey), nil
-
+		return val.PointerKey(), nil
 	case *data.ClassValue:
 		// 处理 Iterator 对象
 		// 检查是否实现了 Iterator 接口
@@ -76,7 +53,7 @@ func (f *KeyFunction) GetName() string {
 }
 
 var keyFunctionGetParams = []data.GetValue{
-	node.NewParameterReference(nil, "array", 0, nil, data.Mixed{}),
+	node.NewParameter(nil, "array", 0, nil, data.Mixed{}),
 }
 
 func (f *KeyFunction) GetParams() []data.GetValue {

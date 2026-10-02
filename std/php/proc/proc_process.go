@@ -1,19 +1,23 @@
 package proc
 
 import (
+	"context"
 	"os/exec"
 	"sync"
 )
 
 // ProcessInfo 存储进程信息
 type ProcessInfo struct {
-	Cmd      *exec.Cmd
-	Command  string
-	Pid      int
-	Running  bool
-	ExitCode int
-	mutex    sync.RWMutex
-	done     chan struct{} // 进程结束后关闭，用于 proc_close 阻塞等待
+	Cmd        *exec.Cmd
+	Command    string
+	Pid        int
+	Running    bool
+	ExitCode   int
+	mutex      sync.RWMutex
+	done       chan struct{} // 进程结束后关闭，用于 proc_close 阻塞等待
+	stopCancel func() bool
+	closed     bool
+	doneOnce   sync.Once
 }
 
 // NewProcessInfo 创建进程信息
@@ -33,14 +37,63 @@ func (p *ProcessInfo) WaitDone() {
 	<-p.done
 }
 
-// markDone 标记进程已结束，并关闭 done channel
-func (p *ProcessInfo) markDone() {
+func (p *ProcessInfo) WaitContext(ctx context.Context) bool {
+	if ctx.Err() != nil {
+		_ = p.Close()
+		return false
+	}
 	select {
 	case <-p.done:
-		// 已关闭，忽略
-	default:
-		close(p.done)
+		return ctx.Err() == nil
+	case <-ctx.Done():
+		_ = p.Close()
+		return false
 	}
+}
+
+func (p *ProcessInfo) Close() error {
+	p.mutex.Lock()
+	if p.closed {
+		p.mutex.Unlock()
+		return nil
+	}
+	p.closed = true
+	stop, cmd, running := p.stopCancel, p.Cmd, p.Running
+	p.stopCancel = nil
+	p.mutex.Unlock()
+	if stop != nil {
+		stop()
+	}
+	if running && cmd != nil && cmd.Process != nil {
+		return cmd.Process.Kill()
+	}
+	return nil
+}
+
+func (p *ProcessInfo) BindRequestCancel(stop func() bool) {
+	p.mutex.Lock()
+	closed := p.closed || !p.Running
+	if !closed {
+		p.stopCancel = stop
+	}
+	p.mutex.Unlock()
+	if closed {
+		stop()
+	}
+}
+
+// markDone 标记进程已结束，并关闭 done channel
+func (p *ProcessInfo) markDone() {
+	p.doneOnce.Do(func() {
+		p.mutex.Lock()
+		stop := p.stopCancel
+		p.stopCancel = nil
+		p.mutex.Unlock()
+		if stop != nil {
+			stop()
+		}
+		close(p.done)
+	})
 }
 
 // SetRunning 设置运行状态

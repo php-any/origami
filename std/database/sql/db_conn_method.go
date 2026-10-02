@@ -45,6 +45,7 @@ func (h *DBConnMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *DBConnMethod) GetName() string            { return "conn" }
 func (h *DBConnMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBConnMethod) GetIsStatic() bool          { return true }
+
 var dBConnMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "ctx", 0, nil, nil),
 }

@@ -61,6 +61,7 @@ func (h *DBQueryContextMethod) Call(ctx data.Context) (data.GetValue, data.Contr
 func (h *DBQueryContextMethod) GetName() string            { return "queryContext" }
 func (h *DBQueryContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBQueryContextMethod) GetIsStatic() bool          { return true }
+
 var dBQueryContextMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "ctx", 0, nil, nil),
 	node.NewParameter(nil, "query", 1, nil, nil),

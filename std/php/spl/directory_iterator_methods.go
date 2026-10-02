@@ -8,16 +8,22 @@ import (
 // DirectoryIteratorGetFilenameMethod 实现 DirectoryIterator::getFilename
 type DirectoryIteratorGetFilenameMethod struct{}
 
-func (m *DirectoryIteratorGetFilenameMethod) GetName() string               { return "getFilename" }
-func (m *DirectoryIteratorGetFilenameMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *DirectoryIteratorGetFilenameMethod) GetIsStatic() bool             { return false }
+func (m *DirectoryIteratorGetFilenameMethod) GetName() string            { return "getFilename" }
+func (m *DirectoryIteratorGetFilenameMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *DirectoryIteratorGetFilenameMethod) GetIsStatic() bool          { return false }
+
 var directoryIteratorGetFilenameMethodGetParams = []data.GetValue{}
 
-func (m *DirectoryIteratorGetFilenameMethod) GetParams() []data.GetValue    { return directoryIteratorGetFilenameMethodGetParams }
+func (m *DirectoryIteratorGetFilenameMethod) GetParams() []data.GetValue {
+	return directoryIteratorGetFilenameMethodGetParams
+}
+
 var directoryIteratorGetFilenameMethodGetVariables = []data.Variable{}
 
-func (m *DirectoryIteratorGetFilenameMethod) GetVariables() []data.Variable { return directoryIteratorGetFilenameMethodGetVariables }
-func (m *DirectoryIteratorGetFilenameMethod) GetReturnType() data.Types     { return data.String{} }
+func (m *DirectoryIteratorGetFilenameMethod) GetVariables() []data.Variable {
+	return directoryIteratorGetFilenameMethodGetVariables
+}
+func (m *DirectoryIteratorGetFilenameMethod) GetReturnType() data.Types { return data.String{} }
 
 func (m *DirectoryIteratorGetFilenameMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	iterData, ok := getDirectoryIteratorInfo(ctx)
@@ -33,6 +39,7 @@ type DirectoryIteratorGetBasenameMethod struct{}
 func (m *DirectoryIteratorGetBasenameMethod) GetName() string            { return "getBasename" }
 func (m *DirectoryIteratorGetBasenameMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DirectoryIteratorGetBasenameMethod) GetIsStatic() bool          { return false }
+
 var directoryIteratorGetBasenameMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "suffix", 0, data.NewStringValue(""), data.String{}),
 }
@@ -40,6 +47,7 @@ var directoryIteratorGetBasenameMethodGetParams = []data.GetValue{
 func (m *DirectoryIteratorGetBasenameMethod) GetParams() []data.GetValue {
 	return directoryIteratorGetBasenameMethodGetParams
 }
+
 var directoryIteratorGetBasenameMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "suffix", 0, data.String{}),
 }
@@ -71,9 +79,13 @@ type DirectoryIteratorGetExtensionMethod struct{}
 func (m *DirectoryIteratorGetExtensionMethod) GetName() string            { return "getExtension" }
 func (m *DirectoryIteratorGetExtensionMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *DirectoryIteratorGetExtensionMethod) GetIsStatic() bool          { return false }
+
 var directoryIteratorGetExtensionMethodGetParams = []data.GetValue{}
 
-func (m *DirectoryIteratorGetExtensionMethod) GetParams() []data.GetValue { return directoryIteratorGetExtensionMethodGetParams }
+func (m *DirectoryIteratorGetExtensionMethod) GetParams() []data.GetValue {
+	return directoryIteratorGetExtensionMethodGetParams
+}
+
 var directoryIteratorGetExtensionMethodGetVariables = []data.Variable{}
 
 func (m *DirectoryIteratorGetExtensionMethod) GetVariables() []data.Variable {
@@ -92,16 +104,22 @@ func (m *DirectoryIteratorGetExtensionMethod) Call(ctx data.Context) (data.GetVa
 // DirectoryIteratorGetPathMethod 实现 DirectoryIterator::getPath
 type DirectoryIteratorGetPathMethod struct{}
 
-func (m *DirectoryIteratorGetPathMethod) GetName() string               { return "getPath" }
-func (m *DirectoryIteratorGetPathMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *DirectoryIteratorGetPathMethod) GetIsStatic() bool             { return false }
+func (m *DirectoryIteratorGetPathMethod) GetName() string            { return "getPath" }
+func (m *DirectoryIteratorGetPathMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *DirectoryIteratorGetPathMethod) GetIsStatic() bool          { return false }
+
 var directoryIteratorGetPathMethodGetParams = []data.GetValue{}
 
-func (m *DirectoryIteratorGetPathMethod) GetParams() []data.GetValue    { return directoryIteratorGetPathMethodGetParams }
+func (m *DirectoryIteratorGetPathMethod) GetParams() []data.GetValue {
+	return directoryIteratorGetPathMethodGetParams
+}
+
 var directoryIteratorGetPathMethodGetVariables = []data.Variable{}
 
-func (m *DirectoryIteratorGetPathMethod) GetVariables() []data.Variable { return directoryIteratorGetPathMethodGetVariables }
-func (m *DirectoryIteratorGetPathMethod) GetReturnType() data.Types     { return data.String{} }
+func (m *DirectoryIteratorGetPathMethod) GetVariables() []data.Variable {
+	return directoryIteratorGetPathMethodGetVariables
+}
+func (m *DirectoryIteratorGetPathMethod) GetReturnType() data.Types { return data.String{} }
 
 func (m *DirectoryIteratorGetPathMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	iterData, ok := getDirectoryIteratorInfo(ctx)
@@ -114,16 +132,22 @@ func (m *DirectoryIteratorGetPathMethod) Call(ctx data.Context) (data.GetValue, 
 // DirectoryIteratorGetPathnameMethod 实现 DirectoryIterator::getPathname
 type DirectoryIteratorGetPathnameMethod struct{}
 
-func (m *DirectoryIteratorGetPathnameMethod) GetName() string               { return "getPathname" }
-func (m *DirectoryIteratorGetPathnameMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *DirectoryIteratorGetPathnameMethod) GetIsStatic() bool             { return false }
+func (m *DirectoryIteratorGetPathnameMethod) GetName() string            { return "getPathname" }
+func (m *DirectoryIteratorGetPathnameMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *DirectoryIteratorGetPathnameMethod) GetIsStatic() bool          { return false }
+
 var directoryIteratorGetPathnameMethodGetParams = []data.GetValue{}
 
-func (m *DirectoryIteratorGetPathnameMethod) GetParams() []data.GetValue    { return directoryIteratorGetPathnameMethodGetParams }
+func (m *DirectoryIteratorGetPathnameMethod) GetParams() []data.GetValue {
+	return directoryIteratorGetPathnameMethodGetParams
+}
+
 var directoryIteratorGetPathnameMethodGetVariables = []data.Variable{}
 
-func (m *DirectoryIteratorGetPathnameMethod) GetVariables() []data.Variable { return directoryIteratorGetPathnameMethodGetVariables }
-func (m *DirectoryIteratorGetPathnameMethod) GetReturnType() data.Types     { return data.String{} }
+func (m *DirectoryIteratorGetPathnameMethod) GetVariables() []data.Variable {
+	return directoryIteratorGetPathnameMethodGetVariables
+}
+func (m *DirectoryIteratorGetPathnameMethod) GetReturnType() data.Types { return data.String{} }
 
 func (m *DirectoryIteratorGetPathnameMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	iterData, ok := getDirectoryIteratorInfo(ctx)
@@ -136,16 +160,22 @@ func (m *DirectoryIteratorGetPathnameMethod) Call(ctx data.Context) (data.GetVal
 // DirectoryIteratorIsDirMethod 实现 DirectoryIterator::isDir
 type DirectoryIteratorIsDirMethod struct{}
 
-func (m *DirectoryIteratorIsDirMethod) GetName() string               { return "isDir" }
-func (m *DirectoryIteratorIsDirMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *DirectoryIteratorIsDirMethod) GetIsStatic() bool             { return false }
+func (m *DirectoryIteratorIsDirMethod) GetName() string            { return "isDir" }
+func (m *DirectoryIteratorIsDirMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *DirectoryIteratorIsDirMethod) GetIsStatic() bool          { return false }
+
 var directoryIteratorIsDirMethodGetParams = []data.GetValue{}
 
-func (m *DirectoryIteratorIsDirMethod) GetParams() []data.GetValue    { return directoryIteratorIsDirMethodGetParams }
+func (m *DirectoryIteratorIsDirMethod) GetParams() []data.GetValue {
+	return directoryIteratorIsDirMethodGetParams
+}
+
 var directoryIteratorIsDirMethodGetVariables = []data.Variable{}
 
-func (m *DirectoryIteratorIsDirMethod) GetVariables() []data.Variable { return directoryIteratorIsDirMethodGetVariables }
-func (m *DirectoryIteratorIsDirMethod) GetReturnType() data.Types     { return data.Bool{} }
+func (m *DirectoryIteratorIsDirMethod) GetVariables() []data.Variable {
+	return directoryIteratorIsDirMethodGetVariables
+}
+func (m *DirectoryIteratorIsDirMethod) GetReturnType() data.Types { return data.Bool{} }
 
 func (m *DirectoryIteratorIsDirMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	iterData, ok := getDirectoryIteratorInfo(ctx)
@@ -158,16 +188,22 @@ func (m *DirectoryIteratorIsDirMethod) Call(ctx data.Context) (data.GetValue, da
 // DirectoryIteratorIsFileMethod 实现 DirectoryIterator::isFile
 type DirectoryIteratorIsFileMethod struct{}
 
-func (m *DirectoryIteratorIsFileMethod) GetName() string               { return "isFile" }
-func (m *DirectoryIteratorIsFileMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *DirectoryIteratorIsFileMethod) GetIsStatic() bool             { return false }
+func (m *DirectoryIteratorIsFileMethod) GetName() string            { return "isFile" }
+func (m *DirectoryIteratorIsFileMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *DirectoryIteratorIsFileMethod) GetIsStatic() bool          { return false }
+
 var directoryIteratorIsFileMethodGetParams = []data.GetValue{}
 
-func (m *DirectoryIteratorIsFileMethod) GetParams() []data.GetValue    { return directoryIteratorIsFileMethodGetParams }
+func (m *DirectoryIteratorIsFileMethod) GetParams() []data.GetValue {
+	return directoryIteratorIsFileMethodGetParams
+}
+
 var directoryIteratorIsFileMethodGetVariables = []data.Variable{}
 
-func (m *DirectoryIteratorIsFileMethod) GetVariables() []data.Variable { return directoryIteratorIsFileMethodGetVariables }
-func (m *DirectoryIteratorIsFileMethod) GetReturnType() data.Types     { return data.Bool{} }
+func (m *DirectoryIteratorIsFileMethod) GetVariables() []data.Variable {
+	return directoryIteratorIsFileMethodGetVariables
+}
+func (m *DirectoryIteratorIsFileMethod) GetReturnType() data.Types { return data.Bool{} }
 
 func (m *DirectoryIteratorIsFileMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	iterData, ok := getDirectoryIteratorInfo(ctx)
@@ -180,16 +216,22 @@ func (m *DirectoryIteratorIsFileMethod) Call(ctx data.Context) (data.GetValue, d
 // DirectoryIteratorIsDotMethod 实现 DirectoryIterator::isDot
 type DirectoryIteratorIsDotMethod struct{}
 
-func (m *DirectoryIteratorIsDotMethod) GetName() string               { return "isDot" }
-func (m *DirectoryIteratorIsDotMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *DirectoryIteratorIsDotMethod) GetIsStatic() bool             { return false }
+func (m *DirectoryIteratorIsDotMethod) GetName() string            { return "isDot" }
+func (m *DirectoryIteratorIsDotMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *DirectoryIteratorIsDotMethod) GetIsStatic() bool          { return false }
+
 var directoryIteratorIsDotMethodGetParams = []data.GetValue{}
 
-func (m *DirectoryIteratorIsDotMethod) GetParams() []data.GetValue    { return directoryIteratorIsDotMethodGetParams }
+func (m *DirectoryIteratorIsDotMethod) GetParams() []data.GetValue {
+	return directoryIteratorIsDotMethodGetParams
+}
+
 var directoryIteratorIsDotMethodGetVariables = []data.Variable{}
 
-func (m *DirectoryIteratorIsDotMethod) GetVariables() []data.Variable { return directoryIteratorIsDotMethodGetVariables }
-func (m *DirectoryIteratorIsDotMethod) GetReturnType() data.Types     { return data.Bool{} }
+func (m *DirectoryIteratorIsDotMethod) GetVariables() []data.Variable {
+	return directoryIteratorIsDotMethodGetVariables
+}
+func (m *DirectoryIteratorIsDotMethod) GetReturnType() data.Types { return data.Bool{} }
 
 func (m *DirectoryIteratorIsDotMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	iterData, ok := getDirectoryIteratorInfo(ctx)
@@ -202,16 +244,22 @@ func (m *DirectoryIteratorIsDotMethod) Call(ctx data.Context) (data.GetValue, da
 // DirectoryIteratorGetSizeMethod 实现 DirectoryIterator::getSize
 type DirectoryIteratorGetSizeMethod struct{}
 
-func (m *DirectoryIteratorGetSizeMethod) GetName() string               { return "getSize" }
-func (m *DirectoryIteratorGetSizeMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *DirectoryIteratorGetSizeMethod) GetIsStatic() bool             { return false }
+func (m *DirectoryIteratorGetSizeMethod) GetName() string            { return "getSize" }
+func (m *DirectoryIteratorGetSizeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *DirectoryIteratorGetSizeMethod) GetIsStatic() bool          { return false }
+
 var directoryIteratorGetSizeMethodGetParams = []data.GetValue{}
 
-func (m *DirectoryIteratorGetSizeMethod) GetParams() []data.GetValue    { return directoryIteratorGetSizeMethodGetParams }
+func (m *DirectoryIteratorGetSizeMethod) GetParams() []data.GetValue {
+	return directoryIteratorGetSizeMethodGetParams
+}
+
 var directoryIteratorGetSizeMethodGetVariables = []data.Variable{}
 
-func (m *DirectoryIteratorGetSizeMethod) GetVariables() []data.Variable { return directoryIteratorGetSizeMethodGetVariables }
-func (m *DirectoryIteratorGetSizeMethod) GetReturnType() data.Types     { return data.Int{} }
+func (m *DirectoryIteratorGetSizeMethod) GetVariables() []data.Variable {
+	return directoryIteratorGetSizeMethodGetVariables
+}
+func (m *DirectoryIteratorGetSizeMethod) GetReturnType() data.Types { return data.Int{} }
 
 func (m *DirectoryIteratorGetSizeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	iterData, ok := getDirectoryIteratorInfo(ctx)
@@ -224,16 +272,22 @@ func (m *DirectoryIteratorGetSizeMethod) Call(ctx data.Context) (data.GetValue, 
 // DirectoryIteratorGetMTimeMethod 实现 DirectoryIterator::getMTime
 type DirectoryIteratorGetMTimeMethod struct{}
 
-func (m *DirectoryIteratorGetMTimeMethod) GetName() string               { return "getMTime" }
-func (m *DirectoryIteratorGetMTimeMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *DirectoryIteratorGetMTimeMethod) GetIsStatic() bool             { return false }
+func (m *DirectoryIteratorGetMTimeMethod) GetName() string            { return "getMTime" }
+func (m *DirectoryIteratorGetMTimeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *DirectoryIteratorGetMTimeMethod) GetIsStatic() bool          { return false }
+
 var directoryIteratorGetMTimeMethodGetParams = []data.GetValue{}
 
-func (m *DirectoryIteratorGetMTimeMethod) GetParams() []data.GetValue    { return directoryIteratorGetMTimeMethodGetParams }
+func (m *DirectoryIteratorGetMTimeMethod) GetParams() []data.GetValue {
+	return directoryIteratorGetMTimeMethodGetParams
+}
+
 var directoryIteratorGetMTimeMethodGetVariables = []data.Variable{}
 
-func (m *DirectoryIteratorGetMTimeMethod) GetVariables() []data.Variable { return directoryIteratorGetMTimeMethodGetVariables }
-func (m *DirectoryIteratorGetMTimeMethod) GetReturnType() data.Types     { return data.Int{} }
+func (m *DirectoryIteratorGetMTimeMethod) GetVariables() []data.Variable {
+	return directoryIteratorGetMTimeMethodGetVariables
+}
+func (m *DirectoryIteratorGetMTimeMethod) GetReturnType() data.Types { return data.Int{} }
 
 func (m *DirectoryIteratorGetMTimeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	iterData, ok := getDirectoryIteratorInfo(ctx)
@@ -246,16 +300,22 @@ func (m *DirectoryIteratorGetMTimeMethod) Call(ctx data.Context) (data.GetValue,
 // DirectoryIteratorIsReadableMethod 实现 DirectoryIterator::isReadable
 type DirectoryIteratorIsReadableMethod struct{}
 
-func (m *DirectoryIteratorIsReadableMethod) GetName() string               { return "isReadable" }
-func (m *DirectoryIteratorIsReadableMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *DirectoryIteratorIsReadableMethod) GetIsStatic() bool             { return false }
+func (m *DirectoryIteratorIsReadableMethod) GetName() string            { return "isReadable" }
+func (m *DirectoryIteratorIsReadableMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *DirectoryIteratorIsReadableMethod) GetIsStatic() bool          { return false }
+
 var directoryIteratorIsReadableMethodGetParams = []data.GetValue{}
 
-func (m *DirectoryIteratorIsReadableMethod) GetParams() []data.GetValue    { return directoryIteratorIsReadableMethodGetParams }
+func (m *DirectoryIteratorIsReadableMethod) GetParams() []data.GetValue {
+	return directoryIteratorIsReadableMethodGetParams
+}
+
 var directoryIteratorIsReadableMethodGetVariables = []data.Variable{}
 
-func (m *DirectoryIteratorIsReadableMethod) GetVariables() []data.Variable { return directoryIteratorIsReadableMethodGetVariables }
-func (m *DirectoryIteratorIsReadableMethod) GetReturnType() data.Types     { return data.Bool{} }
+func (m *DirectoryIteratorIsReadableMethod) GetVariables() []data.Variable {
+	return directoryIteratorIsReadableMethodGetVariables
+}
+func (m *DirectoryIteratorIsReadableMethod) GetReturnType() data.Types { return data.Bool{} }
 
 func (m *DirectoryIteratorIsReadableMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	iterData, ok := getDirectoryIteratorInfo(ctx)
@@ -268,16 +328,22 @@ func (m *DirectoryIteratorIsReadableMethod) Call(ctx data.Context) (data.GetValu
 // DirectoryIteratorIsWritableMethod 实现 DirectoryIterator::isWritable
 type DirectoryIteratorIsWritableMethod struct{}
 
-func (m *DirectoryIteratorIsWritableMethod) GetName() string               { return "isWritable" }
-func (m *DirectoryIteratorIsWritableMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (m *DirectoryIteratorIsWritableMethod) GetIsStatic() bool             { return false }
+func (m *DirectoryIteratorIsWritableMethod) GetName() string            { return "isWritable" }
+func (m *DirectoryIteratorIsWritableMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (m *DirectoryIteratorIsWritableMethod) GetIsStatic() bool          { return false }
+
 var directoryIteratorIsWritableMethodGetParams = []data.GetValue{}
 
-func (m *DirectoryIteratorIsWritableMethod) GetParams() []data.GetValue    { return directoryIteratorIsWritableMethodGetParams }
+func (m *DirectoryIteratorIsWritableMethod) GetParams() []data.GetValue {
+	return directoryIteratorIsWritableMethodGetParams
+}
+
 var directoryIteratorIsWritableMethodGetVariables = []data.Variable{}
 
-func (m *DirectoryIteratorIsWritableMethod) GetVariables() []data.Variable { return directoryIteratorIsWritableMethodGetVariables }
-func (m *DirectoryIteratorIsWritableMethod) GetReturnType() data.Types     { return data.Bool{} }
+func (m *DirectoryIteratorIsWritableMethod) GetVariables() []data.Variable {
+	return directoryIteratorIsWritableMethodGetVariables
+}
+func (m *DirectoryIteratorIsWritableMethod) GetReturnType() data.Types { return data.Bool{} }
 
 func (m *DirectoryIteratorIsWritableMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	iterData, ok := getDirectoryIteratorInfo(ctx)

@@ -67,7 +67,8 @@ func (f *JoinPathsFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	// 如果提供了 paths 数组，遍历它添加所有路径部分
 	if pathsValue != nil {
 		if arrayVal, ok := pathsValue.(*data.ArrayValue); ok {
-			for _, zval := range arrayVal.List {
+			for arraySlots121, arrayPosition121 := arrayVal.View(), 0; arrayPosition121 < arraySlots121.Len(); arrayPosition121++ {
+				zval := arraySlots121.At(arrayPosition121)
 				if zval != nil && zval.Value != nil {
 					if str, ok := zval.Value.(data.AsString); ok {
 						parts = append(parts, str.AsString())

@@ -105,12 +105,12 @@ func (p *TryParser) parseCatchBlock(tracker *PositionTracker) (*node.CatchBlock,
 	var exceptionType data.Types
 	types := make([]data.Types, 0, len(typeNames))
 	for _, n := range typeNames {
-		types = append(types, data.NewBaseType(n))
+		types = append(types, data.NewDeclaredType(n))
 	}
 	if len(types) == 1 {
 		exceptionType = types[0]
 	} else {
-		exceptionType = data.NewUnionType(types)
+		exceptionType = data.NewDeclaredUnionType(types)
 	}
 
 	// 检查是否有变量名：catch (Exception $e) 或 catch (Throwable)

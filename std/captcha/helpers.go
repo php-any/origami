@@ -48,11 +48,13 @@ func (f *CaptchaImgFunction) Call(ctx data.Context) (data.GetValue, data.Control
 }
 
 func (f *CaptchaImgFunction) GetName() string { return "captcha_img" }
+
 var captchaImgFunctionGetParams = []data.GetValue{node.NewParameter(nil, "options", 0, data.NewNullValue(), nil)}
 
 func (f *CaptchaImgFunction) GetParams() []data.GetValue {
 	return captchaImgFunctionGetParams
 }
+
 var captchaImgFunctionGetVariables = []data.Variable{node.NewVariable(nil, "options", 0, nil)}
 
 func (f *CaptchaImgFunction) GetVariables() []data.Variable {
@@ -76,11 +78,13 @@ func (f *CaptchaSrcFunction) Call(ctx data.Context) (data.GetValue, data.Control
 }
 
 func (f *CaptchaSrcFunction) GetName() string { return "captcha_src" }
+
 var captchaSrcFunctionGetParams = []data.GetValue{node.NewParameter(nil, "options", 0, data.NewNullValue(), nil)}
 
 func (f *CaptchaSrcFunction) GetParams() []data.GetValue {
 	return captchaSrcFunctionGetParams
 }
+
 var captchaSrcFunctionGetVariables = []data.Variable{node.NewVariable(nil, "options", 0, nil)}
 
 func (f *CaptchaSrcFunction) GetVariables() []data.Variable {
@@ -96,6 +100,7 @@ func (f *CaptchaCheckFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 }
 
 func (f *CaptchaCheckFunction) GetName() string { return "captcha_check" }
+
 var captchaCheckFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "input", 0, nil, nil),
 	node.NewParameter(nil, "key", 1, data.NewNullValue(), nil),
@@ -104,6 +109,7 @@ var captchaCheckFunctionGetParams = []data.GetValue{
 func (f *CaptchaCheckFunction) GetParams() []data.GetValue {
 	return captchaCheckFunctionGetParams
 }
+
 var captchaCheckFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "input", 0, nil),
 	node.NewVariable(nil, "key", 1, nil),

@@ -58,7 +58,8 @@ func arrayToStdClass(ctx data.Context, arr *data.ArrayValue) data.GetValue {
 	if !ok {
 		// 回退：无 stdClass 时用 ObjectValue
 		ov := data.NewObjectValue()
-		for i, z := range arr.List {
+		for arraySlots34, i := arr.View(), 0; i < arraySlots34.Len(); i++ {
+			z := arraySlots34.At(i)
 			key := fmt.Sprintf("%d", i)
 			if z != nil && z.Name != "" {
 				key = z.Name
@@ -71,7 +72,8 @@ func arrayToStdClass(ctx data.Context, arr *data.ArrayValue) data.GetValue {
 		}
 		return ov
 	}
-	for i, z := range arr.List {
+	for arraySlots35, i := arr.View(), 0; i < arraySlots35.Len(); i++ {
+		z := arraySlots35.At(i)
 		key := fmt.Sprintf("%d", i)
 		if z != nil && z.Name != "" {
 			key = z.Name

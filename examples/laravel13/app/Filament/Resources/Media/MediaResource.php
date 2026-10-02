@@ -24,7 +24,7 @@ class MediaResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-photo';
 
-    protected static string|\UnitEnum|null $navigationGroup = '系统管理';
+    protected static string|\UnitEnum|null $navigationGroup = '内容管理';
 
     protected static ?string $navigationLabel = '媒体库';
 

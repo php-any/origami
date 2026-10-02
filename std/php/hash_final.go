@@ -41,6 +41,7 @@ func (f *HashFinalFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 func (f *HashFinalFunction) GetName() string            { return "hash_final" }
 func (f *HashFinalFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *HashFinalFunction) GetIsStatic() bool          { return false }
+
 var hashFinalFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "context", 0, nil, nil),
 	node.NewParameter(nil, "binary", 1, node.NewNullLiteral(nil), nil),
@@ -49,6 +50,7 @@ var hashFinalFunctionGetParams = []data.GetValue{
 func (f *HashFinalFunction) GetParams() []data.GetValue {
 	return hashFinalFunctionGetParams
 }
+
 var hashFinalFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "context", 0, nil),
 	node.NewVariable(nil, "binary", 1, nil),

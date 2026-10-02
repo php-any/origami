@@ -29,6 +29,7 @@ func (f *StopFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *StopFunction) GetName() string            { return "Signal\\stop" }
 func (f *StopFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *StopFunction) GetIsStatic() bool          { return true }
+
 var stopFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "channel", 0, nil, nil),
 }
@@ -36,6 +37,7 @@ var stopFunctionGetParams = []data.GetValue{
 func (f *StopFunction) GetParams() []data.GetValue {
 	return stopFunctionGetParams
 }
+
 var stopFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "channel", 0, nil),
 }

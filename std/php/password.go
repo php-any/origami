@@ -173,13 +173,12 @@ func (f *PasswordGetInfoFunction) Call(ctx data.Context) (data.GetValue, data.Co
 	if cost > 0 {
 		options = []*data.ZVal{data.NewNamedZVal("cost", data.NewIntValue(cost))}
 	}
-	return &data.ArrayValue{
-		List: []*data.ZVal{
+	return data.NewArrayValueFromSlots([]*data.ZVal{
 			data.NewNamedZVal("algo", data.NewIntValue(algo)),
 			data.NewNamedZVal("algoName", data.NewStringValue(algoName)),
-			data.NewNamedZVal("options", &data.ArrayValue{List: options}),
-		},
-	}, nil
+			data.NewNamedZVal("options", data.NewArrayValueFromSlots(options)),
+		}),
+		nil
 }
 
 // PasswordNeedsRehashFunction 实现 password_needs_rehash。

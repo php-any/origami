@@ -33,14 +33,16 @@ func (f *HashFileFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		return data.NewBoolValue(false), nil
 	}
 
-	file, err := os.Open(filename)
+	file, closeFile, err := utils.OpenRequestFile(ctx.GoContext(), filename, os.O_RDONLY, 0)
 	if err != nil {
 		setLastError(2 /* E_WARNING */, "hash_file("+filename+"): Failed to open stream: "+err.Error(), "", 0)
 		return data.NewBoolValue(false), nil
 	}
-	defer file.Close()
+	defer closeFile()
 
-	if _, err := io.Copy(h, file); err != nil {
+	_, err = io.Copy(h, file)
+	data.CheckRequest(ctx.GoContext())
+	if err != nil {
 		setLastError(2 /* E_WARNING */, err.Error(), "", 0)
 		return data.NewBoolValue(false), nil
 	}
@@ -66,6 +68,7 @@ func (f *HashFileFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 func (f *HashFileFunction) GetName() string            { return "hash_file" }
 func (f *HashFileFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *HashFileFunction) GetIsStatic() bool          { return false }
+
 var hashFileFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "algo", 0, nil, nil),
 	node.NewParameter(nil, "filename", 1, nil, nil),
@@ -75,6 +78,7 @@ var hashFileFunctionGetParams = []data.GetValue{
 func (f *HashFileFunction) GetParams() []data.GetValue {
 	return hashFileFunctionGetParams
 }
+
 var hashFileFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "algo", 0, nil),
 	node.NewVariable(nil, "filename", 1, nil),

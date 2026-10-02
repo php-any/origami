@@ -29,20 +29,30 @@ type GetFrom interface {
 
 // Program 表示程序节点
 type Program struct {
-	*Node      `pp:"-"`
-	Statements []data.GetValue
+	*Node       `pp:"-"`
+	Statements  []data.GetValue
+	StrictTypes bool
 }
 
 // NewProgram 创建一个新的程序节点
-func NewProgram(from data.From, statements []data.GetValue) *Program {
-	return &Program{
+func NewProgram(from data.From, statements []data.GetValue, strict ...bool) *Program {
+	program := &Program{
 		Node:       NewNode(from),
 		Statements: statements,
 	}
+	if len(strict) > 0 {
+		program.StrictTypes = strict[0]
+	}
+	return program
 }
 
 // GetValue 获取程序节点的值
 func (p *Program) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if ctx != nil {
+		previous := ctx.StrictTypes()
+		ctx.SetStrictTypes(p.StrictTypes)
+		defer ctx.SetStrictTypes(previous)
+	}
 	var v data.GetValue
 	var c data.Control
 	for offset, statement := range p.Statements {

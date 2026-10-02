@@ -5,6 +5,7 @@ package serve
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -23,11 +24,10 @@ import (
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/perfmon"
 	"github.com/php-any/origami/runtime"
-	"github.com/php-any/origami/std/laravel/httpkernel"
 	illuminatehttp "github.com/php-any/origami/std/laravel/framework/illuminate/http"
+	"github.com/php-any/origami/std/laravel/httpkernel"
 	phpcore "github.com/php-any/origami/std/php/core"
 	httpfoundation "github.com/php-any/origami/std/symfony/http-foundation"
-	"github.com/php-any/origami/std/vendoraccel/warmup"
 )
 
 const (
@@ -170,8 +170,6 @@ func (m *serveGetOptionsMethod) Call(data.Context) (data.GetValue, data.Control)
 	return data.NewArrayValue([]data.Value{
 		option(data.NewStringValue("host"), null, data.NewIntValue(4), data.NewStringValue("The host address to serve the application on"), data.NewStringValue("127.0.0.1")),
 		option(data.NewStringValue("port"), null, data.NewIntValue(4), data.NewStringValue("The port to serve the application on"), null),
-		option(data.NewStringValue("tries"), null, data.NewIntValue(4), data.NewStringValue("The max number of ports to attempt to serve from"), data.NewIntValue(10)),
-		option(data.NewStringValue("no-reload"), null, data.NewIntValue(1), data.NewStringValue("Do not reload the development server on .env file changes")),
 	}), nil
 }
 
@@ -197,6 +195,16 @@ func newLaravelHTTPKernel(base *runtime.VM, app *data.ClassValue) *laravelHTTPKe
 		base: base,
 		app:  app,
 	}
+}
+
+// NewHTTPHandler completes Laravel bootstrap before making the handler available.
+// It also allows lifecycle regressions to use real HTTP requests via httptest.
+func NewHTTPHandler(base *runtime.VM, app *data.ClassValue) (http.Handler, error) {
+	k := newLaravelHTTPKernel(base, app)
+	if ctl := k.ensureBase(); ctl != nil {
+		return nil, fmt.Errorf("serve: Laravel bootstrap failed: %s", ctl.AsString())
+	}
+	return k, nil
 }
 
 func (k *laravelHTTPKernel) trackConn(c net.Conn, s http.ConnState) {
@@ -276,9 +284,6 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if k.servePublicFile(w, r) {
 		return
 	}
-	if k.serveLivewireDist(w, r) {
-		return
-	}
 	if k.serveMissingStaticAsset(w, r) {
 		return
 	}
@@ -289,7 +294,7 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// 每个请求并行 Handle：输出/调用栈/Container::$instance 按 goroutine 隔离，
 	// Application/Router 用 clone 沙箱，互不排队。
-	handleCtx, handleCancel := context.WithTimeout(context.Background(), serveMaxExecutionTime)
+	handleCtx, handleCancel := context.WithTimeout(r.Context(), serveMaxExecutionTime)
 	defer handleCancel()
 
 	outcome := "ok"
@@ -303,7 +308,41 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer runtime.BeginRequestDeadline(handleCtx)()
 	defer beginPHPWebTimeLimit()()
 
+	requestVM := runtime.NewRequestVM(k.base)
+	requestCtx := requestVM.CreateContext(nil)
+	writer := &requestResponseWriter{ResponseWriter: w, head: r.Method == http.MethodHead}
+	w = writer
+	defer requestVM.(data.OutputTargetHost).BindOutputTarget(func(s string) data.Control {
+		if r.Context().Err() != nil {
+			return nil
+		}
+		_, err := io.WriteString(w, s)
+		if err != nil {
+			return data.NewErrorThrow(nil, err)
+		}
+		return nil
+	}, func() { writer.Flush() })()
 	defer func() {
+		// Shutdown runs after terminate or failure, while output and static scopes
+		// still exist. Give cleanup its own bounded deadline after client cancel.
+		defer func() {
+			defer func() {
+				if rec := recover(); rec != nil {
+					fmt.Fprintf(os.Stderr, "origami shutdown: %v\n", rec)
+				}
+			}()
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			defer runtime.BeginRequestDeadline(cleanupCtx)()
+			phpcore.SetExecutionDeadline(5)
+			defer phpcore.SetExecutionDeadline(0)
+			requestVM.RunShutdownCallbacks()
+			for host := requestVM.(data.OutputBufferHost); host.OutputBufferLevel() > 0; {
+				if _, ok := host.FlushOutputBuffer(); !ok {
+					break
+				}
+			}
+		}()
 		rec := recover()
 		if rec == nil {
 			return
@@ -313,7 +352,9 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if r.Context().Err() != nil {
 				return
 			}
-			closeTimedOutRequest(w)
+			if !writer.committed {
+				closeTimedOutRequest(w)
+			}
 			return
 		}
 		outcome = "panic"
@@ -321,10 +362,11 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if r.Context().Err() != nil {
 			return
 		}
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		if !writer.committed {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
 	}()
 
-	requestCtx := runtime.NewTempVM(k.base).CreateContext(nil)
 	tSandbox := perfmon.Now()
 	kernel := httpkernel.Sandbox(requestCtx, k.kernel)
 	perfmon.NoteFileRun("sandbox", perfmon.Since(tSandbox))
@@ -337,7 +379,7 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	sentOK := false
 	if control == nil {
 		var sent *data.ClassValue
-		sent, control = httpfoundation.SendResponseTo(w, response, leftover)
+		sent, control = httpfoundation.SendResponseForRequest(w, r, response, leftover)
 		if control == nil {
 			sentOK = true
 			if term := httpkernel.Terminate(requestCtx, kernel, request, sent); term != nil {
@@ -351,6 +393,7 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	// PHP exit/die 在请求生命周期内是正常结束，不当作错误。
 	if exit, ok := control.(data.ExitControl); ok && exit.IsExit() {
+		_, _ = io.WriteString(w, leftover)
 		control = nil
 	}
 	if control != nil {
@@ -363,11 +406,50 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if k.parser != nil {
 			k.parser.ShowControl(control)
 		}
-		if !sentOK {
+		if !sentOK && !writer.committed {
 			http.Error(w, "Laravel request failed", http.StatusInternalServerError)
 		}
 	}
 }
+
+// HTTP output may continue during terminate/shutdown; its length is not known
+// until the request ends. HEAD and bodyless statuses suppress all PHP output.
+type requestResponseWriter struct {
+	http.ResponseWriter
+	committed bool
+	head      bool
+	bodyless  bool
+}
+
+func (w *requestResponseWriter) WriteHeader(status int) {
+	if w.committed {
+		return
+	}
+	w.committed = true
+	w.bodyless = status < 200 || status == 204 || status == 304
+	if !w.head {
+		w.Header().Del("Content-Length")
+	}
+	w.ResponseWriter.WriteHeader(status)
+}
+func (w *requestResponseWriter) Write(b []byte) (int, error) {
+	if !w.committed {
+		w.WriteHeader(http.StatusOK)
+	}
+	if w.head || w.bodyless {
+		return len(b), nil
+	}
+	return w.ResponseWriter.Write(b)
+}
+func (w *requestResponseWriter) Flush() {
+	if !w.committed {
+		w.WriteHeader(http.StatusOK)
+	}
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+func (w *requestResponseWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 // servePublicFile 模拟 Laravel resources/server.php：若 public{$uri} 存在则直出。
 func (k *laravelHTTPKernel) servePublicFile(w http.ResponseWriter, r *http.Request) bool {
@@ -416,37 +498,6 @@ func (k *laravelHTTPKernel) serveMissingStaticAsset(w http.ResponseWriter, r *ht
 	return true
 }
 
-// serveLivewireDist 把 /livewire-{hash}/livewire(.min).js 映射到 vendor 发行文件。
-// Livewire 4 默认走 hashed 路由 + BinaryFileResponse；直出 dist 可避免 file response 路径 500。
-func (k *laravelHTTPKernel) serveLivewireDist(w http.ResponseWriter, r *http.Request) bool {
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		return false
-	}
-	uri := path.Clean("/" + r.URL.Path)
-	dir, base := path.Dir(uri), path.Base(uri)
-	if !strings.HasPrefix(path.Base(dir), "livewire-") {
-		return false
-	}
-	switch base {
-	case "livewire.js", "livewire.min.js", "livewire.js.map", "livewire.min.js.map",
-		"livewire.csp.js", "livewire.csp.min.js", "livewire.csp.min.js.map",
-		"livewire.esm.js", "livewire.csp.esm.js":
-	default:
-		return false
-	}
-	root, err := os.Getwd()
-	if err != nil {
-		return false
-	}
-	full := filepath.Join(root, "vendor", "livewire", "livewire", "dist", base)
-	info, err := os.Stat(full)
-	if err != nil || info.IsDir() {
-		return false
-	}
-	http.ServeFile(w, r, full)
-	return true
-}
-
 func runLaravelHTTPServer(host string, port int, base *runtime.VM, app *data.ClassValue) error {
 	// 默认 VM 遇到 throw 会 os.Exit(1)。常驻 serve 下单请求失败不能把整个进程打死。
 	base.SetThrowControl(func(acl data.Control) {
@@ -454,6 +505,10 @@ func runLaravelHTTPServer(host string, port int, base *runtime.VM, app *data.Cla
 			p.ShowControl(acl)
 		}
 	})
+	k := newLaravelHTTPKernel(base, app)
+	if ctl := k.ensureBase(); ctl != nil {
+		return fmt.Errorf("serve: Laravel bootstrap failed: %s", ctl.AsString())
+	}
 
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	ln, err := listenTCP(addr)
@@ -467,16 +522,6 @@ func runLaravelHTTPServer(host string, port int, base *runtime.VM, app *data.Cla
 	fmt.Printf("   INFO  Server running on [http://%s].\n\n", addr)
 	fmt.Println("  Press Ctrl+C to stop the server")
 
-	// 预热不阻塞监听：完整 classmap 要数分钟，且会误加载依赖 PHPUnit 的 Testing 类。
-	if warmup.ShouldWarmup() {
-		go func() {
-			if root, err := os.Getwd(); err == nil {
-				warmup.WarmupVendorClassmap(base, root)
-			}
-		}()
-	}
-
-	k := newLaravelHTTPKernel(base, app)
 	server := &http.Server{
 		Addr:              addr,
 		Handler:           k,

@@ -24,7 +24,7 @@ class RoleResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-user-group';
 
-    protected static string|\UnitEnum|null $navigationGroup = '权限管理';
+    protected static string|\UnitEnum|null $navigationGroup = '团队与权限';
 
     protected static ?string $navigationLabel = '角色';
 

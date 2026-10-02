@@ -4,6 +4,7 @@ vendor
 .DS_Store
 /origami
 node_modules
+.pnpm-store/
 *.vsix
 zy
 zy-lsp

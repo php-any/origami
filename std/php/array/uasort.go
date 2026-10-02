@@ -1,8 +1,6 @@
 package array
 
 import (
-	"sort"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -29,46 +27,16 @@ func (f *UasortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewBoolValue(false), nil
 	}
 
-	if len(arrayRef.List) <= 1 {
+	if arrayRef.Len() <= 1 {
 		return data.NewBoolValue(true), nil
 	}
 
-	var callbackVars []data.Variable
-	switch cb := callbackValue.(type) {
-	case *data.FuncValue:
-		callbackVars = cb.Value.GetVariables()
+	sorted := data.CloneArrayValue(arrayRef)
+	control := userSort(ctx, sorted, callbackValue, true)
+	data.CowAssign(ctx.GetIndexZVal(0), sorted)
+	if control != nil {
+		return nil, control
 	}
-
-	sort.SliceStable(arrayRef.List, func(i, j int) bool {
-		fnCtx := ctx.CreateContext(callbackVars)
-		if len(callbackVars) > 0 {
-			fnCtx.SetIndexZVal(0, data.NewZVal(arrayRef.List[i].Value))
-		}
-		if len(callbackVars) > 1 {
-			fnCtx.SetIndexZVal(1, data.NewZVal(arrayRef.List[j].Value))
-		}
-
-		switch cb := callbackValue.(type) {
-		case *data.FuncValue:
-			ret, ctl := cb.Call(fnCtx)
-			if ctl != nil {
-				if rv, ok := ctl.(data.ReturnControl); ok {
-					if v, ok := rv.ReturnValue().(data.Value); ok {
-						return compareLess(v)
-					}
-				}
-				return false
-			}
-			if ret != nil {
-				if v, ok := ret.(data.Value); ok {
-					return compareLess(v)
-				}
-			}
-		}
-		return false
-	})
-
-	// uasort 保留键名，不重索引
 	return data.NewBoolValue(true), nil
 }
 

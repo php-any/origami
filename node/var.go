@@ -79,7 +79,11 @@ func staticLocalsFromCtx(ctx data.Context) *data.StaticLocals {
 func (s *StaticVarStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	if b, ok := ctx.(data.StaticLocalsBinder); ok {
 		if b.StaticLocalsStore() == nil {
-			b.BindStaticLocals(s.owner.Store())
+			if scope, ok := ctx.GetVM().(data.StaticLocalScope); ok {
+				b.BindStaticLocals(scope.ScopeStaticLocals(s.owner))
+			} else {
+				b.BindStaticLocals(s.owner.Store())
+			}
 		}
 	}
 	store := staticLocalsFromCtx(ctx)

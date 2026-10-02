@@ -119,6 +119,11 @@ func (sp *StaticParser) Parse() (data.GetValue, data.Control) {
 func (sp *StaticParser) parseStaticFunction(tracker *PositionTracker) (data.GetValue, data.Control) {
 	// 跳过 function
 	sp.next()
+	returnsReference := false
+	if sp.checkPositionIs(0, token.BIT_AND) {
+		returnsReference = true
+		sp.next()
+	}
 
 	// 期待匿名函数格式: function (...) { ... } 或 function (...) use (...) { ... }
 	if !sp.checkPositionIs(0, token.LPAREN) {
@@ -210,8 +215,10 @@ func (sp *StaticParser) parseStaticFunction(tracker *PositionTracker) (data.GetV
 		body,
 		vars,
 		parent,
+		sp.strictTypes,
 	)
 	fn.IsStatic = true
+	fn.ReturnsReference = returnsReference
 
 	// 设置返回类型（如果指定了）
 	if ret != nil {
@@ -292,6 +299,7 @@ func (sp *StaticParser) parseStaticArrowFunction(tracker *PositionTracker) (data
 		body,
 		vars,
 		parent,
+		sp.strictTypes,
 	)
 	fn.IsStatic = true
 
@@ -329,13 +337,13 @@ func (sp *StaticParser) parseOneStaticVariable(tracker *PositionTracker) (data.G
 	if isIdentOrTypeToken(sp.current().Type()) {
 		typeName := sp.current().Literal()
 		sp.next()
-		varType = data.NewBaseType(typeName)
+		varType = data.NewDeclaredType(typeName)
 	} else if sp.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(sp.peek(1).Type()) {
 		// ?int 方式
 		sp.next()
-		base := data.NewBaseType(sp.current().Literal())
+		base := data.NewDeclaredType(sp.current().Literal())
 		sp.next()
-		varType = data.NewNullableType(base)
+		varType = data.NewDeclaredNullableType(base)
 	}
 
 	// 解析变量名

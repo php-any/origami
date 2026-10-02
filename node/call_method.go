@@ -89,9 +89,9 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("Call to undefined function %s()", name))
 		}
 		// PHP 数组可调用: [$obj, 'method'](...$args) 或 ['ClassName', 'method'](...)
-		if arr, ok2 := call.(*data.ArrayValue); ok2 && len(arr.List) >= 2 {
-			objVal := arr.List[0].Value
-			methodVal := arr.List[1].Value
+		if arr, ok2 := call.(*data.ArrayValue); ok2 && arr.Len() >= 2 {
+			objVal := arr.At(0).Value
+			methodVal := arr.At(1).Value
 			methodName := ""
 			if sv, ok4 := methodVal.(*data.StringValue); ok4 {
 				methodName = sv.Value
@@ -242,7 +242,9 @@ func (pe *CallMethod) handleStaticMethodWithLateBinding(ctx data.Context, sm *st
 				return nil, acl
 			}
 		case *Parameters:
-			fnCtx.SetVariableValue(p, buildVariadicArray(flatArgs[pos:], variadicNamed))
+			if ctl := p.SetValue(fnCtx, buildVariadicArray(flatArgs[pos:], variadicNamed)); ctl != nil {
+				return nil, ctl
+			}
 			pos = len(flatArgs)
 			variadicNamed = nil
 		case data.Parameter:
@@ -300,6 +302,21 @@ func (pe *CallMethod) invokeFuncStmt(ctx data.Context, fn data.FuncStmt, invoke 
 	varies := fn.GetVariables()
 	fnCtx := ctx.CreateContext(varies)
 	allocated := fnCtx
+	// Static and self-qualified wrappers must expose their declaration scope
+	// while binding parameters, before executing the wrapped method.
+	switch target := fn.(type) {
+	case *staticMethodFunc:
+		fnCtx = data.NewStaticMethodContext(fnCtx, target.class, target.callClass)
+		if target.method.GetName() != "__callStatic" {
+			invoke = target.method.Call
+		}
+	case *instanceViaSelfFunc:
+		self := findDeclaringClassForMethod(ctx.GetVM(), target.this.Class, target.method.GetName())
+		fnCtx = data.WrapMethodFrame(fnCtx, target.this, self, target.this.Class)
+		invoke = target.method.Call
+	case *LambdaExpression:
+		fnCtx = target.ParameterTypeContext(fnCtx)
+	}
 
 	if canFastPositionalBind(params, pe.Args) {
 		if acl := bindPositionalParameters(fnCtx, ctx, params, pe.Args, varies); acl != nil {
@@ -339,7 +356,13 @@ func (pe *CallMethod) invokeFuncStmt(ctx data.Context, fn data.FuncStmt, invoke 
 		if idx >= 0 && idx < len(bound) {
 			bound[idx] = true
 		}
-		if acl := vari.SetValue(fnCtx, na.Value); acl != nil {
+		parameter := vari
+		if idx >= 0 && idx < len(params) {
+			if declared, ok := params[idx].(data.Variable); ok {
+				parameter = declared
+			}
+		}
+		if acl := parameter.SetValue(fnCtx, na.Value); acl != nil {
 			return nil, acl
 		}
 	}
@@ -364,7 +387,9 @@ func (pe *CallMethod) invokeFuncStmt(ctx data.Context, fn data.FuncStmt, invoke 
 			}
 		case *Parameters:
 			remaining := flatArgs[pos:]
-			fnCtx.SetVariableValue(argObj, buildVariadicArray(remaining, variadicNamed))
+			if ctl := argObj.SetValue(fnCtx, buildVariadicArray(remaining, variadicNamed)); ctl != nil {
+				return nil, ctl
+			}
 			pos = len(flatArgs)
 			variadicNamed = nil
 		case *ParameterReference:
@@ -428,7 +453,7 @@ func buildVariadicArray(flat []data.Value, named []namedArgValue) *data.ArrayVal
 	for _, np := range named {
 		list = append(list, data.NewNamedZVal(np.Name, np.Value))
 	}
-	return &data.ArrayValue{List: list}
+	return data.NewArrayValueFromSlots(list)
 }
 
 // flattenCallArgsForBinding 将调用实参展开为位置实参列表 + 命名实参
@@ -456,7 +481,8 @@ func flattenCallArgsForBinding(ctx data.Context, args []data.GetValue) ([]data.V
 				return nil, nil, acl
 			}
 			if arr, ok := spreadVal.(*data.ArrayValue); ok {
-				for _, z := range arr.List {
+				for arraySlots17, arrayPosition17 := arr.View(), 0; arrayPosition17 < arraySlots17.Len(); arrayPosition17++ {
+					z := arraySlots17.At(arrayPosition17)
 					if z == nil {
 						continue
 					}
@@ -525,6 +551,9 @@ func bindByRefParam(fnCtx, callCtx data.Context, param *ParameterReference, rawA
 			return acl
 		}
 		fnCtx.SetIndexZVal(param.Index, zv)
+		if param.Type != nil {
+			return param.SetValue(fnCtx, data.NewZValValue(fnCtx.GetIndexZVal(param.Index)))
+		}
 		return nil
 	case *CallObjectDynamicProperty:
 		zv, acl := v.GetZVal(callCtx)
@@ -532,6 +561,9 @@ func bindByRefParam(fnCtx, callCtx data.Context, param *ParameterReference, rawA
 			return acl
 		}
 		fnCtx.SetIndexZVal(param.Index, zv)
+		if param.Type != nil {
+			return param.SetValue(fnCtx, data.NewZValValue(fnCtx.GetIndexZVal(param.Index)))
+		}
 		return nil
 	case *CallStaticProperty:
 		val, acl := v.GetValue(callCtx)
@@ -539,6 +571,9 @@ func bindByRefParam(fnCtx, callCtx data.Context, param *ParameterReference, rawA
 			return acl
 		}
 		fnCtx.SetIndexZVal(param.Index, data.NewZVal(val.(data.Value)))
+		if param.Type != nil {
+			return param.SetValue(fnCtx, data.NewZValValue(fnCtx.GetIndexZVal(param.Index)))
+		}
 		return nil
 	case *CallStaticPropertyLater:
 		val, acl := v.GetValue(callCtx)
@@ -546,6 +581,9 @@ func bindByRefParam(fnCtx, callCtx data.Context, param *ParameterReference, rawA
 			return acl
 		}
 		fnCtx.SetIndexZVal(param.Index, data.NewZVal(val.(data.Value)))
+		if param.Type != nil {
+			return param.SetValue(fnCtx, data.NewZValValue(fnCtx.GetIndexZVal(param.Index)))
+		}
 		return nil
 	case *CallStaticKeywordProperty:
 		val, acl := v.GetValue(callCtx)
@@ -553,6 +591,9 @@ func bindByRefParam(fnCtx, callCtx data.Context, param *ParameterReference, rawA
 			return acl
 		}
 		fnCtx.SetIndexZVal(param.Index, data.NewZVal(val.(data.Value)))
+		if param.Type != nil {
+			return param.SetValue(fnCtx, data.NewZValValue(fnCtx.GetIndexZVal(param.Index)))
+		}
 		return nil
 	case data.Variable:
 		zv := callCtx.GetIndexZVal(v.GetIndex())
@@ -561,6 +602,9 @@ func bindByRefParam(fnCtx, callCtx data.Context, param *ParameterReference, rawA
 			callCtx.SetIndexZVal(v.GetIndex(), zv)
 		}
 		fnCtx.SetIndexZVal(param.Index, zv)
+		if param.Type != nil {
+			return param.SetValue(fnCtx, data.NewZValValue(fnCtx.GetIndexZVal(param.Index)))
+		}
 		return nil
 	default:
 		val, acl := rawArg.GetValue(callCtx)
@@ -569,9 +613,12 @@ func bindByRefParam(fnCtx, callCtx data.Context, param *ParameterReference, rawA
 		}
 		if val == nil {
 			fnCtx.SetIndexZVal(param.Index, data.NewZVal(data.NewNullValue()))
+			if param.Type != nil {
+				return param.SetValue(fnCtx, data.NewZValValue(fnCtx.GetIndexZVal(param.Index)))
+			}
 			return nil
 		}
-		return fnCtx.SetVariableValue(param, val.(data.Value))
+		return param.SetValue(fnCtx, val.(data.Value))
 	}
 }
 
@@ -650,7 +697,7 @@ func (pe *CallMethod) doCallWithArgs(ctx data.Context, object data.GetMethod, me
 func (pe *CallMethod) invokeMagicInvoke(ctx data.Context, object data.Context, invoke data.Method) (data.GetValue, data.Control) {
 	varies := invoke.GetVariables()
 	fnCtx := object.CreateContext(varies)
-	params := invoke.GetParams()
+	fnCtx.SetStrictTypes(ctx.StrictTypes())
 
 	var flatArgs []data.Value
 	for _, arg := range pe.Args {
@@ -677,25 +724,8 @@ func (pe *CallMethod) invokeMagicInvoke(ctx data.Context, object data.Context, i
 		}
 	}
 
-	for index, param := range params {
-		if index < len(flatArgs) {
-			switch param.(type) {
-			case *Parameters:
-				remaining := flatArgs[index:]
-				fnCtx.SetVariableValue(varies[index], data.NewArrayValue(remaining))
-			default:
-				fnCtx.SetVariableValue(varies[index], flatArgs[index])
-			}
-		} else if _, ok := param.(*Parameters); ok {
-			fnCtx.SetVariableValue(varies[index], data.NewArrayValue([]data.Value{}))
-		} else if argObj, ok := param.(*Parameter); ok {
-			if argObj.DefaultValue == nil {
-				return nil, data.NewErrorThrow(pe.from, fmt.Errorf("调用 __invoke 时参数 %s 缺少值和默认值", argObj.Name))
-			}
-			if _, acl := argObj.GetValue(fnCtx); acl != nil {
-				return nil, acl
-			}
-		}
+	if ctl := data.BindDeclaredArgs(fnCtx, invoke, flatArgs); ctl != nil {
+		return nil, ctl
 	}
 
 	fnCtx.SetCallArgs(pe.Args)

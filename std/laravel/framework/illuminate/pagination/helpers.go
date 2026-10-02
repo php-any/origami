@@ -83,7 +83,9 @@ func newCollection(ctx data.Context, items data.Value) (*data.ClassValue, data.C
 	cv := data.NewClassValue(cls, ctx.CreateBaseContext())
 	if ctor := cls.GetConstruct(); ctor != nil {
 		nctx := cv.CreateContext(ctor.GetVariables())
-		data.BindDeclaredArgs(nctx, ctor, []data.Value{items})
+		if ctl := data.BindDeclaredArgs(nctx, ctor, []data.Value{items}); ctl != nil {
+			return nil, ctl
+		}
 		if _, ctl := ctor.Call(nctx); ctl != nil {
 			return nil, ctl
 		}
@@ -140,7 +142,8 @@ func pagApplyOptions(cv *data.ClassValue, options data.Value) {
 	if !ok || av == nil {
 		return
 	}
-	for _, e := range av.List {
+	for arraySlots58, arrayPosition58 := av.View(), 0; arrayPosition58 < arraySlots58.Len(); arrayPosition58++ {
+		e := arraySlots58.At(arrayPosition58)
 		if e == nil || e.Name == "" {
 			continue
 		}
@@ -158,7 +161,8 @@ func pagBuildURL(path, pageName string, page int, query *data.ArrayValue, fragme
 	}
 	params := url.Values{}
 	if query != nil {
-		for _, e := range query.List {
+		for arraySlots59, arrayPosition59 := query.View(), 0; arrayPosition59 < arraySlots59.Len(); arrayPosition59++ {
+			e := arraySlots59.At(arrayPosition59)
 			if e == nil || e.Name == "" {
 				continue
 			}

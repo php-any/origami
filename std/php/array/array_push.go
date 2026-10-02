@@ -1,6 +1,7 @@
 package array
 
 import (
+	"errors"
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -12,7 +13,7 @@ func NewArrayPushFunction() data.FuncStmt {
 type ArrayPushFunction struct{}
 
 func (f *ArrayPushFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	arrayValue, _ := ctx.GetIndexValue(0)
+	arrayValue := data.CowSeparateIndex(ctx, 0)
 
 	if arrayValue == nil {
 		return data.NewIntValue(0), nil
@@ -27,12 +28,14 @@ func (f *ArrayPushFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 				// Parameters 返回的是 ArrayValue，包含所有参数
 				paramsList := paramsArray.ToValueList()
 				for _, val := range paramsList {
-					v.AppendValue(val)
+					if !v.AppendValue(val) {
+						return nil, data.NewErrorThrowByName(nil, errors.New("Cannot add element to the array as the next element is already occupied"), "Error")
+					}
 				}
 			}
 		}
 
-		return data.NewIntValue(len(v.List)), nil
+		return data.NewIntValue(v.Len()), nil
 	default:
 		return data.NewIntValue(0), nil
 	}

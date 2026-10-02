@@ -20,10 +20,16 @@ func (f *MbListEncodingsFunction) Call(ctx data.Context) (data.GetValue, data.Co
 	return data.NewArrayValue(encodings), nil
 }
 
-func (f *MbListEncodingsFunction) GetName() string               { return "mb_list_encodings" }
+func (f *MbListEncodingsFunction) GetName() string { return "mb_list_encodings" }
+
 var mbListEncodingsFunctionGetParams = []data.GetValue{}
 
-func (f *MbListEncodingsFunction) GetParams() []data.GetValue    { return mbListEncodingsFunctionGetParams }
+func (f *MbListEncodingsFunction) GetParams() []data.GetValue {
+	return mbListEncodingsFunctionGetParams
+}
+
 var mbListEncodingsFunctionGetVariables = []data.Variable{}
 
-func (f *MbListEncodingsFunction) GetVariables() []data.Variable { return mbListEncodingsFunctionGetVariables }
+func (f *MbListEncodingsFunction) GetVariables() []data.Variable {
+	return mbListEncodingsFunctionGetVariables
+}

@@ -6,7 +6,6 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/std/laravel"
-	"github.com/php-any/origami/std/vendoraccel/warmup"
 	"github.com/php-any/origami/std/symfony/clock"
 	"github.com/php-any/origami/std/symfony/console"
 	eventdispatcher "github.com/php-any/origami/std/symfony/event-dispatcher"
@@ -28,6 +27,7 @@ import (
 	sfstring "github.com/php-any/origami/std/symfony/string"
 	"github.com/php-any/origami/std/symfony/uid"
 	vardumper "github.com/php-any/origami/std/symfony/var-dumper"
+	"github.com/php-any/origami/std/vendoraccel/warmup"
 )
 
 // Load 仅由 examples/laravel13 调用：按官方 Composer 包逐个注册 vendor 原生层。

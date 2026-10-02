@@ -14,11 +14,11 @@ import (
 const containerClassName = "Illuminate\\Container\\Container"
 
 type ctnState struct {
-	mu        sync.Mutex
-	bindings  map[string]binding
-	instances map[string]data.Value
-	aliases   map[string]string
-	resolved  map[string]bool
+	mu         sync.Mutex
+	bindings   map[string]binding
+	instances  map[string]data.Value
+	aliases    map[string]string
+	resolved   map[string]bool
 	buildStack []string
 }
 
@@ -402,7 +402,9 @@ func ctnBuildClass(ctx data.Context, ctn *data.ClassValue, className string) (da
 		args = append(args, asVal(dep))
 	}
 	nctx := cv.CreateContext(ctor.GetVariables())
-	data.BindDeclaredArgs(nctx, ctor, args)
+	if ctl := data.BindDeclaredArgs(nctx, ctor, args); ctl != nil {
+		return nil, ctl
+	}
 	if _, ctl := ctor.Call(nctx); ctl != nil {
 		return nil, ctl
 	}
@@ -476,9 +478,7 @@ func ctnGetBindings(ctx data.Context) (data.GetValue, data.Control) {
 	defer st.mu.Unlock()
 	out := data.NewArrayValue(nil).(*data.ArrayValue)
 	for k := range st.bindings {
-		zv := data.NewZVal(data.NewBoolValue(true))
-		zv.Name = k
-		out.List = append(out.List, zv)
+		out.SetStringKey(k, data.NewBoolValue(true))
 	}
 	return out, nil
 }

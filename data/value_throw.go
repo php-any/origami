@@ -26,8 +26,7 @@ type ThrowValue struct {
 	getMessage       Method
 	getTraceAsString Method
 
-	// previous 表示前一个异常，用于异常链；目前 Origami 尚未维护完整链，
-	// 该字段暂未在 NewErrorThrow* 中赋值，getPrevious() 将返回 null。
+	// previous preserves an exception chained by an internal type conversion.
 	previous *ThrowValue
 
 	Name string
@@ -255,6 +254,22 @@ func NewErrorThrowByName(from From, err error, name string) Control {
 	return t
 }
 
+// NewTypeError reports a failed PHP type declaration through the Error branch.
+func NewTypeError(from From, err error) Control {
+	return NewErrorThrowByName(from, err, "TypeError")
+}
+
+// ReturnTypeError chains a failed user conversion as PHP's return verification
+// does. Exit and other non-throw control flow must still leave the function.
+func ReturnTypeError(from From, err error, conversion Control) Control {
+	if previous, ok := conversion.(*ThrowValue); ok {
+		failure := NewTypeError(from, err).(*ThrowValue)
+		failure.previous = previous
+		return failure
+	}
+	return conversion
+}
+
 // TryErrorThrow 可能不需要抛出的错误
 func TryErrorThrow(from From, err error) Control {
 	t := &ThrowValue{
@@ -409,7 +424,7 @@ func (m *ThrowValueGetPreviousMethod) Call(ctx Context) (GetValue, Control) {
 	if m.source == nil || m.source.previous == nil {
 		return NewNullValue(), nil
 	}
-	return m.source.previous, nil
+	return m.source.previous.PHPValue(), nil
 }
 
 func (m *ThrowValueGetPreviousMethod) GetName() string       { return "getPrevious" }
@@ -504,19 +519,19 @@ func (m *ThrowValueGetTraceMethod) Call(ctx Context) (GetValue, Control) {
 	frames := make([]Value, 0, len(m.source.StackFrames))
 
 	for _, frame := range m.source.StackFrames {
-		obj := NewObjectValue()
+		obj := NewArrayValue(nil).(*ArrayValue)
 		if frame.From != nil {
 			sl, _ := frame.From.GetStartPosition()
-			obj.SetProperty("file", NewStringValue(frame.From.GetSource()))
-			obj.SetProperty("line", NewIntValue(sl+1))
+			obj.SetStringKey("file", NewStringValue(frame.From.GetSource()))
+			obj.SetStringKey("line", NewIntValue(sl+1))
 		}
 		if frame.ClassName != "" {
-			obj.SetProperty("class", NewStringValue(frame.ClassName))
+			obj.SetStringKey("class", NewStringValue(frame.ClassName))
 		}
 		if frame.MethodName != "" {
-			obj.SetProperty("function", NewStringValue(frame.MethodName))
+			obj.SetStringKey("function", NewStringValue(frame.MethodName))
 			// 简化：统一认为是对象方法
-			obj.SetProperty("type", NewStringValue("->"))
+			obj.SetStringKey("type", NewStringValue("->"))
 		}
 		frames = append(frames, obj)
 	}

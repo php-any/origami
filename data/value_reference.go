@@ -34,11 +34,10 @@ type IndexReferenceValue struct {
 	Ctx  Context
 }
 
-// ArraySlotRef 表示数组槽位引用，用于 &$array[] 语法
-// 使局部变量与数组元素共享 ZVal，实现 PHP 引用语义
+// ArraySlotRef retains the ZVal itself, including after unset or reordering.
+// A physical slice index is not a stable PHP reference identity.
 type ArraySlotRef struct {
-	Arr *ArrayValue
-	Idx int
+	Slot *ZVal
 }
 
 func (s *ReferenceValue) GetValue(ctx Context) (GetValue, Control) {
@@ -54,15 +53,15 @@ func (s *ArraySlotRef) GetValue(ctx Context) (GetValue, Control) {
 }
 
 func (s *ArraySlotRef) AsString() string {
-	if s.Arr != nil && s.Idx < len(s.Arr.List) {
-		return s.Arr.List[s.Idx].Value.AsString()
+	if s.Slot != nil {
+		return s.Slot.Value.AsString()
 	}
 	return ""
 }
 
 func (s *ArraySlotRef) AsBool() (bool, error) {
-	if s.Arr != nil && s.Idx < len(s.Arr.List) {
-		if b, ok := s.Arr.List[s.Idx].Value.(AsBool); ok {
+	if s.Slot != nil {
+		if b, ok := s.Slot.Value.(AsBool); ok {
 			return b.AsBool()
 		}
 	}
@@ -70,8 +69,8 @@ func (s *ArraySlotRef) AsBool() (bool, error) {
 }
 
 func (s *ArraySlotRef) Marshal(serializer Serializer) ([]byte, error) {
-	if s.Arr != nil && s.Idx < len(s.Arr.List) {
-		return s.Arr.List[s.Idx].Value.(ValueSerializer).Marshal(serializer)
+	if s.Slot != nil {
+		return s.Slot.Value.(ValueSerializer).Marshal(serializer)
 	}
 	return nil, fmt.Errorf("ArraySlotRef: invalid index")
 }
@@ -158,6 +157,7 @@ func (s *ReferenceValue) Scan(value any) error {
 
 // assignByType 根据变量类型进行赋值
 func (s *ReferenceValue) assignByType(varType Types, value any) error {
+	varType = LegacyType(varType)
 	switch varType.(type) {
 	case Int:
 		return s.assignToIntType(value)

@@ -23,24 +23,18 @@ func (f *ArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return v, nil
 	case *data.ObjectValue:
 		// PHP: (array)  => convert object properties to array elements
-		result := &data.ArrayValue{List: make([]*data.ZVal, 0)}
+		result := data.NewArrayValueFromSlots(make([]*data.ZVal, 0))
 		v.RangeProperties(func(key string, val data.Value) bool {
 			zv := data.NewZVal(val)
 			zv.Name = key
-			result.List = append(result.List, zv)
+			result.AppendEntries(zv)
 			return true
 		})
 		return result, nil
 	case *data.ClassValue:
-		// PHP: (array)  => convert object properties to array elements
-		result := &data.ArrayValue{List: make([]*data.ZVal, 0)}
-		v.RangeProperties(func(key string, val data.Value) bool {
-			zv := data.NewZVal(val)
-			zv.Name = key
-			result.List = append(result.List, zv)
-			return true
-		})
-		return result, nil
+		return castClassToArray(v)
+	case *data.ThisValue:
+		return castClassToArray(v.ClassValue)
 	case *data.NullValue:
 		// PHP: (array) null => []（空数组，不是 [null]）
 		return data.NewArrayValue([]data.Value{}), nil
@@ -50,6 +44,87 @@ func (f *ArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	default:
 		return data.NewArrayValue([]data.Value{a1}), nil
 	}
+}
+
+// Object casts include declared instance properties, with PHP's visibility
+// prefixes. Do not change RangeProperties: callers such as foreach need their
+// own visibility rules, and ordinary property access uses the unmangled names.
+func castClassToArray(object *data.ClassValue) (data.GetValue, data.Control) {
+	result := data.NewArrayValueFromSlots(nil)
+	if object == nil {
+		return result, nil
+	}
+	type declaredProperty struct {
+		property data.Property
+		key      string
+	}
+	indexes := make(map[string]int)
+	var declarations []declaredProperty
+	var classes []data.ClassStmt
+	for class := object.Class; class != nil; {
+		classes = append(classes, class)
+		extend := class.GetExtend()
+		if extend == nil || object.GetVM() == nil {
+			break
+		}
+		parent, ctl := object.GetVM().GetOrLoadClass(*extend)
+		if ctl != nil {
+			return nil, ctl
+		}
+		class = parent
+	}
+	for i := len(classes) - 1; i >= 0; i-- {
+		for _, property := range classes[i].GetPropertyList() {
+			if property == nil || property.GetIsStatic() {
+				continue
+			}
+			name := property.GetName()
+			key := name
+			switch property.GetModifier() {
+			case data.ModifierProtected:
+				key = "\x00*\x00" + name
+			case data.ModifierPrivate:
+				key = "\x00" + classes[i].GetName() + "\x00" + name
+			}
+			declaration := declaredProperty{property, key}
+			if index, exists := indexes[name]; exists {
+				declarations[index] = declaration
+			} else {
+				indexes[name] = len(declarations)
+				declarations = append(declarations, declaration)
+			}
+		}
+	}
+	// Declared defaults can be lazy for native classes. Untyped properties with
+	// no default are null; typed properties with no value remain absent.
+	for _, declaration := range declarations {
+		property := declaration.property
+		name := property.GetName()
+		value, ctl := object.ObjectValue.GetProperty(name)
+		if !object.ObjectValue.HasProperty(name) {
+			if def := property.GetDefaultValue(); def != nil {
+				var raw data.GetValue
+				raw, ctl = def.GetValue(object)
+				value, _ = raw.(data.Value)
+			} else if property.GetType() != nil {
+				continue
+			}
+		}
+		if ctl != nil {
+			return nil, ctl
+		}
+		if value == nil {
+			value = data.NewNullValue()
+		}
+		result.SetStringKey(declaration.key, value)
+	}
+	object.RangeProperties(func(key string, value data.Value) bool {
+		if _, declared := indexes[key]; !declared {
+			result.SetStringKey(key, value)
+		}
+		return true
+	})
+	return result, nil
 }
 
 func (f *ArrayFunction) GetName() string { return "array" }

@@ -2,7 +2,9 @@ package php
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -22,6 +24,18 @@ type JsonDecodeFunction struct {
 func (f *JsonDecodeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	jsonValue, _ := ctx.GetIndexValue(0)
 	classValue, _ := ctx.GetIndexValue(1)
+	depthValue, _ := ctx.GetIndexValue(2)
+	flagsValue, _ := ctx.GetIndexValue(3)
+	depth, flags := 512, 0
+	if value, ok := depthValue.(data.AsInt); ok {
+		depth, _ = value.AsInt()
+	}
+	if value, ok := flagsValue.(data.AsInt); ok {
+		flags, _ = value.AsInt()
+	}
+	if depth <= 0 || depth > 2147483647 {
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("json_decode(): Argument #3 ($depth) must be greater than 0 and less than 2147483648"), "ValueError")
+	}
 
 	var jsonString string
 	if jsonValue != nil {
@@ -38,7 +52,7 @@ func (f *JsonDecodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	// 第二个参数：true=关联数组, false/null=对象, string=类名
-	asArray := false
+	asArray := flags&1 != 0 // JSON_OBJECT_AS_ARRAY applies when associative is null.
 	if classValue != nil {
 		if bv, ok := classValue.(*data.BoolValue); ok {
 			asArray = bv.Value
@@ -78,24 +92,13 @@ func (f *JsonDecodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		}
 	}
 
-	// PHP: assoc=true → 关联数组；assoc=false 时数组/标量仍为 PHP array/标量，仅 {} 为对象
-	trimmed := strings.TrimSpace(jsonString)
-	useObject := !asArray && len(trimmed) > 0 && trimmed[0] == '{'
-
-	if !useObject {
-		v, err := goJsonDecode(jsonString)
-		if err != nil {
-			setJsonLastError(JSON_ERROR_SYNTAX, "")
-			return data.NewNullValue(), nil
+	value, err := goJsonDecodeOptions(jsonString, asArray, depth, flags, ctx)
+	if err != nil {
+		code := JSON_ERROR_SYNTAX
+		if errors.Is(err, errJSONDecodeDepth) {
+			code = JSON_ERROR_DEPTH
 		}
-		clearJsonLastError()
-		return v, nil
-	}
-
-	serializer := origamiJson.NewJsonSerializer()
-	value := data.NewObjectValue()
-	if err := value.Unmarshal([]byte(jsonString), serializer); err != nil {
-		setJsonLastError(JSON_ERROR_SYNTAX, "")
+		setJsonLastError(code, "")
 		return data.NewNullValue(), nil
 	}
 	clearJsonLastError()
@@ -103,22 +106,49 @@ func (f *JsonDecodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 }
 
 func goJsonDecode(js string) (data.Value, error) {
+	return goJsonDecodeOptions(js, true, 512, 0, nil)
+}
+
+var errJSONDecodeDepth = errors.New("json: maximum depth exceeded")
+
+func goJsonDecodeOptions(js string, associative bool, depth, flags int, ctx data.Context) (data.Value, error) {
 	dec := json.NewDecoder(strings.NewReader(js))
 	dec.UseNumber()
-	return decodeJSONToken(dec)
+	var objectClass data.ClassStmt
+	if !associative {
+		objectClass, _ = ctx.GetVM().GetClass("stdClass")
+		if objectClass == nil {
+			return nil, fmt.Errorf("json: stdClass is not registered")
+		}
+	}
+	value, err := decodeJSONToken(dec, associative, depth, flags, ctx, objectClass)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := dec.Token(); err != io.EOF {
+		return nil, fmt.Errorf("json: unexpected trailing data")
+	}
+	return value, nil
 }
 
 // decodeJSONToken 按 JSON 出现顺序解析，保留对象键序（Livewire checksum 依赖 json_encode 键序稳定）。
-func decodeJSONToken(dec *json.Decoder) (data.Value, error) {
+func decodeJSONToken(dec *json.Decoder, associative bool, depth, flags int, ctx data.Context, objectClass data.ClassStmt) (data.Value, error) {
 	tok, err := dec.Token()
 	if err != nil {
 		return nil, err
 	}
 	switch t := tok.(type) {
 	case json.Delim:
+		if depth <= 1 {
+			return nil, errJSONDecodeDepth
+		}
 		switch t {
 		case '{':
 			list := make([]*data.ZVal, 0)
+			var object *data.ClassValue
+			if !associative {
+				object = data.NewClassValue(objectClass, ctx.CreateBaseContext())
+			}
 			for dec.More() {
 				keyTok, err := dec.Token()
 				if err != nil {
@@ -128,20 +158,27 @@ func decodeJSONToken(dec *json.Decoder) (data.Value, error) {
 				if !ok {
 					return nil, fmt.Errorf("json: expected object key string")
 				}
-				val, err := decodeJSONToken(dec)
+				val, err := decodeJSONToken(dec, associative, depth-1, flags, ctx, objectClass)
 				if err != nil {
 					return nil, err
 				}
-				list = append(list, data.NewNamedZVal(key, val))
+				if object != nil {
+					object.SetProperty(key, val)
+				} else {
+					list = append(list, data.NewNamedZVal(key, val))
+				}
 			}
 			if _, err := dec.Token(); err != nil { // consume '}'
 				return nil, err
 			}
-			return &data.ArrayValue{List: list}, nil
+			if object != nil {
+				return object, nil
+			}
+			return data.NewArrayValueFromSlots(list), nil
 		case '[':
 			items := make([]data.Value, 0)
 			for dec.More() {
-				val, err := decodeJSONToken(dec)
+				val, err := decodeJSONToken(dec, associative, depth-1, flags, ctx, objectClass)
 				if err != nil {
 					return nil, err
 				}
@@ -163,6 +200,9 @@ func decodeJSONToken(dec *json.Decoder) (data.Value, error) {
 	case json.Number:
 		if i, err := t.Int64(); err == nil {
 			return data.NewIntValue(int(i)), nil
+		}
+		if flags&2 != 0 && !strings.ContainsAny(t.String(), ".eE") { // JSON_BIGINT_AS_STRING
+			return data.NewStringValue(t.String()), nil
 		}
 		f, err := t.Float64()
 		if err != nil {
@@ -203,7 +243,7 @@ func convertGoValue(v interface{}) data.Value {
 		for k, item := range val {
 			arrList = append(arrList, &data.ZVal{Name: k, Value: convertGoValue(item)})
 		}
-		return &data.ArrayValue{List: arrList}
+		return data.NewArrayValueFromSlots(arrList)
 	default:
 		s := strconv.FormatFloat(v.(float64), 'f', -1, 64)
 		return data.NewStringValue(s)
@@ -218,6 +258,8 @@ var jsonDecodeFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "json", 0, nil, data.String{}),
 	// PHP 8 正式参数名为 $associative（Livewire 等用 named arg associative: true）
 	node.NewParameter(nil, "associative", 1, data.NewNullValue(), nil),
+	node.NewParameter(nil, "depth", 2, data.NewIntValue(512), nil),
+	node.NewParameter(nil, "flags", 3, data.NewIntValue(0), nil),
 }
 
 func (f *JsonDecodeFunction) GetParams() []data.GetValue {
@@ -227,6 +269,8 @@ func (f *JsonDecodeFunction) GetParams() []data.GetValue {
 var jsonDecodeFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "json", 0, nil),
 	node.NewVariable(nil, "associative", 1, nil),
+	node.NewVariable(nil, "depth", 2, nil),
+	node.NewVariable(nil, "flags", 3, nil),
 }
 
 func (f *JsonDecodeFunction) GetVariables() []data.Variable {

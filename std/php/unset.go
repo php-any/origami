@@ -58,9 +58,9 @@ func (f *UnsetFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 				if iv, ok := indexValue.(data.AsInt); ok {
 					// 整数索引
 					i, err := iv.AsInt()
-					if err == nil && i >= 0 && i < len(arr.List) {
+					if err == nil && i >= 0 && i < arr.Len() {
 						// 删除元素（设置为 null）
-						arr.List[i] = data.NewZVal(data.NewNullValue())
+						arr.ReplaceSlot(i, data.NewZVal(data.NewNullValue()))
 					}
 				}
 				// 注意：ArrayValue 不支持字符串索引，字符串索引应该使用 ObjectValue

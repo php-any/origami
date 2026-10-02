@@ -22,6 +22,7 @@ func (h *TxCommitMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *TxCommitMethod) GetName() string            { return "commit" }
 func (h *TxCommitMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *TxCommitMethod) GetIsStatic() bool          { return true }
+
 var txCommitMethodGetParams = []data.GetValue{}
 
 func (h *TxCommitMethod) GetParams() []data.GetValue {

@@ -181,6 +181,7 @@ func itoa(n int) string {
 }
 
 func (f *GmdateFunction) GetName() string { return "gmdate" }
+
 var gmdateFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "format", 0, nil, nil),
 	node.NewParameter(nil, "timestamp", 1, node.NewNullLiteral(nil), nil),
@@ -189,6 +190,7 @@ var gmdateFunctionGetParams = []data.GetValue{
 func (f *GmdateFunction) GetParams() []data.GetValue {
 	return gmdateFunctionGetParams
 }
+
 var gmdateFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "format", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "timestamp", 1, data.NewNullableType(data.NewBaseType("int"))),

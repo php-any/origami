@@ -54,8 +54,9 @@ func convmapFromValue(v data.Value) []int {
 	if !ok || arr == nil {
 		return nil
 	}
-	out := make([]int, 0, len(arr.List))
-	for _, z := range arr.List {
+	out := make([]int, 0, arr.Len())
+	for arraySlots125, arrayPosition125 := arr.View(), 0; arrayPosition125 < arraySlots125.Len(); arrayPosition125++ {
+		z := arraySlots125.At(arrayPosition125)
 		if z == nil || z.Value == nil {
 			out = append(out, 0)
 			continue

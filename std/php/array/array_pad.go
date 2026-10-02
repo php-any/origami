@@ -26,7 +26,7 @@ func (fn *ArrayPadFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	var source []*data.ZVal
 	switch arr := arrVal.(type) {
 	case *data.ArrayValue:
-		source = arr.List
+		source = arr.Snapshot()
 	case *data.ObjectValue:
 		// 转换 ObjectValue 为简单列表
 		result := make([]*data.ZVal, 0)

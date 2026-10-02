@@ -33,6 +33,7 @@ func (h *ResponseWriterFileMethod) Call(ctx data.Context) (data.GetValue, data.C
 func (h *ResponseWriterFileMethod) GetName() string            { return "file" }
 func (h *ResponseWriterFileMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResponseWriterFileMethod) GetIsStatic() bool          { return false }
+
 var responseWriterFileMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "path", 0, nil, data.NewBaseType("string")),
 	node.NewParameter(nil, "downloadName", 1, nil, data.NewBaseType("string")),
@@ -41,6 +42,7 @@ var responseWriterFileMethodGetParams = []data.GetValue{
 func (h *ResponseWriterFileMethod) GetParams() []data.GetValue {
 	return responseWriterFileMethodGetParams
 }
+
 var responseWriterFileMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "path", 0, nil),
 	node.NewVariable(nil, "downloadName", 1, nil),

@@ -42,8 +42,9 @@ type arrayEntry struct {
 func arrayEntries(v data.Value) ([]arrayEntry, bool) {
 	switch val := v.(type) {
 	case *data.ArrayValue:
-		entries := make([]arrayEntry, 0, len(val.List))
-		for i, z := range val.List {
+		entries := make([]arrayEntry, 0, val.Len())
+		for arraySlots98, i := val.View(), 0; i < arraySlots98.Len(); i++ {
+			z := arraySlots98.At(i)
 			if z == nil {
 				continue
 			}
@@ -80,7 +81,7 @@ func entriesToArrayValue(entries []arrayEntry) *data.ArrayValue {
 		z.Name = entry.name
 		list[i] = z
 	}
-	return &data.ArrayValue{List: list}
+	return data.NewArrayValueFromSlots(list)
 }
 
 func mergeRecursive(base, other data.Value) data.Value {
@@ -206,8 +207,9 @@ func deepCopyVal(v data.Value) data.Value {
 		})
 		return out
 	case *data.ArrayValue:
-		list := make([]*data.ZVal, len(val.List))
-		for i, z := range val.List {
+		list := make([]*data.ZVal, val.Len())
+		for arraySlots99, i := val.View(), 0; i < arraySlots99.Len(); i++ {
+			z := arraySlots99.At(i)
 			if z == nil {
 				continue
 			}
@@ -215,17 +217,19 @@ func deepCopyVal(v data.Value) data.Value {
 			copied.Name = z.Name
 			list[i] = copied
 		}
-		return &data.ArrayValue{List: list}
+		return data.NewArrayValueFromSlots(list)
 	}
 	return v
 }
 
 func (fn *ArrayMergeRecursiveFunction) GetName() string { return "array_merge_recursive" }
+
 var arrayMergeRecursiveFunctionGetParams = []data.GetValue{node.NewParameters(nil, "arrays", 0, nil, nil)}
 
 func (fn *ArrayMergeRecursiveFunction) GetParams() []data.GetValue {
 	return arrayMergeRecursiveFunctionGetParams
 }
+
 var arrayMergeRecursiveFunctionGetVariables = []data.Variable{node.NewVariable(nil, "arrays", 0, data.NewBaseType("array"))}
 
 func (fn *ArrayMergeRecursiveFunction) GetVariables() []data.Variable {

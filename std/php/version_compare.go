@@ -141,6 +141,7 @@ func phpVersionWeight(num int, special string) int {
 }
 
 func (f *VersionCompareFunction) GetName() string { return "version_compare" }
+
 var versionCompareFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "version1", 0, nil, data.String{}),
 	node.NewParameter(nil, "version2", 1, nil, data.String{}),
@@ -150,6 +151,7 @@ var versionCompareFunctionGetParams = []data.GetValue{
 func (f *VersionCompareFunction) GetParams() []data.GetValue {
 	return versionCompareFunctionGetParams
 }
+
 var versionCompareFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "version1", 0, data.String{}),
 	node.NewVariable(nil, "version2", 1, data.String{}),

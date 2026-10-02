@@ -17,7 +17,7 @@ func NewRsortFunction() data.FuncStmt {
 }
 
 func (f *RsortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	arrayValue, _ := ctx.GetIndexValue(0)
+	arrayValue := data.CowSeparateIndex(ctx, 0)
 	flagsValue, _ := ctx.GetIndexValue(1)
 
 	if arrayValue == nil {
@@ -29,7 +29,7 @@ func (f *RsortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewBoolValue(false), nil
 	}
 
-	if len(arrayRef.List) == 0 {
+	if arrayRef.Len() == 0 {
 		return data.NewBoolValue(true), nil
 	}
 
@@ -40,9 +40,11 @@ func (f *RsortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 
-	sort.Slice(arrayRef.List, func(i, j int) bool {
-		// Reverse: compare j < i instead of i < j
-		return compareValues(arrayRef.List[j].Value, arrayRef.List[i].Value, flags)
+	arrayRef.EditReindexing(func(slots []*data.ZVal) {
+		sort.SliceStable(slots, func(i, j int) bool {
+			// Reverse: compare j < i instead of i < j
+			return compareValues(slots[j].Value, slots[i].Value, flags)
+		})
 	})
 
 	return data.NewBoolValue(true), nil

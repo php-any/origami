@@ -118,6 +118,7 @@ func extractPathVars(routePath string) map[string]bool {
 }
 
 func unwrapTypeFQN(ty data.Types) (string, bool) {
+	ty = data.LegacyType(ty)
 	if ty == nil {
 		return "", false
 	}

@@ -30,6 +30,7 @@ func (f *CtypeSpaceFunction) Call(ctx data.Context) (data.GetValue, data.Control
 }
 
 func (f *CtypeSpaceFunction) GetName() string { return "ctype_space" }
+
 var ctypeSpaceFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "text", 0, nil, nil),
 }
@@ -37,6 +38,7 @@ var ctypeSpaceFunctionGetParams = []data.GetValue{
 func (f *CtypeSpaceFunction) GetParams() []data.GetValue {
 	return ctypeSpaceFunctionGetParams
 }
+
 var ctypeSpaceFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "text", 0, data.NewBaseType("mixed")),
 }
@@ -68,6 +70,7 @@ func (f *CtypeDigitFunction) Call(ctx data.Context) (data.GetValue, data.Control
 }
 
 func (f *CtypeDigitFunction) GetName() string { return "ctype_digit" }
+
 var ctypeDigitFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "text", 0, nil, nil),
 }
@@ -75,6 +78,7 @@ var ctypeDigitFunctionGetParams = []data.GetValue{
 func (f *CtypeDigitFunction) GetParams() []data.GetValue {
 	return ctypeDigitFunctionGetParams
 }
+
 var ctypeDigitFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "text", 0, data.NewBaseType("mixed")),
 }
@@ -106,6 +110,7 @@ func (f *CtypeAlphaFunction) Call(ctx data.Context) (data.GetValue, data.Control
 }
 
 func (f *CtypeAlphaFunction) GetName() string { return "ctype_alpha" }
+
 var ctypeAlphaFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "text", 0, nil, nil),
 }
@@ -113,6 +118,7 @@ var ctypeAlphaFunctionGetParams = []data.GetValue{
 func (f *CtypeAlphaFunction) GetParams() []data.GetValue {
 	return ctypeAlphaFunctionGetParams
 }
+
 var ctypeAlphaFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "text", 0, data.NewBaseType("mixed")),
 }
@@ -144,6 +150,7 @@ func (f *CtypeAlnumFunction) Call(ctx data.Context) (data.GetValue, data.Control
 }
 
 func (f *CtypeAlnumFunction) GetName() string { return "ctype_alnum" }
+
 var ctypeAlnumFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "text", 0, nil, nil),
 }
@@ -151,6 +158,7 @@ var ctypeAlnumFunctionGetParams = []data.GetValue{
 func (f *CtypeAlnumFunction) GetParams() []data.GetValue {
 	return ctypeAlnumFunctionGetParams
 }
+
 var ctypeAlnumFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "text", 0, data.NewBaseType("mixed")),
 }
@@ -182,11 +190,13 @@ func (f *CtypeLowerFunction) Call(ctx data.Context) (data.GetValue, data.Control
 }
 
 func (f *CtypeLowerFunction) GetName() string { return "ctype_lower" }
+
 var ctypeLowerFunctionGetParams = []data.GetValue{node.NewParameter(nil, "text", 0, nil, nil)}
 
 func (f *CtypeLowerFunction) GetParams() []data.GetValue {
 	return ctypeLowerFunctionGetParams
 }
+
 var ctypeLowerFunctionGetVariables = []data.Variable{node.NewVariable(nil, "text", 0, data.NewBaseType("mixed"))}
 
 func (f *CtypeLowerFunction) GetVariables() []data.Variable {
@@ -216,11 +226,13 @@ func (f *CtypeUpperFunction) Call(ctx data.Context) (data.GetValue, data.Control
 }
 
 func (f *CtypeUpperFunction) GetName() string { return "ctype_upper" }
+
 var ctypeUpperFunctionGetParams = []data.GetValue{node.NewParameter(nil, "text", 0, nil, nil)}
 
 func (f *CtypeUpperFunction) GetParams() []data.GetValue {
 	return ctypeUpperFunctionGetParams
 }
+
 var ctypeUpperFunctionGetVariables = []data.Variable{node.NewVariable(nil, "text", 0, data.NewBaseType("mixed"))}
 
 func (f *CtypeUpperFunction) GetVariables() []data.Variable {
@@ -250,11 +262,13 @@ func (f *CtypePrintFunction) Call(ctx data.Context) (data.GetValue, data.Control
 }
 
 func (f *CtypePrintFunction) GetName() string { return "ctype_print" }
+
 var ctypePrintFunctionGetParams = []data.GetValue{node.NewParameter(nil, "text", 0, nil, nil)}
 
 func (f *CtypePrintFunction) GetParams() []data.GetValue {
 	return ctypePrintFunctionGetParams
 }
+
 var ctypePrintFunctionGetVariables = []data.Variable{node.NewVariable(nil, "text", 0, data.NewBaseType("mixed"))}
 
 func (f *CtypePrintFunction) GetVariables() []data.Variable {
@@ -287,11 +301,13 @@ func (f *CtypePunctFunction) Call(ctx data.Context) (data.GetValue, data.Control
 }
 
 func (f *CtypePunctFunction) GetName() string { return "ctype_punct" }
+
 var ctypePunctFunctionGetParams = []data.GetValue{node.NewParameter(nil, "text", 0, nil, nil)}
 
 func (f *CtypePunctFunction) GetParams() []data.GetValue {
 	return ctypePunctFunctionGetParams
 }
+
 var ctypePunctFunctionGetVariables = []data.Variable{node.NewVariable(nil, "text", 0, data.NewBaseType("mixed"))}
 
 func (f *CtypePunctFunction) GetVariables() []data.Variable {
@@ -321,11 +337,13 @@ func (f *CtypeXdigitFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 }
 
 func (f *CtypeXdigitFunction) GetName() string { return "ctype_xdigit" }
+
 var ctypeXdigitFunctionGetParams = []data.GetValue{node.NewParameter(nil, "text", 0, nil, nil)}
 
 func (f *CtypeXdigitFunction) GetParams() []data.GetValue {
 	return ctypeXdigitFunctionGetParams
 }
+
 var ctypeXdigitFunctionGetVariables = []data.Variable{node.NewVariable(nil, "text", 0, data.NewBaseType("mixed"))}
 
 func (f *CtypeXdigitFunction) GetVariables() []data.Variable {
@@ -355,11 +373,13 @@ func (f *CtypeGraphFunction) Call(ctx data.Context) (data.GetValue, data.Control
 }
 
 func (f *CtypeGraphFunction) GetName() string { return "ctype_graph" }
+
 var ctypeGraphFunctionGetParams = []data.GetValue{node.NewParameter(nil, "text", 0, nil, nil)}
 
 func (f *CtypeGraphFunction) GetParams() []data.GetValue {
 	return ctypeGraphFunctionGetParams
 }
+
 var ctypeGraphFunctionGetVariables = []data.Variable{node.NewVariable(nil, "text", 0, data.NewBaseType("mixed"))}
 
 func (f *CtypeGraphFunction) GetVariables() []data.Variable {

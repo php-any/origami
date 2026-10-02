@@ -75,7 +75,7 @@ type method struct {
 
 func (m *method) Call(ctx data.Context) (data.GetValue, data.Control) { return m.fn(ctx) }
 func (m *method) GetName() string                                     { return m.name }
-func (m *method) GetModifier() data.Modifier                           { return data.ModifierPublic }
+func (m *method) GetModifier() data.Modifier                          { return data.ModifierPublic }
 func (m *method) GetIsStatic() bool                                   { return m.static }
 func (m *method) GetParams() []data.GetValue                          { return m.params }
 func (m *method) GetVariables() []data.Variable                       { return m.vars }

@@ -31,13 +31,17 @@ func (h *RequestFullUrlMethod) Call(ctx data.Context) (data.GetValue, data.Contr
 	return data.NewStringValue(fullUrl), nil
 }
 
-func (h *RequestFullUrlMethod) GetName() string               { return "fullUrl" }
-func (h *RequestFullUrlMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *RequestFullUrlMethod) GetIsStatic() bool             { return false }
+func (h *RequestFullUrlMethod) GetName() string            { return "fullUrl" }
+func (h *RequestFullUrlMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *RequestFullUrlMethod) GetIsStatic() bool          { return false }
+
 var requestFullUrlMethodGetParams = []data.GetValue{}
 
-func (h *RequestFullUrlMethod) GetParams() []data.GetValue    { return requestFullUrlMethodGetParams }
+func (h *RequestFullUrlMethod) GetParams() []data.GetValue { return requestFullUrlMethodGetParams }
+
 var requestFullUrlMethodGetVariables = []data.Variable{}
 
-func (h *RequestFullUrlMethod) GetVariables() []data.Variable { return requestFullUrlMethodGetVariables }
-func (h *RequestFullUrlMethod) GetReturnType() data.Types     { return data.NewBaseType("string") }
+func (h *RequestFullUrlMethod) GetVariables() []data.Variable {
+	return requestFullUrlMethodGetVariables
+}
+func (h *RequestFullUrlMethod) GetReturnType() data.Types { return data.NewBaseType("string") }

@@ -24,11 +24,15 @@ func (h *ExceptionGetSeverityMethod) GetIsStatic() bool { return false }
 
 var exceptionGetSeverityMethodGetParams = []data.GetValue{}
 
-func (h *ExceptionGetSeverityMethod) GetParams() []data.GetValue { return exceptionGetSeverityMethodGetParams }
+func (h *ExceptionGetSeverityMethod) GetParams() []data.GetValue {
+	return exceptionGetSeverityMethodGetParams
+}
 
 var exceptionGetSeverityMethodGetVariables = []data.Variable{}
 
-func (h *ExceptionGetSeverityMethod) GetVariables() []data.Variable { return exceptionGetSeverityMethodGetVariables }
+func (h *ExceptionGetSeverityMethod) GetVariables() []data.Variable {
+	return exceptionGetSeverityMethodGetVariables
+}
 
 func (h *ExceptionGetSeverityMethod) GetReturnType() data.Types {
 	return data.NewBaseType("int")

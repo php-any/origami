@@ -358,16 +358,16 @@ func (c *MenuClass) GetStaticMethod(name string) (data.Method, bool) {
 }
 
 var menuMethods = map[string]data.Method{
-	"append":        &menuAppendMethod{},
-	"prepend":       &menuPrependMethod{},
-	"addText":       &menuAddTextMethod{},
-	"addSeparator":  &menuAddSeparatorMethod{},
-	"addRadio":      &menuAddRadioMethod{},
-	"addCheckbox":   &menuAddCheckboxMethod{},
-	"addSubMenu":    &menuAddSubMenuMethod{},
-	"insertAfter":   &menuInsertAfterMethod{},
-	"insertBefore":  &menuInsertBeforeMethod{},
-	"remove":        &menuRemoveMethod{},
+	"append":             &menuAppendMethod{},
+	"prepend":            &menuPrependMethod{},
+	"addText":            &menuAddTextMethod{},
+	"addSeparator":       &menuAddSeparatorMethod{},
+	"addRadio":           &menuAddRadioMethod{},
+	"addCheckbox":        &menuAddCheckboxMethod{},
+	"addSubMenu":         &menuAddSubMenuMethod{},
+	"insertAfter":        &menuInsertAfterMethod{},
+	"insertBefore":       &menuInsertBeforeMethod{},
+	"remove":             &menuRemoveMethod{},
 	"setApplicationMenu": &menuSetApplicationMenuMethod{},
 }
 
@@ -446,7 +446,7 @@ func (m *menuAppendMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 	if v, ok := ctx.GetIndexValue(0); ok {
 		items, _ := cv.GetProperty("_items")
 		if av, ok := items.(*data.ArrayValue); ok {
-			av.List = append(av.List, data.NewZVal(v))
+			av.AppendValue(v)
 		}
 	}
 	return nil, nil
@@ -480,7 +480,7 @@ func (m *menuPrependMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	if v, ok := ctx.GetIndexValue(0); ok {
 		items, _ := cv.GetProperty("_items")
 		if av, ok := items.(*data.ArrayValue); ok {
-			av.List = append([]*data.ZVal{data.NewZVal(v)}, av.List...)
+			av.ReplaceAll(append([]*data.ZVal{data.NewZVal(v)}, av.Snapshot()...))
 		}
 	}
 	return nil, nil
@@ -540,7 +540,7 @@ func (m *menuAddTextMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 
 		items, _ := cv.GetProperty("_items")
 		if av, ok := items.(*data.ArrayValue); ok {
-			av.List = append(av.List, data.NewZVal(classVal))
+			av.AppendValue(classVal)
 		}
 	}
 	return nil, nil
@@ -569,7 +569,7 @@ func (m *menuAddSeparatorMethod) Call(ctx data.Context) (data.GetValue, data.Con
 
 		items, _ := cv.GetProperty("_items")
 		if av, ok := items.(*data.ArrayValue); ok {
-			av.List = append(av.List, data.NewZVal(classVal))
+			av.AppendValue(classVal)
 		}
 	}
 	return nil, nil
@@ -633,7 +633,7 @@ func (m *menuAddRadioMethod) Call(ctx data.Context) (data.GetValue, data.Control
 
 		items, _ := cv.GetProperty("_items")
 		if av, ok := items.(*data.ArrayValue); ok {
-			av.List = append(av.List, data.NewZVal(classVal))
+			av.AppendValue(classVal)
 		}
 	}
 	return nil, nil
@@ -697,7 +697,7 @@ func (m *menuAddCheckboxMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 
 		items, _ := cv.GetProperty("_items")
 		if av, ok := items.(*data.ArrayValue); ok {
-			av.List = append(av.List, data.NewZVal(classVal))
+			av.AppendValue(classVal)
 		}
 	}
 	return nil, nil
@@ -748,7 +748,7 @@ func (m *menuAddSubMenuMethod) Call(ctx data.Context) (data.GetValue, data.Contr
 
 		items, _ := cv.GetProperty("_items")
 		if av, ok := items.(*data.ArrayValue); ok {
-			av.List = append(av.List, data.NewZVal(classVal))
+			av.AppendValue(classVal)
 		}
 	}
 	return nil, nil
@@ -792,10 +792,10 @@ func (m *menuInsertAfterMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 
 	items, _ := cv.GetProperty("_items")
 	if av, ok := items.(*data.ArrayValue); ok {
-		if afterIdx+1 < len(av.List) {
-			av.List = append(av.List[:afterIdx+1], append([]*data.ZVal{data.NewZVal(item)}, av.List[afterIdx+1:]...)...)
+		if afterIdx+1 < av.Len() {
+			av.ReplaceAll(append(av.Snapshot()[:afterIdx+1], append([]*data.ZVal{data.NewZVal(item)}, av.Snapshot()[afterIdx+1:]...)...))
 		} else {
-			av.List = append(av.List, data.NewZVal(item))
+			av.AppendValue(item)
 		}
 	}
 	return nil, nil
@@ -839,10 +839,10 @@ func (m *menuInsertBeforeMethod) Call(ctx data.Context) (data.GetValue, data.Con
 
 	items, _ := cv.GetProperty("_items")
 	if av, ok := items.(*data.ArrayValue); ok {
-		if beforeIdx <= len(av.List) {
-			av.List = append(av.List[:beforeIdx], append([]*data.ZVal{data.NewZVal(item)}, av.List[beforeIdx:]...)...)
+		if beforeIdx <= av.Len() {
+			av.ReplaceAll(append(av.Snapshot()[:beforeIdx], append([]*data.ZVal{data.NewZVal(item)}, av.Snapshot()[beforeIdx:]...)...))
 		} else {
-			av.List = append(av.List, data.NewZVal(item))
+			av.AppendValue(item)
 		}
 	}
 	return nil, nil
@@ -880,8 +880,8 @@ func (m *menuRemoveMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 
 	items, _ := cv.GetProperty("_items")
 	if av, ok := items.(*data.ArrayValue); ok {
-		if idx >= 0 && idx < len(av.List) {
-			av.List = append(av.List[:idx], av.List[idx+1:]...)
+		if idx >= 0 && idx < av.Len() {
+			av.ReplaceAll(append(av.Snapshot()[:idx], av.Snapshot()[idx+1:]...))
 		}
 	}
 	return nil, nil

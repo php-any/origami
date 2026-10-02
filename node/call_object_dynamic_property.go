@@ -153,13 +153,18 @@ func (pe *CallObjectDynamicProperty) GetValue(ctx data.Context) (data.GetValue, 
 }
 
 func (pe *CallObjectDynamicProperty) SetValue(ctx data.Context, value data.Value) data.Control {
+	_, ctl := pe.AssignValue(ctx, value)
+	return ctl
+}
+
+func (pe *CallObjectDynamicProperty) AssignValue(ctx data.Context, value data.Value) (data.Value, data.Control) {
 	temp, acl := pe.Object.GetValue(ctx)
 	if acl != nil {
-		return acl
+		return nil, acl
 	}
 	raw, acl := pe.NameExpr.GetValue(ctx)
 	if acl != nil {
-		return acl
+		return nil, acl
 	}
 	name := raw.(data.Value).AsString()
 
@@ -167,40 +172,50 @@ func (pe *CallObjectDynamicProperty) SetValue(ctx data.Context, value data.Value
 	case *data.ThisValue:
 		property, ok := object.GetPropertyStmt(name)
 		if ok {
-			if property.GetType() != nil && !property.GetType().Is(value) {
-				return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("%s 属性 %s 因为类型不一致无法赋值", TryGetCallClassName(object), name))
+			prepared, accepted, conversion := data.PrepareTypedValueInContext(property.GetType(), value, ctx)
+
+			if conversion != nil {
+				return nil, conversion
 			}
-			return object.SetProperty(name, value)
+			if !accepted {
+				return nil, data.NewTypeError(pe.GetFrom(), fmt.Errorf("%s 属性 %s 因为类型不一致无法赋值", TryGetCallClassName(object), name))
+			}
+			return prepared, object.SetProperty(name, prepared)
 		}
 		if magic, hasSet := object.GetMethod("__set"); hasSet {
-			return pe.invokeMagicSet(object, magic, name, value)
+			return value, pe.invokeMagicSet(object, magic, name, value)
 		}
-		return object.SetProperty(name, value)
+		return value, object.SetProperty(name, value)
 	case *data.ClassValue:
 		property, ok := object.GetPropertyStmt(name)
 		if ok {
-			if property.GetType() != nil && !property.GetType().Is(value) {
-				return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("%s 属性 %s 因为类型不一致无法赋值", TryGetCallClassName(object), name))
+			prepared, accepted, conversion := data.PrepareTypedValueInContext(property.GetType(), value, ctx)
+
+			if conversion != nil {
+				return nil, conversion
+			}
+			if !accepted {
+				return nil, data.NewTypeError(pe.GetFrom(), fmt.Errorf("%s 属性 %s 因为类型不一致无法赋值", TryGetCallClassName(object), name))
 			}
 			if property.GetModifier() == data.ModifierPrivate {
 				if !isCallerInClassHierarchy(ctx, object.Class) {
-					return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("对象(%s)属性(%s)是私有的", object.Class.GetName(), name))
+					return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("对象(%s)属性(%s)是私有的", object.Class.GetName(), name))
 				}
 			} else if property.GetModifier() == data.ModifierProtected {
 				if !isCallerInClassHierarchy(ctx, object.Class) {
-					return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("对象(%s)属性(%s)不是公开的", object.Class.GetName(), name))
+					return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("对象(%s)属性(%s)不是公开的", object.Class.GetName(), name))
 				}
 			}
-			return object.SetProperty(name, value)
+			return prepared, object.SetProperty(name, prepared)
 		}
 		if magic, hasSet := object.GetMethod("__set"); hasSet {
-			return pe.invokeMagicSet(object, magic, name, value)
+			return value, pe.invokeMagicSet(object, magic, name, value)
 		}
-		return object.SetProperty(name, value)
+		return value, object.SetProperty(name, value)
 	case data.SetProperty:
-		return object.SetProperty(name, value)
+		return value, object.SetProperty(name, value)
 	default:
-		return data.NewErrorThrow(pe.GetFrom(), errors.New("object is not set property"))
+		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("object is not set property"))
 	}
 }
 

@@ -24,6 +24,7 @@ func (h *ServerGroupMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 func (h *ServerGroupMethod) GetName() string            { return "group" }
 func (h *ServerGroupMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ServerGroupMethod) GetIsStatic() bool          { return false }
+
 var serverGroupMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "prefix", 0, nil, nil),
 }
@@ -31,6 +32,7 @@ var serverGroupMethodGetParams = []data.GetValue{
 func (h *ServerGroupMethod) GetParams() []data.GetValue {
 	return serverGroupMethodGetParams
 }
+
 var serverGroupMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "prefix", 0, nil),
 }

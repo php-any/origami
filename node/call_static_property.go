@@ -26,7 +26,7 @@ func NewCallStaticProperty(token *TokenFrom, stmt data.GetValue, property string
 func (pe *CallStaticProperty) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	switch expr := pe.Stmt.(type) {
 	case data.GetStaticProperty:
-		property, ok := expr.GetStaticProperty(pe.Property)
+		property, ok := staticPropertyValue(ctx, expr, pe.Property)
 		if ok {
 			return property, nil
 		}
@@ -58,7 +58,7 @@ func (pe *CallStaticProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 		switch expr := next.(type) {
 		case *data.ClassValue:
 			if c, ok := expr.Class.(data.GetStaticProperty); ok {
-				property, ok := c.GetStaticProperty(pe.Property)
+				property, ok := staticPropertyValue(ctx, c, pe.Property)
 				if ok {
 					return property, nil
 				}
@@ -68,7 +68,7 @@ func (pe *CallStaticProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 			}
 
 		case data.GetStaticProperty:
-			property, ok := expr.GetStaticProperty(pe.Property)
+			property, ok := staticPropertyValue(ctx, expr, pe.Property)
 			if ok {
 				return property, nil
 			}
@@ -103,10 +103,8 @@ func (pe *CallStaticProperty) findStaticPropertyInParents(ctx data.Context, clas
 		if acl != nil || parent == nil {
 			break
 		}
-		if gsp, ok := parent.(data.GetStaticProperty); ok {
-			if prop, found := gsp.GetStaticProperty(pe.Property); found {
-				return prop, true
-			}
+		if prop, found := staticPropertyOn(vm, parent, pe.Property); found {
+			return prop, true
 		}
 		extend = parent.GetExtend()
 	}

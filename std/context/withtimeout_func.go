@@ -57,6 +57,7 @@ func (h *WithTimeoutFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 func (h *WithTimeoutFunction) GetName() string            { return "context\\withTimeout" }
 func (h *WithTimeoutFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *WithTimeoutFunction) GetIsStatic() bool          { return true }
+
 var withTimeoutFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "parent", 0, nil, nil),
 	node.NewParameter(nil, "timeout", 1, nil, nil),
@@ -65,6 +66,7 @@ var withTimeoutFunctionGetParams = []data.GetValue{
 func (h *WithTimeoutFunction) GetParams() []data.GetValue {
 	return withTimeoutFunctionGetParams
 }
+
 var withTimeoutFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "parent", 0, nil),
 	node.NewVariable(nil, "timeout", 1, nil),

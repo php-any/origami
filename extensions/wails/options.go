@@ -294,7 +294,7 @@ func (m *optionsAppBindMethod) Call(ctx data.Context) (data.GetValue, data.Contr
 	if v, ok := ctx.GetIndexValue(0); ok {
 		existing, _ := cv.GetProperty("_bind")
 		if av, ok := existing.(*data.ArrayValue); ok {
-			av.List = append(av.List, data.NewZVal(v))
+			av.AppendValue(v)
 		}
 	}
 	return nil, nil

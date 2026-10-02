@@ -41,6 +41,7 @@ func (h *RequestHasMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 func (h *RequestHasMethod) GetName() string            { return "has" }
 func (h *RequestHasMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RequestHasMethod) GetIsStatic() bool          { return false }
+
 var requestHasMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "key", 0, nil, nil),
 }
@@ -48,6 +49,7 @@ var requestHasMethodGetParams = []data.GetValue{
 func (h *RequestHasMethod) GetParams() []data.GetValue {
 	return requestHasMethodGetParams
 }
+
 var requestHasMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "key", 0, nil),
 }

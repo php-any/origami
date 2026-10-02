@@ -1,7 +1,7 @@
 package data
 
 type ArrayValueUnshift struct {
-	source *[]*ZVal
+	source *ArrayValue
 }
 
 // Call 实现数组的 unshift 方法
@@ -13,17 +13,17 @@ func (a *ArrayValueUnshift) Call(ctx Context) (GetValue, Control) {
 		// argument data.Parameters
 		argv, _ := argument.GetValue(ctx)
 		if ar, ok := argv.(*ArrayValue); ok {
-			for _, zval := range ar.List {
+			for _, zval := range ar.Range() {
 				args = append(args, zval)
 			}
 		}
 	}
 
 	// 将参数添加到数组开头
-	*a.source = append(args, *a.source...)
+	a.source.ReplaceAll(append(args, a.source.slots()...))
 
 	// 返回新的数组长度
-	return NewIntValue(len(*a.source)), nil
+	return NewIntValue(a.source.Len()), nil
 }
 
 func (a *ArrayValueUnshift) GetName() string {

@@ -4,6 +4,7 @@ import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/utils"
+	"strings"
 )
 
 // NewIsAFunction 创建 is_a 函数
@@ -18,142 +19,67 @@ func NewIsAFunction() data.FuncStmt {
 type IsAFunction struct{}
 
 func (f *IsAFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	objectOrClass, ok := ctx.GetIndexValue(0)
-	if !ok || objectOrClass == nil {
+	source, _ := ctx.GetIndexValue(0)
+	target, err := utils.ConvertFromIndex[string](ctx, 1)
+	if err != nil || target == "" {
 		return data.NewBoolValue(false), nil
 	}
-
-	className, err := utils.ConvertFromIndex[string](ctx, 1)
-	if err != nil || className == "" {
-		return data.NewBoolValue(false), nil
-	}
-
 	allowString, _ := utils.ConvertFromIndex[bool](ctx, 2)
-
-	vm := ctx.GetVM()
-
-	if tv, ok := objectOrClass.(*data.ThrowValue); ok && tv.Object != nil {
-		objectOrClass = tv.Object
-	}
-
-	// 如果是对象实例
-	if classValue, ok := objectOrClass.(*data.ClassValue); ok {
-		targetName, ok := resolveTypeNameForIsA(vm, className)
-		if !ok {
-			return data.NewBoolValue(false), nil
-		}
-		result, acl := checkClassIsHelper(ctx, classValue.Class, targetName)
-		if acl != nil {
-			return data.NewBoolValue(false), nil
-		}
-		return data.NewBoolValue(result), nil
-	}
-
-	// 如果是 ThisValue
-	if thisValue, ok := objectOrClass.(*data.ThisValue); ok {
-		targetName, ok := resolveTypeNameForIsA(vm, className)
-		if !ok {
-			return data.NewBoolValue(false), nil
-		}
-		result, acl := checkClassIsHelper(ctx, thisValue.Class, targetName)
-		if acl != nil {
-			return data.NewBoolValue(false), nil
-		}
-		return data.NewBoolValue(result), nil
-	}
-
-	// 如果 allow_string = true，第一个参数可以是类名字符串
-	if allowString {
-		if strVal, ok := objectOrClass.(*data.StringValue); ok {
-			sourceClassName := strVal.Value
-			if sourceClassName == "" {
-				return data.NewBoolValue(false), nil
-			}
-			sourceStmt, acl := vm.GetOrLoadClass(sourceClassName)
-			if acl != nil || sourceStmt == nil {
-				return data.NewBoolValue(false), nil
-			}
-			result, acl := checkClassIsHelper(ctx, sourceStmt, className)
-			if acl != nil {
-				return data.NewBoolValue(false), nil
-			}
-			return data.NewBoolValue(result), nil
-		}
-	}
-
-	return data.NewBoolValue(false), nil
+	result, ctl := checkNominalRelation(ctx, source, target, allowString, false)
+	return data.NewBoolValue(result), ctl
 }
 
-// checkClassIsHelper 检查 source 类是否是 target 类/接口的实例或子类
-// 复用 node.checkClassIs 的逻辑（通过接口遍历）
-func checkClassIsHelper(ctx data.Context, source data.ClassStmt, target string) (bool, data.Control) {
-	if source == nil {
+// Only the source string may autoload. Target lookup and ancestry comparisons
+// are read-only; exceptions raised by an autoloader propagate to PHP.
+func checkNominalRelation(ctx data.Context, source data.Value, target string, allowString, strict bool) (bool, data.Control) {
+	vm := ctx.GetVM()
+	var class data.ClassStmt
+	switch value := source.(type) {
+	case *data.ClassValue:
+		class = value.Class
+	case *data.ThisValue:
+		class = value.Class
+	case *data.ThrowValue:
+		if value.Object != nil {
+			class = value.Object.Class
+		} else {
+			name := value.Name
+			if name == "" {
+				name = "Exception"
+			}
+			return data.InternalTypeIsA(name, target) && (!strict || !data.TypeNameEqual(name, target)), nil
+		}
+	case *data.StringValue:
+		if !allowString || vm == nil || value.Value == "" {
+			return false, nil
+		}
+		name := strings.TrimPrefix(value.Value, "\\")
+		var iface data.InterfaceStmt
+		class, _ = vm.GetClass(name)
+		iface, _ = vm.GetInterface(name)
+		if class == nil && iface == nil {
+			_, ctl := vm.LoadPkg(name)
+			if ctl != nil {
+				return false, ctl
+			}
+			class, _ = vm.GetClass(name)
+			iface, _ = vm.GetInterface(name)
+		}
+		if iface != nil {
+			return data.InterfaceIsA(iface.GetName(), target, vm) && (!strict || !data.TypeNameEqual(iface.GetName(), target)), nil
+		}
+	case *data.FuncValue, *data.BoundFuncValue:
+		return !strict && data.TypeNameEqual(target, "Closure"), nil
+	case data.Generator:
+		return data.InternalTypeIsA("Generator", target) && (!strict || !data.TypeNameEqual(target, "Generator")), nil
+	}
+	if class == nil {
 		return false, nil
 	}
-	// 类名相同
-	if source.GetName() == target {
-		return true, nil
+	if strict && data.SameNominalClass(class, target, vm) {
+		return false, nil
 	}
-
-	vm := ctx.GetVM()
-
-	// 检查实现的接口
-	for _, impl := range source.GetImplements() {
-		if impl == target {
-			return true, nil
-		}
-		if ifaceStmt, ok := vm.GetInterface(impl); ok {
-			// 检查接口继承
-			for _, parentIface := range ifaceStmt.GetExtends() {
-				if parentIface == target {
-					return true, nil
-				}
-			}
-		}
-	}
-
-	// 检查父类继承链
-	if source.GetExtend() != nil {
-		extName := *source.GetExtend()
-		if extName == target {
-			return true, nil
-		}
-		parentStmt, acl := vm.GetOrLoadClass(extName)
-		if acl != nil {
-			return false, acl
-		}
-		if parentStmt != nil {
-			return checkClassIsHelper(ctx, parentStmt, target)
-		}
-	}
-
-	return false, nil
-}
-
-// resolveTypeNameForIsA 将 is_a 第二参数解析为已知类/接口名。
-// PHP 语义中未知类名应返回 false，而不是抛错。
-func resolveTypeNameForIsA(vm data.VM, className string) (string, bool) {
-	if className == "" {
-		return "", false
-	}
-	if cls, ok := vm.GetClass(className); ok && cls != nil {
-		return cls.GetName(), true
-	}
-	if iface, ok := vm.GetInterface(className); ok && iface != nil {
-		return iface.GetName(), true
-	}
-	pkg, acl := vm.LoadPkg(className)
-	if acl != nil || pkg == nil {
-		return "", false
-	}
-	switch v := pkg.(type) {
-	case data.ClassStmt:
-		return v.GetName(), true
-	case data.InterfaceStmt:
-		return v.GetName(), true
-	default:
-		return "", false
-	}
+	return data.NominalIsA(class, target, vm), nil
 }
 
 func (f *IsAFunction) GetName() string {

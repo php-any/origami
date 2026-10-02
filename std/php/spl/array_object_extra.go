@@ -69,26 +69,34 @@ func aoCompareZValKeys(a, b *data.ZVal) int {
 }
 
 func aoSortByValue(arr *data.ArrayValue) {
-	sort.SliceStable(arr.List, func(i, j int) bool {
-		return data.Compare(arr.List[i].Value, arr.List[j].Value) < 0
+	arr.EditPreservingKeys(func(slots []*data.ZVal) {
+		sort.SliceStable(slots, func(i, j int) bool {
+			return data.Compare(slots[i].Value, slots[j].Value) < 0
+		})
 	})
 }
 
 func aoSortByKey(arr *data.ArrayValue) {
-	sort.SliceStable(arr.List, func(i, j int) bool {
-		return aoCompareZValKeys(arr.List[i], arr.List[j]) < 0
+	arr.EditPreservingKeys(func(slots []*data.ZVal) {
+		sort.SliceStable(slots, func(i, j int) bool {
+			return aoCompareZValKeys(slots[i], slots[j]) < 0
+		})
 	})
 }
 
 func aoSortByValueNatural(arr *data.ArrayValue) {
-	sort.SliceStable(arr.List, func(i, j int) bool {
-		return strings.Compare(arr.List[i].Value.AsString(), arr.List[j].Value.AsString()) < 0
+	arr.EditPreservingKeys(func(slots []*data.ZVal) {
+		sort.SliceStable(slots, func(i, j int) bool {
+			return strings.Compare(slots[i].Value.AsString(), slots[j].Value.AsString()) < 0
+		})
 	})
 }
 
 func aoSortByValueNaturalCase(arr *data.ArrayValue) {
-	sort.SliceStable(arr.List, func(i, j int) bool {
-		return strings.Compare(strings.ToLower(arr.List[i].Value.AsString()), strings.ToLower(arr.List[j].Value.AsString())) < 0
+	arr.EditPreservingKeys(func(slots []*data.ZVal) {
+		sort.SliceStable(slots, func(i, j int) bool {
+			return strings.Compare(strings.ToLower(slots[i].Value.AsString()), strings.ToLower(slots[j].Value.AsString())) < 0
+		})
 	})
 }
 
@@ -101,45 +109,47 @@ func aoUserSort(arr *data.ArrayValue, ctx data.Context, callback data.GetValue, 
 	case *data.FuncValue:
 		callbackVars = cb.Value.GetVariables()
 	}
-	sort.SliceStable(arr.List, func(i, j int) bool {
-		fnCtx := ctx.CreateContext(callbackVars)
-		if byKey {
-			if len(callbackVars) > 0 {
-				fnCtx.SetIndexZVal(0, data.NewZVal(aiKeyAt(arr, i)))
+	arr.EditPreservingKeys(func(slots []*data.ZVal) {
+		sort.SliceStable(slots, func(i, j int) bool {
+			fnCtx := ctx.CreateContext(callbackVars)
+			if byKey {
+				if len(callbackVars) > 0 {
+					fnCtx.SetIndexZVal(0, data.NewZVal(aiKeyAt(arr, i)))
+				}
+				if len(callbackVars) > 1 {
+					fnCtx.SetIndexZVal(1, data.NewZVal(aiKeyAt(arr, j)))
+				}
+			} else {
+				if len(callbackVars) > 0 {
+					fnCtx.SetIndexZVal(0, data.NewZVal(slots[i].Value))
+				}
+				if len(callbackVars) > 1 {
+					fnCtx.SetIndexZVal(1, data.NewZVal(slots[j].Value))
+				}
 			}
-			if len(callbackVars) > 1 {
-				fnCtx.SetIndexZVal(1, data.NewZVal(aiKeyAt(arr, j)))
-			}
-		} else {
-			if len(callbackVars) > 0 {
-				fnCtx.SetIndexZVal(0, data.NewZVal(arr.List[i].Value))
-			}
-			if len(callbackVars) > 1 {
-				fnCtx.SetIndexZVal(1, data.NewZVal(arr.List[j].Value))
-			}
-		}
-		switch cb := callback.(type) {
-		case *data.FuncValue:
-			ret, ctl := cb.Call(fnCtx)
-			if ctl != nil {
-				if rv, ok := ctl.(data.ReturnControl); ok {
-					if v, ok := rv.ReturnValue().(data.Value); ok {
+			switch cb := callback.(type) {
+			case *data.FuncValue:
+				ret, ctl := cb.Call(fnCtx)
+				if ctl != nil {
+					if rv, ok := ctl.(data.ReturnControl); ok {
+						if v, ok := rv.ReturnValue().(data.Value); ok {
+							if iv, ok := v.(*data.IntValue); ok {
+								return iv.Value < 0
+							}
+						}
+					}
+					return false
+				}
+				if ret != nil {
+					if v, ok := ret.(data.Value); ok {
 						if iv, ok := v.(*data.IntValue); ok {
 							return iv.Value < 0
 						}
 					}
 				}
-				return false
 			}
-			if ret != nil {
-				if v, ok := ret.(data.Value); ok {
-					if iv, ok := v.(*data.IntValue); ok {
-						return iv.Value < 0
-					}
-				}
-			}
-		}
-		return false
+			return false
+		})
 	})
 	return true
 }
@@ -213,11 +223,13 @@ func (m *ArrayObjectUasortMethod) GetName() string            { return "uasort" 
 func (m *ArrayObjectUasortMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectUasortMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectUasortMethod) GetReturnType() data.Types  { return data.Bool{} }
+
 var arrayObjectUasortMethodGetParams = []data.GetValue{node.NewParameter(nil, "callback", 0, nil, data.Mixed{})}
 
 func (m *ArrayObjectUasortMethod) GetParams() []data.GetValue {
 	return arrayObjectUasortMethodGetParams
 }
+
 var arrayObjectUasortMethodGetVariables = []data.Variable{node.NewVariable(nil, "callback", 0, data.Mixed{})}
 
 func (m *ArrayObjectUasortMethod) GetVariables() []data.Variable {
@@ -238,11 +250,13 @@ func (m *ArrayObjectUksortMethod) GetName() string            { return "uksort" 
 func (m *ArrayObjectUksortMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectUksortMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectUksortMethod) GetReturnType() data.Types  { return data.Bool{} }
+
 var arrayObjectUksortMethodGetParams = []data.GetValue{node.NewParameter(nil, "callback", 0, nil, data.Mixed{})}
 
 func (m *ArrayObjectUksortMethod) GetParams() []data.GetValue {
 	return arrayObjectUksortMethodGetParams
 }
+
 var arrayObjectUksortMethodGetVariables = []data.Variable{node.NewVariable(nil, "callback", 0, data.Mixed{})}
 
 func (m *ArrayObjectUksortMethod) GetVariables() []data.Variable {
@@ -279,11 +293,13 @@ func (m *ArrayObjectSetFlagsMethod) GetName() string            { return "setFla
 func (m *ArrayObjectSetFlagsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectSetFlagsMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectSetFlagsMethod) GetReturnType() data.Types  { return nil }
+
 var arrayObjectSetFlagsMethodGetParams = []data.GetValue{node.NewParameter(nil, "flags", 0, data.NewIntValue(0), data.Int{})}
 
 func (m *ArrayObjectSetFlagsMethod) GetParams() []data.GetValue {
 	return arrayObjectSetFlagsMethodGetParams
 }
+
 var arrayObjectSetFlagsMethodGetVariables = []data.Variable{node.NewVariable(nil, "flags", 0, data.Int{})}
 
 func (m *ArrayObjectSetFlagsMethod) GetVariables() []data.Variable {
@@ -323,11 +339,13 @@ func (m *ArrayObjectSetIteratorClassMethod) GetName() string            { return
 func (m *ArrayObjectSetIteratorClassMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectSetIteratorClassMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectSetIteratorClassMethod) GetReturnType() data.Types  { return nil }
+
 var arrayObjectSetIteratorClassMethodGetParams = []data.GetValue{node.NewParameter(nil, "iteratorClass", 0, data.NewStringValue("ArrayIterator"), data.String{})}
 
 func (m *ArrayObjectSetIteratorClassMethod) GetParams() []data.GetValue {
 	return arrayObjectSetIteratorClassMethodGetParams
 }
+
 var arrayObjectSetIteratorClassMethodGetVariables = []data.Variable{node.NewVariable(nil, "iteratorClass", 0, data.String{})}
 
 func (m *ArrayObjectSetIteratorClassMethod) GetVariables() []data.Variable {
@@ -358,11 +376,11 @@ func (m *ArrayObjectSerializeMethod) Call(ctx data.Context) (data.GetValue, data
 	if cv == nil {
 		return data.NewArrayValue(nil), nil
 	}
-	return &data.ArrayValue{List: []*data.ZVal{
+	return data.NewArrayValueFromSlots([]*data.ZVal{
 		data.NewNamedZVal("storage", data.CloneArrayValue(aoGetStorage(cv))),
 		data.NewNamedZVal("flags", aoGetFlags(cv)),
 		data.NewNamedZVal("iteratorClass", data.NewStringValue(aoGetIteratorClass(cv))),
-	}}, nil
+	}), nil
 }
 
 type ArrayObjectUnserializeMethod struct{}
@@ -371,11 +389,13 @@ func (m *ArrayObjectUnserializeMethod) GetName() string            { return "__u
 func (m *ArrayObjectUnserializeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *ArrayObjectUnserializeMethod) GetIsStatic() bool          { return false }
 func (m *ArrayObjectUnserializeMethod) GetReturnType() data.Types  { return nil }
+
 var arrayObjectUnserializeMethodGetParams = []data.GetValue{node.NewParameter(nil, "data", 0, data.NewArrayValue(nil), data.Mixed{})}
 
 func (m *ArrayObjectUnserializeMethod) GetParams() []data.GetValue {
 	return arrayObjectUnserializeMethodGetParams
 }
+
 var arrayObjectUnserializeMethodGetVariables = []data.Variable{node.NewVariable(nil, "data", 0, data.Mixed{})}
 
 func (m *ArrayObjectUnserializeMethod) GetVariables() []data.Variable {
@@ -391,7 +411,8 @@ func (m *ArrayObjectUnserializeMethod) Call(ctx data.Context) (data.GetValue, da
 	if !ok {
 		return nil, nil
 	}
-	for _, z := range arr.List {
+	for arraySlots136, arrayPosition136 := arr.View(), 0; arrayPosition136 < arraySlots136.Len(); arrayPosition136++ {
+		z := arraySlots136.At(arrayPosition136)
 		if z == nil {
 			continue
 		}

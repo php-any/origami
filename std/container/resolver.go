@@ -131,6 +131,7 @@ func paramType(def data.GetValue) data.Types {
 }
 
 func resolveSelfType(ty data.Types, className string) data.Types {
+	ty = data.LegacyType(ty)
 	switch ty.(type) {
 	case data.StaticType:
 		return data.Class{Name: className}
@@ -140,6 +141,7 @@ func resolveSelfType(ty data.Types, className string) data.Types {
 }
 
 func typeHintAbstract(ty data.Types) (string, bool) {
+	ty = data.LegacyType(ty)
 	if ty == nil {
 		return "", false
 	}

@@ -22,6 +22,7 @@ func (h *ResponseWriterStatusMethod) Call(ctx data.Context) (data.GetValue, data
 func (h *ResponseWriterStatusMethod) GetName() string            { return "status" }
 func (h *ResponseWriterStatusMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResponseWriterStatusMethod) GetIsStatic() bool          { return false }
+
 var responseWriterStatusMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "statusCode", 0, nil, data.NewBaseType("int")),
 }
@@ -29,6 +30,7 @@ var responseWriterStatusMethodGetParams = []data.GetValue{
 func (h *ResponseWriterStatusMethod) GetParams() []data.GetValue {
 	return responseWriterStatusMethodGetParams
 }
+
 var responseWriterStatusMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "statusCode", 0, nil),
 }

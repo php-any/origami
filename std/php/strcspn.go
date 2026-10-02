@@ -36,6 +36,7 @@ func (fn *StrcspnFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (fn *StrcspnFunction) GetName() string { return "strcspn" }
+
 var strcspnFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "str", 0, nil, nil),
 	node.NewParameter(nil, "char_list", 1, nil, nil),
@@ -44,6 +45,7 @@ var strcspnFunctionGetParams = []data.GetValue{
 func (fn *StrcspnFunction) GetParams() []data.GetValue {
 	return strcspnFunctionGetParams
 }
+
 var strcspnFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "str", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "char_list", 1, data.NewBaseType("string")),

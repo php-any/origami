@@ -22,6 +22,7 @@ func (h *RowsCloseMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *RowsCloseMethod) GetName() string            { return "close" }
 func (h *RowsCloseMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RowsCloseMethod) GetIsStatic() bool          { return true }
+
 var rowsCloseMethodGetParams = []data.GetValue{}
 
 func (h *RowsCloseMethod) GetParams() []data.GetValue {

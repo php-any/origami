@@ -29,6 +29,7 @@ func (h *HeaderSetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (h *HeaderSetMethod) GetName() string            { return "set" }
 func (h *HeaderSetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *HeaderSetMethod) GetIsStatic() bool          { return false }
+
 var headerSetMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "param0", 0, nil, nil),
 	node.NewParameter(nil, "param1", 1, nil, nil),
@@ -37,6 +38,7 @@ var headerSetMethodGetParams = []data.GetValue{
 func (h *HeaderSetMethod) GetParams() []data.GetValue {
 	return headerSetMethodGetParams
 }
+
 var headerSetMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "param0", 0, nil),
 	node.NewVariable(nil, "param1", 1, nil),

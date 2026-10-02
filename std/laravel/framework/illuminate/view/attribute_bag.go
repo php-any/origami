@@ -131,7 +131,7 @@ func bagConstruct(ctx data.Context) (data.GetValue, data.Control) {
 		for _, e := range kit.Entries(attrs) {
 			zv := data.NewZVal(e.Value)
 			zv.Name = e.KeyStr
-			out.List = append(out.List, zv)
+			out.AppendEntries(zv)
 		}
 		_ = cv.SetProperty("attributes", out)
 	}
@@ -243,7 +243,7 @@ func bagFilter(ctx data.Context) (data.GetValue, data.Control) {
 		if keep {
 			zv := data.NewZVal(e.Value)
 			zv.Name = e.KeyStr
-			out.List = append(out.List, zv)
+			out.AppendEntries(zv)
 		}
 	}
 	return newBag(ctx, out), nil
@@ -308,8 +308,8 @@ func bagExtractPropNames(ctx data.Context) (data.GetValue, data.Control) {
 				name = v.AsString()
 			}
 		}
-		out.List = append(out.List, data.NewZVal(data.NewStringValue(name)))
-		out.List = append(out.List, data.NewZVal(data.NewStringValue(toKebab(name))))
+		out.AppendValue(data.NewStringValue(name))
+		out.AppendValue(data.NewStringValue(toKebab(name)))
 	}
 	return out, nil
 }
@@ -367,7 +367,7 @@ func bagSetAttributes(ctx data.Context) (data.GetValue, data.Control) {
 		for _, e := range kit.Entries(attrs) {
 			zv := data.NewZVal(e.Value)
 			zv.Name = e.KeyStr
-			out.List = append(out.List, zv)
+			out.AppendEntries(zv)
 		}
 		_ = cv.SetProperty("attributes", out)
 	}
@@ -385,7 +385,7 @@ func bagMerge(ctx data.Context) (data.GetValue, data.Control) {
 	for _, e := range kit.Entries(bagAttrs(cv)) {
 		zv := data.NewZVal(e.Value)
 		zv.Name = e.KeyStr
-		out.List = append(out.List, zv)
+		out.AppendEntries(zv)
 		seen[e.KeyStr] = true
 	}
 	for _, e := range kit.Entries(defaults) {
@@ -394,7 +394,7 @@ func bagMerge(ctx data.Context) (data.GetValue, data.Control) {
 		}
 		zv := data.NewZVal(e.Value)
 		zv.Name = e.KeyStr
-		out.List = append(out.List, zv)
+		out.AppendEntries(zv)
 	}
 	return newBag(ctx, out), nil
 }
@@ -409,7 +409,7 @@ func bagClass(ctx data.Context) (data.GetValue, data.Control) {
 	for _, e := range kit.Entries(bagAttrs(cv)) {
 		zv := data.NewZVal(e.Value)
 		zv.Name = e.KeyStr
-		out.List = append(out.List, zv)
+		out.AppendEntries(zv)
 	}
 	if list != "" {
 		existing := ""
@@ -420,10 +420,11 @@ func bagClass(ctx data.Context) (data.GetValue, data.Control) {
 		}
 		merged := strings.TrimSpace(existing + " " + list)
 		found := false
-		for i, z := range out.List {
+		for arraySlots66, i := out.View(), 0; i < arraySlots66.Len(); i++ {
+			z := arraySlots66.At(i)
 			if z != nil && z.Name == "class" {
-				out.List[i] = data.NewZVal(data.NewStringValue(merged))
-				out.List[i].Name = "class"
+				out.ReplaceSlot(i, data.NewZVal(data.NewStringValue(merged)))
+				out.At(i).Name = "class"
 				found = true
 				break
 			}
@@ -431,7 +432,7 @@ func bagClass(ctx data.Context) (data.GetValue, data.Control) {
 		if !found {
 			zv := data.NewZVal(data.NewStringValue(merged))
 			zv.Name = "class"
-			out.List = append(out.List, zv)
+			out.AppendEntries(zv)
 		}
 	}
 	return newBag(ctx, out), nil
@@ -522,7 +523,7 @@ func bagStyle(ctx data.Context) (data.GetValue, data.Control) {
 		}
 		zv := data.NewZVal(e.Value)
 		zv.Name = e.KeyStr
-		out.List = append(out.List, zv)
+		out.AppendEntries(zv)
 	}
 	// 对齐 ComponentAttributeBag::merge：各段以 ';' 收尾后空格拼接；两边都空则不写 style。
 	parts := make([]string, 0, 2)
@@ -539,7 +540,7 @@ func bagStyle(ctx data.Context) (data.GetValue, data.Control) {
 	if len(parts) > 0 {
 		zv := data.NewZVal(data.NewStringValue(strings.Join(parts, " ")))
 		zv.Name = "style"
-		out.List = append(out.List, zv)
+		out.AppendEntries(zv)
 	}
 	return newBag(ctx, out), nil
 }
@@ -554,7 +555,7 @@ func bagFilterKeys(ctx data.Context, keep func(string) bool) (data.GetValue, dat
 		if keep(e.KeyStr) {
 			zv := data.NewZVal(e.Value)
 			zv.Name = e.KeyStr
-			out.List = append(out.List, zv)
+			out.AppendEntries(zv)
 		}
 	}
 	return newBag(ctx, out), nil
@@ -673,7 +674,9 @@ func bagGetIterator(ctx data.Context) (data.GetValue, data.Control) {
 	it := data.NewClassValue(cls, ctx.CreateBaseContext())
 	if ctor := cls.GetConstruct(); ctor != nil {
 		nctx := it.CreateContext(ctor.GetVariables())
-		data.BindDeclaredArgs(nctx, ctor, []data.Value{bagAttrs(cv)})
+		if ctl := data.BindDeclaredArgs(nctx, ctor, []data.Value{bagAttrs(cv)}); ctl != nil {
+			return nil, ctl
+		}
 		if _, ctl := ctor.Call(nctx); ctl != nil {
 			return nil, ctl
 		}
@@ -691,16 +694,17 @@ func bagOffsetSet(ctx data.Context) (data.GetValue, data.Control) {
 	key := kit.Arg(ctx, 0).AsString()
 	val := kit.Arg(ctx, 1)
 	attrs := bagAttrs(cv)
-	for i, z := range attrs.List {
+	for arraySlots67, i := attrs.View(), 0; i < arraySlots67.Len(); i++ {
+		z := arraySlots67.At(i)
 		if z != nil && z.Name == key {
-			attrs.List[i] = data.NewZVal(val)
-			attrs.List[i].Name = key
+			attrs.ReplaceSlot(i, data.NewZVal(val))
+			attrs.At(i).Name = key
 			return data.NewNullValue(), nil
 		}
 	}
 	zv := data.NewZVal(val)
 	zv.Name = key
-	attrs.List = append(attrs.List, zv)
+	attrs.AppendEntries(zv)
 	return data.NewNullValue(), nil
 }
 
@@ -711,14 +715,15 @@ func bagOffsetUnset(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	key := kit.Arg(ctx, 0).AsString()
 	attrs := bagAttrs(cv)
-	out := make([]*data.ZVal, 0, len(attrs.List))
-	for _, z := range attrs.List {
+	out := make([]*data.ZVal, 0, attrs.Len())
+	for arraySlots68, arrayPosition68 := attrs.View(), 0; arrayPosition68 < arraySlots68.Len(); arrayPosition68++ {
+		z := arraySlots68.At(arrayPosition68)
 		if z != nil && z.Name == key {
 			continue
 		}
 		out = append(out, z)
 	}
-	attrs.List = out
+	attrs.ReplaceAll(out)
 	return data.NewNullValue(), nil
 }
 

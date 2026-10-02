@@ -59,9 +59,9 @@ func NewHigherOrderProxyClass() data.ClassStmt {
 	return c
 }
 
-func (c *HigherOrderProxyClass) GetName() string                          { return higherOrderProxyName }
-func (c *HigherOrderProxyClass) GetExtend() *string                       { return nil }
-func (c *HigherOrderProxyClass) GetImplements() []string                  { return nil }
+func (c *HigherOrderProxyClass) GetName() string         { return higherOrderProxyName }
+func (c *HigherOrderProxyClass) GetExtend() *string      { return nil }
+func (c *HigherOrderProxyClass) GetImplements() []string { return nil }
 func (c *HigherOrderProxyClass) GetProperty(name string) (data.Property, bool) {
 	switch name {
 	case "collection", "method":
@@ -166,7 +166,9 @@ func hopCall(ctx data.Context) (data.GetValue, data.Control) {
 				return nil, data.NewErrorThrow(nil, fmt.Errorf("当前值(%q)不支持调用函数, 你调用的函数(%s)", icv.Class.GetName(), method))
 			}
 			nctx := icv.CreateContext(m.GetVariables())
-			data.BindDeclaredArgs(nctx, m, args)
+			if ctl := data.BindDeclaredArgs(nctx, m, args); ctl != nil {
+				return nil, ctl
+			}
 			return m.Call(nctx)
 		}
 		switch c := item.(type) {
@@ -194,7 +196,9 @@ func hopApply(ctx data.Context, proxy *data.ClassValue, mapFn func(data.Context)
 	}
 	cb := data.NewFuncValue(&hopFuncStmt{fn: mapFn})
 	nctx := coll.CreateContext(m.GetVariables())
-	data.BindDeclaredArgs(nctx, m, []data.Value{cb})
+	if ctl := data.BindDeclaredArgs(nctx, m, []data.Value{cb}); ctl != nil {
+		return nil, ctl
+	}
 	return m.Call(nctx)
 }
 
@@ -204,6 +208,7 @@ type hopFuncStmt struct {
 
 func (h *hopFuncStmt) Call(ctx data.Context) (data.GetValue, data.Control) { return h.fn(ctx) }
 func (h *hopFuncStmt) GetName() string                                     { return "{closure}" }
+
 var hopFuncStmtGetParams = []data.GetValue{
 	node.NewParameter(nil, "value", 0, nil, nil),
 	node.NewParameter(nil, "key", 1, data.NewNullValue(), nil),
@@ -212,6 +217,7 @@ var hopFuncStmtGetParams = []data.GetValue{
 func (h *hopFuncStmt) GetParams() []data.GetValue {
 	return hopFuncStmtGetParams
 }
+
 var hopFuncStmtGetVariables = []data.Variable{
 	node.NewVariable(nil, "value", 0, nil),
 	node.NewVariable(nil, "key", 1, nil),

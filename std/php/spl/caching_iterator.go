@@ -57,7 +57,7 @@ func (c *CachingIteratorClass) GetValue(ctx data.Context) (data.GetValue, data.C
 	cv.SetProperty(iiCurKeyKey, data.NewNullValue())
 	cv.SetProperty(ciCacheKey, data.NewNullValue())
 	cv.SetProperty(ciFlagsKey, data.NewIntValue(0))
-	cv.SetProperty(ciFullCacheKey, &data.ArrayValue{List: []*data.ZVal{}})
+	cv.SetProperty(ciFullCacheKey, data.NewArrayValueFromSlots([]*data.ZVal{}))
 	return cv, nil
 }
 
@@ -118,7 +118,7 @@ func ciGetFullCache(cv *data.ClassValue) *data.ArrayValue {
 	if arr, ok := v.(*data.ArrayValue); ok {
 		return arr
 	}
-	arr := &data.ArrayValue{List: []*data.ZVal{}}
+	arr := data.NewArrayValueFromSlots([]*data.ZVal{})
 	cv.ObjectValue.SetProperty(ciFullCacheKey, arr)
 	return arr
 }
@@ -133,7 +133,7 @@ func ciUpdateCache(cv *data.ClassValue) {
 	ciSetCache(cv, cur)
 	if ciGetFlags(cv)&256 != 0 { // FULL_CACHE
 		arr := ciGetFullCache(cv)
-		arr.List = append(arr.List, data.NewZVal(cur))
+		arr.AppendValue(cur)
 	}
 }
 
@@ -168,6 +168,7 @@ func (m *CIConstructMethod) GetName() string            { return "__construct" }
 func (m *CIConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *CIConstructMethod) GetIsStatic() bool          { return false }
 func (m *CIConstructMethod) GetReturnType() data.Types  { return nil }
+
 var cIConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
 	node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.NewBaseType("int")),
@@ -176,6 +177,7 @@ var cIConstructMethodGetParams = []data.GetValue{
 func (m *CIConstructMethod) GetParams() []data.GetValue {
 	return cIConstructMethodGetParams
 }
+
 var cIConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
 	node.NewVariable(nil, "flags", 1, data.NewBaseType("int")),
@@ -193,7 +195,7 @@ func (m *CIConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	}
 	iiSetInner(cv, it)
 	cv.ObjectValue.SetProperty(ciFlagsKey, data.NewIntValue(splAsInt(flags)))
-	cv.ObjectValue.SetProperty(ciFullCacheKey, &data.ArrayValue{List: []*data.ZVal{}})
+	cv.ObjectValue.SetProperty(ciFullCacheKey, data.NewArrayValueFromSlots([]*data.ZVal{}))
 	iiSetValid(cv, false)
 	return nil, nil
 }
@@ -211,7 +213,7 @@ func (m *CIRewindMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if cv == nil {
 		return nil, nil
 	}
-	cv.ObjectValue.SetProperty(ciFullCacheKey, &data.ArrayValue{List: []*data.ZVal{}})
+	cv.ObjectValue.SetProperty(ciFullCacheKey, data.NewArrayValueFromSlots([]*data.ZVal{}))
 	inner := iiGetInner(cv)
 	iiCallInnerMethod(inner, "rewind")
 	iiSyncFromInner(cv)
@@ -308,7 +310,7 @@ func (m *CICountMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewIntValue(0), nil
 	}
 	if ciGetFlags(cv)&256 != 0 {
-		return data.NewIntValue(len(ciGetFullCache(cv).List)), nil
+		return data.NewIntValue(ciGetFullCache(cv).Len()), nil
 	}
 	return data.NewIntValue(0), nil
 }
@@ -319,6 +321,7 @@ func (m *CISetFlagsMethod) GetName() string            { return "setFlags" }
 func (m *CISetFlagsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *CISetFlagsMethod) GetIsStatic() bool          { return false }
 func (m *CISetFlagsMethod) GetReturnType() data.Types  { return nil }
+
 var cISetFlagsMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "flags", 0, nil, data.NewBaseType("int")),
 }
@@ -326,6 +329,7 @@ var cISetFlagsMethodGetParams = []data.GetValue{
 func (m *CISetFlagsMethod) GetParams() []data.GetValue {
 	return cISetFlagsMethodGetParams
 }
+
 var cISetFlagsMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "flags", 0, data.NewBaseType("int")),
 }
@@ -388,7 +392,7 @@ func (c *RecursiveCachingIteratorClass) GetValue(ctx data.Context) (data.GetValu
 	cv.SetProperty(iiCurKeyKey, data.NewNullValue())
 	cv.SetProperty(ciCacheKey, data.NewNullValue())
 	cv.SetProperty(ciFlagsKey, data.NewIntValue(0))
-	cv.SetProperty(ciFullCacheKey, &data.ArrayValue{List: []*data.ZVal{}})
+	cv.SetProperty(ciFullCacheKey, data.NewArrayValueFromSlots([]*data.ZVal{}))
 	return cv, nil
 }
 
@@ -414,6 +418,7 @@ func (m *RCIConstructMethod) GetName() string            { return "__construct" 
 func (m *RCIConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *RCIConstructMethod) GetIsStatic() bool          { return false }
 func (m *RCIConstructMethod) GetReturnType() data.Types  { return nil }
+
 var rCIConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("RecursiveIterator")),
 	node.NewParameter(nil, "flags", 1, data.NewIntValue(0), data.NewBaseType("int")),
@@ -422,6 +427,7 @@ var rCIConstructMethodGetParams = []data.GetValue{
 func (m *RCIConstructMethod) GetParams() []data.GetValue {
 	return rCIConstructMethodGetParams
 }
+
 var rCIConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "iterator", 0, data.NewBaseType("RecursiveIterator")),
 	node.NewVariable(nil, "flags", 1, data.NewBaseType("int")),
@@ -439,7 +445,7 @@ func (m *RCIConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	}
 	iiSetInner(cv, it)
 	cv.ObjectValue.SetProperty(ciFlagsKey, data.NewIntValue(splAsInt(flags)))
-	cv.ObjectValue.SetProperty(ciFullCacheKey, &data.ArrayValue{List: []*data.ZVal{}})
+	cv.ObjectValue.SetProperty(ciFullCacheKey, data.NewArrayValueFromSlots([]*data.ZVal{}))
 	iiSetValid(cv, false)
 	return nil, nil
 }

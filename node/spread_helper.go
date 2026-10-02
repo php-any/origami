@@ -12,8 +12,9 @@ import (
 func spreadToValues(ctx data.Context, spreadVal data.GetValue) ([]data.Value, data.Control) {
 	switch v := spreadVal.(type) {
 	case *data.ArrayValue:
-		result := make([]data.Value, 0, len(v.List))
-		for _, z := range v.List {
+		result := make([]data.Value, 0, v.Len())
+		for arraySlots26, arrayPosition26 := v.View(), 0; arrayPosition26 < arraySlots26.Len(); arrayPosition26++ {
+			z := arraySlots26.At(arrayPosition26)
 			if z != nil {
 				result = append(result, z.Value)
 			}
@@ -121,8 +122,9 @@ func iterateIteratorMethods(ctx data.Context, obj *data.ClassValue) ([]data.Valu
 func spreadToValuesForNew(ctx data.Context, spreadVal data.GetValue) ([]data.GetValue, bool) {
 	switch v := spreadVal.(type) {
 	case *data.ArrayValue:
-		result := make([]data.GetValue, 0, len(v.List))
-		for _, z := range v.List {
+		result := make([]data.GetValue, 0, v.Len())
+		for arraySlots27, arrayPosition27 := v.View(), 0; arrayPosition27 < arraySlots27.Len(); arrayPosition27++ {
+			z := arraySlots27.At(arrayPosition27)
 			if z == nil {
 				continue
 			}

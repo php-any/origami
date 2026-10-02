@@ -36,6 +36,7 @@ func (f *RoundFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *RoundFunction) GetName() string { return "round" }
+
 var roundFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "num", 0, nil, nil),
 	node.NewParameter(nil, "precision", 1, node.NewIntLiteral(nil, "0"), nil),
@@ -44,6 +45,7 @@ var roundFunctionGetParams = []data.GetValue{
 func (f *RoundFunction) GetParams() []data.GetValue {
 	return roundFunctionGetParams
 }
+
 var roundFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "num", 0, nil),
 	node.NewVariable(nil, "precision", 1, data.NewBaseType("int")),

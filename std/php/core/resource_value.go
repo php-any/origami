@@ -1,7 +1,9 @@
 package core
 
 import (
+	"context"
 	"fmt"
+	"io"
 
 	"github.com/php-any/origami/data"
 )
@@ -15,8 +17,23 @@ type ResourceValue struct {
 // NewResourceValue 创建资源值
 func NewResourceValue(resourceClass *ResourceClass, ctx data.Context) *ResourceValue {
 	classValue := data.NewClassValue(resourceClass, ctx)
-	return &ResourceValue{
-		ClassValue: classValue,
+	if closer, ok := resourceClass.Resource.(io.Closer); ok {
+		BindOwnedResource(ctx, closer)
+	}
+	return &ResourceValue{ClassValue: classValue}
+}
+
+// BindOwnedResource also covers handles held by native PHP objects, such as
+// SplFileObject, which do not expose a PHP resource wrapper.
+func BindOwnedResource(ctx data.Context, closer io.Closer) {
+	if ctx != nil {
+		request := ctx.GoContext()
+		if request.Done() != nil {
+			stop := context.AfterFunc(request, func() { _ = closer.Close() })
+			if resource, ok := closer.(interface{ BindRequestCancel(func() bool) }); ok {
+				resource.BindRequestCancel(stop)
+			}
+		}
 	}
 }
 

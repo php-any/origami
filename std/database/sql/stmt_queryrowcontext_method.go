@@ -52,6 +52,7 @@ func (h *StmtQueryRowContextMethod) Call(ctx data.Context) (data.GetValue, data.
 func (h *StmtQueryRowContextMethod) GetName() string            { return "queryRowContext" }
 func (h *StmtQueryRowContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *StmtQueryRowContextMethod) GetIsStatic() bool          { return true }
+
 var stmtQueryRowContextMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "ctx", 0, nil, nil),
 	node.NewParameters(nil, "args", 1, nil, nil),

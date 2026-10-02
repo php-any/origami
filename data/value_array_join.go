@@ -1,7 +1,7 @@
 package data
 
 type ArrayValueJoin struct {
-	source []*ZVal
+	source *ArrayValue
 }
 
 // Call 实现数组的 join 方法
@@ -17,7 +17,7 @@ func (a *ArrayValueJoin) Call(ctx Context) (GetValue, Control) {
 
 	// 将数组元素转换为字符串并用分隔符连接
 	var result string
-	for i, zval := range a.source {
+	for i, zval := range a.source.Range() {
 		if i > 0 {
 			result += separator
 		}

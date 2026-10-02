@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"github.com/php-any/origami/utils"
 	"os"
 	"strconv"
 	"strings"
@@ -382,7 +383,7 @@ func binarySendContent(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	file := binaryFileOf(cv)
 	path := fileGetPathname(file)
-	b, err := os.ReadFile(path)
+	b, err := utils.ReadFileContext(ctx.GoContext(), path)
 	if err != nil {
 		return responseSelf(ctx), nil
 	}

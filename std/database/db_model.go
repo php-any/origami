@@ -31,6 +31,7 @@ func (d *DbModelMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (d *DbModelMethod) GetName() string            { return "model" }
 func (d *DbModelMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (d *DbModelMethod) GetIsStatic() bool          { return true }
+
 var dbModelMethodGetParams = []data.GetValue{
 	data.NewParameter("className", 0),
 	data.NewParameterDefault("connectionName", 1, data.NewNullValue(), nil),
@@ -39,6 +40,7 @@ var dbModelMethodGetParams = []data.GetValue{
 func (d *DbModelMethod) GetParams() []data.GetValue {
 	return dbModelMethodGetParams
 }
+
 var dbModelMethodGetVariables = []data.Variable{
 	data.NewVariable("className", 0, data.NewBaseType("string")),
 	data.NewVariable("connectionName", 1, data.NewBaseType("string")),

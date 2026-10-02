@@ -89,7 +89,8 @@ func parseOptionsFromObject(obj *data.ObjectValue, opts *ParseOptions) error {
 }
 
 func parseOptionsFromArrayValue(arr *data.ArrayValue, opts *ParseOptions) error {
-	for _, z := range arr.List {
+	for arraySlots146, arrayPosition146 := arr.View(), 0; arrayPosition146 < arraySlots146.Len(); arrayPosition146++ {
+		z := arraySlots146.At(arrayPosition146)
 		if z == nil || z.Name == "" {
 			continue
 		}
@@ -150,7 +151,8 @@ func boolMapFromPHPArray(val data.Value) (map[int32]bool, error) {
 		return result, nil
 	}
 	if arr, ok := val.(*data.ArrayValue); ok {
-		for _, z := range arr.List {
+		for arraySlots147, arrayPosition147 := arr.View(), 0; arrayPosition147 < arraySlots147.Len(); arrayPosition147++ {
+			z := arraySlots147.At(arrayPosition147)
 			if z == nil {
 				continue
 			}
@@ -187,7 +189,8 @@ func intMapFromPHPArray(val data.Value) (map[int32]int32, error) {
 		return result, nil
 	}
 	if arr, ok := val.(*data.ArrayValue); ok {
-		for _, z := range arr.List {
+		for arraySlots148, arrayPosition148 := arr.View(), 0; arrayPosition148 < arraySlots148.Len(); arrayPosition148++ {
+			z := arraySlots148.At(arrayPosition148)
 			if z == nil || z.Name == "" {
 				continue
 			}

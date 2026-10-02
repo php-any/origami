@@ -43,6 +43,7 @@ func (f *DumpFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *DumpFunction) GetName() string {
 	return "dump"
 }
+
 var dumpFunctionGetParams = []data.GetValue{
 	node.NewParameters(nil, "args", 0, nil, nil),
 }
@@ -50,6 +51,7 @@ var dumpFunctionGetParams = []data.GetValue{
 func (f *DumpFunction) GetParams() []data.GetValue {
 	return dumpFunctionGetParams
 }
+
 var dumpFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "args", 0, nil),
 }

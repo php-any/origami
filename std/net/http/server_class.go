@@ -15,12 +15,12 @@ func NewServerClass() data.ClassStmt {
 
 func NewServerClassFromGroup(prefix string, server *ServerClass) data.ClassStmt {
 	return &ServerClass{
-		source:       server.source,
-		Prefix:       prefix,
-		Host:         server.Host,
-		Port:         server.Port,
-		middlewares:  append([]middlewareEntry{}, server.middlewares...),
-		errorHandler: server.errorHandler,
+		source:        server.source,
+		Prefix:        prefix,
+		Host:          server.Host,
+		Port:          server.Port,
+		middlewares:   append([]middlewareEntry{}, server.middlewares...),
+		errorHandler:  server.errorHandler,
 		formatHandler: server.formatHandler,
 	}
 }
@@ -31,8 +31,8 @@ type ServerClass struct {
 
 	Prefix string
 
-	Host         string
-	Port         int
+	Host          string
+	Port          int
 	middlewares   []middlewareEntry
 	errorHandler  *errorHandlerSlot
 	formatHandler *formatHandlerSlot

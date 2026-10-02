@@ -88,7 +88,8 @@ func mapToURLValues(values map[string]data.Value) url.Values {
 	out := make(url.Values, len(values))
 	for key, value := range values {
 		if array, ok := value.(*data.ArrayValue); ok {
-			for _, item := range array.List {
+			for arraySlots159, arrayPosition159 := array.View(), 0; arrayPosition159 < arraySlots159.Len(); arrayPosition159++ {
+				item := arraySlots159.At(arrayPosition159)
 				if item != nil && item.Value != nil {
 					out.Add(key, item.Value.AsString())
 				}
@@ -218,7 +219,7 @@ func phpValue(value any) data.Value {
 		}
 		sort.Strings(keys)
 		for _, key := range keys {
-			out.List = append(out.List, data.NewNamedZVal(key, phpValue(typed[key])))
+			out.SetStringKey(key, phpValue(typed[key]))
 		}
 		return out
 	default:

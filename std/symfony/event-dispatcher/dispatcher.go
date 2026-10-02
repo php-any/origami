@@ -7,7 +7,6 @@ import (
 	"github.com/php-any/origami/node"
 )
 
-
 const eventDispatcherName = "Symfony\\Component\\EventDispatcher\\EventDispatcher"
 
 type EventDispatcherClass struct{ node.Node }
@@ -53,7 +52,7 @@ type edMethod struct {
 
 func (m *edMethod) Call(ctx data.Context) (data.GetValue, data.Control) { return m.fn(ctx) }
 func (m *edMethod) GetName() string                                     { return m.name }
-func (m *edMethod) GetModifier() data.Modifier                           { return data.ModifierPublic }
+func (m *edMethod) GetModifier() data.Modifier                          { return data.ModifierPublic }
 func (m *edMethod) GetIsStatic() bool                                   { return false }
 func (m *edMethod) GetReturnType() data.Types                           { return nil }
 func (m *edMethod) GetParams() []data.GetValue {
@@ -91,7 +90,7 @@ func edAddListener(ctx data.Context) (data.GetValue, data.Control) {
 	if name != nil {
 		key = name.AsString()
 	}
-	arr.List = append(arr.List, data.NewNamedZVal(key, listener))
+	arr.SetStringKey(key, listener)
 	_ = cv.SetProperty("listeners", arr)
 	return data.NewNullValue(), nil
 }

@@ -63,7 +63,9 @@ func (c *LengthAwarePaginatorClass) GetMethods() []data.Method {
 	}
 	return out
 }
-func (c *LengthAwarePaginatorClass) GetStaticMethod(name string) (data.Method, bool) { return c.GetMethod(name) }
+func (c *LengthAwarePaginatorClass) GetStaticMethod(name string) (data.Method, bool) {
+	return c.GetMethod(name)
+}
 
 func (c *LengthAwarePaginatorClass) register() {
 	c.methods["__construct"] = kit.InstanceMethodOpt("__construct", []string{"items", "total", "perPage", "currentPage", "options"}, 3, laConstruct)

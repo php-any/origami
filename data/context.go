@@ -3,9 +3,12 @@ package data
 import (
 	"context"
 	"errors"
+	"fmt"
 )
 
 type Context interface {
+	StrictTypes() bool
+	SetStrictTypes(bool)
 	SetNamespace(name string) Context
 	GetNamespace() string
 
@@ -249,24 +252,51 @@ func AnonVariables(n int) []Variable {
 // BindDeclaredArgs 把实参写入目标函数已声明的形参槽。
 // 帧必须先按 fn.GetVariables() 建好（含 use/局部）；多余实参只进 FlatCallArgs，
 // 不得扩槽、不得覆盖 use（PHP：未声明的额外参数不进入符号表）。
-func BindDeclaredArgs(callCtx Context, fn FuncStmt, args []Value) {
-	n := len(fn.GetParams())
-	if nv := len(fn.GetVariables()); n > nv {
-		n = nv
+func BindDeclaredArgs(callCtx Context, fn interface {
+	GetParams() []GetValue
+	GetVariables() []Variable
+}, args []Value) Control {
+	if scoped, ok := fn.(ParameterTypeScope); ok {
+		callCtx = scoped.ParameterTypeContext(callCtx)
 	}
-	if na := len(args); n > na {
-		n = na
-	}
-	for i := 0; i < n; i++ {
-		a := args[i]
-		if a == nil {
-			a = NewNullValue()
+	params := fn.GetParams()
+	for i, raw := range params {
+		if variadic, ok := raw.(Parameters); ok {
+			values := NewArrayValue([]Value{}).(*ArrayValue)
+			for j := i; j < len(args); j++ {
+				prepared, accepted, conversion := PrepareTypedValueInContext(variadic.GetType(), args[j], callCtx)
+				if conversion != nil {
+					return conversion
+				}
+				if !accepted {
+					return NewTypeError(nil, errors.New("invalid variadic callback argument type"))
+				}
+				values.AppendValue(prepared)
+			}
+			callCtx.SetIndexZVal(variadic.GetIndex(), NewZVal(values))
+			break
 		}
-		callCtx.SetIndexZVal(i, NewZVal(a))
+		if i >= len(args) {
+			if parameter, ok := raw.(Parameter); ok && parameter.GetDefaultValue() == nil {
+				return NewErrorThrowByName(nil, fmt.Errorf("too few arguments: missing $%s", parameter.GetName()), "ArgumentCountError")
+			}
+			if _, ctl := raw.GetValue(callCtx); ctl != nil {
+				return ctl
+			}
+			continue
+		}
+		if parameter, ok := raw.(Parameter); ok {
+			if ctl := parameter.SetValue(callCtx, args[i]); ctl != nil {
+				return ctl
+			}
+		} else {
+			callCtx.SetIndexZVal(i, NewZVal(args[i]))
+		}
 	}
 	if len(args) > 0 {
 		callCtx.SetFlatCallArgs(args)
 	}
+	return nil
 }
 
 type VariableTODO struct {
@@ -295,13 +325,13 @@ func (v VariableTODO) SetValue(ctx Context, value Value) Control {
 	if v.ty == nil {
 		return ctx.SetVariableValue(v, value)
 	}
-	// null 可以传递给任何类型的参数（PHP 兼容）
-	if _, isNull := value.(*NullValue); isNull {
-		return ctx.SetVariableValue(v, value)
+	prepared, ok, conversion := PrepareTypedValueInContext(v.ty, value, ctx)
+
+	if conversion != nil {
+		return conversion
 	}
-	prepared, ok := PrepareTypedValue(v.ty, value)
 	if !ok {
-		return NewErrorThrow(nil, errors.New("变量类型和赋值类型不一致, 变量类型("+v.ty.String()+"), 赋值("+value.AsString()+")"))
+		return NewTypeError(nil, errors.New("变量 $"+v.name+" 类型和赋值类型不一致, 变量类型("+v.ty.String()+"), 赋值("+value.AsString()+")"))
 	}
 	return ctx.SetVariableValue(v, prepared)
 }
@@ -365,15 +395,17 @@ func (p *ParameterTODO) GetValue(ctx Context) (GetValue, Control) {
 		return nil, acl
 	}
 
-	if _, ok := val.(AsNull); ok {
-		if p.DefaultValue != nil {
-			val, acl := p.DefaultValue.GetValue(ctx)
-			if acl != nil {
-				return nil, acl
-			}
-
-			p.SetValue(ctx, val.(Value))
+	slot := ctx.GetIndexZVal(p.Index)
+	if (slot == nil || !slot.Defined) && p.DefaultValue != nil {
+		defaultValue, acl := p.DefaultValue.GetValue(ctx)
+		if acl != nil {
+			return nil, acl
 		}
+
+		if acl := p.SetValue(ctx, defaultValue.(Value)); acl != nil {
+			return nil, acl
+		}
+		val, _ = ctx.GetIndexValue(p.Index)
 	}
 
 	return val, nil
@@ -395,13 +427,13 @@ func (p *ParameterTODO) SetValue(ctx Context, value Value) Control {
 	if p.Type == nil {
 		return ctx.SetVariableValue(p, value)
 	}
-	// null 可以传递给任何类型的参数（PHP 兼容）
-	if _, isNull := value.(*NullValue); isNull {
-		return ctx.SetVariableValue(p, value)
+	prepared, ok, conversion := PrepareTypedValueInContext(p.Type, value, ctx)
+
+	if conversion != nil {
+		return conversion
 	}
-	prepared, ok := PrepareTypedValue(p.Type, value)
 	if !ok {
-		return NewErrorThrow(nil, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
+		return NewTypeError(nil, errors.New("参数 $"+p.Name+" 类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
 	}
 	return ctx.SetVariableValue(p, prepared)
 }
@@ -448,9 +480,13 @@ func (p *ParametersTODO) SetValue(ctx Context, value Value) Control {
 	if p.Type == nil {
 		return ctx.SetVariableValue(p, value)
 	}
-	prepared, ok := PrepareTypedValue(p.Type, value)
+	prepared, ok, conversion := PrepareTypedValueInContext(p.Type, value, ctx)
+
+	if conversion != nil {
+		return conversion
+	}
 	if !ok {
-		return NewErrorThrow(nil, errors.New("变量类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
+		return NewTypeError(nil, errors.New("参数 $"+p.Name+" 类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
 	}
 	return ctx.SetVariableValue(p, prepared)
 }

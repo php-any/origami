@@ -120,7 +120,7 @@ func (f *EmptyFunction) isEmptyValue(v data.GetValue) data.GetValue {
 
 	// 检查数组
 	if arrayVal, ok := v.(*data.ArrayValue); ok {
-		if len(arrayVal.List) == 0 {
+		if arrayVal.Len() == 0 {
 			return data.NewBoolValue(true)
 		}
 		return data.NewBoolValue(false)

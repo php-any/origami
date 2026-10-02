@@ -23,10 +23,10 @@ func (f *ArrayKeysFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	switch v := arrayValue.(type) {
 	case *data.ArrayValue:
 		// 处理数组，检查是否有字符串键（Name 字段）
-		length := len(v.List)
+		length := v.Len()
 		keys := make([]data.Value, 0, length)
 		for i := 0; i < length; i++ {
-			keys = append(keys, v.List[i].PHPArrayKey(i))
+			keys = append(keys, v.At(i).PHPArrayKey(i))
 		}
 		return data.NewArrayValue(keys), nil
 

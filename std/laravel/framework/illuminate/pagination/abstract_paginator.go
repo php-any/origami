@@ -67,7 +67,9 @@ func (c *AbstractPaginatorClass) GetMethods() []data.Method {
 	}
 	return out
 }
-func (c *AbstractPaginatorClass) GetStaticMethod(name string) (data.Method, bool) { return c.GetMethod(name) }
+func (c *AbstractPaginatorClass) GetStaticMethod(name string) (data.Method, bool) {
+	return c.GetMethod(name)
+}
 
 func (c *AbstractPaginatorClass) register() {
 	c.methods["currentpage"] = kit.InstanceMethod("currentPage", nil, pagCurrentPage)

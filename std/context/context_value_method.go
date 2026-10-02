@@ -29,6 +29,7 @@ func (h *ContextValueMethod) Call(ctx data.Context) (data.GetValue, data.Control
 func (h *ContextValueMethod) GetName() string            { return "value" }
 func (h *ContextValueMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ContextValueMethod) GetIsStatic() bool          { return true }
+
 var contextValueMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "param0", 0, nil, nil),
 }

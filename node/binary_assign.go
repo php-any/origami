@@ -78,6 +78,8 @@ func NewBinaryAssign(from data.From, left, right data.GetValue) BinaryExpression
 		default:
 			return &BinaryAssignVariable{Node: NewNode(from), Left: l, Right: right}
 		}
+	case *CallObjectProperty, *CallObjectDynamicProperty:
+		return &BinaryAssign{Node: NewNode(from), Left: left, Right: right}
 	case data.Variable:
 		return &BinaryAssignVariable{
 			Node:  NewNode(from),
@@ -110,29 +112,9 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 	if v, ok := rv.(data.Value); ok {
 		switch l := b.Left.(type) {
 		case *CallObjectDynamicProperty:
-			if ctl := l.SetValue(ctx, v); ctl != nil {
-				return nil, ctl
-			}
-			return v, nil
+			return l.AssignValue(ctx, v)
 		case *CallObjectProperty:
-			temp, acl := l.Object.GetValue(ctx)
-			if acl != nil {
-				return nil, acl
-			}
-			switch object := temp.(type) {
-			case *data.ClassValue: // 需要检查属性类型
-				property, ok := object.GetPropertyStmt(l.Property)
-				if ok {
-					if property.GetType() != nil && !property.GetType().Is(v) {
-						return nil, data.NewErrorThrow(b.GetFrom(), fmt.Errorf("%s 属性 %s 因为类型不一致无法赋值", TryGetCallClassName(object), l.Property))
-					}
-				}
-				return v, object.SetProperty(l.Property, v)
-			case data.SetProperty:
-				return v, object.SetProperty(l.Property, v)
-			default:
-				return nil, data.NewErrorThrow(b.GetFrom(), errors.New("object is not set property"))
-			}
+			return l.AssignValue(ctx, v)
 		case *IndexExpression:
 			if ctl := l.SetValue(ctx, v); ctl != nil {
 				return nil, ctl
@@ -241,21 +223,21 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 							}
 						}
 					}
-					return data.NewBoolValue(true), nil
+					return v, nil
 				}
 			}
-			for i, value := range valueList {
-				if i < len(l.V) {
-					set := l.V[i]
-					if set, ok := set.(data.Variable); ok {
-						if value == nil {
-							value = data.NewNullValue()
-						}
-						set.SetValue(ctx, value)
+			for i, target := range l.V {
+				if setter, ok := target.(data.Variable); ok {
+					var value data.Value = data.NewNullValue()
+					if i < len(valueList) && valueList[i] != nil {
+						value = valueList[i]
+					}
+					if ctl := setter.SetValue(ctx, value); ctl != nil {
+						return nil, ctl
 					}
 				}
 			}
-			return data.NewBoolValue(true), nil
+			return v, nil
 		case *VarVar:
 			// $$var = ... ：委托给 VarVar 自身的 SetValue
 			if ctl := l.SetValue(ctx, v); ctl != nil {

@@ -22,9 +22,9 @@ class UserResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-users';
 
-    protected static string|\UnitEnum|null $navigationGroup = '系统管理';
+    protected static string|\UnitEnum|null $navigationGroup = '业务管理';
 
-    protected static ?string $navigationLabel = '用户';
+    protected static ?string $navigationLabel = '客户';
 
     protected static ?string $modelLabel = '用户';
 

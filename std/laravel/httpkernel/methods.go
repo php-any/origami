@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/std/laravel/framework/illuminate/foundation"
@@ -179,6 +180,14 @@ func kernelConstruct(ctx data.Context) (data.GetValue, data.Control) {
 	if app == nil || router == nil {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("httpkernel: __construct 需要 Application 与 Router"))
 	}
+	// $this is an evaluation wrapper around the same object, not a distinct
+	// application kind. Worker isolation operates on the canonical identity.
+	if value, ok := app.(*data.ThisValue); ok {
+		app = value.ClassValue.InstanceIdentity()
+	}
+	if value, ok := router.(*data.ThisValue); ok {
+		router = value.ClassValue.InstanceIdentity()
+	}
 	s.app = app
 	s.router = router
 
@@ -232,6 +241,11 @@ func kernelHandle(ctx data.Context) (data.GetValue, data.Control) {
 	request := indexValue(ctx, 0)
 	if request == nil {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("httpkernel: handle 需要 Request"))
+	}
+	if _, exists := methodExists(request, "enableHttpMethodParameterOverride"); exists {
+		if _, ctl := callObjectMethodInContext(ctx, request, "enableHttpMethodParameterOverride"); ctl != nil {
+			return nil, ctl
+		}
 	}
 
 	// 1) bootstrap
@@ -358,10 +372,10 @@ func dispatchRequestHandled(ctx data.Context, s *kernelState, request, response 
 		return nil
 	}
 	// $app->make(RequestHandled::class, ['request' => $request, 'response' => $response])
-	params := &data.ArrayValue{List: []*data.ZVal{
+	params := data.NewArrayValueFromSlots([]*data.ZVal{
 		data.NewNamedZVal("request", request),
 		data.NewNamedZVal("response", response),
-	}}
+	})
 	event, ctl := callObjectMethodInContext(ctx, s.app, "make",
 		data.NewStringValue("Illuminate\\Foundation\\Http\\Events\\RequestHandled"), params)
 	if ctl != nil || event == nil {
@@ -389,20 +403,66 @@ func hasEventListeners(ctx data.Context, dispatcher data.Value, name string) boo
 // 将请求交给 Router::dispatch，由其在 Pipeline 中执行路由级中间件
 // （web 组的 StartSession / ShareErrorsFromSession 等），再运行路由。
 func dispatchToRouter(ctx data.Context, s *kernelState, request data.Value) (data.GetValue, data.Control) {
-	return callObjectMethodInContext(ctx, s.router, "dispatch", request)
+	skipped, ctl := callObjectMethodInContext(ctx, s.app, "shouldSkipMiddleware")
+	if ctl != nil {
+		return nil, ctl
+	}
+	destination := &routerDestination{state: s}
+	if isTruthy(asValue(skipped)) || len(s.middleware) == 0 {
+		return destination.dispatch(ctx, request)
+	}
+	class, ctl := ctx.GetVM().GetOrLoadClass("Illuminate\\Routing\\Pipeline")
+	if ctl != nil {
+		return nil, ctl
+	}
+	pipeline := data.NewClassValue(class, ctx.CreateBaseContext())
+	for _, call := range []struct {
+		method string
+		arg    data.Value
+	}{
+		{"__construct", s.app},
+		{"send", request},
+		{"through", stringsToArrayValue(s.middleware)},
+	} {
+		if _, ctl := callObjectMethodInContext(ctx, pipeline, call.method, call.arg); ctl != nil {
+			return nil, ctl
+		}
+	}
+	return callObjectMethodInContext(ctx, pipeline, "then", data.NewFuncValue(destination))
+}
+
+type routerDestination struct{ state *kernelState }
+
+func (*routerDestination) GetName() string { return "kernel_dispatch" }
+func (*routerDestination) GetParams() []data.GetValue {
+	return []data.GetValue{param("request", 0, nil, nil)}
+}
+func (*routerDestination) GetVariables() []data.Variable {
+	return []data.Variable{variable("request", 0, nil)}
+}
+func (d *routerDestination) Call(ctx data.Context) (data.GetValue, data.Control) {
+	return d.dispatch(ctx, indexValue(ctx, 0))
+}
+func (d *routerDestination) dispatch(ctx data.Context, request data.Value) (data.GetValue, data.Control) {
+	if _, ctl := callObjectMethodInContext(ctx, d.state.app, "instance", data.NewStringValue("request"), request); ctl != nil {
+		return nil, ctl
+	}
+	return callObjectMethodInContext(ctx, d.state.router, "dispatch", request)
 }
 
 const fqnExceptionHandler = "Illuminate\\Contracts\\Debug\\ExceptionHandler"
 
 // renderException 对齐 Foundation\Http\Kernel::reportException / renderException。
 func renderException(ctx data.Context, s *kernelState, request data.Value, thrown data.Control) (data.GetValue, data.Control) {
-	logHandleException(thrown)
-	exception, ok := exceptionFromControl(thrown)
-	if !ok || s.app == nil {
+	if exit, ok := thrown.(data.ExitControl); ok && exit.IsExit() {
 		return nil, thrown
 	}
-
-	logHandleException(thrown)
+	exception, ok := exceptionFromControl(thrown)
+	if !ok || s.app == nil {
+		// This control is returned to the SAPI caller, which owns diagnostics.
+		// Logging here as well would report the same failure twice.
+		return nil, thrown
+	}
 
 	handlerRet, ctl := callObjectMethodInContext(ctx, s.app, "make", data.NewStringValue(fqnExceptionHandler))
 	if ctl != nil {
@@ -447,6 +507,7 @@ func logHandleException(thrown data.Control) {
 
 // fallbackExceptionResponse 在 Exception Handler 不可用时，尽量按 HttpException 状态码返回。
 func fallbackExceptionResponse(ctx data.Context, exception data.Value, original data.Control) (data.GetValue, data.Control) {
+	logHandleException(original)
 	status := 500
 	message := "Server Error"
 	if exception != nil {
@@ -501,7 +562,52 @@ func kernelTerminate(ctx data.Context) (data.GetValue, data.Control) {
 	if ctl != nil {
 		return nil, ctl
 	}
-	// 最小实现：尝试调用 app->terminate()；失败则原样返回 control。
+	request, response := indexValue(ctx, 0), indexValue(ctx, 1)
+	event, ctl := callObjectMethodInContext(ctx, s.app, "make", data.NewStringValue("Illuminate\\Foundation\\Events\\Terminating"))
+	if ctl != nil {
+		return nil, ctl
+	}
+	dispatcher, ctl := callObjectMethodInContext(ctx, s.app, "make", data.NewStringValue("events"))
+	if ctl != nil {
+		return nil, ctl
+	}
+	if _, ctl := callObjectMethodInContext(ctx, asValue(dispatcher), "dispatch", asValue(event)); ctl != nil {
+		return nil, ctl
+	}
+	// Laravel gathers route middleware first, followed by global middleware, and
+	// resolves a new instance for terminate (unless the container binding is shared).
+	skipped, ctl := callObjectMethodInContext(ctx, s.app, "shouldSkipMiddleware")
+	if ctl != nil {
+		return nil, ctl
+	}
+	if !isTruthy(asValue(skipped)) {
+		middlewares := []string{}
+		route, ctl := callObjectMethodInContext(ctx, request, "route")
+		if ctl != nil {
+			return nil, ctl
+		}
+		if rv := asValue(route); rv != nil && isTruthy(rv) {
+			gathered, ctl := callObjectMethodInContext(ctx, s.router, "gatherRouteMiddleware", rv)
+			if ctl != nil {
+				return nil, ctl
+			}
+			middlewares = stringListFromValue(asValue(gathered))
+		}
+		middlewares = append(middlewares, s.middleware...)
+		for _, middleware := range middlewares {
+			name, _, _ := strings.Cut(middleware, ":")
+			made, ctl := callObjectMethodInContext(ctx, s.app, "make", data.NewStringValue(name))
+			if ctl != nil {
+				return nil, ctl
+			}
+			instance := asValue(made)
+			if _, exists := methodExists(instance, "terminate"); exists {
+				if _, ctl := callObjectMethodInContext(ctx, instance, "terminate", request, response); ctl != nil {
+					return nil, ctl
+				}
+			}
+		}
+	}
 	if s.app != nil {
 		if _, exists := methodExists(s.app, "terminate"); exists {
 			_, ctl = callObjectMethodInContext(ctx, s.app, "terminate")

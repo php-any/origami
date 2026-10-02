@@ -35,6 +35,7 @@ func (h *DBSetConnMaxIdleTimeMethod) Call(ctx data.Context) (data.GetValue, data
 func (h *DBSetConnMaxIdleTimeMethod) GetName() string            { return "setConnMaxIdleTime" }
 func (h *DBSetConnMaxIdleTimeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBSetConnMaxIdleTimeMethod) GetIsStatic() bool          { return true }
+
 var dBSetConnMaxIdleTimeMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "d", 0, nil, nil),
 }

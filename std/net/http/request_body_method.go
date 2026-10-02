@@ -48,7 +48,7 @@ func convertToDataValue(v interface{}) data.Value {
 		for k, v := range val {
 			list = append(list, data.NewNamedZVal(k, convertToDataValue(v)))
 		}
-		return &data.ArrayValue{List: list}
+		return data.NewArrayValueFromSlots(list)
 	case []interface{}:
 		// JSON 数组转换为普通数组
 		values := make([]data.Value, len(val))
@@ -69,12 +69,14 @@ func convertToDataValue(v interface{}) data.Value {
 	}
 }
 
-func (h *RequestBodyMethod) GetName() string               { return "body" }
-func (h *RequestBodyMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *RequestBodyMethod) GetIsStatic() bool             { return false }
+func (h *RequestBodyMethod) GetName() string            { return "body" }
+func (h *RequestBodyMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *RequestBodyMethod) GetIsStatic() bool          { return false }
+
 var requestBodyMethodGetParams = []data.GetValue{}
 
-func (h *RequestBodyMethod) GetParams() []data.GetValue    { return requestBodyMethodGetParams }
+func (h *RequestBodyMethod) GetParams() []data.GetValue { return requestBodyMethodGetParams }
+
 var requestBodyMethodGetVariables = []data.Variable{}
 
 func (h *RequestBodyMethod) GetVariables() []data.Variable { return requestBodyMethodGetVariables }

@@ -22,6 +22,7 @@ func (h *ResponseWriterWriteHeaderMethod) Call(ctx data.Context) (data.GetValue,
 func (h *ResponseWriterWriteHeaderMethod) GetName() string            { return "writeHeader" }
 func (h *ResponseWriterWriteHeaderMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResponseWriterWriteHeaderMethod) GetIsStatic() bool          { return false }
+
 var responseWriterWriteHeaderMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "param0", 0, nil, nil),
 }
@@ -29,6 +30,7 @@ var responseWriterWriteHeaderMethodGetParams = []data.GetValue{
 func (h *ResponseWriterWriteHeaderMethod) GetParams() []data.GetValue {
 	return responseWriterWriteHeaderMethodGetParams
 }
+
 var responseWriterWriteHeaderMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "param0", 0, nil),
 }

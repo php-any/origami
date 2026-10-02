@@ -1,6 +1,7 @@
 package httpfoundation
 
 import (
+	"fmt"
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -192,29 +193,98 @@ func streamedGetContent(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func emitChunks(ctx data.Context, chunks data.Value) data.Control {
+	emit := func(value data.Value) data.Control {
+		if value != nil {
+			if ctl := data.EmitOutput(ctx, value.AsString()); ctl != nil {
+				return ctl
+			}
+		}
+		if host, ok := ctx.GetVM().(data.OutputBufferHost); ok {
+			if host.OutputBufferLevel() > 0 {
+				host.FlushCurrentBuffer()
+			}
+			host.FlushSAPI()
+			return host.TakeOutputControl()
+		}
+		return nil
+	}
 	switch t := chunks.(type) {
 	case *data.ArrayValue:
-		for _, z := range t.List {
+		for arraySlots164, arrayPosition164 := t.View(), 0; arrayPosition164 < arraySlots164.Len(); arrayPosition164++ {
+			z := arraySlots164.At(arrayPosition164)
 			if z == nil || z.Value == nil {
 				continue
 			}
-			if ctl := data.EmitOutput(ctx, z.Value.AsString()); ctl != nil {
+			if ctl := emit(z.Value); ctl != nil {
+				return ctl
+			}
+		}
+	case *data.ClassValue:
+		if _, ok := t.GetMethod("getIterator"); ok {
+			iterator, ctl := callObjMethod(t, "getIterator")
+			if ctl != nil {
+				return ctl
+			}
+			value, ok := iterator.(data.Value)
+			if !ok || value == t {
+				return throwNamed("UnexpectedValueException", "Invalid iterator returned from getIterator()")
+			}
+			return emitChunks(ctx, value)
+		}
+		if _, ok := t.GetMethod("rewind"); !ok {
+			return throwNamed("TypeError", "StreamedResponse chunks must be iterable")
+		}
+		if _, ctl := callObjMethod(t, "rewind"); ctl != nil {
+			return ctl
+		}
+		for {
+			valid, ctl := callObjMethod(t, "valid")
+			if ctl != nil {
+				return ctl
+			}
+			if !valueIsTruthy(valid) {
+				break
+			}
+			current, ctl := callObjMethod(t, "current")
+			if ctl != nil {
+				return ctl
+			}
+			value, ok := current.(data.Value)
+			if !ok {
+				return data.NewErrorThrow(nil, fmt.Errorf("iterator returned %T", current))
+			}
+			if ctl := emit(value); ctl != nil {
+				return ctl
+			}
+			if _, ctl := callObjMethod(t, "next"); ctl != nil {
+				return ctl
+			}
+		}
+	case data.Iterator:
+		if _, ctl := t.Rewind(ctx); ctl != nil {
+			return ctl
+		}
+		for {
+			valid, ctl := t.Valid(ctx)
+			if ctl != nil {
+				return ctl
+			}
+			if !valueIsTruthy(valid) {
+				break
+			}
+			current, ctl := t.Current(ctx)
+			if ctl != nil {
+				return ctl
+			}
+			if ctl := emit(current); ctl != nil {
+				return ctl
+			}
+			if ctl := t.Next(ctx); ctl != nil {
 				return ctl
 			}
 		}
 	default:
-		m, err := valueToAssocMap(chunks)
-		if err != nil {
-			return data.EmitOutput(ctx, chunks.AsString())
-		}
-		for _, v := range m {
-			if v == nil {
-				continue
-			}
-			if ctl := data.EmitOutput(ctx, v.AsString()); ctl != nil {
-				return ctl
-			}
-		}
+		return throwNamed("TypeError", "StreamedResponse chunks must be iterable")
 	}
 	return nil
 }
@@ -260,10 +330,10 @@ func invokeCallable(ctx data.Context, cb data.Value) data.Control {
 	}
 	switch v := cb.(type) {
 	case *data.BoundFuncValue:
-		_, ctl := v.Call(ctx.CreateBaseContext())
+		_, ctl := v.Call(ctx.CreateContext(v.FuncValue.Value.GetVariables()))
 		return ctl
 	case *data.FuncValue:
-		_, ctl := v.Call(ctx.CreateBaseContext())
+		_, ctl := v.Call(ctx.CreateContext(v.Value.GetVariables()))
 		return ctl
 	case *data.ClassValue:
 		if m, ok := v.GetMethod("__invoke"); ok && m != nil {
@@ -281,7 +351,8 @@ func invokeCallable(ctx data.Context, cb data.Value) data.Control {
 			if ctx.GetVM() != nil {
 				if stmt, found := ctx.GetVM().GetClass(vals[0].AsString()); found && stmt != nil {
 					if m, ok := stmt.GetMethod(name); ok && m != nil {
-						_, ctl := m.Call(ctx.CreateBaseContext())
+						object := data.NewClassValue(stmt, ctx.CreateBaseContext())
+						_, ctl := m.Call(object.CreateContext(m.GetVariables()))
 						return ctl
 					}
 				}
@@ -290,7 +361,7 @@ func invokeCallable(ctx data.Context, cb data.Value) data.Control {
 	case *data.StringValue:
 		if ctx.GetVM() != nil {
 			if fn, ok := ctx.GetVM().GetFunc(v.AsString()); ok && fn != nil {
-				_, ctl := fn.Call(ctx.CreateBaseContext())
+				_, ctl := fn.Call(ctx.CreateContext(fn.GetVariables()))
 				return ctl
 			}
 		}

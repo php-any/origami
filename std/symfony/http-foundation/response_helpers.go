@@ -176,8 +176,9 @@ func headersMapFromValue(v data.Value) map[string][]string {
 	}
 	for k, val := range m {
 		if arr, ok := val.(*data.ArrayValue); ok {
-			vals := make([]string, 0, len(arr.List))
-			for _, z := range arr.List {
+			vals := make([]string, 0, arr.Len())
+			for arraySlots163, arrayPosition163 := arr.View(), 0; arrayPosition163 < arraySlots163.Len(); arrayPosition163++ {
+				z := arraySlots163.At(arrayPosition163)
 				if z != nil && z.Value != nil {
 					vals = append(vals, z.Value.AsString())
 				}

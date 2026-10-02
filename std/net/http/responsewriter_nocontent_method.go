@@ -29,6 +29,7 @@ func (h *ResponseWriterNoContentMethod) Call(ctx data.Context) (data.GetValue, d
 func (h *ResponseWriterNoContentMethod) GetName() string            { return "noContent" }
 func (h *ResponseWriterNoContentMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResponseWriterNoContentMethod) GetIsStatic() bool          { return false }
+
 var responseWriterNoContentMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "statusCode", 0, data.NewIntValue(httpsrc.StatusNoContent), data.NewBaseType("int")),
 }
@@ -36,6 +37,7 @@ var responseWriterNoContentMethodGetParams = []data.GetValue{
 func (h *ResponseWriterNoContentMethod) GetParams() []data.GetValue {
 	return responseWriterNoContentMethodGetParams
 }
+
 var responseWriterNoContentMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "statusCode", 0, nil),
 }

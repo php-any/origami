@@ -1,14 +1,14 @@
 package data
 
 type ArrayValueFlatMap struct {
-	source []*ZVal
+	source *ArrayValue
 }
 
 // Call 实现数组的 flatMap 方法
 // 首先使用映射函数映射每个元素，然后将结果扁平化一层，返回一个新数组
 func (a *ArrayValueFlatMap) Call(ctx Context) (GetValue, Control) {
 	// 将 source 转换为 []Value 用于 NewArrayValue
-	tempArray := &ArrayValue{List: a.source}
+	tempArray := a.source
 	sourceValues := tempArray.ToValueList()
 
 	// 获取回调函数参数
@@ -24,7 +24,7 @@ func (a *ArrayValueFlatMap) Call(ctx Context) (GetValue, Control) {
 	case *FuncValue:
 		vars := callable.Value.GetVariables()
 		fnCtx := ctx.CreateContext(vars)
-		for i, zval := range a.source {
+		for i, zval := range a.source.Range() {
 			element := zval.Value
 			args := []Value{element, NewIntValue(i), NewArrayValue(sourceValues)}
 			for ai := 0; ai < len(vars) && ai < len(args); ai++ {
@@ -45,7 +45,7 @@ func (a *ArrayValueFlatMap) Call(ctx Context) (GetValue, Control) {
 		return NewArrayValue(result), nil
 	case CallableValue:
 		// 遍历数组元素并应用回调函数
-		for i, zval := range a.source {
+		for i, zval := range a.source.Range() {
 			element := zval.Value
 			// 调用回调函数，传递元素、索引和数组
 			mappedValue, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(sourceValues))

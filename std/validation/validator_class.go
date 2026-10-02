@@ -46,6 +46,7 @@ type validatorValidateMethod struct{}
 func (m *validatorValidateMethod) GetName() string            { return "validate" }
 func (m *validatorValidateMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *validatorValidateMethod) GetIsStatic() bool          { return true }
+
 var validatorValidateMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "object", 0, nil, data.NewBaseType("object")),
 }
@@ -53,6 +54,7 @@ var validatorValidateMethodGetParams = []data.GetValue{
 func (m *validatorValidateMethod) GetParams() []data.GetValue {
 	return validatorValidateMethodGetParams
 }
+
 var validatorValidateMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "object", 0, nil),
 }

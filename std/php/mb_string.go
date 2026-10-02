@@ -22,6 +22,7 @@ func (f *MbStrtoupperFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 }
 
 func (f *MbStrtoupperFunction) GetName() string { return "mb_strtoupper" }
+
 var mbStrtoupperFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 	node.NewParameter(nil, "encoding", 1, node.NewNullLiteral(nil), nil),
@@ -30,6 +31,7 @@ var mbStrtoupperFunctionGetParams = []data.GetValue{
 func (f *MbStrtoupperFunction) GetParams() []data.GetValue {
 	return mbStrtoupperFunctionGetParams
 }
+
 var mbStrtoupperFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "encoding", 1, data.NewNullableType(data.NewBaseType("string"))),
@@ -53,6 +55,7 @@ func (f *MbStrtolowerFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 }
 
 func (f *MbStrtolowerFunction) GetName() string { return "mb_strtolower" }
+
 var mbStrtolowerFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 	node.NewParameter(nil, "encoding", 1, node.NewNullLiteral(nil), nil),
@@ -61,6 +64,7 @@ var mbStrtolowerFunctionGetParams = []data.GetValue{
 func (f *MbStrtolowerFunction) GetParams() []data.GetValue {
 	return mbStrtolowerFunctionGetParams
 }
+
 var mbStrtolowerFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "encoding", 1, data.NewNullableType(data.NewBaseType("string"))),
@@ -81,7 +85,7 @@ func (f *MbStrlenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		return data.NewIntValue(0), nil
 	}
 	s := v.AsString()
-	
+
 	// 检查 encoding 参数
 	if encVal, ok := ctx.GetIndexValue(1); ok && encVal != nil {
 		enc := encVal.AsString()
@@ -89,11 +93,12 @@ func (f *MbStrlenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 			return data.NewIntValue(len([]byte(s))), nil
 		}
 	}
-	
+
 	return data.NewIntValue(utf8.RuneCountInString(s)), nil
 }
 
 func (f *MbStrlenFunction) GetName() string { return "mb_strlen" }
+
 var mbStrlenFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 	node.NewParameter(nil, "encoding", 1, node.NewNullLiteral(nil), nil),
@@ -102,6 +107,7 @@ var mbStrlenFunctionGetParams = []data.GetValue{
 func (f *MbStrlenFunction) GetParams() []data.GetValue {
 	return mbStrlenFunctionGetParams
 }
+
 var mbStrlenFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "encoding", 1, data.NewNullableType(data.NewBaseType("string"))),
@@ -183,6 +189,7 @@ func (f *MbStrposFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (f *MbStrposFunction) GetName() string { return "mb_strpos" }
+
 var mbStrposFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "haystack", 0, nil, nil),
 	node.NewParameter(nil, "needle", 1, nil, nil),
@@ -193,6 +200,7 @@ var mbStrposFunctionGetParams = []data.GetValue{
 func (f *MbStrposFunction) GetParams() []data.GetValue {
 	return mbStrposFunctionGetParams
 }
+
 var mbStrposFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
@@ -286,6 +294,7 @@ func (f *MbSubstrFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (f *MbSubstrFunction) GetName() string { return "mb_substr" }
+
 var mbSubstrFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 	node.NewParameter(nil, "start", 1, nil, nil),
@@ -296,6 +305,7 @@ var mbSubstrFunctionGetParams = []data.GetValue{
 func (f *MbSubstrFunction) GetParams() []data.GetValue {
 	return mbSubstrFunctionGetParams
 }
+
 var mbSubstrFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "start", 1, data.NewBaseType("int")),
@@ -375,6 +385,7 @@ func (f *MbStrimwidthFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 }
 
 func (f *MbStrimwidthFunction) GetName() string { return "mb_strimwidth" }
+
 var mbStrimwidthFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 	node.NewParameter(nil, "start", 1, nil, nil),
@@ -386,6 +397,7 @@ var mbStrimwidthFunctionGetParams = []data.GetValue{
 func (f *MbStrimwidthFunction) GetParams() []data.GetValue {
 	return mbStrimwidthFunctionGetParams
 }
+
 var mbStrimwidthFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "start", 1, data.NewBaseType("int")),
@@ -460,6 +472,7 @@ func (f *MbStrcutFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (f *MbStrcutFunction) GetName() string { return "mb_strcut" }
+
 var mbStrcutFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 	node.NewParameter(nil, "start", 1, nil, nil),
@@ -470,6 +483,7 @@ var mbStrcutFunctionGetParams = []data.GetValue{
 func (f *MbStrcutFunction) GetParams() []data.GetValue {
 	return mbStrcutFunctionGetParams
 }
+
 var mbStrcutFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "start", 1, data.NewBaseType("int")),
@@ -480,4 +494,3 @@ var mbStrcutFunctionGetVariables = []data.Variable{
 func (f *MbStrcutFunction) GetVariables() []data.Variable {
 	return mbStrcutFunctionGetVariables
 }
-

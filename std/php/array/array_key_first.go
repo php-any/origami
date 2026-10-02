@@ -27,11 +27,10 @@ func (f *ArrayKeyFirstFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 
 	switch v := val.(type) {
 	case *data.ArrayValue:
-		if len(v.List) == 0 {
+		if v.Len() == 0 {
 			return data.NewNullValue(), nil
 		}
-		// PHP 中 array_key_first 对纯索引数组返回第一个索引 0
-		return data.NewIntValue(0), nil
+		return v.At(0).PHPArrayKey(0), nil
 	case *data.ObjectValue:
 		// 对象（在 Origami 中常用于表示关联数组）：
 		// 使用 RangeProperties 按插入顺序遍历，取第一个键。

@@ -1,6 +1,7 @@
 package httpfoundation
 
 import (
+	"github.com/php-any/origami/utils"
 	"os"
 	"strings"
 
@@ -265,7 +266,7 @@ func fileMoveTo(ctx data.Context, cv *data.ClassValue, directory, name string, u
 
 func fileGetContent(ctx data.Context) (data.GetValue, data.Control) {
 	path := fileGetPathname(bagClassValue(ctx))
-	b, err := os.ReadFile(path)
+	b, err := utils.ReadFileContext(ctx.GoContext(), path)
 	if err != nil {
 		return nil, throwNamed(fqnFileException, `Could not get the content of the file "%s".`, path)
 	}

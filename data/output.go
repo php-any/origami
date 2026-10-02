@@ -41,6 +41,18 @@ type OutputSink interface {
 	WriteOutput(s string)
 }
 
+// OutputTargetHost binds a SAPI writer without bypassing PHP output buffers.
+type OutputTargetHost interface {
+	BindOutputTarget(write func(string) Control, flush func()) (restore func())
+}
+
+// HeaderCallbackState belongs to the same request as output buffers.
+type HeaderCallbackState struct {
+	Callbacks     []Value
+	OutputStarted bool
+}
+type HeaderCallbackHost interface{ HeaderCallbackState() *HeaderCallbackState }
+
 // PHP output handler 操作标志（传给回调第二参数 $phase），对齐 php-src main/php_output.h。
 const (
 	PHPOutputHandlerWrite = 0x00

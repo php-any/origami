@@ -8,11 +8,12 @@ import (
 // StreamInfoFromReader 从 io.ReadCloser 创建 StreamInfo
 // 用于包装 proc_open 返回的管道
 type StreamInfoFromReader struct {
-	Reader io.ReadCloser
-	Mode   string
-	Closed bool
-	EOF    bool
-	mutex  sync.RWMutex
+	Reader     io.ReadCloser
+	Mode       string
+	Closed     bool
+	EOF        bool
+	mutex      sync.RWMutex
+	stopCancel func() bool
 }
 
 // NewStreamInfoFromReader 从 io.ReadCloser 创建流信息
@@ -27,15 +28,33 @@ func NewStreamInfoFromReader(reader io.ReadCloser, mode string) *StreamInfoFromR
 // Close 关闭流
 func (s *StreamInfoFromReader) Close() error {
 	s.mutex.Lock()
-	defer s.mutex.Unlock()
 	if s.Closed {
+		s.mutex.Unlock()
 		return nil
 	}
 	s.Closed = true
-	if s.Reader != nil {
-		return s.Reader.Close()
+	reader, stop := s.Reader, s.stopCancel
+	s.stopCancel = nil
+	s.mutex.Unlock()
+	if stop != nil {
+		stop()
+	}
+	if reader != nil {
+		return reader.Close()
 	}
 	return nil
+}
+
+func (s *StreamInfoFromReader) BindRequestCancel(stop func() bool) {
+	s.mutex.Lock()
+	closed := s.Closed
+	if !closed {
+		s.stopCancel = stop
+	}
+	s.mutex.Unlock()
+	if closed {
+		stop()
+	}
 }
 
 // IsClosed 检查流是否已关闭

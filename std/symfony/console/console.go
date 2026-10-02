@@ -8,7 +8,6 @@ import (
 	"github.com/php-any/origami/node"
 )
 
-
 const argvInputName = "Symfony\\Component\\Console\\Input\\ArgvInput"
 const arrayInputName = "Symfony\\Component\\Console\\Input\\ArrayInput"
 const consoleOutputName = "Symfony\\Component\\Console\\Output\\ConsoleOutput"
@@ -135,7 +134,7 @@ type consoleMethod struct {
 
 func (m *consoleMethod) Call(ctx data.Context) (data.GetValue, data.Control) { return m.fn(ctx) }
 func (m *consoleMethod) GetName() string                                     { return m.name }
-func (m *consoleMethod) GetModifier() data.Modifier                           { return data.ModifierPublic }
+func (m *consoleMethod) GetModifier() data.Modifier                          { return data.ModifierPublic }
 func (m *consoleMethod) GetIsStatic() bool                                   { return false }
 func (m *consoleMethod) GetReturnType() data.Types                           { return nil }
 func (m *consoleMethod) GetParams() []data.GetValue {
@@ -166,7 +165,7 @@ func argvConstruct(ctx data.Context) (data.GetValue, data.Control) {
 	tokens := data.NewArrayValue(nil).(*data.ArrayValue)
 	if argv == nil || isNull(argv) {
 		for _, a := range os.Args {
-			tokens.List = append(tokens.List, data.NewZVal(data.NewStringValue(a)))
+			tokens.AppendValue(data.NewStringValue(a))
 		}
 	} else if av, ok := argv.(*data.ArrayValue); ok {
 		tokens = data.CloneArrayValue(av)
@@ -184,7 +183,8 @@ func argvTokens(cv *data.ClassValue) []string {
 	v, _ := cv.GetProperty("tokens")
 	out := make([]string, 0)
 	if av, ok := v.(*data.ArrayValue); ok {
-		for _, z := range av.List {
+		for arraySlots152, arrayPosition152 := av.View(), 0; arrayPosition152 < arraySlots152.Len(); arrayPosition152++ {
+			z := arraySlots152.At(arrayPosition152)
 			if z != nil {
 				out = append(out, z.Value.AsString())
 			}
@@ -209,7 +209,8 @@ func argvHasOption(ctx data.Context) (data.GetValue, data.Control) {
 	tokens := argvTokens(argvSelf(ctx))
 	needles := []string{}
 	if av, ok := values.(*data.ArrayValue); ok {
-		for _, z := range av.List {
+		for arraySlots153, arrayPosition153 := av.View(), 0; arrayPosition153 < arraySlots153.Len(); arrayPosition153++ {
+			z := arraySlots153.At(arrayPosition153)
 			if z != nil {
 				needles = append(needles, z.Value.AsString())
 			}
@@ -233,7 +234,8 @@ func argvGetOption(ctx data.Context) (data.GetValue, data.Control) {
 	tokens := argvTokens(argvSelf(ctx))
 	needles := []string{}
 	if av, ok := values.(*data.ArrayValue); ok {
-		for _, z := range av.List {
+		for arraySlots154, arrayPosition154 := av.View(), 0; arrayPosition154 < arraySlots154.Len(); arrayPosition154++ {
+			z := arraySlots154.At(arrayPosition154)
 			if z != nil {
 				needles = append(needles, z.Value.AsString())
 			}

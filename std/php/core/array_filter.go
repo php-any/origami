@@ -19,10 +19,10 @@ import (
 //   - callback: 可选的回调函数，用于测试每个元素。如果为 null，则过滤掉所有 falsy 值
 //   - mode: 可选参数，决定传递给回调函数的参数
 //   - 0 (默认): 只传递值给回调函数
-//   - ARRAY_FILTER_USE_KEY (1): 只传递键给回调函数
-//   - ARRAY_FILTER_USE_BOTH (2): 传递值和键给回调函数
+//   - ARRAY_FILTER_USE_KEY (2): 只传递键给回调函数
+//   - ARRAY_FILTER_USE_BOTH (1): 传递值和键给回调函数
 //
-// 返回值: 返回过滤后的新数组，保留原数组的键（关联数组）或重新索引（索引数组）
+// 返回值: 返回过滤后的新数组，保留原数组的键（关联数组），包括整数键
 //
 // 使用示例:
 //
@@ -56,173 +56,70 @@ func NewArrayFilterFunction() data.FuncStmt {
 }
 
 func (f *ArrayFilterFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 获取第一个参数：数组
-	arrayValue, _ := ctx.GetIndexValue(0)
-	if arrayValue == nil {
-		return data.NewArrayValue([]data.Value{}), nil
-	}
-
-	type assocEntry struct {
-		key string
-		val data.Value
-	}
-
-	var sourceArray []data.Value
-	var entries []assocEntry
-	isAssociative := false
-
-	switch arr := arrayValue.(type) {
-	case *data.ArrayValue:
-		// 带字符串键的 ArrayValue 按关联数组处理，且必须保持 List 插入顺序
-		hasNamed := false
-		for _, z := range arr.List {
-			if z != nil && z.Name != "" {
-				hasNamed = true
-				break
-			}
-		}
-		if hasNamed {
-			isAssociative = true
-			for i, z := range arr.List {
-				if z == nil {
-					continue
-				}
-				key := z.Name
-				if key == "" {
-					key = data.NewIntValue(i).AsString()
-				}
-				entries = append(entries, assocEntry{key: key, val: z.Value})
-			}
-		} else {
-			sourceArray = arr.ToValueList()
-		}
-	case *data.ObjectValue:
-		// ObjectValue 关联数组：必须用 RangeProperties，禁止 GetProperties()+map range（顺序随机）
-		isAssociative = true
-		arr.RangeProperties(func(key string, value data.Value) bool {
-			entries = append(entries, assocEntry{key: key, val: value})
-			return true
-		})
-	default:
-		return data.NewArrayValue([]data.Value{}), nil
-	}
-
-	// 获取第二个参数：回调函数（可选）
-	callbackValue, _ := ctx.GetIndexValue(1)
-
-	// 获取第三个参数：模式（可选，默认 0）
+	value, _ := ctx.GetIndexValue(0)
+	callback, _ := ctx.GetIndexValue(1)
 	modeValue, _ := ctx.GetIndexValue(2)
 	mode := 0
-	if modeValue != nil {
-		if intVal, ok := modeValue.(data.AsInt); ok {
-			mode, _ = intVal.AsInt()
-		}
+	if integer, ok := modeValue.(data.AsInt); ok {
+		mode, _ = integer.AsInt()
 	}
-
-	// 如果没有回调函数（参数缺省或显式传入 null），过滤掉所有 falsy 值
-	noCallback := false
-	if callbackValue == nil {
-		noCallback = true
-	} else {
-		if _, isNull := callbackValue.(*data.NullValue); isNull {
-			noCallback = true
-		}
-	}
-	if noCallback {
-		if isAssociative {
-			resultObj := data.NewObjectValue()
-			for _, e := range entries {
-				if isTruthy(e.val) {
-					resultObj.SetProperty(e.key, e.val)
-				}
-			}
-			return resultObj, nil
-		}
-		var result []data.Value
-		for _, element := range sourceArray {
-			if isTruthy(element) {
-				result = append(result, element)
+	var function *data.FuncValue
+	if callback != nil {
+		if _, null := callback.(*data.NullValue); !null {
+			var control data.Control
+			function, control = f.resolveCallback(ctx, callback)
+			if control != nil {
+				return nil, control
 			}
 		}
-		return data.NewArrayValue(result), nil
 	}
-
-	// 有回调函数，需要调用回调
-	// 统一使用与 preg_replace_callback / array_map 一致的回调调用约定：
-	// - 将参数写入新的函数上下文（CreateContext）
-	// - 保留闭包/箭头函数对外部变量的捕获行为
-
-	// 解析回调函数
-	fn, acl := f.resolveCallback(ctx, callbackValue)
-	if acl != nil {
-		return nil, acl
-	}
-
-	// 处理关联数组（保持插入顺序）
-	if isAssociative {
-		resultObj := data.NewObjectValue()
-		for _, e := range entries {
-			var args []data.Value
+	result := data.NewArrayValue(nil).(*data.ArrayValue)
+	filter := func(key, element data.Value) data.Control {
+		keep := isTruthy(element)
+		if function != nil {
+			args := []data.Value{element}
 			switch mode {
-			case 1: // ARRAY_FILTER_USE_KEY - 只传递键
-				args = []data.Value{data.NewStringValue(e.key)}
-			case 2: // ARRAY_FILTER_USE_BOTH - 传递值和键
-				args = []data.Value{e.val, data.NewStringValue(e.key)}
-			default: // 0 - 只传递值
-				args = []data.Value{e.val}
+			case 2:
+				args = []data.Value{key}
+			case 1:
+				args = []data.Value{element, key}
 			}
-
-			ret, ctl := f.callCallback(ctx, fn, args)
-			if ctl != nil {
-				return nil, ctl
+			ret, control := f.callCallback(ctx, function, args)
+			if control != nil {
+				return control
 			}
-			if ret == nil {
-				continue
-			}
-
-			// 使用 PHP 的 truthy 语义决定是否保留元素
-			if boolVal, ok := ret.(data.AsBool); ok {
-				if isTrue, err := boolVal.AsBool(); err == nil && isTrue {
-					resultObj.SetProperty(e.key, e.val)
+			keep = isTruthy(ret)
+		}
+		if keep {
+			result.SetKey(key, element)
+		}
+		return nil
+	}
+	switch array := value.(type) {
+	case *data.ArrayValue:
+		for slots, position := array.View(), 0; position < slots.Len(); position++ {
+			slot := slots.At(position)
+			if slot != nil {
+				if control := filter(slot.PHPArrayKey(position), slot.Value); control != nil {
+					return nil, control
 				}
-			} else if isTruthy(ret) {
-				resultObj.SetProperty(e.key, e.val)
 			}
 		}
-		return resultObj, nil
-	}
-
-	// 处理索引数组
-	var result []data.Value
-	for i, element := range sourceArray {
-		var args []data.Value
-		switch mode {
-		case 1: // ARRAY_FILTER_USE_KEY - 只传递键
-			args = []data.Value{data.NewIntValue(i)}
-		case 2: // ARRAY_FILTER_USE_BOTH - 传递值和键
-			args = []data.Value{element, data.NewIntValue(i)}
-		default: // 0 - 只传递值
-			args = []data.Value{element}
-		}
-
-		ret, ctl := f.callCallback(ctx, fn, args)
-		if ctl != nil {
-			return nil, ctl
-		}
-		if ret == nil {
-			continue
-		}
-
-		if boolVal, ok := ret.(data.AsBool); ok {
-			if isTrue, err := boolVal.AsBool(); err == nil && isTrue {
-				result = append(result, element)
+	case *data.ObjectValue:
+		var control data.Control
+		array.RangeProperties(func(name string, element data.Value) bool {
+			var key data.Value = data.NewStringValue(name)
+			if integer, ok := data.ParseIntArrayKeyName(name); ok {
+				key = data.NewIntValue(integer)
 			}
-		} else if isTruthy(ret) {
-			result = append(result, element)
+			control = filter(key, element)
+			return control == nil
+		})
+		if control != nil {
+			return nil, control
 		}
 	}
-
-	return data.NewArrayValue(result), nil
+	return result, nil
 }
 
 // resolveCallback 解析回调函数
@@ -283,7 +180,10 @@ func (f *ArrayFilterFunction) callCallback(ctx data.Context, fn *data.FuncValue,
 	// - 对于 LambdaExpression，slots 覆盖所有 f.vars（参数 + use 捕获变量），
 	//   这样在 Lambda.Call 中通过 ctx.GetIndexZVal(i) 拷贝参数时不会越界。
 	callCtx := ctx.CreateContext(fn.Value.GetVariables())
-	data.BindDeclaredArgs(callCtx, fn.Value, args)
+	callCtx.SetStrictTypes(false)
+	if ctl := data.BindDeclaredArgs(callCtx, fn.Value, args); ctl != nil {
+		return nil, ctl
+	}
 	ret, ctl := fn.Call(callCtx)
 	if ctl != nil {
 		return nil, ctl
@@ -336,7 +236,7 @@ func isTruthy(v data.Value) bool {
 
 	// 检查空数组
 	if arrVal, ok := v.(*data.ArrayValue); ok {
-		return len(arrVal.List) > 0
+		return arrVal.Len() > 0
 	}
 
 	// 检查空对象

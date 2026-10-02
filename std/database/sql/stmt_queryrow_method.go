@@ -33,6 +33,7 @@ func (h *StmtQueryRowMethod) Call(ctx data.Context) (data.GetValue, data.Control
 func (h *StmtQueryRowMethod) GetName() string            { return "queryRow" }
 func (h *StmtQueryRowMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *StmtQueryRowMethod) GetIsStatic() bool          { return true }
+
 var stmtQueryRowMethodGetParams = []data.GetValue{
 	node.NewParameters(nil, "args", 0, nil, nil),
 }

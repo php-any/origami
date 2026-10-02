@@ -15,11 +15,15 @@ func (m *ReflectionParameterHasTypeMethod) GetIsStatic() bool { return false }
 
 var reflectionParameterHasTypeMethodGetParams = []data.GetValue{}
 
-func (m *ReflectionParameterHasTypeMethod) GetParams() []data.GetValue { return reflectionParameterHasTypeMethodGetParams }
+func (m *ReflectionParameterHasTypeMethod) GetParams() []data.GetValue {
+	return reflectionParameterHasTypeMethodGetParams
+}
 
 var reflectionParameterHasTypeMethodGetVariables = []data.Variable{}
 
-func (m *ReflectionParameterHasTypeMethod) GetVariables() []data.Variable { return reflectionParameterHasTypeMethodGetVariables }
+func (m *ReflectionParameterHasTypeMethod) GetVariables() []data.Variable {
+	return reflectionParameterHasTypeMethodGetVariables
+}
 
 func (m *ReflectionParameterHasTypeMethod) GetReturnType() data.Types { return data.Bool{} }
 

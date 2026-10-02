@@ -38,6 +38,7 @@ type NamedConstructMethod struct{}
 func (m *NamedConstructMethod) GetName() string            { return "__construct" }
 func (m *NamedConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *NamedConstructMethod) GetIsStatic() bool          { return false }
+
 var namedConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
 	node.NewAnnotationTargetParameter(nil, 1),
@@ -46,6 +47,7 @@ var namedConstructMethodGetParams = []data.GetValue{
 func (m *NamedConstructMethod) GetParams() []data.GetValue {
 	return namedConstructMethodGetParams
 }
+
 var namedConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "name", 0, nil),
 	node.NewAnnotationTargetVariable(nil, 1),

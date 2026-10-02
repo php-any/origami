@@ -23,6 +23,7 @@ func (h *RowsColumnTypesMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 func (h *RowsColumnTypesMethod) GetName() string            { return "columnTypes" }
 func (h *RowsColumnTypesMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *RowsColumnTypesMethod) GetIsStatic() bool          { return true }
+
 var rowsColumnTypesMethodGetParams = []data.GetValue{}
 
 func (h *RowsColumnTypesMethod) GetParams() []data.GetValue {

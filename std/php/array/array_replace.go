@@ -56,7 +56,8 @@ func replaceByKeys(base, other data.Value) data.Value {
 	}
 
 	out := data.CloneArrayValue(baseArr)
-	for i, z := range otherArr.List {
+	for arraySlots101, i := otherArr.View(), 0; i < arraySlots101.Len(); i++ {
+		z := arraySlots101.At(i)
 		if z == nil {
 			continue
 		}
@@ -74,7 +75,7 @@ func setArrayNamedValue(arr *data.ArrayValue, key string, value data.Value) {
 		existing.Value = value
 		return
 	}
-	arr.List = append(arr.List, data.NewNamedZVal(key, value))
+	arr.SetStringKey(key, value)
 }
 
 func shallowCopyPreserveKeys(v data.Value) data.Value {
@@ -93,11 +94,13 @@ func shallowCopyPreserveKeys(v data.Value) data.Value {
 }
 
 func (fn *ArrayReplaceFunction) GetName() string { return "array_replace" }
+
 var arrayReplaceFunctionGetParams = []data.GetValue{node.NewParameters(nil, "arrays", 0, nil, nil)}
 
 func (fn *ArrayReplaceFunction) GetParams() []data.GetValue {
 	return arrayReplaceFunctionGetParams
 }
+
 var arrayReplaceFunctionGetVariables = []data.Variable{node.NewVariable(nil, "arrays", 0, data.NewBaseType("array"))}
 
 func (fn *ArrayReplaceFunction) GetVariables() []data.Variable {

@@ -17,6 +17,7 @@ func NewFopenFunction() data.FuncStmt {
 }
 
 func (f *FopenFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	data.CheckRequest(ctx.GoContext())
 	// 获取文件名参数
 	filenameValue, _ := ctx.GetIndexValue(0)
 	if filenameValue == nil {

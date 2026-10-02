@@ -20,7 +20,7 @@ func sfaGetStorage(cv *data.ClassValue) *data.ArrayValue {
 	if arr, ok := v.(*data.ArrayValue); ok {
 		return arr
 	}
-	arr := &data.ArrayValue{List: []*data.ZVal{}}
+	arr := data.NewArrayValueFromSlots([]*data.ZVal{})
 	cv.ObjectValue.SetProperty(sfaStorageKey, arr)
 	return arr
 }
@@ -66,7 +66,7 @@ func (c *SplFixedArrayClass) GetConstruct() data.Method {
 }
 func (c *SplFixedArrayClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	cv := data.NewClassValue(c, ctx.CreateBaseContext())
-	cv.SetProperty(sfaStorageKey, &data.ArrayValue{List: []*data.ZVal{}})
+	cv.SetProperty(sfaStorageKey, data.NewArrayValueFromSlots([]*data.ZVal{}))
 	cv.SetProperty(sfaSizeKey, data.NewIntValue(0))
 	cv.SetProperty(sfaPosKey, data.NewIntValue(0))
 	return cv, nil
@@ -130,7 +130,7 @@ func sfaInitSize(cv *data.ClassValue, size int) {
 	for i := range list {
 		list[i] = data.NewZVal(data.NewNullValue())
 	}
-	cv.SetProperty(sfaStorageKey, &data.ArrayValue{List: list})
+	cv.SetProperty(sfaStorageKey, data.NewArrayValueFromSlots(list))
 	cv.SetProperty(sfaSizeKey, data.NewIntValue(size))
 	cv.SetProperty(sfaPosKey, data.NewIntValue(0))
 }
@@ -141,6 +141,7 @@ func (m *SplFixedArrayConstructMethod) GetName() string            { return "__c
 func (m *SplFixedArrayConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplFixedArrayConstructMethod) GetIsStatic() bool          { return false }
 func (m *SplFixedArrayConstructMethod) GetReturnType() data.Types  { return nil }
+
 var splFixedArrayConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "size", 0, data.NewIntValue(0), data.Int{}),
 }
@@ -148,6 +149,7 @@ var splFixedArrayConstructMethodGetParams = []data.GetValue{
 func (m *SplFixedArrayConstructMethod) GetParams() []data.GetValue {
 	return splFixedArrayConstructMethodGetParams
 }
+
 var splFixedArrayConstructMethodGetVariables = []data.Variable{node.NewVariable(nil, "size", 0, data.Int{})}
 
 func (m *SplFixedArrayConstructMethod) GetVariables() []data.Variable {
@@ -263,10 +265,10 @@ func (m *SplFixedArrayCurrentMethod) Call(ctx data.Context) (data.GetValue, data
 	}
 	pos := sfaGetPos(cv)
 	arr := sfaGetStorage(cv)
-	if pos < 0 || pos >= len(arr.List) {
+	if pos < 0 || pos >= arr.Len() {
 		return data.NewNullValue(), nil
 	}
-	return arr.List[pos].Value, nil
+	return arr.At(pos).Value, nil
 }
 
 type SplFixedArrayKeyMethod struct{}
@@ -306,11 +308,13 @@ func (m *SplFixedArrayOffsetExistsMethod) GetName() string            { return "
 func (m *SplFixedArrayOffsetExistsMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplFixedArrayOffsetExistsMethod) GetIsStatic() bool          { return false }
 func (m *SplFixedArrayOffsetExistsMethod) GetReturnType() data.Types  { return data.Bool{} }
+
 var splFixedArrayOffsetExistsMethodGetParams = []data.GetValue{node.NewParameter(nil, "index", 0, nil, data.Mixed{})}
 
 func (m *SplFixedArrayOffsetExistsMethod) GetParams() []data.GetValue {
 	return splFixedArrayOffsetExistsMethodGetParams
 }
+
 var splFixedArrayOffsetExistsMethodGetVariables = []data.Variable{node.NewVariable(nil, "index", 0, data.Mixed{})}
 
 func (m *SplFixedArrayOffsetExistsMethod) GetVariables() []data.Variable {
@@ -335,11 +339,13 @@ func (m *SplFixedArrayOffsetGetMethod) GetName() string            { return "off
 func (m *SplFixedArrayOffsetGetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplFixedArrayOffsetGetMethod) GetIsStatic() bool          { return false }
 func (m *SplFixedArrayOffsetGetMethod) GetReturnType() data.Types  { return data.Mixed{} }
+
 var splFixedArrayOffsetGetMethodGetParams = []data.GetValue{node.NewParameter(nil, "index", 0, nil, data.Mixed{})}
 
 func (m *SplFixedArrayOffsetGetMethod) GetParams() []data.GetValue {
 	return splFixedArrayOffsetGetMethodGetParams
 }
+
 var splFixedArrayOffsetGetMethodGetVariables = []data.Variable{node.NewVariable(nil, "index", 0, data.Mixed{})}
 
 func (m *SplFixedArrayOffsetGetMethod) GetVariables() []data.Variable {
@@ -355,7 +361,7 @@ func (m *SplFixedArrayOffsetGetMethod) Call(ctx data.Context) (data.GetValue, da
 	if !ok || i < 0 || i >= sfaGetSize(cv) {
 		return data.NewNullValue(), nil
 	}
-	return sfaGetStorage(cv).List[i].Value, nil
+	return sfaGetStorage(cv).At(i).Value, nil
 }
 
 type SplFixedArrayOffsetSetMethod struct{}
@@ -364,6 +370,7 @@ func (m *SplFixedArrayOffsetSetMethod) GetName() string            { return "off
 func (m *SplFixedArrayOffsetSetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplFixedArrayOffsetSetMethod) GetIsStatic() bool          { return false }
 func (m *SplFixedArrayOffsetSetMethod) GetReturnType() data.Types  { return nil }
+
 var splFixedArrayOffsetSetMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "index", 0, nil, data.Mixed{}),
 	node.NewParameter(nil, "newval", 1, nil, data.Mixed{}),
@@ -372,6 +379,7 @@ var splFixedArrayOffsetSetMethodGetParams = []data.GetValue{
 func (m *SplFixedArrayOffsetSetMethod) GetParams() []data.GetValue {
 	return splFixedArrayOffsetSetMethodGetParams
 }
+
 var splFixedArrayOffsetSetMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "index", 0, data.Mixed{}),
 	node.NewVariable(nil, "newval", 1, data.Mixed{}),
@@ -391,7 +399,7 @@ func (m *SplFixedArrayOffsetSetMethod) Call(ctx data.Context) (data.GetValue, da
 	if !ok || i < 0 || i >= sfaGetSize(cv) {
 		return nil, nil
 	}
-	sfaGetStorage(cv).List[i].Value = val
+	sfaGetStorage(cv).At(i).Value = val
 	return nil, nil
 }
 
@@ -401,11 +409,13 @@ func (m *SplFixedArrayOffsetUnsetMethod) GetName() string            { return "o
 func (m *SplFixedArrayOffsetUnsetMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *SplFixedArrayOffsetUnsetMethod) GetIsStatic() bool          { return false }
 func (m *SplFixedArrayOffsetUnsetMethod) GetReturnType() data.Types  { return nil }
+
 var splFixedArrayOffsetUnsetMethodGetParams = []data.GetValue{node.NewParameter(nil, "index", 0, nil, data.Mixed{})}
 
 func (m *SplFixedArrayOffsetUnsetMethod) GetParams() []data.GetValue {
 	return splFixedArrayOffsetUnsetMethodGetParams
 }
+
 var splFixedArrayOffsetUnsetMethodGetVariables = []data.Variable{node.NewVariable(nil, "index", 0, data.Mixed{})}
 
 func (m *SplFixedArrayOffsetUnsetMethod) GetVariables() []data.Variable {
@@ -421,6 +431,6 @@ func (m *SplFixedArrayOffsetUnsetMethod) Call(ctx data.Context) (data.GetValue, 
 	if !ok || i < 0 || i >= sfaGetSize(cv) {
 		return nil, nil
 	}
-	sfaGetStorage(cv).List[i].Value = data.NewNullValue()
+	sfaGetStorage(cv).At(i).Value = data.NewNullValue()
 	return nil, nil
 }

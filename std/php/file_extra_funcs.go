@@ -1,6 +1,7 @@
 package php
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -27,11 +28,13 @@ func (f *IsExecutableFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 }
 
 func (f *IsExecutableFunction) GetName() string { return "is_executable" }
+
 var isExecutableFunctionGetParams = []data.GetValue{node.NewParameter(nil, "filename", 0, nil, nil)}
 
 func (f *IsExecutableFunction) GetParams() []data.GetValue {
 	return isExecutableFunctionGetParams
 }
+
 var isExecutableFunctionGetVariables = []data.Variable{node.NewVariable(nil, "filename", 0, nil)}
 
 func (f *IsExecutableFunction) GetVariables() []data.Variable {
@@ -57,11 +60,13 @@ func (f *FilectimeFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 }
 
 func (f *FilectimeFunction) GetName() string { return "filectime" }
+
 var filectimeFunctionGetParams = []data.GetValue{node.NewParameter(nil, "filename", 0, nil, nil)}
 
 func (f *FilectimeFunction) GetParams() []data.GetValue {
 	return filectimeFunctionGetParams
 }
+
 var filectimeFunctionGetVariables = []data.Variable{node.NewVariable(nil, "filename", 0, nil)}
 
 func (f *FilectimeFunction) GetVariables() []data.Variable {
@@ -87,11 +92,13 @@ func (f *FileatimeFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 }
 
 func (f *FileatimeFunction) GetName() string { return "fileatime" }
+
 var fileatimeFunctionGetParams = []data.GetValue{node.NewParameter(nil, "filename", 0, nil, nil)}
 
 func (f *FileatimeFunction) GetParams() []data.GetValue {
 	return fileatimeFunctionGetParams
 }
+
 var fileatimeFunctionGetVariables = []data.Variable{node.NewVariable(nil, "filename", 0, nil)}
 
 func (f *FileatimeFunction) GetVariables() []data.Variable {
@@ -117,11 +124,13 @@ func (f *FilepermsFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 }
 
 func (f *FilepermsFunction) GetName() string { return "fileperms" }
+
 var filepermsFunctionGetParams = []data.GetValue{node.NewParameter(nil, "filename", 0, nil, nil)}
 
 func (f *FilepermsFunction) GetParams() []data.GetValue {
 	return filepermsFunctionGetParams
 }
+
 var filepermsFunctionGetVariables = []data.Variable{node.NewVariable(nil, "filename", 0, nil)}
 
 func (f *FilepermsFunction) GetVariables() []data.Variable {
@@ -150,11 +159,13 @@ func (f *FileownerFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 }
 
 func (f *FileownerFunction) GetName() string { return "fileowner" }
+
 var fileownerFunctionGetParams = []data.GetValue{node.NewParameter(nil, "filename", 0, nil, nil)}
 
 func (f *FileownerFunction) GetParams() []data.GetValue {
 	return fileownerFunctionGetParams
 }
+
 var fileownerFunctionGetVariables = []data.Variable{node.NewVariable(nil, "filename", 0, nil)}
 
 func (f *FileownerFunction) GetVariables() []data.Variable {
@@ -183,11 +194,13 @@ func (f *FilegroupFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 }
 
 func (f *FilegroupFunction) GetName() string { return "filegroup" }
+
 var filegroupFunctionGetParams = []data.GetValue{node.NewParameter(nil, "filename", 0, nil, nil)}
 
 func (f *FilegroupFunction) GetParams() []data.GetValue {
 	return filegroupFunctionGetParams
 }
+
 var filegroupFunctionGetVariables = []data.Variable{node.NewVariable(nil, "filename", 0, nil)}
 
 func (f *FilegroupFunction) GetVariables() []data.Variable {
@@ -249,6 +262,7 @@ func (f *TouchFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func (f *TouchFunction) GetName() string { return "touch" }
+
 var touchFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "filename", 0, nil, nil),
 	node.NewParameter(nil, "mtime", 1, node.NewNullLiteral(nil), nil),
@@ -258,6 +272,7 @@ var touchFunctionGetParams = []data.GetValue{
 func (f *TouchFunction) GetParams() []data.GetValue {
 	return touchFunctionGetParams
 }
+
 var touchFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "filename", 0, nil),
 	node.NewVariable(nil, "mtime", 1, nil),
@@ -279,11 +294,13 @@ func (f *SysGetTempDirFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 }
 
 func (f *SysGetTempDirFunction) GetName() string { return "sys_get_temp_dir" }
+
 var sysGetTempDirFunctionGetParams = []data.GetValue{}
 
 func (f *SysGetTempDirFunction) GetParams() []data.GetValue {
 	return sysGetTempDirFunctionGetParams
 }
+
 var sysGetTempDirFunctionGetVariables = []data.Variable{}
 
 func (f *SysGetTempDirFunction) GetVariables() []data.Variable {
@@ -303,11 +320,13 @@ func (f *GetMyPidFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (f *GetMyPidFunction) GetName() string { return "getmypid" }
+
 var getMyPidFunctionGetParams = []data.GetValue{}
 
 func (f *GetMyPidFunction) GetParams() []data.GetValue {
 	return getMyPidFunctionGetParams
 }
+
 var getMyPidFunctionGetVariables = []data.Variable{}
 
 func (f *GetMyPidFunction) GetVariables() []data.Variable {
@@ -326,17 +345,22 @@ func (f *UsleepFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, nil
 	}
 	if iv, ok := v.(*data.IntValue); ok {
-		time.Sleep(time.Duration(iv.Value) * time.Microsecond)
+		if iv.Value < 0 {
+			return nil, data.NewErrorThrowByName(nil, fmt.Errorf("usleep(): Argument #1 ($microseconds) must be greater than or equal to 0"), "ValueError")
+		}
+		data.WaitRequest(ctx.GoContext(), time.Duration(iv.Value)*time.Microsecond)
 	}
 	return nil, nil
 }
 
 func (f *UsleepFunction) GetName() string { return "usleep" }
+
 var usleepFunctionGetParams = []data.GetValue{node.NewParameter(nil, "microseconds", 0, nil, data.NewBaseType("int"))}
 
 func (f *UsleepFunction) GetParams() []data.GetValue {
 	return usleepFunctionGetParams
 }
+
 var usleepFunctionGetVariables = []data.Variable{node.NewVariable(nil, "microseconds", 0, data.NewBaseType("int"))}
 
 func (f *UsleepFunction) GetVariables() []data.Variable {

@@ -584,7 +584,7 @@ func responseHeaderBagAllPreserveCase(ctx data.Context) (data.GetValue, data.Con
 		}
 		list = append(list, &data.ZVal{Name: name, Value: headerValuesToArray(src.headers[k])})
 	}
-	return &data.ArrayValue{List: list}, nil
+	return data.NewArrayValueFromSlots(list), nil
 }
 
 func responseHeaderBagAllPreserveCaseWithoutCookies(ctx data.Context) (data.GetValue, data.Control) {
@@ -603,14 +603,15 @@ func responseHeaderBagAllPreserveCaseWithoutCookies(ctx data.Context) (data.GetV
 			cookieName = n
 		}
 	}
-	filtered := make([]*data.ZVal, 0, len(arr.List))
-	for _, z := range arr.List {
+	filtered := make([]*data.ZVal, 0, arr.Len())
+	for arraySlots161, arrayPosition161 := arr.View(), 0; arrayPosition161 < arraySlots161.Len(); arrayPosition161++ {
+		z := arraySlots161.At(arrayPosition161)
 		if z != nil && z.Name == cookieName {
 			continue
 		}
 		filtered = append(filtered, z)
 	}
-	return &data.ArrayValue{List: filtered}, nil
+	return data.NewArrayValueFromSlots(filtered), nil
 }
 
 func responseHeaderBagReplace(ctx data.Context) (data.GetValue, data.Control) {
@@ -675,7 +676,8 @@ func responseHeaderBagAll(ctx data.Context) (data.GetValue, data.Control) {
 		}
 		// 合并/追加 set-cookie
 		found := false
-		for _, z := range arr.List {
+		for arraySlots162, arrayPosition162 := arr.View(), 0; arrayPosition162 < arraySlots162.Len(); arrayPosition162++ {
+			z := arraySlots162.At(arrayPosition162)
 			if z != nil && z.Name == "set-cookie" {
 				z.Value = data.NewArrayValue(vals)
 				found = true
@@ -683,7 +685,7 @@ func responseHeaderBagAll(ctx data.Context) (data.GetValue, data.Control) {
 			}
 		}
 		if !found {
-			arr.List = append(arr.List, &data.ZVal{Name: "set-cookie", Value: data.NewArrayValue(vals)})
+			arr.AppendEntries(&data.ZVal{Name: "set-cookie", Value: data.NewArrayValue(vals)})
 		}
 	}
 	return arr, nil
@@ -831,12 +833,12 @@ func responseHeaderBagGetCookies(ctx data.Context) (data.GetValue, data.Control)
 					for name, c := range names {
 						nameList = append(nameList, &data.ZVal{Name: name, Value: data.NewStringValue(c.String())})
 					}
-					pathList = append(pathList, &data.ZVal{Name: path, Value: &data.ArrayValue{List: nameList}})
+					pathList = append(pathList, &data.ZVal{Name: path, Value: data.NewArrayValueFromSlots(nameList)})
 				}
-				outer = append(outer, &data.ZVal{Name: domain, Value: &data.ArrayValue{List: pathList}})
+				outer = append(outer, &data.ZVal{Name: domain, Value: data.NewArrayValueFromSlots(pathList)})
 			}
 		}
-		return &data.ArrayValue{List: outer}, nil
+		return data.NewArrayValueFromSlots(outer), nil
 	}
 	cookies := flatCookies(src)
 	vals := make([]data.Value, 0, len(cookies))

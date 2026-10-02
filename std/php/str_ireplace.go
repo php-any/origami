@@ -28,21 +28,22 @@ func (f *StrIreplaceFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	replace := replaceValue.AsString()
 	subject := subjectValue.AsString()
 
-	result := strings.ReplaceAll(strings.ToLower(subject), strings.ToLower(search), replace)
-	// 由于使用了 ToLower 进行大小写不敏感替换，需要更精确的处理
-	// 简单实现：使用 case-insensitive replace
-	result = caseInsensitiveReplace(subject, search, replace)
+	result, count := caseInsensitiveReplace(subject, search, replace)
+	if slot := ctx.GetIndexZVal(3); slot != nil {
+		slot.Value = data.NewIntValue(count)
+	}
 
 	return data.NewStringValue(result), nil
 }
 
-func caseInsensitiveReplace(s, old, new string) string {
+func caseInsensitiveReplace(s, old, new string) (string, int) {
 	if old == "" {
-		return s
+		return s, 0
 	}
 	lower := strings.ToLower(s)
 	oldLower := strings.ToLower(old)
 	var result strings.Builder
+	count := 0
 	for {
 		idx := strings.Index(lower, oldLower)
 		if idx == -1 {
@@ -51,10 +52,11 @@ func caseInsensitiveReplace(s, old, new string) string {
 		}
 		result.WriteString(s[:idx])
 		result.WriteString(new)
+		count++
 		s = s[idx+len(old):]
 		lower = lower[idx+len(old):]
 	}
-	return result.String()
+	return result.String(), count
 }
 
 func (f *StrIreplaceFunction) GetName() string {
@@ -65,7 +67,7 @@ var strIreplaceFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "search", 0, nil, nil),
 	node.NewParameter(nil, "replace", 1, nil, nil),
 	node.NewParameter(nil, "subject", 2, nil, nil),
-	node.NewParameterReference(nil, "count", 3, nil, data.NewBaseType("int")),
+	node.NewOutputParameterReference(nil, "count", 3, node.NewNullLiteral(nil), data.NewBaseType("int")),
 }
 
 func (f *StrIreplaceFunction) GetParams() []data.GetValue {

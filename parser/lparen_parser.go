@@ -334,6 +334,7 @@ func (ep *LparenParser) parseLambdaExpression(tracking *PositionTracker) (data.G
 		body,
 		vars,
 		parent,
+		ep.strictTypes,
 	), nil
 }
 

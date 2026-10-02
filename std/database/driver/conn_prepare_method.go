@@ -32,6 +32,7 @@ func (h *ConnPrepareMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 func (h *ConnPrepareMethod) GetName() string            { return "prepare" }
 func (h *ConnPrepareMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ConnPrepareMethod) GetIsStatic() bool          { return true }
+
 var connPrepareMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "param0", 0, nil, nil),
 }

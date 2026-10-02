@@ -152,6 +152,7 @@ func columnSchemaFromProperty(prop *node.ClassProperty) ColumnSchema {
 }
 
 func isNullableType(ty data.Types) bool {
+	ty = data.LegacyType(ty)
 	if ty == nil {
 		return true
 	}
@@ -166,6 +167,7 @@ func isNullableType(ty data.Types) bool {
 }
 
 func phpTypeName(ty data.Types) string {
+	ty = data.LegacyType(ty)
 	typeName := ""
 	if ty != nil {
 		typeName = ty.String()

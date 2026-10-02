@@ -299,7 +299,7 @@ func convertFileInformation(ctx data.Context, file data.Value) (data.Value, data
 				filtered = append(filtered, data.NewZVal(v))
 			}
 		}
-		return &data.ArrayValue{List: filtered}, nil
+		return data.NewArrayValueFromSlots(filtered), nil
 	}
 	return orderedAssocToArrayValue(outKeys, outVals), nil
 }

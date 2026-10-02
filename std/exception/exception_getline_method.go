@@ -12,8 +12,8 @@ func (h *ExceptionGetLineMethod) Call(ctx data.Context) (data.GetValue, data.Con
 	if line, ok := instancePropertyInt(ctx, "line"); ok && line > 0 {
 		return data.NewIntValue(line), nil
 	}
-	if h.source != nil {
-		return data.NewIntValue(h.source.GetLine()), nil
+	if source := exceptionState(ctx, h.source); source != nil {
+		return data.NewIntValue(source.GetLine()), nil
 	}
 	return data.NewIntValue(0), nil
 }
@@ -21,9 +21,11 @@ func (h *ExceptionGetLineMethod) Call(ctx data.Context) (data.GetValue, data.Con
 func (h *ExceptionGetLineMethod) GetName() string            { return "getLine" }
 func (h *ExceptionGetLineMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ExceptionGetLineMethod) GetIsStatic() bool          { return false }
+
 var exceptionGetLineMethodGetParams = []data.GetValue{}
 
 func (h *ExceptionGetLineMethod) GetParams() []data.GetValue { return exceptionGetLineMethodGetParams }
+
 var exceptionGetLineMethodGetVariables = []data.Variable{}
 
 func (h *ExceptionGetLineMethod) GetVariables() []data.Variable {

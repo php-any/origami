@@ -35,6 +35,7 @@ func (h *ResponseWriterFormatMethod) Call(ctx data.Context) (data.GetValue, data
 func (h *ResponseWriterFormatMethod) GetName() string            { return "format" }
 func (h *ResponseWriterFormatMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *ResponseWriterFormatMethod) GetIsStatic() bool          { return false }
+
 var responseWriterFormatMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "code", 0, nil, data.NewBaseType("int")),
 	node.NewParameter(nil, "message", 1, nil, data.NewBaseType("string")),
@@ -44,6 +45,7 @@ var responseWriterFormatMethodGetParams = []data.GetValue{
 func (h *ResponseWriterFormatMethod) GetParams() []data.GetValue {
 	return responseWriterFormatMethodGetParams
 }
+
 var responseWriterFormatMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "code", 0, nil),
 	node.NewVariable(nil, "message", 1, nil),

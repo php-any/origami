@@ -22,7 +22,7 @@ func (u *This) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	// - 视图闭包由 Closure::bind 注入时，顶层是 BoundContext，应用 BoundThis
 	//   （嵌套 Livewire 组件视图）。
 	if classCtx, ok := ctx.(*data.ClassMethodContext); ok && classCtx.ObjectValue != nil {
-		return data.NewThisValue(classCtx.ClassValue), nil
+		return data.NewThisValue(classCtx.ClassValue.InstanceIdentity()), nil
 	}
 	if bc, ok := ctx.(*data.BoundContext); ok && bc.BoundThis != nil {
 		return data.NewThisValue(bc.BoundThis), nil
@@ -37,7 +37,7 @@ func (u *This) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 			c = v.Context
 		case *data.ClassMethodContext:
 			if v.ObjectValue != nil {
-				return data.NewThisValue(v.ClassValue), nil
+				return data.NewThisValue(v.ClassValue.InstanceIdentity()), nil
 			}
 			return nil, data.NewErrorThrow(u.from, errors.New("this关键字只能在类中使用"))
 		case *data.ClassValue:

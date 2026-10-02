@@ -22,6 +22,7 @@ func (f *IgnoreFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *IgnoreFunction) GetName() string            { return "Signal\\ignore" }
 func (f *IgnoreFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *IgnoreFunction) GetIsStatic() bool          { return true }
+
 var ignoreFunctionGetParams = []data.GetValue{
 	node.NewParameters(nil, "signals", 0, nil, data.NewBaseType("int")),
 }
@@ -29,6 +30,7 @@ var ignoreFunctionGetParams = []data.GetValue{
 func (f *IgnoreFunction) GetParams() []data.GetValue {
 	return ignoreFunctionGetParams
 }
+
 var ignoreFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "signals", 0, data.NewBaseType("int")),
 }

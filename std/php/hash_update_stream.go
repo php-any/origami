@@ -48,6 +48,7 @@ func (f *HashUpdateStreamFunction) Call(ctx data.Context) (data.GetValue, data.C
 		n   int64
 		err error
 	)
+	data.CheckRequest(ctx.GoContext())
 	if length < 0 {
 		n, err = io.Copy(hc.Hash, reader)
 	} else {
@@ -56,6 +57,7 @@ func (f *HashUpdateStreamFunction) Call(ctx data.Context) (data.GetValue, data.C
 			err = nil
 		}
 	}
+	data.CheckRequest(ctx.GoContext())
 	if err != nil && err != io.EOF {
 		return data.NewIntValue(0), nil
 	}
@@ -89,6 +91,7 @@ func resolveStreamReader(v data.Value) (io.Reader, bool) {
 func (f *HashUpdateStreamFunction) GetName() string            { return "hash_update_stream" }
 func (f *HashUpdateStreamFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *HashUpdateStreamFunction) GetIsStatic() bool          { return false }
+
 var hashUpdateStreamFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "context", 0, nil, nil),
 	node.NewParameter(nil, "stream", 1, nil, nil),
@@ -98,6 +101,7 @@ var hashUpdateStreamFunctionGetParams = []data.GetValue{
 func (f *HashUpdateStreamFunction) GetParams() []data.GetValue {
 	return hashUpdateStreamFunctionGetParams
 }
+
 var hashUpdateStreamFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "context", 0, nil),
 	node.NewVariable(nil, "stream", 1, nil),

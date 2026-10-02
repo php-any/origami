@@ -38,6 +38,7 @@ type InjectConstructMethod struct{}
 func (m *InjectConstructMethod) GetName() string            { return "__construct" }
 func (m *InjectConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *InjectConstructMethod) GetIsStatic() bool          { return false }
+
 var injectConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "service", 0, data.NewStringValue(""), data.NewBaseType("string")),
 	node.NewAnnotationTargetParameter(nil, 1),
@@ -46,6 +47,7 @@ var injectConstructMethodGetParams = []data.GetValue{
 func (m *InjectConstructMethod) GetParams() []data.GetValue {
 	return injectConstructMethodGetParams
 }
+
 var injectConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "service", 0, nil),
 	node.NewAnnotationTargetVariable(nil, 1),

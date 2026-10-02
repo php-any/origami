@@ -8,7 +8,6 @@ import (
 	"github.com/php-any/origami/node"
 )
 
-
 const varDumperName = "Symfony\\Component\\VarDumper\\VarDumper"
 
 type VarDumperClass struct{ node.Node }
@@ -45,7 +44,7 @@ type vdMethod struct {
 
 func (m *vdMethod) Call(ctx data.Context) (data.GetValue, data.Control) { return m.fn(ctx) }
 func (m *vdMethod) GetName() string                                     { return m.name }
-func (m *vdMethod) GetModifier() data.Modifier                           { return data.ModifierPublic }
+func (m *vdMethod) GetModifier() data.Modifier                          { return data.ModifierPublic }
 func (m *vdMethod) GetIsStatic() bool                                   { return m.static }
 func (m *vdMethod) GetReturnType() data.Types                           { return nil }
 func (m *vdMethod) GetParams() []data.GetValue {

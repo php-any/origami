@@ -158,6 +158,7 @@ func (m *AppIAppendMethod) GetName() string            { return "append" }
 func (m *AppIAppendMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *AppIAppendMethod) GetIsStatic() bool          { return false }
 func (m *AppIAppendMethod) GetReturnType() data.Types  { return nil }
+
 var appIAppendMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
 }
@@ -165,6 +166,7 @@ var appIAppendMethodGetParams = []data.GetValue{
 func (m *AppIAppendMethod) GetParams() []data.GetValue {
 	return appIAppendMethodGetParams
 }
+
 var appIAppendMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
 }
@@ -315,5 +317,5 @@ func (m *AppIGetArrayIteratorMethod) Call(ctx data.Context) (data.GetValue, data
 	for i, item := range list.items {
 		zvals[i] = data.NewZVal(item)
 	}
-	return &data.ArrayValue{List: zvals}, nil
+	return data.NewArrayValueFromSlots(zvals), nil
 }

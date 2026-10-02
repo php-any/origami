@@ -30,17 +30,17 @@ func (f *GettimeofdayFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 		return data.NewFloatValue(float64(now.Unix()) + float64(now.Nanosecond())/1e9), nil
 	}
 	_, offset := now.Zone()
-	return &data.ArrayValue{
-		List: []*data.ZVal{
+	return data.NewArrayValueFromSlots([]*data.ZVal{
 			data.NewNamedZVal("sec", data.NewIntValue(int(now.Unix()))),
 			data.NewNamedZVal("usec", data.NewIntValue(now.Nanosecond()/1000)),
 			data.NewNamedZVal("minuteswest", data.NewIntValue(-offset/60)),
 			data.NewNamedZVal("dsttime", data.NewIntValue(0)),
-		},
-	}, nil
+		}),
+		nil
 }
 
 func (f *GettimeofdayFunction) GetName() string { return "gettimeofday" }
+
 var gettimeofdayFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "as_float", 0, data.NewBoolValue(false), nil),
 }
@@ -48,6 +48,7 @@ var gettimeofdayFunctionGetParams = []data.GetValue{
 func (f *GettimeofdayFunction) GetParams() []data.GetValue {
 	return gettimeofdayFunctionGetParams
 }
+
 var gettimeofdayFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "as_float", 0, nil),
 }

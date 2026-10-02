@@ -23,7 +23,8 @@ func (fn *ArrayDiffFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	arrays := make([][]data.Value, 0)
-	for _, z := range paramsArr.List {
+	for arraySlots82, arrayPosition82 := paramsArr.View(), 0; arrayPosition82 < arraySlots82.Len(); arrayPosition82++ {
+		z := arraySlots82.At(arrayPosition82)
 		if z.Value == nil {
 			continue
 		}

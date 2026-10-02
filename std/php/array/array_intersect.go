@@ -50,7 +50,8 @@ func (f *ArrayIntersectFunction) Call(ctx data.Context) (data.GetValue, data.Con
 
 		switch av := v.(type) {
 		case *data.ArrayValue:
-			for _, z := range av.List {
+			for arraySlots90, arrayPosition90 := av.View(), 0; arrayPosition90 < arraySlots90.Len(); arrayPosition90++ {
+				z := arraySlots90.At(arrayPosition90)
 				set[z.Value.AsString()] = struct{}{}
 			}
 		case *data.ObjectValue:
@@ -74,9 +75,10 @@ func (f *ArrayIntersectFunction) Call(ctx data.Context) (data.GetValue, data.Con
 	// 计算交集：第一个数组中的值必须出现在所有其它集合中
 	switch v := baseVal.(type) {
 	case *data.ArrayValue:
-		values := v.ToValueList()
-		result := make([]data.Value, 0, len(values))
-		for _, val := range values {
+		result := data.NewArrayValue(nil).(*data.ArrayValue)
+		for slots, position := v.View(), 0; position < slots.Len(); position++ {
+			slot := slots.At(position)
+			val := slot.Value
 			valStr := val.AsString()
 			inAll := true
 			for _, set := range otherSets {
@@ -86,13 +88,13 @@ func (f *ArrayIntersectFunction) Call(ctx data.Context) (data.GetValue, data.Con
 				}
 			}
 			if inAll {
-				result = append(result, val)
+				result.SetKey(slot.PHPArrayKey(position), val)
 			}
 		}
-		return data.NewArrayValue(result), nil
+		return result, nil
 
 	case *data.ObjectValue:
-		resultObj := data.NewObjectValue()
+		resultObj := data.NewArrayValue(nil).(*data.ArrayValue)
 		// 使用 RangeProperties 保证遍历顺序与插入顺序一致
 		v.RangeProperties(func(k string, val data.Value) bool {
 			valStr := val.AsString()
@@ -104,7 +106,7 @@ func (f *ArrayIntersectFunction) Call(ctx data.Context) (data.GetValue, data.Con
 				}
 			}
 			if inAll {
-				resultObj.SetProperty(k, val)
+				resultObj.SetStringKey(k, val)
 			}
 			return true
 		})

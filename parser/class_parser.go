@@ -609,22 +609,23 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 
 	// 解析属性类型（在访问修饰符之后，变量名之前）
 	var propertyType data.Types
-	if isIdentOrTypeToken(p.current().Type()) || p.checkPositionIs(0, token.NULL, token.FALSE, token.SELF) {
+	if isIdentOrTypeToken(p.current().Type()) || p.checkPositionIs(0, token.NULL, token.FALSE,
+		token.TRUE, token.SELF) {
 		// 检查是否是联合类型：string|int|null
 		var unionTypes []data.Types
 
 		// 解析第一个类型
 		var firstType data.Types
 		if p.checkPositionIs(0, token.NULL, token.FALSE) {
-			firstType = data.NewBaseType(p.current().Literal())
+			firstType = data.NewDeclaredType(p.current().Literal())
 			p.next()
 		} else if p.current().Type() == token.SELF {
 			// 处理 self 关键字
 			p.next()
 			if p.currentClassName != "" {
-				firstType = data.NewBaseType(p.currentClassName)
+				firstType = data.NewDeclaredType(p.currentClassName)
 			} else {
-				firstType = data.NewBaseType("self")
+				firstType = data.NewDeclaredType("self")
 			}
 		} else {
 			firstType = parseType(p.Parser)
@@ -638,15 +639,15 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 				p.next() // 跳过 |
 				var nextType data.Types
 				if p.checkPositionIs(0, token.NULL, token.FALSE) {
-					nextType = data.NewBaseType(p.current().Literal())
+					nextType = data.NewDeclaredType(p.current().Literal())
 					p.next()
 				} else if p.current().Type() == token.SELF {
 					// 处理 self 关键字
 					p.next()
 					if p.currentClassName != "" {
-						nextType = data.NewBaseType(p.currentClassName)
+						nextType = data.NewDeclaredType(p.currentClassName)
 					} else {
-						nextType = data.NewBaseType("self")
+						nextType = data.NewDeclaredType("self")
 					}
 				} else if isIdentOrTypeToken(p.current().Type()) {
 					nextType = parseType(p.Parser)
@@ -662,7 +663,7 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 			if len(unionTypes) == 1 {
 				propertyType = unionTypes[0]
 			} else {
-				propertyType = data.NewUnionType(unionTypes)
+				propertyType = data.NewDeclaredUnionType(unionTypes)
 			}
 		}
 	} else if p.checkPositionIs(0, token.TERNARY) && (isIdentOrTypeToken(p.peek(1).Type()) || p.peek(1).Type() == token.SELF) {
@@ -672,11 +673,11 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 			p.next()
 			var baseType data.Types
 			if p.currentClassName != "" {
-				baseType = data.NewBaseType(p.currentClassName)
+				baseType = data.NewDeclaredType(p.currentClassName)
 			} else {
-				baseType = data.NewBaseType("self")
+				baseType = data.NewDeclaredType("self")
 			}
-			propertyType = data.NewNullableType(baseType)
+			propertyType = data.NewDeclaredNullableType(baseType)
 		} else {
 			// 处理 ?ClassName 这种可空类类型，需要结合命名空间解析完整类名
 			name := p.current().Literal()
@@ -685,16 +686,16 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 			var base data.Types
 			// 内置基础类型（int/string/bool 等）保持原样
 			if data.ISBaseType(name) {
-				base = data.NewBaseType(name)
+				base = data.NewDeclaredType(name)
 			} else if full, ok := p.findFullClassNameByNamespace(name); ok {
 				// 若当前命名空间下存在对应类，则使用完整类名
-				base = data.NewBaseType(full)
+				base = data.NewDeclaredType(full)
 			} else {
 				// 否则回退为原始名称
-				base = data.NewBaseType(name)
+				base = data.NewDeclaredType(name)
 			}
 
-			propertyType = data.NewNullableType(base)
+			propertyType = data.NewDeclaredNullableType(base)
 		}
 	}
 
@@ -913,6 +914,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 					token.ARRAY,
 					token.NULL,
 					token.FALSE,
+					token.TRUE,
 					token.STATIC,
 					token.SELF,
 					token.PARENT,
@@ -923,16 +925,16 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 				// 处理 static 关键字（返回类型中的 static 表示调用类的实例）
 				if p.current().Type() == token.STATIC {
 					p.next()
-					return data.NewBaseType("static"), nil
+					return data.NewDeclaredType("static"), nil
 				}
 
 				// 处理 self 关键字
 				if p.current().Type() == token.SELF {
 					p.next()
 					if p.currentClassName != "" {
-						return data.NewBaseType(p.currentClassName), nil
+						return data.NewDeclaredType(p.currentClassName), nil
 					}
-					return data.NewBaseType("self"), nil
+					return data.NewDeclaredType("self"), nil
 				}
 
 				// 处理 parent 关键字：返回父类名（若有），否则字符串 "parent"
@@ -941,10 +943,10 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 					if p.currentClassName != "" {
 						// 当前类名可能是完整名，通过 VM 查找父类
 						if cls, ok := p.vm.GetClass(p.currentClassName); ok && cls.GetExtend() != nil {
-							return data.NewBaseType(*cls.GetExtend()), nil
+							return data.NewDeclaredType(*cls.GetExtend()), nil
 						}
 					}
-					return data.NewBaseType("parent"), nil
+					return data.NewDeclaredType("parent"), nil
 				}
 
 				name := p.current().Literal()
@@ -952,16 +954,16 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 
 				// 如果是基础类型，直接返回
 				if data.ISBaseType(name) {
-					return data.NewBaseType(name), nil
+					return data.NewDeclaredType(name), nil
 				}
 
 				// 尝试解析完整的类名（包括命名空间）
 				if full, ok := p.findFullClassNameByNamespace(name); ok {
-					return data.NewBaseType(full), nil
+					return data.NewDeclaredType(full), nil
 				}
 
 				// 如果无法解析，返回原始名称
-				return data.NewBaseType(name), nil
+				return data.NewDeclaredType(name), nil
 			}
 
 			// 第一个类型原子
@@ -991,12 +993,12 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 			if len(unionTypes) == 1 {
 				thisType = unionTypes[0]
 			} else if typeCombinator == token.BIT_AND {
-				thisType = data.NewIntersectionType(unionTypes)
+				thisType = data.NewDeclaredIntersectionType(unionTypes)
 			} else {
-				thisType = data.NewUnionType(unionTypes)
+				thisType = data.NewDeclaredUnionType(unionTypes)
 			}
 			if isNullable {
-				thisType = data.NewNullableType(thisType)
+				thisType = data.NewDeclaredNullableType(thisType)
 			}
 			returnTypes = append(returnTypes, thisType)
 
@@ -1051,6 +1053,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 		body,
 		vars,
 		retType,
+		p.strictTypes,
 	)
 
 	// 如果是抽象方法，包装为 AbstractMethod

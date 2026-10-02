@@ -363,6 +363,9 @@ func (m *DefaultClassPathManager) findFileCaseInsensitive(basePath, fileName str
 
 // LoadClass 加载类
 func (m *DefaultClassPathManager) LoadClass(className string, parser *Parser) data.Control {
+	// Dynamic FQCN strings may start with a separator, but PHP autoload
+	// callbacks receive the name without it (including RequestVM callers).
+	className = strings.TrimPrefix(className, "\\")
 	filePath, found := m.FindClassFile(className)
 	if !found {
 		ok, acl := CallAutoLoad(className, parser.vm.CreateContext(nil))
@@ -373,7 +376,10 @@ func (m *DefaultClassPathManager) LoadClass(className string, parser *Parser) da
 			return nil
 		}
 
-		return data.TryErrorThrow(parser.newFrom(), fmt.Errorf("类 %s 不存在或无法加载", className))
+		// A loader may decline a symbol. Required-class callers report absence
+		// after lookup; probes such as is_a must return false. Autoloader errors
+		// are returned above and must never be confused with a missing symbol.
+		return nil
 	}
 
 	// 类/接口已注册则直接返回。文件仍在执行时也可以重入（A.php 加载 B、B 再引用 A），
@@ -434,7 +440,7 @@ func (m *DefaultClassPathManager) LoadClass(className string, parser *Parser) da
 		return nil
 	}
 
-	return data.TryErrorThrow(parser.newFrom(), fmt.Errorf("文件 file://%s 中未找到类 %s", filePath, className))
+	return nil
 }
 
 var (

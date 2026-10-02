@@ -87,6 +87,7 @@ func (h *WithDeadlineCauseFunction) Call(ctx data.Context) (data.GetValue, data.
 func (h *WithDeadlineCauseFunction) GetName() string            { return "context\\withDeadlineCause" }
 func (h *WithDeadlineCauseFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *WithDeadlineCauseFunction) GetIsStatic() bool          { return true }
+
 var withDeadlineCauseFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "parent", 0, nil, nil),
 	node.NewParameter(nil, "d", 1, nil, nil),
@@ -96,6 +97,7 @@ var withDeadlineCauseFunctionGetParams = []data.GetValue{
 func (h *WithDeadlineCauseFunction) GetParams() []data.GetValue {
 	return withDeadlineCauseFunctionGetParams
 }
+
 var withDeadlineCauseFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "parent", 0, nil),
 	node.NewVariable(nil, "d", 1, nil),

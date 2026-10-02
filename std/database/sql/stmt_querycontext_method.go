@@ -55,6 +55,7 @@ func (h *StmtQueryContextMethod) Call(ctx data.Context) (data.GetValue, data.Con
 func (h *StmtQueryContextMethod) GetName() string            { return "queryContext" }
 func (h *StmtQueryContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *StmtQueryContextMethod) GetIsStatic() bool          { return true }
+
 var stmtQueryContextMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "ctx", 0, nil, nil),
 	node.NewParameters(nil, "args", 1, nil, nil),

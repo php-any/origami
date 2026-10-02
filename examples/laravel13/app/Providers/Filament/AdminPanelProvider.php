@@ -11,6 +11,7 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Enums\Width;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -31,8 +32,17 @@ class AdminPanelProvider extends PanelProvider
             ->profile(isSimple: false)
             ->databaseNotifications()
             ->brandName('Origami Admin')
+            ->viteTheme(['resources/css/filament/admin/theme.css', 'resources/css/admin/tabler.css', 'resources/js/admin.js'])
+            ->darkMode(false)
+            ->maxContentWidth(Width::Full)
+            ->bootUsing(fn () => app()->setLocale('zh_CN'))
+            ->navigationGroups(['业务管理', '商品管理', '内容管理', '团队与权限', '系统管理'])
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::Blue,
+                'gray' => Color::Slate,
+                'success' => Color::Emerald,
+                'warning' => Color::Amber,
+                'danger' => Color::Rose,
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')

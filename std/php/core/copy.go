@@ -6,6 +6,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 // CopyFunction 实现 copy 函数
@@ -40,19 +41,21 @@ func (f *CopyFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewBoolValue(false), nil
 	}
 
-	srcFile, err := os.Open(src)
+	srcFile, closeSource, err := utils.OpenRequestFile(ctx.GoContext(), src, os.O_RDONLY, 0)
 	if err != nil {
 		return data.NewBoolValue(false), nil
 	}
-	defer srcFile.Close()
+	defer closeSource()
 
-	dstFile, err := os.Create(dst)
+	dstFile, closeDestination, err := utils.OpenRequestFile(ctx.GoContext(), dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return data.NewBoolValue(false), nil
 	}
-	defer dstFile.Close()
+	defer closeDestination()
 
-	if _, err := io.Copy(dstFile, srcFile); err != nil {
+	_, err = io.Copy(dstFile, srcFile)
+	data.CheckRequest(ctx.GoContext())
+	if err != nil {
 		return data.NewBoolValue(false), nil
 	}
 

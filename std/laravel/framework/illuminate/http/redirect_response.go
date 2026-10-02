@@ -157,7 +157,8 @@ func illuminateRedirectWith(ctx data.Context) (data.GetValue, data.Control) {
 		key, _ := ctx.GetIndexValue(0)
 		val, _ := ctx.GetIndexValue(1)
 		if arr, ok := key.(*data.ArrayValue); ok {
-			for _, z := range arr.List {
+			for arraySlots51, arrayPosition51 := arr.View(), 0; arrayPosition51 < arraySlots51.Len(); arrayPosition51++ {
+				z := arraySlots51.At(arrayPosition51)
 				if z != nil && z.Name != "" {
 					_, _ = httpfoundation.CallObjMethod(sess, "flash", data.NewStringValue(z.Name), z.Value)
 				}

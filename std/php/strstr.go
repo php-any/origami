@@ -48,6 +48,7 @@ func (f *StrStrFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *StrStrFunction) GetName() string            { return f.name }
 func (f *StrStrFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *StrStrFunction) GetIsStatic() bool          { return false }
+
 var strStrFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "haystack", 0, nil, data.String{}),
 	node.NewParameter(nil, "needle", 1, nil, data.String{}),
@@ -57,6 +58,7 @@ var strStrFunctionGetParams = []data.GetValue{
 func (f *StrStrFunction) GetParams() []data.GetValue {
 	return strStrFunctionGetParams
 }
+
 var strStrFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),
@@ -107,6 +109,7 @@ func (f *StrIStrFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 func (f *StrIStrFunction) GetName() string            { return "stristr" }
 func (f *StrIStrFunction) GetModifier() data.Modifier { return data.ModifierPublic }
 func (f *StrIStrFunction) GetIsStatic() bool          { return false }
+
 var strIStrFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "haystack", 0, nil, data.String{}),
 	node.NewParameter(nil, "needle", 1, nil, data.String{}),
@@ -116,6 +119,7 @@ var strIStrFunctionGetParams = []data.GetValue{
 func (f *StrIStrFunction) GetParams() []data.GetValue {
 	return strIStrFunctionGetParams
 }
+
 var strIStrFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "haystack", 0, data.NewBaseType("string")),
 	node.NewVariable(nil, "needle", 1, data.NewBaseType("string")),

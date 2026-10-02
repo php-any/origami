@@ -5,26 +5,31 @@ import (
 	"github.com/php-any/origami/node"
 )
 
-var (
-	headerCallbacks     []data.Value
-	headerOutputStarted bool
-)
-
 // MarkHeaderOutputStarted 标记已有输出（此后注册的 header 回调无效）。
-func MarkHeaderOutputStarted() {
-	headerOutputStarted = true
+func MarkHeaderOutputStarted(ctx data.Context) {
+	if host, ok := ctx.(data.HeaderCallbackHost); ok {
+		host.HeaderCallbackState().OutputStarted = true
+	} else if host, ok := ctx.GetVM().(data.HeaderCallbackHost); ok {
+		host.HeaderCallbackState().OutputStarted = true
+	}
 }
 
 // RunHeaderCallbacks 在请求/脚本结束时执行已注册的 header 回调。
 func RunHeaderCallbacks(vm data.VM) {
-	for _, cb := range headerCallbacks {
+	host, ok := vm.(data.HeaderCallbackHost)
+	if !ok {
+		return
+	}
+	state := host.HeaderCallbackState()
+	callbacks := state.Callbacks
+	state.Callbacks = nil
+	for _, cb := range callbacks {
 		if fv, ok := cb.(*data.FuncValue); ok {
 			vars := fv.Value.GetVariables()
 			ctx := vm.CreateContext(vars)
 			_, _ = fv.Call(ctx)
 		}
 	}
-	headerCallbacks = nil
 }
 
 type HeaderRegisterCallbackFunction struct{}
@@ -34,12 +39,17 @@ func NewHeaderRegisterCallbackFunction() data.FuncStmt {
 }
 
 func (f *HeaderRegisterCallbackFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	if headerOutputStarted {
+	host, ok := ctx.GetVM().(data.HeaderCallbackHost)
+	if !ok {
+		return data.NewBoolValue(false), nil
+	}
+	state := host.HeaderCallbackState()
+	if state.OutputStarted {
 		return data.NewNullValue(), nil
 	}
 	cb, _ := ctx.GetIndexValue(0)
 	if cb != nil {
-		headerCallbacks = append(headerCallbacks, cb.(data.Value))
+		state.Callbacks = append(state.Callbacks, cb.(data.Value))
 	}
 	return data.NewNullValue(), nil
 }

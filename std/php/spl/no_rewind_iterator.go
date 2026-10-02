@@ -54,6 +54,7 @@ func (m *NRIConstructMethod) GetName() string            { return "__construct" 
 func (m *NRIConstructMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (m *NRIConstructMethod) GetIsStatic() bool          { return false }
 func (m *NRIConstructMethod) GetReturnType() data.Types  { return nil }
+
 var nRIConstructMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Iterator")),
 }
@@ -61,6 +62,7 @@ var nRIConstructMethodGetParams = []data.GetValue{
 func (m *NRIConstructMethod) GetParams() []data.GetValue {
 	return nRIConstructMethodGetParams
 }
+
 var nRIConstructMethodGetVariables = []data.Variable{
 	node.NewVariable(nil, "iterator", 0, data.NewBaseType("Iterator")),
 }

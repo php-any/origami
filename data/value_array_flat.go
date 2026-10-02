@@ -1,7 +1,7 @@
 package data
 
 type ArrayValueFlat struct {
-	source []*ZVal
+	source *ArrayValue
 }
 
 // Call 实现数组的 flat 方法
@@ -18,7 +18,7 @@ func (a *ArrayValueFlat) Call(ctx Context) (GetValue, Control) {
 	}
 
 	// 将 source 转换为 []Value
-	tempArray := &ArrayValue{List: a.source}
+	tempArray := a.source
 	sourceValues := tempArray.ToValueList()
 
 	// 递归扁平化数组

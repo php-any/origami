@@ -32,6 +32,7 @@ func (f *StripslashesFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 }
 
 func (f *StripslashesFunction) GetName() string { return "stripslashes" }
+
 var stripslashesFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 }
@@ -39,6 +40,7 @@ var stripslashesFunctionGetParams = []data.GetValue{
 func (f *StripslashesFunction) GetParams() []data.GetValue {
 	return stripslashesFunctionGetParams
 }
+
 var stripslashesFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 }
@@ -124,6 +126,7 @@ func (f *StripsCslashesFunction) Call(ctx data.Context) (data.GetValue, data.Con
 }
 
 func (f *StripsCslashesFunction) GetName() string { return "stripcslashes" }
+
 var stripsCslashesFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string", 0, nil, nil),
 }
@@ -131,6 +134,7 @@ var stripsCslashesFunctionGetParams = []data.GetValue{
 func (f *StripsCslashesFunction) GetParams() []data.GetValue {
 	return stripsCslashesFunctionGetParams
 }
+
 var stripsCslashesFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "string", 0, data.NewBaseType("string")),
 }

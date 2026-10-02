@@ -17,6 +17,8 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Group;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -44,53 +46,80 @@ class ProductResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(['default' => 1, 'lg' => 3])
             ->components([
-                TextInput::make('name')
-                    ->label('名称')
-                    ->required()
-                    ->maxLength(255),
-                TextInput::make('sku')
-                    ->label('SKU')
-                    ->required()
-                    ->unique(ignoreRecord: true)
-                    ->maxLength(255),
-                Select::make('category_id')
-                    ->label('分类')
-                    ->relationship('category', 'name')
-                    ->searchable()
-                    ->preload()
-                    ->nullable(),
-                FileUpload::make('image')
-                    ->label('图片')
-                    ->image()
-                    ->disk('public')
-                    ->directory('products')
-                    ->imageEditor()
-                    ->nullable(),
-                TextInput::make('price')
-                    ->label('价格')
-                    ->numeric()
-                    ->required()
-                    ->prefix('¥')
-                    ->minValue(0),
-                TextInput::make('stock')
-                    ->label('库存')
-                    ->numeric()
-                    ->required()
-                    ->default(0)
-                    ->minValue(0),
-                Select::make('status')
-                    ->label('状态')
-                    ->options([
-                        'active' => '上架',
-                        'inactive' => '下架',
-                    ])
-                    ->default('active')
-                    ->required(),
-                Textarea::make('description')
-                    ->label('描述')
-                    ->rows(4)
-                    ->columnSpanFull(),
+                Group::make([
+                    Section::make('商品信息')
+                        ->description('商品名称、编码及分类信息')
+                        ->icon('heroicon-o-cube')
+                        ->columns(2)
+                        ->schema([
+                            TextInput::make('name')
+                                ->label('商品名称')
+                                ->required()
+                                ->maxLength(255),
+                            TextInput::make('sku')
+                                ->label('SKU')
+                                ->required()
+                                ->unique(ignoreRecord: true)
+                                ->maxLength(255),
+                            Select::make('category_id')
+                                ->label('分类')
+                                ->relationship('category', 'name')
+                                ->searchable()
+                                ->preload()
+                                ->nullable()
+                                ->columnSpanFull(),
+                            Textarea::make('description')
+                                ->label('商品描述')
+                                ->rows(6)
+                                ->columnSpanFull(),
+                        ]),
+                    Section::make('商品图片')
+                        ->description('用于商品列表和详情展示')
+                        ->icon('heroicon-o-photo')
+                        ->schema([
+                            FileUpload::make('image')
+                                ->label('图片')
+                                ->image()
+                                ->disk('public')
+                                ->directory('products')
+                                ->imageEditor()
+                                ->nullable(),
+                        ]),
+                ])->columnSpan(['default' => 1, 'lg' => 2]),
+                Group::make([
+                    Section::make('价格与库存')
+                        ->description('设置销售价格与可用库存')
+                        ->icon('heroicon-o-banknotes')
+                        ->schema([
+                            TextInput::make('price')
+                                ->label('价格')
+                                ->numeric()
+                                ->required()
+                                ->prefix('¥')
+                                ->minValue(0),
+                            TextInput::make('stock')
+                                ->label('库存')
+                                ->numeric()
+                                ->required()
+                                ->default(0)
+                                ->minValue(0),
+                        ]),
+                    Section::make('发布设置')
+                        ->description('上架商品可在前台展示')
+                        ->icon('heroicon-o-adjustments-horizontal')
+                        ->schema([
+                            Select::make('status')
+                                ->label('状态')
+                                ->options([
+                                    'active' => '上架',
+                                    'inactive' => '下架',
+                                ])
+                                ->default('active')
+                                ->required(),
+                        ]),
+                ])->columnSpan(1),
             ]);
     }
 

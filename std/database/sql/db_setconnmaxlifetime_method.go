@@ -35,6 +35,7 @@ func (h *DBSetConnMaxLifetimeMethod) Call(ctx data.Context) (data.GetValue, data
 func (h *DBSetConnMaxLifetimeMethod) GetName() string            { return "setConnMaxLifetime" }
 func (h *DBSetConnMaxLifetimeMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *DBSetConnMaxLifetimeMethod) GetIsStatic() bool          { return true }
+
 var dBSetConnMaxLifetimeMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "d", 0, nil, nil),
 }

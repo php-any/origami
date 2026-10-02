@@ -411,7 +411,8 @@ func methodTrimPrefix(ctx data.Context) (data.GetValue, data.Control) {
 	cv := strSelf(ctx)
 	v := argValue(ctx, 0)
 	if av, ok := v.(*data.ArrayValue); ok {
-		for _, z := range av.List {
+		for arraySlots207, arrayPosition207 := av.View(), 0; arrayPosition207 < arraySlots207.Len(); arrayPosition207++ {
+			z := arraySlots207.At(arrayPosition207)
 			if z == nil || z.Value == nil {
 				continue
 			}
@@ -430,7 +431,8 @@ func methodTrimSuffix(ctx data.Context) (data.GetValue, data.Control) {
 	cv := strSelf(ctx)
 	v := argValue(ctx, 0)
 	if av, ok := v.(*data.ArrayValue); ok {
-		for _, z := range av.List {
+		for arraySlots208, arrayPosition208 := av.View(), 0; arrayPosition208 < arraySlots208.Len(); arrayPosition208++ {
+			z := arraySlots208.At(arrayPosition208)
 			if z == nil || z.Value == nil {
 				continue
 			}
@@ -489,7 +491,8 @@ func methodJoin(ctx data.Context) (data.GetValue, data.Control) {
 	arr := argValue(ctx, 0)
 	var parts []string
 	if av, ok := arr.(*data.ArrayValue); ok {
-		for _, z := range av.List {
+		for arraySlots209, arrayPosition209 := av.View(), 0; arrayPosition209 < arraySlots209.Len(); arrayPosition209++ {
+			z := arraySlots209.At(arrayPosition209)
 			if z != nil && z.Value != nil {
 				parts = append(parts, valueString(ctx, z.Value))
 			}
@@ -812,7 +815,9 @@ func callPHPFunc(ctx data.Context, name string, args ...data.Value) (data.GetVal
 		return nil, data.NewErrorThrow(nil, errFunc(name))
 	}
 	callCtx := ctx.CreateContext(fn.GetVariables())
-	data.BindDeclaredArgs(callCtx, fn, args)
+	if ctl := data.BindDeclaredArgs(callCtx, fn, args); ctl != nil {
+		return nil, ctl
+	}
 	return fn.Call(callCtx)
 }
 

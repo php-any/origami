@@ -61,6 +61,7 @@ func (h *TxExecContextMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 func (h *TxExecContextMethod) GetName() string            { return "execContext" }
 func (h *TxExecContextMethod) GetModifier() data.Modifier { return data.ModifierPublic }
 func (h *TxExecContextMethod) GetIsStatic() bool          { return true }
+
 var txExecContextMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "ctx", 0, nil, nil),
 	node.NewParameter(nil, "query", 1, nil, nil),

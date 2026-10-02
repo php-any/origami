@@ -123,6 +123,7 @@ func (f *ArrayAnyFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (f *ArrayAnyFunction) GetName() string { return "array_any" }
+
 var arrayAnyFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "array", 0, nil, data.Arrays{}),
 	node.NewParameter(nil, "callback", 1, nil, nil),
@@ -131,6 +132,7 @@ var arrayAnyFunctionGetParams = []data.GetValue{
 func (f *ArrayAnyFunction) GetParams() []data.GetValue {
 	return arrayAnyFunctionGetParams
 }
+
 var arrayAnyFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "array", 0, data.Arrays{}),
 	node.NewVariable(nil, "callback", 1, data.Mixed{}),
@@ -164,6 +166,7 @@ func (f *ArrayAllFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (f *ArrayAllFunction) GetName() string { return "array_all" }
+
 var arrayAllFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "array", 0, nil, data.Arrays{}),
 	node.NewParameter(nil, "callback", 1, nil, nil),
@@ -172,6 +175,7 @@ var arrayAllFunctionGetParams = []data.GetValue{
 func (f *ArrayAllFunction) GetParams() []data.GetValue {
 	return arrayAllFunctionGetParams
 }
+
 var arrayAllFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "array", 0, data.Arrays{}),
 	node.NewVariable(nil, "callback", 1, data.Mixed{}),

@@ -63,7 +63,7 @@ func (f *ArraySliceFunction) Call(ctx data.Context) (data.GetValue, data.Control
 
 	// 处理数组
 	if arrayVal, ok := arrayValue.(*data.ArrayValue); ok {
-		arrLen := len(arrayVal.List)
+		arrLen := arrayVal.Len()
 
 		// 处理负偏移量
 		if offset < 0 {
@@ -99,35 +99,35 @@ func (f *ArraySliceFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		}
 
 		// 提取切片。PHP：字符串键始终保留；整数键默认从 0 重排（除非 preserve_keys）。
-		result := &data.ArrayValue{List: make([]*data.ZVal, 0, end-offset)}
+		result := data.NewArrayValueFromSlots(make([]*data.ZVal, 0, end-offset))
 		nextInt := 0
 		for i := offset; i < end; i++ {
-			z := arrayVal.List[i]
+			z := arrayVal.At(i)
 			if z == nil {
 				continue
 			}
 			name := z.Name
 			_, isIntKey := data.ParseIntArrayKeyName(name)
-			isStringKey := name != "" && !isIntKey
+			isStringKey := z.EmptyStrKey || name != "" && !isIntKey
 
 			if isStringKey {
-				result.List = append(result.List, data.NewNamedZVal(name, z.Value))
+				result.SetStringKey(name, z.Value)
 				continue
 			}
 
 			if preserveKeys {
 				if name != "" {
-					result.List = append(result.List, data.NewNamedZVal(name, z.Value))
+					result.SetStringKey(name, z.Value)
 				} else {
-					result.List = append(result.List, data.NewNamedZVal(data.IntArrayKeyName(i), z.Value))
+					result.SetStringKey(data.IntArrayKeyName(i), z.Value)
 				}
 				continue
 			}
 
-			if nextInt == len(result.List) {
-				result.List = append(result.List, data.NewZVal(z.Value))
+			if nextInt == result.Len() {
+				result.AppendValue(z.Value)
 			} else {
-				result.List = append(result.List, data.NewNamedZVal(data.IntArrayKeyName(nextInt), z.Value))
+				result.SetStringKey(data.IntArrayKeyName(nextInt), z.Value)
 			}
 			nextInt++
 		}
@@ -170,24 +170,24 @@ func (f *ArraySliceFunction) Call(ctx data.Context) (data.GetValue, data.Control
 			}
 		}
 
-		result := &data.ArrayValue{List: make([]*data.ZVal, 0, end-offset)}
+		result := data.NewArrayValueFromSlots(make([]*data.ZVal, 0, end-offset))
 		nextInt := 0
 		for i := offset; i < end; i++ {
 			name := keys[i]
 			val := values[i]
 			_, isIntKey := data.ParseIntArrayKeyName(name)
 			if !isIntKey {
-				result.List = append(result.List, data.NewNamedZVal(name, val))
+				result.SetStringKey(name, val)
 				continue
 			}
 			if preserveKeys {
-				result.List = append(result.List, data.NewNamedZVal(name, val))
+				result.SetStringKey(name, val)
 				continue
 			}
-			if nextInt == len(result.List) {
-				result.List = append(result.List, data.NewZVal(val))
+			if nextInt == result.Len() {
+				result.AppendValue(val)
 			} else {
-				result.List = append(result.List, data.NewNamedZVal(data.IntArrayKeyName(nextInt), val))
+				result.SetStringKey(data.IntArrayKeyName(nextInt), val)
 			}
 			nextInt++
 		}

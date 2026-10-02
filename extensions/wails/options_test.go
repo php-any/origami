@@ -75,12 +75,10 @@ func TestOptionsAppStoresHTMLFromArray(t *testing.T) {
 	appCV.SetVM(vm)
 
 	htmlStr := "<title>UNIQUE_MARKER_TEST</title>"
-	opts := &data.ArrayValue{
-		List: []*data.ZVal{
-			data.NewNamedZVal("HTML", data.NewStringValue(htmlStr)),
-			data.NewNamedZVal("Title", data.NewStringValue("Probe")),
-		},
-	}
+	opts := data.NewArrayValueFromSlots([]*data.ZVal{
+		data.NewNamedZVal("HTML", data.NewStringValue(htmlStr)),
+		data.NewNamedZVal("Title", data.NewStringValue("Probe")),
+	})
 
 	construct := classStmt.GetConstruct()
 	methodCtx := appCV.CreateContext(construct.GetVariables())

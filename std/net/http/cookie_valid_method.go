@@ -15,12 +15,14 @@ func (h *CookieValidMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	return data.NewAnyValue(ret0), nil
 }
 
-func (h *CookieValidMethod) GetName() string               { return "valid" }
-func (h *CookieValidMethod) GetModifier() data.Modifier    { return data.ModifierPublic }
-func (h *CookieValidMethod) GetIsStatic() bool             { return false }
+func (h *CookieValidMethod) GetName() string            { return "valid" }
+func (h *CookieValidMethod) GetModifier() data.Modifier { return data.ModifierPublic }
+func (h *CookieValidMethod) GetIsStatic() bool          { return false }
+
 var cookieValidMethodGetParams = []data.GetValue{}
 
-func (h *CookieValidMethod) GetParams() []data.GetValue    { return cookieValidMethodGetParams }
+func (h *CookieValidMethod) GetParams() []data.GetValue { return cookieValidMethodGetParams }
+
 var cookieValidMethodGetVariables = []data.Variable{}
 
 func (h *CookieValidMethod) GetVariables() []data.Variable { return cookieValidMethodGetVariables }

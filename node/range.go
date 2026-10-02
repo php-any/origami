@@ -49,7 +49,7 @@ func (ie *Range) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	switch v := temp.(type) {
 	case *data.ArrayValue:
-		stop := len(v.List)
+		stop := v.Len()
 		if ie.Stop != nil {
 			temp, acl := ie.Stop.GetValue(ctx)
 			if acl != nil {
@@ -60,8 +60,8 @@ func (ie *Range) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 				if err != nil {
 					return nil, data.NewErrorThrow(ie.GetFrom(), err)
 				}
-				if iTemp >= len(v.List) {
-					return nil, data.NewErrorThrow(ie.GetFrom(), errors.New(fmt.Sprintf("数组索引超出范围, 索引(%v), 长度(%v)", iTemp, len(v.List))))
+				if iTemp >= v.Len() {
+					return nil, data.NewErrorThrow(ie.GetFrom(), errors.New(fmt.Sprintf("数组索引超出范围, 索引(%v), 长度(%v)", iTemp, v.Len())))
 				}
 				stop = iTemp + 1
 			}

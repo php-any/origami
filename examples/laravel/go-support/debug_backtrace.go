@@ -45,7 +45,7 @@ func (f *DebugBacktraceFunction) Call(ctx data.Context) (data.GetValue, data.Con
 		}
 	}
 
-	return &data.ArrayValue{List: list}, nil
+	return data.NewArrayValueFromSlots(list), nil
 }
 
 func (f *DebugBacktraceFunction) GetName() string            { return "debug_backtrace" }
