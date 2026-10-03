@@ -181,7 +181,10 @@ func filterCallInnerMethod(inner data.GetValue, name string) (data.GetValue, dat
 	}
 	if cv, ok := inner.(*data.ClassValue); ok {
 		if method, found := cv.GetMethod(name); found {
-			innerCtx := cv.CreateContext(method.GetVariables())
+			innerCtx := data.WrapMethodFrame(cv.CreateContext(method.GetVariables()), cv, data.MethodDeclaringClass(cv.GetVM(), cv.Class, name), cv.Class)
+			if ctl := data.BindDeclaredArgs(innerCtx, method, nil); ctl != nil {
+				return nil, ctl
+			}
 			return method.Call(innerCtx)
 		}
 	}
@@ -215,43 +218,77 @@ func filterInnerKeyVal(inner data.GetValue) data.Value {
 // ---- callAccept：通过 ctx 中的 ClassValue 动态调用子类的 accept ----
 
 // callAccept 通过 ctx 内的 ClassValue 动态查找 accept 方法（支持 PHP 子类覆盖）
-func filterCallAccept(ctx data.Context) bool {
+func filterCallAccept(ctx data.Context) (bool, data.Control) {
 	cv := filterGetClassValue(ctx)
 	if cv == nil {
-		return true
+		return true, nil
 	}
 	if method, found := cv.GetMethod("accept"); found {
-		acceptCtx := cv.CreateContext(method.GetVariables())
-		result, _ := method.Call(acceptCtx)
+		acceptCtx := data.WrapMethodFrame(ctx.CreateContext(method.GetVariables()), cv, data.MethodDeclaringClass(ctx.GetVM(), cv.Class, "accept"), cv.Class)
+		if ctl := data.BindDeclaredArgs(acceptCtx, method, nil); ctl != nil {
+			return false, ctl
+		}
+		result, ctl := method.Call(acceptCtx)
+		if ctl != nil {
+			return false, ctl
+		}
 		if bv, ok := result.(*data.BoolValue); ok {
-			return bv.Value
+			return bv.Value, nil
 		}
 		if v, ok := result.(data.AsBool); ok {
 			b, _ := v.AsBool()
-			return b
+			return b, nil
 		}
 	}
-	return true
+	return true, nil
 }
 
 // advanceToAccepted 从内部迭代器当前位置向前推进，直到找到第一个通过 accept 的位置
 // 必须先更新 currentValue 缓存，再调用 accept（PHP 子类 accept() 内用 $this->current() 需要正确内部迭代器当前值）
-func advanceToAccepted(cv *data.ClassValue, ctx data.Context) {
+func advanceToAccepted(cv *data.ClassValue, ctx data.Context) data.Control {
 	inner := filterGetInner(cv)
-	for filterInnerValid(inner) {
-		// 先更新当前值缓存，保证 accept() 内 $this->current() 获取到正确内部迭代器当前值
-		filterSetCurVal(cv, filterInnerCurrent(inner))
-		filterSetCurKey(cv, filterInnerKeyVal(inner))
-		if filterCallAccept(ctx) {
-			filterSetValid(cv, true)
-			return
+	for {
+		valid, ctl := filterCallInnerMethod(inner, "valid")
+		if ctl != nil {
+			return ctl
 		}
-		filterCallInnerMethod(inner, "next")
+		if truth, ok := valid.(data.AsBool); !ok {
+			break
+		} else if value, _ := truth.AsBool(); !value {
+			break
+		}
+		// 先更新当前值缓存，保证 accept() 内 $this->current() 获取到正确内部迭代器当前值
+		current, ctl := filterCallInnerMethod(inner, "current")
+		if ctl != nil {
+			return ctl
+		}
+		key, ctl := filterCallInnerMethod(inner, "key")
+		if ctl != nil {
+			return ctl
+		}
+		if value, ok := current.(data.Value); ok {
+			filterSetCurVal(cv, value)
+		}
+		if value, ok := key.(data.Value); ok {
+			filterSetCurKey(cv, value)
+		}
+		accepted, ctl := filterCallAccept(ctx)
+		if ctl != nil {
+			return ctl
+		}
+		if accepted {
+			filterSetValid(cv, true)
+			return nil
+		}
+		if _, ctl := filterCallInnerMethod(inner, "next"); ctl != nil {
+			return ctl
+		}
 	}
 	// 内部迭代器耗尽
 	filterSetValid(cv, false)
 	filterSetCurVal(cv, data.NewNullValue())
 	filterSetCurKey(cv, data.NewNullValue())
+	return nil
 }
 
 // ---- __construct($iterator) ----
@@ -310,9 +347,10 @@ func (m *FilterIteratorRewindMethod) Call(ctx data.Context) (data.GetValue, data
 		return nil, nil
 	}
 	inner := filterGetInner(cv)
-	filterCallInnerMethod(inner, "rewind")
-	advanceToAccepted(cv, ctx)
-	return nil, nil
+	if _, ctl := filterCallInnerMethod(inner, "rewind"); ctl != nil {
+		return nil, ctl
+	}
+	return nil, advanceToAccepted(cv, ctx)
 }
 
 // ---- valid() ----
@@ -385,9 +423,10 @@ func (m *FilterIteratorNextMethod) Call(ctx data.Context) (data.GetValue, data.C
 		return nil, nil
 	}
 	inner := filterGetInner(cv)
-	filterCallInnerMethod(inner, "next")
-	advanceToAccepted(cv, ctx)
-	return nil, nil
+	if _, ctl := filterCallInnerMethod(inner, "next"); ctl != nil {
+		return nil, ctl
+	}
+	return nil, advanceToAccepted(cv, ctx)
 }
 
 // ---- accept(): 抽象方法，默认返回 true，PHP 子类覆盖 ----

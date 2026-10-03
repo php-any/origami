@@ -8,6 +8,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 // ShellExecFunction 实现 shell_exec 函数
@@ -36,11 +37,12 @@ func (f *ShellExecFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	}
 
 	cmdObj := shellCommand(ctx.GoContext(), cmd)
+	cmdObj.Env = node.EnvironmentEntries(ctx)
 	cmdObj.WaitDelay = 2 * time.Second
 	var stdout bytes.Buffer
 	cmdObj.Stdout = &stdout
 
-	_ = cmdObj.Run()
+	_ = utils.RunCommandTree(cmdObj)
 	if ctx.GoContext().Err() != nil {
 		panic(data.ErrRequestCanceled)
 	}

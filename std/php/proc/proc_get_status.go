@@ -1,8 +1,6 @@
 package proc
 
 import (
-	"syscall"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/std/php/core"
@@ -36,27 +34,19 @@ func (f *ProcGetStatusFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 		return data.NewBoolValue(false), nil
 	}
 
-	// 检查进程是否还在运行
+	// proc_open 的 Wait 协程负责更新生命周期；查询不能发送平台相关信号或改写状态。
 	running := procInfo.GetRunning()
-	if procInfo.Cmd != nil && procInfo.Cmd.Process != nil {
-		// 尝试发送信号 0 来检查进程是否还在运行
-		err := procInfo.Cmd.Process.Signal(syscall.Signal(0))
-		if err != nil {
-			running = false
-			procInfo.SetRunning(false)
-		}
-	}
 
 	// 创建状态数组
-	status := data.NewObjectValue()
-	status.SetProperty("command", data.NewStringValue(procInfo.Command))
-	status.SetProperty("pid", data.NewIntValue(procInfo.Pid))
-	status.SetProperty("running", data.NewBoolValue(running))
-	status.SetProperty("signaled", data.NewBoolValue(false))
-	status.SetProperty("stopped", data.NewBoolValue(false))
-	status.SetProperty("exitcode", data.NewIntValue(procInfo.GetExitCode()))
-	status.SetProperty("termsig", data.NewIntValue(0))
-	status.SetProperty("stopsig", data.NewIntValue(0))
+	status := data.NewArrayValue(nil).(*data.ArrayValue)
+	status.SetStringKey("command", data.NewStringValue(procInfo.Command))
+	status.SetStringKey("pid", data.NewIntValue(procInfo.Pid))
+	status.SetStringKey("running", data.NewBoolValue(running))
+	status.SetStringKey("signaled", data.NewBoolValue(false))
+	status.SetStringKey("stopped", data.NewBoolValue(false))
+	status.SetStringKey("exitcode", data.NewIntValue(procInfo.GetExitCode()))
+	status.SetStringKey("termsig", data.NewIntValue(0))
+	status.SetStringKey("stopsig", data.NewIntValue(0))
 
 	return status, nil
 }

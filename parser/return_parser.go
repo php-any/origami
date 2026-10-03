@@ -52,6 +52,9 @@ func (p *ReturnParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	from := tracker.EndBefore()
+	if p.currentReturnsReference {
+		return node.NewReferenceReturnStatement(from, value), nil
+	}
 	return node.NewReturnStatement(
 		from,
 		value,

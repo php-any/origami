@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/php-any/origami/data"
-	"github.com/php-any/origami/std/laravel/framework/illuminate/events"
 )
 
 // Resolve 从 Laravel 容器解析 Go 实现的 Illuminate\Foundation\Http\Kernel。
@@ -55,7 +54,7 @@ var warmAbstracts = []string{
 	"session",
 	// "session.store" 故意不预热：它是 `fn ($app) => $app['session']->driver()`
 	// （SessionServiceProvider::registerSessionDriver），解析它就是**造出一个请求级的 Store**，
-	// 而预热发生在全局 app 上，等于把一份会话状态挂到全局（详见 resetSessionDrivers）。
+	// 而预热发生在全局 app 上，等于把一份会话状态挂到全局。
 	"cookie",
 	"encrypter",
 	"hash",
@@ -77,22 +76,29 @@ func Warm(ctx data.Context, kernel *data.ClassValue) {
 		return
 	}
 	st, _ := kernel.GetSource().(*kernelState)
-	if st == nil || st.app == nil {
+	var app, router data.Value
+	if st != nil {
+		app, router = st.app, st.router
+	} else {
+		app, _ = kernel.GetProperty("app")
+		router, _ = kernel.GetProperty("router")
+	}
+	if app == nil {
 		return
 	}
 	for _, abstract := range warmAbstracts {
-		bound, ctl := callObjectMethodInContext(ctx, st.app, "bound", data.NewStringValue(abstract))
+		bound, ctl := callObjectMethodInContext(ctx, app, "bound", data.NewStringValue(abstract))
 		if ctl != nil || !isTrueValue(bound) {
 			continue
 		}
-		_, _ = callObjectMethodInContext(ctx, st.app, "make", data.NewStringValue(abstract))
+		_, _ = callObjectMethodInContext(ctx, app, "make", data.NewStringValue(abstract))
 	}
 	// 路由的 Symfony 编译结果是纯粹的启动期常量，先算出来（详见 warmRouteCompiles）。
-	warmRouteCompiles(ctx, st.router)
+	warmRouteCompiles(ctx, router)
 	// Telescope 的开关、匹配 pattern、实例同样都是启动期常量。在全局 Application 上解析一次，
 	// 请求期就只剩一次 $request->is()；放在这里（而非首个请求里）也避免并发首请求在
 	// once.Do 上排队，以及把 Telescope 实例建进某个请求沙箱。
-	if st.tel != nil {
+	if st != nil && st.tel != nil {
 		st.tel.once.Do(func() { st.tel.resolve(ctx, st.app) })
 	}
 }
@@ -116,94 +122,31 @@ func Sandbox(ctx data.Context, kernel *data.ClassValue) *data.ClassValue {
 	if kernel == nil {
 		return nil
 	}
-	src, _ := kernel.GetSource().(*kernelState)
-	if src == nil {
-		return kernel.CloneSandbox(ctx)
+	var scope *data.RequestObjectScope
+	if provider, ok := ctx.GetVM().(data.RequestScopeProvider); ok {
+		scope = provider.RequestObjectScope()
+	} else {
+		scope = data.NewRequestObjectScope(ctx)
 	}
-	st := &kernelState{
-		app:                cloneApplication(src.app, ctx),
-		router:             cloneRouter(src.router, ctx),
-		bootstrappers:      append([]string(nil), src.bootstrappers...),
-		middleware:         append([]string(nil), src.middleware...),
-		middlewareGroups:   cloneGroupsMap(src.middlewareGroups),
-		middlewareAliases:  cloneStringMap(src.middlewareAliases),
-		middlewarePriority: append([]string(nil), src.middlewarePriority...),
-		bootstrapped:       src.bootstrapped,
-		// Telescope 判定是启动期常量：沙箱共享常驻 state 的那一份，不每请求重算。
-		tel: src.tel,
+	request := scope.Object(kernel)
+	state, _ := request.GetSource().(*kernelState)
+	var app, router data.Value
+	if state == nil {
+		app, _ = request.GetProperty("app")
+		router, _ = request.GetProperty("router")
+	} else {
+		syncProperties(request, state)
+		app, router = state.app, state.router
 	}
-	cloneRoutesForRequest(ctx, st.router)
-	cv := data.NewProxyValue(kernel.Class, ctx)
-	if kernel.ObjectValue != nil {
-		cv.ObjectValue = data.DeepCloneObjectValue(kernel.ObjectValue)
-	}
-	cv.InstanceSource = st
-	if ctx != nil {
-		if vm := ctx.GetVM(); vm != nil {
-			cv.SetVM(vm)
+	bindSandboxContainer(ctx, app, router)
+	setRequestInstance(app, fqnKernel, request)
+	setRequestInstance(app, fqnKernelContract, request)
+	if _, exists := methodExists(app, "forgetScopedInstances"); exists {
+		if _, ctl := callObjectMethodInContext(ctx, app, "forgetScopedInstances"); ctl != nil {
+			ctx.GetVM().ThrowControl(ctl)
 		}
 	}
-	syncProperties(cv, st)
-	bindSandboxContainer(ctx, st.app, st.router)
-	// Resolving the kernel during a request must return this sandbox. Otherwise
-	// ApplicationBuilder's afterResolving callback configures a second kernel and
-	// writes to its startup builder concurrently with other requests.
-	setRequestInstance(st.app, fqnKernel, cv)
-	setRequestInstance(st.app, fqnKernelContract, cv)
-	cloneRequestServices(ctx, st.app)
-	if worker, ok := src.app.(*data.ClassValue); ok {
-		if request, ok := st.app.(*data.ClassValue); ok {
-			objects := map[*data.ObjectValue]*data.ClassValue{kernel.ObjectValue: cv}
-			if original, ok := src.router.(*data.ClassValue); ok {
-				if scoped, ok := st.router.(*data.ClassValue); ok {
-					objects[original.ObjectValue] = scoped
-				}
-			}
-			scopeContainerCallbacks(ctx, worker, request, objects)
-		}
-	}
-	return cv
-}
-
-// routerSandboxDeepKeys：Router 上随请求变化的少量状态；RouteCollection 启动后只读，共享。
-var routerSandboxDeepKeys = []string{
-	"current",
-	"currentRequest",
-}
-
-// cloneApplication 造请求级 Application：它是全局 Application 的一个空壳，
-// 未命中的属性读会回落到全局（见 data.CloneRequestScoped / data.chainStore）。
-//
-// 这里曾经是 CloneSandboxKeys(ctx, appSandboxDeepKeys)——每请求把 22 张容器表全量深拷贝。
-// 那份键表本身是对的（这些表请求期确实可能被 Container 的写方法改到）：
-//
-//	bind()/instance()/alias()      -> bindings / aliases / abstractAliases
-//	rebinding()/refresh()          -> reboundCallbacks
-//	resolving()/afterResolving()   -> *ResolvingCallbacks（延迟注册的 provider 每请求都会走）
-//	tag()                          -> tags
-//	extend()                       -> extenders
-//	registerDeferredProvider()     -> loadedProviders / deferredServices
-//	build()                        -> with / buildStack / instances / resolved
-//
-// 问题在于「每请求拷 22 张表」是一笔固定税：暖请求真正写到的通常只有 instances 一两个键，
-// bindings/aliases 这种几百项的表连内层数组都要递归拷一遍，纯属白做。
-// 现在改成按需：链式属性表只在该键第一次被访问时把全局的值升级到请求级，
-// 「拷多少」由「请求真的碰过多少」决定，而不是由「表有多大」决定。
-func cloneApplication(v data.Value, ctx data.Context) data.Value {
-	cv, ok := v.(*data.ClassValue)
-	if !ok || cv == nil {
-		return v
-	}
-	return cv.CloneRequestScoped(ctx)
-}
-
-func cloneRouter(v data.Value, ctx data.Context) data.Value {
-	cv, ok := v.(*data.ClassValue)
-	if !ok || cv == nil {
-		return v
-	}
-	// Router 体量小于 Application，但全量深拷贝仍贵；按键隔离即可。
-	return cv.CloneSandboxKeys(ctx, routerSandboxDeepKeys)
+	return request
 }
 
 func bindSandboxContainer(ctx data.Context, app, router data.Value) {
@@ -282,136 +225,11 @@ func storeSandboxContainerInstance(ctx data.Context, inst data.Value) {
 	}
 }
 
-// cloneRequestServices 把每请求会往自己数组里写的共享单例换成 clone。
-// PHP clone：数组属性按值拷贝。否则 Dispatcher::$listeners / View composers
-// 跨请求膨胀，异常页 VarDumper 能把进程拖到十几秒甚至 OOM。
-//
-// Manager 系（auth/cache/session）是同一类问题的另一种表现：
-// 它们的 $drivers / $guards / $stores 是**共享对象上的数组**，请求期 $this->driver()
-// 一类调用会往里写；更糟的是它们启动时注入的 $this->app 是**全局 Application**，
-// 请求期一句 $this->app['xxx'] 就会去写全局 app 的 instances/resolved/buildStack
-// （压测实测：跨 goroutine 写全局 app 容器表的 1500+ 次里，很大一部分来自这些服务）。
-// 所以克隆它们时**必须**把容器引用重绑到请求级 app。
-func cloneRequestServices(ctx data.Context, app data.Value) {
-	if app == nil {
-		return
-	}
-	// Laravel scoped() bindings must be rebuilt for each worker request.
-	// The container instance table is already private to this sandbox.
-	if _, exists := methodExists(app, "forgetScopedInstances"); exists {
-		_, ctl := callObjectMethodInContext(ctx, app, "forgetScopedInstances")
-		if ctl != nil {
-			ctx.GetVM().ThrowControl(ctl)
-			return
-		}
-	}
-	// 顺序很关键：instance() 会触发 Container::rebound()，而 Laravel 自己的回调
-	// （AuthServiceProvider::register 里的 rebinding('events')）会去读 $app['auth']->guard()。
-	// 边克隆边安装时，回调跑在 auth 还是全局单例的那一刻，
-	// 于是把 guard 写进了共享 AuthManager 的 $guards（实测每请求 1 次跨 goroutine 写）。
-	pending := make([]clonePending, 0, 7)
-	pending = appendPending(ctx, app, pending, "config",
-		"Illuminate\\Config\\Repository",
-		"Illuminate\\Contracts\\Config\\Repository",
-	)
-	pending = appendPending(ctx, app, pending, "events",
-		"Illuminate\\Events\\Dispatcher",
-		"Illuminate\\Contracts\\Events\\Dispatcher",
-	)
-	pending = appendPending(ctx, app, pending, "view",
-		"Illuminate\\View\\Factory",
-		"Illuminate\\Contracts\\View\\Factory",
-	)
-	// BladeCompiler 持有 rawBlocks / footer / componentHashStack 等编译过程状态。
-	// 只隔离 CompilerEngine 不够：并发请求仍会共享 compiler，一个请求 restoreRawContent()
-	// 清空 rawBlocks 后，另一个请求的 @php 块便残留为 @__raw_block_N__@，其中的 use 导入
-	// 丢失后表现为 Width 等短类名无法加载。每请求克隆与 php-fpm 的生命周期一致。
-	pending = appendPending(ctx, app, pending, "blade.compiler",
-		"Illuminate\\View\\Compilers\\BladeCompiler",
-	)
-	pending = appendPending(ctx, app, pending, "url",
-		"Illuminate\\Routing\\UrlGenerator",
-		"Illuminate\\Contracts\\Routing\\UrlGenerator",
-	)
-	pending = appendPending(ctx, app, pending, "auth",
-		"Illuminate\\Contracts\\Auth\\Factory",
-		"Illuminate\\Auth\\AuthManager",
-	)
-	pending = appendPending(ctx, app, pending, "cache",
-		"Illuminate\\Contracts\\Cache\\Factory",
-		"Illuminate\\Cache\\CacheManager",
-	)
-	pending = appendPending(ctx, app, pending, "session",
-		"Illuminate\\Session\\SessionManager",
-	)
-	// auth.driver 是 `fn ($app) => $app['auth']->guard()`（authserviceprovider.php:39）。
-	// 全局 app 上只要解析过一次（预热请求就会），instances 里就留着一个用全局 app 造出来的
-	// SessionGuard，clone 时对象按引用共享 —— 所有请求就会共用同一个 guard（user/session 全串）。
-	// 删掉让它按请求 app 重建，与 php-fpm 每请求全新容器一致。
-	dropInstances(app, "auth.driver", "Illuminate\\Contracts\\Auth\\Guard")
-	// session.store 同理，但共享的是**整份会话状态**：`fn ($app) => $app['session']->driver()`
-	// 在全局 app 上被 Warm 解析过一次，全局 instances 里就留着那个 Store 对象。
-	// 删掉（本地 instances 数组是深拷贝，删本地即屏蔽全局）后走 resolve 重建，
-	// 配合 resetSessionDrivers 得到请求私有的 Store。
-	dropInstances(app, "session.store")
-	// 安装：直接把克隆体写进请求 app 的 instances 表，不再逐个走 PHP 的
-	// Container::instance()（每请求 6 个 abstract + 10 个别名 = 16 次 PHP 调用，
-	// 外加匹配到的 rebound 回调一次）。
-	//
-	// 等价性依据 —— 本应用注册的 rebound 回调只有三处：
-	//   routes  RoutingServiceProvider::registerUrlGenerator 的 extend('url') 闭包里
-	//   request AuthServiceProvider::registerRequestRebindHandler
-	//   events  AuthServiceProvider::registerEventRebindHandler
-	// pending 里只有 events 会命中，而它第一句就是
-	// `! $app->resolved('auth') || $app['auth']->hasResolvedGuards() === false` 时 return；
-	// appendPending 里的 forgetGuards() 保证后者为 false（且请求刚开头 auth 尚未 resolved）
-	// —— 回调恒为空转。
-	//
-	// instance() 余下的别名簿记（removeAbstractAlias / unset($this->aliases[$abstract])）
-	// 对这批 abstract 同样是 no-op：core alias 的方向是 aliases[契约] = 'events'，
-	// 而这里写的是 instances[abstract] 与 instances[契约]，getAlias 两条路径都指回克隆体。
-	// 顺序仍是「先全部 prime，再装别人」：isolateViewEngines 里的 view 直写要能看见克隆体。
-	for _, p := range pending {
-		primeInstances(app, p)
-	}
-	scopeLivewire(ctx, app)
-	// Vite::flush() resets render state; the warmed singleton must not receive
-	// concurrent writes even on requests which do not render assets.
-	if container, ok := app.(*data.ClassValue); ok {
-		if raw, ctl := container.GetProperty("instances"); ctl == nil {
-			if instances, ok := raw.(*data.ArrayValue); ok {
-				if slot, ok := instances.LookupZValByStringKey("Illuminate\\Foundation\\Vite"); ok {
-					if original, ok := slot.Value.(*data.ClassValue); ok {
-						slot.Value = original.CloneRequestScoped(ctx)
-					}
-				}
-			}
-		}
-	}
-	isolateViewEngines(ctx, app)
-}
-
-// primeInstances 把克隆体先塞进请求 app 的 instances 表，不触发任何容器回调。
-// 后续 instance() 安装时，rebound 回调看到的就都是请求级实例了。
-//
-// GetProperty 返回的是「请求级」的那张表：请求级 Application 的属性表是链式的，
-// 容器值第一次被读到就会从全局升级（分离一层）到请求级，所以这里的原地写只落在本请求，
-// 不会改到全局 app 的 instances。改动本函数时不要绕过 GetProperty 直接拿全局的表。
-func primeInstances(app data.Value, p clonePending) {
-	if p.cloned == nil {
-		return
-	}
-	setRequestInstance(app, p.abstract, p.cloned)
-	for _, alias := range p.aliases {
-		setRequestInstance(app, alias, p.cloned)
-	}
-}
-
 // setRequestInstance 直写请求级 instances 表，等价于 Container::instance() 里的
 // `$this->instances[$abstract] = $instance` 那一句：不走 PHP 调用、不触发 rebound。
-// 调用方必须已经确认该 abstract 没有生效的 rebound 回调（见 cloneRequestServices）。
+// 此入口仅用于安装请求的 Kernel 和 Router 身份。
 //
-// 同 primeInstances：GetProperty 返回的是请求级那张表，写入只落在本请求，
+// GetProperty 返回的是请求级那张表，写入只落在本请求，
 // 不会改到全局 app 的 instances。改动本函数时不要绕过 GetProperty 直接拿全局的表。
 func setRequestInstance(app data.Value, abstract string, val data.Value) {
 	cv, ok := app.(*data.ClassValue)
@@ -449,8 +267,8 @@ func requestInstance(ctx data.Context, app data.Value, abstract string) data.Val
 	if cv, ok := app.(*data.ClassValue); ok && cv != nil {
 		if raw, ctl := cv.GetProperty("instances"); ctl == nil && raw != nil {
 			if arr, ok := raw.(*data.ArrayValue); ok && arr != nil {
-				if z, ok := arr.LookupZValByStringKey(abstract); ok && z != nil && z.Value != nil {
-					return z.Value
+				if z, ok := arr.LookupZValByStringKey(abstract); ok && z != nil && z.ReadValue() != nil {
+					return z.ReadValue()
 				}
 			}
 		}
@@ -462,175 +280,6 @@ func requestInstance(ctx data.Context, app data.Value, abstract string) data.Val
 	return asValue(raw)
 }
 
-// dropInstances 从请求 app 的 instances 表里删掉继承自全局 app 的条目。
-// 用于「请求态」单例（如 auth.driver，其值是一个 guard 对象）：这类服务在 php-fpm
-// 下每请求都重新解析，跟着全局 app 一起继承过来等于跨请求共享对象。
-//
-// 同 primeInstances：GetProperty 给的是请求级那张表，删只删本请求这一份。
-func dropInstances(app data.Value, abstracts ...string) {
-	cv, ok := app.(*data.ClassValue)
-	if !ok || cv == nil {
-		return
-	}
-	raw, ctl := cv.GetProperty("instances")
-	if ctl != nil || raw == nil {
-		return
-	}
-	arr, ok := raw.(*data.ArrayValue)
-	if !ok || arr == nil {
-		return
-	}
-	for _, abstract := range abstracts {
-		arr.UnsetKey(data.NewStringValue(abstract))
-	}
-}
-
-// clonePending 是一个已克隆好、待安装到请求 app 的服务。
-type clonePending struct {
-	abstract string
-	aliases  []string
-	cloned   *data.ClassValue
-}
-
-// appendPending 克隆 abstract 对应的单例（不改容器），返回追加后的列表。
-func appendPending(ctx data.Context, app data.Value, list []clonePending, abstract string, aliases ...string) []clonePending {
-	raw := requestInstance(ctx, app, abstract)
-	cv, ok := raw.(*data.ClassValue)
-	if !ok || cv == nil {
-		return list
-	}
-	var cloned *data.ClassValue
-	if abstract == "events" {
-		cloned = events.ScopeRequest(ctx, cv)
-	} else {
-		cloned = cv.CloneSandbox(ctx)
-	}
-	rebindContainer(ctx, cloned, app)
-	if abstract == "auth" {
-		// AuthManager::$guards 缓存的是 guard 实例（SessionGuard 持有 user / session store）。
-		// 全局 app 上解析过 auth.driver 就会在 $guards 里留下一个用全局 app 造的 guard，
-		// clone 时对象按引用共享 → 所有请求共用同一个 guard。forgetGuards() 后
-		// 每请求首次 guard() 才按请求 app 重建；同时让 rebinding('events') 回调
-		// 因 hasResolvedGuards()===false 提前返回，省掉每请求一次 guard 构造。
-		if _, ok := cloned.GetMethod("forgetGuards"); ok {
-			_, _ = callObjectMethodInContext(ctx, cloned, "forgetGuards")
-		}
-	}
-	if abstract == "session" {
-		resetSessionDrivers(cloned)
-	}
-	if abstract == "view" {
-		// PHP clone 不会改 shared['__env']=$this。Blade 编译视图用 $__env，
-		// View::render 用 View::$factory。两者必须是同一实例，否则嵌套 table
-		// 在旧 Factory 上 flushStateIfDoneRendering 会清掉 page 的 componentStack（View []）。
-		_, _ = callObjectMethodInContext(ctx, cloned, "share", data.NewStringValue("__env"), cloned)
-		// 源 Factory 可能正被别的请求渲染（renderCount/componentStack 非空）。
-		// PHP clone 会把这些状态拷过来；不 flush 就会 flushStateIfDoneRendering 清错栈，
-		// Livewire 得到注释/空 HTML → RootTagMissing，异常页再被 HtmlDumper 拖死。
-		_, _ = callObjectMethodInContext(ctx, cloned, "flushState")
-	}
-	return append(list, clonePending{abstract: abstract, aliases: aliases, cloned: cloned})
-}
-
-// resetSessionDrivers 清掉克隆出来的 SessionManager 的 $drivers 缓存，
-// 逼每个请求自己 driver() 出一个 Store（Manager::driver 是 `$this->drivers[$d] ??= createDriver()`）。
-//
-// 为什么必须清：Warm 在**全局 app** 上解析过一次 'session.store'，那会走
-// `$app['session']->driver()`，于是全局 SessionManager 的 $drivers 里留下一个 Store。
-// 请求级 manager 是 clone 出来的，$drivers 数组按值带过来，但数组里的 **Store 是同一个对象**
-// （PHP 数组按值 / 对象按引用），StartSession 的 `$this->manager->driver()` 又直接命中缓存，
-// 于是所有请求共用同一个 Store：$attributes（会话数据）/ $id / handler 全部共享。
-// 实测（examples/laravel13 的探针路由）：两个**全新 cookie**、session id 完全不同的请求，
-// 后一个进 handler 时能看到前一个写的键与 _previous.url；SESSION_DRIVER=array 时
-// ArraySessionHandler 里那个共享数组被并发写，直接
-// `fatal error: concurrent map writes`（value_array.go:SetStringKey ← IndexExpression）。
-//
-// 清掉后 `$drivers[$name] ??= createDriver()` 重新建 Store / handler，等于 php-fpm 每请求
-// 一份的状态；成本只有一次 Store + handler 构造（driver 名以外的配置都还在）。
-func resetSessionDrivers(cv *data.ClassValue) {
-	if cv == nil {
-		return
-	}
-	// $drivers 声明在 Support\Manager 上，GetPropertyStmt 会沿 extend 链找到；
-	// 找不到（改名/换实现）就保持原样，行为回落到旧实现。
-	if _, declared := cv.GetPropertyStmt("drivers"); !declared {
-		return
-	}
-	_ = cv.SetProperty("drivers", data.NewArrayValue(nil))
-}
-
-// rebindSetters 是「容器引用 setter → 它写的属性」的对照表。
-// 这些方法体在 vendor 里都只有一句赋值，可以直接写属性：
-//
-//	Support\Manager::setContainer            -> $this->container = $container
-//	AuthManager/CacheManager::setApplication -> $this->app = $app
-//
-// （本函数只在这两个类的实例上被调用，见 cloneRequestServices 的 pending 名单。）
-var rebindSetters = []struct {
-	method   string
-	property string
-}{
-	{"setContainer", "container"},
-	{"setApplication", "app"},
-}
-
-// rebindContainer 把克隆体上的「容器/应用」引用改指到请求级 app。
-// 各家 setter 名不一致，而且有几个压根没有 setter（Events\Dispatcher 的 $container、
-// UrlGenerator 连容器属性都没有），只能写属性。
-// 不重绑 = 克隆体仍握着全局 Application，请求期 $this->container->make()、
-// $this->app['x'] 都会打到全局 app 的容器表上，直接触发 concurrent map writes。
-//
-// 改 Go 直写（原为逐个 callObjectMethodInContext）：上面两个 setter 的方法体只有一句赋值，
-// 而 GetPropertyStmt 会沿 extend 链找到父类声明（session 的 $container 声明在 Support\Manager）。
-// 万一属性声明找不到（改名 / 换实现），才回落 PHP 调用，行为与旧实现一致。
-func rebindContainer(ctx data.Context, cv *data.ClassValue, app data.Value) {
-	if cv == nil || app == nil {
-		return
-	}
-	for _, s := range rebindSetters {
-		if _, ok := cv.GetMethod(s.method); !ok {
-			continue
-		}
-		if _, declared := cv.GetPropertyStmt(s.property); declared {
-			_ = cv.SetProperty(s.property, app)
-			return
-		}
-		if _, ctl := callObjectMethodInContext(ctx, cv, s.method, app); ctl == nil {
-			return
-		}
-	}
-	for _, name := range []string{"container", "app"} {
-		if _, ok := cv.GetPropertyStmt(name); ok {
-			_ = cv.SetProperty(name, app)
-		}
-	}
-}
-
-// isolateViewEngines 每请求克隆 EngineResolver 并丢掉已解析的 blade/php 引擎。
-// 并发 livewire/update 若共用 CompilerEngine::$lastCompiled / 输出缓冲，
-// 会得到空 HTML → Livewire RootTagMissing（仪表盘 widget 一直 Loading）。
-func isolateViewEngines(ctx data.Context, app data.Value) {
-	cv, ok := requestInstance(ctx, app, "view.engine.resolver").(*data.ClassValue)
-	if !ok || cv == nil {
-		return
-	}
-	cloned := cv.CloneSandbox(ctx)
-	_, _ = callObjectMethodInContext(ctx, cloned, "forget", data.NewStringValue("blade"))
-	_, _ = callObjectMethodInContext(ctx, cloned, "forget", data.NewStringValue("php"))
-	// 同 cloneRequestServices：view.engine.resolver 没有注册过 rebound 回调，直写 instances 即可。
-	setRequestInstance(app, "view.engine.resolver", cloned)
-
-	viewRaw := requestInstance(ctx, app, "view")
-	if viewRaw == nil {
-		return
-	}
-	view, ok := asValue(viewRaw).(*data.ClassValue)
-	if !ok || view == nil {
-		return
-	}
-	_ = view.SetProperty("engines", cloned)
-}
-
 // Terminate 执行 Laravel 请求结束生命周期。
 func Terminate(ctx data.Context, kernel *data.ClassValue, request, response data.Value) data.Control {
 	if kernel == nil {
@@ -639,10 +288,3 @@ func Terminate(ctx data.Context, kernel *data.ClassValue, request, response data
 	_, control := callObjectMethodInContext(ctx, kernel, "terminate", request, response)
 	return control
 }
-
-// 注：Octane Worker 的 finally 里有一句「丢掉常驻 Blade/PHP 引擎」，这里**不需要**——
-// 那个 reset 是为「resolver 是跨请求共享单例」准备的，而本实现每请求都在
-// isolateViewEngines 里从常驻 resolver 克隆出一份私有的、并且已经 forget 掉 blade/php 的副本，
-// 请求结束整份副本就丢了，引擎不可能把脏缓冲带到下一请求。
-// 曾经的 ResetViewEngines 作用在请求 app 上（make 命中的正是这份私有副本），
-// 每请求白打 3 次 PHP 调用（make + forget×2）后把副本再 forget 一遍，已删除。

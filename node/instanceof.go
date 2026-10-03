@@ -101,5 +101,5 @@ func instanceof(ctx data.Context, class string, objectValue data.GetValue) (data
 	case *data.ThisValue:
 		return data.NewBoolValue(data.NominalIsA(object.Class, class, ctx.GetVM())), nil
 	}
-	return data.NewBoolValue(data.Class{Name: class}.Is(value)), nil
+	return data.NewBoolValue(data.NominalValueMatches(value, class, ctx)), nil
 }

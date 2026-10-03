@@ -56,7 +56,8 @@ func (sp *StaticParser) Parse() (data.GetValue, data.Control) {
 
 			// 期望后面紧跟括号：static::{expr}()
 			if !sp.checkPositionIs(0, token.LPAREN) {
-				return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("static::{...} 目前仅支持方法调用形式 static::{...}()"))
+				vp := &VariableParser{sp.Parser}
+				return vp.parseSuffix(node.NewCallDynamicConstant(tokenFrom, node.NewStaticClass(tokenFrom), nameExpr))
 			}
 
 			// 构造一个 "动态静态方法调用" 节点：在运行时用 nameExpr.AsString() 取方法名，再交给现有逻辑
@@ -124,6 +125,9 @@ func (sp *StaticParser) parseStaticFunction(tracker *PositionTracker) (data.GetV
 		returnsReference = true
 		sp.next()
 	}
+	outerReference := sp.currentReturnsReference
+	sp.currentReturnsReference = returnsReference
+	defer func() { sp.currentReturnsReference = outerReference }()
 
 	// 期待匿名函数格式: function (...) { ... } 或 function (...) use (...) { ... }
 	if !sp.checkPositionIs(0, token.LPAREN) {
@@ -222,7 +226,7 @@ func (sp *StaticParser) parseStaticFunction(tracker *PositionTracker) (data.GetV
 
 	// 设置返回类型（如果指定了）
 	if ret != nil {
-		fn.FunctionStatement.Ret = ret
+		fn.FunctionStatement.Ret = data.DeclaredTypeRef(ret)
 	}
 
 	return fn, nil
@@ -232,6 +236,14 @@ func (sp *StaticParser) parseStaticFunction(tracker *PositionTracker) (data.GetV
 func (sp *StaticParser) parseStaticArrowFunction(tracker *PositionTracker) (data.GetValue, data.Control) {
 	// 跳过 fn
 	sp.next()
+	returnsReference := false
+	if sp.checkPositionIs(0, token.BIT_AND) {
+		returnsReference = true
+		sp.next()
+	}
+	outerReference := sp.currentReturnsReference
+	sp.currentReturnsReference = returnsReference
+	defer func() { sp.currentReturnsReference = outerReference }()
 
 	// 期待箭头函数格式: fn (...) => ...
 	if !sp.checkPositionIs(0, token.LPAREN) {
@@ -291,6 +303,9 @@ func (sp *StaticParser) parseStaticArrowFunction(tracker *PositionTracker) (data
 
 	from := tracker.EndBefore()
 	body = wrapArrowFunctionBody(from, body)
+	if returnsReference {
+		body = []data.GetValue{node.NewReferenceReturnStatement(from, body[0].(*node.ReturnStatement).Value)}
+	}
 
 	// 静态箭头函数创建为 Lambda 表达式（无绑定 $this）
 	fn := node.NewLambdaExpression(
@@ -302,10 +317,11 @@ func (sp *StaticParser) parseStaticArrowFunction(tracker *PositionTracker) (data
 		sp.strictTypes,
 	)
 	fn.IsStatic = true
+	fn.ReturnsReference = returnsReference
 
 	// 设置返回类型（如果指定了）
 	if ret != nil {
-		fn.FunctionStatement.Ret = ret
+		fn.FunctionStatement.Ret = data.DeclaredTypeRef(ret)
 	}
 
 	return fn, nil

@@ -51,7 +51,7 @@ func (s *IncludeStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 //
 // PHP 语义：require 在独立文件作用域执行，按名注入调用者（含 extract）已有变量。
 // 注意：当前为单向注入（视图场景），并非完整共享符号表写回。
-// require_once 仍缓存返回值；普通 require 每次重新执行（视图引擎需要）。
+// Once includes return true when the file has already executed.
 func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool, from data.From) (data.GetValue, data.Control) {
 	var filePath string
 	switch p := pathVal.(type) {
@@ -83,12 +83,6 @@ func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool,
 	vm := ctx.GetVM()
 
 	if once {
-		if host, ok := vm.(includeOnceCacheHost); ok {
-			if cached, ok := host.GetIncludeOnceResult(filePath); ok {
-				return cached, nil
-			}
-		}
-
 		if vm.GetPhpFileCache(filePath) {
 			return data.NewBoolValue(true), nil
 		}
@@ -108,6 +102,9 @@ func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool,
 		return data.NewBoolValue(false), nil
 	}
 
+	if cache, ok := vm.(interface{ ValidateParsedFileVersion(string, os.FileInfo) }); ok {
+		cache.ValidateParsedFileVersion(filePath, fileInfo)
+	}
 	v, acl := vm.LoadInCallerContext(ctx, filePath)
 	if acl != nil {
 		return nil, acl

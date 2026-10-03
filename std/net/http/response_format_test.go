@@ -12,9 +12,9 @@ import (
 
 func TestDefaultFormattedPayload(t *testing.T) {
 	payload := defaultFormattedPayload(200, "success", data.NewStringValue("ok"))
-	obj, ok := payload.(*data.ObjectValue)
+	obj, ok := payload.(*data.ClassValue)
 	if !ok {
-		t.Fatalf("payload type = %T, want *data.ObjectValue", payload)
+		t.Fatalf("payload type = %T, want *data.ClassValue", payload)
 	}
 
 	codeVal, _ := obj.GetProperty("code")

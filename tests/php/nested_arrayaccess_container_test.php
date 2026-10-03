@@ -48,8 +48,8 @@ if ($default !== 'sqlite') {
 
 $c['config']['database.default'] = 'mysql';
 $after = $c['config']['database.default'];
-if ($after !== 'mysql') {
-    echo "FAIL write chained: ";
+if ($after !== 'sqlite') {
+    echo "FAIL by-value indirect write changed original: ";
     var_export($after);
     echo "\n";
     exit(1);

@@ -77,7 +77,7 @@ func compileRouteValue(ctx data.Context, route *data.ClassValue) (data.GetValue,
 	}
 	for arraySlots202, arrayPosition202 := res.variables.View(), 0; arrayPosition202 < arraySlots202.Len(); arrayPosition202++ {
 		z := arraySlots202.At(arrayPosition202)
-		if z != nil && z.Value != nil && z.Value.AsString() == "_fragment" {
+		if z != nil && z.ReadValue() != nil && z.ReadValue().AsString() == "_fragment" {
 			return nil, throwNamed(ctx, "InvalidArgumentException",
 				fmt.Sprintf("Route pattern \"%s\" cannot contain \"_fragment\" as a path parameter.", path))
 		}
@@ -87,16 +87,16 @@ func compileRouteValue(ctx data.Context, route *data.ClassValue) (data.GetValue,
 	seen := map[string]bool{}
 	for arraySlots203, arrayPosition203 := allVars.View(), 0; arrayPosition203 < arraySlots203.Len(); arrayPosition203++ {
 		z := arraySlots203.At(arrayPosition203)
-		if z != nil && z.Value != nil {
-			seen[z.Value.AsString()] = true
+		if z != nil && z.ReadValue() != nil {
+			seen[z.ReadValue().AsString()] = true
 		}
 	}
 	for arraySlots204, arrayPosition204 := res.variables.View(), 0; arrayPosition204 < arraySlots204.Len(); arrayPosition204++ {
 		z := arraySlots204.At(arrayPosition204)
-		if z == nil || z.Value == nil {
+		if z == nil || z.ReadValue() == nil {
 			continue
 		}
-		name := z.Value.AsString()
+		name := z.ReadValue().AsString()
 		if seen[name] {
 			continue
 		}

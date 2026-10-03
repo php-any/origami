@@ -1,6 +1,57 @@
 package node
 
-import "github.com/php-any/origami/data"
+import (
+	"fmt"
+	"github.com/php-any/origami/data"
+	"os"
+)
+
+// Reference returns are selected while parsing, so ordinary returns do not
+// pay for lvalue discovery. The slot survives a pooled frame and is resolved
+// once, even when its index or receiver expression has side effects.
+type ReferenceReturnStatement struct{ *ReturnStatement }
+
+func NewReferenceReturnStatement(from data.From, value data.GetValue) *ReferenceReturnStatement {
+	return &ReferenceReturnStatement{&ReturnStatement{Node: NewNode(from), Value: value}}
+}
+
+func (r *ReferenceReturnStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	// The result may retain a pointer to a local bucket after this call exits.
+	markContextEscaped(ctx)
+	if r.Value == nil {
+		return nil, ctx.ReturnSlot(data.NewNullValue())
+	}
+	switch r.Value.(type) {
+	case data.Variable, *IndexExpression, interface {
+		GetZVal(data.Context) (*data.ZVal, data.Control)
+	}:
+		slot, ctl := argumentReferenceSlot(ctx, r.Value)
+		if ctl != nil {
+			return nil, ctl
+		}
+		return nil, ctx.ReturnSlot(&data.ArraySlotRef{Slot: slot})
+	}
+	var value data.GetValue
+	var ctl data.Control
+	if call, ok := r.Value.(referenceCall); ok {
+		value, ctl = call.GetReferenceValue(ctx)
+	} else {
+		value, ctl = r.Value.GetValue(ctx)
+	}
+	if ctl != nil {
+		return nil, ctl
+	}
+	if v, ok := value.(data.Value); ok {
+		if slot, ctl := data.ReferenceSlot(v); ctl != nil {
+			return nil, ctl
+		} else if slot != nil {
+			return nil, ctx.ReturnSlot(&data.ArraySlotRef{Slot: slot})
+		}
+		fmt.Fprintln(os.Stderr, "Notice: Only variable references should be returned by reference")
+		return nil, ctx.ReturnSlot(&data.ArraySlotRef{Slot: data.NewZVal(v)})
+	}
+	return nil, ctx.ReturnSlot(data.NewNullValue())
+}
 
 func (u *ReturnStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	if u.Value == nil {

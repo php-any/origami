@@ -132,15 +132,7 @@ func (f *ExtractFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	switch v := arrayVal.(type) {
-	case *data.ObjectValue:
-		// 关联数组由 ObjectValue 表示（PHP 中 ['key' => 'val'] 即此类型）
-		v.RangeProperties(func(key string, val data.Value) bool {
-			acl = doExtract(key, val)
-			return acl == nil
-		})
-		if acl != nil {
-			return nil, acl
-		}
+
 	case *data.ArrayValue:
 		for arraySlots119,
 			// 顺序数组：仅处理带有字符串键名（ZVal.Name != ""）的条目
@@ -149,7 +141,7 @@ func (f *ExtractFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 			if zv == nil || zv.Name == "" {
 				continue
 			}
-			if acl = doExtract(zv.Name, zv.Value); acl != nil {
+			if acl = doExtract(zv.Name, zv.ReadValue()); acl != nil {
 				return nil, acl
 			}
 		}

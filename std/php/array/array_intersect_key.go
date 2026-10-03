@@ -21,11 +21,7 @@ func extractKeys(v data.Value) map[string]bool {
 			zv := arraySlots91.At(idx)
 			keys[zv.PHPArrayKey(idx).AsString()] = true
 		}
-	case *data.ObjectValue:
-		arr.RangeProperties(func(key string, _ data.Value) bool {
-			keys[key] = true
-			return true
-		})
+
 	}
 	return keys
 }
@@ -42,7 +38,7 @@ func (f *ArrayIntersectKeyFunction) Call(ctx data.Context) (data.GetValue, data.
 		if restArr, ok := restVal.(*data.ArrayValue); ok {
 			for arraySlots92, arrayPosition92 := restArr.View(), 0; arrayPosition92 < arraySlots92.Len(); arrayPosition92++ {
 				zv := arraySlots92.At(arrayPosition92)
-				allKeys = append(allKeys, extractKeys(zv.Value))
+				allKeys = append(allKeys, extractKeys(zv.ReadValue()))
 			}
 		}
 	}
@@ -65,19 +61,11 @@ func (f *ArrayIntersectKeyFunction) Call(ctx data.Context) (data.GetValue, data.
 			zv := arraySlots93.At(idx)
 			key := zv.PHPArrayKey(idx)
 			if inAll(key.AsString()) {
-				result.SetKey(key, zv.Value)
+				result.SetKey(key, zv.ReadValue())
 			}
 		}
 		return result, nil
-	case *data.ObjectValue:
-		result := data.NewObjectValue()
-		first.RangeProperties(func(key string, val data.Value) bool {
-			if inAll(key) {
-				result.SetProperty(key, val)
-			}
-			return true
-		})
-		return result, nil
+
 	default:
 		return data.NewArrayValue([]data.Value{}), nil
 	}

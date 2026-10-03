@@ -59,9 +59,6 @@ func (f *ArrayKeyExistsFunction) Call(ctx data.Context) (data.GetValue, data.Con
 	}
 
 	// 关联数组在运行时可能以 ObjectValue 表示；键存在且值为 null 时仍应返回 true（对齐 PHP）
-	if objectVal, ok := arrayValue.(*data.ObjectValue); ok {
-		return data.NewBoolValue(objectVal.HasProperty(keyStr)), nil
-	}
 
 	return data.NewBoolValue(false), nil
 }

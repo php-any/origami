@@ -129,10 +129,10 @@ func bounds(values *data.ArrayValue) (data.Value, data.Value) {
 	first, last := values.At(0), values.At(values.Len()-1)
 	var low, high data.Value = data.NewBoolValue(false), data.NewBoolValue(false)
 	if first != nil {
-		low = first.Value
+		low = first.ReadValue()
 	}
 	if last != nil {
-		high = last.Value
+		high = last.ReadValue()
 	}
 	return low, high
 }
@@ -420,7 +420,7 @@ func collectionReduceSpread(ctx data.Context) (data.GetValue, data.Control) {
 		for arraySlots42, arrayPosition42 := result.View(), 0; arrayPosition42 < arraySlots42.Len(); arrayPosition42++ {
 			item := arraySlots42.At(arrayPosition42)
 			if item != nil {
-				args = append(args, item.Value)
+				args = append(args, item.ReadValue())
 			}
 		}
 		args = append(args, e.value, e.key)
@@ -502,7 +502,7 @@ func spreadArgs(value, key data.Value) ([]data.Value, data.Control) {
 		for arraySlots43, arrayPosition43 := arr.View(), 0; arrayPosition43 < arraySlots43.Len(); arrayPosition43++ {
 			z := arraySlots43.At(arrayPosition43)
 			if z != nil {
-				args = append(args, z.Value)
+				args = append(args, z.ReadValue())
 			}
 		}
 	} else {
@@ -621,24 +621,14 @@ func dictionaryPair(v data.Value) (string, data.Value, bool) {
 			}
 			switch {
 			case z.EmptyStrKey:
-				return "", z.Value, true
+				return "", z.ReadValue(), true
 			case z.Name != "":
-				return z.Name, z.Value, true
+				return z.Name, z.ReadValue(), true
 			default:
-				return data.IntArrayKeyName(i), z.Value, true
+				return data.IntArrayKeyName(i), z.ReadValue(), true
 			}
 		}
-	case *data.ObjectValue:
-		var keyStr string
-		var value data.Value
-		found := false
-		pair.RangeProperties(func(k string, val data.Value) bool {
-			keyStr, value, found = k, val, true
-			return false
-		})
-		if found {
-			return keyStr, value, true
-		}
+
 	}
 	return "", nil, false
 }
@@ -646,7 +636,7 @@ func dictionaryPair(v data.Value) (string, data.Value, bool) {
 // dictionaryBucket 取出/新建分组数组（setEntry 会按 int 键名还原成整数键，保持 list 语义）。
 func dictionaryBucket(out *data.ArrayValue, keyStr string) *data.ArrayValue {
 	if z, ok := out.LookupZValByStringKey(keyStr); ok && z != nil {
-		if sub, ok := z.Value.(*data.ArrayValue); ok && sub != nil {
+		if sub, ok := z.ReadValue().(*data.ArrayValue); ok && sub != nil {
 			return sub
 		}
 	}
@@ -671,8 +661,8 @@ func collectionDump(ctx data.Context) (data.GetValue, data.Control) {
 	args := make([]data.Value, 0, items.Len())
 	for arraySlots45, arrayPosition45 := items.View(), 0; arrayPosition45 < arraySlots45.Len(); arrayPosition45++ {
 		z := arraySlots45.At(arrayPosition45)
-		if z != nil && z.Value != nil {
-			args = append(args, z.Value)
+		if z != nil && z.ReadValue() != nil {
+			args = append(args, z.ReadValue())
 		}
 	}
 	callCtx := ctx.CreateContext(dumpFn.GetVariables())

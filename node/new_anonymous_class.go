@@ -63,6 +63,7 @@ func (n *NewAnonymousClassExpression) GetValue(ctx data.Context) (data.GetValue,
 			params := method.GetParams()
 			varies := method.GetVariables()
 			fnCtx := object.CreateContext(varies)
+			defer tryReleaseCallContext(method, fnCtx)
 			// 入参的值设置到上下文中
 			for index, arg := range n.Arguments {
 				switch argTV := arg.(type) {

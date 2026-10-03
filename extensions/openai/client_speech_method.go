@@ -59,14 +59,12 @@ func (m *ClientSpeechMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	// 参数 5: options (可选)
-	var opts map[string]any
-	if v, ok := ctx.GetIndexValue(4); ok {
-		if obj, ok := v.(*data.ObjectValue); ok {
-			opts = objectToMap(obj)
-		}
+	opts, ctl := clientOptions(ctx, 4)
+	if ctl != nil {
+		return nil, ctl
 	}
 
-	err := m.source.speech(model.AsString(), input.AsString(), voice.AsString(), output.AsString(), opts)
+	err := m.source.speech(ctx.GoContext(), model.AsString(), input.AsString(), voice.AsString(), output.AsString(), opts)
 	if err != nil {
 		return nil, utils.NewThrow(err)
 	}

@@ -1,6 +1,9 @@
 package stream
 
 import (
+	"bytes"
+	"io"
+	"net/http"
 	"os"
 	"strings"
 
@@ -64,7 +67,7 @@ func (f *FopenFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	streamInfo := NewStreamInfo(file, mode)
 
 	// 创建流资源类，使用文件描述符作为资源ID
-	fd := int(file.Fd())
+	fd := int(fileDescriptor(file))
 	resourceClass := core.NewResourceClass("stream", streamInfo, fd)
 
 	// 创建流资源对象
@@ -117,7 +120,27 @@ func (f *FopenFunction) handlePhpStream(filename string, mode string, ctx data.C
 	var fd int
 
 	switch streamType {
+	case "input":
+		body, http, err := node.HTTPInputBody(ctx)
+		if err != nil {
+			if ctx.GoContext().Err() != nil {
+				panic(data.ErrRequestCanceled)
+			}
+			return data.NewBoolValue(false), nil
+		}
+		if !http {
+			body = []byte(core.PhptInputBody())
+		}
+		return core.NewResourceValue(core.NewResourceClass("stream", NewStreamInfoFromReader(io.NopCloser(bytes.NewReader(body)), "r"), 0), ctx), nil
+	case "output":
+		if !strings.ContainsAny(mode, "waxc+") {
+			return data.NewBoolValue(false), nil
+		}
+		return core.NewResourceValue(core.NewResourceClass("stream", &outputStream{}, 3), ctx), nil
 	case "stdin":
+		if host, ok := ctx.GetVM().(interface{ HTTPRequest() *http.Request }); ok && host.HTTPRequest() != nil {
+			return data.NewBoolValue(false), nil
+		}
 		// 标准输入（只读）
 		if mode != "r" && mode != "rb" {
 			return data.NewBoolValue(false), nil
@@ -146,7 +169,7 @@ func (f *FopenFunction) handlePhpStream(filename string, mode string, ctx data.C
 			return data.NewBoolValue(false), nil
 		}
 		_ = os.Remove(file.Name())
-		fd = int(file.Fd())
+		fd = int(fileDescriptor(file))
 	default:
 		// 不支持的流类型
 		return data.NewBoolValue(false), nil
@@ -155,6 +178,9 @@ func (f *FopenFunction) handlePhpStream(filename string, mode string, ctx data.C
 	// 创建流信息
 	// 注意：对于标准流，我们不应该关闭它们，所以使用特殊的处理方式
 	streamInfo := NewStreamInfo(file, mode)
+	if streamType == "temp" || streamType == "memory" {
+		streamInfo.temporaryPath = file.Name()
+	}
 
 	// 创建流资源类，使用文件描述符作为资源ID
 	resourceClass := core.NewResourceClass("stream", streamInfo, fd)

@@ -27,14 +27,7 @@ func (fn *ArrayPadFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	switch arr := arrVal.(type) {
 	case *data.ArrayValue:
 		source = arr.Snapshot()
-	case *data.ObjectValue:
-		// 转换 ObjectValue 为简单列表
-		result := make([]*data.ZVal, 0)
-		arr.RangeProperties(func(key string, value data.Value) bool {
-			result = append(result, data.NewZVal(value))
-			return true
-		})
-		source = result
+
 	default:
 		source = []*data.ZVal{}
 	}
@@ -78,7 +71,7 @@ func (fn *ArrayPadFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 func listToValues(list []*data.ZVal) []data.Value {
 	result := make([]data.Value, len(list))
 	for i, z := range list {
-		result[i] = z.Value
+		result[i] = z.ReadValue()
 	}
 	return result
 }

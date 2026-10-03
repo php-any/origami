@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 )
 
 // ReflectionAttributeNewInstanceMethod 实现 ReflectionAttribute::newInstance
@@ -43,6 +44,38 @@ func (m *ReflectionAttributeNewInstanceMethod) GetReturnType() data.Types {
 // Call 执行 newInstance 方法
 // 创建属性（注解）的新实例
 func (m *ReflectionAttributeNewInstanceMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	if annotation := reflectionAttributeDeclaration(ctx); annotation != nil {
+		class, ctl := ctx.GetVM().GetOrLoadClass(annotation.Name)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if object, ok := ctx.(*data.ClassMethodContext); ok {
+			if metadata, ok := object.Class.(*ReflectionAttributeClass); ok && metadata.target != 0 {
+				flags := -1
+				if declared, ok := class.(*node.ClassStatement); ok {
+					for _, marker := range declared.Annotations {
+						if data.TypeNameEqual(marker.Class.GetName(), "Attribute") {
+							if value, ctl := marker.GetProperty("flags"); ctl == nil {
+								if number, ok := value.(data.AsInt); ok {
+									flags, _ = number.AsInt()
+								}
+							}
+						}
+					}
+				}
+				if flags < 0 {
+					return nil, data.NewErrorThrowByName(nil, errors.New("Attempting to use non-attribute class "+annotation.Name+" as attribute"), "Error")
+				}
+				if flags&metadata.target == 0 {
+					return nil, data.NewErrorThrowByName(nil, errors.New("Attribute "+annotation.Name+" cannot target function"), "Error")
+				}
+				if metadata.repeated && flags&64 == 0 {
+					return nil, data.NewErrorThrowByName(nil, errors.New("Attribute "+annotation.Name+" must not be repeated"), "Error")
+				}
+			}
+		}
+		return node.CreateInstanceFromClass(class, annotation.Arguments, ctx)
+	}
 	annotationValue := getReflectionAttributeInfo(ctx)
 	if annotationValue == nil {
 		return nil, data.NewErrorThrow(nil, errors.New("ReflectionAttribute::newInstance() failed"))

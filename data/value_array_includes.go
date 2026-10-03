@@ -38,7 +38,7 @@ func (a *ArrayValueIncludes) Call(ctx Context) (GetValue, Control) {
 
 	// 查找元素
 	for i := fromIndex; i < a.source.Len(); i++ {
-		if a.source.At(i).Value.AsString() == searchElement.AsString() {
+		if a.source.At(i).ReadValue().AsString() == searchElement.AsString() {
 			return NewBoolValue(true), nil
 		}
 	}

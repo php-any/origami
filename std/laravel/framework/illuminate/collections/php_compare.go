@@ -136,14 +136,12 @@ func phpStrictEqualsDepth(a, b data.Value, depth int) bool {
 			if az.Name != bz.Name || az.EmptyStrKey != bz.EmptyStrKey {
 				return false
 			}
-			if !phpStrictEqualsDepth(az.Value, bz.Value, depth+1) {
+			if !phpStrictEqualsDepth(az.ReadValue(), bz.ReadValue(), depth+1) {
 				return false
 			}
 		}
 		return true
-	case *data.ObjectValue:
-		bv, ok := b.(*data.ObjectValue)
-		return ok && av == bv
+
 	default:
 		return a == b
 	}
@@ -198,8 +196,7 @@ func phpToBool(v data.Value) bool {
 		return t.Value != "" && t.Value != "0"
 	case *data.ArrayValue:
 		return t.Len() > 0
-	case *data.ObjectValue:
-		return true
+
 	default:
 		return kit.Truthy(v)
 	}

@@ -38,8 +38,16 @@ func (f *PropertyExistsFunction) Call(ctx data.Context) (data.GetValue, data.Con
 	// 获取类名
 	var className string
 	if classValue, ok := objectOrClassValue.(*data.ClassValue); ok {
+		if classValue.ObjectValue.HasProperty(propertyName) {
+			return data.NewBoolValue(true), nil
+		}
 		// 第一个参数是 ClassValue 对象，获取其类名
 		className = classValue.Class.GetName()
+	} else if thisValue, ok := objectOrClassValue.(*data.ThisValue); ok && thisValue.ClassValue != nil {
+		if thisValue.ObjectValue.HasProperty(propertyName) {
+			return data.NewBoolValue(true), nil
+		}
+		className = thisValue.Class.GetName()
 	} else if strValue, ok := objectOrClassValue.(*data.StringValue); ok {
 		// 第一个参数是字符串字面量，视为类名
 		className = strValue.AsString()

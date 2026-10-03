@@ -26,6 +26,10 @@ func NewCallParentMethod(from data.From, currentClass, method string, args []dat
 
 // GetValue 获取父类方法调用表达式的值
 func (pe *CallParentMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return callValue(pe.GetReferenceValue(ctx))
+}
+
+func (pe *CallParentMethod) GetReferenceValue(ctx data.Context) (data.GetValue, data.Control) {
 	// 检查是否在类上下文中（类方法或类级初始化器）
 	var class data.ClassStmt
 	var object *data.ClassValue
@@ -125,15 +129,17 @@ func (pe *CallParentMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	temp := &CallObjectMethod{
 		Node:   pe.Node,
 		Object: object,
+		Method: pe.Method,
 		Args:   pe.Arguments,
 	}
 
-	newCtx, acl := temp.callMethodParams(object, ctx, method)
+	newCtx, acl := temp.callMethodParams(object, ctx, method, foundClass)
 	if acl != nil {
 		return nil, acl
 	}
 
 	// 通过 SelfClass 告知被调用方法其代码定义所在的类。
+	defer tryReleaseCallContext(method, newCtx)
 	// 这样方法内的 self:: / parent:: 会从 foundClass 开始解析，
 	// 而非从运行时子类开始，从而正确处理 trait 合并场景。
 	if cmc, ok := newCtx.(*data.ClassMethodContext); ok {

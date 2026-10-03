@@ -15,6 +15,11 @@ func NewSetErrorHandlerFunction() data.FuncStmt {
 
 func (f *SetErrorHandlerFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	cb, _ := ctx.GetIndexValue(0)
+	if _, isNull := cb.(*data.NullValue); cb == nil || isNull {
+		cb = nil
+	} else if _, ctl := node.ResolveCallback(ctx, cb); ctl != nil {
+		return nil, ctl
+	}
 	vm := ctx.GetVM()
 
 	handlerVM, ok := vm.(interface {
@@ -23,7 +28,20 @@ func (f *SetErrorHandlerFunction) Call(ctx data.Context) (data.GetValue, data.Co
 	if !ok {
 		return data.NewNullValue(), nil
 	}
-	old := handlerVM.SetErrorHandler(cb)
+	var old data.Value
+	if masked, ok := vm.(interface {
+		SetErrorHandlerMask(data.Value, int) data.Value
+	}); ok {
+		mask := 32767
+		if v, _ := ctx.GetIndexValue(1); v != nil {
+			if i, ok := v.(*data.IntValue); ok {
+				mask = i.Value
+			}
+		}
+		old = masked.SetErrorHandlerMask(cb, mask)
+	} else {
+		old = handlerVM.SetErrorHandler(cb)
+	}
 
 	if old == nil {
 		return data.NewNullValue(), nil

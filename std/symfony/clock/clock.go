@@ -293,8 +293,7 @@ func cloneClock(ctx data.Context, self *data.ClassValue) (*data.ClassValue, data
 		switch val := v.(type) {
 		case *data.ArrayValue:
 			next = data.DeepCloneArrayValue(val)
-		case *data.ObjectValue:
-			next = data.DeepCloneObjectValue(val)
+
 		default:
 			next = v
 		}

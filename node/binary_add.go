@@ -46,10 +46,7 @@ func valueAsArrayForUnion(v data.Value) (*data.ArrayValue, bool) {
 	switch x := v.(type) {
 	case *data.ArrayValue:
 		return x, true
-	case *data.ObjectValue:
-		return objectToNamedArray(x), true
-	case *data.ClassValue:
-		return objectToNamedArray(x), true
+
 	default:
 		return nil, false
 	}
@@ -82,14 +79,14 @@ func mergeArrayUnion(left, right *data.ArrayValue) *data.ArrayValue {
 		if z == nil {
 			continue
 		}
-		appendSlot(arraySlotKey(z, i), z.Value)
+		appendSlot(arraySlotKey(z, i), z.ReadValue())
 	}
 	for arraySlots14, i := right.View(), 0; i < arraySlots14.Len(); i++ {
 		z := arraySlots14.At(i)
 		if z == nil {
 			continue
 		}
-		appendSlot(arraySlotKey(z, i), z.Value)
+		appendSlot(arraySlotKey(z, i), z.ReadValue())
 	}
 	return data.NewArrayValueFromSlots(result)
 }
@@ -248,20 +245,10 @@ func (b *BinaryAdd) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		if ra, ok := valueAsArrayForUnion(rv.(data.Value)); ok {
 			return mergeArrayUnion(l, ra), nil
 		}
-		// 右边非数组/对象：作为下一个元素追加
-		result := l.ToValueList()
-		result = append(result, rv.(data.Value))
-		return data.NewArrayValue(result), nil
-	case *data.ObjectValue:
-		if ra, ok := valueAsArrayForUnion(rv.(data.Value)); ok {
-			return mergeArrayUnion(objectToNamedArray(l), ra), nil
-		}
-		return nil, data.NewErrorThrow(b.from, fmt.Errorf("对象不能与非对象/数组类型相加: %T", rv))
+		return nil, data.NewTypeError(b.from, fmt.Errorf("Unsupported operand types: array + %s", TryGetCallClassName(rv)))
+
 	case *data.ClassValue:
-		if ra, ok := valueAsArrayForUnion(rv.(data.Value)); ok {
-			return mergeArrayUnion(objectToNamedArray(l), ra), nil
-		}
-		return nil, data.NewErrorThrow(b.from, fmt.Errorf("对象不能与非对象/数组类型相加: %T", rv))
+		return nil, data.NewTypeError(b.from, fmt.Errorf("Unsupported operand types: %s + %s", l.Class.GetName(), TryGetCallClassName(rv)))
 	case *data.AnyValue:
 		return phpNumericAdd(b.from, lv, rv)
 	}

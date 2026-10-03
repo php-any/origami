@@ -54,46 +54,23 @@ func (m *ReflectionClassNewInstanceMethod) Call(ctx data.Context) (data.GetValue
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("Class %s does not exist", className))
 	}
 
-	// 收集可变参数（从索引 0 开始）
-	// 可变参数被调用机制打包为 ArrayValue，需要解包
-	args := make([]data.Value, 0)
+	var args []data.GetValue
 	if argValue, ok := ctx.GetIndexValue(0); ok {
 		if arr, ok := argValue.(*data.ArrayValue); ok {
-			for arraySlots131,
-				// 可变参数：遍历数组元素
-				arrayPosition131 := arr.View(), 0; arrayPosition131 < arraySlots131.Len(); arrayPosition131++ {
-				item := arraySlots131.At(arrayPosition131)
-				args = append(args, item.Value)
-			}
+			args = reflectionConstructorArguments(arr)
 		} else {
 			args = append(args, argValue)
 		}
 	}
+	return reflectionNewInstance(classStmt, args, ctx)
+}
 
-	// 使用 createInstanceAndCallConstructor 创建实例
-	// 需要从 node 包导入，但由于是内部函数，我们直接实现类似逻辑
-	object, acl := classStmt.GetValue(ctx.CreateBaseContext())
-	if acl != nil {
-		return nil, acl
+func reflectionNewInstance(class data.ClassStmt, arguments []data.GetValue, ctx data.Context) (data.GetValue, data.Control) {
+	if node.IsAbstractClassStmt(class) {
+		return nil, createReflectionException("Cannot instantiate abstract class "+class.GetName(), ctx, nil)
 	}
-
-	if object, ok := object.(*data.ClassValue); ok {
-		if method := object.Class.GetConstruct(); method != nil {
-			varies := method.GetVariables()
-			fnCtx := object.CreateContext(varies)
-			// 入参的值设置到上下文中
-			for index, argValue := range args {
-				if index >= len(varies) {
-					return nil, data.NewErrorThrow(nil, fmt.Errorf("对象(%v)构造函数参数数量超出限制: %d", object.Class.GetName(), index))
-				}
-				fnCtx.SetVariableValue(varies[index], argValue)
-			}
-			_, acl := method.Call(fnCtx)
-			if acl != nil {
-				return nil, acl
-			}
-		}
+	if constructor := class.GetConstruct(); constructor != nil && constructor.GetModifier() != data.ModifierPublic {
+		return nil, createReflectionException("Access to non-public constructor of class "+class.GetName(), ctx, nil)
 	}
-
-	return object, nil
+	return node.CreateInstanceFromClass(class, arguments, ctx)
 }

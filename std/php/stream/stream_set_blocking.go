@@ -4,6 +4,7 @@ import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/std/php/core"
+	"syscall"
 )
 
 // StreamSetBlockingFunction 实现 stream_set_blocking(resource, bool): bool。
@@ -38,16 +39,18 @@ func (f *StreamSetBlockingFunction) Call(ctx data.Context) (data.GetValue, data.
 		if stream.IsClosed() || stream.File == nil {
 			return data.NewBoolValue(false), nil
 		}
-		fd = stream.File.Fd()
+		fd = fileDescriptor(stream.File)
 	case *StreamInfoFromReader:
 		if stream.IsClosed() || stream.Reader == nil {
 			return data.NewBoolValue(false), nil
 		}
-		file, ok := stream.Reader.(interface{ Fd() uintptr })
+		file, ok := stream.Reader.(interface {
+			SyscallConn() (syscall.RawConn, error)
+		})
 		if !ok {
 			return data.NewBoolValue(false), nil
 		}
-		fd = file.Fd()
+		fd = fileDescriptor(file)
 	default:
 		return data.NewBoolValue(false), nil
 	}

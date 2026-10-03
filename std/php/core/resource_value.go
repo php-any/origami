@@ -14,6 +14,24 @@ type ResourceValue struct {
 	*data.ClassValue
 }
 
+func (*ResourceValue) PHPResourceKind() {}
+func (r *ResourceValue) IsPHPResourceOpen() bool {
+	if resource := r.GetResource(); resource != nil {
+		if state, ok := resource.(interface{ IsClosed() bool }); ok {
+			return !state.IsClosed()
+		}
+		return true
+	}
+	return false
+}
+
+// The wrapper is request-owned; retained handles require an explicit policy.
+func (r *ResourceValue) BindRequestValue(scope *data.RequestObjectScope) data.Value {
+	class := r.Class.(*ResourceClass)
+	resource := scope.BindNativeState(class.Resource)
+	return NewResourceValue(NewResourceClass(class.ResourceType, resource, class.id), scope.Context)
+}
+
 // NewResourceValue 创建资源值
 func NewResourceValue(resourceClass *ResourceClass, ctx data.Context) *ResourceValue {
 	classValue := data.NewClassValue(resourceClass, ctx)
@@ -59,6 +77,9 @@ func (r *ResourceValue) GetResourceID() int {
 
 // GetResourceType 获取资源类型
 func (r *ResourceValue) GetResourceType() string {
+	if !r.IsPHPResourceOpen() {
+		return "Unknown"
+	}
 	if r.ClassValue != nil && r.ClassValue.Class != nil {
 		if resourceClass, ok := r.ClassValue.Class.(*ResourceClass); ok {
 			return resourceClass.GetResourceType()

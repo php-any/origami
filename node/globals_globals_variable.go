@@ -9,7 +9,7 @@ type GlobalsArrayVariable struct {
 }
 
 // globalsValue 仅作无 VM 作用域时的回退（CLI/测试）；HTTP 请求必须走 SuperglobalArrayProvider。
-var globalsValue *data.ObjectValue
+var globalsValue *data.ArrayValue
 
 func NewGlobalsArrayVariable(from data.From) data.Variable {
 	return &GlobalsArrayVariable{Node: NewNode(from)}
@@ -19,7 +19,7 @@ func (v *GlobalsArrayVariable) GetValue(ctx data.Context) (data.GetValue, data.C
 	return globalsArrayFromContext(ctx), nil
 }
 
-func (v *GlobalsArrayVariable) GetIndex() int       { return 0 }
+func (v *GlobalsArrayVariable) GetIndex() int       { return -1 }
 func (v *GlobalsArrayVariable) GetName() string     { return "$GLOBALS" }
 func (v *GlobalsArrayVariable) GetType() data.Types { return nil }
 func (v *GlobalsArrayVariable) SetValue(ctx data.Context, value data.Value) data.Control {

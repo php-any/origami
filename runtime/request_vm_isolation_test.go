@@ -15,8 +15,8 @@ func TestRequestVMGlobalsOutputAndCallStateIsolated(t *testing.T) {
 	first := NewRequestVM(base).(*RequestVM)
 	second := NewRequestVM(base).(*RequestVM)
 
-	first.EnsureGlobalZVal("request_id").Value = data.NewStringValue("first")
-	if got := second.EnsureGlobalZVal("request_id").Value.AsString(); got != "" {
+	first.EnsureGlobalZVal("request_id").StoreRaw(data.NewStringValue("first"))
+	if got := second.EnsureGlobalZVal("request_id").ReadValue().AsString(); got != "" {
 		t.Fatalf("request global leaked: %q", got)
 	}
 

@@ -98,6 +98,7 @@ func annotationTargetParameter(ctx data.Context) (*node.Parameter, string, data.
 
 func scanDirectory(vm data.VM, dir string) data.Control {
 	dir = filepath.Clean(dir)
+	var loadControl data.Control
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -110,10 +111,14 @@ func scanDirectory(vm data.VM, dir string) data.Control {
 			return nil
 		}
 		if _, acl := vm.LoadAndRun(path); acl != nil {
+			loadControl = acl
 			return errors.New("scan load failed")
 		}
 		return nil
 	})
+	if loadControl != nil {
+		return loadControl
+	}
 	if err != nil {
 		return data.NewErrorThrow(nil, err)
 	}

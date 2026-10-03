@@ -2,7 +2,6 @@ package node
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/php-any/origami/data"
 )
@@ -12,7 +11,7 @@ type VariableExpression struct {
 	*Node `pp:"-"`
 	Name  string // 变量名
 	Index int    // 变量在作用域中的索引
-	Type  data.Types
+	Type  data.TypeRef
 }
 
 // NewVariableWithFirst 解释器创建变量前, 需要先识别定义时的信息 p.scopeManager.LookupVariable(name)
@@ -24,7 +23,7 @@ func NewVariableWithFirst(from data.From, first data.Variable) data.Variable {
 		Node:  NewNode(from),
 		Name:  first.GetName(),
 		Index: first.GetIndex(),
-		Type:  first.GetType(),
+		Type:  data.DeclaredTypeRef(first.GetType()),
 	}
 }
 func NewVariable(from data.From, name string, index int, ty data.Types) *VariableExpression {
@@ -35,13 +34,13 @@ func NewVariable(from data.From, name string, index int, ty data.Types) *Variabl
 		Node:  NewNode(from),
 		Name:  name,
 		Index: index,
-		Type:  ty,
+		Type:  data.DeclaredTypeRef(ty),
 	}
 }
 
 // GetValue 获取变量表达式的值
 func (v *VariableExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	return ctx.GetIndexZVal(v.Index).Value, nil
+	return ctx.GetIndexZVal(v.Index).ReadValue(), nil
 }
 
 func (v *VariableExpression) GetIndex() int {
@@ -51,12 +50,20 @@ func (v *VariableExpression) GetName() string {
 	return v.Name
 }
 func (v *VariableExpression) GetType() data.Types {
-	return v.Type
+	return data.DeclaredType(v.Type)
 }
 
 func (v *VariableExpression) SetValue(ctx data.Context, value data.Value) data.Control {
-	if v.Type == nil && data.IsScalarAssignFast(value) {
-		data.AssignScalarToZVal(ctx.GetIndexZVal(v.Index), value)
+	if v.Type == data.TypeInvalid && data.IsScalarAssignFast(value) {
+		slot := ctx.GetIndexZVal(v.Index)
+		if slot.Guard() != nil {
+			prepared, ctl := slot.PrepareWrite(value, ctx)
+			if ctl != nil {
+				return ctl
+			}
+			value = prepared
+		}
+		data.AssignScalarToZVal(slot, value)
 		return nil
 	}
 	return ctx.SetVariableValue(v, value)
@@ -129,40 +136,7 @@ func (vl *VariableList) SetValue(ctx data.Context, value data.Value) data.Contro
 		return nil
 	}
 	// ObjectValue：关联数组形态（Collection::toArray() 的 "0","1" 键）
-	if obj, ok := value.(*data.ObjectValue); ok {
-		n := len(vl.Vars)
-		vals := make([]data.Value, 0, n)
-		for i := 0; i < n; i++ {
-			key := fmt.Sprintf("%d", i)
-			if !obj.HasProperty(key) {
-				break
-			}
-			v, _ := obj.GetProperty(key)
-			if v == nil {
-				v = data.NewNullValue()
-			}
-			vals = append(vals, v)
-		}
-		if len(vals) == 0 {
-			obj.RangeProperties(func(_ string, val data.Value) bool {
-				if len(vals) >= n {
-					return false
-				}
-				vals = append(vals, val)
-				return true
-			})
-		}
-		for i, v := range vl.Vars {
-			var val data.Value = data.NewNullValue()
-			if i < len(vals) {
-				val = vals[i]
-			}
-			if ctl := v.SetValue(ctx, val); ctl != nil {
-				return ctl
-			}
-		}
-		return nil
-	}
+
 	// 处理实现了 ArrayAccess 的对象（如 Collection）
 	if cv, ok := value.(*data.ClassValue); ok {
 		if method, exists := cv.GetMethod("offsetGet"); exists {
@@ -197,7 +171,7 @@ type VariableReference struct {
 	*Node `pp:"-"`
 	Name  string // 变量名
 	Index int    // 变量在作用域中的索引
-	Type  data.Types
+	Type  data.TypeRef
 }
 
 // NewVariableReference 创建一个新的变量引用
@@ -209,7 +183,7 @@ func NewVariableReference(from data.From, name string, index int, ty data.Types)
 		Node:  NewNode(from),
 		Name:  name,
 		Index: index,
-		Type:  ty,
+		Type:  data.DeclaredTypeRef(ty),
 	}
 }
 
@@ -226,12 +200,12 @@ func (v *VariableReference) GetName() string {
 	return v.Name
 }
 func (v *VariableReference) GetType() data.Types {
-	return v.Type
+	return data.DeclaredType(v.Type)
 }
 
 func (v *VariableReference) SetValue(ctx data.Context, value data.Value) data.Control {
-	if v.Type != nil {
-		prepared, ok, conversion := data.PrepareTypedValueInContext(v.Type, value, ctx)
+	if v.Type != data.TypeInvalid {
+		prepared, ok, conversion := data.PrepareDeclaredValueInContext(v.Type, value, ctx)
 
 		if conversion != nil {
 			return conversion

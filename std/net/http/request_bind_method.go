@@ -31,7 +31,7 @@ func (h *RequestBindMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 
 	vm := ctx.GetVM()
 	if vm == nil {
-		return data.NewObjectValue(), nil
+		return data.NewStdClassValue(nil), nil
 	}
 
 	classStmt, acl := vm.GetOrLoadClass(param0)
@@ -48,7 +48,7 @@ func (h *RequestBindMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	}
 	classValue, ok := classInstance.(*data.ClassValue)
 	if !ok {
-		return data.NewObjectValue(), nil
+		return data.NewStdClassValue(nil), nil
 	}
 
 	serializer := jsonSerializer.NewJsonSerializer()

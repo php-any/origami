@@ -17,25 +17,17 @@ func ValueToDisplayString(ctx data.Context, v data.GetValue) (string, data.Contr
 	}
 	// 类实例：尝试调用 __toString()
 	if cv, ok := v.(*data.ClassValue); ok {
-		if toString, has := cv.GetMethod("__toString"); has {
-			result, acl := toString.Call(cv.CreateContext(toString.GetVariables()))
-			if acl != nil {
-				return "", acl
-			}
-			if result != nil {
-				if val, ok := result.(data.Value); ok {
-					if _, isObj := val.(*data.ClassValue); isObj {
-						return "", nil
-					}
-					return val.AsString(), nil
-				}
-			}
-			return "", nil
+		result, accepted, ctl := data.ObjectToStringValue(cv, ctx)
+		if ctl != nil {
+			return "", ctl
+		}
+		if accepted {
+			return result.AsString(), nil
 		}
 	} else if obj, ok := v.(data.GetMethod); ok {
 		if toString, has := obj.GetMethod("__toString"); has {
 			if objCtx, ok := v.(data.Context); ok {
-				result, acl := toString.Call(objCtx.CreateContext(toString.GetVariables()))
+				result, acl := toString.Call(implicitReceiverFrame(ctx, objCtx, toString))
 				if acl != nil {
 					return "", acl
 				}

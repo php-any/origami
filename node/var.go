@@ -90,7 +90,7 @@ func (s *StaticVarStatement) GetValue(ctx data.Context) (data.GetValue, data.Con
 	idx := s.Var.GetIndex()
 	if store != nil {
 		if slot := store.Slot(idx); slot != nil {
-			ctx.SetIndexZVal(idx, slot)
+			data.BindContextReference(ctx, idx, slot)
 			return nil, nil
 		}
 		val := data.NewNullValue()
@@ -103,7 +103,7 @@ func (s *StaticVarStatement) GetValue(ctx data.Context) (data.GetValue, data.Con
 				val = v
 			}
 		}
-		ctx.SetIndexZVal(idx, store.EnsureSlot(idx, val))
+		data.BindContextReference(ctx, idx, store.EnsureSlot(idx, val))
 		return nil, nil
 	}
 	if s.Initializer != nil {

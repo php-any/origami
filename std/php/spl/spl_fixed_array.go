@@ -268,7 +268,7 @@ func (m *SplFixedArrayCurrentMethod) Call(ctx data.Context) (data.GetValue, data
 	if pos < 0 || pos >= arr.Len() {
 		return data.NewNullValue(), nil
 	}
-	return arr.At(pos).Value, nil
+	return arr.At(pos).ReadValue(), nil
 }
 
 type SplFixedArrayKeyMethod struct{}
@@ -361,7 +361,7 @@ func (m *SplFixedArrayOffsetGetMethod) Call(ctx data.Context) (data.GetValue, da
 	if !ok || i < 0 || i >= sfaGetSize(cv) {
 		return data.NewNullValue(), nil
 	}
-	return sfaGetStorage(cv).At(i).Value, nil
+	return sfaGetStorage(cv).At(i).ReadValue(), nil
 }
 
 type SplFixedArrayOffsetSetMethod struct{}
@@ -399,7 +399,7 @@ func (m *SplFixedArrayOffsetSetMethod) Call(ctx data.Context) (data.GetValue, da
 	if !ok || i < 0 || i >= sfaGetSize(cv) {
 		return nil, nil
 	}
-	sfaGetStorage(cv).At(i).Value = val
+	sfaGetStorage(cv).At(i).StoreRaw(val)
 	return nil, nil
 }
 
@@ -431,6 +431,6 @@ func (m *SplFixedArrayOffsetUnsetMethod) Call(ctx data.Context) (data.GetValue, 
 	if !ok || i < 0 || i >= sfaGetSize(cv) {
 		return nil, nil
 	}
-	sfaGetStorage(cv).At(i).Value = data.NewNullValue()
+	sfaGetStorage(cv).At(i).StoreRaw(data.NewNullValue())
 	return nil, nil
 }

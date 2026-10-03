@@ -20,8 +20,8 @@ func (f *IsResourceFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	// 检查是否为 ResourceValue（它嵌入了 ClassValue）
-	if _, ok := value.(*core.ResourceValue); ok {
-		return data.NewBoolValue(true), nil
+	if resource, ok := value.(*core.ResourceValue); ok {
+		return data.NewBoolValue(resource.IsPHPResourceOpen()), nil
 	}
 
 	// 或者检查是否为 ClassValue，并且实现了 Resource 接口

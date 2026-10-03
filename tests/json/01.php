@@ -1,10 +1,7 @@
 <?php
 namespace tests\json;
 
-$a = {
-    "a": 1,
-    "b": 2
-};
+$a = (object) ["a" => 1, "b" => 2];
 
 if($a->a == 1) {
     Log::info("json 值读取 a=1 OK");

@@ -54,14 +54,14 @@ func (s *ArraySlotRef) GetValue(ctx Context) (GetValue, Control) {
 
 func (s *ArraySlotRef) AsString() string {
 	if s.Slot != nil {
-		return s.Slot.Value.AsString()
+		return s.Slot.ReadValue().AsString()
 	}
 	return ""
 }
 
 func (s *ArraySlotRef) AsBool() (bool, error) {
 	if s.Slot != nil {
-		if b, ok := s.Slot.Value.(AsBool); ok {
+		if b, ok := s.Slot.ReadValue().(AsBool); ok {
 			return b.AsBool()
 		}
 	}
@@ -70,7 +70,7 @@ func (s *ArraySlotRef) AsBool() (bool, error) {
 
 func (s *ArraySlotRef) Marshal(serializer Serializer) ([]byte, error) {
 	if s.Slot != nil {
-		return s.Slot.Value.(ValueSerializer).Marshal(serializer)
+		return s.Slot.ReadValue().(ValueSerializer).Marshal(serializer)
 	}
 	return nil, fmt.Errorf("ArraySlotRef: invalid index")
 }

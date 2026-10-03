@@ -43,11 +43,11 @@ func mountAnnotationRoutes(server *ServerClass, vm data.VM, ctx data.Context, la
 
 	routeList := make([]data.Value, 0, len(routes))
 	for _, rt := range routes {
-		obj := data.NewObjectValue()
+		obj := data.NewStdClassValue(nil)
 		obj.SetProperty("method", data.NewStringValue(rt.Method))
 		obj.SetProperty("path", data.NewStringValue(rt.Path))
 		if rt.Operation != nil {
-			op := data.NewObjectValue()
+			op := data.NewStdClassValue(nil)
 			op.SetProperty("summary", data.NewStringValue(rt.Operation.Summary))
 			op.SetProperty("description", data.NewStringValue(rt.Operation.Description))
 			op.SetProperty("operationId", data.NewStringValue(rt.Operation.OperationID))

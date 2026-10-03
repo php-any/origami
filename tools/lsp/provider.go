@@ -100,9 +100,9 @@ func (p *LSPSymbolProvider) GetVariableTypeObjectAtPosition(content string, posi
 				paramName = "$" + paramName
 			}
 			if paramName == varNameWithDollar {
-				if n.Type != nil {
+				if n.Type != data.TypeInvalid {
 					logrus.Debugf("找到变量 %s 的参数定义，类型: %v", varName, n.Type)
-					collectedTypes = append(collectedTypes, n.Type)
+					collectedTypes = append(collectedTypes, data.LegacyType(n.GetType()))
 				}
 			}
 		}

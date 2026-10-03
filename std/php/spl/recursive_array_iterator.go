@@ -88,7 +88,7 @@ func raiCurrentValue(cv *data.ClassValue) data.Value {
 	if arr.At(pos) == nil {
 		return data.NewNullValue()
 	}
-	return arr.At(pos).Value
+	return arr.At(pos).ReadValue()
 }
 
 func raiValueHasChildren(val data.Value, flags int) bool {
@@ -99,16 +99,7 @@ func raiValueHasChildren(val data.Value, flags int) bool {
 	switch v := val.(type) {
 	case *data.ArrayValue:
 		return v.Len() > 0
-	case *data.ObjectValue:
-		if arraysOnly {
-			return false
-		}
-		hasAny := false
-		v.RangeProperties(func(_ string, _ data.Value) bool {
-			hasAny = true
-			return false
-		})
-		return hasAny
+
 	case *data.ClassValue:
 		if arraysOnly {
 			return false
@@ -126,8 +117,7 @@ func raiValueToStorage(val data.Value) *data.ArrayValue {
 	switch v := val.(type) {
 	case *data.ArrayValue:
 		return data.CloneArrayValue(v)
-	case *data.ObjectValue:
-		return aoObjectToArrayValue(v)
+
 	case *data.ClassValue:
 		iterMethod, ok := v.Class.GetMethod("getIterator")
 		if !ok {

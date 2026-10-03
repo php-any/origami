@@ -1,7 +1,10 @@
 package php
 
 import (
+	"fmt"
 	"net/url"
+	"strconv"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -14,101 +17,76 @@ func NewParseUrlFunction() data.FuncStmt {
 type ParseUrlFunction struct{}
 
 func (fn *ParseUrlFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	urlStr, _ := ctx.GetIndexValue(0)
+	value, _ := ctx.GetIndexValue(0)
 	component, _ := ctx.GetIndexValue(1)
-
-	u := ""
-	if s, ok := urlStr.(data.AsString); ok {
-		u = s.AsString()
+	raw, ctl := node.ValueToDisplayString(ctx, value)
+	if ctl != nil {
+		return nil, ctl
 	}
-	if u == "" {
-		return data.NewBoolValue(false), nil
-	}
-	// Handle null values
-	if _, isNull := urlStr.(*data.NullValue); isNull {
-		return data.NewBoolValue(false), nil
-	}
-
-	parsed, err := url.Parse(u)
+	// PHP replaces ASCII control bytes in URL components with underscores.
+	raw = strings.Map(func(r rune) rune {
+		if r < 32 || r == 127 {
+			return '_'
+		}
+		return r
+	}, raw)
+	parsed, err := url.Parse(raw)
 	if err != nil || parsed == nil {
 		return data.NewBoolValue(false), nil
 	}
-
-	comp := -1 // PHP_URL_ALL
-	if c, ok := component.(data.AsInt); ok {
-		if n, err := c.AsInt(); err == nil {
-			comp = n
-		}
-	}
-
-	if comp >= 0 {
-		// Return specific component as string or null
-		switch comp {
-		case 0: // PHP_URL_SCHEME
-			if parsed.Scheme != "" {
-				return data.NewStringValue(parsed.Scheme), nil
-			}
-		case 1: // PHP_URL_HOST
-			if parsed.Host != "" {
-				return data.NewStringValue(parsed.Host), nil
-			}
-		case 2: // PHP_URL_PORT
-			if parsed.Port() != "" {
-				return data.NewStringValue(parsed.Port()), nil
-			}
-		case 3: // PHP_URL_USER
-			if parsed.User != nil {
-				return data.NewStringValue(parsed.User.Username()), nil
-			}
-		case 4: // PHP_URL_PASS
-			if parsed.User != nil {
-				if pwd, ok2 := parsed.User.Password(); ok2 {
-					return data.NewStringValue(pwd), nil
-				}
-			}
-		case 5: // PHP_URL_PATH
-			if parsed.Path != "" {
-				return data.NewStringValue(parsed.Path), nil
-			}
-		case 6: // PHP_URL_QUERY
-			if parsed.RawQuery != "" {
-				return data.NewStringValue(parsed.RawQuery), nil
-			}
-		case 7: // PHP_URL_FRAGMENT
-			if parsed.Fragment != "" {
-				return data.NewStringValue(parsed.Fragment), nil
-			}
-		}
-		return data.NewNullValue(), nil
-	}
-
-	// Return full array
-	result := data.NewObjectValue()
+	result := data.NewArrayValueFromSlots(nil)
+	set := func(key, value string) { result.SetStringKey(key, data.NewStringValue(value)) }
 	if parsed.Scheme != "" {
-		result.SetProperty("scheme", data.NewStringValue(parsed.Scheme))
+		set("scheme", parsed.Scheme)
 	}
 	if parsed.Host != "" {
-		result.SetProperty("host", data.NewStringValue(parsed.Host))
+		host := parsed.Hostname()
+		if strings.HasPrefix(parsed.Host, "[") {
+			host = "[" + host + "]"
+		}
+		set("host", host)
 	}
 	if port := parsed.Port(); port != "" {
-		result.SetProperty("port", data.NewStringValue(port))
+		number, err := strconv.Atoi(port)
+		if err != nil || number > 65535 {
+			return data.NewBoolValue(false), nil
+		}
+		result.SetStringKey("port", data.NewIntValue(number))
 	}
 	if parsed.User != nil {
-		result.SetProperty("user", data.NewStringValue(parsed.User.Username()))
-		if pwd, ok := parsed.User.Password(); ok {
-			result.SetProperty("pass", data.NewStringValue(pwd))
+		set("user", parsed.User.Username())
+		if password, exists := parsed.User.Password(); exists {
+			set("pass", password)
 		}
 	}
-	if parsed.Path != "" {
-		result.SetProperty("path", data.NewStringValue(parsed.Path))
+	path := parsed.EscapedPath()
+	if parsed.Opaque != "" {
+		path = parsed.Opaque
 	}
-	if parsed.RawQuery != "" {
-		result.SetProperty("query", data.NewStringValue(parsed.RawQuery))
+	if path != "" || raw == "" {
+		set("path", path)
 	}
-	if parsed.Fragment != "" {
-		result.SetProperty("fragment", data.NewStringValue(parsed.Fragment))
+	if parsed.RawQuery != "" || parsed.ForceQuery {
+		set("query", parsed.RawQuery)
 	}
-	return result, nil
+	if strings.Contains(raw, "#") {
+		set("fragment", parsed.Fragment)
+	}
+	index := -1
+	if integer, ok := component.(data.AsInt); ok {
+		index, _ = integer.AsInt()
+	}
+	if index < 0 {
+		return result, nil
+	}
+	names := [...]string{"scheme", "host", "port", "user", "pass", "path", "query", "fragment"}
+	if index >= len(names) {
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("parse_url(): Argument #2 ($component) must be a valid component"), "ValueError")
+	}
+	if slot, _ := result.LookupZValByStringKey(names[index]); slot != nil {
+		return slot.ReadValue(), nil
+	}
+	return data.NewNullValue(), nil
 }
 
 func (fn *ParseUrlFunction) GetName() string {

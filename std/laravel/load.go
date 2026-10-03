@@ -7,17 +7,13 @@ import (
 	"github.com/php-any/origami/std/laravel/prompts"
 	"github.com/php-any/origami/std/laravel/sentinel"
 	serializableclosure "github.com/php-any/origami/std/laravel/serializable-closure"
-	"github.com/php-any/origami/std/laravel/serve"
 	"github.com/php-any/origami/std/laravel/telescope"
 	"github.com/php-any/origami/std/laravel/tinker"
 )
 
-// Load 注册 Laravel 运行时（仅应由 examples/laravel13 / vendoraccel 调用，禁止加入 zy.go）。
-//
-// 两层内容：
-//   - framework/* 与 serializable-closure 等：vendor 各 Composer 包的原生加速层；
-//   - httpkernel / serve：Origami 用 Go 顶替的 Laravel HTTP Kernel 与开发服务器，
-//     不再由示例工程自带。
+// Load proposes vendor acceleration registrations to the contract-gated VM.
+// The HTTP Kernel is provided by Composer; the explicit serve host adapter is
+// loaded separately by vendoraccel on the real VM.
 func Load(vm data.VM) {
 	framework.Load(vm)
 	serializableclosure.Load(vm)
@@ -27,5 +23,4 @@ func Load(vm data.VM) {
 	telescope.Load(vm)
 
 	httpkernel.Load(vm)
-	serve.Load(vm)
 }

@@ -76,7 +76,7 @@ func splHeapCompareForClass(cv *data.ClassValue, a, b data.Value) int {
 func splHeapBubbleUp(arr *data.ArrayValue, index int, cmp heapCompareFunc) {
 	for index > 0 {
 		parent := (index - 1) / 2
-		if cmp(arr.At(index).Value, arr.At(parent).Value) >= 0 {
+		if cmp(arr.At(index).ReadValue(), arr.At(parent).ReadValue()) >= 0 {
 			break
 		}
 		arr.SwapSlots(index, parent)
@@ -90,10 +90,10 @@ func splHeapBubbleDown(arr *data.ArrayValue, index int, cmp heapCompareFunc) {
 		smallest := index
 		left := 2*index + 1
 		right := 2*index + 2
-		if left < n && cmp(arr.At(left).Value, arr.At(smallest).Value) < 0 {
+		if left < n && cmp(arr.At(left).ReadValue(), arr.At(smallest).ReadValue()) < 0 {
 			smallest = left
 		}
-		if right < n && cmp(arr.At(right).Value, arr.At(smallest).Value) < 0 {
+		if right < n && cmp(arr.At(right).ReadValue(), arr.At(smallest).ReadValue()) < 0 {
 			smallest = right
 		}
 		if smallest == index {
@@ -113,7 +113,7 @@ func splHeapExtractTop(arr *data.ArrayValue, cmp heapCompareFunc) data.Value {
 	if arr.Len() == 0 {
 		return data.NewNullValue()
 	}
-	top := arr.At(0).Value
+	top := arr.At(0).ReadValue()
 	last := arr.Len() - 1
 	arr.ReplaceSlot(0, arr.At(last))
 	arr.RemovePositions(last, arr.Len())
@@ -127,7 +127,7 @@ func splHeapTop(arr *data.ArrayValue) data.Value {
 	if arr.Len() == 0 {
 		return data.NewNullValue()
 	}
-	return arr.At(0).Value
+	return arr.At(0).ReadValue()
 }
 
 func splHeapCompareFromCV(cv *data.ClassValue) heapCompareFunc {
@@ -386,7 +386,7 @@ func (m *SplHeapCurrentMethod) Call(ctx data.Context) (data.GetValue, data.Contr
 	if pos < 0 || pos >= arr.Len() {
 		return data.NewNullValue(), nil
 	}
-	return arr.At(pos).Value, nil
+	return arr.At(pos).ReadValue(), nil
 }
 
 type SplHeapKeyMethod struct{}

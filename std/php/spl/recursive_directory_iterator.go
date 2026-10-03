@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -299,7 +300,11 @@ func rdiLoadFiles(cv *data.ClassValue, path string, flags int) error {
 	sort.Strings(sorted)
 
 	for _, name := range sorted {
-		files = append(files, phpPathJoin(path, name))
+		joined := phpPathJoin(path, name)
+		if flags&8192 != 0 {
+			joined = strings.ReplaceAll(joined, "\\", "/")
+		}
+		files = append(files, joined)
 	}
 
 	rdiSetFiles(cv, files)
@@ -318,7 +323,7 @@ func (m *RDIConstruct) GetReturnType() data.Types  { return nil }
 
 var rDIConstructGetParams = []data.GetValue{
 	node.NewParameter(nil, "path", 0, nil, data.NewBaseType("string")),
-	node.NewParameter(nil, "flags", 1, nil, data.NewBaseType("int")),
+	node.NewParameter(nil, "flags", 1, node.NewIntLiteral(nil, "0"), data.NewBaseType("int")),
 }
 
 func (m *RDIConstruct) GetParams() []data.GetValue {
@@ -348,12 +353,10 @@ func (m *RDIConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 破坏 Flysystem PathPrefixer 与构造路径的前缀一致性。
 
 	flagsVal, hasFlagsVal := ctx.GetIndexValue(1)
-	flags := 4096 // 默认 SKIP_DOTS
+	flags := 0
 	if hasFlagsVal {
-		if fi, ok := flagsVal.(interface{ AsInt() int }); ok {
-			flags = fi.AsInt()
-		} else if fi64, ok := flagsVal.(interface{ AsInt64() int64 }); ok {
-			flags = int(fi64.AsInt64())
+		if fi, ok := flagsVal.(data.AsInt); ok {
+			flags, _ = fi.AsInt()
 		}
 	}
 
@@ -585,9 +588,10 @@ func (m *RDIGetChildren) Call(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 	if construct != nil {
-		fnCtx := childCV.CreateContext(construct.GetVariables())
-		fnCtx.SetIndexZVal(0, data.NewZVal(data.NewStringValue(currentPath)))
-		fnCtx.SetIndexZVal(1, data.NewZVal(data.NewIntValue(flags)))
+		fnCtx := data.WrapMethodFrame(ctx.CreateContext(construct.GetVariables()), childCV, data.MethodDeclaringClass(ctx.GetVM(), childClass, "__construct"), childClass)
+		if ctl := data.BindDeclaredArgs(fnCtx, construct, []data.Value{data.NewStringValue(currentPath), data.NewIntValue(flags)}); ctl != nil {
+			return nil, ctl
+		}
 		if _, ctl := construct.Call(fnCtx); ctl != nil {
 			return nil, ctl
 		}

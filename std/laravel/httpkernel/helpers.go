@@ -115,21 +115,13 @@ func stringListFromValue(v data.Value) []string {
 		out := make([]string, 0, arr.Len())
 		for arraySlots70, arrayPosition70 := arr.View(), 0; arrayPosition70 < arraySlots70.Len(); arrayPosition70++ {
 			z := arraySlots70.At(arrayPosition70)
-			if z == nil || z.Value == nil {
+			if z == nil || z.ReadValue() == nil {
 				continue
 			}
-			out = append(out, z.Value.AsString())
+			out = append(out, z.ReadValue().AsString())
 		}
 		return out
-	case *data.ObjectValue:
-		out := make([]string, 0)
-		arr.RangeProperties(func(_ string, value data.Value) bool {
-			if value != nil {
-				out = append(out, value.AsString())
-			}
-			return true
-		})
-		return out
+
 	default:
 		s := v.AsString()
 		if s == "" {
@@ -148,22 +140,16 @@ func stringMapFromValue(v data.Value) map[string]string {
 	case *data.ArrayValue:
 		for arraySlots71, i := arr.View(), 0; i < arraySlots71.Len(); i++ {
 			z := arraySlots71.At(i)
-			if z == nil || z.Value == nil {
+			if z == nil || z.ReadValue() == nil {
 				continue
 			}
 			key := z.Name
 			if key == "" {
 				key = strconv.Itoa(i)
 			}
-			out[key] = z.Value.AsString()
+			out[key] = z.ReadValue().AsString()
 		}
-	case *data.ObjectValue:
-		arr.RangeProperties(func(key string, value data.Value) bool {
-			if value != nil {
-				out[key] = value.AsString()
-			}
-			return true
-		})
+
 	}
 	return out
 }
@@ -177,20 +163,16 @@ func groupsFromValue(v data.Value) map[string][]string {
 	case *data.ArrayValue:
 		for arraySlots72, i := arr.View(), 0; i < arraySlots72.Len(); i++ {
 			z := arraySlots72.At(i)
-			if z == nil || z.Value == nil {
+			if z == nil || z.ReadValue() == nil {
 				continue
 			}
 			key := z.Name
 			if key == "" {
 				key = strconv.Itoa(i)
 			}
-			out[key] = stringListFromValue(z.Value)
+			out[key] = stringListFromValue(z.ReadValue())
 		}
-	case *data.ObjectValue:
-		arr.RangeProperties(func(key string, value data.Value) bool {
-			out[key] = stringListFromValue(value)
-			return true
-		})
+
 	}
 	return out
 }
@@ -198,7 +180,7 @@ func groupsFromValue(v data.Value) map[string][]string {
 func groupsToArrayValue(groups map[string][]string) *data.ArrayValue {
 	list := make([]*data.ZVal, 0, len(groups))
 	for k, items := range groups {
-		list = append(list, &data.ZVal{Name: k, Value: stringsToArrayValue(items)})
+		list = append(list, &data.ZVal{Name: k, InitialValue: stringsToArrayValue(items)})
 	}
 	return data.NewArrayValueFromSlots(list)
 }
@@ -206,7 +188,7 @@ func groupsToArrayValue(groups map[string][]string) *data.ArrayValue {
 func aliasesToArrayValue(aliases map[string]string) *data.ArrayValue {
 	list := make([]*data.ZVal, 0, len(aliases))
 	for k, v := range aliases {
-		list = append(list, &data.ZVal{Name: k, Value: data.NewStringValue(v)})
+		list = append(list, &data.ZVal{Name: k, InitialValue: data.NewStringValue(v)})
 	}
 	return data.NewArrayValueFromSlots(list)
 }
@@ -244,6 +226,7 @@ const (
 // disabled 为真时 Telescope 根本没有 watcher 注册（见下），整个同步退化成一次 bool 判断。
 type telescopeCache struct {
 	once     sync.Once
+	resolved bool
 	disabled bool
 	obj      data.Value
 	patterns []string // 默认模式：命中即「不该记录」
@@ -251,6 +234,7 @@ type telescopeCache struct {
 }
 
 func (t *telescopeCache) resolve(ctx data.Context, app data.Value) {
+	defer func() { t.resolved = true }()
 	if app == nil {
 		t.disabled = true
 		return
@@ -452,8 +436,8 @@ func existingNames(v data.Value) []string {
 		out := make([]string, 0, arr.Len())
 		for arraySlots73, arrayPosition73 := arr.View(), 0; arrayPosition73 < arraySlots73.Len(); arrayPosition73++ {
 			z := arraySlots73.At(arrayPosition73)
-			if z != nil && z.Value != nil {
-				out = append(out, z.Value.AsString())
+			if z != nil && z.ReadValue() != nil {
+				out = append(out, z.ReadValue().AsString())
 			}
 		}
 		return out

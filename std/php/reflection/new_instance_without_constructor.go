@@ -50,8 +50,10 @@ func (m *ReflectionClassNewInstanceWithoutConstructorMethod) Call(ctx data.Conte
 	if classStmt == nil {
 		return nil, data.NewErrorThrow(nil, errors.New("Class does not exist"))
 	}
+	if flags, ok := classStmt.(interface{ DeclarationFlags() data.ClassFlags }); ok && flags.DeclarationFlags()&data.ClassEnum != 0 {
+		return nil, data.NewErrorThrowByName(nil, errors.New("Cannot instantiate enum "+classStmt.GetName()), "Error")
+	}
 
 	// 创建实例但不调用构造函数
-	object := data.NewClassValue(classStmt, ctx.CreateBaseContext())
-	return object, nil
+	return classStmt.GetValue(ctx.CreateBaseContext())
 }

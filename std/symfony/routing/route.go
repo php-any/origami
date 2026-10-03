@@ -261,10 +261,10 @@ func routeSetOptions(cv *data.ClassValue, extra *data.ArrayValue) {
 	if extra != nil {
 		for arraySlots198, i := extra.View(), 0; i < arraySlots198.Len(); i++ {
 			z := arraySlots198.At(i)
-			if z == nil || z.Value == nil {
+			if z == nil || z.ReadValue() == nil {
 				continue
 			}
-			assocSet(opts, arrayKey(z, i), z.Value)
+			assocSet(opts, arrayKey(z, i), z.ReadValue())
 		}
 	}
 	setProp(cv, "options", opts)
@@ -276,10 +276,10 @@ func routeAddOptions(cv *data.ClassValue, extra *data.ArrayValue) {
 	if extra != nil {
 		for arraySlots199, i := extra.View(), 0; i < arraySlots199.Len(); i++ {
 			z := arraySlots199.At(i)
-			if z == nil || z.Value == nil {
+			if z == nil || z.ReadValue() == nil {
 				continue
 			}
-			assocSet(opts, arrayKey(z, i), z.Value)
+			assocSet(opts, arrayKey(z, i), z.ReadValue())
 		}
 	}
 	setProp(cv, "options", opts)
@@ -311,7 +311,7 @@ func routeAddDefaults(cv *data.ClassValue, extra *data.ArrayValue) {
 		if key == "_locale" && localized {
 			continue
 		}
-		val := z.Value
+		val := z.ReadValue()
 		if val == nil {
 			val = data.NewNullValue()
 		}
@@ -351,14 +351,14 @@ func routeAddRequirements(cv *data.ClassValue, extra *data.ArrayValue) data.Cont
 	localized := routeIsLocalized(cv)
 	for arraySlots201, i := extra.View(), 0; i < arraySlots201.Len(); i++ {
 		z := arraySlots201.At(i)
-		if z == nil || z.Value == nil {
+		if z == nil || z.ReadValue() == nil {
 			continue
 		}
 		key := arrayKey(z, i)
 		if key == "_locale" && localized {
 			continue
 		}
-		sanitized, err := sanitizeRequirement(key, z.Value.AsString())
+		sanitized, err := sanitizeRequirement(key, z.ReadValue().AsString())
 		if err != nil {
 			return data.NewErrorThrow(nil, err)
 		}

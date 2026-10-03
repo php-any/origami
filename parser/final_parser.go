@@ -20,6 +20,9 @@ func NewFinalParser(parser *Parser) StatementParser {
 // Parse 解析 final 关键字
 // 目前只跳过 final 关键字，然后继续解析下一个语句
 func (p *FinalParser) Parse() (data.GetValue, data.Control) {
+	flags := p.definingClassFlags
+	p.definingClassFlags |= data.ClassFinal
+	defer func() { p.definingClassFlags = flags }()
 	// 跳过 final 关键字
 	p.next()
 

@@ -19,30 +19,10 @@ func (f *ArrayShiftFunction) Call(ctx data.Context) (data.GetValue, data.Control
 
 	if arr, ok := arrayValue.(*data.ArrayValue); ok {
 		slot := arr.ShiftSlot()
-		if slot == nil || slot.Value == nil {
+		if slot == nil || slot.ReadValue() == nil {
 			return data.NewNullValue(), nil
 		}
-		return slot.Value, nil
-	}
-
-	if obj, ok := arrayValue.(*data.ObjectValue); ok {
-		var firstKey string
-		var firstVal data.Value
-		found := false
-		obj.RangeProperties(func(key string, value data.Value) bool {
-			firstKey = key
-			firstVal = value
-			found = true
-			return false
-		})
-		if !found {
-			return data.NewNullValue(), nil
-		}
-		obj.UnsetProperty(firstKey)
-		if firstVal == nil {
-			return data.NewNullValue(), nil
-		}
-		return firstVal, nil
+		return slot.ReadValue(), nil
 	}
 
 	return data.NewNullValue(), nil

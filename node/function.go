@@ -14,12 +14,15 @@ type FunctionStatement struct {
 	Params           []data.GetValue // 参数列表
 	Body             []data.GetValue // 函数体
 	vars             []data.Variable // 符号表
-	Ret              data.Types      // 返回值类型
+	Ret              data.TypeRef    // 返回值类型
 	IsGenerator      bool            // 是否是生成器函数（含 yield）
 	ReturnsReference bool            // 是否按引用返回（function &name()）
 	StrictTypes      bool
+	PHPAttributes    []*Annotation
 	defineCtx        data.Context // 闭包定义时的上下文（用于保留 self:: 语义）
 }
+
+func (f *FunctionStatement) ReturnsByReference() bool { return f.ReturnsReference }
 
 // NewFunctionStatement 创建一个新的函数定义语句
 func NewFunctionStatement(from data.From, name string, params []data.GetValue, body []data.GetValue, vars []data.Variable, ret data.Types, returnsReference bool, strict ...bool) *FunctionStatement {
@@ -29,7 +32,7 @@ func NewFunctionStatement(from data.From, name string, params []data.GetValue, b
 		Params:           params,
 		Body:             body,
 		vars:             vars,
-		Ret:              ret,
+		Ret:              data.DeclaredTypeRef(ret),
 		IsGenerator:      containsYield(body),
 		ReturnsReference: returnsReference,
 		StrictTypes:      len(strict) != 0 && strict[0],
@@ -111,10 +114,15 @@ func (f *FunctionStatement) GetVariables() []data.Variable {
 
 // GetReturnType 返回函数返回类型
 func (f *FunctionStatement) GetReturnType() data.Types {
-	return f.Ret
+	return data.DeclaredType(f.Ret)
 }
 
 func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control) {
+	if f.defineCtx == nil {
+		if bound, ok := ctx.(*data.BoundContext); ok {
+			ctx = bound.Context
+		}
+	}
 	ctx.SetStrictTypes(f.StrictTypes)
 	// 不再无条件 BindStaticLocals。static 局部变量由 StaticVarStatement 惰性绑定，
 	// 没有 static 声明的函数帧 staticLocals 保持 nil，赋值路径不加锁。
@@ -157,15 +165,8 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 				if f.Ret == data.TypeVoid {
 					return data.NewNullValue(), nil
 				}
-				if f.ReturnsReference {
-					if rs, ok := statement.(*ReturnStatement); ok && rs.Value != nil {
-						if variable, ok := rs.Value.(data.Variable); ok {
-							ret = data.NewReferenceValue(variable, execCtx)
-						}
-					}
-				}
-				if f.Ret != nil {
-					if prepared, ok, conversion := data.PrepareTypedValueInContext(f.Ret, ret, ctx); conversion != nil {
+				if f.Ret != data.TypeInvalid {
+					if prepared, ok, conversion := data.PrepareDeclaredValueInContext(f.Ret, ret, ctx); conversion != nil {
 						return nil, data.ReturnTypeError(f.from, errors.New("函数返回值类型错误"), conversion)
 					} else if ok {
 						return prepared, nil
@@ -209,7 +210,7 @@ func (f *FunctionStatement) Call(ctx data.Context) (data.GetValue, data.Control)
 	}
 
 	f.persistStaticLocals(execCtx)
-	if !data.AllowsImplicitReturn(f.Ret) {
+	if !(f.Ret == data.TypeInvalid || f.Ret == data.TypeVoid) {
 		return nil, data.NewTypeError(f.from, errors.New("declared function must return a value"))
 	}
 	// PHP：没有 return 时函数返回 null，而不是最后一条语句的值。
@@ -225,7 +226,7 @@ func persistStaticLocals(ctx data.Context, vars []data.Variable) {
 	for _, v := range vars {
 		idx := v.GetIndex()
 		if zv := ctx.GetIndexZVal(idx); zv != nil {
-			store.Update(idx, zv.Value)
+			store.Update(idx, zv.ReadValue())
 		}
 	}
 }
@@ -239,7 +240,7 @@ type Parameter struct {
 	*Node        `pp:"-"`
 	Name         string // 变量名
 	Index        int    // 变量在作用域中的索引
-	Type         data.Types
+	Type         data.TypeRef
 	DefaultValue data.GetValue // 默认值
 	Annotations  []*data.ClassValue
 }
@@ -260,14 +261,14 @@ func (p *Parameter) GetIndex() int {
 }
 
 func (p *Parameter) GetType() data.Types {
-	return p.Type
+	return data.DeclaredType(p.Type)
 }
 
 func (p *Parameter) SetValue(ctx data.Context, value data.Value) data.Control {
-	if p.Type == nil {
+	if p.Type == data.TypeInvalid {
 		return ctx.SetVariableValue(p, value)
 	}
-	prepared, ok, conversion := data.PrepareTypedValueInContext(p.Type, value, ctx)
+	prepared, ok, conversion := data.PrepareDeclaredValueInContext(p.Type, value, ctx)
 
 	if conversion != nil {
 		return conversion
@@ -284,7 +285,7 @@ func NewParameter(from data.From, name string, index int, defaultValue data.GetV
 		Node:         NewNode(from),
 		Name:         name,
 		Index:        index,
-		Type:         ty,
+		Type:         data.DeclaredTypeRef(ty),
 		DefaultValue: defaultValue,
 	}
 }
@@ -307,7 +308,7 @@ func NewPromotedParameter(from data.From, name string, index int, defaultValue d
 			Node:         NewNode(from),
 			Name:         name,
 			Index:        index,
-			Type:         ty,
+			Type:         data.DeclaredTypeRef(ty),
 			DefaultValue: defaultValue,
 		},
 		PropertyName: name,
@@ -346,7 +347,7 @@ func NewParameters(from data.From, name string, index int, defaultValue data.Get
 			Node:         NewNode(from),
 			Name:         name,
 			Index:        index,
-			Type:         ty,
+			Type:         data.DeclaredTypeRef(ty),
 			DefaultValue: defaultValue,
 		},
 	}
@@ -359,7 +360,7 @@ func NewParametersNoName(index int) data.GetValue {
 			Node:  NewNode(nil),
 			Name:  "args",
 			Index: index,
-			Type:  nil,
+			Type:  data.TypeInvalid,
 		},
 	}
 }
@@ -369,22 +370,24 @@ type Parameters struct {
 	*Parameter
 }
 
+func (*Parameters) IsVariadicParameter() bool { return true }
+
 func (p *Parameters) SetValue(ctx data.Context, value data.Value) data.Control {
 	array, ok := value.(*data.ArrayValue)
 	if !ok {
 		return data.NewTypeError(p.from, errors.New("variadic binding requires an array"))
 	}
-	if p.Type != nil {
+	if p.Type != data.TypeInvalid {
 		for slots, i := array.View(), 0; i < slots.Len(); i++ {
 			slot := slots.At(i)
-			prepared, accepted, conversion := data.PrepareTypedValueInContext(p.Type, slot.Value, ctx)
+			prepared, accepted, conversion := data.PrepareDeclaredValueInContext(p.Type, slot.ReadValue(), ctx)
 			if conversion != nil {
 				return conversion
 			}
 			if !accepted {
 				return data.NewTypeError(p.from, errors.New("invalid variadic argument type"))
 			}
-			slot.Value = prepared
+			slot.StoreRaw(prepared)
 		}
 	}
 	return ctx.SetVariableValue(p, array)
@@ -405,7 +408,7 @@ func (p *Parameters) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	if _, ok := v.(*data.ArrayValue); !ok {
-		nv := data.NewArrayValue([]data.Value{v})
+		nv := data.NewArrayValue(nil)
 		ctx.SetVariableValue(p, nv)
 		return nv, nil
 	}
@@ -422,6 +425,8 @@ type ParameterReference struct {
 	OutputOnly bool // Native output references accept arbitrary old slot contents.
 }
 
+func (*ParameterReference) IsReferenceParameter() bool { return true }
+
 // NewOutputParameterReference retains the native declared output type while
 // allowing an arbitrary input slot, as PHP's send-by-reference output arguments do.
 func NewOutputParameterReference(from data.From, name string, index int, defaultValue data.GetValue, ty data.Types) data.Parameter {
@@ -436,7 +441,7 @@ func NewParameterReference(from data.From, name string, index int, defaultValue 
 			Node:         NewNode(from),
 			Name:         name,
 			Index:        index,
-			Type:         ty,
+			Type:         data.DeclaredTypeRef(ty),
 			DefaultValue: defaultValue,
 		},
 	}
@@ -447,8 +452,8 @@ func (p *ParameterReference) GetValue(ctx data.Context) (data.GetValue, data.Con
 }
 
 func (p *ParameterReference) SetValue(ctx data.Context, value data.Value) data.Control {
-	if p.Type != nil && !p.OutputOnly {
-		prepared, ok, conversion := data.PrepareTypedValueInContext(p.Type, value, ctx)
+	if p.Type != data.TypeInvalid && !p.OutputOnly {
+		prepared, ok, conversion := data.PrepareDeclaredValueInContext(p.Type, value, ctx)
 
 		if conversion != nil {
 			return conversion
@@ -459,7 +464,7 @@ func (p *ParameterReference) SetValue(ctx data.Context, value data.Value) data.C
 		value = prepared
 	}
 	if v, ok := value.(*data.ZValValue); ok {
-		ctx.SetIndexZVal(p.Index, v.ZVal)
+		data.BindContextReference(ctx, p.Index, v.ZVal)
 	} else {
 		return ctx.SetVariableValue(p, value)
 	}
@@ -474,7 +479,7 @@ func NewParametersReference(from data.From, name string, index int, defaultValue
 			Node:         NewNode(from),
 			Name:         name,
 			Index:        index,
-			Type:         ty,
+			Type:         data.DeclaredTypeRef(ty),
 			DefaultValue: defaultValue,
 		},
 	}
@@ -484,6 +489,9 @@ func NewParametersReference(from data.From, name string, index int, defaultValue
 type ParametersReference struct {
 	*Parameter
 }
+
+func (*ParametersReference) IsReferenceParameter() bool { return true }
+func (*ParametersReference) IsVariadicParameter() bool  { return true }
 
 func (p *ParametersReference) GetDefaultValue() data.GetValue {
 	return p.DefaultValue
@@ -500,7 +508,7 @@ func (p *ParametersReference) GetValue(ctx data.Context) (data.GetValue, data.Co
 	}
 
 	if _, ok := v.(*data.ArrayValue); !ok {
-		nv := data.NewArrayValue([]data.Value{v})
+		nv := data.NewArrayValue(nil)
 		ctx.SetVariableValue(p, nv)
 		return nv, nil
 	}
@@ -509,18 +517,22 @@ func (p *ParametersReference) GetValue(ctx data.Context) (data.GetValue, data.Co
 }
 
 func (p *ParametersReference) SetValue(ctx data.Context, value data.Value) data.Control {
-	if p.Type == nil {
-		return ctx.SetVariableValue(p, value)
-	}
-	prepared, ok, conversion := data.PrepareTypedValueInContext(p.Type, value, ctx)
-
-	if conversion != nil {
-		return conversion
-	}
+	array, ok := value.(*data.ArrayValue)
 	if !ok {
-		return data.NewTypeError(p.from, errors.New("参数 $"+p.Name+" 类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
+		return data.NewTypeError(p.from, errors.New("variadic binding requires an array"))
 	}
-	return ctx.SetVariableValue(p, prepared)
+	if p.Type != data.TypeInvalid {
+		for _, slot := range array.Range() {
+			_, accepted, ctl := data.PrepareDeclaredValueInContext(p.Type, data.NewZValValue(slot), ctx)
+			if ctl != nil {
+				return ctl
+			}
+			if !accepted {
+				return data.NewTypeError(p.from, errors.New("invalid variadic argument type"))
+			}
+		}
+	}
+	return ctx.SetVariableValue(p, array)
 }
 
 // CallerContextParameter 特殊参数类型：用于标记函数需要在调用者的 Context 中执行。
@@ -583,7 +595,7 @@ func NewParameterRawAST(from data.From, name string, index int, ty data.Types) d
 			Node:  NewNode(from),
 			Name:  name,
 			Index: index,
-			Type:  ty,
+			Type:  data.DeclaredTypeRef(ty),
 		},
 	}
 }

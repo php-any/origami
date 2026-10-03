@@ -29,22 +29,19 @@ func (f *HashFileFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 
 	h, err := newHashByAlgo(algo)
 	if err != nil {
-		setLastError(2 /* E_WARNING */, err.Error(), "", 0)
-		return data.NewBoolValue(false), nil
+		return data.NewBoolValue(false), data.EmitPHPError(ctx, 2, err.Error(), nil)
 	}
 
 	file, closeFile, err := utils.OpenRequestFile(ctx.GoContext(), filename, os.O_RDONLY, 0)
 	if err != nil {
-		setLastError(2 /* E_WARNING */, "hash_file("+filename+"): Failed to open stream: "+err.Error(), "", 0)
-		return data.NewBoolValue(false), nil
+		return data.NewBoolValue(false), data.EmitPHPError(ctx, 2, "hash_file("+filename+"): Failed to open stream: "+err.Error(), nil)
 	}
 	defer closeFile()
 
 	_, err = io.Copy(h, file)
 	data.CheckRequest(ctx.GoContext())
 	if err != nil {
-		setLastError(2 /* E_WARNING */, err.Error(), "", 0)
-		return data.NewBoolValue(false), nil
+		return data.NewBoolValue(false), data.EmitPHPError(ctx, 2, err.Error(), nil)
 	}
 
 	rawOutput := false

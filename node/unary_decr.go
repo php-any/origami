@@ -19,6 +19,19 @@ func NewUnaryDecr(from data.From, right data.GetValue) *UnaryDecr {
 }
 
 func (u *UnaryDecr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if value, ctl, handled := incrementStaticProperty(ctx, u.Right, -1, false); handled {
+		return value, ctl
+	}
+	if index, ok := u.Right.(*IndexExpression); ok {
+		owner, ctl := resolveDimensionOwner(ctx, index)
+		if ctl != nil {
+			return nil, ctl
+		}
+		copy := *u
+		copy.Right = owner
+		return copy.GetValue(ctx)
+	}
+
 	// 先获取右操作数的值
 	rv, rCtl := u.Right.GetValue(ctx)
 	if rCtl != nil {

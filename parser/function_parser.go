@@ -31,6 +31,9 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 		returnsReference = true
 		fp.next()
 	}
+	outerReference := fp.currentReturnsReference
+	fp.currentReturnsReference = returnsReference
+	defer func() { fp.currentReturnsReference = outerReference }()
 	// 解析函数名
 	if !fp.checkPositionIs(0, token.IDENTIFIER) {
 		if fp.checkPositionIs(0, token.LPAREN) {
@@ -116,7 +119,7 @@ func (fp *FunctionParser) Parse() (data.GetValue, data.Control) {
 				fp.strictTypes,
 			)
 
-			fn.Ret = ret
+			fn.Ret = data.DeclaredTypeRef(ret)
 			fn.ReturnsReference = returnsReference
 			return fn, nil
 		}
@@ -244,134 +247,5 @@ func (fp *FunctionParser) parseClosureUse() ([]UseCapture, data.Control) {
 }
 
 func (fp FunctionParser) parserReturnType() (data.Types, data.Control) {
-	// 检查是否有返回类型声明
-	// 语法: function name(): returnType 或 function name(): ?returnType
-	// 或者: function name(): type1, type2, type3 (多返回值)
-	if fp.current().Type() == token.COLON {
-		fp.next() // 跳过冒号
-
-		// 解析返回类型列表
-		var returnTypes []data.Types
-
-		for {
-			// 检查是否是可空类型语法 ?type
-			isNullable := false
-			if fp.current().Type() == token.TERNARY {
-				isNullable = true
-				fp.next() // 跳过问号
-			}
-
-			// 解析一个“返回类型表达式”，支持联合类型：array|string|false
-			// 其中每个原子类型可以是标识符、内置类型、null、false 等
-			var unionTypes []data.Types
-
-			parseOneTypeAtom := func() (data.Types, data.Control) {
-				if !fp.checkPositionIs(0,
-					token.IDENTIFIER,
-					token.STRING,
-					token.INT,
-					token.FLOAT,
-					token.BOOL,
-					token.ARRAY,
-					token.NULL,
-					token.FALSE,
-					token.TRUE,
-					token.STATIC,
-					token.SELF,
-					token.PARENT,
-				) {
-					return nil, data.NewErrorThrow(fp.newFrom(), errors.New("无法识别返回类型的定义符号"))
-				}
-				// 处理 static 关键字
-				if fp.current().Type() == token.STATIC {
-					fp.next()
-					return data.NewDeclaredType("static"), nil
-				}
-				// 处理 self / parent（闭包/函数返回类型）
-				if fp.current().Type() == token.SELF {
-					fp.next()
-					return data.NewDeclaredType("self"), nil
-				}
-				if fp.current().Type() == token.PARENT {
-					fp.next()
-					return data.NewDeclaredType("parent"), nil
-				}
-
-				name := fp.current().Literal()
-				fp.next()
-
-				// 如果是基础类型，直接返回
-				if data.ISBaseType(name) {
-					return data.NewDeclaredType(name), nil
-				}
-
-				// 尝试解析完整的类名（包括命名空间）
-				if full, ok := fp.findFullClassNameByNamespace(name); ok {
-					return data.NewDeclaredType(full), nil
-				}
-
-				// 如果无法解析，返回原始名称
-				return data.NewDeclaredType(name), nil
-			}
-
-			// 第一个类型原子
-			firstType, acl := parseOneTypeAtom()
-			if acl != nil {
-				return nil, acl
-			}
-			unionTypes = append(unionTypes, firstType)
-
-			// 后续 |Type（联合）或 &Type（交集）；二者不可混用（无括号 DNF）
-			var typeCombinator token.TokenType
-			hasCombinator := false
-			if fp.current().Type() == token.BIT_OR || fp.current().Type() == token.BIT_AND {
-				typeCombinator = fp.current().Type()
-				hasCombinator = true
-			}
-			for hasCombinator && fp.current().Type() == typeCombinator {
-				fp.next() // 跳过 | 或 &
-				nextType, acl := parseOneTypeAtom()
-				if acl != nil {
-					return nil, acl
-				}
-				unionTypes = append(unionTypes, nextType)
-			}
-
-			// 将本次解析出的类型（单一 / 联合 / 交集）加入返回类型列表
-			var thisType data.Types
-			if len(unionTypes) == 1 {
-				thisType = unionTypes[0]
-			} else if typeCombinator == token.BIT_AND {
-				thisType = data.NewDeclaredIntersectionType(unionTypes)
-			} else {
-				thisType = data.NewDeclaredUnionType(unionTypes)
-			}
-			if isNullable {
-				thisType = data.NewDeclaredNullableType(thisType)
-			}
-			returnTypes = append(returnTypes, thisType)
-
-			// 检查是否有更多类型（逗号分隔）
-			if fp.current().Type() == token.COMMA {
-				fp.next() // 跳过逗号
-				continue
-			}
-
-			// 没有更多类型，结束解析
-			break
-		}
-
-		// 根据返回类型数量决定返回类型
-		if len(returnTypes) == 0 {
-			return nil, nil
-		} else if len(returnTypes) == 1 {
-			return returnTypes[0], nil
-		} else {
-			// 多个返回类型，创建多返回值类型
-			return data.NewMultipleReturnType(returnTypes), nil
-		}
-	}
-
-	// 没有返回类型声明，返回 nil
-	return nil, nil
+	return parseDeclaredReturn(fp.Parser)
 }

@@ -27,23 +27,12 @@ func strtrToString(ctx data.Context, v data.Value) (string, data.Control) {
 	case *data.StringValue:
 		return sv.Value, nil
 	case *data.ClassValue:
-		if m, ok := sv.GetMethod("__toString"); ok && m != nil {
-			fnCtx := sv.CreateContext(m.GetVariables())
-			fnCtx.SetCallArgs([]data.GetValue{})
-			ret, ctl := m.Call(fnCtx)
-			if ctl != nil {
-				return "", ctl
-			}
-			if ret == nil {
-				return "", nil
-			}
-			if s, ok := ret.(*data.StringValue); ok {
-				return s.Value, nil
-			}
-			if val, ok := ret.(data.Value); ok {
-				return val.AsString(), nil
-			}
-			return "", nil
+		result, accepted, ctl := data.ObjectToStringValue(sv, ctx)
+		if ctl != nil {
+			return "", ctl
+		}
+		if accepted {
+			return result.AsString(), nil
 		}
 		return sv.AsString(), nil
 	case *data.ThisValue:
@@ -66,19 +55,15 @@ func (f *StrtrFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	var pairs map[string]string
 
 	switch v := fromValue.(type) {
-	case *data.ObjectValue:
-		pairs = make(map[string]string)
-		for k, val := range v.GetProperties() {
-			pairs[k] = val.AsString()
-		}
+
 	case *data.ArrayValue:
 		pairs = make(map[string]string)
 		for arraySlots118, i := v.View(), 0; i < arraySlots118.Len(); i++ {
 			z := arraySlots118.At(i)
-			if z == nil || z.Value == nil {
+			if z == nil || z.ReadValue() == nil {
 				continue
 			}
-			pairs[z.PHPArrayKey(i).AsString()] = z.Value.AsString()
+			pairs[z.PHPArrayKey(i).AsString()] = z.ReadValue().AsString()
 		}
 	}
 

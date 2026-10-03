@@ -70,8 +70,7 @@ func isTypedNilValue(v data.GetValue) bool {
 		return t == nil
 	case *data.ArrayValue:
 		return t == nil
-	case *data.ObjectValue:
-		return t == nil
+
 	case *data.ClassValue:
 		return t == nil
 	case *data.ThisValue:
@@ -155,53 +154,16 @@ func isStrictEqual(value1, value2 data.GetValue) bool {
 				if !zval1.SameArrayKey(i, zval2, i) {
 					return false
 				}
-				if !isStrictEqual(zval1.Value, zval2.Value) {
+				if !isStrictEqual(zval1.ReadValue(), zval2.ReadValue()) {
 					return false
 				}
 			}
 			return true
 		}
 		// 空 ArrayValue 与空 ObjectValue（关联数组）在 PHP 中均为 []
-		if v2, ok2 := value2.(*data.ObjectValue); ok2 {
-			if v2 == nil {
-				return false
-			}
-			return v1.Len() == 0 && len(v2.GetProperties()) == 0
-		}
+
 		return false
-	case *data.ObjectValue:
-		if v1 == nil {
-			return typedNilEquals(value2)
-		}
-		if v2, ok2 := value2.(*data.ArrayValue); ok2 {
-			if v2 == nil {
-				return false
-			}
-			return len(v1.GetProperties()) == 0 && v2.Len() == 0
-		}
-		if v2, ok2 := value2.(*data.ObjectValue); ok2 {
-			if v2 == nil {
-				return false
-			}
-			// 对象比较：属性数量和每个属性都相等
-			props1 := v1.GetProperties()
-			props2 := v2.GetProperties()
-			if len(props1) != len(props2) {
-				return false
-			}
-			for key, val1 := range props1 {
-				val2, exists := props2[key]
-				if !exists {
-					return false
-				}
-				// 递归比较对象属性
-				if !isStrictEqual(val1, val2) {
-					return false
-				}
-			}
-			return true
-		}
-		return false
+
 	case *data.ClassValue:
 		if v1 == nil {
 			return typedNilEquals(value2)

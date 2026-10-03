@@ -10,22 +10,11 @@ import (
 )
 
 // emitUndefinedArrayKeyWarning 输出 PHP 8+ 未定义数组键 Warning
-func emitUndefinedArrayKeyWarning(from data.From, key string, intKey bool) {
-	file := "Unknown"
-	line := 0
-	if from != nil {
-		if src := from.GetSource(); src != "" {
-			file = src
-		}
-		if sl, _ := from.GetStartPosition(); sl >= 0 {
-			line = sl + 1
-		}
-	}
+func emitUndefinedArrayKeyWarning(ctx data.Context, from data.From, key string, intKey bool) data.Control {
 	if intKey {
-		fmt.Fprintf(os.Stderr, "\nWarning: Undefined array key %s in %s on line %d\n", key, file, line)
-	} else {
-		fmt.Fprintf(os.Stderr, "\nWarning: Undefined array key \"%s\" in %s on line %d\n", key, file, line)
+		return data.EmitPHPError(ctx, 2, "Undefined array key "+key, from)
 	}
+	return data.EmitPHPError(ctx, 2, "Undefined array key \""+key+"\"", from)
 }
 
 // callArrayAccessOffsetExists 调用 ArrayAccess::offsetExists
@@ -34,7 +23,8 @@ func callArrayAccessOffsetExists(ctx data.Context, classValue *data.ClassValue, 
 	if !exists {
 		return false, nil
 	}
-	fnCtx := classValue.CreateContext(method.GetVariables())
+	fnCtx := implicitMethodFrame(ctx, classValue, method)
+	defer tryReleaseCallContext(method, fnCtx)
 	if len(method.GetVariables()) > 0 {
 		fnCtx.SetVariableValue(method.GetVariables()[0], index)
 	}
@@ -163,13 +153,27 @@ func isEmptyPHPValue(v data.GetValue) bool {
 
 // callArrayAccessOffsetGet 调用 ArrayAccess 接口的 offsetGet 方法
 func callArrayAccessOffsetGet(ctx data.Context, classValue *data.ClassValue, index data.GetValue) (data.GetValue, data.Control) {
+	return callValue(callArrayAccessOffsetGetReference(ctx, classValue, index))
+}
+
+func callArrayAccessOffsetGetReference(ctx data.Context, classValue *data.ClassValue, index data.GetValue) (data.GetValue, data.Control) {
+	if dimensions, ok := classValue.Class.(interface {
+		ArrayDimensionReference(data.Context, *data.ClassValue, data.Value) (*data.ZVal, data.Control)
+	}); ok {
+		slot, ctl := dimensions.ArrayDimensionReference(ctx, classValue, index.(data.Value))
+		if ctl != nil {
+			return nil, ctl
+		}
+		return &data.ArraySlotRef{Slot: slot}, nil
+	}
 	method, exists := classValue.GetMethod("offsetGet")
 	if !exists {
 		return nil, nil
 	}
 
 	// 创建参数上下文
-	fnCtx := classValue.CreateContext(method.GetVariables())
+	fnCtx := implicitMethodFrame(ctx, classValue, method)
+	defer tryReleaseCallContext(method, fnCtx)
 
 	// 设置参数值
 	params := method.GetParams()
@@ -210,13 +214,7 @@ func tagArrayAccessOffsetCopy(val data.Value, className string) data.Value {
 		tagged := data.CloneArrayValue(v)
 		tagged.IndirectOverloadClass = className
 		return tagged
-	case *data.ObjectValue:
-		if v.IndirectOverloadClass != "" {
-			return v
-		}
-		tagged := data.CloneObjectValue(v)
-		tagged.IndirectOverloadClass = className
-		return tagged
+
 	default:
 		return val
 	}
@@ -245,13 +243,11 @@ func indirectOverloadTag(v data.GetValue) string {
 	if arr, ok := v.(*data.ArrayValue); ok {
 		return arr.IndirectOverloadClass
 	}
-	if obj, ok := v.(*data.ObjectValue); ok {
-		return obj.IndirectOverloadClass
-	}
+
 	return ""
 }
 
-// blockIndirectOverloadAssign 检测 ArrayAccess offsetGet 副本的嵌套赋值（由 assignNestedArrayAccess 处理）
+// blockIndirectOverloadAssign detects a write through a by-value offsetGet result.
 func blockIndirectOverloadAssign(ie *IndexExpression, arrayVal data.GetValue) bool {
 	if _, ok := ie.Array.(data.Variable); ok {
 		return false
@@ -295,7 +291,8 @@ func callArrayAccessOffsetUnset(ctx data.Context, classValue *data.ClassValue, i
 	if !exists {
 		return nil
 	}
-	fnCtx := classValue.CreateContext(method.GetVariables())
+	fnCtx := implicitMethodFrame(ctx, classValue, method)
+	defer tryReleaseCallContext(method, fnCtx)
 	if len(method.GetVariables()) > 0 {
 		fnCtx.SetVariableValue(method.GetVariables()[0], index)
 	}
@@ -311,7 +308,8 @@ func callArrayAccessOffsetSet(ctx data.Context, classValue *data.ClassValue, ind
 	}
 
 	// 创建参数上下文
-	fnCtx := classValue.CreateContext(method.GetVariables())
+	fnCtx := implicitMethodFrame(ctx, classValue, method)
+	defer tryReleaseCallContext(method, fnCtx)
 
 	// 设置参数值
 	params := method.GetParams()
@@ -376,6 +374,9 @@ func NewAppendIndexExpression(token *TokenFrom, array data.GetValue) *IndexExpre
 }
 
 func (ie *IndexExpression) GetZVal(ctx data.Context) (*data.ZVal, data.Control) {
+	if _, global := ie.Array.(*GlobalsArrayVariable); global {
+		return globalsDimensionSlot(ctx, ie)
+	}
 	temp, acl := ie.Array.GetValue(ctx)
 	if acl != nil {
 		return nil, acl
@@ -386,13 +387,19 @@ func (ie *IndexExpression) GetZVal(ctx data.Context) (*data.ZVal, data.Control) 
 	}
 
 	switch v := temp.(type) {
+	case *data.ThisValue:
+		return ie.arrayAccessReferenceSlot(ctx, v.ClassValue, index)
+	case *data.ClassValue:
+		return ie.arrayAccessReferenceSlot(ctx, v, index)
 	case *data.ArrayValue:
 		switch iv := index.(type) {
 		case *data.NullValue:
 			if zval, ok := v.LookupZValByStringKey(""); ok {
 				return zval, nil
 			}
-			emitUndefinedArrayKeyWarning(ie.GetFrom(), "", false)
+			if ctl := emitUndefinedArrayKeyWarning(ctx, ie.GetFrom(), "", false); ctl != nil {
+				return nil, ctl
+			}
 			return data.NewZVal(data.NewNullValue()), nil
 		case *data.IntValue:
 			i, err := iv.AsInt()
@@ -402,14 +409,18 @@ func (ie *IndexExpression) GetZVal(ctx data.Context) (*data.ZVal, data.Control) 
 			if z, _ := v.FindSlotByIntKey(i); z != nil {
 				return z, nil
 			}
-			emitUndefinedArrayKeyWarning(ie.GetFrom(), fmt.Sprintf("%d", i), true)
+			if ctl := emitUndefinedArrayKeyWarning(ctx, ie.GetFrom(), fmt.Sprintf("%d", i), true); ctl != nil {
+				return nil, ctl
+			}
 			return data.NewZVal(data.NewNullValue()), nil
 		case *data.StringValue:
 			key := iv.AsString()
 			if zval, ok := v.LookupZValByStringKey(key); ok {
 				return zval, nil
 			}
-			emitUndefinedArrayKeyWarning(ie.GetFrom(), key, false)
+			if ctl := emitUndefinedArrayKeyWarning(ctx, ie.GetFrom(), key, false); ctl != nil {
+				return nil, ctl
+			}
 			return data.NewZVal(data.NewNullValue()), nil
 		case *data.BoolValue:
 			i := 0
@@ -419,7 +430,9 @@ func (ie *IndexExpression) GetZVal(ctx data.Context) (*data.ZVal, data.Control) 
 			if z, _ := v.FindSlotByIntKey(i); z != nil {
 				return z, nil
 			}
-			emitUndefinedArrayKeyWarning(ie.GetFrom(), fmt.Sprintf("%d", i), true)
+			if ctl := emitUndefinedArrayKeyWarning(ctx, ie.GetFrom(), fmt.Sprintf("%d", i), true); ctl != nil {
+				return nil, ctl
+			}
 			return data.NewZVal(data.NewNullValue()), nil
 		case data.AsInt:
 			i, err := iv.AsInt()
@@ -429,30 +442,23 @@ func (ie *IndexExpression) GetZVal(ctx data.Context) (*data.ZVal, data.Control) 
 			if z, _ := v.FindSlotByIntKey(i); z != nil {
 				return z, nil
 			}
-			emitUndefinedArrayKeyWarning(ie.GetFrom(), fmt.Sprintf("%d", i), true)
+			if ctl := emitUndefinedArrayKeyWarning(ctx, ie.GetFrom(), fmt.Sprintf("%d", i), true); ctl != nil {
+				return nil, ctl
+			}
 			return data.NewZVal(data.NewNullValue()), nil
 		case data.AsString:
 			key := iv.AsString()
 			if zval, ok := v.LookupZValByStringKey(key); ok {
 				return zval, nil
 			}
-			emitUndefinedArrayKeyWarning(ie.GetFrom(), key, false)
+			if ctl := emitUndefinedArrayKeyWarning(ctx, ie.GetFrom(), key, false); ctl != nil {
+				return nil, ctl
+			}
 			return data.NewZVal(data.NewNullValue()), nil
 		default:
 			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("无法处理索引的类型值"))
 		}
-	case *data.ObjectValue:
-		switch iv := index.(type) {
-		case data.AsString:
-			ov, acl := v.GetZVal(iv.AsString())
-			if acl != nil {
-				return nil, acl
-			}
-			if ov == nil {
-				return data.NewZVal(data.NewNullValue()), nil
-			}
-			return ov, nil
-		}
+
 	case *data.NullValue:
 		return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("NULL值不支持数组索引操作"), "UndefinedIndexExpression")
 	}
@@ -461,6 +467,20 @@ func (ie *IndexExpression) GetZVal(ctx data.Context) (*data.ZVal, data.Control) 
 
 // GetOrCreateZVal 返回索引槽位 ZVal；键不存在时 vivify（用于 &$arr[$key] 引用绑定）。
 func (ie *IndexExpression) GetOrCreateZVal(ctx data.Context) (*data.ZVal, data.Control) {
+	if complexDimension(ie) {
+		resolved, ctl := resolveDimension(ctx, ie)
+		if ctl != nil {
+			return nil, ctl
+		}
+		return resolved.getOrCreateZValResolved(ctx)
+	}
+	return ie.getOrCreateZValResolved(ctx)
+}
+
+func (ie *IndexExpression) getOrCreateZValResolved(ctx data.Context) (*data.ZVal, data.Control) {
+	if _, global := ie.Array.(*GlobalsArrayVariable); global {
+		return globalsDimensionSlot(ctx, ie)
+	}
 	temp, ctl := ie.Array.GetValue(ctx)
 	if ctl != nil {
 		return nil, ctl
@@ -471,8 +491,12 @@ func (ie *IndexExpression) GetOrCreateZVal(ctx data.Context) (*data.ZVal, data.C
 	}
 
 	switch v := temp.(type) {
+	case *data.ThisValue:
+		return ie.arrayAccessReferenceSlot(ctx, v.ClassValue, index)
+	case *data.ClassValue:
+		return ie.arrayAccessReferenceSlot(ctx, v, index)
 	case *data.ArrayValue:
-		v = cowSeparateNestedArray(ie.Array, v).(*data.ArrayValue)
+		v = cowSeparateNestedArray(ctx, ie.Array, v).(*data.ArrayValue)
 		var slot *data.ZVal
 		if ie.Append {
 			slot = v.AppendSlot(data.NewNullValue())
@@ -507,29 +531,33 @@ func (ie *IndexExpression) GetOrCreateZVal(ctx data.Context) (*data.ZVal, data.C
 		}
 		writeBackArrayProperty(ctx, ie.Array, v)
 		return slot, nil
-	case *data.ObjectValue:
-		v = cowSeparateNestedArray(ie.Array, v).(*data.ObjectValue)
-		key, ok := indexKeyString(index)
-		if !ok {
-			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("ObjectValue无法处理索引的类型值"))
-		}
-		slot, ctl := v.GetZVal(key)
-		if ctl != nil || slot == nil {
-			v.SetProperty(key, data.NewNullValue())
-			slot, ctl = v.GetZVal(key)
-		}
-		writeBackArrayProperty(ctx, ie.Array, v)
-		return slot, ctl
+
 	}
 	return ie.GetZVal(ctx)
+}
+
+func (ie *IndexExpression) arrayAccessReferenceSlot(ctx data.Context, object *data.ClassValue, index data.GetValue) (*data.ZVal, data.Control) {
+	if !checkArrayAccess(ctx, object.Class) {
+		return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("Cannot use object as array"), "Error")
+	}
+	value, ctl := callArrayAccessOffsetGetReference(ctx, object, index)
+	if ctl != nil {
+		return nil, ctl
+	}
+	if value, ok := value.(data.Value); ok {
+		if slot, ctl := data.ReferenceSlot(value); slot != nil || ctl != nil {
+			return slot, ctl
+		}
+	}
+	return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("Cannot assign by reference to an array dimension of an object"), "Error")
 }
 
 func unwrapIndexAssignTarget(v data.GetValue) data.GetValue {
 	for i := 0; i < 8 && v != nil; i++ {
 		switch t := v.(type) {
 		case *data.ZValValue:
-			if t.ZVal != nil && t.ZVal.Value != nil {
-				v = t.ZVal.Value
+			if t.ZVal != nil && t.ZVal.ReadValue() != nil {
+				v = t.ZVal.ReadValue()
 				continue
 			}
 		case *data.ReferenceValue:
@@ -547,6 +575,24 @@ func unwrapIndexAssignTarget(v data.GetValue) data.GetValue {
 }
 
 func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Control {
+	if complexDimension(ie) {
+		resolved, ctl := resolveDimension(ctx, ie)
+		if ctl != nil {
+			return ctl
+		}
+		return resolved.setValueResolved(ctx, value)
+	}
+	return ie.setValueResolved(ctx, value)
+}
+
+func (ie *IndexExpression) setValueResolved(ctx data.Context, value data.Value) data.Control {
+	if _, global := ie.Array.(*GlobalsArrayVariable); global {
+		slot, ctl := globalsDimensionSlot(ctx, ie)
+		if ctl != nil {
+			return ctl
+		}
+		return assignGlobalDimension(ctx, slot, value)
+	}
 	indexVal, acl := ie.Index.GetValue(ctx)
 	if acl != nil {
 		return acl
@@ -622,59 +668,22 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 	}
 
 	if blockIndirectOverloadAssign(ie, arrayVal) {
-		if ctl := assignNestedArrayAccess(ctx, ie, value); ctl != nil {
-			return ctl
-		}
+		emitIndirectModificationNoticeAssign(ie.GetFrom(), indirectOverloadTag(arrayVal))
 		return nil
 	}
 
 	switch arr := arrayVal.(type) {
 	case *data.NullValue:
-		var newArr *data.ArrayValue
-		if ie.Append {
-			// $null[] = value → 初始化为数组后追加（PHP 语义）
-			newArr = data.NewArrayValue([]data.Value{value}).(*data.ArrayValue)
-		} else if _, isNull := indexVal.(*data.NullValue); isNull {
-			newArr = data.NewArrayValue(nil).(*data.ArrayValue)
-			newArr.SetStringKey("", value)
-		} else {
-			// $null[$key] = value：自动 vivify 为数组，并保留键名/键序。
-			// 不能简单地 NewArrayValue([]Value{value})，那会丢失字符串键（'date' 被当成 0 号整键）。
-			newArr = data.NewArrayValue(nil).(*data.ArrayValue)
-			if sv, ok := indexVal.(*data.StringValue); ok {
-				newArr.SetStringKey(sv.AsString(), value)
-			} else if iv, ok := indexVal.(data.AsString); ok {
-				newArr.SetStringKey(iv.AsString(), value)
-			} else if iv, ok := indexVal.(data.AsInt); ok {
-				if i, err := iv.AsInt(); err == nil {
-					newArr.SetIntKey(i, value)
-				} else {
-					newArr.AppendValue(value)
-				}
-			} else {
-				newArr.AppendValue(value)
-			}
+		newArr := data.NewArrayValue(nil).(*data.ArrayValue)
+		if ctl := assignArrayIndex(ctx, newArr, indexVal, ie.Append, value, ie.GetFrom()); ctl != nil {
+			return ctl
 		}
 		_, acl = NewBinaryAssign(ie.GetFrom(), ie.Array, newArr).GetValue(ctx)
 		return acl
 	case *data.ArrayValue:
-		arr = cowSeparateNestedArray(ie.Array, arr).(*data.ArrayValue)
-		// 数组索引赋值
-		if ie.Append {
-			if !arr.AppendValue(value) {
-				return data.NewErrorThrowByName(ie.GetFrom(), errors.New("Cannot add element to the array as the next element is already occupied"), "Error")
-			}
-			writeBackArrayProperty(ctx, ie.Array, arr)
-			return nil
-		}
-		if _, isNull := indexVal.(*data.NullValue); isNull {
-			arr.SetStringKey("", value)
-			writeBackArrayProperty(ctx, ie.Array, arr)
-			return nil
-		}
-		key, ok := indexVal.(data.Value)
-		if !ok || !arr.SetKey(key, value) {
-			return data.NewErrorThrowByName(ie.GetFrom(), errors.New("Illegal offset type"), "TypeError")
+		arr = cowSeparateNestedArray(ctx, ie.Array, arr).(*data.ArrayValue)
+		if ctl := assignArrayIndex(ctx, arr, indexVal, ie.Append, value, ie.GetFrom()); ctl != nil {
+			return ctl
 		}
 		writeBackArrayProperty(ctx, ie.Array, arr)
 		return nil
@@ -721,11 +730,7 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 
 	case data.SetProperty:
 		var objWrite data.Value
-		if ov, ok := arr.(*data.ObjectValue); ok {
-			ov = cowSeparateNestedArray(ie.Array, ov).(*data.ObjectValue)
-			arr = ov
-			objWrite = ov
-		}
+
 		// 对象属性赋值
 		if ie.Append {
 			if acl := appendToSetProperty(arr, value); acl != nil {
@@ -786,14 +791,7 @@ func (ie *IndexExpression) SetValue(ctx data.Context, value data.Value) data.Con
 
 func appendToSetProperty(target data.SetProperty, value data.Value) data.Control {
 	next := 0
-	if object, ok := target.(*data.ObjectValue); ok {
-		object.RangeProperties(func(key string, _ data.Value) bool {
-			if index, valid := data.ParseIntArrayKeyName(key); valid && index >= next {
-				next = index + 1
-			}
-			return true
-		})
-	}
+
 	return target.SetProperty(strconv.Itoa(next), value)
 }
 
@@ -814,12 +812,14 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		switch iv := index.(type) {
 		case *data.NullValue:
 			if zval, ok := v.LookupZValByStringKey(""); ok {
-				if zval.Value == nil {
+				if zval.ReadValue() == nil {
 					return data.NewNullValue(), nil
 				}
-				return zval.Value, nil
+				return zval.ReadValue(), nil
 			}
-			emitUndefinedArrayKeyWarning(ie.GetFrom(), "", false)
+			if ctl := emitUndefinedArrayKeyWarning(ctx, ie.GetFrom(), "", false); ctl != nil {
+				return nil, ctl
+			}
 			return data.NewNullValue(), nil
 		case *data.IntValue:
 			var err error
@@ -830,18 +830,22 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			if val, ok := arrayIntKeyValue(v, i); ok {
 				return val, nil
 			}
-			emitUndefinedArrayKeyWarning(ie.GetFrom(), fmt.Sprintf("%d", i), true)
+			if ctl := emitUndefinedArrayKeyWarning(ctx, ie.GetFrom(), fmt.Sprintf("%d", i), true); ctl != nil {
+				return nil, ctl
+			}
 			return data.NewNullValue(), nil
 		case *data.StringValue:
 			// 字符串键：在数组中搜索匹配的 Name
 			key := iv.Value
 			if zval, ok := v.LookupZValByStringKey(key); ok {
-				if zval.Value == nil {
+				if zval.ReadValue() == nil {
 					return data.NewNullValue(), nil
 				}
-				return zval.Value, nil
+				return zval.ReadValue(), nil
 			}
-			emitUndefinedArrayKeyWarning(ie.GetFrom(), key, false)
+			if ctl := emitUndefinedArrayKeyWarning(ctx, ie.GetFrom(), key, false); ctl != nil {
+				return nil, ctl
+			}
 			return data.NewNullValue(), nil
 		case data.AsInt:
 			var err error
@@ -852,7 +856,9 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			if val, ok := arrayIntKeyValue(v, i); ok {
 				return val, nil
 			}
-			emitUndefinedArrayKeyWarning(ie.GetFrom(), fmt.Sprintf("%d", i), true)
+			if ctl := emitUndefinedArrayKeyWarning(ctx, ie.GetFrom(), fmt.Sprintf("%d", i), true); ctl != nil {
+				return nil, ctl
+			}
 			return data.NewNullValue(), nil
 		case *data.BoolValue:
 			if iv.Value {
@@ -861,33 +867,14 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			if val, ok := arrayIntKeyValue(v, i); ok {
 				return val, nil
 			}
-			emitUndefinedArrayKeyWarning(ie.GetFrom(), fmt.Sprintf("%d", i), true)
+			if ctl := emitUndefinedArrayKeyWarning(ctx, ie.GetFrom(), fmt.Sprintf("%d", i), true); ctl != nil {
+				return nil, ctl
+			}
 			return data.NewNullValue(), nil
 		default:
 			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("无法处理索引的类型值"))
 		}
-	case *data.ObjectValue:
-		// 支持整数索引（转换为字符串）和字符串索引
-		var key string
-		if _, isNull := index.(*data.NullValue); isNull {
-			key = ""
-		} else if iv, ok := index.(data.AsString); ok {
-			key = iv.AsString()
-		} else if iv, ok := index.(data.AsInt); ok {
-			// 将整数索引转换为字符串
-			if i, err := iv.AsInt(); err == nil {
-				key = fmt.Sprintf("%d", i)
-			} else {
-				return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("无法处理索引的类型值"))
-			}
-		} else {
-			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("ObjectValue无法处理索引的类型值"))
-		}
-		ov, acl := v.GetProperty(key)
-		if acl != nil {
-			return nil, acl
-		}
-		return ov, nil
+
 	case *data.ClassValue:
 		// 检查是否实现了 ArrayAccess 接口
 		if checkArrayAccess(ctx, v.Class) {
@@ -964,112 +951,6 @@ func (ie *IndexExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	return nil, data.NewErrorThrowByName(ie.GetFrom(), errors.New("无法处理索引的类型值"), "UndefinedIndexExpression")
 }
 
-func unpackIndexChain(ie *IndexExpression) (root data.GetValue, indices []data.GetValue) {
-	current := ie
-	for {
-		indices = append([]data.GetValue{current.Index}, indices...)
-		switch arr := current.Array.(type) {
-		case *IndexExpression:
-			current = arr
-		default:
-			return arr, indices
-		}
-	}
-}
-
-func clearIndirectOverloadTag(val data.GetValue) data.GetValue {
-	switch v := val.(type) {
-	case *data.ArrayValue:
-		v.IndirectOverloadClass = ""
-		return v
-	case *data.ObjectValue:
-		v.IndirectOverloadClass = ""
-		return v
-	default:
-		return val
-	}
-}
-
-// assignNestedArrayAccess 对 ArrayAccess offsetGet 副本做嵌套赋值后写回 offsetSet
-func assignNestedArrayAccess(ctx data.Context, ie *IndexExpression, value data.Value) data.Control {
-	root, keyIndices := unpackIndexChain(ie)
-	if len(keyIndices) < 2 {
-		return nil
-	}
-
-	rootVal, acl := root.GetValue(ctx)
-	if acl != nil {
-		return acl
-	}
-
-	var aaRoot *data.ClassValue
-	var firstKey data.Value
-	current := rootVal
-
-	for i := 0; i < len(keyIndices)-1; i++ {
-		key, acl := keyIndices[i].GetValue(ctx)
-		if acl != nil {
-			return acl
-		}
-		keyVal, ok := key.(data.Value)
-		if !ok {
-			return data.NewErrorThrow(ie.GetFrom(), errors.New("ArrayAccess 索引必须是标量"))
-		}
-		if i == 0 {
-			switch v := current.(type) {
-			case *data.ClassValue:
-				if checkArrayAccess(ctx, v.Class) {
-					aaRoot = v
-					firstKey = keyVal
-					next, acl := callArrayAccessOffsetGet(ctx, v, keyVal)
-					if acl != nil {
-						return acl
-					}
-					current = next
-					continue
-				}
-			case *data.ThisValue:
-				if checkArrayAccess(ctx, v.Class) {
-					aaRoot = v.ClassValue
-					firstKey = keyVal
-					next, acl := callArrayAccessOffsetGet(ctx, v.ClassValue, keyVal)
-					if acl != nil {
-						return acl
-					}
-					current = next
-					continue
-				}
-			}
-		}
-		next, acl := indexValueOnContainer(ctx, current, keyIndices[i], ie.GetFrom())
-		if acl != nil {
-			if tv, ok := acl.(*data.ThrowValue); ok && tv.Name == "UndefinedIndexExpression" {
-				sub := data.NewArrayValue(nil).(*data.ArrayValue)
-				if ctl := setIndexOnContainer(ctx, current, keyIndices[i], false, sub, ie.GetFrom()); ctl != nil {
-					return ctl
-				}
-				current = sub
-				continue
-			}
-			return acl
-		}
-		current = next
-	}
-
-	if acl := setIndexOnContainer(ctx, current, keyIndices[len(keyIndices)-1], ie.Append, value, ie.GetFrom()); acl != nil {
-		return acl
-	}
-
-	if aaRoot != nil {
-		wb := clearIndirectOverloadTag(current)
-		if v, ok := wb.(data.Value); ok {
-			return callArrayAccessOffsetSet(ctx, aaRoot, firstKey, v)
-		}
-		return data.NewErrorThrow(ie.GetFrom(), errors.New("ArrayAccess offsetSet 需要可写容器"))
-	}
-	return nil
-}
-
 func setIndexOnContainer(ctx data.Context, container data.GetValue, indexExpr data.GetValue, appendIndex bool, value data.Value, from data.From) data.Control {
 	indexVal, acl := indexExpr.GetValue(ctx)
 	if acl != nil {
@@ -1077,36 +958,8 @@ func setIndexOnContainer(ctx data.Context, container data.GetValue, indexExpr da
 	}
 	switch arr := container.(type) {
 	case *data.ArrayValue:
-		if appendIndex {
-			arr.AppendValue(value)
-			return nil
-		}
-		if _, isNull := indexVal.(*data.NullValue); isNull {
-			arr.SetStringKey("", value)
-			return nil
-		}
-		if iv, ok := indexVal.(data.AsString); ok {
-			arr.SetStringKey(iv.AsString(), value)
-			return nil
-		}
-		if iv, ok := indexVal.(data.AsInt); ok {
-			i, err := iv.AsInt()
-			if err != nil {
-				return data.NewErrorThrow(from, err)
-			}
-			arr.SetIntKey(i, value)
-			return nil
-		}
-	case *data.ObjectValue:
-		if appendIndex {
-			return appendToSetProperty(arr, value)
-		}
-		key, ok := indexKeyString(indexVal)
-		if !ok {
-			return data.NewErrorThrow(from, errors.New("ObjectValue无法处理索引的类型值"))
-		}
-		arr.SetProperty(key, value)
-		return nil
+		return assignArrayIndex(ctx, arr, indexVal, appendIndex, value, from)
+
 	case *data.ClassValue:
 		if checkArrayAccess(ctx, arr.Class) {
 			return callArrayAccessOffsetSet(ctx, arr, indexVal, value)
@@ -1166,9 +1019,7 @@ func assignIndexConcat(ctx data.Context, ie *IndexExpression, dot *BinaryDot) (d
 		if !ok {
 			return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("concat assign failed"))
 		}
-		if ctl := assignNestedArrayAccess(ctx, ie, v); ctl != nil {
-			return nil, ctl
-		}
+		emitIndirectModificationNoticeAssign(ie.GetFrom(), indirectOverloadTag(arrayVal))
 		return v, nil
 	}
 
@@ -1202,16 +1053,7 @@ func indexValueOnContainer(ctx data.Context, container data.GetValue, indexExpr 
 	case *data.ArrayValue:
 		tmp := &IndexExpression{Node: NewNode(from), Index: indexExpr}
 		return tmp.readArrayIndex(ctx, v, index)
-	case *data.ObjectValue:
-		key, ok := indexKeyString(index)
-		if !ok {
-			return nil, data.NewErrorThrow(from, errors.New("ObjectValue无法处理索引的类型值"))
-		}
-		val, acl := v.GetProperty(key)
-		if acl != nil {
-			return nil, acl
-		}
-		return val, nil
+
 	case *data.ClassValue:
 		if checkArrayAccess(ctx, v.Class) {
 			return callArrayAccessOffsetGet(ctx, v, index)
@@ -1239,9 +1081,11 @@ func (ie *IndexExpression) readArrayIndex(ctx data.Context, arr *data.ArrayValue
 	case *data.StringValue:
 		key := iv.Value
 		if zval, ok := arr.LookupZValByStringKey(key); ok {
-			return zval.Value, nil
+			return zval.ReadValue(), nil
 		}
-		emitUndefinedArrayKeyWarning(ie.GetFrom(), key, false)
+		if ctl := emitUndefinedArrayKeyWarning(ctx, ie.GetFrom(), key, false); ctl != nil {
+			return nil, ctl
+		}
 		return data.NewNullValue(), nil
 	case data.AsInt:
 		i, err := iv.AsInt()
@@ -1251,7 +1095,9 @@ func (ie *IndexExpression) readArrayIndex(ctx data.Context, arr *data.ArrayValue
 		if val, ok := arrayIntKeyValue(arr, i); ok {
 			return val, nil
 		}
-		emitUndefinedArrayKeyWarning(ie.GetFrom(), fmt.Sprintf("%d", i), true)
+		if ctl := emitUndefinedArrayKeyWarning(ctx, ie.GetFrom(), fmt.Sprintf("%d", i), true); ctl != nil {
+			return nil, ctl
+		}
 		return data.NewNullValue(), nil
 	default:
 		return nil, data.NewErrorThrow(ie.GetFrom(), errors.New("无法处理索引的类型值"))
@@ -1264,33 +1110,18 @@ func arrayIntKeyValue(arr *data.ArrayValue, i int) (data.GetValue, bool) {
 	if z == nil {
 		return nil, false
 	}
-	if z.Value == nil {
+	if z.ReadValue() == nil {
 		return data.NewNullValue(), true
 	}
-	return z.Value, true
+	return z.ReadValue(), true
 }
 
 func indexSetValueOnContainer(ctx data.Context, ie *IndexExpression, container data.GetValue, indexVal data.GetValue, value data.Value) data.Control {
-	container = cowSeparateNestedArray(ie.Array, container)
+	container = cowSeparateNestedArray(ctx, ie.Array, container)
 	switch arr := container.(type) {
 	case *data.ArrayValue:
-		if ie.Append {
-			if !arr.AppendValue(value) {
-				return data.NewErrorThrowByName(ie.GetFrom(), errors.New("Cannot add element to the array as the next element is already occupied"), "Error")
-			}
-			writeBackArrayProperty(ctx, ie.Array, arr)
-			return nil
-		}
-		if _, isNull := indexVal.(*data.NullValue); isNull {
-			arr.SetStringKey("", value)
-			writeBackArrayProperty(ctx, ie.Array, arr)
-			return nil
-		}
-		// Recursive writeback must use the same PHP key conversion as a direct
-		// assignment: false is key 0, not its string conversion ("").
-		key, ok := indexVal.(data.Value)
-		if !ok || !arr.SetKey(key, value) {
-			return data.NewErrorThrowByName(ie.GetFrom(), errors.New("Illegal offset type"), "TypeError")
+		if ctl := assignArrayIndex(ctx, arr, indexVal, ie.Append, value, ie.GetFrom()); ctl != nil {
+			return ctl
 		}
 		writeBackArrayProperty(ctx, ie.Array, arr)
 		return nil
@@ -1307,24 +1138,18 @@ func indexSetValueOnContainer(ctx data.Context, ie *IndexExpression, container d
 			if acl := appendToSetProperty(arr, value); acl != nil {
 				return acl
 			}
-			if ov, ok := arr.(*data.ObjectValue); ok {
-				writeBackArrayProperty(ctx, ie.Array, ov)
-			}
+
 			return nil
 		}
 		if iv, ok := indexVal.(data.AsString); ok {
 			arr.SetProperty(iv.AsString(), value)
-			if ov, ok := arr.(*data.ObjectValue); ok {
-				writeBackArrayProperty(ctx, ie.Array, ov)
-			}
+
 			return nil
 		}
 		if iv, ok := indexVal.(data.AsInt); ok {
 			if i, err := iv.AsInt(); err == nil {
 				arr.SetProperty(fmt.Sprintf("%d", i), value)
-				if ov, ok := arr.(*data.ObjectValue); ok {
-					writeBackArrayProperty(ctx, ie.Array, ov)
-				}
+
 				return nil
 			}
 		}

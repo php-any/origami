@@ -157,31 +157,34 @@ func NewStringLiteral(token *TokenFrom, value string) data.GetValue {
 		}
 	}
 	return &StringLiteral{
-		Node:  NewNode(token),
-		Value: value,
+		Node:   NewNode(token),
+		Value:  value,
+		intern: data.NewStringValue(value),
 	}
 }
 
 // NewHeredocLiteral 创建 heredoc 字符串字面量（正文已由 HeredocParser 提取）
 func NewHeredocLiteral(token *TokenFrom, body string) data.GetValue {
 	return &StringLiteral{
-		Node:  NewNode(token),
-		Value: body,
+		Node:   NewNode(token),
+		Value:  body,
+		intern: data.NewStringValue(body),
 	}
 }
 
 // NewNowdocLiteral 创建 nowdoc 字符串字面量
 func NewNowdocLiteral(token *TokenFrom, body string) data.GetValue {
 	return &StringLiteral{
-		Node:  NewNode(token),
-		Value: body,
+		Node:   NewNode(token),
+		Value:  body,
+		intern: data.NewStringValue(body),
 	}
 }
 
 // GetValue 获取字符串字面量的值
 func (s *StringLiteral) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	if s.intern == nil {
-		s.intern = data.NewStringValue(s.Value)
+		return data.NewStringValue(s.Value), nil
 	}
 	return s.intern, nil
 }
@@ -189,7 +192,8 @@ func (s *StringLiteral) GetValue(ctx data.Context) (data.GetValue, data.Control)
 // NewStringLiteralByAst 不能转义的字符串
 func NewStringLiteralByAst(token *TokenFrom, value string) data.GetValue {
 	return &StringLiteral{
-		Node:  NewNode(token),
-		Value: value,
+		Node:   NewNode(token),
+		Value:  value,
+		intern: data.NewStringValue(value),
 	}
 }

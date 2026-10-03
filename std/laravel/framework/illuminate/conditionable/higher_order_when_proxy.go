@@ -178,13 +178,10 @@ func readTargetProperty(ctx data.Context, target data.Value, key string) (data.G
 		}
 		return kit.CallInstanceMethod(ctx, cv, "__get", data.NewStringValue(key))
 	}
-	if ov, ok := target.(*data.ObjectValue); ok && ov != nil {
-		v, ctl := ov.GetProperty(key)
-		return v, ctl
-	}
+
 	if av, ok := target.(*data.ArrayValue); ok && av != nil {
 		if z, ok := av.LookupZValByStringKey(key); ok && z != nil {
-			return z.Value, nil
+			return z.ReadValue(), nil
 		}
 	}
 	return data.NewNullValue(), nil

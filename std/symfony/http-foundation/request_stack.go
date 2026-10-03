@@ -97,10 +97,10 @@ func requestStackPushAll(cv *data.ClassValue, raw data.Value) data.Control {
 	case *data.ArrayValue:
 		for arraySlots160, arrayPosition160 := t.View(), 0; arrayPosition160 < arraySlots160.Len(); arrayPosition160++ {
 			z := arraySlots160.At(arrayPosition160)
-			if z == nil || z.Value == nil || isNull(z.Value) {
+			if z == nil || z.ReadValue() == nil || isNull(z.ReadValue()) {
 				continue
 			}
-			requestStackRequests(cv).AppendValue(z.Value)
+			requestStackRequests(cv).AppendValue(z.ReadValue())
 		}
 	default:
 		m, err := valueToAssocMap(raw)
@@ -134,10 +134,10 @@ func requestStackPop(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	last := arr.At(arr.Len() - 1)
 	arr.RemovePositions(arr.Len()-1, arr.Len())
-	if last == nil || last.Value == nil {
+	if last == nil || last.ReadValue() == nil {
 		return data.NewNullValue(), nil
 	}
-	return last.Value, nil
+	return last.ReadValue(), nil
 }
 
 func requestStackGetCurrent(ctx data.Context) (data.GetValue, data.Control) {
@@ -146,10 +146,10 @@ func requestStackGetCurrent(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewNullValue(), nil
 	}
 	last := arr.At(arr.Len() - 1)
-	if last == nil || last.Value == nil {
+	if last == nil || last.ReadValue() == nil {
 		return data.NewNullValue(), nil
 	}
-	return last.Value, nil
+	return last.ReadValue(), nil
 }
 
 func requestStackGetMain(ctx data.Context) (data.GetValue, data.Control) {
@@ -158,10 +158,10 @@ func requestStackGetMain(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewNullValue(), nil
 	}
 	first := arr.At(0)
-	if first == nil || first.Value == nil {
+	if first == nil || first.ReadValue() == nil {
 		return data.NewNullValue(), nil
 	}
-	return first.Value, nil
+	return first.ReadValue(), nil
 }
 
 func requestStackGetParent(ctx data.Context) (data.GetValue, data.Control) {
@@ -171,10 +171,10 @@ func requestStackGetParent(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewNullValue(), nil
 	}
 	item := arr.At(pos)
-	if item == nil || item.Value == nil {
+	if item == nil || item.ReadValue() == nil {
 		return data.NewNullValue(), nil
 	}
-	return item.Value, nil
+	return item.ReadValue(), nil
 }
 
 func requestStackGetSession(ctx data.Context) (data.GetValue, data.Control) {

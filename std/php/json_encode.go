@@ -110,8 +110,7 @@ func jsonEncode(ctx data.Context, value data.Value, flags int) (string, bool, da
 		result, err = serializer.MarshalNull(v)
 	case *data.ArrayValue:
 		result, err = serializer.MarshalArray(v)
-	case *data.ObjectValue:
-		result, err = serializer.MarshalObject(v)
+
 	case *data.ClassValue:
 		result, err = serializer.MarshalClass(v)
 	case data.ValueSerializer:
@@ -308,7 +307,7 @@ func resolveJSONValue(ctx data.Context, value data.Value, visiting map[uintptr]b
 			if z == nil {
 				continue
 			}
-			nv, jerr, ctl := resolveJSONValue(ctx, z.Value, visiting, depth+1)
+			nv, jerr, ctl := resolveJSONValue(ctx, z.ReadValue(), visiting, depth+1)
 			if ctl != nil {
 				return nil, JSON_ERROR_NONE, ctl
 			}
@@ -318,32 +317,7 @@ func resolveJSONValue(ctx data.Context, value data.Value, visiting map[uintptr]b
 			cloned.ReplaceSlot(i, data.CopyZValKeepName(z, nv))
 		}
 		return cloned, JSON_ERROR_NONE, nil
-	case *data.ObjectValue:
-		ptr := uintptr(unsafe.Pointer(v))
-		if visiting[ptr] {
-			return nil, JSON_ERROR_RECURSION, nil
-		}
-		visiting[ptr] = true
-		defer delete(visiting, ptr)
-		cloned := data.NewObjectValue()
-		var jerr int
-		var ctl data.Control
-		v.RangeProperties(func(k string, pv data.Value) bool {
-			var nv data.Value
-			nv, jerr, ctl = resolveJSONValue(ctx, pv, visiting, depth+1)
-			if ctl != nil || jerr != JSON_ERROR_NONE {
-				return false
-			}
-			cloned.SetProperty(k, nv)
-			return true
-		})
-		if ctl != nil {
-			return nil, JSON_ERROR_NONE, ctl
-		}
-		if jerr != JSON_ERROR_NONE {
-			return nil, jerr, nil
-		}
-		return cloned, JSON_ERROR_NONE, nil
+
 	case *data.ClassValue:
 		ptr := uintptr(unsafe.Pointer(v))
 		if visiting[ptr] {

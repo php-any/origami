@@ -273,7 +273,7 @@ func (m *stmtFetchMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 			cols = append(cols, k)
 		}
 	}
-	return buildFetchResult(row, cols, mode), nil
+	return buildFetchResult(ctx, row, cols, mode)
 }
 
 // -------------------------------------------------------------------
@@ -322,7 +322,11 @@ func (m *stmtFetchAllMethod) Call(ctx data.Context) (data.GetValue, data.Control
 				cols = append(cols, k)
 			}
 		}
-		results = append(results, buildFetchResult(row, cols, mode).(data.Value))
+		value, ctl := buildFetchResult(ctx, row, cols, mode)
+		if ctl != nil {
+			return nil, ctl
+		}
+		results = append(results, value)
 	}
 	return data.NewArrayValue(results), nil
 }
@@ -676,7 +680,7 @@ func fetchColumnValue(v any) data.Value {
 	return data.NewStringValue(fmt.Sprint(v))
 }
 
-func buildFetchResult(row map[string]any, cols []string, mode int) data.GetValue {
+func buildFetchResult(ctx data.Context, row map[string]any, cols []string, mode int) (data.Value, data.Control) {
 	valFromDriver := func(v any) data.Value {
 		if v == nil {
 			return data.NewNullValue()
@@ -689,32 +693,37 @@ func buildFetchResult(row map[string]any, cols []string, mode int) data.GetValue
 
 	switch mode {
 	case PDO_FETCH_ASSOC:
-		obj := data.NewObjectValue()
-		for k, v := range row {
-			obj.SetProperty(k, valFromDriver(v))
+		array := data.NewArrayValue(nil).(*data.ArrayValue)
+		for _, col := range cols {
+			array.SetStringKey(col, valFromDriver(row[col]))
 		}
-		return obj
+		return array, nil
 
 	case PDO_FETCH_NUM:
 		vals := make([]data.Value, len(cols))
 		for i, col := range cols {
 			vals[i] = valFromDriver(row[col])
 		}
-		return data.NewArrayValue(vals)
+		return data.NewArrayValue(vals), nil
 
 	case PDO_FETCH_OBJ:
-		obj := data.NewObjectValue()
-		for k, v := range row {
-			obj.SetProperty(k, valFromDriver(v))
+		class, ctl := ctx.GetVM().GetOrLoadClass("stdClass")
+		if ctl != nil {
+			return nil, ctl
 		}
-		return obj
+		obj := data.NewClassValue(class, ctx.CreateBaseContext())
+		for _, col := range cols {
+			obj.SetProperty(col, valFromDriver(row[col]))
+		}
+		return obj, nil
 
 	default: // PDO_FETCH_BOTH
-		obj := data.NewObjectValue()
+		array := data.NewArrayValue(nil).(*data.ArrayValue)
 		for i, col := range cols {
-			obj.SetProperty(col, valFromDriver(row[col]))
-			obj.SetProperty(fmt.Sprintf("%d", i), valFromDriver(row[col]))
+			value := valFromDriver(row[col])
+			array.SetStringKey(col, value)
+			array.SetIntKey(i, value)
 		}
-		return obj
+		return array, nil
 	}
 }

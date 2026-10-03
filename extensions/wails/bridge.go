@@ -86,10 +86,7 @@ func valueToGo(v data.Value) any {
 		return f
 	case *data.ArrayValue:
 		return arrayValueToGo(tv)
-	case *data.ObjectValue:
-		// Origami 中 PHP 关联数组常以 ObjectValue 表示，必须在此转换，
-		// 否则会落到下方 AsString 回退，得到 "Object {...}" 字符串。
-		return objectValueToGo(tv)
+
 	}
 	// 回退：尽量按字符串处理
 	if sv, ok := v.(data.AsString); ok {
@@ -152,7 +149,7 @@ func arrayValueToGo(av *data.ArrayValue) any {
 			if key == "" {
 				key = strconv.Itoa(i)
 			}
-			m[key] = valueToGo(z.Value)
+			m[key] = valueToGo(z.ReadValue())
 		}
 		return m
 	}
@@ -163,7 +160,7 @@ func arrayValueToGo(av *data.ArrayValue) any {
 			list = append(list, nil)
 			continue
 		}
-		list = append(list, valueToGo(z.Value))
+		list = append(list, valueToGo(z.ReadValue()))
 	}
 	return list
 }

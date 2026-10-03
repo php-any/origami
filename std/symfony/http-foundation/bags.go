@@ -167,7 +167,7 @@ func (p *ParamBagData) toArrayValue() *data.ArrayValue {
 	pairs := p.orderedPairs()
 	list := make([]*data.ZVal, 0, len(pairs))
 	for _, pair := range pairs {
-		list = append(list, &data.ZVal{Name: pair.key, Value: pair.val})
+		list = append(list, &data.ZVal{Name: pair.key, InitialValue: pair.val})
 	}
 	return data.NewArrayValueFromSlots(list)
 }
@@ -554,18 +554,10 @@ func valueToOrderedAssoc(v data.Value) ([]string, map[string]data.Value, error) 
 			if _, exists := out[key]; !exists {
 				keys = append(keys, key)
 			}
-			out[key] = z.Value
+			out[key] = z.ReadValue()
 		}
 		return keys, out, nil
-	case *data.ObjectValue:
-		keys := make([]string, 0)
-		out := make(map[string]data.Value)
-		arr.RangeProperties(func(key string, value data.Value) bool {
-			keys = append(keys, key)
-			out[key] = value
-			return true
-		})
-		return keys, out, nil
+
 	case *data.NullValue:
 		return nil, map[string]data.Value{}, nil
 	default:
@@ -576,7 +568,7 @@ func valueToOrderedAssoc(v data.Value) ([]string, map[string]data.Value, error) 
 func assocMapToArrayValue(m map[string]data.Value) *data.ArrayValue {
 	list := make([]*data.ZVal, 0, len(m))
 	for k, v := range m {
-		list = append(list, &data.ZVal{Name: k, Value: v})
+		list = append(list, &data.ZVal{Name: k, InitialValue: v})
 	}
 	return data.NewArrayValueFromSlots(list)
 }
@@ -584,14 +576,14 @@ func assocMapToArrayValue(m map[string]data.Value) *data.ArrayValue {
 func orderedAssocToArrayValue(keys []string, values map[string]data.Value) *data.ArrayValue {
 	list := make([]*data.ZVal, 0, len(keys))
 	for _, k := range keys {
-		list = append(list, &data.ZVal{Name: k, Value: values[k]})
+		list = append(list, &data.ZVal{Name: k, InitialValue: values[k]})
 	}
 	return data.NewArrayValueFromSlots(list)
 }
 
 func isArrayValue(v data.Value) bool {
 	switch v.(type) {
-	case *data.ArrayValue, *data.ObjectValue:
+	case *data.ArrayValue:
 		return true
 	default:
 		return false

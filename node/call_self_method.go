@@ -45,6 +45,7 @@ func (pe *CallSelfMethod) GetValue(ctx data.Context) (data.GetValue, data.Contro
 
 	// 获取当前类的静态方法
 	method, has := getter.GetStaticMethod(pe.Method)
+	declaringClass := currentClass
 	if !has {
 		// 沿继承链向上查找（trait 中 self:: 应能访问使用类继承链上的方法）
 		vm := callVM(ctx)
@@ -57,6 +58,7 @@ func (pe *CallSelfMethod) GetValue(ctx data.Context) (data.GetValue, data.Contro
 			if parentGetter, ok := parent.(data.GetStaticMethod); ok {
 				if m, ok := parentGetter.GetStaticMethod(pe.Method); ok {
 					method = m
+					declaringClass = parent
 					has = true
 					break
 				}
@@ -65,6 +67,16 @@ func (pe *CallSelfMethod) GetValue(ctx data.Context) (data.GetValue, data.Contro
 		}
 	}
 	if !has {
+		// self:: also forwards ordinary instance methods on the current $this.
+		if frame, ok := ctx.(*data.ClassMethodContext); ok && frame.ObjectValue != nil {
+			owner := findDeclaringClassForMethod(ctx.GetVM(), currentClass, pe.Method)
+			if method, found := owner.GetMethod(pe.Method); found && !method.GetIsStatic() {
+				if !memberAccessible(ctx, method.GetModifier(), owner) {
+					return nil, data.NewErrorThrowByName(pe.GetFrom(), fmt.Errorf("Cannot access non-public method %s::%s()", owner.GetName(), pe.Method), "Error")
+				}
+				return data.NewFuncValue(&instanceViaSelfFunc{this: frame.ClassValue, method: method, self: owner}), nil
+			}
+		}
 		if fn, ok := tryNewInstanceMagicCallViaStaticFunc(ctx, pe.Method, currentClass); ok {
 			return data.NewFuncValue(fn), nil
 		}
@@ -98,9 +110,16 @@ func (pe *CallSelfMethod) GetValue(ctx data.Context) (data.GetValue, data.Contro
 
 	// 返回带类信息的静态方法包装器：确保调用时上下文携带 SelfClass/StaticClass，
 	// 使方法体内的 self::/parent:: 能按词法（代码定义所在类）正确解析，而不是运行时调用类。
+	if !memberAccessible(ctx, method.GetModifier(), declaringClass) {
+		return nil, data.NewErrorThrowByName(pe.GetFrom(), fmt.Errorf("Cannot access non-public method %s::%s()", declaringClass.GetName(), pe.Method), "Error")
+	}
+	calledClass := currentClass
+	if frame, ok := ctx.(*data.ClassMethodContext); ok && frame.StaticClass != nil {
+		calledClass = frame.StaticClass
+	}
 	return data.NewFuncValue(&staticMethodFunc{
-		class:     currentClass,
-		callClass: currentClass,
+		class:     declaringClass,
+		callClass: calledClass,
 		method:    method,
 	}), nil
 }

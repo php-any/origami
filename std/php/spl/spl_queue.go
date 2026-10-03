@@ -98,7 +98,7 @@ func (m *SplQueueDequeueMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 	if arr.Len() == 0 {
 		return data.NewNullValue(), nil
 	}
-	first := arr.At(0).Value
+	first := arr.At(0).ReadValue()
 	arr.RemovePositions(0, 1)
 	pos := splListGetPos(cv)
 	if pos > 0 {

@@ -28,12 +28,14 @@ func (f *EmptyFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 如果参数是 ASTValue，我们需要自己计算它的值
 	if astValue, ok := varValue.(*data.ASTValue); ok {
 		if ie, ok := astValue.Node.(*node.IndexExpression); ok {
-			if isEmpty, handled := node.EmptyViaArrayAccess(astValue.Ctx, ie); handled {
-				return data.NewBoolValue(isEmpty), nil
+			value, exists, ctl := node.ReadDimensionQuiet(astValue.Ctx, ie, true, true)
+			if ctl != nil {
+				return nil, ctl
 			}
-			if isEmpty, handled := node.EmptyIndexExpression(astValue.Ctx, ie); handled {
-				return data.NewBoolValue(isEmpty), nil
+			if !exists {
+				return data.NewBoolValue(true), nil
 			}
+			return f.isEmptyValue(value), nil
 		}
 		// 使用 Call 时的 Context 来计算值，这样可以捕获未定义变量的错误
 		// 但是我们需要禁用错误抛出，因为 empty 应该抑制未定义变量错误
@@ -114,9 +116,6 @@ func (f *EmptyFunction) isEmptyValue(v data.GetValue) data.GetValue {
 	}
 
 	// ObjectValue 常用作关联数组：空关联数组应视为 empty（AsBool 恒 true，不能走通用 AsBool）
-	if objVal, ok := v.(*data.ObjectValue); ok {
-		return data.NewBoolValue(len(objVal.GetProperties()) == 0)
-	}
 
 	// 检查数组
 	if arrayVal, ok := v.(*data.ArrayValue); ok {

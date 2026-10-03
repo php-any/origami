@@ -15,6 +15,9 @@ func NewReadonlyParser(parser *Parser) StatementParser {
 }
 
 func (p *ReadonlyParser) Parse() (data.GetValue, data.Control) {
+	flags := p.definingClassFlags
+	p.definingClassFlags |= data.ClassReadonly
+	defer func() { p.definingClassFlags = flags }()
 	p.next() // skip readonly
 
 	if parser, ok := parserRouter[p.current().Type()]; ok {

@@ -217,7 +217,7 @@ func buildOpenFileDialogBuilder(v data.Value) *application.OpenFileDialogStruct 
 			for arraySlots6, arrayPosition6 := av.View(), 0; arrayPosition6 < arraySlots6.Len(); arrayPosition6++ {
 				z := arraySlots6.At(arrayPosition6)
 				if z != nil {
-					if fcv, ok := z.Value.(*data.ClassValue); ok {
+					if fcv, ok := z.ReadValue().(*data.ClassValue); ok {
 						d.AddFilter(
 							getPropString(fcv, "DisplayName", ""),
 							getPropString(fcv, "Pattern", "*"),
@@ -263,7 +263,7 @@ func buildSaveFileDialogBuilder(v data.Value) *application.SaveFileDialogStruct 
 			for arraySlots7, arrayPosition7 := av.View(), 0; arrayPosition7 < arraySlots7.Len(); arrayPosition7++ {
 				z := arraySlots7.At(arrayPosition7)
 				if z != nil {
-					if fcv, ok := z.Value.(*data.ClassValue); ok {
+					if fcv, ok := z.ReadValue().(*data.ClassValue); ok {
 						d.AddFilter(
 							getPropString(fcv, "DisplayName", ""),
 							getPropString(fcv, "Pattern", "*"),
@@ -309,7 +309,7 @@ func buildMessageDialog(v data.Value) *application.MessageDialog {
 			for arraySlots8, arrayPosition8 := av.View(), 0; arrayPosition8 < arraySlots8.Len(); arrayPosition8++ {
 				z := arraySlots8.At(arrayPosition8)
 				if z != nil {
-					label := toString(z.Value)
+					label := toString(z.ReadValue())
 					btn := d.AddButton(label)
 					buttons = append(buttons, btn)
 					if label == getPropString(cv, "DefaultButton", "") {

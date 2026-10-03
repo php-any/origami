@@ -65,6 +65,8 @@ func TestRuntimeHTTPLifecycle(t *testing.T) {
 	}
 	check("GET", "/__runtime/order", "global:one>group>route>body<route<group<global|group-term|route-term|global-term:one|shutdown:one", 200)
 	check("GET", "/__runtime/short", "short:one|global-term:one|shutdown:one", 200)
+	check("GET", "/__runtime/custom-send", "custom-send|global-term:one|shutdown:one", 200)
+	check("GET", "/__runtime/custom-throw", "partial-custom|shutdown:one", 200)
 	check("GET", "/__runtime/stream", "first|second|global-term:one|shutdown:one", 200)
 	check("GET", "/__runtime/chunks", "ab|global-term:one|shutdown:one", 200)
 	check("GET", "/__runtime/exit", "exit-body|shutdown:one", 200)
@@ -74,13 +76,28 @@ func TestRuntimeHTTPLifecycle(t *testing.T) {
 	check("HEAD", "/__runtime/stream", "", 200)
 	check("GET", "/__runtime/throw", "handled-exception|global-term:one|shutdown:one", 500)
 	check("GET", "/__runtime/stream-throw", "partial-stream|shutdown:one", 200)
-	check("GET", "/__runtime/panic", "Laravel request failed\n|shutdown:one", 500)
+	{
+		response, err := client.Get(server.URL + "/__runtime/panic")
+		if err != nil {
+			t.Fatal(err)
+		}
+		panicBody, err := io.ReadAll(response.Body)
+		response.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if response.StatusCode != 500 || !strings.Contains(string(panicBody), "<title>Laravel</title>") || !strings.HasSuffix(string(panicBody), "|global-term:one|shutdown:one") {
+			t.Fatalf("official Kernel panic handling: status=%d bytes=%d", response.StatusCode, len(panicBody))
+		}
+	}
 	check("GET", "/__runtime/scoped", "1|global-term:one|shutdown:one", 200)
 	check("GET", "/__runtime/scoped", "1|global-term:one|shutdown:one", 200)
 	check("GET", "/__runtime/events", "1|global-term:one|shutdown:one", 200)
 	check("GET", "/__runtime/events", "1|global-term:one|shutdown:one", 200)
 	check("GET", "/__runtime/livewire-call", "magic-action|global-term:one|shutdown:one", 200)
 	check("GET", "/__runtime/livewire-call", "magic-action|global-term:one|shutdown:one", 200)
+	check("GET", "/__runtime/graph", "1|global-term:one|shutdown:one", 200)
+	check("GET", "/__runtime/graph", "1|global-term:one|shutdown:one", 200)
 	var wg sync.WaitGroup
 	for i := 0; i < 8; i++ {
 		wg.Add(1)
@@ -88,6 +105,7 @@ func TestRuntimeHTTPLifecycle(t *testing.T) {
 			defer wg.Done()
 			check("GET", "/__runtime/livewire-call", "magic-action|global-term:one|shutdown:one", 200)
 			id := fmt.Sprint(i)
+			check("GET", "/__runtime/graph?id="+id, "1|global-term:"+id+"|shutdown:"+id, 200)
 			check("GET", "/__runtime/order?id="+id, "global:"+id+">group>route>body<route<group<global|group-term|route-term|global-term:"+id+"|shutdown:"+id, 200)
 		}(i)
 	}

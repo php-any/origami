@@ -48,18 +48,15 @@ func (f *PasswordHashFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	if pwdVal != nil {
 		pwd = pwdVal.AsString()
 	}
-	cost := bcrypt.DefaultCost
+	cost := 12 // PHP 8.4's bcrypt default.
 	if optVal, ok := ctx.GetIndexValue(2); ok && optVal != nil {
 		var costVal data.Value
 		switch o := optVal.(type) {
 		case *data.ArrayValue:
-			if c, ctl := o.GetProperty("cost"); ctl == nil {
-				costVal = c
+			if slot, found := o.LookupZValByStringKey("cost"); found {
+				costVal = slot.ReadValue()
 			}
-		case *data.ObjectValue:
-			if c, ctl := o.GetProperty("cost"); ctl == nil {
-				costVal = c
-			}
+
 		}
 		if costVal != nil {
 			if asInt, ok := costVal.(data.AsInt); ok {
@@ -73,7 +70,7 @@ func (f *PasswordHashFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	if err != nil {
 		return data.NewBoolValue(false), nil
 	}
-	return data.NewStringValue(string(hash)), nil
+	return data.NewStringValue(strings.Replace(string(hash), "$2a$", "$2y$", 1)), nil
 }
 
 // PasswordVerifyFunction 实现 password_verify。
@@ -161,11 +158,11 @@ func (f *PasswordGetInfoFunction) Call(ctx data.Context) (data.GetValue, data.Co
 	if v, _ := ctx.GetIndexValue(0); v != nil {
 		hash = v.AsString()
 	}
-	algo := 0
+	var algo data.Value = data.NewNullValue()
 	algoName := "unknown"
 	cost := 0
 	if isBcryptHash(hash) {
-		algo = passwordBcrypt
+		algo = data.NewStringValue("2y")
 		algoName = "bcrypt"
 		cost = passwordBcryptCost(hash)
 	}
@@ -174,7 +171,7 @@ func (f *PasswordGetInfoFunction) Call(ctx data.Context) (data.GetValue, data.Co
 		options = []*data.ZVal{data.NewNamedZVal("cost", data.NewIntValue(cost))}
 	}
 	return data.NewArrayValueFromSlots([]*data.ZVal{
-			data.NewNamedZVal("algo", data.NewIntValue(algo)),
+			data.NewNamedZVal("algo", algo),
 			data.NewNamedZVal("algoName", data.NewStringValue(algoName)),
 			data.NewNamedZVal("options", data.NewArrayValueFromSlots(options)),
 		}),
@@ -216,18 +213,15 @@ func (f *PasswordNeedsRehashFunction) Call(ctx data.Context) (data.GetValue, dat
 	if !isBcryptHash(hash) {
 		return data.NewBoolValue(true), nil
 	}
-	wantCost := bcrypt.DefaultCost
+	wantCost := 12
 	if optVal, ok := ctx.GetIndexValue(2); ok && optVal != nil {
 		var costVal data.Value
 		switch o := optVal.(type) {
 		case *data.ArrayValue:
-			if c, ctl := o.GetProperty("cost"); ctl == nil {
-				costVal = c
+			if slot, found := o.LookupZValByStringKey("cost"); found {
+				costVal = slot.ReadValue()
 			}
-		case *data.ObjectValue:
-			if c, ctl := o.GetProperty("cost"); ctl == nil {
-				costVal = c
-			}
+
 		}
 		if costVal != nil {
 			if asInt, ok := costVal.(data.AsInt); ok {

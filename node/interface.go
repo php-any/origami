@@ -27,8 +27,9 @@ func NewInterfaceStatement(from data.From, name string, extends []string, method
 
 // GetValue 获取接口定义语句的值
 func (i *InterfaceStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-
-	return i, nil
+	// Generated programs have no parser-time VM. Register the immutable
+	// declaration in the executing VM, preserving request-owned descriptors.
+	return i, ctx.GetVM().AddInterface(i)
 }
 
 // GetName 返回接口名
@@ -59,11 +60,16 @@ func (i *InterfaceStatement) GetMethods() []data.Method {
 // InterfaceMethod 表示接口方法
 type InterfaceMethod struct {
 	*Node
-	Name       string          // 方法名
-	Modifier   data.Modifier   // 访问修饰符
-	Params     []data.GetValue // 参数列表
-	ReturnType data.Types      // 返回类型
+	Name             string          // 方法名
+	Modifier         data.Modifier   // 访问修饰符
+	Params           []data.GetValue // 参数列表
+	ReturnType       data.TypeRef    // 返回类型
+	IsStatic         bool
+	ReturnsReference bool
 }
+
+func (m *InterfaceMethod) DeclarationMethodFlags() data.MethodFlags { return data.MethodAbstract }
+func (m *InterfaceMethod) ReturnsByReference() bool                 { return m.ReturnsReference }
 
 // NewInterfaceMethod 创建一个新的接口方法
 func NewInterfaceMethod(from data.From, name string, modifier string, params []data.GetValue, returnType data.Types) data.Method {
@@ -72,7 +78,7 @@ func NewInterfaceMethod(from data.From, name string, modifier string, params []d
 		Name:       name,
 		Modifier:   data.NewModifier(modifier),
 		Params:     params,
-		ReturnType: returnType,
+		ReturnType: data.DeclaredTypeRef(returnType),
 	}
 }
 
@@ -88,7 +94,7 @@ func (m *InterfaceMethod) GetModifier() data.Modifier {
 
 // GetIsStatic 返回是否是静态方法
 func (m *InterfaceMethod) GetIsStatic() bool {
-	return false
+	return m.IsStatic
 }
 
 // GetParams 返回参数列表
@@ -110,7 +116,7 @@ func (m *InterfaceMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 // GetReturnType 返回返回类型
 func (m *InterfaceMethod) GetReturnType() data.Types {
-	return m.ReturnType
+	return data.DeclaredType(m.ReturnType)
 }
 
 // GetStaticProperty 获取接口的静态属性

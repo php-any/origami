@@ -49,15 +49,6 @@ func (d *DbInsertMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 				}
 			}
 		}
-	} else if objectValue, ok := dataValue.(*data.ObjectValue); ok {
-		// 从对象获取属性
-		insertData = make(map[string]interface{})
-		properties := objectValue.GetProperties()
-		for name, value := range properties {
-			if value != nil {
-				insertData[name] = ConvertValueToGoType(value)
-			}
-		}
 	} else {
 		return nil, utils.NewThrow(errors.New("插入数据必须是对象或类实例"))
 	}
@@ -106,7 +97,7 @@ func (d *DbInsertMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 返回插入结果
-	resultObj := data.NewObjectValue()
+	resultObj := data.NewStdClassValue(nil)
 	resultObj.SetProperty("insertId", data.NewIntValue(int(lastInsertId)))
 	resultObj.SetProperty("rowsAffected", data.NewIntValue(int(rowsAffected)))
 	resultObj.SetProperty("success", data.NewBoolValue(true))

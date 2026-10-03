@@ -26,6 +26,13 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 	name := p.current().Literal()
 	startToken := p.current()
 	p.next()
+	if strings.EqualFold(name, "__NAMESPACE__") {
+		namespace := ""
+		if p.namespace != nil {
+			namespace = p.namespace.GetName()
+		}
+		return node.NewStringLiteral(tracker.EndBefore(), namespace), nil
+	}
 
 	// 标签语句：name: 换行
 	// 只在标识符后紧跟一个冒号、且后面不是类型标注（a: string）时，将其视为标签定义
@@ -295,6 +302,25 @@ func (p *IdentParser) parseStaticCall(tracker *PositionTracker, className string
 
 	// 跳过 ::
 	p.next()
+	if p.current().Type() == token.LBRACE {
+		p.next()
+		name, ctl := p.expressionParser.Parse()
+		if ctl != nil {
+			return nil, ctl
+		}
+		if ctl := p.nextAndCheck(token.RBRACE); ctl != nil {
+			return nil, ctl
+		}
+		var class data.GetValue = node.NewStringLiteral(tracker.EndBefore(), fullClassName)
+		if has {
+			class = stmt
+		}
+		vp := &VariableParser{p.Parser}
+		if p.current().Type() == token.LPAREN {
+			return vp.parseSuffix(node.NewCallStaticDynamicMethod(tracker.EndBefore(), class, name))
+		}
+		return vp.parseSuffix(node.NewCallDynamicConstant(tracker.EndBefore(), class, name))
+	}
 	// 获取方法名或属性名
 	isVariable := p.current().Type() == token.VARIABLE
 	fnName := p.current().Literal()

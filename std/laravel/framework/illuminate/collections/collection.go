@@ -242,14 +242,7 @@ func getArrayableItems(ctx data.Context, items data.Value) (*data.ArrayValue, da
 	if av, ok := got.(*data.ArrayValue); ok {
 		return data.CloneArrayValue(av), nil
 	}
-	if ov, ok := got.(*data.ObjectValue); ok && ov != nil {
-		out := data.NewArrayValue(nil).(*data.ArrayValue)
-		ov.RangeProperties(func(key string, val data.Value) bool {
-			setEntry(out, key, val)
-			return true
-		})
-		return out, nil
-	}
+
 	return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Items cannot be represented by a scalar value."), "InvalidArgumentException")
 }
 
@@ -456,7 +449,7 @@ func collectionJsonSerialize(ctx data.Context) (data.GetValue, data.Control) {
 		if z == nil {
 			continue
 		}
-		v := z.Value
+		v := z.ReadValue()
 		if c, ok := unwrapValue(v).(*data.ClassValue); ok && c != nil {
 			converted, ok2, ctl := callJsonSerialize(ctx, c)
 			if ctl != nil {
@@ -522,7 +515,7 @@ func itemsToArray(ctx data.Context, items *data.ArrayValue) (data.Value, data.Co
 		if z == nil {
 			continue
 		}
-		v := z.Value
+		v := z.ReadValue()
 		if c, ok := unwrapValue(v).(*data.ClassValue); ok && c != nil && classIs(c, arrayableName) {
 			conv, _, ctl := callClassNoArg(c, "toArray")
 			if ctl != nil {
@@ -549,7 +542,7 @@ func hasClassItem(items *data.ArrayValue, filter string) bool {
 		if z == nil {
 			continue
 		}
-		c, ok := unwrapValue(z.Value).(*data.ClassValue)
+		c, ok := unwrapValue(z.ReadValue()).(*data.ClassValue)
 		if !ok || c == nil {
 			continue
 		}
@@ -713,7 +706,7 @@ func collectionGet(ctx data.Context) (data.GetValue, data.Control) {
 	// 空路径在 data_get 里是「原样返回整体」，会让 get('', collect()) 把 items
 	// 本身（ArrayValue）当命中值返回，破坏声明的 Collection 返回类型。
 	if z, ok := items.LookupZValByStringKey(ks); ok && z != nil {
-		return z.Value, nil
+		return z.ReadValue(), nil
 	}
 	if ks != "" {
 		if v, ok := dataGetPath(items, ks); ok {
@@ -771,7 +764,7 @@ func collectionPop(ctx data.Context) (data.GetValue, data.Control) {
 	if last == nil {
 		return data.NewNullValue(), nil
 	}
-	return last.Value, nil
+	return last.ReadValue(), nil
 }
 
 func collectionFirst(ctx data.Context) (data.GetValue, data.Control) {
@@ -1199,7 +1192,7 @@ func collectionGroupBy(ctx data.Context) (data.GetValue, data.Control) {
 			// 尤其空字符串键表示“无父导航项”；把它当空路径会错误地
 			// 返回 groups 自身，随后把元素追加到分组数组的外层。
 			if slot, ok := groups.LookupZValByStringKey(gk); ok && slot != nil {
-				garr, _ = slot.Value.(*data.ArrayValue)
+				garr, _ = slot.ReadValue().(*data.ArrayValue)
 			}
 			if garr == nil {
 				garr = data.NewArrayValue(nil).(*data.ArrayValue)
@@ -1455,7 +1448,7 @@ func jsonEncodeSimple(v data.Value) (string, bool) {
 					parts = append(parts, "null")
 					continue
 				}
-				s, ok := jsonEncodeSimple(z.Value)
+				s, ok := jsonEncodeSimple(z.ReadValue())
 				if !ok {
 					return "", false
 				}

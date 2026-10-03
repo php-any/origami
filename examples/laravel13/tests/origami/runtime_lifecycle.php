@@ -47,9 +47,54 @@ $router = $app['router'];
 $app->scoped('runtime.scoped', function () { return new stdClass; });
 // Resolve before the worker starts: the request must forget this cached object.
 $app->make('runtime.scoped')->count = 99;
+class LifecycleThirdPartyManager {
+    public int $count = 0;
+    public $owner;
+    public $self;
+    public array $links;
+    public function touch(): int { return ++$this->count; }
+}
+class LifecycleThirdPartyFacade extends Illuminate\Support\Facades\Facade {
+    protected static function getFacadeAccessor() { return 'runtime.manager'; }
+}
+$graphCaptured = [];
+$manager = new LifecycleThirdPartyManager();
+$manager->owner = $app;
+$manager->self = $manager;
+$manager->links = ['captured' => &$graphCaptured, 'alias' => $manager];
+$app->instance('runtime.manager', $manager);
+$app->instance('runtime.manager.alias', $manager);
+$app['events']->listen('runtime.graph', function ($id) use (&$graphCaptured) { $graphCaptured[] = $id; });
+// Prime the Facade cache before requests; its object must map to the same graph.
+LifecycleThirdPartyFacade::getFacadeRoot();
+$router->get('/__runtime/graph', function () {
+    $manager = app('runtime.manager');
+    $id = request()->query('id', 'one');
+    app('events')->dispatch('runtime.graph', [$id]);
+    if ($manager !== app('runtime.manager.alias') || $manager->self !== $manager || $manager->links['alias'] !== $manager || $manager->owner !== app()) {
+        throw new RuntimeException('singleton aliases or cycle lost');
+    }
+    if ($manager->links['captured'] !== [$id]) { throw new RuntimeException('callback capture disconnected or leaked'); }
+    return (string) LifecycleThirdPartyFacade::touch();
+});
 $router->get('/__runtime/order', function () { return 'body'; })
     ->middleware(['lifecycle', 'lifecycle.route:route']);
 $router->get('/__runtime/short', function () { return 'unreachable'; });
+class LifecycleCustomResponse extends Illuminate\Http\Response {
+    public function sendContent(): static {
+        echo 'custom-send';
+        return $this;
+    }
+}
+class LifecycleThrowingResponse extends Illuminate\Http\Response {
+    public function sendContent(): static {
+        echo 'partial-custom';
+        throw new RuntimeException('custom response exception after headers');
+    }
+}
+$router->get('/__runtime/custom-send', function () { return new LifecycleCustomResponse('stored-content'); });
+$router->get('/__runtime/custom-throw', function () { return new LifecycleThrowingResponse('stored-content'); });
+
 $router->get('/__runtime/stream', function () {
     return new Symfony\Component\HttpFoundation\StreamedResponse(function () {
         echo 'first|';

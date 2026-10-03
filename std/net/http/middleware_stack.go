@@ -141,7 +141,7 @@ func applyCookieOptions(c *httpsrc.Cookie, opt data.GetValue) {
 		if key == "" {
 			continue
 		}
-		val := z.Value
+		val := z.ReadValue()
 		switch key {
 		case "path", "Path":
 			c.Path = val.AsString()

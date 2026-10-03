@@ -83,17 +83,11 @@ func ParseStreamContextOptions(v data.Value) map[string]map[string]string {
 				continue
 			}
 			wrapperName := entryKeyName(zval, i)
-			if opts := parseFlatOptions(zval.Value); opts != nil {
+			if opts := parseFlatOptions(zval.ReadValue()); opts != nil {
 				result[wrapperName] = opts
 			}
 		}
-	case *data.ObjectValue:
-		arr.RangeProperties(func(wrapperName string, val data.Value) bool {
-			if opts := parseFlatOptions(val); opts != nil {
-				result[wrapperName] = opts
-			}
-			return true
-		})
+
 	}
 	return result
 }
@@ -111,13 +105,9 @@ func ParseStreamContextParams(v data.Value) map[string]string {
 			if zval == nil {
 				continue
 			}
-			result[entryKeyName(zval, i)] = optionValueToString(zval.Value)
+			result[entryKeyName(zval, i)] = optionValueToString(zval.ReadValue())
 		}
-	case *data.ObjectValue:
-		arr.RangeProperties(func(key string, val data.Value) bool {
-			result[key] = optionValueToString(val)
-			return true
-		})
+
 	}
 	return result
 }
@@ -131,13 +121,9 @@ func parseFlatOptions(v data.Value) map[string]string {
 			if zval == nil {
 				continue
 			}
-			result[entryKeyName(zval, i)] = optionValueToString(zval.Value)
+			result[entryKeyName(zval, i)] = optionValueToString(zval.ReadValue())
 		}
-	case *data.ObjectValue:
-		arr.RangeProperties(func(key string, val data.Value) bool {
-			result[key] = optionValueToString(val)
-			return true
-		})
+
 	default:
 		return nil
 	}

@@ -90,7 +90,7 @@ func Migrate(ctx data.Context, connection data.GetValue, modelDir string) (data.
 
 	tables := make([]data.Value, len(schemas))
 	for i, schema := range schemas {
-		obj := data.NewObjectValue()
+		obj := data.NewStdClassValue(nil)
 		obj.SetProperty("table", data.NewStringValue(schema.TableName))
 		obj.SetProperty("class", data.NewStringValue(schema.ClassName))
 		tables[i] = obj
@@ -153,7 +153,7 @@ func applyMigrations(exec execQuerier, dialect Dialect, schemas []*TableSchema) 
 func migrationItemsToValues(items []migrationItem, withColumn bool) []data.Value {
 	out := make([]data.Value, 0, len(items))
 	for _, item := range items {
-		obj := data.NewObjectValue()
+		obj := data.NewStdClassValue(nil)
 		obj.SetProperty("table", data.NewStringValue(item.table))
 		obj.SetProperty("class", data.NewStringValue(item.class))
 		if withColumn {

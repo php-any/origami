@@ -2,267 +2,402 @@ package php
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
-	"unsafe"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/std/php/core"
+	"math"
+	"strconv"
+	"strings"
 )
 
-// phpSerState 记录 PHP serialize 的值序号，循环引用输出 r:N;（与 PHP 一致）。
+// Keys do not occupy value numbers. R shares a cell, r shares an object.
 type phpSerState struct {
-	seen map[uintptr]int
-	n    int
+	ctx       data.Context
+	n         int
+	objects   map[*data.PropertyBag]int
+	arrays    map[*data.ArrayValue]int
+	refs      map[*data.ReferenceCell]int
+	control   data.Control
+	precision int
 }
 
 func newPhpSerState() *phpSerState {
-	return &phpSerState{seen: make(map[uintptr]int)}
+	return &phpSerState{objects: map[*data.PropertyBag]int{}, arrays: map[*data.ArrayValue]int{}, refs: map[*data.ReferenceCell]int{}, precision: -1}
 }
-
-func (st *phpSerState) nextScalar() {
-	st.n++
-}
-
-func (st *phpSerState) refOrMark(ptr uintptr) (idx int, seen bool) {
-	if idx, ok := st.seen[ptr]; ok {
-		return idx, true
+func makeSerializedString(s string) string { return "s:" + strconv.Itoa(len(s)) + ":\"" + s + "\";" }
+func serializeSlot(slot *data.ZVal, st *phpSerState) (string, bool) {
+	if cell := slot.ReferenceIdentity(); cell != nil {
+		if n, found := st.refs[cell]; found {
+			return "R:" + strconv.Itoa(n) + ";", true
+		}
+		if array, ok := slot.ReadValue().(*data.ArrayValue); ok {
+			if n, found := st.arrays[array]; found {
+				st.refs[cell] = n
+				return "R:" + strconv.Itoa(n) + ";", true
+			}
+		}
+		st.refs[cell] = st.n + 1
 	}
-	st.n++
-	st.seen[ptr] = st.n
-	return st.n, false
+	return phpSerializeValue(slot.ReadValue(), st)
 }
-
-// NewSerializeFunction 创建 serialize 函数
-// 当前为最小实现，对标上面的 unserialize 子集，仅支持：
-// - string  -> s:len:"...";   （len 为字节长度）
-// - int     -> i:number;
-// - bool    -> b:0; / b:1;
-// - null    -> N;
-// 其它类型暂不支持，返回 false。
-func NewSerializeFunction() data.FuncStmt {
-	return &SerializeFunction{}
+func serializedFloat(value float64, precision int) string {
+	if math.IsNaN(value) {
+		return "NAN"
+	}
+	if math.IsInf(value, 1) {
+		return "INF"
+	}
+	if math.IsInf(value, -1) {
+		return "-INF"
+	}
+	digits := precision - 1
+	if precision < 0 {
+		digits = -1
+	}
+	if precision == 0 {
+		digits = 0
+	}
+	s := strconv.FormatFloat(value, 'E', digits, 64)
+	if mantissa, exponent, found := strings.Cut(s, "E"); found {
+		e, _ := strconv.Atoi(exponent)
+		limit := precision
+		if limit < 0 {
+			limit = 17
+		}
+		mantissa = strings.TrimRight(strings.TrimRight(mantissa, "0"), ".")
+		// Do not trim the integer zero in 0E+00.
+		if mantissa == "" || mantissa == "-" {
+			mantissa += "0"
+		}
+		if e >= -4 && e < limit {
+			sign := ""
+			if strings.HasPrefix(mantissa, "-") {
+				sign, mantissa = "-", mantissa[1:]
+			}
+			digits := strings.ReplaceAll(mantissa, ".", "")
+			point := e + 1
+			if point <= 0 {
+				return sign + "0." + strings.Repeat("0", -point) + digits
+			}
+			if point >= len(digits) {
+				return sign + digits + strings.Repeat("0", point-len(digits))
+			}
+			return sign + digits[:point] + "." + digits[point:]
+		}
+		if !strings.Contains(mantissa, ".") {
+			mantissa += ".0"
+		}
+		sign := "+"
+		if e < 0 {
+			sign = "-"
+			e = -e
+		}
+		return mantissa + "E" + sign + strconv.Itoa(e)
+	}
+	return s
 }
-
-type SerializeFunction struct {
-	data.Function
-}
-
-// makeSerializedString 构造形如 s:len:"content"; 的序列化字符串
-func makeSerializedString(content string) string {
-	l := len([]byte(content))
-	var sb strings.Builder
-	sb.Grow(len(content) + 16)
-	sb.WriteString("s:")
-	sb.WriteString(fmt.Sprintf("%d", l))
-	sb.WriteString(":\"")
-	sb.WriteString(content)
-	sb.WriteString("\";")
-	return sb.String()
-}
-
-// phpSerializeValue 将 Origami 内部的 data.Value 按 PHP serialize 语义编码为字符串。
-// 目前支持：
-// - null / bool / int / string
-// - 数组：按 PHP 的 a:len:{key;value;...} 语法编码（数值下标使用 i:n;，关联键使用 s:len:"key";）
-// - 对象：ClassValue 按 PHP 的 O:...:...:{...} 格式序列化公共属性
-// 其它复杂类型返回 false，交由上层处理。
-func phpSerializeValue(v data.Value, st *phpSerState) (string, bool) {
+func phpSerializeValue(value data.Value, st *phpSerState) (string, bool) {
 	if st == nil {
 		st = newPhpSerState()
 	}
-	switch val := v.(type) {
-	case *data.NullValue:
-		st.nextScalar()
+	if this, ok := value.(*data.ThisValue); ok {
+		value = this.ClassValue
+	}
+	st.n++
+	switch v := value.(type) {
+	case nil, *data.NullValue:
 		return "N;", true
 	case *data.BoolValue:
-		st.nextScalar()
-		if val.Value {
+		if v.Value {
 			return "b:1;", true
 		}
 		return "b:0;", true
 	case *data.IntValue:
-		st.nextScalar()
-		return fmt.Sprintf("i:%d;", val.Value), true
+		return "i:" + strconv.Itoa(v.Value) + ";", true
+	case *data.FloatValue:
+		return "d:" + serializedFloat(v.Value, st.precision) + ";", true
 	case *data.StringValue:
-		st.nextScalar()
-		return makeSerializedString(val.Value), true
+		return makeSerializedString(v.Value), true
 	case *data.ArrayValue:
-		if idx, seen := st.refOrMark(uintptr(unsafe.Pointer(val))); seen {
-			return fmt.Sprintf("r:%d;", idx), true
+		if len(st.arrays) >= 512 {
+			return "", false
 		}
-		// 数值下标数组：a:<len>:{i:0;v0;i:1;v1;...}
-		values := val.ToValueList()
-		var sb strings.Builder
-		sb.WriteString("a:")
-		sb.WriteString(strconv.Itoa(len(values)))
-		sb.WriteString(":{")
-		for idx, elem := range values {
-			// key
-			sb.WriteString("i:")
-			sb.WriteString(strconv.Itoa(idx))
-			sb.WriteString(";")
-			// value
-			valStr, ok := phpSerializeValue(elem, st)
+		st.arrays[v] = st.n
+		defer delete(st.arrays, v)
+		var b strings.Builder
+		b.WriteString("a:" + strconv.Itoa(v.Len()) + ":{")
+		for view, i := v.View(), 0; i < view.Len(); i++ {
+			slot := view.At(i)
+			key := slot.PHPArrayKey(i)
+			if n, ok := key.(*data.IntValue); ok {
+				b.WriteString("i:" + strconv.Itoa(n.Value) + ";")
+			} else {
+				b.WriteString(makeSerializedString(key.AsString()))
+			}
+			encoded, ok := serializeSlot(slot, st)
 			if !ok {
 				return "", false
 			}
-			sb.WriteString(valStr)
+			b.WriteString(encoded)
 		}
-		sb.WriteString("}")
-		return sb.String(), true
-	case *data.ObjectValue:
-		if idx, seen := st.refOrMark(uintptr(unsafe.Pointer(val))); seen {
-			return fmt.Sprintf("r:%d;", idx), true
-		}
-		// 关联数组语义：使用字符串键序列化为 PHP 数组
-		type kv struct {
-			key string
-			val data.Value
-		}
-		props := make([]kv, 0)
-		val.RangeProperties(func(k string, v data.Value) bool {
-			if v == nil {
-				return true
-			}
-			props = append(props, kv{key: k, val: v})
-			return true
-		})
-
-		var sb strings.Builder
-		sb.WriteString("a:")
-		sb.WriteString(strconv.Itoa(len(props)))
-		sb.WriteString(":{")
-		for _, p := range props {
-			// key 始终作为字符串键处理
-			sb.WriteString(makeSerializedString(p.key))
-			valStr, ok := phpSerializeValue(p.val, st)
-			if !ok {
-				return "", false
-			}
-			sb.WriteString(valStr)
-		}
-		sb.WriteString("}")
-		return sb.String(), true
-	case *data.ThisValue:
-		if val.ClassValue != nil {
-			return phpSerializeValue(val.ClassValue, st)
-		}
-		st.nextScalar()
-		return "N;", true
+		b.WriteByte('}')
+		return b.String(), true
 	case *data.ClassValue:
-		if idx, seen := st.refOrMark(uintptr(unsafe.Pointer(val))); seen {
-			return fmt.Sprintf("r:%d;", idx), true
+		if n, exists := st.objects[v.ObjectValue]; exists {
+			return "r:" + strconv.Itoa(n) + ";", true
 		}
-		// 对应 PHP 中的对象序列化：O:<len>:"ClassName":<propCount>:{...}
-		className := val.Class.GetName()
-		classNameLen := len([]byte(className))
-
-		type kv struct {
-			key string
-			val data.Value
+		st.objects[v.ObjectValue] = st.n
+		if flags, ok := v.Class.(interface{ DeclarationFlags() data.ClassFlags }); ok && flags.DeclarationFlags()&data.ClassEnum != 0 {
+			caseName, ctl := v.GetProperty("name")
+			if ctl != nil {
+				st.control = ctl
+				return "", false
+			}
+			name := v.Class.GetName() + ":" + caseName.AsString()
+			return "E:" + strconv.Itoa(len(name)) + ":\"" + name + "\";", true
 		}
-		props := make([]kv, 0)
-		seen := make(map[string]struct{})
-		// 按类声明顺序输出公共属性（与 PHP serialize 一致）
-		for _, prop := range val.Class.GetPropertyList() {
-			if prop.GetModifier() != data.ModifierPublic {
-				continue
+		if _, hasModern := v.GetMethod("__serialize"); !hasModern && st.ctx != nil && data.NominalIsA(v.Class, "Serializable", st.ctx.GetVM()) {
+			if hook, found := v.GetMethod("serialize"); found {
+				raw, ctl := callSerializationHook(st.ctx, v, hook, nil)
+				if ctl != nil {
+					st.control = ctl
+					return "", false
+				}
+				if _, isNull := raw.(*data.NullValue); isNull {
+					return "N;", true
+				}
+				payload, ok := raw.(*data.StringValue)
+				if !ok {
+					st.control = data.NewErrorThrowByName(nil, fmt.Errorf("%s::serialize() must return a string or NULL", v.Class.GetName()), "Exception")
+					return "", false
+				}
+				name := v.Class.GetName()
+				return "C:" + strconv.Itoa(len(name)) + ":\"" + name + "\":" + strconv.Itoa(len(payload.Value)) + ":{" + payload.Value + "}", true
 			}
-			name := prop.GetName()
-			v, ctl := val.ObjectValue.GetProperty(name)
-			if ctl != nil || v == nil {
-				continue
-			}
-			if _, isNull := v.(*data.NullValue); isNull {
-				continue
-			}
-			props = append(props, kv{key: name, val: v})
-			seen[name] = struct{}{}
 		}
-		// 动态公共属性追加在声明属性之后
-		val.RangeProperties(func(k string, v data.Value) bool {
-			if v == nil {
-				return true
+		props, ctl := serializedObjectProperties(v, st.ctx)
+		if ctl != nil {
+			st.control = ctl
+			return "", false
+		}
+		if props == nil {
+			return "N;", true
+		}
+		name := v.Class.GetName()
+		if name == "__PHP_Incomplete_Class" {
+			original, _ := v.GetProperty("__PHP_Incomplete_Class_Name")
+			name = original.AsString()
+			filtered := props[:0]
+			for _, p := range props {
+				if p.name != "__PHP_Incomplete_Class_Name" {
+					filtered = append(filtered, p)
+				}
 			}
-			if _, ok := seen[k]; ok {
-				return true
-			}
-			props = append(props, kv{key: k, val: v})
-			return true
-		})
-
-		var sb strings.Builder
-		// O:<classNameLen>:"ClassName":<propCount>:{
-		sb.WriteString("O:")
-		sb.WriteString(strconv.Itoa(classNameLen))
-		sb.WriteString(":\"")
-		sb.WriteString(className)
-		sb.WriteString("\":")
-		sb.WriteString(strconv.Itoa(len(props)))
-		sb.WriteString(":{")
-
+			props = filtered
+		}
+		var b strings.Builder
+		b.WriteString("O:" + strconv.Itoa(len(name)) + ":\"" + name + "\":" + strconv.Itoa(len(props)) + ":{")
 		for _, p := range props {
-			// 属性名总是按公共属性处理：s:len:"name";
-			nameLen := len([]byte(p.key))
-			sb.WriteString("s:")
-			sb.WriteString(strconv.Itoa(nameLen))
-			sb.WriteString(":\"")
-			sb.WriteString(p.key)
-			sb.WriteString("\";")
-
-			valStr, ok := phpSerializeValue(p.val, st)
+			if p.key != nil {
+				switch key := p.key.(type) {
+				case *data.IntValue:
+					b.WriteString("i:" + strconv.Itoa(key.Value) + ";")
+				default:
+					b.WriteString(makeSerializedString(key.AsString()))
+				}
+			} else {
+				b.WriteString(makeSerializedString(p.name))
+			}
+			encoded, ok := serializeSlot(p.slot, st)
 			if !ok {
 				return "", false
 			}
-			sb.WriteString(valStr)
+			b.WriteString(encoded)
 		}
-
-		sb.WriteString("}")
-		return sb.String(), true
-	default:
+		b.WriteByte('}')
+		return b.String(), true
+	case *data.FuncValue, *data.BoundFuncValue:
+		st.control = data.NewErrorThrowByName(nil, fmt.Errorf("Serialization of 'Closure' is not allowed"), "Exception")
 		return "", false
+	default:
+		return "i:0;", true
 	}
 }
 
+type serializedProperty struct {
+	name string
+	slot *data.ZVal
+	key  data.Value
+}
+
+func callSerializationHook(ctx data.Context, object *data.ClassValue, method data.Method, args []data.Value) (data.GetValue, data.Control) {
+	self := data.MethodDeclaringClass(ctx.GetVM(), object.Class, method.GetName())
+	frame := data.WrapMethodFrame(ctx.CreateContext(method.GetVariables()), object, self, object.Class)
+	if ctl := data.BindDeclaredArgs(frame, method, args); ctl != nil {
+		return nil, ctl
+	}
+	return method.Call(frame)
+}
+func serializedObjectProperties(object *data.ClassValue, ctx data.Context) ([]serializedProperty, data.Control) {
+	var sleepNames *data.ArrayValue
+	if ctx != nil {
+		if hook, found := object.GetMethod("__serialize"); found {
+			raw, ctl := callSerializationHook(ctx, object, hook, nil)
+			if ctl != nil {
+				return nil, ctl
+			}
+			array, ok := raw.(*data.ArrayValue)
+			if !ok {
+				return nil, data.NewTypeError(nil, fmt.Errorf("%s::__serialize() must return an array", object.Class.GetName()))
+			}
+			props := make([]serializedProperty, 0, array.Len())
+			for view, i := array.View(), 0; i < view.Len(); i++ {
+				slot := view.At(i)
+				props = append(props, serializedProperty{slot.PHPArrayKey(i).AsString(), slot, slot.PHPArrayKey(i)})
+			}
+			return props, nil
+		}
+		if hook, found := object.GetMethod("__sleep"); found {
+			raw, ctl := callSerializationHook(ctx, object, hook, nil)
+			if ctl != nil {
+				return nil, ctl
+			}
+			var ok bool
+			sleepNames, ok = raw.(*data.ArrayValue)
+			if !ok {
+				return nil, data.EmitPHPError(ctx, 2, fmt.Sprintf("serialize(): %s::__sleep() should return an array only containing the names of instance-variables to serialize", object.Class.GetName()), nil)
+			}
+		}
+	}
+	classes := []data.ClassStmt{object.Class}
+	if ctx != nil {
+		for class := object.Class; class.GetExtend() != nil; {
+			parent, ctl := ctx.GetVM().GetOrLoadClass(*class.GetExtend())
+			if ctl != nil {
+				return nil, ctl
+			}
+			if parent == nil {
+				break
+			}
+			classes = append(classes, parent)
+			class = parent
+		}
+	}
+	props := []serializedProperty{}
+	seen := map[string]int{}
+	for i := len(classes) - 1; i >= 0; i-- {
+		for _, property := range classes[i].GetPropertyList() {
+			if property == nil || property.GetIsStatic() {
+				continue
+			}
+			stored := data.PropertyStorageName(property)
+			if !object.HasProperty(stored) {
+				continue
+			}
+			name := property.GetName()
+			switch property.GetModifier() {
+			case data.ModifierPrivate:
+				name = "\x00" + classes[i].GetName() + "\x00" + name
+			case data.ModifierProtected:
+				name = "\x00*\x00" + name
+			}
+			slot, _ := object.ObjectValue.GetZVal(stored)
+			p := serializedProperty{name, slot, nil}
+			if n, ok := seen[stored]; ok {
+				props[n] = p
+			} else {
+				seen[stored] = len(props)
+				props = append(props, p)
+			}
+		}
+	}
+	object.RangeProperties(func(name string, value data.Value) bool {
+		if _, found := seen[name]; found {
+			return true
+		}
+		slot, _ := object.ObjectValue.GetZVal(name)
+		props = append(props, serializedProperty{name, slot, nil})
+		return true
+	})
+	if sleepNames != nil {
+		byName := make(map[string]serializedProperty, len(props))
+		for _, property := range props {
+			byName[property.name] = property
+		}
+		selected := []serializedProperty{}
+		used := map[string]bool{}
+		for view, i := sleepNames.View(), 0; i < view.Len(); i++ {
+			value := view.At(i).ReadValue()
+			if _, ok := value.(*data.StringValue); !ok {
+				if ctl := data.EmitPHPError(ctx, 2, fmt.Sprintf("serialize(): %s::__sleep() should return an array only containing the names of instance-variables to serialize", object.Class.GetName()), nil); ctl != nil {
+					return nil, ctl
+				}
+			}
+			name := value.AsString()
+			property, found := byName[name]
+			if !found {
+				property, found = byName["\x00"+object.Class.GetName()+"\x00"+name]
+			}
+			if !found {
+				property, found = byName["\x00*\x00"+name]
+			}
+			if !found {
+				if ctl := data.EmitPHPError(ctx, 2, fmt.Sprintf("serialize(): %q returned as member variable from __sleep() but does not exist", name), nil); ctl != nil {
+					return nil, ctl
+				}
+				continue
+			}
+			if used[property.name] {
+				if ctl := data.EmitPHPError(ctx, 2, fmt.Sprintf("serialize(): %q is returned from __sleep() multiple times", name), nil); ctl != nil {
+					return nil, ctl
+				}
+				continue
+			}
+			used[property.name] = true
+			selected = append(selected, property)
+		}
+		props = selected
+	}
+	return props, nil
+}
+
+type SerializeFunction struct{ data.Function }
+
+func NewSerializeFunction() data.FuncStmt { return &SerializeFunction{} }
 func (f *SerializeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	params := f.GetParams()
-	if len(params) == 0 {
-		return data.NewBoolValue(false), nil
+	value, _ := ctx.GetIndexValue(0)
+	// PHP passes the top-level array by value. A reference back to the input
+	// points to the original array, not to this serialization argument snapshot.
+	if array, ok := value.(*data.ArrayValue); ok {
+		view := array.View()
+		slots := make([]*data.ZVal, view.Len())
+		for i := range slots {
+			slots[i] = view.At(i)
+		}
+		value = data.NewArrayValueFromSlots(slots)
 	}
-	raw, _ := params[0].GetValue(ctx)
-	if raw == nil {
-		return data.NewStringValue("N;"), nil
+	state := newPhpSerState()
+	state.ctx = ctx
+	if raw, ok := core.IniGetInContext(ctx, "serialize_precision"); ok {
+		if precision, err := strconv.Atoi(raw); err == nil && precision >= -1 {
+			state.precision = precision
+		}
 	}
-
-	v, ok := raw.(data.Value)
+	encoded, ok := phpSerializeValue(value, state)
+	if state.control != nil {
+		return nil, state.control
+	}
 	if !ok {
 		return data.NewBoolValue(false), nil
 	}
-
-	s, ok := phpSerializeValue(v, newPhpSerState())
-	if !ok {
-		return data.NewBoolValue(false), nil
-	}
-	return data.NewStringValue(s), nil
+	return data.NewStringValue(encoded), nil
 }
+func (f *SerializeFunction) GetName() string { return "serialize" }
 
-func (f *SerializeFunction) GetName() string {
-	return "serialize"
-}
+var serializeFunctionGetParams = []data.GetValue{node.NewParameter(nil, "value", 0, nil, nil)}
 
-var serializeFunctionGetParams = []data.GetValue{
-	node.NewParameter(nil, "value", 0, nil, nil),
-}
+func (f *SerializeFunction) GetParams() []data.GetValue { return serializeFunctionGetParams }
 
-func (f *SerializeFunction) GetParams() []data.GetValue {
-	return serializeFunctionGetParams
-}
+var serializeFunctionGetVariables = []data.Variable{node.NewVariable(nil, "value", 0, nil)}
 
-var serializeFunctionGetVariables = []data.Variable{
-	node.NewVariable(nil, "value", 0, nil),
-}
-
-func (f *SerializeFunction) GetVariables() []data.Variable {
-	return serializeFunctionGetVariables
-}
+func (f *SerializeFunction) GetVariables() []data.Variable { return serializeFunctionGetVariables }

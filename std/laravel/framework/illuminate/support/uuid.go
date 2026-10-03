@@ -537,7 +537,9 @@ func uuidGetFields(ctx data.Context) (data.GetValue, data.Control) {
 
 // uuidSerializeArray 对应 __serialize(): array —— PHP 序列化只需带出规范字符串。
 func uuidSerializeArray(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewArrayValue([]data.Value{data.NewStringValue(uuidValue(ctx))}), nil
+	result := data.NewArrayValue(nil).(*data.ArrayValue)
+	result.SetKey(data.NewStringValue("bytes"), data.NewStringValue(uuidValue(ctx)))
+	return result, nil
 }
 
 func uuidUnserialize(ctx data.Context) (data.GetValue, data.Control) {
@@ -547,7 +549,13 @@ func uuidUnserialize(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	raw := ""
 	if v := kit.Arg(ctx, 0); v != nil && !kit.IsNull(v) {
-		raw = v.AsString()
+		if arr, ok := v.(*data.ArrayValue); ok {
+			if cell, found := arr.LookupZValByStringKey("bytes"); found {
+				raw = cell.ReadValue().AsString()
+			}
+		} else {
+			raw = v.AsString()
+		}
 	}
 	if canonical, ok := uuidCanonical(raw); ok {
 		_ = cv.SetProperty(uuidValueProp, data.NewStringValue(canonical))

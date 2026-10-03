@@ -53,3 +53,25 @@ func TestSharedPoolBorrowReturn(t *testing.T) {
 		t.Fatalf("pool should stay open after Conn.Close: %v", err)
 	}
 }
+
+func TestMemoryPDOOwnsFreshDatabaseAfterRelease(t *testing.T) {
+	for i := 0; i < 3; i++ {
+		db, owned, err := openPDODatabase("sqlite", ":memory:")
+		if err != nil || !owned {
+			t.Fatalf("memory ownership: %v / %v", owned, err)
+		}
+		conn, err := db.Conn(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := conn.ExecContext(context.Background(), "CREATE TABLE t (value TEXT)"); err != nil {
+			t.Fatal(err)
+		}
+		state := &pdoState{db: db, conn: conn, ownedDB: owned}
+		state.release()
+		state.release()
+		if err := db.Ping(); err == nil {
+			t.Fatal("private memory pool survived release")
+		}
+	}
+}

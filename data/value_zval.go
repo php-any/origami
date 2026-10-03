@@ -18,27 +18,27 @@ func (Z *ZValValue) AsString() string {
 	if Z.ZVal == nil {
 		return ""
 	}
-	if Z.ZVal.Value == nil {
+	if Z.ZVal.ReadValue() == nil {
 		return ""
 	}
-	return Z.ZVal.Value.AsString()
+	return Z.ZVal.ReadValue().AsString()
 }
 
 func (Z *ZValValue) Marshal(serializer Serializer) ([]byte, error) {
-	if v, ok := Z.ZVal.Value.(ValueSerializer); ok {
+	if v, ok := Z.ZVal.ReadValue().(ValueSerializer); ok {
 		return v.Marshal(serializer)
 	}
 	return nil, fmt.Errorf("cannot marshal ZValValue")
 }
 func (Z *ZValValue) Unmarshal(data []byte, serializer Serializer) error {
-	if v, ok := Z.ZVal.Value.(ValueSerializer); ok {
+	if v, ok := Z.ZVal.ReadValue().(ValueSerializer); ok {
 		return v.Unmarshal(data, serializer)
 	}
 	return fmt.Errorf("cannot unmarshal ZValValue")
 }
 
 func (Z *ZValValue) ToGoValue(serializer Serializer) (any, error) {
-	if v, ok := Z.ZVal.Value.(ValueSerializer); ok {
+	if v, ok := Z.ZVal.ReadValue().(ValueSerializer); ok {
 		return v.ToGoValue(serializer)
 	}
 

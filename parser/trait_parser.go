@@ -52,6 +52,7 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	// trait 不支持泛型、继承和接口实现
+	defer p.enterClassDeclaration(traitName, nil)()
 	// 解析 trait 体
 	if p.current().Type() != token.LBRACE {
 		return nil, data.NewErrorThrow(p.newFrom(), errors.New("trait 声明后缺少左花括号 '{'"))
@@ -133,6 +134,7 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 		if p.current().Type() == token.VAR ||
 			p.current().Type() == token.CONST ||
 			p.current().Type() == token.VARIABLE ||
+			p.current().Type() == token.LPAREN ||
 			isIdentOrTypeToken(p.current().Type()) ||
 			(p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type())) {
 			prop, acl := p.parsePropertyWithAnnotations(modifier, isStatic, isReadonly, memberAnnotations)
@@ -186,6 +188,7 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 
 	// trait 不支持构造函数
 	trait.Construct = nil
+	trait.Flags = data.ClassTrait
 
 	// 注册 trait 到 VM（trait 和 class 一样存储在 classMap 中）
 	acl := p.vm.AddClass(trait)

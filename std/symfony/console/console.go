@@ -186,7 +186,7 @@ func argvTokens(cv *data.ClassValue) []string {
 		for arraySlots152, arrayPosition152 := av.View(), 0; arrayPosition152 < arraySlots152.Len(); arrayPosition152++ {
 			z := arraySlots152.At(arrayPosition152)
 			if z != nil {
-				out = append(out, z.Value.AsString())
+				out = append(out, z.ReadValue().AsString())
 			}
 		}
 	}
@@ -212,7 +212,7 @@ func argvHasOption(ctx data.Context) (data.GetValue, data.Control) {
 		for arraySlots153, arrayPosition153 := av.View(), 0; arrayPosition153 < arraySlots153.Len(); arrayPosition153++ {
 			z := arraySlots153.At(arrayPosition153)
 			if z != nil {
-				needles = append(needles, z.Value.AsString())
+				needles = append(needles, z.ReadValue().AsString())
 			}
 		}
 	} else if values != nil {
@@ -237,7 +237,7 @@ func argvGetOption(ctx data.Context) (data.GetValue, data.Control) {
 		for arraySlots154, arrayPosition154 := av.View(), 0; arrayPosition154 < arraySlots154.Len(); arrayPosition154++ {
 			z := arraySlots154.At(arrayPosition154)
 			if z != nil {
-				needles = append(needles, z.Value.AsString())
+				needles = append(needles, z.ReadValue().AsString())
 			}
 		}
 	} else if values != nil {

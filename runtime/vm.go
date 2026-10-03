@@ -27,6 +27,7 @@ func (vm *VM) GetParser() *parser.Parser {
 // NewVM 创建一个新的虚拟机
 func NewVM(parser *parser.Parser) data.VM {
 	vm := &VM{
+		registry:     data.NewClassRegistry(nil),
 		parser:       parser,
 		loadingFiles: make(map[string]chan struct{}),
 		loadingOwner: make(map[string]uint64),
@@ -37,7 +38,9 @@ func NewVM(parser *parser.Parser) data.VM {
 		},
 	}
 	vm.ctx = NewContext(vm)
+	vm.environment.Store(initialPHPEnvironment())
 	vm.parsedFiles.Store(&parsedFileCache{})
+	vm.functions.Store(&data.IDMap[data.FuncStmt]{})
 	parser.SetVM(vm)
 
 	return vm
@@ -45,19 +48,28 @@ func NewVM(parser *parser.Parser) data.VM {
 
 // VM 表示虚拟机
 type VM struct {
-	parser *parser.Parser
-	ctx    data.Context
+	registry *data.ClassRegistry
+	parser   *parser.Parser
+	ctx      data.Context
 
 	// mu 保护非 map 的请求态字段；类/函数/常量等表使用 sync.Map 以支持并发读。
-	mu sync.Mutex
+	mu                  sync.Mutex
+	autoload            []autoloadRegistration
+	autoloadInitialized bool
+	autoloadExtensions  *string
+	autoloadFlights     autoloadFlights
 
 	classMap           sync.Map // string -> data.ClassStmt
 	classLower         sync.Map // lowercase FQCN -> data.ClassStmt（PHP 类名大小写不敏感，避免 miss 时 Range 全表）
 	interfaceMap       sync.Map // string -> data.InterfaceStmt
 	interfaceLower     sync.Map // lowercase FQCN -> data.InterfaceStmt
 	funcMap            sync.Map // string -> data.FuncStmt
+	functionMu         sync.Mutex
+	functions          atomic.Pointer[data.IDMap[data.FuncStmt]]
 	constantMap        sync.Map // string -> data.Value
 	globalVars         sync.Map // string -> *data.ZVal
+	phpIni             sync.Map // startup settings; request writes use an overlay
+	environment        atomic.Pointer[map[string]string]
 	phpFileCache       sync.Map // string -> struct{}
 	includeOnceResults sync.Map // string -> data.GetValue
 	compiledFiles      sync.Map // string -> func() (data.GetValue, []data.Variable)
@@ -74,7 +86,9 @@ type VM struct {
 	exceptionHandlers ExceptionHandlerState
 
 	// PHP 级 set_error_handler 栈（restore_error_handler 弹出）
-	errorHandlers []data.Value
+	errorHandlers     []data.Value
+	errorHandlerMasks []int
+	phpErrors         data.PHPErrorState
 
 	// PHP 级 register_shutdown_function 注册的回调列表
 	shutdownCallbacks []data.Value
@@ -86,8 +100,6 @@ type VM struct {
 	out *outputState
 
 	// $GLOBALS / $_SESSION 的 VM 级数组（避免包级单例跨请求串态）
-	globalsArray *data.ObjectValue
-	sessionArray *data.ObjectValue
 
 	// 预编译文件注册表（见 compiledFiles sync.Map）
 }
@@ -243,7 +255,7 @@ func (vm *VM) ClearPhpFileCache() {
 // GlobalValue 读取 PHP 全局变量当前值。
 func (vm *VM) GlobalValue(name string) data.Value {
 	if zv, ok := syncMapLoad[*data.ZVal](&vm.globalVars, name); ok && zv != nil {
-		return zv.Value
+		return zv.ReadValue()
 	}
 	return nil
 }
@@ -329,6 +341,7 @@ func (vm *VM) AddClass(c data.ClassStmt) data.Control {
 	}
 	syncMapStore(&vm.classMap, name, c)
 	syncMapStore(&vm.classLower, key, c)
+	vm.registry.PublishClass(c)
 	return nil
 }
 
@@ -361,6 +374,7 @@ func (vm *VM) AddInterface(i data.InterfaceStmt) data.Control {
 	}
 	syncMapStore(&vm.interfaceMap, name, i)
 	syncMapStore(&vm.interfaceLower, key, i)
+	vm.registry.PublishInterface(i)
 	return nil
 }
 
@@ -381,8 +395,11 @@ func (vm *VM) findClassCaseInsensitive(name string) (data.ClassStmt, bool) {
 }
 
 func (vm *VM) GetClass(pkg string) (data.ClassStmt, bool) {
-	return vm.findClassCaseInsensitive(pkg)
+	return vm.registry.Snapshot().FindClass(pkg)
 }
+
+func (vm *VM) ClassRegistry() *data.ClassRegistry          { return vm.registry }
+func (vm *VM) PublishClassDescriptor(class data.ClassStmt) { vm.registry.PublishClass(class) }
 
 func (vm *VM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
 	if RequestDeadlineExceeded() {
@@ -497,7 +514,10 @@ func (vm *VM) GetOrLoadInterface(pkg string) (data.InterfaceStmt, data.Control) 
 
 func (vm *VM) AddFunc(f data.FuncStmt) data.Control {
 	name := f.GetName()
-	if _, ok := syncMapLoad[data.FuncStmt](&vm.funcMap, name); ok {
+	id := data.Symbols.Intern(name)
+	vm.functionMu.Lock()
+	defer vm.functionMu.Unlock()
+	if _, ok := vm.GetFuncBySymbol(id); ok {
 		switch ff := f.(type) {
 		case node.GetFrom:
 			return data.NewErrorThrow(ff.GetFrom(), fmt.Errorf("已存在同名的 function: %s", name))
@@ -506,15 +526,25 @@ func (vm *VM) AddFunc(f data.FuncStmt) data.Control {
 		}
 	}
 	syncMapStore(&vm.funcMap, name, f)
+	var functions data.IDMap[data.FuncStmt]
+	if previous := vm.functions.Load(); previous != nil {
+		functions = *previous
+	}
+	next := functions.With(uint32(id), f)
+	vm.functions.Store(&next)
 	return nil
 }
 
 func (vm *VM) GetFunc(pkg string) (data.FuncStmt, bool) {
-	if v, ok := syncMapLoad[data.FuncStmt](&vm.funcMap, pkg); ok {
-		return v, true
+	if id, found := data.Symbols.Lookup(pkg); found {
+		return vm.GetFuncBySymbol(id)
 	}
-	if len(pkg) > 0 && pkg[0:1] == "\\" {
-		return syncMapLoad[data.FuncStmt](&vm.funcMap, pkg[1:])
+	return nil, false
+}
+
+func (vm *VM) GetFuncBySymbol(id data.SymbolID) (data.FuncStmt, bool) {
+	if functions := vm.functions.Load(); functions != nil {
+		return functions.Get(uint32(id))
 	}
 	return nil, false
 }
@@ -543,6 +573,17 @@ func (vm *VM) AllClasses() []data.ClassStmt {
 		return classes[i].GetName() < classes[j].GetName()
 	})
 	return classes
+}
+
+// AllInterfaces supplies immutable declaration templates to the compiler.
+func (vm *VM) AllInterfaces() []data.InterfaceStmt {
+	interfaces := make([]data.InterfaceStmt, 0)
+	vm.interfaceMap.Range(func(_, value any) bool {
+		interfaces = append(interfaces, value.(data.InterfaceStmt))
+		return true
+	})
+	sort.Slice(interfaces, func(i, j int) bool { return interfaces[i].GetName() < interfaces[j].GetName() })
+	return interfaces
 }
 
 func (vm *VM) CreateContext(vars []data.Variable) data.Context {
@@ -747,7 +788,7 @@ func rangeDefinedVariables(ctx data.Context, fn func(name string, val data.Value
 		case *Context:
 			for _, zv := range t.variables {
 				if zv != nil && zv.Name != "" && zv.Defined {
-					fn(zv.Name, zv.Value)
+					fn(zv.Name, zv.ReadValue())
 				}
 			}
 			return
@@ -782,11 +823,7 @@ func inheritCallerScope(parent, ctx data.Context) data.Context {
 		}
 	}
 	if classCtx, ok := parent.(*data.ClassMethodContext); ok && classCtx.ClassValue != nil {
-		ctx = &data.ClassMethodContext{
-			ClassValue:  classCtx.ClassValue.CloneWithContext(ctx),
-			StaticClass: classCtx.StaticClass,
-			SelfClass:   classCtx.SelfClass,
-		}
+		ctx = data.WrapMethodFrame(ctx, classCtx.ClassValue, classCtx.SelfClass, classCtx.StaticClass)
 	}
 	return ctx
 }
@@ -843,7 +880,7 @@ func templatePropsFromArray(arr *data.ArrayValue) map[string]data.Value {
 		if z == nil || z.Name == "" {
 			continue
 		}
-		props[z.Name] = z.Value
+		props[z.Name] = z.ReadValue()
 	}
 	return props
 }
@@ -864,8 +901,7 @@ func (vm *VM) ParseFile(file string, object data.Value) (data.Value, data.Contro
 func runTemplateFile(vm data.VM, file string, program data.GetValue, varList []data.Variable, object data.Value) (data.Value, data.Control) {
 	ctx := vm.CreateContext(varList)
 	switch v := object.(type) {
-	case *data.ObjectValue:
-		bindTemplateVariables(ctx, varList, v.GetProperties())
+
 	case *data.ClassValue:
 		bindTemplateVariables(ctx, varList, v.GetProperties())
 	case *data.ArrayValue:
@@ -909,29 +945,39 @@ func (vm *VM) EnsureGlobalZVal(name string) *data.ZVal {
 	if zv, ok := syncMapLoad[*data.ZVal](&vm.globalVars, name); ok {
 		return zv
 	}
-	zv := data.NewZVal(data.NewNullValue())
+	zv := data.NewNamedZValSlot(name)
 	actual, _ := vm.globalVars.LoadOrStore(name, zv)
 	return actual.(*data.ZVal)
 }
 
-// EnsureGlobalsArray 返回本 VM 的 $GLOBALS 数组。
-func (vm *VM) EnsureGlobalsArray() *data.ObjectValue {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	if vm.globalsArray == nil {
-		vm.globalsArray = data.NewObjectValue()
+// EnsureGlobalsArray returns PHP's value snapshot; direct $GLOBALS dimensions
+// resolve through EnsureGlobalZVal and remain live lvalues.
+func (vm *VM) EnsureGlobalsArray() *data.ArrayValue {
+	slots := make([]*data.ZVal, 0)
+	add := func(name string, slot *data.ZVal) {
+		if slot == nil || !slot.Defined || name == "GLOBALS" {
+			return
+		}
+		if slot.RefCount() > 0 {
+			slot.AddRefSlot()
+			copy := data.CopyReferenceBucket(slot)
+			copy.Name = name
+			slots = append(slots, copy)
+		} else {
+			slots = append(slots, data.NewNamedZVal(name, data.CowAddRef(slot.ReadValue())))
+		}
 	}
-	return vm.globalsArray
+	vm.globalVars.Range(func(key, value any) bool { add(key.(string), value.(*data.ZVal)); return true })
+	return data.NewArrayValueFromSlots(slots)
 }
-
-// EnsureSessionArray 返回本 VM 的 $_SESSION 数组。
-func (vm *VM) EnsureSessionArray() *data.ObjectValue {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	if vm.sessionArray == nil {
-		vm.sessionArray = data.NewObjectValue()
+func (vm *VM) EnsureSessionArray() *data.ArrayValue {
+	slot := vm.EnsureGlobalZVal("_SESSION")
+	if !slot.Defined {
+		data.CowAssign(slot, data.NewArrayValueFromSlots(nil))
 	}
-	return vm.sessionArray
+	data.CowSeparateZVal(slot)
+	value, _ := slot.ReadValue().(*data.ArrayValue)
+	return value
 }
 
 // RegisterGlobalContext 将顶层 ctx 中的变量注册到全局变量表

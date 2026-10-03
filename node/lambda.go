@@ -37,7 +37,7 @@ func (f *LambdaExpression) RequestScopeObjects() []*data.ClassValue {
 		}
 		for _, slot := range lambda.capturedRefs {
 			if slot != nil {
-				visit(slot.Value)
+				visit(slot.ReadValue())
 			}
 		}
 	}
@@ -56,7 +56,7 @@ func (f *LambdaExpression) RequestScopeObjects() []*data.ClassValue {
 		case *data.ArrayValue:
 			for _, slot := range v.Range() {
 				if slot != nil {
-					visit(slot.Value)
+					visit(slot.ReadValue())
 				}
 			}
 		case *data.FuncValue:
@@ -70,7 +70,7 @@ func (f *LambdaExpression) RequestScopeObjects() []*data.ClassValue {
 			}
 		case *data.ArraySlotRef:
 			if v.Slot != nil {
-				visit(v.Slot.Value)
+				visit(v.Slot.ReadValue())
 			}
 		}
 	}
@@ -89,7 +89,11 @@ func (f *LambdaExpression) BindRequestCapture(scope *data.RequestCaptureScope) d
 	clone := *f
 	scope.RememberClosure(f, &clone)
 	if owner, ok := f.ctx.(*data.ClassMethodContext); ok && owner.ObjectValue != nil {
-		if scoped := scope.Objects[owner.ObjectValue]; scoped != nil {
+		scoped := scope.Objects[owner.ObjectValue]
+		if scoped == nil && scope.ScopeObject != nil && !f.IsStatic {
+			scoped = scope.ScopeObject(owner.ClassValue)
+		}
+		if scoped != nil {
 			clone.ctx = data.WrapMethodFrame(scope.Context.CreateBaseContext(), scoped, owner.SelfClass, owner.StaticClass)
 		}
 	}
@@ -163,7 +167,7 @@ func (f *LambdaExpression) GetStaticVariables() map[string]data.Value {
 		var value data.Value
 		if f.capturedRefs != nil {
 			if zv, ok := f.capturedRefs[childIndex]; ok && zv != nil {
-				value = zv.Value
+				value = zv.ReadValue()
 			}
 		}
 		if value == nil && f.captured != nil {
@@ -189,8 +193,17 @@ func (f *LambdaExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	// 必须在 GetValue 时固定引用槽：父函数返回后 Context 可能被还回 pool 并复用，
 	// 调用时再 GetIndexZVal 会读到别的帧（Laravel FilesystemServiceProvider::serveFiles
 	// 的 booted 回调里 $served[$uri] = $disk 因此失败）。
-	// 闭包持有定义处 ctx（$this / self::），该帧禁止回收。
-	markContextEscaped(ctx)
+	// Retain lexical/object identity without retaining the caller's locals.
+	// Captured values and independent reference buckets own their lifetimes.
+	definition := ctx.CreateBaseContext()
+	if owner, ok := ctx.(*data.ClassMethodContext); ok {
+		if owner.ObjectValue == nil {
+			definition = data.NewStaticMethodContext(definition, owner.SelfClass, owner.StaticClass)
+		} else {
+			definition = data.WrapMethodFrame(definition, owner.ClassValue, owner.SelfClass, owner.StaticClass)
+		}
+	}
+	markContextEscaped(definition)
 	captured := make(map[int]data.Value, len(f.parent))
 	capturedRefs := make(map[int]*data.ZVal, len(f.parent))
 	for cID, pID := range f.parent {
@@ -207,7 +220,8 @@ func (f *LambdaExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 				zv = data.NewNamedZValSlot(name)
 				ctx.SetIndexZVal(pID, zv)
 			}
-			capturedRefs[cID] = zv
+			zv.AddRefSlot()
+			capturedRefs[cID] = data.CopyReferenceBucket(zv)
 			continue
 		}
 		v, ok := ctx.GetIndexValue(pID)
@@ -228,7 +242,7 @@ func (f *LambdaExpression) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			StrictTypes:      f.StrictTypes,
 			ReturnsReference: f.ReturnsReference,
 		},
-		ctx:            ctx,
+		ctx:            definition,
 		parent:         f.parent,
 		captured:       captured,
 		capturedRefs:   capturedRefs,
@@ -264,8 +278,10 @@ func (f *LambdaExpression) Call(ctx data.Context) (data.GetValue, data.Control) 
 		inner = bc.Context
 	}
 	execCtx := inner
+	var borrowed *data.ClassMethodContext
 	if defineClassCtx, ok := f.ctx.(*data.ClassMethodContext); ok && !f.IsStatic {
-		execCtx = data.WrapMethodFrame(inner, defineClassCtx.ClassValue, defineClassCtx.SelfClass, defineClassCtx.StaticClass)
+		borrowed = data.WrapMethodFrame(inner, defineClassCtx.ClassValue, defineClassCtx.SelfClass, defineClassCtx.StaticClass)
+		execCtx = borrowed
 	} else if f.IsStatic {
 		if defineClassCtx, ok := f.ctx.(*data.ClassMethodContext); ok {
 			cmc := data.NewStaticMethodContext(inner, defineClassCtx.Class, defineClassCtx.StaticClass)
@@ -279,7 +295,11 @@ func (f *LambdaExpression) Call(ctx data.Context) (data.GetValue, data.Control) 
 				cmc.SelfClass = defineClassCtx.Class
 			}
 			execCtx = cmc
+			borrowed = cmc
 		}
+	}
+	if borrowed != nil {
+		defer borrowed.ReleaseBorrowedFrame()
 	}
 	// BoundContext 处理：
 	// - ExplicitBind（Closure::bind/bindTo）：始终应用，可覆盖定义时的 $this。
@@ -303,13 +323,13 @@ func (f *LambdaExpression) Call(ctx data.Context) (data.GetValue, data.Control) 
 		if _, isRef := f.vars[cID].(*VariableReference); isRef {
 			if f.capturedRefs != nil {
 				if zv, ok := f.capturedRefs[cID]; ok && zv != nil {
-					execCtx.SetIndexZVal(f.vars[cID].GetIndex(), zv)
+					data.BindContextReference(execCtx, f.vars[cID].GetIndex(), zv)
 					continue
 				}
 			}
 			if f.ctx != nil {
 				if parentZVal := f.ctx.GetIndexZVal(pID); parentZVal != nil {
-					execCtx.SetIndexZVal(f.vars[cID].GetIndex(), parentZVal)
+					data.BindContextReference(execCtx, f.vars[cID].GetIndex(), parentZVal)
 				}
 			}
 			continue
@@ -362,8 +382,8 @@ func (f *LambdaExpression) Call(ctx data.Context) (data.GetValue, data.Control) 
 				if f.Ret == data.TypeVoid {
 					return data.NewNullValue(), nil
 				}
-				if f.Ret != nil {
-					prepared, ok, conversion := data.PrepareTypedValueInContext(f.Ret, ret, execCtx)
+				if f.Ret != data.TypeInvalid {
+					prepared, ok, conversion := data.PrepareDeclaredValueInContext(f.Ret, ret, execCtx)
 					if conversion != nil {
 						return nil, data.ReturnTypeError(f.from, fmt.Errorf("closure return type must be %s", f.Ret.String()), conversion)
 					}
@@ -404,7 +424,7 @@ func (f *LambdaExpression) Call(ctx data.Context) (data.GetValue, data.Control) 
 	}
 
 	persistStaticLocals(execCtx, f.vars)
-	if !data.AllowsImplicitReturn(f.Ret) {
+	if !(f.Ret == data.TypeInvalid || f.Ret == data.TypeVoid) {
 		return nil, data.NewTypeError(f.from, fmt.Errorf("closure must return a value"))
 	}
 	// PHP：普通闭包没有 return 时返回 null。箭头函数 fn() => expr 由解析器包成 return。

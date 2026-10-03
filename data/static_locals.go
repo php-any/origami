@@ -28,7 +28,7 @@ func (s *StaticLocals) Get(index int) (Value, bool) {
 	if !ok || z == nil {
 		return nil, false
 	}
-	return z.Value, true
+	return z.ReadValue(), true
 }
 
 func (s *StaticLocals) Slot(index int) *ZVal {
@@ -41,7 +41,7 @@ func (s *StaticLocals) Slot(index int) *ZVal {
 }
 
 func (s *StaticLocals) Init(index int, val Value) Value {
-	return s.EnsureSlot(index, val).Value
+	return s.EnsureSlot(index, val).ReadValue()
 }
 
 // EnsureSlot 返回（必要时创建）指定下标的共享 ZVal。递归调用必须共用此指针。
@@ -54,7 +54,7 @@ func (s *StaticLocals) EnsureSlot(index int, val Value) *ZVal {
 	if z, ok := s.Slots[index]; ok && z != nil {
 		return z
 	}
-	z := &ZVal{Value: val, Defined: true}
+	z := &ZVal{InitialValue: val, Defined: true}
 	s.Slots[index] = z
 	return z
 }
@@ -67,7 +67,7 @@ func (s *StaticLocals) Update(index int, val Value) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if z, ok := s.Slots[index]; ok && z != nil {
-		z.Value = val
+		z.StoreRaw(val)
 		z.Defined = true
 	}
 }

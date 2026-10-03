@@ -72,7 +72,7 @@ func phpFloatval(v data.Value) float64 {
 			return 0
 		}
 		return 1
-	case *data.ClassValue, *data.ObjectValue:
+	case *data.ClassValue:
 		return 1
 	case *data.StringValue:
 		return parseFloatvalString(t.Value)

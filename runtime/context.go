@@ -9,6 +9,8 @@ import (
 	"github.com/php-any/origami/parser"
 )
 
+type frameVariables struct{ slots []data.ZVal }
+
 var contextPool = sync.Pool{
 	New: func() any {
 		return &Context{}
@@ -23,6 +25,9 @@ type Context struct {
 
 	// 变量存储符号表
 	variables []*data.ZVal
+	// Only unescaped frames reuse their private bucket storage. Reference
+	// cells and closure captures live independently; reference returns retain the frame.
+	variableStorage *frameVariables
 
 	// 记录本次函数/方法调用时的实参表达式列表（用于 func_get_args 等）
 	callArgs []data.GetValue
@@ -93,14 +98,14 @@ func (c *Context) GetVariableValue(variable data.Variable) (data.Value, data.Con
 		}
 		return data.NewNullValue(), nil
 	}
-	return c.variables[variable.GetIndex()].Value, nil
+	return c.variables[variable.GetIndex()].ReadValue(), nil
 }
 
 func (c *Context) GetIndexValue(index int) (data.Value, bool) {
 	if index < 0 || index >= len(c.variables) {
 		return nil, false
 	}
-	return c.variables[index].Value, true
+	return c.variables[index].ReadValue(), true
 }
 
 func (c *Context) SetIndexZVal(index int, v *data.ZVal) {
@@ -116,6 +121,17 @@ func (c *Context) SetVariableValue(variable data.Variable, value data.Value) dat
 	if pl, ok := variable.(data.PropertyLvalue); ok {
 		return pl.SetValue(c, value)
 	}
+	if slot := c.variables[variable.GetIndex()]; slot.Guard() != nil {
+		switch value.(type) {
+		case *data.ReferenceValue, *data.ArraySlotRef, *data.IndexReferenceValue:
+		default:
+			prepared, ctl := slot.PrepareWrite(value, c)
+			if ctl != nil {
+				return ctl
+			}
+			value = prepared
+		}
+	}
 	switch v := value.(type) {
 	case *data.ReferenceValue:
 		if pl, ok := v.Val.(data.PropertyLvalue); ok {
@@ -129,17 +145,15 @@ func (c *Context) SetVariableValue(variable data.Variable, value data.Value) dat
 				if zv == nil {
 					zv = data.NewZVal(data.NewNullValue())
 				}
-				c.variables[variable.GetIndex()] = zv
+				data.BindContextReference(c, variable.GetIndex(), zv)
 				return nil
 			}
 		}
-		c.variables[variable.GetIndex()] = v.Ctx.GetIndexZVal(v.Val.GetIndex())
+		data.BindContextReference(c, variable.GetIndex(), v.Ctx.GetIndexZVal(v.Val.GetIndex()))
 	case *data.ArraySlotRef:
 		// &$array[] 语法：局部变量与数组元素共享 ZVal
 		if v.Slot != nil {
-			slot := v.Slot
-			slot.AddRefSlot()
-			c.variables[variable.GetIndex()] = slot
+			data.BindContextReference(c, variable.GetIndex(), v.Slot)
 		}
 	case *data.IndexReferenceValue:
 		if ie, ok := v.Expr.(*node.IndexExpression); ok {
@@ -148,23 +162,17 @@ func (c *Context) SetVariableValue(variable data.Variable, value data.Value) dat
 				return ctl
 			}
 			if zv != nil {
-				c.variables[variable.GetIndex()] = zv
+				data.BindContextReference(c, variable.GetIndex(), zv)
 			}
 		}
 	case *data.ArrayValue:
 		zv := c.variables[variable.GetIndex()]
-		zv.Value = data.CloneArrayValue(v)
+		data.CowAssign(zv, v)
 		zv.Defined = true
-	case *data.ObjectValue:
-		// PHP 中 array 是按值赋值 + copy-on-write。
-		// 在 Origami 里，关联数组可能由 ObjectValue 表示，这里也做一次结构级克隆，
-		// 避免 `$b = $this->a; $b['k']=...` 反向修改到 `$this->a`（Symfony InputDefinition::$arguments 等场景）。
-		zv := c.variables[variable.GetIndex()]
-		zv.Value = data.CloneObjectValue(v)
-		zv.Defined = true
+
 	default:
 		idx := variable.GetIndex()
-		c.variables[idx].Value = value
+		c.variables[idx].StoreRaw(value)
 		c.variables[idx].Defined = true
 	}
 
@@ -198,20 +206,26 @@ func (c *Context) resetVariables(vars []data.Variable) {
 		c.variables = c.variables[:0]
 		return
 	}
-	// 只复用 slice 头，每个槽仍是全新 ZVal。禁止原地改旧 ZVal：
-	// 引用返回、闭包、数组元素可能仍持有上一帧的指针。
 	if cap(c.variables) < n {
-		c.variables = make([]*data.ZVal, n)
+		capacity := max(n, 2*cap(c.variables))
+		c.variables = make([]*data.ZVal, n, capacity)
 	} else {
 		c.variables = c.variables[:n]
 	}
-	// 一次连续分配 n 个 ZVal，再把指针填进槽位（分配次数从 n 降到 1）。
-	block := make([]data.ZVal, n)
+	if c.variableStorage == nil {
+		c.variableStorage = &frameVariables{slots: make([]data.ZVal, n)}
+	} else if cap(c.variableStorage.slots) < n {
+		capacity := max(n, 2*cap(c.variableStorage.slots))
+		c.variableStorage.slots = make([]data.ZVal, n, capacity)
+	} else {
+		c.variableStorage.slots = c.variableStorage.slots[:n]
+	}
+	block := c.variableStorage.slots
 	nullV := data.NewNullValue()
 	for i := 0; i < n; i++ {
 		z := &block[i]
 		z.Name = vars[i].GetName()
-		z.Value = nullV
+		z.StoreRaw(nullV)
 		c.variables[i] = z
 	}
 }
@@ -240,7 +254,16 @@ func (c *Context) ReleasePooled() {
 	c.retSlot.V = nil
 	c.namespace = ""
 	for i := range c.variables {
+		c.variables[i].ReleaseRefSlot()
 		c.variables[i] = nil
+	}
+	if c.variableStorage != nil {
+		clear(c.variableStorage.slots)
+		if cap(c.variableStorage.slots) > 256 {
+			c.variableStorage = nil
+		} else {
+			c.variableStorage.slots = c.variableStorage.slots[:0]
+		}
 	}
 	c.variables = c.variables[:0]
 	contextPool.Put(c)
@@ -518,7 +541,7 @@ func makeSliceVariable(i int) []*data.ZVal {
 	block := make([]data.ZVal, i)
 	nullV := data.NewNullValue()
 	for j := range l {
-		block[j].Value = nullV
+		block[j].StoreRaw(nullV)
 		l[j] = &block[j]
 	}
 	return l
@@ -537,7 +560,7 @@ func makeSliceVariableWithNames(vars []data.Variable) []*data.ZVal {
 		if vars[i] != nil {
 			block[i].Name = vars[i].GetName()
 		}
-		block[i].Value = nullV
+		block[i].StoreRaw(nullV)
 		l[i] = &block[i]
 	}
 	return l
@@ -550,11 +573,10 @@ func (c *Context) SetVariableByName(name string, value data.Value) {
 		if zv != nil && zv.Name == name {
 			switch v := value.(type) {
 			case *data.ArrayValue:
-				zv.Value = data.CloneArrayValue(v)
-			case *data.ObjectValue:
-				zv.Value = data.CloneObjectValue(v)
+				data.CowAssign(zv, v)
+
 			default:
-				zv.Value = value
+				zv.StoreRaw(value)
 			}
 			zv.Defined = true
 			return
@@ -563,9 +585,8 @@ func (c *Context) SetVariableByName(name string, value data.Value) {
 	var stored data.Value = value
 	switch v := value.(type) {
 	case *data.ArrayValue:
-		stored = data.CloneArrayValue(v)
-	case *data.ObjectValue:
-		stored = data.CloneObjectValue(v)
+		stored = data.CowAddRef(v)
+
 	}
 	c.variables = append(c.variables, data.NewNamedZVal(name, stored))
 }
@@ -574,7 +595,7 @@ func (c *Context) SetVariableByName(name string, value data.Value) {
 func (c *Context) GetVariableByName(name string) (data.Value, bool) {
 	for _, zv := range c.variables {
 		if zv != nil && zv.Name == name {
-			return zv.Value, true
+			return zv.ReadValue(), true
 		}
 	}
 	return nil, false
@@ -596,10 +617,20 @@ func (c *Context) GetDefinedVariables() map[string]data.Value {
 	result := make(map[string]data.Value)
 	for _, zv := range c.variables {
 		if zv != nil && zv.Name != "" && zv.Defined {
-			result[zv.Name] = zv.Value
+			result[zv.Name] = zv.ReadValue()
 		}
 	}
 	return result
+}
+
+func (c *Context) RangeDefinedVariables(visit func(string, data.Value) bool) {
+	for _, slot := range c.variables {
+		if slot != nil && slot.Name != "" && slot.Defined {
+			if !visit(slot.Name, slot.ReadValue()) {
+				return
+			}
+		}
+	}
 }
 
 // NewContextToDo 不实现具体功能的上下文

@@ -51,8 +51,8 @@ func buildVM() (*runtime.VM, *parser.Parser) {
 	websocket.Load(vm)
 	netannotation.Load(vm)
 	system.Load(vm)
-	// vendoraccel.Load 内部会调 std/laravel.Load，后者带上
-	// Illuminate\Foundation\Http\Kernel（std/laravel/httpkernel）与 ServeCommand（std/laravel/serve）。
+	// Vendor substitutions require a complete contract; uncertified definitions
+	// use Composer PHP. ServeCommand is the explicit Go HTTP/process adapter.
 	vendoraccel.Load(vm)
 
 	return vm, p

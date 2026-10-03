@@ -121,16 +121,12 @@ func optionMap(v data.Value) map[string]data.Value {
 	case *data.ArrayValue:
 		for arraySlots30, arrayPosition30 := t.View(), 0; arrayPosition30 < arraySlots30.Len(); arrayPosition30++ {
 			z := arraySlots30.At(arrayPosition30)
-			if z == nil || z.Value == nil || z.Name == "" {
+			if z == nil || z.ReadValue() == nil || z.Name == "" {
 				continue
 			}
-			out[z.Name] = z.Value
+			out[z.Name] = z.ReadValue()
 		}
-	case *data.ObjectValue:
-		t.RangeProperties(func(k string, val data.Value) bool {
-			out[k] = val
-			return true
-		})
+
 	}
 	return out
 }

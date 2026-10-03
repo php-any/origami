@@ -38,7 +38,16 @@ func (f *FileGetContentsFunction) Call(ctx data.Context) (data.GetValue, data.Co
 		return data.NewBoolValue(false), nil
 	}
 
-	if filePath == "php://input" || strings.HasPrefix(filePath, "php://input") {
+	if filePath == "php://input" {
+		if body, http, err := node.HTTPInputBody(ctx); http {
+			if err != nil {
+				if ctx.GoContext().Err() != nil {
+					panic(data.ErrRequestCanceled)
+				}
+				return data.NewBoolValue(false), nil
+			}
+			return data.NewStringValue(string(body)), nil
+		}
 		return data.NewStringValue(core.PhptInputBody()), nil
 	}
 

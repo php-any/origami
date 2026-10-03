@@ -41,7 +41,7 @@ $r2 = (static function () use ($viewAfter) {
 if ($r2[0] !== true) {
     \Log::fatal('?? 前 isset 应为 true: '.var_export($r2, true));
 }
-if ($r2[1] !== true || $r2[2] !== 'class') {
+if ($r2[1] !== true || $r2[2] !== 'object') {
     \Log::fatal('?? 后不应丢掉对象: '.var_export($r2, true));
 }
 

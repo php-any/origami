@@ -3,7 +3,6 @@ package node
 import (
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/php-any/origami/data"
 )
@@ -32,7 +31,14 @@ func NewCallExpression(token *TokenFrom, fn string, arguments []data.GetValue, f
 
 // GetValue 获取函数调用表达式的值
 func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	fn := pe.Fun
+	return callValue(pe.GetReferenceValue(ctx))
+}
+
+func (pe *CallExpression) GetReferenceValue(ctx data.Context) (data.GetValue, data.Control) {
+	return pe.invoke(ctx, pe.Fun)
+}
+
+func (pe *CallExpression) invoke(ctx data.Context, fn data.FuncStmt) (data.GetValue, data.Control) {
 	// PHP 8.1 一等函数可调用语法：strlen(...) 返回 Closure，不执行函数。
 	if isFirstClassCallableArgs(pe.Args) {
 		return data.NewFuncValue(fn), nil
@@ -67,6 +73,13 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 		return finishPooledCall(fn, allocated, ctx, ret, ctl)
 	}
 
+	if hasReferenceParameters(params) {
+		if ctl := bindReferenceCall(fnCtx, ctx, params, arguments, nil); ctl != nil {
+			return finishPooledCall(fn, allocated, ctx, nil, ctl)
+		}
+		ret, ctl := fn.Call(fnCtx)
+		return finishPooledCall(fn, allocated, ctx, ret, ctl)
+	}
 	// 简单函数 + 展开参数的快速通道：所有形参都是普通 Parameter，且存在 SpreadArgument
 	simpleParams := true
 	for _, p := range params {
@@ -84,51 +97,11 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 			}
 		}
 		if hasSpread {
-			// 按调用实参顺序，将普通参数与 ...expr 展平成一维数组，然后依次绑定到形参
-			var flat []data.Value
-			for _, arg := range arguments {
-				if spread, ok := arg.(*SpreadArgument); ok {
-					// first-class callable 场景（Expr==nil）退回通用路径
-					if spread.Expr == nil {
-						hasSpread = false
-						break
-					}
-					spreadVal, acl := spread.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					if spreadVal == nil {
-						continue
-					}
-					vals, spreadCtl := spreadToValues(ctx, spreadVal)
-					if spreadCtl != nil {
-						return nil, spreadCtl
-					}
-					flat = append(flat, vals...)
-				} else {
-					v, acl := arg.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					if v == nil {
-						flat = append(flat, data.NewNullValue())
-					} else if val, ok := v.(data.Value); ok {
-						flat = append(flat, val)
-					}
-				}
+			if ctl := bindReferenceCall(fnCtx, ctx, params, arguments, nil); ctl != nil {
+				return finishPooledCall(fn, allocated, ctx, nil, ctl)
 			}
-
-			if hasSpread {
-				for i := 0; i < len(params) && i < len(flat) && i < len(varies); i++ {
-					if ctl := params[i].(*Parameter).SetValue(fnCtx, flat[i]); ctl != nil {
-						return finishPooledCall(fn, allocated, ctx, nil, ctl)
-					}
-				}
-				fnCtx.SetCallArgs(pe.Args)
-				fnCtx.SetFlatCallArgs(flat)
-				ret, ctl := fn.Call(fnCtx)
-				return finishPooledCall(fn, allocated, ctx, ret, ctl)
-			}
+			ret, ctl := fn.Call(fnCtx)
+			return finishPooledCall(fn, allocated, ctx, ret, ctl)
 		}
 	}
 
@@ -227,56 +200,58 @@ func (pe *CallExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 }
 
 func NewCallTodo(call *CallExpression, namespace string) *CallLater {
-	return &CallLater{
+	later := &CallLater{
 		CallExpression: call,
 		namespace:      namespace,
+		functionID:     data.Symbols.Intern(call.FunName),
 	}
+	if namespace != "" {
+		later.namespaceID = data.Symbols.Intern(namespace + "\\" + call.FunName)
+	}
+	return later
 }
 
 // CallLater 未确认的函数调用
 type CallLater struct {
 	*CallExpression
-	namespace string
-	resolveMu sync.Mutex
-	resolved  resolvedFlag // 命中时跳过 resolveMu，见 resolvedFlag
+	namespace               string
+	functionID, namespaceID data.SymbolID
 }
 
 func (pe *CallLater) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	if !pe.resolved.Done() {
-		if acl := pe.resolveFun(ctx); acl != nil {
-			return nil, acl
-		}
-	}
-	return pe.CallExpression.GetValue(ctx)
+	return callValue(pe.GetReferenceValue(ctx))
 }
 
-// resolveFun 把 FunName 解析成具体函数并缓存；同一调用点一生只解析一次。
-func (pe *CallLater) resolveFun(ctx data.Context) data.Control {
-	pe.resolveMu.Lock()
-	defer pe.resolveMu.Unlock()
-	if pe.Fun != nil {
-		pe.resolved.MarkDone()
-		return nil
+func (pe *CallLater) GetReferenceValue(ctx data.Context) (data.GetValue, data.Control) {
+	fn, ctl := pe.resolveFun(ctx)
+	if ctl != nil {
+		return nil, ctl
 	}
+	return pe.invoke(ctx, fn)
+}
 
-	fn, ok := ctx.GetVM().GetFunc(pe.FunName)
-	if !ok {
-		fn, ok = ctx.GetVM().GetFunc(pe.namespace + "\\" + pe.FunName)
-		if !ok {
-			namespace := ""
-			if pe.namespace != "" {
-				namespace = pe.namespace + "\\"
-			}
-
-			fn, ok = ctx.GetVM().GetFunc(namespace + pe.FunName)
-			if !ok {
-				return data.NewErrorThrow(pe.from, errors.New(fmt.Sprintf("无法调用函数(%s), 未找到函数", pe.FunName)))
+// Call sites retain only immutable symbol IDs. Resolution always uses the
+// executing VM, so cached programs cannot retain another request's function.
+func (pe *CallLater) resolveFun(ctx data.Context) (data.FuncStmt, data.Control) {
+	functions := ctx.GetVM()
+	if pe.functionID != 0 {
+		if pe.namespaceID != 0 {
+			if fn, found := functions.GetFuncBySymbol(pe.namespaceID); found {
+				return fn, nil
 			}
 		}
+		if fn, found := functions.GetFuncBySymbol(pe.functionID); found {
+			return fn, nil
+		}
+		return nil, data.NewErrorThrow(pe.from, fmt.Errorf("无法调用函数(%s), 未找到函数", pe.FunName))
 	}
-
-	pe.FunName = fn.GetName()
-	pe.Fun = fn
-	pe.resolved.MarkDone()
-	return nil
+	if pe.namespace != "" {
+		if fn, ok := functions.GetFunc(pe.namespace + "\\" + pe.FunName); ok {
+			return fn, nil
+		}
+	}
+	if fn, ok := functions.GetFunc(pe.FunName); ok {
+		return fn, nil
+	}
+	return nil, data.NewErrorThrow(pe.from, fmt.Errorf("无法调用函数(%s), 未找到函数", pe.FunName))
 }

@@ -30,6 +30,7 @@ import (
 type pdoState struct {
 	mu            sync.Mutex
 	db            *sql.DB // 共享池引用，close 时不 Close(db)
+	ownedDB       bool    // private SQLite memory databases close with their PDO
 	conn          *sql.Conn
 	tx            *sql.Tx
 	driverName    string
@@ -97,6 +98,9 @@ func (s *pdoState) release() {
 	if s.conn != nil {
 		_ = s.conn.Close() // database/sql：Close 把连接放回池
 		s.conn = nil
+	}
+	if s.ownedDB && s.db != nil {
+		_ = s.db.Close()
 	}
 	s.db = nil
 }
@@ -390,23 +394,30 @@ func (m *pdoConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	goDriver := phpDriverToGo(driver)
-	db, err2 := getSharedDB(goDriver, goDSN)
+	db, ownedDB, err2 := openPDODatabase(goDriver, goDSN)
 	if err2 != nil {
 		return nil, pdoException(err2.Error(), ctx)
 	}
 	// 从共享池借出一条连接；本 PDO 生命周期内所有 SQL 都走这条连接。
 	conn, connErr := db.Conn(ctx.GoContext())
 	if connErr != nil {
+		if ownedDB {
+			_ = db.Close()
+		}
 		return nil, pdoException(connErr.Error(), ctx)
 	}
 
 	cv := pdoGetClassValue(ctx)
 	if cv == nil {
 		_ = conn.Close() // 归还到池
+		if ownedDB {
+			_ = db.Close()
+		}
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("PDO::__construct() missing instance context"))
 	}
 	state := &pdoState{
 		db:            db,
+		ownedDB:       ownedDB,
 		conn:          conn,
 		driverName:    driver,
 		serverVersion: queryServerVersionConn(conn, driver),

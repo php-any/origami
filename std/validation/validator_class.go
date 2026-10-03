@@ -78,7 +78,7 @@ func (m *validatorValidateMethod) Call(ctx data.Context) (data.GetValue, data.Co
 	violations := ValidateObject(cv)
 	items := make([]data.Value, 0, len(violations))
 	for _, v := range violations {
-		item := data.NewObjectValue()
+		item := data.NewStdClassValue(nil)
 		item.SetProperty("field", data.NewStringValue(v.Field))
 		item.SetProperty("message", data.NewStringValue(v.Message))
 		items = append(items, item)

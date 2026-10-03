@@ -24,7 +24,7 @@ func (fn *ArrayWalkRecursiveFunction) Call(ctx data.Context) (data.GetValue, dat
 	}
 	data.CowSeparateZVal(arrZVal)
 
-	if ctl := walkRecursive(ctx, cbVal, userdata, arrZVal.Value); ctl != nil {
+	if ctl := walkRecursive(ctx, cbVal, userdata, arrZVal.ReadValue()); ctl != nil {
 		return nil, ctl
 	}
 	return data.NewBoolValue(true), nil
@@ -38,9 +38,9 @@ func walkRecursive(ctx data.Context, cbVal, userdata, val data.Value) data.Contr
 			if z == nil {
 				continue
 			}
-			if isNestedArrayValue(z.Value) {
-				z.Value = separateNestedWalkArray(z.Value)
-				if ctl := walkRecursive(ctx, cbVal, userdata, z.Value); ctl != nil {
+			if isNestedArrayValue(z.ReadValue()) {
+				z.StoreRaw(separateNestedWalkArray(z.ReadValue()))
+				if ctl := walkRecursive(ctx, cbVal, userdata, z.ReadValue()); ctl != nil {
 					return ctl
 				}
 				continue
@@ -51,31 +51,7 @@ func walkRecursive(ctx data.Context, cbVal, userdata, val data.Value) data.Contr
 			}
 		}
 		return nil
-	case *data.ObjectValue:
-		keys := make([]string, 0)
-		v.RangeProperties(func(key string, _ data.Value) bool {
-			keys = append(keys, key)
-			return true
-		})
-		for _, key := range keys {
-			zv, ctl := v.GetZVal(key)
-			if ctl != nil {
-				return ctl
-			}
-			if zv == nil {
-				continue
-			}
-			if isNestedArrayValue(zv.Value) {
-				if ctl := walkRecursive(ctx, cbVal, userdata, zv.Value); ctl != nil {
-					return ctl
-				}
-				continue
-			}
-			if ctl := invokeWalkCallback(ctx, cbVal, zv, data.NewStringValue(key), userdata); ctl != nil {
-				return ctl
-			}
-		}
-		return nil
+
 	default:
 		return nil
 	}
@@ -85,8 +61,7 @@ func separateNestedWalkArray(value data.Value) data.Value {
 	switch array := value.(type) {
 	case *data.ArrayValue:
 		return data.CloneArrayValue(array)
-	case *data.ObjectValue:
-		return data.CloneObjectValue(array)
+
 	default:
 		return value
 	}

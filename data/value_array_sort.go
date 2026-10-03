@@ -14,7 +14,7 @@ func (a *ArrayValueSort) Call(ctx Context) (GetValue, Control) {
 
 	// 使用字符串比较进行排序
 	sort.Slice(sortedArray, func(i, j int) bool {
-		return sortedArray[i].Value.AsString() < sortedArray[j].Value.AsString()
+		return sortedArray[i].ReadValue().AsString() < sortedArray[j].ReadValue().AsString()
 	})
 
 	// 更新原数组
@@ -23,7 +23,7 @@ func (a *ArrayValueSort) Call(ctx Context) (GetValue, Control) {
 	// 返回排序后的数组
 	values := make([]Value, len(sortedArray))
 	for i, zval := range sortedArray {
-		values[i] = zval.Value
+		values[i] = zval.ReadValue()
 	}
 	return NewArrayValue(values), nil
 }

@@ -50,28 +50,41 @@ func (n *CloneExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 		return nil, data.NewErrorThrow(n.from, fmt.Errorf("clone 关键字只能用于对象"))
 	}
 
+	if flags, ok := obj.Class.(interface{ DeclarationFlags() data.ClassFlags }); ok && flags.DeclarationFlags()&data.ClassEnum != 0 {
+		return nil, data.NewErrorThrowByName(n.from, fmt.Errorf("Trying to clone an uncloneable object of class %s", obj.Class.GetName()), "Error")
+	}
 	// 创建新实例，保持同一个类与上下文
 	cloned := data.NewClassValue(obj.Class, obj.Context)
 
 	// 复制实例属性。
 	// 数组/关联数组类型属性按值深度拷贝（含嵌套数组），与 PHP 克隆语义一致；
 	// 对象类型属性（含数组内对象）保持引用共享。
+	var copyControl data.Control
 	obj.RangeProperties(func(key string, v data.Value) bool {
+		if slot, ctl := obj.ObjectValue.GetZVal(key); ctl == nil && slot != nil && slot.RefCount() > 0 {
+			copyControl = cloned.BindPropertyReference(ctx, key, slot)
+			return copyControl == nil
+		}
 		switch val := v.(type) {
 		case *data.ArrayValue:
-			cloned.SetProperty(key, data.DeepCloneArrayValue(val))
-		case *data.ObjectValue:
-			cloned.SetProperty(key, data.DeepCloneObjectValue(val))
+			cloned.SetProperty(key, val)
+
 		default:
 			cloned.SetProperty(key, v)
 		}
 		return true
 	})
+	if copyControl != nil {
+		return nil, copyControl
+	}
 
 	// 如果类定义了 __clone 方法，则在新对象上调用它
 	if method, ok := cloned.GetMethod("__clone"); ok && method != nil {
 		varies := method.GetVariables()
-		fnCtx := cloned.CreateContext(varies)
+		state := &readonlyCloneState{object: cloned.ObjectValue, written: make(map[string]bool), active: true}
+		inner := newReadonlyCloneContext(ctx.CreateContext(varies), state)
+		fnCtx := data.WrapMethodFrame(inner, cloned, findDeclaringClassForMethod(ctx.GetVM(), cloned.Class, "__clone"), cloned.Class)
+		defer func() { state.active = false }()
 		// 记录调用参数（无参）
 		fnCtx.SetCallArgs([]data.GetValue{})
 

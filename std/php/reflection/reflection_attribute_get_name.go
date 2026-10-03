@@ -39,6 +39,9 @@ func (m *ReflectionAttributeGetNameMethod) GetReturnType() data.Types {
 // Call 执行 getName 方法
 // 返回属性（注解）的名称
 func (m *ReflectionAttributeGetNameMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	if annotation := reflectionAttributeDeclaration(ctx); annotation != nil {
+		return data.NewStringValue(annotation.Name), nil
+	}
 	annotationValue := getReflectionAttributeInfo(ctx)
 	if annotationValue == nil {
 		return data.NewStringValue(""), nil

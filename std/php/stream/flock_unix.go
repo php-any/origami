@@ -32,7 +32,7 @@ func applyFlock(file *os.File, op int) (bool, error) {
 	if !ok {
 		return false, syscall.EINVAL
 	}
-	err := syscall.Flock(int(file.Fd()), how)
+	err := syscall.Flock(int(fileDescriptor(file)), how)
 	if err != nil {
 		if op&LockNB != 0 && (err == syscall.EWOULDBLOCK || err == syscall.EAGAIN) {
 			return true, nil

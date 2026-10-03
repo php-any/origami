@@ -54,17 +54,10 @@ func arrayEntries(v data.Value) ([]arrayEntry, bool) {
 			} else if key == "" {
 				key = data.IntArrayKeyName(i)
 			}
-			entries = append(entries, arrayEntry{key: key, name: z.Name, value: z.Value, emptyStr: z.EmptyStrKey})
+			entries = append(entries, arrayEntry{key: key, name: z.Name, value: z.ReadValue(), emptyStr: z.EmptyStrKey})
 		}
 		return entries, true
-	case *data.ObjectValue:
-		entries := make([]arrayEntry, 0)
-		// 按插入顺序遍历，避免 Go map 顺序随机导致结果不稳定
-		val.RangeProperties(func(key string, prop data.Value) bool {
-			entries = append(entries, arrayEntry{key: key, name: key, value: prop})
-			return true
-		})
-		return entries, true
+
 	default:
 		return nil, false
 	}
@@ -198,14 +191,7 @@ func prependScalarToArray(scalar data.Value, entries []arrayEntry) data.Value {
 
 func deepCopyVal(v data.Value) data.Value {
 	switch val := v.(type) {
-	case *data.ObjectValue:
-		out := data.NewObjectValue()
-		// 按插入顺序遍历，避免 Go map 顺序随机
-		val.RangeProperties(func(k string, prop data.Value) bool {
-			out.SetProperty(k, deepCopyVal(prop))
-			return true
-		})
-		return out
+
 	case *data.ArrayValue:
 		list := make([]*data.ZVal, val.Len())
 		for arraySlots99, i := val.View(), 0; i < arraySlots99.Len(); i++ {
@@ -213,7 +199,7 @@ func deepCopyVal(v data.Value) data.Value {
 			if z == nil {
 				continue
 			}
-			copied := data.NewZVal(deepCopyVal(z.Value))
+			copied := data.NewZVal(deepCopyVal(z.ReadValue()))
 			copied.Name = z.Name
 			list[i] = copied
 		}

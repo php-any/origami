@@ -27,13 +27,23 @@ func backedEnumCalledClass(ctx data.Context) data.ClassStmt {
 	return nil
 }
 
-func collectBackedEnumCases(cls data.ClassStmt) []data.Value {
+func collectBackedEnumCases(ctx data.Context, cls data.ClassStmt) ([]data.Value, data.Control) {
 	cs, ok := cls.(*node.ClassStatement)
 	if !ok || cs == nil {
-		return nil
+		return nil, nil
 	}
 	enumName := cs.GetName()
 	var cases []data.Value
+	for _, name := range cs.EnumCases {
+		value, ctl := node.NewCallStaticProperty(nil, cls, name).GetValue(ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		cases = append(cases, value.(data.Value))
+	}
+	if len(cs.EnumCases) != 0 {
+		return cases, nil
+	}
 	cs.StaticProperty.Range(func(key, value any) bool {
 		name, _ := key.(string)
 		if name == "" {
@@ -52,7 +62,7 @@ func collectBackedEnumCases(cls data.ClassStmt) []data.Value {
 		cases = append(cases, cv)
 		return true
 	})
-	return cases
+	return cases, nil
 }
 
 func enumBackingValue(cv *data.ClassValue) data.Value {
@@ -89,7 +99,7 @@ func unwrapEnumValue(v data.Value) data.Value {
 			if x.ZVal == nil {
 				return nil
 			}
-			v = x.ZVal.Value
+			v = x.ZVal.ReadValue()
 		default:
 			return v
 		}
@@ -117,7 +127,11 @@ func backedEnumLookup(ctx data.Context, method string) (data.Value, data.Control
 	default:
 		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("%s::%s(): Argument #1 ($value) must be of type string|int, %T given", cls.GetName(), method, val), "TypeError")
 	}
-	for _, c := range collectBackedEnumCases(cls) {
+	cases, ctl := collectBackedEnumCases(ctx, cls)
+	if ctl != nil {
+		return nil, ctl
+	}
+	for _, c := range cases {
 		cv, ok := c.(*data.ClassValue)
 		if !ok {
 			continue
@@ -215,7 +229,11 @@ func (m *BackedEnumCasesMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 	if cls == nil {
 		return data.NewArrayValue(nil), nil
 	}
-	return data.NewArrayValue(collectBackedEnumCases(cls)), nil
+	cases, ctl := collectBackedEnumCases(ctx, cls)
+	if ctl != nil {
+		return nil, ctl
+	}
+	return data.NewArrayValue(cases), nil
 }
 func (m *BackedEnumCasesMethod) GetName() string            { return "cases" }
 func (m *BackedEnumCasesMethod) GetModifier() data.Modifier { return data.ModifierPublic }

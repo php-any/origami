@@ -20,27 +20,13 @@ func (f *ArrayFlipFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	case *data.ArrayValue:
 		for arraySlots89, idx := arr.View(), 0; idx < arraySlots89.Len(); idx++ {
 			zv := arraySlots89.At(idx)
-			if zv == nil || zv.Value == nil {
+			if zv == nil || zv.ReadValue() == nil {
 				continue
 			}
 			oldKey := zv.PHPArrayKey(idx)
-			pairs = append(pairs, [2]data.Value{zv.Value, oldKey})
+			pairs = append(pairs, [2]data.Value{zv.ReadValue(), oldKey})
 		}
-	case *data.ObjectValue:
-		// 关联数组在 Origami 中可能是 ObjectValue（如 Collection::all()）
-		arr.RangeProperties(func(key string, val data.Value) bool {
-			if val == nil {
-				return true
-			}
-			var oldKey data.Value
-			if i, ok := data.ParseIntArrayKeyName(key); ok {
-				oldKey = data.NewIntValue(i)
-			} else {
-				oldKey = data.NewStringValue(key)
-			}
-			pairs = append(pairs, [2]data.Value{val, oldKey})
-			return true
-		})
+
 	default:
 		return data.NewArrayValue([]data.Value{}), nil
 	}

@@ -1,11 +1,14 @@
 package spl
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
 
 func TestPhpPathJoinPreservesDotDot(t *testing.T) {
 	dir := "/vendor/laravel/telescope/src/../database/migrations"
 	got := phpPathJoin(dir, "2018_08_08_100000_create_telescope_entries_table.php")
-	want := "/vendor/laravel/telescope/src/../database/migrations/2018_08_08_100000_create_telescope_entries_table.php"
+	want := dir + string(os.PathSeparator) + "2018_08_08_100000_create_telescope_entries_table.php"
 	if got != want {
 		t.Fatalf("phpPathJoin = %q, want %q", got, want)
 	}

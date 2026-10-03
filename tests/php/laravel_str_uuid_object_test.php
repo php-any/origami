@@ -158,10 +158,10 @@ if (!preg_match($v4, (string) Str::uuid())) {
 Str::createUuidsNormally();
 
 // --- 11. 序列化载荷与上游 ramsey/uuid 一致 -------------------------------
-// 上游 __serialize() 返回 ['uuid' => $this->uid]，PHP 序列化结果就是
-// O:16:"Ramsey\Uuid\Uuid":1:{s:4:"uuid";s:36:"<uuid>";}
+// 上游 __serialize() 返回 ['bytes' => $this->serialize()]，PHP 序列化结果就是
+// O:16:"Ramsey\Uuid\Uuid":1:{s:5:"bytes";s:36:"<uuid>";}
 $ser = serialize(Str::uuid());
-if (!preg_match('/^O:16:"Ramsey\\\\Uuid\\\\Uuid":1:\{s:4:"uuid";s:36:"[0-9a-f-]{36}";\}$/', (string) $ser)) {
+if (!preg_match('/^O:16:"Ramsey\\\\Uuid\\\\Uuid":1:\{s:5:"bytes";s:36:"[0-9a-f-]{36}";\}$/', (string) $ser)) {
     Log::fatal('serialize 载荷: ' . $ser);
 }
 

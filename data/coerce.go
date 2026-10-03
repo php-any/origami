@@ -1,6 +1,7 @@
 package data
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -19,130 +20,70 @@ func PrepareTypedValueWithControl(ty Types, value Value) (Value, bool, Control) 
 	return PrepareTypedValueInContext(ty, value, nil)
 }
 
+// PrepareDeclaredValueInContext keeps compact declarations on the direct
+// runtime path. Storage wrappers retain their reference identity.
+func PrepareDeclaredValueInContext(ref TypeRef, value Value, ctx Context) (Value, bool, Control) {
+	if value == nil {
+		value = NewNullValue()
+	}
+	switch value.(type) {
+	case *ZValValue, *ReferenceValue, *ArraySlotRef:
+		return PrepareTypedValueInContext(DeclaredType(ref), value, ctx)
+	}
+	return declarationTypes.Prepare(ref, value, ctx)
+}
+
 // PrepareTypedValueInContext checks declared values in the active PHP unit.
 // Exact matches do not read the context flag; strict mode only affects coercion.
 func PrepareTypedValueInContext(ty Types, value Value, ctx Context) (Value, bool, Control) {
 	if value == nil {
 		value = NewNullValue()
 	}
-	if zv, ok := value.(*ZValValue); ok {
-		if zv.ZVal == nil {
-			return value, ty == nil, nil
+	if source, ctl := ReferenceSlot(value); source != nil || ctl != nil {
+		if ctl != nil {
+			return nil, false, ctl
 		}
-		inner := zv.ZVal.Value
+		inner := source.ReadValue()
 		if inner == nil {
 			inner = NewNullValue()
 		}
-		prepared, ok, ctl := PrepareTypedValueInContext(ty, inner, ctx)
-		if ctl != nil {
-			return nil, false, ctl
-		}
-		if !ok {
-			return nil, false, nil
-		}
-		zv.ZVal.Value = prepared
-		return value, true, nil
-	}
-	if ty == nil {
-		return value, true, nil
-	}
-	// Type declarations apply to the referenced value while preserving the
-	// reference identity returned by a by-reference function.
-	switch ref := value.(type) {
-	case *ReferenceValue:
-		inner, ctl := ref.Val.GetValue(ref.Ctx)
-		if ctl != nil {
-			return nil, false, ctl
-		}
-		prepared, accepted, ctl := PrepareTypedValueInContext(ty, inner.(Value), ctx)
+		prepared, accepted, ctl := PrepareTypedValueInContext(ty, inner, ctx)
 		if ctl != nil || !accepted {
 			return nil, accepted, ctl
 		}
-		if prepared != inner {
-			if ctl := ref.Val.SetValue(ref.Ctx, prepared); ctl != nil {
+		if source.Guard() != nil {
+			checked, guardControl := source.PrepareWrite(prepared, ctx)
+			ctl = guardControl
+			if ctl != nil {
 				return nil, false, ctl
 			}
-		}
-		return value, true, nil
-	case *ArraySlotRef:
-		if ref.Slot == nil {
-			return nil, false, nil
-		}
-		prepared, accepted, ctl := PrepareTypedValueInContext(ty, ref.Slot.Value, ctx)
-		if ctl != nil || !accepted {
-			return nil, accepted, ctl
-		}
-		if prepared != ref.Slot.Value {
-			CowAssign(ref.Slot, prepared)
-		}
-		return value, true, nil
-	}
-	if ref, ok := ty.(TypeRef); ok {
-		return declarationTypes.Prepare(ref, value, ctx)
-	}
-	if ty.Is(value) {
-		return value, true, nil
-	}
-	if ctx != nil && ctx.StrictTypes() {
-		if integer, ok := value.(*IntValue); ok && hasFloatType(ty) {
-			return NewFloatValue(float64(integer.Value)), true, nil
-		}
-		return nil, false, nil
-	}
-	return coerceToType(ty, value)
-}
-
-func hasFloatType(ty Types) bool {
-	switch t := ty.(type) {
-	case Float:
-		return true
-	case NullableType:
-		return hasFloatType(t.BaseType)
-	case UnionType:
-		for _, member := range t.Types {
-			if hasFloatType(member) {
-				return true
+			if !samePreparedReferenceValue(prepared, checked) {
+				return nil, false, NewTypeError(nil, fmt.Errorf("Reference argument type is incompatible with its property constraints"))
 			}
 		}
+		if prepared != inner {
+			CowAssign(source, prepared)
+		}
+		return value, true, nil
 	}
-	return false
+	// Legacy declarations are normalized only at this compatibility boundary.
+	// Exact matching and weak/strict coercion use the same compact checker.
+	return declarationTypes.Prepare(DeclaredTypeRef(ty), value, ctx)
 }
 
-func coerceToType(ty Types, value Value) (Value, bool, Control) {
-	switch t := ty.(type) {
-	case NullableType:
-		return PrepareTypedValueWithControl(t.BaseType, value)
-	case UnionType:
-		return coerceUnionValue(t, value)
-	case IntersectionType:
-		if t.Is(value) {
-			return value, true, nil
+func coerceToBoolValue(value Value) (Value, bool, Control) {
+	switch value.(type) {
+	case *IntValue, *FloatValue, *StringValue:
+		b, err := value.(AsBool).AsBool()
+		if err == nil {
+			return NewBoolValue(b), true, nil
 		}
-		return nil, false, nil
-	case Int:
-		prepared, ok := coerceToIntValue(value)
-		return prepared, ok, nil
-	case Float:
-		prepared, ok := coerceToFloatValue(value)
-		return prepared, ok, nil
-	case Bool:
-		switch value.(type) {
-		case *IntValue, *FloatValue, *StringValue:
-			b, err := value.(AsBool).AsBool()
-			if err == nil {
-				return NewBoolValue(b), true, nil
-			}
-		}
-		return nil, false, nil
-	case String:
-		return coerceToStringValue(value)
-	default:
-		return nil, false, nil
 	}
+	return nil, false, nil
 }
 
 // PHP 弱类型：string 参数接受 int/float/bool，以及实现 __toString 的对象。
-func coerceToStringValue(value Value) (Value, bool, Control) {
+func coerceToStringValue(value Value, ctx Context) (Value, bool, Control) {
 	switch v := value.(type) {
 	case *StringValue:
 		return v, true, nil
@@ -156,15 +97,17 @@ func coerceToStringValue(value Value) (Value, bool, Control) {
 		}
 		return NewStringValue(""), true, nil
 	case *ThisValue:
-		return objectToStringValue(v.ClassValue)
+		return ObjectToStringValue(v.ClassValue, ctx)
 	case *ClassValue:
-		return objectToStringValue(v)
+		return ObjectToStringValue(v, ctx)
 	default:
 		return nil, false, nil
 	}
 }
 
-func objectToStringValue(obj *ClassValue) (Value, bool, Control) {
+// ObjectToStringValue invokes __toString in its declaration scope and the
+// caller's request. Explicit string contexts do not apply strict_types coercion.
+func ObjectToStringValue(obj *ClassValue, ctx Context) (Value, bool, Control) {
 	if obj == nil {
 		return nil, false, nil
 	}
@@ -172,7 +115,18 @@ func objectToStringValue(obj *ClassValue) (Value, bool, Control) {
 	if !ok || toStr == nil {
 		return nil, false, nil
 	}
-	fnCtx := obj.CreateContext(toStr.GetVariables())
+	if ctx == nil {
+		ctx = obj.Context
+	}
+	vm := ctx.GetVM()
+	if obj.GetVM() != vm {
+		if provider, ok := vm.(RequestScopeProvider); ok {
+			obj = provider.RequestObjectScope().Object(obj)
+		}
+	}
+	self := MethodDeclaringClass(vm, obj.Class, "__toString")
+	fnCtx := WrapMethodFrame(ctx.CreateContext(toStr.GetVariables()), obj, self, obj.Class)
+	defer fnCtx.ReleasePooled()
 	fnCtx.SetCallArgs([]GetValue{})
 	val, ctl := toStr.Call(fnCtx)
 	if ctl != nil {
@@ -186,7 +140,7 @@ func objectToStringValue(obj *ClassValue) (Value, bool, Control) {
 	}
 	switch v := val.(type) {
 	case *IntValue, *FloatValue, *BoolValue:
-		return coerceToStringValue(v.(Value))
+		return coerceToStringValue(v.(Value), ctx)
 	}
 	return nil, false, nil
 }
@@ -254,24 +208,7 @@ func coerceToFloatValue(value Value) (Value, bool) {
 // PHP union coercion prefers int, float, string, bool independently of source
 // declaration order. Numeric strings prefer float if both numeric members exist
 // and the string has decimal/exponent syntax. Exact members were checked first.
-func coerceUnionValue(ty UnionType, value Value) (Value, bool, Control) {
-	var kinds uint8
-	for _, member := range ty.Types {
-		switch member.(type) {
-		case Int:
-			kinds |= 1
-		case Float:
-			kinds |= 2
-		case String:
-			kinds |= 4
-		case Bool:
-			kinds |= 8
-		}
-	}
-	return coerceScalarKinds(kinds, value)
-}
-
-func coerceScalarKinds(kinds uint8, value Value) (Value, bool, Control) {
+func coerceScalarKinds(kinds uint8, value Value, ctx Context) (Value, bool, Control) {
 	if kinds&3 == 3 {
 		if str, ok := value.(*StringValue); ok {
 			if text, numeric := numericTypeText(str.Value); numeric {
@@ -294,14 +231,14 @@ func coerceScalarKinds(kinds uint8, value Value) (Value, bool, Control) {
 		}
 	}
 	if kinds&4 != 0 {
-		if prepared, ok, ctl := coerceToStringValue(value); ctl != nil {
+		if prepared, ok, ctl := coerceToStringValue(value, ctx); ctl != nil {
 			return nil, false, ctl
 		} else if ok {
 			return prepared, true, nil
 		}
 	}
 	if kinds&8 != 0 {
-		if prepared, ok, ctl := coerceToType(Bool{}, value); ctl != nil {
+		if prepared, ok, ctl := coerceToBoolValue(value); ctl != nil {
 			return nil, false, ctl
 		} else if ok {
 			return prepared, true, nil

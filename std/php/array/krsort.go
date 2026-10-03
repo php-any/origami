@@ -1,7 +1,6 @@
 package array
 
 import (
-	"sort"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -31,43 +30,6 @@ func (f *KrsortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 			flags, _ = flag.AsInt()
 		}
 		sortArrayKeys(v, flags, true)
-		return data.NewBoolValue(true), nil
-
-	case *data.ObjectValue:
-		props := v.GetProperties()
-		if len(props) == 0 {
-			return data.NewBoolValue(true), nil
-		}
-
-		keys := make([]string, 0, len(props))
-		for k := range props {
-			keys = append(keys, k)
-		}
-
-		flags := 0
-		if flagsValue != nil {
-			if intVal, ok := flagsValue.(*data.IntValue); ok {
-				flags, _ = intVal.AsInt()
-			}
-		}
-
-		sort.Slice(keys, func(i, j int) bool {
-			switch flags {
-			case 1: // SORT_NUMERIC
-				return keys[i] > keys[j]
-			case 2: // SORT_STRING
-				fallthrough
-			default: // SORT_REGULAR
-				return keys[i] > keys[j]
-			}
-		})
-
-		newObj := data.NewObjectValue()
-		for _, k := range keys {
-			newObj.SetProperty(k, props[k])
-		}
-		*v = *newObj
-
 		return data.NewBoolValue(true), nil
 
 	default:

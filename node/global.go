@@ -43,7 +43,7 @@ func (g *GlobalStatement) GetValue(ctx data.Context) (data.GetValue, data.Contro
 		// 获取（或创建）全局变量的 ZVal
 		globalZVal := provider.EnsureGlobalZVal(name)
 		// 将本地 ctx 的该 slot 替换为全局 ZVal，实现共享
-		ctx.SetIndexZVal(localIndex, globalZVal)
+		data.BindContextReference(ctx, localIndex, globalZVal)
 	}
 
 	return nil, nil

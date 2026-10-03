@@ -23,10 +23,10 @@ func (h *RequestHeaderMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 
 	// 如果没有参数，返回所有请求头
 	if !hasKey {
-		result := data.NewObjectValue()
+		result := data.NewArrayValue(nil).(*data.ArrayValue)
 		for key, values := range h.source.Header {
 			if len(values) > 0 {
-				result.SetProperty(key, data.NewStringValue(values[0]))
+				result.SetStringKey(key, data.NewStringValue(values[0]))
 			}
 		}
 		return result, nil

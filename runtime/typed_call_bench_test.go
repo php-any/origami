@@ -49,7 +49,12 @@ func TestTypeModeStorageSize(t *testing.T) {
 		t.Skip("amd64 storage comparison")
 	}
 	t.Logf("Context=%d TokenFrom=%d", unsafe.Sizeof(Context{}), unsafe.Sizeof(node.TokenFrom{}))
-	if unsafe.Sizeof(Context{}) > 152 || unsafe.Sizeof(node.TokenFrom{}) > 56 {
+	// One pointer owns reusable buckets; type mode still uses existing padding.
+	// The 160-byte frame stays in the same allocation size class as 152 bytes.
+	if unsafe.Sizeof(Context{}) > 160 || unsafe.Sizeof(node.TokenFrom{}) > 56 {
 		t.Fatal("type mode expanded every runtime frame or AST source location")
+	}
+	if unsafe.Sizeof(node.Parameter{}.Type) != 4 || unsafe.Sizeof(node.ClassProperty{}.Type) != 4 || unsafe.Sizeof(node.ClassMethod{}.Ret) != 4 || unsafe.Sizeof(node.FunctionStatement{}.Ret) != 4 || unsafe.Sizeof(node.InterfaceMethod{}.ReturnType) != 4 || unsafe.Sizeof(data.ParameterTODO{}.Type) != 4 {
+		t.Fatal("runtime declaration fields must be 4-byte handles")
 	}
 }

@@ -571,17 +571,12 @@ func findClassDefinition(ctx *LspContext, className string) []*defines.Location 
 	return nil
 }
 
-// 对未设置变量类型的变量尝试设置类型
+// Inference belongs to the document scope, never to executable AST types.
 func chackAndSetTypeVariableDefinition(ctx *LspContext, parent, child data.GetValue) {
-	switch c := child.(type) {
-	case *node.BinaryAssignVariable:
-		t := data.NewLspTypes(getTypes(c.Right))
-
-		if t != nil && c.Left != nil && c.Left.GetType() != nil && c.Left.GetType().String() == "LspTypes" {
-			setTypes(c.Left, getTypes(c.Right))
+	if assignment, ok := child.(*node.BinaryAssignVariable); ok && ctx != nil && assignment.Left != nil {
+		if inferred := inferTypeFromExpression(assignment.Right); inferred != nil {
+			ctx.SetVariableType(assignment.Left.GetName(), inferred)
 		}
-	case *node.BinaryAssign:
-
 	}
 }
 
@@ -603,7 +598,7 @@ func getTypes(v data.GetValue) data.Types {
 			}
 		}
 	case *node.VariableExpression:
-		switch cc := c.Type.(type) {
+		switch cc := data.LegacyType(c.GetType()).(type) {
 		case *data.LspTypes:
 			for _, types := range cc.Types {
 				return types
@@ -613,43 +608,6 @@ func getTypes(v data.GetValue) data.Types {
 		}
 	}
 	return nil
-}
-
-func setTypes(v data.Variable, t data.Types) {
-	switch c := v.(type) {
-	case *node.VariableExpression:
-		if tt, ok := c.Type.(*data.LspTypes); ok {
-			// 建立已存在类型的键集合（基于结构化指纹）
-			existing := make(map[string]struct{}, len(tt.Types))
-			for _, et := range tt.Types {
-				if et == nil {
-					continue
-				}
-				existing[typeKey(et)] = struct{}{}
-			}
-
-			// 统一待追加的切片
-			var toAdd []data.Types
-			if ttt, ok := t.(*data.LspTypes); ok {
-				toAdd = ttt.Types
-			} else if t != nil {
-				toAdd = []data.Types{t}
-			}
-
-			// 追加前过滤重复
-			for _, nt := range toAdd {
-				if nt == nil {
-					continue
-				}
-				k := typeKey(nt)
-				if _, ok := existing[k]; ok {
-					continue
-				}
-				tt.Types = append(tt.Types, nt)
-				existing[k] = struct{}{}
-			}
-		}
-	}
 }
 
 // typeKey 为 data.Types 生成稳定且语义化的指纹，用于判重
@@ -881,9 +839,9 @@ func findObjectPropertyDefinition(ctx *LspContext, object data.GetValue, propert
 	// 如果对象是变量表达式，尝试从变量类型查找对应的类
 	if varExpr, ok := object.(*node.VariableExpression); ok {
 		// 首先尝试从变量节点的类型信息获取
-		if varExpr.Type != nil {
+		if varExpr.Type != data.TypeInvalid {
 			// 从类型信息中获取类名
-			switch t := varExpr.Type.(type) {
+			switch t := data.LegacyType(varExpr.GetType()).(type) {
 			case *data.LspTypes:
 				var ret []*defines.Location
 				for _, tt := range t.Types {

@@ -67,8 +67,8 @@ func varDumpCollectArgs(ctx data.Context) []data.Value {
 		if arr, ok := val.(*data.ArrayValue); ok {
 			for arraySlots143, arrayPosition143 := arr.View(), 0; arrayPosition143 < arraySlots143.Len(); arrayPosition143++ {
 				z := arraySlots143.At(arrayPosition143)
-				if z != nil && z.Value != nil {
-					out = append(out, z.Value)
+				if z != nil && z.ReadValue() != nil {
+					out = append(out, z.ReadValue())
 				}
 			}
 			continue
@@ -143,7 +143,7 @@ func dumpClassValue(arg *data.ClassValue, indent string, depth int) {
 		if p.GetIsStatic() {
 			continue
 		}
-		val := props[p.GetName()]
+		val := props[data.PropertyStorageName(p)]
 		fmt.Printf("%s%s=>\n", inner, varDumpPropertyKey(p, className))
 		if val != nil {
 			varDumpValue(val, inner, depth+1)
@@ -167,17 +167,17 @@ func varDumpPropertyKey(p data.Property, className string) string {
 
 // varDumpZVal 输出数组槽位（含 PHP 引用标记 &）
 func varDumpZVal(zval *data.ZVal, indent string, depth int) {
-	if zval == nil || zval.Value == nil {
+	if zval == nil || zval.ReadValue() == nil {
 		fmt.Printf("%sNULL\n", indent)
 		return
 	}
-	if zval.RefSlotCount > 0 {
-		if sv, ok := zval.Value.(*data.StringValue); ok {
+	if zval.RefCount() > 0 {
+		if sv, ok := zval.ReadValue().(*data.StringValue); ok {
 			fmt.Printf("%s&string(%d) \"%s\"\n", indent, len(sv.Value), sv.Value)
 			return
 		}
 	}
-	varDumpValue(zval.Value, indent, depth)
+	varDumpValue(zval.ReadValue(), indent, depth)
 }
 
 // varDumpValue 输出单个值的 PHP var_dump 格式；对象使用 Go 指针地址作为 ID
@@ -202,7 +202,7 @@ func varDumpValue(v data.Value, indent string, depth int) {
 		inner := indent + "  "
 		for arraySlots144, i := arg.View(), 0; i < arraySlots144.Len(); i++ {
 			zval := arraySlots144.At(i)
-			if zval == nil || zval.Value == nil {
+			if zval == nil || zval.ReadValue() == nil {
 				varDumpArrayKeyLine(inner, i, zval)
 				fmt.Printf("%sNULL\n", inner)
 				continue
@@ -211,25 +211,7 @@ func varDumpValue(v data.Value, indent string, depth int) {
 			varDumpZVal(zval, inner, depth+1)
 		}
 		fmt.Printf("%s}\n", indent)
-	case *data.ObjectValue:
-		n := 0
-		arg.RangeProperties(func(string, data.Value) bool { n++; return true })
-		fmt.Printf("%sarray(%d) {\n", indent, n)
-		inner := indent + "  "
-		arg.RangeProperties(func(k string, val data.Value) bool {
-			if idx, err := strconv.Atoi(k); err == nil {
-				fmt.Printf("%s[%d]=>\n", inner, idx)
-			} else {
-				fmt.Printf("%s[\"%s\"]=>\n", inner, k)
-			}
-			if val != nil {
-				varDumpValue(val, inner, depth+1)
-			} else {
-				fmt.Printf("%sNULL\n", inner)
-			}
-			return true
-		})
-		fmt.Printf("%s}\n", indent)
+
 	case *data.ClassValue:
 		dumpClassValue(arg, indent, depth)
 	case *data.ClassMethodContext:

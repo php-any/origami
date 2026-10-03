@@ -241,9 +241,7 @@ func shouldBeJSON(content data.Value) bool {
 	if _, ok := content.(*data.ArrayValue); ok {
 		return true
 	}
-	if _, ok := content.(*data.ObjectValue); ok {
-		return true
-	}
+
 	cv, ok := content.(*data.ClassValue)
 	if !ok {
 		return false
@@ -487,8 +485,8 @@ func illuminateResponseHeader(ctx data.Context) (data.GetValue, data.Control) {
 	if arr, ok := values.(*data.ArrayValue); ok {
 		for arraySlots54, arrayPosition54 := arr.View(), 0; arrayPosition54 < arraySlots54.Len(); arrayPosition54++ {
 			z := arraySlots54.At(arrayPosition54)
-			if z != nil && z.Value != nil {
-				vals = append(vals, z.Value.AsString())
+			if z != nil && z.ReadValue() != nil {
+				vals = append(vals, z.ReadValue().AsString())
 			}
 		}
 	} else if values != nil {
@@ -531,8 +529,8 @@ func illuminateResponseWithHeaders(ctx data.Context) (data.GetValue, data.Contro
 		if arr, ok := v.(*data.ArrayValue); ok {
 			for arraySlots55, arrayPosition55 := arr.View(), 0; arrayPosition55 < arraySlots55.Len(); arrayPosition55++ {
 				z := arraySlots55.At(arrayPosition55)
-				if z != nil && z.Value != nil {
-					vals = append(vals, z.Value.AsString())
+				if z != nil && z.ReadValue() != nil {
+					vals = append(vals, z.ReadValue().AsString())
 				}
 			}
 		} else if v != nil {
@@ -549,8 +547,8 @@ func illuminateResponseWithoutHeader(ctx data.Context) (data.GetValue, data.Cont
 	if arr, ok := key.(*data.ArrayValue); ok {
 		for arraySlots56, arrayPosition56 := arr.View(), 0; arrayPosition56 < arraySlots56.Len(); arrayPosition56++ {
 			z := arraySlots56.At(arrayPosition56)
-			if z != nil && z.Value != nil {
-				httpfoundation.RespHeaderRemove(httpfoundation.ResponseHeaders(cv), z.Value.AsString())
+			if z != nil && z.ReadValue() != nil {
+				httpfoundation.RespHeaderRemove(httpfoundation.ResponseHeaders(cv), z.ReadValue().AsString())
 			}
 		}
 	} else if key != nil {
@@ -583,10 +581,10 @@ func illuminateResponseWithCookies(ctx data.Context) (data.GetValue, data.Contro
 	headers := httpfoundation.ResponseHeaders(cv)
 	for arraySlots57, arrayPosition57 := arr.View(), 0; arrayPosition57 < arraySlots57.Len(); arrayPosition57++ {
 		z := arraySlots57.At(arrayPosition57)
-		if z == nil || z.Value == nil {
+		if z == nil || z.ReadValue() == nil {
 			continue
 		}
-		_, ctl := httpfoundation.CallObjMethod(headers, "setCookie", z.Value)
+		_, ctl := httpfoundation.CallObjMethod(headers, "setCookie", z.ReadValue())
 		if ctl != nil {
 			return nil, ctl
 		}

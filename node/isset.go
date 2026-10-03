@@ -33,12 +33,14 @@ func (i *IssetStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 			continue
 		}
 		if ie, ok := argExpr.(*IndexExpression); ok {
-			if isSet, handled := issetIndexExpression(ctx, ie); handled {
-				if !isSet {
-					return data.NewBoolValue(false), nil
-				}
-				continue
+			_, exists, ctl := ReadDimensionQuiet(ctx, ie, true, false)
+			if ctl != nil {
+				return nil, ctl
 			}
+			if !exists {
+				return data.NewBoolValue(false), nil
+			}
+			continue
 		}
 		// PHP：isset($obj->prop) 调用 __isset（若有），绝不调用 __get。
 		// 否则会像 View::__get 那样触发 Undefined array key Warning。
@@ -220,7 +222,7 @@ func issetOnContainer(container data.GetValue, index data.GetValue) (isSet bool,
 		switch iv := index.(type) {
 		case *data.StringValue:
 			if z, ok := arr.LookupZValByStringKey(iv.Value); ok {
-				return issetNonNullValue(z.Value), true
+				return issetNonNullValue(z.ReadValue()), true
 			}
 			return false, true
 		case data.AsInt:
@@ -232,26 +234,16 @@ func issetOnContainer(container data.GetValue, index data.GetValue) (isSet bool,
 			if z == nil {
 				return false, true
 			}
-			return issetNonNullValue(z.Value), true
+			return issetNonNullValue(z.ReadValue()), true
 		}
 		if key, ok := indexKeyString(index); ok {
 			if z, ok := arr.LookupZValByStringKey(key); ok {
-				return issetNonNullValue(z.Value), true
+				return issetNonNullValue(z.ReadValue()), true
 			}
 			return false, true
 		}
 		return false, true
-	case *data.ObjectValue:
-		key, ok := indexKeyString(index)
-		if !ok {
-			return false, true
-		}
-		val, acl := arr.GetProperty(key)
-		if acl != nil {
-			return false, true
-		}
-		_, isNull := val.(*data.NullValue)
-		return val != nil && !isNull, true
+
 	case data.GetProperty:
 		if _, ok := arr.(*data.StringValue); ok {
 			return false, false
@@ -284,10 +276,10 @@ func readIndexNoWarn(container data.GetValue, index data.GetValue) (data.GetValu
 		switch iv := index.(type) {
 		case *data.StringValue:
 			if z, ok := arr.LookupZValByStringKey(iv.Value); ok {
-				if z.Value == nil {
+				if z.ReadValue() == nil {
 					return data.NewNullValue(), true
 				}
-				return z.Value, true
+				return z.ReadValue(), true
 			}
 			return nil, false
 		case data.AsInt:
@@ -299,21 +291,12 @@ func readIndexNoWarn(container data.GetValue, index data.GetValue) (data.GetValu
 			if z == nil {
 				return nil, false
 			}
-			if z.Value == nil {
+			if z.ReadValue() == nil {
 				return data.NewNullValue(), true
 			}
-			return z.Value, true
+			return z.ReadValue(), true
 		}
-	case *data.ObjectValue:
-		key, ok := indexKeyString(index)
-		if !ok {
-			return nil, false
-		}
-		val, acl := arr.GetProperty(key)
-		if acl != nil {
-			return nil, false
-		}
-		return val, true
+
 	case data.GetProperty:
 		if _, ok := arr.(*data.StringValue); ok {
 			return nil, false
@@ -393,7 +376,7 @@ func isSetViaOffsetExistsOnValue(ctx data.Context, array data.GetValue, index da
 	if !exists {
 		return false, false
 	}
-	fnCtx := obj.CreateContext(method.GetVariables())
+	fnCtx := implicitMethodFrame(ctx, obj, method)
 	if len(method.GetVariables()) > 0 {
 		if iv, ok := index.(data.Value); ok {
 			fnCtx.SetVariableValue(method.GetVariables()[0], iv)
@@ -441,12 +424,7 @@ func indexKeyExistsOnContainer(container data.GetValue, index data.GetValue) boo
 			return z != nil
 		}
 		return false
-	case *data.ObjectValue:
-		key, ok := indexKeyString(index)
-		if !ok {
-			return false
-		}
-		return arr.HasProperty(key)
+
 	case data.GetProperty:
 		if _, ok := arr.(*data.StringValue); ok {
 			return false

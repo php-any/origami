@@ -150,14 +150,9 @@ func applyCookieOptions(cookie *http.Cookie, optVal data.Value) bool {
 		switch o := optVal.(type) {
 		case *data.ArrayValue:
 			if z, ok := o.LookupZValByStringKey(key); ok && z != nil {
-				return z.Value, true
+				return z.ReadValue(), true
 			}
-		case *data.ObjectValue:
-			if v, ctl := o.GetProperty(key); ctl == nil && v != nil {
-				if _, isNull := v.(*data.NullValue); !isNull {
-					return v, true
-				}
-			}
+
 		default:
 			return nil, false
 		}
@@ -165,7 +160,7 @@ func applyCookieOptions(cookie *http.Cookie, optVal data.Value) bool {
 	}
 
 	switch optVal.(type) {
-	case *data.ArrayValue, *data.ObjectValue:
+	case *data.ArrayValue:
 	default:
 		return false
 	}

@@ -94,7 +94,7 @@ func (m *ControllerConstructMethod) GetIsStatic() bool {
 }
 
 var controllerConstructMethodGetParams = []data.GetValue{
-	node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
+	node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewDeclaredType("?string")),
 	node.NewAnnotationTargetParameter(nil, 1),
 }
 

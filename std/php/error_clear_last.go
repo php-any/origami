@@ -13,7 +13,7 @@ func NewErrorClearLastFunction() data.FuncStmt {
 }
 
 func (f *ErrorClearLastFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	clearLastError()
+	data.ErrorState(ctx).SetLast(nil)
 	return data.NewNullValue(), nil
 }
 

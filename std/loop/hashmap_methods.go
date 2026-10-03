@@ -103,11 +103,11 @@ func (m *HashMapPutMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 	}
 
 	// 泛型类型检查
-	if m.source.hashmap.keyType != nil && !m.source.hashmap.keyType.Is(key) {
+	if m.source.hashmap.keyType != nil && !data.DeclaredTypeRef(m.source.hashmap.keyType).Matches(key, ctx) {
 		return nil, utils.NewThrow(errors.New("类型不匹配: 键类型期望 " + m.source.hashmap.keyType.String() + " 但得到 " + key.AsString()))
 	}
 
-	if m.source.hashmap.valueType != nil && !m.source.hashmap.valueType.Is(value) {
+	if m.source.hashmap.valueType != nil && !data.DeclaredTypeRef(m.source.hashmap.valueType).Matches(value, ctx) {
 		return nil, utils.NewThrow(errors.New("类型不匹配: 值类型期望 " + m.source.hashmap.valueType.String() + " 但得到 " + value.AsString()))
 	}
 
@@ -166,7 +166,7 @@ func (m *HashMapGetMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 	}
 
 	// 泛型类型检查
-	if m.source.hashmap.keyType != nil && !m.source.hashmap.keyType.Is(key) {
+	if m.source.hashmap.keyType != nil && !data.DeclaredTypeRef(m.source.hashmap.keyType).Matches(key, ctx) {
 		return nil, utils.NewThrow(errors.New("类型不匹配: 键类型期望 " + m.source.hashmap.keyType.String() + " 但得到 " + key.AsString()))
 	}
 
@@ -229,7 +229,7 @@ func (m *HashMapRemoveMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 	}
 
 	// 泛型类型检查
-	if m.source.hashmap.keyType != nil && !m.source.hashmap.keyType.Is(key) {
+	if m.source.hashmap.keyType != nil && !data.DeclaredTypeRef(m.source.hashmap.keyType).Matches(key, ctx) {
 		return nil, utils.NewThrow(errors.New("类型不匹配: 键类型期望 " + m.source.hashmap.keyType.String() + " 但得到 " + key.AsString()))
 	}
 
@@ -288,7 +288,7 @@ func (m *HashMapContainsKeyMethod) Call(ctx data.Context) (data.GetValue, data.C
 	}
 
 	// 泛型类型检查
-	if m.source.hashmap.keyType != nil && !m.source.hashmap.keyType.Is(key) {
+	if m.source.hashmap.keyType != nil && !data.DeclaredTypeRef(m.source.hashmap.keyType).Matches(key, ctx) {
 		return nil, utils.NewThrow(errors.New("类型不匹配: 键类型期望 " + m.source.hashmap.keyType.String() + " 但得到 " + key.AsString()))
 	}
 
@@ -347,7 +347,7 @@ func (m *HashMapContainsValueMethod) Call(ctx data.Context) (data.GetValue, data
 	}
 
 	// 泛型类型检查
-	if m.source.hashmap.valueType != nil && !m.source.hashmap.valueType.Is(value) {
+	if m.source.hashmap.valueType != nil && !data.DeclaredTypeRef(m.source.hashmap.valueType).Matches(value, ctx) {
 		return nil, utils.NewThrow(errors.New("类型不匹配: 值类型期望 " + m.source.hashmap.valueType.String() + " 但得到 " + value.AsString()))
 	}
 

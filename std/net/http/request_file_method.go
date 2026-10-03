@@ -24,16 +24,16 @@ func (h *RequestFileMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	// 如果没有参数，返回所有文件
 	if !hasKey {
 		if h.source.MultipartForm == nil {
-			return data.NewObjectValue(), nil
+			return data.NewArrayValue(nil).(*data.ArrayValue), nil
 		}
-		result := data.NewObjectValue()
+		result := data.NewArrayValue(nil).(*data.ArrayValue)
 		for key, files := range h.source.MultipartForm.File {
 			// 将文件信息转换为字符串
 			fileInfo := ""
 			for _, file := range files {
 				fileInfo += file.Filename + ":" + string(rune(file.Size)) + ";"
 			}
-			result.SetProperty(key, data.NewStringValue(fileInfo))
+			result.SetStringKey(key, data.NewStringValue(fileInfo))
 		}
 		return result, nil
 	}

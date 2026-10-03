@@ -116,13 +116,13 @@ func TestContextPoolDoesNotMutateEscapedZVal(t *testing.T) {
 
 	frame := parent.CreateContext(vars).(*Context)
 	slot := frame.GetIndexZVal(0)
-	slot.Value = data.NewIntValue(42)
+	slot.StoreRaw(data.NewIntValue(42))
 	slot.Defined = true
 	frame.MarkEscaped()
 	frame.ReleasePooled()
 
-	if iv, ok := slot.Value.(*data.IntValue); !ok || iv.Value != 42 {
-		t.Fatalf("escaped ZVal mutated after ReleasePooled: %#v", slot.Value)
+	if iv, ok := slot.ReadValue().(*data.IntValue); !ok || iv.Value != 42 {
+		t.Fatalf("escaped ZVal mutated after ReleasePooled: %#v", slot.ReadValue())
 	}
 
 	// 池应仍能给出新帧，且新槽不是 escaped 那个 ZVal

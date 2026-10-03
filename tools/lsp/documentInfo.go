@@ -228,12 +228,38 @@ func (ctx *LspContext) GetLocalVar(name string) (data.Value, bool) {
 
 // 变量类型管理
 func (ctx *LspContext) SetVariableType(varName string, typ data.Types) {
-	key := "var_type:" + varName
-	ctx.values[key] = typ
+	if typ == nil {
+		return
+	}
+	key := "var_type:" + strings.TrimPrefix(varName, "$")
+	existing, _ := ctx.values[key].(data.Types)
+	if existing == nil || typeKey(existing) == typeKey(typ) {
+		ctx.values[key] = typ
+		return
+	}
+	merged := data.NewLspTypes(nil)
+	merged.Types = nil
+	seen := make(map[string]bool)
+	var add func(data.Types)
+	add = func(member data.Types) {
+		if inferred, ok := member.(*data.LspTypes); ok {
+			for _, part := range inferred.Types {
+				add(part)
+			}
+			return
+		}
+		if member != nil && !seen[typeKey(member)] {
+			seen[typeKey(member)] = true
+			merged.Add(member)
+		}
+	}
+	add(existing)
+	add(typ)
+	ctx.values[key] = merged
 }
 
 func (ctx *LspContext) GetVariableType(varName string) data.Types {
-	key := "var_type:" + varName
+	key := "var_type:" + strings.TrimPrefix(varName, "$")
 
 	// 在当前作用域查找
 	if typ, exists := ctx.values[key]; exists {
@@ -345,6 +371,12 @@ func (ctx *LspContext) GetDefinedVariables() map[string]data.Value {
 	return map[string]data.Value{}
 }
 
+func (ctx *LspContext) RangeDefinedVariables(visit func(string, data.Value) bool) {
+	if ctx.dataCtx != nil {
+		ctx.dataCtx.RangeDefinedVariables(visit)
+	}
+}
+
 // identifyVariableTypes 识别变量类型
 func (d *DocumentInfo) identifyVariableTypes(ctx *LspContext, stmt data.GetValue) data.Types {
 	var inferredType data.Types
@@ -385,8 +417,8 @@ func (d *DocumentInfo) identifyVariableTypes(ctx *LspContext, stmt data.GetValue
 		}
 
 		// 如果变量已有类型信息，记录它
-		if n.Type != nil {
-			ctx.SetVariableType(varName, n.Type)
+		if n.Type != data.TypeInvalid {
+			ctx.SetVariableType(varName, data.LegacyType(n.GetType()))
 		} else {
 			// 否则只记录变量名
 			ctx.SetLocalVar(varName, nil)
@@ -399,15 +431,15 @@ func (d *DocumentInfo) identifyVariableTypes(ctx *LspContext, stmt data.GetValue
 			varName = "$" + varName
 		}
 
-		if n.Type != nil {
-			ctx.SetVariableType(varName, n.Type)
+		if n.Type != data.TypeInvalid {
+			ctx.SetVariableType(varName, data.LegacyType(n.GetType()))
 		} else {
 			ctx.SetLocalVar(varName, nil)
 		}
 
 	// 增加对函数参数类型的支持
 	case *node.Parameter:
-		if n.Type != nil {
+		if n.Type != data.TypeInvalid {
 			// 注意：n.Name 不带 $，但在上下文中作为变量名时通常带 $
 			// VariableExpression.Name 带 $
 			// ctx.SetVariableType 需要统一格式，建议统一带 $
@@ -416,7 +448,7 @@ func (d *DocumentInfo) identifyVariableTypes(ctx *LspContext, stmt data.GetValue
 			if !strings.HasPrefix(varName, "$") {
 				varName = "$" + varName
 			}
-			ctx.SetVariableType(varName, n.Type)
+			ctx.SetVariableType(varName, data.LegacyType(n.GetType()))
 		} else {
 			// 参数没有类型注解，也要记录变量
 			varName := n.Name
@@ -761,9 +793,7 @@ func (d *DocumentInfo) foreachNode(ctx *LspContext, stmt data.GetValue, parent d
 		if leftVar, ok := n.Left.(*node.VariableExpression); ok {
 			if inferredType := inferTypeFromExpression(n.Right); inferredType != nil {
 				// 如果变量还没有类型，直接设置类型
-				if leftVar.Type == nil {
-					leftVar.Type = inferredType
-				}
+				ctx.SetVariableType(leftVar.Name, inferredType)
 			}
 		}
 
@@ -777,10 +807,7 @@ func (d *DocumentInfo) foreachNode(ctx *LspContext, stmt data.GetValue, parent d
 			leftVarList := n.Left // n.Left 已经是 *node.VariableList 类型
 			for _, variable := range leftVarList.Vars {
 				// variable 已经是 *node.VariableExpression 类型
-				if variable.Type == nil {
-					// 直接设置变量的类型
-					variable.Type = inferredType
-				}
+				ctx.SetVariableType(variable.Name, inferredType)
 			}
 		}
 		d.foreachNode(ctx, n.Left, parent, check)

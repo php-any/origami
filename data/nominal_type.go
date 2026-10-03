@@ -2,6 +2,9 @@ package data
 
 import "strings"
 
+// CanonicalTypeName folds ASCII only, as PHP class-name lookup does.
+func CanonicalTypeName(name string) string { return nominalKey(name) }
+
 // TypeNameEqual compares PHP class names: ASCII case insensitive, with an
 // optional leading namespace separator. Non-ASCII bytes remain significant.
 func TypeNameEqual(a, b string) bool {
@@ -67,6 +70,13 @@ func NominalIsA(class ClassStmt, target string, vm VM) bool {
 	// The usual parent check needs no graph traversal or registry lookup.
 	if parent := class.GetExtend(); parent != nil && *parent == target {
 		return true
+	}
+	if provider, ok := vm.(DescriptorProvider); ok {
+		if targetID, ok := Symbols.Lookup(target); ok {
+			if matched, linked := provider.ClassRegistry().IsA(class, targetID); linked {
+				return matched
+			}
+		}
 	}
 	if nominalIsA(class, target, vm) {
 		return true

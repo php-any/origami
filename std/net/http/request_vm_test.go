@@ -31,7 +31,7 @@ func TestNormalAndHotHandlerUseOneRequestVM(t *testing.T) {
 	shutdown := 0
 	middleware := &requestVMCallback{variables: append(append([]data.Variable(nil), variables...), data.NewVariable("next", 2, nil)), call: func(ctx data.Context) {
 		middlewareVM = ctx.GetVM().(*runtime.RequestVM)
-		middlewareVM.EnsureGlobalZVal("token").Value = data.NewStringValue("request")
+		middlewareVM.EnsureGlobalZVal("token").StoreRaw(data.NewStringValue("request"))
 		next, _ := ctx.GetIndexValue(2)
 		call := ctx.CreateContext(next.(*data.FuncValue).Value.GetVariables())
 		request, _ := ctx.GetIndexValue(0)
@@ -47,7 +47,7 @@ func TestNormalAndHotHandlerUseOneRequestVM(t *testing.T) {
 		if vm != middlewareVM {
 			t.Error("middleware and handler used different request VMs")
 		}
-		if vm.EnsureGlobalZVal("token").Value.AsString() != "request" {
+		if vm.EnsureGlobalZVal("token").ReadValue().AsString() != "request" {
 			t.Error("middleware state missing")
 		}
 		vm.AddShutdownCallback(data.NewFuncValue(&requestVMCallback{call: func(data.Context) { shutdown++ }}))
@@ -62,7 +62,7 @@ func TestNormalAndHotHandlerUseOneRequestVM(t *testing.T) {
 	if shutdown != 2 {
 		t.Fatalf("shutdown=%d", shutdown)
 	}
-	if base.EnsureGlobalZVal("token").Value.AsString() != "" {
+	if base.EnsureGlobalZVal("token").ReadValue().AsString() != "" {
 		t.Fatal("HTTP state escaped to VM")
 	}
 }

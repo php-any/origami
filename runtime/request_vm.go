@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/perfmon"
 )
@@ -22,6 +23,7 @@ func NewRequestVM(vm data.VM) data.VM {
 		return vm
 	}
 	return &RequestVM{
+		registry:           data.NewClassRegistry(base.ClassRegistry().Snapshot()),
 		Base:               base,
 		addedClasses:       make(map[string]data.ClassStmt),
 		addedInterfaces:    make(map[string]data.InterfaceStmt),
@@ -32,22 +34,26 @@ func NewRequestVM(vm data.VM) data.VM {
 		includeOnceResults: make(map[string]data.GetValue),
 		globalVars:         make(map[string]*data.ZVal),
 		initialFiles:       base.snapshotRequestFiles(),
+		initialEnvironment: base.environment.Load(),
 	}
 }
 
 // RequestVM is the sole request execution VM. Base supplies registered
 // language facilities and cached programs; mutable execution state stays here.
 type RequestVM struct {
-	Base   *VM
-	parser *parser.Parser
-	mu     sync.RWMutex
+	registry *data.ClassRegistry
+	Base     *VM
+	parser   *parser.Parser
+	mu       sync.RWMutex
 
 	addedClasses       map[string]data.ClassStmt
 	addedInterfaces    map[string]data.InterfaceStmt
 	addedFuncs         map[string]data.FuncStmt
+	addedFuncIDs       map[data.SymbolID]data.FuncStmt
 	out                *outputState
 	throwHandler       func(data.Control)
 	lastThrow          data.Control
+	uploads            *uploadedFileState
 	request            *http.Request
 	response           http.ResponseWriter
 	constants          map[string]data.Value
@@ -55,15 +61,28 @@ type RequestVM struct {
 	initialFiles       *requestFileSnapshot
 	includeOnceResults map[string]data.GetValue
 	globalVars         map[string]*data.ZVal
+	phpIni             map[string]string
+	initialEnvironment *map[string]string
+	environment        map[string]*string // nil values remove an inherited variable
 	errorHandlers      *errorHandlerState
+	phpErrors          *data.PHPErrorState
 
-	globalsArray *data.ObjectValue
-	sessionArray *data.ObjectValue
+	call                CallState
+	shutdown            shutdownQueue
+	staticLocals        map[any]*data.StaticLocals
+	exceptionHandlers   *ExceptionHandlerState
+	objectScope         *data.RequestObjectScope
+	autoload            []autoloadRegistration
+	autoloadInitialized bool
+	autoloadExtensions  *string
+	autoloadFlights     autoloadFlights
+}
 
-	call              CallState
-	shutdown          shutdownQueue
-	staticLocals      map[any]*data.StaticLocals
-	exceptionHandlers *ExceptionHandlerState
+func (vm *RequestVM) RequestObjectScope() *data.RequestObjectScope {
+	if vm.objectScope == nil {
+		vm.CreateContext(nil)
+	}
+	return vm.objectScope
 }
 
 func (vm *RequestVM) ScopeStaticLocals(identity any) *data.StaticLocals {
@@ -81,6 +100,7 @@ func (vm *RequestVM) ScopeStaticLocals(identity any) *data.StaticLocals {
 func (vm *RequestVM) AddClass(c data.ClassStmt) data.Control {
 	// Declarations loaded during execution belong to this request.
 	vm.addedClasses[c.GetName()] = c
+	vm.registry.PublishClass(c)
 	return nil
 }
 
@@ -95,15 +115,22 @@ func (vm *RequestVM) AddedClasses() []data.ClassStmt {
 
 func (vm *RequestVM) registerParsedDeclarations(entry *parsedPHPFile) {
 	for _, declaration := range entry.classes {
+		if _, exists := vm.addedClasses[declaration.GetName()]; exists {
+			continue
+		}
+		declaration = node.CloneClassDeclaration(declaration)
 		vm.addedClasses[declaration.GetName()] = declaration
+		vm.registry.PublishClass(declaration)
 	}
 	for _, declaration := range entry.interfaces {
 		vm.addedInterfaces[declaration.GetName()] = declaration
+		vm.registry.PublishInterface(declaration)
 	}
 }
 
 func (vm *RequestVM) AddInterface(i data.InterfaceStmt) data.Control {
 	vm.addedInterfaces[i.GetName()] = i
+	vm.registry.PublishInterface(i)
 	return nil
 }
 
@@ -112,6 +139,10 @@ func (vm *RequestVM) AddFunc(f data.FuncStmt) data.Control {
 		vm.addedFuncs = make(map[string]data.FuncStmt)
 	}
 	vm.addedFuncs[f.GetName()] = f
+	if vm.addedFuncIDs == nil {
+		vm.addedFuncIDs = make(map[data.SymbolID]data.FuncStmt)
+	}
+	vm.addedFuncIDs[data.Symbols.Intern(f.GetName())] = f
 	return nil
 }
 
@@ -122,6 +153,10 @@ func (vm *RequestVM) CreateContext(vars []data.Variable) data.Context {
 	}
 	BindContextCallState(ctx, vm.requestCall())
 	BindContextOutput(ctx, vm.activeOut())
+	if vm.objectScope == nil {
+		vm.objectScope = data.NewRequestObjectScope(ctx)
+	}
+	data.BindRequestScopeContext(ctx)
 	return ctx
 }
 
@@ -230,12 +265,11 @@ func lookupRequestClass(added map[string]data.ClassStmt, pkg string) (data.Class
 }
 
 func (vm *RequestVM) GetClass(pkg string) (data.ClassStmt, bool) {
-	ret, ok := vm.Base.GetClass(pkg)
-	if ok {
-		return ret, ok
-	}
-	return lookupRequestClass(vm.addedClasses, pkg)
+	return vm.registry.Snapshot().FindClass(pkg)
 }
+
+func (vm *RequestVM) ClassRegistry() *data.ClassRegistry          { return vm.registry }
+func (vm *RequestVM) PublishClassDescriptor(class data.ClassStmt) { vm.registry.PublishClass(class) }
 
 func (vm *RequestVM) GetOrLoadClass(pkg string) (data.ClassStmt, data.Control) {
 	if c, ok := vm.GetClass(pkg); ok {
@@ -273,19 +307,7 @@ func (vm *RequestVM) LoadPkg(pkg string) (data.GetValue, data.Control) {
 }
 
 func (vm *RequestVM) GetInterface(pkg string) (data.InterfaceStmt, bool) {
-	ret, ok := vm.Base.GetInterface(pkg)
-	if ok {
-		return ret, ok
-	}
-	if c, ok := vm.addedInterfaces[pkg]; ok {
-		return c, true
-	}
-	for name, c := range vm.addedInterfaces {
-		if data.TypeNameEqual(name, pkg) {
-			return c, true
-		}
-	}
-	return nil, false
+	return vm.registry.Snapshot().FindInterface(pkg)
 }
 
 func (vm *RequestVM) GetOrLoadInterface(pkg string) (data.InterfaceStmt, data.Control) {
@@ -302,10 +324,16 @@ func (vm *RequestVM) GetOrLoadInterface(pkg string) (data.InterfaceStmt, data.Co
 }
 
 func (vm *RequestVM) GetFunc(pkg string) (data.FuncStmt, bool) {
-	if f, ok := vm.addedFuncs[pkg]; ok {
-		return f, true
+	if id, found := data.Symbols.Lookup(pkg); found {
+		return vm.GetFuncBySymbol(id)
 	}
-	return vm.Base.GetFunc(pkg)
+	return nil, false
+}
+func (vm *RequestVM) GetFuncBySymbol(id data.SymbolID) (data.FuncStmt, bool) {
+	if function, found := vm.addedFuncIDs[id]; found {
+		return function, true
+	}
+	return vm.Base.GetFuncBySymbol(id)
 }
 func (vm *RequestVM) RegisterFunction(name string, fn interface{}) data.Control {
 	return vm.Base.RegisterFunction(name, fn)
@@ -344,6 +372,10 @@ func (vm *RequestVM) GetIncludeOnceResult(file string) (data.GetValue, bool) {
 	result, found := vm.includeOnceResults[file]
 	if !found {
 		result, found = vm.initialFiles.results[file]
+		if value, ok := result.(data.Value); found && ok {
+			result = vm.RequestObjectScope().Bind(value)
+			vm.includeOnceResults[file] = result
+		}
 	}
 	return result, found
 }
@@ -367,13 +399,22 @@ func (vm *RequestVM) GetConstant(name string) (data.Value, bool) {
 	if value, found := vm.constants[name]; found {
 		return value, true
 	}
-	return vm.Base.GetConstant(name)
+	value, found := vm.Base.GetConstant(name)
+	if !found {
+		return nil, false
+	}
+	switch value.(type) {
+	case *data.ArrayValue, *data.ClassValue, *data.ThisValue:
+		value = vm.RequestObjectScope().Bind(value)
+		vm.constants[name] = value
+	}
+	return value, true
 }
 func (vm *RequestVM) EnsureGlobalZVal(name string) *data.ZVal {
 	if slot, found := vm.globalVars[name]; found {
 		return slot
 	}
-	slot := data.NewZVal(data.NewNullValue())
+	slot := data.NewNamedZValSlot(name)
 	vm.globalVars[name] = slot
 	return slot
 }
@@ -393,24 +434,36 @@ func (vm *RequestVM) bindIncludedVarToGlobal(name string, index int, ctx data.Co
 	vm.globalVars[name] = ctx.GetIndexZVal(index)
 }
 
-// EnsureGlobalsArray 本 RequestVM 独立的 $GLOBALS（热重载/请求包装不串态）。
-func (vm *RequestVM) EnsureGlobalsArray() *data.ObjectValue {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	if vm.globalsArray == nil {
-		vm.globalsArray = data.NewObjectValue()
+// EnsureGlobalsArray returns PHP's value snapshot; direct $GLOBALS dimensions
+// resolve through EnsureGlobalZVal and remain live lvalues.
+func (vm *RequestVM) EnsureGlobalsArray() *data.ArrayValue {
+	slots := make([]*data.ZVal, 0)
+	add := func(name string, slot *data.ZVal) {
+		if slot == nil || !slot.Defined || name == "GLOBALS" {
+			return
+		}
+		if slot.RefCount() > 0 {
+			slot.AddRefSlot()
+			copy := data.CopyReferenceBucket(slot)
+			copy.Name = name
+			slots = append(slots, copy)
+		} else {
+			slots = append(slots, data.NewNamedZVal(name, data.CowAddRef(slot.ReadValue())))
+		}
 	}
-	return vm.globalsArray
+	for name, slot := range vm.globalVars {
+		add(name, slot)
+	}
+	return data.NewArrayValueFromSlots(slots)
 }
-
-// EnsureSessionArray 本 RequestVM 独立的 $_SESSION。
-func (vm *RequestVM) EnsureSessionArray() *data.ObjectValue {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	if vm.sessionArray == nil {
-		vm.sessionArray = data.NewObjectValue()
+func (vm *RequestVM) EnsureSessionArray() *data.ArrayValue {
+	slot := vm.EnsureGlobalZVal("_SESSION")
+	if !slot.Defined {
+		data.CowAssign(slot, data.NewArrayValueFromSlots(nil))
 	}
-	return vm.sessionArray
+	data.CowSeparateZVal(slot)
+	value, _ := slot.ReadValue().(*data.ArrayValue)
+	return value
 }
 
 func (vm *RequestVM) AddShutdownCallback(cb data.Value) {
@@ -422,6 +475,14 @@ func (vm *RequestVM) AddShutdownCallback(cb data.Value) {
 }
 
 func (vm *RequestVM) RunShutdownCallbacks() {
+	queue := &vm.shutdown
+	if st := vm.requestCall(); st != &vm.call {
+		queue = &st.shutdown
+	}
+	if queue.done {
+		return
+	}
+	defer vm.cleanupUploadedFiles()
 	if st := vm.requestCall(); st != &vm.call {
 		st.shutdown.run(vm)
 		return
@@ -501,6 +562,9 @@ func (vm *RequestVM) SetOutputWriter(write data.OutputWriter) {
 }
 func (vm *RequestVM) BindHTTP(req *http.Request, response http.ResponseWriter) {
 	vm.request, vm.response = req, response
+	if currentRequestCallState() == nil && req != nil {
+		vm.call.deadline = newRequestCancellation(req.Context(), vm.call.ignoreUserAbort)
+	}
 	if flush, ok := response.(http.Flusher); ok {
 		vm.activeOut().SetSAPIFlush(flush.Flush)
 	}

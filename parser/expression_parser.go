@@ -872,6 +872,9 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 			case token.SELF:
 				ep.next()
 				cn := ep.currentClass
+				if ep.currentClassParent == nil {
+					cn = ""
+				}
 				if cn == "" {
 					cn = "self"
 				} else {

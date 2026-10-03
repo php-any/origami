@@ -79,7 +79,7 @@ func (m *CommandRegistryGetCommandsMethod) Call(ctx data.Context) (data.GetValue
 	entries := make([]data.Value, 0, len(names))
 	for _, name := range names {
 		cmd := registeredCommands[name]
-		obj := data.NewObjectValue()
+		obj := data.NewStdClassValue(nil)
 		obj.SetProperty("name", data.NewStringValue(name))
 		obj.SetProperty("description", data.NewStringValue(cmd.GetDescription()))
 		entries = append(entries, obj)

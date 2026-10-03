@@ -130,8 +130,8 @@ func sessGet(ctx data.Context) (data.GetValue, data.Control) {
 	key := sessKey(kit.Arg(ctx, 0))
 	def := kit.Arg(ctx, 1)
 	attrs := sessAttrs(cv)
-	if z, ok := attrs.LookupZValByStringKey(key); ok && z != nil && z.Value != nil {
-		return z.Value, nil
+	if z, ok := attrs.LookupZValByStringKey(key); ok && z != nil && z.ReadValue() != nil {
+		return z.ReadValue(), nil
 	}
 	if def != nil && !kit.IsNull(def) {
 		return def, nil
@@ -157,7 +157,7 @@ func sessPut(ctx data.Context) (data.GetValue, data.Control) {
 			if k == "" {
 				continue
 			}
-			attrs.SetStringKey(k, e.Value)
+			attrs.SetStringKey(k, e.ReadValue())
 		}
 		return data.NewNullValue(), nil
 	}
@@ -192,8 +192,8 @@ func sessPull(ctx data.Context) (data.GetValue, data.Control) {
 	def := kit.Arg(ctx, 1)
 	attrs := sessAttrs(cv)
 	var val data.Value = data.NewNullValue()
-	if z, ok := attrs.LookupZValByStringKey(key); ok && z != nil && z.Value != nil {
-		val = z.Value
+	if z, ok := attrs.LookupZValByStringKey(key); ok && z != nil && z.ReadValue() != nil {
+		val = z.ReadValue()
 	} else if def != nil && !kit.IsNull(def) {
 		val = def
 	}
@@ -215,8 +215,8 @@ func sessFlash(ctx data.Context) (data.GetValue, data.Control) {
 	attrs.SetStringKey(key, value)
 	flashNew, _ := attrs.LookupZValByStringKey("_flash.new")
 	var flashArr *data.ArrayValue
-	if flashNew != nil && flashNew.Value != nil {
-		flashArr, _ = kit.Unwrap(flashNew.Value).(*data.ArrayValue)
+	if flashNew != nil && flashNew.ReadValue() != nil {
+		flashArr, _ = kit.Unwrap(flashNew.ReadValue()).(*data.ArrayValue)
 	}
 	if flashArr == nil {
 		flashArr = data.NewArrayValue(nil).(*data.ArrayValue)
@@ -240,8 +240,8 @@ func sessForget(ctx data.Context) (data.GetValue, data.Control) {
 				continue
 			}
 			k := e.Name
-			if k == "" && e.Value != nil {
-				k = kit.Unwrap(e.Value).AsString()
+			if k == "" && e.ReadValue() != nil {
+				k = kit.Unwrap(e.ReadValue()).AsString()
 			}
 			if k != "" {
 				attrs.UnsetKey(data.NewStringValue(k))

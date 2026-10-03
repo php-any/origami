@@ -3,7 +3,6 @@ package node
 import (
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/php-any/origami/data"
 )
@@ -24,8 +23,19 @@ func NewCallStaticProperty(token *TokenFrom, stmt data.GetValue, property string
 
 // GetValue 获取对象属性访问表达式的值
 func (pe *CallStaticProperty) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	switch expr := pe.Stmt.(type) {
+	stmt := pe.Stmt
+	if class, ok := stmt.(data.ClassStmt); ok && ctx.GetVM() != nil {
+		if current, found := ctx.GetVM().GetClass(class.GetName()); found {
+			stmt = current
+		}
+	}
+	switch expr := stmt.(type) {
 	case data.GetStaticProperty:
+		if class, ok := expr.(data.ClassStmt); ok {
+			if ctl := checkStaticPropertyAccess(ctx, class, pe.Property, pe.GetFrom()); ctl != nil {
+				return nil, ctl
+			}
+		}
 		property, ok := staticPropertyValue(ctx, expr, pe.Property)
 		if ok {
 			return property, nil
@@ -57,6 +67,9 @@ func (pe *CallStaticProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 		}
 		switch expr := next.(type) {
 		case *data.ClassValue:
+			if ctl := checkStaticPropertyAccess(ctx, expr.Class, pe.Property, pe.GetFrom()); ctl != nil {
+				return nil, ctl
+			}
 			if c, ok := expr.Class.(data.GetStaticProperty); ok {
 				property, ok := staticPropertyValue(ctx, c, pe.Property)
 				if ok {
@@ -68,6 +81,11 @@ func (pe *CallStaticProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 			}
 
 		case data.GetStaticProperty:
+			if class, ok := expr.(data.ClassStmt); ok {
+				if ctl := checkStaticPropertyAccess(ctx, class, pe.Property, pe.GetFrom()); ctl != nil {
+					return nil, ctl
+				}
+			}
 			property, ok := staticPropertyValue(ctx, expr, pe.Property)
 			if ok {
 				return property, nil
@@ -112,8 +130,10 @@ func (pe *CallStaticProperty) findStaticPropertyInParents(ctx data.Context, clas
 }
 
 func (pe *CallStaticProperty) SetProperty(ctx data.Context, name string, value data.Value) data.Control {
-	if cs, ok := pe.Stmt.(data.ClassStmt); ok && storeClassStatic(cs, name, value) {
-		return nil
+	if cs, ok := pe.Stmt.(data.ClassStmt); ok {
+		if stored, ctl := storeClassStatic(ctx, cs, name, value); stored {
+			return ctl
+		}
 	}
 	switch c := pe.Stmt.(type) {
 	case data.SetProperty:
@@ -142,12 +162,9 @@ func (pe *CallStaticProperty) SetProperty(ctx data.Context, name string, value d
 // CallStaticPropertyLater 延迟的静态属性访问（类未加载时）
 type CallStaticPropertyLater struct {
 	*Node
-	className string              // 类名（字符串形式）
-	property  string              // 属性名
-	namespace string              // 命名空间
-	access    *CallStaticProperty `pp:"-"` // 解析后缓存
-	resolveMu sync.Mutex
-	resolved  resolvedFlag // 命中时跳过 resolveMu，见 resolvedFlag
+	className string // 类名（字符串形式）
+	property  string // 属性名
+	namespace string // 命名空间
 }
 
 // NewCallStaticPropertyLater 创建延迟的静态属性访问
@@ -161,14 +178,6 @@ func NewCallStaticPropertyLater(from *TokenFrom, className, property, namespace 
 }
 
 func (pe *CallStaticPropertyLater) resolveAccess(ctx data.Context) (*CallStaticProperty, data.Control) {
-	if pe.resolved.Done() {
-		return pe.access, nil
-	}
-	pe.resolveMu.Lock()
-	defer pe.resolveMu.Unlock()
-	if pe.access != nil {
-		return pe.access, nil
-	}
 	vm := ctx.GetVM()
 	target, acl := vm.LoadPkg(pe.className)
 	if acl != nil {
@@ -191,9 +200,7 @@ func (pe *CallStaticPropertyLater) resolveAccess(ctx data.Context) (*CallStaticP
 	if !ok {
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("无法获取TokenFrom信息"))
 	}
-	pe.access = NewCallStaticProperty(tokenFrom, target, pe.property)
-	pe.resolved.MarkDone()
-	return pe.access, nil
+	return NewCallStaticProperty(tokenFrom, target, pe.property), nil
 }
 
 // GetValue 获取延迟静态属性访问的值

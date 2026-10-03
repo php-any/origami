@@ -36,6 +36,10 @@ func (c *ReflectionFunctionClass) GetPropertyList() []data.Property { return nil
 // GetMethod 根据方法名获取方法
 func (c *ReflectionFunctionClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
+	case "getAttributes":
+		return &ReflectionFunctionGetAttributesMethod{}, true
+	case "returnsReference":
+		return &ReturnsReferenceMethod{}, true
 	case "__construct":
 		return &ReflectionFunctionConstructMethod{}, true
 	case "getParameters":
@@ -65,6 +69,8 @@ func (c *ReflectionFunctionClass) GetMethod(name string) (data.Method, bool) {
 // GetMethods 返回所有方法列表
 func (c *ReflectionFunctionClass) GetMethods() []data.Method {
 	return []data.Method{
+		&ReflectionFunctionGetAttributesMethod{},
+		&ReturnsReferenceMethod{},
 		&ReflectionFunctionConstructMethod{},
 		&ReflectionFunctionGetParametersMethod{},
 		&ReflectionFunctionGetNumberOfParametersMethod{},
@@ -120,12 +126,20 @@ func (m *ReflectionFunctionConstructMethod) Call(ctx data.Context) (data.GetValu
 	if !ok {
 		return nil, nil
 	}
+	if name, ok := funcVal.(*data.StringValue); ok {
+		declaration, found := ctx.GetVM().GetFunc(name.Value)
+		if !found {
+			return nil, data.NewErrorThrowByName(nil, data.NewError(nil, "Function "+name.Value+"() does not exist", nil), "ReflectionException")
+		}
+		objCtx.ObjectValue.SetProperty("_funcName", name)
+		funcVal = data.NewFuncValue(declaration)
+	}
 
 	switch fv := funcVal.(type) {
 	case *data.FuncValue:
 		// 存储 Closure 的参数列表供后续 getParameters 使用
 		params := fv.Value.GetParams()
-		objCtx.ObjectValue.SetProperty("_isClosure", data.NewBoolValue(true))
+		objCtx.ObjectValue.SetProperty("_isClosure", data.NewBoolValue(!objCtx.ObjectValue.HasProperty("_funcName")))
 		objCtx.ObjectValue.SetProperty("_function", fv)
 		// 将参数数量存储为整数
 		objCtx.ObjectValue.SetProperty("_paramCount", data.NewIntValue(len(params)))
@@ -182,9 +196,9 @@ func (m *ReflectionFunctionGetParametersMethod) Call(ctx data.Context) (data.Get
 	if !ok {
 		return data.NewArrayValue([]data.Value{}), nil
 	}
-	props := objCtx.ObjectValue.GetProperties()
+	props := objCtx.ObjectValue
 
-	countVal, hasCount := props["_paramCount"]
+	countVal, hasCount := props.LookupProperty("_paramCount")
 	if !hasCount {
 		return data.NewArrayValue([]data.Value{}), nil
 	}
@@ -197,25 +211,25 @@ func (m *ReflectionFunctionGetParametersMethod) Call(ctx data.Context) (data.Get
 	for i := 0; i < count; i++ {
 		idx := data.NewIntValue(i).AsString()
 		name := ""
-		if nv, ok := props["_pname_"+idx]; ok {
+		if nv, ok := props.LookupProperty("_pname_" + idx); ok {
 			if sv, ok := nv.(*data.StringValue); ok {
 				name = sv.AsString()
 			}
 		}
 		isVar := false
-		if vv, ok := props["_pvar_"+idx]; ok {
+		if vv, ok := props.LookupProperty("_pvar_" + idx); ok {
 			if bv, ok := vv.(*data.BoolValue); ok {
 				isVar = bv.Value
 			}
 		}
 		typeStr := ""
-		if tv, ok := props["_ptype_"+idx]; ok {
+		if tv, ok := props.LookupProperty("_ptype_" + idx); ok {
 			if sv, ok := tv.(*data.StringValue); ok {
 				typeStr = sv.AsString()
 			}
 		}
 		hasDef := false
-		if dv, ok := props["_pdef_"+idx]; ok {
+		if dv, ok := props.LookupProperty("_pdef_" + idx); ok {
 			if bv, ok := dv.(*data.BoolValue); ok {
 				hasDef = bv.Value
 			}
@@ -258,8 +272,8 @@ func (m *ReflectionFunctionGetNumberOfParametersMethod) Call(ctx data.Context) (
 	if !ok {
 		return data.NewIntValue(0), nil
 	}
-	props := objCtx.ObjectValue.GetProperties()
-	if cv, ok := props["_paramCount"]; ok {
+	props := objCtx.ObjectValue
+	if cv, ok := props.LookupProperty("_paramCount"); ok {
 		return cv, nil
 	}
 	return data.NewIntValue(0), nil
@@ -348,7 +362,7 @@ func (m *ReflectionFunctionGetStaticVariablesMethod) Call(ctx data.Context) (dat
 	if !ok || objCtx.ObjectValue == nil {
 		return data.NewArrayValue([]data.Value{}), nil
 	}
-	function, ok := objCtx.ObjectValue.GetProperties()["_function"].(*data.FuncValue)
+	function, ok := reflectionProperty(objCtx.ObjectValue, "_function").(*data.FuncValue)
 	if !ok || function == nil {
 		return data.NewArrayValue([]data.Value{}), nil
 	}
@@ -397,7 +411,7 @@ func (m *ReflectionFunctionGetClosureUsedVariablesMethod) Call(ctx data.Context)
 	if !ok || objCtx.ObjectValue == nil {
 		return data.NewArrayValue([]data.Value{}), nil
 	}
-	function, ok := objCtx.ObjectValue.GetProperties()["_function"].(*data.FuncValue)
+	function, ok := reflectionProperty(objCtx.ObjectValue, "_function").(*data.FuncValue)
 	if !ok || function == nil {
 		return data.NewArrayValue([]data.Value{}), nil
 	}
@@ -447,7 +461,7 @@ func (m *ReflectionFunctionGetClosureCalledClassMethod) Call(ctx data.Context) (
 	if !ok || objCtx.ObjectValue == nil {
 		return data.NewNullValue(), nil
 	}
-	function, ok := objCtx.ObjectValue.GetProperties()["_function"].(*data.FuncValue)
+	function, ok := reflectionProperty(objCtx.ObjectValue, "_function").(*data.FuncValue)
 	if !ok || function == nil {
 		return data.NewNullValue(), nil
 	}
@@ -476,7 +490,7 @@ func (m *ReflectionFunctionGetFileNameMethod) Call(ctx data.Context) (data.GetVa
 	if !ok || objCtx.ObjectValue == nil {
 		return data.NewBoolValue(false), nil
 	}
-	function, ok := objCtx.ObjectValue.GetProperties()["_function"].(*data.FuncValue)
+	function, ok := reflectionProperty(objCtx.ObjectValue, "_function").(*data.FuncValue)
 	if !ok || function == nil || function.Value == nil {
 		return data.NewBoolValue(false), nil
 	}
@@ -501,7 +515,7 @@ func (m *ReflectionFunctionGetStartLineMethod) Call(ctx data.Context) (data.GetV
 	if !ok || objCtx.ObjectValue == nil {
 		return data.NewBoolValue(false), nil
 	}
-	function, ok := objCtx.ObjectValue.GetProperties()["_function"].(*data.FuncValue)
+	function, ok := reflectionProperty(objCtx.ObjectValue, "_function").(*data.FuncValue)
 	if !ok || function == nil || function.Value == nil {
 		return data.NewBoolValue(false), nil
 	}
@@ -526,7 +540,7 @@ func (m *ReflectionFunctionGetEndLineMethod) Call(ctx data.Context) (data.GetVal
 	if !ok || objCtx.ObjectValue == nil {
 		return data.NewBoolValue(false), nil
 	}
-	function, ok := objCtx.ObjectValue.GetProperties()["_function"].(*data.FuncValue)
+	function, ok := reflectionProperty(objCtx.ObjectValue, "_function").(*data.FuncValue)
 	if !ok || function == nil || function.Value == nil {
 		return data.NewBoolValue(false), nil
 	}

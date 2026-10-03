@@ -21,7 +21,7 @@ func (a *ArrayValueJoin) Call(ctx Context) (GetValue, Control) {
 		if i > 0 {
 			result += separator
 		}
-		result += zval.Value.AsString()
+		result += zval.ReadValue().AsString()
 	}
 
 	return NewStringValue(result), nil

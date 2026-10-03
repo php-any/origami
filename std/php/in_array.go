@@ -38,11 +38,6 @@ func (f *InArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	var valueList []data.Value
 	if arrayVal, ok := haystackValue.(*data.ArrayValue); ok {
 		valueList = arrayVal.ToValueList()
-	} else if objectVal, ok := haystackValue.(*data.ObjectValue); ok {
-		objectVal.RangeProperties(func(key string, v data.Value) bool {
-			valueList = append(valueList, v)
-			return true
-		})
 	} else if classVal, ok := haystackValue.(*data.ClassValue); ok {
 		classVal.RangeProperties(func(key string, v data.Value) bool {
 			valueList = append(valueList, v)
@@ -110,6 +105,9 @@ func inArrayEnumObject(value data.Value) *data.ClassValue {
 	}
 	if object == nil || object.Class == nil {
 		return nil
+	}
+	if metadata, ok := object.Class.(interface{ DeclarationFlags() data.ClassFlags }); ok && metadata.DeclarationFlags()&data.ClassEnum != 0 {
+		return object
 	}
 	parent := object.Class.GetExtend()
 	if parent != nil && (*parent == "BackedEnum" || *parent == "\\BackedEnum" || *parent == "UnitEnum" || *parent == "\\UnitEnum") {

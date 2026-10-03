@@ -92,7 +92,7 @@ func scanRowsToObjects(rows *sql.Rows) (data.GetValue, data.Control) {
 		if err := rows.Scan(scanPtrs...); err != nil {
 			return nil, utils.NewThrowf("扫描行失败: %v", err)
 		}
-		rowObj := data.NewObjectValue()
+		rowObj := data.NewStdClassValue(nil)
 		for i, col := range columns {
 			rowObj.SetProperty(col, scanner.convertToValue(scanValues[i]))
 		}

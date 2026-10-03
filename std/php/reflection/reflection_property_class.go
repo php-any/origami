@@ -24,12 +24,11 @@ func (c *ReflectionPropertyClass) GetPropertyList() []data.Property             
 
 // GetStaticProperty 对齐 PHP ReflectionProperty::IS_* 类常量（:: 访问走静态属性查找）
 func (c *ReflectionPropertyClass) GetStaticProperty(name string) (data.Value, bool) {
-	if c.StaticProperty == nil {
-		c.StaticProperty = reflectionPropertyConstants()
-	}
-	v, ok := c.StaticProperty[name]
+	v, ok := immutableReflectionPropertyConstants[name]
 	return v, ok
 }
+
+var immutableReflectionPropertyConstants = reflectionPropertyConstants()
 
 func reflectionPropertyConstants() map[string]data.Value {
 	return map[string]data.Value{
@@ -277,13 +276,16 @@ func (m *ReflectionPropertyGetValueMethod) Call(ctx data.Context) (data.GetValue
 	}
 	switch o := objVal.(type) {
 	case *data.ClassValue:
+		if property := reflectionPropertyInfo(ctx); property != nil {
+			return property.GetValue(o)
+		}
 		if o.ObjectValue != nil {
 			if v, _ := o.ObjectValue.GetProperty(propName); v != nil {
 				return v, nil
 			}
 		}
-		if z, ctl := o.GetPropertyZVal(propName); ctl == nil && z != nil && z.Value != nil {
-			return z.Value, nil
+		if z, ctl := o.GetPropertyZVal(propName); ctl == nil && z != nil && z.ReadValue() != nil {
+			return z.ReadValue(), nil
 		}
 	case data.GetProperty:
 		if v, ctl := o.GetProperty(propName); ctl == nil && v != nil {
@@ -336,6 +338,20 @@ func (m *ReflectionPropertySetValueMethod) Call(ctx data.Context) (data.GetValue
 	}
 	switch o := objVal.(type) {
 	case *data.ClassValue:
+		if property := reflectionPropertyInfo(ctx); property != nil {
+			name := data.PropertyStorageName(property)
+			if readonly, ok := property.(interface{ IsReadonlyProperty() bool }); ok && readonly.IsReadonlyProperty() && o.ObjectValue.HasProperty(name) {
+				return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Cannot modify readonly property %s::$%s", reflectionPropertyClassName(ctx), propName), "Error")
+			}
+			prepared, accepted, ctl := data.PreparePropertyValue(o, name, property.GetType(), value, ctx)
+			if ctl != nil {
+				return nil, ctl
+			}
+			if !accepted {
+				return nil, data.NewTypeError(nil, fmt.Errorf("Cannot assign value to property %s::$%s", reflectionPropertyClassName(ctx), propName))
+			}
+			return nil, o.SetProperty(name, prepared)
+		}
 		return nil, o.SetProperty(propName, value)
 	case data.SetProperty:
 		return nil, o.SetProperty(propName, value)
@@ -524,7 +540,7 @@ func unwrapReflectionValue(v data.Value) data.Value {
 		if !ok || zv.ZVal == nil {
 			return v
 		}
-		v = zv.ZVal.Value
+		v = zv.ZVal.ReadValue()
 	}
 	return v
 }
@@ -547,15 +563,14 @@ func (m *ReflectionPropertyIsInitializedMethod) Call(ctx data.Context) (data.Get
 	if propName == "" || cv == nil {
 		return data.NewBoolValue(false), nil
 	}
-	if cv.ObjectValue != nil && cv.ObjectValue.HasProperty(propName) {
-		return data.NewBoolValue(true), nil
-	}
 	stmt, ok := cv.GetPropertyStmt(propName)
 	if !ok {
-		return data.NewBoolValue(false), nil
+		return data.NewBoolValue(cv.ObjectValue.HasProperty(propName)), nil
 	}
-	// PHP：无类型属性视为已初始化（默认 null）；有类型无默认值则在赋值前为未初始化。
-	if stmt.GetType() == nil || stmt.GetDefaultValue() != nil {
+	if property := reflectionPropertyInfo(ctx); property != nil {
+		stmt = property
+	}
+	if cv.ObjectValue.HasProperty(data.PropertyStorageName(stmt)) {
 		return data.NewBoolValue(true), nil
 	}
 	return data.NewBoolValue(false), nil

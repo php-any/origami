@@ -221,12 +221,12 @@ func (g *GetPropertyInfoMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 	// 获取参数
 	classNameValue, exists := ctx.GetIndexValue(0)
 	if !exists {
-		return data.NewObjectValue(), nil
+		return data.NewStdClassValue(nil), nil
 	}
 
 	propertyNameValue, exists := ctx.GetIndexValue(1)
 	if !exists {
-		return data.NewObjectValue(), nil
+		return data.NewStdClassValue(nil), nil
 	}
 
 	className := classNameValue.AsString()
@@ -242,10 +242,10 @@ func (g *GetPropertyInfoMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 	// 查找属性
 	property, exists := class.GetProperty(propertyName)
 	if !exists {
-		return data.NewObjectValue(), nil
+		return data.NewStdClassValue(nil), nil
 	}
 
-	obj := data.NewObjectValue()
+	obj := data.NewStdClassValue(nil)
 	obj.SetProperty("name", data.NewStringValue(property.GetName()))
 	obj.SetProperty("modifier", data.NewStringValue(getModifierString(property.GetModifier())))
 	obj.SetProperty("isStatic", data.NewBoolValue(property.GetIsStatic()))

@@ -29,14 +29,13 @@ if ($ret == "many") {
     Log::fatal("match语句默认值匹配异常");
 }
 
+try {
 $ret = match ($num) {
     0 => "zero",
     1 => "one",
     2 => "two"
-}
-
-if (!$ret) {
-    Log::info("match匹配不到任何内容, 成功");
-} else{
-    Log::fatal("match匹配不到任何内容, 异常");
+};
+Log::fatal("未匹配的 match 没有抛出异常");
+} catch (\UnhandledMatchError $e) {
+    Log::info("match 未匹配抛出 UnhandledMatchError");
 }

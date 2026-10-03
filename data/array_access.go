@@ -11,6 +11,7 @@ func NewArrayValueFromSlots(slots []*ZVal) *ArrayValue {
 // AppendEntries appends already keyed entries without publishing the backing
 // buffer. Callers transfer ownership of their entry metadata.
 func (a *ArrayValue) AppendEntries(slots ...*ZVal) {
+	a.Materialize()
 	a.ensureIndex()
 	for _, slot := range slots {
 		if slot == nil {
@@ -25,6 +26,7 @@ func (a *ArrayValue) AppendEntries(slots ...*ZVal) {
 
 // ReplaceSlot replaces one insertion position, including its key metadata.
 func (a *ArrayValue) ReplaceSlot(position int, slot *ZVal) {
+	a.Materialize()
 	a.entries[position] = slot
 	a.invalidateIndex()
 }
@@ -32,6 +34,7 @@ func (a *ArrayValue) ReplaceSlot(position int, slot *ZVal) {
 // SwapSlots is for dense internal containers such as SPL heaps. PHP key
 // preserving sorts must use EditPreservingKeys instead.
 func (a *ArrayValue) SwapSlots(left, right int) {
+	a.Materialize()
 	a.entries[left], a.entries[right] = a.entries[right], a.entries[left]
 	a.invalidateIndex()
 }
@@ -39,6 +42,7 @@ func (a *ArrayValue) SwapSlots(left, right int) {
 // EditPreservingKeys makes implicit integer keys explicit before reordering.
 // It preserves the automatic append counter and resets the array pointer.
 func (a *ArrayValue) EditPreservingKeys(edit func([]*ZVal)) {
+	a.Materialize()
 	a.ensureIndex()
 	a.normalizeDenseIntKeys()
 	a.EditSlots(edit)
@@ -62,14 +66,20 @@ func (a *ArrayValue) EditReindexing(edit func([]*ZVal)) {
 }
 
 // Len returns the number of entries, including entries with sparse PHP keys.
-func (a *ArrayValue) Len() int { return len(a.entries) }
+func (a *ArrayValue) Len() int {
+	if a.overlay != nil {
+		return a.overlay.length
+	}
+	return len(a.entries)
+}
 
 // View borrows entries for read-only traversal without allocating a snapshot.
-func (a *ArrayValue) View() Span[*ZVal] { return NewSpan(a.entries) }
+func (a *ArrayValue) View() Span[*ZVal] { return NewSpan(a.slots()) }
 
 // RemovePositions removes a dense internal container range without copying
 // the buffer. PHP unset/shift/pop have separate key and append-counter rules.
 func (a *ArrayValue) RemovePositions(start, end int) {
+	a.Materialize()
 	if start < 0 || end < start || end > a.Len() {
 		panic("invalid array position range")
 	}
@@ -81,6 +91,7 @@ func (a *ArrayValue) RemovePositions(start, end int) {
 
 // PrependDense adds a dense value and reindexes the ordered buffer once.
 func (a *ArrayValue) PrependDense(value Value) {
+	a.Materialize()
 	a.entries = append(a.entries, nil)
 	copy(a.entries[1:], a.entries[:len(a.entries)-1])
 	a.entries[0] = NewZVal(value)
@@ -105,6 +116,7 @@ func (a *ArrayValue) FilterSlots(keep func(int, *ZVal) bool) {
 
 // At reads an entry by insertion position, not by its PHP integer key.
 func (a *ArrayValue) At(position int) *ZVal {
+	a.Materialize()
 	if position < 0 || position >= len(a.entries) {
 		return nil
 	}
@@ -115,6 +127,10 @@ func (a *ArrayValue) At(position int) *ZVal {
 // an explicit Snapshot; Range does not allocate a copy or provide synchronization.
 func (a *ArrayValue) Range() iter.Seq2[int, *ZVal] {
 	return func(yield func(int, *ZVal) bool) {
+		if a.overlay != nil {
+			a.overlay.rangeSlots(yield)
+			return
+		}
 		for i, slot := range a.entries {
 			if !yield(i, slot) {
 				return
@@ -132,12 +148,13 @@ func (a *ArrayValue) Snapshot() []*ZVal {
 // AppendSlotsTo copies slot pointers into a caller-owned buffer without exposing
 // the array's mutable slice header. Existing destination capacity is reused.
 func (a *ArrayValue) AppendSlotsTo(dst []*ZVal) []*ZVal {
-	return append(dst, a.entries...)
+	return append(dst, a.slots()...)
 }
 
 // EditSlots is the bulk-mutation boundary for operations such as sorting.
 // The view is valid only inside edit. Future stores can materialize here once.
 func (a *ArrayValue) EditSlots(edit func([]*ZVal)) {
+	a.Materialize()
 	defer a.invalidateIndex()
 	edit(a.entries)
 }
@@ -145,6 +162,7 @@ func (a *ArrayValue) EditSlots(edit func([]*ZVal)) {
 // ReplaceAll takes ownership of slots after a bulk replacement or reordering.
 // Callers must finish editing keys before calling it, to invalidate the key cache.
 func (a *ArrayValue) ReplaceAll(slots []*ZVal) {
+	a.overlay = nil
 	a.entries = slots
 	a.appendKeyKnown = false
 	a.intKeySeen = false
@@ -154,6 +172,7 @@ func (a *ArrayValue) ReplaceAll(slots []*ZVal) {
 // PopSlot removes the last inserted entry. Unlike unset, PHP array_pop moves
 // nNextFreeElement back by one when it removes that exact preceding integer key.
 func (a *ArrayValue) PopSlot() *ZVal {
+	a.Materialize()
 	if a.Len() == 0 {
 		return nil
 	}
@@ -169,6 +188,7 @@ func (a *ArrayValue) PopSlot() *ZVal {
 			a.nextIntKey--
 		}
 	}
+	slot.ReleaseRefSlot()
 	a.entries[position] = nil
 	a.entries = a.entries[:position]
 	a.invalidateIndex()
@@ -199,10 +219,12 @@ func (a *ArrayValue) ReindexIntKeys(slots []*ZVal) {
 }
 
 func (a *ArrayValue) ShiftSlot() *ZVal {
+	a.Materialize()
 	if a.Len() == 0 {
 		return nil
 	}
 	slot := a.entries[0]
+	slot.ReleaseRefSlot()
 	a.ReindexIntKeys(a.entries[1:])
 	return slot
 }
@@ -227,6 +249,72 @@ func (a *ArrayValue) SetKey(key Value, value Value) bool {
 	return true
 }
 
+func (a *ArrayValue) AssignKey(ctx Context, key Value, value Value) (bool, Control) {
+	if slot, ctl := ReferenceSlot(value); slot != nil || ctl != nil {
+		if ctl != nil {
+			return false, ctl
+		}
+		return a.BindReference(key, slot), nil
+	}
+	var slot *ZVal
+	switch k := key.(type) {
+	case *NullValue:
+		slot, _ = a.LookupZValByStringKey("")
+	case *StringValue:
+		slot, _ = a.LookupZValByStringKey(k.AsString())
+	case AsInt:
+		if n, err := k.AsInt(); err == nil {
+			slot, _ = a.FindSlotByIntKey(n)
+		}
+	}
+	if slot != nil && slot.Guard() != nil {
+		prepared, ctl := slot.PrepareWrite(value, ctx)
+		if ctl != nil {
+			return false, ctl
+		}
+		value = prepared
+	}
+	if slot != nil {
+		CowAssign(slot, value)
+		return true, nil
+	}
+	return a.SetKey(key, value), nil
+}
+
+// BindReference replaces the bucket while sharing only its reference cell.
+// An alias to the old element remains bound to the old cell after rebinding.
+func (a *ArrayValue) BindReference(key Value, source *ZVal) bool {
+	name := ""
+	switch k := key.(type) {
+	case *NullValue:
+	case *StringValue:
+		name = k.AsString()
+	case AsInt:
+		n, err := k.AsInt()
+		if err != nil {
+			return false
+		}
+		name = IntArrayKeyName(n)
+	default:
+		return false
+	}
+	a.Materialize()
+	source.AddRefSlot()
+	bucket := CopyReferenceBucket(source)
+	bucket.Name, bucket.EmptyStrKey = name, name == ""
+	if previous, exists := a.LookupZValByStringKey(name); exists {
+		for position, slot := range a.entries {
+			if slot == previous {
+				previous.ReleaseRefSlot()
+				a.entries[position] = bucket
+				return true
+			}
+		}
+	}
+	a.appendSlotIncremental(bucket)
+	return true
+}
+
 // slots is a temporary internal view for legacy array methods and bulk
 // operations. Writes to this view must end in ReplaceAll; it must not escape data.
-func (a *ArrayValue) slots() []*ZVal { return a.entries }
+func (a *ArrayValue) slots() []*ZVal { a.Materialize(); return a.entries }

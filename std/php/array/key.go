@@ -24,23 +24,12 @@ func (f *KeyFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	switch val := arrayValue.(type) {
 	case *data.ArrayValue:
 		return val.PointerKey(), nil
-	case *data.ObjectValue:
-		return val.PointerKey(), nil
+
 	case *data.ClassValue:
-		// 处理 Iterator 对象
-		// 检查是否实现了 Iterator 接口
-		if targetInterface, ok := ctx.GetVM().GetInterface("Iterator"); ok {
-			if checkInterfaceStructure(val.Class, targetInterface) {
-				// 获取当前键（不移动指针）
-				keyVal, ctl := callValueMethod(val, "key")
-				if ctl != nil {
-					return data.NewNullValue(), nil
-				}
-				return keyVal, nil
-			}
+		if ctl := data.EmitPHPError(ctx, 8192, "key(): Calling key() on an object is deprecated", nil); ctl != nil {
+			return nil, ctl
 		}
-		// 不是 Iterator 接口，返回 null
-		return data.NewNullValue(), nil
+		return val.ObjectValue.PointerKey(), nil
 
 	default:
 		// 不是数组类型，返回 null

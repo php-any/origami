@@ -10,7 +10,7 @@ import (
 )
 
 func applyFlock(file *os.File, op int) (bool, error) {
-	handle := windows.Handle(file.Fd())
+	handle := windows.Handle(fileDescriptor(file))
 	ol := new(windows.Overlapped)
 	nb := op&LockNB != 0
 	base := op &^ LockNB

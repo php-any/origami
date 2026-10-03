@@ -8,9 +8,10 @@ import (
 )
 
 // 工具：调用无参无返回值方法（void）
-func callVoidMethod(obj *data.ClassValue, name string) data.Control {
+func callVoidMethod(ctx data.Context, obj *data.ClassValue, name string) data.Control {
 	if m, ok := obj.GetMethod(name); ok {
-		fnCtx := obj.CreateContext(m.GetVariables())
+		fnCtx := implicitMethodFrame(ctx, obj, m)
+		defer tryReleaseCallContext(m, fnCtx)
 		_, ctl := m.Call(fnCtx)
 		return ctl
 	}
@@ -18,9 +19,10 @@ func callVoidMethod(obj *data.ClassValue, name string) data.Control {
 }
 
 // 工具：调用返回 Value 的方法
-func callValueMethod(obj *data.ClassValue, name string) (data.Value, data.Control) {
+func callValueMethod(ctx data.Context, obj *data.ClassValue, name string) (data.Value, data.Control) {
 	if m, ok := obj.GetMethod(name); ok {
-		fnCtx := obj.CreateContext(m.GetVariables())
+		fnCtx := implicitMethodFrame(ctx, obj, m)
+		defer tryReleaseCallContext(m, fnCtx)
 		v, ctl := m.Call(fnCtx)
 		if ctl != nil {
 			return nil, ctl
@@ -34,8 +36,8 @@ func callValueMethod(obj *data.ClassValue, name string) (data.Value, data.Contro
 }
 
 // 工具：调用返回 bool 的方法
-func callBoolMethod(obj *data.ClassValue, name string) (bool, data.Control) {
-	v, ctl := callValueMethod(obj, name)
+func callBoolMethod(ctx data.Context, obj *data.ClassValue, name string) (bool, data.Control) {
+	v, ctl := callValueMethod(ctx, obj, name)
 	if ctl != nil {
 		return false, ctl
 	}
@@ -74,9 +76,7 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	case *data.ClassValue:
 		// 类实例：若实现语言层 Iterator 接口，则按五方法迭代
 		return u.foreachClassValue(ctx, array)
-	case *data.ObjectValue:
-		// 关联数组（Kv 字面量）优先按 ObjectValue 遍历，以支持 foreach (... as &$v)
-		return u.foreachObjectValue(ctx, array)
+
 	case *data.ArrayValue:
 		var v data.GetValue
 		var c data.Control
@@ -90,7 +90,7 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 			if zval == nil {
 				continue
 			}
-			element := zval.Value
+			element := zval.ReadValue()
 			// 设置值变量（引用则与数组槽位共享 ZVal）
 			if acl := u.bindForeachValue(ctx, element, zval, nil, ""); acl != nil {
 				return nil, acl
@@ -119,7 +119,7 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 						valueList := make([]data.Value, len(listSnapshot))
 						for j, z := range listSnapshot {
 							if z != nil {
-								valueList[j] = z.Value
+								valueList[j] = z.ReadValue()
 							}
 						}
 						return nil, NewForeachArrayYieldControl(u, valueList, i, bodyIndex+1, ctrl)
@@ -160,8 +160,7 @@ func (u *ForeachStatement) bindForeachValue(ctx data.Context, element data.Value
 	if _, ok := u.Value.(data.PropertyLvalue); ok {
 		return u.Value.SetValue(ctx, element)
 	}
-	slot.AddRefSlot()
-	ctx.SetIndexZVal(u.Value.GetIndex(), slot)
+	data.BindContextReference(ctx, u.Value.GetIndex(), slot)
 	return nil
 }
 
@@ -322,13 +321,13 @@ func (u *ForeachStatement) foreachClassValue(ctx data.Context, array *data.Class
 	}
 	if isIterator {
 		// rewind
-		if ctl := callVoidMethod(array, "rewind"); ctl != nil {
+		if ctl := callVoidMethod(ctx, array, "rewind"); ctl != nil {
 			return nil, ctl
 		}
 
 		for {
 			// valid
-			valid, ctl := callBoolMethod(array, "valid")
+			valid, ctl := callBoolMethod(ctx, array, "valid")
 			if ctl != nil {
 				return nil, ctl
 			}
@@ -337,7 +336,7 @@ func (u *ForeachStatement) foreachClassValue(ctx data.Context, array *data.Class
 			}
 
 			// current
-			valV, ctl := callValueMethod(array, "current")
+			valV, ctl := callValueMethod(ctx, array, "current")
 			if ctl != nil {
 				return nil, ctl
 			}
@@ -345,7 +344,7 @@ func (u *ForeachStatement) foreachClassValue(ctx data.Context, array *data.Class
 			// key
 			var keyV data.Value
 			if u.Key != nil {
-				kv, kctl := callValueMethod(array, "key")
+				kv, kctl := callValueMethod(ctx, array, "key")
 				if kctl != nil {
 					return nil, kctl
 				}
@@ -365,7 +364,7 @@ func (u *ForeachStatement) foreachClassValue(ctx data.Context, array *data.Class
 					}
 					if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
 						// 推进迭代器进入下一次
-						if ctl := callVoidMethod(array, "next"); ctl != nil {
+						if ctl := callVoidMethod(ctx, array, "next"); ctl != nil {
 							return nil, ctl
 						}
 						break
@@ -375,7 +374,7 @@ func (u *ForeachStatement) foreachClassValue(ctx data.Context, array *data.Class
 			}
 
 			// next
-			if ctl := callVoidMethod(array, "next"); ctl != nil {
+			if ctl := callVoidMethod(ctx, array, "next"); ctl != nil {
 				return nil, ctl
 			}
 		}
@@ -391,7 +390,7 @@ func (u *ForeachStatement) foreachClassValue(ctx data.Context, array *data.Class
 	if isAggregate {
 		// 调用 getIterator() 获取真正的迭代器。
 		// Go 加速的 Collection::getIterator 直接返回 items 数组，与 ...$agg 展开一致。
-		inner, ctl := callValueMethod(array, "getIterator")
+		inner, ctl := callValueMethod(ctx, array, "getIterator")
 		if ctl != nil {
 			return nil, ctl
 		}
@@ -609,19 +608,9 @@ func (f *ForeachValueTarget) SetValue(ctx data.Context, value data.Value) data.C
 			if i >= len(f.V) || f.V[i] == nil {
 				continue
 			}
-			f.V[i].SetValue(ctx, val.Value)
+			f.V[i].SetValue(ctx, val.ReadValue())
 		}
-	case *data.ObjectValue:
-		i := 0
-		for _, val := range d.GetProperties() {
-			if i >= len(f.V) {
-				break
-			}
-			if f.V[i] != nil {
-				f.V[i].SetValue(ctx, val)
-			}
-			i++
-		}
+
 	}
 
 	return nil

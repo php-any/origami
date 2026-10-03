@@ -72,7 +72,7 @@ func (a *ArrayValueSplice) Call(ctx Context) (GetValue, Control) {
 	// 返回被删除的元素
 	deletedValues := make([]Value, len(deletedElements))
 	for i, zval := range deletedElements {
-		deletedValues[i] = zval.Value
+		deletedValues[i] = zval.ReadValue()
 	}
 	return NewArrayValue(deletedValues), nil
 }

@@ -45,7 +45,7 @@ func NewNumberLiteral(token *TokenFrom, str string) data.GetValue {
 
 	// 检查是否是科学计数法（包含 e 或 E）
 	for i := 0; i < len(str); i++ {
-		if str[i] == 'e' || str[i] == 'E' {
+		if (str[i] == 'e' || str[i] == 'E') && !(len(str) > 1 && str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) {
 			// 科学计数法，解析为浮点数
 			f, err := strconv.ParseFloat(str, 64)
 			if err != nil {
@@ -99,6 +99,9 @@ func NewNumberLiteral(token *TokenFrom, str string) data.GetValue {
 	if len(str) > 1 && str[0] == '0' {
 		// 去掉前导 0
 		octStr := str[1:]
+		if str[1] == 'o' || str[1] == 'O' {
+			octStr = str[2:]
+		}
 		i, err := strconv.ParseInt(octStr, 8, 64)
 		if err != nil {
 			return &IntLiteral{

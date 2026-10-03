@@ -1,6 +1,9 @@
 package spl
 
-import "strings"
+import (
+	"os"
+	"strings"
+)
 
 // phpPathJoin 拼接目录与文件名，不 Clean「..」（对齐 PHP SplFileInfo / DirectoryIterator）。
 // Go 的 filepath.Join / Dir 会解析「..」，导致 Flysystem PathPrefixer::stripPrefix
@@ -14,7 +17,7 @@ func phpPathJoin(dir, name string) string {
 	}
 	dir = strings.TrimRight(dir, `/\`)
 	name = strings.TrimLeft(name, `/\`)
-	return dir + "/" + name
+	return dir + string(os.PathSeparator) + name
 }
 
 // phpPathDir 返回路径的目录部分，保留「..」段（对齐 PHP dirname / SplFileInfo::getPath）。
@@ -54,6 +57,10 @@ func phpPathBase(path string) string {
 // phpPathRel 计算 full 相对 root 的路径；两端保持逻辑形式，优先字符串前缀剥离。
 // 对齐 PHP RecursiveDirectoryIterator::getSubPathname：根层文件返回文件名，不返回 "."。
 func phpPathRel(root, full string) string {
+	if os.PathSeparator == '\\' {
+		root = strings.ReplaceAll(root, "\\", "/")
+		full = strings.ReplaceAll(full, "\\", "/")
+	}
 	root = strings.TrimRight(root, `/\`)
 	full = strings.TrimRight(full, `/\`)
 	if full == "" || full == root {

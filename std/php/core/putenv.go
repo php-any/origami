@@ -37,22 +37,12 @@ func (f *PutenvFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	// 解析 "KEY=VALUE" 格式
 	parts := strings.SplitN(assignment, "=", 2)
-	if len(parts) != 2 {
-		// 如果格式不正确，返回 false
-		return data.NewBoolValue(false), nil
-	}
-
 	key := parts[0]
-	value := parts[1]
-
-	// 设置环境变量，并同步 $_ENV / $_SERVER
-	err := node.SetEnvVar(key, value)
-	if err != nil {
-		return data.NewBoolValue(false), nil
+	var value *string
+	if len(parts) == 2 {
+		value = &parts[1]
 	}
-
-	// putenv 函数返回 true 表示成功
-	return data.NewBoolValue(true), nil
+	return data.NewBoolValue(node.SetEnvVar(ctx, key, value)), nil
 }
 
 func (f *PutenvFunction) GetName() string {

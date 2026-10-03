@@ -1,17 +1,7 @@
 package data
 
-import "fmt"
+import "github.com/php-any/origami/tooling/typeinfo"
 
 // Generic 泛型
-type Generic struct {
-	Name  string
-	Types []Types
-}
-
-func (i Generic) Is(value Value) bool {
-	return true // TODO
-}
-
-func (i Generic) String() string {
-	return fmt.Sprintf("%v", i.Name)
-}
+// Deprecated: generic analysis metadata lives outside runtime value semantics.
+type Generic = typeinfo.Generic

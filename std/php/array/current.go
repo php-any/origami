@@ -24,23 +24,12 @@ func (f *CurrentFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	switch val := arrayValue.(type) {
 	case *data.ArrayValue:
 		return val.PointerValue(), nil
-	case *data.ObjectValue:
-		return val.PointerValue(), nil
+
 	case *data.ClassValue:
-		// 处理 Iterator 对象
-		// 检查是否实现了 Iterator 接口
-		if targetInterface, ok := ctx.GetVM().GetInterface("Iterator"); ok {
-			if checkInterfaceStructure(val.Class, targetInterface) {
-				// 获取当前元素（不移动指针）
-				currentVal, ctl := callValueMethod(val, "current")
-				if ctl != nil {
-					return data.NewNullValue(), nil
-				}
-				return currentVal, nil
-			}
+		if ctl := data.EmitPHPError(ctx, 8192, "current(): Calling current() on an object is deprecated", nil); ctl != nil {
+			return nil, ctl
 		}
-		// 不是 Iterator 接口，返回 null
-		return data.NewNullValue(), nil
+		return val.ObjectValue.PointerValue(), nil
 
 	default:
 		// 不是数组类型，返回 null

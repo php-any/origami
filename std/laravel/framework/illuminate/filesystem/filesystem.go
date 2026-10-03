@@ -214,10 +214,10 @@ func fsDeletePaths(ctx data.Context) []string {
 		var paths []string
 		for arraySlots49, arrayPosition49 := av.View(), 0; arrayPosition49 < arraySlots49.Len(); arrayPosition49++ {
 			e := arraySlots49.At(arrayPosition49)
-			if e == nil || e.Value == nil {
+			if e == nil || e.ReadValue() == nil {
 				continue
 			}
-			paths = append(paths, kit.Unwrap(e.Value).AsString())
+			paths = append(paths, kit.Unwrap(e.ReadValue()).AsString())
 		}
 		return paths
 	}
@@ -427,13 +427,7 @@ func fsRequireWithData(ctx data.Context, once bool) (data.GetValue, data.Control
 
 func fsExtractSkip(ctx data.Context, arr data.Value) {
 	switch v := arr.(type) {
-	case *data.ObjectValue:
-		v.RangeProperties(func(key string, val data.Value) bool {
-			if key != "" && !ctx.HasVariableByName(key) {
-				ctx.SetVariableByName(key, val)
-			}
-			return true
-		})
+
 	case *data.ArrayValue:
 		for arraySlots50, arrayPosition50 := v.View(), 0; arrayPosition50 < arraySlots50.Len(); arrayPosition50++ {
 			zv := arraySlots50.At(arrayPosition50)
@@ -441,7 +435,7 @@ func fsExtractSkip(ctx data.Context, arr data.Value) {
 				continue
 			}
 			if !ctx.HasVariableByName(zv.Name) {
-				ctx.SetVariableByName(zv.Name, zv.Value)
+				ctx.SetVariableByName(zv.Name, zv.ReadValue())
 			}
 		}
 	}

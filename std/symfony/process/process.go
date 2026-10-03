@@ -1,12 +1,14 @@
 package process
 
 import (
+	"bytes"
 	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/utils"
 )
 
 const processName = "Symfony\\Component\\Process\\Process"
@@ -109,7 +111,7 @@ func processRun(ctx data.Context) (data.GetValue, data.Control) {
 		for arraySlots168, arrayPosition168 := av.View(), 0; arrayPosition168 < arraySlots168.Len(); arrayPosition168++ {
 			z := arraySlots168.At(arrayPosition168)
 			if z != nil {
-				args = append(args, z.Value.AsString())
+				args = append(args, z.ReadValue().AsString())
 			}
 		}
 	} else if cmdV != nil {
@@ -121,7 +123,10 @@ func processRun(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	cmd := exec.CommandContext(ctx.GoContext(), args[0], args[1:]...)
 	cmd.WaitDelay = 2 * time.Second
-	out, err := cmd.CombinedOutput()
+	var output bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &output, &output
+	err := utils.RunCommandTree(cmd)
+	out := output.Bytes()
 	data.CheckRequest(ctx.GoContext())
 	_ = cv.SetProperty("output", data.NewStringValue(string(out)))
 	code := 0

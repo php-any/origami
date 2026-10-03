@@ -29,6 +29,9 @@ func NewClassParser(parser *Parser) StatementParser {
 
 // Parse 解析类定义
 func (p *ClassParser) Parse() (data.GetValue, data.Control) {
+	classFlags, abstract := p.definingClassFlags, p.definingAbstractClass
+	p.definingClassFlags, p.definingAbstractClass = 0, false
+	defer func() { p.definingClassFlags, p.definingAbstractClass = classFlags, abstract }()
 	// 解析类前的注解
 	var annotations []*node.Annotation
 	for p.checkPositionIs(0, token.AT, token.HASH) {
@@ -53,8 +56,6 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 	if p.namespace != nil {
 		className = p.namespace.GetName() + "\\" + className
 	}
-
-	p.currentClass = className
 
 	var types []data.Types
 	var genericParamNames []string
@@ -123,6 +124,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	// 解析实现的接口
+	defer p.enterClassDeclaration(className, &extends)()
 	var implements []string
 	if p.current().Type() == token.IMPLEMENTS {
 		p.next()
@@ -180,63 +182,37 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 			continue
 		}
 
-		// 解析 final 和 abstract 关键字（可以在访问修饰符之前，顺序任意）
-		isAbstractMethod := false
-		isFinalMethod := false
-		for p.current().Type() == token.FINAL || p.current().Type() == token.ABSTRACT {
-			if p.current().Type() == token.FINAL {
+		isAbstractMethod, isFinalMethod, isStatic, isReadonly := false, false, false, false
+		modifier := "public"
+		for {
+			switch p.current().Type() {
+			case token.FINAL:
 				isFinalMethod = true
 				p.next()
-			} else {
+			case token.ABSTRACT:
 				isAbstractMethod = true
 				p.next()
+			case token.STATIC:
+				isStatic = true
+				p.next()
+			case token.READONLY:
+				isReadonly = true
+				p.next()
+			case token.PUBLIC, token.PROTECTED, token.PRIVATE:
+				modifier = p.parseModifier()
+			default:
+				goto memberModifiersDone
 			}
 		}
-
-		// 解析 static 关键字（可以在访问修饰符之前或之后，PHP 允许 static public function）
-		isStatic := false
-		if p.current().Type() == token.STATIC {
-			isStatic = true
-			p.next()
-		}
-
-		// 解析访问修饰符
-		modifier := p.parseModifier()
-		if modifier == "" {
-			return nil, data.NewErrorThrow(p.newFrom(), errors.New("缺少访问修饰符"))
-		}
-
-		// 解析 abstract/final 关键字（也可以在访问修饰符之后）
-		for p.current().Type() == token.FINAL || p.current().Type() == token.ABSTRACT {
-			if p.current().Type() == token.FINAL {
-				isFinalMethod = true
-				p.next()
-			} else {
-				isAbstractMethod = true
-				p.next()
-			}
-		}
+	memberModifiersDone:
 		if isAbstractMethod && isFinalMethod {
 			return nil, data.NewCompileFatal(p.newFrom(), "Cannot use the final modifier on an abstract method")
 		}
-
-		// 解析readonly关键字（在访问修饰符之后）
-		isReadonly := false
-		if p.current().Type() == token.READONLY {
-			isReadonly = true
-			p.next()
-		}
-
-		// 解析 static 关键字（也可以跟在访问修饰符之后，如 public static function）
-		if p.current().Type() == token.STATIC {
-			isStatic = true
-			p.next()
-		}
-
 		// 解析属性或方法
 		if p.current().Type() == token.VAR ||
 			p.current().Type() == token.CONST ||
 			p.current().Type() == token.VARIABLE ||
+			p.current().Type() == token.LPAREN ||
 			isIdentOrTypeToken(p.current().Type()) ||
 			(p.checkPositionIs(0, token.TERNARY) && isIdentOrTypeToken(p.peek(1).Type())) {
 			prop, acl := p.parsePropertyWithAnnotations(modifier, isStatic, isReadonly, memberAnnotations)
@@ -257,6 +233,14 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 				return nil, acl
 			}
 			if method != nil {
+				if isFinalMethod {
+					switch method := method.(type) {
+					case *node.ClassMethod:
+						method.Flags |= data.MethodFinal
+					case *node.AbstractMethod:
+						method.Flags |= data.MethodFinal
+					}
+				}
 				if isStatic {
 					staticMethods[method.GetName()] = method
 				} else {
@@ -278,6 +262,28 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 
 	// 将构造函数中声明的属性添加到属性列表
 	properties = append(properties, constructorProperties...)
+	if classFlags&data.ClassReadonly != 0 {
+		for _, property := range properties {
+			if property, ok := property.(*node.ClassProperty); ok {
+				property.IsReadonly = true
+			}
+		}
+	}
+	for _, property := range properties {
+		if property, ok := property.(*node.ClassProperty); ok && property.IsReadonly {
+			if property.GetType() == nil {
+				return nil, data.NewCompileFatal(property.GetFrom(), "Readonly property must have a type")
+			}
+			if property.DefaultValue != nil {
+				return nil, data.NewCompileFatal(property.GetFrom(), "Readonly property cannot have default value")
+			}
+		}
+	}
+	for _, property := range staticProperties {
+		if property, ok := property.(*node.ClassProperty); ok && property.IsReadonly {
+			return nil, data.NewCompileFatal(property.GetFrom(), "Static property cannot be readonly")
+		}
+	}
 
 	c := node.NewClassStatement(
 		tracker.EndBefore(),
@@ -287,18 +293,24 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 		properties,
 		methods,
 	)
-	c.IsAbstract = p.definingAbstractClass
+	c.IsAbstract, c.Flags = abstract, classFlags
 	// 静态属性/常量改为惰性求值：只在首次访问时求值并缓存。
 	// 原生 PHP 的类常量初始化是惰性的，允许前向引用（如 const A = [self::B]; const B = 1;），
 	// 若在解析期按声明顺序立即求值，前向引用会因目标常量尚未注册而失败。
 	// 这里用 ClassValue 作为缓存上下文，使 self::/parent::/static:: 在常量初始化器中可用。
 	c.StaticProperties = staticProperties
 	c.StaticPropertiesIndex = staticPropertiesIndex
-	c.SetStaticPropertyContext(data.NewClassValue(c, p.vm.CreateContext([]data.Variable{})))
+	if p.vm != nil {
+		c.SetStaticPropertyContext(data.NewClassValue(c, p.vm.CreateContext([]data.Variable{})))
+	}
 	c.StaticMethods = staticMethods
 
 	// 合并 trait 的方法和属性
-	if len(traits) > 0 {
+	if len(traits) > 0 && p.vm == nil {
+		c.Traits = append(c.Traits, traits...)
+		c.DeferredTraits = append(c.DeferredTraits, traits...)
+		c.DeferredTraitAliases = append(c.DeferredTraitAliases, traitAliases...)
+	} else if len(traits) > 0 {
 		acl := p.mergeTraits(c, traits, traitAliases)
 		if acl != nil {
 			return nil, acl
@@ -315,7 +327,7 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 			Generic:        types,
 		}
 	}
-	if p.conditionalDeclDepth == 0 {
+	if p.conditionalDeclDepth == 0 && p.vm != nil {
 		if acl := p.vm.AddClass(classStmt); acl != nil {
 			return nil, acl
 		}
@@ -328,6 +340,9 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 func callClassAnnotation(p *Parser, ans *[]*node.Annotation, c node.AddAnnotations) data.Control {
 	for _, an := range *ans {
 		an.Target = c.(data.GetValue)
+	}
+	if p.vm == nil {
+		return nil
 	}
 	for _, an := range *ans {
 		obj, acl := an.GetValue(p.vm.CreateContext(nil))
@@ -533,6 +548,14 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 		p.next()
 
 		// 解析常量名（不带 $）
+		var constantType data.Types
+		if !p.checkPositionIs(1, token.ASSIGN) {
+			var ctl data.Control
+			constantType, ctl = parseDeclaredType(p.Parser, data.DeclarationProperty)
+			if ctl != nil {
+				return nil, ctl
+			}
+		}
 		if p.current().Type() != token.IDENTIFIER {
 			return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("常量声明缺少名称"))
 		}
@@ -566,6 +589,21 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 			isReadonly,
 			defaultValue,
 		)
+		ret.IsConstant = true
+		ret.Type = data.DeclaredTypeRef(constantType)
+		if ret.Type != 0 {
+			switch defaultValue.(type) {
+			case *node.IntLiteral, *node.FloatLiteral, *node.StringLiteral, *node.BooleanLiteral, *node.NullLiteral:
+				raw, ctl := defaultValue.GetValue(nil)
+				if ctl != nil {
+					return nil, ctl
+				}
+				value := raw.(data.Value)
+				if !ret.Type.Matches(value, nil) && !(data.ValueKindOf(value) == data.ValueInt && ret.Type.Matches(data.NewFloatValue(0), nil)) {
+					return nil, data.NewCompileFatal(tracker.EndBefore(), "Cannot assign default value to typed class constant "+name+" of type "+ret.Type.String())
+				}
+			}
+		}
 		for _, an := range annotations {
 			an.Target = ret
 		}
@@ -607,98 +645,14 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 		return ret, acl
 	}
 
-	// 解析属性类型（在访问修饰符之后，变量名之前）
 	var propertyType data.Types
-	if isIdentOrTypeToken(p.current().Type()) || p.checkPositionIs(0, token.NULL, token.FALSE,
-		token.TRUE, token.SELF) {
-		// 检查是否是联合类型：string|int|null
-		var unionTypes []data.Types
-
-		// 解析第一个类型
-		var firstType data.Types
-		if p.checkPositionIs(0, token.NULL, token.FALSE) {
-			firstType = data.NewDeclaredType(p.current().Literal())
-			p.next()
-		} else if p.current().Type() == token.SELF {
-			// 处理 self 关键字
-			p.next()
-			if p.currentClassName != "" {
-				firstType = data.NewDeclaredType(p.currentClassName)
-			} else {
-				firstType = data.NewDeclaredType("self")
-			}
-		} else {
-			firstType = parseType(p.Parser)
-		}
-
-		if firstType != nil {
-			unionTypes = append(unionTypes, firstType)
-
-			// 处理后续的 |Type
-			for p.current().Type() == token.BIT_OR {
-				p.next() // 跳过 |
-				var nextType data.Types
-				if p.checkPositionIs(0, token.NULL, token.FALSE) {
-					nextType = data.NewDeclaredType(p.current().Literal())
-					p.next()
-				} else if p.current().Type() == token.SELF {
-					// 处理 self 关键字
-					p.next()
-					if p.currentClassName != "" {
-						nextType = data.NewDeclaredType(p.currentClassName)
-					} else {
-						nextType = data.NewDeclaredType("self")
-					}
-				} else if isIdentOrTypeToken(p.current().Type()) {
-					nextType = parseType(p.Parser)
-				} else {
-					break
-				}
-				if nextType != nil {
-					unionTypes = append(unionTypes, nextType)
-				}
-			}
-
-			// 创建类型
-			if len(unionTypes) == 1 {
-				propertyType = unionTypes[0]
-			} else {
-				propertyType = data.NewDeclaredUnionType(unionTypes)
-			}
-		}
-	} else if p.checkPositionIs(0, token.TERNARY) && (isIdentOrTypeToken(p.peek(1).Type()) || p.peek(1).Type() == token.SELF) {
-		// ?int 或 ?self 方式
-		p.next()
-		if p.current().Type() == token.SELF {
-			p.next()
-			var baseType data.Types
-			if p.currentClassName != "" {
-				baseType = data.NewDeclaredType(p.currentClassName)
-			} else {
-				baseType = data.NewDeclaredType("self")
-			}
-			propertyType = data.NewDeclaredNullableType(baseType)
-		} else {
-			// 处理 ?ClassName 这种可空类类型，需要结合命名空间解析完整类名
-			name := p.current().Literal()
-			p.next()
-
-			var base data.Types
-			// 内置基础类型（int/string/bool 等）保持原样
-			if data.ISBaseType(name) {
-				base = data.NewDeclaredType(name)
-			} else if full, ok := p.findFullClassNameByNamespace(name); ok {
-				// 若当前命名空间下存在对应类，则使用完整类名
-				base = data.NewDeclaredType(full)
-			} else {
-				// 否则回退为原始名称
-				base = data.NewDeclaredType(name)
-			}
-
-			propertyType = data.NewDeclaredNullableType(base)
+	if declarationStarts(p.Parser) {
+		var ctl data.Control
+		propertyType, ctl = parseDeclaredType(p.Parser, data.DeclarationProperty)
+		if ctl != nil {
+			return nil, ctl
 		}
 	}
-
 	// 解析属性名（普通属性必须是变量）
 	if p.current().Type() != token.VARIABLE {
 		return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("缺少变量名"))
@@ -805,10 +759,14 @@ func (p *ClassParser) skipPropertyHooksBlock() data.Control {
 func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool, isAbstract bool, annotations []*node.Annotation, properties *[]data.Property, staticProperties *map[string]data.Property) (data.Method, []data.Property, data.Control) {
 	// 跳过function关键字
 	p.next()
-	// 跳过 & 引用返回标记
+	returnsReference := false
 	if p.current().Type() == token.BIT_AND {
+		returnsReference = true
 		p.next()
 	}
+	outerReference := p.currentReturnsReference
+	p.currentReturnsReference = returnsReference
+	defer func() { p.currentReturnsReference = outerReference }()
 	tracker := p.StartTracking()
 	p.enterStaticScope()
 	defer p.leaveStaticScope()
@@ -884,145 +842,10 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 			className, name, src, sl+1)
 	}
 
-	// 解析返回类型
-	var retType data.Types
-	if p.current().Type() == token.COLON {
-		p.next() // 跳过冒号
-
-		// 解析返回类型列表
-		var returnTypes []data.Types
-
-		for {
-			// 检查是否是可空类型语法 ?type
-			isNullable := false
-			if p.current().Type() == token.TERNARY {
-				isNullable = true
-				p.next() // 跳过问号
-			}
-
-			// 解析一个"返回类型表达式"，支持联合类型：string|int|false
-			// 其中每个原子类型可以是标识符、内置类型、null、false 等
-			var unionTypes []data.Types
-
-			parseOneTypeAtom := func() (data.Types, data.Control) {
-				if !p.checkPositionIs(0,
-					token.IDENTIFIER,
-					token.STRING,
-					token.INT,
-					token.FLOAT,
-					token.BOOL,
-					token.ARRAY,
-					token.NULL,
-					token.FALSE,
-					token.TRUE,
-					token.STATIC,
-					token.SELF,
-					token.PARENT,
-				) {
-					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("无法识别返回类型的定义符号"+p.current().Literal()))
-				}
-
-				// 处理 static 关键字（返回类型中的 static 表示调用类的实例）
-				if p.current().Type() == token.STATIC {
-					p.next()
-					return data.NewDeclaredType("static"), nil
-				}
-
-				// 处理 self 关键字
-				if p.current().Type() == token.SELF {
-					p.next()
-					if p.currentClassName != "" {
-						return data.NewDeclaredType(p.currentClassName), nil
-					}
-					return data.NewDeclaredType("self"), nil
-				}
-
-				// 处理 parent 关键字：返回父类名（若有），否则字符串 "parent"
-				if p.current().Type() == token.PARENT {
-					p.next()
-					if p.currentClassName != "" {
-						// 当前类名可能是完整名，通过 VM 查找父类
-						if cls, ok := p.vm.GetClass(p.currentClassName); ok && cls.GetExtend() != nil {
-							return data.NewDeclaredType(*cls.GetExtend()), nil
-						}
-					}
-					return data.NewDeclaredType("parent"), nil
-				}
-
-				name := p.current().Literal()
-				p.next()
-
-				// 如果是基础类型，直接返回
-				if data.ISBaseType(name) {
-					return data.NewDeclaredType(name), nil
-				}
-
-				// 尝试解析完整的类名（包括命名空间）
-				if full, ok := p.findFullClassNameByNamespace(name); ok {
-					return data.NewDeclaredType(full), nil
-				}
-
-				// 如果无法解析，返回原始名称
-				return data.NewDeclaredType(name), nil
-			}
-
-			// 第一个类型原子
-			firstType, acl := parseOneTypeAtom()
-			if acl != nil {
-				return nil, nil, acl
-			}
-			unionTypes = append(unionTypes, firstType)
-
-			// 后续 |Type（联合）或 &Type（交集）
-			var typeCombinator token.TokenType
-			hasCombinator := false
-			if p.current().Type() == token.BIT_OR || p.current().Type() == token.BIT_AND {
-				typeCombinator = p.current().Type()
-				hasCombinator = true
-			}
-			for hasCombinator && p.current().Type() == typeCombinator {
-				p.next()
-				nextType, acl := parseOneTypeAtom()
-				if acl != nil {
-					return nil, nil, acl
-				}
-				unionTypes = append(unionTypes, nextType)
-			}
-
-			var thisType data.Types
-			if len(unionTypes) == 1 {
-				thisType = unionTypes[0]
-			} else if typeCombinator == token.BIT_AND {
-				thisType = data.NewDeclaredIntersectionType(unionTypes)
-			} else {
-				thisType = data.NewDeclaredUnionType(unionTypes)
-			}
-			if isNullable {
-				thisType = data.NewDeclaredNullableType(thisType)
-			}
-			returnTypes = append(returnTypes, thisType)
-
-			// 检查是否有更多类型（逗号分隔）
-			if p.current().Type() == token.COMMA {
-				p.next() // 跳过逗号
-				continue
-			}
-
-			// 没有更多类型，结束解析
-			break
-		}
-
-		// 根据返回类型数量决定返回类型
-		if len(returnTypes) == 0 {
-			retType = nil
-		} else if len(returnTypes) == 1 {
-			retType = returnTypes[0]
-		} else {
-			// 多个返回类型，创建多返回值类型
-			retType = data.NewMultipleReturnType(returnTypes)
-		}
+	retType, ctl := parseDeclaredReturn(p.Parser)
+	if ctl != nil {
+		return nil, nil, ctl
 	}
-
 	var body []data.GetValue
 	var vars []data.Variable
 
@@ -1055,6 +878,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 		retType,
 		p.strictTypes,
 	)
+	method.(*node.ClassMethod).ReturnsReference = returnsReference
 
 	// 如果是抽象方法，包装为 AbstractMethod
 	var ret data.Method = method
@@ -1439,7 +1263,7 @@ func mergeTraitIntoClass(vm data.VM, class *node.ClassStatement, trait data.Clas
 				}
 			} else {
 				// 添加到属性列表
-				class.Properties[propertyName] = property
+				class.Properties[propertyName] = node.PropertyInClass(property, class.Name)
 				class.PropertiesIndex = append(class.PropertiesIndex, propertyName)
 			}
 		}

@@ -171,7 +171,7 @@ func parseMiddlewareList(v data.GetValue) ([]string, data.Control) {
 			if z == nil {
 				continue
 			}
-			s, ok := z.Value.(data.AsString)
+			s, ok := z.ReadValue().(data.AsString)
 			if !ok {
 				return nil, utils.NewThrow(errors.New("middleware 数组元素必须是类名字符串"))
 			}
@@ -374,30 +374,18 @@ func (m *RouterGroupMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 			}
 			switch z.Name {
 			case "prefix":
-				if ps, ok := z.Value.(data.AsString); ok {
+				if ps, ok := z.ReadValue().(data.AsString); ok {
 					next.prefix = joinRoutePath(next.prefix, ps.AsString())
 				}
 			case "middleware":
-				mws, acl := parseMiddlewareList(z.Value)
+				mws, acl := parseMiddlewareList(z.ReadValue())
 				if acl != nil {
 					return nil, acl
 				}
 				next.middlewares = append(next.middlewares, mws...)
 			}
 		}
-	case *data.ObjectValue:
-		if prefixVal, ctl := val.GetProperty("prefix"); ctl == nil && prefixVal != nil {
-			if ps, ok := prefixVal.(data.AsString); ok {
-				next.prefix = joinRoutePath(next.prefix, ps.AsString())
-			}
-		}
-		if mwVal, ctl := val.GetProperty("middleware"); ctl == nil && mwVal != nil {
-			mws, acl := parseMiddlewareList(mwVal)
-			if acl != nil {
-				return nil, acl
-			}
-			next.middlewares = append(next.middlewares, mws...)
-		}
+
 	}
 
 	pushRouterGroup(next)
@@ -457,7 +445,7 @@ func (m *RouterGetRoutesMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 			items = append(items, routeEntryToObject(cat))
 			continue
 		}
-		obj := data.NewObjectValue()
+		obj := data.NewStdClassValue(nil)
 		obj.SetProperty("method", data.NewStringValue(rt.Method))
 		obj.SetProperty("path", data.NewStringValue(rt.Path))
 		obj.SetProperty("controller", data.NewStringValue("(annotation)"))
@@ -477,7 +465,7 @@ func (m *RouterGetRoutesMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 }
 
 func routeEntryToObject(rt RouteCatalogEntry) data.Value {
-	obj := data.NewObjectValue()
+	obj := data.NewStdClassValue(nil)
 	obj.SetProperty("method", data.NewStringValue(rt.Method))
 	obj.SetProperty("path", data.NewStringValue(rt.Path))
 	obj.SetProperty("controller", data.NewStringValue(rt.Controller))

@@ -93,17 +93,9 @@ func randomizerArrayEntries(value data.Value) ([]randomizerArrayEntry, bool) {
 					key = data.NewStringValue(zv.Name)
 				}
 			}
-			entries = append(entries, randomizerArrayEntry{key: key, value: zv.Value})
+			entries = append(entries, randomizerArrayEntry{key: key, value: zv.ReadValue()})
 		}
-	case *data.ObjectValue:
-		array.RangeProperties(func(name string, value data.Value) bool {
-			var key data.Value = data.NewStringValue(name)
-			if numericKey, ok := data.ParseIntArrayKeyName(name); ok {
-				key = data.NewIntValue(numericKey)
-			}
-			entries = append(entries, randomizerArrayEntry{key: key, value: value})
-			return true
-		})
+
 	default:
 		return nil, false
 	}

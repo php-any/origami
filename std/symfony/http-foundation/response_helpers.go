@@ -179,8 +179,8 @@ func headersMapFromValue(v data.Value) map[string][]string {
 			vals := make([]string, 0, arr.Len())
 			for arraySlots163, arrayPosition163 := arr.View(), 0; arrayPosition163 < arraySlots163.Len(); arrayPosition163++ {
 				z := arraySlots163.At(arrayPosition163)
-				if z != nil && z.Value != nil {
-					vals = append(vals, z.Value.AsString())
+				if z != nil && z.ReadValue() != nil {
+					vals = append(vals, z.ReadValue().AsString())
 				}
 			}
 			out[k] = vals

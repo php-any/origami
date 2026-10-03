@@ -11,11 +11,16 @@ type RequestClosureBinder interface {
 // It preserves aliases and cycles, including references shared by callbacks.
 // It runs only during setup; normal closure calls perform no scope lookup.
 type RequestCaptureScope struct {
-	Context  Context
-	Objects  map[*ObjectValue]*ClassValue
-	values   map[Value]Value
-	closures map[FuncStmt]FuncStmt
-	slots    map[*ZVal]*ZVal
+	Context     Context
+	Objects     map[*ObjectValue]*ClassValue
+	ScopeObject func(*ClassValue) *ClassValue
+	ScopeArray  func(*ArrayValue) *ArrayValue
+	ScopeSlot   func(*ZVal) *ZVal
+	ScopeValue  func(Value) Value
+	values      map[Value]Value
+	closures    map[FuncStmt]FuncStmt
+	slots       map[*ZVal]*ZVal
+	arrayScope  *ArrayOverlayScope
 }
 
 type requestCaptureBinder interface {
@@ -23,21 +28,17 @@ type requestCaptureBinder interface {
 }
 
 func NewRequestCaptureScope(ctx Context, objects map[*ObjectValue]*ClassValue) *RequestCaptureScope {
-	return &RequestCaptureScope{Context: ctx, Objects: objects, values: map[Value]Value{}, closures: map[FuncStmt]FuncStmt{}, slots: map[*ZVal]*ZVal{}}
+	s := &RequestCaptureScope{Context: ctx, Objects: objects, values: map[Value]Value{}, closures: map[FuncStmt]FuncStmt{}, slots: map[*ZVal]*ZVal{}, arrayScope: NewArrayOverlayScope()}
+	s.arrayScope.refs, s.arrayScope.bindValue = s.slots, s.Bind
+	return s
 }
 func (s *RequestCaptureScope) Closure(source FuncStmt) FuncStmt        { return s.closures[source] }
 func (s *RequestCaptureScope) RememberClosure(source, target FuncStmt) { s.closures[source] = target }
 func (s *RequestCaptureScope) BindSlot(slot *ZVal) *ZVal {
-	if slot == nil {
-		return nil
+	if s.ScopeSlot != nil {
+		return s.ScopeSlot(slot)
 	}
-	if clone := s.slots[slot]; clone != nil {
-		return clone
-	}
-	clone := *slot
-	s.slots[slot] = &clone
-	clone.Value = s.Bind(slot.Value)
-	return &clone
+	return s.arrayScope.copySlot(slot, nil)
 }
 func (s *RequestCaptureScope) bindClosure(source FuncStmt) FuncStmt {
 	if clone := s.closures[source]; clone != nil {
@@ -45,6 +46,16 @@ func (s *RequestCaptureScope) bindClosure(source FuncStmt) FuncStmt {
 	}
 	if binder, ok := source.(requestCaptureBinder); ok {
 		return binder.BindRequestCapture(s)
+	}
+	if binder, ok := source.(RequestClosureBinder); ok {
+		if s.ScopeObject != nil {
+			for _, object := range binder.RequestScopeObjects() {
+				s.ScopeObject(object)
+			}
+		}
+		target := binder.BindRequestScope(s.Context, s.Objects)
+		s.RememberClosure(source, target)
+		return target
 	}
 	return source
 }
@@ -62,15 +73,23 @@ func (s *RequestCaptureScope) Bind(value Value) Value {
 		if v.ObjectValue != nil {
 			if target := s.Objects[v.ObjectValue]; target != nil {
 				bound = target
+			} else if s.ScopeObject != nil {
+				bound = s.ScopeObject(v)
 			}
 		}
 	case *ThisValue:
 		if v.ObjectValue != nil {
 			if target := s.Objects[v.ObjectValue]; target != nil {
 				bound = NewThisValue(target)
+			} else if s.ScopeObject != nil {
+				bound = NewThisValue(s.ScopeObject(v.ClassValue))
 			}
 		}
 	case *ArrayValue:
+		if s.ScopeArray != nil {
+			bound = s.ScopeArray(v)
+			break
+		}
 		clone := &ArrayValue{
 			flatArrayStore:        FlatArrayStore{entries: make([]*ZVal, v.Len()), appendKeyKnown: v.appendKeyKnown, intKeySeen: v.intKeySeen, nextIntKey: v.nextIntKey, iterator: v.iterator},
 			IndirectOverloadClass: v.IndirectOverloadClass,
@@ -90,6 +109,8 @@ func (s *RequestCaptureScope) Bind(value Value) Value {
 		if owner != nil {
 			if target := s.Objects[owner.ObjectValue]; target != nil {
 				owner = target
+			} else if s.ScopeObject != nil {
+				owner = s.ScopeObject(owner)
 			}
 		}
 		clone := NewBoundFuncValue(v.Value, v.ScopeClass, owner)
@@ -101,6 +122,10 @@ func (s *RequestCaptureScope) Bind(value Value) Value {
 		s.values[value] = clone
 		clone.Slot = s.BindSlot(v.Slot)
 		bound = clone
+	default:
+		if s.ScopeValue != nil {
+			bound = s.ScopeValue(value)
+		}
 	}
 	s.values[value] = bound
 	return bound

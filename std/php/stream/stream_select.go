@@ -1,6 +1,8 @@
 package stream
 
 import (
+	"fmt"
+	"syscall"
 	"time"
 
 	"github.com/php-any/origami/data"
@@ -25,16 +27,18 @@ func streamFileDescriptor(value data.Value) (int, bool) {
 		if stream.IsClosed() || stream.File == nil {
 			return 0, false
 		}
-		return int(stream.File.Fd()), true
+		return int(fileDescriptor(stream.File)), true
 	case *StreamInfoFromReader:
 		if stream.IsClosed() || stream.Reader == nil {
 			return 0, false
 		}
-		file, ok := stream.Reader.(interface{ Fd() uintptr })
+		file, ok := stream.Reader.(interface {
+			SyscallConn() (syscall.RawConn, error)
+		})
 		if !ok {
 			return 0, false
 		}
-		return int(file.Fd()), true
+		return int(fileDescriptor(file)), true
 	}
 	return 0, false
 }
@@ -44,14 +48,11 @@ func rangeStreamCollection(value data.Value, fn func(data.Value) bool) {
 	case *data.ArrayValue:
 		for arraySlots141, arrayPosition141 := collection.View(), 0; arrayPosition141 < arraySlots141.Len(); arrayPosition141++ {
 			zv := arraySlots141.At(arrayPosition141)
-			if zv != nil && !fn(zv.Value) {
+			if zv != nil && !fn(zv.ReadValue()) {
 				return
 			}
 		}
-	case *data.ObjectValue:
-		collection.RangeProperties(func(_ string, value data.Value) bool {
-			return fn(value)
-		})
+
 	}
 }
 
@@ -80,8 +81,33 @@ func intContextArg(ctx data.Context, index int) int {
 }
 
 func streamSelectTimeout(ctx data.Context) time.Duration {
+	seconds, _ := ctx.GetIndexValue(3)
+	if _, infinite := seconds.(*data.NullValue); infinite {
+		return -1
+	}
 	return time.Duration(intContextArg(ctx, 3))*time.Second +
 		time.Duration(intContextArg(ctx, 4))*time.Microsecond
+}
+
+func validateSelectTimeout(ctx data.Context) data.Control {
+	if intContextArg(ctx, 3) < 0 || intContextArg(ctx, 4) < 0 {
+		return data.NewErrorThrowByName(nil, fmt.Errorf("stream_select(): timeout must be greater than or equal to 0"), "ValueError")
+	}
+	return nil
+}
+
+func filterSelectableStreams(value data.Value, keep func(int) bool) {
+	switch collection := value.(type) {
+	case *data.ArrayValue:
+		collection.FilterSlots(func(_ int, slot *data.ZVal) bool {
+			if slot == nil {
+				return false
+			}
+			fd, ok := streamFileDescriptor(slot.ReadValue())
+			return ok && keep(fd)
+		})
+
+	}
 }
 
 func (f *StreamSelectFunction) GetName() string { return "stream_select" }

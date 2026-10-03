@@ -24,8 +24,8 @@ func (f *UnsetFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		// 检查参数表达式是否是 Variable 类型
 		if variable, ok := argExpr.(data.Variable); ok {
 			// foreach (... as &$v) 后的 unset($v)：只断开本地引用，不能清空被引用的数组元素
-			if zv := ctx.GetIndexZVal(variable.GetIndex()); zv != nil && zv.RefSlotCount > 0 {
-				zv.RefSlotCount--
+			if zv := ctx.GetIndexZVal(variable.GetIndex()); zv != nil && zv.RefCount() > 0 {
+				zv.ReleaseRefSlot()
 				ctx.SetIndexZVal(variable.GetIndex(), data.NewZVal(data.NewNullValue()))
 				continue
 			}
@@ -64,13 +64,7 @@ func (f *UnsetFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 					}
 				}
 				// 注意：ArrayValue 不支持字符串索引，字符串索引应该使用 ObjectValue
-			case *data.ObjectValue:
-				// 对象属性删除
-				if sv, ok := indexValue.(data.AsString); ok {
-					propName := sv.AsString()
-					// 设置为 null（实际上相当于删除）
-					arr.SetProperty(propName, data.NewNullValue())
-				}
+
 			case *data.ClassValue:
 				if iv, ok := indexValue.(data.Value); ok && node.CheckArrayAccess(ctx, arr.Class) {
 					if ctl := node.CallArrayAccessOffsetUnset(ctx, arr, iv); ctl != nil {
@@ -105,9 +99,7 @@ func (f *UnsetFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 			// 根据对象类型处理
 			switch obj := objValue.(type) {
-			case *data.ObjectValue:
-				// 对象属性设置为 null
-				obj.SetProperty(callProp.Property, data.NewNullValue())
+
 			case *data.ClassValue:
 				// 类对象属性设置为 null
 				obj.SetProperty(callProp.Property, data.NewNullValue())

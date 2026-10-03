@@ -27,18 +27,10 @@ func (f *ArraySpliceFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	data.CowSeparateZVal(arrZVal)
 
 	var owner *data.ArrayValue
-	switch arr := arrZVal.Value.(type) {
+	switch arr := arrZVal.ReadValue().(type) {
 	case *data.ArrayValue:
 		owner = arr
-	case *data.ObjectValue:
-		// ObjectValue -> 转为 ArrayValue 再操作
-		tmp, _ := data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
-		arr.RangeProperties(func(key string, v data.Value) bool {
-			tmp.SetStringKey(key, v)
-			return true
-		})
-		arrZVal.Value = tmp
-		owner = tmp
+
 	default:
 		return data.NewArrayValue([]data.Value{}), nil
 	}
@@ -99,13 +91,8 @@ func (f *ArraySpliceFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 		if replacementArray, isArr := replacementArg.(*data.ArrayValue); isArr {
 			for arraySlots105, arrayPosition105 := replacementArray.View(), 0; arrayPosition105 < arraySlots105.Len(); arrayPosition105++ {
 				z := arraySlots105.At(arrayPosition105)
-				insertElements = append(insertElements, data.NewZVal(z.Value))
+				insertElements = append(insertElements, data.NewZVal(z.ReadValue()))
 			}
-		} else if replacementObj, isObj := replacementArg.(*data.ObjectValue); isObj {
-			replacementObj.RangeProperties(func(key string, v data.Value) bool {
-				insertElements = append(insertElements, data.NewZVal(v))
-				return true
-			})
 		} else if _, isNull := replacementArg.(*data.NullValue); !isNull {
 			// 单个值
 			insertElements = append(insertElements, data.NewZVal(replacementArg))

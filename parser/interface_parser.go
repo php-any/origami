@@ -42,6 +42,8 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	// 解析继承
+	noParent := ""
+	defer p.parser.enterClassDeclaration(interfaceName, &noParent)()
 	var extends []string
 	if p.current().Type() == token.EXTENDS {
 		p.next()
@@ -186,6 +188,9 @@ func (p *InterfaceParser) Parse() (data.GetValue, data.Control) {
 				return nil, acl
 			}
 			if method != nil {
+				if method, ok := method.(*node.InterfaceMethod); ok {
+					method.IsStatic = isStatic
+				}
 				methods = append(methods, method)
 			}
 		} else if p.current().Type() == token.SEMICOLON {
@@ -285,6 +290,11 @@ func (p *InterfaceParser) parseInterfaceMethod(modifier string) (data.Method, da
 	}
 
 	// 解析方法名
+	byReference := false
+	if p.current().Type() == token.BIT_AND {
+		byReference = true
+		p.next()
+	}
 	if !(p.checkPositionIs(0, token.IDENTIFIER, token.SELF) ||
 		(p.current().Type() > token.KEYWORD_START && p.current().Type() < token.VALUE_START)) {
 		return nil, data.NewErrorThrow(p.FromCurrentToken(), errors.New("缺少方法名"))
@@ -297,122 +307,22 @@ func (p *InterfaceParser) parseInterfaceMethod(modifier string) (data.Method, da
 	if acl != nil {
 		return nil, acl
 	}
-	// 解析返回类型（可选，支持可空与联合类型：?Type、A|B）
-	var returnType data.Types
-	if p.current().Type() == token.COLON {
-		p.next() // 跳过冒号
-
-		// 解析返回类型列表（与 ClassParser 中的方法返回类型逻辑保持一致）
-		var returnTypes []data.Types
-
-		for {
-			// 检查是否是可空类型语法 ?type
-			isNullable := false
-			if p.current().Type() == token.TERNARY {
-				isNullable = true
-				p.next() // 跳过问号
-			}
-
-			// 解析一个“返回类型原子”，支持联合类型：string|int|false
-			var unionTypes []data.Types
-
-			parseOneTypeAtom := func() (data.Types, data.Control) {
-				if !p.checkPositionIs(0,
-					token.IDENTIFIER,
-					token.STRING,
-					token.INT,
-					token.FLOAT,
-					token.BOOL,
-					token.ARRAY,
-					token.NULL,
-					token.FALSE,
-					token.STATIC,
-					token.SELF,
-				) {
-					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("无法识别返回类型的定义符号"))
-				}
-
-				// 处理 static 关键字
-				if p.current().Type() == token.STATIC {
-					p.next()
-					return data.NewDeclaredType("static"), nil
-				}
-
-				name := p.current().Literal()
-				p.next()
-
-				// 如果是基础类型，直接返回
-				if data.ISBaseType(name) {
-					return data.NewDeclaredType(name), nil
-				}
-
-				// 尝试解析完整的类名（包括命名空间）
-				if full, ok := p.findFullClassNameByNamespace(name); ok {
-					return data.NewDeclaredType(full), nil
-				}
-
-				// 如果无法解析，返回原始名称
-				return data.NewDeclaredType(name), nil
-			}
-
-			// 第一个类型原子
-			firstType, acl := parseOneTypeAtom()
-			if acl != nil {
-				return nil, acl
-			}
-			unionTypes = append(unionTypes, firstType)
-
-			var typeCombinator token.TokenType
-			hasCombinator := false
-			if p.current().Type() == token.BIT_OR || p.current().Type() == token.BIT_AND {
-				typeCombinator = p.current().Type()
-				hasCombinator = true
-			}
-			for hasCombinator && p.current().Type() == typeCombinator {
-				p.next()
-				nextType, acl := parseOneTypeAtom()
-				if acl != nil {
-					return nil, acl
-				}
-				unionTypes = append(unionTypes, nextType)
-			}
-
-			var thisType data.Types
-			if len(unionTypes) == 1 {
-				thisType = unionTypes[0]
-			} else if typeCombinator == token.BIT_AND {
-				thisType = data.NewDeclaredIntersectionType(unionTypes)
-			} else {
-				thisType = data.NewDeclaredUnionType(unionTypes)
-			}
-
-			if isNullable {
-				thisType = data.NewDeclaredNullableType(thisType)
-			}
-
-			returnTypes = append(returnTypes, thisType)
-
-			// 支持多返回值列表时可以继续解析；接口方法当前只需要一个返回类型，遇到逗号/其他符号时停止
-			break
-		}
-
-		if len(returnTypes) == 1 {
-			returnType = returnTypes[0]
-		} else if len(returnTypes) > 1 {
-			returnType = data.NewMultipleReturnType(returnTypes)
-		}
+	returnType, ctl := parseDeclaredReturn(p.parser)
+	if ctl != nil {
+		return nil, ctl
 	}
-
 	// 解析分号
 	if p.checkPositionIs(0, token.SEMICOLON) {
 		p.next()
 	}
 	// 创建接口方法（接口方法没有方法体）
-	return node.NewInterfaceMethod(
+	method := node.NewInterfaceMethod(
 		tracker.EndBefore(),
 		name,
 		modifier,
 		params,
 		returnType,
-	), nil
+	)
+	method.(*node.InterfaceMethod).ReturnsReference = byReference
+	return method, nil
 }

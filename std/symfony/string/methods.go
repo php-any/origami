@@ -413,10 +413,10 @@ func methodTrimPrefix(ctx data.Context) (data.GetValue, data.Control) {
 	if av, ok := v.(*data.ArrayValue); ok {
 		for arraySlots207, arrayPosition207 := av.View(), 0; arrayPosition207 < arraySlots207.Len(); arrayPosition207++ {
 			z := arraySlots207.At(arrayPosition207)
-			if z == nil || z.Value == nil {
+			if z == nil || z.ReadValue() == nil {
 				continue
 			}
-			t := trimPrefixStr(getString(cv), valueString(ctx, z.Value), ignoreCaseOf(cv))
+			t := trimPrefixStr(getString(cv), valueString(ctx, z.ReadValue()), ignoreCaseOf(cv))
 			if t != getString(cv) {
 				return newOf(cv, t), nil
 			}
@@ -433,10 +433,10 @@ func methodTrimSuffix(ctx data.Context) (data.GetValue, data.Control) {
 	if av, ok := v.(*data.ArrayValue); ok {
 		for arraySlots208, arrayPosition208 := av.View(), 0; arrayPosition208 < arraySlots208.Len(); arrayPosition208++ {
 			z := arraySlots208.At(arrayPosition208)
-			if z == nil || z.Value == nil {
+			if z == nil || z.ReadValue() == nil {
 				continue
 			}
-			t := trimSuffixStr(getString(cv), valueString(ctx, z.Value), ignoreCaseOf(cv))
+			t := trimSuffixStr(getString(cv), valueString(ctx, z.ReadValue()), ignoreCaseOf(cv))
 			if t != getString(cv) {
 				return newOf(cv, t), nil
 			}
@@ -493,8 +493,8 @@ func methodJoin(ctx data.Context) (data.GetValue, data.Control) {
 	if av, ok := arr.(*data.ArrayValue); ok {
 		for arraySlots209, arrayPosition209 := av.View(), 0; arrayPosition209 < arraySlots209.Len(); arrayPosition209++ {
 			z := arraySlots209.At(arrayPosition209)
-			if z != nil && z.Value != nil {
-				parts = append(parts, valueString(ctx, z.Value))
+			if z != nil && z.ReadValue() != nil {
+				parts = append(parts, valueString(ctx, z.ReadValue()))
 			}
 		}
 	}

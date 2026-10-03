@@ -30,7 +30,7 @@ func (f *StrIreplaceFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 
 	result, count := caseInsensitiveReplace(subject, search, replace)
 	if slot := ctx.GetIndexZVal(3); slot != nil {
-		slot.Value = data.NewIntValue(count)
+		slot.StoreRaw(data.NewIntValue(count))
 	}
 
 	return data.NewStringValue(result), nil

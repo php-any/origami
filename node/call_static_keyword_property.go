@@ -87,6 +87,9 @@ func (pe *CallStaticKeywordProperty) GetValue(ctx data.Context) (data.GetValue, 
 		return nil, acl
 	}
 
+	if ctl := checkStaticPropertyAccess(ctx, definingClass, pe.Property, pe.GetFrom()); ctl != nil {
+		return nil, ctl
+	}
 	// 从定义该属性的类中获取静态属性（含接口类常量）
 	if property, has := LookupStaticProperty(vm, definingClass, pe.Property); has {
 		return property, nil
@@ -115,8 +118,8 @@ func (pe *CallStaticKeywordProperty) SetProperty(ctx data.Context, name string, 
 	}
 
 	// 在定义该属性的类中设置静态属性
-	if storeClassStatic(definingClass, name, value) {
-		return nil
+	if stored, ctl := storeClassStatic(ctx, definingClass, name, value); stored {
+		return ctl
 	}
 	if sp, ok := definingClass.(data.SetProperty); ok {
 		return sp.SetProperty(name, value)

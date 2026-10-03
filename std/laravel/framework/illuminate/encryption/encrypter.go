@@ -236,7 +236,7 @@ func encGetAllKeys(ctx data.Context) (data.GetValue, data.Control) {
 				if e == nil {
 					continue
 				}
-				arr.SetIntKey(i, e.Value)
+				arr.SetIntKey(i, e.ReadValue())
 				i++
 			}
 		}
@@ -276,19 +276,11 @@ func encPreviousKeys(ctx data.Context) (data.GetValue, data.Control) {
 			if e == nil {
 				continue
 			}
-			if ctl := appendKey(e.Value); ctl != nil {
+			if ctl := appendKey(e.ReadValue()); ctl != nil {
 				return nil, ctl
 			}
 		}
-	case *data.ObjectValue:
-		var ctl data.Control
-		t.RangeProperties(func(_ string, val data.Value) bool {
-			ctl = appendKey(val)
-			return ctl == nil
-		})
-		if ctl != nil {
-			return nil, ctl
-		}
+
 	}
 	_ = cv.SetProperty("previousKeys", out)
 	return cv, nil

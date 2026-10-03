@@ -37,7 +37,7 @@ func (f *NatsortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 使用自然排序，保留键值对应关系
 	arrayRef.EditPreservingKeys(func(slots []*data.ZVal) {
 		sort.SliceStable(slots, func(i, j int) bool {
-			return naturalCompare(slots[i].Value.AsString(), slots[j].Value.AsString(), false)
+			return naturalCompare(slots[i].ReadValue().AsString(), slots[j].ReadValue().AsString(), false)
 		})
 	})
 
@@ -70,7 +70,7 @@ func (f *NatcasesortFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 
 	arrayRef.EditPreservingKeys(func(slots []*data.ZVal) {
 		sort.SliceStable(slots, func(i, j int) bool {
-			return naturalCompare(slots[i].Value.AsString(), slots[j].Value.AsString(), true)
+			return naturalCompare(slots[i].ReadValue().AsString(), slots[j].ReadValue().AsString(), true)
 		})
 	})
 
@@ -176,14 +176,10 @@ func (f *ArrayIntersectUkeyFunction) Call(ctx data.Context) (data.GetValue, data
 	if paramsArray, ok := paramsVal.(*data.ArrayValue); ok {
 		for arraySlots109, arrayPosition109 := paramsArray.View(), 0; arrayPosition109 < arraySlots109.Len(); arrayPosition109++ {
 			item := arraySlots109.At(arrayPosition109)
-			if arr, isArr := item.Value.(*data.ArrayValue); isArr {
+			if arr, isArr := item.ReadValue().(*data.ArrayValue); isArr {
 				arrays = append(arrays, arr)
-			} else if obj, isObj := item.Value.(*data.ObjectValue); isObj {
-				// 将 ObjectValue 转换为 ArrayValue（按字符串键）
-				objArr := objectToArray(obj)
-				arrays = append(arrays, objArr)
 			} else if compareFunc == nil {
-				compareFunc = item.Value
+				compareFunc = item.ReadValue()
 			}
 		}
 	} else {
@@ -195,9 +191,6 @@ func (f *ArrayIntersectUkeyFunction) Call(ctx data.Context) (data.GetValue, data
 			}
 			if arr, isArr := v.(*data.ArrayValue); isArr {
 				arrays = append(arrays, arr)
-			} else if obj, isObj := v.(*data.ObjectValue); isObj {
-				objArr := objectToArray(obj)
-				arrays = append(arrays, objArr)
 			} else if compareFunc == nil {
 				compareFunc = v
 			}
@@ -243,7 +236,7 @@ func (f *ArrayIntersectUkeyFunction) Call(ctx data.Context) (data.GetValue, data
 		}
 
 		if foundInAll {
-			resultList = append(resultList, data.NewNamedZVal(key, item.Value))
+			resultList = append(resultList, data.NewNamedZVal(key, item.ReadValue()))
 		}
 	}
 

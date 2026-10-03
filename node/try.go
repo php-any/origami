@@ -67,14 +67,14 @@ func (t *TryStatement) GetValue(ctx data.Context) (v data.GetValue, c data.Contr
 	return v, c
 }
 
-func catchTypeMatches(exceptionType data.Types, cv *data.ThrowValue) bool {
-	return exceptionType != nil && exceptionType.Is(cv)
+func catchTypeMatches(ctx data.Context, exceptionType data.Types, cv *data.ThrowValue) bool {
+	return exceptionType != nil && !cv.PHPCompileFatal && data.DeclaredTypeRef(exceptionType).Matches(cv, ctx)
 }
 
 func (t *TryStatement) tryValue(ctx data.Context, c data.Control) (data.GetValue, data.Control) {
 	if cv, ok := c.(*data.ThrowValue); ok {
 		for _, catchBlock := range t.CatchBlocks {
-			if catchTypeMatches(catchBlock.ExceptionType, cv) {
+			if catchTypeMatches(ctx, catchBlock.ExceptionType, cv) {
 				if catchBlock.Variable != nil {
 					if acl := ctx.SetVariableValue(catchBlock.Variable, cv.PHPValue()); acl != nil {
 						return nil, acl

@@ -27,7 +27,7 @@ if(gettype($result) == "string") {
 
 // 测试 get_as_float = true（返回浮点数）
 $result = microtime(true);
-if(gettype($result) == "float") {
+if(gettype($result) == "double") {
     Log::info("microtime(true) 返回浮点数测试通过");
 } else {
     Log::fatal("microtime(true) 返回浮点数测试失败，类型: " . gettype($result));

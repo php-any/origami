@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/token"
@@ -12,27 +13,33 @@ import (
 
 // ClassStatement 表示类定义语句
 type ClassStatement struct {
-	*Node           `pp:"-"`
-	Name            string                   // 类名
-	Extends         *string                  // 父类名
-	Implements      []string                 // 实现的接口列表
-	StaticProperty  sync.Map                 // 静态属性存储（运行时值）
-	PropertiesIndex []string                 // 属性列表
-	Properties      map[string]data.Property // 属性列表
-	Methods         map[string]data.Method   // 方法列表
-	StaticMethods   map[string]data.Method   // 静态方法列表
-	methodsLower    map[string]data.Method   // 方法名小写索引（PHP 方法名不区分大小写）
-	staticLower     map[string]data.Method
-	indexedMethodN  int
-	methodIdxMu     sync.RWMutex
-	lookupCache     *data.MethodLookupCache
-	Annotations     []*data.ClassValue // 类注解列表
+	*Node              `pp:"-"`
+	Name               string                   // 类名
+	Extends            *string                  // 父类名
+	Implements         []string                 // 实现的接口列表
+	StaticProperty     sync.Map                 // 静态属性存储（运行时值）
+	PropertiesIndex    []string                 // 属性列表
+	Properties         map[string]data.Property // 属性列表
+	Methods            map[string]data.Method   // 方法列表
+	StaticMethods      map[string]data.Method   // 静态方法列表
+	methodsLower       map[string]data.Method   // 方法名小写索引（PHP 方法名不区分大小写）
+	staticLower        map[string]data.Method
+	indexedMethodN     int
+	methodIdxMu        sync.RWMutex
+	lookupCache        *data.MethodLookupCache
+	descriptorTemplate atomic.Pointer[data.ClassDescriptor]
+	validatedConcrete  atomic.Pointer[data.ClassDescriptor]
+	initialization     atomic.Pointer[classInitialization]
+	privateLookup      atomic.Pointer[privateMethodIndex]
+	Annotations        []*data.ClassValue // 类注解列表
 
 	// 构造函数
 	Construct data.Method
 
 	// IsAbstract 为 true 表示 abstract class（允许未实现接口/抽象方法）
 	IsAbstract bool
+	Flags      data.ClassFlags
+	EnumCases  []string
 
 	// AnnotationsApplied 标记类注解是否已在执行期应用过，避免普通 require 重复执行时重复注册 @Route/@Command
 	AnnotationsApplied bool
@@ -61,66 +68,35 @@ type ClassStatement struct {
 // GetValue 获取类定义语句的值
 func (c *ClassStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	if !c.IsAbstract {
-		if acl := ValidateConcreteClassAbstractMethods(ctx.GetVM(), c); acl != nil {
+		if acl := c.validateConcreteInstantiation(ctx.GetVM()); acl != nil {
 			return nil, acl
 		}
 	}
-	object := data.NewClassValue(c, ctx)
-
-	for _, property := range c.Properties {
-		if property.GetIsStatic() {
-			continue
-		}
+	plan, ctl := c.instanceInitialization(ctx.GetVM())
+	if ctl != nil {
+		return nil, ctl
+	}
+	object := data.NewClassValueWithPropertyCapacity(c, ctx, len(plan.properties))
+	for _, entry := range plan.properties {
+		property := entry.property
 		def := property.GetDefaultValue()
 		if def == nil {
+			if property.GetType() == nil {
+				object.SetProperty(entry.name, data.NewNullValue())
+			}
 			continue
 		}
-		v, ctl := def.GetValue(object)
+		value, ctl := def.GetValue(object)
 		if ctl != nil {
 			return nil, ctl
 		}
-		object.SetProperty(property.GetName(), v.(data.Value))
+		object.SetProperty(entry.name, value.(data.Value))
 	}
-	if c.Extends != nil {
-		vm := object.GetVM()
-		ext, acl := vm.GetOrLoadClass(*c.Extends)
-		if acl != nil {
-			return nil, acl
-		}
-		// 初始化父类的属性（包括所有继承链上的父类）
-		last := ext
-		for {
-			for _, property := range last.GetPropertyList() {
-				// 如果子类已经设置了该属性，跳过
-				if _, exists := c.Properties[property.GetName()]; exists {
-					continue
-				}
-				// 初始化有默认值的属性
-				def := property.GetDefaultValue()
-				if def != nil {
-					v, ctl := def.GetValue(object)
-					if ctl != nil {
-						return nil, ctl
-					}
-					object.SetProperty(property.GetName(), v.(data.Value))
-				}
-			}
-			// 继续处理父类的父类
-			if last.GetExtend() == nil {
-				break
-			}
-			next, acl := vm.GetOrLoadClass(*last.GetExtend())
-			if acl != nil {
-				return nil, acl
-			}
-			last = next
-		}
-		_, acl = ext.GetValue(object)
-		if acl != nil {
-			return nil, acl
+	if plan.nativeParent != nil {
+		if _, ctl := plan.nativeParent.GetValue(object); ctl != nil {
+			return nil, ctl
 		}
 	}
-
 	return object, nil
 }
 
@@ -259,7 +235,7 @@ func mergeTraitStmt(vm data.VM, class *ClassStatement, trait data.ClassStmt) dat
 					class.StaticProperty.Store(propertyName, data.NewNullValue())
 				}
 			} else {
-				class.Properties[propertyName] = property
+				class.Properties[propertyName] = PropertyInClass(property, class.Name)
 				class.PropertiesIndex = append(class.PropertiesIndex, propertyName)
 			}
 		}
@@ -299,7 +275,7 @@ func NewClassStatement(from data.From, name string, extends string, implements [
 	propertiesMap := make(map[string]data.Property, len(properties))
 	for i, property := range properties {
 		propertiesIndex[i] = property.GetName()
-		propertiesMap[property.GetName()] = property
+		propertiesMap[property.GetName()] = PropertyInClass(property, name)
 	}
 
 	class := &ClassStatement{
@@ -324,6 +300,35 @@ func NewClassStatement(from data.From, name string, extends string, implements [
 // GetName 返回类名
 func (c *ClassStatement) GetName() string {
 	return c.Name
+}
+
+func (c *ClassStatement) DeclarationFlags() data.ClassFlags {
+	flags := c.Flags
+	if c.IsAbstract {
+		flags |= data.ClassAbstract
+	}
+	return flags
+}
+
+func (c *ClassStatement) DeclarationDescriptor() *data.ClassDescriptor {
+	if descriptor := c.descriptorTemplate.Load(); descriptor != nil {
+		return descriptor
+	}
+	descriptor := data.DescribeClassDeclaration(c)
+	if c.descriptorTemplate.CompareAndSwap(nil, descriptor) {
+		return descriptor
+	}
+	return c.descriptorTemplate.Load()
+}
+func (c *ClassStatement) IsTrait() bool { return c.Flags&data.ClassTrait != 0 }
+func (c *ClassStatement) StaticPropertyDeclarations() []data.Property {
+	properties := make([]data.Property, 0, len(c.StaticPropertiesIndex))
+	for _, name := range c.StaticPropertiesIndex {
+		if property := c.StaticProperties[name]; property != nil {
+			properties = append(properties, property)
+		}
+	}
+	return properties
 }
 
 func (c *ClassStatement) GetExtend() *string {
@@ -365,6 +370,10 @@ func (c *ClassStatement) MethodLookupCache() *data.MethodLookupCache {
 }
 
 func (c *ClassStatement) invalidateMethodLookups() {
+	c.descriptorTemplate.Store(nil)
+	c.validatedConcrete.Store(nil)
+	c.initialization.Store(nil)
+	c.privateLookup.Store(nil)
 	c.methodIdxMu.Lock()
 	c.methodsLower = nil
 	c.staticLower = nil
@@ -521,6 +530,12 @@ func (c *ClassStatement) getStaticProperty(ctx data.Context, vm data.VM, name st
 		return v, true
 	}
 	if f, ok := c.StaticProperty.Load(name); ok {
+		if ref, ok := f.(*data.ZValValue); ok {
+			if slot, scoped := data.StaticReferenceSlot(c.GetName(), name, ref); scoped {
+				return slot.ReadValue(), true
+			}
+			return ref.ZVal.ReadValue(), true
+		}
 		return data.CowRequestStatic(c.GetName(), name, f.(data.Value)), true
 	}
 	// 惰性初始化：声明列表中存在但尚未求值的静态属性/常量。
@@ -568,6 +583,18 @@ func (c *ClassStatement) initStaticProperty(prop data.Property, vm data.VM) (dat
 	if !ok || val == nil {
 		val = data.NewNullValue()
 	}
+	if declaration, ok := prop.(*ClassProperty); ok && declaration.IsConstant && declaration.Type != 0 {
+		strict := ctx.CreateContext(nil)
+		strict.SetStrictTypes(true)
+		prepared, accepted, ctl := data.PrepareDeclaredValueInContext(declaration.Type, val, strict)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if !accepted {
+			return nil, data.NewTypeError(c.GetFrom(), fmt.Errorf("Cannot assign %T to class constant %s::%s of type %s", val, c.Name, prop.GetName(), declaration.Type.String()))
+		}
+		val = prepared
+	}
 	c.StaticProperty.Store(prop.GetName(), val)
 	return val, nil
 }
@@ -583,31 +610,56 @@ func (c *ClassStatement) GetStaticMethod(name string) (data.Method, bool) {
 }
 
 type ClassProperty struct {
-	*Node        `pp:"-"`
-	Name         string             // 属性名
-	Modifier     data.Modifier      // 访问修饰符
-	IsStatic     bool               // 是否是静态属性
-	IsReadonly   bool               // 是否是只读属性
-	IsPromoted   bool               // 是否是构造函数参数属性提升
-	DefaultValue data.GetValue      // 默认值
-	Annotations  []*data.ClassValue // 属性注解列表
-	Type         data.Types         // 属性类型
+	*Node          `pp:"-"`
+	Name           string             // 属性名
+	Modifier       data.Modifier      // 访问修饰符
+	IsStatic       bool               // 是否是静态属性
+	IsReadonly     bool               // 是否是只读属性
+	IsPromoted     bool               // 是否是构造函数参数属性提升
+	DefaultValue   data.GetValue      // 默认值
+	Annotations    []*data.ClassValue // 属性注解列表
+	Type           data.TypeRef       // 属性类型
+	IsConstant     bool
+	DeclaringClass string
+	storageName    string
 }
+
+func (p *ClassProperty) PropertyStorageName() string {
+	if p.storageName != "" {
+		return p.storageName
+	}
+	return p.Name
+}
+
+func PropertyInClass(property data.Property, class string) data.Property {
+	if original, ok := property.(*ClassProperty); ok {
+		copy := *original
+		copy.DeclaringClass = class
+		if copy.Modifier == data.ModifierPrivate && !copy.IsStatic {
+			copy.storageName = "\x00" + class + "\x00" + copy.Name
+		}
+		return &copy
+	}
+	return property
+}
+
+func (p *ClassProperty) IsReadonlyProperty() bool { return p.IsReadonly }
+func (p *ClassProperty) IsClassConstant() bool    { return p.IsConstant }
 
 func (p *ClassProperty) GetIndex() int {
 	panic("属性使用哈希实现")
 }
 
 func (p *ClassProperty) GetZVal(object data.GetPropertyZVal) (*data.ZVal, data.Control) {
-	return object.GetPropertyZVal(p.Name)
+	return object.GetPropertyZVal(p.PropertyStorageName())
 }
 
 func (p *ClassProperty) GetType() data.Types {
-	return p.Type
+	return data.DeclaredType(p.Type)
 }
 
 func (p *ClassProperty) SetType(t data.Types) {
-	p.Type = t
+	p.Type = data.DeclaredTypeRef(t)
 }
 
 func (p *ClassProperty) SetValue(ctx data.Context, value data.Value) data.Control {
@@ -643,11 +695,57 @@ func NewPropertyWithPromoted(from data.From, name string, modifier string, isSta
 		IsReadonly:   isReadonly,
 		IsPromoted:   isPromoted,
 		DefaultValue: defaultValue,
-		Type:         ty,
+		Type:         data.DeclaredTypeRef(ty),
 	}
 }
 
 func (p *ClassProperty) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	var instance *data.ClassValue
+	switch owner := ctx.(type) {
+	case *data.ClassValue:
+		instance = owner
+	case *data.ThisValue:
+		instance = owner.ClassValue
+	case *data.ClassMethodContext:
+		instance = owner.ClassValue
+	}
+	if instance != nil && classStmtFromAny(instance.Class) != nil && !p.IsStatic {
+		if instance.ObjectValue.HasProperty(p.PropertyStorageName()) {
+			return instance.ObjectValue.GetProperty(p.PropertyStorageName())
+		}
+		if p.Type != data.TypeInvalid {
+			return nil, data.NewErrorThrowByName(p.GetFrom(), fmt.Errorf("Typed property %s::$%s must not be accessed before initialization", p.DeclaringClass, p.Name), "Error")
+		}
+		return data.NewNullValue(), nil
+	}
+	if p.storageName != "" {
+		var object *data.ObjectValue
+		switch owner := ctx.(type) {
+		case *data.ClassValue:
+			object = owner.ObjectValue
+		case *data.ThisValue:
+			object = owner.ObjectValue
+		case *data.ClassMethodContext:
+			object = owner.ObjectValue
+		}
+		if object != nil {
+			if object.HasProperty(p.storageName) {
+				return object.GetProperty(p.storageName)
+			}
+			if p.DefaultValue == nil {
+				return data.NewNullValue(), nil
+			}
+			value, ctl := p.DefaultValue.GetValue(ctx)
+			if ctl != nil {
+				return nil, ctl
+			}
+			if value, ok := value.(data.Value); ok {
+				object.SetProperty(p.storageName, value)
+				return value, nil
+			}
+			return data.NewNullValue(), nil
+		}
+	}
 	v, acl := ctx.GetVariableValue(p)
 	if v != nil {
 		return v, acl
@@ -658,7 +756,7 @@ func (p *ClassProperty) GetValue(ctx data.Context) (data.GetValue, data.Control)
 		v, acl := p.DefaultValue.GetValue(ctx)
 		if v != nil {
 			if c, ok := ctx.(data.SetProperty); ok {
-				c.SetProperty(p.Name, v.(data.Value))
+				c.SetProperty(p.PropertyStorageName(), v.(data.Value))
 			} else {
 				ctx.SetVariableValue(p, v.(data.Value))
 			}
@@ -696,18 +794,23 @@ func (p *ClassProperty) AddAnnotations(a *data.ClassValue) {
 }
 
 type ClassMethod struct {
-	*Node       `pp:"-"`
-	Name        string          // 方法名
-	Modifier    data.Modifier   // 访问修饰符
-	IsStatic    bool            // 是否是静态方法
-	Params      []data.GetValue // 参数列表
-	Body        []data.GetValue // 方法体
-	vars        []data.Variable
-	Annotations []*data.ClassValue // 方法注解列表
-	Ret         data.Types         // 返回类型
-	IsGenerator bool               // 是否是生成器方法（含 yield）
-	StrictTypes bool
+	*Node            `pp:"-"`
+	Name             string          // 方法名
+	Modifier         data.Modifier   // 访问修饰符
+	IsStatic         bool            // 是否是静态方法
+	Params           []data.GetValue // 参数列表
+	Body             []data.GetValue // 方法体
+	vars             []data.Variable
+	Annotations      []*data.ClassValue // 方法注解列表
+	Ret              data.TypeRef       // 返回类型
+	IsGenerator      bool               // 是否是生成器方法（含 yield）
+	StrictTypes      bool
+	ReturnsReference bool
+	Flags            data.MethodFlags
 }
+
+func (m *ClassMethod) ReturnsByReference() bool                 { return m.ReturnsReference }
+func (m *ClassMethod) DeclarationMethodFlags() data.MethodFlags { return m.Flags }
 
 func (m *ClassMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	//TODO implement me
@@ -724,7 +827,7 @@ func NewMethod(from data.From, name string, modifier string, isStatic bool, para
 		Params:      params,
 		Body:        body,
 		vars:        vars,
-		Ret:         ret,
+		Ret:         data.DeclaredTypeRef(ret),
 		IsGenerator: containsYield(body),
 		StrictTypes: len(strict) != 0 && strict[0],
 	}
@@ -762,7 +865,7 @@ func (m *ClassMethod) GetVariables() []data.Variable {
 
 // GetReturnType 返回方法返回类型
 func (m *ClassMethod) GetReturnType() data.Types {
-	return m.Ret
+	return data.DeclaredType(m.Ret)
 }
 
 func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
@@ -817,10 +920,10 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 				if m.Ret == data.TypeVoid {
 					return data.NewNullValue(), nil
 				}
-				if m.Ret == nil {
+				if m.Ret == data.TypeInvalid {
 					return ret, nil // 不判断类型
 				}
-				if prepared, ok, conversion := data.PrepareTypedValueInContext(m.Ret, ret, ctx); conversion != nil {
+				if prepared, ok, conversion := data.PrepareDeclaredValueInContext(m.Ret, ret, ctx); conversion != nil {
 					return nil, data.ReturnTypeError(m.GetFrom(), fmt.Errorf("方法(%s)返回值类型错误; 期望 %s, 实际 %T", m.Name, m.Ret.String(), ret), conversion)
 				} else if ok {
 					return prepared, nil
@@ -863,7 +966,7 @@ func (m *ClassMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	persistStaticLocals(ctx, m.vars)
-	if !data.AllowsImplicitReturn(m.Ret) {
+	if !(m.Ret == data.TypeInvalid || m.Ret == data.TypeVoid) {
 		return nil, data.NewTypeError(m.from, fmt.Errorf("method %s must return a value", m.Name))
 	}
 	// PHP：方法没有 return 时返回 null（Livewire ViewContext::extractFromEnvironment 依赖此语义）。

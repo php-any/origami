@@ -20,6 +20,7 @@ if ($json->status() !== 201) {
     exit(1);
 }
 
+require __DIR__.'/../../examples/laravel13/vendor/autoload.php';
 $redirect = new \Illuminate\Http\RedirectResponse('http://example.com/login', 302);
 if ($redirect->getTargetUrl() !== 'http://example.com/login') {
     echo "FAIL RedirectResponse target\n";

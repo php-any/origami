@@ -85,7 +85,7 @@ func splListCurrent(cv *data.ClassValue) data.Value {
 	if pos < 0 || pos >= arr.Len() {
 		return data.NewNullValue()
 	}
-	return arr.At(pos).Value
+	return arr.At(pos).ReadValue()
 }
 
 func splListKey(cv *data.ClassValue) data.Value {
@@ -283,7 +283,7 @@ func (m *SplDLLPopMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if arr.Len() == 0 {
 		return data.NewNullValue(), nil
 	}
-	last := arr.At(arr.Len() - 1).Value
+	last := arr.At(arr.Len() - 1).ReadValue()
 	arr.RemovePositions(arr.Len()-1, arr.Len())
 	return last, nil
 }
@@ -307,7 +307,7 @@ func (m *SplDLLShiftMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	if arr.Len() == 0 {
 		return data.NewNullValue(), nil
 	}
-	first := arr.At(0).Value
+	first := arr.At(0).ReadValue()
 	arr.RemovePositions(0, 1)
 	pos := splListGetPos(cv)
 	if pos > 0 {
@@ -365,7 +365,7 @@ func (m *SplDLLTopMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if arr.Len() == 0 {
 		return data.NewNullValue(), nil
 	}
-	return arr.At(arr.Len() - 1).Value, nil
+	return arr.At(arr.Len() - 1).ReadValue(), nil
 }
 
 type SplDLLBottomMethod struct{}
@@ -387,7 +387,7 @@ func (m *SplDLLBottomMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	if arr.Len() == 0 {
 		return data.NewNullValue(), nil
 	}
-	return arr.At(0).Value, nil
+	return arr.At(0).ReadValue(), nil
 }
 
 type SplDLLCountMethod struct{}
@@ -566,7 +566,7 @@ func (m *SplDLLOffsetGetMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 	if i < 0 || i >= arr.Len() {
 		return data.NewNullValue(), nil
 	}
-	return arr.At(i).Value, nil
+	return arr.At(i).ReadValue(), nil
 }
 
 type SplDLLOffsetSetMethod struct{}
@@ -609,7 +609,7 @@ func (m *SplDLLOffsetSetMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 	if !ok || i < 0 || i >= arr.Len() {
 		return nil, nil
 	}
-	arr.At(i).Value = val
+	arr.At(i).StoreRaw(val)
 	return nil, nil
 }
 

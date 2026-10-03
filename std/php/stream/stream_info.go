@@ -8,11 +8,12 @@ import (
 
 // StreamInfo 存储流信息
 type StreamInfo struct {
-	File       *os.File
-	Mode       string // 打开模式，如 "r", "w", "a" 等
-	Closed     bool
-	mutex      sync.RWMutex
-	stopCancel func() bool
+	File          *os.File
+	Mode          string // 打开模式，如 "r", "w", "a" 等
+	Closed        bool
+	mutex         sync.RWMutex
+	stopCancel    func() bool
+	temporaryPath string
 }
 
 // NewStreamInfo 创建流信息
@@ -44,7 +45,11 @@ func (s *StreamInfo) Close() error {
 		if file == os.Stdin || file == os.Stdout || file == os.Stderr {
 			return nil
 		}
-		return file.Close()
+		err := file.Close()
+		if s.temporaryPath != "" {
+			_ = os.Remove(s.temporaryPath)
+		}
+		return err
 	}
 	return nil
 }

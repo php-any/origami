@@ -41,7 +41,7 @@ func TestCancelClosesBlockedStreamReads(t *testing.T) {
 			if pipeReader {
 				stream = NewStreamInfoFromReader(reader, "r")
 			}
-			_ = core.NewResourceValue(core.NewResourceClass("stream", stream, int(reader.Fd())), ctx)
+			_ = core.NewResourceValue(core.NewResourceClass("stream", stream, int(fileDescriptor(reader))), ctx)
 			done := make(chan error, 1)
 			go func() { _, err := stream.Read(make([]byte, 1)); done <- err }()
 			// Let Read enter the OS call. Closing the stream must be able to
@@ -71,7 +71,7 @@ func TestStreamRegisteredAfterCancellationCloses(t *testing.T) {
 	cancel()
 	ctx := &requestTestContext{Context: runtime.NewContext(runtime.NewVM(parser.NewParser())), request: request}
 	stream := NewStreamInfo(reader, "r")
-	_ = core.NewResourceValue(core.NewResourceClass("stream", stream, int(reader.Fd())), ctx)
+	_ = core.NewResourceValue(core.NewResourceClass("stream", stream, int(fileDescriptor(reader))), ctx)
 	deadline := time.Now().Add(time.Second)
 	for !stream.IsClosed() && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
@@ -94,7 +94,7 @@ func TestCanceledPHPReadUnwindsInsteadOfReturningEmpty(t *testing.T) {
 			defer cancel()
 			base := runtime.NewContext(runtime.NewVM(parser.NewParser())).CreateContext(function.GetVariables())
 			ctx := &requestTestContext{Context: base, request: request}
-			resource := core.NewResourceValue(core.NewResourceClass("stream", NewStreamInfo(reader, "r"), int(reader.Fd())), ctx)
+			resource := core.NewResourceValue(core.NewResourceClass("stream", NewStreamInfo(reader, "r"), int(fileDescriptor(reader))), ctx)
 			base.SetIndexZVal(0, data.NewZVal(resource))
 			if function.GetName() == "fread" {
 				base.SetIndexZVal(1, data.NewZVal(data.NewIntValue(1)))
@@ -118,5 +118,25 @@ func TestCanceledPHPReadUnwindsInsteadOfReturningEmpty(t *testing.T) {
 				t.Fatal("PHP read remained blocked")
 			}
 		})
+	}
+}
+
+func TestTemporaryStreamRemovedOnClose(t *testing.T) {
+	vm := runtime.NewVM(parser.NewParser())
+	fn := NewFopenFunction()
+	ctx := runtime.NewContext(vm).CreateContext(fn.GetVariables())
+	ctx.SetIndexZVal(0, data.NewZVal(data.NewStringValue("php://temp")))
+	ctx.SetIndexZVal(1, data.NewZVal(data.NewStringValue("w+")))
+	value, ctl := fn.Call(ctx)
+	if ctl != nil {
+		t.Fatal(ctl.AsString())
+	}
+	stream := value.(*core.ResourceValue).GetResource().(*StreamInfo)
+	path := stream.File.Name()
+	if err := stream.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("temporary stream retained: %v", err)
 	}
 }

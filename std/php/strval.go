@@ -13,10 +13,10 @@ type StrvalFunction struct{}
 
 func (f *StrvalFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	v, _ := ctx.GetIndexValue(0)
-	return strvalValue(v)
+	return strvalValue(ctx, v)
 }
 
-func strvalValue(v data.Value) (data.GetValue, data.Control) {
+func strvalValue(ctx data.Context, v data.Value) (data.GetValue, data.Control) {
 	if v == nil {
 		return data.NewStringValue(""), nil
 	}
@@ -35,29 +35,17 @@ func strvalValue(v data.Value) (data.GetValue, data.Control) {
 	case *data.ArrayValue:
 		return data.NewStringValue("Array"), nil
 	case *data.ClassValue:
-		if method, ok := val.GetMethod("__toString"); ok {
-			fnCtx := val.CreateContext(method.GetVariables())
-			fnCtx.SetCallArgs([]data.GetValue{})
-			ret, ctl := method.Call(fnCtx)
-			if ctl != nil {
-				return nil, ctl
-			}
-			if sv, ok := ret.(data.Value); ok {
-				return data.NewStringValue(sv.AsString()), nil
-			}
-			if gv, ok := ret.(data.GetValue); ok {
-				v2, ctl2 := gv.GetValue(fnCtx)
-				if ctl2 != nil {
-					return nil, ctl2
-				}
-				if sv, ok := v2.(data.Value); ok {
-					return data.NewStringValue(sv.AsString()), nil
-				}
-			}
+		result, accepted, ctl := data.ObjectToStringValue(val, ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if accepted {
+			return result, nil
 		}
 		return data.NewStringValue("Object"), nil
-	case *data.ObjectValue:
-		return data.NewStringValue("Object"), nil
+	case *data.ThisValue:
+		return strvalValue(ctx, val.ClassValue)
+
 	default:
 		return data.NewStringValue(v.AsString()), nil
 	}

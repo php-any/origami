@@ -26,7 +26,7 @@ if ($out !== 'AINNERB') {
     \Log::fatal('nested ob 失败: '.var_export($out, true));
 }
 
-// Filament 风格：方法内 ?> HTML <?= ?> 混写
+/* Filament 风格：方法内关闭标签、HTML 与短回显标签混写。 */
 class NestedOb_GridLike
 {
     public function toEmbeddedHtml(): string

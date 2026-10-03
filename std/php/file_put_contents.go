@@ -58,6 +58,9 @@ func (f *FilePutContentsFunction) Call(ctx data.Context) (data.GetValue, data.Co
 	if err != nil {
 		return nil, utils.NewThrowf("FilePutContentsFunction called with file path '%s': %v", filePath, err)
 	}
+	if cache, ok := ctx.GetVM().(interface{ InvalidateParsedFile(string) }); ok {
+		cache.InvalidateParsedFile(filePath)
+	}
 	return data.NewIntValue(n), nil
 }
 

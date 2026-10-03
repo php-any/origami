@@ -29,7 +29,7 @@ func NewChatCompletionClassValue(resp *oai.ChatCompletion, ctx data.Context) *da
 	}
 
 	// usage 信息
-	usageObj := data.NewObjectValue()
+	usageObj := data.NewStdClassValue(ctx)
 	usageObj.SetProperty("promptTokens", data.NewIntValue(int(resp.Usage.PromptTokens)))
 	usageObj.SetProperty("completionTokens", data.NewIntValue(int(resp.Usage.CompletionTokens)))
 	usageObj.SetProperty("totalTokens", data.NewIntValue(int(resp.Usage.TotalTokens)))

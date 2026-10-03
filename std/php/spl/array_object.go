@@ -160,8 +160,7 @@ func aoStorageFromInput(input data.Value) *data.ArrayValue {
 		}
 		// �?ArrayValue 可能是关联数组经参数传递时的占位，忽略
 		return data.NewArrayValueFromSlots([]*data.ZVal{})
-	case *data.ObjectValue:
-		return aoObjectToArrayValue(v)
+
 	}
 	return data.NewArrayValueFromSlots([]*data.ZVal{})
 }
@@ -192,7 +191,7 @@ func aoOffsetGet(arr *data.ArrayValue, offset data.Value) data.Value {
 		i, err := iv.AsInt()
 		if err == nil {
 			if z, _ := arr.FindSlotByIntKey(i); z != nil {
-				return z.Value
+				return z.ReadValue()
 			}
 		}
 	}
@@ -201,7 +200,7 @@ func aoOffsetGet(arr *data.ArrayValue, offset data.Value) data.Value {
 		for arraySlots134, arrayPosition134 := arr.View(), 0; arrayPosition134 < arraySlots134.Len(); arrayPosition134++ {
 			z := arraySlots134.At(arrayPosition134)
 			if z != nil && z.Name == key {
-				return z.Value
+				return z.ReadValue()
 			}
 		}
 	}
@@ -225,7 +224,7 @@ func aoOffsetSet(arr *data.ArrayValue, offset, value data.Value) {
 		for arraySlots135, arrayPosition135 := arr.View(), 0; arrayPosition135 < arraySlots135.Len(); arrayPosition135++ {
 			z := arraySlots135.At(arrayPosition135)
 			if z != nil && z.Name == key {
-				z.Value = value
+				z.StoreRaw(value)
 				return
 			}
 		}

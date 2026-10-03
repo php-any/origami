@@ -7,7 +7,8 @@ namespace tests\php;
  * 注意：不能用 `go run` 断言非零码（go run 会把子进程非零码统一成 1）。
  */
 $root = dirname(__DIR__, 2);
-$bin = $root . '/tests/php/exit_status_fixtures/origami_exit_status_test_bin';
+$bin = $root . '/examples/laravel13/storage/origami-debug/origami_exit_status_test_bin';
+if (PHP_OS_FAMILY === 'Windows') { $bin .= '.exe'; }
 $go = getenv('GOTOOL') ?: 'go';
 
 $descriptorspec = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];

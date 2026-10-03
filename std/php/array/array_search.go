@@ -43,7 +43,7 @@ func (f *ArraySearchFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	}
 	for arraySlots104, i := arr.View(), 0; i < arraySlots104.Len(); i++ {
 		z := arraySlots104.At(i)
-		v := z.Value
+		v := z.ReadValue()
 		if v == nil {
 			continue
 		}

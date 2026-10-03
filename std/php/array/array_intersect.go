@@ -52,14 +52,9 @@ func (f *ArrayIntersectFunction) Call(ctx data.Context) (data.GetValue, data.Con
 		case *data.ArrayValue:
 			for arraySlots90, arrayPosition90 := av.View(), 0; arrayPosition90 < arraySlots90.Len(); arrayPosition90++ {
 				z := arraySlots90.At(arrayPosition90)
-				set[z.Value.AsString()] = struct{}{}
+				set[z.ReadValue().AsString()] = struct{}{}
 			}
-		case *data.ObjectValue:
-			// 按插入顺序遍历，避免 Go map 顺序随机
-			av.RangeProperties(func(_ string, val data.Value) bool {
-				set[val.AsString()] = struct{}{}
-				return true
-			})
+
 		default:
 			// 非数组参数忽略（PHP 会发 warning，这里简化）
 		}
@@ -78,7 +73,7 @@ func (f *ArrayIntersectFunction) Call(ctx data.Context) (data.GetValue, data.Con
 		result := data.NewArrayValue(nil).(*data.ArrayValue)
 		for slots, position := v.View(), 0; position < slots.Len(); position++ {
 			slot := slots.At(position)
-			val := slot.Value
+			val := slot.ReadValue()
 			valStr := val.AsString()
 			inAll := true
 			for _, set := range otherSets {
@@ -92,25 +87,6 @@ func (f *ArrayIntersectFunction) Call(ctx data.Context) (data.GetValue, data.Con
 			}
 		}
 		return result, nil
-
-	case *data.ObjectValue:
-		resultObj := data.NewArrayValue(nil).(*data.ArrayValue)
-		// 使用 RangeProperties 保证遍历顺序与插入顺序一致
-		v.RangeProperties(func(k string, val data.Value) bool {
-			valStr := val.AsString()
-			inAll := true
-			for _, set := range otherSets {
-				if _, ok := set[valStr]; !ok {
-					inAll = false
-					break
-				}
-			}
-			if inAll {
-				resultObj.SetStringKey(k, val)
-			}
-			return true
-		})
-		return resultObj, nil
 
 	default:
 		return data.NewArrayValue([]data.Value{}), nil

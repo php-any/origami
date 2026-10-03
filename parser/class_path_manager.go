@@ -490,19 +490,53 @@ func GetAutoLoad() []*data.FuncValue {
 }
 
 func CallAutoLoad(name string, ctx data.Context) (bool, data.Control) {
-	autoloadMu.RLock()
-	fns := make([]*data.FuncValue, len(autoload))
-	copy(fns, autoload)
-	autoloadMu.RUnlock()
+	if host, ok := ctx.GetVM().(interface {
+		BeginAutoload(data.Context, data.SymbolID) (bool, func(bool))
+	}); ok {
+		begin, finish := host.BeginAutoload(ctx, data.Symbols.Intern(name))
+		if !begin {
+			if _, ok := ctx.GetVM().GetClass(name); ok {
+				return true, nil
+			}
+			if _, ok := ctx.GetVM().GetInterface(name); ok {
+				return true, nil
+			}
+			return false, nil
+		}
+		defer func() {
+			_, class := ctx.GetVM().GetClass(name)
+			_, iface := ctx.GetVM().GetInterface(name)
+			finish(class || iface)
+		}()
+	}
+	var fns []data.Value
+	if host, ok := ctx.GetVM().(interface{ AutoloadCallbacks() []data.Value }); ok {
+		fns = host.AutoloadCallbacks()
+	} else {
+		for _, fn := range GetAutoLoad() {
+			fns = append(fns, fn)
+		}
+	}
 
 	for _, fn := range fns {
-		callCtx := ctx.CreateContext(fn.Value.GetVariables())
+		var statement data.FuncStmt
+		switch callback := fn.(type) {
+		case *data.FuncValue:
+			statement = callback.Value
+		case *data.BoundFuncValue:
+			statement = callback.Value
+		default:
+			continue
+		}
+		callCtx := ctx.CreateContext(statement.GetVariables())
 
 		if zv := callCtx.GetIndexZVal(0); zv != nil {
-			zv.Value = data.NewStringValue(name)
+			zv.StoreRaw(data.NewStringValue(name))
 		}
 
-		_, acl := fn.Call(callCtx)
+		_, acl := fn.(interface {
+			Call(data.Context) (data.GetValue, data.Control)
+		}).Call(callCtx)
 		if acl != nil {
 			return false, acl
 		}

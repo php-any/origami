@@ -204,7 +204,7 @@ func (vp *VariableParser) parseSuffix(expr data.GetValue) (data.GetValue, data.C
 				}
 				vp.next() // 跳过 }
 				if !vp.checkPositionIs(0, token.LPAREN) {
-					return nil, data.NewErrorThrow(tracker.EndBefore(), errors.New("$var::{...} 目前仅支持方法调用形式 $var::{...}()"))
+					return vp.parseSuffix(node.NewCallDynamicConstant(tracker.EndBefore(), expr, methodExpr))
 				}
 				dyn := node.NewCallStaticDynamicMethod(tracker.EndBefore(), expr, methodExpr)
 				return vp.parseSuffix(dyn)

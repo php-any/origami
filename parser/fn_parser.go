@@ -49,6 +49,14 @@ func (fp *FnParser) Parse() (data.GetValue, data.Control) {
 	tracker := fp.StartTracking()
 	// 跳过 fn
 	fp.next()
+	returnsReference := false
+	if fp.checkPositionIs(0, token.BIT_AND) {
+		returnsReference = true
+		fp.next()
+	}
+	outerReference := fp.currentReturnsReference
+	fp.currentReturnsReference = returnsReference
+	defer func() { fp.currentReturnsReference = outerReference }()
 
 	// 期待箭头函数格式: fn (...) => ...
 	if !fp.checkPositionIs(0, token.LPAREN) {
@@ -89,6 +97,9 @@ func (fp *FnParser) Parse() (data.GetValue, data.Control) {
 		return nil, acl
 	}
 	body := wrapArrowFunctionBody(tracker.EndBefore(), []data.GetValue{bodyExpr})
+	if returnsReference {
+		body = []data.GetValue{node.NewReferenceReturnStatement(tracker.EndBefore(), bodyExpr)}
+	}
 
 	vars := fp.scopeManager.CurrentScope().GetVariables()
 	// 弹出函数作用域
@@ -117,10 +128,11 @@ func (fp *FnParser) Parse() (data.GetValue, data.Control) {
 		parent,
 		fp.strictTypes,
 	)
+	fn.ReturnsReference = returnsReference
 
 	// 设置返回类型（如果指定了）
 	if ret != nil {
-		fn.FunctionStatement.Ret = ret
+		fn.FunctionStatement.Ret = data.DeclaredTypeRef(ret)
 	}
 
 	return fn, nil

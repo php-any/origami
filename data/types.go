@@ -1,12 +1,13 @@
 package data
 
-import "strings"
+import (
+	"strings"
 
-type Types interface {
-	Is(value Value) bool
-	// String 范围标识识别是什么类型, 泛型类返回不需要泛型信息
-	String() string
-}
+	"github.com/php-any/origami/tooling/typeinfo"
+)
+
+// Types is a cold compatibility view; runtime declarations store TypeRef.
+type Types = typeinfo.Type
 
 func NewLspTypes(t Types) *LspTypes {
 	return &LspTypes{
@@ -14,22 +15,8 @@ func NewLspTypes(t Types) *LspTypes {
 	}
 }
 
-// LspTypes 多种可能的类型 - 只能 lsp 使用
-type LspTypes struct {
-	Types []Types
-}
-
-func (l *LspTypes) Is(_ Value) bool {
-	return true
-}
-
-func (l *LspTypes) String() string {
-	return "LspTypes"
-}
-
-func (l *LspTypes) Add(t Types) {
-	l.Types = append(l.Types, t)
-}
+// Deprecated compatibility names for tooling, with no runtime predicates.
+type LspTypes = typeinfo.Inferred
 
 // NullableType 表示可空类型
 type NullableType struct {
@@ -41,44 +28,14 @@ func (n NullableType) Is(value Value) bool {
 	if _, ok := value.(*NullValue); ok {
 		return true
 	}
-	return n.BaseType.Is(value)
+	return DeclaredTypeRef(n.BaseType).Matches(value, nil)
 }
 
 func (n NullableType) String() string {
 	return "?" + n.BaseType.String()
 }
 
-// MultipleReturnType 表示多返回值类型
-type MultipleReturnType struct {
-	Types []Types
-}
-
-func (m MultipleReturnType) Is(value Value) bool {
-	// 多返回值类型检查数组中的每个元素
-	if arr, ok := value.(*ArrayValue); ok {
-		if arr.Len() != len(m.Types) {
-			return false
-		}
-		for i, typ := range m.Types {
-			if !typ.Is(arr.At(i).Value) {
-				return false
-			}
-		}
-		return true
-	}
-	return false
-}
-
-func (m MultipleReturnType) String() string {
-	result := ""
-	for i, typ := range m.Types {
-		if i > 0 {
-			result += ", "
-		}
-		result += typ.String()
-	}
-	return result
-}
+type MultipleReturnType = typeinfo.Tuple
 
 // UnionType 表示联合类型（type1|type2|...）
 type UnionType struct {
@@ -87,7 +44,7 @@ type UnionType struct {
 
 func (u UnionType) Is(value Value) bool {
 	for _, t := range u.Types {
-		if t.Is(value) {
+		if DeclaredTypeRef(t).Matches(value, nil) {
 			return true
 		}
 	}
@@ -116,7 +73,7 @@ type IntersectionType struct {
 
 func (i IntersectionType) Is(value Value) bool {
 	for _, t := range i.Types {
-		if !t.Is(value) {
+		if !DeclaredTypeRef(t).Matches(value, nil) {
 			return false
 		}
 	}
@@ -156,7 +113,6 @@ func ISBaseType(ty string) bool {
 	case "bool":
 		return true
 	case "false":
-		// 允许 false 作为类型声明，语义等同于 bool
 		return true
 	case "array":
 		return true
@@ -175,8 +131,8 @@ func NewBaseType(ty string) Types {
 	switch ty {
 	case "":
 		return nil
-	case "void", "mixed":
-		return nil
+	case "void", "mixed", "never", "false", "true", "self", "parent", "iterable":
+		return NewDeclaredType(ty)
 	case "int":
 		return Int{}
 	case "float":
@@ -184,9 +140,6 @@ func NewBaseType(ty string) Types {
 	case "string":
 		return String{}
 	case "bool":
-		return Bool{}
-	case "false":
-		// false 类型声明等同于 bool
 		return Bool{}
 	case "array":
 		return Arrays{}
@@ -198,29 +151,11 @@ func NewBaseType(ty string) Types {
 		return StaticType{}
 	case "null":
 		return NullType{}
-	case "self":
-		return StaticType{}
 	case "closure", "Closure":
 		return ClosureType{}
 	default:
-		if len(ty) > 1 {
-			if strings.Contains(ty, "|") {
-				arr := make([]Types, 0)
-				for _, t := range strings.Split(ty, "|") {
-					arr = append(arr, NewBaseType(t))
-				}
-				return NewUnionType(arr)
-			}
-			if strings.Contains(ty, "&") {
-				arr := make([]Types, 0)
-				for _, t := range strings.Split(ty, "&") {
-					arr = append(arr, NewBaseType(t))
-				}
-				return NewIntersectionType(arr)
-			}
-			if ty[0] == '?' {
-				return NewNullableType(NewBaseType(ty[1:]))
-			}
+		if strings.ContainsAny(ty, "|&?()") {
+			return NewDeclaredType(ty)
 		}
 		return Class{Name: ty}
 	}
@@ -241,7 +176,9 @@ func NewGenericType(name string, types []Types) Types {
 	case "":
 		return nil
 	case "void":
-		return nil
+		return TypeVoid
+	case "mixed":
+		return TypeMixed
 	case "int":
 		return Int{}
 	case "string":

@@ -4,7 +4,7 @@ package data
 // pointer stays invalid until reset/end; moving it backwards cannot revive it.
 func (a *ArrayValue) PointerValue() Value {
 	if slot := a.At(a.iterator); slot != nil {
-		return slot.Value
+		return slot.ReadValue()
 	}
 	return NewBoolValue(false)
 }

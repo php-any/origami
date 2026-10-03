@@ -30,7 +30,7 @@ func appendMenuItems(menu *application.Menu, menuCV *data.ClassValue) {
 		if z == nil {
 			continue
 		}
-		if miCV, ok := z.Value.(*data.ClassValue); ok {
+		if miCV, ok := z.ReadValue().(*data.ClassValue); ok {
 			addMenuItem(menu, miCV)
 		}
 	}

@@ -1,6 +1,7 @@
 package node
 
 import (
+	"fmt"
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/token"
 )
@@ -27,13 +28,10 @@ func (s *ClassRegisterStmt) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	vm := ctx.GetVM()
 	c := s.Class
 
-	if acl := resolveParentConstruct(vm, c); acl != nil {
-		return nil, acl
-	}
-
 	classStmt := s.classStmtForVM()
 	existing, ok := vm.GetClass(c.GetName())
 	if !ok {
+		classStmt = CloneClassDeclaration(classStmt)
 		if acl := vm.AddClass(classStmt); acl != nil {
 			return nil, acl
 		}
@@ -42,17 +40,39 @@ func (s *ClassRegisterStmt) GetValue(ctx data.Context) (data.GetValue, data.Cont
 		// 同文件再次 require 时 VM 仍持有首次注册的 ClassStatement；注解目标必须用它
 		classStmt = existing
 	}
+	if registered := classStmtFromAny(classStmt); registered != nil {
+		if acl := resolveParentConstruct(vm, registered); acl != nil {
+			return nil, acl
+		}
+	}
 
 	// 合并运行期才可加载的 trait（依赖 require/autoload，解析期无法合并）
 	if registered := classStmtFromAny(classStmt); registered != nil {
 		if acl := registered.MergeDeferredTraits(vm); acl != nil {
 			return nil, acl
 		}
+		if acl := ValidateClassHierarchy(vm, registered); acl != nil {
+			return nil, acl
+		}
+	}
+	if host, ok := vm.(interface{ PublishClassDescriptor(data.ClassStmt) }); ok {
+		host.PublishClassDescriptor(classStmt)
 	}
 
 	// 注解只应用一次（InitAnnotation 有全局副作用：路由/命令注册）
 	if registered := classStmtFromAny(classStmt); registered != nil && registered.AnnotationsApplied {
 		return data.NewNullValue(), nil
+	}
+	if data.NominalIsA(classStmt, "Serializable", vm) {
+		receiver := data.NewClassValue(classStmt, ctx)
+		_, serialize := receiver.GetMethod("__serialize")
+		_, unserialize := receiver.GetMethod("__unserialize")
+		if !serialize || !unserialize {
+			message := fmt.Sprintf("%s implements the Serializable interface, which is deprecated. Implement __serialize() and __unserialize() instead (or in addition, if support for old PHP versions is necessary)", classStmt.GetName())
+			if ctl := data.EmitPHPError(ctx, 8192, message, s.GetFrom()); ctl != nil {
+				return nil, ctl
+			}
+		}
 	}
 
 	if addAnn, ok := classStmt.(AddAnnotations); ok {
@@ -115,6 +135,7 @@ func resolveParentConstruct(vm data.VM, c *ClassStatement) data.Control {
 		}
 		if construct, ok := last.GetMethod(token.ConstructName); ok {
 			c.Construct = construct
+			c.invalidateMethodLookups()
 			break
 		}
 	}
@@ -125,6 +146,12 @@ func applyClassAnnotations(vm data.VM, annotations []*Annotation, target AddAnno
 	if len(annotations) == 0 {
 		return nil
 	}
+	private := make([]*Annotation, len(annotations))
+	for i, annotation := range annotations {
+		copy := *annotation
+		private[i] = &copy
+	}
+	annotations = private
 	if gv, ok := target.(data.GetValue); ok {
 		for _, an := range annotations {
 			an.Target = gv

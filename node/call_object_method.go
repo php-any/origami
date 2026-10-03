@@ -9,72 +9,68 @@ import (
 
 // CallObjectMethod 表示对象属性访问表达式
 type CallObjectMethod struct {
-	*Node  `pp:"-"`
-	Object data.GetValue // 对象表达式
-	Method string        // 函数名
-	Args   []data.GetValue
+	*Node     `pp:"-"`
+	Object    data.GetValue // 对象表达式
+	Method    string        // 函数名
+	methodKey string
+	Args      []data.GetValue
 }
 
 // NewObjectMethod 创建一个新的对象属性访问表达式
 func NewObjectMethod(from *TokenFrom, object data.GetValue, method string, args []data.GetValue) *CallObjectMethod {
 	return &CallObjectMethod{
-		Node:   NewNode(from),
-		Object: object,
-		Method: method,
-		Args:   args,
+		Node:      NewNode(from),
+		Object:    object,
+		Method:    method,
+		methodKey: data.MethodLookupKey(method),
+		Args:      args,
 	}
 }
 
 // GetValue 获取对象属性访问表达式的值
 func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return callValue(pe.GetReferenceValue(ctx))
+}
+
+func (pe *CallObjectMethod) GetReferenceValue(ctx data.Context) (data.GetValue, data.Control) {
 	o, ctl := pe.Object.GetValue(ctx)
 	if ctl != nil {
 		return nil, ctl
 	}
 
+	if this, ok := o.(*data.ThisValue); ok {
+		o = this.ClassValue
+	}
 	switch class := o.(type) {
-	case *data.ThisValue:
-		if isFirstClassCallableArgs(pe.Args) {
-			return pe.firstClassObjectCallable(class.ClassValue)
-		}
-		method, has := class.GetMethod(pe.Method)
-		if has {
-			fnCtx, acl := pe.callMethodParams(class, ctx, method)
-			if acl != nil {
-				return nil, acl
-			}
-
-			fnCtx.SetCallArgs(pe.Args)
-			ret, acl := method.Call(fnCtx)
-			tryReleaseCallContext(method, fnCtx)
-			return pe.wrapMethodCallResult(class.ClassValue, ret, acl)
-		}
-		// 方法未找到时尝试魔法方法 __call(string $name, array $arguments)
-		if magic, hasCall := class.GetMethod("__call"); hasCall {
-			return pe.invokeMagicCall(class, ctx, magic, pe.Method, pe.Args)
-		}
-		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("this 对象不存在对应函数: "+pe.Method))
 	case *data.ClassValue:
 		if isFirstClassCallableArgs(pe.Args) {
-			return pe.firstClassObjectCallable(class)
+			return pe.firstClassObjectCallable(ctx, class)
 		}
-		method, has := class.GetMethod(pe.Method)
+		key := pe.methodKey
+		if key == "" {
+			key = data.MethodLookupKey(pe.Method)
+		}
+		method, lexical, has := lookupObjectMethodWithKey(ctx, class, pe.Method, key)
 		if has {
-			if method.GetModifier() == data.ModifierPrivate {
-				if !isCallerInClassHierarchy(ctx, class.Class) {
-					return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("不能调用 private 方法: "+pe.Method))
+			accessible := true
+			if method.GetModifier() != data.ModifierPublic {
+				self := lexical
+				if self == nil {
+					self = findDeclaringClassForMethod(ctx.GetVM(), class.Class, pe.Method)
 				}
-			} else if method.GetModifier() == data.ModifierProtected {
-				if !isCallerInClassHierarchy(ctx, class.Class) {
-					return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("对象属性访问表达式对象属性访问函数非公开"))
+				accessible = callbackMethodAccessible(ctx, method, self)
+			}
+			if !accessible {
+				if magic, found := class.GetMethod("__call"); found && magic.GetModifier() == data.ModifierPublic {
+					return pe.invokeMagicCall(class, ctx, magic, pe.Method, pe.Args)
 				}
+				return nil, data.NewErrorThrowByName(pe.GetFrom(), fmt.Errorf("Cannot call non-public method %s::%s", class.Class.GetName(), pe.Method), "Error")
 			}
 
-			fnCtx, acl := pe.callMethodParams(class, ctx, method)
+			fnCtx, acl := pe.callMethodParams(class, ctx, method, lexical)
 			if acl != nil {
 				return nil, acl
 			}
-
 			fnCtx.SetCallArgs(pe.Args)
 			ret, acl := method.Call(fnCtx)
 			tryReleaseCallContext(method, fnCtx)
@@ -106,10 +102,10 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 		if class, ok := o.(data.GetMethod); ok {
 			if isFirstClassCallableArgs(pe.Args) {
 				if cv, ok := o.(*data.ClassValue); ok {
-					return pe.firstClassObjectCallable(cv)
+					return pe.firstClassObjectCallable(ctx, cv)
 				}
 				if tv, ok := o.(*data.ThisValue); ok && tv.ClassValue != nil {
-					return pe.firstClassObjectCallable(tv.ClassValue)
+					return pe.firstClassObjectCallable(ctx, tv.ClassValue)
 				}
 			}
 			method, has := class.GetMethod(pe.Method)
@@ -139,6 +135,27 @@ func (pe *CallObjectMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("当前值(%#v)不支持调用函数, 你调用的函数(%s)", TryGetCallClassName(o), pe.Method))
 }
 
+func lookupObjectMethod(ctx data.Context, object *data.ClassValue, name string) (data.Method, data.ClassStmt, bool) {
+	return lookupObjectMethodWithKey(ctx, object, name, data.MethodLookupKey(name))
+}
+
+func lookupObjectMethodWithKey(ctx data.Context, object *data.ClassValue, name, key string) (data.Method, data.ClassStmt, bool) {
+	if frame, ok := ctx.(*data.ClassMethodContext); ok && frame.SelfClass != nil && frame.SelfClass != object.Class {
+		var method data.Method
+		var found bool
+		if scope := coreClass(frame.SelfClass); scope != nil {
+			method, found = scope.privateMethodByKey(key)
+		} else {
+			method, found = frame.SelfClass.GetMethod(name)
+			found = found && method.GetModifier() == data.ModifierPrivate
+		}
+		if found && data.NominalIsA(object.Class, frame.SelfClass.GetName(), ctx.GetVM()) {
+			return method, frame.SelfClass, true
+		}
+	}
+	return object.GetMethodAndScope(name, key)
+}
+
 // isFirstClassCallableArgs 检测 PHP 8.1 一等可调用语法 method(...)
 func isFirstClassCallableArgs(args []data.GetValue) bool {
 	if len(args) != 1 {
@@ -150,12 +167,12 @@ func isFirstClassCallableArgs(args []data.GetValue) bool {
 
 // firstClassObjectCallable 将 $obj->method(...) 转为绑定 $this 的闭包，
 // 确保后续 Call（如 spl_autoload）仍有 ClassMethodContext，static:: 可用。
-func (pe *CallObjectMethod) firstClassObjectCallable(class *data.ClassValue) (data.GetValue, data.Control) {
-	if _, has := class.GetMethod(pe.Method); has {
-		return NewClassClosure(class, pe.Method)
+func (pe *CallObjectMethod) firstClassObjectCallable(ctx data.Context, class *data.ClassValue) (data.GetValue, data.Control) {
+	value, ctl := resolveCallbackMethod(ctx, class, "", pe.Method)
+	if ctl != nil {
+		return nil, data.NewErrorThrowByName(pe.GetFrom(), fmt.Errorf("Cannot create callable %s::%s", class.Class.GetName(), pe.Method), "Error")
 	}
-	// 方法不存在时仍返回可调用，调用时走 __call
-	return data.NewFuncValue(NewObjectMethodCallable(class, pe.Method)), nil
+	return value, nil
 }
 
 func (pe *CallObjectMethod) wrapMethodCallResult(class *data.ClassValue, ret data.GetValue, acl data.Control) (data.GetValue, data.Control) {
@@ -185,7 +202,8 @@ func (pe *CallObjectMethod) invokeMagicCall(object data.Context, ctx data.Contex
 	if len(varies) < 2 {
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("__call 需要至少 2 个参数 (name, arguments)"))
 	}
-	fnCtx := object.CreateContext(varies)
+	fnCtx := implicitReceiverFrame(ctx, object, magic)
+	defer tryReleaseCallContext(magic, fnCtx)
 	fnCtx.SetVariableValue(varies[0], data.NewStringValue(methodName))
 	fnCtx.SetVariableValue(varies[1], argsArr)
 	fnCtx.SetCallArgs(args)
@@ -193,7 +211,7 @@ func (pe *CallObjectMethod) invokeMagicCall(object data.Context, ctx data.Contex
 	for arraySlots18, arrayPosition18 := argsArr.View(), 0; arrayPosition18 < arraySlots18.Len(); arrayPosition18++ {
 		z := arraySlots18.At(arrayPosition18)
 		if z != nil {
-			flat = append(flat, z.Value)
+			flat = append(flat, z.ReadValue())
 		}
 	}
 	fnCtx.SetFlatCallArgs(flat)
@@ -230,7 +248,7 @@ func magicCallArgumentsArray(ctx data.Context, args []data.GetValue) (*data.Arra
 					if z == nil {
 						continue
 					}
-					val := magicCallArgValue(z.Value)
+					val := magicCallArgValue(z.ReadValue())
 					if z.Name != "" {
 						if _, isInt := data.ParseIntArrayKeyName(z.Name); !isInt {
 							list = append(list, data.NewNamedZVal(z.Name, val))
@@ -263,7 +281,7 @@ func magicCallArgumentsArray(ctx data.Context, args []data.GetValue) (*data.Arra
 	return data.NewArrayValueFromSlots(list), nil
 }
 
-func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method data.Method) (data.Context, data.Control) {
+func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method data.Method, lexical ...data.ClassStmt) (data.Context, data.Control) {
 	varies := method.GetVariables()
 	var fnCtx data.Context
 	switch receiver := object.(type) {
@@ -276,7 +294,11 @@ func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method da
 	}
 	params := method.GetParams()
 	if cmc, ok := fnCtx.(*data.ClassMethodContext); ok {
-		cmc.SelfClass = findDeclaringClassForMethod(cmc.GetVM(), cmc.Class, pe.Method)
+		if len(lexical) != 0 {
+			cmc.SelfClass = lexical[0]
+		} else {
+			cmc.SelfClass = findDeclaringClassForMethod(cmc.GetVM(), cmc.Class, pe.Method)
+		}
 	}
 	fnCtx.SetStrictTypes(ctx.StrictTypes())
 	if canFastPositionalBind(params, pe.Args) {
@@ -286,6 +308,12 @@ func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method da
 		return fnCtx, nil
 	}
 	bound := make([]bool, len(params))
+	if hasReferenceParameters(params) {
+		if ctl := bindReferenceCall(fnCtx, ctx, params, pe.Args, object); ctl != nil {
+			return nil, ctl
+		}
+		return fnCtx, nil
+	}
 
 	variadicIdx := -1
 	for i, p := range params {
@@ -322,7 +350,7 @@ func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method da
 			acl = p.Parameter.SetValue(fnCtx, val)
 			if acl == nil {
 				prepared, _ := fnCtx.GetIndexValue(p.Index)
-				acl = object.SetVariableValue(p, prepared)
+				acl = assignPromotedProperty(fnCtx, object, p, prepared)
 			}
 		default:
 			fnCtx.SetVariableValue(varies[index], val)
@@ -390,40 +418,19 @@ func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method da
 							idx, err := paramIndexByName(z.Name)
 							if err != nil {
 								if variadicIdx >= 0 {
-									variadicNamed = append(variadicNamed, namedPair{z.Name, z.Value})
+									variadicNamed = append(variadicNamed, namedPair{z.Name, z.ReadValue()})
 									continue
 								}
 								return nil, data.NewErrorThrow(pe.from, err)
 							}
-							if acl := bindAt(idx, z.Value, nil); acl != nil {
+							if acl := bindAt(idx, z.ReadValue(), nil); acl != nil {
 								return nil, acl
 							}
 							continue
 						}
 					}
-					positional = append(positional, z.Value)
+					positional = append(positional, z.ReadValue())
 					positionalRaw = append(positionalRaw, nil)
-				}
-			} else if objVal, ok := spreadVal.(*data.ObjectValue); ok {
-				var spreadErr error
-				objVal.RangeProperties(func(key string, value data.Value) bool {
-					idx, err := paramIndexByName(key)
-					if err != nil {
-						if variadicIdx >= 0 {
-							variadicNamed = append(variadicNamed, namedPair{key, value})
-							return true
-						}
-						spreadErr = err
-						return false
-					}
-					if acl := bindAt(idx, value, nil); acl != nil {
-						spreadErr = fmt.Errorf("%v", acl)
-						return false
-					}
-					return true
-				})
-				if spreadErr != nil {
-					return nil, data.NewErrorThrow(pe.from, spreadErr)
 				}
 			} else {
 				// Generator 等：遍历展开为位置实参
@@ -481,7 +488,7 @@ func (pe *CallObjectMethod) callMethodParams(object, ctx data.Context, method da
 			if acl != nil {
 				return nil, acl
 			}
-			if ctl := object.SetVariableValue(promotedParam, prepared.(data.Value)); ctl != nil {
+			if ctl := assignPromotedProperty(fnCtx, object, promotedParam, prepared.(data.Value)); ctl != nil {
 				return nil, ctl
 			}
 		} else if argObj, ok := param.(*Parameter); ok {
@@ -527,31 +534,7 @@ func classHasMethod(class data.ClassStmt, methodName string) bool {
 }
 
 func findDeclaringClassForMethod(vm data.VM, class data.ClassStmt, methodName string) data.ClassStmt {
-	if class == nil {
-		return nil
-	}
-	if classHasMethod(class, methodName) {
-		return class
-	}
-	if vm == nil {
-		return class
-	}
-	last := class
-	for last.GetExtend() != nil {
-		parentName := last.GetExtend()
-		if parentName == nil || *parentName == "" {
-			break
-		}
-		parent, acl := vm.GetOrLoadClass(*parentName)
-		if acl != nil || parent == nil {
-			break
-		}
-		if classHasMethod(parent, methodName) {
-			return parent
-		}
-		last = parent
-	}
-	return class
+	return data.MethodDeclaringClass(vm, class, methodName)
 }
 
 func findVariable(varies []data.Variable, name string) (data.Variable, error) {
@@ -793,8 +776,8 @@ func collectCtxCallArgs(callCtx data.Context) []data.Value {
 				out := make([]data.Value, 0, arr.Len())
 				for arraySlots21, arrayPosition21 := arr.View(), 0; arrayPosition21 < arraySlots21.Len(); arrayPosition21++ {
 					zv := arraySlots21.At(arrayPosition21)
-					if zv != nil && zv.Value != nil {
-						out = append(out, zv.Value)
+					if zv != nil && zv.ReadValue() != nil {
+						out = append(out, zv.ReadValue())
 					}
 				}
 				return out
@@ -829,6 +812,7 @@ func (o *objectMethodCallable) invokeMethod(callCtx data.Context, proxy *CallObj
 		if acl != nil {
 			return nil, acl
 		}
+		defer tryReleaseCallContext(method, fnCtx)
 		return method.Call(fnCtx)
 	}
 	if magic, has := o.obj.GetMethod("__call"); has {
@@ -848,7 +832,8 @@ func (pe *CallObjectMethod) invokeMagicCallFromCallCtx(object data.Context, call
 	if len(varies) < 2 {
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("__call 需要至少 2 个参数"))
 	}
-	fnCtx := object.CreateContext(varies)
+	fnCtx := implicitReceiverFrame(callCtx, object, magic)
+	defer tryReleaseCallContext(magic, fnCtx)
 	fnCtx.SetVariableValue(varies[0], data.NewStringValue(methodName))
 	fnCtx.SetVariableValue(varies[1], data.NewArrayValue(argsList))
 	return magic.Call(fnCtx)
@@ -861,7 +846,7 @@ func (s *instanceMagicCallViaStaticFunc) Call(callCtx data.Context) (data.GetVal
 		if arr, isArr := v.(*data.ArrayValue); isArr {
 			for arraySlots22, arrayPosition22 := arr.View(), 0; arrayPosition22 < arraySlots22.Len(); arrayPosition22++ {
 				z := arraySlots22.At(arrayPosition22)
-				callerArgs = append(callerArgs, magicCallArgValue(z.Value))
+				callerArgs = append(callerArgs, magicCallArgValue(z.ReadValue()))
 			}
 			continue
 		}
@@ -871,7 +856,8 @@ func (s *instanceMagicCallViaStaticFunc) Call(callCtx data.Context) (data.GetVal
 	if len(varies) < 2 {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("__call 需要至少 2 个参数"))
 	}
-	fnCtx := s.objectCtx.CreateContext(varies)
+	fnCtx := implicitReceiverFrame(callCtx, s.objectCtx, s.magic)
+	defer tryReleaseCallContext(s.magic, fnCtx)
 	fnCtx.SetVariableValue(varies[0], data.NewStringValue(s.originalMethod))
 	fnCtx.SetVariableValue(varies[1], data.NewArrayValue(callerArgs))
 	return s.magic.Call(fnCtx)

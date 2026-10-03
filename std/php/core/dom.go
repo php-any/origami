@@ -275,7 +275,7 @@ func (m *DOMNodeListItemMethod) Call(ctx data.Context) (data.GetValue, data.Cont
 		items, _ := cmc.ObjectValue.GetProperty("_items")
 		if arr, ok := items.(*data.ArrayValue); ok {
 			if idx >= 0 && idx < arr.Len() {
-				return arr.At(idx).Value, nil
+				return arr.At(idx).ReadValue(), nil
 			}
 		}
 	}
@@ -352,13 +352,8 @@ func (m *DOMElementGetAttributeMethod) Call(ctx data.Context) (data.GetValue, da
 	attrName := nameVal.AsString()
 	if cmc, ok := ctx.(*data.ClassMethodContext); ok {
 		attrs, _ := cmc.ObjectValue.GetProperty("_attributes")
-		if obj, ok := attrs.(*data.ObjectValue); ok {
-			val, _ := obj.GetProperty(attrName)
-			if val != nil {
-				if _, missing := val.(*data.NullValue); !missing {
-					return data.NewStringValue(val.AsString()), nil
-				}
-			}
+		if arr, ok := attrs.(*data.ArrayValue); ok {
+			if slot, ok := arr.LookupZValByStringKey(attrName); ok { return slot.ReadValue(), nil }
 		}
 	}
 	return data.NewStringValue(""), nil
@@ -752,9 +747,9 @@ func buildDOMNode(n *htmlNode, parentClass *data.ClassValue, ctx data.Context) d
 
 	// For elements, set attributes
 	if !n.isText && !n.isComment {
-		attrObj := data.NewObjectValue()
+		attrObj := data.NewArrayValue(nil).(*data.ArrayValue)
 		for k, v := range n.attrs {
-			attrObj.SetProperty(k, data.NewStringValue(v))
+			attrObj.SetStringKey(k, data.NewStringValue(v))
 		}
 		cv.ObjectValue.SetProperty("_attributes", attrObj)
 	}
@@ -783,7 +778,7 @@ func collectElementsByTagName(node *data.ClassValue, tagName string, results *[]
 	if arr, ok := children.(*data.ArrayValue); ok {
 		for arraySlots114, arrayPosition114 := arr.View(), 0; arrayPosition114 < arraySlots114.Len(); arrayPosition114++ {
 			zval := arraySlots114.At(arrayPosition114)
-			if child, ok := zval.Value.(*data.ClassValue); ok {
+			if child, ok := zval.ReadValue().(*data.ClassValue); ok {
 				collectElementsByTagName(child, tagName, results)
 			}
 		}
@@ -819,18 +814,18 @@ func nodeToXML(val data.Value) string {
 
 	// Attributes
 	attrs, _ := cv.GetProperty("_attributes")
-	if obj, ok := attrs.(*data.ObjectValue); ok {
-		for k, v := range obj.GetProperties() {
-			xml += " " + k + `="` + v.AsString() + `"`
+	if arr, ok := attrs.(*data.ArrayValue); ok {
+		for slots, i := arr.View(), 0; i < slots.Len(); i++ {
+			slot := slots.At(i)
+			xml += " " + slot.PHPArrayKey(i).AsString() + "=\"" + slot.ReadValue().AsString() + "\""
 		}
 	}
-
 	children, _ := cv.GetProperty("childNodes")
 	if arr, ok := children.(*data.ArrayValue); ok && arr.Len() > 0 {
 		xml += ">"
 		for arraySlots115, arrayPosition115 := arr.View(), 0; arrayPosition115 < arraySlots115.Len(); arrayPosition115++ {
 			zval := arraySlots115.At(arrayPosition115)
-			xml += nodeToXML(zval.Value)
+			xml += nodeToXML(zval.ReadValue())
 		}
 		xml += "</" + name + ">"
 	} else {

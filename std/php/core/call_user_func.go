@@ -57,10 +57,11 @@ func (f *CallUserFuncFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	args := make([]data.Value, len(argZvals))
 	for i, zv := range argZvals {
 		if zv != nil {
-			args[i] = zv.Value
+			args[i] = zv.ReadValue()
 		}
 	}
 	callCtx := ctx.CreateContext(fn.Value.GetVariables())
+	defer data.ReleaseContext(callCtx)
 	if ctl := data.BindDeclaredArgs(callCtx, fn.Value, args); ctl != nil {
 		return nil, ctl
 	}
@@ -72,6 +73,31 @@ func (f *CallUserFuncFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 }
 
 func (f *CallUserFuncFunction) resolveCallback(ctx data.Context, cb data.GetValue) (*data.FuncValue, data.Control) {
+	deprecated := false
+	if array, ok := cb.(*data.ArrayValue); ok {
+		if slot, _ := array.FindSlotByIntKey(1); slot != nil {
+			if name, ok := slot.ReadValue().(*data.StringValue); ok {
+				deprecated = strings.Contains(name.Value, "::")
+			}
+		}
+	}
+	if !deprecated {
+		value, ok := cb.(data.Value)
+		if !ok {
+			return nil, data.NewTypeError(nil, errors.New("callback must be a valid callable"))
+		}
+		resolved, ctl := node.ResolveCallback(ctx, value)
+		if ctl != nil {
+			return nil, ctl
+		}
+		switch function := resolved.(type) {
+		case *data.FuncValue:
+			return function, nil
+		case *data.BoundFuncValue:
+			return &function.FuncValue, nil
+		}
+		return nil, data.NewTypeError(nil, errors.New("callback must be a valid callable"))
+	}
 	switch c := cb.(type) {
 	case *data.FuncValue:
 		return c, nil
@@ -252,10 +278,11 @@ func (f *ForwardStaticCallFunction) Call(ctx data.Context) (data.GetValue, data.
 	args := make([]data.Value, len(argZvals))
 	for i, zv := range argZvals {
 		if zv != nil {
-			args[i] = zv.Value
+			args[i] = zv.ReadValue()
 		}
 	}
 	callCtx := ctx.CreateContext(fn.Value.GetVariables())
+	defer data.ReleaseContext(callCtx)
 	if ctl := data.BindDeclaredArgs(callCtx, fn.Value, args); ctl != nil {
 		return nil, ctl
 	}

@@ -4,6 +4,10 @@ package data
 // It deliberately does not add a virtual Kind method to every Value operation.
 type ValueKind uint8
 
+// Installed by the language layer; cold callable checks use the same resolver
+// as callback registration, including visibility and magic dispatch.
+var CallableResolver func(Context, Value) (Value, Control)
+
 const (
 	ValueUnknown ValueKind = iota
 	ValueNull
@@ -30,9 +34,12 @@ func ValueKindOf(value Value) ValueKind {
 		return ValueString
 	case *ArrayValue:
 		return ValueArray
-	case *ObjectValue, *ClassValue, *ThisValue, *FuncValue, *BoundFuncValue, *ThrowValue:
+	case *ClassValue, *ThisValue, *FuncValue, *BoundFuncValue, *ThrowValue:
 		return ValueObject
 	default:
+		if _, ok := value.(interface{ PHPResourceKind() }); ok {
+			return ValueResource
+		}
 		return ValueUnknown
 	}
 }
@@ -43,7 +50,21 @@ func (a *TypeArena) Matches(ref TypeRef, value Value, ctx Context) bool {
 		node := snapshot.nodes[ref-typeBuiltinEnd]
 		switch node.kind {
 		case TypeKindNominal:
-			return (Class{Name: snapshot.symbols[node.symbol].display}).Is(value)
+			if object, ok := value.(*ClassValue); ok {
+				if provider, ok := object.GetVM().(DescriptorProvider); ok {
+					if matched, linked := provider.ClassRegistry().IsA(object.Class, node.symbol); linked {
+						return matched
+					}
+				}
+			}
+			if object, ok := value.(*ThisValue); ok {
+				if provider, ok := object.GetVM().(DescriptorProvider); ok {
+					if matched, linked := provider.ClassRegistry().IsA(object.Class, node.symbol); linked {
+						return matched
+					}
+				}
+			}
+			return NominalValueMatches(value, Symbols.Name(node.symbol), ctx)
 		case TypeKindUnion:
 			for _, member := range snapshot.members[node.first : node.first+node.count] {
 				if a.Matches(member, value, ctx) {
@@ -87,9 +108,15 @@ func (a *TypeArena) Matches(ref TypeRef, value Value, ctx Context) bool {
 	case TypeObject:
 		return ValueKindOf(value) == ValueObject
 	case TypeCallable:
+		if ctx != nil && CallableResolver != nil {
+			resolved, ctl := CallableResolver(ctx, value)
+			return resolved != nil && ctl == nil
+		}
 		return (Callable{}).Is(value)
 	case TypeIterable:
-		return ValueKindOf(value) == ValueArray || (Class{Name: "iterable"}).Is(value)
+		return ValueKindOf(value) == ValueArray || NominalValueMatches(value, "Traversable", ctx)
+	case TypeAST:
+		return (AST{}).Is(value)
 	case TypeSelf, TypeParent, TypeStatic:
 		owner := typeClassContext(ctx)
 		if owner == nil {
@@ -113,7 +140,7 @@ func (a *TypeArena) Matches(ref TypeRef, value Value, ctx Context) bool {
 			}
 			name = *parent
 		}
-		return (Class{Name: name}).Is(value)
+		return NominalValueMatches(value, name, ctx)
 	default:
 		return false
 	}
@@ -126,7 +153,7 @@ func typeClassContext(ctx Context) *ClassMethodContext {
 		case *BoundContext:
 			if current.ScopeClass != "" && current.GetVM() != nil {
 				if class, ok := current.GetVM().GetClass(current.ScopeClass); ok {
-					return &ClassMethodContext{ClassValue: current.BoundThis, SelfClass: class, StaticClass: class}
+					return &ClassMethodContext{ClassValue: current.BoundThis, Context: current.Context, SelfClass: class, StaticClass: class}
 				}
 			}
 			ctx = current.Context
@@ -160,9 +187,9 @@ func (a *TypeArena) Prepare(ref TypeRef, value Value, ctx Context) (Value, bool,
 			prepared, ok := coerceToFloatValue(value)
 			return prepared, ok, nil
 		case TypeString:
-			return coerceToStringValue(value)
+			return coerceToStringValue(value, ctx)
 		case TypeBool:
-			return coerceToType(Bool{}, value)
+			return coerceToBoolValue(value)
 		default:
 			return nil, false, nil
 		}
@@ -182,7 +209,7 @@ func (a *TypeArena) Prepare(ref TypeRef, value Value, ctx Context) (Value, bool,
 		}
 		return nil, false, nil
 	}
-	return coerceScalarKinds(scalarKinds, value)
+	return coerceScalarKinds(scalarKinds, value, ctx)
 }
 func typeScalarMask(ref TypeRef) uint8 {
 	switch ref {
@@ -204,7 +231,7 @@ func TypeAllowsNull(ty Types) bool {
 	if ref, ok := ty.(TypeRef); ok {
 		return declarationTypes.Matches(ref, NewNullValue(), nil)
 	}
-	return ty == nil || ty.Is(NewNullValue())
+	return ty == nil || DeclaredTypeRef(ty).Matches(NewNullValue(), nil)
 }
 func NullableDeclaredBase(ref TypeRef) (TypeRef, bool) {
 	if ref.Kind() != TypeKindUnion {

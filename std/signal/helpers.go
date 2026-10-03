@@ -71,7 +71,7 @@ func extractSignalChannel(v data.Value) (*SignalChannel, data.Control) {
 	if !ok {
 		return nil, utils.NewThrow(errors.New("参数必须是 Signal\\Channel 实例"))
 	}
-	if sc.channel == nil {
+	if sc.channel == nil || sc.channel.channel == nil || sc.channel.closed {
 		return nil, utils.NewThrow(errors.New("Signal\\Channel 未初始化"))
 	}
 	return sc.channel, nil

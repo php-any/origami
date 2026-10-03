@@ -22,6 +22,9 @@ func NewArrayChangeKeyCaseFunction() data.FuncStmt {
 
 func (f *ArrayChangeKeyCaseFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	arrayVal, _ := ctx.GetIndexValue(0)
+	if _, ok := arrayVal.(*data.ArrayValue); !ok {
+		return nil, throwMustBeArray("array_change_key_case", arrayVal)
+	}
 	caseVal, _ := ctx.GetIndexValue(1)
 
 	mode := caseLower
@@ -41,9 +44,13 @@ func (f *ArrayChangeKeyCaseFunction) Call(ctx data.Context) (data.GetValue, data
 		transform = strings.ToUpper
 	}
 
-	result := data.NewObjectValue()
+	result := data.NewArrayValue(nil).(*data.ArrayValue)
 	for _, e := range entries {
-		result.SetProperty(transform(e.keyStr), e.value)
+		if _, integer := e.key.(*data.IntValue); integer {
+			result.SetKey(e.key, e.value)
+		} else {
+			result.SetStringKey(transform(e.keyStr), e.value)
+		}
 	}
 	return result, nil
 }

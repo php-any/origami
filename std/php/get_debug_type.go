@@ -36,6 +36,10 @@ func (f *GetDebugTypeFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	case *data.ClassValue:
 		// 对于对象，返回具体的类名
 		tp = val.Class.GetName()
+	case *data.ThisValue:
+		tp = val.Class.GetName()
+	case *data.FuncValue, *data.BoundFuncValue:
+		tp = "Closure"
 	case *data.ThrowValue:
 		if val.Object != nil && val.Object.Class != nil {
 			tp = val.Object.Class.GetName()
@@ -48,8 +52,7 @@ func (f *GetDebugTypeFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 		tp = "float"
 	case *data.IntValue:
 		tp = "int" // get_debug_type 返回 "int" 而不是 "integer"
-	case *data.ObjectValue:
-		tp = "object"
+
 	case *data.StringValue:
 		tp = "string"
 	case *data.NullValue:

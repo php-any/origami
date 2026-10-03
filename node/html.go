@@ -300,30 +300,7 @@ func (h *HtmlForNode) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 				resultHtml += fmt.Sprintf("%v", htmlValue)
 			}
 		}
-	case *data.ObjectValue:
-		// 遍历对象
-		for key, element := range array.GetProperties() {
-			// 设置值变量
-			ctx.SetVariableValue(h.Value, element)
 
-			// 如果有键变量，设置键变量
-			if h.Key != nil {
-				keyValue := data.NewStringValue(key)
-				ctx.SetVariableValue(h.Key, keyValue)
-			}
-
-			// 执行嵌套的HTML节点
-			htmlValue, ctl := h.HtmlNode.GetValue(ctx)
-			if ctl != nil {
-				return nil, ctl
-			}
-
-			if strValue, ok := htmlValue.(data.AsString); ok {
-				resultHtml += strValue.AsString()
-			} else {
-				resultHtml += fmt.Sprintf("%v", htmlValue)
-			}
-		}
 	case *data.NullValue:
 		// 空数组，返回空字符串
 		return data.NewStringValue(""), nil

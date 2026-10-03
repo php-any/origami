@@ -43,7 +43,7 @@ import (
 )
 
 // Load 按依赖序注册 laravel/framework 内嵌的 Illuminate 组件。
-// 各子包仅在公开方法面对齐后 AddClass；未齐则 Load 为空（无 ORIGAMI_STD_* 开关）。
+// AddClass 提议必须经过 vendoraccel 的完整契约门槛；没有证明的类走官方 PHP。
 func Load(vm data.VM) {
 	macroable.Load(vm)
 	conditionable.Load(vm)

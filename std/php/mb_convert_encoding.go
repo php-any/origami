@@ -29,7 +29,7 @@ func mbConvertEncodingValue(v data.Value) data.Value {
 				list[i] = data.NewZVal(data.NewNullValue())
 				continue
 			}
-			nz := data.NewZVal(mbConvertEncodingValue(z.Value))
+			nz := data.NewZVal(mbConvertEncodingValue(z.ReadValue()))
 			nz.Name = z.Name
 			list[i] = nz
 		}

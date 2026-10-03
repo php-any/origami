@@ -1,20 +1,96 @@
 package data
 
-// ZVal 模仿 PHP 的 zval 结构
-// 字段顺序按对齐排布：两个 bool 相邻、int 收尾，结构体为 48 字节。
-// 若把 RefSlotCount 夹在两个 bool 中间会多出 8 字节填充（56 字节），
-// 而 ZVal 是全解释器分配次数最多的结构之一（每帧符号表、每个数组槽）。
+// ZVal owns bucket metadata. Only explicit references allocate a shared cell;
+// copying or renaming a bucket never changes another array's key. The ordinary
+// slot remains 48 bytes on amd64 and stores its value inline.
 type ZVal struct {
-	Name  string // 变量名称，用于 extract 等按名称操作
-	Value Value
+	Name         string
+	InitialValue Value // Construction only; execution uses ReadValue/StoreRaw.
+	reference    *ReferenceCell
 	// Defined 表示该槽是否已赋值。CreateContext 预留的符号表槽为 false，
 	// 与 PHP「仅引用未赋值不算已存在」对齐（EXTR_SKIP / isset 等）。
 	Defined bool
 	// EmptyStrKey 为 true 时 Name=="" 表示 PHP 数组键 ''，而不是 packed 整数键。
 	// Filament NavigationManager::groupBy('') 依赖二者区分。
 	EmptyStrKey bool
-	// RefSlotCount 表示有多少变量通过 &$arr[i] 等方式绑定到该槽位（用于 COW / 写穿）
-	RefSlotCount int
+}
+
+type ReferenceCell struct {
+	value Value
+	guard *ReferenceGuard
+	count int32
+}
+
+func (z *ZVal) ReadValue() Value {
+	if z.reference != nil {
+		return z.reference.value
+	}
+	return z.InitialValue
+}
+
+// StoreRaw is for writes whose PHP checks are performed by the caller.
+func (z *ZVal) StoreRaw(value Value) {
+	if z.reference != nil {
+		z.reference.value = value
+	} else {
+		z.InitialValue = value
+	}
+}
+
+func (z *ZVal) ensureReference() *ReferenceCell {
+	if z.reference == nil {
+		z.reference = &ReferenceCell{value: z.InitialValue}
+		z.InitialValue = nil
+	}
+	return z.reference
+}
+
+func (z *ZVal) Guard() *ReferenceGuard {
+	if z.reference == nil {
+		return nil
+	}
+	return z.reference.guard
+}
+
+func (z *ZVal) setGuard(guard *ReferenceGuard) { z.ensureReference().guard = guard }
+
+func (z *ZVal) RefCount() int32 {
+	if z.reference == nil {
+		return 0
+	}
+	return z.reference.count
+}
+
+func (z *ZVal) ReleaseRefSlot() {
+	if z != nil && z.reference != nil && z.reference.count > 0 {
+		z.reference.count--
+	}
+}
+
+func (z *ZVal) ReferenceIdentity() *ReferenceCell { return z.reference }
+
+func CopyReferenceBucket(z *ZVal) *ZVal {
+	copy := *z
+	return &copy
+}
+
+// BindContextReference owns one reference binding independently of the source
+// bucket. Rebinding releases the prior local owner without changing its value.
+func BindContextReference(ctx Context, index int, source *ZVal) {
+	if source == nil {
+		return
+	}
+	previous := ctx.GetIndexZVal(index)
+	if previous == source {
+		return
+	}
+	source.AddRefSlot()
+	bucket := CopyReferenceBucket(source)
+	if previous != nil {
+		bucket.Name = previous.Name
+		previous.ReleaseRefSlot()
+	}
+	ctx.SetIndexZVal(index, bucket)
 }
 
 // MarkDefined 标记槽位已赋值（写入 Value 后调用）。
@@ -27,42 +103,42 @@ func (z *ZVal) MarkDefined() {
 // AddRefSlot 标记该数组槽位被引用绑定（如 $x =& $arr[0]）
 func (z *ZVal) AddRefSlot() {
 	if z != nil {
-		z.RefSlotCount++
+		z.ensureReference().count++
 	}
 }
 
 // NewZVal 创建一个新的 ZVal（视为已赋值）
 func NewZVal(v Value) *ZVal {
 	return &ZVal{
-		Value:   v,
-		Defined: true,
+		InitialValue: v,
+		Defined:      true,
 	}
 }
 
 // NewNamedZVal 创建一个带名称的 ZVal（视为已赋值）
 func NewNamedZVal(name string, v Value) *ZVal {
 	return &ZVal{
-		Name:    name,
-		Value:   v,
-		Defined: true,
+		Name:         name,
+		InitialValue: v,
+		Defined:      true,
 	}
 }
 
 // NewNamedZValSlot 创建仅占位的命名槽（未赋值，供函数/闭包符号表预分配）
 func NewNamedZValSlot(name string) *ZVal {
 	return &ZVal{
-		Name:    name,
-		Value:   NewNullValue(),
-		Defined: false,
+		Name:         name,
+		InitialValue: NewNullValue(),
+		Defined:      false,
 	}
 }
 
 // NewEmptyStringKeyZVal 创建 PHP 空字符串键 ” 的数组槽。
 func NewEmptyStringKeyZVal(v Value) *ZVal {
 	return &ZVal{
-		Value:       v,
-		Defined:     true,
-		EmptyStrKey: true,
+		InitialValue: v,
+		Defined:      true,
+		EmptyStrKey:  true,
 	}
 }
 
@@ -72,10 +148,10 @@ func CopyZValKeepName(z *ZVal, value Value) *ZVal {
 		return NewZVal(value)
 	}
 	return &ZVal{
-		Name:        z.Name,
-		Value:       value,
-		Defined:     true,
-		EmptyStrKey: z.EmptyStrKey,
+		Name:         z.Name,
+		InitialValue: value,
+		Defined:      true,
+		EmptyStrKey:  z.EmptyStrKey,
 	}
 }
 

@@ -65,7 +65,7 @@ func (f *ImplodeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 func isImplodeArray(v data.Value) bool {
 	switch v.(type) {
-	case *data.ArrayValue, *data.ObjectValue:
+	case *data.ArrayValue:
 		return true
 	default:
 		return false
@@ -76,13 +76,7 @@ func implodeValueList(v data.Value) []data.Value {
 	switch arr := v.(type) {
 	case *data.ArrayValue:
 		return arr.ToValueList()
-	case *data.ObjectValue:
-		var list []data.Value
-		arr.RangeProperties(func(_ string, val data.Value) bool {
-			list = append(list, val)
-			return true
-		})
-		return list
+
 	default:
 		return nil
 	}

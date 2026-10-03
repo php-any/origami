@@ -18,7 +18,7 @@ func (a *ArrayValueReverse) Call(ctx Context) (GetValue, Control) {
 	// 返回反转后的数组
 	values := make([]Value, len(slots))
 	for i, zval := range slots {
-		values[i] = zval.Value
+		values[i] = zval.ReadValue()
 	}
 	return NewArrayValue(values), nil
 }

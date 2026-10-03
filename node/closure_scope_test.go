@@ -38,7 +38,7 @@ func TestRequestCaptureGraphPreservesNestedAliasesAndReferences(t *testing.T) {
 		t.Fatal("request capture reference aliases were lost or reused the original slot")
 	}
 	array := nested.captured[0].(*data.ArrayValue)
-	if array == assets || bound.capturedRefs[1].Value != array || array.At(0).Value != target || array.At(1).Value.(*data.ThisValue).ClassValue != target {
+	if array == assets || bound.capturedRefs[1].ReadValue() != array || array.At(0).ReadValue() != target || array.At(1).ReadValue().(*data.ThisValue).ClassValue != target {
 		t.Fatal("nested array object aliases were not mapped to the request")
 	}
 	// A separately registered callback belongs to the same request graph.
@@ -46,8 +46,8 @@ func TestRequestCaptureGraphPreservesNestedAliasesAndReferences(t *testing.T) {
 	if other.capturedRefs[0] != bound.capturedRefs[1] {
 		t.Fatal("separate callbacks lost their shared PHP reference")
 	}
-	bound.capturedRefs[1].Value = data.NewIntValue(7)
-	if shared.Value != assets || other.capturedRefs[0].Value.AsString() != "7" {
+	bound.capturedRefs[1].StoreRaw(data.NewIntValue(7))
+	if shared.ReadValue() != assets || other.capturedRefs[0].ReadValue().AsString() != "7" {
 		t.Fatal("request reference state escaped or aliases diverged")
 	}
 	second := outer.BindRequestCapture(data.NewRequestCaptureScope(nil, map[*data.ObjectValue]*data.ClassValue{source.ObjectValue: target})).(*LambdaExpression)
@@ -66,7 +66,7 @@ func TestRequestCaptureGraphPreservesCyclesAndArrayKeyHistory(t *testing.T) {
 	scope := data.NewRequestCaptureScope(nil, nil)
 	bound := scope.Bind(callback).(*data.FuncValue)
 	copy := bound.Value.(*LambdaExpression).captured[0].(*data.ArrayValue)
-	if slot, ok := copy.LookupZValByStringKey("callback"); !ok || slot.Value != bound {
+	if slot, ok := copy.LookupZValByStringKey("callback"); !ok || slot.ReadValue() != bound {
 		t.Fatal("cyclic closure capture lost its identity")
 	}
 	copy.AppendValue(data.NewIntValue(2))

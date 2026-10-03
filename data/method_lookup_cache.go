@@ -11,13 +11,19 @@ import (
 type MethodLookupCache struct {
 	mu   sync.RWMutex
 	gen  uint64
-	hits map[string]Method
+	hits map[string]methodResolution
 	miss map[string]struct{}
+}
+
+type methodResolution struct {
+	method Method
+	owner  SymbolID
+	local  bool
 }
 
 func NewMethodLookupCache() *MethodLookupCache {
 	return &MethodLookupCache{
-		hits: make(map[string]Method),
+		hits: make(map[string]methodResolution),
 		miss: make(map[string]struct{}),
 	}
 }
@@ -73,7 +79,7 @@ func (c *MethodLookupCache) Lookup(key string) (Method, bool, bool, uint64) {
 	gen := c.gen
 	defer c.mu.RUnlock()
 	if m, ok := c.hits[key]; ok {
-		return m, true, true, gen
+		return m.method, true, true, gen
 	}
 	if _, miss := c.miss[key]; miss {
 		return nil, false, true, gen
@@ -91,7 +97,7 @@ func (c *MethodLookupCache) Store(key string, m Method, found bool, gen uint64) 
 		return
 	}
 	if found && m != nil {
-		c.hits[key] = m
+		c.hits[key] = methodResolution{method: m}
 		delete(c.miss, key)
 		return
 	}
@@ -105,7 +111,26 @@ func (c *MethodLookupCache) Invalidate() {
 	}
 	c.mu.Lock()
 	c.gen++
-	c.hits = make(map[string]Method)
+	c.hits = make(map[string]methodResolution)
 	c.miss = make(map[string]struct{})
 	c.mu.Unlock()
+}
+
+func (c *MethodLookupCache) lookupResolution(key string) (methodResolution, bool, bool, uint64) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if resolution, found := c.hits[key]; found {
+		return resolution, true, true, c.gen
+	}
+	_, missing := c.miss[key]
+	return methodResolution{}, false, missing, c.gen
+}
+
+func (c *MethodLookupCache) storeResolution(key string, resolution methodResolution, gen uint64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.gen == gen {
+		c.hits[key] = resolution
+		delete(c.miss, key)
+	}
 }

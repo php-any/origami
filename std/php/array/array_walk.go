@@ -25,7 +25,7 @@ func (fn *ArrayWalkFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	userdata, _ := ctx.GetIndexValue(2)
 	data.CowSeparateZVal(arrZVal)
 
-	if ctl := walkFlat(ctx, cbVal, userdata, arrZVal.Value); ctl != nil {
+	if ctl := walkFlat(ctx, cbVal, userdata, arrZVal.ReadValue()); ctl != nil {
 		return nil, ctl
 	}
 	return data.NewBoolValue(true), nil
@@ -45,25 +45,7 @@ func walkFlat(ctx data.Context, cbVal, userdata, val data.Value) data.Control {
 			}
 		}
 		return nil
-	case *data.ObjectValue:
-		keys := make([]string, 0)
-		arr.RangeProperties(func(key string, _ data.Value) bool {
-			keys = append(keys, key)
-			return true
-		})
-		for _, key := range keys {
-			zv, ctl := arr.GetZVal(key)
-			if ctl != nil {
-				return ctl
-			}
-			if zv == nil {
-				continue
-			}
-			if ctl := invokeWalkCallback(ctx, cbVal, zv, data.NewStringValue(key), userdata); ctl != nil {
-				return ctl
-			}
-		}
-		return nil
+
 	default:
 		return nil
 	}

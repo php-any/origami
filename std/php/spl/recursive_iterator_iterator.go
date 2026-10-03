@@ -242,7 +242,10 @@ func riiCallMethod(iter *data.ClassValue, name string) (data.GetValue, data.Cont
 		return nil, nil
 	}
 	if m, ok := iter.GetMethod(name); ok {
-		fnCtx := iter.CreateContext(m.GetVariables())
+		fnCtx := data.WrapMethodFrame(iter.CreateContext(m.GetVariables()), iter, data.MethodDeclaringClass(iter.GetVM(), iter.Class, name), iter.Class)
+		if ctl := data.BindDeclaredArgs(fnCtx, m, nil); ctl != nil {
+			return nil, ctl
+		}
 		return m.Call(fnCtx)
 	}
 	return nil, nil
@@ -457,12 +460,24 @@ func (m *RIINext) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// SELF_FIRST (1) 或 LEAVES_ONLY (0)：尝试进入子节点
 	if mode == 1 || mode == 0 {
 		hasChildren, ctl := riiCallBool(iter, "hasChildren")
+		if ctl != nil {
+			return nil, ctl
+		}
 		if ctl == nil && hasChildren {
 			childVal, ctl2 := riiCallValue(iter, "getChildren")
+			if ctl2 != nil {
+				return nil, ctl2
+			}
 			if ctl2 == nil {
 				if childClass, ok := childVal.(*data.ClassValue); ok {
-					if _, ctl3 := riiCallMethod(childClass, "rewind"); ctl3 == nil {
+					if _, ctl := riiCallMethod(childClass, "rewind"); ctl != nil {
+						return nil, ctl
+					}
+					{
 						childValid, ctl4 := riiCallBool(childClass, "valid")
+						if ctl4 != nil {
+							return nil, ctl4
+						}
 						if ctl4 == nil && childValid {
 							stack.frames = append(stack.frames, riiStackEntry{iter: childClass})
 							return nil, riiAdvance(cv)

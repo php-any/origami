@@ -131,21 +131,10 @@ func (m *GlobIteratorConstructMethod) Call(ctx data.Context) (data.GetValue, dat
 	sort.Strings(matches)
 
 	// 提取目录路径，entries 只存储文件名（与 DirectoryIterator/FilesystemIterator 保持一致）
-	dir := "."
-	if len(matches) > 0 {
-		first := matches[0]
-		if abs, err := filepath.Abs(first); err == nil {
-			first = abs
-		}
-		dir = filepath.Dir(first)
-	}
+	dir := phpPathDir(pattern)
 
 	names := make([]string, len(matches))
 	for i, match := range matches {
-		match = filepath.Clean(match)
-		if abs, err := filepath.Abs(match); err == nil {
-			match = abs
-		}
 		names[i] = filepath.Base(match)
 	}
 

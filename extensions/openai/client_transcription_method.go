@@ -39,14 +39,12 @@ func (m *ClientTranscriptionMethod) Call(ctx data.Context) (data.GetValue, data.
 	}
 
 	// 参数 3: options (可选)
-	var opts map[string]any
-	if v, ok := ctx.GetIndexValue(2); ok {
-		if obj, ok := v.(*data.ObjectValue); ok {
-			opts = objectToMap(obj)
-		}
+	opts, ctl := clientOptions(ctx, 2)
+	if ctl != nil {
+		return nil, ctl
 	}
 
-	result, err := m.source.transcription(model.AsString(), filePath.AsString(), opts)
+	result, err := m.source.transcription(ctx.GoContext(), model.AsString(), filePath.AsString(), opts)
 	if err != nil {
 		return nil, utils.NewThrow(err)
 	}

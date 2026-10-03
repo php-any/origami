@@ -20,6 +20,30 @@ func (f *FwriteFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	data.CheckRequest(ctx.GoContext())
 	// 获取流资源
 	streamValue, _ := ctx.GetIndexValue(0)
+	if resource, ok := streamValue.(*core.ResourceValue); ok {
+		if output, ok := resource.GetResource().(*outputStream); ok {
+			if output.IsClosed() {
+				return nil, data.NewTypeError(nil, errors.New("fwrite(): supplied resource is not a valid stream resource"))
+			}
+			value, _ := ctx.GetIndexValue(1)
+			content, ctl := node.ValueToDisplayString(ctx, value)
+			if ctl != nil {
+				return nil, ctl
+			}
+			if length, ok := ctx.GetIndexValue(2); ok {
+				if length, ok := length.(*data.IntValue); ok {
+					if size, err := length.AsInt(); err == nil && size >= 0 && size < len(content) {
+						content = content[:size]
+					}
+				}
+			}
+			core.MarkHeaderOutputStarted(ctx)
+			if ctl := data.EmitOutput(ctx, content); ctl != nil {
+				return nil, ctl
+			}
+			return data.NewIntValue(len(content)), nil
+		}
+	}
 	if streamValue == nil {
 		return data.NewIntValue(0), nil
 	}
@@ -96,6 +120,11 @@ func (f *FwriteFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	data.CheckRequest(ctx.GoContext())
 	if err != nil {
 		return data.NewIntValue(0), nil
+	}
+	if n > 0 {
+		if cache, ok := ctx.GetVM().(interface{ InvalidateParsedFile(string) }); ok {
+			cache.InvalidateParsedFile(streamInfo.File.Name())
+		}
 	}
 
 	return data.NewIntValue(n), nil

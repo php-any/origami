@@ -107,6 +107,8 @@ func (c *SplFileObjectClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
 	case "__construct":
 		return &SFOConstructMethod{}, true
+	case "fread", "fseek", "ftell":
+		return &SFOByteMethod{name: name}, true
 	case "fgets":
 		return &SFOFgetsMethod{}, true
 	case "fgetcsv":
@@ -139,6 +141,7 @@ func (c *SplFileObjectClass) GetMethod(name string) (data.Method, bool) {
 
 func (c *SplFileObjectClass) GetMethods() []data.Method {
 	return []data.Method{
+		&SFOByteMethod{name: "fread"}, &SFOByteMethod{name: "fseek"}, &SFOByteMethod{name: "ftell"},
 		&SFOConstructMethod{},
 		&SFOFgetsMethod{},
 		&SFOFgetcsvMethod{},
@@ -662,7 +665,7 @@ func (m *SFOFputcsvMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 	for arraySlots137, i := arr.View(), 0; i < arraySlots137.Len(); i++ {
 		z := arraySlots137.At(i)
 		if z != nil {
-			strFields[i] = z.Value.AsString()
+			strFields[i] = z.ReadValue().AsString()
 		}
 	}
 	if err := w.Write(strFields); err != nil {
