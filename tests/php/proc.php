@@ -13,9 +13,9 @@ if($process !== false && is_resource($process)) {
 
 // 测试 proc_get_status() 函数
 $status = proc_get_status($process);
-if($status !== false && is_object($status)) {
-    $pid = $status->pid;
-    $running = $status->running;
+if($status !== false && is_array($status)) {
+    $pid = $status['pid'];
+    $running = $status['running'];
     if($pid > 0) {
         Log::info("proc_get_status() 基本测试通过");
     } else {
@@ -55,8 +55,8 @@ $process3 = proc_open("echo test", [], $pipes3);
 if($process3 !== false) {
     $status2 = proc_get_status($process3);
     if($status2 !== false) {
-        $command = $status2->command;
-        $pid2 = $status2->pid;
+        $command = $status2['command'];
+        $pid2 = $status2['pid'];
         if($command != "" && $pid2 > 0) {
             Log::info("proc_get_status() 获取状态信息测试通过");
         } else {

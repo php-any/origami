@@ -31,13 +31,13 @@ func (f *MinFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 				arraySlots123.Len(); arrayPosition123++ {
 				z := arraySlots123.At(arrayPosition123)
 
-				if floatVal, ok := z.Value.(data.AsFloat); ok {
+				if floatVal, ok := z.ReadValue().(data.AsFloat); ok {
 					fv, _ := floatVal.AsFloat()
 					if fv < minVal || !hasValue {
 						minVal = fv
 						hasValue = true
 					}
-				} else if intVal, ok := z.Value.(data.AsInt); ok {
+				} else if intVal, ok := z.ReadValue().(data.AsInt); ok {
 					if iv, err := intVal.AsInt(); err == nil {
 						fv := float64(iv)
 						if fv < minVal || !hasValue {

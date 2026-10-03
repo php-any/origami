@@ -200,7 +200,7 @@ func (c *SymfonyResponseClass) GetStaticProperty(name string) (data.Value, bool)
 	if name == "statusTexts" {
 		list := make([]*data.ZVal, 0, len(responseStatusTexts))
 		for code, text := range responseStatusTexts {
-			list = append(list, &data.ZVal{Name: data.IntArrayKeyName(code), Value: data.NewStringValue(text)})
+			list = append(list, &data.ZVal{Name: data.IntArrayKeyName(code), InitialValue: data.NewStringValue(text)})
 		}
 		return data.NewArrayValueFromSlots(list), true
 	}
@@ -1182,8 +1182,8 @@ func symfonyResponseSetVary(ctx data.Context) (data.GetValue, data.Control) {
 	if arr, ok := headersVal.(*data.ArrayValue); ok {
 		for arraySlots166, arrayPosition166 := arr.View(), 0; arrayPosition166 < arraySlots166.Len(); arrayPosition166++ {
 			z := arraySlots166.At(arrayPosition166)
-			if z != nil && z.Value != nil {
-				values = append(values, z.Value.AsString())
+			if z != nil && z.ReadValue() != nil {
+				values = append(values, z.ReadValue().AsString())
 			}
 		}
 	} else if headersVal != nil {
@@ -1216,10 +1216,10 @@ func symfonyResponseIsNotModified(ctx data.Context) (data.GetValue, data.Control
 		if arr, ok := etagsVal.(*data.ArrayValue); ok {
 			for arraySlots167, arrayPosition167 := arr.View(), 0; arrayPosition167 < arraySlots167.Len(); arrayPosition167++ {
 				z := arraySlots167.At(arrayPosition167)
-				if z == nil || z.Value == nil {
+				if z == nil || z.ReadValue() == nil {
 					continue
 				}
-				ifNone := z.Value.AsString()
+				ifNone := z.ReadValue().AsString()
 				if strings.HasPrefix(ifNone, "W/") {
 					ifNone = ifNone[2:]
 				}

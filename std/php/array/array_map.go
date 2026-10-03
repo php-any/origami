@@ -21,13 +21,7 @@ func toValueList(v data.Value) []data.Value {
 	switch arr := v.(type) {
 	case *data.ArrayValue:
 		return arr.ToValueList()
-	case *data.ObjectValue:
-		result := make([]data.Value, 0)
-		arr.RangeProperties(func(key string, value data.Value) bool {
-			result = append(result, value)
-			return true
-		})
-		return result
+
 	default:
 		return nil
 	}
@@ -46,10 +40,10 @@ func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		if paramsArr, ok := paramsVal.(*data.ArrayValue); ok {
 			for arraySlots95, arrayPosition95 := paramsArr.View(), 0; arrayPosition95 < arraySlots95.Len(); arrayPosition95++ {
 				z := arraySlots95.At(arrayPosition95)
-				if z == nil || z.Value == nil {
+				if z == nil || z.ReadValue() == nil {
 					continue
 				}
-				rawArrays = append(rawArrays, z.Value)
+				rawArrays = append(rawArrays, z.ReadValue())
 			}
 		}
 	}
@@ -57,14 +51,18 @@ func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	if len(rawArrays) == 0 {
 		return data.NewArrayValue([]data.Value{}), nil
 	}
+	for _, value := range rawArrays {
+		if _, ok := value.(*data.ArrayValue); !ok {
+			return nil, throwMustBeArray("array_map", value)
+		}
+	}
 
 	// PHP：只传入一个数组时保留全部键（含字符串键与稀疏整数键）。
 	// ComponentAttributeBag::merge 对 assoc 默认数组做 array_map 后 array_merge；
 	// 若重编号成 0/1/2，HTML 会变成 class="" 0="fi-icon-btn …"。
 	if len(rawArrays) == 1 {
 		switch src := rawArrays[0].(type) {
-		case *data.ObjectValue:
-			return f.mapObjectPreserveKeys(ctx, cbVal, src)
+
 		case *data.ArrayValue:
 			return f.mapArrayPreserveKeys(ctx, cbVal, src)
 		}
@@ -82,10 +80,10 @@ func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		return data.NewArrayValue([]data.Value{}), nil
 	}
 
-	// 计算最短数组长度
+	// PHP pads shorter arrays with null up to the longest input.
 	minLen := len(arrayLists[0])
 	for _, a := range arrayLists[1:] {
-		if len(a) < minLen {
+		if len(a) > minLen {
 			minLen = len(a)
 		}
 	}
@@ -100,6 +98,8 @@ func (f *ArrayMapFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		for _, arr := range arrayLists {
 			if i < len(arr) {
 				args = append(args, arr[i])
+			} else {
+				args = append(args, data.NewNullValue())
 			}
 		}
 
@@ -124,7 +124,7 @@ func (f *ArrayMapFunction) mapArrayPreserveKeys(ctx data.Context, cbVal data.Val
 			out = append(out, nil)
 			continue
 		}
-		arg := z.Value
+		arg := z.ReadValue()
 		if arg == nil {
 			arg = data.NewNullValue()
 		}
@@ -137,25 +137,13 @@ func (f *ArrayMapFunction) mapArrayPreserveKeys(ctx data.Context, cbVal data.Val
 	return data.NewArrayValueFromSlots(out), nil
 }
 
-func (f *ArrayMapFunction) mapObjectPreserveKeys(ctx data.Context, cbVal data.Value, ov *data.ObjectValue) (data.GetValue, data.Control) {
-	out := data.NewObjectValue()
-	var failed data.Control
-	ov.RangeProperties(func(key string, value data.Value) bool {
-		mapped, ctl := f.invokeCallback(ctx, cbVal, []data.Value{value})
-		if ctl != nil {
-			failed = ctl
-			return false
-		}
-		out.SetProperty(key, mapped)
-		return true
-	})
-	if failed != nil {
-		return nil, failed
-	}
-	return out, nil
-}
-
 func (f *ArrayMapFunction) invokeCallback(ctx data.Context, cbVal data.Value, args []data.Value) (data.Value, data.Control) {
+	if _, isNull := cbVal.(*data.NullValue); isNull {
+		if len(args) == 1 {
+			return args[0], nil
+		}
+		return data.NewArrayValue(args), nil
+	}
 	switch cb := cbVal.(type) {
 	case *data.BoundFuncValue:
 		return f.callFuncStmt(ctx, cb.Value, args, cb)
@@ -164,8 +152,8 @@ func (f *ArrayMapFunction) invokeCallback(ctx data.Context, cbVal data.Value, ar
 	case *data.ArrayValue:
 		// PHP 数组可调用: [$obj, 'method']
 		if cb.Len() == 2 {
-			objVal := cb.At(0).Value
-			methodVal := cb.At(1).Value
+			objVal := cb.At(0).ReadValue()
+			methodVal := cb.At(1).ReadValue()
 			if obj, ok := objVal.(data.GetMethod); ok {
 				methodName := methodVal.AsString()
 				if method, has := obj.GetMethod(methodName); has {
@@ -174,6 +162,7 @@ func (f *ArrayMapFunction) invokeCallback(ctx data.Context, cbVal data.Value, ar
 					if instance, ok := objVal.(*data.ClassValue); ok {
 						fnCtx = data.WrapMethodFrame(fnCtx, instance, instance.Class, instance.Class)
 					}
+					defer data.ReleaseContext(fnCtx)
 					fnCtx.SetStrictTypes(false)
 					if ctl := data.BindDeclaredArgs(fnCtx, method, args); ctl != nil {
 						return nil, ctl
@@ -219,6 +208,7 @@ func (f *ArrayMapFunction) invokeCallback(ctx data.Context, cbVal data.Value, ar
 func (f *ArrayMapFunction) callFuncStmt(ctx data.Context, fn data.FuncStmt, args []data.Value, bound *data.BoundFuncValue) (data.Value, data.Control) {
 	vars := fn.GetVariables()
 	fnCtx := ctx.CreateContext(vars)
+	defer data.ReleaseContext(fnCtx)
 	fnCtx.SetStrictTypes(false)
 	if ctl := data.BindDeclaredArgs(fnCtx, fn, args); ctl != nil {
 		return nil, ctl

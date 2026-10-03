@@ -162,6 +162,15 @@ func registerAutoloadMappings(cpm parser.ClassPathManager, psr4, psr0 map[string
 
 // augmentProgramASTFromBase 从全局 baseVM 中找出当前文件注册的类，补充到 AST 中。
 func augmentProgramASTFromBase(program *node.Program, baseVM *runtime.VM, file string) {
+	var interfaces []data.GetValue
+	for _, declaration := range baseVM.AllInterfaces() {
+		if from := declaration.GetFrom(); from != nil && from.GetSource() == file {
+			interfaces = append(interfaces, declaration)
+		}
+	}
+	if len(interfaces) > 0 {
+		program.Statements = append(interfaces, program.Statements...)
+	}
 	var classes []data.GetValue
 	for _, c := range baseVM.AllClasses() {
 		if classSourceFile(c) != file {

@@ -29,6 +29,9 @@ func TestReturnDeclarationCompileFailures(t *testing.T) {
 		"function f(): mixed { return; }",
 		"function f(): ?string { return; }",
 		"$f = fn():void => 1;",
+		"function f(): int, string { return [1, 'value']; }",
+		"function f(array<string> $value) {}",
+		"function f(): array<string> { return []; }",
 	} {
 		t.Run(source, func(t *testing.T) {
 			_, ctl := NewParser().ParseString(source, "invalid.php")
@@ -39,6 +42,7 @@ func TestReturnDeclarationCompileFailures(t *testing.T) {
 		})
 	}
 	for _, source := range []string{
+		"function f() { return; }",
 		"function f(): void { return; }",
 		"function f(): void { $inner = function(): int { return 1; }; }",
 		"function f(): never { throw null; }",

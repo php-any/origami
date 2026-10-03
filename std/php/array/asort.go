@@ -24,25 +24,11 @@ func sortPreservingKeys(value data.Value, flags int, descending bool) bool {
 	case *data.ArrayValue:
 		collection.EditPreservingKeys(func(slots []*data.ZVal) {
 			sort.SliceStable(slots, func(i, j int) bool {
-				return less(slots[i].Value, slots[j].Value)
+				return less(slots[i].ReadValue(), slots[j].ReadValue())
 			})
 		})
 		return true
-	case *data.ObjectValue:
-		entries := make([]valueSortEntry, 0)
-		collection.RangeProperties(func(key string, value data.Value) bool {
-			entries = append(entries, valueSortEntry{key: key, value: value})
-			return true
-		})
-		sort.SliceStable(entries, func(i, j int) bool {
-			return less(entries[i].value, entries[j].value)
-		})
-		sorted := data.NewObjectValue()
-		for _, entry := range entries {
-			sorted.SetProperty(entry.key, entry.value)
-		}
-		*collection = *sorted
-		return true
+
 	default:
 		return false
 	}

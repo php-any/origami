@@ -4,15 +4,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
+	"sync/atomic"
 )
 
 func NewClassValue(class ClassStmt, ctx Context) *ClassValue {
+	return NewClassValueWithPropertyCapacity(class, ctx, 0)
+}
+
+// NewClassValueWithPropertyCapacity reserves storage for declaration defaults.
+// It is only a size hint; dynamic properties and reference slots remain identical.
+func NewClassValueWithPropertyCapacity(class ClassStmt, ctx Context, capacity int) *ClassValue {
 	var vm VM
 	if ctx != nil {
 		vm = ctx.GetVM()
 	}
 	return &ClassValue{
-		ObjectValue: NewObjectValue(),
+		ObjectValue: &PropertyBag{property: newOrderedMapWithCapacity(capacity)},
 		Class:       class,
 		Context:     ctx,
 		vm:          vm,
@@ -33,6 +41,7 @@ type ClassValue struct {
 	// Method frames borrow this object's storage, but must not escape as the
 	// object's execution context: their pooled contexts are reused after return.
 	sourceOwner *ClassValue
+	thisValue   atomic.Pointer[ThisValue]
 }
 
 func (c *ClassValue) GetName() string {
@@ -44,7 +53,7 @@ func (c *ClassValue) GetValue(ctx Context) (GetValue, Control) {
 }
 
 // AsBool：任意对象实例（含空 stdClass）在 PHP 中均为 true。
-// 不可落入嵌入的 ObjectValue.AsBool（关联数组语义）。
+// 不可落入嵌入的 PropertyBag.AsBool（内部存储是否为空）。
 func (c *ClassValue) AsBool() (bool, error) {
 	return c != nil, nil
 }
@@ -60,6 +69,12 @@ func (c *ClassValue) AsString() string {
 
 func (c *ClassValue) GetPropertyStmt(name string) (Property, bool) {
 	if c == nil || c.Class == nil {
+		return nil, false
+	}
+	if owner, property, private := privatePropertyParts(name); private {
+		if class, found := c.GetVM().GetClass(owner); found {
+			return class.GetProperty(property)
+		}
 		return nil, false
 	}
 	if v, ok := c.Class.GetProperty(name); ok {
@@ -80,7 +95,7 @@ func (c *ClassValue) GetPropertyStmt(name string) (Property, bool) {
 		}
 
 		property, ok := next.GetProperty(name)
-		if ok {
+		if ok && property.GetModifier() != ModifierPrivate {
 			return property, true
 		}
 		last = next
@@ -90,6 +105,12 @@ func (c *ClassValue) GetPropertyStmt(name string) (Property, bool) {
 }
 
 func (c *ClassValue) GetProperty(name string) (Value, Control) {
+	if c.ObjectValue != nil && c.ObjectValue.HasProperty(name) {
+		return c.ObjectValue.GetProperty(name)
+	}
+	if property, found := c.GetPropertyStmt(name); found {
+		name = PropertyStorageName(property)
+	}
 	// 实例属性优先从 ObjectValue 读取（含声明属性被写入后的值）
 	if c.ObjectValue != nil && c.ObjectValue.HasProperty(name) {
 		return c.ObjectValue.GetProperty(name)
@@ -118,6 +139,7 @@ func (c *ClassValue) GetPropertyZVal(name string) (*ZVal, Control) {
 	}
 	v, ok := c.property.GetZVal(name)
 	if ok && v != nil {
+		c.guardPropertySlot(name, v)
 		return v, nil
 	}
 	// 声明属性带默认值时先物化（protected $componentStack = []），
@@ -128,12 +150,24 @@ func (c *ClassValue) GetPropertyZVal(name string) (*ZVal, Control) {
 		}
 		v, ok = c.property.GetZVal(name)
 		if ok && v != nil {
+			c.guardPropertySlot(name, v)
 			return v, nil
 		}
 	}
 	c.SetProperty(name, NewNullValue())
 	v, _ = c.property.GetZVal(name)
+	c.guardPropertySlot(name, v)
 	return v, nil
+}
+
+func (c *ClassValue) guardPropertySlot(name string, slot *ZVal) {
+	if slot == nil {
+		return
+	}
+	if property, ok := c.GetPropertyStmt(name); ok {
+		ref := PropertyType(c, name, DeclaredTypeRef(property.GetType()))
+		slot.addPropertyConstraint(c, name, ref)
+	}
 }
 
 func (c *ClassValue) GetMethod(name string) (Method, bool) {
@@ -150,6 +184,56 @@ func (c *ClassValue) GetMethod(name string) (Method, bool) {
 		}
 	}
 	return c.lookupMethodUncached(name)
+}
+
+// GetMethodAndScope accepts the original name and a normalized lookup key, retaining only the
+// owner's symbol, never another request's class or object. Argument binding
+// and execution use the same lexical scope resolved with the method.
+func (c *ClassValue) GetMethodAndScope(name, key string) (Method, ClassStmt, bool) {
+	if holder, ok := c.Class.(MethodLookupCacher); ok {
+		cache := holder.MethodLookupCache()
+		if cache != nil {
+			resolution, found, hit, gen := cache.lookupResolution(key)
+			if hit && !found {
+				return nil, nil, false
+			}
+			if !hit || resolution.owner == 0 && !resolution.local {
+				method := resolution.method
+				if method == nil {
+					method, found = c.lookupMethodUncached(name)
+				}
+				if !found {
+					cache.Store(key, nil, false, gen)
+					return nil, nil, false
+				}
+				owner := MethodDeclaringClass(c.GetVM(), c.Class, name)
+				resolution = methodResolution{method: method, local: owner == c.Class}
+				if !resolution.local {
+					resolution.owner = Symbols.Intern(owner.GetName())
+				}
+				cache.storeResolution(key, resolution, gen)
+				return method, owner, true
+			}
+			if resolution.local {
+				return resolution.method, c.Class, true
+			}
+			vm := c.GetVM()
+			if host, ok := vm.(DescriptorProvider); ok {
+				if owner, found := host.ClassRegistry().Snapshot().classes.Get(uint32(resolution.owner)); found {
+					return resolution.method, owner, true
+				}
+			}
+			owner, ctl := vm.GetOrLoadClass(Symbols.Name(resolution.owner))
+			if ctl == nil {
+				return resolution.method, owner, true
+			}
+		}
+	}
+	method, found := c.lookupMethodUncached(name)
+	if !found {
+		return nil, nil, false
+	}
+	return method, MethodDeclaringClass(c.GetVM(), c.Class, name), true
 }
 
 func (c *ClassValue) lookupMethodUncached(name string) (Method, bool) {
@@ -237,18 +321,18 @@ func (c *ClassValue) GetProperties() map[string]Value {
 	classProps := c.Class.GetPropertyList()
 	for _, prop := range classProps {
 		// 如果实例中没有这个属性，则使用类定义的默认值
-		if _, exists := result[prop.GetName()]; !exists {
+		if _, exists := result[PropertyStorageName(prop)]; !exists {
 			defaultValue := prop.GetDefaultValue()
 			if defaultValue != nil {
 				value, _ := defaultValue.GetValue(c.Context)
 				if value != nil {
 					if val, ok := value.(Value); ok {
-						result[prop.GetName()] = val
+						result[PropertyStorageName(prop)] = val
 					}
 				}
 			} else {
 				// 如果没有默认值，使用 null
-				result[prop.GetName()] = NewNullValue()
+				result[PropertyStorageName(prop)] = NewNullValue()
 			}
 		}
 	}
@@ -267,18 +351,18 @@ func (c *ClassValue) GetProperties() map[string]Value {
 		for _, prop := range parentProps {
 			// 只添加非私有属性，且实例中没有的属性
 			if prop.GetModifier() != ModifierPrivate {
-				if _, exists := result[prop.GetName()]; !exists {
+				if _, exists := result[PropertyStorageName(prop)]; !exists {
 					defaultValue := prop.GetDefaultValue()
 					if defaultValue != nil {
 						value, _ := defaultValue.GetValue(c.Context)
 						if value != nil {
 							if val, ok := value.(Value); ok {
-								result[prop.GetName()] = val
+								result[PropertyStorageName(prop)] = val
 							}
 						}
 					} else {
-						result[prop.GetName()] = NewNullValue()
-						c.SetProperty(prop.GetName(), result[prop.GetName()]) // 需要引用起来
+						result[PropertyStorageName(prop)] = NewNullValue()
+						c.SetProperty(PropertyStorageName(prop), result[PropertyStorageName(prop)]) // 需要引用起来
 					}
 				}
 			}
@@ -302,10 +386,7 @@ func (c *ClassValue) CreateContext(vars []Variable) Context {
 	// 符号表从对象已有的执行上下文长出来（剥掉 BoundContext），不绕回 VM.CreateContext。
 	inner := unwrapBoundContext(c.InstanceIdentity().Context).CreateContext(vars)
 	inner.SetVM(c.vm)
-	return &ClassMethodContext{
-		ClassValue:  c.CloneWithContext(inner),
-		StaticClass: nil,
-	}
+	return newMethodFrame(inner, c, c.vm, nil, nil)
 }
 
 func (c *ClassValue) CloneWithContext(ctx Context) *ClassValue {
@@ -374,7 +455,6 @@ func (c *ClassValue) CloneSandboxKeys(ctx Context, deepKeys []string) *ClassValu
 		deep[k] = struct{}{}
 	}
 	clone := &ObjectValue{
-		Value:                 obj.Value,
 		InstanceSource:        obj.InstanceSource,
 		Context:               ctx,
 		property:              NewOrderedMap(),
@@ -414,7 +494,6 @@ func (c *ClassValue) CloneRequestScoped(ctx Context) *ClassValue {
 	}
 	obj := NewObjectValue()
 	if c.ObjectValue != nil {
-		obj.Value = c.ObjectValue.Value
 		obj.InstanceSource = c.InstanceSource
 		obj.IndirectOverloadClass = c.ObjectValue.IndirectOverloadClass
 		if c.ObjectValue.property != nil {
@@ -452,6 +531,9 @@ func unwrapBoundContext(ctx Context) Context {
 }
 
 func (c *ClassValue) SetVariableValue(variable Variable, value Value) Control {
+	if property, found := c.GetPropertyStmt(variable.GetName()); found {
+		return c.SetProperty(PropertyStorageName(property), value)
+	}
 	return c.SetProperty(variable.GetName(), value)
 }
 
@@ -522,9 +604,28 @@ func (c *ClassValue) WriteOutput(s string) {
 
 type ClassMethodContext struct {
 	*ClassValue
+	Context
 	StaticClass ClassStmt // 运行时（后期）类结构，用于 static:: 后期静态绑定
 	SelfClass   ClassStmt // 代码定义所在的类，用于 self:: 和 parent:: 解析（处理 trait 合并场景）
 }
+
+var methodFramePool = sync.Pool{New: func() any { return new(ClassMethodContext) }}
+
+// A method frame borrows the stable object handle and owns its execution
+// context. Returning the handle cannot expose recycled frame storage.
+func newMethodFrame(inner Context, identity *ClassValue, vm VM, self, static ClassStmt) *ClassMethodContext {
+	if identity == nil {
+		identity = &ClassValue{Context: inner, vm: vm, Class: self}
+	} else {
+		identity = identity.InstanceIdentity()
+	}
+	frame := methodFramePool.Get().(*ClassMethodContext)
+	*frame = ClassMethodContext{ClassValue: identity, Context: inner, SelfClass: self, StaticClass: static}
+	return frame
+}
+
+func (c *ClassMethodContext) GetVM() VM   { return c.Context.GetVM() }
+func (c *ClassMethodContext) SetVM(vm VM) { c.Context.SetVM(vm) }
 
 // WrapMethodFrame 在已有符号表外包一层方法身份，不新建符号表。
 func WrapMethodFrame(inner Context, identity *ClassValue, self, static ClassStmt) *ClassMethodContext {
@@ -541,11 +642,7 @@ func WrapMethodFrame(inner Context, identity *ClassValue, self, static ClassStmt
 		vm = identity.vm
 		inner.SetVM(vm)
 	}
-	return &ClassMethodContext{
-		ClassValue:  identity.CloneWithContext(inner).withVM(vm),
-		SelfClass:   self,
-		StaticClass: static,
-	}
+	return newMethodFrame(inner, identity, vm, self, static)
 }
 
 // NewStaticMethodContext 为静态方法包装已有帧。调用方传入的 inner 已是符号表。
@@ -555,15 +652,7 @@ func NewStaticMethodContext(inner Context, self ClassStmt, static ClassStmt) *Cl
 	}
 	vm := inner.GetVM()
 	inner.SetVM(vm)
-	return &ClassMethodContext{
-		ClassValue: &ClassValue{
-			Class:   self,
-			Context: inner,
-			vm:      vm,
-		},
-		SelfClass:   self,
-		StaticClass: static,
-	}
+	return newMethodFrame(inner, nil, vm, self, static)
 }
 
 func (c *ClassMethodContext) ReturnSlot(v Value) ReturnControl {
@@ -572,13 +661,13 @@ func (c *ClassMethodContext) ReturnSlot(v Value) ReturnControl {
 
 func (c *ClassMethodContext) CreateContext(vars []Variable) Context {
 	nc := c.Context.CreateContext(vars)
-	nc.SetVM(c.vm)
+	nc.SetVM(c.GetVM())
 	return nc
 }
 
 func (c *ClassMethodContext) CreateBaseContext() Context {
 	nc := c.Context.CreateBaseContext()
-	nc.SetVM(c.vm)
+	nc.SetVM(c.GetVM())
 	return nc
 }
 
@@ -642,9 +731,24 @@ func (c *ClassMethodContext) GoContext() context.Context {
 }
 
 func (c *ClassMethodContext) ReleasePooled() {
+	if c == nil || c.Context == nil || c.IsEscaped() {
+		return
+	}
 	if r, ok := c.Context.(interface{ ReleasePooled() }); ok {
 		r.ReleasePooled()
+		*c = ClassMethodContext{}
+		methodFramePool.Put(c)
 	}
+}
+
+// ReleaseBorrowedFrame returns only the method identity wrapper. The caller
+// still owns the underlying execution context (for example a closure call).
+func (c *ClassMethodContext) ReleaseBorrowedFrame() {
+	if c == nil || c.Context == nil || c.IsEscaped() {
+		return
+	}
+	*c = ClassMethodContext{}
+	methodFramePool.Put(c)
 }
 
 func (c *ClassMethodContext) MarkEscaped() {

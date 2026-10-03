@@ -19,27 +19,27 @@ func TestRequestIsolation(t *testing.T) {
 	a := New(base, data.DefaultOutputWriter)
 	b := New(base, data.DefaultOutputWriter)
 
-	a.EnsureGlobalZVal("token").Value = data.NewStringValue("A")
-	if got := b.EnsureGlobalZVal("token").Value.AsString(); got != "" && got != "A" {
+	a.EnsureGlobalZVal("token").StoreRaw(data.NewStringValue("A"))
+	if got := b.EnsureGlobalZVal("token").ReadValue().AsString(); got != "" && got != "A" {
 		t.Fatalf("unexpected shared global between requests: %q", got)
 	}
-	b.EnsureGlobalZVal("token").Value = data.NewStringValue("B")
-	if got := a.EnsureGlobalZVal("token").Value.AsString(); got != "A" {
+	b.EnsureGlobalZVal("token").StoreRaw(data.NewStringValue("B"))
+	if got := a.EnsureGlobalZVal("token").ReadValue().AsString(); got != "A" {
 		t.Fatalf("request A global leaked: %q", got)
 	}
 
-	a.EnsureGlobalsArray().SetProperty("__me_cache", data.NewStringValue("userA"))
-	if b.EnsureGlobalsArray().HasProperty("__me_cache") {
+	data.CowAssign(a.EnsureGlobalZVal("__me_cache"), data.NewStringValue("userA"))
+	if _, found := b.EnsureGlobalsArray().LookupZValByStringKey("__me_cache"); found {
 		t.Fatal("$GLOBALS leaked between RequestVMs")
 	}
-	b.EnsureGlobalsArray().SetProperty("__me_cache", data.NewStringValue("userB"))
-	gotMe, _ := a.EnsureGlobalsArray().GetProperty("__me_cache")
+	data.CowAssign(b.EnsureGlobalZVal("__me_cache"), data.NewStringValue("userB"))
+	gotMe := a.EnsureGlobalZVal("__me_cache").ReadValue()
 	if gotMe.AsString() != "userA" {
 		t.Fatalf("request A $GLOBALS leaked: %v", gotMe)
 	}
 
-	a.EnsureSessionArray().SetProperty("uid", data.NewIntValue(1))
-	if b.EnsureSessionArray().HasProperty("uid") {
+	a.EnsureSessionArray().SetStringKey("uid", data.NewIntValue(1))
+	if _, found := b.EnsureSessionArray().LookupZValByStringKey("uid"); found {
 		t.Fatal("$_SESSION leaked between RequestVMs")
 	}
 
@@ -167,21 +167,26 @@ func TestGlobalsArrayViaContext(t *testing.T) {
 	ctxB := b.CreateContext(nil)
 	gv := node.NewGlobalsArrayVariable(nil)
 
+	index := node.NewIndexExpression(nil, gv, node.NewStringLiteral(nil, "__me_cache"))
+	if ctl := index.SetValue(ctxA, data.NewStringValue("Alice")); ctl != nil {
+		t.Fatal(ctl.AsString())
+	}
 	valA, _ := gv.GetValue(ctxA)
-	objA := valA.(*data.ObjectValue)
-	objA.SetProperty("__me_cache", data.NewStringValue("Alice"))
-
+	if _, ok := valA.(*data.ArrayValue); !ok {
+		t.Fatalf("$GLOBALS kind %T", valA)
+	}
 	valB, _ := gv.GetValue(ctxB)
-	objB := valB.(*data.ObjectValue)
-	if objB.HasProperty("__me_cache") {
-		t.Fatal("$GLOBALS via context leaked across RequestVMs (cross-user session)")
+	if _, found := valB.(*data.ArrayValue).LookupZValByStringKey("__me_cache"); found {
+		t.Fatal("$GLOBALS via context leaked")
 	}
-	objB.SetProperty("__me_cache", data.NewStringValue("Bob"))
+	if ctl := index.SetValue(ctxB, data.NewStringValue("Bob")); ctl != nil {
+		t.Fatal(ctl.AsString())
+	}
+	gotA, ctl := index.GetValue(ctxA)
+	if ctl != nil || gotA.(data.Value).AsString() != "Alice" {
+		t.Fatalf("request A identity corrupted: %v", gotA)
+	}
 
-	gotA, _ := objA.GetProperty("__me_cache")
-	if gotA.AsString() != "Alice" {
-		t.Fatalf("request A identity corrupted: %q", gotA.AsString())
-	}
 }
 
 func TestRequestVMCallStacksConcurrent(t *testing.T) {

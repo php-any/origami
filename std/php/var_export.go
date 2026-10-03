@@ -73,16 +73,10 @@ func varExportValue(v data.Value) string {
 					keyRepr = fmt.Sprintf("'%s'", strings.ReplaceAll(z.Name, "'", "\\'"))
 				}
 			}
-			items = append(items, fmt.Sprintf("  %s => %s,", keyRepr, varExportValue(z.Value)))
+			items = append(items, fmt.Sprintf("  %s => %s,", keyRepr, varExportValue(z.ReadValue())))
 		}
 		return "array (\n" + strings.Join(items, "\n") + "\n)"
-	case *data.ObjectValue:
-		items := make([]string, 0)
-		val.RangeProperties(func(key string, value data.Value) bool {
-			items = append(items, fmt.Sprintf("  '%s' => %s,", key, varExportValue(value)))
-			return true
-		})
-		return "array (\n" + strings.Join(items, "\n") + "\n)"
+
 	case *data.ClassValue:
 		return fmt.Sprintf("'%s'", val.Class.GetName())
 	default:

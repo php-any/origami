@@ -25,14 +25,14 @@ func (h *RequestInputMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	// 如果没有参数，返回所有输入数据
 	if !hasKey {
 		// 合并查询参数和表单数据
-		result := data.NewObjectValue()
+		result := data.NewArrayValue(nil).(*data.ArrayValue)
 
 		// 添加查询参数
 		for key, values := range h.source.URL.Query() {
 			if len(values) == 1 {
-				result.SetProperty(key, data.NewStringValue(values[0]))
+				result.SetStringKey(key, data.NewStringValue(values[0]))
 			} else {
-				result.SetProperty(key, data.NewStringValue(strings.Join(values, ",")))
+				result.SetStringKey(key, data.NewStringValue(strings.Join(values, ",")))
 			}
 		}
 
@@ -40,9 +40,9 @@ func (h *RequestInputMethod) Call(ctx data.Context) (data.GetValue, data.Control
 		if h.source.Form != nil {
 			for key, values := range h.source.Form {
 				if len(values) == 1 {
-					result.SetProperty(key, data.NewStringValue(values[0]))
+					result.SetStringKey(key, data.NewStringValue(values[0]))
 				} else {
-					result.SetProperty(key, data.NewStringValue(strings.Join(values, ",")))
+					result.SetStringKey(key, data.NewStringValue(strings.Join(values, ",")))
 				}
 			}
 		}

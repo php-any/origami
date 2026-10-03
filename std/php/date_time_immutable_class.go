@@ -27,6 +27,8 @@ func (c *DateTimeImmutableClass) GetConstruct() data.Method {
 
 func (c *DateTimeImmutableClass) GetStaticMethod(name string) (data.Method, bool) {
 	switch name {
+	case "createFromInterface":
+		return &DateTimeCreateFromInterfaceMethod{}, true
 	case "createFromFormat":
 		return &DateTimeCreateFromFormatMethod{}, true
 	case "getLastErrors":
@@ -37,6 +39,8 @@ func (c *DateTimeImmutableClass) GetStaticMethod(name string) (data.Method, bool
 
 func (c *DateTimeImmutableClass) GetMethods() []data.Method {
 	return []data.Method{
+		&DateTimeSerializeMethod{}, &DateTimeUnserializeMethod{},
+		&DateTimeCreateFromInterfaceMethod{},
 		&DateTimeConstructMethod{},
 		&DateTimeGetTimestampMethod{},
 		&DateTimeFormatMethod{},
@@ -55,6 +59,10 @@ func (c *DateTimeImmutableClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
 	case "__construct":
 		return &DateTimeConstructMethod{}, true
+	case "__serialize":
+		return &DateTimeSerializeMethod{}, true
+	case "__unserialize":
+		return &DateTimeUnserializeMethod{}, true
 	case "getTimestamp":
 		return &DateTimeGetTimestampMethod{}, true
 	case "setTimestamp":

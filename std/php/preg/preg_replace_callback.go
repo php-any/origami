@@ -172,6 +172,7 @@ func (f *PregReplaceCallbackFunction) resolveCallback(ctx data.Context, cb data.
 func (f *PregReplaceCallbackFunction) callWithSubmatches(ctx data.Context, fn *data.FuncValue, matches data.Value) (data.Value, data.Control) {
 	args := []data.Value{matches}
 	callCtx := ctx.CreateContext(fn.Value.GetVariables())
+	defer data.ReleaseContext(callCtx)
 	callCtx.SetStrictTypes(false)
 	if ctl := data.BindDeclaredArgs(callCtx, fn.Value, args); ctl != nil {
 		return nil, ctl

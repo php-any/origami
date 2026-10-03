@@ -227,13 +227,12 @@ func valueToArray(v data.Value) *data.ArrayValue {
 		return data.NewArrayValue(nil).(*data.ArrayValue)
 	}
 	if zv, ok := v.(*data.ZValValue); ok && zv != nil && zv.ZVal != nil {
-		return valueToArray(zv.ZVal.Value)
+		return valueToArray(zv.ZVal.ReadValue())
 	}
 	switch t := v.(type) {
 	case *data.ArrayValue:
 		return unwrapAssoc(t)
-	case *data.ObjectValue:
-		return unwrapAssoc(objectToArray(t))
+
 	default:
 		// 关联数组在 Origami 里是 ObjectValue；未知类型不要再包一层 [0 => $v]。
 		return data.NewArrayValue(nil).(*data.ArrayValue)
@@ -263,9 +262,8 @@ func unwrapAssoc(arr *data.ArrayValue) *data.ArrayValue {
 	if z.Name != "" && z.Name != "0" {
 		return arr
 	}
-	switch inner := z.Value.(type) {
-	case *data.ObjectValue:
-		return unwrapAssoc(objectToArray(inner))
+	switch inner := z.ReadValue().(type) {
+
 	case *data.ArrayValue:
 		// 仅拆「又包了一层的关联数组」，不要把单元素列表（如一条 compiled row）拆掉。
 		if arrayLooksAssoc(inner) {
@@ -296,13 +294,13 @@ func toStringSlice(v data.Value) []string {
 		return nil
 	}
 	switch v.(type) {
-	case *data.ArrayValue, *data.ObjectValue:
+	case *data.ArrayValue:
 		av := valueToArray(v)
 		out := make([]string, 0, av.Len())
 		for arraySlots194, arrayPosition194 := av.View(), 0; arrayPosition194 < arraySlots194.Len(); arrayPosition194++ {
 			z := arraySlots194.At(arrayPosition194)
-			if z != nil && z.Value != nil && !isNull(z.Value) {
-				out = append(out, z.Value.AsString())
+			if z != nil && z.ReadValue() != nil && !isNull(z.ReadValue()) {
+				out = append(out, z.ReadValue().AsString())
 			}
 		}
 		return out
@@ -407,7 +405,7 @@ func assocGet(arr *data.ArrayValue, key string) (data.Value, bool) {
 	for arraySlots195, arrayPosition195 := arr.View(), 0; arrayPosition195 < arraySlots195.Len(); arrayPosition195++ {
 		z := arraySlots195.At(arrayPosition195)
 		if z != nil && z.Name == key {
-			return z.Value, true
+			return z.ReadValue(), true
 		}
 	}
 	return nil, false
@@ -428,7 +426,7 @@ func assocSet(arr *data.ArrayValue, key string, val data.Value) *data.ArrayValue
 	for arraySlots196, arrayPosition196 := arr.View(), 0; arrayPosition196 < arraySlots196.Len(); arrayPosition196++ {
 		z := arraySlots196.At(arrayPosition196)
 		if z != nil && z.Name == key {
-			z.Value = val
+			z.StoreRaw(val)
 			return arr
 		}
 	}

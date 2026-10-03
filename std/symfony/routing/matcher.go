@@ -183,7 +183,7 @@ func matchCollection(ctx data.Context, matcher *data.ClassValue, pathinfo string
 			continue
 		}
 		name := arrayKey(z, i)
-		route := asClassValue(z.Value)
+		route := asClassValue(z.ReadValue())
 		if route == nil {
 			continue
 		}
@@ -231,7 +231,7 @@ func matchCollection(ctx data.Context, matcher *data.ClassValue, pathinfo string
 			if z == nil || z.Name == "" || z.Name == "_canonical_route" {
 				continue
 			}
-			assocSet(attrs, z.Name, z.Value)
+			assocSet(attrs, z.Name, z.ReadValue())
 		}
 		for k, v := range named {
 			if k == "" {
@@ -328,7 +328,7 @@ func compiledMatcherConstruct(ctx data.Context) (data.GetValue, data.Control) {
 		if compiled == nil || i >= compiled.Len() || compiled.At(i) == nil {
 			return data.NewNullValue()
 		}
-		return compiled.At(i).Value
+		return compiled.At(i).ReadValue()
 	}
 	matchHost := false
 	if v := getIdx(0); v != nil {
@@ -444,22 +444,22 @@ func compiledDoMatch(ctx data.Context, matcher *data.ClassValue, pathinfo string
 			if z == nil {
 				continue
 			}
-			row := valueToArray(z.Value)
+			row := valueToArray(z.ReadValue())
 			if row == nil || row.Len() < 5 {
 				continue
 			}
-			ret := valueToArray(row.At(0).Value)
+			ret := valueToArray(row.At(0).ReadValue())
 			requiredHost := ""
-			if row.At(1) != nil && row.At(1).Value != nil && !isNull(row.At(1).Value) {
-				requiredHost = row.At(1).Value.AsString()
+			if row.At(1) != nil && row.At(1).ReadValue() != nil && !isNull(row.At(1).ReadValue()) {
+				requiredHost = row.At(1).ReadValue().AsString()
 			}
 			if requiredHost != "" && requiredHost != host {
 				if !strings.HasPrefix(requiredHost, "{") || !pregMatch(requiredHost, host) {
 					continue
 				}
 			}
-			requiredMethods := valueToArray(row.At(2).Value)
-			requiredSchemes := valueToArray(row.At(3).Value)
+			requiredMethods := valueToArray(row.At(2).ReadValue())
+			requiredSchemes := valueToArray(row.At(3).ReadValue())
 			if requiredSchemes != nil && requiredSchemes.Len() > 0 && !assocHas(requiredSchemes, scheme) {
 				continue
 			}
@@ -492,10 +492,10 @@ func compiledDoMatch(ctx data.Context, matcher *data.ClassValue, pathinfo string
 	}
 	for arraySlots188, i := regexpList.View(), 0; i < arraySlots188.Len(); i++ {
 		z := arraySlots188.At(i)
-		if z == nil || z.Value == nil {
+		if z == nil || z.ReadValue() == nil {
 			continue
 		}
-		regex := z.Value.AsString()
+		regex := z.ReadValue().AsString()
 		named, indexed, ok := pregMatchGroups(regex, matchedPath)
 		if !ok {
 			continue
@@ -508,7 +508,7 @@ func compiledDoMatch(ctx data.Context, matcher *data.ClassValue, pathinfo string
 		if !ok {
 			if n, err := strconv.Atoi(mark); err == nil {
 				if dynamicRoutes != nil && n < dynamicRoutes.Len() && dynamicRoutes.At(n) != nil {
-					bucket = dynamicRoutes.At(n).Value
+					bucket = dynamicRoutes.At(n).ReadValue()
 					ok = true
 				}
 			}
@@ -525,20 +525,20 @@ func compiledDoMatch(ctx data.Context, matcher *data.ClassValue, pathinfo string
 			if rz == nil {
 				continue
 			}
-			row := valueToArray(rz.Value)
+			row := valueToArray(rz.ReadValue())
 			if row == nil || row.Len() < 2 {
 				continue
 			}
-			ret := valueToArray(row.At(0).Value)
-			vars := valueToArray(row.At(1).Value)
+			ret := valueToArray(row.At(0).ReadValue())
+			vars := valueToArray(row.At(1).ReadValue())
 			out := cloneArray(ret)
 			if vars != nil {
 				for arraySlots190, vi := vars.View(), 0; vi < arraySlots190.Len(); vi++ {
 					vz := arraySlots190.At(vi)
-					if vz == nil || vz.Value == nil {
+					if vz == nil || vz.ReadValue() == nil {
 						continue
 					}
-					name := vz.Value.AsString()
+					name := vz.ReadValue().AsString()
 					if vi+1 < len(indexed) {
 						assocSet(out, name, data.NewStringValue(indexed[vi+1]))
 					}
@@ -547,10 +547,10 @@ func compiledDoMatch(ctx data.Context, matcher *data.ClassValue, pathinfo string
 			requiredMethods := phpList()
 			requiredSchemes := phpList()
 			if row.Len() > 2 && row.At(2) != nil {
-				requiredMethods = valueToArray(row.At(2).Value)
+				requiredMethods = valueToArray(row.At(2).ReadValue())
 			}
 			if row.Len() > 3 && row.At(3) != nil {
-				requiredSchemes = valueToArray(row.At(3).Value)
+				requiredSchemes = valueToArray(row.At(3).ReadValue())
 			}
 			if requiredSchemes != nil && requiredSchemes.Len() > 0 && !assocHas(requiredSchemes, scheme) {
 				continue
@@ -632,7 +632,7 @@ func dumperGetCompiledRoutes(ctx data.Context) (data.GetValue, data.Control) {
 				continue
 			}
 			name := arrayKey(z, i)
-			route := asClassValue(z.Value)
+			route := asClassValue(z.ReadValue())
 			if route == nil {
 				continue
 			}
@@ -663,7 +663,7 @@ func dumperGetCompiledRoutes(ctx data.Context) (data.GetValue, data.Control) {
 			for arraySlots192, arrayPosition192 := defaults.View(), 0; arrayPosition192 < arraySlots192.Len(); arrayPosition192++ {
 				dz := arraySlots192.At(arrayPosition192)
 				if dz != nil && dz.Name != "" {
-					assocSet(ret, dz.Name, dz.Value)
+					assocSet(ret, dz.Name, dz.ReadValue())
 				}
 			}
 			methods := flipStrings(toStringSlice(prop(route, "methods")))

@@ -11,7 +11,7 @@ func (a *ArrayValueShift) Call(ctx Context) (GetValue, Control) {
 	if slot == nil {
 		return NewNullValue(), nil
 	}
-	return slot.Value, nil
+	return slot.ReadValue(), nil
 }
 
 func (a *ArrayValueShift) GetName() string {

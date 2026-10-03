@@ -27,6 +27,10 @@ func NewCallObjectDynamicMethod(from *TokenFrom, object data.GetValue, methodExp
 
 // GetValue 运行时先求值方法名，再委托给 CallObjectMethod 执行调用
 func (pe *CallObjectDynamicMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return callValue(pe.GetReferenceValue(ctx))
+}
+
+func (pe *CallObjectDynamicMethod) GetReferenceValue(ctx data.Context) (data.GetValue, data.Control) {
 	o, ctl := pe.Object.GetValue(ctx)
 	if ctl != nil {
 		return nil, ctl
@@ -44,95 +48,6 @@ func (pe *CallObjectDynamicMethod) GetValue(ctx data.Context) (data.GetValue, da
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("动态方法名不能为空"))
 	}
 
-	// 借用 CallObjectMethod 的参数绑定和魔法方法逻辑
-	proxy := &CallObjectMethod{
-		Node:   pe.Node,
-		Object: pe.Object,
-		Method: methodName,
-		Args:   pe.Args,
-	}
-
-	// PHP 8.1: $obj->$method(...) 一等可调用（Filament ComponentManager::extractPublicMethods）
-	if isFirstClassCallableArgs(pe.Args) {
-		switch class := o.(type) {
-		case *data.ThisValue:
-			return proxy.firstClassObjectCallable(class.ClassValue)
-		case *data.ClassValue:
-			return proxy.firstClassObjectCallable(class)
-		default:
-			if tv, ok := o.(*data.ThisValue); ok && tv.ClassValue != nil {
-				return proxy.firstClassObjectCallable(tv.ClassValue)
-			}
-			return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("无法创建一等可调用: %s", methodName))
-		}
-	}
-
-	switch class := o.(type) {
-	case *data.ThisValue:
-		method, has := class.GetMethod(methodName)
-		if has {
-			fnCtx, acl := proxy.callMethodParams(class, ctx, method)
-			if acl != nil {
-				return nil, acl
-			}
-			// 与 CallObjectMethod 一致：供 func_num_args()/func_get_args() 使用
-			fnCtx.SetCallArgs(pe.Args)
-			return method.Call(fnCtx)
-		}
-		if magic, hasCall := class.GetMethod("__call"); hasCall {
-			return proxy.invokeMagicCall(class, ctx, magic, methodName, pe.Args)
-		}
-		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("this 对象不存在对应函数: %s", methodName))
-	case *data.ClassValue:
-		method, has := class.GetMethod(methodName)
-		if has {
-			if method.GetModifier() == data.ModifierPrivate {
-				if !isCallerInClassHierarchy(ctx, class.Class) {
-					return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("不能调用 private 方法: %s", methodName))
-				}
-			} else if method.GetModifier() == data.ModifierProtected {
-				if !isCallerInClassHierarchy(ctx, class.Class) {
-					return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("对象方法 %s 非公开", methodName))
-				}
-			}
-			fnCtx, acl := proxy.callMethodParams(class, ctx, method)
-			if acl != nil {
-				return nil, acl
-			}
-			fnCtx.SetCallArgs(pe.Args)
-			return method.Call(fnCtx)
-		}
-		if magic, hasCall := class.GetMethod("__call"); hasCall {
-			return proxy.invokeMagicCall(class, ctx, magic, methodName, pe.Args)
-		}
-		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("类(%s)不存在对应函数(%s)", class.Class.GetName(), methodName))
-	case *data.FuncValue:
-		// PHP: $closure->__invoke(...$args) ≡ $closure(...$args)
-		if methodName == "__invoke" {
-			cm := &CallMethod{Node: pe.Node, Method: pe.Object, Args: pe.Args}
-			return cm.handleFuncValue(ctx, class)
-		}
-		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("当前值不支持调用函数 %s", methodName))
-	default:
-		if gm, ok := o.(data.GetMethod); ok {
-			method, has := gm.GetMethod(methodName)
-			if has {
-				if method.GetModifier() != data.ModifierPublic {
-					return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("对象方法 %s 非公开", methodName))
-				}
-				fnCtx, acl := proxy.callMethodParams(ctx, ctx, method)
-				if acl != nil {
-					return nil, acl
-				}
-				fnCtx.SetCallArgs(pe.Args)
-				return method.Call(fnCtx)
-			}
-			if magic, hasCall := gm.GetMethod("__call"); hasCall {
-				if objCtx, ok := o.(data.Context); ok {
-					return proxy.invokeMagicCall(objCtx, ctx, magic, methodName, pe.Args)
-				}
-			}
-		}
-	}
-	return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("当前值不支持调用函数 %s", methodName))
+	proxy := &CallObjectMethod{Node: pe.Node, Object: &literalGetValue{v: o}, Method: methodName, Args: pe.Args}
+	return proxy.GetReferenceValue(ctx)
 }

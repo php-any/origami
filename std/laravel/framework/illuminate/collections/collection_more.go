@@ -464,7 +464,7 @@ func collectionCountBy(ctx data.Context) (data.GetValue, data.Control) {
 		}
 		// 注意：data.NewIntValue 对小整数返回 interned 单例，绝不能原地 iv.Value++（会污染整个程序里的该常量）。
 		if z, ok := counts.LookupZValByStringKey(k); ok && z != nil {
-			if iv, ok := z.Value.(*data.IntValue); ok {
+			if iv, ok := z.ReadValue().(*data.IntValue); ok {
 				setEntry(counts, k, data.NewIntValue(iv.Value+1))
 			} else {
 				setEntry(counts, k, data.NewIntValue(1))
@@ -1193,7 +1193,7 @@ func phpTypeName(v data.Value) string {
 		return "string"
 	case *data.ArrayValue:
 		return "array"
-	case *data.ObjectValue, *data.ClassValue:
+	case *data.ClassValue:
 		return "object"
 	case *data.BoolValue:
 		return "bool"
@@ -1469,7 +1469,7 @@ func collectionShift(ctx data.Context) (data.GetValue, data.Control) {
 	if first == nil {
 		return data.NewNullValue(), nil
 	}
-	return first.Value, nil
+	return first.ReadValue(), nil
 }
 
 func collectionShuffle(ctx data.Context) (data.GetValue, data.Control) {

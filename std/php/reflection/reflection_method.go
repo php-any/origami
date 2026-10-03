@@ -40,12 +40,11 @@ func (c *ReflectionMethodClass) GetPropertyList() []data.Property {
 
 // GetStaticProperty 返回 ReflectionMethod 修饰符常量（PHP ReflectionMethod::IS_*）
 func (c *ReflectionMethodClass) GetStaticProperty(name string) (data.Value, bool) {
-	if c.StaticProperty == nil {
-		c.StaticProperty = reflectionMethodConstants()
-	}
-	v, ok := c.StaticProperty[name]
+	v, ok := immutableReflectionMethodConstants[name]
 	return v, ok
 }
+
+var immutableReflectionMethodConstants = reflectionMethodConstants()
 
 func reflectionMethodConstants() map[string]data.Value {
 	return map[string]data.Value{
@@ -62,6 +61,12 @@ func reflectionMethodConstants() map[string]data.Value {
 // GetMethod 根据方法名获取方法
 func (c *ReflectionMethodClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
+	case "isFinal":
+		return &ReflectionMethodFlagMethod{name: name, flag: data.MethodFinal}, true
+	case "isAbstract":
+		return &ReflectionMethodFlagMethod{name: name, flag: data.MethodAbstract}, true
+	case "returnsReference":
+		return &ReturnsReferenceMethod{}, true
 	case "__construct":
 		return &ReflectionMethodConstructMethod{}, true
 	case "getName":
@@ -99,6 +104,9 @@ func (c *ReflectionMethodClass) GetMethod(name string) (data.Method, bool) {
 // GetMethods 返回所有方法列表
 func (c *ReflectionMethodClass) GetMethods() []data.Method {
 	return []data.Method{
+		&ReflectionMethodFlagMethod{name: "isFinal", flag: data.MethodFinal},
+		&ReflectionMethodFlagMethod{name: "isAbstract", flag: data.MethodAbstract},
+		&ReturnsReferenceMethod{},
 		&ReflectionMethodConstructMethod{},
 		&ReflectionMethodGetNameMethod{},
 		&ReflectionMethodGetModifiersMethod{},
@@ -156,10 +164,10 @@ func getReflectionMethodInfo(ctx data.Context) (string, string, data.Method) {
 		// 从 ObjectValue 的 property 中直接获取类名和方法名
 		// ClassMethodContext 嵌入了 *ClassValue，所以 objCtx 本身就是 ClassValue
 		if objCtx.ObjectValue != nil {
-			// 使用 GetProperties 方法获取所有属性，然后查找 _className 和 _methodName
-			props := objCtx.ObjectValue.GetProperties()
-			classNameVal, hasClassName := props["_className"]
-			methodNameVal, hasMethodName := props["_methodName"]
+			// 直接读取反射身份，避免复制整份属性表
+			props := objCtx.ObjectValue
+			classNameVal, hasClassName := props.LookupProperty("_className")
+			methodNameVal, hasMethodName := props.LookupProperty("_methodName")
 
 			if hasClassName && hasMethodName {
 				var className, methodName string
@@ -173,8 +181,13 @@ func getReflectionMethodInfo(ctx data.Context) (string, string, data.Method) {
 				if className != "" && methodName != "" {
 					vm := ctx.GetVM()
 
-					// 优先按接口解析（ReflectionMethod 也可作用于 interface 方法）
-					if iface, acl := vm.GetOrLoadInterface(className); acl == nil && iface != nil {
+					v, acl := vm.LoadPkg(className)
+					if acl != nil {
+						return "", "", nil
+					}
+					// Load once, then inspect the declaration kind. Probing a class
+					// as an interface creates a needless exception on every query.
+					if iface, ok := v.(data.InterfaceStmt); ok && iface != nil {
 						if method, exists := iface.GetMethod(methodName); exists {
 							return className, methodName, method
 						}
@@ -189,10 +202,6 @@ func getReflectionMethodInfo(ctx data.Context) (string, string, data.Method) {
 						}
 					}
 
-					v, acl := vm.LoadPkg(className)
-					if acl != nil {
-						return "", "", nil
-					}
 					if v != nil {
 						stmt, ok := v.(data.ClassStmt)
 						if !ok {

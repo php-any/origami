@@ -582,7 +582,7 @@ func responseHeaderBagAllPreserveCase(ctx data.Context) (data.GetValue, data.Con
 		if name == "" {
 			name = k
 		}
-		list = append(list, &data.ZVal{Name: name, Value: headerValuesToArray(src.headers[k])})
+		list = append(list, &data.ZVal{Name: name, InitialValue: headerValuesToArray(src.headers[k])})
 	}
 	return data.NewArrayValueFromSlots(list), nil
 }
@@ -679,13 +679,13 @@ func responseHeaderBagAll(ctx data.Context) (data.GetValue, data.Control) {
 		for arraySlots162, arrayPosition162 := arr.View(), 0; arrayPosition162 < arraySlots162.Len(); arrayPosition162++ {
 			z := arraySlots162.At(arrayPosition162)
 			if z != nil && z.Name == "set-cookie" {
-				z.Value = data.NewArrayValue(vals)
+				z.StoreRaw(data.NewArrayValue(vals))
 				found = true
 				break
 			}
 		}
 		if !found {
-			arr.AppendEntries(&data.ZVal{Name: "set-cookie", Value: data.NewArrayValue(vals)})
+			arr.AppendEntries(&data.ZVal{Name: "set-cookie", InitialValue: data.NewArrayValue(vals)})
 		}
 	}
 	return arr, nil
@@ -831,11 +831,11 @@ func responseHeaderBagGetCookies(ctx data.Context) (data.GetValue, data.Control)
 				for path, names := range paths {
 					nameList := make([]*data.ZVal, 0, len(names))
 					for name, c := range names {
-						nameList = append(nameList, &data.ZVal{Name: name, Value: data.NewStringValue(c.String())})
+						nameList = append(nameList, &data.ZVal{Name: name, InitialValue: data.NewStringValue(c.String())})
 					}
-					pathList = append(pathList, &data.ZVal{Name: path, Value: data.NewArrayValueFromSlots(nameList)})
+					pathList = append(pathList, &data.ZVal{Name: path, InitialValue: data.NewArrayValueFromSlots(nameList)})
 				}
-				outer = append(outer, &data.ZVal{Name: domain, Value: data.NewArrayValueFromSlots(pathList)})
+				outer = append(outer, &data.ZVal{Name: domain, InitialValue: data.NewArrayValueFromSlots(pathList)})
 			}
 		}
 		return data.NewArrayValueFromSlots(outer), nil

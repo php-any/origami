@@ -44,9 +44,8 @@ func TestCanonicalAccelerator(t *testing.T) {
 	}
 }
 
-func TestModifierPrefixFromObjectValue(t *testing.T) {
-	ov := data.NewObjectValue()
-	ov.SetProperty("0", data.NewStringValue("shift"))
+func TestModifierPrefixFromPHPArray(t *testing.T) {
+	ov := data.NewArrayValue([]data.Value{data.NewStringValue("shift")})
 	prefix := modifierPrefixFromValue(ov)
 	if prefix != "shift+" {
 		t.Fatalf("expected shift+ prefix, got %q", prefix)

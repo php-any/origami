@@ -71,16 +71,7 @@ func phpIntval(v data.Value, base int) int {
 			return 0
 		}
 		return 1
-	case *data.ObjectValue:
-		n := 0
-		t.RangeProperties(func(string, data.Value) bool {
-			n++
-			return false
-		})
-		if n == 0 {
-			return 0
-		}
-		return 1
+
 	case *data.ClassValue:
 		return 1
 	case *data.StringValue:

@@ -131,8 +131,7 @@ func normalizeConfigValue(v data.Value) data.Value {
 	switch t := v.(type) {
 	case *data.ArrayValue:
 		return deepArrayCopy(t)
-	case *data.ObjectValue:
-		return toAssocArray(t)
+
 	default:
 		return v
 	}
@@ -144,7 +143,7 @@ func deepArrayCopy(src *data.ArrayValue) *data.ArrayValue {
 		if z == nil {
 			continue
 		}
-		nz := data.NewZVal(normalizeConfigValue(z.Value))
+		nz := data.NewZVal(normalizeConfigValue(z.ReadValue()))
 		nz.Name = z.Name
 		out.AppendEntries(nz)
 	}
@@ -159,9 +158,7 @@ func asArrayValue(v data.Value) *data.ArrayValue {
 	if av, ok := v.(*data.ArrayValue); ok {
 		return deepArrayCopy(av)
 	}
-	if _, ok := v.(*data.ObjectValue); ok {
-		return toAssocArray(v)
-	}
+
 	return data.NewArrayValue(nil).(*data.ArrayValue)
 }
 

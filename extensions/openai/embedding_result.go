@@ -31,7 +31,7 @@ func NewEmbeddingResultClassValue(resp *oai.CreateEmbeddingResponse, ctx data.Co
 	}
 
 	// usage
-	usageObj := data.NewObjectValue()
+	usageObj := data.NewStdClassValue(ctx)
 	usageObj.SetProperty("promptTokens", data.NewIntValue(int(resp.Usage.PromptTokens)))
 	usageObj.SetProperty("totalTokens", data.NewIntValue(int(resp.Usage.TotalTokens)))
 	cv.SetProperty("usage", usageObj)

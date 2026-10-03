@@ -28,7 +28,7 @@ func (a *ArrayValueReduce) Call(ctx Context) (GetValue, Control) {
 		if initialValue, ok := ctx.GetIndexValue(1); ok {
 			accumulator = initialValue
 			for i, zval := range a.source.Range() {
-				element := zval.Value
+				element := zval.ReadValue()
 				args := []Value{accumulator, element, NewIntValue(i), NewArrayValue(sourceValues)}
 				for ai := 0; ai < len(vars) && ai < len(args); ai++ {
 					fnCtx.SetVariableValue(NewVariable("", ai, nil), args[ai])
@@ -44,9 +44,9 @@ func (a *ArrayValueReduce) Call(ctx Context) (GetValue, Control) {
 			if a.source.Len() == 0 {
 				return NewNullValue(), nil
 			}
-			accumulator = a.source.At(0).Value
+			accumulator = a.source.At(0).ReadValue()
 			for i := 1; i < a.source.Len(); i++ {
-				element := a.source.At(i).Value
+				element := a.source.At(i).ReadValue()
 				args := []Value{accumulator, element, NewIntValue(i), NewArrayValue(sourceValues)}
 				for ai := 0; ai < len(vars) && ai < len(args); ai++ {
 					fnCtx.SetVariableValue(NewVariable("", ai, nil), args[ai])
@@ -70,10 +70,10 @@ func (a *ArrayValueReduce) Call(ctx Context) (GetValue, Control) {
 			if a.source.Len() == 0 {
 				return NewNullValue(), nil
 			}
-			accumulator = a.source.At(0).Value
+			accumulator = a.source.At(0).ReadValue()
 			// 从第二个元素开始遍历
 			for i := 1; i < a.source.Len(); i++ {
-				element := a.source.At(i).Value
+				element := a.source.At(i).ReadValue()
 				// 调用回调函数，传递累积值、当前元素、索引和数组
 				reduceResult, ctl := callable.Call(accumulator, element, NewIntValue(i), NewArrayValue(sourceValues))
 				if ctl != nil {
@@ -86,7 +86,7 @@ func (a *ArrayValueReduce) Call(ctx Context) (GetValue, Control) {
 
 		// 从第一个元素开始遍历
 		for i, zval := range a.source.Range() {
-			element := zval.Value
+			element := zval.ReadValue()
 			// 调用回调函数，传递累积值、当前元素、索引和数组
 			reduceResult, ctl := callable.Call(accumulator, element, NewIntValue(i), NewArrayValue(sourceValues))
 			if ctl != nil {

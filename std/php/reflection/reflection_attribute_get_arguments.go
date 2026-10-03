@@ -2,6 +2,7 @@ package reflection
 
 import (
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 )
 
 // ReflectionAttributeGetArgumentsMethod 实现 ReflectionAttribute::getArguments
@@ -41,6 +42,22 @@ func (m *ReflectionAttributeGetArgumentsMethod) GetReturnType() data.Types {
 // Call 执行 getArguments 方法
 // 返回传递给属性（注解）的参数数组
 func (m *ReflectionAttributeGetArgumentsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
+	if annotation := reflectionAttributeDeclaration(ctx); annotation != nil {
+		array := data.NewArrayValueFromSlots(nil)
+		for _, argument := range annotation.Arguments {
+			raw, ctl := argument.GetValue(ctx)
+			if ctl != nil {
+				return nil, ctl
+			}
+			value := raw.(data.Value)
+			if named, ok := argument.(*node.NamedArgument); ok {
+				array.SetStringKey(named.Name, value)
+			} else {
+				array.SetKey(data.NewIntValue(array.NextAppendIntKey()), value)
+			}
+		}
+		return array, nil
+	}
 	annotationValue := getReflectionAttributeInfo(ctx)
 	if annotationValue == nil {
 		return data.NewArrayValue([]data.Value{}), nil

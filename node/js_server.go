@@ -47,7 +47,7 @@ func (n *JsServerExpression) GetValue(ctx data.Context) (data.GetValue, data.Con
 
 	// 检查变量值的类型，决定返回原始 JavaScript 值还是字符串值
 	switch varValue.(type) {
-	case *data.IntValue, *data.FloatValue, *data.BoolValue, *data.NullValue, *data.ObjectValue, *data.ArrayValue:
+	case *data.IntValue, *data.FloatValue, *data.BoolValue, *data.NullValue, *data.ArrayValue:
 		// 数字、布尔值、null、对象、数组都返回原始 JavaScript 值（不带引号）
 		jsValue := convertToJavaScriptValue(varValue)
 		return NewJsRawValue(jsValue), nil
@@ -119,9 +119,7 @@ func convertToJavaScriptValue(value interface{}) string {
 	case *data.NullValue:
 		// 处理 NullValue，输出 null（不带引号）
 		return "null"
-	case *data.ObjectValue:
-		// 处理 ObjectValue，转换为 JavaScript 对象格式
-		return formatDataObjectValue(v)
+
 	case *data.ArrayValue:
 		// 处理 ArrayValue，转换为 JavaScript 数组格式
 		return formatDataArrayValue(v)

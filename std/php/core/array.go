@@ -21,16 +21,7 @@ func (f *ArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	switch v := a1.(type) {
 	case *data.ArrayValue:
 		return v, nil
-	case *data.ObjectValue:
-		// PHP: (array)  => convert object properties to array elements
-		result := data.NewArrayValueFromSlots(make([]*data.ZVal, 0))
-		v.RangeProperties(func(key string, val data.Value) bool {
-			zv := data.NewZVal(val)
-			zv.Name = key
-			result.AppendEntries(zv)
-			return true
-		})
-		return result, nil
+
 	case *data.ClassValue:
 		return castClassToArray(v)
 	case *data.ThisValue:

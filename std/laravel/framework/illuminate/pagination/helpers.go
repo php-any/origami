@@ -147,7 +147,7 @@ func pagApplyOptions(cv *data.ClassValue, options data.Value) {
 		if e == nil || e.Name == "" {
 			continue
 		}
-		_ = cv.SetProperty(e.Name, e.Value)
+		_ = cv.SetProperty(e.Name, e.ReadValue())
 	}
 }
 
@@ -166,7 +166,7 @@ func pagBuildURL(path, pageName string, page int, query *data.ArrayValue, fragme
 			if e == nil || e.Name == "" {
 				continue
 			}
-			params.Set(e.Name, kit.Unwrap(e.Value).AsString())
+			params.Set(e.Name, kit.Unwrap(e.ReadValue()).AsString())
 		}
 	}
 	params.Set(pageName, strconv.Itoa(page))

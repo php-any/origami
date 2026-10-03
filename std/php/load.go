@@ -26,6 +26,11 @@ import (
 )
 
 func Load(vm data.VM) {
+	vm.AddFunc(&UploadedFileFunction{name: "is_uploaded_file"})
+	vm.AddFunc(&UploadedFileFunction{name: "move_uploaded_file"})
+	for _, name := range []string{"ignore_user_abort", "connection_aborted", "connection_status"} {
+		vm.AddFunc(&ConnectionFunction{name: name})
+	}
 	core.InitIniDefaults()
 	core.InitPhptInputFromEnv()
 	node.CheckExecutionTimeLimit = func(file string, line int) {
@@ -517,7 +522,20 @@ func Load(vm data.VM) {
 
 	// 注册核心类
 	vm.AddClass(&core.ClosureClass{})
-	vm.AddClass(&core.BackedEnumClass{})
+	unitCases := node.NewInterfaceMethod(nil, "cases", "public", nil, data.Arrays{}).(*node.InterfaceMethod)
+	unitCases.IsStatic = true
+	vm.AddInterface(node.NewInterfaceStatement(nil, "UnitEnum", nil, []data.Method{unitCases}))
+	backedMethods := []data.Method{}
+	for _, name := range []string{"from", "tryFrom"} {
+		var ret data.Types = data.NewBaseType("static")
+		if name == "tryFrom" {
+			ret = data.NewNullableType(ret)
+		}
+		method := node.NewInterfaceMethod(nil, name, "public", []data.GetValue{node.NewParameter(nil, "value", 0, nil, data.NewDeclaredUnionType([]data.Types{data.Int{}, data.String{}}))}, ret).(*node.InterfaceMethod)
+		method.IsStatic = true
+		backedMethods = append(backedMethods, method)
+	}
+	vm.AddInterface(node.NewInterfaceStatement(nil, "BackedEnum", []string{"UnitEnum"}, backedMethods))
 	vm.AddClass(&core.StdClass{})
 	vm.AddClass(&core.NormalizerClass{})
 	vm.AddClass(&core.WeakMapClass{})

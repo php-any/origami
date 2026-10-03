@@ -121,7 +121,7 @@ func (p *TryParser) parseCatchBlock(tracker *PositionTracker) (*node.CatchBlock,
 			return nil, acl
 		}
 		variable1 := stmt.(*node.VariableExpression)
-		variable1.Type = exceptionType
+		variable1.Type = data.DeclaredTypeRef(exceptionType)
 		variable = variable1
 
 		acl = p.nextAndCheck(token.RPAREN) // 跳过右括号

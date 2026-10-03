@@ -1,9 +1,17 @@
 package data
 
 func NewThisValue(v *ClassValue) *ThisValue {
-	return &ThisValue{
-		ClassValue: v,
+	if v == nil {
+		return &ThisValue{}
 	}
+	if cached := v.thisValue.Load(); cached != nil {
+		return cached
+	}
+	value := &ThisValue{ClassValue: v}
+	if v.thisValue.CompareAndSwap(nil, value) {
+		return value
+	}
+	return v.thisValue.Load()
 }
 
 type ThisValue struct {

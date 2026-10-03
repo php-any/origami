@@ -9,11 +9,7 @@ function span($obj) {
     return "<span>" . $obj->body . "</span>";
 }
 
-$html = div {
-    "body": span {
-        "body": "内容",
-    }
-}
+$html = div((object) ["body" => span((object) ["body" => "内容"])]);
 
 if("<div><span>内容</span></div>" == $html) {
     Log::info("函数参数后置; 正常");

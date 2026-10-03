@@ -67,7 +67,7 @@ func (d *db) runExecute(ctx data.Context, sqlStr string, goArgs []interface{}) (
 		lastInsertId = 0
 	}
 
-	resultObj := data.NewObjectValue()
+	resultObj := data.NewStdClassValue(nil)
 	resultObj.SetProperty("rowsAffected", data.NewIntValue(int(rowsAffected)))
 	resultObj.SetProperty("lastInsertId", data.NewIntValue(int(lastInsertId)))
 	resultObj.SetProperty("success", data.NewBoolValue(true))

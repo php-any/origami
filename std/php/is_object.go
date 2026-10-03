@@ -18,23 +18,7 @@ func (f *IsObjectFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		return data.NewBoolValue(false), nil
 	}
 
-	if _, ok := value.(*data.ObjectValue); ok {
-		return data.NewBoolValue(true), nil
-	}
-	if _, ok := value.(*data.ClassValue); ok {
-		return data.NewBoolValue(true), nil
-	}
-	// $this 也是对象：PHP 中 is_object($this) 为 true。
-	if _, ok := value.(*data.ThisValue); ok {
-		return data.NewBoolValue(true), nil
-	}
-	if _, ok := value.(*data.FuncValue); ok {
-		return data.NewBoolValue(true), nil
-	}
-	if _, ok := value.(*data.ThrowValue); ok {
-		return data.NewBoolValue(true), nil
-	}
-	return data.NewBoolValue(false), nil
+	return data.NewBoolValue(data.ValueKindOf(value) == data.ValueObject), nil
 }
 
 func (f *IsObjectFunction) GetName() string {

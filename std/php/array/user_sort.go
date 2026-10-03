@@ -15,7 +15,7 @@ func userSort(ctx data.Context, array *data.ArrayValue, callback data.Value, pre
 			if failure != nil {
 				return false
 			}
-			value, control := invokeCallback(ctx, callback, []data.Value{slots[i].Value, slots[j].Value})
+			value, control := invokeCallback(ctx, callback, []data.Value{slots[i].ReadValue(), slots[j].ReadValue()})
 			if returned, ok := control.(data.ReturnControl); ok {
 				value, _ = returned.ReturnValue().(data.Value)
 				control = nil

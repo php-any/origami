@@ -16,17 +16,9 @@ func spreadToValues(ctx data.Context, spreadVal data.GetValue) ([]data.Value, da
 		for arraySlots26, arrayPosition26 := v.View(), 0; arrayPosition26 < arraySlots26.Len(); arrayPosition26++ {
 			z := arraySlots26.At(arrayPosition26)
 			if z != nil {
-				result = append(result, z.Value)
+				result = append(result, z.ReadValue())
 			}
 		}
-		return result, nil
-
-	case *data.ObjectValue:
-		result := make([]data.Value, 0)
-		v.RangeProperties(func(_ string, val data.Value) bool {
-			result = append(result, val)
-			return true
-		})
 		return result, nil
 
 	case *data.ClassValue:
@@ -62,7 +54,7 @@ func iterateClassForSpread(ctx data.Context, v *data.ClassValue) ([]data.Value, 
 		return nil, ctl
 	}
 	if isAggregate {
-		inner, ictl := callValueMethod(v, "getIterator")
+		inner, ictl := callValueMethod(ctx, v, "getIterator")
 		if ictl != nil {
 			return nil, ictl
 		}
@@ -92,25 +84,25 @@ func iterateClassForSpread(ctx data.Context, v *data.ClassValue) ([]data.Value, 
 
 func iterateIteratorMethods(ctx data.Context, obj *data.ClassValue) ([]data.Value, data.Control) {
 	result := make([]data.Value, 0)
-	if ctl := callVoidMethod(obj, "rewind"); ctl != nil {
+	if ctl := callVoidMethod(ctx, obj, "rewind"); ctl != nil {
 		return nil, ctl
 	}
 	for {
-		valid, ctl := callBoolMethod(obj, "valid")
+		valid, ctl := callBoolMethod(ctx, obj, "valid")
 		if ctl != nil {
 			return nil, ctl
 		}
 		if !valid {
 			break
 		}
-		val, ctl := callValueMethod(obj, "current")
+		val, ctl := callValueMethod(ctx, obj, "current")
 		if ctl != nil {
 			return nil, ctl
 		}
 		if val != nil {
 			result = append(result, val)
 		}
-		if ctl := callVoidMethod(obj, "next"); ctl != nil {
+		if ctl := callVoidMethod(ctx, obj, "next"); ctl != nil {
 			return nil, ctl
 		}
 	}
@@ -131,20 +123,12 @@ func spreadToValuesForNew(ctx data.Context, spreadVal data.GetValue) ([]data.Get
 			// 关联字符串键展开为命名实参
 			if z.Name != "" {
 				if _, isInt := data.ParseIntArrayKeyName(z.Name); !isInt {
-					result = append(result, NewNamedArgument(nil, z.Name, z.Value))
+					result = append(result, NewNamedArgument(nil, z.Name, z.ReadValue()))
 					continue
 				}
 			}
-			result = append(result, z.Value)
+			result = append(result, z.ReadValue())
 		}
-		return result, true
-
-	case *data.ObjectValue:
-		result := make([]data.GetValue, 0)
-		v.RangeProperties(func(key string, val data.Value) bool {
-			result = append(result, NewNamedArgument(nil, key, val))
-			return true
-		})
 		return result, true
 
 	case *data.ClassValue:

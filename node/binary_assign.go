@@ -96,10 +96,22 @@ func NewBinaryAssign(from data.From, left, right data.GetValue) BinaryExpression
 }
 
 func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// 仅 $idx .= $rhs（右侧 BinaryDot 的左操作数与赋值左端为同一节点）
-	if ie, ok := b.Left.(*IndexExpression); ok {
-		if dot, ok := b.Right.(*BinaryDot); ok && dot.Left == ie {
-			return assignIndexConcat(ctx, ie, dot)
+	if index, ok := b.Left.(*IndexExpression); ok {
+		_, compound := rebindDimensionOperand(b.Right, index, index)
+		if complexDimension(index) || compound {
+			resolved, ctl := resolveDimension(ctx, index)
+			if ctl != nil {
+				return nil, ctl
+			}
+			right, _ := rebindDimensionOperand(b.Right, index, resolved)
+			value, ctl := right.GetValue(ctx)
+			if ctl != nil {
+				return nil, ctl
+			}
+			if value == nil {
+				value = data.NewNullValue()
+			}
+			return value, resolved.setValueResolved(ctx, value.(data.Value))
 		}
 	}
 	rv, rCtl := b.Right.GetValue(ctx)
@@ -177,35 +189,12 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 			switch src := rv.(type) {
 			case *data.ArrayValue:
 				valueList = src.ToValueList()
-			case *data.ObjectValue:
-				// Collection::toArray() 等常以 ObjectValue 持有 "0","1"… 键
-				n := len(l.V)
-				valueList = make([]data.Value, 0, n)
-				for i := 0; i < n; i++ {
-					key := fmt.Sprintf("%d", i)
-					if !src.HasProperty(key) {
-						break
-					}
-					v, _ := src.GetProperty(key)
-					if v == nil {
-						v = data.NewNullValue()
-					}
-					valueList = append(valueList, v)
-				}
-				if len(valueList) == 0 {
-					src.RangeProperties(func(_ string, val data.Value) bool {
-						if len(valueList) >= n {
-							return false
-						}
-						valueList = append(valueList, val)
-						return true
-					})
-				}
+
 			case *data.ClassValue:
 				// 支持实现了 ArrayAccess 的对象解构（如 Collection）
 				if method, exists := src.GetMethod("offsetGet"); exists {
 					for i, set := range l.V {
-						fnCtx := src.CreateContext(method.GetVariables())
+						fnCtx := implicitMethodFrame(ctx, src, method)
 						if len(method.GetVariables()) > 0 {
 							fnCtx.SetVariableValue(method.GetVariables()[0], data.NewIntValue(i))
 						}
@@ -272,8 +261,15 @@ func (b *BinaryAssignVariable) GetValue(ctx data.Context) (data.GetValue, data.C
 		// 仅适用于 *VariableExpression；对象属性等 Variable 无有效索引。
 		if ve, ok := b.Left.(*VariableExpression); ok {
 			if zv := ctx.GetIndexZVal(ve.Index); zv != nil && data.IsScalarAssignFast(v) {
+				if zv.Guard() != nil {
+					prepared, ctl := zv.PrepareWrite(v, ctx)
+					if ctl != nil {
+						return nil, ctl
+					}
+					v = prepared
+				}
 				data.AssignScalarToZVal(zv, v)
-				return zv.Value, nil
+				return zv.ReadValue(), nil
 			}
 		}
 		return v, b.Left.SetValue(ctx, v)
@@ -317,7 +313,7 @@ func (b *BinaryAssignVariableList) GetValue(ctx data.Context) (data.GetValue, da
 		if cv, ok2 := v.(*data.ClassValue); ok2 {
 			if method, exists := cv.GetMethod("offsetGet"); exists {
 				for i, lv := range b.Left.Vars {
-					fnCtx := cv.CreateContext(method.GetVariables())
+					fnCtx := implicitMethodFrame(ctx, cv, method)
 					if len(method.GetVariables()) > 0 {
 						fnCtx.SetVariableValue(method.GetVariables()[0], data.NewIntValue(i))
 					}

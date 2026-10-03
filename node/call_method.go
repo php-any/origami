@@ -25,6 +25,10 @@ func NewCallMethod(token *TokenFrom, method data.GetValue, args []data.GetValue)
 
 // GetValue 获取对象属性访问表达式的值
 func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	return callValue(pe.GetReferenceValue(ctx))
+}
+
+func (pe *CallMethod) GetReferenceValue(ctx data.Context) (data.GetValue, data.Control) {
 	call, acl := pe.Method.GetValue(ctx)
 	if acl != nil {
 		return nil, acl
@@ -90,8 +94,8 @@ func (pe *CallMethod) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		}
 		// PHP 数组可调用: [$obj, 'method'](...$args) 或 ['ClassName', 'method'](...)
 		if arr, ok2 := call.(*data.ArrayValue); ok2 && arr.Len() >= 2 {
-			objVal := arr.At(0).Value
-			methodVal := arr.At(1).Value
+			objVal := arr.At(0).ReadValue()
+			methodVal := arr.At(1).ReadValue()
 			methodName := ""
 			if sv, ok4 := methodVal.(*data.StringValue); ok4 {
 				methodName = sv.Value
@@ -157,9 +161,7 @@ func callableFunctionName(v data.GetValue) string {
 		if _, ok := v.(*data.ArrayValue); ok {
 			return ""
 		}
-		if _, ok := v.(*data.ObjectValue); ok {
-			return ""
-		}
+
 		if _, ok := v.(*data.ClassValue); ok {
 			return ""
 		}
@@ -180,9 +182,17 @@ func (pe *CallMethod) handleStaticMethodWithLateBinding(ctx data.Context, sm *st
 
 	inner := ctx.CreateContext(varies)
 	fnCtx := data.NewStaticMethodContext(inner, sm.callClass, sm.callClass)
+	defer tryReleaseCallContext(fn, fnCtx)
 	fnCtx.SelfClass = findDeclaringClassForMethod(ctx.GetVM(), sm.callClass, fn.GetName())
 
 	params := fn.GetParams()
+	if hasReferenceParameters(params) {
+		if ctl := bindReferenceCall(fnCtx, ctx, params, pe.Args, nil); ctl != nil {
+			return nil, ctl
+		}
+		ret, ctl := fn.Call(fnCtx)
+		return ret, ctl
+	}
 	flatArgs, namedArgs, acl := flattenCallArgsForBinding(ctx, pe.Args)
 	if acl != nil {
 		return nil, acl
@@ -269,7 +279,6 @@ func (pe *CallMethod) handleStaticMethodWithLateBinding(ctx data.Context, sm *st
 	fnCtx.SetFlatCallArgs(flatArgs)
 
 	ret, ctl := fn.Call(fnCtx)
-	tryReleaseCallContext(fn, fnCtx)
 	return ret, ctl
 }
 
@@ -311,12 +320,16 @@ func (pe *CallMethod) invokeFuncStmt(ctx data.Context, fn data.FuncStmt, invoke 
 			invoke = target.method.Call
 		}
 	case *instanceViaSelfFunc:
-		self := findDeclaringClassForMethod(ctx.GetVM(), target.this.Class, target.method.GetName())
+		self := target.self
+		if self == nil {
+			self = findDeclaringClassForMethod(ctx.GetVM(), target.this.Class, target.method.GetName())
+		}
 		fnCtx = data.WrapMethodFrame(fnCtx, target.this, self, target.this.Class)
 		invoke = target.method.Call
 	case *LambdaExpression:
 		fnCtx = target.ParameterTypeContext(fnCtx)
 	}
+	allocated = fnCtx
 
 	if canFastPositionalBind(params, pe.Args) {
 		if acl := bindPositionalParameters(fnCtx, ctx, params, pe.Args, varies); acl != nil {
@@ -326,6 +339,25 @@ func (pe *CallMethod) invokeFuncStmt(ctx data.Context, fn data.FuncStmt, invoke 
 		return finishPooledCall(fn, allocated, ctx, ret, ctl)
 	}
 
+	if target, ok := fn.(*instanceViaSelfFunc); ok {
+		for _, parameter := range params {
+			if _, promoted := parameter.(*PromotedParameter); promoted {
+				if ctl := bindReferenceCall(fnCtx, ctx, params, pe.Args, target.this); ctl != nil {
+					return finishPooledCall(fn, allocated, ctx, nil, ctl)
+				}
+				ret, ctl := invoke(fnCtx)
+				return finishPooledCall(fn, allocated, ctx, ret, ctl)
+			}
+		}
+	}
+
+	if hasReferenceParameters(params) {
+		if ctl := bindReferenceCall(fnCtx, ctx, params, pe.Args, nil); ctl != nil {
+			return finishPooledCall(fn, allocated, ctx, nil, ctl)
+		}
+		ret, ctl := invoke(fnCtx)
+		return finishPooledCall(fn, allocated, ctx, ret, ctl)
+	}
 	// 先展开 ...$arr，再按位置/命名绑定（Laravel Event：$listener(...array_values($payload))）
 	flatArgs, namedArgs, acl := flattenCallArgsForBinding(ctx, pe.Args)
 	if acl != nil {
@@ -488,17 +520,12 @@ func flattenCallArgsForBinding(ctx data.Context, args []data.GetValue) ([]data.V
 					}
 					if z.Name != "" {
 						if _, isInt := data.ParseIntArrayKeyName(z.Name); !isInt {
-							named = append(named, namedArgValue{Name: z.Name, Value: z.Value})
+							named = append(named, namedArgValue{Name: z.Name, Value: z.ReadValue()})
 							continue
 						}
 					}
-					flat = append(flat, z.Value)
+					flat = append(flat, z.ReadValue())
 				}
-			} else if objVal, ok := spreadVal.(*data.ObjectValue); ok {
-				objVal.RangeProperties(func(key string, value data.Value) bool {
-					named = append(named, namedArgValue{Name: key, Value: value})
-					return true
-				})
 			} else {
 				vals, spreadCtl := spreadToValues(ctx, spreadVal)
 				if spreadCtl != nil {
@@ -551,7 +578,7 @@ func bindByRefParam(fnCtx, callCtx data.Context, param *ParameterReference, rawA
 			return acl
 		}
 		fnCtx.SetIndexZVal(param.Index, zv)
-		if param.Type != nil {
+		if param.Type != data.TypeInvalid {
 			return param.SetValue(fnCtx, data.NewZValValue(fnCtx.GetIndexZVal(param.Index)))
 		}
 		return nil
@@ -561,7 +588,7 @@ func bindByRefParam(fnCtx, callCtx data.Context, param *ParameterReference, rawA
 			return acl
 		}
 		fnCtx.SetIndexZVal(param.Index, zv)
-		if param.Type != nil {
+		if param.Type != data.TypeInvalid {
 			return param.SetValue(fnCtx, data.NewZValValue(fnCtx.GetIndexZVal(param.Index)))
 		}
 		return nil
@@ -571,7 +598,7 @@ func bindByRefParam(fnCtx, callCtx data.Context, param *ParameterReference, rawA
 			return acl
 		}
 		fnCtx.SetIndexZVal(param.Index, data.NewZVal(val.(data.Value)))
-		if param.Type != nil {
+		if param.Type != data.TypeInvalid {
 			return param.SetValue(fnCtx, data.NewZValValue(fnCtx.GetIndexZVal(param.Index)))
 		}
 		return nil
@@ -581,7 +608,7 @@ func bindByRefParam(fnCtx, callCtx data.Context, param *ParameterReference, rawA
 			return acl
 		}
 		fnCtx.SetIndexZVal(param.Index, data.NewZVal(val.(data.Value)))
-		if param.Type != nil {
+		if param.Type != data.TypeInvalid {
 			return param.SetValue(fnCtx, data.NewZValValue(fnCtx.GetIndexZVal(param.Index)))
 		}
 		return nil
@@ -591,7 +618,7 @@ func bindByRefParam(fnCtx, callCtx data.Context, param *ParameterReference, rawA
 			return acl
 		}
 		fnCtx.SetIndexZVal(param.Index, data.NewZVal(val.(data.Value)))
-		if param.Type != nil {
+		if param.Type != data.TypeInvalid {
 			return param.SetValue(fnCtx, data.NewZValValue(fnCtx.GetIndexZVal(param.Index)))
 		}
 		return nil
@@ -602,7 +629,7 @@ func bindByRefParam(fnCtx, callCtx data.Context, param *ParameterReference, rawA
 			callCtx.SetIndexZVal(v.GetIndex(), zv)
 		}
 		fnCtx.SetIndexZVal(param.Index, zv)
-		if param.Type != nil {
+		if param.Type != data.TypeInvalid {
 			return param.SetValue(fnCtx, data.NewZValValue(fnCtx.GetIndexZVal(param.Index)))
 		}
 		return nil
@@ -613,7 +640,7 @@ func bindByRefParam(fnCtx, callCtx data.Context, param *ParameterReference, rawA
 		}
 		if val == nil {
 			fnCtx.SetIndexZVal(param.Index, data.NewZVal(data.NewNullValue()))
-			if param.Type != nil {
+			if param.Type != data.TypeInvalid {
 				return param.SetValue(fnCtx, data.NewZValValue(fnCtx.GetIndexZVal(param.Index)))
 			}
 			return nil
@@ -650,12 +677,13 @@ func (pe *CallMethod) doCallWithArgs(ctx data.Context, object data.GetMethod, me
 	varies := method.GetVariables()
 	var fnCtx data.Context
 	if objCtx, ok := object.(data.Context); ok {
-		fnCtx = objCtx.CreateContext(varies)
+		fnCtx = implicitReceiverFrame(ctx, objCtx, method)
 	} else if cv, ok := object.(*data.ClassValue); ok {
-		fnCtx = cv.CreateContext(varies)
+		fnCtx = implicitMethodFrame(ctx, cv, method)
 	} else {
 		fnCtx = ctx.CreateContext(varies)
 	}
+	defer tryReleaseCallContext(method, fnCtx)
 
 	// 先展开所有参数中的 ...$arr (SpreadArgument)，构建展平后的实参列表
 	var flatArgs []data.Value
@@ -695,8 +723,8 @@ func (pe *CallMethod) doCallWithArgs(ctx data.Context, object data.GetMethod, me
 
 // invokeMagicInvoke 调用对象的 __invoke(...$args)，用于对象作为可调用时的魔法分发
 func (pe *CallMethod) invokeMagicInvoke(ctx data.Context, object data.Context, invoke data.Method) (data.GetValue, data.Control) {
-	varies := invoke.GetVariables()
-	fnCtx := object.CreateContext(varies)
+	fnCtx := implicitReceiverFrame(ctx, object, invoke)
+	defer tryReleaseCallContext(invoke, fnCtx)
 	fnCtx.SetStrictTypes(ctx.StrictTypes())
 
 	var flatArgs []data.Value

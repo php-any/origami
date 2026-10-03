@@ -1,6 +1,7 @@
 package node
 
 import (
+	"fmt"
 	"github.com/php-any/origami/data"
 )
 
@@ -83,8 +84,7 @@ func (m *MatchStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 		return v, nil
 	}
 
-	// 如果没有匹配的分支，返回null
-	return data.NewNullValue(), nil
+	return nil, data.NewErrorThrowByName(m.GetFrom(), fmt.Errorf("Unhandled match case"), "UnhandledMatchError")
 }
 
 // isMatch 检查两个值是否匹配（PHP match 使用 === 严格比较）

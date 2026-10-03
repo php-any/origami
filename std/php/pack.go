@@ -100,7 +100,7 @@ func (f *PackFunction) GetVariables() []data.Variable {
 //   - "C"  / "C*" : 无符号字节
 //   - "n"  / "n*" : 无符号 16 位大端整数
 //
-// 返回的数组索引从 1 开始（使用 ObjectValue，键为 "1".."n"），
+// 返回的 PHP 数组使用从 1 开始的整数键，
 // 以匹配 PHP 对 unpack("C*") 的行为，便于在 PHP 代码中使用 $a[1], $a[2] 访问。
 type UnpackFunction struct{}
 
@@ -121,29 +121,29 @@ func (f *UnpackFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		if len(raw) == 0 {
 			return data.NewBoolValue(false), nil
 		}
-		obj := data.NewObjectValue()
-		obj.SetProperty("1", data.NewIntValue(int(raw[0])))
+		obj := data.NewArrayValue(nil).(*data.ArrayValue)
+		obj.SetStringKey("1", data.NewIntValue(int(raw[0])))
 		return obj, nil
 	case "C*":
-		obj := data.NewObjectValue()
+		obj := data.NewArrayValue(nil).(*data.ArrayValue)
 		for i := 0; i < len(raw); i++ {
 			key := fmt.Sprintf("%d", i+1)
-			obj.SetProperty(key, data.NewIntValue(int(raw[i])))
+			obj.SetStringKey(key, data.NewIntValue(int(raw[i])))
 		}
 		return obj, nil
 	case "n":
 		if len(raw) < 2 {
 			return data.NewBoolValue(false), nil
 		}
-		obj := data.NewObjectValue()
-		obj.SetProperty("1", data.NewIntValue(int(binary.BigEndian.Uint16(raw[:2]))))
+		obj := data.NewArrayValue(nil).(*data.ArrayValue)
+		obj.SetStringKey("1", data.NewIntValue(int(binary.BigEndian.Uint16(raw[:2]))))
 		return obj, nil
 	case "n*":
-		obj := data.NewObjectValue()
+		obj := data.NewArrayValue(nil).(*data.ArrayValue)
 		idx := 1
 		for i := 0; i+1 < len(raw); i += 2 {
 			key := fmt.Sprintf("%d", idx)
-			obj.SetProperty(key, data.NewIntValue(int(binary.BigEndian.Uint16(raw[i:i+2]))))
+			obj.SetStringKey(key, data.NewIntValue(int(binary.BigEndian.Uint16(raw[i:i+2]))))
 			idx++
 		}
 		return obj, nil

@@ -16,8 +16,8 @@ func TestMergeArrayUnionKeepsStringKeys(t *testing.T) {
 	if out.At(0).Name != "a" {
 		t.Fatalf("name=%q want a", out.At(0).Name)
 	}
-	if out.At(0).Value.AsString() != "login" {
-		t.Fatalf("val=%q", out.At(0).Value.AsString())
+	if out.At(0).ReadValue().AsString() != "login" {
+		t.Fatalf("val=%q", out.At(0).ReadValue().AsString())
 	}
 }
 
@@ -35,7 +35,7 @@ func TestMergeArrayUnionRightAddsMissing(t *testing.T) {
 	got := map[string]string{}
 	for arraySlots15, i := out.View(), 0; i < arraySlots15.Len(); i++ {
 		z := arraySlots15.At(i)
-		got[arraySlotKey(z, i)] = z.Value.AsString()
+		got[arraySlotKey(z, i)] = z.ReadValue().AsString()
 	}
 	if got["a"] != "keep" || got["0"] != "zero" || got["b"] != "add" || got["1"] != "one" {
 		t.Fatalf("got=%v", got)
@@ -46,7 +46,7 @@ func TestObjectPlusEmptyArrayKeepsKeys(t *testing.T) {
 	obj := data.NewObjectValue()
 	_ = obj.SetProperty("a", data.NewStringValue("login"))
 	out := mergeArrayUnion(objectToNamedArray(obj), &data.ArrayValue{})
-	if out.Len() != 1 || out.At(0).Name != "a" || out.At(0).Value.AsString() != "login" {
+	if out.Len() != 1 || out.At(0).Name != "a" || out.At(0).ReadValue().AsString() != "login" {
 		t.Fatalf("out=%v", out.Snapshot())
 	}
 }

@@ -5,7 +5,7 @@ namespace tests\php;
 /**
  * array_map 函数测试：
  * - 单数组 + 匿名函数
- * - 多数组时按最短长度截断
+ * - 多数组时按最长长度，短数组补 null
  */
 
 // 1. 单数组 + 匿名函数
@@ -18,14 +18,14 @@ if ($mapped[0] !== 2 || $mapped[1] !== 4 || $mapped[2] !== 6) {
     Log::fatal('array_map 单数组测试失败: ' . json_encode($mapped));
 }
 
-// 2. 多数组：按最短长度截断
+// 2. 多数组：PHP 用最长数组长度，缺失参数为 null
 $a = [1, 2, 3];
 $b = [10, 20];
 $mapped2 = array_map(function ($x, $y) {
     return $x + $y;
 }, $a, $b);
 
-if (count($mapped2) !== 2 || $mapped2[0] !== 11 || $mapped2[1] !== 22) {
+if (count($mapped2) !== 3 || $mapped2[0] !== 11 || $mapped2[1] !== 22 || $mapped2[2] !== 3) {
     Log::fatal('array_map 多数组测试失败: ' . json_encode($mapped2));
 }
 

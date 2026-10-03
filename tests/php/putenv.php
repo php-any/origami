@@ -10,12 +10,12 @@ if($result1 === true) {
     Log::fatal("putenv 设置环境变量测试失败，期望: true, 实际: " . ($result1 ? "true" : "false"));
 }
 
-// 测试获取环境变量（通过 $_ENV）
-$envValue = $_ENV["TEST_VAR"];
+// 测试获取环境变量（通过 getenv）
+$envValue = getenv("TEST_VAR");
 if($envValue == "test_value") {
-    Log::info("putenv 设置后通过 \$_ENV 获取环境变量测试通过");
+    Log::info("putenv 设置后通过 getenv 获取环境变量测试通过");
 } else {
-    Log::fatal("putenv 设置后通过 \$_ENV 获取环境变量测试失败，期望: test_value, 实际: " . $envValue);
+    Log::fatal("putenv 设置后通过 getenv 获取环境变量测试失败，期望: test_value, 实际: " . $envValue);
 }
 
 // 测试覆盖环境变量
@@ -26,11 +26,11 @@ if($result2 === true) {
     Log::fatal("putenv 覆盖环境变量测试失败");
 }
 
-$envValue2 = $_ENV["TEST_VAR"];
+$envValue2 = getenv("TEST_VAR");
 if($envValue2 == "new_value") {
-    Log::info("putenv 覆盖后通过 \$_ENV 获取环境变量测试通过");
+    Log::info("putenv 覆盖后通过 getenv 获取环境变量测试通过");
 } else {
-    Log::fatal("putenv 覆盖后通过 \$_ENV 获取环境变量测试失败，期望: new_value, 实际: " . $envValue2);
+    Log::fatal("putenv 覆盖后通过 getenv 获取环境变量测试失败，期望: new_value, 实际: " . $envValue2);
 }
 
 // 测试设置多个环境变量
@@ -43,7 +43,7 @@ if($result3 === true && $result4 === true) {
     Log::fatal("putenv 设置多个环境变量测试失败");
 }
 
-if($_ENV["MY_APP_NAME"] == "Origami" && $_ENV["MY_APP_VERSION"] == "1.0.0") {
+if(getenv("MY_APP_NAME") == "Origami" && getenv("MY_APP_VERSION") == "1.0.0") {
     Log::info("putenv 设置多个环境变量后获取测试通过");
 } else {
     Log::fatal("putenv 设置多个环境变量后获取测试失败");
@@ -57,7 +57,7 @@ if($result5 === true) {
     Log::fatal("putenv 设置空值环境变量测试失败");
 }
 
-$emptyValue = $_ENV["EMPTY_VAR"];
+$emptyValue = getenv("EMPTY_VAR");
 if($emptyValue == "") {
     Log::info("putenv 设置空值环境变量后获取测试通过");
 } else {
@@ -73,4 +73,3 @@ if($result6 === true) {
 }
 
 echo "=== putenv() 测试完成 ===\n";
-

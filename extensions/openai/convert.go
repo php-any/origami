@@ -26,7 +26,7 @@ func goValueToDataValue(v any) data.Value {
 		}
 		return data.NewArrayValue(items)
 	case map[string]any:
-		obj := data.NewObjectValue()
+		obj := data.NewStdClassValue(nil)
 		for k, item := range val {
 			obj.SetProperty(k, goValueToDataValue(item))
 		}

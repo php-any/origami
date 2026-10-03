@@ -32,6 +32,7 @@ const (
 	TypeSelf
 	TypeParent
 	TypeStatic
+	TypeAST // Internal annotation target; never a PHP declaration keyword.
 	typeBuiltinEnd
 )
 
@@ -48,11 +49,10 @@ type typeNode struct {
 	count  uint32
 	kind   TypeKind
 }
-type typeSymbol struct{ display, lookup string }
 type typeSnapshot struct {
 	nodes   []typeNode
 	members []TypeRef
-	symbols []typeSymbol
+	boxed   []Types
 }
 
 // Construction is serialized; checks read only append-only published prefixes.
@@ -61,8 +61,8 @@ type typeSnapshot struct {
 type TypeArena struct {
 	mu        sync.Mutex
 	nodes     []typeNode
+	boxed     []Types
 	members   []TypeRef
-	symbols   []typeSymbol
 	names     map[string]TypeRef
 	compounds map[string]TypeRef
 	snapshot  atomic.Pointer[typeSnapshot]
@@ -91,7 +91,7 @@ func NewTypeArena() *TypeArena {
 	return a
 }
 func (a *TypeArena) publish() {
-	a.snapshot.Store(&typeSnapshot{nodes: a.nodes, members: a.members, symbols: a.symbols})
+	a.snapshot.Store(&typeSnapshot{nodes: a.nodes, members: a.members, boxed: a.boxed})
 }
 func (a *TypeArena) Nominal(name string) TypeRef {
 	name = strings.TrimPrefix(name, "\\")
@@ -101,10 +101,10 @@ func (a *TypeArena) Nominal(name string) TypeRef {
 	if ref, ok := a.names[key]; ok {
 		return ref
 	}
-	symbol := SymbolID(len(a.symbols))
-	a.symbols = append(a.symbols, typeSymbol{display: name, lookup: key})
+	symbol := Symbols.Intern(name)
 	ref := typeBuiltinEnd + TypeRef(len(a.nodes))
 	a.nodes = append(a.nodes, typeNode{symbol: symbol, kind: TypeKindNominal})
+	a.boxed = append(a.boxed, ref)
 	a.names[key] = ref
 	a.publish()
 	return ref
@@ -169,6 +169,7 @@ func (a *TypeArena) compound(kind TypeKind, members []TypeRef) TypeRef {
 	}
 	ref := typeBuiltinEnd + TypeRef(len(a.nodes))
 	a.nodes = append(a.nodes, typeNode{kind: kind, first: uint32(len(a.members)), count: uint32(len(flat))})
+	a.boxed = append(a.boxed, ref)
 	a.members = append(a.members, flat...)
 	a.compounds[string(key)] = ref
 	a.publish()
@@ -197,7 +198,7 @@ func (a *TypeArena) Name(ref TypeRef) string {
 	snapshot := a.snapshot.Load()
 	node := snapshot.nodes[ref-typeBuiltinEnd]
 	if node.kind == TypeKindNominal {
-		return snapshot.symbols[node.symbol].display
+		return Symbols.Name(node.symbol)
 	}
 	var result strings.Builder
 	separator := "|"
@@ -220,37 +221,58 @@ func (a *TypeArena) Name(ref TypeRef) string {
 	return result.String()
 }
 
-var builtinTypeNames = [...]string{"", "mixed", "void", "never", "null", "false", "true", "bool", "int", "float", "string", "array", "object", "callable", "iterable", "self", "parent", "static"}
+var builtinTypeNames = [...]string{"", "mixed", "void", "never", "null", "false", "true", "bool", "int", "float", "string", "array", "object", "callable", "iterable", "self", "parent", "static", "AstNode"}
 
-func (ref TypeRef) String() string         { return declarationTypes.Name(ref) }
-func (ref TypeRef) Is(value Value) bool    { return declarationTypes.Matches(ref, value, nil) }
+func (ref TypeRef) String() string      { return declarationTypes.Name(ref) }
+func (ref TypeRef) Is(value Value) bool { return declarationTypes.Matches(ref, value, nil) }
+func (ref TypeRef) Matches(value Value, ctx Context) bool {
+	return declarationTypes.Matches(ref, value, ctx)
+}
 func (ref TypeRef) Kind() TypeKind         { return declarationTypes.Kind(ref) }
 func (ref TypeRef) Members() Span[TypeRef] { return declarationTypes.Members(ref) }
 
 // NewDeclaredType is the parser/native declaration entry point. Existing Types
 // constructors remain an adapter for extensions during migration.
 func NewDeclaredType(name string) Types {
+	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil
 	}
+	return declaredTextRef(name)
+}
+
+// Text conversion belongs to the cold compatibility boundary. Runtime checks
+// traverse interned members and never split declaration strings.
+func declaredTextRef(name string) TypeRef {
+	name = strings.TrimSpace(name)
+	for len(name) > 1 && name[0] == '(' && enclosingTypeGroup(name) {
+		name = strings.TrimSpace(name[1 : len(name)-1])
+	}
+	for _, separator := range []byte{'|', '&'} {
+		var members []TypeRef
+		start, depth := 0, 0
+		for i := 0; i < len(name); i++ {
+			switch name[i] {
+			case '(':
+				depth++
+			case ')':
+				depth--
+			}
+			if name[i] == separator && depth == 0 {
+				members = append(members, declaredTextRef(name[start:i]))
+				start = i + 1
+			}
+		}
+		if members != nil {
+			members = append(members, declaredTextRef(name[start:]))
+			if separator == '|' {
+				return declarationTypes.Union(members...)
+			}
+			return declarationTypes.Intersection(members...)
+		}
+	}
 	if strings.HasPrefix(name, "?") {
-		return NewDeclaredNullableType(NewDeclaredType(name[1:]))
-	}
-	if strings.Contains(name, "|") {
-		parts := strings.Split(name, "|")
-		members := make([]Types, len(parts))
-		for i, part := range parts {
-			members[i] = NewDeclaredType(part)
-		}
-		return NewDeclaredUnionType(members)
-	}
-	if strings.Contains(name, "&") {
-		parts := strings.Split(name, "&")
-		members := make([]Types, len(parts))
-		for i, part := range parts {
-			members[i] = NewDeclaredType(part)
-		}
-		return NewDeclaredIntersectionType(members)
+		return declarationTypes.Union(declaredTextRef(name[1:]), TypeNull)
 	}
 	if ref, ok := declaredBuiltinRef(name); ok {
 		return ref
@@ -258,9 +280,28 @@ func NewDeclaredType(name string) Types {
 	return declarationTypes.Nominal(name)
 }
 
+func enclosingTypeGroup(name string) bool {
+	depth := 0
+	for i := 0; i < len(name); i++ {
+		switch name[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		}
+		if depth == 0 {
+			return i == len(name)-1
+		}
+	}
+	return false
+}
+
 func declaredBuiltinRef(name string) (TypeRef, bool) {
 	key := nominalKey(name)
 	for ref, builtin := range builtinTypeNames {
+		if TypeRef(ref) == TypeAST {
+			continue
+		}
 		if key == builtin {
 			return TypeRef(ref), true
 		}
@@ -275,6 +316,12 @@ func DeclaredTypeRef(ty Types) TypeRef {
 		return ref
 	}
 	switch ty := ty.(type) {
+	case *LspTypes, MultipleReturnType:
+		// Analysis results cannot authorize any runtime value, even when their
+		// display name happens to match a user class.
+		return TypeNever
+	case AST:
+		return TypeAST
 	case NullableType:
 		return declarationTypes.Union(DeclaredTypeRef(ty.BaseType), TypeNull)
 	case UnionType:
@@ -290,8 +337,29 @@ func DeclaredTypeRef(ty Types) TypeRef {
 		}
 		return declarationTypes.Intersection(members...)
 	default:
-		return NewDeclaredType(ty.String()).(TypeRef)
+		converted := NewDeclaredType(ty.String())
+		if converted == nil {
+			return TypeInvalid
+		}
+		return converted.(TypeRef)
 	}
+}
+
+var builtinDeclaredTypes = func() [typeBuiltinEnd]Types {
+	var types [typeBuiltinEnd]Types
+	for ref := TypeMixed; ref < typeBuiltinEnd; ref++ {
+		types[ref] = ref
+	}
+	return types
+}()
+
+// DeclaredType is a cold compatibility view for extensions, Reflection and
+// tooling. Compound handles are boxed once when interned, never per access.
+func DeclaredType(ref TypeRef) Types {
+	if ref < typeBuiltinEnd {
+		return builtinDeclaredTypes[ref]
+	}
+	return declarationTypes.snapshot.Load().boxed[ref-typeBuiltinEnd]
 }
 func NewDeclaredUnionType(types []Types) Types {
 	members := make([]TypeRef, len(types))

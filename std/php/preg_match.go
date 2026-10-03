@@ -59,7 +59,7 @@ func (f *PregMatchFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	if captures == nil {
 		// 无匹配时，清空 $matches
 		if z := ctx.GetIndexZVal(2); z != nil {
-			z.Value = data.NewArrayValue([]data.Value{})
+			z.StoreRaw(data.NewArrayValue([]data.Value{}))
 		}
 		return data.NewIntValue(0), nil // No match
 	}
@@ -67,7 +67,7 @@ func (f *PregMatchFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 	// 如果传入了第三个参数，填充匹配结果
 	newMatches := preg.BuildMatchArray(captures, flags)
 	if z := ctx.GetIndexZVal(2); z != nil {
-		z.Value = newMatches
+		z.StoreRaw(newMatches)
 	}
 
 	return data.NewIntValue(1), nil // Match found

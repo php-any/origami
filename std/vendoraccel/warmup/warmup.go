@@ -1,4 +1,5 @@
-// Package warmup 负责 vendor classmap / polyfill 预热。
+// Package warmup 负责 vendor classmap 预热。
+// Composer files（包括 polyfill）必须由官方 autoload 执行。
 //
 // 单独成包是为了让 std/laravel 侧（serve 启动预热）能复用，而 std/vendoraccel
 // 又依赖 std/laravel —— 放在同一包会形成 import cycle。
@@ -11,32 +12,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/runtime"
-	polyfillctype "github.com/php-any/origami/std/symfony/polyfill-ctype"
-	polyfillintlgrapheme "github.com/php-any/origami/std/symfony/polyfill-intl-grapheme"
-	polyfillintlidn "github.com/php-any/origami/std/symfony/polyfill-intl-idn"
-	polyfillintlnormalizer "github.com/php-any/origami/std/symfony/polyfill-intl-normalizer"
-	polyfillmbstring "github.com/php-any/origami/std/symfony/polyfill-mbstring"
-	polyfillphp84 "github.com/php-any/origami/std/symfony/polyfill-php84"
-	polyfillphp85 "github.com/php-any/origami/std/symfony/polyfill-php85"
-	polyfillphp86 "github.com/php-any/origami/std/symfony/polyfill-php86"
-	polyfilluuid "github.com/php-any/origami/std/symfony/polyfill-uuid"
 )
-
-// MarkPolyfills 把 vendor/symfony/polyfill-*/bootstrap.php 标进 phpFileCache，跳过重复解析。
-func MarkPolyfills(vm data.VM, vendorRoot string) {
-	if vendorRoot == "" {
-		return
-	}
-	polyfillmbstring.MarkLoaded(vm, vendorRoot)
-	polyfillctype.MarkLoaded(vm, vendorRoot)
-	polyfilluuid.MarkLoaded(vm, vendorRoot)
-	polyfillintlgrapheme.MarkLoaded(vm, vendorRoot)
-	polyfillintlidn.MarkLoaded(vm, vendorRoot)
-	polyfillintlnormalizer.MarkLoaded(vm, vendorRoot)
-	polyfillphp84.MarkLoaded(vm, vendorRoot)
-	polyfillphp85.MarkLoaded(vm, vendorRoot)
-	polyfillphp86.MarkLoaded(vm, vendorRoot)
-}
 
 // WarmupVendorClassmap 仅预热 vendor/ 下 classmap 中尚未 native 的类文件。
 // artisan 一次性命令默认关闭；serve 或 ORIGAMI_LARAVEL_PRELOAD=1 时打开。
@@ -45,7 +21,6 @@ func WarmupVendorClassmap(vm data.VM, projectRoot string) {
 		return
 	}
 	vendorRoot := filepath.Join(projectRoot, "vendor")
-	MarkPolyfills(vm, vendorRoot)
 
 	classmapPath := filepath.Join(vendorRoot, "composer", "autoload_classmap.php")
 	if _, err := os.Stat(classmapPath); err != nil {

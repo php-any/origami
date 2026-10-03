@@ -40,7 +40,7 @@ func (m *ComponentConstructMethod) GetModifier() data.Modifier { return data.Mod
 func (m *ComponentConstructMethod) GetIsStatic() bool          { return false }
 
 var componentConstructMethodGetParams = []data.GetValue{
-	node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
+	node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewNullableType(data.String{})),
 	node.NewAnnotationTargetParameter(nil, 1),
 }
 
@@ -96,7 +96,7 @@ func (m *SingletonAnnotationConstructMethod) GetModifier() data.Modifier { retur
 func (m *SingletonAnnotationConstructMethod) GetIsStatic() bool          { return false }
 
 var singletonAnnotationConstructMethodGetParams = []data.GetValue{
-	node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
+	node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewNullableType(data.String{})),
 	node.NewAnnotationTargetParameter(nil, 1),
 }
 
@@ -152,7 +152,7 @@ func (m *ScopedAnnotationConstructMethod) GetModifier() data.Modifier { return d
 func (m *ScopedAnnotationConstructMethod) GetIsStatic() bool          { return false }
 
 var scopedAnnotationConstructMethodGetParams = []data.GetValue{
-	node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
+	node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewNullableType(data.String{})),
 	node.NewAnnotationTargetParameter(nil, 1),
 }
 

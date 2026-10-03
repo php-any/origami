@@ -162,8 +162,7 @@ func TryGetCallClassName(call data.GetValue) string {
 		return "func()"
 	case *data.ArrayValue:
 		return "array(...)"
-	case *data.ObjectValue:
-		return "object{...}"
+
 	case *Parameter:
 		return fmt.Sprintf("$%s", c.Name)
 	}

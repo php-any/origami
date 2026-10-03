@@ -13,6 +13,7 @@ import (
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/std/php/core"
 	"github.com/php-any/origami/std/php/stream"
+	"github.com/php-any/origami/utils"
 )
 
 // ProcOpenFunction 实现 proc_open 函数
@@ -69,27 +70,11 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	descriptorspecValue, _ := ctx.GetIndexValue(1)
 	descriptorspec := make(map[int][]interface{})
 	if descriptorspecValue != nil {
-		if obj, ok := descriptorspecValue.(*data.ObjectValue); ok {
-			obj.RangeProperties(func(key string, value data.Value) bool {
-				fd, err := strconv.Atoi(key)
-				if err != nil {
-					return true
-				}
-				if arr, ok := value.(*data.ArrayValue); ok && arr.Len() >= 2 {
-					valueList := arr.ToValueList()
-					descType := valueList[0].AsString()
-					descMode := valueList[1].AsString()
-					if descType == "pipe" {
-						descriptorspec[fd] = []interface{}{descType, descMode}
-					}
-				}
-				return true
-			})
-		} else if arr, ok := descriptorspecValue.(*data.ArrayValue); ok {
+		if arr, ok := descriptorspecValue.(*data.ArrayValue); ok {
 			for arraySlots129, // 保留 PHP 数组键（1/2），不能用 ToValueList 的 0..n-1 下标
 				i := arr.View(), 0; i < arraySlots129.Len(); i++ {
 				zval := arraySlots129.At(i)
-				if zval == nil || zval.Value == nil {
+				if zval == nil || zval.ReadValue() == nil {
 					continue
 				}
 				fd := i
@@ -98,7 +83,7 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 						fd = parsed
 					}
 				}
-				arrVal, ok := zval.Value.(*data.ArrayValue)
+				arrVal, ok := zval.ReadValue().(*data.ArrayValue)
 				if !ok || arrVal.Len() < 2 {
 					continue
 				}
@@ -121,7 +106,7 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	}
 	// PHP：proc_open 会重建 $pipes；勿复用上次已 fclose 的流资源对象
 	pipes := data.NewArrayValue(nil).(*data.ArrayValue)
-	pipesZVal.Value = pipes
+	pipesZVal.StoreRaw(pipes)
 
 	// 处理描述符
 	var stdoutPipe, stderrPipe io.ReadCloser
@@ -192,27 +177,26 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 		}
 	}
 
-	// 处理 env_vars 参数（索引 4）：PHP 允许指定子进程环境变量（map）
+	cmdObj.Env = node.EnvironmentEntries(ctx)
+	// An explicit env_vars array replaces the inherited environment, even empty.
 	if envValue, _ := ctx.GetIndexValue(4); envValue != nil {
 		if _, isNull := envValue.(*data.NullValue); !isNull {
 			if envArr, ok := envValue.(*data.ArrayValue); ok {
-				var env []string
+				env := make([]string, 0, envArr.Len())
 				for arraySlots130, arrayPosition130 := envArr.View(), 0; arrayPosition130 < arraySlots130.Len(); arrayPosition130++ {
 					item := arraySlots130.At(arrayPosition130)
-					if item.Value == nil {
+					if item.ReadValue() == nil {
 						continue
 					}
-					env = append(env, item.Name+"="+item.Value.AsString())
+					env = append(env, item.Name+"="+item.ReadValue().AsString())
 				}
-				if len(env) > 0 {
-					cmdObj.Env = append(os.Environ(), env...)
-				}
+				cmdObj.Env = env
 			}
 		}
 	}
 
 	// 启动进程
-	err = cmdObj.Start()
+	finishTree, err := utils.StartCommandTree(cmdObj)
 	if err != nil {
 		if request.Err() != nil {
 			panic(data.ErrRequestCanceled)
@@ -243,6 +227,7 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	// stdout (1) - 读取管道
 	if stdoutPipe != nil {
 		stdoutStreamInfo := stream.NewStreamInfoFromReader(stdoutPipe, "r")
+		procInfo.AddPipe(stdoutStreamInfo)
 		stdoutFd := realPID*10 + 1 // 生成一个唯一的文件描述符
 		stdoutResourceClass := core.NewResourceClass("stream", stdoutStreamInfo, stdoutFd)
 		stdoutResource := core.NewResourceValue(stdoutResourceClass, ctx)
@@ -252,6 +237,7 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	// stderr (2) - 读取管道
 	if stderrPipe != nil {
 		stderrStreamInfo := stream.NewStreamInfoFromReader(stderrPipe, "r")
+		procInfo.AddPipe(stderrStreamInfo)
 		stderrFd := realPID*10 + 2 // 生成一个唯一的文件描述符
 		stderrResourceClass := core.NewResourceClass("stream", stderrStreamInfo, stderrFd)
 		stderrResource := core.NewResourceValue(stderrResourceClass, ctx)
@@ -259,12 +245,13 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	}
 
 	// 更新引用参数的 ZVal.Value（显式重新赋值，确保引用参数被正确更新）
-	pipesZVal.Value = pipes
+	pipesZVal.StoreRaw(pipes)
 
 	// 在后台等待进程结束并更新状态
 	// 注意：不在这里关闭管道，因为 stream_get_contents 需要读取管道数据
 	// 管道应该在 proc_close 或流关闭时关闭
 	go func() {
+		defer finishTree()
 		err := cmdObj.Wait()
 		exitCode := -1
 		if err != nil {

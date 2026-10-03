@@ -40,7 +40,7 @@ func (m *NamedConstructMethod) GetModifier() data.Modifier { return data.Modifie
 func (m *NamedConstructMethod) GetIsStatic() bool          { return false }
 
 var namedConstructMethodGetParams = []data.GetValue{
-	node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewBaseType("string")),
+	node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewNullableType(data.String{})),
 	node.NewAnnotationTargetParameter(nil, 1),
 }
 

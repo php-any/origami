@@ -12,7 +12,7 @@ func NewErrorGetLastFunction() data.FuncStmt {
 }
 
 func (f *ErrorGetLastFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	info := getLastError()
+	info := data.ErrorState(ctx).Last()
 	if info == nil {
 		return data.NewNullValue(), nil
 	}

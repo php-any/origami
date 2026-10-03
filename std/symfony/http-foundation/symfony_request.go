@@ -908,8 +908,8 @@ func valueStrings(value data.Value) []string {
 		out := make([]string, 0, array.Len())
 		for arraySlots165, arrayPosition165 := array.View(), 0; arrayPosition165 < arraySlots165.Len(); arrayPosition165++ {
 			item := arraySlots165.At(arrayPosition165)
-			if item != nil && item.Value != nil {
-				out = append(out, item.Value.AsString())
+			if item != nil && item.ReadValue() != nil {
+				out = append(out, item.ReadValue().AsString())
 			}
 		}
 		return out

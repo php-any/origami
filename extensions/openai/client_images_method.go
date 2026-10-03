@@ -39,14 +39,12 @@ func (m *ClientImagesMethod) Call(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	// 参数 3: options (可选)
-	var opts map[string]any
-	if v, ok := ctx.GetIndexValue(2); ok {
-		if obj, ok := v.(*data.ObjectValue); ok {
-			opts = objectToMap(obj)
-		}
+	opts, ctl := clientOptions(ctx, 2)
+	if ctl != nil {
+		return nil, ctl
 	}
 
-	result, err := m.source.images(model.AsString(), prompt.AsString(), opts)
+	result, err := m.source.images(ctx.GoContext(), model.AsString(), prompt.AsString(), opts)
 	if err != nil {
 		return nil, utils.NewThrow(err)
 	}

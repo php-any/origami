@@ -15,6 +15,7 @@ import "sync"
 //   - GetZVal  写目标。首次写之前把 parent 的值升级到本地，之后都写本地
 //   - Set      只写本地，不回写 parent
 //   - Delete   本地删除 + 记影子，避免 parent 的值又回落上来
+//
 // 于是「拷多少」从「表有多大」变成「请求期真正碰过多少」。
 //
 // 为什么 Get 对容器也要升级（拷贝）、不能直接透传 parent 的数组/关联数组：
@@ -37,11 +38,17 @@ type chainStore struct {
 	// 两把锁无嵌套获取顺序，不会死锁。
 	mu     sync.Mutex
 	shadow map[string]struct{}
+	arrays *ArrayOverlayScope
+	scope  *RequestObjectScope
 }
 
 // NewChainPropertyStore 用 parent 做回落源，建一张空的本地属性表。
 func NewChainPropertyStore(parent PropertyStore) PropertyStore {
 	return &chainStore{parent: parent, local: NewOrderedMap()}
+}
+
+func (s *chainStore) BindZVal(key string, slot *ZVal) {
+	s.local.(interface{ BindZVal(string, *ZVal) }).BindZVal(key, slot)
 }
 
 func (s *chainStore) isShadowed(key string) bool {
@@ -58,10 +65,12 @@ func (s *chainStore) isShadowed(key string) bool {
 // 只分离**顶层一层**（CloneArrayValue / CloneObjectValue），嵌套数组的分离交给写路径：
 // node.cowSeparateNestedArray 在 $this->map[$k][$j] = $v 这类嵌套写入前会克隆内层数组，
 // 再由 writeBackArrayProperty 把克隆写回父容器。容器里被嵌套写的只有
-//   Container::alias()          -> $this->abstractAliases[$abstract][] = $alias
-//   Container::tag()            -> $this->tags[$tag][] = $abstract
-//   Container::resolving()      -> $this->resolvingCallbacks[$abstract][] = $cb
-//   Container::rebinding()      -> $this->reboundCallbacks[$abstract][] = $cb
+//
+//	Container::alias()          -> $this->abstractAliases[$abstract][] = $alias
+//	Container::tag()            -> $this->tags[$tag][] = $abstract
+//	Container::resolving()      -> $this->resolvingCallbacks[$abstract][] = $cb
+//	Container::rebinding()      -> $this->reboundCallbacks[$abstract][] = $cb
+//
 // 四处，形态都是 $this->map[$k][] = $v，走的正是那条逐层分离路径。
 //
 // 旧实现每次都 deepCloneValue（递归整棵子树）：分配画像里
@@ -70,12 +79,17 @@ func (s *chainStore) isShadowed(key string) bool {
 // 写路径按需逐层分离，得到的隔离语义相同，代价从「表有多大」变成「真正写了哪条路径」。
 //
 // 对象（服务实例）按引用共享，与 PHP 对象语义、与旧 deepCloneValue 的行为一致。
-func promoteContainer(v Value) (Value, bool) {
+func (s *chainStore) promoteContainer(v Value) (Value, bool) {
+	if s.scope != nil {
+		bound := s.scope.Bind(v)
+		return bound, bound != v
+	}
 	switch t := v.(type) {
 	case *ArrayValue:
-		return CloneArrayValue(t), true
-	case *ObjectValue:
-		return CloneObjectValue(t), true
+		if s.arrays == nil {
+			s.arrays = NewArrayOverlayScope()
+		}
+		return s.arrays.Array(t), true
 	default:
 		return v, false
 	}
@@ -94,7 +108,14 @@ func (s *chainStore) Get(key string) (Value, bool) {
 	if !ok {
 		return nil, false
 	}
-	if promoted, isContainer := promoteContainer(v); isContainer {
+	if s.scope != nil {
+		if source, ok := s.parent.GetZVal(key); ok && (source.RefCount() > 0 || source.Guard() != nil) {
+			target := s.scope.BindSlot(source)
+			s.local.(interface{ BindZVal(string, *ZVal) }).BindZVal(key, target)
+			return target.ReadValue(), true
+		}
+	}
+	if promoted, isContainer := s.promoteContainer(v); isContainer {
 		s.local.Set(key, promoted)
 		return promoted, true
 	}
@@ -111,11 +132,17 @@ func (s *chainStore) GetZVal(key string) (*ZVal, bool) {
 	if s.isShadowed(key) {
 		return nil, false
 	}
-	pv, ok := s.parent.Get(key)
+	parentSlot, ok := s.parent.GetZVal(key)
 	if !ok {
 		return nil, false
 	}
-	if promoted, isContainer := promoteContainer(pv); isContainer {
+	if s.scope != nil {
+		target := s.scope.BindSlot(parentSlot)
+		s.local.(interface{ BindZVal(string, *ZVal) }).BindZVal(key, target)
+		return target, true
+	}
+	pv := parentSlot.ReadValue()
+	if promoted, isContainer := s.promoteContainer(pv); isContainer {
 		pv = promoted
 	}
 	s.local.Set(key, pv)
@@ -143,16 +170,11 @@ func (s *chainStore) Delete(key string) {
 func (s *chainStore) Range(fn func(key string, value Value) bool) {
 	proceed := true
 	s.parent.Range(func(key string, value Value) bool {
-		if v, ok := s.local.Get(key); ok {
-			value = v
-		} else {
-			s.mu.Lock()
-			hidden := s.isShadowed(key)
-			s.mu.Unlock()
-			if hidden {
-				return true
-			}
+		v, ok := s.Get(key)
+		if !ok {
+			return true
 		}
+		value = v
 		if !fn(key, value) {
 			proceed = false
 			return false

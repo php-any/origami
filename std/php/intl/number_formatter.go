@@ -214,8 +214,8 @@ func (m *NumberFormatterConstructMethod) Call(ctx data.Context) (data.GetValue, 
 	}
 	obj.SetProperty(nfPropLocale, data.NewStringValue(locale))
 	obj.SetProperty(nfPropStyle, data.NewIntValue(style))
-	obj.SetProperty(nfPropAttrs, data.NewObjectValue())
-	obj.SetProperty(nfPropTexts, data.NewObjectValue())
+	obj.SetProperty(nfPropAttrs, data.NewArrayValue(nil))
+	obj.SetProperty(nfPropTexts, data.NewArrayValue(nil))
 	return nil, nil
 }
 
@@ -257,7 +257,7 @@ func (m *NumberFormatterSetAttributeMethod) Call(ctx data.Context) (data.GetValu
 		return nil, acl
 	}
 	attrs := nfAttrsObject(obj)
-	attrs.SetProperty(strconv.Itoa(attr), val)
+	attrs.SetIntKey(attr, val)
 	return data.NewBoolValue(true), nil
 }
 
@@ -298,7 +298,7 @@ func (m *NumberFormatterSetTextAttributeMethod) Call(ctx data.Context) (data.Get
 	attr, _ := utils.ConvertFromIndex[int](ctx, 0)
 	val, _ := utils.ConvertFromIndex[string](ctx, 1)
 	texts := nfTextsObject(obj)
-	texts.SetProperty(strconv.Itoa(attr), data.NewStringValue(val))
+	texts.SetIntKey(attr, data.NewStringValue(val))
 	return data.NewBoolValue(true), nil
 }
 
@@ -431,22 +431,18 @@ func (m *NumberFormatterFormatCurrencyMethod) Call(ctx data.Context) (data.GetVa
 	return data.NewStringValue(currency + " " + formatted), nil
 }
 
-func nfAttrsObject(obj *data.ClassValue) *data.ObjectValue {
+func nfAttrsObject(obj *data.ClassValue) *data.ArrayValue {
 	v, _ := obj.GetProperty(nfPropAttrs)
-	if ov, ok := v.(*data.ObjectValue); ok {
-		return ov
-	}
-	ov := data.NewObjectValue()
+	if arr, ok := v.(*data.ArrayValue); ok { return arr }
+	ov := data.NewArrayValue(nil).(*data.ArrayValue)
 	obj.SetProperty(nfPropAttrs, ov)
 	return ov
 }
 
-func nfTextsObject(obj *data.ClassValue) *data.ObjectValue {
+func nfTextsObject(obj *data.ClassValue) *data.ArrayValue {
 	v, _ := obj.GetProperty(nfPropTexts)
-	if ov, ok := v.(*data.ObjectValue); ok {
-		return ov
-	}
-	ov := data.NewObjectValue()
+	if arr, ok := v.(*data.ArrayValue); ok { return arr }
+	ov := data.NewArrayValue(nil).(*data.ArrayValue)
 	obj.SetProperty(nfPropTexts, ov)
 	return ov
 }
@@ -463,10 +459,11 @@ func nfStyle(obj *data.ClassValue) int {
 
 func nfGetAttr(obj *data.ClassValue, attr int) (data.Value, bool) {
 	attrs := nfAttrsObject(obj)
-	v, ctl := attrs.GetProperty(strconv.Itoa(attr))
-	if ctl != nil || v == nil {
+	slot, _ := attrs.FindSlotByIntKey(attr)
+	if slot == nil {
 		return nil, false
 	}
+	v := slot.ReadValue()
 	if _, isNull := v.(*data.NullValue); isNull {
 		return nil, false
 	}

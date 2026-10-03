@@ -87,7 +87,7 @@ func (m *ScopeMakeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 		if arr, isArr := v.(*data.ArrayValue); isArr {
 			for arraySlots33, arrayPosition33 := arr.View(), 0; arrayPosition33 < arraySlots33.Len(); arrayPosition33++ {
 				item := arraySlots33.At(arrayPosition33)
-				params = append(params, item.Value)
+				params = append(params, item.ReadValue())
 			}
 		}
 	}

@@ -33,10 +33,17 @@ type OrderedMap struct {
 
 // NewOrderedMap 创建新的有序映射
 func NewOrderedMap() PropertyStore {
+	return &OrderedMap{}
+}
+
+func newOrderedMapWithCapacity(capacity int) PropertyStore {
+	if capacity == 0 {
+		return NewOrderedMap()
+	}
 	return &OrderedMap{
-		data:     make([]*ZVal, 0),
-		keys:     make([]string, 0),
-		indexMap: make(map[string]int),
+		data:     make([]*ZVal, 0, capacity),
+		keys:     make([]string, 0, capacity),
+		indexMap: make(map[string]int, capacity),
 	}
 }
 
@@ -60,15 +67,33 @@ func (om *OrderedMap) Set(key string, value Value) {
 	if idx, exists := om.indexMap[key]; exists {
 		// 更新已存在的键值对
 		if idx >= 0 && idx < len(om.data) && om.data[idx] != nil {
-			om.data[idx].Value = value
+			CowAssign(om.data[idx], value)
 		}
 		return
 	}
 	// 添加新的键值对
+	if om.indexMap == nil {
+		om.indexMap = make(map[string]int)
+	}
 	index := len(om.data)
-	om.data = append(om.data, NewZVal(value))
+	om.data = append(om.data, NewZVal(CowAddRef(value)))
 	om.keys = append(om.keys, key)
 	om.indexMap[key] = index
+}
+
+func (om *OrderedMap) BindZVal(key string, slot *ZVal) {
+	om.mu.Lock()
+	defer om.mu.Unlock()
+	if om.indexMap == nil {
+		om.indexMap = make(map[string]int)
+	}
+	if index, found := om.indexMap[key]; found {
+		om.data[index] = slot
+		return
+	}
+	om.indexMap[key] = len(om.data)
+	om.data = append(om.data, slot)
+	om.keys = append(om.keys, key)
 }
 
 // Delete 删除键（不存在则无操作）
@@ -102,7 +127,7 @@ func (om *OrderedMap) Get(key string) (Value, bool) {
 
 	if idx, exists := om.indexMap[key]; exists {
 		if idx >= 0 && idx < len(om.data) {
-			return om.data[idx].Value, true
+			return om.data[idx].ReadValue(), true
 		}
 	}
 	return nil, false
@@ -125,7 +150,7 @@ func (om *OrderedMap) Range(fn func(key string, value Value) bool) {
 		}
 		var val Value
 		if zval != nil {
-			val = zval.Value
+			val = zval.ReadValue()
 		}
 		items = append(items, kv{key: om.keys[i], val: val})
 	}
@@ -150,7 +175,7 @@ func (om *OrderedMap) GetByIndex(index int) (string, Value, bool) {
 	om.mu.RLock()
 	defer om.mu.RUnlock()
 	if index >= 0 && index < len(om.data) && index < len(om.keys) {
-		return om.keys[index], om.data[index].Value, true
+		return om.keys[index], om.data[index].ReadValue(), true
 	}
 	return "", nil, false
 }

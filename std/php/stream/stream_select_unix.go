@@ -3,6 +3,7 @@
 package stream
 
 import (
+	"fmt"
 	"reflect"
 	"time"
 
@@ -55,19 +56,10 @@ func filterStreamCollection(value data.Value, set *unix.FdSet) {
 			if slot == nil {
 				return false
 			}
-			fd, ok := streamFileDescriptor(slot.Value)
+			fd, ok := streamFileDescriptor(slot.ReadValue())
 			return ok && fdIsSet(set, fd)
 		})
-	case *data.ObjectValue:
-		filtered := data.NewObjectValue()
-		collection.RangeProperties(func(key string, value data.Value) bool {
-			fd, ok := streamFileDescriptor(value)
-			if ok && fdIsSet(set, fd) {
-				filtered.SetProperty(key, value)
-			}
-			return true
-		})
-		*collection = *filtered
+
 	}
 }
 
@@ -76,9 +68,12 @@ func (f *StreamSelectFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	if request.Err() != nil {
 		panic(data.ErrRequestCanceled)
 	}
-	read, _ := ctx.GetIndexValue(0)
-	write, _ := ctx.GetIndexValue(1)
-	except, _ := ctx.GetIndexValue(2)
+	if ctl := validateSelectTimeout(ctx); ctl != nil {
+		return nil, ctl
+	}
+	read := data.CowSeparateIndex(ctx, 0)
+	write := data.CowSeparateIndex(ctx, 1)
+	except := data.CowSeparateIndex(ctx, 2)
 
 	var readSet, writeSet, exceptSet unix.FdSet
 	maxFD := -1
@@ -86,15 +81,16 @@ func (f *StreamSelectFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	addStreamCollection(&writeSet, write, &maxFD)
 	addStreamCollection(&exceptSet, except, &maxFD)
 	if maxFD < 0 {
-		return data.NewIntValue(0), nil
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("No stream arrays were passed"), "ValueError")
 	}
 
 	timeout := streamSelectTimeout(ctx)
+	infinite := timeout < 0
 	end := time.Now().Add(timeout)
 	for {
 		wait := timeout
 		if wait < 0 {
-			wait = 0
+			wait = 50 * time.Millisecond
 		}
 		if request.Done() != nil && wait > 50*time.Millisecond {
 			wait = 50 * time.Millisecond
@@ -106,18 +102,22 @@ func (f *StreamSelectFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 			panic(data.ErrRequestCanceled)
 		}
 		if err != nil {
-			if err == unix.EINTR && time.Now().Before(end) {
-				timeout = time.Until(end)
+			if err == unix.EINTR && (infinite || time.Now().Before(end)) {
+				if !infinite {
+					timeout = time.Until(end)
+				}
 				continue
 			}
 			return data.NewBoolValue(false), nil
 		}
-		if ready > 0 || !time.Now().Before(end) {
+		if ready > 0 || (!infinite && !time.Now().Before(end)) {
 			filterStreamCollection(read, &r)
 			filterStreamCollection(write, &w)
 			filterStreamCollection(except, &e)
 			return data.NewIntValue(ready), nil
 		}
-		timeout = time.Until(end)
+		if !infinite {
+			timeout = time.Until(end)
+		}
 	}
 }

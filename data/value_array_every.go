@@ -22,7 +22,7 @@ func (a *ArrayValueEvery) Call(ctx Context) (GetValue, Control) {
 		vars := callable.Value.GetVariables()
 		fnCtx := ctx.CreateContext(vars)
 		for i, zval := range a.source.Range() {
-			element := zval.Value
+			element := zval.ReadValue()
 			args := []Value{element, NewIntValue(i), NewArrayValue(sourceValues)}
 			for ai := 0; ai < len(vars) && ai < len(args); ai++ {
 				fnCtx.SetVariableValue(NewVariable("", ai, nil), args[ai])
@@ -44,7 +44,7 @@ func (a *ArrayValueEvery) Call(ctx Context) (GetValue, Control) {
 	case CallableValue:
 		// 遍历数组元素并检查是否都满足条件
 		for i, zval := range a.source.Range() {
-			element := zval.Value
+			element := zval.ReadValue()
 			// 调用回调函数，传递元素、索引和数组
 			testResult, ctl := callable.Call(element, NewIntValue(i), NewArrayValue(sourceValues))
 			if ctl != nil {

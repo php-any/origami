@@ -9,6 +9,8 @@ import (
 	containerannotation "github.com/php-any/origami/std/container/annotation"
 	dbannotation "github.com/php-any/origami/std/database/annotation"
 	"github.com/php-any/origami/std/net/annotation"
+	"github.com/php-any/origami/std/php/attribute"
+	"github.com/php-any/origami/std/php/core"
 	valannotation "github.com/php-any/origami/std/validation/annotation"
 )
 
@@ -18,8 +20,10 @@ var specialHandlers map[reflect.Type]specialHandler
 
 func init() {
 	specialHandlers = map[reflect.Type]specialHandler{
+		reflect.TypeOf((*node.StringLiteral)(nil)):            emitStringLiteral,
 		reflect.TypeOf((*node.CallExpression)(nil)):           emitCallExpression,
 		reflect.TypeOf((*node.CallMethod)(nil)):               emitCallMethod,
+		reflect.TypeOf((*node.CallObjectMethod)(nil)):         emitCallObjectMethod,
 		reflect.TypeOf((*node.CallStaticMethod)(nil)):         emitCallStaticMethod,
 		reflect.TypeOf((*node.CallStaticProperty)(nil)):       emitCallStaticProperty,
 		reflect.TypeOf((*node.CallStaticMethodLater)(nil)):    emitCallStaticMethodLater,
@@ -29,6 +33,8 @@ func init() {
 		reflect.TypeOf((*node.ClassStatement)(nil)):           emitClassStatement,
 		reflect.TypeOf((*node.AbstractClassStatement)(nil)):   emitAbstractClassStatement,
 		reflect.TypeOf((*node.FunctionStatement)(nil)):        emitFunctionStatement,
+		reflect.TypeOf((*node.Annotation)(nil)):               emitAnnotation,
+		reflect.TypeOf((*node.ClassRegisterStmt)(nil)):        emitClassRegisterStmt,
 		reflect.TypeOf((*node.InterfaceStatement)(nil)):       emitInterfaceStatement,
 		reflect.TypeOf((*node.VarFastAssign)(nil)):            emitVarFastAssign,
 		reflect.TypeOf((*node.VarPostIncr)(nil)):              emitVarPostIncr,
@@ -50,6 +56,30 @@ func init() {
 		reflect.TypeOf((*node.BinaryAssignVariable)(nil)):     emitBinaryAssignVariable,
 		reflect.TypeOf((*node.BinaryAssignVariableList)(nil)): emitBinaryAssignVariableList,
 	}
+}
+
+func emitCallObjectMethod(g *Generator, v data.GetValue) error {
+	n := v.(*node.CallObjectMethod)
+	g.printf("node.NewObjectMethod(from, ")
+	if err := g.Emit(n.Object); err != nil {
+		return err
+	}
+	g.printf(", %q, []data.GetValue{", n.Method)
+	for _, argument := range n.Args {
+		if err := g.Emit(argument); err != nil {
+			return err
+		}
+		g.printf(", ")
+	}
+	g.printf("})")
+	return nil
+}
+
+func emitStringLiteral(g *Generator, v data.GetValue) error {
+	// Value has already been decoded by the parser; rebuilding the interned
+	// value must not interpret quotes or escape sequences a second time.
+	g.printf("node.NewStringLiteralByAst(from, %q)", v.(*node.StringLiteral).Value)
+	return nil
 }
 
 func emitCallExpression(g *Generator, v data.GetValue) error {
@@ -171,7 +201,7 @@ func emitLambdaExpression(g *Generator, v data.GetValue) error {
 	g.printf(", %v,\n", fs.StrictTypes)
 	g.indent--
 	g.printf(")\nclosure.Ret = ")
-	g.genTypes(fs.Ret)
+	g.genTypeRef(fs.Ret)
 	g.printf("\nclosure.ReturnsReference = %v\nclosure.IsStatic = %v\nreturn closure\n", fs.ReturnsReference, n.IsStatic)
 	g.indent--
 	g.printf("}()")
@@ -234,6 +264,48 @@ func (g *Generator) emitClassStatementInit(n *node.ClassStatement) error {
 	if n.IsAbstract {
 		g.printf("cls.IsAbstract = true\n")
 	}
+	if n.Flags != 0 {
+		g.printf("cls.Flags = data.ClassFlags(%d)\n", n.Flags)
+	}
+	if len(n.EnumCases) > 0 {
+		g.printf("cls.EnumCases = ")
+		g.genStringSlice(n.EnumCases)
+		g.printf("\n")
+	}
+	if len(n.StaticPropertiesIndex) > 0 {
+		g.printf("cls.StaticProperties = map[string]data.Property{\n")
+		g.indent++
+		for _, name := range n.StaticPropertiesIndex {
+			g.printf("%q: ", name)
+			if err := g.emitClassProperty(n.StaticProperties[name]); err != nil {
+				return err
+			}
+			g.printf(",\n")
+		}
+		g.indent--
+		g.printf("}\ncls.StaticPropertiesIndex = ")
+		g.genStringSlice(n.StaticPropertiesIndex)
+		g.printf("\n")
+	}
+	if len(n.Traits) > 0 {
+		g.printf("cls.Traits = ")
+		g.genStringSlice(n.Traits)
+		g.printf("\n")
+	}
+	if len(n.DeferredTraits) > 0 {
+		g.printf("cls.DeferredTraits = ")
+		g.genStringSlice(n.DeferredTraits)
+		g.printf("\n")
+	}
+	if len(n.DeferredTraitAliases) > 0 {
+		g.printf("cls.DeferredTraitAliases = []data.TraitAlias{\n")
+		g.indent++
+		for _, alias := range n.DeferredTraitAliases {
+			g.printf("{Trait: %q, Method: %q, Alias: %q},\n", alias.Trait, alias.Method, alias.Alias)
+		}
+		g.indent--
+		g.printf("}\n")
+	}
 	if len(n.StaticMethods) > 0 {
 		g.printf("cls.StaticMethods = map[string]data.Method{\n")
 		g.indent++
@@ -257,8 +329,43 @@ func (g *Generator) emitClassStatementInit(n *node.ClassStatement) error {
 	return nil
 }
 
+func emitAnnotation(g *Generator, v data.GetValue) error {
+	n := v.(*node.Annotation)
+	g.printf("node.NewAnnotation(from, %q, ", n.Name)
+	if err := g.emitParamList(n.Arguments); err != nil {
+		return err
+	}
+	g.printf(")")
+	return nil
+}
+
+func emitClassRegisterStmt(g *Generator, v data.GetValue) error {
+	n := v.(*node.ClassRegisterStmt)
+	g.printf("node.NewClassRegisterStmt(from, ")
+	if err := g.Emit(n.Class); err != nil {
+		return err
+	}
+	g.printf(", []*node.Annotation{")
+	for _, annotation := range n.Annotations {
+		if err := g.Emit(annotation); err != nil {
+			return err
+		}
+		g.printf(",")
+	}
+	g.printf("}, []data.Types{")
+	for _, typ := range n.Generic {
+		g.genTypes(typ)
+		g.printf(",")
+	}
+	g.printf("})")
+	return nil
+}
+
 func emitFunctionStatement(g *Generator, v data.GetValue) error {
 	n := v.(*node.FunctionStatement)
+	if len(n.PHPAttributes) > 0 {
+		g.printf("func() *node.FunctionStatement { f := ")
+	}
 	g.printf("node.NewFunctionStatement(from, %q, ", n.Name)
 	if err := g.emitParamList(n.Params); err != nil {
 		return err
@@ -277,12 +384,23 @@ func emitFunctionStatement(g *Generator, v data.GetValue) error {
 	g.printf(", ")
 	g.genTypes(n.Ret)
 	g.printf(", %v, %v)", n.ReturnsReference, n.StrictTypes)
+	if len(n.PHPAttributes) > 0 {
+		g.printf("; f.PHPAttributes = []*node.Annotation{")
+		for _, annotation := range n.PHPAttributes {
+			g.printf("node.NewAnnotation(from, %q, ", annotation.Name)
+			if err := g.emitParamList(annotation.Arguments); err != nil {
+				return err
+			}
+			g.printf("),")
+		}
+		g.printf("}; return f }()")
+	}
 	return nil
 }
 
 func emitInterfaceStatement(g *Generator, v data.GetValue) error {
 	n := v.(*node.InterfaceStatement)
-	g.printf("node.NewInterfaceStatement(from, %q, ", n.Name)
+	g.printf("func() *node.InterfaceStatement { i := node.NewInterfaceStatement(from, %q, ", n.Name)
 	g.genStringSlice(n.Extends)
 	g.printf(", []data.Method{\n")
 	g.indent++
@@ -294,11 +412,25 @@ func emitInterfaceStatement(g *Generator, v data.GetValue) error {
 	}
 	g.indent--
 	g.printf("})")
+	var failure error
+	n.StaticProperty.Range(func(key, value any) bool {
+		g.printf("; i.StaticProperty.Store(%q, ", key.(string))
+		failure = g.Emit(value.(data.GetValue))
+		g.printf(")")
+		return failure == nil
+	})
+	if failure != nil {
+		return failure
+	}
+	g.printf("; return i }()")
 	return nil
 }
 
 func (g *Generator) emitInterfaceMethod(im *node.InterfaceMethod) error {
 	mod := modifierName(im.Modifier)
+	if im.IsStatic || im.ReturnsReference {
+		g.printf("func() data.Method { m := ")
+	}
 	g.printf("node.NewInterfaceMethod(from, %q, %q, ", im.Name, mod)
 	if err := g.emitParamList(im.Params); err != nil {
 		return err
@@ -306,6 +438,9 @@ func (g *Generator) emitInterfaceMethod(im *node.InterfaceMethod) error {
 	g.printf(", ")
 	g.genTypes(im.ReturnType)
 	g.printf(")")
+	if im.IsStatic || im.ReturnsReference {
+		g.printf(".(*node.InterfaceMethod); m.IsStatic = %v; m.ReturnsReference = %v; return m }()", im.IsStatic, im.ReturnsReference)
+	}
 	return nil
 }
 
@@ -393,6 +528,17 @@ func (g *Generator) emitClassAnnotation(cv *data.ClassValue) error {
 		return nil
 	}
 	switch c := cv.Class.(type) {
+	case *attribute.AttributeClass:
+		g.needImport("github.com/php-any/origami/std/php/attribute", "attribute")
+		g.printf("func() *data.ClassValue { marker := data.NewClassValue(attribute.NewAttributeClass(), nil); marker.SetProperty(\"flags\", ")
+		flags, _ := cv.GetProperty("flags")
+		if flags == nil {
+			flags = data.NewIntValue(63)
+		}
+		if err := g.Emit(flags); err != nil {
+			return err
+		}
+		g.printf("); return marker }()")
 	case *annotation.RouteClass:
 		g.needAnnotationImport()
 		g.printf("annotation.CompiledRouteValue(%q)", c.Prefix())
@@ -807,6 +953,9 @@ func (g *Generator) emitClassProperty(p data.Property) error {
 		return newEmitError(g.file, nil, "unsupported property type "+reflect.TypeOf(p).String())
 	}
 	mod := modifierName(cp.GetModifier())
+	if cp.IsConstant || cp.DeclaringClass != "" {
+		g.printf("func() *node.ClassProperty { p := ")
+	}
 	if cp.IsPromoted {
 		g.printf("node.NewPropertyWithPromoted(from, %q, %q, %v, %v, %v, ", cp.Name, mod, cp.IsStatic, cp.IsReadonly, cp.IsPromoted)
 	} else if cp.IsReadonly {
@@ -821,21 +970,40 @@ func (g *Generator) emitClassProperty(p data.Property) error {
 	} else {
 		g.printf("nil")
 	}
-	if cp.Type != nil {
+	if cp.Type != data.TypeInvalid {
 		g.printf(", ")
 		g.genTypes(cp.Type)
 	}
 	g.printf(")")
+	if cp.IsConstant || cp.DeclaringClass != "" {
+		g.printf("; p.IsConstant = %v; p.DeclaringClass = %q; return p }()", cp.IsConstant, cp.DeclaringClass)
+	}
 	return nil
 }
 
 func (g *Generator) emitClassMethod(method data.Method) error {
+	if _, ok := method.(*node.ClassMethod); !ok {
+		if _, ok := method.(*node.AbstractMethod); !ok {
+			g.needImport("github.com/php-any/origami/std/php/core", "core")
+		}
+	}
+	switch method.(type) {
+	case *core.BackedEnumCasesMethod:
+		g.printf("&core.BackedEnumCasesMethod{}")
+		return nil
+	case *core.BackedEnumFromMethod:
+		g.printf("&core.BackedEnumFromMethod{}")
+		return nil
+	case *core.BackedEnumTryFromMethod:
+		g.printf("&core.BackedEnumTryFromMethod{}")
+		return nil
+	}
 	if am, ok := method.(*node.AbstractMethod); ok {
 		g.printf("node.NewAbstractMethod(")
 		if err := g.emitClassMethodBody(am.ClassMethod); err != nil {
 			return err
 		}
-		g.printf(")")
+		g.printf(".(*node.ClassMethod))")
 		return nil
 	}
 	cm, ok := method.(*node.ClassMethod)
@@ -867,6 +1035,9 @@ func (g *Generator) emitClassMethod(method data.Method) error {
 
 func (g *Generator) emitClassMethodBody(cm *node.ClassMethod) error {
 	mod := modifierName(cm.GetModifier())
+	if cm.Flags != 0 || cm.ReturnsReference {
+		g.printf("func() data.Method { m := ")
+	}
 	g.printf("node.NewMethod(from, %q, %q, %v, ", cm.Name, mod, cm.IsStatic)
 	if err := g.emitParamList(cm.Params); err != nil {
 		return err
@@ -885,6 +1056,9 @@ func (g *Generator) emitClassMethodBody(cm *node.ClassMethod) error {
 	g.printf(", ")
 	g.genTypes(cm.Ret)
 	g.printf(", %v)", cm.StrictTypes)
+	if cm.Flags != 0 || cm.ReturnsReference {
+		g.printf(".(*node.ClassMethod); m.Flags = data.MethodFlags(%d); m.ReturnsReference = %v; return m }()", cm.Flags, cm.ReturnsReference)
+	}
 	return nil
 }
 

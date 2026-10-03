@@ -126,7 +126,7 @@ func (j *JsonSerializer) MarshalArray(v *data.ArrayValue) ([]byte, error) {
 			}
 			buf.Write(kb)
 			buf.WriteByte(':')
-			elem := z.Value
+			elem := z.ReadValue()
 			var b []byte
 			if vs, ok := elem.(data.ValueSerializer); ok {
 				b, err = vs.Marshal(j)
@@ -466,7 +466,7 @@ func (j *JsonSerializer) createDefaultValueForType(ty data.Types) data.Value {
 	case data.Arrays:
 		return data.NewArrayValue([]data.Value{})
 	case data.Object:
-		return data.NewObjectValue()
+		return data.NewStdClassValue(nil)
 	default:
 		// 对于其他类型，暂时返回nil，让后续逻辑处理
 		return nil
@@ -506,8 +506,8 @@ func (j *JsonSerializer) unmarshalValue(raw []byte) (data.Value, error) {
 		}
 		return av, nil
 	case '{': // 对象
-		ov := data.NewObjectValue()
-		if err := j.UnmarshalObject(s, ov); err != nil {
+		ov := data.NewStdClassValue(nil)
+		if err := j.UnmarshalObject(s, ov.ObjectValue); err != nil {
 			return nil, err
 		}
 		return ov, nil

@@ -219,7 +219,7 @@ func (m *ContainerMakeMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 		if arr, isArr := v.(*data.ArrayValue); isArr {
 			for arraySlots31, arrayPosition31 := arr.View(), 0; arrayPosition31 < arraySlots31.Len(); arrayPosition31++ {
 				item := arraySlots31.At(arrayPosition31)
-				params = append(params, item.Value)
+				params = append(params, item.ReadValue())
 			}
 		}
 	}
@@ -393,7 +393,7 @@ func (m *ContainerRegisterProvidersMethod) Call(ctx data.Context) (data.GetValue
 	var providers []data.GetValue
 	for arraySlots32, arrayPosition32 := arr.View(), 0; arrayPosition32 < arraySlots32.Len(); arrayPosition32++ {
 		item := arraySlots32.At(arrayPosition32)
-		providers = append(providers, item.Value)
+		providers = append(providers, item.ReadValue())
 	}
 
 	registered := make([]*data.ClassValue, 0, len(providers))

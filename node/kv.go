@@ -74,18 +74,14 @@ func (n *Kv) SetValue(ctx data.Context, value data.Value) data.Control {
 
 func kvLookup(ctx data.Context, value data.Value, key string) (data.Value, data.Control) {
 	switch v := value.(type) {
-	case *data.ObjectValue:
-		if v.HasProperty(key) {
-			elem, ctl := v.GetProperty(key)
-			return elem, ctl
-		}
+
 	case *data.ArrayValue:
 		if slot, ok := v.LookupZValByStringKey(key); ok {
-			return slot.Value, nil
+			return slot.ReadValue(), nil
 		}
 	case *data.ClassValue:
 		if method, exists := v.GetMethod("offsetGet"); exists {
-			fnCtx := v.CreateContext(method.GetVariables())
+			fnCtx := implicitMethodFrame(ctx, v, method)
 			if vars := method.GetVariables(); len(vars) > 0 {
 				_ = fnCtx.SetVariableValue(vars[0], data.NewStringValue(key))
 			}
@@ -148,7 +144,11 @@ func (n *Kv) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		if !ok {
 			return nil, data.NewErrorThrow(n.from, errors.New("数组值类型无效"))
 		}
-		if !array.SetKey(keyVal, valVal) {
+		accepted, ctl := array.AssignKey(ctx, keyVal, valVal)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if !accepted {
 			return nil, data.NewErrorThrow(n.from, errors.New("Illegal offset type"))
 		}
 	}
@@ -168,18 +168,13 @@ func mergeSpreadIntoArray(ctx data.Context, array *data.ArrayValue, spread data.
 				continue
 			}
 			if key, ok := z.PHPArrayKey(i).(*data.StringValue); ok {
-				array.SetStringKey(key.Value, z.Value)
-			} else if !array.AppendValue(z.Value) {
+				array.SetStringKey(key.Value, z.ReadValue())
+			} else if !array.AppendValue(z.ReadValue()) {
 				return data.NewErrorThrow(from, errors.New("Cannot add element to the array as the next element is already occupied"))
 			}
 		}
 		return nil
-	case *data.ObjectValue:
-		sv.RangeProperties(func(key string, value data.Value) bool {
-			array.SetStringKey(key, value)
-			return true
-		})
-		return nil
+
 	default:
 		return data.NewErrorThrow(from, errors.New("展开运算符只能用于数组"))
 	}

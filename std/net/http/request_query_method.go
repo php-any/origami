@@ -14,17 +14,17 @@ type RequestQueryMethod struct {
 
 func (h *RequestQueryMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if h.source == nil || h.source.URL == nil {
-		return data.NewObjectValue(), nil
+		return data.NewArrayValue(nil).(*data.ArrayValue), nil
 	}
 
 	// 将查询参数转换为对象
-	result := data.NewObjectValue()
+	result := data.NewArrayValue(nil).(*data.ArrayValue)
 	for key, values := range h.source.URL.Query() {
 		if len(values) == 1 {
-			result.SetProperty(key, data.NewStringValue(values[0]))
+			result.SetStringKey(key, data.NewStringValue(values[0]))
 		} else {
 			// 如果有多个值，用逗号分隔
-			result.SetProperty(key, data.NewStringValue(strings.Join(values, ",")))
+			result.SetStringKey(key, data.NewStringValue(strings.Join(values, ",")))
 		}
 	}
 

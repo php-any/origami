@@ -1,15 +1,12 @@
 package reflection
 
 import (
+	"crypto/sha1"
 	"fmt"
-	"strconv"
-	"sync/atomic"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
-
-var reflectionReferenceIdSeq uint64
 
 // ReflectionReferenceClass 提供 PHP ReflectionReference 类定义
 // 用于检测数组元素是否为引用（Symfony VarDumper 等调试工具依赖）。
@@ -71,13 +68,19 @@ func (m *ReflectionReferenceFromArrayElementMethod) GetModifier() data.Modifier 
 }
 func (m *ReflectionReferenceFromArrayElementMethod) GetIsStatic() bool { return true }
 
-var reflectionReferenceFromArrayElementMethodGetParams = []data.GetValue{}
+var reflectionReferenceFromArrayElementMethodGetParams = []data.GetValue{
+	node.NewParameter(nil, "array", 0, nil, data.TypeArray),
+	node.NewParameter(nil, "key", 1, nil, data.NewDeclaredUnionType([]data.Types{data.TypeInt, data.TypeString})),
+}
 
 func (m *ReflectionReferenceFromArrayElementMethod) GetParams() []data.GetValue {
 	return reflectionReferenceFromArrayElementMethodGetParams
 }
 
-var reflectionReferenceFromArrayElementMethodGetVariables = []data.Variable{}
+var reflectionReferenceFromArrayElementMethodGetVariables = []data.Variable{
+	node.NewVariable(nil, "array", 0, data.TypeArray),
+	node.NewVariable(nil, "key", 1, data.TypeMixed),
+}
 
 func (m *ReflectionReferenceFromArrayElementMethod) GetVariables() []data.Variable {
 	return reflectionReferenceFromArrayElementMethodGetVariables
@@ -100,49 +103,31 @@ func (m *ReflectionReferenceFromArrayElementMethod) Call(ctx data.Context) (data
 		return data.NewNullValue(), nil
 	}
 
-	keyName := ""
-	intKey := -1
-	switch k := keyArg.(type) {
+	var slot *data.ZVal
+	switch key := keyArg.(type) {
 	case *data.IntValue:
-		intKey = k.Value
-		keyName = strconv.Itoa(k.Value)
+		slot, _ = arr.FindSlotByIntKey(key.Value)
 	case *data.StringValue:
-		keyName = k.AsString()
+		// ReflectionReference uses the literal key kind, unlike PHP's
+		// ordinary array access which converts canonical numeric strings.
+		if _, numeric := data.ParseIntArrayKeyName(key.Value); !numeric {
+			slot, _ = arr.LookupZValByStringKey(key.Value)
+		}
 	default:
-		return data.NewNullValue(), nil
+		return nil, data.NewTypeError(nil, fmt.Errorf("ReflectionReference::fromArrayElement(): key must be int|string"))
 	}
-	for arraySlots132,
-
-		// 按 Name 精确匹配（关联键）
-		arrayPosition132 := arr.View(), 0; arrayPosition132 < arraySlots132.Len(); arrayPosition132++ {
-		z := arraySlots132.At(arrayPosition132)
-		if z == nil {
-			continue
-		}
-		if z.Name == keyName {
-			if z.RefSlotCount > 0 {
-				return newReflectionReferenceValue(ctx), nil
-			}
-			return data.NewNullValue(), nil
-		}
+	if slot == nil {
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Array key not found"), "ReflectionException")
 	}
-	// 整数键兜底：顺序索引元素（Name 为空）
-	if intKey >= 0 && intKey < arr.Len() {
-		z := arr.At(intKey)
-		if z != nil && z.Name == "" {
-			if z.RefSlotCount > 0 {
-				return newReflectionReferenceValue(ctx), nil
-			}
-			return data.NewNullValue(), nil
-		}
+	if slot.RefCount() > 0 {
+		return newReflectionReferenceValue(ctx, slot), nil
 	}
 	return data.NewNullValue(), nil
 }
-
-func newReflectionReferenceValue(ctx data.Context) data.GetValue {
-	id := atomic.AddUint64(&reflectionReferenceIdSeq, 1)
+func newReflectionReferenceValue(ctx data.Context, slot *data.ZVal) data.GetValue {
+	id := sha1.Sum([]byte(fmt.Sprintf("%p", slot.ReferenceIdentity())))
 	value := data.NewClassValue(&ReflectionReferenceClass{}, ctx.CreateBaseContext())
-	value.ObjectValue.SetProperty("_id", data.NewStringValue(fmt.Sprintf("R%09d", id)))
+	value.ObjectValue.SetProperty("_id", data.NewStringValue(string(id[:])))
 	return value
 }
 

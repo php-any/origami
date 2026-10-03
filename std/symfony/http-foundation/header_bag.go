@@ -98,13 +98,13 @@ func headersMapToArrayValue(headers map[string][]*string, order []string) *data.
 	seen := map[string]bool{}
 	for _, k := range order {
 		if vs, ok := headers[k]; ok {
-			list = append(list, &data.ZVal{Name: k, Value: headerValuesToArray(vs)})
+			list = append(list, &data.ZVal{Name: k, InitialValue: headerValuesToArray(vs)})
 			seen[k] = true
 		}
 	}
 	for k, vs := range headers {
 		if !seen[k] {
-			list = append(list, &data.ZVal{Name: k, Value: headerValuesToArray(vs)})
+			list = append(list, &data.ZVal{Name: k, InitialValue: headerValuesToArray(vs)})
 		}
 	}
 	return data.NewArrayValueFromSlots(list)
@@ -482,10 +482,10 @@ func coerceHeaderValues(v data.Value) ([]*string, data.Control) {
 			out := make([]*string, 0, arr.Len())
 			for arraySlots158, arrayPosition158 := arr.View(), 0; arrayPosition158 < arraySlots158.Len(); arrayPosition158++ {
 				z := arraySlots158.At(arrayPosition158)
-				if z == nil || z.Value == nil || isNull(z.Value) {
+				if z == nil || z.ReadValue() == nil || isNull(z.ReadValue()) {
 					out = append(out, nil)
 				} else {
-					s := z.Value.AsString()
+					s := z.ReadValue().AsString()
 					out = append(out, &s)
 				}
 			}

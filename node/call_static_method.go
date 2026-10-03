@@ -2,7 +2,6 @@ package node
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/php-any/origami/data"
 )
@@ -34,7 +33,14 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 	var callClass data.ClassStmt // 实际调用的类（用于 late static binding）
 	var has bool
 
-	switch expr := pe.stmt.(type) {
+	stmt := pe.stmt
+	// Parsed declarations are templates; trait merging belongs to this VM.
+	if class, ok := stmt.(data.ClassStmt); ok && ctx.GetVM() != nil {
+		if current, found := ctx.GetVM().GetClass(class.GetName()); found {
+			stmt = current
+		}
+	}
+	switch expr := stmt.(type) {
 	case data.GetStaticMethod:
 		// 先在当前类上查找静态方法
 		method, has = expr.GetStaticMethod(pe.Method)
@@ -80,6 +86,7 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 							return data.NewFuncValue(&instanceViaSelfFunc{
 								this:   objCtx.ClassValue,
 								method: m,
+								self:   checkClass,
 							}), nil
 						}
 						if checkClass.GetExtend() == nil {
@@ -235,6 +242,28 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 
 	// 静态方法需要 ClassMethodContext，返回包装器让 CallMethod 正确处理
 	if classStmt != nil {
+		if !memberAccessible(ctx, method.GetModifier(), classStmt) {
+			magicClass := callClass
+			if magicClass == nil {
+				magicClass = classStmt
+			}
+			for current := magicClass; current != nil; {
+				if getter, ok := current.(data.GetStaticMethod); ok {
+					if magic, found := getter.GetStaticMethod("__callStatic"); found {
+						return data.NewFuncValue(&callStaticFunc{class: magicClass, method: magic, originalMethod: pe.Method}), nil
+					}
+				}
+				if current.GetExtend() == nil {
+					break
+				}
+				parent, ctl := ctx.GetVM().GetOrLoadClass(*current.GetExtend())
+				if ctl != nil {
+					return nil, ctl
+				}
+				current = parent
+			}
+			return nil, data.NewErrorThrowByName(pe.GetFrom(), fmt.Errorf("Cannot access non-public method %s::%s()", classStmt.GetName(), pe.Method), "Error")
+		}
 		// __callStatic 需要特殊处理：调用方传入的实参需要重打包为 [methodName, args]
 		if method.GetName() == "__callStatic" {
 			return data.NewFuncValue(&callStaticFunc{
@@ -258,12 +287,9 @@ func (pe *CallStaticMethod) GetValue(ctx data.Context) (data.GetValue, data.Cont
 // CallStaticMethodLater 延迟的静态方法调用（类未加载时）
 type CallStaticMethodLater struct {
 	*Node
-	className string            // 类名（字符串形式）
-	method    string            // 方法名
-	namespace string            // 命名空间
-	call      *CallStaticMethod `pp:"-"` // 解析后缓存
-	resolveMu sync.Mutex
-	resolved  resolvedFlag // 命中时跳过 resolveMu，见 resolvedFlag
+	className string // 类名（字符串形式）
+	method    string // 方法名
+	namespace string // 命名空间
 }
 
 // NewCallStaticMethodLater 创建延迟的静态方法调用
@@ -277,14 +303,6 @@ func NewCallStaticMethodLater(from *TokenFrom, className, method, namespace stri
 }
 
 func (pe *CallStaticMethodLater) resolveCall(ctx data.Context) (*CallStaticMethod, data.Control) {
-	if pe.resolved.Done() {
-		return pe.call, nil
-	}
-	pe.resolveMu.Lock()
-	defer pe.resolveMu.Unlock()
-	if pe.call != nil {
-		return pe.call, nil
-	}
 	stmt, acl := ctx.GetVM().GetOrLoadClass(pe.className)
 	if acl != nil {
 		return nil, acl
@@ -306,9 +324,8 @@ func (pe *CallStaticMethodLater) resolveCall(ctx data.Context) (*CallStaticMetho
 	if !ok {
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("无法获取TokenFrom信息"))
 	}
-	pe.call = NewCallStaticMethod(tokenFrom, stmt, pe.method)
-	pe.resolved.MarkDone()
-	return pe.call, nil
+	// Never retain a request declaration in the shared AST.
+	return NewCallStaticMethod(tokenFrom, stmt, pe.method), nil
 }
 
 // GetValue 获取延迟静态方法调用的值
@@ -353,13 +370,16 @@ func (s *staticMethodFunc) Call(callCtx data.Context) (data.GetValue, data.Contr
 	if s.method.GetName() == "__callStatic" {
 		return s.callStatic(callCtx)
 	}
-	return s.method.Call(data.NewStaticMethodContext(callCtx, s.class, s.callClass))
+	frame := data.NewStaticMethodContext(callCtx, s.class, s.callClass)
+	defer frame.ReleaseBorrowedFrame()
+	return s.method.Call(frame)
 }
 
 // callStatic 走新建帧：__callStatic 需要把实参重排成 [$name, [$args]]。
 func (s *staticMethodFunc) callStatic(callCtx data.Context) (data.GetValue, data.Control) {
 	classValue := data.NewClassValue(s.class, callCtx)
 	fnCtx := classValue.CreateContext(s.method.GetVariables())
+	defer tryReleaseCallContext(s.method, fnCtx)
 	if cmc, ok := fnCtx.(*data.ClassMethodContext); ok {
 		if s.callClass != nil {
 			cmc.StaticClass = s.callClass
@@ -386,14 +406,15 @@ func (s *staticMethodFunc) callStatic(callCtx data.Context) (data.GetValue, data
 type instanceViaSelfFunc struct {
 	this   *data.ClassValue
 	method data.Method
+	self   data.ClassStmt
 }
 
 func (s *instanceViaSelfFunc) GetName() string               { return s.method.GetName() }
 func (s *instanceViaSelfFunc) GetParams() []data.GetValue    { return s.method.GetParams() }
 func (s *instanceViaSelfFunc) GetVariables() []data.Variable { return s.method.GetVariables() }
 func (s *instanceViaSelfFunc) Call(callCtx data.Context) (data.GetValue, data.Control) {
-	cv := s.this.CloneWithContext(callCtx)
-	cmc := &data.ClassMethodContext{ClassValue: cv}
+	cmc := data.WrapMethodFrame(callCtx, s.this, s.self, s.this.Class)
+	defer cmc.ReleaseBorrowedFrame()
 	return s.method.Call(cmc)
 }
 
@@ -415,6 +436,7 @@ func (s *callStaticFunc) GetVariables() []data.Variable {
 func (s *callStaticFunc) Call(callCtx data.Context) (data.GetValue, data.Control) {
 	classValue := data.NewClassValue(s.class, callCtx)
 	fnCtx := classValue.CreateContext(s.method.GetVariables())
+	defer tryReleaseCallContext(s.method, fnCtx)
 
 	// __callStatic($method, $args)：保留命名实参键，供 Facade 转发 $instance->$method(...$args)
 	vars := s.method.GetVariables()

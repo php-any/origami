@@ -67,18 +67,6 @@ func (f *IteratorToArrayFunction) Call(ctx data.Context) (data.GetValue, data.Co
 		return arrVal, nil
 	}
 
-	if objVal, ok := iterVal.(*data.ObjectValue); ok {
-		if useKeys {
-			return objVal, nil
-		}
-		values := make([]data.Value, 0)
-		objVal.RangeProperties(func(key string, value data.Value) bool {
-			values = append(values, value)
-			return true
-		})
-		return data.NewArrayValue(values), nil
-	}
-
 	got := "nil"
 	if iterVal != nil {
 		got = fmt.Sprintf("%T", iterVal)

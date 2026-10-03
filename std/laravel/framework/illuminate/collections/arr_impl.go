@@ -21,7 +21,7 @@ func isAccessible(v data.Value) bool {
 		return false
 	}
 	switch v.(type) {
-	case *data.ArrayValue, *data.ObjectValue:
+	case *data.ArrayValue:
 		return true
 	default:
 		return false
@@ -140,22 +140,6 @@ func dataSetSegments(target data.Value, segments []string, value data.Value, ove
 		}
 		_, ctl := dataSetSegments(inner, rest, value, overwrite)
 		return orig, ctl
-	}
-
-	if ov, ok := target.(*data.ObjectValue); ok && ov != nil {
-		if len(rest) == 0 {
-			if overwrite {
-				_ = ov.SetProperty(seg, value)
-			}
-			return ov, nil
-		}
-		inner, ctl := ov.GetProperty(seg)
-		if ctl != nil || inner == nil || isNull(inner) {
-			inner = data.NewArrayValue(nil)
-			_ = ov.SetProperty(seg, inner)
-		}
-		_, sctl := dataSetSegments(inner, rest, value, overwrite)
-		return ov, sctl
 	}
 
 	av, isArr := target.(*data.ArrayValue)
@@ -304,9 +288,7 @@ func arrWrap(ctx data.Context) (data.GetValue, data.Control) {
 	if av, ok := v.(*data.ArrayValue); ok {
 		return av, nil
 	}
-	if ov, ok := v.(*data.ObjectValue); ok && ov != nil {
-		return ov, nil
-	}
+
 	return data.NewArrayValue([]data.Value{v}), nil
 }
 
@@ -361,9 +343,7 @@ func arrFromValue(ctx data.Context, v data.Value, depth int) (data.Value, data.C
 	if _, ok := v.(*data.ArrayValue); ok {
 		return v, nil
 	}
-	if ov, ok := v.(*data.ObjectValue); ok && ov != nil {
-		return ov, nil
-	}
+
 	if tv, ok := v.(*data.ThisValue); ok && tv != nil && tv.ClassValue != nil {
 		v = tv.ClassValue
 	}
@@ -453,7 +433,7 @@ func unwrapValue(v data.Value) data.Value {
 			if t.ZVal == nil {
 				return v
 			}
-			v = t.ZVal.Value
+			v = t.ZVal.ReadValue()
 		case *data.ThisValue:
 			if t.ClassValue == nil {
 				return v
@@ -496,7 +476,7 @@ func foreachableArray(ctx data.Context, v data.Value) (data.Value, data.Control)
 		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("foreach() argument must be of type array|object, null given"), "TypeError")
 	}
 	switch v.(type) {
-	case *data.ArrayValue, *data.ObjectValue:
+	case *data.ArrayValue:
 		return v, nil
 	}
 	cv, ok := v.(*data.ClassValue)
@@ -620,7 +600,7 @@ func collapseLayer(ctx data.Context, v data.Value) ([]kv, bool, data.Control) {
 		return nil, false, nil
 	}
 	switch v.(type) {
-	case *data.ArrayValue, *data.ObjectValue:
+	case *data.ArrayValue:
 		return toEntries(v), true, nil
 	default:
 		return nil, false, nil
@@ -653,7 +633,7 @@ func arrFlatten(ctx data.Context) (data.GetValue, data.Control) {
 
 func isFlattenableArray(v data.Value) bool {
 	switch v.(type) {
-	case *data.ArrayValue, *data.ObjectValue:
+	case *data.ArrayValue:
 		return true
 	default:
 		return false
@@ -1073,16 +1053,10 @@ func toEntries(v data.Value) []kv {
 				key = data.NewIntValue(i)
 				keyStr = data.IntArrayKeyName(i)
 			}
-			entries = append(entries, kv{key: key, keyStr: keyStr, value: z.Value})
+			entries = append(entries, kv{key: key, keyStr: keyStr, value: z.ReadValue()})
 		}
 		return entries
-	case *data.ObjectValue:
-		entries := make([]kv, 0)
-		arr.RangeProperties(func(key string, value data.Value) bool {
-			entries = append(entries, kv{key: data.NewStringValue(key), keyStr: key, value: value})
-			return true
-		})
-		return entries
+
 	default:
 		return nil
 	}
@@ -1146,17 +1120,9 @@ func dataGetPath(target data.Value, path string) (data.Value, bool) {
 		switch t := cur.(type) {
 		case *data.ArrayValue:
 			if z, ok := t.LookupZValByStringKey(seg); ok && z != nil {
-				cur, found = z.Value, true
+				cur, found = z.ReadValue(), true
 			}
-		case *data.ObjectValue:
-			// GetProperty 对缺失键返回 NullValue，不能当成“键存在”，
-			// 否则 Arr::get($aliases, 'prefix', 'prefix') 会丢掉 default。
-			if t.HasProperty(seg) {
-				v, ctl := t.GetProperty(seg)
-				if ctl == nil {
-					cur, found = v, true
-				}
-			}
+
 		case *data.ClassValue:
 			v, ctl := t.GetProperty(seg)
 			if ctl == nil && v != nil && !isNull(v) {
@@ -1244,7 +1210,7 @@ func setEntry(arr *data.ArrayValue, key string, val data.Value) {
 		return
 	}
 	if z, ok := arr.LookupZValByStringKey(key); ok && z != nil {
-		z.Value = val
+		z.StoreRaw(val)
 		return
 	}
 	// PHP 的空字符串键 ''：Name 为空且 EmptyStrKey=true，与 packed 整数槽区分。

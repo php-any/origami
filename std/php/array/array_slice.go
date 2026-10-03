@@ -111,23 +111,23 @@ func (f *ArraySliceFunction) Call(ctx data.Context) (data.GetValue, data.Control
 			isStringKey := z.EmptyStrKey || name != "" && !isIntKey
 
 			if isStringKey {
-				result.SetStringKey(name, z.Value)
+				result.SetStringKey(name, z.ReadValue())
 				continue
 			}
 
 			if preserveKeys {
 				if name != "" {
-					result.SetStringKey(name, z.Value)
+					result.SetStringKey(name, z.ReadValue())
 				} else {
-					result.SetStringKey(data.IntArrayKeyName(i), z.Value)
+					result.SetStringKey(data.IntArrayKeyName(i), z.ReadValue())
 				}
 				continue
 			}
 
 			if nextInt == result.Len() {
-				result.AppendValue(z.Value)
+				result.AppendValue(z.ReadValue())
 			} else {
-				result.SetStringKey(data.IntArrayKeyName(nextInt), z.Value)
+				result.SetStringKey(data.IntArrayKeyName(nextInt), z.ReadValue())
 			}
 			nextInt++
 		}
@@ -135,64 +135,6 @@ func (f *ArraySliceFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	// 处理对象（关联数组）。PHP：字符串键始终保留；整数键默认从 0 重排。
-	if objectVal, ok := arrayValue.(*data.ObjectValue); ok {
-		keys := make([]string, 0)
-		values := make([]data.Value, 0)
-		objectVal.RangeProperties(func(k string, v data.Value) bool {
-			keys = append(keys, k)
-			values = append(values, v)
-			return true
-		})
-
-		arrLen := len(keys)
-		if offset < 0 {
-			offset = arrLen + offset
-			if offset < 0 {
-				offset = 0
-			}
-		}
-		if offset >= arrLen {
-			return data.NewArrayValue([]data.Value{}), nil
-		}
-
-		end := arrLen
-		if length == -999 {
-			end = arrLen
-		} else if length >= 0 {
-			end = offset + length
-			if end > arrLen {
-				end = arrLen
-			}
-		} else {
-			end = arrLen + length
-			if end < offset {
-				end = offset
-			}
-		}
-
-		result := data.NewArrayValueFromSlots(make([]*data.ZVal, 0, end-offset))
-		nextInt := 0
-		for i := offset; i < end; i++ {
-			name := keys[i]
-			val := values[i]
-			_, isIntKey := data.ParseIntArrayKeyName(name)
-			if !isIntKey {
-				result.SetStringKey(name, val)
-				continue
-			}
-			if preserveKeys {
-				result.SetStringKey(name, val)
-				continue
-			}
-			if nextInt == result.Len() {
-				result.AppendValue(val)
-			} else {
-				result.SetStringKey(data.IntArrayKeyName(nextInt), val)
-			}
-			nextInt++
-		}
-		return result, nil
-	}
 
 	return nil, throwMustBeArray("array_slice", arrayValue)
 }

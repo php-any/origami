@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/runtime"
 	"github.com/php-any/origami/utils"
 )
@@ -29,11 +30,10 @@ func callResponseMethod(cv *data.ClassValue, name string) (data.GetValue, data.C
 	if cv == nil {
 		return nil, nil
 	}
-	method, ok := cv.GetMethod(name)
-	if !ok {
+	if _, ok := cv.GetMethod(name); !ok {
 		return nil, nil
 	}
-	return method.Call(cv.CreateContext(method.GetVariables()))
+	return node.NewObjectMethod(nil, cv, name, nil).GetValue(cv.Context)
 }
 
 func binaryFilePath(cv *data.ClassValue) string {
@@ -93,7 +93,7 @@ func SendResponse(response data.GetValue) (*data.ClassValue, data.Control) {
 }
 
 // SendResponseTo 直接将 Response 的 Header 与 Body 写入指定 http.ResponseWriter。
-// leftover 对齐 Octane/Swoole：请求级 ob_start 残留的 echo，写在 getContent() 之前。
+// leftover 对齐 Octane/Swoole：请求级 ob_start 残留的 echo，写在响应内容之前。
 func SendResponseTo(w http.ResponseWriter, response data.GetValue, leftover string) (*data.ClassValue, data.Control) {
 	return SendResponseForRequest(w, nil, response, leftover)
 }
@@ -107,11 +107,12 @@ func SendResponseForRequest(w http.ResponseWriter, request *http.Request, respon
 
 	// 写入 headers
 	if headers := responseHeaders(value); headers != nil {
-		all := GetHeaderBagAll(headers)
+		allValue, ctl := callResponseMethod(headers, "all")
+		if ctl != nil {
+			return value, ctl
+		}
+		all := headersMapFromValue(asResponseValue(allValue))
 		for name, values := range all {
-			if strings.EqualFold(name, "set-cookie") {
-				continue
-			}
 			replace := strings.EqualFold(name, "Content-Type")
 			for _, v := range values {
 				if replace {
@@ -122,24 +123,15 @@ func SendResponseForRequest(w http.ResponseWriter, request *http.Request, respon
 				}
 			}
 		}
-		// cookies
-		if rh := ResponseHeaderBagFrom(headers); rh != nil {
-			rh.mu.RLock()
-			for _, byPath := range rh.cookies {
-				for _, byName := range byPath {
-					for _, cookie := range byName {
-						if cookie != nil {
-							w.Header().Add("Set-Cookie", cookie.String())
-						}
-					}
-				}
-			}
-			rh.mu.RUnlock()
-		}
 	}
 
 	// 设置 status code 并写入 content
 	statusCode := responseStatusCode(value)
+	if status, ctl := callResponseMethod(value, "getStatusCode"); ctl != nil {
+		return value, ctl
+	} else if integer, ok := status.(data.AsInt); ok {
+		statusCode, _ = integer.AsInt()
+	}
 	if statusCode == 0 {
 		statusCode = http.StatusOK
 	}
@@ -153,7 +145,9 @@ func SendResponseForRequest(w http.ResponseWriter, request *http.Request, respon
 		w.WriteHeader(statusCode)
 		return value, nil
 	}
-	if filePath := binaryFilePath(value); filePath != "" {
+	_, officialPHP := value.Class.(*node.ClassStatement)
+	phpFile := officialPHP && responseIsA(value, fqnBinaryFileResponse)
+	if filePath := binaryFilePath(value); filePath != "" && !phpFile {
 		fileContext := runtime.RequestContext()
 		if request != nil {
 			fileContext = request.Context()
@@ -188,15 +182,18 @@ func SendResponseForRequest(w http.ResponseWriter, request *http.Request, respon
 		}
 		return value, nil
 	}
-	if responseIsA(value, fqnStreamedResponse) {
-		w.Header().Del("Content-Length")
+	// PHP responses own their body semantics, including subclass sendContent overrides.
+	if officialPHP || responseIsA(value, fqnStreamedResponse) {
+		if !phpFile {
+			w.Header().Del("Content-Length")
+		}
 		w.WriteHeader(statusCode)
 		if _, err := io.WriteString(w, leftover); err != nil {
 			return value, data.NewErrorThrow(nil, err)
 		}
 		host, ok := value.GetVM().(data.OutputTargetHost)
 		if !ok {
-			return value, data.NewErrorThrow(nil, fmt.Errorf("httpfoundation: VM lacks a streaming output target"))
+			return value, data.NewErrorThrow(nil, fmt.Errorf("httpfoundation: VM lacks a response output target"))
 		}
 		restore := host.BindOutputTarget(func(s string) data.Control {
 			_, err := io.WriteString(w, s)
@@ -241,6 +238,13 @@ func SendResponseForRequest(w http.ResponseWriter, request *http.Request, respon
 	}
 
 	return value, nil
+}
+
+func asResponseValue(value data.GetValue) data.Value {
+	if actual, ok := value.(data.Value); ok {
+		return actual
+	}
+	return nil
 }
 
 func responseIsA(value *data.ClassValue, name string) bool {

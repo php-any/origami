@@ -227,6 +227,10 @@ func (vm *LspVM) AddFunc(f data.FuncStmt) data.Control {
 }
 
 // GetFunc 获取函数。
+func (vm *LspVM) GetFuncBySymbol(id data.SymbolID) (data.FuncStmt, bool) {
+	return vm.GetFunc(data.Symbols.Name(id))
+}
+
 func (vm *LspVM) GetFunc(funcName string) (data.FuncStmt, bool) {
 	vm.mu.RLock()
 	defer vm.mu.RUnlock()
@@ -499,10 +503,7 @@ func (vm *LspVM) GetConstant(name string) (data.Value, bool) {
 // EnsureGlobalZVal 获取或创建全局变量，LSP 模式下返回空实现
 func (vm *LspVM) EnsureGlobalZVal(name string) *data.ZVal {
 	// LSP 模式不实际执行代码，返回空的 ZVal
-	return &data.ZVal{
-		Name:  name,
-		Value: data.NewAnyValue(nil),
-	}
+	return data.NewNamedZVal(name, data.NewAnyValue(nil))
 }
 
 // AddNamespace 添加命名空间路径映射，LSP 仅为满足接口。

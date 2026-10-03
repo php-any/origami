@@ -35,13 +35,7 @@ func (a *ArraySpread) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, data.NewErrorThrow(nil, data.NewError(nil, "展开运算符不能用于 null（期望 array|Traversable）", nil))
 	case *data.ArrayValue:
 		return v, nil
-	case *data.ObjectValue:
-		array := data.NewArrayValue(nil).(*data.ArrayValue)
-		v.RangeProperties(func(key string, value data.Value) bool {
-			array.SetStringKey(key, value)
-			return true
-		})
-		return array, nil
+
 	case *data.ThisValue:
 		if v.ClassValue == nil {
 			return nil, data.NewErrorThrow(nil, data.NewError(nil, "展开运算符只能用于数组或 Traversable，收到: $this", nil))

@@ -5,90 +5,41 @@ import (
 	"github.com/php-any/origami/node"
 )
 
-func NewArrayDiffFunction() data.FuncStmt {
-	return &ArrayDiffFunction{}
-}
+func NewArrayDiffFunction() data.FuncStmt { return &ArrayDiffFunction{} }
 
 type ArrayDiffFunction struct{}
 
 func (fn *ArrayDiffFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	paramsVal, _ := ctx.GetIndexValue(0)
-	if paramsVal == nil {
-		return data.NewArrayValue([]data.Value{}), nil
+	params, _ := ctx.GetIndexValue(0)
+	arrays := paramsToValueList(params)
+	if len(arrays) == 0 {
+		return data.NewArrayValue(nil), nil
 	}
-
-	paramsArr, ok := paramsVal.(*data.ArrayValue)
-	if !ok {
-		return data.NewArrayValue([]data.Value{}), nil
-	}
-
-	arrays := make([][]data.Value, 0)
-	for arraySlots82, arrayPosition82 := paramsArr.View(), 0; arrayPosition82 < arraySlots82.Len(); arrayPosition82++ {
-		z := arraySlots82.At(arrayPosition82)
-		if z.Value == nil {
-			continue
-		}
-		switch v := z.Value.(type) {
-		case *data.ArrayValue:
-			arrays = append(arrays, v.ToValueList())
-		case *data.ObjectValue:
-			vals := make([]data.Value, 0)
-			v.RangeProperties(func(key string, value data.Value) bool {
-				vals = append(vals, value)
-				return true
-			})
-			arrays = append(arrays, vals)
+	excluded := make(map[string]struct{})
+	for _, array := range arrays[1:] {
+		for _, entry := range toKVEntries(array) {
+			excluded[entry.value.AsString()] = struct{}{}
 		}
 	}
-
-	if len(arrays) < 2 {
-		if len(arrays) == 1 {
-			return data.NewArrayValue(arrays[0]), nil
-		}
-		return data.NewArrayValue([]data.Value{}), nil
-	}
-
-	// 以第一个数组为基准，移除在其他数组中出现的值
-	first := arrays[0]
-	others := arrays[1:]
-	result := make([]data.Value, 0)
-	for _, item := range first {
-		found := false
-		for _, other := range others {
-			for _, o := range other {
-				if item.AsString() == o.AsString() {
-					found = true
-					break
-				}
-			}
-			if found {
-				break
-			}
-		}
-		if !found {
-			result = append(result, item)
+	var kept []kvEntry
+	for _, entry := range toKVEntries(arrays[0]) {
+		if _, found := excluded[entry.value.AsString()]; !found {
+			kept = append(kept, entry)
 		}
 	}
-
-	return data.NewArrayValue(result), nil
+	return buildResultFromEntries(kept, true), nil
 }
 
-func (fn *ArrayDiffFunction) GetName() string {
-	return "array_diff"
-}
+func (fn *ArrayDiffFunction) GetName() string { return "array_diff" }
 
 var arrayDiffFunctionGetParams = []data.GetValue{
 	node.NewParameters(nil, "arrays", 0, nil, nil),
 }
 
-func (fn *ArrayDiffFunction) GetParams() []data.GetValue {
-	return arrayDiffFunctionGetParams
-}
+func (fn *ArrayDiffFunction) GetParams() []data.GetValue { return arrayDiffFunctionGetParams }
 
 var arrayDiffFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "arrays", 0, data.NewBaseType("array")),
 }
 
-func (fn *ArrayDiffFunction) GetVariables() []data.Variable {
-	return arrayDiffFunctionGetVariables
-}
+func (fn *ArrayDiffFunction) GetVariables() []data.Variable { return arrayDiffFunctionGetVariables }

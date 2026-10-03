@@ -44,6 +44,8 @@ type Context interface {
 	HasVariableByName(name string) bool
 	// GetDefinedVariables 返回当前作用域中已定义的变量，用于 get_defined_vars。
 	GetDefinedVariables() map[string]Value
+	// RangeDefinedVariables visits the caller's symbol table in declaration order.
+	RangeDefinedVariables(func(string, Value) bool)
 
 	// ReturnSlot 返回本帧复用的 return 载体，避免每次 return 堆分配 Control。
 	ReturnSlot(v Value) ReturnControl
@@ -86,6 +88,8 @@ type VM interface {
 	GetOrLoadInterface(pkg string) (InterfaceStmt, Control)
 	AddFunc(f FuncStmt) Control
 	GetFunc(pkg string) (FuncStmt, bool)
+	// Resolves in the executing VM; cached ASTs retain IDs, never request functions.
+	GetFuncBySymbol(id SymbolID) (FuncStmt, bool)
 	RegisterFunction(name string, fn interface{}) Control
 	RegisterReflectClass(name string, instance interface{}) Control
 	CreateContext(vars []Variable) Context
@@ -257,7 +261,13 @@ func BindDeclaredArgs(callCtx Context, fn interface {
 	GetVariables() []Variable
 }, args []Value) Control {
 	if scoped, ok := fn.(ParameterTypeScope); ok {
-		callCtx = scoped.ParameterTypeContext(callCtx)
+		bound := scoped.ParameterTypeContext(callCtx)
+		if bound != callCtx {
+			if frame, ok := bound.(*ClassMethodContext); ok {
+				defer frame.ReleaseBorrowedFrame()
+			}
+		}
+		callCtx = bound
 	}
 	params := fn.GetParams()
 	for i, raw := range params {
@@ -369,7 +379,7 @@ func NewParameter(name string, index int) Parameter {
 }
 
 func NewParameterDefault(name string, index int, defaultValue GetValue, ty Types) Parameter {
-	return &ParameterTODO{Name: name, Index: index, DefaultValue: defaultValue, Type: ty}
+	return &ParameterTODO{Name: name, Index: index, DefaultValue: defaultValue, Type: DeclaredTypeRef(ty)}
 }
 
 // NewParameters 支持多个参数接收
@@ -381,7 +391,7 @@ func NewParameters(name string, index int) Parameter {
 type ParameterTODO struct {
 	Name         string // 变量名
 	Index        int    // 变量在作用域中的索引
-	Type         Types
+	Type         TypeRef
 	DefaultValue GetValue // 默认值
 }
 
@@ -420,14 +430,14 @@ func (p *ParameterTODO) GetIndex() int {
 }
 
 func (p *ParameterTODO) GetType() Types {
-	return p.Type
+	return DeclaredType(p.Type)
 }
 
 func (p *ParameterTODO) SetValue(ctx Context, value Value) Control {
-	if p.Type == nil {
+	if p.Type == TypeInvalid {
 		return ctx.SetVariableValue(p, value)
 	}
-	prepared, ok, conversion := PrepareTypedValueInContext(p.Type, value, ctx)
+	prepared, ok, conversion := PrepareDeclaredValueInContext(p.Type, value, ctx)
 
 	if conversion != nil {
 		return conversion
@@ -441,9 +451,11 @@ func (p *ParameterTODO) SetValue(ctx Context, value Value) Control {
 type ParametersTODO struct {
 	Name         string // 变量名
 	Index        int    // 变量在作用域中的索引
-	Type         Types
+	Type         TypeRef
 	DefaultValue GetValue // 默认值
 }
+
+func (*ParametersTODO) IsVariadicParameter() bool { return true }
 
 func (p *ParametersTODO) GetName() string {
 	return p.Name
@@ -456,7 +468,7 @@ func (p *ParametersTODO) GetValue(ctx Context) (GetValue, Control) {
 	}
 
 	if _, ok := v.(*ArrayValue); !ok {
-		nv := NewArrayValue([]Value{v})
+		nv := NewArrayValue(nil)
 		ctx.SetVariableValue(p, nv)
 		return nv, nil
 	}
@@ -473,22 +485,27 @@ func (p *ParametersTODO) GetIndex() int {
 }
 
 func (p *ParametersTODO) GetType() Types {
-	return p.Type
+	return DeclaredType(p.Type)
 }
 
 func (p *ParametersTODO) SetValue(ctx Context, value Value) Control {
-	if p.Type == nil {
-		return ctx.SetVariableValue(p, value)
-	}
-	prepared, ok, conversion := PrepareTypedValueInContext(p.Type, value, ctx)
-
-	if conversion != nil {
-		return conversion
-	}
+	array, ok := value.(*ArrayValue)
 	if !ok {
-		return NewTypeError(nil, errors.New("参数 $"+p.Name+" 类型和赋值类型不一致, 变量类型("+p.Type.String()+"), 赋值("+value.AsString()+")"))
+		return NewTypeError(nil, errors.New("variadic binding requires an array"))
 	}
-	return ctx.SetVariableValue(p, prepared)
+	if p.Type != TypeInvalid {
+		for _, slot := range array.Range() {
+			prepared, ok, conversion := PrepareDeclaredValueInContext(p.Type, slot.ReadValue(), ctx)
+			if conversion != nil {
+				return conversion
+			}
+			if !ok {
+				return NewTypeError(nil, fmt.Errorf("variadic parameter $%s must be %s", p.Name, p.Type.String()))
+			}
+			slot.StoreRaw(prepared)
+		}
+	}
+	return ctx.SetVariableValue(p, array)
 }
 
 func (p *ParametersTODO) GetVariables() []Variable {

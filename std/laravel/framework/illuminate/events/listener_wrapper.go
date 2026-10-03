@@ -17,6 +17,20 @@ type listenerWrapper struct {
 	vars     []data.Variable
 }
 
+func (w *listenerWrapper) RequestScopeObjects() []*data.ClassValue {
+	return []*data.ClassValue{w.owner}
+}
+func (w *listenerWrapper) BindRequestScope(ctx data.Context, objects map[*data.ObjectValue]*data.ClassValue) data.FuncStmt {
+	copy := *w
+	if owner := objects[w.owner.ObjectValue]; owner != nil {
+		copy.owner = owner
+	}
+	if provider, ok := ctx.GetVM().(data.RequestScopeProvider); ok {
+		copy.listener = provider.RequestObjectScope().Bind(w.listener)
+	}
+	return &copy
+}
+
 func makeListenerWrapper(owner *data.ClassValue, listener data.Value, wildcard bool) *data.FuncValue {
 	w := &listenerWrapper{
 		owner:    owner,

@@ -35,17 +35,9 @@ func (f *ArrayReverseFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	case *data.ArrayValue:
 		for position := array.Len() - 1; position >= 0; position-- {
 			slot := array.At(position)
-			appendEntry(slot.PHPArrayKey(position), slot.Value)
+			appendEntry(slot.PHPArrayKey(position), slot.ReadValue())
 		}
-	case *data.ObjectValue:
-		entries := toKVEntries(array)
-		for position := len(entries) - 1; position >= 0; position-- {
-			key := entries[position].key
-			if integer, ok := data.ParseIntArrayKeyName(key.AsString()); ok {
-				key = data.NewIntValue(integer)
-			}
-			appendEntry(key, entries[position].value)
-		}
+
 	}
 	return result, nil
 }

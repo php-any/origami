@@ -70,40 +70,6 @@ func (f *ArrayRandFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 		}
 		return data.NewArrayValue(selected), nil
 
-	case *data.ObjectValue:
-		props := v.GetProperties()
-		length := len(props)
-		if length == 0 {
-			return data.NewNullValue(), nil
-		}
-
-		keys := make([]data.Value, 0, length)
-		for k := range props {
-			keys = append(keys, data.NewStringValue(k))
-		}
-
-		if numReq >= length {
-			for i := len(keys) - 1; i > 0; i-- {
-				j := rand.Intn(i + 1)
-				keys[i], keys[j] = keys[j], keys[i]
-			}
-			return data.NewArrayValue(keys), nil
-		}
-
-		if numReq == 1 {
-			return keys[rand.Intn(len(keys))], nil
-		}
-
-		selected := make([]data.Value, 0, numReq)
-		used := make(map[int]bool)
-		for len(selected) < numReq {
-			idx := rand.Intn(length)
-			if !used[idx] {
-				used[idx] = true
-				selected = append(selected, keys[idx])
-			}
-		}
-		return data.NewArrayValue(selected), nil
 	}
 
 	return data.NewNullValue(), nil

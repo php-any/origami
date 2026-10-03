@@ -40,7 +40,11 @@ func (pp *ParentParser) Parse() (data.GetValue, data.Control) {
 				return nil, acl
 			}
 
-			expr := node.NewCallParentMethod(tokenFrom, pp.Parser.currentClass, methodName, args)
+			className := pp.currentClass
+			if pp.currentClassParent == nil {
+				className = ""
+			}
+			expr := node.NewCallParentMethod(tokenFrom, className, methodName, args)
 			return vp.parseSuffix(expr)
 		} else {
 			// 创建静态属性访问表达式

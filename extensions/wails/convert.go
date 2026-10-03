@@ -29,7 +29,7 @@ func optionsFromConstructor(ctx data.Context) (data.Value, bool) {
 
 func isOptionsContainer(v data.Value) bool {
 	switch v.(type) {
-	case *data.ArrayValue, *data.ObjectValue:
+	case *data.ArrayValue:
 		return v != nil
 	default:
 		return false
@@ -41,13 +41,7 @@ func optionGet(opts data.Value, key string) (data.Value, bool) {
 	switch o := opts.(type) {
 	case *data.ArrayValue:
 		return arrayGet(o, key)
-	case *data.ObjectValue:
-		val, ctl := o.GetProperty(key)
-		if ctl == nil && val != nil {
-			if _, isNull := val.(*data.NullValue); !isNull {
-				return val, true
-			}
-		}
+
 	}
 	return nil, false
 }
@@ -98,14 +92,10 @@ func modifierPrefixFromValue(v data.Value) string {
 		for arraySlots9, arrayPosition9 := o.View(), 0; arrayPosition9 < arraySlots9.Len(); arrayPosition9++ {
 			z := arraySlots9.At(arrayPosition9)
 			if z != nil {
-				collect(z.Value)
+				collect(z.ReadValue())
 			}
 		}
-	case *data.ObjectValue:
-		o.RangeProperties(func(_ string, val data.Value) bool {
-			collect(val)
-			return true
-		})
+
 	default:
 		collect(v)
 	}
@@ -130,7 +120,7 @@ func arrayGet(av *data.ArrayValue, key string) (data.Value, bool) {
 	for arraySlots10, arrayPosition10 := av.View(), 0; arrayPosition10 < arraySlots10.Len(); arrayPosition10++ {
 		z := arraySlots10.At(arrayPosition10)
 		if z != nil && z.Name == key {
-			return z.Value, true
+			return z.ReadValue(), true
 		}
 	}
 	return nil, false

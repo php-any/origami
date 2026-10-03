@@ -10,11 +10,23 @@ import (
 // ReflectionAttribute 用于获取属性（attributes/annotations）的信息
 type ReflectionAttributeClass struct {
 	node.Node
+	declaration *node.Annotation
+	target      int
+	repeated    bool
 }
 
 // GetValue 创建 ReflectionAttribute 的实例
 func (c *ReflectionAttributeClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
+}
+
+func reflectionAttributeDeclaration(ctx data.Context) *node.Annotation {
+	if object, ok := ctx.(*data.ClassMethodContext); ok {
+		if class, ok := object.Class.(*ReflectionAttributeClass); ok {
+			return class.declaration
+		}
+	}
+	return nil
 }
 
 // GetName 返回类名 "ReflectionAttribute"
@@ -57,6 +69,8 @@ func (c *ReflectionAttributeClass) GetMethod(name string) (data.Method, bool) {
 		return &ReflectionAttributeGetArgumentsMethod{}, true
 	case "newInstance":
 		return &ReflectionAttributeNewInstanceMethod{}, true
+	case "getTarget", "isRepeated":
+		return &ReflectionAttributeMetadataMethod{name: name}, true
 	}
 	return nil, false
 }
@@ -68,6 +82,8 @@ func (c *ReflectionAttributeClass) GetMethods() []data.Method {
 		&ReflectionAttributeGetNameMethod{},
 		&ReflectionAttributeGetArgumentsMethod{},
 		&ReflectionAttributeNewInstanceMethod{},
+		&ReflectionAttributeMetadataMethod{name: "getTarget"},
+		&ReflectionAttributeMetadataMethod{name: "isRepeated"},
 	}
 }
 
@@ -81,8 +97,8 @@ func getReflectionAttributeInfo(ctx data.Context) data.GetValue {
 	if objCtx, ok := ctx.(*data.ClassMethodContext); ok {
 		// 从 ObjectValue 的 property 中获取注解对象
 		if objCtx.ObjectValue != nil {
-			props := objCtx.ObjectValue.GetProperties()
-			annotationVal, hasAnnotation := props["_annotation"]
+			props := objCtx.ObjectValue
+			annotationVal, hasAnnotation := props.LookupProperty("_annotation")
 			if hasAnnotation {
 				return annotationVal
 			}

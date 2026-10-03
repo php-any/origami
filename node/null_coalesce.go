@@ -22,18 +22,29 @@ func NewNullCoalesceExpression(from *TokenFrom, left, right data.GetValue) *Null
 
 // GetValue 获取空合并运算符表达式的值
 func (n *NullCoalesceExpression) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	// PHP：$a[$k] ?? $b 在键不存在时不触发 Undefined array key Warning
-	if ie, ok := n.Left.(*IndexExpression); ok {
-		if exists, handled := indexExpressionKeyExists(ctx, ie); handled {
-			if !exists {
-				return n.Right.GetValue(ctx)
+	if index, ok := n.Left.(*IndexExpression); ok {
+		value, exists, ctl := ReadDimensionQuiet(ctx, index, true, true)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if exists && value != nil {
+			if _, null := value.(*data.NullValue); !null {
+				return value, nil
 			}
 		}
+		return n.Right.GetValue(ctx)
 	}
 
 	// PHP：$obj->prop ?? $b 使用 isset 语义（__isset 或属性存在性检查），
 	// 属性不存在时不调用 __get，因此不会触发 Undefined array key Warning
-	if cop, ok := n.Left.(*CallObjectProperty); ok {
+	left := n.Left
+	if cop, ok := left.(*CallObjectProperty); ok {
+		frozen, ctl := freezeLvalue(ctx, cop)
+		if ctl != nil {
+			return nil, ctl
+		}
+		cop = frozen.(*CallObjectProperty)
+		left = cop
 		if exists, handled := coalesceObjectPropertyExists(ctx, cop); handled {
 			if !exists {
 				return n.Right.GetValue(ctx)
@@ -43,7 +54,7 @@ func (n *NullCoalesceExpression) GetValue(ctx data.Context) (data.GetValue, data
 	}
 
 	// 计算左操作数的值
-	leftValue, ctl := n.Left.GetValue(ctx)
+	leftValue, ctl := left.GetValue(ctx)
 	if ctl != nil {
 		if acl, ok := ctl.(data.GetName); ok && "UndefinedIndexExpression" == acl.GetName() {
 			return n.Right.GetValue(ctx)
@@ -80,53 +91,35 @@ func coalesceObjectPropertyExists(ctx data.Context, pe *CallObjectProperty) (exi
 	if ctl != nil {
 		return false, true
 	}
-	switch o.(type) {
-	case *data.ThisValue, *data.ClassValue:
-		var objectVal *data.ObjectValue
-		var getStmt interface {
-			GetPropertyStmt(string) (data.Property, bool)
-			GetMethod(string) (data.Method, bool)
-		}
-		switch obj := o.(type) {
-		case *data.ThisValue:
-			objectVal = obj.ObjectValue
-			getStmt = obj
-		case *data.ClassValue:
-			objectVal = obj.ObjectValue
-			getStmt = obj
-		}
-		if objectVal == nil {
-			return false, true
-		}
-		// 1. 声明的属性（含父类）
-		if prop, ok := getStmt.GetPropertyStmt(pe.Property); ok {
-			if prop.GetIsStatic() {
-				return true, true
-			}
-			if val, ctl := objectVal.GetProperty(pe.Property); ctl == nil && val != nil {
-				if _, isNull := val.(*data.NullValue); !isNull {
-					return true, true
-				}
-			}
-			return false, true
-		}
-		// 2. 实例动态属性
-		if objectVal.HasProperty(pe.Property) {
-			if val, _ := objectVal.GetProperty(pe.Property); val != nil {
-				if _, isNull := val.(*data.NullValue); !isNull {
-					return true, true
-				}
-			}
-			return false, true
-		}
-		// 3. __isset 魔术方法
-		if magic, has := getStmt.GetMethod("__isset"); has {
-			isSet, acl := pe.invokeMagicIsset(o.(data.Context), magic, pe.Property)
-			if acl == nil {
-				return isSet, true
-			}
-		}
+	var object *data.ClassValue
+	switch owner := o.(type) {
+	case *data.ClassValue:
+		object = owner
+	case *data.ThisValue:
+		object = owner.ClassValue
+	default:
+		return false, false
+	}
+	if object == nil || object.ObjectValue == nil {
 		return false, true
 	}
-	return false, false
+	property, declared := lookupObjectProperty(ctx, object, pe.Property)
+	if declared && propertyAccessible(ctx, object, property, pe.Property) {
+		value, ctl := object.ObjectValue.GetProperty(data.PropertyStorageName(property))
+		if ctl != nil || value == nil {
+			return false, true
+		}
+		_, isNull := value.(*data.NullValue)
+		return !isNull, true
+	}
+	if !declared && object.ObjectValue.HasProperty(pe.Property) {
+		value, _ := object.ObjectValue.GetProperty(pe.Property)
+		_, isNull := value.(*data.NullValue)
+		return value != nil && !isNull, true
+	}
+	if magic, found := object.GetMethod("__isset"); found {
+		isSet, ctl := pe.invokeMagicIsset(ctx, object, magic, pe.Property)
+		return ctl == nil && isSet, true
+	}
+	return false, true
 }

@@ -210,7 +210,7 @@ func encodePacked(buf []byte, p fieldPlan) ([]byte, error) {
 		if z == nil {
 			continue
 		}
-		n, err := toUint64(z.Value)
+		n, err := toUint64(z.ReadValue())
 		if err != nil {
 			return nil, fmt.Errorf("packed element: %w", err)
 		}

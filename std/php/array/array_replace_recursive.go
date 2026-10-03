@@ -36,82 +36,44 @@ func (f *ArrayReplaceRecursiveFunction) Call(ctx data.Context) (data.GetValue, d
 }
 
 func recursiveReplaceByKeys(base, replacement data.Value) data.Value {
-	baseObj, baseIsObj := base.(*data.ObjectValue)
-	replObj, replIsObj := replacement.(*data.ObjectValue)
-
-	if baseIsObj && replIsObj {
-		result := data.NewObjectValue()
-		baseObj.RangeProperties(func(key string, val data.Value) bool {
-			result.SetProperty(key, val)
-			return true
-		})
-		replObj.RangeProperties(func(key string, val data.Value) bool {
-			baseVal, _ := baseObj.GetProperty(key)
-			if baseVal != nil {
-				if _, isNull := baseVal.(*data.NullValue); !isNull {
-					if bothArraysOrObjects(baseVal, val) {
-						result.SetProperty(key, recursiveReplaceByKeys(baseVal, val))
-						return true
-					}
-				}
-			}
-			result.SetProperty(key, val)
-			return true
-		})
-		return result
+	a, ok := base.(*data.ArrayValue)
+	if !ok {
+		return replacement
 	}
-
-	baseArr, baseIsArr := base.(*data.ArrayValue)
-	replArr, replIsArr := replacement.(*data.ArrayValue)
-	if baseIsArr && replIsArr {
-		out := data.CloneArrayValue(baseArr)
-		for arraySlots102, i := replArr.View(), 0; i < arraySlots102.Len(); i++ {
-			z := arraySlots102.At(i)
-			if z == nil {
-				continue
-			}
-			key := z.Name
-			if key == "" {
-				key = data.IntArrayKeyName(i)
-			}
-			if existing, ok := out.LookupZValByStringKey(key); ok && existing != nil && bothArraysOrObjects(existing.Value, z.Value) {
-				existing.Value = recursiveReplaceByKeys(existing.Value, z.Value)
-				continue
-			}
-			setArrayNamedValue(out, key, z.Value)
+	b, ok := replacement.(*data.ArrayValue)
+	if !ok {
+		return replacement
+	}
+	out := data.CloneArrayValue(a)
+	for slots, i := b.View(), 0; i < slots.Len(); i++ {
+		slot := slots.At(i)
+		key := slot.PHPArrayKey(i)
+		if existing, ok := out.LookupZValByStringKey(key.AsString()); ok && bothArraysOrObjects(existing.ReadValue(), slot.ReadValue()) {
+			out.SetKey(key, recursiveReplaceByKeys(existing.ReadValue(), slot.ReadValue()))
+		} else if slot.RefCount() > 0 {
+			out.BindReference(key, slot)
+		} else {
+			out.SetKey(key, slot.ReadValue())
 		}
-		return out
 	}
-
-	return replacement
+	return out
 }
 
 func bothArraysOrObjects(a, b data.Value) bool {
-	_, aArr := a.(*data.ArrayValue)
-	_, bArr := b.(*data.ArrayValue)
-	if aArr && bArr {
-		return true
-	}
-	_, aObj := a.(*data.ObjectValue)
-	_, bObj := b.(*data.ObjectValue)
-	return aObj && bObj
+	_, left := a.(*data.ArrayValue)
+	_, right := b.(*data.ArrayValue)
+	return left && right
 }
 
 func deepCopyPreserveKeys(v data.Value) data.Value {
 	switch val := v.(type) {
-	case *data.ObjectValue:
-		result := data.NewObjectValue()
-		val.RangeProperties(func(key string, prop data.Value) bool {
-			result.SetProperty(key, deepCopyPreserveKeys(prop))
-			return true
-		})
-		return result
+
 	case *data.ArrayValue:
 		cloned := data.CloneArrayValue(val)
 		for arraySlots103, arrayPosition103 := cloned.View(), 0; arrayPosition103 < arraySlots103.Len(); arrayPosition103++ {
 			z := arraySlots103.At(arrayPosition103)
 			if z != nil {
-				z.Value = deepCopyPreserveKeys(z.Value)
+				z.StoreRaw(deepCopyPreserveKeys(z.ReadValue()))
 			}
 		}
 		return cloned

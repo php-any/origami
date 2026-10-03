@@ -20,30 +20,10 @@ func (f *ArrayPopFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 
 	if arr, ok := arrayValue.(*data.ArrayValue); ok {
 		slot := arr.PopSlot()
-		if slot == nil || slot.Value == nil {
+		if slot == nil || slot.ReadValue() == nil {
 			return data.NewNullValue(), nil
 		}
-		return slot.Value, nil
-	}
-
-	if obj, ok := arrayValue.(*data.ObjectValue); ok {
-		var lastKey string
-		var lastVal data.Value
-		found := false
-		obj.RangeProperties(func(key string, value data.Value) bool {
-			lastKey = key
-			lastVal = value
-			found = true
-			return true
-		})
-		if !found {
-			return data.NewNullValue(), nil
-		}
-		obj.UnsetProperty(lastKey)
-		if lastVal == nil {
-			return data.NewNullValue(), nil
-		}
-		return lastVal, nil
+		return slot.ReadValue(), nil
 	}
 
 	return data.NewNullValue(), nil

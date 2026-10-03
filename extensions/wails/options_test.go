@@ -13,7 +13,7 @@ import (
 	"github.com/php-any/origami/std/php"
 )
 
-func TestOptionsAppStoresHTMLFromObjectValue(t *testing.T) {
+func TestOptionsAppStoresHTMLFromStringKeyArray(t *testing.T) {
 	vm := runtime.NewVM(parser.NewParser())
 	php.Load(vm)
 	Load(vm)
@@ -35,9 +35,9 @@ func TestOptionsAppStoresHTMLFromObjectValue(t *testing.T) {
 	appCV.SetVM(vm)
 
 	htmlStr := "<title>UNIQUE_MARKER_OBJECT</title>"
-	opts := data.NewObjectValue()
-	opts.SetProperty("HTML", data.NewStringValue(htmlStr))
-	opts.SetProperty("Title", data.NewStringValue("Probe"))
+	opts := data.NewArrayValueFromSlots(nil)
+	opts.SetStringKey("HTML", data.NewStringValue(htmlStr))
+	opts.SetStringKey("Title", data.NewStringValue("Probe"))
 
 	construct := classStmt.GetConstruct()
 	methodCtx := appCV.CreateContext(construct.GetVariables())

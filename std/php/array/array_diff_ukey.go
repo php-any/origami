@@ -1,7 +1,7 @@
 package array
 
 import (
-	"strings"
+	"fmt"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -15,122 +15,49 @@ func NewArrayDiffUkeyFunction() data.FuncStmt {
 }
 
 func (f *ArrayDiffUkeyFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	arrValue, _ := ctx.GetIndexValue(0)
-	if arrValue == nil {
-		return data.NewArrayValue([]data.Value{}), nil
+	raw, _ := ctx.GetIndexValue(0)
+	params := paramsToValueList(raw)
+	if len(params) < 3 {
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("array_diff_ukey expects at least 3 arguments"), "ArgumentCountError")
 	}
-
-	// 收集第一个数组的键
-	var baseKeys map[string]bool
-	switch v := arrValue.(type) {
-	case *data.ObjectValue:
-		baseKeys = make(map[string]bool)
-		v.RangeProperties(func(key string, _ data.Value) bool {
-			baseKeys[key] = true
-			return true
-		})
-	case *data.ArrayValue:
-		baseKeys = make(map[string]bool)
-		for arraySlots85, i := v.View(), 0; i < arraySlots85.Len(); i++ {
-			z := arraySlots85.At(i)
-			_ = i
-			baseKeys[z.Value.AsString()] = true
+	callback, ctl := node.ResolveCallback(ctx, params[len(params)-1])
+	if ctl != nil {
+		return nil, ctl
+	}
+	arrays := params[:len(params)-1]
+	for _, value := range arrays {
+		if _, ok := value.(*data.ArrayValue); !ok {
+			return nil, throwMustBeArray("array_diff_ukey", value)
 		}
-	default:
-		return data.NewArrayValue([]data.Value{}), nil
 	}
-
-	// 获取回调函数
-	callbackVal, _ := ctx.GetIndexValue(1)
-	if callbackVal == nil {
-		return arrValue, nil
-	}
-
-	// 收集后续数组的键（用于排除）
-	// 取所有后续数组的键的并集
-	allOtherKeys := make(map[string]bool)
-	for j := 2; ; j++ {
-		otherVal, ok := ctx.GetIndexValue(j)
-		if !ok || otherVal == nil {
-			break
+	var keys []data.Value
+	for _, other := range arrays[1:] {
+		for _, entry := range toKVEntries(other) {
+			keys = append(keys, entry.key)
 		}
-		switch v := otherVal.(type) {
-		case *data.ObjectValue:
-			v.RangeProperties(func(key string, _ data.Value) bool {
-				allOtherKeys[key] = true
-				return true
-			})
-		case *data.ArrayValue:
-			for arraySlots86, arrayPosition86 := v.View(), 0; arrayPosition86 < arraySlots86.Len(); arrayPosition86++ {
-				z := arraySlots86.At(arrayPosition86)
-				allOtherKeys[z.Value.AsString()] = true
+	}
+	var kept []kvEntry
+	for _, entry := range toKVEntries(arrays[0]) {
+		found := false
+		for _, key := range keys {
+			result, ctl := invokeCallback(ctx, callback, []data.Value{entry.key, key})
+			if ctl != nil {
+				return nil, ctl
 			}
-		}
-	}
-
-	// 使用回调函数比较键
-	result := data.NewObjectValue()
-	switch v := arrValue.(type) {
-	case *data.ObjectValue:
-		v.RangeProperties(func(key string, val data.Value) bool {
-			found := false
-			for otherKey := range allOtherKeys {
-				// 调用回调: callback(key, otherKey)
-				if callCmp(callbackVal, ctx, key, otherKey) == 0 {
+			numeric, ok := result.(data.AsInt)
+			if ok {
+				n, err := numeric.AsInt()
+				if err == nil && n == 0 {
 					found = true
 					break
 				}
 			}
-			if !found {
-				result.SetProperty(key, val)
-			}
-			return true
-		})
-	case *data.ArrayValue:
-		for arraySlots87,
-			// For indexed arrays, convert to ObjectValue result
-			arrayPosition87 := v.View(), 0; arrayPosition87 < arraySlots87.Len(); arrayPosition87++ {
-			z := arraySlots87.At(arrayPosition87)
-			key := z.Value.AsString()
-			found := false
-			for otherKey := range allOtherKeys {
-				if callCmp(callbackVal, ctx, key, otherKey) == 0 {
-					found = true
-					break
-				}
-			}
-			if !found {
-				result.SetProperty(key, z.Value)
-			}
+		}
+		if !found {
+			kept = append(kept, entry)
 		}
 	}
-
-	return result, nil
-}
-
-func callCmp(callbackVal data.Value, ctx data.Context, a, b string) int {
-	if fv, ok := callbackVal.(*data.FuncValue); ok {
-		// 创建调用上下文
-		fnCtx := ctx.CreateContext(fv.Value.GetVariables())
-		params := fv.Value.GetParams()
-		if len(params) >= 2 {
-			if v, ok := params[0].(data.Variable); ok {
-				v.SetValue(fnCtx, data.NewStringValue(strings.ToLower(a)))
-			}
-			if v, ok := params[1].(data.Variable); ok {
-				v.SetValue(fnCtx, data.NewStringValue(strings.ToLower(b)))
-			}
-		}
-		ret, ctl := fv.Value.Call(fnCtx)
-		if ctl != nil {
-			return 1
-		}
-		if iv, ok := ret.(data.AsInt); ok {
-			i, _ := iv.AsInt()
-			return i
-		}
-	}
-	return strings.Compare(a, b)
+	return buildResultFromEntries(kept, true), nil
 }
 
 func (f *ArrayDiffUkeyFunction) GetName() string {

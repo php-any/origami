@@ -40,14 +40,12 @@ func (m *ClientChatMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 	}
 
 	// 参数 3: options (可选关联数组)
-	var opts map[string]any
-	if v, ok := ctx.GetIndexValue(2); ok {
-		if obj, ok := v.(*data.ObjectValue); ok {
-			opts = objectToMap(obj)
-		}
+	opts, ctl := clientOptions(ctx, 2)
+	if ctl != nil {
+		return nil, ctl
 	}
 
-	result, err := m.source.chat(model.AsString(), messages, opts)
+	result, err := m.source.chat(ctx.GoContext(), model.AsString(), messages, opts)
 	if err != nil {
 		return nil, utils.NewThrow(err)
 	}
@@ -142,21 +140,22 @@ func extractMessage(item data.Value) (role, content, toolCallID string, ctl data
 		return
 	}
 
-	// 回退: 作为 ObjectValue 处理（["role" => "user", "content" => "Hi"] 格式）
-	obj, ok := item.(*data.ObjectValue)
+	// Associative messages are PHP arrays, with keys separate from values.
+	obj, ok := item.(*data.ArrayValue)
 	if !ok {
 		return "", "", "", utils.NewThrow(errors.New("each message must be a message object or an associative array with 'role' and 'content'"))
 	}
 
-	roleVal, _ := obj.GetProperty("role")
-	contentVal, _ := obj.GetProperty("content")
-	if roleVal == nil || contentVal == nil {
+	roleSlot, _ := obj.LookupZValByStringKey("role")
+	contentSlot, _ := obj.LookupZValByStringKey("content")
+	if roleSlot == nil || contentSlot == nil {
 		return "", "", "", utils.NewThrow(errors.New("each message must have 'role' and 'content' fields"))
 	}
-	role = roleVal.AsString()
-	content = contentVal.AsString()
+	role = roleSlot.ReadValue().AsString()
+	content = contentSlot.ReadValue().AsString()
 
-	if idVal, _ := obj.GetProperty("tool_call_id"); idVal != nil {
+	if idSlot, _ := obj.LookupZValByStringKey("tool_call_id"); idSlot != nil {
+		idVal := idSlot.ReadValue()
 		if _, isNull := idVal.(*data.NullValue); !isNull {
 			toolCallID = idVal.AsString()
 		}
@@ -208,8 +207,7 @@ func valueToAny(val data.Value) any {
 		return b
 	case *data.NullValue:
 		return nil
-	case *data.ObjectValue:
-		return objectToMap(v)
+
 	case *data.ArrayValue:
 		items := make([]any, 0)
 		for _, item := range v.ToValueList() {

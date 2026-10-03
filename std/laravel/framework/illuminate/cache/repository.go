@@ -119,8 +119,8 @@ func cacheGet(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	key := cacheKey(kit.Arg(ctx, 0))
 	mem := cacheMemory(cv)
-	if z, ok := mem.LookupZValByStringKey(key); ok && z != nil && z.Value != nil {
-		return z.Value, nil
+	if z, ok := mem.LookupZValByStringKey(key); ok && z != nil && z.ReadValue() != nil {
+		return z.ReadValue(), nil
 	}
 	def := kit.Arg(ctx, 1)
 	if fv, ok := kit.Unwrap(def).(*data.FuncValue); ok && fv != nil {
@@ -145,7 +145,7 @@ func cacheHas(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	key := cacheKey(kit.Arg(ctx, 0))
 	mem := cacheMemory(cv)
-	if z, ok := mem.LookupZValByStringKey(key); ok && z != nil && z.Value != nil {
+	if z, ok := mem.LookupZValByStringKey(key); ok && z != nil && z.ReadValue() != nil {
 		return data.NewBoolValue(true), nil
 	}
 	return data.NewBoolValue(false), nil

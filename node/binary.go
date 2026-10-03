@@ -84,17 +84,7 @@ func NewBinaryExpression(from data.From, left data.GetValue, operator lexer.Toke
 		// a >>= b 等价于 a = a >> b
 		return NewBinaryAssign(from, left, NewBinaryShr(from, left, right))
 	case token.NULL_COALESCE_ASSIGN:
-		// a ??= b 等价于 a = a ?? b（仅在 a 为 null 时赋值）
-		// 需要将 from 转换为 *TokenFrom
-		var tokenFrom *TokenFrom
-		if tf, ok := from.(*TokenFrom); ok {
-			tokenFrom = tf
-		} else {
-			// 如果无法转换，创建一个简单的 TokenFrom
-			// 使用 NewTokenFrom 创建，传入基本参数
-			tokenFrom = NewTokenFrom(nil, 0, 0, 0, 0)
-		}
-		return NewBinaryAssign(from, left, NewNullCoalesceExpression(tokenFrom, left, right))
+		return &NullCoalesceAssign{Node: NewNode(from), Left: left, Right: right}
 	case token.BIT_OR_EQ:
 		return NewBinaryAssign(from, left, NewBinaryBitOr(from, left, right))
 	case token.BIT_XOR_EQ:

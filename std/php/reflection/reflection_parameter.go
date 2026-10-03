@@ -163,26 +163,26 @@ func reflectionParameterStoredName(ctx data.Context) string {
 	if !ok || objCtx.ObjectValue == nil {
 		return ""
 	}
-	props := objCtx.ObjectValue.GetProperties()
-	if name := phpValueAsString(props["_paramName"]); name != "" {
+	props := objCtx.ObjectValue
+	if name := phpValueAsString(reflectionProperty(props, "_paramName")); name != "" {
 		return name
 	}
-	return phpValueAsString(props["name"])
+	return phpValueAsString(reflectionProperty(props, "name"))
 }
 
-func virtualParamFromProps(props map[string]data.Value, paramIndex int) *virtualParam {
-	name := phpValueAsString(props["_paramName"])
+func virtualParamFromProps(props *data.PropertyBag, paramIndex int) *virtualParam {
+	name := phpValueAsString(reflectionProperty(props, "_paramName"))
 	if name == "" {
-		name = phpValueAsString(props["name"])
+		name = phpValueAsString(reflectionProperty(props, "name"))
 	}
 	isVar := false
-	if vv, ok := props["_isVariadic"]; ok {
+	if vv, ok := props.LookupProperty("_isVariadic"); ok {
 		if bv, ok := vv.(*data.BoolValue); ok {
 			isVar = bv.Value
 		}
 	}
 	hasDef := false
-	if dv, ok := props["_hasDefault"]; ok {
+	if dv, ok := props.LookupProperty("_hasDefault"); ok {
 		if bv, ok := dv.(*data.BoolValue); ok {
 			hasDef = bv.Value
 		}
@@ -190,7 +190,7 @@ func virtualParamFromProps(props map[string]data.Value, paramIndex int) *virtual
 	return &virtualParam{
 		name:       name,
 		index:      paramIndex,
-		typeStr:    phpValueAsString(props["_paramType"]),
+		typeStr:    phpValueAsString(reflectionProperty(props, "_paramType")),
 		variadic:   isVar,
 		hasDefault: hasDef,
 	}
@@ -236,7 +236,11 @@ func lookupClassMethodParam(vm data.VM, className, methodName string, paramIndex
 		return className, methodName, paramIndex, nil
 	}
 
-	if iface, acl := vm.GetOrLoadInterface(className); acl == nil && iface != nil {
+	declaration, ctl := vm.LoadPkg(className)
+	if ctl != nil {
+		return className, methodName, paramIndex, nil
+	}
+	if iface, ok := declaration.(data.InterfaceStmt); ok && iface != nil {
 		if method, exists := iface.GetMethod(methodName); exists {
 			if p := methodParamAt(method, paramIndex); p != nil {
 				return className, methodName, paramIndex, p
@@ -269,7 +273,7 @@ func lookupClassMethodParam(vm data.VM, className, methodName string, paramIndex
 		return stmt
 	}
 
-	stmt := loadClass(className)
+	stmt, _ := declaration.(data.ClassStmt)
 	if stmt == nil {
 		return className, methodName, paramIndex, nil
 	}
@@ -303,22 +307,22 @@ func getReflectionParameterInfo(ctx data.Context) (string, string, int, data.Get
 		return "", "", -1, nil
 	}
 
-	props := objCtx.ObjectValue.GetProperties()
+	props := objCtx.ObjectValue
 
-	paramIndexVal, hasParamIndex := props["_paramIndex"]
+	paramIndexVal, hasParamIndex := props.LookupProperty("_paramIndex")
 	if !hasParamIndex {
 		return "", "", -1, nil
 	}
 
-	className := phpValueAsString(props["_className"])
-	methodName := phpValueAsString(props["_methodName"])
+	className := phpValueAsString(reflectionProperty(props, "_className"))
+	methodName := phpValueAsString(reflectionProperty(props, "_methodName"))
 	paramIndex := 0
 	if iv, ok := paramIndexVal.(*data.IntValue); ok {
 		paramIndex, _ = iv.AsInt()
 	}
 
 	isVirtual := false
-	if vv, ok := props["_isVirtual"]; ok {
+	if vv, ok := props.LookupProperty("_isVirtual"); ok {
 		if bv, ok := vv.(*data.BoolValue); ok {
 			isVirtual = bv.Value
 		}

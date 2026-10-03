@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"time"
 
 	httpsrc "net/http"
 
@@ -17,7 +18,9 @@ func newServerShutdownCallback(srv *httpsrc.Server) data.Value {
 }
 
 func (f *serverShutdownCallback) Call(ctx data.Context) (data.GetValue, data.Control) {
-	_ = f.srv.Shutdown(context.Background())
+	shutdown, cancel := context.WithTimeout(ctx.GoContext(), 5*time.Second)
+	defer cancel()
+	_ = f.srv.Shutdown(shutdown)
 	return nil, nil
 }
 

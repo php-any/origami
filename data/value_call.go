@@ -141,6 +141,7 @@ func (m *funcCallMethod) Call(ctx Context) (GetValue, Control) {
 
 	args := closureCallArgs(ctx)
 	callCtx := ctx.CreateContext(m.closure.Value.GetVariables())
+	defer ReleaseContext(callCtx)
 	if ctl := BindDeclaredArgs(callCtx, m.closure.Value, args); ctl != nil {
 		return nil, ctl
 	}
@@ -157,7 +158,7 @@ func closureCallArgs(ctx Context) []Value {
 			out := make([]Value, 0, arr.Len())
 			for _, zv := range arr.Range() {
 				if zv != nil {
-					out = append(out, zv.Value)
+					out = append(out, zv.ReadValue())
 				}
 			}
 			return out
@@ -235,6 +236,19 @@ func (bc *BoundContext) CreateBaseContext() Context {
 func (bc *BoundContext) ReturnSlot(v Value) ReturnControl {
 	return bc.Context.ReturnSlot(v)
 }
+
+func (bc *BoundContext) MarkEscaped() {
+	if owner, ok := bc.Context.(ContextEscaper); ok {
+		owner.MarkEscaped()
+	}
+}
+
+func (bc *BoundContext) IsEscaped() bool {
+	owner, ok := bc.Context.(ContextEscaper)
+	return ok && owner.IsEscaped()
+}
+
+func (bc *BoundContext) ReleasePooled() { ReleaseContext(bc.Context) }
 
 func (bc *BoundContext) EnterCall() int {
 	return bc.Context.(CallRecorder).EnterCall()

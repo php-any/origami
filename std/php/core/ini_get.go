@@ -24,7 +24,7 @@ func (f *IniGetFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	option := optionVal.AsString()
 
-	value, ok := IniGet(option)
+	value, ok := IniGetInContext(ctx, option)
 	if !ok {
 		return data.NewBoolValue(false), nil
 	}

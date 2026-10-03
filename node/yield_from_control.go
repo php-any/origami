@@ -141,7 +141,7 @@ func newObjectIteratorGenerator(ctx data.Context, obj *data.ClassValue) data.Gen
 	// IteratorAggregate → getIterator()
 	isAggregate, ctl := checkClassIs(ctx, obj.Class, "IteratorAggregate")
 	if ctl == nil && isAggregate {
-		inner, ictl := callValueMethod(obj, "getIterator")
+		inner, ictl := callValueMethod(ctx, obj, "getIterator")
 		if ictl != nil {
 			return nil
 		}
@@ -164,7 +164,7 @@ func newObjectIteratorGenerator(ctx data.Context, obj *data.ClassValue) data.Gen
 
 	g := &objectIteratorGenerator{obj: obj}
 	// PHP Iterator：委托前先 rewind
-	_ = callVoidMethod(obj, "rewind")
+	_ = callVoidMethod(ctx, obj, "rewind")
 	g.started = true
 	return g
 }
@@ -175,22 +175,22 @@ func (g *objectIteratorGenerator) GetValue(ctx data.Context) (data.GetValue, dat
 func (g *objectIteratorGenerator) AsString() string { return "ObjectIteratorGenerator" }
 
 func (g *objectIteratorGenerator) Current(ctx data.Context) (data.Value, data.Control) {
-	return callValueMethod(g.obj, "current")
+	return callValueMethod(ctx, g.obj, "current")
 }
 func (g *objectIteratorGenerator) Key(ctx data.Context) (data.Value, data.Control) {
-	return callValueMethod(g.obj, "key")
+	return callValueMethod(ctx, g.obj, "key")
 }
 func (g *objectIteratorGenerator) Next(ctx data.Context) data.Control {
-	return callVoidMethod(g.obj, "next")
+	return callVoidMethod(ctx, g.obj, "next")
 }
 func (g *objectIteratorGenerator) Rewind(ctx data.Context) (data.Value, data.Control) {
-	if ctl := callVoidMethod(g.obj, "rewind"); ctl != nil {
+	if ctl := callVoidMethod(ctx, g.obj, "rewind"); ctl != nil {
 		return nil, ctl
 	}
 	return data.NewNullValue(), nil
 }
 func (g *objectIteratorGenerator) Valid(ctx data.Context) (data.Value, data.Control) {
-	ok, ctl := callBoolMethod(g.obj, "valid")
+	ok, ctl := callBoolMethod(ctx, g.obj, "valid")
 	if ctl != nil {
 		return nil, ctl
 	}
@@ -280,7 +280,7 @@ func (a *arrayGenerator) GetValue(ctx data.Context) (data.GetValue, data.Control
 	if a.index >= a.array.Len() {
 		return data.NewNullValue(), nil
 	}
-	return a.array.At(a.index).Value, nil
+	return a.array.At(a.index).ReadValue(), nil
 }
 
 func (a *arrayGenerator) AsString() string {
@@ -291,7 +291,7 @@ func (a *arrayGenerator) Current(ctx data.Context) (data.Value, data.Control) {
 	if a.index >= a.array.Len() {
 		return data.NewNullValue(), nil
 	}
-	return a.array.At(a.index).Value, nil
+	return a.array.At(a.index).ReadValue(), nil
 }
 
 func (a *arrayGenerator) Key(ctx data.Context) (data.Value, data.Control) {

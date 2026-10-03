@@ -60,14 +60,14 @@ if ($describe(null) == "null" && $describe(true) == "true" && $describe(false) =
 }
 
 // match 无匹配无 default
+try {
 $noMatch = match (999) {
     1 => "one",
     2 => "two"
 };
-if ($noMatch === null) {
-    Log::info("match 无匹配返回 null 测试通过");
-} else {
-    Log::fatal("match 无匹配测试失败");
+Log::fatal("match 无匹配没有抛出异常");
+} catch (UnhandledMatchError $e) {
+    Log::info("match 无匹配异常测试通过");
 }
 
 // match 表达式结果用于运算

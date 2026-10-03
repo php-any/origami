@@ -312,6 +312,7 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	requestCtx := requestVM.CreateContext(nil)
 	writer := &requestResponseWriter{ResponseWriter: w, head: r.Method == http.MethodHead}
 	w = writer
+	requestVM.(*runtime.RequestVM).BindHTTP(r, writer)
 	defer requestVM.(data.OutputTargetHost).BindOutputTarget(func(s string) data.Control {
 		if r.Context().Err() != nil {
 			return nil
@@ -370,10 +371,12 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	tSandbox := perfmon.Now()
 	kernel := httpkernel.Sandbox(requestCtx, k.kernel)
 	perfmon.NoteFileRun("sandbox", perfmon.Since(tSandbox))
-	request := illuminatehttp.NewIlluminateRequestValue(requestCtx, r)
+	request, control := illuminatehttp.NewIlluminateRequestValue(requestCtx, r)
 	var response data.GetValue
 	tHandle := perfmon.Now()
-	response, control := httpkernel.Handle(requestCtx, kernel, request)
+	if control == nil {
+		response, control = httpkernel.Handle(requestCtx, kernel, request)
+	}
 	perfmon.NoteFileRun("handle", perfmon.Since(tHandle))
 	leftover := runtime.TakeRequestOutput()
 	sentOK := false

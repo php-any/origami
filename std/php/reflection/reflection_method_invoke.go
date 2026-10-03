@@ -32,13 +32,13 @@ func (m *ReflectionMethodInvokeMethod) GetReturnType() data.Types { return nil }
 func (m *ReflectionMethodInvokeMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	className, methodName := "", ""
 	if cmc, ok := ctx.(*data.ClassMethodContext); ok && cmc.ObjectValue != nil {
-		props := cmc.ObjectValue.GetProperties()
-		if cv, ok := props["_className"]; ok {
+		props := cmc.ObjectValue
+		if cv, ok := props.LookupProperty("_className"); ok {
 			if sv, ok := cv.(*data.StringValue); ok {
 				className = sv.AsString()
 			}
 		}
-		if mv, ok := props["_methodName"]; ok {
+		if mv, ok := props.LookupProperty("_methodName"); ok {
 			if sv, ok := mv.(*data.StringValue); ok {
 				methodName = sv.AsString()
 			}

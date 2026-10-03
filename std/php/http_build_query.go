@@ -94,15 +94,9 @@ func appendQueryPairs(prefix string, val data.Value, topLevel bool, cfg httpBuil
 			}
 			keyStr, numKey, isNumeric := arrayEntryKey(zval, i)
 			name := formatQueryName(prefix, keyStr, numKey, isNumeric, topLevel, cfg.numericPrefix)
-			appendQueryValue(name, zval.Value, false, cfg, pairs)
+			appendQueryValue(name, zval.ReadValue(), false, cfg, pairs)
 		}
-	case *data.ObjectValue:
-		v.RangeProperties(func(key string, value data.Value) bool {
-			keyStr, numKey, isNumeric := objectEntryKey(key)
-			name := formatQueryName(prefix, keyStr, numKey, isNumeric, topLevel, cfg.numericPrefix)
-			appendQueryValue(name, value, false, cfg, pairs)
-			return true
-		})
+
 	case *data.ClassValue:
 		v.RangeProperties(func(key string, value data.Value) bool {
 			keyStr, numKey, isNumeric := objectEntryKey(key)
@@ -119,7 +113,7 @@ func appendQueryPairs(prefix string, val data.Value, topLevel bool, cfg httpBuil
 
 func appendQueryValue(name string, val data.Value, topLevel bool, cfg httpBuildQueryConfig, pairs *[]string) {
 	switch val.(type) {
-	case *data.ArrayValue, *data.ObjectValue, *data.ClassValue:
+	case *data.ArrayValue, *data.ClassValue:
 		appendQueryPairs(name, val, false, cfg, pairs)
 	default:
 		appendScalarPair(name, val, cfg, pairs)

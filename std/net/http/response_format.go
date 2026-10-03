@@ -15,7 +15,7 @@ type formatHandlerSlot struct {
 }
 
 func defaultFormattedPayload(code int, message string, payload data.Value) data.Value {
-	obj := data.NewObjectValue()
+	obj := data.NewStdClassValue(nil)
 	obj.SetProperty("code", data.NewIntValue(code))
 	obj.SetProperty("message", data.NewStringValue(message))
 	if payload != nil {

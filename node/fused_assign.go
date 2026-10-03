@@ -61,18 +61,28 @@ type VarFastAssign struct {
 
 func (f *VarFastAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	dstZv := ctx.GetIndexZVal(f.DstIdx)
+	if dstZv.Guard() != nil {
+		rv, ctl := f.Slow.GetValue(ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if ctl := f.Dst.SetValue(ctx, rv.(data.Value)); ctl != nil {
+			return nil, ctl
+		}
+		return dstZv.ReadValue(), nil
+	}
 	switch f.op {
 	case vfaOpCopy:
 		if f.LhsIdx >= 0 {
-			if iv, ok := ctx.GetIndexZVal(f.LhsIdx).Value.(*data.IntValue); ok {
+			if iv, ok := ctx.GetIndexZVal(f.LhsIdx).ReadValue().(*data.IntValue); ok {
 				data.AssignIntToZVal(dstZv, iv.Value)
-				if dv, ok := dstZv.Value.(*data.IntValue); ok {
+				if dv, ok := dstZv.ReadValue().(*data.IntValue); ok {
 					return dv, nil
 				}
 			}
 		} else if f.LhsIdx == -1 {
 			data.AssignIntToZVal(dstZv, f.LhsLit)
-			if dv, ok := dstZv.Value.(*data.IntValue); ok {
+			if dv, ok := dstZv.ReadValue().(*data.IntValue); ok {
 				return dv, nil
 			}
 		}
@@ -80,7 +90,7 @@ func (f *VarFastAssign) GetValue(ctx data.Context) (data.GetValue, data.Control)
 		if li, okL := readIdx(ctx, f.LhsIdx, f.LhsLit); okL {
 			if ri, okR := readIdx(ctx, f.RhsIdx, f.RhsLit); okR {
 				data.AssignIntToZVal(dstZv, li*ri)
-				if iv, ok := dstZv.Value.(*data.IntValue); ok {
+				if iv, ok := dstZv.ReadValue().(*data.IntValue); ok {
 					return iv, nil
 				}
 			}
@@ -89,7 +99,7 @@ func (f *VarFastAssign) GetValue(ctx data.Context) (data.GetValue, data.Control)
 		if li, okL := readIdx(ctx, f.LhsIdx, f.LhsLit); okL {
 			if ri, okR := readIdx(ctx, f.RhsIdx, f.RhsLit); okR {
 				data.AssignIntToZVal(dstZv, li+ri)
-				if iv, ok := dstZv.Value.(*data.IntValue); ok {
+				if iv, ok := dstZv.ReadValue().(*data.IntValue); ok {
 					return iv, nil
 				}
 			}
@@ -105,7 +115,7 @@ func (f *VarFastAssign) GetValue(ctx data.Context) (data.GetValue, data.Control)
 		if data.IsScalarAssignFast(v) {
 			zv := ctx.GetIndexZVal(f.DstIdx)
 			data.AssignScalarToZVal(zv, v)
-			return zv.Value, nil
+			return zv.ReadValue(), nil
 		}
 		return v, f.Dst.SetValue(ctx, v)
 	}
@@ -123,7 +133,7 @@ func (f *VarFastAssign) GetValue(ctx data.Context) (data.GetValue, data.Control)
 //	idx == -2：复杂节点，告知调用方走降级路径
 func readIdx(ctx data.Context, idx, lit int) (int, bool) {
 	if idx >= 0 {
-		if iv, ok := ctx.GetIndexZVal(idx).Value.(*data.IntValue); ok {
+		if iv, ok := ctx.GetIndexZVal(idx).ReadValue().(*data.IntValue); ok {
 			return iv.Value, true
 		}
 		return 0, false
@@ -152,9 +162,9 @@ type VarPostIncr struct {
 
 func (f *VarPostIncr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	zv := ctx.GetIndexZVal(f.VarIdx)
-	if iv, ok := zv.Value.(*data.IntValue); ok {
+	if iv, ok := zv.ReadValue().(*data.IntValue); ok {
 		old := iv
-		zv.Value = &data.IntValue{Value: iv.Value + 1}
+		zv.StoreRaw(&data.IntValue{Value: iv.Value + 1})
 		return old, nil
 	}
 	return f.Fallback.GetValue(ctx)
@@ -170,9 +180,9 @@ type VarPostDecr struct {
 
 func (f *VarPostDecr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	zv := ctx.GetIndexZVal(f.VarIdx)
-	if iv, ok := zv.Value.(*data.IntValue); ok {
+	if iv, ok := zv.ReadValue().(*data.IntValue); ok {
 		old := iv
-		zv.Value = &data.IntValue{Value: iv.Value - 1}
+		zv.StoreRaw(&data.IntValue{Value: iv.Value - 1})
 		return old, nil
 	}
 	return f.Fallback.GetValue(ctx)
@@ -196,7 +206,7 @@ type VarStmtIncr struct {
 
 func (f *VarStmtIncr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	zv := ctx.GetIndexZVal(f.VarIdx)
-	if iv, ok := zv.Value.(*data.IntValue); ok {
+	if iv, ok := zv.ReadValue().(*data.IntValue); ok {
 		iv.Value++
 		return iv, nil
 	}
@@ -227,7 +237,7 @@ type VarIntLe struct {
 
 // testBool 直接返回 bool，不分配 BoolValue。
 func (f *VarIntLe) testBool(ctx data.Context) (bool, data.Control) {
-	if iv, ok := ctx.GetIndexZVal(f.VarIdx).Value.(*data.IntValue); ok {
+	if iv, ok := ctx.GetIndexZVal(f.VarIdx).ReadValue().(*data.IntValue); ok {
 		return iv.Value <= f.Lit, nil
 	}
 	// 降级：调用原始节点再解包

@@ -41,9 +41,17 @@ func (n *Array) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 					if z == nil {
 						continue
 					}
-					if key, ok := z.PHPArrayKey(arrayPosition12).(*data.StringValue); ok {
-						av.SetStringKey(key.Value, z.Value)
-					} else if !av.AppendValue(z.Value) {
+					key := z.PHPArrayKey(arrayPosition12)
+					if z.RefCount() > 0 {
+						if _, stringKey := key.(*data.StringValue); !stringKey {
+							key = data.NewIntValue(av.NextAppendIntKey())
+						}
+						if !av.BindReference(key, z) {
+							return nil, arrayLiteralAppendError(n.GetFrom())
+						}
+					} else if key, ok := key.(*data.StringValue); ok {
+						av.SetStringKey(key.Value, z.ReadValue())
+					} else if !av.AppendValue(z.ReadValue()) {
 						return nil, arrayLiteralAppendError(n.GetFrom())
 					}
 				}
@@ -66,6 +74,15 @@ func (n *Array) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		if acl != nil {
 			return nil, acl
 		}
+		if source, ctl := data.ReferenceSlot(v.(data.Value)); source != nil || ctl != nil {
+			if ctl != nil {
+				return nil, ctl
+			}
+			if !av.BindReference(data.NewIntValue(av.NextAppendIntKey()), source) {
+				return nil, arrayLiteralAppendError(n.GetFrom())
+			}
+			continue
+		}
 		if !av.AppendValue(v.(data.Value)) {
 			return nil, arrayLiteralAppendError(n.GetFrom())
 		}
@@ -79,7 +96,11 @@ func (n *Array) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 		if acl != nil {
 			return nil, acl
 		}
-		if !av.SetKey(kv.(data.Value), vv.(data.Value)) {
+		accepted, ctl := av.AssignKey(ctx, kv.(data.Value), vv.(data.Value))
+		if ctl != nil {
+			return nil, ctl
+		}
+		if !accepted {
 			return nil, data.NewErrorThrowByName(n.GetFrom(), data.NewError(n.GetFrom(), "Illegal offset type", nil), "TypeError")
 		}
 	}

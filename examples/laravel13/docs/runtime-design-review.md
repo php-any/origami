@@ -2,7 +2,175 @@
 
 本文记录 `examples/laravel13` 当前常驻 HTTP 运行模型中已确认的语义缺口和高风险设计，作为后续对齐官方 Laravel 13 / PHP 请求生命周期的修复清单。
 
-下文保留审查时的问题描述；实际实施范围以本节执行记录为准，不能将设计建议视为已经实现。判断标准是：官方 Laravel 应用不应为了适配 Origami 而修改 `vendor/`、业务代码或隐藏错误；通用差异应回推到 Origami 核心、标准库或 Laravel/Symfony 原生兼容层。
+下文保留审查时的问题描述；实际实施范围以最新执行记录为准，不能将设计建议视为已经实现。判断标准是：官方 Laravel 应用不应为了适配 Origami 而修改 `vendor/`、业务代码或隐藏错误；通用差异应回推到 Origami 核心、标准库或 HTTP/进程适配层。
+
+## 最终执行记录：2026-10-03，剩余修复、并行改动审查与完整验收
+
+本节为当前工作树的最新状态。此前五项待办中的具体修复与验收已完成；历史章节保留当时的问题和证据，不再作为当前待办重复执行。改动位于解释器、标准库、宿主适配、扩展和测试，没有修改 Laravel / Livewire / Symfony 的 vendor、应用业务或 Blade 模板。
+
+### 五项清单的处理结果
+
+1. **PropertyBag 迁移完成**：内部存储实体为 `PropertyBag`，不实现 PHP `Value`，没有值引用计数，也不能参与数组/对象类型判断。PHP 数组返回值、DOM / Intl 容器及网络、数据库、序列化适配使用真实 `ArrayValue` 或 `ClassValue`。`ObjectValue` 与 `NewObjectValue` 保留为 Go 源码兼容名字，返回内部属性存储；保留名字不再引入 PHP 值的双重语义。
+2. **兼容入口与声明补漏完成**：冷 `Types` 适配统一进入 TypeRef 检查，不保留第二套运行时类型判定。扩展调用点已迁移。补齐本次发现的枚举接口、惰性 case 身份、枚举创建/克隆限制、函数 attribute 的懒求值与 Reflection 校验、分组 attribute、静态属性增减写回、typed class constant 检查及生成声明。生成代码执行矩阵由 15 项扩展到 **17 项**，包含真实 enum 和函数 attribute。
+3. **调用路径与同语义性能复核完成**：`GetFuncBySymbol` 进入正式 VM 接口，函数调用直接解析当前执行 VM；共享 AST 仍只保存符号 ID。删除每次调用的兼容接口断言，没有引入新的锁、Context 层或分配。保留请求隔离和引用语义，不以早期语义不完整的实现作为性能基线。
+4. **本轮验证完成，已知基线失败关闭**：根 PHP runner 每个脚本使用独立 CLI 请求和 90 秒期限。此前 match、环境变量、数字词法、命名展开参数、Reflection、闭包作用域、对象指针、SPL/Finder、网络注解、UUID、include fixture 等具体失败已修复。解析缓存处理写文件、fwrite、rename 及外部工具改写后的版本失效；并发失效不会由旧解析重新填充。PDO 的 SQLite `:memory:` 使用实例私有数据库，关闭后不会把旧表交给下一实例。
+5. **vendor 注册门槛完成**：加载器暂存注册，明确拒绝未认证类、接口、函数和反射注册，只有具体 ServeCommand 宿主适配类型与确切名称可提交；同名伪装及部分提交均有回归。当前启用的 vendor 能力替换仍为 **0**，官方 PHP 声明继续负责框架能力。未来新增替换仍须先提供版本、签名/可见性、Reflection 和序列化契约；没有因本轮结束而启用未经证明的替换。
+
+### 另一会话的序列化修改审查
+
+保留并审查对象 `O`、对象身份 `r`、引用 `R`、声明属性的可见性编码、typed property 恢复、`__serialize` / `__unserialize`、`__sleep` / `__wakeup`、allowed_classes、max_depth、浮点及 serialize_precision。进一步修复重复/缺失 `__sleep` 成员的警告级别、畸形 bool 数据的错误位置，以及解码根临时引用释放；后者在解码清理中处理，没有给数组 COW 热路径增加特殊分支。
+
+Serializable 的旧接口声明与普通动态属性创建现在发出 E_DEPRECATED。动态属性仅在创建时检查，重复写入不重复警告，unset 后重建重新警告；允许动态属性的标记与 stdClass 的继承规则保留，解码创建和引用创建同样覆盖。普通赋值先完成再调用警告处理器，处理器异常继续传播；enum 与 readonly 对象在创建前拒绝动态属性。专门回归与 PHP 8.4 逐字一致，原序列化审计脚本也实现双方退出零、输出无差异（`serialization-audit-final.log` / `serialization-audit-php84.log`）。
+
+新增枚举 `E`、旧 Serializable 的 `C` 载荷及 DateTime / DateTimeImmutable 的标准原生载荷，日期回归覆盖 UTC、微秒、对象身份和线格式往返。序列化图与边界回归包含别名、循环、单个/多个根引用、hook 控制传播和非法输入，并与本地 PHP 8.4 对照。这些测试认证其覆盖范围，不能推出所有原生类与全部日期时区行为已经实现。
+
+### 最终验收证据
+
+证据均位于 `storage/origami-debug/`，来自本次最终代码；没有以历史日志替代当前复测。
+
+- **根模块完整测试通过**：`go test -mod=mod ./...`，根套件耗时 **94.847 秒**，日志 `runtime-review-final-repository.log`。发现 PHP 脚本 **1,074** 个：Windows 独立执行 **1,068** 个，4 个 include fixture 由其主测试执行，2 个 Unix 脚本在 Linux 实际执行通过。没有把已知失败改为跳过；故意未捕获异常的回归检查预期失败退出。
+- **PHP 8.4.25 差分 35/35**：双方退出码为零、标准输出逐字一致，日志 `runtime-review-final-php84-differential.json`。这包括对象图、序列化边界、错误/弃用警告处理、枚举、attribute、SPL 异常、缓存改写、静态增减及日期载荷；不是全部 PHP 语言功能的认证。
+- **Windows 核心及标准库完整 race 通过**：`data`、`node`、`runtime`、`parser`、全部 `std/php/...`、`std/net/http` 和 `std/vendoraccel`，日志 `runtime-review-final-race.log`。本轮已使用 GCC 16.1 与 `CGO_ENABLED=1`，此前“没有 C 编译器”的环境限制已关闭。
+- **Linux 实际运行通过**：WSL Ubuntu 24.04 / Go 1.27.1 上的上述核心及 PHP 标准库、vendor 门槛，以及 `proc_open_array_cmd_test.php`、`proc_open_reuse_pipes_test.php`，日志 `runtime-review-final-linux.log`。Linux 环境没有 C 编译器，此结果不计为 Linux race。
+- **官方 Laravel / Livewire 全组 race 通过，58.990 秒**：`go test -race -mod=mod ./...`，日志 `runtime-review-final-laravel-race.log`。执行时没有其他重 Go 检查争抢资源；包括真实框架启动、生命周期、请求输入、响应发送、取消及并发登录隔离。
+- **真实 HTTP 10/10 通过**：`go run -mod=mod . serve --port=18091`；登录页、官方 Livewire hashed 脚本、4 个客户端两轮共 8 次并发登录均返回 200，页面保留 snapshot 和 script，curl 均带 35 秒期限。结果 `runtime-review-final-http.json`，服务日志 `runtime-review-final-serve.log` / `runtime-review-final-serve-error.log`，测试创建的服务进程树已停止。
+- **独立模块复核**：OpenAI 全包 race 通过（`runtime-review-final-openai-race.log`），五种请求使用请求 Context、本地模拟 HTTP 取消，语音中途取消不落盘部分内容，数组选项保留嵌套结构；Wails 全包通过（`runtime-review-final-wails.log`），LSP 全包通过（`runtime-review-final-lsp.log`），Fyne 扩展包以 `-tags ci` 编译通过（`runtime-review-final-fyne-core.log`）。Fyne 的两个 GUI 示例缺少构建流程生成的 `build/gen`，整个 Fyne 模块的 `./...` 因此未通过；没有编造生成文件或将其计为 GUI 运行认证，失败日志为 `runtime-review-final-fyne.log`。
+
+### 性能结论与保留边界
+
+在其他 Go 任务结束后，用当前语义的 Go overlay 仅恢复旧调用接口断言作对照，`-cpu=1 -benchtime=1s -count=5` 串行测量。untyped 中位数 **191.6 → 185.1 ns**，exact_int **201.3 → 200.9 ns**，weak_string **229.5 → 226.4 ns**；分配分别保持 **48 B/1、48 B/1、64 B/2**。普通调用样本有小幅收益，其余差异接近噪声，不宣称整站吞吐或所有调用加速。方法调用不经过改动分支，其样本差异不能归因本次优化；当前对象方法 Context 为 **34.39 ns、0 B、0 次分配**。证据为 `runtime-review-final-bench-assert.log`、`runtime-review-final-bench-direct.log` 与 `runtime-review-benchmark.ps1`。生产热路径没有插入 tracing。
+
+冷 Go 兼容 API 是当前支持的适配入口，工具类型与 PHP 声明已经隔离，不要求为删除名字而制造破坏性变更。任意扩展、不可中断 OS open/stat、所有信号组合、全部 PHP 8.4 声明及任意原生类序列化不在有限验收证明中；发现具体差异仍应回推解释器。这些认证边界和未来 vendor 启用条件保持明确，不以空壳 Result/Set、额外热路径抽象或隐藏框架错误来替代实现。
+
+## 历史执行记录：2026-10-03，数组身份、工具类型隔离与进程回收
+
+本节记录此前阶段的实施范围；当前状态以上方最终执行记录为准。本节及后续章节中的“仍未完成”和失败记录均保留其当时的时间范围。没有修改 vendor、应用业务或 Blade 模板，没有增加生产热路径追踪。
+
+### 实施结果
+
+- **数组返回值与键身份**：`compact`、`get_defined_vars`、key case/count/column/unique/diff、共享 slice/chunk 等结果构造、`unpack` 和 `proc_get_status` 使用 `ArrayValue`。`compact` 按调用者作用域读取动态字符串及嵌套名字数组，参数只求值一次，保留 null；已定义变量按槽顺序生成快照。结果保留整数/字符串键、空键、顺序及应保留的引用别名，复制后写入执行 COW。`array_column` 区分缺列和 null、缺索引时追加；`unpack` 的无名整数键从 1 开始。`is_array` 及旧 Arrays 适配不再接受裸 `ObjectValue`，key case/count/column/unique 的已测入口拒绝对象参数；未认证其他内置的全部参数组合。
+- **数组序列化子集**：`serialize` 输出真实 PHP 数组键；`unserialize` 的数组统一进入 `ArrayValue`，字符串按字节长度解析，覆盖内嵌引号、NUL 和中文。删除接受错误长度的旧私有前缀兜底，合法前缀字符串仍是字符串。此结果只认证所测标量与数组，不代表对象、循环、引用、浮点及全部错误处理已对齐。
+- **PDO 与属性身份**：`FETCH_ASSOC` / `FETCH_BOTH` 按查询列顺序返回 PHP 数组，`FETCH_OBJ` 创建当前 VM 的真实 `stdClass`；`fetchAll` 保留对应行身份。动态属性即使值为 null，`property_exists` 仍返回 true，并保留声明属性、未初始化 typed property、静态和可见性行为。没有认证所有 PDO 驱动、fetch mode 或原生列类型转换。
+- **工具类型与声明隔离**：推断、tuple 和 generic 的工具描述移到独立 `tooling/typeinfo`，不再暴露运行时 `Is(Value)`。运行时适配拒绝推断和 tuple；PHP Parser 拒绝 generic / 多返回值声明。DNF 文本只在冷声明适配入口按括号层级转换为 interned TypeRef，运行时遍历结构成员。LSP 不再将推断写入共享 AST 的声明字段，文档 Context 分别保存推断；补上 TypeRef、ZVal API 迁移及生成器对兼容类型别名的处理。独立 LSP 模块现可完整编译、测试。
+- **解析器已知失败**：compiled Blade 测试改为固定源码 fixture，移除特定机器缓存文件依赖；未绑定 VM 的类解析和词法名称解析不再访问 nil VM，trait 信息保持延迟处理。此前 `TestAltConvertRealFile` / `TestReproClassNamedArg` 的两项失败已关闭，完整 parser 包通过；未据此认证所有无 VM 解析组合。
+- **进程状态与资源回收**：状态查询使用 proc_open 的 Wait 生命周期，不再发送 Windows 不支持的 signal 0 或把活进程标为退出。`proc_close` 先关闭所属管道，再等待、回收进程资源；取消同样关闭管道，重复关闭安全。新增真实存活子进程的状态、数组复制、管道及进程资源失效回归，原进程树/请求取消测试继续通过；信号字段及所有平台组合仍需独立证明。
+
+### 本轮验收
+
+- 审查相关 PHP 矩阵 **144/144** 通过：`storage/origami-debug/runtime-review-followup-php-results.json`。这是选择性矩阵，不是全仓所有 PHP 脚本。
+- 新增数组、PDO、动态属性和进程状态脚本 **4/4** 与宿主 PHP **8.1.34** 的输出逐字一致，双方退出码为零：`runtime-review-followup-differential.json`。本轮没有复测历史 PHP 8.4 差分矩阵。
+- 最终相关核心、parser、标准库、进程/流、FPM、编译器包通过，含 **15 个生成代码执行用例**：`runtime-review-followup-core.log`。独立 `tools/lsp` 模块整包通过：`runtime-review-followup-lsp.log`。根模块所有包编译通过：`runtime-review-followup-repository-compile.log`；不计为全仓完整测试通过。
+- 在其他重任务结束后，官方 Laravel / Livewire 整组测试 **通过（19.715 秒）**：`runtime-review-followup-laravel.log`，包含限时 HTTP 生命周期、官方请求输入及并发隔离。没有另行重跑历史 serve/curl 的 10 请求矩阵。
+- 当前环境仍为 `CGO_ENABLED=0` 且没有 C 编译器，**本轮未运行 race**，历史 race 不能替代本轮验证。
+
+### 当时的性能与未关闭项
+
+其他检查结束后，以 `-cpu=1 -benchtime 500ms -count=3` 复测调用基准。untyped / exact_int / weak_string / method_exact 的中位数为 **197.2 / 206.1 / 231.9 / 331.2 ns**；对应分配仍为 **48 B/1、48 B/1、64 B/2、48 B/1**。与上一轮有小幅耗时波动，方法样本较上一轮慢，不宣称净加速或普通调用的历史成本问题已经解决。证据：`runtime-review-followup-bench.log`，上一轮样本见 `runtime-review-repair-current-bench.log`。
+
+以下是该阶段结束时的剩余工作；处理结果见本文最上方最终执行记录，历史章节已关闭的具体问题不应重复计入：
+
+1. **PropertyBag 迁移**：部分数组内置的旧对象分支、DOM / Intl 内部容器及 std/net、database、serializer 等原生适配仍使用裸 `ObjectValue`；序列化还有旧对象按数组处理的兼容分支。需要按真实 PHP 值迁移调用点，再将该存储限制为内部属性容器，不能宣称全仓对象/数组统一已经完成。
+2. **兼容 API 清理与声明覆盖**：`data.Types`、旧构造器和工具类型别名仍作为冷兼容 API；删除前须迁移剩余扩展调用点。所有 PHP 声明组合、代码生成、对象序列化与错误/警告机制还需扩展差分认证，不能由本轮有限矩阵替代。
+3. **调用性能**：继续缩小正确函数解析与引用读取的常数成本，需同语义、串行基准证明净收益。本轮没有实施新的调用快路径。
+4. **验证与扩展边界**：补当前改动的 race / PHP 8.4 / Unix 证据，以及其他扩展、不可中断 OS 调用和信号状态的实际平台认证。根模块完整脚本和此前网络注解路径的基线限制未在本轮关闭；parser 的上述两项已关闭。
+5. **原生 vendor 替换的重新启用前提**：当前启用数量仍为零；启用任一替换前，必须补齐 Composer 版本、签名/可见性、Reflection、序列化及未覆盖类禁止注册的契约证明。停用状态不等于契约认证完成。
+
+## 执行记录：2026-10-03，类型兼容、隐式调用与生成声明补漏
+
+本轮根据实际代码和失败回归继续修复审查遗留项。以下结果是本轮复测；后面的执行记录保留为历史证据。没有修改 vendor、应用业务或 Blade 模板，也没有增加生产热路径追踪。
+
+### 实施结果
+
+- **旧类型适配统一语义**：`PrepareTypedValueInContext` 经 `DeclaredTypeRef` 进入统一声明类型检查器，移除另一套 union 弱转换逻辑，支持旧 union 混合紧凑 TypeRef、嵌套和 nullable 类型。旧类型构造器保留 `mixed`、`void`、`never`、`false`、`true`、`self`、`parent`、`iterable` 的声明身份；严格模式的 int → float 提升保留，数值字符串仍拒绝。`data/type_compatibility_test.go` 覆盖上述边界。
+- **隐式字符串调用作用域与对象身份**：类型转换、字符串表达式、`strval` 和 `strtr` 共用 `ObjectToStringValue`，使用方法声明类的词法作用域、实际接收者的 late static binding 和当前 RequestVM，传播 `__toString` 抛出的异常。worker 保留对象按请求隔离，已经属于当前请求的对象保持自身身份，避免转换时再复制导致属性修改丢失。新增 PHP 回归和 8 个并发 RequestVM 回归，验证继承 private 成员、请求函数分派及对象计数。
+- **生成代码的 TypeRef 与声明信息**：编译器生成可重建的类型表达式，不嵌入进程本地类型 arena ID；修复 closure 返回类型赋值、已解码字符串的 intern 缓存及 abstract 方法构造类型。生成声明保留 class 的 final/readonly 标志、方法的 final/static/引用返回标志、静态属性、类与接口常量及属性声明元数据；接口补入程序 AST 并注册到实际执行 VM。生成执行矩阵扩展到 15 个用例，覆盖 strict/weak、复合类型、字符串、typed property、Reflection 标志、引用写回及常量。该矩阵不等于所有生成器能力均已认证。
+
+### 本轮验收
+
+- 审查相关 PHP 矩阵 **140/140** 通过：`storage/origami-debug/runtime-review-repair-php-results.json`。在最后一批生成声明修正后，额外复测相关声明与隔离脚本 **10/10** 通过：`runtime-review-repair-final-declarations.json`。
+- 新增 `string_coercion_scope_test.php` 与宿主 PHP **8.1.34** 输出一致，双方退出码为零：`runtime-review-repair-string-differential.json`。本轮没有重跑历史 PHP 8.4 差分矩阵。
+- 核心、编译器与相关标准库/适配包检查通过，含 **15 个生成代码执行用例**：`runtime-review-repair-core.log`；根模块所有包编译通过：`runtime-review-repair-repository-compile.log`。全仓编译检查不等于全仓完整单元测试。
+- 官方 Laravel / Livewire 整包测试 **通过（19.761 秒）**，含请求生命周期、官方 Request::capture 和并发登录隔离：`runtime-review-repair-laravel.log`。本轮没有重新运行历史 serve/curl 的 10 个 HTTP 验收请求。
+- 当前环境 `CGO_ENABLED=0` 且未找到 C 编译器，**本轮未运行 race**；历史 race 结果不能替代本轮改动的 race 验证。
+
+### 性能与剩余范围
+
+以 `-cpu=1 -benchtime 500ms` 串行进行三次基线/当前对照，四项调用基准的内存分配不变。中位数（ns）分别为：untyped **194.5 → 198.4**、exact_int **206.2 → 207.3**、weak_string **236.3 → 233.1**、method_exact **326.1 → 319.4**。结果有小幅波动，不能据此宣称整体加速或普通函数调用的历史性能缺口已经解决。证据为 `runtime-review-repair-baseline-bench.log`、`runtime-review-repair-current-bench.log` 和 `runtime-review-repair-bench-summary.json`。
+
+旧 `Types` 接口仍用于工具适配，本轮统一转换和修复构造器身份，尚未完成全仓删除旧体系。未认证的 vendor 能力替换仍保持停用，契约认证未完成；全部 PHP 8.4 语义、所有代码生成声明组合及其他平台/扩展的取消行为仍不能据此判定完成。
+
+## 执行记录：2026-10-03，剩余语义修复与验收
+
+本节接续 2026-10-02 的四组待实施项。改动在解释器核心、标准库及测试中完成，没有修改 Laravel / Livewire / Symfony 的 vendor、应用业务或 Blade 模板。语言层仍只有 `VM` 和 `RequestVM`。
+
+### 实施结果
+
+- **P1-9 原生替换门槛**：`std/vendoraccel.Load` 仅注册 ServeCommand 的 HTTP/进程宿主适配；未获契约证明的 vendor loader 不会执行、注册类或跳过 Composer 的 files autoload。Kernel、Request、Response、Pipeline、Collection、Finder 等由官方 PHP 声明加载，集成测试在 Composer 前后检查类的来源。当前启用的 vendor 能力替换为零，不能把这个结果称为原生替换已经通过签名、Reflection 和序列化认证。验收锁定 Laravel `v13.23.0`、HttpFoundation `v8.1.1`、Livewire `v4.4.0`。
+- **复杂 lvalue 与引用**：嵌套维度、动态属性及 ArrayAccess 接收者和键只求值一次；按引用 offsetGet 保留真实槽，按值间接修改保持 PHP 的 Notice 和原值。isset / empty / `??` 使用安静读，`??=` 仅在空值时写入，unset 不创建缺失父路径。静态属性数组的维度写入持有真实属性槽，COW 分离后仍写回原所有者，修复 Laravel 发布注册与 Livewire 资源注入丢失；动态类接收者只求值一次。数组键与 ReferenceCell 分离，删除、pop、shift、变量换绑、foreach 换绑及函数参数退出释放相应引用所有者，数组复制、展开、重排、闭包和 typed property 引用保持约束与别名。
+- **声明与 Reflection**：补充 final 类/方法、readonly 继承与初始化、未初始化 typed property、readonly 数组写入和 `__clone` 中的一次重新初始化；promoted 属性经统一属性写入路径执行约束。Reflection 的实例创建复用语言构造函数绑定，覆盖命名/展开参数、引用参数、继承构造函数及 promoted 默认值。接口的 static / abstract / 引用返回标记进入描述符和 Reflection。
+- **缓存与对象身份**：缓存 AST 不保留请求解析出的函数、类或静态 Context；执行 VM 使用不可变 ClassDescriptor 和按 SymbolID 的函数表。共享调用点只保留符号 ID，8 个并发 RequestVM 的同名函数互不污染。方法帧直接借用稳定对象句柄，独立持有执行 Context；未逃逸帧可回收，fluent 返回值、闭包和嵌套帧保留正确对象身份及 RequestVM。
+- **资源与取消**：取消 context 在每个执行阶段保持同一身份，因此资源打开后切换 ignore_user_abort 也能生效；忽略客户端断开仍保留服务端期限。Windows 子进程使用 Job，Unix 使用进程组；文件、管道、SPL、进程等待、autoload 等待接入请求取消。Unix 描述符读取改用 SyscallConn，避免 os.File.Fd 将管道改成不可中断的阻塞模式。stream_select 增加实际 Linux 管道 readiness、键保留、超时及取消测试。HTTP 不借用 worker stdin，保留的 stdin 原生状态拒绝跨请求绑定；临时流关闭后删除文件。
+- **官方响应发送**：普通 Response 和其 PHP 子类也执行官方 `sendContent()`，不再直接读取 content 属性跳过覆盖方法。HTTP fixture 覆盖自定义发送内容及发送中抛异常；提交后保留已发内容，正常路径继续 terminate，异常路径继续 shutdown。HEAD / 204 / 304、流式 flush 和文件 Range 保持已有验收。
+- **官方请求输入**：超全局量使用 PHP 数组与 COW；请求级环境和 ini 不修改宿主进程。php://input 和官方 Request::capture 读取真实请求体，校正内容头、Host、端口、TLS 和重复表单字段。multipart 的 POST / FILES 按同一请求初始化，FILES 使用 PHP 嵌套列结构；上传临时路径及 is_uploaded_file 身份归属当前 RequestVM，shutdown / 取消清理文件。
+
+### 验收记录
+
+- 选择性 PHP 语义回归 **139/139** 通过，最终结果：`storage/origami-debug/runtime-design-completed-php-results.json`。这是本审查相关矩阵，不是全仓 PHP 脚本全部通过。
+- **17/17** 脚本与 PHP **8.4.25** 的标准输出逐字一致且双方退出码为零，包含复杂维度、readonly、typed property、引用所有者、Reflection 构造函数等：`storage/origami-debug/runtime-design-completed-php84-differential.json`。
+- Windows `data`、`node`、`runtime`、stream、proc、FPM 完整包 race 已通过：`storage/origami-debug/runtime-design-completed-core-race.log`，包含嵌套方法帧的 RequestVM 转发回归。
+- WSL Ubuntu 24.04 / Linux 6.6 / Go 1.27.1 的 `data`、`node`、`runtime`、proc、stream 完整包通过，包含真实进程树与阻塞管道取消：`storage/origami-debug/runtime-design-completed-linux.log`。该平台没有 C 编译器，未计为 Linux race 通过。
+- 根模块所有包编译通过：`go test -mod=mod -run '^$' ./...`，日志 `storage/origami-debug/runtime-design-completed-repository-compile.log`。
+- 官方 Laravel / Livewire 最终整组 race **通过（55.838 秒）**，包含普通 Response 的覆盖发送、提交后异常、官方请求输入、对象图隔离及并发登录的 snapshot / script 检查：`storage/origami-debug/runtime-design-completed-laravel-race.log`。先前与其他重检查同时运行时触发了 30 秒 PHP 期限，该次失败不计为通过，最终结果来自无其他重任务竞争的串行复测。
+- Symfony / Laravel HTTP 适配包完整 race 通过：`storage/origami-debug/runtime-design-completed-http-adapters-race.log`。
+- 官方 `go run -mod=mod . serve --port=18089` 实测 **10/10 HTTP 请求返回 200**：登录页、官方 Livewire 脚本及 4 个客户端共 8 次并发登录请求；所有页面含 snapshot 和 script。curl 均带 35 秒超时，最终服务日志无 Warning，测试进程树已停止。证据为 `storage/origami-debug/runtime-design-completed-http.json`、`runtime-design-completed-login.html` 与 `runtime-design-completed-serve.log`。
+
+### 性能与验证范围
+
+Windows amd64 / Go 1.27.1，在其他 Go 任务结束后，以 `-cpu=1 -benchtime 500ms` 串行对照早期 `e630e8d` 快照和当前实现：
+
+- 对象方法 Context：基线中位数约 **53.3 ns、112 B、2 次分配**；最终约 **33.7 ns、0 B、0 次分配**。一次分配但仍回收借用句柄的试验方案已撤回；最终只回收独立执行帧，对象句柄保持稳定。
+- 精确 int 方法调用：基线约 **325.2 ns、160 B、3 次分配**；最终约 **318.2 ns、48 B、1 次分配**。
+- 普通函数 / 精确 int 函数：基线约 **170.2 / 182.7 ns**，当前约 **192.5 / 202.2 ns**；均为 **48 B、1 次分配**。请求正确的函数解析和引用读取仍有常数成本，不宣称所有调用都加速。
+- 弱 string 调用当前约 **230.4 ns、64 B、2 次分配**；早期样本缺少正确的字符串转换，不能按相同语义宣称净加速。基准只描述这些路径，不代表整站吞吐收益。
+
+基准日志为 `storage/origami-debug/runtime-design-idle-baseline-*.log` 与 `runtime-design-final-idle-current.log`。生产 Call / 方法 / JSON 路径没有插入诊断追踪。
+
+**保留边界**：本节证明已覆盖的请求隔离、语言语义和资源矩阵；不可中断的 OS open/stat、任意扩展及全部 PHP 8.4 功能不在该证明中。未认证的原生 vendor 替换保持停用。架构建议中的弱缓存、通用 Result 和泛型算法按实际用途采用，不以空壳 API 或额外热路径抽象作为完成标准。全仓完整测试仍有先前已复现的根脚本、parser 环境依赖与网络注解路径基线失败，未计为通过。
+
+## 执行记录：2026-10-02，通用请求对象图、声明与引用
+
+本轮继续实施后续阶段，没有修改 vendor、应用业务或 Blade 模板。以下记录覆盖当前工作树，不表示整份审查已经完成。
+
+### 已实施
+
+- `RequestObjectScope` 统一保留对象、静态值、数组、闭包和引用槽的请求身份。数组属性采用请求 overlay，保留别名、循环、迭代位置、下一整数键和跨闭包捕获的引用身份。Laravel Sandbox 已删除服务复制白名单、Livewire 专用图复制和应用/路由手工深拷贝，改用通用对象图策略，并执行官方 `forgetScopedInstances()`。
+- 原生状态通过明确注册的 clone、new 或 readonly 策略处理。Container、Pipeline、Cookie、Events、Kernel、Headers 和 WeakMap 等已有相应策略；未知原生状态不能默默共享。保留的文件资源要求请求重新打开，标准输入输出使用独立包装。闭包绑定的 `$this` 即使尚未在图中登记也进入同一请求身份表，资源捕获同样经过通用策略。
+- `ClassDescriptor` 注册表发布不可变声明快照；名义继承、接口和类别名使用 SymbolID。按符号的 autoload 状态机支持单次加载、同 owner 递归、失败重试和等待取消。SPL 默认 autoload 与扩展名、请求级 ini 状态已补回归。
+- 声明字段迁移到紧凑 `TypeRef`，复合类型由 `TypeArena` 保存。声明检查集中处理 ValueKind、标量转换、名义继承及 self/static/parent；`Types` 接口不再提供运行时 `Is(Value)` 分派。仍保留字符串/工具适配，不将其称为旧类型代码全部删除。
+- 类描述符记录 abstract/final/readonly/interface/trait/enum 类别、静态和实例属性、类型与默认表达式、参数引用和 variadic 标记。Reflection 已接入类别标志，修正 trait、enum、final 和 readonly 查询。类修饰符元数据不等于所有 readonly/final 执行语义已经完善。
+- 缓存声明作为模板复制，延迟 trait 合并、构造函数继承、注解和静态初始化使用执行 VM。移除 new、延迟函数和延迟静态访问节点保留请求类/函数的可变缓存。静态引用和写入也解析当前 VM，包含不依赖 HTTP goroutine 绑定的 RequestVM 回归。
+- `ZVal` 的值、引用身份和 typed property 约束分离。引用返回、引用参数、variadic 引用、命名/展开参数、magic `__get` 和 `ArrayAccess::offsetGet` 返回引用增加对应验收。普通返回值不暴露引用包装；命名参数中的空字符串键保持命名键语义。
+- 直接/动态方法调用、注册 callable 和一等可调用共享非公开成员规则。方法保留声明类的词法作用域，父类 private 方法不被子类同名方法替换。private 属性使用独立声明槽，继承构造函数的 promoted 属性写入该构造函数所属类；Reflection、isset、null 合并、unset 和 JSON 公共属性过滤相应适配。
+- 修正旧 `nested_arrayaccess_container_test.php` 的错误预期：按值返回的 ArrayAccess 数组不能通过嵌套赋值自动 offsetSet 写回，PHP 的结果是 Notice 和原值保持不变。
+- 子进程取消改为管理进程树；Windows 使用 Job，Unix 使用进程组。Windows stream_select 按 PHP 的管道行为返回，Unix 等待支持请求取消。相关标准库已有取消及后代进程退出回归。
+
+### 当前验收
+
+- 本轮成员修复之前的选择性 PHP 回归 **118/118** 通过；新增成员可见性、trait 构造函数、静态成员与 private 属性存储脚本均已通过 Origami，并以 PHP 8.4 对照。扩展后的整组回归另行记录结果。
+- `data`、`node`、`runtime`、`std/php/stream` 完整包 race 通过，Reflection 编译通过。最新日志：`storage/origami-debug/private-storage-core-race.log`。
+- 官方 Laravel / Livewire 生命周期、并发登录和 serve 的整组 race 通过，最新耗时 **36.874 秒**；HTTP 客户端均有超时。新增第三方 Manager / Facade / 监听器 fixture 检查别名、循环、捕获引用、应用身份和 8 个并发请求。日志：`storage/origami-debug/member-visibility-laravel-race.log`。
+- 调用微基准与选择性 PHP 全组正在本轮修改之后重新验证。不得把先前样本当作本轮净性能收益，或把选择性测试当作全仓通过。
+
+### 当时尚未关闭的工作
+
+以下是 2026-10-02 的历史状态；后续实施与验证见上方 2026-10-03 执行记录。
+
+1. **P1-9 原生替换契约门槛**：当前仍缺完整 Composer 版本、方法/属性签名、可见性、Reflection、序列化行为的证明及未覆盖类禁止注册机制，继续实施。
+2. **引用与数组写路径**：还需统一复杂 lvalue 的一次求值、按引用 ArrayAccess 的嵌套写入、引用所有者释放和全部重排/删除约束矩阵。
+3. **声明完整性**：继续核对方法描述符、Reflection 和旧类型适配，补 readonly/final 约束及缓存 AST 中其他运行期可变状态。
+4. **资源与取消**：现有策略和测试不证明所有扩展、不可中断 OS 调用及共享 stdin 均已覆盖；Unix 进程树行为还需实际平台运行证据。
+
+此前全仓测试的基线限制仍然有效。历史章节中的专用策略、旧字段和未实施描述是当时状态，以本节及后续执行记录为准。
 
 ## 执行记录：2026-10-01，统一 VM / RequestVM 与异常边界
 

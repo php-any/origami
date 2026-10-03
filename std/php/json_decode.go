@@ -241,7 +241,7 @@ func convertGoValue(v interface{}) data.Value {
 	case map[string]interface{}:
 		arrList := make([]*data.ZVal, 0, len(val))
 		for k, item := range val {
-			arrList = append(arrList, &data.ZVal{Name: k, Value: convertGoValue(item)})
+			arrList = append(arrList, &data.ZVal{Name: k, InitialValue: convertGoValue(item)})
 		}
 		return data.NewArrayValueFromSlots(arrList)
 	default:

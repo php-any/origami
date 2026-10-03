@@ -116,6 +116,9 @@ func (f *EnumExistsFunction) Call(ctx data.Context) (data.GetValue, data.Control
 }
 
 func classStmtIsEnum(vm data.VM, class data.ClassStmt) bool {
+	if metadata, ok := class.(interface{ DeclarationFlags() data.ClassFlags }); ok {
+		return metadata.DeclarationFlags()&data.ClassEnum != 0
+	}
 	for class != nil {
 		for _, implemented := range class.GetImplements() {
 			base := implemented

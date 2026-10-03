@@ -243,10 +243,10 @@ func reflectorGetParameterClassNames(ctx data.Context) (data.GetValue, data.Cont
 			i := 0
 			for arraySlots60, arrayPosition60 := av.View(), 0; arrayPosition60 < arraySlots60.Len(); arrayPosition60++ {
 				e := arraySlots60.At(arrayPosition60)
-				if e == nil || e.Value == nil {
+				if e == nil || e.ReadValue() == nil {
 					continue
 				}
-				listed, ok := kit.Unwrap(e.Value).(*data.ClassValue)
+				listed, ok := kit.Unwrap(e.ReadValue()).(*data.ClassValue)
 				if !ok || listed == nil {
 					continue
 				}
@@ -496,10 +496,10 @@ func reflectorGetClassAttributes(ctx data.Context) (data.GetValue, data.Control)
 	if av, ok := attrsRet.(*data.ArrayValue); ok {
 		for arraySlots61, arrayPosition61 := av.View(), 0; arrayPosition61 < arraySlots61.Len(); arrayPosition61++ {
 			e := arraySlots61.At(arrayPosition61)
-			if e == nil || e.Value == nil {
+			if e == nil || e.ReadValue() == nil {
 				continue
 			}
-			if acv, ok := kit.Unwrap(e.Value).(*data.ClassValue); ok {
+			if acv, ok := kit.Unwrap(e.ReadValue()).(*data.ClassValue); ok {
 				inst, ctl := callObjMethod(ctx, acv, "newInstance")
 				if ctl != nil {
 					continue

@@ -3,7 +3,6 @@ package php
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	"github.com/php-any/origami/std/php/core"
 )
 
 func NewGettypeFunction() data.FuncStmt {
@@ -18,42 +17,29 @@ func (f *GettypeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, ctl
 	}
 
-	internalV, intervalCtl := v.GetValue(ctx)
-	if intervalCtl != nil {
-		return nil, intervalCtl
-	}
-
 	tp := "unknown"
-	switch v := internalV.(type) {
-	case *data.ArrayValue:
+	switch data.ValueKindOf(v) {
+	case data.ValueArray:
 		tp = "array"
-	case *data.BoolValue:
-		tp = "bool"
-	case *core.ResourceValue:
+	case data.ValueBool:
+		tp = "boolean"
+	case data.ValueResource:
 		tp = "resource"
-	case *data.ClassValue:
-		if v.Class != nil {
-			if _, ok := v.Class.(*core.ResourceClass); ok {
-				tp = "resource"
-				break
-			}
+		if resource, ok := v.(interface{ IsPHPResourceOpen() bool }); ok && !resource.IsPHPResourceOpen() {
+			tp = "resource (closed)"
 		}
+	case data.ValueObject:
 		tp = "object"
-	case *data.FloatValue:
-		tp = "float"
-	case *data.IntValue:
-		tp = "int"
-	case *data.ObjectValue:
-		// Origami 用 ObjectValue 表示关联数组；PHP gettype 仍为 "array"
-		tp = "array"
-	case *data.StringValue:
+	case data.ValueFloat:
+		tp = "double"
+	case data.ValueInt:
+		tp = "integer"
+	case data.ValueString:
 		tp = "string"
-	case *data.NullValue:
-		tp = "null"
-	case *data.AnyValue:
-		tp = "any"
+	case data.ValueNull:
+		tp = "NULL"
 	}
-	return data.NewStringValue(tp), intervalCtl
+	return data.NewStringValue(tp), nil
 }
 
 func (f *GettypeFunction) GetName() string {

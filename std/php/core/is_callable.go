@@ -14,83 +14,29 @@ func NewIsCallableFunction() data.FuncStmt {
 
 func (f *IsCallableFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	value, _ := ctx.GetIndexValue(0)
-	// syntaxOnlyValue, _ := ctx.GetIndexValue(1)
-	// callableNameValue, _ := ctx.GetIndexValue(2)
-
-	// Check if value is callable
-	// In Origami, we might check if it implements CallableValue or similar.
-	// Or if it's a string representing a function, or array [obj, method], or closure.
-
-	if value == nil {
+	syntaxValue, _ := ctx.GetIndexValue(1)
+	syntaxOnly := false
+	if flag, ok := syntaxValue.(*data.BoolValue); ok {
+		syntaxOnly = flag.Value
+	}
+	name, syntaxValid := node.CallableName(value)
+	if ctl := ctx.SetVariableValue(isCallableFunctionGetVariables[2], data.NewStringValue(name)); ctl != nil {
+		return nil, ctl
+	}
+	if syntaxOnly {
+		return data.NewBoolValue(syntaxValid), nil
+	}
+	if !syntaxValid {
 		return data.NewBoolValue(false), nil
 	}
-
-	// 1. Closure / Function object
-	if _, ok := value.(data.CallableValue); ok {
-		return data.NewBoolValue(true), nil
-	}
-
-	if _, ok := value.(*data.FuncValue); ok {
-		return data.NewBoolValue(true), nil
-	}
-
-	// 字符串函数名
-	if sv, ok := value.(*data.StringValue); ok {
-		name := sv.AsString()
-		if _, found := ctx.GetVM().GetFunc(name); found {
-			return data.NewBoolValue(true), nil
-		}
-		return data.NewBoolValue(false), nil
-	}
-
-	// 实现 __invoke 的对象
-	if obj, ok := value.(*data.ClassValue); ok {
-		if _, found := obj.GetMethod("__invoke"); found {
-			return data.NewBoolValue(true), nil
-		}
-		if obj.Class != nil {
-			if _, found := obj.Class.GetMethod("__invoke"); found {
-				return data.NewBoolValue(true), nil
-			}
-		}
-		return data.NewBoolValue(false), nil
-	}
-
-	// 2. Array [obj|class, method]
-	if arr, ok := value.(*data.ArrayValue); ok {
-		valueList := arr.ToValueList()
-		if len(valueList) == 2 {
-			objOrClass := valueList[0]
-			methodNameVal := valueList[1]
-
-			if methodName, ok := methodNameVal.(data.AsString); ok {
-				method := methodName.AsString()
-
-				// [object, method]
-				if obj, ok := objOrClass.(*data.ClassValue); ok {
-					// Check if object has method
-					if _, found := obj.GetMethod(method); found {
-						return data.NewBoolValue(true), nil
-					}
-				}
-
-				// [class_string, method] (Static call)
-				if classStr, ok := objOrClass.(data.AsString); ok {
-					className := classStr.AsString()
-					// Check if class exists and has method
-					if class, _ := ctx.GetVM().GetClass(className); class != nil {
-						if _, found := class.GetMethod(method); found {
-							return data.NewBoolValue(true), nil
-						}
-					}
-				}
-			}
+	resolved, ctl := node.ResolveCallback(ctx, value)
+	if ctl != nil {
+		if thrown, ok := ctl.(*data.ThrowValue); !ok || thrown.Name != "TypeError" {
+			return nil, ctl
 		}
 	}
-
-	return data.NewBoolValue(false), nil
+	return data.NewBoolValue(resolved != nil && ctl == nil), nil
 }
-
 func (f *IsCallableFunction) GetName() string {
 	return "is_callable"
 }
@@ -98,7 +44,7 @@ func (f *IsCallableFunction) GetName() string {
 var isCallableFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "value", 0, nil, nil),
 	node.NewParameter(nil, "syntax_only", 1, node.NewBooleanLiteral(nil, false), nil),
-	node.NewParameter(nil, "callable_name", 2, node.NewNullLiteral(nil), nil),
+	node.NewParameterReference(nil, "callable_name", 2, node.NewNullLiteral(nil), nil),
 }
 
 func (f *IsCallableFunction) GetParams() []data.GetValue {

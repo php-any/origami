@@ -54,7 +54,7 @@ func (d *DbFirstMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 如果没有模型类型，返回空对象
-	return data.NewObjectValue(), nil
+	return data.NewStdClassValue(nil), nil
 }
 
 // createModelInstance 根据模型类型创建实例
@@ -73,7 +73,7 @@ func (d *DbFirstMethod) createModelInstance(rows *sql.Rows, ctx data.Context) (d
 		return d.createClassInstance(modelType, rows, ctx)
 	default:
 		// 其他类型，返回空对象
-		return data.NewObjectValue(), nil
+		return data.NewStdClassValue(nil), nil
 	}
 }
 

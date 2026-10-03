@@ -46,13 +46,7 @@ func valueListForCombine(v data.Value) []data.Value {
 	switch t := v.(type) {
 	case *data.ArrayValue:
 		return t.ToValueList()
-	case *data.ObjectValue:
-		out := make([]data.Value, 0)
-		t.RangeProperties(func(_ string, val data.Value) bool {
-			out = append(out, val)
-			return true
-		})
-		return out
+
 	default:
 		return nil
 	}

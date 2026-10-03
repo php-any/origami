@@ -26,9 +26,11 @@ type Parser struct {
 	scopeManager     *ScopeManager     // 作用域管理器
 	expressionParser *ExpressionParser // 表达式解析器
 
-	identTryString  bool
-	currentClass    string
-	currentFunction string
+	identTryString          bool
+	currentClass            string
+	currentClassParent      *string // nil in traits; their parent is fixed when composed.
+	currentFunction         string
+	currentReturnsReference bool
 
 	// currentStaticHolder 当前函数/方法/闭包解析期内的 static 局部变量存储。
 	// 仅当函数体出现 static $x 时才分配；嵌套函数通过 enterStaticScope 压栈隔离。
@@ -41,6 +43,7 @@ type Parser struct {
 
 	// definingAbstractClass 为 true 时正在解析 abstract class
 	definingAbstractClass bool
+	definingClassFlags    data.ClassFlags
 
 	// conditionalDeclDepth > 0 表示处于 if/循环/函数等语句块内。
 	// PHP：仅顶层无条件 class/interface/enum/trait 在编译期注册；条件声明延后到执行期。
@@ -72,6 +75,10 @@ func (p *Parser) reset() {
 	p.errors = make([]data.Control, 0)
 	p.uses = make(map[string]string)
 	p.namespace = nil
+	p.currentClass = ""
+	p.currentClassParent = nil
+	p.currentFunction = ""
+	p.currentReturnsReference = false
 	p.scopeManager = NewScopeManager()
 	p.currentStaticHolder = nil
 	p.staticHolderStack = p.staticHolderStack[:0]
@@ -101,6 +108,15 @@ func (p *Parser) Clone() *Parser {
 
 func (p *Parser) SetVM(vm data.VM) {
 	p.vm = vm
+}
+
+// ReleaseTokenBuffer drops compilation scratch after an AST has been saved.
+// Nodes own source ranges and declarations own their variable lists, so neither
+// needs the token array or the lexer's last input during execution.
+func (p *Parser) ReleaseTokenBuffer() {
+	p.tokens = nil
+	p.position = 0
+	p.lexer = lexer.NewLexer()
 }
 
 // enterStaticScope 进入函数/方法/闭包解析，隔离外层的 static holder。
@@ -342,7 +358,6 @@ func (p *Parser) ShowControl(acl data.Control) {
 		if from == nil {
 			from = node.NewTokenFrom(p.source, p.current().Start(), p.current().End(), p.current().Line(), p.current().Pos())
 		}
-		p.errors = append(p.errors, data.NewErrorThrow(from, errors.New(err)))
 
 		if throwValue.PHPUncaughtError {
 			p.printPHPUncaughtError(throwValue.Error.Error(), from, throwValue.StackFrames)
@@ -380,12 +395,10 @@ func (p *Parser) ShowControl(acl data.Control) {
 		}
 	} else if acl, ok := acl.(node.GetFrom); ok {
 		from := acl.GetFrom()
-		p.errors = append(p.errors, data.NewErrorThrow(from, errors.New(err)))
 		// 先打印详细的解析错误信息
 		p.printDetailedError(err, from)
 	} else {
 		from := node.NewTokenFrom(p.source, p.current().Start(), p.current().End(), p.current().Line(), p.current().Pos())
-		p.errors = append(p.errors, data.NewErrorThrow(from, errors.New(err)))
 		// 打印详细的错误信息
 		p.printDetailedError(err, from)
 	}
@@ -624,6 +637,22 @@ func (p *Parser) AddScanNamespace(namespace string, path string) {
 
 // 默认 try = true; 只获取全量名称
 func (p *Parser) findFullClassNameByNamespace(name string) (string, bool) {
+	if p.vm == nil {
+		if strings.HasPrefix(name, "\\") {
+			return strings.TrimPrefix(name, "\\"), true
+		}
+		prefix, suffix, qualified := strings.Cut(name, "\\")
+		if full, ok := p.uses[prefix]; ok {
+			if qualified {
+				full += "\\" + suffix
+			}
+			return full, true
+		}
+		if p.namespace != nil {
+			return p.namespace.GetName() + "\\" + name, false
+		}
+		return name, false
+	}
 	if full, ok := p.uses[name]; ok {
 		return full, true
 	}

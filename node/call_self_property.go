@@ -35,6 +35,9 @@ func (pe *CallSelfProperty) GetValue(ctx data.Context) (data.GetValue, data.Cont
 		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("self:: 只能在类方法中使用"))
 	}
 
+	if ctl := checkStaticPropertyAccess(ctx, currentClass, pe.Property, pe.GetFrom()); ctl != nil {
+		return nil, ctl
+	}
 	// 先检查当前类是否实现了 GetStaticProperty 接口
 	getter, ok := currentClass.(data.GetStaticProperty)
 	if ok {
@@ -139,8 +142,8 @@ func (pe *CallSelfProperty) SetProperty(ctx data.Context, name string, value dat
 		return data.NewErrorThrow(pe.GetFrom(), errors.New("self:: 只能在类方法中使用"))
 	}
 
-	if storeClassStatic(currentClass, name, value) {
-		return nil
+	if stored, ctl := storeClassStatic(ctx, currentClass, name, value); stored {
+		return ctl
 	}
 	if sp, ok := currentClass.(data.SetProperty); ok {
 		return sp.SetProperty(name, value)

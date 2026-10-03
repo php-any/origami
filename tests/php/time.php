@@ -4,7 +4,7 @@ echo "=== time() 函数测试 ===\n";
 
 // 测试 time() 返回整数
 $timestamp = time();
-if(gettype($timestamp) == "int") {
+if(gettype($timestamp) == "integer") {
     Log::info("time() 返回整数类型测试通过");
 } else {
     Log::fatal("time() 返回整数类型测试失败，实际类型: " . gettype($timestamp));

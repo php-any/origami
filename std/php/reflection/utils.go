@@ -4,6 +4,11 @@ import (
 	"github.com/php-any/origami/data"
 )
 
+func reflectionProperty(properties *data.PropertyBag, name string) data.Value {
+	value, _ := properties.LookupProperty(name)
+	return value
+}
+
 func setReflectionClassIdentity(classValue *data.ClassValue, className string) {
 	if classValue == nil || classValue.ObjectValue == nil {
 		return
@@ -28,10 +33,10 @@ func getReflectionClassInfo(ctx data.Context) (string, data.ClassStmt) {
 	if !ok || objCtx.ObjectValue == nil {
 		return "", nil
 	}
-	props := objCtx.ObjectValue.GetProperties()
-	className := phpValueAsString(props["_className"])
+	props := objCtx.ObjectValue
+	className := phpValueAsString(reflectionProperty(props, "_className"))
 	if className == "" {
-		className = phpValueAsString(props["name"])
+		className = phpValueAsString(reflectionProperty(props, "name"))
 	}
 	if className == "" {
 		return "", nil

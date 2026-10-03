@@ -3,38 +3,54 @@ package data
 type Class struct{ Name string }
 
 func (i Class) Is(value Value) bool {
+	return NominalValueMatches(value, i.Name, nil)
+}
+
+// NominalValueMatches is the runtime predicate shared by type hints, catch,
+// instanceof and builtin reflection. It never autoloads.
+func NominalValueMatches(value Value, name string, ctx Context) bool {
+	if TypeNameEqual(name, "iterable") {
+		if _, ok := value.(*ArrayValue); ok {
+			return true
+		}
+		name = "Traversable"
+	}
+	var vm VM
+	if ctx != nil {
+		vm = ctx.GetVM()
+	}
 	switch c := value.(type) {
 	case *ClassValue:
-		if i.Name == c.Class.GetName() {
-			return true
+		if vm == nil {
+			vm = c.GetVM()
 		}
-		if i.Name == "iterable" {
-			return NominalIsA(c.Class, "Traversable", c.GetVM())
-		}
-		return NominalIsA(c.Class, i.Name, c.GetVM())
+		return NominalIsA(c.Class, name, vm)
 	case *ThisValue:
-		if i.Name == c.Class.GetName() {
-			return true
+		if vm == nil {
+			vm = c.GetVM()
 		}
-		if i.Name == "iterable" {
-			return NominalIsA(c.Class, "Traversable", c.GetVM())
-		}
-		return NominalIsA(c.Class, i.Name, c.GetVM())
-	case *ArrayValue:
-		return TypeNameEqual(i.Name, "iterable")
+		return NominalIsA(c.Class, name, vm)
 	case *ThrowValue:
 		if c.Object != nil {
-			return NominalIsA(c.Object.Class, i.Name, c.Object.GetVM())
+			if vm == nil {
+				vm = c.Object.GetVM()
+			}
+			return NominalIsA(c.Object.Class, name, vm)
 		}
-		name := c.Name
-		if name == "" {
-			name = "Exception"
+		actual := c.Name
+		if actual == "" {
+			actual = "Exception"
 		}
-		return InternalTypeIsA(name, i.Name)
+		if vm != nil {
+			if class, found := vm.GetClass(actual); found {
+				return NominalIsA(class, name, vm)
+			}
+		}
+		return InternalTypeIsA(actual, name)
 	case *FuncValue, *BoundFuncValue:
-		return TypeNameEqual(i.Name, "Closure")
+		return TypeNameEqual(name, "Closure")
 	case Generator:
-		return TypeNameEqual(i.Name, "iterable") || InternalTypeIsA("Generator", i.Name)
+		return InternalTypeIsA("Generator", name)
 	}
 	return false
 }

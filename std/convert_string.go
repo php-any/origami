@@ -35,8 +35,7 @@ func (f *StringFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewStringValue(""), nil
 	case *data.ClassValue:
 		return stringFromClassValue(val)
-	case *data.ObjectValue:
-		return data.NewStringValue("Object"), nil
+
 	}
 
 	if s, ok := v.(data.AsString); ok {

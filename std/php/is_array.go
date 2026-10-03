@@ -32,9 +32,6 @@ func (f *IsArrayFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	case *data.ArrayValue:
 		// 数字索引数组
 		return data.NewBoolValue(true), nil
-	case *data.ObjectValue:
-		// 关联数组（字符串键）在 origami 中用 ObjectValue 表示
-		return data.NewBoolValue(true), nil
 	}
 	return data.NewBoolValue(false), nil
 }

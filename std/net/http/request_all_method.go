@@ -14,18 +14,18 @@ type RequestAllMethod struct {
 
 func (h *RequestAllMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if h.source == nil {
-		return data.NewObjectValue(), nil
+		return data.NewArrayValue(nil).(*data.ArrayValue), nil
 	}
 
 	// 合并所有输入数据
-	result := data.NewObjectValue()
+	result := data.NewArrayValue(nil).(*data.ArrayValue)
 
 	// 从查询参数获取
 	for key, values := range h.source.URL.Query() {
 		if len(values) == 1 {
-			result.SetProperty(key, data.NewStringValue(values[0]))
+			result.SetStringKey(key, data.NewStringValue(values[0]))
 		} else {
-			result.SetProperty(key, data.NewStringValue(strings.Join(values, ",")))
+			result.SetStringKey(key, data.NewStringValue(strings.Join(values, ",")))
 		}
 	}
 
@@ -33,9 +33,9 @@ func (h *RequestAllMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 	if h.source.Form != nil {
 		for key, values := range h.source.Form {
 			if len(values) == 1 {
-				result.SetProperty(key, data.NewStringValue(values[0]))
+				result.SetStringKey(key, data.NewStringValue(values[0]))
 			} else {
-				result.SetProperty(key, data.NewStringValue(strings.Join(values, ",")))
+				result.SetStringKey(key, data.NewStringValue(strings.Join(values, ",")))
 			}
 		}
 	}

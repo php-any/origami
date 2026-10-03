@@ -48,7 +48,7 @@ func wrapArray(ctx data.Context, cls data.ClassStmt, av *data.ArrayValue) (*data
 		var val data.Value
 		if z != nil {
 			name = z.Name
-			val = z.Value
+			val = z.ReadValue()
 		}
 		if name != "" {
 			if _, isInt := data.ParseIntArrayKeyName(name); !isInt {
@@ -91,7 +91,7 @@ func unwrapArray(av *data.ArrayValue) *data.ArrayValue {
 		var val data.Value
 		if z != nil {
 			name = z.Name
-			val = z.Value
+			val = z.ReadValue()
 		}
 		if cv, ok := val.(*data.ClassValue); ok && isStringObj(cv) {
 			val = data.NewStringValue(getString(cv))
@@ -112,7 +112,7 @@ func phpArray(v data.Value) *data.ArrayValue {
 		return nil
 	}
 	switch v.(type) {
-	case *data.ArrayValue, *data.ObjectValue:
+	case *data.ArrayValue:
 		return asArrayValue(v)
 	default:
 		return nil
@@ -124,18 +124,12 @@ func asArrayValue(v data.Value) *data.ArrayValue {
 		return nil
 	}
 	if zv, ok := v.(*data.ZValValue); ok && zv != nil && zv.ZVal != nil {
-		return asArrayValue(zv.ZVal.Value)
+		return asArrayValue(zv.ZVal.ReadValue())
 	}
 	switch t := v.(type) {
 	case *data.ArrayValue:
 		return t
-	case *data.ObjectValue:
-		out := &data.ArrayValue{}
-		t.RangeProperties(func(key string, value data.Value) bool {
-			out.SetStringKey(key, value)
-			return true
-		})
-		return out
+
 	}
 	return nil
 }
@@ -168,10 +162,10 @@ func variadicInts(ctx data.Context, i int) []int {
 			out := make([]int, 0, av.Len())
 			for arraySlots212, arrayPosition212 := av.View(), 0; arrayPosition212 < arraySlots212.Len(); arrayPosition212++ {
 				z := arraySlots212.At(arrayPosition212)
-				if z == nil || z.Value == nil {
+				if z == nil || z.ReadValue() == nil {
 					continue
 				}
-				if iv, ok := z.Value.(data.AsInt); ok {
+				if iv, ok := z.ReadValue().(data.AsInt); ok {
 					n, err := iv.AsInt()
 					if err == nil {
 						out = append(out, n)

@@ -234,7 +234,7 @@ func (m *ArrayIteratorCurrentMethod) Call(ctx data.Context) (data.GetValue, data
 	if pos < 0 || pos >= arr.Len() || arr.At(pos) == nil {
 		return data.NewNullValue(), nil
 	}
-	return arr.At(pos).Value, nil
+	return arr.At(pos).ReadValue(), nil
 }
 
 type ArrayIteratorKeyMethod struct{}

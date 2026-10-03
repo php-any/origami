@@ -89,8 +89,8 @@ func (f *ArrayMultisortFunction) Call(ctx data.Context) (data.GetValue, data.Con
 			if ia >= spec.arr.Len() || ib >= spec.arr.Len() {
 				continue
 			}
-			va := spec.arr.At(ia).Value
-			vb := spec.arr.At(ib).Value
+			va := spec.arr.At(ia).ReadValue()
+			vb := spec.arr.At(ib).ReadValue()
 			if valuesEqual(va, vb) {
 				continue
 			}
@@ -118,7 +118,7 @@ func resolveArrayRef(ctx data.Context, arg data.GetValue) (*data.ArrayValue, boo
 		if zv == nil {
 			return nil, false, nil
 		}
-		if arr, ok := zv.Value.(*data.ArrayValue); ok {
+		if arr, ok := zv.ReadValue().(*data.ArrayValue); ok {
 			return arr, true, nil
 		}
 	}
@@ -131,7 +131,7 @@ func resolveArrayRef(ctx data.Context, arg data.GetValue) (*data.ArrayValue, boo
 			return nil, false, ctl
 		}
 		if zv != nil {
-			if arr, ok := zv.Value.(*data.ArrayValue); ok {
+			if arr, ok := zv.ReadValue().(*data.ArrayValue); ok {
 				return arr, true, nil
 			}
 		}

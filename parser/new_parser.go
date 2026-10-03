@@ -454,6 +454,7 @@ func (p *NewStructParser) parseAnonymousClass(tracker *PositionTracker) (data.Ge
 	p.next()
 
 	// 使用 ClassParser 的解析逻辑来解析类成员
+	defer p.enterClassDeclaration(anonymousClassName, &extends)()
 	cp := &ClassParser{
 		Parser:               p.Parser,
 		FunctionParserCommon: NewFunctionParserCommon(p.Parser),

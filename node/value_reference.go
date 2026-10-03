@@ -22,6 +22,31 @@ func NewValueReference(token *TokenFrom, value data.GetValue) *ValueReference {
 
 // GetValue 获取引用的值
 func (v *ValueReference) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if call, ok := v.Value.(referenceCall); ok {
+		ret, ctl := call.GetReferenceValue(ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if value, ok := ret.(data.Value); ok {
+			if slot, ctl := data.ReferenceSlot(value); ctl != nil {
+				return nil, ctl
+			} else if slot != nil {
+				return &data.ArraySlotRef{Slot: slot}, nil
+			}
+		}
+		return nil, data.NewErrorThrow(v.from, errors.New("Only variables should be assigned by reference"))
+	}
+	if property, ok := v.Value.(interface {
+		GetZVal(data.Context) (*data.ZVal, data.Control)
+	}); ok {
+		if _, index := v.Value.(*IndexExpression); !index {
+			slot, ctl := property.GetZVal(ctx)
+			if ctl != nil {
+				return nil, ctl
+			}
+			return &data.ArraySlotRef{Slot: slot}, nil
+		}
+	}
 	// 变量引用：&$var
 	if variable, ok := v.Value.(data.Variable); ok {
 		return data.NewReferenceValue(variable, ctx), nil
@@ -30,33 +55,7 @@ func (v *ValueReference) GetValue(ctx data.Context) (data.GetValue, data.Control
 	if ie, ok := v.Value.(*IndexExpression); ok {
 		return v.resolveIndexRef(ctx, ie)
 	}
-	// 按引用返回的函数调用：&getRef($x)
-	if call, ok := v.Value.(*CallExpression); ok {
-		ret, ctl := call.GetValue(ctx)
-		if ctl != nil {
-			return nil, ctl
-		}
-		if ref, ok := ret.(data.Value); ok {
-			switch ref.(type) {
-			case *data.ReferenceValue, *data.ArraySlotRef, *data.IndexReferenceValue:
-				return ref, nil
-			}
-		}
-		return nil, data.NewErrorThrow(v.from, errors.New("只能引用变量"))
-	}
-	if call, ok := v.Value.(*CallLater); ok {
-		ret, ctl := call.GetValue(ctx)
-		if ctl != nil {
-			return nil, ctl
-		}
-		if ref, ok := ret.(data.Value); ok {
-			switch ref.(type) {
-			case *data.ReferenceValue, *data.ArraySlotRef, *data.IndexReferenceValue:
-				return ref, nil
-			}
-		}
-		return nil, data.NewErrorThrow(v.from, errors.New("只能引用变量"))
-	}
+
 	return nil, data.NewErrorThrow(v.from, errors.New("只能引用变量"))
 }
 

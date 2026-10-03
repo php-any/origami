@@ -1,7 +1,6 @@
 package core
 
 import (
-	"os"
 	"strings"
 
 	"github.com/php-any/origami/data"
@@ -20,10 +19,10 @@ func (f *GetenvFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取参数：环境变量名
 	nameValue, _ := ctx.GetIndexValue(0)
 	if nameValue == nil {
-		return allEnvironmentVariables(), nil
+		return allEnvironmentVariables(ctx), nil
 	}
 	if _, isNull := nameValue.(*data.NullValue); isNull {
-		return allEnvironmentVariables(), nil
+		return allEnvironmentVariables(ctx), nil
 	}
 
 	// 将参数转换为字符串
@@ -39,8 +38,8 @@ func (f *GetenvFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewBoolValue(false), nil
 	}
 
-	// 获取环境变量：优先 $_ENV / $_SERVER（Symfony Dotenv 默认写入此处），再回退 OS 环境
-	value, exists := node.LookupEnvVar(name)
+	// PHP 环境独立于可写的 $_ENV / $_SERVER 数组。
+	value, exists := node.LookupEnvVar(ctx, name)
 	if !exists {
 		// 环境变量不存在，返回 false
 		return data.NewBoolValue(false), nil
@@ -50,10 +49,10 @@ func (f *GetenvFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewStringValue(value), nil
 }
 
-func allEnvironmentVariables() *data.ArrayValue {
+func allEnvironmentVariables(ctx data.Context) *data.ArrayValue {
 	// PHP 7.1+：无参数 getenv() 返回全部环境变量。
 	list := make([]*data.ZVal, 0)
-	for _, entry := range os.Environ() {
+	for _, entry := range node.EnvironmentEntries(ctx) {
 		parts := strings.SplitN(entry, "=", 2)
 		if len(parts) != 2 {
 			continue
@@ -70,7 +69,8 @@ func (f *GetenvFunction) GetName() string {
 }
 
 var getenvFunctionGetParams = []data.GetValue{
-	node.NewParameter(nil, "name", 0, nil, data.String{}),
+	node.NewParameter(nil, "name", 0, data.NewNullValue(), data.NewNullableType(data.String{})),
+	node.NewParameter(nil, "local_only", 1, data.NewBoolValue(false), data.Bool{}),
 }
 
 func (f *GetenvFunction) GetParams() []data.GetValue {
@@ -79,6 +79,7 @@ func (f *GetenvFunction) GetParams() []data.GetValue {
 
 var getenvFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "name", 0, data.String{}),
+	node.NewVariable(nil, "local_only", 1, data.Bool{}),
 }
 
 func (f *GetenvFunction) GetVariables() []data.Variable {

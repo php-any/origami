@@ -71,7 +71,7 @@ func (f *PregMatchAllFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 			matchesArr = data.NewArrayValue([]data.Value{}).(*data.ArrayValue)
 		}
 		if z := ctx.GetIndexZVal(2); z != nil {
-			z.Value = matchesArr
+			z.StoreRaw(matchesArr)
 		}
 		return data.NewIntValue(0), nil
 	}
@@ -138,7 +138,7 @@ func (f *PregMatchAllFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 		}
 		matchesArr := data.NewArrayValueFromSlots(list)
 		if z := ctx.GetIndexZVal(2); z != nil {
-			z.Value = matchesArr
+			z.StoreRaw(matchesArr)
 		}
 	} else {
 		// PREG_SET_ORDER：$matches[matchIndex][group]（含命名捕获键）
@@ -150,7 +150,7 @@ func (f *PregMatchAllFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 		}
 		matchesArr := data.NewArrayValue(rows)
 		if z := ctx.GetIndexZVal(2); z != nil {
-			z.Value = matchesArr
+			z.StoreRaw(matchesArr)
 		}
 	}
 

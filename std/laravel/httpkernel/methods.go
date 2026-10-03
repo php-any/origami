@@ -364,7 +364,7 @@ func dispatchRequestHandled(ctx data.Context, s *kernelState, request, response 
 	// RequestHandled（Foundation/Http/Events/RequestHandled.php）是普通类，不实现 ShouldBroadcast，
 	// 所以监听器为空时 dispatch 恒返回空数组、无任何副作用。
 	//
-	// 监听器表读的是**请求级** dispatcher（cloneRequestServices 克隆出来的那个，其 listeners
+	// 监听器表读的是**请求级** dispatcher（通用对象图策略生成的副本，其 listeners
 	// 未命中时回落到全局）：本请求中途才 listen 的事件也能看见，不依赖启动期快照。
 	// Livewire 的资源自动注入和 Telescope RequestWatcher 都依赖这个事件。
 	dispatcher := requestInstance(ctx, s.app, "events")

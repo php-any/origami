@@ -79,8 +79,7 @@ func viewDataWithContent(objectValue data.GetValue, content data.Value) data.Get
 
 func viewDataProps(objectValue data.GetValue) map[string]data.Value {
 	switch v := objectValue.(type) {
-	case *data.ObjectValue:
-		return v.GetProperties()
+
 	case *data.ClassValue:
 		return v.GetProperties()
 	case *data.ArrayValue:
@@ -90,7 +89,7 @@ func viewDataProps(objectValue data.GetValue) map[string]data.Value {
 			if z == nil || z.Name == "" {
 				continue
 			}
-			props[z.Name] = z.Value
+			props[z.Name] = z.ReadValue()
 		}
 		return props
 	default:

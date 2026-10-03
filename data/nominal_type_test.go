@@ -1,9 +1,33 @@
 package data
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 )
+
+type nominalThrowContext struct {
+	Context
+	vm VM
+}
+
+func (c *nominalThrowContext) GetVM() VM { return c.vm }
+
+func TestInternalThrowUsesRegisteredNominalDeclaration(t *testing.T) {
+	parent := "Exception"
+	class := &nominalClassFixture{name: "Native\\DeclaredException", parent: &parent}
+	vm := &nominalVMFixture{classes: map[string]ClassStmt{class.name: class}}
+	ctx := &nominalThrowContext{vm: vm}
+	thrown := NewErrorThrowByName(nil, errors.New("native"), class.name).(*ThrowValue)
+	for _, name := range []string{class.name, "Exception", "Throwable"} {
+		if !NominalValueMatches(thrown, name, ctx) {
+			t.Fatalf("registered throw does not match %s", name)
+		}
+	}
+	if NominalValueMatches(thrown, "Error", ctx) {
+		t.Fatal("Exception matched Error branch")
+	}
+}
 
 type nominalClassFixture struct {
 	ClassStmt

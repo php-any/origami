@@ -31,7 +31,7 @@ func (f *IniSetFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		newValue = valueVal.AsString()
 	}
 
-	old, hadOld := IniSet(option, newValue)
+	old, hadOld := IniSetInContext(ctx, option, newValue)
 	if !hadOld {
 		// 配置项之前不存在，返回空字符串（PHP 行为：ini_set 首次设置也返回 ""）
 		return data.NewStringValue(""), nil

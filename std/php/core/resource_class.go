@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"sync/atomic"
 
 	"github.com/php-any/origami/data"
 )
@@ -10,15 +11,17 @@ import (
 type ResourceClass struct {
 	ResourceType string      // 资源类型，如 "process", "file", "stream" 等
 	Resource     interface{} // 实际的资源对象
-	id           int         // 资源ID（对于进程资源，这是真实的系统进程ID）
+	id           int         // PHP identity; OS descriptors and PIDs belong to Resource.
 }
 
+var nextResourceID atomic.Int64
+
 // NewResourceClass 创建资源类
-func NewResourceClass(resourceType string, resource interface{}, resourceID int) *ResourceClass {
+func NewResourceClass(resourceType string, resource interface{}, _ int) *ResourceClass {
 	return &ResourceClass{
 		ResourceType: resourceType,
 		Resource:     resource,
-		id:           resourceID,
+		id:           int(nextResourceID.Add(1)),
 	}
 }
 

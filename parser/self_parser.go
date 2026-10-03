@@ -29,6 +29,21 @@ func (sp *SelfParser) Parse() (data.GetValue, data.Control) {
 	// 在 PHP 中，self:: 后面可以跟任何标识符（包括关键字如 from、match 等用作方法名）
 	if sp.checkPositionIs(0, token.SCOPE_RESOLUTION) {
 		sp.next() // 跳过 ::
+		if sp.current().Type() == token.LBRACE {
+			sp.next()
+			name, ctl := sp.expressionParser.Parse()
+			if ctl != nil {
+				return nil, ctl
+			}
+			if ctl := sp.nextAndCheck(token.RBRACE); ctl != nil {
+				return nil, ctl
+			}
+			vp := &VariableParser{sp.Parser}
+			if sp.current().Type() == token.LPAREN {
+				return vp.parseSuffix(node.NewCallStaticDynamicMethod(tracker.EndBefore(), node.NewSelfClass(tracker.EndBefore()), name))
+			}
+			return vp.parseSuffix(node.NewCallDynamicConstant(tracker.EndBefore(), node.NewSelfClass(tracker.EndBefore()), name))
+		}
 
 		// 检查是否是 self::class
 		if sp.current().Type() == token.CLASS {
@@ -57,19 +72,11 @@ func (sp *SelfParser) Parse() (data.GetValue, data.Control) {
 				}
 				nameExpr := node.NewVariableWithFirst(tokenFrom, varInfo)
 				var classRef data.GetValue = node.NewSelfClass(tokenFrom)
-				if sp.currentClass != "" {
-					classRef = node.NewStringLiteral(tokenFrom, sp.currentClass)
-				}
 				expr := node.NewCallStaticDynamicMethod(tokenFrom, classRef, nameExpr)
 				return vp.parseSuffix(expr)
 			}
-			// 如果已知当前类名（解析时），直接使用 CallStaticMethodLater
-			// 这样在闭包等非 ClassMethodContext 中也能正确工作
-			if sp.currentClass != "" {
-				expr := node.NewCallStaticMethodLater(tokenFrom, sp.currentClass, memberName, sp.currentClass)
-				return vp.parseSuffix(expr)
-			}
-			// 否则回退到运行时解析
+			// self:: forwards the caller's late-static class. Rewriting it to an
+			// explicit class call would reset that class in inherited factories.
 			expr := node.NewCallSelfMethod(tokenFrom, memberName)
 			return vp.parseSuffix(expr)
 		} else {

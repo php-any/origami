@@ -26,18 +26,7 @@ func (f *ArrayKeyLastFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 		}
 		position := v.Len() - 1
 		return v.At(position).PHPArrayKey(position), nil
-	case *data.ObjectValue:
-		var lastKey string
-		found := false
-		v.RangeProperties(func(key string, _ data.Value) bool {
-			lastKey = key
-			found = true
-			return true
-		})
-		if !found {
-			return data.NewNullValue(), nil
-		}
-		return data.NewStringValue(lastKey), nil
+
 	default:
 		return data.NewNullValue(), nil
 	}

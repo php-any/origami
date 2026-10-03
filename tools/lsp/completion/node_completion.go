@@ -123,10 +123,8 @@ func getTypeFromNode(n data.GetValue, ctx interface{}, provider defines.SymbolPr
 	// 如果节点是变量表达式，尝试获取变量类型
 	if varExpr, ok := n.(*node.VariableExpression); ok {
 		// 首先尝试从变量节点的类型信息获取
-		if varExpr.Type != nil {
-			if typ, ok := varExpr.Type.(data.Types); ok {
-				return typ
-			}
+		if varExpr.Type != data.TypeInvalid {
+			return data.LegacyType(varExpr.GetType())
 		}
 
 		// 如果变量节点没有类型信息，尝试从 provider 获取

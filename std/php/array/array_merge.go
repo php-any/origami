@@ -46,7 +46,7 @@ func (f *ArrayMergeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 
 	setString := func(key string, v data.Value) {
 		if idx, ok := stringKeyIndex[key]; ok {
-			result[idx].Value = v
+			result[idx].StoreRaw(v)
 			return
 		}
 		stringKeyIndex[key] = len(result)
@@ -66,28 +66,17 @@ func (f *ArrayMergeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		case *data.ArrayValue:
 			for arraySlots97, arrayPosition97 := v.View(), 0; arrayPosition97 < arraySlots97.Len(); arrayPosition97++ {
 				zval := arraySlots97.At(arrayPosition97)
-				if zval == nil || zval.Value == nil {
+				if zval == nil || zval.ReadValue() == nil {
 					continue
 				}
 				if zval.EmptyStrKey {
-					setEmptyString(zval.Value)
+					setEmptyString(zval.ReadValue())
 				} else if isStringArrayKey(zval.Name) {
-					setString(zval.Name, zval.Value)
+					setString(zval.Name, zval.ReadValue())
 				} else {
-					appendInt(zval.Value)
+					appendInt(zval.ReadValue())
 				}
 			}
-
-		case *data.ObjectValue:
-			// 按插入顺序遍历，避免 Go map 遍历顺序随机导致 array_merge 结果顺序不稳定
-			v.RangeProperties(func(key string, val data.Value) bool {
-				if isStringArrayKey(key) {
-					setString(key, val)
-				} else {
-					appendInt(val)
-				}
-				return true
-			})
 
 		default:
 			// 非数组参数：PHP 会 warning；这里按值附加为下一个 int 键

@@ -109,8 +109,8 @@ func getCompoundMemberTypes(ctx data.Context) data.Value {
 	if !ok || objCtx.ObjectValue == nil {
 		return empty
 	}
-	props := objCtx.ObjectValue.GetProperties()
-	v, has := props["_memberTypes"]
+	props := objCtx.ObjectValue
+	v, has := props.LookupProperty("_memberTypes")
 	if !has || v == nil {
 		return empty
 	}

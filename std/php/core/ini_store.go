@@ -1,12 +1,39 @@
 package core
 
 import (
+	"github.com/php-any/origami/data"
 	"strings"
 	"sync"
 )
 
 // iniStore 是全局 PHP ini 配置存储，模拟 php.ini 运行时可修改的配置项。
 var iniStore sync.Map
+
+type phpIniHost interface {
+	LookupPHPIni(string) (string, bool)
+	StorePHPIni(string, string)
+}
+
+func IniGetInContext(ctx data.Context, name string) (string, bool) {
+	if ctx != nil {
+		if host, ok := ctx.GetVM().(phpIniHost); ok {
+			if value, found := host.LookupPHPIni(name); found {
+				return value, true
+			}
+		}
+	}
+	return IniGet(name)
+}
+func IniSetInContext(ctx data.Context, name, value string) (string, bool) {
+	if ctx != nil {
+		if host, ok := ctx.GetVM().(phpIniHost); ok {
+			previous, found := IniGetInContext(ctx, name)
+			host.StorePHPIni(name, value)
+			return previous, found
+		}
+	}
+	return IniSet(name, value)
+}
 
 // IniSet 设置配置项，返回旧值（若不存在则返回 false 字符串标识）。
 func IniSet(key, value string) (string, bool) {

@@ -405,8 +405,8 @@ func needles(ctx data.Context, v data.Value) []string {
 		out := make([]string, 0, av.Len())
 		for arraySlots205, arrayPosition205 := av.View(), 0; arrayPosition205 < arraySlots205.Len(); arrayPosition205++ {
 			z := arraySlots205.At(arrayPosition205)
-			if z != nil && z.Value != nil {
-				out = append(out, valueString(ctx, z.Value))
+			if z != nil && z.ReadValue() != nil {
+				out = append(out, valueString(ctx, z.ReadValue()))
 			}
 		}
 		return out
@@ -424,11 +424,11 @@ func variadicStrings(ctx data.Context, i int) []string {
 			out := make([]string, 0, av.Len())
 			for arraySlots206, arrayPosition206 := av.View(), 0; arrayPosition206 < arraySlots206.Len(); arrayPosition206++ {
 				z := arraySlots206.At(arrayPosition206)
-				if z != nil && z.Value != nil {
-					if _, isNull := z.Value.(*data.NullValue); isNull {
+				if z != nil && z.ReadValue() != nil {
+					if _, isNull := z.ReadValue().(*data.NullValue); isNull {
 						continue
 					}
-					out = append(out, z.Value.AsString())
+					out = append(out, z.ReadValue().AsString())
 				}
 			}
 			return out

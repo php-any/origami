@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"weak"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -16,12 +17,19 @@ import (
 type WeakMapClass struct {
 	node.Node
 	mu    sync.RWMutex
-	store map[string]data.Value // 使用对象 ID 作为键
+	store map[string]*data.ZVal // Dimension access can expose a reference slot.
+	keys  map[string]weakMapObjectKey
+}
+
+type weakMapObjectKey struct {
+	object weak.Pointer[data.ObjectValue]
+	class  data.ClassStmt
 }
 
 func NewWeakMapClass() *WeakMapClass {
 	return &WeakMapClass{
-		store: make(map[string]data.Value),
+		store: make(map[string]*data.ZVal),
+		keys:  make(map[string]weakMapObjectKey),
 	}
 }
 
@@ -74,6 +82,23 @@ func (w *WeakMapClass) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 }
 
 func (w *WeakMapClass) GetSource() any { return w }
+
+func (w *WeakMapClass) ArrayDimensionReference(ctx data.Context, object *data.ClassValue, key data.Value) (*data.ZVal, data.Control) {
+	if data.ValueKindOf(key) != data.ValueObject {
+		return nil, data.NewTypeError(nil, fmt.Errorf("WeakMap key must be an object"))
+	}
+	instance, ok := object.GetSource().(*WeakMapClass)
+	if !ok {
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Invalid WeakMap instance"), "Error")
+	}
+	instance.mu.RLock()
+	slot := instance.store[objectKey(key)]
+	instance.mu.RUnlock()
+	if slot == nil {
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Object is not contained in WeakMap"), "Error")
+	}
+	return slot, nil
+}
 
 func objectKey(v data.Value) string {
 	switch t := v.(type) {
@@ -140,7 +165,7 @@ func (m *WeakMapOffsetExistsMethod) Call(ctx data.Context) (data.GetValue, data.
 		return data.NewBoolValue(false), nil
 	}
 
-	wm, ok := classCtx.ClassValue.Class.(*WeakMapClass)
+	wm, ok := classCtx.ClassValue.GetSource().(*WeakMapClass)
 	if !ok {
 		return data.NewBoolValue(false), nil
 	}
@@ -197,7 +222,7 @@ func (m *WeakMapOffsetGetMethod) Call(ctx data.Context) (data.GetValue, data.Con
 		return nil, utils.NewThrow(errors.New("InvalidArgumentException: Object not found in WeakMap"))
 	}
 
-	wm, ok := classCtx.ClassValue.Class.(*WeakMapClass)
+	wm, ok := classCtx.ClassValue.GetSource().(*WeakMapClass)
 	if !ok {
 		return nil, utils.NewThrow(errors.New("InvalidArgumentException: Object not found in WeakMap"))
 	}
@@ -209,7 +234,7 @@ func (m *WeakMapOffsetGetMethod) Call(ctx data.Context) (data.GetValue, data.Con
 	if !exists {
 		return nil, utils.NewThrow(errors.New("InvalidArgumentException: Object not found in WeakMap"))
 	}
-	return val, nil
+	return val.ReadValue(), nil
 }
 
 // WeakMapOffsetSetMethod 实现 offsetSet 方法
@@ -261,13 +286,24 @@ func (m *WeakMapOffsetSetMethod) Call(ctx data.Context) (data.GetValue, data.Con
 		return nil, nil
 	}
 
-	wm, ok := classCtx.ClassValue.Class.(*WeakMapClass)
+	wm, ok := classCtx.ClassValue.GetSource().(*WeakMapClass)
 	if !ok {
 		return nil, nil
 	}
 
 	wm.mu.Lock()
-	wm.store[objectKey(objVal)] = val
+	key := objectKey(objVal)
+	if previous := wm.store[key]; previous != nil {
+		data.CowAssign(previous, val)
+	} else {
+		wm.store[key] = data.NewZVal(data.CowAddRef(val))
+	}
+	switch object := objVal.(type) {
+	case *data.ClassValue:
+		wm.keys[key] = weakMapObjectKey{object: weak.Make(object.ObjectValue), class: object.Class}
+	case *data.ThisValue:
+		wm.keys[key] = weakMapObjectKey{object: weak.Make(object.ObjectValue), class: object.Class}
+	}
 	wm.mu.Unlock()
 	return nil, nil
 }
@@ -318,13 +354,14 @@ func (m *WeakMapOffsetUnsetMethod) Call(ctx data.Context) (data.GetValue, data.C
 		return nil, nil
 	}
 
-	wm, ok := classCtx.ClassValue.Class.(*WeakMapClass)
+	wm, ok := classCtx.ClassValue.GetSource().(*WeakMapClass)
 	if !ok {
 		return nil, nil
 	}
 
 	wm.mu.Lock()
 	delete(wm.store, objectKey(objVal))
+	delete(wm.keys, objectKey(objVal))
 	wm.mu.Unlock()
 	return nil, nil
 }
@@ -364,7 +401,7 @@ func (m *WeakMapCountMethod) Call(ctx data.Context) (data.GetValue, data.Control
 		return data.NewIntValue(0), nil
 	}
 
-	wm, ok := classCtx.ClassValue.Class.(*WeakMapClass)
+	wm, ok := classCtx.ClassValue.GetSource().(*WeakMapClass)
 	if !ok {
 		return data.NewIntValue(0), nil
 	}

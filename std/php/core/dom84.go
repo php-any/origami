@@ -279,7 +279,7 @@ func (m *DomGetElementsByTagNameMethod) Call(ctx data.Context) (data.GetValue, d
 		if arr, ok := children.(*data.ArrayValue); ok {
 			for arraySlots116, arrayPosition116 := arr.View(), 0; arrayPosition116 < arraySlots116.Len(); arrayPosition116++ {
 				zval := arraySlots116.At(arrayPosition116)
-				if child, ok := zval.Value.(*data.ClassValue); ok {
+				if child, ok := zval.ReadValue().(*data.ClassValue); ok {
 					collectElementsByTagName(child, tagName, &results)
 				}
 			}

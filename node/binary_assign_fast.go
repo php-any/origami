@@ -17,7 +17,7 @@ func intFromOperand(ctx data.Context, op data.GetValue) (int, bool) {
 	switch o := op.(type) {
 	case *VariableExpression:
 		if zv := ctx.GetIndexZVal(o.Index); zv != nil {
-			if iv, ok := zv.Value.(*data.IntValue); ok {
+			if iv, ok := zv.ReadValue().(*data.IntValue); ok {
 				return iv.Value, true
 			}
 		}

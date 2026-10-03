@@ -23,7 +23,7 @@ func (a *ArrayValueConcat) Call(ctx Context) (GetValue, Control) {
 	// 转换为 []Value 用于 NewArrayValue
 	values := make([]Value, len(result))
 	for i, zval := range result {
-		values[i] = zval.Value
+		values[i] = zval.ReadValue()
 	}
 	return NewArrayValue(values), nil
 }

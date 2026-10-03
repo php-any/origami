@@ -37,9 +37,9 @@ func (f *ArrayFillKeysFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 	list := make([]*data.ZVal, 0)
 	for arraySlots88, arrayPosition88 := arr.View(), 0; arrayPosition88 < arraySlots88.Len(); arrayPosition88++ {
 		z := arraySlots88.At(arrayPosition88)
-		k := z.Value.AsString()
+		k := z.ReadValue().AsString()
 		if !seen[k] {
-			list = append(list, &data.ZVal{Name: k, Value: val})
+			list = append(list, &data.ZVal{Name: k, InitialValue: val})
 			seen[k] = true
 		}
 	}

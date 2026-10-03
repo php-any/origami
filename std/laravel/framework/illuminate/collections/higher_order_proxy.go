@@ -124,7 +124,7 @@ func hopGet(ctx data.Context) (data.GetValue, data.Control) {
 		// 对齐 HigherOrderCollectionProxy::__get：is_array($value) ? data_get($value, $key) : $value->{$key}
 		// 关联数组字面量在 origami 里可能是 ArrayValue 也可能是 ObjectValue，两种都要走。
 		switch item.(type) {
-		case *data.ArrayValue, *data.ObjectValue:
+		case *data.ArrayValue:
 			if got, ok := dataGetPath(item, key); ok {
 				return got, nil
 			}

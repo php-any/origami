@@ -101,7 +101,7 @@ func bindDTO(vm data.VM, ctx data.Context, reqProxy, resProxy data.Value, bindin
 		return nil, acl
 	}
 	if dto == nil {
-		return data.NewObjectValue(), nil
+		return data.NewStdClassValue(nil), nil
 	}
 	val, ok := dto.(data.Value)
 	if !ok {
@@ -139,7 +139,7 @@ func writeValidationError(resProxy data.Value, violations []validation.Violation
 	if len(vars) > 2 {
 		items := make([]data.Value, 0, len(violations))
 		for _, v := range violations {
-			item := data.NewObjectValue()
+			item := data.NewStdClassValue(nil)
 			item.SetProperty("field", data.NewStringValue(v.Field))
 			item.SetProperty("message", data.NewStringValue(v.Message))
 			items = append(items, item)

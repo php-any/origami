@@ -34,45 +34,30 @@ func (fn *ArrayReplaceFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 
 // replaceByKeys 按键替换（对齐 PHP array_replace），保留字符串键与稀疏整数键。
 func replaceByKeys(base, other data.Value) data.Value {
-	baseObj, bOk := base.(*data.ObjectValue)
-	otherObj, oOk := other.(*data.ObjectValue)
-	if bOk && oOk {
-		out := data.NewObjectValue()
-		baseObj.RangeProperties(func(k string, v data.Value) bool {
-			out.SetProperty(k, v)
-			return true
-		})
-		otherObj.RangeProperties(func(k string, v data.Value) bool {
-			out.SetProperty(k, v)
-			return true
-		})
-		return out
-	}
-
-	baseArr, bOk := base.(*data.ArrayValue)
-	otherArr, oOk := other.(*data.ArrayValue)
-	if !bOk || !oOk {
+	a, ok := base.(*data.ArrayValue)
+	if !ok {
 		return other
 	}
-
-	out := data.CloneArrayValue(baseArr)
-	for arraySlots101, i := otherArr.View(), 0; i < arraySlots101.Len(); i++ {
-		z := arraySlots101.At(i)
-		if z == nil {
-			continue
+	b, ok := other.(*data.ArrayValue)
+	if !ok {
+		return other
+	}
+	out := data.CloneArrayValue(a)
+	for slots, i := b.View(), 0; i < slots.Len(); i++ {
+		slot := slots.At(i)
+		key := slot.PHPArrayKey(i)
+		if slot.RefCount() > 0 {
+			out.BindReference(key, slot)
+		} else {
+			out.SetKey(key, slot.ReadValue())
 		}
-		key := z.Name
-		if key == "" {
-			key = data.IntArrayKeyName(i)
-		}
-		setArrayNamedValue(out, key, z.Value)
 	}
 	return out
 }
 
 func setArrayNamedValue(arr *data.ArrayValue, key string, value data.Value) {
 	if existing, ok := arr.LookupZValByStringKey(key); ok && existing != nil {
-		existing.Value = value
+		existing.StoreRaw(value)
 		return
 	}
 	arr.SetStringKey(key, value)
@@ -80,13 +65,7 @@ func setArrayNamedValue(arr *data.ArrayValue, key string, value data.Value) {
 
 func shallowCopyPreserveKeys(v data.Value) data.Value {
 	switch val := v.(type) {
-	case *data.ObjectValue:
-		out := data.NewObjectValue()
-		val.RangeProperties(func(k string, prop data.Value) bool {
-			out.SetProperty(k, prop)
-			return true
-		})
-		return out
+
 	case *data.ArrayValue:
 		return data.CloneArrayValue(val)
 	}

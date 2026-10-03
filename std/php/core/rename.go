@@ -50,6 +50,10 @@ func (f *RenameFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return data.NewBoolValue(false), nil
 	}
 
+	if cache, ok := ctx.GetVM().(interface{ InvalidateParsedFile(string) }); ok {
+		cache.InvalidateParsedFile(oldName)
+		cache.InvalidateParsedFile(newName)
+	}
 	return data.NewBoolValue(true), nil
 }
 

@@ -2,6 +2,7 @@ package openai
 
 import (
 	"context"
+	"io"
 	"os"
 
 	"github.com/openai/openai-go/v3"
@@ -33,65 +34,61 @@ func newClientFromEnv() (*client, error) {
 }
 
 // chat 发送 Chat Completion 请求
-func (c *client) chat(model string, messages []openai.ChatCompletionMessageParamUnion, opts map[string]any) (*openai.ChatCompletion, error) {
+func (c *client) chat(ctx context.Context, model string, messages []openai.ChatCompletionMessageParamUnion, opts map[string]any) (*openai.ChatCompletion, error) {
 	params := openai.ChatCompletionNewParams{
 		Model:    openai.ChatModel(model),
 		Messages: messages,
 	}
 	applyChatOptions(&params, opts)
-	return c.inner.Chat.Completions.New(context.Background(), params)
+	return c.inner.Chat.Completions.New(ctx, params)
 }
 
 // embeddings 创建文本嵌入
-func (c *client) embeddings(model string, input openai.EmbeddingNewParamsInputUnion, opts map[string]any) (*openai.CreateEmbeddingResponse, error) {
+func (c *client) embeddings(ctx context.Context, model string, input openai.EmbeddingNewParamsInputUnion, opts map[string]any) (*openai.CreateEmbeddingResponse, error) {
 	params := openai.EmbeddingNewParams{
 		Model: openai.EmbeddingModel(model),
 		Input: input,
 	}
 	applyEmbeddingOptions(&params, opts)
-	return c.inner.Embeddings.New(context.Background(), params)
+	return c.inner.Embeddings.New(ctx, params)
 }
 
 // images 生成图片
-func (c *client) images(model string, prompt string, opts map[string]any) (*openai.ImagesResponse, error) {
+func (c *client) images(ctx context.Context, model string, prompt string, opts map[string]any) (*openai.ImagesResponse, error) {
 	params := openai.ImageGenerateParams{
 		Prompt: prompt,
 		Model:  model,
 	}
 	applyImageOptions(&params, opts)
-	return c.inner.Images.Generate(context.Background(), params)
+	return c.inner.Images.Generate(ctx, params)
 }
 
 // speech 文本转语音并写入文件
-func (c *client) speech(model string, input string, voice string, outputPath string, opts map[string]any) error {
+func (c *client) speech(ctx context.Context, model string, input string, voice string, outputPath string, opts map[string]any) error {
 	params := openai.AudioSpeechNewParams{
 		Input: input,
 		Model: openai.SpeechModel(model),
 		Voice: openai.AudioSpeechNewParamsVoiceUnion{OfString: openai.String(voice)},
 	}
 	applySpeechOptions(&params, opts)
-	resp, err := c.inner.Audio.Speech.New(context.Background(), params)
+	resp, err := c.inner.Audio.Speech.New(ctx, params)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
-	data := make([]byte, 0)
-	buf := make([]byte, 32*1024)
-	for {
-		n, readErr := resp.Body.Read(buf)
-		if n > 0 {
-			data = append(data, buf[:n]...)
-		}
-		if readErr != nil {
-			break
-		}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	return os.WriteFile(outputPath, data, 0644)
 }
 
 // transcription 语音转文字
-func (c *client) transcription(model string, filePath string, opts map[string]any) (*openai.AudioTranscriptionNewResponseUnion, error) {
+func (c *client) transcription(ctx context.Context, model string, filePath string, opts map[string]any) (*openai.AudioTranscriptionNewResponseUnion, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
@@ -103,7 +100,7 @@ func (c *client) transcription(model string, filePath string, opts map[string]an
 		File:  file,
 	}
 	applyTranscriptionOptions(&params, opts)
-	return c.inner.Audio.Transcriptions.New(context.Background(), params)
+	return c.inner.Audio.Transcriptions.New(ctx, params)
 }
 
 // applyChatOptions 将 options map 应用到 ChatCompletionNewParams

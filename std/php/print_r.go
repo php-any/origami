@@ -3,7 +3,6 @@ package php
 import (
 	"fmt"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -78,44 +77,18 @@ func printRValue(v data.GetValue, indent int) string {
 		for arraySlots127, arrayPosition127 := av.View(), 0; arrayPosition127 < arraySlots127.Len(); arrayPosition127++ {
 			item := arraySlots127.At(arrayPosition127)
 			sb.WriteString(pad + "    [" + item.Name + "] => ")
-			if subArr, ok := item.Value.(*data.ArrayValue); ok {
+			if subArr, ok := item.ReadValue().(*data.ArrayValue); ok {
 				sb.WriteString("Array\n")
 				sb.WriteString(pad + "    (\n")
 				sb.WriteString(printRValue(subArr, indent+8))
 				sb.WriteString(pad + "    )\n")
 			} else {
-				sb.WriteString(item.Value.AsString() + "\n")
+				sb.WriteString(item.ReadValue().AsString() + "\n")
 			}
 		}
 		sb.WriteString(pad + ")\n")
 		return sb.String()
-	case *data.ObjectValue:
-		// 尝试按关联数组方式输出
-		props := av.GetProperties()
-		if len(props) == 0 {
-			return "Object\n(\n" + pad + ")\n"
-		}
-		var sb strings.Builder
-		sb.WriteString("Object\n(\n")
-		keys := make([]string, 0, len(props))
-		for k := range props {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			v := props[k]
-			sb.WriteString(pad + "    [" + k + "] => ")
-			if subObj, ok := v.(*data.ObjectValue); ok {
-				sb.WriteString("Object\n")
-				sb.WriteString(pad + "    (\n")
-				sb.WriteString(printRValue(subObj, indent+8))
-				sb.WriteString(pad + "    )\n")
-			} else {
-				sb.WriteString(v.AsString() + "\n")
-			}
-		}
-		sb.WriteString(pad + ")\n")
-		return sb.String()
+
 	default:
 		return av.AsString() + "\n"
 	}
@@ -215,7 +188,7 @@ func (f *VprintfFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if arr, ok := valuesV.(*data.ArrayValue); ok {
 		for arraySlots128, arrayPosition128 := arr.View(), 0; arrayPosition128 < arraySlots128.Len(); arrayPosition128++ {
 			item := arraySlots128.At(arrayPosition128)
-			args = append(args, item.Value)
+			args = append(args, item.ReadValue())
 		}
 	}
 

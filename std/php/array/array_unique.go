@@ -38,51 +38,24 @@ func (f *ArrayUniqueFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 
 	// 处理数组
 	if arrayVal, ok := arrayValue.(*data.ArrayValue); ok {
-		return f.processArray(arrayVal.ToValueList(), flags), nil
-	}
-
-	// 处理对象（关联数组）
-	if objectVal, ok := arrayValue.(*data.ObjectValue); ok {
-		return f.processObject(objectVal, flags), nil
+		seen := make(map[string]bool)
+		result := data.NewArrayValue(nil).(*data.ArrayValue)
+		for slots, i := arrayVal.View(), 0; i < slots.Len(); i++ {
+			slot := slots.At(i)
+			key := f.getValueKey(slot.ReadValue(), flags)
+			if !seen[key] {
+				seen[key] = true
+				if slot.RefCount() > 0 {
+					result.BindReference(slot.PHPArrayKey(i), slot)
+				} else {
+					result.SetKey(slot.PHPArrayKey(i), slot.ReadValue())
+				}
+			}
+		}
+		return result, nil
 	}
 
 	return nil, throwMustBeArray("array_unique", arrayValue)
-}
-
-// processArray 处理 ArrayValue
-func (f *ArrayUniqueFunction) processArray(values []data.Value, flags int) data.GetValue {
-	// 使用 map 来跟踪已见过的值
-	seen := make(map[string]bool)
-	result := make([]data.Value, 0)
-
-	for _, val := range values {
-		key := f.getValueKey(val, flags)
-		if !seen[key] {
-			seen[key] = true
-			result = append(result, val)
-		}
-	}
-
-	return data.NewArrayValue(result)
-}
-
-// processObject 处理 ObjectValue（关联数组）
-func (f *ArrayUniqueFunction) processObject(objectVal *data.ObjectValue, flags int) data.GetValue {
-	// 使用 map 来跟踪已见过的值
-	seen := make(map[string]bool)
-	result := data.NewObjectValue()
-
-	// 按插入顺序遍历，避免 Go map 顺序随机
-	objectVal.RangeProperties(func(key string, val data.Value) bool {
-		valueKey := f.getValueKey(val, flags)
-		if !seen[valueKey] {
-			seen[valueKey] = true
-			result.SetProperty(key, val)
-		}
-		return true
-	})
-
-	return result
 }
 
 // getValueKey 根据 flags 获取值的唯一键

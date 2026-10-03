@@ -7,9 +7,27 @@ import (
 )
 
 func NewArrayValue(v []Value) Value {
+	if len(v) == 0 {
+		return &ArrayValue{}
+	}
+	return newPopulatedArrayValue(v)
+}
+
+func newPopulatedArrayValue(v []Value) Value {
 	list := make([]*ZVal, len(v))
-	for i, val := range v {
-		list[i] = NewZVal(val)
+	if len(v) > 1 && len(v) <= 8 {
+		// Small arrays allocate their independent buckets in one block. The
+		// block is never pooled or moved, so exported reference slots stay valid.
+		// Large arrays retain individual buckets to limit escaped-slot retention.
+		buckets := make([]ZVal, len(v))
+		for i, val := range v {
+			buckets[i] = ZVal{InitialValue: CowAddRef(val), Defined: true}
+			list[i] = &buckets[i]
+		}
+	} else {
+		for i, val := range v {
+			list[i] = NewZVal(CowAddRef(val))
+		}
 	}
 	return &ArrayValue{
 		flatArrayStore: FlatArrayStore{entries: list},
@@ -33,12 +51,13 @@ func CloneArrayValue(src *ArrayValue) *ArrayValue {
 		if z == nil {
 			continue
 		}
-		if z.RefSlotCount > 0 {
+		if z.RefCount() > 0 {
 			// 引用槽位共享，保证引用赋值（&$arr[i]）语义
-			list[i] = z
+			z.AddRefSlot()
+			list[i] = CopyReferenceBucket(z)
 		} else {
 			// 复制 ZVal 时保留 Name（关联数组键）
-			list[i] = CopyZValKeepName(z, z.Value)
+			list[i] = CopyZValKeepName(z, CowAddRef(z.ReadValue()))
 		}
 	}
 	return &ArrayValue{
@@ -50,7 +69,7 @@ func CloneArrayValue(src *ArrayValue) *ArrayValue {
 // DeepCloneArrayValue 深度克隆一个 ArrayValue，用于 PHP clone 对象时对数组类型属性做拷贝。
 // 与 PHP 语义对齐：
 //   - 数组（含嵌套数组）按值拷贝，结构上与原数组互不影响
-//   - 数组内的对象（*ClassValue / *ObjectValue）仍按引用共享
+//   - 数组内的 PHP 对象（*ClassValue）仍按引用共享
 //
 // 参数 depth 用于防御极端深度的嵌套数组（避免栈溢出）。
 func DeepCloneArrayValue(src *ArrayValue) *ArrayValue {
@@ -71,11 +90,16 @@ func deepCloneArrayValue(src *ArrayValue, depth int) *ArrayValue {
 		if z == nil {
 			continue
 		}
+		if z.RefCount() > 0 {
+			z.AddRefSlot()
+			list[i] = CopyReferenceBucket(z)
+			continue
+		}
 		if depth < maxDepth {
 			// 嵌套数组/关联数组按值拷贝；对象与标量保持引用共享（与 PHP clone 语义一致）
-			list[i] = CopyZValKeepName(z, deepCloneValue(z.Value, depth+1))
+			list[i] = CopyZValKeepName(z, deepCloneValue(z.ReadValue(), depth+1))
 		} else {
-			list[i] = CopyZValKeepName(z, z.Value)
+			list[i] = CopyZValKeepName(z, CowAddRef(z.ReadValue()))
 		}
 	}
 	return &ArrayValue{
@@ -95,11 +119,12 @@ func CloneArrayValueForCallArgs(src *ArrayValue) *ArrayValue {
 		if z == nil {
 			continue
 		}
-		if z.RefSlotCount > 0 {
-			list[i] = z
+		if z.RefCount() > 0 {
+			z.AddRefSlot()
+			list[i] = CopyReferenceBucket(z)
 		} else {
 			// 复制 ZVal 时保留 Name（关联数组键），避免在 __call/__callStatic 参数传递中丢失键
-			list[i] = CopyZValKeepName(z, z.Value)
+			list[i] = CopyZValKeepName(z, CowAddRef(z.ReadValue()))
 		}
 	}
 	return &ArrayValue{flatArrayStore: FlatArrayStore{entries: list, appendKeyKnown: src.appendKeyKnown, intKeySeen: src.intKeySeen, nextIntKey: src.nextIntKey, iterator: src.iterator}, rc: 1}
@@ -113,13 +138,15 @@ type ArrayValue struct {
 }
 
 func (a *ArrayValue) Current(ctx Context) (Value, Control) {
+	a.Materialize()
 	if a.iterator < 0 || a.iterator >= len(a.entries) {
 		return NewNullValue(), nil
 	}
-	return a.entries[a.iterator].Value, nil
+	return a.entries[a.iterator].ReadValue(), nil
 }
 
 func (a *ArrayValue) Key(ctx Context) (Value, Control) {
+	a.Materialize()
 	if a.iterator >= 0 && a.iterator < len(a.entries) {
 		return a.entries[a.iterator].PHPArrayKey(a.iterator), nil
 	}
@@ -137,7 +164,7 @@ func (a *ArrayValue) Rewind(ctx Context) (Value, Control) {
 }
 
 func (a *ArrayValue) Valid(ctx Context) (Value, Control) {
-	valid := a.iterator >= 0 && a.iterator < len(a.entries)
+	valid := a.iterator >= 0 && a.iterator < a.Len()
 	return NewBoolValue(valid), nil
 }
 
@@ -147,8 +174,8 @@ func (a *ArrayValue) GetValue(ctx Context) (GetValue, Control) {
 
 func (a *ArrayValue) AsString() string {
 	str := "["
-	for _, zval := range a.entries {
-		str = str + zval.Value.AsString() + ", "
+	for _, zval := range a.slots() {
+		str = str + zval.ReadValue().AsString() + ", "
 	}
 	if len(str) > 2 {
 		str = str[:len(str)-2]
@@ -159,7 +186,7 @@ func (a *ArrayValue) AsString() string {
 }
 
 func (a *ArrayValue) AsBool() (bool, error) {
-	return len(a.entries) > 0, nil
+	return a.Len() > 0, nil
 }
 
 func (a *ArrayValue) GetMethod(name string) (Method, bool) {
@@ -216,7 +243,7 @@ func (a *ArrayValue) GetMethod(name string) (Method, bool) {
 func (a *ArrayValue) GetProperty(name string) (Value, Control) {
 	switch name {
 	case "length":
-		return NewIntValue(len(a.entries)), nil
+		return NewIntValue(a.Len()), nil
 	}
 	return nil, NewErrorThrow(nil, fmt.Errorf("ArrayValue.GetProperty called with name %s", name))
 }
@@ -234,9 +261,10 @@ func (a *ArrayValue) ToGoValue(serializer Serializer) (any, error) {
 }
 
 func (a *ArrayValue) ToValueList() []Value {
+	a.Materialize()
 	args := make([]Value, len(a.entries))
 	for i, zval := range a.entries {
-		args[i] = zval.Value
+		args[i] = zval.ReadValue()
 	}
 	return args
 }
@@ -305,7 +333,7 @@ func (a *FlatArrayStore) invalidateIndex() {
 }
 
 func (a *FlatArrayStore) ensureIndex() {
-	if a.idxLen == len(a.entries) && (a.packed || a.keyIndex != nil) {
+	if int(a.idxLen) == len(a.entries) && (a.packed || a.keyIndex != nil) {
 		return
 	}
 	a.rebuildIndex()
@@ -313,7 +341,7 @@ func (a *FlatArrayStore) ensureIndex() {
 
 func (a *FlatArrayStore) rebuildIndex() {
 	n := len(a.entries)
-	a.idxLen = n
+	a.idxLen = int32(n)
 	packed := true
 	// idx 延迟分配：纯 packed 数组（$a[] = / 列表字面量，热路径上最常见）没有任何
 	// 命名键，原先无条件 make(map, n) 出来的表当场就被丢弃 —— 占全部分配的 6.89%。
@@ -377,6 +405,9 @@ func (a *FlatArrayStore) advanceAppendKey(key int) {
 
 // NextAppendIntKey includes previously used integer keys, even after unset.
 func (a *FlatArrayStore) NextAppendIntKey() int {
+	if a.overlay != nil {
+		return a.nextIntKey
+	}
 	a.ensureIndex()
 	return a.nextIntKey
 }
@@ -403,6 +434,9 @@ func (a *FlatArrayStore) AppendSlot(value Value) *ZVal {
 
 // LookupZValByStringKey 按字符串键查找槽位；纯数字字符串键会回退整数键查找（如 "0" → 列表下标 0）
 func (a *FlatArrayStore) LookupZValByStringKey(key string) (*ZVal, bool) {
+	if a.overlay != nil {
+		return a.overlay.get(key)
+	}
 	a.ensureIndex()
 	if a.keyIndex != nil {
 		if i, ok := a.keyIndex[key]; ok && i >= 0 && i < len(a.entries) {
@@ -426,20 +460,31 @@ func (a *FlatArrayStore) SetStringKey(key string, value Value) {
 		a.SetIntKey(n, value)
 		return
 	}
+	if a.overlay != nil {
+		a.overlay.set(key, value)
+		return
+	}
 	if z, ok := a.LookupZValByStringKey(key); ok {
-		z.Value = value
+		CowAssign(z, value)
 		return
 	}
 	// 新增键一律追加到末尾，索引可增量维护（旧实现整表失效，下次读要重建整张索引）
 	if key == "" {
-		a.appendSlotIncremental(NewEmptyStringKeyZVal(value))
+		a.appendSlotIncremental(NewEmptyStringKeyZVal(CowAddRef(value)))
 		return
 	}
-	a.appendSlotIncremental(NewNamedZVal(key, value))
+	a.appendSlotIncremental(NewNamedZVal(key, CowAddRef(value)))
 }
 
 // FindSlotByIntKey 按 PHP 整数键查找槽位（含稀疏键 Name=="6" 等）
 func (a *FlatArrayStore) FindSlotByIntKey(i int) (*ZVal, int) {
+	if a.overlay != nil {
+		slot, _ := a.overlay.get(IntArrayKeyName(i))
+		if slot == nil {
+			return nil, -1
+		}
+		return slot, a.overlay.position(IntArrayKeyName(i))
+	}
 	a.ensureIndex()
 	if a.packed {
 		if i >= 0 && i < len(a.entries) {
@@ -468,9 +513,14 @@ func (a *FlatArrayStore) FindSlotByIntKey(i int) (*ZVal, int) {
 
 // SetIntKey 设置整数键（不将稀疏数组转为 ObjectValue）
 func (a *FlatArrayStore) SetIntKey(i int, value Value) {
+	if a.overlay != nil {
+		a.overlay.set(IntArrayKeyName(i), value)
+		a.advanceAppendKey(i)
+		return
+	}
 	a.ensureIndex()
 	if z, _ := a.FindSlotByIntKey(i); z != nil {
-		z.Value = value
+		CowAssign(z, value)
 		return
 	}
 	packed, n := a.packed, len(a.entries)
@@ -478,10 +528,10 @@ func (a *FlatArrayStore) SetIntKey(i int, value Value) {
 	if packed && i == n {
 		// 纯追加（$a[] = ... 循环里最常见）：索引仍然有效，推进计数即可。
 		// 旧实现在这里整表失效，于是下一次读要重建整张索引 —— O(n) 的重复劳动。
-		a.appendSlotIncremental(NewZVal(value))
+		a.appendSlotIncremental(NewZVal(CowAddRef(value)))
 		return
 	}
-	a.appendSlotIncremental(NewNamedZVal(IntArrayKeyName(i), value))
+	a.appendSlotIncremental(NewNamedZVal(IntArrayKeyName(i), CowAddRef(value)))
 }
 
 // appendSlotIncremental 追加一个「纯追加」槽位并增量维护索引。
@@ -515,7 +565,7 @@ func (a *FlatArrayStore) appendSlotIncremental(z *ZVal) {
 	} else {
 		a.advanceAppendKey(n)
 	}
-	a.idxLen = n + 1
+	a.idxLen = int32(n + 1)
 }
 
 // normalizeDenseIntKeys 将 Name=="" 的连续槽位转为显式整数字符串键，避免 unset 中间元素时误压缩后续键
@@ -530,6 +580,34 @@ func (a *FlatArrayStore) normalizeDenseIntKeys() {
 
 // UnsetKey preserves PHP integer keys, insertion order, and automatic-key state.
 func (a *FlatArrayStore) UnsetKey(index Value) {
+	if a.overlay != nil {
+		keyName := ""
+		switch key := index.(type) {
+		case *NullValue:
+		case *StringValue:
+			keyName = key.AsString()
+		case AsInt:
+			if i, err := key.AsInt(); err == nil {
+				keyName = IntArrayKeyName(i)
+			} else {
+				return
+			}
+		default:
+			return
+		}
+		position := a.overlay.position(keyName)
+		if position < 0 {
+			return
+		}
+		a.overlay.unset(keyName)
+		if position < a.iterator {
+			a.iterator--
+		}
+		if a.iterator >= a.overlay.length {
+			a.iterator = -1
+		}
+		return
+	}
 	var slot *ZVal
 	switch key := index.(type) {
 	case *NullValue:
@@ -548,6 +626,7 @@ func (a *FlatArrayStore) UnsetKey(index Value) {
 	// integer entries from changing identity when a string entry is removed.
 	for position, entry := range a.entries {
 		if entry == slot {
+			slot.ReleaseRefSlot()
 			a.normalizeDenseIntKeys()
 			copy(a.entries[position:], a.entries[position+1:])
 			a.entries[len(a.entries)-1] = nil

@@ -60,10 +60,6 @@ func (f *CountFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 处理对象
-	if objectVal, ok := value.(*data.ObjectValue); ok {
-		properties := objectVal.GetProperties()
-		return data.NewIntValue(len(properties)), nil
-	}
 
 	// 处理 ClassValue / ThisValue（支持 Countable 接口）
 	if classVal, ok := value.(*data.ClassValue); ok {

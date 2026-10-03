@@ -113,8 +113,8 @@ func transLocale(cv *data.ClassValue) string {
 }
 
 func transLookup(lines *data.ArrayValue, key string) (data.Value, bool) {
-	if z, ok := lines.LookupZValByStringKey(key); ok && z != nil && z.Value != nil {
-		return z.Value, true
+	if z, ok := lines.LookupZValByStringKey(key); ok && z != nil && z.ReadValue() != nil {
+		return z.ReadValue(), true
 	}
 	parts := strings.Split(key, ".")
 	if len(parts) <= 1 {
@@ -130,7 +130,7 @@ func transLookup(lines *data.ArrayValue, key string) (data.Value, bool) {
 		if !ok || z == nil {
 			return nil, false
 		}
-		cur = z.Value
+		cur = z.ReadValue()
 	}
 	return cur, true
 }

@@ -41,6 +41,8 @@ func (c *SignalChannelClass) GetPropertyList() []data.Property {
 
 func (c *SignalChannelClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
+	case "__construct":
+		return &SignalChannelConstructMethod{source: c}, true
 	case "receive":
 		return &SignalChannelReceiveMethod{source: c}, true
 	case "close":

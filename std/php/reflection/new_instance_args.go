@@ -64,44 +64,26 @@ func (m *ReflectionClassNewInstanceArgsMethod) Call(ctx data.Context) (data.GetV
 		argsValue = data.NewArrayValue([]data.Value{})
 	}
 
-	// 将参数数组转换为 GetValue 列表
-	args := make([]data.GetValue, 0)
-	if arrayValue, ok := argsValue.(*data.ArrayValue); ok {
-		valueList := arrayValue.ToValueList()
-		for _, v := range valueList {
-			args = append(args, v)
-		}
-	} else {
+	array, ok := argsValue.(*data.ArrayValue)
+	if !ok {
 		return nil, data.NewErrorThrow(nil, errors.New("ReflectionClass::newInstanceArgs() expects parameter 1 to be array"))
 	}
+	return reflectionNewInstance(classStmt, reflectionConstructorArguments(array), ctx)
+}
 
-	// 创建实例并调用构造函数
-	object, acl := classStmt.GetValue(ctx.CreateBaseContext())
-	if acl != nil {
-		return nil, acl
-	}
-
-	if object, ok := object.(*data.ClassValue); ok {
-		if method := object.Class.GetConstruct(); method != nil {
-			varies := method.GetVariables()
-			fnCtx := object.CreateContext(varies)
-			// 入参的值设置到上下文中
-			for index, arg := range args {
-				tempV, acl := arg.GetValue(ctx)
-				if acl != nil {
-					return nil, acl
-				}
-				if index >= len(varies) {
-					return nil, data.NewErrorThrow(nil, fmt.Errorf("对象(%v)构造函数参数数量超出限制: %d", object.Class.GetName(), index))
-				}
-				fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
-			}
-			_, acl = method.Call(fnCtx)
-			if acl != nil {
-				return nil, acl
-			}
+func reflectionConstructorArguments(array *data.ArrayValue) []data.GetValue {
+	args := make([]data.GetValue, 0, array.Len())
+	slots := array.View()
+	for i := 0; i < slots.Len(); i++ {
+		slot := slots.At(i)
+		var arg data.GetValue = slot.ReadValue()
+		if slot.RefCount() > 0 {
+			arg = data.NewZValValue(slot)
 		}
+		if _, named := slot.PHPArrayKey(i).(*data.StringValue); named {
+			arg = node.NewNamedArgument(nil, slot.Name, arg)
+		}
+		args = append(args, arg)
 	}
-
-	return object, nil
+	return args
 }

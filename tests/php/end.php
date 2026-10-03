@@ -14,7 +14,7 @@ if($result == 5) {
 // 测试空数组
 $array = [];
 $result = end($array);
-if($result === null) {
+if($result === false) {
     Log::info("空数组 end 测试通过");
 } else {
     Log::fatal("空数组 end 测试失败");
@@ -81,7 +81,7 @@ class EndArrayIterator implements Iterator {
 $nums = [10, 20, 30, 40];
 $it = new EndArrayIterator($nums);
 $result = end($it);
-if($result == 40) {
+if($result === 0) {
     Log::info("Iterator end 测试通过");
 } else {
     Log::fatal("Iterator end 测试失败");
@@ -90,7 +90,7 @@ if($result == 40) {
 // 测试空 Iterator
 $emptyIt = new EndArrayIterator([]);
 $result = end($emptyIt);
-if($result === null) {
+if($result === 0) {
     Log::info("空 Iterator end 测试通过");
 } else {
     Log::fatal("空 Iterator end 测试失败");

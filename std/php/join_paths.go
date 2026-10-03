@@ -69,11 +69,11 @@ func (f *JoinPathsFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 		if arrayVal, ok := pathsValue.(*data.ArrayValue); ok {
 			for arraySlots121, arrayPosition121 := arrayVal.View(), 0; arrayPosition121 < arraySlots121.Len(); arrayPosition121++ {
 				zval := arraySlots121.At(arrayPosition121)
-				if zval != nil && zval.Value != nil {
-					if str, ok := zval.Value.(data.AsString); ok {
+				if zval != nil && zval.ReadValue() != nil {
+					if str, ok := zval.ReadValue().(data.AsString); ok {
 						parts = append(parts, str.AsString())
-					} else if zval.Value != nil {
-						parts = append(parts, zval.Value.AsString())
+					} else if zval.ReadValue() != nil {
+						parts = append(parts, zval.ReadValue().AsString())
 					}
 				}
 			}

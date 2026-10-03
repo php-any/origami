@@ -1,7 +1,6 @@
 package node
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/php-any/origami/data"
@@ -35,33 +34,13 @@ func (pe *CallObjectDynamicProperty) GetZVal(ctx data.Context) (*data.ZVal, data
 	}
 	name := raw.(data.Value).AsString()
 
-	ensureZVal := func(ov *data.ObjectValue) (*data.ZVal, data.Control) {
-		zv, _ := ov.GetZVal(name)
-		if zv != nil {
-			return zv, nil
-		}
-		ov.SetProperty(name, data.NewNullValue())
-		zv, _ = ov.GetZVal(name)
-		if zv == nil {
-			zv = data.NewZVal(data.NewNullValue())
-		}
-		return zv, nil
+	if object, ok := temp.(*data.ThisValue); ok {
+		temp = object.ClassValue
 	}
-
-	switch object := temp.(type) {
-	case *data.ThisValue:
-		if prop, ok := object.GetPropertyStmt(name); ok {
-			return prop.GetZVal(object)
-		}
-		return ensureZVal(object.ObjectValue)
-	case *data.ClassValue:
-		if prop, ok := object.GetPropertyStmt(name); ok {
-			return prop.GetZVal(object)
-		}
-		return ensureZVal(object.ObjectValue)
-	default:
-		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("值不是对象, 不能引用动态属性(%s)", name))
+	if object, ok := temp.(*data.ClassValue); ok {
+		return propertyReferenceSlot(ctx, object, name, pe.Node)
 	}
+	return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("Cannot reference property on %T", temp))
 }
 
 func (pe *CallObjectDynamicProperty) GetValue(ctx data.Context) (data.GetValue, data.Control) {
@@ -78,78 +57,8 @@ func (pe *CallObjectDynamicProperty) GetValue(ctx data.Context) (data.GetValue, 
 	}
 	name := raw.(data.Value).AsString()
 
-	switch v := o.(type) {
-	case *data.ThisValue:
-		// 优先查找声明的属性（包括父类）
-		if prop, ok := v.GetPropertyStmt(name); ok {
-			// 从 ObjectValue 动态属性存储中获取值
-			if val, ctl := v.ObjectValue.GetProperty(name); ctl == nil {
-				if _, isNull := val.(*data.NullValue); !isNull {
-					return val, nil
-				}
-			}
-			// 动态属性中也没有，用默认值初始化
-			if def := prop.GetDefaultValue(); def != nil {
-				val, ctl := def.GetValue(v)
-				if ctl != nil {
-					return nil, ctl
-				}
-				return val, nil
-			}
-			return data.NewNullValue(), nil
-		}
-		// 未找到声明属性，回退到 ArrayAccess/offsetGet
-		if checkArrayAccess(ctx, v.Class) {
-			return callArrayAccessOffsetGet(ctx, v.ClassValue, raw.(data.Value))
-		}
-		// 尝试 __get
-		if magic, hasGet := v.GetMethod("__get"); hasGet {
-			return pe.invokeMagicGet(v, magic, name)
-		}
-		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("this(%s) 不存在属性(%s)", v.Class.GetName(), name))
-
-	case *data.ClassValue:
-		// 优先查找声明的属性（包括父类）
-		if prop, ok := v.GetPropertyStmt(name); ok {
-			if val, ctl := v.ObjectValue.GetProperty(name); ctl == nil {
-				if _, isNull := val.(*data.NullValue); !isNull {
-					return val, nil
-				}
-			}
-			if def := prop.GetDefaultValue(); def != nil {
-				val, ctl := def.GetValue(v)
-				if ctl != nil {
-					return nil, ctl
-				}
-				return val, nil
-			}
-			return data.NewNullValue(), nil
-		}
-		// 未找到声明属性，回退到 ArrayAccess/offsetGet
-		if checkArrayAccess(ctx, v.Class) {
-			return callArrayAccessOffsetGet(ctx, v, raw.(data.Value))
-		}
-		// 尝试 __get
-		if magic, hasGet := v.GetMethod("__get"); hasGet {
-			return pe.invokeMagicGet(v, magic, name)
-		}
-		// 动态属性
-		if val, ctl := v.ObjectValue.GetProperty(name); ctl == nil {
-			if _, isNull := val.(*data.NullValue); !isNull {
-				return val, nil
-			}
-		}
-		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("类(%s)不存在属性(%s)", v.Class.GetName(), name))
-
-	case data.GetProperty:
-		if val, ctl := v.GetProperty(name); ctl == nil {
-			return val.GetValue(ctx)
-		}
-		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("不支持动态属性访问"))
-
-	default:
-		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("值不是对象, 不能操作动态属性(%s)", name))
-	}
+	proxy := &CallObjectProperty{Node: pe.Node, Object: &literalGetValue{v: o}, Property: name}
+	return proxy.GetValue(ctx)
 }
 
 func (pe *CallObjectDynamicProperty) SetValue(ctx data.Context, value data.Value) data.Control {
@@ -168,77 +77,6 @@ func (pe *CallObjectDynamicProperty) AssignValue(ctx data.Context, value data.Va
 	}
 	name := raw.(data.Value).AsString()
 
-	switch object := temp.(type) {
-	case *data.ThisValue:
-		property, ok := object.GetPropertyStmt(name)
-		if ok {
-			prepared, accepted, conversion := data.PrepareTypedValueInContext(property.GetType(), value, ctx)
-
-			if conversion != nil {
-				return nil, conversion
-			}
-			if !accepted {
-				return nil, data.NewTypeError(pe.GetFrom(), fmt.Errorf("%s 属性 %s 因为类型不一致无法赋值", TryGetCallClassName(object), name))
-			}
-			return prepared, object.SetProperty(name, prepared)
-		}
-		if magic, hasSet := object.GetMethod("__set"); hasSet {
-			return value, pe.invokeMagicSet(object, magic, name, value)
-		}
-		return value, object.SetProperty(name, value)
-	case *data.ClassValue:
-		property, ok := object.GetPropertyStmt(name)
-		if ok {
-			prepared, accepted, conversion := data.PrepareTypedValueInContext(property.GetType(), value, ctx)
-
-			if conversion != nil {
-				return nil, conversion
-			}
-			if !accepted {
-				return nil, data.NewTypeError(pe.GetFrom(), fmt.Errorf("%s 属性 %s 因为类型不一致无法赋值", TryGetCallClassName(object), name))
-			}
-			if property.GetModifier() == data.ModifierPrivate {
-				if !isCallerInClassHierarchy(ctx, object.Class) {
-					return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("对象(%s)属性(%s)是私有的", object.Class.GetName(), name))
-				}
-			} else if property.GetModifier() == data.ModifierProtected {
-				if !isCallerInClassHierarchy(ctx, object.Class) {
-					return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("对象(%s)属性(%s)不是公开的", object.Class.GetName(), name))
-				}
-			}
-			return prepared, object.SetProperty(name, prepared)
-		}
-		if magic, hasSet := object.GetMethod("__set"); hasSet {
-			return value, pe.invokeMagicSet(object, magic, name, value)
-		}
-		return value, object.SetProperty(name, value)
-	case data.SetProperty:
-		return value, object.SetProperty(name, value)
-	default:
-		return nil, data.NewErrorThrow(pe.GetFrom(), errors.New("object is not set property"))
-	}
-}
-
-// invokeMagicGet 调用 __get(string $name)
-func (pe *CallObjectDynamicProperty) invokeMagicGet(object data.Context, magic data.Method, name string) (data.GetValue, data.Control) {
-	varies := magic.GetVariables()
-	if len(varies) < 1 {
-		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("__get 需要至少 1 个参数 (name)"))
-	}
-	fnCtx := object.CreateContext(varies)
-	fnCtx.SetVariableValue(varies[0], data.NewStringValue(name))
-	return magic.Call(fnCtx)
-}
-
-// invokeMagicSet 调用 __set(string $name, mixed $value)
-func (pe *CallObjectDynamicProperty) invokeMagicSet(object data.Context, magic data.Method, name string, value data.Value) data.Control {
-	varies := magic.GetVariables()
-	if len(varies) < 2 {
-		return data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("__set 需要至少 2 个参数 (name, value)"))
-	}
-	fnCtx := object.CreateContext(varies)
-	fnCtx.SetVariableValue(varies[0], data.NewStringValue(name))
-	fnCtx.SetVariableValue(varies[1], value)
-	_, acl := magic.Call(fnCtx)
-	return acl
+	proxy := &CallObjectProperty{Node: pe.Node, Object: &literalGetValue{v: temp}, Property: name}
+	return proxy.AssignValue(ctx, value)
 }

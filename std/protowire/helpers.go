@@ -46,9 +46,7 @@ func toInt32(v data.Value) (int32, error) {
 // ---------------------------------------------------------------------------
 
 func parseOptionsFromPHPValue(val data.Value, opts *ParseOptions) error {
-	if obj, ok := val.(*data.ObjectValue); ok {
-		return parseOptionsFromObject(obj, opts)
-	}
+
 	if arr, ok := val.(*data.ArrayValue); ok {
 		return parseOptionsFromArrayValue(arr, opts)
 	}
@@ -96,34 +94,34 @@ func parseOptionsFromArrayValue(arr *data.ArrayValue, opts *ParseOptions) error 
 		}
 		switch z.Name {
 		case "message_fields":
-			if z.Value == nil {
+			if z.ReadValue() == nil {
 				continue
 			}
-			m, err := boolMapFromPHPArray(z.Value)
+			m, err := boolMapFromPHPArray(z.ReadValue())
 			if err != nil {
 				return fmt.Errorf("options.message_fields: %w", err)
 			}
 			opts.MessageFields = m
 		case "packed_fields":
-			if z.Value == nil {
+			if z.ReadValue() == nil {
 				continue
 			}
-			m, err := boolMapFromPHPArray(z.Value)
+			m, err := boolMapFromPHPArray(z.ReadValue())
 			if err != nil {
 				return fmt.Errorf("options.packed_fields: %w", err)
 			}
 			opts.PackedFields = m
 		case "packed_element_type":
-			if z.Value == nil {
+			if z.ReadValue() == nil {
 				continue
 			}
-			m, err := intMapFromPHPArray(z.Value)
+			m, err := intMapFromPHPArray(z.ReadValue())
 			if err != nil {
 				return fmt.Errorf("options.packed_element_type: %w", err)
 			}
 			opts.PackedElementType = m
 		case "max_depth":
-			if ai, ok := z.Value.(data.AsInt); ok {
+			if ai, ok := z.ReadValue().(data.AsInt); ok {
 				n, err := ai.AsInt()
 				if err == nil {
 					opts.MaxDepth = int(n)
@@ -136,20 +134,7 @@ func parseOptionsFromArrayValue(arr *data.ArrayValue, opts *ParseOptions) error 
 
 func boolMapFromPHPArray(val data.Value) (map[int32]bool, error) {
 	result := make(map[int32]bool)
-	if obj, ok := val.(*data.ObjectValue); ok {
-		obj.RangeProperties(func(key string, v data.Value) bool {
-			var n int
-			if _, err := fmt.Sscanf(key, "%d", &n); err == nil {
-				if bv, ok := v.(*data.BoolValue); ok {
-					result[int32(n)] = bv.Value
-				} else {
-					result[int32(n)] = true
-				}
-			}
-			return true
-		})
-		return result, nil
-	}
+
 	if arr, ok := val.(*data.ArrayValue); ok {
 		for arraySlots147, arrayPosition147 := arr.View(), 0; arrayPosition147 < arraySlots147.Len(); arrayPosition147++ {
 			z := arraySlots147.At(arrayPosition147)
@@ -159,7 +144,7 @@ func boolMapFromPHPArray(val data.Value) (map[int32]bool, error) {
 			if z.Name != "" {
 				var n int
 				if _, err := fmt.Sscanf(z.Name, "%d", &n); err == nil {
-					if bv, ok := z.Value.(*data.BoolValue); ok {
+					if bv, ok := z.ReadValue().(*data.BoolValue); ok {
 						result[int32(n)] = bv.Value
 					} else {
 						result[int32(n)] = true
@@ -174,20 +159,7 @@ func boolMapFromPHPArray(val data.Value) (map[int32]bool, error) {
 
 func intMapFromPHPArray(val data.Value) (map[int32]int32, error) {
 	result := make(map[int32]int32)
-	if obj, ok := val.(*data.ObjectValue); ok {
-		obj.RangeProperties(func(key string, v data.Value) bool {
-			var n int
-			if _, err := fmt.Sscanf(key, "%d", &n); err == nil {
-				if ai, ok := v.(data.AsInt); ok {
-					if iv, err := ai.AsInt(); err == nil {
-						result[int32(n)] = int32(iv)
-					}
-				}
-			}
-			return true
-		})
-		return result, nil
-	}
+
 	if arr, ok := val.(*data.ArrayValue); ok {
 		for arraySlots148, arrayPosition148 := arr.View(), 0; arrayPosition148 < arraySlots148.Len(); arrayPosition148++ {
 			z := arraySlots148.At(arrayPosition148)
@@ -196,7 +168,7 @@ func intMapFromPHPArray(val data.Value) (map[int32]int32, error) {
 			}
 			var n int
 			if _, err := fmt.Sscanf(z.Name, "%d", &n); err == nil {
-				if ai, ok := z.Value.(data.AsInt); ok {
+				if ai, ok := z.ReadValue().(data.AsInt); ok {
 					if iv, err := ai.AsInt(); err == nil {
 						result[int32(n)] = int32(iv)
 					}
@@ -262,7 +234,7 @@ func goValueToPHPValue(v interface{}) data.Value {
 }
 
 func objectValueFromMap(m map[string]data.Value) data.Value {
-	obj := data.NewObjectValue()
+	obj := data.NewStdClassValue(nil)
 	for k, v := range m {
 		obj.SetProperty(k, v)
 	}

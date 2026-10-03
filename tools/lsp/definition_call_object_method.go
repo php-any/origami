@@ -39,8 +39,8 @@ func findObjectMethodDefinition(ctx *LspContext, object data.GetValue, methodNam
 	// 1. 对象是变量：从类型信息或上下文中推断所属类
 	if varExpr, ok := object.(*node.VariableExpression); ok {
 		// 1.1 优先使用变量节点上已有的类型信息
-		if varExpr.Type != nil {
-			switch t := varExpr.Type.(type) {
+		if varExpr.Type != data.TypeInvalid {
+			switch t := data.LegacyType(varExpr.GetType()).(type) {
 			case *data.LspTypes:
 				var ret []*defines.Location
 				for _, tt := range t.Types {

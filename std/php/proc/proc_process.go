@@ -2,6 +2,7 @@ package proc
 
 import (
 	"context"
+	"io"
 	"os/exec"
 	"sync"
 )
@@ -17,6 +18,7 @@ type ProcessInfo struct {
 	done       chan struct{} // 进程结束后关闭，用于 proc_close 阻塞等待
 	stopCancel func() bool
 	closed     bool
+	pipes      []io.Closer
 	doneOnce   sync.Once
 }
 
@@ -59,15 +61,51 @@ func (p *ProcessInfo) Close() error {
 	}
 	p.closed = true
 	stop, cmd, running := p.stopCancel, p.Cmd, p.Running
+	pipes := p.pipes
+	p.pipes = nil
 	p.stopCancel = nil
 	p.mutex.Unlock()
 	if stop != nil {
 		stop()
 	}
+	for _, pipe := range pipes {
+		_ = pipe.Close()
+	}
 	if running && cmd != nil && cmd.Process != nil {
+		if cmd.Cancel != nil {
+			return cmd.Cancel()
+		}
 		return cmd.Process.Kill()
 	}
 	return nil
+}
+
+func (p *ProcessInfo) IsClosed() bool {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+	return p.closed
+}
+
+func (p *ProcessInfo) AddPipe(pipe io.Closer) {
+	p.mutex.Lock()
+	if p.closed {
+		p.mutex.Unlock()
+		_ = pipe.Close()
+		return
+	}
+	p.pipes = append(p.pipes, pipe)
+	p.mutex.Unlock()
+}
+
+// ClosePipes precedes proc_close's wait so a child waiting for EOF can exit.
+func (p *ProcessInfo) ClosePipes() {
+	p.mutex.Lock()
+	pipes := p.pipes
+	p.pipes = nil
+	p.mutex.Unlock()
+	for _, pipe := range pipes {
+		_ = pipe.Close()
+	}
 }
 
 func (p *ProcessInfo) BindRequestCancel(stop func() bool) {

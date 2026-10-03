@@ -1,9 +1,6 @@
 package php
 
 import (
-	"net/url"
-	"strings"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -39,40 +36,13 @@ func (f *ParseStrFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	if strVal != nil {
 		s = strVal.AsString()
 	}
-	values, err := url.ParseQuery(s)
-	if err != nil {
-		values = url.Values{}
-	}
-	list := make([]*data.ZVal, 0, len(values))
-	for key, vals := range values {
-		if len(vals) == 0 {
-			continue
-		}
-		key = strings.TrimSuffix(key, "[]")
-		list = append(list, data.NewNamedZVal(key, data.NewStringValue(vals[len(vals)-1])))
-	}
-	parsed := data.NewArrayValueFromSlots(list)
+	parsed := data.ParseFormFields(s)
 
-	resultVal, _ := ctx.GetIndexValue(1)
-	if dest, ok := resultVal.(*data.ArrayValue); ok {
-		dest.ReplaceAll(parsed.Snapshot())
-	} else if dest, ok := resultVal.(*data.ObjectValue); ok {
-		keys := make([]string, 0)
-		dest.RangeProperties(func(k string, _ data.Value) bool {
-			keys = append(keys, k)
-			return true
-		})
-		for _, k := range keys {
-			dest.UnsetProperty(k)
-		}
-		for arraySlots126, arrayPosition126 := parsed.View(), 0; arrayPosition126 < arraySlots126.Len(); arrayPosition126++ {
-			zv := arraySlots126.At(arrayPosition126)
-			if zv != nil && zv.Name != "" {
-				_ = dest.SetProperty(zv.Name, zv.Value)
-			}
-		}
-	} else if zv := ctx.GetIndexZVal(1); zv != nil {
-		zv.Value = parsed
+	slot := ctx.GetIndexZVal(1)
+	prepared, ctl := slot.PrepareWrite(parsed, ctx)
+	if ctl != nil {
+		return nil, ctl
 	}
+	data.CowAssign(slot, prepared)
 	return data.NewNullValue(), nil
 }

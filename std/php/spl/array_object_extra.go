@@ -71,7 +71,7 @@ func aoCompareZValKeys(a, b *data.ZVal) int {
 func aoSortByValue(arr *data.ArrayValue) {
 	arr.EditPreservingKeys(func(slots []*data.ZVal) {
 		sort.SliceStable(slots, func(i, j int) bool {
-			return data.Compare(slots[i].Value, slots[j].Value) < 0
+			return data.Compare(slots[i].ReadValue(), slots[j].ReadValue()) < 0
 		})
 	})
 }
@@ -87,7 +87,7 @@ func aoSortByKey(arr *data.ArrayValue) {
 func aoSortByValueNatural(arr *data.ArrayValue) {
 	arr.EditPreservingKeys(func(slots []*data.ZVal) {
 		sort.SliceStable(slots, func(i, j int) bool {
-			return strings.Compare(slots[i].Value.AsString(), slots[j].Value.AsString()) < 0
+			return strings.Compare(slots[i].ReadValue().AsString(), slots[j].ReadValue().AsString()) < 0
 		})
 	})
 }
@@ -95,7 +95,7 @@ func aoSortByValueNatural(arr *data.ArrayValue) {
 func aoSortByValueNaturalCase(arr *data.ArrayValue) {
 	arr.EditPreservingKeys(func(slots []*data.ZVal) {
 		sort.SliceStable(slots, func(i, j int) bool {
-			return strings.Compare(strings.ToLower(slots[i].Value.AsString()), strings.ToLower(slots[j].Value.AsString())) < 0
+			return strings.Compare(strings.ToLower(slots[i].ReadValue().AsString()), strings.ToLower(slots[j].ReadValue().AsString())) < 0
 		})
 	})
 }
@@ -121,10 +121,10 @@ func aoUserSort(arr *data.ArrayValue, ctx data.Context, callback data.GetValue, 
 				}
 			} else {
 				if len(callbackVars) > 0 {
-					fnCtx.SetIndexZVal(0, data.NewZVal(slots[i].Value))
+					fnCtx.SetIndexZVal(0, data.NewZVal(slots[i].ReadValue()))
 				}
 				if len(callbackVars) > 1 {
-					fnCtx.SetIndexZVal(1, data.NewZVal(slots[j].Value))
+					fnCtx.SetIndexZVal(1, data.NewZVal(slots[j].ReadValue()))
 				}
 			}
 			switch cb := callback.(type) {
@@ -418,11 +418,11 @@ func (m *ArrayObjectUnserializeMethod) Call(ctx data.Context) (data.GetValue, da
 		}
 		switch z.Name {
 		case "storage":
-			cv.ObjectValue.SetProperty(aoStorageKey, aoStorageFromInput(z.Value))
+			cv.ObjectValue.SetProperty(aoStorageKey, aoStorageFromInput(z.ReadValue()))
 		case "flags":
-			cv.ObjectValue.SetProperty(aoFlagsKey, z.Value)
+			cv.ObjectValue.SetProperty(aoFlagsKey, z.ReadValue())
 		case "iteratorClass":
-			cv.ObjectValue.SetProperty(aoIterClassKey, data.NewStringValue(z.Value.AsString()))
+			cv.ObjectValue.SetProperty(aoIterClassKey, data.NewStringValue(z.ReadValue().AsString()))
 		}
 	}
 	return nil, nil

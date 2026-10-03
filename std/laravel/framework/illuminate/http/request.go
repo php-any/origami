@@ -60,12 +60,24 @@ func NewIlluminateRequestClass() data.ClassStmt {
 	return c
 }
 
-// NewIlluminateRequestValue ç´æ¥ä» Go HTTP è¯·æ±æé  Laravel Requestã
-// Go HTTP åæ ¸ä½¿ç¨æ­¤å¥å£ï¼æ éåæ§è¡ public/index.php æç»è¿ PHP capture æ¡¥æ¥ã
-func NewIlluminateRequestValue(ctx data.Context, request *nethttp.Request) *data.ClassValue {
-	value := data.NewClassValue(illuminateRequestClassStmt(), ctx.CreateBaseContext())
-	initializeIlluminateRequest(value, request)
-	return value
+// NewIlluminateRequestValue executes the official Request::capture() in the
+// RequestVM whose host supplies the HTTP request.
+func NewIlluminateRequestValue(ctx data.Context, _ *nethttp.Request) (*data.ClassValue, data.Control) {
+	// HTTP globals belong to the RequestVM. Let Composer's official capture()
+	// construct the PHP request, including all inherited state and traits.
+	class, ctl := ctx.GetVM().GetOrLoadClass(illuminateRequestClassName)
+	if ctl != nil {
+		return nil, ctl
+	}
+	call := node.NewCallMethod(nil, node.NewCallStaticMethod(nil, class, "capture"), nil)
+	value, ctl := call.GetValue(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	if object, ok := value.(*data.ClassValue); ok {
+		return object, nil
+	}
+	return nil, data.NewErrorThrow(nil, fmt.Errorf("Request::capture() returned %T", value))
 }
 
 // illuminateRequestClassStmt 返回一份共享的 Illuminate\Http\Request 类。
@@ -533,8 +545,8 @@ func callIlluminateMacro(ctx data.Context, receiver *data.ClassValue) (data.GetV
 	if array, ok := argValue(ctx, 1, data.NewArrayValue(nil)).(*data.ArrayValue); ok {
 		for arraySlots52, arrayPosition52 := array.View(), 0; arrayPosition52 < arraySlots52.Len(); arrayPosition52++ {
 			item := arraySlots52.At(arrayPosition52)
-			if item != nil && item.Value != nil {
-				args = append(args, item.Value)
+			if item != nil && item.ReadValue() != nil {
+				args = append(args, item.ReadValue())
 			}
 		}
 	}
@@ -977,9 +989,7 @@ func illuminateConcernDispatch(method *illuminateRequestMethod, ctx data.Context
 		if _, ok := value.(*data.ArrayValue); ok {
 			return value, nil
 		}
-		if obj, ok := value.(*data.ObjectValue); ok {
-			return obj, nil
-		}
+
 		return data.NewArrayValue([]data.Value{value}), nil
 	case "only":
 		return assocMapToArrayValue(selectKeys(requestAllMap(cv), variadicStrings(ctx, 0))), nil
@@ -1533,19 +1543,14 @@ func getNested(values map[string]data.Value, dotted string) (data.Value, bool) {
 					key = strconv.Itoa(index)
 				}
 				if key == part {
-					current, found = item.Value, true
+					current, found = item.ReadValue(), true
 					break
 				}
 			}
 			if !found {
 				return nil, false
 			}
-		case *data.ObjectValue:
-			value, control := container.GetProperty(part)
-			if control != nil {
-				return nil, false
-			}
-			current = value
+
 		default:
 			return nil, false
 		}
@@ -1743,7 +1748,7 @@ func emptyString(value data.Value) bool {
 		return true
 	}
 	switch value.(type) {
-	case *data.BoolValue, *data.ArrayValue, *data.ObjectValue:
+	case *data.BoolValue, *data.ArrayValue:
 		return false
 	}
 	return strings.TrimSpace(value.AsString()) == ""

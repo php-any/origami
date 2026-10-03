@@ -8,31 +8,33 @@ type GetVariable struct {
 	*Node `pp:"-"`
 }
 
-var getValue *data.ObjectValue
+var getValue *data.ArrayValue
 
 func NewGetVariable(from data.From) data.Variable {
 	return &GetVariable{Node: NewNode(from)}
 }
 
 func (v *GetVariable) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	if httpReq := getHTTPRequest(ctx); httpReq != nil {
-		obj := data.NewObjectValue()
-		for key, values := range httpReq.URL.Query() {
-			if len(values) > 0 {
-				obj.SetProperty(key, data.NewStringValue(values[0]))
-			}
+	return superglobalArray(ctx, "_GET", func() *data.ArrayValue {
+		if httpReq := getHTTPRequest(ctx); httpReq != nil {
+			return data.ParseFormFields(httpReq.URL.RawQuery)
 		}
-		return obj, nil
-	}
-	if getValue == nil {
-		getValue = data.NewObjectValue()
-	}
-	return getValue, nil
+		return data.NewArrayValueFromSlots(nil)
+
+	}), nil
 }
 
-func (v *GetVariable) GetIndex() int       { return 0 }
+func (v *GetVariable) GetIndex() int       { return -1 }
 func (v *GetVariable) GetName() string     { return "$_GET" }
 func (v *GetVariable) GetType() data.Types { return nil }
 func (v *GetVariable) SetValue(ctx data.Context, value data.Value) data.Control {
-	return data.NewErrorThrow(v.from, nil)
+	return setSuperglobalArray(ctx, "_GET", value)
 }
+
+func (v *GetVariable) GetZVal(ctx data.Context) (*data.ZVal, data.Control) {
+	if _, ctl := v.GetValue(ctx); ctl != nil {
+		return nil, ctl
+	}
+	return ctx.GetVM().EnsureGlobalZVal("_GET"), nil
+}
+func (v *GetVariable) SuperglobalName() string { return "_GET" }

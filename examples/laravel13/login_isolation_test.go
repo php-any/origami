@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"sync"
 	"testing"
 	"time"
@@ -18,6 +20,9 @@ func TestLoginRequestIsolation(t *testing.T) {
 	vm, _ := buildVM()
 	value, ctl := vm.LoadAndRun("tests/origami/runtime_bootstrap.php")
 	if ctl != nil {
+		if thrown, ok := ctl.(*data.ThrowValue); ok {
+			t.Fatalf("%s\n%+v", ctl.AsString(), thrown.StackFrames)
+		}
 		t.Fatal(ctl.AsString())
 	}
 	app := value.(*data.ClassValue)
@@ -28,6 +33,7 @@ func TestLoginRequestIsolation(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 	client := &http.Client{Timeout: 35 * time.Second}
+	livewireScript := regexp.MustCompile(`<script\s+src="[^"]*/livewire-[0-9a-f]{8}/livewire(?:\.min)?\.js(?:\?[^"]*)?"`)
 	check := func() {
 		t.Helper()
 		response, err := client.Get(server.URL + "/admin/login")
@@ -38,7 +44,11 @@ func TestLoginRequestIsolation(t *testing.T) {
 		defer response.Body.Close()
 		body, err := io.ReadAll(response.Body)
 		if err != nil || response.StatusCode != 200 {
-			t.Errorf("login status=%d body=%s error=%v", response.StatusCode, body, err)
+			t.Errorf("login status=%d body=%s error=%v", response.StatusCode, body[:min(len(body), 600)], err)
+			return
+		}
+		if !bytes.Contains(body, []byte("wire:snapshot=")) || !livewireScript.Match(body) {
+			t.Errorf("login assets incomplete: snapshot=%v script=%v bytes=%d", bytes.Contains(body, []byte("wire:snapshot=")), livewireScript.Match(body), len(body))
 		}
 	}
 	check()
@@ -64,9 +74,9 @@ func TestLoginRequestIsolation(t *testing.T) {
 		raw, _ := request.GetProperty("bindings")
 		bindings := raw.(*data.ArrayValue)
 		if slot, ok := bindings.LookupZValByStringKey("Illuminate\\Foundation\\Mix"); ok {
-			entry := slot.Value.(*data.ArrayValue)
+			entry := slot.ReadValue().(*data.ArrayValue)
 			concrete, _ := entry.LookupZValByStringKey("concrete")
-			closure := concrete.Value.(*data.FuncValue).Value.(data.RequestClosureBinder)
+			closure := concrete.ReadValue().(*data.FuncValue).Value.(data.RequestClosureBinder)
 			for _, owner := range closure.RequestScopeObjects() {
 				if owner.GetName() == request.GetName() && owner.ObjectValue != request.ObjectValue {
 					t.Fatal("factory retained the worker application")

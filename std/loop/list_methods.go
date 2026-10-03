@@ -96,7 +96,7 @@ func (m *ListAddMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 泛型类型检查
-	if m.source.list.itemType != nil && !m.source.list.itemType.Is(value) {
+	if m.source.list.itemType != nil && !data.DeclaredTypeRef(m.source.list.itemType).Matches(value, ctx) {
 		return nil, utils.NewThrow(errors.New("类型不匹配: 期望 " + m.source.list.itemType.String() + " 但得到 " + value.AsString()))
 	}
 
@@ -231,7 +231,7 @@ func (m *ListSetMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 泛型类型检查
-	if m.source.list.itemType != nil && !m.source.list.itemType.Is(value) {
+	if m.source.list.itemType != nil && !data.DeclaredTypeRef(m.source.list.itemType).Matches(value, ctx) {
 		return nil, utils.NewThrow(errors.New("类型不匹配: 期望 " + m.source.list.itemType.String() + " 但得到 " + value.AsString()))
 	}
 

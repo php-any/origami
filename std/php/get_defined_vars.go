@@ -16,10 +16,11 @@ type GetDefinedVarsFunction struct{}
 func (f *GetDefinedVarsFunction) GetName() string { return "get_defined_vars" }
 
 func (f *GetDefinedVarsFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	result := data.NewObjectValue()
-	for name, value := range ctx.GetDefinedVariables() {
-		result.SetProperty(name, value)
-	}
+	result := data.NewArrayValue(nil).(*data.ArrayValue)
+	ctx.RangeDefinedVariables(func(name string, value data.Value) bool {
+		result.SetStringKey(name, value)
+		return true
+	})
 	return result, nil
 }
 

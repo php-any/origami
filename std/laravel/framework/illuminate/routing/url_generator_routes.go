@@ -212,8 +212,8 @@ func urlFormatAction(cv *data.ClassValue, action data.Value) string {
 		parts := make([]string, 0, arr.Len())
 		for arraySlots62, arrayPosition62 := arr.View(), 0; arrayPosition62 < arraySlots62.Len(); arrayPosition62++ {
 			z := arraySlots62.At(arrayPosition62)
-			if z != nil && z.Value != nil {
-				parts = append(parts, z.Value.AsString())
+			if z != nil && z.ReadValue() != nil {
+				parts = append(parts, z.ReadValue().AsString())
 			}
 		}
 		if len(parts) >= 2 {
@@ -584,8 +584,8 @@ func formatParameterSegments(cv *data.ClassValue, extra data.Value) []string {
 			out := make([]string, 0, arr.Len())
 			for arraySlots63, arrayPosition63 := arr.View(), 0; arrayPosition63 < arraySlots63.Len(); arrayPosition63++ {
 				z := arraySlots63.At(arrayPosition63)
-				if z != nil && z.Value != nil {
-					out = append(out, url.QueryEscape(z.Value.AsString()))
+				if z != nil && z.ReadValue() != nil {
+					out = append(out, url.QueryEscape(z.ReadValue().AsString()))
 				}
 			}
 			return out

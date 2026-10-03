@@ -26,13 +26,27 @@ type ClassClosure struct {
 }
 
 func (c *ClassClosure) Call(ctx data.Context) (data.GetValue, data.Control) {
-	fnCtx := c.class.CreateContext(c.method.GetVariables())
-
-	for i := 0; i < len(c.method.GetVariables()); i++ {
-		fnCtx.SetIndexZVal(i, ctx.GetIndexZVal(i))
-	}
-
+	self := findDeclaringClassForMethod(ctx.GetVM(), c.class.Class, c.method.GetName())
+	fnCtx := data.WrapMethodFrame(ctx, c.class, self, c.class.Class)
 	return c.method.Call(fnCtx)
+}
+
+func (c *ClassClosure) RequestScopeObjects() []*data.ClassValue { return []*data.ClassValue{c.class} }
+func (c *ClassClosure) BindRequestScope(ctx data.Context, objects map[*data.ObjectValue]*data.ClassValue) data.FuncStmt {
+	clone := *c
+	if target := objects[c.class.ObjectValue]; target != nil {
+		clone.class = target
+	}
+	return &clone
+}
+func (c *ClassClosure) BindRequestCapture(scope *data.RequestCaptureScope) data.FuncStmt {
+	clone := *c
+	if scope.ScopeObject != nil {
+		clone.class = scope.ScopeObject(c.class)
+	} else if target := scope.Objects[c.class.ObjectValue]; target != nil {
+		clone.class = target
+	}
+	return &clone
 }
 
 func (c *ClassClosure) GetName() string {

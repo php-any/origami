@@ -53,7 +53,7 @@ func (d *DbDeleteMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 返回删除结果
-	resultObj := data.NewObjectValue()
+	resultObj := data.NewStdClassValue(nil)
 	resultObj.SetProperty("rowsAffected", data.NewIntValue(int(rowsAffected)))
 	resultObj.SetProperty("success", data.NewBoolValue(true))
 

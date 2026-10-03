@@ -34,7 +34,7 @@ func NewAnnotationTargetParameter(from data.From, index int) data.GetValue {
 			Node:         NewNode(from),
 			Name:         TargetName,
 			Index:        index,
-			Type:         data.AST{},
+			Type:         data.TypeAST,
 			DefaultValue: data.NewNullValue(),
 		},
 	}
@@ -90,15 +90,7 @@ func (a *Annotation) GetArguments() []data.GetValue {
 }
 
 func (a *Annotation) resolveClass(ctx data.Context) (data.ClassStmt, data.Control) {
-	if a.class != nil {
-		return a.class, nil
-	}
-	stmt, acl := ctx.GetVM().GetOrLoadClass(a.Name)
-	if acl != nil {
-		return nil, acl
-	}
-	a.class = stmt
-	return stmt, nil
+	return ctx.GetVM().GetOrLoadClass(a.Name)
 }
 
 // GetValue 获取注解节点的值

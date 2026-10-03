@@ -48,13 +48,6 @@ func (s *LspScope) AddVariable(name string, ty data.Types, from data.From) data.
 		return v
 	}
 
-	// LSP 特殊处理：如果类型为 nil，创建 LspTypes
-	if ty == nil {
-		ty = &data.LspTypes{
-			Types: []data.Types{},
-		}
-	}
-
 	s.variables[name] = node.NewVariable(from, name, s.nextIndex, ty)
 	s.nextIndex++
 	return s.variables[name]

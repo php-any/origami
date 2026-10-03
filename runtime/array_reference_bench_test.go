@@ -43,7 +43,7 @@ func BenchmarkArrayPackedKeys(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			slot, _ := array.FindSlotByIntKey(127)
-			arrayReferenceBenchSink = slot.Value
+			arrayReferenceBenchSink = slot.ReadValue()
 		}
 	})
 	b.Run("replace", func(b *testing.B) {

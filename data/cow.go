@@ -1,14 +1,12 @@
 package data
 
-// ArrayValue / ObjectValue（关联数组）的 copy-on-write：
+// ArrayValue 的 copy-on-write；PropertyBag 不参与 PHP 数组值复制。
 // rc 为指向该容器的 zval 数。字面量/新建为 0，写入变量时 CowAddRef。
 // 写入结构前必须 CowSeparateZVal，避免共享容器被原地改掉。
 
 func CowAddRef(v Value) Value {
 	switch a := v.(type) {
 	case *ArrayValue:
-		a.rc++
-	case *ObjectValue:
 		a.rc++
 	}
 	return v
@@ -17,10 +15,6 @@ func CowAddRef(v Value) Value {
 func CowRelease(v Value) {
 	switch a := v.(type) {
 	case *ArrayValue:
-		if a.rc > 0 {
-			a.rc--
-		}
-	case *ObjectValue:
 		if a.rc > 0 {
 			a.rc--
 		}
@@ -33,33 +27,24 @@ func CowAssign(zv *ZVal, v Value) {
 		return
 	}
 	zv.Defined = true
-	if zv.Value == v {
+	if zv.ReadValue() == v {
 		return
 	}
-	CowRelease(zv.Value)
-	zv.Value = CowAddRef(v)
+	CowRelease(zv.ReadValue())
+	zv.StoreRaw(CowAddRef(v))
 }
 
 func CowSeparateZVal(zv *ZVal) {
 	if zv == nil {
 		return
 	}
-	switch a := zv.Value.(type) {
+	switch a := zv.ReadValue().(type) {
 	case *ArrayValue:
 		if a.rc > 1 {
 			a.rc--
 			cloned := CloneArrayValue(a)
 			cloned.rc = 1
-			zv.Value = cloned
-		} else if a.rc == 0 {
-			a.rc = 1
-		}
-	case *ObjectValue:
-		if a.rc > 1 {
-			a.rc--
-			cloned := CloneObjectValue(a)
-			cloned.rc = 1
-			zv.Value = cloned
+			zv.StoreRaw(cloned)
 		} else if a.rc == 0 {
 			a.rc = 1
 		}
@@ -74,7 +59,7 @@ func CowSeparateIndex(ctx Context, index int) Value {
 		return v
 	}
 	CowSeparateZVal(zv)
-	return zv.Value
+	return zv.ReadValue()
 }
 
 func SeparateArrayValue(a *ArrayValue) *ArrayValue {
@@ -91,20 +76,4 @@ func SeparateArrayValue(a *ArrayValue) *ArrayValue {
 		a.rc = 1
 	}
 	return a
-}
-
-func SeparateObjectValue(o *ObjectValue) *ObjectValue {
-	if o == nil {
-		return nil
-	}
-	if o.rc > 1 {
-		o.rc--
-		cloned := CloneObjectValue(o)
-		cloned.rc = 1
-		return cloned
-	}
-	if o.rc == 0 {
-		o.rc = 1
-	}
-	return o
 }

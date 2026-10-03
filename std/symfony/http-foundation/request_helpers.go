@@ -90,8 +90,8 @@ func mapToURLValues(values map[string]data.Value) url.Values {
 		if array, ok := value.(*data.ArrayValue); ok {
 			for arraySlots159, arrayPosition159 := array.View(), 0; arrayPosition159 < arraySlots159.Len(); arrayPosition159++ {
 				item := arraySlots159.At(arrayPosition159)
-				if item != nil && item.Value != nil {
-					out.Add(key, item.Value.AsString())
+				if item != nil && item.ReadValue() != nil {
+					out.Add(key, item.ReadValue().AsString())
 				}
 			}
 		} else if value != nil {

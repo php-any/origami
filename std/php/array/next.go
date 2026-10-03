@@ -24,37 +24,12 @@ func (f *NextFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	switch val := arrayValue.(type) {
 	case *data.ArrayValue:
 		return val.MovePointer(1), nil
-	case *data.ObjectValue:
-		return val.MovePointer(1), nil
+
 	case *data.ClassValue:
-		// 处理 Iterator 对象
-		// 检查是否实现了 Iterator 接口
-		if targetInterface, ok := ctx.GetVM().GetInterface("Iterator"); ok {
-			if checkInterfaceStructure(val.Class, targetInterface) {
-				// 移动到下一个位置
-				if ctl := callVoidMethod(val, "next"); ctl != nil {
-					return data.NewNullValue(), nil
-				}
-
-				// 检查当前位置是否有效
-				valid, ctl := callBoolMethod(val, "valid")
-				if ctl != nil {
-					return data.NewNullValue(), nil
-				}
-				if !valid {
-					return data.NewNullValue(), nil
-				}
-
-				// 获取当前元素
-				currentVal, ctl := callValueMethod(val, "current")
-				if ctl != nil {
-					return data.NewNullValue(), nil
-				}
-				return currentVal, nil
-			}
+		if ctl := data.EmitPHPError(ctx, 8192, "next(): Calling next() on an object is deprecated", nil); ctl != nil {
+			return nil, ctl
 		}
-		// 不是 Iterator 接口，返回 null
-		return data.NewNullValue(), nil
+		return val.ObjectValue.MovePointer(1), nil
 
 	default:
 		// 不是数组类型，返回 null

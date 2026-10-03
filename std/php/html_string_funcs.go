@@ -344,7 +344,6 @@ func NewSimilarTextFunction() data.FuncStmt { return &SimilarTextFunction{} }
 func (f *SimilarTextFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	str1V, _ := ctx.GetIndexValue(0)
 	str2V, _ := ctx.GetIndexValue(1)
-	percentRef, _ := ctx.GetIndexValue(2)
 
 	if str1V == nil || str2V == nil {
 		return data.NewIntValue(0), nil
@@ -352,49 +351,39 @@ func (f *SimilarTextFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 	s1 := str1V.AsString()
 	s2 := str2V.AsString()
 
-	// 计算最长公共子序列长度
+	// PHP recursively counts the longest common substring and its two sides.
 	similar := lcsLength(s1, s2)
 
 	// 计算百分比
 	total := len(s1) + len(s2)
+	percent := float64(0)
 	if total > 0 {
-		percent := float64(similar*200) / float64(total)
-		// 设置 percent 引用参数
-		if percentRef != nil {
-			if iv, ok := percentRef.(*data.FloatValue); ok {
-				iv.Value = percent
-			} else if iv, ok := percentRef.(*data.IntValue); ok {
-				iv.Value = int(percent)
-			}
-		}
+		percent = float64(similar*200) / float64(total)
+	}
+	if slot := ctx.GetIndexZVal(2); slot != nil {
+		slot.StoreRaw(data.NewFloatValue(percent))
 	}
 
 	return data.NewIntValue(similar), nil
 }
 
 func lcsLength(a, b string) int {
-	m, n := len(a), len(b)
-	if m == 0 || n == 0 {
-		return 0
-	}
-	dp := make([][]int, m+1)
-	for i := range dp {
-		dp[i] = make([]int, n+1)
-	}
-	for i := 1; i <= m; i++ {
-		for j := 1; j <= n; j++ {
-			if a[i-1] == b[j-1] {
-				dp[i][j] = dp[i-1][j-1] + 1
-			} else {
-				if dp[i-1][j] > dp[i][j-1] {
-					dp[i][j] = dp[i-1][j]
-				} else {
-					dp[i][j] = dp[i][j-1]
-				}
+	best, ai, bi := 0, 0, 0
+	for i := range len(a) {
+		for j := range len(b) {
+			length := 0
+			for i+length < len(a) && j+length < len(b) && a[i+length] == b[j+length] {
+				length++
+			}
+			if length > best {
+				best, ai, bi = length, i, j
 			}
 		}
 	}
-	return dp[m][n]
+	if best == 0 {
+		return 0
+	}
+	return best + lcsLength(a[:ai], b[:bi]) + lcsLength(a[ai+best:], b[bi+best:])
 }
 
 func (f *SimilarTextFunction) GetName() string { return "similar_text" }
@@ -402,7 +391,7 @@ func (f *SimilarTextFunction) GetName() string { return "similar_text" }
 var similarTextFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "string1", 0, nil, nil),
 	node.NewParameter(nil, "string2", 1, nil, nil),
-	node.NewParameterReference(nil, "percent", 2, node.NewNullLiteral(nil), data.NewBaseType("float")),
+	node.NewOutputParameterReference(nil, "percent", 2, node.NewNullLiteral(nil), data.NewBaseType("float")),
 }
 
 func (f *SimilarTextFunction) GetParams() []data.GetValue {

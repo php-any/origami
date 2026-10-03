@@ -15,11 +15,13 @@ type CallState struct {
 	Stack             []data.CallFrame
 	auto              bool // 按 goid 惰性创建，深度归零后可从 map 删除
 	deadline          context.Context
+	ignoreUserAbort   bool
 	phpDeadlineNano   int64
 	phpLimitSec       int64
 	shutdown          shutdownQueue
 	exceptionHandlers *ExceptionHandlerState
 	errorHandlers     *errorHandlerState
+	phpErrors         *data.PHPErrorState
 }
 
 func (st *CallState) Enter() int {
@@ -109,10 +111,26 @@ func BeginRequestDeadline(ctx context.Context) (restore func()) {
 	if st == nil {
 		st = ensureGoroutineCallState()
 	}
-	prev := st.deadline
-	st.deadline = ctx
+	previous, previousIgnore := st.deadline, st.ignoreUserAbort
+	current := newRequestCancellation(ctx, st.ignoreUserAbort)
+	st.deadline = current
 	return func() {
-		st.deadline = prev
+		current.close()
+		st.deadline, st.ignoreUserAbort = previous, previousIgnore
+	}
+}
+
+// Ignoring a client disconnect still preserves the server execution deadline.
+// Resources keep the same context identity while this cold policy changes.
+func SetRequestIgnoreUserAbort(ignore bool) {
+	if state := currentRequestCallState(); state != nil {
+		setIgnoreUserAbort(state, ignore)
+	}
+}
+func setIgnoreUserAbort(state *CallState, ignore bool) {
+	state.ignoreUserAbort = ignore
+	if current, ok := state.deadline.(*requestCancellation); ok {
+		current.setIgnore(ignore)
 	}
 }
 

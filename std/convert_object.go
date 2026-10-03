@@ -1,8 +1,6 @@
 package std
 
 import (
-	"fmt"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -14,94 +12,36 @@ type ObjectFunction struct{}
 func NewObjectFunction() data.FuncStmt { return &ObjectFunction{} }
 
 func (f *ObjectFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	v, _ := ctx.GetIndexValue(0)
-	if v == nil {
-		return newStdClassInstance(ctx), nil
+	value, _ := ctx.GetIndexValue(0)
+	if value == nil {
+		return data.NewStdClassValue(ctx), nil
 	}
-
-	switch val := v.(type) {
-	case *data.ClassValue:
-		// 已是对象实例，原样返回（与 PHP 一致）
-		return val, nil
+	switch v := value.(type) {
+	case *data.NullValue:
+		return data.NewStdClassValue(ctx), nil
 	case *data.ThisValue:
-		return val.ClassValue, nil
-	case *data.ObjectValue:
-		// Origami 内部关联数组容器：转为真正的 stdClass
-		return objectValueToStdClass(ctx, val), nil
+		return v.ClassValue, nil
 	case *data.ArrayValue:
-		return arrayToStdClass(ctx, val), nil
+		return arrayToStdClass(ctx, v), nil
 	default:
-		// 标量：包装为带 scalar 属性的 stdClass（对齐 PHP）
-		obj := newStdClassInstance(ctx)
-		if cv, ok := obj.(*data.ClassValue); ok {
-			cv.SetProperty("scalar", v)
+		if data.ValueKindOf(value) == data.ValueObject {
+			return value, nil
 		}
-		return obj, nil
+		object := data.NewStdClassValue(ctx)
+		object.SetProperty("scalar", value)
+		return object, nil
 	}
 }
 
-func newStdClassInstance(ctx data.Context) data.GetValue {
-	vm := ctx.GetVM()
-	if vm == nil {
-		return data.NewObjectValue()
-	}
-	cls, ok := vm.GetClass("stdClass")
-	if !ok {
-		return data.NewObjectValue()
-	}
-	return data.NewClassValue(cls, ctx.CreateBaseContext())
-}
+func newStdClassInstance(ctx data.Context) data.GetValue { return data.NewStdClassValue(ctx) }
 
 func arrayToStdClass(ctx data.Context, arr *data.ArrayValue) data.GetValue {
-	obj := newStdClassInstance(ctx)
-	cv, ok := obj.(*data.ClassValue)
-	if !ok {
-		// 回退：无 stdClass 时用 ObjectValue
-		ov := data.NewObjectValue()
-		for arraySlots34, i := arr.View(), 0; i < arraySlots34.Len(); i++ {
-			z := arraySlots34.At(i)
-			key := fmt.Sprintf("%d", i)
-			if z != nil && z.Name != "" {
-				key = z.Name
-			}
-			if z == nil || z.Value == nil {
-				ov.SetProperty(key, data.NewNullValue())
-			} else {
-				ov.SetProperty(key, z.Value)
-			}
-		}
-		return ov
+	object := data.NewStdClassValue(ctx)
+	for slots, i := arr.View(), 0; i < slots.Len(); i++ {
+		slot := slots.At(i)
+		object.SetProperty(slot.PHPArrayKey(i).AsString(), slot.ReadValue())
 	}
-	for arraySlots35, i := arr.View(), 0; i < arraySlots35.Len(); i++ {
-		z := arraySlots35.At(i)
-		key := fmt.Sprintf("%d", i)
-		if z != nil && z.Name != "" {
-			key = z.Name
-		}
-		if z == nil || z.Value == nil {
-			cv.SetProperty(key, data.NewNullValue())
-		} else {
-			cv.SetProperty(key, z.Value)
-		}
-	}
-	return cv
-}
-
-func objectValueToStdClass(ctx data.Context, ov *data.ObjectValue) data.GetValue {
-	obj := newStdClassInstance(ctx)
-	cv, ok := obj.(*data.ClassValue)
-	if !ok {
-		return ov
-	}
-	ov.RangeProperties(func(key string, val data.Value) bool {
-		if val == nil {
-			cv.SetProperty(key, data.NewNullValue())
-		} else {
-			cv.SetProperty(key, val)
-		}
-		return true
-	})
-	return cv
+	return object
 }
 
 func (f *ObjectFunction) GetName() string { return "object" }

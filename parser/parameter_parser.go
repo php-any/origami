@@ -55,6 +55,15 @@ func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Co
 	name := ""
 	isParams := false
 	isReference := false // 是否引用
+	var prefixType data.Types
+	if declarationStarts(parser) && (parser.checkPositionIs(0, token.TERNARY, token.LPAREN, token.STATIC) ||
+		parser.checkPositionIs(1, token.VARIABLE, token.BIT_OR, token.BIT_AND, token.ELLIPSIS, token.LT)) {
+		var ctl data.Control
+		prefixType, ctl = parseDeclaredType(parser, data.DeclarationParameter)
+		if ctl != nil {
+			return nil, nil, ctl
+		}
+	}
 	// 解析参数名
 	if parser.current().Type() != token.VARIABLE {
 		isVar := false
@@ -173,11 +182,23 @@ func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Co
 	// 对于普通带类型声明但未被 parseConstructorParameterType 捕获的情况（如简单的 string $a, int $b），
 	// 回退使用前面解析到的 varType 文本来构造基础类型，确保类型信息不会丢失，
 	// 以便 ReflectionParameter::getType() 等功能可以拿到非空的类型。
+	if prefixType != nil {
+		paramType = prefixType
+	}
 	if paramType == nil && varType != "" {
 		if len(varType) > 1 && varType[0] == '?' {
 			paramType = data.NewDeclaredNullableType(data.NewDeclaredType(varType[1:]))
 		} else {
 			paramType = data.NewDeclaredType(varType)
+		}
+	}
+	if paramType != nil {
+		position := data.DeclarationParameter
+		if paramModifier != "" {
+			position = data.DeclarationProperty
+		}
+		if err := data.ValidateDeclaration(data.DeclaredTypeRef(paramType), position, parser.currentClass != ""); err != nil {
+			return nil, nil, declarationError(parser, err.Error())
 		}
 	}
 
@@ -197,7 +218,7 @@ func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Co
 	}
 	// PHP retains implicit nullability for ordinary typed parameters defaulting to null.
 	if paramModifier == "" && paramType != nil {
-		if _, isNull := defaultValue.(*node.NullLiteral); isNull && !paramType.Is(data.NewNullValue()) {
+		if _, isNull := defaultValue.(*node.NullLiteral); isNull && !data.TypeAllowsNull(paramType) {
 			paramType = data.NewDeclaredNullableType(paramType)
 
 		}
@@ -213,13 +234,16 @@ func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Co
 			false, // 构造函数参数不能是静态的
 			isReadonly,
 			true, // 标记为属性提升
-			defaultValue,
+			nil,  // The default belongs to the parameter, not the promoted property.
 			propertyType,
 		), nil
 	}
 
 	// 创建参数节点
-	if isParams {
+	if isParams && isReference {
+		parser.scopeManager.CurrentScope().SetVariable(val.GetName(), node.NewVariableReference(tracking.EndBefore(), val.GetName(), val.GetIndex(), nil))
+		return node.NewParametersReference(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, paramType), nil, nil
+	} else if isParams {
 		return node.NewParameters(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, paramType), nil, nil
 	} else if isReference {
 		// 覆盖变量为引用

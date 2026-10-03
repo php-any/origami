@@ -30,19 +30,6 @@ func (f *ArrayKeysFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 		}
 		return data.NewArrayValue(keys), nil
 
-	case *data.ObjectValue:
-		// 处理对象（关联数组），按插入顺序（OrderedMap 顺序）返回键
-		keys := make([]data.Value, 0)
-		v.RangeProperties(func(key string, _ data.Value) bool {
-			if n, ok := data.ParseIntArrayKeyName(key); ok {
-				keys = append(keys, data.NewIntValue(n))
-			} else {
-				keys = append(keys, data.NewStringValue(key))
-			}
-			return true
-		})
-		return data.NewArrayValue(keys), nil
-
 	default:
 		return nil, throwMustBeArray("array_keys", arrayValue)
 	}

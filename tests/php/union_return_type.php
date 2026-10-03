@@ -36,7 +36,7 @@ class TestIterator implements Iterator {
 // 测试返回 int 类型
 $it1 = new TestIterator([10, 20, 30]);
 $key1 = $it1->key();
-if(gettype($key1) == "int" && $key1 == 0) {
+if(gettype($key1) == "integer" && $key1 == 0) {
     Log::info("string|int 返回类型 - int 测试通过");
 } else {
     Log::fatal("string|int 返回类型 - int 测试失败");
@@ -121,7 +121,7 @@ class DynamicKeyIterator implements Iterator {
 // 测试动态返回类型
 $it3 = new DynamicKeyIterator([10, 20, 30, 40]);
 $key3 = $it3->key(); // 应该是 0 (int)
-if(gettype($key3) == "int" && $key3 == 0) {
+if(gettype($key3) == "integer" && $key3 == 0) {
     Log::info("string|int 返回类型 - 动态返回 int 测试通过");
 } else {
     Log::fatal("string|int 返回类型 - 动态返回 int 测试失败");
@@ -138,7 +138,7 @@ if(gettype($key4) == "string" && $key4 == "key1") {
 // 测试使用 key() 函数
 $it4 = new TestIterator([100, 200, 300]);
 $key5 = key($it4);
-if(gettype($key5) == "int" && $key5 == 0) {
+if ($key5 === "\0TestIterator\0data") {
     Log::info("key() 函数处理 string|int 返回类型测试通过");
 } else {
     Log::fatal("key() 函数处理 string|int 返回类型测试失败");
@@ -161,7 +161,7 @@ class MixedReturnClass {
 
 $obj = new MixedReturnClass();
 $val1 = $obj->getValue();
-if(gettype($val1) == "int" && $val1 == 42) {
+if(gettype($val1) == "integer" && $val1 == 42) {
     Log::info("string|int|bool 返回类型 - int 测试通过");
 } else {
     Log::fatal("string|int|bool 返回类型 - int 测试失败");
@@ -175,7 +175,7 @@ if(gettype($val2) == "string" && $val2 == "hello") {
 }
 
 $val3 = $obj->getBool();
-if(gettype($val3) == "bool" && $val3 === true) {
+if(gettype($val3) == "boolean" && $val3 === true) {
     Log::info("string|int|bool 返回类型 - bool 测试通过");
 } else {
     Log::fatal("string|int|bool 返回类型 - bool 测试失败");

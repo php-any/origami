@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/utils"
@@ -22,17 +23,16 @@ func (f *TriggerErrorFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 	}
 	msg := msgVal.AsString()
 
-	// 第二个参数：错误级别（当前实现忽略，仅保留签名兼容）
-	// PHP: E_USER_ERROR / E_USER_WARNING / E_USER_NOTICE 等
-	level, _ := ctx.GetIndexValue(1)
-	if i, ok := level.(data.AsInt); ok {
-		if i, _ := i.AsInt(); i == 16384 {
-			return nil, nil
+	level := 1024
+	if v, _ := ctx.GetIndexValue(1); v != nil {
+		if i, ok := v.(*data.IntValue); ok {
+			level = i.Value
 		}
 	}
-	// 这里统一按致命错误处理，直接抛出异常
-
-	return nil, utils.NewThrowf("trigger_error: %s", msg)
+	if level != 256 && level != 512 && level != 1024 && level != 16384 {
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("trigger_error(): Argument #2 ($error_level) must be one of E_USER_ERROR, E_USER_WARNING, E_USER_NOTICE, or E_USER_DEPRECATED"), "ValueError")
+	}
+	return data.NewBoolValue(true), data.EmitPHPError(ctx, level, msg, nil)
 }
 
 func (f *TriggerErrorFunction) GetName() string {
@@ -41,7 +41,7 @@ func (f *TriggerErrorFunction) GetName() string {
 
 var triggerErrorFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "message", 0, nil, data.String{}),
-	node.NewParameter(nil, "error_type", 1, nil, data.Int{}),
+	node.NewParameter(nil, "error_type", 1, data.NewIntValue(1024), data.Int{}),
 }
 
 func (f *TriggerErrorFunction) GetParams() []data.GetValue {

@@ -50,7 +50,7 @@ if($result == 5) {
 // 测试 prev() 函数
 $array = [1, 2, 3, 4, 5];
 $result = prev($array);
-if($result == 4) {
+if($result === false) {
     Log::info("prev() 基本测试通过");
 } else {
     Log::fatal("prev() 基本测试失败");
@@ -73,7 +73,7 @@ if($result == 3) {
 }
 
 $result = key($assoc);
-if($result == "a") {
+if($result === "c") {
     Log::info("key() 关联数组测试通过");
 } else {
     Log::fatal("key() 关联数组测试失败");
@@ -114,35 +114,35 @@ $nums = [10, 20, 30, 40];
 $it = new MyArrayIterator($nums);
 
 $result = reset($it);
-if($result == 10) {
+if($result === $nums) {
     Log::info("reset() Iterator 测试通过");
 } else {
     Log::fatal("reset() Iterator 测试失败");
 }
 
 $result = current($it);
-if($result == 10) {
+if($result === $nums) {
     Log::info("current() Iterator 测试通过");
 } else {
     Log::fatal("current() Iterator 测试失败");
 }
 
 $result = key($it);
-if($result == 0) {
+if($result === "\0MyArrayIterator\0data") {
     Log::info("key() Iterator 测试通过");
 } else {
     Log::fatal("key() Iterator 测试失败");
 }
 
 $result = next($it);
-if($result == 20) {
+if($result === 0) {
     Log::info("next() Iterator 测试通过");
 } else {
     Log::fatal("next() Iterator 测试失败");
 }
 
 $result = end($it);
-if($result == 40) {
+if($result === 0) {
     Log::info("end() Iterator 测试通过");
 } else {
     Log::fatal("end() Iterator 测试失败");
@@ -151,14 +151,14 @@ if($result == 40) {
 // 测试空数组
 $empty = [];
 $result = reset($empty);
-if($result === null) {
+if($result === false) {
     Log::info("reset() 空数组测试通过");
 } else {
     Log::fatal("reset() 空数组测试失败");
 }
 
 $result = current($empty);
-if($result === null) {
+if($result === false) {
     Log::info("current() 空数组测试通过");
 } else {
     Log::fatal("current() 空数组测试失败");

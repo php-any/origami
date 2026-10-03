@@ -49,7 +49,7 @@ func (f *SortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// PHP 的 sort() 函数会重新索引数组的键
 	arrayRef.EditReindexing(func(slots []*data.ZVal) {
 		sort.SliceStable(slots, func(i, j int) bool {
-			return compareValues(slots[i].Value, slots[j].Value, flags)
+			return compareValues(slots[i].ReadValue(), slots[j].ReadValue(), flags)
 		})
 	})
 

@@ -178,9 +178,7 @@ func eventNameOf(v data.Value) string {
 	if cv, ok := v.(*data.ClassValue); ok && cv.Class != nil {
 		return cv.Class.GetName()
 	}
-	if ov, ok := v.(*data.ObjectValue); ok {
-		_ = ov
-	}
+
 	return v.AsString()
 }
 

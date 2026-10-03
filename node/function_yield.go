@@ -34,6 +34,8 @@ type FuncYieldStackState struct {
 	CurrentValue data.Value
 	autoKeyIndex int
 	initialized  bool // true 表示已执行过第一次 yield（有 CurrentValue）
+	finished     bool
+	returnValue  data.Value
 }
 
 func (f *FuncYieldStackState) AsString() string {
@@ -58,6 +60,9 @@ func (f *FuncYieldStackState) Key(_ data.Context) (data.Value, data.Control) {
 }
 
 func (f *FuncYieldStackState) Next(_ data.Context) data.Control {
+	if f.finished {
+		return nil
+	}
 	ctx := f.ctx
 	// 从 BodyIndex 开始执行剩余的 body
 	for bodyIndex := f.BodyIndex; bodyIndex < len(f.Body); bodyIndex++ {
@@ -68,6 +73,12 @@ func (f *FuncYieldStackState) Next(_ data.Context) data.Control {
 
 		if ctl != nil {
 			switch rv := ctl.(type) {
+			case data.ReturnControl:
+				f.returnValue = rv.ReturnValue()
+				f.finished = true
+				f.BodyIndex = len(f.Body)
+				f.CurrentKey, f.CurrentValue = nil, nil
+				return nil
 			case data.YieldControl:
 				// 判断是否是已经初始化过的 YieldFromControl（即 body 中当前语句就是这个控制流对象本身）
 				if statement == rv {
@@ -122,6 +133,7 @@ func (f *FuncYieldStackState) Next(_ data.Context) data.Control {
 	}
 	f.CurrentKey = nil
 	f.CurrentValue = nil
+	f.finished = true
 	return nil
 }
 
@@ -169,22 +181,12 @@ func (f *FuncYieldStackState) Throw(_ data.Context) data.Control {
 }
 
 func (f *FuncYieldStackState) GetReturn(_ data.Context) (data.Value, data.Control) {
-	// 执行完所有 body，查找返回值
-	for f.BodyIndex < len(f.Body) {
-		statement := f.Body[f.BodyIndex]
-		f.BodyIndex++
-
-		var ctl data.Control
-		_, ctl = statement.GetValue(f.ctx)
-
-		if ctl != nil {
-			if rv, ok := ctl.(data.ReturnControl); ok {
-				return rv.ReturnValue(), nil
-			}
-			// 其他控制流，继续执行
-		}
+	if !f.finished {
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Cannot get return value of a generator that hasn't returned"), "Exception")
 	}
-	// 没有找到 return，返回 null
+	if f.returnValue != nil {
+		return f.returnValue, nil
+	}
 	return data.NewNullValue(), nil
 }
 

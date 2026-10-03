@@ -24,7 +24,7 @@ func (f *ArrayDiffKeyFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 		if restArr, ok := restVal.(*data.ArrayValue); ok {
 			for arraySlots83, arrayPosition83 := restArr.View(), 0; arrayPosition83 < arraySlots83.Len(); arrayPosition83++ {
 				zv := arraySlots83.At(arrayPosition83)
-				for k := range extractKeys(zv.Value) {
+				for k := range extractKeys(zv.ReadValue()) {
 					exclude[k] = true
 				}
 			}
@@ -38,19 +38,11 @@ func (f *ArrayDiffKeyFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 			zv := arraySlots84.At(idx)
 			key := zv.PHPArrayKey(idx)
 			if !exclude[key.AsString()] {
-				result.SetKey(key, zv.Value)
+				result.SetKey(key, zv.ReadValue())
 			}
 		}
 		return result, nil
-	case *data.ObjectValue:
-		result := data.NewObjectValue()
-		first.RangeProperties(func(key string, val data.Value) bool {
-			if !exclude[key] {
-				result.SetProperty(key, val)
-			}
-			return true
-		})
-		return result, nil
+
 	default:
 		return data.NewArrayValue([]data.Value{}), nil
 	}

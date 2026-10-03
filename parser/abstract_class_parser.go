@@ -28,6 +28,9 @@ func (p *AbstractClassParser) Parse() (data.GetValue, data.Control) {
 	// PHP 8.2 允许 abstract readonly class / final readonly class。
 	// readonly 类语义当前由 ClassParser 兼容性处理，这里先接受修饰符顺序。
 	if p.current().Type() == token.READONLY {
+		flags := p.definingClassFlags
+		p.definingClassFlags |= data.ClassReadonly
+		defer func() { p.definingClassFlags = flags }()
 		p.next()
 	}
 

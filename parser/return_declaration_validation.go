@@ -9,7 +9,26 @@ import (
 // This compile-time walk handles nested branches but stops at nested function
 // boundaries. Return declarations are validated even for unreachable statements.
 func validateReturnBody(body []data.GetValue, ret data.Types) data.Control {
-	if ret == nil {
+	if ret == nil || ret == data.TypeInvalid {
+		return nil
+	}
+	generator := false
+	_ = walkSyntax(reflect.ValueOf(body), func(value any) (bool, data.Control) {
+		switch value.(type) {
+		case *node.FunctionStatement, *node.LambdaExpression, *node.ClassMethod, *node.ClassRegisterStmt:
+			return false, nil
+		case *node.YieldStatement, *node.YieldFromStatement:
+			generator = true
+		}
+		return true, nil
+	})
+	if generator {
+		// A generator's return declaration describes the Generator object,
+		// not values passed to getReturn(). Bare return is legal here.
+		ref := data.DeclaredTypeRef(ret)
+		if ref.Kind() == data.TypeKindBuiltin && ref != data.TypeMixed && ref != data.TypeObject && ref != data.TypeIterable {
+			return data.NewCompileFatal(nil, "Generator return type must be a supertype of Generator")
+		}
 		return nil
 	}
 	return walkSyntax(reflect.ValueOf(body), func(value any) (bool, data.Control) {

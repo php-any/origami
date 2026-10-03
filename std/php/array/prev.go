@@ -24,22 +24,12 @@ func (f *PrevFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	switch val := arrayValue.(type) {
 	case *data.ArrayValue:
 		return val.MovePointer(-1), nil
-	case *data.ObjectValue:
-		return val.MovePointer(-1), nil
+
 	case *data.ClassValue:
-		// 处理 Iterator 对象
-		// 注意：标准 Iterator 接口没有 prev() 方法，所以对于 Iterator 对象，我们返回 null
-		// 或者可以尝试调用 prev() 方法（如果存在）
-		// 检查是否实现了 Iterator 接口
-		if targetInterface, ok := ctx.GetVM().GetInterface("Iterator"); ok {
-			if checkInterfaceStructure(val.Class, targetInterface) {
-				// Iterator 接口没有 prev() 方法，返回 null
-				// 如果需要支持 prev()，需要扩展 Iterator 接口或使用其他方式
-				return data.NewNullValue(), nil
-			}
+		if ctl := data.EmitPHPError(ctx, 8192, "prev(): Calling prev() on an object is deprecated", nil); ctl != nil {
+			return nil, ctl
 		}
-		// 不是 Iterator 接口，返回 null
-		return data.NewNullValue(), nil
+		return val.ObjectValue.MovePointer(-1), nil
 
 	default:
 		// 不是数组类型，返回 null

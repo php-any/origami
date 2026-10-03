@@ -1,7 +1,8 @@
 package core
 
 import (
-	"path/filepath"
+	"fmt"
+	"runtime"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -29,18 +30,63 @@ func (f *DirnameFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if levelsVal, ok := ctx.GetIndexValue(1); ok && levelsVal != nil {
 		if iv, ok := levelsVal.(data.AsInt); ok {
 			n, err := iv.AsInt()
-			if err == nil && n > 0 {
+			if err == nil {
 				levels = n
 			}
 		}
 	}
+	if levels <= 0 {
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("dirname(): Argument #2 ($levels) must be greater than 0"), "ValueError")
+	}
 
 	dir := path
 	for i := 0; i < levels; i++ {
-		dir = filepath.Dir(dir)
+		dir = phpDirname(dir)
+		if dir == "" || dir == "." || (runtime.GOOS == "windows" && (dir == "\\" || len(dir) == 3 && dir[1] == ':' && (dir[2] == '\\' || dir[2] == '.'))) {
+			break
+		}
 	}
 
 	return data.NewStringValue(dir), nil
+}
+
+// PHP dirname is lexical: preserve separators and dot components in the input.
+func phpDirname(path string) string {
+	if path == "" {
+		return ""
+	}
+	windows := runtime.GOOS == "windows"
+	separator := func(c byte) bool { return c == '/' || windows && c == '\\' }
+	start := 0
+	if windows && len(path) >= 2 && path[1] == ':' {
+		start = 2
+	}
+	end := len(path)
+	for end > start && separator(path[end-1]) {
+		end--
+	}
+	if end == start {
+		if windows {
+			return path[:start] + "\\"
+		}
+		return "/"
+	}
+	for end > start && !separator(path[end-1]) {
+		end--
+	}
+	if end == start {
+		return path[:start] + "."
+	}
+	for end > start && separator(path[end-1]) {
+		end--
+	}
+	if end == start {
+		if windows {
+			return path[:start] + "\\"
+		}
+		return "/"
+	}
+	return path[:end]
 }
 
 func (f *DirnameFunction) GetName() string {

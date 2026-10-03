@@ -212,10 +212,10 @@ func emitChunks(ctx data.Context, chunks data.Value) data.Control {
 	case *data.ArrayValue:
 		for arraySlots164, arrayPosition164 := t.View(), 0; arrayPosition164 < arraySlots164.Len(); arrayPosition164++ {
 			z := arraySlots164.At(arrayPosition164)
-			if z == nil || z.Value == nil {
+			if z == nil || z.ReadValue() == nil {
 				continue
 			}
-			if ctl := emit(z.Value); ctl != nil {
+			if ctl := emit(z.ReadValue()); ctl != nil {
 				return ctl
 			}
 		}

@@ -1,6 +1,33 @@
 package node
 
-import "github.com/php-any/origami/data"
+import (
+	"fmt"
+	"github.com/php-any/origami/data"
+)
+
+func checkStaticPropertyAccess(ctx data.Context, class data.ClassStmt, name string, from data.From) data.Control {
+	for class != nil {
+		if core := coreClass(class); core != nil {
+			if property := core.StaticProperties[name]; property != nil {
+				if !memberAccessible(ctx, property.GetModifier(), class) {
+					return data.NewErrorThrowByName(from, fmt.Errorf("Cannot access non-public static property %s::$%s", class.GetName(), name), "Error")
+				}
+				if declaration, ok := property.(*ClassProperty); ok && declaration.IsConstant {
+					if _, cached := core.StaticProperty.Load(name); !cached {
+						_, ctl := core.initStaticProperty(property, ctx.GetVM())
+						return ctl
+					}
+				}
+				return nil
+			}
+		}
+		if class.GetExtend() == nil {
+			break
+		}
+		class, _ = ctx.GetVM().GetClass(*class.GetExtend())
+	}
+	return nil
+}
 
 // LookupStaticProperty 在类、父类及 implements 的接口继承链上查找类常量/静态属性。
 func LookupStaticProperty(vm data.VM, class data.ClassStmt, name string) (data.Value, bool) {

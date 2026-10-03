@@ -3,6 +3,7 @@ package lexer
 import (
 	"bufio"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
@@ -50,21 +51,19 @@ type Lexer struct {
 	root       *Node // DAG 根节点
 }
 
-// NewLexer 创建一个新的词法分析器
-func NewLexer() *Lexer {
-	lexer := &Lexer{
-		root: &Node{
-			children: make(map[rune]*Node),
-		},
-	}
-
-	// 构建 DAG
+// The token trie is immutable after construction. Parser clones need their
+// own input state, but retaining another trie for each PHP file wastes memory
+// and repeatedly makes the collector scan the same token definitions.
+var tokenTrie = sync.OnceValue(func() *Node {
+	lexer := &Lexer{root: &Node{children: make(map[rune]*Node)}}
 	for _, def := range token.TokenDefinitions {
 		lexer.addTokenDefinition(def)
 	}
+	return lexer.root
+})
 
-	return lexer
-}
+// NewLexer 创建一个新的词法分析器，只有只读 token trie 共享。
+func NewLexer() *Lexer { return &Lexer{root: tokenTrie()} }
 
 // addTokenDefinition 添加一个 token 定义到 DAG 中
 func (l *Lexer) addTokenDefinition(def token.TokenDefinition) {

@@ -34,20 +34,20 @@ func (h *RequestOnlyMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	}
 
 	if len(keys) == 0 {
-		return data.NewObjectValue(), nil
+		return data.NewArrayValue(nil).(*data.ArrayValue), nil
 	}
 
 	// 只返回指定的键
-	result := data.NewObjectValue()
+	result := data.NewArrayValue(nil).(*data.ArrayValue)
 
 	// 从表单数据获取
 	if h.source.Form != nil {
 		for _, key := range keys {
 			if values, exists := h.source.Form[key]; exists && len(values) > 0 {
 				if len(values) == 1 {
-					result.SetProperty(key, data.NewStringValue(values[0]))
+					result.SetStringKey(key, data.NewStringValue(values[0]))
 				} else {
-					result.SetProperty(key, data.NewStringValue(strings.Join(values, ",")))
+					result.SetStringKey(key, data.NewStringValue(strings.Join(values, ",")))
 				}
 			}
 		}
@@ -57,9 +57,9 @@ func (h *RequestOnlyMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	for _, key := range keys {
 		if values, exists := h.source.URL.Query()[key]; exists && len(values) > 0 {
 			if len(values) == 1 {
-				result.SetProperty(key, data.NewStringValue(values[0]))
+				result.SetStringKey(key, data.NewStringValue(values[0]))
 			} else {
-				result.SetProperty(key, data.NewStringValue(strings.Join(values, ",")))
+				result.SetStringKey(key, data.NewStringValue(strings.Join(values, ",")))
 			}
 		}
 	}

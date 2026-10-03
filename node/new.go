@@ -2,7 +2,6 @@ package node
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/php-any/origami/data"
 )
@@ -23,6 +22,12 @@ func createInstanceAndCallConstructor(
 		return nil, acl
 	}
 	return createInstanceFromClassStmt(from, stmt, arguments, ctx)
+}
+
+// CreateInstanceFromClass executes the same constructor binding as PHP new.
+// Reflection uses this entry point after resolving its declaration.
+func CreateInstanceFromClass(stmt data.ClassStmt, arguments []data.GetValue, ctx data.Context) (data.GetValue, data.Control) {
+	return createInstanceFromClassStmt(nil, stmt, arguments, ctx)
 }
 
 // flattenSpreadArguments 将构造/调用实参中的 ...$arr 展平成一维列表。
@@ -73,6 +78,9 @@ func createInstanceFromClassStmt(
 	arguments []data.GetValue,
 	ctx data.Context,
 ) (data.GetValue, data.Control) {
+	if flags, ok := stmt.(interface{ DeclarationFlags() data.ClassFlags }); ok && flags.DeclarationFlags()&data.ClassEnum != 0 {
+		return nil, data.NewErrorThrowByName(from, fmt.Errorf("Cannot instantiate enum %s", stmt.GetName()), "Error")
+	}
 	if IsAbstractClassStmt(stmt) {
 		msg := fmt.Sprintf("Uncaught Error: Cannot instantiate abstract class %s", stmt.GetName())
 		return nil, data.NewPHPUncaughtError(from, msg)
@@ -83,10 +91,27 @@ func createInstanceFromClassStmt(
 	}
 
 	if object, ok := object.(*data.ClassValue); ok {
-		if method, ok := object.GetMethod("__construct"); ok && method != nil {
+		method, found := object.GetMethod("__construct")
+		if !found {
+			method = object.Class.GetConstruct()
+		}
+		if method != nil {
 			varies := method.GetVariables()
 			params := method.GetParams()
 			fnCtx := object.CreateContext(varies)
+			defer tryReleaseCallContext(method, fnCtx)
+			if frame, ok := fnCtx.(*data.ClassMethodContext); ok {
+				frame.SelfClass = findDeclaringClassForMethod(ctx.GetVM(), object.Class, "__construct")
+			}
+			if hasReferenceParameters(params) || hasNamedConstructorArguments(arguments) {
+				if ctl := bindReferenceCall(fnCtx, ctx, params, arguments, object); ctl != nil {
+					return nil, ctl
+				}
+				if _, ctl := method.Call(fnCtx); ctl != nil {
+					return nil, ctl
+				}
+				return object, nil
+			}
 
 			arguments, acl = flattenSpreadArguments(ctx, arguments)
 			if acl != nil {
@@ -113,7 +138,7 @@ func createInstanceFromClassStmt(
 						prepared, defaultCtl := param.GetValue(fnCtx)
 						acl = defaultCtl
 						if acl == nil {
-							acl = object.SetVariableValue(param, prepared.(data.Value))
+							acl = assignPromotedProperty(fnCtx, object, param, prepared.(data.Value))
 						}
 					case *CallerContextParameter:
 						fnCtx = ctx
@@ -142,6 +167,16 @@ func createInstanceFromClassStmt(
 	}
 
 	return object, acl
+}
+
+func hasNamedConstructorArguments(arguments []data.GetValue) bool {
+	for _, argument := range arguments {
+		switch argument.(type) {
+		case *NamedArgument, *SpreadArgument:
+			return true
+		}
+	}
+	return false
 }
 
 func constructorParamIndex(param data.GetValue, fallback int) int {
@@ -247,6 +282,8 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 		return nil
 	}
 	switch param := param.(type) {
+	case *ParametersReference:
+		return bindVariadicReferences(fnCtx, ctx, param, arguments[index:])
 	case *ParameterReference:
 		raw := argTV
 		if na, ok := raw.(*NamedArgument); ok {
@@ -303,7 +340,7 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 			}
 			return data.NewErrorThrow(param.GetFrom(), fmt.Errorf("引用参数只能传入变量: new %s::__construct($%s) arg=%T", className, param.GetName(), raw))
 		}
-		if param.Type != nil {
+		if param.Type != data.TypeInvalid {
 			return param.SetValue(fnCtx, data.NewZValValue(fnCtx.GetIndexZVal(param.Index)))
 		}
 		return nil
@@ -335,16 +372,10 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 				case *data.ArrayValue:
 					for arraySlots25, arrayPosition25 := v.View(), 0; arrayPosition25 < arraySlots25.Len(); arrayPosition25++ {
 						z := arraySlots25.At(arrayPosition25)
-						ares.AppendValue(z.Value)
+						ares.AppendValue(z.ReadValue())
 					}
 					fnCtx.SetVariableValue(param, ares)
-				case *data.ObjectValue:
-					// 关联数组展开：按属性遍历值（键在具体函数内部再决策如何使用）
-					v.RangeProperties(func(_ string, val data.Value) bool {
-						ares.AppendValue(val)
-						return true
-					})
-					fnCtx.SetVariableValue(param, ares)
+
 				case *data.ClassValue:
 					// Generator 展开：遍历所有 yield 值
 					if isGeneratorClassName(v.Class.GetName()) {
@@ -383,17 +414,17 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 				fnCtx.SetVariableValue(param, ares)
 			}
 		}
-		if param.Type != nil {
+		if param.Type != data.TypeInvalid {
 			for slots, i := ares.View(), 0; i < slots.Len(); i++ {
 				slot := slots.At(i)
-				prepared, accepted, conversion := data.PrepareTypedValueInContext(param.Type, slot.Value, fnCtx)
+				prepared, accepted, conversion := data.PrepareDeclaredValueInContext(param.Type, slot.ReadValue(), fnCtx)
 				if conversion != nil {
 					return conversion
 				}
 				if !accepted {
 					return data.NewTypeError(param.GetFrom(), fmt.Errorf("variadic parameter $%s must be %s", param.Name, param.Type.String()))
 				}
-				slot.Value = prepared
+				slot.StoreRaw(prepared)
 			}
 		}
 		return acl
@@ -408,7 +439,7 @@ func paramSetValue(fnCtx, ctx, object data.Context, param, argTV data.GetValue, 
 		acl = param.Parameter.SetValue(fnCtx, tempV.(data.Value))
 		if acl == nil {
 			prepared, _ := fnCtx.GetIndexValue(param.Index)
-			acl = object.SetVariableValue(param, prepared)
+			acl = assignPromotedProperty(fnCtx, object, param, prepared)
 		}
 		return acl
 	case *ParameterRawAST:
@@ -452,6 +483,16 @@ func createInstanceAndCallConstructorWithStmt(
 			varies := method.GetVariables()
 			params := method.GetParams()
 			fnCtx := object.CreateContext(varies)
+			defer tryReleaseCallContext(method, fnCtx)
+			if hasReferenceParameters(params) {
+				if ctl := bindReferenceCall(fnCtx, ctx, params, arguments, object); ctl != nil {
+					return nil, ctl
+				}
+				if _, ctl := method.Call(fnCtx); ctl != nil {
+					return nil, ctl
+				}
+				return object, nil
+			}
 
 			arguments, acl = flattenSpreadArguments(ctx, arguments)
 			if acl != nil {
@@ -555,9 +596,6 @@ type NewExpression struct {
 	*Node     `pp:"-"`
 	ClassName string
 	Arguments []data.GetValue
-	class     data.ClassStmt `pp:"-"` // 仅静态 FQCN：首次 GetOrLoadClass 后缓存
-	resolveMu sync.Mutex
-	resolved  resolvedFlag // 命中时跳过 resolveMu，见 resolvedFlag
 }
 
 // NewNewExpression 创建一个新的 new 表达式节点
@@ -570,25 +608,12 @@ func NewNewExpression(from *TokenFrom, className string, arguments []data.GetVal
 }
 
 func (n *NewExpression) resolveClass(ctx data.Context) (data.ClassStmt, data.Control) {
-	if n.resolved.Done() {
-		return n.class, nil
-	}
-	n.resolveMu.Lock()
-	defer n.resolveMu.Unlock()
-	if n.class != nil {
-		return n.class, nil
-	}
 	stmt, acl := ctx.GetVM().GetOrLoadClass(n.ClassName)
 	if acl != nil {
 		if throwValue, ok := acl.(*data.ThrowValue); ok {
 			throwValue.AddStackWithInfo(n.from, n.ClassName, "__construct")
 		}
 		return nil, acl
-	}
-	n.class = stmt
-	// 解析结果为空时不置位，保持原有「下次执行重新解析」的行为。
-	if stmt != nil {
-		n.resolved.MarkDone()
 	}
 	return stmt, nil
 }
@@ -636,9 +661,6 @@ type NewClassGenerated struct {
 }
 
 func (n *NewClassGenerated) resolveClass(ctx data.Context) (data.ClassStmt, data.Control) {
-	if n.class != nil {
-		return n.class, nil
-	}
 	stmt, acl := ctx.GetVM().GetOrLoadClass(n.ClassName)
 	if acl != nil {
 		return nil, acl
@@ -656,7 +678,6 @@ func (n *NewClassGenerated) resolveClass(ctx data.Context) (data.ClassStmt, data
 		}
 		stmt = classGeneric.Clone(mT)
 	}
-	n.class = stmt
 	return stmt, nil
 }
 

@@ -2,6 +2,7 @@ package php
 
 import (
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 )
 
 // NewErrorReportingFunction 创建 error_reporting 函数。
@@ -19,46 +20,17 @@ type ErrorReportingFunction struct {
 	data.Function
 }
 
-// 全局错误报告级别（简化实现，实际应该存储在 VM 或上下文中）
-var errorReportingLevel int = E_ALL
-
 // E_ALL 常量值
 const E_ALL = 32767
 
 func (f *ErrorReportingFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	oldLevel := errorReportingLevel
-
-	// 检查是否有参数
-	levelVal, ok := ctx.GetIndexValue(0)
-	if !ok {
-		// 无参数，返回当前级别
-		return data.NewIntValue(oldLevel), nil
-	}
-
-	// 有参数，转换为整数并设置新级别
-	var newLevel int
-	switch v := levelVal.(type) {
-	case *data.IntValue:
-		newLevel = v.Value
-	case *data.FloatValue:
-		newLevel = int(v.Value)
-	case *data.StringValue:
-		// 尝试从字符串解析整数（简化处理）
-		newLevel = E_ALL
-	case *data.NullValue:
-		newLevel = E_ALL
-	case *data.BoolValue:
-		if v.Value {
-			newLevel = E_ALL
-		} else {
-			newLevel = 0
+	state := data.ErrorState(ctx)
+	if level, ok := ctx.GetIndexValue(0); ok {
+		if level, ok := level.(*data.IntValue); ok {
+			return data.NewIntValue(state.SetReporting(level.Value)), nil
 		}
-	default:
-		newLevel = E_ALL
 	}
-
-	errorReportingLevel = newLevel
-	return data.NewIntValue(oldLevel), nil
+	return data.NewIntValue(state.Reporting()), nil
 }
 
 func (f *ErrorReportingFunction) GetName() string {
@@ -66,8 +38,10 @@ func (f *ErrorReportingFunction) GetName() string {
 }
 
 func (f *ErrorReportingFunction) GetParams() []data.GetValue {
-	return nil
+	return errorReportingParams
 }
+
+var errorReportingParams = []data.GetValue{node.NewParameter(nil, "level", 0, data.NewNullValue(), data.NewNullableType(data.Int{}))}
 
 var errorReportingFunctionGetVariables = []data.Variable{
 	data.NewVariable("level", 0, data.NewBaseType("int")),

@@ -115,4 +115,8 @@ func TestMethodFramePreservesRequestVM(t *testing.T) {
 	if frame.InstanceIdentity() != object {
 		t.Fatal("caller frame changed PHP object identity")
 	}
+	child := frame.CreateContext(nil)
+	if child.GetVM() != request || frame.CreateBaseContext().GetVM() != request {
+		t.Fatal("nested method frame escaped to the object's startup VM")
+	}
 }

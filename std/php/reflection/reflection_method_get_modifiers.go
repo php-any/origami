@@ -65,6 +65,13 @@ func (m *ReflectionMethodGetModifiersMethod) Call(ctx data.Context) (data.GetVal
 	if isStatic {
 		modifiers |= 16 // IS_STATIC
 	}
+	flags := data.MethodDeclarationFlags(method)
+	if flags&data.MethodFinal != 0 {
+		modifiers |= 32
+	}
+	if flags&data.MethodAbstract != 0 {
+		modifiers |= 64
+	}
 
 	return data.NewIntValue(modifiers), nil
 }

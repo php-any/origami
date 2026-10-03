@@ -30,6 +30,8 @@ func (c *DateTimeClass) GetPropertyList() []data.Property              { return 
 func (c *DateTimeClass) GetConstruct() data.Method                     { return &DateTimeConstructMethod{} }
 func (c *DateTimeClass) GetStaticMethod(name string) (data.Method, bool) {
 	switch name {
+	case "createFromInterface":
+		return &DateTimeCreateFromInterfaceMethod{}, true
 	case "getLastErrors":
 		return &DateTimeGetLastErrorsMethod{}, true
 	case "createFromFormat":
@@ -45,6 +47,10 @@ func (c *DateTimeClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
 	case "__construct":
 		return &DateTimeConstructMethod{}, true
+	case "__serialize":
+		return &DateTimeSerializeMethod{}, true
+	case "__unserialize":
+		return &DateTimeUnserializeMethod{}, true
 	case "getTimestamp":
 		return &DateTimeGetTimestampMethod{}, true
 	case "setTimestamp":
@@ -79,6 +85,8 @@ func (c *DateTimeClass) GetMethod(name string) (data.Method, bool) {
 
 func (c *DateTimeClass) GetMethods() []data.Method {
 	return []data.Method{
+		&DateTimeSerializeMethod{}, &DateTimeUnserializeMethod{},
+		&DateTimeCreateFromInterfaceMethod{},
 		&DateTimeConstructMethod{}, &DateTimeGetTimestampMethod{}, &DateTimeSetTimestampMethod{},
 		&DateTimeSetDateMethod{}, &DateTimeSetTimeMethod{}, &DateTimeSetISODateMethod{},
 		&DateTimeSetTimezoneMethod{}, &DateTimeGetTimezoneMethod{}, &DateTimeFormatMethod{},
@@ -139,6 +147,16 @@ func getDateTime(ctx data.Context) (time.Time, data.Control) {
 		t, ctl := cmc.ObjectValue.GetProperty("timestamp")
 		if ctl == nil && t != nil {
 			if ts, ok := timeFromTimestampValue(t); ok {
+				if micro, ctl := cmc.ObjectValue.GetProperty("microsecond"); ctl == nil {
+					if value, ok := micro.(*data.IntValue); ok {
+						ts = ts.Add(time.Duration(value.Value) * time.Microsecond)
+					}
+				}
+				if zone, ctl := cmc.ObjectValue.GetProperty("timezone"); ctl == nil && zone != nil {
+					if loc, err := dateTimeWireLocation(zone.AsString()); err == nil {
+						ts = ts.In(loc)
+					}
+				}
 				return ts, nil
 			}
 		}
@@ -152,6 +170,7 @@ func getDateTime(ctx data.Context) (time.Time, data.Control) {
 func setDateTime(ctx data.Context, t time.Time) data.Control {
 	if cmc, ok := ctx.(*data.ClassMethodContext); ok {
 		cmc.ObjectValue.SetProperty("timestamp", data.NewIntValue(int(t.Unix())))
+		cmc.ObjectValue.SetProperty("microsecond", data.NewIntValue(t.Nanosecond()/1000))
 		return nil
 	}
 	return data.NewErrorThrow(nil, errors.New("无法在非对象上下文中设置时间戳"))
@@ -287,6 +306,15 @@ func (m *DateTimeConstructMethod) Call(ctx data.Context) (data.GetValue, data.Co
 		return data.NewNullValue(), nil
 	}
 	str := datetime.AsString()
+	if strings.HasPrefix(str, "@") {
+		seconds, err := strconv.ParseFloat(str[1:], 64)
+		if err != nil || math.IsInf(seconds, 0) || math.IsNaN(seconds) {
+			return nil, data.NewErrorThrowByName(nil, fmt.Errorf("Failed to parse time string (%s)", str), "DateMalformedStringException")
+		}
+		whole, fraction := math.Modf(seconds)
+		setDateTime(ctx, time.Unix(int64(whole), int64(fraction*1e9)).UTC())
+		return data.NewNullValue(), nil
+	}
 	if str == "" || str == "now" || strings.HasPrefix(str, "now ") {
 		// 支持 "now", "now - 3600 seconds" 等
 		t, err := parseRelativeTime(str, time.Now().UTC())

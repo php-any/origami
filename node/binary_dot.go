@@ -26,8 +26,8 @@ func unwrapValue(v data.GetValue) data.GetValue {
 	}
 	switch t := v.(type) {
 	case *data.ZValValue:
-		if t != nil && t.ZVal != nil && t.ZVal.Value != nil {
-			if val, ok := t.ZVal.Value.(data.GetValue); ok {
+		if t != nil && t.ZVal != nil && t.ZVal.ReadValue() != nil {
+			if val, ok := t.ZVal.ReadValue().(data.GetValue); ok {
 				return unwrapValue(val)
 			}
 		}

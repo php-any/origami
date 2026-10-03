@@ -5,38 +5,11 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	"github.com/php-any/origami/std/php/core"
 	"github.com/php-any/origami/token"
 )
 
-// 枚举反 desugar 相关的内部约定集中在这里，避免散落硬编码
-const (
-	// enum 默认的底层类型（目前只实现 string backed enum）
-	defaultEnumBackingType = "string"
-	// enum 继承的基础类名，用于支持 instanceof BackedEnum / ->value 语义
-	enumBaseClassName = "BackedEnum"
-)
-
-// EnumParser 解析 PHP 8.1 enum 声明，并将其反 desugar 为继承 \BackedEnum 的普通类。
-//
-// 目前支持的子集：
-//
-//	enum Status: string {
-//	    case OPEN = 'open';
-//	    case CLOSED = 'closed';
-//	}
-//
-// 反 desugar 逻辑大致等价于：
-//
-//	class Status extends \BackedEnum {
-//	    // BackedEnum 提供 public string $value 和 __construct(string $value)
-//	    public static $OPEN = new Status('open');
-//	    public static $CLOSED = new Status('closed');
-//	}
-//
-// 因此：
-//   - Status::OPEN 得到一个 Status 实例
-//   - $value instanceof \BackedEnum 成立
-//   - $value->value 为底层值
+// EnumParser retains nominal enum flags and lazy case declarations.
 type EnumParser struct {
 	*Parser
 }
@@ -62,19 +35,28 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 		enumName = p.namespace.GetName() + "\\" + enumName
 	}
 	// 解析可选的底层类型: enum Status: string
-	// 当前解析器接受类型标注，但不再依赖其具体值做行为分支（避免 string-only 硬编码）
+	noParent := ""
+	defer p.enterClassDeclaration(enumName, &noParent)()
+	backingType := ""
+	// PHP only permits int and string backing types.
 	if p.current().Type() == token.COLON {
 		p.next()
 		if p.current().Type() != token.IDENTIFIER && p.current().Type() != token.STRING && p.current().Type() != token.INT {
 			return nil, data.NewErrorThrow(p.newFrom(), errors.New("enum 底层类型缺失或非法"))
 		}
-		// 忽略具体类型名称，只做语法校验（string / int 关键字或标识符）
-		_ = p.current().Literal()
+		// Retain the type for case initialization.
+		backingType = p.current().Literal()
+		if backingType != "string" && backingType != "int" {
+			return nil, data.NewCompileFatal(p.newFrom(), "Enum backing type must be int or string")
+		}
 		p.next()
 	}
 
 	// 可选 implements：enum Heroicon: string implements ScalableIcon
-	var implements []string
+	implements := []string{"UnitEnum"}
+	if backingType != "" {
+		implements = append(implements, "BackedEnum")
+	}
 	if p.current().Type() == token.IMPLEMENTS {
 		p.next()
 		for {
@@ -166,6 +148,9 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 
 			// 支持: case OPEN = 'open';
 			if p.current().Type() == token.ASSIGN {
+				if backingType == "" {
+					return nil, data.NewCompileFatal(p.newFrom(), "Unit enum cannot have a value")
+				}
 				p.next()
 				exprParser := NewExpressionParser(p.Parser)
 				var acl data.Control
@@ -174,10 +159,9 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 					return nil, acl
 				}
 			} else {
-				// 未显式赋值时，默认使用 case 名称的**字符串**作为枚举底层值。
-				// 底层值类型本身不再被这里限制，BackedEnum 也允许任意类型。
-				from := tracker.EndBefore()
-				val = node.NewStringLiteralByAst(from, caseName)
+				if backingType != "" {
+					return nil, data.NewCompileFatal(p.newFrom(), "Backed enum case must have a value")
+				}
 			}
 
 			// 跳过可选分号
@@ -238,26 +222,25 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 
 	// properties 中包含 enum 常量（已通过 const 声明解析添加）
 
-	// enum 反 desugar 成：
-	//   class EnumName extends BackedEnum { ... }
-	// 注意：这里不加前导反斜杠，保持与 BackedEnumClass.GetName() 一致
-	extends := enumBaseClassName
+	// Enums implement UnitEnum and, when backed, BackedEnum.
+	extends := ""
+	properties := []data.Property{node.NewPropertyWithReadonly(tracker.EndBefore(), "name", "public", false, true, nil, data.String{})}
+	if backingType != "" {
+		properties = append(properties, node.NewPropertyWithReadonly(tracker.EndBefore(), "value", "public", false, true, nil, data.NewBaseType(backingType)))
+		staticMethods["tryFrom"] = &core.BackedEnumTryFromMethod{}
+		staticMethods["from"] = &core.BackedEnumFromMethod{}
+	}
+	staticMethods["cases"] = &core.BackedEnumCasesMethod{}
 	classStmt := node.NewClassStatement(
 		tracker.EndBefore(),
 		enumName,
 		extends,
 		implements,
-		nil, // enum 无实例属性；const 见 staticConstProps
+		properties,
 		methods,
 	)
 	classStmt.StaticMethods = staticMethods
-
-	// 继承 BackedEnum 的构造函数：确保 new Status('open') 会运行 BackedEnum::__construct
-	if parent, ok := p.vm.GetClass(extends); ok {
-		if ctor := parent.GetConstruct(); ctor != nil {
-			classStmt.Construct = ctor
-		}
-	}
+	classStmt.Flags = data.ClassEnum | data.ClassFinal
 
 	// 将枚举作为类注册到 VM
 	if acl := p.vm.AddClass(classStmt); acl != nil {
@@ -280,24 +263,18 @@ func (p *EnumParser) Parse() (data.GetValue, data.Control) {
 	classStmt.StaticPropertiesIndex = staticIdx
 	classStmt.SetStaticPropertyContext(data.NewClassValue(classStmt, p.vm.CreateContext([]data.Variable{})))
 
-	// 为每个 case 注入一个静态属性：public static $CASE = new EnumName(<value>);
-	// 此时类已注册到 VM，可以安全地构造枚举实例
+	// Cases are lazy constants, preserving execution-VM identity.
 	for _, ccase := range cases {
-		if ccase.value == nil {
-			continue
+		initializer := &node.EnumCaseInitializer{Node: node.NewNode(tracker.EndBefore()), ClassName: enumName, CaseName: ccase.name, BackingValue: ccase.value}
+		if backingType != "" {
+			initializer.BackingType = data.DeclaredTypeRef(data.NewBaseType(backingType))
 		}
-		from := tracker.EndBefore()
-		newExpr := node.NewNewExpression(from, enumName, []data.GetValue{ccase.value})
-
-		ctx := p.vm.CreateContext(nil)
-		v, acl := newExpr.GetValue(ctx)
-		if acl != nil {
-			return nil, acl
-		}
-		if val, ok := v.(data.Value); ok {
-			classStmt.StaticProperty.Store(ccase.name, val)
-		}
+		prop := node.NewProperty(tracker.EndBefore(), ccase.name, "public", true, initializer)
+		prop.IsConstant = true
+		classStmt.EnumCases = append(classStmt.EnumCases, ccase.name)
+		classStmt.StaticProperties[ccase.name] = prop
+		classStmt.StaticPropertiesIndex = append(classStmt.StaticPropertiesIndex, ccase.name)
 	}
 
-	return classStmt, nil
+	return node.NewClassRegisterStmt(tracker.EndBefore(), classStmt, nil, nil), nil
 }

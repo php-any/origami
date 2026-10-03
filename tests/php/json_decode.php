@@ -59,7 +59,7 @@ if(gettype($decoded) == "array" && count($decoded) == 0) {
 // 测试无效 JSON
 $json = "invalid json";
 $decoded = json_decode($json);
-if(gettype($decoded) == "null") {
+if(gettype($decoded) == "NULL") {
     Log::info("无效 JSON 测试通过");
 } else {
     Log::fatal("无效 JSON 测试失败，类型: " . gettype($decoded));
@@ -68,7 +68,7 @@ if(gettype($decoded) == "null") {
 // 测试空字符串
 $json = "";
 $decoded = json_decode($json);
-if(gettype($decoded) == "null") {
+if(gettype($decoded) == "NULL") {
     Log::info("空字符串 JSON 测试通过");
 } else {
     Log::fatal("空字符串 JSON 测试失败，类型: " . gettype($decoded));

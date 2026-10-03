@@ -7,6 +7,8 @@ import (
 // Load 注册 SPL 扩展：函数、接口、类与相关常量
 func Load(vm data.VM) {
 	for _, fun := range []data.FuncStmt{
+		&SplAutoloadFunction{},
+		&SplAutoloadExtensionsFunction{},
 		NewSplAutoloadRegisterFunction(),
 		NewSplAutoloadUnregisterFunction(),
 		NewSplAutoloadFunctionsFunction(),

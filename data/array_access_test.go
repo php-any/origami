@@ -26,9 +26,9 @@ func TestArrayReferenceSurvivesRemovalAndReordering(t *testing.T) {
 	if ref.AsString() != "20" {
 		t.Fatal("detached reference reused a different array entry")
 	}
-	ref.Slot.Value = NewIntValue(99)
+	ref.Slot.StoreRaw(NewIntValue(99))
 	for _, slot := range a.Range() {
-		if slot.Value.AsString() == "99" {
+		if slot.ReadValue().AsString() == "99" {
 			t.Fatal("detached reference still writes to the array")
 		}
 	}
@@ -46,7 +46,7 @@ func TestArrayBulkReorderInvalidatesKeys(t *testing.T) {
 	}
 	for key, want := range map[string]string{"one": "1", "two": "2"} {
 		slot, ok := a.LookupZValByStringKey(key)
-		if !ok || slot.Value.AsString() != want {
+		if !ok || slot.ReadValue().AsString() != want {
 			t.Fatalf("reordered key %q returned the wrong slot", key)
 		}
 	}
@@ -67,7 +67,7 @@ func TestArrayEditPanicInvalidatesKeys(t *testing.T) {
 			panic("comparison failed")
 		})
 	}()
-	if slot, ok := a.LookupZValByStringKey("one"); !ok || slot.Value.AsString() != "1" {
+	if slot, ok := a.LookupZValByStringKey("one"); !ok || slot.ReadValue().AsString() != "1" {
 		t.Fatal("partial mutation retained a stale key index after panic")
 	}
 }
@@ -87,7 +87,7 @@ func BenchmarkArrayTraversal(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				sum := 0
 				for i, slot := range a.entries {
-					sum += i + slot.Value.(*IntValue).Value
+					sum += i + slot.ReadValue().(*IntValue).Value
 				}
 				arrayAccessSink = sum
 			}
@@ -97,7 +97,7 @@ func BenchmarkArrayTraversal(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				sum := 0
 				for i, slot := range a.Range() {
-					sum += i + slot.Value.(*IntValue).Value
+					sum += i + slot.ReadValue().(*IntValue).Value
 				}
 				arrayAccessSink = sum
 			}
@@ -107,7 +107,7 @@ func BenchmarkArrayTraversal(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				sum := 0
 				for slots, i := a.View(), 0; i < slots.Len(); i++ {
-					sum += i + slots.At(i).Value.(*IntValue).Value
+					sum += i + slots.At(i).ReadValue().(*IntValue).Value
 				}
 				arrayAccessSink = sum
 			}

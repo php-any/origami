@@ -99,7 +99,7 @@ func (m *AttributeConstructMethod) GetIsStatic() bool {
 }
 
 var attributeConstructMethodGetParams = []data.GetValue{
-	node.NewParameter(nil, "flags", 0, node.NewIntLiteral(nil, "1"), data.NewBaseType("int")), // TARGET_ALL = 1
+	node.NewParameter(nil, "flags", 0, node.NewIntLiteral(nil, "63"), data.NewBaseType("int")),
 }
 
 func (m *AttributeConstructMethod) GetParams() []data.GetValue {
@@ -119,7 +119,11 @@ func (m *AttributeConstructMethod) GetReturnType() data.Types {
 }
 
 func (m *AttributeConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// Attribute 构造函数不需要特殊处理，只是标记类可以作为属性使用
+	if object, ok := ctx.(*data.ClassMethodContext); ok {
+		if flags, found := ctx.GetIndexValue(0); found {
+			object.SetProperty("flags", flags)
+		}
+	}
 	return data.NewNullValue(), nil
 }
 

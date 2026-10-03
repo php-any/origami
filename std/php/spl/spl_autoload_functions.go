@@ -13,7 +13,7 @@ func NewSplAutoloadFunctionsFunction() data.FuncStmt {
 }
 
 func (f *SplAutoloadFunctionsFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
-	fns := runtime.GetAutoLoad()
+	fns := runtime.AutoloadOriginalsInContext(ctx)
 	list := make([]*data.ZVal, len(fns))
 	for i, fn := range fns {
 		list[i] = data.NewZVal(fn)

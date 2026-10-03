@@ -51,19 +51,6 @@ func (d *DbUpdateMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 				}
 			}
 		}
-	} else if objectValue, ok := dataValue.(*data.ObjectValue); ok {
-		// 从对象获取属性
-		updateData = make(map[string]interface{})
-		properties := objectValue.GetProperties()
-		for name, value := range properties {
-			if value != nil {
-				// 对于 UPDATE 操作，只跳过真正的 null 值，不跳过 0、false、空字符串等
-				// 因为用户可能想要将字段更新为这些值
-				if _, ok := value.(*data.NullValue); !ok {
-					updateData[name] = ConvertValueToGoType(value)
-				}
-			}
-		}
 	} else {
 		return nil, utils.NewThrow(errors.New("更新数据必须是对象或类实例"))
 	}
@@ -111,7 +98,7 @@ func (d *DbUpdateMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 返回更新结果
-	resultObj := data.NewObjectValue()
+	resultObj := data.NewStdClassValue(nil)
 	resultObj.SetProperty("rowsAffected", data.NewIntValue(int(rowsAffected)))
 	resultObj.SetProperty("success", data.NewBoolValue(true))
 

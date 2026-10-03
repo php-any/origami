@@ -94,9 +94,9 @@ func getReflectionTypeInfo(ctx data.Context) (string, data.Types) {
 	if objCtx, ok := ctx.(*data.ClassMethodContext); ok {
 		// 从 ObjectValue 的 property 中获取类型名
 		if objCtx.ObjectValue != nil {
-			props := objCtx.ObjectValue.GetProperties()
-			typeNameVal, hasTypeName := props["_typeName"]
-			allowsNullVal, hasAllowsNull := props["_allowsNull"]
+			props := objCtx.ObjectValue
+			typeNameVal, hasTypeName := props.LookupProperty("_typeName")
+			allowsNullVal, hasAllowsNull := props.LookupProperty("_allowsNull")
 
 			if hasTypeName {
 				var typeName string

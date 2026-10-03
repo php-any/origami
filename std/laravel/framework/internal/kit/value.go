@@ -86,16 +86,10 @@ func Entries(v data.Value) []KV {
 				key = data.NewIntValue(i)
 				keyStr = data.IntArrayKeyName(i)
 			}
-			entries = append(entries, KV{Key: key, KeyStr: keyStr, Value: z.Value})
+			entries = append(entries, KV{Key: key, KeyStr: keyStr, Value: z.ReadValue()})
 		}
 		return entries
-	case *data.ObjectValue:
-		entries := make([]KV, 0)
-		arr.RangeProperties(func(key string, value data.Value) bool {
-			entries = append(entries, KV{Key: data.NewStringValue(key), KeyStr: key, Value: value})
-			return true
-		})
-		return entries
+
 	default:
 		return nil
 	}
@@ -109,7 +103,7 @@ func Unwrap(v data.Value) data.Value {
 			if t.ZVal == nil {
 				return v
 			}
-			v = t.ZVal.Value
+			v = t.ZVal.ReadValue()
 		case *data.ThisValue:
 			if t.ClassValue == nil {
 				return v

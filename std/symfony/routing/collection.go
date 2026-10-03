@@ -113,8 +113,8 @@ func newRouteCollectionClass() *rtClass {
 		src := propArray(rtSelf(ctx), "resources")
 		vals := make([]data.Value, 0, src.Len())
 		for _, z := range src.Range() {
-			if z != nil && z.Value != nil {
-				vals = append(vals, z.Value)
+			if z != nil && z.ReadValue() != nil {
+				vals = append(vals, z.ReadValue())
 			}
 		}
 		return phpList(vals...), nil
@@ -210,7 +210,7 @@ func collectionAll(ctx data.Context) (data.GetValue, data.Control) {
 				p, _ = iv.AsInt()
 			}
 		}
-		items = append(items, item{name: z.Name, val: z.Value, pri: p, ord: i})
+		items = append(items, item{name: z.Name, val: z.ReadValue(), pri: p, ord: i})
 	}
 	sort.SliceStable(items, func(i, j int) bool {
 		if items[i].pri != items[j].pri {
@@ -285,7 +285,7 @@ func collectionRemove(ctx data.Context) (data.GetValue, data.Control) {
 			if z == nil {
 				continue
 			}
-			if acv := asClassValue(z.Value); acv != nil {
+			if acv := asClassValue(z.ReadValue()); acv != nil {
 				id, _ := callNamed(acv, "getId")
 				if id != nil && removed[id.AsString()] {
 					continue
@@ -326,7 +326,7 @@ func collectionAddCollection(ctx data.Context) (data.GetValue, data.Control) {
 			assocUnset(routes, name)
 			assocUnset(priorities, name)
 			assocUnset(aliases, name)
-			assocSet(routes, name, z.Value)
+			assocSet(routes, name, z.ReadValue())
 			if pv, ok := assocGet(otherPri, name); ok {
 				assocSet(priorities, name, pv)
 			}
@@ -342,7 +342,7 @@ func collectionAddCollection(ctx data.Context) (data.GetValue, data.Control) {
 		assocUnset(routes, name)
 		assocUnset(priorities, name)
 		assocUnset(aliases, name)
-		assocSet(aliases, name, z.Value)
+		assocSet(aliases, name, z.ReadValue())
 	}
 	setProp(cv, "routes", routes)
 	setProp(cv, "aliases", aliases)
@@ -357,7 +357,7 @@ func eachRoute(cv *data.ClassValue, fn func(*data.ClassValue) data.Control) data
 		if z == nil {
 			continue
 		}
-		r := asClassValue(z.Value)
+		r := asClassValue(z.ReadValue())
 		if r == nil {
 			continue
 		}
@@ -398,12 +398,12 @@ func collectionAddNamePrefix(ctx data.Context) (data.GetValue, data.Control) {
 			continue
 		}
 		newName := prefix + z.Name
-		if r := asClassValue(z.Value); r != nil {
+		if r := asClassValue(z.ReadValue()); r != nil {
 			if canon := routeGetDefault(r, "_canonical_route"); !isNull(canon) {
 				routeSetDefault(r, "_canonical_route", data.NewStringValue(prefix+canon.AsString()))
 			}
 		}
-		prefixed.SetStringKey(newName, z.Value)
+		prefixed.SetStringKey(newName, z.ReadValue())
 		if pv, ok := assocGet(priorities, z.Name); ok {
 			assocSet(prefixedPri, newName, pv)
 		}
@@ -414,7 +414,7 @@ func collectionAddNamePrefix(ctx data.Context) (data.GetValue, data.Control) {
 		if z == nil {
 			continue
 		}
-		acv := asClassValue(z.Value)
+		acv := asClassValue(z.ReadValue())
 		if acv == nil {
 			continue
 		}

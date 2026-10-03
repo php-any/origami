@@ -100,24 +100,12 @@ func (f *ArrayFilterFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 		for slots, position := array.View(), 0; position < slots.Len(); position++ {
 			slot := slots.At(position)
 			if slot != nil {
-				if control := filter(slot.PHPArrayKey(position), slot.Value); control != nil {
+				if control := filter(slot.PHPArrayKey(position), slot.ReadValue()); control != nil {
 					return nil, control
 				}
 			}
 		}
-	case *data.ObjectValue:
-		var control data.Control
-		array.RangeProperties(func(name string, element data.Value) bool {
-			var key data.Value = data.NewStringValue(name)
-			if integer, ok := data.ParseIntArrayKeyName(name); ok {
-				key = data.NewIntValue(integer)
-			}
-			control = filter(key, element)
-			return control == nil
-		})
-		if control != nil {
-			return nil, control
-		}
+
 	}
 	return result, nil
 }
@@ -180,6 +168,7 @@ func (f *ArrayFilterFunction) callCallback(ctx data.Context, fn *data.FuncValue,
 	// - 对于 LambdaExpression，slots 覆盖所有 f.vars（参数 + use 捕获变量），
 	//   这样在 Lambda.Call 中通过 ctx.GetIndexZVal(i) 拷贝参数时不会越界。
 	callCtx := ctx.CreateContext(fn.Value.GetVariables())
+	defer data.ReleaseContext(callCtx)
 	callCtx.SetStrictTypes(false)
 	if ctl := data.BindDeclaredArgs(callCtx, fn.Value, args); ctl != nil {
 		return nil, ctl
@@ -240,10 +229,6 @@ func isTruthy(v data.Value) bool {
 	}
 
 	// 检查空对象
-	if objVal, ok := v.(*data.ObjectValue); ok {
-		props := objVal.GetProperties()
-		return len(props) > 0
-	}
 
 	// 其他值默认为 truthy
 	return true

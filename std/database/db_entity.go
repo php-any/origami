@@ -40,14 +40,11 @@ func (d *DbToEntityMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 		instances := make([]data.Value, 0, arr.Len())
 		for arraySlots36, arrayPosition36 := arr.View(), 0; arrayPosition36 < arraySlots36.Len(); arrayPosition36++ {
 			z := arraySlots36.At(arrayPosition36)
-			row, ok := z.Value.(*data.ObjectValue)
+			row, ok := z.ReadValue().(*data.ClassValue)
 			if !ok {
-				if cv, ok := z.Value.(*data.ClassValue); ok {
-					return data.NewArrayValue([]data.Value{cv}), nil
-				}
 				return nil, utils.NewThrow(errors.New("行数据必须是对象"))
 			}
-			inst, acl := scanner.MapObjectToInstance(row, classStmt, ctx)
+			inst, acl := scanner.MapObjectToInstance(row.ObjectValue, classStmt, ctx)
 			if acl != nil {
 				return nil, acl
 			}
@@ -56,9 +53,6 @@ func (d *DbToEntityMethod) Call(ctx data.Context) (data.GetValue, data.Control) 
 		return data.NewArrayValue(instances), nil
 	}
 
-	if row, ok := dataVal.(*data.ObjectValue); ok {
-		return scanner.MapObjectToInstance(row, classStmt, ctx)
-	}
 	if cv, ok := dataVal.(*data.ClassValue); ok {
 		return cv, nil
 	}

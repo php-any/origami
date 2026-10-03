@@ -1,7 +1,6 @@
 package array
 
 import (
-	"sort"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -34,53 +33,6 @@ func (f *KsortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 			flags, _ = flag.AsInt()
 		}
 		sortArrayKeys(v, flags, false)
-		return data.NewBoolValue(true), nil
-
-	case *data.ObjectValue:
-		props := v.GetProperties()
-		if len(props) == 0 {
-			return data.NewBoolValue(true), nil
-		}
-
-		// 收集所有键
-		keys := make([]string, 0, len(props))
-		for k := range props {
-			keys = append(keys, k)
-		}
-
-		// 解析 flags（当前仅支持 SORT_REGULAR / SORT_STRING / SORT_NUMERIC）
-		flags := 0
-		if flagsValue != nil {
-			if intVal, ok := flagsValue.(*data.IntValue); ok {
-				flags, _ = intVal.AsInt()
-			}
-		}
-
-		// 根据 flags 对键排序
-		sort.Slice(keys, func(i, j int) bool {
-			ki := keys[i]
-			kj := keys[j]
-			switch flags {
-			case 1: // SORT_NUMERIC
-				// 简化实现：按字符串数值比较
-				return ki < kj
-			case 2: // SORT_STRING
-				fallthrough
-			default: // SORT_REGULAR
-				return ki < kj
-			}
-		})
-
-		// 清空并按排序后的键顺序重新设置属性。
-		// 注意：ObjectValue 使用的是 OrderedMap，重复 SetProperty 同名键会更新而不改变顺序，
-		// 所以这里通过整体结构赋值 (*v = *newObj) 来替换内部的 OrderedMap。
-		newObj := data.NewObjectValue()
-		for _, k := range keys {
-			newObj.SetProperty(k, props[k])
-		}
-		// 用新对象整体替换旧对象的内部状态
-		*v = *newObj
-
 		return data.NewBoolValue(true), nil
 
 	default:

@@ -20,7 +20,15 @@ class MacroDemo
     {
         return static::macro('hello', fn () => 'world');
     }
+
+    public static function register() { return static::registerViaStatic(); }
 }
 
-echo MacroDemo::registerViaStatic(), PHP_EOL;
+try {
+    MacroDemo::registerViaStatic();
+    throw new RuntimeException('inaccessible method must reach __callStatic');
+} catch (BadMethodCallException $e) {
+    if ($e->getMessage() !== 'registerViaStatic') { throw $e; }
+}
+echo MacroDemo::register(), PHP_EOL;
 echo MacroDemo::hello(), PHP_EOL;

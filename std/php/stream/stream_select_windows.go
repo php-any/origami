@@ -3,33 +3,37 @@
 package stream
 
 import (
-	"time"
-
+	"fmt"
 	"github.com/php-any/origami/data"
 )
 
-// Call 在 Windows 上对文件流按 PHP 惯例视为立即就绪；无描述符时等待超时后返回 0。
+// PHP's Windows file/pipe select reports distinct handles as immediately
+// ready and retains their set membership. This does not guarantee a pipe read
+// cannot block; resource reads independently observe request cancellation.
 func (f *StreamSelectFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if ctx.GoContext().Err() != nil {
 		panic(data.ErrRequestCanceled)
 	}
-	read, _ := ctx.GetIndexValue(0)
-	write, _ := ctx.GetIndexValue(1)
-	except, _ := ctx.GetIndexValue(2)
-
-	ready := countStreamCollection(read) + countStreamCollection(write) + countStreamCollection(except)
-	if ready > 0 {
-		return data.NewIntValue(ready), nil
+	if ctl := validateSelectTimeout(ctx); ctl != nil {
+		return nil, ctl
 	}
-
-	if timeout := streamSelectTimeout(ctx); timeout > 0 {
-		timer := time.NewTimer(timeout)
-		defer timer.Stop()
-		select {
-		case <-timer.C:
-		case <-ctx.GoContext().Done():
-			panic(data.ErrRequestCanceled)
-		}
+	read := data.CowSeparateIndex(ctx, 0)
+	write := data.CowSeparateIndex(ctx, 1)
+	except := data.CowSeparateIndex(ctx, 2)
+	handles := make(map[int]struct{})
+	for _, collection := range []data.Value{read, write, except} {
+		rangeStreamCollection(collection, func(stream data.Value) bool {
+			if fd, ok := streamFileDescriptor(stream); ok {
+				handles[fd] = struct{}{}
+			}
+			return true
+		})
 	}
-	return data.NewIntValue(0), nil
+	if len(handles) == 0 {
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("No stream arrays were passed"), "ValueError")
+	}
+	filterSelectableStreams(read, func(int) bool { return true })
+	filterSelectableStreams(write, func(int) bool { return true })
+	filterSelectableStreams(except, func(int) bool { return true })
+	return data.NewIntValue(len(handles)), nil
 }

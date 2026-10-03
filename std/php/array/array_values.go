@@ -24,15 +24,6 @@ func (f *ArrayValuesFunction) Call(ctx data.Context) (data.GetValue, data.Contro
 		return data.NewArrayValue(arrayVal.ToValueList()), nil
 	}
 
-	if objectVal, ok := arrayValue.(*data.ObjectValue); ok {
-		values := make([]data.Value, 0)
-		objectVal.RangeProperties(func(_ string, val data.Value) bool {
-			values = append(values, val)
-			return true
-		})
-		return data.NewArrayValue(values), nil
-	}
-
 	return nil, throwMustBeArray("array_values", arrayValue)
 }
 

@@ -2,7 +2,9 @@ package runtime
 
 import (
 	"context"
+	"os"
 	"sync"
+	"sync/atomic"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/perfmon"
@@ -10,18 +12,21 @@ import (
 )
 
 type parsedPHPFile struct {
-	program    data.GetValue
-	vars       []data.Variable
-	classes    []data.ClassStmt
-	interfaces []data.InterfaceStmt
+	program        data.GetValue
+	vars           []data.Variable
+	classes        []data.ClassStmt
+	interfaces     []data.InterfaceStmt
+	sourceSize     int64
+	sourceModified int64
 }
 
 type parsedFileFlight struct {
-	done      chan struct{}
-	owner     uint64
-	entry     *parsedPHPFile
-	control   data.Control
-	completed bool
+	done        chan struct{}
+	owner       uint64
+	entry       *parsedPHPFile
+	control     data.Control
+	completed   bool
+	invalidated atomic.Bool
 }
 
 // Swapping the root separates hot-reload generations. A parse already in
@@ -61,14 +66,14 @@ func (cache *parsedFileCache) load(request context.Context, file string, parse f
 			case <-request.Done():
 				panic(data.ErrRequestCanceled)
 			}
-			if flight.completed {
+			if flight.completed && !flight.invalidated.Load() {
 				return flight.entry, flight.control
 			}
 			// A canceled/panicking leader owns no result; another request retries.
 			continue
 		}
 		return func() (*parsedPHPFile, data.Control) {
-			defer func() { cache.flights.Delete(file); close(flight.done) }()
+			defer func() { cache.flights.CompareAndDelete(file, flight); close(flight.done) }()
 			// Another loader can publish between the first lookup and election.
 			if cached, ok := syncMapLoad[*parsedPHPFile](&cache.entries, file); ok {
 				flight.entry, flight.completed = cached, true
@@ -76,13 +81,41 @@ func (cache *parsedFileCache) load(request context.Context, file string, parse f
 			}
 			entry, control := parse()
 			data.CheckRequest(request)
-			if control == nil {
+			if control == nil && !flight.invalidated.Load() {
 				cache.entries.Store(file, entry)
+				if flight.invalidated.Load() {
+					cache.entries.CompareAndDelete(file, entry)
+				}
 			}
 			flight.entry, flight.control, flight.completed = entry, control, true
 			return entry, control
 		}()
 	}
+}
+
+// InvalidateParsedFile runs on source writes, leaving cached reads unchanged.
+func (vm *VM) InvalidateParsedFile(file string) {
+	file = normalizePhpFilePath(file)
+	cache := vm.parsedFiles.Load()
+	if flight, ok := syncMapLoad[*parsedFileFlight](&cache.flights, file); ok {
+		flight.invalidated.Store(true)
+	}
+	cache.entries.Delete(file)
+}
+func (vm *RequestVM) InvalidateParsedFile(file string) { vm.Base.InvalidateParsedFile(file) }
+
+// Includes already stat their source; reuse that result to detect writes made
+// by external tools without adding a filesystem operation to cache hits.
+func (vm *VM) ValidateParsedFileVersion(file string, info os.FileInfo) {
+	file = normalizePhpFilePath(file)
+	cache := vm.parsedFiles.Load()
+	if entry, ok := syncMapLoad[*parsedPHPFile](&cache.entries, file); ok &&
+		(entry.sourceSize != info.Size() || entry.sourceModified != info.ModTime().UnixNano()) {
+		vm.InvalidateParsedFile(file)
+	}
+}
+func (vm *RequestVM) ValidateParsedFileVersion(file string, info os.FileInfo) {
+	vm.Base.ValidateParsedFileVersion(file, info)
 }
 
 // ParseFileCached 解析 PHP 文件并缓存 AST（进程级，按规范化路径去重）。
@@ -116,18 +149,23 @@ func (vm *VM) parseFileCachedFor(file string, request *RequestVM) (data.GetValue
 			p.SetVM(declarations)
 			declarations.parser = p
 		}
+		info, _ := os.Stat(file)
 		program, acl := p.ParseFile(file)
 		perfmon.NoteParse(file, false, perfmon.Since(t0))
 		if acl != nil {
 			return nil, acl
 		}
 		entry := &parsedPHPFile{program: program, vars: p.GetVariables()}
+		if info != nil {
+			entry.sourceSize, entry.sourceModified = info.Size(), info.ModTime().UnixNano()
+		}
 		if declarations != nil {
 			entry.classes = declarations.AddedClasses()
 			for _, declaration := range declarations.addedInterfaces {
 				entry.interfaces = append(entry.interfaces, declaration)
 			}
 		}
+		p.ReleaseTokenBuffer()
 		return entry, nil
 	})
 	if acl != nil {

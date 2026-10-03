@@ -34,3 +34,16 @@ func getSharedDB(goDriver, goDSN string) (*sql.DB, error) {
 	pdoPools[key] = db
 	return db, nil
 }
+
+func openPDODatabase(goDriver, goDSN string) (*sql.DB, bool, error) {
+	if goDriver == "sqlite" && goDSN == ":memory:" {
+		db, err := sql.Open(goDriver, goDSN)
+		if err != nil {
+			return nil, true, err
+		}
+		db.SetMaxOpenConns(1)
+		return db, true, nil
+	}
+	db, err := getSharedDB(goDriver, goDSN)
+	return db, false, err
+}

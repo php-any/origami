@@ -24,19 +24,8 @@ func (f *ArrayFirstFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		if v.Len() == 0 {
 			return data.NewNullValue(), nil
 		}
-		return v.At(0).Value, nil
-	case *data.ObjectValue:
-		var first data.Value
-		found := false
-		v.RangeProperties(func(_ string, value data.Value) bool {
-			first = value
-			found = true
-			return false
-		})
-		if !found {
-			return data.NewNullValue(), nil
-		}
-		return first, nil
+		return v.At(0).ReadValue(), nil
+
 	default:
 		return data.NewNullValue(), nil
 	}
@@ -79,19 +68,8 @@ func (f *ArrayLastFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 		if v.Len() == 0 {
 			return data.NewNullValue(), nil
 		}
-		return v.At(v.Len() - 1).Value, nil
-	case *data.ObjectValue:
-		var last data.Value
-		found := false
-		v.RangeProperties(func(_ string, value data.Value) bool {
-			last = value
-			found = true
-			return true
-		})
-		if !found {
-			return data.NewNullValue(), nil
-		}
-		return last, nil
+		return v.At(v.Len() - 1).ReadValue(), nil
+
 	default:
 		return data.NewNullValue(), nil
 	}

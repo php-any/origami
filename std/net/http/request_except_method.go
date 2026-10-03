@@ -40,15 +40,15 @@ func (h *RequestExceptMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 	}
 
 	// 合并所有输入数据
-	result := data.NewObjectValue()
+	result := data.NewArrayValue(nil).(*data.ArrayValue)
 
 	// 从查询参数获取
 	for key, values := range h.source.URL.Query() {
 		if !excludeMap[key] {
 			if len(values) == 1 {
-				result.SetProperty(key, data.NewStringValue(values[0]))
+				result.SetStringKey(key, data.NewStringValue(values[0]))
 			} else {
-				result.SetProperty(key, data.NewStringValue(strings.Join(values, ",")))
+				result.SetStringKey(key, data.NewStringValue(strings.Join(values, ",")))
 			}
 		}
 	}
@@ -58,9 +58,9 @@ func (h *RequestExceptMethod) Call(ctx data.Context) (data.GetValue, data.Contro
 		for key, values := range h.source.Form {
 			if !excludeMap[key] {
 				if len(values) == 1 {
-					result.SetProperty(key, data.NewStringValue(values[0]))
+					result.SetStringKey(key, data.NewStringValue(values[0]))
 				} else {
-					result.SetProperty(key, data.NewStringValue(strings.Join(values, ",")))
+					result.SetStringKey(key, data.NewStringValue(strings.Join(values, ",")))
 				}
 			}
 		}

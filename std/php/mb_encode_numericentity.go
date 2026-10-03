@@ -57,11 +57,11 @@ func convmapFromValue(v data.Value) []int {
 	out := make([]int, 0, arr.Len())
 	for arraySlots125, arrayPosition125 := arr.View(), 0; arrayPosition125 < arraySlots125.Len(); arrayPosition125++ {
 		z := arraySlots125.At(arrayPosition125)
-		if z == nil || z.Value == nil {
+		if z == nil || z.ReadValue() == nil {
 			out = append(out, 0)
 			continue
 		}
-		if as, ok := z.Value.(data.AsInt); ok {
+		if as, ok := z.ReadValue().(data.AsInt); ok {
 			n, err := as.AsInt()
 			if err == nil {
 				out = append(out, n)

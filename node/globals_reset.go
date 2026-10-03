@@ -4,30 +4,30 @@ import "github.com/php-any/origami/data"
 
 // SuperglobalArrayProvider 由请求级 / VM 级容器实现，避免 $GLOBALS / $_SESSION 进程级串请求。
 type SuperglobalArrayProvider interface {
-	EnsureGlobalsArray() *data.ObjectValue
-	EnsureSessionArray() *data.ObjectValue
+	EnsureGlobalsArray() *data.ArrayValue
+	EnsureSessionArray() *data.ArrayValue
 }
 
-func globalsArrayFromContext(ctx data.Context) *data.ObjectValue {
+func globalsArrayFromContext(ctx data.Context) *data.ArrayValue {
 	if ctx != nil {
 		if p, ok := ctx.GetVM().(SuperglobalArrayProvider); ok {
 			return p.EnsureGlobalsArray()
 		}
 	}
 	if globalsValue == nil {
-		globalsValue = data.NewObjectValue()
+		globalsValue = data.NewArrayValueFromSlots(nil)
 	}
 	return globalsValue
 }
 
-func sessionArrayFromContext(ctx data.Context) *data.ObjectValue {
+func sessionArrayFromContext(ctx data.Context) *data.ArrayValue {
 	if ctx != nil {
 		if p, ok := ctx.GetVM().(SuperglobalArrayProvider); ok {
 			return p.EnsureSessionArray()
 		}
 	}
 	if sessionValue == nil {
-		sessionValue = data.NewObjectValue()
+		sessionValue = data.NewArrayValueFromSlots(nil)
 	}
 	return sessionValue
 }
@@ -37,12 +37,10 @@ func sessionArrayFromContext(ctx data.Context) *data.ObjectValue {
 func ResetSuperglobals() {
 	getValue = nil
 	postValue = nil
-	serverValue = nil
 	requestValue = nil
 	cookieValue = nil
 	sessionValue = nil
 	filesValue = nil
-	envValue = nil
 	globalsValue = nil
 	argvValue = nil
 	argvInitialized = false

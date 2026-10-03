@@ -14,7 +14,11 @@ func (g *Generator) genTypes(ty data.Types) {
 	}
 	switch t := ty.(type) {
 	case data.TypeRef:
-		if t.Kind() == data.TypeKindUnion || t.Kind() == data.TypeKindIntersection {
+		if t == data.TypeInvalid {
+			g.printf("nil")
+		} else if t == data.TypeAST {
+			g.printf("data.TypeAST")
+		} else if t.Kind() == data.TypeKindUnion || t.Kind() == data.TypeKindIntersection {
 			constructor := "NewDeclaredUnionType"
 			if t.Kind() == data.TypeKindIntersection {
 				constructor = "NewDeclaredIntersectionType"
@@ -47,6 +51,18 @@ func (g *Generator) genTypes(ty data.Types) {
 	default:
 		g.printf("data.NewBaseType(%q)", ty.String())
 	}
+}
+
+// Compact fields need a TypeRef expression, while constructor arguments keep
+// the Types compatibility view. Never embed process-local arena IDs in code.
+func (g *Generator) genTypeRef(ref data.TypeRef) {
+	if ref == data.TypeInvalid {
+		g.printf("data.TypeInvalid")
+		return
+	}
+	g.printf("data.DeclaredTypeRef(")
+	g.genTypes(ref)
+	g.printf(")")
 }
 
 func (g *Generator) needImport(path, alias string) {

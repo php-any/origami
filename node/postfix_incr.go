@@ -26,6 +26,19 @@ func NewPostfixIncr(from data.From, left data.GetValue) data.GetValue {
 }
 
 func (p *PostfixIncr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if value, ctl, handled := incrementStaticProperty(ctx, p.Left, 1, true); handled {
+		return value, ctl
+	}
+	if index, ok := p.Left.(*IndexExpression); ok {
+		owner, ctl := resolveDimensionOwner(ctx, index)
+		if ctl != nil {
+			return nil, ctl
+		}
+		copy := *p
+		copy.Left = owner
+		return copy.GetValue(ctx)
+	}
+
 	if cop, ok := p.Left.(*CallObjectProperty); ok {
 		return p.incrObjectProperty(ctx, cop)
 	}

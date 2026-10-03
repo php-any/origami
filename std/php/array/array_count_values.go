@@ -15,26 +15,27 @@ func NewArrayCountValuesFunction() data.FuncStmt {
 
 func (f *ArrayCountValuesFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	arrayVal, _ := ctx.GetIndexValue(0)
+	if _, ok := arrayVal.(*data.ArrayValue); !ok {
+		return nil, throwMustBeArray("array_count_values", arrayVal)
+	}
 	entries := toKVEntries(arrayVal)
 	if len(entries) == 0 {
 		return data.NewArrayValue([]data.Value{}), nil
 	}
 
-	counts := make(map[string]int)
+	result := data.NewArrayValue(nil).(*data.ArrayValue)
 	for _, e := range entries {
-		if _, ok := e.value.(*data.ArrayValue); ok {
-			continue
-		}
-		if _, ok := e.value.(*data.ObjectValue); ok {
+		switch e.value.(type) {
+		case *data.IntValue, *data.StringValue:
+		default:
 			continue
 		}
 		k := e.value.AsString()
-		counts[k]++
-	}
-
-	result := data.NewObjectValue()
-	for k, c := range counts {
-		result.SetProperty(k, data.NewIntValue(c))
+		count := 0
+		if slot, ok := result.LookupZValByStringKey(k); ok {
+			count = slot.ReadValue().(*data.IntValue).Value
+		}
+		result.SetStringKey(k, data.NewIntValue(count+1))
 	}
 	return result, nil
 }

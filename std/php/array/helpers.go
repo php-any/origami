@@ -11,6 +11,7 @@ type kvEntry struct {
 	key    data.Value
 	keyStr string
 	value  data.Value
+	source *data.ZVal
 }
 
 func toKVEntries(v data.Value) []kvEntry {
@@ -27,28 +28,25 @@ func toKVEntries(v data.Value) []kvEntry {
 			}
 			key := z.PHPArrayKey(i)
 			keyStr := key.AsString()
-			entries = append(entries, kvEntry{key: key, keyStr: keyStr, value: z.Value})
+			entries = append(entries, kvEntry{key: key, keyStr: keyStr, value: z.ReadValue(), source: z})
 		}
 		return entries
-	case *data.ObjectValue:
-		entries := make([]kvEntry, 0)
-		arr.RangeProperties(func(key string, value data.Value) bool {
-			entries = append(entries, kvEntry{
-				key:    data.NewStringValue(key),
-				keyStr: key,
-				value:  value,
-			})
-			return true
-		})
-		return entries
+
 	default:
 		return nil
 	}
 }
 
 func getElementValue(row data.Value, key data.Value) data.Value {
+	if value, ok := lookupElementValue(row, key); ok {
+		return value
+	}
+	return data.NewNullValue()
+}
+
+func lookupElementValue(row data.Value, key data.Value) (data.Value, bool) {
 	if row == nil || key == nil {
-		return data.NewNullValue()
+		return nil, false
 	}
 	keyStr := key.AsString()
 	switch r := row.(type) {
@@ -56,28 +54,27 @@ func getElementValue(row data.Value, key data.Value) data.Value {
 		if iv, ok := key.(data.AsInt); ok {
 			if i, err := iv.AsInt(); err == nil {
 				if z, _ := r.FindSlotByIntKey(i); z != nil {
-					return z.Value
+					return z.ReadValue(), true
 				}
 			}
 		}
 		if z, ok := r.LookupZValByStringKey(keyStr); ok {
-			return z.Value
+			return z.ReadValue(), true
 		}
-	case *data.ObjectValue:
-		if val, ctl := r.GetProperty(keyStr); ctl == nil && val != nil {
-			return val
-		}
+
 	case *data.ClassValue:
-		if val, ctl := r.GetProperty(keyStr); ctl == nil && val != nil {
-			return val
+		if r.HasProperty(keyStr) {
+			if val, ctl := r.GetProperty(keyStr); ctl == nil && val != nil {
+				return val, true
+			}
 		}
 	}
-	return data.NewNullValue()
+	return nil, false
 }
 
 func isNestedArrayValue(v data.Value) bool {
 	switch v.(type) {
-	case *data.ArrayValue, *data.ObjectValue:
+	case *data.ArrayValue:
 		return true
 	default:
 		return false
@@ -109,6 +106,7 @@ func bindWalkCallback(ctx data.Context, fn data.FuncStmt, item *data.ZVal, key, 
 		return nil
 	}
 	fnCtx := ctx.CreateContext(fn.GetVariables())
+	defer data.ReleaseContext(fnCtx)
 	for i, raw := range fn.GetParams() {
 		p, ok := raw.(data.Parameter)
 		if !ok {
@@ -122,7 +120,7 @@ func bindWalkCallback(ctx data.Context, fn data.FuncStmt, item *data.ZVal, key, 
 				}
 				continue
 			}
-			arg := item.Value
+			arg := item.ReadValue()
 			if arg == nil {
 				arg = data.NewNullValue()
 			}
@@ -157,6 +155,7 @@ func invokeCallback(ctx data.Context, cb data.Value, args []data.Value) (data.Va
 	case *data.FuncValue:
 		vars := c.Value.GetVariables()
 		fnCtx := ctx.CreateContext(vars)
+		defer data.ReleaseContext(fnCtx)
 		for i := 0; i < len(vars) && i < len(args); i++ {
 			fnCtx.SetVariableValue(data.NewVariable("", i, nil), args[i])
 		}
@@ -170,13 +169,14 @@ func invokeCallback(ctx data.Context, cb data.Value, args []data.Value) (data.Va
 		return data.NewNullValue(), nil
 	case *data.ArrayValue:
 		if c.Len() == 2 {
-			objVal := c.At(0).Value
-			methodVal := c.At(1).Value
+			objVal := c.At(0).ReadValue()
+			methodVal := c.At(1).ReadValue()
 			if obj, ok := objVal.(data.GetMethod); ok {
 				methodName := methodVal.AsString()
 				if method, has := obj.GetMethod(methodName); has {
 					vars := method.GetVariables()
 					fnCtx := ctx.CreateContext(vars)
+					defer data.ReleaseContext(fnCtx)
 					for i := 0; i < len(vars) && i < len(args); i++ {
 						fnCtx.SetVariableValue(vars[i], args[i])
 					}
@@ -212,6 +212,7 @@ func invokeCallback(ctx data.Context, cb data.Value, args []data.Value) (data.Va
 			fnValue := data.NewFuncValue(fnStmt)
 			vars := fnValue.Value.GetVariables()
 			fnCtx := ctx.CreateContext(vars)
+			defer data.ReleaseContext(fnCtx)
 			for i := 0; i < len(vars) && i < len(args); i++ {
 				fnCtx.SetVariableValue(data.NewVariable("", i, nil), args[i])
 			}
@@ -279,43 +280,24 @@ func valuesEqual(a, b data.Value) bool {
 }
 
 func buildResultFromEntries(entries []kvEntry, preserveKeys bool) data.Value {
-	if len(entries) == 0 {
-		return data.NewArrayValue([]data.Value{})
-	}
-	hasStringKey := false
+	result := data.NewArrayValue(nil).(*data.ArrayValue)
 	for _, e := range entries {
-		if _, ok := e.key.(*data.StringValue); ok {
-			if e.keyStr != "" && !isNumericKeyStr(e.keyStr) {
-				hasStringKey = true
-				break
-			}
+		_, integer := e.key.(*data.IntValue)
+		key := e.key
+		if !preserveKeys && integer {
+			key = data.NewIntValue(result.NextAppendIntKey())
+		}
+		if e.source != nil && e.source.RefCount() > 0 {
+			result.BindReference(key, e.source)
+			continue
+		}
+		if preserveKeys || !integer {
+			result.SetKey(e.key, e.value)
+		} else {
+			result.AppendValue(e.value)
 		}
 	}
-	if hasStringKey || preserveKeys {
-		result := data.NewObjectValue()
-		for _, e := range entries {
-			result.SetProperty(e.keyStr, e.value)
-		}
-		return result
-	}
-	if preserveKeys {
-		list := make([]*data.ZVal, 0, len(entries))
-		for _, e := range entries {
-			if _, ok := e.key.(*data.IntValue); ok && e.keyStr == data.IntArrayKeyName(e.key.(*data.IntValue).Value) {
-				if n, ok := data.ParseIntArrayKeyName(e.keyStr); ok && n != len(list) {
-					list = append(list, data.NewNamedZVal(e.keyStr, e.value))
-					continue
-				}
-			}
-			list = append(list, data.NewNamedZVal(e.keyStr, e.value))
-		}
-		return data.NewArrayValueFromSlots(list)
-	}
-	vals := make([]data.Value, len(entries))
-	for i, e := range entries {
-		vals[i] = e.value
-	}
-	return data.NewArrayValue(vals)
+	return result
 }
 
 func isNumericKeyStr(s string) bool {
@@ -349,8 +331,9 @@ func phpValueTypeName(v data.Value) string {
 	switch t := v.(type) {
 	case *data.NullValue:
 		return "null"
-	case *data.ArrayValue, *data.ObjectValue:
+	case *data.ArrayValue:
 		return "array"
+
 	case *data.StringValue:
 		return "string"
 	case *data.IntValue:

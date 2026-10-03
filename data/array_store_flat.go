@@ -6,12 +6,13 @@ package data
 type FlatArrayStore struct {
 	entries        []*ZVal
 	keyIndex       map[string]int
-	idxLen         int
+	idxLen         int32
 	packed         bool
 	appendKeyKnown bool
 	intKeySeen     bool
 	nextIntKey     int
 	iterator       int
+	overlay        *OverlayArrayStore
 }
 
 // The alias keeps the embedded field private while promoting the store's API.

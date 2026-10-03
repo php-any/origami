@@ -51,7 +51,7 @@ func (a *ArrayValueSlice) Call(ctx Context) (GetValue, Control) {
 	// 返回切片
 	slice := make([]Value, end-start)
 	for i := start; i < end; i++ {
-		slice[i-start] = a.source.At(i).Value
+		slice[i-start] = a.source.At(i).ReadValue()
 	}
 	return NewArrayValue(slice), nil
 }

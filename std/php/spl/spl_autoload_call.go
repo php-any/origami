@@ -19,11 +19,11 @@ func (f *SplAutoloadCallFunction) Call(ctx data.Context) (data.GetValue, data.Co
 		return data.NewBoolValue(false), nil
 	}
 	name := classVal.AsString()
-	okLoaded, acl := runtime.CallAutoLoad(name, ctx)
+	_, acl := runtime.CallAutoLoad(name, ctx)
 	if acl != nil {
 		return nil, acl
 	}
-	return data.NewBoolValue(okLoaded), nil
+	return data.NewNullValue(), nil
 }
 
 func (f *SplAutoloadCallFunction) GetName() string { return "spl_autoload_call" }

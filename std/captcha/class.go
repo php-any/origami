@@ -17,7 +17,7 @@ import (
 const className = "Captcha"
 
 type sessionProvider interface {
-	EnsureSessionArray() *data.ObjectValue
+	EnsureSessionArray() *data.ArrayValue
 }
 
 // CaptchaClass Origami 原生验证码：生成短语、绘制 PNG/JPEG、写入 $_SESSION 并校验。
@@ -684,7 +684,8 @@ func storePhrase(ctx data.Context, cv *data.ClassValue) data.Control {
 		data.NewNamedZVal("phrase", data.NewStringValue(propString(cv, "phrase", ""))),
 		data.NewNamedZVal("expire", data.NewIntValue(expireAt)),
 	})
-	return sess.SetProperty(key, arr)
+	sess.SetStringKey(key, arr)
+	return nil
 }
 
 func sessionCheck(ctx data.Context, consume bool) (data.GetValue, data.Control) {
@@ -694,24 +695,25 @@ func sessionCheck(ctx data.Context, consume bool) (data.GetValue, data.Control) 
 		key = defaultKey
 	}
 	sess := sessionArray(ctx)
-	if sess == nil || !sess.HasProperty(key) {
+	if sess == nil {
 		return data.NewBoolValue(false), nil
 	}
-	raw, acl := sess.GetProperty(key)
-	if acl != nil {
-		return nil, acl
+	slot, _ := sess.LookupZValByStringKey(key)
+	if slot == nil {
+		return data.NewBoolValue(false), nil
 	}
+	raw := slot.ReadValue()
 	phrase, expireAt, ignoreCase := readStored(raw)
 	if phrase == "" {
 		return data.NewBoolValue(false), nil
 	}
 	if expireAt > 0 && int(time.Now().Unix()) > expireAt {
-		sess.UnsetProperty(key)
+		sess.UnsetKey(data.NewStringValue(key))
 		return data.NewBoolValue(false), nil
 	}
 	ok := matchPhrase(phrase, input, ignoreCase)
 	if ok && consume {
-		sess.UnsetProperty(key)
+		sess.UnsetKey(data.NewStringValue(key))
 	}
 	return data.NewBoolValue(ok), nil
 }
@@ -724,27 +726,20 @@ func readStored(v data.Value) (phrase string, expireAt int, ignoreCase bool) {
 	case *data.ArrayValue:
 		for arraySlots29, arrayPosition29 := t.View(), 0; arrayPosition29 < arraySlots29.Len(); arrayPosition29++ {
 			z := arraySlots29.At(arrayPosition29)
-			if z == nil || z.Value == nil {
+			if z == nil || z.ReadValue() == nil {
 				continue
 			}
 			switch z.Name {
 			case "phrase":
-				phrase = z.Value.AsString()
+				phrase = z.ReadValue().AsString()
 			case "expire":
-				expireAt = valueInt(z.Value, 0)
+				expireAt = valueInt(z.ReadValue(), 0)
 			case "ignoreCase":
-				ignoreCase = valueBool(z.Value, true)
+				ignoreCase = valueBool(z.ReadValue(), true)
 			}
 		}
 		return phrase, expireAt, ignoreCase
-	case *data.ObjectValue:
-		if p, _ := t.GetProperty("phrase"); p != nil {
-			phrase = p.AsString()
-		}
-		if e, _ := t.GetProperty("expire"); e != nil {
-			expireAt = valueInt(e, 0)
-		}
-		return phrase, expireAt, true
+
 	default:
 		if v != nil {
 			return v.AsString(), 0, true
@@ -753,7 +748,7 @@ func readStored(v data.Value) (phrase string, expireAt int, ignoreCase bool) {
 	return "", 0, true
 }
 
-func sessionArray(ctx data.Context) *data.ObjectValue {
+func sessionArray(ctx data.Context) *data.ArrayValue {
 	if ctx == nil {
 		return nil
 	}

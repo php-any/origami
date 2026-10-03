@@ -43,7 +43,7 @@ func (f *RsortFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	arrayRef.EditReindexing(func(slots []*data.ZVal) {
 		sort.SliceStable(slots, func(i, j int) bool {
 			// Reverse: compare j < i instead of i < j
-			return compareValues(slots[j].Value, slots[i].Value, flags)
+			return compareValues(slots[j].ReadValue(), slots[i].ReadValue(), flags)
 		})
 	})
 

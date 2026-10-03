@@ -83,7 +83,8 @@ func (l *Lexer) TokenizeTemplate(input string) []Token {
 		for pos < len(input) {
 			// 检查是否是 ?> (END_TAG)
 			if pos+2 <= len(input) && input[pos:pos+2] == "?>" {
-				// tokens = append(tokens, NewWorkerToken(token.END_TAG, "?>", pos, pos+2, line, linePos))
+				// A PHP close tag terminates the current statement even without ';'.
+				tokens = append(tokens, NewWorkerToken(token.SEMICOLON, "?>", pos, pos+2, line, linePos))
 				pos += 2
 				linePos += 2
 				break // 退出 Script 模式，回到 HTML 模式

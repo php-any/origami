@@ -31,20 +31,7 @@ func (f *ArrayKeyFirstFunction) Call(ctx data.Context) (data.GetValue, data.Cont
 			return data.NewNullValue(), nil
 		}
 		return v.At(0).PHPArrayKey(0), nil
-	case *data.ObjectValue:
-		// 对象（在 Origami 中常用于表示关联数组）：
-		// 使用 RangeProperties 按插入顺序遍历，取第一个键。
-		var firstKey string
-		found := false
-		v.RangeProperties(func(key string, _ data.Value) bool {
-			firstKey = key
-			found = true
-			return false // 只取第一个
-		})
-		if !found {
-			return data.NewNullValue(), nil
-		}
-		return data.NewStringValue(firstKey), nil
+
 	default:
 		// 非数组/对象，返回 null（足以满足 Symfony 对 array_key_first 的使用场景）
 		return data.NewNullValue(), nil

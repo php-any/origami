@@ -127,6 +127,10 @@ func (g *Generator) emitReflectValue(rv reflect.Value) error {
 	}
 
 	// data.Types 接口
+	if rv.Type() == reflect.TypeFor[data.TypeRef]() {
+		g.genTypeRef(rv.Interface().(data.TypeRef))
+		return nil
+	}
 	if rv.Type().Implements(reflect.TypeOf((*data.Types)(nil)).Elem()) {
 		g.genTypes(rv.Interface().(data.Types))
 		return nil
@@ -188,6 +192,9 @@ func (g *Generator) emitSlice(rv reflect.Value) error {
 		} else if strings.HasSuffix(elemType.PkgPath(), "/data") {
 			pkg = "data."
 		}
+	}
+	if elemType == reflect.TypeFor[data.Types]() {
+		pkg, typeName = "data.", "Types"
 	}
 
 	if elemType.Kind() == reflect.Interface && elemType.NumMethod() > 0 {
@@ -262,7 +269,11 @@ func (g *Generator) emitMap(rv reflect.Value) error {
 		}
 	}
 
-	g.printf("map[string]%s%s{\n", valPkg, valType.Name())
+	valName := valType.Name()
+	if valType == reflect.TypeFor[data.Types]() {
+		valPkg, valName = "data.", "Types"
+	}
+	g.printf("map[string]%s%s{\n", valPkg, valName)
 	g.indent++
 	for _, key := range rv.MapKeys() {
 		g.printf("%q: ", key.String())

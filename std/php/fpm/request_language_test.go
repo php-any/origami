@@ -39,7 +39,7 @@ return requestOnlyFunction();`
 		if got := value.(data.Value).AsString(); got != "1" {
 			t.Errorf("hits=%s", got)
 		}
-		if got := request.EnsureGlobalZVal("hits").Value.AsString(); got != "1" {
+		if got := request.EnsureGlobalZVal("hits").ReadValue().AsString(); got != "1" {
 			t.Errorf("global hits=%s", got)
 		}
 		if _, found := request.GetClass("RequestOnlyClass"); !found {
@@ -112,8 +112,8 @@ func TestRequestTemplateAndCompileLoadStayInRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 	first, second := fpm.New(base, nil), fpm.New(base, nil)
-	props := data.NewObjectValue()
-	props.SetProperty("label", data.NewStringValue("template"))
+	props := data.NewArrayValue(nil).(*data.ArrayValue)
+	props.SetStringKey("label", data.NewStringValue("template"))
 	value, ctl := first.ParseFile(file, props)
 	if ctl != nil || value.AsString() != "template" {
 		t.Fatalf("template=%v control=%v", value, ctl)

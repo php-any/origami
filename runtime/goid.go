@@ -29,13 +29,15 @@ func goid() uint64 {
 }
 
 func goidInit() uint64 {
-	id, off, ok := discoverGoidOffset()
+	_, off, ok := discoverGoidOffset()
 	if !ok {
 		goidOff.Store(^uintptr(0))
-		return id
+		return goidFromStack()
 	}
 	goidOff.Store(off)
-	return id
+	// Offset discovery runs in another goroutine. Return the caller's identity,
+	// not the discovery goroutine's, including on the first call.
+	return goid()
 }
 
 func discoverGoidOffset() (uint64, uintptr, bool) {

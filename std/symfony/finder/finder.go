@@ -62,7 +62,15 @@ func (c *FinderClass) GetPropertyList() []data.Property {
 }
 func (c *FinderClass) GetConstruct() data.Method { return c.methods["__construct"] }
 func (c *FinderClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewClassValue(c, ctx.CreateBaseContext()), nil
+	object := data.NewClassValue(c, ctx.CreateBaseContext())
+	for _, property := range c.GetPropertyList() {
+		value, ctl := property.GetDefaultValue().GetValue(ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		object.SetProperty(property.GetName(), value.(data.Value))
+	}
+	return object, nil
 }
 func (c *FinderClass) GetMethod(name string) (data.Method, bool) {
 	m, ok := c.methods[data.MethodLookupKey(name)]
@@ -118,7 +126,7 @@ func finderConstruct(ctx data.Context) (data.GetValue, data.Control) {
 }
 
 func finderCreate(ctx data.Context) (data.GetValue, data.Control) {
-	return data.NewClassValue(NewFinderClass(), ctx.CreateBaseContext()), nil
+	return NewFinderClass().GetValue(ctx)
 }
 
 func appendStringProp(cv *data.ClassValue, prop string, val data.Value) {
@@ -137,7 +145,7 @@ func appendStringProp(cv *data.ClassValue, prop string, val data.Value) {
 		for arraySlots155, arrayPosition155 := av.View(), 0; arrayPosition155 < arraySlots155.Len(); arrayPosition155++ {
 			z := arraySlots155.At(arrayPosition155)
 			if z != nil {
-				appendOne(z.Value.AsString())
+				appendOne(z.ReadValue().AsString())
 			}
 		}
 	} else if val != nil {
@@ -446,7 +454,7 @@ func stringListProp(cv *data.ClassValue, prop string) []string {
 		for arraySlots156, arrayPosition156 := av.View(), 0; arrayPosition156 < arraySlots156.Len(); arrayPosition156++ {
 			z := arraySlots156.At(arrayPosition156)
 			if z != nil {
-				out = append(out, z.Value.AsString())
+				out = append(out, z.ReadValue().AsString())
 			}
 		}
 	}

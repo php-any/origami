@@ -8,23 +8,18 @@ import (
 type AsObject interface {
 }
 
-func NewObjectValue() *ObjectValue {
-	return &ObjectValue{
+func NewPropertyBag() *PropertyBag {
+	return &PropertyBag{
 		property: NewOrderedMap(),
 	}
 }
 
-// CloneObjectValue 创建一个新的 ObjectValue 副本。
-// 语义上用于模拟 PHP 数组的 copy-on-write（特别是关联数组在 Origami 中可能用 ObjectValue 表示）：
-// - 仅复制属性存储结构本身（PropertyStore），不深拷贝每个元素的 Value
-// - 这样结构性修改（新增/覆盖某个 key）不会影响原对象
-// - 元素内部若是对象/数组，仍按其自身语义共享
-// DeepCloneObjectValue 深度克隆一个 ObjectValue（在 Origami 中常用于表示关联数组）。
-// 与 PHP 数组按值拷贝语义对齐：
-//   - 嵌套的数组/关联数组按值拷贝（递归深拷贝）
-//   - 嵌套的对象（*ClassValue）保持引用共享
-//
-// 用于 PHP clone 对象时对数组/关联数组类型属性做拷贝。
+// NewObjectValue preserves the native Go construction API during migration.
+// Its result is internal storage and cannot be passed as a PHP Value.
+func NewObjectValue() *PropertyBag { return NewPropertyBag() }
+
+// DeepCloneObjectValue snapshots instance storage, copying array properties
+// while retaining nested PHP object identities. The bag itself is never a value.
 func DeepCloneObjectValue(src *ObjectValue) *ObjectValue {
 	if src == nil {
 		return nil
@@ -38,7 +33,6 @@ func deepCloneObjectValue(src *ObjectValue, depth int) *ObjectValue {
 	}
 	const maxDepth = 64
 	clone := &ObjectValue{
-		Value:                 src.Value,
 		InstanceSource:        src.InstanceSource,
 		Context:               src.Context,
 		property:              NewOrderedMap(),
@@ -52,8 +46,7 @@ func deepCloneObjectValue(src *ObjectValue, depth int) *ObjectValue {
 	return clone
 }
 
-// deepCloneValue 深度拷贝一个值，用于 PHP clone 时对数组/关联数组属性按值拷贝。
-// 对象（*ClassValue）与标量保持引用共享；数组与关联数组（ObjectValue）递归拷贝。
+// deepCloneValue copies array properties; scalar and object identities survive.
 func deepCloneValue(v Value, depth int) Value {
 	if depth >= 64 {
 		return v
@@ -61,21 +54,19 @@ func deepCloneValue(v Value, depth int) Value {
 	switch val := v.(type) {
 	case *ArrayValue:
 		return deepCloneArrayValue(val, depth+1)
-	case *ObjectValue:
-		return deepCloneObjectValue(val, depth+1)
 	default:
 		// 对象（ClassValue）及标量保持引用共享
 		return v
 	}
 }
 
+// CloneObjectValue copies the internal property store without cloning values.
 func CloneObjectValue(src *ObjectValue) *ObjectValue {
 	if src == nil {
 		return nil
 	}
 
 	clone := &ObjectValue{
-		Value:                 src.Value,
 		InstanceSource:        src.InstanceSource,
 		Context:               src.Context,
 		property:              NewOrderedMap(),
@@ -92,8 +83,8 @@ func CloneObjectValue(src *ObjectValue) *ObjectValue {
 	return clone
 }
 
-type ObjectValue struct {
-	Value
+// PropertyBag is internal instance storage, not a PHP value or array.
+type PropertyBag struct {
 	Context
 	// Native instance state follows object identity, never method metadata or
 	// a borrowed method frame. ClassValue exposes this field by embedding.
@@ -102,15 +93,14 @@ type ObjectValue struct {
 	iterator       int // 迭代器当前位置索引
 	// IndirectOverloadClass 非空表示该对象来自 ArrayAccess::offsetGet 的副本
 	IndirectOverloadClass string
-	rc                    int // 指向该容器的 zval 数（copy-on-write）
 }
+
+// ObjectValue is a source compatibility alias for internal native adapters.
+// Neither name implements Value; PHP objects must use ClassValue.
+type ObjectValue = PropertyBag
 
 func (o *ObjectValue) GoContext() context.Context {
 	return context.Background()
-}
-
-func (o *ObjectValue) GetValue(ctx Context) (GetValue, Control) {
-	return o, nil
 }
 
 func (o *ObjectValue) AsString() string {
@@ -132,8 +122,7 @@ func (o *ObjectValue) AsString() string {
 }
 
 func (o *ObjectValue) AsBool() (bool, error) {
-	// ObjectValue 在 Origami 中表示关联数组；空数组在 PHP 中为 falsy。
-	// 真正的对象实例是 *ClassValue，不走此路径。
+	// Internal storage occupancy only. PHP ClassValue supplies object truthiness.
 	if o == nil || o.property == nil {
 		return false, nil
 	}
@@ -153,6 +142,13 @@ func (o *ObjectValue) GetProperty(name string) (Value, Control) {
 }
 
 // HasProperty 判断属性/关联键是否真实存在（值为 null 仍算存在）
+func (o *ObjectValue) LookupProperty(name string) (Value, bool) {
+	if o == nil || o.property == nil {
+		return nil, false
+	}
+	return o.property.Get(name)
+}
+
 func (o *ObjectValue) HasProperty(name string) bool {
 	_, ok := o.property.Get(name)
 	return ok
@@ -164,6 +160,10 @@ func (o *ObjectValue) GetZVal(name string) (*ZVal, Control) {
 }
 
 func (o *ObjectValue) UnsetProperty(name string) {
+	if slot, ok := o.property.GetZVal(name); ok {
+		slot.removePropertyConstraint(o, name)
+		slot.ReleaseRefSlot()
+	}
 	o.property.Delete(name)
 }
 

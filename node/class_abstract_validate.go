@@ -7,6 +7,27 @@ import (
 	"github.com/php-any/origami/data"
 )
 
+// A linked descriptor changes when a declaration or one of its dependencies
+// is published. Cache only successful checks against that immutable graph;
+// another request's conditional parent cannot reuse this validation.
+func (c *ClassStatement) validateConcreteInstantiation(vm data.VM) data.Control {
+	var descriptor *data.ClassDescriptor
+	if host, ok := vm.(data.DescriptorProvider); ok {
+		declaration := c.DeclarationDescriptor()
+		descriptor, _ = host.ClassRegistry().Descriptor(data.SymbolID(declaration.ID()))
+		if descriptor != nil && c.validatedConcrete.Load() == descriptor {
+			return nil
+		}
+	}
+	if ctl := ValidateConcreteClassAbstractMethods(vm, c); ctl != nil {
+		return ctl
+	}
+	if descriptor != nil {
+		c.validatedConcrete.Store(descriptor)
+	}
+	return nil
+}
+
 // ValidateConcreteClassAbstractMethods 检查非抽象类是否仍含未实现的抽象/接口方法（与 PHP zend 一致）
 func ValidateConcreteClassAbstractMethods(vm data.VM, class data.ClassStmt) data.Control {
 	selfAbstract := abstractMethodsDeclaredOnClass(class)
