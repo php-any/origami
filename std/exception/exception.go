@@ -13,10 +13,26 @@ type traceFrame struct {
 }
 
 type Exception struct {
-	msg   string
-	file  string
-	line  int
-	trace []traceFrame
+	msg        string
+	file       string
+	line       int
+	trace      []traceFrame
+	filePinned bool
+	linePinned bool
+}
+
+// ClaimThrowLocation fills a missing PHP source location once. Explicit
+// ErrorException locations and fields on a rethrown exception stay intact.
+func (e *Exception) ClaimThrowLocation(file string, line int) (bool, bool) {
+	writeFile, writeLine := !e.filePinned, !e.linePinned
+	if writeFile {
+		e.file = file
+	}
+	if writeLine {
+		e.line = line
+	}
+	e.filePinned, e.linePinned = true, true
+	return writeFile, writeLine
 }
 
 func (e *Exception) Exception(msg string) {

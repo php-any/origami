@@ -28,12 +28,18 @@ func (d *DoWhileStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 		for _, statement := range d.Body {
 			v, c = statement.GetValue(ctx)
 			if c != nil {
-				// break 跳出循环
+				// break 跳出循环（消费一层；break N 的剩余层级继续上抛）
 				if ctrl, ok := c.(data.BreakControl); ok && ctrl.IsBreak() {
+					if rest := consumeBreakLevel(ctrl); rest != nil {
+						return v, rest
+					}
 					return v, nil
 				}
-				// continue 跳到条件判断
+				// continue 跳到条件判断（消费一层；continue N 的剩余层级继续上抛）
 				if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
+					if rest := consumeContinueLevel(ctrl); rest != nil {
+						return v, rest
+					}
 					break
 				}
 				// return/throw 直接返回

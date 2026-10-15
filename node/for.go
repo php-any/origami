@@ -57,12 +57,18 @@ func (u *ForStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 		for bodyIndex, statement := range u.Body {
 			v, c = statement.GetValue(ctx)
 			if c != nil {
-				// break 跳出循环
+				// break 跳出循环（消费一层；break N 的剩余层级继续上抛）
 				if ctrl, ok := c.(data.BreakControl); ok && ctrl.IsBreak() {
+					if rest := consumeBreakLevel(ctrl); rest != nil {
+						return nil, rest
+					}
 					return nil, nil
 				}
-				// continue 跳到增量
+				// continue 跳到增量（消费一层；continue N 的剩余层级继续上抛）
 				if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
+					if rest := consumeContinueLevel(ctrl); rest != nil {
+						return nil, rest
+					}
 					break
 				}
 				// yield
@@ -176,12 +182,18 @@ func (f *ForYieldControl) Next(ctx data.Context) data.Control {
 		_, c = statement.GetValue(ctx)
 
 		if c != nil {
-			// break 跳出循环
+			// break 跳出循环（消费一层；break N 的剩余层级继续上抛）
 			if ctrl, ok := c.(data.BreakControl); ok && ctrl.IsBreak() {
+				if rest := consumeBreakLevel(ctrl); rest != nil {
+					return rest
+				}
 				return nil
 			}
-			// continue 跳到增量
+			// continue 跳到增量（消费一层；continue N 的剩余层级继续上抛）
 			if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
+				if rest := consumeContinueLevel(ctrl); rest != nil {
+					return rest
+				}
 				break
 			}
 			// yield

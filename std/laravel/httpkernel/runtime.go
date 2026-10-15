@@ -95,11 +95,19 @@ func Warm(ctx data.Context, kernel *data.ClassValue) {
 	}
 	// 路由的 Symfony 编译结果是纯粹的启动期常量，先算出来（详见 warmRouteCompiles）。
 	warmRouteCompiles(ctx, router)
+	// 再把集合换成 vendor 自带的 CompiledRouteCollection，消掉每请求的线性候选扫描
+	// （详见 warmCompiledRoutes）。
+	warmCompiledRoutes(ctx, router)
 	// Telescope 的开关、匹配 pattern、实例同样都是启动期常量。在全局 Application 上解析一次，
 	// 请求期就只剩一次 $request->is()；放在这里（而非首个请求里）也避免并发首请求在
 	// once.Do 上排队，以及把 Telescope 实例建进某个请求沙箱。
 	if st != nil && st.tel != nil {
 		st.tel.once.Do(func() { st.tel.resolve(ctx, st.app) })
+	}
+	// 全局中间件的「必然透传」判定同样只依赖启动期配置，先算出来，
+	// 免得并发首请求一起挤在 once.Do 上。
+	if st != nil && st.mw != nil {
+		st.mw.once.Do(func() { st.mw.resolve(ctx, st) })
 	}
 }
 

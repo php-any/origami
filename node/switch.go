@@ -2,131 +2,171 @@ package node
 
 import (
 	"github.com/php-any/origami/data"
+	"strconv"
+	"strings"
 )
 
-// SwitchCase 表示 switch 语句的一个分支
+// A nil CaseValue denotes default and retains its source position.
 type SwitchCase struct {
 	*Node
-	CaseValue  data.GetValue   // case 值
-	Statements []data.GetValue // 语句列表
+	CaseValue  data.GetValue
+	Statements []data.GetValue
 }
 
-// GetValue 执行该 case 的语句列表。
-// break / return / throw 通过 Control 向上传递，供 SwitchStatement 处理 fall-through。
 func (s *SwitchCase) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	var v data.GetValue
-	var c data.Control
+	var value data.GetValue
 	for _, statement := range s.Statements {
-		if stmt, ok := statement.(data.GetValue); ok {
-			v, c = stmt.GetValue(ctx)
-		} else {
-			v = statement
-		}
-		if c != nil {
-			return v, c
+		var ctl data.Control
+		value, ctl = statement.GetValue(ctx)
+		if ctl != nil {
+			return value, ctl
 		}
 	}
-	return v, nil
+	return value, nil
 }
 
-// SwitchStatement 表示 switch 语句
 type SwitchStatement struct {
 	*Node
-	Condition   data.GetValue   // 匹配条件
-	Cases       []SwitchCase    // case 分支列表
-	DefaultCase []data.GetValue // default 分支
+	Condition   data.GetValue
+	Cases       []SwitchCase
+	DefaultCase []data.GetValue
 }
 
-// NewSwitchStatement 创建一个新的 switch 语句
 func NewSwitchStatement(from data.From, condition data.GetValue, cases []SwitchCase, defaultCase []data.GetValue) *SwitchStatement {
-	return &SwitchStatement{
-		Node:        NewNode(from),
-		Condition:   condition,
-		Cases:       cases,
-		DefaultCase: defaultCase,
+	// Legacy callers supplied default separately, after all numbered cases.
+	if defaultCase != nil {
+		cases = append(cases, SwitchCase{Statements: defaultCase})
 	}
+	return &SwitchStatement{Node: NewNode(from), Condition: condition, Cases: cases, DefaultCase: defaultCase}
 }
 
-// GetValue 获取 switch 语句的值（支持 PHP case 穿透）
+// Evaluate labels until the first match, then execute branches in source order
+// without evaluating later labels. Only use default if no case matched.
 func (s *SwitchStatement) GetValue(ctx data.Context) (data.GetValue, data.Control) {
-	conditionValue, c := s.Condition.GetValue(ctx)
-	if c != nil {
-		return nil, c
+	condition, ctl := s.Condition.GetValue(ctx)
+	if ctl != nil {
+		return nil, ctl
 	}
-
+	start, fallback := -1, -1
 	for i := range s.Cases {
-		caseValue, c := s.Cases[i].CaseValue.GetValue(ctx)
-		if c != nil {
-			return nil, c
-		}
-
-		if !s.isMatch(conditionValue, caseValue) {
+		branch := &s.Cases[i]
+		if branch.CaseValue == nil {
+			fallback = i
 			continue
 		}
-
-		// 从匹配的 case 开始向下穿透，直到 break/return/throw
-		var v data.GetValue
-		for j := i; j < len(s.Cases); j++ {
-			var ctl data.Control
-			v, ctl = s.Cases[j].GetValue(ctx)
-			if ctl != nil {
-				switch ctl.(type) {
-				case data.BreakControl:
-					return v, nil
-				default:
-					return v, ctl
-				}
-			}
+		value, ctl := branch.CaseValue.GetValue(ctx)
+		if ctl != nil {
+			return nil, ctl
 		}
-		return v, nil
-	}
-
-	if len(s.DefaultCase) > 0 {
-		var v data.GetValue
-		var c data.Control
-		for _, statement := range s.DefaultCase {
-			if stmt, ok := statement.(data.GetValue); ok {
-				v, c = stmt.GetValue(ctx)
-			} else {
-				v = statement
-			}
-			if c != nil {
-				switch c.(type) {
-				case data.BreakControl:
-					return v, nil
-				default:
-					return v, c
-				}
-			}
+		if s.isMatch(ctx, condition, value) {
+			start = i
+			break
 		}
-		return v, nil
 	}
-
-	return data.NewNullValue(), nil
+	if start < 0 {
+		start = fallback
+	}
+	if start < 0 {
+		return data.NewNullValue(), nil
+	}
+	var value data.GetValue
+	for i := start; i < len(s.Cases); i++ {
+		value, ctl = s.Cases[i].GetValue(ctx)
+		if ctl != nil {
+			if bc, ok := ctl.(data.BreakControl); ok && bc.IsBreak() {
+				return value, consumeBreakLevel(bc)
+			}
+			if cc, ok := ctl.(data.ContinueControl); ok && cc.IsContinue() {
+				return value, consumeContinueLevel(cc)
+			}
+			return value, ctl
+		}
+	}
+	return value, nil
 }
 
-// isMatch 检查两个值是否匹配（PHP switch 松散比较 ==）
-// 优先按字符串比较，避免 StringValue 同时实现 AsInt 时把 "false"/"true" 都当成 0。
-func (s *SwitchStatement) isMatch(value1, value2 data.GetValue) bool {
-	_, isStr1 := value1.(*data.StringValue)
-	_, isStr2 := value2.(*data.StringValue)
-	if isStr1 && isStr2 {
-		return value1.(*data.StringValue).Value == value2.(*data.StringValue).Value
+// Boolean conversion precedes numeric comparison. Null only equals the empty
+// string among strings; numbers compare numerically without truncating floats.
+func (s *SwitchStatement) isMatch(ctx data.Context, left, right data.GetValue) bool {
+	left, right = unwrapValue(left), unwrapValue(right)
+	_, lb := left.(*data.BoolValue)
+	_, rb := right.(*data.BoolValue)
+	if lb || rb {
+		return switchTruthy(left) == switchTruthy(right)
 	}
+	if isPHPNull(left) || isPHPNull(right) {
+		other := right
+		if isPHPNull(right) {
+			other = left
+		}
+		if str, ok := other.(*data.StringValue); ok {
+			return str.Value == ""
+		}
+		return !switchTruthy(other)
+	}
+	li, lf, ln, lint := switchNumber(left)
+	ri, rf, rn, rint := switchNumber(right)
+	if ln && rn {
+		if lint && rint {
+			return li == ri
+		}
+		return lf == rf
+	}
+	if ls, ok := left.(*data.StringValue); ok {
+		if rs, ok := right.(*data.StringValue); ok {
+			return ls.Value == rs.Value
+		}
+		if rn {
+			return ls.Value == right.(data.AsString).AsString()
+		}
+	}
+	if rs, ok := right.(*data.StringValue); ok && ln {
+		return left.(data.AsString).AsString() == rs.Value
+	}
+	if lts, ok := getDateTimeTimestamp(ctx, left); ok {
+		if rts, ok := getDateTimeTimestamp(ctx, right); ok {
+			return lts == rts
+		}
+	}
+	return isStrictEqual(left, right)
+}
 
-	if i1, ok := value1.(data.AsInt); ok {
-		if i2, ok := value2.(data.AsInt); ok {
-			n1, err1 := i1.AsInt()
-			n2, err2 := i2.AsInt()
-			if err1 == nil && err2 == nil {
-				return n1 == n2
+func switchTruthy(value data.GetValue) bool {
+	if value == nil {
+		return false
+	}
+	if value, ok := value.(data.AsBool); ok {
+		truth, err := value.AsBool()
+		return err == nil && truth
+	}
+	return true
+}
+
+// Keep integer precision, and accept PHP decimal numeric strings with ASCII
+// whitespace. Reject hex, NaN, infinity and Go digit separators.
+func switchNumber(value data.GetValue) (integer int64, decimal float64, numeric, integral bool) {
+	switch v := value.(type) {
+	case *data.IntValue:
+		return int64(v.Value), float64(v.Value), true, true
+	case *data.FloatValue:
+		return 0, v.Value, true, false
+	case *data.StringValue:
+		text := strings.Trim(v.Value, " \t\n\r\v\f")
+		if text == "" {
+			return
+		}
+		for i := 0; i < len(text); i++ {
+			c := text[i]
+			if (c < '0' || c > '9') && c != '+' && c != '-' && c != '.' && c != 'e' && c != 'E' {
+				return
 			}
 		}
-	}
-	if strValue1, ok := value1.(data.AsString); ok {
-		if strValue2, ok := value2.(data.AsString); ok {
-			return strValue1.AsString() == strValue2.AsString()
+		if n, err := strconv.ParseInt(text, 10, 64); err == nil {
+			return n, float64(n), true, true
+		}
+		if n, err := strconv.ParseFloat(text, 64); err == nil {
+			return 0, n, true, false
 		}
 	}
-	return false
+	return
 }

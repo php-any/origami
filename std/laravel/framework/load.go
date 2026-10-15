@@ -43,7 +43,7 @@ import (
 )
 
 // Load 按依赖序注册 laravel/framework 内嵌的 Illuminate 组件。
-// AddClass 提议必须经过 vendoraccel 的完整契约门槛；没有证明的类走官方 PHP。
+// 各组件直接向 VM 注册原生实现，未注册的类由 Composer 加载。
 func Load(vm data.VM) {
 	macroable.Load(vm)
 	conditionable.Load(vm)

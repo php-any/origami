@@ -25,6 +25,13 @@ func (i *IssetStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	for _, argExpr := range i.Args {
+		if dynamic, ok := argExpr.(*CallObjectDynamicProperty); ok {
+			frozen, ctl := freezeLvalue(ctx, dynamic)
+			if ctl != nil {
+				return nil, ctl
+			}
+			argExpr = frozen
+		}
 		// PHP：isset($this) 在无对象上下文（如 static 闭包）中为 false，不抛错。
 		if _, ok := argExpr.(*This); ok {
 			if !issetThisAvailable(ctx) {
@@ -45,7 +52,9 @@ func (i *IssetStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 		// PHP：isset($obj->prop) 调用 __isset（若有），绝不调用 __get。
 		// 否则会像 View::__get 那样触发 Undefined array key Warning。
 		if cop, ok := argExpr.(*CallObjectProperty); ok {
-			if exists, handled := coalesceObjectPropertyExists(ctx, cop); handled {
+			if exists, handled, ctl := coalesceObjectPropertyExists(ctx, cop); ctl != nil {
+				return nil, ctl
+			} else if handled {
 				if !exists {
 					return data.NewBoolValue(false), nil
 				}
@@ -58,9 +67,9 @@ func (i *IssetStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 			if acl, ok := ctl.(data.GetName); ok && "UndefinedIndexExpression" == acl.GetName() {
 				return data.NewBoolValue(false), nil
 			}
-			// PHP 中 isset 抑制 notice/warning 级错误（未定义属性、静态属性缺失等），
-			// 但不抑制真正的 Exception 对象。origami 通过 Name=="Exception" 区分内部错误。
-			if tv, isThrow := ctl.(*data.ThrowValue); isThrow && tv.Name == "Exception" {
+			// Legacy missing-property errors use Exception without a PHP object.
+			// A user-thrown Exception must propagate, including variable-name evaluation.
+			if tv, isThrow := ctl.(*data.ThrowValue); isThrow && tv.Name == "Exception" && tv.Object == nil {
 				return data.NewBoolValue(false), nil
 			}
 			return nil, ctl

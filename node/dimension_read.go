@@ -1,6 +1,10 @@
 package node
 
-import "github.com/php-any/origami/data"
+import (
+	"errors"
+
+	"github.com/php-any/origami/data"
+)
 
 // ReadDimensionQuiet evaluates every receiver/key once without creating slots.
 // probe uses isset/offsetExists semantics; fetch reads the final value only when
@@ -10,13 +14,23 @@ func ReadDimensionQuiet(ctx data.Context, index *IndexExpression, probe, fetch b
 	var ctl data.Control
 	if parent, ok := index.Array.(*IndexExpression); ok {
 		container, _, ctl = ReadDimensionQuiet(ctx, parent, probe, true)
+	} else if _, dynamic := index.Array.(*CallObjectDynamicProperty); dynamic {
+		frozen, control := freezeLvalue(ctx, index.Array)
+		if control != nil {
+			return nil, false, control
+		}
+		copy := *index
+		copy.Array = frozen
+		return ReadDimensionQuiet(ctx, &copy, probe, fetch)
 	} else if property, ok := index.Array.(*CallObjectProperty); ok {
 		object, control := property.Object.GetValue(ctx)
 		if control != nil {
 			return nil, false, control
 		}
 		frozen := &CallObjectProperty{Node: property.Node, Object: &literalGetValue{v: object}, Property: property.Property}
-		if exists, handled := coalesceObjectPropertyExists(ctx, frozen); handled && !exists {
+		if exists, handled, control := coalesceObjectPropertyExists(ctx, frozen); control != nil {
+			return nil, false, control
+		} else if handled && !exists {
 			container = data.NewNullValue()
 		} else {
 			container, ctl = frozen.GetValue(ctx)
@@ -30,6 +44,32 @@ func ReadDimensionQuiet(ctx data.Context, index *IndexExpression, probe, fetch b
 	key, ctl := index.Index.GetValue(ctx)
 	if ctl != nil {
 		return nil, false, ctl
+	}
+	// Resolve and validate keys in one dispatch on the ordinary array path.
+	if array, ok := container.(*data.ArrayValue); ok {
+		var slot *data.ZVal
+		switch key := key.(type) {
+		case *data.StringValue:
+			slot, _ = array.LookupZValByStringKey(key.Value)
+		case *data.NullValue:
+			slot, _ = array.LookupZValByStringKey("")
+		case data.AsInt:
+			integer, err := key.AsInt()
+			if err != nil {
+				return nil, false, data.NewErrorThrowByName(index.GetFrom(), err, "TypeError")
+			}
+			slot, _ = array.FindSlotByIntKey(integer)
+		default:
+			return nil, false, data.NewErrorThrowByName(index.GetFrom(), errors.New("Illegal offset type"), "TypeError")
+		}
+		if slot == nil {
+			return data.NewNullValue(), false, nil
+		}
+		value := slot.ReadValue()
+		if value == nil {
+			value = data.NewNullValue()
+		}
+		return value, !probe || issetNonNullValue(value), nil
 	}
 	var object *data.ClassValue
 	switch value := container.(type) {
@@ -47,6 +87,9 @@ func ReadDimensionQuiet(ctx data.Context, index *IndexExpression, probe, fetch b
 		}
 		value, ctl := callArrayAccessOffsetGet(ctx, object, key)
 		return value, true, ctl
+	}
+	if object != nil {
+		return nil, false, data.NewErrorThrowByName(index.GetFrom(), errors.New("Cannot use object as array"), "Error")
 	}
 	value, exists := readIndexNoWarn(container, key)
 	if !exists {

@@ -3,6 +3,7 @@ package node
 import (
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/php-any/origami/data"
 )
@@ -185,46 +186,8 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 			return v, l.SetProperty(ctx, l.Property, v)
 		case *Array:
 			// [$a, $b] = $arr：支持 ArrayValue 与 ObjectValue（关联数组，如 Collection::toArray()）
-			var valueList []data.Value
-			switch src := rv.(type) {
-			case *data.ArrayValue:
-				valueList = src.ToValueList()
-
-			case *data.ClassValue:
-				// 支持实现了 ArrayAccess 的对象解构（如 Collection）
-				if method, exists := src.GetMethod("offsetGet"); exists {
-					for i, set := range l.V {
-						fnCtx := implicitMethodFrame(ctx, src, method)
-						if len(method.GetVariables()) > 0 {
-							fnCtx.SetVariableValue(method.GetVariables()[0], data.NewIntValue(i))
-						}
-						ret, ctl := method.Call(fnCtx)
-						if ctl != nil {
-							return nil, ctl
-						}
-						var val data.Value = data.NewNullValue()
-						if rv2, ok2 := ret.(data.Value); ok2 {
-							val = rv2
-						}
-						if s, ok2 := set.(data.Variable); ok2 {
-							if ctl := s.SetValue(ctx, val); ctl != nil {
-								return nil, ctl
-							}
-						}
-					}
-					return v, nil
-				}
-			}
-			for i, target := range l.V {
-				if setter, ok := target.(data.Variable); ok {
-					var value data.Value = data.NewNullValue()
-					if i < len(valueList) && valueList[i] != nil {
-						value = valueList[i]
-					}
-					if ctl := setter.SetValue(ctx, value); ctl != nil {
-						return nil, ctl
-					}
-				}
+			if ctl := assignListTargets(b.from, ctx, l.V, v); ctl != nil {
+				return nil, ctl
 			}
 			return v, nil
 		case *VarVar:
@@ -241,6 +204,100 @@ func (b *BinaryAssign) GetValue(ctx data.Context) (data.GetValue, data.Control) 
 	}
 
 	return nil, data.NewErrorThrow(b.from, fmt.Errorf("TODO BinaryAssign rv=%T left=%T", rv, b.Left))
+}
+
+// assignListTargets 把右值按位置分发给解构目标列表，是 [$a, $b] = / list($a, $b) = 的公共实现。
+//
+// 右值可以是数组，也可以是实现了 ArrayAccess 的对象（如 Collection，按 0..n-1 取 offsetGet）。
+func assignListTargets(from data.From, ctx data.Context, targets []data.GetValue, value data.Value) data.Control {
+	var source *data.ArrayValue
+	switch src := value.(type) {
+	case *data.ArrayValue:
+		source = src
+
+	case *data.ClassValue:
+		// 支持实现了 ArrayAccess 的对象解构（如 Collection）
+		if method, exists := src.GetMethod("offsetGet"); exists {
+			for i, set := range targets {
+				if _, skip := set.(*data.NullValue); skip {
+					continue
+				}
+				fnCtx := implicitMethodFrame(ctx, src, method)
+				if len(method.GetVariables()) > 0 {
+					fnCtx.SetVariableValue(method.GetVariables()[0], data.NewIntValue(i))
+				}
+				ret, ctl := method.Call(fnCtx)
+				if ctl != nil {
+					return ctl
+				}
+				var val data.Value = data.NewNullValue()
+				if rv2, ok2 := ret.(data.Value); ok2 {
+					val = rv2
+				}
+				if ctl := assignListTarget(from, ctx, set, val); ctl != nil {
+					return ctl
+				}
+			}
+			return nil
+		}
+	}
+	for i, target := range targets {
+		if _, skip := target.(*data.NullValue); skip {
+			continue
+		}
+		var item data.Value = data.NewNullValue()
+		if source != nil {
+			if slot, _ := source.FindSlotByIntKey(i); slot != nil {
+				item = slot.ReadValue()
+			} else if ctl := emitUndefinedArrayKeyWarning(ctx, from, strconv.Itoa(i), true); ctl != nil {
+				return ctl
+			}
+		}
+		if ctl := assignListTarget(from, ctx, target, item); ctl != nil {
+			return ctl
+		}
+	}
+	return nil
+}
+
+// assignListTarget 把单个解构目标写成 value。
+//
+// PHP 的 list() / [$a, $b] 左侧可以是任意可写左值：变量、超全局、下标（$o->arr[0]、$a[0][]）、
+// 对象属性（$o->p）、静态属性，以及嵌套解构。这里逐类分派；此前只处理 data.Variable，
+// 其余类型被**静默跳过**（既不赋值也不报错），因此 [$child->prefixes[0], ...] = [...] 这类
+// 合法写法在整个解释器里无声失效。
+func assignListTarget(from data.From, ctx data.Context, target data.GetValue, value data.Value) data.Control {
+	// data.Variable 覆盖普通变量、超全局、类属性、可变变量等既有路径，行为保持不变。
+	if setter, ok := target.(data.Variable); ok {
+		return setter.SetValue(ctx, value)
+	}
+	switch t := target.(type) {
+	case *data.NullValue:
+		// 解析器用 NullValue 占位 list 解构中的空槽位：[$a, , $b] = [...]。
+		// 该位置的值被丢弃，不做写入。
+		return nil
+	case *IndexExpression:
+		// 下标左值自带写路径（含复杂下标的 resolveDimension/COW 处理）。
+		// *IndexExpression 缺少 GetIndex/GetName/GetType，不满足 data.Variable，必须单独分派。
+		return t.SetValue(ctx, value)
+	case *CallObjectDynamicProperty:
+		_, ctl := t.AssignValue(ctx, value)
+		return ctl
+	case *CallStaticProperty:
+		return t.SetProperty(ctx, t.Property, value)
+	case *CallStaticPropertyLater:
+		return t.SetProperty(ctx, t.property, value)
+	case *CallStaticKeywordProperty:
+		return t.SetProperty(ctx, t.Property, value)
+	case *CallSelfProperty:
+		return t.SetProperty(ctx, t.Property, value)
+	case *VarVar:
+		return t.SetValue(ctx, value)
+	case *Array:
+		// PHP 支持嵌套解构：[$a, [$b, $c]] = [1, [2, 3]]
+		return assignListTargets(from, ctx, t.V, value)
+	}
+	return data.NewErrorThrow(from, fmt.Errorf("解构赋值的目标不可写: %T", target))
 }
 
 type BinaryAssignVariable struct {

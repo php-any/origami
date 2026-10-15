@@ -352,9 +352,19 @@ func requestSource(ctx data.Context) (*symfonyRequestSource, data.Control) {
 		return class.source, nil
 	}
 	if r := HTTPRequestFromValue(value); r != nil {
+		var content string
+		if cached, _ := value.GetProperty("content"); cached != nil {
+			if text, ok := cached.(*data.StringValue); ok {
+				content = text.Value
+			} else {
+				content = bodyFromRequest(r)
+			}
+		} else {
+			content = bodyFromRequest(r)
+		}
 		return &symfonyRequestSource{
 			request:       r,
-			content:       bodyFromRequest(r),
+			content:       content,
 			defaultLocale: "en",
 			locale:        "en",
 		}, nil
@@ -735,15 +745,13 @@ func newRequestValue(ctx data.Context, request *http.Request, query, requestData
 	class := NewSymfonyRequestClassFrom(request)
 	value := data.NewProxyValue(class, ctx.CreateBaseContext())
 	if query == nil && class.source.request.URL != nil {
-		query = urlValuesToMap(class.source.request.URL.Query())
+		query = valueMap(data.ParseFormFields(class.source.request.URL.RawQuery))
 	}
 	if requestData == nil {
 		requestData = map[string]data.Value{}
 		contentType := contentType(class.source.request.Header.Get("Content-Type"))
 		if contentType == "application/x-www-form-urlencoded" {
-			if values, err := url.ParseQuery(class.source.content); err == nil {
-				requestData = urlValuesToMap(values)
-			}
+			requestData = valueMap(data.ParseFormFields(class.source.content))
 		}
 	}
 	if attributes == nil {

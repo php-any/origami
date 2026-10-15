@@ -11,7 +11,7 @@ import (
 	illuminatehttp "github.com/php-any/origami/std/laravel/framework/illuminate/http"
 )
 
-func TestOfficialRequestCapture(t *testing.T) {
+func TestNativeRequestCapture(t *testing.T) {
 	base, _ := buildVM()
 	if _, ctl := base.LoadAndRun("vendor/autoload.php"); ctl != nil {
 		t.Fatal(ctl.AsString())
@@ -24,8 +24,8 @@ func TestOfficialRequestCapture(t *testing.T) {
 	if ctl != nil {
 		t.Fatal(ctl.AsString())
 	}
-	if _, ok := request.Class.(*node.ClassStatement); !ok {
-		t.Fatalf("request replaced by %T", request.Class)
+	if _, ok := request.Class.(*illuminatehttp.IlluminateRequestClass); !ok {
+		t.Fatalf("native Request not loaded: %T", request.Class)
 	}
 	for method, want := range map[string]string{"getRequestUri": "/__runtime/order?item=one", "getPathInfo": "/__runtime/order", "path": "__runtime/order", "method": "GET", "host": "localhost"} {
 		call := node.NewObjectMethod(nil, request, method, nil)
@@ -40,7 +40,7 @@ func TestOfficialRequestCapture(t *testing.T) {
 	}
 }
 
-func TestOfficialRequestBodyAndHeaders(t *testing.T) {
+func TestNativeRequestBodyAndHeaders(t *testing.T) {
 	base, _ := buildVM()
 	if _, ctl := base.LoadAndRun("vendor/autoload.php"); ctl != nil {
 		t.Fatal(ctl.AsString())

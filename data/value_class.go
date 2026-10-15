@@ -12,9 +12,37 @@ func NewClassValue(class ClassStmt, ctx Context) *ClassValue {
 	return NewClassValueWithPropertyCapacity(class, ctx, 0)
 }
 
+// Instantiate 走类自身的实例化入口创建对象，等价于 PHP 的 new（不含 __construct）。
+//
+// Go 侧要造「PHP 声明类」的实例必须用它，而不是 NewClassValue：后者只建一个空属性袋，
+// 不执行声明里的属性默认值，于是 protected $x = false 会读成 null、$y = 'handle' 也读成 null。
+// 对 Go 实现的 ClassStmt 两者等价——它们的 GetValue 本身就返回 NewClassValue。
+func Instantiate(class ClassStmt, ctx Context) (Value, Control) {
+	if class == nil {
+		return nil, NewErrorThrow(nil, errors.New("Instantiate: class 为 nil"))
+	}
+	if ctx != nil {
+		ctx = ctx.CreateBaseContext()
+	}
+	value, ctl := class.GetValue(ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
+	if v, ok := value.(Value); ok {
+		return v, nil
+	}
+	return nil, NewErrorThrow(nil, fmt.Errorf("Instantiate: %s 未返回对象值", class.GetName()))
+}
+
 // NewClassValueWithPropertyCapacity reserves storage for declaration defaults.
 // It is only a size hint; dynamic properties and reference slots remain identical.
 func NewClassValueWithPropertyCapacity(class ClassStmt, ctx Context, capacity int) *ClassValue {
+	// 实例必须持有「稳定」上下文。方法帧（*ClassMethodContext）是池化对象，
+	// 调用返回后会被清零复用；若被实例钉住，之后 $obj->method() 会从
+	// InstanceIdentity().Context 读到已清空的帧（解引用 nil 直接 panic）。
+	if _, ok := ctx.(*ClassMethodContext); ok {
+		ctx = ctx.CreateBaseContext()
+	}
 	var vm VM
 	if ctx != nil {
 		vm = ctx.GetVM()

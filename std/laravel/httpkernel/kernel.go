@@ -49,6 +49,8 @@ type kernelState struct {
 	// tel 由常驻 state 持有、请求沙箱共享指针（见 Sandbox）：
 	// Telescope 的开关与匹配 pattern 都是启动期常量，没理由每请求重算一遍。
 	tel *telescopeCache
+	// mw 同上：全局中间件里「本进程配置下必然透传」的判定也是启动期常量。
+	mw *middlewareBypass
 }
 
 func newKernelState() *kernelState {
@@ -59,6 +61,7 @@ func newKernelState() *kernelState {
 		middlewareAliases:  make(map[string]string),
 		middlewarePriority: append([]string(nil), defaultMiddlewarePriority...),
 		tel:                &telescopeCache{},
+		mw:                 &middlewareBypass{},
 	}
 }
 

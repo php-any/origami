@@ -56,9 +56,11 @@ func (h *ErrorExceptionConstructMethod) Call(ctx data.Context) (data.GetValue, d
 	}
 
 	file, line, frames := captureGoTrace(2)
+	filePinned, linePinned := false, false
 	if filenameVal := indexArg(ctx, 3); filenameVal != nil {
 		if _, isNull := filenameVal.(*data.NullValue); !isNull {
 			file = filenameVal.AsString()
+			filePinned = true
 		}
 	}
 	if lineVal := indexArg(ctx, 4); lineVal != nil {
@@ -66,13 +68,14 @@ func (h *ErrorExceptionConstructMethod) Call(ctx data.Context) (data.GetValue, d
 			if iv, ok := lineVal.(data.AsInt); ok {
 				if n, err := iv.AsInt(); err == nil {
 					line = n
+					linePinned = true
 				}
 			}
 		}
 	}
 
 	if object := instanceObjectValue(ctx); object != nil {
-		object.InstanceSource = &Exception{msg: message, file: file, line: line, trace: frames}
+		object.InstanceSource = &Exception{msg: message, file: file, line: line, trace: frames, filePinned: filePinned, linePinned: linePinned}
 	}
 
 	setInstanceProperty(ctx, "message", data.NewStringValue(message))

@@ -564,7 +564,8 @@ func (m *RDIGetChildren) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if gv, ok := childClass.(interface {
 		GetValue(data.Context) (data.GetValue, data.Control)
 	}); ok {
-		v, ctl := gv.GetValue(ctx)
+		// 实例必须持有稳定上下文：调用方的 ctx 可能是会被池回收的方法帧。
+		v, ctl := gv.GetValue(ctx.CreateBaseContext())
 		if ctl != nil {
 			return nil, ctl
 		}

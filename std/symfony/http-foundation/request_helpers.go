@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"sort"
@@ -106,8 +107,13 @@ func serverFromRequest(request *http.Request) map[string]data.Value {
 		return map[string]data.Value{}
 	}
 	host, port := request.Host, ""
-	if parsedHost, parsedPort, err := strings.Cut(request.Host, ":"); err {
+	if parsedHost, parsedPort, err := net.SplitHostPort(request.Host); err == nil {
 		host, port = parsedHost, parsedPort
+	}
+	host = strings.Trim(host, "[]")
+	remoteAddr, remotePort := request.RemoteAddr, ""
+	if addr, port, err := net.SplitHostPort(request.RemoteAddr); err == nil {
+		remoteAddr, remotePort = addr, port
 	}
 	if host == "" && request.URL != nil {
 		host = request.URL.Hostname()
@@ -138,7 +144,8 @@ func serverFromRequest(request *http.Request) map[string]data.Value {
 		"HTTP_HOST":       data.NewStringValue(request.Host),
 		"SERVER_PORT":     data.NewStringValue(port),
 		"SERVER_PROTOCOL": data.NewStringValue(request.Proto),
-		"REMOTE_ADDR":     data.NewStringValue(request.RemoteAddr),
+		"REMOTE_ADDR":     data.NewStringValue(remoteAddr),
+		"REMOTE_PORT":     data.NewStringValue(remotePort),
 	}
 	if request.TLS != nil || (request.URL != nil && request.URL.Scheme == "https") {
 		server["HTTPS"] = data.NewStringValue("on")

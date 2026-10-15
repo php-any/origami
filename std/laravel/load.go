@@ -11,9 +11,8 @@ import (
 	"github.com/php-any/origami/std/laravel/tinker"
 )
 
-// Load proposes vendor acceleration registrations to the contract-gated VM.
-// The HTTP Kernel is provided by Composer; the explicit serve host adapter is
-// loaded separately by vendoraccel on the real VM.
+// Load 直接注册 Laravel 原生组件；每个组件的 Load 管理自己的实现。
+// ServeCommand 是独立的 HTTP/进程适配器，由宿主按需加载 serve.Load。
 func Load(vm data.VM) {
 	framework.Load(vm)
 	serializableclosure.Load(vm)

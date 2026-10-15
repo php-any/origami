@@ -38,6 +38,13 @@ func (n *NullCoalesceExpression) GetValue(ctx data.Context) (data.GetValue, data
 	// PHP：$obj->prop ?? $b 使用 isset 语义（__isset 或属性存在性检查），
 	// 属性不存在时不调用 __get，因此不会触发 Undefined array key Warning
 	left := n.Left
+	if dynamic, ok := left.(*CallObjectDynamicProperty); ok {
+		frozen, ctl := freezeLvalue(ctx, dynamic)
+		if ctl != nil {
+			return nil, ctl
+		}
+		left = frozen
+	}
 	if cop, ok := left.(*CallObjectProperty); ok {
 		frozen, ctl := freezeLvalue(ctx, cop)
 		if ctl != nil {
@@ -45,7 +52,9 @@ func (n *NullCoalesceExpression) GetValue(ctx data.Context) (data.GetValue, data
 		}
 		cop = frozen.(*CallObjectProperty)
 		left = cop
-		if exists, handled := coalesceObjectPropertyExists(ctx, cop); handled {
+		if exists, handled, ctl := coalesceObjectPropertyExists(ctx, cop); ctl != nil {
+			return nil, ctl
+		} else if handled {
 			if !exists {
 				return n.Right.GetValue(ctx)
 			}
@@ -86,10 +95,10 @@ func (n *NullCoalesceExpression) AsString() string {
 
 // coalesceObjectPropertyExists 判断 $obj->prop ?? $default 中左操作数是否“已设置”
 // （isset 语义：不调用 __get，因此不触发 Undefined array key Warning）
-func coalesceObjectPropertyExists(ctx data.Context, pe *CallObjectProperty) (exists bool, handled bool) {
+func coalesceObjectPropertyExists(ctx data.Context, pe *CallObjectProperty) (exists bool, handled bool, control data.Control) {
 	o, ctl := pe.Object.GetValue(ctx)
 	if ctl != nil {
-		return false, true
+		return false, true, ctl
 	}
 	var object *data.ClassValue
 	switch owner := o.(type) {
@@ -98,28 +107,28 @@ func coalesceObjectPropertyExists(ctx data.Context, pe *CallObjectProperty) (exi
 	case *data.ThisValue:
 		object = owner.ClassValue
 	default:
-		return false, false
+		return false, true, nil
 	}
 	if object == nil || object.ObjectValue == nil {
-		return false, true
+		return false, true, nil
 	}
 	property, declared := lookupObjectProperty(ctx, object, pe.Property)
 	if declared && propertyAccessible(ctx, object, property, pe.Property) {
 		value, ctl := object.ObjectValue.GetProperty(data.PropertyStorageName(property))
 		if ctl != nil || value == nil {
-			return false, true
+			return false, true, ctl
 		}
 		_, isNull := value.(*data.NullValue)
-		return !isNull, true
+		return !isNull, true, nil
 	}
 	if !declared && object.ObjectValue.HasProperty(pe.Property) {
 		value, _ := object.ObjectValue.GetProperty(pe.Property)
 		_, isNull := value.(*data.NullValue)
-		return value != nil && !isNull, true
+		return value != nil && !isNull, true, nil
 	}
 	if magic, found := object.GetMethod("__isset"); found {
 		isSet, ctl := pe.invokeMagicIsset(ctx, object, magic, pe.Property)
-		return ctl == nil && isSet, true
+		return isSet, true, ctl
 	}
-	return false, true
+	return false, true, nil
 }

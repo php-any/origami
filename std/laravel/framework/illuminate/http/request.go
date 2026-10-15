@@ -60,11 +60,11 @@ func NewIlluminateRequestClass() data.ClassStmt {
 	return c
 }
 
-// NewIlluminateRequestValue executes the official Request::capture() in the
+// NewIlluminateRequestValue executes the registered Request::capture() in the
 // RequestVM whose host supplies the HTTP request.
 func NewIlluminateRequestValue(ctx data.Context, _ *nethttp.Request) (*data.ClassValue, data.Control) {
-	// HTTP globals belong to the RequestVM. Let Composer's official capture()
-	// construct the PHP request, including all inherited state and traits.
+	// HTTP globals belong to the RequestVM. The registered capture() constructs
+	// the request, whether its implementation is native or loaded by Composer.
 	class, ctl := ctx.GetVM().GetOrLoadClass(illuminateRequestClassName)
 	if ctl != nil {
 		return nil, ctl
@@ -614,6 +614,9 @@ func createIlluminateFromValue(ctx data.Context, from data.Value, target *data.C
 	if request, ok := requestHTTPSource(sourceCV); ok {
 		source = request
 	}
+	// ParseForm consumes the source body during initialization. Preserve the
+	// Symfony content cache before creating the Illuminate request.
+	content := requestContent(sourceCV)
 	initializeIlluminateRequest(target, source)
 	for name, value := range sourceCV.GetProperties() {
 		if name == "__illuminate_request_state" {
@@ -621,6 +624,7 @@ func createIlluminateFromValue(ctx data.Context, from data.Value, target *data.C
 		}
 		_ = target.SetProperty(name, value)
 	}
+	_ = target.SetProperty("content", data.NewStringValue(content))
 	state := requestState(target)
 	if old := requestStateNoCreate(sourceCV); old != nil {
 		state.userResolver = old.userResolver

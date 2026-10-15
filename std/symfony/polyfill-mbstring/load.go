@@ -10,7 +10,7 @@ import (
 var VendorRelFiles = []string{"bootstrap.php"}
 
 // Load 将 polyfill bootstrap 标为已加载，跳过重复解析（函数已由 php.Load 提供）。
-// 实际路径由 vendoraccel.MarkPolyfillFiles 在知道 vendor 根后写入 phpFileCache。
+// 宿主若已提供完整 polyfill 实现，可按需调用本包的 MarkLoaded。
 func Load(vm data.VM) {
 	_ = vm
 }

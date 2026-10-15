@@ -1107,6 +1107,13 @@ func (ep *ExpressionParser) parsePrimary() (data.GetValue, data.Control) {
 			if acl != nil {
 				return nil, acl
 			}
+			// A short array literal may itself be dereferenced: ['key' => $v]['key'].
+			if startType == token.LBRACKET {
+				expr, acl = (&VariableParser{ep.Parser}).parseSuffix(expr)
+				if acl != nil {
+					return nil, acl
+				}
+			}
 
 			// 检查是否有后缀自增自减：
 			// 仅当起始 token 不是语句关键字时，才将后缀 ++ / -- 绑定到该表达式，

@@ -109,6 +109,12 @@ func (ep *LbracketParser) Parse() (data.GetValue, data.Control) {
 				if ep.checkPositionIs(0, token.RBRACKET) {
 					continue
 				}
+				// 中间跳过的元素：[$a, , $b]。PHP 的 list 解构允许空槽位，
+				// 与行首的 [, $a] 用同一种占位（data.NullValue）表示。
+				if ep.checkPositionIs(0, token.COMMA) {
+					arr = append(arr, data.NewNullValue())
+					continue
+				}
 				// 检查是否是展开运算符
 				if ep.current().Type() == token.ELLIPSIS {
 					ep.next() // 跳过 ...

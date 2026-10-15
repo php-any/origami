@@ -332,7 +332,10 @@ func flushOnceHelper(ctx data.Context, s *kernelState) {
 	if ctl != nil || stmt == nil {
 		return
 	}
-	once := data.NewClassValue(stmt, ctx)
+	once, ctl := data.Instantiate(stmt, ctx)
+	if ctl != nil {
+		return
+	}
 	_, _ = callObjectMethodInContext(ctx, once, "flush")
 	if s == nil || s.app == nil {
 		return
@@ -408,21 +411,25 @@ func dispatchToRouter(ctx data.Context, s *kernelState, request data.Value) (dat
 		return nil, ctl
 	}
 	destination := &routerDestination{state: s}
-	if isTruthy(asValue(skipped)) || len(s.middleware) == 0 {
+	middleware := s.mw.apply(ctx, s, request, s.middleware)
+	if isTruthy(asValue(skipped)) || len(middleware) == 0 {
 		return destination.dispatch(ctx, request)
 	}
 	class, ctl := ctx.GetVM().GetOrLoadClass("Illuminate\\Routing\\Pipeline")
 	if ctl != nil {
 		return nil, ctl
 	}
-	pipeline := data.NewClassValue(class, ctx.CreateBaseContext())
+	pipeline, ctl := data.Instantiate(class, ctx)
+	if ctl != nil {
+		return nil, ctl
+	}
 	for _, call := range []struct {
 		method string
 		arg    data.Value
 	}{
 		{"__construct", s.app},
 		{"send", request},
-		{"through", stringsToArrayValue(s.middleware)},
+		{"through", stringsToArrayValue(middleware)},
 	} {
 		if _, ctl := callObjectMethodInContext(ctx, pipeline, call.method, call.arg); ctl != nil {
 			return nil, ctl
@@ -444,9 +451,9 @@ func (d *routerDestination) Call(ctx data.Context) (data.GetValue, data.Control)
 	return d.dispatch(ctx, indexValue(ctx, 0))
 }
 func (d *routerDestination) dispatch(ctx data.Context, request data.Value) (data.GetValue, data.Control) {
-	if _, ctl := callObjectMethodInContext(ctx, d.state.app, "instance", data.NewStringValue("request"), request); ctl != nil {
-		return nil, ctl
-	}
+	// 不再重复 instance('request', $request)：kernelHandle 已在 bootstrap 后
+	// 通过 foundation.BindRequest 绑过同一个对象，且 Pipeline 传入的就是它。
+	// 对齐官方 Kernel::sendRequestThroughRouter —— 每请求只绑一次。
 	return callObjectMethodInContext(ctx, d.state.router, "dispatch", request)
 }
 
@@ -488,10 +495,7 @@ func exceptionFromControl(ctl data.Control) (data.Value, bool) {
 	if !ok || tv == nil {
 		return nil, false
 	}
-	if tv.Object != nil {
-		return tv.Object, true
-	}
-	return nil, false
+	return tv.PHPValue(), true
 }
 
 func logHandleException(thrown data.Control) {
@@ -532,7 +536,14 @@ func fallbackExceptionResponse(ctx data.Context, exception data.Value, original 
 	if ctl != nil {
 		return nil, original
 	}
-	cv := data.NewClassValue(class, ctx.CreateBaseContext())
+	created, ctl := data.Instantiate(class, ctx)
+	if ctl != nil {
+		return nil, original
+	}
+	cv, ok := created.(*data.ClassValue)
+	if !ok {
+		return nil, original
+	}
 	construct := class.GetConstruct()
 	if construct == nil {
 		return nil, original
@@ -596,12 +607,19 @@ func kernelTerminate(ctx data.Context) (data.GetValue, data.Control) {
 		middlewares = append(middlewares, s.middleware...)
 		for _, middleware := range middlewares {
 			name, _, _ := strings.Cut(middleware, ":")
+			// 中间件 terminate：绝大多数中间件没有 terminate，实例化它们只是为了让
+			// method_exists 说一句「没有」。先按类声明判断（含父类链与静态方法），
+			// 判定不出来就回落到原来的实例化路径，行为与 method_exists($instance) 等价。
+			declaresTerminate, resolved := classDeclaresMethod(ctx.GetVM(), name, "terminate")
+			if resolved && !declaresTerminate {
+				continue
+			}
 			made, ctl := callObjectMethodInContext(ctx, s.app, "make", data.NewStringValue(name))
 			if ctl != nil {
 				return nil, ctl
 			}
 			instance := asValue(made)
-			if _, exists := methodExists(instance, "terminate"); exists {
+			if _, hasTerminate := methodExists(instance, "terminate"); hasTerminate {
 				if _, ctl := callObjectMethodInContext(ctx, instance, "terminate", request, response); ctl != nil {
 					return nil, ctl
 				}
@@ -617,6 +635,48 @@ func kernelTerminate(ctx data.Context) (data.GetValue, data.Control) {
 		}
 	}
 	return data.NewNullValue(), nil
+}
+
+// classDeclaresMethod 判断类（沿父类链）是否声明某个实例或静态方法，用于在
+// 实例化之前判断中间件有没有 terminate。
+//
+// resolved=false 表示无法确定（类未加载、是接口、父链断裂），调用方必须回落到
+// 实例化路径：只做「确定的否定」优化，绝不因为查不到就跳过 terminate。
+func classDeclaresMethod(vm data.VM, className, method string) (found bool, resolved bool) {
+	if vm == nil || className == "" {
+		return false, false
+	}
+	stmt, ctl := vm.GetOrLoadClass(className)
+	if ctl != nil || stmt == nil {
+		return false, false
+	}
+	if _, isInterface := stmt.(data.InterfaceStmt); isInterface {
+		return false, false
+	}
+	current := stmt
+	for depth := 0; current != nil && depth < 64; depth++ {
+		if fn, ok := current.GetMethod(method); ok && fn != nil {
+			return true, true
+		}
+		// PHP 允许用实例语法调用静态方法，method_exists 也认静态声明。
+		if holder, ok := current.(interface {
+			GetStaticMethod(string) (data.Method, bool)
+		}); ok {
+			if fn, ok := holder.GetStaticMethod(method); ok && fn != nil {
+				return true, true
+			}
+		}
+		parent := current.GetExtend()
+		if parent == nil {
+			break
+		}
+		next, ctl := vm.GetOrLoadClass(*parent)
+		if ctl != nil || next == nil {
+			return false, false
+		}
+		current = next
+	}
+	return false, true
 }
 
 func kernelGetApplication(ctx data.Context) (data.GetValue, data.Control) {

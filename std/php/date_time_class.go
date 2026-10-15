@@ -833,7 +833,13 @@ func (m *DateTimeCreateFromFormatMethod) Call(ctx data.Context) (data.GetValue, 
 			stmt = cmc.Class
 		}
 	}
-	cv := data.NewClassValue(stmt, ctx.CreateBaseContext())
+	instance, ctl := stmt.GetValue(ctx.CreateBaseContext())
+	if ctl != nil {
+		return nil, ctl
+	}
+	// Native factories skip the user constructor, but PHP subclass and
+	// trait property defaults still need the normal instance initializer.
+	cv := instance.(*data.ClassValue)
 	cv.ObjectValue.SetProperty("timestamp", data.NewIntValue(int(t.Unix())))
 	return cv, nil
 }

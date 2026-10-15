@@ -83,7 +83,7 @@ graph TD
   - 一句话：在 AST 节点上缓存 `(类, 方法/属性槽, generation)`，命中即跳过整条查找链。
 
 - **[06-parse-and-opcache.md](06-parse-and-opcache.md) — 词法/解析与 AST 缓存**
-  - 独占：`lexer/lexer.go`、`lexer/worker_token.go`、`parser/parser.go` 的 `Clone`/`reset`、`runtime/parse_cache.go`、`runtime/vm.go` 的 `LoadAndRun`、`runtime/vm_temp.go`、`std/vendoraccel/warmup.go`
+  - 独占：`lexer/lexer.go`、`lexer/worker_token.go`、`parser/parser.go` 的 `Clone`/`reset`、`runtime/parse_cache.go`、`runtime/vm.go` 的 `LoadAndRun`、`runtime/vm_temp.go`
   - 前置：00、**04**（同改 `runtime/vm.go`，04 先落地）
   - 一句话：词法 DAG 进程单例、token 值切片化、**所有加载入口统一走 `ParseFileCached`**、warmup 去重复解析、方法体延迟解析。
 
@@ -154,7 +154,7 @@ cd examples/laravel13 && go run -mod=mod . serve --port=18086
 - `data/cow.go`：完整的 `rc` / `CowAssign` / `CowSeparateZVal`，**已实现但变量赋值路径没用**（见 02）。
 - `data/method_lookup_cache.go`：per-class 方法解析缓存，含负缓存和 `gen` 失效，是 05 的 IC 失效协议的基础。
 - `data/value_intern.go`：目前只 intern 了 `true`/`false`/`null`（见 01）。
-- `std/vendoraccel`：Laravel vendor 预热 + Go 原生类替换，`ORIGAMI_LARAVEL_PRELOAD=1` 让 artisan 也预热。
+- `std/laravel`：各组件通过自己的 `Load` 直接注册原生实现，由宿主选择加载。
 - `runtime/context.go` 的 `contextPool`：`sync.Pool`，只回收 `Context` 壳（见 03）。
 
 需要知道**不存在**的东西：没有任何 `Benchmark*` 函数、没有 pprof/trace 接入点、没有压测脚本。这是 00 要补的。

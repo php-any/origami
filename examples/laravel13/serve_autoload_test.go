@@ -23,9 +23,13 @@ func TestServeAutoloadAndBootstrap(t *testing.T) {
 	var thrown data.Control
 	base.SetThrowControl(func(control data.Control) { thrown = control })
 
-	for _, name := range []string{"Illuminate\\Foundation\\Http\\Kernel", "Illuminate\\Http\\Request", "Illuminate\\Support\\Collection", "Illuminate\\Pipeline\\Pipeline", "Symfony\\Component\\HttpFoundation\\Request", "Symfony\\Component\\HttpFoundation\\Response", "Symfony\\Component\\Finder\\Finder"} {
-		if _, preloaded := base.GetClass(name); preloaded {
-			t.Fatalf("uncovered vendor replacement %s registered before Composer", name)
+	for _, name := range []string{"Illuminate\\Foundation\\Http\\Kernel", "Illuminate\\Foundation\\Console\\ServeCommand", "Illuminate\\Http\\Request", "Illuminate\\Support\\Collection", "Illuminate\\Pipeline\\Pipeline", "Symfony\\Component\\HttpFoundation\\Request", "Symfony\\Component\\HttpFoundation\\Response"} {
+		class, preloaded := base.GetClass(name)
+		if !preloaded {
+			t.Fatalf("native component %s was not registered", name)
+		}
+		if _, interpreted := class.(*node.ClassStatement); interpreted {
+			t.Fatalf("%s unexpectedly uses PHP before Composer", name)
 		}
 	}
 	_, control := base.LoadAndRun("artisan")
@@ -38,7 +42,7 @@ func TestServeAutoloadAndBootstrap(t *testing.T) {
 	if thrown != nil {
 		t.Fatalf("artisan package:discover throw: %v", thrown)
 	}
-	for _, name := range []string{"Illuminate\\Http\\Request", "Symfony\\Component\\Finder\\Finder"} {
+	for _, name := range []string{"Illuminate\\Foundation\\Application", "Symfony\\Component\\Finder\\Finder"} {
 		class, ctl := base.GetOrLoadClass(name)
 		if ctl != nil {
 			t.Fatal(ctl.AsString())

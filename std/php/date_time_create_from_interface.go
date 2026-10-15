@@ -33,7 +33,11 @@ func (*DateTimeCreateFromInterfaceMethod) Call(ctx data.Context) (data.GetValue,
 	if class == nil {
 		class = frame.Class
 	}
-	copy := data.NewClassValue(class, ctx.CreateBaseContext())
+	instance, ctl := class.GetValue(ctx.CreateBaseContext())
+	if ctl != nil {
+		return nil, ctl
+	}
+	copy := instance.(*data.ClassValue)
 	for _, name := range []string{"timestamp", "timezone", "microsecond"} {
 		if value, ctl := source.GetProperty(name); ctl == nil && value != nil {
 			copy.SetProperty(name, value)

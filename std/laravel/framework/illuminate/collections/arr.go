@@ -56,7 +56,7 @@ func (c *ArrClass) register() {
 	add("has", []string{"array", "keys"}, -1, arrHas)
 	add("get", []string{"array", "key", "default"}, 2, arrGet)
 	addRef("set", []string{"array", "key", "value"}, -1, arrSet)
-	addRef("add", []string{"array", "key", "value"}, -1, arrAdd)
+	add("add", []string{"array", "key", "value"}, -1, arrAdd)
 	addRef("forget", []string{"array", "keys"}, -1, arrForget)
 	add("only", []string{"array", "keys"}, -1, arrOnly)
 	add("except", []string{"array", "keys"}, -1, arrExcept)

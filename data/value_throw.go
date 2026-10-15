@@ -194,11 +194,20 @@ func stampExceptionLocation(object *ClassValue, from From) {
 	if object == nil || from == nil {
 		return
 	}
-	if src := from.GetSource(); src != "" {
+	src := from.GetSource()
+	sl, _ := from.GetStartPosition()
+	writeFile, writeLine := true, true
+	if state, ok := object.InstanceSource.(interface {
+		ClaimThrowLocation(string, int) (bool, bool)
+	}); ok {
+		writeFile, writeLine = state.ClaimThrowLocation(src, sl+1)
+	}
+	if writeFile && src != "" {
 		_ = object.SetProperty("file", NewStringValue(src))
 	}
-	sl, _ := from.GetStartPosition()
-	_ = object.SetProperty("line", NewIntValue(sl+1))
+	if writeLine {
+		_ = object.SetProperty("line", NewIntValue(sl+1))
+	}
 }
 
 func NewErrorThrow(from From, err error) Control {

@@ -22,7 +22,7 @@ func (p *LineParser) Parse() (data.GetValue, data.Control) {
 	// 移动到下一个 token
 	p.next()
 
-	// 返回当前行号的字符串字面量
+	// Token positions are zero-based; PHP __LINE__ is one-based.
 	startLine, _ := from.GetStartPosition()
-	return node.NewIntLiteral(from, strconv.Itoa(startLine)), nil
+	return node.NewIntLiteral(from, strconv.Itoa(startLine+1)), nil
 }

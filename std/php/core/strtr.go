@@ -11,6 +11,9 @@ import (
 // StrtrFunction 实现 strtr 函数
 type StrtrFunction struct{}
 
+// strtrPair 是数组形式 strtr 的一条替换规则。
+type strtrPair struct{ key, value string }
+
 func NewStrtrFunction() data.FuncStmt {
 	return &StrtrFunction{}
 }
@@ -52,39 +55,57 @@ func (f *StrtrFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	fromValue, _ := ctx.GetIndexValue(1)
 
-	var pairs map[string]string
+	var pairs []strtrPair
 
-	switch v := fromValue.(type) {
-
-	case *data.ArrayValue:
-		pairs = make(map[string]string)
-		for arraySlots118, i := v.View(), 0; i < arraySlots118.Len(); i++ {
-			z := arraySlots118.At(i)
+	if v, ok := fromValue.(*data.ArrayValue); ok {
+		// PHP 数组形式按「每个位置最长匹配、替换结果不再扫描」执行。原实现走
+		// strings.NewReplacer：它会为整组键建字典树，再叠加 map + keys 切片 +
+		// args 切片，每次调用都是十余次分配，而这里只需要一张小表。
+		pairs = make([]strtrPair, 0, v.View().Len())
+		for slots, i := v.View(), 0; i < slots.Len(); i++ {
+			z := slots.At(i)
 			if z == nil || z.ReadValue() == nil {
 				continue
 			}
-			pairs[z.PHPArrayKey(i).AsString()] = z.ReadValue().AsString()
+			key := z.PHPArrayKey(i).AsString()
+			if key == "" {
+				// PHP 忽略空键：空键会让每个位置都命中。
+				continue
+			}
+			pairs = append(pairs, strtrPair{key: key, value: z.ReadValue().AsString()})
 		}
+		// 等长的键在同一位置至多命中一个，因此只需按长度降序保证最长优先。
+		sort.Slice(pairs, func(i, j int) bool { return len(pairs[i].key) > len(pairs[j].key) })
 	}
 
 	if pairs != nil {
-		// strtr(string $string, array $replace_pairs): string
-		keys := make([]string, 0, len(pairs))
-		for k := range pairs {
-			keys = append(keys, k)
+		if len(pairs) == 0 {
+			return data.NewStringValue(str), nil
 		}
-
-		// Sort keys by length descending to ensure longest match first
-		sort.Slice(keys, func(i, j int) bool {
-			return len(keys[i]) > len(keys[j])
-		})
-
-		var args []string
-		for _, k := range keys {
-			args = append(args, k, pairs[k])
+		matched := false
+		var builder strings.Builder
+		builder.Grow(len(str))
+		for i := 0; i < len(str); {
+			replaced := false
+			for _, pair := range pairs {
+				if strings.HasPrefix(str[i:], pair.key) {
+					builder.WriteString(pair.value)
+					i += len(pair.key)
+					replaced = true
+					matched = true
+					break
+				}
+			}
+			if !replaced {
+				builder.WriteByte(str[i])
+				i++
+			}
 		}
-		replacer := strings.NewReplacer(args...)
-		return data.NewStringValue(replacer.Replace(str)), nil
+		if !matched {
+			// 没有任何替换命中时复用入参，避免为新字符串值单独分配。
+			return data.NewStringValue(str), nil
+		}
+		return data.NewStringValue(builder.String()), nil
 	}
 
 	// strtr(string $string, string $from, string $to): string

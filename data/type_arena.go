@@ -70,19 +70,31 @@ type TypeArena struct {
 
 var declarationTypes = NewTypeArena()
 
+// nominalKey 把名字里的 ASCII 大写折成小写作为规范化键。没有大写时直接复用入参
+// （零分配）；否则只分配一次：Builder 的 buf 就是最终字符串的底层数组，避免
+// []byte(name) + string(buf) 的两次拷贝。
 func nominalKey(name string) string {
+	first := -1
 	for i := 0; i < len(name); i++ {
-		if name[i] >= 'A' && name[i] <= 'Z' {
-			bytes := []byte(name)
-			for j := i; j < len(bytes); j++ {
-				if bytes[j] >= 'A' && bytes[j] <= 'Z' {
-					bytes[j] += 'a' - 'A'
-				}
-			}
-			return string(bytes)
+		if c := name[i]; c >= 'A' && c <= 'Z' {
+			first = i
+			break
 		}
 	}
-	return name
+	if first < 0 {
+		return name
+	}
+	var b strings.Builder
+	b.Grow(len(name))
+	b.WriteString(name[:first])
+	for i := first; i < len(name); i++ {
+		c := name[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
 }
 
 func NewTypeArena() *TypeArena {

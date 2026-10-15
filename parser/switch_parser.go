@@ -37,14 +37,21 @@ func (p *SwitchParser) Parse() (data.GetValue, data.Control) {
 
 	// 解析switch分支
 	var cases []node.SwitchCase
-	var defaultCase []data.GetValue
+	hasDefault := false
 
 	for p.current().Type() != token.RBRACE && !p.isEOF() {
 		if p.checkPositionIs(0, token.DEFAULT) {
-			defaultCase, acl = p.parseDefaultCase()
+			defaultFrom := p.FromCurrentToken()
+			if hasDefault {
+				return nil, data.NewCompileFatal(p.FromCurrentToken(), "Switch statements may only contain one default clause")
+			}
+			hasDefault = true
+			defaultCase, ctl := p.parseDefaultCase()
+			acl = ctl
 			if acl != nil {
 				return nil, acl
 			}
+			cases = append(cases, node.SwitchCase{Node: node.NewNode(defaultFrom), Statements: defaultCase})
 		} else if p.checkPositionIs(0, token.CASE) {
 			caseStmt, acl := p.parseSwitchCase()
 			if acl != nil {
@@ -67,7 +74,7 @@ func (p *SwitchParser) Parse() (data.GetValue, data.Control) {
 		from,
 		condition,
 		cases,
-		defaultCase,
+		nil,
 	), nil
 }
 

@@ -76,7 +76,6 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 	case *data.ClassValue:
 		// 类实例：若实现语言层 Iterator 接口，则按五方法迭代
 		return u.foreachClassValue(ctx, array)
-
 	case *data.ArrayValue:
 		var v data.GetValue
 		var c data.Control
@@ -107,10 +106,16 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 					switch ctrl := c.(type) {
 					case data.BreakControl:
 						if ctrl.IsBreak() {
+							if rest := consumeBreakLevel(ctrl); rest != nil {
+								return nil, rest
+							}
 							return nil, nil
 						}
 					case data.ContinueControl:
 						if ctrl.IsContinue() {
+							if rest := consumeContinueLevel(ctrl); rest != nil {
+								return nil, rest
+							}
 							goto nextArrayElement
 						}
 					case data.YieldValueControl:
@@ -201,11 +206,21 @@ func (u *ForeachStatement) foreachObjectValue(ctx data.Context, obj *data.Object
 				switch ctrl := c.(type) {
 				case data.BreakControl:
 					if ctrl.IsBreak() {
+						if rest := consumeBreakLevel(ctrl); rest != nil {
+							c = rest
+							shouldReturn = true
+							return false
+						}
 						shouldBreak = true
 						return false
 					}
 				case data.ContinueControl:
 					if ctrl.IsContinue() {
+						if rest := consumeContinueLevel(ctrl); rest != nil {
+							c = rest
+							shouldReturn = true
+							return false
+						}
 						// 继续下一次迭代；勿把 ContinueControl 留到循环结束后泄漏
 						c = nil
 						return true
@@ -283,9 +298,15 @@ func (u *ForeachStatement) foreachIterator(ctx data.Context, array data.Iterator
 			v, c = statement.GetValue(ctx)
 			if c != nil {
 				if ctrl, ok := c.(data.BreakControl); ok && ctrl.IsBreak() {
+					if rest := consumeBreakLevel(ctrl); rest != nil {
+						return nil, rest
+					}
 					return nil, nil
 				}
 				if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
+					if rest := consumeContinueLevel(ctrl); rest != nil {
+						return nil, rest
+					}
 					// 推进迭代器进入下一次
 					if ctl := array.Next(ctx); ctl != nil {
 						return nil, ctl
@@ -360,9 +381,15 @@ func (u *ForeachStatement) foreachClassValue(ctx data.Context, array *data.Class
 				v, c = statement.GetValue(ctx)
 				if c != nil {
 					if ctrl, ok := c.(data.BreakControl); ok && ctrl.IsBreak() {
+						if rest := consumeBreakLevel(ctrl); rest != nil {
+							return nil, rest
+						}
 						return nil, nil
 					}
 					if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
+						if rest := consumeContinueLevel(ctrl); rest != nil {
+							return nil, rest
+						}
 						// 推进迭代器进入下一次
 						if ctl := callVoidMethod(ctx, array, "next"); ctl != nil {
 							return nil, ctl
@@ -420,10 +447,20 @@ func (u *ForeachStatement) foreachClassValue(ctx data.Context, array *data.Class
 			v, c = statement.GetValue(ctx)
 			if c != nil {
 				if ctrl, ok := c.(data.BreakControl); ok && ctrl.IsBreak() {
+					if rest := consumeBreakLevel(ctrl); rest != nil {
+						c = rest
+						shouldReturn = true
+						return false
+					}
 					shouldBreak = true
 					return false // 停止遍历
 				}
 				if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
+					if rest := consumeContinueLevel(ctrl); rest != nil {
+						c = rest
+						shouldReturn = true
+						return false
+					}
 					return true // 继续下一次迭代
 				}
 				shouldReturn = true
@@ -535,9 +572,15 @@ func (f *ForeachArrayYieldControl) Next(ctx data.Context) data.Control {
 			_, c := statement.GetValue(ctx)
 			if c != nil {
 				if ctrl, ok := c.(data.BreakControl); ok && ctrl.IsBreak() {
+					if rest := consumeBreakLevel(ctrl); rest != nil {
+						return rest
+					}
 					return nil
 				}
 				if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
+					if rest := consumeContinueLevel(ctrl); rest != nil {
+						return rest
+					}
 					break // 跳到下一个数组元素
 				}
 				if ctrl, ok := c.(data.YieldValueControl); ok {

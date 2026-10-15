@@ -33,12 +33,18 @@ func (u *WhileStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 		for bodyIndex, statement := range u.Body {
 			v, c = statement.GetValue(ctx)
 			if c != nil {
-				// break 跳出循环
+				// break 跳出循环（消费一层；break N 的剩余层级继续上抛）
 				if ctrl, ok := c.(data.BreakControl); ok && ctrl.IsBreak() {
+					if rest := consumeBreakLevel(ctrl); rest != nil {
+						return nil, rest
+					}
 					return nil, nil
 				}
-				// continue 跳到条件判断
+				// continue 跳到条件判断（消费一层；continue N 的剩余层级继续上抛）
 				if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
+					if rest := consumeContinueLevel(ctrl); rest != nil {
+						return nil, rest
+					}
 					break
 				}
 				// yield：保存循环恢复状态（vlucas/phpdotenv Lexer::lex 依赖 while+yield）
@@ -140,9 +146,15 @@ func (w *WhileYieldControl) Next(ctx data.Context) data.Control {
 
 		if c != nil {
 			if ctrl, ok := c.(data.BreakControl); ok && ctrl.IsBreak() {
+				if rest := consumeBreakLevel(ctrl); rest != nil {
+					return rest
+				}
 				return nil
 			}
 			if ctrl, ok := c.(data.ContinueControl); ok && ctrl.IsContinue() {
+				if rest := consumeContinueLevel(ctrl); rest != nil {
+					return rest
+				}
 				break
 			}
 			if ctrl, ok := c.(data.YieldValueControl); ok {

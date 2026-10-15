@@ -12,13 +12,13 @@ import (
 	"github.com/php-any/origami/perfmon"
 	"github.com/php-any/origami/runtime"
 	"github.com/php-any/origami/std"
+	"github.com/php-any/origami/std/laravel"
+	"github.com/php-any/origami/std/laravel/serve"
 	netannotation "github.com/php-any/origami/std/net/annotation"
 	httplib "github.com/php-any/origami/std/net/http"
 	"github.com/php-any/origami/std/net/websocket"
 	"github.com/php-any/origami/std/php"
 	"github.com/php-any/origami/std/system"
-	"github.com/php-any/origami/std/vendoraccel"
-	"github.com/php-any/origami/std/vendoraccel/warmup"
 )
 
 var stopPerf = func() {}
@@ -51,9 +51,8 @@ func buildVM() (*runtime.VM, *parser.Parser) {
 	websocket.Load(vm)
 	netannotation.Load(vm)
 	system.Load(vm)
-	// Vendor substitutions require a complete contract; uncertified definitions
-	// use Composer PHP. ServeCommand is the explicit Go HTTP/process adapter.
-	vendoraccel.Load(vm)
+	laravel.Load(vm)
+	serve.Load(vm)
 
 	return vm, p
 }
@@ -67,13 +66,6 @@ func runArtisan(args []string) {
 	node.ResetSuperglobals()
 
 	vm, p := buildVM()
-
-	// 可选：artisan 进程也做 vendor 预热（默认关，避免拖慢 list/about）
-	if warmup.ShouldWarmup() {
-		if root, err := os.Getwd(); err == nil {
-			warmup.WarmupVendorClassmap(vm, root)
-		}
-	}
 
 	_, ctl := vm.LoadAndRun("artisan")
 	finish(vm, p, ctl)

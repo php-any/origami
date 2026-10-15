@@ -13,7 +13,9 @@
 
 ## Vendor 标准库加速
 
-加速**只覆盖 vendor FQCN**，由 `std/vendoraccel.Load` 在 [`main.go`](main.go) 的 `buildVM()` 中加载；**不进入**默认 `zy.go` / `php.Load`。
+加速**只覆盖 vendor FQCN**，由 `std/laravel.Load` 和对应组件的 `Load` 在 [`main.go`](main.go) 的 `buildVM()` 中加载；**不进入**默认 `zy.go` / `php.Load`。
+
+各模块直接向 VM 注册，由组件自己的 `Load` 决定启用的类与函数；不再设置 `vendoraccel` 中间层或注册门禁。Laravel 13 同时显式加载 `std/laravel/serve` 作为进程适配器。
 
 ### Symfony：一包一子模块
 
@@ -90,10 +92,6 @@ std/laravel/
 ### go-support
 
 只保留进程适配 `ServeCommand`。HTTP Kernel 由 `std/laravel/httpkernel` 在 vendor autoload 前以官方 FQN 注册，HttpFoundation 已迁入 `std/symfony/http-foundation`。
-
-### 预热
-
-`serve` 启动前调用 `vendoraccel.WarmupVendorClassmap`：只扫 `vendor/composer/autoload_classmap.php` 中路径在 `vendor/` 下、且尚未 native 的类。artisan 默认关闭；设 `ORIGAMI_LARAVEL_PRELOAD=1` 可打开。
 
 冒烟：`go run -mod=mod . run tests/origami/vendoraccel_smoke.php`
 

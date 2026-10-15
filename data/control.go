@@ -16,6 +16,8 @@ type BreakControl interface {
 	IsBreak() bool
 	// GetLabel 获取中断标签
 	GetLabel() string
+	// BreakLevel 返回 break N 的层级（最内层为 1）。普通 break 返回 1。
+	BreakLevel() int
 }
 
 // ContinueControl 表示继续语句控制流
@@ -25,6 +27,8 @@ type ContinueControl interface {
 	IsContinue() bool
 	// GetLabel 获取继续标签
 	GetLabel() string
+	// ContinueLevel 返回 continue N 的层级（最内层为 1）。普通 continue 返回 1。
+	ContinueLevel() int
 }
 
 // ExitControl 表示程序退出控制流

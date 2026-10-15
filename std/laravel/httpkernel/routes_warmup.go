@@ -1,6 +1,11 @@
 package httpkernel
 
-import "github.com/php-any/origami/data"
+import (
+	"fmt"
+	"os"
+
+	"github.com/php-any/origami/data"
+)
 
 // warmRouteCompiles 启动期把每条路由编译一次。
 //
@@ -52,6 +57,61 @@ func warmRouteCompiles(ctx data.Context, router data.Value) {
 		}
 		_, _ = callObjectMethodInContext(ctx, z.ReadValue(), "compileRoute")
 	}
+}
+
+// warmCompiledRoutes 把 Router 的路由集合换成 vendor 自带的 CompiledRouteCollection。
+//
+// 动机：RouteCollection::match（RouteCollection.php:214）对请求方法下的**全部**候选路由
+// 逐个调用 Route::matches（UriValidator→preg_match），/hello 实测 39 次/请求，占总时间
+// ~17%。CompiledRouteCollection 走 Symfony CompiledUrlMatcher（静态路由哈希、动态路由
+// 正则集合），是 Laravel 自己 route:cache 用的路径。
+//
+// 只在启动期做一次；compile() 的产物是启动期常量。任何一步失败都静默回落到原集合。
+func warmCompiledRoutes(ctx data.Context, router data.Value) {
+	if ctx == nil || router == nil {
+		return
+	}
+	rv, ok := router.(*data.ClassValue)
+	if !ok || rv == nil {
+		return
+	}
+	col, ctl := rv.GetProperty("routes")
+	if ctl != nil || col == nil {
+		fmt.Fprintf(os.Stderr, "ORIGAMI-CC: no routes property ctl=%v col=%v\n", ctl, col)
+		return
+	}
+	if isCompiledRouteCollection(ctx, col) {
+		fmt.Fprintf(os.Stderr, "ORIGAMI-CC: already compiled\n")
+		return
+	}
+	compiled, ctl := callObjectMethodInContext(ctx, col, "compile")
+	if ctl != nil || compiled == nil {
+		fmt.Fprintf(os.Stderr, "ORIGAMI-CC: compile failed ctl=%v\n", ctl)
+		return
+	}
+	if _, ctl := callObjectMethodInContext(ctx, rv, "setCompiledRoutes", asValue(compiled)); ctl != nil {
+		fmt.Fprintf(os.Stderr, "ORIGAMI-CC: setCompiledRoutes failed ctl=%v\n", ctl)
+		return
+	}
+	fmt.Fprintf(os.Stderr, "ORIGAMI-CC: swapped OK was=%s\n", classOf(col))
+}
+
+func classOf(value data.Value) string {
+	if cv, ok := value.(*data.ClassValue); ok && cv != nil && cv.Class != nil {
+		return cv.Class.GetName()
+	}
+	return fmt.Sprintf("%T", value)
+}
+
+func isCompiledRouteCollection(ctx data.Context, value data.Value) bool {
+	var object *data.ClassValue
+	switch v := value.(type) {
+	case *data.ClassValue:
+		object = v
+	case *data.ThisValue:
+		object = v.ClassValue
+	}
+	return object != nil && data.NominalIsA(object.Class, "Illuminate\\Routing\\CompiledRouteCollection", ctx.GetVM())
 }
 
 func isRouteValue(ctx data.Context, value data.Value) bool {

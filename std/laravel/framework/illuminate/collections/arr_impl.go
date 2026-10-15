@@ -172,10 +172,48 @@ func dataSetSegments(target data.Value, segments []string, value data.Value, ove
 func arrAdd(ctx data.Context) (data.GetValue, data.Control) {
 	arr, _ := ctx.GetIndexValue(0)
 	key, _ := ctx.GetIndexValue(1)
-	if _, ok := dataGetPath(arr, keyToString(key)); ok {
+	value, _ := ctx.GetIndexValue(2)
+	if key == nil || isNull(key) {
+		if isAccessible(arr) {
+			return arr, nil
+		}
+		return value, nil
+	}
+	path := keyToString(key)
+	// Arr::get checks a literal key before traversing dot notation. An
+	// existing null still needs to be filled, unlike false/0/empty values.
+	var existing data.Value
+	var found bool
+	if array, ok := arr.(*data.ArrayValue); ok {
+		if slot, ok := array.LookupZValByStringKey(path); ok {
+			existing, found = slot.ReadValue(), true
+		}
+	}
+	if !found && path != "" {
+		existing, found = dataGetPath(arr, path)
+	}
+	if found && !isNull(existing) {
 		return arr, nil
 	}
-	return arrSet(ctx)
+	// The argument is by value. Separate only the arrays on the modified
+	// path; keep PHP reference buckets shared, as PHP array copying does.
+	array := asMutableArray(data.CowSeparateIndex(ctx, 0))
+	current := array
+	segments := strings.Split(path, ".")
+	for _, segment := range segments[:len(segments)-1] {
+		if slot, ok := current.LookupZValByStringKey(segment); ok {
+			if _, ok := slot.ReadValue().(*data.ArrayValue); ok {
+				data.CowSeparateZVal(slot)
+				current = slot.ReadValue().(*data.ArrayValue)
+				continue
+			}
+		}
+		next := data.NewArrayValue(nil).(*data.ArrayValue)
+		setEntry(current, segment, next)
+		current = next
+	}
+	setEntry(current, segments[len(segments)-1], value)
+	return array, nil
 }
 
 func arrForget(ctx data.Context) (data.GetValue, data.Control) {
