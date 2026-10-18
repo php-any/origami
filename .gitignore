@@ -1,5 +1,9 @@
 .vscode
 .idea
+.claude/
+.cursor/
+.qoder/
+.skill/
 vendor
 .DS_Store
 /origami
