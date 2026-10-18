@@ -12,8 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goos: [linux, windows, darwin]
-        goarch: [amd64]
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: windows
+            goarch: amd64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
     
     steps:
     - uses: actions/checkout@v4
@@ -33,6 +40,7 @@ jobs:
       env:
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
+        CGO_ENABLED: 0
       run: |
         if [ "$GOOS" = "windows" ]; then
           go build -o zy-${{ matrix.goos }}-${{ matrix.goarch }}.exe .
@@ -44,6 +52,7 @@ jobs:
       env:
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
+        CGO_ENABLED: 0
       run: |
         cd tools/lsp
         if [ "$GOOS" = "windows" ]; then
