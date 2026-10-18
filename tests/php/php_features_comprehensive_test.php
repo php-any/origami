@@ -241,9 +241,12 @@ $year = intval(date("Y"));
 assert($year >= 2000, "date('Y') 应返回当前年份，实际为 {$year}");
 Log::info("[PASS] date('Y-m-d') = {$dateStr}");
 
-// mktime
+// mktime 按本地时区解释，不能写死东八区时间戳。
 $ts = mktime(0, 0, 0, 1, 1, 2024);
-assert($ts == 1704038400, "mktime(0,0,0,1,1,2024) 应为 1704038400");
+$formatted = date('Y-m-d H:i:s', $ts);
+assert($formatted === '2024-01-01 00:00:00', "mktime 应为本地 2024-01-01 00:00:00，实际 {$formatted} ts={$ts}");
+$utc = gmmktime(0, 0, 0, 1, 1, 2024);
+assert($utc === 1704067200, "gmmktime 应为 UTC 时间戳 1704067200，实际 {$utc}");
 Log::info("[PASS] mktime = {$ts}");
 
 // checkdate
