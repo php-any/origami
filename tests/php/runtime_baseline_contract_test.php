@@ -25,7 +25,7 @@ baseline_check(reset($o) === 10 && key($o) === "\0BaselinePointer\0first", 'obje
 baseline_check(next($o) === 20 && end($o) === 20 && prev($o) === 10, 'object pointer movement');
 baseline_check($warnings === [8192,8192,8192,8192,8192], 'object pointer deprecations');
 restore_error_handler();
-$file = __DIR__.'/../../examples/laravel13/storage/origami-debug/runtime-baseline-source.php';
+$file = sys_get_temp_dir() . '/origami-runtime-baseline-' . getmypid() . '.php';
 file_put_contents($file, '<?php return 1;');
 baseline_check((require $file) === 1, 'first include');
 file_put_contents($file, '<?php return 2;');

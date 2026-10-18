@@ -127,7 +127,9 @@ func (u *ForeachStatement) GetValue(ctx data.Context) (data.GetValue, data.Contr
 								valueList[j] = z.ReadValue()
 							}
 						}
-						return nil, NewForeachArrayYieldControl(u, valueList, i, bodyIndex+1, ctrl)
+						state := NewForeachArrayYieldControl(u, valueList, i, bodyIndex+1, ctrl)
+						state.Slots = listSnapshot
+						return nil, state
 					}
 					// return/throw 直接返回
 					return nil, c
@@ -282,7 +284,21 @@ func (u *ForeachStatement) foreachIterator(ctx data.Context, array data.Iterator
 		if ctl != nil {
 			return nil, ctl
 		}
-		ctx.SetVariableValue(u.Value, valV)
+		if u.ValueByRef {
+			slot, ctl := data.ReferenceSlot(valV)
+			if ctl != nil {
+				return nil, ctl
+			}
+			if slot == nil {
+				return nil, data.NewErrorThrowByName(u.GetFrom(), fmt.Errorf("Iterator does not yield references"), "Error")
+			}
+			data.BindContextReference(ctx, u.Value.GetIndex(), slot)
+		} else {
+			if ref, ok := valV.(*data.ArraySlotRef); ok {
+				valV = ref.Slot.ReadValue()
+			}
+			ctx.SetVariableValue(u.Value, valV)
+		}
 
 		// key
 		if u.Key != nil {
@@ -332,6 +348,9 @@ func (u *ForeachStatement) foreachIterator(ctx data.Context, array data.Iterator
 // foreachClassValue 处理 *data.ClassValue（及内嵌它的类型）的 foreach 逻辑：
 // 优先检查 Iterator，再检查 IteratorAggregate，否则按对象属性遍历。
 func (u *ForeachStatement) foreachClassValue(ctx data.Context, array *data.ClassValue) (data.GetValue, data.Control) {
+	if generator, ok := array.Class.(*GeneratorClass); ok {
+		return u.foreachIterator(ctx, generator.generator)
+	}
 	var v data.GetValue
 	var c data.Control
 
@@ -504,6 +523,7 @@ func NewForeachStatementByRef(token *TokenFrom, array data.GetValue, key data.Va
 // ForeachArrayYieldControl 表示在 foreach 数组循环体内遇到 yield 时的暂停状态
 // 实现 data.YieldControl，使得 FuncYieldStackState.Next() 可以正确恢复迭代
 type ForeachArrayYieldControl struct {
+	Slots []*data.ZVal
 	*ForeachStatement
 	ValueList  []data.Value
 	ArrayIndex int // 当前数组元素的索引（下次恢复后还需继续遍历的位置）
@@ -557,8 +577,14 @@ func (f *ForeachArrayYieldControl) Next(ctx data.Context) data.Control {
 			continue
 		}
 		// 设置变量
-		if acl := f.ForeachStatement.Value.SetValue(ctx, element); acl != nil {
-			return acl
+		if i != f.ArrayIndex || startBodyIndex == 0 {
+			var slot *data.ZVal
+			if i < len(f.Slots) {
+				slot = f.Slots[i]
+			}
+			if acl := f.ForeachStatement.bindForeachValue(ctx, element, slot, nil, ""); acl != nil {
+				return acl
+			}
 		}
 		if f.ForeachStatement.Key != nil {
 			ctx.SetVariableValue(f.ForeachStatement.Key, data.NewIntValue(i))

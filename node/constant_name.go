@@ -1,6 +1,9 @@
 package node
 
-import "github.com/php-any/origami/data"
+import (
+	"github.com/php-any/origami/data"
+	"strings"
+)
 
 // ConstantName 表示运行时解析的裸常量名（如 APP_ROOT）。
 // define() 在执行期注册常量，解析期尚不可见，不能烘焙成字符串字面量。
@@ -19,7 +22,7 @@ func NewConstantName(from data.From, name string) *ConstantName {
 func (c *ConstantName) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	if ctx != nil {
 		if vm := ctx.GetVM(); vm != nil {
-			if v, ok := vm.GetConstant(c.Name); ok {
+			if v, ok := vm.GetConstant(strings.TrimPrefix(c.Name, "\\")); ok {
 				return v, nil
 			}
 		}

@@ -131,7 +131,7 @@ func (p *SwitchParser) parseSwitchCase() (*node.SwitchCase, data.Control) {
 			break
 		} else if p.checkPositionIs(0, token.BREAK) {
 			// 处理break语句
-			stmt, acl := p.parseStatement()
+			stmt, acl := p.parseTickStatement()
 			if acl != nil {
 				return nil, acl
 			}
@@ -146,7 +146,7 @@ func (p *SwitchParser) parseSwitchCase() (*node.SwitchCase, data.Control) {
 			break
 		} else {
 			// 这是一个表达式
-			stmt, acl := p.parseStatement()
+			stmt, acl := p.parseTickStatement()
 			if acl != nil {
 				return nil, acl
 			}
@@ -192,7 +192,7 @@ func (p *SwitchParser) parseDefaultCase() ([]data.GetValue, data.Control) {
 			break
 		} else if p.checkPositionIs(0, token.BREAK) {
 			// 处理break语句
-			stmt, acl := p.parseStatement()
+			stmt, acl := p.parseTickStatement()
 			if acl != nil {
 				return nil, acl
 			}
@@ -207,7 +207,7 @@ func (p *SwitchParser) parseDefaultCase() ([]data.GetValue, data.Control) {
 			break
 		} else {
 			// 这是一个表达式
-			stmt, acl := p.parseStatement()
+			stmt, acl := p.parseTickStatement()
 			if acl != nil {
 				return nil, acl
 			}

@@ -9,15 +9,19 @@ func (u *ConstStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 	}
 	// 跳过类型检查，直接赋值
 	ctx.SetVariableValue(u.Val, v.(data.Value))
+	if u.QualifiedName != "" {
+		ctx.GetVM().SetConstant(u.QualifiedName, v.(data.Value))
+	}
 
 	return v, nil
 }
 
 // ConstStatement 表示常量声明语句
 type ConstStatement struct {
-	*Node       `pp:"-"`
-	Val         data.Variable
-	Initializer data.GetValue
+	*Node         `pp:"-"`
+	Val           data.Variable
+	Initializer   data.GetValue
+	QualifiedName string
 }
 
 // NewConstStatement 创建一个新的常量声明语句

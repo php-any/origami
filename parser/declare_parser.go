@@ -21,6 +21,9 @@ func NewDeclareParser(p *Parser) StatementParser {
 // strict_types is retained on the compiled unit and declarations.
 func (p *DeclareParser) Parse() (data.GetValue, data.Control) {
 	strictDirective := false
+	previousTicks := p.tickInterval
+	ticks := previousTicks
+	tracker := p.StartTracking()
 	p.next() // 跳过 declare
 
 	// 左括号
@@ -45,6 +48,12 @@ func (p *DeclareParser) Parse() (data.GetValue, data.Control) {
 			}
 			strictDirective = true
 			p.strictTypes = value == 1
+		} else if name == "ticks" {
+			value, err := strconv.Atoi(p.current().Literal())
+			if err != nil || value < 0 {
+				return nil, data.NewCompileFatal(p.newFrom(), "ticks value must be a non-negative integer")
+			}
+			ticks = value
 		}
 		p.next()
 		if p.checkPositionIs(0, token.COMMA) {
@@ -59,7 +68,11 @@ func (p *DeclareParser) Parse() (data.GetValue, data.Control) {
 	}
 	if p.checkPositionIs(0, token.SEMICOLON) {
 		p.next()
+		p.tickInterval = ticks
+		return node.NewTodo(), nil
 	}
-
-	return node.NewTodo(), nil
+	p.tickInterval = ticks
+	defer func() { p.tickInterval = previousTicks }()
+	statements, ctl := p.parseBlock()
+	return node.NewBlockStatement(tracker.EndBefore(), statements), ctl
 }

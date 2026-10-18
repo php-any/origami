@@ -48,6 +48,8 @@ func Load(vm data.VM) {
 		NewSetErrorHandlerFunction(),
 		NewRestoreErrorHandlerFunction(),
 		NewRegisterShutdownFunctionFunction(),
+		&TickFunction{},
+		&TickFunction{unregister: true},
 		NewTimeFunction(),
 		NewStrftimeFunction(),
 		NewDateDefaultTimezoneGetFunction(),

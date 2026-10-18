@@ -39,7 +39,9 @@ type Parser struct {
 
 	namespace        *node.Namespace
 	uses             map[string]string // 类引用
-	ClassPathManager ClassPathManager  // 类路径管理器
+	functionUses     map[string]string
+	constantUses     map[string]string
+	ClassPathManager ClassPathManager // 类路径管理器
 
 	// definingAbstractClass 为 true 时正在解析 abstract class
 	definingAbstractClass bool
@@ -50,6 +52,10 @@ type Parser struct {
 	conditionalDeclDepth int
 	strictTypes          bool
 	declarationsOnly     bool
+	tickInterval         int
+	compilerHaltOffset   int
+	namespaceBracketed   bool
+	namespaceUnbracketed bool
 }
 
 // NewParser 创建一个新的解析器
@@ -74,6 +80,8 @@ func (p *Parser) reset() {
 	p.position = 0
 	p.errors = make([]data.Control, 0)
 	p.uses = make(map[string]string)
+	p.functionUses = nil
+	p.constantUses = nil
 	p.namespace = nil
 	p.currentClass = ""
 	p.currentClassParent = nil
@@ -84,6 +92,10 @@ func (p *Parser) reset() {
 	p.staticHolderStack = p.staticHolderStack[:0]
 	p.strictTypes = false
 	p.declarationsOnly = true
+	p.tickInterval = 0
+	p.compilerHaltOffset = 0
+	p.namespaceBracketed = false
+	p.namespaceUnbracketed = false
 }
 
 func (p *Parser) Clone() *Parser {
@@ -156,6 +168,17 @@ func (p *Parser) ParseFile(filename string) (*node.Program, data.Control) {
 	p.reset()
 
 	p.source = &filename
+	// Determine the byte offset before alternative-syntax conversion or shebang removal.
+	if strings.Contains(strings.ToLower(string(content)), "__halt_compiler") {
+		raw := lexer.NewLexer().TokenizeTemplate(string(content))
+		for i, tok := range raw {
+			if tok.Type() == token.HALT_COMPILER && i+3 < len(raw) && raw[i+1].Type() == token.LPAREN && raw[i+2].Type() == token.RPAREN && raw[i+3].Type() == token.SEMICOLON {
+				p.compilerHaltOffset = raw[i+3].End()
+				content = content[:p.compilerHaltOffset]
+				break
+			}
+		}
+	}
 	p.tokens = tokenizeFileContent(p.lexer, filename, content)
 
 	// 解析程序
@@ -197,14 +220,31 @@ func (p *Parser) parseProgram(statements []data.GetValue) (*node.Program, data.C
 	last := 0
 	// 解析所有语句
 	for !p.isEOF() {
-		stmt, acl := p.parseStatement()
+		if p.namespaceBracketed {
+			switch p.current().Type() {
+			case token.COMMENT, token.MULTILINE_COMMENT, token.WHITESPACE, token.NEWLINE, token.START_TAG, token.END_TAG:
+				p.next()
+				continue
+			case token.NAMESPACE:
+			default:
+				return nil, data.NewCompileFatal(p.newFrom(), "No code may exist outside of namespace {}")
+			}
+		}
+		stmt, acl := p.parseTickStatement()
 		if acl != nil {
 			return nil, acl
 		}
 		if stmt != nil {
 			if n, ok := stmt.(*node.Namespace); ok {
-				p.namespace = n
 				statements = append(statements, stmt)
+				if n.Bracketed {
+					p.namespace = nil
+					p.uses = make(map[string]string)
+					p.functionUses = nil
+					p.constantUses = nil
+				} else {
+					p.namespace = n
+				}
 			} else if _, ok := stmt.(*node.ClassRegisterStmt); ok {
 				if p.namespace != nil {
 					p.namespace.Statements = append(p.namespace.Statements, stmt)
@@ -221,9 +261,6 @@ func (p *Parser) parseProgram(statements []data.GetValue) (*node.Program, data.C
 			} else if _, ok := stmt.(*node.InterfaceStatement); ok {
 				continue
 			} else {
-				if n, ok := stmt.(*node.UseStatement); ok {
-					p.uses[n.Alias] = n.Namespace
-				}
 
 				if p.namespace != nil {
 					p.namespace.Statements = append(p.namespace.Statements, stmt)
@@ -473,6 +510,25 @@ func (p *Parser) getClassName(try bool) (string, data.Control) {
 }
 
 // parseStatement 解析语句
+func (p *Parser) parseTickStatement() (statement data.GetValue, control data.Control) {
+	interval, kind := p.tickInterval, p.current().Type()
+	defer func() {
+		if interval <= 0 || control != nil || statement == nil {
+			return
+		}
+		// Labels are jump targets, not tickable executable statements.
+		if _, label := statement.(*node.LabelStatement); label {
+			return
+		}
+		switch kind {
+		case token.DECLARE, token.START_TAG, token.END_TAG, token.SEMICOLON, token.NEWLINE, token.NAMESPACE, token.USE, token.CLASS, token.FUNC:
+			return
+		}
+		statement = &node.TickStatement{Statement: statement, Interval: interval}
+	}()
+	return p.parseStatement()
+}
+
 func (p *Parser) parseStatement() (data.GetValue, data.Control) {
 	switch p.current().Type() {
 	case token.DECLARE, token.START_TAG, token.COMMENT, token.MULTILINE_COMMENT, token.WHITESPACE, token.NEWLINE:
@@ -494,6 +550,18 @@ func (p *Parser) parseStatement() (data.GetValue, data.Control) {
 		stmt := node.NewInlineHTMLNode(p.FromCurrentToken(), p.current().Literal())
 		p.next()
 		return stmt, nil
+	case token.HALT_COMPILER:
+		if p.conditionalDeclDepth > 0 {
+			return nil, data.NewCompileFatal(p.newFrom(), "__HALT_COMPILER() can only be used from the outermost scope")
+		}
+		p.next()
+		for _, kind := range []token.TokenType{token.LPAREN, token.RPAREN, token.SEMICOLON} {
+			if ctl := p.nextAndCheck(kind); ctl != nil {
+				return nil, ctl
+			}
+		}
+		p.position = len(p.tokens)
+		return node.NewTodo(), nil
 	case token.START_TAG:
 		if p.current().Literal() == "<?=" {
 			// 短回显标签：<?= expr ?> 等价于 <?php echo expr ?>
@@ -574,7 +642,7 @@ func (p *Parser) parseBlock() ([]data.GetValue, data.Control) {
 	// 检查是否是语句块开始
 	if p.current().Type() != token.LBRACE {
 		// 如果不是语句块，则解析单个语句
-		stmt, acl := p.parseStatement()
+		stmt, acl := p.parseTickStatement()
 		if acl != nil {
 			return nil, acl
 		}
@@ -598,7 +666,7 @@ func (p *Parser) parseBlock() ([]data.GetValue, data.Control) {
 	// 解析语句块中的所有语句
 	for !p.isEOF() && p.current().Type() != token.RBRACE {
 		startPos := p.position
-		stmt, acl := p.parseStatement()
+		stmt, acl := p.parseTickStatement()
 		if acl != nil {
 			return nil, acl
 		}
@@ -637,6 +705,9 @@ func (p *Parser) AddScanNamespace(namespace string, path string) {
 
 // 默认 try = true; 只获取全量名称
 func (p *Parser) findFullClassNameByNamespace(name string) (string, bool) {
+	if strings.HasPrefix(strings.ToLower(name), "namespace\\") {
+		return p.GetNamespace() + "\\" + name[len("namespace\\"):], true
+	}
 	if p.vm == nil {
 		if strings.HasPrefix(name, "\\") {
 			return strings.TrimPrefix(name, "\\"), true
@@ -758,7 +829,7 @@ func (p *Parser) findFullClassNameByNamespace(name string) (string, bool) {
 }
 
 func (p *Parser) findFullFunNameByNamespace(name string) (string, bool) {
-	if full, ok := p.uses[name]; ok {
+	if full, ok := p.functionUses[strings.ToLower(name)]; ok {
 		return full, true
 	}
 	// 去除前导 \（全局函数引用）
@@ -1006,6 +1077,15 @@ func (p *Parser) parseTokensAsExpression(tokens []lexer.Token) (data.GetValue, d
 
 	np.scopeManager = p.scopeManager
 	np.uses = p.uses
+	np.functionUses = p.functionUses
+	np.constantUses = p.constantUses
+	np.strictTypes = p.strictTypes
+	np.currentClass = p.currentClass
+	np.currentFunction = p.currentFunction
+	np.compilerHaltOffset = p.compilerHaltOffset
+	if p.namespace != nil {
+		np.namespace = node.NewNamespace(nil, p.namespace.GetName(), nil)
+	}
 	np.source = p.source
 
 	// 设置新的 tokens
@@ -1013,5 +1093,9 @@ func (p *Parser) parseTokensAsExpression(tokens []lexer.Token) (data.GetValue, d
 	np.position = 0
 
 	// 直接使用表达式解析器解析表达式
-	return np.parseProgram(make([]data.GetValue, 0))
+	var statements []data.GetValue
+	if np.namespace != nil {
+		statements = append(statements, np.namespace)
+	}
+	return np.parseProgram(statements)
 }

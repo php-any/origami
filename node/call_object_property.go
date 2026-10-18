@@ -38,8 +38,18 @@ func propertyReferenceSlot(ctx data.Context, object *data.ClassValue, name strin
 	property, declared := lookupObjectProperty(ctx, object, name)
 	accessible := !declared || propertyAccessible(ctx, object, property, name)
 	if accessible && declared {
-		if p, ok := property.(*ClassProperty); ok && p.IsReadonly {
-			return nil, data.NewErrorThrowByName(from.GetFrom(), data.NewError(from.GetFrom(), "Cannot acquire reference to readonly property", nil), "Error")
+		if p, ok := property.(*ClassProperty); ok {
+			if (p.GetHook != nil || p.SetHook != nil) && !insidePropertyHook(ctx, object, p) {
+				return nil, data.NewErrorThrowByName(from.GetFrom(), fmt.Errorf("Cannot acquire reference to hooked property %s::$%s", p.DeclaringClass, name), "Error")
+			}
+			if p.writeFlags&writeRestricted != 0 {
+				if ctl := propertyWriteAccess(ctx, p, from.GetFrom()); ctl != nil {
+					return nil, ctl
+				}
+			}
+			if p.writeFlags&writeReadonly != 0 {
+				return nil, data.NewErrorThrowByName(from.GetFrom(), data.NewError(from.GetFrom(), "Cannot acquire reference to readonly property", nil), "Error")
+			}
 		}
 		return property.GetZVal(object)
 	}
@@ -104,19 +114,21 @@ func (pe *CallObjectProperty) AssignValue(ctx data.Context, value data.Value) (d
 		}
 		if ok {
 			var cloneState *readonlyCloneState
-			if readonly, yes := property.(*ClassProperty); yes && readonly.IsReadonly {
-				if object.ObjectValue.HasProperty(data.PropertyStorageName(property)) {
-					cloneState = readonlyClonePermission(ctx, object.ObjectValue, data.PropertyStorageName(property))
-					if cloneState == nil {
-						return nil, data.NewErrorThrowByName(pe.GetFrom(), fmt.Errorf("Cannot modify readonly property %s::$%s", readonly.DeclaringClass, pe.Property), "Error")
+			var storageName string
+			var propertyType data.TypeRef
+			if declared, yes := property.(*ClassProperty); yes {
+				storageName, propertyType = declared.PropertyStorageName(), declared.Type
+				if declared.writeFlags != 0 {
+					handled, state, ctl := prepareSpecialPropertyWrite(ctx, object, declared, value, pe.GetFrom())
+					if handled {
+						return value, ctl
 					}
+					cloneState = state
 				}
-				owner, _ := ctx.GetVM().GetClass(readonly.DeclaringClass)
-				if !memberAccessible(ctx, data.ModifierProtected, owner) {
-					return nil, data.NewErrorThrowByName(pe.GetFrom(), fmt.Errorf("Cannot initialize readonly property %s::$%s from global scope", readonly.DeclaringClass, pe.Property), "Error")
-				}
+			} else {
+				storageName, propertyType = data.PropertyStorageName(property), data.DeclaredTypeRef(property.GetType())
 			}
-			prepared, accepted, conversion := data.PreparePropertyValue(propertyObject(object), data.PropertyStorageName(property), property.GetType(), value, ctx)
+			prepared, accepted, conversion := data.PreparePropertyValueRef(object, storageName, propertyType, value, ctx)
 
 			if conversion != nil {
 				return nil, conversion
@@ -124,9 +136,9 @@ func (pe *CallObjectProperty) AssignValue(ctx data.Context, value data.Value) (d
 			if !accepted {
 				return nil, data.NewTypeError(pe.GetFrom(), fmt.Errorf("%s 属性 %s 因为类型不一致无法赋值", TryGetCallClassName(object), pe.Property))
 			}
-			result, ctl := assignPropertyValue(ctx, propertyObject(object), data.PropertyStorageName(property), prepared)
+			result, ctl := assignPropertyValue(ctx, object, storageName, prepared)
 			if ctl == nil && cloneState != nil {
-				cloneState.written[data.PropertyStorageName(property)] = true
+				cloneState.written[storageName] = true
 			}
 			return result, ctl
 		}
@@ -235,6 +247,9 @@ func (pe *CallObjectProperty) GetValue(ctx data.Context) (data.GetValue, data.Co
 				}
 				return nil, data.NewErrorThrowByName(pe.GetFrom(), fmt.Errorf("Cannot access non-public property %s::$%s", v.Class.GetName(), pe.Property), "Error")
 			}
+			if p, yes := property.(*ClassProperty); yes && p.GetHook != nil && !insidePropertyHook(ctx, v, p) {
+				return invokePropertyHook(ctx, v, p, p.GetHook, nil)
+			}
 			return property.GetValue(v)
 		}
 		// 无声明属性时尝试 __get(string $name)
@@ -306,8 +321,16 @@ func lookupObjectProperty(ctx data.Context, object *data.ClassValue, name string
 func unsetObjectProperty(ctx data.Context, object *data.ClassValue, name string, from *Node) data.Control {
 	property, declared := lookupObjectProperty(ctx, object, name)
 	if declared && propertyAccessible(ctx, object, property, name) {
-		if readonly, ok := property.(*ClassProperty); ok && readonly.IsReadonly {
-			return data.NewErrorThrowByName(from.GetFrom(), fmt.Errorf("Cannot unset readonly property %s::$%s", object.Class.GetName(), name), "Error")
+		if p, ok := property.(*ClassProperty); ok && (p.GetHook != nil || p.SetHook != nil) {
+			return data.NewErrorThrowByName(from.GetFrom(), fmt.Errorf("Cannot unset hooked property %s::$%s", p.DeclaringClass, name), "Error")
+		}
+		if p, ok := property.(*ClassProperty); ok && p.writeFlags&(writeRestricted|writeReadonly) != 0 {
+			if ctl := propertyWriteAccess(ctx, p, from.GetFrom()); ctl != nil {
+				return ctl
+			}
+			if p.writeFlags&writeReadonly != 0 {
+				return data.NewErrorThrowByName(from.GetFrom(), fmt.Errorf("Cannot unset readonly property %s::$%s", object.Class.GetName(), name), "Error")
+			}
 		}
 		object.ObjectValue.UnsetProperty(data.PropertyStorageName(property))
 		return nil

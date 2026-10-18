@@ -182,31 +182,9 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 			continue
 		}
 
-		isAbstractMethod, isFinalMethod, isStatic, isReadonly := false, false, false, false
-		modifier := "public"
-		for {
-			switch p.current().Type() {
-			case token.FINAL:
-				isFinalMethod = true
-				p.next()
-			case token.ABSTRACT:
-				isAbstractMethod = true
-				p.next()
-			case token.STATIC:
-				isStatic = true
-				p.next()
-			case token.READONLY:
-				isReadonly = true
-				p.next()
-			case token.PUBLIC, token.PROTECTED, token.PRIVATE:
-				modifier = p.parseModifier()
-			default:
-				goto memberModifiersDone
-			}
-		}
-	memberModifiersDone:
-		if isAbstractMethod && isFinalMethod {
-			return nil, data.NewCompileFatal(p.newFrom(), "Cannot use the final modifier on an abstract method")
+		modifier, setVisibility, isAbstractMethod, isFinalMethod, isStatic, isReadonly, modifierCtl := p.parseMemberModifiers()
+		if modifierCtl != nil {
+			return nil, modifierCtl
 		}
 		// 解析属性或方法
 		if p.current().Type() == token.VAR ||
@@ -220,6 +198,9 @@ func (p *ClassParser) Parse() (data.GetValue, data.Control) {
 				return nil, acl
 			}
 			if prop != nil {
+				if declared, ok := prop.(*node.ClassProperty); ok {
+					declared.SetVisibility = setVisibility
+				}
 				if isStatic || prop.GetIsStatic() {
 					staticProperties[prop.GetName()] = prop
 					staticPropertiesIndex = append(staticPropertiesIndex, prop.GetName())
@@ -672,11 +653,14 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 		}
 	}
 
-	// 解析分号，或 PHP 8.4 property hooks 块（先跳过钩子体，属性按普通成员注册）
+	var getHook, setHook data.Method
+	virtual := false
+	// Hooks compile into method bodies with their own local scope.
 	if p.current().Type() == token.SEMICOLON {
 		p.next()
 	} else if p.current().Type() == token.LBRACE {
-		if acl := p.skipPropertyHooksBlock(); acl != nil {
+		getHook, setHook, virtual, acl = p.parsePropertyHooks(name, propertyType)
+		if acl != nil {
 			return nil, acl
 		}
 	}
@@ -690,6 +674,7 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 		defaultValue,
 		propertyType,
 	)
+	ret.GetHook, ret.SetHook, ret.Virtual = getHook, setHook, virtual
 	for _, an := range annotations {
 		an.Target = ret
 	}
@@ -729,30 +714,6 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 	}
 
 	return ret, acl
-}
-
-// skipPropertyHooksBlock 跳过 PHP 8.4 property hooks 体 `{ get ... set ... }`。
-// 当前仅保证语法可解析；钩子逻辑后续再接到属性读写路径。
-func (p *ClassParser) skipPropertyHooksBlock() data.Control {
-	from := p.newFrom()
-	if p.current().Type() != token.LBRACE {
-		return data.NewErrorThrow(from, errors.New("property hooks 缺少 '{'"))
-	}
-	depth := 0
-	for !p.isEOF() {
-		tok := p.current().Type()
-		p.next()
-		switch tok {
-		case token.LBRACE:
-			depth++
-		case token.RBRACE:
-			depth--
-			if depth == 0 {
-				return nil
-			}
-		}
-	}
-	return data.NewErrorThrow(from, errors.New("property hooks 未闭合"))
 }
 
 // parseMethodWithAnnotations 解析方法（带注解）
@@ -969,9 +930,11 @@ func (p *ClassParser) parseTraitUse() ([]string, []data.TraitAlias, data.Control
 	p.next() // 跳过 use 关键字
 
 	var traitNames []string
+	var acl data.Control
 	for {
 		// 解析 trait 名称
-		traitName, acl := p.getClassName(true)
+		var traitName string
+		traitName, acl = p.getClassName(true)
 		if acl != nil {
 			return nil, nil, acl
 		}
@@ -988,7 +951,10 @@ func (p *ClassParser) parseTraitUse() ([]string, []data.TraitAlias, data.Control
 	// 解析可选的别名块 { method as alias; ... }
 	var aliases []data.TraitAlias
 	if p.current().Type() == token.LBRACE {
-		aliases = p.parseTraitAliasBlock()
+		aliases, acl = p.parseTraitAliasBlock()
+		if acl != nil {
+			return nil, nil, acl
+		}
 	}
 
 	// 跳过分号
@@ -1001,7 +967,7 @@ func (p *ClassParser) parseTraitUse() ([]string, []data.TraitAlias, data.Control
 
 // parseTraitAliasBlock 解析 trait use 语句中的别名块
 // 语法：{ method1 as alias1; method2 as alias2; }
-func (p *ClassParser) parseTraitAliasBlock() []data.TraitAlias {
+func (p *ClassParser) parseTraitAliasBlock() ([]data.TraitAlias, data.Control) {
 	p.next() // 跳过 {
 
 	var aliases []data.TraitAlias
@@ -1022,7 +988,7 @@ func (p *ClassParser) parseTraitAliasBlock() []data.TraitAlias {
 			if p.current().Type() == token.SCOPE_RESOLUTION {
 				p.next() // 跳过 ::
 				if p.current().Type() == token.IDENTIFIER {
-					traitName = methodName
+					traitName = p.resolveTraitReference(methodName)
 					methodName = p.current().Literal()
 					p.next()
 				}
@@ -1031,22 +997,39 @@ func (p *ClassParser) parseTraitAliasBlock() []data.TraitAlias {
 			// 期望 as 关键字
 			if p.current().Type() == token.AS {
 				p.next() // 跳过 as
+				adaptation := data.TraitAlias{Trait: traitName, Method: methodName, Alias: methodName}
 
 				// 可能跳过 visibility 修饰符 (public/protected/private)
 				if p.current().Type() == token.PUBLIC || p.current().Type() == token.PROTECTED || p.current().Type() == token.PRIVATE {
+					adaptation.Visibility = p.current().Literal()
 					p.next()
+				}
+				if p.current().Type() == token.FINAL {
+					return nil, data.NewCompileFatal(p.newFrom(), "Cannot use 'final' as method modifier")
 				}
 
 				// 解析别名
 				if p.current().Type() == token.IDENTIFIER {
 					aliasName := p.current().Literal()
 					p.next()
-					aliases = append(aliases, data.TraitAlias{
-						Trait:  traitName,
-						Method: methodName,
-						Alias:  aliasName,
-					})
+					adaptation.Alias = aliasName
 				}
+				aliases = append(aliases, adaptation)
+			} else if strings.EqualFold(p.current().Literal(), "insteadof") {
+				p.next()
+				var excluded []string
+				for p.current().Type() == token.IDENTIFIER {
+					excluded = append(excluded, p.resolveTraitReference(p.current().Literal()))
+					p.next()
+					if p.current().Type() != token.COMMA {
+						break
+					}
+					p.next()
+				}
+				if len(excluded) == 0 {
+					return nil, data.NewCompileFatal(p.newFrom(), "Could not find trait ")
+				}
+				aliases = append(aliases, data.TraitAlias{Trait: traitName, Method: methodName, Alias: methodName, Precedence: true, Excluded: excluded})
 			} else {
 				// 不是 as，可能是 visibility change only: method as public;
 				// 跳过直到分号或 }
@@ -1063,7 +1046,18 @@ func (p *ClassParser) parseTraitAliasBlock() []data.TraitAlias {
 		p.next() // 跳过 }
 	}
 
-	return aliases
+	return aliases, nil
+}
+
+func (p *ClassParser) resolveTraitReference(name string) string {
+	if name == "" {
+		return ""
+	}
+	full, _ := p.findFullClassNameByNamespace(name)
+	if full != "" {
+		return full
+	}
+	return name
 }
 
 // mergeTraitsIntoMaps 将 trait 的方法和属性合并到 trait 解析过程中的 maps 中（用于 trait 内的 use 语句）
@@ -1079,17 +1073,7 @@ func (p *ClassParser) mergeTraitsIntoMaps(traitNames []string, aliases []data.Tr
 			return data.NewErrorThrow(p.newFrom(), fmt.Errorf("trait %s 不存在", traitName))
 		}
 
-		// 合并 trait 的实例方法（含 use { method as alias } 的别名键）
-		node.CopyTraitInstanceMethods(methods, trait)
-		// 合并 trait 的静态方法（静态方法只存放在 ClassStatement.StaticMethods 中）
-		if cs, ok := trait.(*node.ClassStatement); ok {
-			for methodName, method := range cs.StaticMethods {
-				if _, exists := staticMethods[methodName]; !exists {
-					staticMethods[methodName] = method
-				}
-			}
-		}
-
+		// 方法在全部 trait 到齐后按 PHP 冲突规则一次性写入。
 		// 合并 trait 的属性
 		for _, property := range trait.GetPropertyList() {
 			propertyName := property.GetName()
@@ -1123,66 +1107,8 @@ func (p *ClassParser) mergeTraitsIntoMaps(traitNames []string, aliases []data.Tr
 		}
 	}
 
-	// 应用 trait 方法别名（必须从 trait 取原方法，不能从 class.Methods：
-	// 类若已覆盖同名方法，class.Methods[method] 会是类方法，别名会错误指向覆盖实现，
-	// 例如 View 的 `use Macroable { __call as macroCall; }` 会把 macroCall 指到 View::__call 导致递归。）
-	for _, alias := range aliases {
-		if method, ok := findTraitMethodForAlias(vm, traitNames, alias, false); ok {
-			if _, exists := methods[alias.Alias]; !exists {
-				methods[alias.Alias] = method
-			}
-		}
-		if method, ok := findTraitMethodForAlias(vm, traitNames, alias, true); ok {
-			if _, exists := staticMethods[alias.Alias]; !exists {
-				staticMethods[alias.Alias] = method
-			}
-		}
-	}
-
-	return nil
+	return node.ComposeTraitMethods(vm, p.currentClass, methods, staticMethods, traitNames, aliases, p.newFrom())
 }
-
-// findTraitMethodForAlias 从 use 列表中的 trait 查找被别名的原方法（实例或静态）。
-func findTraitMethodForAlias(vm data.VM, traitNames []string, alias data.TraitAlias, static bool) (data.Method, bool) {
-	candidates := traitNames
-	if alias.Trait != "" {
-		candidates = []string{alias.Trait}
-		// 也尝试在 traitNames 中按短名/后缀匹配
-		for _, name := range traitNames {
-			if name == alias.Trait || strings.HasSuffix(name, "\\"+alias.Trait) {
-				candidates = []string{name}
-				break
-			}
-		}
-	}
-	for _, traitName := range candidates {
-		trait, acl := vm.GetOrLoadClass(traitName)
-		if acl != nil || trait == nil {
-			continue
-		}
-		if static {
-			if cs, ok := trait.(*node.ClassStatement); ok {
-				if method, ok := cs.StaticMethods[alias.Method]; ok {
-					return method, true
-				}
-			}
-			if gsm, ok := trait.(data.GetStaticMethod); ok {
-				if method, ok := gsm.GetStaticMethod(alias.Method); ok {
-					return method, true
-				}
-			}
-			continue
-		}
-		for _, method := range trait.GetMethods() {
-			if method.GetName() == alias.Method {
-				return method, true
-			}
-		}
-	}
-	return nil, false
-}
-
-// 注意: 此函数在 mergeTraits 之前定义，与 mergeTraits 不同，它不负责写回 class.StaticProperty
 
 // mergeTraits 合并 trait 的方法和属性到类中
 func (p *ClassParser) mergeTraits(class *node.ClassStatement, traitNames []string, aliases []data.TraitAlias) data.Control {
@@ -1213,34 +1139,24 @@ func (p *ClassParser) mergeTraits(class *node.ClassStatement, traitNames []strin
 	}
 
 	if len(deferred) > 0 {
-		// 存在运行期才能加载的 trait：延迟合并。同时把别名一并延迟，
-		// 因为别名可能引用 trait 的方法，需等 trait 合并后再应用。
+		// 存在运行期才能加载的 trait：属性已合并，方法等全部 trait 可用后再按冲突规则写入。
 		class.DeferredTraits = append(class.DeferredTraits, deferred...)
 		class.DeferredTraitAliases = append(class.DeferredTraitAliases, aliases...)
 		return nil
 	}
 
-	// 全部 trait 在解析期已合并，应用别名
-	if acl := applyTraitAliases(vm, class, aliases); acl != nil {
-		return acl
+	if class.Methods == nil {
+		class.Methods = map[string]data.Method{}
 	}
-
-	return nil
+	if class.StaticMethods == nil {
+		class.StaticMethods = map[string]data.Method{}
+	}
+	return node.ComposeTraitMethods(vm, class.Name, class.Methods, class.StaticMethods, traitNames, aliases, p.newFrom())
 }
 
 // mergeTraitIntoClass 将一个已加载的 trait 合并进类（实例/静态方法、属性、静态属性）。
 func mergeTraitIntoClass(vm data.VM, class *node.ClassStatement, trait data.ClassStmt) data.Control {
-	// 合并 trait 的实例方法（含别名键；类已有同名方法则跳过）
-	node.CopyTraitInstanceMethods(class.Methods, trait)
-	// 合并 trait 的静态方法（只存放在 ClassStatement.StaticMethods 中）
-	if cs, ok := trait.(*node.ClassStatement); ok {
-		for methodName, method := range cs.StaticMethods {
-			if _, exists := class.StaticMethods[methodName]; !exists {
-				class.StaticMethods[methodName] = method
-			}
-		}
-	}
-
+	// 方法留给 ComposeTraitMethods。这里只合并属性，避免先写入的 trait 吞掉同名冲突。
 	// 合并 trait 的属性
 	traitProperties := trait.GetPropertyList()
 	for _, property := range traitProperties {
@@ -1288,28 +1204,6 @@ func mergeTraitIntoClass(vm data.VM, class *node.ClassStatement, trait data.Clas
 			}
 			class.StaticProperties[name] = prop
 			class.StaticPropertiesIndex = append(class.StaticPropertiesIndex, name)
-		}
-	}
-	return nil
-}
-
-// applyTraitAliases 应用 trait 方法别名。
-// 别名必须绑定到 trait 中的原方法，而非 class 上可能已被覆盖的同名方法。
-func applyTraitAliases(vm data.VM, class *node.ClassStatement, aliases []data.TraitAlias) data.Control {
-	if len(aliases) == 0 || vm == nil {
-		return nil
-	}
-	traitNames := class.Traits
-	for _, alias := range aliases {
-		if method, ok := findTraitMethodForAlias(vm, traitNames, alias, false); ok {
-			if _, exists := class.Methods[alias.Alias]; !exists {
-				class.Methods[alias.Alias] = method
-			}
-		}
-		if method, ok := findTraitMethodForAlias(vm, traitNames, alias, true); ok {
-			if _, exists := class.StaticMethods[alias.Alias]; !exists {
-				class.StaticMethods[alias.Alias] = method
-			}
 		}
 	}
 	return nil

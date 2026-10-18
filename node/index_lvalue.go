@@ -125,6 +125,22 @@ func resolveDimensionOwnerMode(ctx data.Context, expression data.GetValue, creat
 		proxy := &CallObjectProperty{Node: expr.Node, Object: &literalGetValue{v: object}, Property: expr.Property}
 		if value, ok := object.(*data.ClassValue); ok {
 			if property, found := lookupObjectProperty(ctx, value, expr.Property); found && propertyAccessible(ctx, value, property, expr.Property) {
+				if p, ok := property.(*ClassProperty); ok && (p.GetHook != nil || p.SetHook != nil) && !insidePropertyHook(ctx, value, p) {
+					if !p.Virtual {
+						return nil, data.NewErrorThrowByName(expr.GetFrom(), fmt.Errorf("Cannot indirectly modify hooked property %s::$%s", p.DeclaringClass, p.Name), "Error")
+					}
+					current, ctl := proxy.GetValue(ctx)
+					if ctl != nil {
+						return nil, ctl
+					}
+					if array, ok := current.(*data.ArrayValue); ok {
+						// A by-value virtual getter exposes a temporary array, not
+						// the source property's storage. Keep nested COW and explicit
+						// element references through the existing array clone contract.
+						return &resolvedDimensionOwner{slot: data.NewZVal(data.CloneArrayValue(array))}, nil
+					}
+					return &literalGetValue{v: current}, ctl
+				}
 				if !value.ObjectValue.HasProperty(data.PropertyStorageName(property)) {
 					if !create {
 						return &literalGetValue{v: data.NewNullValue()}, nil

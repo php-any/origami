@@ -631,6 +631,7 @@ func (c *ClassValue) WriteOutput(s string) {
 }
 
 type ClassMethodContext struct {
+	HookProperty string
 	*ClassValue
 	Context
 	StaticClass ClassStmt // 运行时（后期）类结构，用于 static:: 后期静态绑定

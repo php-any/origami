@@ -149,6 +149,9 @@ func (l *Lexer) TokenizeTemplate(input string) []Token {
 				))
 				pos += length
 				linePos += length
+				if tokDef.Type == token.SEMICOLON && endsCompilerHalt(tokens) {
+					return NewPreprocessor(tokens).Process()
+				}
 				continue
 			}
 

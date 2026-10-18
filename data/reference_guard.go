@@ -201,12 +201,18 @@ func ReferenceSlot(value Value) (*ZVal, Control) {
 }
 
 func PreparePropertyValue(object *ClassValue, name string, ty Types, value Value, ctx Context) (Value, bool, Control) {
+	return PreparePropertyValueRef(object, name, DeclaredTypeRef(ty), value, ctx)
+}
+
+// PreparePropertyValueRef consumes the type handle compiled into a declaration.
+// Keep reference binding and guards shared with native property implementations.
+func PreparePropertyValueRef(object *ClassValue, name string, declared TypeRef, value Value, ctx Context) (Value, bool, Control) {
 	switch value.(type) {
 	case *ReferenceValue, *ArraySlotRef, *ZValValue:
 		// Binding validates all property constraints before mutating the source.
 		return value, true, nil
 	}
-	ref := PropertyType(object, name, DeclaredTypeRef(ty))
+	ref := PropertyType(object, name, declared)
 	prepared, accepted, ctl := PrepareDeclaredValueInContext(ref, value, ctx)
 	if ctl != nil || !accepted {
 		return prepared, accepted, ctl

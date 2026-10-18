@@ -28,10 +28,12 @@ func ReadDimensionQuiet(ctx data.Context, index *IndexExpression, probe, fetch b
 			return nil, false, control
 		}
 		frozen := &CallObjectProperty{Node: property.Node, Object: &literalGetValue{v: object}, Property: property.Property}
-		if exists, handled, control := coalesceObjectPropertyExists(ctx, frozen); control != nil {
+		if value, exists, control := probeObjectProperty(ctx, frozen); control != nil {
 			return nil, false, control
-		} else if handled && !exists {
+		} else if !exists {
 			container = data.NewNullValue()
+		} else if value != nil {
+			container = value
 		} else {
 			container, ctl = frozen.GetValue(ctx)
 		}

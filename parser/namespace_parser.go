@@ -25,6 +25,9 @@ func (np *NamespaceParser) Parse() (data.GetValue, data.Control) {
 	// 跳过 namespace 关键字
 	tracker := np.StartTracking()
 	np.next()
+	np.uses = make(map[string]string)
+	np.functionUses = nil
+	np.constantUses = nil
 
 	// 解析可选的命名空间名称（namespace Foo; / namespace Foo { }）
 	var name string
@@ -44,11 +47,20 @@ func (np *NamespaceParser) Parse() (data.GetValue, data.Control) {
 
 	// namespace Foo; 声明式语法
 	if np.current().Type() == token.SEMICOLON {
+		if np.namespaceBracketed {
+			return nil, data.NewCompileFatal(np.newFrom(), "Cannot mix bracketed namespace declarations with unbracketed namespace declarations")
+		}
+		np.namespaceUnbracketed = true
 		np.next()
 		return np.namespace, nil
 	}
 
 	if np.current().Type() == token.LBRACE {
+		if np.namespaceUnbracketed {
+			return nil, data.NewCompileFatal(np.newFrom(), "Cannot mix bracketed namespace declarations with unbracketed namespace declarations")
+		}
+		np.namespaceBracketed = true
+		np.namespace.Bracketed = true
 		np.next() // 跳过 {
 
 		// 创建主语句解析器
@@ -70,6 +82,10 @@ func (np *NamespaceParser) Parse() (data.GetValue, data.Control) {
 		} else {
 			return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("期望 }"))
 		}
+		np.namespace.Statements = statements
+		np.uses = make(map[string]string)
+		np.functionUses = nil
+		np.constantUses = nil
 	}
 
 	return np.namespace, nil

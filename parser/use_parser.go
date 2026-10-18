@@ -49,11 +49,11 @@ func (p *UseParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	// 普通 use 语句
-	return p.parseSingleUse(tracker, namespace)
+	return p.parseSingleUse(tracker, namespace, useType)
 }
 
 // parseSingleUse 解析单个 use 语句：use Foo\Bar; 或 use Foo\Bar as Baz; 或 use function Foo\bar;
-func (p *UseParser) parseSingleUse(tracker *PositionTracker, namespace string) (data.GetValue, data.Control) {
+func (p *UseParser) parseSingleUse(tracker *PositionTracker, namespace string, useType string) (data.GetValue, data.Control) {
 	// 检查是否有 as 关键字
 	var alias string
 	if p.current().Type() == token.AS {
@@ -77,6 +77,7 @@ func (p *UseParser) parseSingleUse(tracker *PositionTracker, namespace string) (
 	p.next()
 
 	from := tracker.EndBefore()
+	p.registerImport(useType, alias, namespace)
 	// 创建 use 语句节点
 	return node.NewUseStatement(
 		from,
@@ -112,6 +113,11 @@ func (p *UseParser) parseGroupUse(tracker *PositionTracker, namespace string, us
 		if p.current().Type() == token.RBRACE {
 			break
 		}
+		kind := useType
+		if p.checkPositionIs(0, token.FUNC, token.CONST) && useType == "" {
+			kind = p.current().Literal()
+			p.next()
+		}
 
 		if p.current().Type() != token.IDENTIFIER {
 			return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("分组 use 语句中导入名称不能为空"))
@@ -140,7 +146,7 @@ func (p *UseParser) parseGroupUse(tracker *PositionTracker, namespace string, us
 		fullName := prefix + importName
 
 		// 注册到 use 映射
-		p.uses[alias] = fullName
+		p.registerImport(kind, alias, fullName)
 
 		from := tracker.EndBefore()
 		lastFrom = from
@@ -179,4 +185,22 @@ func (p *UseParser) parseGroupUse(tracker *PositionTracker, namespace string, us
 		lastStmt.GetNamespace(),
 		lastStmt.GetAlias(),
 	), nil
+}
+
+func (p *UseParser) registerImport(kind, alias, name string) {
+	name = strings.TrimPrefix(name, "\\")
+	switch kind {
+	case "function":
+		if p.functionUses == nil {
+			p.functionUses = make(map[string]string)
+		}
+		p.functionUses[strings.ToLower(alias)] = name
+	case "const":
+		if p.constantUses == nil {
+			p.constantUses = make(map[string]string)
+		}
+		p.constantUses[alias] = name
+	default:
+		p.uses[alias] = name
+	}
 }

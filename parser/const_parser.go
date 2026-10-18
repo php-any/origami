@@ -50,9 +50,14 @@ func (p *ConstParser) Parse() (data.GetValue, data.Control) {
 	// 创建变量跟踪
 	val := p.scopeManager.CurrentScope().AddVariable(name, t, tracker.EndBefore())
 
-	return node.NewConstStatement(
+	stmt := node.NewConstStatement(
 		tracker.EndBefore(),
 		node.NewVariableWithFirst(tracker.EndBefore(), val),
 		initializer,
-	), acl
+	)
+	stmt.QualifiedName = name
+	if p.GetNamespace() != "" {
+		stmt.QualifiedName = p.GetNamespace() + "\\" + name
+	}
+	return stmt, acl
 }

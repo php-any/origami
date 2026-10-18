@@ -116,7 +116,7 @@ func (c *ClassStatement) MergeDeferredTraits(vm data.VM) data.Control {
 		if trait == nil {
 			return utils.NewThrowf("trait %s 不存在", traitName)
 		}
-		if acl := mergeTraitStmt(vm, c, trait); acl != nil {
+		if acl := mergeTraitProperties(vm, c, trait); acl != nil {
 			return acl
 		}
 	}
@@ -126,60 +126,18 @@ func (c *ClassStatement) MergeDeferredTraits(vm data.VM) data.Control {
 	}
 	c.DeferredTraits = nil
 	c.DeferredTraitsMerged = true
-	// 应用别名：必须从 trait 取原方法，避免类覆盖同名方法后别名指错（如 __call as macroCall）
-	for _, alias := range c.DeferredTraitAliases {
-		if method, ok := findDeferredTraitMethod(vm, c.Traits, alias, false); ok {
-			if _, exists := c.Methods[alias.Alias]; !exists {
-				c.Methods[alias.Alias] = method
-			}
-		}
-		if method, ok := findDeferredTraitMethod(vm, c.Traits, alias, true); ok {
-			if _, exists := c.StaticMethods[alias.Alias]; !exists {
-				c.StaticMethods[alias.Alias] = method
-			}
-		}
+	if c.Methods == nil {
+		c.Methods = map[string]data.Method{}
+	}
+	if c.StaticMethods == nil {
+		c.StaticMethods = map[string]data.Method{}
+	}
+	if acl := ComposeTraitMethods(vm, c.Name, c.Methods, c.StaticMethods, c.Traits, c.DeferredTraitAliases, c.GetFrom()); acl != nil {
+		return acl
 	}
 	c.DeferredTraitAliases = nil
 	c.invalidateMethodLookups()
 	return nil
-}
-
-func findDeferredTraitMethod(vm data.VM, traitNames []string, alias data.TraitAlias, static bool) (data.Method, bool) {
-	candidates := traitNames
-	if alias.Trait != "" {
-		candidates = []string{alias.Trait}
-		for _, name := range traitNames {
-			if name == alias.Trait || strings.HasSuffix(name, "\\"+alias.Trait) {
-				candidates = []string{name}
-				break
-			}
-		}
-	}
-	for _, traitName := range candidates {
-		trait, acl := vm.GetOrLoadClass(traitName)
-		if acl != nil || trait == nil {
-			continue
-		}
-		if static {
-			if cs, ok := trait.(*ClassStatement); ok {
-				if method, ok := cs.StaticMethods[alias.Method]; ok {
-					return method, true
-				}
-			}
-			if gsm, ok := trait.(data.GetStaticMethod); ok {
-				if method, ok := gsm.GetStaticMethod(alias.Method); ok {
-					return method, true
-				}
-			}
-			continue
-		}
-		for _, method := range trait.GetMethods() {
-			if method.GetName() == alias.Method {
-				return method, true
-			}
-		}
-	}
-	return nil, false
 }
 
 // CopyTraitInstanceMethods 把 trait 的实例方法并入 dst。
@@ -208,16 +166,7 @@ func CopyTraitInstanceMethods(dst map[string]data.Method, trait data.ClassStmt) 
 	}
 }
 
-// mergeTraitStmt 将一个已加载的 trait 合并进类（实例/静态方法、属性、静态属性）。
-func mergeTraitStmt(vm data.VM, class *ClassStatement, trait data.ClassStmt) data.Control {
-	CopyTraitInstanceMethods(class.Methods, trait)
-	if cs, ok := trait.(*ClassStatement); ok {
-		for methodName, method := range cs.StaticMethods {
-			if _, exists := class.StaticMethods[methodName]; !exists {
-				class.StaticMethods[methodName] = method
-			}
-		}
-	}
+func mergeTraitProperties(vm data.VM, class *ClassStatement, trait data.ClassStmt) data.Control {
 	traitProperties := trait.GetPropertyList()
 	for _, property := range traitProperties {
 		propertyName := property.GetName()
@@ -611,10 +560,16 @@ func (c *ClassStatement) GetStaticMethod(name string) (data.Method, bool) {
 
 type ClassProperty struct {
 	*Node          `pp:"-"`
-	Name           string             // 属性名
-	Modifier       data.Modifier      // 访问修饰符
-	IsStatic       bool               // 是否是静态属性
-	IsReadonly     bool               // 是否是只读属性
+	Name           string        // 属性名
+	Modifier       data.Modifier // 访问修饰符
+	IsStatic       bool          // 是否是静态属性
+	IsReadonly     bool          // 是否是只读属性
+	writeFlags     propertyWriteFlags
+	setModifier    data.Modifier
+	SetVisibility  string
+	GetHook        data.Method
+	SetHook        data.Method
+	Virtual        bool
 	IsPromoted     bool               // 是否是构造函数参数属性提升
 	DefaultValue   data.GetValue      // 默认值
 	Annotations    []*data.ClassValue // 属性注解列表
@@ -635,6 +590,7 @@ func PropertyInClass(property data.Property, class string) data.Property {
 	if original, ok := property.(*ClassProperty); ok {
 		copy := *original
 		copy.DeclaringClass = class
+		copy.compileWritePolicy()
 		if copy.Modifier == data.ModifierPrivate && !copy.IsStatic {
 			copy.storageName = "\x00" + class + "\x00" + copy.Name
 		}
@@ -687,7 +643,7 @@ func NewPropertyWithPromoted(from data.From, name string, modifier string, isSta
 		ty = tys[0]
 	}
 
-	return &ClassProperty{
+	property := &ClassProperty{
 		Node:         NewNode(from),
 		Name:         name,
 		Modifier:     data.NewModifier(modifier),
@@ -697,6 +653,8 @@ func NewPropertyWithPromoted(from data.From, name string, modifier string, isSta
 		DefaultValue: defaultValue,
 		Type:         data.DeclaredTypeRef(ty),
 	}
+	property.compileWritePolicy()
+	return property
 }
 
 func (p *ClassProperty) GetValue(ctx data.Context) (data.GetValue, data.Control) {

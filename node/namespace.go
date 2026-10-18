@@ -7,6 +7,7 @@ type Namespace struct {
 	*Node      `pp:"-"`
 	Name       string          // 命名空间名称
 	Statements []data.GetValue // 命名空间内的语句
+	Bracketed  bool            // namespace Name { }；结束后文件级代码不能落在该命名空间里
 }
 
 // NewNamespace 创建一个新的命名空间节点

@@ -24,8 +24,14 @@ func NewIdentParser(parser *Parser) StatementParser {
 func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 	tracker := p.StartTracking()
 	name := p.current().Literal()
+	if strings.HasPrefix(strings.ToLower(name), "namespace\\") {
+		name = "\\" + strings.TrimPrefix(p.GetNamespace()+"\\"+name[len("namespace\\"):], "\\")
+	}
 	startToken := p.current()
 	p.next()
+	if name == "__COMPILER_HALT_OFFSET__" && p.compilerHaltOffset > 0 {
+		return data.NewIntValue(p.compilerHaltOffset), nil
+	}
 	if strings.EqualFold(name, "__NAMESPACE__") {
 		namespace := ""
 		if p.namespace != nil {
@@ -247,6 +253,9 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 		return node.NewVariableWithFirst(tracker.EndBefore(), val), nil
 	}
 
+	if imported, ok := p.constantUses[name]; ok {
+		name = "\\" + strings.TrimPrefix(imported, "\\")
+	}
 	return node.NewConstantName(tracker.EndBefore(), name), nil
 }
 
@@ -255,6 +264,13 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 // 变量作为可调用必须写 $name(...)。同名形参不得抢占函数调用。
 func (p *IdentParser) parseIdentCall(tracker *PositionTracker, name string) (data.GetValue, data.Control) {
 	vp := &VariableParser{p.Parser}
+	if strings.HasPrefix(name, "\\") {
+		args, ctl := vp.parseFunctionCall()
+		if ctl != nil {
+			return nil, ctl
+		}
+		return vp.parseSuffix(node.NewCallTodo(node.NewCallExpression(tracker.EndBefore(), strings.TrimPrefix(name, "\\"), args, nil), ""))
+	}
 	if full, ok := p.findFullFunNameByNamespace(name); ok {
 		stmt, acl := vp.parseFunctionCall()
 		if acl != nil {
@@ -262,7 +278,7 @@ func (p *IdentParser) parseIdentCall(tracker *PositionTracker, name string) (dat
 		}
 		fn, ok := p.vm.GetFunc(full)
 		if !ok {
-			return nil, data.NewErrorThrow(tracker.EndBefore(), fmt.Errorf("函数(%s)先加载后才能使用", name))
+			return vp.parseSuffix(node.NewCallTodo(node.NewCallExpression(tracker.EndBefore(), full, stmt, nil), ""))
 		}
 		callExpr := node.NewCallExpression(tracker.EndBefore(), full, stmt, fn)
 		return vp.parseSuffix(callExpr)

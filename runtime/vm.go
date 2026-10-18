@@ -89,6 +89,7 @@ type VM struct {
 	errorHandlers     []data.Value
 	errorHandlerMasks []int
 	phpErrors         data.PHPErrorState
+	ticks             data.TickState
 
 	// PHP 级 register_shutdown_function 注册的回调列表
 	shutdownCallbacks []data.Value

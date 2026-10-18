@@ -65,6 +65,8 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 	staticPropertiesIndex := make([]string, 0) // 保持静态属性/常量声明顺序
 	methods := map[string]data.Method{}
 	staticMethods := map[string]data.Method{}
+	var usedTraits []string
+	var usedAliases []data.TraitAlias
 	for !p.currentIsTypeOrEOF(token.RBRACE) {
 		// 解析 trait 内的 use Trait1, Trait2;（trait 组合）
 		if p.current().Type() == token.USE {
@@ -72,10 +74,8 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 			if acl != nil {
 				return nil, acl
 			}
-			acl = p.mergeTraitsIntoMaps(traitNames, aliases, &properties, methods, staticProperties, &staticPropertiesIndex, staticMethods)
-			if acl != nil {
-				return nil, acl
-			}
+			usedTraits = append(usedTraits, traitNames...)
+			usedAliases = append(usedAliases, aliases...)
 			continue
 		}
 
@@ -91,45 +91,10 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 			}
 		}
 
-		// 解析 abstract 关键字（可以在访问修饰符之前）
-		isAbstractMethod := false
-		if p.current().Type() == token.ABSTRACT {
-			isAbstractMethod = true
-			p.next()
+		modifier, setVisibility, isAbstractMethod, isFinalMethod, isStatic, isReadonly, modifierCtl := p.parseMemberModifiers()
+		if modifierCtl != nil {
+			return nil, modifierCtl
 		}
-
-		// 解析 static 关键字（可以在访问修饰符之前或之后，PHP 允许 static public function）
-		isStatic := false
-		if p.current().Type() == token.STATIC {
-			isStatic = true
-			p.next()
-		}
-
-		// 解析访问修饰符
-		modifier := p.parseModifier()
-		if modifier == "" {
-			return nil, data.NewErrorThrow(p.newFrom(), errors.New("缺少访问修饰符"))
-		}
-
-		// 解析 abstract 关键字（也可以在访问修饰符之后）
-		if p.current().Type() == token.ABSTRACT {
-			isAbstractMethod = true
-			p.next()
-		}
-
-		// 解析readonly关键字（在访问修饰符之后）
-		isReadonly := false
-		if p.current().Type() == token.READONLY {
-			isReadonly = true
-			p.next()
-		}
-
-		// 解析 static 关键字（也可以跟在访问修饰符之后，如 public static function）
-		if p.current().Type() == token.STATIC {
-			isStatic = true
-			p.next()
-		}
-
 		// 解析属性或方法
 		if p.current().Type() == token.VAR ||
 			p.current().Type() == token.CONST ||
@@ -142,6 +107,9 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 				return nil, acl
 			}
 			if prop != nil {
+				if declared, ok := prop.(*node.ClassProperty); ok {
+					declared.SetVisibility = setVisibility
+				}
 				if isStatic || prop.GetIsStatic() {
 					staticProperties[prop.GetName()] = prop
 					staticPropertiesIndex = append(staticPropertiesIndex, prop.GetName())
@@ -155,6 +123,9 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 				return nil, acl
 			}
 			if method != nil {
+				if declared, ok := method.(*node.ClassMethod); ok && isFinalMethod {
+					declared.Flags |= data.MethodFinal
+				}
 				if isStatic {
 					staticMethods[method.GetName()] = method
 				} else {
@@ -169,6 +140,11 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 		}
 	}
 	p.next() // 跳过结束花括号
+	if len(usedTraits) > 0 {
+		if acl := p.mergeTraitsIntoMaps(usedTraits, usedAliases, &properties, methods, staticProperties, &staticPropertiesIndex, staticMethods); acl != nil {
+			return nil, acl
+		}
+	}
 
 	// 创建 trait（使用 ClassStatement，因为结构相同）
 	trait := node.NewClassStatement(

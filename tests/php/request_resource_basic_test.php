@@ -2,7 +2,7 @@
 function check_resource($actual, $expected, $label) {
     if ($actual !== $expected) { throw new Exception($label . ': ' . json_encode($actual)); }
 }
-$path = __DIR__ . '/../../examples/laravel13/storage/origami-debug/request-resource-' . getmypid() . '.txt';
+$path = sys_get_temp_dir() . '/origami-request-resource-' . getmypid() . '.txt';
 $copy = $path . '.copy';
 try {
     check_resource(file_put_contents($path, "first\n"), 6, 'write');

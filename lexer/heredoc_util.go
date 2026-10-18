@@ -16,7 +16,7 @@ func ExtractHeredocBody(literal string) (body string, isNowdoc bool, ok bool) {
 	for pos < len(literal) && literal[pos] != '\n' && literal[pos] != '\r' {
 		pos++
 	}
-	for pos < len(literal) && (literal[pos] == '\n' || literal[pos] == '\r') {
+	if pos < len(literal) && (literal[pos] == '\n' || literal[pos] == '\r') {
 		if literal[pos] == '\r' && pos+1 < len(literal) && literal[pos+1] == '\n' {
 			pos += 2
 		} else {
@@ -31,6 +31,24 @@ func ExtractHeredocBody(literal string) (body string, isNowdoc bool, ok bool) {
 	body = literal[firstContent:lastNewline]
 	body = strings.TrimSuffix(body, "\r")
 	body = NormalizeToLF(body)
+	closing := literal[lastNewline+1:]
+	indent := closing[:len(closing)-len(strings.TrimLeft(closing, " \t"))]
+	if strings.Contains(indent, " ") && strings.Contains(indent, "\t") {
+		return "", isNowdoc, false
+	}
+	if indent != "" {
+		lines := strings.Split(body, "\n")
+		for i, line := range lines {
+			if strings.HasPrefix(line, indent) {
+				lines[i] = line[len(indent):]
+			} else if strings.Trim(line, " \t") == "" {
+				lines[i] = ""
+			} else {
+				return "", isNowdoc, false
+			}
+		}
+		body = strings.Join(lines, "\n")
+	}
 	return body, isNowdoc, true
 }
 

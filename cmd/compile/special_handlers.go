@@ -301,7 +301,9 @@ func (g *Generator) emitClassStatementInit(n *node.ClassStatement) error {
 		g.printf("cls.DeferredTraitAliases = []data.TraitAlias{\n")
 		g.indent++
 		for _, alias := range n.DeferredTraitAliases {
-			g.printf("{Trait: %q, Method: %q, Alias: %q},\n", alias.Trait, alias.Method, alias.Alias)
+			g.printf("{Trait: %q, Method: %q, Alias: %q, Visibility: %q, Final: %t, Precedence: %t, Excluded: ", alias.Trait, alias.Method, alias.Alias, alias.Visibility, alias.Final, alias.Precedence)
+			g.genStringSlice(alias.Excluded)
+			g.printf("},\n")
 		}
 		g.indent--
 		g.printf("}\n")

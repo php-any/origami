@@ -22,6 +22,7 @@ type CallState struct {
 	exceptionHandlers *ExceptionHandlerState
 	errorHandlers     *errorHandlerState
 	phpErrors         *data.PHPErrorState
+	ticks             data.TickState
 }
 
 func (st *CallState) Enter() int {

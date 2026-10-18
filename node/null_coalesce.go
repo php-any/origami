@@ -52,13 +52,15 @@ func (n *NullCoalesceExpression) GetValue(ctx data.Context) (data.GetValue, data
 		}
 		cop = frozen.(*CallObjectProperty)
 		left = cop
-		if exists, handled, ctl := coalesceObjectPropertyExists(ctx, cop); ctl != nil {
+		if value, exists, ctl := probeObjectProperty(ctx, cop); ctl != nil {
 			return nil, ctl
-		} else if handled {
+		} else {
 			if !exists {
 				return n.Right.GetValue(ctx)
 			}
-			// 属性存在但值为 null：仍需走 GetValue（会正确返回 null 或 __get 值）
+			if value != nil {
+				return value, nil
+			}
 		}
 	}
 
@@ -93,12 +95,13 @@ func (n *NullCoalesceExpression) AsString() string {
 	return "null_coalesce_expression"
 }
 
-// coalesceObjectPropertyExists 判断 $obj->prop ?? $default 中左操作数是否“已设置”
-// （isset 语义：不调用 __get，因此不触发 Undefined array key Warning）
-func coalesceObjectPropertyExists(ctx data.Context, pe *CallObjectProperty) (exists bool, handled bool, control data.Control) {
+// probeObjectProperty uses isset semantics and retains a hooked property's
+// value so callers never invoke a get hook twice. Other successful probes return
+// nil as their value, preserving the normal property/native/magic read path.
+func probeObjectProperty(ctx data.Context, pe *CallObjectProperty) (data.GetValue, bool, data.Control) {
 	o, ctl := pe.Object.GetValue(ctx)
 	if ctl != nil {
-		return false, true, ctl
+		return nil, false, ctl
 	}
 	var object *data.ClassValue
 	switch owner := o.(type) {
@@ -107,28 +110,36 @@ func coalesceObjectPropertyExists(ctx data.Context, pe *CallObjectProperty) (exi
 	case *data.ThisValue:
 		object = owner.ClassValue
 	default:
-		return false, true, nil
+		return nil, false, nil
 	}
 	if object == nil || object.ObjectValue == nil {
-		return false, true, nil
+		return nil, false, nil
 	}
 	property, declared := lookupObjectProperty(ctx, object, pe.Property)
 	if declared && propertyAccessible(ctx, object, property, pe.Property) {
+		if p, ok := property.(*ClassProperty); ok && p.GetHook != nil && !insidePropertyHook(ctx, object, p) {
+			value, ctl := invokePropertyHook(ctx, object, p, p.GetHook, nil)
+			if ctl != nil || value == nil {
+				return nil, false, ctl
+			}
+			_, isNull := value.(*data.NullValue)
+			return value, !isNull, nil
+		}
 		value, ctl := object.ObjectValue.GetProperty(data.PropertyStorageName(property))
 		if ctl != nil || value == nil {
-			return false, true, ctl
+			return nil, false, ctl
 		}
 		_, isNull := value.(*data.NullValue)
-		return !isNull, true, nil
+		return nil, !isNull, nil
 	}
 	if !declared && object.ObjectValue.HasProperty(pe.Property) {
 		value, _ := object.ObjectValue.GetProperty(pe.Property)
 		_, isNull := value.(*data.NullValue)
-		return value != nil && !isNull, true, nil
+		return nil, value != nil && !isNull, nil
 	}
 	if magic, found := object.GetMethod("__isset"); found {
 		isSet, ctl := pe.invokeMagicIsset(ctx, object, magic, pe.Property)
-		return isSet, true, ctl
+		return nil, isSet, ctl
 	}
-	return false, true, nil
+	return nil, false, nil
 }

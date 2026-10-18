@@ -108,7 +108,7 @@ type ForStatement struct {
 // NewForStatement 创建一个新的for语句
 func NewForStatement(token *TokenFrom, initializers []data.GetValue, condition data.GetValue, increments []data.GetValue, body []data.GetValue) *ForStatement {
 	// 解析阶段优化：for 循环的增量表达式返回值始终被丢弃（`_, ctl := increment.GetValue(ctx)`），
-	// 将 VarPostIncr（1 次分配）替换为 VarStmtIncr（原地改写，0 次分配）。
+	// 将 VarPostIncr 替换为返回值被丢弃的专用节点；仍保留整数值语义。
 	for i, inc := range increments {
 		if vpi, ok := inc.(*VarPostIncr); ok {
 			increments[i] = &VarStmtIncr{Node: vpi.Node, VarIdx: vpi.VarIdx, Fallback: vpi.Fallback}

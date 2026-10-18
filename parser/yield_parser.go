@@ -67,5 +67,7 @@ func (p *YieldParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	from := tracker.EndBefore()
-	return node.NewYieldStatement(from, key, value), nil
+	stmt := node.NewYieldStatement(from, key, value)
+	stmt.ByReference = p.currentReturnsReference
+	return stmt, nil
 }

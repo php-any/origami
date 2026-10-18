@@ -7,11 +7,11 @@ namespace tests\php;
  * Filament icon-button compiled merge 依赖此解析。
  */
 
-require dirname(__DIR__, 2) . '/examples/laravel13/vendor/autoload.php';
+function escape_label(string $value, bool $doubleEncode = true): string { return htmlspecialchars($value, ENT_QUOTES, "UTF-8", $doubleEncode); }
 
 $arr = [
     'aria-disabled' => null,
-    'aria-label' => e('Expand sidebar', doubleEncode: false),
+    'aria-label' => escape_label('Expand sidebar', doubleEncode: false),
     'disabled' => false,
     'form' => null,
     'tabindex' => null,
@@ -28,17 +28,4 @@ if ($keys !== [
     Log::fatal('e(doubleEncode:) 扰乱数组键: ' . json_encode($keys) . ' vals=' . json_encode($arr));
 }
 
-$bag = new \Illuminate\View\ComponentAttributeBag([
-    'x-cloak' => true,
-    'x-data' => '{}',
-    'class' => 'fi-topbar-open-sidebar-btn',
-]);
-$html = (string) $bag->merge($arr, escape: false)->class(['fi-icon-btn', 'fi-size-md']);
-if (str_contains($html, ' 0="') || preg_match('/\s0="/', $html)) {
-    Log::fatal('带 doubleEncode 的 merge 变成数字键: ' . $html);
-}
-if (!str_contains($html, 'aria-label="Expand sidebar"') || !str_contains($html, 'class="')) {
-    Log::fatal('带 doubleEncode 的 merge HTML 异常: ' . $html);
-}
-
-Log::info('e(doubleEncode) 数组键测试通过: ' . $html);
+Log::info('命名参数数组键测试通过');

@@ -52,9 +52,9 @@ func (i *IssetStatement) GetValue(ctx data.Context) (data.GetValue, data.Control
 		// PHP：isset($obj->prop) 调用 __isset（若有），绝不调用 __get。
 		// 否则会像 View::__get 那样触发 Undefined array key Warning。
 		if cop, ok := argExpr.(*CallObjectProperty); ok {
-			if exists, handled, ctl := coalesceObjectPropertyExists(ctx, cop); ctl != nil {
+			if _, exists, ctl := probeObjectProperty(ctx, cop); ctl != nil {
 				return nil, ctl
-			} else if handled {
+			} else {
 				if !exists {
 					return data.NewBoolValue(false), nil
 				}

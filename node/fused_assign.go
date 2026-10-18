@@ -150,7 +150,7 @@ func readIdx(ctx data.Context, idx, lit int) (int, bool) {
 // 预提取 VarIdx，运行时只做 *IntValue 值断言，无节点类型断言。
 // 整数路径：复用旧指针作为返回值（原始值），只分配一个新 *IntValue。
 // 由 NewPostfixIncr 发出；在 for 循环增量中由 NewForStatement 换为
-// VarStmtIncr（0 次分配）。
+// VarStmtIncr（丢弃返回值，但保留按值写入）。
 // ------------------------------------------------------------------
 
 type VarPostIncr struct {
@@ -192,10 +192,8 @@ func (f *VarPostDecr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 // VarStmtIncr: for 循环增量专用自增（返回值始终被丢弃）
 // 由 NewForStatement 在 AST 构建时将 VarPostIncr 替换为此节点。
 //
-// 关键优化：因为 for 循环永远丢弃增量表达式的返回值，
-// 可以直接原地改写 *IntValue.Value（0 次分配）而不需要保存旧值。
-// 安全保障：SetVariableValue 的 copy-on-assign 确保变量槽持有唯一
-// 所有权的 *IntValue，不会影响其他变量。
+// 丢弃返回值不等于拥有整数对象的唯一所有权：属性、数组及参数
+// 仍可能持有同一个值。保持专用节点，但必须向槽写入新值。
 // ------------------------------------------------------------------
 
 type VarStmtIncr struct {
@@ -206,9 +204,9 @@ type VarStmtIncr struct {
 
 func (f *VarStmtIncr) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	zv := ctx.GetIndexZVal(f.VarIdx)
-	if iv, ok := zv.ReadValue().(*data.IntValue); ok {
-		iv.Value++
-		return iv, nil
+	if iv, ok := zv.ReadValue().(*data.IntValue); ok && zv.Guard() == nil {
+		data.AssignIntToZVal(zv, iv.Value+1)
+		return zv.ReadValue(), nil
 	}
 	return f.Fallback.GetValue(ctx)
 }

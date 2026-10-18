@@ -38,7 +38,7 @@ func (sp *MainStatementParser) Parse() (data.GetValue, data.Control) {
 		// 若像普通 <?php 一样 next() 丢弃，类/函数体内 Filament Grid::toEmbeddedHtml
 		// 等 `ob_start(); ?>…<?= $x ?>…<?php` 混写会丢掉全部短回显（空壳 HTML）。
 		if sp.current().Literal() == "<?=" {
-			return sp.parseStatement()
+			return sp.parseTickStatement()
 		}
 		sp.next()
 		return nil, nil
@@ -47,7 +47,7 @@ func (sp *MainStatementParser) Parse() (data.GetValue, data.Control) {
 		return nil, nil
 	default:
 		// 对于其他类型的语句，使用通用解析器
-		return sp.parseStatement()
+		return sp.parseTickStatement()
 	}
 
 	return parser.Parse()

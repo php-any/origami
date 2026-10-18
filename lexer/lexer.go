@@ -248,6 +248,9 @@ func (l *Lexer) Tokenize(input string) []Token {
 
 // matchLongestToken 尝试匹配最长的 token
 func (l *Lexer) matchLongestToken(input string, pos int) (*token.TokenDefinition, int, bool) {
+	if len(input)-pos > 10 && strings.EqualFold(input[pos:pos+10], "namespace\\") {
+		return nil, 0, false
+	}
 	// 获取当前位置的rune
 	r, _ := utf8.DecodeRuneInString(input[pos:])
 	if r == utf8.RuneError {
