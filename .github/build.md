@@ -7,16 +7,16 @@
 ### 1. 构建测试 (build.yml)
 - **触发条件**: 推送到主分支、Pull Request、手动触发
 - **功能**: 编译测试，确保代码可以正常构建
-- **平台**: Linux, Windows, macOS (仅 amd64)
+- **平台**: Linux、Windows、macOS Intel、macOS Apple Silicon
 - **产物**: 临时构建文件（保留7天）
 
 ### 2. 发布构建 (release.yml)
 - **触发条件**: 推送标签（如 `v1.0.0`）、手动触发
 - **功能**: 构建多平台二进制文件并发布到 GitHub Releases
 - **平台**: 
-  - Linux (amd64, arm64)
+  - Linux (amd64)
   - Windows (amd64)
-  - macOS (amd64, arm64)
+  - macOS Intel (amd64)、macOS Apple Silicon (arm64)
 
 ## 如何发布新版本
 
@@ -33,11 +33,10 @@
 
 ## 构建产物说明
 
-- `origami-linux-amd64`: Linux x64 版本
-- `origami-linux-arm64`: Linux ARM64 版本
-- `origami-darwin-amd64`: macOS Intel 版本
-- `origami-darwin-arm64`: macOS Apple Silicon 版本
-- `origami-windows-amd64.exe`: Windows x64 版本
+- `zy-linux-amd64`: Linux x64 版本
+- `zy-mac-amd64`: macOS Intel 版本
+- `zy-mac-arm64`: macOS Apple Silicon 版本
+- `zy-windows-amd64.exe`: Windows x64 版本
 
 ## 手动触发构建
 

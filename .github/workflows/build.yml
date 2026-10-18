@@ -15,12 +15,16 @@ jobs:
         include:
           - goos: linux
             goarch: amd64
+            os: linux
           - goos: windows
             goarch: amd64
+            os: windows
           - goos: darwin
             goarch: amd64
+            os: mac
           - goos: darwin
             goarch: arm64
+            os: mac
     
     steps:
     - uses: actions/checkout@v4
@@ -43,9 +47,9 @@ jobs:
         CGO_ENABLED: 0
       run: |
         if [ "$GOOS" = "windows" ]; then
-          go build -o zy-${{ matrix.goos }}-${{ matrix.goarch }}.exe .
+          go build -o zy-${{ matrix.os }}-${{ matrix.goarch }}.exe .
         else
-          go build -o zy-${{ matrix.goos }}-${{ matrix.goarch }} .
+          go build -o zy-${{ matrix.os }}-${{ matrix.goarch }} .
         fi
     
     - name: Build LSP binary
@@ -56,14 +60,14 @@ jobs:
       run: |
         cd tools/lsp
         if [ "$GOOS" = "windows" ]; then
-          go build -o ../../zy-lsp-${{ matrix.goos }}-${{ matrix.goarch }}.exe .
+          go build -o ../../zy-lsp-${{ matrix.os }}-${{ matrix.goarch }}.exe .
         else
-          go build -o ../../zy-lsp-${{ matrix.goos }}-${{ matrix.goarch }} .
+          go build -o ../../zy-lsp-${{ matrix.os }}-${{ matrix.goarch }} .
         fi
     
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: zy-${{ matrix.goos }}-${{ matrix.goarch }}
+        name: zy-${{ matrix.os }}-${{ matrix.goarch }}
         path: zy-*
         retention-days: 7

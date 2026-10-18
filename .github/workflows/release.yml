@@ -14,15 +14,19 @@ jobs:
         include:
           - goos: linux
             goarch: amd64
+            os: linux
             ext: ""
           - goos: windows
             goarch: amd64
+            os: windows
             ext: ".exe"
           - goos: darwin
             goarch: amd64
+            os: mac
             ext: ""
           - goos: darwin
             goarch: arm64
+            os: mac
             ext: ""
     steps:
       - uses: actions/checkout@v4
@@ -40,13 +44,13 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
-        run: go build -o bin/zy-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} .
+        run: go build -o bin/zy-${{ matrix.os }}-${{ matrix.goarch }}${{ matrix.ext }} .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: zy-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: bin/zy-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}
+          name: zy-${{ matrix.os }}-${{ matrix.goarch }}
+          path: bin/zy-${{ matrix.os }}-${{ matrix.goarch }}${{ matrix.ext }}
 
   create-release:
     needs: build
