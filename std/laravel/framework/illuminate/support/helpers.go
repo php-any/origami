@@ -73,10 +73,41 @@ func helperTap(ctx data.Context) (data.GetValue, data.Control) {
 		// PHP: return new HigherOrderTapProxy($value) — 未迁代理时原样返回 value
 		return v, nil
 	}
-	if _, ctl := kit.Call(ctx, cb, v); ctl != nil {
+	arg := v
+	// fn (&$stack) => ... 必须改到 tap 自己的 $value 上，调用结束后原样返回。
+	if callbackFirstParamIsReference(cb) {
+		if slot := ctx.GetIndexZVal(0); slot != nil {
+			arg = data.NewZValValue(slot)
+		}
+	}
+	if _, ctl := kit.Call(ctx, cb, arg); ctl != nil {
 		return nil, ctl
 	}
+	if updated, ok := ctx.GetIndexValue(0); ok && updated != nil {
+		return updated, nil
+	}
 	return v, nil
+}
+
+func callbackFirstParamIsReference(cb data.Value) bool {
+	var fn data.FuncStmt
+	switch c := cb.(type) {
+	case *data.FuncValue:
+		fn = c.Value
+	case *data.BoundFuncValue:
+		fn = c.Value
+	default:
+		return false
+	}
+	if fn == nil {
+		return false
+	}
+	params := fn.GetParams()
+	if len(params) == 0 {
+		return false
+	}
+	ref, ok := params[0].(interface{ IsReferenceParameter() bool })
+	return ok && ref.IsReferenceParameter()
 }
 
 func helperE(ctx data.Context) (data.GetValue, data.Control) {

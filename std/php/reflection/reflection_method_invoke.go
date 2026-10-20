@@ -96,8 +96,23 @@ func (m *ReflectionMethodInvokeMethod) Call(ctx data.Context) (data.GetValue, da
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("ReflectionMethod::invoke(): method %s::%s not found", className, methodName))
 	}
 
-	// Set up call context with proper class binding for self resolution
+	// ReflectionMethod 没有 PHP 形参槽。invoke($object, ...$args) 的实参
+	// 在扁平参数列表里；按被调帧重放 AST 会越界，漏掉对象则会新建空实例，
+	// $this 上的属性读成 null（Livewire invade()->getListeners()）。
+	flat := ctx.GetFlatCallArgs()
 	targetValue, hasTarget := ctx.GetIndexValue(0)
+	if (!hasTarget || targetValue == nil) && len(flat) > 0 {
+		val := flat[0]
+		if tv, ok := val.(*data.ThisValue); ok && tv.ClassValue != nil {
+			val = tv.ClassValue
+		}
+		if _, isNull := val.(*data.NullValue); !isNull && val != nil {
+			targetValue = val
+			hasTarget = true
+		}
+	}
+
+	// Set up call context with proper class binding for self resolution
 	varies := method.GetVariables()
 
 	var fnCtx data.Context
@@ -116,18 +131,13 @@ func (m *ReflectionMethodInvokeMethod) Call(ctx data.Context) (data.GetValue, da
 		data.PreferVM(fnCtx, ctx, classVal)
 	}
 
-	callArgs := ctx.GetCallArgs()
-	for i := 1; i < len(callArgs); i++ {
+	for i := 1; i < len(flat); i++ {
 		argIdx := i - 1
 		if argIdx >= len(varies) {
 			break
 		}
-		v, acl := callArgs[i].GetValue(ctx)
-		if acl != nil {
-			return nil, acl
-		}
-		if val, ok := v.(data.Value); ok {
-			fnCtx.SetVariableValue(varies[argIdx], val)
+		if flat[i] != nil {
+			fnCtx.SetVariableValue(varies[argIdx], flat[i])
 		}
 	}
 

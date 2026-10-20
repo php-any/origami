@@ -62,7 +62,7 @@ func (pe *CallStaticKeywordDynamicMethod) GetValue(ctx data.Context) (data.GetVa
 			if ok {
 				method, has = getter.GetStaticMethod(methodName)
 				if has {
-					return data.NewFuncValue(method), nil
+					return newStaticMethodFuncWithLateBinding(currentClass, method), nil
 				}
 				extend = ext.GetExtend()
 			}
@@ -71,5 +71,5 @@ func (pe *CallStaticKeywordDynamicMethod) GetValue(ctx data.Context) (data.GetVa
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("当前类 %s 没有静态方法 %s", currentClass.GetName(), methodName))
 	}
 
-	return data.NewFuncValue(method), nil
+	return newStaticMethodFuncWithLateBinding(currentClass, method), nil
 }
