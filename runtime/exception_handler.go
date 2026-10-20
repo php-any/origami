@@ -59,8 +59,6 @@ func (s *ExceptionHandlerState) Handle(vm data.VM, control data.Control) (bool, 
 }
 
 func (vm *VM) SnapshotExceptionHandlers() *ExceptionHandlerState {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
 	return vm.exceptionHandlers.Clone()
 }
 
@@ -81,24 +79,18 @@ func (vm *VM) SetExceptionHandlerBinding(original, callable data.Value) data.Val
 	if state := vm.requestExceptionHandlers(); state != nil {
 		return state.Set(original, callable)
 	}
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
 	return vm.exceptionHandlers.Set(original, callable)
 }
 func (vm *VM) GetExceptionHandler() data.Value {
 	if state := vm.requestExceptionHandlers(); state != nil {
 		return state.Current()
 	}
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
 	return vm.exceptionHandlers.Current()
 }
 func (vm *VM) RestoreExceptionHandler() bool {
 	if state := vm.requestExceptionHandlers(); state != nil {
 		return state.Restore()
 	}
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
 	return vm.exceptionHandlers.Restore()
 }
 func (vm *VM) HandleUnhandledException(control data.Control) (bool, data.Control) {
@@ -109,16 +101,11 @@ func (vm *VM) HandleUnhandledException(control data.Control) (bool, data.Control
 }
 
 func (vm *RequestVM) requestExceptionHandlers() *ExceptionHandlerState {
-	if state := vm.requestCall(); state != &vm.call {
-		if state.exceptionHandlers == nil {
-			state.exceptionHandlers = vm.Base.SnapshotExceptionHandlers()
-		}
-		return state.exceptionHandlers
+	state := vm.requestCall()
+	if state.exceptionHandlers == nil {
+		state.exceptionHandlers = vm.Base.SnapshotExceptionHandlers()
 	}
-	if vm.exceptionHandlers == nil {
-		vm.exceptionHandlers = vm.Base.SnapshotExceptionHandlers()
-	}
-	return vm.exceptionHandlers
+	return state.exceptionHandlers
 }
 func (vm *RequestVM) SetExceptionHandler(handler data.Value) data.Value {
 	return vm.SetExceptionHandlerBinding(handler, handler)

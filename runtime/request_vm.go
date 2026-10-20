@@ -3,7 +3,6 @@ package runtime
 import (
 	"fmt"
 	"net/http"
-	"sync"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -44,7 +43,6 @@ type RequestVM struct {
 	registry *data.ClassRegistry
 	Base     *VM
 	parser   *parser.Parser
-	mu       sync.RWMutex
 
 	addedClasses       map[string]data.ClassStmt
 	addedInterfaces    map[string]data.InterfaceStmt
@@ -64,13 +62,9 @@ type RequestVM struct {
 	phpIni             map[string]string
 	initialEnvironment *map[string]string
 	environment        map[string]*string // nil values remove an inherited variable
-	errorHandlers      *errorHandlerState
-	phpErrors          *data.PHPErrorState
 
 	call                CallState
-	shutdown            shutdownQueue
 	staticLocals        map[any]*data.StaticLocals
-	exceptionHandlers   *ExceptionHandlerState
 	objectScope         *data.RequestObjectScope
 	autoload            []autoloadRegistration
 	autoloadInitialized bool
@@ -247,23 +241,6 @@ func (vm *RequestVM) ParseFile(file string, object data.Value) (data.Value, data
 	return runTemplateFile(vm, file, program, variables, object)
 }
 
-func lookupRequestClass(added map[string]data.ClassStmt, pkg string) (data.ClassStmt, bool) {
-	if c, ok := added[pkg]; ok {
-		return c, true
-	}
-	if len(pkg) > 0 && pkg[0] == '\\' {
-		if c, ok := added[pkg[1:]]; ok {
-			return c, true
-		}
-	}
-	for k, c := range added {
-		if data.TypeNameEqual(k, pkg) {
-			return c, true
-		}
-	}
-	return nil, false
-}
-
 func (vm *RequestVM) GetClass(pkg string) (data.ClassStmt, bool) {
 	return vm.registry.Snapshot().FindClass(pkg)
 }
@@ -341,16 +318,9 @@ func (vm *RequestVM) RegisterFunction(name string, fn interface{}) data.Control 
 func (vm *RequestVM) RegisterReflectClass(name string, instance interface{}) data.Control {
 	return vm.Base.RegisterReflectClass(name, instance)
 }
-func (vm *RequestVM) SetThrowControl(fn func(acl data.Control)) {
-	vm.mu.Lock()
-	vm.throwHandler = fn
-	vm.mu.Unlock()
-}
+func (vm *RequestVM) SetThrowControl(fn func(acl data.Control)) { vm.throwHandler = fn }
 func (vm *RequestVM) ThrowControl(acl data.Control) {
-	vm.mu.RLock()
-	handler := vm.throwHandler
-	vm.mu.RUnlock()
-	if handler != nil {
+	if handler := vm.throwHandler; handler != nil {
 		handler(acl)
 		return
 	}
@@ -467,27 +437,16 @@ func (vm *RequestVM) EnsureSessionArray() *data.ArrayValue {
 }
 
 func (vm *RequestVM) AddShutdownCallback(cb data.Value) {
-	if st := vm.requestCall(); st != &vm.call {
-		st.shutdown.add(cb)
-		return
-	}
-	vm.shutdown.add(cb)
+	vm.requestCall().shutdown.add(cb)
 }
 
 func (vm *RequestVM) RunShutdownCallbacks() {
-	queue := &vm.shutdown
-	if st := vm.requestCall(); st != &vm.call {
-		queue = &st.shutdown
-	}
-	if queue.done {
+	st := vm.requestCall()
+	if st.shutdown.done {
 		return
 	}
 	defer vm.cleanupUploadedFiles()
-	if st := vm.requestCall(); st != &vm.call {
-		st.shutdown.run(vm)
-		return
-	}
-	vm.shutdown.run(vm)
+	st.shutdown.run(vm)
 }
 
 func (vm *RequestVM) requestCall() *CallState {
@@ -533,7 +492,7 @@ func (vm *RequestVM) RunCompiledFile(file string) (data.GetValue, data.Control) 
 	if vm.GetPhpFileCache(file) {
 		return nil, nil
 	}
-	build, found := syncMapLoad[func() (data.GetValue, []data.Variable)](&vm.Base.compiledFiles, file)
+	build, found := vm.Base.compiledFiles[file]
 	if !found {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("compiled file %s not found", file))
 	}
@@ -560,10 +519,43 @@ func (vm *RequestVM) SetOutputWriter(write data.OutputWriter) {
 	vm.out.call = &vm.call
 	vm.out.SetSink(write)
 }
+
+// Activate publishes this RequestVM's call stack and output on the current
+// goroutine and installs the static-property overlay. The goroutine slot
+// points at these same objects. restore runs after request shutdown.
+func (vm *RequestVM) Activate() (restore func()) {
+	vm.out.call = &vm.call
+	wasLocal := vm.out.local
+	vm.out.local = true
+	id := goid()
+	prevOut, _ := requestOutput.Swap(id, vm.out)
+	prevCall, _ := requestCall.Swap(id, &vm.call)
+	requestOutputActive.Add(1)
+	data.BeginRequestStaticOverlay()
+	return func() {
+		data.EndRequestStaticOverlay()
+		if !wasLocal {
+			vm.out.local = false
+		}
+		if prevOut != nil {
+			requestOutput.Store(id, prevOut)
+		} else {
+			requestOutput.Delete(id)
+		}
+		if prevCall != nil {
+			requestCall.Store(id, prevCall)
+		} else {
+			requestCall.Delete(id)
+		}
+		requestOutputActive.Add(-1)
+	}
+}
+
 func (vm *RequestVM) BindHTTP(req *http.Request, response http.ResponseWriter) {
 	vm.request, vm.response = req, response
-	if currentRequestCallState() == nil && req != nil {
-		vm.call.deadline = newRequestCancellation(req.Context(), vm.call.ignoreUserAbort)
+	st := vm.requestCall()
+	if req != nil && st.deadline == nil {
+		st.deadline = newRequestCancellation(req.Context(), st.ignoreUserAbort)
 	}
 	if flush, ok := response.(http.Flusher); ok {
 		vm.activeOut().SetSAPIFlush(flush.Flush)

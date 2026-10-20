@@ -4,8 +4,8 @@ namespace App\Models;
 
 use InvalidArgumentException;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 #[Fillable(['order_no', 'user_id', 'status', 'total_amount', 'remark', 'shipping_address', 'shipping_name', 'shipping_phone'])]
 class Order extends \Illuminate\Database\Eloquent\Model
@@ -41,7 +41,7 @@ class Order extends \Illuminate\Database\Eloquent\Model
         return LogOptions::defaults()
             ->logFillable()
             ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
+            ->dontLogEmptyChanges();
     }
 
     public function user()

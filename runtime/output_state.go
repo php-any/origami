@@ -53,11 +53,9 @@ type outputLayer struct {
 	invoking  bool
 }
 
-// OutputState 是输出缓冲栈的独立实现：自带锁，不与 VM 注册表/调用栈争用。
-// 单请求内 PHP 语义仍是单线程；spawn/协程并发写同一请求栈时由 mu 串行化。
-// 跨请求靠各自一份 OutputState（Context 指针或 BeginRequestOutput）隔离。
+// OutputState 是一份请求或 CLI 的输出缓冲。请求内只有一个执行线程，不再加锁。
+// 跨请求靠各自一份 OutputState 隔离。
 type OutputState struct {
-	mu            sync.Mutex
 	layers        []*outputLayer
 	has           atomic.Bool
 	depth         atomic.Int32
@@ -131,10 +129,8 @@ func (st *OutputState) write(s string, fallback func(string)) {
 		st.emitFinal(s, fallback)
 		return
 	}
-	st.mu.Lock()
 	n := len(st.layers)
 	if n == 0 {
-		st.mu.Unlock()
 		st.emitFinal(s, fallback)
 		return
 	}
@@ -143,7 +139,6 @@ func (st *OutputState) write(s string, fallback func(string)) {
 		idx--
 	}
 	if idx < 0 {
-		st.mu.Unlock()
 		st.emitFinal(s, fallback)
 		return
 	}
@@ -151,7 +146,6 @@ func (st *OutputState) write(s string, fallback func(string)) {
 	layer.buf.WriteString(s)
 	chunk := layer.chunkSize
 	overflow := chunk > 0 && layer.buf.Len() >= chunk
-	st.mu.Unlock()
 	if overflow && idx == n-1 {
 		st.flushCurrent(data.PHPOutputHandlerWrite, fallback)
 	}
@@ -191,27 +185,21 @@ func (st *OutputState) startSpec(spec data.OutputBufferStartSpec) bool {
 		typeID:    spec.Type,
 		handler:   spec.Handler,
 	}
-	st.mu.Lock()
 	st.layers = append(st.layers, layer)
 	st.syncFlag()
-	st.mu.Unlock()
 	return true
 }
 
 func (st *OutputState) runHandler(layer *outputLayer, handler data.OutputBufferHandler, content string, phase int) (string, bool) {
 	if handler == nil {
 		if layer != nil {
-			st.mu.Lock()
 			layer.invoking = false
-			st.mu.Unlock()
 		}
 		return content, true
 	}
 	rewritten, ok, ctl := handler(content, phase)
 	if layer != nil {
-		st.mu.Lock()
 		layer.invoking = false
-		st.mu.Unlock()
 	}
 	if ctl != nil {
 		st.setControl(ctl)
@@ -265,16 +253,13 @@ func (st *OutputState) releaseLayer(layer *outputLayer) {
 
 // cleanPop 对应 ob_get_clean / ob_end_clean：弹出栈顶，调用 CLEAN|FINAL handler，不写出。
 func (st *OutputState) cleanPop() (string, bool) {
-	st.mu.Lock()
 	layer := st.popLayer()
 	if layer == nil {
-		st.mu.Unlock()
 		return "", false
 	}
 	if layer.flags&data.PHPOutputHandlerRemovable == 0 {
 		st.layers = append(st.layers, layer)
 		st.syncFlag()
-		st.mu.Unlock()
 		return "", false
 	}
 	content := layer.buf.String()
@@ -283,7 +268,6 @@ func (st *OutputState) cleanPop() (string, bool) {
 		phase |= data.PHPOutputHandlerStart
 	}
 	handler := layer.handler
-	st.mu.Unlock()
 	out, ok := st.runHandler(nil, handler, content, phase)
 	st.releaseLayer(layer)
 	if !ok {
@@ -298,16 +282,13 @@ func (st *OutputState) clean() (string, bool) {
 
 // flushEnd 对应 ob_end_flush / ob_get_flush：弹出、FINAL handler、写出到上一层。
 func (st *OutputState) flushEnd(fallback func(string)) (string, bool) {
-	st.mu.Lock()
 	layer := st.popLayer()
 	if layer == nil {
-		st.mu.Unlock()
 		return "", false
 	}
 	if layer.flags&data.PHPOutputHandlerRemovable == 0 {
 		st.layers = append(st.layers, layer)
 		st.syncFlag()
-		st.mu.Unlock()
 		return "", false
 	}
 	content := layer.buf.String()
@@ -316,7 +297,6 @@ func (st *OutputState) flushEnd(fallback func(string)) (string, bool) {
 		phase |= data.PHPOutputHandlerStart
 	}
 	handler := layer.handler
-	st.mu.Unlock()
 	out, ok := st.runHandler(nil, handler, content, phase)
 	st.releaseLayer(layer)
 	if !ok {
@@ -336,15 +316,12 @@ func (st *OutputState) flushWithFallback(fallback func(string)) (string, bool) {
 
 // flushCurrent 对应 ob_flush：保留层级，内容经 handler 后冒泡到上一层。
 func (st *OutputState) flushCurrent(phase int, fallback func(string)) (string, bool) {
-	st.mu.Lock()
 	n := len(st.layers)
 	if n == 0 {
-		st.mu.Unlock()
 		return "", false
 	}
 	layer := st.layers[n-1]
 	if phase&data.PHPOutputHandlerFlush != 0 && layer.flags&data.PHPOutputHandlerFlushable == 0 {
-		st.mu.Unlock()
 		return "", false
 	}
 	content := layer.buf.String()
@@ -356,27 +333,21 @@ func (st *OutputState) flushCurrent(phase int, fallback func(string)) (string, b
 	handler := layer.handler
 	// 保持 invoking，使 write() 跳过本层、把内容冒泡到上一层/SAPI。
 	layer.invoking = true
-	st.mu.Unlock()
 	out, ok := st.runHandler(nil, handler, content, phase)
 	if ok {
 		st.write(out, fallback)
 	}
-	st.mu.Lock()
 	layer.invoking = false
-	st.mu.Unlock()
 	return out, ok
 }
 
 func (st *OutputState) cleanCurrent() bool {
-	st.mu.Lock()
 	n := len(st.layers)
 	if n == 0 {
-		st.mu.Unlock()
 		return false
 	}
 	layer := st.layers[n-1]
 	if layer.flags&data.PHPOutputHandlerCleanable == 0 {
-		st.mu.Unlock()
 		return false
 	}
 	content := layer.buf.String()
@@ -388,14 +359,11 @@ func (st *OutputState) cleanCurrent() bool {
 	}
 	handler := layer.handler
 	layer.invoking = handler != nil
-	st.mu.Unlock()
 	_, ok := st.runHandler(layer, handler, content, phase)
 	return ok
 }
 
 func (st *OutputState) length() (int, bool) {
-	st.mu.Lock()
-	defer st.mu.Unlock()
 	n := len(st.layers)
 	if n == 0 {
 		return 0, false
@@ -404,8 +372,6 @@ func (st *OutputState) length() (int, bool) {
 }
 
 func (st *OutputState) contents() (string, bool) {
-	st.mu.Lock()
-	defer st.mu.Unlock()
 	n := len(st.layers)
 	if n == 0 {
 		return "", false
@@ -418,8 +384,6 @@ func (st *OutputState) level() int {
 }
 
 func (st *OutputState) status(full bool) []data.OutputBufferStatusInfo {
-	st.mu.Lock()
-	defer st.mu.Unlock()
 	n := len(st.layers)
 	if n == 0 {
 		return nil
@@ -445,8 +409,6 @@ func (st *OutputState) status(full bool) []data.OutputBufferStatusInfo {
 }
 
 func (st *OutputState) handlers() []string {
-	st.mu.Lock()
-	defer st.mu.Unlock()
 	n := len(st.layers)
 	if n == 0 {
 		return nil

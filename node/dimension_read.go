@@ -31,7 +31,18 @@ func ReadDimensionQuiet(ctx data.Context, index *IndexExpression, probe, fetch b
 		if value, exists, control := probeObjectProperty(ctx, frozen); control != nil {
 			return nil, false, control
 		} else if !exists {
-			container = data.NewNullValue()
+			// PHP：没有 __isset 时，isset/empty/?? 的属性下标会调用 __get 再检查键。
+			// isset($obj->prop) 本身仍然不调用 __get。有 __isset 且返回 false 时也不调用。
+			value, use, control := magicPropertyForDimension(ctx, frozen)
+			if control != nil {
+				return nil, false, control
+			}
+			if use {
+				container = value
+			}
+			if container == nil {
+				container = data.NewNullValue()
+			}
 		} else if value != nil {
 			container = value
 		} else {
@@ -111,6 +122,44 @@ func ReadDimensionQuiet(ctx data.Context, index *IndexExpression, probe, fetch b
 	}
 	if probe && !issetNonNullValue(value.(data.Value)) {
 		return value, false, nil
+	}
+	return value, true, nil
+}
+
+// magicPropertyForDimension 在属性下标的 isset/empty/?? 中补上 PHP 的 __get。
+// 仅当属性未声明、没有动态值、也没有 __isset 时读取；__isset 返回 false 时保持不调用 __get。
+func magicPropertyForDimension(ctx data.Context, property *CallObjectProperty) (data.GetValue, bool, data.Control) {
+	owner, ctl := property.Object.GetValue(ctx)
+	if ctl != nil {
+		return nil, false, ctl
+	}
+	var object *data.ClassValue
+	switch value := owner.(type) {
+	case *data.ClassValue:
+		object = value
+	case *data.ThisValue:
+		object = value.ClassValue
+	default:
+		return nil, false, nil
+	}
+	if object == nil || object.ObjectValue == nil {
+		return nil, false, nil
+	}
+	if _, declared := lookupObjectProperty(ctx, object, property.Property); declared {
+		return nil, false, nil
+	}
+	if object.ObjectValue.HasProperty(property.Property) {
+		return nil, false, nil
+	}
+	if _, found := object.GetMethod("__isset"); found {
+		return nil, false, nil
+	}
+	if _, found := object.GetMethod("__get"); !found {
+		return nil, false, nil
+	}
+	value, ctl := property.GetValue(ctx)
+	if ctl != nil {
+		return nil, false, ctl
 	}
 	return value, true, nil
 }

@@ -43,7 +43,7 @@ Source → lexer/ → tokens → parser/ → node/ (AST) → runtime/ (VM) execu
 | `parser/` | Recursive-descent parser. `Parser` struct in `parser.go` holds the token stream, scope manager, expression parser, and class-path manager. Grammar rules are sub-parsers registered via `all_parser.go`'s `parserRouter` map—each token type maps to a constructor like `NewIfParser`, `NewFunctionParser`, `NewClassParser`. |
 | `node/` | AST nodes. Every language construct (if, for, class, binary ops, calls, etc.) implements `data.GetValue`. This is the largest package—nodes do both structure and execution. |
 | `data/` | Core interfaces and value types. Defines `VM`, `Context`, `GetValue`, `Types`, `ClassStmt`, `InterfaceStmt`, `FuncStmt`, and all value types (`ZVal`, `ArrayValue`, `ObjectValue`, `StringValue`, etc.). The `GetValue` interface is the fundamental contract: `GetValue(ctx Context) (GetValue, Control)`. |
-| `runtime/` | `VM` struct (`vm.go`) is the global runtime container: class/interface/function/constant registry. `RequestVM` (`request_vm.go`) provides request-level isolation (analogous to php-fpm's per-request model)—temporary class/function registrations don't leak between requests. |
+| `runtime/` | Process `VM` (`vm.go`) holds the parser, startup declarations, shared parse cache, and compiled programs. `RequestVM` (`request_vm.go`) is the per-execution container: new declarations, constants, globals, include state, static locals, handlers, and shutdown stay there. |
 | `std/` | Standard library bundles loaded into the VM: `php/` (PHP builtins like `empty`, `isset`, string/array functions, reflection), `net/http/`, `system/`, `database/`, `channel/`, `context/`. |
 
 ### Key interfaces (`data/` package)
@@ -63,9 +63,11 @@ Source → lexer/ → tokens → parser/ → node/ (AST) → runtime/ (VM) execu
 
 Classes are auto-discovered from the filesystem. `ClassPathManager` maps class names to file paths. A class `Foo\Bar` must be in a file named `Bar.php` (or `Bar.zy`) within a directory structure mirroring the namespace. The convention mirrors PSR-4.
 
-### RequestVM (request-level isolation)
+### VM and RequestVM
 
-`runtime.NewRequestVM(baseVM)` creates a temporary VM that delegates reads to the base VM but owns request globals, constants, include state, handlers, shutdown callbacks, static locals, and new declarations locally. Used to simulate php-fpm's per-request model—discard after the request completes. The LSP server uses this to parse files without polluting the global VM.
+`runtime.NewVM` lives for the process. `runtime.NewRequestVM(base)` keeps a `Base *VM` for shared facilities and copies the startup class-registry snapshot, environment, and executed-file snapshot. Later includes and declarations write only the request maps. Parsing shares the AST; a throwaway `RequestVM` catches declarations so they are not published back to `Base`.
+
+`RequestVM.Activate` publishes that VM's call stack and output into the current goroutine's slot and installs the static-property overlay. Laravel `serve` and `std/net/http` use it, so deadline checks and startup frames see the same objects. `BeginRequestOutput` still allocates a separate anonymous state for callers that only have the base `VM`. `SetOutputWriter` (`fpm.New`) binds output on the `RequestVM` without replacing an existing goroutine slot. Discard the `RequestVM` when the execution ends. There is no `TempVM`.
 
 ## Tests
     

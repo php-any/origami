@@ -105,7 +105,9 @@ func TestParseFlightPanicAndRecursionReleaseState(t *testing.T) {
 	if got != entry || control != nil {
 		t.Fatal("failed parse prevented later retry")
 	}
-	cache.flights.Range(func(_, _ any) bool { t.Fatal("flight retained after completion"); return false })
+	if len(cache.generation().flights) != 0 {
+		t.Fatal("flight retained after completion")
+	}
 }
 
 func TestClearParseCacheDoesNotRepublishOldGeneration(t *testing.T) {
@@ -125,7 +127,7 @@ func TestClearParseCacheDoesNotRepublishOldGeneration(t *testing.T) {
 	vm.ClearParsedFileCache()
 	close(release)
 	<-done
-	if _, ok := vm.parsedFiles.Load().entries.Load("file"); ok {
+	if _, ok := vm.parsedFiles.Load().generation().entries["file"]; ok {
 		t.Fatal("old parse repopulated cleared cache")
 	}
 }

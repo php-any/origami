@@ -109,7 +109,9 @@ func (vm *RequestVM) activeOut() *OutputState {
 }
 
 func (vm *RequestVM) fallbackFor(st *OutputState) func(string) {
-	if st == vm.out {
+	// Activated output is also the goroutine slot. Delegating to Base would
+	// re-enter this same buffer.
+	if st == vm.out && currentRequestOutput() != vm.out {
 		return vm.Base.WriteOutput
 	}
 	return data.WriteOutput

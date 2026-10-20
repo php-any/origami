@@ -647,9 +647,13 @@ func Load(vm data.VM) {
 }
 
 func initPhpDefaultDefines(vm data.VM) {
-	// 目录和路径相关常量
-	vm.SetConstant("DIRECTORY_SEPARATOR", data.NewStringValue("/"))
-	vm.SetConstant("PATH_SEPARATOR", data.NewStringValue(":"))
+	// 目录和路径相关常量。Windows 上与 PHP 一样使用反斜杠和分号。
+	dirSep, pathSep := "/", ":"
+	if runtime.GOOS == "windows" {
+		dirSep, pathSep = "\\", ";"
+	}
+	vm.SetConstant("DIRECTORY_SEPARATOR", data.NewStringValue(dirSep))
+	vm.SetConstant("PATH_SEPARATOR", data.NewStringValue(pathSep))
 	vm.SetConstant("DEBUG_BACKTRACE_PROVIDE_OBJECT", data.NewIntValue(1))
 	vm.SetConstant("DEBUG_BACKTRACE_IGNORE_ARGS", data.NewIntValue(2))
 

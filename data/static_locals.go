@@ -1,7 +1,5 @@
 package data
 
-import "sync"
-
 // StaticLocalScope supplies request-owned storage for a shared declaration.
 // Ordinary VMs retain the declaration's process-local CLI storage.
 type StaticLocalScope interface {
@@ -10,7 +8,6 @@ type StaticLocalScope interface {
 
 // StaticLocals 函数/方法内 static 局部变量存储（跨调用、递归共享同一 ZVal）。
 type StaticLocals struct {
-	mu    sync.Mutex
 	Slots map[int]*ZVal
 }
 
@@ -22,8 +19,6 @@ func (s *StaticLocals) Get(index int) (Value, bool) {
 	if s == nil {
 		return nil, false
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	z, ok := s.Slots[index]
 	if !ok || z == nil {
 		return nil, false
@@ -35,8 +30,6 @@ func (s *StaticLocals) Slot(index int) *ZVal {
 	if s == nil {
 		return nil
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	return s.Slots[index]
 }
 
@@ -49,8 +42,6 @@ func (s *StaticLocals) EnsureSlot(index int, val Value) *ZVal {
 	if s == nil {
 		return NewZVal(val)
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	if z, ok := s.Slots[index]; ok && z != nil {
 		return z
 	}
@@ -64,8 +55,6 @@ func (s *StaticLocals) Update(index int, val Value) {
 	if s == nil {
 		return
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	if z, ok := s.Slots[index]; ok && z != nil {
 		z.StoreRaw(val)
 		z.Defined = true

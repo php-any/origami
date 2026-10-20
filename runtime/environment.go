@@ -55,8 +55,6 @@ func (vm *VM) SetPHPEnvironment(name string, value *string) bool {
 	if !validPHPEnvironment(name, value) {
 		return false
 	}
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
 	values := vm.PHPEnvironment()
 	name = environmentKey(values, name)
 	if value == nil {

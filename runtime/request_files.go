@@ -14,14 +14,13 @@ func (vm *VM) snapshotRequestFiles() *requestFileSnapshot {
 	if snapshot := vm.requestFiles.Load(); snapshot != nil {
 		return snapshot
 	}
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	if snapshot := vm.requestFiles.Load(); snapshot != nil {
-		return snapshot
+	snapshot := &requestFileSnapshot{loaded: make(map[string]struct{}, len(vm.phpFileCache)), results: make(map[string]data.GetValue, len(vm.includeOnceResults))}
+	for file := range vm.phpFileCache {
+		snapshot.loaded[file] = struct{}{}
 	}
-	snapshot := &requestFileSnapshot{loaded: make(map[string]struct{}), results: make(map[string]data.GetValue)}
-	vm.phpFileCache.Range(func(key, _ any) bool { snapshot.loaded[key.(string)] = struct{}{}; return true })
-	vm.includeOnceResults.Range(func(key, value any) bool { snapshot.results[key.(string)] = value.(data.GetValue); return true })
+	for file, result := range vm.includeOnceResults {
+		snapshot.results[file] = result
+	}
 	vm.requestFiles.Store(snapshot)
 	return snapshot
 }

@@ -166,7 +166,7 @@ func (p *TraitParser) Parse() (data.GetValue, data.Control) {
 	trait.Construct = nil
 	trait.Flags = data.ClassTrait
 
-	// 注册 trait 到 VM（trait 和 class 一样存储在 classMap 中）
+	// 注册 trait 到 VM（与 class 同一份注册表快照）
 	acl := p.vm.AddClass(trait)
 	if acl != nil {
 		return nil, acl

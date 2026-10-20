@@ -1,9 +1,6 @@
 package data
 
-import (
-	"sync"
-	"sync/atomic"
-)
+import "sync/atomic"
 
 type ClassID uint32
 type ClassFlags uint8
@@ -106,7 +103,6 @@ type DescriptorSnapshot struct {
 	revision    uint64
 }
 type ClassRegistry struct {
-	mu       sync.Mutex
 	snapshot atomic.Pointer[DescriptorSnapshot]
 }
 
@@ -132,6 +128,22 @@ func (s *DescriptorSnapshot) FindInterface(name string) (InterfaceStmt, bool) {
 		return nil, false
 	}
 	return s.interfaces.Get(uint32(id))
+}
+func (s *DescriptorSnapshot) Classes() []ClassStmt {
+	out := make([]ClassStmt, 0)
+	s.classes.Each(func(_ uint32, class ClassStmt) bool {
+		out = append(out, class)
+		return true
+	})
+	return out
+}
+func (s *DescriptorSnapshot) Interfaces() []InterfaceStmt {
+	out := make([]InterfaceStmt, 0)
+	s.interfaces.Each(func(_ uint32, iface InterfaceStmt) bool {
+		out = append(out, iface)
+		return true
+	})
+	return out
 }
 func descriptorMethods(methods []Method) []MethodDescriptor {
 	out := make([]MethodDescriptor, len(methods))
@@ -207,9 +219,8 @@ func (r *ClassRegistry) PublishClass(class ClassStmt) {
 		name = Symbols.Intern(class.GetName())
 	}
 	id := d.id
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	s := *r.snapshot.Load()
+	current := r.snapshot.Load()
+	s := *current
 	if existing, found := s.classes.Get(uint32(name)); found && existing == class {
 		if published, found := s.descriptors.Get(uint32(id)); found && (published == d || published.declaration == d) {
 			return
@@ -233,8 +244,6 @@ func (r *ClassRegistry) PublishInterface(iface InterfaceStmt) {
 	for _, parent := range iface.GetExtends() {
 		d.interfaces = append(d.interfaces, ClassID(Symbols.Intern(parent)))
 	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	s := *r.snapshot.Load()
 	s.interfaces = s.interfaces.With(uint32(name), iface)
 	if previous, exists := s.aliases.Get(uint32(name)); exists && previous != id {

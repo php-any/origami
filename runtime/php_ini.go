@@ -3,14 +3,11 @@ package runtime
 import "strings"
 
 func (vm *VM) LookupPHPIni(name string) (string, bool) {
-	value, found := vm.phpIni.Load(strings.ToLower(name))
-	if !found {
-		return "", false
-	}
-	return value.(string), true
+	value, found := vm.phpIni[strings.ToLower(name)]
+	return value, found
 }
 func (vm *VM) StorePHPIni(name, value string) {
-	vm.phpIni.Store(strings.ToLower(name), value)
+	vm.phpIni[strings.ToLower(name)] = value
 	applyRequestIni(currentRequestCallState(), name, value)
 }
 func (vm *RequestVM) LookupPHPIni(name string) (string, bool) {

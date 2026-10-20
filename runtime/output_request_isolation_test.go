@@ -155,20 +155,13 @@ func TestContextCachesOutputState(t *testing.T) {
 	}
 }
 
-func TestOutputStateConcurrentWrites(t *testing.T) {
+func TestOutputStateWritesPreserveEveryMarker(t *testing.T) {
 	st := NewOutputState()
 	st.start()
 	const n = 32
-	var wg sync.WaitGroup
-	wg.Add(n)
 	for i := 0; i < n; i++ {
-		i := i
-		go func() {
-			defer wg.Done()
-			st.write("["+strconv.Itoa(i)+"]", nil)
-		}()
+		st.write("["+strconv.Itoa(i)+"]", nil)
 	}
-	wg.Wait()
 	got, ok := st.contents()
 	if !ok {
 		t.Fatal("expected buffer")

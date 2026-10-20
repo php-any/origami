@@ -25,12 +25,10 @@ func TestInvalidatedParseCannotRefillCache(t *testing.T) {
 		})
 	}()
 	<-started
-	flight, _ := syncMapLoad[*parsedFileFlight](&cache.flights, file)
-	flight.invalidated.Store(true)
-	cache.entries.Delete(file)
+	cache.invalidate(file)
 	close(release)
 	<-completed
-	if _, ok := cache.entries.Load(file); ok {
+	if _, ok := cache.generation().entries[file]; ok {
 		t.Fatal("stale parse refilled the cache")
 	}
 	entry, ctl := cache.load(context.Background(), file, func() (*parsedPHPFile, data.Control) {

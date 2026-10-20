@@ -5,7 +5,6 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"sync"
 	"sync/atomic"
 
 	"github.com/php-any/origami/data"
@@ -27,11 +26,18 @@ func (vm *VM) GetParser() *parser.Parser {
 // NewVM 创建一个新的虚拟机
 func NewVM(parser *parser.Parser) data.VM {
 	vm := &VM{
-		registry:     data.NewClassRegistry(nil),
-		parser:       parser,
-		loadingFiles: make(map[string]chan struct{}),
-		loadingOwner: make(map[string]uint64),
-		out:          newOutputState(),
+		registry:           data.NewClassRegistry(nil),
+		parser:             parser,
+		funcMap:            map[string]data.FuncStmt{},
+		constantMap:        map[string]data.Value{},
+		globalVars:         map[string]*data.ZVal{},
+		phpIni:             map[string]string{},
+		phpFileCache:       map[string]struct{}{},
+		includeOnceResults: map[string]data.GetValue{},
+		compiledFiles:      map[string]func() (data.GetValue, []data.Variable){},
+		loadingFiles:       make(map[string]chan struct{}),
+		loadingOwner:       make(map[string]uint64),
+		out:                newOutputState(),
 		acl: func(acl data.Control) {
 			parser.ShowControl(acl)
 			os.Exit(1)
@@ -52,27 +58,21 @@ type VM struct {
 	parser   *parser.Parser
 	ctx      data.Context
 
-	// mu 保护非 map 的请求态字段；类/函数/常量等表使用 sync.Map 以支持并发读。
-	mu                  sync.Mutex
+	// 监听 HTTP 之前只有启动线程写这些表。请求里的可变状态在 RequestVM，不再加锁。
 	autoload            []autoloadRegistration
 	autoloadInitialized bool
 	autoloadExtensions  *string
 	autoloadFlights     autoloadFlights
 
-	classMap           sync.Map // string -> data.ClassStmt
-	classLower         sync.Map // lowercase FQCN -> data.ClassStmt（PHP 类名大小写不敏感，避免 miss 时 Range 全表）
-	interfaceMap       sync.Map // string -> data.InterfaceStmt
-	interfaceLower     sync.Map // lowercase FQCN -> data.InterfaceStmt
-	funcMap            sync.Map // string -> data.FuncStmt
-	functionMu         sync.Mutex
+	funcMap            map[string]data.FuncStmt
 	functions          atomic.Pointer[data.IDMap[data.FuncStmt]]
-	constantMap        sync.Map // string -> data.Value
-	globalVars         sync.Map // string -> *data.ZVal
-	phpIni             sync.Map // startup settings; request writes use an overlay
+	constantMap        map[string]data.Value
+	globalVars         map[string]*data.ZVal
+	phpIni             map[string]string
 	environment        atomic.Pointer[map[string]string]
-	phpFileCache       sync.Map // string -> struct{}
-	includeOnceResults sync.Map // string -> data.GetValue
-	compiledFiles      sync.Map // string -> func() (data.GetValue, []data.Variable)
+	phpFileCache       map[string]struct{}
+	includeOnceResults map[string]data.GetValue
+	compiledFiles      map[string]func() (data.GetValue, []data.Variable)
 	parsedFiles        atomic.Pointer[parsedFileCache]
 	requestFiles       atomic.Pointer[requestFileSnapshot]
 
@@ -93,16 +93,11 @@ type VM struct {
 
 	// PHP 级 register_shutdown_function 注册的回调列表
 	shutdownCallbacks []data.Value
-	shutdownRunOnce   sync.Once
+	shutdownDone      bool
 
-	// 调用深度/栈在请求 VM 或 goroutine-local CallState 上，不放本结构以免多请求串栈。
-	// out 为 CLI/默认输出缓冲栈（独立锁，不与 mu 争用）。
-	// 多请求共享本 VM 时由 BeginRequestOutput 安装 goroutine-local 栈覆盖。
+	// 调用深度/栈在 RequestVM 上。out 是 CLI 的输出缓冲。
+	// 共享本 VM 的请求由 RequestVM.Activate 把同一份状态放进 goroutine 槽。
 	out *outputState
-
-	// $GLOBALS / $_SESSION 的 VM 级数组（避免包级单例跨请求串态）
-
-	// 预编译文件注册表（见 compiledFiles sync.Map）
 }
 
 func (vm *VM) EnterCall() int {
@@ -132,10 +127,8 @@ func (vm *VM) SetPhpFileCache(file string) {
 	if file == "" {
 		return
 	}
-	vm.mu.Lock()
-	vm.phpFileCache.Store(file, struct{}{})
+	vm.phpFileCache[file] = struct{}{}
 	vm.requestFiles.Store(nil)
-	vm.mu.Unlock()
 }
 
 func (vm *VM) GetPhpFileCache(file string) bool {
@@ -143,7 +136,7 @@ func (vm *VM) GetPhpFileCache(file string) bool {
 	if file == "" {
 		return false
 	}
-	_, ok := vm.phpFileCache.Load(file)
+	_, ok := vm.phpFileCache[file]
 	return ok
 }
 
@@ -152,7 +145,8 @@ func (vm *VM) GetIncludeOnceResult(file string) (data.GetValue, bool) {
 	if file == "" {
 		return nil, false
 	}
-	return syncMapLoad[data.GetValue](&vm.includeOnceResults, file)
+	result, found := vm.includeOnceResults[file]
+	return result, found
 }
 
 func (vm *VM) SetIncludeOnceResult(file string, result data.GetValue) {
@@ -160,17 +154,13 @@ func (vm *VM) SetIncludeOnceResult(file string, result data.GetValue) {
 	if file == "" {
 		return
 	}
-	vm.mu.Lock()
-	syncMapStore(&vm.includeOnceResults, file, result)
+	vm.includeOnceResults[file] = result
 	vm.requestFiles.Store(nil)
-	vm.mu.Unlock()
 }
 
 // ClearIncludeOnceCache 清空 include_once/require_once 返回值缓存，供热重载使用。
 func (vm *VM) ClearIncludeOnceCache() {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	syncMapClear(&vm.includeOnceResults)
+	vm.includeOnceResults = map[string]data.GetValue{}
 	vm.requestFiles.Store(nil)
 }
 
@@ -179,21 +169,14 @@ func (vm *VM) ClearIncludeOnceCache() {
 // - wait：其他 goroutine 正在加载，等待其完成后再重试
 // - finish：当前 goroutine 负责加载，必须 defer 调用（panic/超时也不能漏）
 func (vm *VM) beginPhpFileLoad(file string) (alreadyLoaded bool, wait <-chan struct{}, finish func()) {
-	if _, ok := vm.phpFileCache.Load(file); ok {
+	if _, ok := vm.phpFileCache[file]; ok {
 		return true, nil, nil
 	}
 	gid := goid()
-	vm.mu.Lock()
-	if _, ok := vm.phpFileCache.Load(file); ok {
-		vm.mu.Unlock()
-		return true, nil, nil
-	}
 	if ch, ok := vm.loadingFiles[file]; ok {
 		if vm.loadingOwner[file] == gid {
-			vm.mu.Unlock()
 			return true, nil, nil
 		}
-		vm.mu.Unlock()
 		return false, ch, nil
 	}
 	ch := make(chan struct{})
@@ -202,16 +185,18 @@ func (vm *VM) beginPhpFileLoad(file string) (alreadyLoaded bool, wait <-chan str
 		vm.loadingOwner = make(map[string]uint64)
 	}
 	vm.loadingOwner[file] = gid
-	vm.mu.Unlock()
-	return false, nil, sync.OnceFunc(func() {
-		vm.mu.Lock()
+	finished := false
+	return false, nil, func() {
+		if finished {
+			return
+		}
+		finished = true
 		if cur, ok := vm.loadingFiles[file]; ok && cur == ch {
 			delete(vm.loadingFiles, file)
 			delete(vm.loadingOwner, file)
 			close(ch)
 		}
-		vm.mu.Unlock()
-	})
+	}
 }
 
 // WaitPhpFileLoad 若 file 正在被其他请求加载则阻塞等待；返回 true 表示加载结束后文件已在缓存中。
@@ -222,13 +207,11 @@ func (vm *VM) WaitPhpFileLoad(file string) bool {
 	}
 	gid := goid()
 	for {
-		if _, ok := vm.phpFileCache.Load(file); ok {
+		if _, ok := vm.phpFileCache[file]; ok {
 			return true
 		}
-		vm.mu.Lock()
 		ch, loading := vm.loadingFiles[file]
 		owner := vm.loadingOwner[file]
-		vm.mu.Unlock()
 		if !loading {
 			return false
 		}
@@ -241,21 +224,19 @@ func (vm *VM) WaitPhpFileLoad(file string) bool {
 
 // ClearPhpFileCache 清空已加载 PHP 文件缓存，供开发模式热重载使用。
 func (vm *VM) ClearPhpFileCache() {
-	syncMapClear(&vm.phpFileCache)
+	vm.phpFileCache = map[string]struct{}{}
 	vm.ClearParsedFileCache()
-	vm.mu.Lock()
 	vm.requestFiles.Store(nil)
 	for _, ch := range vm.loadingFiles {
 		close(ch)
 	}
 	vm.loadingFiles = make(map[string]chan struct{})
 	vm.loadingOwner = make(map[string]uint64)
-	vm.mu.Unlock()
 }
 
 // GlobalValue 读取 PHP 全局变量当前值。
 func (vm *VM) GlobalValue(name string) data.Value {
-	if zv, ok := syncMapLoad[*data.ZVal](&vm.globalVars, name); ok && zv != nil {
+	if zv := vm.globalVars[name]; zv != nil {
 		return zv.ReadValue()
 	}
 	return nil
@@ -266,43 +247,14 @@ func (vm *VM) AddNamespace(namespace string, path string) {
 	vm.parser.GetClassPathManager().AddNamespace(namespace, path)
 }
 
-func (vm *VM) SetThrowControl(fn func(acl data.Control)) {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	vm.acl = fn
-}
+func (vm *VM) SetThrowControl(fn func(acl data.Control)) { vm.acl = fn }
 
 func (vm *VM) ThrowControl(control data.Control) {
 	_, remaining := vm.HandleUnhandledException(control)
 	if remaining == nil {
 		return
 	}
-	vm.mu.Lock()
-	fallback := vm.acl
-	vm.mu.Unlock()
-	fallback(remaining)
-}
-
-func phpIdentKey(name string) string {
-	for len(name) > 0 && name[0] == '\\' {
-		name = name[1:]
-	}
-	for i := 0; i < len(name); i++ {
-		if name[i] >= 'A' && name[i] <= 'Z' {
-			var key strings.Builder
-			key.Grow(len(name))
-			key.WriteString(name[:i])
-			for j := i; j < len(name); j++ {
-				ch := name[j]
-				if ch >= 'A' && ch <= 'Z' {
-					ch += 'a' - 'A'
-				}
-				key.WriteByte(ch)
-			}
-			return key.String()
-		}
-	}
-	return name
+	vm.acl(remaining)
 }
 
 func sameDeclFile(a, b interface{ GetFrom() data.From }) bool {
@@ -315,66 +267,36 @@ func sameDeclFile(a, b interface{ GetFrom() data.From }) bool {
 
 func (vm *VM) AddClass(c data.ClassStmt) data.Control {
 	name := c.GetName()
-	key := phpIdentKey(name)
-	if has, ok := syncMapLoad[data.ClassStmt](&vm.classMap, name); ok {
+	if has, ok := vm.registry.Snapshot().FindClass(name); ok {
 		if sameDeclFile(c, has) {
 			return nil // 同文件重复引入，跳过
 		}
 		return data.NewErrorThrow(c.GetFrom(), fmt.Errorf("已存在同名的 class: %s", name))
 	}
-	if has, ok := syncMapLoad[data.ClassStmt](&vm.classLower, key); ok {
-		if sameDeclFile(c, has) {
-			return nil
-		}
-		return data.NewErrorThrow(c.GetFrom(), fmt.Errorf("已存在同名的 class: %s", name))
-	}
-	if has, ok := syncMapLoad[data.InterfaceStmt](&vm.interfaceMap, name); ok {
+	if has, ok := vm.registry.Snapshot().FindInterface(name); ok {
 		if sameDeclFile(c, has) {
 			return nil
 		}
 		return data.NewErrorThrow(c.GetFrom(), fmt.Errorf("已存在同名的类或接口: %s", name))
 	}
-	if has, ok := syncMapLoad[data.InterfaceStmt](&vm.interfaceLower, key); ok {
-		if sameDeclFile(c, has) {
-			return nil
-		}
-		return data.NewErrorThrow(c.GetFrom(), fmt.Errorf("已存在同名的类或接口: %s", name))
-	}
-	syncMapStore(&vm.classMap, name, c)
-	syncMapStore(&vm.classLower, key, c)
 	vm.registry.PublishClass(c)
 	return nil
 }
 
 func (vm *VM) AddInterface(i data.InterfaceStmt) data.Control {
 	name := i.GetName()
-	key := phpIdentKey(name)
-	if has, ok := syncMapLoad[data.ClassStmt](&vm.classMap, name); ok {
+	if has, ok := vm.registry.Snapshot().FindClass(name); ok {
 		if sameDeclFile(i, has) {
 			return nil // 同文件不需要报错
 		}
 		return data.NewErrorThrow(i.GetFrom(), fmt.Errorf("已存在同名的 interface: %s", name))
 	}
-	if has, ok := syncMapLoad[data.ClassStmt](&vm.classLower, key); ok {
-		if sameDeclFile(i, has) {
-			return nil
-		}
-		return data.NewErrorThrow(i.GetFrom(), fmt.Errorf("已存在同名的 interface: %s", name))
-	}
-	if has, ok := syncMapLoad[data.InterfaceStmt](&vm.interfaceMap, name); ok {
+	if has, ok := vm.registry.Snapshot().FindInterface(name); ok {
 		if sameDeclFile(i, has) {
 			return nil // 同文件不需要报错
 		}
 		return data.NewErrorThrow(i.GetFrom(), fmt.Errorf("已存在同名的类或接口: %s", name))
 	}
-	if has, ok := syncMapLoad[data.InterfaceStmt](&vm.interfaceLower, key); ok {
-		if sameDeclFile(i, has) {
-			return nil
-		}
-		return data.NewErrorThrow(i.GetFrom(), fmt.Errorf("已存在同名的类或接口: %s", name))
-	}
-	syncMapStore(&vm.interfaceMap, name, i)
-	syncMapStore(&vm.interfaceLower, key, i)
 	vm.registry.PublishInterface(i)
 	return nil
 }
@@ -386,13 +308,7 @@ func (vm *VM) findClassCaseInsensitive(name string) (data.ClassStmt, bool) {
 	if name == "" {
 		return nil, false
 	}
-	if v, ok := syncMapLoad[data.ClassStmt](&vm.classMap, name); ok {
-		return v, true
-	}
-	if v, ok := syncMapLoad[data.ClassStmt](&vm.classLower, phpIdentKey(name)); ok {
-		return v, true
-	}
-	return nil, false
+	return vm.registry.Snapshot().FindClass(name)
 }
 
 func (vm *VM) GetClass(pkg string) (data.ClassStmt, bool) {
@@ -443,10 +359,7 @@ func (vm *VM) lookupInterface(pkg string) (data.InterfaceStmt, bool) {
 	if pkg == "" {
 		return nil, false
 	}
-	if v, ok := syncMapLoad[data.InterfaceStmt](&vm.interfaceMap, pkg); ok {
-		return v, true
-	}
-	return syncMapLoad[data.InterfaceStmt](&vm.interfaceLower, phpIdentKey(pkg))
+	return vm.registry.Snapshot().FindInterface(pkg)
 }
 
 func (vm *VM) LoadPkg(pkg string) (data.GetValue, data.Control) {
@@ -516,8 +429,6 @@ func (vm *VM) GetOrLoadInterface(pkg string) (data.InterfaceStmt, data.Control) 
 func (vm *VM) AddFunc(f data.FuncStmt) data.Control {
 	name := f.GetName()
 	id := data.Symbols.Intern(name)
-	vm.functionMu.Lock()
-	defer vm.functionMu.Unlock()
 	if _, ok := vm.GetFuncBySymbol(id); ok {
 		switch ff := f.(type) {
 		case node.GetFrom:
@@ -526,7 +437,7 @@ func (vm *VM) AddFunc(f data.FuncStmt) data.Control {
 			return utils.NewThrowf("已存在同名的 function: %s", name)
 		}
 	}
-	syncMapStore(&vm.funcMap, name, f)
+	vm.funcMap[name] = f
 	var functions data.IDMap[data.FuncStmt]
 	if previous := vm.functions.Load(); previous != nil {
 		functions = *previous
@@ -552,11 +463,10 @@ func (vm *VM) GetFuncBySymbol(id data.SymbolID) (data.FuncStmt, bool) {
 
 // AllFuncs 返回 VM 中已注册的全部函数（按名称排序）。
 func (vm *VM) AllFuncs() []data.FuncStmt {
-	funcs := make([]data.FuncStmt, 0)
-	vm.funcMap.Range(func(_, value any) bool {
-		funcs = append(funcs, value.(data.FuncStmt))
-		return true
-	})
+	funcs := make([]data.FuncStmt, 0, len(vm.funcMap))
+	for _, function := range vm.funcMap {
+		funcs = append(funcs, function)
+	}
 	sort.Slice(funcs, func(i, j int) bool {
 		return funcs[i].GetName() < funcs[j].GetName()
 	})
@@ -565,11 +475,7 @@ func (vm *VM) AllFuncs() []data.FuncStmt {
 
 // AllClasses 返回 VM 中已注册的全部类（按名称排序）。
 func (vm *VM) AllClasses() []data.ClassStmt {
-	classes := make([]data.ClassStmt, 0)
-	vm.classMap.Range(func(_, value any) bool {
-		classes = append(classes, value.(data.ClassStmt))
-		return true
-	})
+	classes := vm.registry.Snapshot().Classes()
 	sort.Slice(classes, func(i, j int) bool {
 		return classes[i].GetName() < classes[j].GetName()
 	})
@@ -578,11 +484,7 @@ func (vm *VM) AllClasses() []data.ClassStmt {
 
 // AllInterfaces supplies immutable declaration templates to the compiler.
 func (vm *VM) AllInterfaces() []data.InterfaceStmt {
-	interfaces := make([]data.InterfaceStmt, 0)
-	vm.interfaceMap.Range(func(_, value any) bool {
-		interfaces = append(interfaces, value.(data.InterfaceStmt))
-		return true
-	})
+	interfaces := vm.registry.Snapshot().Interfaces()
 	sort.Slice(interfaces, func(i, j int) bool { return interfaces[i].GetName() < interfaces[j].GetName() })
 	return interfaces
 }
@@ -618,7 +520,7 @@ func (vm *VM) EvalCode(code string, ctx data.Context, evalFrom data.From) (data.
 
 func (vm *VM) RegisterCompiledFile(file string, fn func() (data.GetValue, []data.Variable)) {
 	file = normalizePhpFilePath(file)
-	syncMapStore(&vm.compiledFiles, file, fn)
+	vm.compiledFiles[file] = fn
 }
 
 func (vm *VM) RunCompiledFile(file string) (data.GetValue, data.Control) {
@@ -634,7 +536,7 @@ func (vm *VM) RunCompiledFile(file string) (data.GetValue, data.Control) {
 		}
 
 		defer finish()
-		fn, ok := syncMapLoad[func() (data.GetValue, []data.Variable)](&vm.compiledFiles, file)
+		fn, ok := vm.compiledFiles[file]
 		if !ok {
 			return nil, utils.NewThrowf("run_php_file: 未找到预编译文件 %s", file)
 		}
@@ -832,13 +734,13 @@ func inheritCallerScope(parent, ctx data.Context) data.Context {
 // bindIncludedVarToGlobal 将被引入文件的变量槽与 $GLOBALS 对齐。
 // 若全局已有同名 ZVal 则复用；否则把当前槽注册进全局表。
 func (vm *VM) bindIncludedVarToGlobal(name string, index int, ctx data.Context) {
-	if existing, ok := syncMapLoad[*data.ZVal](&vm.globalVars, name); ok && existing != nil {
+	if existing := vm.globalVars[name]; existing != nil {
 		ctx.SetIndexZVal(index, existing)
 		return
 	}
 	zv := ctx.GetIndexZVal(index)
 	if zv != nil {
-		vm.globalVars.Store(name, zv)
+		vm.globalVars[name] = zv
 	}
 }
 
@@ -925,10 +827,10 @@ func runTemplateFile(vm data.VM, file string, program data.GetValue, varList []d
 
 // SetConstant 设置全局常量
 func (vm *VM) SetConstant(name string, value data.Value) data.Control {
-	if _, ok := syncMapLoad[data.Value](&vm.constantMap, name); ok {
+	if _, ok := vm.constantMap[name]; ok {
 		return utils.NewThrowf("常量 %s 已经定义，不能重新定义", name)
 	}
-	syncMapStore(&vm.constantMap, name, value)
+	vm.constantMap[name] = value
 	return nil
 }
 
@@ -937,18 +839,19 @@ func (vm *VM) GetConstant(name string) (data.Value, bool) {
 	if len(name) > 0 && name[0:1] == "\\" {
 		name = name[1:]
 	}
-	return syncMapLoad[data.Value](&vm.constantMap, name)
+	value, found := vm.constantMap[name]
+	return value, found
 }
 
 // EnsureGlobalZVal 获取或创建全局变量的 ZVal
 // 如果该全局变量不存在，则创建一个初始值为 null 的 ZVal
 func (vm *VM) EnsureGlobalZVal(name string) *data.ZVal {
-	if zv, ok := syncMapLoad[*data.ZVal](&vm.globalVars, name); ok {
+	if zv := vm.globalVars[name]; zv != nil {
 		return zv
 	}
 	zv := data.NewNamedZValSlot(name)
-	actual, _ := vm.globalVars.LoadOrStore(name, zv)
-	return actual.(*data.ZVal)
+	vm.globalVars[name] = zv
+	return zv
 }
 
 // EnsureGlobalsArray returns PHP's value snapshot; direct $GLOBALS dimensions
@@ -968,7 +871,9 @@ func (vm *VM) EnsureGlobalsArray() *data.ArrayValue {
 			slots = append(slots, data.NewNamedZVal(name, data.CowAddRef(slot.ReadValue())))
 		}
 	}
-	vm.globalVars.Range(func(key, value any) bool { add(key.(string), value.(*data.ZVal)); return true })
+	for name, slot := range vm.globalVars {
+		add(name, slot)
+	}
 	return data.NewArrayValueFromSlots(slots)
 }
 func (vm *VM) EnsureSessionArray() *data.ArrayValue {
@@ -991,11 +896,11 @@ func (vm *VM) RegisterGlobalContext(vars []data.Variable, ctx data.Context) {
 		if name == "" {
 			continue
 		}
-		if _, exists := vm.globalVars.Load(name); exists {
+		if _, exists := vm.globalVars[name]; exists {
 			continue
 		}
 		if zv := ctx.GetIndexZVal(v.GetIndex()); zv != nil {
-			vm.globalVars.Store(name, zv)
+			vm.globalVars[name] = zv
 		}
 	}
 }

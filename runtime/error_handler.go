@@ -30,8 +30,6 @@ func (s *errorHandlerState) restore() bool {
 	return true
 }
 func (vm *VM) snapshotErrorHandlers() *errorHandlerState {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
 	return &errorHandlerState{handlers: append([]data.Value(nil), vm.errorHandlers...), masks: append([]int(nil), vm.errorHandlerMasks...)}
 }
 func (vm *VM) requestErrorHandlers() *errorHandlerState {
@@ -50,8 +48,6 @@ func (vm *VM) SetErrorHandlerMask(handler data.Value, mask int) data.Value {
 	if state := vm.requestErrorHandlers(); state != nil {
 		return state.setMask(handler, mask)
 	}
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
 	state := errorHandlerState{handlers: vm.errorHandlers, masks: vm.errorHandlerMasks}
 	old := state.setMask(handler, mask)
 	vm.errorHandlers = state.handlers
@@ -62,16 +58,12 @@ func (vm *VM) GetErrorHandler() data.Value {
 	if state := vm.requestErrorHandlers(); state != nil {
 		return state.current()
 	}
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
 	return (&errorHandlerState{handlers: vm.errorHandlers}).current()
 }
 func (vm *VM) RestoreErrorHandler() bool {
 	if state := vm.requestErrorHandlers(); state != nil {
 		return state.restore()
 	}
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
 	state := errorHandlerState{handlers: vm.errorHandlers, masks: vm.errorHandlerMasks}
 	state.restore()
 	vm.errorHandlers = state.handlers
@@ -79,16 +71,11 @@ func (vm *VM) RestoreErrorHandler() bool {
 	return true
 }
 func (vm *RequestVM) requestErrorHandlers() *errorHandlerState {
-	if state := vm.requestCall(); state != &vm.call {
-		if state.errorHandlers == nil {
-			state.errorHandlers = vm.Base.snapshotErrorHandlers()
-		}
-		return state.errorHandlers
+	state := vm.requestCall()
+	if state.errorHandlers == nil {
+		state.errorHandlers = vm.Base.snapshotErrorHandlers()
 	}
-	if vm.errorHandlers == nil {
-		vm.errorHandlers = vm.Base.snapshotErrorHandlers()
-	}
-	return vm.errorHandlers
+	return state.errorHandlers
 }
 func (vm *RequestVM) SetErrorHandler(handler data.Value) data.Value {
 	return vm.requestErrorHandlers().set(handler)
@@ -106,8 +93,6 @@ func (vm *VM) GetErrorHandlerFor(level int) data.Value {
 	if state := vm.requestErrorHandlers(); state != nil {
 		return state.forLevel(level)
 	}
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
 	return (&errorHandlerState{handlers: vm.errorHandlers, masks: vm.errorHandlerMasks}).forLevel(level)
 }
 func (vm *RequestVM) GetErrorHandlerFor(level int) data.Value {

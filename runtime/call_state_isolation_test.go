@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
@@ -132,6 +133,34 @@ func TestContextPoolDoesNotMutateEscapedZVal(t *testing.T) {
 		t.Fatal("pooled frame reused escaped ZVal pointer")
 	}
 	next.ReleasePooled()
+}
+
+func TestActivatePublishesTheRequestExecutionState(t *testing.T) {
+	base := NewVM(parser.NewParser()).(*VM)
+	request := NewRequestVM(base).(*RequestVM)
+	restore := request.Activate()
+	defer restore()
+
+	if currentRequestCallState() != &request.call || currentRequestOutput() != request.out {
+		t.Fatal("goroutine slot allocated a second execution state")
+	}
+	request.PushCallFrame(data.CallFrame{Function: "request"})
+	got := base.SnapshotCallStack()
+	if len(got) != 1 || got[0].Function != "request" {
+		t.Fatalf("base VM did not observe the request stack: %#v", got)
+	}
+	request.StartOutputBuffer()
+	base.WriteOutput("base")
+	request.WriteOutput("request")
+	if text, _ := request.CleanOutputBuffer(); text != "baserequest" {
+		t.Fatalf("output diverged: %q", text)
+	}
+	var sink strings.Builder
+	request.SetOutputWriter(func(value string) { sink.WriteString(value) })
+	request.WriteOutput("direct")
+	if sink.String() != "direct" {
+		t.Fatalf("unbuffered output re-entered the request buffer: %q", sink.String())
+	}
 }
 
 func TestRequestVMUsesRequestCallStateDuringHTTP(t *testing.T) {

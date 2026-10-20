@@ -204,6 +204,7 @@ func insertTraitMethods(className string, dest map[string]data.Method, candidate
 		if _, exists := own[name]; exists {
 			continue
 		}
+		list = uniqueTraitMethods(list)
 		if len(list) > 1 {
 			return data.NewCompileFatal(from, traitCollision(list[1].Trait, name, className, list[0].Trait))
 		}
@@ -240,6 +241,27 @@ func insertTraitAliases(vm data.VM, className string, dest map[string]data.Metho
 		placed[alias.Alias] = traitName
 	}
 	return nil
+}
+
+// 同一个方法经嵌套 trait 再被类直接 use 一次时，PHP 不把它当成冲突。
+func uniqueTraitMethods(list []traitMethodCandidate) []traitMethodCandidate {
+	if len(list) < 2 {
+		return list
+	}
+	unique := make([]traitMethodCandidate, 0, len(list))
+	for _, candidate := range list {
+		duplicate := false
+		for _, existing := range unique {
+			if existing.Method == candidate.Method {
+				duplicate = true
+				break
+			}
+		}
+		if !duplicate {
+			unique = append(unique, candidate)
+		}
+	}
+	return unique
 }
 
 func traitCollision(methodTrait, methodName, className, existingTrait string) string {

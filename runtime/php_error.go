@@ -17,16 +17,11 @@ func (vm *VM) PHPErrorState() *data.PHPErrorState {
 	return &vm.phpErrors
 }
 func (vm *RequestVM) PHPErrorState() *data.PHPErrorState {
-	if call := vm.requestCall(); call != &vm.call {
-		if call.phpErrors == nil {
-			call.phpErrors = vm.Base.phpErrors.NewRequest()
-		}
-		return call.phpErrors
+	call := vm.requestCall()
+	if call.phpErrors == nil {
+		call.phpErrors = vm.Base.phpErrors.NewRequest()
 	}
-	if vm.phpErrors == nil {
-		vm.phpErrors = vm.Base.phpErrors.NewRequest()
-	}
-	return vm.phpErrors
+	return call.phpErrors
 }
 
 func (vm *VM) ReportPHPError(ctx data.Context, level int, message string, from data.From) data.Control {

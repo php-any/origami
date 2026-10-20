@@ -25,6 +25,29 @@ func (m IDMap[T]) Get(id uint32) (T, bool) {
 	var zero T
 	return zero, false
 }
+func (m IDMap[T]) Each(fn func(uint32, T) bool) {
+	for branchIndex, branch := range m.branches {
+		if branch == nil {
+			continue
+		}
+		base := uint32(branchIndex) * 64 * 64
+		for pageIndex, page := range branch {
+			if page == nil {
+				continue
+			}
+			pageBase := base + uint32(pageIndex)*64
+			for index := uint32(0); index < 64; index++ {
+				if page.present&(uint64(1)<<index) == 0 {
+					continue
+				}
+				if !fn(pageBase+index, page.values[index]) {
+					return
+				}
+			}
+		}
+	}
+}
+
 func (m IDMap[T]) With(id uint32, value T) IDMap[T] {
 	page, index := id/64, id%64
 	branch, offset := page/64, page%64

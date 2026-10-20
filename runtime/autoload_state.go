@@ -9,18 +9,12 @@ import (
 type autoloadRegistration struct{ original, resolved data.Value }
 
 func (vm *VM) AutoloadExtensions() string {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
 	if vm.autoloadExtensions != nil {
 		return *vm.autoloadExtensions
 	}
 	return ".inc,.php"
 }
-func (vm *VM) SetAutoloadExtensions(value string) {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	vm.autoloadExtensions = &value
-}
+func (vm *VM) SetAutoloadExtensions(value string) { vm.autoloadExtensions = &value }
 func (vm *RequestVM) AutoloadExtensions() string {
 	if vm.autoloadExtensions == nil {
 		value := vm.Base.AutoloadExtensions()
@@ -32,8 +26,6 @@ func (vm *RequestVM) SetAutoloadExtensions(value string) { vm.autoloadExtensions
 
 // Callable identity is retained separately from the resolved execution scope.
 func (vm *VM) autoloadSnapshot() []autoloadRegistration {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
 	if !vm.autoloadInitialized {
 		for _, fn := range parser.GetAutoLoad() {
 			vm.autoload = append(vm.autoload, autoloadRegistration{fn, fn})
@@ -72,8 +64,6 @@ func (vm *VM) AutoloadOriginals() []data.Value        { return originalAutoload(
 func (vm *RequestVM) AutoloadOriginals() []data.Value { return originalAutoload(vm.autoloadSnapshot()) }
 func (vm *VM) RegisterAutoload(original, resolved data.Value, prepend bool) {
 	vm.autoloadSnapshot()
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
 	vm.autoload = registerAutoload(vm, vm.autoload, original, resolved, prepend)
 }
 func (vm *RequestVM) RegisterAutoload(original, resolved data.Value, prepend bool) {
@@ -94,8 +84,6 @@ func registerAutoload(vm data.VM, entries []autoloadRegistration, original, reso
 }
 func (vm *VM) UnregisterAutoload(original data.Value) bool {
 	vm.autoloadSnapshot()
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
 	var found bool
 	vm.autoload, found = unregisterAutoload(vm, vm.autoload, original)
 	return found

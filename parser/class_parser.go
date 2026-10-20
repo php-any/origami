@@ -1119,7 +1119,7 @@ func (p *ClassParser) mergeTraits(class *node.ClassStatement, traitNames []strin
 	class.Traits = append(class.Traits, traitNames...)
 
 	for _, traitName := range traitNames {
-		// 从 VM 加载 trait（trait 和 class 一样存储在 classMap 中）
+		// 从 VM 加载 trait（与 class 同一份注册表快照）
 		trait, acl := vm.GetOrLoadClass(traitName)
 		if acl != nil {
 			// 解析期尚未加载的 trait（依赖运行期 require/autoload），延迟到运行期合并。

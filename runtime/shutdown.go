@@ -8,8 +8,6 @@ func (vm *VM) AddShutdownCallback(cb data.Value) {
 		st.shutdown.add(cb)
 		return
 	}
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
 	vm.shutdownCallbacks = append(vm.shutdownCallbacks, cb)
 }
 
@@ -19,30 +17,21 @@ func (vm *VM) RunShutdownCallbacks() {
 		st.shutdown.run(vm)
 		return
 	}
-	vm.shutdownRunOnce.Do(func() {
-		defer func() {
-			vm.mu.Lock()
-			vm.shutdownCallbacks = nil
-			vm.mu.Unlock()
-		}()
-		for i := 0; ; i++ {
-			vm.mu.Lock()
-			if i >= len(vm.shutdownCallbacks) {
-				vm.mu.Unlock()
-				break
-			}
-			cb := vm.shutdownCallbacks[i]
-			vm.mu.Unlock()
-			if ctl := callShutdownCallback(vm, cb); ctl != nil {
-				if exit, ok := ctl.(data.ExitControl); ok && exit.IsExit() {
-					return
-				}
-				vm.acl(ctl)
+	if vm.shutdownDone {
+		return
+	}
+	vm.shutdownDone = true
+	for i := 0; i < len(vm.shutdownCallbacks); i++ {
+		if ctl := callShutdownCallback(vm, vm.shutdownCallbacks[i]); ctl != nil {
+			if exit, ok := ctl.(data.ExitControl); ok && exit.IsExit() {
 				return
 			}
+			vm.acl(ctl)
+			return
 		}
-		runHeaderCallbacks(vm)
-	})
+	}
+	vm.shutdownCallbacks = nil
+	runHeaderCallbacks(vm)
 }
 
 func callShutdownCallback(vm data.VM, cb data.Value) data.Control {

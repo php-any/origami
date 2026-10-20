@@ -81,7 +81,7 @@ Remove-Item Env:ORIGAMI_CPUPROFILE, Env:ORIGAMI_PPROF_ADDR -ErrorAction Silently
 Source → lexer/ → parser/ → node/ (AST + 执行) → runtime/ (VM)
 ```
 
-PHP 内置函数主要在 `std/php/`，注册入口为 `std/php/load.go` 及其模块加载链。请求级隔离统一复用 `runtime.RequestVM`；宿主和框架适配不要另造一套相互不兼容的 VM／请求隔离机制。
+PHP 内置函数主要在 `std/php/`，注册入口为 `std/php/load.go` 及其模块加载链。请求级隔离统一复用 `runtime.RequestVM`；宿主和框架适配不要另造一套相互不兼容的 VM／请求隔离机制。有 RequestVM 的宿主调用 `Activate`，让 goroutine 槽指向这份 VM 的调用栈和输出。`BeginRequestOutput` 只用于还没有 RequestVM 的基础 VM。
 
 ## 工作区协作
 

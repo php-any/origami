@@ -2,7 +2,7 @@
 
 语言层只有 `runtime.VM` 和 `runtime.RequestVM`。本包不实现独立的 VM：`fpm.RequestVM` 是 `runtime.RequestVM` 的类型别名，`fpm.New` 只创建请求 VM 并绑定输出。Laravel、经典 PHP 入口和解析预览使用同一个 RequestVM 实现。
 
-VM 提供标准库、启动期声明、命名空间路径和共享程序缓存。RequestVM 持有请求新增声明、常量、全局变量、会话、include 状态、函数 static 局部变量、错误/异常处理器、shutdown 队列、调用栈和输出。缓存程序的请求声明不会登记到共享 VM；启动期已执行文件集合以不可变快照继承，后续 include 写入请求自己的映射。
+VM 提供标准库、启动期声明、命名空间路径和共享程序缓存。RequestVM 持有请求新增声明、常量、全局变量、会话、include 状态、函数 static 局部变量、错误/异常处理器和 shutdown 队列。`fpm.New` 调用 `SetOutputWriter`，调用栈和输出落在这份 RequestVM 上。需要和 goroutine 上的期限检查、启动期帧共用同一份状态时，再调用 `Activate`。`BeginRequestOutput` 会另分配一份匿名状态，只用于还没有 RequestVM 的基础 VM。缓存程序的请求声明不会登记到共享 VM；启动期已执行文件集合以不可变快照继承，后续 include 写入请求自己的映射。
 
 ```go
 p := parser.NewParser()

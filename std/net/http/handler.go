@@ -26,10 +26,11 @@ func newMiddleware(v data.FuncStmt, ctx data.Context) (MiddlewareFunc, error) {
 		return nil, errors.New("invalid variable definition")
 	}
 
-	return func(next http.Handler) http.Handler {
+		return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			requestVM, scoped, owner := languageRequest(ctx, w, r)
+			requestVM, scoped, restore, owner := languageRequest(ctx, w, r)
 			r = scoped
+			defer restore()
 			if owner {
 				defer requestVM.RunShutdownCallbacks()
 			}
@@ -59,8 +60,9 @@ type Handler struct {
 }
 
 func (f Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	requestVM, scoped, owner := languageRequest(f.Ctx, w, r)
+	requestVM, scoped, restore, owner := languageRequest(f.Ctx, w, r)
 	r = scoped
+	defer restore()
 	if owner {
 		defer requestVM.RunShutdownCallbacks()
 	}
@@ -93,14 +95,15 @@ func (f HotHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 type languageRequestKey struct{}
 
-func languageRequest(ctx data.Context, response http.ResponseWriter, request *http.Request) (*runtimesrc.RequestVM, *http.Request, bool) {
+func languageRequest(ctx data.Context, response http.ResponseWriter, request *http.Request) (*runtimesrc.RequestVM, *http.Request, func(), bool) {
 	if vm, ok := request.Context().Value(languageRequestKey{}).(*runtimesrc.RequestVM); ok {
-		return vm, request, false
+		return vm, request, func() {}, false
 	}
 	vm := runtimesrc.NewRequestVM(ctx.GetVM()).(*runtimesrc.RequestVM)
+	restore := vm.Activate()
 	vm.BindHTTP(request, response)
 	scoped := request.WithContext(context.WithValue(request.Context(), languageRequestKey{}, vm))
-	return vm, scoped, true
+	return vm, scoped, restore, true
 }
 
 func finishLanguageControl(vm *runtimesrc.RequestVM, control data.Control, owner bool) {

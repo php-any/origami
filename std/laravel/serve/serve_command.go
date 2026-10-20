@@ -301,14 +301,13 @@ func (k *laravelHTTPKernel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	span := perfmon.BeginRequest(r.Method, r.URL.Path)
 	defer func() { span.End(outcome) }()
 
-	// 对齐 Octane Worker：每请求独立 ob_start，残留 echo 并入 HTTP body，不写进程 stdout。
-	defer runtime.BeginRequestOutput()()
+	// 调用栈、输出和静态属性都落在这份 RequestVM 上；goroutine 槽只指向同一份状态。
+	requestVM := runtime.NewRequestVM(k.base)
+	defer requestVM.(*runtime.RequestVM).Activate()()
 	runtime.StartRequestOutputBuffer()
 	runtime.MuteRequestStdout()
 	defer runtime.BeginRequestDeadline(handleCtx)()
 	defer beginPHPWebTimeLimit()()
-
-	requestVM := runtime.NewRequestVM(k.base)
 	requestCtx := requestVM.CreateContext(nil)
 	writer := &requestResponseWriter{ResponseWriter: w, head: r.Method == http.MethodHead}
 	w = writer

@@ -83,7 +83,7 @@ graph TD
   - 一句话：在 AST 节点上缓存 `(类, 方法/属性槽, generation)`，命中即跳过整条查找链。
 
 - **[06-parse-and-opcache.md](06-parse-and-opcache.md) — 词法/解析与 AST 缓存**
-  - 独占：`lexer/lexer.go`、`lexer/worker_token.go`、`parser/parser.go` 的 `Clone`/`reset`、`runtime/parse_cache.go`、`runtime/vm.go` 的 `LoadAndRun`、`runtime/vm_temp.go`
+  - 独占：`lexer/lexer.go`、`lexer/worker_token.go`、`parser/parser.go` 的 `Clone`/`reset`、`runtime/parse_cache.go`、`runtime/vm.go` 的 `LoadAndRun`、`runtime/request_vm.go`
   - 前置：00、**04**（同改 `runtime/vm.go`，04 先落地）
   - 一句话：词法 DAG 进程单例、token 值切片化、**所有加载入口统一走 `ParseFileCached`**、warmup 去重复解析、方法体延迟解析。
 
