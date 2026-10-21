@@ -21,12 +21,32 @@ func (f *ExtensionLoadedFunction) Call(ctx data.Context) (data.GetValue, data.Co
 		name = strings.ToLower(extension.AsString())
 	}
 
-	// 不可把未实现的原生扩展报告为已加载，否则依赖会选择不可用的快路径。
-	switch name {
-	case "gmp", "bcmath":
-		return data.NewBoolValue(false), nil
+	return data.NewBoolValue(extensionAvailable(ctx.GetVM(), name)), nil
+}
+
+// Native optional extensions must opt in. Unknown names must never select
+// unavailable fast paths (for example Xdebug's process restart machinery).
+func extensionAvailable(vm data.VM, name string) bool {
+	if name == "core" || name == "standard" {
+		return true
 	}
-	return data.NewBoolValue(true), nil
+	functions := map[string]string{
+		"date": "date", "json": "json_encode", "pcre": "preg_match",
+		"hash": "hash", "filter": "filter_var", "iconv": "iconv",
+		"mbstring": "mb_strlen", "ctype": "ctype_alpha", "tokenizer": "token_get_all",
+		"session": "session_start", "zlib": "gzdecode", "openssl": "openssl_encrypt",
+		"curl": "curl_init", "fileinfo": "finfo_open",
+	}
+	if fn, ok := functions[name]; ok {
+		_, found := vm.GetFunc(fn)
+		return found
+	}
+	classes := map[string]string{"phar": "Phar", "spl": "SplFileInfo", "reflection": "ReflectionClass", "pdo": "PDO", "intl": "NumberFormatter", "dom": "DOMDocument", "simplexml": "SimpleXMLElement", "zip": "ZipArchive"}
+	if class, ok := classes[name]; ok {
+		_, found := vm.GetClass(class)
+		return found
+	}
+	return false
 }
 
 func (f *ExtensionLoadedFunction) GetName() string {

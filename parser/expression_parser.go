@@ -869,6 +869,20 @@ func (ep *ExpressionParser) parseUnary() (data.GetValue, data.Control) {
 			// 这类名字已含当前命名空间，不应再按命名空间重写，否则会被错误前缀成 Ns\Ns\Class。
 			resolved := false
 			switch ep.current().Type() {
+			case token.IDENTIFIER:
+				if ep.checkPositionIs(1, token.SCOPE_RESOLUTION) {
+					right, acl2 = ep.parsePower()
+					if acl2 != nil {
+						return nil, acl2
+					}
+				} else {
+					// A class name here cannot be a label, even before the
+					// colon/newline of a switch case.
+					name, _ := ep.findFullClassNameByNamespace(ep.current().Literal())
+					ep.next()
+					right = node.NewStringLiteral(tracker.EndBefore(), name)
+					resolved = true
+				}
 			case token.SELF:
 				ep.next()
 				cn := ep.currentClass

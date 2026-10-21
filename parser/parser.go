@@ -159,7 +159,7 @@ func (p *Parser) ensureStaticHolder() *node.StaticLocalsHolder {
 // ParseFile 解析文件
 func (p *Parser) ParseFile(filename string) (*node.Program, data.Control) {
 	// 读取文件内容
-	content, err := os.ReadFile(filename)
+	content, err := data.ReadPHPFile(p.vm, filename)
 	if err != nil {
 		return nil, utils.NewThrow(err)
 	}
@@ -198,7 +198,7 @@ func tokenizeFileContent(lx *lexer.Lexer, filename string, content []byte) []lex
 	phpContent := string(content)
 	ext := strings.ToLower(filepath.Ext(filename))
 	switch ext {
-	case ".php":
+	case ".php", ".phar":
 		if len(phpContent) >= 2 && phpContent[0] == '#' && phpContent[1] == '!' {
 			if nl := strings.Index(phpContent, "\n"); nl != -1 {
 				phpContent = phpContent[nl+1:]

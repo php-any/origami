@@ -121,7 +121,18 @@ func parseFlatOptions(v data.Value) map[string]string {
 			if zval == nil {
 				continue
 			}
-			result[entryKeyName(zval, i)] = optionValueToString(zval.ReadValue())
+			name := entryKeyName(zval, i)
+			if name == "header" {
+				if headers, ok := zval.ReadValue().(*data.ArrayValue); ok {
+					lines := make([]string, 0, headers.Len())
+					for _, header := range headers.ToValueList() {
+						lines = append(lines, optionValueToString(header))
+					}
+					result[name] = strings.Join(lines, "\r\n")
+					continue
+				}
+			}
+			result[name] = optionValueToString(zval.ReadValue())
 		}
 
 	default:
@@ -187,6 +198,10 @@ func HTTPGetContents(url string, sc *StreamContext) (string, bool) {
 }
 
 func HTTPGetContentsContext(request context.Context, url string, sc *StreamContext) (string, bool) {
+	return HTTPGetContentsWithHeaders(request, url, sc, nil)
+}
+
+func HTTPGetContentsWithHeaders(request context.Context, url string, sc *StreamContext, receive func([]string)) (string, bool) {
 	data.CheckRequest(request)
 	defer data.CheckRequest(request)
 	opts := sc.WrapperOptions("http")
@@ -225,6 +240,15 @@ func HTTPGetContentsContext(request context.Context, url string, sc *StreamConte
 		return "", false
 	}
 	defer resp.Body.Close()
+	if receive != nil {
+		headers := []string{resp.Proto + " " + resp.Status}
+		for name, values := range resp.Header {
+			for _, value := range values {
+				headers = append(headers, name+": "+value)
+			}
+		}
+		receive(headers)
+	}
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {

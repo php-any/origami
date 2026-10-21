@@ -37,13 +37,13 @@ func (f *MethodExistsFunction) Call(ctx data.Context) (data.GetValue, data.Contr
 
 	// 如果第一个参数是 ClassValue（对象实例），直接通过 ClassValue.GetMethod 查询（含继承链）
 	if classValue, ok := objectOrClassValue.(*data.ClassValue); ok {
-		_, found := classValue.GetMethod(methodName)
+		found := data.ObjectMethodExists(classValue, methodName)
 		return data.NewBoolValue(found), nil
 	}
 
 	// 如果是 ThisValue，展开为 ClassValue
 	if thisValue, ok := objectOrClassValue.(*data.ThisValue); ok {
-		_, found := thisValue.ClassValue.GetMethod(methodName)
+		found := data.ObjectMethodExists(thisValue.ClassValue, methodName)
 		return data.NewBoolValue(found), nil
 	}
 

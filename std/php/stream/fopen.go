@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -56,6 +57,40 @@ func (f *FopenFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if strings.HasPrefix(filename, "php://") {
 		return f.handlePhpStream(filename, mode, ctx)
 	}
+	if strings.HasPrefix(filename, "phar://") {
+		if mode != "r" && mode != "rb" {
+			return data.NewBoolValue(false), nil
+		}
+		body, err := data.ReadPHPFile(ctx.GetVM(), filename)
+		if err != nil {
+			return data.NewBoolValue(false), nil
+		}
+		return core.NewResourceValue(core.NewResourceClass("stream", NewStreamInfoFromReader(io.NopCloser(bytes.NewReader(body)), mode), 0), ctx), nil
+	}
+	if strings.HasPrefix(filename, "http://") || strings.HasPrefix(filename, "https://") {
+		if enabled, _ := core.IniGetInContext(ctx, "allow_url_fopen"); enabled == "0" || enabled == "" {
+			return data.NewBoolValue(false), nil
+		}
+		if mode != "r" && mode != "rb" {
+			return data.NewBoolValue(false), nil
+		}
+		request, err := http.NewRequestWithContext(ctx.GoContext(), http.MethodGet, filename, nil)
+		if err != nil {
+			return data.NewBoolValue(false), nil
+		}
+		response, err := (&http.Client{Timeout: 30 * time.Second}).Do(request)
+		if err != nil {
+			return data.NewBoolValue(false), nil
+		}
+		if response.StatusCode >= 400 {
+			response.Body.Close()
+			return data.NewBoolValue(false), nil
+		}
+		info := NewStreamInfoFromReader(response.Body, mode)
+		info.Remote = true
+		return core.NewResourceValue(core.NewResourceClass("stream", info, 0), ctx), nil
+	}
+	filename = strings.TrimPrefix(filename, "file://")
 
 	// 打开文件
 	file, err := os.OpenFile(filename, parseMode(mode), 0644)

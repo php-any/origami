@@ -1,8 +1,6 @@
 package php
 
 import (
-	"os"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 )
@@ -31,7 +29,7 @@ func (f *IsFileFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	// 获取文件信息
-	fileInfo, err := os.Stat(path)
+	fileInfo, err := data.StatPHPFile(ctx.GetVM(), path)
 	if err != nil {
 		// 如果文件不存在或其他错误，返回 false
 		return data.NewBoolValue(false), nil
@@ -47,7 +45,7 @@ func (f *IsFileFunction) GetName() string {
 }
 
 var isFileFunctionGetParams = []data.GetValue{
-	node.NewParameter(nil, "path", 0, nil, nil),
+	node.NewParameter(nil, "path", 0, nil, data.String{}),
 }
 
 func (f *IsFileFunction) GetParams() []data.GetValue {

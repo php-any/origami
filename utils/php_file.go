@@ -13,6 +13,9 @@ var phpFilePathCache sync.Map // string -> string
 
 // NormalizePhpFilePath 将 PHP 文件路径规范化为统一的绝对路径（用于 php 文件加载缓存）。
 func NormalizePhpFilePath(file string) string {
+	if strings.HasPrefix(file, "phar://") {
+		return strings.ReplaceAll(file, "\\", "/")
+	}
 	if file == "" {
 		return ""
 	}

@@ -27,6 +27,12 @@ func (u *UnaryExpression) GetValue(ctx data.Context) (data.GetValue, data.Contro
 
 	switch u.Operator {
 	case "-":
+		if integer, ok := right.(*data.IntValue); ok {
+			if integer.Value == -int(^uint(0)>>1)-1 {
+				return data.NewFloatValue(-float64(integer.Value)), nil
+			}
+			return data.NewIntValue(-integer.Value), nil
+		}
 		if b, ok := right.(data.AsFloat); ok {
 			bv, err := b.AsFloat()
 			if err != nil {

@@ -3,6 +3,7 @@ package php
 import (
 	"fmt"
 	gomath "math"
+	"os"
 	"runtime"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/php-any/origami/std/php/intl"
 	"github.com/php-any/origami/std/php/math"
 	"github.com/php-any/origami/std/php/pdo"
+	"github.com/php-any/origami/std/php/phar"
 	"github.com/php-any/origami/std/php/preg"
 	"github.com/php-any/origami/std/php/proc"
 	"github.com/php-any/origami/std/php/reflection"
@@ -26,6 +28,9 @@ import (
 )
 
 func Load(vm data.VM) {
+	phar.Load(vm)
+	vm.AddClass(&core.WeakReferenceClass{})
+	vm.AddClass(&core.ReflectionExtensionClass{})
 	vm.AddFunc(&UploadedFileFunction{name: "is_uploaded_file"})
 	vm.AddFunc(&UploadedFileFunction{name: "move_uploaded_file"})
 	for _, name := range []string{"ignore_user_abort", "connection_aborted", "connection_status"} {
@@ -60,6 +65,18 @@ func Load(vm data.VM) {
 		NewSleepFunction(),
 		NewIsDirFunction(),
 		NewIsFileFunction(),
+		NewIsLinkFunction(),
+		&StreamIsLocalFunction{},
+		&HTTPResponseHeadersFunction{},
+		&HTTPResponseHeadersFunction{Clear: true},
+		&stream.StreamCopyToStreamFunction{},
+		&stream.StreamGetWrappersFunction{},
+		&StatFunction{},
+		&StatFunction{link: true},
+		&DirectoryFunction{name: "opendir"},
+		&DirectoryFunction{name: "readdir"},
+		&DirectoryFunction{name: "closedir"},
+		&DirectoryFunction{name: "rewinddir"},
 		NewScandirFunction(),
 		NewGlobFunction(),
 		NewFileGetContentsFunction(),
@@ -81,6 +98,7 @@ func Load(vm data.VM) {
 		NewIsSubclassOfFunction(),
 		NewVersionCompareFunction(),
 		NewGetClassFunction(),
+		&GetObjectVarsFunction{},
 		NewGetClassMethodsFunction(),
 		NewGetParentClassFunction(),
 		NewGettypeFunction(),
@@ -194,6 +212,7 @@ func Load(vm data.VM) {
 		array.NewArsortFunction(),
 		array.NewUsortFunction(),
 		array.NewUasortFunction(),
+		array.NewUksortFunction(),
 		array.NewKsortFunction(),
 		array.NewKrsortFunction(),
 		array.NewArrayDiffUkeyFunction(),
@@ -288,12 +307,15 @@ func Load(vm data.VM) {
 		core.NewStripTagsFunction(),
 		core.NewSetlocaleFunction(),
 		NewTokenGetAllFunction(),
+		&PHPStripWhitespaceFunction{},
 		NewGcEnabledFunction(),
 		NewGcEnableFunction(),
 		NewGcDisableFunction(),
+		&GcCollectCyclesFunction{},
 		NewOpenSSLCipherIVLengthFunction(),
 		NewOpenSSLEncryptFunction(),
 		NewOpenSSLDecryptFunction(),
+		&OpenSSLX509ParseFunction{},
 		NewMtSrandFunction(),
 		NewMtRandFunction(),
 		NewSrandFunction(),
@@ -365,6 +387,7 @@ func Load(vm data.VM) {
 		core.NewTriggerErrorFunction(),
 		core.NewHeadersSentFunction(),
 		core.NewExtensionLoadedFunction(),
+		&core.GetLoadedExtensionsFunction{},
 		core.NewExitFunction(),
 		core.NewDieFunction(),
 		core.NewUnlinkFunction(),
@@ -376,6 +399,10 @@ func Load(vm data.VM) {
 		core.NewGetenvFunction(),
 		core.NewIniSetFunction(),
 		core.NewIniGetFunction(),
+		&core.PHPInfoFunction{},
+		&core.PHPIniFilesFunction{Name: "php_ini_loaded_file"},
+		&core.PHPIniFilesFunction{Name: "php_ini_scanned_files"},
+		&stream.RewindFunction{},
 		core.NewSetTimeLimitFunction(),
 		core.NewHeaderRegisterCallbackFunction(),
 		core.NewSapiWindowsVt100SupportFunction(),
@@ -418,6 +445,7 @@ func Load(vm data.VM) {
 		stream.NewFseekFunction(),
 		stream.NewFwriteFunction(),
 		stream.NewFflushFunction(),
+		&stream.FtruncateFunction{},
 		stream.NewStreamGetContentsFunction(),
 		stream.NewStreamIsattyFunction(),
 		stream.NewStreamSetBlockingFunction(),
@@ -564,6 +592,10 @@ func Load(vm data.VM) {
 	vm.AddClass(core.NewDomHTMLDocumentClass())
 
 	vm.AddClass(&reflection.ReflectionClassClass{})
+	vm.AddClass(&reflection.ReflectionClassConstantClass{})
+	vm.SetConstant("ReflectionClassConstant::IS_PUBLIC", data.NewIntValue(1))
+	vm.SetConstant("ReflectionClassConstant::IS_PROTECTED", data.NewIntValue(2))
+	vm.SetConstant("ReflectionClassConstant::IS_PRIVATE", data.NewIntValue(4))
 	vm.AddClass(&reflection.ReflectionObjectClass{})
 	vm.AddClass(&reflection.ReflectionMethodClass{})
 	vm.AddClass(&reflection.ReflectionParameterClass{})
@@ -647,6 +679,10 @@ func Load(vm data.VM) {
 }
 
 func initPhpDefaultDefines(vm data.VM) {
+	if executable, err := os.Executable(); err == nil {
+		vm.SetConstant("PHP_BINARY", data.NewStringValue(executable))
+	}
+	initPlatformConstants(vm)
 	// 目录和路径相关常量。Windows 上与 PHP 一样使用反斜杠和分号。
 	dirSep, pathSep := "/", ":"
 	if runtime.GOOS == "windows" {
@@ -698,6 +734,9 @@ func initPhpDefaultDefines(vm data.VM) {
 
 	// PHP 版本和系统信息常量（对齐 Laravel 13 + Symfony 8.x：按 PHP 8.4 语义推进）
 	vm.SetConstant("PHP_VERSION", data.NewStringValue("8.4.1"))
+	for name, value := range map[string]int{"INFO_GENERAL": 1, "INFO_CREDITS": 2, "INFO_CONFIGURATION": 4, "INFO_MODULES": 8, "INFO_ENVIRONMENT": 16, "INFO_VARIABLES": 32, "INFO_LICENSE": 64, "INFO_ALL": 127} {
+		vm.SetConstant(name, data.NewIntValue(value))
+	}
 	vm.SetConstant("PHP_MAJOR_VERSION", data.NewIntValue(8))
 	vm.SetConstant("PHP_MINOR_VERSION", data.NewIntValue(4))
 	vm.SetConstant("PHP_RELEASE_VERSION", data.NewIntValue(1))
@@ -707,6 +746,14 @@ func initPhpDefaultDefines(vm data.VM) {
 	vm.SetConstant("PHP_OS", data.NewStringValue(phpOS))
 	vm.SetConstant("PHP_OS_FAMILY", data.NewStringValue(phpOSFamily))
 	vm.SetConstant("PHP_SAPI", data.NewStringValue("cli"))
+	vm.SetConstant("PHP_DEBUG", data.NewIntValue(0))
+	vm.SetConstant("PHP_ZTS", data.NewIntValue(0))
+	// These modules use Go implementations, not the native libraries. A zero
+	// native-library version must not satisfy Composer lib-* minimum versions.
+	vm.SetConstant("PCRE_VERSION", data.NewStringValue("0.0.0 Origami (Go regexp/regexp2 backend)"))
+	vm.SetConstant("ICONV_VERSION", data.NewStringValue("0.0.0"))
+	vm.SetConstant("ICONV_IMPL", data.NewStringValue("Origami"))
+	vm.SetConstant("OPENSSL_VERSION_TEXT", data.NewStringValue("Origami "+runtime.Version()+" crypto/tls"))
 	vm.SetConstant("PHP_EOL", data.NewStringValue("\n"))
 	loadPasswordFunctions(vm)
 	t := time.Now()

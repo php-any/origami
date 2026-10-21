@@ -2,7 +2,20 @@ package php
 
 import (
 	"github.com/php-any/origami/data"
+	"runtime"
 )
+
+// GcCollectCyclesFunction synchronously requests host collection, including
+// weak targets. Go does not expose a count of PHP cyclic garbage components.
+type GcCollectCyclesFunction struct{ data.Function }
+
+func (*GcCollectCyclesFunction) GetName() string               { return "gc_collect_cycles" }
+func (*GcCollectCyclesFunction) GetParams() []data.GetValue    { return nil }
+func (*GcCollectCyclesFunction) GetVariables() []data.Variable { return nil }
+func (*GcCollectCyclesFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
+	runtime.GC()
+	return data.NewIntValue(0), nil
+}
 
 // GcEnabledFunction 对应 PHP gc_enabled()：origami 基于 Go runtime，GC 始终启用。
 type GcEnabledFunction struct {

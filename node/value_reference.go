@@ -22,6 +22,16 @@ func NewValueReference(token *TokenFrom, value data.GetValue) *ValueReference {
 
 // GetValue 获取引用的值
 func (v *ValueReference) GetValue(ctx data.Context) (data.GetValue, data.Control) {
+	if receiver, ok := v.Value.(*This); ok {
+		value, ctl := receiver.GetValue(ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		// PHP permits $target =& $this, but rebinding $target never replaces
+		// the method receiver. Each such expression gets its own reference cell.
+		this := value.(*data.ThisValue)
+		return &data.ArraySlotRef{Slot: data.NewZVal(this.ClassValue)}, nil
+	}
 	if call, ok := v.Value.(referenceCall); ok {
 		ret, ctl := call.GetReferenceValue(ctx)
 		if ctl != nil {

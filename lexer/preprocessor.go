@@ -10,6 +10,11 @@ import (
 // Preprocessor 表示预处理器
 type Preprocessor struct {
 	tokens []Token
+	php    bool
+}
+
+func preprocessPHP(tokens []Token) []Token {
+	return (&Preprocessor{tokens: tokens, php: true}).Process()
 }
 
 // NewPreprocessor 创建一个新的预处理器
@@ -210,7 +215,11 @@ func (p *Preprocessor) Process() []Token {
 		case token.NOWDOC:
 			filtered = append(filtered, t)
 		case token.STRING:
-			filtered = append(filtered, processStringInterpolation(t))
+			if p.php && strings.HasPrefix(t.Literal(), "'") {
+				filtered = append(filtered, t)
+			} else {
+				filtered = append(filtered, processStringInterpolation(t))
+			}
 		case token.DOLLAR:
 			// 处理$标识符组合
 			// 处理$标识符组合（包括类型关键字如 bool、int、string、float、array 等）

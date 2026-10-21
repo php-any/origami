@@ -11,6 +11,7 @@ import (
 // CallState 是单 goroutine / 单请求的 PHP 调用深度与 debug_backtrace 栈。
 // 不内置锁：PHP-FPM 语义是请求内单线程；跨请求靠各自一份 CallState 隔离。
 type CallState struct {
+	CurrentFile       string
 	Depth             int
 	Stack             []data.CallFrame
 	auto              bool // 按 goid 惰性创建，深度归零后可从 map 删除
@@ -96,7 +97,7 @@ func ensureGoroutineCallState() *CallState {
 }
 
 func releaseAutoCallState(st *CallState) {
-	if st == nil || !st.auto || st.Depth > 0 || len(st.Stack) > 0 {
+	if st == nil || !st.auto || st.Depth > 0 || len(st.Stack) > 0 || st.CurrentFile != "" {
 		return
 	}
 	id := goid()

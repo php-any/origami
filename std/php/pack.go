@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -115,41 +117,98 @@ func (f *UnpackFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 	format := formatVal.AsString()
 	raw := []byte(dataVal.AsString())
-
-	switch format {
-	case "C":
-		if len(raw) == 0 {
-			return data.NewBoolValue(false), nil
+	offset := 0
+	if v, _ := ctx.GetIndexValue(2); v != nil {
+		if n, ok := v.(data.AsInt); ok {
+			offset, _ = n.AsInt()
 		}
-		obj := data.NewArrayValue(nil).(*data.ArrayValue)
-		obj.SetStringKey("1", data.NewIntValue(int(raw[0])))
-		return obj, nil
-	case "C*":
-		obj := data.NewArrayValue(nil).(*data.ArrayValue)
-		for i := 0; i < len(raw); i++ {
-			key := fmt.Sprintf("%d", i+1)
-			obj.SetStringKey(key, data.NewIntValue(int(raw[i])))
-		}
-		return obj, nil
-	case "n":
-		if len(raw) < 2 {
-			return data.NewBoolValue(false), nil
-		}
-		obj := data.NewArrayValue(nil).(*data.ArrayValue)
-		obj.SetStringKey("1", data.NewIntValue(int(binary.BigEndian.Uint16(raw[:2]))))
-		return obj, nil
-	case "n*":
-		obj := data.NewArrayValue(nil).(*data.ArrayValue)
-		idx := 1
-		for i := 0; i+1 < len(raw); i += 2 {
-			key := fmt.Sprintf("%d", idx)
-			obj.SetStringKey(key, data.NewIntValue(int(binary.BigEndian.Uint16(raw[i:i+2]))))
-			idx++
-		}
-		return obj, nil
-	default:
+	}
+	if offset < 0 || offset > len(raw) {
+		return nil, data.NewErrorThrowByName(nil, fmt.Errorf("unpack(): Argument #3 ($offset) must be contained in argument #2 ($data)"), "ValueError")
+	}
+	result, err := unpackIntegers(format, raw[offset:])
+	if err != nil {
 		return data.NewBoolValue(false), nil
 	}
+	return result, nil
+}
+
+func unpackIntegers(format string, raw []byte) (*data.ArrayValue, error) {
+	out := data.NewArrayValue(nil).(*data.ArrayValue)
+	for _, field := range strings.Split(format, "/") {
+		if field == "" {
+			continue
+		}
+		code := field[0]
+		size := 0
+		var order binary.ByteOrder = binary.NativeEndian
+		switch code {
+		case 'c', 'C':
+			size = 1
+		case 's', 'S', 'n', 'v':
+			size = 2
+		case 'i', 'I', 'l', 'L', 'N', 'V':
+			size = 4
+		case 'q', 'Q', 'J', 'P':
+			size = 8
+		default:
+			return nil, fmt.Errorf("unsupported unpack format %c", code)
+		}
+		if code == 'n' || code == 'N' || code == 'J' {
+			order = binary.BigEndian
+		}
+		if code == 'v' || code == 'V' || code == 'P' {
+			order = binary.LittleEndian
+		}
+		end, count, star := 1, 1, false
+		if end < len(field) && field[end] == '*' {
+			star, end, count = true, end+1, len(raw)/size
+		} else {
+			for end < len(field) && field[end] >= '0' && field[end] <= '9' {
+				end++
+			}
+			if end > 1 {
+				var err error
+				count, err = strconv.Atoi(field[1:end])
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+		if count > len(raw)/size {
+			return nil, fmt.Errorf("not enough data")
+		}
+		name := field[end:]
+		for i := 1; i <= count; i++ {
+			var value uint64
+			switch size {
+			case 1:
+				value = uint64(raw[0])
+			case 2:
+				value = uint64(order.Uint16(raw))
+			case 4:
+				value = uint64(order.Uint32(raw))
+			case 8:
+				value = order.Uint64(raw)
+			}
+			n := int(value)
+			switch code {
+			case 'c':
+				n = int(int8(value))
+			case 's':
+				n = int(int16(value))
+			case 'i', 'l':
+				n = int(int32(value))
+			}
+			key := name
+			if name == "" || count != 1 || star {
+				key += strconv.Itoa(i)
+			}
+			out.SetStringKey(key, data.NewIntValue(n))
+			raw = raw[size:]
+		}
+	}
+	return out, nil
 }
 
 func (f *UnpackFunction) GetName() string { return "unpack" }

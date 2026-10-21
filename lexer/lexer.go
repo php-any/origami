@@ -248,6 +248,20 @@ func (l *Lexer) Tokenize(input string) []Token {
 
 // matchLongestToken 尝试匹配最长的 token
 func (l *Lexer) matchLongestToken(input string, pos int) (*token.TokenDefinition, int, bool) {
+	// PHAR stubs commonly spell this keyword in uppercase. Keep its original
+	// byte length so __COMPILER_HALT_OFFSET__ refers to the archive on disk.
+	const halt = "__halt_compiler"
+	if input[pos] == '_' && len(input)-pos >= len(halt) &&
+		strings.EqualFold(input[pos:pos+len(halt)], halt) {
+		end := pos + len(halt)
+		if end == len(input) {
+			return l.matchKeywordWithDAG(halt, 0)
+		}
+		next, _ := utf8.DecodeRuneInString(input[end:])
+		if !unicode.IsLetter(next) && !unicode.IsDigit(next) && next != '_' && next < 0x4e00 {
+			return l.matchKeywordWithDAG(halt, 0)
+		}
+	}
 	if len(input)-pos > 10 && strings.EqualFold(input[pos:pos+10], "namespace\\") {
 		return nil, 0, false
 	}

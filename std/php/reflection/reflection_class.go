@@ -41,6 +41,10 @@ func (c *ReflectionClassClass) GetPropertyList() []data.Property {
 // 返回: 方法对象和是否存在
 func (c *ReflectionClassClass) GetMethod(name string) (data.Method, bool) {
 	switch name {
+	case "getReflectionConstants":
+		return &ReflectionClassConstantsMethod{}, true
+	case "getConstants":
+		return &ReflectionClassConstantsMethod{Values: true}, true
 	case "__construct":
 		return &ReflectionClassConstructMethod{}, true
 	case "getName":
@@ -118,6 +122,8 @@ func (c *ReflectionClassClass) GetMethod(name string) (data.Method, bool) {
 // GetMethods 返回所有方法列表
 func (c *ReflectionClassClass) GetMethods() []data.Method {
 	return []data.Method{
+		&ReflectionClassConstantsMethod{},
+		&ReflectionClassConstantsMethod{Values: true},
 		&ReflectionClassConstructMethod{},
 		&ReflectionClassGetNameMethod{},
 		&ReflectionClassGetMethodsMethod{},

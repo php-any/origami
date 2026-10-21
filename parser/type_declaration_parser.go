@@ -145,9 +145,9 @@ func parseDeclarationAtom(p *Parser) (data.Types, data.Control) {
 	}
 	p.next()
 	if !data.ISBaseType(name) {
-		if full, ok := p.findFullClassNameByNamespace(name); ok {
-			name = full
-		}
+		// Name resolution is lexical, even when Composer has not loaded the
+		// named class/interface yet. The boolean only describes discovery.
+		name, _ = p.findFullClassNameByNamespace(name)
 	}
 	return data.NewDeclaredType(name), nil
 }

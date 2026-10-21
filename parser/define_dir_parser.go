@@ -4,6 +4,7 @@ import (
 	"github.com/php-any/origami/data"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/php-any/origami/node"
 )
@@ -27,7 +28,9 @@ func (p *DirParser) Parse() (data.GetValue, data.Control) {
 	if p.source != nil {
 		// 获取文件的绝对路径
 		absPath, err := filepath.Abs(*p.source)
-		if err == nil {
+		if strings.HasPrefix(*p.source, "phar://") {
+			dirPath = (*p.source)[:strings.LastIndex(*p.source, "/")]
+		} else if err == nil {
 			dirPath = filepath.Dir(absPath)
 		} else {
 			// 如果获取绝对路径失败，使用当前工作目录

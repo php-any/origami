@@ -150,7 +150,7 @@ func (l *Lexer) TokenizeTemplate(input string) []Token {
 				pos += length
 				linePos += length
 				if tokDef.Type == token.SEMICOLON && endsCompilerHalt(tokens) {
-					return NewPreprocessor(tokens).Process()
+					return preprocessPHP(tokens)
 				}
 				continue
 			}
@@ -227,5 +227,5 @@ func (l *Lexer) TokenizeTemplate(input string) []Token {
 		}
 	}
 
-	return NewPreprocessor(tokens).Process()
+	return preprocessPHP(tokens)
 }

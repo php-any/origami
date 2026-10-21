@@ -9,15 +9,18 @@ import (
 
 // iniDefaults 模拟 PHP 内置 ini 默认值（未在 iniStore 中显式设置时生效）。
 var iniDefaults = map[string]string{
-	"default_charset":       "UTF-8",
-	"input_encoding":        "",
-	"internal_encoding":     "",
-	"output_encoding":       "",
-	"precision":             "14",
-	"serialize_precision":   "-1",
-	"unserialize_max_depth": "4096",
-	"memory_limit":          "128M",
-	"max_memory_limit":      "-1",
+	"default_charset":        "UTF-8",
+	"allow_url_fopen":        "1",
+	"allow_url_include":      "0",
+	"default_socket_timeout": "60",
+	"input_encoding":         "",
+	"internal_encoding":      "",
+	"output_encoding":        "",
+	"precision":              "14",
+	"serialize_precision":    "-1",
+	"unserialize_max_depth":  "4096",
+	"memory_limit":           "128M",
+	"max_memory_limit":       "-1",
 	// PHP CLI 默认 0（不限）；HTTP SAPI 默认 30，由 serve 在每个请求里覆盖。
 	"max_execution_time":       "0",
 	"ignore_user_abort":        "0",

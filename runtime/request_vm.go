@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/internal/pharfs"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/perfmon"
@@ -22,6 +23,7 @@ func NewRequestVM(vm data.VM) data.VM {
 		return vm
 	}
 	return &RequestVM{
+		pharFiles:          &pharfs.FS{},
 		registry:           data.NewClassRegistry(base.ClassRegistry().Snapshot()),
 		Base:               base,
 		addedClasses:       make(map[string]data.ClassStmt),
@@ -40,9 +42,11 @@ func NewRequestVM(vm data.VM) data.VM {
 // RequestVM is the sole request execution VM. Base supplies registered
 // language facilities and cached programs; mutable execution state stays here.
 type RequestVM struct {
-	registry *data.ClassRegistry
-	Base     *VM
-	parser   *parser.Parser
+	httpResponseHeaders
+	pharFiles *pharfs.FS
+	registry  *data.ClassRegistry
+	Base      *VM
+	parser    *parser.Parser
 
 	addedClasses       map[string]data.ClassStmt
 	addedInterfaces    map[string]data.InterfaceStmt
@@ -174,6 +178,7 @@ func (vm *RequestVM) LoadAndRunFresh(file string) (data.GetValue, data.Control) 
 }
 
 func (vm *RequestVM) runFile(file string, fresh bool) (data.GetValue, data.Control) {
+	defer enterPHPFile(&vm.call, file)()
 	_ = vm.TakeThrow()
 	var program data.GetValue
 	var vars []data.Variable
@@ -203,6 +208,7 @@ func (vm *RequestVM) runFile(file string, fresh bool) (data.GetValue, data.Contr
 // LoadInCallerContext 在 RequestVM 上解析并执行，保证请求级类/函数注册不泄漏到 Base。
 // 不设置 PhpFileCache，允许同一视图文件被多次 require。
 func (vm *RequestVM) LoadInCallerContext(parent data.Context, file string) (data.GetValue, data.Control) {
+	defer enterPHPFile(&vm.call, file)()
 	file = normalizePhpFilePath(file)
 
 	t0 := perfmon.Now()

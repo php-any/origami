@@ -21,12 +21,14 @@ const (
 
 // riiStackEntry 栈帧
 type riiStackEntry struct {
-	iter *data.ClassValue
+	iter  *data.ClassValue
+	phase int
 }
 
 // riiStackValue 包装迭代器栈，实现 data.Value 接口
 type riiStackValue struct {
-	frames []riiStackEntry
+	frames    []riiStackEntry
+	rootPhase int
 }
 
 func (s *riiStackValue) GetValue(ctx data.Context) (data.GetValue, data.Control) { return s, nil }
@@ -341,8 +343,8 @@ func (m *RIIConstruct) GetVariables() []data.Variable {
 
 var rIIConstructGetParams = []data.GetValue{
 	node.NewParameter(nil, "iterator", 0, nil, data.NewBaseType("Traversable")),
-	node.NewParameter(nil, "mode", 1, nil, data.NewBaseType("int")),
-	node.NewParameter(nil, "flags", 2, nil, data.NewBaseType("int")),
+	node.NewParameter(nil, "mode", 1, data.NewIntValue(0), data.NewBaseType("int")),
+	node.NewParameter(nil, "flags", 2, data.NewIntValue(0), data.NewBaseType("int")),
 }
 
 func (m *RIIConstruct) GetParams() []data.GetValue {
@@ -372,10 +374,8 @@ func (m *RIIConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	modeVal, hasMode := ctx.GetIndexValue(1)
 	mode := 0
 	if hasMode {
-		if mi, ok := modeVal.(interface{ AsInt() int }); ok {
-			mode = mi.AsInt()
-		} else if mi64, ok := modeVal.(interface{ AsInt64() int64 }); ok {
-			mode = int(mi64.AsInt64())
+		if mi, ok := modeVal.(data.AsInt); ok {
+			mode, _ = mi.AsInt()
 		}
 	}
 
@@ -387,6 +387,7 @@ func (m *RIIConstruct) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 清空栈
 	stack := riiGetStack(cv)
 	stack.frames = stack.frames[:0]
+	stack.rootPhase = 0
 
 	return nil, nil
 }
@@ -419,13 +420,14 @@ func (m *RIIRewind) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 清空栈
 	stack := riiGetStack(cv)
 	stack.frames = stack.frames[:0]
+	stack.rootPhase = 0
 
 	// rewind 根迭代器
 	if _, ctl := riiCallMethod(inner, "rewind"); ctl != nil {
 		return nil, ctl
 	}
 
-	return nil, riiAdvance(cv)
+	return nil, riiSeek(cv)
 }
 
 // ---- next（深度优先 SELF_FIRST） ----
@@ -453,75 +455,81 @@ func (m *RIINext) Call(ctx data.Context) (data.GetValue, data.Control) {
 		return nil, nil
 	}
 
-	mode := riiGetMode(cv)
-	stack := riiGetStack(cv)
-	iter := riiCurrentIter(cv)
+	return nil, riiSeek(cv)
+}
 
-	// SELF_FIRST (1) 或 LEAVES_ONLY (0)：尝试进入子节点
-	if mode == 1 || mode == 0 {
-		hasChildren, ctl := riiCallBool(iter, "hasChildren")
-		if ctl != nil {
-			return nil, ctl
+// Track traversal phases per frame; the root is separate for zero-based depths.
+func riiSeek(cv *data.ClassValue) data.Control {
+	stack := riiGetStack(cv)
+	mode := riiGetMode(cv)
+	for {
+		iter := riiCurrentIter(cv)
+		phase := &stack.rootPhase
+		if len(stack.frames) > 0 {
+			phase = &stack.frames[len(stack.frames)-1].phase
 		}
-		if ctl == nil && hasChildren {
-			childVal, ctl2 := riiCallValue(iter, "getChildren")
-			if ctl2 != nil {
-				return nil, ctl2
+		valid, ctl := riiCallBool(iter, "valid")
+		if ctl != nil {
+			return ctl
+		}
+		if !valid {
+			if len(stack.frames) == 0 {
+				riiSetValid(cv, false)
+				riiSetCurVal(cv, data.NewNullValue())
+				riiSetCurKey(cv, data.NewNullValue())
+				return nil
 			}
-			if ctl2 == nil {
-				if childClass, ok := childVal.(*data.ClassValue); ok {
-					if _, ctl := riiCallMethod(childClass, "rewind"); ctl != nil {
-						return nil, ctl
-					}
-					{
-						childValid, ctl4 := riiCallBool(childClass, "valid")
-						if ctl4 != nil {
-							return nil, ctl4
-						}
-						if ctl4 == nil && childValid {
-							stack.frames = append(stack.frames, riiStackEntry{iter: childClass})
-							return nil, riiAdvance(cv)
-						}
-					}
+			stack.frames = stack.frames[:len(stack.frames)-1]
+			continue
+		}
+		switch *phase {
+		case 0:
+			*phase = 1
+			if mode == 1 {
+				return riiAdvance(cv)
+			}
+		case 1:
+			*phase = 2
+			children, ctl := riiCallBool(iter, "hasChildren")
+			if ctl != nil {
+				return ctl
+			}
+			maxDepth := -1
+			if v, err := cv.ObjectValue.GetProperty(riiMaxDepth); err == nil {
+				if n, ok := v.(data.AsInt); ok {
+					maxDepth, _ = n.AsInt()
 				}
 			}
+			if children && (maxDepth < 0 || len(stack.frames) < maxDepth) {
+				value, ctl := riiCallValue(iter, "getChildren")
+				if ctl != nil {
+					return ctl
+				}
+				child, ok := value.(*data.ClassValue)
+				if !ok {
+					return data.NewErrorThrow(nil, errors.New("getChildren() must return a RecursiveIterator"))
+				}
+				if _, ctl := riiCallMethod(child, "rewind"); ctl != nil {
+					return ctl
+				}
+				stack.frames = append(stack.frames, riiStackEntry{iter: child})
+				continue
+			}
+			if mode == 0 && !children {
+				return riiAdvance(cv)
+			}
+		case 2:
+			*phase = 3
+			if mode == 2 {
+				return riiAdvance(cv)
+			}
+		default:
+			if _, ctl := riiCallMethod(iter, "next"); ctl != nil {
+				return ctl
+			}
+			*phase = 0
 		}
 	}
-
-	// 无子节点，当前迭代器 next
-	if _, ctl := riiCallMethod(iter, "next"); ctl != nil {
-		return nil, ctl
-	}
-
-	valid, ctl := riiCallBool(iter, "valid")
-	if ctl != nil {
-		return nil, ctl
-	}
-	if valid {
-		return nil, riiAdvance(cv)
-	}
-
-	// 当前迭代器耗尽，弹栈
-	for len(stack.frames) > 0 {
-		stack.frames = stack.frames[:len(stack.frames)-1]
-		parentIter := riiCurrentIter(cv)
-
-		if _, ctl := riiCallMethod(parentIter, "next"); ctl != nil {
-			return nil, ctl
-		}
-
-		parentValid, ctl := riiCallBool(parentIter, "valid")
-		if ctl != nil {
-			return nil, ctl
-		}
-		if parentValid {
-			return nil, riiAdvance(cv)
-		}
-	}
-
-	riiSetValid(cv, false)
-	riiSetCurVal(cv, data.NewNullValue())
-	return nil, nil
 }
 
 // ---- current ----
@@ -605,7 +613,7 @@ func (m *RIIGetInnerIterator) Call(ctx data.Context) (data.GetValue, data.Contro
 	if cv == nil {
 		return data.NewNullValue(), nil
 	}
-	inner := riiGetInner(cv)
+	inner := riiCurrentIter(cv)
 	if inner == nil {
 		return data.NewNullValue(), nil
 	}

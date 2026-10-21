@@ -44,11 +44,15 @@ func MethodDeclaringClass(vm VM, class ClassStmt, methodName string) ClassStmt {
 
 func declaresMethod(class ClassStmt, name string) bool {
 	if method, found := class.GetMethod(name); found && method != nil {
-		return true
+		if _, abstract := method.(AbstractMethodMarker); !abstract {
+			return true
+		}
 	}
 	if static, ok := class.(GetStaticMethod); ok {
 		if method, found := static.GetStaticMethod(name); found && method != nil {
-			return true
+			if _, abstract := method.(AbstractMethodMarker); !abstract {
+				return true
+			}
 		}
 	}
 	return false

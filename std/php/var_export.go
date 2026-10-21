@@ -29,8 +29,7 @@ func (f *VarExportFunction) Call(ctx data.Context) (data.GetValue, data.Control)
 		return data.NewStringValue(result), nil
 	}
 	// Without second arg, output directly
-	fmt.Print(result)
-	return data.NewNullValue(), nil
+	return data.NewNullValue(), data.EmitOutput(ctx, result)
 }
 
 func varExportValue(v data.Value) string {
@@ -57,7 +56,7 @@ func varExportValue(v data.Value) string {
 		}
 		return "0.0"
 	case *data.StringValue:
-		return fmt.Sprintf("'%s'", strings.ReplaceAll(val.Value, "'", "\\'"))
+		return exportPHPString(val.Value)
 	case *data.ArrayValue:
 		items := make([]string, 0, val.Len())
 		for arraySlots145, i := val.View(), 0; i < arraySlots145.Len(); i++ {
@@ -65,14 +64,7 @@ func varExportValue(v data.Value) string {
 			if z == nil {
 				continue
 			}
-			keyRepr := fmt.Sprintf("%d", i)
-			if z.Name != "" {
-				if n, ok := data.ParseIntArrayKeyName(z.Name); ok {
-					keyRepr = fmt.Sprintf("%d", n)
-				} else {
-					keyRepr = fmt.Sprintf("'%s'", strings.ReplaceAll(z.Name, "'", "\\'"))
-				}
-			}
+			keyRepr := varExportValue(z.PHPArrayKey(i))
 			items = append(items, fmt.Sprintf("  %s => %s,", keyRepr, varExportValue(z.ReadValue())))
 		}
 		return "array (\n" + strings.Join(items, "\n") + "\n)"
@@ -82,6 +74,13 @@ func varExportValue(v data.Value) string {
 	default:
 		return fmt.Sprintf("'%s'", val.AsString())
 	}
+}
+
+func exportPHPString(value string) string {
+	value = strings.ReplaceAll(value, "\\", "\\\\")
+	value = strings.ReplaceAll(value, "'", "\\'")
+	value = strings.ReplaceAll(value, "\x00", "' . \"\\0\" . '")
+	return "'" + value + "'"
 }
 
 func (f *VarExportFunction) GetName() string {

@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/internal/pharfs"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/perfmon"
@@ -26,6 +27,7 @@ func (vm *VM) GetParser() *parser.Parser {
 // NewVM 创建一个新的虚拟机
 func NewVM(parser *parser.Parser) data.VM {
 	vm := &VM{
+		pharFiles:          &pharfs.FS{},
 		registry:           data.NewClassRegistry(nil),
 		parser:             parser,
 		funcMap:            map[string]data.FuncStmt{},
@@ -54,9 +56,11 @@ func NewVM(parser *parser.Parser) data.VM {
 
 // VM 表示虚拟机
 type VM struct {
-	registry *data.ClassRegistry
-	parser   *parser.Parser
-	ctx      data.Context
+	httpResponseHeaders
+	pharFiles *pharfs.FS
+	registry  *data.ClassRegistry
+	parser    *parser.Parser
+	ctx       data.Context
 
 	// 监听 HTTP 之前只有启动线程写这些表。请求里的可变状态在 RequestVM，不再加锁。
 	autoload            []autoloadRegistration
@@ -552,6 +556,7 @@ func (vm *VM) RunCompiledFile(file string) (data.GetValue, data.Control) {
 }
 
 func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
+	defer enterPHPFile(vm.localCall(), file)()
 	file = normalizePhpFilePath(file)
 	for {
 		loaded, wait, finish := vm.beginPhpFileLoad(file)
@@ -592,6 +597,7 @@ func (vm *VM) LoadAndRun(file string) (data.GetValue, data.Control) {
 // PHP：include 与调用者共享全部局部变量。仅注入「被引入文件符号表里出现过的名字」不够——
 // Blade @capture 里 get_defined_vars() 需要拿到 extract 进来、但只在内层闭包引用的 $attributes。
 func (vm *VM) LoadInCallerContext(parent data.Context, file string) (data.GetValue, data.Control) {
+	defer enterPHPFile(vm.localCall(), file)()
 	file = normalizePhpFilePath(file)
 
 	t0 := perfmon.Now()

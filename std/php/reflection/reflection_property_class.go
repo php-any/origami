@@ -270,6 +270,11 @@ func (m *ReflectionPropertyGetValueMethod) GetVariables() []data.Variable {
 }
 func (m *ReflectionPropertyGetValueMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	propName := reflectionPropertyName(ctx)
+	if class, _ := reflectionStaticProperty(ctx); class != nil {
+		if value, found := node.LookupStaticProperty(ctx.GetVM(), class, propName); found {
+			return value, nil
+		}
+	}
 	objVal, _ := ctx.GetIndexValue(0)
 	if propName == "" || objVal == nil {
 		return data.NewNullValue(), nil
@@ -311,7 +316,7 @@ func (m *ReflectionPropertySetValueMethod) GetReturnType() data.Types  { return 
 
 var reflectionPropertySetValueMethodGetParams = []data.GetValue{
 	node.NewParameter(nil, "object", 0, nil, nil),
-	node.NewParameter(nil, "value", 1, nil, nil),
+	node.NewParameter(nil, "value", 1, data.NewNullValue(), nil),
 }
 
 func (m *ReflectionPropertySetValueMethod) GetParams() []data.GetValue {
@@ -330,6 +335,13 @@ func (m *ReflectionPropertySetValueMethod) Call(ctx data.Context) (data.GetValue
 	propName := reflectionPropertyName(ctx)
 	objVal, _ := ctx.GetIndexValue(0)
 	value, _ := ctx.GetIndexValue(1)
+	if class, _ := reflectionStaticProperty(ctx); class != nil {
+		if len(ctx.GetCallArgs()) < 2 && len(ctx.GetFlatCallArgs()) < 2 {
+			value = objVal
+		}
+		scope := &data.BoundContext{Context: ctx, ScopeClass: class.GetName()}
+		return data.NewNullValue(), node.NewCallStaticProperty(nil, class, propName).SetProperty(scope, propName, value)
+	}
 	if propName == "" || objVal == nil {
 		return nil, data.NewErrorThrow(nil, fmt.Errorf("ReflectionProperty::setValue() missing object or property"))
 	}
@@ -379,6 +391,9 @@ func reflectionPropertyClassName(ctx data.Context) string {
 
 // reflectionPropertyInfo 沿继承链查找属性定义
 func reflectionPropertyInfo(ctx data.Context) data.Property {
+	if _, property := reflectionStaticProperty(ctx); property != nil {
+		return property
+	}
 	className := reflectionPropertyClassName(ctx)
 	propName := reflectionPropertyName(ctx)
 	if className == "" || propName == "" {
@@ -416,6 +431,28 @@ func reflectionPropertyInfo(ctx data.Context) data.Property {
 		current = es
 	}
 	return nil
+}
+
+func reflectionStaticProperty(ctx data.Context) (data.ClassStmt, data.Property) {
+	class, _ := ctx.GetVM().GetClass(reflectionPropertyClassName(ctx))
+	name := reflectionPropertyName(ctx)
+	for class != nil {
+		if declarations, ok := class.(interface{ StaticPropertyDeclarations() []data.Property }); ok {
+			for _, property := range declarations.StaticPropertyDeclarations() {
+				if property.GetName() == name {
+					if constant, ok := property.(interface{ IsClassConstant() bool }); ok && constant.IsClassConstant() {
+						continue
+					}
+					return class, property
+				}
+			}
+		}
+		if class.GetExtend() == nil {
+			break
+		}
+		class, _ = ctx.GetVM().GetClass(*class.GetExtend())
+	}
+	return nil, nil
 }
 
 type ReflectionPropertyIsPublicMethod struct{}

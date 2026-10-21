@@ -70,7 +70,7 @@ var filePutContentsFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "filename", 0, nil, nil),
 	node.NewParameter(nil, "data", 1, nil, nil),
 	node.NewParameter(nil, "flags", 2, data.NewIntValue(0), nil),
-	node.NewParameter(nil, "context", 3, nil, nil),
+	node.NewParameter(nil, "context", 3, data.NewNullValue(), nil),
 }
 
 func (f *FilePutContentsFunction) GetParams() []data.GetValue {

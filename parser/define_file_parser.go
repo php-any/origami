@@ -2,6 +2,7 @@ package parser
 
 import (
 	"path/filepath"
+	"strings"
 
 	"github.com/php-any/origami/data"
 
@@ -28,7 +29,9 @@ func (p *FileParser) Parse() (data.GetValue, data.Control) {
 
 	if p.source != nil {
 		// 将当前源文件转换为绝对路径
-		if absPath, err := filepath.Abs(*p.source); err == nil {
+		if strings.HasPrefix(*p.source, "phar://") {
+			filePath = *p.source
+		} else if absPath, err := filepath.Abs(*p.source); err == nil {
 			filePath = absPath
 		} else {
 			// 获取绝对路径失败时，退化为原始 source 路径

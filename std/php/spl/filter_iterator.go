@@ -27,6 +27,10 @@ func NewFilterIteratorClass() *FilterIteratorClass {
 	return &FilterIteratorClass{}
 }
 
+func (*FilterIteratorClass) MethodDelegate(object *data.ClassValue) *data.ClassValue {
+	return rfiInnerCV(filterGetInner(object))
+}
+
 // GetValue 每次 new 时创建地址的副本（Class 类型不变，状态由 ClassValue.ObjectValue 属性承载）
 func (c *FilterIteratorClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	cv := data.NewClassValue(c, ctx.CreateBaseContext())

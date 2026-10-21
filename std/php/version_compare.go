@@ -77,6 +77,17 @@ func comparePHPVersions(a, b string) int {
 		if i < len(pb) {
 			bi, bsi = pb[i].num, pb[i].special
 		}
+		// Compare numeric components directly: weighting by 100 overflows
+		// for PHP_INT_MAX, which Composer uses as an unbounded interval end.
+		if asi == "" && bsi == "" {
+			if ai < bi {
+				return -1
+			}
+			if ai > bi {
+				return 1
+			}
+			continue
+		}
 		aw := phpVersionWeight(ai, asi)
 		bw := phpVersionWeight(bi, bsi)
 		if aw < bw {
@@ -121,9 +132,9 @@ func splitPHPVersion(v string) []phpVerPart {
 func phpVersionWeight(num int, special string) int {
 	// PHP: 任何特殊后缀低于同级正式版；dev < alpha < beta < RC < # < pl/stable
 	if special == "" {
-		return num*100 + 50
+		return 50
 	}
-	base := num * 100
+	base := 0
 	switch {
 	case strings.HasPrefix(special, "dev"):
 		return base + 0

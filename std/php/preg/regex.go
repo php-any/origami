@@ -195,8 +195,35 @@ func parsePhpPattern(pattern string) (goPattern string, r2Pattern string, r2Flag
 	}
 
 	goPattern = goPrefix + regexBody
-	r2Pattern = regexBody
+	r2Pattern = translatePythonNamedGroups(regexBody)
 	return
+}
+
+// regexp2 accepts (?<name>...), whereas PCRE also accepts (?P<name>...).
+// Only translate group syntax, leaving escaped text and character classes intact.
+func translatePythonNamedGroups(pattern string) string {
+	var out strings.Builder
+	inClass := false
+	for i := 0; i < len(pattern); i++ {
+		if pattern[i] == '\\' && i+1 < len(pattern) {
+			out.WriteString(pattern[i : i+2])
+			i++
+			continue
+		}
+		if pattern[i] == '[' {
+			inClass = true
+		}
+		if pattern[i] == ']' {
+			inClass = false
+		}
+		if !inClass && strings.HasPrefix(pattern[i:], "(?P<") {
+			out.WriteString("(?<")
+			i += 3
+			continue
+		}
+		out.WriteByte(pattern[i])
+	}
+	return out.String()
 }
 
 // Compile 将 PHP 风格的正则表达式转换为 Go 的 regexp 并编译。

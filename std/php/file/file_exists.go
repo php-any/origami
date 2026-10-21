@@ -33,7 +33,7 @@ func (f *FileExistsFunction) Call(ctx data.Context) (data.GetValue, data.Control
 	}
 
 	// 检查文件或目录是否存在
-	_, err := os.Stat(path)
+	_, err := data.StatPHPFile(ctx.GetVM(), path)
 	if err != nil {
 		// 如果文件不存在或其他错误，返回 false
 		if os.IsNotExist(err) {

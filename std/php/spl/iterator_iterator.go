@@ -22,6 +22,10 @@ func NewIteratorIteratorClass() *IteratorIteratorClass {
 	return &IteratorIteratorClass{}
 }
 
+func (*IteratorIteratorClass) MethodDelegate(object *data.ClassValue) *data.ClassValue {
+	return rfiInnerCV(iiGetInner(object))
+}
+
 func (c *IteratorIteratorClass) GetName() string { return "IteratorIterator" }
 
 func (c *IteratorIteratorClass) GetExtend() *string { return nil }

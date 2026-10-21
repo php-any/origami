@@ -235,6 +235,7 @@ func (vm *VM) parseFileCachedFor(file string, request *RequestVM) (data.GetValue
 			declarations = NewRequestVM(vm).(*RequestVM)
 			p.SetVM(declarations)
 			declarations.parser = p
+			declarations.pharFiles = request.PharFS()
 		}
 		info, _ := os.Stat(file)
 		program, acl := p.ParseFile(file)

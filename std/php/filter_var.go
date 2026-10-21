@@ -42,6 +42,12 @@ func (fn *FilterVarFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		if _, ok := value.(*data.BoolValue); ok {
 			return value, nil
 		}
+		switch strings.ToLower(strings.TrimSpace(phpFilterString(value))) {
+		case "1", "true", "on", "yes":
+			return data.NewBoolValue(true), nil
+		case "0", "false", "off", "no", "":
+			return data.NewBoolValue(false), nil
+		}
 		return data.NewBoolValue(false), nil
 	case 273: // FILTER_VALIDATE_URL
 		s := phpFilterString(value)

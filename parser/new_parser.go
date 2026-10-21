@@ -51,9 +51,15 @@ func (p *NewStructParser) Parse() (data.GetValue, data.Control) {
 	}
 
 	// 检查是否是变量类名 new $variable() / new $arr['key']($a, $b)
-	if p.checkPositionIs(0, token.VARIABLE) {
+	if p.checkPositionIs(0, token.VARIABLE, token.THIS) {
 		vp := &VariableParser{p.Parser}
-		var classNameExpr data.GetValue = vp.parseVariable()
+		var classNameExpr data.GetValue
+		if p.checkPositionIs(0, token.THIS) {
+			classNameExpr = node.NewThis(p.FromCurrentToken())
+			p.next()
+		} else {
+			classNameExpr = vp.parseVariable()
+		}
 		var acl data.Control
 
 		// 下标和 ->prop 属于类名表达式；其后的 (...) 才是构造参数。

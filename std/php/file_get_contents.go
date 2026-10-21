@@ -52,16 +52,29 @@ func (f *FileGetContentsFunction) Call(ctx data.Context) (data.GetValue, data.Co
 	}
 
 	if strings.HasPrefix(filePath, "http://") || strings.HasPrefix(filePath, "https://") {
+		if enabled, _ := core.IniGetInContext(ctx, "allow_url_fopen"); enabled == "0" || enabled == "" {
+			return data.NewBoolValue(false), nil
+		}
 		contextVal, _ := ctx.GetIndexValue(2)
 		streamCtx := stream.ContextFromResource(contextVal)
-		content, ok := stream.HTTPGetContentsContext(ctx.GoContext(), filePath, streamCtx)
+		var receive func([]string)
+		if host, ok := ctx.GetVM().(interface{ SetLastHTTPResponseHeaders([]string) }); ok {
+			receive = host.SetLastHTTPResponseHeaders
+		}
+		content, ok := stream.HTTPGetContentsWithHeaders(ctx.GoContext(), filePath, streamCtx, receive)
 		if !ok {
 			return data.NewBoolValue(false), nil
 		}
 		return data.NewStringValue(content), nil
 	}
 
-	bytes, err := utils.ReadFileContext(ctx.GoContext(), filePath)
+	var bytes []byte
+	var err error
+	if strings.HasPrefix(filePath, "phar://") {
+		bytes, err = data.ReadPHPFile(ctx.GetVM(), filePath)
+	} else {
+		bytes, err = utils.ReadFileContext(ctx.GoContext(), filePath)
+	}
 	if err != nil {
 		// PHP 行为：file_get_contents 在文件不存在/读取失败时返回 false（并触发 warning）
 		return data.NewBoolValue(false), nil

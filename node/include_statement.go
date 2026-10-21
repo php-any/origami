@@ -3,6 +3,7 @@ package node
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/utils"
@@ -71,7 +72,18 @@ func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool,
 		return data.NewBoolValue(false), nil
 	}
 
-	if !filepath.IsAbs(filePath) {
+	if strings.HasPrefix(filePath, "phar://") {
+		if host, ok := ctx.GetVM().(data.PharFileHost); ok {
+			canonical, err := host.PharFS().Canonical(filePath)
+			if err != nil {
+				if required {
+					return nil, utils.NewThrowf("require: %s: %v", filePath, err)
+				}
+				return data.NewBoolValue(false), nil
+			}
+			filePath = canonical
+		}
+	} else if !filepath.IsAbs(filePath) {
 		currentDir, err := os.Getwd()
 		if err != nil {
 			return nil, utils.NewThrowf("include 文件失败: %s, 错误: %v", filePath, err)
@@ -88,7 +100,7 @@ func IncludeCore(ctx data.Context, pathVal data.Value, once bool, required bool,
 		}
 	}
 
-	fileInfo, err := os.Stat(filePath)
+	fileInfo, err := data.StatPHPFile(vm, filePath)
 	if err != nil {
 		if required {
 			return nil, utils.NewThrowf("require 文件失败: %s, 错误: %v", filePath, err)

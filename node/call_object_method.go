@@ -80,6 +80,21 @@ func (pe *CallObjectMethod) GetReferenceValue(ctx data.Context) (data.GetValue, 
 		if magic, hasCall := class.GetMethod("__call"); hasCall {
 			return pe.invokeMagicCall(class, ctx, magic, pe.Method, pe.Args)
 		}
+		for declaration := class.Class; declaration != nil; {
+			if delegate, ok := declaration.(data.MethodDelegate); ok {
+				if inner := delegate.MethodDelegate(class); inner != nil && inner != class {
+					forward := *pe
+					forward.Object = inner
+					return forward.GetReferenceValue(ctx)
+				}
+				break
+			}
+			parent := declaration.GetExtend()
+			if parent == nil {
+				break
+			}
+			declaration, _ = ctx.GetVM().GetClass(*parent)
+		}
 		return nil, data.NewErrorThrow(pe.GetFrom(), fmt.Errorf("类(%s)不存在对应函数(%s)", class.Class.GetName(), pe.Method))
 	case *data.FuncValue:
 		// PHP: $closure->__invoke(...$args) ≡ $closure(...$args)

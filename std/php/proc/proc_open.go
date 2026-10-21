@@ -1,11 +1,9 @@
 package proc
 
 import (
-	"context"
 	"io"
 	"os"
 	"os/exec"
-	"runtime"
 	"strconv"
 	"time"
 
@@ -188,7 +186,11 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 					if item.ReadValue() == nil {
 						continue
 					}
-					env = append(env, item.Name+"="+item.ReadValue().AsString())
+					if _, numeric := item.PHPArrayKey(arrayPosition130).(*data.IntValue); numeric {
+						env = append(env, item.ReadValue().AsString())
+					} else {
+						env = append(env, item.Name+"="+item.ReadValue().AsString())
+					}
 				}
 				cmdObj.Env = env
 			}
@@ -267,13 +269,6 @@ func (f *ProcOpenFunction) Call(ctx data.Context) (data.GetValue, data.Control) 
 	}()
 
 	return procResource, nil
-}
-
-func shellCommand(ctx context.Context, cmd string) *exec.Cmd {
-	if runtime.GOOS == "windows" {
-		return exec.CommandContext(ctx, "cmd", "/C", cmd)
-	}
-	return exec.CommandContext(ctx, "sh", "-c", cmd)
 }
 
 func (f *ProcOpenFunction) GetName() string {

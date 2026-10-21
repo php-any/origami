@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/sha3"
 	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/std/php/core"
 	"github.com/php-any/origami/utils"
+	"github.com/zeebo/xxh3"
 )
 
 var nextHashContextID int64 = 200000
@@ -41,11 +43,11 @@ func newHashByAlgo(algo string) (hash.Hash, error) {
 	case "sha512", "sha-512", "sha2_512":
 		return sha512.New(), nil
 	case "sha3-256":
-		return sha256.New(), nil // fallback
+		return sha3.New256(), nil
 	case "sha3-512":
-		return sha512.New(), nil // fallback
+		return sha3.New512(), nil
 	case "xxh3":
-		return sha256.New(), nil // fallback
+		return xxh3.New(), nil
 	default:
 		return nil, fmt.Errorf("Unknown hashing algorithm: %s", algo)
 	}
@@ -86,11 +88,13 @@ func (f *HashFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 
 	h, err := newHashByAlgo(algo)
 	if err != nil {
-		// 与旧行为兼容：未知算法回退到 sha256
-		h = sha256.New()
+		return nil, data.NewErrorThrowByName(nil, err, "ValueError")
 	}
 
 	h.Write([]byte(dataStr))
+	if binary, _ := utils.ConvertFromIndex[bool](ctx, 2); binary {
+		return data.NewStringValue(string(h.Sum(nil))), nil
+	}
 	return data.NewStringValue(hex.EncodeToString(h.Sum(nil))), nil
 }
 
@@ -101,6 +105,7 @@ func (f *HashFunction) GetIsStatic() bool          { return false }
 var hashFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "algo", 0, nil, nil),
 	node.NewParameter(nil, "data", 1, nil, nil),
+	node.NewParameter(nil, "binary", 2, data.NewBoolValue(false), nil),
 }
 
 func (f *HashFunction) GetParams() []data.GetValue {
@@ -110,6 +115,7 @@ func (f *HashFunction) GetParams() []data.GetValue {
 var hashFunctionGetVariables = []data.Variable{
 	node.NewVariable(nil, "algo", 0, nil),
 	node.NewVariable(nil, "data", 1, nil),
+	node.NewVariable(nil, "binary", 2, data.NewBaseType("bool")),
 }
 
 func (f *HashFunction) GetVariables() []data.Variable {

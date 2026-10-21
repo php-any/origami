@@ -128,56 +128,30 @@ func (f *PregReplaceCallbackFunction) Call(ctx data.Context) (data.GetValue, dat
 	return results[0], nil
 }
 
-func (f *PregReplaceCallbackFunction) resolveCallback(ctx data.Context, cb data.Value) (*data.FuncValue, data.Control) {
-	switch c := cb.(type) {
-	case *data.FuncValue:
-		return c, nil
-	case *data.ArrayValue:
-		valueList := c.ToValueList()
-		if len(valueList) < 2 {
-			return nil, data.NewErrorThrow(nil, errors.New("preg_replace_callback 回调数组长度不足"))
-		}
-		className := valueList[0].AsString()
-		methodName := valueList[1].AsString()
-
-		stmt, acl := ctx.GetVM().GetOrLoadClass(className)
-		if acl != nil {
-			return nil, acl
-		}
-		var method data.Method
-		var ok bool
-		method, ok = stmt.GetMethod(methodName)
-		if !ok {
-			if sm, ok2 := stmt.(data.GetStaticMethod); ok2 {
-				method, ok = sm.GetStaticMethod(methodName)
-			}
-		}
-		if !ok {
-			return nil, data.NewErrorThrow(nil, errors.New("preg_replace_callback 未找到方法: "+className+"::"+methodName))
-		}
-		fn, acl := node.NewStaticMethodFuncValue(stmt, method).GetValue(ctx)
-		if acl != nil {
-			return nil, acl
-		}
-		if fv, ok := fn.(*data.FuncValue); ok {
-			return fv, nil
-		}
-		return nil, data.NewErrorThrow(nil, errors.New("preg_replace_callback 回调不是函数值"))
-	default:
-		return nil, data.NewErrorThrow(nil, errors.New("preg_replace_callback 回调不可调用"))
-	}
+func (f *PregReplaceCallbackFunction) resolveCallback(ctx data.Context, cb data.Value) (data.Value, data.Control) {
+	return node.ResolveCallback(ctx, cb)
 }
 
 // callWithSubmatches 使用子匹配数组调用回调（含命名捕获键）
-func (f *PregReplaceCallbackFunction) callWithSubmatches(ctx data.Context, fn *data.FuncValue, matches data.Value) (data.Value, data.Control) {
+func (f *PregReplaceCallbackFunction) callWithSubmatches(ctx data.Context, callback data.Value, matches data.Value) (data.Value, data.Control) {
 	args := []data.Value{matches}
-	callCtx := ctx.CreateContext(fn.Value.GetVariables())
+	var fn data.FuncStmt
+	var invoke func(data.Context) (data.GetValue, data.Control)
+	switch cb := callback.(type) {
+	case *data.FuncValue:
+		fn, invoke = cb.Value, cb.Call
+	case *data.BoundFuncValue:
+		fn, invoke = cb.Value, cb.Call
+	default:
+		return nil, data.NewTypeError(nil, errors.New("invalid callback"))
+	}
+	callCtx := ctx.CreateContext(fn.GetVariables())
 	defer data.ReleaseContext(callCtx)
 	callCtx.SetStrictTypes(false)
-	if ctl := data.BindDeclaredArgs(callCtx, fn.Value, args); ctl != nil {
+	if ctl := data.BindDeclaredArgs(callCtx, fn, args); ctl != nil {
 		return nil, ctl
 	}
-	ret, ctl := fn.Call(callCtx)
+	ret, ctl := invoke(callCtx)
 	if ctl != nil {
 		return nil, ctl
 	}

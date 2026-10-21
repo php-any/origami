@@ -10,11 +10,14 @@ import (
 type StreamInfoFromReader struct {
 	Reader     io.ReadCloser
 	Mode       string
+	Remote     bool
 	Closed     bool
 	EOF        bool
 	mutex      sync.RWMutex
 	stopCancel func() bool
 }
+
+func (s *StreamInfoFromReader) IsRemote() bool { return s.Remote }
 
 // NewStreamInfoFromReader 从 io.ReadCloser 创建流信息
 func NewStreamInfoFromReader(reader io.ReadCloser, mode string) *StreamInfoFromReader {

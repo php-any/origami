@@ -60,6 +60,7 @@ var parserRouter = map[token.TokenType]func(parser *Parser) StatementParser{
 	token.MATCH:          NewMatchParser,
 	token.SWITCH:         NewSwitchParser,
 	token.ARRAY:          NewArrayParser,
+	token.LIST:           NewListParser,
 
 	token.TERNARY:       NewNullableParser,
 	token.AT:            NewAnnotationParser,
