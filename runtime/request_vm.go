@@ -6,7 +6,6 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/internal/pharfs"
-	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/parser"
 	"github.com/php-any/origami/perfmon"
 )
@@ -40,13 +39,16 @@ func NewRequestVM(vm data.VM) data.VM {
 }
 
 // RequestVM is the sole request execution VM. Base supplies registered
-// language facilities and cached programs; mutable execution state stays here.
+// startup language facilities; request parses and mutable state stay here.
 type RequestVM struct {
 	httpResponseHeaders
-	pharFiles *pharfs.FS
-	registry  *data.ClassRegistry
-	Base      *VM
-	parser    *parser.Parser
+	pharFiles    *pharfs.FS
+	registry     *data.ClassRegistry
+	Base         *VM
+	parser       *parser.Parser
+	classPaths   parser.ClassPathManager
+	parsedFiles  map[string]*parsedPHPFile
+	parsingFiles map[string]bool
 
 	addedClasses       map[string]data.ClassStmt
 	addedInterfaces    map[string]data.InterfaceStmt
@@ -111,21 +113,6 @@ func (vm *RequestVM) AddedClasses() []data.ClassStmt {
 	return out
 }
 
-func (vm *RequestVM) registerParsedDeclarations(entry *parsedPHPFile) {
-	for _, declaration := range entry.classes {
-		if _, exists := vm.addedClasses[declaration.GetName()]; exists {
-			continue
-		}
-		declaration = node.CloneClassDeclaration(declaration)
-		vm.addedClasses[declaration.GetName()] = declaration
-		vm.registry.PublishClass(declaration)
-	}
-	for _, declaration := range entry.interfaces {
-		vm.addedInterfaces[declaration.GetName()] = declaration
-		vm.registry.PublishInterface(declaration)
-	}
-}
-
 func (vm *RequestVM) AddInterface(i data.InterfaceStmt) data.Control {
 	vm.addedInterfaces[i.GetName()] = i
 	vm.registry.PublishInterface(i)
@@ -162,6 +149,7 @@ func (vm *RequestVM) CreateContext(vars []data.Variable) data.Context {
 func (vm *RequestVM) PrepareParse(base *parser.Parser) *parser.Parser {
 	p := base.Clone()
 	p.SetVM(vm)
+	p.SetClassPathManager(vm.requestClassPaths())
 	vm.parser = p
 	return p
 }
@@ -188,7 +176,7 @@ func (vm *RequestVM) runFile(file string, fresh bool) (data.GetValue, data.Contr
 		program, ctl = p.ParseFile(file)
 		vars = p.GetVariables()
 	} else {
-		program, vars, ctl = vm.Base.parseFileCachedFor(file, vm)
+		program, vars, ctl = vm.parseFileCached(file)
 	}
 	if ctl != nil {
 		return nil, ctl
@@ -212,7 +200,7 @@ func (vm *RequestVM) LoadInCallerContext(parent data.Context, file string) (data
 	file = normalizePhpFilePath(file)
 
 	t0 := perfmon.Now()
-	program, vars, acl := vm.Base.parseFileCachedFor(file, vm)
+	program, vars, acl := vm.parseFileCached(file)
 	if acl != nil {
 		return nil, acl
 	}
@@ -232,7 +220,7 @@ func (vm *RequestVM) CompileLoad(file string) data.Control {
 	if vm.GetPhpFileCache(file) {
 		return nil
 	}
-	_, _, ctl := vm.Base.parseFileCachedFor(file, vm)
+	_, _, ctl := vm.parseFileCached(file)
 	if ctl == nil {
 		vm.SetPhpFileCache(file)
 	}
@@ -240,7 +228,7 @@ func (vm *RequestVM) CompileLoad(file string) data.Control {
 }
 
 func (vm *RequestVM) ParseFile(file string, object data.Value) (data.Value, data.Control) {
-	program, variables, ctl := vm.Base.parseFileCachedFor(file, vm)
+	program, variables, ctl := vm.parseFileCached(file)
 	if ctl != nil {
 		return nil, ctl
 	}
@@ -359,9 +347,16 @@ func (vm *RequestVM) SetIncludeOnceResult(file string, result data.GetValue) {
 	vm.includeOnceResults[normalizePhpFilePath(file)] = result
 }
 
-// AddNamespace 添加命名空间路径映射（委托给 Base VM，因为命名空间映射是全局共享的）
+// AddNamespace keeps request-discovered mappings out of the startup catalog.
 func (vm *RequestVM) AddNamespace(namespace string, path string) {
-	vm.Base.AddNamespace(namespace, path)
+	vm.requestClassPaths().AddNamespace(namespace, path)
+}
+
+func (vm *RequestVM) requestClassPaths() parser.ClassPathManager {
+	if vm.classPaths == nil {
+		vm.classPaths = parser.ForkClassPathManager(vm.Base.parser.GetClassPathManager())
+	}
+	return vm.classPaths
 }
 
 func (vm *RequestVM) SetConstant(name string, value data.Value) data.Control {

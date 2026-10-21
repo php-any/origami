@@ -40,6 +40,45 @@ type DefaultClassPathManager struct {
 	fileCache sync.Map // lowercase FQCN -> classFileCacheEntry
 }
 
+// ForkClassPathManager gives a request its own discovered paths and file cache.
+// Default managers copy startup mappings without inheriting cached misses.
+func ForkClassPathManager(parent ClassPathManager) ClassPathManager {
+	if source, ok := parent.(*DefaultClassPathManager); ok {
+		source.mu.RLock()
+		defer source.mu.RUnlock()
+		return &DefaultClassPathManager{root: cloneNamespaceNode(source.root)}
+	}
+	return &requestClassPathManager{DefaultClassPathManager: NewDefaultClassPathManager(), parent: parent}
+}
+
+func cloneNamespaceNode(source *NamespaceNode) *NamespaceNode {
+	copy := &NamespaceNode{namespace: source.namespace, paths: append([]string(nil), source.paths...), children: make(map[string]*NamespaceNode, len(source.children))}
+	for name, child := range source.children {
+		copy.children[name] = cloneNamespaceNode(child)
+	}
+	return copy
+}
+
+type requestClassPathManager struct {
+	*DefaultClassPathManager
+	parent ClassPathManager
+}
+
+func (m *requestClassPathManager) FindClassFile(name string) (string, bool) {
+	if path, ok := m.DefaultClassPathManager.FindClassFile(name); ok {
+		return path, true
+	}
+	return m.parent.FindClassFile(name)
+}
+
+func (m *requestClassPathManager) LoadClass(name string, p *Parser) data.Control {
+	if _, ok := m.DefaultClassPathManager.FindClassFile(strings.TrimPrefix(name, "\\")); ok {
+		return m.DefaultClassPathManager.LoadClass(name, p)
+	}
+	// Preserve custom loaders' behavior, using the caller's request-bound parser.
+	return m.parent.LoadClass(name, p)
+}
+
 // NewDefaultClassPathManager 创建默认的类路径管理器
 func NewDefaultClassPathManager() *DefaultClassPathManager {
 	return &DefaultClassPathManager{

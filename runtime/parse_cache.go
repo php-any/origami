@@ -13,8 +13,6 @@ import (
 type parsedPHPFile struct {
 	program        data.GetValue
 	vars           []data.Variable
-	classes        []data.ClassStmt
-	interfaces     []data.InterfaceStmt
 	sourceSize     int64
 	sourceModified int64
 }
@@ -189,7 +187,9 @@ func (vm *VM) InvalidateParsedFile(file string) {
 	file = normalizePhpFilePath(file)
 	vm.parsedFiles.Load().invalidate(file)
 }
-func (vm *RequestVM) InvalidateParsedFile(file string) { vm.Base.InvalidateParsedFile(file) }
+func (vm *RequestVM) InvalidateParsedFile(file string) {
+	delete(vm.parsedFiles, normalizePhpFilePath(file))
+}
 
 // Includes already stat their source; reuse that result to detect writes made
 // by external tools without adding a filesystem operation to cache hits.
@@ -202,16 +202,58 @@ func (vm *VM) ValidateParsedFileVersion(file string, info os.FileInfo) {
 	}
 }
 func (vm *RequestVM) ValidateParsedFileVersion(file string, info os.FileInfo) {
-	vm.Base.ValidateParsedFileVersion(file, info)
+	file = normalizePhpFilePath(file)
+	if entry := vm.parsedFiles[file]; entry != nil &&
+		(entry.sourceSize != info.Size() || entry.sourceModified != info.ModTime().UnixNano()) {
+		vm.InvalidateParsedFile(file)
+	}
+}
+
+// Request parses are owned by one request, including their AST and declarations.
+// Startup definitions are inherited through the registry, never by populating
+// or reading the Base VM's parse cache for request file execution.
+func (vm *RequestVM) parseFileCached(file string) (data.GetValue, []data.Variable, data.Control) {
+	file = normalizePhpFilePath(file)
+	if file == "" {
+		return nil, nil, nil
+	}
+	if entry := vm.parsedFiles[file]; entry != nil {
+		perfmon.NoteParse(file, true, 0)
+		return entry.program, entry.vars, nil
+	}
+	if vm.parsingFiles[file] {
+		return nil, nil, utils.NewThrowf("Recursive parse of %s", file)
+	}
+	if vm.parsingFiles == nil {
+		vm.parsingFiles = make(map[string]bool)
+	}
+	vm.parsingFiles[file] = true
+	defer delete(vm.parsingFiles, file)
+	t0 := perfmon.Now()
+	p := vm.Base.parser.Clone()
+	p.SetVM(vm)
+	p.SetClassPathManager(vm.requestClassPaths())
+	info, _ := os.Stat(file)
+	program, ctl := p.ParseFile(file)
+	perfmon.NoteParse(file, false, perfmon.Since(t0))
+	if ctl != nil {
+		return nil, nil, ctl
+	}
+	entry := &parsedPHPFile{program: program, vars: p.GetVariables()}
+	if info != nil {
+		entry.sourceSize, entry.sourceModified = info.Size(), info.ModTime().UnixNano()
+	}
+	p.ReleaseTokenBuffer()
+	if vm.parsedFiles == nil {
+		vm.parsedFiles = make(map[string]*parsedPHPFile)
+	}
+	vm.parsedFiles[file] = entry
+	return entry.program, entry.vars, nil
 }
 
 // ParseFileCached 解析 PHP 文件并缓存 AST（进程级，按规范化路径去重）。
 // 多次执行同一入口/被 include 的文件时不应重复读盘与词法/语法分析。
 func (vm *VM) ParseFileCached(file string) (data.GetValue, []data.Variable, data.Control) {
-	return vm.parseFileCachedFor(file, nil)
-}
-
-func (vm *VM) parseFileCachedFor(file string, request *RequestVM) (data.GetValue, []data.Variable, data.Control) {
 	file = normalizePhpFilePath(file)
 	if file == "" {
 		return nil, nil, nil
@@ -219,24 +261,12 @@ func (vm *VM) parseFileCachedFor(file string, request *RequestVM) (data.GetValue
 	cache := vm.parsedFiles.Load()
 	if cached, ok := cache.generation().entries[file]; ok {
 		perfmon.NoteParse(file, true, 0)
-		if request != nil {
-			request.registerParsedDeclarations(cached)
-		}
 		return cached.program, cached.vars, nil
 	}
 
 	cached, acl := cache.load(RequestContext(), file, func() (*parsedPHPFile, data.Control) {
 		t0 := perfmon.Now()
 		p := vm.parser.Clone()
-		// Parsing may register declarations for forward references. Keep those
-		// registrations out of the VM catalog when compiling a request file.
-		var declarations *RequestVM
-		if request != nil {
-			declarations = NewRequestVM(vm).(*RequestVM)
-			p.SetVM(declarations)
-			declarations.parser = p
-			declarations.pharFiles = request.PharFS()
-		}
 		info, _ := os.Stat(file)
 		program, acl := p.ParseFile(file)
 		perfmon.NoteParse(file, false, perfmon.Since(t0))
@@ -247,20 +277,11 @@ func (vm *VM) parseFileCachedFor(file string, request *RequestVM) (data.GetValue
 		if info != nil {
 			entry.sourceSize, entry.sourceModified = info.Size(), info.ModTime().UnixNano()
 		}
-		if declarations != nil {
-			entry.classes = declarations.AddedClasses()
-			for _, declaration := range declarations.addedInterfaces {
-				entry.interfaces = append(entry.interfaces, declaration)
-			}
-		}
 		p.ReleaseTokenBuffer()
 		return entry, nil
 	})
 	if acl != nil {
 		return nil, nil, acl
-	}
-	if request != nil {
-		request.registerParsedDeclarations(cached)
 	}
 	return cached.program, cached.vars, nil
 }
