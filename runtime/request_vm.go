@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -552,6 +553,13 @@ func (vm *RequestVM) Activate() (restore func()) {
 	}
 }
 
+// BindContext binds cancellation to a non-HTTP request scope.
+func (vm *RequestVM) BindContext(ctx context.Context) {
+	st := vm.requestCall()
+	if st.deadline == nil {
+		st.deadline = newRequestCancellation(ctx, st.ignoreUserAbort)
+	}
+}
 func (vm *RequestVM) BindHTTP(req *http.Request, response http.ResponseWriter) {
 	vm.request, vm.response = req, response
 	st := vm.requestCall()

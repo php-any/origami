@@ -29,6 +29,7 @@ type ServerClass struct {
 	node.Node
 	source *httpsrc.ServeMux
 
+	limits map[string]int
 	Prefix string
 
 	Host          string
@@ -67,6 +68,8 @@ func (s *ServerClass) GetMethod(name string) (data.Method, bool) {
 		return &ServerOnErrorMethod{server: s}, true
 	case "onFormat":
 		return &ServerOnFormatMethod{server: s}, true
+	case "configure":
+		return s.configureMethod(), true
 	case "run":
 		return &ServerRunMethod{server: s}, true
 	case "serveHTTP":
@@ -93,6 +96,7 @@ func (s *ServerClass) GetMethods() []data.Method {
 		&ServerMiddlewareMethod{server: s},
 		&ServerOnErrorMethod{server: s},
 		&ServerOnFormatMethod{server: s},
+		s.configureMethod(),
 		&ServerRunMethod{server: s},
 		&ServerServeHTTPMethod{server: s},
 	}
