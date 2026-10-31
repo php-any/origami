@@ -83,6 +83,17 @@ func defaultParamValue(ctx data.Context, def data.GetValue) (data.GetValue, data
 }
 
 func paramResolveName(def data.GetValue, className string) (abstract, named string, ok bool) {
+	// Inherited constructors keep the annotations of their declaring class.
+	switch parameter := def.(type) {
+	case *node.Parameter:
+		if parameter.ConstructorClass != "" {
+			className = parameter.ConstructorClass
+		}
+	case *node.PromotedParameter:
+		if parameter.ConstructorClass != "" {
+			className = parameter.ConstructorClass
+		}
+	}
 	if name := metadataNamedService(className, paramIndex(def)); name != "" {
 		return name, name, true
 	}

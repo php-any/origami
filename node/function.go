@@ -237,13 +237,16 @@ func (f *FunctionStatement) persistStaticLocals(ctx data.Context) {
 
 // Parameter 表示函数参数
 type Parameter struct {
-	*Node        `pp:"-"`
-	Name         string // 变量名
-	Index        int    // 变量在作用域中的索引
-	Type         data.TypeRef
-	DefaultValue data.GetValue // 默认值
-	Annotations  []*data.ClassValue
+	*Node            `pp:"-"`
+	Name             string // 变量名
+	Index            int    // 变量在作用域中的索引
+	Type             data.TypeRef
+	DefaultValue     data.GetValue // 默认值
+	Annotations      []*data.ClassValue
+	ConstructorClass string // Set only for parameters declared in a constructor.
 }
+
+func (p *Parameter) SetConstructorClass(name string) { p.ConstructorClass = name }
 
 func (p *Parameter) AddAnnotations(a *data.ClassValue) {
 	if p.Annotations == nil {

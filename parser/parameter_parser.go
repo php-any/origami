@@ -9,7 +9,7 @@ import (
 	"github.com/php-any/origami/token"
 )
 
-func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Control) {
+func parseSingleParameter(parser *Parser, constructorClass ...string) (result data.GetValue, property data.Property, control data.Control) {
 	tracking := parser.StartTracking()
 
 	// PHP 8 构造器提升参数允许「注解」与「可见性/readonly」任意交错：
@@ -19,6 +19,22 @@ func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Co
 	var paramModifier string
 	var isReadonly bool
 	var paramAnnotations []*node.Annotation
+	// Finalize all parameter forms before annotation macros inspect their target.
+	defer func() {
+		if control != nil || result == nil {
+			return
+		}
+		if len(constructorClass) != 0 {
+			if owner, ok := result.(interface{ SetConstructorClass(string) }); ok {
+				owner.SetConstructorClass(constructorClass[0])
+			}
+		}
+		if len(paramAnnotations) != 0 {
+			if target, ok := result.(node.AddAnnotations); ok {
+				control = ApplyAnnotations(parser, target, paramAnnotations)
+			}
+		}
+	}()
 	for {
 		if parser.checkPositionIs(0, token.READONLY) {
 			isReadonly = true
@@ -251,13 +267,6 @@ func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Co
 		return node.NewParameterReference(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, paramType), nil, nil
 	} else {
 		param := node.NewParameter(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, paramType)
-		if len(paramAnnotations) > 0 {
-			if annTarget, ok := param.(node.AddAnnotations); ok {
-				if acl := ApplyAnnotations(parser, annTarget, paramAnnotations); acl != nil {
-					return nil, nil, acl
-				}
-			}
-		}
 		return param, nil, nil
 	}
 }

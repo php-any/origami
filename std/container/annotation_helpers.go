@@ -86,14 +86,21 @@ func annotationTargetParameter(ctx data.Context) (*node.Parameter, string, data.
 	}
 	switch t := anyT.Value.(type) {
 	case *node.Parameter:
-		return t, "", nil
+		return constructorAnnotationParameter(t)
 	case *node.PromotedParameter:
-		return t.Parameter, "", nil
+		return constructorAnnotationParameter(t.Parameter)
 	case *node.ClassProperty:
 		return nil, "", utils.NewThrow(errors.New("Container\\Annotation\\Inject 只能用于构造器参数"))
 	default:
 		return nil, "", utils.NewThrow(errors.New("注解目标类型不支持"))
 	}
+}
+
+func constructorAnnotationParameter(param *node.Parameter) (*node.Parameter, string, data.Control) {
+	if param.ConstructorClass == "" {
+		return nil, "", utils.NewThrow(errors.New("Container annotations Inject/Named require a constructor parameter"))
+	}
+	return param, param.ConstructorClass, nil
 }
 
 func scanDirectory(vm data.VM, dir string) data.Control {

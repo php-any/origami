@@ -372,7 +372,7 @@ func (p *ClassParser) ParseConstructorParameters() ([]data.GetValue, []data.Prop
 
 	// 解析参数列表
 	for {
-		param, property, acl := parseSingleParameter(p.Parser)
+		param, property, acl := parseSingleParameter(p.Parser, p.currentClass)
 		if property != nil {
 			properties = append(properties, property)
 		}
