@@ -66,7 +66,8 @@ func (f Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if owner {
 		defer requestVM.RunShutdownCallbacks()
 	}
-	node.ResetSuperglobals()
+	// languageRequest owns PHP request state. Resetting process-global fallback
+	// caches here races with other requests and is unnecessary for RequestVM.
 	rw, response := beginResponse(w, r)
 	defer rw.commitPending()
 	r, request := beginRequest(r)

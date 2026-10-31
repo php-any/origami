@@ -5,6 +5,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/php-any/origami/data"
@@ -63,10 +64,10 @@ type VM struct {
 	ctx       data.Context
 
 	// 监听 HTTP 之前只有启动线程写这些表。请求里的可变状态在 RequestVM，不再加锁。
-	autoload            []autoloadRegistration
-	autoloadInitialized bool
-	autoloadExtensions  *string
-	autoloadFlights     autoloadFlights
+	autoload           []autoloadRegistration
+	autoloadOnce       sync.Once
+	autoloadExtensions *string
+	autoloadFlights    autoloadFlights
 
 	funcMap            map[string]data.FuncStmt
 	functions          atomic.Pointer[data.IDMap[data.FuncStmt]]
@@ -75,6 +76,7 @@ type VM struct {
 	phpIni             map[string]string
 	environment        atomic.Pointer[map[string]string]
 	phpFileCache       map[string]struct{}
+	filesMu            sync.Mutex
 	includeOnceResults map[string]data.GetValue
 	compiledFiles      map[string]func() (data.GetValue, []data.Variable)
 	parsedFiles        atomic.Pointer[parsedFileCache]
@@ -131,6 +133,8 @@ func (vm *VM) SetPhpFileCache(file string) {
 	if file == "" {
 		return
 	}
+	vm.filesMu.Lock()
+	defer vm.filesMu.Unlock()
 	vm.phpFileCache[file] = struct{}{}
 	vm.requestFiles.Store(nil)
 }
@@ -140,6 +144,8 @@ func (vm *VM) GetPhpFileCache(file string) bool {
 	if file == "" {
 		return false
 	}
+	vm.filesMu.Lock()
+	defer vm.filesMu.Unlock()
 	_, ok := vm.phpFileCache[file]
 	return ok
 }
@@ -149,6 +155,8 @@ func (vm *VM) GetIncludeOnceResult(file string) (data.GetValue, bool) {
 	if file == "" {
 		return nil, false
 	}
+	vm.filesMu.Lock()
+	defer vm.filesMu.Unlock()
 	result, found := vm.includeOnceResults[file]
 	return result, found
 }
@@ -158,12 +166,16 @@ func (vm *VM) SetIncludeOnceResult(file string, result data.GetValue) {
 	if file == "" {
 		return
 	}
+	vm.filesMu.Lock()
+	defer vm.filesMu.Unlock()
 	vm.includeOnceResults[file] = result
 	vm.requestFiles.Store(nil)
 }
 
 // ClearIncludeOnceCache 清空 include_once/require_once 返回值缓存，供热重载使用。
 func (vm *VM) ClearIncludeOnceCache() {
+	vm.filesMu.Lock()
+	defer vm.filesMu.Unlock()
 	vm.includeOnceResults = map[string]data.GetValue{}
 	vm.requestFiles.Store(nil)
 }
@@ -173,6 +185,8 @@ func (vm *VM) ClearIncludeOnceCache() {
 // - wait：其他 goroutine 正在加载，等待其完成后再重试
 // - finish：当前 goroutine 负责加载，必须 defer 调用（panic/超时也不能漏）
 func (vm *VM) beginPhpFileLoad(file string) (alreadyLoaded bool, wait <-chan struct{}, finish func()) {
+	vm.filesMu.Lock()
+	defer vm.filesMu.Unlock()
 	if _, ok := vm.phpFileCache[file]; ok {
 		return true, nil, nil
 	}
@@ -191,6 +205,8 @@ func (vm *VM) beginPhpFileLoad(file string) (alreadyLoaded bool, wait <-chan str
 	vm.loadingOwner[file] = gid
 	finished := false
 	return false, nil, func() {
+		vm.filesMu.Lock()
+		defer vm.filesMu.Unlock()
 		if finished {
 			return
 		}
@@ -211,11 +227,14 @@ func (vm *VM) WaitPhpFileLoad(file string) bool {
 	}
 	gid := goid()
 	for {
+		vm.filesMu.Lock()
 		if _, ok := vm.phpFileCache[file]; ok {
+			vm.filesMu.Unlock()
 			return true
 		}
 		ch, loading := vm.loadingFiles[file]
 		owner := vm.loadingOwner[file]
+		vm.filesMu.Unlock()
 		if !loading {
 			return false
 		}
@@ -228,6 +247,8 @@ func (vm *VM) WaitPhpFileLoad(file string) bool {
 
 // ClearPhpFileCache 清空已加载 PHP 文件缓存，供开发模式热重载使用。
 func (vm *VM) ClearPhpFileCache() {
+	vm.filesMu.Lock()
+	defer vm.filesMu.Unlock()
 	vm.phpFileCache = map[string]struct{}{}
 	vm.ClearParsedFileCache()
 	vm.requestFiles.Store(nil)
