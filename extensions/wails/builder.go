@@ -154,7 +154,6 @@ func buildWindowsWindow(v data.Value) application.WindowsWindow {
 		DisableIcon:                       getPropBool(cv, "DisableWindowIcon", false),
 		Theme:                             application.Theme(getPropInt(cv, "Theme", 0)),
 		DisableFramelessWindowDecorations: getPropBool(cv, "DisableFramelessWindowDecorations", false),
-		ResizeDebounceMS:                  uint16(getPropInt(cv, "ResizeDebounceMS", 0)),
 		EnableSwipeGestures:               getPropBool(cv, "EnableSwipeGestures", false),
 	}
 }

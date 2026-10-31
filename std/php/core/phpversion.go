@@ -18,6 +18,9 @@ func (f *PhpVersionFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		if _, null := extension.(*data.NullValue); !null && !extensionAvailable(vm, strings.ToLower(extension.AsString())) {
 			return data.NewBoolValue(false), nil
 		}
+		if v, found := vm.GetConstant(strings.ToUpper(extension.AsString()) + "_VERSION"); found {
+			return v, nil
+		}
 	}
 	if v, ok := vm.GetConstant("PHP_VERSION"); ok {
 		return v, nil

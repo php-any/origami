@@ -469,6 +469,31 @@ func parsePhpSerializedValue(input string) (data.Value, bool) {
 
 type UnserializeFunction struct{}
 
+// DecodeSerializedValue is the extension-facing PHP decoder. Invalid wire data
+// is reported separately from PHP exceptions raised by object hydration hooks,
+// so clients such as Redis can retain non-serialized strings without suppressing
+// exceptions or installing a temporary PHP error handler.
+func DecodeSerializedValue(ctx data.Context, input string) (data.Value, bool, data.Control) {
+	decoder := newPHPDecoder(input, ctx)
+	value, _, _, ok := decoder.value(0)
+	if decoder.control != nil {
+		return nil, false, decoder.control
+	}
+	if !ok {
+		return nil, false, nil
+	}
+	for _, hook := range decoder.hooks {
+		if ctl := hook(); ctl != nil {
+			return nil, false, ctl
+		}
+	}
+	result := value.ReadValue()
+	if _, array := result.(*data.ArrayValue); array && value.ReferenceIdentity() != nil && value.RefCount() == 1 {
+		value.StoreRaw(data.NewNullValue())
+	}
+	return result, true, nil
+}
+
 func NewUnserializeFunction() data.FuncStmt { return &UnserializeFunction{} }
 func (f *UnserializeFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	input, _ := ctx.GetIndexValue(0)

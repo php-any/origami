@@ -371,6 +371,7 @@ func (m *windowsOptionsConstruct) Call(ctx data.Context) (data.GetValue, data.Co
 	setDefaultIntProperty(cv, "Theme", 0)        // SystemDefault
 	setDefaultIntProperty(cv, "BackdropType", 0) // Auto
 	setDefaultFloatProperty(cv, "ZoomFactor", 1.0)
+	// Deprecated: Wails v3.0.0 已移除此选项；保留 PHP 属性以兼容旧脚本，不再影响窗口行为。
 	setDefaultIntProperty(cv, "ResizeDebounceMS", 0)
 	setDefaultStringProperty(cv, "WebviewUserDataPath", "")
 	setDefaultStringProperty(cv, "WebviewBrowserPath", "")

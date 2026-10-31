@@ -80,10 +80,11 @@ func (f *JsonDecodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 				if cv, ok := classInstance.(*data.ClassValue); ok {
 					serializer := origamiJson.NewJsonSerializer()
 					if err := serializer.UnmarshalClass([]byte(jsonString), cv); err != nil {
-						setJsonLastError(JSON_ERROR_SYNTAX, "")
-						return data.NewNullValue(), nil
+						return jsonDecodeFailure(ctx, flags, JSON_ERROR_SYNTAX)
 					}
-					clearJsonLastError()
+					if flags&jsonThrowOnError == 0 {
+						clearJsonLastError()
+					}
 					return cv, nil
 				}
 			} else {
@@ -98,10 +99,11 @@ func (f *JsonDecodeFunction) Call(ctx data.Context) (data.GetValue, data.Control
 		if errors.Is(err, errJSONDecodeDepth) {
 			code = JSON_ERROR_DEPTH
 		}
-		setJsonLastError(code, "")
-		return data.NewNullValue(), nil
+		return jsonDecodeFailure(ctx, flags, code)
 	}
-	clearJsonLastError()
+	if flags&jsonThrowOnError == 0 {
+		clearJsonLastError()
+	}
 	return value, nil
 }
 

@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"html"
+	"strings"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
@@ -39,13 +40,22 @@ func (f *HtmlspecialcharsFunction) Call(ctx data.Context) (data.GetValue, data.C
 			}
 			return nil, data.NewErrorThrow(nil, fmt.Errorf("htmlspecialchars(): Argument #1 ($string) must be of type string, %s given", name))
 		}
-		return data.NewStringValue(html.EscapeString(str)), nil
+		return data.NewStringValue(escapeHTMLSpecialChars(str)), nil
 	}
 
 	str := strVal.AsString()
-	result := html.EscapeString(str)
+	result := escapeHTMLSpecialChars(str)
 
 	return data.NewStringValue(result), nil
+}
+
+// Go uses shorter numeric quote entities; PHP's default HTML 4.01 encoding
+// uses &quot; and &#039;. Only rewrite entities produced by EscapeString:
+// original ampersands have already been escaped and must not be decoded.
+var phpHTMLQuoteEntities = strings.NewReplacer("&#34;", "&quot;", "&#39;", "&#039;")
+
+func escapeHTMLSpecialChars(value string) string {
+	return phpHTMLQuoteEntities.Replace(html.EscapeString(value))
 }
 
 func (f *HtmlspecialcharsFunction) GetName() string {

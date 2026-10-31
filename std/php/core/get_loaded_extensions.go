@@ -28,7 +28,7 @@ func (*GetLoadedExtensionsFunction) Call(ctx data.Context) (data.GetValue, data.
 
 func loadedExtensions(ctx data.Context) *data.ArrayValue {
 	var extensions []data.Value
-	for _, name := range []string{"core", "standard", "date", "json", "pcre", "hash", "filter", "iconv", "mbstring", "ctype", "tokenizer", "session", "zlib", "openssl", "curl", "fileinfo", "phar", "spl", "reflection", "pdo", "intl", "dom", "simplexml", "zip"} {
+	for _, name := range []string{"core", "standard", "date", "json", "pcre", "hash", "filter", "iconv", "mbstring", "ctype", "tokenizer", "session", "zlib", "openssl", "curl", "fileinfo", "phar", "spl", "reflection", "pdo", "intl", "dom", "simplexml", "zip", "mongodb", "redis"} {
 		if extensionAvailable(ctx.GetVM(), name) {
 			extensions = append(extensions, data.NewStringValue(name))
 		}

@@ -89,8 +89,7 @@ func jsonEncode(ctx data.Context, value data.Value, flags int) (string, bool, da
 		return "", false, ctl
 	}
 	if jerr != JSON_ERROR_NONE {
-		setJsonLastError(jerr, "")
-		return "", false, nil
+		return jsonEncodeFailure(ctx, flags, jerr)
 	}
 
 	serializer := json.NewJsonSerializer()
@@ -120,15 +119,16 @@ func jsonEncode(ctx data.Context, value data.Value, flags int) (string, bool, da
 	}
 
 	if err != nil {
-		setJsonLastError(JSON_ERROR_UNSUPPORTED_TYPE, "")
-		return "", false, nil
+		return jsonEncodeFailure(ctx, flags, JSON_ERROR_UNSUPPORTED_TYPE)
 	}
 
 	result = applyJsonEncodeFlags(result, flags)
 	if flags&jsonPrettyPrint != 0 {
 		result = prettyPrintJSON(result)
 	}
-	clearJsonLastError()
+	if flags&jsonThrowOnError == 0 || flags&jsonPartialOutputOnError != 0 {
+		clearJsonLastError()
+	}
 	return string(result), true, nil
 }
 

@@ -83,7 +83,6 @@ $winOptions = new Windows([
     'Theme'             => WindowsTheme::SYSTEM_DEFAULT,
     'BackdropType'      => BackdropType::MICA,
     'DisableWindowIcon' => false,
-    'ResizeDebounceMS'  => 100,
 ]);
 
 // macOS: 沉浸式标题栏 + 外观

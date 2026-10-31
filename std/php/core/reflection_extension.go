@@ -78,6 +78,9 @@ func (m *reflectionExtensionMethod) Call(ctx data.Context) (data.GetValue, data.
 	case "getName":
 		return data.NewStringValue(name), nil
 	case "getVersion":
+		if v, ok := ctx.GetVM().GetConstant(strings.ToUpper(name) + "_VERSION"); ok {
+			return v, nil
+		}
 		v, _ := ctx.GetVM().GetConstant("PHP_VERSION")
 		return v, nil
 	case "isPersistent":

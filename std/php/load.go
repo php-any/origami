@@ -627,6 +627,7 @@ func Load(vm data.VM) {
 
 	// 注册异常类
 	vm.AddClass(exception.NewExceptionClass())
+	vm.AddClass(&jsonExceptionClass{exception.NewExceptionClass()})
 	vm.AddClass(exception.NewErrorClass())
 	vm.AddClass(exception.NewValueErrorClass())
 	vm.AddClass(exception.NewTypeErrorClass())

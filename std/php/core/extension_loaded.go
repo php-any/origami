@@ -42,6 +42,12 @@ func extensionAvailable(vm data.VM, name string) bool {
 		return found
 	}
 	classes := map[string]string{"phar": "Phar", "spl": "SplFileInfo", "reflection": "ReflectionClass", "pdo": "PDO", "intl": "NumberFormatter", "dom": "DOMDocument", "simplexml": "SimpleXMLElement", "zip": "ZipArchive"}
+	classes["mongodb"] = "MongoDB\\Driver\\Manager"
+	if name == "redis" {
+		_, registered := vm.GetConstant("REDIS_VERSION")
+		_, classFound := vm.GetClass("Redis")
+		return registered && classFound
+	}
 	if class, ok := classes[name]; ok {
 		_, found := vm.GetClass(class)
 		return found
