@@ -649,9 +649,39 @@ func (m *DateTimeGetTimezoneMethod) GetVariables() []data.Variable {
 type DateTimeSetTimezoneMethod struct{}
 
 func (m *DateTimeSetTimezoneMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	// 简化：忽略时区
 	cmc := ctx.(*data.ClassMethodContext)
-	return cmc.ClassValue, nil
+	value, ok := ctx.GetIndexValue(0)
+	if !ok {
+		return nil, data.NewErrorThrow(nil, errors.New("DateTimeZone argument is required"))
+	}
+	zone, ok := toClassValue(value)
+	if !ok || !data.NominalIsA(zone.Class, "DateTimeZone", ctx.GetVM()) {
+		return nil, data.NewTypeError(nil, errors.New("Expected DateTimeZone"))
+	}
+	// Native timezone state must not dispatch an overridable getName().
+	name, ctl := zone.ObjectValue.GetProperty("name")
+	if ctl != nil {
+		return nil, ctl
+	}
+	zoneName, ok := name.(*data.StringValue)
+	if !ok || zoneName.Value == "" {
+		return nil, data.NewErrorThrow(nil, errors.New("DateTimeZone object is not initialized"))
+	}
+	if _, err := dateTimeWireLocation(zoneName.AsString()); err != nil {
+		return nil, data.NewErrorThrow(nil, err)
+	}
+	result := cmc.ClassValue
+	if data.NominalIsA(result.Class, "DateTimeImmutable", ctx.GetVM()) {
+		cloned, ctl := node.NewCloneExpression(nil, result).GetValue(ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		result = cloned.(*data.ClassValue)
+	}
+	if ctl := result.SetProperty("timezone", data.NewStringValue(zoneName.AsString())); ctl != nil {
+		return nil, ctl
+	}
+	return result, nil
 }
 func (m *DateTimeSetTimezoneMethod) GetName() string            { return "setTimezone" }
 func (m *DateTimeSetTimezoneMethod) GetModifier() data.Modifier { return data.ModifierPublic }

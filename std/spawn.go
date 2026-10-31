@@ -25,24 +25,28 @@ func (f *SpawnFunction) Call(ctx data.Context) (data.GetValue, data.Control) {
 	}
 
 	var call func(data.Context) (data.GetValue, data.Control)
+	var variables []data.Variable
 	switch c := cb.(type) {
 	case *data.BoundFuncValue:
 		if !isClosure(c.Value) {
 			return nil, utils.NewThrow(errors.New("spawn 只接受闭包"))
 		}
 		call = c.Call
+		variables = c.Value.GetVariables()
 	case *data.FuncValue:
 		if !isClosure(c.Value) {
 			return nil, utils.NewThrow(errors.New("spawn 只接受闭包"))
 		}
 		call = c.Call
+		variables = c.Value.GetVariables()
 	default:
 		return nil, utils.NewThrow(errors.New("spawn 只接受闭包"))
 	}
 
 	vm := ctx.GetVM()
+	// Allocate the closure frame before the native call frame can be released.
+	callCtx := ctx.CreateContext(variables)
 	go func() {
-		callCtx := ctx.CreateContext(nil)
 		_, acl := call(callCtx)
 		if acl != nil {
 			vm.ThrowControl(acl)

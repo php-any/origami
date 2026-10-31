@@ -125,14 +125,11 @@ func (f *StreamGetContentsFunction) Call(ctx data.Context) (data.GetValue, data.
 			return data.NewBoolValue(false), nil
 		}
 	} else {
-		// 读取指定长度的数据
-		content = make([]byte, maxLength)
-		n, readErr := streamReader.Read(content)
-		// Read 可能返回 EOF，这是正常的（表示读取结束）
-		if readErr != nil && readErr != io.EOF && !isBenignPipeReadError(readErr) && n == 0 {
+		// length is a maximum, not a single read: pipes may deliver many short chunks.
+		content, err = io.ReadAll(io.LimitReader(streamReader, int64(maxLength)))
+		if err != nil && len(content) == 0 && err != io.EOF && !isBenignPipeReadError(err) {
 			return data.NewBoolValue(false), nil
 		}
-		content = content[:n]
 	}
 
 	return data.NewStringValue(string(content)), nil

@@ -178,12 +178,7 @@ func (m *stmtExecuteMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 		}
 	}
 
-	sqlUpper := strings.ToUpper(strings.TrimSpace(m.state.sqlStr))
-	isQuery := strings.HasPrefix(sqlUpper, "SELECT") ||
-		strings.HasPrefix(sqlUpper, "WITH") ||
-		strings.HasPrefix(sqlUpper, "PRAGMA") ||
-		strings.HasPrefix(sqlUpper, "EXPLAIN") ||
-		strings.HasPrefix(sqlUpper, "SHOW")
+	isQuery, returning := classifyStatement(m.state.sqlStr)
 
 	state := m.state.pdoState
 	state.mu.Lock()
@@ -200,6 +195,26 @@ func (m *stmtExecuteMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 		}
 		m.state.cols, m.state.buffered = bufferSQLRows(rows)
 		m.state.rowPos = 0
+		// QueryContext has no sql.Result; retain SQLite connection-local metadata.
+		if returning && state.driverName == "sqlite" {
+			metadata, err := state.queryLocked("SELECT last_insert_rowid()")
+			if err == nil {
+				if metadata.Next() {
+					err = metadata.Scan(&state.lastInsertID)
+				}
+				if err == nil {
+					err = metadata.Err()
+				}
+				metadata.Close()
+			}
+			if err != nil {
+				state.lastError = err.Error()
+				if state.getErrMode() == PDO_ERRMODE_EXCEPTION {
+					return nil, pdoException(pdoSQLError(err, nil, m.state.sqlStr), ctx)
+				}
+				return data.NewBoolValue(false), nil
+			}
+		}
 		return data.NewBoolValue(true), nil
 	}
 
