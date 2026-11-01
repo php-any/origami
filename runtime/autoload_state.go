@@ -26,12 +26,11 @@ func (vm *RequestVM) SetAutoloadExtensions(value string) { vm.autoloadExtensions
 
 // Callable identity is retained separately from the resolved execution scope.
 func (vm *VM) autoloadSnapshot() []autoloadRegistration {
-	if !vm.autoloadInitialized {
+	vm.autoloadOnce.Do(func() {
 		for _, fn := range parser.GetAutoLoad() {
 			vm.autoload = append(vm.autoload, autoloadRegistration{fn, fn})
 		}
-		vm.autoloadInitialized = true
-	}
+	})
 	return append([]autoloadRegistration(nil), vm.autoload...)
 }
 func (vm *RequestVM) autoloadSnapshot() []autoloadRegistration {

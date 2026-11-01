@@ -14,6 +14,11 @@ func (vm *VM) snapshotRequestFiles() *requestFileSnapshot {
 	if snapshot := vm.requestFiles.Load(); snapshot != nil {
 		return snapshot
 	}
+	vm.filesMu.Lock()
+	defer vm.filesMu.Unlock()
+	if snapshot := vm.requestFiles.Load(); snapshot != nil {
+		return snapshot
+	}
 	snapshot := &requestFileSnapshot{loaded: make(map[string]struct{}, len(vm.phpFileCache)), results: make(map[string]data.GetValue, len(vm.includeOnceResults))}
 	for file := range vm.phpFileCache {
 		snapshot.loaded[file] = struct{}{}

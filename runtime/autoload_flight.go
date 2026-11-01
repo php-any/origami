@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"sync"
 
 	"github.com/php-any/origami/data"
 )
@@ -20,19 +21,23 @@ type autoloadFlight struct {
 	done  chan struct{}
 }
 type autoloadFlights struct {
+	mu      sync.Mutex
 	symbols map[data.SymbolID]*autoloadFlight
 }
 
-// 同一个请求只有一个执行线程。同符号递归直接返回；不会有另一个线程在等这次加载。
+// 同 goroutine 的同符号递归直接返回；其他 goroutine 释放元数据锁后等待加载完成。
 func (s *autoloadFlights) begin(ctx context.Context, id data.SymbolID) (bool, func(bool)) {
 	owner := goid()
+	s.mu.Lock()
 	if s.symbols == nil {
 		s.symbols = make(map[data.SymbolID]*autoloadFlight)
 	}
 	if pending := s.symbols[id]; pending != nil && pending.phase == autoloadLoading {
 		if pending.owner == owner {
+			s.mu.Unlock()
 			return false, nil
 		}
+		s.mu.Unlock()
 		select {
 		case <-pending.done:
 			return false, nil
@@ -42,7 +47,10 @@ func (s *autoloadFlights) begin(ctx context.Context, id data.SymbolID) (bool, fu
 	}
 	flight := &autoloadFlight{phase: autoloadLoading, owner: owner, done: make(chan struct{})}
 	s.symbols[id] = flight
+	s.mu.Unlock()
 	return true, func(defined bool) {
+		s.mu.Lock()
+		defer s.mu.Unlock()
 		if flight.phase != autoloadLoading {
 			return
 		}
