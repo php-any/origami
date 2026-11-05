@@ -25,6 +25,7 @@ func Load(vm data.VM) {
 
 	// 注册数据库连接管理函数到脚本域
 	for _, fun := range []data.FuncStmt{
+		NewBindExecutorFunction(),
 		NewRegisterConnectionFunction(),
 		NewRegisterDefaultConnectionFunction(),
 		NewGetConnectionFunction(),
