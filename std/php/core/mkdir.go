@@ -68,7 +68,7 @@ func (f *MkdirFunction) GetName() string {
 
 var mkdirFunctionGetParams = []data.GetValue{
 	node.NewParameter(nil, "directory", 0, nil, nil),
-	node.NewParameter(nil, "permissions", 1, node.NewIntLiteral(nil, "0777"), nil),
+	node.NewParameter(nil, "permissions", 1, node.NewNumberLiteral(nil, "0777"), nil),
 	node.NewParameter(nil, "recursive", 2, nil, nil),
 }
 
