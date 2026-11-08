@@ -11,7 +11,57 @@ import (
 	"time"
 
 	"github.com/php-any/origami/cmd"
+	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/std/php/mongodb"
+	"github.com/php-any/origami/std/php/redis"
 )
+
+var suiteOptInExtensions = map[string]func(data.VM){
+	"mongodb_bson_driver_test.php":        mongodb.Load,
+	"redis_driver_contract_test.php":      redis.Load,
+	"redis_driver_integration_test.php":   redis.Load,
+	"redis_phpredis_features_test.php":    redis.Load,
+}
+
+var redisIntegrationScripts = map[string]bool{
+	"redis_driver_integration_test.php": true,
+	"redis_phpredis_features_test.php":  true,
+}
+
+func directScriptArgFromArgv() (string, bool) {
+	for _, arg := range os.Args[1:] {
+		if strings.HasPrefix(arg, "-") {
+			continue
+		}
+		if cmd.IsDirectScriptArg(arg) {
+			return arg, true
+		}
+		break
+	}
+	return "", false
+}
+
+func runtimeLoaderForSuiteScript(scriptPath string) func(data.VM) {
+	base := filepath.Base(scriptPath)
+	optIn := suiteOptInExtensions[base]
+	return func(vm data.VM) {
+		loadDefaultRuntime(vm)
+		if optIn != nil {
+			optIn(vm)
+		}
+	}
+}
+
+func TestMain(m *testing.M) {
+	// proc_open([PHP_BINARY, script.php]) uses the test binary as PHP_BINARY; run the script directly.
+	if script, ok := directScriptArgFromArgv(); ok {
+		if err := cmd.RunScriptFile(script); err != nil {
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+	os.Exit(m.Run())
+}
 
 // Each script is a separate CLI request. Sharing one VM changes declarations,
 // handlers, argv and globals, and cannot test an uncaught-exception handler.
@@ -20,6 +70,11 @@ func TestPHPFixtureProcess(t *testing.T) {
 	if file == "" {
 		return
 	}
+	base := filepath.Base(file)
+	if redisIntegrationScripts[base] && os.Getenv("ORIGAMI_REDIS_TEST_PORT") == "" {
+		t.Skip("set ORIGAMI_REDIS_TEST_PORT for real Redis integration")
+	}
+	cmd.SetRuntimeLoader(runtimeLoaderForSuiteScript(file))
 	os.Args = []string{os.Args[0], file}
 	if err := cmd.RunScriptFile(file); err != nil {
 		t.Fatal(err)
@@ -55,6 +110,9 @@ func TestRunTests(t *testing.T) {
 			}
 			if runtime.GOOS == "windows" && unix[name] {
 				t.Skip("requires Unix /bin/echo and stty; run suite on Linux")
+			}
+			if redisIntegrationScripts[name] && os.Getenv("ORIGAMI_REDIS_TEST_PORT") == "" {
+				t.Skip("set ORIGAMI_REDIS_TEST_PORT for real Redis integration")
 			}
 			request, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 			defer cancel()
