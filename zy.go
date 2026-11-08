@@ -19,18 +19,20 @@ import (
 	"github.com/php-any/origami/std/system"
 )
 
+func loadDefaultRuntime(vm data.VM) {
+	std.Load(vm)
+	framework.Load(vm)
+	php.Load(vm)
+	http.Load(vm)
+	websocket.Load(vm)
+	tcp.Load(vm)
+	grpc.Load(vm)
+	netannotation.Load(vm)
+	system.Load(vm)
+}
+
 func init() {
-	cmd.SetRuntimeLoader(func(vm data.VM) {
-		std.Load(vm)
-		framework.Load(vm)
-		php.Load(vm)
-		http.Load(vm)
-		websocket.Load(vm)
-		tcp.Load(vm)
-		grpc.Load(vm)
-		netannotation.Load(vm)
-		system.Load(vm)
-	})
+	cmd.SetRuntimeLoader(loadDefaultRuntime)
 }
 
 func main() {
