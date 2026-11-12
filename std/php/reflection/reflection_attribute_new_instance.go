@@ -51,8 +51,10 @@ func (m *ReflectionAttributeNewInstanceMethod) Call(ctx data.Context) (data.GetV
 		}
 		if object, ok := ctx.(*data.ClassMethodContext); ok {
 			if metadata, ok := object.Class.(*ReflectionAttributeClass); ok && metadata.target != 0 {
-				flags := -1
+				// 仅对用户定义的 PHP 类（*ClassStatement）执行 #[Attribute] 校验；
+				// std 原生注解类实现 data.ClassStmt 但无 PHP 类体，校验放在外层跳过。
 				if declared, ok := class.(*node.ClassStatement); ok {
+					flags := -1
 					for _, marker := range declared.Annotations {
 						if data.TypeNameEqual(marker.Class.GetName(), "Attribute") {
 							if value, ctl := marker.GetProperty("flags"); ctl == nil {
@@ -62,10 +64,9 @@ func (m *ReflectionAttributeNewInstanceMethod) Call(ctx data.Context) (data.GetV
 							}
 						}
 					}
-				}
-				// 仅有 PHP 类上的 #[Attribute] 元数据时才做目标/可重复性校验；
-				// std 原生注解类无该元数据，但已在运行时成功挂载，允许 newInstance。
-				if flags >= 0 {
+					if flags < 0 {
+						return nil, data.NewErrorThrowByName(nil, errors.New("Attempting to use non-attribute class "+annotation.Name+" as attribute"), "Error")
+					}
 					if flags&metadata.target == 0 {
 						return nil, data.NewErrorThrowByName(nil, errors.New("Attribute "+annotation.Name+" cannot target function"), "Error")
 					}
