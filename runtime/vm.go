@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sort"
@@ -744,6 +745,13 @@ func rangeDefinedVariables(ctx data.Context, fn func(name string, val data.Value
 func inheritCallerScope(parent, ctx data.Context) data.Context {
 	if parent == nil || ctx == nil {
 		return ctx
+	}
+	// Only an explicitly stored context is inherited. Copying GoContext()
+	// would pin its deadline fallback and hide a later request cancellation.
+	if stored := storedGoContext(parent); stored != nil {
+		if frame, ok := ctx.(interface{ SetGoContext(context.Context) }); ok {
+			frame.SetGoContext(stored)
+		}
 	}
 	if bc := data.FindBoundContext(parent); bc != nil {
 		ctx = &data.BoundContext{

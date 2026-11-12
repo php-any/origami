@@ -16,9 +16,16 @@ func newDB(genericMap map[string]data.Types) *db {
 	}
 }
 
+// sqlExecutor 是 *sql.DB 和 *sql.Tx 都具备的执行能力。
+type sqlExecutor interface {
+	Query(query string, args ...any) (*sql.Rows, error)
+	Exec(query string, args ...any) (sql.Result, error)
+}
+
 type db struct {
-	connName string  // 连接名称
-	conn     *sql.DB // 数据库连接
+	connName string      // 连接名称
+	conn     *sql.DB     // 数据库连接
+	exec     sqlExecutor // 显式执行器，事务时为 *sql.Tx
 
 	// 查询条件
 	where     string
@@ -64,6 +71,7 @@ func (d *db) clone() *db {
 	return &db{
 		connName:     d.connName,
 		conn:         d.conn,
+		exec:         d.exec,
 		where:        d.where,
 		whereArgs:    whereArgsCopy,
 		tableName:    d.tableName,
@@ -77,8 +85,11 @@ func (d *db) clone() *db {
 	}
 }
 
-// getConnection 获取数据库连接
-func (d *db) getConnection() *sql.DB {
+// getConnection 返回这次查询使用的执行器。显式绑定的事务优先于连接池。
+func (d *db) getConnection() sqlExecutor {
+	if d.exec != nil {
+		return d.exec
+	}
 	if d.conn != nil {
 		return d.conn
 	}
@@ -103,7 +114,8 @@ func (d *db) getConnection() *sql.DB {
 // setConnectionName 设置连接名称
 func (d *db) setConnectionName(name string) {
 	d.connName = name
-	d.conn = nil // 重置连接，下次调用时重新获取
+	d.conn = nil
+	d.exec = nil
 }
 
 // setTableName 设置表名

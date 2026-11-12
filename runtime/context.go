@@ -47,6 +47,7 @@ type Context struct {
 	pooled      bool
 	escaped     bool
 	strictTypes bool
+	goContext   context.Context
 }
 
 func (c *Context) StrictTypes() bool          { return c.strictTypes }
@@ -191,6 +192,7 @@ func (c *Context) CreateContext(vars []data.Variable) data.Context {
 	nc.pooled = true
 	nc.escaped = false
 	nc.strictTypes = c.strictTypes
+	nc.goContext = c.goContext
 	nc.call = c.call
 	nc.out = c.inheritOut()
 	if nc.out != nil && nc.out.local {
@@ -247,6 +249,7 @@ func (c *Context) ReleasePooled() {
 	c.pooled = false
 	c.vm = nil
 	c.call = nil
+	c.goContext = nil
 	c.out = nil
 	c.callArgs = nil
 	c.flatCallArgs = nil
@@ -329,6 +332,7 @@ func (c *Context) CreateBaseContext() data.Context {
 		call:        call,
 		out:         out,
 		strictTypes: c.strictTypes,
+		goContext:   c.goContext,
 	}
 }
 
@@ -499,10 +503,40 @@ func (c *Context) GetVM() data.VM {
 }
 
 func (c *Context) GoContext() context.Context {
+	if c.goContext != nil {
+		return c.goContext
+	}
 	if c.call != nil && c.call.deadline != nil {
 		return c.call.deadline
 	}
 	return RequestContext()
+}
+
+// SetGoContext binds execution values and cancellation to this frame only.
+// Child frames inherit the immutable context; unrelated frames are unchanged.
+func (c *Context) SetGoContext(ctx context.Context) { c.goContext = ctx }
+
+// RawGoContext is the value stored on this frame. It is nil when GoContext
+// is only borrowing the call deadline, so callers can restore that distinction.
+func (c *Context) RawGoContext() context.Context { return c.goContext }
+
+func storedGoContext(ctx data.Context) context.Context {
+	for i := 0; ctx != nil && i < 8; i++ {
+		if raw, ok := ctx.(interface{ RawGoContext() context.Context }); ok {
+			return raw.RawGoContext()
+		}
+		switch current := ctx.(type) {
+		case *data.ClassMethodContext:
+			ctx = current.Context
+		case *data.BoundContext:
+			ctx = current.Context
+		case *data.ClassValue:
+			ctx = current.Context
+		default:
+			return nil
+		}
+	}
+	return nil
 }
 
 // SetVM 替换当前 Context 所绑定的 VM
