@@ -1,8 +1,6 @@
 package node
 
 import (
-	"fmt"
-
 	"github.com/php-any/origami/data"
 )
 
@@ -107,92 +105,10 @@ func (a *Annotation) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 
 	if object, ok := object.(*data.ClassValue); ok {
 		if method := object.Class.GetConstruct(); method != nil {
-			varies := method.GetVariables()
-			params := method.GetParams()
-			fnCtx := object.CreateContext(varies)
-			// 入参的值设置到上下文中
-			for index, arg := range a.Arguments {
-				switch argTV := arg.(type) {
-				case *NamedArgument:
-					tempV, acl := argTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-					vari, err := findVariable(varies, argTV.Name)
-					if err != nil {
-						return nil, data.NewErrorThrow(a.from, err)
-					}
-					fnCtx.SetVariableValue(vari, tempV.(data.Value))
-				default:
-					tempV, acl := argTV.GetValue(ctx)
-					if acl != nil {
-						return nil, acl
-					}
-
-					if index >= len(varies) {
-						return nil, data.NewErrorThrow(a.from, fmt.Errorf("注解(%v)构造函数参数数量超出限制: %d", a.Name, index))
-					}
-
-					fnCtx.SetVariableValue(varies[index], tempV.(data.Value))
-				}
+			fnCtx, acl := bindAnnotationConstructorArgs(a, ctx, object)
+			if acl != nil {
+				return nil, acl
 			}
-
-			// 处理未传递的参数，设置默认值
-			for index := len(a.Arguments); index < len(params); index++ {
-				if index >= len(varies) {
-					break
-				}
-				param := params[index]
-				if targetParam := asAnnotationTargetParam(param); targetParam != nil {
-					// 将被注解的 AST 目标按需注入构造函数
-					// 注意：a.Target 类型是 data.GetValue，直接塞进 any 会二次装箱导致
-					// anyT.Value.(*ClassStatement) 失败，需先解开具体类型。
-					fnCtx.SetVariableValue(targetParam, data.NewAnyValue(unwrapAnnotationTarget(a.Target)))
-					continue
-				}
-				if argObj, ok := param.(*Parameter); ok {
-					if argObj.DefaultValue == nil {
-						return nil, data.NewErrorThrow(a.from, fmt.Errorf("调用 %s 构造函数时参数 %s 缺少值和默认值", a.Name, argObj.Name))
-					}
-					// 调用 GetValue 来触发默认值的设置
-					_, acl := argObj.GetValue(fnCtx)
-					if acl != nil {
-						return nil, acl
-					}
-				}
-			}
-
-			// 将构造函数参数属性的值赋值给对象属性（PHP 8 构造函数参数属性提升）
-			for index, param := range params {
-				// 检查是否是属性提升的参数
-				if promotedParam, ok := param.(*PromotedParameter); ok {
-					// 从函数上下文获取参数值
-					if index < len(varies) {
-						paramValue, acl := fnCtx.GetVariableValue(varies[index])
-						if acl != nil {
-							// 如果获取失败，尝试使用默认值
-							if promotedParam.DefaultValue != nil {
-								paramValueGet, acl := promotedParam.DefaultValue.GetValue(fnCtx)
-								if acl != nil {
-									return nil, acl
-								}
-								if paramValueGet != nil {
-									paramValue = paramValueGet.(data.Value)
-								}
-							} else {
-								// 没有默认值，跳过
-								continue
-							}
-						}
-						// 将参数值赋值给对象属性
-						if paramValue != nil {
-							object.SetProperty(promotedParam.PropertyName, paramValue)
-						}
-					}
-				}
-			}
-
-			// 构造函数执行成功后，返回注解实例本身
 			return object, &CallAnn{method: method, ctx: fnCtx}
 		}
 	}

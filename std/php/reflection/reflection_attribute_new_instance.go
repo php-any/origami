@@ -68,7 +68,7 @@ func (m *ReflectionAttributeNewInstanceMethod) Call(ctx data.Context) (data.GetV
 						return nil, data.NewErrorThrowByName(nil, errors.New("Attempting to use non-attribute class "+annotation.Name+" as attribute"), "Error")
 					}
 					if flags&metadata.target == 0 {
-						return nil, data.NewErrorThrowByName(nil, errors.New("Attribute "+annotation.Name+" cannot target function"), "Error")
+						return nil, data.NewErrorThrowByName(nil, errors.New(attributeTargetMismatchMessage(annotation.Name, metadata.target)), "Error")
 					}
 					if metadata.repeated && flags&64 == 0 {
 						return nil, data.NewErrorThrowByName(nil, errors.New("Attribute "+annotation.Name+" must not be repeated"), "Error")
@@ -76,9 +76,15 @@ func (m *ReflectionAttributeNewInstanceMethod) Call(ctx data.Context) (data.GetV
 				}
 			}
 		}
-		instance, ctl := node.CreateInstanceFromClass(class, annotation.Arguments, ctx)
-		if ctl != nil {
-			return nil, ctl
+		var instance data.GetValue
+		var instCtl data.Control
+		if node.ClassStmtHasAnnotationTargetParameter(class) {
+			instance, instCtl = node.InstantiateAnnotationForReflection(annotation, ctx)
+		} else {
+			instance, instCtl = node.CreateInstanceFromClass(class, annotation.Arguments, ctx)
+		}
+		if instCtl != nil {
+			return nil, instCtl
 		}
 		if cv, ok := instance.(*data.ClassValue); ok {
 			bindUserAnnotationProperties(ctx, cv, annotation)

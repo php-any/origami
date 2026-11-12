@@ -8,11 +8,12 @@ import (
 )
 
 const (
-	reflectionAttributeTargetClass     = 1
-	reflectionAttributeTargetFunction  = 2
-	reflectionAttributeTargetMethod    = 4
-	reflectionAttributeTargetProperty  = 8
-	reflectionAttributeTargetParameter = 16
+	reflectionAttributeTargetClass          = 1
+	reflectionAttributeTargetFunction       = 2
+	reflectionAttributeTargetMethod         = 4
+	reflectionAttributeTargetProperty       = 8
+	reflectionAttributeTargetClassConstant  = 16
+	reflectionAttributeTargetParameter      = 32
 )
 
 // newReflectionAttribute 创建 ReflectionAttribute 实例；decl 为源码注解节点（可为 nil）。

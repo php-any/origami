@@ -70,6 +70,25 @@ func bindUserAnnotationProperties(ctx data.Context, inst *data.ClassValue, decl 
 	}
 }
 
+func attributeTargetMismatchMessage(attributeName string, target int) string {
+	switch target {
+	case reflectionAttributeTargetClass:
+		return "Attribute " + attributeName + " cannot target class"
+	case reflectionAttributeTargetFunction:
+		return "Attribute " + attributeName + " cannot target function"
+	case reflectionAttributeTargetMethod:
+		return "Attribute " + attributeName + " cannot target method"
+	case reflectionAttributeTargetProperty:
+		return "Attribute " + attributeName + " cannot target property"
+	case reflectionAttributeTargetClassConstant:
+		return "Attribute " + attributeName + " cannot target class constant"
+	case reflectionAttributeTargetParameter:
+		return "Attribute " + attributeName + " cannot target parameter"
+	default:
+		return "Attribute " + attributeName + " cannot target this declaration"
+	}
+}
+
 func constructorParamPropertyName(param data.GetValue) string {
 	switch p := param.(type) {
 	case *node.PromotedParameter:

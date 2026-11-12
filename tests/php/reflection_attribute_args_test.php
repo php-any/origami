@@ -2,6 +2,10 @@
 
 namespace tests\php;
 
+use Container\Annotation\Bind;
+use Container\Annotation\Inject;
+use Container\Annotation\Named;
+use Container\Annotation\Singleton;
 use Database\Annotation\Column;
 use Database\Annotation\Table;
 use Net\Annotation\GetMapping;
@@ -52,6 +56,55 @@ class ReflectionAttr_Controller
 #[ReflectionAttr_CustomMark('first')]
 class ReflectionAttr_MixedArgs
 {
+}
+
+#[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER)]
+class ReflectionAttr_InjectConfig
+{
+    public function __construct(public string $key)
+    {
+    }
+}
+
+#[Attribute(Attribute::TARGET_FUNCTION)]
+class ReflectionAttr_FunctionOnly
+{
+    public function __construct()
+    {
+    }
+}
+
+#[Singleton(name: 'loom.module')]
+class ReflectionAttr_SingletonHolder
+{
+}
+
+interface ReflectionAttr_BindContract
+{
+}
+
+#[Bind(abstract: 'tests\\php\\ReflectionAttr_BindContract')]
+class ReflectionAttr_BindHolder
+{
+}
+
+class ReflectionAttr_ContainerCtor
+{
+    public function __construct(
+        #[Inject(service: 'db.main')]
+        #[Named(name: 'primary')]
+        mixed $conn = null,
+    ) {
+    }
+}
+
+class ReflectionAttr_ParamTargets
+{
+    public function __construct(
+        #[ReflectionAttr_InjectConfig('app.cache')]
+        mixed $cache = null,
+    ) {
+    }
 }
 
 function assertArgsNonEmpty($attr, string $key, $expected): void
@@ -123,6 +176,65 @@ assertArgsNonEmpty($cmdAttrs[0], 'description', 'ping command');
 $cmdInst = $cmdAttrs[0]->newInstance();
 if ($cmdInst->name !== 'reflect:ping' || $cmdInst->description !== 'ping command') {
     \Log::fatal('Command newInstance 属性错误');
+}
+
+// --- Container：Singleton / Bind / Inject / Named newInstance 不得抛 target 类型错误 ---
+$singletonRef = new \ReflectionClass(ReflectionAttr_SingletonHolder::class);
+$singletonAttr = $singletonRef->getAttributes(Singleton::class)[0];
+assertArgsNonEmpty($singletonAttr, 'name', 'loom.module');
+$singletonInst = $singletonAttr->newInstance();
+if (($singletonInst->name ?? '') !== 'loom.module') {
+    \Log::fatal('Singleton newInstance()->name 错误');
+}
+
+$bindRef = new \ReflectionClass(ReflectionAttr_BindHolder::class);
+$bindAttr = $bindRef->getAttributes(Bind::class)[0];
+assertArgsNonEmpty($bindAttr, 'abstract', 'tests\\php\\ReflectionAttr_BindContract');
+$bindInst = $bindAttr->newInstance();
+if (($bindInst->abstract ?? '') !== 'tests\\php\\ReflectionAttr_BindContract') {
+    \Log::fatal('Bind newInstance()->abstract 错误');
+}
+
+$ctorRef = new \ReflectionClass(ReflectionAttr_ContainerCtor::class)->getConstructor();
+$ctorParam = $ctorRef->getParameters()[0];
+$injectAttr = $ctorParam->getAttributes(Inject::class)[0];
+$injectInst = $injectAttr->newInstance();
+if (($injectInst->service ?? '') !== 'db.main') {
+    \Log::fatal('Inject newInstance()->service 错误');
+}
+$namedAttr = $ctorParam->getAttributes(Named::class)[0];
+$namedInst = $namedAttr->newInstance();
+if (($namedInst->name ?? '') !== 'primary') {
+    \Log::fatal('Named newInstance()->name 错误');
+}
+
+// --- 参数属性 target：PROPERTY|PARAMETER 合法；仅 FUNCTION 的注解在参数上应失败 ---
+$paramRef = new \ReflectionClass(ReflectionAttr_ParamTargets::class)->getConstructor()->getParameters()[0];
+$configAttr = $paramRef->getAttributes(ReflectionAttr_InjectConfig::class)[0];
+$configArgs = $configAttr->getArguments();
+$configKey = $configArgs['key'] ?? ($configArgs[0] ?? null);
+if ($configKey !== 'app.cache') {
+    \Log::fatal('InjectConfig getArguments key 错误: ' . var_export($configArgs, true));
+}
+$configInst = $configAttr->newInstance();
+if ($configInst->key !== 'app.cache') {
+    \Log::fatal('InjectConfig newInstance()->key 错误');
+}
+
+class ReflectionAttr_FunctionOnlyParam
+{
+    public function __construct(
+        #[ReflectionAttr_FunctionOnly]
+        mixed $x = null,
+    ) {
+    }
+}
+$badParam = (new \ReflectionClass(ReflectionAttr_FunctionOnlyParam::class))->getConstructor()->getParameters()[0];
+$badAttr = $badParam->getAttributes(ReflectionAttr_FunctionOnly::class)[0];
+try {
+    $badAttr->newInstance();
+    \Log::fatal('仅 TARGET_FUNCTION 的注解在参数上 newInstance 应抛 Error');
+} catch (\Error $e) {
 }
 
 // --- 用户自定义属性：混用位置参数与命名参数 ---
