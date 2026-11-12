@@ -63,18 +63,26 @@ func (m *ReflectionAttributeNewInstanceMethod) Call(ctx data.Context) (data.GetV
 						}
 					}
 				}
-				if flags < 0 {
-					return nil, data.NewErrorThrowByName(nil, errors.New("Attempting to use non-attribute class "+annotation.Name+" as attribute"), "Error")
-				}
-				if flags&metadata.target == 0 {
-					return nil, data.NewErrorThrowByName(nil, errors.New("Attribute "+annotation.Name+" cannot target function"), "Error")
-				}
-				if metadata.repeated && flags&64 == 0 {
-					return nil, data.NewErrorThrowByName(nil, errors.New("Attribute "+annotation.Name+" must not be repeated"), "Error")
+				// 仅有 PHP 类上的 #[Attribute] 元数据时才做目标/可重复性校验；
+				// std 原生注解类无该元数据，但已在运行时成功挂载，允许 newInstance。
+				if flags >= 0 {
+					if flags&metadata.target == 0 {
+						return nil, data.NewErrorThrowByName(nil, errors.New("Attribute "+annotation.Name+" cannot target function"), "Error")
+					}
+					if metadata.repeated && flags&64 == 0 {
+						return nil, data.NewErrorThrowByName(nil, errors.New("Attribute "+annotation.Name+" must not be repeated"), "Error")
+					}
 				}
 			}
 		}
-		return node.CreateInstanceFromClass(class, annotation.Arguments, ctx)
+		instance, ctl := node.CreateInstanceFromClass(class, annotation.Arguments, ctx)
+		if ctl != nil {
+			return nil, ctl
+		}
+		if cv, ok := instance.(*data.ClassValue); ok {
+			bindUserAnnotationProperties(ctx, cv, annotation)
+		}
+		return instance, nil
 	}
 	annotationValue := getReflectionAttributeInfo(ctx)
 	if annotationValue == nil {

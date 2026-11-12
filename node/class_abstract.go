@@ -40,6 +40,6 @@ func (c *AbstractClassStatement) GetValue(ctx data.Context) (data.GetValue, data
 }
 
 // AddAnnotations 添加注解（实现 AddAnnotations 接口）
-func (c *AbstractClassStatement) AddAnnotations(a *data.ClassValue) {
-	c.ClassStatement.AddAnnotations(a)
+func (c *AbstractClassStatement) AddAnnotations(a *data.ClassValue, decl *Annotation) {
+	c.ClassStatement.AddAnnotations(a, decl)
 }

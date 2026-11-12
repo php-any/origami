@@ -42,7 +42,7 @@ func ApplyAnnotations(p *Parser, target node.AddAnnotations, annotations []*node
 			}
 		}
 		if o, ok := obj.(*data.ClassValue); ok {
-			target.AddAnnotations(o)
+			target.AddAnnotations(o, an)
 		}
 	}
 	for i := len(callAnn) - 1; i >= 0; i-- {

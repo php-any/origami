@@ -326,7 +326,7 @@ func (g *Generator) emitClassStatementInit(n *node.ClassStatement) error {
 		if err := g.emitClassAnnotation(ann); err != nil {
 			return err
 		}
-		g.printf(")\n")
+		g.printf(", nil)\n")
 	}
 	return nil
 }
@@ -1027,7 +1027,7 @@ func (g *Generator) emitClassMethod(method data.Method) error {
 		if err := g.emitClassAnnotation(ann); err != nil {
 			return err
 		}
-		g.printf(")\n")
+		g.printf(", nil)\n")
 	}
 	g.printf("return m\n")
 	g.indent--

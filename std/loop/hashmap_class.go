@@ -2,6 +2,7 @@ package loop
 
 import (
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 )
 
 // HashMap 泛型哈希表结构
@@ -325,6 +326,6 @@ func (h *HashMapClass) GetConstruct() data.Method {
 }
 
 // AddAnnotations 添加注解
-func (h *HashMapClass) AddAnnotations(a *data.ClassValue) {
+func (h *HashMapClass) AddAnnotations(a *data.ClassValue, _ *node.Annotation) {
 	// 暂时不处理注解
 }

@@ -58,7 +58,7 @@ func (m *ReflectionMethodGetAttributesMethod) Call(ctx data.Context) (data.GetVa
 	instanceof := flags&2 != 0
 
 	attributes := make([]data.Value, 0, len(method.Annotations))
-	for _, annotation := range method.Annotations {
+	for i, annotation := range method.Annotations {
 		if annotation == nil {
 			continue
 		}
@@ -71,7 +71,9 @@ func (m *ReflectionMethodGetAttributesMethod) Call(ctx data.Context) (data.GetVa
 				continue
 			}
 		}
-		attributes = append(attributes, newReflectionAttribute(ctx, annotation))
+		decl := node.AnnotationDeclAt(method.AnnotationDecls, i)
+		repeated := attributeIsRepeatedAt(method.Annotations, i)
+		attributes = append(attributes, newReflectionAttribute(ctx, annotation, decl, reflectionAttributeTargetMethod, repeated))
 	}
 	return data.NewArrayValue(attributes), nil
 }

@@ -243,16 +243,19 @@ type Parameter struct {
 	Type             data.TypeRef
 	DefaultValue     data.GetValue // 默认值
 	Annotations      []*data.ClassValue
+	AnnotationDecls  []*Annotation
 	ConstructorClass string // Set only for parameters declared in a constructor.
 }
 
 func (p *Parameter) SetConstructorClass(name string) { p.ConstructorClass = name }
 
-func (p *Parameter) AddAnnotations(a *data.ClassValue) {
+func (p *Parameter) AddAnnotations(a *data.ClassValue, decl *Annotation) {
 	if p.Annotations == nil {
 		p.Annotations = []*data.ClassValue{}
+		p.AnnotationDecls = []*Annotation{}
 	}
 	p.Annotations = append(p.Annotations, a)
+	p.AnnotationDecls = append(p.AnnotationDecls, decl)
 }
 
 func (p *Parameter) GetDefaultValue() data.GetValue {

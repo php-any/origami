@@ -32,6 +32,7 @@ type ClassStatement struct {
 	initialization     atomic.Pointer[classInitialization]
 	privateLookup      atomic.Pointer[privateMethodIndex]
 	Annotations        []*data.ClassValue // 类注解列表
+	AnnotationDecls    []*Annotation      // 与 Annotations 下标对应的源码声明
 
 	// 构造函数
 	Construct data.Method
@@ -289,11 +290,13 @@ func (c *ClassStatement) GetImplements() []string {
 	return c.Implements
 }
 
-func (c *ClassStatement) AddAnnotations(a *data.ClassValue) {
+func (c *ClassStatement) AddAnnotations(a *data.ClassValue, decl *Annotation) {
 	if c.Annotations == nil {
 		c.Annotations = []*data.ClassValue{}
+		c.AnnotationDecls = []*Annotation{}
 	}
 	c.Annotations = append(c.Annotations, a)
+	c.AnnotationDecls = append(c.AnnotationDecls, decl)
 }
 
 func (c *ClassStatement) GetPropertyList() []data.Property {
@@ -572,7 +575,8 @@ type ClassProperty struct {
 	Virtual        bool
 	IsPromoted     bool               // 是否是构造函数参数属性提升
 	DefaultValue   data.GetValue      // 默认值
-	Annotations    []*data.ClassValue // 属性注解列表
+	Annotations     []*data.ClassValue // 属性注解列表
+	AnnotationDecls []*Annotation      // 与 Annotations 下标对应的源码声明
 	Type           data.TypeRef       // 属性类型
 	IsConstant     bool
 	DeclaringClass string
@@ -744,11 +748,13 @@ func (p *ClassProperty) GetIsStatic() bool {
 	return p.IsStatic
 }
 
-func (p *ClassProperty) AddAnnotations(a *data.ClassValue) {
+func (p *ClassProperty) AddAnnotations(a *data.ClassValue, decl *Annotation) {
 	if p.Annotations == nil {
 		p.Annotations = []*data.ClassValue{}
+		p.AnnotationDecls = []*Annotation{}
 	}
 	p.Annotations = append(p.Annotations, a)
+	p.AnnotationDecls = append(p.AnnotationDecls, decl)
 }
 
 type ClassMethod struct {
@@ -760,6 +766,7 @@ type ClassMethod struct {
 	Body             []data.GetValue // 方法体
 	vars             []data.Variable
 	Annotations      []*data.ClassValue // 方法注解列表
+	AnnotationDecls  []*Annotation      // 与 Annotations 下标对应的源码声明
 	Ret              data.TypeRef       // 返回类型
 	IsGenerator      bool               // 是否是生成器方法（含 yield）
 	StrictTypes      bool
@@ -791,11 +798,13 @@ func NewMethod(from data.From, name string, modifier string, isStatic bool, para
 	}
 }
 
-func (m *ClassMethod) AddAnnotations(a *data.ClassValue) {
+func (m *ClassMethod) AddAnnotations(a *data.ClassValue, decl *Annotation) {
 	if m.Annotations == nil {
 		m.Annotations = []*data.ClassValue{}
+		m.AnnotationDecls = []*Annotation{}
 	}
 	m.Annotations = append(m.Annotations, a)
+	m.AnnotationDecls = append(m.AnnotationDecls, decl)
 }
 
 func (m *ClassMethod) GetIsStatic() bool {
@@ -937,5 +946,13 @@ func checkClassIs(ctx data.Context, source data.ClassStmt, target string) (bool,
 }
 
 type AddAnnotations interface {
-	AddAnnotations(a *data.ClassValue)
+	AddAnnotations(a *data.ClassValue, decl *Annotation)
+}
+
+// AnnotationDeclAt 返回与已应用注解实例同下标的源码声明（可能为 nil）。
+func AnnotationDeclAt(decls []*Annotation, index int) *Annotation {
+	if index < 0 || index >= len(decls) {
+		return nil
+	}
+	return decls[index]
 }

@@ -115,9 +115,9 @@ func classStmtFromAny(v data.ClassStmt) *ClassStatement {
 }
 
 // AddAnnotations 转发到内部 ClassStatement（AnnotationParser 以 ClassRegisterStmt 为 next）
-func (s *ClassRegisterStmt) AddAnnotations(a *data.ClassValue) {
+func (s *ClassRegisterStmt) AddAnnotations(a *data.ClassValue, decl *Annotation) {
 	if s.Class != nil {
-		s.Class.AddAnnotations(a)
+		s.Class.AddAnnotations(a, decl)
 	}
 }
 
@@ -185,7 +185,7 @@ func applyClassAnnotations(vm data.VM, annotations []*Annotation, target AddAnno
 			}
 		}
 		if o, ok := obj.(*data.ClassValue); ok {
-			target.AddAnnotations(o)
+			target.AddAnnotations(o, an)
 		}
 	}
 	for i := len(callAnn) - 1; i >= 0; i-- {

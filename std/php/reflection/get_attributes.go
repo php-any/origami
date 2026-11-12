@@ -37,17 +37,6 @@ func (m *ReflectionClassGetAttributesMethod) GetReturnType() data.Types {
 	return data.Arrays{}
 }
 
-// newReflectionAttribute 创建一个新的 ReflectionAttribute 实例
-func newReflectionAttribute(ctx data.Context, annotation *data.ClassValue) *data.ClassValue {
-	attrClass := &ReflectionAttributeClass{}
-	attrValue := data.NewClassValue(attrClass, ctx.CreateBaseContext())
-
-	// 存储注解对象到实例属性中
-	attrValue.ObjectValue.SetProperty("_annotation", annotation)
-
-	return attrValue
-}
-
 func (m *ReflectionClassGetAttributesMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	// 获取被反射的类信息
 	_, classStmt := getReflectionClassInfo(ctx)
@@ -85,7 +74,7 @@ func (m *ReflectionClassGetAttributesMethod) Call(ctx data.Context) (data.GetVal
 				}
 			}
 
-			for _, annotation := range classStatement.Annotations {
+			for i, annotation := range classStatement.Annotations {
 				if filterName != "" {
 					annName := annotation.Class.GetName()
 					if instanceof {
@@ -96,7 +85,9 @@ func (m *ReflectionClassGetAttributesMethod) Call(ctx data.Context) (data.GetVal
 						continue
 					}
 				}
-				attrValue := newReflectionAttribute(ctx, annotation)
+				decl := node.AnnotationDeclAt(classStatement.AnnotationDecls, i)
+				repeated := attributeIsRepeatedAt(classStatement.Annotations, i)
+				attrValue := newReflectionAttribute(ctx, annotation, decl, reflectionAttributeTargetClass, repeated)
 				attributes = append(attributes, attrValue)
 			}
 		}

@@ -58,7 +58,7 @@ func (m *ReflectionPropertyGetAttributesMethod) Call(ctx data.Context) (data.Get
 	instanceof := flags&2 != 0
 
 	attributes := make([]data.Value, 0, len(property.Annotations))
-	for _, annotation := range property.Annotations {
+	for i, annotation := range property.Annotations {
 		if annotation == nil {
 			continue
 		}
@@ -71,7 +71,9 @@ func (m *ReflectionPropertyGetAttributesMethod) Call(ctx data.Context) (data.Get
 				continue
 			}
 		}
-		attributes = append(attributes, newReflectionAttribute(ctx, annotation))
+		decl := node.AnnotationDeclAt(property.AnnotationDecls, i)
+		repeated := attributeIsRepeatedAt(property.Annotations, i)
+		attributes = append(attributes, newReflectionAttribute(ctx, annotation, decl, reflectionAttributeTargetProperty, repeated))
 	}
 	return data.NewArrayValue(attributes), nil
 }
