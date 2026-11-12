@@ -150,9 +150,11 @@ func (p *IdentParser) Parse() (data.GetValue, data.Control) {
 		}
 
 		// 处理 ::class 语法（须优先于「关键字作方法名」，避免 class 被当成静态成员）
+		// PHP 编译期解析：类不必存在，也不触发 autoload；findFullClassNameByNamespace
+		// 在 ok=false 时仍返回当前命名空间 / use 展开后的候选 FQCN，必须采用。
 		if p.checkPositionIs(0, token.SCOPE_RESOLUTION) && p.checkPositionIs(1, token.CLASS) {
 			className := name
-			if full, ok := p.findFullClassNameByNamespace(className); ok {
+			if full, _ := p.findFullClassNameByNamespace(className); full != "" {
 				className = full
 			}
 			p.next() // 跳过 ::
