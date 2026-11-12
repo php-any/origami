@@ -51,8 +51,10 @@ func (m *ReflectionAttributeNewInstanceMethod) Call(ctx data.Context) (data.GetV
 		}
 		if object, ok := ctx.(*data.ClassMethodContext); ok {
 			if metadata, ok := object.Class.(*ReflectionAttributeClass); ok && metadata.target != 0 {
-				flags := -1
+				// 仅对用户定义的 PHP 类（*ClassStatement）执行 #[Attribute] 校验；
+				// std 原生注解类实现 data.ClassStmt 但无 PHP 类体，校验放在外层跳过。
 				if declared, ok := class.(*node.ClassStatement); ok {
+					flags := -1
 					for _, marker := range declared.Annotations {
 						if data.TypeNameEqual(marker.Class.GetName(), "Attribute") {
 							if value, ctl := marker.GetProperty("flags"); ctl == nil {
@@ -62,19 +64,32 @@ func (m *ReflectionAttributeNewInstanceMethod) Call(ctx data.Context) (data.GetV
 							}
 						}
 					}
-				}
-				if flags < 0 {
-					return nil, data.NewErrorThrowByName(nil, errors.New("Attempting to use non-attribute class "+annotation.Name+" as attribute"), "Error")
-				}
-				if flags&metadata.target == 0 {
-					return nil, data.NewErrorThrowByName(nil, errors.New("Attribute "+annotation.Name+" cannot target function"), "Error")
-				}
-				if metadata.repeated && flags&64 == 0 {
-					return nil, data.NewErrorThrowByName(nil, errors.New("Attribute "+annotation.Name+" must not be repeated"), "Error")
+					if flags < 0 {
+						return nil, data.NewErrorThrowByName(nil, errors.New("Attempting to use non-attribute class "+annotation.Name+" as attribute"), "Error")
+					}
+					if flags&metadata.target == 0 {
+						return nil, data.NewErrorThrowByName(nil, errors.New(attributeTargetMismatchMessage(annotation.Name, metadata.target)), "Error")
+					}
+					if metadata.repeated && flags&64 == 0 {
+						return nil, data.NewErrorThrowByName(nil, errors.New("Attribute "+annotation.Name+" must not be repeated"), "Error")
+					}
 				}
 			}
 		}
-		return node.CreateInstanceFromClass(class, annotation.Arguments, ctx)
+		var instance data.GetValue
+		var instCtl data.Control
+		if node.ClassStmtHasAnnotationTargetParameter(class) {
+			instance, instCtl = node.InstantiateAnnotationForReflection(annotation, ctx)
+		} else {
+			instance, instCtl = node.CreateInstanceFromClass(class, annotation.Arguments, ctx)
+		}
+		if instCtl != nil {
+			return nil, instCtl
+		}
+		if cv, ok := instance.(*data.ClassValue); ok {
+			bindUserAnnotationProperties(ctx, cv, annotation)
+		}
+		return instance, nil
 	}
 	annotationValue := getReflectionAttributeInfo(ctx)
 	if annotationValue == nil {

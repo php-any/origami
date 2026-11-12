@@ -62,7 +62,7 @@ func (c *SignalChannelClass) GetConstruct() data.Method {
 	return &SignalChannelConstructMethod{source: c}
 }
 
-func (c *SignalChannelClass) AddAnnotations(a *data.ClassValue) {}
+func (c *SignalChannelClass) AddAnnotations(a *data.ClassValue, _ *node.Annotation) {}
 
 type SignalChannelConstructMethod struct {
 	source *SignalChannelClass

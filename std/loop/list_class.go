@@ -2,6 +2,7 @@ package loop
 
 import (
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 )
 
 // List 泛型列表结构
@@ -318,6 +319,6 @@ func (l *ListClass) GetConstruct() data.Method {
 }
 
 // AddAnnotations 添加注解
-func (l *ListClass) AddAnnotations(a *data.ClassValue) {
+func (l *ListClass) AddAnnotations(a *data.ClassValue, _ *node.Annotation) {
 	// 暂时不处理注解
 }

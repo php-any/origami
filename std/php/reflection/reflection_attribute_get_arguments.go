@@ -2,7 +2,6 @@ package reflection
 
 import (
 	"github.com/php-any/origami/data"
-	"github.com/php-any/origami/node"
 )
 
 // ReflectionAttributeGetArgumentsMethod 实现 ReflectionAttribute::getArguments
@@ -43,30 +42,12 @@ func (m *ReflectionAttributeGetArgumentsMethod) GetReturnType() data.Types {
 // 返回传递给属性（注解）的参数数组
 func (m *ReflectionAttributeGetArgumentsMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	if annotation := reflectionAttributeDeclaration(ctx); annotation != nil {
-		array := data.NewArrayValueFromSlots(nil)
-		for _, argument := range annotation.Arguments {
-			raw, ctl := argument.GetValue(ctx)
-			if ctl != nil {
-				return nil, ctl
-			}
-			value := raw.(data.Value)
-			if named, ok := argument.(*node.NamedArgument); ok {
-				array.SetStringKey(named.Name, value)
-			} else {
-				array.SetKey(data.NewIntValue(array.NextAppendIntKey()), value)
-			}
-		}
-		return array, nil
+		return userAnnotationArguments(ctx, annotation)
 	}
 	annotationValue := getReflectionAttributeInfo(ctx)
 	if annotationValue == nil {
 		return data.NewArrayValue([]data.Value{}), nil
 	}
 
-	// 注解对象是 ClassValue，但我们已经实例化了注解
-	// 原始参数已经被传递给构造函数并使用了
-	// 由于 ClassStatement.Annotations 只存储了 ClassValue，我们无法直接获取原始参数
-	// 这里返回空数组，因为参数已经在实例化时被使用了
-	// TODO: 如果需要支持 getArguments，需要在 ClassStatement 中同时存储 Annotation 节点
 	return data.NewArrayValue([]data.Value{}), nil
 }

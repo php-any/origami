@@ -53,14 +53,16 @@ func (m *ReflectionParameterGetAttributesMethod) Call(ctx data.Context) (data.Ge
 	}
 
 	attributes := make([]data.Value, 0, len(param.Annotations))
-	for _, annotation := range param.Annotations {
+	for i, annotation := range param.Annotations {
 		if annotation == nil || annotation.Class == nil {
 			continue
 		}
 		if filterName != "" && annotation.Class.GetName() != filterName {
 			continue
 		}
-		attributes = append(attributes, newReflectionAttribute(ctx, annotation))
+		decl := node.AnnotationDeclAt(param.AnnotationDecls, i)
+		repeated := attributeIsRepeatedAt(param.Annotations, i)
+		attributes = append(attributes, newReflectionAttribute(ctx, annotation, decl, reflectionAttributeTargetParameter, repeated))
 	}
 	return data.NewArrayValue(attributes), nil
 }

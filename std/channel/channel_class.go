@@ -2,6 +2,7 @@ package channel
 
 import (
 	"github.com/php-any/origami/data"
+	"github.com/php-any/origami/node"
 )
 
 // ChannelClass 表示 Channel 类
@@ -93,6 +94,6 @@ func (c *ChannelClass) GetConstruct() data.Method {
 }
 
 // AddAnnotations 添加注解
-func (c *ChannelClass) AddAnnotations(a *data.ClassValue) {
+func (c *ChannelClass) AddAnnotations(a *data.ClassValue, _ *node.Annotation) {
 	// 暂时不处理注解
 }

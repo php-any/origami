@@ -201,7 +201,7 @@ func (p *AnnotationParser) Parse() (data.GetValue, data.Control) {
 				}
 				if c, ok := next.(node.AddAnnotations); ok {
 					if o, ok := obj.(*data.ClassValue); ok {
-						c.AddAnnotations(o)
+						c.AddAnnotations(o, an)
 					}
 				}
 			}

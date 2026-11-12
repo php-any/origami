@@ -334,7 +334,7 @@ func callClassAnnotation(p *Parser, ans *[]*node.Annotation, c node.AddAnnotatio
 			return acl
 		}
 		if o, ok := obj.(*data.ClassValue); ok {
-			c.AddAnnotations(o)
+			c.AddAnnotations(o, an)
 		}
 	}
 	return nil
@@ -612,7 +612,7 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 					}
 				}
 				if o, ok := obj.(*data.ClassValue); ok {
-					ret.AddAnnotations(o)
+					ret.AddAnnotations(o, an)
 				}
 			}
 			for i := len(callAnn) - 1; i >= 0; i-- {
@@ -702,7 +702,7 @@ func (p *ClassParser) parsePropertyWithAnnotations(modifier string, isStatic boo
 				}
 			}
 			if o, ok := obj.(*data.ClassValue); ok {
-				ret.AddAnnotations(o)
+				ret.AddAnnotations(o, an)
 			}
 		}
 		for i := len(callAnn) - 1; i >= 0; i-- {
@@ -878,7 +878,7 @@ func (p *ClassParser) parseMethodWithAnnotations(modifier string, isStatic bool,
 				}
 				if c, ok := ret.(node.AddAnnotations); ok {
 					if o, ok := obj.(*data.ClassValue); ok {
-						c.AddAnnotations(o)
+						c.AddAnnotations(o, an)
 					}
 				}
 			}
